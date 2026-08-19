@@ -178,6 +178,8 @@
   margin-left: auto; background: var(--brand-navy, #1d4ed8); color: #fff;
   font-size: 12px; padding: 2px 8px; border-radius: 999px; font-weight: 700;
 }
+/* An errored run must not wear the same confident badge as a clean one. */
+.tctr-badge--error { background: #b91c1c; }
 
 .tctr-sec-label {
   font-size: 12px; font-weight: 700; color: var(--tctr-muted); text-transform: uppercase;

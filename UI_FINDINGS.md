@@ -12,10 +12,10 @@ Source: Playwright drive of `https://local.ping-devops.com:4000` on **2026-08-19
 
 | # | Finding | Area | Severity | Status | Notes |
 |---|---------|------|----------|--------|-------|
-| 1 | Verification pill never dismisses | UI | High | OPEN | |
-| 2 | Pill covers the Sign Out button | UI | High | OPEN | Same root cause as #1 |
-| 3 | `consent-challenge/:id/confirm` 404s twice, demo still scores ✅ | BFF + verdict | High | OPEN | |
-| 4 | Chain badged `CHAINED` while carrying 401s | UI | Medium | OPEN | |
+| 1 | Verification pill never dismisses | UI | High | FIXED | PR #2155 — `banner → pill → gone` cycle |
+| 2 | Pill covers the Sign Out button | UI | High | FIXED | PR #2155 — overlay moved below the 60px TopNav |
+| 3 | `consent-challenge/:id/confirm` 404s during a live drive | unknown | High | OPEN | Rescoped twice; 3 of 4 claims withdrawn, incl. my own log evidence |
+| 4 | Chain badge was a hardcoded string, so an errored run looked clean | UI | Medium | FIXED | PR #2155 — badge derives from `runStory.outcome` |
 | 5 | Scope diff on chain step 10 is unreadable | UI | Medium | OPEN | Highest demo-value fix |
 | 6 | 25 sidebar groups, 7 ways to start a demo, Sign Out ×3 | IA | Medium | OPEN | |
 | 7 | Button colours carry no hierarchy | UI | Low | OPEN | |
@@ -25,29 +25,67 @@ Source: Playwright drive of `https://local.ping-devops.com:4000` on **2026-08-19
 
 ---
 
-### 1. The green ✅ verification pill never goes away — OPEN
+### 1. The green ✅ verification pill never goes away — FIXED (PR #2155)
 
-`demo_api_ui/src/components/VerifiedBanner.jsx:20-38` collapses the banner to a pill after 6s, but the pill has no dismiss timer and no close button. It stayed pinned top-right reading `✅ hitl-consent verified` while the confirm call 404'd twice and the user declined the transaction.
+`demo_api_ui/src/components/VerifiedBanner.jsx` collapsed the banner to a pill after 6s, and nothing ever cleared the pill — no dismiss timer, no close button. It stayed pinned top-right reading `✅ hitl-consent verified` while the confirm call 404'd twice and the user declined the transaction.
 
 Worst case in front of a customer: a green checkmark parked over a broken flow.
 
-**Fix:** second `setTimeout` to clear the pill, or add an ✕.
+**Fixed:** `VerifiedBanner` now runs a three-phase cycle — `banner` (6s) → `pill` (15s) → `gone` — replacing the one-shot `collapsed` boolean. Clicking the pill restarts the cycle from `banner`, which also closes a latent bug in the old code: re-expanding set `collapsed = false` without arming a new timer, so a re-opened banner stayed open for the rest of the session.
 
-### 2. That pill physically covers the Sign Out button — OPEN
+**Evidence:** `VerifiedBanner.test.jsx` — 7 tests pass; the two new ones fail against the pre-fix component (verified by stashing the fix and re-running).
 
-`createPortal` → `document.body`, fixed positioning, no z-index coordination with the topbar. "Sign Out" renders as "Si". Resolved by fixing #1.
+### 2. That pill physically covers the Sign Out button — FIXED (PR #2155)
 
-### 3. `POST /api/transactions/consent-challenge/:id/confirm` 404s twice, demo still reports success — OPEN
+`createPortal` → `document.body` at `top: 14px`, inside the 60px TopNav. "Sign Out" rendered as "Si".
 
-Console showed two 404s on the same challenge id ~3.5s apart. Route exists (`demo_api_server/routes/transactions.js:198`), so `txConsent.confirmChallenge` did not find the challenge in session — and the button fired twice with no in-flight guard. The verdict engine scored "approval was required" ✅ without ever checking that the transfer executed.
+**Fixed:** both `.verified-banner` and `.verified-pill` moved to `top: 72px`, clearing the nav. `TopNav.css` untouched — it is a `REGRESSION_PLAN.md` §1 protected surface, and the overlay is the thing that was in the wrong place.
 
-**Fix:** disable confirm while in-flight; make the UC8 verdict require the terminal outcome, not just that a challenge was raised.
+### 3. `POST /api/transactions/consent-challenge/:id/confirm` 404s — OPEN, rescoped
 
-### 4. Token chain says `CHAINED` while carrying `tools/call 401` and `MCP error` — OPEN
+**The 404 is real.** Two on the same challenge id, ~3.5s apart, during a live UC8 run.
 
-Steps 16 and 17 are red failures inside a chain badged green `CHAINED`. The badge means "steps are linked"; the audience reads "it worked".
+**Two of the three original claims were wrong, and are withdrawn:**
 
-**Fix:** rename to `LINKED`, or make the badge reflect worst-step status.
+- ~~"the button fired twice with no in-flight guard"~~ — `TransactionConsentModal.tsx:317` guards on `submitting` and returns early. The double-fire has another cause.
+- ~~"the verdict scored green without checking the transfer executed"~~ — by design. UC8's `expectedOutcome` is `HITL_REQUIRED`, which `ProofOfEnforcementContext.js:18` maps to the `denied-as-expected` family. The verdict proves *enforcement* — that the approval gate fired — not that the transaction succeeded. A decline is still a pass, correctly. `handleDenialConfirm` already records the decline via `tokenChainTraceStore.ingestApprovalDeclined()`.
+
+**A third claim is now also withdrawn — this one was mine, and it was the load-bearing one.**
+
+I reported that `docker logs ai-demo-api-server` over a 120-minute window contained **zero** `POST /api/transactions`, and concluded the confirm never reached the BFF. That evidence is void:
+
+```bash
+docker inspect ai-demo-api-server --format '{{.State.StartedAt}}'
+  -> 2026-08-19T03:11:41Z          # the failing run was ~03:06:45Z
+docker inspect ai-demo-ui         --format '{{.State.StartedAt}}'
+  -> 2026-08-19T03:06:10Z          # ~35s before the failing request
+```
+
+The BFF container restarted *after* the failure, so I was reading the logs of a container that had not been running when the request was made. Absence of log lines there proves nothing at all. `docker ps` at the time reported "Up 25 minutes", which is what I checked — but that was a snapshot taken before the 03:11 restart, not a statement about the window I went on to query.
+
+**What is actually known:**
+
+- The 404 happened. That is directly observed in the browser console.
+- The endpoint itself is healthy. Probed both ways (ai-demo2-54): `POST .../consent-challenge/probe-nonexistent/confirm` returns an identical JSON 401 through nginx on `:4000` and direct on `:3001`. The route is mounted, nginx proxies POSTs, and the response is BFF JSON — not an HTML proxy 404.
+- `ai-demo-ui` (nginx — serves the SPA *and* proxies `/api` for anything loaded from `:4000`) restarted 35 seconds before the failing request.
+
+**Still ruled out:** the `#2148` authz-server dotenvx bug (fixed container serving from 02:50:39Z, ~16 min before the run, and it produced a DENY not a 404). The hitl-service store (wrong subsystem — these challenges live in the BFF session). Single-use consumption and TTL expiry (those return 409 and 410 respectively, from code paths with different status codes).
+
+**Leading hypothesis, not yet proven:** collateral from the `ai-demo-ui` restart rather than a code fault. It fits the timing and would explain why the window closed and the failure could not be reproduced afterwards. It does not yet explain a clean 404 a full 35s after nginx came back.
+
+**Open, being reproduced properly.** Method for the retry, since the last two attempts were void for a different reason (the llama.cpp agent stalled and the modal never opened): pin `docker inspect <ui,bff> --format '{{.State.StartedAt}}'` before and after the run, and treat the run as void rather than a finding if either moved. Capture the 404 response body — JSON means the BFF answered, HTML means a proxy or static handler did, which separates the two remaining branches in one look.
+
+**Standing lesson, worth more than this one 404.** `deploy-live.sh` takes a lock so two deploys cannot race, but nothing warns a session mid live-UI-drive that its containers are about to be pulled. Any deploy restarts `ui` and/or `demo-api-server` under whoever is driving the browser, and it surfaces as an inexplicable 404/502 with no server-side trace. Before trusting any live-drive observation, check when the ground moved.
+
+### 4. Chain badge was a hardcoded string, so an errored run looked clean — FIXED (PR #2155)
+
+**Original claim partly wrong:** the `tools/list 401` / `tools/call 401` steps are *not* failures. They are the RFC 9728 challenge probe, and a 401 there is the gateway refusing an anonymous call — the control working. `buildTraceSteps.js` paints them `done` deliberately, and says so.
+
+**The real defect:** `CHAINED` was a literal string in both chain surfaces (`TokenChainTraceRail.jsx`, `TokenChainFilmstrip.jsx`). It never reflected anything, so a run that ended in a genuine error step (step 17, `MCP · error`) wore exactly the same confident badge as a clean one.
+
+**Fixed:** new `chainBadge(trace, steps)` helper in `buildTraceSteps.js`, used by both surfaces. It derives tone from `buildRunStory().outcome`, so it inherits that function's existing judgement — an *expected* DENY stays `CHAINED` because the control worked, and the by-design 401s stay `done`. Only a genuine error step flips the badge to `RUN ERROR` in red.
+
+**Evidence:** 4 new tests in `buildTraceSteps.test.js` (94 pass in that file); full UI suite 389 files / 3319 tests pass; build exit 0.
 
 ### 5. Step 10's scope diff is unreadable — OPEN
 
@@ -89,4 +127,7 @@ Dark mode · narrow/mobile widths · the other 11 verticals · every admin surfa
 
 ## Changelog
 
+- 2026-08-19 — #3 rescoped again: my "zero POST in the BFF logs" evidence was void (the BFF container restarted after the failure, so I queried logs from a container that was not running at the time). Reproduction method corrected to pin container StartedAt before and after a run.
+- 2026-08-19 — #4 FIXED (PR #2155), #3 rescoped. Investigating #3 disproved two of its three original claims and showed the confirm never reaches the BFF; #4's premise about the 401s was also wrong, though its badge defect was real. Corrections recorded in place rather than quietly dropped.
+- 2026-08-19 — #1 and #2 FIXED (PR #2155). `VerifiedBanner` gained a `banner → pill → gone` cycle and moved below the TopNav.
 - 2026-08-19 — initial pass, 10 findings, all OPEN.

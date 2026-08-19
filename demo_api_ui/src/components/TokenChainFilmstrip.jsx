@@ -9,7 +9,7 @@
 // in the narrowest column on screen.
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
-import { MCP_STEP_IDS } from "../services/tokenChainTrace/buildTraceSteps";
+import { MCP_STEP_IDS, chainBadge } from "../services/tokenChainTrace/buildTraceSteps";
 import { resolveInspectClaims } from "../services/tokenChainTrace/resolveInspectClaims";
 import { isFlagOn, shouldShowTrustTab } from "../utils/tokenChainTrust";
 import { useTokenChainOptional } from "../context/TokenChainContext";
@@ -142,6 +142,7 @@ export default function TokenChainFilmstrip() {
   const { trace } = snap;
   const classicSteps = snap.steps;
   const steps = viewMode === "classic" ? classicSteps : buildLiveTokenChainSteps(classicSteps, trace);
+  const badge = chainBadge(trace, classicSteps);
 
   // Clearing a run must drop the selection, the sheet and the presenter, or the
   // next run reopens whatever was left behind.
@@ -207,7 +208,7 @@ export default function TokenChainFilmstrip() {
           <span className="tcfs-arrow">→</span>
           <span className="tcfs-dot tcfs-dot--mcp" /> MCP
         </span>
-        <span className="tcfs-badge">CHAINED</span>
+        <span className={`tcfs-badge tcfs-badge--${badge.tone}`}>{badge.label}</span>
         <div className="tcfs-actions">
           <ChainViewMenu
             steps={steps}

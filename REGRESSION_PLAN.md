@@ -106,6 +106,41 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-19 — The proof-of-enforcement pill never dismissed and sat over TopNav Sign Out
+
+**Files changed:** `demo_api_ui/src/components/VerifiedBanner.jsx`,
+`demo_api_ui/src/components/VerifiedBanner.css`, tests
+`VerifiedBanner.test.jsx` (2 added). Found by driving the live UI — logged as
+`UI_FINDINGS.md` #1 and #2.
+
+**What was broken:** the banner collapsed to a pill after 6s and then stayed
+there for the rest of the session. Because the pill is portaled to
+`document.body` at `top: 14px` — inside the 60px TopNav — it covered the Sign
+Out button. Worse, it kept asserting a stale verdict: during a UC8 run the pill
+read `✅ hitl-consent verified` while the confirm call 404'd twice and the user
+declined. A second, latent bug shared the cause: clicking the pill set
+`collapsed = false` without arming a new timer, so a re-opened banner never
+collapsed again.
+
+**What was fixed:** the one-shot `collapsed` boolean became an explicit
+three-phase cycle — `banner` (6s) → `pill` (15s) → `gone` — driven by one
+effect keyed on `[key, phase]`. Clicking the pill returns to `banner` and the
+cycle restarts, which closes the re-expand bug. Both `.verified-banner` and
+`.verified-pill` moved to `top: 72px` to clear the nav.
+
+**Do not break:** `key` stays **content-derived**
+(`useCaseId:state:matchedSteps`), not object identity —
+`ProofOfEnforcementContext.recompute()` re-emits an equal verdict as a fresh
+object, and keying on identity would restart the cycle on every recompute and
+pin the banner open forever. The reset effect must stay keyed on `key` alone;
+adding `phase` to it makes the two effects fight and the banner never advances.
+`TopNav.css` is deliberately untouched — the overlay was in the wrong place, the
+nav was not.
+
+**Verify:** `cd demo_api_ui && npm run test:unit -- src/components/__tests__/VerifiedBanner.test.jsx`
+— 7 passed; `npm run build` exit 0. The two new tests were confirmed to FAIL
+against the pre-fix component (fix stashed, re-run, 2 failed / 5 passed).
+
 ### 2026-08-19 — Agent action chips were hidden from guests instead of auth-gated at dispatch
 
 **Files changed:** `demo_api_ui/src/components/AIAgent.js` (render gate +

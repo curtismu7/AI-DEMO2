@@ -1,4 +1,4 @@
-import { buildTraceSteps, buildRunStory, buildGatewayStages } from "../buildTraceSteps";
+import { buildTraceSteps, buildRunStory, buildGatewayStages, chainBadge } from "../buildTraceSteps";
 import { hasPopoutWorthyDetail } from "../../../components/TraceStepCard";
 
 const EMPTY_TRACE = {
@@ -1084,6 +1084,37 @@ describe("buildRunStory — L0 strip", () => {
     expect(story.headline).toMatch(/PERMIT/);
     expect(story.outcome).toBe("ok");
     expect(story.bits.length).toBeGreaterThan(0);
+  });
+});
+
+describe("chainBadge — an errored run must not wear the clean badge", () => {
+  test("a clean run reads CHAINED", () => {
+    const steps = buildTraceSteps({ ...EMPTY_TRACE, outcome: "ok", prompt: { message: "show my balance" } });
+    expect(chainBadge({ ...EMPTY_TRACE, outcome: "ok", prompt: { message: "show my balance" } }, steps))
+      .toEqual({ label: "CHAINED", tone: "ok" });
+  });
+
+  test("a run with an error step stops claiming CHAINED", () => {
+    const badge = chainBadge(
+      { ...EMPTY_TRACE, outcome: "error", prompt: { message: "transfer $300" } },
+      [{ id: "mcp-call", title: "MCP", status: "error" }],
+    );
+    expect(badge).toEqual({ label: "RUN ERROR", tone: "error" });
+  });
+
+  test("an EXPECTED deny is the control working, so the badge stays CHAINED", () => {
+    const trace = {
+      ...EMPTY_TRACE,
+      outcome: "ok",
+      prompt: { message: "transfer $9000" },
+      mcpResult: { denied: true, expected: true },
+    };
+    expect(chainBadge(trace, [{ id: "mcp-call", title: "MCP", status: "error" }]))
+      .toEqual({ label: "CHAINED", tone: "ok" });
+  });
+
+  test("no trace at all yields no error claim", () => {
+    expect(chainBadge(EMPTY_TRACE, [])).toEqual({ label: "CHAINED", tone: "ok" });
   });
 });
 

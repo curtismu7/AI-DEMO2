@@ -1,37 +1,47 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useProofOfEnforcement } from '../context/ProofOfEnforcementContext';
 import './VerifiedBanner.css';
 
 const GOOD_STATES = new Set(['verified', 'denied-as-expected']);
 
+// The verdict announces itself, shrinks out of the way, then clears itself:
+// banner -> pill -> gone. The last hop is the point — without it the pill sat
+// over the TopNav Sign Out button for the rest of the session, still reading
+// "verified" long after the run it described had failed.
+const PHASE_MS = { banner: 6000, pill: 15000 };
+const NEXT_PHASE = { banner: 'pill', pill: 'gone' };
+
 export default function VerifiedBanner({ onExpand }) {
   const { verdict } = useProofOfEnforcement();
-  const [collapsed, setCollapsed] = useState(false);
-  const timerRef = useRef(null);
+  const [phase, setPhase] = useState('banner');
 
   const key = verdict
     ? `${verdict.useCaseId}:${verdict.state}:${verdict.matchedSteps.join(',')}`
     : null;
 
+  // A genuinely new verdict restarts the cycle. Keyed on content, not object
+  // identity, so recompute() re-emitting an equal verdict does not reset it.
   useEffect(() => {
-    if (!key) return;
-    setCollapsed(false);
-    clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => setCollapsed(true), 6000);
-    return () => clearTimeout(timerRef.current);
+    if (key) setPhase('banner');
   }, [key]);
 
-  if (!verdict) return null;
+  useEffect(() => {
+    if (!key || phase === 'gone') return undefined;
+    const timer = setTimeout(() => setPhase(NEXT_PHASE[phase]), PHASE_MS[phase]);
+    return () => clearTimeout(timer);
+  }, [key, phase]);
+
+  if (!verdict || phase === 'gone') return null;
   const good = GOOD_STATES.has(verdict.state);
 
-  if (collapsed) {
+  if (phase === 'pill') {
     return createPortal(
       <button
         type="button"
         data-testid="verified-pill"
         className={`verified-pill${good ? '' : ' verified-pill--mismatch'}`}
-        onClick={() => { setCollapsed(false); onExpand && onExpand(); }}
+        onClick={() => { setPhase('banner'); onExpand && onExpand(); }}
       >
         {good ? '✅' : '⚠️'} {verdict.useCaseId} {good ? 'verified' : verdict.state}
       </button>,

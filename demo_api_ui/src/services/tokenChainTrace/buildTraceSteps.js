@@ -556,6 +556,29 @@ export function buildRunStory(trace, steps) {
 }
 
 /**
+ * Badge shown beside the User → Agent → MCP dots. It used to be the literal
+ * string "CHAINED" in both chain surfaces, so a run that ended in an error step
+ * wore the same confident badge as a clean one — the audience reads a green
+ * pill next to a red step and believes the pill.
+ *
+ * Tone comes from the run story the rail already narrates, so this inherits its
+ * judgement for free — including that an EXPECTED deny is the control working,
+ * not a failure, and that a 401 on the MCP challenge legs paints `done` because
+ * the gateway refusing an anonymous call is the control answering correctly.
+ * Only a genuine error step flips the badge.
+ *
+ * @param {object} trace  token chain trace
+ * @param {Array}  steps  classic (unfiltered) steps — same input buildRunStory takes
+ * @returns {{ label: string, tone: 'ok' | 'error' }}
+ */
+export function chainBadge(trace, steps) {
+  const story = buildRunStory(trace, steps);
+  return story?.outcome === 'error'
+    ? { label: 'RUN ERROR', tone: 'error' }
+    : { label: 'CHAINED', tone: 'ok' };
+}
+
+/**
  * One leg of the MCP authorization handshake: the credential-less request the
  * gateway refuses, plus the RFC 9728 metadata its challenge pointed at. Shared
  * by the tools/list and tools/call legs, which emit identical event types and

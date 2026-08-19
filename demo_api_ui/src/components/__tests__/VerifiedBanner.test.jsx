@@ -43,6 +43,40 @@ test('a mismatch verdict collapses to a pill with the pill mismatch modifier cla
   expect(screen.getByTestId('verified-pill')).not.toHaveClass('verified-banner--mismatch');
 });
 
+test('the pill clears itself instead of sitting over the TopNav for the rest of the session', () => {
+  jest.spyOn(proofCtx, 'useProofOfEnforcement').mockReturnValue({
+    verdict: { useCaseId: 'hitl-consent', title: 'HITL consent', state: 'verified', matchedSteps: ['authorize-decision'], missingSteps: [] },
+    history: [],
+  });
+  render(<VerifiedBanner onExpand={() => {}} />);
+
+  act(() => { jest.advanceTimersByTime(6100); });
+  expect(screen.getByTestId('verified-pill')).toBeInTheDocument();
+
+  act(() => { jest.advanceTimersByTime(15100); });
+  expect(screen.queryByTestId('verified-pill')).not.toBeInTheDocument();
+  expect(screen.queryByTestId('verified-banner')).not.toBeInTheDocument();
+});
+
+test('re-expanding from the pill restarts the cycle rather than pinning the banner open', () => {
+  jest.spyOn(proofCtx, 'useProofOfEnforcement').mockReturnValue({
+    verdict: { useCaseId: 'hitl-consent', title: 'HITL consent', state: 'verified', matchedSteps: ['authorize-decision'], missingSteps: [] },
+    history: [],
+  });
+  render(<VerifiedBanner onExpand={() => {}} />);
+
+  act(() => { jest.advanceTimersByTime(6100); });
+  act(() => { screen.getByTestId('verified-pill').click(); });
+  expect(screen.getByTestId('verified-banner')).toBeInTheDocument();
+
+  // Same verdict, so the content key is unchanged — the cycle has to restart
+  // off the phase change alone, or the re-opened banner never collapses again.
+  act(() => { jest.advanceTimersByTime(6100); });
+  expect(screen.getByTestId('verified-pill')).toBeInTheDocument();
+  act(() => { jest.advanceTimersByTime(15100); });
+  expect(screen.queryByTestId('verified-pill')).not.toBeInTheDocument();
+});
+
 test('does not silently cancel the collapse timer when recompute() emits a fresh-identity, same-content verdict object', () => {
   const verdictA = { useCaseId: 'step-up-required', title: 'Step-up required', state: 'verified', matchedSteps: ['authorize-decision'], missingSteps: [] };
   jest.spyOn(proofCtx, 'useProofOfEnforcement').mockReturnValue({ verdict: verdictA, history: [] });

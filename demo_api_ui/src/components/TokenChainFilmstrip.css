@@ -313,6 +313,8 @@ body:has(.dashboard-content.ud-body.ud-focus-mode) .footer {
   border-radius: 999px;
   padding: 2px 9px;
 }
+/* An errored run must not wear the same confident badge as a clean one. */
+.tcfs-badge--error { background: #b91c1c; }
 
 .tcfs-actions {
   margin-left: auto;
