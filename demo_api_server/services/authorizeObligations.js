@@ -51,12 +51,21 @@
  * @returns {'stepUp'|'consent'|'hitl'|null}
  */
 function classifyObligation(ob) {
-  // Accept the identifier under type, id, OR code — PingOne Authorize returns
-  // applied rule effects as `statements[].code` (e.g. 'step-up-required',
-  // 'HITL', 'HITL_CONSENT'), while XACML-style obligations/advice use type/id.
-  // Normalize away separators/case so hyphenated codes ('step-up-required')
-  // match the same patterns as underscored types ('STEP_UP').
-  const raw = String((ob && (ob.type || ob.id || ob.code)) || '').toUpperCase();
+  // Accept the identifier under type, id, code OR name — PingOne Authorize
+  // returns applied rule effects as `statements[].code` (e.g.
+  // 'step-up-required', 'HITL', 'HITL_CONSENT'), while XACML-style
+  // obligations/advice use type/id. Normalize away separators/case so
+  // hyphenated codes ('step-up-required') match the same patterns as
+  // underscored types ('STEP_UP').
+  //
+  // `name` was missing here while the Node gateway's classifier
+  // (demo_mcp_gateway/src/auth/authorizeObligations.ts) has always read all
+  // four. That divergence fails in the DANGEROUS direction: an obligation
+  // carrying only `name` classified to a gate in the gateway and to null in
+  // the BFF, so the same PDP response gated one path and passed the other
+  // ungated. Same disease as the missing ELICITATION vocabulary #2133 fixed in
+  // the Groovy classifier — two hand-maintained readers of one contract.
+  const raw = String((ob && (ob.type || ob.id || ob.code || ob.name)) || '').toUpperCase();
   if (!raw) return null;
   const key = raw.replace(/[^A-Z0-9]/g, '');
   // Order matters: HITL_CONSENT before HITL (most specific first).
