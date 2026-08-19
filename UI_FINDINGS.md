@@ -19,7 +19,7 @@ Source: Playwright drive of `https://local.ping-devops.com:4000` on **2026-08-19
 | 5 | Scope diff on the chain map card is unreadable | UI | Medium | FIXED | PR #2160 — map states the shape, detail panel keeps the chips |
 | 6 | 25 sidebar groups, 7 ways to start a demo, Sign Out ×3 | IA | Medium | OPEN | |
 | 7 | Button colours carry no hierarchy | UI | Low | OPEN | |
-| 8 | User prompt bubble layout broken | UI | Medium | OPEN | |
+| 8 | User prompt bubble layout broken | UI | — | INVALID | Not a bug — I photographed a scrolled pane |
 | 9 | Home and Dashboard are two different apps | IA | Low | OPEN | |
 | 10 | `/dashboard` shows no banking data; `/api/token-chain` 401 on cold load | UI + BFF | Low | OPEN | |
 | 11 | CIBA phone simulator is a dead end in every non-pending state | UI | High | FIXED | PR #2158 — reported by the user as "never accepts Approve" |
@@ -112,9 +112,20 @@ Red `Controls`, red `Reset Demo`, green `Demo steps`, purple `Live Use Cases`, b
 
 **Fix:** one primary per region; reserve red for Reset.
 
-### 8. The user's own prompt bubble is broken — OPEN
+### 8. The user's own prompt bubble is broken — INVALID
 
-The `Copy` button renders as a large blue block at the top-left of the bubble, the prompt text is pushed out of view, and the "You" label sits outside the bubble on the right. Present in every screenshot of the chat pane.
+There is no layout bug. Every part of this finding was an artifact of the screenshot I read it from. Measured against the live page:
+
+| What I claimed | What the page does |
+|---|---|
+| "prompt text is pushed out of view" | `overflow: visible` on `.banking-agent-msg`, `scrollHeight 53` vs `clientHeight 51` — a 2px sub-pixel delta. Nothing is clipped. |
+| "`Copy` renders as a large blue block at the top-left" | No Copy button exists in the DOM for a typed message, at rest or on hover. It renders only for `msg.isPrompt` (demo-step prompts), as `display: inline-block` **below** the text (`AIAgent.css:1456`). |
+| "the 'You' label sits outside the bubble" | That is the design. The label sits beside the bubble on every message, user and assistant alike. |
+| implied: the pane does not follow the conversation | `distanceFromBottom: 0`, `lastMsgVisible: true`. Auto-scroll works. |
+
+**What I actually photographed.** The capture was taken just after dismissing a modal, with the chat pane scrolled mid-message, so only the bubble's lower edge — which is where the Copy button lives — sat above the fold, with its text scrolled past the top of the scroll container. Ordinary scrolling, read as a broken layout.
+
+**Why it is worth leaving in the doc.** This is the third finding in this set whose evidence dissolved on contact, and the second where the fault was in how I captured the page rather than in the page. Deleting the row would hide that pattern; a fix invented to match the description would have added spacing and re-ordering to a component that was already correct.
 
 ### 9. Home and Dashboard are two different apps — OPEN
 
@@ -154,6 +165,8 @@ Two things made that state easy to reach and impossible to leave:
 Dark mode · narrow/mobile widths · the other 11 verticals · every admin surface.
 
 ## Changelog
+
+- 2026-08-19 — #8 closed INVALID. Re-verified against the live page before touching anything: no clipping, no misplaced Copy button, auto-scroll working. The original capture was a scrolled pane, not a layout bug.
 
 - 2026-08-19 — #5 FIXED (PR #2160). Also withdrew its "no separators" claim: the chips were spaced, and the run-on text was an artifact of how I captured the page. The real defect was nine chips in a 130px card.
 
