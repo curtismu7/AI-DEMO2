@@ -162,7 +162,18 @@ beforeEach(() => {
   global.fetch = vi.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) }));
 });
 
-/** `/dashboard` is a guest-chat surface — the case the old gate got wrong. */
+/**
+ * `/dashboard` is a guest-chat surface — the case the old gate got wrong.
+ *
+ * WHAT THIS DOES NOT SIMULATE: in the real app `user` arrives asynchronously
+ * (isLoggedIn = !!(user || sessionUser), both resolved after mount), so every
+ * load has a window where the component is mounted and signed-out-looking
+ * before the session lands. Passing `user` here skips that window entirely —
+ * a defect that lives in it is unreachable from a renderAt-based spec (the
+ * queued-question resume bug #1963 shipped "fixed" three times against a
+ * green suite this way). Any spec touching auth-dependent effects should use
+ * renderAtHydrating() below instead.
+ */
 function renderAt(path, user = null) {
   return render(
     <MemoryRouter initialEntries={[path]}>
@@ -173,6 +184,37 @@ function renderAt(path, user = null) {
       </ActivityNarrativeProvider>
     </MemoryRouter>,
   );
+}
+
+/**
+ * Mount signed-out first (the hydration window every real load has), then let
+ * the caller land the session with `resolveSession(user)`. Assertions made
+ * between mount and resolveSession run inside the window renderAt cannot
+ * create.
+ */
+function renderAtHydrating(path) {
+  const view = render(
+    <MemoryRouter initialEntries={[path]}>
+      <ActivityNarrativeProvider>
+        <ProofOfEnforcementProvider>
+          <AIAgent user={null} mode="inline" />
+        </ProofOfEnforcementProvider>
+      </ActivityNarrativeProvider>
+    </MemoryRouter>,
+  );
+  const resolveSession = async (user) => {
+    view.rerender(
+      <MemoryRouter initialEntries={[path]}>
+        <ActivityNarrativeProvider>
+          <ProofOfEnforcementProvider>
+            <AIAgent user={user} mode="inline" />
+          </ProofOfEnforcementProvider>
+        </ActivityNarrativeProvider>
+      </MemoryRouter>,
+    );
+    await act(async () => { await new Promise((r) => setTimeout(r, 300)); });
+  };
+  return { ...view, resolveSession };
 }
 
 async function runStep(uc) {
@@ -424,17 +466,8 @@ describe("resuming a queued step after sign-in", () => {
       flags: ["ff_a2a_delegation"],
     });
 
-    // First render: signed out on a guest-chat surface, exactly as the page
-    // looks for the moment before the session resolves.
-    const { rerender } = render(
-      <MemoryRouter initialEntries={["/dashboard"]}>
-        <ActivityNarrativeProvider>
-          <ProofOfEnforcementProvider>
-            <AIAgent user={null} mode="inline" />
-          </ProofOfEnforcementProvider>
-        </ActivityNarrativeProvider>
-      </MemoryRouter>,
-    );
+    // Mount signed out — the hydration window every real load has.
+    const { resolveSession } = renderAtHydrating("/dashboard");
     await settle();
 
     // Must not have gone yet — there is nothing to arm with and no session.
@@ -442,16 +475,7 @@ describe("resuming a queued step after sign-in", () => {
     expect(apiPatch).not.toHaveBeenCalled();
 
     // Session lands.
-    rerender(
-      <MemoryRouter initialEntries={["/dashboard"]}>
-        <ActivityNarrativeProvider>
-          <ProofOfEnforcementProvider>
-            <AIAgent user={ADMIN} mode="inline" />
-          </ProofOfEnforcementProvider>
-        </ActivityNarrativeProvider>
-      </MemoryRouter>,
-    );
-    await settle();
+    await resolveSession(ADMIN);
 
     await waitFor(() => expect(sendAgentMessage).toHaveBeenCalled());
     expect(apiPatch).toHaveBeenCalledWith(
