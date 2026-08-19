@@ -1,5 +1,14 @@
 module.exports = {
   testEnvironment: 'node',
+  // Clear mock CALL HISTORY before every test (implementations/return values
+  // are preserved — this is mockClear, not mockReset). Without it, automock
+  // state leaked across tests in a file: an assertion like
+  // `expect(configStore.setRaw).toHaveBeenCalledWith(...)` passed because an
+  // EARLIER test made that call, while the behaviour it claimed to cover never
+  // ran (TECH_DEBT 2026-08-18 "Shared jest automocks let an assertion pass on
+  // a different test's call"). Tests that genuinely need call history from a
+  // beforeAll must collect it explicitly.
+  clearMocks: true,
   // uuid v9+ and jose v6+ are ESM-only; Jest runs CJS — redirect to minimal CJS shims.
   // jose arrives transitively via @a2a-js/sdk's bundled CJS (dist/*.cjs), which
   // `require("jose")`s at module scope for its unused agent-card-signature helper —
