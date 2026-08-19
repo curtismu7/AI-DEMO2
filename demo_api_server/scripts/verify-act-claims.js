@@ -59,7 +59,18 @@ async function verifyActClaims() {
   console.log('Configuration:');
   console.log(`  PINGONE_RESOURCE_MCP_SERVER_URI: ${mcpResourceUri || '(not set - exchange will be skipped)'}`);
   console.log(`  USE_AGENT_ACTOR_FOR_MCP: ${useActor}`);
-  console.log(`  PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_ID: ${process.env.PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_ID || process.env.AGENT_OAUTH_CLIENT_ID || '(not set)'}\n`);
+  // Same alias chain configStore uses for pingone_token_exchanger_client_id
+  // (services/configStore.js ~1180). This line previously read only the
+  // PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_ID / AGENT_OAUTH_CLIENT_ID pair and so
+  // printed "(not set)" on a correctly configured system — docs/ENV.md declares
+  // PINGONE_TOKEN_EXCHANGER_CLIENT_ID canonical and that is the name .env
+  // actually carries. A diagnostic that reports working config as missing is
+  // worse than no diagnostic: it sends you looking for the wrong thing.
+  const exchangerClientId = process.env.PINGONE_TOKEN_EXCHANGER_CLIENT_ID
+    || process.env.PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_ID
+    || process.env.PINGONE_MCP_EXCHANGER_CLIENT_ID
+    || process.env.AGENT_OAUTH_CLIENT_ID;
+  console.log(`  Token exchanger client id: ${exchangerClientId || '(not set)'}\n`);
 
   if (!mcpResourceUri) {
     console.log('⚠️  PINGONE_RESOURCE_MCP_SERVER_URI not configured. Token exchange will be skipped.');
