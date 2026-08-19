@@ -21,8 +21,28 @@ const DB_NAME = 'reports';
 // populate prompt/intent differently, so we key on user+vertical+time only.
 const DEDUP_WINDOW_MS = 5000;
 
+// Reports were the largest live consumer of the shared 128MB LMDB env and the
+// only store with NO prune (measured 2026-08-18: 966 runs = 14.9MB of ~21MB
+// total live data). Same pattern as conversationStore's per-thread cap: on each
+// genuinely-new run, drop the oldest runs past the ceiling. ~16KB average per
+// run keeps the steady state near 8MB.
+const MAX_REPORT_RUNS = 500;
+
 function _db() {
   return getDb(DB_NAME);
+}
+
+function _pruneIfNeeded(db) {
+  const all = [];
+  for (const { key, value } of db.getRange()) {
+    all.push({ key, at: (value && (value.startedAt || value.savedAt)) || '' });
+  }
+  if (all.length <= MAX_REPORT_RUNS) return;
+  // Oldest first; ISO timestamps sort lexicographically.
+  all.sort((a, b) => a.at.localeCompare(b.at));
+  for (const { key } of all.slice(0, all.length - MAX_REPORT_RUNS)) {
+    db.removeSync(key);
+  }
 }
 
 function saveRun(record) {
@@ -50,6 +70,9 @@ function saveRun(record) {
     runId,
     savedAt: new Date().toISOString(),
   });
+  // Only a NEW run can grow the store past the cap; a re-save (appendFile)
+  // overwrites in place and must never trigger deletions mid-append.
+  if (isNew) _pruneIfNeeded(db);
 }
 
 function getRun(userId, runId) {

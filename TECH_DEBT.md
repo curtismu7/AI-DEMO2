@@ -1211,7 +1211,24 @@ traps apply directly: `obligatory:false` is NOT safe to treat as optional, and a
 INDETERMINATE with no obligation must resolve to DENY (#1310). Memory:
 `project-indeterminate-two-meanings`.
 
-### [ ] 2026-08-18 — The LMDB store is at 66% of a hard 128MB ceiling and nothing watches it
+### [x] 2026-08-18 — The LMDB store is at 66% of a hard 128MB ceiling and nothing watches it
+
+**RESOLVED 2026-08-18 (part 2, branch `worktree-lmdb-measure`) — measured,
+explained, and bounded; `mapSize` deliberately NOT raised.** Per-DB analysis of
+a copy of the live store (`scripts/lmdb-stats.js`, new): the 84.4MB file holds
+only **~21.2MB of live data** — 75% is free/fragmented pages, the legacy of the
+pre-#1976 broken delete, exactly as this entry suspected. Largest live
+consumer: `reports` (966 entries, 14.9MB) — the ONLY store with no prune — now
+capped at `MAX_REPORT_RUNS = 500` (oldest-first eviction on new-run saves,
+never on `appendFile` re-saves; `tests/services/reportStorePrune.test.js`).
+Copy-compaction verified on the live copy: **84.4MB → 29.5MB (65% reclaimed)**
+via `scripts/lmdb-compact.js` (new; header documents the stop-copy-compact-swap
+recipe for the `ai-demo_ai-demo-bff-data` volume). Post-compaction the store
+sits at ~23% of the 128MB map with a bounded growth driver, so raising
+`mapSize` is unnecessary — the part-(1) startup watcher warns at 80% if that
+ever changes. The live volume was NOT swapped from this session (operator
+action, stack was mid-demo); the recipe is one command sequence away. Original
+entry follows.
 
 **PARTLY RESOLVED 2026-08-18 (branch `worktree-lmdb-mapsize-watch`) — part (1)
 only.** `openEnv()` now stats `data.mdb` at startup and logs size vs `mapSize`;
