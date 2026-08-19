@@ -173,6 +173,7 @@ import {
   TOPIC_MESSAGES,
   API_DIRECT_CHIPS,
   CHIP_NL_PROMPTS,
+  chipAuthLevel,
 } from "./agentActions";
 import {
   SessionExpiryTimer,
@@ -6328,6 +6329,31 @@ export default function BankingAgent({
   // or a `denyTool` — see Task 1's verticalSuggestionChips) skip both and
   // dispatch through the negative-chip rail instead.
   async function handleChipActivate(action) {
+    // Authenticate HERE, per action, from the declared level — the other half
+    // of "show all actions, then authenticate when the UC requires it".
+    // Without this, ungating the render would hand a guest chips that dispatch
+    // straight to the BFF and fail as a 401 round-trip instead of an offer to
+    // sign in. Mirrors handleDemoStepSelect's prompt (the use-case tiles' SoT
+    // path); `logout` is exempt because it IS the session action.
+    const needed = chipAuthLevel(action);
+    const meetsAuth =
+      needed === "public" ||
+      (needed === "admin" ? isAdminUser : isLoggedIn) ||
+      action.id === "logout";
+    if (!meetsAuth) {
+      addMessage(
+        "assistant",
+        needed === "admin"
+          ? `"${action.label}" needs an admin sign-in — it'll run as soon as you're in.`
+          : `"${action.label}" needs you signed in — it'll run as soon as you do.`,
+        null,
+        {
+          showLoginPromptAction: true,
+          loginActionId: needed === "admin" ? "login_admin" : "login_user",
+        },
+      );
+      return;
+    }
     if (isNegativeChip(action)) {
       await dispatchNegativeChip(action, {
         vertical: effectiveVerticalId,
@@ -10922,6 +10948,16 @@ export default function BankingAgent({
 
                 <div className="ba-left-divider" />
 
+                {/* Show ALL actions to everyone; authenticate at DISPATCH, per
+                    action, from the declared level (chipAuthLevel →
+                    handleChipActivate). This used to sit inside the
+                    signed-in-only branch below, so a guest saw a login prompt
+                    INSTEAD of the action surface — which removed the demo's
+                    discovery story and disagreed with the SoT the rest of the
+                    app gates on. The guest branch keeps its own "get started"
+                    login chips; they are additive to these, not a substitute. */}
+                {renderActionGroups()}
+
                 {isLoggedIn ? (
                   <>
                     {trackStep && (
@@ -10966,8 +11002,6 @@ export default function BankingAgent({
                         </button>
                       </div>
                     )}
-                    {isLoggedIn && renderActionGroups()}
-
                     <div className="ba-left-divider" />
 
                     <div className="ba-left-divider" />

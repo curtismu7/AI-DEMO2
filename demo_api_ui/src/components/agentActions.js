@@ -466,6 +466,55 @@ export const CHIP_APPLICABLE_STEPS = {
 export const ACTIONS = Object.values(ACTION_GROUPS).flat();
 
 /**
+ * SoT for what a CHIP needs before it can run.
+ *
+ * The product rule is "show all actions, then authenticate when the use case
+ * requires it, and we have SoT" — chips are always rendered (a visitor should
+ * see what the demo can do), and the auth challenge happens at DISPATCH, per
+ * action, from a declared level. Before this existed the whole action region
+ * was hidden behind a bare `isLoggedIn &&`, which both removed the discovery
+ * story AND invented a second source of truth at the render site.
+ *
+ * Use-case tiles get their level from the server SoT
+ * (`demo_api_server/config/auth-requirements.json` → `uc.auth`, read via
+ * `authLevelOf`). Chips are not use cases and carry no `uc.auth`, so their
+ * levels are declared HERE and read through `chipAuthLevel()` — one place, not
+ * a condition invented per call site.
+ *
+ * FAIL-CLOSED: anything not listed needs a session. Only add an id to
+ * PUBLIC_CHIP_IDS when the action genuinely works with no user context —
+ * getting this wrong shows a guest a chip that 401s instead of prompting.
+ */
+export const PUBLIC_CHIP_IDS = new Set([
+  // Pure reasoning / explanation — no user data, no session.
+  "sequential_think",
+  "ai_explain",
+  "ai_helix_explain",
+  // A walkthrough of the demo itself.
+  "demo_guide",
+  // Reads GET /api/mcp/inspector/tools, which carries no auth middleware and
+  // answers 200 to an anonymous caller (deliberate, recorded on the route as
+  // INTENTIONALLY UNAUTHENTICATED). It sits in the `admin` GROUP for menu
+  // placement only — grouping is not an authorization boundary.
+  "mcp_tools",
+]);
+
+/** Chips that additionally require the admin role, not merely a session. */
+export const ADMIN_CHIP_IDS = new Set(["query_user"]);
+
+/**
+ * @param {{id?: string}} action
+ * @returns {'public'|'user'|'admin'} level this chip needs before dispatch
+ */
+export function chipAuthLevel(action) {
+  const id = action && action.id;
+  if (!id) return "user";
+  if (PUBLIC_CHIP_IDS.has(id)) return "public";
+  if (ADMIN_CHIP_IDS.has(id)) return "admin";
+  return "user";
+}
+
+/**
  * Explains why a specific compliance step is skipped (not applicable) for a given action.
  * Maps step ID → human-readable explanation for that action type.
  */
