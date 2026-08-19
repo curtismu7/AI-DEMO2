@@ -285,12 +285,12 @@ describe("App — toast position", () => {
     );
   });
 
-  it("keeps top-center on other routes", () => {
+  it("uses bottom-left on other routes", () => {
     render(<App />);
 
     expect(screen.getByTestId("toast-container")).toHaveAttribute(
       "data-position",
-      "top-center",
+      "bottom-left",
     );
   });
 });
