@@ -23,7 +23,15 @@ set -euo pipefail
 # silently synced/diffed the WORKTREE instead of the main checkout Docker
 # bind-mounts when invoked from inside one. --git-common-dir always points at
 # the main checkout's .git regardless of which worktree's copy is running.
-cd "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
+#
+# `git -C <this script's dir>` rather than a bare `git`: the bare form asks
+# about the CALLER's cwd, which is fine for an agent standing in the repo and
+# fatal for launchd, whose cwd is `/`. The 15-minute sync job had been dying on
+# "fatal: not a git repository" every run since this line was introduced,
+# logging it where nobody reads — the exact silent staleness the job exists to
+# prevent. Anchoring on BASH_SOURCE keeps the worktree property above intact:
+# --git-common-dir maps any worktree copy back to the main checkout anyway.
+cd "$(dirname "$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --path-format=absolute --git-common-dir)")"
 
 NOISE_PATHS=(demo_api_server/data setup-config.md)
 # Matched against `git status --porcelain` lines rather than passed as a
