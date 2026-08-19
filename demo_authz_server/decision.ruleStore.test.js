@@ -70,13 +70,13 @@ test('write tool below default threshold permits', async () => {
 // NNP-6: HITL thresholds moved from ruleStore.hitlThresholdUsd to two separate env vars
 // (SIMULATED_AUTHORIZE_CONFIRM_AMOUNT / SIMULATED_AUTHORIZE_STEPUP_AMOUNT). This test
 // verifies the STEP_UP vs HITL_CONSENT split via env vars, with no overlay set.
-test('amount above step-up threshold -> INDETERMINATE reason=STEP_UP (NNP-6)', async () => {
+test('amount above step-up threshold -> PERMIT+obligation reason=STEP_UP (NNP-6, phase 4)', async () => {
   process.env.SIMULATED_AUTHORIZE_STEPUP_AMOUNT = '5';
   process.env.SIMULATED_AUTHORIZE_CONFIRM_AMOUNT = '5';
   fresh(); // reload handler with new env
   const res = makeRes();
   await decisionHandler({ params: { workerId: 'p' }, body: { parameters: baseParams({ TransactionAmount: '10' }) } }, res);
-  assert.strictEqual(res.body.decision, 'INDETERMINATE');
+  assert.strictEqual(res.body.decision, 'PERMIT');
   assert.strictEqual(res.body.reason, 'STEP_UP');
 });
 
@@ -93,7 +93,7 @@ test('overlay hitlThresholdUsd overrides the HITL_CONSENT (confirm) tier at requ
   ruleStore.applyPatch({ global: { hitlThresholdUsd: 5 } });
   const res = makeRes();
   await decisionHandler({ params: { workerId: 'p' }, body: { parameters: baseParams({ TransactionAmount: '10' }) } }, res);
-  assert.strictEqual(res.body.decision, 'INDETERMINATE');
+  assert.strictEqual(res.body.decision, 'PERMIT');
   assert.strictEqual(res.body.reason, 'HITL_CONSENT');
 });
 
@@ -105,7 +105,7 @@ test('overlay hitlThresholdUsd does not leak into the STEP_UP (MFA) threshold', 
   ruleStore.applyPatch({ global: { hitlThresholdUsd: 5000 } });
   const res = makeRes();
   await decisionHandler({ params: { workerId: 'p' }, body: { parameters: baseParams({ TransactionAmount: '600' }) } }, res);
-  assert.strictEqual(res.body.decision, 'INDETERMINATE');
+  assert.strictEqual(res.body.decision, 'PERMIT');
   assert.strictEqual(res.body.reason, 'STEP_UP');
 });
 

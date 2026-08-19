@@ -131,9 +131,10 @@ test('C2 — DENY carries policy_source p1az-mock', async () => {
   assert.strictEqual(body.policy_source, 'p1az-mock');
 });
 
-test('C2 — INDETERMINATE carries policy_source p1az-mock', async () => {
+test('C2 — a pause (PERMIT+obligation, phase 4) carries policy_source p1az-mock', async () => {
   const body = await decide({ ToolName: 'create_withdrawal', TokenScopes: 'write' });
-  assert.strictEqual(body.decision, 'INDETERMINATE');
+  assert.strictEqual(body.decision, 'PERMIT');
+  assert.strictEqual(body.reason, 'STEP_UP');
   assert.strictEqual(body.policy_source, 'p1az-mock');
 });
 
@@ -222,15 +223,17 @@ test('F9 — deny reasons map to their specific cloud codes', async () => {
 
 test('F9 — step-up emits step-up-required; tool-declared consent emits HITL; amount consent emits HITL_CONSENT', async () => {
   // create_withdrawal declares challengeType step_up in the SoT and carries no amount.
+  // Phase 4: every pause below is PERMIT+obligation, not INDETERMINATE — the
+  // reason/code contract this test exists to pin is otherwise unchanged.
   const stepUp = await decide({ ToolName: 'create_withdrawal', TokenScopes: 'write' });
-  assert.strictEqual(stepUp.decision, 'INDETERMINATE');
+  assert.strictEqual(stepUp.decision, 'PERMIT');
   assert.strictEqual(stepUp.reason, 'STEP_UP', 'reason kept for back-compat');
   assert.deepStrictEqual(codesOf(stepUp), ['step-up-required']);
 
   // create_transfer declares challengeType consent and carries no amount — this is
   // the cloud's "MCP Require HITL Consent for sensitive tools" rule, code HITL.
   const toolConsent = await decide({ ToolName: 'create_transfer', TokenScopes: 'write transfer' });
-  assert.strictEqual(toolConsent.decision, 'INDETERMINATE');
+  assert.strictEqual(toolConsent.decision, 'PERMIT');
   assert.deepStrictEqual(codesOf(toolConsent), ['HITL']);
 
   // Amount over the confirm threshold but under step-up — the cloud's
@@ -238,7 +241,7 @@ test('F9 — step-up emits step-up-required; tool-declared consent emits HITL; a
   const amountConsent = await decide({
     ToolName: 'create_transfer', TokenScopes: 'write transfer', TransactionAmount: '300',
   });
-  assert.strictEqual(amountConsent.decision, 'INDETERMINATE');
+  assert.strictEqual(amountConsent.decision, 'PERMIT');
   assert.deepStrictEqual(codesOf(amountConsent), ['HITL_CONSENT']);
 });
 

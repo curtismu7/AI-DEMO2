@@ -466,6 +466,35 @@ describe("buildTraceSteps — statuses from evidence", () => {
     expect(az.detail.kv).toContainEqual(["decision id", "dec_8f31"]);
   });
 
+  // Phase 4 of the INDETERMINATE rework: a pause is now `decision: "PERMIT"`
+  // carrying an unfulfilled obligation (cloud parity — routes/decision.js's
+  // pausePermit()). Found while implementing phase 4: `azIsPermit` was
+  // `azDecision === "PERMIT"` with no obligation exclusion, so it matched a
+  // phase-4 pause and won the status ternary BEFORE azIsChallenge was ever
+  // consulted — a step-up would have rendered "done" (looks like nothing
+  // needs the user) instead of "active" (needs approval). Same bug class the
+  // isChallenge/isDeny fix in buildAuthorizeDetail() exists to prevent, one
+  // level deeper in this single-decision status computation.
+  test("a PERMIT carrying a pause obligation renders as an active challenge, not done (phase 4)", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      authorize: {
+        engine: "pingone", decision: "PERMIT", decisionId: "dec_pause1",
+        decisionContext: "McpToolCall",
+        request: { method: "POST",
+          url: "https://api.pingone.com/v1/environments/e1/decisionEndpoints/d1",
+          body: { parameters: { ToolName: "create_transfer", TransactionAmount: "600" } } },
+        response: {
+          decision: "PERMIT",
+          obligations: [{ id: "step-up", type: "STEP_UP", obligatory: true, fulfilled: false }],
+        },
+      },
+    });
+    const az = steps.find((s) => s.id === "authorize");
+    expect(az.status).toBe("active");
+    expect(az.status).not.toBe("done");
+  });
+
   test("simulated-engine authorize evaluation renders request parameters (no .body wrapper)", () => {
     const steps = buildTraceSteps({
       ...EMPTY_TRACE,

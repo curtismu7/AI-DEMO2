@@ -64,20 +64,33 @@ describe("pauseObligationKind — finds obligations wherever the trace carries t
 });
 
 describe("isPause — the phase-4 equivalence that makes the flip safe", () => {
-  // BEFORE the flip: pause arrives as INDETERMINATE (+ obligation since phase 2).
+  // BEFORE the flip: pause arrived as INDETERMINATE (+ obligation since phase 2).
   const preFlip = {
     decision: "INDETERMINATE",
     response: { decision: "INDETERMINATE", obligations: [{ id: "STEP_UP", type: "STEP_UP", obligatory: true, fulfilled: false }] },
   };
-  // AFTER the flip: the same pause arrives as DENY carrying the obligation.
+  // AFTER the flip (phase 4, shipped): the same pause arrives as PERMIT
+  // carrying the obligation — cloud parity, and the only shape that does not
+  // silently break the Node gateway or Groovy consumers (a DENY-with-
+  // obligation is dropped by both; see routes/decision.js's pausePermit() doc
+  // comment for the full rationale). decision.js can no longer emit anything
+  // else for these three pauses.
   const postFlip = {
+    decision: "PERMIT",
+    response: { decision: "PERMIT", obligations: [{ id: "STEP_UP", type: "STEP_UP", obligatory: true, fulfilled: false }] },
+  };
+  // isPause() is deliberately decision-value-agnostic (obligation checked
+  // first, decision value only as a legacy fallback) — proven here with a
+  // shape that should never occur on the wire but would be a worse failure
+  // mode if it somehow did.
+  const hypotheticalDenyShape = {
     decision: "DENY",
     response: { decision: "DENY", obligations: [{ id: "STEP_UP", type: "STEP_UP", obligatory: true, fulfilled: false }] },
   };
 
-  test("both wire shapes read as a pause", () => {
+  test("both real wire shapes (pre- and post-flip) read as a pause", () => {
     expect(isPause("INDETERMINATE", preFlip)).toBe(true);
-    expect(isPause("DENY", postFlip)).toBe(true);
+    expect(isPause("PERMIT", postFlip)).toBe(true);
   });
 
   test("a REAL deny — DENY with no pause obligation — is not a pause", () => {
@@ -85,9 +98,25 @@ describe("isPause — the phase-4 equivalence that makes the flip safe", () => {
     expect(isPause("DENY", realDeny)).toBe(false);
   });
 
-  // Phase 5 will make a bare INDETERMINATE an error. Until then it must keep
-  // reading as a pause, or the flip's intermediate state breaks UC7/UC8.
-  test("a bare INDETERMINATE with no obligation still reads as a pause pre-phase-5", () => {
+  test("a DENY carrying an obligation is still read as a pause (defensive — should never occur on the wire)", () => {
+    expect(isPause("DENY", hypotheticalDenyShape)).toBe(true);
+  });
+
+  // demo_authz_server's phase-5 guard (routes/decision.js can no longer emit a
+  // bare INDETERMINATE at all — see decision.indeterminateBaseline.test.js's
+  // "phase 5 (mock half)") and its two direct consumers already fail closed on
+  // one (PingOneAuthorizeClient.ts:468-478, p1az-decision.groovy ~1053). This
+  // UI reader stays deliberately generous: a bare INDETERMINATE with no
+  // obligation still reads as a pause here, on purpose. Unlike the gateway,
+  // this function is display-only — it never gates a real authorization
+  // decision, only how the trace renders one — and the transfer flow (which
+  // DOES call live cloud P1AZ, the one engine that can legitimately return a
+  // genuine eval-failure INDETERMINATE, per #1310) reads no decision field
+  // from the BFF at all, so this fallback is unreachable from that path today.
+  // Tightening it to render a bare INDETERMINATE as an error card instead is
+  // real, separately-scoped display-correctness work, not required by phase
+  // 4/5 as scoped to demo_authz_server and its direct consumers.
+  test("a bare INDETERMINATE with no obligation still reads as a pause (deliberate, UI display only)", () => {
     expect(isPause("INDETERMINATE", { decision: "INDETERMINATE" })).toBe(true);
   });
 

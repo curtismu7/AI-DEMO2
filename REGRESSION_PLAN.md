@@ -106,6 +106,95 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-19 — INDETERMINATE rework phases 4+5: the mock PDP no longer emits INDETERMINATE for a pause; both consumers' fail-closed guard confirmed already in place
+
+**Files changed:** `demo_authz_server/routes/decision.js` (the 3 pause-emission
+sites + file header); `demo_authz_server/tests/decision.indeterminateBaseline.
+test.js`, `decision.obligations.test.js`, `decision.test.js`,
+`decision.transactionHop.test.js`, `decision.contract.test.js`,
+`decision.ruleStore.test.js` (57 assertions updated to match); `demo_api_ui/
+src/services/tokenChainTrace/buildTraceSteps.js` (a second, deeper instance of
+the same class of bug the phase-3c migration was meant to prevent, found while
+implementing this phase — see below); `docs/superpowers/plans/
+2026-08-18-indeterminate-rework.md`.
+
+**What was broken:** `demo_authz_server`'s mock PDP returned `decision:
+'INDETERMINATE'` for a step-up/HITL-consent/elicitation pause — the same value
+live cloud PingOne Authorize returns for "evaluation failed" (missing
+attribute, unreachable attribute provider). Phases 1-3 built the obligation
+channel and migrated every consumer onto it without changing what the mock
+actually emits; this pair of phases closes the overload at the source.
+
+**What was fixed:** a pause is now `decision: 'PERMIT'` carrying an
+unfulfilled `obligations[]` entry — **not** `decision: 'DENY'`, which was this
+plan's own working assumption until it was checked against the two real
+consumers of this endpoint and found to be wrong: both the Node gateway
+(`PingOneAuthorizeClient.ts toDecision`) and Groovy (`p1az-decision.groovy`
+~1053) silently drop an obligation riding on a `DENY` and flatten it to a
+terminal deny — the opposite of pausing. `PERMIT`-with-obligation is what live
+cloud P1AZ actually sends for these three cases (confirmed live,
+`demo_api_server/scripts/probe-uc7-uc8-live.js`), and is the only shape both
+existing consumers already handle correctly. Full rationale with file:line
+citations lives in `pausePermit()`'s doc comment in `routes/decision.js`.
+
+`decision.js` can no longer construct `decision: 'INDETERMINATE'` at all —
+verified structurally, not just by test outcome: a new test reads the file's
+own source and asserts the literal string never appears.
+
+**Second bug, found while implementing this one:** `buildTraceSteps.js`'s
+single-decision path computed `azIsPermit = azPermitted || azDecision ===
+"PERMIT"` with no obligation exclusion. Once a pause could legitimately carry
+`decision: "PERMIT"`, this matched a pause and won the status ternary
+(`azIsPermit ? "done" : ...`) **before** `azIsChallenge` was ever consulted —
+a step-up would have rendered as a completed, no-action-needed step instead of
+an active challenge. Same bug class the phase-3c migration (#2141) existed to
+prevent, one level deeper: that PR fixed `isChallenge`/`isDeny` ordering in
+`buildAuthorizeDetail()` but missed this second, structurally identical
+computation in the same file. Fixed the same way — obligation consulted first,
+`azIsPermit`/`azIsDeny` now both exclude `azIsChallenge`.
+
+**Phase 5 (fail-closed guard on a bare INDETERMINATE) was found ALREADY in
+place** for both direct consumers of this endpoint, built independently
+during #2129/#2133 without either citing this plan by name:
+- Node gateway: `PingOneAuthorizeClient.ts:468-478` — has its own passing
+  test, `authorizeObligations.test.ts` *"resolves an INDETERMINATE with no
+  obligation to DENY (fail closed)"*.
+- Groovy: `p1az-decision.groovy` ~1053/1181 — `obligationKind` is forced
+  `null` on `outcome === 'DENY'` and stays `null` on an unclassifiable
+  `INDETERMINATE`, falling through to a generic deny; the in-file comment
+  names the same invariant BFF's `pingOneAuthorizeService.js` and the Node
+  gateway already enforce (#1310).
+
+So phase 5 required no new code for the engine this rework touches — only
+confirmation, by reading, that the property already held.
+
+**Do not break:** the plan's own design constraint, now load-bearing —
+a pause obligation must never ride on `decision: 'DENY'` from this endpoint,
+because both the Node gateway and Groovy silently drop it in that shape. If a
+future change reintroduces a `DENY`-with-obligation pause here, it will pass
+this repo's unit tests (nothing here asserts against it directly) but silently
+disable step-up/consent gating on the MCP/agent tool path — the exact failure
+mode `pausePermit()`'s doc comment exists to warn against.
+
+**What this does NOT touch, confirmed by grep rather than assumed:**
+`demo_api_server` (the BFF) has zero code paths referencing `authz-server`,
+port `9001`, or `PINGAUTHORIZE_ENDPOINT`/`PINGAUTHORIZE_MOCK_BASE` — it never
+calls `demo_authz_server` directly, so UC7/UC8 transfer enforcement (which
+goes to live cloud P1AZ) is unaffected by this change. `mcpToolPipeline.js`'s
+own `INDETERMINATE` checks are reading the **gateway's** stable outward
+contract (`toDecision` deliberately continues to emit `decision:
+'INDETERMINATE'` as its own downstream signal for a pause, regardless of what
+the upstream engine said) — not stale code needing this phase's update.
+
+**Verify:** `cd demo_authz_server && CI=true npm test` (`node --test`) — 266/266.
+Guard proven to bite: reverted only `routes/decision.js`, confirmed 15/25
+baseline-file tests and 28/266 suite-wide tests failed; restored, re-verified
+green. `cd demo_api_ui && npm run test:unit` — 386 files / 3300 tests. The
+`azIsPermit` fix: added a targeted regression test, reverted only that one-line
+exclusion, confirmed exactly that test failed; restored, re-verified.
+`npm run build` — exit 0. `demo_mcp_gateway`'s `authorizeObligations.test.ts`
+(unchanged, still exercising both wire shapes) — 20/20.
+
 ### 2026-08-19 — INDETERMINATE rework phase 3a (#2129, stacking #2133): Groovy gateway prefers explicit obligations, live-verified
 
 **Files changed:** `ping-gateway/scripts/groovy/p1az-decision.groovy` (Node

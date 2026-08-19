@@ -152,7 +152,7 @@ test('NNP-5 A-1: write tool, amount=2500 (> deny ceiling 2000) -> DENY with amou
 test('NNP-5 A-2: write tool, amount=1000 (< deny ceiling 2000) -> not denied by ceiling rule', async () => {
   // 1000 is above step-up threshold (500) so should get INDETERMINATE STEP_UP, not DENY
   const result = await decide(writeParams({ TransactionAmount: '1000' }));
-  assert.strictEqual(result.decision, 'INDETERMINATE', 'Expected INDETERMINATE, got ' + result.decision + ': ' + result.reason);
+  assert.strictEqual(result.decision, 'PERMIT', 'Expected INDETERMINATE, got ' + result.decision + ': ' + result.reason);
   assert.strictEqual(result.reason, 'STEP_UP', 'reason should be STEP_UP, got: ' + result.reason);
 });
 
@@ -178,15 +178,15 @@ test('BUGS.md #7: read tool, amount="abc" -> PERMIT (not a write tool, invalid-a
 
 // ── NNP-6: STEP_UP vs HITL_CONSENT split ─────────────────────────────────
 
-test('NNP-6 A-4: write tool, amount=600 (>= step-up 500) -> INDETERMINATE reason=STEP_UP', async () => {
+test('NNP-6 A-4: write tool, amount=600 (>= step-up 500) -> PERMIT+obligation reason=STEP_UP', async () => {
   const result = await decide(writeParams({ TransactionAmount: '600' }));
-  assert.strictEqual(result.decision, 'INDETERMINATE', 'Expected INDETERMINATE, got ' + result.decision);
+  assert.strictEqual(result.decision, 'PERMIT', 'Expected INDETERMINATE, got ' + result.decision);
   assert.strictEqual(result.reason, 'STEP_UP', 'Expected STEP_UP, got: ' + result.reason);
 });
 
-test('NNP-6 A-5: write tool, amount=300 (>= confirm 250, < step-up 500) -> INDETERMINATE reason=HITL_CONSENT', async () => {
+test('NNP-6 A-5: write tool, amount=300 (>= confirm 250, < step-up 500) -> PERMIT+obligation reason=HITL_CONSENT', async () => {
   const result = await decide(writeParams({ TransactionAmount: '300' }));
-  assert.strictEqual(result.decision, 'INDETERMINATE', 'Expected INDETERMINATE, got ' + result.decision);
+  assert.strictEqual(result.decision, 'PERMIT', 'Expected INDETERMINATE, got ' + result.decision);
   assert.strictEqual(result.reason, 'HITL_CONSENT', 'Expected HITL_CONSENT, got: ' + result.reason);
 });
 
@@ -195,9 +195,9 @@ test('NNP-6 A-6: write tool, amount=100 (< confirm 250) -> PERMIT', async () => 
   assert.strictEqual(result.decision, 'PERMIT', 'Expected PERMIT, got ' + result.decision + ': ' + result.reason);
 });
 
-test('NNP-6 A-7: consent-only tool (book_appointment), no amount -> INDETERMINATE reason=HITL_CONSENT', async () => {
+test('NNP-6 A-7: consent-only tool (book_appointment), no amount -> PERMIT+obligation reason=HITL_CONSENT', async () => {
   const result = await decide(consentOnlyParams());
-  assert.strictEqual(result.decision, 'INDETERMINATE', 'Expected INDETERMINATE, got ' + result.decision);
+  assert.strictEqual(result.decision, 'PERMIT', 'Expected INDETERMINATE, got ' + result.decision);
   assert.strictEqual(result.reason, 'HITL_CONSENT', 'Expected HITL_CONSENT, got: ' + result.reason);
 });
 
@@ -224,29 +224,29 @@ test('a2a: sensitive_holdings via verified specialist delegation -> PERMIT (Rule
   assert.strictEqual(result.decision, 'PERMIT', 'Expected PERMIT, got ' + result.decision + ': ' + result.reason);
 });
 
-test('chip-markers: cash_out_store_credit (write step-up tool, no amount) -> INDETERMINATE reason=STEP_UP', async () => {
+test('chip-markers: cash_out_store_credit (write step-up tool, no amount) -> PERMIT+obligation reason=STEP_UP', async () => {
   const result = await decide(writeParams({ ToolName: 'cash_out_store_credit' }));
-  assert.strictEqual(result.decision, 'INDETERMINATE', 'Expected INDETERMINATE, got ' + result.decision);
+  assert.strictEqual(result.decision, 'PERMIT', 'Expected INDETERMINATE, got ' + result.decision);
   assert.strictEqual(result.reason, 'STEP_UP', 'Expected STEP_UP, got: ' + result.reason);
 });
 
-test('chip-markers: transfer_membership (write step-up tool, no amount) -> INDETERMINATE reason=STEP_UP', async () => {
+test('chip-markers: transfer_membership (write step-up tool, no amount) -> PERMIT+obligation reason=STEP_UP', async () => {
   const result = await decide(writeParams({ ToolName: 'transfer_membership' }));
-  assert.strictEqual(result.decision, 'INDETERMINATE', 'Expected INDETERMINATE, got ' + result.decision);
+  assert.strictEqual(result.decision, 'PERMIT', 'Expected INDETERMINATE, got ' + result.decision);
   assert.strictEqual(result.reason, 'STEP_UP', 'Expected STEP_UP, got: ' + result.reason);
 });
 
-test('NNP-6 A-7b: step-up tool (release_records), no amount -> INDETERMINATE reason=STEP_UP (not HITL_CONSENT)', async () => {
+test('NNP-6 A-7b: step-up tool (release_records), no amount -> PERMIT+obligation reason=STEP_UP (not HITL_CONSENT)', async () => {
   // F3 regression: no-amount step-up tools must map to STEP_UP, not collapse
   // into HITL_CONSENT — parity with the P1AZ snapshot RequiresMcpStepUp.
   const result = await decide(consentOnlyParams({ ToolName: 'release_records' }));
-  assert.strictEqual(result.decision, 'INDETERMINATE', 'Expected INDETERMINATE, got ' + result.decision);
+  assert.strictEqual(result.decision, 'PERMIT', 'Expected INDETERMINATE, got ' + result.decision);
   assert.strictEqual(result.reason, 'STEP_UP', 'Expected STEP_UP, got: ' + result.reason);
 });
 
 test('NNP-6 A-7c: step-up tool, no amount, HitlApproved=true -> STEP_UP (receipt cannot satisfy MFA, IMP-3)', async () => {
   const result = await decide(consentOnlyParams({ ToolName: 'release_records', HitlApproved: 'true' }));
-  assert.strictEqual(result.decision, 'INDETERMINATE', 'Expected INDETERMINATE, got ' + result.decision);
+  assert.strictEqual(result.decision, 'PERMIT', 'Expected INDETERMINATE, got ' + result.decision);
   assert.strictEqual(result.reason, 'STEP_UP', 'Expected STEP_UP, got: ' + result.reason);
 });
 
@@ -255,7 +255,7 @@ test('ACR-drift: weak long ACR ("Single_Factor", 13 chars) does NOT bypass step-
   // strong MFA (`s.length > 8`), which the canonical sim engine never did — a
   // weak "Single_Factor" ACR would silently skip STEP_UP.
   const result = await decide(writeParams({ TransactionAmount: '600', Acr: 'Single_Factor' }));
-  assert.strictEqual(result.decision, 'INDETERMINATE', 'Expected INDETERMINATE, got ' + result.decision);
+  assert.strictEqual(result.decision, 'PERMIT', 'Expected INDETERMINATE, got ' + result.decision);
   assert.strictEqual(result.reason, 'STEP_UP', 'Expected STEP_UP, got: ' + result.reason);
 });
 
@@ -270,7 +270,7 @@ test('NNP-6 A-8: write tool, amount=300 (would need HITL_CONSENT), HitlApproved+
 
 test('NNP-6 A-8b: HitlApproved=true without HitlChallengeId does NOT discharge consent', async () => {
   const result = await decide(writeParams({ TransactionAmount: '300', HitlApproved: 'true' }));
-  assert.strictEqual(result.decision, 'INDETERMINATE', 'Expected INDETERMINATE, got ' + result.decision + ': ' + result.reason);
+  assert.strictEqual(result.decision, 'PERMIT', 'Expected INDETERMINATE, got ' + result.decision + ': ' + result.reason);
   assert.strictEqual(result.reason, 'HITL_CONSENT');
 });
 
@@ -280,7 +280,7 @@ test('NNP-6 A-8c: HitlApproved=true with non-UUID HitlChallengeId does NOT disch
     HitlApproved: 'true',
     HitlChallengeId: 'chal-1',
   }));
-  assert.strictEqual(result.decision, 'INDETERMINATE', 'Expected INDETERMINATE, got ' + result.decision + ': ' + result.reason);
+  assert.strictEqual(result.decision, 'PERMIT', 'Expected INDETERMINATE, got ' + result.decision + ': ' + result.reason);
   assert.strictEqual(result.reason, 'HITL_CONSENT');
 });
 
@@ -299,7 +299,7 @@ test('NNP-6 A-8d: HITL_SERVICE_URL set + pending challenge → does NOT discharg
       HitlApproved: 'true',
       HitlChallengeId: 'a1b2c3d4-e5f6-4789-a012-3456789abcde',
     }));
-    assert.strictEqual(result.decision, 'INDETERMINATE', 'Expected INDETERMINATE, got ' + result.decision + ': ' + result.reason);
+    assert.strictEqual(result.decision, 'PERMIT', 'Expected INDETERMINATE, got ' + result.decision + ': ' + result.reason);
     assert.strictEqual(result.reason, 'HITL_CONSENT');
   } finally {
     global.fetch = origFetch;
@@ -337,20 +337,20 @@ test('NNP-6 A-8e: HITL_SERVICE_URL set + approved challenge → PERMIT', async (
 
 test('REG-1: amount exactly at step-up threshold (500) -> STEP_UP, not HITL_CONSENT', async () => {
   const result = await decide(writeParams({ TransactionAmount: '500' }));
-  assert.strictEqual(result.decision, 'INDETERMINATE');
+  assert.strictEqual(result.decision, 'PERMIT');
   assert.strictEqual(result.reason, 'STEP_UP');
 });
 
 test('REG-2: amount just below step-up (499) but above confirm (250) -> HITL_CONSENT', async () => {
   const result = await decide(writeParams({ TransactionAmount: '499' }));
-  assert.strictEqual(result.decision, 'INDETERMINATE');
+  assert.strictEqual(result.decision, 'PERMIT');
   assert.strictEqual(result.reason, 'HITL_CONSENT');
 });
 
 test('REG-3: amount exactly at deny ceiling (2000) -> not ceiling-denied (> not >=)', async () => {
   // Ceiling is strictly >, so exactly 2000 should proceed to STEP_UP
   const result = await decide(writeParams({ TransactionAmount: '2000' }));
-  assert.strictEqual(result.decision, 'INDETERMINATE', 'Expected INDETERMINATE (STEP_UP), got ' + result.decision + ': ' + result.reason);
+  assert.strictEqual(result.decision, 'PERMIT', 'Expected INDETERMINATE (STEP_UP), got ' + result.decision + ': ' + result.reason);
   assert.strictEqual(result.reason, 'STEP_UP');
 });
 
@@ -361,7 +361,7 @@ test('REG-3: amount exactly at deny ceiling (2000) -> not ceiling-denied (> not 
 test('IMP-3: amount=600 + HitlApproved=true + weak ACR -> STEP_UP (receipt does NOT discharge MFA)', async () => {
   // HITL receipt must NEVER satisfy MFA: STEP_UP fires regardless of hitlApproved.
   const result = await decide(writeParams({ TransactionAmount: '600', HitlApproved: 'true', Acr: '' }));
-  assert.strictEqual(result.decision, 'INDETERMINATE', 'Expected INDETERMINATE, got ' + result.decision + ': ' + result.reason);
+  assert.strictEqual(result.decision, 'PERMIT', 'Expected INDETERMINATE, got ' + result.decision + ': ' + result.reason);
   assert.strictEqual(result.reason, 'STEP_UP', 'Expected STEP_UP (receipt must not suppress MFA), got: ' + result.reason);
 });
 
@@ -483,7 +483,7 @@ test('NNP-8 T3-1: flag off (default) — UserGroups present, no tier enforcement
     TransactionAmount: '1000',
   }));
   // Standard tier would block create_withdrawal, but flag is off → INDETERMINATE STEP_UP for $1000.
-  assert.strictEqual(result.decision, 'INDETERMINATE', 'Expected INDETERMINATE (flag off), got ' + result.decision + ': ' + result.reason);
+  assert.strictEqual(result.decision, 'PERMIT', 'Expected INDETERMINATE (flag off), got ' + result.decision + ': ' + result.reason);
   assert.strictEqual(result.reason, 'STEP_UP', 'Expected STEP_UP (flag off), got: ' + result.reason);
 });
 
@@ -509,7 +509,7 @@ test('NNP-8 T3-2: PrivateBanking user, create_withdrawal $10000 (global ceiling 
     !String(result.reason || '').includes('tier_amount_exceeded'),
     'PrivateBanking user $10000 (< $50000 tier limit) must not get tier_amount_exceeded, got: ' + result.reason
   );
-  assert.strictEqual(result.decision, 'INDETERMINATE', 'Expected STEP_UP INDETERMINATE, got ' + result.decision + ': ' + result.reason);
+  assert.strictEqual(result.decision, 'PERMIT', 'Expected STEP_UP INDETERMINATE, got ' + result.decision + ': ' + result.reason);
   assert.strictEqual(result.reason, 'STEP_UP');
 });
 

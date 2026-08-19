@@ -400,9 +400,16 @@ function buildAuthorizeReplay(azEval, azRequestPayload) {
  * off `trace.authorizeEvaluations`) so both render identically. */
 function buildAuthorizeDetail(evalObj) {
   const decision = evalObj.decision != null ? String(evalObj.decision).toUpperCase() : "";
-  // Obligation-first (phase 3c). After phase 4 a pause arrives as DENY carrying
-  // an unfulfilled obligation, so the obligation must be consulted BEFORE the
-  // decision — otherwise `isDeny` wins and a step-up renders as a hard denial.
+  // Obligation-first (phase 3c). Phase 4 shipped: a pause is PERMIT carrying
+  // an unfulfilled obligation, matching live cloud PingOne Authorize (a
+  // DENY-carrying-obligation would be silently dropped by both existing
+  // engine consumers — see routes/decision.js's pausePermit() doc comment for
+  // why). isPause() reads the obligation regardless of the decision value, so
+  // this line is correct either way — but `isDeny` still needs the pause
+  // consulted BEFORE the decision, since after the flip a pause and a genuine
+  // DENY can no longer be told apart by decision value alone in the OTHER
+  // direction: a real DENY never carries a pause obligation, so gating isDeny
+  // on !isChallenge costs nothing when decision is honestly DENY.
   const isChallenge = isPause(decision, evalObj);
   const isDeny = decision === "DENY" && !isChallenge;
   const requestPayload = evalObj.request
@@ -960,24 +967,28 @@ export function buildTraceSteps(trace) {
   const azDecision = azEval && azEval.decision != null
     ? String(azEval.decision).toUpperCase()
     : "";
-  const azIsPermit = azPermitted || azDecision === "PERMIT";
-  const azIsDeny = azDecision === "DENY";
   const azIsSkipped = azDecision === "SKIPPED"
     || azEval?.engine === "not-called"
     || azEval?.publicCatalog === true;
-  // 428 block or INDETERMINATE evaluation = step-up / HITL challenge path.
-  // status may arrive as a number on the phase, or only in detail ("HTTP 428")
-  // from older SSE rows that did not preserve payload.status.
+  // 428 block or a pause obligation = step-up / HITL challenge path. status
+  // may arrive as a number on the phase, or only in detail ("HTTP 428") from
+  // older SSE rows that did not preserve payload.status.
   let azDeniedHttp = azDeniedPhase ? Number(azDeniedPhase.status) || 0 : 0;
   if (!azDeniedHttp && azDeniedPhase && typeof azDeniedPhase.detail === "string") {
     const m = /HTTP\s+(\d+)/i.exec(azDeniedPhase.detail);
     if (m) azDeniedHttp = Number(m[1]) || 0;
   }
-  // Obligation-first (phase 3c): a phase-4 pause is DENY + unfulfilled
-  // obligation, which would otherwise fall through to the `azIsDeny` error arm.
-  // The 428 check stays — it is the transport-level signal, independent of the
-  // decision payload and still correct after the flip.
+  // Obligation-first (phase 3c) — computed BEFORE azIsPermit/azIsDeny below,
+  // and both of those now exclude it. Phase 4 shipped: a pause is PERMIT +
+  // unfulfilled obligation (cloud parity — see routes/decision.js's
+  // pausePermit()). Without the exclusion, `azIsPermit` (`azDecision ===
+  // "PERMIT"`, decision-value-only) would have matched a phase-4 pause and won
+  // the ternary below BEFORE azIsChallenge was ever consulted — the exact
+  // "hard hides a pause" bug this migration exists to prevent, one level
+  // deeper than the isChallenge/isDeny fix above in buildAuthorizeDetail().
   const azIsChallenge = isPause(azDecision, azEval) || azDeniedHttp === 428;
+  const azIsPermit = (azPermitted || azDecision === "PERMIT") && !azIsChallenge;
+  const azIsDeny = azDecision === "DENY" && !azIsChallenge;
   const azStatus = azIsSkipped ? "notinpath"
     : azIsPermit ? "done"
     : azIsDeny || azUnavailable || (azDenied && !azIsChallenge) ? "error"
