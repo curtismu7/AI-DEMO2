@@ -18,7 +18,10 @@ const {
   logAdminSystemAdmin,
   logAdminDataAccess,
   logAdminSecurityAction,
-  ADMIN_ACTION_TYPES
+  ADMIN_ACTION_TYPES,
+  getAdminAuditTrail,
+  generateAdminActivityReport,
+  validateAdminActionPermissions
 } = require('../../services/adminAuditService');
 const { readExchangeEvents } = require('../../services/exchangeAuditStore');
 
@@ -78,5 +81,36 @@ describe('adminAuditService -> exchangeAuditStore integration', () => {
     expect(written).not.toHaveProperty('0');
     expect(written.type).toBe(expectedType);
     expect(written.adminSub).toBe('admin-xyz');
+  });
+
+  test('queries an admin trail with filters and limit', async () => {
+    const events = await getAdminAuditTrail('admin-123', {
+      actionTypes: ADMIN_ACTION_TYPES.USER_MANAGEMENT,
+      limit: 1
+    });
+
+    expect(events).toHaveLength(1);
+    expect(events[0].adminSub).toBe('admin-123');
+    expect(events[0].type).toBe(ADMIN_ACTION_TYPES.USER_MANAGEMENT);
+  });
+
+  test('generates activity counts and security events', async () => {
+    const report = await generateAdminActivityReport({ adminSubs: ['admin-123'] });
+
+    expect(report.totalActions).toBe(1);
+    expect(report.actionsByType[ADMIN_ACTION_TYPES.USER_MANAGEMENT]).toBe(1);
+    expect(report.actionsByAdmin['admin-123']).toBe(1);
+    expect(report.topActions).toEqual([{ action: 'delete', count: 1 }]);
+  });
+
+  test('evaluates required scopes without treating an admin subject as authorization', () => {
+    expect(validateAdminActionPermissions('admin-123', 'delete', 'user')).toMatchObject({
+      allowed: false,
+      requiredScopes: ['admin:delete', 'users:manage']
+    });
+    expect(validateAdminActionPermissions('admin-123', 'delete', 'user', [
+      'admin:delete',
+      'users:manage'
+    ]).allowed).toBe(true);
   });
 });
