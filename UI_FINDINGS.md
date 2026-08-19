@@ -14,7 +14,7 @@ Source: Playwright drive of `https://local.ping-devops.com:4000` on **2026-08-19
 |---|---------|------|----------|--------|-------|
 | 1 | Verification pill never dismisses | UI | High | FIXED | PR #2155 — `banner → pill → gone` cycle |
 | 2 | Pill covers the Sign Out button | UI | High | FIXED | PR #2155 — overlay moved below the 60px TopNav |
-| 3 | `consent-challenge/:id/confirm` 404s — request never reaches the BFF | BFF/proxy | High | OPEN | Rescoped 2026-08-19; two of the three original claims were wrong |
+| 3 | `consent-challenge/:id/confirm` 404s during a live drive | unknown | High | OPEN | Rescoped twice; 3 of 4 claims withdrawn, incl. my own log evidence |
 | 4 | Chain badge was a hardcoded string, so an errored run looked clean | UI | Medium | FIXED | PR #2155 — badge derives from `runStory.outcome` |
 | 5 | Scope diff on chain step 10 is unreadable | UI | Medium | OPEN | Highest demo-value fix |
 | 6 | 25 sidebar groups, 7 ways to start a demo, Sign Out ×3 | IA | Medium | OPEN | |
@@ -50,15 +50,32 @@ Worst case in front of a customer: a green checkmark parked over a broken flow.
 - ~~"the button fired twice with no in-flight guard"~~ — `TransactionConsentModal.tsx:317` guards on `submitting` and returns early. The double-fire has another cause.
 - ~~"the verdict scored green without checking the transfer executed"~~ — by design. UC8's `expectedOutcome` is `HITL_REQUIRED`, which `ProofOfEnforcementContext.js:18` maps to the `denied-as-expected` family. The verdict proves *enforcement* — that the approval gate fired — not that the transaction succeeded. A decline is still a pass, correctly. `handleDenialConfirm` already records the decline via `tokenChainTraceStore.ingestApprovalDeclined()`.
 
-**What was actually established:**
+**A third claim is now also withdrawn — this one was mine, and it was the load-bearing one.**
 
-`docker logs ai-demo-api-server` over a 120-minute window covering the failing run contains **zero** `POST /api/transactions` of any kind — no challenge create, no confirm. The container had not restarted (up since ~02:42), so the window is intact. `GET /api/transactions/my` from the same page *does* appear. So the confirm never reached the BFF, and the 404 came from something in front of it.
+I reported that `docker logs ai-demo-api-server` over a 120-minute window contained **zero** `POST /api/transactions`, and concluded the confirm never reached the BFF. That evidence is void:
 
-That rules out the whole server-side branch of the original theory: it is not `txConsent.confirmChallenge` failing its session lookup, because that code never ran.
+```bash
+docker inspect ai-demo-api-server --format '{{.State.StartedAt}}'
+  -> 2026-08-19T03:11:41Z          # the failing run was ~03:06:45Z
+docker inspect ai-demo-ui         --format '{{.State.StartedAt}}'
+  -> 2026-08-19T03:06:10Z          # ~35s before the failing request
+```
 
-**Also ruled out:** the `#2148` authz-server dotenvx bug (per ai-demo2-54: the fixed container was serving from 02:50:39Z, ~16 min before the failing run, and that bug produced a DENY, not a 404). And the hitl-service challenge store — this endpoint's challenges live in the **BFF session** (`transactionConsentChallenge.js` `store(req.session)`), not hitl-service.
+The BFF container restarted *after* the failure, so I was reading the logs of a container that had not been running when the request was made. Absence of log lines there proves nothing at all. `docker ps` at the time reported "Up 25 minutes", which is what I checked — but that was a snapshot taken before the 03:11 restart, not a statement about the window I went on to query.
 
-**Not fixed, and deliberately not guessed at.** Two attempts to reproduce failed: the llama.cpp agent stalled mid-run both times and the consent modal never opened. The remaining candidates need a clean reproduction to separate — whether `bffAxios` resolves a different base for POST than GET, and whether the dev proxy is answering 404 without forwarding. Touching `routes/transactions.js` or `transactionConsentChallenge.js` on a guess would be editing a `REGRESSION_PLAN.md` §1 protected surface to fix a fault that the evidence says is not there.
+**What is actually known:**
+
+- The 404 happened. That is directly observed in the browser console.
+- The endpoint itself is healthy. Probed both ways (ai-demo2-54): `POST .../consent-challenge/probe-nonexistent/confirm` returns an identical JSON 401 through nginx on `:4000` and direct on `:3001`. The route is mounted, nginx proxies POSTs, and the response is BFF JSON — not an HTML proxy 404.
+- `ai-demo-ui` (nginx — serves the SPA *and* proxies `/api` for anything loaded from `:4000`) restarted 35 seconds before the failing request.
+
+**Still ruled out:** the `#2148` authz-server dotenvx bug (fixed container serving from 02:50:39Z, ~16 min before the run, and it produced a DENY not a 404). The hitl-service store (wrong subsystem — these challenges live in the BFF session). Single-use consumption and TTL expiry (those return 409 and 410 respectively, from code paths with different status codes).
+
+**Leading hypothesis, not yet proven:** collateral from the `ai-demo-ui` restart rather than a code fault. It fits the timing and would explain why the window closed and the failure could not be reproduced afterwards. It does not yet explain a clean 404 a full 35s after nginx came back.
+
+**Open, being reproduced properly.** Method for the retry, since the last two attempts were void for a different reason (the llama.cpp agent stalled and the modal never opened): pin `docker inspect <ui,bff> --format '{{.State.StartedAt}}'` before and after the run, and treat the run as void rather than a finding if either moved. Capture the 404 response body — JSON means the BFF answered, HTML means a proxy or static handler did, which separates the two remaining branches in one look.
+
+**Standing lesson, worth more than this one 404.** `deploy-live.sh` takes a lock so two deploys cannot race, but nothing warns a session mid live-UI-drive that its containers are about to be pulled. Any deploy restarts `ui` and/or `demo-api-server` under whoever is driving the browser, and it surfaces as an inexplicable 404/502 with no server-side trace. Before trusting any live-drive observation, check when the ground moved.
 
 ### 4. Chain badge was a hardcoded string, so an errored run looked clean — FIXED (PR #2155)
 
@@ -110,6 +127,7 @@ Dark mode · narrow/mobile widths · the other 11 verticals · every admin surfa
 
 ## Changelog
 
+- 2026-08-19 — #3 rescoped again: my "zero POST in the BFF logs" evidence was void (the BFF container restarted after the failure, so I queried logs from a container that was not running at the time). Reproduction method corrected to pin container StartedAt before and after a run.
 - 2026-08-19 — #4 FIXED (PR #2155), #3 rescoped. Investigating #3 disproved two of its three original claims and showed the confirm never reaches the BFF; #4's premise about the 401s was also wrong, though its badge defect was real. Corrections recorded in place rather than quietly dropped.
 - 2026-08-19 — #1 and #2 FIXED (PR #2155). `VerifiedBanner` gained a `banner → pill → gone` cycle and moved below the TopNav.
 - 2026-08-19 — initial pass, 10 findings, all OPEN.
