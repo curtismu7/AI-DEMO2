@@ -20,7 +20,7 @@
   --float-gap: 12px;
   --fab-size: 56px;
   --ciba-action-height: 44px;
-  /* Toasts are top-center (see ToastContainer in App.js) — FAB sits at the float edge. */
+  /* Dashboard toasts are bottom-left; other routes stay top-center (see ToastContainer in App.js). */
   --fab-bottom: var(--float-edge);
   --ciba-bottom: calc(var(--float-edge) + var(--fab-size) + var(--float-gap));
   --agent-panel-bottom: calc(

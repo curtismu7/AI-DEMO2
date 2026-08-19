@@ -74,6 +74,8 @@ vi.mock("axios", () => {
   };
 });
 
+const routeLocation = vi.hoisted(() => ({ pathname: "/", search: "" }));
+
 vi.mock("react-router-dom", () => ({
   BrowserRouter: ({ children }) => children,
   Router: ({ children }) => children,
@@ -86,7 +88,7 @@ vi.mock("react-router-dom", () => ({
     </a>
   ),
   useNavigate: () => jest.fn(),
-  useLocation: () => ({ pathname: "/", search: "" }),
+  useLocation: () => routeLocation,
   /** AppWithAuth reads query params for OAuth error toasts — must be iterable [params, setParams]. */
   useSearchParams: () => [new URLSearchParams(""), jest.fn()],
 }));
@@ -177,7 +179,9 @@ vi.mock("../services/demoScenarioService", () => {
   };
 });
 vi.mock("react-toastify", () => ({
-  ToastContainer: () => null,
+  ToastContainer: (props) => (
+    <div data-testid="toast-container" data-position={props.position} />
+  ),
   toast: { success: jest.fn(), error: jest.fn() },
 }));
 
@@ -193,7 +197,7 @@ vi.mock("../services/cachedStatusService", () => ({
   clearStatusCacheFor: jest.fn(),
 }));
 
-import { act, render, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import axios from "axios";
 import { getCachedJson } from "../services/cachedStatusService";
@@ -255,6 +259,41 @@ const CUSTOMER_USER = {
 };
 
 // ── Unauthenticated state ──────────────────────────────────────────────────────
+
+describe("App — toast position", () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    localStorage.clear();
+    sessionStorage.clear();
+    mockAllUnauthenticated();
+  });
+
+  afterEach(() => {
+    routeLocation.pathname = "/";
+    jest.clearAllMocks();
+    jest.clearAllTimers();
+    jest.useRealTimers();
+  });
+
+  it("uses bottom-left on the dashboard", () => {
+    routeLocation.pathname = "/dashboard";
+    render(<App />);
+
+    expect(screen.getByTestId("toast-container")).toHaveAttribute(
+      "data-position",
+      "bottom-left",
+    );
+  });
+
+  it("keeps top-center on other routes", () => {
+    render(<App />);
+
+    expect(screen.getByTestId("toast-container")).toHaveAttribute(
+      "data-position",
+      "top-center",
+    );
+  });
+});
 
 describe("App — unauthenticated state", () => {
   beforeEach(() => {
