@@ -298,6 +298,18 @@ async function delegateToSpecialist(req, opts = {}) {
   }
   const userDecoded = decodeJwt(userToken);
   const userSub = userDecoded?.claims?.sub || null;
+  // The A2A evidence contract starts with the authenticated subject. The
+  // exchange events below prove each agent hop, but without this marker the
+  // verifier correctly treats an otherwise successful machine-token chain as
+  // missing user delegation.
+  tokenEvents.push(buildA2aEvent(
+    'user-token',
+    'Authenticated user token · A2A subject',
+    'active',
+    userToken,
+    'The signed-in user token is the subject presented to Exchange #1; subsequent actor and exchange events must preserve this user identity.',
+    { a2aRole: 'user-subject', vertical, userSub },
+  ));
 
   try {
     // ── Exchange #1: user → Agent 1 delegated token (act:{agent1}) ───────────────

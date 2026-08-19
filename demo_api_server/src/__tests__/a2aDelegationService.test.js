@@ -194,7 +194,7 @@ describe('a2aDelegationService.delegateToSpecialist (chained RFC 8693)', () => {
       deps: { ...bankingDeps(), oauthService },
     });
     const ids = tokenEvents.map((e) => e.id);
-    expect(ids).toEqual(['a2a-agent1-actor', 'a2a-exchange1', 'a2a-agent2-actor', 'a2a-exchange2']);
+    expect(ids).toEqual(['user-token', 'a2a-agent1-actor', 'a2a-exchange1', 'a2a-agent2-actor', 'a2a-exchange2']);
 
     const ex2 = tokenEvents.find((e) => e.id === 'a2a-exchange2');
     expect(ex2.claims.act.sub).toBe(AGENT2);
