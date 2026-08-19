@@ -2813,7 +2813,24 @@ reachable.
 manifest fails the suite with `Received + "zz_orphan_probe"`. A guard nobody has
 watched fail is not a guard.
 
-### [ ] 2026-08-17 — Only the invest resource server has an audience no-drift gate; every other audience is still trust-by-convention
+### [x] 2026-08-17 — Only the invest resource server has an audience no-drift gate; every other audience is still trust-by-convention
+
+**RESOLVED 2026-08-18 (branch `worktree-audience-bindings`) — the entry's real
+fix, as prescribed.** The resource→env binding is now DECLARED IN
+`scope-topology.json` itself (`resources[*].audienceEnv: { var, surfaces[],
+sourcePin? }`, schema-validated), and `check-resource-server-audience-drift.js`
+iterates the table instead of hard-coding one var — every occurrence of a bound
+var on a declared surface must lead with the resource's canonical uri, and a
+topology with NO bindings fails (vacuity guard). Three audiences bound today:
+invest (`MCP_RESOURCE_SERVER_RESOURCE_URI`, 5 surfaces + source pin), banking
+MCP server (`MCP_SERVER_RESOURCE_URI`, compose + k8s), MCP gateway
+(`MCP_GW_RESOURCE_URI`, compose + k8s + .env.example). A new resource is covered
+the day its binding is declared. Deliberately NOT bound: the A2A-intermediate
+uris (exchange audiences minted per-hop, no accepted-list env var to drift) and
+`PG_GATEWAY_RESOURCE_ID` (its own dual-purpose entry below owns that decision).
+Self-test grew 11→14 cases, including "a second declared binding is enforced
+with no checker change" and "every occurrence validated, not just the first".
+Original entry follows.
 
 **Where:** `scripts/check-resource-server-audience-drift.js` (`npm run
 topology:verify` step 9/9), which derives one canonical URI from

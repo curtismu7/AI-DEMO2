@@ -2,39 +2,78 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Scope Topology",
   "type": "object",
-  "required": ["version", "scopes", "resources", "apps", "tools"],
+  "required": [
+    "version",
+    "scopes",
+    "resources",
+    "apps",
+    "tools"
+  ],
   "additionalProperties": false,
   "properties": {
-    "$schema": { "type": "string" },
+    "$schema": {
+      "type": "string"
+    },
     "provisioning": {
       "type": "object",
       "description": "Display names for PingOne-provisioned apps and resource servers. Keys are internal JS object keys; values are the names provisioned into PingOne.",
       "properties": {
-        "appPrefix": { "type": "string" },
-        "resourceNames": { "type": "object", "additionalProperties": { "type": "string" } },
-        "appNames": { "type": "object", "additionalProperties": { "type": "string" } }
+        "appPrefix": {
+          "type": "string"
+        },
+        "resourceNames": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "appNames": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
       }
     },
-    "version": { "type": "integer", "enum": [1, 2, 3] },
+    "version": {
+      "type": "integer",
+      "enum": [
+        1,
+        2,
+        3
+      ]
+    },
     "aliases": {
       "type": "object",
       "description": "External-spelling -> canonical-manifest-scope map. Reconciles scope spellings used outside the manifest (PingGateway env, OAuth /authorize) with the canonical scope declared in scopes{}. Keys are the external spelling; values MUST be a scope declared in scopes{}.",
-      "additionalProperties": { "type": "string", "minLength": 1 }
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+      }
     },
     "deployment": {
       "type": "object",
       "description": "v3: Public app URLs per deployment environment (non-sensitive). Master SoT for PINGONE_PUBLIC_APP_URL and PINGONE_RESOURCE_PINGGATEWAY_URI. Kept separate from .env (which holds secrets) for better auditability and version control.",
       "additionalProperties": false,
       "properties": {
-        "_comment": { "type": "string", "description": "Human-readable annotation; ignored at runtime." },
+        "_comment": {
+          "type": "string",
+          "description": "Human-readable annotation; ignored at runtime."
+        },
         "environments": {
           "type": "object",
           "additionalProperties": {
             "type": "object",
             "additionalProperties": false,
             "properties": {
-              "publicAppUrl": { "type": "string", "description": "Browser-facing app origin (https://...)" },
-              "pingGatewayResourceUri": { "type": "string", "description": "PingGateway resource server URI (alternate gateway endpoint)" }
+              "publicAppUrl": {
+                "type": "string",
+                "description": "Browser-facing app origin (https://...)"
+              },
+              "pingGatewayResourceUri": {
+                "type": "string",
+                "description": "PingGateway resource server URI (alternate gateway endpoint)"
+              }
             }
           }
         },
@@ -42,9 +81,18 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "_comment": { "type": "string", "description": "Human-readable annotation; ignored at runtime." },
-            "adminCallback": { "type": "string", "description": "Redirect URI path for admin login" },
-            "userCallback": { "type": "string", "description": "Redirect URI path for user login" }
+            "_comment": {
+              "type": "string",
+              "description": "Human-readable annotation; ignored at runtime."
+            },
+            "adminCallback": {
+              "type": "string",
+              "description": "Redirect URI path for admin login"
+            },
+            "userCallback": {
+              "type": "string",
+              "description": "Redirect URI path for user login"
+            }
           }
         }
       }
@@ -53,14 +101,39 @@
       "type": "object",
       "additionalProperties": {
         "type": "object",
-        "required": ["description", "riskLevel", "resource"],
+        "required": [
+          "description",
+          "riskLevel",
+          "resource"
+        ],
         "additionalProperties": false,
         "properties": {
-          "description": { "type": "string", "minLength": 1 },
-          "riskLevel": { "enum": ["low", "medium", "high", "critical"] },
-          "resource": { "type": "string", "minLength": 1 },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "riskLevel": {
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ]
+          },
+          "resource": {
+            "type": "string",
+            "minLength": 1
+          },
           "category": {
-            "enum": ["banking", "admin", "ai", "data", "feature", "agent", "infra"],
+            "enum": [
+              "banking",
+              "admin",
+              "ai",
+              "data",
+              "feature",
+              "agent",
+              "infra"
+            ],
             "description": "v2: policy-engine scope family. Authoritative for scopePolicyEngine categorization (admin/users -> admin; ai_agent -> ai; default banking)."
           }
         }
@@ -70,27 +143,92 @@
       "type": "object",
       "additionalProperties": {
         "type": "object",
-        "required": ["scopes"],
+        "required": [
+          "scopes"
+        ],
         "additionalProperties": false,
         "properties": {
           "uri": {
             "type": "string",
-            "description": "v2: the resource server's audience (PingOne aud). Authoritative — bootstrap creates the RS with this audience."
+            "description": "v2: the resource server's audience (PingOne aud). Authoritative \u2014 bootstrap creates the RS with this audience."
           },
           "scopes": {
             "type": "array",
-            "items": { "type": "string" },
+            "items": {
+              "type": "string"
+            },
             "description": "Scopes native to this resource server (this RS is the canonical owner)."
           },
           "mirroredScopes": {
             "type": "array",
-            "items": { "type": "string" },
-            "description": "v2: scopes mirrored onto this RS because it is an RFC 8693 exchange-hop audience. Per ARCHITECTURE-TRUTHS T-10, scope vocabularies are per-resource and do not cascade — a scope traveling through an exchange hop must exist on that hop's audience resource. These are owned (native) by another RS but must also exist here."
+            "items": {
+              "type": "string"
+            },
+            "description": "v2: scopes mirrored onto this RS because it is an RFC 8693 exchange-hop audience. Per ARCHITECTURE-TRUTHS T-10, scope vocabularies are per-resource and do not cascade \u2014 a scope traveling through an exchange hop must exist on that hop's audience resource. These are owned (native) by another RS but must also exist here."
           },
           "role": {
             "type": "string",
-            "enum": ["mcp-gateway"],
-            "description": "Marks this resource as an accepted MCP gateway identity — an audience a caller may legitimately present to reach the MCP surface. Consumers derive their accepted-audience set by filtering on this instead of hardcoding resource names: snapshots/gen-authorize-snapshot.js (which builds the HasValidMcpAudience OR), demo_authz_server/routes/import-snapshot.js (which validates a snapshot against it) and snapshots/authorizeSnapshotCloudDelta.test.js. Those three each held their own hand-written copy of the name list and the set drifted twice — the A2A gateway, then the API-Key PingGateway — each time making the validator reject the generator's own output with a false mcp_audience_mismatch 409. The enum is deliberately closed: a typo'd role must fail schema validation rather than silently drop a gateway from every derived list, which is the exact failure being designed out."
+            "enum": [
+              "mcp-gateway"
+            ],
+            "description": "Marks this resource as an accepted MCP gateway identity \u2014 an audience a caller may legitimately present to reach the MCP surface. Consumers derive their accepted-audience set by filtering on this instead of hardcoding resource names: snapshots/gen-authorize-snapshot.js (which builds the HasValidMcpAudience OR), demo_authz_server/routes/import-snapshot.js (which validates a snapshot against it) and snapshots/authorizeSnapshotCloudDelta.test.js. Those three each held their own hand-written copy of the name list and the set drifted twice \u2014 the A2A gateway, then the API-Key PingGateway \u2014 each time making the validator reject the generator's own output with a false mcp_audience_mismatch 409. The enum is deliberately closed: a typo'd role must fail schema validation rather than silently drop a gateway from every derived list, which is the exact failure being designed out."
+          },
+          "audienceEnv": {
+            "type": "object",
+            "description": "Binding from this resource's canonical uri to the env var that carries its accepted-audience list, and the surfaces that must set it. Iterated by scripts/check-resource-server-audience-drift.js (topology:verify step 9) so every declared audience is drift-gated: each surface must set `var`, and every occurrence's first list entry must equal `uri`.",
+            "required": [
+              "var",
+              "surfaces"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "var": {
+                "type": "string",
+                "description": "The env var name carrying this resource's accepted-audience list."
+              },
+              "surfaces": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "file",
+                    "kind"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "file": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "yaml",
+                        "env",
+                        "js"
+                      ],
+                      "description": "Value parser: yaml for KEY: \"v\" (compose/configmaps), env for KEY=v, js for a quoted object value in the env writer."
+                    }
+                  }
+                }
+              },
+              "sourcePin": {
+                "type": "object",
+                "required": [
+                  "file",
+                  "mustInclude"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "file": {
+                    "type": "string"
+                  },
+                  "mustInclude": {
+                    "type": "string"
+                  }
+                },
+                "description": "Optional: a source file that must contain this literal (e.g. the service preferring its OWN env var name over a shared one)."
+              }
+            }
           }
         }
       }
@@ -99,18 +237,32 @@
       "type": "object",
       "additionalProperties": {
         "type": "object",
-        "required": ["grantedScopes"],
+        "required": [
+          "grantedScopes"
+        ],
         "additionalProperties": false,
         "properties": {
-          "grantedScopes": { "type": "array", "items": { "type": "string" } },
+          "grantedScopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "type": {
             "type": "string",
-            "enum": ["WEB_APP", "WORKER", "SINGLE_PAGE_APP", "NATIVE_APP"],
+            "enum": [
+              "WEB_APP",
+              "WORKER",
+              "SINGLE_PAGE_APP",
+              "NATIVE_APP"
+            ],
             "description": "v2: PingOne application type bootstrap should create."
           },
           "grantTypes": {
             "type": "array",
-            "items": { "type": "string" },
+            "items": {
+              "type": "string"
+            },
             "description": "v2: OAuth grant types for this app (e.g. authorization_code, client_credentials, token_exchange)."
           },
           "isResourceServer": {
@@ -122,10 +274,12 @@
     },
     "servers": {
       "type": "object",
-      "description": "v2: per-runtime-service model — which resource the service owns/validates and what it gates on. Documents the deployment topology so bootstrap + audits derive server expectations from one place.",
+      "description": "v2: per-runtime-service model \u2014 which resource the service owns/validates and what it gates on. Documents the deployment topology so bootstrap + audits derive server expectations from one place.",
       "additionalProperties": {
         "type": "object",
-        "required": ["resource"],
+        "required": [
+          "resource"
+        ],
         "additionalProperties": false,
         "properties": {
           "resource": {
@@ -140,7 +294,9 @@
             "type": "boolean",
             "description": "True if this service enforces per-tool requiredScopes (e.g. the MCP Gateway). Implies every gateway-surface tool scope must be mirrored onto this server's resource."
           },
-          "description": { "type": "string" }
+          "description": {
+            "type": "string"
+          }
         }
       }
     },
@@ -149,15 +305,29 @@
       "description": "Demo authorization policy constants (thresholds/tier limits). SoT for the mock authz server, simulated authorize, and the P1AZ snapshot generator; read via scopeTopology.js policy accessors.",
       "additionalProperties": false,
       "properties": {
-        "_comment": { "type": "string", "description": "Human-readable annotation; ignored at runtime." },
+        "_comment": {
+          "type": "string",
+          "description": "Human-readable annotation; ignored at runtime."
+        },
         "authorization": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "_comment": { "type": "string" },
-            "highValueConsentThresholdUsd": { "type": "number" },
-            "stepUpThresholdUsd": { "type": "number" },
-            "amountLimitsByTier": { "type": "object", "additionalProperties": { "type": "number" } }
+            "_comment": {
+              "type": "string"
+            },
+            "highValueConsentThresholdUsd": {
+              "type": "number"
+            },
+            "stepUpThresholdUsd": {
+              "type": "number"
+            },
+            "amountLimitsByTier": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "number"
+              }
+            }
           }
         }
       }
@@ -166,17 +336,31 @@
       "type": "object",
       "description": "Scope-to-attributes gating (P14C-83315). Maps each resource to scope-attribute mappings for custom resource token claims. Requires PingOne feature flag P14C-83315-custom-resource-scope-to-attributes-support.",
       "properties": {
-        "_comment": { "type": "string", "description": "Human-readable annotation; ignored at runtime." }
+        "_comment": {
+          "type": "string",
+          "description": "Human-readable annotation; ignored at runtime."
+        }
       },
       "additionalProperties": {
         "type": "array",
         "items": {
           "type": "object",
-          "required": ["scope", "attributes"],
+          "required": [
+            "scope",
+            "attributes"
+          ],
           "additionalProperties": false,
           "properties": {
-            "scope": { "type": "string", "minLength": 1 },
-            "attributes": { "type": "array", "items": { "type": "string" } }
+            "scope": {
+              "type": "string",
+              "minLength": 1
+            },
+            "attributes": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
           }
         }
       }
@@ -185,15 +369,44 @@
       "type": "object",
       "additionalProperties": {
         "type": "object",
-        "required": ["requiredScopes", "surface"],
+        "required": [
+          "requiredScopes",
+          "surface"
+        ],
         "additionalProperties": false,
         "properties": {
-          "requiredScopes": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
-          "surface": { "enum": ["gateway", "exchange-only", "legacy-alias"] },
-          "challengeType": { "enum": ["step_up", "consent"] },
-          "a2aDelegated": { "type": "boolean", "description": "True when this sensitive tool is reachable ONLY via A2A specialist delegation — PingOne Authorize DENYs unless the token's act chain shows a specialist delegated by the generalist (depth >= 2). The generalist cannot call it directly." },
-          "a2aDelegatedScope": { "type": "string", "description": "The specialist scope the A2A-delegated token must carry to reach this tool (e.g. 'records:read'). Paired with a2aDelegated: true." },
-          "requiresAgentMediation": { "type": "boolean", "description": "True when this tool requires agent mediation (HITL consent or step-up) before execution." }
+          "requiredScopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          },
+          "surface": {
+            "enum": [
+              "gateway",
+              "exchange-only",
+              "legacy-alias"
+            ]
+          },
+          "challengeType": {
+            "enum": [
+              "step_up",
+              "consent"
+            ]
+          },
+          "a2aDelegated": {
+            "type": "boolean",
+            "description": "True when this sensitive tool is reachable ONLY via A2A specialist delegation \u2014 PingOne Authorize DENYs unless the token's act chain shows a specialist delegated by the generalist (depth >= 2). The generalist cannot call it directly."
+          },
+          "a2aDelegatedScope": {
+            "type": "string",
+            "description": "The specialist scope the A2A-delegated token must carry to reach this tool (e.g. 'records:read'). Paired with a2aDelegated: true."
+          },
+          "requiresAgentMediation": {
+            "type": "boolean",
+            "description": "True when this tool requires agent mediation (HITL consent or step-up) before execution."
+          }
         }
       }
     }
