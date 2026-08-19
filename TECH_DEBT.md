@@ -1940,7 +1940,17 @@ it into the code as a comment, because `docs/LIVE-PINGONE-RUNBOOK.md:108` depend
 on it: enable `ff_authorize_group_policy` before the groups exist and "no gate"
 becomes "a gate that denies everyone".
 
-### [ ] 2026-08-18 — Shared jest automocks let an assertion pass on a different test's call
+### [x] 2026-08-18 — Shared jest automocks let an assertion pass on a different test's call
+
+**RESOLVED 2026-08-18 (branch `worktree-test-trust`).** `clearMocks: true` is
+now set in `demo_api_server/jest.config.js` (mockClear before every test —
+call HISTORY cleared, implementations preserved), with the leak story in a
+comment at the flag. The predicted fallout did not materialise: the full suite
+ran 820/820 suites / 9852 tests green on the first flip — the one known bad
+instance had already been repaired in place, and no other test depended on
+leaked history. The class conversion is what matters: an assertion against a
+call another test made now FAILS loudly instead of passing silently, which is
+the only way the next instance gets found. Original entry follows.
 
 **Where:** `demo_api_server/src/__tests__/mcpToolAuthorizationService.test.js`
 (fixed there); the pattern is repo-wide wherever a module-level `jest.mock()`
@@ -2305,6 +2315,12 @@ they are style, and reporting them at `error` alongside a crash is part of what
 flattened the signal.
 
 ### [ ] 2026-08-18 — Agent tests pass `user` at first render, so a whole class of auth-timing bug is invisible
+
+**FURTHER 2026-08-18 (branch `worktree-test-trust`):** the hydrating harness is
+now a SHARED util — `demo_api_ui/src/test-utils/renderAgentHydrating.jsx`
+(component passed in so each spec keeps its own vi.mock graph) — and
+`AIAgent.protectedStepLogin.test.jsx` consumes it. Remaining: converting the
+other AIAgent specs to hydration-first mounts.
 
 **PARTLY RESOLVED 2026-08-18 (branch `worktree-trustworthy-gates`).**
 `AIAgent.protectedStepLogin.test.jsx` now has `renderAtHydrating(path)` —

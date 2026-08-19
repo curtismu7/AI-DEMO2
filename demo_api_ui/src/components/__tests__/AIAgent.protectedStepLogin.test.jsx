@@ -122,6 +122,7 @@ vi.mock("../../vertical/useVertical", () => ({
 }));
 
 import AIAgent from "../AIAgent";
+import { renderAgentHydrating } from "../../test-utils/renderAgentHydrating";
 import { requiredFlagsForUseCase } from "../../utils/requiredDemoFlags";
 
 const UC1 = {
@@ -186,35 +187,10 @@ function renderAt(path, user = null) {
   );
 }
 
-/**
- * Mount signed-out first (the hydration window every real load has), then let
- * the caller land the session with `resolveSession(user)`. Assertions made
- * between mount and resolveSession run inside the window renderAt cannot
- * create.
- */
+// Hydration-window mount: shared harness, so every agent spec gets the same
+// window semantics (see src/test-utils/renderAgentHydrating.jsx for why).
 function renderAtHydrating(path) {
-  const view = render(
-    <MemoryRouter initialEntries={[path]}>
-      <ActivityNarrativeProvider>
-        <ProofOfEnforcementProvider>
-          <AIAgent user={null} mode="inline" />
-        </ProofOfEnforcementProvider>
-      </ActivityNarrativeProvider>
-    </MemoryRouter>,
-  );
-  const resolveSession = async (user) => {
-    view.rerender(
-      <MemoryRouter initialEntries={[path]}>
-        <ActivityNarrativeProvider>
-          <ProofOfEnforcementProvider>
-            <AIAgent user={user} mode="inline" />
-          </ProofOfEnforcementProvider>
-        </ActivityNarrativeProvider>
-      </MemoryRouter>,
-    );
-    await act(async () => { await new Promise((r) => setTimeout(r, 300)); });
-  };
-  return { ...view, resolveSession };
+  return renderAgentHydrating(AIAgent, { path });
 }
 
 async function runStep(uc) {
