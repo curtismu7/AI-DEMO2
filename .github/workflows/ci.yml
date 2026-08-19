@@ -73,6 +73,15 @@ jobs:
               - 'demo_mcp_gateway/**'
               - 'oauth-mcp/**'
               - 'demo_mcp_resource_server/**'
+              # demo_authz_server/routes/import-snapshot.js require()s this file
+              # directly and validates snapshots against its resources/tools, so a
+              # SoT-only change can break the authz suite. Without this entry such
+              # a PR selected `api-server` but NOT this job, and the drift landed
+              # green: that is exactly how the API-Key gateway identity got into
+              # scope-topology.json and the generator while the validator's
+              # GATEWAY_RESOURCE_NAMES stayed at 3, leaving the tracked snapshot
+              # rejected with a false 409 until someone ran the suite by hand.
+              - 'scope-topology.json'
               - 'snapshots/**'
               - 'scripts/test-service-suite.sh'
               - 'scripts/test-snapshots.sh'

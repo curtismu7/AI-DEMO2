@@ -16,6 +16,85 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [x] 2026-08-18 — the accepted-gateway-identity list is maintained by hand in two places, and has now drifted twice
+
+**RESOLVED 2026-08-18, same session — and the entry undercounted.** It was
+**three** hand-written copies, not two: the third is the step-0 literal in
+`snapshots/authorizeSnapshotCloudDelta.test.js` (~60). The generator's comment
+also promised a guard file, `snapshotAudienceParity.test.js`, that has never
+existed — the real guard was step 0 of that cloud-delta test all along.
+
+*What the fix was:* the entry's first option — a marker in the SoT. Gateway
+resources carry `"role": "mcp-gateway"` in `scope-topology.json`, and
+`gen-authorize-snapshot.js` plus `demo_authz_server/routes/import-snapshot.js`
+both derive from it. `scope-topology.schema.json` declares `role` as a CLOSED
+enum (the resource schema is `additionalProperties: false`, so it had to be
+declared anyway) — a typo'd value now fails schema validation instead of
+silently dropping a gateway from every derived consumer.
+
+*What the entry got wrong:* it proposed deriving in **all** consumers and
+deleting **both** literals. Doing that to the cloud-delta pin would have been a
+mistake, and that file's own comment already said so: once every consumer reads
+one field, they all agree with each other even when the field is wrong, so a
+resource that quietly loses its marker is missing *everywhere* and nothing
+notices. The pin stays literal and now cross-checks the marker too. Verified by
+mutation — removing the API-Key resource's `role` fails it with a message naming
+the cause.
+
+*Relocated, not dropped:* `deriveSot` used to abort when a gateway resource was
+deleted, because it looked resources up by name. A marker cannot detect a
+deletion (the deletion removes the marker). That guarantee now lives in the pin;
+`deriveSot` still aborts on a marked resource with no `uri` and on an SoT with
+nothing marked — the empty-OR case that would deny all MCP traffic on import.
+Both directions still fail loudly, which was the property worth keeping.
+
+*Cost:* the generated snapshot changed by exactly one line — same four
+audiences, order now following the SoT's declaration order, condition version
+re-derived from content by `ver()` as designed. An OR of equality comparisons is
+order-independent.
+
+Verified: `npm run topology:verify` PASSED 10/10 · `demo_authz_server` 260/260 ·
+`npm run test:snapshots` 44/44. Original entry follows.
+
+**Where:** `snapshots/gen-authorize-snapshot.js` `GATEWAY_RESOURCE_NAMES` (~118)
+and `demo_authz_server/routes/import-snapshot.js` `GATEWAY_RESOURCE_NAMES` (~154).
+
+**What's wrong:** the same set — "which `scope-topology.json` resources are
+accepted MCP gateway audiences" — is written out longhand in both files, and
+the generator and the validator must agree or the validator rejects the
+generator's own output. They have now disagreed twice:
+
+1. the A2A gateway was added to the SoT and the generator but not the validator
+   (recorded in the validator's own comment: "made this check compare the SoT's
+   2 known audiences against the tracked snapshot's real 3");
+2. the API-Key PingGateway identity, same omission, same false
+   `mcp_audience_mismatch` 409 — fixed 2026-08-18 in the commit that added this
+   entry, found only because the `demo_authz_server` suite was being run as the
+   INDETERMINATE rework's verification gate.
+
+Nothing derives one list from the other, and nothing derives either from the
+SoT, so the third occurrence is already possible. Neither file is wrong in
+isolation — that is what makes this a design gap rather than a bug.
+
+**Why not fixed now:** the honest fix needs a way to mark a resource as a
+gateway identity in `scope-topology.json`, which is an SoT schema change and a
+provisioning question (`bootstrapPingOne.js` and `pingoneProvisionService.js`
+both carry their own name lists), not something to fold into a test-baseline
+commit. The one-line list repair plus the CI filter that would have caught it
+were in scope; the schema change was not.
+
+**Real fix:** give each gateway resource a marker in `scope-topology.json`
+(e.g. `role: 'mcp-gateway'`), derive `GATEWAY_RESOURCE_NAMES` from that marker
+in both files, and delete both literals — at which point adding a gateway to
+the SoT is the only edit required and the two copies cannot disagree. Cheaper
+interim if the schema change is unwanted: a single test that asserts the two
+literals are equal, which is small and catches occurrence three.
+
+**Related:** the CI gap that let occurrence 2 land green is fixed separately —
+`decision-services` in `.github/workflows/ci.yml` did not list
+`scope-topology.json`, so a SoT-only PR never ran the suite whose existing test
+already caught this.
+
 ### [ ] 2026-08-18 — customer-dashboard banking column is the one dashboard pane without a resize handle
 
 **Where:** `demo_api_ui/src/components/UserDashboard.css` `.ud-body--dashboard-split3`

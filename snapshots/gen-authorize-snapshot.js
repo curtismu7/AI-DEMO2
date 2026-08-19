@@ -102,25 +102,45 @@ const ATTR = {
   // Default '' (absent), matching TokenAudActual / ResourceOwnerId.
   TokenKid: '12345678-0028-4321-abcd-000000000028',
 };
-// The accepted gateway identities (step 0) are read from these SoT resource
-// entries — the same identities the runtime accepts (PG_GATEWAY_RESOURCE_URI +
-// PG_GATEWAY_RESOURCE_ID; groovy p1az-decision.groovy acceptedAuds). Never
-// hardcode the URIs here (REGRESSION_PLAN §3).
+// The accepted gateway identities (step 0) are DERIVED from the SoT: every
+// resource marked `"role": "mcp-gateway"`. These are the same identities the
+// runtime accepts (PG_GATEWAY_RESOURCE_URI + PG_GATEWAY_RESOURCE_ID; groovy
+// p1az-decision.groovy acceptedAuds). Never hardcode the URIs here
+// (REGRESSION_PLAN §3), and no longer hardcode the NAMES either.
 //
-// The A2A gateway MUST be in this list. Its resource was added to the SoT after
-// this constant was written, so the generated snapshot accepted only two of the
-// three identities the runtime accepts (MCP_GW_RESOURCE_URI carries all three).
-// Importing that snapshot made HasValidMcpAudience false for every A2A token —
-// and rule 45678901-0004 denies NOT that condition — so ALL A2A TRAFFIC WOULD
-// HAVE BEEN DENIED, with the same all-or-nothing shape as the step-0 blocker
-// this reconcile pass exists to prevent. Adding a gateway resource to the SoT
-// means adding it here; snapshotAudienceParity.test.js now fails if it does not.
-const GATEWAY_RESOURCE_NAMES = [
-  'Super Banking MCP Gateway',
-  'Super Banking PingGateway MCP',
-  'Super Banking PingGateway MCP - API-Key',
-  'Super Banking A2A MCP Gateway',
-];
+// Why derived: this was a hand-written name list, and so were the copies in
+// demo_authz_server/routes/import-snapshot.js and
+// snapshots/authorizeSnapshotCloudDelta.test.js. The set drifted TWICE.
+//
+//   1. The A2A gateway's resource was added to the SoT after this constant was
+//      written, so the generated snapshot accepted only two of the three
+//      identities the runtime accepts (MCP_GW_RESOURCE_URI carries all three).
+//      Importing it made HasValidMcpAudience false for every A2A token — and
+//      rule 45678901-0004 denies NOT that condition — so ALL A2A TRAFFIC WOULD
+//      HAVE BEEN DENIED, the same all-or-nothing shape as the step-0 blocker
+//      this reconcile pass exists to prevent.
+//   2. The API-Key PingGateway identity reached the SoT and this file but not
+//      the validator, which then rejected this generator's own output with a
+//      false mcp_audience_mismatch 409.
+//
+// Adding a gateway to the SoT is now the ONLY edit required. (The previous
+// comment here promised "snapshotAudienceParity.test.js now fails if it does
+// not" — no such file has ever existed; the real guard is step 0 of
+// snapshots/authorizeSnapshotCloudDelta.test.js, which now derives too.)
+//
+// Order is pinned to the SoT's own declaration order via GATEWAY_ROLE ordering
+// below, so the emitted HasValidMcpAudience OR is stable across runs.
+const GATEWAY_ROLE = 'mcp-gateway';
+function gatewayResourceNames(resources) {
+  const names = Object.keys(resources || {}).filter((n) => resources[n] && resources[n].role === GATEWAY_ROLE);
+  if (!names.length) {
+    throw new Error(
+      `No scope-topology.json resource carries "role": "${GATEWAY_ROLE}". HasValidMcpAudience would ` +
+      'be generated empty, which denies ALL MCP traffic on import. Refusing to generate.'
+    );
+  }
+  return names;
+}
 // D-05 anti-bypass blacklist — parity with demo_authz_server/scopeTopology.js
 // upstreamAudiences(): the SoT upstream resources plus the banking RS (env-driven
 // with the same default), minus the gateway's own URI.
@@ -335,7 +355,7 @@ function deriveSot(sot) {
     }
     return uri;
   };
-  const acceptedGatewayAudiences = GATEWAY_RESOURCE_NAMES.map((name) =>
+  const acceptedGatewayAudiences = gatewayResourceNames(resources).map((name) =>
     requireUri(name, 'the accepted MCP audience set (HasValidMcpAudience)'));
   // Parity with demo_authz_server/scopeTopology.js upstreamAudiences(): SoT
   // upstream URIs + banking RS (same env var, same default), minus the MCP

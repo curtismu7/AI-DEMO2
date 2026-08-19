@@ -86,6 +86,11 @@
             "type": "array",
             "items": { "type": "string" },
             "description": "v2: scopes mirrored onto this RS because it is an RFC 8693 exchange-hop audience. Per ARCHITECTURE-TRUTHS T-10, scope vocabularies are per-resource and do not cascade — a scope traveling through an exchange hop must exist on that hop's audience resource. These are owned (native) by another RS but must also exist here."
+          },
+          "role": {
+            "type": "string",
+            "enum": ["mcp-gateway"],
+            "description": "Marks this resource as an accepted MCP gateway identity — an audience a caller may legitimately present to reach the MCP surface. Consumers derive their accepted-audience set by filtering on this instead of hardcoding resource names: snapshots/gen-authorize-snapshot.js (which builds the HasValidMcpAudience OR), demo_authz_server/routes/import-snapshot.js (which validates a snapshot against it) and snapshots/authorizeSnapshotCloudDelta.test.js. Those three each held their own hand-written copy of the name list and the set drifted twice — the A2A gateway, then the API-Key PingGateway — each time making the validator reject the generator's own output with a false mcp_audience_mismatch 409. The enum is deliberately closed: a typo'd role must fail schema validation rather than silently drop a gateway from every derived list, which is the exact failure being designed out."
           }
         }
       }

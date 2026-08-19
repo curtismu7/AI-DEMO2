@@ -18,6 +18,28 @@ One word carries two unrelated meanings.
 | **Cloud PingOne Authorize** | evaluation failed — missing attribute, unreachable attribute provider, malformed payload | fail closed, find the missing attribute; the plan file's description is exactly right |
 | **`demo_authz_server`** | a deliberate PAUSE — step-up or human consent required before this call may proceed | prompt the user; this is the demo's whole UC7/UC8 story |
 
+### The authoritative definition (user-supplied 2026-08-18)
+
+What INDETERMINATE means on the Ping platform, which is the meaning phase 5's
+guard must enforce:
+
+- **Unresolved rules** — the policy cannot decide whether the request meets the
+  permit or the deny conditions.
+- **Evaluation issues** — commonly a missing attribute, an evaluation fault, or
+  **combining-algorithm results that cancel out or fail**. (That third cause is
+  not in the blast-radius list below and is not currently modelled anywhere in
+  this repo — worth checking for when phase 5 lands, since it produces an
+  INDETERMINATE that no missing-attribute check would explain.)
+- **Default handling** — in orchestration flows (PingOne DaVinci, PingFederate
+  nodes) an INDETERMINATE outcome belongs on the **"No Match" or error path,
+  never on a path that grants access**.
+
+The third point is the phase 5 acceptance criterion, stated precisely: every
+consumer must route INDETERMINATE to its error/no-match branch. It also
+independently confirms the known trap already recorded below — an INDETERMINATE
+with no obligation must resolve to DENY (#1310) — and rules out any "treat it as
+soft-permit" shortcut during phase 3's consumer migration.
+
 The overload is the defect. Anyone acting on "INDETERMINATE means something is
 broken" will break the pause; anyone acting on "INDETERMINATE means step-up"
 will silently swallow a real cloud evaluation error.
@@ -89,10 +111,32 @@ PEP raises the challenge from the obligation rather than from the decision.
 
 Each phase ships independently and leaves the suite green.
 
-1. **Characterise.** Convert the baseline above into a committed test that
-   asserts the current pause behaviour end-to-end, per band, per vertical. This
-   runs BEFORE any change and must keep passing in spirit afterwards (its
-   assertions change shape, not outcome).
+1. ~~**Characterise.**~~ **DONE 2026-08-18** —
+   `demo_authz_server/tests/decision.indeterminateBaseline.test.js`, 24 tests,
+   green. Freezes the four amount bands across five verticals' write tools
+   (banking/retail/healthcare/sporting-goods/investment), deliberately mixing
+   `challengeType: 'consent'` and `'step_up'` tools to pin a second invariant:
+   **the amount bands ignore the tool's declared challengeType** (the
+   `declaresStepUp`/`declaresConsent` branches require `!hasAmount`), so the
+   rework must not let that leak into the amount path.
+
+   The pause assertion is isolated in three helpers — `assertPauses` /
+   `assertPermits` / `assertDenies` — so phases 2-4 rewrite ONLY those and the
+   band table stays byte-identical. If a later phase has to edit the table, the
+   rework changed behaviour, which is what this test exists to catch.
+
+   **Correction to the baseline above:** the deny ceiling is **exclusive**
+   (`txAmount > DENY_CEILING_USD`, decision.js ~795) while both pause thresholds
+   are **inclusive** (`amount >= X`, ~907-911). So `$2000` exactly is NOT denied —
+   it pauses for STEP_UP; `$2000.01` is the first denied amount. A first draft of
+   the test asserted DENY at `$2000` and failed, which is how this surfaced. If
+   the rework normalises the comparisons, that is a deliberate behavioural change
+   and this test will say so.
+
+   Guard proven to bite: mutating the step-up threshold from `>=` to `>` fails the
+   edge test (23/24). Pre-existing suite state is unchanged — 10 failures in
+   `importSnapshot.parity` / `introspect.*` occur identically with and without
+   this file (236→260 tests, +24 all passing).
 2. **Introduce the obligation.** PDP emits a step-up / consent obligation
    alongside today's INDETERMINATE. Nothing consumes it yet. Suite green.
 3. **Move consumers one at a time**, each with its own test flip:

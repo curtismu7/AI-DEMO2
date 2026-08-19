@@ -223,6 +223,7 @@
     },
     "Super Banking MCP Gateway": {
       "uri": "mcpgateway.ping.demo",
+      "role": "mcp-gateway",
       "scopes": ["mcp:invoke"],
       "mirroredScopes": ["read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "tax:read", "finaid:read", "supplier:read", "invest:read", "airlines:read", "airlines:write", "pnr:read", "workorders:read", "sensitive:read", "code:search"]
     },
@@ -277,14 +278,17 @@
     },
     "Super Banking A2A MCP Gateway": {
       "uri": "mcpgateway-a2a.ping.demo",
+      "role": "mcp-gateway",
       "scopes": ["read", "invest:read", "holdings:read", "records:read", "tax:read", "finaid:read", "supplier:read", "purchase:read", "membership:read", "payroll:read", "pnr:read", "identity:read"]
     },
     "Super Banking PingGateway MCP": {
       "uri": "https://api.ping.demo:3036/mcp",
+      "role": "mcp-gateway",
       "scopes": ["gateway:mcp:invoke"]
     },
     "Super Banking PingGateway MCP - API-Key": {
       "uri": "https://api.ping.demo:3036/mcp/apikey",
+      "role": "mcp-gateway",
       "scopes": ["apikey:mcp:invoke"],
       "mirroredScopes": ["mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "workorders:read", "invest:read"]
     },
