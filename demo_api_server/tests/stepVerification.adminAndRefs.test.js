@@ -35,21 +35,10 @@ describe('step verification — pingone-admin ADMIN1–4 (#765/#766)', () => {
       const expectParse = ADMIN_PARSE_EXPECT[step.id];
 
       if (expectParse) {
-        const ok =
-          parsed?.action === expectParse.action
-          && parsed?.params?.name === expectParse.toolName;
-        const status = ok ? 'PASS' : 'FAIL';
-        writeLedgerEntry({
-          vertical: 'pingone-admin',
-          useCaseId: step.id,
-          triggerType: 'chip',
-          mode: 'unit-parse',
-          status,
-          errorClass: ok ? null : 'parse_error',
-          primaryTool: expectParse.action,
-          checkedAt: new Date().toISOString(),
-          verifiedBy: 'nlIntentParser pingone-admin heuristics → call_pingone_tool',
-        });
+        // Assert only — the unit-parse ledger row for admin steps is owned by
+        // stepVerification.pingone-admin.test.js (per-step tool-specific
+        // verifiedBy). Writing a second, generic row here made the two suites
+        // ping-pong ADMIN1's file with different verifiedBy on every full run.
         expect(parsed.action).toBe(expectParse.action);
         expect(parsed.params?.name).toBe(expectParse.toolName);
         return;
