@@ -81,6 +81,20 @@ describe('privilege silent auth — prompt=none', () => {
       expect(authUrl.searchParams.has('prompt')).toBe(false);
     });
 
+    test('uses a cookie-restored dashboard session for prompt=none', async () => {
+      const app = buildApp({
+        user: { id: 'customer-1', role: 'customer' },
+        _restoredFromCookie: true,
+        oauthTokens: { accessToken: '_cookie_session' },
+      });
+      const state = await request(app).get('/api/privilege-mcp/state').expect(200);
+      expect(state.body.mainAppAuthenticated).toBe(true);
+
+      await configure(app);
+      const authUrl = await startAuth(app);
+      expect(authUrl.searchParams.get('prompt')).toBe('none');
+    });
+
     test('omits prompt=none when privilegePromptNoneFailed is set', async () => {
       const app = buildApp({ oauthTokens: { accessToken: 'main-app-token' }, privilegePromptNoneFailed: true });
       await configure(app);
