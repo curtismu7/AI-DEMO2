@@ -12,8 +12,8 @@ Source: Playwright drive of `https://local.ping-devops.com:4000` on **2026-08-19
 
 | # | Finding | Area | Severity | Status | Notes |
 |---|---------|------|----------|--------|-------|
-| 1 | Verification pill never dismisses | UI | High | OPEN | |
-| 2 | Pill covers the Sign Out button | UI | High | OPEN | Same root cause as #1 |
+| 1 | Verification pill never dismisses | UI | High | FIXED | PR #2155 — `banner → pill → gone` cycle |
+| 2 | Pill covers the Sign Out button | UI | High | FIXED | PR #2155 — overlay moved below the 60px TopNav |
 | 3 | `consent-challenge/:id/confirm` 404s twice, demo still scores ✅ | BFF + verdict | High | OPEN | |
 | 4 | Chain badged `CHAINED` while carrying 401s | UI | Medium | OPEN | |
 | 5 | Scope diff on chain step 10 is unreadable | UI | Medium | OPEN | Highest demo-value fix |
@@ -25,17 +25,21 @@ Source: Playwright drive of `https://local.ping-devops.com:4000` on **2026-08-19
 
 ---
 
-### 1. The green ✅ verification pill never goes away — OPEN
+### 1. The green ✅ verification pill never goes away — FIXED (PR #2155)
 
-`demo_api_ui/src/components/VerifiedBanner.jsx:20-38` collapses the banner to a pill after 6s, but the pill has no dismiss timer and no close button. It stayed pinned top-right reading `✅ hitl-consent verified` while the confirm call 404'd twice and the user declined the transaction.
+`demo_api_ui/src/components/VerifiedBanner.jsx` collapsed the banner to a pill after 6s, and nothing ever cleared the pill — no dismiss timer, no close button. It stayed pinned top-right reading `✅ hitl-consent verified` while the confirm call 404'd twice and the user declined the transaction.
 
 Worst case in front of a customer: a green checkmark parked over a broken flow.
 
-**Fix:** second `setTimeout` to clear the pill, or add an ✕.
+**Fixed:** `VerifiedBanner` now runs a three-phase cycle — `banner` (6s) → `pill` (15s) → `gone` — replacing the one-shot `collapsed` boolean. Clicking the pill restarts the cycle from `banner`, which also closes a latent bug in the old code: re-expanding set `collapsed = false` without arming a new timer, so a re-opened banner stayed open for the rest of the session.
 
-### 2. That pill physically covers the Sign Out button — OPEN
+**Evidence:** `VerifiedBanner.test.jsx` — 7 tests pass; the two new ones fail against the pre-fix component (verified by stashing the fix and re-running).
 
-`createPortal` → `document.body`, fixed positioning, no z-index coordination with the topbar. "Sign Out" renders as "Si". Resolved by fixing #1.
+### 2. That pill physically covers the Sign Out button — FIXED (PR #2155)
+
+`createPortal` → `document.body` at `top: 14px`, inside the 60px TopNav. "Sign Out" rendered as "Si".
+
+**Fixed:** both `.verified-banner` and `.verified-pill` moved to `top: 72px`, clearing the nav. `TopNav.css` untouched — it is a `REGRESSION_PLAN.md` §1 protected surface, and the overlay is the thing that was in the wrong place.
 
 ### 3. `POST /api/transactions/consent-challenge/:id/confirm` 404s twice, demo still reports success — OPEN
 
@@ -89,4 +93,5 @@ Dark mode · narrow/mobile widths · the other 11 verticals · every admin surfa
 
 ## Changelog
 
+- 2026-08-19 — #1 and #2 FIXED (PR #2155). `VerifiedBanner` gained a `banner → pill → gone` cycle and moved below the TopNav.
 - 2026-08-19 — initial pass, 10 findings, all OPEN.
