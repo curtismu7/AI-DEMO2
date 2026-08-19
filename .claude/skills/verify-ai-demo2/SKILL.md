@@ -97,7 +97,7 @@ tests and a review.
 |---|---|
 | gateway filter stages (#1951) | rendered into `TraceStepCard`, which focus mode never mounts |
 | MCP handshake header (#1977) | put on the gateway's HTTP response; discovery arrives over a WebSocket |
-| MCP handshake in Groovy (#2023) | `olb-token-exchange.groovy` never executes — `grep OlbExchange` in the gateway log returns 0 lines |
+| MCP handshake in Groovy (#2023) | `olb-token-exchange.groovy` never executes — `grep OlbExchange` in the gateway log returns 0 lines. **STALE as of 2026-08-19: it executes now.** Same grep returns 8 lines per agent tool call (`[OlbExchange] Sending MCP initialize` → `MCP session established` → `Forwarding tool call directly` → `MCP direct response HTTP 200` with real account data). Fixed sometime after this row was written. The row stays because the LESSON is what matters — but do not reuse the claim as a current fact; re-run the grep |
 | "the chips restore affects the public route" | `PublicRoutes.AgentPageRoute` is exported and referenced nowhere |
 | first `deploy-live` stamp fix | `filter_running` is called in `$(...)`, so its variable assignments never reached the parent |
 
