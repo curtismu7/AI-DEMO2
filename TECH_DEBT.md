@@ -2797,6 +2797,17 @@ already carries all 11 actor ids, but `verify:a2a-policy` still FAILs airlines a
 admin depth-2 with `mcp-invalid-actor` until someone re-imports it, and nothing in
 the repo can tell that the live environment has diverged.
 
+> **STALE as of 2026-08-18 — the airlines/admin failure no longer reproduces.**
+> Run live against env `01d89b06` after the CLI scripts were repaired (#2124):
+> `verify:a2a-policy` **PASS 11/11**, airlines and admin depth-2 among them, and
+> `verify:authorize-parity` **PASS 7/7**. Someone re-imported in the interim.
+> Note the two verifiers were themselves unrunnable between the dotenvx cutover
+> and #2124 — they failed at the token endpoint with `invalid_client` — so the
+> window in which this paragraph could have been re-checked was also the window
+> in which it could not. The rest of the entry (nothing in the repo detects
+> repo-vs-cloud divergence) is UNCHANGED and still the point: the only reason we
+> know the environment agrees today is that someone ran a script by hand.
+
 **What the real fix looks like:** extract the attribute set the Trust Framework
 requires into one checked-in contract (derivable from the snapshot), have every
 decision caller — PEP, both verifiers, tests — build its request from it, and add
