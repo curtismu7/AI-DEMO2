@@ -81,15 +81,20 @@ async function verifyActClaims() {
   // You need to provide a valid access token from a real session
   console.log('⚠️  This script requires a valid user access token.');
   console.log('   To obtain one:');
-  console.log('   1. Start the server: npm start');
-  console.log('   2. Log in via browser');
-  console.log('   3. Extract token from session (see server logs or use debugger)');
-  console.log('   4. Set ACCESS_TOKEN environment variable\n');
+  console.log('   1. Start the stack and sign in via the browser');
+  console.log('   2. npm run token:extract    (writes .env.test-tokens)');
+  console.log('   3. Re-run this script — the token is picked up automatically\n');
+  console.log('   Or pass one directly: ACCESS_TOKEN=eyJhbG... node scripts/verify-act-claims.js\n');
 
-  const userToken = process.env.ACCESS_TOKEN;
+  // INTEGRATION_SUBJECT_ACCESS_TOKEN is the name the rest of the repo uses —
+  // it is what scripts/extract-browser-token.js writes and what jest's
+  // globalSetup reads. Accepting only ACCESS_TOKEN meant this script demanded a
+  // login even when a freshly extracted token was already on disk.
+  const userToken = process.env.ACCESS_TOKEN
+    || process.env.INTEGRATION_SUBJECT_ACCESS_TOKEN
+    || require('./loadDemoEnv').readTestToken();
   if (!userToken) {
-    console.log('❌ ACCESS_TOKEN environment variable not set.');
-    console.log('   Example: ACCESS_TOKEN=eyJhbG... node scripts/verify-act-claims.js\n');
+    console.log('❌ No user access token — checked ACCESS_TOKEN, INTEGRATION_SUBJECT_ACCESS_TOKEN, and .env.test-tokens.\n');
     process.exit(1);
   }
 

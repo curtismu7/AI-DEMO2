@@ -102,9 +102,16 @@ async function runChainOnly() {
 }
 
 async function runExchangeAndOptionalActor() {
-  const subject = process.env.INTEGRATION_SUBJECT_ACCESS_TOKEN;
+  // Fall back to .env.test-tokens, which scripts/extract-browser-token.js
+  // writes and jest's globalSetup already reads — this script was the odd one
+  // out, telling you to log in again with the token already on disk.
+  const subject = process.env.INTEGRATION_SUBJECT_ACCESS_TOKEN
+    || require('./loadDemoEnv').readTestToken();
   if (!subject || !String(subject).trim()) {
-    console.error('Set INTEGRATION_SUBJECT_ACCESS_TOKEN to a real user access_token JWT from PingOne (after login).');
+    console.error('Need a real user access_token JWT from PingOne (after login). Either:');
+    console.error('  - sign in via the browser, then `npm run token:extract` (writes .env.test-tokens,');
+    console.error('    which this script now picks up automatically); or');
+    console.error('  - set INTEGRATION_SUBJECT_ACCESS_TOKEN directly.');
     process.exit(1);
   }
 

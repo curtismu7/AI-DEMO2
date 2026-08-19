@@ -174,4 +174,37 @@ function loadDemoEnv(options = {}) {
   return loaded;
 }
 
-module.exports = { loadDemoEnv, resolveEnvCandidates, resolveKeysCandidates };
+/**
+ * The live user access token from `.env.test-tokens`, or null.
+ *
+ * `scripts/extract-browser-token.js` already writes that file (key
+ * `INTEGRATION_SUBJECT_ACCESS_TOKEN`) and jest's globalSetup already reads it —
+ * but the CLI verifiers never did, so each told you to "log in via browser and
+ * set the variable" even when a freshly extracted token was sitting on disk. To
+ * make it worse the two disagreed on the name: verify-token-exchange wanted
+ * INTEGRATION_SUBJECT_ACCESS_TOKEN (what the extractor writes) and
+ * verify-act-claims wanted ACCESS_TOKEN (what nothing writes).
+ *
+ * Deliberately NOT folded into loadDemoEnv(): loadBrowserToken.js is explicit
+ * that the token file must not be auto-injected into every process, or an
+ * ordinary run starts hitting real PingOne APIs. A CLI opts in by asking.
+ */
+function readTestToken() {
+  const apiRoot = path.resolve(__dirname, '..');
+  const mainRoot = mainCheckoutRoot();
+  const candidates = [
+    path.join(apiRoot, '.env.test-tokens'),
+    ...(mainRoot ? [path.join(mainRoot, 'demo_api_server', '.env.test-tokens')] : []),
+  ];
+  for (const p of candidates) {
+    if (!fs.existsSync(p)) continue;
+    try {
+      const parsed = dotenv.parse(fs.readFileSync(p));
+      const token = parsed && (parsed.INTEGRATION_SUBJECT_ACCESS_TOKEN || parsed.ACCESS_TOKEN);
+      if (token) return token;
+    } catch (_err) { /* unreadable — try the next candidate */ }
+  }
+  return null;
+}
+
+module.exports = { loadDemoEnv, resolveEnvCandidates, resolveKeysCandidates, readTestToken };

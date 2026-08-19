@@ -159,6 +159,41 @@ describe('DOTENV_PRIVATE_KEY does not survive loadDemoEnv', () => {
   });
 });
 
+// scripts/extract-browser-token.js writes .env.test-tokens and jest's
+// globalSetup reads it, but the CLI verifiers never did — so each told you to
+// log in again with a freshly extracted token already on disk. They also
+// disagreed on the name: verify-token-exchange wanted
+// INTEGRATION_SUBJECT_ACCESS_TOKEN (what the extractor writes),
+// verify-act-claims wanted ACCESS_TOKEN (what nothing writes).
+describe('readTestToken', () => {
+  const TOKEN_FILE = path.resolve(__dirname, '../../.env.test-tokens');
+  let preExisting = null;
+
+  beforeEach(() => {
+    // Never clobber a real token file if one happens to exist.
+    preExisting = fs.existsSync(TOKEN_FILE) ? fs.readFileSync(TOKEN_FILE) : null;
+  });
+  afterEach(() => {
+    if (preExisting !== null) fs.writeFileSync(TOKEN_FILE, preExisting);
+    else fs.rmSync(TOKEN_FILE, { force: true });
+  });
+
+  test('reads INTEGRATION_SUBJECT_ACCESS_TOKEN — the name the extractor writes', () => {
+    fs.writeFileSync(TOKEN_FILE, 'INTEGRATION_SUBJECT_ACCESS_TOKEN=header.payload.sig\n');
+    expect(freshLoader().readTestToken()).toBe('header.payload.sig');
+  });
+
+  test('also accepts ACCESS_TOKEN, the name verify-act-claims documented', () => {
+    fs.writeFileSync(TOKEN_FILE, 'ACCESS_TOKEN=alt.token.value\n');
+    expect(freshLoader().readTestToken()).toBe('alt.token.value');
+  });
+
+  test('returns null when no token file exists (callers must still explain themselves)', () => {
+    fs.rmSync(TOKEN_FILE, { force: true });
+    expect(freshLoader().readTestToken()).toBeNull();
+  });
+});
+
 // .env and .env.keys are gitignored, so a worktree has neither and must borrow
 // the main checkout's. The pre-existing relative guesses only covered a worktree
 // one or two levels down; this repo's live at `.claude/worktrees/<branch>/`
