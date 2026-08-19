@@ -118,6 +118,24 @@ describe('a2aOrchestratorService.orchestrateDelegation — heuristic fallback', 
     expect(result.agentHeader).toContain('Heuristic Fallback');
   });
 
+  test.each([
+    ['healthcare', 'access my sensitive patient records'],
+    ['government', 'access my sensitive tax record'],
+    ['workforce', 'access my sensitive payroll details'],
+    ['retail', 'access my sensitive order history'],
+  ])('LLM failure still delegates the catalog UC2 prompt for %s', async (vertical, message) => {
+    callLlamaCpp.mockRejectedValue(new Error('proxy unreachable'));
+    delegateToSpecialist.mockResolvedValue({
+      token: 'tok', tokenEvents: [], claims: {}, specialist: 'Specialist', scopes: ['read'], actChainDepth: 2,
+    });
+
+    const result = await orchestrateDelegation({ req: reqStub, message, vertical, userId: 'u1' });
+
+    expect(delegateToSpecialist).toHaveBeenCalledWith(reqStub, expect.objectContaining({ vertical, subtask: message }));
+    expect(result.shouldDelegate).toBe(true);
+    expect(result.authorized).toBe(true);
+  });
+
   test('LLM failure + message with no delegation keywords: heuristic declines, no delegation attempted', async () => {
     callLlamaCpp.mockRejectedValue(new Error('proxy unreachable'));
 
