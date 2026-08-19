@@ -106,6 +106,42 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-19 — INDETERMINATE rework phase 3a (#2129, stacking #2133): Groovy gateway prefers explicit obligations, live-verified
+
+**Files changed:** `ping-gateway/scripts/groovy/p1az-decision.groovy` (Node
+gateway consumer landed the same phase in the same PR, no BFF/UI code changed —
+see `docs/superpowers/plans/2026-08-18-indeterminate-rework.md`'s phase 3a
+section for the full audit).
+
+**What changed:** PingGateway's Groovy script now classifies the demo PDP's
+explicit phase-2 `obligations[]` field ahead of the inferred `statements[]`
+shape (same precedence `PingOneAuthorizeClient.ts` already had), and
+recognizes `ELICITATION` as a real obligation kind — closing a gap where a
+live cloud `PERMIT` carrying only an ELICITATION statement (no step-up/consent)
+would have forwarded a destructive tool call ungated once phase 4 removes the
+`simulated`/`failoverUsed` escape hatch #2119 relied on for that one kind.
+
+**Live-verified post-deploy** (`create_transfer` via
+`POST /api/mcp-gateway/test`, real cloud backend —
+`ff_authorize_real`+`ff_mcp_gateway_pinggateway` both ON):
+- UC7 regression check: **$600 → 428 `hitl_required`**, byte-identical to the
+  pre-deploy baseline — the step-up/consent classification path is untouched.
+- New coverage: **$10 (destructive tool, below every amount threshold) → 428
+  `hitl_required`** — proves the ELICITATION obligation now gates correctly
+  through the live cloud path, not just in unit tests. Token Chain trace
+  (`/monitoring/token-chain`) rendered the gated run with no console errors,
+  confirming the additive `obligations[]` field doesn't break any UI consumer.
+
+**Do not break:** the STEP_UP/consent/hitl obligation-kind precedence
+(step-up > consent > hitl > elicitation, elicitation lowest since it never
+co-occurs with the other three) — unchanged from #2119, only the field read
+order and the ELICITATION vocabulary entry are new.
+
+**Verify:** no Groovy test harness exists in this repo (live-verify-only, per
+the plan's own gates) — `demo_mcp_gateway` build + 776/776 tests and
+`demo_authz_server` 265/265 tests pass unchanged (neither touches this file);
+live probe above.
+
 ### 2026-08-19 — PingGateway treated a genuine cloud P1AZ eval-failure as a step-up/HITL pause (#1310, gateway path)
 
 **Files changed:** `ping-gateway/scripts/groovy/p1az-decision.groovy`
