@@ -197,6 +197,17 @@ function cmdCheck() {
     const dc = fs.readFileSync(COMPOSE_PATH, 'utf8');
     for (const [k, deriv] of Object.entries(configmapMap)) {
       if (k === '_comment') continue;
+      if (k === 'MCP_GATEWAY_HTTP_URL') {
+        const allowedPorts = [services['mcp-gateway']?.port, services['ping-gateway']?.port]
+          .filter((port) => port != null);
+        for (const val of findAssignments(dc, k)) {
+          const parsed = Number((val.match(/:(\d+)/) || [])[1]);
+          if (parsed != null && !allowedPorts.includes(parsed)) {
+            issues.push(`docker-compose: ${k}="${val}" points at port ${parsed}, expected one of ${allowedPorts.join(', ')}`);
+          }
+        }
+        continue;
+      }
       const port = expectedPortFor(deriv);
       if (port != null) {
         issues.push(...portIssues('docker-compose', dc, k, port));

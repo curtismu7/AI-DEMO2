@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-brave
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: mcp-brave
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: ai-demo
+      component: mcp-brave
+  template:
+    metadata:
+      labels:
+        app: ai-demo
+        component: mcp-brave
+    spec:
+      containers:
+      - name: mcp-brave
+        image: ai-demo-k8-mcp-brave:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8897
+          name: http
+        env:
+        - name: PORT
+          value: "8897"
+        envFrom:
+        - secretRef:
+            name: ai-demo-secrets
+            optional: true
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "250m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8897
+          initialDelaySeconds: 10
+          periodSeconds: 60
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8897
+          initialDelaySeconds: 5
+          periodSeconds: 30
+          timeoutSeconds: 3
+          failureThreshold: 3
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-brave
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: mcp-brave
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8897
+    targetPort: 8897
+    protocol: TCP
+    name: http
+  selector:
+    app: ai-demo
+    component: mcp-brave

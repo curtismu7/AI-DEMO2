@@ -41,6 +41,9 @@ data:
   MCP_RESOURCE_URL: "http://mcp-server:8080"
   MCP_GATEWAY_HTTP_URL: "http://mcp-gateway:3005"
   MCP_PINGGATEWAY_URL: "http://ping-gateway:8080"
+  MCP_WEATHER_BACKEND_URL: "http://mcp-weather:8896"
+  MCP_BRAVE_BACKEND_URL: "http://mcp-brave:8897"
+  MCP_GW_JWTVERIFIER_HTTP_URL: "http://mcp-jwt-verifier:8083"
   HITL_SERVICE_URL: "http://hitl-service:3009"
   MCP_GW_PASSTHROUGH_TO_MCP_SERVER: "false"
   MCP_SERVER_HOST: "0.0.0.0"
@@ -54,11 +57,6 @@ data:
   AGUI_HTTP_HOST: "0.0.0.0"
   CHAT_WS_HOST: "0.0.0.0"
   MCP_SERVER_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo"
-  # mcp-resource-server (invest) pulls this whole map in via envFrom, so it must
-  # get its OWN audience list under its own name — the banking value above is
-  # NOT its list (TECH_DEBT 2026-08-16, T4). Keep in sync with
-  # scope-topology.json resources["Super Banking MCP Invest"].uri; gated by
-  # scripts/check-resource-server-audience-drift.js.
   MCP_RESOURCE_SERVER_RESOURCE_URI: "mcp-invest.ping.demo,mcp-resource-server.ping.demo,mcpgateway.ping.demo"
   MCP_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo"
   MCP_GW_RESOURCE_URI: "mcpgateway.ping.demo,https://api.ping.demo:3036/mcp"
