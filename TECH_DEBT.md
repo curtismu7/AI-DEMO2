@@ -16,6 +16,72 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-08-19 — nothing protects a live UI drive from another session recreating the stack under it
+
+**Where:** `scripts/deploy-live.sh` (the `.git/deploy-live.lock` it already
+takes), `run-docker.sh restart <svc>`, and any session invoking either. The two
+services that matter are `ai-demo-ui` and `demo-api-server` — the only ones that
+bind-mount source, and therefore the only ones a deploy recreates.
+
+**What's wrong:** `deploy-live.sh` locks so two *deploys* cannot race each
+other. Nothing tells it a live UI drive is in progress, and nothing tells the
+driver the ground moved. Six Claude sessions were live on this machine on
+2026-08-19 (`/tmp/cc-socks/`), all sharing one Docker stack whose compose
+project is the main checkout. Any of them recreates `ui` / `demo-api-server` at
+will, mid-request, under whoever is driving the browser or presenting.
+
+The failure is nasty because it is *invisible from the driver's side*. The
+browser gets a 404 or a 502; the BFF has no trace of the request because it was
+not running when the request arrived; and `docker logs` afterwards reads the
+NEW container, so the evidence is not merely missing, it is misleading. It
+looks exactly like an application bug in whatever code path happened to be
+executing.
+
+Measured, in a controlled reproduction (`UI_FINDINGS.md` #3): container pinned
+at 10:13:19Z, prompt sent 10:16:39Z, `ai-demo-api-server` recreated 10:16:41Z —
+two seconds into the run — and `ai-demo-ui` recreated again at 10:17:54Z.
+Neither restart came from `deploy-live.sh`; its own ledger recorded only two,
+both `ui`, at 10:00 and 10:07.
+
+**Cost so far:** roughly an hour on `UI_FINDINGS.md` #3, chasing a
+consent-challenge 404 through session lookup, TTL, single-use consumption,
+hitl-service and an unrelated authz-server fix — every one of them a
+server-side hypothesis for a fault that was not server-side. Two agent sessions
+were involved in that hunt. The same trap costs a presenter a demo rather than
+an hour.
+
+**Why it wasn't fixed now:** the fix is a coordination protocol between
+sessions, not a bug fix, and it wants a decision about which side yields. A
+drive-in-progress lease that blocks deploys can deadlock the stack if a session
+dies holding it (exactly the failure mode the `[x] 2026-08-18` deploy-live
+entry describes for its own lock). A deploy that merely *warns* does not stop
+anything. Both need the fallback rules thought through before anything is
+written, and neither belonged inside the UI fixes that surfaced it.
+
+**Real fix — smallest useful first:**
+
+1. **Make the ground checkable, cheaply.** `deploy-live.sh` already records
+   `.git/deploy-live.restarts`. Have it also stamp `.git/stack-generation`
+   (a counter or the compose container ids), and expose
+   `npm run stack:generation`. A driver captures it before a run and compares
+   after — one command instead of remembering the `docker inspect` incantation.
+   This is the 80% fix and it changes no locking behaviour.
+2. **Announce, do not block.** Have `deploy-live.sh` broadcast to the other
+   sessions' sockets before it restarts anything ("recreating ui in 5s"), so a
+   session mid-drive can say so. Advisory only; no deadlock risk.
+3. **Only if 1 and 2 prove insufficient:** an actual drive lease with a hard
+   TTL (minutes, auto-expiring, never indefinite) that `deploy-live.sh` honours,
+   plus a documented override for the case where the lease-holder is gone.
+
+Do NOT start at 3. The existing deploy lock already demonstrates how a
+stale lock on this stack turns into a worse outage than the race it prevents.
+
+**Interim discipline, until any of the above exists:** pin
+`docker inspect ai-demo-ui ai-demo-api-server --format '{{.State.StartedAt}}'`
+before and after any live drive, and treat the run as void — not as a finding —
+if either moved. That one check is the difference between a bug report and an
+hour in the routing layer.
+
 ### [x] 2026-08-18 — the accepted-gateway-identity list is maintained by hand in two places, and has now drifted twice
 
 **RESOLVED 2026-08-18, same session — and the entry undercounted.** It was
