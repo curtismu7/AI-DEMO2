@@ -198,6 +198,25 @@ their declared `user` or `admin` level.
 **Do not break:** Preserve the existing `categoryActionMap` handlers, including education panel tabs, demo tour startup, custom education events, and route navigation.
 
 **Verify:** No no-op action stubs remain; `cd demo_api_ui && npm run test:unit -- --reporter=dot` — 389 files / 3325 tests passed, 24 skipped; `npm run build` exit 0.
+### 2026-08-19 — Privilege MCP boolean arguments were sent as empty strings
+
+**Files changed:** `demo_api_ui/src/components/privilege/ToolsTable.jsx`,
+`demo_api_ui/src/components/privilege/ToolsTable.css`,
+`demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`,
+`demo_api_ui/src/pages/PrivilegeMcpClientPage.css`, and `ToolsTable.test.jsx`.
+
+**What was broken:** Tool argument templates initialized every schema property as
+an empty string, so untouched boolean fields failed MCP input validation.
+
+**What was fixed:** Boolean schema properties now initialize as `false`; JSON
+results use the shared syntax highlighter and larger code text.
+
+**Do not break:** Non-boolean argument templates remain editable strings, and
+tool execution still forwards the parsed JSON object without changing auth or
+session behavior.
+
+**Verify:** `npm run test:unit -- src/components/privilege/ToolsTable.test.jsx`
+and `npm run build`.
 
 ### 2026-08-19 — The proof-of-enforcement pill never dismissed and sat over TopNav Sign Out
 

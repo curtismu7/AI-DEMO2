@@ -3,6 +3,7 @@
 // Click a row to expand an inline args box + Execute + result. In presentMode
 // it is display-only (no Run, no expand) for projecting during a demo.
 import { useEffect, useMemo, useRef, useState } from 'react';
+import JsonHighlight from '../shared/JsonHighlight';
 import './ToolsTable.css';
 
 function paramsOf(tool) {
@@ -22,7 +23,7 @@ function seedArgs(tool) {
   const keys = Object.keys(props);
   if (keys.length === 0) return '{}';
   const obj = {};
-  for (const k of keys) obj[k] = '';
+  for (const k of keys) obj[k] = props[k]?.type === 'boolean' ? false : '';
   return JSON.stringify(obj, null, 2);
 }
 
@@ -198,6 +199,7 @@ function FragmentRow({ tool, params, isOpen, selected = false, presentMode, onTo
               <span className="ptt-args-label">Arguments (JSON)</span>
               <textarea
                 className="ptt-args"
+                aria-label="Arguments (JSON)"
                 rows={Math.min(8, Math.max(2, args.split('\n').length))}
                 value={args}
                 onChange={(e) => onArgs(e.target.value)}
@@ -209,7 +211,7 @@ function FragmentRow({ tool, params, isOpen, selected = false, presentMode, onTo
               {result !== undefined && (
                 <>
                   <div className="ptt-result-label">Result</div>
-                  <pre className="ptt-result">{result}</pre>
+                  <pre className="ptt-result jh-dark"><JsonHighlight value={result} deep /></pre>
                 </>
               )}
             </div>
