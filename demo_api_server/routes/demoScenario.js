@@ -301,9 +301,9 @@ router.put('/', async (req, res) => {
   try {
     const { accounts: bodyAccounts, userData } = req.body || {};
     const uid = req.user.id;
-    let staleAccountIds = [];
+    const staleAccountIds = [];
 
-    if (Object.prototype.hasOwnProperty.call(req.body, 'stepUpAmountThreshold')) {
+    if (Object.hasOwn(req.body, 'stepUpAmountThreshold')) {
       const raw = req.body.stepUpAmountThreshold;
       if (raw === null || raw === '') {
         await demoScenarioStore.save(uid, { stepUpAmountThreshold: null });
@@ -316,7 +316,7 @@ router.put('/', async (req, res) => {
       }
     }
 
-    if (Object.prototype.hasOwnProperty.call(req.body, 'bankingAgentUiMode')) {
+    if (Object.hasOwn(req.body, 'bankingAgentUiMode')) {
       const raw = req.body.bankingAgentUiMode;
       if (raw === null || raw === '') {
         await demoScenarioStore.save(uid, { bankingAgentUiMode: null });
@@ -330,7 +330,7 @@ router.put('/', async (req, res) => {
       }
     }
 
-    if (Object.prototype.hasOwnProperty.call(req.body, 'bankingAgentUi')) {
+    if (Object.hasOwn(req.body, 'bankingAgentUi')) {
       const raw = req.body.bankingAgentUi;
       if (raw === null || raw === '') {
         await demoScenarioStore.save(uid, { bankingAgentUi: null });
@@ -426,7 +426,7 @@ router.put('/', async (req, res) => {
           return res.status(403).json({ error: 'forbidden_account', message: 'You can only edit your own accounts.' });
         }
         const updates = {};
-        if (Object.prototype.hasOwnProperty.call(row, 'name')) {
+        if (Object.hasOwn(row, 'name')) {
           if (typeof row.name === 'string') {
             updates.name = row.name.trim().slice(0, 120);
           }
@@ -449,7 +449,7 @@ router.put('/', async (req, res) => {
       }
     }
 
-    if (Object.prototype.hasOwnProperty.call(req.body, 'accountProfileFields')) {
+    if (Object.hasOwn(req.body, 'accountProfileFields')) {
       const rawProf = req.body.accountProfileFields;
       if (rawProf === null) {
         await demoScenarioStore.save(uid, { accountProfileFields: null });
@@ -458,7 +458,7 @@ router.put('/', async (req, res) => {
       }
     }
 
-    if (Object.prototype.hasOwnProperty.call(req.body, 'accountProfileFields')) {
+    if (Object.hasOwn(req.body, 'accountProfileFields')) {
       const rawProf = req.body.accountProfileFields;
       if (rawProf === null) {
         await demoScenarioStore.save(uid, { accountProfileFields: null });
@@ -467,7 +467,7 @@ router.put('/', async (req, res) => {
       }
     }
 
-    if (Object.prototype.hasOwnProperty.call(req.body, 'userData')) {
+    if (Object.hasOwn(req.body, 'userData')) {
       let user = dataStore.getUserById(uid);
       if (!user) {
         const su = req.session?.user || {};

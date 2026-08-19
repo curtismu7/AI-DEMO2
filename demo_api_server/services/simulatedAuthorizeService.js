@@ -93,7 +93,7 @@ function getConsentTypes() {
   return new Set(
     raw
       .split(',')
-      .map(function(s) { return s.trim().toLowerCase(); })
+      .map((s) => s.trim().toLowerCase())
       .filter(Boolean)
   );
 }
@@ -106,7 +106,7 @@ function getStepUpTypes() {
   return new Set(
     raw
       .split(',')
-      .map(function(s) { return s.trim().toLowerCase(); })
+      .map((s) => s.trim().toLowerCase())
       .filter(Boolean)
   );
 }

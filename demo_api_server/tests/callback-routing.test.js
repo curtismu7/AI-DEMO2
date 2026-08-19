@@ -37,7 +37,8 @@ describe('callbackDispatcher', () => {
   });
 
   function getRoutes() {
-    return registerCallbacks = require('../services/callbackDispatcher');
+    registerCallbacks = require('../services/callbackDispatcher');
+    return registerCallbacks;
   }
 
   // ── Test 1 ────────────────────────────────────────────────────────────────

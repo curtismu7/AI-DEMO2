@@ -35,7 +35,9 @@ beforeEach(() => {
 
 afterAll(() => {
   // Restore original env
-  Object.keys(process.env).forEach(k => delete process.env[k]);
+  Object.keys(process.env).forEach(k => {
+    delete process.env[k];
+  });
   Object.assign(process.env, ENV_SNAPSHOT);
 });
 
@@ -174,7 +176,9 @@ describe('validateTwoExchangeConfig()', () => {
       k.startsWith('AGENT_') || k.startsWith('MCP_') ||
       k.includes('AUDIENCE') || k.includes('GATEWAY') || k.includes('EXCHANGE')
     );
-    keysToDelete.forEach(k => delete process.env[k]);
+    keysToDelete.forEach(k => {
+      delete process.env[k];
+    });
 
     const cs = loadConfigStore();
     // Also clear all relevant cache keys
@@ -283,7 +287,9 @@ describe('buildAllowedScopesByAudience()', () => {
     keys.forEach(k => {
       expect(Array.isArray(mapping[k])).toBe(true);
       expect(mapping[k].length).toBeGreaterThan(0);
-      mapping[k].forEach(scope => expect(typeof scope).toBe('string'));
+      mapping[k].forEach(scope => {
+        expect(typeof scope).toBe('string');
+      });
     });
   });
 

@@ -140,7 +140,7 @@ function validateRequestedScopes(scopes) {
   // Extract all valid scopes from MCP_TOOL_SCOPES
   const allValidScopes = new Set();
   Object.values(MCP_TOOL_SCOPES).forEach(scopeArray => {
-    scopeArray.forEach(scope => allValidScopes.add(scope));
+    scopeArray.forEach(scope => { allValidScopes.add(scope); });
   });
 
   // Add administrative scopes

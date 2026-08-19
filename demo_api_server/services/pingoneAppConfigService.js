@@ -65,7 +65,7 @@ async function fixLogoutUrls(appId, publicAppUrl) {
   };
 
   const existing = new Set(current.postLogoutRedirectUris || []);
-  for (var i = 0; i < uniqueUrls.length; i++) existing.add(uniqueUrls[i]);
+  for (let i = 0; i < uniqueUrls.length; i++) existing.add(uniqueUrls[i]);
 
   const updated = Object.assign({}, current, { postLogoutRedirectUris: Array.from(existing) });
   if (!current.signOffUrl) updated.signOffUrl = url;
@@ -131,7 +131,7 @@ async function auditAppConfig(appId) {
     passes,
     issueCount: issues.length,
     passCount: passes.length,
-    healthy: issues.filter(function (i) { return i.severity === 'error'; }).length === 0
+    healthy: issues.filter((i) => i.severity === 'error').length === 0
   };
 }
 
@@ -186,14 +186,14 @@ async function ensureAllUrisOnApp(appId, requiredUris, label) {
   }
 
   const existing = new Set(config.redirectUris || []);
-  const missing = requiredUris.filter(function (u) { return !existing.has(u); });
+  const missing = requiredUris.filter((u) => !existing.has(u));
 
   if (missing.length === 0) {
     console.log('[redirect-uri-guard] ' + label + ' (' + appId.slice(0, 8) + '…) — all ' + existing.size + ' URI(s) already present');
     return { appId, label, alreadyPresent: true, uriCount: existing.size };
   }
 
-  missing.forEach(function (u) { existing.add(u); });
+  missing.forEach((u) => { existing.add(u); });
   const updated = Object.assign({}, config, { redirectUris: Array.from(existing) });
   try {
     await updateAppConfig(appId, updated);
@@ -210,7 +210,7 @@ async function ensureAllUrisOnApp(appId, requiredUris, label) {
     return { appId, label, added: missing, verifyError: 'could not re-read after write: ' + err.message };
   }
   const verifiedSet = new Set(verified.redirectUris || []);
-  const stillMissing = requiredUris.filter(function (u) { return !verifiedSet.has(u); });
+  const stillMissing = requiredUris.filter((u) => !verifiedSet.has(u));
   if (stillMissing.length > 0) {
     console.warn('[redirect-uri-guard] ' + label + ' — write appeared to succeed but URI(s) not confirmed in re-read: ' + stillMissing.join(', '));
     return { appId, label, added: missing, verifyFailed: stillMissing, newUriCount: verifiedSet.size };
@@ -232,14 +232,14 @@ async function ensureLogoutUrisOnApp(appId, requiredUris, label) {
   }
 
   const existing = new Set(config.postLogoutRedirectUris || []);
-  const missing = requiredUris.filter(function (u) { return !existing.has(u); });
+  const missing = requiredUris.filter((u) => !existing.has(u));
 
   if (missing.length === 0) {
     console.log('[logout-uri-guard] ' + label + ' (' + appId.slice(0, 8) + '…) — all ' + existing.size + ' logout URI(s) already present');
     return { appId, label, alreadyPresent: true, uriCount: existing.size };
   }
 
-  missing.forEach(function (u) { existing.add(u); });
+  missing.forEach((u) => { existing.add(u); });
   const updated = Object.assign({}, config, { postLogoutRedirectUris: Array.from(existing) });
   if (!config.signOffUrl) updated.signOffUrl = requiredUris[0];
 
@@ -258,7 +258,7 @@ async function ensureLogoutUrisOnApp(appId, requiredUris, label) {
     return { appId, label, added: missing, verifyError: 'could not re-read after write: ' + err.message };
   }
   const verifiedSet = new Set(verified.postLogoutRedirectUris || []);
-  const stillMissing = requiredUris.filter(function (u) { return !verifiedSet.has(u); });
+  const stillMissing = requiredUris.filter((u) => !verifiedSet.has(u));
   if (stillMissing.length > 0) {
     console.warn('[logout-uri-guard] ' + label + ' — write appeared to succeed but logout URI(s) not confirmed: ' + stillMissing.join(', '));
     return { appId, label, added: missing, verifyFailed: stillMissing, newUriCount: verifiedSet.size };
@@ -285,11 +285,11 @@ async function ensureAllRedirectUris() {
   const frontendOrigin = getFrontendOrigin();
 
   const adminUris = Array.from(new Set(
-    KNOWN_REDIRECT_ORIGINS.map(function (o) { return o + '/api/auth/oauth/callback'; })
+    KNOWN_REDIRECT_ORIGINS.map((o) => o + '/api/auth/oauth/callback')
       .concat([liveAdminUri])
   ));
   const userUris = Array.from(new Set(
-    KNOWN_REDIRECT_ORIGINS.map(function (o) { return o + '/api/auth/oauth/user/callback'; })
+    KNOWN_REDIRECT_ORIGINS.map((o) => o + '/api/auth/oauth/user/callback')
       .concat([liveUserUri])
   ));
 
@@ -297,7 +297,7 @@ async function ensureAllRedirectUris() {
   const logoutUris = Array.from(new Set(
     KNOWN_REDIRECT_ORIGINS
       .concat([frontendOrigin])
-      .map(function (o) { return o + '/logout'; })
+      .map((o) => o + '/logout')
   ));
 
   const adminClientId = configStore.getEffective('admin_client_id') || null;
@@ -332,7 +332,7 @@ async function ensureAllRedirectUris() {
   }
 
   const anyError = [results.admin, results.user, results.adminLogout, results.userLogout]
-    .some(function (r) { return r && (r.error || r.verifyFailed); });
+    .some((r) => r && (r.error || r.verifyFailed));
   const severity = anyError ? 'warn' : 'info';
 
   appEventService.logEvent('oauth', severity, 'redirect-uri-guard completed', {
@@ -354,9 +354,9 @@ async function ensureAllRedirectUris() {
  * Returns a handle with a stop() method.
  */
 function startRedirectUriScheduler() {
-  const interval = setInterval(function () {
+  const interval = setInterval(() => {
     console.log('[redirect-uri-guard] Periodic re-check...');
-    ensureAllRedirectUris().catch(function (err) {
+    ensureAllRedirectUris().catch((err) => {
       console.warn('[redirect-uri-guard] Periodic re-check failed:', err.message);
     });
   }, RECHECK_INTERVAL_MS);
@@ -365,7 +365,7 @@ function startRedirectUriScheduler() {
   if (interval.unref) interval.unref();
 
   console.log('[redirect-uri-guard] Periodic re-check scheduled every ' + (RECHECK_INTERVAL_MS / 60000) + ' min');
-  return { stop: function () { clearInterval(interval); } };
+  return { stop: () => { clearInterval(interval); } };
 }
 
 module.exports = {

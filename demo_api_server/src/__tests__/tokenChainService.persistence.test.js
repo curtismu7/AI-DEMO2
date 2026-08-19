@@ -64,7 +64,9 @@ describe('tokenChainService persistence across restarts', () => {
       { id: 'e3', userId, type: 'SCOPE_CHANGE', timestamp: 3000 },
     ];
 
-    events.forEach(e => tokenChainService.recordEvent?.(e));
+    events.forEach(e => {
+      tokenChainService.recordEvent?.(e);
+    });
     await tokenChainService.persistToDisk?.();
 
     const persisted = tokenChainService.getEventsByUserId?.(userId) || [];

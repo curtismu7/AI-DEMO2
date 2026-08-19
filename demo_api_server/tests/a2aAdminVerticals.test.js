@@ -214,7 +214,7 @@ describe('the hand-maintained wiring that fails silently when missed', () => {
       ];
       for (const [envVar, storeKey] of pairs) {
         const sentinel = `sentinel-${spec.appKey}-${envVar}`;
-        const had = Object.prototype.hasOwnProperty.call(process.env, envVar);
+        const had = Object.hasOwn(process.env, envVar);
         const prev = process.env[envVar];
         process.env[envVar] = sentinel;
         try {

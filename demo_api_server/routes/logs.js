@@ -139,22 +139,22 @@ const originalConsoleError = console.error;
 const originalConsoleWarn = console.warn;
 const originalConsoleInfo = console.info;
 
-console.log = function(...args) {
+console.log = (...args) => {
   captureLog('info', args);
   originalConsoleLog.apply(console, args);
 };
 
-console.error = function(...args) {
+console.error = (...args) => {
   captureLog('error', args);
   originalConsoleError.apply(console, args);
 };
 
-console.warn = function(...args) {
+console.warn = (...args) => {
   captureLog('warn', args);
   originalConsoleWarn.apply(console, args);
 };
 
-console.info = function(...args) {
+console.info = (...args) => {
   captureLog('info', args);
   originalConsoleInfo.apply(console, args);
 };
@@ -191,9 +191,6 @@ router.get('/console', async (req, res) => {
   const { level, search, limit = 100, since } = req.query;
 
   let filteredLogs = [...recentLogs];
-
-  // Merge in-memory exchange audit events
-  {
     try {
       const auditEvents = await exchangeAuditStore.readExchangeEvents(200);
       const inProcessMessages = new Set(recentLogs.map((l) => l.message));
@@ -212,7 +209,6 @@ router.get('/console', async (req, res) => {
     } catch (_) {
       // Non-fatal — serve in-process logs without Redis augmentation
     }
-  }
 
   // Filter by level
   if (level) {

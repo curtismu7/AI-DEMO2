@@ -15,7 +15,7 @@ const DEFAULT_LLM_PROXY_URL = process.env.LLM_PROXY_URL || 'http://localhost:809
 const MAX_CONCURRENT_WORKERS = 3;
 const TIMEOUT_MS = 30000; // 30s max for summary LLM call
 
-let queue = [];
+const queue = [];
 let activeWorkers = 0;
 
 /**

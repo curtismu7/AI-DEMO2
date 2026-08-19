@@ -152,7 +152,7 @@ function loadDemoEnv(options = {}) {
   // INJECT it, and leaving it behind would hand a private key to every child
   // process these CLIs spawn. Hence the finally: whatever the outcome, the env
   // ends the way it started.
-  const hadKey = Object.prototype.hasOwnProperty.call(process.env, 'DOTENV_PRIVATE_KEY');
+  const hadKey = Object.hasOwn(process.env, 'DOTENV_PRIVATE_KEY');
   const privateKey = process.env.DOTENV_PRIVATE_KEY || readSharedPrivateKey();
   if (privateKey) {
     process.env.DOTENV_PRIVATE_KEY = privateKey;

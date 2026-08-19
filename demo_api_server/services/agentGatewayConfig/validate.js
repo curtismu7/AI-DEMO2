@@ -140,8 +140,11 @@ function placeholderWarnings(raw) {
 
   const referenced = new Set();
   const re = /\$\{env\['([^']+)'\]\}/g;
-  let m;
-  while ((m = re.exec(raw)) !== null) referenced.add(m[1]);
+  let m = re.exec(raw);
+  while (m !== null) {
+    referenced.add(m[1]);
+    m = re.exec(raw);
+  }
 
   for (const varName of referenced) {
     if (!defined.has(varName)) {

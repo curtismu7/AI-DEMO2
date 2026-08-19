@@ -4,7 +4,9 @@ const plugin = require('../../config/verticals/oauth-teaching');
 describe('oauth-teaching plugin — EXPLAIN tools', () => {
   it('marks teaching tools as local', () => {
     ['explain_concept', 'open_education_panel', 'show_flow_diagram', 'inspect_token']
-      .forEach((n) => expect(plugin.isLocalTool(n)).toBe(true));
+      .forEach((n) => {
+        expect(plugin.isLocalTool(n)).toBe(true);
+      });
     expect(plugin.isLocalTool('create_transfer')).toBe(false);
   });
 

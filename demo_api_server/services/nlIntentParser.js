@@ -988,7 +988,7 @@ function parseHeuristic(
   // `?.` only guards nullish, so `.test(t)` was then called on a function that has
   // none — POST /api/demo-agent/nl {vertical:"constructor"} 500'd with
   // "featureTrigger?.test is not a function".
-  const featureTrigger = Object.prototype.hasOwnProperty.call(FEATURE_TRIGGERS, vertical)
+  const featureTrigger = Object.hasOwn(FEATURE_TRIGGERS, vertical)
     ? FEATURE_TRIGGERS[vertical]
     : null;
   if (featureTrigger?.test(t) || /\bshow\s+vertical\s+feature\b/.test(t)) {

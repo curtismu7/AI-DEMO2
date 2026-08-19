@@ -205,7 +205,7 @@ const READ_ONLY_TOOLS_BY_VERTICAL = {
  *  which is truthy, so `permitted_tools` became a function. JSON.stringify then
  *  DROPPED the claim, minting an Intent Token with no tool binding at all. */
 function ownEntry(map, key) {
-  return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : undefined;
+  return  Object.hasOwn(map, key) ? map[key] : undefined;
 }
 
 function permittedToolsForIntent(intent, vertical) {

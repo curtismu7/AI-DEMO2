@@ -27,7 +27,7 @@ function buildSystem(vertical) {
   // accepts `constructor`, so a bare lookup on this JSON-parsed map returned the
   // INHERITED Object constructor — truthy, and its native-code SOURCE was then
   // concatenated into the LLM system prompt.
-  const theme = Object.prototype.hasOwnProperty.call(THEME_OVERRIDES, vertical)
+  const theme = Object.hasOwn(THEME_OVERRIDES, vertical)
     ? THEME_OVERRIDES[vertical]
     : null;
   if (theme) return SYSTEM_BASE + theme;

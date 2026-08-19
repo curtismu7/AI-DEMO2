@@ -148,11 +148,11 @@ class DataStore {
     this.activityLogs.clear();
     this.subscriptions.clear();
 
-    users.forEach((user) => this.users.set(user.id, { ...user, createdAt: user.createdAt ? new Date(user.createdAt) : user.createdAt }));
-    accounts.forEach((account) => this.accounts.set(account.id, { ...account, createdAt: account.createdAt ? new Date(account.createdAt) : account.createdAt }));
-    transactions.forEach((transaction) => this.transactions.set(transaction.id, { ...transaction, createdAt: transaction.createdAt ? new Date(transaction.createdAt) : transaction.createdAt }));
-    activityLogs.forEach((log) => this.activityLogs.set(log.id, { ...log, timestamp: log.timestamp ? new Date(log.timestamp) : log.timestamp }));
-    subscriptions.forEach((sub) => this.subscriptions.set(sub.id, { ...sub, createdAt: sub.createdAt ? new Date(sub.createdAt) : sub.createdAt, nextBillingDate: sub.nextBillingDate ? new Date(sub.nextBillingDate) : sub.nextBillingDate }));
+    users.forEach((user) => { this.users.set(user.id, { ...user, createdAt: user.createdAt ? new Date(user.createdAt) : user.createdAt }); });
+    accounts.forEach((account) => { this.accounts.set(account.id, { ...account, createdAt: account.createdAt ? new Date(account.createdAt) : account.createdAt }); });
+    transactions.forEach((transaction) => { this.transactions.set(transaction.id, { ...transaction, createdAt: transaction.createdAt ? new Date(transaction.createdAt) : transaction.createdAt }); });
+    activityLogs.forEach((log) => { this.activityLogs.set(log.id, { ...log, timestamp: log.timestamp ? new Date(log.timestamp) : log.timestamp }); });
+    subscriptions.forEach((sub) => { this.subscriptions.set(sub.id, { ...sub, createdAt: sub.createdAt ? new Date(sub.createdAt) : sub.createdAt, nextBillingDate: sub.nextBillingDate ? new Date(sub.nextBillingDate) : sub.nextBillingDate }); });
   }
 
   _atomicWrite(filePath, data) {
@@ -241,11 +241,11 @@ class DataStore {
   }
 
   initializeSampleData() {
-    sampleUsers.forEach((user) => this.users.set(user.id, { ...user }));
-    sampleAccounts.forEach((account) => this.accounts.set(account.id, { ...account }));
-    sampleTransactions.forEach((transaction) => this.transactions.set(transaction.id, { ...transaction }));
-    sampleActivityLogs.forEach((log) => this.activityLogs.set(log.id, { ...log }));
-    sampleSubscriptions.forEach((sub) => this.subscriptions.set(sub.id, { ...sub }));
+    sampleUsers.forEach((user) => { this.users.set(user.id, { ...user }); });
+    sampleAccounts.forEach((account) => { this.accounts.set(account.id, { ...account }); });
+    sampleTransactions.forEach((transaction) => { this.transactions.set(transaction.id, { ...transaction }); });
+    sampleActivityLogs.forEach((log) => { this.activityLogs.set(log.id, { ...log }); });
+    sampleSubscriptions.forEach((sub) => { this.subscriptions.set(sub.id, { ...sub }); });
   }
 
   getAllUsers() {

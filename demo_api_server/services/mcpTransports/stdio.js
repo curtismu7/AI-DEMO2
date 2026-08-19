@@ -81,18 +81,20 @@ function runStdioRpc(profile, followMethod, followParams) {
     });
     child.stdout.on('data', (chunk) => {
       buffer += chunk.toString();
-      let idx;
-      while ((idx = buffer.indexOf('\n')) !== -1) {
+      let idx = buffer.indexOf('\n');
+      while (idx !== -1) {
         const line = buffer.slice(0, idx).trim();
         buffer = buffer.slice(idx + 1);
-        if (!line) continue;
-        let msg;
-        try {
-          msg = JSON.parse(line);
-        } catch {
-          continue; // ignore non-JSON stdout noise (banners, warnings)
+        if (line) {
+          let msg;
+          let parsed = false;
+          try {
+            msg = JSON.parse(line);
+            parsed = true;
+          } catch {}
+          if (parsed) handleMessage(msg);
         }
-        handleMessage(msg);
+        idx = buffer.indexOf('\n');
       }
     });
 

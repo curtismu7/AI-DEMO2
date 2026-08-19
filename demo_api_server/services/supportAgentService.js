@@ -82,7 +82,7 @@ async function processSupportMessage(message, sessionId, tokenEvents = []) {
     };
 
     // Build initial reply based on message and available tools
-    let toolsCalled = [];
+    const toolsCalled = [];
     let reply = `I'm here to help with your banking questions. `;
 
     // Simple heuristic routing
