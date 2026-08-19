@@ -10,7 +10,7 @@ export interface Device {
 }
 
 /** Verification methods a user can add from the picker. */
-export const ENROLLABLE_TYPES = ["FIDO2", "EMAIL", "SMS"] as const;
+const ENROLLABLE_TYPES = ["FIDO2", "EMAIL", "SMS"] as const;
 export type EnrollableType = (typeof ENROLLABLE_TYPES)[number];
 
 interface DeviceSelectorProps {

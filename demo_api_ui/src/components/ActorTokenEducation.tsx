@@ -207,5 +207,3 @@ export const ActorTokenEducation: React.FC = () => {
     </div>
   );
 };
-
-export default ActorTokenEducation;

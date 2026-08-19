@@ -5,18 +5,18 @@
     "src/setupTests.js",
     "src/reporters/markdownReporter.js",
     "src/__mocks__/fileMock.js",
-    "src/**/*.test.{js,jsx}",
+    "src/**/*.test.{js,jsx,ts,tsx}",
     "playwright.config.js",
     "tests/e2e/**/*.spec.js",
     "tests/e2e/helpers/**/*.js",
     "public/banking-chat-widget.js"
   ],
-  "project": ["src/**/*.{js,jsx}"],
+  "project": ["src/**/*.{js,jsx,ts,tsx}"],
   "ignore": ["build/**", "tests/e2e/.env.e2e"],
   "ignoreBinaries": ["wait-on"],
   "jest": {
     "config": ["package.json"],
-    "entry": ["src/setupTests.js", "src/**/*.test.{js,jsx}"]
+    "entry": ["src/setupTests.js", "src/**/*.test.{js,jsx,ts,tsx}"]
   },
   "playwright": {
     "config": ["playwright.config.js"],

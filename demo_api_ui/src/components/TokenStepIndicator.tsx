@@ -9,7 +9,7 @@ interface TokenStepIndicatorProps {
   showLabel?: boolean;
 }
 
-export const TokenStepIndicator: React.FC<TokenStepIndicatorProps> = ({
+const TokenStepIndicator: React.FC<TokenStepIndicatorProps> = ({
   currentStep,
   totalSteps,
   stepLabels = [],
