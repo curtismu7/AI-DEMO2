@@ -157,6 +157,28 @@ one stash stack.
 
 - `deploy-live` now takes a lock and refuses rather than racing. If it says
   another deploy is running, wait — do not work around it.
+- **The lock stops two DEPLOYS racing. It does NOT stop a deploy racing someone's
+  live UI/browser run** — and that failure is expensive because it looks exactly
+  like a product bug. A deploy restarts `ui` (nginx: serves the SPA *and* proxies
+  `/api`) and/or `demo-api-server` underneath whoever is driving the browser.
+  Requests issued into that window die in front of the BFF: an inexplicable
+  404/502, and **zero matching lines in `docker logs ai-demo-api-server`** —
+  which reads as "the request never reached the server, so the fault is in
+  routing / base-URL / the proxy."
+  Observed 2026-08-19: a session spent an investigation on a HITL consent-confirm
+  404 (concluding, reasonably, that it never reached the BFF) when
+  `ai-demo-ui` had restarted at `03:06:10Z` and the failing run was ~03:06Z. The
+  endpoint was fine — probing it afterwards through BOTH nginx `:4000` and the
+  BFF `:3001` returned identical JSON 401s.
+  **Before treating any live-run failure as a finding, check whether the ground
+  moved under it:**
+  ```bash
+  docker inspect ai-demo-ui ai-demo-api-server \
+    --format '{{.Name}} {{.State.StartedAt}}'   # before AND after the run
+  ```
+  If either timestamp moved during the run, the run is void — re-run it, do not
+  log it. Announce a deploy to peers (`SendMessage`) when you know someone is
+  driving, and prefer waiting to redeploying mid-drive.
 - It will not stamp a range whose services are not up, so a failed deploy leaves
   the range for the next run. A `Created` container is a broken service, not an
   absent one.
