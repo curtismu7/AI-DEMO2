@@ -35,3 +35,23 @@ describe('batch-3 tools route to the resource server', () => {
     expect(getScopesForGatewayTool(tool)).toEqual(['read']);
   });
 });
+
+// The write half (2026-08-19). checkout mutates the very entity list_orders
+// returns, so leaving it on the BFF meant a placed order was invisible to the
+// next list — TECH_DEBT's seed-store divergence. Routed here for the same
+// reason pay_airline_fee is, and gated on write rather than read.
+describe('retail checkout — the write half of list_orders', () => {
+  test('routes to the resource server, not olb', () => {
+    expect(routeTool('checkout')).toBe('invest');
+  });
+
+  test('lands on the SAME backend as the reads it must stay consistent with', () => {
+    expect(routeTool('checkout')).toBe(routeTool('list_orders'));
+    expect(backendWsUrl(routeTool('checkout'), cfg)).toBe(backendWsUrl(routeTool('list_orders'), cfg));
+    expect(backendResourceUri(routeTool('checkout'), cfg)).toBe(backendResourceUri(routeTool('list_orders'), cfg));
+  });
+
+  test('is gated on write, matching scope-topology.json', () => {
+    expect(getScopesForGatewayTool('checkout')).toEqual(['write']);
+  });
+});

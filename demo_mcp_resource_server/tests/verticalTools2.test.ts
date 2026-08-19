@@ -21,9 +21,35 @@ describe('Retail tools', () => {
       expect(t.description.length).toBeGreaterThan(10);
       expect(Array.isArray(t.intentHints)).toBe(true);
       expect(t.intentHints!.length).toBeGreaterThanOrEqual(3);
-      expect(t.requiredScopes).toContain('read');
+      // Retail was read-only until checkout was routed here, so a blanket
+      // "requires read" no longer describes the set. Assert the scope matches
+      // what the tool actually does — scope-topology.json is the SoT and lists
+      // checkout as "write".
+      expect(t.requiredScopes).toContain(t.readOnly === false ? 'write' : 'read');
     }
   });
+  it('checkout places an order that the very next list_orders returns', async () => {
+    // The end-to-end shape of the divergence fix, at the handler boundary:
+    // the write and the read go through the same dispatcher and the same DB.
+    const before = await dispatchRetailTool('list_orders', {}) as any;
+    const placed = await dispatchRetailTool('checkout', { product: 'Studio Monitor', amount: 799 }) as any;
+
+    expect(placed.render).toBe('checkout');
+    expect(placed.status).toBe('Processing');
+    expect(placed.product).toBe('Studio Monitor');
+    expect(placed.amount).toBe(799);
+
+    const after = await dispatchRetailTool('list_orders', {}) as any;
+    expect(after.orders).toHaveLength(before.orders.length + 1);
+    expect(after.orders.some((o: any) => o.id === placed.id)).toBe(true);
+  });
+
+  it('checkout defaults product and amount like the BFF did (consent-showcase chips carry neither)', async () => {
+    const placed = await dispatchRetailTool('checkout', {}) as any;
+    expect(placed.product).toBe('Headphones');
+    expect(placed.amount).toBe(100);
+  });
+
   it('list_orders returns orders array, stamped for the chip-facing manifest descriptor', async () => {
     const r = await dispatchRetailTool('list_orders', {}) as any;
     expect(Array.isArray(r.orders)).toBe(true);

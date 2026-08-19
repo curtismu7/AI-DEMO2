@@ -40,6 +40,28 @@ export const RETAIL_TOOLS: McpToolDef[] = [
     readOnly: true,
     intentHints: ['get order details', 'check order status', 'track my order', "where's my order"],
   },
+  {
+    // The write half of list_orders' entity. Routed here (router.ts
+    // RETAIL_TOOLS) so a placed order lands in the SAME database the list is
+    // read from — previously checkout wrote the BFF's in-memory store and the
+    // order was invisible to the next list_orders.
+    //
+    // scope-topology.json's tools.checkout entry already requires "write", the
+    // scope airlines' pay_airline_fee proves reaches this server.
+    name: 'checkout',
+    description: 'Place a retail order (checkout). Requires confirmation.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        product: { type: 'string', description: 'Product name (optional — defaults to Headphones)' },
+        amount: { type: 'number', description: 'Order amount (optional — defaults to 100)' },
+      },
+      required: [],
+    },
+    requiredScopes: ['write'],
+    readOnly: false,
+    intentHints: ['checkout', 'place an order', 'buy this', 'complete my purchase'],
+  },
 ];
 
 export { dispatchRetailTool };

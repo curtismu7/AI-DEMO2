@@ -116,6 +116,13 @@ const ANF_TOOLS = new Set([
 const RETAIL_TOOLS = new Set([
   'list_orders',
   'order_status',
+  // Write, routed for the same reason pay_airline_fee is: it mutates the very
+  // entity the two reads above return. Left on the BFF it wrote a different
+  // store, so a placed order never appeared in list_orders (TECH_DEBT's
+  // seed-store divergence). The name is unique to retail — no other vertical
+  // defines a `checkout` tool — so routing by name cannot misroute another
+  // vertical's identically-named tool.
+  'checkout',
 ]);
 const SPORTING_GOODS_TOOLS = new Set([
   'list_gear',

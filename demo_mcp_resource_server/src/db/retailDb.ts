@@ -99,11 +99,63 @@ export function withDb<T>(fn: (db: DatabaseSync) => T): T {
   }
 }
 
+// rowid DESC breaks date ties by insertion order. Orders placed through
+// checkout all carry today's date, so on date alone SQLite returned them in an
+// arbitrary order and the one just placed was not reliably first — which is
+// exactly what "show my orders" right after a checkout has to show. Seeded rows
+// have distinct dates, so their order is unchanged.
 export function listOrders(): Order[] {
-  return withDb((conn) => conn.prepare('SELECT * FROM orders ORDER BY date DESC').all() as unknown as Order[]);
+  return withDb((conn) => conn.prepare('SELECT * FROM orders ORDER BY date DESC, rowid DESC').all() as unknown as Order[]);
 }
 
 export function getOrder(id: string): Order | null {
   const row = withDb((conn) => conn.prepare('SELECT * FROM orders WHERE id = ?').get(id) as Order | undefined);
   return row ?? null;
+}
+
+/**
+ * Place a new order. This is the write half of the same entity `list_orders`
+ * reads: before this existed, `checkout` landed in the BFF's in-memory store
+ * while `list_orders` came from this database, so a placed order was invisible
+ * to the very next "show my orders" — the seed-store divergence in TECH_DEBT.
+ *
+ * Mutating (like upgradeCabinOnBooking in airlinesDb, unlike the deliberately
+ * read-only cancelReservation): the point of the demo is that the order appears
+ * in the list afterwards. seedIfEmpty only refills an EMPTY table, so the new
+ * row survives restarts without clobbering the seeded ones.
+ *
+ * Ids follow the BFF's `ord-new-<n>` convention. n is derived from the highest
+ * existing suffix rather than a count, so deleting a row can't hand out an id
+ * that is already taken (orders.id is the PRIMARY KEY).
+ */
+export function insertOrder(input: { product: string; amount: number; sku?: string; date?: string }): Order {
+  return withDb((conn) => {
+    const rows = conn
+      .prepare("SELECT id FROM orders WHERE id LIKE 'ord-new-%'")
+      .all() as unknown as Array<{ id: string }>;
+    const highest = rows.reduce((max, r) => {
+      const n = Number.parseInt(String(r.id).slice('ord-new-'.length), 10);
+      return Number.isFinite(n) && n > max ? n : max;
+    }, 0);
+
+    const order: Order = {
+      id: `ord-new-${highest + 1}`,
+      product: input.product,
+      // The seeds carry a real SKU per product; a newly placed order has none
+      // yet. Empty would violate NOT NULL, so mark it explicitly rather than
+      // inventing a catalog code that looks real.
+      sku: input.sku ?? 'PENDING',
+      amount: input.amount,
+      status: 'Processing',
+      // listOrders() is ORDER BY date DESC, so today's date puts the new order
+      // at the top — which is where "I just bought this" belongs.
+      date: input.date ?? new Date().toISOString().slice(0, 10),
+    };
+
+    conn.prepare(
+      'INSERT INTO orders (id, product, sku, amount, status, date) VALUES (?, ?, ?, ?, ?, ?)',
+    ).run(order.id, order.product, order.sku, order.amount, order.status, order.date);
+
+    return order;
+  });
 }
