@@ -2505,7 +2505,24 @@ and fix it. If it is not, move the condition to the call site so it reads
 claims the only requirement is a session, which is false and cost a
 verification.
 
-### [ ] 2026-08-18 — Two dispatch paths converge on the resume state but leave through different send functions
+### [x] 2026-08-18 — Two dispatch paths converge on the resume state but leave through different send functions
+
+**RESOLVED 2026-08-18 (branch `worktree-resume-dispatch-seam`).** Every
+queued-question OUTCOME now announces itself through one seam:
+`emitResumeDispatch(outcome, detail)` in AIAgent.js dispatches a
+`agent-resume-dispatch` window CustomEvent (+ a `[resume-dispatch]` debug tag)
+with `outcome: 'sent' | 'handed_back' | 'failed'` and `exit` naming the path
+(`resume-effect`, `ciba-retry`, `vertical-unavailable`). All four exits wired:
+the resume effect's send, its failure branch, the vertical-unavailable
+hand-back, and the CIBA-approval retry. An instrument (test, probe, session
+debugging) listens to THE EVENT, never an individual exit — the
+contradictory-numbers episode this entry records (probes on two different exits
+both "right") cannot recur. Producers were audited en route: all three setters
+(OAuth return, launcher deep-link, handleDemoStepSelect) already converge on
+`nlResumeAfterAuth` before any send, so observing outcomes is observing the
+mechanism. Pinned by `AIAgent.resumeVerticalReadiness.test.jsx`: hand-back and
+send each assert the seam's event with the right outcome/exit. Original entry
+follows.
 
 **Where:** `demo_api_ui/src/components/AIAgent.js` — `nlResumeAfterAuth` is set
 from at least three places (the OAuth-return effect, the launcher deep-link
