@@ -316,11 +316,49 @@ if [ -z "${RESTART_SET// /}" ] && [ -z "${BUILD_SET// /}" ]; then
   exit 0
 fi
 
+# Which of the services about to move would break someone's live browser run?
+# Computed BEFORE the dry-run branch on purpose: "would this void a live run?"
+# is exactly what a dry run exists to answer, and the first version of this
+# guard sat below the exit and was invisible to --dry-run.
+DRIVE_AFFECTING=""
+for _svc in $BUILD_SET $RESTART_SET; do
+  case "$_svc" in ui|demo-api-server) DRIVE_AFFECTING="$DRIVE_AFFECTING $_svc" ;; esac
+done
+
+# The flock above stops two DEPLOYS racing. It does nothing about a deploy
+# racing another session's live UI/browser run, and that collateral is expensive
+# because it is indistinguishable from a product bug: requests issued while `ui`
+# (nginx — serves the SPA AND proxies /api) or `demo-api-server` is restarting
+# die in front of the BFF, so the browser sees an inexplicable 404/502 and
+# `docker logs ai-demo-api-server` shows NOTHING for them. That reads as "the
+# request never reached the server", sending the investigator into the
+# proxy/base-URL layer where there is nothing to find.
+#
+# Cost 2026-08-19: a concurrent session spent an investigation on a HITL
+# consent-confirm 404 (correctly ruling out TTL, single-use and the session
+# store from 120 minutes of BFF logs) while ai-demo-ui had restarted at
+# 03:06:10Z and the failing run was ~03:06Z. The endpoint was fine.
+#
+# Warn only — never block: the deploy is usually the right thing to do, and a
+# guard that refuses would be worked around.
+warn_drive_affecting() {
+  [ -n "${DRIVE_AFFECTING// /}" ] || return 0
+  echo "[deploy-live] ⚠️  restarting:$DRIVE_AFFECTING — this VOIDS any live UI/browser run"
+  echo "[deploy-live]     in progress on this machine. Requests in the window fail in FRONT"
+  echo "[deploy-live]     of the BFF: 404/502 with no server-side log line, which looks like"
+  echo "[deploy-live]     a routing bug and is not one. Tell peers if someone is driving."
+  echo "[deploy-live]     Check after any live run:"
+  echo "[deploy-live]       docker inspect ai-demo-ui ai-demo-api-server --format '{{.Name}} {{.State.StartedAt}}'"
+}
+
 if [ "$DRY_RUN" = "1" ]; then
   [ -n "${BUILD_SET// /}" ]   && echo "[deploy-live] DRY RUN — would run: ./run-docker.sh build$BUILD_SET"
   [ -n "${RESTART_SET// /}" ] && echo "[deploy-live] DRY RUN — would run: ./run-docker.sh restart$RESTART_SET"
+  warn_drive_affecting
   exit 0
 fi
+
+warn_drive_affecting
 
 # Build first (slow, recreates), then restart the cheap ones.
 if [ -n "${BUILD_SET// /}" ]; then
@@ -333,6 +371,27 @@ if [ -n "${RESTART_SET// /}" ]; then
   # shellcheck disable=SC2086
   ./run-docker.sh restart $RESTART_SET
 fi
+
+# Append what we just disturbed to a durable log. The warning above only helps
+# whoever is watching THIS terminal; the person who loses an hour is the one
+# reading a browser failure later with no idea a deploy happened. `docker
+# inspect ... StartedAt` answers "did it restart" but not "why, and as part of
+# what" — and it is overwritten by the NEXT restart, so a second deploy erases
+# the evidence for the first. This file is append-only and survives that.
+# In .git/ deliberately: never committed, per-clone, and already where
+# deploy-live.last lives.
+if [ -n "${DRIVE_AFFECTING// /}" ]; then
+  {
+    printf '%s  deploy %s  restarted:%s' \
+      "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(printf '%s' "$NEW" | cut -c1-12)" "$DRIVE_AFFECTING"
+    for _svc in $DRIVE_AFFECTING; do
+      _started=$(docker inspect "ai-demo-$_svc" --format '{{.State.StartedAt}}' 2>/dev/null || echo 'unknown')
+      printf '  %s@%s' "$_svc" "$_started"
+    done
+    printf '\n'
+  } >> "$(dirname "$STAMP")/deploy-live.restarts" 2>/dev/null || true
+fi
+
 # The stamp is a claim that the containers serve $NEW. Verify it instead of
 # assuming it: `run-docker.sh restart` has returned success while leaving a
 # container in `Created` (2026-08-18, ping-gateway), and the stamp written on
