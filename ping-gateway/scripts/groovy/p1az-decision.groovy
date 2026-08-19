@@ -1011,28 +1011,47 @@ def backendLabel = failoverUsed ? 'mock-failover' : (simulated ? 'mock' : 'real'
 // branching on INDETERMINATE alone forwarded a gated call against the cloud
 // policy while gating correctly against the mock.
 //
-// Same vocabulary and precedence as the BFF's authorizeObligations.js: strip
-// separators, uppercase, then match most-specific first. Step-up outranks
-// consent when both bands fire (a $600 transfer is over BOTH the 500 step-up
-// and the 250 consent threshold, and must demo as step-up).
+// Same vocabulary and precedence as the Node gateway's authorizeObligations.ts
+// (demo_mcp_gateway/src/auth/authorizeObligations.ts) — strip separators,
+// uppercase, then match most-specific first. Step-up outranks consent when
+// both bands fire (a $600 transfer is over BOTH the 500 step-up and the 250
+// consent threshold, and must demo as step-up); elicitation is lowest
+// precedence since it never co-occurs with the other three.
+//
+// 'ELICITATION' + `st.type` added 2026-08-19 (INDETERMINATE rework phase 3a,
+// docs/superpowers/plans/2026-08-18-indeterminate-rework.md): both the mock
+// (demo_authz_server/routes/decision.js's `obligationFor()`, phase 2) and real
+// PingOne Authorize emit a `type` field on obligation entries — `st.type` reads
+// it, `st.code ?: st.name ?: st.id` unchanged as the fallback for a plain
+// statement entry, which never carries `type`.
 def classifyStatements = { stmts ->
     def kinds = [] as Set
     (stmts instanceof List ? stmts : []).each { st ->
-        def raw = String.valueOf((st instanceof Map ? (st.code ?: st.name ?: st.id) : st) ?: '')
+        def raw = String.valueOf((st instanceof Map ? (st.type ?: st.code ?: st.name ?: st.id) : st) ?: '')
         def key = raw.toUpperCase().replaceAll('[^A-Z0-9]', '')
         if (!key) return
         if (key.contains('HITLCONSENT'))                             kinds << 'consent'
         else if (key.contains('STEPUP'))                             kinds << 'stepUp'
+        else if (key.contains('ELICITATION'))                        kinds << 'elicitation'
         else if (key.contains('HITL') || key.contains('HUMANAPPROVAL')) kinds << 'hitl'
     }
     if (kinds.contains('stepUp')) return 'stepUp'
     if (kinds.contains('consent')) return 'consent'
     if (kinds.contains('hitl')) return 'hitl'
+    if (kinds.contains('elicitation')) return 'elicitation'
     return null
 }
 // Obligations are only meaningful on a non-DENY decision — a DENY is terminal
 // and never negotiable by satisfying an obligation.
-def obligationKind = (outcome == 'DENY') ? null : classifyStatements(authorizeFullResponse?.statements)
+//
+// Prefer the EXPLICIT `obligations[]` field (phase 2's structural contract —
+// demo_authz_server/routes/decision.js's `obligationFor()`) over the inferred
+// `statements[]` shape, matching PingOneAuthorizeClient.ts's
+// `classifyStatements(data?.obligations) ?? classifyStatements(data?.statements)`
+// exactly — the fallback covers engines/responses that have not adopted the
+// explicit field yet (live P1AZ still answers via statements only).
+def obligationKind = (outcome == 'DENY') ? null :
+    (classifyStatements(authorizeFullResponse?.obligations) ?: classifyStatements(authorizeFullResponse?.statements))
 
 logger.info('[P1AZ] DECISION: ' + outcome + ' | backend=' + backendLabel + ' | sub=' + sub +
     ' | tool=' + toolName + ' | method=' + mcpMethod + ' | vertical=' + vertical +
@@ -1154,27 +1173,27 @@ if (outcome == 'PERMIT' && !obligationKind) {
 }
 
 // A human is required — PingOne Authorize is asking for approval, not refusing the
-// call. Two shapes mean the same thing and both must land here: the mock's bare
-// INDETERMINATE, and a live PERMIT carrying a consent/HITL obligation statement.
-// Mint a challenge and answer 428 Precondition Required so the agent can drive the
-// consent and retry with `_hitl_challenge_id`. A DENY still falls through to 403
-// below: only the PDP decides which of the two this is.
+// call. Mint a challenge and answer 428 Precondition Required so the agent can
+// drive the consent and retry with `_hitl_challenge_id`. A DENY still falls
+// through to 403 below: only the PDP decides which of the two this is.
 //
+// Gated on `obligationKind` alone (#2119, then widened here in phase 3a).
 // `outcome == 'INDETERMINATE'` alone must NOT reach this branch when the
 // backend was the REAL cloud: live P1AZ answers bare INDETERMINATE only when
 // it could not evaluate the policy (missing attribute, unreachable attribute
 // provider) — that must fail closed to DENY below, not mint a human-approval
-// challenge for a request nobody can approve their way out of. Same fix
-// already applied on the BFF (pingOneAuthorizeService.js `_normalizeDecision`,
-// #1310) and the Node gateway (PingOneAuthorizeClient.ts:448-471) — this file
-// was the one path that still treated the two engines' INDETERMINATE as the
-// same signal. The mock backend's bare INDETERMINATE stays gated in: its
-// ELICITATION pause (destructive-tool confirmation) carries a statement code
-// that `classifyStatements` does not recognize, so `obligationKind` alone
-// would drop it to DENY — `simulated`/`failoverUsed` mark exactly the
-// responses that actually came from the mock engine, real backend or not.
-if (obligationKind == 'consent' || obligationKind == 'hitl' ||
-    (outcome == 'INDETERMINATE' && (simulated || failoverUsed))) {
+// challenge for a request nobody can approve their way out of. Same invariant
+// the BFF (pingOneAuthorizeService.js `_normalizeDecision`, #1310) and the Node
+// gateway (PingOneAuthorizeClient.ts:448-471) already enforce.
+//
+// The mock backend's ELICITATION pause used to need a `simulated`/`failoverUsed`
+// carve-out here (#2119) because its statement code did not classify. It no
+// longer does: decision.js's phase-2 `obligations[]` field carries `type:
+// 'ELICITATION'` explicitly, `classifyStatements` above now recognizes it, and
+// `obligationKind` is derived from `obligations[]` first — so every mock pause
+// (step-up, consent, elicitation alike) resolves through classification, same
+// as a real cloud obligation. Nothing here needs to know which engine answered.
+if (obligationKind == 'consent' || obligationKind == 'hitl' || obligationKind == 'elicitation') {
     // Anti-loop: a receipt that verified above and STILL yields INDETERMINATE means
     // the policy never discharges consent (misconfiguration). Re-challenging would
     // spin the agent forever, so fail distinctly (mirrors both Node gateway paths).
