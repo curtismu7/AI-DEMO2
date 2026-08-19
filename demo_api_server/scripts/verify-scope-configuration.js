@@ -97,10 +97,15 @@ function scopeDescription(scope) {
 // PingOne API Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-const MGMT_TOKEN_SCOPE = 'p1:read:resource p1:read:resource_scope';
+const MGMT_TOKEN_SCOPE_READ = 'p1:read:resource p1:read:resource_scope';
+// --fix POSTs new scopes, which a read-only token cannot do. Requesting the
+// create scope only when --fix is passed keeps the default run least-privilege:
+// an audit should not be able to write, and asking for write on every run would
+// mean the read-only path silently carried permission it never needs.
+const MGMT_TOKEN_SCOPE_WRITE = `${MGMT_TOKEN_SCOPE_READ} p1:create:resource_scope`;
 
 /** One token attempt with a specific token-endpoint auth method. */
-function requestManagementToken({ clientId, clientSecret, region, envId, method }) {
+function requestManagementToken({ clientId, clientSecret, region, envId, method, scope }) {
   return new Promise((resolve, reject) => {
     const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
     // URLSearchParams so the scope's SPACE is encoded. The previous body was
@@ -112,7 +117,7 @@ function requestManagementToken({ clientId, clientSecret, region, envId, method 
     // failure gets.
     const form = new URLSearchParams({
       grant_type: 'client_credentials',
-      scope: MGMT_TOKEN_SCOPE,
+      scope: scope || MGMT_TOKEN_SCOPE_READ,
     });
 
     if (method === 'client_secret_basic') {
@@ -166,12 +171,12 @@ function requestManagementToken({ clientId, clientSecret, region, envId, method 
  * configured/likelier method, and on an auth-method-shaped rejection try the
  * other once before giving up.
  */
-async function getManagementToken(clientId, clientSecret, region = 'com', envId) {
+async function getManagementToken(clientId, clientSecret, region = 'com', envId, scope) {
   const methods = ['client_secret_basic', 'client_secret_post'];
   let lastErr;
   for (const method of methods) {
     try {
-      return await requestManagementToken({ clientId, clientSecret, region, envId, method });
+      return await requestManagementToken({ clientId, clientSecret, region, envId, method, scope });
     } catch (err) {
       lastErr = err;
       // Only an auth-METHOD rejection is worth retrying. A genuinely wrong
@@ -550,10 +555,14 @@ async function main() {
   }
 
   try {
-    // Step 1: Get management token
+    // Step 1: Get management token. --fix POSTs new scopes, so it needs a token
+    // that can write; the default audit path stays read-only.
     logInfo('Authenticating with PingOne Management API...');
-    const token = await getManagementToken(clientId, clientSecret, region, envId);
-    logSuccess('Authentication successful');
+    const token = await getManagementToken(
+      clientId, clientSecret, region, envId,
+      shouldFix ? MGMT_TOKEN_SCOPE_WRITE : MGMT_TOKEN_SCOPE_READ,
+    );
+    logSuccess(`Authentication successful${shouldFix ? ' (write scope requested for --fix)' : ''}`);
     log('');
 
     // Step 2: List all resources
