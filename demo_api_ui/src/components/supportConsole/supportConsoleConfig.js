@@ -319,7 +319,7 @@ export const CONFIGS = {
 };
 
 // Super Sports is the demo's default vertical.
-export const DEFAULT_CONSOLE_VERTICAL = 'sporting-goods';
+const DEFAULT_CONSOLE_VERTICAL = 'sporting-goods';
 
 /**
  * The console only knows the verticals in CONFIGS. `activeId` from useVertical()

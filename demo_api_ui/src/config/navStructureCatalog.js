@@ -195,7 +195,7 @@ export const NAV_STRUCTURE_CATALOG = [
 ];
 
 // Ordered list of all hideable top-level labels (for backward compat).
-export const NAV_ITEM_CATALOG = NAV_STRUCTURE_CATALOG.map((g) => g.label);
+const NAV_ITEM_CATALOG = NAV_STRUCTURE_CATALOG.map((g) => g.label);
 
 // Apply a saved childOrder ({ [groupLabel]: [childLabel, ...] }) to a list of
 // groups. A group's array in childOrder replaces that group's child membership

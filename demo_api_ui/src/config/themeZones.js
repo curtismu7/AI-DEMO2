@@ -55,7 +55,7 @@ export const THEME_ZONES = [
 export const ZONE_GROUPS = [...new Set(THEME_ZONES.map((z) => z.group))];
 
 /** All brand CSS var names this system can write (for reference/validation). */
-export const ALL_THEME_VARS = [...new Set(THEME_ZONES.flatMap((z) => z.vars))];
+const ALL_THEME_VARS = [...new Set(THEME_ZONES.flatMap((z) => z.vars))];
 
 /**
  * Resolve { cssVar: value } for applying `palette` to `zone`.

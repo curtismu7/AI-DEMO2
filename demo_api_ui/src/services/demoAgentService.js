@@ -46,7 +46,7 @@ const streamLog = createLogger("parseStreamingResponse");
  *   body.authorizeEvaluation.authorizeFallback   (transaction success)
  *   body.mcpAuthorizeEvaluation.authorizeFallback (MCP tool success)
  */
-export function emitAuthorizeFallback(body) {
+function emitAuthorizeFallback(body) {
   if (!body || typeof body !== "object") return;
   const fb =
     body.authorizeFallback ||

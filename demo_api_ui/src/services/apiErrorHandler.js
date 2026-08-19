@@ -183,12 +183,3 @@ export async function executeWithRetry(
   // Should not reach here, but safety fallback
   throw lastError;
 }
-
-const apiErrorHandler = {
-  classifyApiError,
-  getExponentialBackoffDelay,
-  getColdStartRetryDelays,
-  executeWithRetry,
-};
-
-export default apiErrorHandler;

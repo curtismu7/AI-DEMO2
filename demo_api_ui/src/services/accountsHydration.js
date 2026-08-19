@@ -5,7 +5,7 @@
  */
 
 export const ACCOUNT_FETCH_MAX_ATTEMPTS = 5;
-export const ACCOUNT_FETCH_DELAYS_MS = [0, 400, 800, 1200, 1600];
+const ACCOUNT_FETCH_DELAYS_MS = [0, 400, 800, 1200, 1600];
 
 /**
  * Returns true for errors worth retrying while hydrating accounts (network, 5xx).

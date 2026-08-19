@@ -184,7 +184,7 @@ export function normalizeAuthFailure(status, body) {
  * @param {string} [pathname]
  * @returns {'admin' | 'customer'}
  */
-export function sessionReauthRoleForPath(pathname) {
+function sessionReauthRoleForPath(pathname) {
   const p = (pathname || '').replace(/\/$/, '') || '/';
   return p === '/admin' || p.startsWith('/admin/') ? 'admin' : 'customer';
 }

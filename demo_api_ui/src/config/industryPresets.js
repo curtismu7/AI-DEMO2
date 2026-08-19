@@ -156,10 +156,10 @@ export const INDUSTRY_PRESETS = [
   },
 ];
 
-export const DEFAULT_INDUSTRY_ID = 'bx_finance';
+const DEFAULT_INDUSTRY_ID = 'bx_finance';
 
 /** @param {string} [id] */
-export function getIndustryPreset(id) {
+function getIndustryPreset(id) {
   const found = INDUSTRY_PRESETS.find((p) => p.id === id);
   return found || INDUSTRY_PRESETS[0];
 }

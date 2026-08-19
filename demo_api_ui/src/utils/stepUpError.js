@@ -13,7 +13,7 @@
  */
 
 /** Consent and step-up, in the REST and MCP spellings. */
-export const APPROVAL_BLOCK_CODES = Object.freeze([
+const APPROVAL_BLOCK_CODES = Object.freeze([
   'hitl_required',
   'mcp_hitl_required',
   'step_up_required',

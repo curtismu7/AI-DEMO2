@@ -106,11 +106,3 @@ export function exceedsThreshold(amount, threshold) {
   }
   return amount > threshold;
 }
-
-const transactionValidator = {
-  parseTransactionAmount,
-  validateTransactionForm,
-  exceedsThreshold,
-};
-
-export default transactionValidator;

@@ -68,7 +68,7 @@ function emit() {
  * @param {function(Array)} listener - called with an immutable snapshot
  * @returns {function} unsubscribe
  */
-export function subscribe(listener) {
+function subscribe(listener) {
   listeners.add(listener);
   // Emit current state immediately so the subscriber hydrates
   try { listener(milestones.map((m) => ({ ...m }))); } catch (_) {}
@@ -117,7 +117,7 @@ export function updateMilestoneStatus(milestoneId, newStatus, moreDetails = {}) 
 /**
  * Clear all milestones (call on logout).
  */
-export function clearMilestones() {
+function clearMilestones() {
   milestones = [];
   try { localStorage.removeItem(MILESTONES_KEY); } catch (_) {}
   emit();
@@ -127,10 +127,6 @@ export function clearMilestones() {
  * Get current snapshot (synchronous).
  * @returns {Array}
  */
-export function getMilestones() {
+function getMilestones() {
   return milestones.map((m) => ({ ...m }));
 }
-
-// Named export object for convenience
-const milestonesStore = { subscribe, addMilestone, updateMilestoneStatus, clearMilestones, getMilestones };
-export default milestonesStore;

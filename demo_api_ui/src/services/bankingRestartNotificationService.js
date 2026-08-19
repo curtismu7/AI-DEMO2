@@ -49,7 +49,7 @@ function subscribe(callback) {
 /**
  * Show restart modal
  */
-export function showRestartModal() {
+function showRestartModal() {
   if (!globalRestartState.isVisible) {
     globalRestartState.isVisible = true;
     notifySubscribers();
@@ -59,7 +59,7 @@ export function showRestartModal() {
 /**
  * Hide restart modal
  */
-export function hideRestartModal() {
+function hideRestartModal() {
   if (globalRestartState.isVisible) {
     globalRestartState.isVisible = false;
     globalRestartState.attemptCount = 0;
@@ -280,13 +280,3 @@ export const __internal__ = {
     notifySubscribers();
   },
 };
-
-const bankingRestartNotificationService = {
-  useRestartModal,
-  monitorApiHealth,
-  checkServerHealth,
-  handle504Error,
-  manualRetry,
-};
-
-export default bankingRestartNotificationService;

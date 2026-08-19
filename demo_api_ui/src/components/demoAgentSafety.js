@@ -137,7 +137,7 @@ export async function prewarmTierAndRetry(model, retry) {
 }
 
 /** Default agent-brain model kept warm for demo chip/tool loops. */
-export const DEFAULT_PREWARM_MODEL = "gpt-oss-20b";
+const DEFAULT_PREWARM_MODEL = "gpt-oss-20b";
 
 const PREWARM_COOLDOWN_MS = 60_000;
 let lastOpportunisticPrewarmAt = 0;
@@ -148,7 +148,7 @@ let opportunisticPrewarmInFlight = null;
  * opportunistic mounts do not thrash swap mode under LLM_PROXY_PIN_TIER.
  * @returns {Promise<string>}
  */
-export async function resolvePrewarmModel(fallback = DEFAULT_PREWARM_MODEL) {
+async function resolvePrewarmModel(fallback = DEFAULT_PREWARM_MODEL) {
   try {
     const res = await fetch("/api/langchain/llamacpp/tiers", { credentials: "include" });
     if (!res.ok) return fallback;

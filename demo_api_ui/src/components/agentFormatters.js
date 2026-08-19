@@ -19,7 +19,7 @@ export function resolveSessionFromAuthTrio(admin, endUser, session) {
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
 // Re-export shared formatter with USD default for backward compatibility
-export function formatCurrency(n) {
+function formatCurrency(n) {
   return sharedFormatCurrency(n, 'USD');
 }
 

@@ -26,7 +26,7 @@ export const SPEEDS = [
 ];
 
 /** @returns {"detailed"|"compact"} */
-export function readDensity() {
+function readDensity() {
   try {
     return window.localStorage.getItem(DENSITY_KEY) === "compact" ? "compact" : "detailed";
   } catch {
@@ -35,7 +35,7 @@ export function readDensity() {
 }
 
 /** @returns {number} milliseconds per step */
-export function readSpeed() {
+function readSpeed() {
   try {
     const stored = Number(window.localStorage.getItem(SPEED_KEY));
     return SPEEDS.some((s) => s.ms === stored) ? stored : SPEEDS[0].ms;

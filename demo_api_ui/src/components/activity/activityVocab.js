@@ -5,7 +5,7 @@
  * (a tool verb) tokens. This is the only place demo copy lives.
  */
 
-export const TEMPLATES = {
+const TEMPLATES = {
   identity:   "Confirming it's really you…",
   delegation: 'The assistant is acting as you — allowed to look, not to move money.',
   permit:     'The {institution} approved the request.',

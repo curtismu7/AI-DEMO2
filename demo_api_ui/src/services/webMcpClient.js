@@ -40,7 +40,7 @@ export async function listMcpTools() {
  * @param {(phase: object) => void} onPhase — called for each parsed phase event
  * @returns {() => void} disconnect (idempotent)
  */
-export function openMcpDiscoveryStream(traceId, onPhase) {
+function openMcpDiscoveryStream(traceId, onPhase) {
   if (!traceId || typeof onPhase !== 'function') {
     return () => {};
   }

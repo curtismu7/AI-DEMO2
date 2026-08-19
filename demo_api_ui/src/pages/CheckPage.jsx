@@ -21,7 +21,7 @@ const VERDICT_TEXT = { ready: 'Ready for demo', ready_with_warnings: 'Ready — 
 // test run from a retail session doesn't silently target banking.
 const DEFAULT_VERTICAL = 'sporting-goods';
 
-export function initialVertical(activeId) {
+function initialVertical(activeId) {
   return VERTICALS.includes(activeId) ? activeId : DEFAULT_VERTICAL;
 }
 
