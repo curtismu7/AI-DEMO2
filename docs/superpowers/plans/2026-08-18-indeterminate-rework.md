@@ -169,6 +169,22 @@ Each phase ships independently and leaves the suite green.
    - **Remaining in this phase:** BFF `pingOneAuthorizeService` /
      `simulatedAuthorizeService` explicit-obligations pass-through audit,
      Groovy `p1az-decision`, and the UI decision surfaces.
+   - **Groovy consumer DONE (#2133, stacked on this branch)** — and it closed a
+     REAL trap that two investigations found independently the same evening:
+     `classifyStatements` had no `ELICITATION` in its vocabulary (unlike the
+     Node gateway and BFF classifiers), so a real cloud ELICITATION obligation
+     classified to null — live `PERMIT + statements` shape forwarded the
+     destructive call UNGATED — and the mock half survived only via the
+     `simulated || failoverUsed` escape hatch on bare INDETERMINATE, which
+     phase 4 would have silently killed along with the whole destructive-tool
+     confirmation gate on the PingGateway path. #2133 adds `ELICITATION` (+
+     `st.type` read, explicit `obligations[]` preferred, matching the Node
+     client exactly), routes `obligationKind == 'elicitation'` through the
+     human-approval branch, and RETIRES the engine-aware escape hatch — the
+     gate now derives from classification alone, engine-agnostic. Verified in
+     review 2026-08-18: vocabulary, precedence (elicitation lowest, never
+     co-occurs), and handler are all present; the elicitation-confirmed
+     arg/header plumbing (~333-373) was already in place.
 4. **Flip the PDP** to stop emitting INDETERMINATE for the pause.
 5. **Add the guard** the plan actually wants: any INDETERMINATE from either
    engine is now unambiguously an error — log it loudly, fail closed, and
