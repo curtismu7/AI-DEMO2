@@ -30,7 +30,13 @@ export default function SessionExpiryTimer({ hideOnPaths = [] }) {
     pathname === "/setup/pingone" ||
     pathname === "/logout";
 
-  // Fetch session token and user info
+  // Fetch session token and user info, then keep polling. A mount-once fetch
+  // (the previous shape) never learns about a SILENT token refresh — the
+  // backend extends the session behind the scenes, `expiresAt` here stays
+  // pinned to the value read at mount, and this header eventually renders
+  // "Expired" against a session that is actually still live. Re-fetching on
+  // the same cadence the countdown already re-renders on (30s, below) keeps
+  // `expiresAt` from ever drifting far from the truth.
   useEffect(() => {
     // Skip on documentation-only pages — no session is expected there and
     // both endpoints below would 401, producing console noise.
@@ -75,11 +81,13 @@ export default function SessionExpiryTimer({ hideOnPaths = [] }) {
     }
 
     fetchSessionData();
+    const poll = setInterval(fetchSessionData, 30000);
     return () => {
       cancelled = true;
+      clearInterval(poll);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // intentionally runs once on mount — pathname/shouldHide changes don't need to re-fetch
+  }, []); // intentionally mount-once for the skip check — pathname/shouldHide changes don't re-arm it; the interval is what keeps expiresAt fresh now
 
   // Calculate and update time remaining every 30 seconds
   const updateTimeRemaining = useCallback(() => {

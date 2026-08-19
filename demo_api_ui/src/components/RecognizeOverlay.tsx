@@ -31,22 +31,47 @@ interface RecognizeOverlayProps {
 
 const SDK_CDN = 'https://cdn.keyless.technology/web-sdk/latest/pingone-recognize.js';
 
+// Memoized at module scope so every caller within the SAME successful load
+// shares one promise, resolved exactly once — the fast path for the common
+// case. A FAILED load resets this (below) so the next mount tries fresh
+// rather than replaying the same rejection forever; that reset is what makes
+// the DOM-level guard below load-bearing, not redundant.
+let sdkLoadPromise: Promise<void> | null = null;
+
+/** Record on the element itself once its 'load'/'error' has fired. */
+function markScriptSettled(script: HTMLScriptElement, state: 'loaded' | 'error') {
+  script.dataset.recognizeSdkState = state;
+}
+
 function loadSdkScript(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (window.PingOneRecognize) { resolve(); return; }
-    const existing = document.getElementById('recognize-sdk-script');
+  if (window.PingOneRecognize) return Promise.resolve();
+  if (sdkLoadPromise) return sdkLoadPromise;
+  sdkLoadPromise = new Promise((resolve, reject) => {
+    const existing = document.getElementById('recognize-sdk-script') as HTMLScriptElement | null;
     if (existing) {
-      existing.addEventListener('load', () => resolve());
-      existing.addEventListener('error', () => reject(new Error('SDK script failed to load')));
+      // The tag can outlive the promise cache above — a failed load resets
+      // sdkLoadPromise to null (so a retry can try again) but leaves the
+      // <script> tag in the DOM. 'load'/'error' are one-shot DOM events that
+      // never replay to a listener attached after they already fired, so a
+      // retry that just re-attached listeners here hung on
+      // "Loading face ID…" forever — the exact bug this dataset check closes:
+      // read the settled state off the element instead of racing a dead event.
+      const state = existing.dataset.recognizeSdkState;
+      if (state === 'loaded') { resolve(); return; }
+      if (state === 'error') { reject(new Error('SDK script failed to load')); return; }
+      existing.addEventListener('load', () => { markScriptSettled(existing, 'loaded'); resolve(); });
+      existing.addEventListener('error', () => { markScriptSettled(existing, 'error'); reject(new Error('SDK script failed to load')); });
       return;
     }
     const script = document.createElement('script');
     script.id = 'recognize-sdk-script';
     script.src = SDK_CDN;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error('SDK script failed to load'));
+    script.onload = () => { markScriptSettled(script, 'loaded'); resolve(); };
+    script.onerror = () => { markScriptSettled(script, 'error'); reject(new Error('SDK script failed to load')); };
     document.head.appendChild(script);
   });
+  sdkLoadPromise.catch(() => { sdkLoadPromise = null; });
+  return sdkLoadPromise;
 }
 
 const RecognizeOverlay: FC<RecognizeOverlayProps> = ({
