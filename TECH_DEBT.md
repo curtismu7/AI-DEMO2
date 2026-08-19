@@ -1150,7 +1150,26 @@ would be far worse than the 500 this fixes.
 alone because nothing in this session showed it reached — but it is the same code,
 one file over.
 
-### [ ] 2026-08-18 — Honourable mentions from the audit (lower confidence / not yet load-bearing)
+### [x] 2026-08-18 — Honourable mentions from the audit (lower confidence / not yet load-bearing)
+
+**ALL 5 RESOLVED — last one closed 2026-08-18 (branch
+`worktree-orphaned-component-fixes`).** The two UI defects below were fixed
+despite both components staying orphaned (fix-on-principle, since either could
+be wired up without warning): `SessionExpiryTimer.jsx` now polls
+`fetchSessionData` every 30s instead of fetching once at mount, so a silently
+refreshed session no longer drifts into a false "Expired"
+(`SessionExpiryTimer.periodicRefresh.test.js`, 3 tests). `RecognizeOverlay.tsx`'s
+`loadSdkScript()` now records the script element's settled state in its own
+`dataset` the moment `load`/`error` fires, so a retry after a failed load reads
+that state instead of re-attaching listeners to an already-fired one-shot DOM
+event and hanging on "Loading face ID…" forever
+(`RecognizeOverlay.sdkLoadRace.test.tsx`, 2 tests — the second proves the
+retry-after-failure path specifically, not just the happy path a naive fix
+would have covered). Full UI unit 388 files / 3306 tests passed; build exit 0.
+The other three items (JWKS amplification, falsy TTL, sync-status fetch) were
+already closed earlier the same day. Root `CLAUDE.md` has no
+`demo_mcp_server/` reference (verified); the stale copy was in
+`langchain_agent/CLAUDE.md`, already fixed. Original entries follow.
 
 - **`demo_mcp_gateway/src/auth/tokenValidator.ts:223-226`** — a forced JWKS
   re-fetch on an unknown `kid` passes `force=true`, bypassing the in-flight
