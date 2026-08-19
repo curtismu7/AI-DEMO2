@@ -335,12 +335,24 @@ describe("Action chips — logged-in customer", () => {
   });
 });
 
+// Product rule: "show all actions, then authenticate when the UC requires it,
+// and we have SoT". These two blocks previously asserted the OPPOSITE — that a
+// guest sees no action chips — which hid the demo's discovery story behind a
+// bare `isLoggedIn &&` at the render site. Discovery is now ungated; the auth
+// challenge moved to dispatch (chipAuthLevel → handleChipActivate).
 describe("Action chips — not logged in", () => {
-  it("does not render action items when user is null", () => {
+  it("DOES render action items when user is null (discovery is never gated)", () => {
     renderAgent({ user: null, mode: "inline" });
     CORE_ACTION_LABELS.filter((l) => l !== "Sign Out").forEach((label) => {
-      expect(screen.queryByText(label)).not.toBeInTheDocument();
+      expect(screen.getByText(label)).toBeInTheDocument();
     });
+  });
+
+  it("clicking a session-requiring chip offers sign-in instead of dispatching", async () => {
+    renderAgent({ user: null, mode: "inline" });
+    fireEvent.click(screen.getByText("My Accounts").closest("button"));
+    // The offer, not a 401 round-trip — same shape handleDemoStepSelect uses.
+    expect(await screen.findByText(/needs you signed in/i)).toBeInTheDocument();
   });
 });
 
@@ -575,10 +587,10 @@ describe("Config-focus embedded mode — limited action chips", () => {
 // ─── Not-logged-in state ──────────────────────────────────────────────────────
 
 describe("Chips when not logged in", () => {
-  it("does not render action items when user is null", () => {
+  it("renders action items when user is null — auth is enforced at dispatch, not render", () => {
     renderAgent({ user: null, mode: "inline" });
-    expect(screen.queryByText("Deposit")).not.toBeInTheDocument();
-    expect(screen.queryByText("My Accounts")).not.toBeInTheDocument();
+    expect(screen.getByText("Deposit")).toBeInTheDocument();
+    expect(screen.getByText("My Accounts")).toBeInTheDocument();
   });
 
   it("renders FAB without crashing when user is null in float mode", () => {

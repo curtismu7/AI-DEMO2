@@ -106,6 +106,44 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-19 — Agent action chips were hidden from guests instead of auth-gated at dispatch
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js` (render gate +
+`handleChipActivate`), `demo_api_ui/src/components/agentActions.js`
+(`PUBLIC_CHIP_IDS` / `ADMIN_CHIP_IDS` / `chipAuthLevel`), tests
+`agentActions.chipAuthLevel.test.js` (new), `AIAgent.chips.test.js` (updated).
+
+**What was broken:** the whole action region sat behind `{isLoggedIn &&
+renderActionGroups()}` inside an `isLoggedIn ? … : …` ternary, so a guest saw a
+login prompt INSTEAD of the action surface. That violates the product rule —
+*show all actions, then authenticate when the use case requires it, and we have
+SoT* — in two ways: it removed the demo's discovery story, and it invented a
+second source of truth (a bare `isLoggedIn` at a render site) alongside the
+`uc.auth` SoT the rest of the app gates on.
+
+**What was fixed:** discovery is ungated — `renderActionGroups()` now renders
+for everyone. The auth challenge moved to DISPATCH: `handleChipActivate` reads
+the chip's declared level via `chipAuthLevel()` and, when the viewer does not
+meet it, offers sign-in (`showLoginPromptAction`, same shape
+`handleDemoStepSelect` uses) instead of dispatching. Chip levels are declared in
+`agentActions.js` because chips are not use cases and carry no server `uc.auth`.
+
+**Do not break:** `chipAuthLevel` is **FAIL-CLOSED** — anything not in
+`PUBLIC_CHIP_IDS` needs a session, and a blank/missing id resolves to `user`,
+never `public`. Only add an id to `PUBLIC_CHIP_IDS` when the action genuinely
+works with no user context; getting it wrong shows a guest a chip that 401s
+instead of prompting. `mcp_tools` is public deliberately (its endpoint carries
+no auth middleware and answers 200 anonymously) — it sits in the `admin` GROUP
+for menu placement only, and **UI grouping is not an authorization boundary**.
+`logout` stays exempt (it IS the session action). Ungating the render WITHOUT
+the dispatch gate would be a regression, not a fix.
+
+**Verify:** `cd demo_api_ui && npm run test:unit && npm run build` — 389 files /
+3313 tests, build exit 0. `agentActions.chipAuthLevel.test.js` pins the
+fail-closed default and that no money/account chip is public;
+`AIAgent.chips.test.js` pins that a guest SEES the chips and that clicking one
+offers sign-in rather than dispatching.
+
 ### 2026-08-19 — authz-server: undecrypted container-level ciphertext failed every real PingOne user lookup
 
 **Files changed:** `demo_authz_server/index.js`, new `demo_authz_server/
