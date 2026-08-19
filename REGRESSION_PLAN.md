@@ -106,6 +106,32 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-19 — Signed-out public UC24 was stranded before dispatch because guest vertical hydration resolved empty
+
+**Files changed:** `demo_api_ui/src/vertical/VerticalProvider.jsx`,
+`demo_api_ui/src/vertical/__tests__/VerticalProvider.test.jsx`.
+
+**What was broken:** `auth-requirements.json` correctly declared UC24 `public`, and
+the catalog correctly served `auth: "public"`, but `VerticalProvider` never fetched
+the public, redacted `/api/verticals/me` endpoint for a guest. Its timer instead
+resolved the vertical context with `activeId: null`. The queued-question resume
+therefore handed UC24 back to the input as "I couldn't finish loading this
+workspace" before the public chip could run.
+
+**What was fixed:** the guest path now calls the existing vertical refetch while
+retaining the 1500ms empty-state fallback for a stalled request. The public `/me`
+response supplies the active vertical and redacted manifest, so UC24 can dispatch
+signed out through the same SOT auth gate. A regression test proves `/me` hydrates
+`banking` without an auth event.
+
+**Do not break:** use-case sign-in requirements remain owned exclusively by
+`demo_api_server/config/auth-requirements.json`; this change does not infer public
+access from login state. Anonymous `/me` responses must remain redacted and must
+never include `demoUsers` or password hints. Protected use cases still require
+their declared `user` or `admin` level.
+
+**Verify:** `cd demo_api_ui && npm run test:unit -- --run src/vertical/__tests__/VerticalProvider.test.jsx` (11/11); `npm run build` (exit 0); root `npm run authz:verify` (63 use cases, 153 routes).
+
 ### 2026-08-19 — The proof-of-enforcement pill never dismissed and sat over TopNav Sign Out
 
 **Files changed:** `demo_api_ui/src/components/VerifiedBanner.jsx`,
