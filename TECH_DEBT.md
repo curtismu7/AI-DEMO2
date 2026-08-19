@@ -2704,7 +2704,18 @@ a guess. Then, if the PDP detail is wanted, emit a distinct `authz.decision` hop
 from the same trail data rather than a second emitter in the decision script,
 which would duplicate the telemetry that already flows.
 
-### [ ] 2026-08-17 — The P1AZ snapshot generator still pins 7 object versions by hand, and nothing rejects a new one
+### [x] 2026-08-17 — The P1AZ snapshot generator still pins 7 object versions by hand, and nothing rejects a new one
+
+**RESOLVED 2026-08-18 (branch `worktree-p1az-guards`) — the entry's "cheaper
+interim", delivered in full.** `snapshots/authorizeSnapshotRequestContract.test.js`
+(runs in CI via `npm run test:snapshots`) asserts every `version: '...'` literal
+in the generator is in `FROZEN_VERSION_LITERALS` — the 7 current ones, each
+carrying its static-content justification — and that no allowlist entry
+outlives its literal. A NEW literal now fails CI with the #1311/#1897 history in
+the failure message instead of importing as a silent no-op. Red-proven: an
+appended literal fails the suite. The maximal fix (ver() as the only version
+source) remains available but the trap this entry records is closed. Original
+entry follows.
 
 **Where:** `snapshots/gen-authorize-snapshot.js` — `ver()` derives a version
 from content for the attribute/condition/statement/rule builders, but 7 objects
@@ -2834,6 +2845,21 @@ hard-coding `OWN_VAR` / `TOPOLOGY_RESOURCE`. One gate, every audience, and a new
 resource is covered the day it is added rather than the day it breaks a demo.
 
 ### [ ] 2026-08-17 — Nothing fails a build when a P1AZ request omits an attribute the policy requires
+
+**PARTLY RESOLVED 2026-08-18 (branch `worktree-p1az-guards`) — the offline
+fail-at-build gate exists; the shared request-builder contract does not.**
+`snapshots/authorizeSnapshotRequestContract.test.js` DERIVES the required set
+from the snapshot itself (request-resolved + no `defaultValue` + referenced by
+at least one CONDITION — 6 attributes today) and fails CI when no PEP source
+(`PingOneAuthorizeClient.ts`, `pingAuthorizeGuard.ts`,
+`pingOneAuthorizeService.js`) sends one, with the two legal fixes in the
+message (send it, or give it a defaultValue like Amount). A vacuity guard stops
+the derivation from silently walking to zero, and a companion check pins
+TokenKid's deliberate not-sent exemption to its no-condition-reads-it premise.
+Red-proven via an injected condition-referenced attribute. STILL OPEN: having
+every caller BUILD its request from one checked-in contract, and the live
+snapshot-parity check ("nothing can tell the live environment has diverged").
+Original entry follows.
 
 **Where:** `demo_api_server/scripts/verifyA2aDelegationPolicy.js` and
 `scripts/verifyAuthorizeCloudParity.js` (both live-only, neither in CI);
