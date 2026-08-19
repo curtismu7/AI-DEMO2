@@ -1019,6 +1019,15 @@ services:
       # .env; the environment: block above still overrides everything.
       - path: ./demo_api_server/.env
         required: false
+      # 2026-08-19: this list injects the encrypted .env files above directly
+      # into container env (Docker's own env_file merge, before Node starts —
+      # this container has no .env file on disk to re-parse; see
+      # dotenvxBootstrap.js). Without DOTENV_PRIVATE_KEY, PINGONE_WORKER_CLIENT_
+      # ID/SECRET above arrives as literal ciphertext and Rule 0a2's user lookup
+      # fails with invalid_client, surfacing as `user_lookup_failed` — masking
+      # the real cause. Same shared key every other service reads from here.
+      - path: ./.env.keys
+        required: false
     volumes:
       - ./scripts:/otel:ro  # dir mount: survives git pull replacing the file (a single-file bind mount pins the old inode and crash-loops node -r)
       - ./certs:/certs:ro  # dir mount, not a single file -- a single-file bind pins the inode
