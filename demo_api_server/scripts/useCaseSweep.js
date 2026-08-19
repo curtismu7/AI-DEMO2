@@ -28,8 +28,6 @@
  * 2 = the sweep itself failed.
  */
 
-const fs = require('fs');
-const path = require('path');
 
 const { listUseCases, VERTICALS, resolveUseCase } = require('../config/useCases');
 const {
@@ -73,19 +71,27 @@ function loadFlagView() {
     // resolves it true [PINNED by CIBA_ENABLED] while this script saw "false"
     // and invented a 9-row cluster. A preflight tool that manufactures failures
     // is worse than no preflight tool.
+    let loadedEnvPaths = [];
     try {
       // loadDemoEnv rather than raw dotenv: post-dotenvx-cutover a plain
       // config() returns `encrypted:...` ciphertext, which would make every
       // env-pinned flag read as its ciphertext string — the same class of
       // manufactured failure this block exists to prevent.
-      require('./loadDemoEnv').loadDemoEnv();
+      loadedEnvPaths = require('./loadDemoEnv').loadDemoEnv();
     } catch (_) { /* dotenv absent or .env missing — reported via source below */ }
     const configStore = require('../services/configStore');
     return {
       getEffective: (k) => configStore.getEffective(k),
-      source: fs.existsSync(path.join(__dirname, '..', '.env'))
-        ? 'configStore + demo_api_server/.env (env-first, as a cold start would resolve)'
-        : 'configStore only — demo_api_server/.env NOT found, env-pinned flags may read as off',
+      // Report what was ACTUALLY loaded, not whether a .env sits at one guessed
+      // path. loadDemoEnv resolves the main checkout's .env from a worktree (a
+      // worktree has no gitignored .env of its own), so the old
+      // `existsSync(__dirname/../.env)` test said "NOT found — env-pinned flags
+      // may read as off" on runs where every flag had in fact been loaded
+      // correctly. A false warning on a correct result is the same disease as a
+      // manufactured failure: it makes you distrust output that was right.
+      source: loadedEnvPaths.length
+        ? `configStore + ${loadedEnvPaths.join(', ')} (env-first, as a cold start would resolve)`
+        : 'configStore only — no .env found on any candidate path, env-pinned flags may read as off',
     };
   } catch (err) {
     return { getEffective: () => undefined, source: `unavailable (${err.message})` };

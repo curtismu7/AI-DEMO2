@@ -92,6 +92,108 @@ test('a real environment value still wins over the file (override:false contract
   expect(process.env.LOAD_DEMO_ENV_PLAIN).toBe('from-environment');
 });
 
+// The key is injected onto process.env for the duration of the bootstrap call
+// (bootstrapDotenvx resolves it from the env object it is handed). It must not
+// survive the call: these CLIs spawn child processes, which inherit process.env.
+//
+// bootstrapDotenvx deletes the key itself on success, but NOT on its
+// `module_unavailable` early return — which fires when @dotenvx/dotenvx cannot be
+// required — because that return happens before the cleanup. Both paths are
+// asserted here; only the failure path regressed.
+describe('DOTENV_PRIVATE_KEY does not survive loadDemoEnv', () => {
+  test('is absent after a normal (successful) load', () => {
+    const envFile = path.join(tmpDir, '.env');
+    fs.writeFileSync(envFile, 'LOAD_DEMO_ENV_PLAIN=plain-value\n');
+    process.env.DEMO_API_ENV_FILE = envFile;
+    process.env.DOTENV_PRIVATE_KEY = 'not-a-real-key';
+    delete process.env.DOTENV_PRIVATE_KEY; // simulate "no key in the real env"
+
+    // Force the shared-keys path to yield something so the bootstrap runs.
+    jest.resetModules();
+    jest.doMock('../../services/dotenvxBootstrap', () => ({
+      bootstrapDotenvx: () => ({ loaded: true, applied: 0, decrypted: 0 }),
+    }));
+    const loader = require('../../scripts/loadDemoEnv');
+    jest.spyOn(loader, 'resolveKeysCandidates');
+    loader.loadDemoEnv();
+
+    expect(process.env.DOTENV_PRIVATE_KEY).toBeUndefined();
+    jest.dontMock('../../services/dotenvxBootstrap');
+  });
+
+  test('is absent even when the bootstrap bails out early (module unavailable)', () => {
+    const envFile = path.join(tmpDir, '.env');
+    fs.writeFileSync(envFile, 'LOAD_DEMO_ENV_PLAIN=plain-value\n');
+    process.env.DEMO_API_ENV_FILE = envFile;
+
+    jest.resetModules();
+    // Exactly the shape of the real early return: no decryption, no cleanup.
+    jest.doMock('../../services/dotenvxBootstrap', () => ({
+      bootstrapDotenvx: () => ({ loaded: false, applied: 0, decrypted: 0, reason: 'module_unavailable' }),
+    }));
+    const loader = require('../../scripts/loadDemoEnv');
+
+    // Only meaningful where a shared .env.keys exists to be picked up.
+    if (loader.resolveKeysCandidates().length === 0) return;
+
+    loader.loadDemoEnv();
+
+    expect(process.env.DOTENV_PRIVATE_KEY).toBeUndefined();
+    jest.dontMock('../../services/dotenvxBootstrap');
+  });
+
+  test('an externally-supplied key is left exactly as it was', () => {
+    const envFile = path.join(tmpDir, '.env');
+    fs.writeFileSync(envFile, 'LOAD_DEMO_ENV_PLAIN=plain-value\n');
+    process.env.DEMO_API_ENV_FILE = envFile;
+    process.env.DOTENV_PRIVATE_KEY = 'externally-supplied';
+
+    jest.resetModules();
+    jest.doMock('../../services/dotenvxBootstrap', () => ({
+      bootstrapDotenvx: () => ({ loaded: false, applied: 0, decrypted: 0, reason: 'module_unavailable' }),
+    }));
+    require('../../scripts/loadDemoEnv').loadDemoEnv();
+
+    expect(process.env.DOTENV_PRIVATE_KEY).toBe('externally-supplied');
+    jest.dontMock('../../services/dotenvxBootstrap');
+  });
+});
+
+// scripts/extract-browser-token.js writes .env.test-tokens and jest's
+// globalSetup reads it, but the CLI verifiers never did — so each told you to
+// log in again with a freshly extracted token already on disk. They also
+// disagreed on the name: verify-token-exchange wanted
+// INTEGRATION_SUBJECT_ACCESS_TOKEN (what the extractor writes),
+// verify-act-claims wanted ACCESS_TOKEN (what nothing writes).
+describe('readTestToken', () => {
+  const TOKEN_FILE = path.resolve(__dirname, '../../.env.test-tokens');
+  let preExisting = null;
+
+  beforeEach(() => {
+    // Never clobber a real token file if one happens to exist.
+    preExisting = fs.existsSync(TOKEN_FILE) ? fs.readFileSync(TOKEN_FILE) : null;
+  });
+  afterEach(() => {
+    if (preExisting !== null) fs.writeFileSync(TOKEN_FILE, preExisting);
+    else fs.rmSync(TOKEN_FILE, { force: true });
+  });
+
+  test('reads INTEGRATION_SUBJECT_ACCESS_TOKEN — the name the extractor writes', () => {
+    fs.writeFileSync(TOKEN_FILE, 'INTEGRATION_SUBJECT_ACCESS_TOKEN=header.payload.sig\n');
+    expect(freshLoader().readTestToken()).toBe('header.payload.sig');
+  });
+
+  test('also accepts ACCESS_TOKEN, the name verify-act-claims documented', () => {
+    fs.writeFileSync(TOKEN_FILE, 'ACCESS_TOKEN=alt.token.value\n');
+    expect(freshLoader().readTestToken()).toBe('alt.token.value');
+  });
+
+  test('returns null when no token file exists (callers must still explain themselves)', () => {
+    fs.rmSync(TOKEN_FILE, { force: true });
+    expect(freshLoader().readTestToken()).toBeNull();
+  });
+});
+
 // .env and .env.keys are gitignored, so a worktree has neither and must borrow
 // the main checkout's. The pre-existing relative guesses only covered a worktree
 // one or two levels down; this repo's live at `.claude/worktrees/<branch>/`

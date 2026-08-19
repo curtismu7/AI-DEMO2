@@ -142,22 +142,69 @@ function loadDemoEnv(options = {}) {
     loaded.push(envPath);
   }
 
-  // Replace any `encrypted:...` value the step above just set. Handed an env
-  // object seeded with the key rather than mutating process.env directly, so an
-  // explicit DOTENV_PRIVATE_KEY in the real environment keeps precedence and the
-  // key never lands in process.env for a child process to inherit.
+  // Replace any `encrypted:...` value the step above just set.
+  //
+  // bootstrapDotenvx applies decrypted values to the env object it is handed and
+  // resolves the key from that same object, so the key must be ON process.env
+  // for the duration of the call. It deletes the key itself on success — but NOT
+  // on its `module_unavailable` early return, which happens before that cleanup.
+  // Under server.js the key was set externally, so leaving it is a no-op; here we
+  // INJECT it, and leaving it behind would hand a private key to every child
+  // process these CLIs spawn. Hence the finally: whatever the outcome, the env
+  // ends the way it started.
+  const hadKey = Object.prototype.hasOwnProperty.call(process.env, 'DOTENV_PRIVATE_KEY');
   const privateKey = process.env.DOTENV_PRIVATE_KEY || readSharedPrivateKey();
   if (privateKey) {
-    bootstrapDotenvx({
-      envPaths,
-      env: Object.assign(process.env, { DOTENV_PRIVATE_KEY: privateKey }),
-      // Silent by default: these are CLIs whose own output is the point, and the
-      // bootstrap line would prepend noise to every one of them. Opt in with
-      // loadDemoEnv({ verbose: true }) when diagnosing a decryption problem.
-      logger: options.verbose ? console : { log() {}, error: console.error },
-    });
+    process.env.DOTENV_PRIVATE_KEY = privateKey;
+    try {
+      bootstrapDotenvx({
+        envPaths,
+        env: process.env,
+        // Silent by default: these are CLIs whose own output is the point, and the
+        // bootstrap line would prepend noise to every one of them. Opt in with
+        // loadDemoEnv({ verbose: true }) when diagnosing a decryption problem.
+        logger: options.verbose ? console : { log() {}, error: console.error },
+      });
+    } finally {
+      // Restore an externally-supplied key; remove one we introduced.
+      if (hadKey) process.env.DOTENV_PRIVATE_KEY = privateKey;
+      else delete process.env.DOTENV_PRIVATE_KEY;
+    }
   }
   return loaded;
 }
 
-module.exports = { loadDemoEnv, resolveEnvCandidates, resolveKeysCandidates };
+/**
+ * The live user access token from `.env.test-tokens`, or null.
+ *
+ * `scripts/extract-browser-token.js` already writes that file (key
+ * `INTEGRATION_SUBJECT_ACCESS_TOKEN`) and jest's globalSetup already reads it —
+ * but the CLI verifiers never did, so each told you to "log in via browser and
+ * set the variable" even when a freshly extracted token was sitting on disk. To
+ * make it worse the two disagreed on the name: verify-token-exchange wanted
+ * INTEGRATION_SUBJECT_ACCESS_TOKEN (what the extractor writes) and
+ * verify-act-claims wanted ACCESS_TOKEN (what nothing writes).
+ *
+ * Deliberately NOT folded into loadDemoEnv(): loadBrowserToken.js is explicit
+ * that the token file must not be auto-injected into every process, or an
+ * ordinary run starts hitting real PingOne APIs. A CLI opts in by asking.
+ */
+function readTestToken() {
+  const apiRoot = path.resolve(__dirname, '..');
+  const mainRoot = mainCheckoutRoot();
+  const candidates = [
+    path.join(apiRoot, '.env.test-tokens'),
+    ...(mainRoot ? [path.join(mainRoot, 'demo_api_server', '.env.test-tokens')] : []),
+  ];
+  for (const p of candidates) {
+    if (!fs.existsSync(p)) continue;
+    try {
+      const parsed = dotenv.parse(fs.readFileSync(p));
+      const token = parsed && (parsed.INTEGRATION_SUBJECT_ACCESS_TOKEN || parsed.ACCESS_TOKEN);
+      if (token) return token;
+    } catch (_err) { /* unreadable — try the next candidate */ }
+  }
+  return null;
+}
+
+module.exports = { loadDemoEnv, resolveEnvCandidates, resolveKeysCandidates, readTestToken };
