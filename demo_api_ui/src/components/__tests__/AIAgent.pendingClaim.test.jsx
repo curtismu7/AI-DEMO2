@@ -106,6 +106,10 @@ vi.mock("../../vertical/useVertical", () => ({
       ? { id: mockVerticalId, identity: { displayName: "Super Banking" } }
       : null,
     adminManifest: null, pageMockData: null, isAdminScope: false, isAdmin: false,
+    // Null id here means "not resolved YET" (the sequence under test), so the
+    // status must say loading — a concluded-empty answer is handed straight
+    // back to the composer now (see AIAgent.resumeVerticalReadiness.test.jsx).
+    verticalStatus: mockVerticalId ? "resolved" : "loading",
     refetch: () => {},
   }),
 }));

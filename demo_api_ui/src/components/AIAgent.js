@@ -337,7 +337,7 @@ export default function BankingAgent({
   const { chips: customChips, groups: customGroups } = useCustomChips();
   const { mode: agentProviderMode } = useLangchainProvider();
   const { addEvent } = useEventStream();
-  const { pageManifest, agentManifest, activeId: activeVerticalId } = useVertical();
+  const { pageManifest, agentManifest, activeId: activeVerticalId, verticalStatus } = useVertical();
   const effectiveVerticalId = forceVertical || activeVerticalId;
   // Secondary header controls live in a "More" popout. The header had ~16
   // controls across five rows, which buries the ones actually used to drive a
@@ -8067,19 +8067,27 @@ export default function BankingAgent({
     // Bounded, and the expiry is VISIBLE. Waiting forever would trade a broken
     // reply for a silently vanished question — and a silent drop is
     // indistinguishable from "this path was never watched", which is exactly the
-    // ambiguity that cost two sessions hours on this defect. So: wait for the
-    // manifest, but if it never arrives, hand the question back to the composer
-    // and say so, rather than logging into the void.
+    // ambiguity that cost two sessions hours on this defect.
+    //
+    // The vertical context now says whether the question is still OPEN
+    // (verticalStatus 'loading') or ANSWERED with no vertical ('resolved' /
+    // 'failed'). Answered-empty hands the question back immediately — waiting
+    // out a wall-clock deadline cannot change a concluded answer. The
+    // RESUME_VERTICAL_WAIT_MS deadline remains only as a backstop for a signal
+    // that never arrives (the case the tuned timeout was originally papering
+    // over; see TECH_DEBT "held together by two tuned timeouts").
     if (!effectiveVerticalId) {
-      if (resumeVerticalDeadlineRef.current == null) {
-        resumeVerticalDeadlineRef.current = Date.now() + RESUME_VERTICAL_WAIT_MS;
-      }
-      const remaining = resumeVerticalDeadlineRef.current - Date.now();
-      if (remaining > 0) {
-        // Re-evaluate once the deadline lands; the manifest resolving first
-        // re-runs this effect on its own via effectiveVerticalId.
-        const wait = setTimeout(() => setResumeWaitTick((n) => n + 1), remaining + 20);
-        return () => clearTimeout(wait);
+      if (verticalStatus === 'loading') {
+        if (resumeVerticalDeadlineRef.current == null) {
+          resumeVerticalDeadlineRef.current = Date.now() + RESUME_VERTICAL_WAIT_MS;
+        }
+        const remaining = resumeVerticalDeadlineRef.current - Date.now();
+        if (remaining > 0) {
+          // Re-evaluate once the deadline lands; the manifest resolving first
+          // re-runs this effect on its own via effectiveVerticalId/verticalStatus.
+          const wait = setTimeout(() => setResumeWaitTick((n) => n + 1), remaining + 20);
+          return () => clearTimeout(wait);
+        }
       }
       const stranded = nlResumeAfterAuth;
       resumeVerticalDeadlineRef.current = null;
@@ -8177,7 +8185,7 @@ export default function BankingAgent({
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- trigger when nlResumeAfterAuth changes
-  }, [nlResumeAfterAuth, isLoggedIn, marketingGuestChatEnabled, sessionResolved, effectiveVerticalId, resumeWaitTick]);
+  }, [nlResumeAfterAuth, isLoggedIn, marketingGuestChatEnabled, sessionResolved, effectiveVerticalId, verticalStatus, resumeWaitTick]);
 
   // Cancel any in-flight agent request when this instance unmounts OR the
   // route changes away from where it was issued — prevents state updates on

@@ -38,6 +38,8 @@ export function VerticalProvider({ children }) {
           pageMockData: null,
           adminManifest: null,
           isAdmin: false,
+          // Not concluded yet: the /active follow-up below may still name one.
+          verticalStatus: 'loading',
         });
         // Then learn WHICH vertical the server considers active. /me is session-only,
         // so a guest hydrated activeId=null and the UI fell back to its own default
@@ -52,13 +54,22 @@ export function VerticalProvider({ children }) {
           .then((r) => (r.ok ? r.json() : null))
           .then((d) => {
             const id = d && d.id;
-            if (id) setState((cur) => (cur && !cur.activeId ? { ...cur, activeId: id } : cur));
+            setState((cur) => {
+              if (!cur) return cur;
+              const next = { ...cur, verticalStatus: 'resolved' };
+              if (id && !cur.activeId) next.activeId = id;
+              return next;
+            });
           })
-          .catch(() => { /* keep activeId null — same state as before this existed */ });
+          .catch(() => {
+            // Keep activeId null, but the question is now ANSWERED (no vertical) —
+            // consumers waiting on the resolution must not keep waiting.
+            setState((cur) => (cur ? { ...cur, verticalStatus: 'resolved' } : cur));
+          });
         return;
       }
       const data = await res.json();
-      setState(data);
+      setState({ ...data, verticalStatus: 'resolved' });
       if (data.pageManifest) {
         themeKeysRef.current = applyThemeTokens(data.pageManifest.theme.cssVars, themeKeysRef.current);
         document.title = data.pageManifest.identity.documentTitle
@@ -73,6 +84,9 @@ export function VerticalProvider({ children }) {
         pageMockData: null,
         adminManifest: null,
         isAdmin: false,
+        // Concluded, unsuccessfully — waiting longer will not produce a vertical
+        // until SSE triggers a refetch.
+        verticalStatus: 'failed',
       });
     }
   }, []);
@@ -102,6 +116,7 @@ export function VerticalProvider({ children }) {
           pageMockData: null,
           adminManifest: null,
           isAdmin: false,
+          verticalStatus: 'resolved',
         });
       }, 1500);
       return () => clearTimeout(guestFallback);

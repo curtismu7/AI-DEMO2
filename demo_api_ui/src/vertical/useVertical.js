@@ -15,6 +15,10 @@ export function useVertical() {
       activeId: null,
       isAdminScope: false,
       isAdmin: false,
+      // No provider = nothing will ever resolve this; report 'loading' so
+      // consumers keep their bounded-wait fallback rather than concluding
+      // "no vertical" instantly.
+      verticalStatus: 'loading',
       refetch: () => {},
     };
   }
@@ -30,6 +34,9 @@ export function useVertical() {
     agentManifest,
     isAdminScope,
     isAdmin: ctx.isAdmin,
+    // 'loading' | 'resolved' | 'failed'. A hydrated state without the field
+    // (older setState shape) counts as concluded.
+    verticalStatus: ctx.verticalStatus || 'resolved',
     refetch: ctx.refetch,
   };
 }
