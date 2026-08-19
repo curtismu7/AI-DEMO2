@@ -1,6 +1,6 @@
 // demo_mcp_gateway/tests/authorizeObligations.test.ts
 import axios from 'axios';
-import { PingOneAuthorizeClient } from '../src/auth/PingOneAuthorizeClient';
+import { PingOneAuthorizeClient, summarizeIndeterminate } from '../src/auth/PingOneAuthorizeClient';
 import { classifyStatement, classifyStatements } from '../src/auth/authorizeObligations';
 
 jest.mock('axios');
@@ -167,6 +167,78 @@ describe('PingOneAuthorizeClient — a live PERMIT can still carry a gate', () =
     const client = new PingOneAuthorizeClient(baseConfig);
     const d = await client.evaluate(decoded, 'tools/call', 'create_transfer');
     expect(d.decision).toBe('DENY');
+  });
+});
+
+// Phase 5's second half: "surface the missing attribute". PingOne has no
+// dedicated `missingAttribute` field — it names the offending attribute in
+// `statements[].payload` prose. The fixture below is the REAL payload shape
+// captured live 2026-08-19 from this exact decision endpoint (a DENY for a
+// request omitting UserId), not an invented one.
+describe('summarizeIndeterminate — surfaces what the response actually carries', () => {
+  const LIVE_MISSING_USER_ID_STATEMENT = {
+    name: 'MCP Denied — Missing User ID',
+    code: 'mcp-missing-user-id',
+    payload: '{"denied": true, "reason": "missing-user-id", "message": "No user identity found in the MCP token delegation chain. UserId is required for all Super Banking MCP tool invocations."}',
+    obligatory: false,
+    fulfilled: false,
+  };
+
+  it('names the missing attribute from the live statement payload', () => {
+    const summary = summarizeIndeterminate({
+      decision: 'INDETERMINATE',
+      statements: [LIVE_MISSING_USER_ID_STATEMENT],
+      status: { code: 'OKAY' },
+    });
+    expect(summary).toContain('mcp-missing-user-id');
+    // The whole point: the operator sees WHICH attribute, not just "failed".
+    expect(summary).toContain('UserId is required');
+    expect(summary).toContain('status=OKAY');
+  });
+
+  it('falls back to the payload `reason` when there is no message', () => {
+    const summary = summarizeIndeterminate({
+      statements: [{ code: 'some-code', payload: '{"reason":"attribute-provider-unreachable"}' }],
+    });
+    expect(summary).toContain('attribute-provider-unreachable');
+  });
+
+  it('surfaces a non-JSON payload raw rather than dropping it', () => {
+    const summary = summarizeIndeterminate({
+      statements: [{ code: 'weird', payload: 'not json at all' }],
+    });
+    expect(summary).toContain('not json at all');
+  });
+
+  it('says so plainly when there are no statements — the bare INDETERMINATE case', () => {
+    const summary = summarizeIndeterminate({ decision: 'INDETERMINATE', reason: 'could not evaluate' });
+    expect(summary).toContain('statements=(none)');
+    expect(summary).toContain('reason=could not evaluate');
+  });
+
+  it('never throws on malformed input — a diagnostic must not break the decision path', () => {
+    expect(() => summarizeIndeterminate(undefined)).not.toThrow();
+    expect(() => summarizeIndeterminate(null)).not.toThrow();
+    expect(() => summarizeIndeterminate({ statements: 'not-an-array' })).not.toThrow();
+    expect(() => summarizeIndeterminate({ statements: [null, 42] })).not.toThrow();
+  });
+
+  it('is actually wired into the fail-closed path (logged, not just exported)', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    mockedAxios.post.mockResolvedValueOnce({
+      status: 200,
+      data: {
+        decision: 'INDETERMINATE',
+        statements: [LIVE_MISSING_USER_ID_STATEMENT],
+      },
+    });
+    const client = new PingOneAuthorizeClient(baseConfig);
+    const d = await client.evaluate(decoded, 'tools/call', 'create_transfer');
+
+    expect(d.decision).toBe('DENY');
+    const logged = warn.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(logged).toContain('UserId is required');
+    warn.mockRestore();
   });
 });
 

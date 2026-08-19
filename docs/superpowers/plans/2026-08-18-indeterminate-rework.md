@@ -376,13 +376,51 @@ Each phase ships independently and leaves the suite green.
    "any INDETERMINATE is an error" property holds here as a fact about what
    the code can produce, not a runtime branch that could regress.
 
-   **What phase 5 does NOT cover, left explicitly open:** "surface the missing
-   attribute" — naming WHICH attribute a live cloud evaluation failure was
-   missing. Neither the gateway's warn line nor Groovy's comment surfaces
-   that; both know only that classification failed, not why. That is real,
-   separately-scoped work (probably reading `raw.reason`/`raw.details` off the
-   live P1AZ response, which today the gateway logs but does not parse for
-   this purpose) — worth its own entry if it becomes a demo need.
+   ~~**What phase 5 does NOT cover, left explicitly open:** "surface the missing
+   attribute"~~ **DONE 2026-08-19 for the Node gateway.**
+   `PingOneAuthorizeClient.ts`'s fail-closed branch previously discarded every
+   diagnostic the response carried and logged one bare sentence. It now calls
+   `summarizeIndeterminate(data)` and includes the result.
+
+   **The guess in the original paragraph above was wrong**, and checking it
+   first is what made the fix real: there is no `raw.details` to parse, and no
+   `missingAttribute` field anywhere. PingOne names the offending attribute in
+   **`statements[].payload` prose**. Captured live 2026-08-19 from the real
+   decision endpoint (a DENY for a request omitting `UserId`):
+
+   ```json
+   { "code": "mcp-missing-user-id",
+     "payload": "{\"denied\": true, \"reason\": \"missing-user-id\", \"message\":
+                  \"No user identity found in the MCP token delegation chain.
+                    UserId is required for all Super Banking MCP tool invocations.\"}" }
+   ```
+
+   So the implementation surfaces what is actually present — statement codes,
+   each payload's `message` (falling back to `reason`, then to the raw string
+   when the payload is not JSON), the engine's `reason`, and PingOne's
+   `status.code` — rather than parsing for a field that does not exist. Six
+   tests, the primary one built from the live payload above verbatim; one of
+   them asserts the summary is actually REACHED from the decision path (spying
+   on `console.warn` through a real `evaluate()` call), not merely exported.
+   Verified by reverting only the wiring and confirming exactly that test went
+   red. Full blocking gateway suite 782/782.
+
+   **Also found: the #1310 repro recorded in `pingOneAuthorizeService.js` is
+   STALE.** That comment says `create_withdrawal` as PrivateBanking with no
+   `Amount` returns INDETERMINATE (probed 2026-08-03). Re-probed live
+   2026-08-19 against the same endpoint with `UserId` supplied: it returns
+   **`PERMIT` + `step-up-required`**. The cloud policy has since grown rules
+   that resolve that input. A genuine cloud INDETERMINATE could NOT be
+   reproduced on this environment at all — which is why this fix deliberately
+   surfaces the whole response rather than a parser written against an
+   unobserved shape. Worth knowing before anyone trusts that comment's repro
+   again.
+
+   **Still open:** the Groovy consumer's equivalent line
+   (`p1az-decision.groovy`) surfaces no diagnostics either. Left alone
+   deliberately — no Groovy test harness exists in this repo (live-verify-only,
+   per the top of this plan), so the same change there could not be verified to
+   the standard the Node one just was.
 
 ## Verification gates
 

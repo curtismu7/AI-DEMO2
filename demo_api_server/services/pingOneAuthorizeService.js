@@ -391,6 +391,15 @@ function _rawEffect(raw) {
 // gate-shaped statement would be read as "permit once you do MFA" and the call
 // would proceed after the user completed a step-up that was never the obstacle.
 //
+// NOTE 2026-08-19: the specific repro below NO LONGER REPRODUCES. Re-probed
+// live against the same decision endpoint with `UserId` supplied,
+// `create_withdrawal` as PrivateBanking with no `Amount` now returns
+// PERMIT + step-up-required — the cloud policy has since grown rules that
+// resolve that input, and a genuine cloud INDETERMINATE could not be produced
+// on this environment at all. The INVARIANT below is unchanged and still
+// correct (a live INDETERMINATE must collapse to DENY); only its worked
+// example is stale. Do not treat the example as a working test case.
+//
 // This is not hypothetical: probed live 2026-08-03, `create_withdrawal` as
 // PrivateBanking with no `Amount` returns exactly this — the tier cap comparison
 // has no operand, and P1AZ answers INDETERMINATE. A missing request attribute
