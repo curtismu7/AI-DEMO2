@@ -3058,6 +3058,20 @@ tests.
 
 ### [ ] 2026-08-17 — `PG_GATEWAY_RESOURCE_ID` is both the token audience and the advertised RFC 9728 metadata URL
 
+**PARTLY RESOLVED 2026-08-18 (branch `worktree-gateway-metadata-check`) — the
+entry's "regression test worth having" now exists.**
+`services/checks/gatewayMetadataCheck.js` (demo-check framework, Agent Gateway
+category, applies when `ff_mcp_gateway_pinggateway` is on) probes the gateway
+unauthenticated, extracts `resource_metadata` from the 401's WWW-Authenticate,
+DEREFERENCES it, and requires 200 + JSON naming a `resource` — each hop failing
+by name. Verified live: challenge advertises
+`https://api.ping.demo:3036/.well-known/oauth-protected-resource/mcp`, answers
+200. The silent-for-months failure mode (audience half working while discovery
+is dead) now surfaces on every posture run. STILL OPEN: the actual role split
+(`PG_GATEWAY_METADATA_BASE` defaulting to request authority, or moving the
+challenge into the Groovy `deny()`), which is what would also let this audience
+join scope-topology's `audienceEnv` binding table. Original entry follows.
+
 **Where:** `ping-gateway/.env` (`PG_GATEWAY_RESOURCE_ID=https://api.ping.demo:3036/mcp`),
 consumed as `resourceId` by `ping-gateway/config/routes/01-mcp-olb.json` (and the
 `/apikey`, `/invest` variants), and checked as `aud` by

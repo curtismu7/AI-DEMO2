@@ -8,6 +8,10 @@ require('./llmCheck');
 require('./llmDeepCheck');
 require('./gatewayCheck');
 require('./gatewayPostureCheck');
+// Follows the RFC 9728 resource_metadata pointer the gateway's 401 challenge
+// advertises — the PG_GATEWAY_RESOURCE_ID dual-role failure was silent for
+// months precisely because nobody dereferenced it (TECH_DEBT 2026-08-17).
+require('./gatewayMetadataCheck');
 require('./usecaseCheck');
 require('./uiDispatchCheck');
 // Offline half of the A2A delegation guarantee: catches a specialist that is
