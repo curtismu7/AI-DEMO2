@@ -185,6 +185,35 @@ Each phase ships independently and leaves the suite green.
      review 2026-08-18: vocabulary, precedence (elicitation lowest, never
      co-occurs), and handler are all present; the elicitation-confirmed
      arg/header plumbing (~333-373) was already in place.
+   - **BFF `pingOneAuthorizeService`/`simulatedAuthorizeService` audit DONE
+     2026-08-19 — no code change needed, both already correct:**
+     `pingOneAuthorizeService.js`'s `_classifyRawObligations` (the H2 fix)
+     already merges `raw.obligations` into the classification set ahead of
+     `raw.statements` — built for real cloud P1AZ's native `obligations` field,
+     which happens to share both the field name and the type/id/code shape
+     `demo_authz_server`'s phase-2 field uses. This file never calls
+     `demo_authz_server` directly (it is the real-cloud-only client — see the
+     `pingOneAuthorizeIndeterminate.test.js` audit from the #2119 investigation),
+     so in practice it never sees the mock's `obligations[]`, but the merge
+     logic is already the "prefer explicit" shape phase 3 asks for, for the
+     source it does see. `simulatedAuthorizeService.js` needs no "prefer
+     explicit obligations" logic at all — it builds its `mcpCandidates`
+     obligations array natively in-process (`type: 'STEP_UP'/'HITL_CONSENT'`)
+     and classifies through the same shared `classifyObligations()`; there is
+     no inferred-vs-explicit distinction to resolve because it never reads an
+     external statements shape to fall back to. Both consumers predate this
+     rework's obligations-first pattern rather than needing to adopt it.
+   - **UI decision surfaces — checked, not changed:** none of
+     `demo_api_server/routes/verticalManifest.js` (`/check-chip`),
+     `demo_api_ui/src/vertical/AdminEditor/VerticalPipelineMap.jsx`, or
+     `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js` read
+     `obligations[]` yet — they still branch on `decision`/`statements`, which
+     phase 2/3a left byte-identical, so nothing is currently broken (confirmed
+     live: Token Chain trace renders a $10 destructive-tool ELICITATION gate
+     correctly post-#2133, no console errors, additive field ignored cleanly).
+     Wiring the UI onto `obligations[]` has no functional payoff until phase 4
+     actually changes what `decision` says — deferred there rather than done
+     speculatively now.
 4. **Flip the PDP** to stop emitting INDETERMINATE for the pause.
 5. **Add the guard** the plan actually wants: any INDETERMINATE from either
    engine is now unambiguously an error — log it loudly, fail closed, and
