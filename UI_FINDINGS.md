@@ -14,7 +14,8 @@ Source: Playwright drive of `https://local.ping-devops.com:4000` on **2026-08-19
 |---|---------|------|----------|--------|-------|
 | 1 | Verification pill never dismisses | UI | High | FIXED | PR #2155 — `banner → pill → gone` cycle |
 | 2 | Pill covers the Sign Out button | UI | High | FIXED | PR #2155 — overlay moved below the 60px TopNav |
-| 3 | `consent-challenge/:id/confirm` 404s during a live drive | unknown | High | OPEN | Rescoped twice; 3 of 4 claims withdrawn, incl. my own log evidence |
+| 3 | `consent-challenge/:id/confirm` 404s during a live drive | environment | — | INVALID | No code fault — containers recreated under the drive |
+| 12 | launchd sync job dead since its cwd change — silent staleness | scripts | High | FIXED | PR #2162 — found while proving #3 |
 | 4 | Chain badge was a hardcoded string, so an errored run looked clean | UI | Medium | FIXED | PR #2155 — badge derives from `runStory.outcome` |
 | 5 | Scope diff on the chain map card is unreadable | UI | Medium | FIXED | PR #2160 — map states the shape, detail panel keeps the chips |
 | 6 | 25 sidebar groups, 7 ways to start a demo, Sign Out ×3 | IA | Medium | OPEN | |
@@ -74,9 +75,43 @@ The BFF container restarted *after* the failure, so I was reading the logs of a 
 
 **Leading hypothesis, not yet proven:** collateral from the `ai-demo-ui` restart rather than a code fault. It fits the timing and would explain why the window closed and the failure could not be reproduced afterwards. It does not yet explain a clean 404 a full 35s after nginx came back.
 
-**Open, being reproduced properly.** Method for the retry, since the last two attempts were void for a different reason (the llama.cpp agent stalled and the modal never opened): pin `docker inspect <ui,bff> --format '{{.State.StartedAt}}'` before and after the run, and treat the run as void rather than a finding if either moved. Capture the 404 response body — JSON means the BFF answered, HTML means a proxy or static handler did, which separates the two remaining branches in one look.
+**RESOLVED — no code fault. See below.**
 
-**Standing lesson, worth more than this one 404.** `deploy-live.sh` takes a lock so two deploys cannot race, but nothing warns a session mid live-UI-drive that its containers are about to be pulled. Any deploy restarts `ui` and/or `demo-api-server` under whoever is driving the browser, and it surfaces as an inexplicable 404/502 with no server-side trace. Before trusting any live-drive observation, check when the ground moved.
+_Original plan, kept for the record:_
+
+**Reproduced properly.** Method for the retry, since the last two attempts were void for a different reason (the llama.cpp agent stalled and the modal never opened): pin `docker inspect <ui,bff> --format '{{.State.StartedAt}}'` before and after the run, and treat the run as void rather than a finding if either moved. Capture the 404 response body — JSON means the BFF answered, HTML means a proxy or static handler did, which separates the two remaining branches in one look.
+
+**Resolution: there is no code fault. The stack is recreated under live drives.**
+
+The controlled reproduction settled it — by failing the same way, on cue. I pinned `docker inspect ... StartedAt` before the run, drove UC8, and:
+
+```
+before   ai-demo-api-server  10:13:19Z
+prompt sent                  10:16:39Z
+after    ai-demo-api-server  10:16:41Z     <- recreated 2s into the run
+```
+
+The run produced `502`s instead of a modal. `ai-demo-ui` was then recreated again at 10:17:54Z. Neither restart came from `deploy-live.sh` — its own ledger (`.git/deploy-live.restarts`) records only two, at 10:00 and 10:07, both `ui` only.
+
+The cause is structural: **five other Claude sessions were live on this machine** (`/tmp/cc-socks/`), sharing one Docker stack whose compose project is the main checkout. Any of them recreates `ui` / `demo-api-server` at will. A live UI drive gets its containers pulled mid-request and sees an inexplicable 404 or 502 with no server-side trace — which is exactly what the original UC8 run recorded.
+
+So the 404 was never a defect in the consent-challenge path. Every server-side hypothesis (session lookup, TTL, single-use consumption, hitl-service, `#2148`) was chasing a fault that was not there, and the one piece of evidence that seemed to localise it was itself void.
+
+**What to do instead of fixing it:** before trusting any live-drive observation, pin `docker inspect ai-demo-ui ai-demo-api-server --format '{{.State.StartedAt}}'` either side of the run and void the run if either moved. That check is cheap, and it is the difference between a finding and an hour in the routing layer.
+
+### 12. The launchd sync job has been dead, failing silently every 15 minutes — FIXED (PR #2162)
+
+Found while proving #3, and the more serious of the two.
+
+`~/Library/Logs/aidemo2-sync-main.log` is wall-to-wall `fatal: not a git repository (or any of the parent directories): .git`. The 15-minute job that is supposed to catch merges landing outside an agent session has been failing on **every run**.
+
+**Cause:** `scripts/sync-main-checkout.sh` resolved the repo with a bare `git rev-parse --git-common-dir`, which asks about the **caller's** cwd. That is fine for an agent standing in the repo and fatal for launchd, whose cwd is `/`. The plist (`com.aidemo2.sync-main.plist`) sets no `WorkingDirectory`, so there was nothing to save it.
+
+**Fixed:** anchor the lookup on the script's own location — `git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse …`, the idiom `scripts/pac-common.sh:76` already uses. This keeps the worktree property the original comment relied on, because `--git-common-dir` maps any worktree copy back to the main checkout regardless.
+
+**Evidence:** run from `/` exactly as launchd does — unfixed exits **128** with that log's error, fixed exits **0** and reports `up to date`. The fix is in the script rather than the plist deliberately: the plist is not version-controlled, so a plist-only fix would not survive a new machine and would not help anyone else invoking the script from outside the repo.
+
+This is the same silent-staleness failure mode the job exists to prevent, one level up: the safety net was down, and it announced it only in a log nobody reads.
 
 ### 4. Chain badge was a hardcoded string, so an errored run looked clean — FIXED (PR #2155)
 
@@ -165,6 +200,8 @@ Two things made that state easy to reach and impossible to leave:
 Dark mode · narrow/mobile widths · the other 11 verticals · every admin surface.
 
 ## Changelog
+
+- 2026-08-19 — #3 closed INVALID (no code fault: containers recreated mid-drive by one of six concurrent sessions) and #12 added and FIXED — the launchd sync job had been dying every run on `fatal: not a git repository`.
 
 - 2026-08-19 — #8 closed INVALID. Re-verified against the live page before touching anything: no clipping, no misplaced Copy button, auto-scroll working. The original capture was a scrolled pane, not a layout bug.
 
