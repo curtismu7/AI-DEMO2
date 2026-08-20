@@ -105,6 +105,22 @@ read the configured host. A new browser origin must be added to ALL of:
 ## §4 — Bug Fix Log
 Reverse-chronological, newest first.
 
+### 2026-08-20 — CIBA UI initiation dropped the gateway HITL challenge receipt
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`.
+
+**What was broken:** all three CIBA initiation paths omitted the canonical HITL
+challenge id from `/api/auth/ciba/initiate`, so the approved retry could lose
+the receipt required by the consuming gateway verification.
+
+**What was fixed:** normalized, thrown-error, and natural-language CIBA paths
+now forward either supported challenge-id casing as `hitl_challenge_id`.
+
+**Do not break:** the receipt remains opaque and gateway verification remains
+single-use; this does not introduce a trusted approval boolean or bypass.
+
+**Verify:** focused CIBA/Privilege UI suites (9/9) and UI build (exit 0).
+
 ### 2026-08-20 — Priv Agent configuration incorrectly reused the Agentless OAuth flow
 
 **Files changed:** `demo_api_server/routes/privilegeMcpClient.js`,
