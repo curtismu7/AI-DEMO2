@@ -105,6 +105,24 @@ read the configured host. A new browser origin must be added to ALL of:
 ## §4 — Bug Fix Log
 Reverse-chronological, newest first.
 
+### 2026-08-20 — Priv Agent mode still offered page-managed Privilege sign-in
+
+**Files changed:** `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx` and its
+focused gateway-preset test.
+
+**What was broken:** selecting Agent mode hid its OAuth configuration but the
+connection sidebar still offered **Sign In with Privilege**, implying the page
+should authenticate even though the workstation agent owns authentication.
+
+**What was fixed:** Agent mode no longer renders page-managed authentication
+controls. Agentless mode retains its existing sign-in, silent-auth, and sign-out
+controls.
+
+**Do not break:** Agent mode must redirect directly and never start page OAuth;
+Agentless mode must retain its PKCE and session flow.
+
+**Verify:** focused Privilege UI suite and UI build.
+
 ### 2026-08-20 — CIBA UI initiation dropped the gateway HITL challenge receipt
 
 **Files changed:** `demo_api_ui/src/components/AIAgent.js`.
