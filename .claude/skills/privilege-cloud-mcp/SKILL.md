@@ -4,6 +4,17 @@ Use when troubleshooting, configuring, or extending the PingOne Privilege Cloud
 MCP integration: the Privilege Gateway, the BFF MCP client relay, the
 Privilege MCP Client UI page, or the K8s deployment.
 
+## Current live source of truth (2026-08-20)
+
+Before using the historical investigation below, read
+`privilege/CURRENT-CONFIGURATION.md`. The live cmuir Agentless deployment is proven
+on `privilege-mcpgw`: `/cmuir/mcp` returns the MCP OAuth challenge and the demo BFF
+uses that endpoint. The separate Agent endpoint is
+`https://opensearch.default.applications.procyon.ai:8643/mcp` and relies on the
+installed Agent for authentication. Any later section saying `mcpgw` is untested,
+that Agentless uses Host rewriting, or that the cmuir Agentless backend is OpenSearch
+is historical and must not override this section.
+
 ## Read this first — the things that cost weeks
 
 Every one of these was learned the expensive way. Check them before theorising.
@@ -144,12 +155,12 @@ applies tool-level access policies, then proxies allowed calls to the backend.
 The BFF authenticates the user via a **separate OAuth flow** using the Privilege
 SSO client — the main banking app token has the wrong audience for Privilege Cloud.
 
-### Three deployment paths — pick agentless
+### Three deployment paths — current routing
 
 | Path | Endpoint | Status |
 |------|----------|--------|
-| **Agentless / self-hosted frontend** (use this) | `https://aidemo.mcpgw.local.ping-devops.com/mcp` → nginx :443 → proxy :8623 | Reaches the gateway directly, bypassing Ping's cloud. Proven end to end with a console token **on the previous binary (`cyonproxy`)**: auth, routing, policy, backend, discovery. Not yet re-proven on `mcpgw` (current binary as of 2026-08-12) |
-| **Mesh / cloud frontend** | `https://<app>-app-default.applications.privilege.pingone.com:8643/mcp` | Ping-assigned FQDN, routed through Ping's cloud and back over the mesh |
+| **Agentless / self-hosted frontend** | `https://cmuir-agentless-mcpgw.ping-devops.com/cmuir/mcp` → ingress → gateway :8623 | Current cmuir deployment; OAuth challenge verified live on `mcpgw` |
+| **Agent / cloud frontend** | `https://opensearch.default.applications.procyon.ai:8643/mcp` | Current Agent deployment; the installed Agent supplies authentication |
 | **Cloud API** | `https://privilege.pingone.com/api/mcp` | DEAD END — 401s every request including its own `.well-known/oauth-protected-resource`, sends no `WWW-Authenticate` |
 
 **Both of the first two hit the same auth wall.** A hypothesis held through most of

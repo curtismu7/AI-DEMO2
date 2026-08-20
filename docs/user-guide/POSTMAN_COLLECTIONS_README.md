@@ -41,6 +41,7 @@ These live in [`postman/`](../../postman/), not `docs/`:
 - **`../../privilege/postman/Privilege-MCP-Gateway.postman_collection.json`** - Privilege MCP gateway, with its own `-environment` file
 - **`../../privilege/postman/Privilege-MCP-Simple.postman_collection.json`** - Minimal Privilege MCP relay path, with its own `-environment` file
 - **`../../privilege/postman/Privilege-MCP-Debug.postman_collection.json`** - Ordered probes that separate the two Privilege MCP failure modes: a Host/routing miss (empty `200`, `Domain not found`) versus an auth or policy denial (`401`, `403`). Requests 2 and 3 are a matched pair — same URL, Host header the only difference. Variables are inline; no environment file needed
+- **`../../privilege/postman/Privilege-MCP-Client-K8s.postman_collection.json`** - Current cmuir Agentless BFF flow. Defaults to `https://cmuir-agentless-mcpgw.ping-devops.com/cmuir/mcp`, application `cmuir`, mesh cluster `ai-demo-cmuir`. The separate Agent URL is `https://opensearch.default.applications.procyon.ai:8643/mcp` and uses Agent-managed authentication.
 
 ## Usage
 

@@ -1,5 +1,10 @@
 # ai-demo-stack
 
+> **Not the current cmuir Agentless deployment.** Use
+> [`../CURRENT-CONFIGURATION.md`](../CURRENT-CONFIGURATION.md) for the live
+> `agentless-mcpgw` release, `/cmuir/mcp` endpoint, and mode separation. This
+> whole-stack chart remains an undeployed packaging experiment.
+
 Deploy the whole AI-DEMO2 app plus the Privilege MCPGW gateway as one Helm
 release, on the Ping SE AWS cluster.
 
@@ -9,7 +14,7 @@ release, on the Ping SE AWS cluster.
   authz-server, agent-service, hitl-service, mcp-resource-server,
   api-resource-server, ping-gateway, jaeger, llm-stack (5 tiers), and the
   langchain/mastra/openai/pydantic agent variants.
-- **mcpgw** — the Privilege proxy gateway (`cyonproxy`), as a Helm subchart
+- **mcpgw** — the Privilege proxy gateway (`mcpgw`), as a Helm subchart
   dependency on `../../k8s/helm/mcpgw` (its internal chart name is
   `privgateway`, from the originally vendored source — see `Chart.yaml`).
 

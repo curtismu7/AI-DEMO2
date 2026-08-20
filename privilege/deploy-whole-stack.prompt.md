@@ -7,6 +7,14 @@ tools: ["run_in_terminal"]
 
 # Deploy Whole Stack + Privilege Gateway
 
+> **Do not use this prompt to update the current cmuir Agentless gateway.** The
+> verified deployment is the separate Helm release `agentless-mcpgw` in
+> `ping-devops-cmuir`; see
+> [`CURRENT-CONFIGURATION.md`](CURRENT-CONFIGURATION.md). This older whole-stack
+> path manages a different `ping-mcpgw` release and can disturb unrelated gateway
+> resources. Build/push and roll only the requested app service when Agentless is
+> already healthy.
+
 Unlike `deploy-privgateway.prompt.md` (`~/Downloads/PingOnePrivAgentHelmPkg/` on
 this machine — not in this repo), which deploys the gateway **standalone** via a
 chart that lives outside this repo,
@@ -25,7 +33,7 @@ llm-stack, api-server (BFF), mcp-gateway, ping-gateway, agent-service (x2 — on
 is a duplicate apply, harmless), mastra-agent, openai-agent, pydantic-agent,
 frontend (UI).
 
-Deployed via Helm, as one release (`k8s/helm/mcpgw`, cyonproxy binary):
+Deployed via Helm, as one release (`k8s/helm/mcpgw`, `mcpgw` binary):
 mcpgw Deployment + Service + Secret + PVC. OpenSearch and the chart's own
 ingress/certificate templates are disabled by default — see
 [`k8s/helm/mcpgw/values.yaml`](../k8s/helm/mcpgw/values.yaml).
@@ -83,7 +91,7 @@ kubectl logs -n <namespace> deployment/ping-mcpgw-mcpgw -c log-tailer --tail=30
 
 Look for `established command stream to <node>` and a `MedusaLink...LinkStatus:Active`
 event in the gateway logs, no `level=fatal`. `-c mcpgw` (not `log-tailer`) is
-normally empty even when healthy — cyonproxy logs to a file; `log-tailer` is the
+normally empty even when healthy — mcpgw logs to a file; `log-tailer` is the
 sidecar tailing it.
 
 App: `https://ai-demo.ping-devops.com` · BFF health:
@@ -108,10 +116,10 @@ ping-mcpgw --namespace <namespace>` instead of `se-undeploy`.
 
 ## Known gaps
 
-- The gateway (cyonproxy) has no MCP OAuth challenge support — see
-  [`PRIVILEGE-MCP.md`](PRIVILEGE-MCP.md) for the untested `privilege-mcpgw`
-  binary lead and why it isn't wired in here yet.
+- The previous gateway (`cyonproxy`) had no MCP OAuth challenge support. The
+  current separate `agentless-mcpgw` release resolves this with `mcpgw`; see
+  [`CURRENT-CONFIGURATION.md`](CURRENT-CONFIGURATION.md).
 - `mcpgw-agentless-ingress.yaml` (agentless/self-hosted-frontend mode) is not
   applied by `deploy.sh` — it targets that untested binary specifically and would
-  502 forever against cyonproxy. Kept in the repo for whenever that binary is
-  verified.
+  502 forever against the previous cyonproxy deployment. It is retained only as
+  historical configuration and is not the current cmuir ingress.

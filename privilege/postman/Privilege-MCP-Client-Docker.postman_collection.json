@@ -14,14 +14,14 @@
     },
     {
       "key": "mcpgw_banking_url",
-      "value": "https://ai-demo.ping-devops.com/mcpgw/cmuir2/mcp",
-      "description": "SE K8s mcpgw — banking mcp-server backend (app: cmuir2)",
+      "value": "https://cmuir-agentless-mcpgw.ping-devops.com/cmuir/mcp",
+      "description": "Current cmuir Agentless Streamable HTTP MCP endpoint",
       "type": "default"
     },
     {
       "key": "mcpgw_opensearch_url",
       "value": "https://ai-demo.ping-devops.com/mcpgw/cmuir-opensearch/mcp",
-      "description": "SE K8s mcpgw — OpenSearch MCP backend (app: cmuir-opensearch). Register in Privilege console first.",
+      "description": "Legacy Agentless experiment; OpenSearch now belongs to the separate Agent use case.",
       "type": "default"
     },
     {
@@ -227,7 +227,7 @@
       ]
     },
     {
-      "name": "OpenSearch app (register cmuir-opensearch in console first)",
+      "name": "Legacy OpenSearch Agentless experiment — do not use for current cmuir",
       "item": [
         {
           "name": "6. Configure — switch to OpenSearch mcpgw URL",
@@ -316,7 +316,7 @@
           ]
         }
       ],
-      "description": "OpenSearch variant — requires the cmuir-opensearch app to be registered in the Privilege console first. See request 6 description for setup steps."
+      "description": "Historical experiment only. Current OpenSearch uses Agent mode at https://opensearch.default.applications.procyon.ai:8643/mcp with authentication supplied by the installed Agent."
     },
     {
       "name": "9. Sign out",

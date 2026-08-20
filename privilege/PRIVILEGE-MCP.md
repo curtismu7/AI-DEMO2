@@ -14,6 +14,15 @@ This repo contains a **client** for that gateway (`/privilege-mcp-client`), a **
 that drives the OAuth and MCP protocol on the client's behalf, and Compose/K8s wiring for
 running the gateway itself.
 
+> **Current operational configuration (2026-08-20):** use
+> [`CURRENT-CONFIGURATION.md`](CURRENT-CONFIGURATION.md). The live Agentless
+> deployment is `agentless-mcpgw` in `ping-devops-cmuir`, mesh cluster
+> `ai-demo-cmuir`, application `cmuir`, at
+> `https://cmuir-agentless-mcpgw.ping-devops.com/cmuir/mcp`. The separate Agent
+> application uses `https://opensearch.default.applications.procyon.ai:8643/mcp`
+> and Agent-managed authentication. The dated status below is investigation
+> history and is superseded for deployment decisions.
+
 > **Status as of 2026-08-11.** The **console-token chain works end to end** — auth, Host
 > routing, per-app policy, session recording, `tools/call` against the backend MCP server
 > (§[2026-08-10 final](#2026-08-10-final-end-to-end-success--and-what-it-proved)). What does
@@ -36,6 +45,7 @@ hangs off it.
 
 | Artifact | Read it when |
 |---|---|
+| [`CURRENT-CONFIGURATION.md`](CURRENT-CONFIGURATION.md) | Operating the live cmuir Agentless or Agent deployment; this is the current source of truth |
 | **This file** | Anything. Architecture, protocol per hop, every blocker and how it was ruled out |
 | [`README.md`](README.md) | You want the one-screen orientation instead of 1700 lines |
 | [`PRIVILEGE-MCP-CONSOLE-STEPS.md`](PRIVILEGE-MCP-CONSOLE-STEPS.md) | Doing console work — these steps cannot be automated or tested from this repo |

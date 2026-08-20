@@ -9,10 +9,16 @@ This page is the one-screen orientation. The **full index of every Privilege art
 including Ping's SE enablement storyboards and the code paths, is
 [`PRIVILEGE-MCP.md` § Map](PRIVILEGE-MCP.md#map--every-privilege-artifact-and-what-to-read-when).
 
+> **Current deployment:** read [`CURRENT-CONFIGURATION.md`](CURRENT-CONFIGURATION.md)
+> first. It records the verified cmuir Agentless and Agent URLs, cluster, image
+> digest, OIDC configuration, Postman setup, and the required separation between
+> the two modes. Older dated files are investigation history, not live configuration.
+
 ## Start here
 
 | Read | When |
 |---|---|
+| [`CURRENT-CONFIGURATION.md`](CURRENT-CONFIGURATION.md) | Operating or testing the current `ping-devops-cmuir` Agentless gateway or the working Agent deployment |
 | [`PRIVILEGE-MCP.md`](PRIVILEGE-MCP.md) | The canonical record. Architecture, protocol per hop, every blocker and how it was ruled out, dated newest-last. Long, but the trap list at the end of each section is what saves the time |
 | [`PRIVILEGE-MCP-CONSOLE-STEPS.md`](PRIVILEGE-MCP-CONSOLE-STEPS.md) | Doing console work. These steps cannot be automated or tested from this repo |
 | [`runbooks/ping-mcpgw.md`](runbooks/ping-mcpgw.md) | Standing the gateway up locally |
@@ -36,6 +42,21 @@ privilege/
 ```
 
 ## Status
+
+Current status as of 2026-08-20:
+
+- Agentless is healthy at `https://cmuir-agentless-mcpgw.ping-devops.com/cmuir/mcp`.
+- It is enrolled in mesh cluster `ai-demo-cmuir` and runs gateway `v1.260729` at
+  the pinned digest in `CURRENT-CONFIGURATION.md`.
+- The Agent path remains separate at
+  `https://opensearch.default.applications.procyon.ai:8643/mcp`; the installed
+  Agent authenticates it, so the demo client does not request a client ID or show
+  a Privilege sign-in button in Agent mode.
+- The demo BFF is a Streamable HTTP MCP client and performs the required
+  initialize/initialized/tools sequence.
+
+The material below summarizes the older `cyonproxy` investigation and is retained
+as historical evidence. It does not describe the current `privilege-mcpgw` deployment.
 
 The **console-token chain works end to end** — auth, Host routing, per-app policy,
 session recording, `tools/call` against the backend MCP server. That is the whole
@@ -67,7 +88,7 @@ Privilege TOC. Every config fact here was recovered from the binary, the `cyctl`
 surface, the console API and gateway logs. A config that looks wrong here is more likely
 undocumented than misconfigured.
 
-### Open lead — untested
+### Historical lead — resolved by the current deployment
 
 `PRIVILEGE-MCP.md` concludes the OAuth challenge flow "is not compiled into any build
 we can pull," based on `privilege-proxy` / `cyonproxy`. A **second ECR repo** ships a
@@ -82,7 +103,9 @@ it contains the challenge-emission strings `cyonproxy` has **zero** of:
 `Bearer realm=`, `MCP OAuth Server`, `authorization_uri`, `resource_metadata`,
 `/.well-known/oauth-protected-resource`.
 
-Not yet run live. `ValidateInfraJwt` is still present in it, so this is a lead, not a
+This image now runs live at the digest recorded in `CURRENT-CONFIGURATION.md` and
+emits the expected OAuth challenge at `/cmuir/mcp`. `ValidateInfraJwt` remains
+present, so the older binary investigation below is historical context, not a
 fix. The gate is unchanged: a tokenless `POST` returning `WWW-Authenticate` means the
 wall is down. Second untested lever: `cyctl object idprovider create` — the only
 customer-authorable object that plausibly populates `IssuerPublicKey`.

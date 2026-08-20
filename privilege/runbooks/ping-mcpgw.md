@@ -1,29 +1,24 @@
 # PingOne Privilege MCP Gateway (MCPGW)
 
-Runs the PingOne Privilege proxy container — an inline MCP security gateway that
-enforces just-in-time, least-privilege access and full session auditing for MCP servers.
-It fronts the unchanged `mcp-server`; the `/privilege-mcp-client` page in the demo UI
-is the client that drives it.
+Runs the current `privilege-mcpgw` / `mcpgw` gateway, an inline MCP security
+gateway that enforces Privilege policy and session auditing for MCP servers. The
+demo page at `/privilege-mcp-client` is a full Streamable HTTP MCP client.
 
-MCP frontend port `8620`. Compose profile: `mcpgw`. Image: `public.ecr.aws/s7q1z8z4/privilege-proxy`.
+The current SE deployment is documented in
+[`../CURRENT-CONFIGURATION.md`](../CURRENT-CONFIGURATION.md). Its client endpoints are:
 
-Clients reach it through nginx, never the proxy port directly:
+| Mode | URL | Authentication |
+|---|---|---|
+| Agentless (`cmuir`) | `https://cmuir-agentless-mcpgw.ping-devops.com/cmuir/mcp` | Gateway OAuth/PKCE |
+| Agent (`cmuir2`) | `https://opensearch.default.applications.procyon.ai:8643/mcp` | Installed Privilege Agent |
 
-| | URL |
-|---|---|
-| Local — app `MCP-aidemo` | `https://MCP-aidemo.mcpgw.local.ping-devops.com/mcp` |
-| Local — app `mcp-pingone-admin` | `https://mcp-pingone-admin.mcpgw.local.ping-devops.com/mcp` |
-| Local — legacy, rewritten by nginx | `https://aidemo.mcpgw.local.ping-devops.com/mcp` |
-| SE cluster (AWS) | `https://aidemo.mcpgw.ai-demo.ping-devops.com/mcp` |
-| Gateway base (`SERVER_URL`) | `https://mcpgw.local.ping-devops.com` |
+The current image is `public.ecr.aws/s7q1z8z4/privilege-mcpgw` pinned at digest
+`sha256:0faad5903a5bd72539b1df525e3c7bc5d458a5bd324aac9755b8af99dfa6647d`.
+The public Agentless ingress terminates HTTPS and forwards to gateway port `8623`.
 
-**nginx rewrites every client hostname to the app's registered Frontend Name**
-(`<app-name>.default.applications.procyon.ai:8643`) — the only Host this gateway build
-routes on, proven end to end 2026-08-10 (initialize → 238 tools → tools/call). The
-per-app client hosts in the table are named after their app purely for readability;
-each one has a map line in `nginx.conf` doing the rewrite. Anything unmapped gets
-`Domain not found` and an empty `200`. Adding an MCP application = one map line + one
-`/etc/hosts` line. Full account: `privilege/PRIVILEGE-MCP.md` §2026-08-10 (final).
+Sections below that discuss Compose, `privilege-proxy`/`cyonproxy`, port `8620`,
+or Host rewriting describe the legacy local deployment and historical debugging.
+Do not copy those values into the live SE Agentless release.
 
 ## Prerequisite that no test can cover
 
@@ -206,57 +201,18 @@ mount entirely, so a proxy enrolled straight from that command never sees this t
 
 **Operational rule:** whenever mcpgw is restarted (upgrade, config change, crash), also restart the BFF. MCPgw holds DCR client registrations in memory only — any restart invalidates all clients, and the BFF cache won't know.
 
-## Adding a second MCP application — OpenSearch example
+## OpenSearch belongs to Agent mode
 
-The mcpgw binary routes to whichever backend each Privilege MCP Application declares.
-Steps below use `cmuir-opensearch` as the app name (path becomes `/cmuir-opensearch/mcp`).
+Do not register or route OpenSearch through the current `cmuir` Agentless gateway.
+The working OpenSearch application is the separate Agent use case:
 
-### 1. Start the OpenSearch MCP server
+- Privilege application: `cmuir2`
+- Client URL: `https://opensearch.default.applications.procyon.ai:8643/mcp`
+- Authentication: installed Privilege Agent
+- Postman: MCP request, HTTP transport, no OAuth client ID and no bearer token
 
-**Docker:**
-```sh
-./run-docker.sh optional start mcpgw
-# opensearch-mcp-server accessible inside Docker network at http://opensearch-mcp-server:9900/mcp
-```
-
-**K8s (SE cluster):** already deployed — `deploy.sh` sets `opensearch.enabled=true` and
-`opensearchMcpServer.enabled=true` when `PUBLIC_APP_URL` is provided. Service name:
-`ping-mcpgw-opensearch-mcp-server` (port 80 → 9900). URL: `http://ping-mcpgw-opensearch-mcp-server/mcp`
-
-### 2. Register the app in the Privilege console
-
-Privilege console → **AI Security > Agentic Apps > Add Application > MCP Server**:
-
-| Field | Value |
-|---|---|
-| **App name** | `cmuir-opensearch` |
-| **MCP Server URL** (K8s) | `http://ping-mcpgw-opensearch-mcp-server/mcp` |
-| **MCP Server URL** (Docker) | `http://opensearch-mcp-server:9900/mcp` |
-| **Auth Mode** | Static Token — leave token **empty** (opensearch-mcp-server is unauthenticated) |
-| **Mesh Cluster** | your enrolled gateway |
-
-After save, mcpgw exposes the new path: `/<app-name>/mcp`.
-
-### 3. Configure the BFF or Postman
-
-The BFF's `/api/privilege-mcp/config` endpoint accepts `mcpUrl` to switch apps per session:
-
-```json
-POST /api/privilege-mcp/config
-{ "mcpUrl": "https://ai-demo.ping-devops.com/mcpgw/cmuir-opensearch/mcp",
-  "clientId": "a6219652-47af-4ed2-8dea-20e9940b3377" }
-```
-
-Or set `PRIVILEGE_MCPGW_URL=https://ai-demo.ping-devops.com/mcpgw/cmuir-opensearch/mcp` in
-`demo_api_server/.env` and restart the BFF to make it the default.
-
-Use the Postman collections in `privilege/postman/Privilege-MCP-Client-{Docker,K8s}.postman_collection.json` —
-each has an **OpenSearch app** folder with preconfigured requests.
-
-### 4. Author Privilege policy
-
-Add the same policy/record/deny rules in the Privilege console for `cmuir-opensearch` that
-you set up for `cmuir2`. Privilege enforces per-app, not globally — a new app has no rules until you add them.
+The old `cmuir-opensearch` Agentless experiment remains in older Postman folders
+only as explicitly labelled history. It is not part of the current configuration.
 
 
 ## Where the wiring lives
