@@ -46,6 +46,7 @@ import { NAV_STRUCTURE_CATALOG } from "../../config/navStructureCatalog";
 // the expanded state explicitly rather than relying on a default.
 beforeEach(() => {
   try { window.localStorage.setItem("adminSideNav.collapsed", "false"); } catch { /* jsdom always has it */ }
+  try { window.sessionStorage.removeItem("adminSideNav.expandedSections.admin"); } catch { /* jsdom always has it */ }
 });
 
 
@@ -156,7 +157,7 @@ describe("AdminSideNav — best-of-breed pass", () => {
 
   it("includes Delegated Commerce in the Demos customization catalog", () => {
     const demos = NAV_STRUCTURE_CATALOG.find((group) => group.label === "Demos");
-    expect(demos.children).toContain("Delegated Commerce");
+    expect(demos.children).toContain("Delegated Commerce (guided demo)");
   });
 
   it("Weather MCP runs UC30 (weather-mcp-texas-permit) via demo/run", async () => {
