@@ -2,6 +2,9 @@
 .ab-page { max-width: min(1400px, 100%); margin: 0 auto; padding: 24px 16px 64px; box-sizing: border-box; }
 .ab-page h1 { margin: 0 0 4px; }
 .ab-intro { color: #243b53; margin: 0 0 20px; }
+.ab-authority-note { margin: 0 0 22px; padding: 12px 14px; border-left: 4px solid #0b69a3; border-radius: 0 8px 8px 0; background: #eef7fc; color: #102a43; line-height: 1.5; }
+.ab-authority-links { display: inline-flex; gap: 14px; margin-left: 12px; flex-wrap: wrap; }
+.ab-authority-links a { color: #0b69a3; font-weight: 700; }
 
 .ab-chain { display: flex; align-items: stretch; gap: 8px; margin-bottom: 24px; }
 .ab-node { flex: 1; border: 2px solid #9aa5b1; border-radius: 10px; padding: 10px 14px; background: #f5f7fa; }

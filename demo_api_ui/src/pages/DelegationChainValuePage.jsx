@@ -75,11 +75,13 @@ export default function DelegationChainValuePage() {
 
   return (
     <div className="dcv-page">
-      <h1>The value of preserving the delegation chain</h1>
+      <p className="dcv-eyebrow">WHY THIS DEMO EXISTS</p>
+      <h1>Prove who acted, and who authorized it</h1>
       <p className="dcv-intro">
-        Token exchange provides two benefits for agentic systems: an evidential audit trail
-        (accountability), and authorization decisions that account for the agent as well as the
-        user. Run each scenario below and watch the token chain panel for the evidence.
+        Delegated agents create a trust gap: a user may authorize one agent, while a different
+        specialist or tool performs the action. This page makes that gap visible. Each scenario
+        runs through the live token-exchange and authorization path, then shows the evidence in
+        the token-chain panel.
       </p>
       {RUNS.map((entry) => (
         <section key={entry.key} className="dcv-run">

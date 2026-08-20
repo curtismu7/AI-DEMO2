@@ -20,6 +20,54 @@
   line-height: 1.6;
 }
 
+.dcv-page h1 {
+  margin: 0 0 8px;
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  line-height: 1.2;
+}
+
+.dcv-eyebrow {
+  color: var(--th-primary, #1f5fe5);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  margin: 0 0 6px;
+  text-transform: uppercase;
+}
+
+.dcv-run button {
+  appearance: none;
+  border: 1px solid var(--th-border-strong);
+  border-radius: 6px;
+  background: var(--th-primary, #1f5fe5);
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 9px 16px;
+  transition: background 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+}
+
+.dcv-run button:hover:not(:disabled) {
+  background: var(--th-primary-strong, #174bb8);
+  box-shadow: 0 2px 6px rgb(15 45 90 / 20%);
+}
+
+.dcv-run button:focus-visible {
+  outline: 3px solid rgb(31 95 229 / 35%);
+  outline-offset: 2px;
+}
+
+.dcv-run button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.dcv-run button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
 .dcv-run {
   background: var(--th-bg-card);
   border: 1px solid var(--th-border);

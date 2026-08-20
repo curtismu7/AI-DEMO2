@@ -46,10 +46,12 @@ export default function GroupPolicyBoardPage() {
   return (
     <div className="gpb-page">
       <header className="gpb-head">
+        <p className="gpb-eyebrow">LIVE AUTHORIZATION EXPLAINER</p>
         <h1>Group policy — live decisions</h1>
         <p className="gpb-sub">
-          One real PingOne Authorize decision per vertical, for that vertical&apos;s
-          group-gated tool. Change the membership below and every row moves with it.
+          This page makes one boundary visible: scopes are not entitlements. PingOne
+          directory membership is re-read for each group-gated tool call, then the
+          resulting decision is shown for every demo vertical below.
         </p>
       </header>
 
@@ -82,7 +84,9 @@ export default function GroupPolicyBoardPage() {
           </div>
         ) : null}
 
-        {loading && rows.length === 0 ? <p className="gpb-loading">Asking PingOne Authorize…</p> : null}
+        {loading && rows.length === 0 ? (
+          <p className="gpb-loading" role="status"><span className="gpb-spinner" aria-hidden="true" /> Asking PingOne Authorize…</p>
+        ) : null}
 
         {rows.length > 0 ? (
           <div className="gpb-table-wrap">

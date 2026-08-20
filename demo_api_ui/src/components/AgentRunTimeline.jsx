@@ -111,6 +111,12 @@ function projectReportRecordToCards(run) {
     label: 'Prompt',
     status: 'success',
     explanation: run.prompt || '(no prompt recorded)',
+    claims: [
+      run.vertical && { key: 'vertical', value: run.vertical },
+      run.agentPath && { key: 'path', value: run.agentPath },
+      run.intent && { key: 'intent', value: typeof run.intent === 'string' ? run.intent : JSON.stringify(run.intent) },
+      run.confidence != null && { key: 'confidence', value: String(run.confidence) },
+    ].filter(Boolean),
   });
   for (const tool of run.toolsCalled || []) {
     cards.push({ label: `Tool call: ${tool}`, status: 'success' });
@@ -119,11 +125,24 @@ function projectReportRecordToCards(run) {
     cards.push({
       label: event.label || event.eventType || event.id || 'Token event',
       status: event.status || 'success',
+      explanation: event.reason || event.description || event.message || null,
+      claims: [
+        event.decisionId && { key: 'decision', value: event.decisionId },
+        event.errorCode && { key: 'code', value: event.errorCode },
+        event.httpStatus && { key: 'HTTP', value: String(event.httpStatus) },
+        event.actor && { key: 'actor', value: event.actor },
+        event.audience && { key: 'audience', value: event.audience },
+      ].filter(Boolean),
     });
   }
   cards.push({
     label: 'Run finished',
     status: run.success === false ? 'error' : 'success',
+    explanation: run.success === false ? (run.error || 'The run failed.') : 'The run completed and its recorded evidence is shown above.',
+    claims: [
+      run.completedAt && { key: 'completed', value: new Date(run.completedAt).toLocaleString() },
+      run.tokenCount != null && { key: 'evidence events', value: String(run.tokenCount) },
+    ].filter(Boolean),
   });
   return cards;
 }

@@ -193,6 +193,7 @@ export const AgenticTrustEducation: React.FC = () => {
                 <span className={`${styles.statusBadge} ${styles[`status${pillar.status}`]}`}>
                   {pillar.statusLabel}
                 </span>
+                {expandedPillar !== pillar.id && <span className={styles.expandHint}>Click for more detail</span>}
               </div>
 
               {expandedPillar === pillar.id && (

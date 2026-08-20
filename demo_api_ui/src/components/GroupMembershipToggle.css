@@ -276,3 +276,11 @@
   .gmt-retry { background: #171b24; border-color: #6f9bec; color: #a9c6f7; }
   .gmt-inline-error { color: #ffb3ae; }
 }
+
+/* The application theme is controlled by ThemeContext, not the OS preference. */
+.gmt-panel { max-width: 760px; background: var(--th-bg-card); border-color: var(--th-border); color: var(--th-text); box-shadow: 0 4px 18px rgb(15 23 42 / 8%); }
+.gmt-story { background: var(--th-bg-inset); border-color: var(--th-border); border-left-color: var(--th-primary, #1f5fe5); }
+.gmt-story-title, .gmt-story-beats, .gmt-facts dd, .gmt-modal-body, .gmt-modal-tier { color: var(--th-text); }
+.gmt-facts dt, .gmt-note, .gmt-error-detail { color: var(--th-text-muted); }
+.gmt-loading-spinner { flex: 0 0 auto; border-color: color-mix(in srgb, var(--th-primary, #1f5fe5) 22%, transparent); border-top-color: var(--th-primary, #1f5fe5); animation: gmt-spin .7s linear infinite; }
+.gmt-retry { background: var(--th-bg-card); border-color: var(--th-primary, #1f5fe5); color: var(--th-primary, #1f5fe5); }
