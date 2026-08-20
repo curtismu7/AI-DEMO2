@@ -105,6 +105,22 @@ read the configured host. A new browser origin must be added to ALL of:
 ## §4 — Bug Fix Log
 Reverse-chronological, newest first.
 
+### 2026-08-20 — Admin demo hands off to Agentless Privilege MCP governance
+
+**Files changed:** PingOne Admin demo-step catalog and auth requirement, UI step
+ordering, and focused catalog/step-verification tests.
+
+**What was added:** ADMIN13 opens the existing Privilege MCP client so the
+presenter can continue the PingOne admin walkthrough through an Agentless
+Privilege application backed by the hosted PingOne MCP server.
+
+**Do not break:** keep the step admin-gated and reuse `/privilege-mcp-client`;
+do not duplicate or bypass its gateway selection, OAuth/PKCE session, callback,
+MCP initialization, tool discovery, or tool-call relay.
+
+**Verify:** focused BFF catalog and step-verification tests; focused UI demo-step
+tests; `npm run authz:verify`; UI build.
+
 ### 2026-08-20 — PingOne Admin Demo Steps expanded to hosted-MCP reads
 
 **Files changed:** PingOne Admin demo-step catalog, vertical heuristics/result

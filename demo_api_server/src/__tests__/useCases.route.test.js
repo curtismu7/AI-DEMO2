@@ -36,7 +36,7 @@ describe('GET /api/use-cases', () => {
     const res = await request(makeApp()).get('/api/use-cases?vertical=pingone-admin');
     expect(res.status).toBe(200);
     expect(res.body.vertical).toBe('pingone-admin');
-    expect(res.body.useCases).toHaveLength(12);
+    expect(res.body.useCases).toHaveLength(13);
     expect(res.body.useCases[0]).toEqual({
       id: 'ADMIN1',
       title: 'List applications',
@@ -47,8 +47,13 @@ describe('GET /api/use-cases', () => {
     });
     expect(res.body.useCases.map((u) => u.id)).toEqual([
       'ADMIN1', 'ADMIN2', 'ADMIN3', 'ADMIN4', 'ADMIN5', 'ADMIN6',
-      'ADMIN7', 'ADMIN8', 'ADMIN9', 'ADMIN10', 'ADMIN11', 'ADMIN12',
+      'ADMIN7', 'ADMIN8', 'ADMIN9', 'ADMIN10', 'ADMIN11', 'ADMIN12', 'ADMIN13',
     ]);
+    expect(res.body.useCases[12]).toMatchObject({
+      id: 'ADMIN13',
+      auth: 'admin',
+      trigger: { type: 'link', path: '/privilege-mcp-client' },
+    });
   });
 
   test('GET /:id returns one resolved use case', async () => {

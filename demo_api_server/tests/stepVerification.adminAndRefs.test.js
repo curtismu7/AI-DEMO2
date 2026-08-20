@@ -17,17 +17,33 @@ const ADMIN_PARSE_EXPECT = {
   ADMIN1: { action: 'call_pingone_tool', toolName: 'listApplications' },
 };
 
-describe('step verification — pingone-admin ADMIN1–12', () => {
-  test('catalog lists ADMIN1–12', () => {
+describe('step verification — pingone-admin ADMIN1–13', () => {
+  test('catalog lists ADMIN1–13', () => {
     expect(ADMIN_DEMO_STEPS.map((s) => s.id)).toEqual([
       'ADMIN1', 'ADMIN2', 'ADMIN3', 'ADMIN4', 'ADMIN5', 'ADMIN6',
-      'ADMIN7', 'ADMIN8', 'ADMIN9', 'ADMIN10', 'ADMIN11', 'ADMIN12',
+      'ADMIN7', 'ADMIN8', 'ADMIN9', 'ADMIN10', 'ADMIN11', 'ADMIN12', 'ADMIN13',
     ]);
   });
 
   test.each(ADMIN_DEMO_STEPS.map((s) => [s.id, s]))(
     '%s: chip text present; parse or unit-ref',
     (_id, step) => {
+      if (step.trigger?.type === 'link') {
+        expect(step.trigger.path).toBe('/privilege-mcp-client');
+        writeLedgerEntry({
+          vertical: 'pingone-admin',
+          useCaseId: step.id,
+          triggerType: 'link',
+          mode: 'unit-ref',
+          status: 'PASS',
+          errorClass: null,
+          primaryTool: null,
+          checkedAt: new Date().toISOString(),
+          verifiedBy: 'AIAgent handleDemoStepSelect link routing to the existing Privilege MCP client',
+        });
+        return;
+      }
+
       const text = step.trigger?.text;
       expect(text).toBeTruthy();
 

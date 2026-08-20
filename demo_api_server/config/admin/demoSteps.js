@@ -88,6 +88,15 @@ const ADMIN_DEMO_STEPS = [
     title: 'List DaVinci connectors',
     trigger: { type: 'chip', text: 'List the DaVinci connectors available in this PingOne environment' },
   },
+  {
+    id: 'ADMIN13',
+    title: 'Govern PingOne MCP with Privilege',
+    trigger: {
+      type: 'link',
+      path: '/privilege-mcp-client',
+      label: 'Open Agentless Privilege MCP client',
+    },
+  },
 ];
 
 module.exports = { ADMIN_DEMO_STEPS };
