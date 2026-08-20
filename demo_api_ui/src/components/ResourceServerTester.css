@@ -108,3 +108,48 @@
   color: #1d4ed8;
   font-size: 12px;
 }
+.rst-context-strip {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  background: #eef6ff;
+  border-bottom: 1px solid #bfdbfe;
+  color: #1e3a5f;
+  font-size: 12px;
+}
+.rst-start-here {
+  margin: 10px 12px;
+  padding: 10px;
+  border: 1px solid #93c5fd;
+  border-radius: 5px;
+  background: #eff6ff;
+  color: #1e3a5f;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.rst-source-help {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-left: 3px solid #2563eb;
+  background: #eff6ff;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.rst-education {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 16px;
+  padding: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 12px;
+}
+.rst-education div { display: flex; flex-direction: column; gap: 5px; }
+.rst-education strong { color: #1e3a5f; }
+.rst-education span { line-height: 1.45; }
+@media (max-width: 800px) { .rst-education { grid-template-columns: 1fr; } }

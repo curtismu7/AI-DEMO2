@@ -191,6 +191,7 @@ export default function SdkLoginPage() {
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState(null); // { ok, text } after revoke/logout
+  const [exercise, setExercise] = useState('');
 
   const toggleTheme = useCallback(() => {
     setTheme((t) => {
@@ -296,6 +297,17 @@ export default function SdkLoginPage() {
   // wrapper class switches it to the dark palette.
   const preClass = C.isDark ? "jh-dark" : undefined;
 
+  const timeline = [
+    ['1', 'Discover config', 'Load issuer, client, redirect URI, and scopes from the BFF.'],
+    ['2', 'Authorize + PKCE', 'The SDK creates state and a code verifier before redirecting to PingOne.'],
+    ['3', 'Callback + tokens', 'Exchange the authorization code and persist tokens in browser storage.'],
+    ['4', 'Use, refresh, revoke', 'Inspect claims, refresh before expiry, then revoke or end the session.'],
+  ];
+  const lifecycleExercise = (label) => {
+    setExercise(label);
+    setNotice({ ok: true, text: `${label} exercise selected — use the controls below to observe the SDK call and resulting token state.` });
+  };
+
   return (
     <div style={styles.page}>
       <div style={styles.wrap}>
@@ -317,7 +329,13 @@ export default function SdkLoginPage() {
           entirely in the browser.
         </p>
 
-        <div style={styles.explain}>
+        <nav aria-label="SDK demo navigation" style={{ ...styles.card, padding: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {[['Overview', '#sdk-overview'], ['Flow timeline', '#sdk-flow'], ['Token lifecycle', '#sdk-lifecycle'], ['MFA journey', '#sdk-mfa']].map(([label, href]) => (
+            <a key={href} href={href} style={{ ...styles.btn, ...styles.btnGhost, padding: '7px 12px', textDecoration: 'none' }}>{label}</a>
+          ))}
+        </nav>
+
+        <div id="sdk-overview" style={styles.explain}>
           <InfoBadge C={C} />
           <p style={{ margin: 0, color: C.muted }}>
             <b style={{ color: C.text }}>Different from the main app.</b> The AI Demo login is
@@ -327,6 +345,13 @@ export default function SdkLoginPage() {
             does not replace the BFF flow.
           </p>
         </div>
+
+        <section id="sdk-flow" style={styles.card}>
+          <div style={styles.cardH}>SDK flow timeline <span style={styles.tag('out')}>guided</span></div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10 }}>
+            {timeline.map(([num, title, desc]) => <div key={num} style={{ border: `1px solid ${C.border}`, borderRadius: 8, padding: 12, background: C.panel2 }}><b style={{ color: C.blue }}>{num}. {title}</b><div style={{ color: C.muted, fontSize: 12, marginTop: 6 }}>{desc}</div></div>)}
+          </div>
+        </section>
 
         {error && (
           <div style={styles.banner(false)}>
@@ -449,6 +474,13 @@ export default function SdkLoginPage() {
                 Logout (end PingOne session)
               </button>
             </div>
+            <div id="sdk-lifecycle" style={{ marginTop: 18, borderTop: `1px solid ${C.border}`, paddingTop: 14 }}>
+              <div style={styles.cardH}>Token lifecycle exercises</div>
+              <div style={styles.row}>
+                {['Inspect token', 'Refresh session', 'Revoke token'].map((label) => <button key={label} type="button" style={{ ...styles.btn, ...styles.btnGhost }} onClick={() => lifecycleExercise(label)}>{label}</button>)}
+              </div>
+              {exercise && <p style={styles.note}>Selected: <b>{exercise}</b>. Observe <code>client.token.get()</code>, expiry, storage, and revocation behavior in this panel.</p>}
+            </div>
             <p style={styles.note}>
               <b>Revoke token</b> → <code>client.token.revoke()</code> (revokes the access token,
               clears storage). &nbsp;·&nbsp; <b>Logout</b> → <code>client.user.logout()</code> (revoke
@@ -456,6 +488,12 @@ export default function SdkLoginPage() {
             </p>
           </div>
         )}
+
+        <section id="sdk-mfa" style={styles.card}>
+          <div style={styles.cardH}>MFA journey integration <span style={styles.tag('out')}>PingOne MFA</span></div>
+          <p style={{ color: C.muted, marginTop: 0 }}>The SDK starts the OIDC journey; PingOne policy can require MFA before the callback. Use this checkpoint to explain the hand-off and verify the returned <code>acr</code>/<code>amr</code> claims.</p>
+          <div style={{ ...styles.row, marginTop: 10 }}><button type="button" style={{ ...styles.btn, ...styles.btnPrimary }} onClick={handleSignIn} disabled={busy}>Start MFA-protected sign-in →</button><span style={{ ...styles.note, marginTop: 0 }}>Configure an MFA policy on the PingOne application; no MFA secret is stored in this browser.</span></div>
+        </section>
       </div>
     </div>
   );

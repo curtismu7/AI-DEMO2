@@ -30,6 +30,11 @@ export const INFLOW_SOURCES = [
   { value: 'paste', label: 'Paste a JWT' },
 ];
 
+export const CLIENT_CREDENTIALS_SOURCES = [
+  { value: 'cc', label: 'Fetch server-side Client Credentials token', ready: true, detail: 'Machine identity; no user context' },
+  { value: 'paste', label: 'Paste a JWT', ready: false, detail: 'Supply a token to inspect' },
+];
+
 export const INFLOW_PROBE_TARGETS = [
   '/api/resource-server/identity',
   '/api/resource-server/accounts',
@@ -147,7 +152,7 @@ export default function ResourceServerTester({
   const [pasted, setPasted] = useState('');
 
   // Operation tree state
-  const [selectedOp, setSelectedOp] = useState(null);
+  const [selectedOp, setSelectedOp] = useState(OPERATIONS[0]);
   const [outputTab, setOutputTab] = useState('result');
 
   // Probe target
@@ -173,6 +178,7 @@ export default function ResourceServerTester({
   const ready = source === 'paste' ? pasted.trim().length > 0 : true;
 
   const activeLabel = sources.find((s) => s.value === source)?.label || source;
+  const activeSource = sources.find((s) => s.value === source);
 
   const selectOp = (op) => {
     setSelectedOp(op);
@@ -296,6 +302,7 @@ export default function ResourceServerTester({
       <div className="inspector-shell-tree-header">
         <span>Operations</span>
       </div>
+      <div className="rst-start-here"><strong>Start here:</strong> choose a token source, then run the selected first operation, <em>Show Token</em>. The evidence panel explains the request and decision.</div>
       <div className="inspector-shell-tree-body">
         <div className="inspector-shell-tree-group__label">Test Operations</div>
         {OPERATIONS.map((op) => (
@@ -313,7 +320,7 @@ export default function ResourceServerTester({
         {sources.map((s) => (
           <InspectorListItem
             key={s.value}
-            label={s.label}
+            label={`${s.label} — ${s.ready === false ? 'enter token' : 'ready'}`}
             active={source === s.value}
             onClick={() => setSource(s.value)}
           />
@@ -345,6 +352,10 @@ export default function ResourceServerTester({
         <div className="inspector-shell-form-header__name">{selectedOp.name}</div>
         <div className="inspector-shell-form-header__desc">{selectedOp.desc}</div>
       </div>
+      <div className="rst-context-strip">
+        <span><strong>Selected token:</strong> {activeLabel}</span>
+        <span><strong>Target audience:</strong> {profile === 'login' ? 'OIDC user resource server' : profile}</span>
+      </div>
       <div className="inspector-shell-form-actions inspector-shell-form-actions--top">
         {executeButtons}
       </div>
@@ -354,6 +365,10 @@ export default function ResourceServerTester({
           <label>Token Source</label>
           <input type="text" value={activeLabel} readOnly />
         </div>
+        {source === 'access' || source === 'id' ? (
+          <div className="rst-source-help">Customer sign-in is required for user tokens. Sign in to obtain a fresh session token, then run the operation.</div>
+        ) : null}
+        {activeSource?.detail && <div className="rst-source-help">{activeSource.detail}</div>}
 
         {/* Paste JWT textarea if that source is selected */}
         {source === 'paste' && (
@@ -453,6 +468,10 @@ export default function ResourceServerTester({
           {selectedOp ? 'Click Execute to run the operation and see results here.' : 'Select an operation and execute it to see results.'}
         </div>
       )}
+      <div className="rst-education">
+        <div><strong>OIDC user delegation</strong><span>User tokens carry <code>sub</code> and may carry <code>act</code>, making the user and delegation chain auditable.</span></div>
+        <div><strong>Client Credentials</strong><span>Machine-to-machine by design: no user context. An empty <code>sub</code>/<code>act</code> is a successful teaching result, not a broken token.</span></div>
+      </div>
     </>
   );
 
