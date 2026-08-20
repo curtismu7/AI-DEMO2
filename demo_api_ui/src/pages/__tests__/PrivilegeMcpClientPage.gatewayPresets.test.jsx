@@ -14,8 +14,8 @@ vi.mock("../../services/apiClient", () => ({
 }));
 
 const PRESETS = [
-  { label: "Agentless gateway (nginx)", url: "https://aidemo.mcpgw.local.ping-devops.com/mcp" },
-  { label: "AI Gateway via Priv Agent", url: "https://opensearch.default.applications.procyon.ai:8643/mcp" },
+  { label: "Agentless gateway (nginx)", mode: "agentless", url: "https://aidemo.mcpgw.local.ping-devops.com/mcp" },
+  { label: "AI Gateway via Priv Agent", mode: "agent", url: "https://opensearch.default.applications.procyon.ai:8643/mcp" },
 ];
 
 beforeEach(() => {
@@ -31,6 +31,11 @@ beforeEach(() => {
         text: async () =>
           JSON.stringify({
             config: { mcpUrl: "", clientId: "", scopes: "openid profile email" },
+            gatewayMode: "agentless",
+            gatewayConfigs: {
+              agent: { mcpUrl: PRESETS[1].url },
+              agentless: { mcpUrl: "", clientId: "", scopes: "openid profile email" },
+            },
             oauth: { authenticated: false },
             mainAppAuthenticated: false,
             tools: [],
@@ -60,7 +65,9 @@ describe("gateway presets in the Settings modal", () => {
 
     fireEvent.change(select, { target: { value: PRESETS[1].url } });
 
-    expect(screen.getByLabelText(/AI Agent Gateway URL/i)).toHaveValue(PRESETS[1].url);
+    expect(screen.getByLabelText(/Priv Agent URL/i)).toHaveValue(PRESETS[1].url);
+    expect(screen.queryByLabelText(/OAuth Client ID/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Load pingone.env/i)).not.toBeInTheDocument();
   });
 
   it("keeps a hand-typed URL selectable as Custom", async () => {
@@ -70,7 +77,7 @@ describe("gateway presets in the Settings modal", () => {
     const select = await screen.findByLabelText(/gateway preset/i);
     expect(select).toHaveValue("");
 
-    const urlInput = screen.getByLabelText(/AI Agent Gateway URL/i);
+    const urlInput = screen.getByLabelText(/Agentless Gateway URL/i);
     fireEvent.change(urlInput, { target: { value: "https://somewhere.else/mcp" } });
 
     expect(select).toHaveValue("");

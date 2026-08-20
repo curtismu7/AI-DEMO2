@@ -14,15 +14,24 @@ const clientSessions = new Map();
 function getClientSession(req) {
   const sid = req.sessionID || req.session?.id || 'default';
   if (!clientSessions.has(sid)) {
+    const agentlessConfig = {
+      mcpUrl: process.env.PRIVILEGE_MCPGW_URL || '',
+      clientId: process.env.PRIVILEGE_SSO_CLIENT_ID || process.env.PINGONE_MCP_GATEWAY_CLIENT_ID || '',
+      scopes: 'openid profile email',
+    };
+    const agentConfig = {
+      mcpUrl: process.env.PRIVILEGE_AGENT_MCPGW_URL
+        || 'https://opensearch.default.applications.procyon.ai:8643/mcp',
+    };
     clientSessions.set(sid, {
       _sid: sid,
       config: {
-        mcpUrl: process.env.PRIVILEGE_MCPGW_URL || '',
-        clientId: process.env.PRIVILEGE_SSO_CLIENT_ID || process.env.PINGONE_MCP_GATEWAY_CLIENT_ID || '',
-        scopes: 'openid profile email',
+        ...agentlessConfig,
         llmUrl: 'http://127.0.0.1:11434',
         llmModel: 'llama3.2:1b',
       },
+      gatewayMode: 'agentless',
+      gatewayConfigs: { agent: agentConfig, agentless: agentlessConfig },
       oauth: {
         accessToken: null, refreshToken: null, expiresAt: null, tokenUri: null,
         // Set when login went through a self-advertising gateway (MCPGW acting as
@@ -562,15 +571,18 @@ router.get('/state', (req, res) => {
   // the registered opensearch app; override with PRIVILEGE_AGENT_MCPGW_URL when
   // a different app is registered in the Privilege console.
   const presets = [
-    { label: 'Agentless gateway (nginx)', url: process.env.PRIVILEGE_MCPGW_URL || '' },
+    { label: 'Agentless gateway (nginx)', mode: 'agentless', url: process.env.PRIVILEGE_MCPGW_URL || '' },
     {
       label: 'AI Gateway via Priv Agent',
+      mode: 'agent',
       url: process.env.PRIVILEGE_AGENT_MCPGW_URL
         || 'https://opensearch.default.applications.procyon.ai:8643/mcp',
     },
   ].filter((p) => p.url);
   res.json({
     config: session.config,
+    gatewayMode: session.gatewayMode,
+    gatewayConfigs: session.gatewayConfigs,
     oauth: { authenticated: Boolean(session.oauth.accessToken), expiresAt: session.oauth.expiresAt, scope: session.oauth.scope || '' },
     mainAppAuthenticated: mainAppAuth,
     user: req.session?.user || null,
@@ -586,10 +598,28 @@ router.post('/config', express.json(), (req, res) => {
   // wiped the env-seeded clientId/mcpUrl for the life of the session — one click
   // made before the page's /state fetch resolved left "Client ID is required
   // before auth start." stuck on every later attempt. Blank means "unchanged".
+  const body = req.body || {};
+  const requestedMode = body.gatewayMode
+    || (body.mcpUrl && isProcyonAgentUrl(body.mcpUrl) ? 'agent' : session.gatewayMode);
+  const gatewayMode = requestedMode === 'agent' ? 'agent' : 'agentless';
   const patch = Object.fromEntries(
-    Object.entries(req.body || {}).filter(([, v]) => v !== undefined && v !== null && v !== ''),
+    Object.entries(body).filter(([key, v]) => key !== 'gatewayMode' && v !== undefined && v !== null && v !== ''),
   );
-  session.config = { ...session.config, ...patch };
+  const gatewayPatch = gatewayMode === 'agent'
+    ? { ...(patch.mcpUrl ? { mcpUrl: patch.mcpUrl } : {}) }
+    : Object.fromEntries(Object.entries(patch).filter(([key]) => ['mcpUrl', 'clientId', 'scopes'].includes(key)));
+  session.gatewayConfigs[gatewayMode] = {
+    ...session.gatewayConfigs[gatewayMode],
+    ...gatewayPatch,
+  };
+  const sharedConfig = {
+    llmUrl: patch.llmUrl || session.config.llmUrl,
+    llmModel: patch.llmModel || session.config.llmModel,
+  };
+  session.gatewayMode = gatewayMode;
+  session.config = gatewayMode === 'agent'
+    ? { ...session.gatewayConfigs.agent, clientId: '', scopes: '', ...sharedConfig }
+    : { ...session.gatewayConfigs.agentless, ...sharedConfig };
   resetMcpState(session);
   // Force express-session to issue the cookie (saveUninitialized: false) so the
   // saved config survives to the next request. Without this a client with no
@@ -597,7 +627,12 @@ router.post('/config', express.json(), (req, res) => {
   // gets a fresh session on tools/list and the config silently reverts.
   if (req.session) req.session.privilegeMcpConfigured = true;
   emitEvent(session, 'config', { config: session.config });
-  res.json({ ok: true, config: session.config });
+  res.json({
+    ok: true,
+    config: session.config,
+    gatewayMode: session.gatewayMode,
+    gatewayConfigs: session.gatewayConfigs,
+  });
 });
 
 // POST /auth/start — begin OAuth PKCE flow

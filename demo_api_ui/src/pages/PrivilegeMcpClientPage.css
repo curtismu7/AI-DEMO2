@@ -1135,6 +1135,12 @@ select.cur-input { cursor: pointer; }
   color: #8b949e;
   margin: 0 0 10px;
 }
+.cur-settings-note {
+  color: #f0f6fc;
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 10px 0 0;
+}
 
 /* Auth status badge */
 .cur-auth-status {
@@ -1182,6 +1188,7 @@ select.cur-input { cursor: pointer; }
 .cur-ide[data-cur-theme="light"] .cur-sidebar { background: #f7f7f7; border-right-color: #e0e0e0; }
 .cur-ide[data-cur-theme="light"] .cur-sidebar-title,
 .cur-ide[data-cur-theme="light"] .cur-field-label,
+.cur-ide[data-cur-theme="light"] .cur-settings-note,
 .cur-ide[data-cur-theme="light"] .cur-tools-header h3,
 .cur-ide[data-cur-theme="light"] .cur-settings-section-title { color: #444; }
 .cur-ide[data-cur-theme="light"] .cur-sidebar-divider { background: #e0e0e0; }
