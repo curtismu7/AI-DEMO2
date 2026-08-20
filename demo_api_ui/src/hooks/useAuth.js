@@ -105,10 +105,13 @@ export function useAuth() {
       return undefined;
     }
 
-    const oauthSuccess =
-      typeof window !== "undefined" &&
-      new URLSearchParams(window.location.search || "").get("oauth") ===
-        "success";
+    const params = typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search || "")
+      : null;
+    // Privilege MCP uses `auth=success` because it owns a separate gateway
+    // OAuth handshake. Treat that callback exactly like the main app's
+    // `oauth=success` so the global banner refreshes immediately too.
+    const oauthSuccess = params?.get("oauth") === "success" || params?.get("auth") === "success";
 
     // NOTE: do NOT clear bx-dashboard-reauth on oauth=success.
     // The REAUTH_KEY guard is intentional: redirect once automatically,
