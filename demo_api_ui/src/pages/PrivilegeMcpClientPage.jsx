@@ -45,7 +45,10 @@ function scopeColor(scope) {
 function gatewayModeDetails(mcpUrl) {
   const host = String(mcpUrl || '').toLowerCase();
   if (!host) return { key: 'unknown', title: 'Gateway mode not selected', detail: 'Choose an Agent or Agentless Gateway in Settings.' };
-  const agentless = host.includes('procyon') || host.includes('agentless') || host.includes('opensearch');
+  if (host.includes('.applications.procyon.ai')) {
+    return { key: 'agent', title: 'Agent-based AI Gateway', detail: 'The Priv Agent supplies device-bound identity; this MCP client sends no OAuth bearer.' };
+  }
+  const agentless = host.includes('agentless') || host.includes('opensearch');
   return agentless
     ? { key: 'agentless', title: 'Agentless Gateway', detail: 'AI Gateway → MCP services. No desktop agent is in this path.', url: mcpUrl }
     : { key: 'agent', title: 'Agent Gateway', detail: 'Desktop Agent → AI Gateway → MCP services.', url: mcpUrl };
@@ -268,12 +271,14 @@ export default function PrivilegeMcpClientPage() {
       const saved = await api('/config', { method: 'POST', body: { ...config, gatewayMode } });
       savedMcpUrlRef.current = config.mcpUrl;
       setGatewayConfigs(saved.gatewayConfigs || gatewayConfigs);
-      if (gatewayMode === 'agent') {
-        window.location.href = config.mcpUrl;
-        return;
-      }
       if (!urlChanged) {
         appendChat('system', 'Configuration saved.');
+        return;
+      }
+      if (gatewayMode === 'agent') {
+        setTools([]);
+        setSelectedTool(null);
+        await refreshTools();
         return;
       }
       // Gateway changed (agent <-> agentless): the two frontends have different

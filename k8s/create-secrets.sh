@@ -322,7 +322,7 @@ override_redirect_uris_for_public_origin() {
 }
 
 # ── Privilege gateway URLs: two places, two different fixes ─────────────────
-# PRIVILEGE_MCPGW_URL (the BFF's target) and pingone.env's SERVER_URL (the
+# PRIVILEGE_AGENTLESS_MCPGW_URL (the BFF's Agentless target) and pingone.env's SERVER_URL (the
 # gateway's own front door) both shipped from demo_api_server/.env and
 # ping-mcpgw/procyon/config/pingone.env as-is — local values that don't
 # resolve from inside the cluster.
@@ -332,12 +332,10 @@ override_redirect_uris_for_public_origin() {
 # cannot work for cyonproxy — that port is TLS-native (HTTP/2 via ALPN, its
 # own certificate), and nginx re-encrypting it hits TLS handshake failures no
 # matter the backend-protocol annotation (HTTP/HTTPS/GRPCS all tried against
-# the real gateway). The actual working client entry point is Privilege's OWN
-# publicly-hosted frontend, not anything in this cluster:
-#   https://<app-name>-app-default.applications.privilege.pingone.com:8643/mcp
-# <app-name> matches the SE namespace's user suffix (ping-devops-cmuir -> cmuir)
-# — confirmed live for that case; unverified whether every namespace's
-# Privilege-registered app name follows the same derivation.
+# the real gateway). The Agentless Helm release instead exposes Streamable HTTP:
+#   https://<app-name>-agentless-mcpgw.ping-devops.com/opensearch-mcp-server/mcp
+# Keep this separate from PRIVILEGE_AGENT_MCPGW_URL: the Priv Agent frontend
+# owns its authentication and must not inherit Agentless OAuth configuration.
 override_privilege_urls_for_public_origin() {
   local origin="${CALLER_PUBLIC_APP_URL:-}"
   if [ -z "$origin" ]; then
@@ -350,7 +348,7 @@ override_privilege_urls_for_public_origin() {
   origin="${origin%/}"
   local mcpgw_base="${origin}/mcpgw"
   local app_name="${NS#ping-devops-}"
-  local mcpgw_client_url="https://${app_name}-app-default.applications.privilege.pingone.com:8643/mcp"
+  local mcpgw_client_url="${PRIVILEGE_AGENTLESS_MCPGW_URL:-https://${app_name}-agentless-mcpgw.ping-devops.com/opensearch-mcp-server/mcp}"
 
   # mcpgw binary routes by path prefix: /<app-name>/mcp (not just /mcp).
   # Set MCPGW_APP_NAME env var to the name registered in the Privilege console
@@ -365,9 +363,9 @@ override_privilege_urls_for_public_origin() {
   fi
 
   local ai_patch
-  ai_patch=$(printf '{"stringData":{"PRIVILEGE_MCPGW_URL":"%s"}}' "$mcpgw_client_url")
+  ai_patch=$(printf '{"stringData":{"PRIVILEGE_AGENTLESS_MCPGW_URL":"%s","PRIVILEGE_MCPGW_URL":"%s"}}' "$mcpgw_client_url" "$mcpgw_client_url")
   printf '%s' "$ai_patch" | kubectl patch secret ai-demo-secrets --namespace="$NS" --type merge --patch-file /dev/stdin >/dev/null
-  info "  PRIVILEGE_MCPGW_URL overridden to match ${mcpgw_client_url}"
+  info "  PRIVILEGE_AGENTLESS_MCPGW_URL/PRIVILEGE_MCPGW_URL overridden to match ${mcpgw_client_url}"
 
   if [ -f "$ASSET_ROOT/ping-mcpgw/procyon/config/pingone.env" ]; then
     local patched_pingone_env
