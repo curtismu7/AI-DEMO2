@@ -42,7 +42,7 @@ function scopeColor(scope) {
   return 'scope-default';
 }
 
-function gatewayMode(mcpUrl) {
+function gatewayModeDetails(mcpUrl) {
   const host = String(mcpUrl || '').toLowerCase();
   if (!host) return { key: 'unknown', title: 'Gateway mode not selected', detail: 'Choose an Agent or Agentless Gateway in Settings.' };
   const agentless = host.includes('procyon') || host.includes('agentless') || host.includes('opensearch');
@@ -55,6 +55,8 @@ export default function PrivilegeMcpClientPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [config, setConfig] = useState({ mcpUrl: '', clientId: '', scopes: 'openid profile email', llmUrl: 'http://127.0.0.1:11434', llmModel: 'llama3.2:1b' });
+  const [gatewayMode, setGatewayMode] = useState('agentless');
+  const [gatewayConfigs, setGatewayConfigs] = useState({ agent: {}, agentless: {} });
   const [presets, setPresets] = useState([]);
   // Gateway switch in flight (agent <-> agentless). The sessionStorage flag lets
   // the overlay survive the OAuth redirect and show again from first paint on
@@ -100,7 +102,7 @@ export default function PrivilegeMcpClientPage() {
     try { localStorage.setItem('cur_priv_theme', pageTheme); } catch { /* storage disabled */ }
   }, [pageTheme]);
   const [terminalTab, setTerminalTab] = useState('events');
-  const mode = gatewayMode(config.mcpUrl);
+  const mode = gatewayModeDetails(config.mcpUrl);
   // The latest tool-call result shown in the RESULTS terminal tab. resultNonce
   // bumps on each new result to flash the tab so the user notices output arrived.
   const [toolResults, setToolResults] = useState([]);
@@ -189,6 +191,8 @@ export default function PrivilegeMcpClientPage() {
   useEffect(() => {
     api('/state').then((s) => {
       setConfig(s.config || config);
+      setGatewayMode(s.gatewayMode || 'agentless');
+      setGatewayConfigs(s.gatewayConfigs || { agent: {}, agentless: {} });
       savedMcpUrlRef.current = s.config?.mcpUrl || '';
       setPresets(Array.isArray(s.presets) ? s.presets : []);
       setAuthenticated(Boolean(s.oauth?.authenticated));
@@ -197,12 +201,12 @@ export default function PrivilegeMcpClientPage() {
       if (s.oauth?.scope) setGrantedScopes(s.oauth.scope.split(' ').filter(Boolean));
       setTools(s.tools || []);
       // Auto-discover tools only after Privilege auth completes
-      if (s.oauth?.authenticated && (!s.tools || s.tools.length === 0)) {
+      if (s.gatewayMode !== 'agent' && s.oauth?.authenticated && (!s.tools || s.tools.length === 0)) {
         refreshTools(true);
       }
       // Auto-connect Privilege using the active PingOne session when the main app
       // is already logged in — prompt=none on the BFF means PingOne returns silently.
-      if (s.mainAppAuthenticated && !s.oauth?.authenticated) {
+      if (s.gatewayMode !== 'agent' && s.mainAppAuthenticated && !s.oauth?.authenticated) {
         const authParam = new URLSearchParams(window.location.search).get('auth');
         if (authParam !== 'silent_failed' && !silentAuthAttempted.current) {
           silentAuthAttempted.current = true;
@@ -261,8 +265,13 @@ export default function PrivilegeMcpClientPage() {
   const saveConfig = async () => {
     const urlChanged = Boolean(config.mcpUrl) && config.mcpUrl !== savedMcpUrlRef.current;
     try {
-      await api('/config', { method: 'POST', body: config });
+      const saved = await api('/config', { method: 'POST', body: { ...config, gatewayMode } });
       savedMcpUrlRef.current = config.mcpUrl;
+      setGatewayConfigs(saved.gatewayConfigs || gatewayConfigs);
+      if (gatewayMode === 'agent') {
+        window.location.href = config.mcpUrl;
+        return;
+      }
       if (!urlChanged) {
         appendChat('system', 'Configuration saved.');
         return;
@@ -654,7 +663,14 @@ export default function PrivilegeMcpClientPage() {
                     <select
                       className="cur-input"
                       value={presets.find((p) => p.url === config.mcpUrl)?.url || ''}
-                      onChange={(e) => { if (e.target.value) setConfig({ ...config, mcpUrl: e.target.value }); }}
+                      onChange={(e) => {
+                        const preset = presets.find((p) => p.url === e.target.value);
+                        if (!preset) return;
+                        const nextMode = preset.mode || (preset.url.includes('.applications.procyon.ai') ? 'agent' : 'agentless');
+                        const savedConfig = gatewayConfigs[nextMode] || {};
+                        setGatewayMode(nextMode);
+                        setConfig({ ...config, ...savedConfig, mcpUrl: preset.url });
+                      }}
                     >
                       <option value="">Custom</option>
                       {presets.map((p) => (
@@ -664,18 +680,26 @@ export default function PrivilegeMcpClientPage() {
                   </label>
                 )}
                 <label className="cur-field">
-                  <span className="cur-field-label">AI Agent Gateway URL</span>
+                  <span className="cur-field-label">{gatewayMode === 'agent' ? 'Priv Agent URL' : 'Agentless Gateway URL'}</span>
                   <input className="cur-input" value={config.mcpUrl} onChange={(e) => setConfig({ ...config, mcpUrl: e.target.value })} placeholder="https://mcpgw.example.com/mcp" />
                 </label>
-                <label className="cur-field">
-                  <span className="cur-field-label">OAuth Client ID</span>
-                  <input className="cur-input" value={config.clientId} onChange={(e) => setConfig({ ...config, clientId: e.target.value })} />
-                </label>
-                <label className="cur-field">
-                  <span className="cur-field-label">Requested Scopes</span>
-                  <input className="cur-input" value={config.scopes} onChange={(e) => setConfig({ ...config, scopes: e.target.value })} />
-                </label>
+                {gatewayMode === 'agent' ? (
+                  <p className="cur-settings-note">Authentication is managed by the Priv Agent. Save redirects this browser directly to the configured URL.</p>
+                ) : (
+                  <>
+                    <label className="cur-field">
+                      <span className="cur-field-label">OAuth Client ID</span>
+                      <input className="cur-input" value={config.clientId} onChange={(e) => setConfig({ ...config, clientId: e.target.value })} />
+                    </label>
+                    <label className="cur-field">
+                      <span className="cur-field-label">Requested Scopes</span>
+                      <input className="cur-input" value={config.scopes} onChange={(e) => setConfig({ ...config, scopes: e.target.value })} />
+                    </label>
+                  </>
+                )}
               </div>
+              {gatewayMode === 'agentless' && (
+                <>
               <div className="cur-settings-section">
                 <h4 className="cur-settings-section-title">Local LLM</h4>
                 <label className="cur-field">
@@ -706,6 +730,8 @@ export default function PrivilegeMcpClientPage() {
                   </>
                 )}
               </div>
+                </>
+              )}
               <div className="cur-btn-row" style={{ marginTop: 16 }}>
                 <button className="cur-btn cur-btn--primary" onClick={() => { saveConfig(); setShowSettings(false); }}>Save</button>
                 <button className="cur-btn" onClick={() => setShowSettings(false)}>Cancel</button>

@@ -105,6 +105,44 @@ read the configured host. A new browser origin must be added to ALL of:
 ## §4 — Bug Fix Log
 Reverse-chronological, newest first.
 
+### 2026-08-20 — CIBA UI initiation dropped the gateway HITL challenge receipt
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`.
+
+**What was broken:** all three CIBA initiation paths omitted the canonical HITL
+challenge id from `/api/auth/ciba/initiate`, so the approved retry could lose
+the receipt required by the consuming gateway verification.
+
+**What was fixed:** normalized, thrown-error, and natural-language CIBA paths
+now forward either supported challenge-id casing as `hitl_challenge_id`.
+
+**Do not break:** the receipt remains opaque and gateway verification remains
+single-use; this does not introduce a trusted approval boolean or bypass.
+
+**Verify:** focused CIBA/Privilege UI suites (9/9) and UI build (exit 0).
+
+### 2026-08-20 — Priv Agent configuration incorrectly reused the Agentless OAuth flow
+
+**Files changed:** `demo_api_server/routes/privilegeMcpClient.js`,
+`demo_api_ui/src/pages/PrivilegeMcpClientPage.{jsx,css}`, and focused route/UI tests.
+
+**What was broken:** Agent and Agentless gateway presets shared one configuration
+object. Selecting the Priv Agent frontend still exposed a PingOne Client ID,
+scopes, and `pingone.env`, and saving the selection started PingOne OAuth even
+though the workstation agent owns authentication.
+
+**What was fixed:** Agent and Agentless settings are stored independently. Agent
+mode contains only its frontend URL and redirects the browser directly to it;
+it never starts the page's PingOne OAuth flow. Client ID, requested scopes,
+local LLM controls, and `pingone.env` remain Agentless-only.
+
+**Do not break:** Agent mode must never forward or acquire a PingOne bearer.
+Agentless mode must retain its existing PKCE callback, session persistence,
+OAuth discovery, and admin-only `pingone.env` read/write guard.
+
+**Verify:** focused Privilege BFF suites (8/8), focused Privilege UI suites
+(6/6), and `npm run build` (exit 0).
+
 ### 2026-08-19 — Privilege client missed cookie-restored dashboard authentication
 
 **Files changed:** `demo_api_server/routes/privilegeMcpClient.js` and the

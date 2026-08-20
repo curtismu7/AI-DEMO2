@@ -1,8 +1,6 @@
 // demo_api_ui/src/pages/__tests__/PrivilegeMcpClientPage.gatewaySwitch.test.jsx
-// Saving the Settings modal with a changed gateway URL must trigger the switch
-// (re-auth via /auth/start) and show the "Switching gateway" overlay; the
-// overlay must survive the OAuth redirect (sessionStorage flag) and clear once
-// tools are rediscovered on the ?auth=success return.
+// Agent and agentless gateway settings follow different connection paths.
+// Agent mode redirects directly to its frontend; only agentless starts OAuth.
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import PrivilegeMcpClientPage from "../PrivilegeMcpClientPage";
@@ -15,8 +13,8 @@ vi.mock("../../services/apiClient", () => ({
 }));
 
 const PRESETS = [
-  { label: "Agentless gateway (nginx)", url: "https://aidemo.mcpgw.local.ping-devops.com/mcp" },
-  { label: "AI Gateway via Priv Agent", url: "https://opensearch.default.applications.procyon.ai:8643/mcp" },
+  { label: "Agentless gateway (nginx)", mode: "agentless", url: "https://aidemo.mcpgw.local.ping-devops.com/mcp" },
+  { label: "AI Gateway via Priv Agent", mode: "agent", url: "https://opensearch.default.applications.procyon.ai:8643/mcp" },
 ];
 
 const jsonResponse = (body) => ({
@@ -62,6 +60,11 @@ function renderPage(entry = "/privilege-mcp-client") {
 
 const baseState = {
   config: { mcpUrl: PRESETS[0].url, clientId: "client-1", scopes: "openid profile email" },
+  gatewayMode: "agentless",
+  gatewayConfigs: {
+    agent: { mcpUrl: PRESETS[1].url },
+    agentless: { mcpUrl: PRESETS[0].url, clientId: "client-1", scopes: "openid profile email" },
+  },
   oauth: { authenticated: false },
   mainAppAuthenticated: false,
   tools: [],
@@ -69,7 +72,7 @@ const baseState = {
 };
 
 describe("gateway switch on Settings save", () => {
-  it("save with a changed gateway URL starts re-auth and shows the switching overlay", async () => {
+  it("saving Agent mode stores that config without starting PingOne OAuth", async () => {
     global.fetch = mockFetch({ state: baseState });
     renderPage();
     fireEvent.click(await screen.findByTitle("Settings"));
@@ -78,14 +81,15 @@ describe("gateway switch on Settings save", () => {
     fireEvent.change(select, { target: { value: PRESETS[1].url } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(await screen.findByText("Switching gateway...")).toBeInTheDocument();
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining("/api/privilege-mcp/auth/start"),
-        expect.objectContaining({ method: "POST" }),
+        expect.stringContaining("/api/privilege-mcp/config"),
+        expect.objectContaining({ method: "POST", body: expect.stringContaining('"gatewayMode":"agent"') }),
       );
     });
-    expect(sessionStorage.getItem("cur_priv_switching")).toBe("1");
+    const authStartCalls = global.fetch.mock.calls.filter(([u]) => String(u).includes("/auth/start"));
+    expect(authStartCalls).toHaveLength(0);
+    expect(sessionStorage.getItem("cur_priv_switching")).toBeNull();
   });
 
   it("save with an unchanged gateway URL does not re-auth or show the overlay", async () => {

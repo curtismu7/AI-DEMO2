@@ -4918,6 +4918,8 @@ export default function BankingAgent({
                   binding_message: "Approve your banking transaction",
                   acr_values: normalized.step_up_acr || "",
                   amount: normalized.transaction_amount ?? undefined,
+                  hitl_challenge_id:
+                    normalized.hitlChallengeId || normalized.hitl_challenge_id || undefined,
                   from_account_label: fromLabel,
                   to_account_label: toLabel,
                 }),
@@ -5603,6 +5605,8 @@ export default function BankingAgent({
                 binding_message: "Approve your banking transaction",
                 acr_values: err.step_up_acr || "",
                 amount: err.transaction_amount ?? undefined,
+                hitl_challenge_id:
+                  err.hitlChallengeId || err.hitl_challenge_id || undefined,
                 from_account_label: fromLabel,
                 to_account_label: toLabel,
               }),
@@ -8681,6 +8685,8 @@ export default function BankingAgent({
             binding_message: "Approve your banking transaction",
             acr_values: response.step_up_acr || "",
             amount: response.transactionAmount ?? undefined,
+            hitl_challenge_id:
+              response.hitlChallengeId || response.hitl_challenge_id || undefined,
             from_account_label: fromLabel,
             to_account_label: toLabel,
           }),

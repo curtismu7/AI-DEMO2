@@ -36,4 +36,33 @@ describe('POST /api/privilege-mcp/config — blank values do not overwrite', () 
 
     expect(res.body.config.clientId).toBe('operator-supplied-id');
   });
+
+  it('stores agent and agentless settings independently', async () => {
+    const browser = request.agent(app);
+    const agentUrl = 'https://search.default.applications.procyon.ai:8643/mcp';
+    const agent = await browser
+      .post('/api/privilege-mcp/config')
+      .send({ gatewayMode: 'agent', mcpUrl: agentUrl, clientId: 'must-not-cross-modes' })
+      .expect(200);
+
+    expect(agent.body.gatewayMode).toBe('agent');
+    expect(agent.body.config).toMatchObject({ mcpUrl: agentUrl, clientId: '', scopes: '' });
+    expect(agent.body.gatewayConfigs.agent).toEqual({ mcpUrl: agentUrl });
+
+    const agentless = await browser
+      .post('/api/privilege-mcp/config')
+      .send({ gatewayMode: 'agentless', mcpUrl: 'https://agentless.example/mcp', clientId: 'agentless-client' })
+      .expect(200);
+
+    expect(agentless.body.gatewayMode).toBe('agentless');
+    expect(agentless.body.config).toMatchObject({
+      mcpUrl: 'https://agentless.example/mcp',
+      clientId: 'agentless-client',
+    });
+    expect(agentless.body.gatewayConfigs.agent).toEqual({ mcpUrl: agentUrl });
+    expect(agentless.body.gatewayConfigs.agentless).toMatchObject({
+      mcpUrl: 'https://agentless.example/mcp',
+      clientId: 'agentless-client',
+    });
+  });
 });
