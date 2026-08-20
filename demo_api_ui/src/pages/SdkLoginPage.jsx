@@ -307,6 +307,15 @@ export default function SdkLoginPage() {
     setExercise(label);
     setNotice({ ok: true, text: `${label} exercise selected — use the controls below to observe the SDK call and resulting token state.` });
   };
+  const startMfaCheckpoint = () => {
+    setExercise('MFA checkpoint');
+    setNotice({
+      ok: true,
+      text: status === 'signed-in'
+        ? 'MFA checkpoint ready. This page does not redirect or start a second login. The existing SDK session is the subject; verify PingOne MFA policy and inspect acr/amr after the protected action.'
+        : 'MFA checkpoint is an in-page teaching state. Sign-in is not started here; configure MFA on the PingOne policy, then exercise it from a protected action.',
+    });
+  };
 
   return (
     <div style={styles.page}>
@@ -491,8 +500,8 @@ export default function SdkLoginPage() {
 
         <section id="sdk-mfa" style={styles.card}>
           <div style={styles.cardH}>MFA journey integration <span style={styles.tag('out')}>PingOne MFA</span></div>
-          <p style={{ color: C.muted, marginTop: 0 }}>The SDK starts the OIDC journey; PingOne policy can require MFA before the callback. Use this checkpoint to explain the hand-off and verify the returned <code>acr</code>/<code>amr</code> claims.</p>
-          <div style={{ ...styles.row, marginTop: 10 }}><button type="button" style={{ ...styles.btn, ...styles.btnPrimary }} onClick={handleSignIn} disabled={busy}>Start MFA-protected sign-in →</button><span style={{ ...styles.note, marginTop: 0 }}>Configure an MFA policy on the PingOne application; no MFA secret is stored in this browser.</span></div>
+          <p style={{ color: C.muted, marginTop: 0 }}>MFA is a checkpoint on an existing session, not a second login. This page does not redirect: trigger the protected action, let PingOne policy challenge the current subject, then verify the returned <code>acr</code>/<code>amr</code> claims.</p>
+          <div style={{ ...styles.row, marginTop: 10 }}><button type="button" style={{ ...styles.btn, ...styles.btnPrimary }} onClick={startMfaCheckpoint} disabled={busy}>Run MFA checkpoint</button><span style={{ ...styles.note, marginTop: 0 }}>No login redirect; no MFA secret is stored in this browser.</span></div>
         </section>
       </div>
     </div>
