@@ -72,6 +72,25 @@ const baseState = {
 };
 
 describe("gateway switch on Settings save", () => {
+  it("switches to Agent from the main-page dropdown without showing configuration", async () => {
+    global.fetch = mockFetch({ state: baseState });
+    renderPage();
+
+    const modeSelect = await screen.findByLabelText("Gateway connection mode");
+    await waitFor(() => expect(modeSelect).toBeEnabled());
+    fireEvent.change(modeSelect, { target: { value: "agent" } });
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/privilege-mcp/config"),
+        expect.objectContaining({ method: "POST", body: expect.stringContaining('\"gatewayMode\":\"agent\"') }),
+      );
+    });
+    expect(screen.queryByText("OAuth Client ID")).not.toBeInTheDocument();
+    expect(global.fetch.mock.calls.filter(([u]) => String(u).includes("/auth/start"))).toHaveLength(0);
+    expect(global.fetch.mock.calls.filter(([u]) => String(u).includes("/tools/list"))).toHaveLength(1);
+  });
+
   it("saving Agent mode stores that config and runs MCP discovery without starting PingOne OAuth", async () => {
     global.fetch = mockFetch({ state: baseState });
     renderPage();
