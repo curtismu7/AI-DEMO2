@@ -39,7 +39,7 @@ export default function ActivityLogPage() {
       <DraggableModal
         isOpen
         onClose={() => window.history.back()}
-        title="Activity Log"
+        title="Application Activity & PingOne Events"
         defaultWidth={defaultWidth}
         defaultHeight={defaultHeight}
         defaultX={defaultX}

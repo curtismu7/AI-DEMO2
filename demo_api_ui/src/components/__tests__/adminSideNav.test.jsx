@@ -162,7 +162,7 @@ describe("AdminSideNav — best-of-breed pass", () => {
   it("Weather MCP runs UC30 (weather-mcp-texas-permit) via demo/run", async () => {
     const apiClient = (await import("../../services/apiClient")).default;
     renderNav();
-    fireEvent.click(screen.getByRole("button", { name: /^MCP & Gateways/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Demos/ }));
     fireEvent.click(screen.getByText("Weather MCP"));
     expect(apiClient.post).toHaveBeenCalledWith("/api/use-cases/demo/run", {
       useCaseId: "weather-mcp-texas-permit",

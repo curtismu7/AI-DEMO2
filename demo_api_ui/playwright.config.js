@@ -59,7 +59,9 @@ const { defineConfig, devices } = require('@playwright/test');
   }
 })();
 
-const UI_PORT = process.env.BANKING_UI_PORT || '3000';
+// The shared local stack serves the browser UI on port 4000. Keep an explicit
+// BANKING_UI_PORT override for isolated CRA runs and CI.
+const UI_PORT = process.env.BANKING_UI_PORT || '4000';
 /** Use 127.0.0.1 so webServer health checks match CRA bind (avoids ::1 vs IPv4 mismatch). */
 const LOCAL_UI_BASE = `http://127.0.0.1:${UI_PORT}`;
 

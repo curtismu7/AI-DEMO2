@@ -109,7 +109,7 @@ it("claims the agent and submits the selected customer scopes", async () => {
 
   render(<DelegatedCommercePage user={{ role: "customer" }} />);
   fireEvent.click(screen.getByRole("button", { name: "Claim agent" }));
-  await waitFor(() => expect(screen.getByLabelText("Authorize A&F Personal Shopping Agent")).toBeInTheDocument());
+  await waitFor(() => expect(screen.getByLabelText("Authorize AF Personal Shopping Agent")).toBeInTheDocument());
   fireEvent.click(screen.getByRole("button", { name: "Authorize selected scopes" }));
   await waitFor(() =>
     expect(apiClient.post).toHaveBeenCalledWith(

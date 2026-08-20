@@ -1047,11 +1047,7 @@ function AppWithAuth() {
                       <>
                         <TopNav user={user} onLogout={logout} />
                         <main className="main-content">
-                          {user?.role === "admin" ? (
-                            <Dashboard user={user} onLogout={logout} />
-                          ) : (
-                            <LandingPage user={user} onLogout={logout} />
-                          )}
+                          <LandingPage user={user} onLogout={logout} />
                         </main>
                       </>
                     )

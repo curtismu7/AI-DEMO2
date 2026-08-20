@@ -471,7 +471,7 @@ export default function AdminSideNav({
       icon: "demo",
       children: [
         {
-          label: "Agent Lifecycle",
+          label: "Agent Lifecycle (guided demo)",
           path: "/agent-lifecycle",
           icon: "agt",
           adminOnly: true,
@@ -489,10 +489,41 @@ export default function AdminSideNav({
       icon: "demo",
       children: [
         {
-          label: "Delegated Commerce",
+          label: "Delegated Commerce (guided demo)",
           path: "/delegated-commerce",
           icon: "agt",
           adminOnly: true,
+        },
+        {
+          label: "Weather MCP",
+          icon: "mcp",
+          // UC30 — Texas permit kickoff (same as Use Cases → Run).
+          action: () => {
+            const vertical = activeVerticalId || "banking";
+            apiClient
+              .post("/api/use-cases/demo/run", {
+                useCaseId: "weather-mcp-texas-permit",
+                vertical,
+              })
+              .then(({ data }) =>
+                apiClient
+                  .post("/api/verticals/active", { id: vertical })
+                  .then(() => data),
+              )
+              .then((data) => {
+                navigate("/dashboard", {
+                  state: {
+                    useCaseId: data.useCaseId,
+                    triggerText: data.triggerText,
+                    type: data.type,
+                    vertical,
+                  },
+                });
+              })
+              .catch((err) => {
+                console.error("Weather MCP nav: failed to run use case", err);
+              });
+          },
         },
         { label: "Use Cases", path: "/use-cases", icon: "demo" },
         { label: "Use Cases (Live)", path: "/use-cases/live", icon: "demo" },
@@ -585,37 +616,6 @@ export default function AdminSideNav({
           icon: "rte",
         },
         { label: "Capability Tour", path: "/agent-gateway-capabilities", icon: "shld" },
-        {
-          label: "Weather MCP",
-          icon: "mcp",
-          // UC30 — Texas permit kickoff (same as Use Cases → Run).
-          action: () => {
-            const vertical = activeVerticalId || "banking";
-            apiClient
-              .post("/api/use-cases/demo/run", {
-                useCaseId: "weather-mcp-texas-permit",
-                vertical,
-              })
-              .then(({ data }) =>
-                apiClient
-                  .post("/api/verticals/active", { id: vertical })
-                  .then(() => data),
-              )
-              .then((data) => {
-                navigate("/dashboard", {
-                  state: {
-                    useCaseId: data.useCaseId,
-                    triggerText: data.triggerText,
-                    type: data.type,
-                    vertical,
-                  },
-                });
-              })
-              .catch((err) => {
-                console.error("Weather MCP nav: failed to run use case", err);
-              });
-          },
-        },
       ],
     },
     {

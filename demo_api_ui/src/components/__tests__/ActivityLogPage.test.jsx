@@ -17,7 +17,7 @@ describe('ActivityLogPage', () => {
     render(<ActivityLogPage />);
 
     expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByText('Activity Log')).toBeInTheDocument();
+    expect(screen.getByText('Application Activity & PingOne Events')).toBeInTheDocument();
     expect(screen.getByTitle('Pop out to new window')).toBeInTheDocument();
     expect(screen.getByTestId('activity-log-panel')).toHaveAttribute(
       'data-enabled',

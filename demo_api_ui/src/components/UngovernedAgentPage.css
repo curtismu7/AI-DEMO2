@@ -55,6 +55,27 @@
   max-width: 820px;
   margin: 0 0 16px;
 }
+
+.ungov-proof-strip {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  margin: 18px 0 22px;
+  padding: 14px;
+  border: 1px solid #e3e8ef;
+  border-radius: 10px;
+  background: linear-gradient(110deg, #fff8f5, #f8fafc 52%, #f1fbf7);
+}
+.ungov-proof-step { flex: 1; display: grid; grid-template-columns: auto 1fr; column-gap: 9px; align-items: center; padding: 10px 12px; border-radius: 8px; background: #fff; border: 1px solid #dce3eb; }
+.ungov-proof-step > span { grid-row: span 2; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: #0a2540; color: #fff; font-weight: 800; }
+.ungov-proof-step strong { font-size: 13px; color: #1a2330; }
+.ungov-proof-step small { color: #4a586b; font-size: 11.5px; }
+.ungov-proof-step--danger { border-color: #f2b8ae; background: #fff8f6; }
+.ungov-proof-step--danger > span { background: #b42318; }
+.ungov-proof-step--safe { border-color: #a9dfc7; background: #f5fcf8; }
+.ungov-proof-step--safe > span { background: #12805c; }
+.ungov-proof-arrow { align-self: center; color: #7a8797; font-size: 20px; font-weight: 700; }
+.ungov-watch-callout { margin-top: 18px; padding: 14px 16px; border-left: 4px solid #b42318; border-radius: 0 8px 8px 0; background: #fff8f5; color: #29404f; font-size: 13.5px; line-height: 1.55; }
 .ungov-page a {
   color: #0a66c2;
   text-decoration: none;
@@ -331,6 +352,8 @@
     flex-direction: column;
     align-items: flex-start;
   }
+  .ungov-proof-strip { flex-direction: column; }
+  .ungov-proof-arrow { transform: rotate(90deg); align-self: center; }
 }
 
 .ungov-widget__signin {

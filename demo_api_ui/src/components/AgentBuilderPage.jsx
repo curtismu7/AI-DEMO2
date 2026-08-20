@@ -142,6 +142,15 @@ export default function AgentBuilderPage() {
         Build your own AI agent identity in PingOne, then decide exactly which resources and
         scopes it may use. This is the same identity model the demo's agent runs on.
       </p>
+      <div className="ab-authority-note">
+        <strong>Authoritative creation workspace.</strong> Use this page to create and configure
+        the agent identity, resources, scopes, grant types, and token authentication. The other
+        agent pages are guided demonstrations of what a configured agent can do.
+        <span className="ab-authority-links">
+          <a href="/delegated-commerce">Delegated Commerce demo</a>
+          <a href="/agent-lifecycle">Agent Lifecycle demo</a>
+        </span>
+      </div>
 
       {/* Zone 1 — identity chain strip */}
       <div className="ab-chain">

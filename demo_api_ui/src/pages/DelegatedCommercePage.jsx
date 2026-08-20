@@ -44,7 +44,7 @@ function ConsentModal({ open, scopes, onScopesChange, onClose, onConfirm, busy }
     <DraggableModal
       isOpen={open}
       onClose={onClose}
-      title="Authorize A&F Personal Shopping Agent"
+      title="Authorize AF Personal Shopping Agent"
       storageKey="delegated-commerce-consent"
       defaultWidth={560}
       defaultHeight={500}
@@ -152,7 +152,7 @@ export default function DelegatedCommercePage({ user }) {
     setBusy("register");
     try {
       const response = await apiClient.post("/api/delegated-commerce/register", {
-        name: "A&F Personal Shopping Agent",
+        name: "AF Personal Shopping Agent",
       });
       const data = response.data;
       setRegistration(data.registration);
@@ -465,7 +465,7 @@ export default function DelegatedCommercePage({ user }) {
               {isAdmin ? (
                 <div className="dc-subcard">
                   <h3>1A. Register the agent application</h3>
-                  <label>Agent display name<input value="A&F Personal Shopping Agent" readOnly /></label>
+                  <label>Agent display name<input value="AF Personal Shopping Agent" readOnly /></label>
                   <button className="dc-btn" type="button" onClick={registerAgent} disabled={busy === "register" || !!registration}>
                     {registration ? "Agent created" : "Create in PingOne"}
                   </button>

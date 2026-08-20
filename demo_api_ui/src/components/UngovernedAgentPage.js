@@ -258,6 +258,14 @@ export default function UngovernedAgentPage() {
           trail.
         </p>
 
+        <div className="ungov-proof-strip" aria-label="Live proof sequence">
+          <div className="ungov-proof-step"><span>1</span><strong>Run the transfer</strong><small>through a browser session</small></div>
+          <div className="ungov-proof-arrow" aria-hidden="true">→</div>
+          <div className="ungov-proof-step ungov-proof-step--danger"><span>2</span><strong>Same user badge</strong><small>no agent identity or actor</small></div>
+          <div className="ungov-proof-arrow" aria-hidden="true">→</div>
+          <div className="ungov-proof-step ungov-proof-step--safe"><span>3</span><strong>Run it governed</strong><small>compare the token chain</small></div>
+        </div>
+
         <div className="ungov-demo-cols">
           <div className="ungov-demo-col">
             <h3>Live: OpenCLI on the presenter's host</h3>
@@ -292,6 +300,13 @@ export default function UngovernedAgentPage() {
         </div>
 
         <RecentTransfersWidget />
+
+        <div className="ungov-watch-callout">
+          <strong>What to watch for:</strong> the amount can be identical in both runs. The
+          security difference is the caller evidence: <b>Direct user session</b> means the
+          bank cannot distinguish the agent from the customer; <b>Governed agent</b> exposes
+          the actor, delegated scope, policy decision, and audit trail.
+        </div>
       </section>
 
       <section className="ungov-section">

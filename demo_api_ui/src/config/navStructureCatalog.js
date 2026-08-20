@@ -19,8 +19,9 @@ export const NAV_STRUCTURE_CATALOG = [
   {
     label: "Demos",
     children: [
-      "Agent Lifecycle",
-      "Delegated Commerce",
+      "Agent Lifecycle (guided demo)",
+      "Delegated Commerce (guided demo)",
+      "Weather MCP",
       "Use Cases",
       "Use Cases (Live)",
       "Guided Demo Track",
@@ -54,7 +55,6 @@ export const NAV_STRUCTURE_CATALOG = [
       "Ping AI Test Lab",
       "Agent Gateway Inspector",
       "Capability Tour",
-      "Weather MCP",
     ],
   },
   {

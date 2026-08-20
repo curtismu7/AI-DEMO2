@@ -330,8 +330,9 @@ export default function DemoConfigPage() {
         <div className="app-page-header__left">
           <h1 className="app-page-title">Demo Config</h1>
           <p className="app-page-subtitle">
-            Toggle groups on/off, drag groups to reorder, drag the items under a group to
-            reorder or move them to another group, then save to update the sidebar.
+            Use the controls below to customize the sidebar. Checked groups are visible. Drag
+            a group by its dotted handle to reorder it; expand a group and drag a child item to
+            reorder it or move it to another group. Disabled controls are unavailable at an edge.
           </p>
         </div>
         <span className={`dc-flag-pill${flagOn ? " dc-flag-pill--on" : ""}`}>

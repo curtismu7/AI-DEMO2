@@ -3,6 +3,11 @@
   margin: 0 auto;
 }
 
+.dc-page .app-page-subtitle {
+  color: var(--th-text) !important;
+  font-weight: 500;
+}
+
 .dc-flag-pill {
   display: inline-flex;
   align-items: center;
@@ -95,7 +100,7 @@
 }
 .dc-count {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--th-text);
   font-variant-numeric: tabular-nums;
 }
 
@@ -155,7 +160,7 @@
 }
 .dc-hint {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--th-text);
   margin: 0 0 14px;
   line-height: 1.5;
 }
@@ -253,7 +258,8 @@
   cursor: grabbing;
 }
 .dc-group-row--hidden {
-  opacity: 0.45;
+  opacity: 0.7;
+  background: var(--th-bg-inset, #f1f5f9);
 }
 .dc-group-row--drag-over {
   border-color: #1d4ed8;
@@ -268,7 +274,7 @@
 }
 
 .dc-drag-handle {
-  color: #9ca3af;
+  color: var(--th-primary, #1d4ed8);
   font-size: 16px;
   line-height: 1;
   flex-shrink: 0;
@@ -359,7 +365,7 @@
 }
 .dc-child-item {
   font-size: 11.5px;
-  color: #6b7280;
+  color: var(--th-text);
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 5px;

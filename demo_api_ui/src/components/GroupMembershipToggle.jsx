@@ -80,7 +80,12 @@ export default function GroupMembershipToggle({ onChange = null, verticalId = nu
   }, [privilegedGroup, inGroup, busy, load, onChange, verticalId]);
 
   if (loading) {
-    return <div className="gmt-panel gmt-panel--loading">Checking group membership…</div>;
+    return (
+      <div className="gmt-panel gmt-panel--loading" role="status" aria-live="polite">
+        <span className="gmt-loading-spinner" aria-hidden="true" />
+        <span>Reading live group membership from PingOne…</span>
+      </div>
+    );
   }
 
   if (error && !state) {
