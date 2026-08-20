@@ -225,7 +225,12 @@ export default function PrivilegeMcpClientPage() {
     if (authResult === 'success') {
       appendChat('system', 'OAuth completed. Refreshing tools...');
       api('/state').then((s) => {
-        if (s.oauth?.authenticated) setAuthenticated(true);
+        if (s.oauth?.authenticated) {
+          setAuthenticated(true);
+          // The app shell owns the top banner; notify it after this page's
+          // gateway callback establishes the shared BFF session.
+          window.dispatchEvent(new CustomEvent('userAuthenticated'));
+        }
         if (s.oauth?.scope) setGrantedScopes(s.oauth.scope.split(' ').filter(Boolean));
       }).catch(() => {});
       refreshTools().finally(clearSwitching);
