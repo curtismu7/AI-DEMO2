@@ -42,6 +42,15 @@ function scopeColor(scope) {
   return 'scope-default';
 }
 
+function gatewayMode(mcpUrl) {
+  const host = String(mcpUrl || '').toLowerCase();
+  if (!host) return { key: 'unknown', title: 'Gateway mode not selected', detail: 'Choose an Agent or Agentless Gateway in Settings.' };
+  const agentless = host.includes('procyon') || host.includes('agentless') || host.includes('opensearch');
+  return agentless
+    ? { key: 'agentless', title: 'Agentless Gateway', detail: 'AI Gateway → MCP services. No desktop agent is in this path.', url: mcpUrl }
+    : { key: 'agent', title: 'Agent Gateway', detail: 'Desktop Agent → AI Gateway → MCP services.', url: mcpUrl };
+}
+
 export default function PrivilegeMcpClientPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -91,6 +100,7 @@ export default function PrivilegeMcpClientPage() {
     try { localStorage.setItem('cur_priv_theme', pageTheme); } catch { /* storage disabled */ }
   }, [pageTheme]);
   const [terminalTab, setTerminalTab] = useState('events');
+  const mode = gatewayMode(config.mcpUrl);
   // The latest tool-call result shown in the RESULTS terminal tab. resultNonce
   // bumps on each new result to flash the tab so the user notices output arrived.
   const [toolResults, setToolResults] = useState([]);
@@ -738,6 +748,13 @@ export default function PrivilegeMcpClientPage() {
           {config.llmModel && <span className="cur-model-badge">{config.llmModel}</span>}
         </div>
       </header>
+
+      <section className={`cur-gateway-banner cur-gateway-banner--${mode.key}`} aria-label="Gateway mode">
+        <div className="cur-gateway-banner__eyebrow">ACTIVE USE CASE</div>
+        <div className="cur-gateway-banner__title">{mode.title}</div>
+        <div className="cur-gateway-banner__detail">{mode.detail}</div>
+        {mode.url && <code className="cur-gateway-banner__url">{mode.url}</code>}
+      </section>
 
       <div className="cur-body" ref={bodyRef}>
         {/* Activity bar */}
