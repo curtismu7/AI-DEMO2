@@ -134,6 +134,30 @@ describe('procyon agent-gateway frontends relay without Privilege SSO', () => {
     expect(res.body.steps).toContain('tools_discovered:1');
   });
 
+  test('chat reports gateway-filtered tools and never attempts their execution', async () => {
+    const app = buildApp();
+    global.fetch = jest.fn(async (_url, opts = {}) => {
+      const body = JSON.parse(opts.body || '{}');
+      const result = body.method === 'tools/list'
+        ? {
+            tools: [{ name: 'read_health', description: 'Read cluster health', inputSchema: {}, annotations: { readOnlyHint: true } }],
+            _meta: { deniedTools: [{ name: 'delete_index', description: 'Delete an index', deniedReason: 'admin policy' }] },
+          }
+        : { protocolVersion: '2024-11-05', capabilities: {} };
+      return {
+        ok: true, status: 200, headers: { get: () => null },
+        text: async () => JSON.stringify({ jsonrpc: '2.0', id: body.id ?? null, result }),
+      };
+    });
+
+    await request(app).post('/api/privilege-mcp/config').send({ mcpUrl: PROCYON_URL }).expect(200);
+    const res = await request(app).post('/api/privilege-mcp/chat').send({ prompt: 'delete index' }).expect(200);
+
+    expect(res.body.policy).toMatchObject({ total: 2, permitted: 1, filtered: 1 });
+    expect(res.body.decision).toMatchObject({ outcome: 'FILTERED', tool: 'delete_index' });
+    expect(global.fetch.mock.calls.map(([, opts]) => JSON.parse(opts.body || '{}').method)).not.toContain('tools/call');
+  });
+
   test('/state lists gateway presets including the agent frontend', async () => {
     process.env.PRIVILEGE_MCPGW_URL = 'https://aidemo.mcpgw.local.ping-devops.com/mcp';
     const app = buildApp();

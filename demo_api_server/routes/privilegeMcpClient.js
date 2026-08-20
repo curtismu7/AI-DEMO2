@@ -54,6 +54,7 @@ function getClientSession(req) {
         dcrClientId: null, dcrClientSecret: null,
       },
       tools: [],
+      toolPolicy: { permitted: [], filtered: [], total: 0 },
       mcpSession: {
         era: null, initialized: false, protocolVersion: null, sessionId: null,
         nextRequestId: 1, capabilities: {}, serverInfo: null, instructions: '',
@@ -502,6 +503,7 @@ function resetMcpState(session) {
   session.subscription.controller?.abort();
   session.subscription = { controller: null, active: false };
   session.tools = [];
+  session.toolPolicy = { permitted: [], filtered: [], total: 0 };
   session.mcpSession.era = null;
   session.mcpSession.initialized = false;
   session.mcpSession.protocolVersion = null;
@@ -600,6 +602,52 @@ async function listAllMcpPages(session, method, resultKey) {
     cursor = data.result?.nextCursor;
   } while (cursor);
   return items;
+}
+
+async function discoverPolicyTools(session) {
+  const permitted = [];
+  const filteredByName = new Map();
+  let cursor;
+  do {
+    const data = await callMcp(session, 'tools/list', cursor ? { cursor } : {});
+    const result = data.result || {};
+    permitted.push(...(result.tools || []));
+    for (const tool of result._meta?.deniedTools || []) {
+      if (tool?.name) filteredByName.set(tool.name, tool);
+    }
+    cursor = result.nextCursor;
+  } while (cursor);
+  const filtered = [...filteredByName.values()];
+  session.tools = permitted;
+  session.toolPolicy = { permitted, filtered, total: permitted.length + filtered.length };
+  return session.toolPolicy;
+}
+
+function publicPolicySummary(session) {
+  const policy = session.toolPolicy || { permitted: session.tools || [], filtered: [], total: (session.tools || []).length };
+  return {
+    total: policy.total,
+    permitted: policy.permitted.length,
+    filtered: policy.filtered.length,
+    filteredTools: policy.filtered.map((tool) => ({ name: tool.name, reason: tool.deniedReason || 'Filtered by gateway policy.' })),
+  };
+}
+
+function toolMatchScore(prompt, tool) {
+  const words = new Set(String(prompt).toLowerCase().match(/[a-z0-9]+/g) || []);
+  const nameWords = String(tool.name || '').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+  const descriptionWords = String(tool.description || '').toLowerCase().match(/[a-z0-9]+/g) || [];
+  return nameWords.reduce((score, word) => score + (words.has(word) ? 5 : 0), 0)
+    + descriptionWords.reduce((score, word) => score + (word.length > 3 && words.has(word) ? 1 : 0), 0);
+}
+
+function bestPromptTool(prompt, tools) {
+  return (tools || []).map((tool) => ({ tool, score: toolMatchScore(prompt, tool) }))
+    .sort((a, b) => b.score - a.score)[0];
+}
+
+function hasAllRequiredArguments(tool, args) {
+  return (tool.inputSchema?.required || []).every((name) => args?.[name] !== undefined && args[name] !== '');
 }
 
 async function discoverAuth(session) {
@@ -822,6 +870,7 @@ router.get('/state', (req, res) => {
     mainAppAuthenticated: mainAppAuth,
     user: req.session?.user || null,
     tools: session.tools,
+    policy: publicPolicySummary(session),
     mcp: {
       era: session.mcpSession.era,
       protocolVersion: session.mcpSession.protocolVersion,
@@ -979,8 +1028,8 @@ router.post('/tools/list', express.json(), async (req, res) => {
   const session = getClientSession(req);
   try {
     if (!session.oauth.accessToken && !isProcyonAgentUrl(session.config.mcpUrl)) return res.status(401).json({ error: 'Not authenticated — click Sign In with Privilege.' });
-    session.tools = await listAllMcpPages(session, 'tools/list', 'tools');
-    res.json({ tools: session.tools });
+    await discoverPolicyTools(session);
+    res.json({ tools: session.tools, policy: publicPolicySummary(session) });
   } catch (err) {
     resetMcpState(session);
     emitEvent(session, 'error', { scope: 'tools_list', message: err.message });
@@ -1186,10 +1235,7 @@ router.post('/chat', express.json(), async (req, res) => {
     await ensureMcpSessionInitialized(session);
     steps.push('mcp_initialized');
 
-    const toolsResponse = await fetchMcp(session, null, {
-      jsonrpc: '2.0', id: nextMcpRequestId(session), method: 'tools/list', params: {},
-    }, true);
-    session.tools = toolsResponse.result?.tools || [];
+    await discoverPolicyTools(session);
     steps.push(`tools_discovered:${session.tools.length}`);
 
     let reply = `Connected. I found ${session.tools.length} tools.`;
@@ -1223,10 +1269,51 @@ router.post('/chat', express.json(), async (req, res) => {
       }
     }
 
+    let suggested = suggestions[0] || null;
+    const allPolicyTools = [...session.toolPolicy.permitted, ...session.toolPolicy.filtered];
+    const fallbackMatch = bestPromptTool(prompt, allPolicyTools);
+    if (fallbackMatch?.score > 0 && !steps.includes('llm_routed')) {
+      suggested = { name: fallbackMatch.tool.name, why: 'Matched the request to the gateway tool catalog.', arguments: {} };
+    }
+    if (suggested) suggestions = [suggested, ...suggestions.filter((item) => item.name !== suggested.name)];
+
+    let decision = null;
+    let execution = null;
+    const filteredTool = session.toolPolicy.filtered.find((tool) => tool.name === suggested?.name);
+    const permittedTool = findTool(session, suggested?.name);
+    if (filteredTool) {
+      decision = { outcome: 'FILTERED', tool: filteredTool.name, reason: filteredTool.deniedReason || 'The gateway omitted this tool from the permitted catalog.' };
+      reply = `${filteredTool.name} is filtered by gateway policy and was not called.`;
+      steps.push(`tool_filtered:${filteredTool.name}`);
+    } else if (permittedTool) {
+      const args = suggested.arguments || {};
+      if (permittedTool.annotations?.readOnlyHint !== true) {
+        decision = { outcome: 'CONFIRMATION_REQUIRED', tool: permittedTool.name, reason: 'Only tools explicitly marked read-only may be run automatically.' };
+        reply = `${permittedTool.name} is permitted, but requires deliberate confirmation before execution.`;
+      } else if (!hasAllRequiredArguments(permittedTool, args)) {
+        decision = { outcome: 'INPUT_REQUIRED', tool: permittedTool.name, reason: `Required input: ${(permittedTool.inputSchema?.required || []).join(', ')}` };
+      } else {
+        try {
+          execution = await callMcp(session, 'tools/call', { name: permittedTool.name, arguments: args });
+          const denied = Boolean(execution?.result?.isError);
+          decision = { outcome: denied ? 'DENIED' : 'ALLOWED', tool: permittedTool.name, reason: denied ? 'The MCP server or gateway rejected the call.' : 'Gateway policy permitted discovery and execution.' };
+          reply = denied ? `${permittedTool.name} was denied at call time.` : `${permittedTool.name} was allowed and executed.`;
+          steps.push(`tool_${denied ? 'denied' : 'allowed'}:${permittedTool.name}`);
+        } catch (callErr) {
+          decision = { outcome: 'DENIED', tool: permittedTool.name, reason: callErr.message };
+          reply = `${permittedTool.name} was denied at call time.`;
+          steps.push(`tool_denied:${permittedTool.name}`);
+        }
+      }
+    }
+
     res.json({
       reply,
-      tools: session.tools.map((t) => ({ name: t.name, description: t.description || '' })),
+      tools: session.tools,
       suggested_tools: suggestions,
+      policy: publicPolicySummary(session),
+      decision,
+      execution,
       steps,
     });
   } catch (err) {
