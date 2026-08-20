@@ -118,6 +118,15 @@ const INTENT_TO_PERMITTED_TOOLS = {
   list_codebases:           ['list_codebases', 'code_search'],
 };
 
+// Some intent labels are shared across verticals but resolve to different
+// least-privilege tools. Keep those overrides ahead of the generic intent map
+// so an admin transaction read cannot inherit the customer-only /my tool set.
+const VERTICAL_INTENT_TO_PERMITTED_TOOLS = {
+  admin: {
+    view_transactions: ['get_customer_transactions'],
+  },
+};
+
 const READ_ONLY_TOOLS = [
   // Banking
   'get_my_accounts', 'get_account_balance', 'get_my_transactions',
@@ -209,6 +218,9 @@ function ownEntry(map, key) {
 }
 
 function permittedToolsForIntent(intent, vertical) {
+  const verticalOverrides = ownEntry(VERTICAL_INTENT_TO_PERMITTED_TOOLS, vertical);
+  const byVerticalIntent = verticalOverrides && ownEntry(verticalOverrides, intent);
+  if (byVerticalIntent) return byVerticalIntent;
   const byIntent = ownEntry(INTENT_TO_PERMITTED_TOOLS, intent);
   if (byIntent) return byIntent;
   // Unknown/unclassified intent: restrict to the current vertical's non-sensitive
@@ -248,4 +260,5 @@ module.exports = { mintIntentToken, verifyIntentToken, permittedToolsForIntent }
 // Exported for the scope-topology parity test (drift-guard) — every tool named
 // in these maps must exist in scope-topology.json.
 module.exports.INTENT_TO_PERMITTED_TOOLS = INTENT_TO_PERMITTED_TOOLS;
+module.exports.VERTICAL_INTENT_TO_PERMITTED_TOOLS = VERTICAL_INTENT_TO_PERMITTED_TOOLS;
 module.exports.READ_ONLY_TOOLS = READ_ONLY_TOOLS;

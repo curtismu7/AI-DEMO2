@@ -239,6 +239,26 @@ admin-authenticated and read-only.
 
 **Verify:** focused PingOne Admin BFF suites, authz verification, UI unit suite,
 and UI production build.
+### 2026-08-20 — Admin transaction intent token allowed only customer tools
+
+**Files changed:** `demo_api_server/services/intentTokenService.js` and its
+focused intent-token and scope-topology parity tests.
+
+**What was broken:** the shared `view_transactions` intent always minted
+`permitted_tools` for customer-scoped `get_my_transactions` and
+`get_my_accounts`. On the admin dashboard the agent correctly selected
+`get_customer_transactions`, so PingOne Authorize denied the otherwise valid
+delegated call with `mcp-intent-mismatch`.
+
+**What was fixed:** resolve shared intent labels through a least-privilege
+vertical override before the generic mapping. The admin vertical now permits
+only `get_customer_transactions`; banking retains its existing customer tools.
+
+**Do not break:** keep intent matching fail-closed, keep admin tools out of the
+banking intent mapping and unknown-intent fallback, and do not alter delegated
+token audience or actor-chain validation.
+
+**Verify:** focused `intentTokenService` and scope-topology parity Jest suites.
 
 ### 2026-08-20 — Privilege page was a tools-only legacy MCP relay
 

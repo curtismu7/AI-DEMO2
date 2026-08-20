@@ -117,4 +117,17 @@ describe('permittedToolsForIntent', () => {
   test('view_balance does not include create_transfer', () => {
     expect(permittedToolsForIntent('view_balance')).not.toContain('create_transfer');
   });
+
+  test('admin transaction intent permits only the admin transaction tool', () => {
+    expect(permittedToolsForIntent('view_transactions', 'admin')).toEqual([
+      'get_customer_transactions',
+    ]);
+  });
+
+  test('banking transaction intent keeps customer-scoped tools', () => {
+    expect(permittedToolsForIntent('view_transactions', 'banking')).toEqual([
+      'get_my_transactions',
+      'get_my_accounts',
+    ]);
+  });
 });
