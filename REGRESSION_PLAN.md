@@ -105,6 +105,33 @@ read the configured host. A new browser origin must be added to ALL of:
 ## §4 — Bug Fix Log
 Reverse-chronological, newest first.
 
+### 2026-08-20 — Privilege page was a tools-only legacy MCP relay
+
+**Files changed:** `demo_api_server/routes/privilegeMcpClient.js`,
+`demo_api_ui/src/pages/PrivilegeMcpClientPage.{jsx,css}`, and focused BFF/UI tests.
+
+**What was broken:** the client hardcoded the 2024 initialize lifecycle and
+exposed only `tools/list`, `tools/call`, and raw JSON-RPC. It could not speak the
+stateless 2026-07-28 protocol used by the current Agentless gateway, discover
+prompts/resources, paginate lists, mirror MCP routing headers, listen for
+changes, or continue multi-round-trip input requests.
+
+**What was fixed:** implement a dual-era Streamable HTTP client. Modern servers
+use `server/discover`, per-request metadata, `MCP-Protocol-Version`,
+`Mcp-Method`, `Mcp-Name`, schema-declared `Mcp-Param-*` headers, pagination,
+subscriptions, and input-required continuation. Legacy servers retain the
+initialize/session lifecycle. The Explorer exposes prompts, resources,
+templates, completion, and negotiated extensions. OAuth callbacks validate a
+returned issuer and DCR declares its application type.
+
+**Do not break:** Agent mode sends no bearer and continues to authenticate via
+the installed Priv Agent. Agentless mode remains the only mode using OAuth.
+Fallback to initialize only after an unrecognized 400/404/405 response; a
+recognized modern protocol error must never be misclassified as legacy.
+
+**Verify:** focused Privilege BFF protocol/auth tests; focused Privilege UI
+tests; full UI unit suite and production build.
+
 ### 2026-08-20 — Privilege client targeted the wrong Agentless MCP application
 
 **Files changed:** `demo_api_server/routes/privilegeMcpClient.js`, focused
