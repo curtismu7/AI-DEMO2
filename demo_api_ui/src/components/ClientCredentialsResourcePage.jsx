@@ -4,14 +4,11 @@ import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { notifySessionExpiredIfNeeded } from '../utils/authUi';
 import SignInPrompt from './SignInPrompt';
-import ResourceServerTester from './ResourceServerTester';
+import ResourceServerTester, { CLIENT_CREDENTIALS_SOURCES } from './ResourceServerTester';
 import '../styles/appShellPages.css';
 import './ClientCredentialsResourcePage.css';
 
-const CC_TESTER_SOURCES = [
-  { value: 'cc', label: 'CC token (machine client)' },
-  { value: 'paste', label: 'Paste a JWT' },
-];
+const CC_TESTER_SOURCES = CLIENT_CREDENTIALS_SOURCES;
 
 const CLAIM_GLOSSARY = {
   client_id: 'Client ID — the OAuth 2.0 application that requested this token (no user identity)',
