@@ -808,7 +808,7 @@ export default function PrivilegeMcpClientPage() {
             <div><span className="cur-cd-k">authStatus: </span><span className={`cur-cd-v ${authenticated ? 'cur-cd-v--ok' : 'cur-cd-v--bad'}`}>{authenticated ? 'authenticated' : 'unauthenticated'}</span></div>
           </div>
           <div className="cur-sidebar-content">
-            {authenticated ? (
+            {gatewayMode !== 'agent' && (authenticated ? (
               <div className="cur-auth-status">
                 <span className="cur-auth-badge cur-auth-badge--ok">Authenticated</span>
                 {user?.email && <span className="cur-auth-user">{user.email}</span>}
@@ -834,7 +834,7 @@ export default function PrivilegeMcpClientPage() {
                   <button className="cur-btn cur-btn--primary" onClick={startAuth}>Sign In with Privilege</button>
                 )}
               </div>
-            )}
+            ))}
 
             {grantedScopes.length > 0 && (
               <div className="cur-scopes-section">

@@ -62,12 +62,14 @@ describe("gateway presets in the Settings modal", () => {
 
     const select = await screen.findByLabelText(/gateway preset/i);
     expect(screen.getByRole("option", { name: "AI Gateway via Priv Agent" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Sign In with Privilege/i })).toBeInTheDocument();
 
     fireEvent.change(select, { target: { value: PRESETS[1].url } });
 
     expect(screen.getByLabelText(/Priv Agent URL/i)).toHaveValue(PRESETS[1].url);
     expect(screen.queryByLabelText(/OAuth Client ID/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Load pingone.env/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Sign In with Privilege/i })).not.toBeInTheDocument();
   });
 
   it("keeps a hand-typed URL selectable as Custom", async () => {
