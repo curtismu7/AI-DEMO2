@@ -68,6 +68,26 @@ const ADMIN_DEMO_STEPS = [
     title: 'Show resources and their scopes',
     trigger: { type: 'chip', text: 'List the PingOne resources and their scopes' },
   },
+  {
+    id: 'ADMIN9',
+    title: 'Show environment services',
+    trigger: { type: 'chip', text: 'Show the PingOne services enabled for this environment' },
+  },
+  {
+    id: 'ADMIN10',
+    title: 'List DaVinci flows',
+    trigger: { type: 'chip', text: 'List the DaVinci flows in this PingOne environment' },
+  },
+  {
+    id: 'ADMIN11',
+    title: 'List DaVinci applications',
+    trigger: { type: 'chip', text: 'List the DaVinci applications in this PingOne environment' },
+  },
+  {
+    id: 'ADMIN12',
+    title: 'List DaVinci connectors',
+    trigger: { type: 'chip', text: 'List the DaVinci connectors available in this PingOne environment' },
+  },
 ];
 
 module.exports = { ADMIN_DEMO_STEPS };

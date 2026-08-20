@@ -41,6 +41,8 @@ const HEURISTICS = [
   { re: /\blist\b.*\busers?\b|\bshow\s+users?\b|\bhow many\b.*\b(users?|identit)/i, action: 'call_pingone_tool', defaultParams: { name: 'listUsers' } },
   { re: /\b(look\s*up|find|get|search)\b.*\buser\b|\buser\b.*\b(look\s*up|detail|info|profile)/i, action: 'call_pingone_tool', defaultParams: { name: 'getUser' } },
   { re: /\bcreate\b.*\buser\b|\badd\b.*\buser\b|\bnew\b.*\buser\b/i,                action: 'call_pingone_tool', defaultParams: { name: 'createUser' } },
+  // DaVinci applications must precede the generic PingOne application list.
+  { re: /\b(list|show|get)\b.*\bdavinci\b.*\bapplications?\b/i,                    action: 'call_pingone_tool', defaultParams: { name: 'listDavinciApplications' } },
   { re: /\blist\b.*\bapp|\bshow\b.*\bapp/i,                                          action: 'call_pingone_tool', defaultParams: { name: 'listApplications' } },
   // No group heuristic: the hosted PingOne MCP server exposes no group tool (see
   // demo_api_ui/public/pingone-mcp-tools.html), so group phrasing falls through to
@@ -49,6 +51,9 @@ const HEURISTICS = [
   // Resources (ADMIN8): scopes ride along automatically — callPingOneTool
   // enriches listResources rows with each resource's scopes from REST.
   { re: /\b(list|show|get)\b.*\bresources?\b/i,                                      action: 'call_pingone_tool', defaultParams: { name: 'listResources' } },
+  { re: /\b(list|show|get)\b.*\benvironment\s+services?\b|\bservices?\b.*\b(?:enabled|environment)\b/i, action: 'call_pingone_tool', defaultParams: { name: 'getEnvironmentServices' } },
+  { re: /\b(list|show|get)\b.*\bdavinci\b.*\bflows?\b/i,                           action: 'call_pingone_tool', defaultParams: { name: 'listDavinciFlows' } },
+  { re: /\b(list|show|get)\b.*\bdavinci\b.*\bconnectors?\b/i,                      action: 'call_pingone_tool', defaultParams: { name: 'listDavinciConnectors' } },
   { re: /\b(get|show|view)\b.*\benvironment\b/i,                                     action: 'call_pingone_tool', defaultParams: { name: 'getEnvironment' } },
   // Filtered tool discovery — MUST precede the generic discovery regex.
   // list_pingone_tools takes `filter` directly (case-insensitive substring

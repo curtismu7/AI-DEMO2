@@ -17,10 +17,11 @@ const ADMIN_PARSE_EXPECT = {
   ADMIN1: { action: 'call_pingone_tool', toolName: 'listApplications' },
 };
 
-describe('step verification — pingone-admin ADMIN1–4 (#765/#766)', () => {
-  test('catalog lists ADMIN1–7', () => {
+describe('step verification — pingone-admin ADMIN1–12', () => {
+  test('catalog lists ADMIN1–12', () => {
     expect(ADMIN_DEMO_STEPS.map((s) => s.id)).toEqual([
-      'ADMIN1', 'ADMIN2', 'ADMIN3', 'ADMIN4', 'ADMIN5', 'ADMIN6', 'ADMIN7', 'ADMIN8',
+      'ADMIN1', 'ADMIN2', 'ADMIN3', 'ADMIN4', 'ADMIN5', 'ADMIN6',
+      'ADMIN7', 'ADMIN8', 'ADMIN9', 'ADMIN10', 'ADMIN11', 'ADMIN12',
     ]);
   });
 
@@ -44,8 +45,8 @@ describe('step verification — pingone-admin ADMIN1–4 (#765/#766)', () => {
         return;
       }
 
-      // ADMIN2–4 prompts are not fully wired as pingone-admin heuristics yet —
-      // record route/catalog coverage via unit-ref (Demo Steps + admin-agent path).
+      // Non-ADMIN1 prompts record route/catalog coverage here; their detailed
+      // tool routing is owned by stepVerification.pingone-admin.test.js.
       writeLedgerEntry({
         vertical: 'pingone-admin',
         useCaseId: step.id,
