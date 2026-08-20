@@ -70,7 +70,7 @@ export const DEMO_USE_CASE_IDS = [
  */
 export const ADMIN_PRIMARY_USE_CASE_IDS = [
   'ADMIN1', 'ADMIN2', 'ADMIN3', 'ADMIN4', 'ADMIN5', 'ADMIN6',
-  'ADMIN7', 'ADMIN8', 'ADMIN9', 'ADMIN10', 'ADMIN11', 'ADMIN12',
+  'ADMIN7', 'ADMIN8', 'ADMIN9', 'ADMIN10', 'ADMIN11', 'ADMIN12', 'ADMIN13',
 ];
 
 /** Section heading used on /use-cases for this script. */

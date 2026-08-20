@@ -36,23 +36,27 @@ const ADMIN_PARSE_EXPECT = {
 };
 
 describe('step verification — pingone-admin catalog', () => {
-  test('catalog lists ADMIN1–12 with chip triggers', () => {
+  test('catalog lists ADMIN1–13 with MCP chips followed by the Privilege handoff', () => {
     expect(ADMIN_DEMO_STEPS.map((s) => s.id)).toEqual([
       'ADMIN1', 'ADMIN2', 'ADMIN3', 'ADMIN4', 'ADMIN5', 'ADMIN6',
-      'ADMIN7', 'ADMIN8', 'ADMIN9', 'ADMIN10', 'ADMIN11', 'ADMIN12',
+      'ADMIN7', 'ADMIN8', 'ADMIN9', 'ADMIN10', 'ADMIN11', 'ADMIN12', 'ADMIN13',
     ]);
-    for (const s of ADMIN_DEMO_STEPS) {
+    for (const s of ADMIN_DEMO_STEPS.slice(0, -1)) {
       expect(s.trigger?.type).toBe('chip');
       expect(s.trigger?.text).toBeTruthy();
       expect(s.title).toBeTruthy();
     }
+    expect(ADMIN_DEMO_STEPS.at(-1)).toMatchObject({
+      id: 'ADMIN13',
+      trigger: { type: 'link', path: '/privilege-mcp-client' },
+    });
   });
 });
 
 describe('step verification — pingone-admin chip routing (check 2: parse/route)', () => {
   const ctx = resolveVerticalCtx(VERTICAL);
 
-  test.each(ADMIN_DEMO_STEPS.map((s) => [s.id, s]))(
+  test.each(ADMIN_DEMO_STEPS.filter((s) => s.trigger.type === 'chip').map((s) => [s.id, s]))(
     '%s: chip text parses to expected call_pingone_tool action',
     (_id, step) => {
       const text = step.trigger.text;
@@ -70,7 +74,7 @@ describe('step verification — pingone-admin chip routing (check 2: parse/route
       writeLedgerEntry({
         vertical: VERTICAL,
         useCaseId: step.id,
-        triggerType: 'chip',
+        triggerType: step.trigger.type,
         mode: 'unit-parse',
         status,
         errorClass,
@@ -106,15 +110,15 @@ describe('step verification — pingone-admin prerequisites', () => {
       writeLedgerEntry({
         vertical: VERTICAL,
         useCaseId: s.id,
-        triggerType: 'chip',
+        triggerType: s.trigger.type,
         mode: 'unit-prereq',
         status: 'PASS',
         errorClass: null,
-        primaryTool: ADMIN_PARSE_EXPECT[s.id].action,
+        primaryTool: ADMIN_PARSE_EXPECT[s.id]?.action || null,
         checkedAt: new Date().toISOString(),
         verifiedBy: 'pingone-admin vertical has no flag/A2A/PAR prerequisites',
       });
     }
-    expect(ADMIN_DEMO_STEPS.length).toBe(12);
+    expect(ADMIN_DEMO_STEPS.length).toBe(13);
   });
 });
