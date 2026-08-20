@@ -68,6 +68,7 @@ export default function PrivilegeMcpClientPage() {
   const [gatewayMode, setGatewayMode] = useState('agentless');
   const [gatewayConfigs, setGatewayConfigs] = useState({ agent: {}, agentless: {} });
   const [presets, setPresets] = useState([]);
+  const [gatewayStateLoaded, setGatewayStateLoaded] = useState(false);
   // Gateway switch in flight (agent <-> agentless). The sessionStorage flag lets
   // the overlay survive the OAuth redirect and show again from first paint on
   // the ?auth=success return, until tools are rediscovered from the new gateway.
@@ -220,6 +221,7 @@ export default function PrivilegeMcpClientPage() {
       setTools(s.tools || []);
       setMcpProtocol(s.mcp || null);
       setSubscriptionActive(Boolean(s.mcp?.subscriptionActive));
+      setGatewayStateLoaded(true);
       // Auto-discover tools only after Privilege auth completes
       if (s.gatewayMode !== 'agent' && s.oauth?.authenticated && (!s.tools || s.tools.length === 0)) {
         refreshTools(true);
@@ -311,6 +313,38 @@ export default function PrivilegeMcpClientPage() {
     } catch (err) {
       clearSwitching();
       appendChat('system', `Save failed: ${err.message}`);
+    }
+  };
+
+  const switchGatewayMode = async (nextMode) => {
+    if (nextMode === gatewayMode) return;
+    const savedConfig = gatewayConfigs[nextMode] || {};
+    const nextConfig = nextMode === 'agent'
+      ? { ...config, ...savedConfig, clientId: '', scopes: '' }
+      : { ...config, ...savedConfig };
+
+    setGatewayMode(nextMode);
+    setConfig(nextConfig);
+    setTools([]);
+    setSelectedTool(null);
+    try {
+      const saved = await api('/config', {
+        method: 'POST',
+        body: { ...nextConfig, gatewayMode: nextMode },
+      });
+      savedMcpUrlRef.current = nextConfig.mcpUrl;
+      setGatewayConfigs(saved.gatewayConfigs || gatewayConfigs);
+      if (nextMode === 'agent') {
+        await refreshTools();
+        return;
+      }
+      setSwitching(true);
+      try { sessionStorage.setItem('cur_priv_switching', '1'); } catch { /* storage disabled */ }
+      const data = await api('/auth/start', { method: 'POST' });
+      window.location.href = data.authUrl;
+    } catch (err) {
+      clearSwitching();
+      appendChat('system', `Gateway switch failed: ${err.message}`);
     }
   };
 
@@ -851,6 +885,18 @@ export default function PrivilegeMcpClientPage() {
           </div>
         </div>
         <div className="cur-titlebar-right">
+          <label className="cur-mode-switcher">
+            <span>Gateway</span>
+            <select
+              aria-label="Gateway connection mode"
+              value={gatewayMode}
+              disabled={!gatewayStateLoaded || switching}
+              onChange={(event) => switchGatewayMode(event.target.value)}
+            >
+              <option value="agent">Agent</option>
+              <option value="agentless">Agentless</option>
+            </select>
+          </label>
           <FootprintSkinPicker className="cur-skin-picker" />
           <button
             type="button"

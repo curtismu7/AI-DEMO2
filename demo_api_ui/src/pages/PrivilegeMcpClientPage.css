@@ -1009,8 +1009,38 @@ select.cur-input { cursor: pointer; }
 
 /* Settings gear — bigger and red so it stands out in the titlebar. The
    U+FE0E selector forces the text glyph so the CSS color applies. */
-.cur-settings-gear { font-size: 18px; padding: 0 10px; line-height: 1; color: #ef4444; }
-.cur-settings-gear:hover { color: #f87171; }
+.cur-settings-gear {
+  min-width: 34px;
+  font-size: 26px;
+  font-weight: 800;
+  padding: 0 8px;
+  line-height: 1;
+  color: #ff3b30 !important;
+  border-color: #ff3b30 !important;
+}
+.cur-settings-gear:hover { color: #ff6b63 !important; border-color: #ff6b63 !important; }
+
+.cur-mode-switcher {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #bbb;
+  font-size: 11px;
+  -webkit-app-region: no-drag;
+}
+
+.cur-mode-switcher select {
+  height: 24px;
+  border: 1px solid #3c3c3c;
+  border-radius: 4px;
+  background: #2a2a2a;
+  color: #fff;
+  padding: 2px 24px 2px 8px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.cur-mode-switcher select:disabled { cursor: wait; opacity: .65; }
 
 .cur-flow-modal {
   background: #161b22;
