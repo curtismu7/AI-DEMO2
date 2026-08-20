@@ -75,12 +75,25 @@ export default function PersonalAgentStudioPage() {
   const handleSend = useCallback((text) => {
     setMessages((prev) => [...prev, { role: 'user', text }]);
     setMessages((prev) => [...prev, { role: 'agent', typing: true, text: '' }]);
-    setTimeout(() => {
-      setMessages((prev) => [
+    fetch('/api/agent/invoke', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ prompt: text, vertical: 'airlines', useCaseId: 'personal-agent-concierge' }),
+    })
+      .then(async (response) => {
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.message || data.error || `Request failed (${response.status})`);
+        return data;
+      })
+      .then((data) => setMessages((prev) => [
         ...prev.filter((m) => !m.typing),
-        { role: 'agent', text: "Processing through the delegation chain…" },
-      ]);
-    }, 1500);
+        { role: 'agent', text: data.reply || 'The personal agent completed the request.' },
+      ]))
+      .catch((error) => setMessages((prev) => [
+        ...prev.filter((m) => !m.typing),
+        { role: 'agent', text: error.message || 'The personal agent could not complete the request.' },
+      ]))
   }, []);
 
   function handlePopOut() {
