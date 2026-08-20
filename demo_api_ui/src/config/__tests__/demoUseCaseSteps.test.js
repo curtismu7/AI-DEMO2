@@ -41,7 +41,10 @@ describe('demoUseCaseSteps', () => {
   });
 
   it('exports the admin vertical demo-steps id list', () => {
-    expect(ADMIN_PRIMARY_USE_CASE_IDS).toEqual(['ADMIN1', 'ADMIN2', 'ADMIN3', 'ADMIN4', 'ADMIN5', 'ADMIN6', 'ADMIN7', 'ADMIN8']);
+    expect(ADMIN_PRIMARY_USE_CASE_IDS).toEqual([
+      'ADMIN1', 'ADMIN2', 'ADMIN3', 'ADMIN4', 'ADMIN5', 'ADMIN6',
+      'ADMIN7', 'ADMIN8', 'ADMIN9', 'ADMIN10', 'ADMIN11', 'ADMIN12',
+    ]);
   });
 
   it('DEMO_USE_CASE_IDS = primary + advanced concatenated in that order', () => {

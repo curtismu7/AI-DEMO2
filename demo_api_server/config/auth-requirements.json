@@ -73,7 +73,11 @@
     "ADMIN5": "admin",
     "ADMIN6": "admin",
     "ADMIN7": "admin",
-    "ADMIN8": "admin"
+    "ADMIN8": "admin",
+    "ADMIN9": "admin",
+    "ADMIN10": "admin",
+    "ADMIN11": "admin",
+    "ADMIN12": "admin"
   },
   "routes": {
     "/": "public",

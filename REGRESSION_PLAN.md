@@ -105,6 +105,23 @@ read the configured host. A new browser origin must be added to ALL of:
 ## §4 — Bug Fix Log
 Reverse-chronological, newest first.
 
+### 2026-08-20 — PingOne Admin Demo Steps expanded to hosted-MCP reads
+
+**Files changed:** PingOne Admin demo-step catalog, vertical heuristics/result
+formatting, auth requirements, UI step ordering, and focused BFF/UI tests.
+
+**What was added:** ADMIN9–ADMIN12 demonstrate environment services, DaVinci
+flows, DaVinci applications, and DaVinci connectors through the hosted PingOne
+MCP server.
+
+**Do not break:** keep `/admin` scoped to PingOne administration; do not route
+banking/customer tools into this vertical or advertise group membership until
+the hosted MCP catalog exposes a real group tool. All new steps remain
+admin-authenticated and read-only.
+
+**Verify:** focused PingOne Admin BFF suites, authz verification, UI unit suite,
+and UI production build.
+
 ### 2026-08-20 — Privilege page was a tools-only legacy MCP relay
 
 **Files changed:** `demo_api_server/routes/privilegeMcpClient.js`,

@@ -475,7 +475,7 @@ describe('DemoStepsDropdown — pingone-admin vertical', () => {
     apiClient.get.mockResolvedValue({ data: { useCases: ADMIN_CATALOG } });
   });
 
-  it('lists only the 4 admin steps with no advanced group', async () => {
+  it('lists all admin steps with no advanced group', async () => {
     render(
       <DemoStepsDropdown
         vertical="pingone-admin"

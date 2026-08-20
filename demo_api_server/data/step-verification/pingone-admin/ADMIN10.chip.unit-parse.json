@@ -1,0 +1,11 @@
+{
+  "vertical": "pingone-admin",
+  "useCaseId": "ADMIN10",
+  "triggerType": "chip",
+  "mode": "unit-parse",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "call_pingone_tool",
+  "checkedAt": "2026-08-20",
+  "verifiedBy": "nlIntentParser pingone-admin heuristics → listDavinciFlows"
+}

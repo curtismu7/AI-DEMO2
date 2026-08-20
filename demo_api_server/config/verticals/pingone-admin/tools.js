@@ -27,6 +27,7 @@ const REST_FALLBACK = {
   listApplications: () => ({ method: 'GET', path: '/applications' }),
   listResources:    () => ({ method: 'GET', path: '/resources' }),
   listPopulations:  () => ({ method: 'GET', path: '/populations' }),
+  getEnvironmentServices: () => ({ method: 'GET', path: '/services' }),
   getEnvironment:   () => ({ method: 'GET', path: '' }),
   getUser: (args) => {
     const id = args?.id || args?.userId;
@@ -156,7 +157,16 @@ function parseMcpResult(raw) {
 // some of them bare (`{ applications: [...] }` — verified live 2026-08-10).
 // Accept both so neither transport degrades to a JSON.stringify blob.
 function collectionFor(tool, data) {
-  const key = { listUsers: 'users', listApplications: 'applications', listPopulations: 'populations', listResources: 'resources' }[tool];
+  const key = {
+    listUsers: 'users',
+    listApplications: 'applications',
+    listPopulations: 'populations',
+    listResources: 'resources',
+    getEnvironmentServices: 'services',
+    listDavinciFlows: 'flows',
+    listDavinciApplications: 'applications',
+    listDavinciConnectors: 'connectors',
+  }[tool];
   if (!key) return null;
   const arr = data?._embedded?.[key] ?? data?.[key];
   return Array.isArray(arr) ? arr : null;
@@ -229,7 +239,16 @@ function summaryForResponse(tool, data) {
   try {
     const arr = collectionFor(tool, data);
     if (arr) {
-      const noun = { listUsers: 'users', listApplications: 'applications', listPopulations: 'populations', listResources: 'resources' }[tool];
+      const noun = {
+        listUsers: 'users',
+        listApplications: 'applications',
+        listPopulations: 'populations',
+        listResources: 'resources',
+        getEnvironmentServices: 'services',
+        listDavinciFlows: 'DaVinci flows',
+        listDavinciApplications: 'DaVinci applications',
+        listDavinciConnectors: 'DaVinci connectors',
+      }[tool];
       return `${arr.length} ${noun} found`;
     }
     switch (tool) {

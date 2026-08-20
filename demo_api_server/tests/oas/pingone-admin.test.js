@@ -84,6 +84,30 @@ test('call_pingone_tool listUsers parses MCP envelope and summarizes live data',
   expect(result.debug.summary).toContain('transport=live');
 });
 
+test.each([
+  ['listDavinciFlows', 'flows', 'DaVinci flows'],
+  ['listDavinciApplications', 'applications', 'DaVinci applications'],
+  ['listDavinciConnectors', 'connectors', 'DaVinci connectors'],
+])('%s summarizes its hosted-MCP collection', async (tool, key, noun) => {
+  adapter.callTool.mockResolvedValue(mcpJson({ [key]: [{ name: 'One' }, { name: 'Two' }] }));
+  const { result } = await plugin.executeTool('call_pingone_tool', { name: tool }, {});
+  expect(result.responseSummary).toBe(`2 ${noun} found`);
+  expect(result.rows).toHaveLength(2);
+  expect(result.source).toBe('live — hosted PingOne MCP');
+});
+
+test('getEnvironmentServices uses the Management API fallback when MCP is down', async () => {
+  adapter.callTool.mockRejectedValue(httpErr('connect ECONNREFUSED'));
+  pingOneUserService.makeRequest.mockResolvedValue({ services: [{ name: 'SSO and MFA' }] });
+  const { result } = await plugin.executeTool(
+    'call_pingone_tool',
+    { name: 'getEnvironmentServices' },
+    {},
+  );
+  expect(pingOneUserService.makeRequest).toHaveBeenCalledWith('GET', '/services');
+  expect(result.responseSummary).toBe('1 services found');
+});
+
 test('call_pingone_tool listUsers normalizes prefix filters and uses the Management API fallback when MCP is down', async () => {
   adapter.callTool.mockRejectedValue(httpErr('connect ECONNREFUSED'));
   pingOneUserService.makeRequest.mockResolvedValue({
