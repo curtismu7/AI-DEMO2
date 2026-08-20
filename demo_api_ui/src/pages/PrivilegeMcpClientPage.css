@@ -221,6 +221,51 @@
 .cur-input--code { font-family: 'JetBrains Mono', 'Fira Code', 'Menlo', monospace; font-size: 11px; }
 select.cur-input { cursor: pointer; }
 
+.cur-mcp-protocol {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid #3c3c3c;
+  border-radius: 4px;
+  color: #ddd;
+}
+
+.cur-mcp-instructions { color: #ddd; line-height: 1.45; }
+
+.cur-mcp-catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.cur-mcp-catalog-grid section {
+  min-height: 90px;
+  padding: 8px;
+  border: 1px solid #3c3c3c;
+  border-radius: 4px;
+}
+
+.cur-mcp-catalog-grid h4 { margin: 0 0 8px; color: #ddd; }
+
+.cur-mcp-item {
+  display: block;
+  width: 100%;
+  margin: 3px 0;
+  padding: 5px 7px;
+  overflow: hidden;
+  color: #ddd;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: #2a2a2a;
+  border: 1px solid #3c3c3c;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.cur-mcp-item--static { cursor: default; }
+
 /* Buttons */
 .cur-btn-row {
   display: flex;

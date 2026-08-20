@@ -10,7 +10,13 @@ const DEFAULT_AGENTLESS_MCP_URL =
   'https://cmuir-agentless-mcpgw.ping-devops.com/cmuir/mcp';
 const DEFAULT_AGENT_MCP_URL =
   'https://opensearch.default.applications.procyon.ai:8643/mcp';
-const MCP_PROTOCOL_VERSION = '2024-11-05';
+const MCP_PROTOCOL_VERSION = '2026-07-28';
+const LEGACY_MCP_PROTOCOL_VERSION = '2024-11-05';
+const MCP_CLIENT_INFO = { name: 'PingOne Privilege MCP Client', version: '2.0.0' };
+const MCP_CLIENT_CAPABILITIES = {
+  elicitation: { form: {}, url: {} },
+  extensions: { 'io.modelcontextprotocol/tasks': {} },
+};
 
 // ---------------------------------------------------------------------------
 // In-memory per-session state (keyed by express session id)
@@ -48,7 +54,11 @@ function getClientSession(req) {
         dcrClientId: null, dcrClientSecret: null,
       },
       tools: [],
-      mcpSession: { initialized: false, protocolVersion: null, sessionId: null, nextRequestId: 1 },
+      mcpSession: {
+        era: null, initialized: false, protocolVersion: null, sessionId: null,
+        nextRequestId: 1, capabilities: {}, serverInfo: null, instructions: '',
+      },
+      subscription: { controller: null, active: false },
       pendingAuth: null,
     });
   }
@@ -198,6 +208,57 @@ function decodeMcpBody(text) {
   return { raw: text };
 }
 
+function encodeMcpHeaderValue(value) {
+  const text = String(value);
+  const plainAscii = /^[\x20-\x7e]+$/.test(text)
+    && text.trim() === text
+    && !(text.startsWith('=?base64?') && text.endsWith('?='));
+  return plainAscii ? text : `=?base64?${Buffer.from(text, 'utf8').toString('base64')}?=`;
+}
+
+function modernRequestBody(body, protocolVersion = MCP_PROTOCOL_VERSION) {
+  if (!body?.method) return body;
+  return {
+    ...body,
+    params: {
+      ...(body.params || {}),
+      _meta: {
+        ...(body.params?._meta || {}),
+        'io.modelcontextprotocol/protocolVersion': protocolVersion,
+        'io.modelcontextprotocol/clientInfo': MCP_CLIENT_INFO,
+        'io.modelcontextprotocol/clientCapabilities': MCP_CLIENT_CAPABILITIES,
+      },
+    },
+  };
+}
+
+function findTool(session, name) {
+  return session.tools.find((tool) => tool.name === name);
+}
+
+function readArgumentAtPath(argumentsValue, path) {
+  return path.split('.').reduce((value, part) => value?.[part], argumentsValue);
+}
+
+function addModernHeaders(headers, session, body) {
+  headers['MCP-Protocol-Version'] = session.mcpSession.protocolVersion || MCP_PROTOCOL_VERSION;
+  headers['Mcp-Method'] = body.method;
+  if (['tools/call', 'prompts/get', 'resources/read'].includes(body.method)) {
+    const name = body.params?.name ?? body.params?.uri;
+    if (name !== undefined) headers['Mcp-Name'] = encodeMcpHeaderValue(name);
+  }
+  if (body.method !== 'tools/call') return;
+  const schema = findTool(session, body.params?.name)?.inputSchema;
+  for (const [propertyName, property] of Object.entries(schema?.properties || {})) {
+    const headerName = property?.['x-mcp-header'];
+    if (!headerName) continue;
+    const value = readArgumentAtPath(body.params?.arguments || {}, propertyName);
+    if (value === undefined || value === null) continue;
+    if (!['string', 'number', 'boolean'].includes(typeof value)) continue;
+    headers[`Mcp-Param-${headerName}`] = encodeMcpHeaderValue(value);
+  }
+}
+
 function normalizeMcpFailure(status, text) {
   const snippet = text.slice(0, 300);
   if (status === 502) {
@@ -308,6 +369,9 @@ async function fetchMcp(session, pathname, body, withAuth = true, allowRefreshRe
   const targetUrl = new URL(session.config.mcpUrl);
   if (pathname) targetUrl.pathname = pathname;
 
+  const requestBody = session.mcpSession.era === 'modern'
+    ? modernRequestBody(body, session.mcpSession.protocolVersion || MCP_PROTOCOL_VERSION)
+    : body;
   const headers = {
     'Content-Type': 'application/json',
     Accept: 'application/json, text/event-stream',
@@ -321,7 +385,7 @@ async function fetchMcp(session, pathname, body, withAuth = true, allowRefreshRe
       console.log('[privilege-mcp] Token sub:', payload.sub, 'aud:', payload.aud, 'scope:', payload.scope);
     } catch {}
   }
-  if (session.mcpSession.sessionId) {
+  if (session.mcpSession.era === 'legacy' && session.mcpSession.sessionId) {
     headers['MCP-Session-Id'] = session.mcpSession.sessionId;
   }
   // Privilege Cloud requires x-procyon-session-id on every request
@@ -329,17 +393,18 @@ async function fetchMcp(session, pathname, body, withAuth = true, allowRefreshRe
     if (!session.config._procyonSessionId) session.config._procyonSessionId = crypto.randomUUID();
     headers['x-procyon-session-id'] = session.config._procyonSessionId;
   }
-  // MCP spec requires mcp-protocol-version on all non-initialize requests
-  if (body?.method && body.method !== 'initialize') {
-    headers['MCP-Protocol-Version'] = session.mcpSession.protocolVersion || MCP_PROTOCOL_VERSION;
+  if (session.mcpSession.era === 'modern' && requestBody?.method) {
+    addModernHeaders(headers, session, requestBody);
+  } else if (requestBody?.method && requestBody.method !== 'initialize') {
+    headers['MCP-Protocol-Version'] = session.mcpSession.protocolVersion || LEGACY_MCP_PROTOCOL_VERSION;
   }
 
-  emitEvent(session, 'relay', { direction: 'client->mcp', method: 'POST', url: targetUrl.toString(), body });
+  emitEvent(session, 'relay', { direction: 'client->mcp', method: 'POST', url: targetUrl.toString(), body: requestBody });
 
   const response = await fetch(targetUrl, {
     method: 'POST',
     headers,
-    body: JSON.stringify(body),
+    body: JSON.stringify(requestBody),
     ...(procyon ? { dispatcher: getProcyonDispatcher() } : {}),
   });
   const text = await response.text();
@@ -363,13 +428,15 @@ async function fetchMcp(session, pathname, body, withAuth = true, allowRefreshRe
     if (response.status === 401 && withAuth && allowRefreshRetry && await refreshAccessToken(session)) {
       return fetchMcp(session, pathname, body, withAuth, false);
     }
-    throw mcpRelayError(response.status, text);
+    const err = mcpRelayError(response.status, text);
+    err.rpcError = parsed?.error || null;
+    throw err;
   }
   if (parsed?.error) {
     throw new Error(`MCP RPC error: ${parsed.error.message || JSON.stringify(parsed.error)}`);
   }
-  if (body?.id !== undefined && parsed?.id !== body.id) {
-    throw new Error(`MCP response id mismatch: expected ${body.id}, received ${parsed?.id ?? 'none'}`);
+  if (requestBody?.id !== undefined && parsed?.id !== requestBody.id) {
+    throw new Error(`MCP response id mismatch: expected ${requestBody.id}, received ${parsed?.id ?? 'none'}`);
   }
   return parsed;
 }
@@ -377,24 +444,53 @@ async function fetchMcp(session, pathname, body, withAuth = true, allowRefreshRe
 async function ensureMcpSessionInitialized(session) {
   if (session.mcpSession.initialized) return;
 
+  if (!session.mcpSession.era) {
+    session.mcpSession.era = 'modern';
+    session.mcpSession.protocolVersion = MCP_PROTOCOL_VERSION;
+    const discoverRpc = {
+      jsonrpc: '2.0', id: nextMcpRequestId(session), method: 'server/discover', params: {},
+    };
+    try {
+      const discovery = await fetchMcp(session, null, discoverRpc, true);
+      const result = discovery?.result || {};
+      const supported = result.supportedVersions || [];
+      if (supported.length && !supported.includes(MCP_PROTOCOL_VERSION)) {
+        throw new Error(`MCP server does not support ${MCP_PROTOCOL_VERSION}; supported versions: ${supported.join(', ')}.`);
+      }
+      session.mcpSession.capabilities = result.capabilities || {};
+      session.mcpSession.serverInfo = result._meta?.['io.modelcontextprotocol/serverInfo'] || null;
+      session.mcpSession.instructions = result.instructions || '';
+      session.mcpSession.initialized = true;
+      emitEvent(session, 'mcp', { phase: 'discovered', era: 'modern', protocolVersion: MCP_PROTOCOL_VERSION });
+      return;
+    } catch (err) {
+      const modernError = [-32020, -32021, -32022].includes(err.rpcError?.code)
+        || (err.upstreamStatus === 404 && err.rpcError?.code === -32601);
+      if (modernError) throw err;
+      if (![400, 404, 405].includes(err.upstreamStatus)) throw err;
+      session.mcpSession.era = 'legacy';
+      session.mcpSession.protocolVersion = null;
+      session.mcpSession.nextRequestId = 1;
+    }
+  }
+
   const initRpc = {
     jsonrpc: '2.0',
     id: nextMcpRequestId(session),
     method: 'initialize',
     params: {
-      protocolVersion: MCP_PROTOCOL_VERSION,
-      capabilities: {},
-      clientInfo: { name: 'MCP Privilege Demo Client', version: '1.0.0' },
+      protocolVersion: LEGACY_MCP_PROTOCOL_VERSION,
+      capabilities: MCP_CLIENT_CAPABILITIES,
+      clientInfo: MCP_CLIENT_INFO,
     },
   };
   const initResponse = await fetchMcp(session, null, initRpc, true);
   const serverProtocol = initResponse?.result?.protocolVersion;
   if (!serverProtocol) throw new Error('MCP initialize response did not include a protocolVersion.');
-  if (serverProtocol !== MCP_PROTOCOL_VERSION) {
-    throw new Error(`MCP server negotiated unsupported protocol version ${serverProtocol}.`);
-  }
-
   session.mcpSession.protocolVersion = serverProtocol;
+  session.mcpSession.capabilities = initResponse?.result?.capabilities || {};
+  session.mcpSession.serverInfo = initResponse?.result?.serverInfo || null;
+  session.mcpSession.instructions = initResponse?.result?.instructions || '';
 
   await fetchMcp(session, null, { jsonrpc: '2.0', method: 'notifications/initialized', params: {} }, true);
 
@@ -403,11 +499,107 @@ async function ensureMcpSessionInitialized(session) {
 }
 
 function resetMcpState(session) {
+  session.subscription.controller?.abort();
+  session.subscription = { controller: null, active: false };
   session.tools = [];
+  session.mcpSession.era = null;
   session.mcpSession.initialized = false;
   session.mcpSession.protocolVersion = null;
   session.mcpSession.sessionId = null;
   session.mcpSession.nextRequestId = 1;
+  session.mcpSession.capabilities = {};
+  session.mcpSession.serverInfo = null;
+  session.mcpSession.instructions = '';
+}
+
+async function startModernSubscription(session, types) {
+  await ensureMcpSessionInitialized(session);
+  if (session.mcpSession.era !== 'modern') {
+    throw new Error('subscriptions/listen requires MCP 2026-07-28.');
+  }
+  session.subscription.controller?.abort();
+  const controller = new AbortController();
+  const rpc = modernRequestBody({
+    jsonrpc: '2.0', id: nextMcpRequestId(session), method: 'subscriptions/listen',
+    params: { types },
+  }, session.mcpSession.protocolVersion);
+  const targetUrl = new URL(session.config.mcpUrl);
+  const headers = {
+    'Content-Type': 'application/json', Accept: 'text/event-stream', Origin: targetUrl.origin,
+  };
+  addModernHeaders(headers, session, rpc);
+  const procyon = isProcyonAgentUrl(session.config.mcpUrl);
+  if (!procyon && session.oauth.accessToken) headers.Authorization = `Bearer ${session.oauth.accessToken}`;
+  const response = await fetch(targetUrl, {
+    method: 'POST', headers, body: JSON.stringify(rpc), signal: controller.signal,
+    ...(procyon ? { dispatcher: getProcyonDispatcher() } : {}),
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw mcpRelayError(response.status, text);
+  }
+  if (!response.body?.getReader) throw new Error('MCP subscription response is not streamable.');
+  session.subscription = { controller, active: true };
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  void (async () => {
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const frames = buffer.split(/\r?\n\r?\n/);
+        buffer = frames.pop() || '';
+        for (const frame of frames) {
+          const data = frame.split(/\r?\n/)
+            .filter((line) => line.startsWith('data:'))
+            .map((line) => line.slice(5).trim()).join('\n');
+          if (!data) continue;
+          let message;
+          try { message = JSON.parse(data); } catch { message = { raw: data }; }
+          emitEvent(session, 'subscription', { message });
+        }
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') emitEvent(session, 'error', { scope: 'subscription', message: err.message });
+    } finally {
+      if (session.subscription.controller === controller) {
+        session.subscription = { controller: null, active: false };
+      }
+      emitEvent(session, 'subscription', { phase: 'closed' });
+    }
+  })();
+}
+
+function isExpiredMcpSessionError(err) {
+  return err.message.includes('invalid during session initialization')
+    || err.message.includes('Unknown or expired MCP-Session-Id');
+}
+
+async function callMcp(session, method, params = {}) {
+  await ensureMcpSessionInitialized(session);
+  const rpc = { jsonrpc: '2.0', id: nextMcpRequestId(session), method, params };
+  try {
+    return await fetchMcp(session, null, rpc, true);
+  } catch (err) {
+    if (session.mcpSession.era !== 'legacy' || !isExpiredMcpSessionError(err)) throw err;
+    resetMcpState(session);
+    await ensureMcpSessionInitialized(session);
+    rpc.id = nextMcpRequestId(session);
+    return fetchMcp(session, null, rpc, true);
+  }
+}
+
+async function listAllMcpPages(session, method, resultKey) {
+  const items = [];
+  let cursor;
+  do {
+    const data = await callMcp(session, method, cursor ? { cursor } : {});
+    items.push(...(data.result?.[resultKey] || []));
+    cursor = data.result?.nextCursor;
+  } while (cursor);
+  return items;
 }
 
 async function discoverAuth(session) {
@@ -443,7 +635,12 @@ async function discoverAuth(session) {
   // than PingOne's own. MCPGW is its own Authorization Server with its own
   // client registry — a PingOne app id means nothing to it — so callers must
   // run Dynamic Client Registration before using these endpoints.
-  if (authorizationUri && tokenUri) return { authorizationUri, tokenUri, selfAdvertised: true };
+  if (authorizationUri && tokenUri) {
+    return {
+      authorizationUri, tokenUri, selfAdvertised: true,
+      issuer: body.issuer || new URL(authorizationUri).origin,
+    };
+  }
 
   // PingOne OIDC discovery fallback
   try {
@@ -467,7 +664,11 @@ async function discoverAuth(session) {
       if (metaResponse.ok) {
         const meta = await metaResponse.json();
         if (meta.authorization_endpoint && meta.token_endpoint) {
-          return { authorizationUri: meta.authorization_endpoint, tokenUri: meta.token_endpoint };
+          return {
+            authorizationUri: meta.authorization_endpoint,
+            tokenUri: meta.token_endpoint,
+            issuer: meta.issuer || new URL(meta.authorization_endpoint).origin,
+          };
         }
       }
     }
@@ -502,6 +703,7 @@ async function getOrRegisterDcrClient(authorizationUri, redirectUri) {
     body: JSON.stringify({
       redirect_uris: [redirectUri],
       client_name: 'ai-demo-bff',
+      application_type: 'web',
       token_endpoint_auth_method: 'client_secret_post',
     }),
   });
@@ -521,7 +723,7 @@ async function getOrRegisterDcrClient(authorizationUri, redirectUri) {
 // builds the PKCE authorization URL. Does not set pendingAuth.returnTo —
 // callers that need it set it on the returned object's session afterward.
 async function beginOAuthFlow(session, req) {
-  const { authorizationUri, tokenUri, selfAdvertised } = await discoverAuth(session);
+  const { authorizationUri, tokenUri, issuer, selfAdvertised } = await discoverAuth(session);
   const verifier = randomString(48);
   const challenge = sha256Base64Url(verifier);
   const oauthState = randomString(24);
@@ -568,7 +770,7 @@ async function beginOAuthFlow(session, req) {
   if (promptNoneAttempted) authUrl.searchParams.set('prompt', 'none');
 
   session.pendingAuth = {
-    oauthState, verifier, tokenUri, redirectUri,
+    oauthState, verifier, tokenUri, redirectUri, issuer,
     dcrClientId,
     dcrClientSecret,
     promptNoneAttempted,
@@ -620,6 +822,14 @@ router.get('/state', (req, res) => {
     mainAppAuthenticated: mainAppAuth,
     user: req.session?.user || null,
     tools: session.tools,
+    mcp: {
+      era: session.mcpSession.era,
+      protocolVersion: session.mcpSession.protocolVersion,
+      capabilities: session.mcpSession.capabilities,
+      serverInfo: session.mcpSession.serverInfo,
+      instructions: session.mcpSession.instructions,
+      subscriptionActive: session.subscription.active,
+    },
     presets,
   });
 });
@@ -698,7 +908,7 @@ router.get('/auth/callback', async (req, res) => {
   };
 
   try {
-    const { code, state: incomingState, error, error_description } = req.query;
+    const { code, state: incomingState, iss, error, error_description } = req.query;
     if (error) {
       const reason = error_description ? `${error}: ${error_description}` : error;
       emitEvent(session, 'oauth', { phase: 'callback_error', error: reason });
@@ -714,6 +924,9 @@ router.get('/auth/callback', async (req, res) => {
     }
     if (!session.pendingAuth || incomingState !== session.pendingAuth.oauthState) {
       throw new Error('OAuth state mismatch.');
+    }
+    if (iss && session.pendingAuth.issuer && iss !== session.pendingAuth.issuer) {
+      throw new Error('OAuth issuer mismatch.');
     }
 
     const tokenBody = new URLSearchParams({
@@ -766,19 +979,7 @@ router.post('/tools/list', express.json(), async (req, res) => {
   const session = getClientSession(req);
   try {
     if (!session.oauth.accessToken && !isProcyonAgentUrl(session.config.mcpUrl)) return res.status(401).json({ error: 'Not authenticated — click Sign In with Privilege.' });
-    await ensureMcpSessionInitialized(session);
-    const rpc = { jsonrpc: '2.0', id: nextMcpRequestId(session), method: 'tools/list', params: {} };
-    let data;
-    try {
-      data = await fetchMcp(session, null, rpc, true);
-    } catch (err) {
-      if (err.message.includes('invalid during session initialization') || err.message.includes('Unknown or expired MCP-Session-Id')) {
-        resetMcpState(session);
-        await ensureMcpSessionInitialized(session);
-        data = await fetchMcp(session, null, rpc, true);
-      } else throw err;
-    }
-    session.tools = data.result?.tools || [];
+    session.tools = await listAllMcpPages(session, 'tools/list', 'tools');
     res.json({ tools: session.tools });
   } catch (err) {
     resetMcpState(session);
@@ -792,24 +993,106 @@ router.post('/tools/call', express.json(), async (req, res) => {
   const session = getClientSession(req);
   try {
     if (!session.oauth.accessToken && !isProcyonAgentUrl(session.config.mcpUrl)) return res.status(401).json({ error: 'Not authenticated.' });
-    await ensureMcpSessionInitialized(session);
     const { name, arguments: args } = req.body || {};
-    const rpc = { jsonrpc: '2.0', id: nextMcpRequestId(session), method: 'tools/call', params: { name, arguments: args || {} } };
-    let data;
-    try {
-      data = await fetchMcp(session, null, rpc, true);
-    } catch (err) {
-      if (err.message.includes('Unknown or expired MCP-Session-Id')) {
-        resetMcpState(session);
-        await ensureMcpSessionInitialized(session);
-        data = await fetchMcp(session, null, rpc, true);
-      } else throw err;
-    }
+    if (!name) return res.status(400).json({ error: 'Tool name is required.' });
+    const data = await callMcp(session, 'tools/call', { name, arguments: args || {} });
     res.json(data);
   } catch (err) {
     emitEvent(session, 'error', { scope: 'tools_call', message: err.message });
     res.status(relayFailureStatus(err)).json({ error: err.message });
   }
+});
+
+// GET /catalog — discover every standard server primitive with pagination.
+router.get('/catalog', async (req, res) => {
+  const session = getClientSession(req);
+  try {
+    if (!session.oauth.accessToken && !isProcyonAgentUrl(session.config.mcpUrl)) {
+      return res.status(401).json({ error: 'Not authenticated.' });
+    }
+    await ensureMcpSessionInitialized(session);
+    const capabilities = session.mcpSession.capabilities || {};
+    const catalog = { tools: session.tools, prompts: [], resources: [], resourceTemplates: [] };
+    const requests = [];
+    if (capabilities.tools && catalog.tools.length === 0) {
+      requests.push(listAllMcpPages(session, 'tools/list', 'tools').then((tools) => {
+        catalog.tools = tools;
+        session.tools = tools;
+      }));
+    }
+    if (capabilities.prompts) {
+      requests.push(listAllMcpPages(session, 'prompts/list', 'prompts').then((prompts) => {
+        catalog.prompts = prompts;
+      }));
+    }
+    if (capabilities.resources) {
+      requests.push(listAllMcpPages(session, 'resources/list', 'resources').then((resources) => {
+        catalog.resources = resources;
+      }));
+      requests.push(listAllMcpPages(session, 'resources/templates/list', 'resourceTemplates').then((templates) => {
+        catalog.resourceTemplates = templates;
+      }));
+    }
+    const settled = await Promise.allSettled(requests);
+    const errors = settled.filter((result) => result.status === 'rejected').map((result) => result.reason.message);
+    res.json({
+      ...catalog,
+      protocol: {
+        era: session.mcpSession.era,
+        version: session.mcpSession.protocolVersion,
+        capabilities,
+        serverInfo: session.mcpSession.serverInfo,
+        instructions: session.mcpSession.instructions,
+      },
+      errors,
+    });
+  } catch (err) {
+    emitEvent(session, 'error', { scope: 'catalog', message: err.message });
+    res.status(relayFailureStatus(err)).json({ error: err.message });
+  }
+});
+
+// POST /request — typed MCP request entry point for prompts, resources,
+// completion, subscriptions, tasks extensions, and future negotiated methods.
+router.post('/request', express.json(), async (req, res) => {
+  const session = getClientSession(req);
+  try {
+    if (!session.oauth.accessToken && !isProcyonAgentUrl(session.config.mcpUrl)) {
+      return res.status(401).json({ error: 'Not authenticated.' });
+    }
+    const { method, params } = req.body || {};
+    if (typeof method !== 'string' || !method.includes('/')) {
+      return res.status(400).json({ error: 'A valid MCP method is required.' });
+    }
+    const data = await callMcp(session, method, params || {});
+    res.json(data);
+  } catch (err) {
+    emitEvent(session, 'error', { scope: 'mcp_request', message: err.message });
+    res.status(relayFailureStatus(err)).json({ error: err.message });
+  }
+});
+
+router.post('/subscriptions/start', express.json(), async (req, res) => {
+  const session = getClientSession(req);
+  try {
+    if (!session.oauth.accessToken && !isProcyonAgentUrl(session.config.mcpUrl)) {
+      return res.status(401).json({ error: 'Not authenticated.' });
+    }
+    const types = Array.isArray(req.body?.types) ? req.body.types : [
+      'toolsListChanged', 'promptsListChanged', 'resourcesListChanged', 'resourceSubscriptions',
+    ];
+    await startModernSubscription(session, types);
+    res.status(202).json({ ok: true, types });
+  } catch (err) {
+    res.status(relayFailureStatus(err)).json({ error: err.message });
+  }
+});
+
+router.delete('/subscriptions', (req, res) => {
+  const session = getClientSession(req);
+  session.subscription.controller?.abort();
+  session.subscription = { controller: null, active: false };
+  res.json({ ok: true });
 });
 
 // POST /rpc — raw MCP JSON-RPC passthrough

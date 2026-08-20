@@ -10,6 +10,13 @@ import PrivilegeMcpLearningPage from './PrivilegeMcpLearningPage';
 import './PrivilegeMcpClientPage.css';
 
 const API_BASE = '/api/privilege-mcp';
+const MCP_METHOD_TEMPLATES = {
+  'resources/read': { uri: '' },
+  'prompts/get': { name: '', arguments: {} },
+  'completion/complete': { ref: { type: 'ref/prompt', name: '' }, argument: { name: '', value: '' } },
+  'tasks/get': { taskId: '' },
+  'tasks/update': { taskId: '', action: 'input', input: {} },
+};
 
 function api(path, options = {}) {
   return fetch(`${API_BASE}${path}`, {
@@ -77,6 +84,14 @@ export default function PrivilegeMcpClientPage() {
   const [user, setUser] = useState(null);
   const [grantedScopes, setGrantedScopes] = useState([]);
   const [tools, setTools] = useState([]);
+  const [mcpCatalog, setMcpCatalog] = useState({ prompts: [], resources: [], resourceTemplates: [] });
+  const [mcpProtocol, setMcpProtocol] = useState(null);
+  const [mcpMethod, setMcpMethod] = useState('resources/read');
+  const [mcpParams, setMcpParams] = useState(JSON.stringify(MCP_METHOD_TEMPLATES['resources/read'], null, 2));
+  const [mcpResult, setMcpResult] = useState('');
+  const [mcpInputRequired, setMcpInputRequired] = useState(null);
+  const [mcpInputResponses, setMcpInputResponses] = useState('[]');
+  const [subscriptionActive, setSubscriptionActive] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [thinking, setThinking] = useState(false);
@@ -203,6 +218,8 @@ export default function PrivilegeMcpClientPage() {
       setUser(s.user || null);
       if (s.oauth?.scope) setGrantedScopes(s.oauth.scope.split(' ').filter(Boolean));
       setTools(s.tools || []);
+      setMcpProtocol(s.mcp || null);
+      setSubscriptionActive(Boolean(s.mcp?.subscriptionActive));
       // Auto-discover tools only after Privilege auth completes
       if (s.gatewayMode !== 'agent' && s.oauth?.authenticated && (!s.tools || s.tools.length === 0)) {
         refreshTools(true);
@@ -232,6 +249,7 @@ export default function PrivilegeMcpClientPage() {
     es.addEventListener('oauth', handler('oauth'));
     es.addEventListener('config', handler('config'));
     es.addEventListener('mcp', handler('mcp'));
+    es.addEventListener('subscription', handler('subscription'));
     es.addEventListener('error', handler('error'));
     return () => es.close();
   }, [appendEvent]);
@@ -329,6 +347,14 @@ export default function PrivilegeMcpClientPage() {
       const data = await api('/tools/list', { method: 'POST' });
       const nextTools = data.tools || [];
       setTools(nextTools);
+      api('/catalog').then((catalog) => {
+        setMcpCatalog({
+          prompts: catalog.prompts || [],
+          resources: catalog.resources || [],
+          resourceTemplates: catalog.resourceTemplates || [],
+        });
+        setMcpProtocol(catalog.protocol || null);
+      }).catch(() => { /* tools remain usable when optional primitives fail */ });
       setAuthenticated(true);
       if (!silent) appendChat('system', `Discovered ${nextTools.length} tools from MCP server.`);
     } catch (err) {
@@ -462,6 +488,68 @@ export default function PrivilegeMcpClientPage() {
       setRawRpcResult(JSON.stringify(data, null, 2));
     } catch (err) {
       setRawRpcResult(JSON.stringify({ error: err.message }, null, 2));
+    }
+  };
+
+  const chooseMcpMethod = (method) => {
+    setMcpMethod(method);
+    setMcpParams(JSON.stringify(MCP_METHOD_TEMPLATES[method] || {}, null, 2));
+    setMcpResult('');
+  };
+
+  const sendMcpRequest = async () => {
+    try {
+      const params = JSON.parse(mcpParams || '{}');
+      const data = await api('/request', { method: 'POST', body: { method: mcpMethod, params } });
+      setMcpResult(JSON.stringify(data, null, 2));
+      const result = data?.result;
+      if (result?.resultType === 'input_required') {
+        const responses = (result.inputRequests || []).map((input) => (
+          input.method === 'elicitation/create'
+            ? { action: 'accept', content: {} }
+            : { error: { code: -32601, message: `Unsupported input request: ${input.method}` } }
+        ));
+        setMcpInputRequired({ method: mcpMethod, params, requestState: result.requestState });
+        setMcpInputResponses(JSON.stringify(responses, null, 2));
+      } else {
+        setMcpInputRequired(null);
+      }
+    } catch (err) {
+      setMcpResult(JSON.stringify({ error: err.message }, null, 2));
+    }
+  };
+
+  const continueMcpRequest = async () => {
+    if (!mcpInputRequired) return;
+    try {
+      const inputResponses = JSON.parse(mcpInputResponses || '[]');
+      const params = {
+        ...mcpInputRequired.params,
+        requestState: mcpInputRequired.requestState,
+        inputResponses,
+      };
+      const data = await api('/request', {
+        method: 'POST', body: { method: mcpInputRequired.method, params },
+      });
+      setMcpResult(JSON.stringify(data, null, 2));
+      if (data?.result?.resultType !== 'input_required') setMcpInputRequired(null);
+    } catch (err) {
+      setMcpResult(JSON.stringify({ error: err.message }, null, 2));
+    }
+  };
+
+  const toggleSubscriptions = async () => {
+    try {
+      if (subscriptionActive) {
+        await api('/subscriptions', { method: 'DELETE' });
+        setSubscriptionActive(false);
+      } else {
+        await api('/subscriptions/start', { method: 'POST' });
+        setSubscriptionActive(true);
+        setTerminalTab('events');
+      }
+    } catch (err) {
+      setMcpResult(JSON.stringify({ error: err.message }, null, 2));
     }
   };
 
@@ -906,6 +994,7 @@ export default function PrivilegeMcpClientPage() {
           <div className="cur-tabs">
             <button className={`cur-tab ${activeTab === 'chat' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('chat')}>Agent Chat</button>
             <button className={`cur-tab ${activeTab === 'tools' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('tools')}>Tools</button>
+            <button className={`cur-tab ${activeTab === 'mcp' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('mcp')}>MCP Explorer</button>
             <button className={`cur-tab ${activeTab === 'rpc' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('rpc')}>Raw RPC</button>
             <button className={`cur-tab ${activeTab === 'sessions' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('sessions')}>Access</button>
           </div>
@@ -966,6 +1055,78 @@ export default function PrivilegeMcpClientPage() {
                 selectedTool={selectedTool}
                 selectNonce={toolSelectNonce}
               />
+            )}
+
+            {activeTab === 'mcp' && (
+              <div className="cur-rpc-panel cur-mcp-explorer">
+                <div className="cur-tools-header">
+                  <h3>Server Capabilities</h3>
+                  <div className="cur-btn-row">
+                    <button className="cur-btn" onClick={toggleSubscriptions}>
+                      {subscriptionActive ? 'Stop Subscriptions' : 'Listen for Changes'}
+                    </button>
+                    <button className="cur-btn" onClick={() => refreshTools(false)}>Rediscover</button>
+                  </div>
+                </div>
+                <div className="cur-mcp-protocol">
+                  <span>{mcpProtocol?.serverInfo?.name || 'MCP server'}</span>
+                  <span>{mcpProtocol?.era || 'not connected'} · {mcpProtocol?.version || 'version unknown'}</span>
+                </div>
+                {mcpProtocol?.instructions && <p className="cur-mcp-instructions">{mcpProtocol.instructions}</p>}
+                <div className="cur-mcp-catalog-grid">
+                  <section>
+                    <h4>Prompts ({mcpCatalog.prompts.length})</h4>
+                    {mcpCatalog.prompts.map((prompt) => (
+                      <button key={prompt.name} className="cur-mcp-item" onClick={() => {
+                        chooseMcpMethod('prompts/get');
+                        setMcpParams(JSON.stringify({ name: prompt.name, arguments: {} }, null, 2));
+                      }}>{prompt.name}</button>
+                    ))}
+                  </section>
+                  <section>
+                    <h4>Resources ({mcpCatalog.resources.length})</h4>
+                    {mcpCatalog.resources.map((resource) => (
+                      <button key={resource.uri} className="cur-mcp-item" onClick={() => {
+                        chooseMcpMethod('resources/read');
+                        setMcpParams(JSON.stringify({ uri: resource.uri }, null, 2));
+                      }}>{resource.name || resource.uri}</button>
+                    ))}
+                  </section>
+                  <section>
+                    <h4>Templates ({mcpCatalog.resourceTemplates.length})</h4>
+                    {mcpCatalog.resourceTemplates.map((template) => (
+                      <div key={template.uriTemplate} className="cur-mcp-item cur-mcp-item--static">
+                        {template.name || template.uriTemplate}
+                      </div>
+                    ))}
+                  </section>
+                </div>
+                <label className="cur-field">
+                  <span className="cur-field-label">MCP Method</span>
+                  <select className="cur-input" value={mcpMethod} onChange={(event) => chooseMcpMethod(event.target.value)}>
+                    {Object.keys(MCP_METHOD_TEMPLATES).map((method) => <option key={method}>{method}</option>)}
+                  </select>
+                </label>
+                <label className="cur-field">
+                  <span className="cur-field-label">Parameters</span>
+                  <textarea className="cur-input cur-input--code" rows={8} value={mcpParams} onChange={(event) => setMcpParams(event.target.value)} />
+                </label>
+                <button className="cur-btn cur-btn--primary" onClick={sendMcpRequest}>Send MCP Request</button>
+                {mcpInputRequired && (
+                  <div className="cur-mcp-input-required">
+                    <h4>Input Required</h4>
+                    <p>Review the server request above, then accept, decline, or cancel each input request.</p>
+                    <textarea className="cur-input cur-input--code" rows={8} value={mcpInputResponses} onChange={(event) => setMcpInputResponses(event.target.value)} />
+                    <button className="cur-btn cur-btn--primary" onClick={continueMcpRequest}>Continue Request</button>
+                  </div>
+                )}
+                {mcpResult && (
+                  <div className="cur-result-block">
+                    <span className="cur-result-label">Response</span>
+                    <pre className="cur-code-output jh-dark"><JsonHighlight value={mcpResult} deep /></pre>
+                  </div>
+                )}
+              </div>
             )}
 
             {activeTab === 'rpc' && (
@@ -1153,7 +1314,7 @@ export default function PrivilegeMcpClientPage() {
       {/* Status bar */}
       <footer className="cur-statusbar">
         <div className="cur-statusbar-left">
-          <span className="cur-statusbar-item">MCP Protocol 2025-11-25</span>
+          <span className="cur-statusbar-item">MCP Protocol {mcpProtocol?.version || 'not negotiated'}</span>
           <span className="cur-statusbar-item">{tools.length} tools</span>
         </div>
         <div className="cur-statusbar-right">
