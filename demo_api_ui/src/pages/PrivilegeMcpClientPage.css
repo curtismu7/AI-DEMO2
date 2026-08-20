@@ -70,6 +70,10 @@
 .cur-gateway-banner__title { font-size: 20px; font-weight: 750; line-height: 1.2; margin-top: 2px; }
 .cur-gateway-banner__detail { font-size: 12px; color: #c5d9ee; margin-top: 2px; }
 .cur-gateway-banner__url { display: block; color: #8bd5ff; font-size: 11px; margin-top: 5px; overflow-wrap: anywhere; }
+.cur-policy-summary { display: flex; gap: 8px; margin-top: 10px; font-size: 12px; }
+.cur-policy-summary span { padding: 4px 8px; border-radius: 999px; background: #26384d; }
+.cur-policy-summary__allowed { color: #86efac; }
+.cur-policy-summary__filtered { color: #fca5a5; }
 
 .cur-status {
   display: flex;
@@ -559,6 +563,13 @@ select.cur-input { cursor: pointer; }
   overflow: auto;
   max-height: 200px;
 }
+.cur-policy-decision { display: grid; grid-template-columns: auto auto; gap: 4px 8px; margin-top: 8px; padding: 8px; border: 1px solid #64748b; border-radius: 6px; font-size: 11px; }
+.cur-policy-decision span { grid-column: 1 / -1; color: #cbd5e1; }
+.cur-policy-decision--allowed { border-color: #22c55e; color: #86efac; }
+.cur-policy-decision--filtered,
+.cur-policy-decision--denied { border-color: #ef4444; color: #fca5a5; }
+.cur-policy-decision--confirmation_required,
+.cur-policy-decision--input_required { border-color: #f59e0b; color: #fcd34d; }
 
 /* Gateway-switch overlay — sits above every modal while the client re-auths
    against the newly selected gateway and rediscovers its tools. */

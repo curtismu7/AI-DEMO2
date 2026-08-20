@@ -2,7 +2,7 @@
 // The costume picker must persist the pick and navigate straight to that
 // costume's live shell — from the client page AND from inside a shell, so a
 // skin can be swapped without backing out first.
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import PrivilegeMcpClientPage from "../PrivilegeMcpClientPage";
 import FootprintLiveShellPage from "../FootprintLiveShellPage";
@@ -37,7 +37,7 @@ function renderClientPage() {
       <PrivilegeMcpClientPage />
     </MemoryRouter>,
   );
-  return screen.getByRole("combobox");
+  return screen.getByRole("combobox", { name: "Skin" });
 }
 
 function renderShell(category = "coding") {
@@ -46,15 +46,16 @@ function renderShell(category = "coding") {
       <FootprintLiveShellPage category={category} />
     </MemoryRouter>,
   );
-  return screen.getByRole("combobox");
+  return screen.getByRole("combobox", { name: "Skin" });
 }
 
 describe("costume picker on the Privilege client page", () => {
   it("defaults to Cursor and lists only the four supported client skins", () => {
     const select = renderClientPage();
+    const options = within(select).getAllByRole("option");
     expect(select).toHaveValue("");
-    expect(screen.getAllByRole("option")).toHaveLength(4);
-    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual([
+    expect(options).toHaveLength(4);
+    expect(options.map((option) => option.textContent)).toEqual([
       "Cursor",
       "Visual Studio Code",
       "Claude Terminal",

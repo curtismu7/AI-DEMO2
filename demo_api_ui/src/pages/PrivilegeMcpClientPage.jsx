@@ -85,6 +85,7 @@ export default function PrivilegeMcpClientPage() {
   const [user, setUser] = useState(null);
   const [grantedScopes, setGrantedScopes] = useState([]);
   const [tools, setTools] = useState([]);
+  const [toolPolicy, setToolPolicy] = useState({ total: 0, permitted: 0, filtered: 0, filteredTools: [] });
   const [mcpCatalog, setMcpCatalog] = useState({ prompts: [], resources: [], resourceTemplates: [] });
   const [mcpProtocol, setMcpProtocol] = useState(null);
   const [mcpMethod, setMcpMethod] = useState('resources/read');
@@ -149,6 +150,7 @@ export default function PrivilegeMcpClientPage() {
     setToolResults([]);
     setRawRpcResult('');
     setTools([]);
+    setToolPolicy({ total: 0, permitted: 0, filtered: 0, filteredTools: [] });
     setSelectedTool(null);
     setSelectedScope(null);
     setToolSearch('');
@@ -219,6 +221,7 @@ export default function PrivilegeMcpClientPage() {
       setUser(s.user || null);
       if (s.oauth?.scope) setGrantedScopes(s.oauth.scope.split(' ').filter(Boolean));
       setTools(s.tools || []);
+      setToolPolicy(s.policy || { total: (s.tools || []).length, permitted: (s.tools || []).length, filtered: 0, filteredTools: [] });
       setMcpProtocol(s.mcp || null);
       setSubscriptionActive(Boolean(s.mcp?.subscriptionActive));
       setGatewayStateLoaded(true);
@@ -381,6 +384,7 @@ export default function PrivilegeMcpClientPage() {
       const data = await api('/tools/list', { method: 'POST' });
       const nextTools = data.tools || [];
       setTools(nextTools);
+      setToolPolicy(data.policy || { total: nextTools.length, permitted: nextTools.length, filtered: 0, filteredTools: [] });
       api('/catalog').then((catalog) => {
         setMcpCatalog({
           prompts: catalog.prompts || [],
@@ -452,11 +456,18 @@ export default function PrivilegeMcpClientPage() {
         appendChat('assistant', data.reply || 'Done.', {
           available_tools: (data.tools || []).map((t) => t.name),
           suggested_tools: data.suggested_tools || [],
+          policy: data.policy || null,
+          decision: data.decision || null,
+          execution: data.execution || null,
           steps: data.steps || [],
         });
         if (data.tools) {
           setTools(data.tools);
+          setToolPolicy(data.policy || { total: data.tools.length, permitted: data.tools.length, filtered: 0, filteredTools: [] });
           setAuthenticated(true);
+        }
+        if (data.decision?.tool && data.execution) {
+          recordResult(data.decision.tool, JSON.stringify(data.execution, null, 2), data.decision.outcome === 'ALLOWED');
         }
       }
     } catch (err) {
@@ -919,6 +930,13 @@ export default function PrivilegeMcpClientPage() {
         <div className="cur-gateway-banner__title">{mode.title}</div>
         <div className="cur-gateway-banner__detail">{mode.detail}</div>
         {mode.url && <code className="cur-gateway-banner__url">{mode.url}</code>}
+        {toolPolicy.total > 0 && (
+          <div className="cur-policy-summary" aria-label="Tool policy summary">
+            <span><strong>{toolPolicy.total}</strong> catalog</span>
+            <span className="cur-policy-summary__allowed"><strong>{toolPolicy.permitted}</strong> permitted</span>
+            <span className="cur-policy-summary__filtered"><strong>{toolPolicy.filtered}</strong> filtered</span>
+          </div>
+        )}
       </section>
 
       <div className="cur-body" ref={bodyRef}>
@@ -1064,6 +1082,13 @@ export default function PrivilegeMcpClientPage() {
                         <span className="cur-msg-role">{msg.role === 'user' ? 'You' : msg.role === 'assistant' ? 'Agent' : 'System'}</span>
                       </div>
                       <div className="cur-msg-body">{msg.content}</div>
+                      {msg.extra?.decision && (
+                        <div className={`cur-policy-decision cur-policy-decision--${msg.extra.decision.outcome.toLowerCase()}`}>
+                          <strong>{msg.extra.decision.outcome}</strong>
+                          <code>{msg.extra.decision.tool}</code>
+                          <span>{msg.extra.decision.reason}</span>
+                        </div>
+                      )}
                       {msg.extra && (
                         <pre className="cur-msg-meta">{typeof msg.extra === 'string' ? msg.extra : JSON.stringify(msg.extra, null, 2)}</pre>
                       )}
