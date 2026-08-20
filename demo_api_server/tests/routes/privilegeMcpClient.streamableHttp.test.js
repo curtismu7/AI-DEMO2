@@ -3,7 +3,7 @@
 const express = require('express');
 const request = require('supertest');
 
-const MCP_URL = 'https://cmuir-agentless-mcpgw.ping-devops.com/opensearch-mcp-server/mcp';
+const MCP_URL = 'https://cmuir-agentless-mcpgw.ping-devops.com/cmuir/mcp';
 
 function buildApp() {
   jest.resetModules();

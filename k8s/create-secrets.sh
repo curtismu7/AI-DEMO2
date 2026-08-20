@@ -333,7 +333,7 @@ override_redirect_uris_for_public_origin() {
 # own certificate), and nginx re-encrypting it hits TLS handshake failures no
 # matter the backend-protocol annotation (HTTP/HTTPS/GRPCS all tried against
 # the real gateway). The Agentless Helm release instead exposes Streamable HTTP:
-#   https://<app-name>-agentless-mcpgw.ping-devops.com/opensearch-mcp-server/mcp
+#   https://<namespace-owner>-agentless-mcpgw.ping-devops.com/<app-name>/mcp
 # Keep this separate from PRIVILEGE_AGENT_MCPGW_URL: the Priv Agent frontend
 # owns its authentication and must not inherit Agentless OAuth configuration.
 override_privilege_urls_for_public_origin() {
@@ -348,7 +348,8 @@ override_privilege_urls_for_public_origin() {
   origin="${origin%/}"
   local mcpgw_base="${origin}/mcpgw"
   local app_name="${NS#ping-devops-}"
-  local mcpgw_client_url="${PRIVILEGE_AGENTLESS_MCPGW_URL:-https://${app_name}-agentless-mcpgw.ping-devops.com/opensearch-mcp-server/mcp}"
+  local mcpgw_application="${MCPGW_APP_NAME:-$app_name}"
+  local mcpgw_client_url="${PRIVILEGE_AGENTLESS_MCPGW_URL:-https://${app_name}-agentless-mcpgw.ping-devops.com/${mcpgw_application}/mcp}"
 
   # mcpgw binary routes by path prefix: /<app-name>/mcp (not just /mcp).
   # Set MCPGW_APP_NAME env var to the name registered in the Privilege console

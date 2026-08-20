@@ -105,6 +105,25 @@ read the configured host. A new browser origin must be added to ALL of:
 ## §4 — Bug Fix Log
 Reverse-chronological, newest first.
 
+### 2026-08-20 — Privilege client targeted the wrong Agentless MCP application
+
+**Files changed:** `demo_api_server/routes/privilegeMcpClient.js`, focused
+Privilege MCP tests, and `k8s/create-secrets.sh`.
+
+**What was broken:** the Agentless preset and SE secret generator targeted the
+OpenSearch sample application even though the cmuir Agentless gateway routes the
+registered `cmuir` application at `/cmuir/mcp`. The sample path completed OAuth
+but could not route the authenticated MCP request.
+
+**What was fixed:** use the registered application name in the Streamable HTTP
+URL, defaulting it from the namespace owner while honoring `MCPGW_APP_NAME`.
+
+**Do not break:** Agent mode remains a direct MCP connection to its
+Privilege-hosted URL and keeps authentication under the installed agent.
+
+**Verify:** focused Privilege MCP state and Streamable HTTP tests; shell syntax;
+live tokenless initialize returns the MCP OAuth challenge at `/cmuir/mcp`.
+
 ### 2026-08-20 — Privilege page navigated to an MCP endpoint instead of running MCP
 
 **Files changed:** `demo_api_server/routes/privilegeMcpClient.js`, its Streamable
@@ -118,7 +137,7 @@ for JSON-RPC ids and accepted mismatched response ids.
 `notifications/initialized`, then `tools/list` or `tools/call`. The client sends
 negotiated session/protocol headers, accepts JSON or SSE, uses monotonic ids, and
 rejects mismatched ids or unsupported protocol negotiation. The Agentless preset
-targets the cmuir OpenSearch gateway.
+targets the cmuir gateway.
 
 **Do not break:** Agent sends no OAuth bearer; Agentless retains gateway-managed
 OAuth. Do not replace MCP POSTs with browser navigation or omit negotiated MCP headers.
