@@ -27,7 +27,7 @@ describe('GET /api/privilege-mcp/state — mcpUrl default', () => {
     const res = await request(app).get('/api/privilege-mcp/state').expect(200);
 
     expect(res.body.config.mcpUrl).toBe(
-      'https://cmuir-agentless-mcpgw.ping-devops.com/opensearch-mcp-server/mcp',
+      'https://cmuir-agentless-mcpgw.ping-devops.com/cmuir/mcp',
     );
   });
 });

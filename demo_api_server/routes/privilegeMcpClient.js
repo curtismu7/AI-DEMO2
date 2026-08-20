@@ -7,7 +7,7 @@ const crypto = require('crypto');
 const router = express.Router();
 
 const DEFAULT_AGENTLESS_MCP_URL =
-  'https://cmuir-agentless-mcpgw.ping-devops.com/opensearch-mcp-server/mcp';
+  'https://cmuir-agentless-mcpgw.ping-devops.com/cmuir/mcp';
 const DEFAULT_AGENT_MCP_URL =
   'https://opensearch.default.applications.procyon.ai:8643/mcp';
 const MCP_PROTOCOL_VERSION = '2024-11-05';
