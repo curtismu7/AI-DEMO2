@@ -1,6 +1,6 @@
 // demo_api_ui/src/pages/__tests__/PrivilegeMcpClientPage.gatewaySwitch.test.jsx
-// Agent and agentless gateway settings follow different connection paths.
-// Agent mode redirects directly to its frontend; only agentless starts OAuth.
+// Agent and agentless gateway settings follow different authentication paths.
+// Both stay in the app and use the MCP client; only agentless starts OAuth.
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import PrivilegeMcpClientPage from "../PrivilegeMcpClientPage";
@@ -72,7 +72,7 @@ const baseState = {
 };
 
 describe("gateway switch on Settings save", () => {
-  it("saving Agent mode stores that config without starting PingOne OAuth", async () => {
+  it("saving Agent mode stores that config and runs MCP discovery without starting PingOne OAuth", async () => {
     global.fetch = mockFetch({ state: baseState });
     renderPage();
     fireEvent.click(await screen.findByTitle("Settings"));
@@ -89,6 +89,8 @@ describe("gateway switch on Settings save", () => {
     });
     const authStartCalls = global.fetch.mock.calls.filter(([u]) => String(u).includes("/auth/start"));
     expect(authStartCalls).toHaveLength(0);
+    const toolsListCalls = global.fetch.mock.calls.filter(([u]) => String(u).includes("/tools/list"));
+    expect(toolsListCalls).toHaveLength(1);
     expect(sessionStorage.getItem("cur_priv_switching")).toBeNull();
   });
 

@@ -6,6 +6,12 @@ const express = require('express');
 const crypto = require('crypto');
 const router = express.Router();
 
+const DEFAULT_AGENTLESS_MCP_URL =
+  'https://cmuir-agentless-mcpgw.ping-devops.com/opensearch-mcp-server/mcp';
+const DEFAULT_AGENT_MCP_URL =
+  'https://opensearch.default.applications.procyon.ai:8643/mcp';
+const MCP_PROTOCOL_VERSION = '2024-11-05';
+
 // ---------------------------------------------------------------------------
 // In-memory per-session state (keyed by express session id)
 // ---------------------------------------------------------------------------
@@ -15,13 +21,15 @@ function getClientSession(req) {
   const sid = req.sessionID || req.session?.id || 'default';
   if (!clientSessions.has(sid)) {
     const agentlessConfig = {
-      mcpUrl: process.env.PRIVILEGE_MCPGW_URL || '',
+      mcpUrl: process.env.PRIVILEGE_AGENTLESS_MCPGW_URL
+        || process.env.PRIVILEGE_MCPGW_URL
+        || DEFAULT_AGENTLESS_MCP_URL,
       clientId: process.env.PRIVILEGE_SSO_CLIENT_ID || process.env.PINGONE_MCP_GATEWAY_CLIENT_ID || '',
       scopes: 'openid profile email',
     };
     const agentConfig = {
       mcpUrl: process.env.PRIVILEGE_AGENT_MCPGW_URL
-        || 'https://opensearch.default.applications.procyon.ai:8643/mcp',
+        || DEFAULT_AGENT_MCP_URL,
     };
     clientSessions.set(sid, {
       _sid: sid,
@@ -40,7 +48,7 @@ function getClientSession(req) {
         dcrClientId: null, dcrClientSecret: null,
       },
       tools: [],
-      mcpSession: { initialized: false, protocolVersion: null, sessionId: null },
+      mcpSession: { initialized: false, protocolVersion: null, sessionId: null, nextRequestId: 1 },
       pendingAuth: null,
     });
   }
@@ -224,6 +232,12 @@ function relayFailureStatus(err) {
   return Number.isInteger(status) && status >= 400 && status < 500 ? status : 500;
 }
 
+function nextMcpRequestId(session) {
+  const id = session.mcpSession.nextRequestId;
+  session.mcpSession.nextRequestId += 1;
+  return id;
+}
+
 // Refresh a little before expiry so an in-flight relay never races the clock
 const TOKEN_REFRESH_SKEW_MS = 60 * 1000;
 
@@ -294,7 +308,11 @@ async function fetchMcp(session, pathname, body, withAuth = true, allowRefreshRe
   const targetUrl = new URL(session.config.mcpUrl);
   if (pathname) targetUrl.pathname = pathname;
 
-  const headers = { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' };
+  const headers = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json, text/event-stream',
+    Origin: targetUrl.origin,
+  };
   if (withAuth && session.oauth.accessToken) {
     headers.Authorization = `Bearer ${session.oauth.accessToken}`;
     // Debug: decode token claims
@@ -313,7 +331,7 @@ async function fetchMcp(session, pathname, body, withAuth = true, allowRefreshRe
   }
   // MCP spec requires mcp-protocol-version on all non-initialize requests
   if (body?.method && body.method !== 'initialize') {
-    headers['mcp-protocol-version'] = session.mcpSession.protocolVersion || '2024-11-05';
+    headers['MCP-Protocol-Version'] = session.mcpSession.protocolVersion || MCP_PROTOCOL_VERSION;
   }
 
   emitEvent(session, 'relay', { direction: 'client->mcp', method: 'POST', url: targetUrl.toString(), body });
@@ -350,6 +368,9 @@ async function fetchMcp(session, pathname, body, withAuth = true, allowRefreshRe
   if (parsed?.error) {
     throw new Error(`MCP RPC error: ${parsed.error.message || JSON.stringify(parsed.error)}`);
   }
+  if (body?.id !== undefined && parsed?.id !== body.id) {
+    throw new Error(`MCP response id mismatch: expected ${body.id}, received ${parsed?.id ?? 'none'}`);
+  }
   return parsed;
 }
 
@@ -358,21 +379,26 @@ async function ensureMcpSessionInitialized(session) {
 
   const initRpc = {
     jsonrpc: '2.0',
-    id: Date.now(),
+    id: nextMcpRequestId(session),
     method: 'initialize',
     params: {
-      protocolVersion: '2024-11-05',
+      protocolVersion: MCP_PROTOCOL_VERSION,
       capabilities: {},
       clientInfo: { name: 'MCP Privilege Demo Client', version: '1.0.0' },
     },
   };
   const initResponse = await fetchMcp(session, null, initRpc, true);
-  const serverProtocol = initResponse?.result?.protocolVersion || '2024-11-05';
+  const serverProtocol = initResponse?.result?.protocolVersion;
+  if (!serverProtocol) throw new Error('MCP initialize response did not include a protocolVersion.');
+  if (serverProtocol !== MCP_PROTOCOL_VERSION) {
+    throw new Error(`MCP server negotiated unsupported protocol version ${serverProtocol}.`);
+  }
+
+  session.mcpSession.protocolVersion = serverProtocol;
 
   await fetchMcp(session, null, { jsonrpc: '2.0', method: 'notifications/initialized', params: {} }, true);
 
   session.mcpSession.initialized = true;
-  session.mcpSession.protocolVersion = serverProtocol;
   emitEvent(session, 'mcp', { phase: 'initialized', protocolVersion: serverProtocol });
 }
 
@@ -381,6 +407,7 @@ function resetMcpState(session) {
   session.mcpSession.initialized = false;
   session.mcpSession.protocolVersion = null;
   session.mcpSession.sessionId = null;
+  session.mcpSession.nextRequestId = 1;
 }
 
 async function discoverAuth(session) {
@@ -571,12 +598,18 @@ router.get('/state', (req, res) => {
   // the registered opensearch app; override with PRIVILEGE_AGENT_MCPGW_URL when
   // a different app is registered in the Privilege console.
   const presets = [
-    { label: 'Agentless gateway (nginx)', mode: 'agentless', url: process.env.PRIVILEGE_MCPGW_URL || '' },
+    {
+      label: 'Agentless gateway (nginx)',
+      mode: 'agentless',
+      url: process.env.PRIVILEGE_AGENTLESS_MCPGW_URL
+        || process.env.PRIVILEGE_MCPGW_URL
+        || DEFAULT_AGENTLESS_MCP_URL,
+    },
     {
       label: 'AI Gateway via Priv Agent',
       mode: 'agent',
       url: process.env.PRIVILEGE_AGENT_MCPGW_URL
-        || 'https://opensearch.default.applications.procyon.ai:8643/mcp',
+        || DEFAULT_AGENT_MCP_URL,
     },
   ].filter((p) => p.url);
   res.json({
@@ -734,7 +767,7 @@ router.post('/tools/list', express.json(), async (req, res) => {
   try {
     if (!session.oauth.accessToken && !isProcyonAgentUrl(session.config.mcpUrl)) return res.status(401).json({ error: 'Not authenticated — click Sign In with Privilege.' });
     await ensureMcpSessionInitialized(session);
-    const rpc = { jsonrpc: '2.0', id: Date.now(), method: 'tools/list', params: {} };
+    const rpc = { jsonrpc: '2.0', id: nextMcpRequestId(session), method: 'tools/list', params: {} };
     let data;
     try {
       data = await fetchMcp(session, null, rpc, true);
@@ -761,7 +794,7 @@ router.post('/tools/call', express.json(), async (req, res) => {
     if (!session.oauth.accessToken && !isProcyonAgentUrl(session.config.mcpUrl)) return res.status(401).json({ error: 'Not authenticated.' });
     await ensureMcpSessionInitialized(session);
     const { name, arguments: args } = req.body || {};
-    const rpc = { jsonrpc: '2.0', id: Date.now(), method: 'tools/call', params: { name, arguments: args || {} } };
+    const rpc = { jsonrpc: '2.0', id: nextMcpRequestId(session), method: 'tools/call', params: { name, arguments: args || {} } };
     let data;
     try {
       data = await fetchMcp(session, null, rpc, true);
@@ -870,7 +903,9 @@ router.post('/chat', express.json(), async (req, res) => {
     await ensureMcpSessionInitialized(session);
     steps.push('mcp_initialized');
 
-    const toolsResponse = await fetchMcp(session, null, { jsonrpc: '2.0', id: Date.now(), method: 'tools/list', params: {} }, true);
+    const toolsResponse = await fetchMcp(session, null, {
+      jsonrpc: '2.0', id: nextMcpRequestId(session), method: 'tools/list', params: {},
+    }, true);
     session.tools = toolsResponse.result?.tools || [];
     steps.push(`tools_discovered:${session.tools.length}`);
 
@@ -999,7 +1034,7 @@ function envFallbackVars() {
   const envId = process.env.PRIVILEGE_SSO_ENV_ID || process.env.PINGONE_ENVIRONMENT_ID;
   const asBase = envId ? `https://auth.pingone.com/${envId}/as` : '';
   const candidates = {
-    SERVER_URL: process.env.PRIVILEGE_MCPGW_URL,
+    SERVER_URL: process.env.PRIVILEGE_AGENTLESS_MCPGW_URL || process.env.PRIVILEGE_MCPGW_URL,
     OIDC_CLIENT_ID: process.env.PRIVILEGE_SSO_CLIENT_ID || process.env.PINGONE_MCP_GATEWAY_CLIENT_ID,
     OIDC_CLIENT_SECRET: process.env.PRIVILEGE_SSO_CLIENT_SECRET || process.env.PINGONE_MCP_GATEWAY_CLIENT_SECRET,
     OIDC_AUTH_URL: asBase && `${asBase}/authorize`,

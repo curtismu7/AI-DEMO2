@@ -138,9 +138,20 @@ describe('privilege MCP Bearer seed must not inherit OAuth refresh identity', ()
       .send({ mcpUrl: MCP_URL, clientId: 'client-abc' })
       .expect(200);
 
-    global.fetch = jest.fn(async () =>
-      jsonResponse({ jsonrpc: '2.0', id: 1, result: { tools: [] } }),
-    );
+    global.fetch = jest.fn(async (_url, options) => {
+      const rpc = JSON.parse(options.body);
+      if (rpc.method === 'initialize') {
+        return jsonResponse({
+          jsonrpc: '2.0',
+          id: rpc.id,
+          result: { protocolVersion: '2024-11-05', capabilities: {} },
+        });
+      }
+      if (rpc.method === 'notifications/initialized') {
+        return { ok: true, status: 202, headers: { get: () => null }, text: async () => '' };
+      }
+      return jsonResponse({ jsonrpc: '2.0', id: rpc.id, result: { tools: [] } });
+    });
 
     await request(app)
       .post('/api/privilege-mcp/tools/list')

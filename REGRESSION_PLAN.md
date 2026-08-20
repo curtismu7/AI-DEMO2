@@ -105,6 +105,27 @@ read the configured host. A new browser origin must be added to ALL of:
 ## §4 — Bug Fix Log
 Reverse-chronological, newest first.
 
+### 2026-08-20 — Privilege page navigated to an MCP endpoint instead of running MCP
+
+**Files changed:** `demo_api_server/routes/privilegeMcpClient.js`, its Streamable
+HTTP test, `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`, and its gateway-switch test.
+
+**What was broken:** Saving Agent mode navigated the browser to `/mcp`, producing
+an ordinary GET without MCP headers. The relay also used millisecond timestamps
+for JSON-RPC ids and accepted mismatched response ids.
+
+**What was fixed:** Both modes now stay in the page and use `initialize`,
+`notifications/initialized`, then `tools/list` or `tools/call`. The client sends
+negotiated session/protocol headers, accepts JSON or SSE, uses monotonic ids, and
+rejects mismatched ids or unsupported protocol negotiation. The Agentless preset
+targets the cmuir OpenSearch gateway.
+
+**Do not break:** Agent sends no OAuth bearer; Agentless retains gateway-managed
+OAuth. Do not replace MCP POSTs with browser navigation or omit negotiated MCP headers.
+
+**Verify:** Focused BFF Streamable HTTP and Procyon suites; focused UI gateway
+switch suite; full UI unit suite and build.
+
 ### 2026-08-20 — Priv Agent mode still offered page-managed Privilege sign-in
 
 **Files changed:** `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx` and its
@@ -118,7 +139,7 @@ should authenticate even though the workstation agent owns authentication.
 controls. Agentless mode retains its existing sign-in, silent-auth, and sign-out
 controls.
 
-**Do not break:** Agent mode must redirect directly and never start page OAuth;
+**Do not break:** Agent mode must use the MCP client without starting page OAuth;
 Agentless mode must retain its PKCE and session flow.
 
 **Verify:** focused Privilege UI suite and UI build.
@@ -150,8 +171,8 @@ scopes, and `pingone.env`, and saving the selection started PingOne OAuth even
 though the workstation agent owns authentication.
 
 **What was fixed:** Agent and Agentless settings are stored independently. Agent
-mode contains only its frontend URL and redirects the browser directly to it;
-it never starts the page's PingOne OAuth flow. Client ID, requested scopes,
+mode contains only its frontend URL and never starts the page's PingOne OAuth
+flow. Client ID, requested scopes,
 local LLM controls, and `pingone.env` remain Agentless-only.
 
 **Do not break:** Agent mode must never forward or acquire a PingOne bearer.
