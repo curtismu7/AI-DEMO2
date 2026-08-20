@@ -3,7 +3,7 @@
 > For the current `ping-devops-cmuir` Agentless deployment, validate that a new
 > token names cluster `ai-demo-cmuir`, store it in Secret
 > `agentless-mcpgw-secret`, and restart only deployment `agentless-mcpgw`. See
-> [`../CURRENT-CONFIGURATION.md`](../CURRENT-CONFIGURATION.md). Commands below
+> [`../AGENTLESS-CONFIGURATION.md`](../AGENTLESS-CONFIGURATION.md). Commands below
 > mentioning `cyonproxy` or Docker volumes apply only to the legacy local setup.
 
 ## Read this before running anything below

@@ -7,7 +7,8 @@ Privilege MCP Client UI page, or the K8s deployment.
 ## Current live source of truth (2026-08-20)
 
 Before using the historical investigation below, read
-`privilege/CURRENT-CONFIGURATION.md`. The live cmuir Agentless deployment is proven
+`privilege/AGENTLESS-CONFIGURATION.md` for Agentless or
+`privilege/AGENT-CONFIGURATION.md` for Agent. The live cmuir Agentless deployment is proven
 on `privilege-mcpgw`: `/cmuir/mcp` returns the MCP OAuth challenge and the demo BFF
 uses that endpoint. The separate Agent endpoint is
 `https://opensearch.default.applications.procyon.ai:8643/mcp` and relies on the

@@ -2,7 +2,7 @@
 
 > **Legacy local/Host-rewrite runbook.** The current cmuir Agentless deployment
 > uses path routing at `https://cmuir-agentless-mcpgw.ping-devops.com/cmuir/mcp`.
-> See [`../CURRENT-CONFIGURATION.md`](../CURRENT-CONFIGURATION.md); do not apply
+> See [`../AGENTLESS-CONFIGURATION.md`](../AGENTLESS-CONFIGURATION.md); do not apply
 > this nginx topology to the live Kubernetes release.
 
 The "nginx engine" from the PingOne Privilege SE storyboard. Puts customer-owned

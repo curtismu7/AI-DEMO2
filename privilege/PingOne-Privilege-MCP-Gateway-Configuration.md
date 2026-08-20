@@ -1,7 +1,8 @@
 # PingOne Privilege MCP Gateway Configuration
 
 > **Current cmuir values:** use
-> [`CURRENT-CONFIGURATION.md`](CURRENT-CONFIGURATION.md). The current Agentless
+> [`AGENTLESS-CONFIGURATION.md`](AGENTLESS-CONFIGURATION.md) for Agentless and
+> [`AGENT-CONFIGURATION.md`](AGENT-CONFIGURATION.md) for Agent. The current Agentless
 > frontend is `https://cmuir-agentless-mcpgw.ping-devops.com/cmuir/mcp`, its mesh
 > cluster is `ai-demo-cmuir`, and it runs `privilege-mcpgw` rather than the legacy
 > `privilege-proxy`. Agent configuration is separate and uses

@@ -14,8 +14,9 @@ This repo contains a **client** for that gateway (`/privilege-mcp-client`), a **
 that drives the OAuth and MCP protocol on the client's behalf, and Compose/K8s wiring for
 running the gateway itself.
 
-> **Current operational configuration (2026-08-20):** use
-> [`CURRENT-CONFIGURATION.md`](CURRENT-CONFIGURATION.md). The live Agentless
+> **Current operational configuration (2026-08-20):** use the dedicated
+> [`Agentless`](AGENTLESS-CONFIGURATION.md) or
+> [`Agent`](AGENT-CONFIGURATION.md) guide. The live Agentless
 > deployment is `agentless-mcpgw` in `ping-devops-cmuir`, mesh cluster
 > `ai-demo-cmuir`, application `cmuir`, at
 > `https://cmuir-agentless-mcpgw.ping-devops.com/cmuir/mcp`. The separate Agent
@@ -45,7 +46,9 @@ hangs off it.
 
 | Artifact | Read it when |
 |---|---|
-| [`CURRENT-CONFIGURATION.md`](CURRENT-CONFIGURATION.md) | Operating the live cmuir Agentless or Agent deployment; this is the current source of truth |
+| [`AGENTLESS-CONFIGURATION.md`](AGENTLESS-CONFIGURATION.md) | Operating the live cmuir Agentless deployment; current source of truth for OAuth, routing, and image values |
+| [`AGENT-CONFIGURATION.md`](AGENT-CONFIGURATION.md) | Operating the working Agent-authenticated OpenSearch deployment |
+| [`CURRENT-CONFIGURATION.md`](CURRENT-CONFIGURATION.md) | Choosing between the two modes and comparing their current values |
 | **This file** | Anything. Architecture, protocol per hop, every blocker and how it was ruled out |
 | [`README.md`](README.md) | You want the one-screen orientation instead of 1700 lines |
 | [`PRIVILEGE-MCP-CONSOLE-STEPS.md`](PRIVILEGE-MCP-CONSOLE-STEPS.md) | Doing console work — these steps cannot be automated or tested from this repo |

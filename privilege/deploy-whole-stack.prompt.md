@@ -10,7 +10,7 @@ tools: ["run_in_terminal"]
 > **Do not use this prompt to update the current cmuir Agentless gateway.** The
 > verified deployment is the separate Helm release `agentless-mcpgw` in
 > `ping-devops-cmuir`; see
-> [`CURRENT-CONFIGURATION.md`](CURRENT-CONFIGURATION.md). This older whole-stack
+> [`AGENTLESS-CONFIGURATION.md`](AGENTLESS-CONFIGURATION.md). This older whole-stack
 > path manages a different `ping-mcpgw` release and can disturb unrelated gateway
 > resources. Build/push and roll only the requested app service when Agentless is
 > already healthy.
@@ -118,7 +118,7 @@ ping-mcpgw --namespace <namespace>` instead of `se-undeploy`.
 
 - The previous gateway (`cyonproxy`) had no MCP OAuth challenge support. The
   current separate `agentless-mcpgw` release resolves this with `mcpgw`; see
-  [`CURRENT-CONFIGURATION.md`](CURRENT-CONFIGURATION.md).
+  [`AGENTLESS-CONFIGURATION.md`](AGENTLESS-CONFIGURATION.md).
 - `mcpgw-agentless-ingress.yaml` (agentless/self-hosted-frontend mode) is not
   applied by `deploy.sh` — it targets that untested binary specifically and would
   502 forever against the previous cyonproxy deployment. It is retained only as

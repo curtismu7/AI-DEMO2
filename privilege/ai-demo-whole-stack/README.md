@@ -1,7 +1,7 @@
 # ai-demo-stack
 
 > **Not the current cmuir Agentless deployment.** Use
-> [`../CURRENT-CONFIGURATION.md`](../CURRENT-CONFIGURATION.md) for the live
+> [`../AGENTLESS-CONFIGURATION.md`](../AGENTLESS-CONFIGURATION.md) for the live
 > `agentless-mcpgw` release, `/cmuir/mcp` endpoint, and mode separation. This
 > whole-stack chart remains an undeployed packaging experiment.
 

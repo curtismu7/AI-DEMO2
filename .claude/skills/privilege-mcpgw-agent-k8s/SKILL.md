@@ -11,7 +11,8 @@ Scope: the SE Helm path where the gateway runs in Kubernetes and the MCP client 
 
 ## Current cmuir deployments (verified 2026-08-20)
 
-Read `privilege/CURRENT-CONFIGURATION.md` before operating either mode.
+Read `privilege/AGENTLESS-CONFIGURATION.md` before Agentless work and
+`privilege/AGENT-CONFIGURATION.md` before Agent work.
 
 - Agentless: namespace `ping-devops-cmuir`, release `agentless-mcpgw`, cluster
   `ai-demo-cmuir`, app `cmuir`, client URL
@@ -19,7 +20,7 @@ Read `privilege/CURRENT-CONFIGURATION.md` before operating either mode.
 - Agent: app `cmuir2`, client URL
   `https://opensearch.default.applications.procyon.ai:8643/mcp`. The Agent owns
   authentication; do not configure a client ID or gateway OAuth in the demo client.
-- Current gateway digest:
+- Current Agentless gateway digest:
   `sha256:0faad5903a5bd72539b1df525e3c7bc5d458a5bd324aac9755b8af99dfa6647d`.
 
 Do not use the OpenSearch backend or app name for the cmuir Agentless deployment.
