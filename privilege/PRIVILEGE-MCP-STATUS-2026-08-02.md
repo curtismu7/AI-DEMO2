@@ -1,5 +1,9 @@
 # Privilege MCP — status handoff, 2026-08-02
 
+> **Historical snapshot.** For live configuration, use
+> [`CURRENT-CONFIGURATION.md`](CURRENT-CONFIGURATION.md). Do not copy gateway IDs,
+> endpoints, tokens, or remediation steps from this file.
+
 Written for the next agent picking this up. Everything below was verified live against
 the running stack on this date unless marked otherwise. Where an earlier belief turned
 out to be wrong, it is recorded as wrong — several hours were lost to conclusions that

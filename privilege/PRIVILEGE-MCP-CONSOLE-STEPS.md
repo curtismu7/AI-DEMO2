@@ -6,6 +6,12 @@ be clicked in the PingOne Privilege console to finish it.
 
 Written 2026-08-02.
 
+> **Superseded operational snapshot.** Do not execute the node IDs, cluster names,
+> URLs, or token-expiry instructions below. The current 2026-08-20 configuration
+> and remaining stale-record cleanup are in
+> [`CURRENT-CONFIGURATION.md`](CURRENT-CONFIGURATION.md). This file is retained to
+> explain the state of the original investigation.
+
 ---
 
 ## The one-paragraph version

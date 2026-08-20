@@ -15,7 +15,7 @@ This chart installs (one release, ~20 Deployments):
   authz-server, agent-service, hitl-service, mcp-resource-server,
   api-resource-server, ping-gateway, jaeger, llm-stack (5 tiers), plus the
   langchain/mastra/openai/pydantic agent variants.
-- **mcpgw** — the Privilege proxy gateway (`cyonproxy`, `k8s/helm/mcpgw` as a
+- **mcpgw** — the Privilege proxy gateway (`mcpgw`, `k8s/helm/mcpgw` as a
   subchart dependency named `privgateway`, alongside `deploy-whole-stack.prompt.md`
   and `k8s/aws/deploy.sh` — same proven config, packaged as one chart here).
 
@@ -86,7 +86,7 @@ kubectl logs -n <SE_NAMESPACE> deployment/ai-demo-stack-mcpgw -c log-tailer --ta
 Confirm app pods are Running. For the gateway, look for `established command
 stream to <node>` and a `MedusaLink...LinkStatus:Active` event, no
 `level=fatal`. `-c mcpgw` (not `log-tailer`) is normally empty even when
-healthy — cyonproxy logs to a file; `log-tailer` is the sidecar tailing it.
+healthy — mcpgw logs to a file; `log-tailer` is the sidecar tailing it.
 
 App: `https://ai-demo.ping-devops.com` · BFF health:
 `https://ai-demo.ping-devops.com/api/health` · Gateway path:

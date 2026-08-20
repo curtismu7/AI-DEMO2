@@ -1,5 +1,17 @@
 # PingOne Privilege MCP Gateway Configuration
 
+> **Current cmuir values:** use
+> [`CURRENT-CONFIGURATION.md`](CURRENT-CONFIGURATION.md). The current Agentless
+> frontend is `https://cmuir-agentless-mcpgw.ping-devops.com/cmuir/mcp`, its mesh
+> cluster is `ai-demo-cmuir`, and it runs `privilege-mcpgw` rather than the legacy
+> `privilege-proxy`. Agent configuration is separate and uses
+> `https://opensearch.default.applications.procyon.ai:8643/mcp` with authentication
+> supplied by the installed Agent.
+
+The generic product flow below is retained for other environments. Substitute the
+current values from the linked source of truth; never reuse a token, node ID, app
+name, or backend from another deployment.
+
 ## Core setup flow
 
 1. Create an **MCPGW OIDC application** in PingOne admin.
@@ -45,12 +57,14 @@ Public guidance calls out:
 
 - Access from MCP clients to the MCPGW ports.
 - Outbound access from the MCPGW host to PingOne endpoints such as `grpc.pingone.com`.
-- Add inbound port **8623** on the MCPGW VM.
+- Expose the MCP frontend through HTTPS. In the current Kubernetes deployment,
+  ingress forwards to **8623/TCP**.
 
 Internal notes add:
 
-- **8623/TCP** for inbound MCP traffic.
-- **8690/TCP** for gateway-to-gateway communication and mesh cluster creation.
+- **8623/TCP** for the `mcpgw` MCP+OAuth frontend.
+- **8680/TCP** and **8690/TCP** for Privilege proxy/mesh communication; these are
+  not Postman client ports.
 - Outbound HTTPS to `hydra.ping1.privilege.com` in some deployments.
 - Validate connectivity from MCP clients to the MCP Gateway frontend.
 - Validate connectivity from the gateway to the backend MCP server.

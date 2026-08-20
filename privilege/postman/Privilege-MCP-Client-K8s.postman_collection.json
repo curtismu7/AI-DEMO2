@@ -2,7 +2,7 @@
   "info": {
     "name": "Privilege MCP Client — K8s SE cluster (BFF relay)",
     "_postman_id": "priv-mcp-client-k8s-001",
-    "description": "Tests the Privilege MCP client flow via the BFF relay deployed on the SE K8s cluster.\n\nThe BFF handles everything: it discovers auth from the mcpgw WWW-Authenticate header, registers a DCR client, runs PKCE against mcpgw's own OAuth AS, and relays MCP JSON-RPC. These requests are plain JSON over HTTPS — no bearer token of your own.\n\nSETUP:\n  1. The SE cluster stack must be deployed: see k8s/aws/deploy.sh or privilege/deploy-whole-stack.prompt.md\n  2. No local cert setup needed — ai-demo.ping-devops.com has a valid LE cert\n  3. Sign in to https://ai-demo.ping-devops.com in a browser first — the BFF reuses\n     the existing PingOne session for prompt=none silent auth. Without a session, auth/start\n     redirects through the PingOne login page (still works, not silent).\n  4. Cookie sync: Postman must share the connect.sid cookie from ai-demo.ping-devops.com.\n     Enable cookies for the domain in Postman's cookie manager, or sign in via Postman's browser.\n\nFLOW:\n  Run requests 0 → 1 → 2. After request 2, open authUrl in a browser (silent if already signed in).\n  Then run 3 → 4 → 5. For OpenSearch: run 6 → 7 → 8 after registering cmuir-opensearch in console.\n\nNODE: The K8s BFF (demo-api-server) reads PRIVILEGE_MCPGW_URL from the ping-mcpgw-secrets K8s secret.\n  Request 1 overrides it for the current session only — restart demo-api-server to reset to env default.",
+    "description": "Tests the current cmuir Agentless Privilege MCP flow through the BFF deployed on the SE Kubernetes cluster.\n\nThe BFF is a Streamable HTTP MCP client: it discovers OAuth from the gateway challenge, runs PKCE, then sends initialize, initialized, tools/list, and tools/call.\n\nCURRENT ENDPOINT: https://cmuir-agentless-mcpgw.ping-devops.com/cmuir/mcp\nCURRENT APP/CLUSTER: cmuir / ai-demo-cmuir\n\nSETUP:\n  1. The agentless-mcpgw release must be healthy in ping-devops-cmuir.\n  2. Sign in to https://ai-demo.ping-devops.com in a browser first for silent prompt=none reuse.\n  3. Let Postman share the connect.sid cookie for ai-demo.ping-devops.com.\n\nFLOW: run requests 0 through 5, then 9 to sign out. Folder 6 through 8 is retained only as a clearly labelled historical OpenSearch Agentless experiment. OpenSearch now belongs to the separate Agent use case.\n\nThe BFF reads PRIVILEGE_AGENTLESS_MCPGW_URL from ai-demo-secrets. Request 1 overrides it for the current session only.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -13,15 +13,15 @@
       "type": "default"
     },
     {
-      "key": "mcpgw_banking_url",
-      "value": "https://ai-demo.ping-devops.com/mcpgw/cmuir2/mcp",
-      "description": "SE K8s mcpgw — banking mcp-server backend (app: cmuir2)",
+      "key": "mcpgw_agentless_url",
+      "value": "https://cmuir-agentless-mcpgw.ping-devops.com/cmuir/mcp",
+      "description": "Current cmuir Agentless Streamable HTTP MCP endpoint",
       "type": "default"
     },
     {
       "key": "mcpgw_opensearch_url",
       "value": "https://ai-demo.ping-devops.com/mcpgw/cmuir-opensearch/mcp",
-      "description": "SE K8s mcpgw — OpenSearch MCP backend (app: cmuir-opensearch). Register in Privilege console first.",
+      "description": "Legacy Agentless experiment; not the current OpenSearch Agent endpoint.",
       "type": "default"
     },
     {
@@ -63,20 +63,20 @@
       ]
     },
     {
-      "name": "1. Configure — set banking mcpgw URL",
+      "name": "1. Configure — set current cmuir Agentless URL",
       "request": {
         "method": "POST",
         "header": [{ "key": "Content-Type", "value": "application/json" }],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"mcpUrl\": \"{{mcpgw_banking_url}}\",\n  \"clientId\": \"{{pingone_client_id}}\"\n}"
+          "raw": "{\n  \"gatewayMode\": \"agentless\",\n  \"mcpUrl\": \"{{mcpgw_agentless_url}}\",\n  \"clientId\": \"{{pingone_client_id}}\"\n}"
         },
         "url": {
           "raw": "{{bff_url}}/api/privilege-mcp/config",
           "host": ["{{bff_url}}"],
           "path": ["api", "privilege-mcp", "config"]
         },
-        "description": "Sets the mcpUrl for this session. On K8s the BFF already defaults to the env value from the K8s secret;\nthis overrides for the session only (useful to switch between banking and OpenSearch apps).\n\nExpect: { ok: true, config: { mcpUrl: '...', clientId: '...' } }"
+        "description": "Selects Agentless mode and the verified cmuir MCP application. The live BFF already defaults to this value from the Kubernetes Secret; this request makes the session explicit.\n\nExpect: { ok: true, config: { mcpUrl: '...', clientId: '...' } }"
       },
       "event": [
         {
@@ -107,7 +107,7 @@
           "host": ["{{bff_url}}"],
           "path": ["api", "privilege-mcp", "auth", "start"]
         },
-        "description": "Triggers the BFF to:\n  1. GET mcpUrl — discovers WWW-Authenticate header from SE mcpgw\n  2. DCR on mcpgw OAuth AS (registers a PKCE client at /mcpgw/cmuir2/register)\n  3. Build the PingOne authorization URL (prompt=none if SE app session exists)\n  4. Return { authUrl } for the browser to follow\n\nAFTER: open authUrl in a browser where you are signed in to https://ai-demo.ping-devops.com.\nSilent auth (prompt=none) completes instantly when a PingOne session exists.\n\nIMPORTANT: If mcpgw was recently restarted, DCR client state is lost. The BFF will auto-register\na fresh client on the next auth/start — restart the BFF pod if you see 'Unknown client'."
+        "description": "Triggers the BFF to discover the cmuir gateway OAuth metadata, register a PKCE client when required, build the PingOne authorization URL, and return { authUrl }. The advertised endpoints are under /cmuir, including /cmuir/authorize. Open authUrl in a browser where the main demo session is already signed in for silent prompt=none reuse."
       },
       "event": [
         {
@@ -130,7 +130,7 @@
       ]
     },
     {
-      "name": "3. List tools — banking (after auth)",
+      "name": "3. List tools — cmuir Agentless (after auth)",
       "request": {
         "method": "POST",
         "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -140,7 +140,7 @@
           "host": ["{{bff_url}}"],
           "path": ["api", "privilege-mcp", "tools", "list"]
         },
-        "description": "Calls tools/list via the Privilege gateway.\n\nRequires auth (complete the request 2 browser flow first). Privilege enforces its policy per tool.\n\nExpect: { tools: [...] } — banking mcp-server tools via cmuir2."
+        "description": "Calls tools/list through the cmuir Agentless Privilege application. Complete request 2 first. Privilege enforces the published cmuir policy per tool."
       },
       "event": [
         {
@@ -226,7 +226,7 @@
       ]
     },
     {
-      "name": "OpenSearch app (register cmuir-opensearch in console first)",
+      "name": "Legacy OpenSearch Agentless experiment — do not use for current cmuir",
       "item": [
         {
           "name": "6. Configure — switch to OpenSearch mcpgw URL",
@@ -315,7 +315,7 @@
           ]
         }
       ],
-      "description": "Requires cmuir-opensearch registered in Privilege console. See request 6 description."
+      "description": "Historical experiment only. OpenSearch is the current Agent use case, not the cmuir Agentless application. For Agent testing use https://opensearch.default.applications.procyon.ai:8643/mcp directly in Postman with no OAuth client; the installed Privilege Agent supplies authentication."
     },
     {
       "name": "9. Sign out",

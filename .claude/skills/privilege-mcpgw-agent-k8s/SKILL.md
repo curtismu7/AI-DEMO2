@@ -9,6 +9,22 @@ Proven end to end 2026-08-17 against PingOne env `0428ba4f-169c-436b-aff9-b23049
 
 Scope: the SE Helm path where the gateway runs in Kubernetes and the MCP client reaches it through the Priv Agent on a Mac. For the local Docker gateway, the BFF MCP client relay, and the PingOne-token wall, read `privilege-cloud-mcp` instead — different deployment, different failure modes.
 
+## Current cmuir deployments (verified 2026-08-20)
+
+Read `privilege/CURRENT-CONFIGURATION.md` before operating either mode.
+
+- Agentless: namespace `ping-devops-cmuir`, release `agentless-mcpgw`, cluster
+  `ai-demo-cmuir`, app `cmuir`, client URL
+  `https://cmuir-agentless-mcpgw.ping-devops.com/cmuir/mcp`.
+- Agent: app `cmuir2`, client URL
+  `https://opensearch.default.applications.procyon.ai:8643/mcp`. The Agent owns
+  authentication; do not configure a client ID or gateway OAuth in the demo client.
+- Current gateway digest:
+  `sha256:0faad5903a5bd72539b1df525e3c7bc5d458a5bd324aac9755b8af99dfa6647d`.
+
+Do not use the OpenSearch backend or app name for the cmuir Agentless deployment.
+OpenSearch belongs to the working Agent use case.
+
 ## Pick the variant before touching anything
 
 The two variants need different console objects. Mixing their values in one Helm release produces a gateway that enrolls and then serves nothing.
