@@ -447,7 +447,10 @@ router.post('/', authenticateToken, async (req, res) => {
     // withdraw, or pay. Read-only ops (GET balances, GET account details)
     // are unaffected by this — they're already gated by `read` scope.
     if (req.user.isBankDelegate === true) {
-      const requestedType = String(req.body.type || '').toLowerCase();
+      // Reuse the already-normalized `type` (lowercased + trimmed above) instead
+      // of re-deriving from raw req.body.type, which skipped trim() and could
+      // diverge from the value actually used for the transaction.
+      const requestedType = type;
       const ALLOWED_FOR_DELEGATE = new Set(['deposit']);
       if (!ALLOWED_FOR_DELEGATE.has(requestedType)) {
         return res.status(403).json({
