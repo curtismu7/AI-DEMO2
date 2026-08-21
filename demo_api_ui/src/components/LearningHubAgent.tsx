@@ -88,7 +88,7 @@ export default function LearningHubAgent() {
         {(answer || error) && <button type="button" className="learning-hub__rag-clear" onClick={clear}>Clear</button>}
       </form>
       <details className="learning-hub__rag-prompts">
-        <summary>Prompt library <span>{PROMPTS.length} prompts</span></summary>
+        <summary><span aria-hidden="true">📚</span> Prompt library <span>{PROMPTS.length} prompts</span></summary>
         <div className="learning-hub__rag-prompt-grid">
           {PROMPTS.map((prompt) => <button type="button" key={prompt} onClick={() => ask(prompt)} disabled={loading}>{prompt}</button>)}
         </div>
