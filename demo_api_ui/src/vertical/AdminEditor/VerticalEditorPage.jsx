@@ -68,8 +68,9 @@ export function VerticalEditorPage() {
   const [showClone, setShowClone] = useState(false);
   const [snapshotInfo, setSnapshotInfo] = useState(null);
   const [error, setError] = useState('');
-  const [brandDomain, setBrandDomain] = useState('');
   const [brandLoading, setBrandLoading] = useState(false);
+  const [brandSuccess, setBrandSuccess] = useState('');
+  const [brandDomain, setBrandDomain] = useState('');
 
   const id = pageManifest?.id;
   const isProtected = id ? PROTECTED.has(id) : true;
@@ -190,13 +191,11 @@ export function VerticalEditorPage() {
     }
   }, [id, setActive]);
 
-  // Fetches colors/logo/font from Brandfetch and merges them into the editor
-  // buffer as a preview — it does NOT save. The admin reviews the resulting
-  // diff (same as any manual edit) and clicks the existing Save button.
   const fetchFromBrandfetch = useCallback(async () => {
     const domain = brandDomain.trim();
     if (!domain || !id) return;
     setBrandLoading(true);
+    setBrandSuccess('');
     setError('');
     try {
       const res = await fetch(`/api/verticals/${id}/brandfetch`, {
@@ -206,6 +205,10 @@ export function VerticalEditorPage() {
         body: JSON.stringify({ domain }),
       });
       const body = await res.json().catch(() => ({}));
+      if (res.status === 401 || res.status === 403) {
+        window.location.href = '/api/auth/oauth/login';
+        return;
+      }
       if (!res.ok) {
         setError(`Brandfetch lookup failed: ${body.error || res.status}`);
         return;
@@ -214,10 +217,13 @@ export function VerticalEditorPage() {
       if (body.logoPath) edited.identity = { ...edited.identity, logoPath: body.logoPath };
       if (body.cssVars) edited.theme = { ...edited.theme, cssVars: { ...edited.theme?.cssVars, ...body.cssVars } };
       setEditorValue(JSON.stringify(edited, null, 2));
+      setBrandSuccess(`Fetched ${domain}. Review the highlighted theme values, then click Save to apply them.`);
+    } catch (err) {
+      setError(err.message || 'Brandfetch lookup failed.');
     } finally {
       setBrandLoading(false);
     }
-  }, [brandDomain, id, editorValue]);
+  }, [brandDomain, editorValue, id]);
 
   const saveSnapshot = useCallback(async () => {
     const res = await fetch('/api/verticals/snapshot', {
@@ -276,6 +282,7 @@ export function VerticalEditorPage() {
       </header>
 
       {error && <div className="vertical-editor__error">{error}</div>}
+      {brandSuccess && <div className="vertical-editor__success" role="status">✓ {brandSuccess}</div>}
 
       {/* Tab bar */}
       <div style={{ display: 'flex', borderBottom: '1px solid #333', background: '#141414' }}>
