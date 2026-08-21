@@ -1,11 +1,30 @@
 import React, { useEffect, useRef, useState } from 'react';
 
-const QUICK_CHIPS = [
-  'How does authentication work in this code?',
-  'Where is the main entry point?',
-  'Summarize the architecture',
-  'What external services does this call?',
+const PROMPT_GROUPS = [
+  {
+    label: 'Codebase questions',
+    prompts: [
+      'How does authentication work in this code?',
+      'Where is the main entry point?',
+      'Summarize the architecture',
+      'What external services does this call?',
+      'Where is authorization enforced?',
+      'Trace the request path from the UI to the backend.',
+      'Which files handle error recovery?',
+      'What tests cover this behavior?',
+    ],
+  },
+  {
+    label: 'Learning Hub questions',
+    prompts: [
+      'Which Learning Hub lessons explain OAuth token exchange?',
+      'What Learning Hub material explains protecting MCP tools?',
+      'Summarize the Learning Hub guidance for RAG security.',
+    ],
+  },
 ];
+
+const PROMPTS = PROMPT_GROUPS.flatMap((group) => group.prompts);
 
 // Chat panel for the code-search agent, modeled on OAuthAcademyPage: an
 // append-only message thread with typing dots, starter chips on the empty
@@ -118,20 +137,30 @@ export default function CodeSearchAsk({ codebaseId }) {
 
   const isEmpty = messages.length === 0;
 
-  const renderQuickChips = () => (
-    <div className="quick-chips" aria-label="Quick questions">
-      {QUICK_CHIPS.map((chip) => (
-        <button
-          type="button"
-          key={chip}
-          className="starter-chip"
-          onClick={() => sendQuestion(chip)}
-          disabled={isSending || !codebaseId}
-        >
-          {chip}
-        </button>
-      ))}
-    </div>
+  const renderPromptMenu = () => (
+    <details className="prompt-menu">
+      <summary>Prompt library <span>{PROMPTS.length} prompts</span></summary>
+      <div className="prompt-menu-panel">
+        {PROMPT_GROUPS.map((group) => (
+          <section key={group.label} className="prompt-group">
+            <h3>{group.label}</h3>
+            <div className="prompt-options">
+              {group.prompts.map((prompt) => (
+                <button
+                  type="button"
+                  key={prompt}
+                  className="starter-chip"
+                  onClick={() => sendQuestion(prompt)}
+                  disabled={isSending || !codebaseId}
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+    </details>
   );
 
   const clearConversation = () => {
@@ -151,7 +180,7 @@ export default function CodeSearchAsk({ codebaseId }) {
               ? 'Ask a question about the selected codebase, or start with one of these:'
               : 'Upload or select a codebase on the left, then ask the agent about it.'}
           </p>
-          {renderQuickChips()}
+          {renderPromptMenu()}
         </div>
       ) : (
         <div className="messages-container">
@@ -208,7 +237,7 @@ export default function CodeSearchAsk({ codebaseId }) {
         </div>
       )}
 
-      {!isEmpty && <div className="quick-chip-bar">{renderQuickChips()}</div>}
+      {!isEmpty && <div className="quick-chip-bar">{renderPromptMenu()}</div>}
 
       <form className="input-area" onSubmit={handleSubmit}>
         <input
