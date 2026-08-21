@@ -1,8 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 
-// One-click prompts shown while the thread is empty (same pattern as
-// OAuthAcademyPage's starter chips).
-const STARTER_CHIPS = [
+const QUICK_CHIPS = [
   'How does authentication work in this code?',
   'Where is the main entry point?',
   'Summarize the architecture',
@@ -120,6 +118,29 @@ export default function CodeSearchAsk({ codebaseId }) {
 
   const isEmpty = messages.length === 0;
 
+  const renderQuickChips = () => (
+    <div className="quick-chips" aria-label="Quick questions">
+      {QUICK_CHIPS.map((chip) => (
+        <button
+          type="button"
+          key={chip}
+          className="starter-chip"
+          onClick={() => sendQuestion(chip)}
+          disabled={isSending || !codebaseId}
+        >
+          {chip}
+        </button>
+      ))}
+    </div>
+  );
+
+  const clearConversation = () => {
+    if (abortRef.current) abortRef.current.abort();
+    setMessages([]);
+    setInput('');
+    setIsSending(false);
+  };
+
   return (
     <div className="code-search-ask">
       {isEmpty ? (
@@ -130,19 +151,7 @@ export default function CodeSearchAsk({ codebaseId }) {
               ? 'Ask a question about the selected codebase, or start with one of these:'
               : 'Upload or select a codebase on the left, then ask the agent about it.'}
           </p>
-          <div className="starter-chips">
-            {STARTER_CHIPS.map((chip) => (
-              <button
-                type="button"
-                key={chip}
-                className="starter-chip"
-                onClick={() => sendQuestion(chip)}
-                disabled={isSending || !codebaseId}
-              >
-                {chip}
-              </button>
-            ))}
-          </div>
+          {renderQuickChips()}
         </div>
       ) : (
         <div className="messages-container">
@@ -199,6 +208,8 @@ export default function CodeSearchAsk({ codebaseId }) {
         </div>
       )}
 
+      {!isEmpty && <div className="quick-chip-bar">{renderQuickChips()}</div>}
+
       <form className="input-area" onSubmit={handleSubmit}>
         <input
           type="text"
@@ -213,7 +224,7 @@ export default function CodeSearchAsk({ codebaseId }) {
           disabled={isSending || !codebaseId}
         />
         {!isEmpty && (
-          <button type="button" className="clear-btn" onClick={() => setMessages([])}>
+          <button type="button" className="clear-btn" onClick={clearConversation}>
             Clear
           </button>
         )}
