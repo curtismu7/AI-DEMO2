@@ -395,10 +395,11 @@ aws_build() {
   # stack's ai-demo-* tags (see K8_COMPOSE_PROJECT above).
   # --profile agents: openai/mastra/pydantic (IMAGE_MAP below).
   # --profile demo-auth: mcp-gateway + authz-server (also in IMAGE_MAP).
+  # --profile rag: the two project-owned RAG services (IMAGE_MAP below).
   # Bare `compose build` skips profiled services → "No such image" on push.
   # COMPOSE_PARALLEL_LIMIT=1: OrbStack often OOM-/daemon-crash on parallel builds.
   COMPOSE_PARALLEL_LIMIT=1 docker compose -p "$K8_COMPOSE_PROJECT" -f docker-compose.yml \
-    --profile agents --profile demo-auth build
+    --profile agents --profile demo-auth --profile rag build
 
   # local-image:ghcr-image pairs (indexed array — works on macOS bash 3.2).
   # Local side = compose default naming under -p: ai-demo-k8-<service>.
@@ -412,6 +413,8 @@ aws_build() {
     "ai-demo-k8-hitl-service:ai-demo-hitl-service"
     "ai-demo-k8-mcp-resource-server:ai-demo-mcp-resource-server"
     "ai-demo-k8-api-resource-server:ai-demo-api-resource-server"
+    "ai-demo-k8-mcp-code-search:ai-demo-mcp-code-search"
+    "ai-demo-k8-llamaindex-agent:ai-demo-llamaindex-agent"
     "ai-demo-k8-langchain-agent:ai-demo-langchain-agent"
     "ai-demo-k8-openai-agent:ai-demo-openai-agent"
     "ai-demo-k8-mastra-agent:ai-demo-mastra-agent"
