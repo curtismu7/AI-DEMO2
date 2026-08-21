@@ -99,8 +99,51 @@ export function withDb<T>(fn: (db: DatabaseSync) => T): T {
   }
 }
 
+// rowid DESC breaks submittedDate ties by insertion order. Expenses filed
+// through submit_expense all carry today's date, so on date alone SQLite
+// returned same-day expenses arbitrarily and the one just submitted was not
+// reliably first. Seeded rows have distinct dates, so their order is unchanged.
 export function listExpenses(): Expense[] {
-  return withDb((conn) => conn.prepare('SELECT * FROM expenses ORDER BY submittedDate DESC').all() as unknown as Expense[]);
+  return withDb((conn) => conn.prepare('SELECT * FROM expenses ORDER BY submittedDate DESC, rowid DESC').all() as unknown as Expense[]);
+}
+
+/**
+ * File a new expense — the write half of the entity `list_expenses` reads.
+ * Before this existed, submit_expense landed in the BFF's in-memory store while
+ * the list came from this database, so a submitted expense was invisible to the
+ * very next "show my expenses" (TECH_DEBT's seed-store divergence).
+ *
+ * Mirrors retailDb.insertOrder: mutating, ids derived from the highest existing
+ * `exp-new-N` suffix so deleting a middle row cannot hand out an id that is
+ * still live (expenses.id is the PRIMARY KEY).
+ */
+export function insertExpense(input: { category: string; amount: number; description?: string; submittedDate?: string }): Expense {
+  return withDb((conn) => {
+    const rows = conn
+      .prepare("SELECT id FROM expenses WHERE id LIKE 'exp-new-%'")
+      .all() as unknown as Array<{ id: string }>;
+    const highest = rows.reduce((max, r) => {
+      const n = Number.parseInt(String(r.id).slice('exp-new-'.length), 10);
+      return Number.isFinite(n) && n > max ? n : max;
+    }, 0);
+
+    const expense: Expense = {
+      id: `exp-new-${highest + 1}`,
+      category: input.category,
+      // The BFF used the category as the description when a chip carried no
+      // free text; kept identical so the rendered row reads the same.
+      description: input.description ?? input.category,
+      amount: input.amount,
+      status: 'Submitted',
+      submittedDate: input.submittedDate ?? new Date().toISOString().slice(0, 10),
+    };
+
+    conn.prepare(
+      'INSERT INTO expenses (id, category, description, amount, status, submittedDate) VALUES (?, ?, ?, ?, ?, ?)',
+    ).run(expense.id, expense.category, expense.description, expense.amount, expense.status, expense.submittedDate);
+
+    return expense;
+  });
 }
 
 export function getExpense(id: string): Expense | null {

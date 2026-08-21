@@ -102,6 +102,10 @@ const UNIVERSITY_TOOLS = new Set([
 // identically-named handler silently answers instead.
 const WORKFORCE_TOOLS = new Set([
   'list_expenses',
+  // Write, routed for the same reason retail's checkout is: it creates the very
+  // expenses list_expenses returns, so on the BFF a filed expense never showed
+  // up in the list. Name is unique to workforce.
+  'submit_expense',
 ]);
 const ANF_TOOLS = new Set([
   'list_anf_orders',
@@ -116,6 +120,13 @@ const ANF_TOOLS = new Set([
 const RETAIL_TOOLS = new Set([
   'list_orders',
   'order_status',
+  // Write, routed for the same reason pay_airline_fee is: it mutates the very
+  // entity the two reads above return. Left on the BFF it wrote a different
+  // store, so a placed order never appeared in list_orders (TECH_DEBT's
+  // seed-store divergence). The name is unique to retail — no other vertical
+  // defines a `checkout` tool — so routing by name cannot misroute another
+  // vertical's identically-named tool.
+  'checkout',
 ]);
 const SPORTING_GOODS_TOOLS = new Set([
   'list_gear',

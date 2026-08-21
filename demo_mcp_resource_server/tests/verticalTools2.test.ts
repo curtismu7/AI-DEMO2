@@ -21,9 +21,35 @@ describe('Retail tools', () => {
       expect(t.description.length).toBeGreaterThan(10);
       expect(Array.isArray(t.intentHints)).toBe(true);
       expect(t.intentHints!.length).toBeGreaterThanOrEqual(3);
-      expect(t.requiredScopes).toContain('read');
+      // Retail was read-only until checkout was routed here, so a blanket
+      // "requires read" no longer describes the set. Assert the scope matches
+      // what the tool actually does — scope-topology.json is the SoT and lists
+      // checkout as "write".
+      expect(t.requiredScopes).toContain(t.readOnly === false ? 'write' : 'read');
     }
   });
+  it('checkout places an order that the very next list_orders returns', async () => {
+    // The end-to-end shape of the divergence fix, at the handler boundary:
+    // the write and the read go through the same dispatcher and the same DB.
+    const before = await dispatchRetailTool('list_orders', {}) as any;
+    const placed = await dispatchRetailTool('checkout', { product: 'Studio Monitor', amount: 799 }) as any;
+
+    expect(placed.render).toBe('checkout');
+    expect(placed.status).toBe('Processing');
+    expect(placed.product).toBe('Studio Monitor');
+    expect(placed.amount).toBe(799);
+
+    const after = await dispatchRetailTool('list_orders', {}) as any;
+    expect(after.orders).toHaveLength(before.orders.length + 1);
+    expect(after.orders.some((o: any) => o.id === placed.id)).toBe(true);
+  });
+
+  it('checkout defaults product and amount like the BFF did (consent-showcase chips carry neither)', async () => {
+    const placed = await dispatchRetailTool('checkout', {}) as any;
+    expect(placed.product).toBe('Headphones');
+    expect(placed.amount).toBe(100);
+  });
+
   it('list_orders returns orders array, stamped for the chip-facing manifest descriptor', async () => {
     const r = await dispatchRetailTool('list_orders', {}) as any;
     expect(Array.isArray(r.orders)).toBe(true);
@@ -112,8 +138,30 @@ describe('Workforce tools', () => {
       expect(t.intentHints!.length).toBeGreaterThanOrEqual(3);
     }
     expect(WORKFORCE_TOOLS.find((t) => t.name === 'list_expenses')?.requiredScopes).toContain('read');
+    // Write tool routed here 2026-08-19 — gated on write, per scope-topology.json.
+    expect(WORKFORCE_TOOLS.find((t) => t.name === 'submit_expense')?.requiredScopes).toContain('write');
     expect(WORKFORCE_TOOLS.find((t) => t.name === 'get_expense')?.requiredScopes).toContain('workforce:read');
   });
+  it('submit_expense files an expense the very next list_expenses returns', async () => {
+    const before = await dispatchWorkforceTool('list_expenses', {}) as any;
+    const filed = await dispatchWorkforceTool('submit_expense', { category: 'Lodging', amount: 425 }) as any;
+
+    expect(filed.render).toBe('submit_expense');
+    expect(filed.status).toBe('Submitted');
+    expect(filed.category).toBe('Lodging');
+    expect(filed.amount).toBe(425);
+
+    const after = await dispatchWorkforceTool('list_expenses', {}) as any;
+    expect(after.expenses).toHaveLength(before.expenses.length + 1);
+    expect(after.expenses.some((e: any) => e.id === filed.id)).toBe(true);
+  });
+
+  it('submit_expense defaults category and amount like the BFF did', async () => {
+    const filed = await dispatchWorkforceTool('submit_expense', {}) as any;
+    expect(filed.category).toBe('Travel');
+    expect(filed.amount).toBe(100);
+  });
+
   it('list_expenses returns expenses array, stamped for the chip-facing manifest descriptor', async () => {
     const r = await dispatchWorkforceTool('list_expenses', {}) as any;
     expect(Array.isArray(r.expenses)).toBe(true);
