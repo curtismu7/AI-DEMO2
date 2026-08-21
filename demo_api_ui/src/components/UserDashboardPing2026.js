@@ -3074,7 +3074,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           onClick={() => setDevicePickerOpen(false)}
         >
           <div
-            className="otp-step-up-modal"
+            className="otp-step-up-modal otp-step-up-modal--device-picker"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="otp-step-up-modal__header">
