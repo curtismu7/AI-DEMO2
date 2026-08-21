@@ -105,6 +105,18 @@ read the configured host. A new browser origin must be added to ALL of:
 ## §4 — Bug Fix Log
 Reverse-chronological, newest first.
 
+### 2026-08-21 — Airlines change-fee step-up proof used the wrong catalog identity
+
+**Files changed:** `demo_api_server/config/verticals/airlines/manifest.json`.
+
+**What was broken:** The `$300` `pay_airline_fee` chip declared `consent-required`, but the canonical HITL catalog entry is `hitl-consent`, so the correct Authorize result could not be matched by the proof verdict.
+
+**What was fixed:** Aligned the chip to `hitl-consent`; policy behavior remains unchanged.
+
+**Do not break:** Keep the chip routed to `pay_airline_fee` and preserve its `HITL_REQUIRED` outcome.
+
+**Verify:** 91 focused BFF tests, 156 focused UI tests, `git diff --check`, and UI production build.
+
 ### 2026-08-20 — Admin demo hands off to Agentless Privilege MCP governance
 
 **Files changed:** PingOne Admin demo-step catalog and auth requirement, UI step

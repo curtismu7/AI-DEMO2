@@ -98,7 +98,7 @@ export default function AgentConsentModal({
       : "Allow AI Agent Access";
 
   const requiresCheckbox = !!(hitlContext || transaction);
-  const defaultModalHeight = requiresCheckbox ? 520 : 470;
+  const defaultModalHeight = requiresCheckbox ? 680 : 600;
 
   const footer = (
     <>
@@ -127,9 +127,9 @@ export default function AgentConsentModal({
       onClose={onDismiss}
       title={title}
       footer={footer}
-      defaultWidth={460}
+      defaultWidth={560}
       defaultHeight={defaultModalHeight}
-      storageKey="agent-consent-modal-v5"
+      storageKey="agent-consent-modal-v6"
       zIndex={100070}
       backdropClose={false}
     >
