@@ -1052,11 +1052,12 @@ export default function OtpStepUpModal({
         onClose={handleCancel}
         title="Verify Your Identity"
         footer={p1Footer}
+        className="otp-step-up-draggable"
         defaultWidth={840}
         defaultHeight={760}
-        minWidth={760}
-        minHeight={720}
-        storageKey="otp-step-up-modal-p1mfa-v2"
+        minWidth={360}
+        minHeight={360}
+        storageKey="otp-step-up-modal-p1mfa-v3"
         zIndex={100080}
       >
         <div className="dm-scroll">
@@ -1149,11 +1150,15 @@ export default function OtpStepUpModal({
     <DraggableModal
       isOpen={!!show}
       onClose={handleCancel}
-      title="Verify Your Identity"
-      footer={stubFooter}
-      defaultWidth={460}
-      defaultHeight={stubStep === 'choose' ? 400 : 480}
-      storageKey="otp-step-up-modal-stub"
+        title="Verify Your Identity"
+        footer={stubFooter}
+        className="otp-step-up-draggable"
+        defaultWidth={640}
+        defaultHeight={stubStep === 'choose' ? 560 : 600}
+        minWidth={360}
+        minHeight={320}
+        storageKey="otp-step-up-modal-stub-v3"
+
       zIndex={100080}
     >
       <div className="dm-scroll">

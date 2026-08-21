@@ -1251,6 +1251,17 @@
   /* content area */
 }
 
+.otp-step-up-draggable .otp-step-up-modal__method-table-wrap {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.otp-step-up-modal--device-picker {
+  width: min(680px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+}
+
 .otp-step-up-modal__lead {
   font-size: 0.9rem;
   color: #374151;

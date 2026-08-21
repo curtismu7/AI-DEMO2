@@ -1117,6 +1117,16 @@
   flex-direction: column;
 }
 
+[data-rd-v2] .otp-step-up-draggable {
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+}
+
+[data-rd-v2] .otp-step-up-draggable .otp-step-up-modal__method-table-wrap {
+  min-width: 0;
+  overflow-x: auto;
+}
+
 /* Modal header */
 [data-rd-v2] .otp-step-up-modal__header {
   display: flex;
