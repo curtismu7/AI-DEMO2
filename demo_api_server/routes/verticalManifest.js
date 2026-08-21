@@ -4,6 +4,7 @@ const fs = require('fs');
 const express = require('express');
 const { verticalManifest } = require('../services/verticalManifest');
 const configStore = require('../services/configStore');
+const { fetchBrand } = require('../services/brandfetch');
 
 const router = express.Router();
 
@@ -445,6 +446,23 @@ router.post('/:id/overlay', requireAdmin, requireValidId, (req, res) => {
     res.status(204).end();
   } catch (e) {
     res.status(400).json({ error: e.message });
+  }
+});
+
+// Looks up brand colors/logo/font via Brandfetch and returns them as a patch
+// for the editor buffer — it does NOT write an overlay itself. The admin
+// reviews the merged JSON and hits the existing Save button, same as any
+// other manual edit.
+router.post('/:id/brandfetch', requireAdmin, requireValidId, async (req, res) => {
+  const { id } = req.params;
+  const { domain } = req.body || {};
+  if (!domain || typeof domain !== 'string') return res.status(400).json({ error: 'domain required' });
+  if (!verticalManifest.loader.get(id)) return res.status(404).json({ error: 'unknown id' });
+  try {
+    const patch = await fetchBrand(domain);
+    res.json(patch);
+  } catch (e) {
+    res.status(e.status || 502).json({ error: e.message });
   }
 });
 
