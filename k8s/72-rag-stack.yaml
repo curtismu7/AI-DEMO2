@@ -40,7 +40,7 @@ metadata:
     app: ai-demo
     component: weaviate
 spec:
-  replicas: 0
+  replicas: 1
   strategy:
     type: Recreate
   selector:
@@ -139,7 +139,7 @@ metadata:
     app: ai-demo
     component: embeddings
 spec:
-  replicas: 0
+  replicas: 1
   strategy:
     type: Recreate
   selector:
@@ -239,7 +239,7 @@ metadata:
     app: ai-demo
     component: mcp-code-search
 spec:
-  replicas: 0
+  replicas: 1
   strategy:
     type: Recreate
   selector:
@@ -319,7 +319,7 @@ metadata:
     app: ai-demo
     component: llamaindex-agent
 spec:
-  replicas: 0
+  replicas: 1
   strategy:
     type: Recreate
   selector:
