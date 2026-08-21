@@ -133,11 +133,13 @@ const ADDITIONAL_SECRET_NAMES = Object.freeze([
 // encryption and stay plaintext — the SAME protection level they already had
 // before this migration (no regression). `ensure-service-keys.js` still
 // provisions their value normally; only the `-k` (encrypt) step skips them.
+// The two legacy aliases named in the comment above (DEMO_INVEST_SERVICE_KEY /
+// DEMO_MORTGAGE_SERVICE_KEY) were pruned 2026-08-21 — no runtime code read them
+// and ensure-service-keys.js no longer provisions them, so they no longer exist
+// in .env for this exclusion list to matter for.
 const DOTENVX_DUP_VALUE_BUG_EXCLUDED_NAMES = Object.freeze([
   'DEMO_API_RESOURCE_SERVER_KEY',
   'DEMO_MCP_RESOURCE_SERVER_KEY',
-  'DEMO_INVEST_SERVICE_KEY',
-  'DEMO_MORTGAGE_SERVICE_KEY',
 ]);
 
 // Only TRUE secrets are encrypted. Single source of truth for the secret list is

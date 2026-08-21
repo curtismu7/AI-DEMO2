@@ -75,20 +75,20 @@ describe('SECRET_NAMES', () => {
     expect(SECRET_NAMES).not.toContain('DEMO_DELEGATE_PASSWORD');
   });
 
-  test('excludes the four DEMO_*_KEY names hit by the dotenvx duplicate-value bug', () => {
-    // Live incident 2026-08-18: these four share one identical value
-    // (ensure-service-keys.js — one API key, four aliases) and dotenvx failed to
+  test('excludes the two live DEMO_*_KEY names hit by the dotenvx duplicate-value bug', () => {
+    // Live incident 2026-08-18: these shared one identical value
+    // (ensure-service-keys.js — one API key, aliased names) and dotenvx failed to
     // decrypt them post-encryption (dotenvx/dotenvx#757). They stay plaintext —
     // the same protection level they had before this migration, not a
     // regression — until the upstream bug is fixed or a real workaround exists.
+    // (The two legacy aliases originally involved, DEMO_INVEST_SERVICE_KEY /
+    // DEMO_MORTGAGE_SERVICE_KEY, were pruned 2026-08-21 — see ensure-service-keys.js.)
     for (const name of DOTENVX_DUP_VALUE_BUG_EXCLUDED_NAMES) {
       expect(SECRET_NAMES).not.toContain(name);
     }
     expect(DOTENVX_DUP_VALUE_BUG_EXCLUDED_NAMES).toEqual([
       'DEMO_API_RESOURCE_SERVER_KEY',
       'DEMO_MCP_RESOURCE_SERVER_KEY',
-      'DEMO_INVEST_SERVICE_KEY',
-      'DEMO_MORTGAGE_SERVICE_KEY',
     ]);
   });
 });

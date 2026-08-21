@@ -5,10 +5,9 @@
  *
  * The mortgage/invest "legacy backend" demo uses a static service API key the
  * gateway injects as X-API-Key under the names DEMO_API_RESOURCE_SERVER_KEY /
- * DEMO_MCP_RESOURCE_SERVER_KEY (plus the retired aliases DEMO_INVEST_SERVICE_KEY
- * / DEMO_MORTGAGE_SERVICE_KEY — see note below). demo_api_resource_server
- * REFUSES to boot with a known committed default, so a fresh clone deadlocks
- * unless a real key is minted.
+ * DEMO_MCP_RESOURCE_SERVER_KEY. demo_api_resource_server REFUSES to boot with
+ * a known committed default, so a fresh clone deadlocks unless a real key is
+ * minted.
  *
  * vault → dotenvx migration (Task 7 tooling): the canonical home for these keys
  * moves from the encrypted `secrets.vault` to demo_api_server/.env, which the
@@ -17,7 +16,7 @@
  *       demo_api_server/.env → repo-root .env → vault (best-effort bridge).
  *   - REUSES that value verbatim — never regenerates it (no rotation). Only a
  *     truly fresh setup (no value anywhere, or only committed defaults) mints one.
- *   - Writes the resolved/minted value to ALL FOUR DEMO_*_KEY names in
+ *   - Writes the resolved/minted value to both live DEMO_*_KEY names in
  *     demo_api_server/.env, to API_RESOURCE_SERVER_API_KEY in the repo-root .env
  *     (compose interpolates it into api-resource-server), and — only while the
  *     vault still exists (removed in Task 8) — keeps the vault entries in sync.
@@ -31,13 +30,11 @@
  * mortgage/invest chips, not the whole demo. VAULT_PASSWORD is optional now —
  * its absence only skips the transitional vault sync.
  *
- * Note on the four names: DEMO_API_RESOURCE_SERVER_KEY and
- * DEMO_MCP_RESOURCE_SERVER_KEY are the live names (read by demo_mcp_gateway's
- * config.ts + the BFF vault-key bridge). DEMO_INVEST_SERVICE_KEY /
- * DEMO_MORTGAGE_SERVICE_KEY are legacy aliases that no runtime code reads today
- * (only scripts/rename-services.sh maps the former). They are provisioned here
- * per the ratified cutover decision so the migration is lossless; all four carry
- * the SAME value. Prune the two legacy names once confirmed unused everywhere.
+ * 2026-08-21: pruned the two legacy aliases DEMO_INVEST_SERVICE_KEY /
+ * DEMO_MORTGAGE_SERVICE_KEY (never read by any runtime code — confirmed via
+ * repo-wide grep before removal). They were provisioned only for a lossless
+ * migration copy per the original cutover decision; that decision's own note
+ * said to prune them "once confirmed unused everywhere."
  */
 const { execFileSync } = require('child_process');
 const crypto = require('crypto');
@@ -50,13 +47,11 @@ const ROOT_ENV = path.join(REPO_ROOT, '.env');
 const API_SERVER_ENV = path.join(REPO_ROOT, 'demo_api_server', '.env');
 const VAULT_CLI = path.join(SCRIPTS_DIR, 'vault.js');
 const VAULT_ENTRIES = ['DEMO_API_RESOURCE_SERVER_KEY', 'DEMO_MCP_RESOURCE_SERVER_KEY'];
-// All four names the cutover provisions into demo_api_server/.env. The first two
-// are live; the last two are legacy aliases (see header). All carry one value.
+// The two live names the cutover provisions into demo_api_server/.env (see
+// header note on the pruned legacy aliases).
 const SERVICE_KEY_ENV_NAMES = [
   'DEMO_API_RESOURCE_SERVER_KEY',
   'DEMO_MCP_RESOURCE_SERVER_KEY',
-  'DEMO_INVEST_SERVICE_KEY',
-  'DEMO_MORTGAGE_SERVICE_KEY',
 ];
 const ENV_KEY = 'API_RESOURCE_SERVER_API_KEY';
 // Committed defaults the mortgage service hard-rejects (see its boot guard).
@@ -185,7 +180,7 @@ function upsertApiEnvServiceKeys(file, names, value) {
       s = s.replace(new RegExp(`^${key}=.*$`, 'm'), `${key}=${value}`);
     } else {
       if (!headerAdded) {
-        s += `${s.endsWith('\n') || s === '' ? '' : '\n'}\n# apikey-dispatch demo: service API key (dotenvx-encrypted at rest after cutover).\n# All four names carry the SAME value; the last two are legacy aliases.\n`;
+        s += `${s.endsWith('\n') || s === '' ? '' : '\n'}\n# apikey-dispatch demo: service API key (dotenvx-encrypted at rest after cutover).\n# Both names carry the SAME value.\n`;
         headerAdded = true;
       }
       s += `${key}=${value}\n`;

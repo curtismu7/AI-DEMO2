@@ -33,12 +33,10 @@ function readKey(file, key) {
 }
 
 describe('SERVICE_KEY_ENV_NAMES', () => {
-  test('provisions the four cutover names, live two first', () => {
+  test('provisions the two live cutover names (legacy aliases pruned 2026-08-21)', () => {
     expect(SERVICE_KEY_ENV_NAMES).toEqual([
       'DEMO_API_RESOURCE_SERVER_KEY',
       'DEMO_MCP_RESOURCE_SERVER_KEY',
-      'DEMO_INVEST_SERVICE_KEY',
-      'DEMO_MORTGAGE_SERVICE_KEY',
     ]);
   });
 });

@@ -426,9 +426,11 @@ the file byte-identical to before.
 
 ## Notes
 
-- The two legacy names `DEMO_INVEST_SERVICE_KEY` / `DEMO_MORTGAGE_SERVICE_KEY` are
-  provisioned for a lossless copy but are read by no runtime code today (only
-  `scripts/rename-services.sh` maps the former). They can be pruned once confirmed
-  unused everywhere.
+- **Done (2026-08-21):** the two legacy names `DEMO_INVEST_SERVICE_KEY` /
+  `DEMO_MORTGAGE_SERVICE_KEY` were pruned — confirmed read by no runtime code
+  (repo-wide grep), removed from `demo_api_server/.env`, from
+  `ensure-service-keys.js`'s `SERVICE_KEY_ENV_NAMES`/provisioning, and from
+  `dotenvx-encrypt-envs.js`'s dup-value exclusion list. Only
+  `DEMO_API_RESOURCE_SERVER_KEY` / `DEMO_MCP_RESOURCE_SERVER_KEY` remain.
 - k8s secret delivery is a separate follow-up (plan §6, item 3) — this runbook
   covers native + Docker only.
