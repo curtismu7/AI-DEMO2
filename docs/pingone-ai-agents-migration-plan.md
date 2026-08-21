@@ -35,6 +35,7 @@ Right now every specialist agent is invisible as an *agent* — an admin looking
 
 ### Phase 2 — Re-register as managed AI Agent identities
 - Recreate each app through the AI Agents admin surface instead of the generic Applications API, keeping the same scopes/grant types. Since `client_id` changes when re-created via a different surface, this is a **swap, not an in-place edit** — every `.env` / configStore reference to these 12 client IDs needs updating in the same change.
+- **Update the secrets vault too, not just `.env`.** Per [docs/vault.md](vault.md), `PINGONE_AI_AGENT_CLIENT_SECRET` is already in the vault's closed migration allowlist (`demo_api_server/scripts/vault-migrate.js` `ALLOWED_ENV_VARS`), and the vault — not `.env` — wins at runtime whenever it holds an entry (resolution order: `process.env` > vault > configStore LMDB). Rotating this secret via re-registration and only updating `.env` leaves the OLD secret live, since the vault entry still shadows it. Use `npm run vault:set PINGONE_AI_AGENT_CLIENT_SECRET` (or `/admin/vault` for no-downtime rotation) for the root agent, and add each specialist's new client secret under its own vault entry if/when they're migrated onto the allowlist.
 - Keep `client_secret_basic` for now (matches existing demo pattern). Production guidance is `private_key_jwt` — that's a separate hardening task, out of scope here.
 
 ### Phase 3 — Verify
