@@ -1422,7 +1422,37 @@ class ConfigStore {
     const readEnv = () => {
       for (const envKey of envVars) {
         const v = process.env[envKey];
-        if (v) return v.trim();
+        if (!v) continue;
+        // Hardening (2026-08-21 incident): "encrypted:..." is this module's OWN
+        // internal ciphertext format (see _encrypt/_decrypt above) — it must never
+        // appear in .env, only in LMDB rows. A prior export/import round-trip put
+        // it there literally, which silently shadowed a correct vault-held PingOne
+        // client secret and sent the ciphertext itself to PingOne as client_secret
+        // (invalid_client) until diagnosed by hand. Skip a value in that shape and
+        // fall through to the vault/LMDB tier instead of trusting it — see
+        // docs/vault.md "Troubleshooting: invalid_client after everything looks
+        // configured" for the full incident writeup.
+        if (v.startsWith('encrypted:')) {
+          console.warn(`[ConfigStore] ${envKey} in .env looks like internal ciphertext ("encrypted:..."), not a raw secret — ignoring it and falling back to vault/LMDB. See docs/vault.md#troubleshooting.`);
+          continue;
+        }
+        return v.trim();
+      }
+      return null;
+    };
+    // The vault loader (services/vaultLoader.js) caches each entry under its
+    // OWN name — e.g. an entry named PINGONE_ADMIN_CLIENT_SECRET is cached as
+    // PINGONE_ADMIN_CLIENT_SECRET, not as this key's short internal name
+    // (admin_client_secret). A bare this.get(key) can therefore never see a
+    // vault/LMDB value stored under one of this key's real env-var aliases.
+    // Mirror readEnv()'s alias loop so a vault entry named after any alias in
+    // envFallbackMap resolves the same way a same-named process.env var does.
+    const readStored = () => {
+      const direct = this.get(key);
+      if (direct) return direct;
+      for (const envKey of envVars) {
+        const v = this.get(envKey);
+        if (v) return v;
       }
       return null;
     };
@@ -1431,7 +1461,7 @@ class ConfigStore {
       // Bootstrap keys: .env is authoritative (read before vault unlock).
       const envVal = readEnv();
       if (envVal) return envVal;
-      const stored = this.get(key);
+      const stored = readStored();
       if (stored) return stored;
     } else {
       // Everything else: .env > Vault/LMDB. Env vars set at deploy time
@@ -1443,7 +1473,7 @@ class ConfigStore {
       // _setCache, so a single this.get() encodes "vault, then sqlite".
       const envVal = readEnv();
       if (envVal) return envVal;
-      const stored = this.get(key);
+      const stored = readStored();
       if (stored) return stored;
     }
 

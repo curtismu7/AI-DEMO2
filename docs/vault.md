@@ -31,6 +31,7 @@ If you're looking for the code, start at
 - [Vercel](#vercel)
 - [Threat model summary](#threat-model-summary)
 - [Requirement coverage (REQ-VAULT-01..13)](#requirement-coverage)
+- [Troubleshooting: `invalid_client` after everything looks configured](#troubleshooting-invalid_client-after-everything-looks-configured)
 - [FAQ](#faq)
 
 ---
@@ -489,6 +490,99 @@ Each Phase 269 requirement (REQ-VAULT-01..13) is satisfied as follows:
 | **REQ-VAULT-11** | Vercel / serverless treatment | `VERCEL=1` short-circuits load (Plans 03 + 04) |
 | **REQ-VAULT-12** | Test strategy + golden files | `tests/vault/` — 112+ tests, 2 golden fixtures (valid + corrupted-v1) |
 | **REQ-VAULT-13** | Validation Architecture (Nyquist) | `269-VALIDATION.md` per-task verification map; critical regression suite green |
+
+---
+
+## Troubleshooting: `invalid_client` after everything looks configured
+
+**Symptom:** PingOne returns `invalid_client` / "Invalid client credentials"
+on a token exchange, but `.env` clearly has a value for the client secret,
+`secrets.vault` exists, and nothing was obviously rotated.
+
+This exact scenario happened on 2026-08-21 and took hours to diagnose by
+hand — two independent bugs stacked:
+
+1. **`.env` held this module's own internal ciphertext, not the raw
+   secret.** `PINGONE_ADMIN_CLIENT_SECRET=encrypted:BGZvzg...` — the
+   `encrypted:` prefix is `_encrypt()`'s own wire format (see the top of
+   `services/configStore.js`), meant to live only in LMDB rows. It should
+   never appear in `.env`. Because **`.env` always wins over the vault**
+   (see [Resolution priority](#resolution-priority-which-secret-wins)),
+   the BFF sent that literal ciphertext string to PingOne as the client
+   secret. Root cause: a broken export/import round-trip most likely
+   copied an LMDB row's raw (encrypted) value straight into a `.env` file.
+   **Fixed automatically now** — `getEffective()` detects an `encrypted:`-
+   shaped `.env` value, warns (`[ConfigStore] <NAME> in .env looks like
+   internal ciphertext...`), and falls through to the vault instead of
+   trusting it. If you see that warning in the logs, the `.env` line named
+   in it should be deleted (its value can never be right).
+2. **A correct vault entry can still be unreachable.** `services/vaultLoader.js`
+   caches each entry under its OWN name (e.g. `PINGONE_ADMIN_CLIENT_SECRET`),
+   but `getEffective()`'s vault/LMDB fallback used to check only the short
+   internal field name (`ADMIN_CLIENT_SECRET`) — a different string, so the
+   lookup missed even a perfectly valid vault entry. Fixed in
+   `services/configStore.js`'s `getEffective()`: the fallback now also
+   checks every alias name in `envFallbackMap` (the same alias list
+   `readEnv()` already uses), so a vault entry named after any real
+   PingOne env var resolves correctly. Covered by
+   `tests/vault/configStore-precedence.test.js` → describe block
+   `"configStore vault alias resolution (incident 2026-08-21)"`.
+
+### How to read a vault secret directly, to check whether it's the vault or something else that's wrong
+
+```bash
+cd demo_api_server
+VAULT_PASSWORD="$(grep -m1 '^VAULT_PASSWORD=' .env | cut -d= -f2-)" \
+  npm run --silent vault:get PINGONE_ADMIN_CLIENT_SECRET
+```
+
+Reading from a **worktree**, where `.env`/`secrets.vault` don't exist (they're
+gitignored — see [worktree practice in the root CLAUDE.md](../CLAUDE.md)),
+point at the main checkout explicitly:
+
+```bash
+VAULT_PASSWORD="$(grep -m1 '^VAULT_PASSWORD=' /path/to/main-checkout/demo_api_server/.env | cut -d= -f2-)" \
+VAULT_PATH=/path/to/main-checkout/secrets.vault \
+  node /path/to/main-checkout/demo_api_server/scripts/vault.js get PINGONE_ADMIN_CLIENT_SECRET
+```
+
+`npm run vault:list` (no password decode needed) is the fastest first check —
+it tells you whether an entry exists at all before you spend time on anything
+else.
+
+### Differential diagnosis: is the secret wrong, or is it just the wrong grant type?
+
+A `client_credentials` token request against ANY client tells you something
+useful regardless of that client's real grant type, because PingOne checks
+credentials before it checks the grant:
+
+```bash
+curl -s -X POST "https://auth.pingone.$REGION/$ENV_ID/as/token" \
+  -d grant_type=client_credentials -d client_id=$CLIENT_ID -d client_secret=$SECRET
+```
+
+| Response | Meaning |
+|---|---|
+| `invalid_client` | The secret (or client_id) is wrong. Keep looking. |
+| `unauthorized_client` | The secret is **correct** — PingOne authenticated the pair and only rejected the grant type (expected for a web app / authorization_code-only client tested this way). Stop looking at the secret; look elsewhere (redirect URI, scopes, the OTHER client in a multi-client flow). |
+
+This is how the 2026-08-21 incident was actually cracked open: the vault's
+`PINGONE_ADMIN_CLIENT_SECRET` tested as `unauthorized_client` (proving it was
+correct) while the running app still failed with `invalid_client` — proving
+the running app wasn't using that value at all, which pointed straight at
+the alias-resolution bug above rather than a PingOne-side credential problem.
+
+### Is a symptom on `/sign in` actually the ADMIN client, or the USER client?
+
+The sidebar/top-bar "Sign In" button always goes through the **user** OAuth
+client (`config/oauthUser.js`, `PINGONE_USER_CLIENT_SECRET`) — role is
+resolved AFTER token exchange from PingOne group membership, not by which
+button you clicked. Only "Switch to admin" (`routes/oauth.js`,
+`PINGONE_ADMIN_CLIENT_SECRET`) exercises the admin client. If you're
+debugging one and the fix doesn't apply, you were probably looking at the
+other — check `docker logs ai-demo-api-server | grep 'OAuth callback error'`
+for which route logged the failure (`/api/auth/oauth/user/callback` vs
+`/api/auth/oauth/callback`).
 
 ---
 

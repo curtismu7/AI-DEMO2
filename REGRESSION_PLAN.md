@@ -105,6 +105,18 @@ read the configured host. A new browser origin must be added to ALL of:
 ## §4 — Bug Fix Log
 Reverse-chronological, newest first.
 
+### 2026-08-21 — Admin/user PingOne login failed `invalid_client`: `.env` ciphertext shadowed a correct vault secret, and a vault-alias resolution bug made even a correct vault secret unreachable
+
+**Files changed:** `demo_api_server/services/configStore.js`, `demo_api_server/tests/vault/configStore-precedence.test.js`, `docs/vault.md`.
+
+**What was broken:** Two independent bugs stacked. (1) `demo_api_server/.env` held `PINGONE_ADMIN_CLIENT_SECRET`/`PINGONE_USER_CLIENT_SECRET` as the literal string `encrypted:...` — `configStore`'s own internal ciphertext format (`_encrypt()`), never meant to live outside an LMDB row. Because `.env` always wins over the vault, the BFF sent that ciphertext to PingOne as the client secret on every OAuth token exchange (`invalid_client`), for both admin login (`/api/auth/oauth/callback`) and user login (`/api/auth/oauth/user/callback`). (2) Removing the bad `.env` lines alone did not fix it: `services/vaultLoader.js` caches each vault entry under its own name (e.g. `PINGONE_ADMIN_CLIENT_SECRET`), but `getEffective()`'s vault/LMDB fallback checked only the short internal field name (`ADMIN_CLIENT_SECRET`) — a different cache key, so even a correct vault-held secret was unreachable.
+
+**What was fixed:** `getEffective()`'s stored-value lookup now also checks every alias in `envFallbackMap` (the same alias list `readEnv()` already used for `.env`), so a vault/LMDB entry cached under any real env-var name resolves correctly. Hardening: `readEnv()` now detects an `encrypted:`-shaped `.env` value, warns loudly naming the offending var, and ignores it (falls through to vault/LMDB) instead of ever returning it as a credential. See `docs/vault.md` → "Troubleshooting: invalid_client after everything looks configured" for the full incident writeup and a differential-diagnosis recipe (`unauthorized_client` vs `invalid_client`).
+
+**Do not break:** `.env` must still win over vault/LMDB for any value NOT shaped like `encrypted:...` (deploy-time overrides depend on this — see the precedence tests). The `encrypted:` check must stay a prefix check on the raw string, not a broader heuristic that could reject a legitimately weird-but-valid secret.
+
+**Verify:** `tests/vault/configStore-precedence.test.js` — 17/17 passing, including two new cases proven to fail without the fix (`configStore vault alias resolution (incident 2026-08-21)`); full `demo_api_server` suite (config-store-adjacent shared code) — 822/823 suites, 9,924/10,049 tests (2 unrelated pre-existing LM Studio live-service timeouts); live-verified: admin login, user login, and "Switch to admin" all succeed end to end against the real PingOne tenant.
+
 ### 2026-08-21 — Airlines change-fee step-up proof used the wrong catalog identity
 
 **Files changed:** `demo_api_server/config/verticals/airlines/manifest.json`.

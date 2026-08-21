@@ -198,6 +198,44 @@ describe('getEffective precedence — .env > Vault/LMDB, with a bootstrap allowl
   });
 });
 
+// Incident 2026-08-21: a vault entry named after one of a key's REAL env-var
+// aliases (e.g. PINGONE_ADMIN_CLIENT_SECRET, an alias of admin_client_secret)
+// was invisible to getEffective() — the vault/LMDB fallback only checked the
+// short FIELD_DEFS name, never the alias the vault loader actually cached it
+// under. A correct vault-held PingOne client secret was unreachable for
+// hours because of this, on top of a separate .env corruption bug. See
+// docs/vault.md "Troubleshooting: invalid_client after everything looks
+// configured".
+describe('configStore vault alias resolution (incident 2026-08-21)', () => {
+  const SAVED = {};
+  const ENVV = ['PINGONE_ADMIN_CLIENT_SECRET'];
+  beforeEach(() => { for (const k of ENVV) SAVED[k] = process.env[k]; });
+  afterEach(() => {
+    for (const k of ENVV) {
+      if (SAVED[k] === undefined) delete process.env[k];
+      else process.env[k] = SAVED[k];
+    }
+  });
+
+  test('a vault entry cached under a real env-var alias resolves via the short FIELD_DEFS key', async () => {
+    delete process.env.PINGONE_ADMIN_CLIENT_SECRET;
+    const c = freshConfigStore();
+    await c.ensureInitialized();
+    // Mirrors services/vaultLoader.js: it caches each vault entry under its
+    // OWN name (the alias), not the short key.
+    await c.setRaw({ PINGONE_ADMIN_CLIENT_SECRET: 'vault-admin-secret' }, { persist: false });
+    expect(c.getEffective('admin_client_secret')).toBe('vault-admin-secret');
+  });
+
+  test('an .env value shaped like internal ciphertext ("encrypted:...") is ignored, falling through to the vault', async () => {
+    process.env.PINGONE_ADMIN_CLIENT_SECRET = 'encrypted:not-a-real-secret';
+    const c = freshConfigStore();
+    await c.ensureInitialized();
+    await c.setRaw({ PINGONE_ADMIN_CLIENT_SECRET: 'vault-admin-secret' }, { persist: false });
+    expect(c.getEffective('admin_client_secret')).toBe('vault-admin-secret');
+  });
+});
+
 describe('configStore FIELD_DEFS defaults reachable for UPPER keys', () => {
   test('getEffective(UPPER key) returns FIELD_DEFS default when nothing else set', async () => {
     removeFromLmdb('PINGONE_REGION');
