@@ -346,7 +346,7 @@
   cursor: not-allowed;
 }
 
-/* Quick questions remain available after an answer. */
+/* Prompt library remains available after an answer. */
 .code-search-page .code-search-ask .quick-chip-bar {
   flex-shrink: 0;
   padding: 0.75rem 1rem 0;
@@ -354,16 +354,68 @@
   background: var(--v2-surface-2, #f4f4f2);
 }
 
-.code-search-page .code-search-ask .quick-chips {
-  display: flex;
-  gap: 0.5rem;
-  overflow-x: auto;
-  padding-bottom: 0.75rem;
+.code-search-page .code-search-ask .prompt-menu {
+  position: relative;
 }
 
-.code-search-page .code-search-ask .quick-chips .starter-chip {
-  flex: 0 0 auto;
-  white-space: nowrap;
+.code-search-page .code-search-ask .prompt-menu summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 0;
+  color: var(--cs-accent);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 700;
+  list-style: none;
+}
+
+.code-search-page .code-search-ask .prompt-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.code-search-page .code-search-ask .prompt-menu summary::after {
+  content: '▾';
+  font-size: 1rem;
+}
+
+.code-search-page .code-search-ask .prompt-menu[open] summary::after {
+  content: '▴';
+}
+
+.code-search-page .code-search-ask .prompt-menu summary span {
+  margin-left: auto;
+  margin-right: 0.75rem;
+  color: var(--v2-ink-3, #8c8c88);
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.code-search-page .code-search-ask .prompt-menu-panel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 0.25rem 0 0.75rem;
+}
+
+.code-search-page .code-search-ask .prompt-group h3 {
+  margin: 0 0 0.5rem;
+  color: var(--v2-ink-1, #111110);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.code-search-page .code-search-ask .prompt-options {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.code-search-page .code-search-ask .prompt-options .starter-chip {
+  width: 100%;
+  text-align: left;
 }
 
 /* Messages — scrollable, fills the panel */
@@ -707,12 +759,7 @@
     grid-template-columns: 1fr;
   }
 
-  .code-search-page .code-search-ask .quick-chips {
-    flex-direction: column;
-    overflow-x: visible;
-  }
-
-  .code-search-page .code-search-ask .quick-chips .starter-chip {
-    width: 100%;
+  .code-search-page .code-search-ask .prompt-menu-panel {
+    grid-template-columns: 1fr;
   }
 }
