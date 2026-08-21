@@ -391,13 +391,6 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
               sessionStorage.getItem(REAUTH_KEY),
             );
             if (!silent) {
-              // Only redirect when App.js has confirmed a session (propUser non-null).
-              // If we mounted as a guest (propUser=null, lazy-auth), a 401 on accounts
-              // means the user hasn't logged in yet — show demo data, don't redirect.
-              if (!propUser) {
-                loadDemoFallback("guest 401 — not yet authenticated");
-                return;
-              }
               // Token expired or cold-start stub. Redirect to re-auth.
               // PingOne's SSO session usually makes this seamless (no credentials needed).
               // Guard: only auto-redirect once — if a redirect already happened and we still
@@ -415,18 +408,9 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
             }
             // silent refresh 401 — ignore; next explicit load will handle it
           } else if (dataErr.response?.status === 403) {
-            // admin_token_forbidden: an admin is viewing the customer dashboard.
-            // requireNotAdmin refuses admin tokens on customer data by design, so
-            // there is nothing to re-authenticate *for* — show the same demo data a
-            // guest sees rather than an error the admin cannot act on. Signing in as
-            // a customer stays available from the header.
-            if (dataErr.response?.data?.error === "admin_token_forbidden") {
-              if (!silent) loadDemoFallback("admin token — customer data not available");
-            } else {
-              notifyError(
-                "You do not have permission to access this information.",
-              );
-            }
+            notifyError(
+              "You do not have permission to access this information.",
+            );
           } else if (!silent) {
             // API unreachable or 5xx — fall back to demo without blocking the user
             loadDemoFallback("could not reach banking API");
@@ -565,9 +549,7 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
         document.removeEventListener("mouseup", onUp);
         document.body.style.cursor = "";
         document.body.style.userSelect = "";
-        dragCleanupRef.current = null;
       };
-      dragCleanupRef.current = onUp;
       document.body.style.cursor = "ns-resize";
       document.body.style.userSelect = "none";
       document.addEventListener("mousemove", onMove);
@@ -596,9 +578,7 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
         document.removeEventListener("mouseup", onUp);
         document.body.style.cursor = "";
         document.body.style.userSelect = "";
-        dragCleanupRef.current = null;
       };
-      dragCleanupRef.current = onUp;
       document.body.style.cursor = "col-resize";
       document.body.style.userSelect = "none";
       document.addEventListener("mousemove", onMove);
@@ -606,14 +586,6 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
     },
     [agentColWidth],
   );
-
-  // Unmounting mid-drag (role switch, route change with the button held) must
-  // not leak the document listeners or leave body cursor/userSelect overridden
-  // — same fix EmbeddedAgentDock carries via its dragCleanupRef.
-  const dragCleanupRef = useRef(null);
-  useEffect(() => () => {
-    if (dragCleanupRef.current) dragCleanupRef.current();
-  }, []);
 
   /** Toggle expanded state for account profile details */
   const toggleAccountProfile = useCallback((accountId) => {
@@ -1010,7 +982,6 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
       ) {
         setTotpModalOpen(false);
         setMfaChallengeExpired(true);
-        setAgentTriggeredStepUp(false);
         return;
       }
       setTotpError(
@@ -1056,15 +1027,9 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
       }
       setOtpModalOpen(false);
       setOtpCode("");
-      notifySuccess(
-        agentTriggeredStepUp
-          ? "Identity verified — resuming agent request…"
-          : "Identity verified — please retry your transaction.",
-      );
-      if (agentTriggeredStepUp) {
-        setAgentTriggeredStepUp(false);
-        window.dispatchEvent(new CustomEvent("cibaStepUpApproved"));
-      }
+      setAgentTriggeredStepUp(false);
+      notifySuccess("Identity verified — resuming agent request…");
+      window.dispatchEvent(new CustomEvent("cibaStepUpApproved"));
     } catch (err) {
       if (
         err.response?.status === 401 &&
@@ -1082,7 +1047,6 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
       ) {
         setOtpModalOpen(false);
         setMfaChallengeExpired(true);
-        setAgentTriggeredStepUp(false);
         return;
       }
       setOtpError(
@@ -1091,7 +1055,7 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
     } finally {
       setOtpSubmitting(false);
     }
-  }, [otpCode, otpDaId, otpDeviceId, agentTriggeredStepUp]);
+  }, [otpCode, otpDaId, otpDeviceId]);
 
   // Keep refs current so stale closures (timers, event listeners) can call latest functions
   useEffect(() => {
@@ -1134,7 +1098,6 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
         ) {
           setPushPolling(false);
           setPushModalOpen(false);
-          setAgentTriggeredStepUp(false);
           notifyError(
             "Push notification timed out or was denied. Please try again.",
           );
@@ -1149,24 +1112,14 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
     stepUpVerifyHrefRef.current = stepUpVerifyHref;
   }, [stepUpVerifyHref]);
 
-  /** Cancel the auto-initiate countdown (agent-triggered flows). */
-  const cancelAutoInitiate = useCallback(() => {
-    if (autoInitiateTimerRef.current) {
-      autoInitiateTimerRef.current.forEach(clearTimeout);
-      autoInitiateTimerRef.current = null;
-    }
-    setAgentCountdown(0);
-  }, []);
-
   /** Clears step-up gate state and dismisses the persistent step-up toast. */
   const dismissStepUp = useCallback(() => {
-    cancelAutoInitiate();
     setStepUpRequired(false);
     setCibaAuthReqId(null);
     setCibaStatus("idle");
     setCibaAcr("");
     toast.dismiss("customer-step-up");
-  }, [cancelAutoInitiate]);
+  }, []);
 
   /** Enter the step-up gate from a 428 body (method + ACR for CIBA). Inverse of dismissStepUp. */
   const beginStepUp = useCallback((d) => {
@@ -1174,6 +1127,15 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
     setCibaAcr(d?.step_up_acr || "");
     setCibaStatus("idle");
     setStepUpRequired(true);
+  }, []);
+
+  /** Cancel the auto-initiate countdown (agent-triggered flows). */
+  const cancelAutoInitiate = useCallback(() => {
+    if (autoInitiateTimerRef.current) {
+      autoInitiateTimerRef.current.forEach(clearTimeout);
+      autoInitiateTimerRef.current = null;
+    }
+    setAgentCountdown(0);
   }, []);
 
   // Poll CIBA status when a request is in flight
@@ -1276,10 +1238,8 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
       }
     };
     window.addEventListener("agentStepUpRequested", onAgentStepUp);
-    return () => {
+    return () =>
       window.removeEventListener("agentStepUpRequested", onAgentStepUp);
-      cancelAutoInitiate();
-    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Step-up MFA (428): persistent warning toast with verify actions (replaces inline banner). */
@@ -1290,7 +1250,6 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
     }
 
     const onToastClosed = () => {
-      cancelAutoInitiate();
       setStepUpRequired(false);
       setCibaAuthReqId(null);
       setCibaStatus("idle");
@@ -1516,6 +1475,35 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
     }
   };
 
+  // Simulate a transaction locally (demo mode only)
+  const applyDemoTransaction = (type, amount, fromId, toId, description) => {
+    const now = new Date().toISOString();
+    const newTx = {
+      id: `demo-${Date.now()}`,
+      type,
+      amount,
+      description: description || `Demo ${type}`,
+      accountInfo: (() => {
+        const acc = accounts.find((a) => a.id === (fromId || toId));
+        return acc
+          ? `${acc.accountType.charAt(0).toUpperCase() + acc.accountType.slice(1)} - ${acc.accountNumber}`
+          : "Demo Account";
+      })(),
+      createdAt: now,
+      clientType: "enduser",
+      performedBy: user?.name || user?.username || "Demo User",
+      _demo: true,
+    };
+    setTransactions((prev) => [newTx, ...prev]);
+    setAccounts((prev) =>
+      prev.map((a) => {
+        if (a.id === fromId)
+          return { ...a, balance: Math.max(0, a.balance - amount) };
+        if (a.id === toId) return { ...a, balance: a.balance + amount };
+        return a;
+      }),
+    );
+  };
 
   const handleTransfer = async (e) => {
     e.preventDefault();
@@ -1533,6 +1521,19 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
       return;
     }
 
+    if (isDemoMode) {
+      applyDemoTransaction(
+        "transfer",
+        parseFloat(transferForm.amount),
+        selectedAccount.id,
+        transferForm.toAccountId,
+        transferForm.description || "Demo transfer",
+      );
+      setTransferForm({ toAccountId: "", amount: "", description: "" });
+      setSelectedAccount(null);
+      notifySuccess("Demo transfer completed!");
+      return;
+    }
 
     try {
       await apiClient.post("/api/transactions", {
@@ -1632,6 +1633,19 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
       return;
     }
 
+    if (isDemoMode) {
+      applyDemoTransaction(
+        "deposit",
+        parseFloat(depositForm.amount),
+        null,
+        depositAccount.id,
+        depositForm.description || "Demo deposit",
+      );
+      setDepositForm({ amount: "", description: "" });
+      setDepositAccount(null);
+      notifySuccess("Demo deposit completed!");
+      return;
+    }
 
     try {
       await apiClient.post("/api/transactions", {
@@ -1730,6 +1744,24 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
       return;
     }
 
+    if (isDemoMode) {
+      const amt = parseFloat(withdrawForm.amount);
+      if (amt > withdrawAccount.balance) {
+        notifyWarning("Insufficient demo balance");
+        return;
+      }
+      applyDemoTransaction(
+        "withdrawal",
+        amt,
+        withdrawAccount.id,
+        null,
+        withdrawForm.description || "Demo withdrawal",
+      );
+      setWithdrawForm({ amount: "", description: "" });
+      setWithdrawAccount(null);
+      notifySuccess("Demo withdrawal completed!");
+      return;
+    }
 
     try {
       await apiClient.post("/api/transactions", {
@@ -2639,21 +2671,6 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
     );
   }
 
-  if (loading) {
-    return (
-      <div className="main-content--auth-loading">
-        <div className="auth-loading-card">
-          <div className="auth-loading-dots">
-            <span className="auth-loading-dot" />
-            <span className="auth-loading-dot" />
-            <span className="auth-loading-dot" />
-          </div>
-          <div className="auth-loading-title">Loading your dashboard</div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div
       className={`user-dashboard user-dashboard--2026${
@@ -2691,6 +2708,18 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
                 className="ud-dashboard-inline-agent-host"
                 ref={middleHostRefCb}
               />
+              {!user && (
+                <div className="ud-dashboard-inline-agent-login-prompt" role="status">
+                  <span>Please sign in to use the Agent</span>
+                  <button
+                    type="button"
+                    className="ud-dashboard-inline-agent-login-btn"
+                    onClick={navigateToCustomerOAuthLogin}
+                  >
+                    Sign In
+                  </button>
+                </div>
+              )}
             </div>
             {/* biome-ignore lint/a11y/noStaticElementInteractions: pointer-only drag; height handle remains keyboard-reachable. */}
             <div
@@ -3117,11 +3146,11 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
         <DraggableModal
           isOpen={devicePickerOpen}
           onClose={() => setDevicePickerOpen(false)}
-          title="Choose Verification Method"
-          storageKey="ud-device-picker-modal"
-          defaultWidth={420}
-          defaultHeight={420}
-          zIndex={100080}
+           title="Choose Verification Method"
+           storageKey="ud-device-picker-modal-v2"
+           defaultWidth={640}
+           defaultHeight={560}
+           zIndex={100080}
           backdropClose
           footer={null}
         >

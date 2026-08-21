@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "agentless-mcpgw.name" . }}-ssl
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "agentless-mcpgw.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Mi

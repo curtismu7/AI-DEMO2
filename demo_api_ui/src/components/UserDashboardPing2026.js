@@ -35,9 +35,6 @@ import {
 } from "../utils/agentColumnLayout";
 import { extractRfc9470Challenge } from "../utils/wwwAuthenticate";
 import DashboardTokenRail from "./DashboardTokenRail";
-import TokenChainFilmstrip from "./TokenChainFilmstrip";
-import SimpleStepperBar from "./SimpleStepperBar";
-import AgentResponseMirror from "./AgentResponseMirror";
 import ExchangeModeToggle from "./ExchangeModeToggle";
 import Fido2Challenge from "./Fido2Challenge";
 import TokenChainTraceRail from "./TokenChainTraceRail";
@@ -155,9 +152,7 @@ function readStoredMiddleHeight() {
 const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { placement: agentPlacement, setSurfaceHostEl, setToolbarHostEl } = useAgentUiMode();
-  const [toolbarHostEl, setToolbarHostElNode] = useState(null);
-  const toolbarHostRef = useCallback((node) => setToolbarHostElNode(node), []);
+  const { placement: agentPlacement, setSurfaceHostEl } = useAgentUiMode();
   const { pageManifest, pageMockData } = useVertical();
   const themeDashboard = pageManifest?.dashboard;
   const isRetailDashboard = themeDashboard && themeDashboard.kind === "retail";
@@ -167,16 +162,6 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
     () => agentPlacement === "middle",
   );
 
-  // Default ON — only an explicit More › Movie reel toggle-off ("0") hides it.
-  const [showFilmstrip, setShowFilmstrip] = useState(() => {
-    try { return localStorage.getItem("ba_show_filmstrip") !== "0"; } catch { return true; }
-  });
-  useEffect(() => {
-    const handler = (e) => setShowFilmstrip(!!e.detail?.on);
-    window.addEventListener("agent-filmstrip-toggle", handler);
-    return () => window.removeEventListener("agent-filmstrip-toggle", handler);
-  }, []);
-
   // ff_show_agent_in_middle — when false (default) the banking column
   // is hidden in the middle-agent layout (banking info comes from the agent /
   // pop-out). Floating mode is unaffected. Mirrors the cookie-
@@ -185,8 +170,9 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
 
   useEffect(() => {
     let cancelled = false;
-    getCachedJson("/api/admin/feature-flags")
-      .then(({ data }) => {
+    fetch("/api/admin/feature-flags", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
         if (cancelled) return;
         const flag = data?.flags?.find(
           (f) => f.id === "ff_show_agent_in_middle",
@@ -232,8 +218,9 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
   });
   useEffect(() => {
     let cancelled = false;
-    getCachedJson('/api/admin/feature-flags')
-      .then(({ data }) => {
+    fetch('/api/admin/feature-flags', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
         if (cancelled) return;
         const f = data?.flags?.find((x) => x.id === 'ff_agent_clinical_split');
         if (f != null) setClinicalSplitEnabled((cur) => cur || Boolean(f.value));
@@ -341,7 +328,6 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
   const handleInitiateOtpRef = useRef(null); // stays current — avoids stale closure
   const stepUpVerifyHrefRef = useRef(null); // stays current — avoids stale closure
   const fetchingRef = React.useRef(false);
-  const inFlightRef = React.useRef(null);
   const agentPlacementInitRef = React.useRef(true);
 
   const loadDemoFallback = useCallback(
@@ -359,22 +345,8 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
 
   const fetchUserData = useCallback(
     async (silent = false) => {
-      if (fetchingRef.current) {
-        // Silent callers don't touch `loading` either way (see both `!silent`
-        // guards below), so no-op is fine for them. A non-silent caller does
-        // care, though — if it silently no-ops here because a silent fetch
-        // (e.g. the agentPlacement-change effect) won the race for
-        // fetchingRef first, nothing would ever clear the spinner it owns.
-        // Wait for the in-flight fetch to settle instead of leaving
-        // `loading` stuck true forever.
-        if (!silent) {
-          await inFlightRef.current?.catch(() => {});
-          setLoading(false);
-        }
-        return;
-      }
+      if (fetchingRef.current) return;
       fetchingRef.current = true;
-      const runPromise = (async () => {
       try {
         if (!silent) setLoading(true);
 
@@ -428,13 +400,6 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               sessionStorage.getItem(REAUTH_KEY),
             );
             if (!silent) {
-              // Only redirect when App.js has confirmed a session (propUser non-null).
-              // If we mounted as a guest (propUser=null, lazy-auth), a 401 on accounts
-              // means the user hasn't logged in yet — show demo data, don't redirect.
-              if (!propUser) {
-                loadDemoFallback("guest 401 — not yet authenticated");
-                return;
-              }
               // Token expired or cold-start stub. Redirect to re-auth.
               // PingOne's SSO session usually makes this seamless (no credentials needed).
               // Guard: only auto-redirect once — if a redirect already happened and we still
@@ -452,18 +417,9 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
             }
             // silent refresh 401 — ignore; next explicit load will handle it
           } else if (dataErr.response?.status === 403) {
-            // admin_token_forbidden: an admin is viewing the customer dashboard.
-            // requireNotAdmin refuses admin tokens on customer data by design, so
-            // there is nothing to re-authenticate *for* — show the same demo data a
-            // guest sees rather than an error the admin cannot act on. Signing in as
-            // a customer stays available from the header.
-            if (dataErr.response?.data?.error === "admin_token_forbidden") {
-              if (!silent) loadDemoFallback("admin token — customer data not available");
-            } else {
-              notifyError(
-                "You do not have permission to access this information.",
-              );
-            }
+            notifyError(
+              "You do not have permission to access this information.",
+            );
           } else if (!silent) {
             // API unreachable or 5xx — fall back to demo without blocking the user
             loadDemoFallback("could not reach banking API");
@@ -473,9 +429,6 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
         if (!silent) setLoading(false);
         fetchingRef.current = false;
       }
-      })();
-      inFlightRef.current = runPromise;
-      return runPromise;
     },
     [loadDemoFallback],
   );
@@ -605,9 +558,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
         document.removeEventListener("mouseup", onUp);
         document.body.style.cursor = "";
         document.body.style.userSelect = "";
-        dragCleanupRef.current = null;
       };
-      dragCleanupRef.current = onUp;
       document.body.style.cursor = "ns-resize";
       document.body.style.userSelect = "none";
       document.addEventListener("mousemove", onMove);
@@ -636,9 +587,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
         document.removeEventListener("mouseup", onUp);
         document.body.style.cursor = "";
         document.body.style.userSelect = "";
-        dragCleanupRef.current = null;
       };
-      dragCleanupRef.current = onUp;
       document.body.style.cursor = "col-resize";
       document.body.style.userSelect = "none";
       document.addEventListener("mousemove", onMove);
@@ -646,14 +595,6 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
     },
     [agentColWidth],
   );
-
-  // Unmounting mid-drag (role switch, route change with the button held) must
-  // not leak the document listeners or leave body cursor/userSelect overridden
-  // — same fix EmbeddedAgentDock carries via its dragCleanupRef.
-  const dragCleanupRef = useRef(null);
-  useEffect(() => () => {
-    if (dragCleanupRef.current) dragCleanupRef.current();
-  }, []);
 
   /** Toggle expanded state for account profile details */
   const toggleAccountProfile = useCallback((accountId) => {
@@ -1124,7 +1065,6 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
       ) {
         setTotpModalOpen(false);
         setMfaChallengeExpired(true);
-        setAgentTriggeredStepUp(false);
         return;
       }
       setTotpError(
@@ -1170,15 +1110,9 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
       }
       setOtpModalOpen(false);
       setOtpCode("");
-      notifySuccess(
-        agentTriggeredStepUp
-          ? "Identity verified — resuming agent request…"
-          : "Identity verified — please retry your transaction.",
-      );
-      if (agentTriggeredStepUp) {
-        setAgentTriggeredStepUp(false);
-        window.dispatchEvent(new CustomEvent("cibaStepUpApproved"));
-      }
+      setAgentTriggeredStepUp(false);
+      notifySuccess("Identity verified — resuming agent request…");
+      window.dispatchEvent(new CustomEvent("cibaStepUpApproved"));
     } catch (err) {
       if (
         err.response?.status === 401 &&
@@ -1196,7 +1130,6 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
       ) {
         setOtpModalOpen(false);
         setMfaChallengeExpired(true);
-        setAgentTriggeredStepUp(false);
         return;
       }
       setOtpError(
@@ -1205,7 +1138,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
     } finally {
       setOtpSubmitting(false);
     }
-  }, [otpCode, otpDaId, otpDeviceId, agentTriggeredStepUp]);
+  }, [otpCode, otpDaId, otpDeviceId]);
 
   // Keep refs current so stale closures (timers, event listeners) can call latest functions
   useEffect(() => {
@@ -1248,7 +1181,6 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
         ) {
           setPushPolling(false);
           setPushModalOpen(false);
-          setAgentTriggeredStepUp(false);
           notifyError(
             "Push notification timed out or was denied. Please try again.",
           );
@@ -1263,24 +1195,14 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
     stepUpVerifyHrefRef.current = stepUpVerifyHref;
   }, [stepUpVerifyHref]);
 
-  /** Cancel the auto-initiate countdown (agent-triggered flows). */
-  const cancelAutoInitiate = useCallback(() => {
-    if (autoInitiateTimerRef.current) {
-      autoInitiateTimerRef.current.forEach(clearTimeout);
-      autoInitiateTimerRef.current = null;
-    }
-    setAgentCountdown(0);
-  }, []);
-
   /** Clears step-up gate state and dismisses the persistent step-up toast. */
   const dismissStepUp = useCallback(() => {
-    cancelAutoInitiate();
     setStepUpRequired(false);
     setCibaAuthReqId(null);
     setCibaStatus("idle");
     setCibaAcr("");
     toast.dismiss("customer-step-up");
-  }, [cancelAutoInitiate]);
+  }, []);
 
   /** Enter the step-up gate from a 428 body or an RFC 9470 401 challenge (method + ACR for CIBA). Inverse of dismissStepUp. */
   const beginStepUp = useCallback((d) => {
@@ -1289,6 +1211,15 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
     setStepUpChallengeRaw(d?.rfc9470?.raw || "");
     setCibaStatus("idle");
     setStepUpRequired(true);
+  }, []);
+
+  /** Cancel the auto-initiate countdown (agent-triggered flows). */
+  const cancelAutoInitiate = useCallback(() => {
+    if (autoInitiateTimerRef.current) {
+      autoInitiateTimerRef.current.forEach(clearTimeout);
+      autoInitiateTimerRef.current = null;
+    }
+    setAgentCountdown(0);
   }, []);
 
   // Poll CIBA status when a request is in flight
@@ -1391,10 +1322,8 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
       }
     };
     window.addEventListener("agentStepUpRequested", onAgentStepUp);
-    return () => {
+    return () =>
       window.removeEventListener("agentStepUpRequested", onAgentStepUp);
-      cancelAutoInitiate();
-    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Step-up MFA (428): persistent warning toast with verify actions (replaces inline banner). */
@@ -1405,7 +1334,6 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
     }
 
     const onToastClosed = () => {
-      cancelAutoInitiate();
       setStepUpRequired(false);
       setCibaAuthReqId(null);
       setCibaStatus("idle");
@@ -1600,11 +1528,6 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
     };
   }, [middleHostEl, setSurfaceHostEl, clinicalSplitEnabled]);
 
-  useEffect(() => {
-    setToolbarHostEl(toolbarHostEl);
-    return () => setToolbarHostEl((cur) => (cur === toolbarHostEl ? null : cur));
-  }, [toolbarHostEl, setToolbarHostEl]);
-
   const handleScrollToAccounts = useCallback(() => {
     accountsAnchorRef.current?.scrollIntoView({
       behavior: "smooth",
@@ -1660,6 +1583,35 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
     }
   };
 
+  // Simulate a transaction locally (demo mode only)
+  const applyDemoTransaction = (type, amount, fromId, toId, description) => {
+    const now = new Date().toISOString();
+    const newTx = {
+      id: `demo-${Date.now()}`,
+      type,
+      amount,
+      description: description || `Demo ${type}`,
+      accountInfo: (() => {
+        const acc = accounts.find((a) => a.id === (fromId || toId));
+        return acc
+          ? `${acc.accountType.charAt(0).toUpperCase() + acc.accountType.slice(1)} - ${acc.accountNumber}`
+          : "Demo Account";
+      })(),
+      createdAt: now,
+      clientType: "enduser",
+      performedBy: user?.name || user?.username || "Demo User",
+      _demo: true,
+    };
+    setTransactions((prev) => [newTx, ...prev]);
+    setAccounts((prev) =>
+      prev.map((a) => {
+        if (a.id === fromId)
+          return { ...a, balance: Math.max(0, a.balance - amount) };
+        if (a.id === toId) return { ...a, balance: a.balance + amount };
+        return a;
+      }),
+    );
+  };
 
   const handleTransfer = async (e) => {
     e.preventDefault();
@@ -1677,6 +1629,19 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
       return;
     }
 
+    if (isDemoMode) {
+      applyDemoTransaction(
+        "transfer",
+        parseFloat(transferForm.amount),
+        selectedAccount.id,
+        transferForm.toAccountId,
+        transferForm.description || "Demo transfer",
+      );
+      setTransferForm({ toAccountId: "", amount: "", description: "" });
+      setSelectedAccount(null);
+      notifySuccess("Demo transfer completed!");
+      return;
+    }
 
     try {
       await apiClient.post("/api/transactions", {
@@ -1776,6 +1741,19 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
       return;
     }
 
+    if (isDemoMode) {
+      applyDemoTransaction(
+        "deposit",
+        parseFloat(depositForm.amount),
+        null,
+        depositAccount.id,
+        depositForm.description || "Demo deposit",
+      );
+      setDepositForm({ amount: "", description: "" });
+      setDepositAccount(null);
+      notifySuccess("Demo deposit completed!");
+      return;
+    }
 
     try {
       await apiClient.post("/api/transactions", {
@@ -1874,6 +1852,24 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
       return;
     }
 
+    if (isDemoMode) {
+      const amt = parseFloat(withdrawForm.amount);
+      if (amt > withdrawAccount.balance) {
+        notifyWarning("Insufficient demo balance");
+        return;
+      }
+      applyDemoTransaction(
+        "withdrawal",
+        amt,
+        withdrawAccount.id,
+        null,
+        withdrawForm.description || "Demo withdrawal",
+      );
+      setWithdrawForm({ amount: "", description: "" });
+      setWithdrawAccount(null);
+      notifySuccess("Demo withdrawal completed!");
+      return;
+    }
 
     try {
       await apiClient.post("/api/transactions", {
@@ -3212,10 +3208,11 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
             className="otp-step-up-overlay"
             onClick={() => setMfaChallengeExpired(false)}
           >
-            <div
-              className="otp-step-up-modal"
-              onClick={(e) => e.stopPropagation()}
-            >
+          <div
+            className="otp-step-up-modal otp-step-up-modal--device-picker"
+            onClick={(e) => e.stopPropagation()}
+          >
+
               <div className="otp-step-up-modal__header">
                 <h3 className="otp-step-up-modal__title">
                   MFA Session Expired
@@ -3470,21 +3467,6 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
     );
   }
 
-  if (loading) {
-    return (
-      <div className="main-content--auth-loading">
-        <div className="auth-loading-card">
-          <div className="auth-loading-dots">
-            <span className="auth-loading-dot" />
-            <span className="auth-loading-dot" />
-            <span className="auth-loading-dot" />
-          </div>
-          <div className="auth-loading-title">Loading your dashboard</div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div
       className={`customer-skin-p1 user-dashboard user-dashboard--2026${
@@ -3498,21 +3480,11 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
       {/* ── Token | (split: agent + banking columns) | classic: banking + float reserve ── */}
       {agentPlacement === "middle" ? (
         <div
-          // ud-focus-mode overrides the split grid to a single column: the agent
-          // takes the full width and the chain lies underneath it, which is the
-          // whole point of Focus Mode. The grid classes stay so the collapsed
-          // and banking-column states keep their existing rules.
-          className={`dashboard-content ud-body ud-body--2026 ud-focus-mode ${splitGridClass(
+          className={`dashboard-content ud-body ud-body--2026 ${splitGridClass(
             showBankingInMiddle,
           )}${middleAgentOpen ? "" : " ud-middle-collapsed"}`}
           style={{ '--ud-agent-col-width': `${agentColWidth}px` }}
         >
-          {/* Full width above both columns, where the mock puts it. Inside the
-              agent column it had ~760px for ~14 controls and wrapped onto five
-              rows, taking 161px straight out of the transcript. The controls
-              already carry the mock's grouping (ba-hg groups, labels, dividers);
-              they were being asked to fit half the width they were built for. */}
-          <div className="ud-dashboard-config-strip" ref={toolbarHostRef} />
           <section
             className="ud-agent-column"
             ref={agentColumnRef}
@@ -3532,6 +3504,18 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
                 className="ud-dashboard-inline-agent-host"
                 ref={middleHostRefCb}
               />
+              {!user && (
+                <div className="ud-dashboard-inline-agent-login-prompt" role="status">
+                  <span>Please sign in to use the Agent</span>
+                  <button
+                    type="button"
+                    className="ud-dashboard-inline-agent-login-btn"
+                    onClick={navigateToCustomerOAuthLogin}
+                  >
+                    Sign In
+                  </button>
+                </div>
+              )}
             </div>
             {/* biome-ignore lint/a11y/noStaticElementInteractions: pointer-only drag; height handle remains keyboard-reachable. */}
             <div
@@ -3560,11 +3544,19 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
             </button>
           </section>
 
-          {/* No banking column in Focus Mode. Stacking it between the agent and
-              the chain puts balances in the middle of the evidence — and the
-              balances are the proof, not the subject. The 'bottom' and 'none'
-              branches below still render it. */}
-
+          {showBankingInMiddle && (
+            <main
+              className="ud-center ud-banking-column"
+              id="main-dashboard-content"
+              tabIndex={-1}
+            >
+              {isRetailDashboard ? (
+                <RetailDashboard data={pageMockData} />
+              ) : (
+                renderBankingMain()
+              )}
+            </main>
+          )}
 
           {/* Collapsed middle: agent column is CSS-hidden (host stays mounted so
               the portaled BankingAgent keeps its chat state); surface the same
@@ -3584,20 +3576,10 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
             </aside>
           )}
 
-          {/* Focus Mode: the chain lies along the bottom, full width, so a click
-              raises a sheet across the whole width instead of confining the
-              evidence to the narrowest column. TokenChainFilmstrip is a sibling
-              over the same store — the shared TokenChainTraceRail, which mounts
-              on ~20 other surfaces, is not modified. The 'bottom' and 'none'
-              branches below keep the vertical rail unchanged.
-
-              Gated on showFilmstrip like the float-mode copy below. This render
-              was unconditional, so in Focus Mode — the default layout — the
-              More › Movie reel switch flipped state, persisted it, and changed
-              nothing on screen: it governed only the float branch, which does
-              not mount in this layout. The reel was never lost, the control
-              was simply wired to the copy you were not looking at. */}
-          {showFilmstrip && <TokenChainFilmstrip />}
+          <DashboardTokenRail>
+            <ExchangeModeToggle hideTable />
+            <TokenChainTraceRail />
+          </DashboardTokenRail>
         </div>
       ) : (
         // V2 bottom-dock layout: 2-col grid (main + rail) + fixed dock + under-the-hood panels
@@ -3649,45 +3631,10 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               <DashboardTokenRail>
                 <ExchangeModeToggle hideTable />
                 <TokenChainTraceRail />
-                <SimpleStepperBar />
-                <div className="ud-float-chain-actions">
-                  <button
-                    type="button"
-                    className="ud-float-chain-btn"
-                    title="Real-time token topology — RFC 8693 delegation chain"
-                    onClick={() => window.dispatchEvent(new CustomEvent('token-topology-open'))}
-                  >
-                    Topology
-                  </button>
-                  <button
-                    type="button"
-                    className="ud-float-chain-btn"
-                    title="Floating token chain — RFC 8693 delegation trace rail"
-                    onClick={() => window.dispatchEvent(new CustomEvent('floating-token-chain-open'))}
-                  >
-                    Token chain
-                  </button>
-                  <button
-                    type="button"
-                    className="ud-float-chain-btn"
-                    title="Open 15-Min Security Demo Script"
-                    onClick={() => window.dispatchEvent(new CustomEvent('demo-script-toggle'))}
-                  >
-                    Script
-                  </button>
-                </div>
               </DashboardTokenRail>
 
               {/* Float mode: no reserve column — the FAB is a fixed overlay from App.js. */}
             </div>
-            {/* Response mirror — shows last agent reply on main page when toggled on */}
-            <AgentResponseMirror />
-            {/* Movie reel filmstrip — toggled via More › Movie reel in the agent header */}
-            {showFilmstrip && (
-              <div className="tcfs-float-host">
-                <TokenChainFilmstrip />
-              </div>
-            )}
           </div>
         )
       )}

@@ -3,15 +3,12 @@
   "useCaseId": "UC14",
   "triggerType": "attack",
   "mode": "unit-prereq",
-  "status": "FAIL",
-  "errorClass": "missing_prereq",
+  "status": "UNPROVEN",
+  "errorClass": null,
   "primaryTool": null,
-  "checkedAt": "2026-08-14",
+  "checkedAt": "2026-08-21",
   "requiredFlags": [
     "ff_rar"
-  ],
-  "prereqErrors": [
-    "PAR config missing: pingone_par_endpoint, pingone_ai_agent_actor_client_id, pingone_ai_agent_actor_client_secret, pingone_ai_agent_actor_redirect_uri"
   ],
   "flagsAssumedOn": true,
   "provesDeclaredOnly": true,

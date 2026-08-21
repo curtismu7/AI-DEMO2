@@ -3,15 +3,12 @@
   "useCaseId": "UC2.5",
   "triggerType": "chip",
   "mode": "unit-prereq",
-  "status": "FAIL",
-  "errorClass": "missing_prereq",
+  "status": "UNPROVEN",
+  "errorClass": null,
   "primaryTool": "sensitive_passenger_record",
-  "checkedAt": "2026-08-18",
+  "checkedAt": "2026-08-21",
   "requiredFlags": [
     "ff_mcp_gateway_pinggateway"
-  ],
-  "prereqErrors": [
-    "Passenger Records Specialist credentials missing (pingone_passenger_agent_client_id / pingone_passenger_agent_client_secret)"
   ],
   "flagsAssumedOn": true,
   "provesDeclaredOnly": true,
