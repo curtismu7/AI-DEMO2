@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 from app import app
+from agent import _completion_text
 
 client = TestClient(app)
 
@@ -7,6 +8,15 @@ def test_health():
     r = client.get("/health")
     assert r.status_code == 200
     assert r.json()["status"] == "ok"
+
+
+def test_completion_text_extracts_human_answer_from_json():
+    class Completion:
+        raw = None
+        def __str__(self):
+            return '{"answer":"OAuth uses delegated tokens.","sources":[{"file":"lesson.md"}]}'
+
+    assert _completion_text(Completion()) == "OAuth uses delegated tokens."
 
 
 def test_ask_returns_grounded_shape(monkeypatch):

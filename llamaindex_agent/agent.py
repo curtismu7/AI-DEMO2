@@ -172,6 +172,16 @@ def _completion_text(completion):
     sources was exactly that. Prefer content; fall back to reasoning_content.
     """
     text = (str(completion) or "").strip()
+    if text.startswith("{") and text.endswith("}"):
+        try:
+            import json
+            payload = json.loads(text)
+            for key in ("answer", "text", "response", "content"):
+                value = payload.get(key)
+                if isinstance(value, str) and value.strip():
+                    return value.strip()
+        except (TypeError, ValueError):
+            pass
     if text:
         return text
     raw = getattr(completion, "raw", None)
