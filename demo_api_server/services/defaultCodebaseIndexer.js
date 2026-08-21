@@ -40,6 +40,11 @@ const CODEBASE_PIECES = [
     name: 'Code Search',
     roots: ['demo_mcp_code_search/src'],
   },
+  {
+    id: 'ai-demo2-learning-hub',
+    name: 'Learning Hub Documentation',
+    roots: ['demo_api_ui/src/components/LearningHub.tsx', 'demo_api_ui/src/components/education'],
+  },
 ];
 
 /** Flat union of piece roots — used by tests and any caller wanting all files. */
@@ -106,7 +111,22 @@ function collectFiles(repoRoot, roots = SOURCE_ROOTS) {
   const skipped = { count: 0 };
   for (const root of roots) {
     const abs = path.join(repoRoot, root);
-    if (fs.existsSync(abs)) walk(abs, repoRoot, acc, skipped);
+    if (!fs.existsSync(abs)) continue;
+    if (fs.statSync(abs).isFile()) {
+      const ext = path.extname(abs).toLowerCase();
+      if (!ALLOW_EXT.has(ext) || IGNORE_FILE_RE.test(root)) {
+        skipped.count++;
+        continue;
+      }
+      const stat = fs.statSync(abs);
+      if (stat.size > MAX_FILE_BYTES) {
+        skipped.count++;
+        continue;
+      }
+      acc.push({ path: root.replace(path.sep, '/'), content: fs.readFileSync(abs, 'utf8') });
+    } else {
+      walk(abs, repoRoot, acc, skipped);
+    }
   }
   acc.sort((a, b) => a.content.length - b.content.length);
   const capped = acc.slice(0, MAX_FILES_PER_PIECE);

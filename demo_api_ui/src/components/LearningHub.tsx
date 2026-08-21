@@ -3,6 +3,7 @@ import { useEducationUI } from "../context/EducationUIContext";
 import { useDemoTour } from "../context/DemoTourContext";
 import { EDU } from "./education/educationIds";
 import TokenChainTraceRail from "./TokenChainTraceRail";
+import { askCodeSearch } from "../services/codeSearchAPI";
 import "./LearningHub.css";
 
 interface LearningCategory {
@@ -324,6 +325,29 @@ export default function LearningHub() {
   const { open: openEdu } = useEducationUI();
   const tour = useDemoTour();
   const [searchQuery, setSearchQuery] = useState("");
+  const [ragQuery, setRagQuery] = useState("");
+  const [ragAnswer, setRagAnswer] = useState("");
+  const [ragResults, setRagResults] = useState<any[]>([]);
+  const [ragLoading, setRagLoading] = useState(false);
+  const [ragError, setRagError] = useState("");
+
+  const handleRagSearch = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!ragQuery.trim()) return;
+    setRagLoading(true);
+    setRagError("");
+    try {
+      const response = await askCodeSearch(ragQuery, "ai-demo2-learning-hub", 8);
+      setRagAnswer(response.answer || "");
+      setRagResults(response.sources || []);
+    } catch (error: any) {
+      setRagAnswer("");
+      setRagResults([]);
+      setRagError(error?.message || "Learning Hub search is unavailable.");
+    } finally {
+      setRagLoading(false);
+    }
+  };
 
   const categoryActionMap = useMemo(
     () => ({
@@ -479,6 +503,46 @@ export default function LearningHub() {
         >
           🌐 Share these topics on the web — open the public Learning Hub ↗
         </a>
+
+        <section className="learning-hub__rag" aria-labelledby="learning-hub-rag-title">
+          <div>
+            <span className="learning-hub__rag-eyebrow">Grounded agent search</span>
+            <h2 id="learning-hub-rag-title">Ask the Learning Hub</h2>
+            <p>
+              Search the Learning Hub documentation with retrieval-augmented generation. The agent retrieves relevant education content, then summarizes it with source citations.
+            </p>
+          </div>
+          <form className="learning-hub__rag-form" onSubmit={handleRagSearch}>
+            <input
+              value={ragQuery}
+              onChange={(event) => setRagQuery(event.target.value)}
+              placeholder="Ask about OAuth, MCP, RAG, or agents..."
+              aria-label="Ask the Learning Hub agent"
+              disabled={ragLoading}
+            />
+            <button type="submit" disabled={ragLoading || !ragQuery.trim()}>
+              {ragLoading ? "Searching..." : "Ask agent"}
+            </button>
+          </form>
+          {ragError && <p className="learning-hub__rag-error" role="alert">{ragError}</p>}
+          {ragAnswer && (
+            <div className="learning-hub__rag-answer" aria-live="polite">
+              <h3>Agent summary</h3>
+              <p>{ragAnswer}</p>
+            </div>
+          )}
+          {ragResults.length > 0 && (
+            <div className="learning-hub__rag-results" aria-live="polite">
+              <h3>Sources used</h3>
+              {ragResults.map((result, index) => (
+                <article className="learning-hub__rag-result" key={`${result.file}-${result.line_start}-${index}`}>
+                  <code>{result.file}:{result.line_start}-{result.line_end}</code>
+                  <p>{result.snippet}</p>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
 
         <div className="learning-hub__search">
           <input

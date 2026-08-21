@@ -36,12 +36,21 @@ export async function indexCodebase(file, codebaseName, chunkStrategy = 'simple'
 }
 
 /**
- * @param {string} query - Search query
- * @param {string} codebaseId - ID of the codebase to search
- * @param {number} [limit=10] - Maximum number of results
- * @param {string} [fileFilter] - Optional glob pattern to filter files
- * @returns {Promise<Array>}
+ * Ask the agent about an indexed corpus.
+ * @param {string} question
+ * @param {string} codebaseId
+ * @param {number} [limit=8]
  */
+export async function askCodeSearch(question, codebaseId, limit = 8) {
+  const response = await fetch(`${API_BASE}/ask`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question, codebase_id: codebaseId, limit }),
+  });
+  await throwIfNotOk(response, 'Agent request failed');
+  return response.json();
+}
+
 export async function searchCode(query, codebaseId, limit = 10, fileFilter = undefined) {
   const body = {
     query,
