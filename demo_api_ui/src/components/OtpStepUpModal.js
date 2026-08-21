@@ -1151,13 +1151,13 @@ export default function OtpStepUpModal({
       isOpen={!!show}
       onClose={handleCancel}
       title="Verify Your Identity"
-        footer={stubFooter}
-        className="otp-step-up-draggable"
-        defaultWidth={460}
-        defaultHeight={stubStep === 'choose' ? 400 : 480}
-        minWidth={360}
-        minHeight={320}
-        storageKey="otp-step-up-modal-stub-v2"
+      footer={stubFooter}
+      className="otp-step-up-draggable"
+      defaultWidth={640}
+      defaultHeight={stubStep === 'choose' ? 560 : 600}
+      minWidth={360}
+      minHeight={320}
+      storageKey="otp-step-up-modal-stub-v3"
 
       zIndex={100080}
     >
