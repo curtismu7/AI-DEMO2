@@ -97,7 +97,7 @@
         "message": "pay a $300 change fee",
         "mode": "both",
         "tool": "pay_airline_fee",
-        "useCaseId": "consent-required",
+        "useCaseId": "hitl-consent",
         "group": "advanced"
       },
       {

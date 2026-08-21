@@ -301,7 +301,8 @@ fi
 info "Waiting for rollouts (timeout 3m each)..."
 for dep in jaeger mcp-server mcp-resource-server api-resource-server hitl-service \
            llm-proxy tier-manager demo-api-server mcp-gateway agent-service langchain-agent \
-           mastra-agent openai-agent pydantic-agent frontend; do
+           mastra-agent openai-agent pydantic-agent frontend weaviate embeddings \
+           mcp-code-search llamaindex-agent; do
   kubectl rollout status "deployment/$dep" -n "$NS" --timeout=180s
 done
 kubectl rollout status "deployment/llama-tier1" -n "$NS" --timeout=900s \
