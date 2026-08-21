@@ -49,6 +49,11 @@ function scopeColor(scope) {
   return 'scope-default';
 }
 
+function isGatewayAuthChallenge(error) {
+  const message = String(error?.message || '').toLowerCase();
+  return message.includes('401') || message.includes('bearer token required') || message.includes('authorization_uri');
+}
+
 function gatewayModeDetails(mcpUrl) {
   const host = String(mcpUrl || '').toLowerCase();
   if (!host) return { key: 'unknown', title: 'Gateway mode not selected', detail: 'Choose an Agent or Agentless Gateway in Settings.' };
@@ -101,6 +106,7 @@ export default function PrivilegeMcpClientPage() {
   const [rawRpc, setRawRpc] = useState('{\n  "jsonrpc": "2.0",\n  "id": 1,\n  "method": "tools/list",\n  "params": {}\n}');
   const [rawRpcResult, setRawRpcResult] = useState('');
   const [showBlockedModal, setShowBlockedModal] = useState(false);
+  const [showSignInModal, setShowSignInModal] = useState(false);
   const [showFlowModal, setShowFlowModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
@@ -231,16 +237,10 @@ export default function PrivilegeMcpClientPage() {
       }
       // Auto-connect Privilege using the active PingOne session when the main app
       // is already logged in — prompt=none on the BFF means PingOne returns silently.
-      if (s.gatewayMode !== 'agent' && s.mainAppAuthenticated && !s.oauth?.authenticated) {
-        const authParam = new URLSearchParams(window.location.search).get('auth');
-        if (authParam !== 'silent_failed' && !silentAuthAttempted.current) {
-          silentAuthAttempted.current = true;
-          setSilentAuthPending(true);
-          api('/auth/start', { method: 'POST' })
-            .then((data) => { window.location.href = data.authUrl; })
-            .catch(() => setSilentAuthPending(false));
-        }
-      }
+       if (s.gatewayMode !== 'agent' && s.mainAppAuthenticated && !s.oauth?.authenticated) {
+         setShowSignInModal(true);
+       }
+
     }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -397,8 +397,9 @@ export default function PrivilegeMcpClientPage() {
       if (!silent) appendChat('system', `Discovered ${nextTools.length} tools from MCP server.`);
     } catch (err) {
       setTools([]);
-      if (err.message?.toLowerCase().includes('not authenticated')) {
+      if (err.message?.toLowerCase().includes('not authenticated') || err.message?.includes('401')) {
         setAuthenticated(false);
+        setShowSignInModal(true);
       } else if (
         err.message?.toLowerCase().includes('not authorized') ||
         err.message?.includes('403') ||
@@ -471,7 +472,12 @@ export default function PrivilegeMcpClientPage() {
         }
       }
     } catch (err) {
-      appendChat('assistant', `Error: ${err.message}`);
+      if (isGatewayAuthChallenge(err)) {
+        setShowSignInModal(true);
+        appendChat('system', 'Sign in is required to access the gateway.');
+      } else {
+        appendChat('assistant', `Error: ${err.message}`);
+      }
     } finally {
       setThinking(false);
     }
@@ -495,7 +501,8 @@ export default function PrivilegeMcpClientPage() {
       out = JSON.stringify(data, null, 2);
       ok = !data?.error && !data?.result?.isError;
     } catch (err) {
-      out = JSON.stringify({ error: err.message }, null, 2);
+      if (isGatewayAuthChallenge(err)) setShowSignInModal(true);
+      out = JSON.stringify({ error: isGatewayAuthChallenge(err) ? 'Sign in is required to access the gateway.' : err.message }, null, 2);
       ok = false;
     }
     recordResult(name, out, ok);
@@ -560,7 +567,8 @@ export default function PrivilegeMcpClientPage() {
         setMcpInputRequired(null);
       }
     } catch (err) {
-      setMcpResult(JSON.stringify({ error: err.message }, null, 2));
+      if (isGatewayAuthChallenge(err)) setShowSignInModal(true);
+      setMcpResult(JSON.stringify({ error: isGatewayAuthChallenge(err) ? 'Sign in is required to access the gateway.' : err.message }, null, 2));
     }
   };
 
@@ -579,7 +587,8 @@ export default function PrivilegeMcpClientPage() {
       setMcpResult(JSON.stringify(data, null, 2));
       if (data?.result?.resultType !== 'input_required') setMcpInputRequired(null);
     } catch (err) {
-      setMcpResult(JSON.stringify({ error: err.message }, null, 2));
+      if (isGatewayAuthChallenge(err)) setShowSignInModal(true);
+      setMcpResult(JSON.stringify({ error: isGatewayAuthChallenge(err) ? 'Sign in is required to access the gateway.' : err.message }, null, 2));
     }
   };
 
@@ -611,6 +620,28 @@ export default function PrivilegeMcpClientPage() {
       {showPresent && (
         <div className="ptt-present-overlay">
           <ToolsTable tools={tools} presentMode onClose={() => setShowPresent(false)} />
+        </div>
+      )}
+      {showSignInModal && (
+        <div className="cur-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="cur-signin-title">
+          <div className="cur-modal">
+            <h2 id="cur-signin-title">Sign in to continue</h2>
+            <p>Your app session is not authorized for this gateway yet. Sign in with the app account to continue.</p>
+            <div className="cur-btn-row">
+              <button className="cur-btn cur-btn--primary" onClick={async () => {
+                setShowSignInModal(false);
+                setSilentAuthPending(true);
+                try {
+                  const data = await api('/auth/start', { method: 'POST' });
+                  window.location.href = data.authUrl;
+                } catch (err) {
+                  setSilentAuthPending(false);
+                  appendChat('system', `Sign-in unavailable: ${err.message}`);
+                }
+              }}>Sign In</button>
+              <button className="cur-btn" onClick={() => setShowSignInModal(false)}>Cancel</button>
+            </div>
+          </div>
         </div>
       )}
       {showBlockedModal && (

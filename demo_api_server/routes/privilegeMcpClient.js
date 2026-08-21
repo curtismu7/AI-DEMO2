@@ -47,7 +47,8 @@ function getClientSession(req) {
       gatewayMode: 'agentless',
       gatewayConfigs: { agent: agentConfig, agentless: agentlessConfig },
       oauth: {
-        accessToken: null, refreshToken: null, expiresAt: null, tokenUri: null,
+         accessToken: null, refreshToken: null, expiresAt: null, tokenUri: null, source: null,
+
         // Set when login went through a self-advertising gateway (MCPGW acting as
         // its own AS) via Dynamic Client Registration — refreshAccessToken must
         // reuse this client, not the PingOne app id, or the token endpoint 400s.
@@ -65,6 +66,16 @@ function getClientSession(req) {
   }
   const session = clientSessions.get(sid);
   session._sid = sid;
+  const appAccessToken = req.session?.oauthTokens?.accessToken;
+  if (appAccessToken && appAccessToken !== '_cookie_session' && !session.oauth.accessToken) {
+    session.oauth.accessToken = appAccessToken;
+    session.oauth.refreshToken = null;
+    session.oauth.expiresAt = null;
+    session.oauth.tokenUri = null;
+    session.oauth.dcrClientId = null;
+    session.oauth.dcrClientSecret = null;
+    session.oauth.source = 'main_app_session';
+  }
   // Allow MCP clients that already hold a PingOne token to pass it directly
   // via Authorization: Bearer instead of going through the /auth/login flow.
   // Clear refresh metadata when seeding: keeping a prior browser-OAuth
@@ -866,7 +877,7 @@ router.get('/state', (req, res) => {
     config: session.config,
     gatewayMode: session.gatewayMode,
     gatewayConfigs: session.gatewayConfigs,
-    oauth: { authenticated: Boolean(session.oauth.accessToken), expiresAt: session.oauth.expiresAt, scope: session.oauth.scope || '' },
+    oauth: { authenticated: Boolean(session.oauth.accessToken), source: session.oauth.source || null, expiresAt: session.oauth.expiresAt, scope: session.oauth.scope || '' },
     mainAppAuthenticated: mainAppAuth,
     user: req.session?.user || null,
     tools: session.tools,
