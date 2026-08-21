@@ -726,12 +726,21 @@ SERVICES=(
   "promptfoo-step-narration|promptfoo (eval)      |-|./run-docker.sh promptfoo"
 )
 
-# True if $1 is one of the compose service names in SERVICES.
+# True if $1 is one of the compose service names in SERVICES, OR a member of
+# any optional profile group (rag/agents/tracing/demo-auth/mcpgw) — those are
+# real, targetable compose services too (e.g. llamaindex-agent), just excluded
+# from the "core" SERVICES table because they're off by default. Single-service
+# build/restart targeting (cmd_build_one, restart <svc>) needs both sets; the
+# help/print_service_table listing intentionally still shows only the core set.
 is_known_service() {
   local want="${1:-}"
   [[ -z "${want}" ]] && return 1
   for entry in "${SERVICES[@]}"; do
     [[ "${entry%%|*}" == "${want}" ]] && return 0
+  done
+  local svc
+  for svc in $(_optional_group_services all); do
+    [[ "${svc}" == "${want}" ]] && return 0
   done
   return 1
 }
