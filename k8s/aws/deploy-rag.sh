@@ -113,13 +113,13 @@ warn "Embeddings warm up on first pull — Code Search may 503 for a few minutes
 # If llamaindex races ahead it can create a broken CodeChunk class without
 # codebase_id; repair that before indexing.
 info "Waiting for weaviate rollout..."
-kubectl rollout status deployment/weaviate -n "$NS" --timeout=180s || warn "weaviate rollout not ready yet"
+kubectl rollout status deployment/weaviate -n "$NS" --timeout=180s || die "weaviate did not become ready"
 
 info "Waiting for embeddings rollout..."
-kubectl rollout status deployment/embeddings -n "$NS" --timeout=300s || warn "embeddings rollout not ready yet"
+kubectl rollout status deployment/embeddings -n "$NS" --timeout=300s || die "embeddings did not become ready"
 
 info "Waiting for mcp-code-search rollout..."
-kubectl rollout status deployment/mcp-code-search -n "$NS" --timeout=180s || warn "mcp-code-search rollout not ready yet"
+kubectl rollout status deployment/mcp-code-search -n "$NS" --timeout=180s || die "mcp-code-search did not become ready"
 
 info "Checking CodeChunk schema (must include codebase_id)"
 API_POD="$(kubectl get pod -n "$NS" -l component=api-server -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)"
@@ -132,22 +132,16 @@ fetch("http://weaviate:8080/v1/schema").then(r=>r.json()).then(d=>{
 ' 2>/dev/null | tail -1 || true)"
   echo "  props: ${SCHEMA_PROPS}"
   if [[ "$SCHEMA_PROPS" != *"codebase_id"* ]]; then
-    warn "Broken/missing CodeChunk schema — deleting and restarting mcp-code-search"
-    kubectl exec -n "$NS" "$API_POD" -- node -e '
-fetch("http://weaviate:8080/v1/schema/CodeChunk",{method:"DELETE"})
-  .then(async r=>console.log("delete",r.status)).catch(e=>console.log(e.message));
-' >/dev/null 2>&1 || true
-    kubectl rollout restart "deployment/mcp-code-search" -n "$NS"
-    kubectl rollout status deployment/mcp-code-search -n "$NS" --timeout=180s || true
+    die "CodeChunk schema is missing codebase_id"
   else
     success "CodeChunk schema looks good"
   fi
 else
-  warn "api-server pod not found — skipped schema check"
+  die "demo-api-server pod not found — cannot verify CodeChunk schema"
 fi
 
 info "Waiting for llamaindex-agent rollout..."
-kubectl rollout status deployment/llamaindex-agent -n "$NS" --timeout=180s || warn "llamaindex-agent rollout not ready yet"
+kubectl rollout status deployment/llamaindex-agent -n "$NS" --timeout=180s || die "llamaindex-agent did not become ready"
 
 if kubectl get deployment demo-api-server -n "$NS" &>/dev/null; then
   info "Restarting demo-api-server to start the default Protected RAG index..."
@@ -164,8 +158,9 @@ info "Services:"
 kubectl get svc -n "$NS" weaviate embeddings mcp-code-search llamaindex-agent || true
 echo
 info "Indexed codebases:"
-kubectl exec -n "$NS" deploy/mcp-code-search -- wget -qO- http://localhost:8095/codebases 2>/dev/null || echo "(could not list)"
-echo
+CODEBASES="$(kubectl exec -n "$NS" deploy/mcp-code-search -- wget -qO- http://localhost:8095/codebases 2>/dev/null || true)"
+echo "$CODEBASES"
+[[ "$CODEBASES" == *'ai-demo2-server'* ]] || die "Protected RAG corpus ai-demo2-server is not indexed"
 success "RAG stack deploy finished for $NS"
 echo "Next: open https://ai-demo.ping-devops.com/code-search and wait for the API Server index to report ready."
 echo "If the list is empty: kubectl logs -n $NS deploy/demo-api-server --tail=120"

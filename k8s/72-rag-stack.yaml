@@ -1,5 +1,5 @@
 # RAG Code Search stack (Phase 3 K8 parity with Docker `rag` profile).
-# Default replicas:0 — start with `./k8s/deploy.sh rag on` (~1.2GB when running).
+# RAG runs by default in the SE deploy; local K8s can stop it with `./k8s/deploy.sh rag off`.
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
