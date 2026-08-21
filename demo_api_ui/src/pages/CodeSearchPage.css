@@ -346,6 +346,26 @@
   cursor: not-allowed;
 }
 
+/* Quick questions remain available after an answer. */
+.code-search-page .code-search-ask .quick-chip-bar {
+  flex-shrink: 0;
+  padding: 0.75rem 1rem 0;
+  border-top: 1px solid var(--v2-line-1, #e4e4e0);
+  background: var(--v2-surface-2, #f4f4f2);
+}
+
+.code-search-page .code-search-ask .quick-chips {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.75rem;
+}
+
+.code-search-page .code-search-ask .quick-chips .starter-chip {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 /* Messages — scrollable, fills the panel */
 .code-search-page .code-search-ask .messages-container {
   flex: 1;
@@ -685,5 +705,14 @@
 
   .code-search-page .code-search-ask .starter-chips {
     grid-template-columns: 1fr;
+  }
+
+  .code-search-page .code-search-ask .quick-chips {
+    flex-direction: column;
+    overflow-x: visible;
+  }
+
+  .code-search-page .code-search-ask .quick-chips .starter-chip {
+    width: 100%;
   }
 }
