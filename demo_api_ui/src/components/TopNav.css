@@ -69,6 +69,13 @@
   font-size: 26px;
 }
 
+.topnav-brand-logo {
+  height: 26px;
+  width: auto;
+  max-width: 140px;
+  object-fit: contain;
+}
+
 .topnav-brand-name {
   font-size: 16px;
   font-weight: 700;

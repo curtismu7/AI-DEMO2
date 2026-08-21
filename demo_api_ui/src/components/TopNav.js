@@ -117,7 +117,9 @@ export default function TopNav({ user, onLogout }) {
             onClick={() => navigate(user?.role === 'admin' ? '/admin' : '/dashboard')}
             aria-label="Go to dashboard"
           >
-            <BrandIcon className="topnav-brand-icon" />
+            {identity?.logoPath
+              ? <img src={identity.logoPath} alt={identity.logoAlt || brandName} className="topnav-brand-logo" />
+              : <BrandIcon className="topnav-brand-icon" />}
             <span className="topnav-brand-name">{brandName}</span>
           </button>
         </div>

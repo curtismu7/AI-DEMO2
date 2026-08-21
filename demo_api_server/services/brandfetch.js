@@ -1,9 +1,12 @@
 'use strict';
 
 // Thin client for Brandfetch's Brand API (https://docs.brandfetch.com) — given a
-// domain, returns a manifest-shaped patch { logoPath, cssVars } for the vertical
-// editor to merge into its buffer. Requires BRANDFETCH_API_KEY (a REST API key
-// from the Brandfetch developer dashboard — separate from the MCP OAuth token).
+// domain, returns the raw ingredients { logoPath, primary, accent, fontName }.
+// Deliberately does NOT derive a full cssVars map: zone→CSS-var palette
+// derivation is the frontend's job (demo_api_ui/src/config/themeZones.js),
+// same as every other palette in this theming system. Requires
+// BRANDFETCH_API_KEY (a REST API key from the Brandfetch developer dashboard —
+// separate from the MCP OAuth token).
 
 const API_BASE = 'https://api.brandfetch.io/v2';
 
@@ -51,28 +54,7 @@ async function fetchBrand(domain) {
     || (data.fonts || [])[0]?.name
     || null;
 
-  const cssVars = {
-    '--app-primary-red': primary,
-    '--app-primary-red-hover': primary,
-    '--app-primary-red-mid': primary,
-    '--app-primary-red-border': primary,
-    '--theme-accent': accent,
-    '--brand-navy': primary,
-    '--brand-dashboard-header-start': primary,
-    '--brand-dashboard-header-end': accent,
-    '--brand-app-shell-hero-start': primary,
-    '--brand-app-shell-hero-end': accent,
-    '--brand-topnav-bg-start': primary,
-    '--brand-topnav-bg-end': accent,
-  };
-  // ponytail: sets the font family name only — doesn't inject a Google Fonts
-  // <link>, so a font not already available on the page silently falls back
-  // to the existing system-font stack. Add font loading if that matters.
-  if (fontName) {
-    cssVars['--font-primary'] = `"${fontName}", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
-  }
-
-  return { logoPath, cssVars };
+  return { logoPath, primary, accent, fontName };
 }
 
 module.exports = { fetchBrand };
