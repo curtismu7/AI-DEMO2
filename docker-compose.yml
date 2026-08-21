@@ -1661,6 +1661,7 @@ services:
       EMBEDDING_URL: http://embeddings:8080
       EMBEDDING_MODEL: nomic-embed-text-v1.5
       LLAMACPP_BASE_URL: http://host.docker.internal:8090
+      AGENT_MODE: single-shot
       AGENT_MAX_TOOL_CALLS: "4"
     networks:
       - ai-demo
