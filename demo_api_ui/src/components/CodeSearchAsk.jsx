@@ -152,7 +152,7 @@ export default function CodeSearchAsk({ codebaseId }) {
 
   const renderPromptMenu = () => (
     <details className="prompt-menu">
-      <summary>Prompt library <span>{PROMPTS.length} prompts</span></summary>
+        <summary><span aria-hidden="true">📚</span> Prompt library <span>{PROMPTS.length} prompts</span></summary>
       <div className="prompt-menu-panel">
         {PROMPT_GROUPS.map((group) => (
           <section key={group.label} className="prompt-group">
