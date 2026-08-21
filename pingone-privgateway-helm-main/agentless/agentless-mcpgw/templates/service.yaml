@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "agentless-mcpgw.name" . }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "agentless-mcpgw.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: {{ include "agentless-mcpgw.name" . }}
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8680
+      protocol: TCP
+    - name: oidc
+      port: 8623
+      targetPort: 8623
+      protocol: TCP

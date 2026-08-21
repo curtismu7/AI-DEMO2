@@ -1,0 +1,69 @@
+# Gateway hostname — used in deployment, ingress, and certificate
+hostname: cj-agentless-mcpgw.ping-devops.com
+
+# Kubernetes namespace
+namespace: ping-devops-cjmuir
+
+image:
+  repository: public.ecr.aws/s7q1z8z4/privilege-aigw
+  tag: latest
+  pullPolicy: Always
+
+# cert-manager ClusterIssuer name
+clusterIssuer: letsencrypt-pdo
+
+# Nginx ingress class
+ingressClassName: nginx-public
+
+resources:
+  requests:
+    memory: "2Gi"
+    cpu: "1"
+  limits:
+    memory: "4Gi"
+    cpu: "2"
+
+# MCP server names registered in Privilege Cloud console.
+# Each entry adds a path route /<name> → gateway:8623.
+# Restart the gateway after adding new servers (see operational notes).
+mcpServers:
+  - name: pingone-mcp-server-2
+  - name: opensearch-mcp-server
+
+# Credentials — fill these in before deploying.
+# These are stored as Kubernetes Secrets.
+proxyToken: ""  # Privilege Cloud gateway registration token
+
+oidc:
+  serverUrl: ""       # https://<hostname>
+  clientId: ""
+  clientSecret: ""
+  authUrl: ""         # https://auth.pingone.com/<env-id>/as/authorize
+  tokenUrl: ""        # https://auth.pingone.com/<env-id>/as/token
+  userUrl: ""         # https://auth.pingone.com/<env-id>/as/userinfo
+  scopes: "openid profile email p1:read:env p1:read:user p1:read:application"
+
+opensearch:
+  enabled: true
+  image: opensearchproject/opensearch:2
+  storage: 10Gi
+  javaOpts: "-Xms512m -Xmx512m"
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "1000m"
+      memory: "2Gi"
+
+opensearchMcpServer:
+  enabled: true
+  image: cjmuir710/opensearch-mcp-server:latest
+  imagePullSecret: dockerhub-creds
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"

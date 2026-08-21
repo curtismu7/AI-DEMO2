@@ -1,20 +1,18 @@
 {
   "vertical": "airlines",
-  "useCaseId": "UC14b",
-  "triggerType": "link",
+  "useCaseId": "UC-TOOL1",
+  "triggerType": "chip",
   "mode": "unit-prereq",
   "status": "UNPROVEN",
   "errorClass": null,
-  "primaryTool": "create_transfer",
+  "primaryTool": "code_search",
   "checkedAt": "2026-08-21",
   "requiredFlags": [
-    "ff_rar",
     "ff_mcp_gateway_pinggateway"
   ],
   "flagsAssumedOn": true,
   "provesDeclaredOnly": true,
   "flagsOffDetected": [
-    "ff_rar",
     "ff_mcp_gateway_pinggateway"
   ]
 }

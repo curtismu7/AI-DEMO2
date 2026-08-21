@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "agentless-mcpgw.name" . }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "agentless-mcpgw.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: {{ include "agentless-mcpgw.name" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "agentless-mcpgw.name" . }}
+    spec:
+      initContainers:
+        # Copy TLS cert into the SSL PVC so the gateway can start in TLS mode
+        - name: copy-mcpgw-cert
+          image: busybox
+          command:
+            - sh
+            - -c
+            - "cp /mcpgw-tls/tls.crt /procyon/ssl/mcpgw-cert.pem && cp /mcpgw-tls/tls.key /procyon/ssl/mcpgw-key.pem"
+          volumeMounts:
+            - name: ssl
+              mountPath: /procyon/ssl
+            - name: mcpgw-tls
+              mountPath: /mcpgw-tls
+              readOnly: true
+      containers:
+        - name: {{ include "agentless-mcpgw.name" . }}
+          image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - /procyon/bin/mcpgw
+            - -hostname
+            - {{ .Values.hostname | quote }}
+            - -mcpconfpath
+            - "/var/lib/procyon/config/pingone.env"
+          env:
+            - name: ENV_PROXY_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "agentless-mcpgw.name" . }}-secret
+                  key: ENV_PROXY_TOKEN
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: logs
+              mountPath: /var/log/procyon
+            - name: ssl
+              mountPath: /procyon/ssl
+            - name: recordings
+              mountPath: /procyon/recordings
+            - name: oidc-config
+              mountPath: /var/lib/procyon/config/pingone.env
+              subPath: pingone.env
+              readOnly: true
+        - name: log-tailer
+          image: busybox
+          command: ["sh", "-c", "until [ -f /var/log/procyon/cyonproxy.log ]; do sleep 1; done; tail -F /var/log/procyon/cyonproxy.log"]
+          volumeMounts:
+            - name: logs
+              mountPath: /var/log/procyon
+      volumes:
+        - name: logs
+          hostPath:
+            path: /var/log/procyon/{{ include "agentless-mcpgw.name" . }}
+            type: DirectoryOrCreate
+        - name: ssl
+          persistentVolumeClaim:
+            claimName: {{ include "agentless-mcpgw.name" . }}-ssl
+        - name: mcpgw-tls
+          secret:
+            secretName: {{ include "agentless-mcpgw.name" . }}-tls
+        - name: recordings
+          hostPath:
+            path: /var/lib/procyon/recordings/{{ include "agentless-mcpgw.name" . }}
+            type: DirectoryOrCreate
+        - name: oidc-config
+          secret:
+            secretName: {{ include "agentless-mcpgw.name" . }}-oidc-config

@@ -1,0 +1,6 @@
+apiVersion: v2
+appVersion: latest
+description: Privilege Cloud Agentless MCP Gateway
+name: agentless-mcpgw
+type: application
+version: 0.1.0
