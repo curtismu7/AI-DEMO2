@@ -19,7 +19,7 @@ function toRgb(hex) {
 }
 
 /** Darken a hex color by `pct` percent (toward black). */
-function darken(hex, pct) {
+export function darken(hex, pct) {
   const { r, g, b } = toRgb(hex);
   const f = 1 - pct / 100;
   const h = (n) => clamp(n * f).toString(16).padStart(2, '0');
@@ -27,9 +27,15 @@ function darken(hex, pct) {
 }
 
 /** A translucent tint of `hex` (used for soft active-item backgrounds). */
-function tint(hex, a) {
+export function tint(hex, a) {
   const { r, g, b } = toRgb(hex);
   return `rgba(${r}, ${g}, ${b}, ${a})`;
+}
+
+/** Relative luminance (0..1), used to pick a readable text color over `hex`. */
+export function luminance(hex) {
+  const { r, g, b } = toRgb(hex);
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
 }
 
 // Raw CSV rows (No, name, primary, onPrimary, secondary, accent, foreground, card).

@@ -67,6 +67,26 @@
   background: #f1f5f9;
 }
 
+.atp-brandfetch-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.atp-brandfetch-input {
+  width: 150px;
+  font-size: 0.75rem;
+  padding: 4px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+}
+
+.atp-brandfetch-status {
+  font-size: 0.75rem;
+  color: #64748b;
+  max-width: 220px;
+}
+
 .atp-vertical-body {
   padding: 14px;
   border-top: 1px solid #e2e8f0;

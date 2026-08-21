@@ -12,7 +12,7 @@
 //      the current look immediately (see the invariant comment in index.css).
 // No server/API/merge changes are ever required.
 
-import { PALETTES } from './designSystems';
+import { PALETTES, darken, tint, luminance } from './designSystems';
 
 /**
  * Each zone maps one-or-more brand CSS vars to named palette tokens.
@@ -82,4 +82,41 @@ export function matchPaletteForZone(zone, currentCssVars = {}, palettes = PALETT
   const norm = (v) => String(v).toLowerCase();
   const hit = palettes.find((p) => norm(resolveZoneCssVars(zone, p)[probe]) === norm(current));
   return hit ? hit.id : null;
+}
+
+// Zones whose `from` tokens include 'card' or 'foreground' — a fetched brand
+// only reliably gives us a primary + accent color, not a surface palette, so
+// these are left at their current value rather than guessed.
+const ZONES_NEEDING_SURFACE_TOKENS = new Set(['agentResponse', 'agentDock']);
+
+/**
+ * Build a palette-shaped object (same tokens as a PALETTES entry) from a
+ * fetched brand's primary/accent colors, using the same derived-tone math as
+ * every curated palette in designSystems.js.
+ */
+export function buildBrandPalette(primary, accent) {
+  return {
+    id: 'brandfetch',
+    tokens: {
+      primary,
+      primaryHover: darken(primary, 12),
+      primaryMid: accent,
+      primaryBorder: darken(primary, 22),
+      primarySoft: tint(primary, 0.12),
+      secondary: accent,
+      accent,
+      onPrimary: luminance(primary) > 0.55 ? '#111111' : '#ffffff',
+    },
+  };
+}
+
+/** Resolve a fetched brand's primary/accent into cssVars across every zone
+ * that doesn't need a surface color we don't have. */
+export function cssVarsFromBrand(primary, accent) {
+  const palette = buildBrandPalette(primary, accent);
+  const out = {};
+  THEME_ZONES
+    .filter((z) => !ZONES_NEEDING_SURFACE_TOKENS.has(z.key))
+    .forEach((zone) => Object.assign(out, resolveZoneCssVars(zone, palette)));
+  return out;
 }

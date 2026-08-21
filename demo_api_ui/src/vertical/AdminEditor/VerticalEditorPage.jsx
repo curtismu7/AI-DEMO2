@@ -4,6 +4,7 @@ import { useVertical } from '../useVertical';
 import { OverlayBadge } from './OverlayBadge';
 import { CloneModal } from './CloneModal';
 import { VerticalPipelineMap } from './VerticalPipelineMap';
+import { cssVarsFromBrand } from '../../config/themeZones';
 import './VerticalEditorPage.css';
 
 const PROTECTED = new Set(['banking', 'admin-console']);
@@ -212,7 +213,13 @@ export function VerticalEditorPage() {
       }
       const edited = JSON.parse(editorValue);
       if (body.logoPath) edited.identity = { ...edited.identity, logoPath: body.logoPath };
-      if (body.cssVars) edited.theme = { ...edited.theme, cssVars: { ...edited.theme?.cssVars, ...body.cssVars } };
+      if (body.primary) {
+        const cssVars = cssVarsFromBrand(body.primary, body.accent || body.primary);
+        if (body.fontName) {
+          cssVars['--font-primary'] = `"${body.fontName}", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+        }
+        edited.theme = { ...edited.theme, cssVars: { ...edited.theme?.cssVars, ...cssVars } };
+      }
       setEditorValue(JSON.stringify(edited, null, 2));
     } finally {
       setBrandLoading(false);
