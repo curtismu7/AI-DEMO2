@@ -21,6 +21,9 @@ const traceClaims = new Map();
 const traceBuffers = new Map();
 const BUFFER_MAX = 24;
 
+/** @type {Map<string, NodeJS.Timeout>} — pending cleanup timer per trace, so re-claiming cancels the stale one */
+const traceCleanupTimers = new Map();
+
 const CLAIM_TTL_MS = 60_000;
 const TRACE_CLEANUP_MS = 120_000;
 
@@ -89,13 +92,20 @@ function claimTrace(traceId, sessionId) {
   if (!traceBuffers.has(traceId)) {
     traceBuffers.set(traceId, []);
   }
-  setTimeout(() => {
+  // Cancel any previously scheduled cleanup for this trace before scheduling
+  // a new one — repeated claims (e.g. client reconnects) must not accumulate
+  // unbounded timers.
+  const existingTimer = traceCleanupTimers.get(traceId);
+  if (existingTimer) clearTimeout(existingTimer);
+  const timer = setTimeout(() => {
     const cur = traceClaims.get(traceId);
     if (cur && cur.sessionId === sessionId) {
       traceClaims.delete(traceId);
       traceBuffers.delete(traceId);
     }
+    traceCleanupTimers.delete(traceId);
   }, TRACE_CLEANUP_MS);
+  traceCleanupTimers.set(traceId, timer);
 }
 
 /**
