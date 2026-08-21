@@ -99,7 +99,7 @@ deploy() {
   kubectl apply -f "$SCRIPT_DIR/59-mcp-jwt-verifier-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/62-hitl-service-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/56-llm-stack.yaml"           # 2-tier LLM proxy + swap tiers
-  kubectl apply -f "$SCRIPT_DIR/72-rag-stack.yaml"           # RAG (replicas:0 until `rag on`)
+  kubectl apply -f "$SCRIPT_DIR/72-rag-stack.yaml"           # RAG (starts by default; use `rag off` to stop)
   # BFF (token custodian)
   kubectl apply -f "$SCRIPT_DIR/20-api-server-deployment.yaml"
   # Gateway + agent runtimes (mcp-gateway starts at replicas:0; demo-sync scales it)
@@ -120,6 +120,13 @@ deploy() {
     kubectl rollout restart deployment -n "$NS" $pre_existing
   fi
 
+  # RAG manifests default to one replica; explicit `rag off` remains available.
+  info "RAG stack enabled by default (${RAG_SERVICES})"
+  for _rag in $RAG_SERVICES; do
+    kubectl scale "deployment/$_rag" -n "$NS" --replicas=1 &
+  done
+  wait
+
   # Start every agent runtime. AGENT_SELECTION still controls the default route;
   # the others remain available for live framework switching and comparison.
   case " $ALL_AGENTS " in *" $AGENT_SELECTION "*) ;; *)
@@ -138,7 +145,8 @@ deploy() {
   local _pids=() _deps=()
   for dep in jaeger mcp-server mcp-resource-server api-resource-server mcp-weather mcp-brave mcp-jwt-verifier hitl-service \
              demo-api-server ping-gateway agent-service \
-             langchain-agent mastra-agent openai-agent pydantic-agent frontend; do
+             langchain-agent mastra-agent openai-agent pydantic-agent frontend \
+             weaviate embeddings mcp-code-search llamaindex-agent; do
     kubectl rollout status "deployment/$dep" -n "$NS" --timeout=180s &
     _pids+=($!)
     _deps+=("$dep")
@@ -173,7 +181,6 @@ deploy() {
 
   demo_sync_cmd
   kubectl scale deployment/mcp-proxy -n "$NS" --replicas=1
-  kubectl scale deployment/weaviate deployment/embeddings deployment/mcp-code-search deployment/llamaindex-agent -n "$NS" --replicas=1
 
   if kubectl get secret ping-mcpgw-secrets -n "$NS" >/dev/null 2>&1; then
     kubectl scale deployment/ping-mcpgw -n "$NS" --replicas=1

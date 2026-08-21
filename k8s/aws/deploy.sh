@@ -298,6 +298,10 @@ else
   sed "s|$ACM_PLACEHOLDER|${ACM_CERTIFICATE_ARN:-$ACM_PLACEHOLDER}|" "$SCRIPT_DIR/ingress.yaml" | kubectl apply -f -
 fi
 
+info "Starting RAG stack by default..."
+kubectl scale deployment/weaviate deployment/embeddings deployment/mcp-code-search deployment/llamaindex-agent \
+  -n "$NS" --replicas=1
+
 info "Waiting for rollouts (timeout 3m each)..."
 for dep in jaeger mcp-server mcp-resource-server api-resource-server hitl-service \
            llm-proxy tier-manager demo-api-server mcp-gateway agent-service langchain-agent \

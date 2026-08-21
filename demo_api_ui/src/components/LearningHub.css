@@ -100,6 +100,108 @@
   white-space: pre-wrap;
 }
 
+.learning-hub__rag-clear {
+  border: 1px solid #8fbcb4;
+  border-radius: 6px;
+  background: #fff;
+  color: #146c60;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.learning-hub__rag-prompts {
+  margin-top: 1rem;
+}
+
+.learning-hub__rag-prompts summary {
+  color: #146c60;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.learning-hub__rag-prompts summary span {
+  margin-left: 0.5rem;
+  color: #66827e;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.learning-hub__rag-prompt-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.learning-hub__rag-prompt-grid button {
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #cfe4e0;
+  border-radius: 6px;
+  background: #fff;
+  color: #244b49;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.learning-hub__rag-prompt-grid button:hover:not(:disabled) {
+  border-color: #146c60;
+  background: #effaf7;
+}
+
+.learning-hub__rag-clear {
+  border: 1px solid #8fbcb4;
+  border-radius: 6px;
+  background: #fff;
+  color: #146c60;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.learning-hub__rag-prompts {
+  margin-top: 1rem;
+}
+
+.learning-hub__rag-prompts summary {
+  color: #146c60;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.learning-hub__rag-prompts summary span {
+  margin-left: 0.5rem;
+  color: #66827e;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.learning-hub__rag-prompt-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.learning-hub__rag-prompt-grid button {
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #cfe4e0;
+  border-radius: 6px;
+  background: #fff;
+  color: #244b49;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.learning-hub__rag-prompt-grid button:hover:not(:disabled) {
+  border-color: #146c60;
+  background: #effaf7;
+}
+
 .learning-hub__rag-results {
   margin-top: 1.25rem;
 }
@@ -279,6 +381,20 @@
   background: var(--primary-dark, #0052a3);
 }
 
+@media (max-width: 768px) {
+  .learning-hub__rag-form {
+    flex-wrap: wrap;
+  }
+
+  .learning-hub__rag-form input {
+    flex-basis: 100%;
+  }
+
+  .learning-hub__rag-prompt-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .learning-hub__live-demo {
   background: #f0fdf4;
   border: 1px solid #bbf7d0;
@@ -308,6 +424,18 @@
 
 /* Responsive */
 @media (max-width: 768px) {
+  .learning-hub__rag-form {
+    flex-wrap: wrap;
+  }
+
+  .learning-hub__rag-form input {
+    flex-basis: 100%;
+  }
+
+  .learning-hub__rag-prompt-grid {
+    grid-template-columns: 1fr;
+  }
+
   .learning-hub {
     padding: 1rem;
   }
