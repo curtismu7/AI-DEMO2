@@ -39,6 +39,8 @@ export default function CodeSearchAsk({ codebaseId }) {
   const abortRef = useRef(null);
   // Monotonic id for stable React keys — messages are append-only.
   const nextIdRef = useRef(0);
+  const promptHistoryRef = useRef([]);
+  const promptHistoryIndexRef = useRef(-1);
 
   // Keep the thread scrolled to the newest message.
   useEffect(() => {
@@ -65,6 +67,8 @@ export default function CodeSearchAsk({ codebaseId }) {
 
   const sendQuestion = async (question) => {
     if (!question.trim() || isSending || !codebaseId) return;
+    promptHistoryRef.current.push(question.trim());
+    promptHistoryIndexRef.current = -1;
 
     const ctrl = new AbortController();
     abortRef.current = ctrl;
@@ -129,6 +133,15 @@ export default function CodeSearchAsk({ codebaseId }) {
   };
 
   const handleKeyDown = (e) => {
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const next = Math.min(promptHistoryIndexRef.current + 1, promptHistoryRef.current.length - 1);
+      if (next >= 0) {
+        promptHistoryIndexRef.current = next;
+        setInput(promptHistoryRef.current[promptHistoryRef.current.length - 1 - next]);
+      }
+      return;
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       sendQuestion(input);
@@ -243,7 +256,10 @@ export default function CodeSearchAsk({ codebaseId }) {
         <input
           type="text"
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+           onChange={(e) => {
+             setInput(e.target.value);
+             promptHistoryIndexRef.current = -1;
+           }}
           onKeyDown={handleKeyDown}
           placeholder={
             codebaseId
