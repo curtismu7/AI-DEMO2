@@ -79,8 +79,14 @@ describe('POST /mcp', () => {
     expect(r.wwwAuth).toContain('resource_metadata=');
   });
 
+  // RFC 6750 §3.1: an invalid/wrong-audience token MUST be 401, same as the
+  // missing-bearer case above — not 200 with the failure buried in the
+  // JSON-RPC body (the -32001 check alone doesn't prove that; an HTTP-level
+  // consumer like demo_mcp_proxy only sees the status code).
   it('rejects a token minted for another audience', async () => {
     const r = await post(callTool('get_airline_bookings'), token('airlines:read', 'someone-else.ping.demo'));
+    expect(r.status).toBe(401);
+    expect(r.wwwAuth).toMatch(/error="invalid_token"/);
     expect(r.json.error.code).toBe(-32001);
     expect(r.json.error.message).toMatch(/Audience mismatch/);
   });

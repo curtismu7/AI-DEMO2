@@ -293,6 +293,15 @@ function handleHttp(req: IncomingMessage, res: ServerResponse): void {
           const parsed = JSON.parse(s);
           isUnsupportedProtocolVersion = parsed?.error?.code === -32022;
         } catch { /* ok — malformed body goes through as 200 */ }
+        // RFC 6750 §3.1: an invalid/expired/malformed token MUST return 401,
+        // same as the missing-bearer case above — not 200 with the failure
+        // buried in the JSON-RPC body. TokenError (tokenValidator.ts) always
+        // surfaces as -32001.
+        let isInvalidToken = false;
+        try {
+          const parsed = JSON.parse(s);
+          isInvalidToken = parsed?.error?.code === -32001;
+        } catch { /* ok — malformed body goes through as 200 */ }
         const sessionHeader = sessionIdForInitialize ? { 'mcp-session-id': sessionIdForInitialize } : {};
         if (isInsufficientScope) {
           res.writeHead(403, {
@@ -302,6 +311,12 @@ function handleHttp(req: IncomingMessage, res: ServerResponse): void {
           });
         } else if (isUnsupportedProtocolVersion) {
           res.writeHead(400, { 'Content-Type': 'application/json', ...sessionHeader });
+        } else if (isInvalidToken) {
+          res.writeHead(401, {
+            'Content-Type': 'application/json',
+            'WWW-Authenticate': `Bearer realm="banking-mcp-resource-server", error="invalid_token", resource_metadata="${RESOURCE_URI}/.well-known/oauth-protected-resource"`,
+            ...sessionHeader,
+          });
         } else {
           res.writeHead(200, { 'Content-Type': 'application/json', ...sessionHeader });
         }

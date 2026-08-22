@@ -273,7 +273,11 @@ module.exports = async function decisionHandler(req, res) {
         warn(`[AuthzServer/decision] HITL lookup failed status=${hr.status} id=${challengeIdRaw}`);
       } else {
         const body = await hr.json();
-        if (body?.status !== 'approved') {
+        // 'consumed' is reachable only from 'approved' (challengeStore.consume()
+        // throws otherwise) — the Node gateway's verifyAndConsumeHitlReceipt()
+        // already consumed this exact challenge before calling us, so this GET
+        // is a stale-but-valid re-check, not evidence of a denial or replay.
+        if (body?.status !== 'approved' && body?.status !== 'consumed') {
           hitlApproved = false;
           warn(`[AuthzServer/decision] HITL challenge not approved status=${body?.status} id=${challengeIdRaw}`);
         }

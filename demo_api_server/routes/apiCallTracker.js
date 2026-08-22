@@ -113,7 +113,9 @@ router.post('/', async (req, res) => {
  */
 router.get('/tokens', (req, res) => {
   try {
-    const sessionId = req.query.sessionId || req.session?.id || 'default';
+    // Unlike /api/api-calls, this bucket holds raw bearer tokens — never trust
+    // a caller-supplied sessionId here, only the caller's own session.
+    const sessionId = req.session?.id || 'default';
     const tokens = getSessionTokens(sessionId);
 
     res.json({
@@ -136,7 +138,8 @@ router.get('/tokens', (req, res) => {
  */
 router.delete('/tokens', (req, res) => {
   try {
-    const sessionId = req.query.sessionId || req.session?.id || 'default';
+    // Same ownership rule as GET /tokens above — own session only.
+    const sessionId = req.session?.id || 'default';
     clearSessionTokens(sessionId);
 
     res.json({

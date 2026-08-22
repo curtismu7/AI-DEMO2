@@ -67,6 +67,23 @@ export default function Profile({ user }) {
   const [showSuccessScreen, setShowSuccessScreen] = useState(!user?.hideSuccessScreen);
   const [savingPreference, setSavingPreference] = useState(false);
 
+  // `/profile` isn't gated on useAuth's `loading` flag, so this mounts with
+  // `user=null` while the session check is in flight — the useState
+  // initializers above only run once, locking formData/showSuccessScreen to
+  // empty/default values that never picked up the real profile once `user`
+  // populated. Re-sync whenever `user` changes, skipping while an edit is
+  // in progress so this can't clobber unsaved input.
+  useEffect(() => {
+    if (!user || isEditing) return;
+    setFormData({
+      firstName: user.firstName || '',
+      lastName: user.lastName || '',
+      email: user.email || '',
+      phone: user.phone || '',
+    });
+    setShowSuccessScreen(!user.hideSuccessScreen);
+  }, [user, isEditing]);
+
   const loadDevices = useCallback(async () => {
     setDevicesLoading(true);
     try {

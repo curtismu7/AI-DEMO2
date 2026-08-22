@@ -325,6 +325,41 @@ test('NNP-6 A-8e: HITL_SERVICE_URL set + approved challenge → PERMIT', async (
       HitlChallengeId: 'a1b2c3d4-e5f6-4789-a012-3456789abcde',
     }));
     assert.strictEqual(result.decision, 'PERMIT', 'Expected PERMIT, got ' + result.decision + ': ' + result.reason);
+    assert.notStrictEqual(result.reason, 'HITL_CONSENT', 'Expected the gate discharged, not re-armed');
+  } finally {
+    global.fetch = origFetch;
+    if (prev === undefined) delete process.env.HITL_SERVICE_URL;
+    else process.env.HITL_SERVICE_URL = prev;
+    fresh();
+  }
+});
+
+// Regression: the Node MCP gateway's verifyAndConsumeHitlReceipt() (PR #1959,
+// TECH_DEBT.md "Node MCP Gateway's HITL retry path never consumes the
+// receipt") already POSTs to the HITL service's consuming /verify before
+// calling us — by the time we GET the same challenge here, its status is
+// 'consumed', not 'approved'. This defense-in-depth re-check used to treat
+// that as "not approved" and re-fire HITL_CONSENT, permanently rejecting an
+// approval the gateway had already verified. 'consumed' is reachable only
+// from 'approved' (challengeStore.consume() throws otherwise), so it must be
+// accepted here too.
+test('NNP-6 A-8f: HITL_SERVICE_URL set + consumed challenge (gateway already verified+consumed it) → PERMIT', async () => {
+  const prev = process.env.HITL_SERVICE_URL;
+  process.env.HITL_SERVICE_URL = 'http://hitl.test';
+  const origFetch = global.fetch;
+  global.fetch = async () => ({
+    ok: true,
+    json: async () => ({ status: 'consumed' }),
+  });
+  try {
+    fresh();
+    const result = await decide(writeParams({
+      TransactionAmount: '300',
+      HitlApproved: 'true',
+      HitlChallengeId: 'a1b2c3d4-e5f6-4789-a012-3456789abcde',
+    }));
+    assert.strictEqual(result.decision, 'PERMIT', 'Expected PERMIT, got ' + result.decision + ': ' + result.reason);
+    assert.notStrictEqual(result.reason, 'HITL_CONSENT', 'Expected the gate discharged, not re-armed (this is the bug: consumed treated as not-approved)');
   } finally {
     global.fetch = origFetch;
     if (prev === undefined) delete process.env.HITL_SERVICE_URL;
