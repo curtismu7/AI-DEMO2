@@ -3,8 +3,7 @@ const RANK = { fail: 3, warn: 2, pass: 1, skip: 0 };
 
 export function worst(statuses) {
   if (!statuses.length) return 'idle';
-  const top = statuses.reduce((a, s) => (RANK[s] > RANK[a] ? s : a), 'skip');
-  return top === 'skip' ? 'pass' : top;
+  return statuses.reduce((a, s) => (RANK[s] > RANK[a] ? s : a), 'skip');
 }
 
 export function groupByCategory(catalog, results) {
