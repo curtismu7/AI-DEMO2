@@ -31,6 +31,7 @@
 | UC10 | [Resource-ownership / account takeover](./cross-owner-account.md) | attacks | ✅ works | 🛡️ T3 |  |
 | UC11 | [Bad client → agent gateway](./bad-client-gateway.md) | attacks | ✅ works | 🛡️ T9 |  |
 | UC13 | [Confused-deputy actor injection](./confused-deputy-actor-injection.md) | attacks | ✅ works | 🛡️ T13 |  |
+| UC16 | [Impersonation blocked (OBO required)](./impersonation-blocked.md) | attacks | ✅ works | 🛡️ T9 |  |
 | UC17 | [JIT / ephemeral credentials](./jit-ephemeral-credentials.md) | controls | ✅ works | 🛡️ T3, T9 |  |
 | UC18 | [Rate-limit / resource-overload defense](./rate-limit-defense.md) | attacks | ✅ works | 🛡️ T4 |  |
 | UC29 | [OAuth introspection outage — fail closed](./oauth-fail-closed.md) | attacks | ✅ works | 🛡️ T2 |  |
@@ -73,14 +74,13 @@
 | ID | Title | Track | Maturity | OWASP | What to Enable |
 |---|---|---|---|---|---|
 | UC15 | [Intent-token tampering](./intent-token-tampering.md) | attacks | 🏗️ needs-build | 🛡️ T6, T8 | See plan |
-| UC16 | [Impersonation blocked (OBO required)](./impersonation-blocked.md) | attacks | 🏗️ needs-build | 🛡️ T9 | See plan |
 
 ## Summary
 
 | Status | Count |
 |---|---|
-| ✅ Works | 45 |
+| ✅ Works | 46 |
 | 🚩 Flag-gated | 8 |
 | 📥 Needs console import | 0 |
-| 🏗️ Needs build | 2 |
+| 🏗️ Needs build | 1 |
 | **Total** | **55** |
