@@ -84,10 +84,8 @@ export function SequenceDiagramRoute({ user, logout }) {
   );
 }
 
-export function LogsRoute({ user, logout }) {
-  // Standalone pop-out page — no AppShell chrome (side nav / TopNav), so the
-  // signed-out state is the bare prompt card, not the full SignInRequired page.
-  if (!user) return <SignInPrompt />;
+export function LogsRoute() {
+  // Public per auth-requirements.json ("/logs": "public") — no session gate.
   return <LogViewerPage />;
 }
 
@@ -100,16 +98,16 @@ export function McpInspectorRoute({ user, logout }) {
 }
 
 export function WebMcpRoute({ user, logout }) {
+  // Public per auth-requirements.json ("/webmcp": "public") — no session gate.
   return (
     <AppShell user={user} logout={logout}>
-      {user ? <WebMcpPanel /> : <SignInPrompt />}
+      <WebMcpPanel />
     </AppShell>
   );
 }
 
-export function AgentFlowInspectorRoute({ user }) {
-  // App.js catch-all already supplies TopNav + main-content — bare card only.
-  if (!user) return <SignInPrompt />;
+export function AgentFlowInspectorRoute() {
+  // Public per auth-requirements.json ("/agent-flow-inspector": "public") — no session gate.
   // Mounted under App.js catch-all which already supplies TopNav + main-content
   // (+ side nav). Do not nest another shell — a second .main-content also got
   // the sidebar width offset and left empty space on the right.
