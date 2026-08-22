@@ -31,8 +31,9 @@ let _chainIndex = 0;
  * @param {object} [opts.userToken]  decoded token payload (sub, scope)
  * @param {boolean} [opts.isDelegated]
  * @param {string|null} [opts.decisionId]  authorize decision id for PERMIT calls (demo-track stamp)
+ * @param {string|null} [opts.sessionId]  req.sessionID — scopes the demo-track observation to the caller's session
  */
-function recordToolCall({ userId, toolName, success, duration, resultJson, requestJson, summary, userToken, isDelegated, decisionId }) {
+function recordToolCall({ userId, toolName, success, duration, resultJson, requestJson, summary, userToken, isDelegated, decisionId, sessionId }) {
 	const eventId = `local-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 	const event = {
 		eventId,
@@ -63,7 +64,7 @@ function recordToolCall({ userId, toolName, success, duration, resultJson, reque
 		const errorCode = !success && resultJson && typeof resultJson === 'object'
 			? (resultJson.error || resultJson.code || null)
 			: null;
-		require('./demoTrackService').observeToolCall({ toolName, success, timestamp: event.timestamp, decisionId: decisionId || null, errorCode });
+		require('./demoTrackService').observeToolCall({ toolName, success, timestamp: event.timestamp, decisionId: decisionId || null, errorCode }, sessionId);
 	} catch { /* track observation is optional */ }
 	if (_events.length > MAX_EVENTS) _events.length = MAX_EVENTS;
 }

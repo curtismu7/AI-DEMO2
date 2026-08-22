@@ -64,7 +64,7 @@ async function callMcpToolAsAgent({ name, args, userId, userToken, sessionId, to
       { code: resolved.blockCode || 'user_token_forwarding_disabled', httpStatus: resolved.blockHttpStatus || 403 },
     );
   }
-  return callMcpToolInternal(name, args || {}, agentToken, userId, tokenEvents);
+  return callMcpToolInternal(name, args || {}, agentToken, userId, tokenEvents, sessionId);
 }
 
 /**
@@ -186,7 +186,7 @@ async function executeBffTool({ name, args, userId, userToken, req = null, token
       });
     }
     const _toolStart = Date.now();
-    const result = await tool.invoke(args, { configurable: { agentContext: { agentToken, userId, tokenEvents } } });
+    const result = await tool.invoke(args, { configurable: { agentContext: { agentToken, userId, tokenEvents, sessionId } } });
     const _duration = Date.now() - _toolStart;
     const resultStr = typeof result === 'string' ? result : JSON.stringify(result);
     try {
@@ -195,7 +195,7 @@ async function executeBffTool({ name, args, userId, userToken, req = null, token
       recordMcpToolCall({ userId: userId || 'agent', toolName: name, success, duration: _duration,
         summary: success ? `${name} completed` : `${name} failed`,
         requestJson: { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args ?? {} } },
-        resultJson: parsed ?? null, isDelegated: !!agentToken });
+        resultJson: parsed ?? null, isDelegated: !!agentToken, sessionId });
     } catch (_) {}
     return resultStr;
   }

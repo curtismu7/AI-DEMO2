@@ -205,6 +205,7 @@ async function createBankingAgent({ userId, userToken, sessionId, tokenEvents = 
             userToken,
             subjectToken,
             tokenEvents,
+            sessionId,
             req, // For token event recording
           },
         },
@@ -273,6 +274,7 @@ async function createBankingAgent({ userId, userToken, sessionId, tokenEvents = 
                     agentToken,
                     userId,
                     tokenEvents,
+                    sessionId,
                   },
                 },
               });
