@@ -9,12 +9,15 @@ export default function useHitlConsent({ hitlPending, runId }) {
       const rid = hitlPending?.runId || runId;
       if (!rid) return;
 
-      await fetch(`/api/agent/consent/${rid}`, {
+      const res = await fetch(`/api/agent/consent/${rid}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ approved }),
         credentials: 'include',
       });
+      if (!res.ok) {
+        throw new Error(`HITL consent request failed: ${res.status}`);
+      }
     },
     [hitlPending, runId]
   );

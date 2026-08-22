@@ -80,6 +80,14 @@ describe('useHitlConsent', () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
+  test('submitConsent throws when the server rejects the consent decision', async () => {
+    global.fetch.mockResolvedValue({ ok: false, status: 409 });
+    const hitlPending = { runId: 'r4', tool: 'create_transfer' };
+    const { result } = renderHook(() => useHitlConsent({ hitlPending, runId: 'r4' }));
+
+    await expect(result.current.submitConsent(true)).rejects.toThrow('409');
+  });
+
   test('consentData is null when hitlPending is null', () => {
     const { result } = renderHook(() => useHitlConsent({ hitlPending: null, runId: null }));
     expect(result.current.consentData).toBeNull();
