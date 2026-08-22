@@ -177,8 +177,14 @@ export function openMcpToolStream(traceId, onEvent) {
   };
 
   es.addEventListener('message', handleMessage);
+  // Same guard as openMcpDiscoveryStream above: only force-close on the
+  // server's clean stream close (readyState === CLOSED). Closing on every
+  // error kills the browser's built-in reconnect and drops the rest of the
+  // pipeline — including the stream_end that legitimately ends the stream.
   es.onerror = () => {
-    try { es.close(); } catch (_) {}
+    if (es && es.readyState === 2 /* EventSource.CLOSED */) {
+      try { es.close(); } catch (_) {}
+    }
   };
 
   return () => {
