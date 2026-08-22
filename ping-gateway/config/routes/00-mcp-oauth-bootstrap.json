@@ -1,0 +1,10 @@
+{
+  "comment": "OAuth bootstrap passthrough for the standalone external MCP door. An unknown MCP client (ChatGPT, Claude, LM Studio) has no token yet and no client_id yet — it must read the AS/resource metadata and then either self-register (RFC 7591) or present a Client ID Metadata Document URL before it can obtain one. PingGateway has no authorization server of its own, so these endpoints are proxied unauthenticated to oauth-mcp's embedded AS; putting rsFilter in front of them would demand the very token they exist to issue. Deliberately excludes /introspect and /revoke — no MCP client needs them, so they stay internal. Every path that actually carries MCP traffic (/mcp/...) keeps its own token validation and P1AZ decision in the routes alongside this one; this route grants no access to data.",
+  "name": "mcp-oauth-bootstrap",
+  "condition": "${find(request.uri.path, '^/(\\.well-known/(oauth-authorization-server|oauth-protected-resource|mcp-server)|register|authorize(/callback)?|token|jwks)$')}",
+  "handler": {
+    "type": "ReverseProxyHandler",
+    "baseURI": "${env['PG_OLB_BACKEND_URL']}",
+    "config": {}
+  }
+}

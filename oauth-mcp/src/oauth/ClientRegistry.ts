@@ -8,6 +8,100 @@ export interface OAuthClient {
   scope: string;
 }
 
+const CIMD_TIMEOUT_MS = 5_000;
+const CIMD_MAX_BYTES = 64 * 1024;
+
+/**
+ * One switch admits clients this server has never seen before, by either of the
+ * two mechanisms unknown MCP clients actually use: RFC 7591 open registration
+ * and Client ID Metadata Documents. They solve the same problem (ChatGPT/Claude
+ * cannot be pre-registered), so they share a flag rather than needing two.
+ */
+export function openClientRegistrationEnabled(): boolean {
+  return process.env.MCP_OPEN_CLIENT_REGISTRATION === 'true';
+}
+
+/**
+ * Scope granted to a self-admitted client. Pinned server-side and never read
+ * from the client's request: letting a caller name its own `scope` on an
+ * unauthenticated registration is precisely the escalation the initial-access-
+ * token gate existed to prevent, so open registration must not reintroduce it.
+ */
+export function openRegistrationScope(): string {
+  return process.env.DCR_OPEN_REGISTRATION_SCOPE || 'mcp:invoke read';
+}
+
+/**
+ * Reject hosts that would let a CIMD fetch reach the cluster's own network.
+ * ponytail: literal-address check only — a hostname that DNS-resolves to a
+ * private address still passes. Set CIMD_ALLOWED_HOSTS for a real allowlist.
+ */
+function isBlockedCimdHost(hostname: string): boolean {
+  const h = hostname.toLowerCase();
+  if (h === 'localhost' || h === '::1' || h.endsWith('.localhost')) return true;
+  if (/^127\./.test(h) || /^10\./.test(h) || /^192\.168\./.test(h)) return true;
+  if (/^172\.(1[6-9]|2\d|3[01])\./.test(h)) return true;
+  if (/^169\.254\./.test(h)) return true;
+  return false;
+}
+
+/**
+ * Fetch and validate a Client ID Metadata Document
+ * (draft-ietf-oauth-client-id-metadata-document): the client_id IS an https URL
+ * serving the client's own metadata, so the domain vouches for the identity and
+ * no registration step is needed.
+ */
+export async function fetchClientIdMetadataDocument(clientId: string): Promise<OAuthClient | undefined> {
+  let url: URL;
+  try {
+    url = new URL(clientId);
+  } catch {
+    return undefined;
+  }
+  if (url.protocol !== 'https:') return undefined;
+
+  const allowed = (process.env.CIMD_ALLOWED_HOSTS || '')
+    .split(',')
+    .map((h) => h.trim().toLowerCase())
+    .filter(Boolean);
+  if (allowed.length > 0) {
+    if (!allowed.includes(url.hostname.toLowerCase())) return undefined;
+  } else if (isBlockedCimdHost(url.hostname)) {
+    return undefined;
+  }
+
+  let doc: Record<string, unknown>;
+  try {
+    const response = await fetch(url, {
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(CIMD_TIMEOUT_MS),
+    });
+    if (!response.ok) return undefined;
+    const text = await response.text();
+    if (text.length > CIMD_MAX_BYTES) return undefined;
+    doc = JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+
+  // The document must claim the very URL it was served from, or any site could
+  // publish a document impersonating another client.
+  if (doc.client_id !== clientId) return undefined;
+
+  const redirectUris = Array.isArray(doc.redirect_uris) ? (doc.redirect_uris as string[]) : [];
+  const grantTypes = Array.isArray(doc.grant_types) ? (doc.grant_types as string[]) : ['authorization_code'];
+
+  return {
+    client_id: clientId,
+    client_name: typeof doc.client_name === 'string' ? doc.client_name : clientId,
+    grant_types: grantTypes,
+    redirect_uris: redirectUris,
+    // A CIMD client holds no secret — the document's origin is the credential.
+    token_endpoint_auth_method: 'none',
+    scope: openRegistrationScope(),
+  };
+}
+
 /**
  * In-memory client registry. Loads from OAUTH_CLIENTS env (JSON array)
  * or uses a default set for the demo.
@@ -53,6 +147,21 @@ export class ClientRegistry {
 
   getClient(clientId: string): OAuthClient | undefined {
     return this.clients.get(clientId);
+  }
+
+  /**
+   * getClient, widened to admit a client identified by a Client ID Metadata
+   * Document. Call this before getClient/authenticateClient on any request
+   * that carries a client_id from outside; a CIMD-resolved client is cached so
+   * the rest of the request path treats it like any other registered client.
+   */
+  async resolveClient(clientId: string): Promise<OAuthClient | undefined> {
+    const known = this.clients.get(clientId);
+    if (known) return known;
+    if (!openClientRegistrationEnabled()) return undefined;
+    const resolved = await fetchClientIdMetadataDocument(clientId);
+    if (resolved) this.clients.set(clientId, resolved);
+    return resolved;
   }
 
   authenticateClient(clientId: string, clientSecret: string | undefined, method: string): OAuthClient | null {
