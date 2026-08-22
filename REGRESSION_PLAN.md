@@ -105,6 +105,72 @@ read the configured host. A new browser origin must be added to ALL of:
 ## §4 — Bug Fix Log
 Reverse-chronological, newest first.
 
+### 2026-08-22 — Top 5 bugs found in a cross-service live bug hunt
+
+Five independent, parallel investigations across the BFF, the authz/HITL services, and
+the MCP resource server (following the same live-bug-hunt approach as the 2026-08-21
+`#2240`/`#2238` fixes, this time cross-service instead of BFF- or UI-only).
+
+**1. Self-service `role` field bypassed HITL transfer consent (CRITICAL, security)**
+
+**Files changed:** `demo_api_server/routes/demoScenario.js`, `demo_api_server/src/__tests__/demo-scenario-api.test.js`.
+
+**What was broken:** `sanitizeUserUpdates()`'s `BLOCKED_USER_FIELDS` blocked `id`/`password`/`createdAt` from a self-service `PUT /api/demo-scenario` body but not `role`, and `dataStore.updateUser()` does a blind `{ ...user, ...updates }` merge with no allowlist. `mcpLocalTools.js#hitlBlocksLocalWrite()` reads that same user record's `role` and skips HITL consent when it's `'admin'`. Any signed-in customer could `PUT /api/demo-scenario` with `{ userData: { role: 'admin' } }` and then drive a transfer/withdrawal through the local MCP tool path with zero human consent — a direct bypass of the demo's always-on transfer control.
+
+**What was fixed:** added `'role'` to `BLOCKED_USER_FIELDS`.
+
+**Do not break:** self-service profile edits (firstName/lastName/email/phone/etc.) must keep working — only `role` (plus the pre-existing `id`/`password`/`createdAt`) is blocked.
+
+**Verify:** `cd demo_api_server && CI=true npx jest src/__tests__/demo-scenario-api.test.js --forceExit`.
+
+**2. Cross-user raw OAuth token disclosure via a guessable `sessionId` query param (HIGH, security)**
+
+**Files changed:** `demo_api_server/routes/apiCallTracker.js`, `demo_api_server/tests/apiCallTrackerTokenIsolation.regression.test.js`.
+
+**What was broken:** `routes/oauth.js` stores each user's full raw OAuth access token into `sessionTokens`, keyed by `req.session.id`, on every login. `GET`/`DELETE /api/api-calls/tokens` is mounted behind `authenticateToken` (any signed-in user) but resolved the bucket from `req.query.sessionId` with no check that it belonged to the requester — any signed-in user who learned or guessed another user's session id could read (or clear) that user's raw bearer token.
+
+**What was fixed:** both routes now always scope to `req.session?.id || 'default'`, ignoring any caller-supplied `sessionId`. `GET`/`DELETE /api/api-calls` (the generic call-log endpoints, not `/tokens`) are unchanged — their `sessionId` scoping is a deliberate cross-session debug feature for non-token data and has no raw-secret exposure.
+
+**Do not break:** don't extend the query-param override back onto `/tokens` — it holds raw bearer tokens and has no legitimate cross-user use case.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/apiCallTrackerTokenIsolation.regression.test.js --forceExit`.
+
+**3. `demo_authz_server`'s HITL re-check rejected transfers the gateway had already verified+consumed (HIGH, correctness — breaks a real approval flow)**
+
+**Files changed:** `demo_authz_server/routes/decision.js`, `demo_authz_server/tests/decision.test.js`.
+
+**What was broken:** the Node MCP gateway's `verifyAndConsumeHitlReceipt()` (PR #1959, locked in §1 above) already POSTs to the HITL service's consuming `/challenges/:id/verify` — transitioning the challenge `approved → consumed` — before calling `decisionHandler` with `HitlApproved=true`. `decision.js`'s own defense-in-depth `GET /challenges/:id` re-check only accepted `status === 'approved'`, so it saw `consumed` and flipped `hitlApproved` back to `false`, re-firing `HITL_CONSENT` — the gateway's own anti-loop guard then hard-failed the request with `mcp_hitl_receipt_rejected`. Every HITL-band write tool call, once approved, permanently failed to complete whenever `HITL_SERVICE_URL` is set (this is exactly the gap `TECH_DEBT.md`'s 2026-08-16 entry flagged as out-of-scope for the 2026-08-17 fix — "none of the read-only `GET /challenges/:id` pollers ... were touched").
+
+**What was fixed:** the re-check now accepts `status === 'approved' || status === 'consumed'`. `consumed` is reachable only from `approved` (`challengeStore.consume()` throws otherwise), so this doesn't reopen the single-use replay gap — that's enforced entirely by the gateway's own consuming `POST /verify`, untouched here.
+
+**Do not break:** don't touch `verifyAndConsumeHitlReceipt()` or make the gateway call a non-consuming verify again (§1, PR #1959) — this fix only widens the passive re-check, not the consuming call.
+
+**Verify:** `cd demo_authz_server && node --test tests/decision.test.js` (test `NNP-6 A-8f`).
+
+**4. `demo_mcp_resource_server`: an invalid/expired/wrong-audience token rode HTTP 200 instead of 401 (HIGH, RFC 6750 violation)**
+
+**Files changed:** `demo_mcp_resource_server/src/index.ts`, `demo_mcp_resource_server/tests/httpMcp.test.ts`.
+
+**What was broken:** the HTTP `/mcp` transport's status-mapping only special-cased JSON-RPC error `-32005` (insufficient_scope → 403) and `-32022` (unsupported protocol version → 400); every `TokenError` (expired token, audience mismatch, malformed JWT — always `-32001`) fell through to HTTP 200 with the failure buried in the JSON-RPC body, while a wholly missing bearer correctly got 401. An HTTP-level consumer (health checks, `demo_mcp_proxy`, any client that only inspects status) read this as success. `demo_mcp_proxy`'s `mcpRpc()` only sets `err.status` when the upstream HTTP status is non-200, so it collapsed every such case to a generic 502 — masking an auth failure as an infrastructure outage.
+
+**What was fixed:** added a `-32001 → 401` mapping in the same `send` closure, alongside a `WWW-Authenticate: error="invalid_token"` header matching the missing-bearer response. No change was needed in `demo_mcp_proxy` — its status passthrough was already correct once the upstream returns a real non-200 status.
+
+**Do not break:** don't touch the `-32005`/403 or `-32022`/400 mappings, or the WebSocket transport (correctly returns the JSON-RPC error body unchanged — no HTTP status after handshake).
+
+**Verify:** `cd demo_mcp_resource_server && npx jest tests/httpMcp.test.ts`.
+
+**5. `demo_api_ui`'s `Profile.js` locked onto stale/blank data when auth resolved after mount (HIGH, data-loss risk)**
+
+**Files changed:** `demo_api_ui/src/components/Profile.js`, `demo_api_ui/src/components/__tests__/Profile.stalePropSync.test.jsx`.
+
+**What was broken:** `/profile` isn't gated on `useAuth`'s `loading` flag (unlike `/check`, `/tracing`, etc.), so `Profile` mounts with `user=null` while the async session check is in flight. `formData`/`showSuccessScreen`'s `useState` initializers only run once, on that first render — they never picked up the real profile once `user` populated on a later render of the same mounted instance. Clicking "Edit Profile" showed blank First Name/Last Name/Email fields instead of the real data; saving would have overwritten the real values with empty strings.
+
+**What was fixed:** a `useEffect` re-syncs `formData`/`showSuccessScreen` from `user` whenever it changes, skipped while `isEditing` so it can't clobber an in-progress edit.
+
+**Do not break:** the view-mode display already reads directly from `user` (not `formData`), and `handleCancel` already re-derives `formData` from `user` on cancel — this fix only closes the gap on the *first* transition into edit mode after a delayed `user` prop.
+
+**Verify:** `cd demo_api_ui && npx vitest run src/components/__tests__/Profile.stalePropSync.test.jsx`; full suite `npm run test:unit` (401/401 files) + `npm run build` exit 0.
+
 ### 2026-08-22 — `UserDashboard.js`/`UserDashboardPing2026.js` accidentally overwritten with a stale local copy, reverting merged feature work
 
 **Files changed:** `demo_api_ui/src/components/UserDashboard.js`, `demo_api_ui/src/components/UserDashboardPing2026.js`.

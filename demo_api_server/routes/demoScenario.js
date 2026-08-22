@@ -21,7 +21,11 @@ const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 const router = express.Router();
 
 const DEFAULT_STEP_UP = () => runtimeSettings.get('stepUpAmountThreshold');
-const BLOCKED_USER_FIELDS = new Set(['id', 'password', 'createdAt']);
+// 'role' is blocked because mcpLocalTools.js#hitlBlocksLocalWrite() reads it
+// straight off this same user record to decide whether a transfer/withdrawal
+// needs HITL consent — a self-service role update would let any customer
+// grant themselves that bypass.
+const BLOCKED_USER_FIELDS = new Set(['id', 'password', 'createdAt', 'role']);
 
 /** Legacy `both` in KV → floating (embedded and floating FAB are mutually exclusive in the UI). */
 function normalizeBankingAgentUiMode(stored) {

@@ -208,6 +208,16 @@ describe('Demo scenario API — account create/update', () => {
     expect(res.body.userData.firstName).toBe('Updated');
   });
 
+  it('PUT userData cannot self-promote role (bypasses HITL consent via mcpLocalTools#hitlBlocksLocalWrite)', async () => {
+    const res = await request(makeApp())
+      .put('/')
+      .send({ userData: { role: 'admin', firstName: 'Attacker' } });
+
+    expect(res.status).toBe(200);
+    expect(dataStore.updateUser).toHaveBeenCalledWith('u1', { firstName: 'Attacker' });
+    expect(global.__demoScenarioAccountTest.users.get('u1').role).toBe('customer');
+  });
+
   it('PUT returns 400 when adding accounts would exceed the per-user cap', async () => {
     global.__demoScenarioAccountTest.rows = Array.from({ length: 24 }, (_, i) => ({
       id: `fill-${i}`,
