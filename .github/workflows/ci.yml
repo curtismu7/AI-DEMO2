@@ -1,25 +1,26 @@
 name: CI
 
-# Actions minutes budget (private repo — the Free plan allows 2,000/month and
-# AI-DEMO2 is the only private repo consuming it; every other repo here is public
-# and therefore free). July 2026 hit exactly 2,000/2,000 and GitHub stopped
-# starting jobs, so drift landed unreviewed for weeks. Triggers are shaped to fit
-# the budget:
+# Actions minutes budget: this used to be a private repo on the Free plan
+# (2,000 min/month), which is why `push: branches:[main]` was dropped in favor
+# of a once-daily nightly — see git history for the original reasoning. The
+# repo is now public (confirmed 2026-08-22), which means unlimited free Actions
+# minutes, so that constraint no longer applies. Restored `push: branches:
+# [main]` per the revert note this comment used to end with: it catches the
+# rare case where two PRs are each green against main but conflict once both
+# land, within minutes of the merge instead of waiting up to 24h for the
+# nightly schedule. The nightly and workflow_dispatch triggers stay as a
+# belt-and-suspenders fallback (e.g. a merge that lands outside a PR).
 #
 #   pull_request  — the real gate. GitHub builds refs/pull/N/merge, i.e. the PR
 #                   ALREADY MERGED INTO main, so this tests the merge result
-#                   before it lands. This is what must stay.
-#   schedule      — nightly run on main. `push: branches:[main]` used to re-test
-#                   the same tree straight after merge (111 of the last 200 runs,
-#                   ~56% of spend) for the rare case that two PRs are each green
-#                   against main but conflict once both land. A nightly catches
-#                   that within 24h for ~4% of the cost.
-#   workflow_dispatch — run main on demand when you want it now, not at 06:00.
-#
-# If the minutes budget stops mattering (GitHub Pro = 3,000/month, or the repo
-# goes public = unlimited), restoring `push: branches: [main]` is a safe revert.
+#                   before it lands.
+#   push          — re-test main immediately after every merge.
+#   schedule      — nightly safety net on main (06:00 UTC).
+#   workflow_dispatch — run main on demand.
 on:
   pull_request:
+  push:
+    branches: [main]
   schedule:
     - cron: '0 6 * * *'   # 06:00 UTC daily, on main
   workflow_dispatch:

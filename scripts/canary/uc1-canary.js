@@ -67,9 +67,12 @@ function fail(msg) {
 
   try {
     // ── Sign in via the PingOne hosted form ──────────────────────────────
-    await page.goto(BASE + '/');
-    await page.waitForLoadState('networkidle');
-    await page.getByRole('button', { name: 'Sign In' }).first().click();
+    // Go straight to the BFF's OAuth login redirect instead of clicking the
+    // top-nav Sign In button: that button computes a 0x0 bounding box in a
+    // headless viewport (confirmed 2026-08-17), so click() always times out
+    // even though the demo itself is healthy. The button just calls this
+    // same redirect (navigateToCustomerOAuthLogin() in authUi.js) — skip it.
+    await page.goto(BASE + '/api/auth/oauth/user/login?return_to=%2Fdashboard');
     await page.waitForURL(/apps\.pingone\.com/, { timeout: 30000 });
     await page.waitForSelector('#username');
     await page.fill('#username', USERNAME);
