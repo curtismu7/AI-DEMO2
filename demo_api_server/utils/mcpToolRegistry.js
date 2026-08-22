@@ -58,7 +58,7 @@ function _buildResultSummary(toolName, resultObj, isError) {
  * Internal MCP tool call with agent token (bypasses requireSession for agent context)
  * Used by agent tools which run in the same process but don't have session cookies
  */
-async function callMcpToolInternal(toolName, params, agentToken, userId, tokenEvents = []) {
+async function callMcpToolInternal(toolName, params, agentToken, userId, tokenEvents = [], sessionId = null) {
   // Choke point: never present an empty/missing bearer to the gateway — it 401s
   // with "Empty JWT payload". This covers EVERY agent path (vertical, banking,
   // LLM) at the one place the bearer is forwarded, so a tokenless session yields
@@ -151,6 +151,7 @@ async function callMcpToolInternal(toolName, params, agentToken, userId, tokenEv
         resultJson: result ?? null,
         isDelegated: !!agentToken,
         userToken: decoded?.claims ? { sub: decoded.claims.sub || userId, scope: decoded.claims.scope || '' } : null,
+        sessionId,
       });
     } catch (_) { /* non-blocking */ }
 
@@ -574,8 +575,8 @@ function createMcpToolRegistry() {
 
     tool(
       async (input, config) => {
-        const { agentToken, userId, tokenEvents = [] } = getAgentContext(config);
-        const result = await callMcpToolInternal('get_my_accounts', input, agentToken, userId, tokenEvents);
+        const { agentToken, userId, tokenEvents = [], sessionId = null } = getAgentContext(config);
+        const result = await callMcpToolInternal('get_my_accounts', input, agentToken, userId, tokenEvents, sessionId);
         return JSON.stringify(result);
       },
       {
@@ -587,8 +588,8 @@ function createMcpToolRegistry() {
 
     tool(
       async (input, config) => {
-        const { agentToken, userId, tokenEvents = [] } = getAgentContext(config);
-        const result = await callMcpToolInternal('get_account_balance', input, agentToken, userId, tokenEvents);
+        const { agentToken, userId, tokenEvents = [], sessionId = null } = getAgentContext(config);
+        const result = await callMcpToolInternal('get_account_balance', input, agentToken, userId, tokenEvents, sessionId);
         return JSON.stringify(result);
       },
       {
@@ -602,8 +603,8 @@ function createMcpToolRegistry() {
 
     tool(
       async (input, config) => {
-        const { agentToken, userId, tokenEvents = [] } = getAgentContext(config);
-        const result = await callMcpToolInternal('get_my_transactions', input, agentToken, userId, tokenEvents);
+        const { agentToken, userId, tokenEvents = [], sessionId = null } = getAgentContext(config);
+        const result = await callMcpToolInternal('get_my_transactions', input, agentToken, userId, tokenEvents, sessionId);
         return JSON.stringify(result);
       },
       {
@@ -617,8 +618,8 @@ function createMcpToolRegistry() {
 
     tool(
       async (input, config) => {
-        const { agentToken, userId, tokenEvents = [] } = getAgentContext(config);
-        const result = await callMcpToolInternal('get_sensitive_account_details', input, agentToken, userId, tokenEvents);
+        const { agentToken, userId, tokenEvents = [], sessionId = null } = getAgentContext(config);
+        const result = await callMcpToolInternal('get_sensitive_account_details', input, agentToken, userId, tokenEvents, sessionId);
         return JSON.stringify(result);
       },
       {
@@ -630,8 +631,8 @@ function createMcpToolRegistry() {
 
     tool(
       async (input, config) => {
-        const { agentToken, userId, tokenEvents = [] } = getAgentContext(config);
-        const result = await callMcpToolInternal('get_weather', input, agentToken, userId, tokenEvents);
+        const { agentToken, userId, tokenEvents = [], sessionId = null } = getAgentContext(config);
+        const result = await callMcpToolInternal('get_weather', input, agentToken, userId, tokenEvents, sessionId);
         return JSON.stringify(result);
       },
       {
@@ -645,8 +646,8 @@ function createMcpToolRegistry() {
 
     tool(
       async (input, config) => {
-        const { agentToken, userId, tokenEvents = [] } = getAgentContext(config);
-        const result = await callMcpToolInternal('create_transfer', input, agentToken, userId, tokenEvents);
+        const { agentToken, userId, tokenEvents = [], sessionId = null } = getAgentContext(config);
+        const result = await callMcpToolInternal('create_transfer', input, agentToken, userId, tokenEvents, sessionId);
         return JSON.stringify(result);
       },
       {
@@ -663,8 +664,8 @@ function createMcpToolRegistry() {
 
     tool(
       async (input, config) => {
-        const { agentToken, userId, tokenEvents = [] } = getAgentContext(config);
-        const result = await callMcpToolInternal('create_deposit', input, agentToken, userId, tokenEvents);
+        const { agentToken, userId, tokenEvents = [], sessionId = null } = getAgentContext(config);
+        const result = await callMcpToolInternal('create_deposit', input, agentToken, userId, tokenEvents, sessionId);
         return JSON.stringify(result);
       },
       {
@@ -680,8 +681,8 @@ function createMcpToolRegistry() {
 
     tool(
       async (input, config) => {
-        const { agentToken, userId, tokenEvents = [] } = getAgentContext(config);
-        const result = await callMcpToolInternal('create_withdrawal', input, agentToken, userId, tokenEvents);
+        const { agentToken, userId, tokenEvents = [], sessionId = null } = getAgentContext(config);
+        const result = await callMcpToolInternal('create_withdrawal', input, agentToken, userId, tokenEvents, sessionId);
         return JSON.stringify(result);
       },
       {

@@ -35,8 +35,8 @@ function _reasonFor(errorCode, fallback) {
   return (errorCode && REASONS[errorCode]) || fallback || (errorCode ? `denied with ${errorCode}` : null);
 }
 
-const ACTIVE_KEY = 'demo-track:active';
-const HISTORY_KEY = 'demo-track:history';
+const ACTIVE_KEY_PREFIX = 'demo-track:active:';
+const HISTORY_KEY_PREFIX = 'demo-track:history:';
 const HISTORY_CAP = 20;
 // How long a slot stays armed for the wildcard after the page asks to run it.
 // Long enough for a chip round-trip (agent + gateway + P1AZ), short enough that
@@ -44,23 +44,40 @@ const HISTORY_CAP = 20;
 const ARM_TTL_MS = 120000;
 const GAUNTLET_SET = new Set(GAUNTLET_SIMS.map(g => g.sim));
 
-let _run = null;
-let _history = null;
+// Bucket used by any caller that doesn't (or can't) supply a sessionId — the
+// dead-code observeToolCall path and any legacy test. Every live caller now
+// passes req.sessionID, so two concurrent presenter sessions each get their
+// own run instead of silently sharing (and clobbering) one process-global
+// track — the bug that let one session's "Start New Run" wipe out another's
+// in-progress walkthrough, and stamped it with unrelated traffic in between.
+const DEFAULT_BUCKET = '_default';
+function _bucketKey(sessionId) {
+  return sessionId && typeof sessionId === 'string' ? sessionId : DEFAULT_BUCKET;
+}
 
-function _persist() {
+// In-memory: sessionId -> run / history array. LMDB persistence is per-bucket
+// too, so a restart restores each session's own track instead of one shared one.
+const _runs = new Map();
+const _histories = new Map();
+
+function _persist(bucket) {
   try {
     if (!lmdb) return;
-    lmdb.put(ACTIVE_KEY, _run);
-    lmdb.put(HISTORY_KEY, _history);
+    lmdb.put(ACTIVE_KEY_PREFIX + bucket, _runs.get(bucket) || null);
+    lmdb.put(HISTORY_KEY_PREFIX + bucket, _histories.get(bucket) || []);
   } catch { /* persistence is best-effort */ }
 }
 
-function _hydrate() {
-  if (_history === null) {
-    try { _history = (lmdb && lmdb.get(HISTORY_KEY)) || []; } catch { _history = []; }
+function _hydrate(bucket) {
+  if (!_histories.has(bucket)) {
+    let history;
+    try { history = (lmdb && lmdb.get(HISTORY_KEY_PREFIX + bucket)) || []; } catch { history = []; }
+    _histories.set(bucket, history);
   }
-  if (_run === null) {
-    try { _run = lmdb && lmdb.get(ACTIVE_KEY); } catch { _run = null; }
+  if (!_runs.has(bucket)) {
+    let run;
+    try { run = (lmdb && lmdb.get(ACTIVE_KEY_PREFIX + bucket)) || null; } catch { run = null; }
+    _runs.set(bucket, run);
   }
 }
 
@@ -74,10 +91,10 @@ function _newRun() {
   };
 }
 
-function _ensureRun() {
-  _hydrate();
-  if (!_run) { _run = _newRun(); _persist(); }
-  return _run;
+function _ensureRun(bucket) {
+  _hydrate(bucket);
+  if (!_runs.get(bucket)) { _runs.set(bucket, _newRun()); _persist(bucket); }
+  return _runs.get(bucket);
 }
 
 function _stepById(stepId) { return TRACK_STEPS.find(s => s.stepId === stepId) || null; }
@@ -126,22 +143,23 @@ function _toolMatches(slot, toolName, wildcardOk) {
   return wildcardOk && tools.includes('*');
 }
 
-function _fill(run, stepId, color, stamp) {
+function _fill(bucket, run, stepId, color, stamp) {
   run.slots[`${stepId}:${color}`] = stamp;
   if (run.arm && run.arm.stepId === stepId && run.arm.color === color) run.arm = null;
   _maybeAdvance(run);
-  _persist();
+  _persist(bucket);
 }
 
-function observeToolCall({ toolName, success, timestamp, decisionId, errorCode }) {
+function observeToolCall({ toolName, success, timestamp, decisionId, errorCode }, sessionId) {
   try {
-    const run = _ensureRun();
+    const bucket = _bucketKey(sessionId);
+    const run = _ensureRun(bucket);
     const at = timestamp || new Date().toISOString();
     for (const { step } of _candidates(run)) {
       if (success) {
         const g = step.slots.green;
         if (g && g.source === 'tool' && _toolMatches(g, toolName, _wildcardOk(run, step.stepId, 'green'))) {
-          return _fill(run, step.stepId, 'green', {
+          return _fill(bucket, run, step.stepId, 'green', {
             verdict: 'PERMIT', decisionId: decisionId || null, via: toolName, at,
             reason: `PingOne Authorize permitted ${toolName} — the delegated call satisfied policy and ran.`,
           });
@@ -149,7 +167,7 @@ function observeToolCall({ toolName, success, timestamp, decisionId, errorCode }
       } else {
         const r = step.slots.red;
         if (r && r.source === 'tool' && r.expected.includes('DENY') && _toolMatches(r, toolName, _wildcardOk(run, step.stepId, 'red'))) {
-          return _fill(run, step.stepId, 'red', {
+          return _fill(bucket, run, step.stepId, 'red', {
             verdict: 'DENY', decisionId: decisionId || null, via: toolName, at,
             errorCode: errorCode || null,
             reason: _reasonFor(errorCode, `${toolName} was denied — the tool was never invoked.`),
@@ -160,14 +178,15 @@ function observeToolCall({ toolName, success, timestamp, decisionId, errorCode }
   } catch { /* never throw into the audit path */ }
 }
 
-function observeDecision({ tool, decision, decisionId, errorCode }) {
+function observeDecision({ tool, decision, decisionId, errorCode }, sessionId) {
   try {
-    const run = _ensureRun();
+    const bucket = _bucketKey(sessionId);
+    const run = _ensureRun(bucket);
     const at = new Date().toISOString();
     for (const { step } of _candidates(run)) {
       const r = step.slots.red;
       if (r && r.source === 'tool' && r.expected.includes(decision) && _toolMatches(r, tool, _wildcardOk(run, step.stepId, 'red'))) {
-        return _fill(run, step.stepId, 'red', {
+        return _fill(bucket, run, step.stepId, 'red', {
           verdict: decision, decisionId: decisionId || null, via: tool, at,
           errorCode: errorCode || null,
           reason: _reasonFor(errorCode, `${tool} → ${decision}: the externalized policy stopped the call before the tool ran.`),
@@ -177,22 +196,23 @@ function observeDecision({ tool, decision, decisionId, errorCode }) {
   } catch { /* never throw into the pipeline */ }
 }
 
-function observeAttackSim({ sim, status, errorCode, decisionId }) {
+function observeAttackSim({ sim, status, errorCode, decisionId }, sessionId) {
   try {
-    const run = _ensureRun();
+    const bucket = _bucketKey(sessionId);
+    const run = _ensureRun(bucket);
     const at = new Date().toISOString();
     const blocked = Number(status) >= 400;
     const reason = _reasonFor(errorCode, blocked ? `attack blocked (HTTP ${status})` : null);
     if (GAUNTLET_SET.has(sim)) {
       run.gauntlet[sim] = { blocked, status, errorCode: errorCode || null, decisionId: decisionId || null, at, reason };
       _maybeAdvance(run);
-      _persist();
+      _persist(bucket);
     }
     if (!blocked) return;
     for (const { step } of _candidates(run)) {
       const r = step.slots.red;
       if (r && r.source === 'sim' && r.match.sims.includes(sim)) {
-        return _fill(run, step.stepId, 'red', {
+        return _fill(bucket, run, step.stepId, 'red', {
           verdict: 'BLOCKED', decisionId: decisionId || null, via: sim, at,
           errorCode: errorCode || null, reason,
         });
@@ -201,23 +221,28 @@ function observeAttackSim({ sim, status, errorCode, decisionId }) {
   } catch { /* never throw into the sim route */ }
 }
 
-function getState() {
-  return { track: getTrackDefinition(), run: _ensureRun() };
+function getState(sessionId) {
+  return { track: getTrackDefinition(), run: _ensureRun(_bucketKey(sessionId)) };
 }
 
-function startRun() {
-  _hydrate();
-  if (_run) {
-    _history = [{ ..._run, endedAt: new Date().toISOString() }, ...(_history || [])].slice(0, HISTORY_CAP);
+function startRun(sessionId) {
+  const bucket = _bucketKey(sessionId);
+  _hydrate(bucket);
+  const current = _runs.get(bucket);
+  if (current) {
+    const history = _histories.get(bucket) || [];
+    _histories.set(bucket, [{ ...current, endedAt: new Date().toISOString() }, ...history].slice(0, HISTORY_CAP));
   }
-  _run = _newRun();
-  _persist();
-  return _run;
+  const next = _newRun();
+  _runs.set(bucket, next);
+  _persist(bucket);
+  return next;
 }
 
-function setActiveStep(stepId) {
-  const run = _ensureRun();
-  if (_stepById(stepId)) { run.activeStepId = stepId; _persist(); }
+function setActiveStep(stepId, sessionId) {
+  const bucket = _bucketKey(sessionId);
+  const run = _ensureRun(bucket);
+  if (_stepById(stepId)) { run.activeStepId = stepId; _persist(bucket); }
   return run;
 }
 
@@ -226,21 +251,34 @@ function setActiveStep(stepId) {
  * dispatches that slot's chip/sim, so the run about to happen is the only
  * traffic a '*' matcher can accept.
  */
-function armSlot({ stepId, color, ttlMs } = {}) {
-  const run = _ensureRun();
+function armSlot({ stepId, color, ttlMs } = {}, sessionId) {
+  const bucket = _bucketKey(sessionId);
+  const run = _ensureRun(bucket);
   if (!_stepById(stepId) || (color !== 'green' && color !== 'red')) return run;
   run.activeStepId = stepId;
   run.arm = { stepId, color, expiresAt: Date.now() + (Number.isFinite(ttlMs) ? ttlMs : ARM_TTL_MS) };
-  _persist();
+  _persist(bucket);
   return run;
 }
 
-function getHistory() {
-  _hydrate();
-  return _history || [];
+function getHistory(sessionId) {
+  const bucket = _bucketKey(sessionId);
+  _hydrate(bucket);
+  return _histories.get(bucket) || [];
 }
 
-function _resetForTests() { _run = _newRun(); _history = []; }
+function _resetForTests(sessionId) {
+  if (sessionId) {
+    const bucket = _bucketKey(sessionId);
+    _runs.set(bucket, _newRun());
+    _histories.set(bucket, []);
+    return;
+  }
+  _runs.clear();
+  _histories.clear();
+  _runs.set(DEFAULT_BUCKET, _newRun());
+  _histories.set(DEFAULT_BUCKET, []);
+}
 
 module.exports = {
   getState, startRun, setActiveStep, armSlot, getHistory,
