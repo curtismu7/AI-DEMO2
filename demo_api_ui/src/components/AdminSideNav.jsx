@@ -278,11 +278,21 @@ export default function AdminSideNav({
   // Auto-collapse to the icon rail on narrow viewports. App.css drops the
   // content offset to the collapsed width at <=768px assuming this collapse
   // happens; without it the still-310px nav overlaps the content by ~230px.
-  // Only collapse — never force-expand — so a manual toggle stays respected.
+  // Re-expand on the way back up, but only when THIS effect was the one that
+  // collapsed it — autoCollapsedRef stays false once the manual toggle button
+  // fires (see below), so a real manual collapse still stays respected even
+  // if the viewport happens to cross the breakpoint afterward.
+  const autoCollapsedRef = useRef(false);
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 768px)");
     const apply = () => {
-      if (mq.matches) setCollapsed(true);
+      if (mq.matches) {
+        autoCollapsedRef.current = true;
+        setCollapsed(true);
+      } else if (autoCollapsedRef.current) {
+        autoCollapsedRef.current = false;
+        setCollapsed(false);
+      }
     };
     apply();
     mq.addEventListener("change", apply);
@@ -337,7 +347,7 @@ export default function AdminSideNav({
   const isAdmin = user?.role === "admin";
   const { placement, fab, setAgentUi } = useAgentUiMode();
   const { open: openEdu } = useEducationUI();
-  const { activeId: activeVerticalId } = useVertical();
+  const { activeId: activeVerticalId, refetch: refetchVertical } = useVertical();
 
   // Listen for agent run completion events to show latest report
   useEffect(() => {
@@ -392,13 +402,17 @@ export default function AdminSideNav({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id }),
         });
-        // Keep the existing auth session; VerticalProvider will refetch via SSE.
+        // Session-scoped switches (e.g. a guest session) do not emit the
+        // vertical-switched SSE event VerticalProvider otherwise relies on —
+        // refetch explicitly, same as VerticalSwitcher.jsx's handleSwitch, so
+        // the banner/title/dialog update without a manual reload.
+        await refetchVertical();
         setSwitchingVertical(false);
       } catch {
         setSwitchingVertical(false);
       }
     },
-    [activeVerticalId, switchingVertical],
+    [activeVerticalId, switchingVertical, refetchVertical],
   );
 
   const handleAgentPlacement = useCallback(
@@ -1407,6 +1421,7 @@ export default function AdminSideNav({
         className="admin-side-nav__toggle"
         onClick={() => {
           const next = !collapsed;
+          autoCollapsedRef.current = false;
           setCollapsed(next);
           try {
             window.localStorage.setItem(COLLAPSED_KEY, String(next));

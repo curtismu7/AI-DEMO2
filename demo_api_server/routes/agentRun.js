@@ -254,13 +254,21 @@ router.post('/run', nrTransactionMiddleware, async (req, res) => {
     // banking action ("branch_hours") — the same result /api/demo-agent/nl
     // returns for the UC24 chip.
     let guestAction = '';
+    let guestIsEducation = false;
     try {
       const { parseHeuristic } = require('../services/nlIntentParser');
-      guestAction = String(parseHeuristic(guestPrompt)?.banking?.action || '');
+      const guestIntent = parseHeuristic(guestPrompt);
+      guestAction = String(guestIntent?.banking?.action || '');
+      // Education topics (OAuth, PKCE, MCP, token exchange, ...) carry no
+      // account data — the same public/no-tool-call class of content as the
+      // PUBLIC_GUEST_ACTIONS allowlist below, just cross-vertical instead of
+      // one banking action. Without this, the greeting's own "ask me about
+      // OAuth, PKCE, MCP" invitation 401s for every guest who takes it.
+      guestIsEducation = guestIntent?.kind === 'education';
     } catch {
       guestAction = '';
     }
-    if (!PUBLIC_GUEST_ACTIONS.has(guestAction)) {
+    if (!PUBLIC_GUEST_ACTIONS.has(guestAction) && !guestIsEducation) {
       return res.status(401).json({ error: 'Session expired', agentInitRequired: true, need_auth: true });
     }
   }

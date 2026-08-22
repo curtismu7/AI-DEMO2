@@ -134,11 +134,15 @@ export function useAgentRun({
     if (abortRef.current) {
       abortRef.current.abort();
       abortRef.current = null;
+      // Flip the trace to a terminal outcome so any progress spinners (rail,
+      // flow-detail modal, use-case Run chip) can render "aborted" instead of
+      // staying at "in progress" forever after the SSE stream is cut. Only
+      // when a run was actually in flight — this cleanup also fires on every
+      // unmount (including React StrictMode's mount/unmount/remount probe),
+      // and completeTrace(false) unconditionally painted a fresh trace as
+      // "RUN ERROR" before the user had done anything.
+      try { tokenChainTraceStore.completeTrace(false); } catch (_) { /* display-only */ }
     }
-    // Flip the trace to a terminal outcome so any progress spinners (rail,
-    // flow-detail modal, use-case Run chip) can render "aborted" instead of
-    // staying at "in progress" forever after the SSE stream is cut.
-    try { tokenChainTraceStore.completeTrace(false); } catch (_) { /* display-only */ }
     setIsRunning(false);
   }, []);
 

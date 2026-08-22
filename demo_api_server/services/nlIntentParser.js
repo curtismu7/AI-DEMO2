@@ -381,7 +381,7 @@ function parseEducation(t) {
       education: { panel: EDU.LOGIN_FLOW, tab: "pkce" },
     };
   }
-  if (/\b(login flow|authorization code|sign in flow|oauth flow)\b/.test(t)) {
+  if (/\b(login flow|authorization code|sign in flow|oauth(?: flow)?)\b/.test(t)) {
     return {
       kind: "education",
       education: { panel: EDU.LOGIN_FLOW, tab: "what" },
@@ -536,7 +536,11 @@ function parseEducation(t) {
     };
   }
   // AI Primer
-  if (/\b(ai[- ]primer)\b/.test(t)) {
+  if (
+    /\b(ai[- ]primer|how (?:do|does) (?:an? )?ai agents? work|what (?:is|are) (?:an? )?ai agents?)\b/.test(
+      t,
+    )
+  ) {
     return {
       kind: "education",
       education: { panel: EDU.AI_PRIMER, tab: "overview" },
