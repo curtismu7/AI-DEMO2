@@ -1,6 +1,7 @@
 // Structural catalog of the AdminSideNav — groups with their child item labels.
 // Used by DemoConfigPage for show/hide toggles and drag-to-reorder.
-// Must stay in sync with allNavItems in AdminSideNav.jsx.
+// Must stay in sync with allNavItems in AdminSideNav.jsx — enforced by
+// __tests__/navStructureCatalog.drift.test.js, which fails on any divergence.
 // Top-level labels without children appear as flat entries (no children array).
 
 export const NAV_STRUCTURE_CATALOG = [
@@ -10,21 +11,30 @@ export const NAV_STRUCTURE_CATALOG = [
     label: "AI Agent Gateway",
     children: [
       "Protocol Playground",
-      "AI Agent Gateway Client",
+      "AI Gateway Client",
       "AI Agent Gateway Guide",
       "AI Agent Gateway Diagrams",
+      "Privilege Gateway Topologies",
     ],
   },
   { label: "Themes" },
   {
-    label: "Demos",
+    label: "Customer Demos",
     children: [
       "Agent Lifecycle (guided demo)",
+      "Personal Agent",
+    ],
+  },
+  {
+    label: "Demos",
+    children: [
       "Delegated Commerce (guided demo)",
       "Weather MCP",
       "Use Cases",
       "Use Cases (Live)",
       "Guided Demo Track",
+      "Delegation Chain Value",
+      "Group Policy Board",
       "Demo Script",
       "Demo Config",
       "Family Delegation",
@@ -34,20 +44,26 @@ export const NAV_STRUCTURE_CATALOG = [
     label: "AI Agents",
     children: [
       "AI Control Plane",
-      "Copilot",
       "PingOne Agent Builder",
-      "Agent Flow Inspector",
+      "Agent & Token Flow History",
       "LangChain Agent",
       "Ungoverned Agent",
     ],
   },
   {
     label: "Inspectors",
-    children: ["MCP Inspector", "Agent Gateway Inspector", "P1AZ Inspector"],
+    children: [
+      "MCP Inspector",
+      "Agent Gateway Inspector",
+      "P1AZ Inspector",
+    ],
   },
   {
     label: "PingOne MCP",
-    children: ["MCP Inspector", "PingOne MCP Setup"],
+    children: [
+      "MCP Inspector",
+      "PingOne MCP Setup",
+    ],
   },
   {
     label: "MCP & Gateways",
@@ -72,12 +88,16 @@ export const NAV_STRUCTURE_CATALOG = [
   },
   {
     label: "Delegation & Consent",
-    children: ["Transaction Consent", "Actor Token Education"],
+    children: [
+      "Transaction Consent",
+      "Actor Token Education",
+    ],
   },
   {
     label: "Authorize",
     children: [
       "P1AZ Inspector",
+      "PAC Editor",
       "Authorize Capabilities",
       "Policy Decision Trace",
       "Scope Audit",
@@ -89,7 +109,17 @@ export const NAV_STRUCTURE_CATALOG = [
   },
   {
     label: "OAuth & Identity",
-    children: ["Security Settings", "OAuth Debug", "CIMD Simulation"],
+    children: [
+      "Security Settings",
+      "OAuth Debug",
+      "CIMD Simulation",
+    ],
+  },
+  {
+    label: "Platform Admin",
+    children: [
+      "Dashboard",
+    ],
   },
   {
     label: "Industry Verticals",
@@ -105,7 +135,11 @@ export const NAV_STRUCTURE_CATALOG = [
   },
   {
     label: "Users & Accounts",
-    children: ["Users", "Accounts", "Transactions"],
+    children: [
+      "Users",
+      "Accounts",
+      "Transactions",
+    ],
   },
   {
     label: "AI Attack Demos",
@@ -126,11 +160,20 @@ export const NAV_STRUCTURE_CATALOG = [
       "Activity Log",
       "Run Reports",
       "Error Audit Log",
+      "New Relic",
+      "PingOne Events",
+      "PingOne Authorize",
+      "Token Exchange",
     ],
   },
   {
     label: "Telemetry",
-    children: ["Service Graph", "Tracing", "Transaction Trace", "Health Check"],
+    children: [
+      "Service Graph",
+      "Tracing",
+      "Transaction Trace",
+      "Health Check",
+    ],
   },
   {
     label: "Diagrams",
@@ -149,6 +192,7 @@ export const NAV_STRUCTURE_CATALOG = [
       "Agent Gateway OAuth Flow (MM)",
       "Invest Dual-Auth (MM)",
       "AI Agent Gateway (MM)",
+      "Privilege Gateway Topologies (MM)",
       "Gateway vs P1AZ Enforcement (MM)",
       "Resource Server Placement (MM)",
     ],
@@ -156,7 +200,6 @@ export const NAV_STRUCTURE_CATALOG = [
   {
     label: "Agent Studio (Preview)",
     children: [
-      "Agent Studio",
       "IGA for AI",
       "Discovery",
       "AI Agent Gateway (Preview)",
@@ -175,7 +218,12 @@ export const NAV_STRUCTURE_CATALOG = [
   },
   {
     label: "Developer Tools",
-    children: ["Code Explorer", "Protected RAG", "Graphify", "Mgmt API Runner"],
+    children: [
+      "Code Explorer",
+      "Protected RAG",
+      "Graphify",
+      "Mgmt API Runner",
+    ],
   },
   {
     label: "System Tools",
@@ -185,12 +233,14 @@ export const NAV_STRUCTURE_CATALOG = [
       "App Configuration",
       "OAuth Debug",
       "Postman Collections",
-      "Vault",
     ],
   },
   {
     label: "Integration Tests",
-    children: ["OIDC Resource Server", "CC Resource Server"],
+    children: [
+      "OIDC Resource Server",
+      "CC Resource Server",
+    ],
   },
 ];
 
