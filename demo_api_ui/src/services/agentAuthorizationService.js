@@ -20,6 +20,9 @@ export async function getAgentAuthStatus() {
   const res = await fetch('/api/agent-authorization/status', {
     credentials: 'include',
   });
+  if (!res.ok) {
+    throw new Error(`Agent authorization status request failed (${res.status})`);
+  }
   return res.json();
 }
 
