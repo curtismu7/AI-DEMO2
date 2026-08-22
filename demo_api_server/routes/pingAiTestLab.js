@@ -438,8 +438,15 @@ async function executeTest(test, req) {
   }
 }
 
-// Last completed run, kept in memory for export/report generation.
-let lastRun = null;
+// Last completed run per user, kept in memory for export/report generation.
+// Keyed (not a single shared value) because the mount only requires
+// authenticateToken — any signed-in user, not just admins — so two people
+// running this concurrently used to see each other's PingOne connectivity
+// and test results.
+const lastRunByUser = new Map();
+function _userKey(req) {
+  return String(req.session?.user?.id || req.user?.id || 'anonymous');
+}
 
 function summarize(results) {
   const counts = {};
@@ -507,7 +514,7 @@ router.get('/run-all', async (req, res) => {
     }
   }
 
-  lastRun = {
+  const lastRun = {
     startedAt,
     finishedAt: new Date().toISOString(),
     environmentId: process.env.PINGONE_ENVIRONMENT_ID || configStore.getEffective('PINGONE_ENVIRONMENT_ID') || null,
@@ -515,12 +522,14 @@ router.get('/run-all', async (req, res) => {
     summary: summarize(results),
     results,
   };
+  lastRunByUser.set(_userKey(req), lastRun);
   send('done', { summary: lastRun.summary, total: results.length });
   res.end();
 });
 
 // GET /results/latest — last completed run (for export / report generation).
-router.get('/results/latest', (_req, res) => {
+router.get('/results/latest', (req, res) => {
+  const lastRun = lastRunByUser.get(_userKey(req));
   if (!lastRun) return res.status(404).json({ error: 'no_run_yet' });
   res.json(lastRun);
 });

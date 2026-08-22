@@ -56,7 +56,7 @@ router.post('/run', authenticateToken, async (req, res) => {
         status: result?.status,
         errorCode: result?.errorCode || null,
         decisionId: result?.authorize?.decisionId || result?.decisionId || null,
-      });
+      }, req.sessionID);
     } catch { /* track observation is optional */ }
     return res.status(200).json(result);
   } catch (err) {

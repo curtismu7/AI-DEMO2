@@ -6,6 +6,7 @@
 
 const express = require('express');
 const router = express.Router();
+const { authenticateToken } = require('../middleware/auth');
 
 // Block unauthenticated MFA lab routes in production unless explicitly enabled.
 router.use((req, res, next) => {
@@ -19,6 +20,15 @@ router.use((req, res, next) => {
   }
   next();
 });
+
+// This deployment always runs with NODE_ENV=development (docker-compose.yml,
+// k8s manifests), so the guard above never fires and every route below was
+// reachable with zero credentials — including enrollment routes that accept
+// a client-supplied userId override and mint a worker token to act on it
+// (_resolveCredentialsForEnrollment), an unauthenticated account-takeover
+// primitive. Require a signed-in session, matching the production twin
+// (routes/mfa.js), which never trusted anything but the session for identity.
+router.use(authenticateToken);
 
 const mfaService = require('../services/mfaService');
 const oauthService = require('../services/oauthService');

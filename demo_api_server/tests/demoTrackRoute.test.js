@@ -49,3 +49,54 @@ describe('demo track route', () => {
     expect(res.body.run.arm).toMatchObject({ stepId: 'mcp-gateway', color: 'green' });
   });
 });
+
+// Regression: two concurrent presenter sessions shared one process-global run
+// (services/demoTrackService.js's old bare `let _run`), so one session's
+// "Start New Run" silently archived and wiped out another session's
+// in-progress walkthrough, and unrelated traffic from either session stamped
+// the same track. The fix scopes state by req.sessionID.
+function appWithSession() {
+  const a = express();
+  a.use(express.json());
+  a.use((req, _res, next) => {
+    req.sessionID = req.headers['x-test-session-id'];
+    next();
+  });
+  a.use('/api/demo-track', require('../routes/demoTrack'));
+  return a;
+}
+
+describe('demo track route — session isolation', () => {
+  beforeEach(() => {
+    jest.resetModules();
+    const freshSvc = require('../services/demoTrackService');
+    freshSvc._resetForTests('session-a');
+    freshSvc._resetForTests('session-b');
+  });
+
+  test('two sessions get independent runs and one starting a new run does not touch the other', async () => {
+    const a = appWithSession();
+    const asA = (method, path) => request(a)[method](path).set('x-test-session-id', 'session-a');
+    const asB = (method, path) => request(a)[method](path).set('x-test-session-id', 'session-b');
+
+    const initialA = await asA('get', '/api/demo-track');
+    const initialB = await asB('get', '/api/demo-track');
+    expect(initialA.body.run.runId).not.toBe(initialB.body.run.runId);
+
+    await asA('post', '/api/demo-track/arm').send({ stepId: 'mcp-gateway', color: 'green' });
+
+    // Session B's own run is untouched by A's arm.
+    const stateB = await asB('get', '/api/demo-track');
+    expect(stateB.body.run.arm).toBeUndefined();
+    expect(stateB.body.run.runId).toBe(initialB.body.run.runId);
+
+    // Session A starting a fresh run archives only A's run — B keeps running.
+    await asA('post', '/api/demo-track/runs');
+    const historyA = await asA('get', '/api/demo-track/runs');
+    const historyB = await asB('get', '/api/demo-track/runs');
+    expect(historyA.body.runs[0].runId).toBe(initialA.body.run.runId);
+    expect(historyB.body.runs).toHaveLength(0);
+    const stillB = await asB('get', '/api/demo-track');
+    expect(stillB.body.run.runId).toBe(initialB.body.run.runId);
+  });
+});

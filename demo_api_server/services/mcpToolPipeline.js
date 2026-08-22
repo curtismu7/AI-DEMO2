@@ -504,7 +504,7 @@ async function runMcpToolPipeline(ctx) {
                     decision: _trackDecision,
                     decisionId: _b.decisionId || null,
                     errorCode: _b.error || null,
-                });
+                }, req.sessionID);
             } catch { /* track observation is optional */ }
             // Scenario 5 — record the preflight authorize decision to the durable
             // compliance trail. These BFF-side blocks (deny / step-up / HITL,
@@ -1494,7 +1494,7 @@ async function runMcpToolPipeline(ctx) {
                     decision: 'HITL',
                     decisionId: err.rpcData?.challengeId || null,
                     errorCode: 'mcp_hitl_required',
-                });
+                }, req.sessionID);
             } catch (_) { /* track observation is optional */ }
             try {
                 const _authEval = splitAuthorizeEvaluationForSse(mcpAuthorizeEvaluationThisRequest);
