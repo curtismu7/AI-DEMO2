@@ -250,3 +250,27 @@ describe('progressive trust Act 1 (UC24)', () => {
     expect(res).toEqual({ kind: 'banking', banking: { action: 'branch_hours' } });
   });
 });
+
+// Regression: the dashboard chat's own greeting invites "ask me about OAuth,
+// PKCE, MCP, or how AI agents work" in every vertical, but bare "OAuth" only
+// matched the "oauth flow" phrase and there was no generic "how do AI agents
+// work" pattern at all — both fell through to the vertical's no-match card
+// instead of opening an education panel. Cover every vertical, not just
+// banking: an airline/retail/etc. session hit this identically.
+describe('education topics the greeting itself advertises', () => {
+  const verticals = ['banking', 'airlines', 'retail'];
+
+  for (const v of verticals) {
+    it(`"What is OAuth?" opens the login-flow panel in ${v}`, () => {
+      const res = parseHeuristic('What is OAuth?', v);
+      expect(res.kind).toBe('education');
+      expect(res.education?.panel).toBe('login-flow');
+    });
+
+    it(`"How do AI agents work?" opens the ai-primer panel in ${v}`, () => {
+      const res = parseHeuristic('How do AI agents work?', v);
+      expect(res.kind).toBe('education');
+      expect(res.education?.panel).toBe('ai-primer');
+    });
+  }
+});

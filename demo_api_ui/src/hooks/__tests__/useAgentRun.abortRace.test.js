@@ -19,6 +19,7 @@
  */
 import { renderHook, act } from '@testing-library/react';
 import { useAgentRun } from '../useAgentRun';
+import { tokenChainTraceStore } from '../../services/tokenChainTrace/tokenChainTraceStore';
 
 vi.mock('../../services/mcpFlowSseClient', () => ({
   openMcpFlowSse: vi.fn(() => () => {}),
@@ -120,5 +121,25 @@ describe('useAgentRun — abort race between superseding runs', () => {
     await act(async () => {
       await runBPromise;
     });
+  });
+});
+
+// Regression: abort() is also the AIAgent unmount-cleanup handler, which fires
+// on every unmount — including React StrictMode's mount/unmount/remount probe
+// on a component that never called run(). completeTrace(false) used to fire
+// unconditionally, painting the token-chain trace singleton with outcome
+// "error" before the user had done anything, so a brand-new session's Token
+// Chain panel showed a red "RUN ERROR" badge with zero real activity behind it.
+describe('useAgentRun — abort() with nothing in flight', () => {
+  it('does not mark the trace as errored when no run was ever started', () => {
+    tokenChainTraceStore.completeTrace.mockClear();
+    const { result } = renderHook(() => useAgentRun({}));
+
+    act(() => {
+      result.current.abort();
+    });
+
+    expect(tokenChainTraceStore.completeTrace).not.toHaveBeenCalled();
+    expect(result.current.isRunning).toBe(false);
   });
 });
