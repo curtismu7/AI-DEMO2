@@ -38,10 +38,22 @@ export function useTokenChainSSE(maxHistory = 50) {
           }
         };
 
+        // EventSource fires `error` on transient blips (readyState CONNECTING —
+        // the browser is already reconnecting) as well as on a terminal close.
+        // Only close on the terminal case; closing on every error kills the
+        // built-in reconnect and leaves the feed dead for the rest of the
+        // component's lifetime.
         eventSource.onerror = () => {
           setIsConnected(false);
           setError(new Error('SSE connection lost'));
-          eventSource.close();
+          if (eventSource.readyState === 2 /* EventSource.CLOSED */) {
+            eventSource.close();
+          }
+        };
+
+        eventSource.onopen = () => {
+          setIsConnected(true);
+          setError(null);
         };
 
         return () => eventSource.close();
