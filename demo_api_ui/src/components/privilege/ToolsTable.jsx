@@ -32,7 +32,9 @@ export default function ToolsTable({ tools, presentMode = false, onExecute, onCl
   const [expanded, setExpanded] = useState('');
   const [argsByTool, setArgsByTool] = useState({});
   const [resultByTool, setResultByTool] = useState({});
-  const [busyTool, setBusyTool] = useState('');
+  // Per-tool, not a single shared name: starting tool B while A is still in
+  // flight used to clear A's busy flag, re-enabling its Run button mid-call.
+  const [busyTools, setBusyTools] = useState({});
   const scrollRef = useRef(null);
 
   // A tool picked in the left rail reveals it here: clear any filter that would
@@ -73,10 +75,20 @@ export default function ToolsTable({ tools, presentMode = false, onExecute, onCl
   };
 
   const run = async (name, tool) => {
-    setBusyTool(name);
-    const result = await onExecute(name, argsByTool[name] ?? seedArgs(tool));
-    setResultByTool((m) => ({ ...m, [name]: result }));
-    setBusyTool('');
+    setBusyTools((m) => ({ ...m, [name]: true }));
+    try {
+      const result = await onExecute(name, argsByTool[name] ?? seedArgs(tool));
+      setResultByTool((m) => ({ ...m, [name]: result }));
+    } catch (err) {
+      // A rejected execute must still surface in the row and clear busy —
+      // otherwise the tool sits on "Executing..." forever with no explanation.
+      setResultByTool((m) => ({ ...m, [name]: { error: err?.message || String(err) } }));
+    } finally {
+      setBusyTools((m) => {
+        const { [name]: _done, ...rest } = m;
+        return rest;
+      });
+    }
   };
 
   return (
@@ -139,7 +151,7 @@ export default function ToolsTable({ tools, presentMode = false, onExecute, onCl
                   args={argsByTool[t.name] ?? '{}'}
                   onArgs={(v) => setArgsByTool((m) => ({ ...m, [t.name]: v }))}
                   result={resultByTool[t.name]}
-                  busy={busyTool === t.name}
+                  busy={Boolean(busyTools[t.name])}
                   onRun={() => run(t.name, t)}
                 />
               );
