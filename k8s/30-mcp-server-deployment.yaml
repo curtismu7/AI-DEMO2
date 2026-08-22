@@ -54,6 +54,14 @@ spec:
         # internal hop (mirrors docker-compose.yml's mcp-server default).
         - name: MCP_AUTH_DISABLED
           value: "true"
+        # Public identity of oauth-mcp's embedded authorization server. Without
+        # it the AS advertises https://localhost:8080 for every endpoint, so an
+        # external client discovers the door and is then sent nowhere.
+        # MUST equal the host in k8s/aws/se-ingress.yaml's mcp-public-door-ingress.
+        # Baked into every token's `iss` and into all advertised metadata:
+        # changing it later invalidates every client that already registered.
+        - name: OAUTH_ISSUER
+          value: "https://cmuir-mcp.ping-devops.com"
         # Admit MCP clients we have never seen — ChatGPT, Claude, LM Studio.
         # None can be pre-registered: all require RFC 7591 dynamic registration
         # or a Client ID Metadata Document, and none offers a field for an
