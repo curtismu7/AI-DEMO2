@@ -131,6 +131,32 @@ test("reset rejects late tagged evidence from the cleared run", () => {
   expect(trace.authorize).toBeNull();
 });
 
+test("a slower prior run's tagged evidence does not overwrite the current run", () => {
+  // Run A begins, then run B supersedes it before A's response lands.
+  tokenChainTraceStore.beginTrace({ prompt: "run A", flowTraceId: "flow-a" });
+  tokenChainTraceStore.beginTrace({ prompt: "run B", flowTraceId: "flow-b" });
+
+  // Run B's own evidence renders correctly.
+  tokenChainTraceStore.ingestRoutingMode("llm", { action: "b_action" }, "flow-b");
+  tokenChainTraceStore.ingestLlmReply("reply from B", "flow-b");
+  tokenChainTraceStore.completeTrace(true, "flow-b");
+
+  // Run A's late response must be dropped, not repaint B's trace.
+  tokenChainTraceStore.ingestRoutingMode("heuristic", { action: "a_action" }, "flow-a");
+  tokenChainTraceStore.ingestLlmDetail({ model: "model-a" }, "flow-a");
+  tokenChainTraceStore.ingestAuthorize({ decision: "DENY" }, "flow-a");
+  tokenChainTraceStore.ingestLlmReply("reply from A", "flow-a");
+  tokenChainTraceStore.completeTrace(false, "flow-a");
+
+  const { trace } = tokenChainTraceStore.getState();
+  expect(trace.routingMode).toBe("llm");
+  expect(trace.routingDetail).toEqual({ action: "b_action" });
+  expect(trace.llmDetail).toBeNull();
+  expect(trace.authorize).toBeNull();
+  expect(trace.llmReply).toBe("reply from B");
+  expect(trace.outcome).toBe("ok");
+});
+
 test("ingestAuthorizeEvaluations stores the ordered decision list", () => {
   const list = [
     { decision: "PERMIT", decisionId: "gate-1", decisionContext: "McpFirstTool" },
