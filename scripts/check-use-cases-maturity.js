@@ -145,7 +145,7 @@ function pass(probe) {
 // Condition fires: UC16 maturity === 'works'
 // Required: rg finds a throw/deny/reject keyed on missing/absent act — specifically
 //   requiresAgentMediation OR (throw|deny|reject).*(missing|no|absent).*act
-//   on a NON-COMMENT line in GatewayTokenPolicy.ts or decision.js.
+//   on a NON-COMMENT line in GatewayTokenPolicy.ts, scopeTopology.ts, or decision.js.
 // Comments and log/label strings must NOT satisfy this — the match must be code.
 {
   const uc16 = USE_CASES.find((u) => u.id === 'UC16');
@@ -153,9 +153,15 @@ function pass(probe) {
     // Pattern matches requiresAgentMediation OR a throw/deny/reject keyed on a missing/absent
     // act CLAIM (the top-level delegation claim) — not may_act (a different attribute).
     // Excludes comment-only lines and any hit that is about may_act rather than act.
+    // scopeTopology.ts is included because GatewayTokenPolicy.ts enforces UC16 via its
+    // isAgentMediatedTool() helper, which is where the requiresAgentMediation lookup lives.
     const hits = rg(
       '^(?!\\s*(?:\\/\\/|\\*)).*(requiresAgentMediation|(throw|deny|reject).{0,60}(missing|no|absent)\\s+act(?!_|\\w))',
-      ['demo_mcp_gateway/src/auth/GatewayTokenPolicy.ts', 'demo_authz_server/routes/decision.js'],
+      [
+        'demo_mcp_gateway/src/auth/GatewayTokenPolicy.ts',
+        'demo_mcp_gateway/src/auth/scopeTopology.ts',
+        'demo_authz_server/routes/decision.js',
+      ],
       '--pcre2 --multiline --ignore-case',
     );
     if (hits === 0) {

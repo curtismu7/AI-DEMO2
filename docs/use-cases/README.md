@@ -50,7 +50,7 @@ See also: [Audit Table](./audit-table.md), [Step Verification Report](./step-ver
 - [**UC13** — Confused-deputy actor injection](./confused-deputy-actor-injection.md) ✅ 🛡️
 - [**UC14** — PAR intent violation (Pushed Auth Request)](./rar-intent-violation.md) 🚩 🛡️
 - [**UC15** — Intent-token tampering](./intent-token-tampering.md) 🏗️ 🛡️
-- [**UC16** — Impersonation blocked (OBO required)](./impersonation-blocked.md) 🏗️ 🛡️
+- [**UC16** — Impersonation blocked (OBO required)](./impersonation-blocked.md) ✅ 🛡️
 - [**UC18** — Rate-limit / resource-overload defense](./rate-limit-defense.md) ✅ 🛡️
 - [**UC29** — OAuth introspection outage — fail closed](./oauth-fail-closed.md) ✅ 🛡️
 

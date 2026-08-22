@@ -1102,7 +1102,7 @@ const RAW_USE_CASES = [
     expectedOutcome: 'DENY_401',
     evidence: { tokenChain: ['user-token', 'authorize-decision'], activity: ['token', 'gateway'] },
     codeRefs: ['demo_mcp_gateway/src/auth/GatewayTokenPolicy.ts', 'demo_authz_server/routes/decision.js'],
-    maturity: 'needs-build',
+    maturity: 'works',
     owasp: { threats: ['T9'], sections: ['§3.3.6', '§4.1.1'] },
     whatToSay: 'No act claim means no attribution — the gateway rejects pure impersonation to keep every action traceable.',
     advanced: false,

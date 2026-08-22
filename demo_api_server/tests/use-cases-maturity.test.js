@@ -133,7 +133,11 @@ describe('D-A3 maturity probes', () => {
     if (!uc16 || uc16.maturity !== 'works') return; // skip
     const hits = rgCount(
       '^(?!\\s*(?:\\/\\/|\\*)).*(requiresAgentMediation|(throw|deny|reject).{0,60}(missing|no|absent)\\s+act(?!_|\\w))',
-      ['demo_mcp_gateway/src/auth/GatewayTokenPolicy.ts', 'demo_authz_server/routes/decision.js'],
+      [
+        'demo_mcp_gateway/src/auth/GatewayTokenPolicy.ts',
+        'demo_mcp_gateway/src/auth/scopeTopology.ts',
+        'demo_authz_server/routes/decision.js',
+      ],
       '--pcre2 --multiline --ignore-case',
     );
     expect(hits).toBeGreaterThan(0);

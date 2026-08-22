@@ -3,7 +3,7 @@
 # UC16 — Impersonation blocked (OBO required)
 
 **Track:** attacks  
-**Maturity:** 🏗️ `needs-build`  
+**Maturity:** ✅ `works`  
 **OWASP:** 🛡️ **OWASP ASI** — Threats: T9 · Sections: §3.3.6, §4.1.1
 
 ## Buyer Story
