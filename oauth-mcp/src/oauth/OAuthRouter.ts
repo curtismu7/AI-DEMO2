@@ -3,7 +3,7 @@ import * as crypto from 'crypto';
 import { URL } from 'url';
 import axios from 'axios';
 import { SigningKeyManager } from './SigningKeyManager';
-import { ClientRegistry } from './ClientRegistry';
+import { ClientRegistry, openClientRegistrationEnabled, openRegistrationScope } from './ClientRegistry';
 import { TokenStore } from './TokenStore';
 import { TokenIssuer } from './TokenIssuer';
 import { createJwksKeySet, getJose } from '../auth/jwks';
@@ -68,6 +68,9 @@ export class OAuthRouter {
       token_endpoint_auth_methods_supported: ['client_secret_basic', 'client_secret_post', 'none'],
       code_challenge_methods_supported: ['S256'],
       service_documentation: `${this.issuer}/.well-known/mcp-server`,
+      // Advertised only when actually honoured — a client that sees this true
+      // will skip registration and present a URL as its client_id.
+      client_id_metadata_document_supported: openClientRegistrationEnabled(),
     };
     this.json(res, 200, metadata);
     return true;
@@ -82,7 +85,7 @@ export class OAuthRouter {
   }
 
   // --- RFC 6749 §4.1: Authorization Endpoint ---
-  private handleAuthorize(req: IncomingMessage, res: ServerResponse, url: URL): boolean {
+  private async handleAuthorize(req: IncomingMessage, res: ServerResponse, url: URL): Promise<boolean> {
     if (req.method !== 'GET') {
       this.json(res, 405, { error: 'method_not_allowed' });
       return true;
@@ -101,7 +104,7 @@ export class OAuthRouter {
       return true;
     }
 
-    const client = this.clientRegistry.getClient(clientId);
+    const client = await this.clientRegistry.resolveClient(clientId);
     if (!client) {
       this.json(res, 400, { error: 'invalid_client', error_description: 'Unknown client_id' });
       return true;
@@ -267,6 +270,7 @@ export class OAuthRouter {
       return true;
     }
 
+    await this.clientRegistry.resolveClient(clientId);
     const client = this.clientRegistry.authenticateClient(clientId, clientSecret || undefined, 'token');
     if (!client) {
       this.json(res, 401, { error: 'invalid_client', error_description: 'Client authentication failed' });
@@ -376,8 +380,15 @@ export class OAuthRouter {
     // mint a client and name its own `scope`, which /token then honours — so the
     // endpoint stays CLOSED until an operator provisions the secret, mirroring
     // how /authorize refuses to run without its PingOne federation env vars.
+    //
+    // MCP_OPEN_CLIENT_REGISTRATION is the deliberate exception: ChatGPT and
+    // Claude cannot be pre-registered and offer no field for an initial access
+    // token, so admitting them means opening this endpoint. The escalation the
+    // gate protected against is closed a different way below — the granted
+    // scope is pinned server-side instead of read from the request.
     const initialAccessToken = process.env.DCR_INITIAL_ACCESS_TOKEN;
-    if (!initialAccessToken) {
+    const openRegistration = openClientRegistrationEnabled();
+    if (!initialAccessToken && !openRegistration) {
       this.json(res, 503, {
         error: 'temporarily_unavailable',
         error_description: 'Dynamic client registration is not configured (DCR_INITIAL_ACCESS_TOKEN)',
@@ -385,14 +396,19 @@ export class OAuthRouter {
       return true;
     }
 
-    const authHeader = req.headers['authorization'] || '';
-    const presented = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
-    if (!presented || !this.secretEquals(presented, initialAccessToken)) {
-      this.json(res, 401, {
-        error: 'invalid_token',
-        error_description: 'Registration requires a valid initial access token (Authorization: Bearer <DCR_INITIAL_ACCESS_TOKEN>)',
-      });
-      return true;
+    // A provisioned initial access token is still enforced when present: opening
+    // registration is opt-in, and turning it on must not silently drop a check
+    // an operator deliberately configured.
+    if (initialAccessToken) {
+      const authHeader = req.headers['authorization'] || '';
+      const presented = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+      if (!presented || !this.secretEquals(presented, initialAccessToken)) {
+        this.json(res, 401, {
+          error: 'invalid_token',
+          error_description: 'Registration requires a valid initial access token (Authorization: Bearer <DCR_INITIAL_ACCESS_TOKEN>)',
+        });
+        return true;
+      }
     }
 
     const body = await this.readBody(req);
@@ -416,7 +432,9 @@ export class OAuthRouter {
       grant_types: grantTypes,
       redirect_uris: redirectUris,
       token_endpoint_auth_method: (meta.token_endpoint_auth_method as 'client_secret_basic') || 'client_secret_basic',
-      scope: (meta.scope as string) || 'mcp:invoke',
+      // An operator-authorised registration may name its own scope; a caller
+      // that walked in off the internet may not.
+      scope: initialAccessToken ? ((meta.scope as string) || 'mcp:invoke') : openRegistrationScope(),
     };
 
     this.clientRegistry.registerClient(client);
