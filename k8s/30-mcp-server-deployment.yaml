@@ -54,6 +54,27 @@ spec:
         # internal hop (mirrors docker-compose.yml's mcp-server default).
         - name: MCP_AUTH_DISABLED
           value: "true"
+        # Admit MCP clients we have never seen — ChatGPT, Claude, LM Studio.
+        # None can be pre-registered: all require RFC 7591 dynamic registration
+        # or a Client ID Metadata Document, and none offers a field for an
+        # initial access token. Set here rather than via `kubectl set env` so a
+        # manifest re-apply cannot silently close the door again — the symptom
+        # of that would be an external client failing to register with no
+        # obvious cause. See oauth-mcp/src/oauth/ClientRegistry.ts.
+        - name: MCP_OPEN_CLIENT_REGISTRATION
+          value: "true"
+        # Scope granted to a self-admitted client, pinned server-side and never
+        # read from its registration request. Read-only on purpose: this
+        # registration endpoint faces the internet, so a caller that walked in
+        # off it does not get write.
+        - name: DCR_OPEN_REGISTRATION_SCOPE
+          value: "mcp:invoke read"
+        # Only these domains may serve a Client ID Metadata Document. The code
+        # already refuses non-https, loopback and private-network literals, and
+        # requires the document to claim the URL it was served from; this narrows
+        # it further to the two clients we actually demo.
+        - name: CIMD_ALLOWED_HOSTS
+          value: "chatgpt.com,claude.ai"
         # api_key feature tools (show_mortgage/show_health_record/...) executed
         # by this server itself on the gateway-less Privilege/Procyon hop — the
         # same credential swap the demo mcp-gateway does on the normal chain.
