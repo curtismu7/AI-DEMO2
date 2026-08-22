@@ -1035,11 +1035,11 @@ export function ingestLegacyRunTrace(data, { forceHeuristic = false, flowTraceId
     if (heuristicRun) {
       tokenChainTraceStore.ingestRoutingMode("heuristic", {
         action: data.toolsCalled?.[0] || data.action || null,
-      });
+      }, flowTraceId);
     } else {
       tokenChainTraceStore.ingestRoutingMode("llm", {
         action: data.toolsCalled?.[0] || data.action || null,
-      });
+      }, flowTraceId);
       tokenChainTraceStore.ingestLlmDetail({
         model: data.model || "session default",
         toolCalls: Array.isArray(data.toolsCalled)
@@ -1048,10 +1048,10 @@ export function ingestLegacyRunTrace(data, { forceHeuristic = false, flowTraceId
         usage: data.inputTokens || data.outputTokens
           ? { inputTokens: data.inputTokens ?? 0, outputTokens: data.outputTokens ?? 0 }
           : null,
-      });
+      }, flowTraceId);
     }
     if (data.mcpAuthorizeEvaluation) {
-      tokenChainTraceStore.ingestAuthorize(data.mcpAuthorizeEvaluation);
+      tokenChainTraceStore.ingestAuthorize(data.mcpAuthorizeEvaluation, flowTraceId);
     }
     if (data.mcpAuthorizeEvaluations) {
       tokenChainTraceStore.ingestAuthorizeEvaluations(data.mcpAuthorizeEvaluations);
@@ -1110,10 +1110,10 @@ export function ingestLegacyRunTrace(data, { forceHeuristic = false, flowTraceId
       }
     }
     if (typeof data.reply === "string" && data.reply) {
-      tokenChainTraceStore.ingestLlmReply(data.reply);
+      tokenChainTraceStore.ingestLlmReply(data.reply, flowTraceId);
     }
     const failed = data.success === false || Boolean(data.error);
-    tokenChainTraceStore.completeTrace(!failed);
+    tokenChainTraceStore.completeTrace(!failed, flowTraceId);
   } catch { /* display-only */ }
 }
 

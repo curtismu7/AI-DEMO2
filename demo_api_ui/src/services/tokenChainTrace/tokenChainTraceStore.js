@@ -188,8 +188,11 @@ export const tokenChainTraceStore = {
     trace.phases = serverEvents.slice();
     emit();
   },
-  ingestRoutingMode(mode, detail = null) {
+  ingestRoutingMode(mode, detail = null, flowTraceId = null) {
     if (!mode) return;
+    // Same run-identity guard as ingestMcpResult: a slower prior run's routing
+    // mode must not repaint a newer run that already rendered its own.
+    if (isForeignRun(flowTraceId)) return;
     ensureTrace();
     trace.routingMode = mode;
     trace.routingDetail = detail && typeof detail === "object" ? { ...detail } : null;
@@ -227,8 +230,9 @@ export const tokenChainTraceStore = {
     _syncGwAuthorize();
     emit();
   },
-  ingestAuthorize(evaluation) {
+  ingestAuthorize(evaluation, flowTraceId = null) {
     if (!evaluation) return;
+    if (isForeignRun(flowTraceId)) return;
     ensureTrace();
     const prev = trace.authorize;
     // HITL/step-up challenge then approve→retry PERMITs. Keep the block-kind
@@ -256,14 +260,16 @@ export const tokenChainTraceStore = {
     trace.authorizeEvaluations = list;
     emit();
   },
-  ingestLlmDetail(value) {
+  ingestLlmDetail(value, flowTraceId = null) {
     if (!value) return;
+    if (isForeignRun(flowTraceId)) return;
     ensureTrace();
     trace.llmDetail = value;
     emit();
   },
-  ingestLlmReply(text) {
+  ingestLlmReply(text, flowTraceId = null) {
     if (!text) return;
+    if (isForeignRun(flowTraceId)) return;
     ensureTrace();
     trace.llmReply = String(text);
     emit();
@@ -292,7 +298,11 @@ export const tokenChainTraceStore = {
     trace.approvalOutcome = "declined";
     emit();
   },
-  completeTrace(ok) { trace.outcome = ok ? "ok" : "error"; emit(); },
+  completeTrace(ok, flowTraceId = null) {
+    if (isForeignRun(flowTraceId)) return;
+    trace.outcome = ok ? "ok" : "error";
+    emit();
+  },
   /** Full demo reset — empty pipeline (nothing done) ready for the next run. */
   reset() {
     trace = EMPTY_TRACE();
