@@ -34,7 +34,7 @@ export function extractAccounts(data, maxAccounts = 100) {
         console.warn('[ApiValidation] Invalid account entry:', acc);
         return false;
       }
-      if (!acc.id) {
+      if (acc.id === undefined || acc.id === null || acc.id === '') {
         console.warn('[ApiValidation] Account missing id:', acc);
         return false;
       }
@@ -60,7 +60,7 @@ export function normalizeAccount(account) {
 
   try {
     return {
-      id: String(account.id || '').trim() || `account-${Date.now()}`,
+      id: (account.id != null ? String(account.id) : '').trim() || `account-${Date.now()}`,
       name: String(account.name || account.accountType || 'Account')
         .trim()
         .substring(0, 100),
