@@ -105,6 +105,18 @@ read the configured host. A new browser origin must be added to ALL of:
 ## §4 — Bug Fix Log
 Reverse-chronological, newest first.
 
+### 2026-08-22 — `UserDashboard.js`/`UserDashboardPing2026.js` accidentally overwritten with a stale local copy, reverting merged feature work
+
+**Files changed:** `demo_api_ui/src/components/UserDashboard.js`, `demo_api_ui/src/components/UserDashboardPing2026.js`.
+
+**What was broken:** Commit `b6d9d4f99` ("chore: save local demo artifacts", 2026-08-21) bundled unrelated files (JSON prereqs, a Helm chart zip) alongside a full overwrite of these two files with a stale local working copy. This silently reverted already-merged work: Focus Mode layout (`ud-focus-mode`, banking-column suppression), the `TokenChainFilmstrip`/`SimpleStepperBar`/`AgentResponseMirror` components (unmounted entirely), request de-duplication (`fetchingRef`/`inFlightRef`, `getCachedJson`), step-up UX polish (`agentTriggeredStepUp`, `cibaStepUpApproved` event, `cancelAutoInitiate` on unmount), the loading skeleton, toolbar host wiring, the guest-401 guard (`propUser` check before redirect-to-reauth), the admin-403 `admin_token_forbidden` demo-fallback guard (re-regressing PR #1495), and `dragCleanupRef` unmount-safety tracking (re-regressing PR #2101's drag-listener-leak fix). It also re-added old demo-transaction-simulation code (`applyDemoTransaction`, `isDemoMode` branches) that had since been removed. The frozen-hash canary test (`UserDashboardPing2026.test.js`) caught the drift immediately but went unnoticed; it blocked CI on every subsequent PR touching `demo_api_ui`.
+
+**What was fixed:** `git checkout b6d9d4f99^ -- <file>` for both files, restoring them to their pre-regression state. Nothing legitimate had touched either file since the bad commit landed, so this is a clean revert with no follow-up merge needed. `AdminSideNav.jsx`'s label change from the same commit and the unrelated demo-artifact/Helm files were left untouched — out of scope for this fix.
+
+**Do not break:** Don't `git add -A` a broad "save local artifacts" sweep on the shared main checkout without reviewing `git status`/`git diff --stat` first — a stale local copy of a frequently-edited file can silently overwrite merged work with no code review to catch it.
+
+**Verify:** Full `demo_api_ui` unit suite — 392/392 test files, 3333/3357 tests passing (24 pre-existing skips), including the frozen-hash canary and step-up lifecycle suites that were failing before this fix; `npm run build` exit 0.
+
 ### 2026-08-21 — Admin/user PingOne login failed `invalid_client`: `.env` ciphertext shadowed a correct vault secret, and a vault-alias resolution bug made even a correct vault secret unreachable
 
 **Files changed:** `demo_api_server/services/configStore.js`, `demo_api_server/tests/vault/configStore-precedence.test.js`, `docs/vault.md`.
