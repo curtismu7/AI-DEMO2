@@ -58,7 +58,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 31 | Runtime | `demo_api_ui/.../services/sessionResolver.js` | low | FIXED |
 | 32 | Swallowed | `routes/adminConfig.js` (generate-keypair) | high | FIXED |
 | 33 | Swallowed | `demo_api_ui/.../hooks/useElicitation.js` | medium | FIXED |
-| 34 | Swallowed | `demo_api_ui/.../DemoSetupPanel.js` (reset demo) | low | OPEN |
+| 34 | Swallowed | `demo_api_ui/.../DemoSetupPanel.js` (reset demo) | low | FIXED |
 | 35 | Perf | `services/auditLogService.js` | medium | OPEN |
 | 36 | Perf | `services/demoTrackService.js` | medium | OPEN |
 | 37 | Perf | `services/traceProjector.js` | low | OPEN |
@@ -941,7 +941,7 @@ files (4/9 failing) and pass against the fix (9/9). `npm --prefix demo_api_ui
 run test:unit` — 415 files / 3417 tests passed, no regressions. `npm
 --prefix demo_api_ui run build` — exit 0.
 
-### 34. Failed demo reset is indistinguishable from a successful one — OPEN
+### 34. Failed demo reset is indistinguishable from a successful one — FIXED
 
 **File:** `demo_api_ui/src/components/DemoSetupPanel.js`, line 89
 
@@ -957,10 +957,22 @@ if the reset succeeded — the admin is signed out believing server state
 (agent history, token chain events, MCP audit logs) was cleared when it was
 not.
 
-**Fix (not yet applied):** Use the already-imported `notifyError` (used
-elsewhere in this same file) to surface the failure, e.g. wrap the
-`axios.post` in try/catch that calls `notifyError(...)` and return early
-instead of proceeding to clear local state and log out.
+**Fix:** The `catch` on `axios.post('/api/admin/reset-demo')` now calls the
+already-imported `notifyError(...)` and returns early — local storage is no
+longer cleared and `performLogout()` is no longer called when the reset
+actually failed.
+
+**Evidence:** New `DemoSetupPanel.resetDemo.test.jsx` proves both paths: a
+rejected POST surfaces `notifyError` and leaves `performLogout`
+uncalled/local storage intact; a successful POST still clears local storage
+and calls `performLogout` as before. Proven to fail against the pre-fix file
+(failure path silently cleared + logged out) and pass against the fix. `npm
+--prefix demo_api_ui run test:unit -- DemoSetupPanel.resetDemo` — 2/2
+passed; full UI suite (416 files / 3419 tests) — no regressions. `npm
+--prefix demo_api_ui run build` — exit 0.
+
+**This closes the Swallowed-Errors category — findings #9–18 and #32–34 are
+all FIXED.**
 
 ### 35. Kill-switch/rate-limit audit log grows unbounded — its own pruning function is dead code — OPEN
 
@@ -1069,6 +1081,12 @@ from the loop bodies in `handleFixAll`/`handleFixEverything`, and call
 
 ## Changelog
 
+- 2026-08-23 — #34 FIXED: `DemoSetupPanel.js`'s reset-demo empty catch now
+  calls `notifyError` and returns early on a failed POST instead of
+  proceeding to clear local storage and log the admin out as if it
+  succeeded. New tests proven to fail against the pre-fix file and pass
+  against the fix; full UI suite green (416 files / 3419 tests). **Closes
+  the Swallowed-Errors category (#9–18, #32–34 all FIXED).**
 - 2026-08-23 — #33 FIXED: `useElicitation.js` now exposes an `error` state,
   set on a failed submit and surfaced by `ElicitationDialog.jsx` as a visible
   banner instead of silently resetting to idle. New hook + dialog tests
