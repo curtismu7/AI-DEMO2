@@ -106,6 +106,17 @@ services:
       # OpenTelemetry → local Jaeger. Unset = tracing disabled (no-op in instrument.js).
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT-http://jaeger:4317}"
       OTEL_SERVICE_NAME: "demo-api-server"
+      # ── MCP Enterprise-Managed Authorization (native ID-JAG) ────────────────
+      # Must match mcp-server's values: the BFF signs the assertion with
+      # ENTERPRISE_IDP_ISSUER and oauth-mcp validates `iss` against the same.
+      ENTERPRISE_IDP_ISSUER: "${ENTERPRISE_IDP_ISSUER:-https://idp.ping.demo}"
+      ENTERPRISE_IDP_JWKS_URL: "${ENTERPRISE_IDP_JWKS_URL:-https://demo-api-server:3001/api/enterprise-idp/jwks}"
+      # Where the BFF POSTS the grant vs the audience it names in the assertion.
+      # These deliberately differ: oauth-mcp publishes its issuer as
+      # https://localhost:8080 but is reachable in-network at mcp-server:8080,
+      # and `aud` must equal the issuer or verification fails on audience.
+      ENTERPRISE_MCP_AS_TOKEN_URL: "${ENTERPRISE_MCP_AS_TOKEN_URL:-http://mcp-server:8080/token}"
+      ENTERPRISE_MCP_AS_ISSUER: "${ENTERPRISE_MCP_AS_ISSUER:-https://localhost:8080}"
       NODE_OPTIONS: "-r /otel/otel-instrument.js"
       JAEGER_QUERY_URL: "http://jaeger:16686"
       # Don't wipe persisted sessions on every restart/recreate — otherwise each
@@ -411,6 +422,16 @@ services:
       NODE_OPTIONS: "-r /otel/otel-instrument.js"
       MCP_RESOURCE_URL: "http://localhost:8080"
       HTTP_MCP_TRANSPORT_ENABLED: "true"
+      # ── MCP Enterprise-Managed Authorization (native ID-JAG) ────────────────
+      # Both halves of native mode are configured HERE, not at runtime:
+      # OAuthRouter.nativeIdJagEnabled() reads process.env, so a UI toggle could
+      # never arm this side. With it always configured, oauth-mcp stands willing
+      # to redeem an ID-JAG and the BFF's ff_enterprise_managed_mcp_auth flag —
+      # which IS runtime-settable — becomes the single demo switch.
+      # NODE_EXTRA_CA_CERTS (above) trusts the BFF's mkcert TLS, so this JWKS
+      # fetch verifies for real rather than being waved through.
+      ENTERPRISE_IDP_ISSUER: "${ENTERPRISE_IDP_ISSUER:-https://idp.ping.demo}"
+      ENTERPRISE_IDP_JWKS_URL: "${ENTERPRISE_IDP_JWKS_URL:-https://demo-api-server:3001/api/enterprise-idp/jwks}"
       DEMO_API_BASE_URL: "https://demo-api-server:3001"
       # api_key feature tools (show_mortgage/show_health_record/...) executed by
       # this server itself on gateway-less hops (Privilege/Procyon AI Gateway
