@@ -53,7 +53,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 26 | Perf | `routes/transactions.js` / `routes/accounts.js` | low | FIXED |
 | 27 | Perf | `TraceStepCard.jsx` | low | FIXED |
 | 28 | Runtime | `services/pingOneGroupMembershipService.js` | high | FIXED |
-| 29 | Runtime | `demo_api_ui/.../hooks/useDraggablePanel.js` | high | OPEN |
+| 29 | Runtime | `demo_api_ui/.../hooks/useDraggablePanel.js` | high | FIXED |
 | 30 | Runtime | `demo_api_ui/.../bankingRestartNotificationService.js` | medium | OPEN |
 | 31 | Runtime | `demo_api_ui/.../services/sessionResolver.js` | low | OPEN |
 | 32 | Swallowed | `routes/adminConfig.js` (generate-keypair) | high | OPEN |
@@ -774,7 +774,7 @@ mismatch — the stale value was cached and served) and pass against the fix.
 src/__tests__/pingOneGroupMembershipService.test.js --forceExit
 --maxWorkers=4` — 9/9 passed.
 
-### 29. Draggable panel drag never cleans up if the component unmounts mid-drag — OPEN
+### 29. Draggable panel drag never cleans up if the component unmounts mid-drag — FIXED
 
 **File:** `demo_api_ui/src/hooks/useDraggablePanel.js`, line 90
 
@@ -790,11 +790,20 @@ to target at lines 118–120), then unmount the component (e.g. `onClose`
 fires) before releasing the pointer → `onUp` never runs → `document.body.style.userSelect`
 stays `'none'` for the rest of the session.
 
-**Fix (not yet applied):** Track the active drag's onMove/onUp/target in a
-ref alongside `activeResizeHandlersRef`, and have the existing unmount
-cleanup effect also remove those listeners and reset
-`document.body.style.userSelect = ''` if a drag is still active when the
-component unmounts.
+**Fix:** Added an `activeDragHandlersRef` alongside the existing
+`activeResizeHandlersRef`, storing `{ target, onMove, onUp }` when a drag
+starts and clearing it on the drag's own `onUp` (mirrors the resize path's
+existing pattern). The unmount cleanup effect now also tears down an
+in-flight drag: removes the three listeners from `target` and resets
+`document.body.style.userSelect = ''`.
+
+**Evidence:** New test in `useDraggablePanel.test.js` starts a drag via
+`handleDragStart` with a synthetic pointerdown, unmounts without firing
+pointerup, and asserts `document.body.style.userSelect` resets to `''` and
+`removeEventListener` was called for `pointermove`/`pointerup`/`pointercancel`.
+Proven to fail against the pre-fix file (`userSelect` stayed `'none'`) and
+pass against the fix. `npm --prefix demo_api_ui run test:unit --
+useDraggablePanel` — 4/4 passed.
 
 ### 30. Concurrent manual + automatic health-check retries race on shared state — OPEN
 
@@ -1010,6 +1019,11 @@ from the loop bodies in `handleFixAll`/`handleFixEverything`, and call
 
 ## Changelog
 
+- 2026-08-23 — #29 FIXED: `useDraggablePanel.js` gained an
+  `activeDragHandlersRef` (mirroring the existing resize-path ref); the
+  unmount cleanup effect now also tears down an in-flight drag's listeners
+  and resets `userSelect`. New test proven to fail against the pre-fix file
+  and pass against the fix; 4/4 tests passed.
 - 2026-08-23 — #28 FIXED: `pingOneGroupMembershipService.js` gained a
   `_cacheGeneration` counter bumped by `_resetCache()`; a fetch in flight
   when a reset happens now skips repopulating the cache with its stale

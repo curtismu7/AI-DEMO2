@@ -70,6 +70,11 @@ export function useDraggablePanel(initialPos, initialSize, options = {}) {
   // Tracks active resize listeners so they can be torn down on unmount even
   // if mouseup was never fired (e.g. window blur, component unmount mid-resize).
   const activeResizeHandlersRef = useRef(null);
+  // Same idea for an in-flight drag: if the component unmounts (e.g. the
+  // panel's own onClose) before pointerup fires, the drag's listeners and
+  // its document.body.style.userSelect = 'none' would otherwise never be
+  // torn down.
+  const activeDragHandlersRef = useRef(null);
 
   useEffect(() => {
     return () => {
@@ -80,6 +85,14 @@ export function useDraggablePanel(initialPos, initialSize, options = {}) {
         document.body.style.cursor     = '';
         document.body.style.userSelect = '';
         activeResizeHandlersRef.current = null;
+      }
+      const activeDrag = activeDragHandlersRef.current;
+      if (activeDrag) {
+        activeDrag.target.removeEventListener('pointermove', activeDrag.onMove);
+        activeDrag.target.removeEventListener('pointerup',   activeDrag.onUp);
+        activeDrag.target.removeEventListener('pointercancel', activeDrag.onUp);
+        document.body.style.userSelect = '';
+        activeDragHandlersRef.current = null;
       }
     };
   }, []);
@@ -108,6 +121,7 @@ export function useDraggablePanel(initialPos, initialSize, options = {}) {
       target.removeEventListener('pointerup',   onUp);
       target.removeEventListener('pointercancel', onUp);
       document.body.style.userSelect = '';
+      activeDragHandlersRef.current = null; // clear ref on normal pointerup
       if (storageKey) {
         try {
           localStorage.setItem(storageKey, JSON.stringify({ pos: posRef.current, size: sizeRef.current }));
@@ -118,6 +132,7 @@ export function useDraggablePanel(initialPos, initialSize, options = {}) {
     target.addEventListener('pointermove', onMove);
     target.addEventListener('pointerup',   onUp);
     target.addEventListener('pointercancel', onUp);
+    activeDragHandlersRef.current = { target, onMove, onUp }; // store for unmount cleanup
   }, [storageKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** 8-direction resize - supports resizing from any edge or corner. */
