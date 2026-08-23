@@ -145,3 +145,42 @@ test('D-05: a normal gateway-audienced token (no upstream aud at all) passes reg
   }));
   assert.strictEqual(result.decision, 'PERMIT', 'Expected PERMIT, got ' + result.decision + ': ' + result.reason);
 });
+
+// ── Rule 0f (iss mismatch) — same exemption, reused signal ──────────────────
+// Live-verified: with D-05 fixed, an ID-JAG token next hit Rule 0f
+// (`invalid_iss: unexpected token issuer`) because it is genuinely signed by
+// oauth-mcp, never PingOne — the check's default assumption. PINGONE_ENVIRONMENT_ID
+// must be set for Rule 0f to activate at all (EXPECTED_ISS is null otherwise,
+// matching every test above where it never fires).
+
+test('Rule 0f: a PingOne-issued token with mismatched iss is still DENYed (unaffected)', async () => {
+  process.env.PINGONE_ENVIRONMENT_ID = 'env-123';
+  fresh();
+  const result = await decide(readParams({
+    TokenIss: 'https://not-pingone.example.com/as',
+  }));
+  assert.strictEqual(result.decision, 'DENY', 'Expected DENY, got ' + result.decision + ': ' + result.reason);
+  assert.ok(String(result.reason || '').includes('invalid_iss'), 'reason should include invalid_iss, got: ' + result.reason);
+});
+
+test('Rule 0f: an ID-JAG-issued token is exempt from the PingOne-issuer check (PERMIT)', async () => {
+  process.env.PINGONE_ENVIRONMENT_ID = 'env-123';
+  fresh();
+  const result = await decide(readParams({
+    TokenIss: ID_JAG_ISSUER,
+  }));
+  assert.ok(
+    !String(result.reason || '').includes('invalid_iss'),
+    'ID-JAG-issued token must be exempt from Rule 0f, got: ' + result.reason
+  );
+  assert.strictEqual(result.decision, 'PERMIT', 'Expected PERMIT, got ' + result.decision + ': ' + result.reason);
+});
+
+test('Rule 0f: a genuine PingOne-issued token (iss matches) passes normally', async () => {
+  process.env.PINGONE_ENVIRONMENT_ID = 'env-123';
+  fresh();
+  const result = await decide(readParams({
+    TokenIss: 'https://auth.pingone.com/env-123/as',
+  }));
+  assert.strictEqual(result.decision, 'PERMIT', 'Expected PERMIT, got ' + result.decision + ': ' + result.reason);
+});
