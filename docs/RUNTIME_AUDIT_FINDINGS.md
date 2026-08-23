@@ -42,7 +42,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 22 | Perf | `services/pingoneProvisionService.js` (grantScopes) | medium | FIXED |
 | 23 | Perf | `services/pingoneProvisionService.js` (wipeEnvironment) | medium | FIXED |
 | 24 | Perf | `demo_api_ui/.../AIAgent.js` (unbounded transcript) | medium | FIXED |
-| 25 | Perf | `TokenChainTraceRail.jsx` / `TokenChainFilmstrip.jsx` | medium | OPEN |
+| 25 | Perf | `TokenChainTraceRail.jsx` / `TokenChainFilmstrip.jsx` | medium | FIXED |
 | 26 | Perf | `routes/transactions.js` / `routes/accounts.js` | low | OPEN |
 | 27 | Perf | `TraceStepCard.jsx` | low | OPEN |
 
@@ -635,7 +635,7 @@ bypasses the cap regardless of size. `npm --prefix demo_api_ui run test:unit`
 — 412 files / 3409 tests passed, 24 skipped (no regressions). `npm --prefix
 demo_api_ui run build` — exit 0.
 
-### 25. Token-chain steps rebuilt on every unrelated local-state change — OPEN
+### 25. Token-chain steps rebuilt on every unrelated local-state change — FIXED
 
 **File:** `demo_api_ui/src/components/TokenChainTraceRail.jsx` (352–357), `TokenChainFilmstrip.jsx` (144)
 
@@ -646,7 +646,21 @@ selection).
 **Trigger scenario:** Toggling zoom or a tab — unrelated to trace data —
 triggers a full steps rebuild, handing children brand-new objects every time.
 
-**Fix (not yet applied):** `useMemo` the steps derivation in both files.
+**Fix:** `TokenChainTraceRail.jsx` — wrapped `classicSteps` (the
+`mcpRouteOnly` filter) and `steps` (`buildLiveTokenChainSteps`) each in their
+own `useMemo`, keyed on the inputs they actually read (`snap.steps`,
+`mcpRouteOnly`, `viewMode`, `classicSteps`, `trace`). `TokenChainFilmstrip.jsx`
+— `classicSteps` there is already a bare reference (`snap.steps`, no
+computation), so only `steps` needed a `useMemo`, keyed the same way.
+
+**Evidence:** Behavior-preserving by construction (same inputs, same
+computed output, only the re-run condition changed) — verified via the
+existing `TokenChainTraceRail.test.jsx` (16 tests),
+`TokenChainTraceRail.runStoryKeys.test.jsx`, and `TokenChainFilmstrip.test.jsx`
+suites plus the full UI suite (412 files / 3409 tests, no regressions), rather
+than a new render-count test — spying on `buildLiveTokenChainSteps` across an
+in-module call site isn't observable through the module's own export binding.
+`npm --prefix demo_api_ui run build` — exit 0.
 
 ### 26. Admin list-all endpoints have no pagination — OPEN
 
@@ -679,6 +693,12 @@ redundantly re-parsing/re-diffing the same JSON twice each.
 
 ## Changelog
 
+- 2026-08-23 — #25 FIXED: `TokenChainTraceRail.jsx` and `TokenChainFilmstrip.jsx`
+  now `useMemo` their `classicSteps`/`steps` derivation instead of recomputing
+  `buildLiveTokenChainSteps` on every render (zoom/tab/tray toggles included).
+  Behavior-preserving; verified via existing component suites + full UI suite
+  (412 files / 3409 tests), no new test (in-module call sites aren't
+  spy-observable via the export binding).
 - 2026-08-23 — #24 FIXED: `AIAgent.js`'s chat transcript now caps its default
   render to the most recent 150 messages via a new pure helper
   (`utils/transcriptWindow.js`, `windowTranscript`), with a "Show N earlier
