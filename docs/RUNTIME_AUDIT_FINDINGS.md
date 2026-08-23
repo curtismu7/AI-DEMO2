@@ -43,7 +43,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 23 | Perf | `services/pingoneProvisionService.js` (wipeEnvironment) | medium | FIXED |
 | 24 | Perf | `demo_api_ui/.../AIAgent.js` (unbounded transcript) | medium | FIXED |
 | 25 | Perf | `TokenChainTraceRail.jsx` / `TokenChainFilmstrip.jsx` | medium | FIXED |
-| 26 | Perf | `routes/transactions.js` / `routes/accounts.js` | low | OPEN |
+| 26 | Perf | `routes/transactions.js` / `routes/accounts.js` | low | FIXED |
 | 27 | Perf | `TraceStepCard.jsx` | low | OPEN |
 
 ---
@@ -662,7 +662,7 @@ than a new render-count test — spying on `buildLiveTokenChainSteps` across an
 in-module call site isn't observable through the module's own export binding.
 `npm --prefix demo_api_ui run build` — exit 0.
 
-### 26. Admin list-all endpoints have no pagination — OPEN
+### 26. Admin list-all endpoints have no pagination — FIXED
 
 **File:** `demo_api_server/routes/transactions.js` (76–100), `routes/accounts.js` (72–97)
 
@@ -672,8 +672,24 @@ serialization.
 **Trigger scenario:** `GET /api/transactions`/`/api/accounts` after
 `runtimeData.json` accumulates a large record count.
 
-**Fix (not yet applied):** Add `limit`/`offset` query params, slice before
-enrichment, in both files.
+**Fix:** Added optional `limit`/`offset` query params to both routes,
+mirroring the pattern already used by finding #19's `GET /runs`: compute
+`total` before slicing, slice to `[offset, offset + limit)` **before** the
+per-record owner-enrichment map (the actual cost this finding calls out),
+and default to the full unsliced list — `total` included either way — when
+neither query param is present, so no existing caller's response shape
+changes.
+
+**Evidence:** Extended existing route-test files with 2 new tests each
+(`accounts.route.test.js`, `transactions.crud.test.js`): default call returns
+every record plus a `total` field; `?limit=1&offset=1` returns exactly the
+expected sliced record. `cd demo_api_server && CI=true npx jest
+src/__tests__/accounts.route.test.js src/__tests__/transactions.crud.test.js
+--forceExit --maxWorkers=4` — 2 suites / 42 tests passed. A subsequent full
+`CI=true npx jest --forceExit --maxWorkers=4` run had 1 unrelated failure
+(`ciba.test.js`'s "returns 401 without authentication" — a pre-existing
+worker-contention flake per `verify-ai-demo2`'s Quick Reference; passed
+61/61 re-run in isolation).
 
 ### 27. `claimDiffs` computed twice per render, component not memoized — OPEN
 
@@ -693,6 +709,11 @@ redundantly re-parsing/re-diffing the same JSON twice each.
 
 ## Changelog
 
+- 2026-08-23 — #26 FIXED: `transactions.js` and `accounts.js`'s admin
+  list-all routes now accept optional `limit`/`offset` query params (mirrors
+  #19's `GET /runs` pattern), slicing before the owner-enrichment map and
+  adding a `total` field; default (no params) behavior is unchanged. 2 new
+  tests per route file, 42 tests passed scoped.
 - 2026-08-23 — #25 FIXED: `TokenChainTraceRail.jsx` and `TokenChainFilmstrip.jsx`
   now `useMemo` their `classicSteps`/`steps` derivation instead of recomputing
   `buildLiveTokenChainSteps` on every render (zoom/tab/tray toggles included).

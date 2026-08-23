@@ -44,12 +44,14 @@ jest.mock('../../middleware/auth', () => ({
 // ── Mock data store ───────────────────────────────────────────────────────────
 const _txns = [
   { id: 'tx-1', userId: 'user-1', fromAccountId: 'acct-1', amount: 100, type: 'withdrawal', status: 'completed' },
+  { id: 'tx-2', userId: 'user-1', fromAccountId: 'acct-1', amount: 50, type: 'deposit', status: 'completed' },
 ];
 
 jest.mock('../../data/store', () => ({
   getUserById: jest.fn((id) =>
     id === 'user-1' ? { id: 'user-1', firstName: 'Alice', email: 'alice@bank.com' } : null,
   ),
+  getAllUsers: jest.fn(() => [{ id: 'user-1', username: 'alice', firstName: 'Alice', lastName: 'A', email: 'alice@bank.com' }]),
   getAccountById: jest.fn((id) =>
     id === 'acct-1'
       ? { id: 'acct-1', userId: 'user-1', accountType: 'checking', balance: 5000 }
@@ -124,6 +126,27 @@ beforeAll(() => {
 const adminUser  = () => JSON.stringify({ id: 'admin-1', role: 'admin',  scopes: ['write', 'read'] });
 const ownerUser  = () => JSON.stringify({ id: 'user-1',  role: 'user',   scopes: ['write', 'read'], acr: 'Multi_factor' });
 const otherUser  = () => JSON.stringify({ id: 'user-2',  role: 'user',   scopes: ['write', 'read'], acr: 'Multi_factor' });
+
+// ── GET / — admin list-all + pagination ───────────────────────────────────────
+
+describe('GET /api/transactions — admin list', () => {
+  it('returns every transaction and the total when no limit/offset is given', async () => {
+    const res = await request(app).get('/api/transactions').set('x-test-user', adminUser());
+    expect(res.status).toBe(200);
+    expect(res.body.transactions).toHaveLength(_txns.length);
+    expect(res.body.total).toBe(_txns.length);
+  });
+
+  it('slices the response when limit/offset are given', async () => {
+    const res = await request(app)
+      .get('/api/transactions?limit=1&offset=1')
+      .set('x-test-user', adminUser());
+    expect(res.status).toBe(200);
+    expect(res.body.transactions).toHaveLength(1);
+    expect(res.body.transactions[0].id).toBe(_txns[1].id);
+    expect(res.body.total).toBe(_txns.length);
+  });
+});
 
 // ── GET /:id ──────────────────────────────────────────────────────────────────
 

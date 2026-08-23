@@ -80,7 +80,13 @@ router.get('/', authenticateToken, requireScopes(['read']), async (req, res) => 
       return res.status(403).json({ error: 'Access denied. Admin role required.' });
     }
     
-    const transactions = dataStore.getAllTransactions();
+    const allTransactions = dataStore.getAllTransactions();
+    const total = allTransactions.length;
+    const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+    const limit = Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || total || 1));
+    const transactions = (req.query.limit || req.query.offset)
+      ? allTransactions.slice(offset, offset + limit)
+      : allTransactions;
     const allUsers = dataStore.getAllUsers();
     const userMap = {};
     for (const u of allUsers) { userMap[u.id] = u; }
@@ -93,7 +99,7 @@ router.get('/', authenticateToken, requireScopes(['read']), async (req, res) => 
         ownerEmail: owner?.email || null,
       };
     });
-    res.json({ transactions: transactionsWithNames });
+    res.json({ transactions: transactionsWithNames, total });
   } catch (error) {
     console.error('Error getting transactions:', error);
     res.status(500).json({ error: 'Failed to get transactions' });
