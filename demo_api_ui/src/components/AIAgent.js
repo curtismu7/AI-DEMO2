@@ -1995,6 +1995,22 @@ export default function BankingAgent({
     for (const t of availableTools) if (t && t.name) map[t.name] = t;
     return map;
   }, [availableTools]);
+  // proofRunId -> id of the LAST assistant bubble carrying that run's verdict.
+  // The transcript's role filter always includes "assistant" regardless of
+  // showRfcInfo (that flag only adds "token-event" rows), so no filter
+  // replication is needed here. Used by the message-list render to find "is
+  // this row the one that shows the ProofStrip" in O(1) instead of an O(N)
+  // slice+some scan per assistant row (O(N^2) total, re-run on every render
+  // including streaming token updates).
+  const lastProofBubbleIdByRunId = useMemo(() => {
+    const map = new Map();
+    for (const m of messages) {
+      if (m.role === "assistant" && m.proofRunId != null) {
+        map.set(m.proofRunId, m.id); // later messages overwrite — last one wins
+      }
+    }
+    return map;
+  }, [messages]);
   // Cold-start warm of the PingOne Authorize connection as soon as the user is
   // logged in, so the first tool discovery / tool call doesn't blip into the
   // "Demo Authorize" degraded fallback. Best-effort + server-side throttled.
@@ -11274,13 +11290,7 @@ export default function BankingAgent({
                     const showProofFor =
                       msg.role === "assistant" &&
                       msg.proofRunId != null &&
-                      !filteredMsgs
-                        .slice(msgIdx + 1)
-                        .some(
-                          (m) =>
-                            m.role === "assistant" &&
-                            m.proofRunId === msg.proofRunId,
-                        )
+                      lastProofBubbleIdByRunId.get(msg.proofRunId) === msg.id
                         ? msg.proofRunId
                         : null;
                     if (msg.role === "reasoning") {

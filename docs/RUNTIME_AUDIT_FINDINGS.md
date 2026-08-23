@@ -38,7 +38,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 18 | Swallowed | `demo_api_ui/.../BulkDecisionPanel.jsx` | low | FIXED |
 | 19 | Perf | `routes/agentRun.js` | high | FIXED |
 | 20 | Perf | `demo_api_ui/vertical/VerticalProvider.jsx` | high | FIXED |
-| 21 | Perf | `demo_api_ui/.../AIAgent.js` (O(N²) proof scan) | high | OPEN |
+| 21 | Perf | `demo_api_ui/.../AIAgent.js` (O(N²) proof scan) | high | FIXED |
 | 22 | Perf | `services/pingoneProvisionService.js` (grantScopes) | medium | OPEN |
 | 23 | Perf | `services/pingoneProvisionService.js` (wipeEnvironment) | medium | OPEN |
 | 24 | Perf | `demo_api_ui/.../AIAgent.js` (unbounded transcript) | medium | OPEN |
@@ -526,7 +526,7 @@ scope; noted here rather than silently expanding the fix.
 across an unrelated ancestor re-render — confirmed to fail against the
 pre-fix file and pass against the fix. `cd demo_api_ui && npx vitest run` — 411/411 files, 3406 tests passed; `npm run build` exit 0.
 
-### 21. O(N²) proof-strip scan on every message-list render — OPEN
+### 21. O(N²) proof-strip scan on every message-list render — FIXED
 
 **File:** `demo_api_ui/src/components/AIAgent.js`, lines 11239–11255
 
@@ -536,8 +536,18 @@ pre-fix file and pass against the fix. `cd demo_api_ui && npx vitest run` — 41
 **Trigger scenario:** Long conversations + frequent streaming re-renders (14
 `setMessages` call sites) repeat the O(N²) work per keystroke/stream tick.
 
-**Fix (not yet applied):** Precompute a `proofRunId → index` Map via
-`useMemo`.
+**Fix:** Added `lastProofBubbleIdByRunId` — a `useMemo`'d `Map<proofRunId,
+messageId>` built once per `messages` change (a single O(N) pass, "last one
+wins" by iteration order) — near the component's other `useMemo`s. The
+render loop's per-row check became a single `Map.get` comparison against
+`msg.id`, replacing the `slice().some()` scan. Semantics are unchanged by
+construction (identical "last assistant bubble for this run" rule), just
+O(1) instead of O(N) per row.
+
+**Evidence:** this is a pure algorithmic optimization preserving identical
+output, so a fail-before/pass-after test isn't meaningful here (behavior is
+unchanged, not fixed). Verified via the full existing suite instead — no
+existing assertion about proof-strip visibility broke. `cd demo_api_ui && npx vitest run` — 411/411 files, 3406 tests passed; `npm run build` exit 0.
 
 ### 22. N+1 scope-fetch loop in PingOne grant provisioning — OPEN
 
@@ -623,6 +633,10 @@ redundantly re-parsing/re-diffing the same JSON twice each.
 
 ## Changelog
 
+- 2026-08-23 — #21 FIXED: `AIAgent.js`'s per-row proof-strip check is now an
+  O(1) `Map.get` (precomputed `useMemo`) instead of an O(N) `slice().some()`
+  scan per assistant row. Behavior-preserving by construction; verified via
+  full suite (411 files / 3406 tests) rather than a new test.
 - 2026-08-23 — #20 FIXED: `VerticalProvider.jsx`'s context value is now
   `useMemo`'d. New test proven to fail against the pre-fix file and pass
   against the fix (reading the raw context, not `useVertical()`, which has
