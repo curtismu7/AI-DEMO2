@@ -22,7 +22,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 2 | Runtime | `services/mcpWebSocketClient.js` | high | FIXED |
 | 3 | Runtime | `demo_api_ui/.../AIAgent.js` (CIBA pollers) | high | FIXED |
 | 4 | Runtime | `middleware/agentSessionMiddleware.js` | medium | FIXED |
-| 5 | Runtime | `services/apiCallTrackerService.js` | medium | OPEN |
+| 5 | Runtime | `services/apiCallTrackerService.js` | medium | FIXED |
 | 6 | Runtime | `services/transactionConsentChallenge.js` | medium | OPEN |
 | 7 | Runtime | `demo_api_ui/.../AIAgent.js` (aguiAbort) | medium | OPEN |
 | 8 | Runtime | `demo_api_ui/.../AIAgent.js` (refreshAfterTransaction) | medium | OPEN |
@@ -153,7 +153,7 @@ module registers a 300000ms (5 min) interval with `.unref()` called, and the
 sweep's exact deletion logic (copied verbatim) correctly removes only expired
 entries from a scratch Map. Existing suite: `cd demo_api_server && CI=true npx jest src/__tests__/agentSessionMiddleware.test.js --forceExit` — 9/9 passed, no regression.
 
-### 5. `apiCalls`/`sessionTokens` Maps grow unbounded per session key — OPEN
+### 5. `apiCalls`/`sessionTokens` Maps grow unbounded per session key — FIXED
 
 **File:** `demo_api_server/services/apiCallTrackerService.js`, lines 23/27
 
@@ -165,8 +165,20 @@ explicit admin/UI actions, never on session expiry or logout.
 call/token leaves a permanent Map entry, independent of the session's own LMDB
 expiry.
 
-**Fix (not yet applied):** Track last-write time per key; add a periodic sweep
-mirroring the session store's own cleanup pattern.
+**Fix:** Added a `lastActivity` Map (touched on every `pushCall`/`trackToken`
+write, skipping the shared `GLOBAL_SESSION_ID` ring buffer) and
+`sweepStaleTrackerSessions()`, run on an hourly `setInterval` (`.unref()`'d)
+using the same 24h TTL / hourly cadence as `services/lmdb/sessionStore.js`'s
+own cleanup — this tracking data's lifetime is now tied to the session data
+it shadows instead of the process lifetime.
+
+**Evidence:** this file already had a `_resetForTests` test-only export
+(established convention), so added `_setLastActivityForTests` and
+`_hasTrackedDataForTests` alongside it and exported `sweepStaleTrackerSessions`
+directly. 3 new tests confirmed to fail against the pre-fix file
+(`sweepStaleTrackerSessions`/`_setLastActivityForTests` undefined) and pass
+against the fix, including one proving `GLOBAL_SESSION_ID` is never swept.
+`cd demo_api_server && CI=true npx jest src/__tests__/apiCallTrackerService.test.js tests/apiCallTrackerTokenIsolation.regression.test.js --forceExit` — 2 suites / 9 tests passed.
 
 ### 6. HITL challenge mutated from independent in-memory copies — OPEN
 
@@ -475,6 +487,10 @@ redundantly re-parsing/re-diffing the same JSON twice each.
 
 ## Changelog
 
+- 2026-08-23 — #5 FIXED: `apiCallTrackerService.js`'s `apiCalls`/`sessionTokens`
+  Maps now get an hourly sweep tied to `sessionStore.js`'s own 24h TTL, keyed
+  by a new `lastActivity` Map (never touched for `GLOBAL_SESSION_ID`). 3 new
+  tests proven to fail against the pre-fix file and pass against the fix.
 - 2026-08-23 — #4 FIXED: `agentSessionMiddleware.js`'s `_refreshBlacklist`
   Map now has the same periodic sweep `tokenRefresh.js` already uses (its own
   doc comment already claimed this mirroring, but the sweep itself was never
