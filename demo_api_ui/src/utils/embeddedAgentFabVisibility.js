@@ -153,3 +153,19 @@ export function isAgentLifecycleRoute(pathname) {
   const p = pathname.replace(/\/$/, '') || '/';
   return p === '/agent-lifecycle' || p === '/delegated-commerce';
 }
+
+/**
+ * The Enterprise-Managed MCP Auth / ID-JAG demo (/demo/enterprise-mcp) — its
+ * "Send" button dispatches banking-agent-prefill and needs the real agent
+ * mounted to receive it, same reasoning as {@link isLiveWorkbenchRoute} and
+ * {@link isAgentLifecycleRoute}. Unlike those two it has no inline column
+ * host, so it is not added to the inline-chrome branch in App.js — it just
+ * needs the default floating agent to exist.
+ * @param {string} [pathname]
+ * @returns {boolean}
+ */
+export function isEnterpriseMcpDemoRoute(pathname) {
+  if (pathname == null || typeof pathname !== 'string') return false;
+  const p = pathname.replace(/\/$/, '') || '/';
+  return p === '/demo/enterprise-mcp';
+}
