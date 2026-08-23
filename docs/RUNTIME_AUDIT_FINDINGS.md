@@ -54,7 +54,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 27 | Perf | `TraceStepCard.jsx` | low | FIXED |
 | 28 | Runtime | `services/pingOneGroupMembershipService.js` | high | FIXED |
 | 29 | Runtime | `demo_api_ui/.../hooks/useDraggablePanel.js` | high | FIXED |
-| 30 | Runtime | `demo_api_ui/.../bankingRestartNotificationService.js` | medium | OPEN |
+| 30 | Runtime | `demo_api_ui/.../bankingRestartNotificationService.js` | medium | FIXED |
 | 31 | Runtime | `demo_api_ui/.../services/sessionResolver.js` | low | OPEN |
 | 32 | Swallowed | `routes/adminConfig.js` (generate-keypair) | high | OPEN |
 | 33 | Swallowed | `demo_api_ui/.../hooks/useElicitation.js` | medium | OPEN |
@@ -805,7 +805,7 @@ Proven to fail against the pre-fix file (`userSelect` stayed `'none'`) and
 pass against the fix. `npm --prefix demo_api_ui run test:unit --
 useDraggablePanel` — 4/4 passed.
 
-### 30. Concurrent manual + automatic health-check retries race on shared state — OPEN
+### 30. Concurrent manual + automatic health-check retries race on shared state — FIXED
 
 **File:** `demo_api_ui/src/services/bankingRestartNotificationService.js`, line 168
 
@@ -823,10 +823,20 @@ that both mutate the shared `globalRestartState` with no lock.
 each call `incrementAttempt()` and, on failure, each independently overwrite
 `globalRestartState.retryTimeoutId` via their own `setTimeout`.
 
-**Fix (not yet applied):** Track an in-flight boolean (or the pending
-health-check promise) on `globalRestartState` and have `manualRetry`
-await/cancel the existing check (e.g. via an `AbortController`) before
-starting a new one, instead of only clearing the scheduled `setTimeout`.
+**Fix:** Added a module-level `_inFlightHealthCheck` promise. `retryHealthCheck`
+now checks it first — if a check is already in flight, it returns that same
+promise instead of starting a new one; otherwise it wraps its existing body
+in an IIFE, stores the resulting promise, and clears it in a `finally` once
+settled. `manualRetry`'s unchanged call to `retryHealthCheck()` now
+transparently joins an in-flight automatic check instead of racing it.
+
+**Evidence:** New test in `bankingRestartNotificationService.test.js` mocks
+a controllable `fetch`, calls `handle504Error` (starts the automatic chain,
+fetch already in flight), then calls `manualRetry()` while that fetch is
+still pending, and asserts only one `fetch` call total. Proven to fail
+against the pre-fix file (2 concurrent fetches) and pass against the fix.
+`npm --prefix demo_api_ui run test:unit -- bankingRestartNotificationService`
+— 1/1 passed; full UI suite (413 files / 3411 tests) — no regressions.
 
 ### 31. `resolveSessionUser`'s race-timeout guard leaks a dangling timer on every normal call — OPEN
 
@@ -1019,6 +1029,12 @@ from the loop bodies in `handleFixAll`/`handleFixEverything`, and call
 
 ## Changelog
 
+- 2026-08-23 — #30 FIXED: `bankingRestartNotificationService.js` gained an
+  `_inFlightHealthCheck` promise so `manualRetry()` joins an already-running
+  automatic `retryHealthCheck()` instead of racing it with a second
+  concurrent health check. New test proven to fail against the pre-fix file
+  (2 concurrent fetches) and pass against the fix; full UI suite green (413
+  files / 3411 tests).
 - 2026-08-23 — #29 FIXED: `useDraggablePanel.js` gained an
   `activeDragHandlersRef` (mirroring the existing resize-path ref); the
   unmount cleanup effect now also tears down an in-flight drag's listeners
