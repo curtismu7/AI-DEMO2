@@ -31,6 +31,48 @@ spec:
             port:
               number: 4000
 ---
+# The public MCP door: an external agent (ChatGPT, Claude, LM Studio) reaches
+# oauth-mcp through PingGateway, which takes the per-tool PingOne Authorize
+# decision. Deliberately its own hostname rather than a path under the app host:
+# the OAuth endpoints oauth-mcp advertises are root-level (/register,
+# /authorize, /token, /jwks) and would collide with the app's own routes.
+#
+# The name must be a SINGLE label under ping-devops.com — the cluster's
+# *.ping-devops.com certificate matches one label only, so no tls block is
+# needed here (and a two-label name would need its own Certificate, as
+# mcpgw-agentless-ingress.yaml does).
+#
+# This value is also OAUTH_ISSUER on mcp-server (k8s/30-mcp-server-deployment.yaml).
+# The two MUST agree: the issuer string is baked into every token's `iss` and
+# into the advertised metadata, so a client that discovered one and is sent to
+# the other simply fails.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mcp-public-door-ingress
+  namespace: <<NAMESPACE>>
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    # MCP streamable HTTP holds the response open for the session's life —
+    # buffering or a short read timeout truncates the stream mid-session.
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+spec:
+  ingressClassName: nginx-public
+  rules:
+  - host: cmuir-mcp.ping-devops.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ping-gateway
+            port:
+              number: 8080
+---
 # The /mcpgw path-based Ingress that used to live here (ai-demo-mcpgw-ingress,
 # on this same shared host) is REMOVED as of 2026-08-13 — proven live to be
 # categorically incompatible with cyonproxy's TLS-native proxy port (8680):

@@ -1,0 +1,90 @@
+{
+  "comment": "MCP traffic arriving on the public external door (cmuir-mcp.ping-devops.com) from an agent like ChatGPT, Claude or LM Studio. Selected by HOST, not by path: the path is the same '^/mcp' that mcp-olb-primary matches, and the two differ only in who is calling and which authorization server issued the token. Name sorts before 'mcp-olb-*' so IG picks this route first for that host; every other host falls through to the existing routes unchanged.\n\nThe token is issued by oauth-mcp's OWN embedded authorization server (RFC 7591 registration or CIMD), not by PingOne — an external client cannot get a PingOne token because PingOne has no dynamic client registration. So this route cannot reuse the PingOne introspection resolver in config.json, and it must not use jwks-token-validation.groovy either: that script hard-requires iss == PINGONE_ISSUER_URI (deny 'issuer_mismatch') and a 'gateway:mcp:invoke' scope, and widening it would change the shared validator every other MCP route depends on.\n\nInstead this route introspects the token against the AS that actually issued it — oauth-mcp's own RFC 7662 endpoint. That validates the token AND populates the OAuth2Context that p1az-decision.groovy reads for subject and scope; without a resource-server filter that context is empty and P1AZ would score an identity-less request. The Authorization header is deliberately NOT exchanged or replaced, so mcp-server independently validates the same bearer on arrival (HttpMCPTransport's RFC 9207 issuer check accepts the embedded issuer) — the gateway authorizes, the MCP server authenticates, and neither trusts the other's word for it.",
+  "name": "mcp-external-door",
+  "condition": "${find(request.uri.path, '^/mcp(?!/invest|/weather)') and not empty request.headers['Host'] and find(request.headers['Host'][0], '^cmuir-mcp\\.ping-devops\\.com')}",
+  "heap": [
+    {
+      "comment": "oauth-mcp's embedded AS introspection endpoint (RFC 7662). It takes no client authentication, so a plain ClientHandler is enough — unlike the PingOne resolver in config.json, which has to inject client_id/client_secret.",
+      "name": "ExternalDoorTokenResolver",
+      "type": "TokenIntrospectionAccessTokenResolver",
+      "config": {
+        "endpoint": "${empty env['OAUTH_MCP_INTROSPECTION_ENDPOINT'] ? 'http://mcp-server:8080/introspect' : env['OAUTH_MCP_INTROSPECTION_ENDPOINT']}",
+        "providerHandler": {
+          "type": "ClientHandler"
+        }
+      }
+    },
+    {
+      "comment": "mcp:invoke is what DCR_OPEN_REGISTRATION_SCOPE grants a self-registered client ('mcp:invoke read'). Do NOT require gateway:mcp:invoke here — that is the internal BFF-to-gateway scope and no external client will ever hold it.",
+      "name": "ExternalDoorResourceServerFilter",
+      "type": "OAuth2ResourceServerFilter",
+      "config": {
+        "requireHttps": false,
+        "scopes": [
+          "${empty env['PG_EXTERNAL_INBOUND_SCOPE'] ? 'mcp:invoke' : env['PG_EXTERNAL_INBOUND_SCOPE']}"
+        ],
+        "accessTokenResolver": "ExternalDoorTokenResolver"
+      }
+    }
+  ],
+  "handler": {
+    "type": "Chain",
+    "config": {
+      "filters": [
+        {
+          "name": "TransactionHop",
+          "type": "ScriptableFilter",
+          "config": {
+            "type": "application/x-groovy",
+            "file": "transaction-hop.groovy"
+          }
+        },
+        {
+          "name": "McpAudit",
+          "type": "McpAuditFilter",
+          "config": {
+            "auditService": "AuditService"
+          }
+        },
+        "ExternalDoorResourceServerFilter",
+        {
+          "name": "McpProtocol",
+          "type": "McpValidationFilter",
+          "config": {
+            "acceptedOrigins": ".*",
+            "metricsEnabled": true
+          }
+        },
+        {
+          "name": "McpRequestValidation",
+          "type": "ScriptableFilter",
+          "config": {
+            "type": "application/x-groovy",
+            "file": "mcp-request-validation.groovy"
+          }
+        },
+        {
+          "name": "Uc18RateLimit",
+          "type": "ScriptableFilter",
+          "config": {
+            "type": "application/x-groovy",
+            "file": "uc18-rate-limit.groovy"
+          }
+        },
+        {
+          "name": "P1AZDecision",
+          "type": "ScriptableFilter",
+          "config": {
+            "type": "application/x-groovy",
+            "file": "p1az-decision.groovy"
+          }
+        }
+      ],
+      "handler": {
+        "type": "ReverseProxyHandler",
+        "baseURI": "${env['PG_OLB_BACKEND_URL']}",
+        "config": {}
+      }
+    }
+  }
+}
