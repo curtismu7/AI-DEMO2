@@ -12,6 +12,11 @@
             "type": "command",
             "command": "bash \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/block-bare-compose-up.sh\"",
             "statusMessage": "Checking for bare docker compose up..."
+          },
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/warn-token-leaks.py\"",
+            "statusMessage": "Checking for token leaks..."
           }
         ]
       },
