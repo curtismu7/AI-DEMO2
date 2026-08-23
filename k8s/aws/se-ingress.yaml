@@ -65,6 +65,25 @@ spec:
   - host: cmuir-mcp.ping-devops.com
     http:
       paths:
+      # RFC 9728 metadata bypasses PingGateway. IG's McpProtectionFilter
+      # registers a GLOBAL handler for this path as soon as any route
+      # instantiates one, so the delegation route's instance answers here and
+      # serves its own resourceId (DELEGATION_RESOURCE_AUDIENCE, literally
+      # "https://test") with PingOne as the authorization server. A client
+      # following the 401 is then told to register at PingOne, which has no
+      # dynamic client registration, and the discovery chain dead-ends with
+      # nothing naming the cause. Routing this one path to mcp-server puts the
+      # document back in the hands of the server that actually knows its own
+      # issuer. Exact beats Prefix in ingress-nginx, so only this path diverges;
+      # everything else on this host still goes through the gateway and its
+      # P1AZ decision.
+      - path: /.well-known/oauth-protected-resource
+        pathType: Exact
+        backend:
+          service:
+            name: mcp-server
+            port:
+              number: 8080
       - path: /
         pathType: Prefix
         backend:
