@@ -450,7 +450,13 @@ module.exports = async function decisionHandler(req, res) {
   }
 
   // ── Rule 0f: iss (issuer) must match the expected identity provider ───────
-  if (TokenIss && EXPECTED_ISS && TokenIss !== EXPECTED_ISS) {
+  // ID-JAG filter: same isIdJagIssuedToken computed for Rule 0b-2 above — a
+  // native-ID-JAG-redeemed token is signed by oauth-mcp's own embedded AS,
+  // never PingOne, so it is EXPECTED to fail an "issuer must be PingOne"
+  // check. That is the correct, intentional shape for this token type, not
+  // an impersonation attempt — same reasoning as the D-05 exemption two
+  // rules up, reusing the same verified signal.
+  if (TokenIss && EXPECTED_ISS && TokenIss !== EXPECTED_ISS && !isIdJagIssuedToken) {
     warn(`[AuthzServer/decision] DENY — iss mismatch: "${TokenIss}" expected "${EXPECTED_ISS}"`);
     return deny(res, `invalid_iss: unexpected token issuer`);
   }
