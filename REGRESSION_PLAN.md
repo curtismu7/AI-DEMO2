@@ -648,6 +648,47 @@ successfully minted specialist token.
 
 **Verify:** focused A2A Jest suites, including `--detectOpenHandles`; server unit
 suite; `npm run topology:verify`; `npm run authz:verify`.
+### 2026-08-19 — Live workbench response transcript grew without a ceiling
+
+**Files changed:** `demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.css`,
+`demo_api_ui/src/pages/__tests__/LiveUseCaseWorkbenchPage.test.jsx`
+
+**What was broken:** The live workbench agent transcript had vertical overflow
+enabled but no height ceiling, so each response expanded the entire agent and
+page instead of scrolling inside the response region.
+
+**What was fixed:** Added a workbench-scoped, viewport-aware 240–520px maximum
+height to the agent message transcript and pinned its internal vertical scroll
+behavior in the page's CSS regression tests.
+
+**Do not break:** Keep the cap scoped to `.luw-agent-host`; floating, dashboard,
+and bottom-dock agents retain their existing sizing. The prompt and controls
+must remain outside the scrolling transcript.
+
+**Verify:** Workbench test — 25 passed. Full UI run — 388 files / 3325
+tests passed, 24 skipped, with one unrelated `App.structure.test.js` timeout;
+that file passed 32/32 on immediate focused rerun. `npm run build` — exit 0.
+### 2026-08-19 — Movie reel toggle had no render target in bottom-dock layout
+
+**Files changed:** `demo_api_ui/src/components/UserDashboardPing2026.js`,
+`demo_api_ui/src/__tests__/FocusModeFilmstripGuard.test.js`, dashboard render
+test harnesses in `demo_api_ui/src/components/__tests__/`
+
+**What was broken:** The Movie reel toggle updated and persisted
+`ba_show_filmstrip`, but the dashboard's `agentPlacement === "bottom"` branch
+never rendered `TokenChainFilmstrip`, so the enabled reel was missing in that
+layout.
+
+**What was fixed:** Added the same `showFilmstrip`-guarded filmstrip host used by
+the floating layout below the embedded bottom dock, and pinned all three
+dashboard layout render sites in the guard test.
+
+**Do not break:** Unset filmstrip preference still defaults to shown; explicit
+`"0"` still hides every copy; the middle, bottom-dock, and floating layouts must
+each keep exactly one guarded render target.
+
+**Verify:** `cd demo_api_ui && npm run test:unit -- --reporter=dot` — 389
+files / 3326 tests passed, 24 skipped; `npm run build` — exit 0.
 
 ### 2026-08-19 — The proof-of-enforcement pill never dismissed and sat over TopNav Sign Out
 

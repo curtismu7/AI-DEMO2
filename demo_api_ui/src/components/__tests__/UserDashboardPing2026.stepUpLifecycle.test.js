@@ -93,6 +93,7 @@ vi.mock("../agent-clinical/AgentClinicalHost", () => ({
   default: () => <div data-testid="clinical-host-mock">Clinical Host</div>,
 }));
 vi.mock("../TokenChainTraceRail", () => ({ default: () => null }));
+vi.mock("../TokenChainFilmstrip", () => ({ default: () => null }));
 
 const mockUser = {
   id: "u1",
