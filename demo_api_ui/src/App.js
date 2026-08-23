@@ -464,8 +464,10 @@ function AppWithAuth() {
   // Enterprise-Managed MCP Auth demo (/demo/enterprise-mcp) — no inline column
   // host of its own, so it only needs shouldMountSingleAgent below (default
   // floating chrome), not the inline-chrome branch onLiveWorkbenchRoute and
-  // onAgentLifecycleRoute get.
-  const onEnterpriseMcpDemoRoute = Boolean(user) && isEnterpriseMcpDemoRoute(pathname);
+  // onAgentLifecycleRoute get. NO Boolean(user) check: the route is public
+  // now (see the route comment below), and a guest still needs the floating
+  // agent mounted to try step 2 — same reasoning as onMiddlePlacementInDashboard.
+  const onEnterpriseMcpDemoRoute = isEnterpriseMcpDemoRoute(pathname);
 
   // Landing home (/): show floating agent even when signed out.
   // Suppress float on signed-in / only when UserDashboard owns middle placement.
@@ -942,18 +944,18 @@ function AppWithAuth() {
                     )
                   }
                 />
-                {/* MCP Enterprise-Managed Authorization demo. Signed-in users
-                    only: it flips a feature flag and drives the agent, both of
-                    which need a session. SignInRequired, never a redirect — a
-                    presenter who lands here logged out must be told why, not
-                    silently bounced home. */}
+                {/* MCP Enterprise-Managed Authorization demo. Public: the
+                    explainer and token-chain filmstrip render for anyone.
+                    Arming the flag / running the scenario both call
+                    authenticated BFF endpoints that fail closed on their own
+                    (armEnterpriseMcpDemo's 401 surfaces as a friendly toast,
+                    readEnterpriseMcpDemoState never throws) — no separate
+                    sign-in gate needed here. */}
                 <Route
                   path="/demo/enterprise-mcp"
                   element={
-                    loading ? null : user ? (
+                    loading ? null : (
                       <EnterpriseMcpDemoPageRoute user={user} logout={logout} />
-                    ) : (
-                      <SignInRequired />
                     )
                   }
                 />
