@@ -4,8 +4,9 @@ Runs the current `privilege-mcpgw` / `mcpgw` gateway, an inline MCP security
 gateway that enforces Privilege policy and session auditing for MCP servers. The
 demo page at `/privilege-mcp-client` is a full Streamable HTTP MCP client.
 
-The current SE deployment is documented in
-[`../CURRENT-CONFIGURATION.md`](../CURRENT-CONFIGURATION.md). Its client endpoints are:
+The current SE deployments are documented separately in
+[`../AGENTLESS-CONFIGURATION.md`](../AGENTLESS-CONFIGURATION.md) and
+[`../AGENT-CONFIGURATION.md`](../AGENT-CONFIGURATION.md). Their client endpoints are:
 
 | Mode | URL | Authentication |
 |---|---|---|

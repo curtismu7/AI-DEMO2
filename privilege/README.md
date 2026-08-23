@@ -9,16 +9,19 @@ This page is the one-screen orientation. The **full index of every Privilege art
 including Ping's SE enablement storyboards and the code paths, is
 [`PRIVILEGE-MCP.md` § Map](PRIVILEGE-MCP.md#map--every-privilege-artifact-and-what-to-read-when).
 
-> **Current deployment:** read [`CURRENT-CONFIGURATION.md`](CURRENT-CONFIGURATION.md)
-> first. It records the verified cmuir Agentless and Agent URLs, cluster, image
-> digest, OIDC configuration, Postman setup, and the required separation between
-> the two modes. Older dated files are investigation history, not live configuration.
+> **Current deployment:** choose the dedicated
+> [`Agentless`](AGENTLESS-CONFIGURATION.md) or
+> [`Agent`](AGENT-CONFIGURATION.md) guide. The
+> [`current configuration index`](CURRENT-CONFIGURATION.md) compares the two modes;
+> older dated files are investigation history, not live configuration.
 
 ## Start here
 
 | Read | When |
 |---|---|
-| [`CURRENT-CONFIGURATION.md`](CURRENT-CONFIGURATION.md) | Operating or testing the current `ping-devops-cmuir` Agentless gateway or the working Agent deployment |
+| [`AGENTLESS-CONFIGURATION.md`](AGENTLESS-CONFIGURATION.md) | Operating or testing the OAuth/PKCE Agentless gateway in `ping-devops-cmuir` |
+| [`AGENT-CONFIGURATION.md`](AGENT-CONFIGURATION.md) | Operating or testing the Agent-authenticated OpenSearch deployment in `ping-devops-curtismuir` |
+| [`CURRENT-CONFIGURATION.md`](CURRENT-CONFIGURATION.md) | Choosing a mode and comparing their current values |
 | [`PRIVILEGE-MCP.md`](PRIVILEGE-MCP.md) | The canonical record. Architecture, protocol per hop, every blocker and how it was ruled out, dated newest-last. Long, but the trap list at the end of each section is what saves the time |
 | [`PRIVILEGE-MCP-CONSOLE-STEPS.md`](PRIVILEGE-MCP-CONSOLE-STEPS.md) | Doing console work. These steps cannot be automated or tested from this repo |
 | [`runbooks/ping-mcpgw.md`](runbooks/ping-mcpgw.md) | Standing the gateway up locally |
@@ -47,7 +50,7 @@ Current status as of 2026-08-20:
 
 - Agentless is healthy at `https://cmuir-agentless-mcpgw.ping-devops.com/cmuir/mcp`.
 - It is enrolled in mesh cluster `ai-demo-cmuir` and runs gateway `v1.260729` at
-  the pinned digest in `CURRENT-CONFIGURATION.md`.
+  the pinned digest in `AGENTLESS-CONFIGURATION.md`.
 - The Agent path remains separate at
   `https://opensearch.default.applications.procyon.ai:8643/mcp`; the installed
   Agent authenticates it, so the demo client does not request a client ID or show
@@ -103,7 +106,7 @@ it contains the challenge-emission strings `cyonproxy` has **zero** of:
 `Bearer realm=`, `MCP OAuth Server`, `authorization_uri`, `resource_metadata`,
 `/.well-known/oauth-protected-resource`.
 
-This image now runs live at the digest recorded in `CURRENT-CONFIGURATION.md` and
+This image now runs live at the digest recorded in `AGENTLESS-CONFIGURATION.md` and
 emits the expected OAuth challenge at `/cmuir/mcp`. `ValidateInfraJwt` remains
 present, so the older binary investigation below is historical context, not a
 fix. The gate is unchanged: a tokenless `POST` returning `WWW-Authenticate` means the

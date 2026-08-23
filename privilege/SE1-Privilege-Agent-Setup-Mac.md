@@ -2,7 +2,7 @@
 
 Agent-based persona onboarding for the shared Demo Engineering Privilege environment, run on **your own Mac** instead of Windows 11 VMs.
 
-**Scope:** the Privilege **Agent** only — the device-bound desktop app that pairs a user to a workstation. This is not the AI Gateway / MCP gateway. Gateway work lives in [PRIVILEGE-MCP.md](PRIVILEGE-MCP.md) and [runbooks/ping-mcpgw.md](runbooks/ping-mcpgw.md).
+**Scope:** the Privilege **Agent** only — the device-bound desktop app that pairs a user to a workstation. For the current Agent-authenticated MCP deployment, URLs, and client rules, read [AGENT-CONFIGURATION.md](AGENT-CONFIGURATION.md). Historical gateway work lives in [PRIVILEGE-MCP.md](PRIVILEGE-MCP.md).
 
 Companion doc: [SE1-Privilege-Shared-Demo.md](SE1-Privilege-Shared-Demo.md) covers the same shared demo with VM personas plus the demo script. Read that one for the demo acts; read this one for Mac onboarding.
 
