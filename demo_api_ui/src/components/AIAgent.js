@@ -498,6 +498,12 @@ export default function BankingAgent({
   // land between scheduled polls; waking the exact in-flight poller makes the
   // retry deterministic instead of waiting on (or losing) its next timer.
   const cibaPollersRef = useRef(new Map());
+  // Pending setTimeout ids for the recursive CIBA poll chains below, keyed the
+  // same as cibaPollersRef, plus a flag so an in-flight fetch's continuation
+  // (already past the last cleared timer) still no-ops after unmount instead
+  // of calling addMessage/runAction against a dead component instance.
+  const cibaPollTimeoutsRef = useRef(new Map());
+  const cibaUnmountedRef = useRef(false);
   useEffect(() => {
     const wakeCibaPoller = (event) => {
       try {
@@ -506,7 +512,12 @@ export default function BankingAgent({
       } catch (_) { /* ignore unrelated storage events */ }
     };
     window.addEventListener('storage', wakeCibaPoller);
-    return () => window.removeEventListener('storage', wakeCibaPoller);
+    return () => {
+      window.removeEventListener('storage', wakeCibaPoller);
+      cibaUnmountedRef.current = true;
+      cibaPollTimeoutsRef.current.forEach((timeoutId) => clearTimeout(timeoutId));
+      cibaPollTimeoutsRef.current.clear();
+    };
   }, []);
   const prewarmGuardRef = useRef(null);
   if (!prewarmGuardRef.current) prewarmGuardRef.current = makeReentrancyGuard();
@@ -8579,20 +8590,20 @@ export default function BankingAgent({
     const apiBase = process.env.REACT_APP_API_URL || "";
     let settled = false;
     const poll = async () => {
-      if (settled) return;
+      if (settled || cibaUnmountedRef.current) return;
       let res;
       try {
         res = await fetch(`${apiBase}/api/auth/ciba/poll/${authReqId}`, {
           credentials: "include",
         });
       } catch (_) {
-        setTimeout(poll, intervalMs);
+        cibaPollTimeoutsRef.current.set(authReqId, setTimeout(poll, intervalMs));
         return;
       }
       // 404 after another poller already approved is a soft miss — ignore once
       // we have resumed. 403/410 remain hard terminal denies.
       if (res.status === 404) {
-        if (settled) return;
+        if (settled || cibaUnmountedRef.current) return;
         const data = await res.json().catch(() => ({}));
         addMessage(
           "assistant",
@@ -8602,6 +8613,7 @@ export default function BankingAgent({
         agentFlowDiagram.completeMfaChallenge(false);
         setCibaApproving(null);
         cibaPollersRef.current.delete(authReqId);
+        cibaPollTimeoutsRef.current.delete(authReqId);
         settled = true;
         return;
       }
@@ -8615,24 +8627,26 @@ export default function BankingAgent({
         agentFlowDiagram.completeMfaChallenge(false);
         setCibaApproving(null);
         cibaPollersRef.current.delete(authReqId);
+        cibaPollTimeoutsRef.current.delete(authReqId);
         settled = true;
         return;
       }
       const data = await res.json().catch(() => ({}));
       if (data.status === "approved") {
-        if (settled) return;
+        if (settled || cibaUnmountedRef.current) return;
         settled = true;
         agentFlowDiagram.completeMfaChallenge(true);
         setCibaApproving(null);
         cibaPollersRef.current.delete(authReqId);
+        cibaPollTimeoutsRef.current.delete(authReqId);
         runAction(actionId, form, { isRefire: true });
         return;
       }
       // still pending
-      setTimeout(poll, intervalMs);
+      cibaPollTimeoutsRef.current.set(authReqId, setTimeout(poll, intervalMs));
     };
     cibaPollersRef.current.set(authReqId, poll);
-    setTimeout(poll, intervalMs);
+    cibaPollTimeoutsRef.current.set(authReqId, setTimeout(poll, intervalMs));
   };
 
   /**
@@ -8955,18 +8969,18 @@ export default function BankingAgent({
     const apiBase = process.env.REACT_APP_API_URL || "";
     let settled = false;
     const poll = async () => {
-      if (settled) return;
+      if (settled || cibaUnmountedRef.current) return;
       let res;
       try {
         res = await fetch(`${apiBase}/api/auth/ciba/poll/${authReqId}`, {
           credentials: "include",
         });
       } catch (_) {
-        setTimeout(poll, intervalMs);
+        cibaPollTimeoutsRef.current.set(authReqId, setTimeout(poll, intervalMs));
         return;
       }
       if (res.status === 404) {
-        if (settled) return;
+        if (settled || cibaUnmountedRef.current) return;
         const data = await res.json().catch(() => ({}));
         addMessage(
           "assistant",
@@ -8976,6 +8990,7 @@ export default function BankingAgent({
         agentFlowDiagram.completeMfaChallenge(false);
         setCibaApproving(null);
         cibaPollersRef.current.delete(authReqId);
+        cibaPollTimeoutsRef.current.delete(authReqId);
         settled = true;
         return;
       }
@@ -8989,16 +9004,18 @@ export default function BankingAgent({
         agentFlowDiagram.completeMfaChallenge(false);
         setCibaApproving(null);
         cibaPollersRef.current.delete(authReqId);
+        cibaPollTimeoutsRef.current.delete(authReqId);
         settled = true;
         return;
       }
       const data = await res.json().catch(() => ({}));
       if (data.status === "approved") {
-        if (settled) return;
+        if (settled || cibaUnmountedRef.current) return;
         settled = true;
         agentFlowDiagram.completeMfaChallenge(true);
         setCibaApproving(null);
         cibaPollersRef.current.delete(authReqId);
+        cibaPollTimeoutsRef.current.delete(authReqId);
         setNlLoading(true);
         try {
           emitResumeDispatch("sent", { text, useCaseId: useCaseId || null, exit: "ciba-retry" });
@@ -9031,10 +9048,10 @@ export default function BankingAgent({
         return;
       }
       // still pending
-      setTimeout(poll, intervalMs);
+      cibaPollTimeoutsRef.current.set(authReqId, setTimeout(poll, intervalMs));
     };
     cibaPollersRef.current.set(authReqId, poll);
-    setTimeout(poll, intervalMs);
+    cibaPollTimeoutsRef.current.set(authReqId, setTimeout(poll, intervalMs));
   };
 
   const handleP1MfaError = (errorMsg) => {
