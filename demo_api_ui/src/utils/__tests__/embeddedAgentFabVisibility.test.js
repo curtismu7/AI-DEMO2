@@ -6,6 +6,7 @@ import {
   shouldShowGlobalFloatingBankingAgentFab,
   isLiveWorkbenchRoute,
   isAgentLifecycleRoute,
+  isEnterpriseMcpDemoRoute,
   isPingOneAdminAgentRoute,
   isTokenChainRoute,
 } from '../embeddedAgentFabVisibility';
@@ -200,6 +201,21 @@ describe('isAgentLifecycleRoute', () => {
     expect(isAgentLifecycleRoute('/')).toBe(false);
     expect(isAgentLifecycleRoute(null)).toBe(false);
     expect(isAgentLifecycleRoute(undefined)).toBe(false);
+  });
+});
+
+describe('isEnterpriseMcpDemoRoute', () => {
+  it('is true for the ID-JAG demo page', () => {
+    expect(isEnterpriseMcpDemoRoute('/demo/enterprise-mcp')).toBe(true);
+    expect(isEnterpriseMcpDemoRoute('/demo/enterprise-mcp/')).toBe(true);
+  });
+
+  it('is false for unrelated routes', () => {
+    expect(isEnterpriseMcpDemoRoute('/agent-lifecycle')).toBe(false);
+    expect(isEnterpriseMcpDemoRoute('/dashboard')).toBe(false);
+    expect(isEnterpriseMcpDemoRoute('/')).toBe(false);
+    expect(isEnterpriseMcpDemoRoute(null)).toBe(false);
+    expect(isEnterpriseMcpDemoRoute(undefined)).toBe(false);
   });
 });
 

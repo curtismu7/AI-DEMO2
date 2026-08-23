@@ -207,6 +207,7 @@ import {
   isEmbeddedAgentDockRoute,
   isLiveWorkbenchRoute,
   isAgentLifecycleRoute,
+  isEnterpriseMcpDemoRoute,
   isMonitoringRoute,
   isPublicMarketingAgentPath,
   isPingOneAdminAgentRoute,
@@ -460,6 +461,12 @@ function AppWithAuth() {
 
   const onAgentLifecycleRoute = Boolean(user) && isAgentLifecycleRoute(pathname);
 
+  // Enterprise-Managed MCP Auth demo (/demo/enterprise-mcp) — no inline column
+  // host of its own, so it only needs shouldMountSingleAgent below (default
+  // floating chrome), not the inline-chrome branch onLiveWorkbenchRoute and
+  // onAgentLifecycleRoute get.
+  const onEnterpriseMcpDemoRoute = Boolean(user) && isEnterpriseMcpDemoRoute(pathname);
+
   // Landing home (/): show floating agent even when signed out.
   // Suppress float on signed-in / only when UserDashboard owns middle placement.
   const marketingAgentSurface = isPublicMarketingAgentPath(pathname) && !user;
@@ -515,7 +522,8 @@ function AppWithAuth() {
     hasEmbeddedDockLayout ||
     onMiddlePlacementInDashboard ||
     onLiveWorkbenchRoute ||
-    onAgentLifecycleRoute;
+    onAgentLifecycleRoute ||
+    onEnterpriseMcpDemoRoute;
 
   // When the single agent is portaled into the bottom dock host it must wear
   // the dock's inline chrome (no floating frame/drag), exactly as the old
