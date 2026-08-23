@@ -14,6 +14,44 @@ const { isEnterpriseManagedFlagOn } = require('./enterpriseMcpMetadata');
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
+/**
+ * Policy cache TTL. Default unchanged at 5 minutes; UC39 lowers it so a
+ * revocation is visible during a live demo rather than appearing broken for
+ * up to five minutes after IT removes the user from the group.
+ */
+function getCacheTtlMs() {
+  const raw = configStore.getEffective('enterprise_mcp_policy_cache_ttl_ms');
+  if (raw === '' || raw === null || raw === undefined) return CACHE_TTL_MS;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : CACHE_TTL_MS;
+}
+
+/**
+ * Revoke an MCP access token the session is still holding.
+ *
+ * Denying the NEXT mint does nothing about a token already in hand, so without
+ * this a revoked user keeps working until the token expires — which reads as
+ * "revocation does not work". Best effort: the failure path still denies, and
+ * the token is short-lived regardless.
+ */
+async function revokeHeldMcpToken(req) {
+  const token = req && req.session && req.session.mcpAccessToken;
+  const tokenUrl = String(configStore.getEffective('enterprise_mcp_as_token_url') || '').trim();
+  if (!token || !tokenUrl) return;
+
+  try {
+    const axios = require('axios');
+    await axios.post(
+      tokenUrl.replace(/\/token$/, '/revoke'),
+      new URLSearchParams({ token }).toString(),
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 5000 },
+    );
+  } catch (_err) {
+    // Best effort — the next mint is already denied and the token is short-lived.
+  }
+  req.session.mcpAccessToken = null;
+}
+
 /** Parse comma-separated config/env list. */
 function parseCsv(raw) {
   if (!raw || typeof raw !== 'string') return [];
@@ -87,8 +125,9 @@ async function checkPolicy(req) {
     };
   }
 
+  const cacheTtlMs = getCacheTtlMs();
   const cache = req.session?.enterpriseMcpPolicyCache;
-  if (cache && cache.expiresAt > Date.now() && cache.result) {
+  if (cacheTtlMs > 0 && cache && cache.expiresAt > Date.now() && cache.result) {
     return cache.result;
   }
 
@@ -145,10 +184,16 @@ async function checkPolicy(req) {
     });
   }
 
+  if (!result.allowed) {
+    // Revoke before returning: denying the next mint leaves a token already in
+    // hand fully valid, which reads as revocation not working.
+    await revokeHeldMcpToken(req);
+  }
+
   if (req.session) {
     req.session.enterpriseMcpPolicyCache = {
       result,
-      expiresAt: Date.now() + CACHE_TTL_MS,
+      expiresAt: Date.now() + cacheTtlMs,
     };
     req.session.enterpriseMcpPolicy = {
       allowed: result.allowed,
@@ -180,4 +225,6 @@ module.exports = {
   checkPolicy,
   establishEnterpriseSession,
   CACHE_TTL_MS,
+  getCacheTtlMs,
+  revokeHeldMcpToken,
 };

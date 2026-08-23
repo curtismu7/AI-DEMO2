@@ -369,6 +369,13 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   ff_enterprise_managed_mcp_auth:  { public: true, default: 'false' }, // MCP Enterprise-Managed Authorization — IT policy gate + RFC 8693 ID-JAG stand-in (Phase 1–2)
   enterprise_mcp_allowed_groups:    { public: true, default: 'banking-agents,employees' }, // Comma-separated PingOne group names or population IDs
   enterprise_mcp_resource_uris:    { public: true, default: '' }, // Optional override; defaults to scope-topology MCP resource URIs
+  // Native ID-JAG (Phase 3). Native mode engages ONLY when enterprise_idp_issuer
+  // AND enterprise_idp_jwks_url are both non-empty; otherwise the RFC 8693
+  // stand-in runs unchanged. Both default empty so demo behaviour does not move.
+  enterprise_idp_issuer:           { public: true, default: '' }, // ID-JAG `iss`
+  enterprise_idp_jwks_url:         { public: true, default: '' }, // where oauth-mcp fetches verification keys
+  enterprise_mcp_as_token_url:     { public: true, default: '' }, // MCP AS token endpoint (HTTP; mcp_server_url is ws://)
+  enterprise_mcp_policy_cache_ttl_ms: { public: true, default: '300000' }, // unchanged default; demos lower it for UC39
   // URL of the PingGateway MCP endpoint — used when ff_mcp_gateway_pinggateway is true.
   // Host port is 3036 (OrbStack reserves 3006 on macOS — see docker-compose.yml).
   mcp_pinggateway_url:             { public: true, default: 'https://api.ping.demo:3036' },

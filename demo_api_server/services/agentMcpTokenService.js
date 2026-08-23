@@ -77,6 +77,7 @@ const { getSessionDpopKey } = require('./dpopKeyService');
 const scopeTopology = require('./scopeTopology');
 const { resolveAgentRuntime } = require('./delegatedCommerceRuntime');
 const enterpriseMcpPolicy = require('./enterpriseMcpPolicyService');
+const idJagService = require('./idJagService');
 const { isEnterpriseManagedFlagOn } = require('./enterpriseMcpMetadata');
 const {
   resolveActiveUseCaseId,
@@ -1009,16 +1010,23 @@ async function resolveMcpTokenEnterpriseManaged(req, tokenEvents) {
     req.session.enterpriseMcpAutoConnect = true;
   }
 
+  // The label must follow what actually happens below, not a fixed assumption:
+  // with native mode configured a real ID-JAG is issued and redeemed, and
+  // calling that a "stand-in" would misreport the very thing being demoed.
+  const nativeIdJag = idJagService.isNativeIdJagEnabled();
+
   tokenEvents.push(buildTokenEvent(
     'enterprise-managed-mode',
     'Enterprise-Managed MCP — IT policy passed (no Connect MCP step)',
     'active',
     null,
     'Enterprise-managed mode is ON. The user passed IT group/population policy. ' +
-      'RFC 8693 token exchange below is an ID-JAG equivalent stand-in until PingOne ships native ID-JAG.',
+      (nativeIdJag
+        ? 'A signed ID-JAG is issued below and redeemed at the MCP Authorization Server.'
+        : 'RFC 8693 token exchange below is an ID-JAG equivalent stand-in until PingOne ships native ID-JAG.'),
     {
       rfc: 'MCP Enterprise-Managed Authorization',
-      idJagStandIn: true,
+      idJagStandIn: !nativeIdJag,
       matchDetail: policy.matchDetail || null,
       resourceUris: enterpriseMcpPolicy.getAllowedResourceUris(),
     }
@@ -1030,6 +1038,59 @@ async function resolveMcpTokenEnterpriseManaged(req, tokenEvents) {
   });
 
   return policy;
+}
+
+/**
+ * Native ID-JAG token acquisition (MCP Enterprise-Managed Authorization, Phase 3).
+ *
+ * Returns the redeemed MCP access token, or null when native mode is not
+ * configured — in which case the caller proceeds down the existing RFC 8693
+ * stand-in path completely unchanged. That "returns null and touches nothing"
+ * property is the load-bearing guarantee here: every demo running today has
+ * native mode unconfigured.
+ *
+ * A policy DENY at the IdP throws with its code intact rather than falling back
+ * to the stand-in — falling back would hand a token to a user the IdP just
+ * refused, which is precisely the failure enterprise-managed auth exists to stop.
+ */
+async function maybeResolveNativeIdJagToken(req, tokenEvents, { resource, scope } = {}) {
+  if (!idJagService.isNativeIdJagEnabled()) return null;
+  if (!resource) return null;
+
+  const scopeStr = Array.isArray(scope) ? scope.join(' ') : String(scope || '');
+  const { assertion, token } = await idJagService.mintAndRedeem(req, { resource, scope: scopeStr });
+
+  tokenEvents.push(buildTokenEvent(
+    'id-jag-issued',
+    'Enterprise IdP issued an ID-JAG',
+    'active',
+    decodeJwtClaims(assertion),
+    'The enterprise IdP evaluated policy and signed an Identity Assertion JWT Authorization Grant. ' +
+      'It is audience-restricted to the MCP Authorization Server, names the MCP server in its `resource` claim, ' +
+      'is single-use via `jti`, and expires in 120 seconds.',
+    {
+      rfc: 'RFC 8693 · draft-ietf-oauth-identity-assertion-authz-grant',
+      idJagStandIn: false,
+      resource,
+    }
+  ));
+
+  tokenEvents.push(buildTokenEvent(
+    'id-jag-redeemed',
+    'MCP Authorization Server redeemed the ID-JAG',
+    'active',
+    decodeJwtClaims(token.access_token),
+    'The MCP Authorization Server verified the assertion against the enterprise IdP JWKS and issued its own ' +
+      'access token. The user was never redirected to an MCP authorize endpoint — this is the token-endpoint-only ' +
+      'flow the enterprise-managed extension specifies.',
+    {
+      rfc: 'RFC 7523 · MCP Enterprise-Managed Authorization',
+      idJagStandIn: false,
+      scope: token.scope || scopeStr,
+    }
+  ));
+
+  return token.access_token || null;
 }
 
 async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
@@ -1374,6 +1435,22 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
   logger.debug(_CAT,
     `[TokenExchange] tool=${tool} path=${scopeResolutionPath} userScopes=[${[...userTokenScopes].join(',') || '(none)'}] candidates=[${toolCandidateScopes.join(',')}] final=[${finalScopes.join(',')}] aud=${mcpResourceUri || '(not set)'}`
   );
+
+  // ── Native ID-JAG path (MCP Enterprise-Managed Authorization, Phase 3) ─────
+  // Placed here because it needs the final audience and scopes, and ahead of the
+  // exchange branches because it REPLACES them: the MCP Authorization Server
+  // issues this token by redeeming an IdP-signed grant, so no RFC 8693 exchange
+  // at PingOne is involved. Returns null unless native mode is configured, in
+  // which case everything below runs exactly as it does today.
+  if (isEnterpriseManagedFlagOn()) {
+    const nativeToken = await maybeResolveNativeIdJagToken(req, tokenEvents, {
+      resource: mcpResourceUri,
+      scope: finalScopes,
+    });
+    if (nativeToken) {
+      return { token: nativeToken, tokenEvents, userSub, tratContextHeader: null };
+    }
+  }
 
   // ── 2-Exchange delegation path ──────────────────────────────────────────────────
   // 12-step AI agent security mandate: two RFC 8693 exchanges are ALWAYS required.
@@ -2748,6 +2825,7 @@ module.exports = {
   _buildAgenticExtras,
   runTwoExchangeInteractiveTest,
   firstHttpResourceUri,
+  maybeResolveNativeIdJagToken,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

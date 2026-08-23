@@ -49,6 +49,29 @@ from .local_connection import LocalMCPConnection
 logger = logging.getLogger(__name__)
 
 
+ENTERPRISE_MANAGED_AUTH_EXT = "io.modelcontextprotocol/enterprise-managed-authorization"
+
+
+def build_request_meta(base: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Per-request `_meta` declaring the MCP extensions this client supports.
+
+    The Enterprise-Managed Authorization extension requires the client to
+    advertise support explicitly — extensions are opt-in and never active by
+    default, so a client that omits this is not conformant even when its token
+    flow is correct.
+
+    Shared by BOTH initialize sites (WebSocket and HTTP): declaring it on one
+    transport only would leave the other silently non-conformant.
+
+    https://modelcontextprotocol.io/extensions/auth/enterprise-managed-authorization
+    """
+    meta = dict(base or {})
+    meta["io.modelcontextprotocol/clientCapabilities"] = {
+        "extensions": {ENTERPRISE_MANAGED_AUTH_EXT: {}},
+    }
+    return meta
+
+
 class ConnectionState(Enum):
     """Connection states for MCP connections"""
     DISCONNECTED = "disconnected"
@@ -606,7 +629,8 @@ class MCPConnection(MCPClient):
                     "tools": {
                         "listChanged": False
                     }
-                }
+                },
+                "_meta": build_request_meta()
             }
         }
 
@@ -930,6 +954,7 @@ class StreamableHttpMCPConnection(MCPClient):
             "params": {
                 "protocolVersion": "2025-03-26",
                 "capabilities": {"tools": {"listChanged": False}},
+                "_meta": build_request_meta(),
             },
         }
         try:
