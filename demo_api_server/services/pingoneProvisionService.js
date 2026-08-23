@@ -1399,24 +1399,27 @@ class PingOneProvisionService {
       const existingGrants = (await this.makeRequest('GET', `/applications/${appId}/grants`))
         .data._embedded?.grants || [];
 
-      // Build set of scope names already granted on OTHER resources.
-      const otherResourceScopeNames = new Set();
-      for (const g of existingGrants) {
-        if (g.resource?.id === resourceId) continue;            // skip same resource
-        for (const s of (g.scopes || [])) {
-          // Look up the name by id from any other resource's scope list.
-          // We have idByName for THIS resource; for cross-resource we'd need a
-          // lookup. Cheaper: just fetch the names of scopes in this grant.
-        }
-      }
-      // The above can't cheaply resolve cross-resource scope IDs to names.
-      // Simpler: pre-fetch ALL resources' scopes once.
+      // Build set of scope names already granted on OTHER resources. Resolving
+      // a cross-resource scope id to its name needs that resource's own scope
+      // list — fetch each DISTINCT other resource once (not once per grant;
+      // a single app can hold several grants against the same resource).
       const allOtherNames = new Set();
+      const otherResourceIds = [...new Set(
+        existingGrants
+          .filter(g => g.resource?.id && g.resource.id !== resourceId)
+          .map(g => g.resource.id)
+      )];
+      const otherResourceScopesById = new Map(
+        await Promise.all(otherResourceIds.map(async (rid) => {
+          const scopes = (await this.makeRequest('GET', `/resources/${rid}/scopes`))
+            .data._embedded?.scopes || [];
+          return [rid, new Map(scopes.map(s => [s.id, s.name]))];
+        }))
+      );
       for (const g of existingGrants) {
-        if (g.resource?.id === resourceId) continue;
-        const otherScopes = (await this.makeRequest('GET', `/resources/${g.resource.id}/scopes`))
-          .data._embedded?.scopes || [];
-        const otherIdToName = new Map(otherScopes.map(s => [s.id, s.name]));
+        if (!g.resource?.id || g.resource.id === resourceId) continue;
+        const otherIdToName = otherResourceScopesById.get(g.resource.id);
+        if (!otherIdToName) continue;
         for (const s of (g.scopes || [])) {
           const n = otherIdToName.get(s.id);
           if (n) allOtherNames.add(n);

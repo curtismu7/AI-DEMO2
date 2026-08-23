@@ -511,6 +511,49 @@ describe('PingOneProvisionService — regression suite', () => {
       const putCall = svc.makeRequest.mock.calls.find(([method]) => method === 'PUT');
       expect(putCall).toBeUndefined();
     });
+
+    // -------------------------------------------------------------------
+    // Perf regression guard: the cross-resource name filter fetched a
+    // resource's scopes once PER GRANT referencing it, instead of once per
+    // DISTINCT resource — an app with several grants against the same other
+    // resource re-fetched that resource's scope list redundantly.
+    // -------------------------------------------------------------------
+    it('fetches a distinct other-resource scope list only once, even with multiple grants against it', async () => {
+      svc.makeRequest = jest.fn(async (method, path) => {
+        if (method === 'GET' && path === '/applications/app-1') {
+          return { data: { id: 'app-1', type: 'WEB_APP' } };
+        }
+        if (method === 'GET' && path === '/resources/resource-target/scopes') {
+          return { data: { _embedded: { scopes: [{ id: 't-invoke', name: 'agent:invoke' }] } } };
+        }
+        if (method === 'GET' && path === '/resources/resource-api/scopes') {
+          return { data: { _embedded: { scopes: [{ id: 'api-read', name: 'read' }, { id: 'api-write', name: 'write' }] } } };
+        }
+        if (method === 'GET' && path === '/applications/app-1/grants') {
+          return {
+            data: {
+              _embedded: {
+                grants: [
+                  // TWO separate grants both against resource-api — the N+1
+                  // version fetched resource-api's scopes twice.
+                  { id: 'grant-api-1', resource: { id: 'resource-api' }, scopes: [{ id: 'api-read' }] },
+                  { id: 'grant-api-2', resource: { id: 'resource-api' }, scopes: [{ id: 'api-write' }] },
+                ],
+              },
+            },
+          };
+        }
+        return { data: {} };
+      });
+
+      const result = await svc.grantScopesToApplication('app-1', 'resource-target', ['agent:invoke']);
+
+      expect(result.success).toBe(true);
+      const scopeFetches = svc.makeRequest.mock.calls.filter(
+        ([method, path]) => method === 'GET' && path === '/resources/resource-api/scopes',
+      );
+      expect(scopeFetches).toHaveLength(1);
+    });
   });
 
   // -----------------------------------------------------------------------

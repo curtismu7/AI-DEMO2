@@ -39,7 +39,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 19 | Perf | `routes/agentRun.js` | high | FIXED |
 | 20 | Perf | `demo_api_ui/vertical/VerticalProvider.jsx` | high | FIXED |
 | 21 | Perf | `demo_api_ui/.../AIAgent.js` (O(N²) proof scan) | high | FIXED |
-| 22 | Perf | `services/pingoneProvisionService.js` (grantScopes) | medium | OPEN |
+| 22 | Perf | `services/pingoneProvisionService.js` (grantScopes) | medium | FIXED |
 | 23 | Perf | `services/pingoneProvisionService.js` (wipeEnvironment) | medium | OPEN |
 | 24 | Perf | `demo_api_ui/.../AIAgent.js` (unbounded transcript) | medium | OPEN |
 | 25 | Perf | `TokenChainTraceRail.jsx` / `TokenChainFilmstrip.jsx` | medium | OPEN |
@@ -549,9 +549,9 @@ output, so a fail-before/pass-after test isn't meaningful here (behavior is
 unchanged, not fixed). Verified via the full existing suite instead — no
 existing assertion about proof-strip visibility broke. `cd demo_api_ui && npx vitest run` — 411/411 files, 3406 tests passed; `npm run build` exit 0.
 
-### 22. N+1 scope-fetch loop in PingOne grant provisioning — OPEN
+### 22. N+1 scope-fetch loop in PingOne grant provisioning — FIXED
 
-**File:** `demo_api_server/services/pingoneProvisionService.js`, `grantScopesToApplication` (1359–1434)
+**File:** `demo_api_server/services/pingoneProvisionService.js`, `grantScopesToApplication` (was 1359–1434)
 
 **Issue:** One sequential `GET /resources/{id}/scopes` per existing grant, not
 deduped by resource id. A preceding dead loop (1403–1411) is unused.
@@ -559,8 +559,17 @@ deduped by resource id. A preceding dead loop (1403–1411) is unused.
 **Trigger scenario:** Full PingOne bootstrap for a vertical with many
 apps/resources re-fetches the same resource's scopes redundantly.
 
-**Fix (not yet applied):** Delete the dead loop; dedupe by `resource.id`,
-`Promise.all` across unique ids.
+**Fix:** Deleted the dead loop entirely (it had an empty body and its `Set`
+was never read). Replaced the per-grant fetch with: collect distinct other
+`resource.id` values from `existingGrants`, fetch each ONCE via
+`Promise.all`, then resolve every grant's scope ids against its own
+resource's map.
+
+**Evidence:** new test — two grants against the same other resource — asserts
+exactly one `GET /resources/{id}/scopes` call for it (was two before the
+fix). Confirmed to fail against the pre-fix file (`Received length: 2`) and
+pass against the fix. Full test file plus 8 adjacent PingOne-provisioning
+suites run for extra safety given this touches live-provisioning code: `cd demo_api_server && CI=true npx jest src/__tests__/pingoneProvisionService.regression.test.js src/__tests__/scopeTopology.regression.test.js src/__tests__/pingOneGroupProvisionService.test.js src/__tests__/mcpPingOneAdminAuth.test.js src/__tests__/setupWizard.route.test.js tests/provisioningNameMapCompleteness.test.js tests/pingoneObjectResolution.test.js tests/pingoneResourceIds.test.js tests/startupConfigGuard.mcpGatewayAud.test.js --forceExit --maxWorkers=4` — 9 suites / 96 tests passed.
 
 ### 23. `wipeEnvironment` deletes everything fully sequentially — OPEN
 
@@ -633,6 +642,10 @@ redundantly re-parsing/re-diffing the same JSON twice each.
 
 ## Changelog
 
+- 2026-08-23 — #22 FIXED: `pingoneProvisionService.js`'s `grantScopesToApplication`
+  deleted a dead loop and deduped its cross-resource scope fetch by
+  `resource.id` via `Promise.all`. New test proven to fail against the
+  pre-fix file (2 redundant fetches) and pass against the fix (1).
 - 2026-08-23 — #21 FIXED: `AIAgent.js`'s per-row proof-strip check is now an
   O(1) `Map.get` (precomputed `useMemo`) instead of an O(N) `slice().some()`
   scan per assistant row. Behavior-preserving by construction; verified via
