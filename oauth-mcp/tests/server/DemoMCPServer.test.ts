@@ -35,7 +35,7 @@ describe('DemoMCPServer', () => {
 
     mockAuthManager = new BankingAuthenticationManager(mockPingOneConfig) as jest.Mocked<BankingAuthenticationManager>;
     mockSessionManager = new BankingSessionManager('test-path', 'test-key') as jest.Mocked<BankingSessionManager>;
-    mockToolProvider = {} as jest.Mocked<BankingToolProvider>;
+    mockToolProvider = { setTokenStore: jest.fn() } as unknown as jest.Mocked<BankingToolProvider>;
 
     config = {
       host: 'localhost',

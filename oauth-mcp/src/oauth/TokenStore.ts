@@ -8,6 +8,11 @@ export interface AuthorizationCode {
   codeChallenge: string;
   codeChallengeMethod: string;
   subject: string;
+  /** The real PingOne access token obtained during federation (see
+   *  OAuthRouter.handleAuthorizeCallback) — carried through to the issued
+   *  token so Step 9 can present it, not the embedded AS's own self-signed
+   *  JWT, which PingOne cannot recognize as a subject_token. */
+  pingOneAccessToken?: string;
   expiresAt: number;
 }
 
@@ -19,6 +24,9 @@ export interface IssuedToken {
   issuedAt: number;
   expiresAt: number;
   revoked: boolean;
+  /** See AuthorizationCode.pingOneAccessToken — present only for tokens
+   *  minted via a real PingOne authorization_code federation. */
+  pingOneAccessToken?: string;
 }
 
 export interface PendingAuthorization {

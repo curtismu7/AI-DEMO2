@@ -23,16 +23,22 @@ import type { BankingToolDefinition } from './BankingToolRegistry';
 import { Session, AuthErrorCodes, AuthenticationError, UserTokens } from '../interfaces/auth';
 import { TokenExchangeRequest } from '../interfaces/tokenExchange';
 import { resolveEmbeddedIssuer } from '../oauth/embeddedIssuer';
+import { TokenStore } from '../oauth/TokenStore';
 
 export interface TokenResolverDeps {
   authManager: BankingAuthenticationManager;
   tokenExchangeService?: TokenExchangeService;
   logger: Logger;
+  /** Looks up the real PingOne access token stashed alongside a self-issued
+   *  agentToken minted via authorization_code federation (external door).
+   *  Absent in the internal-hop wiring, where every agentToken is already
+   *  PingOne-issued and this lookup would never hit. */
+  tokenStore?: TokenStore;
 }
 
 export interface TokenResolution {
   token: string;
-  source: 'agent-passthrough' | 'agent-step9-exchange' | 'user-rfc8693-exchange' | 'user-passthrough-noexchange';
+  source: 'agent-passthrough' | 'agent-federated-passthrough' | 'agent-step9-exchange' | 'user-rfc8693-exchange' | 'user-passthrough-noexchange';
 }
 
 /**
@@ -57,15 +63,45 @@ function isSelfIssuedToken(token: string): boolean {
   }
 }
 
+/**
+ * A self-issued token minted via a real PingOne authorization_code federation
+ * (external door, browser login) has the real PingOne access token stashed
+ * against its `jti` in the TokenStore (see OAuthRouter.handleAuthorizeCallback
+ * + TokenIssuer.issueAuthorizationCode). client_credentials tokens never get
+ * one — there's no real user to federate — so this correctly returns null for
+ * those, same as before this existed.
+ */
+function resolveFederatedSubjectToken(token: string, tokenStore?: TokenStore): string | null {
+  if (!tokenStore) return null;
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+    const decoded = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    const jti = decoded.jti as string | undefined;
+    if (!jti) return null;
+    const issued = tokenStore.introspect(jti);
+    if (!issued || issued.revoked || !issued.pingOneAccessToken) return null;
+    if (Date.now() >= issued.expiresAt) return null;
+    return issued.pingOneAccessToken;
+  } catch {
+    return null;
+  }
+}
+
 export class TokenResolver {
   constructor(private deps: TokenResolverDeps) {}
 
   async resolve(session: Session, tool: BankingToolDefinition, agentToken?: string): Promise<TokenResolution> {
-    const { tokenExchangeService, logger } = this.deps;
+    const { tokenExchangeService, tokenStore, logger } = this.deps;
 
     let token: string;
     if (agentToken) {
       if (isSelfIssuedToken(agentToken)) {
+        const federatedToken = resolveFederatedSubjectToken(agentToken, tokenStore);
+        if (federatedToken) {
+          logger.debug(`[BankingToolProvider] Self-issued agent token — using its federated PingOne subject token for ${tool.name}`);
+          return { token: federatedToken, source: 'agent-federated-passthrough' };
+        }
         logger.debug(`[BankingToolProvider] Self-issued agent token — skipping Step 9 resource exchange for ${tool.name}`);
         return { token: agentToken, source: 'agent-passthrough' };
       }
