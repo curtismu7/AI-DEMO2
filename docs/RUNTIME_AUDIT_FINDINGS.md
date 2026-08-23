@@ -57,7 +57,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 30 | Runtime | `demo_api_ui/.../bankingRestartNotificationService.js` | medium | FIXED |
 | 31 | Runtime | `demo_api_ui/.../services/sessionResolver.js` | low | FIXED |
 | 32 | Swallowed | `routes/adminConfig.js` (generate-keypair) | high | FIXED |
-| 33 | Swallowed | `demo_api_ui/.../hooks/useElicitation.js` | medium | OPEN |
+| 33 | Swallowed | `demo_api_ui/.../hooks/useElicitation.js` | medium | FIXED |
 | 34 | Swallowed | `demo_api_ui/.../DemoSetupPanel.js` (reset demo) | low | OPEN |
 | 35 | Perf | `services/auditLogService.js` | medium | OPEN |
 | 36 | Perf | `services/demoTrackService.js` | medium | OPEN |
@@ -909,7 +909,7 @@ src/__tests__/adminConfig.generateKeypair.test.js --forceExit
 --maxWorkers=4` — 2 suites / 3 tests passed. Full server suite run
 separately since this touches `configStore.js` (shared config store).
 
-### 33. MCP elicitation submission failures are silently swallowed — OPEN
+### 33. MCP elicitation submission failures are silently swallowed — FIXED
 
 **File:** `demo_api_ui/src/hooks/useElicitation.js`, line 59
 
@@ -925,9 +925,21 @@ try/finally (in `ElicitationDialog.jsx`) only resets `isSubmitting` — the
 button flips back to "Submit"/"Decline"/"Cancel"/"Open in Browser" with zero
 visible feedback that the submission failed.
 
-**Fix (not yet applied):** Have `submitElicitation` set and expose an error
-value (or re-throw after logging) so `ElicitationDialog.jsx` can render a
-visible error message instead of silently resetting to the idle state.
+**Fix:** Added an `error` state to `useElicitation.js`, set on catch (cleared
+on a new elicitation request, on submit start, and on `cancel()`), and
+exposed it from the hook. `AIAgent.js` passes it through as `ElicitationDialog`'s
+new `error` prop, rendered as a visible `.elicit-modal__submit-error` banner
+(solid high-contrast red, not muted hint text) in both form and URL mode,
+right above the footer buttons.
+
+**Evidence:** New `useElicitation.test.js` proves the hook sets `error` and
+keeps the dialog open (`elicitation` stays non-null) when the POST rejects,
+and clears it on a subsequent success. New tests in
+`ElicitationDialog.test.jsx` prove the banner renders when `error` is set (both
+modes) and renders nothing when it isn't. Proven to fail against the pre-fix
+files (4/9 failing) and pass against the fix (9/9). `npm --prefix demo_api_ui
+run test:unit` — 415 files / 3417 tests passed, no regressions. `npm
+--prefix demo_api_ui run build` — exit 0.
 
 ### 34. Failed demo reset is indistinguishable from a successful one — OPEN
 
@@ -1057,6 +1069,11 @@ from the loop bodies in `handleFixAll`/`handleFixEverything`, and call
 
 ## Changelog
 
+- 2026-08-23 — #33 FIXED: `useElicitation.js` now exposes an `error` state,
+  set on a failed submit and surfaced by `ElicitationDialog.jsx` as a visible
+  banner instead of silently resetting to idle. New hook + dialog tests
+  proven to fail against the pre-fix files (4/9) and pass against the fix
+  (9/9); full UI suite green (415 files / 3417 tests).
 - 2026-08-23 — #32 FIXED: `pingone_mgmt_private_key` registered in
   `configStore.js`'s `FIELD_DEFS`/`SECRET_KEYS`/`envReconcile.js`
   classification; `adminConfig.js`'s generate-keypair route now `await`s
