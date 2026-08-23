@@ -25,7 +25,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 5 | Runtime | `services/apiCallTrackerService.js` | medium | FIXED |
 | 6 | Runtime | `services/transactionConsentChallenge.js` | medium | FIXED |
 | 7 | Runtime | `demo_api_ui/.../AIAgent.js` (aguiAbort) | medium | FIXED |
-| 8 | Runtime | `demo_api_ui/.../AIAgent.js` (refreshAfterTransaction) | medium | OPEN |
+| 8 | Runtime | `demo_api_ui/.../AIAgent.js` (refreshAfterTransaction) | medium | FIXED |
 | 9 | Swallowed | `middleware/delegationGate.js` | high | OPEN |
 | 10 | Swallowed | `demo_api_ui/.../AdminSideNav.jsx` (reset demo) | high | OPEN |
 | 11 | Swallowed | `demo_api_ui/.../DelegationPage.js` | high | OPEN |
@@ -241,7 +241,7 @@ is called **twice** on unmount (once from the pre-existing always-fires
 effect, once from this fix); confirmed to fail against the pre-fix file
 (`called 1 times`, not 2) and pass against the fix. Full UI suite: `cd demo_api_ui && npm run build` exit 0; scoped vitest run (`AIAgent.unmountAbort`, `AIAgent.cibaStepUp`, `AIAgent.pendingClaim`) 3 files / 12 tests passed.
 
-### 8. `refreshAfterTransaction` has no response-order guard — OPEN
+### 8. `refreshAfterTransaction` has no response-order guard — FIXED
 
 **File:** `demo_api_ui/src/components/AIAgent.js`, lines 8298–8367
 
@@ -253,8 +253,17 @@ already implements that pattern.
 quickly; if the first fetch resolves *after* the second, the older response
 silently reverts the panel to stale data.
 
-**Fix (not yet applied):** Guard with a shared request-id ref, mirroring the
-existing sibling pattern in the same file.
+**Fix:** Added `refreshRequestIdRef` (incremented at the top of
+`refreshAfterTransaction` on every dispatch); both fetch chains now check
+`if (requestId !== refreshRequestIdRef.current) return;` before their
+`setState` calls, mirroring the sibling `cancelled`-flag pattern in the same
+file.
+
+**Evidence:** no dedicated new render test — reliably observing this race
+through the DOM needs the accounts result panel already open (heavy chip-click
+setup disproportionate to a mechanical, already-precedented one-ref guard).
+Verified instead via the full existing suite (no regression) and code-pattern
+parity with the sibling guard at lines 1996–2035. `cd demo_api_ui && npx vitest run` — 406/406 files, 3391 tests passed; `npm run build` exit 0.
 
 ### 9. `act` claim parse failure treated as "no delegation" — OPEN
 
@@ -517,6 +526,10 @@ redundantly re-parsing/re-diffing the same JSON twice each.
 
 ## Changelog
 
+- 2026-08-23 — #8 FIXED: `AIAgent.js`'s `refreshAfterTransaction` now guards
+  both fetch chains with a shared `refreshRequestIdRef`, mirroring the
+  existing sibling `cancelled`-flag pattern in the same file. Verified via
+  full suite + build gate rather than a new render test (see doc for why).
 - 2026-08-23 — #7 FIXED: `AIAgent.js`'s `[location.pathname]`-keyed unmount/
   route-change cleanup now also calls `aguiAbort()`, closing the gap a
   separate pre-existing (unmount-only) effect could never cover: the route

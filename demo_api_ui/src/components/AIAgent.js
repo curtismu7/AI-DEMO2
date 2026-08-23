@@ -644,6 +644,8 @@ export default function BankingAgent({
   const [resultPanel, setResultPanel] = useState(null);
   const resultPanelRef = useRef(null);
   const terminologyRef = useRef(null);
+  /** Guards refreshAfterTransaction below against out-of-order fetch resolution. */
+  const refreshRequestIdRef = useRef(0);
   /** Live bounding rect of the agent panel — used to anchor the results pop-out */
   const [agentBounds, setAgentBounds] = useState(null);
   /** MCP server connection status for header display */
@@ -8325,11 +8327,17 @@ export default function BankingAgent({
     const refreshAfterTransaction = () => {
       const currentPanel = resultPanelRef.current;
       const terminology = terminologyRef.current;
+      // banking-transaction-completed can fire twice in quick succession;
+      // if an older fetch resolves after a newer one, applying its result
+      // would silently revert the panel to stale data. Only the response
+      // matching the request id captured at ITS OWN dispatch time may apply.
+      const requestId = ++refreshRequestIdRef.current;
 
       // Always refresh liveAccounts (drives form dropdowns + accounts/balance result panels)
       fetch("/api/accounts/my", { credentials: "include" })
         .then((r) => (r.ok ? r.json() : null))
         .then((data) => {
+          if (requestId !== refreshRequestIdRef.current) return;
           if (!data?.accounts?.length) return;
           const fresh = data.accounts.map(normalizeAccountRow);
           setLiveAccounts(fresh);
@@ -8357,6 +8365,7 @@ export default function BankingAgent({
         fetch("/api/transactions/my?limit=30", { credentials: "include" })
           .then((r) => (r.ok ? r.json() : null))
           .then((data) => {
+            if (requestId !== refreshRequestIdRef.current) return;
             if (!data?.transactions) return;
             setResultPanel({
               type: "transactions",
