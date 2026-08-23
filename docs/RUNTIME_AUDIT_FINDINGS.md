@@ -59,7 +59,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 32 | Swallowed | `routes/adminConfig.js` (generate-keypair) | high | FIXED |
 | 33 | Swallowed | `demo_api_ui/.../hooks/useElicitation.js` | medium | FIXED |
 | 34 | Swallowed | `demo_api_ui/.../DemoSetupPanel.js` (reset demo) | low | FIXED |
-| 35 | Perf | `services/auditLogService.js` | medium | OPEN |
+| 35 | Perf | `services/auditLogService.js` | medium | FIXED |
 | 36 | Perf | `services/demoTrackService.js` | medium | OPEN |
 | 37 | Perf | `services/traceProjector.js` | low | OPEN |
 | 38 | Perf | `demo_api_ui/.../context/ActivityNarrativeContext.js` | medium | OPEN |
@@ -974,7 +974,7 @@ passed; full UI suite (416 files / 3419 tests) — no regressions. `npm
 **This closes the Swallowed-Errors category — findings #9–18 and #32–34 are
 all FIXED.**
 
-### 35. Kill-switch/rate-limit audit log grows unbounded — its own pruning function is dead code — OPEN
+### 35. Kill-switch/rate-limit audit log grows unbounded — its own pruning function is dead code — FIXED
 
 **File:** `demo_api_server/services/auditLogService.js`, line 15
 
@@ -988,11 +988,19 @@ exported at 267) but has zero callers anywhere in the codebase.
 `auditLogs[agentId]` with no size/age limit at push time, and nothing ever
 calls `pruneOldLogs` to trim it.
 
-**Fix (not yet applied):** Call `pruneOldLogs()` on a periodic unref'd
-`setInterval` (pattern already used in
-`services/securityMonitoringService.js`'s `_snapshotTimer` or
-`services/mcpGatewayRateLimit.js`'s `_evictionInterval`), or cap each
-per-agent array length at push time.
+**Fix:** Added a module-level `setInterval(() => { pruneOldLogs(); },
+PRUNE_INTERVAL_MS).unref()` (1 hour cadence), mirroring
+`mcpGatewayRateLimit.js`'s `_evictionInterval` pattern — `pruneOldLogs`
+itself already existed and needed no changes, it just had no caller.
+
+**Evidence:** New `auditLogService.pruning.test.js` uses fake timers, records
+an event, advances time 91 days (past the 90-day retention window) with no
+manual `pruneOldLogs()` call, and asserts the event is gone — proving the
+module's own interval fired the prune, not a direct call. Proven to fail
+against the pre-fix file (event still present after 91 days) and pass
+against the fix. `cd demo_api_server && CI=true npx jest
+src/__tests__/auditLogService.pruning.test.js --forceExit --maxWorkers=4` —
+1/1 passed.
 
 ### 36. Demo-track session buckets are never evicted — OPEN
 
@@ -1081,6 +1089,11 @@ from the loop bodies in `handleFixAll`/`handleFixEverything`, and call
 
 ## Changelog
 
+- 2026-08-23 — #35 FIXED: `auditLogService.js` now calls its own
+  `pruneOldLogs()` on a periodic unref'd `setInterval` (1h), matching the
+  `_evictionInterval` pattern in `mcpGatewayRateLimit.js`. New test (fake
+  timers, advance 91 days, no manual prune call) proven to fail against the
+  pre-fix file and pass against the fix.
 - 2026-08-23 — #34 FIXED: `DemoSetupPanel.js`'s reset-demo empty catch now
   calls `notifyError` and returns early on a failed POST instead of
   proceeding to clear local storage and log the admin out as if it
