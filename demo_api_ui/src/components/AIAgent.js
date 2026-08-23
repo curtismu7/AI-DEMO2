@@ -6,6 +6,7 @@ import React, {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { PopOutPortal } from "./FloatingPanel";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useEducationUIOptional } from "../context/EducationUIContext";
 import { useIndustryBranding } from "../context/IndustryBrandingContext";
@@ -390,6 +391,8 @@ export default function BankingAgent({
   // Always start collapsed on page load — never restore open state from localStorage.
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  /** Pop-out: the panel's Window object when popped out to its own browser window, else null. */
+  const [poppedOutWin, setPoppedOutWin] = useState(null);
   const [showResourceServerInterstitial, resourceServerInterstitialEl] = useResourceServerInterstitial();
   /** Discovery popout — "All actions" overlay. */
   const [showDiscovery, setShowDiscovery] = useState(false);
@@ -3054,9 +3057,84 @@ export default function BankingAgent({
     [panelSize, dragPos],
   );
 
+  // Pop out: opens the panel in its own real browser window (native OS drag/resize
+  // takes over there), or closes it and returns the panel to this window. Copies
+  // this document's stylesheets so the popup renders with the same styles — same
+  // approach as FloatingPanel's PopOutPortal (a separate React root is required in
+  // the popup document; a bare createPortal there leaves synthetic events bound to
+  // this window's root).
+  const handlePopOutWindow = useCallback(() => {
+    if (poppedOutWin) {
+      if (!poppedOutWin.closed) poppedOutWin.close();
+      setPoppedOutWin(null);
+      return;
+    }
+    const win = window.open(
+      "about:blank",
+      "banking-agent-popout",
+      "width=440,height=720,resizable=yes,scrollbars=yes",
+    );
+    if (!win) return;
+
+    const styleLinks = Array.from(
+      document.querySelectorAll('link[rel="stylesheet"]'),
+    )
+      .map((el) => `<link rel="stylesheet" href="${el.href}">`)
+      .join("\n");
+    const inlineStyles = Array.from(document.querySelectorAll("style"))
+      .map((el) => `<style>${el.textContent}</style>`)
+      .join("\n");
+
+    win.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>${brandShortName} AI Agent</title>
+  ${styleLinks}
+  ${inlineStyles}
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; background: #fff; }
+    #fp-popout-root { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+  </style>
+</head>
+<body><div id="fp-popout-root"></div></body>
+</html>`);
+    win.document.close();
+    try {
+      win.history.pushState({}, "", "/agent-popout");
+    } catch (_) {}
+    win.addEventListener("beforeunload", () => setPoppedOutWin(null));
+    setPoppedOutWin(win);
+  }, [poppedOutWin, brandShortName]);
+
+  // Close the popped-out window if the panel itself unmounts (e.g. sign-out).
+  useEffect(() => {
+    return () => {
+      if (poppedOutWin && !poppedOutWin.closed) poppedOutWin.close();
+    };
+  }, [poppedOutWin]);
+
   // Panel position: override CSS anchoring when user has dragged the window
   // In inline mode the CSS (.ba-mode-inline) handles size — no inline style needed
-  const panelStyle = isInline
+  // Popped-out: fill the popup window's own viewport. The real OS window already
+  // provides drag/resize there, so the computed float-mode geometry doesn't apply.
+  const panelStyle = poppedOutWin
+    ? {
+        position: "static",
+        left: "auto",
+        top: "auto",
+        right: "auto",
+        bottom: "auto",
+        width: "100%",
+        height: "100%",
+        flex: "1 1 auto",
+        minHeight: 0,
+        maxWidth: "none",
+        maxHeight: "none",
+        transform: "none",
+      }
+    : isInline
     ? {}
     : isExpanded
       ? {
@@ -9231,7 +9309,8 @@ export default function BankingAgent({
       )}
 
       {/* Panel */}
-      {effectiveIsOpen && (
+      {effectiveIsOpen && (() => {
+        const panelEl = (
         <div
           className={`banking-agent-panel ba-mode-light${isExpanded && !isInline ? " ba-expanded" : ""}${isInline ? " ba-mode-inline" : ""}${isBottomDock ? " ba-embedded-bottom-dock" : ""}${splitChrome ? " ba-split-column" : ""}${distinctFloatingChrome && isInline ? " ba-popout-mode" : ""}`}
           role="dialog"
@@ -9244,12 +9323,13 @@ export default function BankingAgent({
           style={{ ...panelStyle, '--ba-agent-bg': pageManifest?.theme?.cssVars?.['--app-primary-red'] }}
         >
           {/* Header — spans full width */}
-          {/* In inline mode: no drag handle. In float mode: drag to reposition */}
+          {/* In inline mode: no drag handle. Popped out: the OS window is dragged
+              instead. In float mode: drag to reposition. */}
           <div
             role="button"
-            tabIndex={isInline ? -1 : 0}
-            className={`ba-header${isInline ? "" : " banking-agent-drag-handle"}`}
-            onPointerDown={isInline ? undefined : handleDragStart}
+            tabIndex={isInline || poppedOutWin ? -1 : 0}
+            className={`ba-header${isInline || poppedOutWin ? "" : " banking-agent-drag-handle"}`}
+            onPointerDown={isInline || poppedOutWin ? undefined : handleDragStart}
           >
             <div className="ba-header-top">
               <div className="ba-header-left">
@@ -9678,8 +9758,9 @@ export default function BankingAgent({
                   Clear progress
                 </button>
                 </div>
-                {/* Expand/restore — float mode only (unchanged) */}
-                {!isInline && (
+                {/* Expand/restore — float mode only, hidden when popped out
+                    (the OS window controls size there instead) */}
+                {!isInline && !poppedOutWin && (
                   <button
                     type="button"
                     className="ba-icon-btn"
@@ -9692,6 +9773,24 @@ export default function BankingAgent({
                     }
                   >
                     {isExpanded ? "⊟" : "⊞"}
+                  </button>
+                )}
+                {/* Pop out — float mode only. Moves the panel into its own real
+                    browser window so it stops covering the page; click again
+                    (from either window) to bring it back. */}
+                {!isInline && (
+                  <button
+                    type="button"
+                    className="ba-icon-btn ba-popout-btn"
+                    onClick={handlePopOutWindow}
+                    aria-label={
+                      poppedOutWin ? "Bring agent back into page" : "Pop out to new window"
+                    }
+                    title={
+                      poppedOutWin ? "Bring agent back into page" : "Pop out to new window"
+                    }
+                  >
+                    🪟
                   </button>
                 )}
                 {/* System graph link — float mode only; on /admin the strip has it */}
@@ -9711,11 +9810,17 @@ export default function BankingAgent({
                   <button
                     type="button"
                     className="ba-icon-btn ba-close-btn"
-                    onClick={() => setIsOpen(false)}
+                    onClick={() => {
+                      setIsOpen(false);
+                      if (poppedOutWin) {
+                        if (!poppedOutWin.closed) poppedOutWin.close();
+                        setPoppedOutWin(null);
+                      }
+                    }}
                     aria-label="Close agent"
                     title="Close"
                   >
-                    ✕
+                    −
                   </button>
                 )}
               </div>
@@ -11873,8 +11978,9 @@ export default function BankingAgent({
               </div>
             </div>
           </div>
-          {/* Resize handles — all 8 directions, float mode only */}
-          {!isInline && (
+          {/* Resize handles — all 8 directions, float mode only. Hidden when
+              popped out: the OS window itself is resized instead. */}
+          {!isInline && !poppedOutWin && (
             <>
               <div
                 role="button"
@@ -11935,7 +12041,25 @@ export default function BankingAgent({
             </>
           )}
         </div>
-      )}
+        );
+        return poppedOutWin && !poppedOutWin.closed ? (
+          <>
+            <PopOutPortal win={poppedOutWin}>{panelEl}</PopOutPortal>
+            <div className="ba-popout-placeholder">
+              <span>🪟 {brandShortName} AI Agent — popped out</span>
+              <button
+                type="button"
+                className="ba-popout-placeholder-btn"
+                onClick={handlePopOutWindow}
+              >
+                Bring back
+              </button>
+            </div>
+          </>
+        ) : (
+          panelEl
+        );
+      })()}
       <TokenFlowDetailModal
         isOpen={showTokenChain}
         onClose={() => setShowTokenChain(false)}
