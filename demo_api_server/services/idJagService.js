@@ -30,9 +30,20 @@ function isNativeIdJagEnabled() {
   return Boolean(cfg('enterprise_idp_issuer') && cfg('enterprise_idp_jwks_url'));
 }
 
-/** The BFF's own enterprise-IdP endpoint (same process; loopback by default). */
+/**
+ * The BFF's own enterprise-IdP endpoint (same process; loopback by default).
+ *
+ * https, not http: this server is mkcert-TLS-only on 3001 (same reason
+ * ENTERPRISE_IDP_JWKS_URL in docker-compose.yml is https://). A plaintext HTTP
+ * request against a TLS-only socket doesn't get a clean rejection — it hangs
+ * up silently with zero response and zero server-side log line, surfacing
+ * downstream only as an opaque "socket hang up" / ECONNRESET. Found live: the
+ * native ID-JAG mint call failed this way even with policy PERMIT and native
+ * mode fully configured; curl confirmed identical bytes over https:// return
+ * the real 400 the route handler is supposed to send.
+ */
 function idpTokenUrl() {
-  const base = cfg('enterprise_idp_base_url') || 'http://127.0.0.1:3001';
+  const base = cfg('enterprise_idp_base_url') || 'https://127.0.0.1:3001';
   return `${base}/api/enterprise-idp/token`;
 }
 

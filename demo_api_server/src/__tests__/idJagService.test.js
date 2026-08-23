@@ -43,6 +43,22 @@ describe('idJagService', () => {
     expect(idJagService.isNativeIdJagEnabled()).toBe(false);
   });
 
+  // Found live 2026-08-23: idpTokenUrl()'s unconfigured-base-url default was
+  // http://127.0.0.1:3001, but the BFF only listens TLS (mkcert) on 3001 — a
+  // plaintext HTTP request against that socket doesn't error cleanly, it hangs
+  // up silently (no response, no server-side log line), which axios reports as
+  // ECONNRESET/"socket hang up". Every existing test here destructures
+  // `axios.post.mock.calls[0]` as `[, body]`, discarding the URL — nothing
+  // caught the wrong scheme.
+  test('mintIdJag posts to the loopback token endpoint over https by default', async () => {
+    axios.post.mockResolvedValue({ data: { access_token: 'the.id.jag', expires_in: 120 } });
+    const req = { session: { user: { oauthId: 'user-123' } }, headers: {} };
+    await idJagService.mintIdJag(req, { audience: AS_ISSUER, resource: RESOURCE, scope: 'banking:read' });
+
+    const [url] = axios.post.mock.calls[0];
+    expect(url).toBe('https://127.0.0.1:3001/api/enterprise-idp/token');
+  });
+
   test('mintIdJag posts a spec-shaped token-exchange request', async () => {
     axios.post.mockResolvedValue({
       data: {
