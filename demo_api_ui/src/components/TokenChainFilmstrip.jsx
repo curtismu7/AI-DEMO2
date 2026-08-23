@@ -7,7 +7,7 @@
 // the same child panels. Only the geometry is new — the chain lies along the
 // bottom so a click can raise a sheet across the whole width, instead of living
 // in the narrowest column on screen.
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
 import { MCP_STEP_IDS, chainBadge } from "../services/tokenChainTrace/buildTraceSteps";
 import { resolveInspectClaims } from "../services/tokenChainTrace/resolveInspectClaims";
@@ -141,7 +141,10 @@ export default function TokenChainFilmstrip() {
 
   const { trace } = snap;
   const classicSteps = snap.steps;
-  const steps = viewMode === "classic" ? classicSteps : buildLiveTokenChainSteps(classicSteps, trace);
+  const steps = useMemo(
+    () => (viewMode === "classic" ? classicSteps : buildLiveTokenChainSteps(classicSteps, trace)),
+    [viewMode, classicSteps, trace],
+  );
   const badge = chainBadge(trace, classicSteps);
 
   // Clearing a run must drop the selection, the sheet and the presenter, or the

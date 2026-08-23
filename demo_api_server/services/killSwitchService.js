@@ -527,7 +527,6 @@ async function killAgent(agentId, reason = 'manual_red_button', userId = null, o
 
   try {
     console.log(`[killSwitch] Executing kill switch for agent ${agentId}. Reason: ${reason}. Scope: ${scope}`);
-    killAgent._userId = userId || null;
 
     // 1. Revoke access_token + id_token at PingOne (form-encoded, RFC 7009)
     const revokeResult = await revokeAllTokens(oauthTokens);
@@ -550,7 +549,6 @@ async function killAgent(agentId, reason = 'manual_red_button', userId = null, o
     //    leave the human account enabled so the demo can sign back in.
     let userDisableResult = null;
     if (scope === 'instance') {
-      killAgent._userId = null;
       pushStep({
         key: 'user_disable',
         label: 'Disable the PingOne user account',
@@ -560,9 +558,8 @@ async function killAgent(agentId, reason = 'manual_red_button', userId = null, o
         skipReason: 'instance_scope',
       });
     } else {
-      if (killAgent._userId) {
-        userDisableResult = await disableUserAtPingOne(killAgent._userId);
-        killAgent._userId = null;
+      if (userId) {
+        userDisableResult = await disableUserAtPingOne(userId);
       }
       pushStep({
         key: 'user_disable',

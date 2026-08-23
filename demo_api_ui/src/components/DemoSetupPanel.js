@@ -195,7 +195,6 @@ export default function DemoSetupPanel() {
     setAgentAuthDemoMode(mode);
     try {
       localStorage.setItem(AGENT_AUTH_DEMO_STORAGE_KEY, mode);
-      window.dispatchEvent(new CustomEvent('bx-agent-auth-demo-mode', { detail: { mode } }));
     } catch (_) { /* ignore */ }
   }, []);
 

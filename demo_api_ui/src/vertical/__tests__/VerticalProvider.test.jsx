@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, waitFor, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { VerticalProvider } from '../VerticalProvider';
+import { VerticalProvider, VerticalContext } from '../VerticalProvider';
 import { useVertical } from '../useVertical';
 
 const BANKING = {
@@ -244,5 +244,52 @@ describe('VerticalProvider', () => {
         expect((await findByTestId('status-probe')).textContent).toBe('resolved:none');
       });
     });
+  });
+
+  // Regression guard: the context value was a fresh object literal every
+  // render, so an unrelated ancestor re-render (route change, toast, modal)
+  // forced every consumer to re-render even when the vertical data itself
+  // hadn't changed. Reads the RAW context value directly (not through
+  // useVertical(), which deliberately reshapes it into a new object on every
+  // call regardless of context memoization — a separate concern from the
+  // Provider's own value identity this fix targets).
+  test('the context value keeps the same object identity across an unrelated re-render', async () => {
+    const { FakeES } = setupMocks({ user: null, manifest: BANKING });
+    const seenValues = [];
+    function ValueProbe() {
+      const v = React.useContext(VerticalContext);
+      seenValues.push(v);
+      return null;
+    }
+    function Harness() {
+      const [, bump] = React.useState(0);
+      return (
+        <div>
+          <button onClick={() => bump((x) => x + 1)}>bump</button>
+          <VerticalProvider><ValueProbe /></VerticalProvider>
+        </div>
+      );
+    }
+
+    const { getByText } = render(<MemoryRouter><Harness /></MemoryRouter>);
+    hydrate(FakeES);
+    await waitFor(() => expect(seenValues.length).toBeGreaterThan(0));
+    // The guest-mount refetch and the hydrate-triggered refetch both go
+    // through a 250ms trailing throttle, so a second, content-identical
+    // setState (a genuinely new state object, unrelated to this test) can
+    // still be in flight. Let it settle before capturing the baseline so it
+    // can't be mistaken for the effect under test.
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    const beforeCount = seenValues.length;
+    const valueBefore = seenValues[seenValues.length - 1];
+
+    // Forces Harness to re-render, which re-renders VerticalProvider (a plain
+    // function component receiving new `children`) even though none of ITS
+    // OWN state changed.
+    act(() => { getByText('bump').click(); });
+
+    expect(seenValues.length).toBeGreaterThan(beforeCount);
+    const valueAfter = seenValues[seenValues.length - 1];
+    expect(valueAfter).toBe(valueBefore); // same object reference, not just deep-equal
   });
 });

@@ -19,6 +19,7 @@ import "./CopilotAgent.css";
 export default function CopilotAgent() {
   const [cfg, setCfg] = useState(null);
   const [cfgLoaded, setCfgLoaded] = useState(false);
+  const [cfgError, setCfgError] = useState(null);
   const [status, setStatus] = useState("idle"); // idle | connecting | ready | error
   const [error, setError] = useState("");
   const [messages, setMessages] = useState([]); // { role: 'user'|'assistant', text }
@@ -29,12 +30,20 @@ export default function CopilotAgent() {
   const conversationIdRef = useRef(undefined);
   const scrollRef = useRef(null);
 
-  useEffect(() => {
+  const loadConfig = useCallback(() => {
+    setCfgError(null);
     loadPublicConfig()
       .then((c) => setCfg(c || {}))
-      .catch(() => setCfg({}))
+      .catch((e) => {
+        setCfg({});
+        setCfgError(friendly(e));
+      })
       .finally(() => setCfgLoaded(true));
   }, []);
+
+  useEffect(() => {
+    loadConfig();
+  }, [loadConfig]);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -86,6 +95,18 @@ export default function CopilotAgent() {
 
   if (!cfgLoaded) {
     return <div className="copilot-surface copilot-empty">Loading…</div>;
+  }
+
+  if (cfgError) {
+    return (
+      <div className="copilot-surface copilot-empty">
+        <h2>Copilot agent</h2>
+        <p className="copilot-error">Could not load configuration: {cfgError}</p>
+        <button className="copilot-btn" onClick={loadConfig}>
+          Retry
+        </button>
+      </div>
+    );
   }
 
   if (!configured) {

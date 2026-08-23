@@ -16,6 +16,37 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-08-23 — `useVertical()` reshapes the context into a new object on every call, defeating the Provider's own memoization
+
+**Where:** `demo_api_ui/src/vertical/useVertical.js` — every non-null-context
+return path (lines 29–41) builds `{ activeId: ctx.activeId, pageManifest:
+ctx.pageManifest, ... }` fresh, on every invocation.
+
+**What's wrong:** `VerticalProvider.jsx`'s context value is now memoized
+(`docs/RUNTIME_AUDIT_FINDINGS.md` finding #20 — `useMemo(() => ({...state,
+refetch: doFetch}), [state, doFetch])`), so `useContext(VerticalContext)`
+correctly returns the same object across an unrelated ancestor re-render.
+But almost nothing in the app reads that raw context — nearly every consumer
+(TopNav, AdminSideNav, UserDashboard, etc.) goes through `useVertical()`,
+which unconditionally derives a brand-new object every time it's called,
+including `agentManifest`/`isAdminScope` computed inline. A consumer that
+memoizes work off `useVertical()`'s return value (or is itself wrapped in
+`React.memo`) gets no benefit from the Provider-level fix — it still sees a
+new reference every render.
+
+**Why it wasn't fixed now:** the finding that surfaced this (#20) was scoped
+to the Provider's own `value={...}` literal. Memoizing `useVertical()`'s
+return additionally requires either `useMemo`-wrapping its result (deps:
+`ctx`, `location.pathname`'s admin-scope slice, `isAdminScope`) or restructuring
+so `isAdminScope`/`agentManifest` aren't recomputed as a new object shape each
+call — a wider change touching a hook nearly every screen calls, worth doing
+deliberately rather than folding into an unrelated bug fix.
+
+**Real fix:** wrap `useVertical()`'s return in `useMemo`, keyed on the
+primitive/derived values that actually determine its shape (`ctx`,
+`isAdminScope`), so a `React.memo`'d consumer or a `useEffect` deps array
+keyed on `useVertical()`'s output stops re-firing on every unrelated render.
+
 ### [ ] 2026-08-23 — native ID-JAG: PingGateway's own D-05 still blocks the real tool call even when the OLB-audience pin should redirect it
 
 Live E2E verification of PR #2268 (native ID-JAG gateway filter — mint → redeem

@@ -137,8 +137,21 @@ async function agentRestrictionsGate(req, res, next) {
   }
 
   if (!userId) {
-    logger.warn('[agentRestrictionsGate] No userId resolvable, skipping gate');
-    return next();
+    // Same "cannot determine the restriction level" contract as every other
+    // branch in this file (worker token missing, PingOne non-2xx, PingOne
+    // fetch error, unexpected exception) — this was previously the one
+    // exception that unconditionally called next(), contradicting the
+    // module's own documented fail-closed default.
+    if (failoverPermits()) {
+      logger.warn('[agentRestrictionsGate] No userId resolvable, failing open (AGENT_RESTRICTIONS_FAILOVER=permit)');
+      return next();
+    }
+    logger.warn('[agentRestrictionsGate] No userId resolvable, failing closed');
+    return res.status(503).json({
+      code: 'agent_restrictions_unavailable',
+      message: 'Agent restriction check is temporarily unavailable',
+      tool: toolName,
+    });
   }
 
   try {

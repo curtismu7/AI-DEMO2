@@ -76,6 +76,7 @@ import { requiredFlagsForUseCase } from "../utils/requiredDemoFlags";
 import { isApprovalBlockError, isStepUpBlockError } from "../utils/stepUpError";
 import apiClient from "../services/apiClient";
 import { formatAxiosError } from "../utils/formatAxiosError";
+import { windowTranscript } from "../utils/transcriptWindow";
 import { adminCustomerContext } from "../services/adminCustomerContext";
 import ScopePicker from "./ScopePicker";
 import ComplianceModal from "./ComplianceModal";
@@ -498,6 +499,12 @@ export default function BankingAgent({
   // land between scheduled polls; waking the exact in-flight poller makes the
   // retry deterministic instead of waiting on (or losing) its next timer.
   const cibaPollersRef = useRef(new Map());
+  // Pending setTimeout ids for the recursive CIBA poll chains below, keyed the
+  // same as cibaPollersRef, plus a flag so an in-flight fetch's continuation
+  // (already past the last cleared timer) still no-ops after unmount instead
+  // of calling addMessage/runAction against a dead component instance.
+  const cibaPollTimeoutsRef = useRef(new Map());
+  const cibaUnmountedRef = useRef(false);
   useEffect(() => {
     const wakeCibaPoller = (event) => {
       try {
@@ -506,7 +513,12 @@ export default function BankingAgent({
       } catch (_) { /* ignore unrelated storage events */ }
     };
     window.addEventListener('storage', wakeCibaPoller);
-    return () => window.removeEventListener('storage', wakeCibaPoller);
+    return () => {
+      window.removeEventListener('storage', wakeCibaPoller);
+      cibaUnmountedRef.current = true;
+      cibaPollTimeoutsRef.current.forEach((timeoutId) => clearTimeout(timeoutId));
+      cibaPollTimeoutsRef.current.clear();
+    };
   }, []);
   const prewarmGuardRef = useRef(null);
   if (!prewarmGuardRef.current) prewarmGuardRef.current = makeReentrancyGuard();
@@ -633,6 +645,8 @@ export default function BankingAgent({
   const [resultPanel, setResultPanel] = useState(null);
   const resultPanelRef = useRef(null);
   const terminologyRef = useRef(null);
+  /** Guards refreshAfterTransaction below against out-of-order fetch resolution. */
+  const refreshRequestIdRef = useRef(0);
   /** Live bounding rect of the agent panel — used to anchor the results pop-out */
   const [agentBounds, setAgentBounds] = useState(null);
   /** MCP server connection status for header display */
@@ -1982,6 +1996,46 @@ export default function BankingAgent({
     for (const t of availableTools) if (t && t.name) map[t.name] = t;
     return map;
   }, [availableTools]);
+  // Long-running sessions render the full transcript with no cap — every
+  // message bubble stays mounted for the life of the conversation. Cap the
+  // default render to the most recent N, with a manual "show earlier"
+  // escape hatch rather than a virtualization dependency.
+  const TRANSCRIPT_RECENT_CAP = 150;
+  const [transcriptShowAll, setTranscriptShowAll] = useState(false);
+  // proofRunId -> id of the LAST assistant bubble carrying that run's verdict.
+  // The transcript's role filter always includes "assistant" regardless of
+  // showRfcInfo (that flag only adds "token-event" rows), so no filter
+  // replication is needed here. Used by the message-list render to find "is
+  // this row the one that shows the ProofStrip" in O(1) instead of an O(N)
+  // slice+some scan per assistant row (O(N^2) total, re-run on every render
+  // including streaming token updates).
+  const lastProofBubbleIdByRunId = useMemo(() => {
+    const map = new Map();
+    for (const m of messages) {
+      if (m.role === "assistant" && m.proofRunId != null) {
+        map.set(m.proofRunId, m.id); // later messages overwrite — last one wins
+      }
+    }
+    return map;
+  }, [messages]);
+  // Transcript role filter, extracted so the recent-N cap below can slice it
+  // — identical predicate to what the render used inline before this fix.
+  const transcriptFilteredMsgs = useMemo(
+    () =>
+      messages.filter(
+        (msg) =>
+          msg.role === "user" ||
+          msg.role === "assistant" ||
+          msg.role === "error" ||
+          (showRfcInfo && msg.role === "token-event"),
+      ),
+    [messages, showRfcInfo],
+  );
+  const { hiddenCount: transcriptHiddenCount, visible: visibleFilteredMsgs } = windowTranscript(
+    transcriptFilteredMsgs,
+    TRANSCRIPT_RECENT_CAP,
+    transcriptShowAll,
+  );
   // Cold-start warm of the PingOne Authorize connection as soon as the user is
   // logged in, so the first tool discovery / tool call doesn't blip into the
   // "Demo Authorize" degraded fallback. Best-effort + server-side throttled.
@@ -8272,15 +8326,19 @@ export default function BankingAgent({
 
   // Cancel any in-flight agent request when this instance unmounts OR the
   // route changes away from where it was issued — prevents state updates on
-  // a dead/wrong instance and mis-attributed Token Chain events.
+  // a dead/wrong instance and mis-attributed Token Chain events. Also aborts
+  // useAgentRun's own AbortController-driven stream (aguiRun) — that one was
+  // previously left running past unmount, calling onEvent/onStateSnapshot/
+  // onFinished closures over a dead instance's setState functions.
   useEffect(() => {
     return () => {
       if (sendAbortRef.current) {
         try { sendAbortRef.current.abort(); } catch (_) {}
         sendAbortRef.current = null;
       }
+      aguiAbort();
     };
-  }, [location.pathname]);
+  }, [location.pathname, aguiAbort]);
 
   // Keep resultPanelRef current so the refresh handler below can read it without stale closure.
   useEffect(() => {
@@ -8310,11 +8368,17 @@ export default function BankingAgent({
     const refreshAfterTransaction = () => {
       const currentPanel = resultPanelRef.current;
       const terminology = terminologyRef.current;
+      // banking-transaction-completed can fire twice in quick succession;
+      // if an older fetch resolves after a newer one, applying its result
+      // would silently revert the panel to stale data. Only the response
+      // matching the request id captured at ITS OWN dispatch time may apply.
+      const requestId = ++refreshRequestIdRef.current;
 
       // Always refresh liveAccounts (drives form dropdowns + accounts/balance result panels)
       fetch("/api/accounts/my", { credentials: "include" })
         .then((r) => (r.ok ? r.json() : null))
         .then((data) => {
+          if (requestId !== refreshRequestIdRef.current) return;
           if (!data?.accounts?.length) return;
           const fresh = data.accounts.map(normalizeAccountRow);
           setLiveAccounts(fresh);
@@ -8342,6 +8406,7 @@ export default function BankingAgent({
         fetch("/api/transactions/my?limit=30", { credentials: "include" })
           .then((r) => (r.ok ? r.json() : null))
           .then((data) => {
+            if (requestId !== refreshRequestIdRef.current) return;
             if (!data?.transactions) return;
             setResultPanel({
               type: "transactions",
@@ -8579,20 +8644,20 @@ export default function BankingAgent({
     const apiBase = process.env.REACT_APP_API_URL || "";
     let settled = false;
     const poll = async () => {
-      if (settled) return;
+      if (settled || cibaUnmountedRef.current) return;
       let res;
       try {
         res = await fetch(`${apiBase}/api/auth/ciba/poll/${authReqId}`, {
           credentials: "include",
         });
       } catch (_) {
-        setTimeout(poll, intervalMs);
+        cibaPollTimeoutsRef.current.set(authReqId, setTimeout(poll, intervalMs));
         return;
       }
       // 404 after another poller already approved is a soft miss — ignore once
       // we have resumed. 403/410 remain hard terminal denies.
       if (res.status === 404) {
-        if (settled) return;
+        if (settled || cibaUnmountedRef.current) return;
         const data = await res.json().catch(() => ({}));
         addMessage(
           "assistant",
@@ -8602,6 +8667,7 @@ export default function BankingAgent({
         agentFlowDiagram.completeMfaChallenge(false);
         setCibaApproving(null);
         cibaPollersRef.current.delete(authReqId);
+        cibaPollTimeoutsRef.current.delete(authReqId);
         settled = true;
         return;
       }
@@ -8615,24 +8681,26 @@ export default function BankingAgent({
         agentFlowDiagram.completeMfaChallenge(false);
         setCibaApproving(null);
         cibaPollersRef.current.delete(authReqId);
+        cibaPollTimeoutsRef.current.delete(authReqId);
         settled = true;
         return;
       }
       const data = await res.json().catch(() => ({}));
       if (data.status === "approved") {
-        if (settled) return;
+        if (settled || cibaUnmountedRef.current) return;
         settled = true;
         agentFlowDiagram.completeMfaChallenge(true);
         setCibaApproving(null);
         cibaPollersRef.current.delete(authReqId);
+        cibaPollTimeoutsRef.current.delete(authReqId);
         runAction(actionId, form, { isRefire: true });
         return;
       }
       // still pending
-      setTimeout(poll, intervalMs);
+      cibaPollTimeoutsRef.current.set(authReqId, setTimeout(poll, intervalMs));
     };
     cibaPollersRef.current.set(authReqId, poll);
-    setTimeout(poll, intervalMs);
+    cibaPollTimeoutsRef.current.set(authReqId, setTimeout(poll, intervalMs));
   };
 
   /**
@@ -8955,18 +9023,18 @@ export default function BankingAgent({
     const apiBase = process.env.REACT_APP_API_URL || "";
     let settled = false;
     const poll = async () => {
-      if (settled) return;
+      if (settled || cibaUnmountedRef.current) return;
       let res;
       try {
         res = await fetch(`${apiBase}/api/auth/ciba/poll/${authReqId}`, {
           credentials: "include",
         });
       } catch (_) {
-        setTimeout(poll, intervalMs);
+        cibaPollTimeoutsRef.current.set(authReqId, setTimeout(poll, intervalMs));
         return;
       }
       if (res.status === 404) {
-        if (settled) return;
+        if (settled || cibaUnmountedRef.current) return;
         const data = await res.json().catch(() => ({}));
         addMessage(
           "assistant",
@@ -8976,6 +9044,7 @@ export default function BankingAgent({
         agentFlowDiagram.completeMfaChallenge(false);
         setCibaApproving(null);
         cibaPollersRef.current.delete(authReqId);
+        cibaPollTimeoutsRef.current.delete(authReqId);
         settled = true;
         return;
       }
@@ -8989,16 +9058,18 @@ export default function BankingAgent({
         agentFlowDiagram.completeMfaChallenge(false);
         setCibaApproving(null);
         cibaPollersRef.current.delete(authReqId);
+        cibaPollTimeoutsRef.current.delete(authReqId);
         settled = true;
         return;
       }
       const data = await res.json().catch(() => ({}));
       if (data.status === "approved") {
-        if (settled) return;
+        if (settled || cibaUnmountedRef.current) return;
         settled = true;
         agentFlowDiagram.completeMfaChallenge(true);
         setCibaApproving(null);
         cibaPollersRef.current.delete(authReqId);
+        cibaPollTimeoutsRef.current.delete(authReqId);
         setNlLoading(true);
         try {
           emitResumeDispatch("sent", { text, useCaseId: useCaseId || null, exit: "ciba-retry" });
@@ -9031,10 +9102,10 @@ export default function BankingAgent({
         return;
       }
       // still pending
-      setTimeout(poll, intervalMs);
+      cibaPollTimeoutsRef.current.set(authReqId, setTimeout(poll, intervalMs));
     };
     cibaPollersRef.current.set(authReqId, poll);
-    setTimeout(poll, intervalMs);
+    cibaPollTimeoutsRef.current.set(authReqId, setTimeout(poll, intervalMs));
   };
 
   const handleP1MfaError = (errorMsg) => {
@@ -11228,14 +11299,17 @@ export default function BankingAgent({
                     </p>
                   </div>
                 )}
-                {messages
-                  .filter(
-                    (msg) =>
-                      msg.role === "user" ||
-                      msg.role === "assistant" ||
-                      msg.role === "error" ||
-                      (showRfcInfo && msg.role === "token-event"),
-                  )
+                {transcriptHiddenCount > 0 && (
+                  <button
+                    type="button"
+                    className="ba-show-earlier-btn"
+                    onClick={() => setTranscriptShowAll(true)}
+                  >
+                    Show {transcriptHiddenCount} earlier message
+                    {transcriptHiddenCount === 1 ? "" : "s"}
+                  </button>
+                )}
+                {visibleFilteredMsgs
                   .map((msg, msgIdx, filteredMsgs) => {
                     // One strip per RUN, on that run's last assistant bubble.
                     // A run can emit several bubbles ("Running Demo step 1…"
@@ -11244,13 +11318,7 @@ export default function BankingAgent({
                     const showProofFor =
                       msg.role === "assistant" &&
                       msg.proofRunId != null &&
-                      !filteredMsgs
-                        .slice(msgIdx + 1)
-                        .some(
-                          (m) =>
-                            m.role === "assistant" &&
-                            m.proofRunId === msg.proofRunId,
-                        )
+                      lastProofBubbleIdByRunId.get(msg.proofRunId) === msg.id
                         ? msg.proofRunId
                         : null;
                     if (msg.role === "reasoning") {

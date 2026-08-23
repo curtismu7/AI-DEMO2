@@ -1,7 +1,7 @@
 // Compact full-pipeline trace rail for the portal token rails and the agent
 // TokenChainModal. Single-column by construction (no viewport media queries).
 // Spec: docs/superpowers/specs/2026-07-02-token-chain-trace-rail-design.md
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import apiClient from "../services/apiClient";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
 import { MCP_STEP_IDS, buildRunStory, chainBadge } from "../services/tokenChainTrace/buildTraceSteps";
@@ -349,12 +349,14 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
   }, [tokenChain, mcpRouteOnly]);
 
   const { trace } = snap;
-  const classicSteps = mcpRouteOnly
-    ? snap.steps.filter((s) => MCP_STEP_IDS.includes(s.id))
-    : snap.steps;
-  const steps = viewMode === "classic"
-    ? classicSteps
-    : buildLiveTokenChainSteps(classicSteps, trace);
+  const classicSteps = useMemo(
+    () => (mcpRouteOnly ? snap.steps.filter((s) => MCP_STEP_IDS.includes(s.id)) : snap.steps),
+    [snap.steps, mcpRouteOnly],
+  );
+  const steps = useMemo(
+    () => (viewMode === "classic" ? classicSteps : buildLiveTokenChainSteps(classicSteps, trace)),
+    [viewMode, classicSteps, trace],
+  );
   const dots = mcpRouteOnly ? MCP_ROUTE_DOTS : CHAIN_DOTS;
   // Clearing a run (or switching to a Live view that has not produced steps
   // yet) must drop both the selection and the presenter. Otherwise the flag

@@ -7,6 +7,7 @@ import { useEducationUI } from "../context/EducationUIContext";
 import apiClient from "../services/apiClient";
 import { persistAgentUi } from "../services/demoScenarioService";
 import { performLogout } from "../services/logout";
+import { notifyError } from "../utils/appToast";
 import { spinner } from "../services/spinnerService";
 import { navigateToCustomerOAuthLogin } from "../utils/authUi";
 import { setDashboardLayout } from "../utils/dashboardLayout";
@@ -381,7 +382,7 @@ export default function AdminSideNav({
         .then((data) => {
           if (!cancelled) setVerticals(Array.isArray(data) ? data : []);
         })
-        .catch(() => {});
+        .catch((err) => console.error("[Sidebar] Vertical list load failed:", err.message));
     };
     load();
     window.addEventListener("vertical-list-changed", load);
@@ -408,7 +409,8 @@ export default function AdminSideNav({
         // the banner/title/dialog update without a manual reload.
         await refetchVertical();
         setSwitchingVertical(false);
-      } catch {
+      } catch (err) {
+        console.error("[Sidebar] Switch vertical failed:", err.message);
         setSwitchingVertical(false);
       }
     },
@@ -1230,12 +1232,21 @@ export default function AdminSideNav({
 
   const handleResetConfirm = async () => {
     setShowResetModal(false);
+    let resetOk = false;
     try {
-      await fetch("/api/admin/reset-demo", {
+      const res = await fetch("/api/admin/reset-demo", {
         method: "POST",
         credentials: "include",
       });
-    } catch (_) {}
+      resetOk = res.ok;
+      if (!resetOk) console.error("[Sidebar] Reset Demo failed:", res.status);
+    } catch (err) {
+      console.error("[Sidebar] Reset Demo failed:", err.message);
+    }
+    if (!resetOk) {
+      notifyError("Reset Demo failed. Please try again.");
+      return;
+    }
     try {
       localStorage.removeItem("tokenChainHistory");
     } catch (_) {}

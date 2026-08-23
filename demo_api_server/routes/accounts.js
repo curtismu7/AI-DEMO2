@@ -74,7 +74,13 @@ router.get('/', authenticateToken, requireScopes(['read']), async (req, res) => 
     if (req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Access denied. Admin role required.' });
     }
-    const accounts = dataStore.getAllAccounts();
+    const allAccounts = dataStore.getAllAccounts();
+    const total = allAccounts.length;
+    const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+    const limit = Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || total || 1));
+    const accounts = (req.query.limit || req.query.offset)
+      ? allAccounts.slice(offset, offset + limit)
+      : allAccounts;
     const allUsers = dataStore.getAllUsers();
     const userMap = {};
     for (const u of allUsers) {
@@ -89,7 +95,7 @@ router.get('/', authenticateToken, requireScopes(['read']), async (req, res) => 
         ownerName: owner ? `${owner.firstName || ''} ${owner.lastName || ''}`.trim() : null,
       };
     });
-    res.json({ accounts: enriched });
+    res.json({ accounts: enriched, total });
   } catch (error) {
     console.error('Error getting accounts:', error);
     res.status(500).json({ error: 'Failed to get accounts' });

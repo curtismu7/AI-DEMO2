@@ -109,4 +109,30 @@ describe('GET /api/agent/runs', () => {
     const pending = res.body.runs.find((r) => r.runId === 'run-pending');
     expect(pending.status).toBe('in_progress');
   });
+
+  // Regression guard: GET /runs previously returned every run in the store
+  // (up to the 500-entry cap) with no way to page through them.
+  test('supports limit/offset pagination while defaulting to the full list', async () => {
+    for (let i = 0; i < 5; i++) {
+      agentRunModule().__test._recordTraceEvents(
+        `run-page-${i}`,
+        sseChunk({ type: 'RUN_STARTED', runId: `run-page-${i}` }),
+        'user-4',
+        'langchain',
+      );
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise((r) => setTimeout(r, 2));
+    }
+
+    const full = await request(makeApp('user-4')).get('/api/agent/runs');
+    expect(full.body.runs.length).toBe(5);
+    expect(full.body.total).toBe(5);
+
+    const page = await request(makeApp('user-4')).get('/api/agent/runs?limit=2&offset=1');
+    expect(page.body.runs.length).toBe(2);
+    expect(page.body.total).toBe(5);
+    // Newest-first ordering preserved across the paginated slice.
+    expect(page.body.runs[0].runId).toBe(full.body.runs[1].runId);
+    expect(page.body.runs[1].runId).toBe(full.body.runs[2].runId);
+  });
 });

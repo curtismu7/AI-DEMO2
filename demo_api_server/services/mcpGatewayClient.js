@@ -314,7 +314,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         const agentOrigin = new URL(
             process.env.WBA_SIGNATURE_AGENT_URL
             || process.env.BFF_BASE_URL
-            || 'http://localhost:3001'
+            || 'https://localhost:3001'
         ).origin;
         Object.assign(headers, signWebBotAuthHeaders({
             authority: new URL(url).host,
