@@ -430,11 +430,18 @@ align_internal_secret() {
     --from-literal=BFF_INTERNAL_SECRET="$secret" --dry-run=client -o yaml \
     | kubectl apply -f - >/dev/null 2>&1 || true
   local s
-  for s in ai-demo-secrets gateway-secrets agent-secrets ping-gateway-secrets mcp-resource-server-secrets; do
+  # langchain-secrets belongs here too: langchain_agent compares this value in
+  # its _gate_internal middleware (src/main.py), but it was omitted, so the
+  # agent kept whatever langchain_agent/.env happened to carry. When the two
+  # .env files disagreed the mismatch surfaced only as an opaque
+  # `{"detail":"Invalid gateway secret"}` 403 on /api/codegraph/query — the
+  # Code Explorer smoke check — with nothing naming the secret as the cause.
+  # "agent-secrets" in this list is demo_agent_service, a different service.
+  for s in ai-demo-secrets gateway-secrets agent-secrets langchain-secrets ping-gateway-secrets mcp-resource-server-secrets; do
     printf '{"stringData":{"BFF_INTERNAL_SECRET":"%s"}}' "$secret" \
       | kubectl patch secret "$s" --namespace="$NS" --type merge --patch-file /dev/stdin >/dev/null 2>&1 || true
   done
-  info "  BFF_INTERNAL_SECRET aligned across BFF + gateway + agent + ping-gateway + mcp-resource-server"
+  info "  BFF_INTERNAL_SECRET aligned across BFF + gateway + agent + langchain + ping-gateway + mcp-resource-server"
 }
 
 # ── Per-service secrets (one per .env, mirroring docker-compose env_file) ─────
