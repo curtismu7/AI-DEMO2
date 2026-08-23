@@ -369,7 +369,18 @@ module.exports = async function decisionHandler(req, res) {
   // bypass: the client must obtain a gateway-targeted token and let the gateway
   // exchange it for the next hop. Only TokenAudActual (the real introspected
   // aud) is authoritative; older callers that omit it keep the legacy behaviour.
-  if (TokenAudActual) {
+  //
+  // ID-JAG filter (parity with GatewayTokenPolicy.ts's isIdJagIssuedToken and
+  // p1az-decision.groovy's isExternalDoorToken): native ID-JAG redemption (MCP
+  // Enterprise-Managed Authorization) legitimately mints a token audienced for
+  // the OLB server itself — that IS the extension's model, a per-server grant
+  // with no intermediary. Such a token is otherwise indistinguishable from the
+  // one D-05 exists to block. TokenIss is the gateway's own introspected/decoded
+  // claim (not caller-suppliable independent of the token), so this is no
+  // weaker than the TypeScript/Groovy mirrors of the same check.
+  const idJagIssuer = process.env.OAUTH_MCP_ID_JAG_ISSUER || process.env.OAUTH_MCP_ISSUER_URI || 'https://localhost:8080';
+  const isIdJagIssuedToken = Boolean(idJagIssuer && TokenIss && TokenIss === idJagIssuer);
+  if (TokenAudActual && !isIdJagIssuedToken) {
     let actualList;
     try {
       const parsed = JSON.parse(TokenAudActual);
