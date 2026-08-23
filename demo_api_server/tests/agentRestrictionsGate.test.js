@@ -185,6 +185,47 @@ test('fails OPEN when AGENT_RESTRICTIONS_FAILOVER=permit and creds missing', asy
   }
 });
 
+// Regression guard: an agent-originated request with no session user AND an
+// undecodable Bearer token previously hit the ONE branch in this file that
+// unconditionally called next() regardless of AGENT_RESTRICTIONS_FAILOVER --
+// contradicting the module's own documented fail-closed default.
+test('fails CLOSED (503) when no userId is resolvable (malformed Bearer JWT, no session user) — default', async () => {
+  const prevFo = process.env.AGENT_RESTRICTIONS_FAILOVER;
+  delete process.env.AGENT_RESTRICTIONS_FAILOVER;
+  try {
+    const req = {
+      headers: { authorization: 'Bearer header.not-valid-base64url-json!!!.sig' },
+      session: {},
+      user: { actor: { sub: 'some-agent' } },
+    };
+    await agentRestrictionsGate(req, mockRes, mockNext);
+    expect(mockNext).not.toHaveBeenCalled();
+    expect(mockRes.status).toHaveBeenCalledWith(503);
+    expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
+      code: 'agent_restrictions_unavailable',
+    }));
+  } finally {
+    if (prevFo === undefined) delete process.env.AGENT_RESTRICTIONS_FAILOVER; else process.env.AGENT_RESTRICTIONS_FAILOVER = prevFo;
+  }
+});
+
+test('fails OPEN (next()) when no userId is resolvable and AGENT_RESTRICTIONS_FAILOVER=permit', async () => {
+  const prevFo = process.env.AGENT_RESTRICTIONS_FAILOVER;
+  process.env.AGENT_RESTRICTIONS_FAILOVER = 'permit';
+  try {
+    const req = {
+      headers: { authorization: 'Bearer header.not-valid-base64url-json!!!.sig' },
+      session: {},
+      user: { actor: { sub: 'some-agent' } },
+    };
+    await agentRestrictionsGate(req, mockRes, mockNext);
+    expect(mockNext).toHaveBeenCalled();
+    expect(mockRes.status).not.toHaveBeenCalled();
+  } finally {
+    if (prevFo === undefined) delete process.env.AGENT_RESTRICTIONS_FAILOVER; else process.env.AGENT_RESTRICTIONS_FAILOVER = prevFo;
+  }
+});
+
 test('resolves userId from Bearer JWT when session has no user', async () => {
   // A minimal JWT payload: base64url-encode { sub: 'bearer-user-id' }
   const payload = Buffer.from(JSON.stringify({ sub: 'bearer-user-id' })).toString('base64url');

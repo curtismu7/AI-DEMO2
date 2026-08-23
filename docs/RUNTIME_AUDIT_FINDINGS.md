@@ -29,7 +29,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 9 | Swallowed | `middleware/delegationGate.js` | high | FIXED |
 | 10 | Swallowed | `demo_api_ui/.../AdminSideNav.jsx` (reset demo) | high | FIXED |
 | 11 | Swallowed | `demo_api_ui/.../DelegationPage.js` | high | FIXED |
-| 12 | Swallowed | `middleware/agentRestrictionsGate.js` | medium | OPEN |
+| 12 | Swallowed | `middleware/agentRestrictionsGate.js` | medium | FIXED |
 | 13 | Swallowed | `routes/agentAuthorization.js` | medium | OPEN |
 | 14 | Swallowed | `demo_api_ui/.../AdminSideNav.jsx` (vertical list) | medium | OPEN |
 | 15 | Swallowed | `demo_api_ui/.../AdminSideNav.jsx` (switch vertical) | medium | OPEN |
@@ -333,7 +333,7 @@ a full page reload).
 working + updates badge) — both confirmed to fail against the pre-fix file
 and pass against the fix. `cd demo_api_ui && npx vitest run src/components/__tests__/DelegationPage.agentAuthToggle.test.js src/components/__tests__/DelegationPage.approval.test.js` — 2 files / 4 tests passed; `npm run build` exit 0.
 
-### 12. Agent-restrictions gate has one fail-open branch contradicting its own contract — OPEN
+### 12. Agent-restrictions gate has one fail-open branch contradicting its own contract — FIXED
 
 **File:** `demo_api_server/middleware/agentRestrictionsGate.js`, lines 123–142
 
@@ -346,8 +346,16 @@ only one of 4 similar branches in this file that skips `failoverPermits()`/503.
 undecodable Bearer token, with `ff_agent_restrictions` on — skips the
 tier-restriction check entirely.
 
-**Fix (not yet applied):** Route through the same `failoverPermits()`/503
-pattern used elsewhere in this file.
+**Fix:** The `!userId` branch now routes through the exact same
+`failoverPermits()`/503 pattern used by the other 3 "can't determine"
+branches in this file (worker token missing, PingOne non-2xx, unexpected
+exception).
+
+**Evidence:** 2 new tests (fails closed by default; fails open when
+`AGENT_RESTRICTIONS_FAILOVER=permit`) mirroring the file's existing
+fails-CLOSED/fails-OPEN pair pattern for the other branches. The
+fails-closed test confirmed to fail against the pre-fix file (`next()` was
+called unconditionally) and pass against the fix. `cd demo_api_server && CI=true npx jest tests/agentRestrictionsGate.test.js --forceExit` — 11/11 passed.
 
 ### 13. Unbounded revoke-retry loop with no attempt cap — OPEN
 
@@ -549,6 +557,11 @@ redundantly re-parsing/re-diffing the same JSON twice each.
 
 ## Changelog
 
+- 2026-08-23 — #12 FIXED: `agentRestrictionsGate.js`'s `!userId` branch now
+  routes through the same `failoverPermits()`/503 pattern as the other 3
+  "can't determine" branches, instead of unconditionally calling `next()`.
+  New fails-closed test proven to fail against the pre-fix file and pass
+  against the fix.
 - 2026-08-23 — #11 FIXED: `DelegationPage.js`'s `AgentAuthorizationCard` now
   surfaces `setAgentAuthorization` failures via `notifyError` and moved
   `setWorking(false)` to a `finally` (it was previously stuck-on on a
