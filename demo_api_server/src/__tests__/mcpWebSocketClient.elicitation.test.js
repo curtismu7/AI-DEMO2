@@ -132,4 +132,36 @@ describe('mcpWebSocketClient — elicitation/create (server-initiated request)',
     await callPromise;
     await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
   });
+
+  it('does not terminate the socket while a human elicitation response is still pending past the 15s round-trip budget (timeout-race regression guard)', async () => {
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+    try {
+      const callPromise = mcpCallTool('get_my_accounts', {}, 'agent-token', 'user-1', 'corr-1');
+      await openAndHandshake(callPromise);
+
+      sendElicitationCreate();
+      await Promise.resolve(); await Promise.resolve();
+
+      // Advance well past the 15s outer budget while the human hasn't answered
+      // yet. Before the fix, the outer timeout fires unconditionally here,
+      // terminates the socket, and rejects callPromise — losing the in-flight
+      // elicitation entirely.
+      jest.advanceTimersByTime(20000);
+      expect(MockedWebSocket.lastInstance.terminate).not.toHaveBeenCalled();
+
+      // The human finally answers, well past the original 15s budget.
+      resolveElicitation('elic-1', { action: 'accept', content: { confirm: true } });
+      await Promise.resolve(); await Promise.resolve();
+
+      const responseFrame = MockedWebSocket.lastInstance.send.mock.calls
+        .map((c) => JSON.parse(c[0]))
+        .find((m) => m.id === 'elic-1');
+      expect(responseFrame.result).toEqual({ action: 'accept', content: { confirm: true } });
+
+      finishFollowResponse();
+      await expect(callPromise).resolves.toBeDefined();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });
