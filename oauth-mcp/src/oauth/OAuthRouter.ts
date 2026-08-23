@@ -3,10 +3,23 @@ import * as crypto from 'crypto';
 import { URL } from 'url';
 import axios from 'axios';
 import { SigningKeyManager } from './SigningKeyManager';
-import { ClientRegistry, openClientRegistrationEnabled, openRegistrationScope } from './ClientRegistry';
+import { ClientRegistry, OAuthClient, openClientRegistrationEnabled, openRegistrationScope } from './ClientRegistry';
 import { TokenStore } from './TokenStore';
 import { TokenIssuer } from './TokenIssuer';
 import { createJwksKeySet, getJose } from '../auth/jwks';
+import {
+  verifyIdJag, IdJagError, JWT_BEARER_GRANT, ID_JAG_GRANT_PROFILE, VerifyOpts,
+} from './IdJagGrantHandler';
+import { resolveAudience } from './TokenIssuer';
+
+/**
+ * Native ID-JAG (MCP Enterprise-Managed Authorization) engages only when BOTH
+ * the enterprise IdP's issuer and its JWKS endpoint are configured. Both are
+ * unset by default, so the demo's RFC 8693 stand-in path is unaffected.
+ */
+export function nativeIdJagEnabled(): boolean {
+  return Boolean(process.env.ENTERPRISE_IDP_ISSUER && process.env.ENTERPRISE_IDP_JWKS_URL);
+}
 
 /**
  * OAuth 2.0 Authorization Server HTTP router.
@@ -64,7 +77,14 @@ export class OAuthRouter {
       registration_endpoint: `${this.issuer}/register`,
       scopes_supported: ['mcp:invoke', 'read', 'write'],
       response_types_supported: ['code'],
-      grant_types_supported: ['authorization_code', 'client_credentials'],
+      // jwt-bearer is advertised only when we would actually honour it — a
+      // client that sees it here will present an ID-JAG instead of redirecting.
+      grant_types_supported: nativeIdJagEnabled()
+        ? ['authorization_code', 'client_credentials', JWT_BEARER_GRANT]
+        : ['authorization_code', 'client_credentials'],
+      ...(nativeIdJagEnabled()
+        ? { authorization_grant_profiles_supported: [ID_JAG_GRANT_PROFILE] }
+        : {}),
       token_endpoint_auth_methods_supported: ['client_secret_basic', 'client_secret_post', 'none'],
       code_challenge_methods_supported: ['S256'],
       service_documentation: `${this.issuer}/.well-known/mcp-server`,
@@ -322,9 +342,72 @@ export class OAuthRouter {
         this.json(res, 200, tokenResponse);
         return true;
       }
+      case JWT_BEARER_GRANT: {
+        if (!nativeIdJagEnabled()) {
+          this.json(res, 400, { error: 'unsupported_grant_type' });
+          return true;
+        }
+        const assertion = params.get('assertion');
+        if (!assertion) {
+          this.json(res, 400, { error: 'invalid_request', error_description: 'assertion is required' });
+          return true;
+        }
+        const outcome = await this.redeemIdJag(assertion, client);
+        this.json(res, outcome.status, outcome.body);
+        return true;
+      }
       default:
         this.json(res, 400, { error: 'unsupported_grant_type' });
         return true;
+    }
+  }
+
+  /** Verification inputs for an inbound ID-JAG. */
+  private idJagVerifyOpts(): VerifyOpts {
+    return {
+      idpIssuer: process.env.ENTERPRISE_IDP_ISSUER as string,
+      ownIssuer: this.issuer,
+      acceptedResources: resolveAudience(),
+      getKey: (async (protectedHeader: unknown) => {
+        const { createRemoteJWKSet } = await getJose();
+        const keySet = createRemoteJWKSet(new URL(process.env.ENTERPRISE_IDP_JWKS_URL as string));
+        return (keySet as unknown as (h: unknown) => Promise<never>)(protectedHeader);
+      }) as VerifyOpts['getKey'],
+    };
+  }
+
+  /**
+   * Redeem a verified ID-JAG for an access token (MCP Enterprise-Managed
+   * Authorization). No browser redirect is involved: the enterprise IdP has
+   * already evaluated policy, and this endpoint only honours what it signed.
+   *
+   * issueAuthorizationCode is reused deliberately — it already sets an arbitrary
+   * subject and clamps the requested scope to the client's registered scope via
+   * resolveScope. Passing the assertion's scope through therefore yields exactly
+   * the intersection the extension requires (assertion AND client), so no
+   * separate issuer method is needed.
+   */
+  private async redeemIdJag(
+    assertion: string,
+    client: OAuthClient,
+  ): Promise<{ status: number; body: Record<string, unknown> }> {
+    try {
+      const claims = await verifyIdJag(assertion, this.idJagVerifyOpts());
+      // Account linking, per the extension: `sub` is the stable primary
+      // identifier; `email` is only a fallback for accounts predating
+      // enterprise-managed authorization.
+      const subject = claims.sub || claims.email;
+      if (!subject) {
+        return {
+          status: 400,
+          body: { error: 'invalid_grant', error_description: 'ID-JAG carries neither sub nor email' },
+        };
+      }
+      const tokenResponse = await this.tokenIssuer.issueAuthorizationCode(client, subject, claims.scope);
+      return { status: 200, body: tokenResponse as unknown as Record<string, unknown> };
+    } catch (err) {
+      const oauthError = err instanceof IdJagError ? err.oauthError : 'invalid_grant';
+      return { status: 400, body: { error: oauthError, error_description: (err as Error).message } };
     }
   }
 
