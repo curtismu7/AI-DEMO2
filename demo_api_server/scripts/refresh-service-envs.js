@@ -726,6 +726,15 @@ async function main() {
     // isn't a valid URI, so it needs a scheme.
     DELEGATION_RESOURCE_AUDIENCE:   'https://test',
     DELEGATION_RESOURCE_SCOPE:      'test',
+    // ping-gateway/config/routes/00-mcp-external-door.json (public MCP door for
+    // external agents like LM Studio/Claude Desktop, host cmuir-mcp.ping-devops.com
+    // hardcoded in that route's own condition). ExternalDoorProtection's
+    // resourceId/authorizationServerUri — tokens here come from oauth-mcp's OWN
+    // embedded AS, not PingOne, so this is a distinct identity from
+    // PG_GATEWAY_RESOURCE_ID above. No topology SoT entry exists for this
+    // single-purpose SE-cluster endpoint; fb() lets it be overridden per-deploy.
+    PG_EXTERNAL_DOOR_RESOURCE_ID:   fb('PG_EXTERNAL_DOOR_RESOURCE_ID') || 'https://cmuir-mcp.ping-devops.com/mcp',
+    OAUTH_MCP_ISSUER_URI:           fb('OAUTH_MCP_ISSUER_URI') || 'https://cmuir-mcp.ping-devops.com',
   });
   console.log('[refresh-envs] Wrote ping-gateway/.env');
 
