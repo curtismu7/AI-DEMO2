@@ -1,4 +1,5 @@
 import { IEncryptedTokenStorage } from '../storage/interfaces';
+import { JWT_BEARER_GRANT } from './IdJagGrantHandler';
 
 export interface OAuthClient {
   client_id: string;
@@ -155,6 +156,22 @@ export class ClientRegistry {
         client_name: 'MCP Inspector (public)',
         grant_types: ['authorization_code'],
         redirect_uris: ['http://localhost:6274/oauth/callback', 'http://127.0.0.1:6274/oauth/callback'],
+        token_endpoint_auth_method: 'none',
+        scope: 'mcp:invoke read write',
+      },
+      {
+        // MCP Enterprise-Managed Authorization (ID-JAG) redemption. Public, not
+        // secret-authenticated: per the extension, the verified ID-JAG assertion
+        // IS the authorization (IdJagGrantHandler.ts's own comment), so this
+        // client_id only needs to be *recognized*, the same reasoning
+        // mcp-inspector already gets 'none' for. Without this entry, every
+        // redemption failed invalid_client / "Client authentication failed" —
+        // demo-bff-mcp-client (idJagService.js's default) was never registered.
+        client_id: 'demo-bff-mcp-client',
+        client_secret: undefined,
+        client_name: 'Demo BFF (ID-JAG redemption)',
+        grant_types: [JWT_BEARER_GRANT],
+        redirect_uris: [],
         token_endpoint_auth_method: 'none',
         scope: 'mcp:invoke read write',
       },

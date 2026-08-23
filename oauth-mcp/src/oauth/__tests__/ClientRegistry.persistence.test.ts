@@ -94,6 +94,28 @@ describe('ClientRegistry persistence', () => {
     registry.initialize();
     await expect(registry.attachStorage(broken)).resolves.toBeUndefined();
   });
+
+  // Found live 2026-08-23: idJagService.js's redeemIdJag() posts client_id
+  // 'demo-bff-mcp-client' with no client_secret (there is no secret to send —
+  // no ENTERPRISE_MCP_AS_CLIENT_SECRET config exists anywhere in this repo).
+  // The default registry never had this client at all, so every real
+  // redemption failed invalid_client / "Client authentication failed" —
+  // silently, since resolveClient()'s only fallback is CIMD, which requires a
+  // URL-shaped client_id and never applies to a plain string like this one.
+  it('recognizes the demo BFF as a public client for jwt-bearer redemption', () => {
+    const registry = new ClientRegistry();
+    registry.initialize();
+
+    const client = registry.getClient('demo-bff-mcp-client');
+    expect(client).toBeDefined();
+    expect(client?.token_endpoint_auth_method).toBe('none');
+    expect(client?.grant_types).toContain('urn:ietf:params:oauth:grant-type:jwt-bearer');
+
+    // authenticateClient with no secret — exactly what redeemIdJag() sends —
+    // must succeed, matching mcp-inspector's existing 'none' precedent.
+    const authed = registry.authenticateClient('demo-bff-mcp-client', undefined, 'token');
+    expect(authed).not.toBeNull();
+  });
 });
 
 describe('SigningKeyManager key stability', () => {
