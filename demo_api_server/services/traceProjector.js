@@ -175,13 +175,19 @@ function projectTokenExchange(traceData) {
 // Generic HTTP-server-span builder for services whose auto-instrumented
 // spans are the anchor (authz-server, mcp backends, hitl-service).
 function projectServiceCards(traceData, { services, id, title, icon, protocolLabel }) {
-  const candidates = (traceData.spans || []).filter((s) => {
+  const spans = traceData.spans || [];
+  // Precomputed once per call instead of re-scanning the full span array for
+  // every candidate span (was O(matching-spans x total-spans) per call, and
+  // this runs 3x per project() invocation).
+  const serverKindServices = new Set();
+  for (const s of spans) {
+    if (isServerSpan(tagsToObject(s.tags))) serverKindServices.add(processName(traceData, s));
+  }
+  const candidates = spans.filter((s) => {
     if (!services.includes(processName(traceData, s))) return false;
     const tags = tagsToObject(s.tags);
     // Prefer server spans; a service with no span.kind tags still anchors.
-    const anyKind = (traceData.spans || []).some(
-      (x) => processName(traceData, x) === processName(traceData, s) && isServerSpan(tagsToObject(x.tags)),
-    );
+    const anyKind = serverKindServices.has(processName(traceData, s));
     return anyKind ? isServerSpan(tags) : true;
   });
   if (!candidates.length) return null;

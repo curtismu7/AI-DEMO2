@@ -61,7 +61,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 34 | Swallowed | `demo_api_ui/.../DemoSetupPanel.js` (reset demo) | low | FIXED |
 | 35 | Perf | `services/auditLogService.js` | medium | FIXED |
 | 36 | Perf | `services/demoTrackService.js` | medium | FIXED |
-| 37 | Perf | `services/traceProjector.js` | low | OPEN |
+| 37 | Perf | `services/traceProjector.js` | low | FIXED |
 | 38 | Perf | `demo_api_ui/.../context/ActivityNarrativeContext.js` | medium | OPEN |
 | 39 | Perf | `demo_api_ui/.../ScopeAuditPage.js` | medium | OPEN |
 
@@ -1035,7 +1035,7 @@ tests/demoTrackRoute.test.js tests/demoTrack.config.test.js
 tests/demoTrackHooks.test.js tests/mcpToolAuditStore.demoTrackSessionScoping.test.js
 --forceExit --maxWorkers=4` — 6 suites / 29 tests passed.
 
-### 37. Trace projector re-scans the full span array once per matching span — OPEN
+### 37. Trace projector re-scans the full span array once per matching span — FIXED
 
 **File:** `demo_api_server/services/traceProjector.js`, line 177
 
@@ -1050,9 +1050,19 @@ invocation (`projectAuthorization`, `projectBackendApi`,
 `projectHitlApproval`), so cost scales quadratically in trace span count for
 a trace containing many spans on authz-server/mcp-server/mcp-resource-server/hitl-service.
 
-**Fix (not yet applied):** Precompute a `Set` of service names with at least
-one server-kind span in a single pass over `traceData.spans`, then have the
-filter callback do an O(1) `Set.has()` lookup.
+**Fix:** Precomputed a `serverKindServices` `Set` in a single pass over
+`spans` before the `.filter()`, then the filter callback does an O(1)
+`Set.has()` lookup instead of re-running `.some()` over the full array per
+candidate span.
+
+**Evidence:** Behavior-preserving by construction (same inputs, same
+computed output — only the re-scan is eliminated). Only `project` is
+exported from this module (`projectServiceCards` is internal), so verified
+via the existing `traceProjector.test.js` suite, which directly exercises
+`projectAuthorization`/`projectBackendApi`/`projectHitlApproval` (all
+callers of `projectServiceCards`) including a live 77-span fixture. `cd
+demo_api_server && CI=true npx jest tests/services/traceProjector.test.js
+--forceExit --maxWorkers=4` — 12/12 passed, no regressions.
 
 ### 38. Activity narrative panel's request history grows unbounded and re-maps on every turn — OPEN
 
@@ -1103,6 +1113,11 @@ from the loop bodies in `handleFixAll`/`handleFixEverything`, and call
 
 ## Changelog
 
+- 2026-08-23 — #37 FIXED: `traceProjector.js`'s `projectServiceCards`
+  precomputes a `serverKindServices` Set once instead of re-scanning the
+  full span array per candidate span. Behavior-preserving; verified via the
+  existing `traceProjector.test.js` suite (12/12, including a live 77-span
+  fixture) since only `project` is exported from this module.
 - 2026-08-23 — #36 FIXED: `demoTrackService.js` now tracks a `_lastAccessed`
   time per session bucket (touched in `_hydrate`, the shared entry point) and
   sweeps buckets idle past a 24h TTL via a periodic unref'd `setInterval`.
