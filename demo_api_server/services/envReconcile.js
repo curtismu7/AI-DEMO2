@@ -155,6 +155,11 @@ const ENV_AGNOSTIC_KEYS = new Set([
   'mcp_gateway_reject_unauthorized', 'pingone_validate_on_startup', 'mcp_gw_p1az_enabled',
   // enterprise-managed MCP auth policy (Phase 2 demo — group/resource allowlists, not env identity)
   'enterprise_mcp_allowed_groups', 'enterprise_mcp_resource_uris',
+  // native ID-JAG (Phase 3): deployment endpoints + a behavioural threshold, not env identity.
+  // NOTE: enterprise_idp_issuer becomes env-scoped the day it is pointed at a PingOne
+  // ID-JAG endpoint instead of the demo IdP — move it to ENV_SCOPED_KEYS at that point.
+  'enterprise_idp_issuer', 'enterprise_idp_jwks_url', 'enterprise_mcp_as_token_url',
+  'enterprise_mcp_policy_cache_ttl_ms',
   // ciba
   'ciba_enabled', 'ciba_token_delivery_mode', 'ciba_binding_message',
   'ciba_poll_interval_ms', 'ciba_auth_request_expiry',

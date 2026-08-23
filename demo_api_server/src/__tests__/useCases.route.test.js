@@ -11,12 +11,12 @@ function makeApp() {
 }
 
 describe('GET /api/use-cases', () => {
-  test('lists all 54 use cases, defaulting to banking', async () => {
+  test('lists all 56 use cases, defaulting to banking', async () => {
     const res = await request(makeApp()).get('/api/use-cases');
     expect(res.status).toBe(200);
     expect(res.body.vertical).toBe('banking');
-    // 55 since UC38 (personal-agent-concierge) joined the catalog.
-    expect(res.body.useCases).toHaveLength(55);
+    // 56 since UC39 (enterprise-mcp-revocation) joined the catalog.
+    expect(res.body.useCases).toHaveLength(56);
   });
 
   test('resolves per-vertical when ?vertical= is given', async () => {
