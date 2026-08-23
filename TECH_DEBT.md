@@ -16,6 +16,31 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-08-23 — `pingone_mgmt_client_id`/`_client_secret`/`_token_auth_method` are missing from `configStore.js`'s `FIELD_DEFS`
+
+**Where:** `demo_api_server/services/configStore.js` — all three keys are
+referenced in `SECRET_KEYS` (the first two) and the env-alias table (all
+three), but none appear in `FIELD_DEFS`.
+
+**What's wrong:** `setConfig()`'s unknown-key guard (`if (!(key in
+FIELD_DEFS)) continue;`) silently drops any of these three keys if ever
+written via `setConfig` — the exact same class of bug fixed for
+`pingone_mgmt_private_key` in `docs/RUNTIME_AUDIT_FINDINGS.md` finding #32.
+
+**Why it wasn't fixed now:** found while registering
+`pingone_mgmt_private_key` for finding #32, but these three appear to only
+ever be set via `.env` (`PINGONE_MGMT_CLIENT_ID`/`_SECRET`/`_TOKEN_AUTH_METHOD`
+and their aliases) in the current codebase, not via any `setConfig({...})`
+call site — `getEffective()` reads them straight through the env-alias
+fallback regardless of `FIELD_DEFS` membership, so the gap is latent, not
+currently triggered. Fixing three unrelated config keys wasn't part of
+finding #32's scope.
+
+**Real fix:** add `FIELD_DEFS` entries for all three (mirroring
+`pingone_mgmt_private_key`'s `{ public: false, default: '' }` shape, adjusted
+for which of them are secrets), so any future admin-UI or route code path
+that calls `setConfig` with one of them doesn't silently no-op.
+
 ### [ ] 2026-08-23 — `useVertical()` reshapes the context into a new object on every call, defeating the Provider's own memoization
 
 **Where:** `demo_api_ui/src/vertical/useVertical.js` — every non-null-context

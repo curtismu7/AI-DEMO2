@@ -86,6 +86,10 @@ const ENV_SCOPED_KEYS = new Set([
   'admin_population_id', 'pingone_mfa_policy_id',
   // private_key_jwt credentials for BFF admin client (tied to the PingOne app's JWK config)
   'pingone_client_jwt_private_key', 'pingone_client_jwt_kid',
+  // private_key_jwt credential for the Management API worker (same reasoning:
+  // the JWK is registered against a specific PingOne app, so it's invalidated
+  // by an env change same as the client credential it authenticates)
+  'pingone_mgmt_private_key',
   // private_key_jwt credentials for the dedicated token-exchange app (also PingOne-env-specific)
   'pingone_private_key_jwt_exchanger_client_id',
   'pingone_private_key_jwt_exchanger_private_key', 'pingone_private_key_jwt_exchanger_kid',

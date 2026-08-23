@@ -115,6 +115,7 @@ const _SECRET_KEYS_RAW = [
   'RECOGNIZE_API_KEY',
   'gw_introspection_client_secret',
   'pingone_client_jwt_private_key',
+  'pingone_mgmt_private_key',
 ];
 // Membership is UPPER-canonical: config keys are stored UPPER everywhere
 // (in-memory cache + LMDB rows), so secret detection must match regardless
@@ -612,6 +613,10 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   // Gated by ff_token_auth_private_key_jwt. Private key is encrypted at rest
   // (see SECRET_KEYS). kid is stamped into both the JWK and the assertion header.
   pingone_client_jwt_private_key:        { public: false, default: '' },
+  // private_key_jwt authentication for the Management API worker
+  // (pingone_mgmt_token_auth_method). Generated via POST
+  // /api/admin/config/generate-keypair. Encrypted at rest (see SECRET_KEYS).
+  pingone_mgmt_private_key:              { public: false, default: '' },
   pingone_client_jwt_kid:                { public: true,  default: '' },
   // Dedicated private_key_jwt app for RFC 8693 token exchange (PRIVATE_KEY_JWT client auth).
   // Gated by ff_private_key_jwt_token_exchange. Client ID and private key are encrypted

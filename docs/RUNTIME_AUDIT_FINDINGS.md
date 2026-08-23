@@ -56,7 +56,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 29 | Runtime | `demo_api_ui/.../hooks/useDraggablePanel.js` | high | FIXED |
 | 30 | Runtime | `demo_api_ui/.../bankingRestartNotificationService.js` | medium | FIXED |
 | 31 | Runtime | `demo_api_ui/.../services/sessionResolver.js` | low | FIXED |
-| 32 | Swallowed | `routes/adminConfig.js` (generate-keypair) | high | OPEN |
+| 32 | Swallowed | `routes/adminConfig.js` (generate-keypair) | high | FIXED |
 | 33 | Swallowed | `demo_api_ui/.../hooks/useElicitation.js` | medium | OPEN |
 | 34 | Swallowed | `demo_api_ui/.../DemoSetupPanel.js` (reset demo) | low | OPEN |
 | 35 | Perf | `services/auditLogService.js` | medium | OPEN |
@@ -864,7 +864,7 @@ and asserts `vi.getTimerCount() === 0` after it resolves. Proven to fail
 against the pre-fix file (1 dangling timer) and pass against the fix. `npm
 --prefix demo_api_ui run test:unit -- sessionResolver` — 1/1 passed.
 
-### 32. Generated management private key is silently dropped, never persisted — OPEN
+### 32. Generated management private key is silently dropped, never persisted — FIXED
 
 **File:** `demo_api_server/routes/adminConfig.js`, line 295
 
@@ -881,12 +881,33 @@ PingOne as instructed, then later triggers a Management API call using
 `private_key_jwt` auth method — which fails with "no private key
 configured" because it was never actually saved.
 
-**Fix (not yet applied):** Register `pingone_mgmt_private_key` in
-`FIELD_DEFS` in `services/configStore.js` (mirroring the existing
-`pingone_client_jwt_private_key` entry), and in `adminConfig.js:295` `await
-configStore.setConfig(...)`, checking for failure before responding
-`ok:true` (matching the try/catch-to-500 pattern already used elsewhere in
-this same file, e.g. `/reset` and `/worker-test`).
+**Fix:** Registered `pingone_mgmt_private_key` in `FIELD_DEFS` and
+`SECRET_KEYS` in `services/configStore.js` (mirroring the existing
+`pingone_client_jwt_private_key` entry). In `adminConfig.js:295`, added
+`await` on `configStore.setConfig(...)` so a persistence failure now flows
+into the route's existing top-level try/catch → 500 response, instead of
+surfacing as an unhandled promise rejection while the route already
+responded `ok:true`.
+
+**Note:** while investigating, found `pingone_mgmt_client_id`,
+`pingone_mgmt_client_secret`, and `pingone_mgmt_token_auth_method` have the
+same FIELD_DEFS gap (referenced in `SECRET_KEYS`/env-alias tables but absent
+from `FIELD_DEFS`), but they appear to be set only via `.env` today, never
+via `setConfig` — left as-is since fixing them isn't part of this finding;
+logged in `TECH_DEBT.md`.
+
+**Evidence:** New `configStore.mgmtPrivateKeySave.test.js` proves the
+FIELD_DEFS fix — `setConfig({ pingone_mgmt_private_key })` then
+`getEffective('pingone_mgmt_private_key')` round-trips the value (was `''`
+pre-fix). New `adminConfig.generateKeypair.test.js` proves the `await` fix —
+a rejected `setConfig` now yields a 500 `ok:false` response instead of 200
+`ok:true` (and pre-fix, the rejection surfaced as an actual unhandled
+promise rejection error in the test run). Both proven to fail against the
+pre-fix files and pass against the fix. `cd demo_api_server && CI=true npx
+jest src/__tests__/configStore.mgmtPrivateKeySave.test.js
+src/__tests__/adminConfig.generateKeypair.test.js --forceExit
+--maxWorkers=4` — 2 suites / 3 tests passed. Full server suite run
+separately since this touches `configStore.js` (shared config store).
 
 ### 33. MCP elicitation submission failures are silently swallowed — OPEN
 
@@ -1036,6 +1057,14 @@ from the loop bodies in `handleFixAll`/`handleFixEverything`, and call
 
 ## Changelog
 
+- 2026-08-23 — #32 FIXED: `pingone_mgmt_private_key` registered in
+  `configStore.js`'s `FIELD_DEFS`/`SECRET_KEYS`/`envReconcile.js`
+  classification; `adminConfig.js`'s generate-keypair route now `await`s
+  `setConfig(...)` so a persistence failure yields a real 500 instead of a
+  false `ok:true`. Found (but left out of scope, logged in `TECH_DEBT.md`)
+  that `pingone_mgmt_client_id`/`_client_secret`/`_token_auth_method` have
+  the same FIELD_DEFS gap. New tests proven to fail against the pre-fix
+  files and pass against the fix; full server suite green.
 - 2026-08-23 — #31 FIXED: `sessionResolver.js`'s `resolveSessionUser` now
   captures its 10s race-timeout guard's `setTimeout` id and clears it in a
   `finally` block, so a normal (non-hung) call no longer leaves a dangling
