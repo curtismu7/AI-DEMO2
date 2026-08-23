@@ -1,0 +1,191 @@
+# The EXTERNAL MCP door: a second oauth-mcp instance, from the same image as
+# 30-mcp-server-deployment.yaml, that ChatGPT / Claude / LM Studio connect to
+# directly over the public ingress (k8s/aws/se-ingress.yaml).
+#
+# Why a separate Deployment rather than exposing mcp-server itself:
+#
+#   * mcp-server runs MCP_AUTH_DISABLED=true on purpose — PingGateway sits in
+#     front of it and owns authorization on that hop. Publishing that pod would
+#     put an unauthenticated banking MCP endpoint on the internet.
+#   * The gateway cannot front this traffic either. A token minted by the
+#     embedded AS is a self-signed JWT whose audience is this server's own
+#     resource URI — TokenIssuer.resolveOwnAudience() refuses to claim the
+#     gateway's audience — while the gateway's /mcp route introspects against
+#     PingOne and demands gateway:mcp:invoke. It would reject every token its
+#     own registration endpoint helped issue.
+#
+# So the external door is its own origin end to end: discovery, registration,
+# /authorize (brokered to PingOne), /token and /mcp all answer on OAUTH_ISSUER,
+# and this pod validates the tokens it issued. The internal gateway chain is
+# untouched.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-server-ext
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: mcp-server-ext
+spec:
+  replicas: 1
+  # Quota-safe restarts, as in 30-mcp-server-deployment.yaml.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: ai-demo
+      component: mcp-server-ext
+  template:
+    metadata:
+      labels:
+        app: ai-demo
+        component: mcp-server-ext
+    spec:
+      containers:
+      - name: mcp-server-ext
+        image: ai-demo-k8-mcp-server:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+          name: ws
+        env:
+        - name: NODE_ENV
+          value: "development"
+        - name: TOKEN_STORAGE_PATH
+          value: "/app/data/tokens"
+        # ---- what makes this the external door, not a second internal one ----
+        # Authorization is enforced HERE. There is no gateway in front to do it
+        # and the listener is on the public internet.
+        - name: MCP_AUTH_DISABLED
+          value: "false"
+        # mcp-secrets ships SKIP_TOKEN_SIGNATURE_VALIDATION=true for the
+        # gateway-fronted pod, where the gateway has already validated the
+        # signature. On an internet-facing listener that setting would accept a
+        # forged token, so it is overridden here — an explicit `env` entry
+        # outranks both envFrom sources below. Do not delete this line to
+        # "match the sibling".
+        - name: SKIP_TOKEN_SIGNATURE_VALIDATION
+          value: "false"
+        # The public origin. Everything self-consistent hangs off it: the issuer
+        # the embedded AS signs with, the `authorization_servers` entry in RFC
+        # 9728 metadata (see resolveAdvertisedAuthServer), and the redirect_uri
+        # this server sends to PingOne — which must be registered on the PingOne
+        # app named by OAUTH_MCP_PINGONE_CLIENT_ID as
+        # https://ai-demo-mcp.ping-devops.com/authorize/callback.
+        - name: OAUTH_ISSUER
+          value: "https://ai-demo-mcp.ping-devops.com"
+        - name: MCP_RESOURCE_URL
+          value: "https://ai-demo-mcp.ping-devops.com"
+        # MCP_SERVER_RESOURCE_URI is deliberately NOT overridden here. This is
+        # the same resource as mcp-server — "Super Banking MCP Server" in
+        # scope-topology.json — only reachable from outside, so a token minted
+        # here claims the same canonical audience (mcpserver.ping.demo, first
+        # entry of the value ai-demo-config supplies). Naming the public URL
+        # instead would fork one resource into two identities, which
+        # `npm run topology:verify` rejects.
+        # Admit clients we have never seen. ChatGPT, Claude and LM Studio cannot
+        # be pre-registered and none offers a field for an RFC 7591 initial
+        # access token, so without this they cannot get a client_id at all.
+        - name: MCP_OPEN_CLIENT_REGISTRATION
+          value: "true"
+        # Pinned server-side, never read from the registration request. Read-only
+        # because this endpoint faces the internet.
+        - name: DCR_OPEN_REGISTRATION_SCOPE
+          value: "mcp:invoke read"
+        # Client ID Metadata Documents may only be fetched from these two. The
+        # code already refuses non-https, loopback and private-network literals
+        # and requires the document to claim its own URL; this narrows it further.
+        - name: CIMD_ALLOWED_HOSTS
+          value: "chatgpt.com,claude.ai"
+        # ---- shared with the internal instance ----
+        - name: API_RESOURCE_SERVER_URL
+          value: "http://api-resource-server:8082"
+        - name: MCP_RESOURCE_SERVER_HTTP_URL
+          value: "http://mcp-resource-server:8081"
+        - name: DEMO_API_RESOURCE_SERVER_KEY
+          valueFrom:
+            secretKeyRef:
+              name: ai-demo-secrets
+              key: DEMO_API_RESOURCE_SERVER_KEY
+        - name: DEMO_MCP_RESOURCE_SERVER_KEY
+          valueFrom:
+            secretKeyRef:
+              name: ai-demo-secrets
+              key: DEMO_MCP_RESOURCE_SERVER_KEY
+              optional: true
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: "http://jaeger:4317"
+        - name: OTEL_SERVICE_NAME
+          value: "mcp-server-ext"
+        - name: NODE_OPTIONS
+          value: "-r /otel/otel-instrument.js"
+        # secret first, configmap last — matching 30-mcp-server-deployment.yaml.
+        # Both are outranked by the explicit `env` entries above.
+        envFrom:
+        - secretRef:
+            name: mcp-secrets
+        - configMapRef:
+            name: ai-demo-config
+        volumeMounts:
+        - name: otel-instrument
+          mountPath: /otel
+          readOnly: true
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /.well-known/mcp-server
+            port: 8080
+          initialDelaySeconds: 15
+          periodSeconds: 60
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /.well-known/mcp-server
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 30
+          timeoutSeconds: 3
+          failureThreshold: 3
+      volumes:
+      - name: otel-instrument
+        configMap:
+          name: otel-instrument
+      restartPolicy: Always
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-server-ext
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: mcp-server-ext
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+    name: ws
+  # MCP Streamable HTTP keeps session state in the pod that created it.
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 3600
+  selector:
+    app: ai-demo
+    component: mcp-server-ext

@@ -1,5 +1,6 @@
 import {
   resolveEmbeddedIssuer,
+  resolveAdvertisedAuthServer,
   getEmbeddedSigningKeyManager,
   resetEmbeddedSigningKeyManagerForTests,
 } from '../embeddedIssuer';
@@ -29,6 +30,25 @@ describe('embeddedIssuer', () => {
       process.env.OAUTH_HOSTNAME = 'mcp-server';
       process.env.MCP_SERVER_PORT = '9090';
       expect(resolveEmbeddedIssuer()).toBe('https://mcp-server:9090');
+    });
+  });
+
+  describe('resolveAdvertisedAuthServer', () => {
+    const PINGONE = 'https://auth.pingone.com/01d89b06/as';
+
+    it('advertises PingOne when OAUTH_ISSUER is unset (every gateway-fronted deployment)', () => {
+      delete process.env.OAUTH_ISSUER;
+      expect(resolveAdvertisedAuthServer(PINGONE)).toBe(PINGONE);
+    });
+
+    it('advertises the embedded AS when OAUTH_ISSUER is set (the external door)', () => {
+      process.env.OAUTH_ISSUER = 'https://ai-demo-mcp.ping-devops.com';
+      expect(resolveAdvertisedAuthServer(PINGONE)).toBe('https://ai-demo-mcp.ping-devops.com');
+    });
+
+    it('agrees with the issuer the AS actually signs with', () => {
+      process.env.OAUTH_ISSUER = 'https://ai-demo-mcp.ping-devops.com';
+      expect(resolveAdvertisedAuthServer(PINGONE)).toBe(resolveEmbeddedIssuer());
     });
   });
 

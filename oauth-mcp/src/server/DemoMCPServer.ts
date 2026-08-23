@@ -22,7 +22,7 @@ import { correlationFromMessage } from './correlationFromMessage';
 import { authorizeLastHop } from '../auth/lastHopAuthorization';
 import { runWithCorrelation } from '../utils/correlationContext';
 import { createMtlsVerifier } from '../auth/mtlsMiddleware';
-import { ClientRegistry, TokenStore, OAuthRouter, getEmbeddedSigningKeyManager } from '../oauth';
+import { ClientRegistry, TokenStore, OAuthRouter, getEmbeddedSigningKeyManager, resolveAdvertisedAuthServer } from '../oauth';
 
 export interface ServerConfig {
   host: string;
@@ -84,9 +84,10 @@ export class DemoMCPServer extends EventEmitter {
     if (process.env.HTTP_MCP_TRANSPORT_ENABLED !== 'false') {
       const resourceUrl = process.env.MCP_RESOURCE_URL ||
         `http://${config.host === '0.0.0.0' ? 'localhost' : config.host}:${config.port}`;
-      const authServerUrl = process.env.PINGONE_AUTHORIZATION_ENDPOINT
+      const pingOneAuthServerUrl = process.env.PINGONE_AUTHORIZATION_ENDPOINT
         ? process.env.PINGONE_AUTHORIZATION_ENDPOINT.replace('/authorize', '').replace(/\/+$/, '')
         : (process.env.PINGONE_BASE_URL ?? 'https://auth.pingone.com/unknown/as');
+      const authServerUrl = resolveAdvertisedAuthServer(pingOneAuthServerUrl);
       const allowedOrigins = (process.env.MCP_ALLOWED_ORIGINS ?? '')
         .split(',')
         .map(o => o.trim())

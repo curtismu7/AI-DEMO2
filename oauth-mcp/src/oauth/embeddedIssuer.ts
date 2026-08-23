@@ -13,6 +13,27 @@ export function resolveEmbeddedIssuer(): string {
   );
 }
 
+/**
+ * The authorization server this instance advertises in its RFC 9728 metadata
+ * (`authorization_servers`) — the AS a client is told to go and get a token from.
+ *
+ * Normally that is PingOne: the gateway fronts this server, the token on the
+ * wire is PingOne-issued, and the embedded AS is an internal detail.
+ *
+ * Setting OAUTH_ISSUER inverts that. It is only ever set on an instance whose
+ * embedded AS is externally addressable — the external door that ChatGPT and
+ * Claude register against — and on such an instance advertising PingOne would
+ * send the client somewhere it cannot dynamically register, stranding it before
+ * it ever asks for a token. Naming the embedded AS instead keeps discovery,
+ * registration, /token and the audience of the resulting JWT on one origin.
+ *
+ * Unset (every gateway-fronted deployment), `pingOneFallback` is returned and
+ * nothing changes.
+ */
+export function resolveAdvertisedAuthServer(pingOneFallback: string): string {
+  return process.env.OAUTH_ISSUER || pingOneFallback;
+}
+
 let signingKeyManagerPromise: Promise<SigningKeyManager> | null = null;
 
 /**

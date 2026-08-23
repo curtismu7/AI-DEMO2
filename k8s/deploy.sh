@@ -92,6 +92,7 @@ deploy() {
   kubectl apply -f "$SCRIPT_DIR/73-jaeger-deployment.yaml"
   # Backend tool servers
   kubectl apply -f "$SCRIPT_DIR/30-mcp-server-deployment.yaml"
+  kubectl apply -f "$SCRIPT_DIR/31-mcp-server-ext-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/63-mcp-resource-server-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/64-api-resource-server-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/57-mcp-weather-deployment.yaml"

@@ -201,6 +201,7 @@ apply_patched "$K8S_DIR/21-api-server-logs-pvc.yaml"
 for manifest in \
   73-jaeger-deployment.yaml \
   30-mcp-server-deployment.yaml \
+  31-mcp-server-ext-deployment.yaml \
   63-mcp-resource-server-deployment.yaml \
   64-api-resource-server-deployment.yaml \
   62-hitl-service-deployment.yaml \

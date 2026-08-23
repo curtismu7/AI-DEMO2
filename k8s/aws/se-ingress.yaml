@@ -31,6 +31,43 @@ spec:
             port:
               number: 4000
 ---
+# The EXTERNAL MCP door (k8s/31-mcp-server-ext-deployment.yaml). A dedicated
+# host, not a path on ai-demo.ping-devops.com, because an MCP client discovers
+# its authorization server by fetching /.well-known/... from the ROOT of the
+# host it was given — a path prefix would need a rewrite for every bootstrap
+# endpoint, and the issuer in the tokens would still have to name the root.
+#
+# One label deep under ping-devops.com, so the cluster's *.ping-devops.com
+# certificate covers it and no `tls:` block or cert-manager Certificate is
+# needed here (unlike mcpgw-agentless-ingress.yaml, whose names are two labels
+# deep). external-dns creates the record from the rule host below; there is no
+# wildcard DNS on this domain, so the name does not resolve until it does.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ai-demo-mcp-ext-ingress
+  namespace: <<NAMESPACE>>
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # MCP Streamable HTTP is a long-lived SSE response; buffering or a short
+    # read timeout turns a working tool call into a dropped connection.
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+spec:
+  ingressClassName: nginx-public
+  rules:
+  - host: ai-demo-mcp.ping-devops.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: mcp-server-ext
+            port:
+              number: 8080
+---
 # The /mcpgw path-based Ingress that used to live here (ai-demo-mcpgw-ingress,
 # on this same shared host) is REMOVED as of 2026-08-13 — proven live to be
 # categorically incompatible with cyonproxy's TLS-native proxy port (8680):
