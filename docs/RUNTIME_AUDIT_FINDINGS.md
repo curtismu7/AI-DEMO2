@@ -60,7 +60,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 33 | Swallowed | `demo_api_ui/.../hooks/useElicitation.js` | medium | FIXED |
 | 34 | Swallowed | `demo_api_ui/.../DemoSetupPanel.js` (reset demo) | low | FIXED |
 | 35 | Perf | `services/auditLogService.js` | medium | FIXED |
-| 36 | Perf | `services/demoTrackService.js` | medium | OPEN |
+| 36 | Perf | `services/demoTrackService.js` | medium | FIXED |
 | 37 | Perf | `services/traceProjector.js` | low | OPEN |
 | 38 | Perf | `demo_api_ui/.../context/ActivityNarrativeContext.js` | medium | OPEN |
 | 39 | Perf | `demo_api_ui/.../ScopeAuditPage.js` | medium | OPEN |
@@ -1002,7 +1002,7 @@ against the fix. `cd demo_api_server && CI=true npx jest
 src/__tests__/auditLogService.pruning.test.js --forceExit --maxWorkers=4` —
 1/1 passed.
 
-### 36. Demo-track session buckets are never evicted — OPEN
+### 36. Demo-track session buckets are never evicted — FIXED
 
 **File:** `demo_api_server/services/demoTrackService.js`, line 60
 
@@ -1017,9 +1017,23 @@ incognito window, session regeneration) creates a fresh bucket via
 `HISTORY_CAP=20` (line 40), but there is no cap or TTL on the number of
 buckets themselves.
 
-**Fix (not yet applied):** Add a `lastAccessed` timestamp per bucket and a
-periodic sweep to drop stale buckets, or cap total bucket count with LRU
-eviction.
+**Fix:** Added a `_lastAccessed` Map touched inside `_hydrate` (the single
+common entry point every public function goes through), plus a
+`BUCKET_TTL_MS` (24h — this is a short presenter-walkthrough tool) and a
+periodic unref'd `setInterval` sweep that drops any bucket idle past the
+TTL from `_runs`/`_histories`/`_lastAccessed`.
+
+**Evidence:** New `demoTrackService.bucketEviction.test.js` uses fake
+timers: creates two session buckets, advances 25h with no further access,
+and asserts the bucket count (via a new `_bucketCountForTests()` test-only
+export) drops to 0 — proving the module's own interval evicted them, not a
+manual call. A second test proves a bucket touched again before its TTL
+elapses survives. Proven to fail against the pre-fix file (`_bucketCountForTests`
+didn't exist) and pass against the fix. `cd demo_api_server && CI=true npx
+jest tests/demoTrackService.bucketEviction.test.js tests/demoTrackService.test.js
+tests/demoTrackRoute.test.js tests/demoTrack.config.test.js
+tests/demoTrackHooks.test.js tests/mcpToolAuditStore.demoTrackSessionScoping.test.js
+--forceExit --maxWorkers=4` — 6 suites / 29 tests passed.
 
 ### 37. Trace projector re-scans the full span array once per matching span — OPEN
 
@@ -1089,6 +1103,12 @@ from the loop bodies in `handleFixAll`/`handleFixEverything`, and call
 
 ## Changelog
 
+- 2026-08-23 — #36 FIXED: `demoTrackService.js` now tracks a `_lastAccessed`
+  time per session bucket (touched in `_hydrate`, the shared entry point) and
+  sweeps buckets idle past a 24h TTL via a periodic unref'd `setInterval`.
+  New test (fake timers, advance 25h, no manual sweep call) proven to fail
+  against the pre-fix file and pass against the fix; existing demo-track
+  suites (6 files / 29 tests) unaffected.
 - 2026-08-23 — #35 FIXED: `auditLogService.js` now calls its own
   `pruneOldLogs()` on a periodic unref'd `setInterval` (1h), matching the
   `_evictionInterval` pattern in `mcpGatewayRateLimit.js`. New test (fake
