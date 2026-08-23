@@ -244,7 +244,12 @@ services:
       # plus the A2A specialists' dedicated Exchange #2 audience (see
       # a2aDelegationService.js resolveA2aConfig / pingoneProvisionService.js Step 37a-A2A) —
       # tokenValidator.ts already parses this as a comma-separated list.
-      MCP_GW_RESOURCE_URI: "mcpgateway.ping.demo,https://api.ping.demo:3036/mcp,mcpgateway-a2a.ping.demo"
+      # mcpserver.ping.demo (4th entry) is oauth-mcp's OWN audience — a native
+      # ID-JAG-redeemed token is always minted for it (TokenIssuer.resolveOwnAudience,
+      # oauth-mcp), never for this gateway's own audience, so the Node gateway must
+      # accept it directly. tokenValidator.ts's ID-JAG filter verifies these tokens
+      # against oauth-mcp's own JWKS (not PingOne's) before this aud check ever runs.
+      MCP_GW_RESOURCE_URI: "mcpgateway.ping.demo,https://api.ping.demo:3036/mcp,mcpgateway-a2a.ping.demo,mcpserver.ping.demo"
       DEMO_API_BASE_URL: "https://demo-api-server:3001"
       # Agent frameworks (langchain et al) call back into the BFF at this origin
       # to execute tools with RFC 8693 exchange — agentRun.js appends
@@ -671,7 +676,12 @@ services:
       # list was wired onto demo-api-server/authz-server but never onto the
       # gateway itself, whose env_file pinned the single Node audience — so every
       # A2A specialist call 401'd at the gateway with "Audience mismatch".
-      MCP_GW_RESOURCE_URI: "mcpgateway.ping.demo,https://api.ping.demo:3036/mcp,mcpgateway-a2a.ping.demo"
+      # mcpserver.ping.demo (4th entry) is oauth-mcp's OWN audience — a native
+      # ID-JAG-redeemed token is always minted for it (TokenIssuer.resolveOwnAudience,
+      # oauth-mcp), never for this gateway's own audience, so the Node gateway must
+      # accept it directly. tokenValidator.ts's ID-JAG filter verifies these tokens
+      # against oauth-mcp's own JWKS (not PingOne's) before this aud check ever runs.
+      MCP_GW_RESOURCE_URI: "mcpgateway.ping.demo,https://api.ping.demo:3036/mcp,mcpgateway-a2a.ping.demo,mcpserver.ping.demo"
       PINGAUTHORIZE_ENDPOINT: "http://authz-server:9001"
       # Declare the mock explicitly. Decision provenance (contract C2) and the
       # /health posture block both derive "is this a real PDP?" by comparing the
@@ -1030,7 +1040,12 @@ services:
       # entry otherwise wins via env_file and every PingGateway-minted token
       # (aud https://api.ping.demo:3036/mcp) is denied with invalid_aud. Also
       # includes the A2A specialists' dedicated Exchange #2 audience.
-      MCP_GW_RESOURCE_URI: "mcpgateway.ping.demo,https://api.ping.demo:3036/mcp,mcpgateway-a2a.ping.demo"
+      # mcpserver.ping.demo (4th entry) is oauth-mcp's OWN audience — a native
+      # ID-JAG-redeemed token is always minted for it (TokenIssuer.resolveOwnAudience,
+      # oauth-mcp), never for this gateway's own audience, so the Node gateway must
+      # accept it directly. tokenValidator.ts's ID-JAG filter verifies these tokens
+      # against oauth-mcp's own JWKS (not PingOne's) before this aud check ever runs.
+      MCP_GW_RESOURCE_URI: "mcpgateway.ping.demo,https://api.ping.demo:3036/mcp,mcpgateway-a2a.ping.demo,mcpserver.ping.demo"
       BFF_TRANSACTION_HOP_URL: "https://demo-api-server:3001/internal/transaction-hop"
       # mkcert CA so the emitter's HTTPS POST to the BFF can verify its leaf cert.
       # Without it every hop fails UNABLE_TO_VERIFY_LEAF_SIGNATURE and is silently

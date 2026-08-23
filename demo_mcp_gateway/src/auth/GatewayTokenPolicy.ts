@@ -12,6 +12,7 @@
  */
 
 import type { DecodedGatewayToken } from '../tokenValidator';
+import { isIdJagIssuedToken } from '../tokenValidator';
 import type { GatewayConfig } from '../config';
 import { isAgentMediatedTool } from './scopeTopology';
 import { validateActClaim } from './toolScopes';
@@ -127,18 +128,34 @@ export class GatewayTokenPolicy {
     // audience already present — exactly the bypass shape D-05 exists to
     // stop. None of these URIs is ever a valid *inbound* aud, so
     // blacklisting them is safe (the gateway's own URI is excluded).
-    const audList = Array.isArray(decoded.aud) ? decoded.aud : [decoded.aud];
-    const upstreamAuds = [
-      config.mcpOlbResourceUri,
-      config.mcpResourceServerResourceUri,
-      config.bankingResourceServerResourceUri,
-    ].filter((a) => a && a !== config.gatewayResourceUri);
-    for (const ua of upstreamAuds) {
-      if (ua && audList.includes(ua)) {
-        throw new GatewayTokenPolicyError(
-          `Token aud [${audList.join(', ')}] targets an upstream MCP server — cannot bypass gateway (D-05)`,
-          'bypass_attempt',
-        );
+    // ID-JAG filter: native ID-JAG redemption (MCP Enterprise-Managed
+    // Authorization) legitimately mints a token audienced for the OLB server
+    // itself — that IS the extension's model, a per-server grant with no
+    // intermediary. Such a token is otherwise indistinguishable from the one
+    // D-05 exists to block (a leaked/forged OLB-audienced token presented at
+    // the gateway to skip its own authorization checks). The distinction this
+    // filter relies on: isIdJagIssuedToken only returns true for a token whose
+    // iss was already checked against oauth-mcp's own JWKS signature in
+    // tokenValidator.ts — a token that merely CLAIMS that iss without a valid
+    // oauth-mcp signature never reaches this function with iss set that way,
+    // because _decodeAndVerify would have already rejected it. Every other
+    // downstream check in this method (sub, act chain, actor allow-list) still
+    // runs unconditionally for these tokens — this filter narrows ONLY the
+    // upstream-audience blacklist below, nothing else in the policy.
+    if (!isIdJagIssuedToken(decoded)) {
+      const audList = Array.isArray(decoded.aud) ? decoded.aud : [decoded.aud];
+      const upstreamAuds = [
+        config.mcpOlbResourceUri,
+        config.mcpResourceServerResourceUri,
+        config.bankingResourceServerResourceUri,
+      ].filter((a) => a && a !== config.gatewayResourceUri);
+      for (const ua of upstreamAuds) {
+        if (ua && audList.includes(ua)) {
+          throw new GatewayTokenPolicyError(
+            `Token aud [${audList.join(', ')}] targets an upstream MCP server — cannot bypass gateway (D-05)`,
+            'bypass_attempt',
+          );
+        }
       }
     }
   }

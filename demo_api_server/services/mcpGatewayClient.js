@@ -150,6 +150,30 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
             }
         }
     }
+    // Native ID-JAG (MCP Enterprise-Managed Authorization) always redeems a
+    // token audienced for oauth-mcp's own resource (TokenIssuer.resolveOwnAudience
+    // — the AS is never entitled to assert any other audience), never for
+    // PingGateway's. PingGateway's McpProtectionFilter demands its own resource
+    // URI, so an ID-JAG-redeemed bearer routed there always 401s wrong-aud. The
+    // Node Demo Agent Gateway accepts oauth-mcp's audience directly — its own
+    // MCP_GW_RESOURCE_URI comma-list and tokenValidator.ts's ID-JAG JWKS filter
+    // (verifies against oauth-mcp's own signing key, not PingOne's) both cover
+    // it — so pin these bearers there, same Node-only routing as Path B/C and
+    // A2A above.
+    if (pgUrl && base === pgUrl) {
+        const olbAud = process.env.PINGONE_RESOURCE_MCP_SERVER_URI
+            || configStore.getEffective('pingone_resource_mcp_server_uri') || '';
+        if (olbAud) {
+            const claims = decodeJwt(bearerToken)?.claims;
+            const audList = Array.isArray(claims?.aud) ? claims.aud.map(String)
+                : (claims?.aud != null ? [String(claims.aud)] : []);
+            if (audList.includes(olbAud)) {
+                const nodeUrl = (process.env.MCP_DEMO_GATEWAY_URL
+                    || configStore.getEffective('mcp_demo_gateway_url') || '').replace(/\/$/, '');
+                if (nodeUrl) base = nodeUrl;
+            }
+        }
+    }
     const isIgBase = !!pgUrl && base === pgUrl;
     const url  = isIgBase && APIKEY_TOOLS.has(tool) ? `${base}/mcp/apikey`
                : isIgBase && WEATHER_TOOLS.has(tool) ? `${base}/mcp/weather`
