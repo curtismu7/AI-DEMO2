@@ -65,7 +65,7 @@ export default function EnterpriseMcpDemoPage() {
   const handleRun = useCallback(() => {
     // Same mechanism LiveUseCaseWorkbenchPage uses to drive the agent.
     window.dispatchEvent(new CustomEvent("banking-agent-prefill", {
-      detail: { text: DEMO_CHIP, autoSend: true },
+      detail: { message: DEMO_CHIP, autoSend: true },
     }));
     setRan(true);
   }, []);
