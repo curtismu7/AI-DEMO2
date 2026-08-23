@@ -37,6 +37,7 @@ import { extractTratClaims } from '../auth/TratClaimsExtractor';
 import { verifyActorChain, parseAllowedActors } from '../auth/actorChain';
 import { enforceUpstreamContract, resolveUpstreamAudiences } from '../auth/lastHopAuthorization';
 import { resolveEmbeddedIssuer } from '../oauth/embeddedIssuer';
+import { openClientRegistrationEnabled } from '../oauth/ClientRegistry';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -268,10 +269,20 @@ export class HttpMCPTransport {
   // -------------------------------------------------------------------------
 
   private handleMetadata(_req: IncomingMessage, res: ServerResponse): void {
-    const base = this.resourceBaseUrl();
+    // When this server admits clients it has never seen, the AS they must use is
+    // the embedded one — it is the only one that can register them, because
+    // PingOne has no dynamic client registration. Advertising PingOne here sends
+    // such a client somewhere it can never obtain a client_id, and the failure
+    // lands at the far end of the discovery chain where nothing names the cause.
+    // The resource identifier is derived from the same issuer so the document
+    // describes the server as external clients actually address it, rather than
+    // by its in-cluster MCP_RESOURCE_URL.
+    const openRegistration = openClientRegistrationEnabled();
+    const embeddedIssuer = openRegistration ? resolveEmbeddedIssuer() : '';
+    const base = embeddedIssuer || this.resourceBaseUrl();
     const baseMetadata = {
       resource: `${base}/mcp`,
-      authorization_servers: [this.config.authServerUrl],
+      authorization_servers: [embeddedIssuer || this.config.authServerUrl],
       bearer_methods_supported: ['header'],
       scopes_supported: BANKING_SCOPES,
       resource_name: 'Demo MCP Server',
