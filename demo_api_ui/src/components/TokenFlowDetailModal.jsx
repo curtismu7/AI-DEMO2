@@ -382,29 +382,61 @@ function ScopeFunnel({ steps, trace }) {
 
 // ── Topology View ──────────────────────────────────────────────────────────
 
-const TOPO_NODES = [
-  { id: 'signin',     icon: '🔐', name: 'PingOne AS',   lane: 'PINGONE',  badgeCls: 'tfd-badge-PINGONE' },
-  { id: 'exchange',   icon: 'TX', name: 'BFF Exchange', lane: 'BFF',      badgeCls: 'tfd-badge-BFF',    label: 'delegated token' },
-  { id: 'authorize',  icon: 'AZ', name: 'P1 Authorize', lane: 'AUTHZ',    badgeCls: 'tfd-badge-AUTHZ',  label: 'decision' },
-  { id: 'gateway',    icon: 'GW', name: 'Gateway',      lane: 'GATEWAY',  badgeCls: 'tfd-badge-GATEWAY', label: 'validated' },
-  { id: 'mcp',        icon: 'M',  name: 'MCP Server',   lane: 'MCP',      badgeCls: 'tfd-badge-MCP',    label: 'tool call' },
+/**
+ * The topology row is FIVE CURATED SLOTS, not the whole trace — the compactness
+ * is the point of this view. But which hop fills a slot depends on what actually
+ * ran, so slots are defined by ROLE and filled from the run.
+ *
+ * The previous version hardcoded five step ids. That silently omitted
+ * `exchange-1` (two-exchange mode), `api-key-swap` (API-key path), `stepup` and
+ * `intent-binding`, and once ID-JAG replaced the RFC 8693 exchange it drew a
+ * permanently greyed "BFF Exchange" with no sign of the hop that actually minted
+ * the token. Every new flow shape needed another special case; this needs none.
+ *
+ * `candidates` is preference order among hops that RAN. `fallback` is what the
+ * slot shows when none did, so an unstarted run renders exactly as it always has.
+ */
+const TOPO_SLOTS = [
+  { fallback: 'signin',    candidates: ['signin'] },
+  { fallback: 'exchange',  candidates: ['id-jag-redeemed', 'exchange', 'exchange-1', 'agent-token'] },
+  { fallback: 'authorize', candidates: ['stepup', 'intent-binding', 'authorize'] },
+  { fallback: 'gateway',   candidates: ['api-key-swap', 'gateway'] },
+  { fallback: 'mcp',       candidates: ['mcp', 'api'] },
 ];
 
+/** Display vocabulary per hop. `label` is the connector caption feeding INTO it. */
+const NODE_PRESENTATION = {
+  signin:            { icon: '\u{1F510}', name: 'PingOne AS',       lane: 'PINGONE' },
+  'agent-token':     { icon: 'AT', name: 'Agent Identity',   lane: 'BFF',     label: 'client credentials' },
+  'exchange-1':      { icon: 'X1', name: 'BFF Narrowing',    lane: 'BFF',     label: 'narrowed token' },
+  exchange:          { icon: 'TX', name: 'BFF Exchange',     lane: 'BFF',     label: 'delegated token' },
+  'id-jag-redeemed': { icon: 'JR', name: 'MCP AS — ID-JAG',  lane: 'MCP',     label: 'redeemed grant' },
+  authorize:         { icon: 'AZ', name: 'P1 Authorize',     lane: 'AUTHZ',   label: 'decision' },
+  'intent-binding':  { icon: 'IB', name: 'Intent Binding',   lane: 'AUTHZ',   label: 'cap checked' },
+  stepup:            { icon: '\u26A0\uFE0F', name: 'Step-up required', lane: 'AUTHZ', label: 'human approval' },
+  gateway:           { icon: 'GW', name: 'Gateway',          lane: 'GATEWAY', label: 'validated' },
+  'api-key-swap':    { icon: 'KS', name: 'Credential Swap',  lane: 'GATEWAY', label: 'API key' },
+  mcp:               { icon: 'M',  name: 'MCP Server',       lane: 'MCP',     label: 'tool call' },
+  api:               { icon: 'RS', name: 'Resource Server',  lane: 'API',     label: 'backend' },
+};
+
+const RAN_STATUSES = ['active', 'done', 'error'];
+
+function presentNode(id) {
+  const p = NODE_PRESENTATION[id] || { icon: '?', name: id, lane: 'FLOW' };
+  return { id, ...p, badgeCls: `tfd-badge-${p.lane}` };
+}
 
 /**
- * The topology row, with the token-minting node named for what actually ran.
- *
- * In enterprise-managed native mode no RFC 8693 exchange happens — the MCP
- * access token comes from redeeming an ID-JAG — so `exchange` is notinpath.
- * Leaving it in the row drew a permanently greyed "BFF Exchange" node and no
- * sign of the hop that really minted the token.
+ * Resolve the five topology nodes for this run.
+ * @param {Array} steps from buildTraceSteps
+ * @returns {Array} one node per slot, in flow order
  */
-function resolveTopoNodes(steps) {
-  const redeemed = (steps || []).find((s) => s && s.id === 'id-jag-redeemed');
-  if (!redeemed) return TOPO_NODES;
-  return TOPO_NODES.map((node) => (node.id === 'exchange'
-    ? { id: 'id-jag-redeemed', icon: 'JR', name: 'MCP AS — ID-JAG', lane: 'MCP', badgeCls: 'tfd-badge-MCP', label: 'redeemed grant' }
-    : node));
+export function resolveTopoNodes(steps) {
+  const list = Array.isArray(steps) ? steps : [];
+  const ran = (id) => list.some((s) => s && s.id === id && RAN_STATUSES.includes(s.status));
+  return TOPO_SLOTS.map(({ fallback, candidates }) =>
+    presentNode(candidates.find(ran) || fallback));
 }
 
 function TopoNodeClaims({ step, trace }) {
@@ -441,14 +473,17 @@ function TopologyView({ steps, trace, onSelectStep }) {
     }
   };
 
+  // Which hop fills each slot depends on what ran, so resolve once per render.
+  const topoNodes = resolveTopoNodes(steps);
+
   return (
     <div className="tfd-topo">
       <div className="tfd-topo-label">Security topology — click a node to inspect · RFC 8693 delegation chain</div>
       <div className="tfd-topo-row">
-        {resolveTopoNodes(steps).map((node, i) => {
+        {topoNodes.map((node, i) => {
           const step = steps.find(s => s.id === node.id);
           const status = step?.status || 'notinpath';
-          const blocked = status === 'notinpath' || (i > 0 && steps.find(s => s.id === resolveTopoNodes(steps)[i-1]?.id)?.status === 'error');
+          const blocked = status === 'notinpath' || (i > 0 && steps.find(s => s.id === topoNodes[i-1]?.id)?.status === 'error');
           const isError = status === 'error';
           const isDone  = status === 'done';
           const expanded = expandedId === node.id;
