@@ -35,7 +35,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 15 | Swallowed | `demo_api_ui/.../AdminSideNav.jsx` (switch vertical) | medium | FIXED |
 | 16 | Swallowed | `demo_api_ui/.../CopilotAgent.jsx` | medium | FIXED |
 | 17 | Swallowed | `demo_api_ui/.../CreateUserPanel.jsx` | medium | FIXED |
-| 18 | Swallowed | `demo_api_ui/.../BulkDecisionPanel.jsx` | low | OPEN |
+| 18 | Swallowed | `demo_api_ui/.../BulkDecisionPanel.jsx` | low | FIXED |
 | 19 | Perf | `routes/agentRun.js` | high | OPEN |
 | 20 | Perf | `demo_api_ui/vertical/VerticalProvider.jsx` | high | OPEN |
 | 21 | Perf | `demo_api_ui/.../AIAgent.js` (O(N²) proof scan) | high | OPEN |
@@ -450,7 +450,7 @@ and a successful search clears it.
 it; a genuine zero-match never shows it) — the first two confirmed to fail
 against the pre-fix file and pass against the fix. `cd demo_api_ui && npx vitest run src/components/__tests__/CreateUserPanel.delegateSearch.test.jsx` — 3/3 passed; `npm run build` exit 0.
 
-### 18. Policy-endpoint load failure not surfaced despite existing error state — OPEN
+### 18. Policy-endpoint load failure not surfaced despite existing error state — FIXED
 
 **File:** `demo_api_ui/src/components/BulkDecisionPanel.jsx`, lines 88–105
 
@@ -461,7 +461,12 @@ elsewhere.
 **Trigger scenario:** Open Bulk Decision panel while the GET fails — reads
 "No decision endpoints found," identical to a tenant with no policy.
 
-**Fix (not yet applied):** Set the existing `err` state in the catch.
+**Fix:** Set the existing `err` state in the catch (message from the API
+response, falling back to `e.message`) — reuses the render slot already
+wired up for the run-decision path.
+
+**Evidence:** new test confirmed to fail against the pre-fix file and pass
+against the fix. `cd demo_api_ui && npx vitest run src/components/__tests__/BulkDecisionPanel.test.jsx` — 6/6 passed; `npm run build` exit 0.
 
 ### 19. `GET /runs` re-scans the entire unbounded trace store on every poll — OPEN
 
@@ -588,6 +593,11 @@ redundantly re-parsing/re-diffing the same JSON twice each.
 
 ## Changelog
 
+- 2026-08-23 — #18 FIXED: `BulkDecisionPanel.jsx` now sets its existing `err`
+  state on a policy-endpoint load failure instead of leaving a code comment
+  as the only trace. New test proven to fail against the pre-fix file and
+  pass against the fix. **Category 2 (Swallowed & Hidden Errors) is now
+  fully closed — #9–#18 all fixed.**
 - 2026-08-23 — #17 FIXED: `CreateUserPanel.jsx`'s `searchDelegate` now
   surfaces a failure via the existing `fieldErrors.delegateUser` slot instead
   of rendering an empty dropdown identical to a zero-match search. 3 new

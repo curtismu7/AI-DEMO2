@@ -95,8 +95,13 @@ export default function BulkDecisionPanel() {
         setEndpoints(eps);
         const def = res.data?.mcpEndpointId || res.data?.transactionEndpointId || eps[0]?.id || '';
         setSelectedEndpointId((prev) => prev || def);
-      } catch {
-        // leave endpoints empty — the picker shows "No decision endpoints found".
+      } catch (e) {
+        if (!cancelled) {
+          // Endpoints stay empty either way, but this is a load failure, not
+          // a tenant genuinely having no policy configured — say so instead
+          // of leaving the picker's "No decision endpoints found" ambiguous.
+          setErr(e.response?.data?.message || e.message || 'Failed to load decision endpoints.');
+        }
       } finally {
         if (!cancelled) setLoadingEndpoints(false);
       }
