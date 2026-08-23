@@ -55,7 +55,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 28 | Runtime | `services/pingOneGroupMembershipService.js` | high | FIXED |
 | 29 | Runtime | `demo_api_ui/.../hooks/useDraggablePanel.js` | high | FIXED |
 | 30 | Runtime | `demo_api_ui/.../bankingRestartNotificationService.js` | medium | FIXED |
-| 31 | Runtime | `demo_api_ui/.../services/sessionResolver.js` | low | OPEN |
+| 31 | Runtime | `demo_api_ui/.../services/sessionResolver.js` | low | FIXED |
 | 32 | Swallowed | `routes/adminConfig.js` (generate-keypair) | high | OPEN |
 | 33 | Swallowed | `demo_api_ui/.../hooks/useElicitation.js` | medium | OPEN |
 | 34 | Swallowed | `demo_api_ui/.../DemoSetupPanel.js` (reset demo) | low | OPEN |
@@ -838,7 +838,7 @@ against the pre-fix file (2 concurrent fetches) and pass against the fix.
 `npm --prefix demo_api_ui run test:unit -- bankingRestartNotificationService`
 — 1/1 passed; full UI suite (413 files / 3411 tests) — no regressions.
 
-### 31. `resolveSessionUser`'s race-timeout guard leaks a dangling timer on every normal call — OPEN
+### 31. `resolveSessionUser`'s race-timeout guard leaks a dangling timer on every normal call — FIXED
 
 **File:** `demo_api_ui/src/services/sessionResolver.js`, line 13
 
@@ -853,9 +853,16 @@ dangling timer running for up to 10s.
 but the `setTimeout` scheduled at line 14 is never captured in a variable or
 cleared, so it keeps running regardless.
 
-**Fix (not yet applied):** Capture the `setTimeout` id and `clearTimeout()`
-it once `Promise.race` settles, e.g. store the id, then `clearTimeout(id)`
-in a `finally` block.
+**Fix:** Captured the `setTimeout` id in a `let timeoutId` and added
+`clearTimeout(timeoutId)` in a `finally` block, so the guard timer is always
+cleared regardless of which branch of the race settled or whether the
+function threw.
+
+**Evidence:** New test in `sessionResolver.test.js` uses fake timers, calls
+`resolveSessionUser()` with a mocked `getCachedJson` (fast, non-hung path),
+and asserts `vi.getTimerCount() === 0` after it resolves. Proven to fail
+against the pre-fix file (1 dangling timer) and pass against the fix. `npm
+--prefix demo_api_ui run test:unit -- sessionResolver` — 1/1 passed.
 
 ### 32. Generated management private key is silently dropped, never persisted — OPEN
 
@@ -1029,6 +1036,11 @@ from the loop bodies in `handleFixAll`/`handleFixEverything`, and call
 
 ## Changelog
 
+- 2026-08-23 — #31 FIXED: `sessionResolver.js`'s `resolveSessionUser` now
+  captures its 10s race-timeout guard's `setTimeout` id and clears it in a
+  `finally` block, so a normal (non-hung) call no longer leaves a dangling
+  timer running. New test (fake timers, `vi.getTimerCount()`) proven to fail
+  against the pre-fix file and pass against the fix.
 - 2026-08-23 — #30 FIXED: `bankingRestartNotificationService.js` gained an
   `_inFlightHealthCheck` promise so `manualRetry()` joins an already-running
   automatic `retryHealthCheck()` instead of racing it with a second
