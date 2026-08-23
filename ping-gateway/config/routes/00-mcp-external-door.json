@@ -46,16 +46,7 @@
             "auditService": "AuditService"
           }
         },
-        {
-          "comment": "Wraps ExternalDoorResourceServerFilter so a 401 carries the RFC 9728 resource_metadata hint on WWW-Authenticate, same as McpProtectionFilter on the other MCP routes (see 01-mcp-olb.json). Bare OAuth2ResourceServerFilter omits it, which left OAuth-discovery MCP clients (e.g. LM Studio) with nothing pointing them at /.well-known/oauth-protected-resource and no tools ever registered.",
-          "name": "ExternalDoorProtection",
-          "type": "McpProtectionFilter",
-          "config": {
-            "resourceId": "${env['PG_EXTERNAL_DOOR_RESOURCE_ID']}",
-            "authorizationServerUri": "${env['OAUTH_MCP_ISSUER_URI']}",
-            "resourceServerFilter": "ExternalDoorResourceServerFilter"
-          }
-        },
+        "ExternalDoorResourceServerFilter",
         {
           "name": "McpProtocol",
           "type": "McpValidationFilter",
