@@ -37,7 +37,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 17 | Swallowed | `demo_api_ui/.../CreateUserPanel.jsx` | medium | FIXED |
 | 18 | Swallowed | `demo_api_ui/.../BulkDecisionPanel.jsx` | low | FIXED |
 | 19 | Perf | `routes/agentRun.js` | high | FIXED |
-| 20 | Perf | `demo_api_ui/vertical/VerticalProvider.jsx` | high | OPEN |
+| 20 | Perf | `demo_api_ui/vertical/VerticalProvider.jsx` | high | FIXED |
 | 21 | Perf | `demo_api_ui/.../AIAgent.js` (O(N²) proof scan) | high | OPEN |
 | 22 | Perf | `services/pingoneProvisionService.js` (grantScopes) | medium | OPEN |
 | 23 | Perf | `services/pingoneProvisionService.js` (wipeEnvironment) | medium | OPEN |
@@ -500,7 +500,7 @@ regression it introduced against `agentRun.archiveRunToReportStore.test.js`
 (which relies on directly-seeded entries) before it was committed — that
 test now passes via the `undefined`-triggered fallback. `cd demo_api_server && CI=true npx jest tests/agentRun.framework-routing.test.js tests/agentRunHeuristicsProvider.test.js tests/agentRun.recoveredToolsList.test.js tests/agentRun.runsList.test.js tests/agentRunStore.test.js tests/agentRunRegistry.test.js tests/agentRunHitlSuspend.test.js tests/agentRun.intentTokenMint.regression.test.js tests/agentRun.publicCatalog.regression.test.js tests/routes/agentRun.archiveRunToReportStore.test.js src/__tests__/agentRun.verticalTools.test.js --forceExit --maxWorkers=4` — 11 suites / 55 tests passed.
 
-### 20. Vertical context hands every consumer a new object identity every render — OPEN
+### 20. Vertical context hands every consumer a new object identity every render — FIXED
 
 **File:** `demo_api_ui/src/vertical/VerticalProvider.jsx`, line 140
 
@@ -510,7 +510,21 @@ test now passes via the `undefined`-triggered fallback. `cd demo_api_server && C
 **Trigger scenario:** Any unrelated ancestor re-render force-rerenders every
 context consumer app-wide (TopNav, AdminSideNav, UserDashboard, etc.).
 
-**Fix (not yet applied):** `useMemo` the provider value.
+**Fix:** `const value = useMemo(() => ({ ...state, refetch: doFetch }), [state, doFetch]);`, passed to the Provider. `doFetch` already had a stable
+empty-deps `useCallback` identity.
+
+**Note found while verifying:** `useVertical()` (the hook nearly every
+consumer actually calls, not the raw context) reshapes the context value into
+a **new object on every call**, regardless of the Provider's own
+memoization — so this fix alone does not stop `useVertical()` consumers from
+re-rendering on an unrelated parent re-render. That is a separate, larger
+change (memoizing `useVertical()`'s own return value) outside this finding's
+scope; noted here rather than silently expanding the fix.
+
+**Evidence:** new test reads the **raw** context value directly (not through
+`useVertical()`, for the reason above) and asserts `Object.is` identity
+across an unrelated ancestor re-render — confirmed to fail against the
+pre-fix file and pass against the fix. `cd demo_api_ui && npx vitest run` — 411/411 files, 3406 tests passed; `npm run build` exit 0.
 
 ### 21. O(N²) proof-strip scan on every message-list render — OPEN
 
@@ -609,6 +623,12 @@ redundantly re-parsing/re-diffing the same JSON twice each.
 
 ## Changelog
 
+- 2026-08-23 — #20 FIXED: `VerticalProvider.jsx`'s context value is now
+  `useMemo`'d. New test proven to fail against the pre-fix file and pass
+  against the fix (reading the raw context, not `useVertical()`, which has
+  its own separate new-object-per-call issue — logged in `TECH_DEBT.md`
+  rather than folded into this fix). Full UI suite (411 files / 3406 tests)
+  run given the Provider's app-wide reach.
 - 2026-08-23 — #19 FIXED: `agentRun.js`'s `_summarizeRun` is now O(1) per run
   (incremental status/threadId tracking in `_recordTraceEvents`, with a
   correctness fallback for entries not created that way); `GET /runs` gained

@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useEffect, useRef, useState } from 'react';
+import React, { createContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { applyThemeTokens } from './applyThemeTokens';
 
 export const VerticalContext = createContext(null);
@@ -135,9 +135,14 @@ export function VerticalProvider({ children }) {
     return () => { clearTimeout(fallback); es.close(); };
   }, [authed, refetch]);
 
+  // Memoized so an unrelated ancestor re-render doesn't hand every consumer
+  // (TopNav, AdminSideNav, UserDashboard, etc.) a new object identity when
+  // state itself hasn't changed.
+  const value = useMemo(() => ({ ...state, refetch: doFetch }), [state, doFetch]);
+
   if (!state) return null;
   return (
-    <VerticalContext.Provider value={{ ...state, refetch: doFetch }}>
+    <VerticalContext.Provider value={value}>
       {children}
     </VerticalContext.Provider>
   );
