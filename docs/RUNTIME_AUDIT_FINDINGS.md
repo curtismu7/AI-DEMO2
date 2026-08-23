@@ -28,7 +28,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 8 | Runtime | `demo_api_ui/.../AIAgent.js` (refreshAfterTransaction) | medium | FIXED |
 | 9 | Swallowed | `middleware/delegationGate.js` | high | FIXED |
 | 10 | Swallowed | `demo_api_ui/.../AdminSideNav.jsx` (reset demo) | high | FIXED |
-| 11 | Swallowed | `demo_api_ui/.../DelegationPage.js` | high | OPEN |
+| 11 | Swallowed | `demo_api_ui/.../DelegationPage.js` | high | FIXED |
 | 12 | Swallowed | `middleware/agentRestrictionsGate.js` | medium | OPEN |
 | 13 | Swallowed | `routes/agentAuthorization.js` | medium | OPEN |
 | 14 | Swallowed | `demo_api_ui/.../AdminSideNav.jsx` (vertical list) | medium | OPEN |
@@ -310,9 +310,9 @@ unchanged.
 confirmed 2 of 3 fail against the pre-fix file (`notifyError` never called,
 since it didn't exist yet) and all 3 pass against the fix. `cd demo_api_ui && npx vitest run src/components/__tests__/AdminSideNav.resetDemo.test.jsx src/components/__tests__/adminSideNav.test.jsx src/components/__tests__/AdminSideNav.telemetry.test.jsx` — 3 files / 24 tests passed; `npm run build` exit 0.
 
-### 11. Agent-authorization toggle gives no failure feedback — OPEN
+### 11. Agent-authorization toggle gives no failure feedback — FIXED
 
-**File:** `demo_api_ui/src/components/DelegationPage.js`, `AgentAuthorizationCard.handleToggle` (140–150)
+**File:** `demo_api_ui/src/components/DelegationPage.js`, `AgentAuthorizationCard.handleToggle` (was 140–150)
 
 **Issue:** Any `setAgentAuthorization` failure is caught with
 `catch { setWorking(false); }` — no toast, no logging, no state revert.
@@ -321,8 +321,17 @@ since it didn't exist yet) and all 3 pass against the fix. `cd demo_api_ui && np
 POST fails — button re-enables looking like nothing happened, while the
 actual (security-relevant) authorization state is unchanged.
 
-**Fix (not yet applied):** Surface via `notifyError` (file has no import
-today, add one).
+**Fix:** Added `notifyError(err.message || ...)` (file had no import — added
+one) in the catch. Also fixed an adjacent bug in the same function found
+while making this change: `setWorking(false)` was only ever called in the
+catch branch, so a *successful* toggle left the button stuck on "Updating…"
+forever; moved it to a `finally`. Also now updates the local `status` on
+success (previously never reflected the new authorized/revoked state without
+a full page reload).
+
+**Evidence:** 2 new tests (failure surfaces + re-enables; success clears
+working + updates badge) — both confirmed to fail against the pre-fix file
+and pass against the fix. `cd demo_api_ui && npx vitest run src/components/__tests__/DelegationPage.agentAuthToggle.test.js src/components/__tests__/DelegationPage.approval.test.js` — 2 files / 4 tests passed; `npm run build` exit 0.
 
 ### 12. Agent-restrictions gate has one fail-open branch contradicting its own contract — OPEN
 
@@ -540,6 +549,11 @@ redundantly re-parsing/re-diffing the same JSON twice each.
 
 ## Changelog
 
+- 2026-08-23 — #11 FIXED: `DelegationPage.js`'s `AgentAuthorizationCard` now
+  surfaces `setAgentAuthorization` failures via `notifyError` and moved
+  `setWorking(false)` to a `finally` (it was previously stuck-on on a
+  *successful* toggle — an adjacent bug found while fixing this). 2 new tests
+  proven to fail against the pre-fix file and pass against the fix.
 - 2026-08-23 — #10 FIXED: `AdminSideNav.jsx`'s "Reset Demo" now checks
   `res.ok` and catches network errors, logging + toasting via `notifyError`
   and returning before `performLogout()` on failure. 3 new tests, 2 proven to
