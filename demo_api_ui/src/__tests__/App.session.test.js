@@ -113,7 +113,6 @@ vi.mock("../components/Users", () => ({ default: () => null }));
 vi.mock("../components/Accounts", () => ({ default: () => null }));
 vi.mock("../components/Transactions", () => ({ default: () => null }));
 vi.mock("../components/SecuritySettings", () => ({ default: () => null }));
-vi.mock("../components/McpInspector", () => ({ default: () => null }));
 vi.mock("../components/OAuthDebugLogViewer", () => ({ default: () => null }));
 vi.mock("../components/ClientRegistrationPage", () => ({ default: () => null }));
 vi.mock("../components/LogViewer", () => ({ default: () => null }));

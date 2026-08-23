@@ -5,7 +5,6 @@ import ActivityLogs from "../components/ActivityLogs";
 import ApiTrafficPage from "../components/ApiTrafficPage";
 import DevToolsDashboard from "../components/DevToolsDashboard";
 import LogViewerPage from "../components/LogViewerPage";
-import McpInspector from "../components/McpInspector";
 import McpTrafficPage from "../components/McpTrafficPage";
 import NewRelicDashboard from "../components/NewRelicDashboard";
 import P1AzDashboard from "../components/P1AzDashboard";
@@ -87,14 +86,6 @@ export function SequenceDiagramRoute({ user, logout }) {
 export function LogsRoute() {
   // Public per auth-requirements.json ("/logs": "public") — no session gate.
   return <LogViewerPage />;
-}
-
-export function McpInspectorRoute({ user, logout }) {
-  return (
-    <AppShell user={user} logout={logout}>
-      <McpInspector user={user} onLogout={logout} />
-    </AppShell>
-  );
 }
 
 export function WebMcpRoute({ user, logout }) {

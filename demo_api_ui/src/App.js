@@ -156,6 +156,7 @@ import EducationRoutes from "./routes/EducationRoutes";
 import MonitoringRoutes, {
   AgentFlowInspectorRoute,
   ApiTrafficRoute,
+  DevToolsRoute,
   LogsRoute,
   McpTrafficRoute,
   NewRelicRoute,
@@ -1054,6 +1055,10 @@ function AppWithAuth() {
                 <Route
                   path="/sequence-diagram"
                   element={<SequenceDiagramRoute user={user} logout={logout} />}
+                />
+                <Route
+                  path="/dev-tools"
+                  element={<DevToolsRoute user={user} logout={logout} />}
                 />
                 {/* Public landing page — available to all users */}
                 <Route

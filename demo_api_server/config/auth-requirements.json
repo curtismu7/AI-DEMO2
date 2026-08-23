@@ -145,6 +145,7 @@
     "/demo/enterprise-mcp": "user",
     "/demo/footprint-mocks": "user",
     "/demo/footprint-picks": "user",
+    "/dev-tools": "public",
     "/discovery-preview": "public",
     "/error-audit": "admin",
     "/feature-flags": "admin",

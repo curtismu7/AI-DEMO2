@@ -1,13 +1,15 @@
 // demo_api_ui/src/components/McpInspectorPage.jsx
-// Consolidates McpInspector.js (AI Demo MCP), PingOneMcpInspector.js
+// Consolidates the AI Demo MCP source (originally McpInspector.js, deleted
+// as dead code — its route was never wired into App.js), PingOneMcpInspector.js
 // (PingOne MCP), and ApiExplorerPanel.js (API Calls) behind one
-// InspectorShell instance with a source switcher. Each source's logic is
-// a straight adaptation of its original file — see the design spec
+// InspectorShell instance with a source switcher. The AI Demo MCP source's
+// logic is a straight adaptation of McpInspector.js's original implementation
+// — see the design spec
 // (docs/superpowers/specs/2026-07-19-inspector-shell-template-design.md)
 // and this plan's own Architecture section for why these aren't unified
-// into shared logic. The three original files are untouched by this page
-// — McpInspector.js and ApiExplorerPanel.js are still separately embedded
-// in McpGatewayConfig.jsx and DevToolsDashboard.jsx respectively.
+// into shared logic. PingOneMcpInspector.js and ApiExplorerPanel.js are
+// untouched by this page — ApiExplorerPanel.js is still separately embedded
+// in DevToolsDashboard.jsx.
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import apiClient from '../services/apiClient';
