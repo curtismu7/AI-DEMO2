@@ -475,13 +475,25 @@ if (tokenNbf) {
 // upstream audiences must never appear in the token's aud. Defaults match the
 // Node gateway's own config.ts fallbacks so both gateways agree even when an
 // operator hasn't set every env var explicitly.
+//
+// Exempt for 00-mcp-external-door.json's traffic: that route's whole design is
+// oauth-mcp's OWN embedded AS (OAUTH_MCP_ISSUER_URI) minting tokens ALREADY
+// audienced at the upstream MCP server for external clients (LM Studio, Claude
+// Desktop, ...) — there is no gateway-exchange step for that route (see the
+// route file's own comment: "Authorization header is deliberately NOT
+// exchanged"), so an upstream-audience token from THAT issuer is the expected,
+// correct shape, not a bypass. A stolen/forged token would still fail here
+// unless its iss also matches, and its signature is independently verified by
+// ExternalDoorTokenResolver's introspection before this filter ever runs.
+def externalDoorIssuer = System.getenv('OAUTH_MCP_ISSUER_URI') ?: ''
+def isExternalDoorToken = externalDoorIssuer && tokenIss == externalDoorIssuer
 def upstreamAudsLocal = [
     System.getenv('PG_OLB_RESOURCE_URI') ?: '',
     System.getenv('PG_MCP_RESOURCE_SERVER_URI') ?: '',
     System.getenv('BANKING_RESOURCE_SERVER_RESOURCE_URI') ?: 'https://banking-resource-server.ping.demo',
 ].findAll { it } - [gatewayResourceUri, System.getenv('PG_GATEWAY_RESOURCE_ID') ?: '']
 def audEntriesLocal = tokenAudActual.tokenize(' ').findAll { it }
-if (upstreamAudsLocal.any { audEntriesLocal.contains(it) }) {
+if (!isExternalDoorToken && upstreamAudsLocal.any { audEntriesLocal.contains(it) }) {
     return denyLocal('bypass_attempt', 'token aud targets an upstream resource — cannot bypass gateway (D-05)')
 }
 
