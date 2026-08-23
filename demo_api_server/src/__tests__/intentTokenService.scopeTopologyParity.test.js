@@ -14,6 +14,7 @@
 const scopeTopology = require('../../services/scopeTopology');
 const {
   INTENT_TO_PERMITTED_TOOLS,
+  VERTICAL_INTENT_TO_PERMITTED_TOOLS,
   READ_ONLY_TOOLS,
 } = require('../../services/intentTokenService');
 
@@ -22,6 +23,8 @@ describe('intent permission map ↔ scope-topology.json parity', () => {
   const referenced = [
     ...new Set([
       ...Object.values(INTENT_TO_PERMITTED_TOOLS).flat(),
+      ...Object.values(VERTICAL_INTENT_TO_PERMITTED_TOOLS)
+        .flatMap((intentMap) => Object.values(intentMap).flat()),
       ...READ_ONLY_TOOLS,
     ]),
   ].sort();
