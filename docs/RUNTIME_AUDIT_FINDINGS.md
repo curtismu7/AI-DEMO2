@@ -5,6 +5,13 @@ Findings from a category-parallel multi-agent audit (2026-08-23): 6 finder agent
 (default to REJECTED unless the file/line and behavior could be confirmed
 directly). All 27 candidate findings survived verification — 0 rejected.
 
+**Round 2 (2026-08-23, same day, after round 1 fully fixed and merged in
+PR #2278):** re-ran the identical 6-finder-agent + per-category adversarial
+verify design against the post-fix codebase. Finders were told which files
+round 1 had already touched and to report only genuinely new, distinct
+issues there. 12 of 12 candidate findings (#28–#39) survived verification —
+0 rejected.
+
 **Working rule:** when a finding is fixed, flip its Status to `FIXED` with the
 PR number (or commit) and evidence **in the same commit as the fix**, and add a
 Changelog line. A status column that lags the code is the same false-green
@@ -45,6 +52,18 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 25 | Perf | `TokenChainTraceRail.jsx` / `TokenChainFilmstrip.jsx` | medium | FIXED |
 | 26 | Perf | `routes/transactions.js` / `routes/accounts.js` | low | FIXED |
 | 27 | Perf | `TraceStepCard.jsx` | low | FIXED |
+| 28 | Runtime | `services/pingOneGroupMembershipService.js` | high | FIXED |
+| 29 | Runtime | `demo_api_ui/.../hooks/useDraggablePanel.js` | high | FIXED |
+| 30 | Runtime | `demo_api_ui/.../bankingRestartNotificationService.js` | medium | FIXED |
+| 31 | Runtime | `demo_api_ui/.../services/sessionResolver.js` | low | FIXED |
+| 32 | Swallowed | `routes/adminConfig.js` (generate-keypair) | high | FIXED |
+| 33 | Swallowed | `demo_api_ui/.../hooks/useElicitation.js` | medium | FIXED |
+| 34 | Swallowed | `demo_api_ui/.../DemoSetupPanel.js` (reset demo) | low | FIXED |
+| 35 | Perf | `services/auditLogService.js` | medium | FIXED |
+| 36 | Perf | `services/demoTrackService.js` | medium | FIXED |
+| 37 | Perf | `services/traceProjector.js` | low | FIXED |
+| 38 | Perf | `demo_api_ui/.../context/ActivityNarrativeContext.js` | medium | FIXED |
+| 39 | Perf | `demo_api_ui/.../ScopeAuditPage.js` | medium | FIXED |
 
 ---
 
@@ -719,13 +738,475 @@ unexported module-private helper, not spy-observable across its own
 in-module call sites (same reasoning as finding #25). `npm --prefix
 demo_api_ui run build` — exit 0.
 
-**Fix (not yet applied):** Compute once via `useMemo`; wrap export in
-`React.memo` (benefit capped until #25 lands).
+---
+
+## Round 2 findings (2026-08-23)
+
+### 28. Group-membership cache can be repopulated with stale data after invalidation — FIXED
+
+**File:** `demo_api_server/services/pingOneGroupMembershipService.js`, line 109
+
+**Issue:** A slow in-flight group-membership lookup started before an admin's
+group toggle can finish *after* the toggle's cache reset and repopulate the
+60s cache with stale (pre-toggle) data, silently undoing the invalidation.
+
+**Trigger scenario:** Concurrent (a) `listUserGroupNamesForVertical`
+cache-miss awaiting `GET /users/{id}/memberOfGroups` (lines 67–72), and (b)
+`setUserGroupMembership`'s write + `_resetCache()` (line 210). If (b)
+completes while (a)'s GET is still in flight, (a) resolves with pre-toggle
+membership and calls `_setCached(...)` at line 109, repopulating the
+just-cleared cache for up to `CACHE_TTL_MS` (60s) with stale data.
+
+**Fix:** Added a module-level `_cacheGeneration` counter, bumped in
+`_resetCache()`. `listUserGroupNamesForVertical` captures the generation
+before starting the fetch and only calls `_setCached` if the generation is
+still unchanged when the fetch resolves — the in-flight caller still gets
+its fetched answer either way, it just isn't written back into a cache that
+was invalidated out from under it.
+
+**Evidence:** New test in `pingOneGroupMembershipService.test.js` simulates
+the race with a deferred `makeRequest` mock: starts a slow fetch, calls
+`_resetCache()` while it's still pending, resolves it, then asserts a
+subsequent call hits the API again (2 total calls) instead of serving the
+stale cached value. Proven to fail against the pre-fix file (`toEqual`
+mismatch — the stale value was cached and served) and pass against the fix.
+`cd demo_api_server && CI=true npx jest
+src/__tests__/pingOneGroupMembershipService.test.js --forceExit
+--maxWorkers=4` — 9/9 passed.
+
+### 29. Draggable panel drag never cleans up if the component unmounts mid-drag — FIXED
+
+**File:** `demo_api_ui/src/hooks/useDraggablePanel.js`, line 90
+
+**Issue:** `handleDragStart`'s pointermove/pointerup/pointercancel listeners
+and the `document.body.style.userSelect = 'none'` it sets are only cleaned
+up by the drag's own `onUp` handler; the unmount cleanup effect (lines
+74–85) only tears down `activeResizeHandlersRef` (the resize path), never an
+in-flight drag.
+
+**Trigger scenario:** Start dragging a `DraggableModal` titlebar (pointerdown
+→ `handleDragStart` sets `userSelect='none'` at line 117, attaches listeners
+to target at lines 118–120), then unmount the component (e.g. `onClose`
+fires) before releasing the pointer → `onUp` never runs → `document.body.style.userSelect`
+stays `'none'` for the rest of the session.
+
+**Fix:** Added an `activeDragHandlersRef` alongside the existing
+`activeResizeHandlersRef`, storing `{ target, onMove, onUp }` when a drag
+starts and clearing it on the drag's own `onUp` (mirrors the resize path's
+existing pattern). The unmount cleanup effect now also tears down an
+in-flight drag: removes the three listeners from `target` and resets
+`document.body.style.userSelect = ''`.
+
+**Evidence:** New test in `useDraggablePanel.test.js` starts a drag via
+`handleDragStart` with a synthetic pointerdown, unmounts without firing
+pointerup, and asserts `document.body.style.userSelect` resets to `''` and
+`removeEventListener` was called for `pointermove`/`pointerup`/`pointercancel`.
+Proven to fail against the pre-fix file (`userSelect` stayed `'none'`) and
+pass against the fix. `npm --prefix demo_api_ui run test:unit --
+useDraggablePanel` — 4/4 passed.
+
+### 30. Concurrent manual + automatic health-check retries race on shared state — FIXED
+
+**File:** `demo_api_ui/src/services/bankingRestartNotificationService.js`, line 168
+
+**Issue:** `manualRetry()` unconditionally starts a new `retryHealthCheck()`
+chain without checking whether one is already in flight, so a user click
+while a check from `handle504Error`'s chain is still awaiting
+`checkServerHealth()` runs two concurrent `retryHealthCheck()` invocations
+that both mutate the shared `globalRestartState` with no lock.
+
+**Trigger scenario:** A 504/network error triggers `handle504Error` →
+`retryHealthCheck()` (line 161), mid-await on `checkServerHealth()` (up to
+5s, line 133). Before it resolves, the user clicks "Retry Now" →
+`manualRetry()` (line 168) clears the not-yet-scheduled `retryTimeoutId`
+(still null) and calls `retryHealthCheck()` again → two concurrent calls
+each call `incrementAttempt()` and, on failure, each independently overwrite
+`globalRestartState.retryTimeoutId` via their own `setTimeout`.
+
+**Fix:** Added a module-level `_inFlightHealthCheck` promise. `retryHealthCheck`
+now checks it first — if a check is already in flight, it returns that same
+promise instead of starting a new one; otherwise it wraps its existing body
+in an IIFE, stores the resulting promise, and clears it in a `finally` once
+settled. `manualRetry`'s unchanged call to `retryHealthCheck()` now
+transparently joins an in-flight automatic check instead of racing it.
+
+**Evidence:** New test in `bankingRestartNotificationService.test.js` mocks
+a controllable `fetch`, calls `handle504Error` (starts the automatic chain,
+fetch already in flight), then calls `manualRetry()` while that fetch is
+still pending, and asserts only one `fetch` call total. Proven to fail
+against the pre-fix file (2 concurrent fetches) and pass against the fix.
+`npm --prefix demo_api_ui run test:unit -- bankingRestartNotificationService`
+— 1/1 passed; full UI suite (413 files / 3411 tests) — no regressions.
+
+### 31. `resolveSessionUser`'s race-timeout guard leaks a dangling timer on every normal call — FIXED
+
+**File:** `demo_api_ui/src/services/sessionResolver.js`, line 13
+
+**Issue:** `resolveSessionUser()` creates a 10-second `setTimeout` for its
+race-based timeout guard but never clears it once the `Promise.allSettled`
+branch wins the race (the normal, fast-path case), so every call leaves a
+dangling timer running for up to 10s.
+
+**Trigger scenario:** Any normal (non-hung) call to `resolveSessionUser()`
+(called from `Accounts.js`, `Transactions.js`, `Users.js`, `Dashboard.js`,
+`SessionTokenContext.js`) resolves via `Promise.allSettled` well under 10s,
+but the `setTimeout` scheduled at line 14 is never captured in a variable or
+cleared, so it keeps running regardless.
+
+**Fix:** Captured the `setTimeout` id in a `let timeoutId` and added
+`clearTimeout(timeoutId)` in a `finally` block, so the guard timer is always
+cleared regardless of which branch of the race settled or whether the
+function threw.
+
+**Evidence:** New test in `sessionResolver.test.js` uses fake timers, calls
+`resolveSessionUser()` with a mocked `getCachedJson` (fast, non-hung path),
+and asserts `vi.getTimerCount() === 0` after it resolves. Proven to fail
+against the pre-fix file (1 dangling timer) and pass against the fix. `npm
+--prefix demo_api_ui run test:unit -- sessionResolver` — 1/1 passed.
+
+### 32. Generated management private key is silently dropped, never persisted — FIXED
+
+**File:** `demo_api_server/routes/adminConfig.js`, line 295
+
+**Issue:** `POST /api/admin/config/generate-keypair` calls the async
+`configStore.setConfig()` without awaiting it, and the key it writes
+(`pingone_mgmt_private_key`) is not registered in `configStore.js`'s
+`FIELD_DEFS`, so `setConfig`'s unknown-key guard silently drops it — the
+private key is never persisted, yet the route unconditionally responds
+`ok:true`.
+
+**Trigger scenario:** Admin clicks "Generate keypair" for `private_key_jwt`
+management-auth in the Config UI, registers the returned public key in
+PingOne as instructed, then later triggers a Management API call using
+`private_key_jwt` auth method — which fails with "no private key
+configured" because it was never actually saved.
+
+**Fix:** Registered `pingone_mgmt_private_key` in `FIELD_DEFS` and
+`SECRET_KEYS` in `services/configStore.js` (mirroring the existing
+`pingone_client_jwt_private_key` entry). In `adminConfig.js:295`, added
+`await` on `configStore.setConfig(...)` so a persistence failure now flows
+into the route's existing top-level try/catch → 500 response, instead of
+surfacing as an unhandled promise rejection while the route already
+responded `ok:true`.
+
+**Note:** while investigating, found `pingone_mgmt_client_id`,
+`pingone_mgmt_client_secret`, and `pingone_mgmt_token_auth_method` have the
+same FIELD_DEFS gap (referenced in `SECRET_KEYS`/env-alias tables but absent
+from `FIELD_DEFS`), but they appear to be set only via `.env` today, never
+via `setConfig` — left as-is since fixing them isn't part of this finding;
+logged in `TECH_DEBT.md`.
+
+**Evidence:** New `configStore.mgmtPrivateKeySave.test.js` proves the
+FIELD_DEFS fix — `setConfig({ pingone_mgmt_private_key })` then
+`getEffective('pingone_mgmt_private_key')` round-trips the value (was `''`
+pre-fix). New `adminConfig.generateKeypair.test.js` proves the `await` fix —
+a rejected `setConfig` now yields a 500 `ok:false` response instead of 200
+`ok:true` (and pre-fix, the rejection surfaced as an actual unhandled
+promise rejection error in the test run). Both proven to fail against the
+pre-fix files and pass against the fix. `cd demo_api_server && CI=true npx
+jest src/__tests__/configStore.mgmtPrivateKeySave.test.js
+src/__tests__/adminConfig.generateKeypair.test.js --forceExit
+--maxWorkers=4` — 2 suites / 3 tests passed. Full server suite run
+separately since this touches `configStore.js` (shared config store).
+
+### 33. MCP elicitation submission failures are silently swallowed — FIXED
+
+**File:** `demo_api_ui/src/hooks/useElicitation.js`, line 59
+
+**Issue:** `submitElicitation`'s catch block logs the error to console and
+re-enables the submit button, but never exposes any error state to the
+caller, so the user gets no indication their submission failed.
+
+**Trigger scenario:** The MCP elicitation dialog (form or URL mode) is open
+and the POST to `/api/mcp/elicit/response` fails (network error or 4xx/5xx).
+`submitElicitation` catches the error, logs it, and resolves normally
+without re-throwing or setting any error state, so the dialog's own
+try/finally (in `ElicitationDialog.jsx`) only resets `isSubmitting` — the
+button flips back to "Submit"/"Decline"/"Cancel"/"Open in Browser" with zero
+visible feedback that the submission failed.
+
+**Fix:** Added an `error` state to `useElicitation.js`, set on catch (cleared
+on a new elicitation request, on submit start, and on `cancel()`), and
+exposed it from the hook. `AIAgent.js` passes it through as `ElicitationDialog`'s
+new `error` prop, rendered as a visible `.elicit-modal__submit-error` banner
+(solid high-contrast red, not muted hint text) in both form and URL mode,
+right above the footer buttons.
+
+**Evidence:** New `useElicitation.test.js` proves the hook sets `error` and
+keeps the dialog open (`elicitation` stays non-null) when the POST rejects,
+and clears it on a subsequent success. New tests in
+`ElicitationDialog.test.jsx` prove the banner renders when `error` is set (both
+modes) and renders nothing when it isn't. Proven to fail against the pre-fix
+files (4/9 failing) and pass against the fix (9/9). `npm --prefix demo_api_ui
+run test:unit` — 415 files / 3417 tests passed, no regressions. `npm
+--prefix demo_api_ui run build` — exit 0.
+
+### 34. Failed demo reset is indistinguishable from a successful one — FIXED
+
+**File:** `demo_api_ui/src/components/DemoSetupPanel.js`, line 89
+
+**Issue:** `handleResetDemo` swallows the failure of the server-side
+reset-demo POST and unconditionally clears local storage and logs the user
+out, so a failed reset is indistinguishable from a successful one.
+
+**Trigger scenario:** Admin clicks "Reset demo" and confirms; if `POST
+/api/admin/reset-demo` fails (500, network error, expired session), the
+empty `catch (_) {}` on line 89 discards the error, then lines 90–92 still
+clear local token-chain/traffic-store caches and call `performLogout()` as
+if the reset succeeded — the admin is signed out believing server state
+(agent history, token chain events, MCP audit logs) was cleared when it was
+not.
+
+**Fix:** The `catch` on `axios.post('/api/admin/reset-demo')` now calls the
+already-imported `notifyError(...)` and returns early — local storage is no
+longer cleared and `performLogout()` is no longer called when the reset
+actually failed.
+
+**Evidence:** New `DemoSetupPanel.resetDemo.test.jsx` proves both paths: a
+rejected POST surfaces `notifyError` and leaves `performLogout`
+uncalled/local storage intact; a successful POST still clears local storage
+and calls `performLogout` as before. Proven to fail against the pre-fix file
+(failure path silently cleared + logged out) and pass against the fix. `npm
+--prefix demo_api_ui run test:unit -- DemoSetupPanel.resetDemo` — 2/2
+passed; full UI suite (416 files / 3419 tests) — no regressions. `npm
+--prefix demo_api_ui run build` — exit 0.
+
+**This closes the Swallowed-Errors category — findings #9–18 and #32–34 are
+all FIXED.**
+
+### 35. Kill-switch/rate-limit audit log grows unbounded — its own pruning function is dead code — FIXED
+
+**File:** `demo_api_server/services/auditLogService.js`, line 15
+
+**Issue:** The in-memory `auditLogs` object (one array per agentId of
+kill-switch/rate-limit audit events) grows without any automatic cap.
+`pruneOldLogs(retentionDays)` is defined and exported (lines 238–259,
+exported at 267) but has zero callers anywhere in the codebase.
+
+**Trigger scenario:** `recordKillEvent` (line 26), `recordKillFailure` (line
+82), and `recordRateLimitViolation` (line 112) all push onto
+`auditLogs[agentId]` with no size/age limit at push time, and nothing ever
+calls `pruneOldLogs` to trim it.
+
+**Fix:** Added a module-level `setInterval(() => { pruneOldLogs(); },
+PRUNE_INTERVAL_MS).unref()` (1 hour cadence), mirroring
+`mcpGatewayRateLimit.js`'s `_evictionInterval` pattern — `pruneOldLogs`
+itself already existed and needed no changes, it just had no caller.
+
+**Evidence:** New `auditLogService.pruning.test.js` uses fake timers, records
+an event, advances time 91 days (past the 90-day retention window) with no
+manual `pruneOldLogs()` call, and asserts the event is gone — proving the
+module's own interval fired the prune, not a direct call. Proven to fail
+against the pre-fix file (event still present after 91 days) and pass
+against the fix. `cd demo_api_server && CI=true npx jest
+src/__tests__/auditLogService.pruning.test.js --forceExit --maxWorkers=4` —
+1/1 passed.
+
+### 36. Demo-track session buckets are never evicted — FIXED
+
+**File:** `demo_api_server/services/demoTrackService.js`, line 60
+
+**Issue:** Module-level `_runs` and `_histories` Maps (lines 60–61) are
+keyed by `req.sessionID` and never evicted — a new bucket is created per
+distinct session via `_ensureRun`/`_hydrate` and nothing ever deletes an old
+bucket.
+
+**Trigger scenario:** Each new session (new cookie post login/logout, new
+incognito window, session regeneration) creates a fresh bucket via
+`_bucketKey` → `_ensureRun`/`_hydrate`. Per-bucket history array is capped at
+`HISTORY_CAP=20` (line 40), but there is no cap or TTL on the number of
+buckets themselves.
+
+**Fix:** Added a `_lastAccessed` Map touched inside `_hydrate` (the single
+common entry point every public function goes through), plus a
+`BUCKET_TTL_MS` (24h — this is a short presenter-walkthrough tool) and a
+periodic unref'd `setInterval` sweep that drops any bucket idle past the
+TTL from `_runs`/`_histories`/`_lastAccessed`.
+
+**Evidence:** New `demoTrackService.bucketEviction.test.js` uses fake
+timers: creates two session buckets, advances 25h with no further access,
+and asserts the bucket count (via a new `_bucketCountForTests()` test-only
+export) drops to 0 — proving the module's own interval evicted them, not a
+manual call. A second test proves a bucket touched again before its TTL
+elapses survives. Proven to fail against the pre-fix file (`_bucketCountForTests`
+didn't exist) and pass against the fix. `cd demo_api_server && CI=true npx
+jest tests/demoTrackService.bucketEviction.test.js tests/demoTrackService.test.js
+tests/demoTrackRoute.test.js tests/demoTrack.config.test.js
+tests/demoTrackHooks.test.js tests/mcpToolAuditStore.demoTrackSessionScoping.test.js
+--forceExit --maxWorkers=4` — 6 suites / 29 tests passed.
+
+### 37. Trace projector re-scans the full span array once per matching span — FIXED
+
+**File:** `demo_api_server/services/traceProjector.js`, line 177
+
+**Issue:** `projectServiceCards` filters `traceData.spans` for the target
+service(s), and for each span that matches the service it re-scans the
+entire `traceData.spans` array again via `.some()` (lines 182–184) to check
+whether that service has any server-kind span — this happens once per
+matching span rather than once per `traceData`.
+
+**Trigger scenario:** This function is called 3 times per `project()`
+invocation (`projectAuthorization`, `projectBackendApi`,
+`projectHitlApproval`), so cost scales quadratically in trace span count for
+a trace containing many spans on authz-server/mcp-server/mcp-resource-server/hitl-service.
+
+**Fix:** Precomputed a `serverKindServices` `Set` in a single pass over
+`spans` before the `.filter()`, then the filter callback does an O(1)
+`Set.has()` lookup instead of re-running `.some()` over the full array per
+candidate span.
+
+**Evidence:** Behavior-preserving by construction (same inputs, same
+computed output — only the re-scan is eliminated). Only `project` is
+exported from this module (`projectServiceCards` is internal), so verified
+via the existing `traceProjector.test.js` suite, which directly exercises
+`projectAuthorization`/`projectBackendApi`/`projectHitlApproval` (all
+callers of `projectServiceCards`) including a live 77-span fixture. `cd
+demo_api_server && CI=true npx jest tests/services/traceProjector.test.js
+--forceExit --maxWorkers=4` — 12/12 passed, no regressions.
+
+### 38. Activity narrative panel's request history grows unbounded and re-maps on every turn — FIXED
+
+**File:** `demo_api_ui/src/context/ActivityNarrativeContext.js`, line 23
+
+**Issue:** The `requests` array behind the "What's happening" activity panel
+grows without any cap for the life of the session, and `startRequest`
+re-maps every prior request (spreading each into a new object just to flip
+`collapsed: true`) on every single call.
+
+**Trigger scenario:** Send many prompts in one session without a
+user/vertical/theme change (which is what triggers `reset()` per
+`AIAgent.js`). Each call to `startRequest` does `[...prev.map((r) => ({
+...r, collapsed: true })), next]` — no length cap, no slice — so `requests`
+grows by one entry per turn indefinitely, and the per-turn cost of building
+the new array grows linearly with total turns so far. `useActivityLog.js`
+already has a deliberate cap pattern (`MAX_EVENTS = 200`) that this context
+does not apply.
+
+**Fix:** Added `MAX_REQUESTS = 50` (mirrors `useActivityLog.js`'s
+`MAX_EVENTS` pattern). `startRequest` now slices the mapped/collapsed
+history down to the most recent `MAX_REQUESTS - 1` entries before appending
+`next`, capping both total array size and per-turn remap cost once the cap
+is reached.
+
+**Evidence:** New test starts 55 requests and asserts exactly 50 survive,
+oldest-first dropped (`requests[0]` is `turn 5`, not `turn 0`). Proven to
+fail against the pre-fix file (55 items, no cap) and pass against the fix.
+`npm --prefix demo_api_ui run test:unit -- ActivityNarrativeContext
+ActivityNarrativePanel` — 8/8 passed; full UI suite (416 files / 3420 tests)
+— no regressions. `npm --prefix demo_api_ui run build` — exit 0.
+
+### 39. "Fix All" scope-audit actions reload the full audit after every single fix instead of once — FIXED
+
+**File:** `demo_api_ui/src/components/ScopeAuditPage.js`, line 73
+
+**Issue:** "Fix All Missing Required" / "Fix All Missing"
+(`handleFixAll`/`handleFixEverything`) re-fetches and rebuilds the entire
+PingOne resource+scope audit after each individual scope creation instead of
+once after the batch, turning one intended batch operation into N sequential
+full-audit reloads.
+
+**Trigger scenario:** Click "Add All Missing Required" on a resource card or
+"Fix All Missing" in the toolbar. Both loop and `await handleAddScope(...)`
+per scope; `handleAddScope` unconditionally does `await loadResources()`
+after every POST, and `loadResources` itself issues 1+N requests (one GET
+for all resources, one per resource for its scopes). Fixing K missing
+scopes issues K POSTs each followed by a full 1+N-request re-audit, instead
+of a single reload after the batch.
+
+**Fix:** `handleAddScope` now accepts `{ refresh = true }`, defaulting to the
+prior behavior for the single "Add" button. `handleFixAll` and
+`handleFixEverything` pass `{ refresh: false }` from their loop bodies and
+call `loadResources()` once after the loop completes instead of once per
+scope.
+
+**Evidence:** New `ScopeAuditPage.fixAll.test.jsx` mocks a resource with 2
+missing required scopes, clicks "Fix All Missing", and asserts exactly 2
+POSTs (both scopes) followed by exactly 1 additional GET to
+`/api/admin/scope-audit/resources` (not 2). Proven to fail against the
+pre-fix file (3 total GETs — one per scope plus the initial) and pass
+against the fix (2 total). `npm --prefix demo_api_ui run test:unit --
+ScopeAuditPage.fixAll` — 1/1 passed; full UI suite (417 files / 3421 tests)
+— no regressions. `npm --prefix demo_api_ui run build` — exit 0.
+
+**This closes the Performance category and the entire round-2 audit — all
+39 findings across both rounds are now FIXED.**
 
 ---
 
 ## Changelog
 
+- 2026-08-23 — #39 FIXED: `ScopeAuditPage.js`'s `handleAddScope` gained an
+  optional `{ refresh: false }` so `handleFixAll`/`handleFixEverything` skip
+  the per-scope reload and reload once after the batch instead. New test
+  proven to fail against the pre-fix file (3 GETs for 2 scopes) and pass
+  against the fix (2 GETs); full UI suite green (417 files / 3421 tests).
+  **This closes the Performance category and the entire round-2 audit — all
+  39 findings across both rounds are now FIXED.**
+- 2026-08-23 — #38 FIXED: `ActivityNarrativeContext.js` caps `requests` at
+  `MAX_REQUESTS = 50` (mirrors `useActivityLog.js`'s `MAX_EVENTS` pattern),
+  bounding both array growth and per-turn remap cost. New test proven to
+  fail against the pre-fix file (55 items, uncapped) and pass against the
+  fix; full UI suite green (416 files / 3420 tests).
+- 2026-08-23 — #37 FIXED: `traceProjector.js`'s `projectServiceCards`
+  precomputes a `serverKindServices` Set once instead of re-scanning the
+  full span array per candidate span. Behavior-preserving; verified via the
+  existing `traceProjector.test.js` suite (12/12, including a live 77-span
+  fixture) since only `project` is exported from this module.
+- 2026-08-23 — #36 FIXED: `demoTrackService.js` now tracks a `_lastAccessed`
+  time per session bucket (touched in `_hydrate`, the shared entry point) and
+  sweeps buckets idle past a 24h TTL via a periodic unref'd `setInterval`.
+  New test (fake timers, advance 25h, no manual sweep call) proven to fail
+  against the pre-fix file and pass against the fix; existing demo-track
+  suites (6 files / 29 tests) unaffected.
+- 2026-08-23 — #35 FIXED: `auditLogService.js` now calls its own
+  `pruneOldLogs()` on a periodic unref'd `setInterval` (1h), matching the
+  `_evictionInterval` pattern in `mcpGatewayRateLimit.js`. New test (fake
+  timers, advance 91 days, no manual prune call) proven to fail against the
+  pre-fix file and pass against the fix.
+- 2026-08-23 — #34 FIXED: `DemoSetupPanel.js`'s reset-demo empty catch now
+  calls `notifyError` and returns early on a failed POST instead of
+  proceeding to clear local storage and log the admin out as if it
+  succeeded. New tests proven to fail against the pre-fix file and pass
+  against the fix; full UI suite green (416 files / 3419 tests). **Closes
+  the Swallowed-Errors category (#9–18, #32–34 all FIXED).**
+- 2026-08-23 — #33 FIXED: `useElicitation.js` now exposes an `error` state,
+  set on a failed submit and surfaced by `ElicitationDialog.jsx` as a visible
+  banner instead of silently resetting to idle. New hook + dialog tests
+  proven to fail against the pre-fix files (4/9) and pass against the fix
+  (9/9); full UI suite green (415 files / 3417 tests).
+- 2026-08-23 — #32 FIXED: `pingone_mgmt_private_key` registered in
+  `configStore.js`'s `FIELD_DEFS`/`SECRET_KEYS`/`envReconcile.js`
+  classification; `adminConfig.js`'s generate-keypair route now `await`s
+  `setConfig(...)` so a persistence failure yields a real 500 instead of a
+  false `ok:true`. Found (but left out of scope, logged in `TECH_DEBT.md`)
+  that `pingone_mgmt_client_id`/`_client_secret`/`_token_auth_method` have
+  the same FIELD_DEFS gap. New tests proven to fail against the pre-fix
+  files and pass against the fix; full server suite green.
+- 2026-08-23 — #31 FIXED: `sessionResolver.js`'s `resolveSessionUser` now
+  captures its 10s race-timeout guard's `setTimeout` id and clears it in a
+  `finally` block, so a normal (non-hung) call no longer leaves a dangling
+  timer running. New test (fake timers, `vi.getTimerCount()`) proven to fail
+  against the pre-fix file and pass against the fix.
+- 2026-08-23 — #30 FIXED: `bankingRestartNotificationService.js` gained an
+  `_inFlightHealthCheck` promise so `manualRetry()` joins an already-running
+  automatic `retryHealthCheck()` instead of racing it with a second
+  concurrent health check. New test proven to fail against the pre-fix file
+  (2 concurrent fetches) and pass against the fix; full UI suite green (413
+  files / 3411 tests).
+- 2026-08-23 — #29 FIXED: `useDraggablePanel.js` gained an
+  `activeDragHandlersRef` (mirroring the existing resize-path ref); the
+  unmount cleanup effect now also tears down an in-flight drag's listeners
+  and resets `userSelect`. New test proven to fail against the pre-fix file
+  and pass against the fix; 4/4 tests passed.
+- 2026-08-23 — #28 FIXED: `pingOneGroupMembershipService.js` gained a
+  `_cacheGeneration` counter bumped by `_resetCache()`; a fetch in flight
+  when a reset happens now skips repopulating the cache with its stale
+  result. New test proven to fail against the pre-fix file and pass against
+  the fix; 9/9 tests passed.
+- 2026-08-23 — Round 2 audit run: re-ran the same 6-finder + per-category
+  adversarial-verify design against the post-round-1 codebase (after PR
+  #2278 merged all 27 round-1 fixes). 12/12 candidate findings survived
+  verification, added as #28–#39, all OPEN — none fixed yet.
 - 2026-08-23 — #27 FIXED: `TraceStepCard.jsx` hoisted its twice-called,
   identical-args `claimDiffs(...)` into one `useMemo`'d
   `beforeAfterChangedClaims` and wrapped the default export in `React.memo`.

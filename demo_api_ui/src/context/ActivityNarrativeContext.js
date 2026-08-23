@@ -7,6 +7,12 @@ import { identityStep, delegationStep } from '../components/activity/activityNar
 
 const ActivityNarrativeContext = createContext(null);
 
+// Without a cap, `requests` grows by one entry per turn for the life of the
+// session (only `reset()` on a user/vertical/theme change ever clears it),
+// and startRequest's collapse-the-rest map cost grows linearly with it.
+// Matches the cap pattern already used by useActivityLog.js's MAX_EVENTS.
+const MAX_REQUESTS = 50;
+
 export function ActivityNarrativeProvider({ children }) {
   const [requests, setRequests] = useState([]);
   const idRef = useRef(0);
@@ -20,7 +26,13 @@ export function ActivityNarrativeProvider({ children }) {
       status: 'running',
       collapsed: false,
     };
-    setRequests((prev) => [...prev.map((r) => ({ ...r, collapsed: true })), next]);
+    setRequests((prev) => {
+      const collapsed = prev.map((r) => ({ ...r, collapsed: true }));
+      const capped = collapsed.length >= MAX_REQUESTS
+        ? collapsed.slice(collapsed.length - MAX_REQUESTS + 1)
+        : collapsed;
+      return [...capped, next];
+    });
   }, []);
 
   const upsertStep = useCallback((step) => {

@@ -86,7 +86,13 @@ export default function DemoSetupPanel() {
   const handleResetDemo = async () => {
     if (!window.confirm('Reset demo? This clears all agent history, token chain events, and MCP audit logs. You will be signed out.')) return;
     setDemoResetting(true);
-    try { await axios.post('/api/admin/reset-demo'); } catch (_) {}
+    try {
+      await axios.post('/api/admin/reset-demo');
+    } catch (err) {
+      setDemoResetting(false);
+      notifyError('Reset demo failed. Server state was not cleared — try again.');
+      return;
+    }
     try { localStorage.removeItem('tokenChainHistory'); } catch (_) {}
     try { localStorage.removeItem('api-traffic-store'); } catch (_) {}
     performLogout();

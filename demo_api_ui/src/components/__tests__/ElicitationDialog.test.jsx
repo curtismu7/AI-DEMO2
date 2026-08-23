@@ -14,6 +14,43 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import React from "react";
 import ElicitationDialog from "../ElicitationDialog";
 
+describe("ElicitationDialog — submit-error display (finding #33)", () => {
+  it("shows the error message in form mode when the error prop is set", () => {
+    render(
+      <ElicitationDialog
+        elicitation={{ mode: "form", message: "Enter", requestedSchema: { properties: {}, required: [] } }}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        error="Failed to send your response. Please try again."
+      />
+    );
+    expect(screen.getByText(/failed to send your response/i)).toBeInTheDocument();
+  });
+
+  it("renders nothing extra when there is no error", () => {
+    render(
+      <ElicitationDialog
+        elicitation={{ mode: "form", message: "Enter", requestedSchema: { properties: {}, required: [] } }}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+      />
+    );
+    expect(screen.queryByText(/failed to send/i)).not.toBeInTheDocument();
+  });
+
+  it("shows the error message in URL mode when the error prop is set", () => {
+    render(
+      <ElicitationDialog
+        elicitation={{ mode: "url", message: "Authorize", url: "https://example.com" }}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        error="Failed to send your response. Please try again."
+      />
+    );
+    expect(screen.getByText(/failed to send your response/i)).toBeInTheDocument();
+  });
+});
+
 describe("ElicitationDialog — URL mode (Bug #57 reverse tabnabbing)", () => {
   it("opens the URL with noopener,noreferrer", async () => {
     const url = "https://evil-mcp.example.com/authorize?x=1";

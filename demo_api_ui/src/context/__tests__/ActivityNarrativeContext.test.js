@@ -55,6 +55,17 @@ describe('ActivityNarrativeContext', () => {
     expect(result.current.reset).toBe(before.reset);
   });
 
+  it('caps requests at 50, dropping the oldest first (finding #38)', () => {
+    const { result } = renderHook(() => useActivityNarrative(), { wrapper });
+    for (let i = 0; i < 55; i++) {
+      act(() => result.current.startRequest(`turn ${i}`));
+    }
+    expect(result.current.requests).toHaveLength(50);
+    // Oldest 5 dropped; the most recent 50 (turn 5..turn 54) survive, in order.
+    expect(result.current.requests[0].prompt).toBe('turn 5');
+    expect(result.current.requests.at(-1).prompt).toBe('turn 54');
+  });
+
   it('reset clears all requests', () => {
     const { result } = renderHook(() => useActivityNarrative(), { wrapper });
     act(() => result.current.startRequest('x'));

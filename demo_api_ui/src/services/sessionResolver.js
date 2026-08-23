@@ -10,9 +10,10 @@ import { getCachedJson } from './cachedStatusService';
  */
 export async function resolveSessionUser() {
   const SESSION_RESOLVE_TIMEOUT = 10000; // 10s timeout to prevent indefinite UI hang
-  const timeoutPromise = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error('Session resolution timed out')), SESSION_RESOLVE_TIMEOUT)
-  );
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error('Session resolution timed out')), SESSION_RESOLVE_TIMEOUT);
+  });
 
   try {
     const [admin, endUser, session] = await Promise.race([
@@ -35,6 +36,8 @@ export async function resolveSessionUser() {
   } catch (err) {
     console.warn('[sessionResolver] resolveSessionUser failed or timed out:', err.message);
     return null;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 

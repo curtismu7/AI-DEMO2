@@ -820,6 +820,7 @@ export default function BankingAgent({
   const {
     elicitation,
     isSubmitting: elicitationSubmitting,
+    error: elicitationError,
     handleElicitationRequest,
     submitElicitation,
     cancel: cancelElicitation,
@@ -12178,6 +12179,7 @@ export default function BankingAgent({
           elicitation={elicitation}
           onSubmit={submitElicitation}
           onCancel={cancelElicitation}
+          error={elicitationError}
         />
       )}
     </div>
