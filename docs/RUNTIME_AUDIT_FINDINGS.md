@@ -40,7 +40,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 20 | Perf | `demo_api_ui/vertical/VerticalProvider.jsx` | high | FIXED |
 | 21 | Perf | `demo_api_ui/.../AIAgent.js` (O(N²) proof scan) | high | FIXED |
 | 22 | Perf | `services/pingoneProvisionService.js` (grantScopes) | medium | FIXED |
-| 23 | Perf | `services/pingoneProvisionService.js` (wipeEnvironment) | medium | OPEN |
+| 23 | Perf | `services/pingoneProvisionService.js` (wipeEnvironment) | medium | FIXED |
 | 24 | Perf | `demo_api_ui/.../AIAgent.js` (unbounded transcript) | medium | OPEN |
 | 25 | Perf | `TokenChainTraceRail.jsx` / `TokenChainFilmstrip.jsx` | medium | OPEN |
 | 26 | Perf | `routes/transactions.js` / `routes/accounts.js` | low | OPEN |
@@ -571,9 +571,9 @@ fix). Confirmed to fail against the pre-fix file (`Received length: 2`) and
 pass against the fix. Full test file plus 8 adjacent PingOne-provisioning
 suites run for extra safety given this touches live-provisioning code: `cd demo_api_server && CI=true npx jest src/__tests__/pingoneProvisionService.regression.test.js src/__tests__/scopeTopology.regression.test.js src/__tests__/pingOneGroupProvisionService.test.js src/__tests__/mcpPingOneAdminAuth.test.js src/__tests__/setupWizard.route.test.js tests/provisioningNameMapCompleteness.test.js tests/pingoneObjectResolution.test.js tests/pingoneResourceIds.test.js tests/startupConfigGuard.mcpGatewayAud.test.js --forceExit --maxWorkers=4` — 9 suites / 96 tests passed.
 
-### 23. `wipeEnvironment` deletes everything fully sequentially — OPEN
+### 23. `wipeEnvironment` deletes everything fully sequentially — FIXED
 
-**File:** `demo_api_server/services/pingoneProvisionService.js`, `wipeEnvironment` (3665–3838)
+**File:** `demo_api_server/services/pingoneProvisionService.js`, `wipeEnvironment` (was 3665–3838)
 
 **Issue:** 5 categories of objects each deleted with a fully sequential
 `await` per item, no batching or bounded concurrency.
@@ -581,8 +581,27 @@ suites run for extra safety given this touches live-provisioning code: `cd demo_
 **Trigger scenario:** Reset-environment wizard on an environment with many
 accumulated demo objects — dozens of fully serial round trips.
 
-**Fix (not yet applied):** Bounded concurrency (e.g. 5) per category —
-`makeRequest` has no rate-limit/retry handling of its own, so keep it modest.
+**User confirmed the tradeoff before this was applied:** unlike the other
+perf findings, this is a rare, deliberate, destructive live-PingOne-mutating
+admin operation, not a hot path — and its `step()` callback streams *ordered*
+progress to the reset-wizard UI, so concurrency reorders those messages by
+completion time instead of list order. Asked directly; the answer was
+bounded concurrency (~5), accepting reordered step messages.
+
+**Fix:** Added `_mapLimit(items, limit, fn)` — a small hand-rolled
+worker-pool helper (no new dependency) — and converted all 5 delete loops
+(apps, resources, groups, attrs, the per-username user search + its inner
+delete) to use it at a concurrency cap of 5, matching the audit's own
+caution about PingOne Management API rate limits.
+
+**Evidence:** this function had **zero** prior test coverage. Added 3 tests:
+ownership-filter + summary counts stay correct under concurrency; a failed
+delete doesn't abort the rest of its category; and a dedicated test for
+`_mapLimit` itself (23 items, cap 5) proving it drains every item and
+preserves result order — the thing most likely to have an off-by-one bug in
+a hand-rolled worker pool. The first two are behavior-preserving (pass on
+both pre- and post-fix code, confirmed); the third only passes post-fix
+(`_mapLimit` didn't exist before). `cd demo_api_server && CI=true npx jest src/__tests__/pingoneProvisionService.wipeEnvironment.test.js src/__tests__/pingoneProvisionService.regression.test.js --forceExit --maxWorkers=4` — 2 suites / 15 tests passed.
 
 ### 24. Chat transcript renders unbounded with no windowing — OPEN
 
@@ -642,6 +661,12 @@ redundantly re-parsing/re-diffing the same JSON twice each.
 
 ## Changelog
 
+- 2026-08-23 — #23 FIXED: `wipeEnvironment`'s 5 delete loops now run at
+  bounded concurrency (5) via a new `_mapLimit` helper — user explicitly
+  confirmed accepting reordered step messages for this destructive,
+  live-mutating, low-frequency operation before applying. Added 3 tests
+  (first coverage this function ever had); the `_mapLimit`-specific one only
+  passes post-fix, the other two are behavior-preserving on both.
 - 2026-08-23 — #22 FIXED: `pingoneProvisionService.js`'s `grantScopesToApplication`
   deleted a dead loop and deduped its cross-resource scope fetch by
   `resource.id` via `Promise.all`. New test proven to fail against the
