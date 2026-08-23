@@ -62,7 +62,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 35 | Perf | `services/auditLogService.js` | medium | FIXED |
 | 36 | Perf | `services/demoTrackService.js` | medium | FIXED |
 | 37 | Perf | `services/traceProjector.js` | low | FIXED |
-| 38 | Perf | `demo_api_ui/.../context/ActivityNarrativeContext.js` | medium | OPEN |
+| 38 | Perf | `demo_api_ui/.../context/ActivityNarrativeContext.js` | medium | FIXED |
 | 39 | Perf | `demo_api_ui/.../ScopeAuditPage.js` | medium | OPEN |
 
 ---
@@ -1064,7 +1064,7 @@ callers of `projectServiceCards`) including a live 77-span fixture. `cd
 demo_api_server && CI=true npx jest tests/services/traceProjector.test.js
 --forceExit --maxWorkers=4` — 12/12 passed, no regressions.
 
-### 38. Activity narrative panel's request history grows unbounded and re-maps on every turn — OPEN
+### 38. Activity narrative panel's request history grows unbounded and re-maps on every turn — FIXED
 
 **File:** `demo_api_ui/src/context/ActivityNarrativeContext.js`, line 23
 
@@ -1082,9 +1082,18 @@ the new array grows linearly with total turns so far. `useActivityLog.js`
 already has a deliberate cap pattern (`MAX_EVENTS = 200`) that this context
 does not apply.
 
-**Fix (not yet applied):** Cap `requests` similarly to `useActivityLog.js`'s
-`MAX_EVENTS`: in `startRequest`, slice the mapped/collapsed history to the
-last N entries before appending `next`.
+**Fix:** Added `MAX_REQUESTS = 50` (mirrors `useActivityLog.js`'s
+`MAX_EVENTS` pattern). `startRequest` now slices the mapped/collapsed
+history down to the most recent `MAX_REQUESTS - 1` entries before appending
+`next`, capping both total array size and per-turn remap cost once the cap
+is reached.
+
+**Evidence:** New test starts 55 requests and asserts exactly 50 survive,
+oldest-first dropped (`requests[0]` is `turn 5`, not `turn 0`). Proven to
+fail against the pre-fix file (55 items, no cap) and pass against the fix.
+`npm --prefix demo_api_ui run test:unit -- ActivityNarrativeContext
+ActivityNarrativePanel` — 8/8 passed; full UI suite (416 files / 3420 tests)
+— no regressions. `npm --prefix demo_api_ui run build` — exit 0.
 
 ### 39. "Fix All" scope-audit actions reload the full audit after every single fix instead of once — OPEN
 
@@ -1113,6 +1122,11 @@ from the loop bodies in `handleFixAll`/`handleFixEverything`, and call
 
 ## Changelog
 
+- 2026-08-23 — #38 FIXED: `ActivityNarrativeContext.js` caps `requests` at
+  `MAX_REQUESTS = 50` (mirrors `useActivityLog.js`'s `MAX_EVENTS` pattern),
+  bounding both array growth and per-turn remap cost. New test proven to
+  fail against the pre-fix file (55 items, uncapped) and pass against the
+  fix; full UI suite green (416 files / 3420 tests).
 - 2026-08-23 — #37 FIXED: `traceProjector.js`'s `projectServiceCards`
   precomputes a `serverKindServices` Set once instead of re-scanning the
   full span array per candidate span. Behavior-preserving; verified via the
