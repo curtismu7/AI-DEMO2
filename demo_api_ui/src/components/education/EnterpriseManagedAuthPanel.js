@@ -177,9 +177,10 @@ function InThisDemoContent() {
   return (
     <>
       <div style={{ background: '#ecfdf5', border: '1px solid #86efac', borderLeft: '3px solid #16a34a', borderRadius: 6, padding: '10px 14px', margin: '0 0 1rem', fontSize: '0.84rem', color: '#14532d', lineHeight: 1.55 }}>
-        <strong>✅ Phase 2 demo behavior is available</strong> when Quick Flag{' '}
+        <strong>✅ Enterprise-managed behavior is available</strong> when Quick Flag{' '}
         <code style={{ background: '#f1f5f9', padding: '1px 4px', borderRadius: 3, fontSize: '0.82rem' }}>Enterprise-Managed MCP Auth</code>{' '}
-        is ON. Native PingOne ID-JAG is still on the roadmap — RFC 8693 stands in for ID-JAG today.
+        is ON. A real ID-JAG is issued and redeemed once the enterprise IdP endpoints are configured; without them RFC 8693 stands in.
+        Only <em>PingOne-issued</em> ID-JAG remains on the roadmap.
       </div>
 
       <Section title="When Enterprise-Managed MCP Auth is ON">
@@ -187,9 +188,11 @@ function InThisDemoContent() {
           <li>Employee logs in via PingOne SSO (unchanged).</li>
           <li>IT policy checks PingOne group/population (<code style={{ background: '#f1f5f9', padding: '1px 4px', borderRadius: 3, fontSize: '0.82rem' }}>ENTERPRISE_MCP_ALLOWED_GROUPS</code>) before token exchange.</li>
           <li>No separate &ldquo;Connect MCP&rdquo; consent step when policy passes — agent MCP session is auto-established.</li>
-          <li>BFF performs <strong>RFC 8693 token exchange</strong> labeled as <strong>ID-JAG equivalent (stand-in)</strong> in the Token Chain.</li>
-          <li>Users outside allowed groups receive <code style={{ background: '#f1f5f9', padding: '1px 4px', borderRadius: 3, fontSize: '0.82rem' }}>enterprise_mcp_policy_denied</code> (403) before exchange.</li>
-          <li>RFC 9728 metadata and the MCP gateway advertise <code style={{ background: '#f1f5f9', padding: '1px 4px', borderRadius: 3, fontSize: '0.82rem' }}>{EXT_ID}</code>.</li>
+          <li>With <code style={{ background: '#f1f5f9', padding: '1px 4px', borderRadius: 3, fontSize: '0.82rem' }}>ENTERPRISE_IDP_ISSUER</code> and <code style={{ background: '#f1f5f9', padding: '1px 4px', borderRadius: 3, fontSize: '0.82rem' }}>ENTERPRISE_IDP_JWKS_URL</code> set, a real signed <strong>ID-JAG</strong> is issued and redeemed at the MCP Authorization Server via the <code style={{ background: '#f1f5f9', padding: '1px 4px', borderRadius: 3, fontSize: '0.82rem' }}>jwt-bearer</code> grant — that token carries the tool call, and no browser redirect to an MCP authorize endpoint is involved.</li>
+          <li>Without those two set, the BFF falls back to <strong>RFC 8693 token exchange</strong> labeled as <strong>ID-JAG equivalent (stand-in)</strong> in the Token Chain.</li>
+          <li>The MCP client declares the extension in its per-request <code style={{ background: '#f1f5f9', padding: '1px 4px', borderRadius: 3, fontSize: '0.82rem' }}>_meta</code> capabilities.</li>
+          <li>Users outside allowed groups receive <code style={{ background: '#f1f5f9', padding: '1px 4px', borderRadius: 3, fontSize: '0.82rem' }}>enterprise_mcp_policy_denied</code> (403) — the IdP refuses to mint, so no assertion is ever issued.</li>
+          <li>RFC 9728 metadata and the MCP gateway advertise <code style={{ background: '#f1f5f9', padding: '1px 4px', borderRadius: 3, fontSize: '0.82rem' }}>{EXT_ID}</code>; the MCP AS advertises <code style={{ background: '#f1f5f9', padding: '1px 4px', borderRadius: 3, fontSize: '0.82rem' }}>authorization_grant_profiles_supported</code> when native mode is on.</li>
         </ul>
       </Section>
 
@@ -202,11 +205,9 @@ function InThisDemoContent() {
         </ul>
       </Section>
 
-      <Section title="Roadmap (Phase 3 — blocked on PingOne product)">
+      <Section title="Still blocked on PingOne product">
         <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.875rem', color: '#374151', lineHeight: 1.65 }}>
-          <li>Native ID-JAG issuance at PingOne and token-endpoint-only MCP AS exchange.</li>
-          <li>MCP client declares the extension in <code style={{ background: '#f1f5f9', padding: '1px 4px', borderRadius: 3, fontSize: '0.82rem' }}>initialize</code> capabilities.</li>
-          <li>Token Chain label switches from stand-in to native ID-JAG.</li>
+          <li><strong>Native ID-JAG issuance at PingOne.</strong> PingOne does not yet support <code style={{ background: '#f1f5f9', padding: '1px 4px', borderRadius: 3, fontSize: '0.82rem' }}>requested_token_type=...id-jag</code>, so this demo signs the assertion itself. PingOne stays the authority for identity and group policy — only the signing step is local. When PingOne ships it, pointing the two config values at PingOne is the whole change; the MCP Authorization Server already verifies a remote JWKS from a configured issuer.</li>
         </ul>
       </Section>
 
