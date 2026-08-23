@@ -22,6 +22,7 @@ import { getScopesForTool } from './toolScopeMap';
 import type { BankingToolDefinition } from './BankingToolRegistry';
 import { Session, AuthErrorCodes, AuthenticationError, UserTokens } from '../interfaces/auth';
 import { TokenExchangeRequest } from '../interfaces/tokenExchange';
+import { resolveEmbeddedIssuer } from '../oauth/embeddedIssuer';
 
 export interface TokenResolverDeps {
   authManager: BankingAuthenticationManager;
@@ -34,6 +35,28 @@ export interface TokenResolution {
   source: 'agent-passthrough' | 'agent-step9-exchange' | 'user-rfc8693-exchange' | 'user-passthrough-noexchange';
 }
 
+/**
+ * Step 9 exists to re-exchange a PingOne-issued gateway token at PingOne for
+ * a Banking-API-audienced one. A self-issued agentToken — minted by this
+ * server's own embedded AS, whether via native ID-JAG redemption
+ * (OAuthRouter.redeemIdJag) or its own native OAuth flow — was never issued
+ * by PingOne, so PingOne always rejects the re-exchange with "Cannot parse
+ * token claims for request param 'subject_token'". Signature verification
+ * already happened upstream (AuthenticationIntegration.validateAgentAuthentication),
+ * so this is an unverified decode for routing only — same trust model as the
+ * gateway's own ID-JAG exemption (demo_mcp_gateway/src/tokenValidator.ts).
+ */
+function isSelfIssuedToken(token: string): boolean {
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return false;
+    const decoded = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    return decoded.iss === resolveEmbeddedIssuer();
+  } catch {
+    return false;
+  }
+}
+
 export class TokenResolver {
   constructor(private deps: TokenResolverDeps) {}
 
@@ -42,6 +65,10 @@ export class TokenResolver {
 
     let token: string;
     if (agentToken) {
+      if (isSelfIssuedToken(agentToken)) {
+        logger.debug(`[BankingToolProvider] Self-issued agent token — skipping Step 9 resource exchange for ${tool.name}`);
+        return { token: agentToken, source: 'agent-passthrough' };
+      }
       // Step 9: Second RFC 8693 exchange — exchange gateway-scoped token for resource-scoped token.
       // Gated on BANKING_API_RESOURCE_URI: when absent, fall back to using gateway token directly
       // for backward compatibility (e.g. local dev without full resource server config).

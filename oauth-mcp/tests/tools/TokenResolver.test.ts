@@ -70,6 +70,34 @@ describe('TokenResolver', () => {
     expect(tokenExchangeService.exchangeToken).not.toHaveBeenCalled();
   });
 
+  it('agent-passthrough: skips Step 9 for a self-issued agentToken even when resource URI is configured', async () => {
+    process.env.BANKING_API_RESOURCE_URI = 'https://banking.example';
+    const b64u = (o: object) => Buffer.from(JSON.stringify(o)).toString('base64url');
+    const selfIssuedToken = `${b64u({ alg: 'RS256' })}.${b64u({ iss: 'https://localhost:8080', sub: 'user-1' })}.sig`;
+    const r = new TokenResolver({ authManager, tokenExchangeService, logger });
+    const res = await r.resolve(makeSession(), baseTool, selfIssuedToken);
+    expect(res.token).toBe(selfIssuedToken);
+    expect(res.source).toBe('agent-passthrough');
+    expect(tokenExchangeService.exchangeToken).not.toHaveBeenCalled();
+  });
+
+  it('agent-step9-exchange: still exchanges a PingOne-issued agentToken when resource URI is configured', async () => {
+    process.env.BANKING_API_RESOURCE_URI = 'https://banking.example';
+    const b64u = (o: object) => Buffer.from(JSON.stringify(o)).toString('base64url');
+    const pingOneToken = `${b64u({ alg: 'RS256' })}.${b64u({ iss: 'https://auth.pingone.com/env-123/as', sub: 'user-1' })}.sig`;
+    (tokenExchangeService.exchangeToken as jest.Mock).mockResolvedValue({
+      access_token: 'resource-tok',
+      token_type: 'Bearer',
+      expires_in: 60,
+      issued_token_type: 'urn:ietf:params:oauth:token-type:access_token',
+    });
+    const r = new TokenResolver({ authManager, tokenExchangeService, logger });
+    const res = await r.resolve(makeSession(), baseTool, pingOneToken);
+    expect(res.token).toBe('resource-tok');
+    expect(res.source).toBe('agent-step9-exchange');
+    expect(tokenExchangeService.exchangeToken).toHaveBeenCalledTimes(1);
+  });
+
   it('agent-step9-exchange: exchanges when agentToken + resource URI present', async () => {
     process.env.BANKING_API_RESOURCE_URI = 'https://banking.example';
     (tokenExchangeService.exchangeToken as jest.Mock).mockResolvedValue({
