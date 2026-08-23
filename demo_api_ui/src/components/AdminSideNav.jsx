@@ -382,7 +382,7 @@ export default function AdminSideNav({
         .then((data) => {
           if (!cancelled) setVerticals(Array.isArray(data) ? data : []);
         })
-        .catch(() => {});
+        .catch((err) => console.error("[Sidebar] Vertical list load failed:", err.message));
     };
     load();
     window.addEventListener("vertical-list-changed", load);
@@ -409,7 +409,8 @@ export default function AdminSideNav({
         // the banner/title/dialog update without a manual reload.
         await refetchVertical();
         setSwitchingVertical(false);
-      } catch {
+      } catch (err) {
+        console.error("[Sidebar] Switch vertical failed:", err.message);
         setSwitchingVertical(false);
       }
     },

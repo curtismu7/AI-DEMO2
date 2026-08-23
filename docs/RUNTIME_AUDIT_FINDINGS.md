@@ -31,8 +31,8 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 11 | Swallowed | `demo_api_ui/.../DelegationPage.js` | high | FIXED |
 | 12 | Swallowed | `middleware/agentRestrictionsGate.js` | medium | FIXED |
 | 13 | Swallowed | `routes/agentAuthorization.js` | medium | FIXED |
-| 14 | Swallowed | `demo_api_ui/.../AdminSideNav.jsx` (vertical list) | medium | OPEN |
-| 15 | Swallowed | `demo_api_ui/.../AdminSideNav.jsx` (switch vertical) | medium | OPEN |
+| 14 | Swallowed | `demo_api_ui/.../AdminSideNav.jsx` (vertical list) | medium | FIXED |
+| 15 | Swallowed | `demo_api_ui/.../AdminSideNav.jsx` (switch vertical) | medium | FIXED |
 | 16 | Swallowed | `demo_api_ui/.../CopilotAgent.jsx` | medium | OPEN |
 | 17 | Swallowed | `demo_api_ui/.../CreateUserPanel.jsx` | medium | OPEN |
 | 18 | Swallowed | `demo_api_ui/.../BulkDecisionPanel.jsx` | low | OPEN |
@@ -385,7 +385,7 @@ crashed the Node test process with a JavaScript heap **out-of-memory** error
 (<1s) against the fix, asserting exactly `MAX_REVOKE_ATTEMPTS + 1` (11)
 `revokeDelegation` calls before giving up. `cd demo_api_server && CI=true npx jest tests/agentAuthorizationRevoke.unit.test.js src/__tests__/agentAuthorization.route.test.js --forceExit --maxWorkers=4` — 2 suites / 15 tests passed.
 
-### 14. Vertical-picker load failure indistinguishable from an empty list — OPEN
+### 14. Vertical-picker load failure indistinguishable from an empty list — FIXED
 
 **File:** `demo_api_ui/src/components/AdminSideNav.jsx`, lines 375–392
 
@@ -394,9 +394,9 @@ crashed the Node test process with a JavaScript heap **out-of-memory** error
 **Trigger scenario:** Expand the vertical-picker while the GET fails — empty
 picker, zero signal anything went wrong.
 
-**Fix (not yet applied):** Log or toast on failure.
+**Fix:** `.catch((err) => console.error("[Sidebar] Vertical list load failed:", err.message))`, matching this file's own convention.
 
-### 15. Switch-vertical failure gives no feedback — OPEN
+### 15. Switch-vertical failure gives no feedback — FIXED
 
 **File:** `demo_api_ui/src/components/AdminSideNav.jsx`, `handleSwitchVertical` (394–414)
 
@@ -405,7 +405,10 @@ picker, zero signal anything went wrong.
 **Trigger scenario:** Click a vertical while the POST fails — spinner clears,
 looks like nothing happened.
 
-**Fix (not yet applied):** Add `console.error`/`notifyError` in the catch.
+**Fix:** Added `console.error("[Sidebar] Switch vertical failed:", err.message)` in the catch, matching this file's own convention.
+
+**Evidence (both #14 and #15):** 2 new tests — both confirmed to fail against
+the pre-fix file and pass against the fix. `cd demo_api_ui && npx vitest run src/components/__tests__/AdminSideNav.verticalFailures.test.jsx src/components/__tests__/AdminSideNav.resetDemo.test.jsx src/components/__tests__/adminSideNav.test.jsx src/components/__tests__/AdminSideNav.telemetry.test.jsx` — 4 files / 26 tests passed; `npm run build` exit 0.
 
 ### 16. Copilot config-load failure looks like "not configured" — OPEN
 
@@ -570,6 +573,10 @@ redundantly re-parsing/re-diffing the same JSON twice each.
 
 ## Changelog
 
+- 2026-08-23 — #14 and #15 FIXED: `AdminSideNav.jsx`'s vertical-list load and
+  switch-vertical POST now both `console.error` on failure, matching this
+  file's own convention. 2 new tests proven to fail against the pre-fix file
+  and pass against the fix.
 - 2026-08-23 — #13 FIXED: `agentAuthorization.js`'s two cleanup while-loops
   now cap at `MAX_REVOKE_ATTEMPTS = 10`; `/hard`'s response now honestly
   reports `ok: false` + a warning instead of always `ok: true`. New tests:
