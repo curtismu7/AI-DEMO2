@@ -13,6 +13,10 @@ const groupPolicy = require('./groupPolicy');
 
 const CACHE_TTL_MS = 60_000;
 const _cache = new Map();
+// Bumped by _resetCache so an in-flight fetch that started before a toggle's
+// invalidation can detect it was invalidated mid-flight and skip repopulating
+// the cache with the pre-toggle answer it already fetched.
+let _cacheGeneration = 0;
 
 function _cacheKey(userId, verticalId) {
   return `${verticalId || 'banking'}:${userId}`;
@@ -38,6 +42,7 @@ function _setCached(userId, verticalId, groups) {
 /** Drop cache entries (tests). */
 function _resetCache() {
   _cache.clear();
+  _cacheGeneration++;
 }
 
 /**
@@ -64,6 +69,7 @@ async function listUserGroupNamesForVertical(pingOneUserId, verticalId) {
   const allowed = new Set(groupPolicy.listGroupNamesForVertical(verticalId));
   if (allowed.size === 0) return [];
 
+  const generationAtFetchStart = _cacheGeneration;
   try {
     pingOneUserService.initialize();
     const resp = await pingOneUserService.makeRequest(
@@ -106,7 +112,14 @@ async function listUserGroupNamesForVertical(pingOneUserId, verticalId) {
       .map((g) => (g && (g.name || g._embedded?.group?.name)) || null)
       .filter((name) => name && allowed.has(name));
 
-    _setCached(pingOneUserId, verticalId, names);
+    // A toggle's _resetCache() may have run while this GET was in flight — if
+    // so, caching now would repopulate the just-cleared cache with the
+    // pre-toggle answer for up to CACHE_TTL_MS, silently undoing the
+    // invalidation. Skip the write in that case; the fetched names are still
+    // returned to this caller, just not cached for the next one.
+    if (_cacheGeneration === generationAtFetchStart) {
+      _setCached(pingOneUserId, verticalId, names);
+    }
     return names;
   } catch (err) {
     console.warn(

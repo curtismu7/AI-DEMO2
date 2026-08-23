@@ -113,6 +113,35 @@ describe('pingOneGroupMembershipService', () => {
     expect(names).toBeNull();
   });
 
+  it('does not repopulate the cache with stale data when a toggle resets it mid-fetch', async () => {
+    // Simulates: (a) a slow lookup is in flight, (b) an admin's group toggle
+    // completes and calls _resetCache() before (a)'s GET resolves. Without the
+    // generation guard, (a) would still call _setCached on its now-stale
+    // result, silently undoing the toggle's invalidation for up to CACHE_TTL_MS.
+    let resolveFetch;
+    pingOneUserService.makeRequest.mockImplementation(
+      () => new Promise((resolve) => { resolveFetch = resolve; }),
+    );
+
+    const slowFetch = membershipService.listUserGroupNamesForVertical('user-1', 'banking');
+    // The reset happens WHILE the GET above is still pending.
+    membershipService._resetCache();
+    resolveFetch({ _embedded: { groupMemberships: [{ name: 'AI_Demo_Privileged' }] } });
+    const namesFromSlowFetch = await slowFetch;
+
+    // The in-flight caller still gets its answer...
+    expect(namesFromSlowFetch).toEqual(['AI_Demo_Privileged']);
+
+    // ...but the cache must NOT have been repopulated with it: the next call
+    // has to hit the API again rather than serving the stale cached value.
+    pingOneUserService.makeRequest.mockResolvedValue({
+      _embedded: { groupMemberships: [{ name: 'Banking_PremiumTier' }] },
+    });
+    const namesAfterReset = await membershipService.listUserGroupNamesForVertical('user-1', 'banking');
+    expect(namesAfterReset).toEqual(['Banking_PremiumTier']);
+    expect(pingOneUserService.makeRequest).toHaveBeenCalledTimes(2);
+  });
+
   it('returns empty array when vertical has no declared groups', async () => {
     pingOneUserService.makeRequest.mockResolvedValue({
       _embedded: { groupMemberships: [{ name: 'AI_Demo_Privileged' }] },

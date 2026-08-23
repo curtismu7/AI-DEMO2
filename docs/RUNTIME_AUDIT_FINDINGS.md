@@ -52,7 +52,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 25 | Perf | `TokenChainTraceRail.jsx` / `TokenChainFilmstrip.jsx` | medium | FIXED |
 | 26 | Perf | `routes/transactions.js` / `routes/accounts.js` | low | FIXED |
 | 27 | Perf | `TraceStepCard.jsx` | low | FIXED |
-| 28 | Runtime | `services/pingOneGroupMembershipService.js` | high | OPEN |
+| 28 | Runtime | `services/pingOneGroupMembershipService.js` | high | FIXED |
 | 29 | Runtime | `demo_api_ui/.../hooks/useDraggablePanel.js` | high | OPEN |
 | 30 | Runtime | `demo_api_ui/.../bankingRestartNotificationService.js` | medium | OPEN |
 | 31 | Runtime | `demo_api_ui/.../services/sessionResolver.js` | low | OPEN |
@@ -742,7 +742,7 @@ demo_api_ui run build` — exit 0.
 
 ## Round 2 findings (2026-08-23)
 
-### 28. Group-membership cache can be repopulated with stale data after invalidation — OPEN
+### 28. Group-membership cache can be repopulated with stale data after invalidation — FIXED
 
 **File:** `demo_api_server/services/pingOneGroupMembershipService.js`, line 109
 
@@ -757,9 +757,22 @@ completes while (a)'s GET is still in flight, (a) resolves with pre-toggle
 membership and calls `_setCached(...)` at line 109, repopulating the
 just-cleared cache for up to `CACHE_TTL_MS` (60s) with stale data.
 
-**Fix (not yet applied):** Add a generation counter bumped in
-`_resetCache()`; capture it before the fetch and only `_setCached` if
-unchanged when the fetch resolves.
+**Fix:** Added a module-level `_cacheGeneration` counter, bumped in
+`_resetCache()`. `listUserGroupNamesForVertical` captures the generation
+before starting the fetch and only calls `_setCached` if the generation is
+still unchanged when the fetch resolves — the in-flight caller still gets
+its fetched answer either way, it just isn't written back into a cache that
+was invalidated out from under it.
+
+**Evidence:** New test in `pingOneGroupMembershipService.test.js` simulates
+the race with a deferred `makeRequest` mock: starts a slow fetch, calls
+`_resetCache()` while it's still pending, resolves it, then asserts a
+subsequent call hits the API again (2 total calls) instead of serving the
+stale cached value. Proven to fail against the pre-fix file (`toEqual`
+mismatch — the stale value was cached and served) and pass against the fix.
+`cd demo_api_server && CI=true npx jest
+src/__tests__/pingOneGroupMembershipService.test.js --forceExit
+--maxWorkers=4` — 9/9 passed.
 
 ### 29. Draggable panel drag never cleans up if the component unmounts mid-drag — OPEN
 
@@ -997,6 +1010,11 @@ from the loop bodies in `handleFixAll`/`handleFixEverything`, and call
 
 ## Changelog
 
+- 2026-08-23 — #28 FIXED: `pingOneGroupMembershipService.js` gained a
+  `_cacheGeneration` counter bumped by `_resetCache()`; a fetch in flight
+  when a reset happens now skips repopulating the cache with its stale
+  result. New test proven to fail against the pre-fix file and pass against
+  the fix; 9/9 tests passed.
 - 2026-08-23 — Round 2 audit run: re-ran the same 6-finder + per-category
   adversarial-verify design against the post-round-1 codebase (after PR
   #2278 merged all 27 round-1 fixes). 12/12 candidate findings survived
