@@ -82,7 +82,10 @@ describe("running", () => {
     fireEvent.click(screen.getByRole("button", { name: /Send/i }));
 
     expect(heard).toHaveBeenCalled();
-    expect(heard.mock.calls[0][0].detail.text).toBe("show my balance");
+    // AIAgent.js's listener reads detail.message, not detail.text — a "text" key
+    // is silently dropped (no-op) rather than throwing.
+    expect(heard.mock.calls[0][0].detail.message).toBe("show my balance");
+    expect(heard.mock.calls[0][0].detail.autoSend).toBe(true);
     window.removeEventListener("banking-agent-prefill", heard);
   });
 });
