@@ -1,3 +1,5 @@
+import { IEncryptedTokenStorage } from '../storage/interfaces';
+
 export interface OAuthClient {
   client_id: string;
   client_secret?: string;
@@ -102,12 +104,29 @@ export async function fetchClientIdMetadataDocument(clientId: string): Promise<O
   };
 }
 
+/** Every dynamically-registered client lives under this one key. */
+const PERSISTED_CLIENTS_KEY = 'oauth-dynamic-clients';
+
 /**
- * In-memory client registry. Loads from OAUTH_CLIENTS env (JSON array)
- * or uses a default set for the demo.
+ * Client registry. Statically-configured clients come from OAUTH_CLIENTS (or
+ * the demo defaults) on every boot; dynamically-registered ones are durable
+ * when storage is attached.
+ *
+ * Durability matters more than it looks: an external client caches the
+ * client_id it was issued, so losing the registry turns its next call into
+ * `invalid_client / Unknown client_id` — which reads like a broken connector
+ * rather than a restarted server, and is only fixed by re-adding the connector
+ * by hand.
  */
 export class ClientRegistry {
   private clients: Map<string, OAuthClient> = new Map();
+  /**
+   * Ids worth persisting. Statically-configured clients are excluded because
+   * config already restores them, and CIMD clients because the document they
+   * came from re-derives them.
+   */
+  private dynamicClientIds: Set<string> = new Set();
+  private storage?: IEncryptedTokenStorage;
 
   initialize(): void {
     const envClients = process.env.OAUTH_CLIENTS;
@@ -179,5 +198,46 @@ export class ClientRegistry {
 
   registerClient(client: OAuthClient): void {
     this.clients.set(client.client_id, client);
+    this.dynamicClientIds.add(client.client_id);
+    // Fire-and-forget: a storage failure must not fail an otherwise valid
+    // registration. persistClients() logs and swallows.
+    void this.persistClients();
+  }
+
+  /**
+   * Attach durable storage and restore anything previously registered. Safe to
+   * skip entirely — without it the registry behaves exactly as before.
+   */
+  async attachStorage(storage: IEncryptedTokenStorage): Promise<void> {
+    this.storage = storage;
+    let saved: unknown;
+    try {
+      saved = await storage.retrieve(PERSISTED_CLIENTS_KEY);
+    } catch (err) {
+      console.warn(`[ClientRegistry] could not read persisted clients: ${err instanceof Error ? err.message : String(err)}`);
+      return;
+    }
+    if (!Array.isArray(saved)) return;
+    let restored = 0;
+    for (const client of saved as OAuthClient[]) {
+      if (!client?.client_id) continue;
+      // Config wins over a stale persisted copy of the same id.
+      if (!this.clients.has(client.client_id)) this.clients.set(client.client_id, client);
+      this.dynamicClientIds.add(client.client_id);
+      restored += 1;
+    }
+    if (restored > 0) console.log(`[ClientRegistry] restored ${restored} dynamically-registered client(s)`);
+  }
+
+  private async persistClients(): Promise<void> {
+    if (!this.storage) return;
+    const clients = [...this.dynamicClientIds]
+      .map((id) => this.clients.get(id))
+      .filter((c): c is OAuthClient => Boolean(c));
+    try {
+      await this.storage.store(PERSISTED_CLIENTS_KEY, clients);
+    } catch (err) {
+      console.warn(`[ClientRegistry] could not persist clients: ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
 }

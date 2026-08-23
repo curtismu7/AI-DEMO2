@@ -1,0 +1,38 @@
+# Durable OAuth state for the embedded authorization server in mcp-server.
+#
+# Why: an external MCP client (ChatGPT, Claude, LM Studio) cannot be
+# pre-registered — it self-registers via RFC 7591 and then CACHES the client_id
+# it was issued. Holding that registry only in memory means every pod restart
+# answers the client's next call with `invalid_client / Unknown client_id`,
+# which presents as a broken connector rather than a restarted server and is
+# only cleared by re-adding the connector by hand. Observed live: a restart
+# turned a working door into "Unknown client_id" mid-verification.
+#
+# Mounted at /app/data, which is TOKEN_STORAGE_PATH (see
+# 30-mcp-server-deployment.yaml) and the path the Dockerfile pre-creates and
+# chowns for the non-root runtime user. Contents are written by
+# EncryptedTokenStorage, so client secrets are encrypted at rest with
+# ENCRYPTION_KEY rather than sitting on the volume in plaintext.
+#
+# The signing key is deliberately NOT stored here: it comes from
+# OAUTH_SIGNING_KEY_PEM so it is stable across restarts, replicas and even a
+# lost volume. A key on a volume would be one disk failure away from
+# invalidating every issued token.
+#
+# Requires a default StorageClass. Single ReadWriteOnce claim is sufficient:
+# mcp-server is a single replica and the only writer. fsGroup 1001 on the pod
+# makes the mount group-writable by the non-root user.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mcp-server-oauth-state
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: mcp-server
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi

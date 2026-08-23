@@ -119,6 +119,14 @@ spec:
         - name: otel-instrument
           mountPath: /otel
           readOnly: true
+        # TOKEN_STORAGE_PATH. Without a volume here the encrypted store writes
+        # to the container filesystem and every restart discards it — which is
+        # the whole failure this claim-backed mount exists to prevent: a
+        # dynamically-registered external client (ChatGPT, Claude, LM Studio)
+        # caches its client_id, so losing the registry answers its next call
+        # with invalid_client and the connector has to be re-added by hand.
+        - name: oauth-state
+          mountPath: /app/data
         resources:
           requests:
             memory: "128Mi"
@@ -146,6 +154,9 @@ spec:
       - name: otel-instrument
         configMap:
           name: otel-instrument
+      - name: oauth-state
+        persistentVolumeClaim:
+          claimName: mcp-server-oauth-state
       restartPolicy: Always
       securityContext:
         runAsNonRoot: true
