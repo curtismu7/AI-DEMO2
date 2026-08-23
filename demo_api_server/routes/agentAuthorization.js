@@ -19,6 +19,9 @@ const delegationStore = require('../services/lmdb/delegationStore.lmdb');
 const delegationService = require('../services/delegationService');
 const { revokeToken } = require('../services/tokenRevocation');
 
+/** Bound on the "revoke remaining records" cleanup loops below. */
+const MAX_REVOKE_ATTEMPTS = 10;
+
 /** Resolve the AI Agent client_id that may_act.sub must equal (same source the exchange uses). */
 function agentMayActSub() {
   return (
@@ -101,11 +104,19 @@ router.delete('/hard', async (req, res) => {
   } catch (err) {
     console.error('[agent-authorization] delegationService.revokeDelegation (hard) failed (non-fatal):', err.message);
   }
-  // Revoke all remaining active records for this actor/grantor pair
+  // Revoke all remaining active records for this actor/grantor pair. Bounded:
+  // if revokeDelegation fails, the record's status never actually flips to
+  // 'revoked', so the re-query below returns the SAME record forever — an
+  // unbounded spin with no attempt cap or backoff.
   let next = delegationStore.findActiveByActorAndGrantor(sub, req.user.id);
-  while (next) {
+  let attempts = 0;
+  while (next && attempts < MAX_REVOKE_ATTEMPTS) {
+    attempts++;
     try { await delegationService.revokeDelegation(next.id, req.user.id); } catch (_) {}
     next = delegationStore.findActiveByActorAndGrantor(sub, req.user.id);
+  }
+  if (next) {
+    console.error(`[agent-authorization] gave up revoking remaining delegation ${next.id} after ${MAX_REVOKE_ATTEMPTS} attempts (hard)`);
   }
   const accessToken = req.session?.oauthTokens?.accessToken;
   if (accessToken) {
@@ -117,7 +128,16 @@ router.delete('/hard', async (req, res) => {
       console.error('[agent-authorization] RFC 7009 revocation failed (non-fatal):', err.message);
     }
   }
-  res.json({ ok: true, revoked: 'hard', sessionClear: true });
+  // ok reflects whether delegation-record revocation actually completed —
+  // the token revocation and session clear above always run regardless
+  // (this is the aggressive kill-switch path), but the response must not
+  // unconditionally claim ok:true when a record demonstrably remained active.
+  res.json({
+    ok: !next,
+    revoked: 'hard',
+    sessionClear: true,
+    ...(next ? { warning: 'Some delegation records could not be revoked. Try again or contact an administrator.' } : {}),
+  });
 });
 
 router.delete('/', async (req, res) => {
@@ -130,11 +150,19 @@ router.delete('/', async (req, res) => {
   } catch (err) {
     return res.status(502).json({ error: 'revoke_failed', message: err.message });
   }
-  // Revoke all remaining active records for this actor/grantor pair
+  // Revoke all remaining active records for this actor/grantor pair. Bounded
+  // for the same reason as /hard above — a failed revokeDelegation leaves the
+  // record active, so an unbounded loop would spin on it forever.
   let next = delegationStore.findActiveByActorAndGrantor(sub, req.user.id);
-  while (next) {
+  let attempts = 0;
+  while (next && attempts < MAX_REVOKE_ATTEMPTS) {
+    attempts++;
     try { await delegationService.revokeDelegation(next.id, req.user.id); } catch (_) {}
     next = delegationStore.findActiveByActorAndGrantor(sub, req.user.id);
+  }
+  if (next) {
+    console.error(`[agent-authorization] gave up revoking remaining delegation ${next.id} after ${MAX_REVOKE_ATTEMPTS} attempts (soft)`);
+    return res.status(502).json({ error: 'revoke_incomplete', message: 'Could not fully revoke agent access. Try again.' });
   }
   res.json({ ok: true, revoked: 'soft' });
 });

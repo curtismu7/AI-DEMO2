@@ -30,7 +30,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 10 | Swallowed | `demo_api_ui/.../AdminSideNav.jsx` (reset demo) | high | FIXED |
 | 11 | Swallowed | `demo_api_ui/.../DelegationPage.js` | high | FIXED |
 | 12 | Swallowed | `middleware/agentRestrictionsGate.js` | medium | FIXED |
-| 13 | Swallowed | `routes/agentAuthorization.js` | medium | OPEN |
+| 13 | Swallowed | `routes/agentAuthorization.js` | medium | FIXED |
 | 14 | Swallowed | `demo_api_ui/.../AdminSideNav.jsx` (vertical list) | medium | OPEN |
 | 15 | Swallowed | `demo_api_ui/.../AdminSideNav.jsx` (switch vertical) | medium | OPEN |
 | 16 | Swallowed | `demo_api_ui/.../CopilotAgent.jsx` | medium | OPEN |
@@ -357,7 +357,7 @@ fails-CLOSED/fails-OPEN pair pattern for the other branches. The
 fails-closed test confirmed to fail against the pre-fix file (`next()` was
 called unconditionally) and pass against the fix. `cd demo_api_server && CI=true npx jest tests/agentRestrictionsGate.test.js --forceExit` — 11/11 passed.
 
-### 13. Unbounded revoke-retry loop with no attempt cap — OPEN
+### 13. Unbounded revoke-retry loop with no attempt cap — FIXED
 
 **File:** `demo_api_server/routes/agentAuthorization.js`, `DELETE /hard` (94–121), `DELETE /` (123–140)
 
@@ -369,8 +369,21 @@ handler still returns `{ ok: true }`.
 **Trigger scenario:** A persistent LMDB write failure — the record's status
 never flips, so the re-query returns the same record forever; the loop spins.
 
-**Fix (not yet applied):** Bound with `maxAttempts`; check the actual return
-value of the revoke call.
+**Fix:** Added a shared `MAX_REVOKE_ATTEMPTS = 10` bound to both cleanup
+loops. `DELETE /` now returns `502 revoke_incomplete` if the cap is hit and a
+record is still active (matching its own existing convention of a hard error
+on the first-attempt failure). `DELETE /hard` keeps its aggressive
+always-attempt-everything behavior (token revocation + session clear still
+run regardless — that is the point of the "hard" kill switch) but its
+response now reports `ok: !next` and a `warning` instead of unconditionally
+claiming `ok: true` when a record demonstrably remained active.
+
+**Evidence:** 2 new tests (a delegation record mocked to never clear) —
+running them against the **pre-fix** file didn't just fail an assertion, it
+crashed the Node test process with a JavaScript heap **out-of-memory** error
+— a more severe confirmation than a hang would have been. Both pass cleanly
+(<1s) against the fix, asserting exactly `MAX_REVOKE_ATTEMPTS + 1` (11)
+`revokeDelegation` calls before giving up. `cd demo_api_server && CI=true npx jest tests/agentAuthorizationRevoke.unit.test.js src/__tests__/agentAuthorization.route.test.js --forceExit --maxWorkers=4` — 2 suites / 15 tests passed.
 
 ### 14. Vertical-picker load failure indistinguishable from an empty list — OPEN
 
@@ -557,6 +570,11 @@ redundantly re-parsing/re-diffing the same JSON twice each.
 
 ## Changelog
 
+- 2026-08-23 — #13 FIXED: `agentAuthorization.js`'s two cleanup while-loops
+  now cap at `MAX_REVOKE_ATTEMPTS = 10`; `/hard`'s response now honestly
+  reports `ok: false` + a warning instead of always `ok: true`. New tests:
+  running them against the pre-fix file crashed the Node process with an
+  OOM (not just a hang) — a more severe proof than expected.
 - 2026-08-23 — #12 FIXED: `agentRestrictionsGate.js`'s `!userId` branch now
   routes through the same `failoverPermits()`/503 pattern as the other 3
   "can't determine" branches, instead of unconditionally calling `next()`.
