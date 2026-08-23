@@ -375,6 +375,11 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   enterprise_idp_issuer:           { public: true, default: '' }, // ID-JAG `iss`
   enterprise_idp_jwks_url:         { public: true, default: '' }, // where oauth-mcp fetches verification keys
   enterprise_mcp_as_token_url:     { public: true, default: '' }, // MCP AS token endpoint (HTTP; mcp_server_url is ws://)
+  // The ID-JAG `aud` must equal the MCP AS's OWN issuer, which is not the URL
+  // the BFF posts to: oauth-mcp reports https://localhost:8080 while the BFF
+  // must reach it at http://mcp-server:8080. Keeping these separate is what
+  // lets both be right without changing the AS's published identity.
+  enterprise_mcp_as_issuer:        { public: true, default: '' }, // ID-JAG audience = MCP AS issuer
   enterprise_mcp_policy_cache_ttl_ms: { public: true, default: '300000' }, // unchanged default; demos lower it for UC39
   // URL of the PingGateway MCP endpoint — used when ff_mcp_gateway_pinggateway is true.
   // Host port is 3036 (OrbStack reserves 3006 on macOS — see docker-compose.yml).

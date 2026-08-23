@@ -181,6 +181,7 @@ import PublicRoutes, {
   AgentGatewayCapabilitiesPageRoute,
   OAuthAcademyPageRoute,
   PrivilegeDemoPageRoute,
+  EnterpriseMcpDemoPageRoute,
   GroupPolicyBoardPageRoute,
   PrivilegeMcpClientPageRoute,
   PingOneSetupPageRoute,
@@ -927,6 +928,21 @@ function AppWithAuth() {
                   element={
                     loading ? null : user ? (
                       <GroupPolicyBoardPageRoute user={user} logout={logout} />
+                    ) : (
+                      <SignInRequired />
+                    )
+                  }
+                />
+                {/* MCP Enterprise-Managed Authorization demo. Signed-in users
+                    only: it flips a feature flag and drives the agent, both of
+                    which need a session. SignInRequired, never a redirect — a
+                    presenter who lands here logged out must be told why, not
+                    silently bounced home. */}
+                <Route
+                  path="/demo/enterprise-mcp"
+                  element={
+                    loading ? null : user ? (
+                      <EnterpriseMcpDemoPageRoute user={user} logout={logout} />
                     ) : (
                       <SignInRequired />
                     )
