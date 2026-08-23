@@ -24,7 +24,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 4 | Runtime | `middleware/agentSessionMiddleware.js` | medium | FIXED |
 | 5 | Runtime | `services/apiCallTrackerService.js` | medium | FIXED |
 | 6 | Runtime | `services/transactionConsentChallenge.js` | medium | FIXED |
-| 7 | Runtime | `demo_api_ui/.../AIAgent.js` (aguiAbort) | medium | OPEN |
+| 7 | Runtime | `demo_api_ui/.../AIAgent.js` (aguiAbort) | medium | FIXED |
 | 8 | Runtime | `demo_api_ui/.../AIAgent.js` (refreshAfterTransaction) | medium | OPEN |
 | 9 | Swallowed | `middleware/delegationGate.js` | high | OPEN |
 | 10 | Swallowed | `demo_api_ui/.../AdminSideNav.jsx` (reset demo) | high | OPEN |
@@ -216,9 +216,9 @@ isn't stuck). One pre-existing test updated for the new `async` signature
 (`await`ed a call that used to be synchronous). Full scope run given this is
 a REGRESSION_PLAN §1 path: `cd demo_api_server && CI=true npx jest src/__tests__/transactionConsentChallenge.test.js tests/services/transactionConsentChallengeDavinci.test.js tests/routes/transactionsConfirmDavinci.test.js src/__tests__/transactions.crud.test.js src/__tests__/transactions.authorization.test.js src/__tests__/resourceServer.transactions.regression.test.js tests/hitlBypass.regression.test.js src/__tests__/hitlRoute.integration.test.js src/__tests__/hitlRoute.regression.test.js --forceExit --maxWorkers=4` — 9 suites / 96 tests passed.
 
-### 7. Unmount cleanup misses `aguiAbort()` — OPEN
+### 7. Unmount cleanup misses `aguiAbort()` — FIXED
 
-**File:** `demo_api_ui/src/components/AIAgent.js`, unmount effect (8276–8283)
+**File:** `demo_api_ui/src/components/AIAgent.js`, unmount effect (was 8276–8283)
 
 **Issue:** The unmount/route-change cleanup only aborts `sendAbortRef.current`
 — never calls `aguiAbort()`, so `useAgentRun`'s AbortController-driven stream
@@ -228,8 +228,18 @@ keeps running post-unmount.
 the stream keeps calling event closures over an unmounted instance's setState
 functions.
 
-**Fix (not yet applied):** Add `aguiAbort()` to the same cleanup effect's body
-and dependency array.
+**Fix:** Added `aguiAbort()` (stable, empty-deps identity from `useAgentRun`,
+confirmed safe to add to the effect's dep array with no behavior change) to
+this effect's cleanup body. Note a *separate*, pre-existing effect (empty
+deps, fires once on true unmount only) already called `aguiAbort()` — this
+fix's actual incremental value is the case that effect can never catch: the
+route CHANGING while the same `AIAgent` instance stays mounted, which only
+this `[location.pathname]`-keyed effect's cleanup fires for.
+
+**Evidence:** new test `AIAgent.unmountAbort.test.jsx` — asserts `aguiAbort`
+is called **twice** on unmount (once from the pre-existing always-fires
+effect, once from this fix); confirmed to fail against the pre-fix file
+(`called 1 times`, not 2) and pass against the fix. Full UI suite: `cd demo_api_ui && npm run build` exit 0; scoped vitest run (`AIAgent.unmountAbort`, `AIAgent.cibaStepUp`, `AIAgent.pendingClaim`) 3 files / 12 tests passed.
 
 ### 8. `refreshAfterTransaction` has no response-order guard — OPEN
 
@@ -507,6 +517,11 @@ redundantly re-parsing/re-diffing the same JSON twice each.
 
 ## Changelog
 
+- 2026-08-23 — #7 FIXED: `AIAgent.js`'s `[location.pathname]`-keyed unmount/
+  route-change cleanup now also calls `aguiAbort()`, closing the gap a
+  separate pre-existing (unmount-only) effect could never cover: the route
+  changing while the same instance stays mounted. New test proven to fail
+  against the pre-fix file and pass against the fix.
 - 2026-08-23 — #6 FIXED: `transactionConsentChallenge.js`'s `confirmChallenge`/
   `verifyOtp`/`verifyMfa` now serialize concurrent calls per `challengeId` via
   an in-process `_challengeBusy` Set (409 `challenge_busy` on overlap) rather

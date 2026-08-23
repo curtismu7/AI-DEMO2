@@ -8283,15 +8283,19 @@ export default function BankingAgent({
 
   // Cancel any in-flight agent request when this instance unmounts OR the
   // route changes away from where it was issued — prevents state updates on
-  // a dead/wrong instance and mis-attributed Token Chain events.
+  // a dead/wrong instance and mis-attributed Token Chain events. Also aborts
+  // useAgentRun's own AbortController-driven stream (aguiRun) — that one was
+  // previously left running past unmount, calling onEvent/onStateSnapshot/
+  // onFinished closures over a dead instance's setState functions.
   useEffect(() => {
     return () => {
       if (sendAbortRef.current) {
         try { sendAbortRef.current.abort(); } catch (_) {}
         sendAbortRef.current = null;
       }
+      aguiAbort();
     };
-  }, [location.pathname]);
+  }, [location.pathname, aguiAbort]);
 
   // Keep resultPanelRef current so the refresh handler below can read it without stale closure.
   useEffect(() => {
