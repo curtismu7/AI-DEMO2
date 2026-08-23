@@ -26,7 +26,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 6 | Runtime | `services/transactionConsentChallenge.js` | medium | FIXED |
 | 7 | Runtime | `demo_api_ui/.../AIAgent.js` (aguiAbort) | medium | FIXED |
 | 8 | Runtime | `demo_api_ui/.../AIAgent.js` (refreshAfterTransaction) | medium | FIXED |
-| 9 | Swallowed | `middleware/delegationGate.js` | high | OPEN |
+| 9 | Swallowed | `middleware/delegationGate.js` | high | FIXED |
 | 10 | Swallowed | `demo_api_ui/.../AdminSideNav.jsx` (reset demo) | high | OPEN |
 | 11 | Swallowed | `demo_api_ui/.../DelegationPage.js` | high | OPEN |
 | 12 | Swallowed | `middleware/agentRestrictionsGate.js` | medium | OPEN |
@@ -265,7 +265,7 @@ setup disproportionate to a mechanical, already-precedented one-ref guard).
 Verified instead via the full existing suite (no regression) and code-pattern
 parity with the sibling guard at lines 1996–2035. `cd demo_api_ui && npx vitest run` — 406/406 files, 3391 tests passed; `npm run build` exit 0.
 
-### 9. `act` claim parse failure treated as "no delegation" — OPEN
+### 9. `act` claim parse failure treated as "no delegation" — FIXED
 
 **File:** `demo_api_server/middleware/delegationGate.js` — `_extractActClientId` (4–15), `delegationGate` (17–26)
 
@@ -278,9 +278,15 @@ bare `catch { return null; }`; `delegationGate` treats `null` as "non-delegated
 previously-revoked delegate agent whose token trips this parse path bypasses
 the 403 `delegation_revoked` check entirely.
 
-**Fix (not yet applied):** Return `{clientId, parseFailed}` instead of a bare
-value; return 401 `invalid_token` when `parseFailed` is true instead of
-falling through to `next()`.
+**Fix:** `_extractActClientId` now returns `{clientId, parseFailed}`;
+`delegationGate` returns 401 `invalid_token` when `parseFailed` is true
+instead of falling through to `next()`. A token with no dot segments (not
+JWT-shaped at all) still correctly passes through as non-delegated — only a
+JWT-shaped token (2+ dot segments) that fails to decode now fails closed.
+
+**Evidence:** new test — a JWT-shaped-but-undecodable token — confirmed to
+fail against the pre-fix file (`next()` was called, exactly the bug) and pass
+against the fix. `cd demo_api_server && CI=true npx jest tests/delegationGate.unit.test.js --forceExit` — 5/5 passed.
 
 ### 10. "Reset Demo" logs the admin out even when the reset failed — OPEN
 
@@ -526,6 +532,10 @@ redundantly re-parsing/re-diffing the same JSON twice each.
 
 ## Changelog
 
+- 2026-08-23 — #9 FIXED: `delegationGate.js` now fails closed (401) on a
+  JWT-shaped Bearer token whose payload can't be decoded, instead of silently
+  treating the parse failure as "non-delegated — pass through". New test
+  proven to fail against the pre-fix file and pass against the fix.
 - 2026-08-23 — #8 FIXED: `AIAgent.js`'s `refreshAfterTransaction` now guards
   both fetch chains with a shared `refreshRequestIdRef`, mirroring the
   existing sibling `cancelled`-flag pattern in the same file. Verified via
