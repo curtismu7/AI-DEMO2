@@ -11,6 +11,12 @@
  *   - If PINGONE_JWKS_ENDPOINT is not configured: fall back to jwt.decode (no
  *     signature verification), preserving the original demo behaviour. A comment
  *     is emitted on first use to make the degraded mode visible in logs.
+ *   - If the token's iss claims oauth-mcp's own embedded AS (native ID-JAG
+ *     redemption, MCP Enterprise-Managed Authorization), it is verified against
+ *     THAT server's own JWKS instead — see isIdJagIssuedToken below. oauth-mcp
+ *     signs with its own key, never PingOne's, so PingOne's JWKS could never
+ *     verify it; without this branch the request fails "No matching JWKS key
+ *     found" long before reaching aud/scope checks.
  */
 
 import jwt from 'jsonwebtoken';
@@ -44,7 +50,10 @@ export class TokenValidationError extends Error {
 }
 
 // ---------------------------------------------------------------------------
-// JWKS cache — fetched once per process, refreshed on key-not-found
+// JWKS cache — one entry per endpoint, fetched once per process and refreshed
+// on key-not-found. Keyed by endpoint (not a single global) because the
+// ID-JAG filter below adds a SECOND trusted JWKS source (oauth-mcp's own) —
+// a single cache slot would have the two sources overwrite each other's keys.
 // ---------------------------------------------------------------------------
 
 interface JwkKey {
@@ -63,8 +72,22 @@ interface JwksResponse {
   keys: JwkKey[];
 }
 
-let _jwksCache: JwkKey[] | null = null;
-let _jwksCacheTime = 0;
+interface JwksCacheEntry {
+  keys: JwkKey[] | null;
+  time: number;
+  inFlight: Promise<JwkKey[]> | null;
+}
+
+const _jwksCaches = new Map<string, JwksCacheEntry>();
+function _cacheFor(endpoint: string): JwksCacheEntry {
+  let entry = _jwksCaches.get(endpoint);
+  if (!entry) {
+    entry = { keys: null, time: 0, inFlight: null };
+    _jwksCaches.set(endpoint, entry);
+  }
+  return entry;
+}
+
 const _JWKS_TTL_MS = 5 * 60 * 1000; // 5 minutes
 // Unknown-kid amplification guard: minimum spacing between FORCED refreshes.
 // A forced refresh bypasses the TTL (so a real key rotation is picked up
@@ -86,27 +109,28 @@ function _fetchUrl(url: string): Promise<string> {
 }
 
 async function _fetchJwks(endpoint: string, force = false): Promise<JwkKey[]> {
+  const cache = _cacheFor(endpoint);
   const now = Date.now();
-  if (!force && _jwksCache && now - _jwksCacheTime < _JWKS_TTL_MS) {
-    return _jwksCache;
+  if (!force && cache.keys && now - cache.time < _JWKS_TTL_MS) {
+    return cache.keys;
   }
   // Rate-cap forced refreshes (unknown-kid path). If we refreshed within
   // _JWKS_MIN_REFRESH_MS and still hold keys, reuse them — the caller then fails
   // closed on "no matching key". A genuine rotation still refreshes once the
   // interval elapses; a burst of random kids cannot fan out to unbounded fetches.
-  if (force && _jwksCache && now - _jwksCacheTime < _JWKS_MIN_REFRESH_MS) {
-    return _jwksCache;
+  if (force && cache.keys && now - cache.time < _JWKS_MIN_REFRESH_MS) {
+    return cache.keys;
   }
   // Deduplicate concurrent fetches: cache-miss AND forced-refresh callers share
   // one in-flight fetch, so concurrent unknown-kid tokens cannot each open one.
-  if (_jwksFetchInFlight) return _jwksFetchInFlight;
+  if (cache.inFlight) return cache.inFlight;
   const inflight: Promise<JwkKey[]> = _fetchUrl(endpoint)
     .then((raw) => {
       const parsed = JSON.parse(raw) as JwksResponse;
-      _jwksCache = parsed.keys || [];
-      _jwksCacheTime = Date.now();
+      cache.keys = parsed.keys || [];
+      cache.time = Date.now();
       _keyObjectCache.clear();
-      return _jwksCache;
+      return cache.keys;
     })
     .catch((err) => {
       throw new TokenValidationError(
@@ -115,9 +139,9 @@ async function _fetchJwks(endpoint: string, force = false): Promise<JwkKey[]> {
       );
     })
     .finally(() => {
-      if (_jwksFetchInFlight === inflight) _jwksFetchInFlight = null;
+      if (cache.inFlight === inflight) cache.inFlight = null;
     });
-  _jwksFetchInFlight = inflight;
+  cache.inFlight = inflight;
   return inflight;
 }
 
@@ -127,6 +151,24 @@ function _getKidFromToken(token: string): string | undefined {
       Buffer.from(token.split('.')[0], 'base64url').toString('utf-8'),
     ) as { kid?: string };
     return header.kid;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Peek at the UNVERIFIED payload's iss claim, to decide which JWKS source to
+ * attempt verification against. This proves nothing by itself — same as kid
+ * selection below, an attacker can put any string here. Trust comes only from
+ * the signature check that follows against the source THAT iss value selects;
+ * a forged iss just picks the wrong (or no) key-set and verification fails.
+ */
+function _getUnverifiedIss(token: string): string | undefined {
+  try {
+    const payload = JSON.parse(
+      Buffer.from(token.split('.')[1], 'base64url').toString('utf-8'),
+    ) as { iss?: string };
+    return payload.iss;
   } catch {
     return undefined;
   }
@@ -147,17 +189,67 @@ function _getCachedPublicKey(jwk: JwkKey): crypto.KeyObject {
 
 let _noJwksWarned = false;
 
-// Parsed-key cache — avoids re-importing the same JWK on every request.
+// Parsed-key cache — avoids re-importing the same JWK on every request. Keyed
+// by kid (or n/e/x/y fallback), which is unique across JWKS sources in
+// practice — RSA/EC keys from unrelated signers don't collide on kid — so
+// this one stays shared rather than per-endpoint like _jwksCaches above.
 const _keyObjectCache = new Map<string, crypto.KeyObject>();
-// In-flight JWKS fetch — deduplicates concurrent cache-miss requests.
-let _jwksFetchInFlight: Promise<JwkKey[]> | null = null;
 
 /**
- * Verify the JWT signature against the configured JWKS endpoint.
- * Returns a decoded payload on success; throws TokenValidationError on failure.
- * When PINGONE_JWKS_ENDPOINT is not set, falls back to jwt.decode (no sig check)
- * and emits a one-time console warning.
+ * Verify token's signature against one JWKS endpoint. Shared by the PingOne
+ * path and the ID-JAG path below — same kid-selection and fail-closed rules
+ * either way, only the endpoint differs.
  */
+async function _verifyWithJwks(token: string, jwksEndpoint: string): Promise<DecodedGatewayToken> {
+  const kid = _getKidFromToken(token);
+  let keys = await _fetchJwks(jwksEndpoint);
+
+  // Select key by kid when present. A kid-less token may only be verified when the
+  // JWKS is unambiguous (exactly one key) — falling back to ks[0] across a multi-key
+  // set let an attacker strip the `kid` header and have the token tried against
+  // whichever key happens to sort first, defeating key rotation. Fail closed instead.
+  const selectKey = (ks: JwkKey[]): JwkKey | undefined =>
+    kid ? ks.find((k) => k.kid === kid) : (ks.length === 1 ? ks[0] : undefined);
+  let matchedKey = selectKey(keys);
+
+  // Key not in cache — refresh once (key rotation).
+  if (!matchedKey) {
+    keys = await _fetchJwks(jwksEndpoint, true);
+    matchedKey = selectKey(keys);
+  }
+
+  if (!matchedKey) {
+    if (!kid && keys.length > 1) {
+      throw new TokenValidationError(
+        `Token has no kid header and the JWKS exposes ${keys.length} keys — ` +
+        'cannot select a verification key unambiguously',
+        'invalid_token',
+      );
+    }
+    throw new TokenValidationError(
+      `No matching JWKS key found${kid ? ` for kid=${kid}` : ''}`,
+      'invalid_token',
+    );
+  }
+
+  let publicKey: crypto.KeyObject;
+  try {
+    publicKey = _getCachedPublicKey(matchedKey);
+  } catch (err) {
+    throw new TokenValidationError(
+      `Failed to import JWKS key: ${(err as Error).message}`,
+      'invalid_token',
+    );
+  }
+
+  try {
+    return jwt.verify(token, publicKey, { algorithms: ['RS256', 'ES256'] }) as DecodedGatewayToken;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new TokenValidationError(`JWT signature verification failed: ${msg}`, 'invalid_token');
+  }
+}
+
 /**
  * True when this process verifies inbound signatures against a JWKS.
  *
@@ -170,7 +262,52 @@ export function isJwksVerificationEnabled(): boolean {
   return !!(process.env.PINGONE_JWKS_ENDPOINT || process.env.PINGONE_JWKS_URI);
 }
 
+/**
+ * oauth-mcp's own issuer + JWKS for tokens minted via native ID-JAG redemption
+ * (MCP Enterprise-Managed Authorization). Defaults match oauth-mcp's own
+ * defaults (embeddedIssuer.ts resolveEmbeddedIssuer(), and its /jwks route
+ * reachable in-network at mcp-server:8080) so this works without new compose
+ * wiring in the common case; both are overridable per deployment.
+ */
+function _idJagIssuer(): string {
+  return process.env.OAUTH_MCP_ID_JAG_ISSUER || 'https://localhost:8080';
+}
+function _idJagJwksEndpoint(): string {
+  return process.env.OAUTH_MCP_ID_JAG_JWKS_URL || 'http://mcp-server:8080/jwks';
+}
+
+/**
+ * True when a token's (already signature-verified) iss is oauth-mcp's own
+ * embedded-AS issuer — i.e. this token demonstrably came from native ID-JAG
+ * redemption, not from PingOne. Only meaningful to call AFTER _decodeAndVerify
+ * has verified the signature; on an unverified/undecoded payload iss proves
+ * nothing (see _getUnverifiedIss above).
+ *
+ * Exported for GatewayTokenPolicy's D-05 anti-bypass check: an ID-JAG-redeemed
+ * token legitimately carries the OLB server's own audience (that's what native
+ * ID-JAG mints it for), which is otherwise indistinguishable from the token
+ * D-05 exists to block. This lets that ONE exemption be conditioned on a
+ * cryptographically verified issuer instead of the bare aud claim — a token
+ * merely claiming iss=oauth-mcp without a valid oauth-mcp signature never
+ * reaches this function returning true, because it never passes
+ * _decodeAndVerify to begin with.
+ */
+export function isIdJagIssuedToken(decoded: DecodedGatewayToken): boolean {
+  return decoded.iss === _idJagIssuer();
+}
+
 async function _decodeAndVerify(token: string): Promise<DecodedGatewayToken> {
+  // ID-JAG filter: a token whose (unverified, for now) iss names oauth-mcp's
+  // own embedded AS is checked against oauth-mcp's OWN JWKS, never PingOne's
+  // — oauth-mcp signs with its own key, so PingOne's JWKS could never verify
+  // it. This branch is fully additive: it only ever fires for tokens claiming
+  // this specific iss, so PingOne-issued tokens (the overwhelming majority)
+  // take the exact same path as before, unchanged.
+  const unverifiedIss = _getUnverifiedIss(token);
+  if (unverifiedIss === _idJagIssuer()) {
+    return _verifyWithJwks(token, _idJagJwksEndpoint());
+  }
+
   // PINGONE_JWKS_URI is accepted as an alias because it is the name this stack
   // actually SETS. The gateway container carries
   // PINGONE_JWKS_URI=https://auth.pingone.com/<env>/as/jwks and nothing anywhere
@@ -220,55 +357,7 @@ async function _decodeAndVerify(token: string): Promise<DecodedGatewayToken> {
     return decoded;
   }
 
-  // JWKS mode: verify signature with the matching public key.
-  const kid = _getKidFromToken(token);
-  let keys = await _fetchJwks(jwksEndpoint);
-
-  // Select key by kid when present. A kid-less token may only be verified when the
-  // JWKS is unambiguous (exactly one key) — falling back to ks[0] across a multi-key
-  // set let an attacker strip the `kid` header and have the token tried against
-  // whichever key happens to sort first, defeating key rotation. Fail closed instead.
-  const selectKey = (ks: JwkKey[]): JwkKey | undefined =>
-    kid ? ks.find((k) => k.kid === kid) : (ks.length === 1 ? ks[0] : undefined);
-  let matchedKey = selectKey(keys);
-
-  // Key not in cache — refresh once (key rotation).
-  if (!matchedKey) {
-    keys = await _fetchJwks(jwksEndpoint, true);
-    matchedKey = selectKey(keys);
-  }
-
-  if (!matchedKey) {
-    if (!kid && keys.length > 1) {
-      throw new TokenValidationError(
-        `Token has no kid header and the JWKS exposes ${keys.length} keys — ` +
-        'cannot select a verification key unambiguously',
-        'invalid_token',
-      );
-    }
-    throw new TokenValidationError(
-      `No matching JWKS key found${kid ? ` for kid=${kid}` : ''}`,
-      'invalid_token',
-    );
-  }
-
-  let publicKey: crypto.KeyObject;
-  try {
-    publicKey = _getCachedPublicKey(matchedKey);
-  } catch (err) {
-    throw new TokenValidationError(
-      `Failed to import JWKS key: ${(err as Error).message}`,
-      'invalid_token',
-    );
-  }
-
-  try {
-    const verified = jwt.verify(token, publicKey, { algorithms: ['RS256', 'ES256'] }) as DecodedGatewayToken;
-    return verified;
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    throw new TokenValidationError(`JWT signature verification failed: ${msg}`, 'invalid_token');
-  }
+  return _verifyWithJwks(token, jwksEndpoint);
 }
 
 export async function validateInboundToken(
@@ -320,9 +409,13 @@ export async function validateInboundToken(
 
   // issuer: enforced only when the gateway has been told who the issuer is. An
   // unset PINGONE_ISSUER_URI cannot be turned into a check — but when it IS set,
-  // a missing iss is a mismatch, not a pass (fail closed).
+  // a missing iss is a mismatch, not a pass (fail closed). ID-JAG-issued tokens
+  // are exempt: they were already verified above against oauth-mcp's own JWKS
+  // (a different, deliberately different, issuer), and enforcing PingOne's
+  // expected issuer against a genuinely non-PingOne token would reject every
+  // native ID-JAG call this same check exists to let through.
   const expectedIss = (process.env.PINGONE_ISSUER_URI || '').trim();
-  if (expectedIss && decoded.iss !== expectedIss) {
+  if (expectedIss && !isIdJagIssuedToken(decoded) && decoded.iss !== expectedIss) {
     throw new TokenValidationError(
       `Issuer mismatch: got ${decoded.iss ?? '(none)'}, expected ${expectedIss}`,
       'invalid_iss',
