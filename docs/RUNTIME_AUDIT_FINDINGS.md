@@ -44,7 +44,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 24 | Perf | `demo_api_ui/.../AIAgent.js` (unbounded transcript) | medium | FIXED |
 | 25 | Perf | `TokenChainTraceRail.jsx` / `TokenChainFilmstrip.jsx` | medium | FIXED |
 | 26 | Perf | `routes/transactions.js` / `routes/accounts.js` | low | FIXED |
-| 27 | Perf | `TraceStepCard.jsx` | low | OPEN |
+| 27 | Perf | `TraceStepCard.jsx` | low | FIXED |
 
 ---
 
@@ -691,7 +691,7 @@ src/__tests__/accounts.route.test.js src/__tests__/transactions.crud.test.js
 worker-contention flake per `verify-ai-demo2`'s Quick Reference; passed
 61/61 re-run in isolation).
 
-### 27. `claimDiffs` computed twice per render, component not memoized — OPEN
+### 27. `claimDiffs` computed twice per render, component not memoized — FIXED
 
 **File:** `demo_api_ui/src/components/TraceStepCard.jsx`, lines 404–423
 
@@ -702,6 +702,23 @@ identical args inline in JSX every render; component isn't wrapped in
 **Trigger scenario:** Any parent re-render re-renders every visible card,
 redundantly re-parsing/re-diffing the same JSON twice each.
 
+**Fix:** Hoisted the shared computation into `beforeAfterChangedClaims`, a
+`useMemo` keyed on `d.beforeAfter?.before?.text` /
+`d.beforeAfter?.after?.text`, and passed that single value to both
+`HighlightedText` call sites instead of two identical inline `claimDiffs(...)`
+calls. Wrapped the default export in `React.memo` (`export default
+React.memo(TraceStepCard)`), unchanged prop contract.
+
+**Evidence:** Behavior-preserving by construction — `TraceStepCard.teaching.test.jsx`
+already asserts the rendered `claim-diff--before`/`claim-diff--after` markup
+for a `beforeAfter` block with changed claims, and passed unchanged. Ran
+`TraceStepCard.*`, `FocusModeChainRenders`, `FlowSurfacesIdJag`, and
+`LiveUseCaseWorkbenchPage` suites (7 files / 62 tests) plus the full UI suite
+(412 files / 3409 tests) — no regressions. No new test: `claimDiffs` is an
+unexported module-private helper, not spy-observable across its own
+in-module call sites (same reasoning as finding #25). `npm --prefix
+demo_api_ui run build` — exit 0.
+
 **Fix (not yet applied):** Compute once via `useMemo`; wrap export in
 `React.memo` (benefit capped until #25 lands).
 
@@ -709,6 +726,13 @@ redundantly re-parsing/re-diffing the same JSON twice each.
 
 ## Changelog
 
+- 2026-08-23 — #27 FIXED: `TraceStepCard.jsx` hoisted its twice-called,
+  identical-args `claimDiffs(...)` into one `useMemo`'d
+  `beforeAfterChangedClaims` and wrapped the default export in `React.memo`.
+  Behavior-preserving; `TraceStepCard.teaching.test.jsx`'s existing
+  claim-diff-markup assertions plus the full UI suite (412 files / 3409
+  tests) confirm no regression. **All 27 findings are now FIXED — audit
+  closed.**
 - 2026-08-23 — #26 FIXED: `transactions.js` and `accounts.js`'s admin
   list-all routes now accept optional `limit`/`offset` query params (mirrors
   #19's `GET /runs` pattern), slicing before the owner-enrichment map and
