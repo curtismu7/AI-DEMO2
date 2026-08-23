@@ -67,8 +67,10 @@ describe('enterpriseMcpPolicyService', () => {
       if (key === 'enterprise_mcp_allowed_groups') return 'banking-agents';
       return '';
     });
+    // Real PingOne shape (GET /users/{id}/memberOfGroups -> _embedded.groupMemberships),
+    // not _embedded.groups — see the PERMIT test below for why the distinction matters.
     pingOneUserService.makeRequest.mockResolvedValue({
-      _embedded: { groups: [{ name: 'other-group' }] },
+      _embedded: { groupMemberships: [{ name: 'other-group' }] },
     });
 
     const req = {
@@ -81,5 +83,33 @@ describe('enterpriseMcpPolicyService', () => {
     expect(result.allowed).toBe(false);
     expect(result.code).toBe('enterprise_mcp_policy_denied');
     expect(result.httpStatus).toBe(403);
+  });
+
+  // Found live 2026-08-23 against env 01d89b06: a real PingOne group member
+  // (demoUser, added to banking-agents) still got DENY. listPingOneGroupNames
+  // read _embedded.groups, but PingOne's memberOfGroups endpoint returns
+  // _embedded.groupMemberships — the call succeeded and silently returned [],
+  // so this PERMIT path was unreachable for every user, always. The population
+  // shortcut test above never exercises listPingOneGroupNames at all, so this
+  // is the first test that actually proves the PingOne group lookup works.
+  test('checkPolicy permits a user whose real PingOne group membership matches', async () => {
+    configStore.getEffective.mockImplementation((key) => {
+      if (key === 'ff_enterprise_managed_mcp_auth') return 'true';
+      if (key === 'enterprise_mcp_allowed_groups') return 'banking-agents,employees';
+      return '';
+    });
+    pingOneUserService.makeRequest.mockResolvedValue({
+      _embedded: { groupMemberships: [{ name: 'Sample Group' }, { name: 'banking-agents' }] },
+    });
+
+    const req = {
+      session: {
+        user: { oauthId: 'user-3', username: 'demoUser' },
+      },
+    };
+
+    const result = await enterpriseMcpPolicy.checkPolicy(req);
+    expect(result.allowed).toBe(true);
+    expect(result.matchDetail).toBe('group:banking-agents');
   });
 });

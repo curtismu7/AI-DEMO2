@@ -9,6 +9,7 @@
 const configStore = require('./configStore');
 const scopeTopology = require('./scopeTopology');
 const groupPolicy = require('./groupPolicy');
+const pingOneUserService = require('./pingOneUserService');
 const { logEvent } = require('./appEventService');
 const { isEnterpriseManagedFlagOn } = require('./enterpriseMcpMetadata');
 
@@ -84,12 +85,17 @@ function getAllowedResourceUris() {
 async function listPingOneGroupNames(userId) {
   if (!userId) return [];
   try {
-    const pingOneUserService = require('./pingOneUserService');
     if (!pingOneUserService.environmentId) {
       pingOneUserService.initialize();
     }
     const resp = await pingOneUserService.makeRequest('GET', `/users/${userId}/memberOfGroups`);
-    const groups = resp?._embedded?.groups || [];
+    // PingOne's GET /users/{id}/memberOfGroups returns _embedded.groupMemberships
+    // — not _embedded.groups. Same mistake, same silent-empty-array failure mode,
+    // already found and fixed once in pingOneGroupMembershipService.js (2026-08-03,
+    // env 01d89b06) — that fix never got reused here because this is a separate
+    // call site. Extra key fallbacks are belt-and-braces against a future shape
+    // change degrading instead of silently emptying again.
+    const groups = resp?._embedded?.groupMemberships || resp?._embedded?.groups || resp?._embedded?.memberOfGroups || [];
     return groups.map((g) => g.name || g.id).filter(Boolean);
   } catch (err) {
     return null;
