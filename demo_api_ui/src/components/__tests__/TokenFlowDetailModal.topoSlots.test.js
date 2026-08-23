@@ -85,12 +85,24 @@ describe("topology slots — API-key path", () => {
 });
 
 describe("topology slots — step-up escalation", () => {
-  it("surfaces the human-approval hop in the policy slot", () => {
+  // The policy DECISION is the constant across every run and the box presenters
+  // point at, so authorize holds the slot even when the run escalated. Step-up
+  // is still visible on the trace rail and filmstrip.
+  it("keeps P1 Authorize in the policy slot when a decision was recorded", () => {
     const stepUp = [
       step("signin"), step("exchange"), step("stepup"),
       step("authorize"), step("gateway"), step("mcp"),
     ];
-    expect(ids(stepUp)).toContain("stepup");
+    expect(ids(stepUp)).toContain("authorize");
+    expect(ids(stepUp)).not.toContain("stepup");
+  });
+
+  it("falls back to the escalation when no authorize decision was recorded", () => {
+    const noDecision = [
+      step("signin"), step("exchange"), step("stepup"),
+      step("authorize", "notinpath"), step("gateway"), step("mcp"),
+    ];
+    expect(ids(noDecision)).toContain("stepup");
   });
 });
 

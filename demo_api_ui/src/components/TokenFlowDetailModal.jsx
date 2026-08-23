@@ -399,7 +399,11 @@ function ScopeFunnel({ steps, trace }) {
 const TOPO_SLOTS = [
   { fallback: 'signin',    candidates: ['signin'] },
   { fallback: 'exchange',  candidates: ['id-jag-redeemed', 'exchange', 'exchange-1', 'agent-token'] },
-  { fallback: 'authorize', candidates: ['stepup', 'intent-binding', 'authorize'] },
+  // authorize outranks the escalations on purpose: this five-box row is the
+  // shape presenters point at, and the policy DECISION is the constant across
+  // every run. Step-up and intent-binding stay visible on the trace rail and
+  // filmstrip, and fill this slot only when no authorize decision was recorded.
+  { fallback: 'authorize', candidates: ['authorize', 'stepup', 'intent-binding'] },
   { fallback: 'gateway',   candidates: ['api-key-swap', 'gateway'] },
   { fallback: 'mcp',       candidates: ['mcp', 'api'] },
 ];
