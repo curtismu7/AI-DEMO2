@@ -147,6 +147,34 @@ function pruneExpired(st) {
 }
 
 /**
+ * Serializes concurrent mutating calls for the SAME challengeId. `req.session`
+ * is deserialized fresh per HTTP request, so two overlapping requests for one
+ * challenge (a double-clicked Confirm/Verify-OTP, or a browser retry mid-flight)
+ * each read+mutate their own independent copy of `ch` — the OTP lockout counter
+ * could see `otpAttempts === 0` twice, and confirmChallenge's device-picker/OTP
+ * init could fire twice with the last `session.save()` silently discarding the
+ * other's result. A request that finds its challenge already busy is rejected
+ * outright (409) instead of racing it — the caller retries and, by then, sees
+ * the first request's already-persisted, correct state.
+ */
+const _challengeBusy = new Set();
+async function _withChallengeLock(challengeId, fn) {
+  if (_challengeBusy.has(challengeId)) {
+    return {
+      ok: false,
+      status: 409,
+      json: { error: 'challenge_busy', message: 'This request is already being processed for this challenge. Please wait a moment and try again.' },
+    };
+  }
+  _challengeBusy.add(challengeId);
+  try {
+    return await fn();
+  } finally {
+    _challengeBusy.delete(challengeId);
+  }
+}
+
+/**
  * Normalize transaction body fields for comparison (must match POST /api/transactions).
  * @param {object} body
  */
@@ -370,6 +398,10 @@ function getChallenge(req, challengeId) {
  *                 | { ok: false, status: number, json: object }>}
  */
 async function confirmChallenge(req, challengeId, opts = {}) {
+  return _withChallengeLock(challengeId, () => _confirmChallengeImpl(req, challengeId, opts));
+}
+
+async function _confirmChallengeImpl(req, challengeId, opts = {}) {
   if (!challengeId || typeof challengeId !== 'string') {
     return { ok: false, status: 400, json: { error: 'invalid_challenge', message: 'challengeId is required.' } };
   }
@@ -669,7 +701,11 @@ async function confirmOnetimeContact(req, challengeId, contact) {
  * @param {string} challengeId
  * @param {string} otpCode  Raw 6-digit code from the user
  */
-function verifyOtp(req, challengeId, otpCode) {
+async function verifyOtp(req, challengeId, otpCode) {
+  return _withChallengeLock(challengeId, () => _verifyOtpImpl(req, challengeId, otpCode));
+}
+
+function _verifyOtpImpl(req, challengeId, otpCode) {
   if (!challengeId || typeof challengeId !== 'string') {
     return { ok: false, status: 400, json: { error: 'invalid_challenge', message: 'challengeId is required.' } };
   }
@@ -739,6 +775,10 @@ function verifyOtp(req, challengeId, otpCode) {
  * @param {string} [origin]  Required for FIDO2 assertion (browser origin)
  */
 async function verifyMfa(req, challengeId, params, origin) {
+  return _withChallengeLock(challengeId, () => _verifyMfaImpl(req, challengeId, params, origin));
+}
+
+async function _verifyMfaImpl(req, challengeId, params, origin) {
   if (!challengeId || typeof challengeId !== 'string') {
     return { ok: false, status: 400, json: { error: 'invalid_challenge', message: 'challengeId is required.' } };
   }

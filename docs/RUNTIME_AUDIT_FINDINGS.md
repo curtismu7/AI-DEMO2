@@ -23,7 +23,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 3 | Runtime | `demo_api_ui/.../AIAgent.js` (CIBA pollers) | high | FIXED |
 | 4 | Runtime | `middleware/agentSessionMiddleware.js` | medium | FIXED |
 | 5 | Runtime | `services/apiCallTrackerService.js` | medium | FIXED |
-| 6 | Runtime | `services/transactionConsentChallenge.js` | medium | OPEN |
+| 6 | Runtime | `services/transactionConsentChallenge.js` | medium | FIXED |
 | 7 | Runtime | `demo_api_ui/.../AIAgent.js` (aguiAbort) | medium | OPEN |
 | 8 | Runtime | `demo_api_ui/.../AIAgent.js` (refreshAfterTransaction) | medium | OPEN |
 | 9 | Swallowed | `middleware/delegationGate.js` | high | OPEN |
@@ -180,9 +180,9 @@ directly. 3 new tests confirmed to fail against the pre-fix file
 against the fix, including one proving `GLOBAL_SESSION_ID` is never swept.
 `cd demo_api_server && CI=true npx jest src/__tests__/apiCallTrackerService.test.js tests/apiCallTrackerTokenIsolation.regression.test.js --forceExit` — 2 suites / 9 tests passed.
 
-### 6. HITL challenge mutated from independent in-memory copies — OPEN
+### 6. HITL challenge mutated from independent in-memory copies — FIXED
 
-**File:** `demo_api_server/services/transactionConsentChallenge.js` — `confirmChallenge()` (372–526), `verifyOtp()` (672–729), `verifyMfa()` (741–822)
+**File:** `demo_api_server/services/transactionConsentChallenge.js` — `confirmChallenge()` (was 372–526), `verifyOtp()` (was 672–729), `verifyMfa()` (was 741–822)
 
 **Issue:** The challenge lives in `req.session.txConsentChallenges`, loaded
 once per request with no per-session lock. Two concurrent requests for the
@@ -192,9 +192,29 @@ same challenge each work from an independent copy; last `session.save()` wins.
 POSTs for the same `challengeId`. Both see `otpAttempts=0`, so the lockout
 counter can be bypassed, and device-picker/OTP init can silently fire twice.
 
-**Fix (not yet applied):** Serialize mutating access per `req.sessionID` with
-an in-process async mutex wrapping the handler's call into these three
-functions.
+**Fix:** A queue-and-reload mutex (like the audit's original sketch) would
+need to re-deserialize `req.session` mid-request to see the other request's
+persisted result — a much larger, riskier change to a §1-protected path for
+one bug. Instead: a simple in-process `Set` (`_challengeBusy`) keyed by
+`challengeId`. Each of the three functions was split into a thin locked
+wrapper (`confirmChallenge`/`verifyOtp`/`verifyMfa`) plus its original body
+renamed to a private `_*Impl`; the wrapper rejects a second concurrent call
+for the same `challengeId` with `409 challenge_busy` instead of letting it
+race. `verifyOtp` was synchronous with no internal `await`; it's now `async`
+(its one call site in `routes/transactions.js` updated to `await`) so the
+lock can wrap it uniformly with the other two. `confirmChallengeViaDaVinci`'s
+existing fallback call to `confirmChallenge` is unaffected — it isn't itself
+locked, so it correctly acquires the lock fresh.
+
+**Evidence:** 2 new tests in `transactionConsentChallenge.test.js` — two
+concurrent `verifyOtp` calls for one challenge: exactly one gets `409
+challenge_busy`, the other actually evaluates, and `otpAttempts` ends at `1`
+(not silently `0` twice). Confirmed to fail against the pre-fix file (`busy`
+array length 0 — both calls raced through) and pass against the fix. A second
+test confirms a later, non-overlapping call still succeeds normally (lock
+isn't stuck). One pre-existing test updated for the new `async` signature
+(`await`ed a call that used to be synchronous). Full scope run given this is
+a REGRESSION_PLAN §1 path: `cd demo_api_server && CI=true npx jest src/__tests__/transactionConsentChallenge.test.js tests/services/transactionConsentChallengeDavinci.test.js tests/routes/transactionsConfirmDavinci.test.js src/__tests__/transactions.crud.test.js src/__tests__/transactions.authorization.test.js src/__tests__/resourceServer.transactions.regression.test.js tests/hitlBypass.regression.test.js src/__tests__/hitlRoute.integration.test.js src/__tests__/hitlRoute.regression.test.js --forceExit --maxWorkers=4` — 9 suites / 96 tests passed.
 
 ### 7. Unmount cleanup misses `aguiAbort()` — OPEN
 
@@ -487,6 +507,13 @@ redundantly re-parsing/re-diffing the same JSON twice each.
 
 ## Changelog
 
+- 2026-08-23 — #6 FIXED: `transactionConsentChallenge.js`'s `confirmChallenge`/
+  `verifyOtp`/`verifyMfa` now serialize concurrent calls per `challengeId` via
+  an in-process `_challengeBusy` Set (409 `challenge_busy` on overlap) rather
+  than a full session-reload mutex, to keep the change small in a
+  REGRESSION_PLAN §1 path. `verifyOtp` is now `async` (its one call site
+  updated). 2 new tests proven to fail against the pre-fix file and pass
+  against the fix; 9 suites / 96 tests green across the HITL-adjacent surface.
 - 2026-08-23 — #5 FIXED: `apiCallTrackerService.js`'s `apiCalls`/`sessionTokens`
   Maps now get an hourly sweep tied to `sessionStore.js`'s own 24h TTL, keyed
   by a new `lastActivity` Map (never touched for `GLOBAL_SESSION_ID`). 3 new

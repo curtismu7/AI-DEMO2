@@ -294,7 +294,7 @@ router.post(
         result = await txConsent.verifyMfa(req, challengeId, { deviceId, otp: otp || otpCode, fido2Assertion }, origin);
       } else {
         const { otpCode } = req.body || {};
-        result = txConsent.verifyOtp(req, challengeId, otpCode);
+        result = await txConsent.verifyOtp(req, challengeId, otpCode);
       }
       if (!result.ok) return res.status(result.status).json(result.json);
       req.session.save((saveErr) => {
