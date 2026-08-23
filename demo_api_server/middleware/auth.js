@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const oauthConfig = require('../config/oauth');
 const configStore = require('../services/configStore');
 const { validateToken: validatePingOneToken } = require('../services/tokenValidationService');
+const { getJwtClaim } = require('../utils/jwtDecoder');
 const { 
   BANKING_SCOPES, 
   ROUTE_SCOPE_MAP,
@@ -47,6 +48,17 @@ const ENDUSER_AUDIENCE  = process.env.ENDUSER_AUDIENCE  || BFF_RESOURCE_URI;
 const AI_AGENT_AUDIENCE = process.env.AI_AGENT_AUDIENCE || null;
 // MCP / gateway resource URIs — for reference only (these tokens never arrive at the BFF).
 const MCP_RESOURCE_URI  = process.env.PINGONE_RESOURCE_MCP_SERVER_URI || null;
+// oauth-mcp's own embedded-AS issuer + JWKS (native ID-JAG redemption, MCP
+// Enterprise-Managed Authorization). Same env vars and defaults as the Node
+// gateway's tokenValidator.ts (_idJagIssuer/_idJagJwksEndpoint) and oauth-mcp's
+// own embeddedIssuer.ts resolveEmbeddedIssuer() — ENTERPRISE_MCP_AS_ISSUER is
+// this stack's existing name for the same value (already set for redeemIdJag),
+// kept as a fallback so no new compose wiring is required here.
+const OAUTH_MCP_ID_JAG_ISSUER =
+  process.env.OAUTH_MCP_ID_JAG_ISSUER ||
+  process.env.ENTERPRISE_MCP_AS_ISSUER ||
+  'https://localhost:8080';
+const OAUTH_MCP_ID_JAG_JWKS_URL = process.env.OAUTH_MCP_ID_JAG_JWKS_URL || 'http://mcp-server:8080/jwks';
 const BANKING_API_RESOURCE_URI = process.env.BANKING_API_RESOURCE_URI || null;
 const MCP_GATEWAY_RESOURCE_URI = process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI || null;
 // mcp-resource-server backend resource URI(s) — tokens minted for these audiences arrive on
@@ -534,11 +546,29 @@ const validatePingOneCoreToken = async (token, requestContext = {}) => {
       return { valid: true, decoded: payload };
     }
 
-    // Validate using PingOne JWKS
-    const payload = await validatePingOneToken(token, {
-      jwksUri: oauthConfig.jwksEndpoint,
-      issuer: oauthConfig.issuer,
-    });
+    // ID-JAG filter: a token whose (unverified, for now) iss names oauth-mcp's
+    // own embedded AS is verified against oauth-mcp's OWN JWKS instead of
+    // PingOne's — oauth-mcp signs with its own key, so PingOne's JWKS could
+    // never verify it. This branch only ever fires for tokens claiming this
+    // specific iss, so PingOne-issued tokens (the overwhelming majority) take
+    // the exact same path as before, unchanged. Mirrors the Node gateway's own
+    // ID-JAG exemption (demo_mcp_gateway/src/tokenValidator.ts).
+    let unverifiedIss;
+    try {
+      unverifiedIss = getJwtClaim(token, 'iss');
+    } catch { /* malformed token — falls through to the normal PingOne path below */ }
+
+    // Validate using PingOne JWKS (or oauth-mcp's own, for a native ID-JAG token)
+    const payload = unverifiedIss === OAUTH_MCP_ID_JAG_ISSUER
+      ? await validatePingOneToken(token, {
+          jwksUri: OAUTH_MCP_ID_JAG_JWKS_URL,
+          issuer: OAUTH_MCP_ID_JAG_ISSUER,
+          allowHttp: true,
+        })
+      : await validatePingOneToken(token, {
+          jwksUri: oauthConfig.jwksEndpoint,
+          issuer: oauthConfig.issuer,
+        });
 
     // ── Audience validation (always-on when BFF_RESOURCE_URI is configured) ────
     // Tokens arriving at the BFF must be targeted at this service's resource URI.
