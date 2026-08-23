@@ -390,6 +390,23 @@ const TOPO_NODES = [
   { id: 'mcp',        icon: 'M',  name: 'MCP Server',   lane: 'MCP',      badgeCls: 'tfd-badge-MCP',    label: 'tool call' },
 ];
 
+
+/**
+ * The topology row, with the token-minting node named for what actually ran.
+ *
+ * In enterprise-managed native mode no RFC 8693 exchange happens — the MCP
+ * access token comes from redeeming an ID-JAG — so `exchange` is notinpath.
+ * Leaving it in the row drew a permanently greyed "BFF Exchange" node and no
+ * sign of the hop that really minted the token.
+ */
+function resolveTopoNodes(steps) {
+  const redeemed = (steps || []).find((s) => s && s.id === 'id-jag-redeemed');
+  if (!redeemed) return TOPO_NODES;
+  return TOPO_NODES.map((node) => (node.id === 'exchange'
+    ? { id: 'id-jag-redeemed', icon: 'JR', name: 'MCP AS — ID-JAG', lane: 'MCP', badgeCls: 'tfd-badge-MCP', label: 'redeemed grant' }
+    : node));
+}
+
 function TopoNodeClaims({ step, trace }) {
   const findEv = (...ids) => (trace?.tokenEvents || []).find(e => e && ids.includes(e.id));
   if (!step) return null;
@@ -428,10 +445,10 @@ function TopologyView({ steps, trace, onSelectStep }) {
     <div className="tfd-topo">
       <div className="tfd-topo-label">Security topology — click a node to inspect · RFC 8693 delegation chain</div>
       <div className="tfd-topo-row">
-        {TOPO_NODES.map((node, i) => {
+        {resolveTopoNodes(steps).map((node, i) => {
           const step = steps.find(s => s.id === node.id);
           const status = step?.status || 'notinpath';
-          const blocked = status === 'notinpath' || (i > 0 && steps.find(s => s.id === TOPO_NODES[i-1]?.id)?.status === 'error');
+          const blocked = status === 'notinpath' || (i > 0 && steps.find(s => s.id === resolveTopoNodes(steps)[i-1]?.id)?.status === 'error');
           const isError = status === 'error';
           const isDone  = status === 'done';
           const expanded = expandedId === node.id;

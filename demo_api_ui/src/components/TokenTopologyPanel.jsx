@@ -31,6 +31,11 @@ const STEP_ICONS = {
   'agent-token': 'AT',
   'exchange-1': 'X1',
   exchange: 'TX',
+  // Enterprise-Managed MCP Authorization: the IdP signs the grant, the MCP
+  // authorization server redeems it. Without entries here both hops fall back
+  // to a two-letter lane abbreviation and read as unlabelled boxes.
+  'id-jag-issued': '🔑',
+  'id-jag-redeemed': 'JR',
   authorize: 'AZ',
   stepup: '🔑',
   'intent-binding': 'IB',

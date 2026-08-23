@@ -8,6 +8,10 @@ const LANES = {
   website: "BROWSER", signin: "PINGONE", prompt: "CHAT", agent: "AGENT",
   "tools-list-challenge": "MCP", "tools-list": "MCP", llm: "LLM",
   "agent-token": "BFF", "exchange-1": "BFF", exchange: "BFF", authorize: "AUTHZ", stepup: "AUTHZ",
+  // Enterprise-Managed MCP Authorization. Issuance is the IdP's decision, so it
+  // sits in the PINGONE lane beside sign-in; redemption happens at the MCP
+  // Authorization Server, which is the MCP lane.
+  "id-jag-issued": "PINGONE", "id-jag-redeemed": "MCP",
   "intent-binding": "AUTHZ",
   gateway: "GATEWAY", "api-key-swap": "GATEWAY",
   "tools-call-challenge": "MCP", mcp: "MCP", api: "API",
@@ -53,6 +57,8 @@ const TITLES = {
   // NEW hop gets the distinct name rather than renumbering the existing one.
   "exchange-1": "Agent token narrowing — exchange #1",
   exchange: "Token exchange — delegation",
+  "id-jag-issued": "ID-JAG issued — enterprise IdP",
+  "id-jag-redeemed": "ID-JAG redeemed — MCP authorization server",
   authorize: "PingOne Authorize — policy decision",
   stepup: "Step-up required — HITL / MFA",
   "intent-binding": "Intent Binding Check",
@@ -80,6 +86,8 @@ const NARRATIVES = {
   "agent-token": "BFF obtains a client-credentials token — the agent's own identity, separate from the user's.",
   "exchange-1": "Two-exchange mode only. The first RFC 8693 call narrows the agent's OWN token before any user delegation happens, so the second exchange starts from least privilege rather than from the agent's full client-credentials scope.",
   exchange: "The delegated exchange. BFF exchanges subject (user) + actor (agent) for one delegated token: proof the agent acts FOR this user. Scope narrows to what the tool needs; audience binds to the gateway.",
+  "id-jag-issued": "Enterprise-managed mode. The IdP evaluates IT policy and, only if it passes, signs an Identity Assertion JWT Authorization Grant naming this user, this MCP server and the scopes IT allows. A denied employee gets an error here and no assertion at all.",
+  "id-jag-redeemed": "The MCP authorization server verifies that assertion against the IdP's JWKS and issues its own access token. The employee is never redirected to an MCP consent screen — this is the token-endpoint-only flow enterprise-managed authorization exists to provide.",
   authorize: "Before any tool runs, the BFF asks PingOne Authorize whether THIS user + agent may perform THIS action.",
   stepup: "The policy demanded step-up: the human must approve (HITL/CIBA/MFA) before the tool call proceeds.",
   "intent-binding": "Verifies the requested transfer against the declared RFC 9396 authorization_details cap.",
@@ -104,6 +112,8 @@ const STEP_RFCS = {
   "tools-call-challenge": ["RFC 6750 §3", "RFC 9728"],
   "exchange-1": ["RFC 8693"],
   exchange: ["RFC 8693", "RFC 8707"],
+  "id-jag-issued": ["RFC 8693", "ID-JAG draft"],
+  "id-jag-redeemed": ["RFC 7523", "MCP Enterprise-Managed Authorization"],
 };
 
 // Long-form teaching content per hop, rendered ONLY by the pop-out window
@@ -198,6 +208,24 @@ const STEP_SPEC = {
     mandate: "Nothing requires two exchanges. RFC 8693 permits chaining them, and each call is an ordinary exchange in its own right: this one presents the agent's client-credentials token as the subject and asks for a narrower scope and audience back.",
     why: "Two-exchange mode narrows the AGENT before it borrows the USER's authority. Starting the delegated exchange from an already-reduced agent token means the token minted next cannot inherit scope the agent never needed, so a mistake in the second call fails closed rather than issuing something over-broad.",
     failure: "Reading this hop as the delegation. No user is involved yet and there is no act claim — a token from this step alone proves nothing about acting for anyone. The delegation is the NEXT exchange.",
+  },
+  "id-jag-issued": {
+    refs: [
+      { label: "MCP Enterprise-Managed Authorization", title: "Centralized access control for MCP", href: "https://modelcontextprotocol.io/extensions/auth/enterprise-managed-authorization" },
+      { label: "RFC 8693 §2.1", title: "Token exchange request", href: "https://www.rfc-editor.org/rfc/rfc8693#section-2.1" },
+    ],
+    mandate: "The client posts an RFC 8693 exchange with requested_token_type=urn:ietf:params:oauth:token-type:id-jag, audience set to the MCP authorization server's issuer and resource set to the MCP server. The returned assertion is a JWT typed oauth-id-jag+jwt carrying jti, iss, sub, aud, resource and scope.",
+    why: "Policy is evaluated HERE, at the identity provider, before any token exists. That is the whole point of the enterprise profile: IT decides centrally which employees reach which MCP servers, and an employee who is not entitled never receives a credential to present anywhere. Revoking access in one console therefore takes effect on the next call.",
+    failure: "Evaluating policy after the token is minted. The employee then holds a valid credential a downstream check has to remember to refuse — and every service that forgets becomes the hole. A denial that arrives after issuance is not centralized authorization, it is downstream enforcement wearing its name.",
+  },
+  "id-jag-redeemed": {
+    refs: [
+      { label: "RFC 7523 §2.1", title: "JWT authorization grant", href: "https://www.rfc-editor.org/rfc/rfc7523#section-2.1" },
+      { label: "MCP Enterprise-Managed Authorization", title: "Validating ID-JAGs", href: "https://modelcontextprotocol.io/extensions/auth/enterprise-managed-authorization" },
+    ],
+    mandate: "grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer with the ID-JAG as the assertion. The authorization server verifies the signature against the IdP's JWKS, checks issuer, audience, expiry and the resource claim, then issues an access token audience-restricted to the MCP server the assertion named.",
+    why: "The MCP authorization server stays the issuer of its own tokens — it does not simply trust a foreign one. It maps the assertion's sub (falling back to email for accounts predating enterprise auth) onto a local identity, so existing accounts keep working when an organization adopts central control.",
+    failure: "Accepting an unsigned or unpinned assertion. If alg is not constrained to what the IdP actually signs with, an alg:none or wrong-algorithm token forges the whole grant — the assertion IS the authorization, so a verifier that skips one check hands over everything. Reusing a jti is the same class of mistake: without single-use, a captured assertion is replayable for its full lifetime.",
   },
   exchange: {
     refs: [
@@ -926,8 +954,51 @@ export function buildTraceSteps(trace) {
     }));
   }
 
+  // ── Native ID-JAG (MCP Enterprise-Managed Authorization) ──────────────────
+  // Conditional hops: they exist only when the BFF actually minted and redeemed
+  // an assertion. Absent those events the chain is byte-identical to before,
+  // which keeps the 17-step stand-in baseline intact.
+  const idJagIssued = findEvent(tokenEvents, "id-jag-issued");
+  const idJagRedeemed = findEvent(tokenEvents, "id-jag-redeemed");
+  const nativeIdJag = Boolean(idJagIssued || idJagRedeemed);
+
+  if (idJagIssued) {
+    steps.push(makeStep("id-jag-issued", "done", {
+      why: "IT policy passed, so the enterprise IdP signed an ID-JAG for this user"
+        + (idJagIssued.resource ? ` scoped to ${idJagIssued.resource}` : "")
+        + ". A denied employee would have received an error here instead, with no assertion issued.",
+      response: idJagIssued.claims
+        ? { title: "ID-JAG claims", text: asJson(idJagIssued.claims) }
+        : undefined,
+      kv: [
+        idJagIssued.claims && idJagIssued.claims.iss ? ["issuer", String(idJagIssued.claims.iss)] : null,
+        idJagIssued.resource ? ["resource", String(idJagIssued.resource)] : null,
+        idJagIssued.claims && idJagIssued.claims.scope ? ["scope", String(idJagIssued.claims.scope)] : null,
+        ["single-use", "jti — replay rejected"],
+      ].filter(Boolean),
+      tokenEvent: idJagIssued,
+    }));
+  }
+
+  if (idJagRedeemed) {
+    steps.push(makeStep("id-jag-redeemed", "done", {
+      why: "The MCP authorization server verified the assertion against the IdP JWKS and issued its own "
+        + "access token. No browser redirect to an MCP authorize endpoint was involved.",
+      response: idJagRedeemed.claims
+        ? { title: "MCP access token claims", text: asJson(idJagRedeemed.claims) }
+        : undefined,
+      kv: [
+        idJagRedeemed.scope ? ["scope", String(idJagRedeemed.scope)] : null,
+        ["grant", "urn:ietf:params:oauth:grant-type:jwt-bearer"],
+      ].filter(Boolean),
+      inspectToken: "mcp",
+      tokenEvent: idJagRedeemed,
+    }));
+  }
+
   steps.push(makeStep("exchange",
-    exFailed ? "error" : exDone ? "done" : exchangeNotRequired ? "notinpath"
+    nativeIdJag ? "notinpath"
+      : exFailed ? "error" : exDone ? "done" : exchangeNotRequired ? "notinpath"
       : (exTok || ex1Tok) ? "active" : "pending",
     exDone || exFailed ? {
       why: exchangeWhy,
@@ -949,6 +1020,11 @@ export function buildTraceSteps(trace) {
       ].filter(Boolean) : [],
       inspectToken: exTok ? "mcp" : undefined,
       tokenEvent: exTok || undefined,
+    } : nativeIdJag ? {
+      notRequired: true,
+      why: "No RFC 8693 exchange ran. In enterprise-managed mode the MCP access token "
+        + "comes from redeeming an ID-JAG at the MCP authorization server instead, so this "
+        + "hop is replaced rather than skipped.",
     } : exchangeNotRequired ? {
       // Reuses the `notinpath` STATUS so every surface that already buckets
       // statuses keeps working (TokenFlowDetailModal, TokenTopologyPanel,
