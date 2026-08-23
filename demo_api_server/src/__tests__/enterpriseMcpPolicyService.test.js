@@ -14,6 +14,10 @@ jest.mock('../../services/pingOneUserService', () => ({
   makeRequest: jest.fn(),
 }));
 
+jest.mock('../../services/mcpToolAuthorizationService', () => ({
+  resolveExpectedMcpResourceUri: jest.fn(),
+}));
+
 const configStore = require('../../services/configStore');
 const pingOneUserService = require('../../services/pingOneUserService');
 const enterpriseMcpPolicy = require('../../services/enterpriseMcpPolicyService');
@@ -59,6 +63,45 @@ describe('enterpriseMcpPolicyService', () => {
     const result = await enterpriseMcpPolicy.checkPolicy(req);
     expect(result.allowed).toBe(true);
     expect(result.matchDetail).toMatch(/^population:banking-agents/);
+  });
+
+  // Found live 2026-08-23: this demo's default routing mode is PingGateway
+  // ("core uses real P1AZ + PingGateway by default", run-docker.sh), which
+  // requires audience https://api.ping.demo:3036/mcp — but getAllowedResourceUris()
+  // only ever allowed the plain mcpServer/mcpGateway audiences. An ID-JAG minted
+  // for the active gateway's real audience was rejected by checkPolicy's own
+  // "resource is not an approved MCP server" guard before it ever reached the
+  // gateway's own audience check.
+  test('getAllowedResourceUris includes the active gateway mode\'s resource URI', () => {
+    configStore.getEffective.mockImplementation((key) => {
+      if (key === 'enterprise_mcp_resource_uris') return '';
+      return '';
+    });
+    // Re-require, not the top-level import: setup.js's global afterEach calls
+    // jest.resetModules(), and enterpriseMcpPolicyService.js's own require of
+    // this module is intentionally LAZY (real circular dependency via
+    // mcpToolAuthorizationService -> agentMcpTokenService -> this module, see
+    // that file's comment) — so after any prior test's reset, the SUT's next
+    // lazy require resolves to a fresh mock instance the file-level import no
+    // longer points at. Same root cause as #2263/#2264, opposite fix: there the
+    // SUT's require moved eager; here it can't, so the test re-requires instead.
+    require('../../services/mcpToolAuthorizationService')
+      .resolveExpectedMcpResourceUri.mockReturnValue('https://api.ping.demo:3036/mcp');
+
+    const uris = enterpriseMcpPolicy.getAllowedResourceUris();
+    expect(uris).toContain('https://api.ping.demo:3036/mcp');
+  });
+
+  test('an explicit enterprise_mcp_resource_uris override still wins, unchanged', () => {
+    configStore.getEffective.mockImplementation((key) => {
+      if (key === 'enterprise_mcp_resource_uris') return 'https://explicit.example.com/mcp';
+      return '';
+    });
+    require('../../services/mcpToolAuthorizationService')
+      .resolveExpectedMcpResourceUri.mockReturnValue('https://api.ping.demo:3036/mcp');
+
+    const uris = enterpriseMcpPolicy.getAllowedResourceUris();
+    expect(uris).toEqual(['https://explicit.example.com/mcp']);
   });
 
   test('checkPolicy denies user with no matching groups', async () => {
