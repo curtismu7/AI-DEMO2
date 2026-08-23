@@ -12,6 +12,7 @@
  */
 
 const axios = require('axios');
+const crypto = require('crypto');
 const configStore = require('./configStore');
 
 const TOKEN_EXCHANGE_GRANT = 'urn:ietf:params:oauth:grant-type:token-exchange';
@@ -60,6 +61,24 @@ function toDemoError(err, fallback) {
   return wrapped;
 }
 
+/**
+ * The /internal/agent-tool callback (routes/agentTool.js) resolves the
+ * session server-side via sessionStore.get() and has no real HTTP headers to
+ * forward — req.headers.cookie is empty there even though req.sessionID is
+ * set. Re-sign a connect.sid value from that ID (express-session's own
+ * cookie-signature format: 's:' + sessionID + '.' + hmac-sha256-base64) so
+ * the loopback call authenticates exactly as the original browser request
+ * would have.
+ */
+function cookieHeader(req) {
+  if (req.headers && req.headers.cookie) return req.headers.cookie;
+  if (!req.sessionID) return '';
+  const secret = process.env.SESSION_SECRET || 'dev-session-secret-change-in-production';
+  const mac = crypto.createHmac('sha256', secret).update(req.sessionID).digest('base64').replace(/=+$/, '');
+  const signed = `s:${req.sessionID}.${mac}`;
+  return `connect.sid=${encodeURIComponent(signed)}`;
+}
+
 /** Exchange the user's identity assertion for an ID-JAG scoped to one MCP server. */
 async function mintIdJag(req, { audience, resource, scope }) {
   try {
@@ -74,7 +93,7 @@ async function mintIdJag(req, { audience, resource, scope }) {
         resource,
         scope,
       },
-      { headers: { Cookie: (req.headers && req.headers.cookie) || '' }, timeout: 10000 },
+      { headers: { Cookie: cookieHeader(req) }, timeout: 10000 },
     );
     return { assertion: data.access_token, expiresIn: data.expires_in };
   } catch (err) {
