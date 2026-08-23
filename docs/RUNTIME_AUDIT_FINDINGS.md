@@ -63,7 +63,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 36 | Perf | `services/demoTrackService.js` | medium | FIXED |
 | 37 | Perf | `services/traceProjector.js` | low | FIXED |
 | 38 | Perf | `demo_api_ui/.../context/ActivityNarrativeContext.js` | medium | FIXED |
-| 39 | Perf | `demo_api_ui/.../ScopeAuditPage.js` | medium | OPEN |
+| 39 | Perf | `demo_api_ui/.../ScopeAuditPage.js` | medium | FIXED |
 
 ---
 
@@ -1095,7 +1095,7 @@ fail against the pre-fix file (55 items, no cap) and pass against the fix.
 ActivityNarrativePanel` — 8/8 passed; full UI suite (416 files / 3420 tests)
 — no regressions. `npm --prefix demo_api_ui run build` — exit 0.
 
-### 39. "Fix All" scope-audit actions reload the full audit after every single fix instead of once — OPEN
+### 39. "Fix All" scope-audit actions reload the full audit after every single fix instead of once — FIXED
 
 **File:** `demo_api_ui/src/components/ScopeAuditPage.js`, line 73
 
@@ -1113,15 +1113,35 @@ for all resources, one per resource for its scopes). Fixing K missing
 scopes issues K POSTs each followed by a full 1+N-request re-audit, instead
 of a single reload after the batch.
 
-**Fix (not yet applied):** Give `handleAddScope` an option to skip the
-refresh (default true for the single "Add" button), pass `refresh:false`
-from the loop bodies in `handleFixAll`/`handleFixEverything`, and call
-`loadResources()` once after each loop completes.
+**Fix:** `handleAddScope` now accepts `{ refresh = true }`, defaulting to the
+prior behavior for the single "Add" button. `handleFixAll` and
+`handleFixEverything` pass `{ refresh: false }` from their loop bodies and
+call `loadResources()` once after the loop completes instead of once per
+scope.
+
+**Evidence:** New `ScopeAuditPage.fixAll.test.jsx` mocks a resource with 2
+missing required scopes, clicks "Fix All Missing", and asserts exactly 2
+POSTs (both scopes) followed by exactly 1 additional GET to
+`/api/admin/scope-audit/resources` (not 2). Proven to fail against the
+pre-fix file (3 total GETs — one per scope plus the initial) and pass
+against the fix (2 total). `npm --prefix demo_api_ui run test:unit --
+ScopeAuditPage.fixAll` — 1/1 passed; full UI suite (417 files / 3421 tests)
+— no regressions. `npm --prefix demo_api_ui run build` — exit 0.
+
+**This closes the Performance category and the entire round-2 audit — all
+39 findings across both rounds are now FIXED.**
 
 ---
 
 ## Changelog
 
+- 2026-08-23 — #39 FIXED: `ScopeAuditPage.js`'s `handleAddScope` gained an
+  optional `{ refresh: false }` so `handleFixAll`/`handleFixEverything` skip
+  the per-scope reload and reload once after the batch instead. New test
+  proven to fail against the pre-fix file (3 GETs for 2 scopes) and pass
+  against the fix (2 GETs); full UI suite green (417 files / 3421 tests).
+  **This closes the Performance category and the entire round-2 audit — all
+  39 findings across both rounds are now FIXED.**
 - 2026-08-23 — #38 FIXED: `ActivityNarrativeContext.js` caps `requests` at
   `MAX_REQUESTS = 50` (mirrors `useActivityLog.js`'s `MAX_EVENTS` pattern),
   bounding both array growth and per-turn remap cost. New test proven to

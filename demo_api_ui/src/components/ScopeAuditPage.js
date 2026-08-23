@@ -47,7 +47,12 @@ export default function ScopeAuditPage() {
   }, []);
 
   // ── Add a missing scope ─────────────────────────────────────────────────────
-  const handleAddScope = useCallback(async (resourceId, scopeName) => {
+  // refresh:false lets a batch caller (handleFixAll/handleFixEverything) skip
+  // the full resources re-fetch after each individual scope and reload once
+  // after the whole batch instead — a K-scope fix used to issue K separate
+  // 1+N-request re-audits (loadResources fetches all resources, then one GET
+  // per resource for its scopes) instead of a single reload.
+  const handleAddScope = useCallback(async (resourceId, scopeName, { refresh = true } = {}) => {
     const key = `${resourceId}:${scopeName}`;
     setAddingScope(key);
     try {
@@ -60,8 +65,7 @@ export default function ScopeAuditPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
       notifySuccess(`Created scope: ${scopeName}`);
-      // Refresh resources
-      await loadResources();
+      if (refresh) await loadResources();
     } catch (err) {
       notifyError(`Failed to create ${scopeName}: ${err.message}`);
     } finally {
@@ -74,20 +78,22 @@ export default function ScopeAuditPage() {
     if (!resource.expected) return;
     const missing = resource.expected.missingRequired || [];
     for (const scope of missing) {
-      await handleAddScope(resource.id, scope);
+      await handleAddScope(resource.id, scope, { refresh: false });
     }
-  }, [handleAddScope]);
+    await loadResources();
+  }, [handleAddScope, loadResources]);
 
   // ── Add all missing across all resources ────────────────────────────────────
   const handleFixEverything = useCallback(async () => {
     for (const r of resources) {
       if (r.expected && r.expected.missingRequired?.length > 0) {
         for (const scope of r.expected.missingRequired) {
-          await handleAddScope(r.id, scope);
+          await handleAddScope(r.id, scope, { refresh: false });
         }
       }
     }
-  }, [resources, handleAddScope]);
+    await loadResources();
+  }, [resources, handleAddScope, loadResources]);
 
   // ── Toggle expand ───────────────────────────────────────────────────────────
   const toggleExpand = (id) => {
