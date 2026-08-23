@@ -142,6 +142,7 @@
     "/demo-guide-popout": "public",
     "/demo-track": "public",
     "/demo/:shellSlug": "public",
+    "/demo/enterprise-mcp": "user",
     "/demo/footprint-mocks": "user",
     "/demo/footprint-picks": "user",
     "/discovery-preview": "public",

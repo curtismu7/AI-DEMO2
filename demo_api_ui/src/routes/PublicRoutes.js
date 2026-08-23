@@ -33,6 +33,7 @@ import DavinciLoginPage from "../pages/DavinciLoginPage";
 import DavinciExplainerPage from "../pages/DavinciExplainerPage";
 import CibaApprovalPage from "../pages/CibaApprovalPage";
 import PrivilegeDemoPage from "../pages/PrivilegeDemoPage";
+import EnterpriseMcpDemoPage from '../pages/EnterpriseMcpDemoPage';
 import GroupPolicyBoardPage from '../pages/GroupPolicyBoardPage';
 import PrivilegeMcpClientPage from "../pages/PrivilegeMcpClientPage";
 
@@ -182,6 +183,15 @@ export function PrivilegeDemoPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <PrivilegeDemoPage />
+    </AppShell>
+  );
+}
+
+/** MCP Enterprise-Managed Authorization demo — arm one flag, run it, reset. */
+export function EnterpriseMcpDemoPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <EnterpriseMcpDemoPage />
     </AppShell>
   );
 }
