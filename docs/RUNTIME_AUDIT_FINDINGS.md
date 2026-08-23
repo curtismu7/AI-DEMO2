@@ -27,7 +27,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 7 | Runtime | `demo_api_ui/.../AIAgent.js` (aguiAbort) | medium | FIXED |
 | 8 | Runtime | `demo_api_ui/.../AIAgent.js` (refreshAfterTransaction) | medium | FIXED |
 | 9 | Swallowed | `middleware/delegationGate.js` | high | FIXED |
-| 10 | Swallowed | `demo_api_ui/.../AdminSideNav.jsx` (reset demo) | high | OPEN |
+| 10 | Swallowed | `demo_api_ui/.../AdminSideNav.jsx` (reset demo) | high | FIXED |
 | 11 | Swallowed | `demo_api_ui/.../DelegationPage.js` | high | OPEN |
 | 12 | Swallowed | `middleware/agentRestrictionsGate.js` | medium | OPEN |
 | 13 | Swallowed | `routes/agentAuthorization.js` | medium | OPEN |
@@ -288,9 +288,9 @@ JWT-shaped token (2+ dot segments) that fails to decode now fails closed.
 fail against the pre-fix file (`next()` was called, exactly the bug) and pass
 against the fix. `cd demo_api_server && CI=true npx jest tests/delegationGate.unit.test.js --forceExit` — 5/5 passed.
 
-### 10. "Reset Demo" logs the admin out even when the reset failed — OPEN
+### 10. "Reset Demo" logs the admin out even when the reset failed — FIXED
 
-**File:** `demo_api_ui/src/components/AdminSideNav.jsx`, `handleResetConfirm` (1231–1246)
+**File:** `demo_api_ui/src/components/AdminSideNav.jsx`, `handleResetConfirm` (was 1231–1246)
 
 **Issue:** The reset POST's error is fully swallowed (`catch (_) {}`) with no
 logging or toast, and the function proceeds unconditionally to clear
@@ -299,8 +299,16 @@ localStorage and log the admin out.
 **Trigger scenario:** Click "Reset Demo" while the endpoint fails — the admin
 is logged out believing the reset happened; it never did.
 
-**Fix (not yet applied):** Check `response.ok`/catch the network error and
-call `notifyError` before clearing localStorage + `performLogout()`.
+**Fix:** Now checks `res.ok` (a fetch resolving on a non-2xx status was
+previously indistinguishable from success) in addition to catching a network
+error; either failure logs via `console.error` (this file's own convention)
+and calls `notifyError` (the project-wide toast convention), then returns
+**before** clearing localStorage or calling `performLogout()`. Success path
+unchanged.
+
+**Evidence:** 3 new tests (network error / non-ok status / success) —
+confirmed 2 of 3 fail against the pre-fix file (`notifyError` never called,
+since it didn't exist yet) and all 3 pass against the fix. `cd demo_api_ui && npx vitest run src/components/__tests__/AdminSideNav.resetDemo.test.jsx src/components/__tests__/adminSideNav.test.jsx src/components/__tests__/AdminSideNav.telemetry.test.jsx` — 3 files / 24 tests passed; `npm run build` exit 0.
 
 ### 11. Agent-authorization toggle gives no failure feedback — OPEN
 
@@ -532,6 +540,10 @@ redundantly re-parsing/re-diffing the same JSON twice each.
 
 ## Changelog
 
+- 2026-08-23 — #10 FIXED: `AdminSideNav.jsx`'s "Reset Demo" now checks
+  `res.ok` and catches network errors, logging + toasting via `notifyError`
+  and returning before `performLogout()` on failure. 3 new tests, 2 proven to
+  fail against the pre-fix file and pass against the fix.
 - 2026-08-23 — #9 FIXED: `delegationGate.js` now fails closed (401) on a
   JWT-shaped Bearer token whose payload can't be decoded, instead of silently
   treating the parse failure as "non-delegated — pass through". New test
