@@ -20,3 +20,8 @@ PingOne's opaque image storage.
 | `10-holdings-specialist.png` | Demo AI App - Holdings Specialist Agent |
 | `11-passenger-records-specialist.png` | Demo AI App - Passenger Records Specialist Agent |
 | `12-identity-verification-specialist.png` | Demo AI App - Identity Verification Specialist Agent |
+| `15-mcp-external-client.png` | Demo AI App - MCP External Client |
+
+13 and 14 are uploaded to PingOne (Demo AI App - Agent Actor, Demo AI App - MCP
+Server Client) but their source files were never committed here — numbering
+skips them rather than reusing the slots.
