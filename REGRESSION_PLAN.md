@@ -619,6 +619,35 @@ and `npm run build`.
 Live, sporting-goods: UC6 → `Authz denied — Verified (as expected)` with `gw-authorize` emitted and
 `engine: "gateway-backstop"`; UC8 → stays `Verified (as expected)` after Agree & Continue and replies
 "Your rental of Trek Marlin 8 Mountain Bike has been extended — now due 2026-05-30."; UC24 → no ATM badge.
+### 2026-08-19 — A2A fallback rejected real UC2 prompts and leaked exchange deadline timers
+
+**Files changed:** `demo_api_server/services/a2aOrchestratorService.js`,
+`demo_api_server/services/a2aDelegationService.js`,
+`demo_api_server/services/a2aProtocolClient.js`, and focused A2A unit tests.
+
+**What was broken:** the heuristic fallback only recognized the literal phrases
+`sensitive data` and `sensitive information`, but the vertical manifests ask for
+concrete sensitive records such as patient records, tax records, payroll details,
+and order history. An unavailable or malformed llama.cpp response therefore made
+valid UC2 prompts nondeterministically decline delegation. Both RFC 8693 exchanges
+also used `Promise.race` deadlines whose 30-second timers were never cleared after
+success, and the additive A2A protocol hop had no deadline at all.
+
+**What was fixed:** any explicit `sensitive` request now reaches the configured
+vertical specialist during heuristic fallback. Exchanges use a timer-clean bounded
+runner with one retry for 429, 5xx, timeout, and network failures. OAuth/policy 4xx
+failures remain fail-closed and are never retried. The optional protocol bearer mint
+and wire handoff each have a five-second ceiling and continue to soft-fail without
+blocking the nested-act MCP path.
+
+**Do not break:** never broaden retries to 4xx responses, never bypass specialist
+tool allowlists, and never treat the protocol hop as authorization. PingOne
+Authorize remains the sole PERMIT/DENY decision over the full nested `act` chain.
+The protocol hop remains additive; its timeout or failure must not invalidate a
+successfully minted specialist token.
+
+**Verify:** focused A2A Jest suites, including `--detectOpenHandles`; server unit
+suite; `npm run topology:verify`; `npm run authz:verify`.
 
 ### 2026-08-19 — The proof-of-enforcement pill never dismissed and sat over TopNav Sign Out
 

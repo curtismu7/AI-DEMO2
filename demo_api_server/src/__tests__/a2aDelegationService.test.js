@@ -426,3 +426,38 @@ describe('a2aDelegationService.countActDepth', () => {
     expect(a2a.countActDepth({ sub: 'c', act: { sub: 'b', act: { sub: 'a' } } })).toBe(3);
   });
 });
+
+describe('a2aDelegationService exchange resilience', () => {
+  test('clears the timeout timer after a successful exchange', async () => {
+    const timer = { id: 'timer' };
+    const timers = {
+      setTimeout: jest.fn(() => timer),
+      clearTimeout: jest.fn(),
+    };
+
+    await expect(a2a.runExchange(async () => 'token', {
+      label: 'exchange', timeoutMs: 100, attempts: 1, retryDelayMs: 0, timers,
+    })).resolves.toBe('token');
+    expect(timers.clearTimeout).toHaveBeenCalledWith(timer);
+  });
+
+  test('retries one transient upstream failure and then succeeds', async () => {
+    const transient = Object.assign(new Error('upstream unavailable'), { httpStatus: 503 });
+    const operation = jest.fn().mockRejectedValueOnce(transient).mockResolvedValueOnce('token');
+
+    await expect(a2a.runExchange(operation, {
+      label: 'exchange', timeoutMs: 100, attempts: 2, retryDelayMs: 0,
+    })).resolves.toBe('token');
+    expect(operation).toHaveBeenCalledTimes(2);
+  });
+
+  test('does not retry OAuth or authorization 4xx failures', async () => {
+    const denied = Object.assign(new Error('invalid_scope'), { httpStatus: 400 });
+    const operation = jest.fn().mockRejectedValue(denied);
+
+    await expect(a2a.runExchange(operation, {
+      label: 'exchange', timeoutMs: 100, attempts: 2, retryDelayMs: 0,
+    })).rejects.toThrow('invalid_scope');
+    expect(operation).toHaveBeenCalledTimes(1);
+  });
+});

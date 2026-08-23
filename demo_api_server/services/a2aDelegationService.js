@@ -80,6 +80,44 @@ function authzWorkerId() {
  * a real (not simulated) mismatch, defeating the point of the probe.
  */
 const MISMATCH_NESTED_ACT_CLIENT_ID = 'unregistered-simulated-agent';
+const DEFAULT_EXCHANGE_TIMEOUT_MS = 30000;
+const DEFAULT_EXCHANGE_ATTEMPTS = 2;
+const DEFAULT_RETRY_DELAY_MS = 150;
+
+function withTimeout(operation, timeoutMs, label, timers = {}) {
+  const setTimer = timers.setTimeout || setTimeout;
+  const clearTimer = timers.clearTimeout || clearTimeout;
+  let timer;
+  return Promise.race([
+    Promise.resolve().then(operation),
+    new Promise((_, reject) => {
+      timer = setTimer(() => reject(new Error(`${label} timed out (${timeoutMs}ms)`)), timeoutMs);
+    }),
+  ]).finally(() => clearTimer(timer));
+}
+
+function isTransientExchangeError(err) {
+  const status = Number(err?.httpStatus || err?.response?.status || 0);
+  if (status === 429 || status >= 500) return true;
+  if (status >= 400) return false;
+  const code = String(err?.code || '').toUpperCase();
+  if (['ECONNRESET', 'ECONNREFUSED', 'EAI_AGAIN', 'ENETUNREACH', 'ETIMEDOUT'].includes(code)) return true;
+  return /timed out|timeout|network|socket hang up/i.test(String(err?.message || ''));
+}
+
+async function runExchange(operation, { label, timeoutMs, attempts, retryDelayMs, timers }) {
+  let lastError;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await withTimeout(operation, timeoutMs, label, timers);
+    } catch (err) {
+      lastError = err;
+      if (attempt >= attempts || !isTransientExchangeError(err)) throw err;
+      await new Promise((resolve) => (timers?.setTimeout || setTimeout)(resolve, retryDelayMs));
+    }
+  }
+  throw lastError;
+}
 
 /**
  * Derive the specialist's requested scopes from the SoT (scope-topology.json).
@@ -252,6 +290,9 @@ async function delegateToSpecialist(req, opts = {}) {
 
   const tokenEvents = opts.tokenEvents || [];
   const vertical = opts.vertical;
+  const exchangeTimeoutMs = opts.exchangeTimeoutMs || DEFAULT_EXCHANGE_TIMEOUT_MS;
+  const exchangeAttempts = opts.exchangeAttempts || DEFAULT_EXCHANGE_ATTEMPTS;
+  const retryDelayMs = opts.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS;
 
   const base = { token: null, tokenEvents, claims: null, userSub: null, vertical };
 
@@ -323,8 +364,8 @@ async function delegateToSpecialist(req, opts = {}) {
       { a2aRole: 'agent1-actor', vertical },
     ));
 
-    const tAgent1 = await Promise.race([
-      oauth.performTokenExchangeAs(
+    const tAgent1 = await runExchange(
+      () => oauth.performTokenExchangeAs(
         userToken,
         agent1Actor,
         c.agent1ClientId,
@@ -333,8 +374,8 @@ async function delegateToSpecialist(req, opts = {}) {
         [c.intermediateScope],
         c.exchangeAuthMethod,
       ),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('A2A Exchange #1 timed out (30s)')), 30000)),
-    ]);
+      { label: 'A2A Exchange #1', timeoutMs: exchangeTimeoutMs, attempts: exchangeAttempts, retryDelayMs, timers: deps.timers },
+    );
     const tAgent1Decoded = decodeJwt(tAgent1);
     tokenEvents.push(buildA2aEvent(
       'a2a-exchange1',
@@ -382,8 +423,8 @@ async function delegateToSpecialist(req, opts = {}) {
       { a2aRole: 'agent2-actor', vertical, specialist: specialist.specialistName },
     ));
 
-    const tInvest = await Promise.race([
-      oauth.performTokenExchangeAs(
+    const tInvest = await runExchange(
+      () => oauth.performTokenExchangeAs(
         tAgent1,
         agent2Actor,
         c.agent2ClientId,
@@ -392,8 +433,8 @@ async function delegateToSpecialist(req, opts = {}) {
         specialistScopes,
         c.exchangeAuthMethod,
       ),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('A2A Exchange #2 timed out (30s)')), 30000)),
-    ]);
+      { label: 'A2A Exchange #2', timeoutMs: exchangeTimeoutMs, attempts: exchangeAttempts, retryDelayMs, timers: deps.timers },
+    );
     const tInvestDecoded = decodeJwt(tInvest);
     const act = tInvestDecoded?.claims?.act || null;
     const actChainDepth = countActDepth(act);
@@ -616,4 +657,6 @@ module.exports = {
   // exported for unit tests
   buildA2aEvent,
   countActDepth,
+  isTransientExchangeError,
+  runExchange,
 };

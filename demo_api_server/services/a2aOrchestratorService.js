@@ -194,8 +194,8 @@ async function orchestrateDelegation({ req, message, vertical, userId, available
   }
 
   const agentHeader = usedLlm
-    ? '🤖 [A2A ORCHESTRATOR - LLM (llama.cpp)]'
-    : '🤖 [A2A ORCHESTRATOR - Heuristic Fallback]';
+    ? '[A2A ORCHESTRATOR - LLM (llama.cpp)]'
+    : '[A2A ORCHESTRATOR - Heuristic Fallback]';
   const metadata = {
     framework: usedLlm ? 'llama.cpp' : 'heuristic',
     agentType: 'orchestrator',
@@ -284,7 +284,9 @@ async function heuristicOrchestration({ message, vertical, availableSpecialists 
   const delegationPhrases = [
     /\b(delegate|hand\s*(off|over)|escalate)\b/,
     /\b(specialist|advisor|expert)\b/,
-    /sensitive\s+(data|information)/,
+    // Every vertical's UC2 prompt names a concrete sensitive record (account,
+    // patient, payroll, tax, order, etc.), not literally "sensitive data".
+    /\bsensitive\b/,
     /don't.*access|shouldn't.*see/,
   ];
   const shouldDelegate = delegationPhrases.some((re) => re.test(lowerMessage));

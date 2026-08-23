@@ -30,6 +30,18 @@ function defaultOauthService() {
   return require('./oauthService');
 }
 
+const DEFAULT_HANDOFF_TIMEOUT_MS = 5000;
+
+function withTimeout(operation, timeoutMs, label) {
+  let timer;
+  return Promise.race([
+    Promise.resolve().then(operation),
+    new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`${label} timed out (${timeoutMs}ms)`)), timeoutMs);
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
+
 /** Loopback base (trailing slash) when forcing HTTP client mode. */
 function loopbackSpecialistBase(vertical) {
   const port = process.env.PORT || '3001';
@@ -47,10 +59,15 @@ async function sendA2aProtocolHandoff(opts = {}) {
   const subtask = opts.subtask || 'A2A specialist handoff';
   const oauth = opts.deps?.oauthService || defaultOauthService();
   const useHttp = Boolean(opts.baseUrl || process.env.A2A_PROTOCOL_HTTP === '1');
+  const timeoutMs = opts.timeoutMs || DEFAULT_HANDOFF_TIMEOUT_MS;
 
   let bearer;
   try {
-    bearer = await oauth.getAiAgentClientCredentialsToken();
+    bearer = await withTimeout(
+      () => oauth.getAiAgentClientCredentialsToken(),
+      timeoutMs,
+      'A2A protocol bearer mint',
+    );
   } catch (err) {
     tokenEvents.push(
       buildA2aEvent(
@@ -84,22 +101,22 @@ async function sendA2aProtocolHandoff(opts = {}) {
 
   try {
     if (useHttp) {
-      return await sendViaHttp({
+      return await withTimeout(() => sendViaHttp({
         bearer,
         vertical,
         subtask,
         tokenEvents,
         baseUrl: opts.baseUrl || loopbackSpecialistBase(vertical),
-      });
+      }), timeoutMs, 'A2A protocol HTTP handoff');
     }
-    return await sendInProcess({
+    return await withTimeout(() => sendInProcess({
       bearer,
       bearerClaims,
       vertical,
       subtask,
       tokenEvents,
       cfg: opts.cfg,
-    });
+    }), timeoutMs, 'A2A protocol in-process handoff');
   } catch (err) {
     tokenEvents.push(
       buildA2aEvent(
