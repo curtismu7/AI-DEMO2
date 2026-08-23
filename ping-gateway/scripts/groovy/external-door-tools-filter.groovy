@@ -26,17 +26,16 @@ def ALLOWED_TOOLS = [
     'get_sensitive_account_details', 'create_deposit', 'create_withdrawal', 'create_transfer', 'query_user_by_email',
 ] as Set
 
-def reqBody = null
-def isToolsList = false
-try {
-    reqBody = new JsonSlurper().parseText(request.entity.string ?: '')
-    isToolsList = reqBody?.method == 'tools/list'
-} catch (Exception ignored) {
-    // Not JSON, or unparseable — pass through unfiltered, same as any other method.
-}
-
+// Deliberately does NOT read request.entity at all: reading it drains the stream,
+// and every downstream reader (P1AZDecision, then the reverse proxy forwarding to
+// mcp-server) needs it intact. A first attempt read-and-inspected the request body
+// to detect tools/list and hung the gateway's Vert.x event-loop thread on the very
+// first live deploy (empty body forwarded upstream, ReverseProxyHandler waited on a
+// response that never completed). Detecting by RESPONSE shape instead needs no
+// request-entity access at all: only a tools/list response ever has result.tools as
+// a list (tools/call has result.content, initialize has result.protocolVersion, ...).
 return next.handle(context, request).thenOnResult { rsp ->
-    if (!isToolsList || rsp.status.code != 200) return
+    if (rsp.status.code != 200) return
     try {
         def body = new JsonSlurper().parseText(rsp.entity.string ?: '')
         def tools = body?.result?.tools
