@@ -15,6 +15,7 @@ import { randomUUID, timingSafeEqual } from 'crypto';
 import { MCPMessage, MCPResponse } from '../interfaces/mcp';
 import { BankingAuthenticationManager } from '../auth/BankingAuthenticationManager';
 import { BankingSessionManager } from '../storage/BankingSessionManager';
+import { EncryptedTokenStorage } from '../storage/EncryptedTokenStorage';
 import { BankingToolProvider } from '../tools/BankingToolProvider';
 import { MCPMessageHandler, MessageHandlerContext } from './MCPMessageHandler';
 import { HttpMCPTransport } from './HttpMCPTransport';
@@ -122,6 +123,24 @@ export class DemoMCPServer extends EventEmitter {
       const signingKeyManager = await getEmbeddedSigningKeyManager();
       const clientRegistry = new ClientRegistry();
       clientRegistry.initialize();
+      // Make dynamically-registered clients survive a restart. Reuses the
+      // encrypted store the session layer already uses; both are keyed off
+      // TOKEN_STORAGE_PATH, which must be a volume for this to mean anything.
+      // Best-effort: without ENCRYPTION_KEY the registry stays in-memory and
+      // behaves exactly as before rather than refusing to start.
+      const clientStoreKey = process.env.ENCRYPTION_KEY;
+      const clientStorePath = process.env.TOKEN_STORAGE_PATH;
+      if (clientStoreKey && clientStorePath) {
+        try {
+          await clientRegistry.attachStorage(
+            new EncryptedTokenStorage(clientStorePath, clientStoreKey),
+          );
+        } catch (err) {
+          console.warn(
+            `[DemoMCPServer] client registry persistence unavailable, continuing in-memory: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+      }
       const tokenStore = new TokenStore();
       this.oauthRouter = new OAuthRouter(signingKeyManager, clientRegistry, tokenStore);
       setInterval(() => tokenStore.cleanup(), 60_000);

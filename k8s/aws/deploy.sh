@@ -195,6 +195,10 @@ fi
 # 21-api-server-logs-pvc.yaml is a standalone file (not bundled with a
 # deployment), so we apply it explicitly here.
 apply_patched "$K8S_DIR/21-api-server-logs-pvc.yaml"
+# Durable OAuth state for mcp-server's embedded AS (dynamically-registered MCP
+# clients). Same reason: standalone file, and the deployment that mounts it
+# cannot schedule until the claim exists.
+apply_patched "$K8S_DIR/31-mcp-server-oauth-state-pvc.yaml"
 
 # Deploy in dependency order (jaeger first so the OTLP collector is up before
 # the instrumented services start exporting spans)

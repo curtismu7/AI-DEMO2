@@ -80,6 +80,9 @@ deploy() {
 
   kubectl apply -f "$SCRIPT_DIR/02-configmap.yaml"
   kubectl apply -f "$SCRIPT_DIR/21-api-server-logs-pvc.yaml"
+  # Durable OAuth state for mcp-server's embedded AS — must exist before
+  # 30-mcp-server-deployment.yaml, which mounts it, can be scheduled.
+  kubectl apply -f "$SCRIPT_DIR/31-mcp-server-oauth-state-pvc.yaml"
 
   # OTel bootstrap script mounted at /otel in every instrumented Node service
   # (mirrors docker-compose's ./scripts/otel-instrument.js bind mount).
