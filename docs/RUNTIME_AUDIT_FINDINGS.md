@@ -34,7 +34,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 14 | Swallowed | `demo_api_ui/.../AdminSideNav.jsx` (vertical list) | medium | FIXED |
 | 15 | Swallowed | `demo_api_ui/.../AdminSideNav.jsx` (switch vertical) | medium | FIXED |
 | 16 | Swallowed | `demo_api_ui/.../CopilotAgent.jsx` | medium | FIXED |
-| 17 | Swallowed | `demo_api_ui/.../CreateUserPanel.jsx` | medium | OPEN |
+| 17 | Swallowed | `demo_api_ui/.../CreateUserPanel.jsx` | medium | FIXED |
 | 18 | Swallowed | `demo_api_ui/.../BulkDecisionPanel.jsx` | low | OPEN |
 | 19 | Perf | `routes/agentRun.js` | high | OPEN |
 | 20 | Perf | `demo_api_ui/vertical/VerticalProvider.jsx` | high | OPEN |
@@ -432,7 +432,7 @@ retry succeeds and reaches the real surface; a genuinely empty config still
 shows "not configured") — the first two confirmed to fail against the
 pre-fix file and pass against the fix. `cd demo_api_ui && npx vitest run src/components/__tests__/CopilotAgent.configError.test.jsx` — 3/3 passed; `npm run build` exit 0.
 
-### 17. Delegate search failure looks like zero matches — OPEN
+### 17. Delegate search failure looks like zero matches — FIXED
 
 **File:** `demo_api_ui/src/components/CreateUserPanel.jsx`, `searchDelegate` (84–90)
 
@@ -441,7 +441,14 @@ pre-fix file and pass against the fix. `cd demo_api_ui && npx vitest run src/com
 **Trigger scenario:** Search fails — dropdown shows no results, identical to
 a real no-match.
 
-**Fix (not yet applied):** Surface via `notifyError` or a field-level message.
+**Fix:** Reused the existing `fieldErrors.delegateUser` slot (already
+rendered under the input, already used by `validate()` for "Select a
+delegate target") — the catch now sets `'Search failed. Try again.'` there,
+and a successful search clears it.
+
+**Evidence:** 3 new tests (failure shows the message; a later success clears
+it; a genuine zero-match never shows it) — the first two confirmed to fail
+against the pre-fix file and pass against the fix. `cd demo_api_ui && npx vitest run src/components/__tests__/CreateUserPanel.delegateSearch.test.jsx` — 3/3 passed; `npm run build` exit 0.
 
 ### 18. Policy-endpoint load failure not surfaced despite existing error state — OPEN
 
@@ -581,6 +588,10 @@ redundantly re-parsing/re-diffing the same JSON twice each.
 
 ## Changelog
 
+- 2026-08-23 — #17 FIXED: `CreateUserPanel.jsx`'s `searchDelegate` now
+  surfaces a failure via the existing `fieldErrors.delegateUser` slot instead
+  of rendering an empty dropdown identical to a zero-match search. 3 new
+  tests, 2 proven to fail against the pre-fix file and pass against the fix.
 - 2026-08-23 — #16 FIXED: `CopilotAgent.jsx` now distinguishes a config-load
   failure (retryable error) from a genuinely empty/unconfigured config
   (permanent notice), reusing the existing `friendly(e)` helper. 3 new
