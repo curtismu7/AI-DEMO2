@@ -47,6 +47,159 @@ primitive/derived values that actually determine its shape (`ctx`,
 `isAdminScope`), so a `React.memo`'d consumer or a `useEffect` deps array
 keyed on `useVertical()`'s output stops re-firing on every unrelated render.
 
+### [ ] 2026-08-23 — native ID-JAG: PingGateway's own D-05 still blocks the real tool call even when the OLB-audience pin should redirect it
+
+Live E2E verification of PR #2268 (native ID-JAG gateway filter — mint → redeem
+→ tool call) surfaced this while checking whether the redeemed, OLB-audienced
+bearer actually reaches the Node "Demo Agent Gateway" for a real
+`get_account_balance` call, as `mcpGatewayClient.js`'s OLB pin
+([mcpGatewayClient.js:163-176](demo_api_server/services/mcpGatewayClient.js))
+is supposed to force.
+
+**What was observed:** with `ff_mcp_gateway_pinggateway` ON (this demo's
+default routing), a real native-ID-JAG tool call still gets rejected by
+**PingGateway's own, separate** anti-bypass rule
+(`ping-gateway/scripts/groovy/p1az-decision.groovy`, same "D-05" naming
+convention as the Node gateway's `GatewayTokenPolicy.ts` but an independent
+implementation) — reply: `Gateway Policy Denied — get_account_balance` /
+`bypass_attempt: token aud targets upstream mcpserver.ping.demo — cannot
+bypass gateway (D-05)`. That means the call reached PingGateway, i.e. the pin
+in `mcpGatewayClient.js` did not redirect `base` to the Node gateway for this
+call — even though every value it depends on resolved correctly when checked
+live: `MCP_PINGGATEWAY_URL === MCP_GATEWAY_HTTP_URL === http://ping-gateway:8080`
+(PingGateway-mode precondition satisfied) and `PINGONE_RESOURCE_MCP_SERVER_URI
+= mcpserver.ping.demo` (the OLB audience the pin checks the token's `aud`
+against).
+
+**Why not fixed now:** reproducing this specific path live is unreliable —
+the SAME session, moments apart, more often hit a *different*, earlier
+failure (see the next entry) before ever reaching this code, so the one
+clean repro that surfaced this exact error was not re-instrumented before the
+session ended. The debug logging added for this investigation
+(`console.log('[idjag-debug] OLB pin check', ...)` at the guard) was never
+captured against a run that actually reached it — every later attempt died
+earlier in the flow.
+
+**Real fix — investigate first, then decide:**
+1. Add the `[idjag-debug] OLB pin check` logging (or equivalent) back at
+   `mcpGatewayClient.js:163` and reproduce until a run reaches the actual
+   `get_account_balance`/`get_my_accounts` tool call (not just discovery) —
+   confirm live whether `audList.includes(olbAud)` is actually true at that
+   point, i.e. whether the bearer handed to `callToolViaGateway` for THIS
+   call really carries `aud: mcpserver.ping.demo` the way the discovery
+   token demonstrably did (`iss: https://localhost:8080`, `kid:
+   62b4c1eb0d4f5572`, `aud: mcpserver.ping.demo` — captured live this
+   session).
+2. If the aud doesn't match, find where the tool-call token diverges from
+   the discovery token (different exchange path, different resource
+   resolution, or a fallback to the RFC 8693 stand-in token instead of the
+   native ID-JAG one for that specific tool).
+3. If the aud DOES match and the pin still doesn't fire, the bug is in the
+   `pgUrl && base === pgUrl` guard itself — verify `gatewayUrl` (the
+   `mcpToolPipeline.js`-supplied first argument) is literally what's
+   expected, not a value that predates trimming/normalization.
+
+### [ ] 2026-08-23 — a real HTTP request into `/api/agent/run` can arrive with `req.headers.cookie` empty while `req.session.user` is populated, breaking the native-ID-JAG mint for that turn
+
+Same live-verification session as the entry above. `services/idJagService.js`'s
+`mintIdJag(req, ...)` forwards `req.headers.cookie` on its loopback POST to
+`/api/enterprise-idp/token` so that endpoint's own session middleware can
+authenticate the call
+([idJagService.js:77](demo_api_server/services/idJagService.js)). That
+forwarding assumes the OUTER Express request always carries a real Cookie
+header whenever `req.session.user` is populated — which held for the FIRST
+message in a turn ("show my balance": `outerHasUser: true, outerCookieLen:
+1924`, mint succeeded 200) but did not hold for follow-up messages
+(disambiguation answer "checking": `outerHasUser: true, outerCookieLen: 0`),
+where the loopback call 401'd with `invalid_grant — No signed-in user for
+this exchange` because `/api/enterprise-idp/token`'s OWN session (loaded
+fresh from the empty cookie) had no user at all. Confirmed reproducible
+across 3 separate live attempts, all on the follow-up turn specifically, never
+on the first turn.
+
+**What it is NOT:** not a native-ID-JAG-specific bug — `mintIdJag` is only
+one caller of this cookie-forwarding pattern, so any other code that forwards
+`req.headers.cookie` on a loopback call for a follow-up agent turn is exposed
+to the same gap. Not a browser-side cookie omission either — checked via
+Playwright's network inspector and confirmed that tool strips the `cookie`
+header from its capture even on requests independently known to have
+succeeded with a valid session (e.g. `/api/auth/session`), so that angle is a
+dead end; the evidence has to come from server-side `req.headers.cookie`
+logging, not the browser's network tab.
+
+**Leads not yet chased down:** the browser network log for this session
+showed **duplicate near-simultaneous dispatches** of `POST
+/api/demo-agent/tools` (two, sometimes three, within milliseconds of each
+other) around the same turn — consistent with a frontend double-fire (same
+class as the StrictMode+useRef reauth-loop bug documented elsewhere in this
+repo's history). A plausible mechanism: two concurrent requests against the
+same session race inside whatever code constructs/threads `req` down into
+`executeHeuristicBanking` → `executeBffTool` →
+`resolveMcpAccessTokenWithEvents` → `mintIdJag`
+(`services/bankingAgentLangGraphService.js:109` down to
+`services/idJagService.js:64`), and one of the two loses its `req` reference
+(or picks up a stale/reused one) somewhere in that chain — but this was not
+confirmed; `req` is threaded as a plain parameter the whole way down with no
+obvious shared-mutable-state culprit spotted on read-through.
+
+**Real fix — investigate first, then decide:**
+1. Reproduce with logging at the very top of the Express route handler for
+   the follow-up-turn request (before any async work) to confirm whether
+   the INCOMING request itself already has an empty cookie header (a
+   frontend/fetch bug) or whether it arrives fine and gets lost/overwritten
+   internally before reaching `mintIdJag` (a backend bug).
+2. If frontend: check the SPA's fetch call for the disambiguation-answer
+   message for a missing `credentials: 'include'` or an unintended
+   `fetch`/axios instance without cookie jar wiring, and check for the
+   duplicate-dispatch pattern (`POST /api/demo-agent/tools` firing 2-3× per
+   turn) as a possible root cause or contributing factor — a duplicate
+   request racing the real one could plausibly explain an intermittently
+   empty header if the SPA's dedup/abort logic cancels or corrupts one of
+   the two.
+3. If backend: instrument every hop from the route handler to
+   `mintIdJag` to find exactly where `req.headers.cookie` stops being the
+   original value.
+
+### [x] 2026-08-23 — native ID-JAG gateway filter (PR #2268) was merged and unit-verified but never actually deployed — `demo_mcp_gateway`'s Docker image was stale
+
+While doing the live E2E verification that produced the two entries above,
+every early attempt hit either an unrelated session-forwarding failure or a
+JWKS `kid` mismatch that traced back to `services/tokenValidationService.js`
+— but `docker logs ai-demo-mcp-gateway` showed **zero requests** across every
+attempt, which didn't add up once the BFF-side flow was confirmed correct.
+`docker exec ai-demo-mcp-gateway grep -c isIdJagIssuedToken
+/repo/demo_mcp_gateway/dist/tokenValidator.js` returned `0` — the running
+container's compiled output had none of PR #2268's code, despite
+`./run-docker.sh restart mcp-gateway` having been run right after merge.
+
+**Root cause:** per this repo's own `CLAUDE.md`, only `ui` and
+`demo-api-server` bind-mount their source into the running containers — every
+other service, including `demo_mcp_gateway`, runs from its **built Docker
+image**. `run-docker.sh restart <svc>` is `docker compose up -d
+--force-recreate --no-deps` — it recreates the *container* from whatever
+image already exists, with no `--build`. There is a separate `./run-docker.sh
+build <svc>` (`up -d --build`) that actually rebuilds. For a bind-mounted
+service the distinction is invisible (edits are live immediately); for
+`demo_mcp_gateway` it means "restart" silently no-ops on any source change —
+this is easy to get wrong because the restart command succeeds, logs clean
+startup output, and gives no signal that it's running stale code.
+
+**Fix applied:** `./run-docker.sh build mcp-gateway`, confirmed via the same
+`grep -c` check that the rebuilt image now contains the PR's code (7 matches).
+With the real code running, live testing progressed measurably further —
+past the discovery step into an actual `get_account_balance` tool-call
+attempt (see the two open entries above for what's still blocking full
+success beyond that point).
+
+**Broader implication, not chased down:** any prior session that "restarted"
+`demo_mcp_gateway`, `oauth-mcp`, `authz-server`, `ping-gateway`, or any other
+non-bind-mounted service to deploy a source change may have hit this same
+silent no-op. Worth a `npm run serve:worktree`-style guard or a CLAUDE.md
+callout distinguishing "restart" (container only) from "build" (image +
+container) more prominently — `demo_mcp_gateway/CLAUDE.md` and the root
+`CLAUDE.md`'s worktree section do not currently mention this distinction at
+all.
+
 ### [ ] 2026-08-19 — nothing protects a live UI drive from another session recreating the stack under it
 
 **Where:** `scripts/deploy-live.sh` (the `.git/deploy-live.lock` it already

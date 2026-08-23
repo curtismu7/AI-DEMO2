@@ -16,10 +16,11 @@
 # swept into a commit, not config -- and keeping these editable means this hook stays
 # maintainable without spinning up a worktree.
 #
-# demo_api_server/.env is also exempt (added 2026-08-22, explicit user request):
-# it's gitignored, so it's never staged/committed and the "shared index gets
-# clobbered" rationale above doesn't apply to it -- and it can't be edited in a
-# worktree at all, since worktrees don't inherit gitignored files.
+# demo_api_server/.env and ping-gateway/.env are also exempt (2026-08-22 /
+# 2026-08-23, explicit user request): both are gitignored, so they're never
+# staged/committed and the "shared index gets clobbered" rationale above doesn't
+# apply to them -- and neither can be edited in a worktree at all, since
+# worktrees don't inherit gitignored files.
 
 F=$(python3 -c "import json,sys
 try:
@@ -31,7 +32,7 @@ print(t.get('file_path') or '')" 2>/dev/null || true)
 [ -z "$F" ] && exit 0
 
 case "$F" in
-  */.claude/*|*/CLAUDE.md|*/REGRESSION_PLAN.md|*/AGENTS.md|*/demo_api_server/.env) exit 0 ;;
+  */.claude/*|*/CLAUDE.md|*/REGRESSION_PLAN.md|*/AGENTS.md|*/demo_api_server/.env|*/ping-gateway/.env) exit 0 ;;
 esac
 
 # nearest existing ancestor (the file may not exist yet)
