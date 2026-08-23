@@ -835,10 +835,20 @@ def gatewayResourceId = System.getenv('PG_GATEWAY_RESOURCE_ID') ?: ''
 // too, or the cloud PDP's HasValidMcpAudience rule denies every apikey tool
 // call even after McpProtectionFilter itself already passed.
 def apikeyResourceId = System.getenv('PG_APIKEY_RESOURCE_ID') ?: ''
+// A FOURTH identity: 00-mcp-external-door.json's traffic (LM Studio, Claude
+// Desktop, ...) carries a token minted by oauth-mcp's own embedded AS,
+// audienced directly at the upstream MCP server (PG_OLB_RESOURCE_URI,
+// mcpserver.ping.demo — no gateway-exchange step for that route by design,
+// same reasoning as the D-05 exemption above). Without it here, every
+// external-door token clears McpProtectionFilter/introspection/D-05 and
+// still gets DENIED by the cloud PDP's HasValidMcpAudience rule ("Token
+// audience 'mcpserver.ping.demo' does not match expected MCP resource URI"),
+// since that rule can only accept an audience declared in this set.
+def olbResourceUri = System.getenv('PG_OLB_RESOURCE_URI') ?: ''
 def audEntries = (rawTokenAud instanceof List
     ? rawTokenAud.collect { it as String }
     : (rawTokenAud ? [rawTokenAud as String] : [])).findAll { it }
-def acceptedAuds   = [gatewayResourceUri, gatewayResourceId, apikeyResourceId].findAll { it }
+def acceptedAuds   = [gatewayResourceUri, gatewayResourceId, apikeyResourceId, olbResourceUri].findAll { it }
 // C1: array => first entry.
 def tokenAudience  = audEntries ? audEntries[0] : ''
 // Static — a function of configuration only, never of the token being judged.
