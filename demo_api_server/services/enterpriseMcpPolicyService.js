@@ -73,11 +73,37 @@ function getAllowedResourceUris() {
   const fromStore = configStore.getEffective('enterprise_mcp_resource_uris');
   const fromEnv = fromStore ? parseCsv(String(fromStore)) : parseCsv(process.env.ENTERPRISE_MCP_RESOURCE_URIS || '');
   if (fromEnv.length) return fromEnv;
+  const out = [];
   try {
     const aud = scopeTopology.audiences();
-    return [aud.mcpServer, aud.mcpGateway].filter(Boolean);
+    out.push(aud.mcpServer, aud.mcpGateway);
   } catch {
-    return [];
+    // ignore — activeModeResourceUri below still covers the live routing mode
+  }
+  const active = activeModeResourceUri();
+  if (active) out.push(active);
+  return out.filter(Boolean);
+}
+
+/**
+ * The resource URI the CURRENTLY active gateway mode (pinggateway / gateway /
+ * two-exchange) actually requires — https://api.ping.demo:3036/mcp under
+ * PingGateway routing, not the plain mcpServer/mcpGateway audiences above.
+ * Without this, an ID-JAG minted under this demo's default routing mode
+ * (PingGateway, "core uses real P1AZ + PingGateway by default" per
+ * run-docker.sh) carries the wrong audience and the gateway rejects it with
+ * "Wrong audience" — found live 2026-08-23, continuing the #2261-#2265 chain.
+ *
+ * Lazy require, not module-top: mcpToolAuthorizationService requires
+ * agentMcpTokenService, which requires this module — a real circular
+ * dependency (not the jest.resetModules() test-mocking trap #2263/#2264 hit),
+ * so this must resolve after both modules have finished loading.
+ */
+function activeModeResourceUri() {
+  try {
+    return require('./mcpToolAuthorizationService').resolveExpectedMcpResourceUri() || null;
+  } catch {
+    return null;
   }
 }
 

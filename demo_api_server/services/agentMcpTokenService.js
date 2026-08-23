@@ -1443,8 +1443,22 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
   // at PingOne is involved. Returns null unless native mode is configured, in
   // which case everything below runs exactly as it does today.
   if (isEnterpriseManagedFlagOn()) {
+    // Mode-aware, not the plain mcpResourceUri above: under this demo's default
+    // PingGateway routing the gateway requires the pinggateway resource URI
+    // (https://api.ping.demo:3036/mcp), not mcpserver.ping.demo — matching
+    // mcpToolAuthorizationService.resolveExpectedMcpResourceUri(), the same
+    // resolver the standard exchange path and the gateway's own audience-
+    // mismatch detector already use. Falls back to mcpResourceUri so a mode
+    // with no override (two-exchange/default) behaves exactly as before.
+    // Found live 2026-08-23: native mint always requested mcpServer's own
+    // audience regardless of active mode, so the gateway rejected the
+    // redeemed token as "Wrong audience" on this demo's real default routing.
+    let nativeResourceUri = mcpResourceUri;
+    try {
+      nativeResourceUri = require('./mcpToolAuthorizationService').resolveExpectedMcpResourceUri() || mcpResourceUri;
+    } catch { /* keep mcpResourceUri */ }
     const nativeToken = await maybeResolveNativeIdJagToken(req, tokenEvents, {
-      resource: mcpResourceUri,
+      resource: nativeResourceUri,
       scope: finalScopes,
     });
     if (nativeToken) {
