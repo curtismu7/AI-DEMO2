@@ -184,7 +184,12 @@ function gatewayBlockAuthEval(gwAuditTrail, outcome, ctx, decision = 'INDETERMIN
   return {
     decision,
     outcome,
-    engine: authz.backend === 'simulated' ? 'simulated' : 'pingone',
+    // 'gateway-backstop' is the gateway's own local rule set (tier ceiling, scope
+    // backstop, token temporal checks) — a real decision, but NOT cloud PingOne
+    // Authorize. Naming it 'pingone' would credit a component that never ran.
+    engine: authz.backend === 'simulated' ? 'simulated'
+      : authz.backend === 'gateway-backstop' ? 'gateway-backstop'
+      : 'pingone',
     decisionContext: 'McpToolCall',
     decisionId: (authz.rawResponse && authz.rawResponse.correlationId) || null,
     request: authz.parameters ? { parameters: authz.parameters } : null,

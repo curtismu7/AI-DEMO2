@@ -243,9 +243,19 @@ export const tokenChainTraceStore = {
       (prev.outcome === "HITL_REQUIRED" || prev.outcome === "STEP_UP")
         ? prev.outcome
         : null;
+    // `decision == null` covers the gateway-authoritative SKIP shape
+    // (`{ran:false, skipped:true, skipReason:'gateway_authoritative'}`): on that
+    // path the BFF never evaluates, so the real PERMIT arrives separately as the
+    // gw-authorize token event and _syncGwAuthorize fills it in below. Requiring
+    // `decision === 'PERMIT'` here meant the gate was wiped on every gateway run,
+    // so approving UC8's consent (or satisfying UC7's step-up) flipped ProofStrip
+    // from "Verified (as expected)" straight to "Mismatch".
+    // `!evaluation.outcome` is what still excludes a genuine later block.
+    const permitsOrDefers =
+      evaluation.decision === "PERMIT" || evaluation.decision == null;
     if (
       priorGate &&
-      evaluation.decision === "PERMIT" &&
+      permitsOrDefers &&
       !evaluation.outcome
     ) {
       trace.authorize = { ...evaluation, outcome: priorGate, priorGate };

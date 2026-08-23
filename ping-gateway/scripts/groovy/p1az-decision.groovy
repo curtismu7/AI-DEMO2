@@ -552,6 +552,19 @@ if (mcpMethod == 'tools/call' && toolName && (tierMaxAmountHeader || tierRestric
     }
 }
 
+// Resource-ownership local deny (UC10 cross-owner / NNP-3) — same rationale as the
+// tier block above: the cloud Trust Framework has no way to map an account_id to an
+// owner, so the BFF pre-resolves it and sends X-Resource-Owner-Id. Until this landed
+// the header did not exist, ResourceOwnerId never reached the parameter set, and the
+// gateway-authoritative path PERMITted every cross-owner read — the block came from
+// the data plane instead, so UC10 scored "Mismatch" against its declared DENY.
+// Absent header = unknown ownership = no-op, never a deny.
+def resourceOwnerLocal = request.headers.getFirst('X-Resource-Owner-Id') ?: ''
+if (mcpMethod == 'tools/call' && resourceOwnerLocal && sub && resourceOwnerLocal != sub) {
+    return denyLocal('resource_owner_mismatch',
+        'requested resource belongs to a different user (resource-owner binding)')
+}
+
 // ── Intent Token verification (F4) ────────────────────────────────────────────
 // The BFF mints an HMAC-SHA256 Intent Token at prompt-receipt time (server.js:1930)
 // and sends it as X-Intent-Token (mcpGatewayClient.js:136). Nothing on this path
@@ -878,6 +891,16 @@ def parameters = [
     ToolIdempotent      : String.valueOf(toolReadOnly),
     ElicitationConfirmed: elicitationConfirmed ? 'true' : 'false',
 ]
+
+// Resource ownership (UC10 cross-owner / NNP-3). Pre-resolved by the BFF and sent as
+// X-Resource-Owner-Id, for the same reason as the tier headers: mapping an account_id
+// to its owner needs a store lookup neither gateway can do. Omitted entirely when the
+// BFF could not resolve one — C1 rule 3: a caller that cannot verify a claim must omit
+// it, never assert a value that reads as "verified absent".
+def resourceOwnerHeader = request.headers.getFirst('X-Resource-Owner-Id') ?: ''
+if (resourceOwnerHeader) {
+    parameters.ResourceOwnerId = resourceOwnerHeader
+}
 // Absent values are omitted, never fabricated (C1 preamble). Both audience keys are
 // omitted together when introspection surfaced no aud — mock Rule 0b reads TokenAudActual
 // first and TokenAudience second, so leaving EITHER populated with a fabricated value

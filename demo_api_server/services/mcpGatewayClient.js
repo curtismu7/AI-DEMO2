@@ -247,6 +247,23 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
             }
         } catch (_) { /* best-effort */ }
     }
+    // Resource ownership — pre-resolved here for the same reason as the tier above:
+    // the account_id in a tool's params means nothing to a policy engine without the
+    // store lookup that maps it to an owner, and neither gateway can do that lookup.
+    // Without this header ResourceOwnerId never reached the gateway's parameter set
+    // at all, so on the gateway-authoritative path (the live default) PingOne
+    // Authorize was structurally blind to ownership and PERMITted cross-owner reads —
+    // UC10's DENY came from the data plane instead, which is why the step scored
+    // "Mismatch". The BFF already resolved this for its OWN gate; that gate is
+    // skipped when the gateway is authoritative, so the value was computed and
+    // dropped. Additive: used only to DENY, never to widen a decision.
+    if (tool && params) {
+        try {
+            const { resolveResourceOwnerId } = require('./mcpToolAuthorizationService');
+            const ownerId = resolveResourceOwnerId(tool, params);
+            if (ownerId) headers['X-Resource-Owner-Id'] = String(ownerId);
+        } catch (_) { /* best-effort — never block a tool call on the lookup */ }
+    }
     // DPoP (RFC 9449): sign a fresh per-hop proof bound to this request URL + access
     // token when the session has a DPoP key (ff_dpop). The htu path must match what
     // the gateway sees (/mcp). Best-effort — never block the call on proof failure.
@@ -675,9 +692,13 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
                 gatewayMessage: denyMessage,
                 // Preserve P1AZ audit trail when present; weather ScriptableFilter
                 // denials often omit the header — synthesize filter evidence so
-                // TraceRail still shows the Agent Gateway hop (UC30/UC31).
-                gwAuditTrail: _trailWithWeatherFallback(
+                // TraceRail still shows the Agent Gateway hop (UC30/UC31). The
+                // gateway's own local backstop (denyLocal) omits the header too, so
+                // synthesize an authorize DENY for it as well — otherwise an
+                // intentional DENY renders as "Run failed before authorize-decision".
+                gwAuditTrail: _trailWithDenyFallback(
                     _parseGwAuditTrail(response),
+                    body403,
                     denyMessage,
                     tool,
                 ),
@@ -939,6 +960,76 @@ function _syntheticWeatherPermitTrail(tool) {
 }
 
 /**
+ * PingGateway's local backstop DENY (`denyLocal`, p1az-decision.groovy:444) answers 403
+ * with a bare `{error, message, tool}` body and NO X-Gw-Audit-Trail header, so its ~8
+ * reasons (tier_amount_exceeded, tier_tool_not_allowed, insufficient_scope, invalid_iat,
+ * token_too_old, token_not_yet_valid, ...) reached the client with no authorize evidence
+ * at all — and ProofStrip scored a correct, intentional DENY as "Authz denied —
+ * Incomplete / Run failed before authorize-decision" (live UC6, sporting-goods
+ * "extend my rental $2500" → "2500 exceeds tier ceiling 2000").
+ *
+ * In gateway-authoritative mode the gateway IS the PDP, so its 403 is a real
+ * authorization decision and must carry evidence. `backend: 'gateway-backstop'` keeps
+ * that honest: these rules run IN the gateway, not in cloud PingOne Authorize — the tier
+ * ceiling exists locally precisely because P1AZ cannot map a PingOne group array to a
+ * tier. Synthesized here rather than in groovy so it also holds for a gateway that has
+ * not been redeployed, the same reason the 403 branch still recognises the pre-428
+ * consent body.
+ *
+ * @param {object} body 403 response body
+ * @param {string} message normalized deny message
+ * @param {string} [tool]
+ * @returns {object|null} null when this is the infra fault, not a policy decision
+ */
+function _syntheticBackstopDenyTrail(body, message, tool) {
+    const b = body && typeof body === 'object' ? body : {};
+    const code = typeof b.error === 'string' ? b.error : '';
+    // A bare "Unauthorized" means the gateway's OWN call to PingOne Authorize was
+    // rejected (its worker credentials) — an infra fault that must keep reading
+    // "fix the gateway" (503 gateway_misconfigured), never "you are denied".
+    // mcpToolPipeline separates the two on exactly this shape; do not blur it by
+    // manufacturing a DENY decision here.
+    if (/unauthorized/i.test(String(message || '')) || /^unauthorized$/i.test(code)) return null;
+    const reason = [code, message].filter(Boolean).join(': ')
+        || 'gateway policy backstop denied the call';
+    return {
+        denyingFilter: 'p1az-decision.groovy',
+        lastFilter: 'P1AZDecision',
+        authorize: {
+            decision: 'DENY',
+            backend: 'gateway-backstop',
+            reason,
+            parameters: { ToolName: tool || b.tool || null },
+            rawResponse: { decision: 'DENY', error: code || null, message: message || null },
+        },
+    };
+}
+
+/**
+ * Trail for a 403 gateway deny: real header wins, then the weather filter-chain
+ * synthesis (UC30/UC31 own that shape), then the backstop authorize synthesis.
+ * @param {object|null} parsed
+ * @param {object} body
+ * @param {string} message
+ * @param {string} [tool]
+ */
+function _trailWithDenyFallback(parsed, body, message, tool) {
+    if (_syntheticWeatherScopeTrail(message, tool)) {
+        return _trailWithWeatherFallback(parsed, message, tool);
+    }
+    if (parsed && parsed.authorize) return parsed;
+    const synth = _syntheticBackstopDenyTrail(body, message, tool);
+    if (!synth) return parsed;
+    if (!parsed) return synth;
+    return {
+        ...parsed,
+        authorize: synth.authorize,
+        denyingFilter: parsed.denyingFilter || synth.denyingFilter,
+        lastFilter: parsed.lastFilter || synth.lastFilter,
+    };
+}
+
+/**
  * Merge real X-Gw-Audit-Trail with a synthetic weather-scope trail when needed.
  * @param {object|null} parsed
  * @param {string} message
@@ -1055,4 +1146,7 @@ module.exports = {
     _extractGatewayDenyFields,
     _syntheticWeatherScopeTrail,
     _trailWithWeatherFallback,
+    // test/helpers — gateway local-backstop 403 → authorize DENY evidence
+    _syntheticBackstopDenyTrail,
+    _trailWithDenyFallback,
 };

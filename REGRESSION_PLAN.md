@@ -518,6 +518,87 @@ session behavior.
 
 **Verify:** `npm run test:unit -- src/components/privilege/ToolsTable.test.jsx`
 and `npm run build`.
+### 2026-08-19 — Two intentional-DENY / satisfied-gate demo steps scored themselves as failures (live Demo Steps run)
+
+**Files changed:** `demo_api_server/services/mcpGatewayClient.js`,
+`demo_api_server/services/mcpToolPipeline.js`,
+`demo_api_ui/src/services/tokenChainTrace/tokenChainTraceStore.js`,
+`demo_api_server/services/demoAgentLangGraphService.js`,
+`demo_api_server/data/publicBranchCatalog.js`,
+`oauth-mcp/src/tools/handlers/publicCatalogHandlers.ts`,
+`demo_api_server/tests/mcpGatewayClient.backstopDenyTrail.test.js` (new),
+`demo_api_ui/src/services/tokenChainTrace/__tests__/tokenChainTraceStore.test.js`
+
+**What was broken:** found by driving all 22 Demo Steps in the live UI (sporting-goods).
+
+- **UC6 "Authz denied" rendered amber "Incomplete / Run failed before authorize-decision".**
+  PingGateway's local backstop DENY (`denyLocal`, `p1az-decision.groovy:444`) answers 403 with
+  a bare `{error, message, tool}` body and **no `X-Gw-Audit-Trail`** header, so all ~8 of its
+  reasons (`tier_amount_exceeded`, `tier_tool_not_allowed`, `insufficient_scope`, `invalid_iat`,
+  `token_too_old`, `token_not_yet_valid`, …) reached the client with no authorize evidence at
+  all. `trace.authorize` was never set, UC6's only declared evidence step `authorize-decision`
+  could not match, and the run also lit a red **RUN ERROR** Token Chain badge and an
+  `INCOMPLETE / no evidence yet` TopNav pill. Vertical-dependent: banking's $2500 transfer
+  *does* return a full P1AZ trail, so this only reproduced where the gateway's own tier rule
+  fired first (sporting-goods `extend_rental`).
+- **UC8 "HITL consent" flipped from green to "Mismatch" the moment the human approved.**
+  On the gateway-authoritative path the BFF answers with a SKIP-shaped evaluation carrying no
+  `decision` at all (`{ran:false, skipped:true, skipReason:'gateway_authoritative'}`) — the real
+  PERMIT arrives separately as the `gw-authorize` token event. `ingestAuthorize`'s gate-carry
+  guard required `decision === 'PERMIT'`, so it never fired, the `HITL_REQUIRED` gate was
+  overwritten, and `computeVerdict` compared `expectedFamily 'HITL_REQUIRED'` against a bare
+  PERMIT → mismatch. Approving therefore turned a correct run red. UC7 step-up shares the path.
+- **UC8's confirmation copy read "Here are your extend rental."** — `extend_rental` had no case
+  in the write/confirmation block and fell through to the read-path noun fallback.
+- **UC24 Super Sports store cards advertised an "ATM" badge** — `atm: true` was hard-coded on
+  every non-banking location in the public catalog (16 entries per copy, two copies).
+
+**What was fixed:**
+- `_syntheticBackstopDenyTrail()` + `_trailWithDenyFallback()` in `mcpGatewayClient` synthesize an
+  `authorize: {decision:'DENY', backend:'gateway-backstop'}` block for a 403 gateway deny that
+  carries no trail, so the existing pipeline plumbing emits `gw-authorize` +
+  `mcpAuthorizeEvaluation` unchanged. Done BFF-side, not in groovy, so it also holds for a
+  gateway that has not been redeployed. `gatewayBlockAuthEval` maps `gateway-backstop` to its own
+  `engine` value rather than claiming `pingone` — the tier ceiling is a gateway-local rule
+  precisely because P1AZ cannot map a PingOne group array to a tier.
+- `ingestAuthorize` now also preserves the gate when the incoming evaluation has **no**
+  `decision` (the skip shape), not only on an explicit `PERMIT`. `!evaluation.outcome` still
+  excludes a genuine later block.
+- Added an `extend_rental` case to the write/confirmation block.
+- `atm: true` kept only on the 7 Super Banking branches.
+
+- **UC10 cross-owner read was PERMITted by PingOne Authorize; only the data plane stopped it.**
+  `resolveResourceOwnerId()` is populated for the BFF's own authorize gate, and that gate is
+  **skipped** when the gateway is authoritative (the live default) — so the value was computed and
+  dropped. `X-Resource-Owner-Id` did not exist and `ResourceOwnerId` appeared nowhere in
+  `p1az-decision.groovy`'s 34-key parameter set. Authorize returned
+  `{decision:'PERMIT', outcome:'PERMIT'}` because it had nothing to decide on, so the step's
+  "Used: PingOne Authorize" claim was decorative and ProofStrip scored it `Mismatch`.
+  Fixed the same way the tier ceiling already works: `mcpGatewayClient` sends
+  `X-Resource-Owner-Id` (omitted when unresolvable — C1 rule 3), and `p1az-decision.groovy` adds
+  `ResourceOwnerId` to the parameter set and denies locally when it differs from `sub`.
+  **The groovy half is not live-verified:** `serve:worktree` moves only the `ui` and
+  `demo-api-server` mounts, so `ai-demo-ping-gateway` keeps running the main checkout's script.
+  Re-run UC10 after deploy — expect `authorize.decision: DENY`.
+
+**Do not break:**
+- `X-Resource-Owner-Id` must stay **omitted** when ownership cannot be resolved. Sending an empty
+  or placeholder value makes the gateway's backstop deny every call whose owner simply could not
+  be looked up. The resolve is wrapped in try/catch for the same reason — a store miss must never
+  block a tool call.
+- The infra-fault distinction: a bare `Unauthorized` with no `correlationId` must stay
+  `gateway_misconfigured` (503, "fix the gateway") and must NOT get a synthesized DENY.
+  `_syntheticBackstopDenyTrail` returns `null` for that shape — keep it that way.
+- A real `X-Gw-Audit-Trail` `authorize` block always wins over the synthesized one.
+- Weather ScriptableFilter denials keep their own filter-chain trail (UC30/UC31) — the deny
+  fallback defers to `_trailWithWeatherFallback` first.
+- Do not re-tighten `ingestAuthorize`'s guard back to `decision === 'PERMIT'`; gateway-authoritative
+  runs have no decision on that object at all.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/mcpGatewayClient.backstopDenyTrail.test.js tests/mcpToolPipeline.gatewayDenyEvidence.test.js tests/mcpGatewayClient.weatherScopeTrail.test.js tests/mcpGatewayClient.hitl403AuditTrail.test.js tests/mcpToolPipeline.gatewayUnreachableFailOpen.test.js tests/publicBranchCatalog.test.js tests/mcpLocalTools.branchHours.test.js tests/agentInvoke.catalogBrandSweep.regression.test.js --forceExit --maxWorkers=4` (all passed); `cd demo_api_ui && npm run test:unit` (389 files, 3321 passed, 24 skipped) and `npm run build` (exit 0).
+Live, sporting-goods: UC6 → `Authz denied — Verified (as expected)` with `gw-authorize` emitted and
+`engine: "gateway-backstop"`; UC8 → stays `Verified (as expected)` after Agree & Continue and replies
+"Your rental of Trek Marlin 8 Mountain Bike has been extended — now due 2026-05-30."; UC24 → no ATM badge.
 
 ### 2026-08-19 — The proof-of-enforcement pill never dismissed and sat over TopNav Sign Out
 
@@ -525,7 +606,7 @@ and `npm run build`.
 **Files changed:** `demo_api_ui/src/components/VerifiedBanner.jsx`,
 `demo_api_ui/src/components/VerifiedBanner.css`, tests
 `VerifiedBanner.test.jsx` (2 added). Found by driving the live UI — logged as
-`UI_FINDINGS.md` #1 and #2.
+`docs/UI_FINDINGS.md` #1 and #2.
 
 **What was broken:** the banner collapsed to a pill after 6s and then stayed
 there for the rest of the session. Because the pill is portaled to
