@@ -41,7 +41,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 21 | Perf | `demo_api_ui/.../AIAgent.js` (O(N²) proof scan) | high | FIXED |
 | 22 | Perf | `services/pingoneProvisionService.js` (grantScopes) | medium | FIXED |
 | 23 | Perf | `services/pingoneProvisionService.js` (wipeEnvironment) | medium | FIXED |
-| 24 | Perf | `demo_api_ui/.../AIAgent.js` (unbounded transcript) | medium | OPEN |
+| 24 | Perf | `demo_api_ui/.../AIAgent.js` (unbounded transcript) | medium | FIXED |
 | 25 | Perf | `TokenChainTraceRail.jsx` / `TokenChainFilmstrip.jsx` | medium | OPEN |
 | 26 | Perf | `routes/transactions.js` / `routes/accounts.js` | low | OPEN |
 | 27 | Perf | `TraceStepCard.jsx` | low | OPEN |
@@ -603,7 +603,7 @@ a hand-rolled worker pool. The first two are behavior-preserving (pass on
 both pre- and post-fix code, confirmed); the third only passes post-fix
 (`_mapLimit` didn't exist before). `cd demo_api_server && CI=true npx jest src/__tests__/pingoneProvisionService.wipeEnvironment.test.js src/__tests__/pingoneProvisionService.regression.test.js --forceExit --maxWorkers=4` — 2 suites / 15 tests passed.
 
-### 24. Chat transcript renders unbounded with no windowing — OPEN
+### 24. Chat transcript renders unbounded with no windowing — FIXED
 
 **File:** `demo_api_ui/src/components/AIAgent.js`, lines 11198–11239
 
@@ -614,8 +614,26 @@ conversation.
 **Trigger scenario:** Long-running demo sessions grow DOM node count and
 render cost unboundedly.
 
-**Fix (not yet applied):** Cap to the most recent N messages with a "show
-earlier" affordance.
+**Fix:** Extracted the recent-N windowing into a pure helper,
+`demo_api_ui/src/utils/transcriptWindow.js` (`windowTranscript(filteredMsgs,
+cap, showAll)`), and wired it into `AIAgent.js`: the transcript's existing
+role filter is now a memoized `transcriptFilteredMsgs`, capped by default to
+the most recent 150 (`TRANSCRIPT_RECENT_CAP`) via `windowTranscript`, with a
+`transcriptShowAll` state flag. A "Show N earlier messages" button
+(`.ba-show-earlier-btn`, themed off the existing `--ba-*` tokens) renders
+above the list whenever messages are hidden and reveals the rest on click.
+The `.map()` callback body is unchanged — confirmed neither `msgIdx` nor its
+`filteredMsgs` array parameter are referenced inside it, so slicing the
+rendered subset is safe; `lastProofBubbleIdByRunId` (finding #21) is keyed
+off the full `messages` array by `msg.id`, independent of what's currently
+sliced into view.
+
+**Evidence:** `windowTranscript` is pure and directly unit-tested in
+`demo_api_ui/src/utils/transcriptWindow.test.js` — over-cap slices to the
+last `cap` items, under-cap returns everything unsliced, and `showAll: true`
+bypasses the cap regardless of size. `npm --prefix demo_api_ui run test:unit`
+— 412 files / 3409 tests passed, 24 skipped (no regressions). `npm --prefix
+demo_api_ui run build` — exit 0.
 
 ### 25. Token-chain steps rebuilt on every unrelated local-state change — OPEN
 
@@ -661,6 +679,13 @@ redundantly re-parsing/re-diffing the same JSON twice each.
 
 ## Changelog
 
+- 2026-08-23 — #24 FIXED: `AIAgent.js`'s chat transcript now caps its default
+  render to the most recent 150 messages via a new pure helper
+  (`utils/transcriptWindow.js`, `windowTranscript`), with a "Show N earlier
+  messages" button to reveal the rest — user confirmed implementing the cap +
+  button (recommended option) over a WONTFIX. New direct unit test on the
+  pure helper (over-cap slice, under-cap passthrough, `showAll` bypass); full
+  suite (412 files / 3409 tests) and `npm run build` both green.
 - 2026-08-23 — #23 FIXED: `wipeEnvironment`'s 5 delete loops now run at
   bounded concurrency (5) via a new `_mapLimit` helper — user explicitly
   confirmed accepting reordered step messages for this destructive,

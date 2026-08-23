@@ -1082,6 +1082,25 @@ body > .banking-agent-float-root .banking-agent-panel {
   font-size: 13px;
   line-height: 1.6;
 }
+.ba-show-earlier-btn {
+  display: block;
+  width: calc(100% - 24px);
+  margin: 8px 12px;
+  padding: 6px 10px;
+  background: transparent;
+  border: 1px dashed var(--ba-border);
+  border-radius: 6px;
+  color: var(--ba-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+.ba-show-earlier-btn:hover {
+  background: rgba(65, 105, 225, 0.12);
+  color: var(--ba-text);
+}
 
 /* ─── Legacy header classes (kept for backward compat) ───────────────── */
 .banking-agent-drag-handle {

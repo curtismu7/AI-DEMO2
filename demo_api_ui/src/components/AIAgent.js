@@ -76,6 +76,7 @@ import { requiredFlagsForUseCase } from "../utils/requiredDemoFlags";
 import { isApprovalBlockError, isStepUpBlockError } from "../utils/stepUpError";
 import apiClient from "../services/apiClient";
 import { formatAxiosError } from "../utils/formatAxiosError";
+import { windowTranscript } from "../utils/transcriptWindow";
 import { adminCustomerContext } from "../services/adminCustomerContext";
 import ScopePicker from "./ScopePicker";
 import ComplianceModal from "./ComplianceModal";
@@ -1995,6 +1996,12 @@ export default function BankingAgent({
     for (const t of availableTools) if (t && t.name) map[t.name] = t;
     return map;
   }, [availableTools]);
+  // Long-running sessions render the full transcript with no cap — every
+  // message bubble stays mounted for the life of the conversation. Cap the
+  // default render to the most recent N, with a manual "show earlier"
+  // escape hatch rather than a virtualization dependency.
+  const TRANSCRIPT_RECENT_CAP = 150;
+  const [transcriptShowAll, setTranscriptShowAll] = useState(false);
   // proofRunId -> id of the LAST assistant bubble carrying that run's verdict.
   // The transcript's role filter always includes "assistant" regardless of
   // showRfcInfo (that flag only adds "token-event" rows), so no filter
@@ -2011,6 +2018,24 @@ export default function BankingAgent({
     }
     return map;
   }, [messages]);
+  // Transcript role filter, extracted so the recent-N cap below can slice it
+  // — identical predicate to what the render used inline before this fix.
+  const transcriptFilteredMsgs = useMemo(
+    () =>
+      messages.filter(
+        (msg) =>
+          msg.role === "user" ||
+          msg.role === "assistant" ||
+          msg.role === "error" ||
+          (showRfcInfo && msg.role === "token-event"),
+      ),
+    [messages, showRfcInfo],
+  );
+  const { hiddenCount: transcriptHiddenCount, visible: visibleFilteredMsgs } = windowTranscript(
+    transcriptFilteredMsgs,
+    TRANSCRIPT_RECENT_CAP,
+    transcriptShowAll,
+  );
   // Cold-start warm of the PingOne Authorize connection as soon as the user is
   // logged in, so the first tool discovery / tool call doesn't blip into the
   // "Demo Authorize" degraded fallback. Best-effort + server-side throttled.
@@ -11274,14 +11299,17 @@ export default function BankingAgent({
                     </p>
                   </div>
                 )}
-                {messages
-                  .filter(
-                    (msg) =>
-                      msg.role === "user" ||
-                      msg.role === "assistant" ||
-                      msg.role === "error" ||
-                      (showRfcInfo && msg.role === "token-event"),
-                  )
+                {transcriptHiddenCount > 0 && (
+                  <button
+                    type="button"
+                    className="ba-show-earlier-btn"
+                    onClick={() => setTranscriptShowAll(true)}
+                  >
+                    Show {transcriptHiddenCount} earlier message
+                    {transcriptHiddenCount === 1 ? "" : "s"}
+                  </button>
+                )}
+                {visibleFilteredMsgs
                   .map((msg, msgIdx, filteredMsgs) => {
                     // One strip per RUN, on that run's last assistant bubble.
                     // A run can emit several bubbles ("Running Demo step 1…"
