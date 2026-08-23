@@ -36,7 +36,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 16 | Swallowed | `demo_api_ui/.../CopilotAgent.jsx` | medium | FIXED |
 | 17 | Swallowed | `demo_api_ui/.../CreateUserPanel.jsx` | medium | FIXED |
 | 18 | Swallowed | `demo_api_ui/.../BulkDecisionPanel.jsx` | low | FIXED |
-| 19 | Perf | `routes/agentRun.js` | high | OPEN |
+| 19 | Perf | `routes/agentRun.js` | high | FIXED |
 | 20 | Perf | `demo_api_ui/vertical/VerticalProvider.jsx` | high | OPEN |
 | 21 | Perf | `demo_api_ui/.../AIAgent.js` (O(N²) proof scan) | high | OPEN |
 | 22 | Perf | `services/pingoneProvisionService.js` (grantScopes) | medium | OPEN |
@@ -468,9 +468,9 @@ wired up for the run-decision path.
 **Evidence:** new test confirmed to fail against the pre-fix file and pass
 against the fix. `cd demo_api_ui && npx vitest run src/components/__tests__/BulkDecisionPanel.test.jsx` — 6/6 passed; `npm run build` exit 0.
 
-### 19. `GET /runs` re-scans the entire unbounded trace store on every poll — OPEN
+### 19. `GET /runs` re-scans the entire unbounded trace store on every poll — FIXED
 
-**File:** `demo_api_server/routes/agentRun.js` — `GET /runs` (847–856) → `_summarizeRun` (783–803); `entry.events` push (128)
+**File:** `demo_api_server/routes/agentRun.js` — `GET /runs` (was 847–856) → `_summarizeRun` (was 783–803); `entry.events` push (128)
 
 **Issue:** Iterates every entry in `_traceStore` (capped at 500 by evicting
 only the single oldest entry per insert — never pruned to a target size) and
@@ -481,8 +481,24 @@ itself uncapped.
 up to 500 runs sit in the store, some with hundreds of events — every poll
 re-scans everything synchronously.
 
-**Fix (not yet applied):** Track status/threadId incrementally per event;
-add `limit`/`offset` to `GET /runs`.
+**Fix:** `_recordTraceEvents` now maintains `entry.status`/`entry.threadId`
+incrementally as each event arrives (the exact same transition logic
+`_summarizeRun` used to run in a loop), so `_summarizeRun` is an O(1) field
+read for any entry created the normal way. `_summarizeRun` falls back to the
+original full scan only when `entry.status` is `undefined` — i.e. an entry
+that didn't go through `_recordTraceEvents` at all (a real gap this caught:
+an existing test seeds `_traceStore` directly with a bare `{events, ...}`
+object, bypassing the incremental bookkeeping — the fallback keeps that
+correct without losing the fast path for real runs). `GET /runs` gained
+optional `limit`/`offset` query params (defaulting to the full list — no
+behavior change for existing callers that don't pass them), plus a `total`
+field.
+
+**Evidence:** new pagination test confirmed to fail against the pre-fix file
+and pass against the fix. Fixing the fast path also caught and fixed a real
+regression it introduced against `agentRun.archiveRunToReportStore.test.js`
+(which relies on directly-seeded entries) before it was committed — that
+test now passes via the `undefined`-triggered fallback. `cd demo_api_server && CI=true npx jest tests/agentRun.framework-routing.test.js tests/agentRunHeuristicsProvider.test.js tests/agentRun.recoveredToolsList.test.js tests/agentRun.runsList.test.js tests/agentRunStore.test.js tests/agentRunRegistry.test.js tests/agentRunHitlSuspend.test.js tests/agentRun.intentTokenMint.regression.test.js tests/agentRun.publicCatalog.regression.test.js tests/routes/agentRun.archiveRunToReportStore.test.js src/__tests__/agentRun.verticalTools.test.js --forceExit --maxWorkers=4` — 11 suites / 55 tests passed.
 
 ### 20. Vertical context hands every consumer a new object identity every render — OPEN
 
@@ -593,6 +609,12 @@ redundantly re-parsing/re-diffing the same JSON twice each.
 
 ## Changelog
 
+- 2026-08-23 — #19 FIXED: `agentRun.js`'s `_summarizeRun` is now O(1) per run
+  (incremental status/threadId tracking in `_recordTraceEvents`, with a
+  correctness fallback for entries not created that way); `GET /runs` gained
+  optional `limit`/`offset`. **Category 3 (Performance) started** — first of
+  9 findings fixed. Fixing this also caught and fixed a real regression it
+  introduced against an existing directly-seeded-entry test before commit.
 - 2026-08-23 — #18 FIXED: `BulkDecisionPanel.jsx` now sets its existing `err`
   state on a policy-endpoint load failure instead of leaving a code comment
   as the only trace. New test proven to fail against the pre-fix file and
