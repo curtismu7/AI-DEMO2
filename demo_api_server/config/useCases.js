@@ -1632,6 +1632,37 @@ const RAW_USE_CASES = [
     perVertical: READ_PER_VERTICAL,
   },
   {
+    // Same feature as UC39 above (kept adjacent — same source research, same
+    // track): this is the successful-path walkthrough of the whole ID-JAG
+    // chain via its own dedicated page; UC39 is that feature's revocation story.
+    id: 'UC40',
+    useCaseId: 'enterprise-managed-mcp-authorization',
+    track: 'controls',
+    title: 'Enterprise-Managed MCP Authorization (native ID-JAG)',
+    buyerStory: 'IT wants MCP access granted centrally per employee and per server — not a consent screen per MCP server, and not a shared credential the agent framework has to hold.',
+    pingOneSolution: 'The enterprise IdP evaluates PingOne group policy and signs a single-use Identity Assertion JWT Authorization Grant (ID-JAG); the MCP Authorization Server verifies it and issues an access token scoped to that one server — no MCP-side consent screen, and no token at all for an employee IT hasn\'t granted.',
+    trigger: { type: 'link', path: '/demo/enterprise-mcp', label: 'Open Enterprise-Managed MCP Auth' },
+    expectedOutcome: 'PERMIT',
+    evidence: { tokenChain: ['user-token', 'enterprise-managed-mode', 'id-jag-issued', 'id-jag-redeemed'], activity: ['token', 'mcp'] },
+    codeRefs: [
+      'demo_api_server/services/idJagService.js',
+      'demo_api_server/routes/enterpriseIdp.js',
+      'oauth-mcp/src/oauth/IdJagGrantHandler.ts',
+      'demo_api_ui/src/pages/EnterpriseMcpDemoPage.jsx',
+    ],
+    maturity: 'flag:ff_enterprise_managed_mcp_auth',
+    owasp: { threats: ['T8', 'T9'], sections: ['§4.1.1', '§8'] },
+    whatToSay: 'Arm the flag, ask for a balance — watch the token chain: an ID-JAG issued by the enterprise IdP, redeemed at the MCP Authorization Server, and that\'s the token that calls the tool. No MCP-side consent screen anywhere in the flow.',
+    advanced: false,
+    whatLong: 'Walks the full MCP Enterprise-Managed Authorization extension end to end from a dedicated page: arm ff_enterprise_managed_mcp_auth, send a request that needs a tool call, and step through the live token-chain pipeline — group-membership policy evaluated at the IdP before anything is minted, a signed single-use ID-JAG issued naming this user/server/scopes, that grant redeemed at the MCP Authorization Server for an access token, and that exact token calling the tool.',
+    businessValue: 'Centralizes MCP access grants at the IdP instead of per-server consent screens or a shared static credential the agent framework has to hold — the access decision, the grant, and the revocation all live in one place IT already controls.',
+    productRoles: {
+      idp: 'Evaluates PingOne group policy and signs the ID-JAG before anything is minted.',
+      authz: 'The MCP Authorization Server verifies the ID-JAG and issues the scoped access token.',
+    },
+    primaryTool: null,
+  },
+  {
     id: 'UC27',
     useCaseId: 'hitl-consent-bypass-attempt',
     track: 'hitl',

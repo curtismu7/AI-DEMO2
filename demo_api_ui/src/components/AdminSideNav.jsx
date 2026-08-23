@@ -615,6 +615,11 @@ export default function AdminSideNav({
           icon: "dbg",
         },
         { label: "PingOne MCP Setup", path: "/pingone-setup", icon: "cfg" },
+        {
+          label: "Enterprise-Managed MCP Auth",
+          path: "/demo/enterprise-mcp",
+          icon: "shld",
+        },
       ],
     },
     {

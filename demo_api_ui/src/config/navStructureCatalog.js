@@ -63,6 +63,7 @@ export const NAV_STRUCTURE_CATALOG = [
     children: [
       "MCP Inspector",
       "PingOne MCP Setup",
+      "Enterprise-Managed MCP Auth",
     ],
   },
   {

@@ -11,11 +11,11 @@ const MATURITY = /^(works|needs-console-import|needs-build|flag:[a-z0-9_]+)$/;
 const UTILITY_TRACKS = ['tools', 'learn', 'nhi'];
 
 describe('useCases catalog SoT', () => {
-  test('contains all 56 use cases including UC1..UC32, UC33..UC35, UC37, UC38, UC39, and UC-NHI1/2', () => {
-    // 56 since UC39 (enterprise-mcp-revocation) joined the catalog.
-    expect(USE_CASES).toHaveLength(56);
+  test('contains all 57 use cases including UC1..UC32, UC33..UC35, UC37, UC38, UC39, UC40, and UC-NHI1/2', () => {
+    // 57 since UC40 (enterprise-managed-mcp-authorization) joined the catalog.
+    expect(USE_CASES).toHaveLength(57);
     const ids = USE_CASES.map((u) => u.id);
-    expect(new Set(ids).size).toBe(56);
+    expect(new Set(ids).size).toBe(57);
     for (let n = 1; n <= 22; n++) expect(ids).toContain(`UC${n}`);
     expect(ids).toContain('UC23');
     expect(ids).toContain('UC24');
@@ -33,6 +33,8 @@ describe('useCases catalog SoT', () => {
     // UC36 (Protect) is a separate, not-yet-built plan — only UC37/UC38 exist today.
     expect(ids).toContain('UC37');
     expect(ids).toContain('UC38');
+    expect(ids).toContain('UC39');
+    expect(ids).toContain('UC40');
     expect(ids).toContain('UC-NHI1');
     expect(ids).toContain('UC-NHI2');
   });
@@ -204,9 +206,9 @@ describe('useCases catalog SoT', () => {
     }
   });
 
-  test('listUseCases returns all 56 resolved for a vertical', () => {
-    expect(listUseCases('healthcare')).toHaveLength(56);
-    expect(listUseCases()).toHaveLength(56);
+  test('listUseCases returns all 57 resolved for a vertical', () => {
+    expect(listUseCases('healthcare')).toHaveLength(57);
+    expect(listUseCases()).toHaveLength(57);
   });
 
   test('only UC14 and UC15 are advanced', () => {

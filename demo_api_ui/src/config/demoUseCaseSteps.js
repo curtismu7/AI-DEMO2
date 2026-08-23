@@ -29,6 +29,7 @@ export const DEMO_PRIMARY_USE_CASE_IDS = [
   'UC30',  // Weather MCP — Texas permit
   'UC31',  // Weather MCP — out-of-scope deny
   'UC32',  // Weather MCP — live-reconfigure the gateway scope
+  'UC40',  // Enterprise-Managed MCP Authorization — native ID-JAG walkthrough
   'UC38',  // Personal Agent Concierge — MFA + Agent Builder + RFC 8693 delegation
   'UC-TOOL1', // Protected RAG — code:search + PingOne Authorize
 ];
