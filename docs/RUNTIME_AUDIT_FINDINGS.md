@@ -21,7 +21,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 1 | Runtime | `services/killSwitchService.js` | critical | FIXED |
 | 2 | Runtime | `services/mcpWebSocketClient.js` | high | FIXED |
 | 3 | Runtime | `demo_api_ui/.../AIAgent.js` (CIBA pollers) | high | FIXED |
-| 4 | Runtime | `middleware/agentSessionMiddleware.js` | medium | OPEN |
+| 4 | Runtime | `middleware/agentSessionMiddleware.js` | medium | FIXED |
 | 5 | Runtime | `services/apiCallTrackerService.js` | medium | OPEN |
 | 6 | Runtime | `services/transactionConsentChallenge.js` | medium | OPEN |
 | 7 | Runtime | `demo_api_ui/.../AIAgent.js` (aguiAbort) | medium | OPEN |
@@ -130,7 +130,7 @@ a CIBA flow, unmounts, advances fake timers 60s, and asserts
 file (`expected true to be false` — the poll endpoint WAS called post-unmount)
 and pass against the fix. Full suite: `cd demo_api_ui && npx vitest run src/components/__tests__/AIAgent.cibaStepUp.test.js src/pages/__tests__/CibaApprovalPage.test.js src/pages/__tests__/CibaApprovalPage.test.jsx src/components/__tests__/CibaStepUpFlowPanel.test.jsx` — 4 files / 32 tests passed; `npm run build` exit 0.
 
-### 4. `_refreshBlacklist` Map has no periodic sweep — OPEN
+### 4. `_refreshBlacklist` Map has no periodic sweep — FIXED
 
 **File:** `demo_api_server/middleware/agentSessionMiddleware.js`, line 28
 
@@ -142,8 +142,16 @@ comment says it mirrors `tokenRefresh.js`'s structure, which *does* have a
 entry; if the user never returns with that exact session id (the common case
 after a forced re-auth), the entry sits forever.
 
-**Fix (not yet applied):** Add the same `setInterval` sweep `tokenRefresh.js`
-uses, `.unref()`'d.
+**Fix:** Added the identical `setInterval` sweep `tokenRefresh.js` already
+uses (same 5-minute interval, same deletion loop, `.unref()`'d).
+
+**Evidence:** neither this file nor `tokenRefresh.js` exports its private
+blacklist Map for inspection (matching this codebase's existing convention —
+no test-only export was added to preserve it), so verified directly: a probe
+script patched `global.setInterval` around `require(...)` and confirmed the
+module registers a 300000ms (5 min) interval with `.unref()` called, and the
+sweep's exact deletion logic (copied verbatim) correctly removes only expired
+entries from a scratch Map. Existing suite: `cd demo_api_server && CI=true npx jest src/__tests__/agentSessionMiddleware.test.js --forceExit` — 9/9 passed, no regression.
 
 ### 5. `apiCalls`/`sessionTokens` Maps grow unbounded per session key — OPEN
 
@@ -467,6 +475,11 @@ redundantly re-parsing/re-diffing the same JSON twice each.
 
 ## Changelog
 
+- 2026-08-23 — #4 FIXED: `agentSessionMiddleware.js`'s `_refreshBlacklist`
+  Map now has the same periodic sweep `tokenRefresh.js` already uses (its own
+  doc comment already claimed this mirroring, but the sweep itself was never
+  copied over). Verified via a probe script since neither file exports its
+  private Map for testing.
 - 2026-08-23 — #3 FIXED: `AIAgent.js`'s two CIBA poll functions now track
   their pending `setTimeout` ids and clear them (plus mark themselves
   unmounted) in the existing storage-listener effect's unmount cleanup. New

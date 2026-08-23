@@ -28,6 +28,18 @@ const _refreshInFlight = new Map(); // sessionId -> Promise
 const _refreshBlacklist = new Map(); // sessionId -> expireTimestamp
 const BLACKLIST_TTL = 10 * 60 * 1000; // 10 minutes
 
+// Periodic cleanup of expired blacklist entries to prevent unbounded memory
+// growth — mirrors middleware/tokenRefresh.js's sweep. Without it, a session
+// that never returns with the same sessionId (the common case after a forced
+// re-auth) leaves its entry here for the life of the process.
+const BLACKLIST_CLEANUP_INTERVAL = 5 * 60 * 1000;
+setInterval(() => {
+  const now = Date.now();
+  for (const [sid, expiry] of _refreshBlacklist) {
+    if (now >= expiry) _refreshBlacklist.delete(sid);
+  }
+}, BLACKLIST_CLEANUP_INTERVAL).unref(); // .unref() so the timer doesn't prevent process exit
+
 /**
  * Refreshes the OAuth access token for the current session using the stored refresh token.
  * Mirrors the pattern in middleware/tokenRefresh.js:refreshIfExpiring, including its
