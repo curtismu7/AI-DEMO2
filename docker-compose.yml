@@ -236,8 +236,10 @@ services:
       # Both keys map to the mcpServer role and MUST include mcpserver.ping.demo
       # (see startupConfigGuard.js + scope-topology.json).
       # https://api.pingone.com accepted for PingOne Privilege proxy client_credentials tokens.
-      MCP_SERVER_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo,https://api.pingone.com"
-      MCP_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo,https://api.pingone.com"
+      # https://api.ping.demo:3036/mcp (PingGateway/IG) — kept in sync with the mcp-server
+      # service's own copy below; see that comment for why native ID-JAG needs it.
+      MCP_SERVER_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo,https://api.pingone.com,https://api.ping.demo:3036/mcp"
+      MCP_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo,https://api.pingone.com,https://api.ping.demo:3036/mcp"
       # Accept Node-gateway + PingGateway audiences (Path B dual_token when IG mode is ON),
       # plus the A2A specialists' dedicated Exchange #2 audience (see
       # a2aDelegationService.js resolveA2aConfig / pingoneProvisionService.js Step 37a-A2A) —
@@ -447,7 +449,12 @@ services:
       # comma-separated list; mcpgateway.ping.demo is kept as a transitional second entry
       # so tokens from callers still on the old forward-unchanged contract keep validating.
       # https://api.pingone.com accepted for PingOne Privilege proxy client_credentials tokens.
-      MCP_SERVER_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo,https://api.pingone.com"
+      # https://api.ping.demo:3036/mcp (PingGateway/IG) accepted so a native ID-JAG minted
+      # under this demo's default PingGateway routing mode can be redeemed here — same
+      # audience MCP_GW_RESOURCE_URI below already accepts for the Node gateway's own
+      # dual_token path. Without it, IdJagGrantHandler rejects the resource as "not served
+      # by this authorization server" even though the mint itself succeeds.
+      MCP_SERVER_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo,https://api.pingone.com,https://api.ping.demo:3036/mcp"
       # mTLS on the PingGateway -> MCP server hop. When on the server serves
       # HTTPS (self-signed, regenerated each start) and REQUIRES a client cert
       # whose SHA-256 matches MCP_MTLS_GATEWAY_CERT_PATH.
