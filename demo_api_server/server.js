@@ -1565,6 +1565,12 @@ const txnTokenDemoRoutes = require('./routes/txnTokenDemo');
 app.use('/api/demo/txn-tokens', txnTokenDemoRoutes);
 const xaaIdJagDemoRoutes = require('./routes/xaaIdJagDemo');
 app.use('/api/demo/xaa', xaaIdJagDemoRoutes);
+
+// Demo Enterprise IdP for MCP Enterprise-Managed Authorization. Unlike the
+// /api/demo/xaa mock above (alg:none, teaching only), this one signs real
+// RS256 assertions the MCP Authorization Server verifies and redeems.
+const enterpriseIdpRoutes = require('./routes/enterpriseIdp');
+app.use('/api/enterprise-idp', enterpriseIdpRoutes);
 const spiffeDemoRoutes = require('./routes/spiffeDemo');
 app.use('/api/demo/spiffe', spiffeDemoRoutes);
 const dpopDemoRoutes = require('./routes/dpopDemo');
