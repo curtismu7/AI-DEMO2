@@ -33,7 +33,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 13 | Swallowed | `routes/agentAuthorization.js` | medium | FIXED |
 | 14 | Swallowed | `demo_api_ui/.../AdminSideNav.jsx` (vertical list) | medium | FIXED |
 | 15 | Swallowed | `demo_api_ui/.../AdminSideNav.jsx` (switch vertical) | medium | FIXED |
-| 16 | Swallowed | `demo_api_ui/.../CopilotAgent.jsx` | medium | OPEN |
+| 16 | Swallowed | `demo_api_ui/.../CopilotAgent.jsx` | medium | FIXED |
 | 17 | Swallowed | `demo_api_ui/.../CreateUserPanel.jsx` | medium | OPEN |
 | 18 | Swallowed | `demo_api_ui/.../BulkDecisionPanel.jsx` | low | OPEN |
 | 19 | Perf | `routes/agentRun.js` | high | OPEN |
@@ -410,7 +410,7 @@ looks like nothing happened.
 **Evidence (both #14 and #15):** 2 new tests — both confirmed to fail against
 the pre-fix file and pass against the fix. `cd demo_api_ui && npx vitest run src/components/__tests__/AdminSideNav.verticalFailures.test.jsx src/components/__tests__/AdminSideNav.resetDemo.test.jsx src/components/__tests__/adminSideNav.test.jsx src/components/__tests__/AdminSideNav.telemetry.test.jsx` — 4 files / 26 tests passed; `npm run build` exit 0.
 
-### 16. Copilot config-load failure looks like "not configured" — OPEN
+### 16. Copilot config-load failure looks like "not configured" — FIXED
 
 **File:** `demo_api_ui/src/components/CopilotAgent.jsx`, lines 32–37
 
@@ -421,8 +421,16 @@ empty object used for "not configured."
 shows the permanent "not configured" message even if fully configured
 server-side.
 
-**Fix (not yet applied):** Add a `cfgError` state; reuse the component's
-existing `error`/`friendly(e)` helper.
+**Fix:** Added a `cfgError` state, set from the existing `friendly(e)`
+helper; a new render branch (checked before the `!configured` check) shows a
+retryable error message with a Retry button instead of the permanent
+"not configured" screen. Extracted the load call into a `loadConfig`
+callback shared by the initial effect and the Retry button.
+
+**Evidence:** 3 new tests (load failure shows retry, not "not configured";
+retry succeeds and reaches the real surface; a genuinely empty config still
+shows "not configured") — the first two confirmed to fail against the
+pre-fix file and pass against the fix. `cd demo_api_ui && npx vitest run src/components/__tests__/CopilotAgent.configError.test.jsx` — 3/3 passed; `npm run build` exit 0.
 
 ### 17. Delegate search failure looks like zero matches — OPEN
 
@@ -573,6 +581,10 @@ redundantly re-parsing/re-diffing the same JSON twice each.
 
 ## Changelog
 
+- 2026-08-23 — #16 FIXED: `CopilotAgent.jsx` now distinguishes a config-load
+  failure (retryable error) from a genuinely empty/unconfigured config
+  (permanent notice), reusing the existing `friendly(e)` helper. 3 new
+  tests, 2 proven to fail against the pre-fix file and pass against the fix.
 - 2026-08-23 — #14 and #15 FIXED: `AdminSideNav.jsx`'s vertical-list load and
   switch-vertical POST now both `console.error` on failure, matching this
   file's own convention. 2 new tests proven to fail against the pre-fix file
