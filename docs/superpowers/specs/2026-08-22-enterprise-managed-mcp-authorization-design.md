@@ -4,6 +4,11 @@
 **Status:** Design approved, implementation not started
 **Spec:** [io.modelcontextprotocol/enterprise-managed-authorization](https://modelcontextprotocol.io/extensions/auth/enterprise-managed-authorization) · [normative text](https://github.com/modelcontextprotocol/ext-auth/blob/main/specification/stable/enterprise-managed-authorization.mdx) · SEP-990
 
+**Supersedes Phase 3 of** `planning/ENTERPRISE-MANAGED-MCP-AUTH-PLAN.md`. That
+plan's Phases 1–2 shipped and are the baseline described in §1. Its Phase 3 is
+titled *"blocked on PingOne product"*; §1 and §2 below show only part of it is.
+Its Phase 4 (IT admin UX) is untouched and remains open.
+
 ---
 
 ## 1. Why this exists
@@ -254,12 +259,37 @@ the PingOne RFC 8693 exchange with:
    `assertion=<ID-JAG>`, `client_id=<BFF MCP client id>` → MCP access token
 3. That token carries the tool call.
 
+Naming follows the existing plan: the client half (mint request + redemption)
+lives in `demo_api_server/services/idJagService.js`, the name Phase 3 of
+`ENTERPRISE-MANAGED-MCP-AUTH-PLAN.md` already reserved.
+
 Token Chain events become real rather than relabelled:
 
 - The `enterprise-managed-mode` event sets `idJagStandIn: false`.
 - A new `id-jag-issued` event carries the decodable assertion, so
   TokenInspector shows genuine `typ`, `resource`, and `scope` claims.
 - A new `id-jag-redeemed` event records the MCP AS issuing the access token.
+
+Two new event kinds means the **render path** needs them, not just the emitter:
+`demo_api_ui/src/components/TokenChainDisplay.jsx` and
+`demo_api_ui/src/services/traceGraph.js` both branch on ID-JAG today and must
+learn the new steps, or the events emit into a chain that does not draw them.
+
+### 4.4b MCP client declares the extension
+
+The spec's first client requirement is declaring support in per-request
+`_meta`. Without it the client is not conformant even when the token flow is:
+
+```jsonc
+"_meta": {
+  "io.modelcontextprotocol/clientCapabilities": {
+    "extensions": { "io.modelcontextprotocol/enterprise-managed-authorization": {} }
+  }
+}
+```
+
+Emitted from `langchain_agent/src/mcp/connection.py` on `initialize`, per
+Phase 3 of the existing plan.
 
 ### 4.5 Activation — auto-engage, no new flag
 
@@ -371,6 +401,9 @@ explicitly:
 | Metadata | `authorization_grant_profiles_supported` present in native mode, absent otherwise |
 | **Stand-in unchanged** | Flag ON + native unconfigured produces the same token events as today |
 | Revocation | Group removal → next call denied at the IdP; prior token revoked |
+| Client capability | `initialize` carries the `_meta` extensions block |
+| Token Chain render | `id-jag-issued` / `id-jag-redeemed` actually draw, not just emit |
+| **Deploy parity** | Enterprise mode works on Docker **and** SE K8 — carried over from the existing plan's Phase 3 acceptance criteria; `ENTERPRISE_IDP_JWKS_URL` must resolve in-cluster, where BFF and `oauth-mcp` are separate pods |
 
 Scoped runs (per `CLAUDE.md`):
 
@@ -395,8 +428,9 @@ honesty the current stand-in labelling already shows.
 
 **New**
 
-- `demo_api_server/services/enterpriseIdpKey.js`
-- `demo_api_server/routes/enterpriseIdp.js`
+- `demo_api_server/services/enterpriseIdpKey.js` — RS256 key singleton
+- `demo_api_server/routes/enterpriseIdp.js` — demo IdP: `/jwks`, `/token`
+- `demo_api_server/services/idJagService.js` — client half: mint + redeem
 - `oauth-mcp/src/oauth/IdJagGrantHandler.ts`
 - tests per §7
 
@@ -404,6 +438,9 @@ honesty the current stand-in labelling already shows.
 
 - `oauth-mcp/src/oauth/OAuthRouter.ts` — grant case + metadata
 - `demo_api_server/services/agentMcpTokenService.js` — mint/redeem path
+- `demo_api_ui/src/components/TokenChainDisplay.jsx` — render new steps
+- `demo_api_ui/src/services/traceGraph.js` — render new steps
+- `langchain_agent/src/mcp/connection.py` — `_meta` extension declaration
 - `demo_api_server/services/enterpriseMcpPolicyService.js` — configurable TTL
 - `demo_api_server/services/configStore.js` — three keys
 - `demo_api_server/server.js` — mount the route
