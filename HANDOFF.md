@@ -1,7 +1,11 @@
-# Handoff — Runtime Audit Sweep (round 3 in progress)
+# Handoff — Runtime Audit Sweep (round 3 — all findings fixed, PR pending)
 
 Continuation notes for picking this up in a fresh agent session. Delete this
 file once round 3 is merged and there's nothing left to hand off.
+
+**2026-08-23 update: #46–56 are now all FIXED and committed** (3 commits:
+#46-48, #49-52, #53-56). Round 3 (#40-56) is fully complete. What's left is
+just the push + PR + merge procedure below — no more fixes to write.
 
 ## What this is
 
