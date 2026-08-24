@@ -31,6 +31,8 @@ export class OAuthBrokerRouter {
         return this.handleAuthorize(req, res, url);
       case '/oauth/callback':
         return this.handleCallback(req, res, url);
+      case '/oauth/token':
+        return this.handleToken(req, res);
       default:
         return false;
     }
@@ -240,6 +242,64 @@ export class OAuthBrokerRouter {
     res.writeHead(302, { Location: callback.toString() });
     res.end();
     return true;
+  }
+
+  private async handleToken(req: IncomingMessage, res: ServerResponse): Promise<boolean> {
+    if (req.method !== 'POST') {
+      this.json(res, 405, { error: 'method_not_allowed' });
+      return true;
+    }
+    const body = await this.readBody(req);
+    const params = new URLSearchParams(body);
+    const grantType = params.get('grant_type');
+
+    if (grantType !== 'authorization_code') {
+      this.json(res, 400, { error: 'unsupported_grant_type' });
+      return true;
+    }
+
+    const code = params.get('code');
+    const redirectUri = params.get('redirect_uri');
+    const clientId = params.get('client_id');
+    const codeVerifier = params.get('code_verifier');
+    if (!code || !redirectUri || !clientId) {
+      this.json(res, 400, { error: 'invalid_request', error_description: 'Missing code, redirect_uri, or client_id' });
+      return true;
+    }
+
+    const issued = this.tokenStore.consumeCode(code);
+    if (!issued) {
+      this.json(res, 400, { error: 'invalid_grant', error_description: 'Invalid or expired authorization code' });
+      return true;
+    }
+    if (issued.clientId !== clientId || issued.redirectUri !== redirectUri) {
+      this.json(res, 400, { error: 'invalid_grant', error_description: 'Code was issued to a different client/redirect' });
+      return true;
+    }
+
+    // PKCE verification — this is what makes the broker's own authorization
+    // code safe to hand back over a loopback redirect: without it, any other
+    // local process that observed the code (e.g. via the redirect_uri) could
+    // redeem it. Mirrors oauth-mcp's OAuthRouter.verifyPKCE (S256 only).
+    if (!codeVerifier || !this.verifyPKCE(codeVerifier, issued.codeChallenge, issued.codeChallengeMethod)) {
+      this.json(res, 400, { error: 'invalid_grant', error_description: 'PKCE verification failed' });
+      return true;
+    }
+
+    // This IS the pass-through: the exact token PingOne issued, unmodified.
+    this.json(res, 200, {
+      access_token: issued.pingOneAccessToken,
+      token_type: 'Bearer',
+      expires_in: issued.pingOneExpiresIn,
+      scope: issued.scope,
+    });
+    return true;
+  }
+
+  private verifyPKCE(verifier: string, challenge: string, method: string): boolean {
+    if (method !== 'S256') return false;
+    const computed = crypto.createHash('sha256').update(verifier).digest('base64url');
+    return computed === challenge;
   }
 
   private readBody(req: IncomingMessage): Promise<string> {
