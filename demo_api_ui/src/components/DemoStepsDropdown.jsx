@@ -17,7 +17,7 @@ import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTrac
 import { a2aEventsForExplain } from './demoStepsA2a';
 import {
   clearCompletedUseCases,
-  isUseCaseCompleted,
+  getCompletedUseCaseIds,
   BX_UC_PROGRESS_EVENT,
 } from '../utils/useCaseDemoProgress';
 
@@ -174,10 +174,14 @@ export default function DemoStepsDropdown({
   // each render, and `tick` is bumped by select/clear, so it refreshes on the
   // same path as the per-row checkmarks.
   void tick;
+  // Read the completed-id Set once per render and reuse it below — finding
+  // #79: `isUseCaseCompleted` re-parses sessionStorage on every call, and
+  // this component was calling it 2-3x per row.
+  const completedIds = getCompletedUseCaseIds();
   const completedCount = primarySteps.filter(({ uc }) =>
-    isUseCaseCompleted(uc.id),
+    completedIds.has(uc.id),
   ).length;
-  const nextPrimaryId = primarySteps.find(({ uc }) => !isUseCaseCompleted(uc.id))?.uc
+  const nextPrimaryId = primarySteps.find(({ uc }) => !completedIds.has(uc.id))?.uc
     ?.id;
   const progressPct =
     primarySteps.length > 0
@@ -204,7 +208,7 @@ export default function DemoStepsDropdown({
    * @param {{ markNext?: boolean }} [opts]
    */
   function renderStep({ uc, stepNumber }, { markNext = false } = {}) {
-    const completed = isUseCaseCompleted(uc.id);
+    const completed = completedIds.has(uc.id);
     const isNext = markNext && !completed && uc.id === nextPrimaryId;
     const btnClass = [
       'banking-chips-dropdown__button',
