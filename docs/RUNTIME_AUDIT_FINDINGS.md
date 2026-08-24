@@ -17,6 +17,14 @@ PR #2294):** same design again, against the post-round-2 codebase, told
 about all 39 files touched by rounds 1–2. 17 of 17 candidate findings
 (#40–#56) survived verification — 0 rejected.
 
+**Round 4 (2026-08-23, same day, after round 3 fully fixed and merged in
+PR #2297):** same 6-finder-agent + adversarial-verify-per-candidate design,
+run as a Workflow against the post-round-3 codebase, told about all 52
+files touched by rounds 1–3. 10 of 10 candidate findings (#57–#66)
+survived verification — 0 rejected. Unlike prior rounds, round 4 fixes each
+get their own PR (fix → PR → merge in batches of 3) instead of one PR per
+fully-fixed round.
+
 **Working rule:** when a finding is fixed, flip its Status to `FIXED` with the
 PR number (or commit) and evidence **in the same commit as the fix**, and add a
 Changelog line. A status column that lags the code is the same false-green
@@ -86,6 +94,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 54 | Perf | `services/tokenValidationService.js` | low | FIXED |
 | 55 | Perf | `services/agentScopes.js` | low | FIXED |
 | 56 | Perf | `demo_api_ui/.../components/UserDashboard.js` | medium | FIXED |
+| 59 | Runtime | `demo_api_ui/.../pages/PrivilegeMcpClientPage.jsx` | medium | FIXED |
 
 ---
 
@@ -1679,7 +1688,54 @@ build` → exit 0.
 
 ---
 
+## Round 4 findings (2026-08-23)
+
+### 59. Sidebar/terminal drag listeners leak on document if mouseup fires outside the page — FIXED
+
+**File:** `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`, line 172
+
+**Issue:** `startSidebarDrag`/`startTerminalDrag` each attached
+document-level `mousemove`/`mouseup` listeners on `mousedown`, with the
+only removal path inside the `mouseup` handler itself. No `useEffect`
+cleanup, pointer capture, or `window blur`/`mouseleave` fallback existed
+for the case where the button is released outside the document.
+
+**Trigger scenario:** User drags the sidebar/terminal resize handle toward
+the viewport edge and releases the mouse over the OS taskbar, another
+window, or an iframe — `mouseup` never reaches `document`, the listeners
+are never removed, and every subsequent mouse move anywhere on the page
+keeps forcibly resizing the sidebar/terminal using the stale
+`startX`/`startW` captured at drag start, until the user happens to
+mouseup over the document again.
+
+**Fix:** Switched both handlers from mouse events to pointer events with
+`setPointerCapture(e.pointerId)` on drag start (wrapped in try/catch for
+environments without Pointer Capture support) — this keeps
+`pointermove`/`pointerup` delivered to the handle element even after the
+cursor leaves the document, closing the leak at its root. Also added a
+`dragCleanupRef` + unmount effect (mirroring `useDividerDrag`'s pattern) so
+an unmount mid-drag (route change with the button held) removes the
+listeners too, as a second, independent safety net.
+
+**Evidence:** New test
+`demo_api_ui/src/pages/__tests__/PrivilegeMcpClientPage.dragCleanup.test.jsx`
+(`engages pointer capture and removes document listeners on unmount
+mid-drag`) proven to fail against the pre-fix file (`setPointerCapture`
+never called — the old code used plain mouse events) and pass against the
+fix. All 6 sibling test files for this page (17 tests total) still pass.
+
+---
+
 ## Changelog
+
+- 2026-08-23 — #59 FIXED: `PrivilegeMcpClientPage.jsx`'s sidebar/terminal
+  resize handles switched from mouse events to pointer events with
+  `setPointerCapture`, so `pointermove`/`pointerup` keep being delivered
+  even after the cursor leaves the document — closing the leak where a
+  mouseup outside the page left the drag listeners (and forced resizing)
+  attached forever. Also added an unmount-safety-net cleanup. New test
+  proven to fail against the pre-fix file and pass against the fix; all 6
+  sibling test files for this page (17 tests) unaffected.
 
 - 2026-08-23 — #53, #54, #55, #56 FIXED (performance, round 3 complete —
   all of #40–56 now FIXED): `activityLogger.js`'s dead response-body

@@ -169,6 +169,11 @@ export default function PrivilegeMcpClientPage() {
   const terminalRef = useRef(null);
   const bodyRef = useRef(null);
 
+  // Drag cleanup refs so an unmount mid-drag (route change with the button
+  // held) can also remove the listeners — same class of leak useDividerDrag
+  // guards against for its callers.
+  const dragCleanupRef = useRef(null);
+
   const startSidebarDrag = (e) => {
     e.preventDefault();
     const startX = e.clientX;
@@ -177,9 +182,20 @@ export default function PrivilegeMcpClientPage() {
       const next = Math.max(200, Math.min(1000, startW + ev.clientX - startX));
       sidebarRef.current.style.width = `${next}px`;
     };
-    const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
+    // Pointer capture keeps pointermove/pointerup delivered to this element
+    // even if the cursor leaves the document (taskbar, another window, an
+    // iframe) — a plain document mouseup listener never fires there, which
+    // used to leave onMove permanently attached.
+    const onUp = () => {
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      try { e.target.releasePointerCapture(e.pointerId); } catch { /* already released */ }
+      dragCleanupRef.current = null;
+    };
+    try { e.target.setPointerCapture(e.pointerId); } catch { /* environment without Pointer Capture support */ }
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+    dragCleanupRef.current = onUp;
   };
 
   const startTerminalDrag = (e) => {
@@ -190,10 +206,19 @@ export default function PrivilegeMcpClientPage() {
       const next = Math.max(80, Math.min(500, startH - (ev.clientY - startY)));
       terminalRef.current.style.height = `${next}px`;
     };
-    const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
+    const onUp = () => {
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      try { e.target.releasePointerCapture(e.pointerId); } catch { /* already released */ }
+      dragCleanupRef.current = null;
+    };
+    try { e.target.setPointerCapture(e.pointerId); } catch { /* environment without Pointer Capture support */ }
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+    dragCleanupRef.current = onUp;
   };
+
+  useEffect(() => () => { dragCleanupRef.current?.(); }, []);
 
   useEffect(() => {
     if (activeTab === 'sessions' && authenticated) loadSessions();
@@ -1082,7 +1107,7 @@ export default function PrivilegeMcpClientPage() {
           </div>
         </aside>
 
-        <div className="cur-resize-handle cur-resize-handle--v" onMouseDown={startSidebarDrag} />
+        <div className="cur-resize-handle cur-resize-handle--v" onPointerDown={startSidebarDrag} />
 
         {/* Main editor area */}
         <main className="cur-main">
@@ -1301,7 +1326,7 @@ export default function PrivilegeMcpClientPage() {
           </div>
 
           {/* Terminal panel */}
-          <div className="cur-resize-handle cur-resize-handle--h" onMouseDown={startTerminalDrag} />
+          <div className="cur-resize-handle cur-resize-handle--h" onPointerDown={startTerminalDrag} />
           <div className="cur-terminal" ref={terminalRef}>
             <div className="cur-terminal-tabs">
               <button className={`cur-terminal-tab ${terminalTab === 'events' ? 'cur-terminal-tab--active' : ''}`} onClick={() => setTerminalTab('events')}>RELAY LOG</button>
