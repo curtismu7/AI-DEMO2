@@ -165,6 +165,7 @@ const mcpToolScopesRouter = require('./routes/mcpToolScopes');
 const mcpGatewayConfigRouter = require('./routes/mcpGatewayConfig');
 const agentGatewayConfigRouter = require('./routes/agentGatewayConfig');
 const mcpAuditRouter = require('./routes/mcpAudit');
+const mcpAuditMineRouter = require('./routes/mcpAuditMine');
 const promptFlowRouter = require('./routes/promptFlow');
 const agentIdentityRoutes = require('./routes/agentIdentity');
 const agentDelegationRoutes = require('./routes/agentDelegation');
@@ -1221,6 +1222,9 @@ app.use('/api/mcp/audit', (req, res, next) => {
     }
     next();
 }, mcpAuditRouter);
+// MCP Audit (mine): session-scoped, non-admin — same durable store, filtered
+// to the signed-in user's own events. Powers the external-door movie reel.
+app.use('/api/mcp/audit/mine', requireSession, mcpAuditMineRouter);
 // Prompt Flow Inspector: admin-only route — reads transactionLedger.lmdb
 // filtered by correlationId. Same gate pattern as /api/mcp/audit above.
 app.use('/api/prompt-flow', (req, res, next) => {
