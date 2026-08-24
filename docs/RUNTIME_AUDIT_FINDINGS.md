@@ -98,6 +98,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 58 | Runtime | `services/lighthouseService.js` | low | FIXED |
 | 59 | Runtime | `demo_api_ui/.../pages/PrivilegeMcpClientPage.jsx` | medium | FIXED |
 | 60 | Runtime | `demo_api_ui/.../components/AgentGatewayLogPanel.jsx` | low | FIXED |
+| 62 | Swallowed | `routes/enterpriseIdp.js` | medium | FIXED |
 
 ---
 
@@ -1855,10 +1856,54 @@ first`) uses deferred promises to resolve a newer request before an older
 one — proven to fail against the pre-fix file (rendered "OLD line"
 instead of "NEW line") and pass against the fix.
 
+### 62. ID-JAG token-mint route has zero error handling — an internal throw hangs the request (or crashes the process) — FIXED
+
+**File:** `demo_api_server/routes/enterpriseIdp.js`, line 40
+
+**Issue:** `router.post('/token', ...)` was an async handler with NO
+try/catch anywhere in its body — unlike the rest of the codebase's
+established convention. It awaits a policy check then synchronously calls
+`jwt.sign(..., enterpriseIdpKey.getPrivateKeyPem(), ...)`. Express 4 does
+not catch rejected promises from async route handlers, and
+`express-async-errors` is listed in `package.json` but never `require()`'d
+anywhere, so no global safety net existed.
+
+**Trigger scenario:** A signed-in user POSTs a well-formed RFC 8693
+token-exchange request to `/api/enterprise-idp/token`.
+`enterpriseIdpKey.getPrivateKeyPem()` lazily builds/signs the key on first
+call from `process.env.ENTERPRISE_IDP_SIGNING_KEY_PEM` — if that env var
+is malformed/truncated (a realistic copy/paste misconfiguration; there is
+no startup validation anywhere), `crypto.createPrivateKey` throws
+synchronously inside the async handler. The promise rejection was
+unhandled: the requester got no response at all, and in dev/test (no
+`CRASH_GUARD=1`) the whole BFF process hard-exits, taking down every other
+in-flight request.
+
+**Fix:** Wrapped the handler body in try/catch, matching the pattern used
+by every sibling route: on catch, log and return
+`res.status(500).json({ error: 'server_error', error_description: err.message })`.
+
+**Evidence:** New test in
+`demo_api_server/src/__tests__/enterpriseIdpRoutes.test.js` (`finding #62:
+an internal throw (e.g. malformed signing key) returns a 500, not a hang`)
+mocks `enterpriseIdpKey.getPrivateKeyPem` to throw — proven to fail against
+the pre-fix file (the request genuinely hung, hitting jest's 30s test
+timeout, exactly matching the "hangs the request" description) and pass
+against the fix. Full file green (8 tests) plus the 3 sibling
+`enterpriseIdp*` test files (17 tests) unaffected.
+
 ---
 
 ## Changelog
 
+- 2026-08-23 — #62 FIXED: `enterpriseIdp.js`'s `POST /token` handler is now
+  wrapped in try/catch, returning `500 { error: 'server_error' }` instead
+  of hanging forever (or hard-crashing the process in dev/test) when an
+  internal call throws — e.g. a malformed `ENTERPRISE_IDP_SIGNING_KEY_PEM`.
+  New test proven to fail against the pre-fix file (hit jest's 30s test
+  timeout — the request genuinely hung) and pass against the fix; full
+  file green (8 tests) plus 3 sibling `enterpriseIdp*` files (17 tests)
+  unaffected.
 - 2026-08-23 — #60 FIXED: `AgentGatewayLogPanel.jsx`'s `fetchLogs`/
   `fetchDecisions` gained monotonic request-id refs, checked before every
   `setState`, closing the window where an older, slower overlapping fetch
