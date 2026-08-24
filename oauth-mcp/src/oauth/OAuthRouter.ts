@@ -176,6 +176,17 @@ export class OAuthRouter {
     pingOneAuthorize.searchParams.set('state', relayState);
     pingOneAuthorize.searchParams.set('code_challenge', pingOneCodeChallenge);
     pingOneAuthorize.searchParams.set('code_challenge_method', 'S256');
+    // RFC 8707 resource, NOT audience — PingOne honors resource= and silently
+    // ignores audience= (same trap documented in TokenResolver.ts's Step 9
+    // exchange). Without this, the federated PingOne token is generic
+    // (openid profile email only) and the Banking API rejects it as
+    // invalid_token even though it's a genuine, correctly-federated token —
+    // confirmed live: Step 9 correctly found and forwarded it, and the
+    // Banking API still 401'd because it was never scoped to this resource.
+    const bankingApiResourceUri = process.env.BANKING_API_RESOURCE_URI;
+    if (bankingApiResourceUri) {
+      pingOneAuthorize.searchParams.set('resource', bankingApiResourceUri);
+    }
 
     res.writeHead(302, { Location: pingOneAuthorize.toString() });
     res.end();
@@ -216,16 +227,24 @@ export class OAuthRouter {
     let pingOneAccessToken: string;
     try {
       const callbackUri = `${this.issuer}/authorize/callback`;
+      const tokenParams = new URLSearchParams({
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: callbackUri,
+        client_id: pingOneClientId,
+        client_secret: pingOneClientSecret,
+        code_verifier: pending.pingOneCodeVerifier,
+      });
+      // Repeat resource= (RFC 8707) on the token call too — matches whatever
+      // was bound at /authorize (see handleAuthorize) rather than assuming
+      // PingOne carries it forward from the code alone.
+      const bankingApiResourceUri = process.env.BANKING_API_RESOURCE_URI;
+      if (bankingApiResourceUri) {
+        tokenParams.set('resource', bankingApiResourceUri);
+      }
       const tokenResponse = await axios.post(
         pingOneTokenEndpoint,
-        new URLSearchParams({
-          grant_type: 'authorization_code',
-          code,
-          redirect_uri: callbackUri,
-          client_id: pingOneClientId,
-          client_secret: pingOneClientSecret,
-          code_verifier: pending.pingOneCodeVerifier,
-        }).toString(),
+        tokenParams.toString(),
         { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
       );
 

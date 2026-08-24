@@ -134,6 +134,50 @@ describe('OAuthRouter — real PingOne-backed /authorize', () => {
     expect(JSON.parse(ctx.body).error).toBe('temporarily_unavailable');
   });
 
+  it('GET /authorize includes resource= (RFC 8707), not audience=, when BANKING_API_RESOURCE_URI is configured', async () => {
+    process.env.BANKING_API_RESOURCE_URI = 'enduser.ping.demo';
+    const call = fakeReqRes('GET',
+      '/authorize?client_id=mcp-inspector&redirect_uri=http://localhost:6274/oauth/callback&response_type=code&code_challenge=abc&state=client-state-1');
+
+    await router.handle(call.req, call.res);
+    const location = new URL((call as any).headers.Location);
+
+    // PingOne honors resource= and silently ignores audience= — using the
+    // wrong param name here would look correct but mint an unscoped token.
+    expect(location.searchParams.get('resource')).toBe('enduser.ping.demo');
+    expect(location.searchParams.has('audience')).toBe(false);
+  });
+
+  it('GET /authorize omits resource= entirely when BANKING_API_RESOURCE_URI is not configured', async () => {
+    delete process.env.BANKING_API_RESOURCE_URI;
+    const call = fakeReqRes('GET',
+      '/authorize?client_id=mcp-inspector&redirect_uri=http://localhost:6274/oauth/callback&response_type=code&code_challenge=abc&state=client-state-1');
+
+    await router.handle(call.req, call.res);
+    const location = new URL((call as any).headers.Location);
+
+    expect(location.searchParams.has('resource')).toBe(false);
+  });
+
+  it('/authorize/callback\'s token exchange also carries resource=, matching what was bound at /authorize', async () => {
+    process.env.BANKING_API_RESOURCE_URI = 'enduser.ping.demo';
+    const authorizeCall = fakeReqRes('GET',
+      '/authorize?client_id=mcp-inspector&redirect_uri=http://localhost:6274/oauth/callback&response_type=code&code_challenge=abc&state=client-state-1');
+    await router.handle(authorizeCall.req, authorizeCall.res);
+    const relayState = new URL((authorizeCall as any).headers.Location).searchParams.get('state')!;
+
+    mockedAxios.post.mockResolvedValue({ data: { access_token: 'pingone.access.token' } });
+    const jwtVerify = jest.fn().mockResolvedValue({ payload: { sub: 'real-pingone-user' } });
+    mockedJwks.getJose.mockResolvedValue({ jwtVerify } as any);
+    mockedJwks.createJwksKeySet.mockResolvedValue((() => {}) as any);
+
+    const callbackCall = fakeReqRes('GET', `/authorize/callback?code=pingone-auth-code&state=${relayState}`);
+    await router.handle(callbackCall.req, callbackCall.res);
+
+    const postedBody = new URLSearchParams(mockedAxios.post.mock.calls[0][1] as string);
+    expect(postedBody.get('resource')).toBe('enduser.ping.demo');
+  });
+
   it('/authorize/callback returns 502 (not a 302 for a placeholder subject) when PingOne\'s verified token has no sub claim', async () => {
     const authorizeCall = fakeReqRes('GET',
       '/authorize?client_id=mcp-inspector&redirect_uri=http://localhost:6274/oauth/callback&response_type=code&code_challenge=abc&state=client-state-1');
