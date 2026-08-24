@@ -193,6 +193,7 @@ const authBase = (tld) => `https://auth.pingone.${tld}`;
 const WORKER_TOKEN_EXPIRY_MARGIN_MS = 60_000;
 let _workerTokenCache = null;   // { token, expiresAt, credKey }
 let _workerTokenInflight = null; // Promise<string> | null
+let _workerTokenInflightKey = null; // credKey the in-flight request was started for
 
 /** Non-secret cache key: which worker app + environment minted the token. */
 function _workerCredKey(clientId, envId) {
@@ -248,9 +249,13 @@ async function getWorkerToken() {
     return _workerTokenCache.token;
   }
 
-  // Single-flight: concurrent callers share one client-credentials request.
-  if (_workerTokenInflight) return _workerTokenInflight;
+  // Single-flight: concurrent callers for the SAME credentials share one
+  // client-credentials request. A caller whose credKey differs (e.g. an
+  // admin rotated the worker credentials while a request for the old ones
+  // was in flight) must not reuse that stale request or its result.
+  if (_workerTokenInflight && _workerTokenInflightKey === credKey) return _workerTokenInflight;
 
+  _workerTokenInflightKey = credKey;
   _workerTokenInflight = (async () => {
     try {
       const { token, expiresAt } = await _requestWorkerToken(creds);
@@ -258,6 +263,7 @@ async function getWorkerToken() {
       return token;
     } finally {
       _workerTokenInflight = null;
+      _workerTokenInflightKey = null;
     }
   })();
 
@@ -325,6 +331,7 @@ async function _evaluateWithBreaker(key, doEvaluate) {
 function _resetAuthorizeRuntimeState() {
   _workerTokenCache = null;
   _workerTokenInflight = null;
+  _workerTokenInflightKey = null;
   _breakers.clear();
 }
 
