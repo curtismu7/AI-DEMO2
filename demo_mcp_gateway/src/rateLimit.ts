@@ -1,5 +1,7 @@
 'use strict';
 
+import { cacheInsertWithEviction } from './boundedTokenCache';
+
 /**
  * rateLimit.ts -- per-agent/per-tool sliding-window rate limiter.
  *
@@ -29,6 +31,20 @@ export interface RateLimitResult {
   retryAfterMs: number; // 0 when allowed
 }
 
+interface WindowEntry {
+  timestamps: number[];
+  /** when this key's window is fully stale and safe to evict */
+  expiresAt: number;
+}
+
+// HI-06-style cap, reusing the same sweep-expired-then-FIFO-evict helper as
+// this codebase's other per-caller Maps (McpTokenExchangeClient,
+// GatewayIntrospectionClient) — without it, a key for every distinct
+// (subject, tool) pair ever seen stayed in the Map for the gateway's entire
+// process lifetime, since nothing ever deleted an entry once check() stopped
+// being called for it.
+const RATE_LIMIT_WINDOWS_MAX = 1000;
+
 /**
  * Sliding-window rate limiter. Each call to check() records a timestamp.
  * Timestamps older than windowMs are evicted. When the live count reaches
@@ -36,8 +52,8 @@ export interface RateLimitResult {
  * derived from how long until the oldest timestamp falls out of the window.
  */
 export class SlidingWindowLimiter {
-  /** key -> array of call timestamps (ms) within the current window */
-  private readonly _windows = new Map<string, number[]>();
+  /** key -> timestamps within the current window + this key's own expiry */
+  private readonly _windows = new Map<string, WindowEntry>();
 
   constructor(
     private readonly windowMs: number,
@@ -49,18 +65,18 @@ export class SlidingWindowLimiter {
     const windowStart = now - this.windowMs;
 
     // Evict timestamps that have fallen outside the window
-    const timestamps = (this._windows.get(key) ?? []).filter(t => t > windowStart);
+    const timestamps = (this._windows.get(key)?.timestamps ?? []).filter(t => t > windowStart);
 
     if (timestamps.length >= this.maxRequests) {
       // Oldest timestamp in the window tells us when the window will clear
       const oldestInWindow = timestamps[0];
       const retryAfterMs = Math.max(1, oldestInWindow + this.windowMs - now);
-      this._windows.set(key, timestamps);
+      cacheInsertWithEviction(this._windows, key, { timestamps, expiresAt: now + this.windowMs }, RATE_LIMIT_WINDOWS_MAX);
       return { allowed: false, retryAfterMs };
     }
 
     timestamps.push(now);
-    this._windows.set(key, timestamps);
+    cacheInsertWithEviction(this._windows, key, { timestamps, expiresAt: now + this.windowMs }, RATE_LIMIT_WINDOWS_MAX);
     return { allowed: true, retryAfterMs: 0 };
   }
 }

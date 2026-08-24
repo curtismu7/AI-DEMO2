@@ -58,6 +58,20 @@ describe('SlidingWindowLimiter', () => {
     expect(limiter.check('agent:tool').allowed).toBe(true);
   });
 
+  // Finding #68 (round-5 audit): _windows previously grew without bound —
+  // every distinct key ever seen stayed in the Map for the process lifetime,
+  // since nothing ever deleted an entry once check() stopped being called
+  // for it.
+  it('caps total tracked keys instead of growing unboundedly', () => {
+    const limiter = new SlidingWindowLimiter(60000, 20);
+    const totalKeys = 1500;
+    for (let i = 0; i < totalKeys; i++) {
+      limiter.check(`agent-${i}:tool`);
+    }
+    const windows = (limiter as unknown as { _windows: Map<string, unknown> })._windows;
+    expect(windows.size).toBeLessThanOrEqual(1000);
+  });
+
   it('_resetLimiterForTest resets the module singleton, fresh instance has clean state', () => {
     // Module singleton test: fill it, reset, confirm clean slate via checkRateLimit
     process.env.GATEWAY_RATE_LIMIT_ENABLED = 'true';
