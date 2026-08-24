@@ -94,6 +94,8 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 54 | Perf | `services/tokenValidationService.js` | low | FIXED |
 | 55 | Perf | `services/agentScopes.js` | low | FIXED |
 | 56 | Perf | `demo_api_ui/.../components/UserDashboard.js` | medium | FIXED |
+| 57 | Runtime | `services/pingOneAuthorizeService.js` | medium | FIXED |
+| 58 | Runtime | `services/lighthouseService.js` | low | FIXED |
 | 59 | Runtime | `demo_api_ui/.../pages/PrivilegeMcpClientPage.jsx` | medium | FIXED |
 
 ---
@@ -1690,6 +1692,103 @@ build` → exit 0.
 
 ## Round 4 findings (2026-08-23)
 
+### 57. Worker-token single-flight cache ignores credential identity, letting a credential rotation hand a caller a token minted with stale creds — FIXED
+
+**File:** `demo_api_server/services/pingOneAuthorizeService.js`, line 252
+
+**Issue:** `getWorkerToken()` correctly gates its *cache read* on
+`_workerTokenCache.credKey === credKey`, but the single-flight branch right
+after it (`if (_workerTokenInflight) return _workerTokenInflight;`) had no
+credKey comparison at all. The in-flight IIFE closes over the `creds`/
+`credKey` captured from whichever call originally started it, and on
+resolution unconditionally overwrote `_workerTokenCache` with that original
+(possibly now-stale) credKey — poisoning the cache for later callers too.
+
+**Trigger scenario:** An admin rotates the PingOne Authorize worker
+credentials (`authorize_worker_client_id`/`secret`, or the
+`PINGONE_WORKER_CLIENT_ID`/`SECRET` env aliases) via `/config` while a
+`getWorkerToken()` call is already in flight for the OLD credentials (cache
+cold — e.g. right after a config reload). A second `evaluate()` call
+arriving in that window computes the NEW credKey, finds `_workerTokenInflight`
+truthy, and awaits that same promise — receiving a token minted against the
+OLD worker app/environment, which it then presents to the PingOne Authorize
+decision endpoint, causing spurious 401s or a decision evaluated under the
+wrong worker identity. Nothing invalidates the in-flight guard on credential
+rotation — the only reset path (`_resetAuthorizeRuntimeState()`) is an
+explicit test-only hook, never called from any config-update route.
+
+**Fix:** Added a `_workerTokenInflightKey` variable, set alongside
+`_workerTokenInflight` when a request starts and cleared in the same
+`finally`. The single-flight branch now only reuses the in-flight promise
+when `_workerTokenInflightKey === credKey`; otherwise it falls through and
+starts a new `_requestWorkerToken(creds)` call (running concurrently with
+the stale one), so a caller after a credential rotation always gets a
+token minted with its own resolved creds. `_resetAuthorizeRuntimeState()`
+(the test-reset hook) also resets the new variable.
+
+**Evidence:** New test
+`demo_api_server/tests/pingOneAuthorizeService.workerTokenRace.test.js`
+(`a caller with rotated credentials does not receive a token minted for
+the old credentials`) mocks `configStore`/`fetch` with a deferred-resolve
+pattern to start one request, rotate credentials mid-flight, and start a
+second — proven to fail against the pre-fix file (`Expected length: 2,
+Received length: 1` — the second caller reused the stale in-flight
+promise) and pass against the fix. This is authz-adjacent shared code, so
+also ran the existing `pingOneAuthorizeWorkerTokenCache.test.js` (5
+passed) and the full server suite:
+`cd demo_api_server && CI=true ./node_modules/.bin/jest --forceExit --maxWorkers=4`
+— 852/854 suites, 10095/10219 tests passed (the 2 failures —
+`runtime-settings-api.test.js`, `intentBindingDemo.test.js` — are the
+documented full-suite-parallel-load flake; both passed 100% re-run in
+isolation).
+
+### 58. Lighthouse "single audit in progress" guard is released before the timed-out audit's Chrome process actually finishes tearing down — FIXED
+
+**File:** `demo_api_server/services/lighthouseService.js`, line 82
+
+**Issue:** `runLighthouseAudit()` races the real audit promise against a
+60s timeout promise. On timeout, the timeout callback fired `chrome.kill()`
+fire-and-forget (not awaited) and immediately rejected — settling
+`Promise.race` right away — while the real Chrome process/lighthouse run
+kept executing in the background; nothing checked a `timedOut` flag to
+abort it early, and if `chrome` was never assigned by the 60s mark (still
+inside `chromeLauncher.launch()`), no kill was even attempted. The route
+treated the outer race's settlement as its sole "is an audit running"
+signal, clearing `isRunning = false` as soon as the timeout rejection won —
+while the original Chrome/lighthouse process was still alive.
+
+**Trigger scenario:** `POST /api/admin/lighthouse/run` runs long enough to
+hit `AUDIT_TIMEOUT_MS` (slow page load, or a cold-machine Chrome install
+still pending at 60s). An admin (or an automated retry) immediately POSTs
+`/run` again; the guard was open, so a second Chrome+lighthouse instance
+launched concurrently with the still-terminating first one, defeating the
+single-flight guard and doubling resource usage.
+
+**Fix:** Moved the single-flight lock into `lighthouseService.js` itself.
+`runLighthouseAudit()` now throws `LIGHTHOUSE_BUSY` synchronously (before
+any `await`) if `_isRunning` is already true, and `_isRunning` is only
+cleared inside the real audit work's own `finally` block — after `await
+chrome.kill()` — not when the outer `Promise.race` settles. Restructured
+the chrome-launch try/catch to live inside that same outer try/finally so
+`_isRunning` clears on every exit path (success, lighthouse() throwing, or
+launch() throwing). The route no longer sets/clears `isRunning` itself —
+it only reads it for a fast 429 pre-check, and now also catches
+`LIGHTHOUSE_BUSY` as a defense-in-depth 429 for the race window between
+that pre-check and the call. This also automatically closes the gap for
+`lighthouseScheduler.js`'s cron-triggered call, which had zero guarding of
+its own — it's now protected by the same service-level lock.
+
+**Evidence:** New test
+`demo_api_server/tests/lighthouseService.auditGuardRace.test.js` (`isRunning
+stays true (and a retry is rejected) until real Chrome teardown finishes
+after a timeout`) uses fake timers plus deferred `chrome-launcher`/
+`lighthouse` mocks to fire the 60s timeout while the real work is still
+pending, then asserts `isRunning` is still `true` and a concurrent call
+rejects `LIGHTHOUSE_BUSY` — proven to fail against the pre-fix file
+(`Expected: true, Received: false`) and pass against the fix. Existing
+`lighthouseRoute.regression.test.js` (11 tests, unchanged) still passes —
+the route-level 429/503/504/200 contract is preserved.
+
 ### 59. Sidebar/terminal drag listeners leak on document if mouseup fires outside the page — FIXED
 
 **File:** `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`, line 172
@@ -1736,7 +1835,23 @@ fix. All 6 sibling test files for this page (17 tests total) still pass.
   attached forever. Also added an unmount-safety-net cleanup. New test
   proven to fail against the pre-fix file and pass against the fix; all 6
   sibling test files for this page (17 tests) unaffected.
-
+- 2026-08-23 — #58 FIXED: `lighthouseService.js`'s single-flight
+  `_isRunning` guard is now managed entirely inside the service and only
+  clears after the real Chrome teardown (`await chrome.kill()`) completes,
+  not when the outer 60s timeout race settles — closing the window where
+  an immediate retry after a timeout could launch a second concurrent
+  Chrome instance. The route no longer sets/clears `isRunning` itself,
+  only reads it for a fast pre-check. New test proven to fail against the
+  pre-fix file and pass against the fix; existing route regression suite
+  (11 tests) unaffected.
+- 2026-08-23 — #57 FIXED: `pingOneAuthorizeService.js`'s worker-token
+  single-flight guard now tracks the credKey it was started for
+  (`_workerTokenInflightKey`) and only reuses the in-flight promise for a
+  matching credKey, closing the window where a credential rotation
+  mid-flight could hand a caller a token minted with stale creds. New test
+  proven to fail against the pre-fix file and pass against the fix; full
+  server suite green (852/854 suites, 10095 tests; 2 known flakes passed
+  in isolation).
 - 2026-08-23 — #53, #54, #55, #56 FIXED (performance, round 3 complete —
   all of #40–56 now FIXED): `activityLogger.js`'s dead response-body
   capture block (computed, never read) deleted outright. `tokenValidationService.js`
