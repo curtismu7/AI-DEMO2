@@ -528,6 +528,84 @@ describe('UseCaseLauncherPage', () => {
     });
   });
 
+  // Finding #74 — a slower first-clicked chip run must not overwrite the
+  // navigation of a faster, later-clicked run.
+  it('does not let a stale slower Run navigate after a faster later Run already navigated', async () => {
+    // UC2 (flag-gated: PATCH + slow demo/run) clicked first; UC1 (no flag,
+    // fast demo/run) clicked second, before UC2's chain resolves.
+    let resolveSlowRun;
+    const slowRun = new Promise((resolve) => { resolveSlowRun = resolve; });
+    apiClient.post.mockImplementation((url, body) => {
+      if (url === '/api/use-cases/demo/run') {
+        if (body.useCaseId === 'a2a-delegation') {
+          return slowRun.then(() => ({
+            data: { useCaseId: 'a2a-delegation', triggerText: 'hand off to a specialist', type: 'chip' },
+          }));
+        }
+        if (body.useCaseId === 'delegated-access-with-proof') {
+          return Promise.resolve({
+            data: { useCaseId: 'delegated-access-with-proof', triggerText: 'show my balance', type: 'chip' },
+          });
+        }
+      }
+      if (url === '/api/verticals/active') {
+        return Promise.resolve({ data: { success: true } });
+      }
+      return Promise.reject(new Error(`Unknown URL: ${url}`));
+    });
+
+    renderPage();
+    await waitFor(() => expect(screen.getAllByText('A2A delegation').length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getAllByText('Delegated access with proof').length).toBeGreaterThan(0));
+
+    const slowRunBtn = screen.getAllByRole('button', { name: /^run$/i }).find(
+      (b) => b.title?.includes('auto-enable'),
+    );
+    const fastRunBtn = screen.getAllByRole('button', { name: /^run$/i }).find(
+      (b) => !b.disabled && !b.title?.includes('A6') && !b.title?.includes('auto-enable'),
+    );
+    expect(slowRunBtn).toBeDefined();
+    expect(fastRunBtn).toBeDefined();
+
+    // Click the flag-gated card first — its chain awaits the flag PATCH, then
+    // a demo/run POST held open by slowRun.
+    fireEvent.click(slowRunBtn);
+    await waitFor(() =>
+      expect(apiClient.post).toHaveBeenCalledWith('/api/use-cases/demo/run', {
+        useCaseId: 'a2a-delegation',
+        vertical: 'banking',
+      }),
+    );
+
+    // Click the plain card before the first chain resolves.
+    fireEvent.click(fastRunBtn);
+    await waitFor(() =>
+      expect(apiClient.post).toHaveBeenCalledWith('/api/use-cases/demo/run', {
+        useCaseId: 'delegated-access-with-proof',
+        vertical: 'banking',
+      }),
+    );
+
+    // The faster, later click wins — its navigation lands.
+    await waitFor(() =>
+      expect(mockNavigate).toHaveBeenCalledWith('/dashboard', {
+        state: {
+          useCaseId: 'delegated-access-with-proof',
+          triggerText: 'show my balance',
+          type: 'chip',
+          vertical: 'banking',
+        },
+      }),
+    );
+
+    // Now let the stale, slower chain resolve. It must not navigate again.
+    resolveSlowRun();
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(mockNavigate).toHaveBeenCalledTimes(1);
+  });
+
   // ── Happy Path grouping ─────────────────────────────────────────────────
   it('renders a Happy Path section above track sections containing only PERMIT-outcome use cases, deduped from their track', async () => {
     renderPage();

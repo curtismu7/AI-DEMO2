@@ -7,7 +7,7 @@
  * A5.2 (slim launch drawer on /agent) — NOT included here; deferred.
  * A5.3 — FF-aware notice + inline toggle; Run auto-enables required flags.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AttackAnatomyExplainer from '../components/AttackAnatomyExplainer';
 import GroupMembershipToggle from '../components/GroupMembershipToggle';
@@ -754,6 +754,11 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
   // Lifecycle of the chip "Run" the user last clicked, for one card at a time:
   // { id, state: 'running' | 'error', msg? }. Guards double-clicks and surfaces errors.
   const [chipRun, setChipRun] = useState(null);
+  // Monotonic token for the in-flight chip launch chain. Bumped at the start of
+  // every handleRun call; a chain checks its captured token against this ref
+  // before applying its result, so a slower, earlier launch can never clobber
+  // chipRun/navigate() after a faster, later launch has already landed.
+  const chipRunTokenRef = useRef(0);
 
   const [query, setQuery] = useState('');
 
@@ -825,6 +830,7 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
       setChipRun({ id: uc.id, state: 'error', msg: 'This use case is misconfigured (no id).' });
       return;
     }
+    const myRunToken = ++chipRunTokenRef.current;
     setChipRun({ id: uc.id, state: 'running' });
     // Auto-arm required flags so Run is not blocked when maturity is flag:* or A2A.
     // Skipped for public use cases: arming PATCHes an admin route, and its 401
@@ -848,6 +854,9 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
           .then(() => data);
       })
       .then((data) => {
+        // A newer Run click has since started its own chain — discard this
+        // stale one so it can't overwrite chipRun or navigate over the newer run.
+        if (myRunToken !== chipRunTokenRef.current) return;
         // Navigation unmounts this page, so chipRun need not be cleared here.
         // Persist launcher origin so TopNav can show "← Use Cases" after AIAgent
         // clears router state.
@@ -863,6 +872,7 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
         });
       })
       .catch((err) => {
+        if (myRunToken !== chipRunTokenRef.current) return;
         console.error('Failed to run use case:', err);
         // The BFF now says WHICH sign-in a refused step wants, so offer it
         // instead of printing a dead error the visitor can do nothing with.
