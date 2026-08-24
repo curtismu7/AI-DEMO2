@@ -98,6 +98,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 58 | Runtime | `services/lighthouseService.js` | low | FIXED |
 | 59 | Runtime | `demo_api_ui/.../pages/PrivilegeMcpClientPage.jsx` | medium | FIXED |
 | 60 | Runtime | `demo_api_ui/.../components/AgentGatewayLogPanel.jsx` | low | FIXED |
+| 61 | Runtime | `demo_api_ui/.../components/NewRelicDashboard.jsx` | low | FIXED |
 | 62 | Swallowed | `routes/enterpriseIdp.js` | medium | FIXED |
 
 ---
@@ -1856,6 +1857,36 @@ first`) uses deferred promises to resolve a newer request before an older
 one — proven to fail against the pre-fix file (rendered "OLD line"
 instead of "NEW line") and pass against the fix.
 
+### 61. Stale-response race: rapid time-window changes can render data for the wrong window — FIXED
+
+**File:** `demo_api_ui/src/components/NewRelicDashboard.jsx`, line 70
+
+**Issue:** `load()` depended on `[win, search]` and was called on mount and
+every 30s via `setInterval`, with no request sequencing or cancellation
+when `win`/`search` changed mid-flight. The window-selector buttons were
+never disabled while a request was loading, so nothing stopped a user from
+firing a second request before the first resolved.
+
+**Trigger scenario:** Admin clicks through the window selector quickly
+(e.g. default 1h then 24h). The 24h request queries a larger range and can
+resolve after a request issued right after it; if it did, its response
+overwrote `data`, so the stage strip, sparkline, category stats, and event
+stream all rendered the wrong window's data while the window control
+itself showed the newly-selected one.
+
+**Fix:** Added a monotonically incrementing `reqIdRef`, captured at the
+start of `load()` and checked before `setData`/`setState` in both the
+success and error paths — same pattern as finding #60
+(`AgentGatewayLogPanel.jsx`) and finding #45 (`cachedStatusService.js`).
+
+**Evidence:** New test in
+`demo_api_ui/src/components/__tests__/NewRelicDashboard.test.jsx`
+(`finding #61: an older, slower window request does not overwrite a newer
+one that resolved first`) uses deferred promises to resolve a 24h-window
+request before the initial 1h one — proven to fail against the pre-fix
+file (rendered stale `13` instead of `999`) and pass against the fix. Full
+file green (20 tests, including all 19 pre-existing).
+
 ### 62. ID-JAG token-mint route has zero error handling — an internal throw hangs the request (or crashes the process) — FIXED
 
 **File:** `demo_api_server/routes/enterpriseIdp.js`, line 40
@@ -1904,6 +1935,13 @@ against the fix. Full file green (8 tests) plus the 3 sibling
   timeout — the request genuinely hung) and pass against the fix; full
   file green (8 tests) plus 3 sibling `enterpriseIdp*` files (17 tests)
   unaffected.
+- 2026-08-23 — #61 FIXED: `NewRelicDashboard.jsx`'s `load()` gained a
+  monotonic `reqIdRef`, checked before `setData`/`setState`, closing the
+  window where a rapid window-selector change (e.g. 1h then 24h) could
+  have the slower, older request resolve after the newer one and render
+  the wrong window's data. Same pattern as finding #60. New test proven to
+  fail against the pre-fix file and pass against the fix; full file green
+  (20 tests).
 - 2026-08-23 — #60 FIXED: `AgentGatewayLogPanel.jsx`'s `fetchLogs`/
   `fetchDecisions` gained monotonic request-id refs, checked before every
   `setState`, closing the window where an older, slower overlapping fetch
