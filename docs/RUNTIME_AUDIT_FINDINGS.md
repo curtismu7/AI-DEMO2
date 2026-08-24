@@ -96,6 +96,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 56 | Perf | `demo_api_ui/.../components/UserDashboard.js` | medium | FIXED |
 | 57 | Runtime | `services/pingOneAuthorizeService.js` | medium | FIXED |
 | 58 | Runtime | `services/lighthouseService.js` | low | FIXED |
+| 59 | Runtime | `demo_api_ui/.../pages/PrivilegeMcpClientPage.jsx` | medium | FIXED |
 | 60 | Runtime | `demo_api_ui/.../components/AgentGatewayLogPanel.jsx` | low | FIXED |
 
 ---
@@ -1789,6 +1790,40 @@ rejects `LIGHTHOUSE_BUSY` — proven to fail against the pre-fix file
 `lighthouseRoute.regression.test.js` (11 tests, unchanged) still passes —
 the route-level 429/503/504/200 contract is preserved.
 
+### 59. Sidebar/terminal drag listeners leak on document if mouseup fires outside the page — FIXED
+
+**File:** `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`, line 172
+
+**Issue:** `startSidebarDrag`/`startTerminalDrag` each attached
+document-level `mousemove`/`mouseup` listeners on `mousedown`, with the
+only removal path inside the `mouseup` handler itself. No `useEffect`
+cleanup, pointer capture, or `window blur`/`mouseleave` fallback existed
+for the case where the button is released outside the document.
+
+**Trigger scenario:** User drags the sidebar/terminal resize handle toward
+the viewport edge and releases the mouse over the OS taskbar, another
+window, or an iframe — `mouseup` never reaches `document`, the listeners
+are never removed, and every subsequent mouse move anywhere on the page
+keeps forcibly resizing the sidebar/terminal using the stale
+`startX`/`startW` captured at drag start, until the user happens to
+mouseup over the document again.
+
+**Fix:** Switched both handlers from mouse events to pointer events with
+`setPointerCapture(e.pointerId)` on drag start (wrapped in try/catch for
+environments without Pointer Capture support) — this keeps
+`pointermove`/`pointerup` delivered to the handle element even after the
+cursor leaves the document, closing the leak at its root. Also added a
+`dragCleanupRef` + unmount effect (mirroring `useDividerDrag`'s pattern) so
+an unmount mid-drag (route change with the button held) removes the
+listeners too, as a second, independent safety net.
+
+**Evidence:** New test
+`demo_api_ui/src/pages/__tests__/PrivilegeMcpClientPage.dragCleanup.test.jsx`
+(`engages pointer capture and removes document listeners on unmount
+mid-drag`) proven to fail against the pre-fix file (`setPointerCapture`
+never called — the old code used plain mouse events) and pass against the
+fix. All 6 sibling test files for this page (17 tests total) still pass.
+
 ### 60. Stale-response race: overlapping log fetches can overwrite newer results with older ones — FIXED
 
 **File:** `demo_api_ui/src/components/AgentGatewayLogPanel.jsx`, line 44
@@ -1830,6 +1865,14 @@ instead of "NEW line") and pass against the fix.
   (a previous filter, or a stale autoRefresh tick) could overwrite a newer
   response. New test proven to fail against the pre-fix file and pass
   against the fix.
+- 2026-08-23 — #59 FIXED: `PrivilegeMcpClientPage.jsx`'s sidebar/terminal
+  resize handles switched from mouse events to pointer events with
+  `setPointerCapture`, so `pointermove`/`pointerup` keep being delivered
+  even after the cursor leaves the document — closing the leak where a
+  mouseup outside the page left the drag listeners (and forced resizing)
+  attached forever. Also added an unmount-safety-net cleanup. New test
+  proven to fail against the pre-fix file and pass against the fix; all 6
+  sibling test files for this page (17 tests) unaffected.
 - 2026-08-23 — #58 FIXED: `lighthouseService.js`'s single-flight
   `_isRunning` guard is now managed entirely inside the service and only
   clears after the real Chrome teardown (`await chrome.kill()`) completes,
