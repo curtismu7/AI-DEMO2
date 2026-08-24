@@ -164,6 +164,9 @@ const ENV_AGNOSTIC_KEYS = new Set([
   // ID-JAG endpoint instead of the demo IdP — move it to ENV_SCOPED_KEYS at that point.
   'enterprise_idp_issuer', 'enterprise_idp_jwks_url', 'enterprise_mcp_as_token_url',
   'enterprise_mcp_as_issuer', 'enterprise_mcp_policy_cache_ttl_ms',
+  // EMA legs 1-2 seeded Inspector client identity — an application-level demo
+  // credential, not tied to which PingOne environment is active.
+  'enterprise_idp_inspector_client_id', 'enterprise_idp_inspector_client_secret',
   // ciba
   'ciba_enabled', 'ciba_token_delivery_mode', 'ciba_binding_message',
   'ciba_poll_interval_ms', 'ciba_auth_request_expiry',

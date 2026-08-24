@@ -16,7 +16,12 @@ const crypto = require('crypto');
 let cached = null;
 
 function build() {
-  const pemEnv = process.env.ENTERPRISE_IDP_SIGNING_KEY_PEM;
+  // A .env value can't hold real newlines, so a PEM stored there is commonly
+  // \n-escaped on one line (e.g. "-----BEGIN...-----\nMIIEvQ...\n-----END...").
+  // Only unescape when it looks escaped — a real multi-line PEM already
+  // contains actual newlines and must pass through unchanged.
+  const pemEnvRaw = process.env.ENTERPRISE_IDP_SIGNING_KEY_PEM;
+  const pemEnv = pemEnvRaw && !pemEnvRaw.includes('\n') ? pemEnvRaw.replace(/\\n/g, '\n') : pemEnvRaw;
   const privateKey = pemEnv
     ? crypto.createPrivateKey(pemEnv)
     : crypto.generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey;

@@ -116,6 +116,7 @@ const _SECRET_KEYS_RAW = [
   'gw_introspection_client_secret',
   'pingone_client_jwt_private_key',
   'pingone_mgmt_private_key',
+  'enterprise_idp_inspector_client_secret',
 ];
 // Membership is UPPER-canonical: config keys are stored UPPER everywhere
 // (in-memory cache + LMDB rows), so secret detection must match regardless
@@ -376,6 +377,12 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   enterprise_idp_issuer:           { public: true, default: '' }, // ID-JAG `iss`
   enterprise_idp_jwks_url:         { public: true, default: '' }, // where oauth-mcp fetches verification keys
   enterprise_mcp_as_token_url:     { public: true, default: '' }, // MCP AS token endpoint (HTTP; mcp_server_url is ws://)
+  // EMA legs 1-2 (demo_api_server as enterprise IdP, routes/enterpriseIdp.js):
+  // the seeded client identity MCP Inspector's Client Settings uses. Without
+  // these, a random client is generated per process and rotates on every
+  // restart — see enterpriseIdpClientRegistry.js.
+  enterprise_idp_inspector_client_id:     { public: true, default: '' },
+  enterprise_idp_inspector_client_secret: { public: false, default: '' },
   // The ID-JAG `aud` must equal the MCP AS's OWN issuer, which is not the URL
   // the BFF posts to: oauth-mcp reports https://localhost:8080 while the BFF
   // must reach it at http://mcp-server:8080. Keeping these separate is what
@@ -1161,6 +1168,13 @@ const ENV_FALLBACK_MAP = {
 
   // Agent conversation history
   agent_history_limit:                  ['AGENT_HISTORY_LIMIT'],
+
+  // EMA legs 1-2 seeded Inspector client (see enterpriseIdpClientRegistry.js).
+  // client_id is a plain demo_api_server/.env value; client_secret is
+  // vault-only (never .env) — the vault loader caches it under this exact
+  // alias, which readStored()'s mirror loop needs to find it.
+  enterprise_idp_inspector_client_id:     ['ENTERPRISE_IDP_INSPECTOR_CLIENT_ID'],
+  enterprise_idp_inspector_client_secret: ['ENTERPRISE_IDP_INSPECTOR_CLIENT_SECRET'],
 };
 
 class ConfigStore {
