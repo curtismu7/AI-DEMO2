@@ -144,6 +144,36 @@ describe('NewRelicDashboard', () => {
       expect(apiClient.get).toHaveBeenLastCalledWith('/api/newrelic/pipeline?window=24h'));
   });
 
+  it('finding #61: an older, slower window request does not overwrite a newer one that resolved first', async () => {
+    let call = 0;
+    let resolveFirst, resolveSecond;
+    const firstDeferred = new Promise((r) => { resolveFirst = r; });
+    const secondDeferred = new Promise((r) => { resolveSecond = r; });
+
+    apiClient.get.mockImplementation(() => {
+      call += 1;
+      return call === 1 ? firstDeferred : secondDeferred;
+    });
+
+    renderDash();
+    // First (slow) request: default 1h window, mount effect.
+    await waitFor(() => expect(apiClient.get).toHaveBeenCalledTimes(1));
+
+    // Second (fast) request: user clicks 24h before the first resolves.
+    fireEvent.click(screen.getByRole('button', { name: '24h' }));
+    await waitFor(() => expect(apiClient.get).toHaveBeenCalledTimes(2));
+
+    // The newer (24h) request resolves first.
+    resolveSecond({ data: { ...PAYLOAD, funnel: [{ category: 'oauth', count: 999 }] } });
+    await waitFor(() => expect(screen.getByTestId('stat-oauth')).toHaveTextContent('999'));
+
+    // The older (1h) request resolves after — must NOT overwrite the newer result.
+    resolveFirst({ data: { ...PAYLOAD, funnel: [{ category: 'oauth', count: 13 }] } });
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(screen.getByTestId('stat-oauth')).toHaveTextContent('999');
+  });
+
   describe('search', () => {
     afterEach(() => {
       vi.useRealTimers();

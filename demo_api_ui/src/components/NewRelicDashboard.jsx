@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import apiClient from '../services/apiClient';
 import DashboardShell from './dashboard/DashboardShell';
 import EventStream from './dashboard/EventStream';
@@ -66,14 +66,21 @@ export default function NewRelicDashboard() {
   const [search, setSearch] = useState('');
   const [data, setData] = useState(null);
   const [state, setState] = useState('loading');
+  // Monotonic request id so a slower, older window/search request (e.g. a
+  // 24h query outlived by a 1h one issued right after) can't overwrite the
+  // newer result once it resolves.
+  const reqIdRef = useRef(0);
 
   const load = useCallback(async () => {
+    const reqId = ++reqIdRef.current;
     try {
       const q = search ? `&q=${encodeURIComponent(search)}` : '';
       const res = await apiClient.get(`/api/newrelic/pipeline?window=${win}${q}`);
+      if (reqId !== reqIdRef.current) return;
       setData(res.data);
       setState('ready');
     } catch (err) {
+      if (reqId !== reqIdRef.current) return;
       setState(err?.response?.status === 503 ? 'unconfigured' : 'error');
     }
   }, [win, search]);
