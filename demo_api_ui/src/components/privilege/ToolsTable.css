@@ -161,6 +161,24 @@
 }
 .ptt-execute:hover { background: #1a8cd8; }
 .ptt-execute:disabled { opacity: 0.5; cursor: default; }
+.ptt-enum-fields { display: flex; flex-wrap: wrap; gap: 12px; }
+.ptt-enum-field { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: #ffffff; }
+.ptt-enum-field select {
+  font-size: 13px;
+  color: #ffffff;
+  background: #010409;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  padding: 5px 6px;
+}
+.ptt-missing-required {
+  font-size: 12px;
+  color: #f0b429;
+  background: #3a2e10;
+  border: 1px solid #6b5417;
+  border-radius: 4px;
+  padding: 6px 10px;
+}
 .ptt-result {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-size: 15px;
@@ -218,6 +236,9 @@
 .cur-ide[data-cur-theme="light"] .ptt-none { color: #666; }
 .cur-ide[data-cur-theme="light"] .ptt-args { background: #ffffff; color: #1e1e1e; border-color: #ccc; }
 .cur-ide[data-cur-theme="light"] .ptt-result { background: #f5f5f5; color: #1e1e1e; border-color: #e0e0e0; }
+.cur-ide[data-cur-theme="light"] .ptt-enum-field { color: #1e1e1e; }
+.cur-ide[data-cur-theme="light"] .ptt-enum-field select { background: #ffffff; color: #1e1e1e; border-color: #ccc; }
+.cur-ide[data-cur-theme="light"] .ptt-missing-required { color: #8a5a00; background: #fdf3d9; border-color: #e6d29a; }
 .cur-ide[data-cur-theme="light"] .ptt-present-overlay { background: #ffffff; }
 
 /* Row revealed from the left rail — accent bar + tint so the jump is obvious. */
