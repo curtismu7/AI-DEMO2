@@ -104,11 +104,14 @@ describe('OAuthBrokerRouter /oauth/callback', () => {
     expect(location.searchParams.get('state')).toBe('external-state');
     expect(location.searchParams.get('code')).toBeTruthy();
 
-    // The broker's own code, when consumed, carries the real PingOne token unmodified.
+    // The broker's own code, when consumed, carries the real PingOne token
+    // AND the external client's original PKCE challenge unmodified — the
+    // latter is what makes Task 4's /oauth/token able to verify PKCE at all.
     const brokerCode = location.searchParams.get('code')!;
-    // Access via the same tokenStore instance the router used internally is not
-    // possible from outside; instead assert indirectly through /oauth/token in Task 4.
-    // This test only proves the redirect shape and that axios was called correctly.
+    const issued = tokenStore.consumeCode(brokerCode);
+    expect(issued?.pingOneAccessToken).toBe('REAL-PINGONE-TOKEN');
+    expect(issued?.codeChallenge).toBe('external-challenge');
+    expect(issued?.codeChallengeMethod).toBe('S256');
     expect(mockedAxios.post).toHaveBeenCalledWith(
       expect.stringContaining('/as/token'),
       expect.stringContaining('code_verifier=broker-generated-verifier'),

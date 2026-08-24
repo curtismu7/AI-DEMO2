@@ -228,6 +228,8 @@ export class OAuthBrokerRouter {
       clientId: pending.clientId,
       redirectUri: pending.redirectUri,
       scope: pending.scope,
+      codeChallenge: pending.codeChallenge,
+      codeChallengeMethod: pending.codeChallengeMethod,
       pingOneAccessToken,
       pingOneExpiresIn: expiresIn,
     });

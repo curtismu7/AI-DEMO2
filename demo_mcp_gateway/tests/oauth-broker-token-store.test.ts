@@ -33,7 +33,8 @@ describe('BrokerTokenStore', () => {
     const store = new BrokerTokenStore();
     const code = store.createCode({
       clientId: 'client-1', redirectUri: 'http://127.0.0.1:1234/callback',
-      scope: 'mcp:invoke', pingOneAccessToken: 'real-pingone-jwt', pingOneExpiresIn: 3600,
+      scope: 'mcp:invoke', codeChallenge: 'challenge-abc', codeChallengeMethod: 'S256',
+      pingOneAccessToken: 'real-pingone-jwt', pingOneExpiresIn: 3600,
     });
     const issued = store.consumeCode(code);
     expect(issued).not.toBeNull();
@@ -44,7 +45,8 @@ describe('BrokerTokenStore', () => {
     const store = new BrokerTokenStore();
     const code = store.createCode({
       clientId: 'client-1', redirectUri: 'http://127.0.0.1:1234/callback',
-      scope: 'mcp:invoke', pingOneAccessToken: 't', pingOneExpiresIn: 3600,
+      scope: 'mcp:invoke', codeChallenge: 'challenge-abc', codeChallengeMethod: 'S256',
+      pingOneAccessToken: 't', pingOneExpiresIn: 3600,
     });
     expect(store.consumeCode(code)).not.toBeNull();
     expect(store.consumeCode(code)).toBeNull();
@@ -54,7 +56,8 @@ describe('BrokerTokenStore', () => {
     const store = new BrokerTokenStore();
     const code = store.createCode({
       clientId: 'client-1', redirectUri: 'http://127.0.0.1:1234/callback',
-      scope: 'mcp:invoke', pingOneAccessToken: 't', pingOneExpiresIn: 3600,
+      scope: 'mcp:invoke', codeChallenge: 'challenge-abc', codeChallengeMethod: 'S256',
+      pingOneAccessToken: 't', pingOneExpiresIn: 3600,
     }, -1);
     expect(store.consumeCode(code)).toBeNull();
   });

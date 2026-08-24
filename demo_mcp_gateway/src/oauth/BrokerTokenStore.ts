@@ -22,6 +22,12 @@ export interface IssuedCode {
   clientId: string;
   redirectUri: string;
   scope: string;
+  /** The EXTERNAL client's own PKCE challenge (from /oauth/authorize) —
+   *  carried through so /oauth/token can verify the external client's
+   *  code_verifier before releasing the token. Without this, the broker's
+   *  own authorization code would have no PKCE protection at all. */
+  codeChallenge: string;
+  codeChallengeMethod: string;
   /** The real, unmodified PingOne access token — this IS the artifact the
    *  external client ultimately receives from /oauth/token. */
   pingOneAccessToken: string;
