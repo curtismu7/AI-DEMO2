@@ -1387,6 +1387,11 @@ app.use('/internal', require('./routes/mcpAuditIngest'));
 // per phase here so the BFF can assemble the full chain. Secret-guarded;
 // NOT browser-facing. Read back at /api/transaction-trace.
 app.use('/internal', require('./routes/transactionHopIngest'));
+// Recording façade for external MCP clients (LM Studio, LibreChat) — relays to
+// the Agent Gateway / Privilege doors, writes the hops above in-process, and
+// appends a reel_url to every tool result. No session: the client brings its
+// own bearer. Read back at /api/transaction-trace/embed/:correlationId.
+app.use('/mcp-facade', require('./routes/mcpFacade'));
 // Gateway-only vault-key bridge — IG fetches demo backend API keys (X-API-Key)
 // from here at request time. Secret-guarded + allow-listed; NOT browser-facing.
 app.use('/internal', require('./routes/vaultServiceKey'));
@@ -1453,6 +1458,10 @@ app.use('/api/token-chain', authenticateToken, tokenChainRoutes);
 app.use('/api/token-exchanges', authenticateToken, tokenExchangeLogRouter);
 // Transaction chain of custody — read side. Any logged-in user, matching the
 // accessibility of its Telemetry sibling (the Tracing page).
+// Compact reel for one external-door call (routes/mcpFacade.js mints the id).
+// Mounted BEFORE the authenticated read side: it is opened from a client with
+// no BFF session (an LM Studio reel_url link, a LibreChat artifact iframe).
+app.use('/api/transaction-trace/embed', require('./routes/transactionTraceEmbed'));
 app.use('/api/transaction-trace', authenticateToken, require('./routes/transactionTrace'));
 app.use('/api/token-display', authenticateToken, tokenDisplayRoutes);
 // The tracker dual-writes every /api/* call into a shared __global__ bucket that
