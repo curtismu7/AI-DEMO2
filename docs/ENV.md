@@ -8,8 +8,14 @@ Copy `demo_api_server/.env` to your deployment. All secrets are required.
 
 ### Core Apps
 
-- **User App**: `PINGONE_USER_CLIENT_ID` + `PINGONE_USER_CLIENT_SECRET`
+- **User App**: `PINGONE_USER_CLIENT_ID` (no secret — see below)
   - Used by: BFF OAuth flow for end-user login
+  - **PKCE-only since 2026-08-24**: the PingOne app's Token Endpoint Auth
+    Method is `NONE` (public client), PKCE S256 is `REQUIRED`. `oauthUserService.js`
+    already sends `client_secret` only when one is configured, so
+    `PINGONE_USER_CLIENT_SECRET` is unused and does not need to be set anywhere
+    (vault, `.env`, or the K8s `ai-demo-secrets` Secret). A `user_secret=MISSING`
+    line in the BFF's `[oauth/user/login]` diagnostic log is expected, not a bug.
 
 - **Admin App**: `PINGONE_ADMIN_CLIENT_ID` + `PINGONE_ADMIN_CLIENT_SECRET`
   - Used by: BFF admin login & dashboard backend

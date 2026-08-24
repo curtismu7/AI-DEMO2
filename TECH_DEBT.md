@@ -16,6 +16,57 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-08-24 — `k8s/create-secrets.sh` never falls back to the internal vault, so a vault-only secret silently never reaches the SE K8s Secret
+
+**Where:** `k8s/create-secrets.sh`'s `secret_from_envfile()` (~line 103-154),
+called by `se-update-config.sh` / `run-pingaws.sh update config`.
+
+**What's wrong:** the SE K8s live-canary (`ai-demo.ping-devops.com`) started
+failing every scheduled run with `?error=callback_failed&detail=invalid_client`
+right after PingOne sign-in. The BFF's masked diagnostic log
+(`demo_api_server/routes/oauthUser.js:154-162`) showed `user_secret=MISSING`
+for env `01d89b06`. `PINGONE_USER_CLIENT_SECRET` *is* present in the local
+encrypted vault (`secrets.vault`, confirmed via `npm run vault:list` — names
+only, value not decoded), so it resolves fine for anything running with
+`VAULT_PASSWORD` set (local Docker, native `./run.sh`). But
+`create-secrets.sh` only ever reads `demo_api_server/.env` (dotenvx-decrypted
+if needed, see the script's own `encrypted:` handling at line 113 — that's
+dotenvx's whole-file encryption, a *different* mechanism from
+`configStore.js`'s per-value `encrypted:...` vault-shadow ciphertext added in
+the 2026-08-21 incident). A secret that lives only in the internal vault (not
+as a plain `.env` line) is invisible to this script and never makes it into
+the `ai-demo-secrets` K8s Secret at all. The script's own comment at line
+383-384 already documents the consequence: *"In-cluster the BFF has no vault
+password and no LMDB entry"* — so there's no runtime fallback in the pod
+either. Net effect: any secret migrated into the vault (the whole point of
+the 08-21 hardening) silently stops reaching the SE cluster.
+
+**Why it wasn't fixed now:** the immediate unblock was a one-off
+`vault:get` + `kubectl create secret --dry-run=client -o yaml | kubectl apply`
+patch of the single key (handed to the user to run — reading a decrypted
+vault value and writing a live K8s Secret both correctly hit the agent
+permission classifier's secret-handling guard). The real fix — teaching
+`secret_from_envfile()` to `vault:get` any `ENV_FALLBACK_MAP` key it doesn't
+find in `.env` before giving up on it — touches a deploy script every SE
+session relies on and deserves review on its own, not a same-session
+drive-by.
+
+**Real fix:** in `create-secrets.sh`, after sourcing the (decrypted) `.env`
+and before building the `--from-literal` args, for any key with no value try
+`VAULT_PASSWORD=... node demo_api_server/scripts/vault.js get <KEY>` and use
+that if `.env` came up empty — mirroring `configStore.js`'s own `.env` →
+vault → LMDB resolution order so the K8s path matches local behavior instead
+of silently diverging from it.
+
+**Update 2026-08-24 (same day):** the triggering symptom for
+`PINGONE_USER_CLIENT_SECRET` specifically is now moot — the User Login
+PingOne app (`83572007-b2c7...`) was switched to PKCE-only
+(`tokenEndpointAuthMethod: NONE`), so that key isn't needed anywhere anymore
+(see `docs/ENV.md`). The underlying `create-secrets.sh` gap is still real for
+any *other* vault-only secret (e.g. if `PINGONE_ADMIN_CLIENT_SECRET` is ever
+vault-migrated without also flipping the Admin app to PKCE-only), so this
+entry stays open.
+
 ### [x] 2026-08-24 — `get_my_accounts`'s output schema doesn't match the Banking API's actual response shape
 
 **Where:** `oauth-mcp/src/tools/BankingToolRegistry.ts` (declared output
