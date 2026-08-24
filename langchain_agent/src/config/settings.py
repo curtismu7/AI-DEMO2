@@ -470,18 +470,22 @@ class ConfigManager:
 
         # Same plaintext-on-the-wire concern as HI-04 above: the token exchange
         # sends the auth code, PKCE verifier, and client_secret to token_url.
-        # http:// there would ship credentials in clear text. Only checked when
-        # set — Privilege is opt-in and blank is the (safe) default.
-        if env_name.lower() == "production":
-            for _field_name, _url in (
-                ("PRIVILEGE_MCP_AUTHORIZE_URL", privilege_config.authorize_url),
-                ("PRIVILEGE_MCP_TOKEN_URL", privilege_config.token_url),
-            ):
-                if _url and not _url.startswith("https://"):
-                    raise ValueError(
-                        f"{_field_name} must use https:// in production "
-                        f"(got {_url.split('://')[0]}://...)"
-                    )
+        # http:// there would ship credentials in clear text. Unlike the
+        # MCP_SERVER_*_ENDPOINT check above, this isn't gated to production —
+        # this repo has no sandbox/prod distinction (PingOne credentials are
+        # always real), and there's no legitimate http:// case for a PingOne
+        # cloud endpoint the way MCP_SERVER_*'s local:// covers a same-host
+        # dev gateway. Only checked when set — Privilege is opt-in and blank
+        # is the (safe) default.
+        for _field_name, _url in (
+            ("PRIVILEGE_MCP_AUTHORIZE_URL", privilege_config.authorize_url),
+            ("PRIVILEGE_MCP_TOKEN_URL", privilege_config.token_url),
+        ):
+            if _url and not _url.startswith("https://"):
+                raise ValueError(
+                    f"{_field_name} must use https:// "
+                    f"(got {_url.split('://')[0]}://...)"
+                )
 
         # LangChain configuration
         langchain_config = LangChainConfig(

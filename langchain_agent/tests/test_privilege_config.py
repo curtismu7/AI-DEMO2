@@ -111,6 +111,24 @@ def test_privilege_token_url_plain_http_rejected_in_production():
             mgr.load_config("production")
 
 
+def test_privilege_token_url_plain_http_rejected_in_development_too():
+    # This repo has no sandbox/prod distinction (PingOne credentials are
+    # always real) and there's no legitimate http:// case for a PingOne
+    # cloud endpoint — unlike MCP_SERVER_*_ENDPOINT's local:// dev case, so
+    # the Privilege scheme guard is NOT production-gated. Confirms the
+    # rejection fires under the default ("development") environment too.
+    import src.config.settings as settings_mod
+    env = {
+        **_base_env(),
+        "PRIVILEGE_MCP_AUTHORIZE_URL": "https://privilege.example/authorize",
+        "PRIVILEGE_MCP_TOKEN_URL": "http://privilege.example/token",
+    }
+    with patch.dict(os.environ, env, clear=True):
+        mgr = settings_mod.ConfigManager()
+        with pytest.raises(ValueError, match="PRIVILEGE_MCP_TOKEN_URL must use https://"):
+            mgr.load_config("development")
+
+
 def test_privilege_urls_blank_by_default_in_production():
     # Privilege is opt-in — blank authorize/token URLs must not trip the
     # scheme guard just because ENVIRONMENT=production.
