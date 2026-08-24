@@ -97,6 +97,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 57 | Runtime | `services/pingOneAuthorizeService.js` | medium | FIXED |
 | 58 | Runtime | `services/lighthouseService.js` | low | FIXED |
 | 59 | Runtime | `demo_api_ui/.../pages/PrivilegeMcpClientPage.jsx` | medium | FIXED |
+| 60 | Runtime | `demo_api_ui/.../components/AgentGatewayLogPanel.jsx` | low | FIXED |
 
 ---
 
@@ -1823,10 +1824,47 @@ mid-drag`) proven to fail against the pre-fix file (`setPointerCapture`
 never called — the old code used plain mouse events) and pass against the
 fix. All 6 sibling test files for this page (17 tests total) still pass.
 
+### 60. Stale-response race: overlapping log fetches can overwrite newer results with older ones — FIXED
+
+**File:** `demo_api_ui/src/components/AgentGatewayLogPanel.jsx`, line 44
+
+**Issue:** `fetchLogs`/`fetchDecisions`, wired through `refresh()` and both
+an initial-load effect and a 4s autoRefresh interval (plus the filter
+input's Enter key calling `fetchLogs()` directly), had no request
+sequencing (no requestId guard, no `AbortController`). Multiple in-flight
+calls to `/api/admin/agent-gateway/logs` could resolve out of order.
+
+**Trigger scenario:** User changes the filter input and presses Enter
+while a previous `fetchLogs()` (triggered by the prior filter, or by the
+4s autoRefresh tick against a slow docker-log tail read) is still in
+flight. If the older request's response arrived after the newer one,
+`setLogs`/`setLogError` from the stale request overwrote the fresh state,
+silently showing log lines that don't match the currently-selected
+filter/tail.
+
+**Fix:** Added a monotonically incrementing ref for each fetcher
+(`logsReqIdRef`, `decisionsReqIdRef`), captured at the start of each call
+and checked before every `setState` call (success and error/finally
+paths) — a response only applies if it's still the most recently issued
+request for that fetcher.
+
+**Evidence:** New test
+`demo_api_ui/src/components/__tests__/AgentGatewayLogPanel.staleResponse.test.jsx`
+(`an older filter request does not overwrite a newer one that resolved
+first`) uses deferred promises to resolve a newer request before an older
+one — proven to fail against the pre-fix file (rendered "OLD line"
+instead of "NEW line") and pass against the fix.
+
 ---
 
 ## Changelog
 
+- 2026-08-23 — #60 FIXED: `AgentGatewayLogPanel.jsx`'s `fetchLogs`/
+  `fetchDecisions` gained monotonic request-id refs, checked before every
+  `setState`, closing the window where an older, slower overlapping fetch
+  (a previous filter, or a stale autoRefresh tick) could overwrite a newer
+  response. New test proven to fail against the pre-fix file and pass
+  against the fix.
 - 2026-08-23 — #59 FIXED: `PrivilegeMcpClientPage.jsx`'s sidebar/terminal
   resize handles switched from mouse events to pointer events with
   `setPointerCapture`, so `pointermove`/`pointerup` keep being delivered
