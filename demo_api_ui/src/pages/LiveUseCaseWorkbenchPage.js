@@ -226,6 +226,21 @@ export default function LiveUseCaseWorkbenchPage() {
   useEffect(() => { storeWidth(DRAWER_KEY, drawerW); }, [drawerW]);
   useEffect(() => { storeWidth(AGENT_KEY, agentW); }, [agentW]);
 
+  // Cache the run-layout width via ResizeObserver instead of reading
+  // getBoundingClientRect() inline in JSX (aria-valuemax below), which would
+  // force a synchronous layout read on every render — including every
+  // pointermove while dragging the resize divider.
+  const [runLayoutWidth, setRunLayoutWidth] = useState(0);
+  useEffect(() => {
+    const el = runLayoutRef.current;
+    if (!el) return undefined;
+    const update = () => setRunLayoutWidth(el.getBoundingClientRect().width);
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(update) : null;
+    if (ro) ro.observe(el);
+    update();
+    return () => ro?.disconnect();
+  }, []);
+
   /**
    * Drag a vertical divider until pointerup, feeding each clientX to `apply`.
    * @param {import('react').PointerEvent} e
@@ -683,7 +698,7 @@ export default function LiveUseCaseWorkbenchPage() {
                 aria-label="Resize agent and token chain columns"
                 aria-valuenow={agentW ?? PANE_MIN}
                 aria-valuemin={PANE_MIN}
-                aria-valuemax={Math.max(PANE_MIN, Math.round(runLayoutRef.current?.getBoundingClientRect().width ?? 0) - PANE_MIN)}
+                aria-valuemax={Math.max(PANE_MIN, Math.round(runLayoutWidth) - PANE_MIN)}
                 tabIndex={0}
                 onPointerDown={(e) => startResize(e, applyAgentW)}
                 onDoubleClick={() => setAgentW(null)}
