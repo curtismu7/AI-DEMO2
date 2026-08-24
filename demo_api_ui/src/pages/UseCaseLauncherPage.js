@@ -7,7 +7,7 @@
  * A5.2 (slim launch drawer on /agent) — NOT included here; deferred.
  * A5.3 — FF-aware notice + inline toggle; Run auto-enables required flags.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AttackAnatomyExplainer from '../components/AttackAnatomyExplainer';
 import GroupMembershipToggle from '../components/GroupMembershipToggle';
@@ -922,33 +922,46 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
       });
   }, [recordCompleted]);
 
-  const happyPathAll = useCases.filter(
-    (uc) => uc.expectedOutcome === 'PERMIT' && !PROGRESSIVE_TRUST_STRIP_IDS.has(uc.id)
+  // These derivations used to run directly in the render body on every
+  // render (including unrelated state changes elsewhere in this large
+  // component), re-scanning the full cross-vertical use-case catalog on
+  // every keystroke in the search box. Memoized on the inputs that
+  // actually change: the `*All`/id-Set derivations depend only on
+  // `useCases` (or nothing, for the static config lookups), and the
+  // query-filtered lists depend on those plus `query` (finding #66,
+  // round-4 audit).
+  const authorizeIds = useMemo(() => new Set(allPingOneAuthorizeUCIds()), []);
+  const agentGatewayIds = useMemo(() => new Set(allAgentGatewayUCIds()), []);
+
+  const happyPathAll = useMemo(
+    () => useCases.filter(
+      (uc) => uc.expectedOutcome === 'PERMIT' && !PROGRESSIVE_TRUST_STRIP_IDS.has(uc.id)
+    ),
+    [useCases]
   );
-  const happyPathIds = new Set(happyPathAll.map((uc) => uc.id));
-  const happyPath = happyPathAll.filter((uc) => matchesQuery(uc, query));
+  const happyPathIds = useMemo(() => new Set(happyPathAll.map((uc) => uc.id)), [happyPathAll]);
+  const happyPath = useMemo(() => happyPathAll.filter((uc) => matchesQuery(uc, query)), [happyPathAll, query]);
 
-  const authorizeIds = new Set(allPingOneAuthorizeUCIds());
-  const authorizeAll = useCases.filter((uc) => authorizeIds.has(uc.id));
-  const authorizeVisible = authorizeAll.filter((uc) => matchesQuery(uc, query));
+  const authorizeAll = useMemo(() => useCases.filter((uc) => authorizeIds.has(uc.id)), [useCases, authorizeIds]);
+  const authorizeVisible = useMemo(() => authorizeAll.filter((uc) => matchesQuery(uc, query)), [authorizeAll, query]);
 
-  const grouped = TRACK_ORDER.map((track) => ({
+  const grouped = useMemo(() => TRACK_ORDER.map((track) => ({
     track,
     items: useCases
       .filter((uc) => uc.track === track && !happyPathIds.has(uc.id))
       .filter((uc) => matchesQuery(uc, query)),
-  }));
+  })), [useCases, happyPathIds, query]);
 
-  const demoTrackItemsForStrip = useCases.filter((uc) => uc.track === 'demo');
+  const demoTrackItemsForStrip = useMemo(() => useCases.filter((uc) => uc.track === 'demo'), [useCases]);
 
-  const demoAll = DEMO_USE_CASE_IDS
-    .map((id) => useCases.find((uc) => uc.id === id))
-    .filter(Boolean);
-  const demoVisible = demoAll.filter((uc) => matchesQuery(uc, query));
+  const demoAll = useMemo(
+    () => DEMO_USE_CASE_IDS.map((id) => useCases.find((uc) => uc.id === id)).filter(Boolean),
+    [useCases]
+  );
+  const demoVisible = useMemo(() => demoAll.filter((uc) => matchesQuery(uc, query)), [demoAll, query]);
 
-  const agentGatewayIds = new Set(allAgentGatewayUCIds());
-  const agentGatewayAll = useCases.filter((uc) => agentGatewayIds.has(uc.id));
-  const agentGatewayVisible = agentGatewayAll.filter((uc) => matchesQuery(uc, query));
+  const agentGatewayAll = useMemo(() => useCases.filter((uc) => agentGatewayIds.has(uc.id)), [useCases, agentGatewayIds]);
+  const agentGatewayVisible = useMemo(() => agentGatewayAll.filter((uc) => matchesQuery(uc, query)), [agentGatewayAll, query]);
 
   const isSearching = query.trim().length > 0;
   // getDisplayItems mirrors the demo-track STRIP_IDS exclusion applied at
