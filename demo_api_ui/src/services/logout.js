@@ -10,6 +10,7 @@
  * We then navigate to the PingOne signoff URL directly.
  */
 import { nrLog } from '../utils/nrLog';
+import { notifyError } from '../utils/appToast';
 
 export function performLogout() {
   nrLog('ui.logout', { page: window.location.pathname });
@@ -19,6 +20,11 @@ export function performLogout() {
       window.location.href = logoutUrl || '/';
     })
     .catch(() => {
-      window.location.href = '/';
+      // The fetch itself failed (network error, aborted request) — the BFF
+      // never got a chance to clear the session cookie. Navigating to '/'
+      // here would look identical to a successful logout while the session
+      // is still live. Surface the failure and stay put instead, so the
+      // user can retry rather than believing they're signed out.
+      notifyError('Logout failed — please try again.');
     });
 }
