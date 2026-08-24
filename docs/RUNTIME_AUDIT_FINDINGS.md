@@ -105,6 +105,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 65 | Perf | `services/configStore.js` | medium | FIXED |
 | 66 | Perf | `demo_api_ui/.../pages/UseCaseLauncherPage.js` | medium | FIXED |
 | 67 | Runtime | `demo_mcp_gateway/src/server/GatewayServer.ts` | medium | FIXED |
+| 68 | Perf | `demo_mcp_gateway/src/rateLimit.ts` | medium | FIXED |
 
 ---
 
@@ -2123,10 +2124,54 @@ Full related suite green: `gateway-sse-client-close.test.js`,
 `gateway-server.test.js`, and the new test — 23 tests. `npm run build`
 (tsc) green.
 
+### 68. Rate-limit key map grows without bound — no cap, no eviction — FIXED
+
+**File:** `demo_mcp_gateway/src/rateLimit.ts`, line 40 (`SlidingWindowLimiter`)
+
+**Issue:** `_windows` (`Map<string, number[]>` keyed by `${sub}:${toolName}`)
+filtered each key's own timestamp array down to the live window on every
+`check()` call, but never removed the Map entry itself — even when the
+filtered array went empty, the code still `.set()` the key back in. Unlike
+every sibling per-caller cache in this codebase
+(`McpTokenExchangeClient`'s exchange cache, `GatewayIntrospectionClient`'s
+introspection cache — both capped via `boundedTokenCache.ts`'s
+`cacheInsertWithEviction`), this Map had no cap and no periodic sweep.
+
+**Trigger scenario:** With `GATEWAY_RATE_LIMIT_ENABLED=true` (UC18),
+`checkRateLimit()` runs on every `tools/call`, both WS
+(`index.ts handleMessage`) and HTTP (`middleware/authorizeMcpRequest.ts`)
+transports, keyed by verified subject + tool name. Over the gateway
+process's lifetime (it runs for days/weeks in the demo stack), every
+distinct (user, tool) pair ever seen — across logins, token rotations, and
+different agent actors — added a permanent entry that was never reclaimed.
+
+**Fix:** Reused the existing `cacheInsertWithEviction` sweep-expired-
+then-FIFO-evict helper (`boundedTokenCache.ts`) that the sibling caches
+already use — the value shape became `{ timestamps, expiresAt }` (expiry =
+when this key's own window fully clears) so it fits the helper's generic
+`{ expiresAt: number }` contract, capped at 1000 tracked keys
+(`RATE_LIMIT_WINDOWS_MAX`, matching `McpTokenExchangeClient`'s existing
+cap convention). No functional change to rate-limiting behavior itself.
+
+**Evidence:** New test in `demo_mcp_gateway/tests/rateLimit.test.ts`
+(`caps total tracked keys instead of growing unboundedly`) calls `check()`
+with 1500 distinct keys and asserts the internal Map never exceeds 1000
+entries — proven to fail against the pre-fix file (`Received: 1500`) and
+pass against the fix. Full related suite green: `rateLimit.test.ts`,
+`adminConfig-ratelimit.test.ts`, `authorizeMcpRequest-rateLimit.test.ts` —
+29 tests, no regressions. `npm run build` (tsc) green.
+
 ---
 
 ## Changelog
 
+- 2026-08-24 — #68 FIXED (round 5 — new-area audit): `rateLimit.ts`'s
+  `SlidingWindowLimiter._windows` Map is now capped at 1000 tracked keys via
+  the existing `cacheInsertWithEviction` sweep+FIFO-evict helper (already
+  used by this codebase's other per-caller caches) instead of growing
+  without bound for the gateway process's lifetime. New test proven to
+  fail against the pre-fix file (1500 unbounded entries) and pass against
+  the fix (capped at 1000); 29 related tests + `tsc` build green.
 - 2026-08-24 — #67 FIXED (round 5 — new-area audit): `GatewayServer.ts`'s
   GET `/mcp` SSE passthrough now ends the client-facing response when the
   upstream connection resets mid-stream, instead of leaving it open
