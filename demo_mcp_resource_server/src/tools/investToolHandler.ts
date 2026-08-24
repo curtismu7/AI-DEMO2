@@ -98,9 +98,14 @@ export async function handleGetInvestmentTransactions(
 // --- SQLite-backed handlers (no banking API configured) ------------------
 // Same response shapes as the BFF routes above (demo_api_server/routes/investment.js)
 // so a caller sees identical fields regardless of which backend answered.
+// Transactions come back in store order (seed order), as the BFF returns them.
+// One deliberate difference: the BFF's transactions route does not check that
+// account_id belongs to the caller; this path does, like balance and summary.
 
-function accountNotFound(accountId: string): { error: string; accountId: string; status: string } {
-  return { error: 'account not found', accountId, status: 'not_found' };
+// Thrown, not returned, so index.ts reports it as isError:true — the same
+// MCP-level signal the BFF path gives when its 404 makes axios throw.
+function accountNotFound(accountId: string): never {
+  throw new Error(`account not found: ${accountId}`);
 }
 
 function handleGetInvestmentAccountsSqlite(subject: string): unknown {

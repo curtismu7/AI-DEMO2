@@ -63,20 +63,20 @@ describe('invest tools on bundled SQLite (no banking API)', () => {
     expect(res.portfolios[1].portfolioType).toBe('Retirement');
   });
 
-  it('get_investment_transactions is newest-first and honours limit', async () => {
+  it('get_investment_transactions is in store order (as the BFF returns it) and honours limit', async () => {
     const res = await dispatchTool('get_investment_transactions', { account_id: 'INV-8842', limit: 2 }, 'tok', 'sub') as {
       transactions: Array<{ id: string }>;
     };
-    expect(res.transactions.map((t) => t.id)).toEqual(['TRD-3004', 'TRD-3003']);
+    expect(res.transactions.map((t) => t.id)).toEqual(['TRD-3001', 'TRD-3002']);
   });
 
-  it('rejects an account the investor does not own', async () => {
-    const res = await dispatchTool('get_investment_balance', { account_id: 'PF-99' }, 'tok', 'sub');
-    expect(res).toEqual({ error: 'account not found', accountId: 'PF-99', status: 'not_found' });
+  it('throws for an account the investor does not own, so the MCP result is isError:true', async () => {
+    await expect(dispatchTool('get_investment_balance', { account_id: 'PF-99' }, 'tok', 'sub'))
+      .rejects.toThrow('account not found: PF-99');
   });
 
   it('does not re-seed over an out-of-band edit', async () => {
-    withDb((db) => db.prepare("UPDATE trades SET status = 'Reversed' WHERE id = 'TRD-3004'").run());
+    withDb((db) => db.prepare("UPDATE trades SET status = 'Reversed' WHERE id = 'TRD-3001'").run());
     const res = await dispatchTool('get_investment_transactions', { account_id: 'INV-8842', limit: 1 }, 'tok', 'sub') as {
       transactions: Array<{ status: string }>;
     };
