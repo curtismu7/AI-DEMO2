@@ -223,7 +223,7 @@ endpoints:
       titleModel: 'demo-llm-proxy'
 
 mcpServers:
-  privilege:
+  privilege-agentless:
     type: streamable-http
     url: 'https://cmuir-agentless-mcpgw.ping-devops.com/external/mcp'
     # No oauth: block — see this plan's "Judgment call" section above.
@@ -231,6 +231,31 @@ mcpServers:
     # against the gateway's /external/authorize is tried first.
     timeout: 60000
 ```
+
+(The committed file grew past this: it now also declares `aidemo-mcp` and
+`opensearch-privilege-agent` plus the `mcpSettings.allowedAddresses` they
+need — see "Default MCP servers" below. The block above is the minimum that
+Task 5 was proven against.)
+
+### Default MCP servers (added 2026-08-24, after Task 5)
+
+The file now declares the same three doors the AI Gateway client page
+(`/privilege-mcp-client`) offers, so LibreChat can demo each without editing
+config:
+
+| key | fronts | how it gets in | auth | proven |
+|---|---|---|---|---|
+| `aidemo-mcp` | this repo's banking `mcp-server` | `http://host.docker.internal:8080/mcp` | none — the local stack runs `MCP_AUTH_DISABLED=true`; an admin `apiKey` block is declared only so LibreChat's startup probe does not flag the server's RFC 9728 metadata as "OAuth Required" (it would then refuse the flow: metadata names `localhost:8080`, not the Docker alias) | ✅ "Ran get_my_accounts in aidemo-mcp" → 4 accounts (2026-08-24 21:49) |
+| `opensearch-privilege-agent` | `cm-mcpgw-opensearch-mcp-server` (K8s ns `ping-devops-curtismuir`) via the AI Gateway | `https://opensearch.default.applications.procyon.ai:8643/mcp` — the Mac-local Priv Agent listener, aliased to the host in `docker-compose.yml` `extra_hosts` so SNI/Host carry the Frontend Name; its procyon `TenantRoot` CA is trusted via `NODE_EXTRA_CA_CERTS=/app/procyon-tenant-root.crt` | none — the agent is the identity | reaches the gateway; currently `403 User b1645e7b… doesn't have access to MCP app opensearch` = the time-boxed Privilege policy has lapsed (re-author it in the console: Agentic Apps → opensearch → Policy) |
+| `privilege-agentless` | banking `mcp-server` via the `external` Agentless application | `https://cmuir-agentless-mcpgw.ping-devops.com/external/mcp` | LibreChat native OAuth (DCR + PKCE) → PingOne | ✅ Task 5 |
+
+Every host-gateway alias resolves to a private IP, which LibreChat's SSRF
+guard rejects unless the `host:port` is listed under
+`mcpSettings.allowedAddresses` (hostname is matched before DNS, so the alias
+itself is enough). A different-origin proxy in front of any of these can
+never pass LibreChat's OAuth — `assertResourceBoundToServer` binds the
+metadata `resource` origin to the configured URL — which is why the direct
+door only works because auth is disabled on it.
 
 - [ ] **Step 2: Validate the YAML parses**
 
@@ -287,7 +312,7 @@ This task is the spec's actual "done when" criterion (§4) and, like the sibling
 
 - [x] **Step 1: Open LibreChat and build a scoped Agent**
 
-Navigate to `http://localhost:3080` in a browser and create/sign in to a local LibreChat account (this is LibreChat's own account system, backed by the `mongodb` container — unrelated to PingOne). This LibreChat build (`v0.8.8-rc1`) routes every chat through an Agent, and the Agent is also what keeps the tool catalog small enough for the local model — the plain chat picker attaches all 242 `privilege` tools (~30k tokens of schema), more than the 16k-context gpt-oss tier holds. So: **Agent Builder → Create New Agent** → name it → **Select a model** → provider **Local LLM Proxy**, model **`gpt-oss-20b`** (not `demo-llm-proxy`: that routes to the phi tier, which is started without `--jinja` and silently drops the `tools` field — `prompt_tokens` stays at 9 with a tool attached) → **Back to builder** → **Tools → Add → privilege → Configure** → toggle **only `get_my_accounts`** (leave "Select all" off) → close both dialogs → **Create**. Verify with `docker exec librechat-mongodb mongo --quiet LibreChat --eval 'printjson(db.agents.find({},{model:1,tools:1}).toArray())'` — expected `model: "gpt-oss-20b"` and `tools` containing `get_my_accounts_mcp_privilege` and nothing else from the server (plus the `sys__server__sys_mcp_privilege` marker).
+Navigate to `http://localhost:3080` in a browser and create/sign in to a local LibreChat account (this is LibreChat's own account system, backed by the `mongodb` container — unrelated to PingOne). This LibreChat build (`v0.8.8-rc1`) routes every chat through an Agent, and the Agent is also what keeps the tool catalog small enough for the local model — the plain chat picker attaches all 242 `privilege` tools (~30k tokens of schema), more than the 16k-context gpt-oss tier holds. So: **Agent Builder → Create New Agent** → name it → **Select a model** → provider **Local LLM Proxy**, model **`gpt-oss-20b`** (not `demo-llm-proxy`: that routes to the phi tier, which is started without `--jinja` and silently drops the `tools` field — `prompt_tokens` stays at 9 with a tool attached) → **Back to builder** → **Tools → Add → privilege-agentless → Configure** → toggle **only `get_my_accounts`** (leave "Select all" off) → close both dialogs → **Create**. Verify with `docker exec librechat-mongodb mongo --quiet LibreChat --eval 'printjson(db.agents.find({},{model:1,tools:1}).toArray())'` — expected `model: "gpt-oss-20b"` and `tools` containing `get_my_accounts_mcp_privilege-agentless` and nothing else from the server (plus the `sys__server__sys_mcp_privilege-agentless` marker; the server was named `privilege` when this was first proven).
 
 - [x] **Step 2: Trigger the Privilege MCP server's OAuth flow**
 
@@ -314,6 +339,6 @@ Complete the PingOne login as the Super Sports demo user (`demoUser`, per this r
 
 Ask the chat: "What are my account balances?" (or equivalent, prompting `get_my_accounts`). Expected: the model calls the `privilege` MCP server's `get_my_accounts` tool and the response contains real Super Sports account data — matching the same acceptance criterion already proven for this exact application via `curl`/Postman in `privilege/AGENTLESS-CONFIGURATION.md`'s `2026-08-24` entry, now proven through LibreChat's own browser-based OAuth flow instead.
 
-**Proven 2026-08-24 21:27** with the Agent from Step 1 (after MCP Settings → privilege → Connect completed the PingOne OAuth popup and showed "Connected to: privilege"): the reply rendered "Ran get_my_accounts in privilege · 3.3s" and then "Your checking account (****3896) has a current balance of $5 000 USD." `ai-demo-llm-proxy` logged `POST /v1/chat/completions → gpt-oss-20b (class 1 via model=gpt-oss-20b)`, confirming the tier routing. (The conversation title still times out — `titleModel` is the phi tier — cosmetic.)
+**Proven 2026-08-24 21:27** with the Agent from Step 1 (after MCP Settings → privilege-agentless → Connect completed the PingOne OAuth popup and showed "Connected to: privilege"): the reply rendered "Ran get_my_accounts in privilege · 3.3s" and then "Your checking account (****3896) has a current balance of $5 000 USD." `ai-demo-llm-proxy` logged `POST /v1/chat/completions → gpt-oss-20b (class 1 via model=gpt-oss-20b)`, confirming the tier routing. (The conversation title still times out — `titleModel` is the phi tier — cosmetic.)
 
 - [ ] **Step 5: No commit** — verification only. A failure here means re-opening Task 3 (config) or investigating the gateway/PingOne side per Step 2a — not patching this task.
