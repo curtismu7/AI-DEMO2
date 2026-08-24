@@ -10,6 +10,7 @@ cache: true
 mcpSettings:
   allowedAddresses:
     - 'host.docker.internal:8080'
+    - 'host.docker.internal:9900'
     - 'opensearch.default.applications.procyon.ai:8643'
 
 endpoints:
@@ -69,7 +70,20 @@ mcpServers:
       key: none
     timeout: 60000
 
-  # 2. OpenSearch via the Priv Agent — the cm-mcpgw gateway in K8s
+  # 2. OpenSearch direct, no Privilege — the same K8s opensearch-mcp-server
+  #    the two Privilege doors below front, reached over a kubectl
+  #    port-forward on the Mac (the Service is ClusterIP-only; there is
+  #    deliberately no public ingress for an unauthenticated MCP server):
+  #      kubectl --context us -n ping-devops-curtismuir \
+  #        port-forward svc/cm-mcpgw-opensearch-mcp-server 9900:80
+  #    Nine tools (ListIndexTool, ClusterHealthTool, SearchIndexTool, ...).
+  #    Shows as failed at startup until the port-forward is running.
+  opensearch-direct:
+    type: streamable-http
+    url: 'http://host.docker.internal:9900/mcp'
+    timeout: 60000
+
+  # 3. OpenSearch via the Priv Agent — the cm-mcpgw gateway in K8s
   #    (ns ping-devops-curtismuir, k8s/helm/mcpgw) fronting
   #    cm-mcpgw-opensearch-mcp-server, reached through the Mac-local agent
   #    listener on :8643 (privilege/AGENT-CONFIGURATION.md). Reached
@@ -95,7 +109,7 @@ mcpServers:
       key: none
     timeout: 60000
 
-  # 3. Via the Agentless gateway — the `external` Privilege application
+  # 4. Via the Agentless gateway — the `external` Privilege application
   #    (privilege/AGENTLESS-CONFIGURATION.md, 2026-08-24 entry).
   privilege-agentless:
     type: streamable-http
