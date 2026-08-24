@@ -172,20 +172,25 @@ export class OAuthRouter {
     pingOneAuthorize.searchParams.set('client_id', pingOneClientId);
     pingOneAuthorize.searchParams.set('redirect_uri', callbackUri);
     pingOneAuthorize.searchParams.set('response_type', 'code');
-    pingOneAuthorize.searchParams.set('scope', 'openid profile email');
     pingOneAuthorize.searchParams.set('state', relayState);
     pingOneAuthorize.searchParams.set('code_challenge', pingOneCodeChallenge);
     pingOneAuthorize.searchParams.set('code_challenge_method', 'S256');
     // RFC 8707 resource, NOT audience — PingOne honors resource= and silently
     // ignores audience= (same trap documented in TokenResolver.ts's Step 9
-    // exchange). Without this, the federated PingOne token is generic
-    // (openid profile email only) and the Banking API rejects it as
-    // invalid_token even though it's a genuine, correctly-federated token —
-    // confirmed live: Step 9 correctly found and forwarded it, and the
-    // Banking API still 401'd because it was never scoped to this resource.
+    // exchange). resource= alone isn't enough either: PingOne only attaches a
+    // resource's audience to the token when the scope list actually includes
+    // a scope that resource owns (confirmed live — resource= with only
+    // 'openid profile email' still came back audienced to PingOne's own
+    // default, even after granting this client access to the resource).
+    // 'read' is the Demo API resource's broadest scope; Step 9 narrows further
+    // per-tool downstream, so this only needs to get PingOne to pick the
+    // right audience, not to authorize anything by itself.
     const bankingApiResourceUri = process.env.BANKING_API_RESOURCE_URI;
     if (bankingApiResourceUri) {
       pingOneAuthorize.searchParams.set('resource', bankingApiResourceUri);
+      pingOneAuthorize.searchParams.set('scope', 'openid profile email read');
+    } else {
+      pingOneAuthorize.searchParams.set('scope', 'openid profile email');
     }
 
     res.writeHead(302, { Location: pingOneAuthorize.toString() });

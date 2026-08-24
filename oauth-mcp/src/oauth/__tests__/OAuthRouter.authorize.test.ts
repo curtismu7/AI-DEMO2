@@ -148,6 +148,17 @@ describe('OAuthRouter — real PingOne-backed /authorize', () => {
     expect(location.searchParams.has('audience')).toBe(false);
   });
 
+  it('GET /authorize adds a banking scope alongside resource=, since PingOne only attaches a resource\'s audience when the scope list includes a scope it owns', async () => {
+    process.env.BANKING_API_RESOURCE_URI = 'enduser.ping.demo';
+    const call = fakeReqRes('GET',
+      '/authorize?client_id=mcp-inspector&redirect_uri=http://localhost:6274/oauth/callback&response_type=code&code_challenge=abc&state=client-state-1');
+
+    await router.handle(call.req, call.res);
+    const location = new URL((call as any).headers.Location);
+
+    expect(location.searchParams.get('scope')).toBe('openid profile email read');
+  });
+
   it('GET /authorize omits resource= entirely when BANKING_API_RESOURCE_URI is not configured', async () => {
     delete process.env.BANKING_API_RESOURCE_URI;
     const call = fakeReqRes('GET',
@@ -157,6 +168,7 @@ describe('OAuthRouter — real PingOne-backed /authorize', () => {
     const location = new URL((call as any).headers.Location);
 
     expect(location.searchParams.has('resource')).toBe(false);
+    expect(location.searchParams.get('scope')).toBe('openid profile email');
   });
 
   it('/authorize/callback\'s token exchange also carries resource=, matching what was bound at /authorize', async () => {
