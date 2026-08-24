@@ -112,11 +112,16 @@ services:
       ENTERPRISE_IDP_ISSUER: "${ENTERPRISE_IDP_ISSUER:-https://idp.ping.demo}"
       ENTERPRISE_IDP_JWKS_URL: "${ENTERPRISE_IDP_JWKS_URL:-https://demo-api-server:3001/api/enterprise-idp/jwks}"
       # Where the BFF POSTS the grant vs the audience it names in the assertion.
-      # These deliberately differ: oauth-mcp publishes its issuer as
-      # https://localhost:8080 but is reachable in-network at mcp-server:8080,
-      # and `aud` must equal the issuer or verification fails on audience.
+      # These deliberately differ: oauth-mcp publishes its issuer via
+      # OAUTH_ISSUER (http://localhost:8080 in compose — set on mcp-server so
+      # MCP Inspector's TLS-less discovery works) but is reachable in-network
+      # at mcp-server:8080, and `aud` must equal the issuer or verification
+      # fails on audience. The scheme here MUST track mcp-server's
+      # OAUTH_ISSUER: auth.js's ID-JAG filter and idJagService's `aud` both
+      # read this value, and an https/http mismatch makes every self-issued
+      # token fall through to PingOne validation → 401 invalid_token.
       ENTERPRISE_MCP_AS_TOKEN_URL: "${ENTERPRISE_MCP_AS_TOKEN_URL:-http://mcp-server:8080/token}"
-      ENTERPRISE_MCP_AS_ISSUER: "${ENTERPRISE_MCP_AS_ISSUER:-https://localhost:8080}"
+      ENTERPRISE_MCP_AS_ISSUER: "${ENTERPRISE_MCP_AS_ISSUER:-http://localhost:8080}"
       # enterpriseMcpPolicyService.getAllowedResourceUris() defaults to the
       # scope-topology gateway-routed audiences (mcpserver.ping.demo,
       # mcpgateway.ping.demo) only — an external EMA client connecting
