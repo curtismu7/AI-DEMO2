@@ -4,9 +4,9 @@
   "ucId": "UC34",
   "trigger": "Check for unusual patterns in my recent activity",
   "expectedOutcome": "PERMIT",
-  "capturedAt": "2026-07-27T00:26:51.387Z",
-  "seedHash": "956244bc8453547f",
-  "reply": "Here is your Patient Records.",
+  "capturedAt": "2026-08-24T13:58:26.828Z",
+  "seedHash": "b473f7681d702ce5",
+  "reply": "Delegation complete — Records Specialist retrieved sensitive patient records on your behalf (act-chain depth 2).",
   "agentPath": null,
-  "tokenEventCount": 19
+  "tokenEventCount": 40
 }

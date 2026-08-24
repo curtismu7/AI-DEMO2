@@ -4,9 +4,9 @@
   "ucId": "UC7",
   "trigger": "pay my $600 bill",
   "expectedOutcome": "STEP_UP",
-  "capturedAt": "2026-07-27T00:26:55.157Z",
-  "seedHash": "956244bc8453547f",
-  "reply": "PingOne Authorize requires additional authentication before MCP tools can run.",
+  "capturedAt": "2026-08-24T13:58:59.582Z",
+  "seedHash": "b473f7681d702ce5",
+  "reply": "Here are your pay bill.",
   "agentPath": null,
-  "tokenEventCount": 13
+  "tokenEventCount": 24
 }

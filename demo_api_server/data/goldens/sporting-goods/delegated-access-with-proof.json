@@ -4,9 +4,9 @@
   "ucId": "UC1",
   "trigger": "my gear",
   "expectedOutcome": "PERMIT",
-  "capturedAt": "2026-07-27T00:28:07.600Z",
-  "seedHash": "c48bf4072b509915",
+  "capturedAt": "2026-08-24T14:02:06.119Z",
+  "seedHash": "bbfe417d11c6b000",
   "reply": "Here are your Purchases (6 total).",
   "agentPath": null,
-  "tokenEventCount": 19
+  "tokenEventCount": 24
 }

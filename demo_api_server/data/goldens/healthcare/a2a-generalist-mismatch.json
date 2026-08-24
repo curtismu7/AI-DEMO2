@@ -1,0 +1,12 @@
+{
+  "vertical": "healthcare",
+  "useCaseId": "a2a-generalist-mismatch",
+  "ucId": "UC2.6",
+  "trigger": "simulate an agent identity mismatch",
+  "expectedOutcome": "PERMIT_THEN_DENY",
+  "capturedAt": "2026-08-24T13:57:14.486Z",
+  "seedHash": "b473f7681d702ce5",
+  "reply": "Delegation complete — Records Specialist retrieved sensitive patient records on your behalf (act-chain depth 2).",
+  "agentPath": null,
+  "tokenEventCount": 20
+}

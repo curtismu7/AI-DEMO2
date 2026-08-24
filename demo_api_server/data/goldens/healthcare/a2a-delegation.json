@@ -4,9 +4,9 @@
   "ucId": "UC2",
   "trigger": "show my sensitive patient records",
   "expectedOutcome": "PERMIT",
-  "capturedAt": "2026-07-27T21:19:07.409Z",
-  "seedHash": "956244bc8453547f",
+  "capturedAt": "2026-08-24T13:57:12.543Z",
+  "seedHash": "b473f7681d702ce5",
   "reply": "Delegation complete — Records Specialist retrieved sensitive patient records on your behalf (act-chain depth 2).",
   "agentPath": null,
-  "tokenEventCount": 14
+  "tokenEventCount": 19
 }
