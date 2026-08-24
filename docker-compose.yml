@@ -117,6 +117,16 @@ services:
       # and `aud` must equal the issuer or verification fails on audience.
       ENTERPRISE_MCP_AS_TOKEN_URL: "${ENTERPRISE_MCP_AS_TOKEN_URL:-http://mcp-server:8080/token}"
       ENTERPRISE_MCP_AS_ISSUER: "${ENTERPRISE_MCP_AS_ISSUER:-https://localhost:8080}"
+      # enterpriseMcpPolicyService.getAllowedResourceUris() defaults to the
+      # scope-topology gateway-routed audiences (mcpserver.ping.demo,
+      # mcpgateway.ping.demo) only — an external EMA client connecting
+      # DIRECTLY to mcp-server (bypassing the gateway, e.g. MCP Inspector at
+      # http://localhost:8080/mcp for local testing) requests that raw
+      # resource identifier instead, and leg 2 (ID-JAG mint) 400s with
+      # invalid_target unless it's explicitly allow-listed here. Setting this
+      # REPLACES the whole default list (see getAllowedResourceUris), so both
+      # existing audiences are repeated rather than dropped.
+      ENTERPRISE_MCP_RESOURCE_URIS: "${ENTERPRISE_MCP_RESOURCE_URIS:-mcpserver.ping.demo,mcpgateway.ping.demo,http://localhost:8080/mcp}"
       NODE_OPTIONS: "-r /otel/otel-instrument.js"
       JAEGER_QUERY_URL: "http://jaeger:16686"
       # Don't wipe persisted sessions on every restart/recreate — otherwise each
