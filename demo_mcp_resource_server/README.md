@@ -74,3 +74,65 @@ boot), exactly like every other vertical.
 Set `BANKING_API_BASE_URL` only if you run a banking API of your own and want
 these four tools to forward the caller's bearer token to it and return
 whatever it returns. With it set, the bundled invest database is not used.
+
+## Adding a tool
+
+Tools are code, not config. The catalog (`tools/list`), the per-tool scope
+gate, and the `scopes_supported` advertised in
+`/.well-known/oauth-protected-resource` are all derived from `ALL_TOOLS` in
+`src/tools/registry.ts`, so a tool you add to a vertical's list is live
+everywhere once you rebuild the image (the `--build` command in Quick start).
+
+### 1. Add a tool to an existing vertical
+
+Two edits, no registry change:
+
+1. Append a tool definition to that vertical's `src/tools/<vertical>Tools.ts`
+   array, e.g. in `sportingGoodsTools.ts`:
+
+   ```ts
+   {
+     name: 'gear_return_status',
+     description: 'Show the status of a sporting-goods return.',
+     inputSchema: {
+       type: 'object',
+       properties: { orderId: { type: 'string', description: 'Order ID' } },
+       required: ['orderId'],
+     },
+     requiredScopes: ['read'],   // the bearer token must carry every scope listed
+     readOnly: true,
+     intentHints: ['check my gear return'],   // required — tests/registry.test.ts asserts it
+   },
+   ```
+
+2. Add a matching `case 'gear_return_status':` to the `switch` in
+   `src/tools/<vertical>ToolHandler.ts`. The handler just returns JSON —
+   read from that vertical's `src/db/<vertical>Db.ts`, or anything else.
+
+### 2. Add a new vertical
+
+Same two files as above (`src/tools/<vertical>Tools.ts` exporting a
+`<VERTICAL>_TOOLS: McpToolDef[]`, and `src/tools/<vertical>ToolHandler.ts`
+exporting `dispatch<Vertical>Tool`), plus:
+
+- **Data** (optional): `src/db/<vertical>Db.ts` + `seed/<vertical>.seed.json`.
+  Copy `sportingGoodsDb.ts` — it opens `data/<vertical>.db`, creates the
+  schema, and applies the seed only when the tables are empty. `Dockerfile`
+  already copies `seed/`, and the compose file already mounts `data/`.
+- **Register** in `src/tools/registry.ts`: import the two exports, spread
+  `<VERTICAL>_TOOLS` into `ALL_TOOLS`, add a
+  `const <VERTICAL>_TOOL_NAMES = new Set(<VERTICAL>_TOOLS.map((t) => t.name))`,
+  and one line in `dispatch()`:
+  `if (<VERTICAL>_TOOL_NAMES.has(toolName)) return dispatch<Vertical>Tool(toolName, args);`
+
+### Things that bite
+
+- `requiredScopes` must be scopes your PingOne resource actually grants.
+  A token missing any of them gets 403 on `tools/call`, and `tools/list`
+  hides the tool from that token entirely.
+- Tool names are global. `dispatch()` routes by the first name set that
+  matches, so a name reused across two verticals silently goes to whichever
+  is checked first.
+- Use a data-backed vertical (e.g. sporting-goods) as the template, not
+  invest — invest is the `dispatch()` fallthrough and carries a
+  proxy-vs-SQLite switch you don't need.
