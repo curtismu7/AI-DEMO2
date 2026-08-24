@@ -595,7 +595,13 @@ export class GatewayServer {
           res.writeHead(upstreamRes.statusCode ?? 200, sseHeaders);
           upstreamRes.pipe(res, { end: true });
           upstreamRes.on('end', finish);
-          upstreamRes.on('error', finish);
+          upstreamRes.on('error', () => {
+            // pipe() only ends the destination on source 'end', never on source
+            // 'error' — without this the client-facing SSE response is left open
+            // forever when the upstream connection resets mid-stream.
+            if (!res.writableEnded) res.end();
+            finish();
+          });
         },
       );
       // The `timeout` request option only ARMS the socket timer; it fires nothing

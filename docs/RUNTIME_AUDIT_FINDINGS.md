@@ -104,6 +104,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 64 | Swallowed | `demo_api_ui/.../services/logout.js` | medium | FIXED |
 | 65 | Perf | `services/configStore.js` | medium | FIXED |
 | 66 | Perf | `demo_api_ui/.../pages/UseCaseLauncherPage.js` | medium | FIXED |
+| 67 | Runtime | `demo_mcp_gateway/src/server/GatewayServer.ts` | medium | FIXED |
 
 ---
 
@@ -2084,10 +2085,56 @@ this page green: `UseCaseLauncherPage.test.js` (37 tests) and
 `UseCaseLauncherPage.loginPrompt.test.jsx` (3 tests) unaffected. UI build
 gate green.
 
+### 67. GET /mcp SSE passthrough never closes the client response when the upstream connection resets mid-stream — FIXED
+
+**File:** `demo_mcp_gateway/src/server/GatewayServer.ts`, line 598
+(`pipeGetToUpstream`)
+
+**Issue:** Once the upstream response starts (`res.writeHead(...)` +
+`upstreamRes.pipe(res, { end: true })`), the only teardown hook for the
+upstream stream erroring was `upstreamRes.on('error', finish)`, and
+`finish()` only resolves an internal promise and detaches the client-close
+listeners — it never calls `res.end()`/`res.destroy()`. Node's
+`stream.pipe()` does not auto-end the destination when the source emits
+`'error'` (only on source `'end'`).
+
+**Trigger scenario:** A client opens `GET /mcp` (SSE) and the gateway has
+already sent headers and started piping the upstream event stream. The
+upstream `mcp-server` connection then resets mid-stream (a routine
+occurrence in this demo stack — container restarts, network blips). The
+gateway's `upstreamRes` emits `'error'`; `finish()` runs but never ends
+`res`, so the client's SSE connection hangs open indefinitely.
+
+**Fix:** The `upstreamRes.on('error', ...)` handler now calls `res.end()`
+(guarded on `!res.writableEnded`) before/alongside `finish()`, so the
+client connection is always terminated when the upstream stream errors
+after headers are sent — mirroring the existing `onClientClose` teardown
+pattern already used for the opposite direction.
+
+**Evidence:** New test
+`demo_mcp_gateway/tests/gateway-sse-upstream-error.test.ts` (`ends the
+client-facing SSE response when the upstream connection resets
+mid-stream`) abruptly destroys the upstream socket mid-stream (empirically
+confirmed this fires Node's `'error'`/ECONNRESET on the piped
+`IncomingMessage`, not just `'close'`) and asserts the client-facing
+response ends within 2s — proven to fail against the pre-fix file (times
+out, "client-facing SSE response never ended") and pass against the fix.
+Full related suite green: `gateway-sse-client-close.test.js`,
+`gateway-server.test.js`, and the new test — 23 tests. `npm run build`
+(tsc) green.
+
 ---
 
 ## Changelog
 
+- 2026-08-24 — #67 FIXED (round 5 — new-area audit): `GatewayServer.ts`'s
+  GET `/mcp` SSE passthrough now ends the client-facing response when the
+  upstream connection resets mid-stream, instead of leaving it open
+  forever — `stream.pipe()` doesn't auto-end the destination on a source
+  `'error'`, only on source `'end'`. New test abruptly destroys the
+  upstream socket mid-stream and proves the client response ends; failed
+  (timed out) against the pre-fix file, passes against the fix. 23 related
+  tests + `tsc` build green.
 - 2026-08-23 — #66 FIXED: `UseCaseLauncherPage.js`'s 13 track/authorize/
   agent-gateway/demo derivations (`happyPath*`, `authorize*`, `grouped`,
   `demoTrackItemsForStrip`, `demo*`, `agentGateway*`) are now `useMemo`-
