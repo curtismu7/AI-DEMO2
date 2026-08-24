@@ -67,6 +67,7 @@ import { isValidLogLevel, emitLogMessage, LoggingState } from './mcpLogging';
 import { buildDiscoverResult, SUPPORTED_PROTOCOL_VERSIONS } from './serverDiscover';
 import { extractRequestedProtocolVersion, buildUnsupportedProtocolVersionError } from './modernNegotiation';
 import { resolvePassenger, listBookings } from './db/airlinesDb';
+import { getHoldings, resolveInvestor } from './db/investDb';
 import { emitHop } from './transactionHop';
 
 // ---------------------------------------------------------------------------
@@ -357,20 +358,20 @@ function handleHttp(req: IncomingMessage, res: ServerResponse): void {
       'Content-Type': 'application/json',
       'X-Auth-Mechanism': 'api_key',
     });
+    // Same portfolio the MCP invest tools serve (data/invest.db), so an
+    // out-of-band edit to the DB shows up on both paths.
+    const investor = resolveInvestor('')?.investor ?? null;
     res.end(JSON.stringify({
-      invest: {
-        portfolioId: 'INV-8842',
-        holder: 'Jordan A. Rivera',
-        totalValue: 184320.55,
-        cashSweep: 12580.10,
-        ytdReturnPct: 11.4,
-        riskProfile: 'Growth',
-        holdings: [
-          { symbol: 'VTI', name: 'Vanguard Total Market ETF', quantity: 220, marketValue: 62480.00 },
-          { symbol: 'UST-10Y', name: 'US Treasury Note', quantity: null, marketValue: 60010.35 },
-          { symbol: 'AAPL', name: 'Apple Inc.', quantity: 90, marketValue: 19260.00 },
-          { symbol: 'VNQ', name: 'Vanguard Real Estate ETF', quantity: 340, marketValue: 29990.10 },
-        ],
+      invest: investor && {
+        portfolioId: investor.portfolio_id,
+        holder: investor.holder,
+        totalValue: investor.total_value,
+        cashSweep: investor.cash_sweep,
+        ytdReturnPct: investor.ytd_return_pct,
+        riskProfile: investor.risk_profile,
+        holdings: getHoldings(investor.investor_id).map((h) => ({
+          symbol: h.symbol, name: h.name, quantity: h.quantity, marketValue: h.market_value,
+        })),
       },
       source: 'banking_mcp_resource_server',
       authMechanism: 'X-API-Key (shared secret)',

@@ -195,7 +195,7 @@ export function getHoldings(investorId: string): Holding[] {
 
 export function listTrades(investorId: string, limit: number): Trade[] {
   return withDb((conn) => conn
-    .prepare('SELECT id, type, symbol, amount, date, status FROM trades WHERE investor_id = ? ORDER BY date DESC LIMIT ?')
+    .prepare('SELECT id, type, symbol, amount, date, status FROM trades WHERE investor_id = ? ORDER BY rowid LIMIT ?')
     .all(investorId, limit) as unknown as Trade[]);
 }
 
