@@ -2,14 +2,12 @@
   "investors": [
     {
       "investor_id": "INV-8842",
-      "subject": null,
       "holder": "Jordan A. Rivera",
       "portfolio_id": "INV-8842",
       "total_value": 184320.55,
       "cash_sweep": 12580.10,
       "ytd_return_pct": 11.4,
       "risk_profile": "Growth",
-      "is_demo_fallback": true,
       "portfolios": [
         { "id": "PF-01", "portfolio_type": "Brokerage", "portfolio_number": "****4471", "value": 102340.20, "currency": "USD" },
         { "id": "PF-02", "portfolio_type": "Retirement", "portfolio_number": "****9902", "value": 68540.90, "currency": "USD" },

@@ -105,6 +105,36 @@ read the configured host. A new browser origin must be added to ALL of:
 ## §4 — Bug Fix Log
 Reverse-chronological, newest first.
 
+
+### 2026-08-24 — mcp-resource-server: explicit audience honoured, RFC 9728 challenge URL, invest SQLite cleanups
+
+**Files changed:** `demo_mcp_resource_server/src/server/acceptedAudiences.ts` (+ test),
+`demo_mcp_resource_server/src/index.ts`, `demo_mcp_resource_server/src/tools/investToolHandler.ts`,
+`demo_mcp_resource_server/src/db/investDb.ts`, `seed/invest.seed.json`, `README.md`, tests.
+
+**What was broken:** (1) `resolveAcceptedAudiences` appended `mcp-invest.ping.demo`
+to ANY env value, so a standalone deployment with its own
+`MCP_RESOURCE_SERVER_RESOURCE_URI` silently accepted the demo audience too and
+logged "env value is stale" on every boot. (2) The 401 `resource_metadata` was
+`"<audience>/.well-known/..."` — not a URL, so client OAuth discovery could not
+fetch it. (3) `investToolHandler` froze the BFF-vs-SQLite choice at module load
+and carried two parallel switches; `investDb` copied airlines' subject/fallback
+resolution that nothing consumed.
+
+**What was fixed:** union of `OWN_AUDIENCE` now happens only when the value came
+from the LEGACY var (`MCP_SERVER_RESOURCE_URI`, the shared-configmap fan-out
+that caused the 2026-08-16 outage); an explicit own-var value is honoured as-is.
+`resource_metadata` is built from the request host (`resourceMetadataUrl`).
+Backend read per call; one switch; `resolveInvestor()` returns the single
+seeded investor.
+
+**Do not break:** legacy-sourced values MUST still union `mcp-invest.ping.demo`;
+first env entry stays the canonical RFC 9728 `resource`; the live stack's own-var
+list (`mcp-invest.ping.demo,mcp-resource-server.ping.demo,mcpgateway.ping.demo`)
+resolves unchanged. STRICT_AUTH / JWKS verification untouched.
+
+**Verify:** `cd demo_mcp_resource_server && node_modules/.bin/jest tests/acceptedAudiences.test.ts tests/resourceUriEnv.test.ts tests/httpMcp.test.ts tests/investSqlite.test.ts && node_modules/.bin/tsc --noEmit`.
+
 ### 2026-08-22 — Top 5 bugs found in a cross-service live bug hunt
 
 Five independent, parallel investigations across the BFF, the authz/HITL services, and

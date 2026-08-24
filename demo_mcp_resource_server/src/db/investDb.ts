@@ -2,10 +2,9 @@
 
 /**
  * SQLite backing store for the invest vertical — used when no banking API is
- * configured (BANKING_API_BASE_URL / DEMO_API_BASE_URL unset). Mirrors the
- * airlines pattern: a single seeded investor with subject-or-demo-fallback
- * resolution, same as airlinesDb.resolvePassenger, since this vertical (like
- * airlines) has exactly one demo persona rather than per-user rows.
+ * configured (BANKING_API_BASE_URL / DEMO_API_BASE_URL unset). One seeded
+ * demo investor, served to every caller — this vertical has a single persona,
+ * not per-user rows.
  *
  * Path:  INVEST_DB_PATH  (default <cwd>/data/invest.db)
  * Seed:  INVEST_SEED_PATH (default <pkg>/seed/invest.seed.json)
@@ -18,18 +17,14 @@ import fs from 'fs';
 import path from 'path';
 import { DatabaseSync } from 'node:sqlite';
 
-export type MatchedBy = 'subject' | 'demo-fallback';
-
 export interface Investor {
   investor_id: string;
-  subject: string | null;
   holder: string;
   portfolio_id: string;
   total_value: number;
   cash_sweep: number;
   ytd_return_pct: number;
   risk_profile: string;
-  is_demo_fallback: number;
 }
 
 export interface Portfolio {
@@ -59,14 +54,12 @@ export interface Trade {
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS investors (
   investor_id      TEXT PRIMARY KEY,
-  subject          TEXT,
   holder           TEXT NOT NULL,
   portfolio_id     TEXT NOT NULL,
   total_value      REAL NOT NULL,
   cash_sweep       REAL NOT NULL,
   ytd_return_pct   REAL NOT NULL,
-  risk_profile     TEXT NOT NULL,
-  is_demo_fallback INTEGER NOT NULL DEFAULT 0
+  risk_profile     TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS portfolios (
   id               TEXT PRIMARY KEY,
@@ -115,7 +108,7 @@ function seedIfEmpty(conn: DatabaseSync): void {
   const seed = JSON.parse(fs.readFileSync(file, 'utf8'));
 
   const insInvestor = conn.prepare(
-    'INSERT INTO investors (investor_id, subject, holder, portfolio_id, total_value, cash_sweep, ytd_return_pct, risk_profile, is_demo_fallback) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    'INSERT INTO investors (investor_id, holder, portfolio_id, total_value, cash_sweep, ytd_return_pct, risk_profile) VALUES (?, ?, ?, ?, ?, ?, ?)',
   );
   const insPortfolio = conn.prepare(
     'INSERT INTO portfolios (id, investor_id, portfolio_type, portfolio_number, value, currency) VALUES (?, ?, ?, ?, ?, ?)',
@@ -131,9 +124,8 @@ function seedIfEmpty(conn: DatabaseSync): void {
   try {
     for (const inv of seed.investors || []) {
       insInvestor.run(
-        inv.investor_id, inv.subject ?? null, inv.holder, inv.portfolio_id,
+        inv.investor_id, inv.holder, inv.portfolio_id,
         inv.total_value, inv.cash_sweep, inv.ytd_return_pct, inv.risk_profile,
-        inv.is_demo_fallback ? 1 : 0,
       );
       for (const p of inv.portfolios || []) {
         insPortfolio.run(p.id, inv.investor_id, p.portfolio_type, p.portfolio_number, p.value, p.currency);
@@ -168,17 +160,9 @@ export function withDb<T>(fn: (db: DatabaseSync) => T): T {
   }
 }
 
-export function resolveInvestor(subject: string): { investor: Investor; matchedBy: MatchedBy } | null {
-  return withDb((conn) => {
-    if (subject) {
-      const row = conn.prepare('SELECT * FROM investors WHERE subject = ?').get(subject) as Investor | undefined;
-      if (row) return { investor: row, matchedBy: 'subject' as MatchedBy };
-    }
-    const fallback = conn
-      .prepare('SELECT * FROM investors WHERE is_demo_fallback = 1 LIMIT 1')
-      .get() as Investor | undefined;
-    return fallback ? { investor: fallback, matchedBy: 'demo-fallback' as MatchedBy } : null;
-  });
+/** The single demo investor (null only if the seed file was missing). */
+export function resolveInvestor(): Investor | null {
+  return withDb((conn) => (conn.prepare('SELECT * FROM investors LIMIT 1').get() as Investor | undefined) ?? null);
 }
 
 export function getPortfolios(investorId: string): Portfolio[] {

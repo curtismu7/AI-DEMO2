@@ -30,7 +30,7 @@ docker compose -f docker-compose.standalone.yml up --build
 ```
 
 The server listens on `http://localhost:8081`. SQLite databases persist in
-`./data` (seeded on first boot from `seed/`; a restart never re-seeds a
+`./data` (seeded on first use from `seed/`; a restart never re-seeds a
 non-empty database).
 
 ## Verify it's running
@@ -78,7 +78,7 @@ for that reason — uncomment one when you have real tokens.
 `get_investment_accounts`, `get_investment_balance`, `get_portfolio_summary`,
 and `get_investment_transactions` work out of the box from a bundled SQLite
 database (`data/invest.db`, seeded from `seed/invest.seed.json` on first
-boot), exactly like every other vertical.
+use), exactly like every other vertical.
 
 Set `BANKING_API_BASE_URL` only if you run a banking API of your own and want
 these four tools to forward the caller's bearer token to it and return
