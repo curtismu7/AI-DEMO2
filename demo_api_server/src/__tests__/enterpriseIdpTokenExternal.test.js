@@ -98,6 +98,17 @@ describe('POST /token grant_type=authorization_code (EMA leg 1 completion)', () 
     expect(res.body.error).toBe('invalid_client');
   });
 
+  test('response includes access_token as a string (RFC 6749 requires it alongside id_token)', async () => {
+    const { code, verifier } = issueCode();
+    const res = await request(appNoSession()).post('/api/enterprise-idp/token').type('form').send({
+      grant_type: 'authorization_code', code, redirect_uri: REDIRECT_URI,
+      client_id: CLIENT_ID, client_secret: CLIENT_SECRET, code_verifier: verifier,
+    });
+    expect(res.status).toBe(200);
+    expect(typeof res.body.access_token).toBe('string');
+    expect(res.body.access_token.length).toBeGreaterThan(0);
+  });
+
   test('mints a self-signed ID token for the resolved subject', async () => {
     const { code, verifier } = issueCode();
     const res = await request(appNoSession()).post('/api/enterprise-idp/token').type('form').send({
