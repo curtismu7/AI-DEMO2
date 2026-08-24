@@ -17,6 +17,14 @@ PR #2294):** same design again, against the post-round-2 codebase, told
 about all 39 files touched by rounds 1–2. 17 of 17 candidate findings
 (#40–#56) survived verification — 0 rejected.
 
+**Round 4 (2026-08-23, same day, after round 3 fully fixed and merged in
+PR #2297):** same 6-finder-agent + adversarial-verify-per-candidate design,
+run as a Workflow against the post-round-3 codebase, told about all 52
+files touched by rounds 1–3. 10 of 10 candidate findings (#57–#66)
+survived verification — 0 rejected. Unlike prior rounds, round 4 fixes each
+get their own PR (fix → PR → merge in batches of 3) instead of one PR per
+fully-fixed round.
+
 **Working rule:** when a finding is fixed, flip its Status to `FIXED` with the
 PR number (or commit) and evidence **in the same commit as the fix**, and add a
 Changelog line. A status column that lags the code is the same false-green
@@ -86,6 +94,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 54 | Perf | `services/tokenValidationService.js` | low | FIXED |
 | 55 | Perf | `services/agentScopes.js` | low | FIXED |
 | 56 | Perf | `demo_api_ui/.../components/UserDashboard.js` | medium | FIXED |
+| 57 | Runtime | `services/pingOneAuthorizeService.js` | medium | FIXED |
 
 ---
 
@@ -1679,8 +1688,70 @@ build` → exit 0.
 
 ---
 
+## Round 4 findings (2026-08-23)
+
+### 57. Worker-token single-flight cache ignores credential identity, letting a credential rotation hand a caller a token minted with stale creds — FIXED
+
+**File:** `demo_api_server/services/pingOneAuthorizeService.js`, line 252
+
+**Issue:** `getWorkerToken()` correctly gates its *cache read* on
+`_workerTokenCache.credKey === credKey`, but the single-flight branch right
+after it (`if (_workerTokenInflight) return _workerTokenInflight;`) had no
+credKey comparison at all. The in-flight IIFE closes over the `creds`/
+`credKey` captured from whichever call originally started it, and on
+resolution unconditionally overwrote `_workerTokenCache` with that original
+(possibly now-stale) credKey — poisoning the cache for later callers too.
+
+**Trigger scenario:** An admin rotates the PingOne Authorize worker
+credentials (`authorize_worker_client_id`/`secret`, or the
+`PINGONE_WORKER_CLIENT_ID`/`SECRET` env aliases) via `/config` while a
+`getWorkerToken()` call is already in flight for the OLD credentials (cache
+cold — e.g. right after a config reload). A second `evaluate()` call
+arriving in that window computes the NEW credKey, finds `_workerTokenInflight`
+truthy, and awaits that same promise — receiving a token minted against the
+OLD worker app/environment, which it then presents to the PingOne Authorize
+decision endpoint, causing spurious 401s or a decision evaluated under the
+wrong worker identity. Nothing invalidates the in-flight guard on credential
+rotation — the only reset path (`_resetAuthorizeRuntimeState()`) is an
+explicit test-only hook, never called from any config-update route.
+
+**Fix:** Added a `_workerTokenInflightKey` variable, set alongside
+`_workerTokenInflight` when a request starts and cleared in the same
+`finally`. The single-flight branch now only reuses the in-flight promise
+when `_workerTokenInflightKey === credKey`; otherwise it falls through and
+starts a new `_requestWorkerToken(creds)` call (running concurrently with
+the stale one), so a caller after a credential rotation always gets a
+token minted with its own resolved creds. `_resetAuthorizeRuntimeState()`
+(the test-reset hook) also resets the new variable.
+
+**Evidence:** New test
+`demo_api_server/tests/pingOneAuthorizeService.workerTokenRace.test.js`
+(`a caller with rotated credentials does not receive a token minted for
+the old credentials`) mocks `configStore`/`fetch` with a deferred-resolve
+pattern to start one request, rotate credentials mid-flight, and start a
+second — proven to fail against the pre-fix file (`Expected length: 2,
+Received length: 1` — the second caller reused the stale in-flight
+promise) and pass against the fix. This is authz-adjacent shared code, so
+also ran the existing `pingOneAuthorizeWorkerTokenCache.test.js` (5
+passed) and the full server suite:
+`cd demo_api_server && CI=true ./node_modules/.bin/jest --forceExit --maxWorkers=4`
+— 852/854 suites, 10095/10219 tests passed (the 2 failures —
+`runtime-settings-api.test.js`, `intentBindingDemo.test.js` — are the
+documented full-suite-parallel-load flake; both passed 100% re-run in
+isolation).
+
+---
+
 ## Changelog
 
+- 2026-08-23 — #57 FIXED: `pingOneAuthorizeService.js`'s worker-token
+  single-flight guard now tracks the credKey it was started for
+  (`_workerTokenInflightKey`) and only reuses the in-flight promise for a
+  matching credKey, closing the window where a credential rotation
+  mid-flight could hand a caller a token minted with stale creds. New test
+  proven to fail against the pre-fix file and pass against the fix; full
+  server suite green (852/854 suites, 10095 tests; 2 known flakes passed
+  in isolation).
 - 2026-08-23 — #53, #54, #55, #56 FIXED (performance, round 3 complete —
   all of #40–56 now FIXED): `activityLogger.js`'s dead response-body
   capture block (computed, never read) deleted outright. `tokenValidationService.js`
