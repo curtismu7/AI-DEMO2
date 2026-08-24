@@ -40,13 +40,19 @@ export default function AgentGatewayLogPanel() {
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [loading, setLoading] = useState(false);
   const preRef = useRef(null);
+  // Monotonic request ids so an older, slower fetch (a previous filter, or a
+  // stale autoRefresh tick) can't overwrite a newer one that resolved first.
+  const logsReqIdRef = useRef(0);
+  const decisionsReqIdRef = useRef(0);
 
   const fetchLogs = useCallback(async () => {
+    const reqId = ++logsReqIdRef.current;
     setLoading(true);
     try {
       const { data } = await apiClient.get('/api/admin/agent-gateway/logs', {
         params: { tail, filter: filter.trim() || undefined },
       });
+      if (reqId !== logsReqIdRef.current) return;
       if (data.ok) {
         setLogs(data.lines || []);
         setLogError(null);
@@ -55,19 +61,22 @@ export default function AgentGatewayLogPanel() {
         setLogError(data.error || 'Could not read gateway logs.');
       }
     } catch (e) {
+      if (reqId !== logsReqIdRef.current) return;
       setLogError(e?.response?.status === 403
         ? 'Admin access required to read gateway logs.'
         : 'Failed to reach the log endpoint.');
     } finally {
-      setLoading(false);
+      if (reqId === logsReqIdRef.current) setLoading(false);
     }
   }, [tail, filter]);
 
   const fetchDecisions = useCallback(async () => {
+    const reqId = ++decisionsReqIdRef.current;
     try {
       const { data } = await apiClient.get('/api/admin/agent-gateway/decisions', {
         params: { limit: 20 },
       });
+      if (reqId !== decisionsReqIdRef.current) return;
       setDecisions(data.decisions || []);
     } catch {
       /* decisions are best-effort; the raw log still renders */
