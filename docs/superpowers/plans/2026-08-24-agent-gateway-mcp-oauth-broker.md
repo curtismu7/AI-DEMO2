@@ -786,7 +786,7 @@ And add these private methods (import `axios` and `crypto` at the top; `crypto` 
     return true;
   }
 
-  private async handleCallback(_req: IncomingMessage, res: ServerResponse, url: URL): Promise<boolean> {
+  private async handleCallback(req: IncomingMessage, res: ServerResponse, url: URL): Promise<boolean> {
     const code = url.searchParams.get('code');
     const relayState = url.searchParams.get('state');
     const pingOneError = url.searchParams.get('error');
@@ -816,7 +816,7 @@ And add these private methods (import `axios` and `crypto` at the top; `crypto` 
     let pingOneAccessToken: string;
     let expiresIn: number;
     try {
-      const issuer = this.issuer(_req);
+      const issuer = this.issuer(req);
       const tokenParams = new URLSearchParams({
         grant_type: 'authorization_code',
         code,
