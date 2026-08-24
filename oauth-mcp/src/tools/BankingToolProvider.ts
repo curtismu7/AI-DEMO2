@@ -21,6 +21,7 @@ import { filterToolsByScope } from './toolScopeMap';
 import { TokenResolver } from './TokenResolver';
 import { JwtClaimVerifier } from './JwtClaimVerifier';
 import { handlerMap, HandlerDeps } from './handlers';
+import { TokenStore } from '../oauth/TokenStore';
 
 export interface ToolExecutionContext {
   session: Session;
@@ -47,6 +48,8 @@ export class BankingToolProvider {
   private jwtVerifier: JwtClaimVerifier;
   private handlerDeps: HandlerDeps;
 
+  private tokenStore?: TokenStore;
+
   constructor(
     private apiClient: BankingAPIClient,
     private authManager: BankingAuthenticationManager,
@@ -55,10 +58,19 @@ export class BankingToolProvider {
   ) {
     this.logger = Logger.getInstance(createDefaultLoggerConfig());
     this.authChallengeHandler = new AuthorizationChallengeHandler(authManager, sessionManager);
-    this.tokenResolver = new TokenResolver({ authManager: this.authManager, tokenExchangeService: this.tokenExchangeService, logger: this.logger });
+    this.tokenResolver = this.buildTokenResolver();
     this.jwtVerifier = new JwtClaimVerifier(this.logger);
     this.auditor = new TokenChainAuditor(AuditLogger.getInstance(this.logger), this.jwtVerifier, this.logger);
     this.handlerDeps = { apiClient: this.apiClient, logger: this.logger };
+  }
+
+  private buildTokenResolver(): TokenResolver {
+    return new TokenResolver({
+      authManager: this.authManager,
+      tokenExchangeService: this.tokenExchangeService,
+      tokenStore: this.tokenStore,
+      logger: this.logger,
+    });
   }
 
   /**
@@ -68,7 +80,19 @@ export class BankingToolProvider {
    */
   setTokenExchangeService(svc: TokenExchangeService): void {
     this.tokenExchangeService = svc;
-    this.tokenResolver = new TokenResolver({ authManager: this.authManager, tokenExchangeService: svc, logger: this.logger });
+    this.tokenResolver = this.buildTokenResolver();
+  }
+
+  /**
+   * Wire in the OAuth TokenStore after construction (DemoMCPServer.startServer
+   * creates it later than this class, then calls this). Lets TokenResolver look
+   * up the real PingOne access token stashed against a self-issued external-door
+   * token, instead of forwarding that self-issued token straight to the Banking
+   * API (which rejects it outright — see TokenResolver.resolveFederatedSubjectToken).
+   */
+  setTokenStore(store: TokenStore): void {
+    this.tokenStore = store;
+    this.tokenResolver = this.buildTokenResolver();
   }
 
   /**

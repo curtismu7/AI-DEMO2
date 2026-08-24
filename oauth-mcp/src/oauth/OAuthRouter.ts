@@ -213,6 +213,7 @@ export class OAuthRouter {
     }
 
     let subject: string;
+    let pingOneAccessToken: string;
     try {
       const callbackUri = `${this.issuer}/authorize/callback`;
       const tokenResponse = await axios.post(
@@ -228,7 +229,7 @@ export class OAuthRouter {
         { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
       );
 
-      const pingOneAccessToken = tokenResponse.data.access_token as string;
+      pingOneAccessToken = tokenResponse.data.access_token as string;
       const jwks = await createJwksKeySet();
       if (!jwks) {
         throw new Error('PingOne JWKS not configured (PINGONE_JWKS_URI / PINGONE_ISSUER / PINGONE_BASE_URL)');
@@ -260,6 +261,7 @@ export class OAuthRouter {
       codeChallenge: pending.codeChallenge,
       codeChallengeMethod: pending.codeChallengeMethod,
       subject,
+      pingOneAccessToken,
     });
 
     const callback = new URL(pending.redirectUri);
@@ -337,7 +339,7 @@ export class OAuthRouter {
         }
 
         const tokenResponse = await this.tokenIssuer.issueAuthorizationCode(
-          client, authCode.subject, authCode.scope,
+          client, authCode.subject, authCode.scope, authCode.pingOneAccessToken,
         );
         this.json(res, 200, tokenResponse);
         return true;

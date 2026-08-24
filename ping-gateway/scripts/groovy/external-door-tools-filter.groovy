@@ -20,6 +20,7 @@
  */
 import groovy.json.JsonSlurper
 import groovy.json.JsonOutput
+import org.forgerock.util.promise.Promises
 
 def ALLOWED_TOOLS = [
     'get_my_accounts', 'get_account_balance', 'get_my_transactions', 'sequential_think',
@@ -34,18 +35,31 @@ def ALLOWED_TOOLS = [
 // response that never completed). Detecting by RESPONSE shape instead needs no
 // request-entity access at all: only a tools/list response ever has result.tools as
 // a list (tools/call has result.content, initialize has result.protocolVersion, ...).
-return next.handle(context, request).thenOnResult { rsp ->
-    if (rsp.status.code != 200) return
-    try {
-        def body = new JsonSlurper().parseText(rsp.entity.string ?: '')
-        def tools = body?.result?.tools
-        if (tools instanceof List) {
-            def before = tools.size()
-            body.result.tools = tools.findAll { it?.name in ALLOWED_TOOLS }
-            logger.info('[ExternalDoorToolsFilter] tools/list trimmed ' + before + ' -> ' + body.result.tools.size())
-            rsp.entity.setString(JsonOutput.toJson(body))
+//
+// rsp.entity.string (the blocking getter) hangs the SAME event-loop thread for the
+// same reason: with proxy-buffering off at the ingress, a response this size (44
+// tools, ~18K tokens) can still be arriving over the wire when this callback fires,
+// and finishing that read needs the very thread that is blocked waiting on it — a
+// self-deadlock, confirmed live via jstack (2026-08-23). getStringAsync() reads via
+// the reactor instead of blocking it, so use that and continue the chain in .then().
+return next.handle(context, request).thenAsync { rsp ->
+    if (rsp.status.code != 200) return Promises.newResultPromise(rsp)
+    return rsp.entity.getStringAsync().then({ bodyStr ->
+        try {
+            def body = new JsonSlurper().parseText(bodyStr ?: '')
+            def tools = body?.result?.tools
+            if (tools instanceof List) {
+                def before = tools.size()
+                body.result.tools = tools.findAll { it?.name in ALLOWED_TOOLS }
+                logger.info('[ExternalDoorToolsFilter] tools/list trimmed ' + before + ' -> ' + body.result.tools.size())
+                rsp.entity.setString(JsonOutput.toJson(body))
+            }
+        } catch (Exception e) {
+            logger.warn('[ExternalDoorToolsFilter] could not filter tools/list response: ' + e.message)
         }
-    } catch (Exception e) {
-        logger.warn('[ExternalDoorToolsFilter] could not filter tools/list response: ' + e.message)
-    }
+        rsp
+    }, { ioException ->
+        logger.warn('[ExternalDoorToolsFilter] could not read tools/list response: ' + ioException.message)
+        rsp
+    })
 }
