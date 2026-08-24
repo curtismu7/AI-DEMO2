@@ -247,11 +247,13 @@ git commit -m "feat(librechat): add custom LLM endpoint and Privilege MCP server
 - [ ] **Step 1: Create the real `.env` from the template**
 
 ```bash
-cd librechat
-cp .env.example .env
+cp librechat/.env.example librechat/.env
 # Fill JWT_SECRET / JWT_REFRESH_SECRET / CREDS_KEY / CREDS_IV per the
 # generation commands in .env.example's comments.
 ```
+
+Run this and every later step in this task from the repo root — Step 2's
+`docker compose -f librechat/docker-compose.yml` path assumes it.
 
 - [ ] **Step 2: Bring up the stack**
 
@@ -260,7 +262,8 @@ Expected: both `librechat` and `librechat-mongodb` containers reach `Up` state (
 
 - [ ] **Step 3: Confirm the custom endpoint and MCP server both loaded**
 
-Run: `docker compose -f librechat/docker-compose.yml logs api | grep -i -E "mcp|custom endpoint|Local LLM Proxy|privilege"`
+Run: `docker compose -f librechat/docker-compose.yml logs api > /tmp/librechat-boot.log 2>&1; grep -i -E "mcp|custom endpoint|Local LLM Proxy|privilege" /tmp/librechat-boot.log`
+(redirect to a file first, then grep it — piping `logs` directly into `grep` masks a `docker compose` failure behind `grep`'s own exit status, per this repo's own rule against trusting a piped command's exit code)
 Expected: log lines showing the `privilege` MCP server was registered/initialized and the `Local LLM Proxy` custom endpoint was loaded, with no YAML parse errors. (Exact log wording varies by LibreChat version — the failure mode to catch here is a startup crash or a silently-skipped config block, not a specific string match.)
 
 - [ ] **Step 4: Confirm the UI is reachable**
