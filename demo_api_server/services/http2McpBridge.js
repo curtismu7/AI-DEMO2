@@ -84,12 +84,23 @@ function createHttp2Session(mcpServerUrl, bearerToken) {
   return session;
 }
 
-/** Evict the oldest idle session from the pool. */
+/**
+ * Evict the oldest session from the pool to make room for a new one.
+ *
+ * Requiring pendingStreams === 0 here made this a no-op whenever every
+ * pooled entry had at least one in-flight stream, while createHttp2Session's
+ * caller still unconditionally added the new session afterward — silently
+ * growing the pool past MAX_POOL_SIZE under sustained concurrent load.
+ * Considers every entry regardless of pendingStreams; `session.close()` is
+ * Node's own graceful shutdown (stops accepting new streams, lets any
+ * in-flight ones finish naturally), so this never aborts a request that's
+ * already in progress.
+ */
 function evictOldest() {
   let oldestKey = null;
   let oldestTime = Infinity;
   for (const [key, entry] of pool) {
-    if (entry.lastUsed < oldestTime && entry.pendingStreams === 0) {
+    if (entry.lastUsed < oldestTime) {
       oldestTime = entry.lastUsed;
       oldestKey = key;
     }

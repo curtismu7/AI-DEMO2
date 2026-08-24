@@ -71,7 +71,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 39 | Perf | `demo_api_ui/.../ScopeAuditPage.js` | medium | FIXED |
 | 40 | Runtime | `services/cibaTransactionReceipt.js` | medium | FIXED |
 | 41 | Runtime | `services/hitlCredit.js` | medium | FIXED |
-| 42 | Runtime | `services/http2McpBridge.js` | low | OPEN |
+| 42 | Runtime | `services/http2McpBridge.js` | low | FIXED |
 | 43 | Runtime | `routes/privilegeMcpClient.js` | low | OPEN |
 | 44 | Runtime | `demo_api_ui/.../services/spinnerActivityService.js` | medium | OPEN |
 | 45 | Runtime | `demo_api_ui/.../services/cachedStatusService.js` | low | OPEN |
@@ -1252,7 +1252,7 @@ src/__tests__/cibaTransactionReceipt.sweep.test.js --forceExit
 separately since this touches a shared session-security primitive used by
 both the REST and MCP authorization paths.
 
-### 42. HTTP/2 connection pool cap silently bypassed under sustained concurrent load — OPEN
+### 42. HTTP/2 connection pool cap silently bypassed under sustained concurrent load — FIXED
 
 **File:** `demo_api_server/services/http2McpBridge.js`, line 52
 
@@ -1266,10 +1266,19 @@ mid-flight (`pendingStreams > 0` on each), a 6th distinct key triggers
 `evictOldest()` finding nothing evictable, then still gets added, growing
 the pool past its configured cap.
 
-**Fix (not yet applied):** When `evictOldest()` can't find an evictable
-entry, either block/reject the new session request until a slot frees, or
-evict the least-recently-used entry regardless of in-flight streams
-(closing it once streams drain).
+**Fix:** `evictOldest()` now selects the least-recently-used entry
+regardless of `pendingStreams`, and calls `session.close()` on it — Node's
+own graceful HTTP/2 shutdown, which stops accepting new streams but lets
+any in-flight ones finish naturally, so no in-progress request is ever
+aborted by this change.
+
+**Evidence:** New test in `http2McpBridge.test.js` fills the pool to
+`MAX_POOL_SIZE` (5), marks every entry's `pendingStreams = 1` (the exact
+condition that made eviction a no-op), then requests a 6th distinct session
+and asserts the pool stays at 5. Proven to fail against the pre-fix file
+(grew to 6) and pass against the fix. `cd demo_api_server && CI=true npx
+jest src/__tests__/http2McpBridge.test.js --forceExit --maxWorkers=4` —
+14/14 passed.
 
 ### 43. Unbounded pagination loops against an operator-configured MCP upstream — OPEN
 
@@ -1535,6 +1544,12 @@ apply the same fix to the duplicated block in `UserDashboardPing2026.js`.
 
 ## Changelog
 
+- 2026-08-23 — #42 FIXED: `http2McpBridge.js`'s `evictOldest()` now selects
+  the LRU entry regardless of `pendingStreams` and calls Node's graceful
+  `session.close()` (drains in-flight streams, doesn't abort them), closing
+  the gap where the pool cap was silently bypassed when every entry was
+  mid-flight. New test proven to fail against the pre-fix file (pool grew to
+  6) and pass against the fix; 14/14 tests passed.
 - 2026-08-23 — #41 FIXED: `hitlCredit.js` gained `claim()`/`release()` — a
   cross-request lock (process-local Map keyed by session id, TTL 3s) closing
   the race between the `isFresh()` read and the `consume()` write across an

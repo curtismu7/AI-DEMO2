@@ -163,6 +163,25 @@ describe('http2McpBridge', () => {
       );
     });
 
+    it('evicts an entry even when every pooled session has pending streams (finding #42)', () => {
+      const sessions = Array.from({ length: 5 }, () => createMockSession());
+      mockSessions = sessions;
+      for (let i = 0; i < 5; i++) {
+        createHttp2Session(`http://localhost:900${i}`, 'same-token-long-enough');
+      }
+      expect(_pool.size).toBe(5);
+
+      // Every pooled entry is mid-flight -- the exact condition that used to
+      // make evictOldest() a no-op while createHttp2Session still added the
+      // new session unconditionally, growing the pool past MAX_POOL_SIZE.
+      for (const entry of _pool.values()) entry.pendingStreams = 1;
+
+      mockSessions.push(createMockSession());
+      createHttp2Session('http://localhost:9005', 'same-token-long-enough');
+
+      expect(_pool.size).toBe(5); // capped, not 6
+    });
+
     it('should NOT set rejectUnauthorized for http:// targets', () => {
       const mockSession = createMockSession();
       mockSessions = [mockSession];
