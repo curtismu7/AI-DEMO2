@@ -221,7 +221,13 @@ async function handleAuthorizationCodeGrant(req, res) {
     { algorithm: 'RS256', header: { alg: 'RS256', kid: enterpriseIdpKey.getKid() } },
   );
 
-  return res.json({ id_token: idToken, token_type: 'Bearer', expires_in: ID_TOKEN_LIFETIME_SECONDS, scope: entry.scope });
+  // RFC 6749 §5.1 requires access_token on every token response; id_token is
+  // an OIDC addition on top, not a substitute. Nothing in this flow actually
+  // uses this value's semantics (leg 2 always presents id_token as
+  // subject_token) — an opaque token satisfies the schema every OAuth client
+  // validates against.
+  const accessToken = crypto.randomBytes(24).toString('base64url');
+  return res.json({ access_token: accessToken, id_token: idToken, token_type: 'Bearer', expires_in: ID_TOKEN_LIFETIME_SECONDS, scope: entry.scope });
 }
 
 /**
