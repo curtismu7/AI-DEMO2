@@ -123,25 +123,37 @@ export class DemoMCPServer extends EventEmitter {
       const signingKeyManager = await getEmbeddedSigningKeyManager();
       const clientRegistry = new ClientRegistry();
       clientRegistry.initialize();
-      // Make dynamically-registered clients survive a restart. Reuses the
-      // encrypted store the session layer already uses; both are keyed off
-      // TOKEN_STORAGE_PATH, which must be a volume for this to mean anything.
-      // Best-effort: without ENCRYPTION_KEY the registry stays in-memory and
-      // behaves exactly as before rather than refusing to start.
+      // Make dynamically-registered clients AND issued tokens survive a
+      // restart. Reuses the encrypted store the session layer already uses;
+      // both are keyed off TOKEN_STORAGE_PATH, which must be a volume for
+      // this to mean anything. Best-effort: without ENCRYPTION_KEY both
+      // stay in-memory and behave exactly as before rather than refusing to
+      // start. Without token persistence specifically, every redeploy
+      // orphans any in-flight external-door session: the client's
+      // self-issued bearer stays valid (the embedded signing key persists)
+      // but the real PingOne token stashed against its jti — the only thing
+      // that makes Step 9 work for a federated login — vanishes, forcing a
+      // fresh login to test anything (see TokenStore.attachStorage).
       const clientStoreKey = process.env.ENCRYPTION_KEY;
       const clientStorePath = process.env.TOKEN_STORAGE_PATH;
+      const tokenStore = new TokenStore();
       if (clientStoreKey && clientStorePath) {
+        const durableStorage = new EncryptedTokenStorage(clientStorePath, clientStoreKey);
         try {
-          await clientRegistry.attachStorage(
-            new EncryptedTokenStorage(clientStorePath, clientStoreKey),
-          );
+          await clientRegistry.attachStorage(durableStorage);
         } catch (err) {
           console.warn(
             `[DemoMCPServer] client registry persistence unavailable, continuing in-memory: ${err instanceof Error ? err.message : String(err)}`,
           );
         }
+        try {
+          await tokenStore.attachStorage(durableStorage);
+        } catch (err) {
+          console.warn(
+            `[DemoMCPServer] token store persistence unavailable, continuing in-memory: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
       }
-      const tokenStore = new TokenStore();
       this.oauthRouter = new OAuthRouter(signingKeyManager, clientRegistry, tokenStore);
       // Lets TokenResolver find the real PingOne token stashed against a
       // self-issued external-door token (see BankingToolProvider.setTokenStore).
