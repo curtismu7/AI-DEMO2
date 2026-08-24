@@ -47,6 +47,9 @@ import { appendEnterpriseWwwAuthHint, buildEnterpriseExtensionBlock, isEnterpris
 import { runWithCorrelation } from '../correlationContext';
 import { buildAuthzHealth } from '../authzPosture';
 import { toolsListBackendOutage } from '../toolsListHealth';
+import { OAuthBrokerRouter } from '../oauth/OAuthBrokerRouter';
+import { ClientRegistry } from '../oauth/ClientRegistry';
+import { BrokerTokenStore } from '../oauth/BrokerTokenStore';
 
 const MCP_SESSION_HEADER = 'mcp-session-id';
 const MCP_PROTO_HEADER = 'mcp-protocol-version';
@@ -163,9 +166,15 @@ export class GatewayServer {
   // id 1 (cross-caller cancellation / DoS). The WS transport avoids this by
   // giving each connection its own inFlightCalls map (index.ts).
   private readonly inFlightCalls = new Map<string, AbortController>();
+  private oauthBroker: OAuthBrokerRouter;
 
   constructor({ config, upstreamMcpUrl, requestMiddleware, mtlsCerts }: GatewayServerOptions) {
     this.config = config;
+    this.oauthBroker = new OAuthBrokerRouter(
+      new ClientRegistry(),
+      new BrokerTokenStore(),
+      this.config.gatewayResourceUri,
+    );
     this.upstreamMcpUrl = (
       upstreamMcpUrl ||
       process.env.UPSTREAM_MCP_URL ||
@@ -231,6 +240,12 @@ export class GatewayServer {
     if (url === '/.well-known/oauth-protected-resource' && method === 'GET') {
       this.handleMetadata(res);
       return;
+    }
+
+    if (this.isOAuthBrokerPath(url) ) {
+      const parsedUrl = new URL(url, `http://${req.headers.host || 'localhost'}`);
+      const handled = await this.oauthBroker.handle(req, res, parsedUrl);
+      if (handled) return;
     }
 
     if (url === '/health' && method === 'GET') {
@@ -373,6 +388,17 @@ export class GatewayServer {
     res.end(JSON.stringify({ error: 'not_found' }));
   }
 
+  // Path match for the OAuth broker (RFC 8414 AS metadata + DCR + authorize/
+  // callback/token) — dispatched to OAuthBrokerRouter in handleRequest().
+  private isOAuthBrokerPath(url: string): boolean {
+    const pathname = url.split('?')[0];
+    return pathname === '/.well-known/oauth-authorization-server'
+      || pathname === '/oauth/register'
+      || pathname === '/oauth/authorize'
+      || pathname === '/oauth/callback'
+      || pathname === '/oauth/token';
+  }
+
   // ---------------------------------------------------------------------------
   // Internal-secret gate for the /admin surface (mirrors index.ts BL-01/WR-07).
   // Refuses to compare against an empty/weak secret (would let a header-less
@@ -411,7 +437,6 @@ export class GatewayServer {
 
   private handleMetadata(res: ServerResponse): void {
     const pingOneEnvId = process.env.PINGONE_ENVIRONMENT_ID || '';
-    const pingOneRegion = process.env.PINGONE_REGION || 'com';
 
     const metadata: Record<string, unknown> = {
       resource: this.config.gatewayResourceUri,
@@ -421,10 +446,12 @@ export class GatewayServer {
       resource_documentation: 'https://datatracker.ietf.org/doc/html/rfc9728',
     };
 
+    // Points at THIS gateway's own OAuth broker (RFC 8414 AS metadata +
+    // DCR), not raw PingOne — PingOne has no open dynamic client
+    // registration, so a generic MCP client pointed there would fail before
+    // ever reaching a token. The broker relays the real PingOne token.
     if (pingOneEnvId) {
-      metadata.authorization_servers = [
-        `https://auth.pingone.${pingOneRegion}/${pingOneEnvId}/as`,
-      ];
+      metadata.authorization_servers = [this.config.gatewayResourceUri];
     }
 
     if (isEnterpriseManagedMcpAuthEnabled()) {
