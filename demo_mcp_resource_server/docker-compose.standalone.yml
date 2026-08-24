@@ -1,0 +1,21 @@
+# Standalone deployment — no other AI-DEMO2 service required.
+# Usage:
+#   cp .env.standalone.example .env   # fill in your own PingOne env
+#   docker compose -f docker-compose.standalone.yml up --build
+services:
+  mcp-resource-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: banking-mcp-resource-server
+    ports:
+      - "8081:8081"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+    volumes:
+      # SQLite databases live here, seeded on first boot from the image's
+      # seed/ dir. Bind mount so data survives a container recreate.
+      - ./data:/app/data
+    restart: unless-stopped
