@@ -314,6 +314,10 @@ test("9. ConfirmModal (Reset Demo) mounts in clinical-split branch when showRese
 });
 
 test("8. UserDashboard.js is byte-for-byte frozen (sha256 canary)", () => {
+  // Re-baselined 2026-08-23: the inline recent-transactions sort/group IIFE
+  // (finding #56, runtime audit round 3) was pulled into a `useMemo` keyed on
+  // `transactions` so it doesn't re-run on every unrelated re-render — pure
+  // perf, no behavior change.
   // Re-baselined 2026-08-18 (3): removed the dead applyDemoTransaction path —
   // every caller sits behind `if (!user) return` while isDemoMode is only true
   // signed OUT, so the branch was unreachable; it hid an unguarded
@@ -333,7 +337,7 @@ test("8. UserDashboard.js is byte-for-byte frozen (sha256 canary)", () => {
   // If this test fails, UserDashboard.js was modified — confirm the change
   // is intended, then update this hash.
   const FROZEN_SHA256 =
-    "38d582cc111923483854c3ae32101d170e08a5060f3bfaafa77b602cf2a46bee";
+    "7ee6bda08a90d4b3447e645d80abc2a4292e016a81212f5430f51f566f980848";
 
   const filePath = node_path.resolve(__dirname, "../UserDashboard.js");
   const content = node_fs.readFileSync(filePath);

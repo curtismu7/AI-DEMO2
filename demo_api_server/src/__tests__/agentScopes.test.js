@@ -74,4 +74,14 @@ describe('resolveAgentScopes', () => {
     expect(scopes).toContain('read');
     expect(scopes).toContain('mcp:invoke');
   });
+
+  it('finding #55: loads the scope-topology manifest once per call, not once per tool', () => {
+    const fs = require('fs');
+    // Warm up so any first-load-only work has already happened before we count.
+    resolveAgentScopes('banking', true);
+    const statSpy = jest.spyOn(fs, 'statSync');
+    resolveAgentScopes('banking', true); // banking has many tools/chips — would be many stats pre-fix
+    expect(statSpy.mock.calls.length).toBeLessThanOrEqual(1);
+    statSpy.mockRestore();
+  });
 });

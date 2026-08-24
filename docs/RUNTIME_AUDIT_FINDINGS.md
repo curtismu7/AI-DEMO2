@@ -82,10 +82,10 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 50 | Swallowed | `demo_api_ui/.../components/ActivityLogs.js` | medium | FIXED |
 | 51 | Swallowed | `demo_api_ui/.../components/ThemeZonePanel.js` | high | FIXED |
 | 52 | Swallowed | `demo_api_ui/.../pages/ResourceServerJourneyPage.jsx` | medium | FIXED |
-| 53 | Perf | `middleware/activityLogger.js` | medium | OPEN |
-| 54 | Perf | `services/tokenValidationService.js` | low | OPEN |
-| 55 | Perf | `services/agentScopes.js` | low | OPEN |
-| 56 | Perf | `demo_api_ui/.../components/UserDashboard.js` | medium | OPEN |
+| 53 | Perf | `middleware/activityLogger.js` | medium | FIXED |
+| 54 | Perf | `services/tokenValidationService.js` | low | FIXED |
+| 55 | Perf | `services/agentScopes.js` | low | FIXED |
+| 56 | Perf | `demo_api_ui/.../components/UserDashboard.js` | medium | FIXED |
 
 ---
 
@@ -1558,7 +1558,7 @@ error message (`.rsj-fetch-error` in `ResourceServerJourneyPage.css`).
 empty/loading layout, on a 500`) proven to fail against the pre-fix file
 and pass against the fix. Full file green (10 passed).
 
-### 53. Response-body capture computed on every request, then discarded — OPEN
+### 53. Response-body capture computed on every request, then discarded — FIXED
 
 **File:** `demo_api_server/middleware/activityLogger.js`, line 105
 
@@ -1572,10 +1572,20 @@ comment.
 globally-mounted `logActivity` middleware with a body under 10,000 chars
 triggers the stringify/parse/redaction work, whose result is discarded.
 
-**Fix (not yet applied):** Delete the dead computation block since its
-result is never read.
+**Fix:** Deleted the dead computation block entirely — its result was never
+read (`logEntry.responseBody` is hardcoded `null` a few lines later).
 
-### 54. JWK-to-PEM conversion re-derived on every token validation despite a 10-minute JWKS cache — OPEN
+**Evidence:** Pure dead-code removal with zero externally observable
+behavior change, so there is no fail-before/pass-after test to write (the
+output was already hardcoded `null` before and after). Verified by running
+the existing suite unchanged and confirming it still passes:
+`CI=true ./node_modules/.bin/jest tests/middleware/activityLogger.ledgerHop.test.js src/__tests__/middleware/activityLogger.test.js --forceExit --maxWorkers=4`
+— 2 suites / 7 tests passed. `activityLogger` is globally-mounted shared
+middleware, so also ran the full server suite:
+`CI=true ./node_modules/.bin/jest --forceExit --maxWorkers=4` — 851/853
+suites, 10096 tests passed.
+
+### 54. JWK-to-PEM conversion re-derived on every token validation despite a 10-minute JWKS cache — FIXED
 
 **File:** `demo_api_server/services/tokenValidationService.js`, line 146
 
@@ -1586,11 +1596,23 @@ itself is never cached or memoized by kid.
 **Trigger scenario:** Any JWT-mode request validated within the same
 10-minute cache window re-derives the PEM for the same key on every call.
 
-**Fix (not yet applied):** Cache the derived PEM alongside the cached JWK
-(store `pemByKid` when `fetchJwks` populates the cache, or memoize
-`jwkToPem` by kid) so PEM export runs once per key per JWKS refresh.
+**Fix:** Each JWKS cache entry now carries a `pemByKid` Map, populated
+lazily by a new `getPemForJwk(jwksUri, jwk)` helper — the first
+`validateToken()` call for a given key computes and caches its PEM; every
+subsequent call within the same 10-minute JWKS cache window reads the
+cached PEM instead of re-running `crypto.createPublicKey`/`.export()`.
 
-### 55. Per-tool scope resolution re-checks the manifest file's mtime once per tool — OPEN
+**Evidence:** New test `tests/services/tokenValidationService.pemCache.test.js`
+(`derives the PEM once, then reuses it across repeat validateToken calls
+for the same kid`) spies on `crypto.createPublicKey` and proves it's called
+once (not twice) across two `validateToken()` calls for the same token;
+fails against the pre-fix file (`Received: 2`) and passes against the fix.
+`tokenValidationService` is auth-adjacent, so also ran its full sibling
+suite plus known callers:
+`CI=true ./node_modules/.bin/jest tests/services/tokenValidationService.pemCache.test.js tests/services/tokenValidationService.allowHttp.test.js tests/services/tokenValidationService.algConfusion.test.js tests/mcpResourceServerAudience.regression.test.js tests/idJagJwksTrust.test.js tests/verticalToolAudience.regression.test.js src/__tests__/a2aProtocolCards.test.js src/__tests__/agentMcpTokenService.test.js --forceExit --maxWorkers=4`
+— 8 suites / 127 tests passed.
+
+### 55. Per-tool scope resolution re-checks the manifest file's mtime once per tool — FIXED
 
 **File:** `demo_api_server/services/agentScopes.js`, line 71
 
@@ -1604,12 +1626,27 @@ load would suffice.
 multiple tools causes one `fs.statSync` call per unique tool name in the
 loop.
 
-**Fix (not yet applied):** Load the manifest once (add a batch/manifest
-accessor to `scopeTopology.js`, or call `load()` once and read
-`manifest.tools[name].requiredScopes` directly) before the for-loop instead
-of calling the per-tool accessor inside it.
+**Fix:** `resolveAgentScopes` now calls the already-exported
+`scopeTopology._manifest()` once before the loop and reads
+`manifest.tools[name].requiredScopes` directly instead of calling
+`toolScopes(name)` per tool. Root-caused one level further than the finding
+text: `isWriteIsh(scope)` — called once per scope inside the very same
+loop — also called `scopeTopology.scopeMeta(scope)`, i.e. `load()`, i.e.
+another `fs.statSync()` per scope. Gave `isWriteIsh` an optional second
+`manifest` param (defaults to the existing `scopeTopology.scopeMeta()` path
+for its other, non-hot-loop callers) so the loop can pass the preloaded
+manifest and eliminate every redundant stat, not just the `toolScopes` ones.
 
-### 56. Recent-transactions feed re-sorted and re-grouped on every render — OPEN
+**Evidence:** New test `finding #55: loads the scope-topology manifest once
+per call, not once per tool` in `src/__tests__/agentScopes.test.js` spies on
+`fs.statSync` around one `resolveAgentScopes('banking', true)` call — fails
+against the pre-fix file (91 stat calls) and passes against the fix (≤1).
+Full file green (11 passed). Also re-ran `scopeTopology`'s own suite and
+every other `resolveAgentScopes`/`isWriteIsh` caller:
+`CI=true ./node_modules/.bin/jest src/__tests__/agentScopes.test.js src/__tests__/scopeTopology.regression.test.js tests/a2aDelegatedScopeIsolation.test.js tests/airlinesVertical.test.js src/__tests__/agentToolsResolver.test.js src/__tests__/agentToolsResolver.degraded.test.js --forceExit --maxWorkers=4`
+— 6 suites / 116 tests passed.
+
+### 56. Recent-transactions feed re-sorted and re-grouped on every render — FIXED
 
 **File:** `demo_api_ui/src/components/UserDashboard.js`, line 2517
 
@@ -1624,14 +1661,45 @@ in the transfer amount field) re-renders the whole component, re-executing
 the sort+group derivation on every keystroke even though `transactions`
 didn't change.
 
-**Fix (not yet applied):** Wrap the sort+group derivation in `useMemo`
-keyed on `[transactions]` (the file already uses `useMemo` elsewhere), and
-apply the same fix to the duplicated block in `UserDashboardPing2026.js`.
+**Fix:** Pulled the sort+group derivation out of the inline render IIFE and
+into a `useMemo` keyed on `[transactions]` (placed alongside the file's
+other memos, `totalBalance`/`totalDebt`), in both `UserDashboard.js` and
+`UserDashboardPing2026.js`. `UserDashboard.js` is byte-for-byte frozen by a
+sha256 canary in `UserDashboardPing2026.test.js` (test #8) — re-baselined
+in the same commit with a dated comment explaining why.
+
+**Evidence:** New test `finding #56: does not re-sort/re-group recent
+transactions on an unrelated re-render` in `UserDashboard.test.js` spies on
+`Array.prototype.sort`, types into the (unrelated) transfer-amount field,
+and asserts no sort call — fails against the pre-fix file (`Received: 1`)
+and passes against the fix. Full UI suite green: `npm run test:unit` → 422
+files / 3429 tests (includes the re-baselined canary and all
+`UserDashboardPing2026` suites, 29 tests). Build gate green: `npm run
+build` → exit 0.
 
 ---
 
 ## Changelog
 
+- 2026-08-23 — #53, #54, #55, #56 FIXED (performance, round 3 complete —
+  all of #40–56 now FIXED): `activityLogger.js`'s dead response-body
+  capture block (computed, never read) deleted outright. `tokenValidationService.js`
+  now caches the derived PEM per `(jwksUri, kid)` alongside the existing
+  10-minute JWKS cache instead of re-deriving it from the JWK on every
+  `validateToken()` call. `agentScopes.js`'s `resolveAgentScopes` now loads
+  the scope-topology manifest once per call instead of once per tool (and,
+  going one level past the finding's own description, once per scope too
+  via `isWriteIsh`) — cut a 91-`fs.statSync`-call resolution down to ≤1.
+  `UserDashboard.js`/`UserDashboardPing2026.js`'s recent-transactions
+  sort+group derivation is now `useMemo`-keyed on `[transactions]` instead
+  of recomputing on every unrelated re-render; `UserDashboard.js`'s sha256
+  canary re-baselined in the same commit. New tests for #54/#55/#56 proven
+  to fail against each pre-fix file and pass against the fix (#53 has no
+  externally observable behavior to test — verified via the unchanged
+  existing suite instead). Full server suite green (851/853 suites, 10096
+  tests) since this batch touches shared middleware and auth-adjacent
+  services. Full UI suite green (422 files / 3429 tests) plus `npm run
+  build` green.
 - 2026-08-23 — #49, #50, #51, #52 FIXED (UI-side swallowed errors):
   `Users.js`'s `updateAgentRestrictions` and `ActivityLogs.js`'s
   `exportLogs`/`clearOldLogs` catch blocks now call `notifyError(...)`
