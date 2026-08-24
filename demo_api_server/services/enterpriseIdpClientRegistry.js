@@ -8,14 +8,24 @@
  * stable client for MCP Inspector so there's something to paste into its
  * Client Settings dialog immediately.
  *
- * ponytail: in-memory only, no disk persistence — a restart re-seeds (or
- * re-reads the same env override). Add disk persistence, mirroring
+ * The seeded client's identity is read via configStore.getEffective(), not
+ * raw process.env — that's what gives it vault-backed persistence (see
+ * ENV_FALLBACK_MAP in configStore.js): ENTERPRISE_IDP_INSPECTOR_CLIENT_ID is
+ * a plain demo_api_server/.env value, ENTERPRISE_IDP_INSPECTOR_CLIENT_SECRET
+ * lives in secrets.vault. Without either set, it still falls back to a
+ * random client generated once per process (dev convenience), but then
+ * rotates on every restart.
+ *
+ * ponytail: the REGISTRY itself is in-memory only, no disk persistence — a
+ * restart still re-seeds the (now-stable) client rather than reading a
+ * previously-registered one back. Add disk persistence, mirroring
  * ClientRegistry.ts's TOKEN_STORAGE_PATH/ENCRYPTION_KEY option, if a second
- * external EMA client needs a credential that survives a restart without an
- * env override.
+ * external EMA client needs to self-register (not just this one seeded
+ * entry) and survive a restart.
  */
 
 const crypto = require('crypto');
+const configStore = require('./configStore');
 
 let clients = new Map();
 let seededInspectorClient = null;
@@ -51,8 +61,8 @@ function validateClientCredentials(clientId, clientSecret) {
 function getSeededInspectorClient() {
   if (seededInspectorClient) return seededInspectorClient;
 
-  const clientId = process.env.ENTERPRISE_IDP_INSPECTOR_CLIENT_ID || crypto.randomUUID();
-  const clientSecret = process.env.ENTERPRISE_IDP_INSPECTOR_CLIENT_SECRET || crypto.randomBytes(32).toString('base64url');
+  const clientId = configStore.getEffective('enterprise_idp_inspector_client_id') || crypto.randomUUID();
+  const clientSecret = configStore.getEffective('enterprise_idp_inspector_client_secret') || crypto.randomBytes(32).toString('base64url');
   const redirectUris = process.env.ENTERPRISE_IDP_INSPECTOR_REDIRECT_URIS
     ? process.env.ENTERPRISE_IDP_INSPECTOR_REDIRECT_URIS.split(',').map((s) => s.trim())
     : ['http://127.0.0.1:6274/oauth/callback'];

@@ -42,4 +42,13 @@ describe('enterpriseIdpKey', () => {
     keyMod.resetForTests();
     expect(keyMod.getPrivateKeyPem()).toBe(pem);
   });
+
+  test('honours a \\n-escaped single-line PEM (the shape a .env file stores it in)', () => {
+    const crypto = require('crypto');
+    const { privateKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+    const pem = privateKey.export({ type: 'pkcs8', format: 'pem' });
+    process.env.ENTERPRISE_IDP_SIGNING_KEY_PEM = pem.replace(/\n/g, '\\n');
+    keyMod.resetForTests();
+    expect(keyMod.getPrivateKeyPem()).toBe(pem);
+  });
 });
