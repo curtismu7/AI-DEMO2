@@ -107,6 +107,17 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 67 | Runtime | `demo_mcp_gateway/src/server/GatewayServer.ts` | medium | FIXED |
 | 68 | Perf | `demo_mcp_gateway/src/rateLimit.ts` | medium | FIXED |
 | 69 | Perf | `demo_mcp_resource_server/src/db/retailDb.ts`, `workforceDb.ts` | low | FIXED |
+| 70 | Runtime | `routes/accounts.js` (`provisionDemoAccounts`) | high | FIXED |
+| 71 | Runtime | `routes/useCases.js` (`cibaRequests`) | low | FIXED |
+| 72 | Swallowed | `routes/demoScenario.js` (`restoreAccountsFromSnapshot`) | medium | FIXED |
+| 73 | Perf | `config/useCases.js` (`resolveUseCase`) | low | FIXED |
+| 74 | Runtime | `demo_api_ui/.../pages/UseCaseLauncherPage.js` (`handleRun`) | medium | FIXED |
+| 75 | Runtime | `demo_api_ui/.../pages/LiveUseCaseWorkbenchPage.js` (`handleRunChip`) | high | FIXED |
+| 76 | Runtime | `demo_api_ui/.../pages/DemoTrackPage.jsx` (`load`) | medium | FIXED |
+| 77 | Runtime | `demo_api_ui/.../components/DemoStepsDropdown.jsx` (`loadSteps`) | medium | FIXED |
+| 78 | Runtime | `demo_api_ui/.../pages/UseCaseLauncherPage.js` (`PromptSection.handleCopy`) | low | FIXED |
+| 79 | Perf | `demo_api_ui/.../components/DemoStepsDropdown.jsx` (completed-id lookups) | low | FIXED |
+| 80 | Perf | `demo_api_ui/.../pages/LiveUseCaseWorkbenchPage.js` (resize divider) | low | FIXED |
 
 ---
 
@@ -2203,10 +2214,422 @@ present) and pass against the fix. Full functional regression green:
 deleted-middle-row-can't-reuse-an-id tests) — 19 tests total, no
 behavior change. `npm run build` (tsc) green.
 
+### 70. Concurrent first-load requests double-provision a new user's demo accounts and duplicate sample transactions — FIXED
+
+**File:** `demo_api_server/routes/accounts.js` (`provisionDemoAccounts`)
+
+**Issue:** `GET /api/demo-scenario`'s handler had an unguarded
+check-then-act: when a brand-new user had zero accounts, it called
+`provisionDemoAccounts(uid)`. Two overlapping requests for the same new
+user (two tabs, or any two overlapping calls) both observed zero accounts
+and both ran full provisioning concurrently. Account records self-heal
+(deterministic ids just get overwritten), but the ~11 sample transactions
+`createTransaction` mints always get a fresh random id with no dedup — each
+concurrent call inserted its own full set, permanently duplicating the
+user's transaction history.
+
+**Trigger scenario:** A brand-new user with no accounts triggers two
+overlapping `GET /api/demo-scenario` (or `POST /accounts/reset-demo`)
+requests. Both race into the empty-accounts branch and both provision,
+each independently creating ~11 duplicate sample transactions.
+
+**Fix:** `provisionDemoAccounts` now guards itself with a module-level
+`Map<userId, Promise>` single-flight pattern (matching
+`pingOneAuthorizeService.js`'s existing worker-token fetch guard) — a
+second overlapping caller for the same userId awaits the first call's
+in-flight promise instead of re-running the provision-and-seed sequence.
+The map entry is cleaned up via `.finally()`. This guards the shared
+function itself, so it also covers `POST /accounts/reset-demo`, the only
+other caller.
+
+**Evidence:** New test
+`demo_api_server/tests/accounts.provisionDemoAccountsRace.test.js` calls
+`provisionDemoAccounts` twice concurrently for a brand-new user and
+asserts `createTransaction` was called exactly 11 times (not 22) —
+proven to fail against the pre-fix file (22 calls) and pass against the
+fix. Regression: 6 suites / 45 tests green.
+
+### 71. In-memory cibaRequests Map grows without bound — no expiry sweep — FIXED
+
+**File:** `demo_api_server/routes/useCases.js` (`cibaRequests`)
+
+**Issue:** `cibaRequests`, a module-level Map accumulating one entry per
+`POST /api/use-cases/uc15/initiate` call, was only cleaned up lazily (an
+explicit deny, or a poll landing after expiry) — unlike the comparable
+pattern already used in `demoTrackService.js`'s `_sweepStaleBuckets`. Any
+initiate call whose poll never lands after expiry (approved before/at
+expiry, or abandoned) left its entry for the life of the process.
+
+**Trigger scenario:** Repeatedly firing the UC15 CIBA chip (demo
+walkthroughs, conformance runs, long-running automated step-verification)
+without every request polling again after its 5-minute expiry leaves a
+permanent entry each time, growing unboundedly over server uptime.
+
+**Fix:** Added `_sweepExpiredCibaRequests`, an hourly `setInterval(...).
+unref()` sweep deleting any entry whose `expiresAt` has passed —
+mirroring `demoTrackService.js`'s idiom exactly. Existing explicit-delete
+paths are untouched; the sweep is a backstop only.
+
+**Evidence:** New test
+`demo_api_server/tests/useCasesCibaSweep.test.js` installs jest fake
+timers before requiring the module (so the module-level `setInterval`
+registers against the fake clock), inserts an already-expired entry,
+advances past the sweep, and asserts it's gone; a second case confirms a
+not-yet-expired entry survives. Proven to fail against the pre-fix file
+(hooks don't exist) and pass against the fix. Regression: 7 suites / 260
+tests green.
+
+### 72. Cold-start account restore silently discards data on any LMDB read error, permanently overwriting the real snapshot with fresh defaults — FIXED
+
+**File:** `demo_api_server/routes/demoScenario.js` (`restoreAccountsFromSnapshot`)
+
+**Issue:** `restoreAccountsFromSnapshot()` wrapped the entire restore —
+including `demoScenarioStore.load(userId)`, which can throw on
+env-open/read failure — in one try/catch that logged a warning and
+returned `[]` on ANY failure, indistinguishable from the legitimate "no
+snapshot exists" case. The `GET /` handler then treated the empty array
+as "nothing to restore," reprovisioned fresh default accounts, and
+persisted them over the previously-saved (real) snapshot — permanently
+destroying data a failed read never got to see.
+
+**Trigger scenario:** Server cold-starts, and at that moment the
+demoScenarioStore LMDB env is transiently unavailable (still opening,
+disk hiccup, corrupted env file) so `lmdb.get()` throws.
+`GET /api/demo/scenario` silently reprovisions and persists default
+accounts, permanently overwriting the user's real customized snapshot
+with only a console.warn as any trace.
+
+**Fix:** Confirmed `demoScenarioStore.load()` never throws for the
+legitimate "no snapshot" case — it resolves to an object simply missing
+`accountSnapshot`, already handled cleanly by the existing
+`Array.isArray` check. The try/catch was therefore only ever catching
+genuine failures. Removed it entirely: a genuine error now propagates to
+the `GET /` handler's existing outer try/catch, which returns
+`500 { error: 'demo_scenario_failed' }` instead of falling through to
+reprovision-and-overwrite.
+
+**Evidence:** New test
+`demo_api_server/tests/routes/demoScenarioRestoreSnapshot.test.js`: case 1
+confirms the legitimate "no snapshot" path still reprovisions cleanly (no
+regression); case 2 confirms a genuine `demoScenarioStore.load` rejection
+now returns 500 and never calls `provisionDemoAccounts`/`save`. Proven to
+fail against the pre-fix file (silently reprovisions) and pass against
+the fix. Regression: 2 suites / 4 tests green.
+
+### 73. resolveUseCase() re-derives a2aDelegated (with a sync fs.statSync per call) instead of reusing the value already precomputed at module load — FIXED
+
+**File:** `demo_api_server/config/useCases.js` (`resolveUseCase`)
+
+**Issue:** `USE_CASES` is built once at module load with `a2aDelegated`
+already stamped on every entry. `resolveUseCase()` discarded that
+precomputed value and recomputed it via `isA2aDelegatedPrimaryTool()` on
+every invocation — which does a synchronous `fs.statSync()` on the
+scope-topology manifest every call. `listUseCases(vertical)` maps every
+~57 catalog entries through `resolveUseCase`, so a single
+`GET /api/use-cases` did ~57 blocking stat syscalls per request for a
+value identical to `base.a2aDelegated` in the common case.
+
+**Trigger scenario:** Any client hitting `GET /api/use-cases` for a
+vertical recomputes `a2aDelegated` for the whole catalog synchronously
+instead of reusing the value stamped at boot.
+
+**Fix:** Both call sites now reuse `base.a2aDelegated` when the resolved
+`primaryTool` matches `base.primaryTool` (no perVertical override changed
+it), only calling `isA2aDelegatedPrimaryTool()` when an override actually
+swaps `primaryTool` for that vertical.
+
+**Evidence:** New test
+`demo_api_server/tests/useCases.resolveUseCaseA2aDelegatedReuse.test.js`
+spies on `scopeTopology.isA2aDelegatedTool` and asserts
+`listUseCases('banking')` makes zero extra calls beyond module load (was
+27 before the fix) and that resolved values are unchanged — proven to
+fail against the pre-fix file and pass against the fix. Regression: 6
+suites / 489 tests green.
+
+### 74. Concurrent chip Run clicks race the /dashboard navigation — a slower launch can overwrite a faster, later one — FIXED
+
+**File:** `demo_api_ui/src/pages/UseCaseLauncherPage.js` (`handleRun`)
+
+**Issue:** `handleRun` tracked the in-flight chip launch in a single
+`chipRun` object, not keyed per `uc.id`. When a second card's Run was
+clicked while a first card's async chain (flag-arm PATCH → demo/run POST
+→ verticals/active POST → navigate) was still in flight, both chains
+eventually called `navigate('/dashboard', ...)` independently — whichever
+resolved last won regardless of click order.
+
+**Trigger scenario:** A presenter clicks Run on a flag-gated card (extra
+PATCH round-trip) then, before it resolves, clicks Run on a plain card.
+The plain card's chain finishes first and navigates; the flag-gated
+card's chain finishes moments later and navigates again, silently
+replacing the router state with the stale, first-clicked scenario.
+
+**Fix:** Added a monotonic `chipRunTokenRef`, bumped at the start of
+every `handleRun` call; the `.then`/`.catch` chain checks its captured
+token against the ref before calling `navigate`/`recordCompleted`/
+`markCameFromUseCases`, discarding a stale chain's resolution.
+
+**Evidence:** New test in
+`demo_api_ui/src/__tests__/UseCaseLauncherPage.test.js` clicks Run on a
+slow flag-gated card then a fast plain card before the first resolves,
+asserts `navigate` is called once with the fast card's data, and stays at
+one call after the stale chain resolves — proven to fail against the
+pre-fix file (2 navigate calls) and pass against the fix. Regression: 3
+files / 42 tests green; UI build green.
+
+### 75. Overlapping chip launches race the 'banking-agent-prefill' event — an older click's prompt can land after a newer one — FIXED
+
+**File:** `demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.js` (`handleRunChip`)
+
+**Issue:** `handleRunChip` fires two sequential POSTs then dispatches
+`window.dispatchEvent(new CustomEvent('banking-agent-prefill', { detail:
+{..., autoSend: true} }))`. Nothing checked that the resolving chain
+still corresponded to the most-recently-triggered run before dispatching
+with `autoSend: true` — whichever chain resolved last dispatched last, and
+the agent auto-sent whatever text arrived last. Root-cause investigation
+found the real-world trigger is not ordinary tile clicks (the tile's Run
+button self-disables while running) but the `demo-script`
+`BroadcastChannel` listener used by the teleprompter/popped-out
+second-screen, which calls `handleRunChip` directly, unguarded by that
+button state.
+
+**Trigger scenario:** Two overlapping `run` messages arrive over the
+`demo-script` BroadcastChannel (teleprompter/second-screen). If the
+first-triggered run's two-POST chain resolves after the second's, the
+agent receives and auto-sends the first (stale) prompt after already
+having run the second — executing an unintended scenario live, with no
+error surfaced. HIGH severity: directly misfires a live agent action
+during a demo.
+
+**Fix:** Added a monotonic `runChipTokenRef`, captured at the top of each
+`handleRunChip` call; both the success and error handlers bail out if a
+newer run has since started, so a stale chain can never dispatch the
+prefill event or mutate `runState`.
+
+**Evidence:** New test in
+`demo_api_ui/src/__tests__/LiveUseCaseWorkbenchPage.test.js` uses an
+in-process fake `BroadcastChannel` (Node's native one broadcasts across
+worker threads and would leak into sibling test files) to fire an older
+(slow) then newer (fast) run message, and asserts exactly one
+`banking-agent-prefill` dispatch, carrying the newer run's message —
+proven to fail against the pre-fix file (2 dispatches) and pass against
+the fix, verified flake-free across 7 runs. Regression: 32/32 tests
+green; full UI suite and build green.
+
+### 76. Demo Track's overlapping polls/actions can let a stale /api/demo-track response revert a just-proved step — FIXED
+
+**File:** `demo_api_ui/src/pages/DemoTrackPage.jsx` (`load`)
+
+**Issue:** `load()` had no cancellation/sequencing guard and is invoked
+from four independent, overlapping call sites: a 5s poll interval,
+`startRun`, `onStepClick`, and `runSlot` after every chip/sim run. Each
+call unconditionally applied its own response via `setState`, so a
+slower, older request could resolve after a newer one and overwrite
+fresher state.
+
+**Trigger scenario:** A presenter clicks Run on a slot right as the
+periodic 5s poll also fires `load()`. `runSlot`'s own post-run `load()`
+can resolve before the concurrently in-flight interval poll (reflecting
+pre-run state); when the interval's response lands, the just-completed
+step visibly reverts from "proved" back to "pending" mid-demo until the
+next poll catches up.
+
+**Fix:** Added a monotonic request-id ref inside `load()` itself — only
+the most recently-issued call may apply its response via `setState`,
+protecting all four call sites uniformly with no change to the call
+sites themselves.
+
+**Evidence:** New test
+`demo_api_ui/src/pages/__tests__/DemoTrackPage.staleResponse.test.jsx`
+(mirroring `AgentGatewayLogPanel.staleResponse.test.jsx`'s pattern) fires
+an older `load()` that resolves after a newer one and asserts the DOM
+reflects the newer state — proven to fail against the pre-fix file
+(reverts to old state) and pass against the fix. Regression: 9/9 tests
+green; UI build green.
+
+### 77. Demo Steps dropdown races catalog fetches across a vertical switch while open — FIXED
+
+**File:** `demo_api_ui/src/components/DemoStepsDropdown.jsx` (`loadSteps`)
+
+**Issue:** `loadSteps` closed over the `vertical` prop; the effect
+re-invoked it whenever `vertical` changed while the panel was open,
+issuing a second fetch without cancelling or waiting for the first, with
+no check that a `.then` response still matched the currently-selected
+vertical.
+
+**Trigger scenario:** A presenter opens the dropdown for banking, then
+switches vertical to healthcare while it's still open. If banking's fetch
+resolves after healthcare's (ordinary network variance), it overwrites
+the list — the dropdown shows banking's steps while the app is actually
+on healthcare; clicking Run then dispatches a chip/useCaseId meaningless
+for the active vertical.
+
+**Fix:** Added a monotonic `loadStepsReqIdRef` (mirroring
+`AgentGatewayLogPanel.jsx`'s `fetchLogs`/`fetchDecisions` pattern) —
+`loadSteps` captures a request id at issue time, and the `.then`/`.catch`/
+`.finally` handlers bail if a newer request has since been issued.
+
+**Evidence:** New test
+`demo_api_ui/src/components/__tests__/DemoStepsDropdown.staleResponse.test.jsx`
+switches vertical mid-fetch, resolves the newer vertical first then the
+older, and asserts the newer vertical's step stays rendered rather than
+being clobbered — proven to fail against the pre-fix file and pass
+against the fix. Regression: 25/25 tests green; UI build green.
+
+### 78. Copy-to-clipboard in the use-case prompt card has no rejection handler — FIXED
+
+**File:** `demo_api_ui/src/pages/UseCaseLauncherPage.js` (`PromptSection.handleCopy`)
+
+**Issue:** `handleCopy` called `navigator.clipboard.writeText(prompt).
+then(...)` with no `.catch`. `writeText()` rejects in ordinary conditions
+(document not focused after a modal closes, clipboard permission denied,
+insecure context), producing an unhandled promise rejection every time.
+
+**Trigger scenario:** A presenter clicks Copy on a chip prompt right
+after closing a modal — Chrome throws `NotAllowedError: Document is not
+focused` from `writeText()`, unhandled, surfacing as an uncaught
+rejection.
+
+**Fix:** Added a reject branch mirroring the existing success-state
+pattern — a new `copyFailed` state shows "Copy failed" on the button for
+2s then resets, instead of leaving the rejection unhandled.
+
+**Evidence:** New test
+`demo_api_ui/src/pages/__tests__/UseCaseLauncherPage.copyPrompt.test.jsx`
+mocks `writeText` to reject and asserts no unhandled rejection plus the
+"Copy failed" state renders (a second case covers the existing success
+path) — proven to fail against the pre-fix file (explicit "Unhandled
+Rejection" reported) and pass against the fix. Regression: 4 files / 43
+tests green; UI build green.
+
+### 79. DemoStepsDropdown re-derives the completed-id Set from sessionStorage 2-3x per rendered row on every render — FIXED
+
+**File:** `demo_api_ui/src/components/DemoStepsDropdown.jsx` (completed-id lookups)
+
+**Issue:** `completedCount`, `nextPrimaryId`, and each row's `renderStep`
+each called `isUseCaseCompleted(uc.id)` independently; that helper does a
+fresh `sessionStorage.getItem` + `JSON.parse` + `Set` rebuild on every
+single call — never read once and reused, unlike
+`UseCaseLauncherPage.js`'s existing pattern for the same data.
+
+**Trigger scenario:** Opening the Demo Steps popout and typing in the
+search box re-renders the component on every keystroke, each render
+redundantly re-parsing sessionStorage ~2-3x per row (~50-70 parses for
+~23 rows).
+
+**Fix:** Call `getCompletedUseCaseIds()` once per render into a local
+const, and replace every `isUseCaseCompleted(uc.id)` call site with
+`completedIds.has(uc.id)` — zero behavior change, pure perf.
+
+**Evidence:** New test
+`demo_api_ui/src/components/__tests__/DemoStepsDropdown.completedIds.test.jsx`
+wraps both `isUseCaseCompleted` and `getCompletedUseCaseIds` with call
+counters and asserts the combined call count for a 21-row mount stays
+bounded (≤5) — proven to fail against the pre-fix file (49 calls) and
+pass against the fix. Regression: 25/25 tests green; UI build green.
+
+### 80. Resize-divider aria-valuemax forces a synchronous layout read on every render, including every pointermove during a drag — FIXED
+
+**File:** `demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.js` (resize divider)
+
+**Issue:** `aria-valuemax` called `runLayoutRef.current.
+getBoundingClientRect()` directly in JSX, so it ran on every render — not
+just on resize. Dragging the divider fires `pointermove` → `setAgentW` →
+re-render → this line's synchronous layout read (forced reflow), on every
+event of the drag, and on unrelated state changes too.
+
+**Trigger scenario:** Dragging the agent/token-chain resize divider: each
+`pointermove` forces a synchronous layout read purely to keep an aria
+attribute current.
+
+**Fix:** Added a `runLayoutWidth` state variable populated once at mount
+and thereafter only via `ResizeObserver` when the container actually
+resizes (same pattern already used in `AIAgent.js`), reading the cached
+value in JSX instead of calling `getBoundingClientRect()` inline. The
+computed value is unchanged — only how often it's recomputed.
+
+**Evidence:** New test in
+`demo_api_ui/src/pages/__tests__/LiveUseCaseWorkbenchPage.test.jsx` spies
+on `Element.prototype.getBoundingClientRect` after mount, fires 5
+unrelated re-renders, and asserts zero further calls — proven to fail
+against the pre-fix file (5 calls, one per re-render) and pass against
+the fix. Regression: 2 files / 32 tests green; UI build green.
+
 ---
 
 ## Changelog
 
+- 2026-08-24 — #80 FIXED (round 7 — use-case/demo-step audit):
+  `LiveUseCaseWorkbenchPage.js`'s resize-divider `aria-valuemax` now reads
+  a `ResizeObserver`-cached width instead of calling
+  `getBoundingClientRect()` inline in JSX on every render, including every
+  `pointermove` during a drag. New test proven to fail against the
+  pre-fix file (5 layout reads on 5 unrelated re-renders) and pass against
+  the fix (0); 32 tests + UI build green.
+- 2026-08-24 — #79 FIXED (round 7): `DemoStepsDropdown.jsx`'s
+  `completedCount`/`nextPrimaryId`/`renderStep` now read the completed-id
+  Set once per render instead of each independently re-parsing
+  sessionStorage. New test proven to fail against the pre-fix file (49
+  calls for 21 rows) and pass against the fix (≤5); 25 tests + UI build
+  green.
+- 2026-08-24 — #78 FIXED (round 7): `UseCaseLauncherPage.js`'s
+  `PromptSection.handleCopy` now handles a rejected
+  `navigator.clipboard.writeText()` (document-not-focused, permission
+  denied) instead of leaving it an unhandled rejection. New test proven to
+  fail against the pre-fix file and pass against the fix; 43 tests + UI
+  build green.
+- 2026-08-24 — #77 FIXED (round 7): `DemoStepsDropdown.jsx`'s `loadSteps`
+  gained a monotonic request-id ref, closing the window where switching
+  vertical while the panel is open could let a stale, older vertical's
+  catalog fetch overwrite a newer vertical's already-rendered list. New
+  test proven to fail against the pre-fix file and pass against the fix;
+  25 tests + UI build green.
+- 2026-08-24 — #76 FIXED (round 7): `DemoTrackPage.jsx`'s `load()` gained
+  a monotonic request-id ref, closing the window where a slower poll (or
+  any of its 4 overlapping call sites) could resolve after a fresher
+  post-run fetch and revert a just-proved step on the presenter's screen.
+  New test proven to fail against the pre-fix file and pass against the
+  fix; 9 tests + UI build green.
+- 2026-08-24 — #75 FIXED (round 7, high severity):
+  `LiveUseCaseWorkbenchPage.js`'s `handleRunChip` gained a monotonic
+  run-token ref — closing the window where two overlapping runs
+  triggered via the `demo-script` BroadcastChannel (teleprompter/
+  second-screen) could let an older click's stale prompt auto-send to the
+  agent after a newer click already ran. New test proven to fail against
+  the pre-fix file (2 prefill dispatches) and pass against the fix (1);
+  32 tests + full UI suite + build green.
+- 2026-08-24 — #74 FIXED (round 7): `UseCaseLauncherPage.js`'s
+  `handleRun` gained a monotonic run-token ref, closing the window where a
+  slower first-clicked chip's navigation could land after a faster,
+  later-clicked chip's navigation and silently replace the router state.
+  New test proven to fail against the pre-fix file (2 navigate calls) and
+  pass against the fix (1); 42 tests + UI build green.
+- 2026-08-24 — #73 FIXED (round 7): `config/useCases.js`'s
+  `resolveUseCase()` now reuses the `a2aDelegated` value precomputed at
+  module load instead of recomputing it (and its sync `fs.statSync`) on
+  every call — ~57 blocking stat syscalls per `GET /api/use-cases`
+  eliminated in the common case. New test proven to fail against the
+  pre-fix file (27 extra calls) and pass against the fix (0); 489 tests
+  green.
+- 2026-08-24 — #72 FIXED (round 7): `demoScenario.js`'s
+  `restoreAccountsFromSnapshot()` no longer swallows a genuine LMDB read
+  error into the same `[]` result as a legitimate "no snapshot" — a
+  transient store failure could previously trigger silent reprovisioning
+  that permanently overwrote a user's real account snapshot with fresh
+  defaults. New test proven to fail against the pre-fix file and pass
+  against the fix; 4 tests green.
+- 2026-08-24 — #71 FIXED (round 7): `useCases.js`'s `cibaRequests` Map
+  gained an hourly sweep for expired entries, matching
+  `demoTrackService.js`'s existing `_sweepStaleBuckets` idiom — closing an
+  unbounded-growth gap for UC15 CIBA requests that are approved or
+  abandoned and never polled again. New test proven to fail against the
+  pre-fix file and pass against the fix; 260 tests green.
+- 2026-08-24 — #70 FIXED (round 7, high severity): `accounts.js`'s
+  `provisionDemoAccounts` is now single-flight per userId — closing a
+  race where two overlapping first-load requests for the same brand-new
+  user each independently provisioned a full set of ~11 sample
+  transactions, permanently duplicating the user's transaction history.
+  New test proven to fail against the pre-fix file (22 transactions) and
+  pass against the fix (11); 45 tests green.
 - 2026-08-24 — #69 FIXED (round 6 — new-area audit): `retailDb.ts`'s
   `insertOrder` and `workforceDb.ts`'s `insertExpense` now derive their
   next id's suffix via a single SQL `MAX()` aggregate instead of pulling
