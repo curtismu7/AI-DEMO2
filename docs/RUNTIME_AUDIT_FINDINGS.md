@@ -74,7 +74,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 42 | Runtime | `services/http2McpBridge.js` | low | FIXED |
 | 43 | Runtime | `routes/privilegeMcpClient.js` | low | FIXED |
 | 44 | Runtime | `demo_api_ui/.../services/spinnerActivityService.js` | medium | FIXED |
-| 45 | Runtime | `demo_api_ui/.../services/cachedStatusService.js` | low | OPEN |
+| 45 | Runtime | `demo_api_ui/.../services/cachedStatusService.js` | low | FIXED |
 | 46 | Swallowed | `routes/mcpGatewayConfig.js` | medium | OPEN |
 | 47 | Swallowed | `routes/agentConsentRoute.js` | high | OPEN |
 | 48 | Swallowed | `services/groupPolicy.js` | low | OPEN |
@@ -1342,7 +1342,7 @@ test:unit -- spinnerActivityService` — 1/1 passed; full UI suite (418 files
 / 3422 tests) — no regressions. `npm --prefix demo_api_ui run build` —
 exit 0.
 
-### 45. Cached-status fetch can be clobbered by an older, slower overlapping request — OPEN
+### 45. Cached-status fetch can be clobbered by an older, slower overlapping request — FIXED
 
 **File:** `demo_api_ui/src/services/cachedStatusService.js`, line 51
 
@@ -1357,10 +1357,20 @@ before it resolves, so call B fires fresh and resolves quickly, caching
 fresher data. When A finally resolves, its handler still runs unconditionally
 and overwrites the cache with stale data and a new expiry.
 
-**Fix (not yet applied):** Tag each in-flight fetch with the cache
-entry/promise it was started for, and only write the result into
-`cache[cacheKey]` if that entry is still the current one (compare
-`cache[cacheKey]?.promise` to the promise captured before the fetch started).
+**Fix:** The `.then`/`.catch` handlers now close over their own `promise`
+(the same `const` they're chained from) and only write to or delete
+`cache[cacheKey]` when `cache[cacheKey]?.promise === promise` — i.e. only
+when this fetch's own cache entry hasn't already been replaced by a newer
+one.
+
+**Evidence:** New test uses fake timers: starts a slow call A, advances past
+its TTL, starts a fast call B (caches fresh data), resolves A's slow
+response afterward, then asserts a third call still serves B's fresh data
+(not A's stale overwrite) with no extra fetch. Proven to fail against the
+pre-fix file (stale data won) and pass against the fix. `npm --prefix
+demo_api_ui run test:unit -- cachedStatusService` — 1/1 passed; full UI
+suite (419 files / 3423 tests) — no regressions. `npm --prefix demo_api_ui
+run build` — exit 0.
 
 ### 46. MCP gateway config persist failure still reports success — OPEN
 
@@ -1566,6 +1576,13 @@ apply the same fix to the duplicated block in `UserDashboardPing2026.js`.
 
 ## Changelog
 
+- 2026-08-23 — #45 FIXED: `cachedStatusService.js`'s fetch handlers now
+  self-reference their own `promise` and only write/delete the cache entry
+  when it's still the current one, closing the window where an older,
+  slower overlapping request could clobber a fresher cached response. New
+  test proven to fail against the pre-fix file and pass against the fix;
+  full UI suite green (419 files / 3423 tests). **This closes the Runtime
+  category for round 3 (#40–45 all FIXED).**
 - 2026-08-23 — #44 FIXED: `spinnerActivityService.js` gained a `_generation`
   counter bumped in `start()`/`stop()`, checked in `poll()` after its await
   in both success and error paths, discarding a stale response from an
