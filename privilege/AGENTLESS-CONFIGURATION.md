@@ -3,6 +3,115 @@
 Verified 2026-08-20 against the live `ping-devops-cmuir` deployment. This is the
 operational source of truth for Agentless mode.
 
+## 2026-08-24 — banking flow verified end-to-end through a second application (`external`)
+
+A second Agentless application, `external`, was created on the same gateway
+deployment to route the banking-demo external-door flow (`oauth-mcp`'s
+`mcp-server`, the same backend `docs/superpowers/plans/2026-08-23-external-door-token-chain-bridge.md`
+covers) through Privilege — separate from `cmuir`, which stays pointed at
+`pingone-mcp-server-2` for its own purpose. **Confirmed working, live, real
+data**, end to end for the first time: real PingOne login as `demoUser` →
+Privilege OAuth (PKCE, DCR) → policy-enforced RBAC → routed to
+`mcp-server` → `get_my_accounts` returned real account data, schema-valid.
+
+| Item | Value |
+|---|---|
+| Privilege application | `external` |
+| MCP client URL | `https://cmuir-agentless-mcpgw.ping-devops.com/external/mcp` |
+| Backend (MCP Server URL) | `http://mcp-server.ping-devops-cmuir.svc.cluster.local:8080/mcp` |
+| Mesh cluster | `ai-demo-cmuir` (same gateway/node as `cmuir`) |
+| Auth Mode | Static Token, empty (matches `mcp-server`'s `MCP_AUTH_DISABLED=true`, `MCP_MTLS_ENABLED` unset) |
+
+### Bug found and fixed: the gateway's own `pingone.env` had every OIDC field empty
+
+This is the actual, real root cause of every "unauthorized"/broken-login
+symptom hit while wiring this up — **not** a reappearance of the historical
+"PingOne token wall" documented in the `privilege-cloud-mcp` skill (see that
+skill's "Read this first" section — item 0 already says OAuth is run with the
+AI Gateway in the field; the skill's own memory note now flags the "token
+wall" table as stale as of this date).
+
+`kubectl get secret agentless-mcpgw-oidc-config -n ping-devops-cmuir -o
+jsonpath='{.data.pingone\.env}' | base64 -d` showed:
+
+```text
+SERVER_URL=https://cmuir-agentless-mcpgw.ping-devops.com
+OIDC_CLIENT_ID=
+OIDC_CLIENT_SECRET=
+OIDC_AUTH_URL=
+OIDC_TOKEN_URL=
+OIDC_USER_URL=
+OIDC_SCOPES=openid profile email p1:read:env p1:read:user p1:read:application
+```
+
+Every OIDC field was blank. `GET /external/authorize` correctly built a
+redirect, but with `client_id=` empty — the gateway had no PingOne client to
+send the browser to, so the OAuth flow could never start. Fixed by populating
+the same fields the BFF already uses for its own `PRIVILEGE_SSO_*` config
+(same PingOne application, `a6219652-47af-4ed2-8dea-20e9940b3377`, per the
+"Current deployment" table above):
+
+```text
+OIDC_CLIENT_ID=a6219652-47af-4ed2-8dea-20e9940b3377
+OIDC_CLIENT_SECRET=<from PingOne app a6219652's secret, or ai-demo-secrets' PRIVILEGE_SSO_CLIENT_SECRET>
+OIDC_AUTH_URL=https://auth.pingone.com/01d89b06-66d5-430e-9f28-65636843788b/as/authorize
+OIDC_TOKEN_URL=https://auth.pingone.com/01d89b06-66d5-430e-9f28-65636843788b/as/token
+OIDC_USER_URL=https://auth.pingone.com/01d89b06-66d5-430e-9f28-65636843788b/as/userinfo
+```
+
+Apply via `kubectl create secret generic agentless-mcpgw-oidc-config -n
+ping-devops-cmuir --from-file=pingone.env=<file> --dry-run=client -o yaml |
+kubectl apply -f -`, then `kubectl rollout restart deployment/agentless-mcpgw
+-n ping-devops-cmuir` — the binary reads this file eagerly at startup (see
+the `privilege-cloud-mcp` skill's item 6), it is not hot-reloaded.
+
+**If `cmuir` also shows this same empty-OIDC symptom, it shares this secret**
+(one `pingone.env` per gateway deployment, not per application) and is
+already fixed by the same change — there is nothing app-specific to redo.
+
+### Dead end: an app created outside "Add Application → MCP Server" gets no working route
+
+A first attempt created an app named `http-external` by editing/reusing an
+existing object rather than through the console's dedicated "Add Application
+→ MCP Server" flow. Its backend URL saved correctly and its Graph
+backend/frontend nodes synced fine (`kubectl logs ... -c log-tailer | grep
+"Created backend node"` showed successful re-syncs on every edit), but every
+request to `/http-external/mcp` failed with:
+
+```text
+[mcpgw] app http-external not found or has no FrontEndName, falling back to synthesized host: application not found: Application/<env>/default/http-external
+Finding frontend for domain http-external.default.applications.procyon.ai
+Domain http-external.default.applications.procyon.ai not found: Domain not found
+```
+
+This is a **different internal object** from the Graph backend/frontend
+nodes that did resync — `mcpgw`'s own `Application` lookup (with its
+`FrontEndName` field) never got populated for this app, and re-saving in the
+console did not fix it. Deleting `http-external` and creating a fresh
+application through "Agentic Apps → Add Application → MCP Server" (named
+`external`) worked immediately with no other changes. If a new app's routing
+fails the same way, don't debug the Graph nodes — recreate the app through
+the dedicated MCP Server creation flow instead of editing/repurposing an
+existing object.
+
+### MCP Inspector-specific: `tools/list` hangs through this gateway, `curl` does not
+
+Once auth and routing both worked, MCP Inspector's UI showed "Couldn't load
+tools — Request timed out" — but `curl` issuing the identical `tools/list`
+call (same session ID, same bearer token, fresh connection) returned
+`HTTP/2 200` with the full tool catalog in well under a second, and a
+follow-up `tools/call` for `get_my_accounts` likewise succeeded instantly.
+The gateway's own logs showed **zero** trace of Inspector's `tools/list`
+request ever arriving — not a policy denial, not a filter-processing hang,
+nothing. Read as an MCP Inspector Node client quirk sending a new POST over
+an HTTP/2 connection that already has a long-lived SSE GET stream open
+through this specific proxy (`mcpgw` runs its own response-rewriting
+`mcpfilter` layer on the streamed channel, per-request `X-Procyon-Mcp-Cap`
+capability headers) — not a bug in the banking flow, `mcp-server`, or the
+gateway's policy enforcement, all of which are confirmed correct via `curl`.
+If this needs a working browser-based demo, test with a client other than
+MCP Inspector, or drive `curl`/Postman for the live proof.
+
 ## What Agentless means
 
 The MCP client connects directly to customer-owned DNS and TLS. The gateway runs
