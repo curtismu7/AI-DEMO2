@@ -1,0 +1,32 @@
+{
+  "investors": [
+    {
+      "investor_id": "INV-8842",
+      "subject": null,
+      "holder": "Jordan A. Rivera",
+      "portfolio_id": "INV-8842",
+      "total_value": 184320.55,
+      "cash_sweep": 12580.10,
+      "ytd_return_pct": 11.4,
+      "risk_profile": "Growth",
+      "is_demo_fallback": true,
+      "portfolios": [
+        { "id": "PF-01", "portfolio_type": "Brokerage", "portfolio_number": "****4471", "value": 102340.20, "currency": "USD" },
+        { "id": "PF-02", "portfolio_type": "Retirement", "portfolio_number": "****9902", "value": 68540.90, "currency": "USD" },
+        { "id": "PF-03", "portfolio_type": "Trust", "portfolio_number": "****1187", "value": 13439.45, "currency": "USD" }
+      ],
+      "holdings": [
+        { "symbol": "VTI", "name": "Vanguard Total Market ETF", "quantity": 220, "market_value": 62480.00 },
+        { "symbol": "UST-10Y", "name": "US Treasury Note", "quantity": null, "market_value": 60010.35 },
+        { "symbol": "AAPL", "name": "Apple Inc.", "quantity": 90, "market_value": 19260.00 },
+        { "symbol": "VNQ", "name": "Vanguard Real Estate ETF", "quantity": 340, "market_value": 29990.10 }
+      ],
+      "trades": [
+        { "id": "TRD-3001", "type": "Buy", "symbol": "VTI", "amount": 12000.00, "date": "2026-05-02", "status": "Settled" },
+        { "id": "TRD-3002", "type": "Sell", "symbol": "AAPL", "amount": 4300.00, "date": "2026-05-14", "status": "Settled" },
+        { "id": "TRD-3003", "type": "Buy", "symbol": "VNQ", "amount": 6200.00, "date": "2026-06-01", "status": "Settled" },
+        { "id": "TRD-3004", "type": "Dividend", "symbol": "VTI", "amount": 184.32, "date": "2026-06-15", "status": "Posted" }
+      ]
+    }
+  ]
+}
