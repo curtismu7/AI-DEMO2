@@ -33,7 +33,6 @@ describe('ClientRegistry', () => {
     const client = registry.registerClient({
       client_name: 'public client',
       redirect_uris: ['http://localhost:9999/callback'],
-      token_endpoint_auth_method: 'none',
     });
     expect(registry.authenticateClient(client.client_id, undefined)).toEqual(client);
   });
