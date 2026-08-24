@@ -16,7 +16,7 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
-### [ ] 2026-08-24 — `get_my_accounts`'s output schema doesn't match the Banking API's actual response shape
+### [x] 2026-08-24 — `get_my_accounts`'s output schema doesn't match the Banking API's actual response shape
 
 **Where:** `oauth-mcp/src/tools/BankingToolRegistry.ts` (declared output
 schema for `get_my_accounts`) vs `demo_api_server`'s `/api/accounts/my`
@@ -45,6 +45,51 @@ for `demoUser` directly (Banking API, bypassing MCP) and diff its shape
 against the declared output schema in `BankingToolRegistry.ts` before
 guessing whether the fix is loosening the schema (nullable fields) or
 populating/omitting those fields correctly on the Banking API side.
+
+**RESOLVED** (branch `worktree-external-door-well-known-suffix-routing`):
+traced with a read-only exploration agent rather than guessing. Two
+independent, compounding causes, both in `oauth-mcp` — not in
+`demo_api_server` as originally suspected:
+
+1. `accountNumber` was mapped with no fallback
+   (`accountNumber: account.accountNumber`); when the upstream value was
+   `undefined` (demoUser's checking/savings accounts, seeded via the
+   minimal `seedAccountsForUser` path in `demo_api_server/data/store.js`,
+   never set it), `JSON.stringify` dropped the key entirely — "missing
+   required property," not a wrong-type value.
+2. Every other optional field (`swiftCode`/`iban`/`branchName`/
+   `branchCode`/`openedDate`/`notes`) was mapped with `|| null`, but
+   `GET_MY_ACCOUNTS_OUTPUT` (`oauth-mcp/src/tools/outputSchemas.ts`) types
+   them as plain `{ type: 'string' }` with no `null` in the union — a
+   present-but-`null` value fails ajv's type check.
+
+Fixed at the correct boundary — `oauth-mcp/src/tools/handlers/accountHandlers.ts`'s
+`executeGetMyAccounts`, the code that owns the MCP output contract — rather
+than touching `demo_api_server`'s seed data (broader blast radius: the UI
+and other consumers read that data too, and may rely on `null` meaning
+"not applicable"). Every optional/missing field, including `accountNumber`,
+now falls back to `''` instead of `null`/omission, matching the file's own
+existing convention (`formatAccountNickname`'s
+`(account.accountNumber || '')`, a few lines above).
+
+A second, related bug was found and fixed in the same pass: `account_type`
+filtering (`?account_type=checking`) used a case-sensitive `===` against
+real `accountType` values that are inconsistently cased/named across two
+different seed-generation code paths (`'CHECKING'`/`'SAVINGS'` uppercase
+from the banking seed profile; lowercase `'loan'`/`'credit_card'` from the
+account-spec builder) — while the tool's own enum advertises lowercase
+`'checking'`/`'savings'`/`'credit'`. Every filtered call silently returned
+zero accounts regardless of whether the user actually had one of that type.
+Fixed with a case-insensitive compare plus a `'credit'` → `'credit_card'`
+mapping, following the same normalization pattern `pickAccountForNickname`
+(same file) already used for exactly this class of mismatch.
+
+Verified live end-to-end via MCP Inspector as `demoUser`: `get_my_accounts`
+now returns a schema-valid result with all 4 real accounts (unfiltered),
+and `account_type: "checking"` correctly returns the one matching account
+instead of an empty array. New unit tests added in
+`oauth-mcp/src/tools/handlers/__tests__/accountNickname.test.ts` covering
+both fixes; full suite green (1079/1079) before deploy.
 
 ### [ ] 2026-08-23 — `pingone_mgmt_client_id`/`_client_secret`/`_token_auth_method` are missing from `configStore.js`'s `FIELD_DEFS`
 

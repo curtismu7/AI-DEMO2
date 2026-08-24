@@ -115,7 +115,7 @@ suspect this before suspecting the code — decode the bearer token's `jti`
 and compare it against the previous attempt's before concluding the fix
 didn't work.
 
-### NEW bug found, not yet investigated: `get_my_accounts` response schema mismatch
+### Found AND fixed, same session: `get_my_accounts` response schema mismatch
 
 Once the auth chain actually worked, `get_my_accounts` returned real
 account data but MCP Inspector rejected the tool result with `-32602
@@ -132,35 +132,57 @@ data/accounts/0/notes must be string
 ... (repeated per account, 4 accounts total; accounts 2-3 already had accountNumber)
 ```
 
-This is a response-shape mismatch between what the Banking API actually
-returns for `demoUser`'s live accounts and what `get_my_accounts`'s declared
-MCP tool output schema requires — likely several optional fields (`swiftCode`,
-`iban`, `branchName`, `branchCode`, `openedDate`, `notes`) coming back `null`
-where the schema requires `string`, plus `accountNumber` missing entirely on
-at least the first two accounts. Not yet traced to a root cause — start by
-comparing the live Banking API response shape (`demo_api_server`'s
-`/api/accounts/my` handler) against the output schema declared in
-`oauth-mcp/src/tools/BankingToolRegistry.ts` for `get_my_accounts`.
+Traced with a read-only exploration agent rather than guessing. Two
+compounding causes, both in `oauth-mcp/src/tools/handlers/accountHandlers.ts`'s
+`executeGetMyAccounts` — not in `demo_api_server` as this doc originally
+guessed: `accountNumber` was mapped with no fallback, so an `undefined`
+upstream value (demoUser's checking/savings accounts, seeded via the
+minimal path in `demo_api_server/data/store.js`, never set it) got dropped
+by `JSON.stringify` entirely; every other optional field was mapped with
+`|| null`, but the declared output schema types them as plain `string` with
+no `null` in the union. Fixed by falling back to `''` instead of
+`null`/omission for every optional field including `accountNumber`,
+matching the file's own existing convention
+(`formatAccountNickname`'s `(account.accountNumber || '')`).
+
+A second, related bug was found in the same pass: `account_type` filtering
+(e.g. `account_type: "checking"`) used a case-sensitive compare against
+real `accountType` values that are inconsistently cased/named across two
+seed-generation paths (`'CHECKING'`/`'SAVINGS'` uppercase vs lowercase
+`'loan'`/`'credit_card'`), while the tool's enum advertises lowercase
+`'checking'`/`'savings'`/`'credit'` — every filtered call silently returned
+zero accounts. Fixed with case-insensitive matching plus a `'credit'` →
+`'credit_card'` mapping, same pattern `pickAccountForNickname` (same file)
+already used for this exact class of mismatch.
+
+Full writeup, including which specific fields/lines and why, in
+`TECH_DEBT.md`'s matching entry (now marked resolved). Live-verified via
+MCP Inspector as `demoUser`: unfiltered `get_my_accounts` returns all 4 real
+accounts cleanly, and `account_type: "checking"` correctly returns the one
+matching account. New unit tests in
+`oauth-mcp/src/tools/handlers/__tests__/accountNickname.test.ts`; full
+suite green (1079/1079) before each deploy.
 
 ### Exact next steps (in order)
 
-1. Trace the schema mismatch: fetch the live `/api/accounts/my` response for
-   `demoUser` (Banking API, not through MCP) and diff its shape against
-   `get_my_accounts`'s declared output schema in `BankingToolRegistry.ts`.
-2. Decide whether the fix is loosening the schema (nullable fields) or
-   fixing the Banking API's response to omit/populate those fields
-   correctly — don't guess without seeing both shapes side by side.
-3. Once `get_my_accounts` returns cleanly, confirm the original investigation
-   goal: does the call show up in Personal Agent Studio's token-chain movie
-   reel (`TokenChainFilmstrip`, ~15s poll) for a browser logged in as the
-   same PingOne user? That closes the loop this whole doc was written for.
-4. Merge PR #2296, plus whatever new commits this session added (units fix,
-   PingOne resource=/scope fix — note the PingOne app grant and
-   `requestScopesForMultipleResourcesEnabled` toggle are **live tenant
-   config changes, not code** — nothing to merge for those, but worth a line
-   in the PR description so a fresh environment/tenant doesn't silently miss
-   them).
-5. `./run-pingaws.sh undeploy` when the SE cluster session is genuinely done.
+1. Confirm the original investigation goal: does a `get_my_accounts` call
+   through the external door show up in Personal Agent Studio's token-chain
+   movie reel (`TokenChainFilmstrip`, ~15s poll) for a browser logged in as
+   the same PingOne user (`demoUser`)? That closes the loop this whole doc
+   was written for — not yet checked this session.
+2. Merge PR #2296, plus every commit this session added on the same branch
+   (units fix, PingOne resource=/scope fix, response-schema fix). Note the
+   PingOne app grant and `requestScopesForMultipleResourcesEnabled` toggle
+   are **live tenant config changes, not code** — nothing to merge for
+   those, but worth a line in the PR description so a fresh
+   environment/tenant doesn't silently miss them:
+   - Grant application `86f1f88a-cbb2-413b-9798-9324428e77d6`
+     ("Demo AI App - MCP External Client") access to the `Demo API` resource
+     (`enduser.ping.demo`, resource id `4a536256-36ad-4887-8e57-bcaa4c4f499e`),
+     scope `read`.
+   - Enable `requestScopesForMultipleResourcesEnabled` on that same
+     application.
+3. `./run-pingaws.sh undeploy` when the SE cluster session is genuinely done.
 
 ## 2026-08-24 session 3 — switched to MCP Inspector, found + fixed 2 more bugs, ONE fix not yet deployed
 
