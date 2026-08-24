@@ -4,7 +4,7 @@ Configuration management for environment-specific settings.
 import os
 import json
 from typing import Optional, Dict, Any, Type
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from pathlib import Path
 from abc import ABC, abstractmethod
 
@@ -187,7 +187,7 @@ class AppConfig:
     mcp: MCPConfig
     chat: ChatConfig
     langchain: LangChainConfig
-    privilege: PrivilegeConfig
+    privilege: PrivilegeConfig = field(default_factory=PrivilegeConfig)
 
 
 class BaseEnvironmentConfig(ABC):
