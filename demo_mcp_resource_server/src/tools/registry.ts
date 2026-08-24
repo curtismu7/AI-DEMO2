@@ -84,5 +84,5 @@ export function dispatch(
   if (UNIVERSITY_TOOL_NAMES.has(toolName)) return dispatchUniversityTool(toolName, args);
   if (WORKFORCE_TOOL_NAMES.has(toolName)) return dispatchWorkforceTool(toolName, args);
   if (ANF_TOOL_NAMES.has(toolName)) return dispatchAnfTool(toolName, args);
-  return dispatchInvestTool(toolName, args, token);
+  return dispatchInvestTool(toolName, args, token, subject);
 }

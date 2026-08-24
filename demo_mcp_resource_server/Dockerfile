@@ -24,9 +24,9 @@ RUN npm install --legacy-peer-deps --omit=dev --no-audit --no-fund
 
 COPY --from=builder /app/dist ./dist
 COPY openapi/ ./openapi/
-# Seed for the airlines SQLite database. Applied only when the tables are empty
-# (src/db/airlinesDb.ts), so a restart never clobbers out-of-band edits to
-# /app/data/airlines.db.
+# Seeds for the per-vertical SQLite databases. Applied only when the tables are empty
+# (src/db/*Db.ts), so a restart never clobbers out-of-band edits to
+# /app/data/*.db.
 COPY seed/ ./seed/
 
 EXPOSE 8081
