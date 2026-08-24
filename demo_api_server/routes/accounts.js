@@ -103,7 +103,26 @@ router.get('/', authenticateToken, requireScopes(['read']), async (req, res) => 
 });
 
 // Provision demo accounts + sample history for a user. Idempotent — always resets balances.
+// Single-flight per userId: two overlapping first-load requests for the same
+// brand-new user (two tabs, a double-invoked mount effect) would otherwise both
+// observe zero accounts and both run this, each inserting its own full set of
+// sample transactions (createTransaction mints a fresh random id — nothing dedups
+// or cleans those up). A second overlapping caller now awaits the first call's
+// result instead of re-running the provision-and-seed sequence.
+const _provisionInflight = new Map(); // userId -> Promise<Account[]>
+
 async function provisionDemoAccounts(userId) {
+  const inflight = _provisionInflight.get(userId);
+  if (inflight) return inflight;
+
+  const promise = _provisionDemoAccountsUnguarded(userId).finally(() => {
+    _provisionInflight.delete(userId);
+  });
+  _provisionInflight.set(userId, promise);
+  return promise;
+}
+
+async function _provisionDemoAccountsUnguarded(userId) {
   // Remove existing accounts for this user so we can reset balances cleanly
   const existing = dataStore.getAccountsByUserId(userId);
   const deletedAccountIds = new Set(existing.map((a) => a.id));
