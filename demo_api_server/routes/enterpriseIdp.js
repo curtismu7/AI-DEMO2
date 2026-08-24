@@ -38,66 +38,71 @@ router.get('/jwks', (_req, res) => {
  *       audience (MCP AS issuer), resource (MCP server), scope.
  */
 router.post('/token', express.json(), async (req, res) => {
-  const { grant_type, requested_token_type, subject_token, audience, resource, scope } = req.body || {};
+  try {
+    const { grant_type, requested_token_type, subject_token, audience, resource, scope } = req.body || {};
 
-  if (grant_type !== TOKEN_EXCHANGE_GRANT || requested_token_type !== ID_JAG_TOKEN_TYPE || !subject_token || !audience) {
-    return res.status(400).json({
-      error: 'invalid_request',
-      error_description: 'grant_type=...token-exchange, requested_token_type=...id-jag, subject_token and audience are required',
-    });
-  }
-
-  const user = req.session && req.session.user;
-  if (!user || !user.oauthId) {
-    return res.status(401).json({ error: 'invalid_grant', error_description: 'No signed-in user for this exchange.' });
-  }
-
-  // Checked before the policy call on purpose: an unapproved resource is a bad
-  // request regardless of who is asking, and evaluating policy first would leak
-  // a group-membership answer for a server we do not serve.
-  if (resource) {
-    const allowed = enterpriseMcpPolicy.getAllowedResourceUris();
-    if (allowed.length && !allowed.includes(resource)) {
+    if (grant_type !== TOKEN_EXCHANGE_GRANT || requested_token_type !== ID_JAG_TOKEN_TYPE || !subject_token || !audience) {
       return res.status(400).json({
-        error: 'invalid_target',
-        error_description: `resource ${resource} is not an approved MCP server.`,
+        error: 'invalid_request',
+        error_description: 'grant_type=...token-exchange, requested_token_type=...id-jag, subject_token and audience are required',
       });
     }
-  }
 
-  const policy = await enterpriseMcpPolicy.checkPolicy(req);
-  if (!policy.allowed) {
-    return res.status(policy.httpStatus || 403).json({
-      error: 'access_denied',
-      error_description: policy.message || 'Enterprise MCP policy denied.',
-      code: policy.code || 'enterprise_mcp_policy_denied',
+    const user = req.session && req.session.user;
+    if (!user || !user.oauthId) {
+      return res.status(401).json({ error: 'invalid_grant', error_description: 'No signed-in user for this exchange.' });
+    }
+
+    // Checked before the policy call on purpose: an unapproved resource is a bad
+    // request regardless of who is asking, and evaluating policy first would leak
+    // a group-membership answer for a server we do not serve.
+    if (resource) {
+      const allowed = enterpriseMcpPolicy.getAllowedResourceUris();
+      if (allowed.length && !allowed.includes(resource)) {
+        return res.status(400).json({
+          error: 'invalid_target',
+          error_description: `resource ${resource} is not an approved MCP server.`,
+        });
+      }
+    }
+
+    const policy = await enterpriseMcpPolicy.checkPolicy(req);
+    if (!policy.allowed) {
+      return res.status(policy.httpStatus || 403).json({
+        error: 'access_denied',
+        error_description: policy.message || 'Enterprise MCP policy denied.',
+        code: policy.code || 'enterprise_mcp_policy_denied',
+      });
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+    const idJag = jwt.sign(
+      {
+        jti: crypto.randomUUID(),
+        iss: configStore.getEffective('enterprise_idp_issuer') || '',
+        sub: user.oauthId,
+        ...(user.email ? { email: user.email } : {}),
+        aud: audience,
+        ...(resource ? { resource } : {}),
+        client_id: req.body.client_id || 'demo-bff-mcp-client',
+        iat: now,
+        exp: now + ID_JAG_LIFETIME_SECONDS,
+        scope: scope || '',
+      },
+      enterpriseIdpKey.getPrivateKeyPem(),
+      { algorithm: 'RS256', header: { alg: 'RS256', typ: 'oauth-id-jag+jwt', kid: enterpriseIdpKey.getKid() } },
+    );
+
+    return res.json({
+      issued_token_type: ID_JAG_TOKEN_TYPE,
+      access_token: idJag,
+      token_type: 'N_A',
+      expires_in: ID_JAG_LIFETIME_SECONDS,
     });
+  } catch (err) {
+    console.error('[enterpriseIdp] /token failed:', err.message);
+    return res.status(500).json({ error: 'server_error', error_description: err.message });
   }
-
-  const now = Math.floor(Date.now() / 1000);
-  const idJag = jwt.sign(
-    {
-      jti: crypto.randomUUID(),
-      iss: configStore.getEffective('enterprise_idp_issuer') || '',
-      sub: user.oauthId,
-      ...(user.email ? { email: user.email } : {}),
-      aud: audience,
-      ...(resource ? { resource } : {}),
-      client_id: req.body.client_id || 'demo-bff-mcp-client',
-      iat: now,
-      exp: now + ID_JAG_LIFETIME_SECONDS,
-      scope: scope || '',
-    },
-    enterpriseIdpKey.getPrivateKeyPem(),
-    { algorithm: 'RS256', header: { alg: 'RS256', typ: 'oauth-id-jag+jwt', kid: enterpriseIdpKey.getKid() } },
-  );
-
-  return res.json({
-    issued_token_type: ID_JAG_TOKEN_TYPE,
-    access_token: idJag,
-    token_type: 'N_A',
-    expires_in: ID_JAG_LIFETIME_SECONDS,
-  });
 });
 
 module.exports = router;

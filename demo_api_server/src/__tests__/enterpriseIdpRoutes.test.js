@@ -124,4 +124,14 @@ describe('enterprise IdP routes', () => {
       .send({ ...VALID_BODY, resource: 'https://evil.example' });
     expect(policy.checkPolicy).not.toHaveBeenCalled();
   });
+
+  test('finding #62: an internal throw (e.g. malformed signing key) returns a 500, not a hang', async () => {
+    const spy = jest.spyOn(keyMod, 'getPrivateKeyPem').mockImplementationOnce(() => {
+      throw new Error('malformed PEM');
+    });
+    const res = await request(appWithSession(session)).post('/api/enterprise-idp/token').send(VALID_BODY);
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('server_error');
+    spy.mockRestore();
+  });
 });
