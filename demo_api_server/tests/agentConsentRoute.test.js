@@ -82,4 +82,18 @@ describe('POST /api/agent/consent/:runId', () => {
       .send({ approved: true });
     expect(res.status).toBe(409);
   });
+
+  test('finding #47: returns an error response instead of hanging when the store rejects', async () => {
+    const spy = jest
+      .spyOn(agentRunStore, 'getRunState')
+      .mockRejectedValueOnce(new Error('redis connection lost'));
+
+    const res = await request(app)
+      .post('/api/agent/consent/run_test')
+      .send({ approved: true });
+
+    expect(res.status).toBeGreaterThanOrEqual(500);
+    expect(res.body.error).toBeTruthy();
+    spy.mockRestore();
+  });
 });

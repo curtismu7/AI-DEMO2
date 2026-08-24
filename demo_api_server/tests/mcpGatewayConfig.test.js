@@ -324,4 +324,32 @@ describe('POST /config — setRaw persistence', () => {
 
         expect(configStore.setRaw).not.toHaveBeenCalled();
     });
+
+    test('finding #46: persist-only path reports ok:false when setRaw rejects', async () => {
+        const configStore = require('../services/configStore');
+        configStore.setRaw.mockRejectedValueOnce(new Error('LMDB write failed'));
+
+        const app = buildApp();
+        const res = await supertest(app)
+            .post('/config')
+            .send({ mcp_gw_client_id: 'test-client' });
+
+        expect(res.status).toBe(502);
+        expect(res.body.ok).toBe(false);
+    });
+
+    test('finding #46: gateway-push path reports ok:false when setRaw rejects after a successful push', async () => {
+        httpSpy = stubHttpRequestSuccess();
+
+        const configStore = require('../services/configStore');
+        configStore.setRaw.mockRejectedValueOnce(new Error('LMDB write failed'));
+
+        const app = buildApp();
+        const res = await supertest(app)
+            .post('/config')
+            .send({ mcp_gw_client_id: 'test-client', rateLimitEnabled: true });
+
+        expect(res.status).toBe(502);
+        expect(res.body.ok).toBe(false);
+    });
 });

@@ -75,9 +75,9 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 43 | Runtime | `routes/privilegeMcpClient.js` | low | FIXED |
 | 44 | Runtime | `demo_api_ui/.../services/spinnerActivityService.js` | medium | FIXED |
 | 45 | Runtime | `demo_api_ui/.../services/cachedStatusService.js` | low | FIXED |
-| 46 | Swallowed | `routes/mcpGatewayConfig.js` | medium | OPEN |
-| 47 | Swallowed | `routes/agentConsentRoute.js` | high | OPEN |
-| 48 | Swallowed | `services/groupPolicy.js` | low | OPEN |
+| 46 | Swallowed | `routes/mcpGatewayConfig.js` | medium | FIXED |
+| 47 | Swallowed | `routes/agentConsentRoute.js` | high | FIXED |
+| 48 | Swallowed | `services/groupPolicy.js` | low | FIXED |
 | 49 | Swallowed | `demo_api_ui/.../components/Users.js` | medium | OPEN |
 | 50 | Swallowed | `demo_api_ui/.../components/ActivityLogs.js` | medium | OPEN |
 | 51 | Swallowed | `demo_api_ui/.../components/ThemeZonePanel.js` | high | OPEN |
@@ -1372,7 +1372,7 @@ demo_api_ui run test:unit -- cachedStatusService` — 1/1 passed; full UI
 suite (419 files / 3423 tests) — no regressions. `npm --prefix demo_api_ui
 run build` — exit 0.
 
-### 46. MCP gateway config persist failure still reports success — OPEN
+### 46. MCP gateway config persist failure still reports success — FIXED
 
 **File:** `demo_api_server/routes/mcpGatewayConfig.js`, line 483
 
@@ -1387,12 +1387,19 @@ includes gateway fields, while `configStore.setRaw(toStore)` rejects — the
 catch only `console.warn`s, and the response is built unconditionally
 afterward reporting success either way.
 
-**Fix (not yet applied):** Track whether the `setRaw` catch fired and
-reflect it in the response (`ok:false`/`persisted:false` or a distinct
-field) instead of always reporting success once the try/catch has swallowed
-the error.
+**Fix:** Both persist branches (persist-only and gateway-push-then-persist)
+now return `502 { ok:false, error, detail }` when `configStore.setRaw`
+rejects, instead of falling through to the unconditional `ok:true` response.
 
-### 47. Agent-consent route has no error handling — a Redis failure hangs the request forever — OPEN
+**Evidence:** New tests added to `demo_api_server/tests/mcpGatewayConfig.test.js`
+(`finding #46: persist-only path reports ok:false when setRaw rejects` and
+`finding #46: gateway-push path reports ok:false when setRaw rejects after a
+successful push`) proven to fail (`Expected: 502, Received: 200`) against the
+pre-fix file and pass against the fix. Full file green:
+`CI=true ./node_modules/.bin/jest tests/mcpGatewayConfig.test.js --forceExit --maxWorkers=4`
+→ 16 passed.
+
+### 47. Agent-consent route has no error handling — a Redis failure hangs the request forever — FIXED
 
 **File:** `demo_api_server/routes/agentConsentRoute.js`, line 22
 
@@ -1409,11 +1416,19 @@ forward the rejection to `res` — it becomes a process-level
 `unhandledRejection` and the HTTP response is never sent. Same exposure at
 `publishConsent` and `deleteRunState`.
 
-**Fix (not yet applied):** Wrap the handler body in try/catch and return a
-500/503 JSON error on failure, matching the pattern used elsewhere in this
-codebase.
+**Fix:** Wrapped the whole handler body in try/catch; a rejection from any
+`agentRunStore` call now returns `503 { error, detail }` instead of leaving
+the request hanging.
 
-### 48. Group-policy manifest error is indistinguishable from "no groups configured" — OPEN
+**Evidence:** New test added to `demo_api_server/tests/agentConsentRoute.test.js`
+(`finding #47: returns an error response instead of hanging when the store
+rejects`) proven to fail — it actually timed out at 30s against the pre-fix
+file, matching the "hangs forever" description — and pass against the fix.
+Full file green:
+`CI=true ./node_modules/.bin/jest tests/agentConsentRoute.test.js --forceExit --maxWorkers=4`
+→ 6 passed.
+
+### 48. Group-policy manifest error is indistinguishable from "no groups configured" — FIXED
 
 **File:** `demo_api_server/services/groupPolicy.js`, line 49
 
@@ -1428,10 +1443,24 @@ vertical instead of returning normally — no PingOne group is ever required
 for that vertical's restricted tools, silently permitting tools meant to be
 group-restricted.
 
-**Fix (not yet applied):** Distinguish "manifest has no groups block"
-(legitimate null) from "manifest resolution threw" (should fail closed or
-at least be surfaced/alerted) rather than collapsing both to the same null
-return.
+**Fix:** `_getVerticalManifest`/`_groupsConfig` now return a distinct
+`MANIFEST_RESOLUTION_ERROR` sentinel (a `Symbol`) instead of `null` when
+resolution throws. `requiredGroupForTool` checks for that sentinel: for
+banking it still falls back to the legacy `config/group-policy.json` data
+(unchanged behavior), but for every other vertical — which has no legacy
+fallback — it now fails closed, returning a group name no user actually
+holds, so the tool is treated as restricted-and-denied rather than
+unrestricted.
+
+**Evidence:** New tests added to `demo_api_server/src/__tests__/groupPolicy.test.js`
+(`finding #48: fails closed (non-null) for a non-banking vertical when
+manifest resolution throws` and a companion test confirming banking's legacy
+fallback still works) proven to fail (`Received: null`) against the pre-fix
+file and pass against the fix. Full file green:
+`CI=true ./node_modules/.bin/jest src/__tests__/groupPolicy.test.js --forceExit --maxWorkers=4`
+→ 18 passed. Also re-ran known callers'
+tests (`tests/sensitiveToolsGated.test.js`, `tests/a2aAdminVerticals.test.js`)
+since this is an authz-adjacent file: 96 passed.
 
 ### 49. Agent-restrictions save failure gives the admin zero feedback — OPEN
 
@@ -1576,6 +1605,18 @@ apply the same fix to the duplicated block in `UserDashboardPing2026.js`.
 
 ## Changelog
 
+- 2026-08-23 — #46, #47, #48 FIXED (server-side swallowed errors):
+  `mcpGatewayConfig.js`'s POST /config now returns `502 { ok:false }` instead
+  of `ok:true` when `configStore.setRaw` rejects, on both the persist-only
+  and gateway-push-then-persist branches; `agentConsentRoute.js`'s consent
+  handler is now wrapped in try/catch and returns `503` instead of hanging
+  forever on a Redis-store rejection; `groupPolicy.js` now distinguishes a
+  thrown manifest-resolution error from a legitimate "no groups configured"
+  null, and `requiredGroupForTool` fails closed for non-banking verticals
+  when resolution throws (banking keeps its legacy-config fallback,
+  unchanged). New tests for all three proven to fail against the pre-fix
+  files and pass against the fixes; each touched suite green, plus
+  `groupPolicy`'s known authz-adjacent callers re-run green (96 passed).
 - 2026-08-23 — #45 FIXED: `cachedStatusService.js`'s fetch handlers now
   self-reference their own `promise` and only write/delete the cache entry
   when it's still the current one, closing the window where an older,

@@ -24,27 +24,32 @@ router.post('/consent/:runId', requireSession, async (req, res) => {
   const { approved } = req.body;
   const userSub = _sessionSub(req);
 
-  const runState = await agentRunStore.getRunState(runId);
-  if (!runState) {
-    return res.status(404).json({ error: 'Run not found' });
-  }
-  if (runState.status !== 'suspended_hitl') {
-    return res.status(409).json({ error: 'Run is not awaiting consent' });
-  }
-  if (!runState.userId || !userSub || runState.userId !== userSub) {
-    return res.status(403).json({
-      error: 'forbidden',
-      message: 'Consent request belongs to another user.',
-    });
-  }
+  try {
+    const runState = await agentRunStore.getRunState(runId);
+    if (!runState) {
+      return res.status(404).json({ error: 'Run not found' });
+    }
+    if (runState.status !== 'suspended_hitl') {
+      return res.status(409).json({ error: 'Run is not awaiting consent' });
+    }
+    if (!runState.userId || !userSub || runState.userId !== userSub) {
+      return res.status(403).json({
+        error: 'forbidden',
+        message: 'Consent request belongs to another user.',
+      });
+    }
 
-  // Publish consent signal via pub/sub — SSE handler on any instance receives it
-  await agentRunStore.publishConsent(runId, { approved: Boolean(approved) });
+    // Publish consent signal via pub/sub — SSE handler on any instance receives it
+    await agentRunStore.publishConsent(runId, { approved: Boolean(approved) });
 
-  // Remove run state from Redis (SSE handler will clean up its subscription)
-  await agentRunStore.deleteRunState(runId);
+    // Remove run state from Redis (SSE handler will clean up its subscription)
+    await agentRunStore.deleteRunState(runId);
 
-  return res.json({ ok: true, runId, approved: Boolean(approved) });
+    return res.json({ ok: true, runId, approved: Boolean(approved) });
+  } catch (err) {
+    console.error('[agentConsentRoute] consent processing failed:', err.message);
+    return res.status(503).json({ error: 'Failed to process consent', detail: err.message });
+  }
 });
 
 module.exports = router;
