@@ -42,8 +42,8 @@ describe('enterprise IdP /authorize (EMA leg 1, PingOne federation)', () => {
     authStore.resetForTests();
     clientRegistry.registerClient({ client_id: CLIENT_ID, client_secret: CLIENT_SECRET, redirect_uris: [REDIRECT_URI] });
     configStore.getEffective.mockImplementation((k) => (k === 'enterprise_idp_issuer' ? ISSUER : ''));
-    process.env.OAUTH_MCP_PINGONE_CLIENT_ID = 'pingone-client-id';
-    process.env.OAUTH_MCP_PINGONE_CLIENT_SECRET = 'pingone-client-secret';
+    process.env.ENTERPRISE_IDP_PINGONE_CLIENT_ID = 'pingone-client-id';
+    process.env.ENTERPRISE_IDP_PINGONE_CLIENT_SECRET = 'pingone-client-secret';
     process.env.PINGONE_AUTHORIZATION_ENDPOINT = 'https://auth.pingone.com/env-id/as/authorize';
     process.env.PINGONE_TOKEN_ENDPOINT = 'https://auth.pingone.com/env-id/as/token';
   });
@@ -88,7 +88,7 @@ describe('enterprise IdP /authorize (EMA leg 1, PingOne federation)', () => {
   });
 
   test('503 when PingOne federation env vars are not configured', async () => {
-    delete process.env.OAUTH_MCP_PINGONE_CLIENT_ID;
+    delete process.env.ENTERPRISE_IDP_PINGONE_CLIENT_ID;
     const res = await request(app()).get('/api/enterprise-idp/authorize').query(validQuery());
     expect(res.status).toBe(503);
     expect(res.body.error).toBe('temporarily_unavailable');
@@ -121,8 +121,8 @@ describe('enterprise IdP /authorize/callback (PingOne -> our own code)', () => {
     authStore.resetForTests();
     clientRegistry.registerClient({ client_id: CLIENT_ID, client_secret: CLIENT_SECRET, redirect_uris: [REDIRECT_URI] });
     configStore.getEffective.mockImplementation((k) => (k === 'enterprise_idp_issuer' ? ISSUER : ''));
-    process.env.OAUTH_MCP_PINGONE_CLIENT_ID = 'pingone-client-id';
-    process.env.OAUTH_MCP_PINGONE_CLIENT_SECRET = 'pingone-client-secret';
+    process.env.ENTERPRISE_IDP_PINGONE_CLIENT_ID = 'pingone-client-id';
+    process.env.ENTERPRISE_IDP_PINGONE_CLIENT_SECRET = 'pingone-client-secret';
     process.env.PINGONE_TOKEN_ENDPOINT = 'https://auth.pingone.com/env-id/as/token';
   });
   afterEach(() => { process.env = { ...ORIG }; });

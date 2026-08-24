@@ -75,12 +75,12 @@ router.get('/authorize', (req, res) => {
     return res.status(400).json({ error: 'invalid_request', error_description: 'PKCE code_challenge is required' });
   }
 
-  const pingOneClientId = process.env.OAUTH_MCP_PINGONE_CLIENT_ID;
+  const pingOneClientId = process.env.ENTERPRISE_IDP_PINGONE_CLIENT_ID;
   const pingOneAuthEndpoint = process.env.PINGONE_AUTHORIZATION_ENDPOINT;
   if (!pingOneClientId || !pingOneAuthEndpoint) {
     return res.status(503).json({
       error: 'temporarily_unavailable',
-      error_description: 'PingOne federation is not configured (OAUTH_MCP_PINGONE_CLIENT_ID / PINGONE_AUTHORIZATION_ENDPOINT)',
+      error_description: 'PingOne federation is not configured (ENTERPRISE_IDP_PINGONE_CLIENT_ID / PINGONE_AUTHORIZATION_ENDPOINT)',
     });
   }
 
@@ -125,8 +125,8 @@ router.get('/authorize/callback', async (req, res) => {
     return res.status(400).json({ error: 'invalid_grant', error_description: 'Unknown or expired authorization request' });
   }
 
-  const pingOneClientId = process.env.OAUTH_MCP_PINGONE_CLIENT_ID;
-  const pingOneClientSecret = process.env.OAUTH_MCP_PINGONE_CLIENT_SECRET;
+  const pingOneClientId = process.env.ENTERPRISE_IDP_PINGONE_CLIENT_ID;
+  const pingOneClientSecret = process.env.ENTERPRISE_IDP_PINGONE_CLIENT_SECRET;
   const pingOneTokenEndpoint = process.env.PINGONE_TOKEN_ENDPOINT;
   if (!pingOneClientId || !pingOneClientSecret || !pingOneTokenEndpoint) {
     return res.status(503).json({ error: 'temporarily_unavailable', error_description: 'PingOne federation is not configured' });
