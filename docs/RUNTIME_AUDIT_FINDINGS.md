@@ -72,7 +72,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 40 | Runtime | `services/cibaTransactionReceipt.js` | medium | FIXED |
 | 41 | Runtime | `services/hitlCredit.js` | medium | FIXED |
 | 42 | Runtime | `services/http2McpBridge.js` | low | FIXED |
-| 43 | Runtime | `routes/privilegeMcpClient.js` | low | OPEN |
+| 43 | Runtime | `routes/privilegeMcpClient.js` | low | FIXED |
 | 44 | Runtime | `demo_api_ui/.../services/spinnerActivityService.js` | medium | OPEN |
 | 45 | Runtime | `demo_api_ui/.../services/cachedStatusService.js` | low | OPEN |
 | 46 | Swallowed | `routes/mcpGatewayConfig.js` | medium | OPEN |
@@ -1280,7 +1280,7 @@ and asserts the pool stays at 5. Proven to fail against the pre-fix file
 jest src/__tests__/http2McpBridge.test.js --forceExit --maxWorkers=4` —
 14/14 passed.
 
-### 43. Unbounded pagination loops against an operator-configured MCP upstream — OPEN
+### 43. Unbounded pagination loops against an operator-configured MCP upstream — FIXED
 
 **File:** `demo_api_server/routes/privilegeMcpClient.js`, line 607
 
@@ -1294,9 +1294,22 @@ restricting it to a fixed trusted host. A pagination bug on the configured
 upstream (repeating a cursor, or always emitting a fresh `nextCursor`) hangs
 the request indefinitely.
 
-**Fix (not yet applied):** Add a hard iteration cap (e.g. 100 pages) that
-breaks with a logged warning if exceeded, and/or track seen cursors in a
-`Set` and break if a cursor repeats.
+**Fix:** Added `MAX_MCP_PAGES = 100` and a `seenCursors` `Set` to both loops
+— either an excessive page count or a repeated cursor now breaks with a
+logged warning instead of looping forever.
+
+**Evidence:** New `privilegeMcpClient.pagination.test.js` (via a new
+`listAllMcpPages` entry in the file's existing `__test` hook export) proves
+three cases: an upstream that emits a fresh cursor forever stops at exactly
+100 pages; one that repeats a cursor stops after 2 calls; one that
+terminates normally is unaffected. While proving the fail-before case, the
+pre-fix loop didn't just hang — it actually **crashed the Node process**
+(stack/heap exhaustion, `SIGABRT`) under test, a stronger confirmation of
+the bug's severity than the "hangs indefinitely" description suggested.
+`cd demo_api_server && CI=true npx jest
+tests/routes/privilegeMcpClient.pagination.test.js --forceExit
+--maxWorkers=4` — 3/3 passed; full `privilegeMcpClient` test directory (14
+suites / 50 tests) — no regressions.
 
 ### 44. Stopped-then-restarted activity poller can apply a stale response to the new session — OPEN
 
@@ -1544,6 +1557,12 @@ apply the same fix to the duplicated block in `UserDashboardPing2026.js`.
 
 ## Changelog
 
+- 2026-08-23 — #43 FIXED: `privilegeMcpClient.js`'s `listAllMcpPages`/
+  `discoverPolicyTools` gained a `MAX_MCP_PAGES` cap and repeated-cursor
+  detection. New test proven to fail against the pre-fix file — which
+  actually crashed the process (SIGABRT) rather than just hanging — and pass
+  against the fix; 50 tests passed across the full `privilegeMcpClient` test
+  directory.
 - 2026-08-23 — #42 FIXED: `http2McpBridge.js`'s `evictOldest()` now selects
   the LRU entry regardless of `pendingStreams` and calls Node's graceful
   `session.close()` (drains in-flight streams, doesn't abort them), closing
