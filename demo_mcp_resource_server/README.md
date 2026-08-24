@@ -19,9 +19,12 @@ you supply (optional — see below).
 
 ```bash
 cp .env.standalone.example .env
-# edit .env: set MCP_RESOURCE_SERVER_RESOURCE_URI, PINGONE_ENVIRONMENT_ID,
-# PINGONE_REGION, and PINGONE_ISSUER for your own PingOne environment
+```
 
+Edit `.env`: set `MCP_RESOURCE_SERVER_RESOURCE_URI`, `PINGONE_ENVIRONMENT_ID`,
+`PINGONE_REGION`, and `PINGONE_ISSUER` for your own PingOne environment.
+
+```bash
 docker compose -f docker-compose.standalone.yml up --build
 ```
 
