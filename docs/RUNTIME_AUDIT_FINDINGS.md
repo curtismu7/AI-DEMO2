@@ -99,6 +99,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 59 | Runtime | `demo_api_ui/.../pages/PrivilegeMcpClientPage.jsx` | medium | FIXED |
 | 60 | Runtime | `demo_api_ui/.../components/AgentGatewayLogPanel.jsx` | low | FIXED |
 | 61 | Runtime | `demo_api_ui/.../components/NewRelicDashboard.jsx` | low | FIXED |
+| 64 | Swallowed | `demo_api_ui/.../services/logout.js` | medium | FIXED |
 
 ---
 
@@ -1886,10 +1887,56 @@ request before the initial 1h one — proven to fail against the pre-fix
 file (rendered stale `13` instead of `999`) and pass against the fix. Full
 file green (20 tests, including all 19 pre-existing).
 
+### 64. Logout button treats a failed session-clear the same as a successful one — FIXED
+
+**File:** `demo_api_ui/src/services/logout.js`, line 21
+
+**Issue:** `performLogout()` — wired directly to the "Log out"/"Sign Out"
+button — calls `fetch('/api/auth/logout')` to have the BFF clear the
+session cookie, then navigates to the returned `logoutUrl`. Its `.catch()`
+swallowed any fetch failure and navigated to `/` exactly as it would on
+success, with no indication the server-side session was never cleared.
+
+**Trigger scenario:** A transient network failure (or an aborted fetch,
+e.g. a backgrounded tab during navigation) causes the fetch to
+`/api/auth/logout` to reject before reaching the server. The catch
+swallowed it and redirected to `/`, which renders as a logged-out landing
+page, but the BFF session cookie was never cleared — the user (or the next
+person on a shared/public machine) could still be treated as authenticated
+by any request that reuses the still-valid cookie.
+
+**Fix:** The catch handler now calls `notifyError('Logout failed — please
+try again.')` and does **not** navigate away. Deliberately does not fall
+back to a direct `window.location.href = '/api/auth/logout'` navigation —
+this file's own top comment documents that a direct navigation loses the
+`Set-Cookie` clear behind the CRA dev proxy's 302→PingOne redirect, which
+is exactly why `fetch()` is used here in the first place; falling back to
+it on failure would silently reintroduce that already-fixed bug. Staying
+on the current page (still genuinely signed in, matching reality) and
+surfacing the error is the safer minimal fix.
+
+**Evidence:** New test
+`demo_api_ui/src/services/__tests__/logout.failureFeedback.test.js`
+(`finding #64: notifies the user and does not navigate away when the
+logout fetch fails`) proven to fail against the pre-fix file (`notifyError`
+never called) and pass against the fix. A second test confirms the success
+path (`logoutUrl` navigation) is unchanged. Also ran the 5 test files that
+exercise `performLogout` callers (`AdminSideNav`/`DemoSetupPanel`
+sign-out): 28 tests, unaffected.
+
 ---
 
 ## Changelog
 
+- 2026-08-23 — #64 FIXED: `logout.js`'s `performLogout()` catch now calls
+  `notifyError(...)` and stays put instead of navigating to `/` on a fetch
+  failure — closing the window where a failed session-clear looked
+  identical to a successful logout while the BFF session cookie was still
+  valid. Deliberately does not fall back to a direct-navigation retry, to
+  avoid reintroducing the cookie-clearing bug this file's own `fetch()`
+  approach was written to avoid. New test proven to fail against the
+  pre-fix file and pass against the fix; 5 caller test files (28 tests)
+  unaffected.
 - 2026-08-23 — #61 FIXED: `NewRelicDashboard.jsx`'s `load()` gained a
   monotonic `reqIdRef`, checked before `setData`/`setState`, closing the
   window where a rapid window-selector change (e.g. 1h then 24h) could
