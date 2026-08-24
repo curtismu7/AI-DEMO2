@@ -16,6 +16,38 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-08-24 — LibreChat Privilege MCP tool call blocked by LLM context size, not by anything in `librechat/`
+
+**Where:** `librechat/librechat.yaml`'s `mcpServers.privilege` block; the live
+LLM backend served via `demo_llm_proxy/` at `:8090`.
+
+**What's wrong:** Task 5 of
+`docs/superpowers/plans/2026-08-24-librechat-privilege-mcp-client.md` proved
+the OAuth flow end-to-end against the real PingOne Privilege gateway —
+Dynamic Client Registration and a real login both succeeded, and LibreChat's
+MCP server panel showed "Connected." But a live proof of an actual
+`get_my_accounts` tool call through LibreChat's chat UI is blocked:
+`curl localhost:8090/v1/models` confirms the live LLM backend's real context
+window is 8192 tokens, while the Privilege MCP server's full 242-tool
+catalog alone needs roughly 30243 tokens of schema just to describe the
+tools — about 4x more than the model can hold before any conversation or
+tool-result content is added. This is an LLM-capacity vs. tool-catalog-size
+mismatch, not a bug in `docker-compose.yml`, `.env.example`, or
+`librechat.yaml`.
+
+**Why it wasn't fixed now:** this repo's LLM tiers/context sizes are frozen
+by prior policy, so swapping to a larger-context tier is out of scope. The
+currently-pinned LibreChat version (`version: 1.3.14` config schema,
+`librechat-dev:latest` image) has no librechat.yaml-side or LibreChat-side
+option to filter or scope which of an MCP server's tools get advertised to
+the model, so there is also no config-only way to shrink the catalog.
+
+**Real fix:** either (a) gateway/MCP-server-side tool-catalog scoping — the
+`privilege` MCP server or the agentless gateway in front of it exposes a
+reduced tool set to this client instead of the full 242, or (b) a
+larger-context local model tier. Both are out of scope for the LibreChat
+proof-of-concept plan that found this.
+
 ### [ ] 2026-08-24 — `k8s/create-secrets.sh` never falls back to the internal vault, so a vault-only secret silently never reaches the SE K8s Secret
 
 **Where:** `k8s/create-secrets.sh`'s `secret_from_envfile()` (~line 103-154),

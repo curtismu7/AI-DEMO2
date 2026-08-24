@@ -9,8 +9,9 @@ endpoints:
       # demo_llm_proxy/ router.js — no auth check on any route, so any
       # non-empty apiKey value works (LibreChat requires the field to be set).
       apiKey: 'none'
-      # host.docker.internal — see Task 1's extra_hosts entry and this
-      # repo's own docker-compose.yml:1828 for the identical pattern.
+      # host.docker.internal — see librechat/docker-compose.yml's extra_hosts
+      # entry (docs/superpowers/plans/2026-08-24-librechat-privilege-mcp-client.md)
+      # and this repo's own docker-compose.yml:1828 for the identical pattern.
       baseURL: 'http://host.docker.internal:8090/v1'
       models:
         # The proxy classifies every request by prompt content (or by an
@@ -28,7 +29,14 @@ mcpServers:
   privilege:
     type: streamable-http
     url: 'https://cmuir-agentless-mcpgw.ping-devops.com/external/mcp'
-    # No oauth: block — see this plan's "Judgment call" section above.
-    # LibreChat's native RFC 9728 discovery + Dynamic Client Registration
-    # against the gateway's /external/authorize is tried first.
+    # No oauth: block needed — verified live 2026-08-24 against this exact
+    # gateway with a real PingOne login: LibreChat's native RFC 9728
+    # discovery + Dynamic Client Registration against the gateway's
+    # /external/authorize succeeds end-to-end. See the "Judgment call"
+    # section of docs/superpowers/plans/2026-08-24-librechat-privilege-mcp-client.md.
+    #
+    # KNOWN LIMITATION: a real get_my_accounts tool call through the chat UI
+    # is blocked — this server's 242-tool schema catalog exceeds the local
+    # LLM's context window. See TECH_DEBT.md's 2026-08-24 entry "LibreChat
+    # Privilege MCP tool call blocked by LLM context size".
     timeout: 60000
