@@ -482,7 +482,11 @@ services:
       # audience MCP_GW_RESOURCE_URI below already accepts for the Node gateway's own
       # dual_token path. Without it, IdJagGrantHandler rejects the resource as "not served
       # by this authorization server" even though the mint itself succeeds.
-      MCP_SERVER_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo,https://api.pingone.com,https://api.ping.demo:3036/mcp"
+      # http://localhost:8080/mcp accepted so an EMA client (MCP Inspector) that
+      # addresses this server directly by its published host port can redeem an
+      # ID-JAG minted for that resource — the demo-api-server side already
+      # allow-lists the same URI via ENTERPRISE_MCP_RESOURCE_URIS.
+      MCP_SERVER_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo,https://api.pingone.com,https://api.ping.demo:3036/mcp,http://localhost:8080/mcp"
       # mTLS on the PingGateway -> MCP server hop. When on the server serves
       # HTTPS (self-signed, regenerated each start) and REQUIRES a client cert
       # whose SHA-256 matches MCP_MTLS_GATEWAY_CERT_PATH.
