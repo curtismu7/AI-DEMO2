@@ -12,6 +12,11 @@ round 1 had already touched and to report only genuinely new, distinct
 issues there. 12 of 12 candidate findings (#28–#39) survived verification —
 0 rejected.
 
+**Round 3 (2026-08-23, same day, after round 2 fully fixed and merged in
+PR #2294):** same design again, against the post-round-2 codebase, told
+about all 39 files touched by rounds 1–2. 17 of 17 candidate findings
+(#40–#56) survived verification — 0 rejected.
+
 **Working rule:** when a finding is fixed, flip its Status to `FIXED` with the
 PR number (or commit) and evidence **in the same commit as the fix**, and add a
 Changelog line. A status column that lags the code is the same false-green
@@ -64,6 +69,23 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 37 | Perf | `services/traceProjector.js` | low | FIXED |
 | 38 | Perf | `demo_api_ui/.../context/ActivityNarrativeContext.js` | medium | FIXED |
 | 39 | Perf | `demo_api_ui/.../ScopeAuditPage.js` | medium | FIXED |
+| 40 | Runtime | `services/cibaTransactionReceipt.js` | medium | OPEN |
+| 41 | Runtime | `services/hitlCredit.js` | medium | OPEN |
+| 42 | Runtime | `services/http2McpBridge.js` | low | OPEN |
+| 43 | Runtime | `routes/privilegeMcpClient.js` | low | OPEN |
+| 44 | Runtime | `demo_api_ui/.../services/spinnerActivityService.js` | medium | OPEN |
+| 45 | Runtime | `demo_api_ui/.../services/cachedStatusService.js` | low | OPEN |
+| 46 | Swallowed | `routes/mcpGatewayConfig.js` | medium | OPEN |
+| 47 | Swallowed | `routes/agentConsentRoute.js` | high | OPEN |
+| 48 | Swallowed | `services/groupPolicy.js` | low | OPEN |
+| 49 | Swallowed | `demo_api_ui/.../components/Users.js` | medium | OPEN |
+| 50 | Swallowed | `demo_api_ui/.../components/ActivityLogs.js` | medium | OPEN |
+| 51 | Swallowed | `demo_api_ui/.../components/ThemeZonePanel.js` | high | OPEN |
+| 52 | Swallowed | `demo_api_ui/.../pages/ResourceServerJourneyPage.jsx` | medium | OPEN |
+| 53 | Perf | `middleware/activityLogger.js` | medium | OPEN |
+| 54 | Perf | `services/tokenValidationService.js` | low | OPEN |
+| 55 | Perf | `services/agentScopes.js` | low | OPEN |
+| 56 | Perf | `demo_api_ui/.../components/UserDashboard.js` | medium | OPEN |
 
 ---
 
@@ -1133,8 +1155,338 @@ ScopeAuditPage.fixAll` — 1/1 passed; full UI suite (417 files / 3421 tests)
 
 ---
 
+## Round 3 findings (2026-08-23)
+
+### 40. CIBA transaction receipts never evicted if never consumed — OPEN
+
+**File:** `demo_api_server/services/cibaTransactionReceipt.js`, line 16
+
+**Issue:** The `receipts` Map backing `record()`/`consume()` has no periodic
+TTL sweep or size cap — the only removal path is `consume()` deleting its
+own key. An expiry timestamp is stored but nothing ever checks it
+proactively; it's only checked reactively inside `consume()` at the moment a
+matching key happens to be looked up again.
+
+**Trigger scenario:** `routes/ciba.js` calls `record(userId, tool, amount)`
+on every out-of-band CIBA approval. `consume()` is only called from
+`routes/transactions.js` on the MCP/agent bearer-token path with the exact
+same key. Any approval whose bearer-token retry never happens with that
+identical key (abandoned retry, mismatched amount, or the transfer instead
+going through the session-based `hitlCredit.js` path) leaves its entry in
+the Map permanently.
+
+**Fix (not yet applied):** Add a periodic unref'd `setInterval` that deletes
+any receipt whose stored expiry has passed, mirroring the pattern already
+used in `tokenIntrospectionService.js`/`clientCredentialsTokenService.js`/`http2McpBridge.js`.
+
+### 41. HITL credit check-then-act race across an awaited policy call — OPEN
+
+**File:** `demo_api_server/services/hitlCredit.js`, line 33
+
+**Issue:** `isFresh()` only reads session HITL state; `consume()` is a
+separate call the caller must invoke afterward. A real awaited network call
+to the authorization policy engine happens between the `isFresh()` read and
+the `consume()` write, so the check-then-act is not atomic.
+
+**Trigger scenario:** `routes/transactions.js` calls `isFresh()` (no
+consume), then `await transactionAuthorizationService.evaluateTransactionPolicy(...)`,
+then `consume()` only after that resolves. Two concurrent `POST
+/api/transactions` requests on the same session immediately after one CIBA
+approval can both pass the `isFresh()` check before either reaches
+`consume()`, so both get authorized off a single one-time approval.
+
+**Fix (not yet applied):** Add a `consumeIfFresh(session, {amount})` that
+reads and clears the session HITL state in one synchronous call; have
+`transactions.js` decide eligibility from that single call's return value
+instead of splitting the read and the write around the awaited policy call.
+
+### 42. HTTP/2 connection pool cap silently bypassed under sustained concurrent load — OPEN
+
+**File:** `demo_api_server/services/http2McpBridge.js`, line 52
+
+**Issue:** `createHttp2Session()`'s pool-cap enforcement calls
+`evictOldest()`, which is a no-op whenever every pooled entry currently has
+`pendingStreams > 0` — yet the unconditional `pool.set(key, ...)` still runs
+afterward regardless of whether eviction succeeded.
+
+**Trigger scenario:** With `MAX_POOL_SIZE = 5` and 5 distinct pool keys all
+mid-flight (`pendingStreams > 0` on each), a 6th distinct key triggers
+`evictOldest()` finding nothing evictable, then still gets added, growing
+the pool past its configured cap.
+
+**Fix (not yet applied):** When `evictOldest()` can't find an evictable
+entry, either block/reject the new session request until a slot frees, or
+evict the least-recently-used entry regardless of in-flight streams
+(closing it once streams drain).
+
+### 43. Unbounded pagination loops against an operator-configured MCP upstream — OPEN
+
+**File:** `demo_api_server/routes/privilegeMcpClient.js`, line 607
+
+**Issue:** `listAllMcpPages()` and `discoverPolicyTools()` both page through
+an upstream MCP server via a `do { ... } while (cursor)` loop with no
+iteration cap and no repeated-cursor detection.
+
+**Trigger scenario:** The MCP endpoint is operator-configured via
+`PRIVILEGE_AGENTLESS_MCPGW_URL`/`PRIVILEGE_AGENT_MCPGW_URL` with no allowlist
+restricting it to a fixed trusted host. A pagination bug on the configured
+upstream (repeating a cursor, or always emitting a fresh `nextCursor`) hangs
+the request indefinitely.
+
+**Fix (not yet applied):** Add a hard iteration cap (e.g. 100 pages) that
+breaks with a logged warning if exceeded, and/or track seen cursors in a
+`Set` and break if a cursor repeats.
+
+### 44. Stopped-then-restarted activity poller can apply a stale response to the new session — OPEN
+
+**File:** `demo_api_ui/src/services/spinnerActivityService.js`, line 127
+
+**Issue:** `poll()` checks the module-level `_stopped` flag only once,
+synchronously, before its `await` — it never re-checks after the await
+resumes. A poll started under one session that is stopped and quickly
+restarted before the response arrives still applies its stale response's
+side effects to the new session's state.
+
+**Trigger scenario:** A poll is in flight; `stop()` fires, then `start()`
+fires again quickly (resetting `_events`/`_clientEventId`/`_sinceTimestamp`).
+When the original poll's response arrives, it already passed the top-of-function
+`_stopped` check (back when it was still false), so it proceeds
+unconditionally, corrupting the new session's event feed and polling
+cursor with data belonging to the ended session.
+
+**Fix (not yet applied):** Add a monotonically increasing generation
+counter bumped in `start()`/`stop()`; capture it at the top of `poll()` and
+re-check it after the await before applying any side effects, discarding
+the response if the generation changed.
+
+### 45. Cached-status fetch can be clobbered by an older, slower overlapping request — OPEN
+
+**File:** `demo_api_ui/src/services/cachedStatusService.js`, line 51
+
+**Issue:** The fetch's resolve handler unconditionally overwrites
+`cache[cacheKey]` with no check that the entry it's writing to is still the
+one this fetch was launched for. Two overlapping requests for the same URL
+that resolve out of order let an older, slower response clobber a newer,
+already-cached fresher response.
+
+**Trigger scenario:** Call A is slow (12s) and its cache TTL (10s) elapses
+before it resolves, so call B fires fresh and resolves quickly, caching
+fresher data. When A finally resolves, its handler still runs unconditionally
+and overwrites the cache with stale data and a new expiry.
+
+**Fix (not yet applied):** Tag each in-flight fetch with the cache
+entry/promise it was started for, and only write the result into
+`cache[cacheKey]` if that entry is still the current one (compare
+`cache[cacheKey]?.promise` to the promise captured before the fetch started).
+
+### 46. MCP gateway config persist failure still reports success — OPEN
+
+**File:** `demo_api_server/routes/mcpGatewayConfig.js`, line 483
+
+**Issue:** `POST /api/admin/mcp-gateway/config` swallows a
+`configStore.setRaw` persist failure (both the persist-only branch and the
+gateway-push branch) and still responds `ok:true` (`persistedOnly:true` in
+the persist-only case), telling the admin UI the config was saved when the
+LMDB persist actually threw.
+
+**Trigger scenario:** POST with persist-only fields, or a mix that also
+includes gateway fields, while `configStore.setRaw(toStore)` rejects — the
+catch only `console.warn`s, and the response is built unconditionally
+afterward reporting success either way.
+
+**Fix (not yet applied):** Track whether the `setRaw` catch fired and
+reflect it in the response (`ok:false`/`persisted:false` or a distinct
+field) instead of always reporting success once the try/catch has swallowed
+the error.
+
+### 47. Agent-consent route has no error handling — a Redis failure hangs the request forever — OPEN
+
+**File:** `demo_api_server/routes/agentConsentRoute.js`, line 22
+
+**Issue:** `POST /api/agent/consent/:runId` has no try/catch around its
+awaited `agentRunStore` calls, so a rejected promise (Redis-backed
+`RedisStore`) leaves the request hanging forever instead of returning an
+error response.
+
+**Trigger scenario:** With `RedisStore` in use, if its `_init()` failed at
+startup (or Redis errors later), `agentRunStore.getRunState(runId)` rejects.
+`express-async-errors` is listed in `package.json` but never `require`d
+anywhere, and there's no try/catch in this handler, so Express 4 doesn't
+forward the rejection to `res` — it becomes a process-level
+`unhandledRejection` and the HTTP response is never sent. Same exposure at
+`publishConsent` and `deleteRunState`.
+
+**Fix (not yet applied):** Wrap the handler body in try/catch and return a
+500/503 JSON error on failure, matching the pattern used elsewhere in this
+codebase.
+
+### 48. Group-policy manifest error is indistinguishable from "no groups configured" — OPEN
+
+**File:** `demo_api_server/services/groupPolicy.js`, line 49
+
+**Issue:** `_getVerticalManifest`'s catch block collapses a genuine
+manifest-resolution error to the same `null` returned when a vertical
+simply has no groups block; `requiredGroupForTool` then treats a
+thrown-error vertical as unrestricted for any non-banking vertical.
+
+**Trigger scenario:** `ff_authorize_group_policy` enabled,
+`verticalManifest.resolver.resolve(verticalId)` throws for a non-banking
+vertical instead of returning normally — no PingOne group is ever required
+for that vertical's restricted tools, silently permitting tools meant to be
+group-restricted.
+
+**Fix (not yet applied):** Distinguish "manifest has no groups block"
+(legitimate null) from "manifest resolution threw" (should fail closed or
+at least be surfaced/alerted) rather than collapsing both to the same null
+return.
+
+### 49. Agent-restrictions save failure gives the admin zero feedback — OPEN
+
+**File:** `demo_api_ui/src/components/Users.js`, line 115
+
+**Issue:** `updateAgentRestrictions`'s catch block only `console.error`s the
+PATCH failure, giving the admin no visible feedback that the
+agent-restriction change did not save.
+
+**Trigger scenario:** Admin changes the agent-restrictions dropdown; the
+PATCH fails (403/network/500). The catch does nothing but log; the spinner
+still clears in `finally`, so the UI silently reverts with no toast.
+
+**Fix (not yet applied):** Call `notifyError('Failed to update agent
+restrictions')` in the catch block, mirroring this same file's
+`toggleUserStatus`'s status-based branching.
+
+### 50. Activity-log export/clear failures give zero on-screen feedback — OPEN
+
+**File:** `demo_api_ui/src/components/ActivityLogs.js`, line 124
+
+**Issue:** `exportLogs()` and `clearOldLogs()` catch their request failures
+with only `console.error`, giving no on-screen indication that the CSV
+export or log purge failed.
+
+**Trigger scenario:** Admin clicks Export and the GET fails — no file
+downloads, no toast, looks like a no-op. Or admin confirms the clear-logs
+dialog and the DELETE fails — nothing is cleared but the dialog closing
+implies success.
+
+**Fix (not yet applied):** Call `notifyError(...)` in both catch blocks,
+mirroring this same file's `fetchLogs`'s error handling.
+
+### 51. Theme-zone save reports success even when the server rejects it — OPEN
+
+**File:** `demo_api_ui/src/components/ThemeZonePanel.js`, line 33
+
+**Issue:** `persist()` never checks `response.ok`, so a failed PUT/DELETE
+(403/500) resolves the promise just like a 200 — `refetch()` runs and the
+caller's catch never fires, so a failed save is never rolled back or
+reported.
+
+**Trigger scenario:** Admin's PUT/DELETE to `/api/admin/vertical-themes/:id`
+403s or 500s. `persist`'s `fetch(...).then(() => refetch())` resolves on any
+HTTP response body, so the "applied"/"reset" toast fires and the optimistic
+override is kept as if saved — even though nothing persisted server-side.
+
+**Fix (not yet applied):** Check `response.ok` in `persist` and throw on
+failure so the caller's catch can revert state/show an error instead of a
+false success toast.
+
+### 52. Resource-server journey page swallows every fetch error, not just 401s — OPEN
+
+**File:** `demo_api_ui/src/pages/ResourceServerJourneyPage.jsx`, line 258
+
+**Issue:** The `on401` catch handler swallows every rejection, not just
+401s — it returns `null` unconditionally, so a 500 or network failure is
+silently absorbed and the page renders as an empty/loading state instead of
+showing any error.
+
+**Trigger scenario:** The summary-inflow or vertical-record fetch fails
+with a 500 or network error. `on401` only branches on `e.response?.status
+=== 401`, but returns `null` on every branch regardless, so `Promise.all`
+resolves normally and the page shows its normal empty-data layout with no
+error message.
+
+**Fix (not yet applied):** Re-throw non-401 errors (or otherwise surface
+them) and add a generic error state distinct from `needsSignIn` that the
+page renders on genuine fetch failure.
+
+### 53. Response-body capture computed on every request, then discarded — OPEN
+
+**File:** `demo_api_server/middleware/activityLogger.js`, line 105
+
+**Issue:** The response-body capture block does `JSON.stringify`/`JSON.parse`
+work on every successful response body under 10KB, builds `responseBody`,
+but the value is never used — `logEntry.responseBody` is hardcoded to
+`null` a few lines later with an explicit "disabled — may contain PII"
+comment.
+
+**Trigger scenario:** Any response with status < 400 flowing through the
+globally-mounted `logActivity` middleware with a body under 10,000 chars
+triggers the stringify/parse/redaction work, whose result is discarded.
+
+**Fix (not yet applied):** Delete the dead computation block since its
+result is never read.
+
+### 54. JWK-to-PEM conversion re-derived on every token validation despite a 10-minute JWKS cache — OPEN
+
+**File:** `demo_api_server/services/tokenValidationService.js`, line 146
+
+**Issue:** `validateToken()` calls `jwkToPem(jwk)` on every invocation even
+though the underlying JWK is cached for 10 minutes — the PEM conversion
+itself is never cached or memoized by kid.
+
+**Trigger scenario:** Any JWT-mode request validated within the same
+10-minute cache window re-derives the PEM for the same key on every call.
+
+**Fix (not yet applied):** Cache the derived PEM alongside the cached JWK
+(store `pemByKid` when `fetchJwks` populates the cache, or memoize
+`jwkToPem` by kid) so PEM export runs once per key per JWKS refresh.
+
+### 55. Per-tool scope resolution re-checks the manifest file's mtime once per tool — OPEN
+
+**File:** `demo_api_server/services/agentScopes.js`, line 71
+
+**Issue:** `resolveAgentScopes()` calls `scopeTopology.toolScopes(name)`
+once per tool name inside a for-loop; each call goes through `load()`,
+which does a synchronous `fs.statSync()` for staleness-checking on every
+call — so N tools means N blocking stat syscalls where a single manifest
+load would suffice.
+
+**Trigger scenario:** Any call to `resolveAgentScopes` for a vertical with
+multiple tools causes one `fs.statSync` call per unique tool name in the
+loop.
+
+**Fix (not yet applied):** Load the manifest once (add a batch/manifest
+accessor to `scopeTopology.js`, or call `load()` once and read
+`manifest.tools[name].requiredScopes` directly) before the for-loop instead
+of calling the per-tool accessor inside it.
+
+### 56. Recent-transactions feed re-sorted and re-grouped on every render — OPEN
+
+**File:** `demo_api_ui/src/components/UserDashboard.js`, line 2517
+
+**Issue:** The recent-transactions feed (sort + Today/Yesterday/date-bucket
+grouping) is recomputed from the full `transactions` array on every render
+via an inline IIFE, not memoized with `useMemo`, despite depending only on
+`transactions`. Identical unmemoized pattern duplicated in
+`UserDashboardPing2026.js`.
+
+**Trigger scenario:** Any state update in this large component (e.g. typing
+in the transfer amount field) re-renders the whole component, re-executing
+the sort+group derivation on every keystroke even though `transactions`
+didn't change.
+
+**Fix (not yet applied):** Wrap the sort+group derivation in `useMemo`
+keyed on `[transactions]` (the file already uses `useMemo` elsewhere), and
+apply the same fix to the duplicated block in `UserDashboardPing2026.js`.
+
+---
+
 ## Changelog
 
+- 2026-08-23 — Round 3 audit run: re-ran the same 6-finder + per-category
+  adversarial-verify design against the post-round-2 codebase (after PR
+  #2294 merged all 12 round-2 fixes). 17/17 candidate findings survived
+  verification, added as #40–#56, all OPEN — none fixed yet.
 - 2026-08-23 — #39 FIXED: `ScopeAuditPage.js`'s `handleAddScope` gained an
   optional `{ refresh: false }` so `handleFixAll`/`handleFixEverything` skip
   the per-scope reload and reload once after the batch instead. New test
