@@ -293,14 +293,21 @@ function AttackSimResult({ result }) {
 /**
  * PromptSection — displays agent prompt with copy button.
  */
-function PromptSection({ prompt }) {
+export function PromptSection({ prompt }) {
   const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(prompt).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
+    navigator.clipboard.writeText(prompt).then(
+      () => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      },
+      () => {
+        setCopyFailed(true);
+        setTimeout(() => setCopyFailed(false), 2000);
+      }
+    );
   };
 
   return (
@@ -311,10 +318,10 @@ function PromptSection({ prompt }) {
           type="button"
           className={`uc-card__copy-btn${copied ? ' uc-card__copy-btn--copied' : ''}`}
           onClick={handleCopy}
-          title={copied ? 'Copied!' : 'Copy prompt'}
+          title={copied ? 'Copied!' : copyFailed ? 'Copy failed' : 'Copy prompt'}
           aria-label="Copy prompt to clipboard"
         >
-          {copied ? '✓ Copied' : 'Copy'}
+          {copied ? '✓ Copied' : copyFailed ? 'Copy failed' : 'Copy'}
         </button>
       </div>
       <p className="uc-card__what-to-say">{prompt}</p>
