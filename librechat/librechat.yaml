@@ -83,6 +83,16 @@ mcpServers:
   opensearch-privilege-agent:
     type: streamable-http
     url: 'https://opensearch.default.applications.procyon.ai:8643/mcp'
+    # Same trick as aidemo-mcp, for a different reason: LibreChat's startup
+    # probe reads the gateway's policy 403 as "needs OAuth" and would then
+    # demand a login this door does not have. A custom no-op header keeps
+    # requiresOAuth=false without sending an Authorization header (procyon
+    # frontends must get none — the agent is the identity).
+    apiKey:
+      source: admin
+      authorization_type: custom
+      custom_header: X-LibreChat-Noop
+      key: none
     timeout: 60000
 
   # 3. Via the Agentless gateway — the `external` Privilege application
