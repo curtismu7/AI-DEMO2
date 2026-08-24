@@ -101,6 +101,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 61 | Runtime | `demo_api_ui/.../components/NewRelicDashboard.jsx` | low | FIXED |
 | 62 | Swallowed | `routes/enterpriseIdp.js` | medium | FIXED |
 | 63 | Swallowed | `demo_api_ui/.../services/agentAccessConsent.js` | high | FIXED |
+| 66 | Perf | `demo_api_ui/.../pages/UseCaseLauncherPage.js` | medium | FIXED |
 
 ---
 
@@ -1965,10 +1966,58 @@ prototype spy silently misses on one of the two runtimes (see
 a later storage failure does not flip an already-established
 `blocked=false` back to blocked.
 
+### 66. UseCaseLauncherPage rebuilds every track/authorize/agent-gateway list on every render — FIXED
+
+**File:** `demo_api_ui/src/pages/UseCaseLauncherPage.js`, line 925
+
+**Issue:** `happyPathAll`/`happyPathIds`/`happyPath`, `authorizeIds`/
+`authorizeAll`/`authorizeVisible`, `grouped`, `demoTrackItemsForStrip`,
+`demoAll`/`demoVisible`, and `agentGatewayIds`/`agentGatewayAll`/
+`agentGatewayVisible` — 13 derived values covering the full cross-vertical
+use-case catalog — were plain `const` assignments in the render body: every
+one re-filtered/re-mapped/rebuilt Sets from scratch on every render,
+regardless of what triggered it (a feature-flag toggle, an attack-sim
+result, opening an education panel — none of which change `useCases` or
+the search `query`).
+
+**Trigger scenario:** This page is the primary `/use-cases` catalog view;
+every keystroke in the search box, every flag toggle, and every
+attack-sim/chip-run result re-renders it, and each render re-scanned the
+full catalog across all 13 derivations — the exact "same table rebuilt
+every render" pattern already fixed elsewhere this round (finding #65).
+
+**Fix:** Wrapped all 13 derivations in `useMemo`. The `*All`/id-Set
+derivations depend only on `[useCases]` (or `[]` for the static
+capability-ledger lookups); the query-filtered lists depend on their
+`*All` plus `[query]` — so an unrelated re-render (e.g. a flag toggle)
+now reuses the previous computation instead of rebuilding it.
+
+**Evidence:** New test
+`demo_api_ui/src/pages/__tests__/UseCaseLauncherPage.memoization.test.jsx`
+(`does not recompute authorize/agent-gateway id sets on an unrelated
+re-render`) spies on the capability-ledger lookups
+(`allPingOneAuthorizeUCIds`/`allAgentGatewayUCIds`) and triggers a
+flag-toggle re-render (the same interaction as the existing T6d test) —
+proven to fail against the pre-fix file (call count increased) and pass
+against the fix (call count unchanged). Full existing regression suite for
+this page green: `UseCaseLauncherPage.test.js` (37 tests) and
+`UseCaseLauncherPage.loginPrompt.test.jsx` (3 tests) unaffected. UI build
+gate green.
+
 ---
 
 ## Changelog
 
+- 2026-08-23 — #66 FIXED: `UseCaseLauncherPage.js`'s 13 track/authorize/
+  agent-gateway/demo derivations (`happyPath*`, `authorize*`, `grouped`,
+  `demoTrackItemsForStrip`, `demo*`, `agentGateway*`) are now `useMemo`-
+  wrapped instead of being plain `const` assignments re-scanning the full
+  use-case catalog on every render — including renders unrelated to
+  `useCases`/`query`, like a feature-flag toggle. New test spying on the
+  capability-ledger lookups proven to fail against the pre-fix file (call
+  count increased on an unrelated re-render) and pass against the fix; full
+  existing regression suite (40 tests across 2 files) and UI build gate
+  green.
 - 2026-08-23 — #63 FIXED (high severity): `agentAccessConsent.js`'s
   `isAgentBlockedByConsentDecline()` now reads an in-memory flag as its
   source of truth instead of `localStorage` directly, and fails CLOSED
