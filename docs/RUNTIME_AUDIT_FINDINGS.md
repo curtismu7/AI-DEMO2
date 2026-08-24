@@ -100,6 +100,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 60 | Runtime | `demo_api_ui/.../components/AgentGatewayLogPanel.jsx` | low | FIXED |
 | 61 | Runtime | `demo_api_ui/.../components/NewRelicDashboard.jsx` | low | FIXED |
 | 62 | Swallowed | `routes/enterpriseIdp.js` | medium | FIXED |
+| 65 | Perf | `services/configStore.js` | medium | FIXED |
 
 ---
 
@@ -1923,10 +1924,59 @@ timeout, exactly matching the "hangs the request" description) and pass
 against the fix. Full file green (8 tests) plus the 3 sibling
 `enterpriseIdp*` test files (17 tests) unaffected.
 
+### 65. ConfigStore.getEffective() rebuilds a ~230-entry alias map from scratch on every call — FIXED
+
+**File:** `demo_api_server/services/configStore.js`, line 1074
+
+**Issue:** `getEffective(key)` declared a ~360-line, ~230-key
+`envFallbackMap` object literal inside the method body — allocated fresh
+on every single invocation, even though the map is 100% static and never
+depends on the `key` argument (only indexed afterward).
+
+**Trigger scenario:** This is a hot path, not an edge case:
+`middleware/auth.js`'s `requireScopes` gate calls `getEffective` twice per
+scope-checked request; `mcpGatewayClient.js`'s `getMcpGatewayHttpUrl()` —
+documented as "the single chokepoint every tool-call path uses" — calls it
+2-4 times per invocation; `demoStepPrerequisites.js`'s
+`checkChipPrerequisites` calls it once per required flag in a loop. ~204
+call sites project-wide mean a single request can trigger dozens of full
+rebuilds of this literal.
+
+**Fix:** Hoisted the object literal out of the method body to module scope
+as `const ENV_FALLBACK_MAP = { ... };`, declared once before the
+`ConfigStore` class (matching the file's existing `FIELD_DEFS` pattern),
+and updated the lookup site to reference it directly. No behavior change —
+the map never varied per-call.
+
+**Evidence:** New test
+`demo_api_server/src/__tests__/configStore.envFallbackMapHoisted.test.js`
+proves via static source-text inspection (same technique as
+`NewRelicDashboard.test.js`'s CSS dark-mode-ground checks) that
+`ENV_FALLBACK_MAP` is declared once, before the class, and no longer
+inside `getEffective()`'s own body — proven to fail against the pre-fix
+file (the module-scope declaration doesn't exist yet) and pass against the
+fix. Ran the existing functional regression suite
+(`configStore.get.envFallback.test.js`, `configStore.envReconcile.test.js`)
+— 21 passed, confirming no output changed. `configStore.js` is core shared
+infrastructure, so also ran the full server suite: 850/856 suites passed
+(the 4 failures — `anthropic.lmstudio.live.test.js`,
+`attackSimulator.test.js`, `rfc9728-integration-verification.test.js`,
+`rfc9728-integration.test.js` — are pre-existing/environmental: confirmed
+by re-running them against the unmodified pre-fix file, which fails
+identically).
+
 ---
 
 ## Changelog
 
+- 2026-08-23 — #65 FIXED: `configStore.js`'s `ENV_FALLBACK_MAP` (~230
+  entries) is now declared once at module scope instead of being
+  re-allocated inside `getEffective()` on every call — a hot path called
+  ~204 times project-wide, some inside loops. New source-inspection test
+  proven to fail against the pre-fix file and pass against the fix;
+  functional regression suite green (21 tests, output unchanged); full
+  server suite green (850/856 suites — 4 pre-existing/environmental
+  failures confirmed unrelated).
 - 2026-08-23 — #62 FIXED: `enterpriseIdp.js`'s `POST /token` handler is now
   wrapped in try/catch, returning `500 { error: 'server_error' }` instead
   of hanging forever (or hard-crashing the process in dev/test) when an
