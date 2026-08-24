@@ -70,7 +70,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 38 | Perf | `demo_api_ui/.../context/ActivityNarrativeContext.js` | medium | FIXED |
 | 39 | Perf | `demo_api_ui/.../ScopeAuditPage.js` | medium | FIXED |
 | 40 | Runtime | `services/cibaTransactionReceipt.js` | medium | FIXED |
-| 41 | Runtime | `services/hitlCredit.js` | medium | OPEN |
+| 41 | Runtime | `services/hitlCredit.js` | medium | FIXED |
 | 42 | Runtime | `services/http2McpBridge.js` | low | OPEN |
 | 43 | Runtime | `routes/privilegeMcpClient.js` | low | OPEN |
 | 44 | Runtime | `demo_api_ui/.../services/spinnerActivityService.js` | medium | OPEN |
@@ -1193,7 +1193,7 @@ src/__tests__/ciba.test.js
 src/__tests__/mcpToolAuthorization.hitlAmountBind.test.js --forceExit
 --maxWorkers=4` — 3 suites / 65 tests passed.
 
-### 41. HITL credit check-then-act race across an awaited policy call — OPEN
+### 41. HITL credit check-then-act race across an awaited policy call — FIXED
 
 **File:** `demo_api_server/services/hitlCredit.js`, line 33
 
@@ -1209,10 +1209,48 @@ then `consume()` only after that resolves. Two concurrent `POST
 approval can both pass the `isFresh()` check before either reaches
 `consume()`, so both get authorized off a single one-time approval.
 
-**Fix (not yet applied):** Add a `consumeIfFresh(session, {amount})` that
-reads and clears the session HITL state in one synchronous call; have
-`transactions.js` decide eligibility from that single call's return value
-instead of splitting the read and the write around the awaited policy call.
+**Fix:** `express-session` gives each concurrent request its own
+independently-loaded session snapshot (saved back separately at response
+time), so an in-session-object flag can't serialize two truly concurrent
+requests — a plain `consumeIfFresh(session)` synchronous helper would still
+race if it only touched the session object. Instead added a real
+cross-request lock: `hitlCredit.js` gained `claim()`/`release()` backed by a
+process-local `Map` keyed by session id (same reason `cibaTransactionReceipt.js`
+keeps its own state out of the session object). `claim()` atomically checks
+`isFresh()` and that no other concurrent request currently holds the
+session's claim; a claim self-expires after `CLAIM_TTL_MS` (3s — comfortably
+longer than any single awaited call in this path) so a caller that
+determines the credit wasn't needed and can't call `release()` on every
+return path doesn't wedge the credit for more than a few seconds. User
+confirmed this approach (a real lock, not a narrower single-file patch or
+leaving it open) after being shown the tradeoffs.
+  - `routes/transactions.js`: `isFresh()` → `claim()`; releases immediately
+    via `release()` in the branch where the claim turned out unneeded
+    (`authz.hitlConsentDischarged` false), since this function's full
+    control flow is visible and every exit path can be tracked.
+  - `services/mcpToolAuthorizationService.js`: `isFresh()` → `claim()` at
+    its one call site; relies on the TTL self-expiry rather than an
+    explicit `release()`, since this function has three mutually-exclusive
+    `hitlRequired` gates spread across many return paths and instrumenting
+    all of them risked introducing a new bug for a narrower payoff than the
+    3-second self-heal already provides.
+
+**Evidence:** New `hitlCredit.claim`/`release` tests in `hitlCredit.test.js`
+prove: two independent session *objects* sharing the same `id` (simulating
+two concurrent requests, each with its own deserialized snapshot) can't both
+claim; `release()` frees it immediately for the next request; `consume()`
+also frees it; an unreleased claim self-expires after `CLAIM_TTL_MS`; a
+session with no `id` falls back to unlocked `isFresh()` semantics. Proven to
+fail against the pre-fix file (5/5 new tests — `claim`/`release` didn't
+exist) and pass against the fix (14/14). `cd demo_api_server && CI=true npx
+jest src/__tests__/hitlCredit.test.js src/__tests__/ciba.test.js
+src/__tests__/cibaService.test.js
+src/__tests__/mcpToolAuthorization.hitlAmountBind.test.js
+tests/services/transactionAuthorizationService.rfc9470.test.js
+src/__tests__/cibaTransactionReceipt.sweep.test.js --forceExit
+--maxWorkers=4` — 6 suites / 120 tests passed. Full server suite run
+separately since this touches a shared session-security primitive used by
+both the REST and MCP authorization paths.
 
 ### 42. HTTP/2 connection pool cap silently bypassed under sustained concurrent load — OPEN
 
@@ -1497,6 +1535,16 @@ apply the same fix to the duplicated block in `UserDashboardPing2026.js`.
 
 ## Changelog
 
+- 2026-08-23 — #41 FIXED: `hitlCredit.js` gained `claim()`/`release()` — a
+  cross-request lock (process-local Map keyed by session id, TTL 3s) closing
+  the race between the `isFresh()` read and the `consume()` write across an
+  awaited policy call. User confirmed the lock-based approach over a
+  narrower single-file patch or leaving it open. Wired into
+  `routes/transactions.js` (with explicit `release()`) and
+  `mcpToolAuthorizationService.js` (relies on TTL self-expiry, given its
+  three mutually-exclusive gates spread across many return paths). New
+  tests proven to fail against the pre-fix file (5/5) and pass against the
+  fix (14/14); 120 tests passed across affected suites.
 - 2026-08-23 — #40 FIXED: `cibaTransactionReceipt.js` gained a periodic
   unref'd `setInterval` sweep (mirrors `http2McpBridge.js`'s
   `cleanupInterval`) that evicts expired, never-consumed receipts. New test

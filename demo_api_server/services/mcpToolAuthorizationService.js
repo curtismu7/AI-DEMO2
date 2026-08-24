@@ -742,7 +742,13 @@ async function buildMcpFirstToolGateInputs({ req, tool, agentToken, userSub, use
   // amount — the bearer /api/transactions path consumed that receipt and the
   // larger write went through. Non-write tools (toolAmount null) still omit
   // amount and keep the unbound discharge for tool-level HITL consent.
-  const hitlAlreadyVerified = hitlCredit.isFresh(
+  // claim() (not isFresh()) also locks out a second concurrent request on
+  // this same session for CLAIM_TTL_MS — see services/hitlCredit.js. This
+  // function's three hitlRequired gates below are mutually exclusive
+  // per-call, and a claim that turns out unneeded here self-releases after
+  // the TTL rather than requiring an explicit release() on every one of this
+  // function's many return paths.
+  const hitlAlreadyVerified = hitlCredit.claim(
     req.session,
     toolAmount != null && Number.isFinite(Number(toolAmount))
       ? { amount: toolAmount }

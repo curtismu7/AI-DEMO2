@@ -38,6 +38,45 @@ function isFresh(session, { amount } = {}) {
   return Number(amount) <= Number(approved); // bound — only within the approved amount
 }
 
+// express-session gives each concurrent request its own independently-loaded
+// session snapshot (saved back separately at response time), so a flag set on
+// req.session in one request is invisible to a second request already in
+// flight on the same session — an in-session-object guard cannot serialize
+// them. claim()/release() add a real cross-request lock via a process-local
+// Map keyed by session id (same reason cibaTransactionReceipt.js keeps its
+// own state out of the session object entirely). The claim self-expires
+// after CLAIM_TTL_MS so a caller that determines the credit wasn't actually
+// needed and never calls release() doesn't wedge the credit for longer than
+// it takes any of this module's callers to complete their awaited policy
+// evaluation — short enough to preserve the original consume-on-use
+// anti-starvation intent for any caller that can't call release() on every
+// return path.
+const CLAIM_TTL_MS = 3000;
+const _claims = new Map(); // sessionId -> expiresAt
+
+/**
+ * Atomically check-and-claim the credit so a second concurrent request on
+ * the same session can't also see it as fresh while this request's awaited
+ * policy evaluation is still in flight. Callers that determine the credit
+ * wasn't actually needed should call release() to free it immediately
+ * instead of waiting out CLAIM_TTL_MS.
+ */
+function claim(session, { amount } = {}) {
+  if (!isFresh(session, { amount })) return false;
+  const sid = session.id;
+  if (sid) {
+    const claimedUntil = _claims.get(sid);
+    if (claimedUntil && claimedUntil > Date.now()) return false; // held by a concurrent request
+    _claims.set(sid, Date.now() + CLAIM_TTL_MS);
+  }
+  return true;
+}
+
+/** Release a claim taken via claim() when it turned out not to be needed. */
+function release(session) {
+  if (session && session.id) _claims.delete(session.id);
+}
+
 /**
  * Spend the single-use credit. Idempotent; call only after isFresh() actually
  * discharged a gate this request.
@@ -47,6 +86,7 @@ function consume(session) {
   if (!session) return;
   session.hitlVerified = 0;
   session.hitlApprovedAmount = null;
+  if (session.id) _claims.delete(session.id);
 }
 
-module.exports = { isFresh, consume };
+module.exports = { isFresh, consume, claim, release };

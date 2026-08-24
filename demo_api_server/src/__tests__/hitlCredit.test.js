@@ -67,3 +67,68 @@ describe('hitlCredit.consume', () => {
     expect(() => hitlCredit.consume(undefined)).not.toThrow();
   });
 });
+
+// Finding #41: isFresh()-then-later-consume() left a window across an
+// awaited policy call where two concurrent requests on the SAME session
+// (each with its own independently-loaded session object -- express-session
+// gives every request its own snapshot) could both see the credit as fresh.
+// claim()/release() add a real cross-request lock, keyed by session id, that
+// isFresh() alone cannot provide.
+describe('hitlCredit.claim / release (finding #41)', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  test('claim succeeds once; a second concurrent request on the same session id is locked out', () => {
+    // Two SEPARATE session objects sharing the same id -- simulates two
+    // concurrent requests, each with its own independently-deserialized
+    // session snapshot (the exact scenario an in-session-object flag can't
+    // guard against).
+    const sessionA = { id: 'sess-1', hitlVerified: future(), hitlApprovedAmount: 50 };
+    const sessionB = { id: 'sess-1', hitlVerified: future(), hitlApprovedAmount: 50 };
+
+    expect(hitlCredit.claim(sessionA, { amount: 50 })).toBe(true);
+    expect(hitlCredit.claim(sessionB, { amount: 50 })).toBe(false);
+  });
+
+  test('release() frees the claim immediately for the next request', () => {
+    const sessionA = { id: 'sess-2', hitlVerified: future(), hitlApprovedAmount: 50 };
+    const sessionB = { id: 'sess-2', hitlVerified: future(), hitlApprovedAmount: 50 };
+
+    expect(hitlCredit.claim(sessionA, { amount: 50 })).toBe(true);
+    hitlCredit.release(sessionA);
+    expect(hitlCredit.claim(sessionB, { amount: 50 })).toBe(true);
+  });
+
+  test('consume() also frees the claim', () => {
+    const sessionA = { id: 'sess-3', hitlVerified: future(), hitlApprovedAmount: 50 };
+    const sessionB = { id: 'sess-3', hitlVerified: future(), hitlApprovedAmount: 50 };
+
+    expect(hitlCredit.claim(sessionA, { amount: 50 })).toBe(true);
+    hitlCredit.consume(sessionA);
+    // sessionB's own hitlVerified is still live (separate object), so
+    // without the stale claim it should be claimable again.
+    expect(hitlCredit.claim(sessionB, { amount: 50 })).toBe(true);
+  });
+
+  test('an unreleased claim self-expires after CLAIM_TTL_MS', () => {
+    const sessionA = { id: 'sess-4', hitlVerified: future(), hitlApprovedAmount: 50 };
+    const sessionB = { id: 'sess-4', hitlVerified: future(), hitlApprovedAmount: 50 };
+
+    expect(hitlCredit.claim(sessionA, { amount: 50 })).toBe(true);
+    expect(hitlCredit.claim(sessionB, { amount: 50 })).toBe(false);
+
+    jest.advanceTimersByTime(3001);
+
+    expect(hitlCredit.claim(sessionB, { amount: 50 })).toBe(true);
+  });
+
+  test('a session with no id falls back to plain isFresh semantics (no lock enforced)', () => {
+    const session = { hitlVerified: future(), hitlApprovedAmount: 50 };
+    expect(hitlCredit.claim(session, { amount: 50 })).toBe(true);
+    expect(hitlCredit.claim(session, { amount: 50 })).toBe(true); // no id -> can't lock
+  });
+});
