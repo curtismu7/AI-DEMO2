@@ -82,6 +82,7 @@ export class TokenIssuer {
     client: OAuthClient,
     subject: string,
     requestedScope: string,
+    pingOneAccessToken?: string,
   ): Promise<TokenResponse> {
     // Same intersection issueClientCredentials does: the scope that travelled
     // through /authorize is CLIENT-CONTROLLED input, so it must be clamped to
@@ -114,6 +115,7 @@ export class TokenIssuer {
       issuedAt: now,
       expiresAt: now + expiresIn,
       revoked: false,
+      pingOneAccessToken,
     });
 
     return { access_token: token, token_type: 'Bearer', expires_in: expiresIn, scope };

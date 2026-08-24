@@ -143,6 +143,9 @@ export class DemoMCPServer extends EventEmitter {
       }
       const tokenStore = new TokenStore();
       this.oauthRouter = new OAuthRouter(signingKeyManager, clientRegistry, tokenStore);
+      // Lets TokenResolver find the real PingOne token stashed against a
+      // self-issued external-door token (see BankingToolProvider.setTokenStore).
+      this.toolProvider.setTokenStore(tokenStore);
       setInterval(() => tokenStore.cleanup(), 60_000);
 
       // Create HTTP server for WebSocket upgrade and OAuth callbacks
