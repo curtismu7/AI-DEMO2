@@ -1571,6 +1571,28 @@ app.use('/api/demo/xaa', xaaIdJagDemoRoutes);
 // RS256 assertions the MCP Authorization Server verifies and redeems.
 const enterpriseIdpRoutes = require('./routes/enterpriseIdp');
 app.use('/api/enterprise-idp', enterpriseIdpRoutes);
+
+// Discovery for external EMA clients (e.g. MCP Inspector's Client Settings ->
+// Enterprise-Managed Authorization): the issuer origin, not /api/enterprise-idp,
+// is what a client's OIDC discovery step fetches from. Public, no auth.
+app.get('/.well-known/oauth-authorization-server', (_req, res) => {
+  res.json(enterpriseIdpRoutes.buildDiscoveryDocument());
+});
+app.get('/.well-known/openid-configuration', (_req, res) => {
+  res.json(enterpriseIdpRoutes.buildDiscoveryDocument());
+});
+
+// Seed (or re-read, if env-overridden) the demo client external EMA clients
+// register with — logged once so an operator can paste it into MCP
+// Inspector's Client Settings dialog without hand-editing storage.
+{
+  const enterpriseIdpClientRegistry = require('./services/enterpriseIdpClientRegistry');
+  const inspectorClient = enterpriseIdpClientRegistry.getSeededInspectorClient();
+  console.log(
+    `[enterpriseIdp] Seeded EMA client for MCP Inspector — client_id=${inspectorClient.client_id} ` +
+    `client_secret=${inspectorClient.client_secret} redirect_uri=${inspectorClient.redirect_uris[0]}`,
+  );
+}
 const spiffeDemoRoutes = require('./routes/spiffeDemo');
 app.use('/api/demo/spiffe', spiffeDemoRoutes);
 const dpopDemoRoutes = require('./routes/dpopDemo');
