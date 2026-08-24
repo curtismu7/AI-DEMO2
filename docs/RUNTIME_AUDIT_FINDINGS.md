@@ -101,6 +101,8 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 61 | Runtime | `demo_api_ui/.../components/NewRelicDashboard.jsx` | low | FIXED |
 | 62 | Swallowed | `routes/enterpriseIdp.js` | medium | FIXED |
 | 63 | Swallowed | `demo_api_ui/.../services/agentAccessConsent.js` | high | FIXED |
+| 64 | Swallowed | `demo_api_ui/.../services/logout.js` | medium | FIXED |
+| 65 | Perf | `services/configStore.js` | medium | FIXED |
 | 66 | Perf | `demo_api_ui/.../pages/UseCaseLauncherPage.js` | medium | FIXED |
 
 ---
@@ -1966,6 +1968,84 @@ prototype spy silently misses on one of the two runtimes (see
 a later storage failure does not flip an already-established
 `blocked=false` back to blocked.
 
+### 64. Logout button treats a failed session-clear the same as a successful one — FIXED
+
+**File:** `demo_api_ui/src/services/logout.js`, line 21
+
+**Issue:** `performLogout()` — wired directly to the "Log out"/"Sign Out"
+button — calls `fetch('/api/auth/logout')` to have the BFF clear the
+session cookie, then navigates to the returned `logoutUrl`. Its `.catch()`
+swallowed any fetch failure and navigated to `/` exactly as it would on
+success, with no indication the server-side session was never cleared.
+
+**Trigger scenario:** A transient network failure (or an aborted fetch,
+e.g. a backgrounded tab during navigation) causes the fetch to
+`/api/auth/logout` to reject before reaching the server. The catch
+swallowed it and redirected to `/`, which renders as a logged-out landing
+page, but the BFF session cookie was never cleared — the user (or the next
+person on a shared/public machine) could still be treated as authenticated
+by any request that reuses the still-valid cookie.
+
+**Fix:** The catch handler now calls `notifyError('Logout failed — please
+try again.')` and does **not** navigate away. Deliberately does not fall
+back to a direct `window.location.href = '/api/auth/logout'` navigation —
+this file's own top comment documents that a direct navigation loses the
+`Set-Cookie` clear behind the CRA dev proxy's 302→PingOne redirect, which
+is exactly why `fetch()` is used here in the first place; falling back to
+it on failure would silently reintroduce that already-fixed bug. Staying
+on the current page (still genuinely signed in, matching reality) and
+surfacing the error is the safer minimal fix.
+
+**Evidence:** New test
+`demo_api_ui/src/services/__tests__/logout.failureFeedback.test.js`
+(`finding #64: notifies the user and does not navigate away when the
+logout fetch fails`) proven to fail against the pre-fix file (`notifyError`
+never called) and pass against the fix. A second test confirms the success
+path (`logoutUrl` navigation) is unchanged. Also ran the 5 test files that
+exercise `performLogout` callers (`AdminSideNav`/`DemoSetupPanel`
+sign-out): 28 tests, unaffected.
+
+### 65. ConfigStore.getEffective() rebuilds a ~230-entry alias map from scratch on every call — FIXED
+
+**File:** `demo_api_server/services/configStore.js`, line 1074
+
+**Issue:** `getEffective(key)` declared a ~360-line, ~230-key
+`envFallbackMap` object literal inside the method body — allocated fresh
+on every single invocation, even though the map is 100% static and never
+depends on the `key` argument (only indexed afterward).
+
+**Trigger scenario:** This is a hot path, not an edge case:
+`middleware/auth.js`'s `requireScopes` gate calls `getEffective` twice per
+scope-checked request; `mcpGatewayClient.js`'s `getMcpGatewayHttpUrl()` —
+documented as "the single chokepoint every tool-call path uses" — calls it
+2-4 times per invocation; `demoStepPrerequisites.js`'s
+`checkChipPrerequisites` calls it once per required flag in a loop. ~204
+call sites project-wide mean a single request can trigger dozens of full
+rebuilds of this literal.
+
+**Fix:** Hoisted the object literal out of the method body to module scope
+as `const ENV_FALLBACK_MAP = { ... };`, declared once before the
+`ConfigStore` class (matching the file's existing `FIELD_DEFS` pattern),
+and updated the lookup site to reference it directly. No behavior change —
+the map never varied per-call.
+
+**Evidence:** New test
+`demo_api_server/src/__tests__/configStore.envFallbackMapHoisted.test.js`
+proves via static source-text inspection (same technique as
+`NewRelicDashboard.test.js`'s CSS dark-mode-ground checks) that
+`ENV_FALLBACK_MAP` is declared once, before the class, and no longer
+inside `getEffective()`'s own body — proven to fail against the pre-fix
+file (the module-scope declaration doesn't exist yet) and pass against the
+fix. Ran the existing functional regression suite
+(`configStore.get.envFallback.test.js`, `configStore.envReconcile.test.js`)
+— 21 passed, confirming no output changed. `configStore.js` is core shared
+infrastructure, so also ran the full server suite: 850/856 suites passed
+(the 4 failures — `anthropic.lmstudio.live.test.js`,
+`attackSimulator.test.js`, `rfc9728-integration-verification.test.js`,
+`rfc9728-integration.test.js` — are pre-existing/environmental: confirmed
+by re-running them against the unmodified pre-fix file, which fails
+identically).
+
 ### 66. UseCaseLauncherPage rebuilds every track/authorize/agent-gateway list on every render — FIXED
 
 **File:** `demo_api_ui/src/pages/UseCaseLauncherPage.js`, line 925
@@ -2018,6 +2098,23 @@ gate green.
   count increased on an unrelated re-render) and pass against the fix; full
   existing regression suite (40 tests across 2 files) and UI build gate
   green.
+- 2026-08-23 — #65 FIXED: `configStore.js`'s `ENV_FALLBACK_MAP` (~230
+  entries) is now declared once at module scope instead of being
+  re-allocated inside `getEffective()` on every call — a hot path called
+  ~204 times project-wide, some inside loops. New source-inspection test
+  proven to fail against the pre-fix file and pass against the fix;
+  functional regression suite green (21 tests, output unchanged); full
+  server suite green (850/856 suites — 4 pre-existing/environmental
+  failures confirmed unrelated).
+- 2026-08-23 — #64 FIXED: `logout.js`'s `performLogout()` catch now calls
+  `notifyError(...)` and stays put instead of navigating to `/` on a fetch
+  failure — closing the window where a failed session-clear looked
+  identical to a successful logout while the BFF session cookie was still
+  valid. Deliberately does not fall back to a direct-navigation retry, to
+  avoid reintroducing the cookie-clearing bug this file's own `fetch()`
+  approach was written to avoid. New test proven to fail against the
+  pre-fix file and pass against the fix; 5 caller test files (28 tests)
+  unaffected.
 - 2026-08-23 — #63 FIXED (high severity): `agentAccessConsent.js`'s
   `isAgentBlockedByConsentDecline()` now reads an in-memory flag as its
   source of truth instead of `localStorage` directly, and fails CLOSED

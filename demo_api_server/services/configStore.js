@@ -793,6 +793,376 @@ const _lmdbConfig = require('./lmdb/configStore.lmdb');
 // ConfigStore class
 // ---------------------------------------------------------------------------
 
+// Env-var fallback map for getEffective() (PINGONE_CORE_* / PINGONE_AI_CORE_* /
+// PINGONE_ADMIN_* all refer to the same PingOne apps). Hoisted to module scope —
+// it is 100% static (never depends on the lookup key), so it must not be
+// reallocated on every getEffective() call (finding #65, round-4 audit).
+// NOTE: env vars always take priority — over LMDB and committed defaults.
+// This ensures env vars override anything saved in the Config UI.
+const ENV_FALLBACK_MAP = {
+  pingone_environment_id: ['PINGONE_ENVIRONMENT_ID'],
+  pingone_region:         ['PINGONE_REGION'],
+  pingone_base_url:       ['PINGONE_BASE_URL'],
+  admin_client_id:        [
+    'PINGONE_AI_CORE_CLIENT_ID',
+    'PINGONE_CORE_CLIENT_ID',
+    'PINGONE_ADMIN_CLIENT_ID',
+    'VITE_PINGONE_CLIENT_ID',
+  ],
+  admin_client_secret:    [
+    'PINGONE_AI_CORE_CLIENT_SECRET',
+    'PINGONE_CORE_CLIENT_SECRET',
+    'PINGONE_ADMIN_CLIENT_SECRET',
+    'VITE_PINGONE_CLIENT_SECRET',
+  ],
+  admin_redirect_uri:     [
+    'PINGONE_AI_CORE_REDIRECT_URI',
+    'PINGONE_CORE_REDIRECT_URI',
+    'PINGONE_ADMIN_REDIRECT_URI',
+  ],
+  admin_token_endpoint_auth_method: [
+    'PINGONE_ADMIN_TOKEN_ENDPOINT_AUTH',
+    'ADMIN_TOKEN_ENDPOINT_AUTH',
+  ],
+  pingone_admin_token_endpoint_auth: ['PINGONE_ADMIN_TOKEN_ENDPOINT_AUTH', 'ADMIN_TOKEN_ENDPOINT_AUTH'],
+  user_client_id:         [
+    'PINGONE_AI_CORE_USER_CLIENT_ID',
+    'PINGONE_CORE_USER_CLIENT_ID',
+    'PINGONE_USER_CLIENT_ID',
+    'VITE_PINGONE_CLIENT_ID',
+  ],
+  user_client_secret:     [
+    'PINGONE_AI_CORE_USER_CLIENT_SECRET',
+    'PINGONE_CORE_USER_CLIENT_SECRET',
+    'PINGONE_USER_CLIENT_SECRET',
+    'VITE_PINGONE_CLIENT_SECRET',
+  ],
+  user_redirect_uri:      [
+    'PINGONE_AI_CORE_USER_REDIRECT_URI',
+    'PINGONE_CORE_USER_REDIRECT_URI',
+    'PINGONE_USER_REDIRECT_URI',
+  ],
+  // SDK centralized-login demo (public PKCE SPA client) — see FIELD_DEFS above.
+  pingone_sdk_demo_client_id:    ['PINGONE_SDK_DEMO_CLIENT_ID'],
+  pingone_sdk_demo_redirect_uri: ['PINGONE_SDK_DEMO_REDIRECT_URI'],
+  pingone_sdk_demo_scope:        ['PINGONE_SDK_DEMO_SCOPE'],
+  pingone_client_id:     ['PINGONE_MANAGEMENT_CLIENT_ID', 'PINGONE_CIMD_CLIENT_ID', 'PINGONE_ADMIN_CLIENT_ID', 'PINGONE_WORKER_TOKEN_CLIENT_ID', 'PINGONE_WORKER_CLIENT_ID'],
+  pingone_client_secret: ['PINGONE_MANAGEMENT_CLIENT_SECRET', 'PINGONE_CIMD_CLIENT_SECRET', 'PINGONE_ADMIN_CLIENT_SECRET', 'PINGONE_WORKER_TOKEN_CLIENT_SECRET', 'PINGONE_WORKER_CLIENT_SECRET'],
+  pingone_mgmt_client_id:          ['PINGONE_MGMT_CLIENT_ID', 'PINGONE_MANAGEMENT_CLIENT_ID', 'PINGONE_ADMIN_CLIENT_ID', 'PINGONE_WORKER_TOKEN_CLIENT_ID', 'PINGONE_WORKER_CLIENT_ID'],
+  pingone_mgmt_client_secret:      ['PINGONE_MGMT_CLIENT_SECRET', 'PINGONE_MANAGEMENT_CLIENT_SECRET', 'PINGONE_ADMIN_CLIENT_SECRET', 'PINGONE_WORKER_TOKEN_CLIENT_SECRET', 'PINGONE_WORKER_CLIENT_SECRET'],
+  // Do NOT alias PINGONE_ADMIN_TOKEN_ENDPOINT_AUTH here: that is the ADMIN login client's
+  // auth method (commonly client_secret_post), whereas the worker/management app uses
+  // client_secret_basic. Cross-wiring them made the worker token request 401 and silently
+  // no-op'd persona role hardening at boot. The admin client reads admin_token_endpoint_auth_method.
+  pingone_mgmt_token_auth_method:  ['PINGONE_MGMT_TOKEN_AUTH_METHOD', 'PINGONE_WORKER_TOKEN_AUTH_METHOD'],
+  admin_pingone_authorize_pi_flow: ['PINGONE_ADMIN_AUTHORIZE_PI_FLOW'],
+  user_pingone_authorize_pi_flow:  ['PINGONE_USER_AUTHORIZE_PI_FLOW'],
+  admin_role:             ['ADMIN_ROLE'],
+  user_role:              ['USER_ROLE'],
+  admin_username:         ['ADMIN_USERNAME'],
+  admin_population_id:    ['ADMIN_POPULATION_ID'],
+  admin_role_claim:       ['ADMIN_ROLE_CLAIM'],
+  session_secret:         ['SESSION_SECRET'],
+  // Shared secret for BFF <-> MCP Gateway internal calls (x-internal-gateway-secret).
+  // Read directly via process.env in agentReasoningClient.js / routes/agentIdToken.js
+  // / server.js; mapped here so the env-coverage guard sees it resolve.
+  bff_internal_secret:    ['BFF_INTERNAL_SECRET'],
+  // Shared secret for BFF <-> HITL service internal calls (X-HITL-Internal-Secret).
+  // Read directly via process.env in services/hitlServiceClient.js; mapped here so
+  // the env-coverage guard sees it resolve (same pattern as bff_internal_secret).
+  hitl_internal_secret:   ['HITL_INTERNAL_SECRET'],
+  frontend_url:           ['PUBLIC_APP_URL', 'PINGONE_PUBLIC_APP_URL', 'REACT_APP_CLIENT_URL', 'FRONTEND_ADMIN_URL'],
+  frontend_admin_url:     ['FRONTEND_ADMIN_URL', 'REACT_APP_CLIENT_URL', 'PUBLIC_APP_URL'],
+  react_app_client_url:   ['REACT_APP_CLIENT_URL', 'PUBLIC_APP_URL', 'FRONTEND_ADMIN_URL'],
+  public_app_url:         ['PUBLIC_APP_URL', 'PINGONE_PUBLIC_APP_URL'],
+  mcp_server_url:                   ['MCP_SERVER_URL'],
+  // MCP_SERVER_RESOURCE_URI is the authoritative env var for the MCP server audience.
+  // MCP_RESOURCE_URI is kept as a fallback AFTER MCP_SERVER_RESOURCE_URI so that
+  // MCP_RESOURCE_URI=mcpgateway.ping.demo (gateway audience) does not shadow the
+  // MCP server audience when both are set. PINGONE_RESOURCE_MCP_SERVER_URI wins first.
+  pingone_resource_mcp_server_uri:  ['PINGONE_RESOURCE_MCP_SERVER_URI', 'MCP_SERVER_RESOURCE_URI', 'MCP_RESOURCE_URI'],
+  // Alias of the line above for Token Chain / mcpInspector callers that use 'mcp_resource_uri'.
+  // MCP_SERVER_RESOURCE_URI before MCP_RESOURCE_URI — same priority fix as above.
+  mcp_resource_uri:                 ['PINGONE_RESOURCE_MCP_SERVER_URI', 'MCP_SERVER_RESOURCE_URI', 'MCP_RESOURCE_URI'],
+  // Direct alias so getEffective('pingone_user_client_id') and getEffective('PINGONE_USER_CLIENT_ID') both work.
+  pingone_user_client_id:           ['PINGONE_USER_CLIENT_ID', 'PINGONE_AI_CORE_USER_CLIENT_ID', 'PINGONE_CORE_USER_CLIENT_ID'],
+  // Direct alias so getEffective('pingone_admin_client_id') and getEffective('PINGONE_ADMIN_CLIENT_ID') both work.
+  pingone_admin_client_id:          ['PINGONE_ADMIN_CLIENT_ID', 'PINGONE_AI_CORE_CLIENT_ID', 'PINGONE_CORE_CLIENT_ID'],
+  pingone_resource_langchain_agent_uri: ['PINGONE_RESOURCE_LANGCHAIN_AGENT_URI'],
+  authorize_decision_endpoint_id:   ['PINGONE_AUTHORIZE_DECISION_ENDPOINT_ID'],
+  authorize_failover_mode:          ['PINGONE_AUTHORIZE_FAILOVER_MODE'],
+  authorize_mode:                   ['AUTHORIZE_MODE', 'PINGONE_AUTHORIZE_MODE'],
+  authorize_mcp_decision_endpoint_id: ['PINGONE_AUTHORIZE_MCP_DECISION_ENDPOINT_ID'],
+  debug_oauth:                      ['DEBUG_OAUTH'],
+  ciba_enabled:           ['CIBA_ENABLED'],
+  step_up_method:         ['STEP_UP_METHOD'],
+  step_up_amount_threshold: ['STEP_UP_AMOUNT_THRESHOLD'],
+  confirm_threshold_usd:    ['CONFIRM_THRESHOLD_USD', 'STEP_UP_AMOUNT_THRESHOLD'],
+  mfa_threshold_usd:        ['MFA_THRESHOLD_USD'],
+  pingone_mfa_policy_id:  ['PINGONE_MFA_POLICY_ID'],
+  agent_mcp_allowed_scopes: ['AGENT_MCP_ALLOWED_SCOPES'],
+  ff_heuristic_enabled:            ['FF_HEURISTIC_ENABLED'],
+  ff_prompt_injection_guard:       ['FF_PROMPT_INJECTION_GUARD'],
+  ff_mcp_gateway_pinggateway:      ['FF_MCP_GATEWAY_PINGGATEWAY'],
+  ff_mcp_gateway_jwks:             ['FF_MCP_GATEWAY_JWKS'],
+  ff_aam:                          ['FF_AAM'],
+  ff_local_fallback_on_exchange_failure: ['FF_LOCAL_FALLBACK_ON_EXCHANGE_FAILURE'],
+  ff_bedrock_agentcore_gateway:    ['FF_BEDROCK_AGENTCORE_GATEWAY'],
+  ff_bedrock_llm:                  ['FF_BEDROCK_LLM'],
+  pingone_resource_pinggateway_uri: ['PINGONE_RESOURCE_PINGGATEWAY_URI'],
+  pingone_resource_mcp_apikey_uri:  ['PINGONE_RESOURCE_MCP_APIKEY_URI'],
+  ff_authorize_real:          ['FF_AUTHORIZE_REAL'],
+  pingone_ai_agent_client_id:       ['PINGONE_AI_AGENT_ACTOR_CLIENT_ID', 'PINGONE_AI_AGENT_CLIENT_ID', 'AI_AGENT_CLIENT_ID', 'AGENT_CLIENT_ID'],
+  pingone_ai_agent_client_secret:    ['PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET', 'PINGONE_AI_AGENT_CLIENT_SECRET', 'AI_AGENT_CLIENT_SECRET', 'AGENT_CLIENT_SECRET'],
+  // Direct aliases for the renamed env vars so getEffective(lowercased-new-name) works.
+  pingone_ai_agent_actor_client_id:      ['PINGONE_AI_AGENT_ACTOR_CLIENT_ID', 'PINGONE_AI_AGENT_CLIENT_ID', 'AI_AGENT_CLIENT_ID'],
+  pingone_ai_agent_actor_client_secret:  ['PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET', 'PINGONE_AI_AGENT_CLIENT_SECRET', 'AI_AGENT_CLIENT_SECRET'],
+  pingone_ai_agent_actor_redirect_uri:   ['PINGONE_AI_AGENT_ACTOR_REDIRECT_URI'],
+  // Current main agent app — mapped from refresh-service-envs.js provisioning.
+  pingone_agent_client_id:       ['PINGONE_AGENT_CLIENT_ID', 'AGENT_CLIENT_ID'],
+  pingone_agent_client_secret:   ['PINGONE_AGENT_CLIENT_SECRET', 'AGENT_CLIENT_SECRET'],
+  pingone_token_exchanger_client_id:     ['PINGONE_TOKEN_EXCHANGER_CLIENT_ID', 'PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_ID', 'PINGONE_MCP_EXCHANGER_CLIENT_ID', 'AGENT_OAUTH_CLIENT_ID'],
+  pingone_token_exchanger_client_secret: ['PINGONE_TOKEN_EXCHANGER_CLIENT_SECRET', 'PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_SECRET', 'PINGONE_MCP_EXCHANGER_CLIENT_SECRET', 'AGENT_OAUTH_CLIENT_SECRET'],
+  pingone_mcp_gateway_client_id:         ['PINGONE_MCP_GATEWAY_CLIENT_ID', 'MCP_GW_CLIENT_ID'],
+  pingone_mcp_gateway_client_secret:     ['PINGONE_MCP_GATEWAY_CLIENT_SECRET', 'MCP_GW_CLIENT_SECRET'],
+  pingone_worker_client_id:                    ['PINGONE_AUTHORIZE_WORKER_CLIENT_ID', 'PINGONE_WORKER_CLIENT_ID'],
+  pingone_mcp_token_exchanger_client_id:     ['PINGONE_TOKEN_EXCHANGER_CLIENT_ID', 'PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_ID', 'PINGONE_MCP_EXCHANGER_CLIENT_ID', 'AGENT_OAUTH_CLIENT_ID'],
+  pingone_mcp_token_exchanger_client_secret: ['PINGONE_TOKEN_EXCHANGER_CLIENT_SECRET', 'PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_SECRET', 'PINGONE_MCP_EXCHANGER_CLIENT_SECRET', 'AGENT_OAUTH_CLIENT_SECRET'],
+  pingone_mcp_token_exchanger_client_scopes: ['PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_SCOPES', 'AGENT_OAUTH_CLIENT_SCOPES'],
+  pingone_resource_agent_gateway_uri: ['PINGONE_RESOURCE_AGENT_GATEWAY_URI', 'AGENT_GATEWAY_AUDIENCE'],
+  agent_gateway_audience:             ['AGENT_GATEWAY_AUDIENCE', 'PINGONE_RESOURCE_AGENT_GATEWAY_URI'],
+  // A2A (agent-to-agent): per-vertical specialist (Agent 2) credentials + intermediate audience.
+  pingone_investment_agent_client_id:     ['PINGONE_A2A_INVESTMENT_AGENT_CLIENT_ID', 'PINGONE_INVESTMENT_AGENT_CLIENT_ID'],
+  pingone_investment_agent_client_secret: ['PINGONE_A2A_INVESTMENT_AGENT_CLIENT_SECRET', 'PINGONE_INVESTMENT_AGENT_CLIENT_SECRET'],
+  pingone_records_agent_client_id:        ['PINGONE_A2A_RECORDS_AGENT_CLIENT_ID'],
+  pingone_records_agent_client_secret:    ['PINGONE_A2A_RECORDS_AGENT_CLIENT_SECRET'],
+  pingone_purchase_agent_client_id:       ['PINGONE_A2A_PURCHASE_AGENT_CLIENT_ID'],
+  pingone_purchase_agent_client_secret:   ['PINGONE_A2A_PURCHASE_AGENT_CLIENT_SECRET'],
+  pingone_membership_agent_client_id:     ['PINGONE_A2A_MEMBERSHIP_AGENT_CLIENT_ID'],
+  pingone_membership_agent_client_secret: ['PINGONE_A2A_MEMBERSHIP_AGENT_CLIENT_SECRET'],
+  pingone_payroll_agent_client_id:        ['PINGONE_A2A_PAYROLL_AGENT_CLIENT_ID'],
+  pingone_payroll_agent_client_secret:    ['PINGONE_A2A_PAYROLL_AGENT_CLIENT_SECRET'],
+  pingone_tax_agent_client_id:            ['PINGONE_A2A_TAX_AGENT_CLIENT_ID'],
+  pingone_tax_agent_client_secret:        ['PINGONE_A2A_TAX_AGENT_CLIENT_SECRET'],
+  pingone_finaid_agent_client_id:         ['PINGONE_A2A_FINAID_AGENT_CLIENT_ID'],
+  pingone_finaid_agent_client_secret:     ['PINGONE_A2A_FINAID_AGENT_CLIENT_SECRET'],
+  pingone_supplier_agent_client_id:       ['PINGONE_A2A_SUPPLIER_AGENT_CLIENT_ID'],
+  pingone_supplier_agent_client_secret:   ['PINGONE_A2A_SUPPLIER_AGENT_CLIENT_SECRET'],
+  pingone_holdings_agent_client_id:       ['PINGONE_A2A_HOLDINGS_AGENT_CLIENT_ID'],
+  pingone_holdings_agent_client_secret:   ['PINGONE_A2A_HOLDINGS_AGENT_CLIENT_SECRET'],
+  pingone_passenger_agent_client_id:      ['PINGONE_A2A_PASSENGER_AGENT_CLIENT_ID'],
+  pingone_passenger_agent_client_secret:  ['PINGONE_A2A_PASSENGER_AGENT_CLIENT_SECRET'],
+  pingone_identity_agent_client_id:       ['PINGONE_A2A_IDENTITY_AGENT_CLIENT_ID'],
+  pingone_identity_agent_client_secret:   ['PINGONE_A2A_IDENTITY_AGENT_CLIENT_SECRET'],
+  // Per-specialist A2A intermediate audiences (RFC 8707 — one resource per
+  // specialist, not one shared across all of them; see a2aSpecialists.js).
+  a2a_intermediate_audience_investment:   ['PINGONE_RESOURCE_A2A_INTERMEDIATE_INVESTMENT_URI', 'A2A_INTERMEDIATE_AUDIENCE_INVESTMENT'],
+  a2a_intermediate_audience_records:      ['PINGONE_RESOURCE_A2A_INTERMEDIATE_RECORDS_URI', 'A2A_INTERMEDIATE_AUDIENCE_RECORDS'],
+  a2a_intermediate_audience_purchase:     ['PINGONE_RESOURCE_A2A_INTERMEDIATE_PURCHASE_URI', 'A2A_INTERMEDIATE_AUDIENCE_PURCHASE'],
+  a2a_intermediate_audience_membership:   ['PINGONE_RESOURCE_A2A_INTERMEDIATE_MEMBERSHIP_URI', 'A2A_INTERMEDIATE_AUDIENCE_MEMBERSHIP'],
+  a2a_intermediate_audience_payroll:      ['PINGONE_RESOURCE_A2A_INTERMEDIATE_PAYROLL_URI', 'A2A_INTERMEDIATE_AUDIENCE_PAYROLL'],
+  a2a_intermediate_audience_tax:          ['PINGONE_RESOURCE_A2A_INTERMEDIATE_TAX_URI', 'A2A_INTERMEDIATE_AUDIENCE_TAX'],
+  a2a_intermediate_audience_finaid:       ['PINGONE_RESOURCE_A2A_INTERMEDIATE_FINAID_URI', 'A2A_INTERMEDIATE_AUDIENCE_FINAID'],
+  a2a_intermediate_audience_supplier:     ['PINGONE_RESOURCE_A2A_INTERMEDIATE_SUPPLIER_URI', 'A2A_INTERMEDIATE_AUDIENCE_SUPPLIER'],
+  a2a_intermediate_audience_holdings:     ['PINGONE_RESOURCE_A2A_INTERMEDIATE_HOLDINGS_URI', 'A2A_INTERMEDIATE_AUDIENCE_HOLDINGS'],
+  a2a_intermediate_audience_passenger:    ['PINGONE_RESOURCE_A2A_INTERMEDIATE_PASSENGER_URI', 'A2A_INTERMEDIATE_AUDIENCE_PASSENGER'],
+  a2a_intermediate_audience_identity:     ['PINGONE_RESOURCE_A2A_INTERMEDIATE_IDENTITY_URI', 'A2A_INTERMEDIATE_AUDIENCE_IDENTITY'],
+  // A2A specialists' Exchange #2 (final) destination — separate from
+  // pingone_resource_mcp_gateway_uri so its nested-act composer SPEL never
+  // touches the non-A2A two-exchange flow (see pingoneProvisionService.js
+  // Step 37a-A2A).
+  a2a_gateway_audience:                   ['A2A_GATEWAY_AUDIENCE'],
+  pingone_resource_a2a_intermediate_uri:  ['PINGONE_RESOURCE_A2A_INTERMEDIATE_URI', 'A2A_INTERMEDIATE_AUDIENCE'],
+  a2a_intermediate_audience:              ['A2A_INTERMEDIATE_AUDIENCE', 'PINGONE_RESOURCE_A2A_INTERMEDIATE_URI'],
+  a2a_intermediate_scope:                 ['A2A_INTERMEDIATE_SCOPE'],
+  a2a_invest_scope:                       ['A2A_INVEST_SCOPE'],
+  // Two-exchange audiences: intermediate (Exchange #1 result) and final (Exchange #2 result).
+  // Fall back to PINGONE_RESOURCE_AGENT_GATEWAY_URI when the explicit vars are absent.
+  ai_agent_intermediate_audience:     ['AI_AGENT_INTERMEDIATE_AUDIENCE', 'PINGONE_RESOURCE_AGENT_GATEWAY_URI'],
+  pingone_resource_two_exchange_uri:  ['PINGONE_RESOURCE_MCP_GATEWAY_URI', 'PINGONE_RESOURCE_TWO_EXCHANGE_URI', 'MCP_RESOURCE_URI', 'MCP_SERVER_RESOURCE_URI'],
+  pingone_resource_mcp_gateway_uri: ['PINGONE_RESOURCE_MCP_GATEWAY_URI', 'MCP_GW_RESOURCE_URI', 'MCP_GATEWAY_AUDIENCE', 'MCP_RESOURCE_URI'],
+  // MCP Gateway delegated-exchange app credentials (direct MCP_GW_* names —
+  // previously only read via direct process.env in gateway token glue)
+  mcp_gw_client_id:                 ['PINGONE_MCP_GATEWAY_CLIENT_ID', 'MCP_GW_CLIENT_ID'],
+  mcp_gw_client_secret:             ['PINGONE_MCP_GATEWAY_CLIENT_SECRET', 'MCP_GW_CLIENT_SECRET'],
+  mcp_gw_resource_uri:              ['PINGONE_RESOURCE_MCP_GATEWAY_URI', 'MCP_GW_RESOURCE_URI'],
+  mcp_gw_token_endpoint_auth_method:      ['MCP_GW_TOKEN_ENDPOINT_AUTH_METHOD'],
+  mcp_gw_passthrough_to_mcp_server:       ['MCP_GW_PASSTHROUGH_TO_MCP_SERVER'],
+  gateway_health_probe_insecure:           ['GATEWAY_HEALTH_PROBE_INSECURE'],
+  mcp_gateway_reject_unauthorized:         ['MCP_GATEWAY_REJECT_UNAUTHORIZED'],
+  pingone_validate_on_startup:             ['PINGONE_VALIDATE_ON_STARTUP'],
+  // RFC 8707: single-resource scope for the actor client-credentials token
+  // used in the BFF's single subject+actor RFC 8693 exchange. MUST stay in
+  // sync with pingoneProvisionService.js grants — the AI Agent / MCP
+  // Exchanger apps are granted scopes on >1 resource, so the CC request
+  // needs an explicit single-resource scope or PingOne rejects with
+  // invalid_scope: "May not request scopes for multiple resources".
+  agent_gateway_cc_scope: ['AGENT_GATEWAY_CC_SCOPE'],
+  two_exchange_intermediate_scope: ['TWO_EXCHANGE_INTERMEDIATE_SCOPE'],
+  mcp_gateway_cc_scope:   ['MCP_GATEWAY_CC_SCOPE'],
+  marketing_customer_login_mode: ['MARKETING_CUSTOMER_LOGIN_MODE'],
+  marketing_demo_username_hint: ['MARKETING_DEMO_USERNAME_HINT'],
+  marketing_demo_password_hint: ['MARKETING_DEMO_PASSWORD_HINT'],
+  ai_agent_token_endpoint_auth_method:   ['AI_AGENT_TOKEN_ENDPOINT_AUTH_METHOD'],
+  mcp_exchanger_token_endpoint_auth_method: ['MCP_EXCHANGER_TOKEN_ENDPOINT_AUTH_METHOD'],
+  oauth_authorization_endpoint: ['OAUTH_AUTHORIZATION_ENDPOINT'],
+  oauth_token_endpoint:          ['OAUTH_TOKEN_ENDPOINT'],
+  oauth_userinfo_endpoint:       ['OAUTH_USERINFO_ENDPOINT'],
+  oauth_jwks_uri:                ['OAUTH_JWKS_URI'],
+  oauth_issuer:                  ['OAUTH_ISSUER'],
+  oauth_discovery_endpoint:      ['OAUTH_DISCOVERY_ENDPOINT'],
+  oauth_par_endpoint:            ['OAUTH_PAR_ENDPOINT', 'PINGONE_PAR_ENDPOINT'],
+  pingone_par_endpoint:          ['PINGONE_PAR_ENDPOINT', 'OAUTH_PAR_ENDPOINT'],
+  oauth_discovery_enabled:       ['OAUTH_DISCOVERY_ENABLED'],
+  oauth_admin_callback_path:       ['OAUTH_ADMIN_CALLBACK_PATH'],
+  oauth_user_callback_path:        ['OAUTH_USER_CALLBACK_PATH'],
+  oauth_role_claim_name:           ['OAUTH_ROLE_CLAIM_NAME'],
+  oauth_role_claim_value_admin:    ['OAUTH_ROLE_CLAIM_VALUE_ADMIN'],
+  oauth_role_claim_value_customer: ['OAUTH_ROLE_CLAIM_VALUE_CUSTOMER'],
+  oauth_role_claim_is_array:       ['OAUTH_ROLE_CLAIM_IS_ARRAY'],
+  helix_base_url:                  ['HELIX_BASE_URL'],
+  helix_api_key:                   ['HELIX_API_KEY'],
+  helix_environment_id:            ['HELIX_ENVIRONMENT_ID'],
+  helix_agent_id:                  ['HELIX_AGENT_ID'],
+  helix_prompt_field_id:           ['HELIX_PROMPT_FIELD_ID'],
+
+  // Intent-based authorization
+  ff_intent_authorization_enabled: ['FF_INTENT_AUTHORIZATION_ENABLED'],
+  intent_min_confidence:           ['INTENT_MIN_CONFIDENCE'],
+  intent_requires_consent:         ['INTENT_REQUIRES_CONSENT'],
+  intent_max_amount_low_confidence:['INTENT_MAX_AMOUNT_LOW_CONFIDENCE'],
+  ff_intent_token_enabled:         ['FF_INTENT_TOKEN_ENABLED'],
+
+  // Token audiences
+  enduser_audience:                     ['ENDUSER_AUDIENCE'],
+  ai_agent_audience:                    ['AI_AGENT_AUDIENCE'],
+  ai_agent_scope:                       ['AI_AGENT_SCOPE'],
+  banking_api_resource_uri:             ['BANKING_API_RESOURCE_URI'],
+  mcp_token_exchange_scopes:            ['MCP_TOKEN_EXCHANGE_SCOPES'],
+
+  // Token exchange auth methods
+  pingone_token_exchange_auth_method:   ['PINGONE_TOKEN_EXCHANGE_AUTH_METHOD'],
+  pingone_mcp_token_exchanger_cc_auth_method: ['PINGONE_MCP_TOKEN_EXCHANGER_CC_AUTH_METHOD', 'PINGONE_MCP_TOKEN_EXCHANGER_AUTH_METHOD', 'MCP_EXCHANGER_TOKEN_ENDPOINT_AUTH_METHOD', 'AGENT_TOKEN_ENDPOINT_AUTH_METHOD'],
+  pingone_client_jwt_private_key:       ['PINGONE_CLIENT_JWT_PRIVATE_KEY'],
+  pingone_client_jwt_kid:               ['PINGONE_CLIENT_JWT_KID'],
+
+  // Introspection
+  pingone_introspection_endpoint:       ['PINGONE_INTROSPECTION_ENDPOINT'],
+  pingone_introspection_client_id:      ['PINGONE_INTROSPECTION_CLIENT_ID'],
+  pingone_introspection_client_secret:  ['PINGONE_INTROSPECTION_CLIENT_SECRET'],
+  pingone_introspection_auth_method:    ['PINGONE_INTROSPECTION_AUTH_METHOD'],
+
+  // Agent / MCP runtime flags
+  use_agent_actor_for_mcp:              ['USE_AGENT_ACTOR_FOR_MCP'],
+  token_exchange_auto_fallback:         ['TOKEN_EXCHANGE_AUTO_FALLBACK'],
+  token_exchange_log_mode_switches:     ['TOKEN_EXCHANGE_LOG_MODE_SWITCHES'],
+
+  // Token validation / JWKS
+  skip_token_signature_validation:      ['SKIP_TOKEN_SIGNATURE_VALIDATION'],
+  strict_scope_validation:              ['STRICT_SCOPE_VALIDATION'],
+  scope_validation_timeout:             ['SCOPE_VALIDATION_TIMEOUT'],
+  cache_token_validation:               ['CACHE_TOKEN_VALIDATION'],
+  token_cache_ttl:                      ['TOKEN_CACHE_TTL'],
+  jwks_requests_per_minute:             ['JWKS_REQUESTS_PER_MINUTE'],
+  jwks_cache_max_age:                   ['JWKS_CACHE_MAX_AGE'],
+
+  // Debug flags
+  debug_scopes:                         ['DEBUG_SCOPES'],
+  debug_tokens:                         ['DEBUG_TOKENS'],
+
+  // Step-up
+  step_up_acr_value:                    ['STEP_UP_ACR_VALUE'],
+
+  // Frontend URLs
+  frontend_dashboard_url:               ['FRONTEND_DASHBOARD_URL'],
+
+  // Observability
+  posthog_api_key:                      ['POSTHOG_API_KEY'],
+  posthog_host:                         ['POSTHOG_HOST'],
+
+  // PingOne MCP stdio adapter
+  pingone_mcp_environment_id:           ['PINGONE_MCP_ENVIRONMENT_ID'],
+  pingone_authorization_code_client_id: ['PINGONE_AUTHORIZATION_CODE_CLIENT_ID'],
+  pingone_root_domain:                  ['PINGONE_ROOT_DOMAIN'],
+
+  // Server
+  port:                                 ['PORT'],
+  default_user_type:                    ['DEFAULT_USER_TYPE'],
+
+  // Demo credentials
+  demo_username:                        ['USERNAME', 'DEMO_USER_USERNAME'],
+  demo_password:                        ['PASSWORD', 'DEMO_USER_PASSWORD'],
+  demo_admin_username:                  ['DEMO_ADMIN_USERNAME'],
+  demo_admin_password:                  ['DEMO_ADMIN_PASSWORD'],
+
+  // Admin token lifetimes (docs-only env reads, now configStore-routable)
+  admin_token_lifetime:                 ['ADMIN_TOKEN_LIFETIME'],
+  admin_refresh_token_lifetime:         ['ADMIN_REFRESH_TOKEN_LIFETIME'],
+
+  // MCP gateway HTTP URL
+  mcp_gateway_http_url:                 ['MCP_GATEWAY_HTTP_URL'],
+  mcp_pinggateway_url:                  ['MCP_PINGGATEWAY_URL'],
+  mcp_demo_gateway_url:                 ['MCP_DEMO_GATEWAY_URL'],
+  mcp_step9_resource_uri:               ['MCP_STEP9_RESOURCE_URI'],
+
+  // CIBA additional config fields
+  ciba_token_delivery_mode:             ['CIBA_TOKEN_DELIVERY_MODE'],
+  ciba_binding_message:                 ['CIBA_BINDING_MESSAGE'],
+  ciba_poll_interval_ms:                ['CIBA_POLL_INTERVAL_MS'],
+  ciba_auth_request_expiry:             ['CIBA_AUTH_REQUEST_EXPIRY'],
+
+  // Authorize worker — dedicated credentials first, then fall back to the
+  // general management worker (PINGONE_WORKER_CLIENT_*). Most deployments
+  // use one worker app for both Management API and PingOne Authorize calls.
+  // Both the prefixed and short-form keys alias identically so every caller
+  // pattern (getEffective('authorize_worker_client_id') or the longer form) resolves.
+  authorize_worker_client_id:             ['PINGONE_AUTHORIZE_WORKER_CLIENT_ID', 'PINGONE_WORKER_CLIENT_ID'],
+  authorize_worker_client_secret:         ['PINGONE_AUTHORIZE_WORKER_CLIENT_SECRET', 'PINGONE_WORKER_CLIENT_SECRET'],
+  pingone_authorize_worker_client_id:     ['PINGONE_AUTHORIZE_WORKER_CLIENT_ID', 'PINGONE_WORKER_CLIENT_ID'],
+  pingone_authorize_worker_client_secret: ['PINGONE_AUTHORIZE_WORKER_CLIENT_SECRET', 'PINGONE_WORKER_CLIENT_SECRET'],
+
+  // Worker token client (management API)
+  pingone_worker_token_client_id:       ['PINGONE_WORKER_TOKEN_CLIENT_ID', 'PINGONE_WORKER_CLIENT_ID'],
+  pingone_worker_token_client_secret:   ['PINGONE_WORKER_TOKEN_CLIENT_SECRET', 'PINGONE_WORKER_CLIENT_SECRET'],
+  pingone_worker_token_auth_method:     ['PINGONE_WORKER_TOKEN_AUTH_METHOD'],
+
+  // Anthropic / LM Studio LLM providers
+  anthropic_api_key:                    ['ANTHROPIC_API_KEY'],
+  google_api_key:                       ['GOOGLE_API_KEY', 'GEMINI_API_KEY'],
+  lmstudio_base_url:                    ['LMSTUDIO_BASE_URL'],
+  lmstudio_model:                       ['LMSTUDIO_MODEL'],
+  ff_helix_lmstudio_fallback:           ['FF_HELIX_LMSTUDIO_FALLBACK'],
+
+  // Phase 266 — Path A demo API key
+  demo_apikey_backend_service_key:      ['DEMO_APIKEY_SERVICE_KEY'],
+  demo_api_resource_server_key:            ['DEMO_API_RESOURCE_SERVER_KEY'],
+  demo_invest_service_key:              ['DEMO_MCP_RESOURCE_SERVER_KEY'],
+
+  // Agent mode (five-mode provider)
+  agent_mode:                           ['AGENT_MODE'],
+  agent_external_wiring:                ['AGENT_EXTERNAL_WIRING'],
+
+  // MCP Gateway token introspection (consumed by demo_mcp_gateway via process.env)
+  gw_introspection_client_id:           ['GW_INTROSPECTION_CLIENT_ID'],
+  gw_introspection_client_secret:       ['GW_INTROSPECTION_CLIENT_SECRET'],
+
+  // MCP WebSocket URLs (consumed by demo_mcp_gateway via process.env)
+  mcp_olb_ws_url:                       ['MCP_OLB_WS_URL'],
+  mcp_resource_server_ws_url:                    ['MCP_RESOURCE_SERVER_WS_URL'],
+  upstream_mcp_url:                     ['UPSTREAM_MCP_URL'],
+
+  // PingAuthorize gateway policy endpoint (consumed by routes/authorize.js + verticalManifest.js)
+  pingauthorize_endpoint:               ['PINGAUTHORIZE_ENDPOINT'],
+  pingauthorize_worker_id:              ['PINGAUTHORIZE_WORKER_ID'],
+  mcp_gw_p1az_enabled:                  ['MCP_GW_P1AZ_ENABLED'],
+
+  // Operator identity — used by bootstrap/management scripts, not at runtime.
+  ping_email:                           ['PING_EMAIL'],
+
+  // Agent conversation history
+  agent_history_limit:                  ['AGENT_HISTORY_LIMIT'],
+};
+
 class ConfigStore {
   constructor() {
     /** @type {Record<string, string>} plaintext in-memory cache */
@@ -1068,374 +1438,8 @@ class ConfigStore {
   getEffective(key) {
     // Normalize to lowercase so callers don't need to worry about case
     key = String(key).toLowerCase();
-    // Env-var fallback map (PINGONE_CORE_* / PINGONE_AI_CORE_* / PINGONE_ADMIN_* all refer to the same PingOne apps)
-    // NOTE: env vars always take priority — over LMDB and committed defaults.
-    // This ensures env vars override anything saved in the Config UI.
-    const envFallbackMap = {
-      pingone_environment_id: ['PINGONE_ENVIRONMENT_ID'],
-      pingone_region:         ['PINGONE_REGION'],
-      pingone_base_url:       ['PINGONE_BASE_URL'],
-      admin_client_id:        [
-        'PINGONE_AI_CORE_CLIENT_ID',
-        'PINGONE_CORE_CLIENT_ID',
-        'PINGONE_ADMIN_CLIENT_ID',
-        'VITE_PINGONE_CLIENT_ID',
-      ],
-      admin_client_secret:    [
-        'PINGONE_AI_CORE_CLIENT_SECRET',
-        'PINGONE_CORE_CLIENT_SECRET',
-        'PINGONE_ADMIN_CLIENT_SECRET',
-        'VITE_PINGONE_CLIENT_SECRET',
-      ],
-      admin_redirect_uri:     [
-        'PINGONE_AI_CORE_REDIRECT_URI',
-        'PINGONE_CORE_REDIRECT_URI',
-        'PINGONE_ADMIN_REDIRECT_URI',
-      ],
-      admin_token_endpoint_auth_method: [
-        'PINGONE_ADMIN_TOKEN_ENDPOINT_AUTH',
-        'ADMIN_TOKEN_ENDPOINT_AUTH',
-      ],
-      pingone_admin_token_endpoint_auth: ['PINGONE_ADMIN_TOKEN_ENDPOINT_AUTH', 'ADMIN_TOKEN_ENDPOINT_AUTH'],
-      user_client_id:         [
-        'PINGONE_AI_CORE_USER_CLIENT_ID',
-        'PINGONE_CORE_USER_CLIENT_ID',
-        'PINGONE_USER_CLIENT_ID',
-        'VITE_PINGONE_CLIENT_ID',
-      ],
-      user_client_secret:     [
-        'PINGONE_AI_CORE_USER_CLIENT_SECRET',
-        'PINGONE_CORE_USER_CLIENT_SECRET',
-        'PINGONE_USER_CLIENT_SECRET',
-        'VITE_PINGONE_CLIENT_SECRET',
-      ],
-      user_redirect_uri:      [
-        'PINGONE_AI_CORE_USER_REDIRECT_URI',
-        'PINGONE_CORE_USER_REDIRECT_URI',
-        'PINGONE_USER_REDIRECT_URI',
-      ],
-      // SDK centralized-login demo (public PKCE SPA client) — see FIELD_DEFS above.
-      pingone_sdk_demo_client_id:    ['PINGONE_SDK_DEMO_CLIENT_ID'],
-      pingone_sdk_demo_redirect_uri: ['PINGONE_SDK_DEMO_REDIRECT_URI'],
-      pingone_sdk_demo_scope:        ['PINGONE_SDK_DEMO_SCOPE'],
-      pingone_client_id:     ['PINGONE_MANAGEMENT_CLIENT_ID', 'PINGONE_CIMD_CLIENT_ID', 'PINGONE_ADMIN_CLIENT_ID', 'PINGONE_WORKER_TOKEN_CLIENT_ID', 'PINGONE_WORKER_CLIENT_ID'],
-      pingone_client_secret: ['PINGONE_MANAGEMENT_CLIENT_SECRET', 'PINGONE_CIMD_CLIENT_SECRET', 'PINGONE_ADMIN_CLIENT_SECRET', 'PINGONE_WORKER_TOKEN_CLIENT_SECRET', 'PINGONE_WORKER_CLIENT_SECRET'],
-      pingone_mgmt_client_id:          ['PINGONE_MGMT_CLIENT_ID', 'PINGONE_MANAGEMENT_CLIENT_ID', 'PINGONE_ADMIN_CLIENT_ID', 'PINGONE_WORKER_TOKEN_CLIENT_ID', 'PINGONE_WORKER_CLIENT_ID'],
-      pingone_mgmt_client_secret:      ['PINGONE_MGMT_CLIENT_SECRET', 'PINGONE_MANAGEMENT_CLIENT_SECRET', 'PINGONE_ADMIN_CLIENT_SECRET', 'PINGONE_WORKER_TOKEN_CLIENT_SECRET', 'PINGONE_WORKER_CLIENT_SECRET'],
-      // Do NOT alias PINGONE_ADMIN_TOKEN_ENDPOINT_AUTH here: that is the ADMIN login client's
-      // auth method (commonly client_secret_post), whereas the worker/management app uses
-      // client_secret_basic. Cross-wiring them made the worker token request 401 and silently
-      // no-op'd persona role hardening at boot. The admin client reads admin_token_endpoint_auth_method.
-      pingone_mgmt_token_auth_method:  ['PINGONE_MGMT_TOKEN_AUTH_METHOD', 'PINGONE_WORKER_TOKEN_AUTH_METHOD'],
-      admin_pingone_authorize_pi_flow: ['PINGONE_ADMIN_AUTHORIZE_PI_FLOW'],
-      user_pingone_authorize_pi_flow:  ['PINGONE_USER_AUTHORIZE_PI_FLOW'],
-      admin_role:             ['ADMIN_ROLE'],
-      user_role:              ['USER_ROLE'],
-      admin_username:         ['ADMIN_USERNAME'],
-      admin_population_id:    ['ADMIN_POPULATION_ID'],
-      admin_role_claim:       ['ADMIN_ROLE_CLAIM'],
-      session_secret:         ['SESSION_SECRET'],
-      // Shared secret for BFF <-> MCP Gateway internal calls (x-internal-gateway-secret).
-      // Read directly via process.env in agentReasoningClient.js / routes/agentIdToken.js
-      // / server.js; mapped here so the env-coverage guard sees it resolve.
-      bff_internal_secret:    ['BFF_INTERNAL_SECRET'],
-      // Shared secret for BFF <-> HITL service internal calls (X-HITL-Internal-Secret).
-      // Read directly via process.env in services/hitlServiceClient.js; mapped here so
-      // the env-coverage guard sees it resolve (same pattern as bff_internal_secret).
-      hitl_internal_secret:   ['HITL_INTERNAL_SECRET'],
-      frontend_url:           ['PUBLIC_APP_URL', 'PINGONE_PUBLIC_APP_URL', 'REACT_APP_CLIENT_URL', 'FRONTEND_ADMIN_URL'],
-      frontend_admin_url:     ['FRONTEND_ADMIN_URL', 'REACT_APP_CLIENT_URL', 'PUBLIC_APP_URL'],
-      react_app_client_url:   ['REACT_APP_CLIENT_URL', 'PUBLIC_APP_URL', 'FRONTEND_ADMIN_URL'],
-      public_app_url:         ['PUBLIC_APP_URL', 'PINGONE_PUBLIC_APP_URL'],
-      mcp_server_url:                   ['MCP_SERVER_URL'],
-      // MCP_SERVER_RESOURCE_URI is the authoritative env var for the MCP server audience.
-      // MCP_RESOURCE_URI is kept as a fallback AFTER MCP_SERVER_RESOURCE_URI so that
-      // MCP_RESOURCE_URI=mcpgateway.ping.demo (gateway audience) does not shadow the
-      // MCP server audience when both are set. PINGONE_RESOURCE_MCP_SERVER_URI wins first.
-      pingone_resource_mcp_server_uri:  ['PINGONE_RESOURCE_MCP_SERVER_URI', 'MCP_SERVER_RESOURCE_URI', 'MCP_RESOURCE_URI'],
-      // Alias of the line above for Token Chain / mcpInspector callers that use 'mcp_resource_uri'.
-      // MCP_SERVER_RESOURCE_URI before MCP_RESOURCE_URI — same priority fix as above.
-      mcp_resource_uri:                 ['PINGONE_RESOURCE_MCP_SERVER_URI', 'MCP_SERVER_RESOURCE_URI', 'MCP_RESOURCE_URI'],
-      // Direct alias so getEffective('pingone_user_client_id') and getEffective('PINGONE_USER_CLIENT_ID') both work.
-      pingone_user_client_id:           ['PINGONE_USER_CLIENT_ID', 'PINGONE_AI_CORE_USER_CLIENT_ID', 'PINGONE_CORE_USER_CLIENT_ID'],
-      // Direct alias so getEffective('pingone_admin_client_id') and getEffective('PINGONE_ADMIN_CLIENT_ID') both work.
-      pingone_admin_client_id:          ['PINGONE_ADMIN_CLIENT_ID', 'PINGONE_AI_CORE_CLIENT_ID', 'PINGONE_CORE_CLIENT_ID'],
-      pingone_resource_langchain_agent_uri: ['PINGONE_RESOURCE_LANGCHAIN_AGENT_URI'],
-      authorize_decision_endpoint_id:   ['PINGONE_AUTHORIZE_DECISION_ENDPOINT_ID'],
-      authorize_failover_mode:          ['PINGONE_AUTHORIZE_FAILOVER_MODE'],
-      authorize_mode:                   ['AUTHORIZE_MODE', 'PINGONE_AUTHORIZE_MODE'],
-      authorize_mcp_decision_endpoint_id: ['PINGONE_AUTHORIZE_MCP_DECISION_ENDPOINT_ID'],
-      debug_oauth:                      ['DEBUG_OAUTH'],
-      ciba_enabled:           ['CIBA_ENABLED'],
-      step_up_method:         ['STEP_UP_METHOD'],
-      step_up_amount_threshold: ['STEP_UP_AMOUNT_THRESHOLD'],
-      confirm_threshold_usd:    ['CONFIRM_THRESHOLD_USD', 'STEP_UP_AMOUNT_THRESHOLD'],
-      mfa_threshold_usd:        ['MFA_THRESHOLD_USD'],
-      pingone_mfa_policy_id:  ['PINGONE_MFA_POLICY_ID'],
-      agent_mcp_allowed_scopes: ['AGENT_MCP_ALLOWED_SCOPES'],
-      ff_heuristic_enabled:            ['FF_HEURISTIC_ENABLED'],
-      ff_prompt_injection_guard:       ['FF_PROMPT_INJECTION_GUARD'],
-      ff_mcp_gateway_pinggateway:      ['FF_MCP_GATEWAY_PINGGATEWAY'],
-      ff_mcp_gateway_jwks:             ['FF_MCP_GATEWAY_JWKS'],
-      ff_aam:                          ['FF_AAM'],
-      ff_local_fallback_on_exchange_failure: ['FF_LOCAL_FALLBACK_ON_EXCHANGE_FAILURE'],
-      ff_bedrock_agentcore_gateway:    ['FF_BEDROCK_AGENTCORE_GATEWAY'],
-      ff_bedrock_llm:                  ['FF_BEDROCK_LLM'],
-      pingone_resource_pinggateway_uri: ['PINGONE_RESOURCE_PINGGATEWAY_URI'],
-      pingone_resource_mcp_apikey_uri:  ['PINGONE_RESOURCE_MCP_APIKEY_URI'],
-      ff_authorize_real:          ['FF_AUTHORIZE_REAL'],
-      pingone_ai_agent_client_id:       ['PINGONE_AI_AGENT_ACTOR_CLIENT_ID', 'PINGONE_AI_AGENT_CLIENT_ID', 'AI_AGENT_CLIENT_ID', 'AGENT_CLIENT_ID'],
-      pingone_ai_agent_client_secret:    ['PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET', 'PINGONE_AI_AGENT_CLIENT_SECRET', 'AI_AGENT_CLIENT_SECRET', 'AGENT_CLIENT_SECRET'],
-      // Direct aliases for the renamed env vars so getEffective(lowercased-new-name) works.
-      pingone_ai_agent_actor_client_id:      ['PINGONE_AI_AGENT_ACTOR_CLIENT_ID', 'PINGONE_AI_AGENT_CLIENT_ID', 'AI_AGENT_CLIENT_ID'],
-      pingone_ai_agent_actor_client_secret:  ['PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET', 'PINGONE_AI_AGENT_CLIENT_SECRET', 'AI_AGENT_CLIENT_SECRET'],
-      pingone_ai_agent_actor_redirect_uri:   ['PINGONE_AI_AGENT_ACTOR_REDIRECT_URI'],
-      // Current main agent app — mapped from refresh-service-envs.js provisioning.
-      pingone_agent_client_id:       ['PINGONE_AGENT_CLIENT_ID', 'AGENT_CLIENT_ID'],
-      pingone_agent_client_secret:   ['PINGONE_AGENT_CLIENT_SECRET', 'AGENT_CLIENT_SECRET'],
-      pingone_token_exchanger_client_id:     ['PINGONE_TOKEN_EXCHANGER_CLIENT_ID', 'PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_ID', 'PINGONE_MCP_EXCHANGER_CLIENT_ID', 'AGENT_OAUTH_CLIENT_ID'],
-      pingone_token_exchanger_client_secret: ['PINGONE_TOKEN_EXCHANGER_CLIENT_SECRET', 'PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_SECRET', 'PINGONE_MCP_EXCHANGER_CLIENT_SECRET', 'AGENT_OAUTH_CLIENT_SECRET'],
-      pingone_mcp_gateway_client_id:         ['PINGONE_MCP_GATEWAY_CLIENT_ID', 'MCP_GW_CLIENT_ID'],
-      pingone_mcp_gateway_client_secret:     ['PINGONE_MCP_GATEWAY_CLIENT_SECRET', 'MCP_GW_CLIENT_SECRET'],
-      pingone_worker_client_id:                    ['PINGONE_AUTHORIZE_WORKER_CLIENT_ID', 'PINGONE_WORKER_CLIENT_ID'],
-      pingone_mcp_token_exchanger_client_id:     ['PINGONE_TOKEN_EXCHANGER_CLIENT_ID', 'PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_ID', 'PINGONE_MCP_EXCHANGER_CLIENT_ID', 'AGENT_OAUTH_CLIENT_ID'],
-      pingone_mcp_token_exchanger_client_secret: ['PINGONE_TOKEN_EXCHANGER_CLIENT_SECRET', 'PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_SECRET', 'PINGONE_MCP_EXCHANGER_CLIENT_SECRET', 'AGENT_OAUTH_CLIENT_SECRET'],
-      pingone_mcp_token_exchanger_client_scopes: ['PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_SCOPES', 'AGENT_OAUTH_CLIENT_SCOPES'],
-      pingone_resource_agent_gateway_uri: ['PINGONE_RESOURCE_AGENT_GATEWAY_URI', 'AGENT_GATEWAY_AUDIENCE'],
-      agent_gateway_audience:             ['AGENT_GATEWAY_AUDIENCE', 'PINGONE_RESOURCE_AGENT_GATEWAY_URI'],
-      // A2A (agent-to-agent): per-vertical specialist (Agent 2) credentials + intermediate audience.
-      pingone_investment_agent_client_id:     ['PINGONE_A2A_INVESTMENT_AGENT_CLIENT_ID', 'PINGONE_INVESTMENT_AGENT_CLIENT_ID'],
-      pingone_investment_agent_client_secret: ['PINGONE_A2A_INVESTMENT_AGENT_CLIENT_SECRET', 'PINGONE_INVESTMENT_AGENT_CLIENT_SECRET'],
-      pingone_records_agent_client_id:        ['PINGONE_A2A_RECORDS_AGENT_CLIENT_ID'],
-      pingone_records_agent_client_secret:    ['PINGONE_A2A_RECORDS_AGENT_CLIENT_SECRET'],
-      pingone_purchase_agent_client_id:       ['PINGONE_A2A_PURCHASE_AGENT_CLIENT_ID'],
-      pingone_purchase_agent_client_secret:   ['PINGONE_A2A_PURCHASE_AGENT_CLIENT_SECRET'],
-      pingone_membership_agent_client_id:     ['PINGONE_A2A_MEMBERSHIP_AGENT_CLIENT_ID'],
-      pingone_membership_agent_client_secret: ['PINGONE_A2A_MEMBERSHIP_AGENT_CLIENT_SECRET'],
-      pingone_payroll_agent_client_id:        ['PINGONE_A2A_PAYROLL_AGENT_CLIENT_ID'],
-      pingone_payroll_agent_client_secret:    ['PINGONE_A2A_PAYROLL_AGENT_CLIENT_SECRET'],
-      pingone_tax_agent_client_id:            ['PINGONE_A2A_TAX_AGENT_CLIENT_ID'],
-      pingone_tax_agent_client_secret:        ['PINGONE_A2A_TAX_AGENT_CLIENT_SECRET'],
-      pingone_finaid_agent_client_id:         ['PINGONE_A2A_FINAID_AGENT_CLIENT_ID'],
-      pingone_finaid_agent_client_secret:     ['PINGONE_A2A_FINAID_AGENT_CLIENT_SECRET'],
-      pingone_supplier_agent_client_id:       ['PINGONE_A2A_SUPPLIER_AGENT_CLIENT_ID'],
-      pingone_supplier_agent_client_secret:   ['PINGONE_A2A_SUPPLIER_AGENT_CLIENT_SECRET'],
-      pingone_holdings_agent_client_id:       ['PINGONE_A2A_HOLDINGS_AGENT_CLIENT_ID'],
-      pingone_holdings_agent_client_secret:   ['PINGONE_A2A_HOLDINGS_AGENT_CLIENT_SECRET'],
-      pingone_passenger_agent_client_id:      ['PINGONE_A2A_PASSENGER_AGENT_CLIENT_ID'],
-      pingone_passenger_agent_client_secret:  ['PINGONE_A2A_PASSENGER_AGENT_CLIENT_SECRET'],
-      pingone_identity_agent_client_id:       ['PINGONE_A2A_IDENTITY_AGENT_CLIENT_ID'],
-      pingone_identity_agent_client_secret:   ['PINGONE_A2A_IDENTITY_AGENT_CLIENT_SECRET'],
-      // Per-specialist A2A intermediate audiences (RFC 8707 — one resource per
-      // specialist, not one shared across all of them; see a2aSpecialists.js).
-      a2a_intermediate_audience_investment:   ['PINGONE_RESOURCE_A2A_INTERMEDIATE_INVESTMENT_URI', 'A2A_INTERMEDIATE_AUDIENCE_INVESTMENT'],
-      a2a_intermediate_audience_records:      ['PINGONE_RESOURCE_A2A_INTERMEDIATE_RECORDS_URI', 'A2A_INTERMEDIATE_AUDIENCE_RECORDS'],
-      a2a_intermediate_audience_purchase:     ['PINGONE_RESOURCE_A2A_INTERMEDIATE_PURCHASE_URI', 'A2A_INTERMEDIATE_AUDIENCE_PURCHASE'],
-      a2a_intermediate_audience_membership:   ['PINGONE_RESOURCE_A2A_INTERMEDIATE_MEMBERSHIP_URI', 'A2A_INTERMEDIATE_AUDIENCE_MEMBERSHIP'],
-      a2a_intermediate_audience_payroll:      ['PINGONE_RESOURCE_A2A_INTERMEDIATE_PAYROLL_URI', 'A2A_INTERMEDIATE_AUDIENCE_PAYROLL'],
-      a2a_intermediate_audience_tax:          ['PINGONE_RESOURCE_A2A_INTERMEDIATE_TAX_URI', 'A2A_INTERMEDIATE_AUDIENCE_TAX'],
-      a2a_intermediate_audience_finaid:       ['PINGONE_RESOURCE_A2A_INTERMEDIATE_FINAID_URI', 'A2A_INTERMEDIATE_AUDIENCE_FINAID'],
-      a2a_intermediate_audience_supplier:     ['PINGONE_RESOURCE_A2A_INTERMEDIATE_SUPPLIER_URI', 'A2A_INTERMEDIATE_AUDIENCE_SUPPLIER'],
-      a2a_intermediate_audience_holdings:     ['PINGONE_RESOURCE_A2A_INTERMEDIATE_HOLDINGS_URI', 'A2A_INTERMEDIATE_AUDIENCE_HOLDINGS'],
-      a2a_intermediate_audience_passenger:    ['PINGONE_RESOURCE_A2A_INTERMEDIATE_PASSENGER_URI', 'A2A_INTERMEDIATE_AUDIENCE_PASSENGER'],
-      a2a_intermediate_audience_identity:     ['PINGONE_RESOURCE_A2A_INTERMEDIATE_IDENTITY_URI', 'A2A_INTERMEDIATE_AUDIENCE_IDENTITY'],
-      // A2A specialists' Exchange #2 (final) destination — separate from
-      // pingone_resource_mcp_gateway_uri so its nested-act composer SPEL never
-      // touches the non-A2A two-exchange flow (see pingoneProvisionService.js
-      // Step 37a-A2A).
-      a2a_gateway_audience:                   ['A2A_GATEWAY_AUDIENCE'],
-      pingone_resource_a2a_intermediate_uri:  ['PINGONE_RESOURCE_A2A_INTERMEDIATE_URI', 'A2A_INTERMEDIATE_AUDIENCE'],
-      a2a_intermediate_audience:              ['A2A_INTERMEDIATE_AUDIENCE', 'PINGONE_RESOURCE_A2A_INTERMEDIATE_URI'],
-      a2a_intermediate_scope:                 ['A2A_INTERMEDIATE_SCOPE'],
-      a2a_invest_scope:                       ['A2A_INVEST_SCOPE'],
-      // Two-exchange audiences: intermediate (Exchange #1 result) and final (Exchange #2 result).
-      // Fall back to PINGONE_RESOURCE_AGENT_GATEWAY_URI when the explicit vars are absent.
-      ai_agent_intermediate_audience:     ['AI_AGENT_INTERMEDIATE_AUDIENCE', 'PINGONE_RESOURCE_AGENT_GATEWAY_URI'],
-      pingone_resource_two_exchange_uri:  ['PINGONE_RESOURCE_MCP_GATEWAY_URI', 'PINGONE_RESOURCE_TWO_EXCHANGE_URI', 'MCP_RESOURCE_URI', 'MCP_SERVER_RESOURCE_URI'],
-      pingone_resource_mcp_gateway_uri: ['PINGONE_RESOURCE_MCP_GATEWAY_URI', 'MCP_GW_RESOURCE_URI', 'MCP_GATEWAY_AUDIENCE', 'MCP_RESOURCE_URI'],
-      // MCP Gateway delegated-exchange app credentials (direct MCP_GW_* names —
-      // previously only read via direct process.env in gateway token glue)
-      mcp_gw_client_id:                 ['PINGONE_MCP_GATEWAY_CLIENT_ID', 'MCP_GW_CLIENT_ID'],
-      mcp_gw_client_secret:             ['PINGONE_MCP_GATEWAY_CLIENT_SECRET', 'MCP_GW_CLIENT_SECRET'],
-      mcp_gw_resource_uri:              ['PINGONE_RESOURCE_MCP_GATEWAY_URI', 'MCP_GW_RESOURCE_URI'],
-      mcp_gw_token_endpoint_auth_method:      ['MCP_GW_TOKEN_ENDPOINT_AUTH_METHOD'],
-      mcp_gw_passthrough_to_mcp_server:       ['MCP_GW_PASSTHROUGH_TO_MCP_SERVER'],
-      gateway_health_probe_insecure:           ['GATEWAY_HEALTH_PROBE_INSECURE'],
-      mcp_gateway_reject_unauthorized:         ['MCP_GATEWAY_REJECT_UNAUTHORIZED'],
-      pingone_validate_on_startup:             ['PINGONE_VALIDATE_ON_STARTUP'],
-      // RFC 8707: single-resource scope for the actor client-credentials token
-      // used in the BFF's single subject+actor RFC 8693 exchange. MUST stay in
-      // sync with pingoneProvisionService.js grants — the AI Agent / MCP
-      // Exchanger apps are granted scopes on >1 resource, so the CC request
-      // needs an explicit single-resource scope or PingOne rejects with
-      // invalid_scope: "May not request scopes for multiple resources".
-      agent_gateway_cc_scope: ['AGENT_GATEWAY_CC_SCOPE'],
-      two_exchange_intermediate_scope: ['TWO_EXCHANGE_INTERMEDIATE_SCOPE'],
-      mcp_gateway_cc_scope:   ['MCP_GATEWAY_CC_SCOPE'],
-      marketing_customer_login_mode: ['MARKETING_CUSTOMER_LOGIN_MODE'],
-      marketing_demo_username_hint: ['MARKETING_DEMO_USERNAME_HINT'],
-      marketing_demo_password_hint: ['MARKETING_DEMO_PASSWORD_HINT'],
-      ai_agent_token_endpoint_auth_method:   ['AI_AGENT_TOKEN_ENDPOINT_AUTH_METHOD'],
-      mcp_exchanger_token_endpoint_auth_method: ['MCP_EXCHANGER_TOKEN_ENDPOINT_AUTH_METHOD'],
-      oauth_authorization_endpoint: ['OAUTH_AUTHORIZATION_ENDPOINT'],
-      oauth_token_endpoint:          ['OAUTH_TOKEN_ENDPOINT'],
-      oauth_userinfo_endpoint:       ['OAUTH_USERINFO_ENDPOINT'],
-      oauth_jwks_uri:                ['OAUTH_JWKS_URI'],
-      oauth_issuer:                  ['OAUTH_ISSUER'],
-      oauth_discovery_endpoint:      ['OAUTH_DISCOVERY_ENDPOINT'],
-      oauth_par_endpoint:            ['OAUTH_PAR_ENDPOINT', 'PINGONE_PAR_ENDPOINT'],
-      pingone_par_endpoint:          ['PINGONE_PAR_ENDPOINT', 'OAUTH_PAR_ENDPOINT'],
-      oauth_discovery_enabled:       ['OAUTH_DISCOVERY_ENABLED'],
-      oauth_admin_callback_path:       ['OAUTH_ADMIN_CALLBACK_PATH'],
-      oauth_user_callback_path:        ['OAUTH_USER_CALLBACK_PATH'],
-      oauth_role_claim_name:           ['OAUTH_ROLE_CLAIM_NAME'],
-      oauth_role_claim_value_admin:    ['OAUTH_ROLE_CLAIM_VALUE_ADMIN'],
-      oauth_role_claim_value_customer: ['OAUTH_ROLE_CLAIM_VALUE_CUSTOMER'],
-      oauth_role_claim_is_array:       ['OAUTH_ROLE_CLAIM_IS_ARRAY'],
-      helix_base_url:                  ['HELIX_BASE_URL'],
-      helix_api_key:                   ['HELIX_API_KEY'],
-      helix_environment_id:            ['HELIX_ENVIRONMENT_ID'],
-      helix_agent_id:                  ['HELIX_AGENT_ID'],
-      helix_prompt_field_id:           ['HELIX_PROMPT_FIELD_ID'],
 
-      // Intent-based authorization
-      ff_intent_authorization_enabled: ['FF_INTENT_AUTHORIZATION_ENABLED'],
-      intent_min_confidence:           ['INTENT_MIN_CONFIDENCE'],
-      intent_requires_consent:         ['INTENT_REQUIRES_CONSENT'],
-      intent_max_amount_low_confidence:['INTENT_MAX_AMOUNT_LOW_CONFIDENCE'],
-      ff_intent_token_enabled:         ['FF_INTENT_TOKEN_ENABLED'],
-
-      // Token audiences
-      enduser_audience:                     ['ENDUSER_AUDIENCE'],
-      ai_agent_audience:                    ['AI_AGENT_AUDIENCE'],
-      ai_agent_scope:                       ['AI_AGENT_SCOPE'],
-      banking_api_resource_uri:             ['BANKING_API_RESOURCE_URI'],
-      mcp_token_exchange_scopes:            ['MCP_TOKEN_EXCHANGE_SCOPES'],
-
-      // Token exchange auth methods
-      pingone_token_exchange_auth_method:   ['PINGONE_TOKEN_EXCHANGE_AUTH_METHOD'],
-      pingone_mcp_token_exchanger_cc_auth_method: ['PINGONE_MCP_TOKEN_EXCHANGER_CC_AUTH_METHOD', 'PINGONE_MCP_TOKEN_EXCHANGER_AUTH_METHOD', 'MCP_EXCHANGER_TOKEN_ENDPOINT_AUTH_METHOD', 'AGENT_TOKEN_ENDPOINT_AUTH_METHOD'],
-      pingone_client_jwt_private_key:       ['PINGONE_CLIENT_JWT_PRIVATE_KEY'],
-      pingone_client_jwt_kid:               ['PINGONE_CLIENT_JWT_KID'],
-
-      // Introspection
-      pingone_introspection_endpoint:       ['PINGONE_INTROSPECTION_ENDPOINT'],
-      pingone_introspection_client_id:      ['PINGONE_INTROSPECTION_CLIENT_ID'],
-      pingone_introspection_client_secret:  ['PINGONE_INTROSPECTION_CLIENT_SECRET'],
-      pingone_introspection_auth_method:    ['PINGONE_INTROSPECTION_AUTH_METHOD'],
-
-      // Agent / MCP runtime flags
-      use_agent_actor_for_mcp:              ['USE_AGENT_ACTOR_FOR_MCP'],
-      token_exchange_auto_fallback:         ['TOKEN_EXCHANGE_AUTO_FALLBACK'],
-      token_exchange_log_mode_switches:     ['TOKEN_EXCHANGE_LOG_MODE_SWITCHES'],
-
-      // Token validation / JWKS
-      skip_token_signature_validation:      ['SKIP_TOKEN_SIGNATURE_VALIDATION'],
-      strict_scope_validation:              ['STRICT_SCOPE_VALIDATION'],
-      scope_validation_timeout:             ['SCOPE_VALIDATION_TIMEOUT'],
-      cache_token_validation:               ['CACHE_TOKEN_VALIDATION'],
-      token_cache_ttl:                      ['TOKEN_CACHE_TTL'],
-      jwks_requests_per_minute:             ['JWKS_REQUESTS_PER_MINUTE'],
-      jwks_cache_max_age:                   ['JWKS_CACHE_MAX_AGE'],
-
-      // Debug flags
-      debug_scopes:                         ['DEBUG_SCOPES'],
-      debug_tokens:                         ['DEBUG_TOKENS'],
-
-      // Step-up
-      step_up_acr_value:                    ['STEP_UP_ACR_VALUE'],
-
-      // Frontend URLs
-      frontend_dashboard_url:               ['FRONTEND_DASHBOARD_URL'],
-
-      // Observability
-      posthog_api_key:                      ['POSTHOG_API_KEY'],
-      posthog_host:                         ['POSTHOG_HOST'],
-
-      // PingOne MCP stdio adapter
-      pingone_mcp_environment_id:           ['PINGONE_MCP_ENVIRONMENT_ID'],
-      pingone_authorization_code_client_id: ['PINGONE_AUTHORIZATION_CODE_CLIENT_ID'],
-      pingone_root_domain:                  ['PINGONE_ROOT_DOMAIN'],
-
-      // Server
-      port:                                 ['PORT'],
-      default_user_type:                    ['DEFAULT_USER_TYPE'],
-
-      // Demo credentials
-      demo_username:                        ['USERNAME', 'DEMO_USER_USERNAME'],
-      demo_password:                        ['PASSWORD', 'DEMO_USER_PASSWORD'],
-      demo_admin_username:                  ['DEMO_ADMIN_USERNAME'],
-      demo_admin_password:                  ['DEMO_ADMIN_PASSWORD'],
-
-      // Admin token lifetimes (docs-only env reads, now configStore-routable)
-      admin_token_lifetime:                 ['ADMIN_TOKEN_LIFETIME'],
-      admin_refresh_token_lifetime:         ['ADMIN_REFRESH_TOKEN_LIFETIME'],
-
-      // MCP gateway HTTP URL
-      mcp_gateway_http_url:                 ['MCP_GATEWAY_HTTP_URL'],
-      mcp_pinggateway_url:                  ['MCP_PINGGATEWAY_URL'],
-      mcp_demo_gateway_url:                 ['MCP_DEMO_GATEWAY_URL'],
-      mcp_step9_resource_uri:               ['MCP_STEP9_RESOURCE_URI'],
-
-      // CIBA additional config fields
-      ciba_token_delivery_mode:             ['CIBA_TOKEN_DELIVERY_MODE'],
-      ciba_binding_message:                 ['CIBA_BINDING_MESSAGE'],
-      ciba_poll_interval_ms:                ['CIBA_POLL_INTERVAL_MS'],
-      ciba_auth_request_expiry:             ['CIBA_AUTH_REQUEST_EXPIRY'],
-
-      // Authorize worker — dedicated credentials first, then fall back to the
-      // general management worker (PINGONE_WORKER_CLIENT_*). Most deployments
-      // use one worker app for both Management API and PingOne Authorize calls.
-      // Both the prefixed and short-form keys alias identically so every caller
-      // pattern (getEffective('authorize_worker_client_id') or the longer form) resolves.
-      authorize_worker_client_id:             ['PINGONE_AUTHORIZE_WORKER_CLIENT_ID', 'PINGONE_WORKER_CLIENT_ID'],
-      authorize_worker_client_secret:         ['PINGONE_AUTHORIZE_WORKER_CLIENT_SECRET', 'PINGONE_WORKER_CLIENT_SECRET'],
-      pingone_authorize_worker_client_id:     ['PINGONE_AUTHORIZE_WORKER_CLIENT_ID', 'PINGONE_WORKER_CLIENT_ID'],
-      pingone_authorize_worker_client_secret: ['PINGONE_AUTHORIZE_WORKER_CLIENT_SECRET', 'PINGONE_WORKER_CLIENT_SECRET'],
-
-      // Worker token client (management API)
-      pingone_worker_token_client_id:       ['PINGONE_WORKER_TOKEN_CLIENT_ID', 'PINGONE_WORKER_CLIENT_ID'],
-      pingone_worker_token_client_secret:   ['PINGONE_WORKER_TOKEN_CLIENT_SECRET', 'PINGONE_WORKER_CLIENT_SECRET'],
-      pingone_worker_token_auth_method:     ['PINGONE_WORKER_TOKEN_AUTH_METHOD'],
-
-      // Anthropic / LM Studio LLM providers
-      anthropic_api_key:                    ['ANTHROPIC_API_KEY'],
-      google_api_key:                       ['GOOGLE_API_KEY', 'GEMINI_API_KEY'],
-      lmstudio_base_url:                    ['LMSTUDIO_BASE_URL'],
-      lmstudio_model:                       ['LMSTUDIO_MODEL'],
-      ff_helix_lmstudio_fallback:           ['FF_HELIX_LMSTUDIO_FALLBACK'],
-
-      // Phase 266 — Path A demo API key
-      demo_apikey_backend_service_key:      ['DEMO_APIKEY_SERVICE_KEY'],
-      demo_api_resource_server_key:            ['DEMO_API_RESOURCE_SERVER_KEY'],
-      demo_invest_service_key:              ['DEMO_MCP_RESOURCE_SERVER_KEY'],
-
-      // Agent mode (five-mode provider)
-      agent_mode:                           ['AGENT_MODE'],
-      agent_external_wiring:                ['AGENT_EXTERNAL_WIRING'],
-
-      // MCP Gateway token introspection (consumed by demo_mcp_gateway via process.env)
-      gw_introspection_client_id:           ['GW_INTROSPECTION_CLIENT_ID'],
-      gw_introspection_client_secret:       ['GW_INTROSPECTION_CLIENT_SECRET'],
-
-      // MCP WebSocket URLs (consumed by demo_mcp_gateway via process.env)
-      mcp_olb_ws_url:                       ['MCP_OLB_WS_URL'],
-      mcp_resource_server_ws_url:                    ['MCP_RESOURCE_SERVER_WS_URL'],
-      upstream_mcp_url:                     ['UPSTREAM_MCP_URL'],
-
-      // PingAuthorize gateway policy endpoint (consumed by routes/authorize.js + verticalManifest.js)
-      pingauthorize_endpoint:               ['PINGAUTHORIZE_ENDPOINT'],
-      pingauthorize_worker_id:              ['PINGAUTHORIZE_WORKER_ID'],
-      mcp_gw_p1az_enabled:                  ['MCP_GW_P1AZ_ENABLED'],
-
-      // Operator identity — used by bootstrap/management scripts, not at runtime.
-      ping_email:                           ['PING_EMAIL'],
-
-      // Agent conversation history
-      agent_history_limit:                  ['AGENT_HISTORY_LIMIT'],
-    };
-
-    const envVars = envFallbackMap[key] || [];
+    const envVars = ENV_FALLBACK_MAP[key] || [];
     const readEnv = () => {
       for (const envKey of envVars) {
         const v = process.env[envKey];
@@ -1463,7 +1467,7 @@ class ConfigStore {
     // (admin_client_secret). A bare this.get(key) can therefore never see a
     // vault/LMDB value stored under one of this key's real env-var aliases.
     // Mirror readEnv()'s alias loop so a vault entry named after any alias in
-    // envFallbackMap resolves the same way a same-named process.env var does.
+    // ENV_FALLBACK_MAP resolves the same way a same-named process.env var does.
     const readStored = () => {
       const direct = this.get(key);
       if (direct) return direct;
