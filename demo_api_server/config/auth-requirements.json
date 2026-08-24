@@ -149,6 +149,7 @@
     "/dev-tools": "public",
     "/discovery-preview": "public",
     "/error-audit": "admin",
+    "/external-door-diagrams": "public",
     "/feature-flags": "admin",
     "/gateway-enforcement-map": "public",
     "/graphify": "public",

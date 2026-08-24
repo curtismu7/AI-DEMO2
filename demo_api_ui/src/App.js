@@ -27,6 +27,7 @@ import McpGatewayOauthFlowPage from "./components/McpGatewayOauthFlowPage";
 import PrivilegeMcpDiagramPage from "./components/PrivilegeMcpDiagramPage";
 import PrivilegeGatewayTopologyPage from "./components/PrivilegeGatewayTopologyPage";
 import InvestDualAuthDiagramPage from "./components/InvestDualAuthDiagramPage";
+import ExternalDoorDiagramPage from "./components/ExternalDoorDiagramPage";
 import GatewayEnforcementMapPage from "./components/GatewayEnforcementMapPage";
 import ResourceServerPlacementPage from "./components/ResourceServerPlacementPage";
 import ResourceServerCheckpointPage from "./components/ResourceServerCheckpointPage";
@@ -1538,6 +1539,10 @@ function AppWithAuth() {
                             <Route
                               path="/invest-dual-auth"
                               element={<InvestDualAuthDiagramPage />}
+                            />
+                            <Route
+                              path="/external-door-diagrams"
+                              element={<ExternalDoorDiagramPage />}
                             />
                             <Route
                               path="/gateway-enforcement-map"
