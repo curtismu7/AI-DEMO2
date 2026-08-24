@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "ping-banking": {
+      "url": "https://cmuir-mcp.ping-devops.com/mcp"
+    },
+    "agentless-mcpgw": {
+      "url": "https://cmuir-agentless-mcpgw.ping-devops.com/cmuir/mcp"
+    },
+    "agent-mcpgw": {
+      "url": "https://opensearch.default.applications.procyon.ai:8643/mcp"
+    },
+    "agent-gateway": {
+      "url": "http://localhost:3005/mcp"
+    },
+    "opensearch-direct": {
+      "url": "http://localhost:9900/mcp"
+    }
+  }
+}
