@@ -1,7 +1,7 @@
 # LibreChat as a Dual-Front-Door MCP Client
 
 **Date:** 2026-08-24
-**Revised:** 2026-08-24 — see §9. Phase 1 (Agent Gateway via WebSocket) is **not currently feasible**; this design is now Privilege-only. Original phase-1 text preserved in git history.
+**Revised:** 2026-08-24 — see §9. Phase 1 (Agent Gateway via WebSocket) is **not currently feasible**; this design is now Privilege-only. Original phase-1 text preserved in git history. A second-pass correction (also §9) fixes an inaccurate claim about *why* Agent Gateway was left out of scope — it's an untested opportunity, not a blocked one — without changing the scope itself.
 **Status:** Design approved (Privilege scope only), implementation not started
 **Related:** `docs/mcp/MAC_MCP_CLIENTS_EXTERNAL_DOOR_REPORT.md` (PR #2330) — the survey that motivated this. `docs/superpowers/specs/2026-08-24-external-agent-mcp-client-design.md` — the `langchain_agent` external CLI, which remains the **only** client that reaches the Agent Gateway's WebSocket transport (see §9).
 
@@ -16,7 +16,7 @@ This design therefore covers **the Privilege path only**. The `langchain_agent` 
 ### Non-goals
 
 - Not replacing `docs/superpowers/specs/2026-08-24-external-agent-mcp-client-design.md`. Both ship; the CLI is now the only path to the Agent Gateway door, not one of two.
-- **Not the Agent Gateway (WebSocket) door.** See §9 — LibreChat's WS transport has no auth wiring in the current source. Revisiting this is only worth it if either upstream adds auth to the WS branch, or the Agent Gateway itself moves to Streamable HTTP (a server-side change, which defeats the original "zero server changes" rationale for using LibreChat here at all).
+- **Not the Agent Gateway door.** See §9 — LibreChat's WS transport has no auth wiring in the current source, which rules out the gateway's *default* transport. The gateway separately already serves an authenticated Streamable HTTP `/mcp` endpoint on the same port as its WS listener (`demo_mcp_gateway/src/server/GatewayServer.ts:352`, sharing `index.ts:1150`'s `httpServer`) — no server-side change needed to reach it, and LibreChat's Streamable-HTTP branch *does* have auth wiring. That combination is unverified and deliberately left out of this spec's scope (see §9) rather than assumed to work; if it's wanted, it's a new decision point, not a blocked one.
 - Not Privilege *agent-mode* — that's a machine-level prerequisite (installed macOS Privilege Agent), not something a chat client configures.
 - Not enabling LibreChat's RAG/vector-DB/meilisearch features unless implementation finds they're required just to boot MCP support — verify, don't assume, and drop what's unused.
 - Not committing any secrets — LibreChat's own JWT/session signing keys and the Privilege OAuth client secret stay in a gitignored `librechat/.env`.
@@ -39,7 +39,7 @@ LibreChat's custom OpenAI-compatible endpoint support, pointed at the repo's exi
 ## 4. Privilege (agentless) — the only door in scope
 
 - A new PingOne OAuth client gets registered for LibreChat specifically (client_id/secret, redirect_uri) — LibreChat expects a fixed, discoverable callback path under its own base URL; the exact value gets handed over once implementation starts, not guessed now.
-- `librechat.yaml` → `mcpServers.privilege`: `type: streamable-http`, Privilege's agentless URL (`https://cmuir-agentless-mcpgw.ping-devops.com/<app>/mcp`), using LibreChat's native OAuth — RFC 9728 discovery if the Privilege gateway advertises protected-resource metadata, otherwise manual OAuth config with the registered client.
+- `librechat.yaml` → `mcpServers.privilege`: `type: streamable-http`, Privilege's agentless URL (`https://cmuir-agentless-mcpgw.ping-devops.com/external/mcp`) — `external` is the required application, matching the `get_my_accounts` acceptance criterion in §4; `cmuir` routes to a different server (`pingone-mcp-server-2`) and would authenticate but not serve banking tools — using LibreChat's native OAuth — RFC 9728 discovery if the Privilege gateway advertises protected-resource metadata, otherwise manual OAuth config with the registered client.
 - **Done when:** from LibreChat's chat UI, asking the model to call a real banking tool (`get_my_accounts`, Super Sports vertical) returns real data, authenticated via LibreChat's built-in browser-based OAuth flow.
 
 ## 5. Error handling
@@ -72,3 +72,9 @@ The original version of this spec claimed LibreChat could reach the Agent Gatewa
 - This means the static-token approach the original phase 1 specified would not have worked either — not just real OAuth. There was no mechanism in the actual code for any credential to reach a WebSocket-transport MCP connection.
 
 This is exactly the kind of gap the spec self-review step is meant to catch, and would have if the source had been checked at spec-writing time instead of relying on docs/blog summaries. It wasn't caught until implementation planning began on the sibling CLI spec and the user asked for the claim to be checked against the real repo. The correction: this spec is now scoped to the Privilege path only (§4), and the Agent Gateway door remains exclusively the `langchain_agent` external CLI's responsibility.
+
+### Follow-up correction (2026-08-24, second pass)
+
+The first correction above (WS transport has no auth wiring) is confirmed accurate. But this revision's own reasoning for leaving the Agent Gateway out — treating Streamable HTTP as something the gateway would need to "move to," and framing that as a server-side change that "defeats the zero server changes rationale" — was itself wrong. The gateway's `GatewayServer` already serves an authenticated `/mcp` (POST/GET/DELETE, PingOne bearer + RFC 7662 introspection) on the **same port** as the WS listener, unconditionally, today (`demo_mcp_gateway/src/server/GatewayServer.ts:352`, sharing the `httpServer` from `index.ts:1150`). No flag, no mode switch. Since LibreChat's auth wiring lives in exactly the Streamable-HTTP branch (per the first correction, §9 above), a Streamable-HTTP `mcpServers` entry pointed at the gateway's `/mcp` is technically unblocked with zero server-side changes — the original "zero server changes" premise for LibreChat actually still holds for this path, it just hasn't been tried.
+
+This spec stays Privilege-only (§4) rather than expanding scope on the strength of an unverified claim — that would repeat the same mistake this section exists to document. Recorded here as an accurate open question instead: **Agent Gateway via LibreChat's Streamable-HTTP branch is untested, not blocked.** Anyone revisiting this should verify it directly (point a `streamable-http` `mcpServers` entry at the gateway's `/mcp` with a PingOne bearer + `MCP_GW_RESOURCE_URI` audience) rather than assuming either the old "impossible" framing or the new "unblocked" one.
