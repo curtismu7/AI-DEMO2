@@ -78,10 +78,10 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 46 | Swallowed | `routes/mcpGatewayConfig.js` | medium | FIXED |
 | 47 | Swallowed | `routes/agentConsentRoute.js` | high | FIXED |
 | 48 | Swallowed | `services/groupPolicy.js` | low | FIXED |
-| 49 | Swallowed | `demo_api_ui/.../components/Users.js` | medium | OPEN |
-| 50 | Swallowed | `demo_api_ui/.../components/ActivityLogs.js` | medium | OPEN |
-| 51 | Swallowed | `demo_api_ui/.../components/ThemeZonePanel.js` | high | OPEN |
-| 52 | Swallowed | `demo_api_ui/.../pages/ResourceServerJourneyPage.jsx` | medium | OPEN |
+| 49 | Swallowed | `demo_api_ui/.../components/Users.js` | medium | FIXED |
+| 50 | Swallowed | `demo_api_ui/.../components/ActivityLogs.js` | medium | FIXED |
+| 51 | Swallowed | `demo_api_ui/.../components/ThemeZonePanel.js` | high | FIXED |
+| 52 | Swallowed | `demo_api_ui/.../pages/ResourceServerJourneyPage.jsx` | medium | FIXED |
 | 53 | Perf | `middleware/activityLogger.js` | medium | OPEN |
 | 54 | Perf | `services/tokenValidationService.js` | low | OPEN |
 | 55 | Perf | `services/agentScopes.js` | low | OPEN |
@@ -1462,7 +1462,7 @@ file and pass against the fix. Full file green:
 tests (`tests/sensitiveToolsGated.test.js`, `tests/a2aAdminVerticals.test.js`)
 since this is an authz-adjacent file: 96 passed.
 
-### 49. Agent-restrictions save failure gives the admin zero feedback — OPEN
+### 49. Agent-restrictions save failure gives the admin zero feedback — FIXED
 
 **File:** `demo_api_ui/src/components/Users.js`, line 115
 
@@ -1474,11 +1474,16 @@ agent-restriction change did not save.
 PATCH fails (403/network/500). The catch does nothing but log; the spinner
 still clears in `finally`, so the UI silently reverts with no toast.
 
-**Fix (not yet applied):** Call `notifyError('Failed to update agent
-restrictions')` in the catch block, mirroring this same file's
-`toggleUserStatus`'s status-based branching.
+**Fix:** Added `notifyError('Failed to update agent restrictions')` to the
+catch block.
 
-### 50. Activity-log export/clear failures give zero on-screen feedback — OPEN
+**Evidence:** New test
+`demo_api_ui/src/components/__tests__/Users.agentRestrictions.test.jsx`
+(`finding #49: notifies the admin when updateAgentRestrictions PATCH
+fails`) proven to fail (timeout waiting for `notifyError` to be called)
+against the pre-fix file and pass against the fix.
+
+### 50. Activity-log export/clear failures give zero on-screen feedback — FIXED
 
 **File:** `demo_api_ui/src/components/ActivityLogs.js`, line 124
 
@@ -1491,10 +1496,16 @@ downloads, no toast, looks like a no-op. Or admin confirms the clear-logs
 dialog and the DELETE fails — nothing is cleared but the dialog closing
 implies success.
 
-**Fix (not yet applied):** Call `notifyError(...)` in both catch blocks,
-mirroring this same file's `fetchLogs`'s error handling.
+**Fix:** Added `notifyError(...)` to both `exportLogs`'s and
+`clearOldLogs`'s catch blocks.
 
-### 51. Theme-zone save reports success even when the server rejects it — OPEN
+**Evidence:** New tests in
+`demo_api_ui/src/components/__tests__/ActivityLogs.errorFeedback.test.jsx`
+(`finding #50: notifies the admin when exportLogs fails` and `finding #50:
+notifies the admin when clearOldLogs fails`) proven to fail against the
+pre-fix file and pass against the fix.
+
+### 51. Theme-zone save reports success even when the server rejects it — FIXED
 
 **File:** `demo_api_ui/src/components/ThemeZonePanel.js`, line 33
 
@@ -1508,11 +1519,20 @@ reported.
 HTTP response body, so the "applied"/"reset" toast fires and the optimistic
 override is kept as if saved — even though nothing persisted server-side.
 
-**Fix (not yet applied):** Check `response.ok` in `persist` and throw on
-failure so the caller's catch can revert state/show an error instead of a
-false success toast.
+**Fix:** `persist` now checks `response.ok` and throws when the server
+rejects, so `applyPalette`/`resetZone`'s `await persist(...)` throws before
+reaching the `setToast(...)` success line — the false success toast no
+longer fires. The existing `catch { /* keep optimistic */ }` (a pre-existing,
+deliberate choice for network errors) now applies uniformly to HTTP-error
+responses too.
 
-### 52. Resource-server journey page swallows every fetch error, not just 401s — OPEN
+**Evidence:** New test
+`demo_api_ui/src/components/__tests__/ThemeZonePanel.persistFailure.test.jsx`
+(`finding #51: does not show a success toast when the server rejects the
+save`) proven to fail (toast rendered with "SaaS Blue applied to Header
+gradient") against the pre-fix file and pass against the fix.
+
+### 52. Resource-server journey page swallows every fetch error, not just 401s — FIXED
 
 **File:** `demo_api_ui/src/pages/ResourceServerJourneyPage.jsx`, line 258
 
@@ -1527,9 +1547,16 @@ with a 500 or network error. `on401` only branches on `e.response?.status
 resolves normally and the page shows its normal empty-data layout with no
 error message.
 
-**Fix (not yet applied):** Re-throw non-401 errors (or otherwise surface
-them) and add a generic error state distinct from `needsSignIn` that the
-page renders on genuine fetch failure.
+**Fix:** `on401` now re-throws any non-401 error instead of returning
+`null` unconditionally. A new `.catch()` on the `Promise.all(...)` sets a
+new `fetchError` state (distinct from `needsSignIn`), rendered as a generic
+error message (`.rsj-fetch-error` in `ResourceServerJourneyPage.css`).
+
+**Evidence:** New test in
+`demo_api_ui/src/pages/__tests__/ResourceServerJourneyPage.test.jsx`
+(`finding #52: non-401 fetch failures › shows a generic error, not the
+empty/loading layout, on a 500`) proven to fail against the pre-fix file
+and pass against the fix. Full file green (10 passed).
 
 ### 53. Response-body capture computed on every request, then discarded — OPEN
 
@@ -1605,6 +1632,18 @@ apply the same fix to the duplicated block in `UserDashboardPing2026.js`.
 
 ## Changelog
 
+- 2026-08-23 — #49, #50, #51, #52 FIXED (UI-side swallowed errors):
+  `Users.js`'s `updateAgentRestrictions` and `ActivityLogs.js`'s
+  `exportLogs`/`clearOldLogs` catch blocks now call `notifyError(...)`
+  instead of only `console.error`; `ThemeZonePanel.js`'s `persist()` now
+  checks `response.ok` and throws on failure so a rejected save no longer
+  shows a false "applied"/"reset" success toast; `ResourceServerJourneyPage.jsx`'s
+  `on401` now re-throws non-401 errors, and a new `fetchError` state
+  (distinct from `needsSignIn`) renders a generic error message on a
+  genuine fetch failure instead of the normal empty-data layout. New tests
+  for all four proven to fail against each pre-fix file and pass against
+  the fix. Full UI suite green: 422 files / 3428 tests, plus `npm run
+  build` (the gate) green.
 - 2026-08-23 — #46, #47, #48 FIXED (server-side swallowed errors):
   `mcpGatewayConfig.js`'s POST /config now returns `502 { ok:false }` instead
   of `ok:true` when `configStore.setRaw` rejects, on both the persist-only
