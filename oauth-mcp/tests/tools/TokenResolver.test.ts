@@ -92,8 +92,10 @@ describe('TokenResolver', () => {
       clientId: 'client-1',
       subject: 'real-pingone-user',
       scope: 'mcp:invoke read',
-      issuedAt: Date.now(),
-      expiresAt: Date.now() + 3600_000,
+      // IssuedToken.issuedAt/expiresAt are seconds-since-epoch (TokenIssuer
+      // mirrors the JWT exp claim convention) — not milliseconds.
+      issuedAt: Math.floor(Date.now() / 1000),
+      expiresAt: Math.floor(Date.now() / 1000) + 3600,
       revoked: false,
       pingOneAccessToken: 'real-pingone-access-token',
     });
@@ -114,8 +116,8 @@ describe('TokenResolver', () => {
       clientId: 'client-1',
       subject: 'client-1',
       scope: 'mcp:invoke read',
-      issuedAt: Date.now(),
-      expiresAt: Date.now() + 3600_000,
+      issuedAt: Math.floor(Date.now() / 1000),
+      expiresAt: Math.floor(Date.now() / 1000) + 3600,
       revoked: false,
       // no pingOneAccessToken — this is what a client_credentials grant tracks
     });
@@ -136,8 +138,8 @@ describe('TokenResolver', () => {
       clientId: 'client-1',
       subject: 'real-pingone-user',
       scope: 'mcp:invoke read',
-      issuedAt: Date.now() - 7200_000,
-      expiresAt: Date.now() - 3600_000, // expired an hour ago
+      issuedAt: Math.floor(Date.now() / 1000) - 7200,
+      expiresAt: Math.floor(Date.now() / 1000) - 3600, // expired an hour ago
       revoked: false,
       pingOneAccessToken: 'stale-pingone-access-token',
     });

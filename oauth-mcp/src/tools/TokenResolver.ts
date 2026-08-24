@@ -81,7 +81,12 @@ function resolveFederatedSubjectToken(token: string, tokenStore?: TokenStore): s
     if (!jti) return null;
     const issued = tokenStore.introspect(jti);
     if (!issued || issued.revoked || !issued.pingOneAccessToken) return null;
-    if (Date.now() >= issued.expiresAt) return null;
+    // issued.expiresAt is seconds-since-epoch (TokenIssuer mirrors the JWT exp
+    // claim convention); Date.now() is milliseconds. Comparing them directly
+    // made every stash read as already-expired the instant it was created —
+    // confirmed live via temporary diagnostic logging (jti always hit this
+    // branch within ~100ms of being minted). Scale to the same unit.
+    if (Date.now() >= issued.expiresAt * 1000) return null;
     return issued.pingOneAccessToken;
   } catch {
     return null;
