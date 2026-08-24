@@ -480,8 +480,11 @@ router.post('/config', async (req, res) => {
             if (Object.keys(toStore).length === 0) {
                 return res.status(400).json({ error: 'No valid fields to update' });
             }
-            try { await configStore.setRaw(toStore); } catch (e) {
+            try {
+                await configStore.setRaw(toStore);
+            } catch (e) {
                 console.warn('[mcpGatewayConfig] configStore persist failed:', e.message);
+                return res.status(502).json({ ok: false, error: 'Failed to persist config', detail: e.message });
             }
             return res.json({ ok: true, pushed: updates, gatewayConfig: null, persistedOnly: true });
         }
@@ -493,8 +496,11 @@ router.post('/config', async (req, res) => {
         gatewayConfig = pushResult.config;
 
         if (Object.keys(toStore).length > 0) {
-            try { await configStore.setRaw(toStore); } catch (e) {
+            try {
+                await configStore.setRaw(toStore);
+            } catch (e) {
                 console.warn('[mcpGatewayConfig] configStore persist failed:', e.message);
+                return res.status(502).json({ ok: false, error: 'Gateway config pushed but failed to persist', detail: e.message, gatewayConfig });
             }
         }
 

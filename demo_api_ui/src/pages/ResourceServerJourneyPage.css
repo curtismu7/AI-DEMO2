@@ -128,6 +128,7 @@
 .rsj-panel--data .rsj-panel-title { color: var(--rsj-green); }
 
 .rsj-loading { color: var(--rsj-text-secondary); font-size: 12px; padding: 10px 0; }
+.rsj-fetch-error { color: var(--rsj-gold); font-size: 13px; padding: 10px 0; }
 
 /* Claims */
 .rsj-claims { display: flex; flex-direction: column; gap: 4px; }

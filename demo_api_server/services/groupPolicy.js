@@ -18,6 +18,11 @@ const GROUP_POLICY_FLAG = 'ff_authorize_group_policy';
 
 let _legacyData = null;
 
+// Distinct from `null` (legitimate "no groups block for this vertical") so
+// requiredGroupForTool can fail closed when manifest resolution itself broke,
+// instead of silently treating the vertical as unrestricted (finding #48).
+const MANIFEST_RESOLUTION_ERROR = Symbol('groupPolicy.manifestResolutionError');
+
 function _loadLegacy() {
   if (_legacyData) return _legacyData;
   try {
@@ -48,12 +53,13 @@ function _getVerticalManifest(verticalId) {
     return verticalManifest.resolver.resolve(_normalizeVerticalId(verticalId));
   } catch (err) {
     console.warn('[groupPolicy] could not load vertical manifest:', err && err.message);
-    return null;
+    return MANIFEST_RESOLUTION_ERROR;
   }
 }
 
 function _groupsConfig(verticalId) {
   const manifest = _getVerticalManifest(verticalId);
+  if (manifest === MANIFEST_RESOLUTION_ERROR) return MANIFEST_RESOLUTION_ERROR;
   return manifest && manifest.groups ? manifest.groups : null;
 }
 
@@ -122,12 +128,25 @@ function requiredGroupForTool(toolName, verticalId = 'banking') {
   if (!toolName) return null;
 
   const cfg = _groupsConfig(verticalId);
+  const isBanking = _normalizeVerticalId(verticalId) === 'banking';
+
+  if (cfg === MANIFEST_RESOLUTION_ERROR) {
+    if (isBanking) {
+      // Legacy config/group-policy.json is a deprecated fallback for banking-only.
+      return _loadLegacy().restrictedTools[toolName] || null;
+    }
+    // No legacy fallback exists for non-banking verticals, and we cannot
+    // tell whether this tool is restricted — fail closed (require a group
+    // name no user actually holds) instead of treating it as unrestricted.
+    return '__manifest_resolution_error__';
+  }
+
   if (cfg && cfg.restrictedTools && cfg.restrictedTools[toolName]) {
     return groupNameForCategory(verticalId, cfg.restrictedTools[toolName]);
   }
 
   // Legacy banking fallback
-  if (_normalizeVerticalId(verticalId) === 'banking') {
+  if (isBanking) {
     return _loadLegacy().restrictedTools[toolName] || null;
   }
   return null;

@@ -604,13 +604,28 @@ async function callMcp(session, method, params = {}) {
   }
 }
 
+// Both pagination loops below page through an operator-configured MCP
+// endpoint (PRIVILEGE_AGENTLESS_MCPGW_URL / PRIVILEGE_AGENT_MCPGW_URL, no
+// allowlist restricting it to a fixed trusted host) with no bound otherwise
+// -- a pagination bug on that upstream (repeating a cursor, or always
+// emitting a fresh nextCursor) would hang the request indefinitely.
+const MAX_MCP_PAGES = 100;
+
 async function listAllMcpPages(session, method, resultKey) {
   const items = [];
+  const seenCursors = new Set();
   let cursor;
+  let pages = 0;
   do {
     const data = await callMcp(session, method, cursor ? { cursor } : {});
     items.push(...(data.result?.[resultKey] || []));
     cursor = data.result?.nextCursor;
+    pages += 1;
+    if (cursor && (seenCursors.has(cursor) || pages >= MAX_MCP_PAGES)) {
+      console.warn(`[privilegeMcpClient] ${method} pagination stopped after ${pages} pages (repeated or excessive cursor)`);
+      break;
+    }
+    if (cursor) seenCursors.add(cursor);
   } while (cursor);
   return items;
 }
@@ -618,7 +633,9 @@ async function listAllMcpPages(session, method, resultKey) {
 async function discoverPolicyTools(session) {
   const permitted = [];
   const filteredByName = new Map();
+  const seenCursors = new Set();
   let cursor;
+  let pages = 0;
   do {
     const data = await callMcp(session, 'tools/list', cursor ? { cursor } : {});
     const result = data.result || {};
@@ -627,6 +644,12 @@ async function discoverPolicyTools(session) {
       if (tool?.name) filteredByName.set(tool.name, tool);
     }
     cursor = result.nextCursor;
+    pages += 1;
+    if (cursor && (seenCursors.has(cursor) || pages >= MAX_MCP_PAGES)) {
+      console.warn(`[privilegeMcpClient] tools/list pagination stopped after ${pages} pages (repeated or excessive cursor)`);
+      break;
+    }
+    if (cursor) seenCursors.add(cursor);
   } while (cursor);
   const filtered = [...filteredByName.values()];
   session.tools = permitted;
@@ -1471,6 +1494,7 @@ module.exports.__test = {
   emitEvent,
   getClientSession,
   envFallbackVars,
+  listAllMcpPages,
   /** @param {string} sid @param {{ write: Function }} res */
   subscribeSse(sid, res) {
     let clients = sseClients.get(sid);

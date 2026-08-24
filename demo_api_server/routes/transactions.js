@@ -631,12 +631,16 @@ router.post('/', authenticateToken, async (req, res) => {
     // r.consentRequired, even though sessionStepUpFresh already cleared the
     // step-up gate. Single-use, same pattern as stepUpVerified above.
     let sessionHitlFresh = false;
-    if (hitlCredit.isFresh(req.session, { amount: hitlAmount })) {
+    let sessionHitlClaimed = false;
+    if (hitlCredit.claim(req.session, { amount: hitlAmount })) {
       // Amount-bound + consume-on-use (services/hitlCredit.js): a live CIBA
       // credit for this amount applies, but do NOT spend it yet — consume it
       // below only if it actually discharged the consent gate, so an unrelated
-      // call never burns it out from under a pending retry.
+      // call never burns it out from under a pending retry. claim() (rather
+      // than the old isFresh()) also locks out a second concurrent request on
+      // this same session until release()/consume() runs below.
       sessionHitlFresh = true;
+      sessionHitlClaimed = true;
     } else if (hasBearerAuth) {
       // Bearer-token calls (demo_mcp_server's BankingAPIClient, the real MCP/
       // agent path) carry no session cookie, so the check above never fires
@@ -684,6 +688,11 @@ router.post('/', authenticateToken, async (req, res) => {
     // burn the credit (fixes the cross-consumer starvation with the MCP gate).
     if (authz.hitlConsentDischarged) {
       hitlCredit.consume(req.session);
+    } else if (sessionHitlClaimed) {
+      // Claimed but not needed this request — release immediately rather
+      // than waiting out the claim's TTL, so a pending retry on this same
+      // session isn't wrongly told the credit is already held.
+      hitlCredit.release(req.session);
     }
 
     if (authz.ran) {
