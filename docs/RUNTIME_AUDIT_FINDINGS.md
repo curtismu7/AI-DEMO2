@@ -69,7 +69,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 37 | Perf | `services/traceProjector.js` | low | FIXED |
 | 38 | Perf | `demo_api_ui/.../context/ActivityNarrativeContext.js` | medium | FIXED |
 | 39 | Perf | `demo_api_ui/.../ScopeAuditPage.js` | medium | FIXED |
-| 40 | Runtime | `services/cibaTransactionReceipt.js` | medium | OPEN |
+| 40 | Runtime | `services/cibaTransactionReceipt.js` | medium | FIXED |
 | 41 | Runtime | `services/hitlCredit.js` | medium | OPEN |
 | 42 | Runtime | `services/http2McpBridge.js` | low | OPEN |
 | 43 | Runtime | `routes/privilegeMcpClient.js` | low | OPEN |
@@ -1157,7 +1157,7 @@ ScopeAuditPage.fixAll` — 1/1 passed; full UI suite (417 files / 3421 tests)
 
 ## Round 3 findings (2026-08-23)
 
-### 40. CIBA transaction receipts never evicted if never consumed — OPEN
+### 40. CIBA transaction receipts never evicted if never consumed — FIXED
 
 **File:** `demo_api_server/services/cibaTransactionReceipt.js`, line 16
 
@@ -1175,9 +1175,23 @@ identical key (abandoned retry, mismatched amount, or the transfer instead
 going through the session-based `hitlCredit.js` path) leaves its entry in
 the Map permanently.
 
-**Fix (not yet applied):** Add a periodic unref'd `setInterval` that deletes
-any receipt whose stored expiry has passed, mirroring the pattern already
-used in `tokenIntrospectionService.js`/`clientCredentialsTokenService.js`/`http2McpBridge.js`.
+**Fix:** Added a `_sweepExpired()` function and a periodic unref'd
+`setInterval` (fires every `TTL_MS`, 5 minutes) that deletes any receipt
+whose stored expiry has passed, mirroring the pattern already used in
+`http2McpBridge.js`'s `cleanupInterval`.
+
+**Evidence:** New `cibaTransactionReceipt.sweep.test.js` uses fake timers:
+records a receipt, advances 6 minutes with no `consume()` call at all, and
+asserts the receipt count (via a new `_receiptCountForTests()` test-only
+export) drops to 0 — proving the module's own interval evicted it, not a
+manual call. A second test confirms normal single-use `consume()` behavior
+is unchanged. Proven to fail against the pre-fix file
+(`_receiptCountForTests` didn't exist) and pass against the fix. `cd
+demo_api_server && CI=true npx jest
+src/__tests__/cibaTransactionReceipt.sweep.test.js
+src/__tests__/ciba.test.js
+src/__tests__/mcpToolAuthorization.hitlAmountBind.test.js --forceExit
+--maxWorkers=4` — 3 suites / 65 tests passed.
 
 ### 41. HITL credit check-then-act race across an awaited policy call — OPEN
 
@@ -1483,6 +1497,11 @@ apply the same fix to the duplicated block in `UserDashboardPing2026.js`.
 
 ## Changelog
 
+- 2026-08-23 — #40 FIXED: `cibaTransactionReceipt.js` gained a periodic
+  unref'd `setInterval` sweep (mirrors `http2McpBridge.js`'s
+  `cleanupInterval`) that evicts expired, never-consumed receipts. New test
+  proven to fail against the pre-fix file and pass against the fix; 65
+  tests passed across affected suites.
 - 2026-08-23 — Round 3 audit run: re-ran the same 6-finder + per-category
   adversarial-verify design against the post-round-2 codebase (after PR
   #2294 merged all 12 round-2 fixes). 17/17 candidate findings survived
