@@ -106,6 +106,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 66 | Perf | `demo_api_ui/.../pages/UseCaseLauncherPage.js` | medium | FIXED |
 | 67 | Runtime | `demo_mcp_gateway/src/server/GatewayServer.ts` | medium | FIXED |
 | 68 | Perf | `demo_mcp_gateway/src/rateLimit.ts` | medium | FIXED |
+| 69 | Perf | `demo_mcp_resource_server/src/db/retailDb.ts`, `workforceDb.ts` | low | FIXED |
 
 ---
 
@@ -2161,10 +2162,60 @@ pass against the fix. Full related suite green: `rateLimit.test.ts`,
 `adminConfig-ratelimit.test.ts`, `authorizeMcpRequest-rateLimit.test.ts` —
 29 tests, no regressions. `npm run build` (tsc) green.
 
+### 69. insertOrder / insertExpense id generation rescans all prior inserts on every call — FIXED
+
+**File:** `demo_mcp_resource_server/src/db/retailDb.ts`, line 131
+(`insertOrder`); `demo_mcp_resource_server/src/db/workforceDb.ts`, line 120
+(`insertExpense`) — identical duplicated pattern in both
+
+**Issue:** Both functions derive their next id's suffix by
+`SELECT id FROM <table> WHERE id LIKE '<prefix>-new-%'`, pulling every
+prior `ord-new-*`/`exp-new-*` row into Node and reducing in JS to find the
+highest existing suffix — on every single `checkout`/`submit_expense`
+call, not just once. Per-call cost grows linearly with the number of
+prior inserts (O(N^2) cumulative across N calls in a session).
+
+**Trigger scenario:** A long-running demo session (or a scripted loop)
+repeatedly calling the retail `checkout` tool or the workforce
+`submit_expense` tool — each call opens a fresh SQLite connection and
+does a full scan + JS-side reduce over every previously-placed
+order/expense before it can insert the next row, so the tool call's
+response time keeps growing the longer the demo instance stays up.
+
+**Fix:** Replaced the `SELECT` + JS-reduce with a single SQL `MAX()`
+aggregate (`SELECT MAX(CAST(SUBSTR(id, LENGTH('<prefix>-new-') + 1) AS
+INTEGER)) AS maxN FROM <table> WHERE id LIKE '<prefix>-new-%'`) in both
+functions, so SQLite computes the max instead of shipping every row to
+Node. Identical "highest existing suffix" semantics preserved — the
+existing `insertOrder`/`insertExpense` tests already prove a deleted
+middle row can't have its id reused, and both still pass unchanged.
+
+**Evidence:** New test
+`demo_mcp_resource_server/tests/insertIdSqlMax.test.ts` proves via static
+source-text inspection (same technique as
+`configStore.envFallbackMapHoisted.test.js` for finding #65 — a pure
+query-shape optimization has no externally observable behavior
+difference) that both functions now use the SQL `MAX()` aggregate and no
+longer contain the JS `rows.reduce(...)` scan — proven to fail against
+the pre-fix files (4/4 assertions fail: aggregate absent, reduce still
+present) and pass against the fix. Full functional regression green:
+`retailDb.test.ts` + `workforceDb.test.ts` (including the
+deleted-middle-row-can't-reuse-an-id tests) — 19 tests total, no
+behavior change. `npm run build` (tsc) green.
+
 ---
 
 ## Changelog
 
+- 2026-08-24 — #69 FIXED (round 6 — new-area audit): `retailDb.ts`'s
+  `insertOrder` and `workforceDb.ts`'s `insertExpense` now derive their
+  next id's suffix via a single SQL `MAX()` aggregate instead of pulling
+  every prior row into Node and reducing in JS on every call — a per-call
+  cost that grew with every order/expense ever placed in the session
+  (O(N^2) cumulative). New source-inspection test proven to fail against
+  the pre-fix files and pass against the fix; 19 functional regression
+  tests unaffected (including the deleted-row-can't-reuse-an-id
+  semantics); `tsc` build green.
 - 2026-08-24 — #68 FIXED (round 5 — new-area audit): `rateLimit.ts`'s
   `SlidingWindowLimiter._windows` Map is now capped at 1000 tracked keys via
   the existing `cacheInsertWithEviction` sweep+FIFO-evict helper (already
