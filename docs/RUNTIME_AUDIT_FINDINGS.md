@@ -17,6 +17,14 @@ PR #2294):** same design again, against the post-round-2 codebase, told
 about all 39 files touched by rounds 1–2. 17 of 17 candidate findings
 (#40–#56) survived verification — 0 rejected.
 
+**Round 4 (2026-08-23, same day, after round 3 fully fixed and merged in
+PR #2297):** same 6-finder-agent + adversarial-verify-per-candidate design,
+run as a Workflow against the post-round-3 codebase, told about all 52
+files touched by rounds 1–3. 10 of 10 candidate findings (#57–#66)
+survived verification — 0 rejected. Unlike prior rounds, round 4 fixes each
+get their own PR (fix → PR → merge in batches of 3) instead of one PR per
+fully-fixed round.
+
 **Working rule:** when a finding is fixed, flip its Status to `FIXED` with the
 PR number (or commit) and evidence **in the same commit as the fix**, and add a
 Changelog line. A status column that lags the code is the same false-green
@@ -86,6 +94,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 54 | Perf | `services/tokenValidationService.js` | low | FIXED |
 | 55 | Perf | `services/agentScopes.js` | low | FIXED |
 | 56 | Perf | `demo_api_ui/.../components/UserDashboard.js` | medium | FIXED |
+| 58 | Runtime | `services/lighthouseService.js` | low | FIXED |
 
 ---
 
@@ -1679,8 +1688,68 @@ build` → exit 0.
 
 ---
 
+## Round 4 findings (2026-08-23)
+
+### 58. Lighthouse "single audit in progress" guard is released before the timed-out audit's Chrome process actually finishes tearing down — FIXED
+
+**File:** `demo_api_server/services/lighthouseService.js`, line 82
+
+**Issue:** `runLighthouseAudit()` races the real audit promise against a
+60s timeout promise. On timeout, the timeout callback fired `chrome.kill()`
+fire-and-forget (not awaited) and immediately rejected — settling
+`Promise.race` right away — while the real Chrome process/lighthouse run
+kept executing in the background; nothing checked a `timedOut` flag to
+abort it early, and if `chrome` was never assigned by the 60s mark (still
+inside `chromeLauncher.launch()`), no kill was even attempted. The route
+treated the outer race's settlement as its sole "is an audit running"
+signal, clearing `isRunning = false` as soon as the timeout rejection won —
+while the original Chrome/lighthouse process was still alive.
+
+**Trigger scenario:** `POST /api/admin/lighthouse/run` runs long enough to
+hit `AUDIT_TIMEOUT_MS` (slow page load, or a cold-machine Chrome install
+still pending at 60s). An admin (or an automated retry) immediately POSTs
+`/run` again; the guard was open, so a second Chrome+lighthouse instance
+launched concurrently with the still-terminating first one, defeating the
+single-flight guard and doubling resource usage.
+
+**Fix:** Moved the single-flight lock into `lighthouseService.js` itself.
+`runLighthouseAudit()` now throws `LIGHTHOUSE_BUSY` synchronously (before
+any `await`) if `_isRunning` is already true, and `_isRunning` is only
+cleared inside the real audit work's own `finally` block — after `await
+chrome.kill()` — not when the outer `Promise.race` settles. Restructured
+the chrome-launch try/catch to live inside that same outer try/finally so
+`_isRunning` clears on every exit path (success, lighthouse() throwing, or
+launch() throwing). The route no longer sets/clears `isRunning` itself —
+it only reads it for a fast 429 pre-check, and now also catches
+`LIGHTHOUSE_BUSY` as a defense-in-depth 429 for the race window between
+that pre-check and the call. This also automatically closes the gap for
+`lighthouseScheduler.js`'s cron-triggered call, which had zero guarding of
+its own — it's now protected by the same service-level lock.
+
+**Evidence:** New test
+`demo_api_server/tests/lighthouseService.auditGuardRace.test.js` (`isRunning
+stays true (and a retry is rejected) until real Chrome teardown finishes
+after a timeout`) uses fake timers plus deferred `chrome-launcher`/
+`lighthouse` mocks to fire the 60s timeout while the real work is still
+pending, then asserts `isRunning` is still `true` and a concurrent call
+rejects `LIGHTHOUSE_BUSY` — proven to fail against the pre-fix file
+(`Expected: true, Received: false`) and pass against the fix. Existing
+`lighthouseRoute.regression.test.js` (11 tests, unchanged) still passes —
+the route-level 429/503/504/200 contract is preserved.
+
+---
+
 ## Changelog
 
+- 2026-08-23 — #58 FIXED: `lighthouseService.js`'s single-flight
+  `_isRunning` guard is now managed entirely inside the service and only
+  clears after the real Chrome teardown (`await chrome.kill()`) completes,
+  not when the outer 60s timeout race settles — closing the window where
+  an immediate retry after a timeout could launch a second concurrent
+  Chrome instance. The route no longer sets/clears `isRunning` itself,
+  only reads it for a fast pre-check. New test proven to fail against the
+  pre-fix file and pass against the fix; existing route regression suite
+  (11 tests) unaffected.
 - 2026-08-23 — #53, #54, #55, #56 FIXED (performance, round 3 complete —
   all of #40–56 now FIXED): `activityLogger.js`'s dead response-body
   capture block (computed, never read) deleted outright. `tokenValidationService.js`

@@ -23,11 +23,13 @@ function requireAdmin(req, res, next) {
  * Triggers a Lighthouse audit. Returns the result immediately.
  */
 router.post('/run', requireAdmin, async (req, res) => {
+  // lighthouseService.isRunning is now the service's own real completion
+  // state (cleared only after Chrome teardown actually finishes) — the
+  // route no longer sets/clears it itself, just reads it for a fast 429.
   if (lighthouseService.isRunning) {
     return res.status(429).json({ error: 'An audit is already in progress' });
   }
 
-  lighthouseService.isRunning = true;
   try {
     const result = await lighthouseService.runLighthouseAudit(getAuditUrl());
     res.json({ result });
@@ -39,9 +41,10 @@ router.post('/run', requireAdmin, async (req, res) => {
     if (err.code === 'LIGHTHOUSE_TIMEOUT') {
       return res.status(504).json({ error: 'Lighthouse audit timed out' });
     }
+    if (err.code === 'LIGHTHOUSE_BUSY') {
+      return res.status(429).json({ error: 'An audit is already in progress' });
+    }
     res.status(500).json({ error: 'Lighthouse audit failed: ' + err.message });
-  } finally {
-    lighthouseService.isRunning = false;
   }
 });
 
