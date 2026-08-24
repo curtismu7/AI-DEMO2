@@ -852,9 +852,17 @@ export class DemoMCPServer extends EventEmitter {
       if (handled) return;
     }
 
-    // Spec-compliant HTTP MCP transport routes (RFC 9728 metadata + POST /mcp + /audit)
+    // Spec-compliant HTTP MCP transport routes (RFC 9728 metadata + POST /mcp + /audit).
+    // RFC 9728 §3.1: a client requests <well-known>/<resource-path>
+    // (e.g. .../oauth-protected-resource/mcp), not just the bare well-known
+    // path — this gate has to admit that shape too, or it 404s here before
+    // ever reaching HttpMCPTransport.handleRequest's own matching (which
+    // already accounts for it).
+    const isResourceMetadataPath =
+      pathname === '/.well-known/oauth-protected-resource' ||
+      pathname.startsWith('/.well-known/oauth-protected-resource/');
     if (this.httpTransport &&
-        (pathname === '/.well-known/oauth-protected-resource' ||
+        (isResourceMetadataPath ||
          pathname === '/mcp' ||
          pathname === '/audit')) {
       await this.httpTransport.handleRequest(req, res, pathname);

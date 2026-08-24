@@ -4,6 +4,272 @@
 > Companion doc: `2026-08-23-external-door-multi-vertical-tools.md` (separate,
 > unrelated scope — don't conflate the two).
 
+## 2026-08-24 session 4 — the auth chain is FIXED and live-verified end-to-end; found a NEW, separate bug
+
+Picked up session 3's handoff (deploy the `resource=` fix, retest). The
+`resource=` fix alone did not close the loop — three more real bugs were
+found and fixed along the way, all now deployed and live-verified together.
+**`get_my_accounts` now returns real account data through the external
+door**, authenticated as a real PingOne user (`demoUser`), for the first
+time this investigation. One new, unrelated bug surfaced immediately after
+(tool response schema mismatch — see bottom of this section).
+
+### The four bugs, in the order they were found
+
+1. **Units bug (ms vs s) — `oauth-mcp/src/tools/TokenResolver.ts`,
+   `resolveFederatedSubjectToken`.** `TokenIssuer.ts` stores the stashed
+   PingOne-token's `expiresAt` as **seconds**-since-epoch (mirrors the JWT
+   `exp` claim convention: `Math.floor(Date.now()/1000) + 3600`), but the
+   resolver compared it against `Date.now()`, which is **milliseconds**.
+   Milliseconds-since-epoch is always numerically larger than
+   seconds-since-epoch, so `Date.now() >= issued.expiresAt` was `true` the
+   instant the stash was created — every time, for every session, no matter
+   which client or grant. This silently defeated PR #2295 (session 3's "Bug
+   3" fix) from the moment it shipped: the resolver always fell through to
+   forwarding the raw self-issued embedded-AS token, which the Banking API
+   correctly rejects (`No matching JWKS key found for kid=...` — that `kid`
+   is the embedded issuer's own signing key, not PingOne's). Found by adding
+   temporary `[TEMP-DIAG]` logging to the four early-return branches,
+   redeploying once, and reading which branch fired live
+   (`expired for jti=...`). Fixed the comparison
+   (`Date.now() >= issued.expiresAt * 1000`); the three test fixtures that
+   had baked in the same ms/s confusion were corrected to seconds
+   (`Math.floor(Date.now()/1000)`), matching what `TokenIssuer.ts` actually
+   produces. All 1075 unit tests passed before this was even the confirmed
+   root cause; the diagnostic logging was removed once it was.
+
+2. **PingOne client had no grant to the Banking API resource.** With bug 1
+   fixed, the *real* PingOne-signed token was finally reaching the Banking
+   API — but it carried `aud: https://api.pingone.com` (PingOne's own
+   default) instead of `enduser.ping.demo`. The PingOne application used for
+   oauth-mcp's federation hop (`Demo AI App - MCP External Client`,
+   `86f1f88a-cbb2-413b-9798-9324428e77d6`) had exactly one resource grant —
+   to the generic `openid` resource — and none to the `Demo API` resource
+   (audience `enduser.ping.demo`, id `4a536256-36ad-4887-8e57-bcaa4c4f499e`).
+   `resource=` in the `/authorize` redirect has no effect if the client
+   isn't authorized for that resource at all. Fixed live via
+   `updateApplication` → `createGrant` (scope: `read`).
+
+3. **PingOne also requires a scope from the target resource in the request,
+   not just `resource=`.** Even with the grant in place, the same
+   `aud: https://api.pingone.com` mismatch persisted. PingOne's resource
+   indicator (RFC 8707) support only attaches a resource's audience to the
+   token when the `scope=` list includes a scope that resource actually
+   owns — `handleAuthorize` was requesting `scope=openid profile email`,
+   none of which belong to the Banking API resource, so PingOne had nothing
+   to bind `resource=enduser.ping.demo` to and fell back to its default.
+   Fixed in `OAuthRouter.ts`'s `handleAuthorize`: when
+   `BANKING_API_RESOURCE_URI` is configured, the outbound scope becomes
+   `openid profile email read` (`read` is the Banking API resource's
+   broadest scope — Step 9 narrows further per-tool downstream, so this only
+   needs to get PingOne to pick the right audience, not to authorize
+   anything by itself).
+
+4. **The PingOne app also needed `requestScopesForMultipleResourcesEnabled`
+   enabled** to allow combining an OIDC scope (`openid`, owned by the
+   built-in OIDC resource) with a Banking-API-owned scope (`read`) in one
+   `/authorize` request at all. Toggled live via `updateApplication`.
+
+### Live verification
+
+MCP Inspector, fresh incognito-equivalent state each time (see "the
+reconnect trap" below), real `demouser` PingOne login, `get_my_accounts`:
+went from `invalid_token` (wrong signer) → `invalid_token` (wrong audience,
+after fix 1) → `invalid_token` (still wrong audience, after fixes 1+2) →
+**real account data, schema-validation error only** (after fixes 1+2+3+4).
+The schema error is a new, unrelated bug — see below.
+
+### The reconnect trap — read this before redeploying mid-test again
+
+Every one of the four fixes above needed its own redeploy, and **every
+redeploy silently invalidated the previous test's login** without any
+visible symptom pointing at "stale client state":
+
+- `TokenStore` (the in-memory map holding the stashed real PingOne token
+  against a session's `jti`) is **in-memory only** — a `kubectl rollout
+  restart` wipes it, but the *client's* self-issued bearer token stays
+  valid (same signing key persists across restarts) for its full 1-hour
+  life. The client has no reason to re-authenticate, so it just keeps
+  presenting the same now-orphaned token forever.
+- MCP Inspector's OAuth state lives in **two places that don't clear
+  together**: the browser's own `localStorage` (per-origin, survives new
+  tabs and even incognito if the same long-running Node backend process is
+  still serving `127.0.0.1:6274`) and the Node backend process itself
+  (`~/.mcp-inspector/storage/`, holds its own in-memory + on-disk cache
+  independent of the browser). A new tab or incognito window only clears
+  the browser half — the Node process, if still running from an earlier
+  point in the session, keeps serving the same cached token regardless.
+  **The only reliable way to force a genuinely fresh login**: kill the
+  Node process (`pgrep -f mcp-inspector`, `kill <pid>`), delete
+  `~/.mcp-inspector/storage/oauth.json` and
+  `~/.mcp-inspector/storage/inspector-session-*.json`, and restart
+  (`nohup npx -y @modelcontextprotocol/inspector &`) — it prints a fresh
+  `MCP_INSPECTOR_API_TOKEN` URL each time.
+- Confirmed live twice: a token minted at one point kept getting replayed
+  across two subsequent `mcp-server` redeploys and multiple "fresh" browser
+  reconnects, identified by its `jti` and `iat` staying byte-for-byte
+  identical across attempts that should have been independent.
+
+If you redeploy `mcp-server` again and don't see the fix take effect,
+suspect this before suspecting the code — decode the bearer token's `jti`
+and compare it against the previous attempt's before concluding the fix
+didn't work.
+
+### Found AND fixed, same session: `get_my_accounts` response schema mismatch
+
+Once the auth chain actually worked, `get_my_accounts` returned real
+account data but MCP Inspector rejected the tool result with `-32602
+Invalid params`:
+
+```
+data/accounts/0 must have required property 'accountNumber'
+data/accounts/0/swiftCode must be string
+data/accounts/0/iban must be string
+data/accounts/0/branchName must be string
+data/accounts/0/branchCode must be string
+data/accounts/0/openedDate must be string
+data/accounts/0/notes must be string
+... (repeated per account, 4 accounts total; accounts 2-3 already had accountNumber)
+```
+
+Traced with a read-only exploration agent rather than guessing. Two
+compounding causes, both in `oauth-mcp/src/tools/handlers/accountHandlers.ts`'s
+`executeGetMyAccounts` — not in `demo_api_server` as this doc originally
+guessed: `accountNumber` was mapped with no fallback, so an `undefined`
+upstream value (demoUser's checking/savings accounts, seeded via the
+minimal path in `demo_api_server/data/store.js`, never set it) got dropped
+by `JSON.stringify` entirely; every other optional field was mapped with
+`|| null`, but the declared output schema types them as plain `string` with
+no `null` in the union. Fixed by falling back to `''` instead of
+`null`/omission for every optional field including `accountNumber`,
+matching the file's own existing convention
+(`formatAccountNickname`'s `(account.accountNumber || '')`).
+
+A second, related bug was found in the same pass: `account_type` filtering
+(e.g. `account_type: "checking"`) used a case-sensitive compare against
+real `accountType` values that are inconsistently cased/named across two
+seed-generation paths (`'CHECKING'`/`'SAVINGS'` uppercase vs lowercase
+`'loan'`/`'credit_card'`), while the tool's enum advertises lowercase
+`'checking'`/`'savings'`/`'credit'` — every filtered call silently returned
+zero accounts. Fixed with case-insensitive matching plus a `'credit'` →
+`'credit_card'` mapping, same pattern `pickAccountForNickname` (same file)
+already used for this exact class of mismatch.
+
+Full writeup, including which specific fields/lines and why, in
+`TECH_DEBT.md`'s matching entry (now marked resolved). Live-verified via
+MCP Inspector as `demoUser`: unfiltered `get_my_accounts` returns all 4 real
+accounts cleanly, and `account_type: "checking"` correctly returns the one
+matching account. New unit tests in
+`oauth-mcp/src/tools/handlers/__tests__/accountNickname.test.ts`; full
+suite green (1079/1079) before each deploy.
+
+### Exact next steps (in order)
+
+1. Confirm the original investigation goal: does a `get_my_accounts` call
+   through the external door show up in Personal Agent Studio's token-chain
+   movie reel (`TokenChainFilmstrip`, ~15s poll) for a browser logged in as
+   the same PingOne user (`demoUser`)? That closes the loop this whole doc
+   was written for — not yet checked this session.
+2. Merge PR #2296, plus every commit this session added on the same branch
+   (units fix, PingOne resource=/scope fix, response-schema fix). Note the
+   PingOne app grant and `requestScopesForMultipleResourcesEnabled` toggle
+   are **live tenant config changes, not code** — nothing to merge for
+   those, but worth a line in the PR description so a fresh
+   environment/tenant doesn't silently miss them:
+   - Grant application `86f1f88a-cbb2-413b-9798-9324428e77d6`
+     ("Demo AI App - MCP External Client") access to the `Demo API` resource
+     (`enduser.ping.demo`, resource id `4a536256-36ad-4887-8e57-bcaa4c4f499e`),
+     scope `read`.
+   - Enable `requestScopesForMultipleResourcesEnabled` on that same
+     application.
+3. `./run-pingaws.sh undeploy` when the SE cluster session is genuinely done.
+
+## 2026-08-24 session 3 — switched to MCP Inspector, found + fixed 2 more bugs, ONE fix not yet deployed
+
+Picked up the previous session's own recommendation ("retest via MCP
+Inspector or Claude Desktop instead of LM Studio") and did exactly that.
+Found two more real bugs in the process — one fully fixed, deployed, and
+live-verified; one fixed in code but **not yet built/deployed**. This
+section is written so a fresh agent can resume in under a minute.
+
+### Where things actually stand right now
+
+| Fix | Code | Deployed to SE cluster | Live-verified | Merged |
+|---|---|---|---|---|
+| Gateway event-loop deadlock | done | yes | yes | **yes** (#2292) |
+| Step 9 skip for self-issued tokens | already on `main`, just needed deploying | yes | yes | already on `main` |
+| Step 9 federated-token propagation | done | yes | yes (found the token, correctly) | **yes** (#2295) |
+| RFC 9728 suffix routing (ingress + 2 server gates) | done | yes | **yes** — MCP Inspector completed a full real login | open PR **#2296** (commit 1) |
+| PingOne `resource=` audience federation | done | **NO — not built/pushed/deployed** | **NO** | open PR **#2296** (commit 2, same branch) |
+
+**PR #2296 has two commits on one branch** (`worktree-external-door-well-known-suffix-routing`) — the routing fix (deployed, verified) and the `resource=` fix (not yet deployed). They're related but distinct; feel free to split into two PRs when merging if that reads cleaner, but don't lose the "not yet deployed" distinction when you do.
+
+### Exact next steps (in order)
+
+1. **Deploy the `resource=` fix** — from `worktree-external-door-well-known-suffix-routing` (or after merge, from `main`):
+   ```
+   cd oauth-mcp && npm run build   # already passes, just confirming
+   cd .. && COMPOSE_PARALLEL_LIMIT=1 docker compose -p ai-demo-k8 -f docker-compose.yml build mcp-server
+   docker tag ai-demo-k8-mcp-server:latest ghcr.io/curtismu7/ai-demo-mcp-server:latest
+   docker push ghcr.io/curtismu7/ai-demo-mcp-server:latest
+   kubectl rollout restart deployment/mcp-server -n ping-devops-cmuir
+   kubectl rollout status deployment/mcp-server -n ping-devops-cmuir --timeout=120s
+   ```
+2. **Retest via MCP Inspector.** It should already be running locally on `http://127.0.0.1:6274` (background process from this session — check `lsof -i :6274`; if it's gone, `nohup npx -y @modelcontextprotocol/inspector &` restarts it and prints a fresh `MCP_INSPECTOR_API_TOKEN` URL). The server entry `personal-agent-external-door` (streamable-http, `https://cmuir-mcp.ping-devops.com/mcp`) should still be in its catalog (`~/.mcp-inspector/mcp.json`).
+   - **If reconnecting reuses a stale/failed state** (it will, from before this deploy): MCP Inspector caches OAuth discovery + tokens in `~/.mcp-inspector/storage/oauth.json`, keyed by server URL, and does NOT invalidate it on reconnect. Clear that file's `servers` key (or the whole file) and **reload the Inspector page** (editing the file alone isn't enough — the running tab has it in memory) before retrying, or you'll be debugging a cache, not the fix.
+   - Toggle the server's connect switch, complete a real PingOne login (this session used `demouser` — ask the user for credentials, don't assume you have them), confirm "Connected".
+   - Switch to the Tools tab, run `get_my_accounts`. **This is the actual test** — does real account data come back, or still `invalid_token`?
+3. **If real data comes back:** check the original goal — open Personal Agent Studio (`https://ai-demo.ping-devops.com/personal-agent`) in a browser logged in as the *same* PingOne user, and see if the tool call shows up in the movie reel (`TokenChainFilmstrip`) within ~15s (it polls, doesn't push — see below). That's the whole investigation, closed, for real, end to end.
+4. **If it still fails:** get the exact error and check `kubectl logs -n ping-devops-cmuir -l app=ai-demo,component=mcp-server --tail=100` around the failing call's timestamp — the pattern all session has been "the error text alone undersells it, the logs show the real mechanism." Don't guess from the error string alone.
+5. Merge PR #2296 once verified. Update `TECH_DEBT.md` or this doc if a *fifth* layer turns up — at this rate, mildly plausible.
+6. `./run-pingaws.sh undeploy` when the SE cluster session is genuinely done (not yet done as of this handoff — still live, still serving this test).
+
+### How the RFC 9728 suffix bug was found (context for the table above)
+
+MCP Inspector's own network log showed it requesting
+`/.well-known/oauth-protected-resource/mcp` (RFC 9728 §3.1's actual
+convention — the well-known path with the resource path appended), not the
+bare path every routing layer in this repo matched. Three places needed the
+same fix: `k8s/aws/se-ingress.yaml` (`pathType: Exact` → `Prefix`),
+`oauth-mcp/src/server/DemoMCPServer.ts`'s `handleHttpRequest` (the outer
+dispatch gate — fixing only `HttpMCPTransport.ts` alone did NOT work, this
+gate 404'd the request before ever reaching it), and
+`HttpMCPTransport.ts`'s own handler. All three are in PR #2296's first
+commit, deployed and live-verified (`curl` of the suffixed path went from
+wrong-data → 404 → correct data across the three iterations).
+
+This bug plausibly explains why **every LM Studio session tonight** ended
+up using a `client_credentials` token instead of carrying its real
+`authorization_code` one into the live MCP session — if LM Studio made the
+same suffixed discovery request, pre-fix, it would have been told to
+register at PingOne directly (which has no DCR) and had no correct way to
+get a real-user-scoped token, plausibly explaining the fallback. Not
+independently confirmed against LM Studio specifically — MCP Inspector was
+the client that got fixed and verified.
+
+### How the `resource=` bug was found
+
+With RFC 9728 routing fixed, MCP Inspector completed a genuine
+`authorization_code` login as `demouser` (fresh DCR client, real PingOne
+login page, "Authorization complete" toast, real `sub` in the resulting
+token — none of this was faked or SSO'd). Calling `get_my_accounts` still
+returned `Error: Banking API error: invalid_token`, but this time server
+logs showed **no** Step 9 crash — meaning the earlier fix (PR #2295) worked
+correctly and forwarded demouser's real federated PingOne token. The
+Banking API (which is just `demo_api_server`, reached over Bearer instead
+of a session cookie) rejected it anyway, in ~120ms — too fast to be
+anything but a straightforward audience check failing.
+
+Traced to `handleAuthorize`'s outbound redirect to PingOne
+(`OAuthRouter.ts`): it only ever requested `scope: openid profile email`,
+no `resource`/`audience` parameter, so PingOne minted a generic identity
+token — never scoped to `enduser.ping.demo`. Fixed by adding `resource=`
+(RFC 8707) to both the outbound `/authorize` redirect and the
+`/authorize/callback` token exchange — `resource=`, not `audience=`,
+matching a trap already documented elsewhere in this codebase
+(`TokenResolver.ts`'s Step 9 exchange comment: PingOne honors `resource=`
+and silently ignores `audience=`).
+
 ## 2026-08-24 follow-up — investigated live, fixed two real bugs, found the actual blocker
 
 A follow-up session picked this up and tried to run the "suggested first
