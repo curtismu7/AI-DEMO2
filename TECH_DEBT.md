@@ -16,7 +16,7 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
-### [ ] 2026-08-24 — LibreChat Privilege MCP tool call blocked by LLM context size, not by anything in `librechat/`
+### [x] 2026-08-24 — LibreChat Privilege MCP tool call blocked by LLM context size, not by anything in `librechat/`
 
 **Where:** `librechat/librechat.yaml`'s `mcpServers.privilege` block; the live
 LLM backend served via `demo_llm_proxy/` at `:8090`.
@@ -47,6 +47,33 @@ the model, so there is also no config-only way to shrink the catalog.
 reduced tool set to this client instead of the full 242, or (b) a
 larger-context local model tier. Both are out of scope for the LibreChat
 proof-of-concept plan that found this.
+
+**RESOLVED** (branch `worktree-agent-abb04d0a310af8164`, PR #2343, same day):
+the diagnosis above was half right. The catalog-size mismatch is real for
+LibreChat's plain chat picker, but the blocker underneath it was different:
+the phi tier (`:8091`) is started without `--jinja`, so llama-server drops
+the `tools` field outright — `prompt_tokens` stays at 9 with a tool attached,
+so no tool call could ever have happened on that tier at any catalog size.
+Neither of the "real fix" options was needed:
+
+- Tool calling: `librechat.yaml`'s custom endpoint now lists `gpt-oss-20b`.
+  `demo_llm_proxy/router.js` `classFromModel()` routes any `/gpt-oss/` model
+  name to `:8096` — the only tier started with `--jinja` — which returns real
+  `tool_calls`. No frozen LLM setting changed.
+- Catalog scoping: a native LibreChat feature. The Agent Builder's MCP tool
+  dialog selects individual tools (`agent.tools` stores
+  `get_my_accounts_mcp_privilege`, and `ToolService.loadAgentTools` filters
+  on it), so the model sees one schema instead of 242. An uncommitted
+  client-side truncating proxy (`mcp-tools-proxy.js`) was tried first and
+  discarded: LibreChat's `assertResourceBoundToServer` rejects any OAuth
+  flow whose RFC 9728 `resource` origin differs from the configured server
+  URL, so a proxy on a different origin can never pass discovery.
+
+Proven live 2026-08-24 21:27 (Task 5 of the plan): an Agent with provider
+Local LLM Proxy, model `gpt-oss-20b`, tools = `get_my_accounts` only, asked
+"What are my account balances?" — LibreChat showed "Ran get_my_accounts in
+privilege · 3.3s" and replied with a masked account number and balance from
+the gateway.
 
 ### [ ] 2026-08-24 — `k8s/create-secrets.sh` never falls back to the internal vault, so a vault-only secret silently never reaches the SE K8s Secret
 

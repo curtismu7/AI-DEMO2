@@ -21,6 +21,13 @@ endpoints:
         # classFromModel()/classifyText().
         default:
           - 'demo-llm-proxy'
+          # Tool calls need this one. The proxy's classFromModel() routes any
+          # /gpt-oss/ model name to the gpt-oss-20b tier (:8096), the only
+          # tier started with --jinja (demo_llm_proxy/start-local-models.sh)
+          # — the phi tier silently drops the `tools` field entirely
+          # (prompt_tokens stays at 9 with a tool attached), so an Agent
+          # that needs get_my_accounts must select this model.
+          - 'gpt-oss-20b'
         fetch: false
       titleConvo: true
       titleModel: 'demo-llm-proxy'
@@ -35,8 +42,8 @@ mcpServers:
     # /external/authorize succeeds end-to-end. See the "Judgment call"
     # section of docs/superpowers/plans/2026-08-24-librechat-privilege-mcp-client.md.
     #
-    # KNOWN LIMITATION: a real get_my_accounts tool call through the chat UI
-    # is blocked — this server's 242-tool schema catalog exceeds the local
-    # LLM's context window. See TECH_DEBT.md's 2026-08-24 entry "LibreChat
-    # Privilege MCP tool call blocked by LLM context size".
+    # Use it from an Agent, not the plain chat picker: the plain picker
+    # attaches all 242 tools (~30k tokens of schema, more than the 16k-ctx
+    # gpt-oss tier holds), while the Agent builder's MCP tool dialog lets
+    # you select only get_my_accounts. See Task 5 of the plan above.
     timeout: 60000

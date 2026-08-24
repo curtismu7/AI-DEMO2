@@ -214,6 +214,10 @@ endpoints:
         # classFromModel()/classifyText().
         default:
           - 'demo-llm-proxy'
+          # Tool calls need this one — the proxy routes any /gpt-oss/ model
+          # name to the :8096 tier, the only one started with --jinja; the
+          # phi tier drops the `tools` field entirely. See Task 5.
+          - 'gpt-oss-20b'
         fetch: false
       titleConvo: true
       titleModel: 'demo-llm-proxy'
@@ -281,11 +285,11 @@ Expected: `200`.
 
 This task is the spec's actual "done when" criterion (§4) and, like the sibling `langchain_agent` plan's final task, is **not automated** — it needs a browser, a live PingOne login, and the live Privilege gateway.
 
-- [ ] **Step 1: Open LibreChat and select the MCP-enabled model**
+- [x] **Step 1: Open LibreChat and build a scoped Agent**
 
-Navigate to `http://localhost:3080` in a browser, create/sign in to a local LibreChat account (this is LibreChat's own account system, backed by the `mongodb` container — unrelated to PingOne), and select **Local LLM Proxy** as the chat endpoint.
+Navigate to `http://localhost:3080` in a browser and create/sign in to a local LibreChat account (this is LibreChat's own account system, backed by the `mongodb` container — unrelated to PingOne). This LibreChat build (`v0.8.8-rc1`) routes every chat through an Agent, and the Agent is also what keeps the tool catalog small enough for the local model — the plain chat picker attaches all 242 `privilege` tools (~30k tokens of schema), more than the 16k-context gpt-oss tier holds. So: **Agent Builder → Create New Agent** → name it → **Select a model** → provider **Local LLM Proxy**, model **`gpt-oss-20b`** (not `demo-llm-proxy`: that routes to the phi tier, which is started without `--jinja` and silently drops the `tools` field — `prompt_tokens` stays at 9 with a tool attached) → **Back to builder** → **Tools → Add → privilege → Configure** → toggle **only `get_my_accounts`** (leave "Select all" off) → close both dialogs → **Create**. Verify with `docker exec librechat-mongodb mongo --quiet LibreChat --eval 'printjson(db.agents.find({},{model:1,tools:1}).toArray())'` — expected `model: "gpt-oss-20b"` and `tools` containing `get_my_accounts_mcp_privilege` and nothing else from the server (plus the `sys__server__sys_mcp_privilege` marker).
 
-- [ ] **Step 2: Trigger the Privilege MCP server's OAuth flow**
+- [x] **Step 2: Trigger the Privilege MCP server's OAuth flow**
 
 In LibreChat's MCP servers panel (or by sending a prompt that needs a tool, e.g. "What are my account balances?"), activate the `privilege` MCP server. Expected: LibreChat opens an OAuth authorization popup/redirect to PingOne's login page (via the gateway's `/external/authorize`, discovered per Task 3's config).
 
@@ -302,12 +306,14 @@ curl -i -X POST https://cmuir-agentless-mcpgw.ping-devops.com/external/mcp \
 
 If that still returns `401` with discovery metadata, the gap is LibreChat-side (check its DCR request against the gateway's registration endpoint); if it returns something else, the gateway/application config has changed since this plan was written and needs re-verification against current `privilege/AGENTLESS-CONFIGURATION.md`.
 
-- [ ] **Step 3: Sign in as the demo user**
+- [x] **Step 3: Sign in as the demo user**
 
 Complete the PingOne login as the Super Sports demo user (`demoUser`, per this repo's default-vertical convention). Expected: the browser redirects back through the gateway to LibreChat's own callback (`http://localhost:3080/api/mcp/privilege/oauth/callback`) and the MCP server shows as connected/authenticated in LibreChat's UI.
 
-- [ ] **Step 4: Confirm the tool call returns real data**
+- [x] **Step 4: Confirm the tool call returns real data**
 
 Ask the chat: "What are my account balances?" (or equivalent, prompting `get_my_accounts`). Expected: the model calls the `privilege` MCP server's `get_my_accounts` tool and the response contains real Super Sports account data — matching the same acceptance criterion already proven for this exact application via `curl`/Postman in `privilege/AGENTLESS-CONFIGURATION.md`'s `2026-08-24` entry, now proven through LibreChat's own browser-based OAuth flow instead.
+
+**Proven 2026-08-24 21:27** with the Agent from Step 1 (after MCP Settings → privilege → Connect completed the PingOne OAuth popup and showed "Connected to: privilege"): the reply rendered "Ran get_my_accounts in privilege · 3.3s" and then "Your checking account (****3896) has a current balance of $5 000 USD." `ai-demo-llm-proxy` logged `POST /v1/chat/completions → gpt-oss-20b (class 1 via model=gpt-oss-20b)`, confirming the tier routing. (The conversation title still times out — `titleModel` is the phi tier — cosmetic.)
 
 - [ ] **Step 5: No commit** — verification only. A failure here means re-opening Task 3 (config) or investigating the gateway/PingOne side per Step 2a — not patching this task.
