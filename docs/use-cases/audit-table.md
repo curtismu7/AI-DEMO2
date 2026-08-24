@@ -67,6 +67,7 @@
 | UC14b | [PAR intent verified (PERMIT)](./rar-intent-verified.md) | learn | 🚩 flag-gated (ff_rar) |  |  |
 | UC25 | [Enterprise-managed MCP access](./enterprise-managed-mcp-access.md) | controls | 🚩 flag-gated (ff_enterprise_managed_mcp_auth) | 🛡️ T8, T9 |  |
 | UC39 | [Centralized MCP revocation](./enterprise-mcp-revocation.md) | controls | 🚩 flag-gated (ff_enterprise_managed_mcp_auth) | 🛡️ T8, T9 |  |
+| UC40 | [Enterprise-Managed MCP Authorization (native ID-JAG)](./enterprise-managed-mcp-authorization.md) | controls | 🚩 flag-gated (ff_enterprise_managed_mcp_auth) | 🛡️ T8, T9 |  |
 | UC37 | [Verified Trust — signed agent assertion on A2A delegation](./verified-trust-a2a-assertion.md) | controls | 🚩 flag-gated (ff_verified_trust_a2a) | 🛡️ T9, T13 |  |
 | UC38 | [Personal Agent Concierge](./personal-agent-concierge.md) | foundations | 🚩 flag-gated (ff_personal_agent_concierge) | 🛡️ T1, T9 |  |
 
@@ -81,7 +82,7 @@
 | Status | Count |
 |---|---|
 | ✅ Works | 46 |
-| 🚩 Flag-gated | 9 |
+| 🚩 Flag-gated | 10 |
 | 📥 Needs console import | 0 |
 | 🏗️ Needs build | 1 |
-| **Total** | **56** |
+| **Total** | **57** |
