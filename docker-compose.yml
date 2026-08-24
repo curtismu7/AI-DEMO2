@@ -429,6 +429,19 @@ services:
       NODE_OPTIONS: "-r /otel/otel-instrument.js"
       MCP_RESOURCE_URL: "http://localhost:8080"
       HTTP_MCP_TRANSPORT_ENABLED: "true"
+      # embeddedIssuer.ts defaults to https://localhost:${MCP_SERVER_PORT} when
+      # unset, but MCP_TLS_ENABLED defaults off — so an external client (e.g.
+      # MCP Inspector) that follows the discovery document literally gets a
+      # TLS connection failure on every advertised endpoint, even though the
+      # same paths work fine over plain HTTP. K8s deployments already set
+      # OAUTH_ISSUER explicitly to their real public host; this default only
+      # fixes local docker-compose.
+      OAUTH_ISSUER: "${OAUTH_ISSUER:-http://localhost:8080}"
+      # Open DCR so an external client (MCP Inspector, ChatGPT, Claude Desktop)
+      # can self-register without a pre-shared initial access token — same
+      # posture the SE cluster's external door already runs with. Local-only:
+      # nothing else in this compose stack calls /register.
+      MCP_OPEN_CLIENT_REGISTRATION: "${MCP_OPEN_CLIENT_REGISTRATION:-true}"
       # ── MCP Enterprise-Managed Authorization (native ID-JAG) ────────────────
       # Both halves of native mode are configured HERE, not at runtime:
       # OAuthRouter.nativeIdJagEnabled() reads process.env, so a UI toggle could
