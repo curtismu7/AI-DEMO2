@@ -17,6 +17,12 @@ PR #2294):** same design again, against the post-round-2 codebase, told
 about all 39 files touched by rounds 1–2. 17 of 17 candidate findings
 (#40–#56) survived verification — 0 rejected.
 
+**Round 4 (2026-08-23, same day, after round 3 fully fixed and merged in
+PR #2297):** same 6-finder-agent + adversarial-verify-per-candidate design,
+run as a Workflow against the post-round-3 codebase, told about all 52
+files touched by rounds 1–3. 10 of 10 candidate findings (#57–#66)
+survived verification — 0 rejected.
+
 **Working rule:** when a finding is fixed, flip its Status to `FIXED` with the
 PR number (or commit) and evidence **in the same commit as the fix**, and add a
 Changelog line. A status column that lags the code is the same false-green
@@ -86,6 +92,16 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 54 | Perf | `services/tokenValidationService.js` | low | FIXED |
 | 55 | Perf | `services/agentScopes.js` | low | FIXED |
 | 56 | Perf | `demo_api_ui/.../components/UserDashboard.js` | medium | FIXED |
+| 57 | Runtime | `services/pingOneAuthorizeService.js` | medium | OPEN |
+| 58 | Runtime | `services/lighthouseService.js` | low | OPEN |
+| 59 | Runtime | `demo_api_ui/.../pages/PrivilegeMcpClientPage.jsx` | medium | OPEN |
+| 60 | Runtime | `demo_api_ui/.../components/AgentGatewayLogPanel.jsx` | low | OPEN |
+| 61 | Runtime | `demo_api_ui/.../components/NewRelicDashboard.jsx` | low | OPEN |
+| 62 | Swallowed | `routes/enterpriseIdp.js` | medium | OPEN |
+| 63 | Swallowed | `demo_api_ui/.../services/agentAccessConsent.js` | high | OPEN |
+| 64 | Swallowed | `demo_api_ui/.../services/logout.js` | medium | OPEN |
+| 65 | Perf | `services/configStore.js` | medium | OPEN |
+| 66 | Perf | `demo_api_ui/.../pages/UseCaseLauncherPage.js` | medium | OPEN |
 
 ---
 
@@ -1679,8 +1695,276 @@ build` → exit 0.
 
 ---
 
+## Round 4 findings (2026-08-23)
+
+### 57. Worker-token single-flight cache ignores credential identity, letting a credential rotation hand a caller a token minted with stale creds — OPEN
+
+**File:** `demo_api_server/services/pingOneAuthorizeService.js`, line 252
+
+**Issue:** `getWorkerToken()` correctly gates its *cache read* on
+`_workerTokenCache.credKey === credKey` (line 247), but the single-flight
+branch right after it (`if (_workerTokenInflight) return _workerTokenInflight;`,
+line 252) has no credKey comparison at all. The in-flight IIFE closes over
+the `creds`/`credKey` captured from whichever call originally started it,
+and on resolution unconditionally overwrites `_workerTokenCache` with that
+original (possibly now-stale) credKey — poisoning the cache for later
+callers too.
+
+**Trigger scenario:** An admin rotates the PingOne Authorize worker
+credentials (`authorize_worker_client_id`/`secret`, or the
+`PINGONE_WORKER_CLIENT_ID`/`SECRET` env aliases) via `/config` while a
+`getWorkerToken()` call is already in flight for the OLD credentials (cache
+cold — e.g. right after a config reload). A second `evaluate()` call
+arriving in that window computes the NEW credKey, finds `_workerTokenInflight`
+truthy, and awaits that same promise — receiving a token minted against the
+OLD worker app/environment, which it then presents to the PingOne Authorize
+decision endpoint, causing spurious 401s or a decision evaluated under the
+wrong worker identity. Nothing invalidates the in-flight guard on credential
+rotation — the only reset path (`_resetAuthorizeRuntimeState()`) is an
+explicit test-only hook, never called from any config-update route.
+
+**Fix (not yet applied):** Track the credKey the in-flight request was
+started for (e.g. `let _workerTokenInflightKey = null;`), set it alongside
+`_workerTokenInflight`, and only reuse the in-flight promise when
+`_workerTokenInflightKey === credKey`; otherwise start a new
+`_requestWorkerToken(creds)` call (running concurrently with the stale one)
+so a caller after a rotation always gets a token minted with its own
+resolved creds.
+
+### 58. Lighthouse "single audit in progress" guard is released before the timed-out audit's Chrome process actually finishes tearing down — OPEN
+
+**File:** `demo_api_server/services/lighthouseService.js`, line 82
+
+**Issue:** `runLighthouseAudit()` races the real audit promise against a
+60s timeout promise. On timeout, the timeout callback fires `chrome.kill()`
+fire-and-forget (not awaited) and immediately rejects — settling
+`Promise.race` right away — while the real Chrome process/lighthouse run
+keeps executing in the background; nothing checks a `timedOut` flag to
+abort it early, and if `chrome` was never assigned by the 60s mark (still
+inside `chromeLauncher.launch()`), no kill is even attempted.
+
+**Trigger scenario:** `POST /api/admin/lighthouse/run` runs long enough to
+hit `AUDIT_TIMEOUT_MS` (slow page load, or a cold-machine Chrome install
+still pending at 60s). The route treats the outer race's settlement as its
+sole "is an audit running" signal and clears `isRunning = false` in its
+`finally` as soon as the timeout rejection wins — while the original
+Chrome/lighthouse process is still alive. An admin (or an automated retry)
+immediately POSTs `/run` again; the guard is now open, so a second
+Chrome+lighthouse instance launches concurrently with the still-terminating
+first one, defeating the single-flight guard and doubling resource usage.
+
+**Fix (not yet applied):** Move the single-flight lock into
+`lighthouseService.js` itself and hold it until the underlying audit
+promise (not just the outer race) has fully settled — have the audit
+promise's `finally` (after `await chrome.kill()`) clear an internal
+`_isRunning`/`_activeAudit` flag, and have `runLighthouseAudit()` reject a
+new call synchronously if that internal flag is already set, instead of
+letting the route infer running-state from when the timeout race settles.
+
+### 59. Sidebar/terminal drag listeners leak on document if mouseup fires outside the page — OPEN
+
+**File:** `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`, line 172
+
+**Issue:** `startSidebarDrag`/`startTerminalDrag` each attach document-level
+`mousemove`/`mouseup` listeners on `mousedown`, with the only removal path
+inside the `mouseup` handler itself. No `useEffect` cleanup, pointer
+capture, or `window blur`/`mouseleave` fallback exists for the case where
+the button is released outside the document.
+
+**Trigger scenario:** User drags the sidebar/terminal resize handle toward
+the viewport edge and releases the mouse over the OS taskbar, another
+window, or an iframe — `mouseup` never reaches `document`, the listeners
+are never removed, and every subsequent mouse move anywhere on the page
+keeps forcibly resizing the sidebar/terminal using the stale
+`startX`/`startW` captured at drag start, until the user happens to
+mouseup over the document again.
+
+**Fix (not yet applied):** Reuse the existing `useDividerDrag` hook
+(`demo_api_ui/src/hooks/useDividerDrag.js`), which already solves this
+exact class of bug for other panels, instead of the hand-rolled
+`startSidebarDrag`/`startTerminalDrag`. If keeping the local
+implementation, switch to pointer events with `setPointerCapture` on
+pointerdown so pointer events keep being delivered even after the cursor
+leaves the document, plus an effect-level unmount cleanup.
+
+### 60. Stale-response race: overlapping log fetches can overwrite newer results with older ones — OPEN
+
+**File:** `demo_api_ui/src/components/AgentGatewayLogPanel.jsx`, line 44
+
+**Issue:** `fetchLogs`/`fetchDecisions`, wired through `refresh()` and both
+an initial-load effect and a 4s autoRefresh interval, have no request
+sequencing (no requestId guard, no `AbortController`). Multiple in-flight
+calls to `/api/admin/agent-gateway/logs` can resolve out of order.
+
+**Trigger scenario:** User changes the filter input (Enter fires
+`fetchLogs()` directly) or the Lines dropdown while a previous fetch
+(triggered by the prior filter, or by the 4s autoRefresh tick against a
+slow docker-log tail read) is still in flight. If the older request
+resolves after the newer one, its `setLogs`/`setLogError` overwrites the
+fresh state, silently showing log lines that don't match the
+currently-selected filter/tail.
+
+**Fix (not yet applied):** Add a monotonically incrementing ref (e.g.
+`const reqIdRef = useRef(0)`), capture the id at the start of each fetch,
+and guard every `setState` call with `if (reqIdRef.current !== id) return;`
+— the same pattern already used to fix the analogous `cachedStatusService`
+race (finding #45).
+
+### 61. Stale-response race: rapid time-window changes can render data for the wrong window — OPEN
+
+**File:** `demo_api_ui/src/components/NewRelicDashboard.jsx`, line 70
+
+**Issue:** `load()` depends on `[win, search]` and is called on mount and
+every 30s via `setInterval`, with no request sequencing or cancellation
+when `win`/`search` change mid-flight. The window-selector buttons are
+never disabled while a request is loading, so nothing stops a user from
+firing a second request before the first resolves.
+
+**Trigger scenario:** Admin clicks through the window selector quickly
+(e.g. "24h" then "1h"). The "24h" request queries a larger range and can
+resolve after the "1h" request issued right after it; if it does, its
+response overwrites `data`, so the stage strip, sparkline, category stats,
+and event stream all render 24h data while the window control itself still
+shows "1h" — a real, visible mismatch.
+
+**Fix (not yet applied):** Same fix as #60 — track the latest request with
+a ref (or an `AbortController` stored in a ref, aborting the previous one
+when `win`/`search` change) and only apply a response if it's still the
+most recently issued request.
+
+### 62. ID-JAG token-mint route has zero error handling — an internal throw hangs the request (or crashes the process) — OPEN
+
+**File:** `demo_api_server/routes/enterpriseIdp.js`, line 40
+
+**Issue:** `router.post('/token', ...)` is an async handler with NO
+try/catch anywhere in its body — unlike the rest of the codebase's
+established convention. It awaits a policy check then synchronously calls
+`jwt.sign(..., enterpriseIdpKey.getPrivateKeyPem(), ...)`. Express 4 does
+not catch rejected promises from async route handlers, and
+`express-async-errors` is listed in `package.json` but never `require()`'d
+anywhere, so no global safety net exists.
+
+**Trigger scenario:** A signed-in user POSTs a well-formed RFC 8693
+token-exchange request to `/api/enterprise-idp/token`.
+`enterpriseIdpKey.getPrivateKeyPem()` lazily builds/signs the key on first
+call from `process.env.ENTERPRISE_IDP_SIGNING_KEY_PEM` — if that env var is
+malformed/truncated (a realistic copy/paste misconfiguration; there is no
+startup validation anywhere), `crypto.createPrivateKey` throws synchronously
+inside the async handler. The promise rejection is unhandled: the
+requester gets no response at all, and in dev/test (no `CRASH_GUARD=1`) the
+whole BFF process hard-exits, taking down every other in-flight request.
+
+**Fix (not yet applied):** Wrap the handler body in try/catch, matching the
+pattern used by every sibling route: on catch, log and return
+`res.status(500).json({ error: 'server_error', error_description: err.message })`
+(or a more specific status for the checkPolicy/PingOne-unreachable case).
+
+### 63. Consent-decline block fails open when localStorage read throws — OPEN
+
+**File:** `demo_api_ui/src/services/agentAccessConsent.js`, line 5
+
+**Issue:** `isAgentBlockedByConsentDecline()` — the actual gate `AIAgent.js`
+checks at 6 call sites before letting the AI agent keep acting after a user
+declines a high-value transaction — wraps its `localStorage.getItem` in a
+try/catch that swallows any exception and returns `false`: the same value
+returned for a legitimate "never declined" state. `setAgentBlockedByConsentDecline`
+has the identical fail-silent pattern on the write side.
+
+**Trigger scenario:** In a browsing context where `localStorage` access
+throws (storage disabled by enterprise/browser policy, a hardened privacy
+extension, or a partitioned/sandboxed iframe — some raise `SecurityError`
+on `getItem`, not just `setItem`), a user who declines a high-value
+transaction has the decline silently fail to persist — and independent of
+that, any later `getItem` failure alone makes the check return `false`, so
+the agent is treated as never having been blocked and keeps acting despite
+the explicit decline.
+
+**Fix (not yet applied):** Keep an in-memory module-level flag as the
+source of truth (set synchronously in `setAgentBlockedByConsentDecline`,
+read directly by `isAgentBlockedByConsentDecline`), using `localStorage`
+only as best-effort persistence across reloads. On a `getItem`/`setItem`
+exception, do not fall back to "not blocked" — fail closed
+(`blocked=true`) until a successful read confirms otherwise.
+
+### 64. Logout button treats a failed session-clear the same as a successful one — OPEN
+
+**File:** `demo_api_ui/src/services/logout.js`, line 21
+
+**Issue:** `performLogout()` — wired directly to the "Log out"/"Sign Out"
+button — calls `fetch('/api/auth/logout')` to have the BFF clear the
+session cookie, then navigates to the returned `logoutUrl`. Its `.catch()`
+swallows any fetch failure and navigates to `/` exactly as it would on
+success, with no indication the server-side session was never cleared.
+
+**Trigger scenario:** A transient network failure (or an aborted fetch,
+e.g. a backgrounded tab during navigation) causes the POST to
+`/api/auth/logout` to reject before reaching the server. The catch
+swallows it and redirects to `/`, which renders as a logged-out landing
+page, but the BFF session cookie was never cleared — the user (or the next
+person on a shared/public machine) can still be treated as authenticated by
+any request that reuses the still-valid cookie.
+
+**Fix (not yet applied):** In the catch handler, distinguish "the fetch
+itself failed" from success: surface an error via the app's existing
+`notifyError` toast utility instead of silently navigating away, and only
+navigate once the server has confirmed the session was cleared (retry
+once, or fall back to `window.location.href = '/api/auth/logout'` — the
+same mechanism `useAuth.js`'s `logout()` already uses).
+
+### 65. ConfigStore.getEffective() rebuilds a ~230-entry alias map from scratch on every call — OPEN
+
+**File:** `demo_api_server/services/configStore.js`, line 1074
+
+**Issue:** `getEffective(key)` declares a ~360-line, ~230-key
+`envFallbackMap` object literal inside the method body — allocated fresh
+on every single invocation, even though the map is 100% static and never
+depends on the `key` argument (only indexed afterward).
+
+**Trigger scenario:** This is a hot path, not an edge case:
+`middleware/auth.js`'s `requireScopes` gate calls `getEffective` twice per
+scope-checked request; `mcpGatewayClient.js`'s `getMcpGatewayHttpUrl()` —
+documented as "the single chokepoint every tool-call path uses" — calls it
+2-4 times per invocation; `demoStepPrerequisites.js`'s
+`checkChipPrerequisites` calls it once per required flag in a loop. ~204
+call sites project-wide mean a single request can trigger dozens of full
+rebuilds of this literal.
+
+**Fix (not yet applied):** Hoist the `envFallbackMap` object literal out of
+the method body to module scope (`const ENV_FALLBACK_MAP = { ... };`
+declared once near the top of the file) and reference it directly at the
+lookup site. No behavior change — the map never varied per-call.
+
+### 66. Use-case launcher recomputes ~8 unmemoized filter/map passes over the full catalog on every search keystroke — OPEN
+
+**File:** `demo_api_ui/src/pages/UseCaseLauncherPage.js`, line 925
+
+**Issue:** A block of derivations (happy-path lists, PingOne-Authorize and
+Agent-Gateway id Sets, an 8-track `TRACK_ORDER.map` doing two `.filter()`
+passes per track, an O(k·n) `DEMO_USE_CASE_IDS.map(id => useCases.find(...))`
+lookup, and more) all run directly in the component body on every render —
+none of it wrapped in `useMemo` (the file doesn't import `useMemo` at all).
+
+**Trigger scenario:** The search box's `onChange` calls `setQuery` on every
+keystroke. Each keystroke re-renders the component and re-runs all 8+ full
+catalog filter/map passes (16 filter passes across the 8 tracks, plus the
+O(k·n) demo lookup) even though `useCases` itself hasn't changed since the
+initial fetch.
+
+**Fix (not yet applied):** Wrap the derivations in `useMemo` keyed on the
+inputs that actually change: memoize the `*All`/id-Set derivations on
+`[useCases]` alone (they don't depend on `query`), and memoize only the
+final query-filtered lists on `[query]` plus the already-memoized `*All`
+arrays.
+
+---
+
 ## Changelog
 
+- 2026-08-23 — Round 4 audit run: same 6-finder-agent + adversarial-verify
+  design as rounds 1-3, run as a Workflow against the post-round-3 codebase
+  (after PR #2297 merged all 17 round-3 fixes), told about all 52 files
+  touched by rounds 1-3. 10/10 candidate findings survived verification,
+  added as #57-66, all OPEN — none fixed yet.
 - 2026-08-23 — #53, #54, #55, #56 FIXED (performance, round 3 complete —
   all of #40–56 now FIXED): `activityLogger.js`'s dead response-body
   capture block (computed, never read) deleted outright. `tokenValidationService.js`
