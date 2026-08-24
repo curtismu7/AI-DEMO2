@@ -1,7 +1,7 @@
 # Agent Gateway MCP OAuth broker — RFC 8414 + RFC 7591 for generic HTTP clients
 
 **Date:** 2026-08-24
-**Status:** Design approved, implementation not started
+**Status:** Implemented + live-verified 2026-08-24 (PR #2353) — see the PR body for the verification transcript
 
 ## Context
 
