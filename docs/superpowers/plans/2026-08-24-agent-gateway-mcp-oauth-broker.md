@@ -32,7 +32,7 @@
 **Interfaces:**
 - Produces: `ClientRegistry` class — `registerClient(meta: {client_name?: string; redirect_uris: string[]; grant_types?: string[]; token_endpoint_auth_method?: 'none'|'client_secret_basic'|'client_secret_post'}): OAuthBrokerClient` (throws `InvalidRedirectUriError` if any `redirect_uris` entry isn't loopback), `getClient(clientId: string): OAuthBrokerClient | undefined`, `authenticateClient(clientId: string, clientSecret: string | undefined): OAuthBrokerClient | null`.
 - Produces: `OAuthBrokerClient` interface — `{ client_id: string; client_secret?: string; client_name: string; grant_types: string[]; redirect_uris: string[]; token_endpoint_auth_method: 'none'|'client_secret_basic'|'client_secret_post'; scope: string }`.
-- Produces: `BrokerTokenStore` class — `createPendingAuthorization(params: {clientId: string; redirectUri: string; scope: string; codeChallenge: string; codeChallengeMethod: string; clientState: string; pingOneCodeVerifier: string}): string` (returns relay state), `consumePendingAuthorization(state: string): PendingAuthorization | null`, `createCode(params: {clientId: string; redirectUri: string; scope: string; pingOneAccessToken: string; pingOneExpiresIn: number}): string`, `consumeCode(code: string): IssuedCode | null`.
+- Produces: `BrokerTokenStore` class — `createPendingAuthorization(params: {clientId: string; redirectUri: string; scope: string; codeChallenge: string; codeChallengeMethod: string; clientState: string; pingOneCodeVerifier: string}): string` (returns relay state), `consumePendingAuthorization(state: string): PendingAuthorization | null`, `createCode(params: {clientId: string; redirectUri: string; scope: string; codeChallenge: string; codeChallengeMethod: string; pingOneAccessToken: string; pingOneExpiresIn: number}): string`, `consumeCode(code: string): IssuedCode | null`. **`codeChallenge`/`codeChallengeMethod` on `createCode` are the EXTERNAL client's own PKCE challenge (from the pending authorization it was created against) — Task 4's `/oauth/token` verifies the external client's `code_verifier` against these before releasing the token. Without this, the broker's own authorization code would have no PKCE protection.**
 
 - [ ] **Step 1: Write failing tests for `ClientRegistry`**
 
@@ -229,7 +229,8 @@ describe('BrokerTokenStore', () => {
     const store = new BrokerTokenStore();
     const code = store.createCode({
       clientId: 'client-1', redirectUri: 'http://127.0.0.1:1234/callback',
-      scope: 'mcp:invoke', pingOneAccessToken: 'real-pingone-jwt', pingOneExpiresIn: 3600,
+      scope: 'mcp:invoke', codeChallenge: 'challenge-abc', codeChallengeMethod: 'S256',
+      pingOneAccessToken: 'real-pingone-jwt', pingOneExpiresIn: 3600,
     });
     const issued = store.consumeCode(code);
     expect(issued).not.toBeNull();
@@ -240,7 +241,7 @@ describe('BrokerTokenStore', () => {
     const store = new BrokerTokenStore();
     const code = store.createCode({
       clientId: 'client-1', redirectUri: 'http://127.0.0.1:1234/callback',
-      scope: 'mcp:invoke', pingOneAccessToken: 't', pingOneExpiresIn: 3600,
+      scope: 'mcp:invoke', codeChallenge: 'challenge-abc', codeChallengeMethod: 'S256', pingOneAccessToken: 't', pingOneExpiresIn: 3600,
     });
     expect(store.consumeCode(code)).not.toBeNull();
     expect(store.consumeCode(code)).toBeNull();
@@ -250,7 +251,7 @@ describe('BrokerTokenStore', () => {
     const store = new BrokerTokenStore();
     const code = store.createCode({
       clientId: 'client-1', redirectUri: 'http://127.0.0.1:1234/callback',
-      scope: 'mcp:invoke', pingOneAccessToken: 't', pingOneExpiresIn: 3600,
+      scope: 'mcp:invoke', codeChallenge: 'challenge-abc', codeChallengeMethod: 'S256', pingOneAccessToken: 't', pingOneExpiresIn: 3600,
     }, -1);
     expect(store.consumeCode(code)).toBeNull();
   });
@@ -290,6 +291,12 @@ export interface IssuedCode {
   clientId: string;
   redirectUri: string;
   scope: string;
+  /** The EXTERNAL client's own PKCE challenge (from /oauth/authorize) —
+   *  carried through so /oauth/token can verify the external client's
+   *  code_verifier before releasing the token. Without this, the broker's
+   *  own authorization code would have no PKCE protection at all. */
+  codeChallenge: string;
+  codeChallengeMethod: string;
   /** The real, unmodified PingOne access token — this IS the artifact the
    *  external client ultimately receives from /oauth/token. */
   pingOneAccessToken: string;
@@ -674,11 +681,14 @@ describe('OAuthBrokerRouter /oauth/callback', () => {
     expect(location.searchParams.get('state')).toBe('external-state');
     expect(location.searchParams.get('code')).toBeTruthy();
 
-    // The broker's own code, when consumed, carries the real PingOne token unmodified.
+    // The broker's own code, when consumed, carries the real PingOne token
+    // AND the external client's original PKCE challenge unmodified — the
+    // latter is what makes Task 4's /oauth/token able to verify PKCE at all.
     const brokerCode = location.searchParams.get('code')!;
-    // Access via the same tokenStore instance the router used internally is not
-    // possible from outside; instead assert indirectly through /oauth/token in Task 4.
-    // This test only proves the redirect shape and that axios was called correctly.
+    const issued = tokenStore.consumeCode(brokerCode);
+    expect(issued?.pingOneAccessToken).toBe('REAL-PINGONE-TOKEN');
+    expect(issued?.codeChallenge).toBe('external-challenge');
+    expect(issued?.codeChallengeMethod).toBe('S256');
     expect(mockedAxios.post).toHaveBeenCalledWith(
       expect.stringContaining('/as/token'),
       expect.stringContaining('code_verifier=broker-generated-verifier'),
@@ -843,6 +853,8 @@ And add these private methods (import `axios` and `crypto` at the top; `crypto` 
       clientId: pending.clientId,
       redirectUri: pending.redirectUri,
       scope: pending.scope,
+      codeChallenge: pending.codeChallenge,
+      codeChallengeMethod: pending.codeChallengeMethod,
       pingOneAccessToken,
       pingOneExpiresIn: expiresIn,
     });
@@ -904,8 +916,13 @@ function makeRouterAndServer() {
   return { clientRegistry, tokenStore, server };
 }
 
+// A real S256 pair — computed once via:
+// node -e "const c=require('crypto');const v='test-code-verifier-1234567890abcdef';console.log(c.createHash('sha256').update(v).digest('base64url'))"
+const VALID_VERIFIER = 'test-code-verifier-1234567890abcdef';
+const VALID_CHALLENGE = 'eV1Pn224EN4EvJLQQwhf3obGtpz6dQJCPK_fP9UaWMw';
+
 describe('OAuthBrokerRouter /oauth/token', () => {
-  it('trades the broker\'s code for the real, unmodified PingOne access token', async () => {
+  it('trades the broker\'s code for the real, unmodified PingOne access token, given the matching code_verifier', async () => {
     const { clientRegistry, tokenStore, server } = makeRouterAndServer();
     const client = clientRegistry.registerClient({
       client_name: 'LM Studio', redirect_uris: ['http://127.0.0.1:33389/mcp-oauth-callback'],
@@ -914,6 +931,8 @@ describe('OAuthBrokerRouter /oauth/token', () => {
       clientId: client.client_id,
       redirectUri: 'http://127.0.0.1:33389/mcp-oauth-callback',
       scope: 'mcp:invoke',
+      codeChallenge: VALID_CHALLENGE,
+      codeChallengeMethod: 'S256',
       pingOneAccessToken: 'REAL-PINGONE-TOKEN',
       pingOneExpiresIn: 3600,
     });
@@ -926,12 +945,68 @@ describe('OAuthBrokerRouter /oauth/token', () => {
         code,
         redirect_uri: 'http://127.0.0.1:33389/mcp-oauth-callback',
         client_id: client.client_id,
+        code_verifier: VALID_VERIFIER,
       });
 
     expect(res.status).toBe(200);
     expect(res.body.access_token).toBe('REAL-PINGONE-TOKEN');
     expect(res.body.token_type).toBe('Bearer');
     expect(res.body.expires_in).toBe(3600);
+  });
+
+  it('rejects a token request with a code_verifier that does not match the original code_challenge', async () => {
+    const { clientRegistry, tokenStore, server } = makeRouterAndServer();
+    const client = clientRegistry.registerClient({
+      client_name: 'LM Studio', redirect_uris: ['http://127.0.0.1:33389/mcp-oauth-callback'],
+    });
+    const code = tokenStore.createCode({
+      clientId: client.client_id,
+      redirectUri: 'http://127.0.0.1:33389/mcp-oauth-callback',
+      scope: 'mcp:invoke',
+      codeChallenge: VALID_CHALLENGE,
+      codeChallengeMethod: 'S256',
+      pingOneAccessToken: 'REAL-PINGONE-TOKEN',
+      pingOneExpiresIn: 3600,
+    });
+    const res = await supertest(server)
+      .post('/oauth/token')
+      .type('form')
+      .send({
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: 'http://127.0.0.1:33389/mcp-oauth-callback',
+        client_id: client.client_id,
+        code_verifier: 'wrong-verifier-does-not-hash-to-the-challenge',
+      });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('invalid_grant');
+  });
+
+  it('rejects a token request with no code_verifier at all', async () => {
+    const { clientRegistry, tokenStore, server } = makeRouterAndServer();
+    const client = clientRegistry.registerClient({
+      client_name: 'LM Studio', redirect_uris: ['http://127.0.0.1:33389/mcp-oauth-callback'],
+    });
+    const code = tokenStore.createCode({
+      clientId: client.client_id,
+      redirectUri: 'http://127.0.0.1:33389/mcp-oauth-callback',
+      scope: 'mcp:invoke',
+      codeChallenge: VALID_CHALLENGE,
+      codeChallengeMethod: 'S256',
+      pingOneAccessToken: 'REAL-PINGONE-TOKEN',
+      pingOneExpiresIn: 3600,
+    });
+    const res = await supertest(server)
+      .post('/oauth/token')
+      .type('form')
+      .send({
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: 'http://127.0.0.1:33389/mcp-oauth-callback',
+        client_id: client.client_id,
+      });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('invalid_grant');
   });
 
   it('rejects a code redeemed by a different client_id than it was issued to', async () => {
@@ -944,7 +1019,7 @@ describe('OAuthBrokerRouter /oauth/token', () => {
     });
     const code = tokenStore.createCode({
       clientId: client.client_id, redirectUri: 'http://127.0.0.1:1/callback',
-      scope: 'mcp:invoke', pingOneAccessToken: 't', pingOneExpiresIn: 3600,
+      scope: 'mcp:invoke', codeChallenge: 'challenge-abc', codeChallengeMethod: 'S256', pingOneAccessToken: 't', pingOneExpiresIn: 3600,
     });
     const res = await supertest(server)
       .post('/oauth/token')
@@ -959,7 +1034,7 @@ describe('OAuthBrokerRouter /oauth/token', () => {
     const client = clientRegistry.registerClient({ client_name: 'x', redirect_uris: ['http://127.0.0.1:1/callback'] });
     const code = tokenStore.createCode({
       clientId: client.client_id, redirectUri: 'http://127.0.0.1:1/callback',
-      scope: 'mcp:invoke', pingOneAccessToken: 't', pingOneExpiresIn: 3600,
+      scope: 'mcp:invoke', codeChallenge: 'challenge-abc', codeChallengeMethod: 'S256', pingOneAccessToken: 't', pingOneExpiresIn: 3600,
     });
     const body = { grant_type: 'authorization_code', code, redirect_uri: 'http://127.0.0.1:1/callback', client_id: client.client_id };
     const first = await supertest(server).post('/oauth/token').type('form').send(body);
@@ -1015,6 +1090,7 @@ Add the method:
     const code = params.get('code');
     const redirectUri = params.get('redirect_uri');
     const clientId = params.get('client_id');
+    const codeVerifier = params.get('code_verifier');
     if (!code || !redirectUri || !clientId) {
       this.json(res, 400, { error: 'invalid_request', error_description: 'Missing code, redirect_uri, or client_id' });
       return true;
@@ -1030,6 +1106,15 @@ Add the method:
       return true;
     }
 
+    // PKCE verification — this is what makes the broker's own authorization
+    // code safe to hand back over a loopback redirect: without it, any other
+    // local process that observed the code (e.g. via the redirect_uri) could
+    // redeem it. Mirrors oauth-mcp's OAuthRouter.verifyPKCE (S256 only).
+    if (!codeVerifier || !this.verifyPKCE(codeVerifier, issued.codeChallenge, issued.codeChallengeMethod)) {
+      this.json(res, 400, { error: 'invalid_grant', error_description: 'PKCE verification failed' });
+      return true;
+    }
+
     // This IS the pass-through: the exact token PingOne issued, unmodified.
     this.json(res, 200, {
       access_token: issued.pingOneAccessToken,
@@ -1039,12 +1124,18 @@ Add the method:
     });
     return true;
   }
+
+  private verifyPKCE(verifier: string, challenge: string, method: string): boolean {
+    if (method !== 'S256') return false;
+    const computed = crypto.createHash('sha256').update(verifier).digest('base64url');
+    return computed === challenge;
+  }
 ```
 
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `cd demo_mcp_gateway && npx jest tests/oauth-broker-router-token.test.ts`
-Expected: PASS (4/4)
+Expected: PASS (6/6)
 
 - [ ] **Step 5: Run the full broker test suite together**
 
