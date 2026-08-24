@@ -151,6 +151,90 @@ describe('LiveUseCaseWorkbenchPage', () => {
     });
   });
 
+  it('an older Run trigger resolving after a newer one does not fire the stale prefill (finding #75)', async () => {
+    // Reproduced via the 'demo-script' BroadcastChannel path (teleprompter /
+    // popped-out 2nd screen) rather than tile clicks: the tile's Run button
+    // disables itself while a run is in flight, but a second BroadcastChannel
+    // 'run' message is not gated by that state at all, so two overlapping
+    // handleRunChip chains are the real-world trigger for this race.
+    //
+    // Uses an in-process fake BroadcastChannel (same technique as
+    // LiveUseCaseWorkbenchPage.test.jsx's TestBroadcastChannel) instead of
+    // jsdom's real one — Node's native BroadcastChannel broadcasts across
+    // ALL worker threads in the process by channel name, which would leak
+    // messages into unrelated test files running in sibling vitest workers.
+    class FakeBroadcastChannel {
+      constructor(name) {
+        this.name = name;
+        this.listeners = [];
+        FakeBroadcastChannel.channels[name] = FakeBroadcastChannel.channels[name] || [];
+        FakeBroadcastChannel.channels[name].push(this);
+      }
+      addEventListener(type, cb) { if (type === 'message') this.listeners.push(cb); }
+      removeEventListener(type, cb) { this.listeners = this.listeners.filter((l) => l !== cb); }
+      postMessage(data) {
+        (FakeBroadcastChannel.channels[this.name] || []).forEach((ch) => {
+          if (ch === this) return;
+          ch.listeners.forEach((cb) => cb({ data }));
+        });
+      }
+      close() {
+        FakeBroadcastChannel.channels[this.name] = (FakeBroadcastChannel.channels[this.name] || []).filter((ch) => ch !== this);
+      }
+    }
+    FakeBroadcastChannel.channels = {};
+    const originalBroadcastChannel = global.BroadcastChannel;
+    global.BroadcastChannel = FakeBroadcastChannel;
+
+    try {
+      apiClient.get.mockResolvedValue({ data: { useCases: MOCK_USE_CASES } });
+
+      // A's chain resolves slowly (deferred), B's resolves fast — simulating
+      // A being triggered first but B's response landing first.
+      let resolveARun;
+      const aRunPromise = new Promise((resolve) => { resolveARun = resolve; });
+      apiClient.post.mockImplementation((url, body) => {
+        if (url === '/api/use-cases/demo/run') {
+          if (body.useCaseId === 'delegated-access-with-proof') {
+            return aRunPromise.then(() => ({ data: { useCaseId: 'delegated-access-with-proof', triggerText: 'A stale message', type: 'chip', vertical: 'banking' } }));
+          }
+          return Promise.resolve({ data: { useCaseId: 'authz-denied', triggerText: 'B fresh message', type: 'chip', vertical: 'banking' } });
+        }
+        if (url === '/api/verticals/active') return Promise.resolve({ data: {} });
+        return Promise.reject(new Error(`unexpected POST ${url}`));
+      });
+      const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+
+      renderPage();
+      await waitFor(() => expect(screen.getAllByText(/Delegated access with proof/).length).toBeGreaterThan(0));
+
+      const sender = new BroadcastChannel('demo-script');
+      sender.postMessage({ type: 'run', ucId: 'UC1' }); // A: triggered first (slow)
+      await waitFor(() => {
+        expect(apiClient.post).toHaveBeenCalledWith('/api/use-cases/demo/run', { useCaseId: 'delegated-access-with-proof', vertical: 'banking' });
+      });
+      sender.postMessage({ type: 'run', ucId: 'UC6' }); // B: triggered second (fast), before A resolves
+
+      // Let B's chain fully resolve and dispatch first.
+      await waitFor(() => {
+        const fired = dispatchSpy.mock.calls.some(([e]) => e.type === 'banking-agent-prefill' && e.detail?.message === 'B fresh message');
+        expect(fired).toBe(true);
+      });
+
+      // Now let A's stale chain resolve.
+      resolveARun();
+      // Give any (incorrect) stale dispatch a tick to happen.
+      await new Promise((r) => setTimeout(r, 10));
+      sender.close();
+
+      const prefillCalls = dispatchSpy.mock.calls.filter(([e]) => e.type === 'banking-agent-prefill');
+      expect(prefillCalls).toHaveLength(1);
+      expect(prefillCalls[0][0].detail.message).toBe('B fresh message');
+    } finally {
+      global.BroadcastChannel = originalBroadcastChannel;
+    }
+  });
+
   it('running an attack use case posts the sim, remaps its events onto the rail\'s pipeline ids, and surfaces the real Authorize decision', async () => {
     const ATTACK_UC = { id: 'UC5', useCaseId: 'insufficient-scope', track: 'attacks',
       title: 'Wrong / insufficient scope', trigger: { type: 'attack', sim: 'insufficient-scope' },

@@ -296,13 +296,18 @@ export default function LiveUseCaseWorkbenchPage() {
     return () => { cancelled = true; };
   }, [vertical]);
 
+  // Guards against an older, slower Run click's two-POST chain resolving
+  // after a newer click's chain and firing banking-agent-prefill last.
+  const runChipTokenRef = useRef(0);
   const handleRunChip = useCallback((uc) => {
     const useCaseId = uc.useCaseId;
+    const myRunToken = ++runChipTokenRef.current;
     setSelectedId(uc.id);
     setRunState({ id: uc.id, state: 'running' });
     apiClient.post('/api/use-cases/demo/run', { useCaseId, vertical })
       .then(({ data }) => apiClient.post('/api/verticals/active', { id: vertical }).then(() => data))
       .then((data) => {
+        if (myRunToken !== runChipTokenRef.current) return; // a newer Run click superseded this one
         setRunState({ id: uc.id, state: 'done' });
         if (String(uc.expectedOutcome || '').toUpperCase().includes('HITL')
           || /transfer/i.test(data.triggerText || '')) {
@@ -314,6 +319,7 @@ export default function LiveUseCaseWorkbenchPage() {
         }));
       })
       .catch((err) => {
+        if (myRunToken !== runChipTokenRef.current) return;
         setRunState({ id: uc.id, state: 'error', msg: err.message || 'Failed to launch scenario' });
       });
   }, [vertical]);
