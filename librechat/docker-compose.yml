@@ -1,0 +1,51 @@
+# librechat/docker-compose.yml
+#
+# Standalone LibreChat + MongoDB stack for the Privilege-agentless MCP client
+# proof (docs/superpowers/specs/2026-08-24-librechat-dual-door-mcp-client-design.md).
+# Deliberately NOT part of this repo's root docker-compose.yml / run-docker.sh —
+# exploratory client tooling, not a demo-facing service.
+#
+# ponytail: only `api` + `mongodb` are defined. LibreChat's own vendor compose
+# also ships meilisearch/vectordb/rag_api for search+RAG; none of that is
+# needed to boot MCP support (SEARCH=false by default, RAG is opt-in and
+# unrelated to tool calls) — add them back only if a future feature in this
+# stack actually needs search or file-embedding RAG.
+services:
+  api:
+    container_name: librechat
+    image: registry.librechat.ai/danny-avila/librechat-dev:latest
+    ports:
+      - "3080:3080"
+    depends_on:
+      - mongodb
+    extra_hosts:
+      # Reach the host-run LLM proxy (demo_llm_proxy/, :8090) the same way
+      # this repo's own docker-compose.yml does for the identical proxy
+      # (see docker-compose.yml:1124, :1828-1830).
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - type: bind
+        source: ./.env
+        target: /app/.env
+      - type: bind
+        source: ./librechat.yaml
+        target: /app/librechat.yaml
+      - librechat-data:/app/data
+    restart: unless-stopped
+
+  mongodb:
+    container_name: librechat-mongodb
+    # mongo:8.0.20 (LibreChat's vendor default) requires AVX instructions.
+    # Docker Desktop on Apple Silicon runs amd64 images under emulation,
+    # which does not support AVX, and the container crash-loops on startup.
+    # mongo:4.4.18 is LibreChat's own documented AVX-free fallback
+    # (docker-compose.override.yml.example, "OLDER CPU WITHOUT AVX SUPPORT").
+    image: mongo:4.4.18
+    command: mongod --noauth
+    volumes:
+      - librechat-mongo-data:/data/db
+    restart: unless-stopped
+
+volumes:
+  librechat-data:
+  librechat-mongo-data:
