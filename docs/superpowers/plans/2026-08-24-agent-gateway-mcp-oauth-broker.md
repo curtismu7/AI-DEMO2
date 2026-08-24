@@ -1032,11 +1032,19 @@ describe('OAuthBrokerRouter /oauth/token', () => {
   it('rejects an already-consumed code', async () => {
     const { clientRegistry, tokenStore, server } = makeRouterAndServer();
     const client = clientRegistry.registerClient({ client_name: 'x', redirect_uris: ['http://127.0.0.1:1/callback'] });
+    // Needs a REAL matching verifier/challenge pair — a first redemption that
+    // fails PKCE (400) would never reach the replay check this test exists to
+    // verify, so this can't reuse the dummy 'challenge-abc' the other two
+    // client/redirect-mismatch tests use (those return 400 before the PKCE
+    // check anyway, so a dummy is fine there but not here).
     const code = tokenStore.createCode({
       clientId: client.client_id, redirectUri: 'http://127.0.0.1:1/callback',
-      scope: 'mcp:invoke', codeChallenge: 'challenge-abc', codeChallengeMethod: 'S256', pingOneAccessToken: 't', pingOneExpiresIn: 3600,
+      scope: 'mcp:invoke', codeChallenge: VALID_CHALLENGE, codeChallengeMethod: 'S256', pingOneAccessToken: 't', pingOneExpiresIn: 3600,
     });
-    const body = { grant_type: 'authorization_code', code, redirect_uri: 'http://127.0.0.1:1/callback', client_id: client.client_id };
+    const body = {
+      grant_type: 'authorization_code', code, redirect_uri: 'http://127.0.0.1:1/callback',
+      client_id: client.client_id, code_verifier: VALID_VERIFIER,
+    };
     const first = await supertest(server).post('/oauth/token').type('form').send(body);
     expect(first.status).toBe(200);
     const second = await supertest(server).post('/oauth/token').type('form').send(body);
