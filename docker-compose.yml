@@ -429,7 +429,7 @@ services:
       NODE_OPTIONS: "-r /otel/otel-instrument.js"
       MCP_RESOURCE_URL: "http://localhost:8080"
       HTTP_MCP_TRANSPORT_ENABLED: "true"
-      # embeddedIssuer.ts defaults to https://localhost:${MCP_SERVER_PORT} when
+      # embeddedIssuer.ts defaults to https://localhost:<MCP_SERVER_PORT> when
       # unset, but MCP_TLS_ENABLED defaults off — so an external client (e.g.
       # MCP Inspector) that follows the discovery document literally gets a
       # TLS connection failure on every advertised endpoint, even though the
