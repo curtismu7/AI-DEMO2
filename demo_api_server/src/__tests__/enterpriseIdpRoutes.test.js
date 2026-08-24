@@ -112,9 +112,15 @@ describe('enterprise IdP routes', () => {
     expect(res.body.error).toBe('invalid_request');
   });
 
-  test('requires a signed-in session', async () => {
+  test('without a session, falls back to external-bearer auth and rejects for missing client credentials', async () => {
+    // No req.session.user AND no client_id/client_secret in the body: this is
+    // the "requires a signed-in session" case for the BFF's own orchestrated
+    // callers, but since VALID_BODY carries a subject_token, it's now also a
+    // (failed) external-bearer attempt — see enterpriseIdpTokenExternal.test.js
+    // for the session-less success path.
     const res = await request(appWithSession({})).post('/api/enterprise-idp/token').send(VALID_BODY);
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('invalid_client');
     expect(res.body.access_token).toBeUndefined();
   });
 
