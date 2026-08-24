@@ -100,6 +100,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 60 | Runtime | `demo_api_ui/.../components/AgentGatewayLogPanel.jsx` | low | FIXED |
 | 61 | Runtime | `demo_api_ui/.../components/NewRelicDashboard.jsx` | low | FIXED |
 | 62 | Swallowed | `routes/enterpriseIdp.js` | medium | FIXED |
+| 63 | Swallowed | `demo_api_ui/.../services/agentAccessConsent.js` | high | FIXED |
 
 ---
 
@@ -1923,10 +1924,59 @@ timeout, exactly matching the "hangs the request" description) and pass
 against the fix. Full file green (8 tests) plus the 3 sibling
 `enterpriseIdp*` test files (17 tests) unaffected.
 
+### 63. Consent-decline block fails open when localStorage read throws — FIXED
+
+**File:** `demo_api_ui/src/services/agentAccessConsent.js`, line 5
+
+**Issue:** `isAgentBlockedByConsentDecline()` — the actual gate `AIAgent.js`
+checks at 6 call sites before letting the AI agent keep acting after a
+user declines a high-value transaction — wrapped its `localStorage.getItem`
+in a try/catch that swallowed any exception and returned `false`: the same
+value returned for a legitimate "never declined" state.
+`setAgentBlockedByConsentDecline` had the identical fail-silent pattern on
+the write side.
+
+**Trigger scenario:** In a browsing context where `localStorage` access
+throws (storage disabled by enterprise/browser policy, a hardened privacy
+extension, or a partitioned/sandboxed iframe — some raise `SecurityError`
+on `getItem`, not just `setItem`), a user who declines a high-value
+transaction has the decline silently fail to persist — and independent of
+that, any later `getItem` failure alone made the check return `false`, so
+the agent was treated as never having been blocked and kept acting despite
+the explicit decline.
+
+**Fix:** An in-memory module-level flag (`_memoryBlocked`) is now the
+source of truth — `isAgentBlockedByConsentDecline()` reads only that,
+never `localStorage` directly, so a storage failure occurring *after*
+module init can no longer flip the answer. `localStorage` is used only as
+best-effort persistence for surviving reloads. If the *initial* read
+itself throws (storage inaccessible from the start), the module now fails
+CLOSED — `_memoryBlocked` defaults to `true` — instead of `false`.
+
+**Evidence:** New test
+`demo_api_ui/src/services/__tests__/agentAccessConsent.failClosed.test.js`
+(`finding #63: reports blocked=true when the initial localStorage read
+throws`) proven to fail against the pre-fix file (`Received: false`) and
+pass against the fix. Uses `vi.stubGlobal` to replace `localStorage`
+outright rather than spying on `Storage.prototype` — where the Storage
+methods live differs between Node 22 (CI) and Node 26 (local), so a
+prototype spy silently misses on one of the two runtimes (see
+`useCustomChips.test.js` for the same established pattern). Also verifies
+a later storage failure does not flip an already-established
+`blocked=false` back to blocked.
+
 ---
 
 ## Changelog
 
+- 2026-08-23 — #63 FIXED (high severity): `agentAccessConsent.js`'s
+  `isAgentBlockedByConsentDecline()` now reads an in-memory flag as its
+  source of truth instead of `localStorage` directly, and fails CLOSED
+  (`blocked=true`) instead of open (`false`) when the initial storage read
+  itself throws — closing the window where a hardened-privacy/enterprise
+  browsing context could make the AI banking agent silently keep acting
+  after a user explicitly declined a high-value transaction. New test
+  proven to fail against the pre-fix file and pass against the fix.
 - 2026-08-23 — #62 FIXED: `enterpriseIdp.js`'s `POST /token` handler is now
   wrapped in try/catch, returning `500 { error: 'server_error' }` instead
   of hanging forever (or hard-crashing the process in dev/test) when an
