@@ -177,6 +177,7 @@ export class GatewayServer {
       // (tokenValidator splits it); the PingOne `resource` param takes ONE —
       // the first is the gateway's own primary audience (mcpgateway.ping.demo).
       (this.config.gatewayResourceUri || '').split(',')[0].trim(),
+      GATEWAY_SCOPES,
     );
     this.upstreamMcpUrl = (
       upstreamMcpUrl ||

@@ -67,4 +67,26 @@ describe('GatewayServer OAuth broker wiring', () => {
     expect(res.status).toBe(302);
     expect(new URL(res.headers.location).searchParams.get('resource')).toBe('mcpgateway.ping.demo');
   });
+
+  it('RFC 8414 scopes_supported advertises the gateway tool scopes, not just mcp:invoke', async () => {
+    const server = new GatewayServer({ config: stubConfig, upstreamMcpUrl: 'ws://localhost:9' });
+    const res = await supertest(server.httpServer).get('/.well-known/oauth-authorization-server');
+    expect(res.body.scopes_supported).toEqual(expect.arrayContaining(['read', 'write', 'transfer', 'mcp:invoke']));
+  });
+
+  it('/oauth/authorize forwards the client\'s requested scopes to PingOne (plus openid + mcp:invoke)', async () => {
+    process.env.GATEWAY_OAUTH_BROKER_PINGONE_CLIENT_ID = 'c8392dc4-2d82-4e49-92a8-79a78401faf5';
+    const server = new GatewayServer({ config: stubConfig, upstreamMcpUrl: 'ws://localhost:9' });
+    const reg = await supertest(server.httpServer)
+      .post('/oauth/register')
+      .send({ client_name: 'LM Studio', redirect_uris: ['http://127.0.0.1:1/callback'] });
+    const res = await supertest(server.httpServer).get('/oauth/authorize').query({
+      client_id: reg.body.client_id, redirect_uri: 'http://127.0.0.1:1/callback',
+      response_type: 'code', code_challenge: 'x'.repeat(43), code_challenge_method: 'S256',
+      scope: 'read write',
+    });
+    expect(res.status).toBe(302);
+    const scope = new URL(res.headers.location).searchParams.get('scope')!.split(' ');
+    expect(scope).toEqual(expect.arrayContaining(['openid', 'read', 'write', 'mcp:invoke']));
+  });
 });

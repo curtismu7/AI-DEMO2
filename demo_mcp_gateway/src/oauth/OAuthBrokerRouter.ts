@@ -18,6 +18,9 @@ export class OAuthBrokerRouter {
     private clientRegistry: ClientRegistry,
     private tokenStore: BrokerTokenStore,
     private gatewayResourceUri: string,
+    // Advertised in RFC 8414 scopes_supported; spec-following clients (MCP SDK,
+    // LM Studio) request exactly this list when they have no scope of their own.
+    private scopesSupported: string[] = ['mcp:invoke'],
   ) {}
 
   /** Returns true if this router handled the request. */
@@ -50,7 +53,7 @@ export class OAuthBrokerRouter {
       authorization_endpoint: `${issuer}/oauth/authorize`,
       token_endpoint: `${issuer}/oauth/token`,
       registration_endpoint: `${issuer}/oauth/register`,
-      scopes_supported: ['mcp:invoke'],
+      scopes_supported: this.scopesSupported,
       response_types_supported: ['code'],
       grant_types_supported: ['authorization_code'],
       token_endpoint_auth_methods_supported: ['none'],
@@ -161,12 +164,15 @@ export class OAuthBrokerRouter {
     pingOneAuthorize.searchParams.set('code_challenge', pingOneCodeChallenge);
     pingOneAuthorize.searchParams.set('code_challenge_method', 'S256');
     pingOneAuthorize.searchParams.set('resource', this.gatewayResourceUri);
-    // `mcp:invoke` is the scope c8392dc4's grant on the Agent Gateway resource
-    // actually owns (confirmed via mcp__pingone__listApplicationGrants) — the
-    // `resource` param alone does not audience the token; the scope list must
-    // include a scope that resource owns, or PingOne issues a token audienced
-    // to its own default instead of gatewayResourceUri.
-    pingOneAuthorize.searchParams.set('scope', 'openid profile email mcp:invoke');
+    // Forward what the client asked for: the gateway's tool policy gates on
+    // these (get_my_accounts needs `read`; a token with only mcp:invoke is
+    // refused with insufficient_scope — seen live 2026-08-24). `mcp:invoke`
+    // is always included because it is the scope c8392dc4's grant on the
+    // Agent Gateway resource owns — the `resource` param alone does not
+    // audience the token. PingOne silently drops scopes the app is not
+    // granted (profile/email were), so an over-ask is harmless.
+    const pingOneScopes = new Set(['openid', ...scope.split(/\s+/).filter(Boolean), 'mcp:invoke']);
+    pingOneAuthorize.searchParams.set('scope', [...pingOneScopes].join(' '));
 
     res.writeHead(302, { Location: pingOneAuthorize.toString() });
     res.end();
