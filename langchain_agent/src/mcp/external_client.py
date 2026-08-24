@@ -7,6 +7,10 @@ harness and a usable minimal client in one.
 Usage:
     python -m src.mcp.external_client --server agent_gateway
     python -m src.mcp.external_client --server privilege --call get_my_accounts '{}'
+
+MCP_SERVER_*_ENDPOINT values must be the BASE URL, with NO trailing "/mcp" —
+StreamableHttpMCPConnection (connection.py) appends "/mcp" itself. Passing an
+endpoint that already ends in "/mcp" produces a double "/mcp/mcp" and 404s.
 """
 import argparse
 import asyncio
@@ -19,7 +23,7 @@ from typing import Any, Dict, Optional
 from src.authentication.oauth_manager import OAuthAuthenticationManager
 from src.config.settings import get_config, get_mcp_server_configs
 from src.mcp.connection import MCPConnection, StreamableHttpMCPConnection
-from src.mcp.privilege_auth import authorize_and_get_token
+from src.mcp.privilege_auth import PrivilegeAuthError, authorize_and_get_token
 from src.models.mcp import AuthRequirements, AuthRequirementType, MCPServerConfig, MCPToolCall
 
 logger = logging.getLogger(__name__)
@@ -44,9 +48,14 @@ def _build_server_config(server_name: str) -> MCPServerConfig:
 
 
 async def _get_agent_gateway_token(scopes: Optional[list] = None):
-    """Reuse the live agent's own client-credentials mechanism (DCR + token fetch)."""
+    """Reuse the live agent's own client-credentials mechanism (DCR + token fetch).
+
+    Defaults to the "ai_agent" scope — every other call site in this service
+    (mcp_tool_provider.py, main.py) requests it explicitly; the Agent Gateway
+    denies tokens without it.
+    """
     async with OAuthAuthenticationManager() as auth_manager:
-        return await auth_manager.get_client_credentials_token(additional_scopes=scopes)
+        return await auth_manager.get_client_credentials_token(additional_scopes=scopes or ["ai_agent"])
 
 
 async def run(
@@ -109,7 +118,11 @@ async def main_async(argv):
     tool_name, tool_args = None, None
     if args.call:
         tool_name, raw_args = args.call
-        tool_args = json.loads(raw_args)
+        try:
+            tool_args = json.loads(raw_args)
+        except json.JSONDecodeError as e:
+            print(f"Error: invalid JSON in --call arguments: {e}", file=sys.stderr)
+            sys.exit(1)
 
     result = await run(server_name=args.server, tool_name=tool_name, tool_args=tool_args)
     print(json.dumps(result, indent=2))
@@ -117,7 +130,11 @@ async def main_async(argv):
 
 def main():
     logging.basicConfig(level=logging.INFO)
-    asyncio.run(main_async(sys.argv[1:]))
+    try:
+        asyncio.run(main_async(sys.argv[1:]))
+    except (ValueError, ConnectionError, PrivilegeAuthError) as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

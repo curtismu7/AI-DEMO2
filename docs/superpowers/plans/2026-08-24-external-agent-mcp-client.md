@@ -937,7 +937,7 @@ Privilege agentless needs a new PingOne OAuth client registered before `--server
 - **PKCE**: S256 required
 - **token endpoint auth method**: `client_secret_basic`
 
-Once registered, set `PRIVILEGE_MCP_CLIENT_ID`, `PRIVILEGE_MCP_CLIENT_SECRET`, `PRIVILEGE_MCP_AUTHORIZE_URL`, `PRIVILEGE_MCP_TOKEN_URL`, `PRIVILEGE_MCP_REDIRECT_URI`, and `MCP_SERVER_PRIVILEGE_ENDPOINT` (the agentless `/mcp` URL) in `langchain_agent/.env`, then run:
+Once registered, set `PRIVILEGE_MCP_CLIENT_ID`, `PRIVILEGE_MCP_CLIENT_SECRET`, `PRIVILEGE_MCP_AUTHORIZE_URL`, `PRIVILEGE_MCP_TOKEN_URL`, `PRIVILEGE_MCP_REDIRECT_URI`, and `MCP_SERVER_PRIVILEGE_ENDPOINT` (the agentless door's **base URL, with no trailing `/mcp`** — `StreamableHttpMCPConnection` appends `/mcp` itself, so a value already ending in `/mcp` produces a double `/mcp/mcp` and 404s) in `langchain_agent/.env`, then run:
 
 ```bash
 python -m src.mcp.external_client --server privilege --call get_my_accounts '{}'

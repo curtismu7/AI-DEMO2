@@ -108,7 +108,26 @@ async def authorize_and_get_token(
     waits for the redirect on a local loopback server, then exchanges the
     code for a token via client_secret_basic. Raises PrivilegeAuthError on
     any failure (timeout, state mismatch, AS error, non-200 token response).
+
+    Checks that the required PrivilegeConfig fields are populated before
+    doing anything else — an unconfigured door would otherwise open a
+    browser to a scheme-less URL and hang for the full timeout, misdiagnosing
+    a missing-config problem as a network/timing one.
     """
+    _required = {
+        "client_id": config.client_id,
+        "client_secret": config.client_secret,
+        "authorize_url": config.authorize_url,
+        "token_url": config.token_url,
+        "redirect_uri": config.redirect_uri,
+    }
+    _missing = [name for name, value in _required.items() if not value]
+    if _missing:
+        _env_names = ", ".join(f"PRIVILEGE_MCP_{name.upper()}" for name in _missing)
+        raise PrivilegeAuthError(
+            f"Privilege MCP client is not configured — missing env var(s): {_env_names}"
+        )
+
     code_verifier, code_challenge = UserAuthorizationFacilitator._generate_pkce_pair()
     state = generate_state()
     authorize_url = build_authorize_url(config, state=state, code_challenge=code_challenge)
