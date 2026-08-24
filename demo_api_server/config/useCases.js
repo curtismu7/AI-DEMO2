@@ -1865,10 +1865,14 @@ function resolveUseCase(id, vertical) {
   if (!base) return undefined;
   if (!vertical || vertical === 'banking' || !base.perVertical || !base.perVertical[vertical]) {
     const { perVertical, match, ...rest } = base;
+    // No perVertical override applies here, so rest.primaryTool === base.primaryTool
+    // always — reuse the value stamped once at module load instead of re-deriving
+    // it (isA2aDelegatedPrimaryTool -> scopeTopology.load() does a sync fs.statSync
+    // every call).
     return {
       ...rest,
       resourceServer: resolveResourceServer(rest.primaryTool),
-      a2aDelegated: isA2aDelegatedPrimaryTool(rest.primaryTool),
+      a2aDelegated: base.a2aDelegated,
     };
   }
   const ov = base.perVertical[vertical];
@@ -1881,7 +1885,11 @@ function resolveUseCase(id, vertical) {
   return {
     ...rest,
     resourceServer: resolveResourceServer(rest.primaryTool),
-    a2aDelegated: isA2aDelegatedPrimaryTool(rest.primaryTool),
+    // Only recompute when the override actually swapped primaryTool; otherwise
+    // reuse the precomputed base value (same statSync-avoidance as above).
+    a2aDelegated: rest.primaryTool === base.primaryTool
+      ? base.a2aDelegated
+      : isA2aDelegatedPrimaryTool(rest.primaryTool),
   };
 }
 
