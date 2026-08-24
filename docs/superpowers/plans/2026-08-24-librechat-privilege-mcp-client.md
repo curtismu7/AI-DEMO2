@@ -38,6 +38,8 @@ LibreChat's own MCP docs state plainly: "If no client id & client secret is prov
 - Target Privilege application is `external`, not `cmuir` — `cmuir` authenticates but routes to a different backend (`pingone-mcp-server-2`) that does not serve banking tools (spec §4, corrected).
 - Manual testing only, Super Sports vertical, matching this repo's default-vertical convention (spec §6). No unit tests — this is third-party app deployment/config, not code this repo owns.
 
+**On `AGENTS.md`'s "canonical local browser origin" rule (`local.ping-devops.com:4000`, no hardcoded `localhost` OAuth redirects):** deliberately not applied here. That rule exists for the main banking demo's own PingOne app, whose passkey `rp.id` is bound to `local.ping-devops.com` via the repo's mkcert/`/etc/hosts` setup — `local.ping-devops.com:4000` is that specific hostname+port, already serving the `ai-demo-ui` container. LibreChat is a separate application on its own port (`3080`), authenticating via Dynamic Client Registration against the Privilege gateway directly — no pre-registered PingOne app, no passkey/`rp.id` binding to any host. Pointing LibreChat's `DOMAIN_CLIENT`/`DOMAIN_SERVER` at `local.ping-devops.com:4000` would collide with the running demo UI, not fix anything. Verified live (Task 5): the full OAuth flow — DCR, real PingOne login, redirect back to LibreChat — completed successfully through `localhost:3080` exactly as configured. Flagged by an automated PR reviewer as a rule violation; recorded here as a considered exception, not an oversight, for whoever reviews this next.
+
 ---
 
 ## Task 1: `librechat/docker-compose.yml` — minimal Apple-Silicon-safe stack
