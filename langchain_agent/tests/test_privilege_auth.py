@@ -53,13 +53,6 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 
-class _FakeCallbackResult:
-    """Mimics what _run_callback_server returns: the query params it caught."""
-    def __init__(self, code: str, state: str):
-        self.code = code
-        self.state = state
-
-
 @pytest.mark.asyncio
 async def test_authorize_and_get_token_exchanges_code_for_token():
     from src.mcp.privilege_auth import authorize_and_get_token
@@ -82,9 +75,13 @@ async def test_authorize_and_get_token_exchanges_code_for_token():
 
     with patch("src.mcp.privilege_auth.webbrowser.open", return_value=True), \
          patch(
-             "src.mcp.privilege_auth._run_callback_server",
+             "src.mcp.privilege_auth._create_callback_server",
+             return_value=MagicMock(),
+         ) as mock_create, \
+         patch(
+             "src.mcp.privilege_auth._wait_for_callback",
              return_value=("auth-code-xyz", "matching-state"),
-         ) as mock_server, \
+         ) as mock_wait, \
          patch("src.mcp.privilege_auth.generate_state", return_value="matching-state"), \
          patch("httpx.AsyncClient", return_value=mock_client):
         token = await authorize_and_get_token(config, timeout_seconds=5.0)
@@ -92,7 +89,8 @@ async def test_authorize_and_get_token_exchanges_code_for_token():
     assert token.token == "privilege-access-token"
     assert token.token_type == "Bearer"
     assert token.scope == "mcp.read mcp.write"
-    mock_server.assert_called_once()
+    mock_create.assert_called_once()
+    mock_wait.assert_called_once()
 
     # Token exchange must have sent the PKCE code_verifier and used
     # client_secret_basic (HTTP Basic auth), not a bearer/body secret.
@@ -109,8 +107,9 @@ async def test_authorize_and_get_token_state_mismatch_raises():
 
     config = _config()
     with patch("src.mcp.privilege_auth.webbrowser.open", return_value=True), \
+         patch("src.mcp.privilege_auth._create_callback_server", return_value=MagicMock()), \
          patch(
-             "src.mcp.privilege_auth._run_callback_server",
+             "src.mcp.privilege_auth._wait_for_callback",
              return_value=("auth-code-xyz", "WRONG-state"),
          ), \
          patch("src.mcp.privilege_auth.generate_state", return_value="matching-state"):
@@ -118,34 +117,61 @@ async def test_authorize_and_get_token_state_mismatch_raises():
             await authorize_and_get_token(config, timeout_seconds=5.0)
 
 
-def test_run_callback_server_ignores_unrelated_path_and_catches_real_callback():
+@pytest.mark.asyncio
+async def test_authorize_and_get_token_binds_callback_server_before_opening_browser():
+    """Regression test for a race Greptile flagged: opening the browser
+    before the callback listener exists let a fast redirect (existing
+    PingOne session, automated flow) hit a connection-refused port. The
+    listener must be bound synchronously first."""
+    from src.mcp.privilege_auth import authorize_and_get_token
+
+    config = _config()
+    call_order = []
+
+    def _record_create(*args, **kwargs):
+        call_order.append("create_callback_server")
+        return MagicMock()
+
+    def _record_open(*args, **kwargs):
+        call_order.append("webbrowser.open")
+        return True
+
+    mock_token_response = MagicMock()
+    mock_token_response.status_code = 200
+    mock_token_response.json.return_value = {"access_token": "tok", "expires_in": 3600}
+    mock_client = AsyncMock()
+    mock_client.post = AsyncMock(return_value=mock_token_response)
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+
+    with patch("src.mcp.privilege_auth.webbrowser.open", side_effect=_record_open), \
+         patch("src.mcp.privilege_auth._create_callback_server", side_effect=_record_create), \
+         patch(
+             "src.mcp.privilege_auth._wait_for_callback",
+             return_value=("auth-code-xyz", "matching-state"),
+         ), \
+         patch("src.mcp.privilege_auth.generate_state", return_value="matching-state"), \
+         patch("httpx.AsyncClient", return_value=mock_client):
+        await authorize_and_get_token(config, timeout_seconds=5.0)
+
+    assert call_order == ["create_callback_server", "webbrowser.open"]
+
+
+def test_callback_server_ignores_unrelated_path_and_catches_real_callback():
     """An unrelated GET (browser prefetch, stray probe) must not consume the
     one-shot handle_request() slot and mask the real OAuth redirect as a
     timeout — regression test for the callback-path guard."""
-    from src.mcp.privilege_auth import _run_callback_server
+    from src.mcp.privilege_auth import _create_callback_server, _wait_for_callback
 
     port = 8768
+    server = _create_callback_server(port, callback_path="/callback")
     result = {}
 
-    def _server():
-        result["value"] = _run_callback_server(port, timeout_seconds=5.0, callback_path="/callback")
+    def _wait():
+        result["value"] = _wait_for_callback(server, timeout_seconds=5.0)
 
-    thread = threading.Thread(target=_server, daemon=True)
+    thread = threading.Thread(target=_wait, daemon=True)
     thread.start()
-
-    # Poll for the listening socket instead of a fixed sleep — a blind delay
-    # was flaky under pytest's thread scheduling (observed timeout when other
-    # tests' event-loop/executor threads were still winding down).
-    import socket
-    deadline = time.monotonic() + 5.0
-    while True:
-        try:
-            socket.create_connection(("127.0.0.1", port), timeout=0.1).close()
-            break
-        except OSError:
-            if time.monotonic() > deadline:
-                raise
-            time.sleep(0.02)
 
     with pytest.raises(urllib.error.HTTPError) as exc:
         urllib.request.urlopen(f"http://127.0.0.1:{port}/favicon.ico", timeout=2)
@@ -156,3 +182,35 @@ def test_run_callback_server_ignores_unrelated_path_and_catches_real_callback():
     )
     thread.join(timeout=5)
     assert result["value"] == ("real-code", "real-state")
+
+
+def test_callback_server_queues_a_request_that_arrives_before_waiting_starts():
+    """Regression test for the create/wait split: _create_callback_server
+    binds and listens immediately, so a redirect whose connection lands
+    before _wait_for_callback's loop starts must still be served from the
+    OS accept backlog — not dropped as connection-refused. The client
+    request runs on its own thread since it blocks on the response, which
+    only arrives once _wait_for_callback actually processes it."""
+    from src.mcp.privilege_auth import _create_callback_server, _wait_for_callback
+
+    port = 8770
+    server = _create_callback_server(port, callback_path="/callback")
+
+    client_result = {}
+
+    def _client():
+        resp = urllib.request.urlopen(
+            f"http://127.0.0.1:{port}/callback?code=early-code&state=early-state", timeout=5
+        )
+        client_result["status"] = resp.status
+
+    client_thread = threading.Thread(target=_client, daemon=True)
+    client_thread.start()
+    time.sleep(0.2)  # let the connection land in the accept backlog, unprocessed
+
+    # Only now start waiting — the connection above should already be queued.
+    result = _wait_for_callback(server, timeout_seconds=5.0)
+    client_thread.join(timeout=5)
+
+    assert result == ("early-code", "early-state")
+    assert client_result["status"] == 200

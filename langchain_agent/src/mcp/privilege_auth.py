@@ -89,16 +89,14 @@ class _CallbackHandler(BaseHTTPRequestHandler):
         pass
 
 
-def _run_callback_server(
-    port: int, timeout_seconds: float, callback_path: str
-) -> "tuple[Optional[str], Optional[str]]":
-    """Block until a GET hits the configured callback path, or the deadline passes.
-
-    Runs synchronously — the caller is expected to invoke this via
-    loop.run_in_executor so it doesn't block the event loop. Loops over
-    handle_request() (one request per call) rather than calling it once, so a
-    stray unrelated request doesn't consume the single slot and starve the
-    real callback.
+def _create_callback_server(port: int, callback_path: str) -> HTTPServer:
+    """Bind and start listening on the loopback callback port. Fast and
+    synchronous (bind+listen, no accept) — call this BEFORE opening the
+    browser. Opening the browser first risked a race: a fast redirect
+    (an existing PingOne session, or a headless/automated flow) could reach
+    127.0.0.1:port before an executor thread got scheduled far enough to
+    construct this server, causing a connection-refused that the wait loop
+    would then time out on rather than ever see.
     """
     server = HTTPServer(("127.0.0.1", port), _CallbackHandler)
     server.callback_path = callback_path
@@ -106,7 +104,22 @@ def _run_callback_server(
     server.captured_state = None
     server.captured_error = None
     server.callback_matched = False
+    return server
 
+
+def _wait_for_callback(
+    server: HTTPServer, timeout_seconds: float
+) -> "tuple[Optional[str], Optional[str]]":
+    """Block until a GET hits the configured callback path, or the deadline passes.
+
+    Runs synchronously — the caller is expected to invoke this via
+    loop.run_in_executor so it doesn't block the event loop. Loops over
+    handle_request() (one request per call) rather than calling it once, so a
+    stray unrelated request doesn't consume the single slot and starve the
+    real callback. The server is already bound (see _create_callback_server)
+    so any request that arrived before this loop started is still queued in
+    the OS accept backlog, not dropped.
+    """
     deadline = time.monotonic() + timeout_seconds
     while not server.callback_matched:
         remaining = deadline - time.monotonic()
@@ -160,13 +173,17 @@ async def authorize_and_get_token(
     state = generate_state()
     authorize_url = build_authorize_url(config, state=state, code_challenge=code_challenge)
 
+    # Bind the callback listener BEFORE opening the browser — see
+    # _create_callback_server's docstring for the race this avoids.
+    callback_path = urlparse(config.redirect_uri).path or "/"
+    server = _create_callback_server(config.callback_port, callback_path)
+
     logger.info(f"Opening browser for Privilege authorization: {authorize_url}")
     webbrowser.open(authorize_url)
 
-    callback_path = urlparse(config.redirect_uri).path or "/"
     loop = asyncio.get_event_loop()
     code, returned_state = await loop.run_in_executor(
-        None, _run_callback_server, config.callback_port, timeout_seconds, callback_path
+        None, _wait_for_callback, server, timeout_seconds
     )
 
     if returned_state != state:
