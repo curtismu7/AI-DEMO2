@@ -173,7 +173,10 @@ export class GatewayServer {
     this.oauthBroker = new OAuthBrokerRouter(
       new ClientRegistry(),
       new BrokerTokenStore(),
-      this.config.gatewayResourceUri,
+      // MCP_GW_RESOURCE_URI is a comma-list of accepted audiences in compose
+      // (tokenValidator splits it); the PingOne `resource` param takes ONE —
+      // the first is the gateway's own primary audience (mcpgateway.ping.demo).
+      (this.config.gatewayResourceUri || '').split(',')[0].trim(),
     );
     this.upstreamMcpUrl = (
       upstreamMcpUrl ||
@@ -238,7 +241,7 @@ export class GatewayServer {
     const method = req.method || 'GET';
 
     if (url === '/.well-known/oauth-protected-resource' && method === 'GET') {
-      this.handleMetadata(res);
+      this.handleMetadata(req, res);
       return;
     }
 
@@ -435,7 +438,7 @@ export class GatewayServer {
   // clients must authenticate against. (D-02)
   // ---------------------------------------------------------------------------
 
-  private handleMetadata(res: ServerResponse): void {
+  private handleMetadata(req: IncomingMessage, res: ServerResponse): void {
     const pingOneEnvId = process.env.PINGONE_ENVIRONMENT_ID || '';
 
     const metadata: Record<string, unknown> = {
@@ -450,8 +453,10 @@ export class GatewayServer {
     // DCR), not raw PingOne — PingOne has no open dynamic client
     // registration, so a generic MCP client pointed there would fail before
     // ever reaching a token. The broker relays the real PingOne token.
+    // Must be a URL the client can GET (same reasoning as resource_metadata
+    // below) — the audience string is not one.
     if (pingOneEnvId) {
-      metadata.authorization_servers = [this.config.gatewayResourceUri];
+      metadata.authorization_servers = [selfBaseUrl(req, this.config.port)];
     }
 
     if (isEnterpriseManagedMcpAuthEnabled()) {
