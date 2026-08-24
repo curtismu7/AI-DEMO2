@@ -468,6 +468,21 @@ class ConfigManager:
             callback_port=int(get_env_value("PRIVILEGE_MCP_CALLBACK_PORT", "8765")),
         )
 
+        # Same plaintext-on-the-wire concern as HI-04 above: the token exchange
+        # sends the auth code, PKCE verifier, and client_secret to token_url.
+        # http:// there would ship credentials in clear text. Only checked when
+        # set — Privilege is opt-in and blank is the (safe) default.
+        if env_name.lower() == "production":
+            for _field_name, _url in (
+                ("PRIVILEGE_MCP_AUTHORIZE_URL", privilege_config.authorize_url),
+                ("PRIVILEGE_MCP_TOKEN_URL", privilege_config.token_url),
+            ):
+                if _url and not _url.startswith("https://"):
+                    raise ValueError(
+                        f"{_field_name} must use https:// in production "
+                        f"(got {_url.split('://')[0]}://...)"
+                    )
+
         # LangChain configuration
         langchain_config = LangChainConfig(
             model_name=get_env_value("LANGCHAIN_MODEL_NAME", "llama3.2"),

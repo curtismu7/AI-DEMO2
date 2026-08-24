@@ -2,6 +2,10 @@
 Unit tests for the Privilege OAuth PKCE flow (langchain_agent/src/mcp/privilege_auth.py).
 """
 import re
+import threading
+import time
+import urllib.error
+import urllib.request
 from urllib.parse import urlparse, parse_qs
 
 import pytest
@@ -112,3 +116,43 @@ async def test_authorize_and_get_token_state_mismatch_raises():
          patch("src.mcp.privilege_auth.generate_state", return_value="matching-state"):
         with pytest.raises(PrivilegeAuthError, match="state mismatch"):
             await authorize_and_get_token(config, timeout_seconds=5.0)
+
+
+def test_run_callback_server_ignores_unrelated_path_and_catches_real_callback():
+    """An unrelated GET (browser prefetch, stray probe) must not consume the
+    one-shot handle_request() slot and mask the real OAuth redirect as a
+    timeout — regression test for the callback-path guard."""
+    from src.mcp.privilege_auth import _run_callback_server
+
+    port = 8768
+    result = {}
+
+    def _server():
+        result["value"] = _run_callback_server(port, timeout_seconds=5.0, callback_path="/callback")
+
+    thread = threading.Thread(target=_server, daemon=True)
+    thread.start()
+
+    # Poll for the listening socket instead of a fixed sleep — a blind delay
+    # was flaky under pytest's thread scheduling (observed timeout when other
+    # tests' event-loop/executor threads were still winding down).
+    import socket
+    deadline = time.monotonic() + 5.0
+    while True:
+        try:
+            socket.create_connection(("127.0.0.1", port), timeout=0.1).close()
+            break
+        except OSError:
+            if time.monotonic() > deadline:
+                raise
+            time.sleep(0.02)
+
+    with pytest.raises(urllib.error.HTTPError) as exc:
+        urllib.request.urlopen(f"http://127.0.0.1:{port}/favicon.ico", timeout=2)
+    assert exc.value.code == 404
+
+    urllib.request.urlopen(
+        f"http://127.0.0.1:{port}/callback?code=real-code&state=real-state", timeout=2
+    )
+    thread.join(timeout=5)
+    assert result["value"] == ("real-code", "real-state")

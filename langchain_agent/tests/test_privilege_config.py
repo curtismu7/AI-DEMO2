@@ -94,3 +94,30 @@ def test_mcp_server_endpoint_plain_http_rejected_in_production():
         mgr = settings_mod.ConfigManager()
         with pytest.raises(ValueError, match="wss://, https://, or local://"):
             mgr.get_mcp_server_configs()
+
+
+def test_privilege_token_url_plain_http_rejected_in_production():
+    # PRIVILEGE_MCP_TOKEN_URL carries the auth code, PKCE verifier, and
+    # client_secret (client_secret_basic) — plain http:// would ship all
+    # three in clear text, the same HI-04 concern as MCP_SERVER_* endpoints.
+    import src.config.settings as settings_mod
+    env = _production_env(
+        PRIVILEGE_MCP_AUTHORIZE_URL="https://privilege.example/authorize",
+        PRIVILEGE_MCP_TOKEN_URL="http://privilege.example/token",
+    )
+    with patch.dict(os.environ, env, clear=True):
+        mgr = settings_mod.ConfigManager()
+        with pytest.raises(ValueError, match="PRIVILEGE_MCP_TOKEN_URL must use https://"):
+            mgr.load_config("production")
+
+
+def test_privilege_urls_blank_by_default_in_production():
+    # Privilege is opt-in — blank authorize/token URLs must not trip the
+    # scheme guard just because ENVIRONMENT=production.
+    import src.config.settings as settings_mod
+    env = _production_env()
+    with patch.dict(os.environ, env, clear=True):
+        mgr = settings_mod.ConfigManager()
+        config = mgr.load_config("production")
+    assert config.privilege.authorize_url == ""
+    assert config.privilege.token_url == ""

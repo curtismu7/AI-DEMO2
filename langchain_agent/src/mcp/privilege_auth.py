@@ -14,6 +14,7 @@ import asyncio
 import logging
 import secrets
 import string
+import time
 import webbrowser
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -54,14 +55,26 @@ def build_authorize_url(config: PrivilegeConfig, state: str, code_challenge: str
 
 
 class _CallbackHandler(BaseHTTPRequestHandler):
-    """Catches the single OAuth redirect GET and stores code/state on the server."""
+    """Catches the OAuth redirect GET and stores code/state on the server.
+
+    Ignores requests to any other path (browser prefetch, stray probes on the
+    loopback port) instead of treating them as the callback — handle_request()
+    only processes one request per call, so an unrelated hit would otherwise
+    consume that slot and mask the real callback as a timeout.
+    """
 
     def do_GET(self):  # noqa: N802 - stdlib method name
         parsed = urlparse(self.path)
+        if parsed.path != self.server.callback_path:
+            self.send_response(404)
+            self.end_headers()
+            return
+
         qs = parse_qs(parsed.query)
         self.server.captured_code = qs.get("code", [None])[0]
         self.server.captured_state = qs.get("state", [None])[0]
         self.server.captured_error = qs.get("error", [None])[0]
+        self.server.callback_matched = True
 
         self.send_response(200)
         self.send_header("Content-Type", "text/html")
@@ -76,26 +89,41 @@ class _CallbackHandler(BaseHTTPRequestHandler):
         pass
 
 
-def _run_callback_server(port: int, timeout_seconds: float) -> "tuple[Optional[str], Optional[str]]":
-    """Block until one GET hits the loopback callback, or timeout. Returns (code, state).
+def _run_callback_server(
+    port: int, timeout_seconds: float, callback_path: str
+) -> "tuple[Optional[str], Optional[str]]":
+    """Block until a GET hits the configured callback path, or the deadline passes.
 
     Runs synchronously — the caller is expected to invoke this via
-    loop.run_in_executor so it doesn't block the event loop.
+    loop.run_in_executor so it doesn't block the event loop. Loops over
+    handle_request() (one request per call) rather than calling it once, so a
+    stray unrelated request doesn't consume the single slot and starve the
+    real callback.
     """
     server = HTTPServer(("127.0.0.1", port), _CallbackHandler)
-    server.timeout = timeout_seconds
+    server.callback_path = callback_path
     server.captured_code = None
     server.captured_state = None
     server.captured_error = None
-    server.handle_request()  # blocks for at most `timeout` seconds, then returns
+    server.callback_matched = False
+
+    deadline = time.monotonic() + timeout_seconds
+    while not server.callback_matched:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        server.timeout = remaining
+        server.handle_request()
     server.server_close()
 
-    if server.captured_error:
-        raise PrivilegeAuthError(f"Authorization server returned error: {server.captured_error}")
-    if not server.captured_code:
+    if not server.callback_matched:
         raise PrivilegeAuthError(
             f"No callback received within {timeout_seconds}s — authorization timed out"
         )
+    if server.captured_error:
+        raise PrivilegeAuthError(f"Authorization server returned error: {server.captured_error}")
+    if not server.captured_code:
+        raise PrivilegeAuthError("Callback received but no authorization code present")
     return server.captured_code, server.captured_state
 
 
@@ -135,9 +163,10 @@ async def authorize_and_get_token(
     logger.info(f"Opening browser for Privilege authorization: {authorize_url}")
     webbrowser.open(authorize_url)
 
+    callback_path = urlparse(config.redirect_uri).path or "/"
     loop = asyncio.get_event_loop()
     code, returned_state = await loop.run_in_executor(
-        None, _run_callback_server, config.callback_port, timeout_seconds
+        None, _run_callback_server, config.callback_port, timeout_seconds, callback_path
     )
 
     if returned_state != state:
