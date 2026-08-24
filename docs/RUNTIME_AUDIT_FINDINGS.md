@@ -73,7 +73,7 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 41 | Runtime | `services/hitlCredit.js` | medium | FIXED |
 | 42 | Runtime | `services/http2McpBridge.js` | low | FIXED |
 | 43 | Runtime | `routes/privilegeMcpClient.js` | low | FIXED |
-| 44 | Runtime | `demo_api_ui/.../services/spinnerActivityService.js` | medium | OPEN |
+| 44 | Runtime | `demo_api_ui/.../services/spinnerActivityService.js` | medium | FIXED |
 | 45 | Runtime | `demo_api_ui/.../services/cachedStatusService.js` | low | OPEN |
 | 46 | Swallowed | `routes/mcpGatewayConfig.js` | medium | OPEN |
 | 47 | Swallowed | `routes/agentConsentRoute.js` | high | OPEN |
@@ -1311,7 +1311,7 @@ tests/routes/privilegeMcpClient.pagination.test.js --forceExit
 --maxWorkers=4` — 3/3 passed; full `privilegeMcpClient` test directory (14
 suites / 50 tests) — no regressions.
 
-### 44. Stopped-then-restarted activity poller can apply a stale response to the new session — OPEN
+### 44. Stopped-then-restarted activity poller can apply a stale response to the new session — FIXED
 
 **File:** `demo_api_ui/src/services/spinnerActivityService.js`, line 127
 
@@ -1328,10 +1328,19 @@ When the original poll's response arrives, it already passed the top-of-function
 unconditionally, corrupting the new session's event feed and polling
 cursor with data belonging to the ended session.
 
-**Fix (not yet applied):** Add a monotonically increasing generation
-counter bumped in `start()`/`stop()`; capture it at the top of `poll()` and
-re-check it after the await before applying any side effects, discarding
-the response if the generation changed.
+**Fix:** Added a `_generation` counter bumped in `start()`/`stop()`.
+`poll()` captures it before its await and re-checks it in both the success
+and catch paths after the await resumes, returning early (discarding the
+response) if the generation changed.
+
+**Evidence:** New test mocks `axios`, defers the first poll's response,
+calls `start()` → `stop()` → `start()` while it's still pending, then
+resolves the stale response with a distinguishable event and asserts it
+never lands in `getEvents()`. Proven to fail against the pre-fix file (the
+stale event landed) and pass against the fix. `npm --prefix demo_api_ui run
+test:unit -- spinnerActivityService` — 1/1 passed; full UI suite (418 files
+/ 3422 tests) — no regressions. `npm --prefix demo_api_ui run build` —
+exit 0.
 
 ### 45. Cached-status fetch can be clobbered by an older, slower overlapping request — OPEN
 
@@ -1557,6 +1566,11 @@ apply the same fix to the duplicated block in `UserDashboardPing2026.js`.
 
 ## Changelog
 
+- 2026-08-23 — #44 FIXED: `spinnerActivityService.js` gained a `_generation`
+  counter bumped in `start()`/`stop()`, checked in `poll()` after its await
+  in both success and error paths, discarding a stale response from an
+  ended/replaced session. New test proven to fail against the pre-fix file
+  and pass against the fix; full UI suite green (418 files / 3422 tests).
 - 2026-08-23 — #43 FIXED: `privilegeMcpClient.js`'s `listAllMcpPages`/
   `discoverPolicyTools` gained a `MAX_MCP_PAGES` cap and repeated-cursor
   detection. New test proven to fail against the pre-fix file — which
