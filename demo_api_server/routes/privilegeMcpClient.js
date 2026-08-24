@@ -872,6 +872,11 @@ router.get('/state', (req, res) => {
       url: process.env.PRIVILEGE_AGENT_MCPGW_URL
         || DEFAULT_AGENT_MCP_URL,
     },
+    {
+      label: 'Agentless gateway — banking (external)',
+      mode: 'agentless',
+      url: process.env.PRIVILEGE_AGENTLESS_MCPGW_URL_BANKING || '',
+    },
   ].filter((p) => p.url);
   res.json({
     config: session.config,
