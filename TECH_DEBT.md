@@ -16,6 +16,36 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-08-24 — `get_my_accounts`'s output schema doesn't match the Banking API's actual response shape
+
+**Where:** `oauth-mcp/src/tools/BankingToolRegistry.ts` (declared output
+schema for `get_my_accounts`) vs `demo_api_server`'s `/api/accounts/my`
+handler (actual response for a live user).
+
+**What's wrong:** once the external-door auth chain actually worked end to
+end (see `docs/superpowers/plans/2026-08-23-external-door-token-chain-bridge.md`,
+session 4), a real `get_my_accounts` call for `demoUser` returned genuine
+account data, but MCP Inspector rejected the tool result with `-32602
+Invalid params`: `accounts/0` and `accounts/1` are missing the required
+`accountNumber` property, and `swiftCode`/`iban`/`branchName`/`branchCode`/
+`openedDate`/`notes` fail the schema's `string` type on all four accounts —
+almost certainly `null` where the schema requires a string.
+
+**Why it wasn't fixed now:** found as a side effect of finally closing a
+much longer-running auth investigation (four separate bugs: a ms/s units bug
+in `TokenResolver.ts`, a missing PingOne resource grant, a missing scope on
+the `/authorize` request, and a missing `requestScopesForMultipleResourcesEnabled`
+toggle — all fixed and live-verified). This is a distinct, unrelated bug in
+tool response shape, first exercised the moment real data flowed through
+for the first time — nobody had gotten this far in the external-door flow
+before tonight to trip over it.
+
+**Real fix:** not yet diagnosed. Fetch the live `/api/accounts/my` response
+for `demoUser` directly (Banking API, bypassing MCP) and diff its shape
+against the declared output schema in `BankingToolRegistry.ts` before
+guessing whether the fix is loosening the schema (nullable fields) or
+populating/omitting those fields correctly on the Banking API side.
+
 ### [ ] 2026-08-23 — `pingone_mgmt_client_id`/`_client_secret`/`_token_auth_method` are missing from `configStore.js`'s `FIELD_DEFS`
 
 **Where:** `demo_api_server/services/configStore.js` — all three keys are

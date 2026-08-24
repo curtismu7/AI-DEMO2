@@ -4,6 +4,164 @@
 > Companion doc: `2026-08-23-external-door-multi-vertical-tools.md` (separate,
 > unrelated scope — don't conflate the two).
 
+## 2026-08-24 session 4 — the auth chain is FIXED and live-verified end-to-end; found a NEW, separate bug
+
+Picked up session 3's handoff (deploy the `resource=` fix, retest). The
+`resource=` fix alone did not close the loop — three more real bugs were
+found and fixed along the way, all now deployed and live-verified together.
+**`get_my_accounts` now returns real account data through the external
+door**, authenticated as a real PingOne user (`demoUser`), for the first
+time this investigation. One new, unrelated bug surfaced immediately after
+(tool response schema mismatch — see bottom of this section).
+
+### The four bugs, in the order they were found
+
+1. **Units bug (ms vs s) — `oauth-mcp/src/tools/TokenResolver.ts`,
+   `resolveFederatedSubjectToken`.** `TokenIssuer.ts` stores the stashed
+   PingOne-token's `expiresAt` as **seconds**-since-epoch (mirrors the JWT
+   `exp` claim convention: `Math.floor(Date.now()/1000) + 3600`), but the
+   resolver compared it against `Date.now()`, which is **milliseconds**.
+   Milliseconds-since-epoch is always numerically larger than
+   seconds-since-epoch, so `Date.now() >= issued.expiresAt` was `true` the
+   instant the stash was created — every time, for every session, no matter
+   which client or grant. This silently defeated PR #2295 (session 3's "Bug
+   3" fix) from the moment it shipped: the resolver always fell through to
+   forwarding the raw self-issued embedded-AS token, which the Banking API
+   correctly rejects (`No matching JWKS key found for kid=...` — that `kid`
+   is the embedded issuer's own signing key, not PingOne's). Found by adding
+   temporary `[TEMP-DIAG]` logging to the four early-return branches,
+   redeploying once, and reading which branch fired live
+   (`expired for jti=...`). Fixed the comparison
+   (`Date.now() >= issued.expiresAt * 1000`); the three test fixtures that
+   had baked in the same ms/s confusion were corrected to seconds
+   (`Math.floor(Date.now()/1000)`), matching what `TokenIssuer.ts` actually
+   produces. All 1075 unit tests passed before this was even the confirmed
+   root cause; the diagnostic logging was removed once it was.
+
+2. **PingOne client had no grant to the Banking API resource.** With bug 1
+   fixed, the *real* PingOne-signed token was finally reaching the Banking
+   API — but it carried `aud: https://api.pingone.com` (PingOne's own
+   default) instead of `enduser.ping.demo`. The PingOne application used for
+   oauth-mcp's federation hop (`Demo AI App - MCP External Client`,
+   `86f1f88a-cbb2-413b-9798-9324428e77d6`) had exactly one resource grant —
+   to the generic `openid` resource — and none to the `Demo API` resource
+   (audience `enduser.ping.demo`, id `4a536256-36ad-4887-8e57-bcaa4c4f499e`).
+   `resource=` in the `/authorize` redirect has no effect if the client
+   isn't authorized for that resource at all. Fixed live via
+   `updateApplication` → `createGrant` (scope: `read`).
+
+3. **PingOne also requires a scope from the target resource in the request,
+   not just `resource=`.** Even with the grant in place, the same
+   `aud: https://api.pingone.com` mismatch persisted. PingOne's resource
+   indicator (RFC 8707) support only attaches a resource's audience to the
+   token when the `scope=` list includes a scope that resource actually
+   owns — `handleAuthorize` was requesting `scope=openid profile email`,
+   none of which belong to the Banking API resource, so PingOne had nothing
+   to bind `resource=enduser.ping.demo` to and fell back to its default.
+   Fixed in `OAuthRouter.ts`'s `handleAuthorize`: when
+   `BANKING_API_RESOURCE_URI` is configured, the outbound scope becomes
+   `openid profile email read` (`read` is the Banking API resource's
+   broadest scope — Step 9 narrows further per-tool downstream, so this only
+   needs to get PingOne to pick the right audience, not to authorize
+   anything by itself).
+
+4. **The PingOne app also needed `requestScopesForMultipleResourcesEnabled`
+   enabled** to allow combining an OIDC scope (`openid`, owned by the
+   built-in OIDC resource) with a Banking-API-owned scope (`read`) in one
+   `/authorize` request at all. Toggled live via `updateApplication`.
+
+### Live verification
+
+MCP Inspector, fresh incognito-equivalent state each time (see "the
+reconnect trap" below), real `demouser` PingOne login, `get_my_accounts`:
+went from `invalid_token` (wrong signer) → `invalid_token` (wrong audience,
+after fix 1) → `invalid_token` (still wrong audience, after fixes 1+2) →
+**real account data, schema-validation error only** (after fixes 1+2+3+4).
+The schema error is a new, unrelated bug — see below.
+
+### The reconnect trap — read this before redeploying mid-test again
+
+Every one of the four fixes above needed its own redeploy, and **every
+redeploy silently invalidated the previous test's login** without any
+visible symptom pointing at "stale client state":
+
+- `TokenStore` (the in-memory map holding the stashed real PingOne token
+  against a session's `jti`) is **in-memory only** — a `kubectl rollout
+  restart` wipes it, but the *client's* self-issued bearer token stays
+  valid (same signing key persists across restarts) for its full 1-hour
+  life. The client has no reason to re-authenticate, so it just keeps
+  presenting the same now-orphaned token forever.
+- MCP Inspector's OAuth state lives in **two places that don't clear
+  together**: the browser's own `localStorage` (per-origin, survives new
+  tabs and even incognito if the same long-running Node backend process is
+  still serving `127.0.0.1:6274`) and the Node backend process itself
+  (`~/.mcp-inspector/storage/`, holds its own in-memory + on-disk cache
+  independent of the browser). A new tab or incognito window only clears
+  the browser half — the Node process, if still running from an earlier
+  point in the session, keeps serving the same cached token regardless.
+  **The only reliable way to force a genuinely fresh login**: kill the
+  Node process (`pgrep -f mcp-inspector`, `kill <pid>`), delete
+  `~/.mcp-inspector/storage/oauth.json` and
+  `~/.mcp-inspector/storage/inspector-session-*.json`, and restart
+  (`nohup npx -y @modelcontextprotocol/inspector &`) — it prints a fresh
+  `MCP_INSPECTOR_API_TOKEN` URL each time.
+- Confirmed live twice: a token minted at one point kept getting replayed
+  across two subsequent `mcp-server` redeploys and multiple "fresh" browser
+  reconnects, identified by its `jti` and `iat` staying byte-for-byte
+  identical across attempts that should have been independent.
+
+If you redeploy `mcp-server` again and don't see the fix take effect,
+suspect this before suspecting the code — decode the bearer token's `jti`
+and compare it against the previous attempt's before concluding the fix
+didn't work.
+
+### NEW bug found, not yet investigated: `get_my_accounts` response schema mismatch
+
+Once the auth chain actually worked, `get_my_accounts` returned real
+account data but MCP Inspector rejected the tool result with `-32602
+Invalid params`:
+
+```
+data/accounts/0 must have required property 'accountNumber'
+data/accounts/0/swiftCode must be string
+data/accounts/0/iban must be string
+data/accounts/0/branchName must be string
+data/accounts/0/branchCode must be string
+data/accounts/0/openedDate must be string
+data/accounts/0/notes must be string
+... (repeated per account, 4 accounts total; accounts 2-3 already had accountNumber)
+```
+
+This is a response-shape mismatch between what the Banking API actually
+returns for `demoUser`'s live accounts and what `get_my_accounts`'s declared
+MCP tool output schema requires — likely several optional fields (`swiftCode`,
+`iban`, `branchName`, `branchCode`, `openedDate`, `notes`) coming back `null`
+where the schema requires `string`, plus `accountNumber` missing entirely on
+at least the first two accounts. Not yet traced to a root cause — start by
+comparing the live Banking API response shape (`demo_api_server`'s
+`/api/accounts/my` handler) against the output schema declared in
+`oauth-mcp/src/tools/BankingToolRegistry.ts` for `get_my_accounts`.
+
+### Exact next steps (in order)
+
+1. Trace the schema mismatch: fetch the live `/api/accounts/my` response for
+   `demoUser` (Banking API, not through MCP) and diff its shape against
+   `get_my_accounts`'s declared output schema in `BankingToolRegistry.ts`.
+2. Decide whether the fix is loosening the schema (nullable fields) or
+   fixing the Banking API's response to omit/populate those fields
+   correctly — don't guess without seeing both shapes side by side.
+3. Once `get_my_accounts` returns cleanly, confirm the original investigation
+   goal: does the call show up in Personal Agent Studio's token-chain movie
+   reel (`TokenChainFilmstrip`, ~15s poll) for a browser logged in as the
+   same PingOne user? That closes the loop this whole doc was written for.
+4. Merge PR #2296, plus whatever new commits this session added (units fix,
+   PingOne resource=/scope fix — note the PingOne app grant and
+   `requestScopesForMultipleResourcesEnabled` toggle are **live tenant
+   config changes, not code** — nothing to merge for those, but worth a line
+   in the PR description so a fresh environment/tenant doesn't silently miss
+   them).
+5. `./run-pingaws.sh undeploy` when the SE cluster session is genuinely done.
+
 ## 2026-08-24 session 3 — switched to MCP Inspector, found + fixed 2 more bugs, ONE fix not yet deployed
 
 Picked up the previous session's own recommendation ("retest via MCP
