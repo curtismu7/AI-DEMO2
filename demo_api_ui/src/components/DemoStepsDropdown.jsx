@@ -61,7 +61,13 @@ export default function DemoStepsDropdown({
   const [explainUc, setExplainUc] = useState(null);
   const [query, setQuery] = useState('');
 
+  // finding #77: a vertical switch while the panel is open re-issues this
+  // fetch before the previous vertical's request resolves — a monotonic
+  // token discards a response that is no longer for the current vertical.
+  const loadStepsReqIdRef = useRef(0);
+
   const loadSteps = useCallback(() => {
+    const reqId = ++loadStepsReqIdRef.current;
     setLoading(true);
     setError(null);
     const isAdmin = vertical === 'pingone-admin';
@@ -70,6 +76,7 @@ export default function DemoStepsDropdown({
     apiClient
       .get('/api/use-cases', { params: { vertical }, _silent: true })
       .then(({ data }) => {
+        if (reqId !== loadStepsReqIdRef.current) return;
         const catalog = data.useCases || [];
         const mapIds = (ids, offset) =>
           ids
@@ -82,6 +89,7 @@ export default function DemoStepsDropdown({
         setAdvancedSteps(mapIds(advancedIds, primaryIds.length));
       })
       .catch((err) => {
+        if (reqId !== loadStepsReqIdRef.current) return;
         // The backend 400s with unknown_vertical for verticals that have no
         // use-case catalog (e.g. the PingOne Admin console) — that is an
         // expected empty state for this dropdown, not a failure to report.
@@ -91,7 +99,9 @@ export default function DemoStepsDropdown({
         setPrimarySteps([]);
         setAdvancedSteps([]);
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (reqId === loadStepsReqIdRef.current) setLoading(false);
+      });
   }, [vertical]);
 
   useEffect(() => {
