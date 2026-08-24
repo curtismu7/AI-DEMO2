@@ -1582,17 +1582,6 @@ app.get('/.well-known/openid-configuration', (_req, res) => {
   res.json(enterpriseIdpRoutes.buildDiscoveryDocument());
 });
 
-// Seed (or re-read, if env-overridden) the demo client external EMA clients
-// register with — logged once so an operator can paste it into MCP
-// Inspector's Client Settings dialog without hand-editing storage.
-{
-  const enterpriseIdpClientRegistry = require('./services/enterpriseIdpClientRegistry');
-  const inspectorClient = enterpriseIdpClientRegistry.getSeededInspectorClient();
-  console.log(
-    `[enterpriseIdp] Seeded EMA client for MCP Inspector — client_id=${inspectorClient.client_id} ` +
-    `client_secret=${inspectorClient.client_secret} redirect_uri=${inspectorClient.redirect_uris[0]}`,
-  );
-}
 const spiffeDemoRoutes = require('./routes/spiffeDemo');
 app.use('/api/demo/spiffe', spiffeDemoRoutes);
 const dpopDemoRoutes = require('./routes/dpopDemo');
@@ -2535,6 +2524,26 @@ process.on('uncaughtException', (err) => {
  * logged as warnings and never block requests (WR-22/WR-25).
  */
 async function runBackgroundStartupTasks() {
+    // ── EMA seeded Inspector client ───────────────────────────────────────────
+    // getSeededInspectorClient() reads client_id/client_secret via
+    // configStore.getEffective(), which only sees vault-loaded values once
+    // loadVaultIntoConfigStore() has run — this function is called from
+    // inside app.listen's callback specifically so that's already true (see
+    // the WR-22/WR-25 note below). Calling this at module scope instead (as
+    // it originally was) memoised a random fallback before the vault ever
+    // loaded, permanently shadowing the pinned client_secret for the life of
+    // the process.
+    try {
+        const enterpriseIdpClientRegistry = require('./services/enterpriseIdpClientRegistry');
+        const inspectorClient = enterpriseIdpClientRegistry.getSeededInspectorClient();
+        console.log(
+            `[enterpriseIdp] Seeded EMA client for MCP Inspector — client_id=${inspectorClient.client_id} ` +
+            `client_secret=${inspectorClient.client_secret} redirect_uri=${inspectorClient.redirect_uris[0]}`,
+        );
+    } catch (err) {
+        console.warn('[enterpriseIdp] Inspector client seed failed (non-fatal):', err.message);
+    }
+
     // ── LMDB OAuth endpoint sync ──────────────────────────────────────────────
     // Sync OAuth endpoints from .env into LMDB. If LMDB has stale cached values
     // (e.g., old authz-server:9001 from a prior run), overwrites them with correct
