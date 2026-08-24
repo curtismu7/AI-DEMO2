@@ -173,4 +173,70 @@ describe('Privilege MCP dual-era Streamable HTTP client', () => {
     expect(subscription.options.headers.Accept).toBe('text/event-stream');
     expect(subscription.options.headers['Mcp-Method']).toBe('subscriptions/listen');
   });
+
+  test('opens a Streamable HTTP event stream after the legacy handshake, and falls back to POST-only if a later call hangs while it is open', async () => {
+    // A short real wait instead of faking timers — faking global timers
+    // breaks supertest's own socket layer, since the request under test goes
+    // through a real HTTP round trip.
+    const originalTimeoutMs = process.env.PRIVILEGE_EVENT_STREAM_GUARD_TIMEOUT_MS;
+    process.env.PRIVILEGE_EVENT_STREAM_GUARD_TIMEOUT_MS = '50';
+    try {
+      let toolsListCalls = 0;
+      const eventStreamRequests = [];
+      global.fetch = jest.fn(async (_url, options) => {
+        if (options.method === 'GET') {
+          eventStreamRequests.push(options);
+          return {
+            ok: true,
+            status: 200,
+            headers: { get: () => 'text/event-stream' },
+            // Stream that never closes — matches a real held-open SSE connection.
+            body: { getReader: () => ({ read: () => new Promise(() => {}) }) },
+          };
+        }
+        const rpc = JSON.parse(options.body);
+        if (rpc.method === 'server/discover') return response({ status: 400, body: 'legacy request rejected' });
+        if (rpc.method === 'initialize') {
+          return rpcResponse(rpc, {
+            protocolVersion: '2024-11-05', capabilities: { tools: {} },
+            serverInfo: { name: 'legacy', version: '1' },
+          }, { headers: { 'MCP-Session-Id': 'legacy-session' } });
+        }
+        if (rpc.method === 'notifications/initialized') return response({ status: 202 });
+        if (rpc.method === 'tools/list') {
+          toolsListCalls += 1;
+          if (toolsListCalls === 1) return rpcResponse(rpc, { tools: [] });
+          if (toolsListCalls === 2) return new Promise(() => {}); // hangs — never resolves
+          return rpcResponse(rpc, { tools: [{ name: 'recovered' }] }); // fallback retry succeeds
+        }
+        return rpcResponse(rpc, { tools: [] });
+      });
+
+      const app = buildApp('event-stream-fallback-test');
+      await request(app).post('/api/privilege-mcp/config').send({
+        gatewayMode: 'agentless', mcpUrl: MCP_URL, clientId: 'client-id',
+      });
+
+      // First call completes the handshake and fires the fire-and-forget
+      // event-stream GET; awaiting the full HTTP round trip gives it time
+      // to settle before the next assertion.
+      await request(app).post('/api/privilege-mcp/tools/list')
+        .set('Authorization', 'Bearer test-token').send({}).expect(200);
+      expect(eventStreamRequests).toHaveLength(1);
+      expect(eventStreamRequests[0].headers.Accept).toBe('text/event-stream');
+      expect(eventStreamRequests[0].headers['MCP-Session-Id']).toBe('legacy-session');
+
+      // Second call hangs while the stream is open — the 50ms guard timeout
+      // (set above) should fire and the request should still complete via a
+      // retried, POST-only fallback rather than hanging forever.
+      const result = await request(app).post('/api/privilege-mcp/tools/list')
+        .set('Authorization', 'Bearer test-token').send({});
+      expect(result.status).toBe(200);
+      expect(result.body.tools.map((t) => t.name)).toEqual(['recovered']);
+      expect(toolsListCalls).toBe(3);
+    } finally {
+      if (originalTimeoutMs === undefined) delete process.env.PRIVILEGE_EVENT_STREAM_GUARD_TIMEOUT_MS;
+      else process.env.PRIVILEGE_EVENT_STREAM_GUARD_TIMEOUT_MS = originalTimeoutMs;
+    }
+  });
 });

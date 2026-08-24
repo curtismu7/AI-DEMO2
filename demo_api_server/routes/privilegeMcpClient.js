@@ -17,6 +17,12 @@ const MCP_CLIENT_CAPABILITIES = {
   elicitation: { form: {}, url: {} },
   extensions: { 'io.modelcontextprotocol/tasks': {} },
 };
+// How long a POST may hang while the eventStream GET is open before fetchMcp
+// assumes this gateway can't handle the two concurrently and falls back.
+// See openMcpEventStream's doc comment. Overridable so tests can use a short
+// real wait instead of faking timers (which fights supertest's own sockets).
+const EVENT_STREAM_GUARD_TIMEOUT_MS =
+  Number(process.env.PRIVILEGE_EVENT_STREAM_GUARD_TIMEOUT_MS) || 8000;
 
 // ---------------------------------------------------------------------------
 // In-memory per-session state (keyed by express session id)
@@ -61,6 +67,15 @@ function getClientSession(req) {
         nextRequestId: 1, capabilities: {}, serverInfo: null, instructions: '',
       },
       subscription: { controller: null, active: false },
+      // Spec-standard Streamable HTTP persistent GET stream (distinct from the
+      // subscriptions/listen POST-stream above, which is a different, existing
+      // feature). Opened best-effort after initialize; some gateway proxies
+      // hang a concurrent POST while this is open (see
+      // privilege/AGENTLESS-CONFIGURATION.md's "2026-08-24" section) —
+      // fetchMcp's timeout race auto-disables it per session on first hang,
+      // permanently falling back to the always-safe POST-only pattern this
+      // file used exclusively before tonight.
+      eventStream: { controller: null, active: false, disabled: false },
       pendingAuth: null,
     });
   }
@@ -413,12 +428,40 @@ async function fetchMcp(session, pathname, body, withAuth = true, allowRefreshRe
 
   emitEvent(session, 'relay', { direction: 'client->mcp', method: 'POST', url: targetUrl.toString(), body: requestBody });
 
-  const response = await fetch(targetUrl, {
+  // Some gateway proxies hang a POST that arrives while this session's
+  // eventStream GET is held open (see AGENTLESS-CONFIGURATION.md's
+  // "2026-08-24" section). Race a timeout only when that stream is actually
+  // active — every other call is completely unaffected by this block.
+  const streamGuardActive = session.eventStream.active;
+  const abortController = streamGuardActive ? new AbortController() : null;
+  const fetchPromise = fetch(targetUrl, {
     method: 'POST',
     headers,
     body: JSON.stringify(requestBody),
+    ...(abortController ? { signal: abortController.signal } : {}),
     ...(procyon ? { dispatcher: getProcyonDispatcher() } : {}),
   });
+  let response;
+  if (streamGuardActive) {
+    let timeoutId;
+    const timeout = new Promise((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error('EVENT_STREAM_GUARD_TIMEOUT')), EVENT_STREAM_GUARD_TIMEOUT_MS);
+    });
+    try {
+      response = await Promise.race([fetchPromise, timeout]);
+      clearTimeout(timeoutId);
+    } catch (err) {
+      clearTimeout(timeoutId);
+      if (err.message !== 'EVENT_STREAM_GUARD_TIMEOUT') throw err;
+      abortController.abort();
+      disableMcpEventStream(session);
+      // Retry the identical call now that the stream is closed — this is
+      // the always-safe POST-only pattern every call used before tonight.
+      return fetchMcp(session, pathname, body, withAuth, allowRefreshRetry);
+    }
+  } else {
+    response = await fetchPromise;
+  }
   const text = await response.text();
   const parsed = decodeMcpBody(text);
 
@@ -508,11 +551,16 @@ async function ensureMcpSessionInitialized(session) {
 
   session.mcpSession.initialized = true;
   emitEvent(session, 'mcp', { phase: 'initialized', protocolVersion: serverProtocol });
+  // Fire-and-forget — never blocks the calls that follow. See
+  // openMcpEventStream's own doc comment for why this exists.
+  void openMcpEventStream(session);
 }
 
 function resetMcpState(session) {
   session.subscription.controller?.abort();
   session.subscription = { controller: null, active: false };
+  session.eventStream.controller?.abort();
+  session.eventStream = { controller: null, active: false, disabled: false };
   session.tools = [];
   session.toolPolicy = { permitted: [], filtered: [], total: 0 };
   session.mcpSession.era = null;
@@ -523,6 +571,74 @@ function resetMcpState(session) {
   session.mcpSession.capabilities = {};
   session.mcpSession.serverInfo = null;
   session.mcpSession.instructions = '';
+}
+
+/**
+ * Best-effort: open the persistent GET /mcp SSE stream Streamable HTTP
+ * allows a client to hold alongside POSTs — the shape real MCP clients like
+ * MCP Inspector use, which our own POST-only fetchMcp never exercised before
+ * tonight. Failure here is never fatal: a rejected/errored open just leaves
+ * eventStream inactive and every call proceeds exactly as before.
+ */
+async function openMcpEventStream(session) {
+  if (session.eventStream.disabled || session.eventStream.active) return;
+  if (!session.mcpSession.sessionId) return;
+  const targetUrl = new URL(session.config.mcpUrl);
+  const headers = {
+    Accept: 'text/event-stream',
+    'MCP-Session-Id': session.mcpSession.sessionId,
+    'MCP-Protocol-Version': session.mcpSession.protocolVersion || LEGACY_MCP_PROTOCOL_VERSION,
+    Origin: targetUrl.origin,
+  };
+  const procyon = isProcyonAgentUrl(session.config.mcpUrl);
+  if (!procyon && session.oauth.accessToken) headers.Authorization = `Bearer ${session.oauth.accessToken}`;
+  const controller = new AbortController();
+  let response;
+  try {
+    response = await fetch(targetUrl, {
+      method: 'GET', headers, signal: controller.signal,
+      ...(procyon ? { dispatcher: getProcyonDispatcher() } : {}),
+    });
+  } catch (err) {
+    emitEvent(session, 'mcp', { phase: 'event_stream_open_failed', message: err.message });
+    return;
+  }
+  if (!response.ok || !response.body?.getReader) {
+    controller.abort();
+    return;
+  }
+  session.eventStream = { controller, active: true, disabled: false };
+  emitEvent(session, 'mcp', { phase: 'event_stream_opened' });
+  const reader = response.body.getReader();
+  void (async () => {
+    try {
+      while (true) {
+        const { done } = await reader.read();
+        if (done) break;
+      }
+    } catch {
+      // Aborted by disableMcpEventStream, or the connection dropped — either
+      // way this is not fatal, fetchMcp already fell back to POST-only.
+    } finally {
+      if (session.eventStream.controller === controller) {
+        session.eventStream = { controller: null, active: false, disabled: session.eventStream.disabled };
+      }
+      emitEvent(session, 'mcp', { phase: 'event_stream_closed' });
+    }
+  })();
+}
+
+/**
+ * Permanently (for this session) stop opening the GET event stream, after
+ * fetchMcp's timeout race catches a hung concurrent POST — see
+ * privilege/AGENTLESS-CONFIGURATION.md's "2026-08-24" section for why some
+ * gateway proxies hit this. Falls back to the POST-only pattern that worked
+ * for every Privilege call before tonight.
+ */
+function disableMcpEventStream(session) {
+  session.eventStream.controller?.abort();
+  session.eventStream = { controller: null, active: false, disabled: true };
+  emitEvent(session, 'mcp', { phase: 'event_stream_disabled', reason: 'concurrent_request_timeout' });
 }
 
 async function startModernSubscription(session, types) {
