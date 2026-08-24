@@ -1,0 +1,34 @@
+# librechat/librechat.yaml
+# For schema reference: https://www.librechat.ai/docs/configuration/librechat_yaml
+version: 1.3.14
+cache: true
+
+endpoints:
+  custom:
+    - name: 'Local LLM Proxy'
+      # demo_llm_proxy/ router.js — no auth check on any route, so any
+      # non-empty apiKey value works (LibreChat requires the field to be set).
+      apiKey: 'none'
+      # host.docker.internal — see Task 1's extra_hosts entry and this
+      # repo's own docker-compose.yml:1828 for the identical pattern.
+      baseURL: 'http://host.docker.internal:8090/v1'
+      models:
+        # The proxy classifies every request by prompt content (or by an
+        # exact model-name match it recognizes) to pick a tier — it does
+        # not require this name to match anything real, so a single
+        # placeholder is sufficient. See demo_llm_proxy/router.js's
+        # classFromModel()/classifyText().
+        default:
+          - 'demo-llm-proxy'
+        fetch: false
+      titleConvo: true
+      titleModel: 'demo-llm-proxy'
+
+mcpServers:
+  privilege:
+    type: streamable-http
+    url: 'https://cmuir-agentless-mcpgw.ping-devops.com/external/mcp'
+    # No oauth: block — see this plan's "Judgment call" section above.
+    # LibreChat's native RFC 9728 discovery + Dynamic Client Registration
+    # against the gateway's /external/authorize is tried first.
+    timeout: 60000
