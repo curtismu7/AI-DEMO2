@@ -1,59 +1,78 @@
-# Handoff — Runtime Audit Sweep (round 3 — all findings fixed, PR pending)
+# Handoff — Runtime Audit Sweep (round 4 findings logged, none fixed yet)
 
 Continuation notes for picking this up in a fresh agent session. Delete this
-file once round 3 is merged and there's nothing left to hand off.
+file once the current round is merged and there's nothing left to hand off.
 
-**2026-08-23 update: #46–56 are now all FIXED and committed** (3 commits:
-#46-48, #49-52, #53-56). Round 3 (#40-56) is fully complete. What's left is
-just the push + PR + merge procedure below — no more fixes to write.
+**2026-08-23 update: Round 3 (#40-56) is fully FIXED, merged (PR #2297,
+squash commit `34eb4fc8`), and deployed live.** Round 4 audit just ran (same
+6-finder-agent + adversarial-verify Workflow, told about all 52 files rounds
+1-3 touched) and found **10 new findings, #57-66, all still OPEN** — logged
+in `docs/RUNTIME_AUDIT_FINDINGS.md` and committed
+(`ec076fbdb`, pushed to `worktree-fix-hidden-errors-sweep`). **Nothing in
+round 4 is fixed yet** — that's the next work, following the exact
+per-finding rhythm below (adjust the finding-number range to #57-66 and the
+file paths to the ones listed in the "What's left" section, which now
+describes round 4 instead of round 3).
+
+Round-4 finding categories: Runtime (#57-61 — worker-token cache race,
+lighthouse audit-guard race, drag-listener leak, 2 stale-response races),
+Swallowed (#62-64 — ID-JAG route with no error handling, consent-decline
+fail-open, logout catch swallowing failure), Perf (#65-66 — configStore
+rebuilding a 230-entry map per call, use-case launcher unmemoized on every
+keystroke). Full detail for each is in `docs/RUNTIME_AUDIT_FINDINGS.md`'s
+"## Round 4 findings" section — read each one's section before starting.
 
 ## What this is
 
 A recurring "audit → fix → merge → deploy → audit again" loop over
 `demo_api_server` + `demo_api_ui`, tracked in **`docs/RUNTIME_AUDIT_FINDINGS.md`**
 (the single source of truth — read it before doing anything else). Each
-round runs the same 6-finder-agent + per-category adversarial-verify
+round runs the same 6-finder-agent + adversarial-verify-per-candidate
 Workflow (see the script pattern at the bottom of this doc if you need to
-run round 4), then fixes every finding one at a time with fail-before/pass-
+run round 5), then fixes every finding one at a time with fail-before/pass-
 after test proof, docs updates, and a commit per finding.
 
 - **Round 1** (#1–27): fixed, merged via PR #2278.
 - **Round 2** (#28–39): fixed, merged via PR #2294.
-- **Round 3** (#40–56): **#40–45 FIXED and committed. #46–56 still OPEN — this is the current work.**
+- **Round 3** (#40–56): fixed, merged via PR #2297, deployed live.
+- **Round 4** (#57–66): **all still OPEN — this is the current work.**
 
 ## Where things stand right now
 
-- Branch: `worktree-fix-hidden-errors-sweep`, worktree at this path.
-- All work through #45 is committed **and pushed** to `origin/worktree-fix-hidden-errors-sweep`.
-- **No PR open yet for round 3.** Don't open one until all of #46–56 are fixed (matches the round-1/round-2 rhythm — one PR per fully-fixed round), unless the user asks to push a partial batch.
-- `docs/RUNTIME_AUDIT_FINDINGS.md` has full detail (issue, trigger, fix, evidence) for every finding #1–56. #46–56 currently read "OPEN" with a "Fix (not yet applied)" note each — that note already states the intended fix.
+- Branch: `worktree-fix-hidden-errors-sweep`, worktree at this path (same branch reused across rounds — squash-merging round 3 did not delete it).
+- Round 4's findings are logged and pushed (commit `ec076fbdb`) to `origin/worktree-fix-hidden-errors-sweep`. Nothing in round 4 is fixed yet.
+- **No PR open yet for round 4.** Don't open one until all of #57–66 are fixed (matches the round-1/2/3 rhythm — one PR per fully-fixed round), unless the user asks to push a partial batch.
+- `docs/RUNTIME_AUDIT_FINDINGS.md` has full detail (issue, trigger, fix, evidence) for every finding #1–66. #57–66 currently read "OPEN" with a "Fix (not yet applied)" note each — that note already states the intended fix.
 
-## What's left — findings #46–56
+## What's left — findings #57–66
 
 Read each one's full section in `docs/RUNTIME_AUDIT_FINDINGS.md` before starting; the summaries below are just a map.
 
-**Swallowed errors (3, demo_api_server):**
-- **#46** `routes/mcpGatewayConfig.js:483` — persist failure still reports `ok:true`.
-- **#47** `routes/agentConsentRoute.js:22` — no try/catch at all; a Redis failure hangs the request forever (unhandledRejection).
-- **#48** `services/groupPolicy.js:49` — manifest-resolution error collapses to the same `null` as "no groups configured," fails open for non-banking verticals.
+**Runtime (2, demo_api_server):**
+- **#57** `services/pingOneAuthorizeService.js:252` — worker-token single-flight cache has no credKey check, so a credential rotation mid-flight can hand a caller a token minted with stale creds.
+- **#58** `services/lighthouseService.js:82` — the "single audit in progress" guard clears on the outer timeout race settling, not on the real Chrome process actually finishing teardown; a retry can launch a second Chrome instance concurrently.
 
-**Swallowed errors (4, demo_api_ui):**
-- **#49** `components/Users.js:115` — `updateAgentRestrictions` catch is bare `console.error`, no `notifyError`.
-- **#50** `components/ActivityLogs.js:124` — `exportLogs`/`clearOldLogs` catches are bare `console.error`.
-- **#51** `components/ThemeZonePanel.js:33` — `persist()` never checks `response.ok`, reports success on a rejected save.
-- **#52** `pages/ResourceServerJourneyPage.jsx:258` — `on401` swallows every error, not just 401s.
+**Runtime (3, demo_api_ui):**
+- **#59** `pages/PrivilegeMcpClientPage.jsx:172` — sidebar/terminal drag listeners leak on `document` if `mouseup` fires outside the page (mouse released over taskbar/another window/iframe).
+- **#60** `components/AgentGatewayLogPanel.jsx:44` — overlapping log fetches (filter change + 4s autoRefresh) have no request sequencing; a stale response can overwrite a fresh one.
+- **#61** `components/NewRelicDashboard.jsx:70` — same stale-response race on rapid time-window changes (24h then 1h).
 
-**Performance (3, demo_api_server):**
-- **#53** `middleware/activityLogger.js:105` — computes a response-body capture, then discards it (`logEntry.responseBody` hardcoded `null`). Likely just delete the dead block.
-- **#54** `services/tokenValidationService.js:146` — re-derives PEM from JWK on every call despite a 10-min JWKS cache.
-- **#55** `services/agentScopes.js:71` — N `fs.statSync` calls (one per tool) instead of one manifest load.
+**Swallowed errors (1, demo_api_server):**
+- **#62** `routes/enterpriseIdp.js:40` — the ID-JAG token-mint route has zero try/catch; an internal throw (e.g. malformed `ENTERPRISE_IDP_SIGNING_KEY_PEM`) hangs the request or hard-crashes the process (no `express-async-errors` wired in despite being a listed dependency).
+
+**Swallowed errors (2, demo_api_ui):**
+- **#63** `services/agentAccessConsent.js:5` — the high-value-transaction consent-decline gate fails open (`return false`, same as "never declined") when `localStorage.getItem` throws.
+- **#64** `services/logout.js:21` — the logout button's fetch-failure catch navigates to `/` exactly like success, so the BFF session cookie can be left uncleared with no indication to the user.
+
+**Performance (1, demo_api_server):**
+- **#65** `services/configStore.js:1074` — `getEffective()` rebuilds a ~230-entry, ~360-line alias-map object literal from scratch on every call (~204 call sites project-wide); hoist it to module scope.
 
 **Performance (1, demo_api_ui):**
-- **#56** `components/UserDashboard.js:2517` — recent-transactions sort/group re-runs on every render, unmemoized. Same pattern duplicated in `UserDashboardPing2026.js:~2662` — fix both.
+- **#66** `pages/UseCaseLauncherPage.js:925` — ~8 unmemoized filter/map derivations (including an O(k·n) lookup) over the full use-case catalog re-run on every search keystroke; the file doesn't import `useMemo` at all.
 
-None of #46–56 looked architecturally tricky like #41 (hitlCredit race) was — should be straightforward fixes following the exact same rhythm as everything already done in #1–45.
+None of #57–66 look architecturally tricky like #41 (hitlCredit race) was — should be straightforward fixes following the exact same rhythm as everything already done in #1–56.
 
-## The per-finding rhythm (repeat for each of #46–56)
+## The per-finding rhythm (repeat for each of #57–66)
 
 1. Read the finding's full section in `docs/RUNTIME_AUDIT_FINDINGS.md`.
 2. Read the actual file/lines named — the doc's "Fix (not yet applied)" note is a starting hypothesis, verify against current code (may have shifted slightly).
@@ -68,7 +87,7 @@ None of #46–56 looked architecturally tricky like #41 (hitlCredit race) was �
 8. `git add` the touched files + docs (never `git add -A` — `demo_api_server/data/*` gets jest-regenerated on every server test run; `git checkout -- demo_api_server/data/` and `git clean -f demo_api_server/data/step-verification/` before any merge/diff review if it shows up dirty).
 9. Commit with a detailed message (root cause, fix, evidence with exact commands+results) ending in `Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>`.
 
-After #56 is done: push, open a PR titled something like "fix: round-3 runtime audit — N more bugs found", then follow the merge procedure below.
+After #66 is done: push, open a PR titled something like "fix: round-4 runtime audit — N more bugs found", then follow the merge procedure below.
 
 ## Test commands (hazards baked in — read this before running anything)
 
@@ -124,9 +143,11 @@ Every PR in this sweep so far has hit the same two things — expect them again:
    bash scripts/deploy-live.sh
    ```
 
-## Re-running the audit again (round 4, if asked)
+## Re-running the audit again (round 5, if asked)
 
-The Workflow script pattern is identical each round — 6 finder agents (Runtime/Swallowed-errors/Perf × demo_api_server/demo_api_ui), each followed by one adversarial verifier per finder that defaults every candidate to REJECTED unless it can open the file and confirm the exact line/behavior. The `ALREADY_AUDITED_FILES` list passed into each finder's prompt needs updating to include every file touched by rounds 1–3 (currently ~50 files) so finders don't just re-report already-fixed patterns. The exact script used for rounds 2 and 3 is in this conversation's history — copy it, update the file list and finding-number range in the prompts, rename to `runtime-audit-round-4`.
+The Workflow script pattern is identical each round — 6 finder agents (Runtime/Swallowed-errors/Perf × demo_api_server/demo_api_ui), a `pipeline()` over those 6, each finder's candidate findings fanned out to one adversarial verifier per candidate (not per finder) that defaults to REJECTED unless it can open the file and confirm the exact line/behavior. The round-4 script (used for this exact pattern, findings #57–66) is saved at:
+`/Users/cmuir/.claude/projects/-Users-cmuir-Development-AI-DEMO2--claude-worktrees-fix-hidden-errors-sweep/7666cbb7-249b-41b6-bcfb-d9b3cfbf0950/workflows/scripts/runtime-audit-round-4-wf_56cfc233-d88.js`
+— copy it, update the `ALREADY_AUDITED_FILES` list (add every file touched by round 4 — currently 52 + the 10 files round 4 will touch once fixed, so ~62), update the finding-number range in the prompts (start at #67), rename to `runtime-audit-round-5`.
 
 ## Key memory entries relevant to this work
 
