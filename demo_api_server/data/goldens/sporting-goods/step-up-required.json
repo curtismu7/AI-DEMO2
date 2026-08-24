@@ -4,9 +4,9 @@
   "ucId": "UC7",
   "trigger": "extend my rental $600",
   "expectedOutcome": "STEP_UP",
-  "capturedAt": "2026-07-27T00:28:17.729Z",
-  "seedHash": "c48bf4072b509915",
-  "reply": "PingOne Authorize requires additional authentication before MCP tools can run.",
+  "capturedAt": "2026-08-24T14:03:43.325Z",
+  "seedHash": "bbfe417d11c6b000",
+  "reply": "PingOne Authorize requires additional authentication before this tool can run.",
   "agentPath": null,
-  "tokenEventCount": 13
+  "tokenEventCount": 20
 }

@@ -4,9 +4,9 @@
   "ucId": "UC2",
   "trigger": "show my sensitive tax record",
   "expectedOutcome": "PERMIT",
-  "capturedAt": "2026-07-27T21:20:42.342Z",
-  "seedHash": "883b08745d6e1401",
+  "capturedAt": "2026-08-24T13:59:15.330Z",
+  "seedHash": "9d3354388fed65d8",
   "reply": "Delegation complete — Tax Records Specialist retrieved sensitive tax record on your behalf (act-chain depth 2).",
   "agentPath": null,
-  "tokenEventCount": 14
+  "tokenEventCount": 19
 }
