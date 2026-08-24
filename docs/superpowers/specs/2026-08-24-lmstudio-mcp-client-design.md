@@ -1,7 +1,7 @@
 # The Same MCP-Client Work Against LM Studio
 
 **Date:** 2026-08-24
-**Status:** Research complete (external-facts spike, sourced below), design not yet approved
+**Status:** Approved (2026-08-24) — §5's recommendation (mcp.json doors, Tools Provider plugin for the two gateway doors, plain-link reel fallback, no fork) stands as the direction. §6's open questions (outbound-network-call confirmation, exact mcp.json header shape, image-snapshot go/no-go) are implementation-plan-level, not blockers to approval.
 **Related:** `docs/superpowers/specs/2026-08-24-librechat-dual-door-mcp-client-design.md` (the four LibreChat doors), `docs/superpowers/specs/2026-08-24-librechat-embedded-mcp-trace-design.md` (the façade + embedded reel this spec reuses the backend half of).
 
 ## 1. Why this exists
