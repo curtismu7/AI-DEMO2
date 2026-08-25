@@ -3,14 +3,15 @@
 /**
  * banking-mcp-resource-server — entry point
  *
- * MCP server for investment and airlines tools. Runs over WebSocket (same
- * protocol as banking_mcp_server). Validates inbound token aud ===
- * MCP_RESOURCE_SERVER_RESOURCE_URI (mcp-invest.ping.demo — the audience the PingOne
- * "Demo MCP Invest" resource carries; the value is a comma-separated ACCEPTED
- * list, so the gateway audience and the older URI stay valid too).
+ * MCP server for ten mock verticals plus investment tools. Runs over WebSocket
+ * (same protocol as banking_mcp_server) and HTTP. Validates inbound token aud
+ * against MCP_RESOURCE_SERVER_RESOURCE_URI — a comma-separated ACCEPTED list
+ * whose first entry is this server's canonical resource URI (in the AI-DEMO2
+ * stack: mcp-invest.ping.demo, the PingOne "Demo MCP Invest" resource).
  *
- * The invest tools proxy back to the BFF; the airlines tools are served from
- * this server's own SQLite database (src/db/airlinesDb.ts).
+ * Every vertical is served from this server's own SQLite database (src/db/).
+ * The invest tools proxy to the BFF instead when BANKING_API_BASE_URL /
+ * DEMO_API_BASE_URL is set (src/tools/investToolHandler.ts).
  *
  * HTTP surfaces (same port):
  *   GET  /.well-known/oauth-protected-resource  — RFC 9728 metadata
@@ -27,7 +28,6 @@ dotenv.config();
 import crypto from 'crypto';
 import {
   LEGACY_RESOURCE_URI_ENV,
-  OWN_AUDIENCE,
   RESOURCE_URI_ENV,
   resolveAcceptedAudiences,
   resolveResourceUriEnv,
@@ -67,6 +67,7 @@ import { isValidLogLevel, emitLogMessage, LoggingState } from './mcpLogging';
 import { buildDiscoverResult, SUPPORTED_PROTOCOL_VERSIONS } from './serverDiscover';
 import { extractRequestedProtocolVersion, buildUnsupportedProtocolVersionError } from './modernNegotiation';
 import { resolvePassenger, listBookings } from './db/airlinesDb';
+import { getHoldings, resolveInvestor } from './db/investDb';
 import { emitHop } from './transactionHop';
 
 // ---------------------------------------------------------------------------
@@ -125,7 +126,7 @@ const HOST = process.env.HOST || '0.0.0.0';
 // FIRST entry is this server's canonical resource URI (RFC 9728 metadata,
 // health, logs); the full list feeds aud validation.
 const RESOURCE_URI_ENV_VALUE = resolveResourceUriEnv();
-const RESOURCE_URI_LIST = resolveAcceptedAudiences(RESOURCE_URI_ENV_VALUE.value);
+const RESOURCE_URI_LIST = resolveAcceptedAudiences(RESOURCE_URI_ENV_VALUE.value, RESOURCE_URI_ENV_VALUE.source);
 const RESOURCE_URI = RESOURCE_URI_LIST[0];
 // Reading the shared banking name still works, but say so — that is the
 // deployment shape T4 exists to retire (shared k8s configmap fanned into this
@@ -136,12 +137,6 @@ if (RESOURCE_URI_ENV_VALUE.source === LEGACY_RESOURCE_URI_ENV) {
     `BANKING MCP server's audience list elsewhere. Set '${RESOURCE_URI_ENV}' for this server instead.`
   );
 }
-if (RESOURCE_URI_ENV_VALUE.value && !RESOURCE_URI_ENV_VALUE.value.includes(OWN_AUDIENCE)) {
-  console.warn(
-    `[demo-mcp-resource-server] WARNING: ${RESOURCE_URI_ENV_VALUE.source} omits this server's own ` +
-    `audience '${OWN_AUDIENCE}' — accepting it anyway. The env value is stale.`
-  );
-}
 const ACCEPTED_AUDIENCES = RESOURCE_URI_LIST.join(',');
 const RESOURCE_NAME = process.env.MCP_SERVER_RESOURCE_NAME || 'Super Banking MCP Server (mcp-resource-server)';
 
@@ -150,7 +145,7 @@ if (!RESOURCE_URI_ENV_VALUE.value) {
   console.warn(
     `[demo-mcp-resource-server] WARNING: ${RESOURCE_URI_ENV} is not set — ` +
     `using default '${RESOURCE_URI}'. Token audience validation may fail. ` +
-    `Set ${RESOURCE_URI_ENV} in demo_api_server/.env`
+    `Set ${RESOURCE_URI_ENV} in this server's .env`
   );
 }
 
@@ -197,6 +192,14 @@ function bearerFrom(header: string | string[] | undefined): string {
 // HTTP: RFC 9728 metadata + health + MCP (JSON-RPC over POST)
 // ---------------------------------------------------------------------------
 
+// RFC 9728 §5.1: resource_metadata must be a URL the client can fetch, so it is
+// built from the request's own host — RESOURCE_URI is the token audience and
+// need not be a URL at all.
+function resourceMetadataUrl(req: IncomingMessage): string {
+  const proto = req.headers['x-forwarded-proto'] || 'http';
+  return `${proto}://${req.headers.host}/.well-known/oauth-protected-resource`;
+}
+
 function handleHttp(req: IncomingMessage, res: ServerResponse): void {
   const url = req.url || '/';
 
@@ -241,7 +244,7 @@ function handleHttp(req: IncomingMessage, res: ServerResponse): void {
     if (!token) {
       res.writeHead(401, {
         'Content-Type': 'application/json',
-        'WWW-Authenticate': `Bearer realm="banking-mcp-resource-server", error="invalid_token", error_description="Bearer token required", resource_metadata="${RESOURCE_URI}/.well-known/oauth-protected-resource"`,
+        'WWW-Authenticate': `Bearer realm="banking-mcp-resource-server", error="invalid_token", error_description="Bearer token required", resource_metadata="${resourceMetadataUrl(req)}"`,
       });
       res.end(JSON.stringify({ error: 'invalid_token', error_description: 'Bearer token required' }));
       return;
@@ -306,7 +309,7 @@ function handleHttp(req: IncomingMessage, res: ServerResponse): void {
         if (isInsufficientScope) {
           res.writeHead(403, {
             'Content-Type': 'application/json',
-            'WWW-Authenticate': `Bearer realm="banking-mcp-resource-server", error="insufficient_scope"${scopeHint}, resource_metadata="${RESOURCE_URI}/.well-known/oauth-protected-resource"`,
+            'WWW-Authenticate': `Bearer realm="banking-mcp-resource-server", error="insufficient_scope"${scopeHint}, resource_metadata="${resourceMetadataUrl(req)}"`,
             ...sessionHeader,
           });
         } else if (isUnsupportedProtocolVersion) {
@@ -314,7 +317,7 @@ function handleHttp(req: IncomingMessage, res: ServerResponse): void {
         } else if (isInvalidToken) {
           res.writeHead(401, {
             'Content-Type': 'application/json',
-            'WWW-Authenticate': `Bearer realm="banking-mcp-resource-server", error="invalid_token", resource_metadata="${RESOURCE_URI}/.well-known/oauth-protected-resource"`,
+            'WWW-Authenticate': `Bearer realm="banking-mcp-resource-server", error="invalid_token", resource_metadata="${resourceMetadataUrl(req)}"`,
             ...sessionHeader,
           });
         } else {
@@ -357,20 +360,20 @@ function handleHttp(req: IncomingMessage, res: ServerResponse): void {
       'Content-Type': 'application/json',
       'X-Auth-Mechanism': 'api_key',
     });
+    // Same portfolio the MCP invest tools serve (data/invest.db), so an
+    // out-of-band edit to the DB shows up on both paths.
+    const investor = resolveInvestor();
     res.end(JSON.stringify({
-      invest: {
-        portfolioId: 'INV-8842',
-        holder: 'Jordan A. Rivera',
-        totalValue: 184320.55,
-        cashSweep: 12580.10,
-        ytdReturnPct: 11.4,
-        riskProfile: 'Growth',
-        holdings: [
-          { symbol: 'VTI', name: 'Vanguard Total Market ETF', quantity: 220, marketValue: 62480.00 },
-          { symbol: 'UST-10Y', name: 'US Treasury Note', quantity: null, marketValue: 60010.35 },
-          { symbol: 'AAPL', name: 'Apple Inc.', quantity: 90, marketValue: 19260.00 },
-          { symbol: 'VNQ', name: 'Vanguard Real Estate ETF', quantity: 340, marketValue: 29990.10 },
-        ],
+      invest: investor && {
+        portfolioId: investor.portfolio_id,
+        holder: investor.holder,
+        totalValue: investor.total_value,
+        cashSweep: investor.cash_sweep,
+        ytdReturnPct: investor.ytd_return_pct,
+        riskProfile: investor.risk_profile,
+        holdings: getHoldings(investor.investor_id).map((h) => ({
+          symbol: h.symbol, name: h.name, quantity: h.quantity, marketValue: h.market_value,
+        })),
       },
       source: 'banking_mcp_resource_server',
       authMechanism: 'X-API-Key (shared secret)',

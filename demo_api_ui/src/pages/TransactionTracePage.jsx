@@ -78,7 +78,7 @@ function Decision({ decision }) {
 // Hops are rendered as nodes on a continuous vertical spine. `severed` marks
 // hops at/after the earliest violation — the spine (and the node) turns red
 // from that point on, so a broken chain of custody is legible at a glance.
-function HopCard({ hop, violations, severed }) {
+export function HopCard({ hop, violations, severed }) {
   return (
     <>
       <li
