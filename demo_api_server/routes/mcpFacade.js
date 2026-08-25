@@ -128,8 +128,18 @@ function reelBase() {
 
 // Replace the upstream's resource_metadata pointer with ours — the client can
 // only GET metadata for the resource it is actually talking to (this façade).
-function rewriteChallenge(www, prmUrl) {
-  const stripped = String(www || 'Bearer').replace(/,?\s*resource_metadata="[^"]*"/, '').trim();
+// Also widen the challenge's `scope`: MCP clients ask the AS for exactly what
+// the challenge names, before scopes_supported. The gateway names only
+// `mcp:invoke`, so LM Studio logged in with a token that could not call any
+// tool (`insufficient_scope: missing read`, seen live 2026-08-25).
+function rewriteChallenge(www, prmUrl, scopes = []) {
+  let stripped = String(www || 'Bearer').replace(/,?\s*resource_metadata="[^"]*"/, '').trim();
+  if (scopes.length) {
+    const scope = `scope="${scopes.join(' ')}"`;
+    stripped = /\bscope="[^"]*"/.test(stripped)
+      ? stripped.replace(/\bscope="[^"]*"/, scope)
+      : `${stripped}${/^Bearer$/i.test(stripped) ? ' ' : ', '}${scope}`;
+  }
   const sep = /^Bearer$/i.test(stripped) ? ' ' : ', ';
   return `${stripped}${sep}resource_metadata="${prmUrl}"`;
 }
@@ -238,7 +248,7 @@ router.post('/:door/mcp', express.json({ limit: '1mb', type: () => true }), asyn
   res.status(upstream.status);
   if (upstreamSession) res.set('Mcp-Session-Id', upstreamSession);
   if (upstream.status === 401) {
-    res.set('WWW-Authenticate', rewriteChallenge(upstream.headers.get('www-authenticate'), `${facadeBase(req)}/.well-known/oauth-protected-resource`));
+    res.set('WWW-Authenticate', rewriteChallenge(upstream.headers.get('www-authenticate'), `${facadeBase(req)}/.well-known/oauth-protected-resource`, door.scopes));
   }
 
   if (!isCall) {
