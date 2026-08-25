@@ -155,9 +155,12 @@ describe('/mcp-facade — relay + recording', () => {
     expect(content[0]).toEqual({ type: 'text', text: '{"success":true,"count":4}' });
     expect(content[1].type).toBe('text');
     const cid = content[1].text.split('\n')[0].split('/').pop();
-    const [first, hint, image] = content[1].text.split('\n');
+    const [first, imageUrl, hint, image] = content[1].text.split('\n');
     expect(first).toMatch(/^reel_url: https:\/\/ui\.example\/transaction-trace\/embed\/[0-9a-f-]{36}$/);
-    expect(hint).toMatch(/Always show this link to the user/);
+    expect(imageUrl).toMatch(/^reel_image: http:\/\/127\.0\.0\.1:\d+\/mcp-facade\/reel\/[0-9a-f-]{36}\.svg$/);
+    // descriptive only — no imperative sentence a model could read as injection
+    expect(hint).toMatch(/^Transaction trace \("movie reel"\) for this tool call/);
+    expect(content[1].text).not.toMatch(/always|must|should/i);
     expect(image).toMatch(/^!\[Transaction trace\]\(http:\/\/127\.0\.0\.1:\d+\/mcp-facade\/reel\/[0-9a-f-]{36}\.svg\)$/);
     expect(image).toContain(cid);
 
