@@ -152,6 +152,14 @@ info "tls-certs secret applied."
 # Usage: secret_from_envfile <secret-name> <path-to-.env>
 secret_from_envfile() {
   local secret_name="$1" env_file="$2"
+  # Optional 3rd arg: pass "legacy-env-only" for a service that deliberately
+  # runs its own independent secret architecture outside the shared vault
+  # (e.g. oauth-mcp, see oauth-mcp/src/vault.ts's own header comment — it was
+  # migrated OFF secrets.vault on purpose). Skips vault consultation and the
+  # drift guard-rail entirely for this one call, restoring pre-2026-08-25
+  # .env-only behavior. Do not add this for any other service without the
+  # same kind of documented, deliberate reason.
+  local mode="${3:-}"
   if [ ! -f "$env_file" ]; then
     warn "  $env_file not found — skipping secret $secret_name"
     return
@@ -191,7 +199,7 @@ secret_from_envfile() {
   local args=() dry_run_report=()
   for k in "${keys[@]}"; do
     local env_v="${!k:-}"
-    if vault_has_key "$k"; then
+    if [ "$mode" != "legacy-env-only" ] && vault_has_key "$k"; then
       if [ -n "$env_v" ]; then
         die "SECURITY: $k is vault-managed but $env_file also has a non-empty value for it. Vault is the only allowed source for this key — remove the $k line from $env_file. (This is exactly the drift class that broke SE introspection on 2026-08-25 — see docs/superpowers/specs/2026-08-25-vault-in-k8s-design.md.)"
       fi
@@ -201,7 +209,9 @@ secret_from_envfile() {
       dry_run_report+=("$k -> vault")
     else
       [ -n "$env_v" ] && args+=(--from-literal="${k}=${env_v}")
-      dry_run_report+=("$k -> .env")
+      local mode_suffix=""
+      [ "$mode" = "legacy-env-only" ] && mode_suffix=" (legacy-env-only)"
+      dry_run_report+=("$k -> .env${mode_suffix}")
     fi
   done
   if [ "${DRY_RUN:-0}" = "1" ]; then
@@ -513,7 +523,7 @@ info "Creating per-service secrets from each service's .env..."
 secret_from_envfile ai-demo-secrets   "$ASSET_ROOT/demo_api_server/.env"    # BFF (master)
 override_redirect_uris_for_public_origin                                    # public origin beats local .env redirect URIs
 align_service_api_keys                                                      # one key for the vault bridge AND the mortgage backend
-secret_from_envfile mcp-secrets       "$ASSET_ROOT/oauth-mcp/.env"    # MCP server
+secret_from_envfile mcp-secrets       "$ASSET_ROOT/oauth-mcp/.env" legacy-env-only  # MCP server — own independent secret architecture, see oauth-mcp/src/vault.ts
 secret_from_envfile hitl-secrets      "$ASSET_ROOT/demo_hitl_service/.env"  # HITL service — HITL_INTERNAL_SECRET
 secret_from_envfile langchain-secrets "$ASSET_ROOT/langchain_agent/.env"    # LangChain agent
 inject_helix_api_key                                                        # Helix key from <agent>.json keyfile (patches langchain-secrets — must run after it exists)
