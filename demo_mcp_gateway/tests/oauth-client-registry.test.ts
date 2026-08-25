@@ -41,4 +41,13 @@ describe('ClientRegistry', () => {
     const registry = new ClientRegistry();
     expect(registry.authenticateClient('unknown-id', undefined)).toBeNull();
   });
+
+  it('adoptClient registers a caller-supplied client_id (post-restart recovery) with the pinned scope', () => {
+    const registry = new ClientRegistry();
+    const client = registry.adoptClient({ client_id: 'given-by-client', redirect_uris: ['http://localhost:7465/callback'] });
+    expect(client.client_id).toBe('given-by-client');
+    expect(client.scope).toBe('mcp:invoke');
+    expect(registry.getClient('given-by-client')).toEqual(client);
+    expect(() => registry.adoptClient({ client_id: 'x', redirect_uris: ['https://attacker.example.com/cb'] })).toThrow(InvalidRedirectUriError);
+  });
 });

@@ -53,13 +53,30 @@ describe('OAuthBrokerRouter /oauth/authorize', () => {
     expect(location.searchParams.get('resource')).toBe('https://mcp-gateway.example.com');
   });
 
-  it('rejects an unknown client_id', async () => {
-    const { server } = makeRouterAndServer();
+  it('adopts an unknown client_id whose redirect_uri is loopback — a registry restart must not strand a client', async () => {
+    // The registry is in-memory: a gateway rebuild forgets every DCR client
+    // while LM Studio keeps the id it was issued (seen live 2026-08-25:
+    // {"error":"invalid_client","error_description":"Unknown client_id"}).
+    // Open DCR means any loopback client could register anyway, so adopting
+    // the presented id is the same trust — nothing lost but the client_name.
+    const { clientRegistry, server } = makeRouterAndServer();
     const res = await supertest(server)
       .get('/oauth/authorize')
-      .query({ client_id: 'nope', redirect_uri: 'http://127.0.0.1:1/x', response_type: 'code', code_challenge: 'c' });
+      .query({ client_id: 'stale-from-before-restart', redirect_uri: 'http://127.0.0.1:41999/callback', response_type: 'code', code_challenge: 'c' });
+    expect(res.status).toBe(302);
+    expect(new URL(res.headers.location).hostname).toBe('auth.pingone.com');
+    const adopted = clientRegistry.getClient('stale-from-before-restart');
+    expect(adopted).toMatchObject({ client_id: 'stale-from-before-restart', redirect_uris: ['http://127.0.0.1:41999/callback'], token_endpoint_auth_method: 'none' });
+  });
+
+  it('still rejects an unknown client_id whose redirect_uri is not loopback', async () => {
+    const { clientRegistry, server } = makeRouterAndServer();
+    const res = await supertest(server)
+      .get('/oauth/authorize')
+      .query({ client_id: 'nope', redirect_uri: 'https://attacker.example.com/cb', response_type: 'code', code_challenge: 'c' });
     expect(res.status).toBe(400);
     expect(res.body.error).toBe('invalid_client');
+    expect(clientRegistry.getClient('nope')).toBeUndefined();
   });
 
   it('rejects a redirect_uri that was not the one registered', async () => {

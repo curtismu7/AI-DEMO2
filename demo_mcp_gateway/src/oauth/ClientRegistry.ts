@@ -73,6 +73,33 @@ export class ClientRegistry {
     return client;
   }
 
+  /**
+   * Re-register a client under the id IT presents. The registry is in-memory,
+   * so a gateway restart forgets every DCR client while the client keeps the
+   * id it was issued and fails /oauth/authorize with invalid_client (LM Studio,
+   * live 2026-08-25). Open DCR already lets any loopback client register, so
+   * adopting the presented id is the same trust — same loopback check, same
+   * pinned scope; only the client_name is lost.
+   */
+  adoptClient(input: RegisterClientInput & { client_id: string }): OAuthBrokerClient {
+    if (!input.redirect_uris || input.redirect_uris.length === 0) {
+      throw new InvalidRedirectUriError('(none provided)');
+    }
+    for (const uri of input.redirect_uris) {
+      assertLoopback(uri);
+    }
+    const client: OAuthBrokerClient = {
+      client_id: input.client_id,
+      client_name: input.client_name || 'Dynamic MCP Client (adopted after restart)',
+      grant_types: input.grant_types || ['authorization_code'],
+      redirect_uris: input.redirect_uris,
+      token_endpoint_auth_method: 'none',
+      scope: brokerRegistrationScope(),
+    };
+    this.clients.set(client.client_id, client);
+    return client;
+  }
+
   getClient(clientId: string): OAuthBrokerClient | undefined {
     return this.clients.get(clientId);
   }
