@@ -16,6 +16,36 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-08-24 — `mcpPrivilegeAuth.js`'s cached DCR client can't serve a callback origin discovered after registration
+
+**Where:** `demo_api_server/routes/mcpPrivilegeAuth.js`'s `ensureClient()` —
+`_clientCache` is process-lifetime, keyed by nothing (one client for the whole
+process), registered once against `inspectorCallbackUrls(req)`'s snapshot at
+first-call time.
+
+**What's wrong:** if `PUBLIC_APP_URL` changes at runtime (a config-store
+write, not a redeploy) to a host not already in the hardcoded set
+(`local.ping-devops.com:4000`, `api.ping.demo:4000`) or `CORS_ORIGIN`, a login
+from that new origin computes a `redirect_uri` the cached DCR client was never
+registered with — the gateway's token exchange rejects the mismatch, and
+nothing in this process re-registers until it restarts. Flagged by Greptile's
+review of PR #2348 (P2, non-blocking).
+
+**Why it wasn't fixed now:** narrow, self-recovering-on-restart edge case —
+`PUBLIC_APP_URL` changing mid-process is not part of this demo's normal
+operation, and the current code already defends the two real hostnames this
+repo actually serves from plus `CORS_ORIGIN`. A proper fix (re-register on
+cache-miss-by-origin, or invalidate on config change) adds real complexity
+for a scenario that hasn't been observed in practice — the same judgment call
+`mcpTransports/http.js`'s sibling session-eviction gap made before its own
+fix landed in this same PR.
+
+**Real fix:** key `_clientCache` by the set of registered `redirect_uris`
+(or simplest: by whether the current request's `callbackUrl(req)` is already
+in the cached client's registered set) and re-run `ensureClient` when it
+isn't, instead of caching one client unconditionally for the process
+lifetime.
+
 ### [ ] 2026-08-24 — `k8s/create-secrets.sh` never falls back to the internal vault, so a vault-only secret silently never reaches the SE K8s Secret
 
 **Where:** `k8s/create-secrets.sh`'s `secret_from_envfile()` (~line 103-154),

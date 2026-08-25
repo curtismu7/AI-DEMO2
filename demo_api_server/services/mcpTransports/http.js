@@ -124,14 +124,32 @@ async function ensureInitialized(profile, session) {
   session.initialized = true;
 }
 
-// ponytail: no retry-on-expired-session — a session that goes stale between
-// calls (server-side eviction) surfaces as a plain error instead of silently
-// re-initializing. Add a reset-and-retry-once wrapper here if that's observed
-// in practice; not needed for the immediate case (fresh session per login).
+/** True for the MCP spec's documented "session not found" signal (404) — the
+ * gateway evicted a session we still think is live. Any other error (auth,
+ * network, a genuine tool-call failure) must NOT trigger a reset+retry. */
+function isExpiredSessionError(err) {
+  return err && err.httpStatus === 404;
+}
+
+// A session can go stale between calls (server-side eviction) — the first
+// call after that returns 404 "unknown or expired session", and without a
+// reset every later call for that profile.url fails the same way until the
+// process restarts (confirmed live against oauth-mcp's identical contract
+// elsewhere in this repo: `{"error":"Unknown or expired MCP-Session-Id..."}`
+// at 404). Reset and retry the handshake exactly once — a second failure is
+// a real error, not staleness, and must propagate.
 async function send(profile, method, params) {
   const session = getSession(profile);
   await ensureInitialized(profile, session);
-  return rawSend(profile, session, method, params, ++_msgId);
+  try {
+    return await rawSend(profile, session, method, params, ++_msgId);
+  } catch (err) {
+    if (!isExpiredSessionError(err)) throw err;
+    session.sessionId = null;
+    session.initialized = false;
+    await ensureInitialized(profile, session);
+    return rawSend(profile, session, method, params, ++_msgId);
+  }
 }
 
 async function listTools(profile) {
