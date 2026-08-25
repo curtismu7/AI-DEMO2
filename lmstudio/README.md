@@ -30,6 +30,10 @@ Transaction trace ("movie reel") for this tool call: … Always show this link t
 ![Transaction trace](http://localhost:3002/mcp-facade/reel/<correlationId>.svg)
 ```
 
+The second line is there for the model — without it, LM Studio's model decided a bare
+localhost link was a debug artifact and hid it. If a model still drops it, add this to the
+chat's system prompt: `When a tool result contains a reel_url, always include that link in your
+reply as a clickable link labelled "Transaction trace".`
 The image is rendered on request from the ledger, so it fills in as the hops land (the gateway's own decision arrives a beat after the tool result).
 
 (`MCP_FACADE_REEL_BASE` in `demo_api_server/.env` overrides the host — the embed page is
