@@ -16,6 +16,65 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [x] 2026-08-24 — LibreChat Privilege MCP tool call blocked by LLM context size, not by anything in `librechat/`
+
+**Where:** `librechat/librechat.yaml`'s `mcpServers.privilege` block; the live
+LLM backend served via `demo_llm_proxy/` at `:8090`.
+
+**What's wrong:** Task 5 of
+`docs/superpowers/plans/2026-08-24-librechat-privilege-mcp-client.md` proved
+the OAuth flow end-to-end against the real PingOne Privilege gateway —
+Dynamic Client Registration and a real login both succeeded, and LibreChat's
+MCP server panel showed "Connected." But a live proof of an actual
+`get_my_accounts` tool call through LibreChat's chat UI is blocked:
+`curl localhost:8090/v1/models` confirms the live LLM backend's real context
+window is 8192 tokens, while the Privilege MCP server's full 242-tool
+catalog alone needs roughly 30243 tokens of schema just to describe the
+tools — about 4x more than the model can hold before any conversation or
+tool-result content is added. This is an LLM-capacity vs. tool-catalog-size
+mismatch, not a bug in `docker-compose.yml`, `.env.example`, or
+`librechat.yaml`.
+
+**Why it wasn't fixed now:** this repo's LLM tiers/context sizes are frozen
+by prior policy, so swapping to a larger-context tier is out of scope. The
+currently-pinned LibreChat version (`version: 1.3.14` config schema,
+`librechat-dev:latest` image) has no librechat.yaml-side or LibreChat-side
+option to filter or scope which of an MCP server's tools get advertised to
+the model, so there is also no config-only way to shrink the catalog.
+
+**Real fix:** either (a) gateway/MCP-server-side tool-catalog scoping — the
+`privilege` MCP server or the agentless gateway in front of it exposes a
+reduced tool set to this client instead of the full 242, or (b) a
+larger-context local model tier. Both are out of scope for the LibreChat
+proof-of-concept plan that found this.
+
+**RESOLVED** (branch `worktree-agent-abb04d0a310af8164`, PR #2343, same day):
+the diagnosis above was half right. The catalog-size mismatch is real for
+LibreChat's plain chat picker, but the blocker underneath it was different:
+the phi tier (`:8091`) is started without `--jinja`, so llama-server drops
+the `tools` field outright — `prompt_tokens` stays at 9 with a tool attached,
+so no tool call could ever have happened on that tier at any catalog size.
+Neither of the "real fix" options was needed:
+
+- Tool calling: `librechat.yaml`'s custom endpoint now lists `gpt-oss-20b`.
+  `demo_llm_proxy/router.js` `classFromModel()` routes any `/gpt-oss/` model
+  name to `:8096` — the only tier started with `--jinja` — which returns real
+  `tool_calls`. No frozen LLM setting changed.
+- Catalog scoping: a native LibreChat feature. The Agent Builder's MCP tool
+  dialog selects individual tools (`agent.tools` stores
+  `get_my_accounts_mcp_privilege`, and `ToolService.loadAgentTools` filters
+  on it), so the model sees one schema instead of 242. An uncommitted
+  client-side truncating proxy (`mcp-tools-proxy.js`) was tried first and
+  discarded: LibreChat's `assertResourceBoundToServer` rejects any OAuth
+  flow whose RFC 9728 `resource` origin differs from the configured server
+  URL, so a proxy on a different origin can never pass discovery.
+
+Proven live 2026-08-24 21:27 (Task 5 of the plan): an Agent with provider
+Local LLM Proxy, model `gpt-oss-20b`, tools = `get_my_accounts` only, asked
+"What are my account balances?" — LibreChat showed "Ran get_my_accounts in
+privilege · 3.3s" and replied with a masked account number and balance from
+the gateway.
+
 ### [ ] 2026-08-24 — Agent Gateway HTTP `/mcp` advertises a protocol version it then rejects (`MCP-Protocol-Version` mismatch)
 
 **Where:** `demo_mcp_gateway/src/server/GatewayServer.ts` HTTP `/mcp` path — the `initialize`
