@@ -11,7 +11,10 @@ mcpSettings:
   allowedAddresses:
     - 'host.docker.internal:8080'
     - 'host.docker.internal:9900'
-    - 'opensearch.default.applications.procyon.ai:8643'
+    # demo_api_server's BFF, host of mcp-facade (recording proxy for the
+    # three gateway doors below) — see docs/superpowers/specs/2026-08-24-
+    # librechat-embedded-mcp-trace-design.md and PR #2356.
+    - 'api.ping.demo:3001'
 
 endpoints:
   custom:
@@ -83,45 +86,59 @@ mcpServers:
     url: 'http://host.docker.internal:9900/mcp'
     timeout: 60000
 
+  # 3-5. Through mcp-facade — a recording proxy in demo_api_server (PR
+  #    #2356) that relays each of these three doors to its real upstream
+  #    unchanged and records every hop to this repo's transaction ledger,
+  #    so a call through any of them shows up in the same "movie reel"
+  #    (/transaction-trace/embed/:correlationId) the AI Gateway client page
+  #    already gives this repo's own agent. See
+  #    docs/superpowers/specs/2026-08-24-librechat-embedded-mcp-trace-design.md.
+  #    No apiKey/no-op-header tricks needed on any of these three: the
+  #    facade is a genuine MCP server that answers its own RFC 9728
+  #    metadata (resource = the facade URL itself), so LibreChat's native
+  #    OAuth detection and DCR+PKCE flow work directly against it, the same
+  #    way they already did against the real agentless gateway.
+
   # 3. OpenSearch via the Priv Agent — the cm-mcpgw gateway in K8s
   #    (ns ping-devops-curtismuir, k8s/helm/mcpgw) fronting
-  #    cm-mcpgw-opensearch-mcp-server, reached through the Mac-local agent
-  #    listener on :8643 (privilege/AGENT-CONFIGURATION.md). Reached
-  #    through the host alias in docker-compose.yml's extra_hosts (SNI/Host
-  #    must be the procyon Frontend Name, not host.docker.internal) and its
-  #    procyon TenantRoot CA trusted via NODE_EXTRA_CA_CERTS. The agent IS the
-  #    identity (device user b1645e7b…) — no Authorization header, no OAuth.
-  #    A 403 "doesn't have access to MCP app opensearch" means the gateway was
-  #    reached and Privilege's time-boxed policy for that user has lapsed —
-  #    re-author it in the Privilege console; nothing here is wrong.
+  #    cm-mcpgw-opensearch-mcp-server, reached through the Mac-local Priv
+  #    Agent listener on :8643. The facade holds that connection now (its
+  #    own TLS trust, its own host alias) — LibreChat only ever talks to
+  #    the facade. The agent IS the identity there — no OAuth, so this
+  #    door has none either. A 403 "doesn't have access to MCP app
+  #    opensearch" passed through means the gateway was reached and
+  #    Privilege's time-boxed policy for that user has lapsed — re-author
+  #    it in the Privilege console; nothing here is wrong. A 502
+  #    "upstream_unavailable" during local dev usually means the Priv
+  #    Agent's DNS proxy hasn't resolved opensearch.default.applications.
+  #    procyon.ai on the Mac running the facade yet — environmental, not a
+  #    facade or LibreChat bug.
   opensearch-privilege-agent:
     type: streamable-http
-    url: 'https://opensearch.default.applications.procyon.ai:8643/mcp'
-    # Same trick as aidemo-mcp, for a different reason: LibreChat's startup
-    # probe reads the gateway's policy 403 as "needs OAuth" and would then
-    # demand a login this door does not have. A custom no-op header keeps
-    # requiresOAuth=false without sending an Authorization header (procyon
-    # frontends must get none — the agent is the identity).
-    apiKey:
-      source: admin
-      authorization_type: custom
-      custom_header: X-LibreChat-Noop
-      key: none
+    url: 'https://api.ping.demo:3001/mcp-facade/agent/mcp'
     timeout: 60000
 
   # 4. Via the Agentless gateway — the `external` Privilege application
-  #    (privilege/AGENTLESS-CONFIGURATION.md, 2026-08-24 entry).
+  #    (privilege/AGENTLESS-CONFIGURATION.md, 2026-08-24 entry). Verified
+  #    live through the facade 2026-08-24: 401 + WWW-Authenticate with a
+  #    self-referential resource_metadata, DCR against the real gateway,
+  #    242 tools, get_my_accounts 200 with a reel_url attached.
+  #
+  # Use it from an Agent, not the plain chat picker: the plain picker
+  # attaches all 242 tools (~30k tokens of schema, more than the 16k-ctx
+  # gpt-oss tier holds), while the Agent builder's MCP tool dialog lets
+  # you select only get_my_accounts.
   privilege-agentless:
     type: streamable-http
-    url: 'https://cmuir-agentless-mcpgw.ping-devops.com/external/mcp'
-    # No oauth: block needed — verified live 2026-08-24 against this exact
-    # gateway with a real PingOne login: LibreChat's native RFC 9728
-    # discovery + Dynamic Client Registration against the gateway's
-    # /external/authorize succeeds end-to-end. See the "Judgment call"
-    # section of docs/superpowers/plans/2026-08-24-librechat-privilege-mcp-client.md.
-    #
-    # Use it from an Agent, not the plain chat picker: the plain picker
-    # attaches all 242 tools (~30k tokens of schema, more than the 16k-ctx
-    # gpt-oss tier holds), while the Agent builder's MCP tool dialog lets
-    # you select only get_my_accounts. See Task 5 of the plan above.
+    url: 'https://api.ping.demo:3001/mcp-facade/agentless/mcp'
+    timeout: 60000
+
+  # 5. Via the local Agent Gateway (demo_mcp_gateway) — the OAuth broker
+  #    from PR #2353 (RFC 8414 + 7591) fronted by the same facade so this
+  #    door gets the identical reel treatment as the two Privilege doors
+  #    above. Verified live 2026-08-24: 401 + self-referential
+  #    resource_metadata, same as privilege-agentless.
+  agent-gateway:
+    type: streamable-http
+    url: 'https://api.ping.demo:3001/mcp-facade/agent-gateway/mcp'
     timeout: 60000

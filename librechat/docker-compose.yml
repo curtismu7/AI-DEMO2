@@ -23,23 +23,28 @@ services:
       # this repo's own docker-compose.yml does for the identical proxy
       # (see docker-compose.yml:1124, :1828-1830).
       - "host.docker.internal:host-gateway"
-      # The Mac-local Priv Agent listener (:8643) routes on its procyon
-      # Frontend Name, so LibreChat must dial it BY that name — alias it to
-      # the host instead of using host.docker.internal (librechat.yaml
-      # mcpServers.opensearch-privilege-agent).
-      - "opensearch.default.applications.procyon.ai:host-gateway"
+      # The BFF's mkcert cert (demo_api_server's own dev cert) does NOT
+      # list host.docker.internal in its SAN — only api.ping.demo,
+      # local.ping-devops.com, demo-api-server, localhost, 127.0.0.1 (see
+      # this repo's root docker-compose.yml:144-145). Alias the one that's
+      # actually in the cert to the same host gateway instead of trying to
+      # widen the cert — verified live 2026-08-25: host.docker.internal
+      # fails TLS hostname verification even with the CA trusted
+      # (ERR_TLS_CERT_ALTNAME_INVALID); api.ping.demo does not.
+      - "api.ping.demo:host-gateway"
     environment:
-      # Trust the Priv Agent's procyon TenantRoot CA (tenant 0428ba4f) for
-      # that one listener without turning TLS verification off globally.
-      # Captured from the listener's own served chain; re-capture with
-      #   openssl s_client -connect 127.0.0.1:8643 \
-      #     -servername opensearch.default.applications.procyon.ai -showcerts
-      # if the tenant is re-enrolled.
-      NODE_EXTRA_CA_CERTS: /app/procyon-tenant-root.crt
+      # Trust this repo's own mkcert-issued dev CA so LibreChat's outbound
+      # HTTPS to the BFF's mcp-facade (demo_api_server, :3001 — see
+      # librechat.yaml's opensearch-privilege-agent/privilege-agentless/
+      # agent-gateway entries) verifies. The Priv Agent's own procyon
+      # TenantRoot CA is no longer needed here — LibreChat no longer talks
+      # to it directly; the facade does, on its own trust config.
+      # Re-capture with `mkcert -CAROOT` if the dev CA is ever regenerated.
+      NODE_EXTRA_CA_CERTS: /app/mkcert-rootCA.crt
     volumes:
       - type: bind
-        source: ./procyon-tenant-root.crt
-        target: /app/procyon-tenant-root.crt
+        source: ./mkcert-rootCA.crt
+        target: /app/mkcert-rootCA.crt
       - type: bind
         source: ./.env
         target: /app/.env

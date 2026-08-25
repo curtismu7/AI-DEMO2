@@ -10,7 +10,9 @@
 //   - the main stack's mcp-server on :8080 (aidemo-mcp)
 //   - kubectl --context us -n ping-devops-curtismuir \
 //       port-forward svc/cm-mcpgw-opensearch-mcp-server 9900:80   (opensearch-direct)
-//   - the Mac Priv Agent running          (opensearch-privilege-agent)
+//   - the Mac Priv Agent running          (opensearch-privilege-agent, via mcp-facade)
+//   - demo_api_server's mcp-facade route up (PR #2356)
+//       (opensearch-privilege-agent, privilege-agentless, agent-gateway)
 //   - the gpt-oss tier on :8096, via :8090 (every tool call)
 //
 // What "proven" means here: the agent's reply renders LibreChat's own
@@ -111,16 +113,32 @@ async function newAuthedPage() {
   return page;
 }
 
+// The one tool key in librechat-data-provider's `Tools` enum that plausibly
+// maps to the Artifacts feature (there is no literal `artifacts` entry —
+// only `AgentCapabilities.artifacts`, the separate endpoint-wide toggle).
+// UNVERIFIED against a live agent-builder UI (no browser available when
+// this was written) — if the reel-compliance test's artifact-fence count
+// stays at 0/RUNS while reel_url stays RUNS/RUNS, this is the first thing
+// to check: confirm the real key via the Tool Library dialog's "Artifacts"
+// entry and its resulting agent.tools entry, then fix this constant.
+const ARTIFACTS_TOOL_KEY = 'ui_resources';
+
 // Mirrors what the Agent Builder stores when you pick one tool from one MCP
-// server: the server marker plus `<tool>_mcp_<server>`.
-async function createAgent(request, { server, tool }) {
+// server: the server marker plus `<tool>_mcp_<server>`. `instructions` and
+// the Artifacts tool are only added when explicitly requested — every other
+// caller (the plain door-proof tests) must not have its agent's behavior
+// changed by an unrelated feature.
+async function createAgent(request, { server, tool }, { instructions } = {}) {
+  const tools = [`sys__server__sys_mcp_${server}`, `${tool}_mcp_${server}`];
+  if (instructions) tools.push(ARTIFACTS_TOOL_KEY);
   const r = await request.post(`${LC}/api/agents`, {
     headers: { Authorization: `Bearer ${session.token}` },
     data: {
       name: `e2e ${server}`,
       provider: PROVIDER,
       model: MODEL,
-      tools: [`sys__server__sys_mcp_${server}`, `${tool}_mcp_${server}`],
+      tools,
+      ...(instructions ? { instructions } : {}),
     },
   });
   expect(r.status(), `create agent for ${server}`).toBe(201);
@@ -176,7 +194,7 @@ test.describe('LibreChat MCP server doors — live', () => {
     const page = await newAuthedPage();
     try {
       const list = await openMcpSettings(page);
-      for (const server of ['aidemo-mcp', 'opensearch-direct', 'opensearch-privilege-agent', 'privilege-agentless']) {
+      for (const server of ['aidemo-mcp', 'opensearch-direct', 'opensearch-privilege-agent', 'privilege-agentless', 'agent-gateway']) {
         const item = list.locator(`[aria-label^="${server} - "]`);
         await expect(item, `${server} listed`).toBeVisible();
         console.log(`[librechat] ${await item.getAttribute('aria-label')}`);
@@ -297,4 +315,47 @@ test.describe('LibreChat MCP server doors — live', () => {
       await page.close();
     }
   });
+
+  // The two gateway doors fronted by mcp-facade (PR #2356). Its tool
+  // responses append a `reel_url:` text line pointing at the compact
+  // embed view — that fallback is the actual contract (§7 of
+  // docs/superpowers/specs/2026-08-24-librechat-embedded-mcp-trace-design.md)
+  // and is required every time. Whether the model *also* renders it as a
+  // LibreChat :::artifact fence is measured, not required — see
+  // ARTIFACTS_TOOL_KEY's own caveat above for why that number may read low
+  // until the tool key is confirmed live.
+  const REEL_INSTRUCTIONS = `When a tool result includes a line starting with "reel_url:", always render that URL as an artifact, in this exact form, replacing <url> with the value:
+
+:::artifact{identifier="reel" type="application/vnd.code-html" title="Live trace"}
+<iframe src="<url>" style="width:100%;height:100%;border:0"></iframe>
+:::
+
+Do this every time, even if you already showed one earlier in the conversation.`;
+
+  const GATEWAY_DOORS = [
+    { server: 'privilege-agentless', tool: 'get_my_accounts', prompt: 'What are my account balances?' },
+    { server: 'agent-gateway', tool: 'get_my_accounts', prompt: 'What are my account balances?' },
+  ];
+
+  for (const door of GATEWAY_DOORS) {
+    test(`${door.server}: reel_url is present every time (artifact fence measured, not required)`, async ({ request }) => {
+      const RUNS = 5;
+      let linkCount = 0;
+      let fenceCount = 0;
+      for (let i = 0; i < RUNS; i++) {
+        const agentId = await createAgent(request, door, { instructions: REEL_INSTRUCTIONS });
+        const page = await newAuthedPage();
+        try {
+          const reply = await askAndWaitForTool(page, agentId, door);
+          if (/reel_url:/.test(reply) || /transaction-trace\/embed/.test(reply)) linkCount++;
+          if (/```html|<iframe/.test(reply)) fenceCount++;
+        } finally {
+          await page.close();
+        }
+      }
+      console.log(`[reel-compliance] ${door.server}: link present ${linkCount}/${RUNS}, artifact fence attempted ${fenceCount}/${RUNS}`);
+      test.info().annotations.push({ type: 'reel-compliance', description: `link ${linkCount}/${RUNS}, fence ${fenceCount}/${RUNS}` });
+      expect(linkCount, 'reel_url fallback must appear every time — this is the part with no LLM-compliance risk').toBe(RUNS);
+    });
+  }
 });
