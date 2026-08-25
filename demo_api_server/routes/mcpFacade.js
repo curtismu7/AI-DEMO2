@@ -85,7 +85,7 @@ function sessionFor(id) {
       const victim = [...sessions].find(([, v]) => !v.cid)?.[0] ?? sessions.keys().next().value;
       sessions.delete(victim);
     }
-    s = { cid: null, client: null, server: null, capabilities: null, tools: null, resources: null };
+    s = { cid: null, denied: null, client: null, server: null, capabilities: null, tools: null, resources: null };
     sessions.set(id, s);
   }
   return s;
@@ -185,6 +185,71 @@ function fetchOpts(upstreamUrl) {
   return isProcyonAgentUrl(upstreamUrl) ? { dispatcher: getProcyonDispatcher() } : {};
 }
 
+function reelBlockFor(req, correlationId) {
+  const reelUrl = `${reelBase()}/transaction-trace/embed/${correlationId}`;
+  const reelImage = `${req.protocol}://${req.get('host')}/mcp-facade/reel/${correlationId}.svg`;
+  // Data, not commands: an imperative sentence here ("always show this link")
+  // was correctly flagged as prompt injection by qwen3 in LM Studio and the
+  // link was dropped (2026-08-25). The ask to surface it belongs in the
+  // chat's system prompt (lmstudio/README.md); the block just describes
+  // what the link and image are.
+  const reelBlock = {
+    type: 'text',
+    text: `reel_url: ${reelUrl}\n`
+      + `reel_image: ${reelImage}\n`
+      + 'Transaction trace ("movie reel") for this tool call: who called, the gateway\'s '
+      + 'authorization decision, the MCP request and response.\n'
+      + `![Transaction trace](${reelImage})`,
+  };
+  return { reelUrl, reelImage, reelBlock };
+}
+
+function deniedMessage(door, denied) {
+  return `You have been denied by Policy. ${door.label} refused ${denied.method}: ${denied.reason}`;
+}
+
+function deniedInitializeResult(rpc, door, denied) {
+  return {
+    protocolVersion: rpc.params?.protocolVersion || '2025-06-18',
+    capabilities: { tools: {} },
+    serverInfo: { name: `${door.label} (access denied)`, version: '0' },
+    // MCP `instructions` is the server's sanctioned channel into the model's
+    // context — the one place a "tell the user" message is not injection.
+    instructions: `${deniedMessage(door, denied)} Tell the user they were denied by policy; no tools are available.`,
+  };
+}
+
+// A door said 403 before any session existed (Privilege agent: "User … doesn't
+// have access to MCP app …"). A raw 403 kills the client's plugin and the user
+// sees nothing, so the façade hands out a "denied" session instead: initialize
+// succeeds with the denial in `instructions`, tools/list exposes one
+// policy_denied tool carrying the reason, any call answers with the same
+// message as an isError result — and every step lands on the reel as a DENY.
+function respondDeniedSession(req, res, { rpc, method, isCall, toolName, correlationId, session, door }) {
+  const denied = session.denied;
+  const msg = deniedMessage(door, denied);
+  res.set('Mcp-Session-Id', req.get('mcp-session-id'));
+  res.set('Content-Type', 'application/json');
+  if (method.startsWith('notifications/')) return res.status(202).end();
+  if (method === 'initialize') {
+    return res.status(200).send(JSON.stringify({ jsonrpc: '2.0', id: rpc.id ?? null, result: deniedInitializeResult(rpc, door, denied) }));
+  }
+  if (method === 'tools/list') {
+    return res.status(200).send(JSON.stringify({ jsonrpc: '2.0', id: rpc.id ?? null, result: { tools: [
+      { name: 'policy_denied', description: msg, inputSchema: { type: 'object', properties: {} } },
+    ] } }));
+  }
+  if (isCall) {
+    hop(correlationId, { phase: 'gateway.authorize', op: toolName, status: 'error',
+      decision: { outcome: 'deny', by: door.label, reason: denied.reason, source: 'inferred' } });
+    hop(correlationId, { phase: 'mcp.tool', op: toolName, status: 'error', durationMs: 0, details: { httpStatus: 403, error: { message: denied.reason } } });
+    const { reelUrl, reelBlock } = reelBlockFor(req, correlationId);
+    hop(correlationId, { phase: 'response', op: 'tools/call', status: 'error', details: { httpStatus: 403, reelUrl } });
+    return res.status(200).send(JSON.stringify({ jsonrpc: '2.0', id: rpc.id ?? null, result: { isError: true, content: [{ type: 'text', text: msg }, reelBlock] } }));
+  }
+  return res.status(200).send(JSON.stringify({ jsonrpc: '2.0', id: rpc.id ?? null, result: {} }));
+}
+
 router.post('/:door/mcp', express.json({ limit: '1mb', type: () => true }), async (req, res) => {
   const door = req.door;
   const rpc = req.body && typeof req.body === 'object' ? req.body : {};
@@ -218,6 +283,10 @@ router.post('/:door/mcp', express.json({ limit: '1mb', type: () => true }), asyn
         arguments: clip(rpc.params?.arguments ?? {}),
       },
     });
+  }
+
+  if (inbound?.denied) {
+    return respondDeniedSession(req, res, { rpc, method, isCall, toolName, correlationId, session: inbound, door });
   }
 
   const t0 = Date.now();
@@ -289,10 +358,19 @@ router.post('/:door/mcp', express.json({ limit: '1mb', type: () => true }), asyn
       });
     }
     if (upstream.status === 403) {
-      // No session to deliver a tool result into, so the client will fail the
-      // connection either way — make the reason it shows read as policy, not
-      // transport (Privilege agent door: "User … doesn't have access to MCP app").
       const reason = parsed?.error?.message || parsed?.message || (typeof parsed?.error === 'string' ? parsed.error : '') || text.slice(0, 200) || 'no reason given';
+      hop(correlationId, { phase: 'gateway.authorize', op: method, status: 'error',
+        decision: { outcome: 'deny', by: door.label, reason: String(reason), source: 'inferred' } });
+      if (method === 'initialize') {
+        const sid = `denied-${crypto.randomUUID()}`;
+        const denied = sessionFor(sid);
+        denied.cid = correlationId;
+        denied.denied = { reason: String(reason), method };
+        denied.server = { name: `${door.label} (access denied)`, version: '0' };
+        denied.client = rpc.params?.clientInfo || null;
+        res.status(200).set('Mcp-Session-Id', sid).set('Content-Type', 'application/json');
+        return res.send(JSON.stringify({ jsonrpc: '2.0', id: rpc.id ?? null, result: deniedInitializeResult(rpc, door, denied.denied) }));
+      }
       res.set('Content-Type', 'application/json');
       return res.send(JSON.stringify({ error: 'policy_denied', message: `You have been denied by Policy. ${door.label} refused ${method || 'the request'}: ${String(reason)}` }));
     }
@@ -321,27 +399,8 @@ router.post('/:door/mcp', express.json({ limit: '1mb', type: () => true }), asyn
     durationMs,
     details: { httpStatus: upstream.status, result: clip(parsed?.result ?? null), error: rpcError },
   });
-  const reelUrl = `${reelBase()}/transaction-trace/embed/${correlationId}`;
+  const { reelUrl, reelBlock } = reelBlockFor(req, correlationId);
   hop(correlationId, { phase: 'response', op: 'tools/call', status, details: { httpStatus: upstream.status, reelUrl } });
-
-  // First line stays machine-parseable (`reel_url: <url>` — LibreChat's
-  // artifact instruction keys on it). The rest is for the MODEL: without it,
-  // LM Studio's model judged the bare localhost link a debug artifact and
-  // hid it from the user (seen live 2026-08-25).
-  const reelImage = `${req.protocol}://${req.get('host')}/mcp-facade/reel/${correlationId}.svg`;
-  const reelBlock = {
-    type: 'text',
-    // Data, not commands: an imperative sentence here ("always show this link")
-    // was correctly flagged as prompt injection by qwen3 in LM Studio and the
-    // link was dropped (2026-08-25). The ask to surface it belongs in the
-    // chat's system prompt (lmstudio/README.md); the block just describes
-    // what the link and image are.
-    text: `reel_url: ${reelUrl}\n`
-      + `reel_image: ${reelImage}\n`
-      + 'Transaction trace ("movie reel") for this tool call: who called, the gateway\'s '
-      + 'authorization decision, the MCP request and response.\n'
-      + `![Transaction trace](${reelImage})`,
-  };
 
   if (upstream.status === 403) {
     // A 403 on tools/call is the door's policy saying no — the one error the
