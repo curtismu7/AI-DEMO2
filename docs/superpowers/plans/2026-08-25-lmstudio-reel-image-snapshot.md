@@ -510,11 +510,213 @@ git commit -m "feat(mcp-facade): 403 on tools/call → 'You have been denied by 
 
 ---
 
+### Task 7: One reel per MCP session — record every MCP step (initialize, initialized, tools/list, resources/list, tools/call)
+
+**Why:** Curtis, live 2026-08-25: "We want to see all the steps of MCP (init, etc), this is too limiting." Today the façade mints a correlation id per `tools/call` and records only that call, so the reel starts at the tool call. The MCP lifecycle before it — `initialize` (client/server/protocol), `notifications/initialized`, `tools/list`, `resources/list` — and the gateway's own PERMIT decisions for those methods are invisible.
+
+**Files:**
+- Modify: `demo_api_server/routes/mcpFacade.js` — `sessionFor()` (add `cid`), the top of `router.post('/:door/mcp', …)` (correlation resolution), the post-response section (record `mcp.step` hops, remember `cid`)
+- Modify: `demo_api_server/services/reelSvg.js` — header title only
+- Modify: `demo_api_ui/src/pages/TransactionTraceEmbedPage.jsx` — use the LAST `ui.request` / `mcp.tool`, keep polling while open
+- Test: `demo_api_server/tests/routes/mcpFacade.test.js`, `demo_api_server/tests/services/reelSvg.test.js`, `demo_api_ui/src/pages/__tests__/TransactionTraceEmbedPage.test.jsx`
+
+**Interfaces:**
+- Consumes: the session cache `sessions` / `sessionFor(id)` (object `{ client, server, capabilities, tools, resources }`), `hop(correlationId, h)`, `forwardHeaders(req, correlationId)`, `identityFromBearer(auth)`, `decodeMcpBody`, and the `tools/call` tail as it stands after Task 6 (`reelBlock`, 403 branch).
+- Produces: (1) `sessionFor(id)` objects gain `cid: string|null`; (2) **the correlation id is per MCP session**: minted on the request that has no session id yet (`initialize`), stored on the session object when the upstream returns `Mcp-Session-Id`, reused for every later request carrying that session id; (3) a new hop phase **`mcp.step`** (`op` = the JSON-RPC method: `initialize` | `notifications/initialized` | `tools/list` | `resources/list` | anything else that is not `tools/call`) with `details.httpStatus`, `durationMs`, and per-method details (initialize: `client`, `server`, `protocolVersion`, `capabilities`; tools/list: `toolCount`; resources/list: `resourceCount`); (4) `X-Correlation-ID` is forwarded on **every** request for `forwardCorrelation` doors, so the Node gateway's own `gateway.authorize` hops for initialize/tools/list land on the same reel; (5) no hop is written for an upstream **401** (unauthenticated discovery probes are not a transaction); (6) `reel_url`/image are the SAME for every tool call in a session (the reel grows). `ui.request` / `mcp.tool` / `response` for `tools/call` are unchanged — they now share the session's id.
+
+The ledger's HTTP ingest (`routes/transactionHopIngest.js`) validates phases against `VALID_PHASES`; the façade writes in-process via `ledger.appendHop`, which does not, and `services/transactionInvariants.js` only inspects named phases (`token.exchange`, `mcp.tool`, `hitl.consent`, decision phases), so `mcp.step` is inert there. `TransactionTracePage`'s `HopCard` renders any phase string.
+
+- [ ] **Step 1: Write the failing tests (façade)** — in `tests/routes/mcpFacade.test.js`:
+
+Replace the assertion block in the test `'agent-gateway: tools/call is relayed, reel_url appended, three hops written, correlation forwarded'` that starts with `// ui.request → mcp.tool → response, all on one correlation id` and ends with `expect(hops.response.details.reelUrl)…` with:
+
+```js
+    // Every hop of the session — initialize, initialized, tools/list, then the
+    // call's ui.request → mcp.tool → response — on ONE correlation id.
+    const ids = ledger.appendHop.mock.calls.map(([id]) => id);
+    expect(new Set(ids).size).toBe(1);
+    expect(ids[0]).toBe(cid);
+    const phases = ledger.appendHop.mock.calls.map(([, h]) => `${h.phase}:${h.op}`);
+    expect(phases).toEqual([
+      'mcp.step:initialize', 'mcp.step:notifications/initialized', 'mcp.step:tools/list',
+      'ui.request:tools/call get_my_accounts', 'mcp.tool:get_my_accounts', 'response:tools/call',
+    ]);
+    const hops = hopsByPhase();
+    expect(hops['ui.request']).toMatchObject({
+      service: 'mcp-facade',
+      op: 'tools/call get_my_accounts',
+      identity: { sub: 'user-1', scopes: ['read', 'mcp:invoke'], aud: 'mcpgateway.ping.demo', clientId: 'c1' },
+      details: {
+        door: 'agent-gateway',
+        client: { name: 'LM Studio', version: '0.4' },
+        server: { name: 'stub-gw', version: '1' },
+        tools: [{ name: 'get_my_accounts', description: 'List my accounts' }],
+        arguments: { limit: 4 },
+      },
+    });
+    expect(hops['mcp.tool']).toMatchObject({ op: 'get_my_accounts', status: 'ok', details: { httpStatus: 200 } });
+    expect(hops['mcp.tool'].details.result.content[0].text).toBe('{"success":true,"count":4}');
+    expect(hops.response.details.reelUrl).toBe(`https://ui.example/transaction-trace/embed/${cid}`);
+    // the initialize step carries the identity (record principal) and the negotiated session facts
+    const init = ledger.appendHop.mock.calls[0][1];
+    expect(init).toMatchObject({ phase: 'mcp.step', op: 'initialize', status: 'ok', identity: { sub: 'user-1' },
+      details: { httpStatus: 200, client: { name: 'LM Studio', version: '0.4' }, server: { name: 'stub-gw', version: '1' }, protocolVersion: '2025-06-18' } });
+    expect(ledger.appendHop.mock.calls[2][1].details).toMatchObject({ toolCount: 1 });
+```
+
+and in the same test, after `expect(upstreamCall.headers['mcp-session-id']).toBe('sess-1');` add:
+
+```js
+    // the session's correlation id rides on EVERY request to the gateway, not just the call
+    const upstreamList = seen.find((s) => s.rpc.method === 'tools/list');
+    expect(upstreamList.headers['x-correlation-id']).toBe(cid);
+```
+
+Replace the test `'non-tool calls pass through untouched (body, status, session header) and write no hops'` with:
+
+```js
+  test('non-tool calls pass through untouched and are recorded as mcp.step hops on the session reel', async () => {
+    const { init } = await runSession('agent-gateway');
+    expect(init.body.result.serverInfo.name).toBe('stub-gw');
+    const steps = ledger.appendHop.mock.calls.map(([, h]) => h).filter((h) => h.phase === 'mcp.step');
+    expect(steps.map((h) => h.op)).toEqual(['initialize', 'notifications/initialized', 'tools/list']);
+    expect(steps.every((h) => h.service === 'mcp-facade' && h.details.httpStatus === 200 && Number.isFinite(h.durationMs))).toBe(true);
+  });
+
+  test('an unauthenticated 401 probe writes no hop (not a transaction)', async () => {
+    await request(app()).post('/mcp-facade/agent-gateway/mcp')
+      .send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} });
+    expect(ledger.appendHop).not.toHaveBeenCalled();
+  });
+
+  test('two tool calls in one session share one reel', async () => {
+    const { sid, call } = await runSession('agent-gateway');
+    const second = await request(app()).post('/mcp-facade/agent-gateway/mcp').set('Authorization', AUTH).set('mcp-session-id', sid)
+      .send({ jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'get_my_accounts', arguments: {} } });
+    const reelOf = (r) => r.body.result.content.at(-1).text.split('\n')[0];
+    expect(reelOf(second)).toBe(reelOf(call));
+    expect(new Set(ledger.appendHop.mock.calls.map(([id]) => id)).size).toBe(1);
+  });
+```
+
+Also update the Privilege-door test `'Privilege doors add an inferred gateway.authorize hop (no policy trail to read)'`: replace `expect(Object.keys(hops)).toEqual(['ui.request', 'gateway.authorize', 'mcp.tool', 'response']);` with `expect(Object.keys(hops)).toEqual(['mcp.step', 'ui.request', 'gateway.authorize', 'mcp.tool', 'response']);` and the 502 test: its single direct `tools/call` without a session still writes `ui.request`, `mcp.tool`, `response` on a fresh id — unchanged.
+
+- [ ] **Step 2: Run to verify they fail**
+
+Run: `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/routes/mcpFacade.test.js --forceExit`
+Expected: FAIL — phases list has no `mcp.step` entries; ids differ per call.
+
+- [ ] **Step 3: Implement (façade)**
+
+In `sessionFor`: `s = { cid: null, client: null, server: null, capabilities: null, tools: null, resources: null };`
+
+At the top of `router.post('/:door/mcp', …)` replace `const correlationId = isCall ? crypto.randomUUID() : null;` and the `inbound` line with:
+
+```js
+  const inbound = sessionFor(req.get('mcp-session-id'));
+  // One reel per MCP session: minted on the first request (initialize has no
+  // session id yet), remembered on the session when the upstream issues its
+  // Mcp-Session-Id, reused for every later request that carries it — so the
+  // whole lifecycle (initialize → tools/list → tools/call…) and the gateway's
+  // own decisions for each step land on the same record.
+  const correlationId = inbound?.cid || crypto.randomUUID();
+```
+
+`forwardHeaders(req, correlationId)` now always receives an id (no change needed there). In the `catch` for an unreachable upstream, the `if (isCall)` block stays as is.
+
+After `const sess = sessionFor(upstreamSession) || inbound;` add `if (sess && !sess.cid) sess.cid = correlationId;` as the first line inside `if (sess) { … }`.
+
+Replace the `if (!isCall) { … return res.send(text); }` block with:
+
+```js
+  if (!isCall) {
+    // Every lifecycle step is on the reel — except unauthenticated probes,
+    // which are discovery noise, not a transaction.
+    if (upstream.status !== 401) {
+      const details = { httpStatus: upstream.status, door: req.params.door, doorLabel: door.label, error: parsed?.error || null };
+      if (method === 'initialize') {
+        Object.assign(details, {
+          client: rpc.params?.clientInfo || null,
+          protocolVersion: parsed?.result?.protocolVersion || null,
+          server: parsed?.result?.serverInfo || null,
+          capabilities: parsed?.result?.capabilities || null,
+        });
+      } else if (method === 'tools/list') {
+        details.toolCount = Array.isArray(parsed?.result?.tools) ? parsed.result.tools.length : null;
+      } else if (method === 'resources/list') {
+        details.resourceCount = Array.isArray(parsed?.result?.resources) ? parsed.result.resources.length : null;
+      }
+      hop(correlationId, {
+        phase: 'mcp.step',
+        op: method || 'unknown',
+        status: upstream.ok && !parsed?.error ? 'ok' : 'error',
+        durationMs,
+        ...(method === 'initialize' ? { identity: identityFromBearer(req.get('authorization')) } : {}),
+        details,
+      });
+    }
+    res.set('Content-Type', upstream.headers.get('content-type') || 'application/json');
+    return res.send(text);
+  }
+```
+
+- [ ] **Step 4: Run façade tests to verify they pass** — same command; expected PASS (all tests in the file).
+
+- [ ] **Step 5: SVG title** — in `services/reelSvg.js` replace the two lines that compute `req` and `title` with:
+
+```js
+  const requests = hops.filter((h) => h.phase === 'ui.request');
+  const req = requests[requests.length - 1] || null;
+  const init = hops.find((h) => h.phase === 'mcp.step' && h.op === 'initialize') || null;
+  const door = req?.details?.doorLabel || init?.details?.doorLabel || '';
+  const title = opts.title
+    || `Transaction trace — ${req?.op || (init?.details?.client?.name ? `${init.details.client.name} MCP session` : 'MCP session')}${door ? ` (${door})` : ''}`;
+```
+
+and add to `tests/services/reelSvg.test.js`:
+
+```js
+  test('a session with no tool call yet is titled by the client from the initialize step', () => {
+    const svg = renderReelSvg({ ...RECORD, hops: [
+      { seq: 1, phase: 'mcp.step', service: 'mcp-facade', op: 'initialize', details: { doorLabel: 'Agent Gateway', client: { name: 'LM Studio' } } },
+      { seq: 2, phase: 'mcp.step', service: 'mcp-facade', op: 'tools/list', details: { toolCount: 242 } },
+    ] });
+    expect(svg).toContain('LM Studio MCP session (Agent Gateway)');
+    expect(svg).toContain('tools/list');
+  });
+```
+
+Run: `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/services/reelSvg.test.js --forceExit` → PASS.
+
+- [ ] **Step 6: Embed page — last call, keep polling** — in `demo_api_ui/src/pages/TransactionTraceEmbedPage.jsx`:
+
+Replace `findHop` with
+
+```jsx
+function findLastHop(hops, phase) {
+  const list = (hops || []).filter((h) => h.phase === phase);
+  return list.length ? list[list.length - 1] : null;
+}
+```
+
+use it for `request` and `tool` (`findLastHop(hops, "ui.request")`, `findLastHop(hops, "mcp.tool")`), delete the `done` variable and its two uses (`let done = false;`, `done = (body.hops || []).some(…)`) and change the scheduling line to `if (!cancelled && ++polls < MAX_POLLS) timer = setTimeout(load, POLL_MS);` — a session reel keeps growing, so the page keeps refreshing for up to `MAX_POLLS × POLL_MS` (3 min). In the test `TransactionTraceEmbedPage.test.jsx`, change the comment `// response hop present → polling stops after the first fetch` to `// first render is one fetch; the 2 s re-poll has not fired yet` (the assertion `toHaveBeenCalledTimes(1)` still holds), and add a hop with `phase: "mcp.step", op: "initialize"` as `seq: 0` … no: insert as the first hop `{ seq: 1, phase: "mcp.step", service: "mcp-facade", op: "initialize", status: "ok", durationMs: 9, details: { httpStatus: 200, client: { name: "LM Studio" } } }` and renumber the others 2–5; update `getByTestId("hop-4")` to `"hop-5"`.
+
+Run: `cd demo_api_ui && ./node_modules/.bin/vitest run src/pages/__tests__/TransactionTraceEmbedPage.test.jsx` → PASS; `npm run build` → exit 0.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add demo_api_server/routes/mcpFacade.js demo_api_server/services/reelSvg.js demo_api_server/tests/routes/mcpFacade.test.js demo_api_server/tests/services/reelSvg.test.js demo_api_ui/src/pages/TransactionTraceEmbedPage.jsx demo_api_ui/src/pages/__tests__/TransactionTraceEmbedPage.test.jsx
+git commit -m "feat(mcp-facade): one reel per MCP session — initialize, initialized, tools/list and every call on one record"
+```
+
+---
+
 ### Task 5: Live verification, PR, deploy
 
 **Files:** none new.
 
-- [ ] **Step 0: Order** — Task 5 runs after Task 6.
+- [ ] **Step 0: Order** — Task 5 runs after Tasks 6 and 7. Live check must show initialize / tools/list rows on the reel and the same reel_url across two calls in one LM Studio chat.
 
 - [ ] **Step 1: Scoped tests + hygiene**
 
