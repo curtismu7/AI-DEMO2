@@ -167,10 +167,12 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
     () => agentPlacement === "middle",
   );
 
-  // Default ON — only an explicit More › Movie reel toggle-off ("0") hides it.
-  const [showFilmstrip, setShowFilmstrip] = useState(() => {
-    try { return localStorage.getItem("ba_show_filmstrip") !== "0"; } catch { return true; }
-  });
+  // Always ON at mount — the hidden state is session-only and never persisted.
+  // See the matching initializer in AIAgent.js: a stray toggle used to write
+  // ba_show_filmstrip="0" to localStorage and hide the reel in that browser
+  // forever. The live toggle still arrives via the agent-filmstrip-toggle event
+  // below, so More › Movie reel keeps working for the current session.
+  const [showFilmstrip, setShowFilmstrip] = useState(true);
   useEffect(() => {
     const handler = (e) => setShowFilmstrip(!!e.detail?.on);
     window.addEventListener("agent-filmstrip-toggle", handler);

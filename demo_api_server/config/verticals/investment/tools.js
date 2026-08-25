@@ -10,11 +10,14 @@
  * (`buySecurity`, `sellSecurity`, `deposit`, `withdraw`, `largeTrade`,
  * `rebalancePortfolio`) instead of government's.
  *
- * `large_trade` carries `authz: { stepUp: true, consent: true }`, mirroring
- * how government step-up-gates its own high-value action (`release_record`):
- * the investment manifest names "Large Trade" as this vertical's
- * `highValueAction` ("High-value trade or withdrawal from a managed
- * portfolio"), so it gets the same treatment here.
+ * `large_trade` carries `authz: { consent: true }`, matching retail `checkout`
+ * and every other vertical's UC6/7/8 amount tool. It previously also declared
+ * `stepUp: true`, mirroring government's `release_record` — but release_record
+ * is not an amount tool. gen-vertical-tools resolves stepUp before consent, so
+ * that made challengeType 'step_up' and the live MCP policy answered step-up
+ * for UC8's $300 where the catalog expects HITL (a ProofStrip Mismatch).
+ * The MCP obligation is amount-independent, so UC7's $600 step-up comes from
+ * the use-case catalog's declared stepUpMethod re-labelling the HITL.
  */
 function buildInvestmentTools(store) {
   const tools = [
@@ -27,7 +30,7 @@ function buildInvestmentTools(store) {
     { name: 'sell_security', description: 'Sell shares of a security held in the portfolio.', inputSchema: { type: 'object', properties: { symbol: { type: 'string' }, shares: { type: 'number' }, price: { type: 'number' } }, required: ['symbol', 'shares'] }, scopes: ['write'], authz: {} },
     { name: 'deposit', description: 'Deposit funds into a managed portfolio.', inputSchema: { type: 'object', properties: { portfolioType: { type: 'string' }, amount: { type: 'number' } }, required: ['amount', 'portfolioType'] }, scopes: ['write'], authz: {} },
     { name: 'withdraw', description: 'Withdraw funds from a managed portfolio.', inputSchema: { type: 'object', properties: { portfolioType: { type: 'string' }, amount: { type: 'number' } }, required: ['amount', 'portfolioType'] }, scopes: ['write'], authz: {} },
-    { name: 'large_trade', description: 'Execute a high-value trade or withdrawal from a managed portfolio (requires step-up + consent).', inputSchema: { type: 'object', properties: { portfolioType: { type: 'string' }, symbol: { type: 'string' }, amount: { type: 'number' } }, required: [] }, scopes: ['write'], authz: { stepUp: true, consent: true } },
+    { name: 'large_trade', description: 'Execute a high-value trade or withdrawal from a managed portfolio (requires step-up + consent).', inputSchema: { type: 'object', properties: { portfolioType: { type: 'string' }, symbol: { type: 'string' }, amount: { type: 'number' } }, required: [] }, scopes: ['write'], authz: { consent: true } },
     { name: 'rebalance_portfolio', description: "Rebalance a portfolio to its target allocation.", inputSchema: { type: 'object', properties: { portfolioType: { type: 'string' } }, required: [] }, scopes: ['write'], authz: {} },
     { name: 'sensitive_holdings', description: 'Access sensitive holdings detail including cost basis and tax lots. Requires explicit user consent.', inputSchema: { type: 'object', properties: {}, required: [] }, scopes: ['read'], authz: { consent: true } },
     {

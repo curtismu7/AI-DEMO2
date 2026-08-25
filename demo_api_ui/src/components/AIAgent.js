@@ -788,10 +788,18 @@ export default function BankingAgent({
       return false;
     }
   });
-  // Default ON — only an explicit Movie reel toggle-off ("0") hides it.
+  // Always ON at mount. Hiding is deliberately NOT persisted: a single stray
+  // click on the Movie reel switch used to write ba_show_filmstrip="0" to
+  // localStorage, which hid the reel in that browser profile forever — across
+  // reloads, deploys and demos, invisible to everyone else and with no
+  // self-heal. That is the "the reel disappeared again" incident, twice. The
+  // toggle still works for the current session; a reload always brings it back.
   const [showFilmstrip, setShowFilmstrip] = useState(() => {
     try {
-      return localStorage.getItem("ba_show_filmstrip") !== "0";
+      // One-time cleanup of the stale flag so a browser poisoned before this
+      // change stops hiding the reel.
+      localStorage.removeItem("ba_show_filmstrip");
+      return true;
     } catch {
       return true;
     }
@@ -9566,13 +9574,13 @@ export default function BankingAgent({
                         checked={showFilmstrip}
                         onChange={(e) => {
                           const newVal = e.target.checked;
-                          try {
-                            localStorage.setItem("ba_show_filmstrip", newVal ? "1" : "0");
-                          } catch {}
+                          // Deliberately NOT persisted — see the showFilmstrip
+                          // initializer. Session-only, so a reload always
+                          // restores the reel.
                           setShowFilmstrip(newVal);
                           window.dispatchEvent(new CustomEvent("agent-filmstrip-toggle", { detail: { on: newVal } }));
                         }}
-                        title="Show or hide the token chain movie reel at the bottom of the page"
+                        title="Show or hide the token chain movie reel for this session (returns on reload)"
                       >
                         Movie reel
                       </Check>

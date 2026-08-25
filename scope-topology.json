@@ -230,10 +230,7 @@
           { "file": "demo_mcp_resource_server/.env.example", "kind": "env" },
           { "file": "demo_api_server/scripts/refresh-service-envs.js", "kind": "js" }
         ],
-        "sourcePin": {
-          "file": "demo_mcp_resource_server/src/server/acceptedAudiences.ts",
-          "mustInclude": "RESOURCE_URI_ENV = 'MCP_RESOURCE_SERVER_RESOURCE_URI'"
-        }
+        "sourcePin": { "file": "demo_mcp_resource_server/src/server/acceptedAudiences.ts", "mustInclude": "RESOURCE_URI_ENV = 'MCP_RESOURCE_SERVER_RESOURCE_URI'" }
       },
       "scopes": ["mcp:invoke"],
       "mirroredScopes": ["invest:read", "airlines:read", "airlines:write", "pnr:read", "read"]
@@ -498,7 +495,9 @@
     },
     "pay_airline_fee": {
       "requiredScopes": ["airlines:read", "airlines:write"],
-      "surface": "gateway"
+      "surface": "gateway",
+      "challengeType": "consent",
+      "requiresAgentMediation": true
     },
     "get_airline_bookings": {
       "requiredScopes": ["airlines:read"],
@@ -612,7 +611,7 @@
     "submit_expense": {
       "requiredScopes": ["write"],
       "surface": "gateway",
-      "challengeType": "step_up",
+      "challengeType": "consent",
       "requiresAgentMediation": true
     },
     "request_time_off": {
@@ -887,7 +886,9 @@
     },
     "pay_fee": {
       "requiredScopes": ["write"],
-      "surface": "gateway"
+      "surface": "gateway",
+      "challengeType": "consent",
+      "requiresAgentMediation": true
     },
     "release_record": {
       "requiredScopes": ["write"],
@@ -977,7 +978,9 @@
     },
     "pay_bill": {
       "requiredScopes": ["write"],
-      "surface": "gateway"
+      "surface": "gateway",
+      "challengeType": "consent",
+      "requiresAgentMediation": true
     },
     "refill_prescription": {
       "requiredScopes": ["write"],
@@ -1033,7 +1036,9 @@
     },
     "approve_purchase_order": {
       "requiredScopes": ["write"],
-      "surface": "gateway"
+      "surface": "gateway",
+      "challengeType": "consent",
+      "requiresAgentMediation": true
     },
     "close_maintenance_ticket": {
       "requiredScopes": ["write"],
@@ -1275,7 +1280,9 @@
     },
     "pay_tuition_balance": {
       "requiredScopes": ["write"],
-      "surface": "gateway"
+      "surface": "gateway",
+      "challengeType": "consent",
+      "requiresAgentMediation": true
     },
     "register_course": {
       "requiredScopes": ["write"],
@@ -1430,7 +1437,8 @@
     "large_trade": {
       "requiredScopes": ["write"],
       "surface": "gateway",
-      "challengeType": "step_up"
+      "challengeType": "consent",
+      "requiresAgentMediation": true
     },
     "rebalance_portfolio": {
       "requiredScopes": ["write"],
