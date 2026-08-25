@@ -14,6 +14,9 @@
     },
     "MCP Direct-OpenSearch": {
       "url": "http://localhost:9900/mcp"
+    },
+    "MCP PingOne-Admin": {
+      "url": "http://localhost:3002/mcp-facade/pingone-admin/mcp"
     }
   }
 }
