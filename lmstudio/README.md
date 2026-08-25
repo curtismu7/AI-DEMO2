@@ -10,18 +10,25 @@ cp lmstudio/mcp.json ~/.lmstudio/mcp.json   # then restart LM Studio
 | entry (shown as `mcp/<entry>` in LM Studio) | door | auth |
 |---|---|---|
 | `MCP Direct-Banking` | our banking MCP server (`oauth-mcp`) on the SE cluster | LM Studio's native OAuth (RFC 9728 → DCR → PKCE) |
-| `MCP Agentless-Banking` | Privilege **agentless** gateway, `external` app (banking tools; see `privilege/AGENTLESS-CONFIGURATION.md`), through the recording façade | native OAuth (the façade points LM Studio at Privilege's AS) |
-| `MCP Agent-OpenSearch` | OpenSearch MCP **through the Privilege agent** (`cm-mcpgw` in K8s), through the recording façade | the installed macOS Privilege Agent — no prompt |
-| `MCP Direct-OpenSearch` | the same OpenSearch MCP server, **bypassing Privilege** | none — needs a port-forward first (below) |
-| `MCP AgentGateway-Banking` | this repo's Agent Gateway (`demo_mcp_gateway`, local Docker :3005), through the recording façade | native OAuth via the gateway's broker (PR #2353) → PingOne login |
+| `MCP Agentless-Banking` | Privilege **agentless** gateway, `external` app (banking tools; see `privilege/AGENTLESS-CONFIGURATION.md`), through the **SE-hosted** recording façade | native OAuth (the façade points LM Studio at Privilege's AS) |
+| `MCP Agent-OpenSearch` | OpenSearch MCP **through the Privilege agent** (`cm-mcpgw` in K8s, namespace `ping-devops-cmuir`), through the **local** recording façade | the installed macOS Privilege Agent — no prompt |
+| `MCP Direct-OpenSearch` | the same OpenSearch MCP server (`cm-mcpgw` in K8s), **bypassing Privilege** | none — needs a port-forward first (below) |
+| `MCP AgentGateway-Banking` | this repo's Agent Gateway (`demo_mcp_gateway`, deployed to the SE cluster), through the **SE-hosted** recording façade | native OAuth via the gateway's broker (PR #2353, real Let's Encrypt cert) → PingOne login |
+
+All five doors ultimately talk to the SE cluster (`ping-devops-cmuir` namespace,
+`ai-demo.ping-devops.com`) — the two OpenSearch doors reach it via a local hop
+(the Privilege Agent, or a `kubectl port-forward`) because their upstream has no
+public ingress; the three banking/gateway doors go straight to it.
 
 ## The recording façade (movie reel)
 
-Direct doors just work. The three doors that cross an authorization boundary
-(`MCP AgentGateway-Banking`, `MCP Agentless-Banking`, `MCP Agent-OpenSearch`) go through the BFF's recording
-façade, `http://localhost:3002/mcp-facade/<door>/mcp` (`demo_api_server/routes/mcpFacade.js`,
-the client-agnostic half of `docs/superpowers/specs/2026-08-24-librechat-embedded-mcp-trace-design.md`).
-It relays every call unchanged, records the hops on the transaction ledger, and appends one
+Direct doors just work. The three doors that cross an authorization boundary go through
+the BFF's recording façade (`demo_api_server/routes/mcpFacade.js`, the client-agnostic half
+of `docs/superpowers/specs/2026-08-24-librechat-embedded-mcp-trace-design.md`) — `MCP
+AgentGateway-Banking` and `MCP Agentless-Banking` at `https://ai-demo.ping-devops.com/mcp-facade/<door>/mcp`
+(the SE deployment); `MCP Agent-OpenSearch` at `http://localhost:3002/mcp-facade/agent/mcp`
+(local only — its upstream, the Privilege Agent listener, only resolves on this Mac). It
+relays every call unchanged, records the hops on the transaction ledger, and appends one
 extra block to every tool result:
 
 ```text
@@ -46,8 +53,9 @@ The image is rendered on request from the ledger, so it fills in as the hops lan
 own decision arrives a beat after the tool result). It keeps refreshing for a few minutes while
 open, because a session's reel keeps growing as you make more calls.
 
-(`MCP_FACADE_REEL_BASE` in `demo_api_server/.env` overrides the host — the embed page is
-public, so it needs no special hostname and no `/etc/hosts` entry.)
+(`MCP_FACADE_REEL_BASE` overrides the host — `demo_api_server/.env` locally,
+`service-topology.json`'s `MCP_FACADE_REEL_BASE`/`MCP_FACADE_AGENT_GATEWAY_AS` public-patch
+entries for k8s. The embed page is public, so it needs no special hostname there either.)
 
 LM Studio renders Markdown only (no embedded HTML — `docs/superpowers/specs/2026-08-24-lmstudio-mcp-client-design.md` §4),
 so click that link: the page shows the hop-by-hop chain (identity, the gateway's real
@@ -55,11 +63,11 @@ P1AZ decision for `MCP AgentGateway-Banking`, timing) plus the MCP side of the c
 descriptions, resources (or "not advertised"), the request arguments and the raw response.
 It keeps refreshing for a few minutes while open, because a session's reel keeps growing as you make more calls.
 
-The façade is served over plain HTTP on `127.0.0.1:3002` on purpose: LM Studio's MCP bridge
-is a Node process that does not trust the mkcert chain (`SELF_SIGNED_CERT_IN_CHAIN`, seen
-live 2026-08-24), the listener is loopback-only, and every call carries the client's own
-bearer. The same façade is also on the BFF's HTTPS port (`https://api.ping.demo:3001/mcp-facade/…`)
-for containerized clients such as LibreChat.
+The **local** façade (`MCP Agent-OpenSearch` only) is served over plain HTTP on
+`127.0.0.1:3002` on purpose: LM Studio's MCP bridge is a Node process that does not trust the
+mkcert chain (`SELF_SIGNED_CERT_IN_CHAIN`, seen live 2026-08-24), the listener is
+loopback-only, and every call carries the client's own bearer. The **SE** façade needs no such
+workaround — `ai-demo.ping-devops.com` carries a real Let's Encrypt cert.
 
 `MCP Direct-OpenSearch` is ClusterIP-only in K8s, so open the tunnel before toggling it on:
 
