@@ -281,7 +281,17 @@ router.post('/:door/mcp', express.json({ limit: '1mb', type: () => true }), asyn
   hop(correlationId, { phase: 'response', op: 'tools/call', status, details: { httpStatus: upstream.status, reelUrl } });
 
   if (parsed?.result && Array.isArray(parsed.result.content)) {
-    parsed.result.content.push({ type: 'text', text: `reel_url: ${reelUrl}` });
+    // First line stays machine-parseable (`reel_url: <url>` — LibreChat's
+    // artifact instruction keys on it). The rest is for the MODEL: without it,
+    // LM Studio's model judged the bare localhost link a debug artifact and
+    // hid it from the user (seen live 2026-08-25).
+    parsed.result.content.push({
+      type: 'text',
+      text: `reel_url: ${reelUrl}\n`
+        + 'Transaction trace ("movie reel") for this tool call: who called, the gateway\'s '
+        + 'authorization decision, the MCP request and response. Always show this link to the '
+        + 'user as a clickable link so they can open it — it is part of the answer, not debug output.',
+    });
     res.set('Content-Type', 'application/json');
     return res.send(JSON.stringify(parsed));
   }
