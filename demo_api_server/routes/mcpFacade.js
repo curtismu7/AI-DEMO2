@@ -43,6 +43,13 @@ const DOORS = {
     authorizationServer: () => process.env.MCP_FACADE_AGENT_GATEWAY_AS || 'http://localhost:3005',
     scopes: ['read', 'write', 'transfer', 'mcp:invoke'],
     forwardCorrelation: true,
+    // ponytail: the Node gateway's initialize reply advertises the UPSTREAM's
+    // protocolVersion (2026-07-28 from mcp-server) but its own header check only
+    // accepts 2025-11-25 and tolerates absence — so a spec-following client that
+    // echoes the negotiated version 400s on every call after initialize. Drop the
+    // header for this door until the gateway advertises what it accepts
+    // (TECH_DEBT: "Agent Gateway HTTP /mcp protocol-version mismatch").
+    dropProtocolHeader: true,
   },
   agentless: {
     label: 'Privilege agentless',
@@ -149,7 +156,9 @@ router.get('/:door/.well-known/oauth-protected-resource', (req, res) => {
 
 function forwardHeaders(req, correlationId) {
   const headers = { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' };
-  for (const h of ['authorization', 'mcp-session-id', 'mcp-protocol-version']) {
+  const passthrough = ['authorization', 'mcp-session-id'];
+  if (!req.door.dropProtocolHeader) passthrough.push('mcp-protocol-version');
+  for (const h of passthrough) {
     const v = req.get(h);
     if (v) headers[h] = v;
   }

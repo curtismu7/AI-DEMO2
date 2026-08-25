@@ -16,6 +16,25 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-08-24 — Agent Gateway HTTP `/mcp` advertises a protocol version it then rejects (`MCP-Protocol-Version` mismatch)
+
+**Where:** `demo_mcp_gateway/src/server/GatewayServer.ts` HTTP `/mcp` path — the `initialize`
+reply relays the upstream mcp-server's `protocolVersion` (`2026-07-28` observed live) while the
+per-request `MCP-Protocol-Version` header check only accepts `2025-11-25`
+(`unsupported_protocol_version`, `supported: ["2025-11-25"]`). Absence of the header is tolerated.
+
+**What's wrong:** a spec-following Streamable-HTTP client (MCP SDK, LM Studio, LibreChat)
+echoes the version negotiated in `initialize` on every later request, so `tools/list` /
+`tools/call` 400 through this door. Found 2026-08-24 while live-verifying the recording
+façade (PR #2356) with a client that echoes the negotiated version.
+
+**Why not fixed now:** the façade only needed to reach the gateway; it drops the header for
+the `agent-gateway` door (`demo_api_server/routes/mcpFacade.js`, `dropProtocolHeader` — a
+`ponytail:` shortcut). Clients talking to `:3005/mcp` directly still hit the mismatch.
+
+**Real fix:** the gateway should advertise in `initialize` the version it actually enforces
+(or accept the version it advertised), then drop `dropProtocolHeader` from the façade.
+
 ### [ ] 2026-08-24 — `k8s/create-secrets.sh` never falls back to the internal vault, so a vault-only secret silently never reaches the SE K8s Secret
 
 **Where:** `k8s/create-secrets.sh`'s `secret_from_envfile()` (~line 103-154),

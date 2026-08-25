@@ -201,6 +201,16 @@ describe('/mcp-facade — relay + recording', () => {
     }
   });
 
+  test('MCP-Protocol-Version is dropped for the agent-gateway door (gateway advertises a version it rejects) but forwarded to Privilege', async () => {
+    const a = app();
+    await request(a).post('/mcp-facade/agent-gateway/mcp').set('Authorization', AUTH).set('mcp-protocol-version', '2026-07-28')
+      .send({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
+    expect(seen[0].headers['mcp-protocol-version']).toBeUndefined();
+    await request(a).post('/mcp-facade/agentless/mcp').set('Authorization', AUTH).set('mcp-protocol-version', '2025-06-18')
+      .send({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
+    expect(seen[1].headers['mcp-protocol-version']).toBe('2025-06-18');
+  });
+
   test('GET /mcp is not offered through the façade', async () => {
     const res = await request(app()).get('/mcp-facade/agent-gateway/mcp');
     expect(res.status).toBe(405);
