@@ -283,20 +283,41 @@ router.post('/:door/mcp', express.json({ limit: '1mb', type: () => true }), asyn
   const reelUrl = `${reelBase()}/transaction-trace/embed/${correlationId}`;
   hop(correlationId, { phase: 'response', op: 'tools/call', status, details: { httpStatus: upstream.status, reelUrl } });
 
+  // First line stays machine-parseable (`reel_url: <url>` — LibreChat's
+  // artifact instruction keys on it). The rest is for the MODEL: without it,
+  // LM Studio's model judged the bare localhost link a debug artifact and
+  // hid it from the user (seen live 2026-08-25).
+  const reelImage = `${req.protocol}://${req.get('host')}/mcp-facade/reel/${correlationId}.svg`;
+  const reelBlock = {
+    type: 'text',
+    text: `reel_url: ${reelUrl}\n`
+      + 'Transaction trace ("movie reel") for this tool call: who called, the gateway\'s '
+      + 'authorization decision, the MCP request and response. Always show this link to the '
+      + 'user as a clickable link so they can open it — it is part of the answer, not debug output.\n'
+      + `![Transaction trace](${reelImage})`,
+  };
+
+  if (upstream.status === 403) {
+    // A 403 on tools/call is the door's policy saying no — the one error the
+    // demo audience should read verbatim. Hand it to the model the MCP way
+    // (a tool result with isError) instead of a transport error it paraphrases.
+    const reason = rpcError?.message || parsed?.message || parsed?.error || text.slice(0, 200) || 'no reason given';
+    res.status(200).set('Content-Type', 'application/json');
+    return res.send(JSON.stringify({
+      jsonrpc: '2.0',
+      id: rpc.id ?? null,
+      result: {
+        isError: true,
+        content: [
+          { type: 'text', text: `You have been denied by Policy.\n${door.label} refused ${toolName}: ${String(reason)}` },
+          reelBlock,
+        ],
+      },
+    }));
+  }
+
   if (parsed?.result && Array.isArray(parsed.result.content)) {
-    // First line stays machine-parseable (`reel_url: <url>` — LibreChat's
-    // artifact instruction keys on it). The rest is for the MODEL: without it,
-    // LM Studio's model judged the bare localhost link a debug artifact and
-    // hid it from the user (seen live 2026-08-25).
-    const reelImage = `${req.protocol}://${req.get('host')}/mcp-facade/reel/${correlationId}.svg`;
-    parsed.result.content.push({
-      type: 'text',
-      text: `reel_url: ${reelUrl}\n`
-        + 'Transaction trace ("movie reel") for this tool call: who called, the gateway\'s '
-        + 'authorization decision, the MCP request and response. Always show this link to the '
-        + 'user as a clickable link so they can open it — it is part of the answer, not debug output.\n'
-        + `![Transaction trace](${reelImage})`,
-    });
+    parsed.result.content.push(reelBlock);
     res.set('Content-Type', 'application/json');
     return res.send(JSON.stringify(parsed));
   }

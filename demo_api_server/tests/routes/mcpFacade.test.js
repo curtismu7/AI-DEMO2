@@ -44,6 +44,10 @@ beforeAll(async () => {
       if (rpc.method === 'tools/list') {
         return reply({ tools: [{ name: 'get_my_accounts', description: 'List my accounts', inputSchema: {} }] });
       }
+      if (rpc.method === 'tools/call' && rpc.params?.name === 'get_sensitive_account_details') {
+        res.writeHead(403, { 'Content-Type': 'application/json', 'mcp-session-id': 'sess-1' });
+        return res.end(JSON.stringify({ error: 'forbidden', message: 'policy: sensitive:read not granted', decision: 'DENY' }));
+      }
       if (rpc.method === 'tools/call') {
         res.writeHead(200, { 'Content-Type': 'text/event-stream', 'mcp-session-id': 'sess-1' });
         const body = { jsonrpc: '2.0', id: rpc.id, result: { content: [{ type: 'text', text: '{"success":true,"count":4}' }] } };
@@ -228,6 +232,34 @@ describe('/mcp-facade — relay + recording', () => {
   test('GET /mcp is not offered through the façade', async () => {
     const res = await request(app()).get('/mcp-facade/agent-gateway/mcp');
     expect(res.status).toBe(405);
+  });
+
+  test('403 on tools/call becomes an isError tool result that says "You have been denied by Policy."', async () => {
+    const a = app();
+    const res = await request(a).post('/mcp-facade/agentless/mcp').set('Authorization', AUTH).set('mcp-session-id', 'sess-1')
+      .send({ jsonrpc: '2.0', id: 7, method: 'tools/call', params: { name: 'get_sensitive_account_details', arguments: {} } });
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/application\/json/);
+    expect(res.body.id).toBe(7);
+    expect(res.body.result.isError).toBe(true);
+    const [msg, reel] = res.body.result.content;
+    expect(msg.type).toBe('text');
+    expect(msg.text).toMatch(/^You have been denied by Policy\.\n/);
+    expect(msg.text).toContain('Privilege agentless refused get_sensitive_account_details: policy: sensitive:read not granted');
+    expect(reel.text).toMatch(/^reel_url: /);
+    expect(reel.text).toMatch(/!\[Transaction trace\]\(http:\/\/127\.0\.0\.1:\d+\/mcp-facade\/reel\/[0-9a-f-]{36}\.svg\)/);
+    // the reel records the denial
+    const hops = hopsByPhase();
+    expect(hops['gateway.authorize'].decision).toMatchObject({ outcome: 'deny', source: 'inferred', reason: 'HTTP 403' });
+    expect(hops['mcp.tool']).toMatchObject({ status: 'error', details: { httpStatus: 403 } });
+    expect(hops.response).toMatchObject({ status: 'error', details: { httpStatus: 403 } });
+  });
+
+  test('401 on tools/call still passes through (the client must re-authenticate)', async () => {
+    const res = await request(app()).post('/mcp-facade/agentless/mcp')
+      .send({ jsonrpc: '2.0', id: 8, method: 'tools/call', params: { name: 'get_my_accounts', arguments: {} } });
+    expect(res.status).toBe(401);
+    expect(res.headers['www-authenticate']).toMatch(/resource_metadata=/);
   });
 });
 
