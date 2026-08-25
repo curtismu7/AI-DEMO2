@@ -54,6 +54,26 @@ spec:
           value: "http://127.0.0.1:9001"
         - name: GW_INTROSPECTION_ENDPOINT
           value: "http://127.0.0.1:9001/as/introspect"
+        # gateway-secrets' GW_INTROSPECTION_CLIENT_ID/SECRET are the "Demo MCP
+        # Gateway" resource's OWN credentials — correct for the authz-server
+        # sidecar's real RFC 7662 call below, but McpTokenExchangeClient.ts's
+        # actor selection (actorClientId = introspectionClientId || clientId)
+        # also reads this same var and would use a resource-server client as
+        # the RFC 8693 exchange actor, which PingOne rejects
+        # (invalid_client — a resource client can introspect, not exchange).
+        # Blank it here so this container falls back to its own
+        # MCP_GW_CLIENT_ID/SECRET, as the fallback comment above intends.
+        # The authz-server container below keeps the real value from
+        # gateway-secrets — do not add the same override there. (Originally
+        # applied 2026-08-25 on worktree-se-gateway-actor-secret-fix, which
+        # was never merged — re-applied here after a vault-in-k8s-design
+        # deploy silently reverted it by applying this file from a branch
+        # that predated the fix. Two unmerged branches touching the same
+        # shared manifest is the root cause; both need merging to main.)
+        - name: GW_INTROSPECTION_CLIENT_ID
+          value: ""
+        - name: GW_INTROSPECTION_CLIENT_SECRET
+          value: ""
         # Path B (dual_token): id_token bridge + resource-server base must hit the
         # in-cluster BFF, not the localhost defaults in config.ts.
         - name: BFF_INTERNAL_ID_TOKEN_URL

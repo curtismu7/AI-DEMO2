@@ -157,7 +157,16 @@ concern. Removed `dropProtocolHeader` from `demo_api_server/routes/mcpFacade.js`
 gateway accepts the header it echoes back, so the `agent-gateway` door forwards
 `MCP-Protocol-Version` like every other door.
 
-### [ ] 2026-08-24 — `k8s/create-secrets.sh` never falls back to the internal vault, so a vault-only secret silently never reaches the SE K8s Secret
+### [x] 2026-08-24 — `k8s/create-secrets.sh` never falls back to the internal vault, so a vault-only secret silently never reaches the SE K8s Secret — RESOLVED 2026-08-25
+
+**Resolved:** `docs/superpowers/plans/2026-08-25-vault-in-k8s.md` implements
+exactly the "Real fix" below, plus a guard-rail: for any vault-managed key,
+`create-secrets.sh` now uses the vault's value, and hard-fails the deploy if
+`.env` has a *different* non-empty value for that key (drift), rather than
+silently letting either source win. `.env` files keep their real values
+(matching the vault) rather than being blanked — local Docker/native runs
+are unaffected, since `configStore.js`'s own `.env` → vault → LMDB order
+already prefers `.env` when present and it now always matches.
 
 **Where:** `k8s/create-secrets.sh`'s `secret_from_envfile()` (~line 103-154),
 called by `se-update-config.sh` / `run-pingaws.sh update config`.
