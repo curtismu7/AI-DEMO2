@@ -498,7 +498,9 @@
     },
     "pay_airline_fee": {
       "requiredScopes": ["airlines:read", "airlines:write"],
-      "surface": "gateway"
+      "surface": "gateway",
+      "challengeType": "consent",
+      "requiresAgentMediation": true
     },
     "get_airline_bookings": {
       "requiredScopes": ["airlines:read"],
@@ -887,7 +889,9 @@
     },
     "pay_fee": {
       "requiredScopes": ["write"],
-      "surface": "gateway"
+      "surface": "gateway",
+      "challengeType": "consent",
+      "requiresAgentMediation": true
     },
     "release_record": {
       "requiredScopes": ["write"],
@@ -977,7 +981,9 @@
     },
     "pay_bill": {
       "requiredScopes": ["write"],
-      "surface": "gateway"
+      "surface": "gateway",
+      "challengeType": "consent",
+      "requiresAgentMediation": true
     },
     "refill_prescription": {
       "requiredScopes": ["write"],
@@ -1033,7 +1039,9 @@
     },
     "approve_purchase_order": {
       "requiredScopes": ["write"],
-      "surface": "gateway"
+      "surface": "gateway",
+      "challengeType": "consent",
+      "requiresAgentMediation": true
     },
     "close_maintenance_ticket": {
       "requiredScopes": ["write"],
@@ -1275,7 +1283,9 @@
     },
     "pay_tuition_balance": {
       "requiredScopes": ["write"],
-      "surface": "gateway"
+      "surface": "gateway",
+      "challengeType": "consent",
+      "requiresAgentMediation": true
     },
     "register_course": {
       "requiredScopes": ["write"],

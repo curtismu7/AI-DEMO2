@@ -87,7 +87,17 @@ describe('getAuthorizationPoliciesFromSnapshot testCases wiring', () => {
 
   test('MCP Require HITL Consent for sensitive tools: trigger uses a gated tool with HitlApproved false', () => {
     const tc = findRule(policies, 'MCP Require HITL Consent for sensitive tools').testCases;
-    expect(tc.trigger.parameters).toMatchObject({ ToolName: 'book_appointment', HitlApproved: false });
+    // The trigger tool is whichever consent-gated tool the generator picks
+    // (currently the first of the sorted list), so pinning a literal name broke
+    // the moment a new consent tool sorted ahead of it — as happened when the
+    // five ungated amount tools were added, 2026-08-25. What actually matters
+    // is that the trigger IS consent-gated and presents no HITL approval.
+    const topology = require('../../../scope-topology.json');
+    const consentTools = Object.entries(topology.tools)
+      .filter(([, m]) => m && m.challengeType === 'consent')
+      .map(([name]) => name);
+    expect(consentTools).toContain(tc.trigger.parameters.ToolName);
+    expect(tc.trigger.parameters).toMatchObject({ HitlApproved: false });
   });
 
   // Inverted by #1003, and this assertion was left behind asserting the OLD

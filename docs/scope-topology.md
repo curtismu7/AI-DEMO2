@@ -343,7 +343,7 @@ Granted scopes: `read`, `identity:read`
 | `get_investment_accounts` | gateway | `invest:read` | — |
 | `get_investment_transactions` | gateway | `invest:read` | — |
 | `get_portfolio_summary` | gateway | `invest:read` | — |
-| `pay_airline_fee` | gateway | `airlines:read` `airlines:write` | — |
+| `pay_airline_fee` | gateway | `airlines:read` `airlines:write` | consent |
 | `get_airline_bookings` | gateway | `airlines:read` | — |
 | `sensitive_airline_bookings` | gateway | `airlines:read` `sensitive:read` | consent |
 | `cancel_airline_reservation` | gateway | `airlines:read` `airlines:write` | step_up |
@@ -426,7 +426,7 @@ Granted scopes: `read`, `identity:read`
 | `cancel_permit` | gateway | `write` | — |
 | `close_violation` | gateway | `write` | — |
 | `dispute_violation` | gateway | `write` | — |
-| `pay_fee` | gateway | `write` | — |
+| `pay_fee` | gateway | `write` | consent |
 | `release_record` | gateway | `write` | step_up |
 | `renew_permit` | gateway | `write` | — |
 | `reschedule_gov_appointment` | gateway | `write` | — |
@@ -448,7 +448,7 @@ Granted scopes: `read`, `identity:read`
 | `cancel_referral` | gateway | `write` | — |
 | `list_messages` | gateway | `read` | — |
 | `mark_message_read` | gateway | `write` | — |
-| `pay_bill` | gateway | `write` | — |
+| `pay_bill` | gateway | `write` | consent |
 | `refill_prescription` | gateway | `write` | — |
 | `request_document` | gateway | `write` | — |
 | `reschedule_appointment` | gateway | `write` | — |
@@ -462,7 +462,7 @@ Granted scopes: `read`, `identity:read`
 | `view_medications` | gateway | `read` | — |
 | `view_referrals` | gateway | `read` | — |
 | `view_vitals` | gateway | `read` | — |
-| `approve_purchase_order` | gateway | `write` | — |
+| `approve_purchase_order` | gateway | `write` | consent |
 | `close_maintenance_ticket` | gateway | `write` | — |
 | `complete_quality_inspection` | gateway | `write` | — |
 | `escalate_maintenance_ticket` | gateway | `write` | — |
@@ -522,7 +522,7 @@ Granted scopes: `read`, `identity:read`
 | `apply_scholarship` | gateway | `write` | — |
 | `cancel_course_registration` | gateway | `write` | — |
 | `checkout_library_item` | gateway | `write` | — |
-| `pay_tuition_balance` | gateway | `write` | — |
+| `pay_tuition_balance` | gateway | `write` | consent |
 | `register_course` | gateway | `write` | — |
 | `release_hold` | gateway | `write` | — |
 | `release_transcript` | gateway | `write` | step_up |
