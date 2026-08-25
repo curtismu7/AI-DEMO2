@@ -320,7 +320,7 @@ Send in the same chat: `Reply with exactly this Markdown and nothing else: ![Tra
 
 Record the outcome in this file, replacing the line below:
 
-`RESULT: <renders inline | shows alt text only | shows raw markdown> — LM Studio <version>, model <name>, 2026-08-__`
+`RESULT: renders inline — confirmed by Curtis in LM Studio, 2026-08-25 (cid 7cfcbf92-c9f9-4ad4-94c5-5957f2fc1df8)`
 
 - [ ] **Step 4: Decide**
 
@@ -401,9 +401,120 @@ git commit -m "feat(mcp-facade): embed the reel as a Markdown image in every too
 
 ---
 
+### Task 6: 403 on `tools/call` → "You have been denied by Policy." tool result
+
+**Files:**
+- Modify: `demo_api_server/routes/mcpFacade.js` — the `tools/call` tail of `router.post('/:door/mcp', …)` (the block from `const rpcError = parsed?.error || null;` to the end of the handler)
+- Test: `demo_api_server/tests/routes/mcpFacade.test.js` (extend the stub upstream + append two tests)
+
+**Interfaces:**
+- Consumes: everything already in scope in that block — `upstream` (fetch Response), `parsed` (decoded body), `text` (raw body), `rpc`, `toolName`, `door`, `reelUrl`, `reelImage`, `correlationId`, `hop(...)`.
+- Produces: on `tools/call` with upstream HTTP 403, the façade answers **200 `application/json`** with `{ jsonrpc: '2.0', id: rpc.id ?? null, result: { isError: true, content: [ { type:'text', text: 'You have been denied by Policy.\n<door label> refused <tool>: <upstream reason>' }, <the same reel block as a success> ] } }`. The hops already written for this path (Privilege doors: `gateway.authorize` deny/inferred; all doors: `mcp.tool` status error with `httpStatus: 403`, `response` status error) are unchanged, so the reel shows ❌ DENY. Applies to all three doors: a 403 from the Agent Gateway is its P1AZ DENY, the same class of answer. 401 and every other status still pass through unchanged (401 must reach the client so it re-authenticates).
+
+**Why:** a raw 403 reaches LM Studio as `Streamable HTTP error: Error POSTing to endpoint: {...}` and the model reports a generic failure. A policy denial is the one error the demo audience should read verbatim; MCP's way to hand a tool failure to the model is a result with `isError: true`.
+
+- [ ] **Step 1: Write the failing tests** — extend the stub upstream in the test file: inside the `tools/call` branch, before the success reply, add
+
+```js
+      if (rpc.method === 'tools/call' && rpc.params?.name === 'get_sensitive_account_details') {
+        res.writeHead(403, { 'Content-Type': 'application/json', 'mcp-session-id': 'sess-1' });
+        return res.end(JSON.stringify({ error: 'forbidden', message: 'policy: sensitive:read not granted', decision: 'DENY' }));
+      }
+```
+
+and append to the relay `describe`:
+
+```js
+  test('403 on tools/call becomes an isError tool result that says "You have been denied by Policy."', async () => {
+    const a = app();
+    const res = await request(a).post('/mcp-facade/agentless/mcp').set('Authorization', AUTH).set('mcp-session-id', 'sess-1')
+      .send({ jsonrpc: '2.0', id: 7, method: 'tools/call', params: { name: 'get_sensitive_account_details', arguments: {} } });
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/application\/json/);
+    expect(res.body.id).toBe(7);
+    expect(res.body.result.isError).toBe(true);
+    const [msg, reel] = res.body.result.content;
+    expect(msg.type).toBe('text');
+    expect(msg.text).toMatch(/^You have been denied by Policy\.\n/);
+    expect(msg.text).toContain('Privilege agentless refused get_sensitive_account_details: policy: sensitive:read not granted');
+    expect(reel.text).toMatch(/^reel_url: /);
+    expect(reel.text).toMatch(/!\[Transaction trace\]\(http:\/\/127\.0\.0\.1:\d+\/mcp-facade\/reel\/[0-9a-f-]{36}\.svg\)/);
+    // the reel records the denial
+    const hops = hopsByPhase();
+    expect(hops['gateway.authorize'].decision).toMatchObject({ outcome: 'deny', source: 'inferred', reason: 'HTTP 403' });
+    expect(hops['mcp.tool']).toMatchObject({ status: 'error', details: { httpStatus: 403 } });
+    expect(hops.response).toMatchObject({ status: 'error', details: { httpStatus: 403 } });
+  });
+
+  test('401 on tools/call still passes through (the client must re-authenticate)', async () => {
+    const res = await request(app()).post('/mcp-facade/agentless/mcp')
+      .send({ jsonrpc: '2.0', id: 8, method: 'tools/call', params: { name: 'get_my_accounts', arguments: {} } });
+    expect(res.status).toBe(401);
+    expect(res.headers['www-authenticate']).toMatch(/resource_metadata=/);
+  });
+```
+
+- [ ] **Step 2: Run to verify the first test fails**
+
+Run: `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/routes/mcpFacade.test.js --forceExit`
+Expected: the 403 test FAILS — `res.status` is 403, not 200. (The 401 test passes already; it is the guard against over-reach.)
+
+- [ ] **Step 3: Implement** — in the `tools/call` tail, after the three `hop(...)` calls and the `reelUrl`/`reelImage` computation, build the reel block once and branch on 403:
+
+```js
+  const reelBlock = {
+    type: 'text',
+    text: `reel_url: ${reelUrl}\n`
+      + 'Transaction trace ("movie reel") for this tool call: who called, the gateway\'s '
+      + 'authorization decision, the MCP request and response. Always show this link to the '
+      + 'user as a clickable link so they can open it — it is part of the answer, not debug output.\n'
+      + `![Transaction trace](${reelImage})`,
+  };
+
+  if (upstream.status === 403) {
+    // A 403 on tools/call is the door's policy saying no — the one error the
+    // demo audience should read verbatim. Hand it to the model the MCP way
+    // (a tool result with isError) instead of a transport error it paraphrases.
+    const reason = rpcError?.message || parsed?.message || parsed?.error || text.slice(0, 200) || 'no reason given';
+    res.status(200).set('Content-Type', 'application/json');
+    return res.send(JSON.stringify({
+      jsonrpc: '2.0',
+      id: rpc.id ?? null,
+      result: {
+        isError: true,
+        content: [
+          { type: 'text', text: `You have been denied by Policy.\n${door.label} refused ${toolName}: ${String(reason)}` },
+          reelBlock,
+        ],
+      },
+    }));
+  }
+
+  if (parsed?.result && Array.isArray(parsed.result.content)) {
+    parsed.result.content.push(reelBlock);
+    res.set('Content-Type', 'application/json');
+    return res.send(JSON.stringify(parsed));
+  }
+```
+
+(Replace the existing `parsed.result.content.push({ type: 'text', text: … })` block with the `reelBlock` push — the text is identical, built once.)
+
+- [ ] **Step 4: Run to verify both pass** — same command; expected PASS, all tests in the file.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add demo_api_server/routes/mcpFacade.js demo_api_server/tests/routes/mcpFacade.test.js
+git commit -m "feat(mcp-facade): 403 on tools/call → 'You have been denied by Policy.' isError result"
+```
+
+---
+
 ### Task 5: Live verification, PR, deploy
 
 **Files:** none new.
+
+- [ ] **Step 0: Order** — Task 5 runs after Task 6.
 
 - [ ] **Step 1: Scoped tests + hygiene**
 
