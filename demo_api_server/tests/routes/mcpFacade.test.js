@@ -53,7 +53,7 @@ beforeAll(async () => {
   process.env.MCP_FACADE_AGENT_GATEWAY_URL = upstreamUrl;
   process.env.MCP_FACADE_AGENT_GATEWAY_AS = 'http://localhost:3005';
   process.env.MCP_FACADE_AGENTLESS_URL = upstreamUrl;
-  process.env.PUBLIC_APP_URL = 'https://ui.example';
+  process.env.MCP_FACADE_REEL_BASE = 'https://ui.example';
 });
 
 afterAll(() => new Promise((r) => upstream.close(r)));

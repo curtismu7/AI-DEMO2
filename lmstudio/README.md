@@ -25,8 +25,11 @@ It relays every call unchanged, records the hops on the transaction ledger, and 
 extra block to every tool result:
 
 ```text
-reel_url: https://local.ping-devops.com:4000/transaction-trace/embed/<correlationId>
+reel_url: https://localhost:4000/transaction-trace/embed/<correlationId>
 ```
+
+(`MCP_FACADE_REEL_BASE` in `demo_api_server/.env` overrides the host — the embed page is
+public, so it needs no special hostname and no `/etc/hosts` entry.)
 
 LM Studio renders Markdown only (no embedded HTML — `docs/superpowers/specs/2026-08-24-lmstudio-mcp-client-design.md` §4),
 so click that link: the page shows the hop-by-hop chain (identity, the gateway's real

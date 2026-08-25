@@ -111,8 +111,12 @@ function facadeBase(req) {
   return `${req.protocol}://${req.get('host')}/mcp-facade/${req.params.door}`;
 }
 
+// Where the reel_url points. Deliberately NOT PUBLIC_APP_URL: the embed page is
+// public (no session cookie), so it needs no special hostname — localhost:4000
+// resolves on every box with zero /etc/hosts dependency, which is what a link
+// LM Studio shows or an iframe LibreChat embeds actually needs.
 function reelBase() {
-  return process.env.REACT_APP_CLIENT_URL || process.env.PUBLIC_APP_URL || 'https://local.ping-devops.com:4000';
+  return process.env.MCP_FACADE_REEL_BASE || 'https://localhost:4000';
 }
 
 // Replace the upstream's resource_metadata pointer with ours — the client can
