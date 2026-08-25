@@ -307,24 +307,29 @@ describe('/mcp-facade — session eviction', () => {
     expect(sessions.size).toBeLessThanOrEqual(MAX_SESSIONS);
   });
 
-  test('when every entry already has a cid, the bound still holds and no established session is lost', async () => {
+  test('when every entry already has a cid, the newcomer survives and the oldest established entry is evicted', async () => {
     for (let i = 0; i < MAX_SESSIONS; i++) {
       sessions.set(`old${i}`, { cid: `cid-${i}`, client: null, server: null, capabilities: null, tools: null, resources: null });
     }
-    const established = [...sessions.keys()];
-    await request(app()).post('/mcp-facade/agent-gateway/mcp').set('Authorization', AUTH).set('mcp-session-id', 'newest')
+    const oldestKey = sessions.keys().next().value;
+    // 'sess-1' is what the stub upstream always assigns, so the inbound id and
+    // the upstream-issued id match — no second, unrelated session gets created
+    // mid-request.
+    await request(app()).post('/mcp-facade/agent-gateway/mcp').set('Authorization', AUTH).set('mcp-session-id', 'sess-1')
       .send({ jsonrpc: '2.0', id: 1, method: 'tools/list' });
-    // every pre-existing (cid'd) session survives — a fresh, not-yet-established
-    // entry is always the one sacrificed. Note: a brand-new entry is cid-less at
-    // the moment sessionFor() checks for a victim (its cid is assigned by the
-    // route handler AFTER sessionFor returns), so it is always found first by
-    // `.find(([, v]) => !v.cid)` — the `?? sessions.keys().next().value`
-    // fallback for "every entry has a cid" is unreachable through sessionFor()'s
-    // insert-then-check order; harmless (still bound-safe, still never evicts an
-    // established session), but the request's own new session does not survive.
-    expect(established.every((k) => sessions.has(k))).toBe(true);
-    expect(sessions.size).toBeLessThanOrEqual(MAX_SESSIONS);
+    expect(sessions.has('sess-1')).toBe(true);
+    expect(sessions.has(oldestKey)).toBe(false);
+    expect(sessions.size).toBe(MAX_SESSIONS);
   });
+
+  test('bound never exceeds MAX_SESSIONS under repeated cid-less churn', async () => {
+    const a = app();
+    for (let i = 0; i < MAX_SESSIONS + 20; i++) {
+      await request(a).post('/mcp-facade/agent-gateway/mcp').set('Authorization', AUTH).set('mcp-session-id', `churn${i}`)
+        .send({ jsonrpc: '2.0', id: 1, method: 'tools/list' });
+      expect(sessions.size).toBeLessThanOrEqual(MAX_SESSIONS);
+    }
+  }, 60000);
 });
 
 describe('/mcp-facade/reel/:correlationId.svg', () => {

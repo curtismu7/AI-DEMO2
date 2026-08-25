@@ -75,20 +75,25 @@ const DOORS = {
 
 // What we learned about each upstream MCP session (keyed by Mcp-Session-Id):
 // the catalog the reel shows next to a tool call, plus the session's reel
-// correlation id (`cid`). ponytail: bounded Map; eviction prefers a cid-less
-// entry so an established reel is never forked mid-session.
+// correlation id (`cid`). ponytail: bounded Map; evicts BEFORE inserting the
+// newcomer so a new session is never its own eviction victim, preferring a
+// cid-less entry so an established reel is never forked mid-session.
 const MAX_SESSIONS = 200;
 const sessions = new Map();
 function sessionFor(id) {
   if (!id) return null;
   let s = sessions.get(id);
   if (!s) {
-    s = { cid: null, client: null, server: null, capabilities: null, tools: null, resources: null };
-    sessions.set(id, s);
-    if (sessions.size > MAX_SESSIONS) {
+    if (sessions.size >= MAX_SESSIONS) {
+      // Bounded: drop the oldest session that has no reel yet; only if every
+      // existing session already owns a reel (cid) drop the oldest of those —
+      // never the session being created, so a new conversation always keeps
+      // its reel id and an established one is forked only at the hard bound.
       const victim = [...sessions].find(([, v]) => !v.cid)?.[0] ?? sessions.keys().next().value;
       sessions.delete(victim);
     }
+    s = { cid: null, client: null, server: null, capabilities: null, tools: null, resources: null };
+    sessions.set(id, s);
   }
   return s;
 }
