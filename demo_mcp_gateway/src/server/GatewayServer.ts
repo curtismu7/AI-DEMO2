@@ -789,13 +789,23 @@ export class GatewayServer {
       // SHOULD send MCP-Protocol-Version on every request; a value the gateway
       // doesn't support gets a 400, not a silent pass-through. `initialize` is
       // exempt — that request IS the negotiation, before any version is agreed.
+      // Checked against SUPPORTED_PROTOCOL_VERSIONS (not the single
+      // MCP_PROTOCOL_VERSION the gateway uses for its OWN upstream hop) because
+      // `initialize`'s reply relays whatever protocolVersion the upstream
+      // mcp-server negotiated — a spec-following client then echoes that value
+      // back on every later request, and a single-version check here rejected
+      // it (TECH_DEBT: "Agent Gateway HTTP /mcp protocol-version mismatch").
       const inboundProtocolVersion = req.headers[MCP_PROTO_HEADER] as string | undefined;
-      if (inboundProtocolVersion && parsedRpc.method !== 'initialize' && inboundProtocolVersion !== MCP_PROTOCOL_VERSION) {
+      if (
+        inboundProtocolVersion
+        && parsedRpc.method !== 'initialize'
+        && !(SUPPORTED_PROTOCOL_VERSIONS as readonly string[]).includes(inboundProtocolVersion)
+      ) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
           error: 'unsupported_protocol_version',
-          message: `This gateway supports MCP protocol version ${MCP_PROTOCOL_VERSION}, not ${inboundProtocolVersion}.`,
-          supported: [MCP_PROTOCOL_VERSION],
+          message: `This gateway supports MCP protocol version(s) ${SUPPORTED_PROTOCOL_VERSIONS.join(', ')}, not ${inboundProtocolVersion}.`,
+          supported: SUPPORTED_PROTOCOL_VERSIONS,
         }));
         return;
       }
