@@ -70,6 +70,47 @@ if [ ! -f "$ASSET_ROOT/demo_api_server/.env" ]; then
   fi
 fi
 
+# ── --check/--dry-run scope warning ───────────────────────────────────────────
+# The flag only wraps secret_from_envfile()'s own value-resolution report (per
+# the plan's Testing section — a vault-vs-.env SOURCE preview, not a whole-
+# script dry-run). Every other mutation below (TLS-certs apply, service-API-key
+# / internal-secret alignment, Helix/Google/Groq/Anthropic key mirroring,
+# ping-mcpgw-secrets, ping-gateway-config, and the final rollout-restart loop)
+# still runs for real. Say so loudly so nobody mistakes --check for a safe
+# no-op against a live shared cluster.
+if [ "$DRY_RUN" = "1" ]; then
+  warn "--check/--dry-run only previews vault-vs-.env value SOURCE for secret_from_envfile() calls."
+  warn "It is NOT a full dry-run — this run still performs every other kubectl mutation in this script"
+  warn "(TLS-certs apply, key alignment/mirroring, ping-mcpgw-secrets, ping-gateway-config, and the"
+  warn "final rollout-restart of every deployment in namespace $NS)."
+fi
+
+# ── Vault: preflight + cache the key list once, before ANY kubectl call, so a
+# missing/wrong VAULT_PASSWORD aborts before this script touches the live
+# cluster at all (a vault failure discovered only at the first
+# secret_from_envfile() call would leave the tls-certs secret already applied
+# — a partial write). Fail closed: no vault script, no VAULT_PASSWORD → abort,
+# don't silently fall back to .env for what should be vault-only secrets.
+VAULT_SCRIPT="$REPO_ROOT/demo_api_server/scripts/vault.js"
+[ -f "$VAULT_SCRIPT" ] || die "vault script not found at $VAULT_SCRIPT"
+if [ -z "${VAULT_PASSWORD:-}" ] && [ -f "$ASSET_ROOT/demo_api_server/.env" ]; then
+  VAULT_PASSWORD="$(grep -E '^VAULT_PASSWORD=.+' "$ASSET_ROOT/demo_api_server/.env" | head -1 | cut -d= -f2- | tr -d '"')"
+fi
+[ -n "${VAULT_PASSWORD:-}" ] || die "VAULT_PASSWORD is required (export it, or set it in demo_api_server/.env)"
+info "Reading vault key list..."
+VAULT_KEYS="$(VAULT_PASSWORD="$VAULT_PASSWORD" node "$VAULT_SCRIPT" list)" \
+  || die "vault: failed to list keys — check VAULT_PASSWORD and secrets.vault"
+
+vault_has_key() {
+  # Exact-line match against the cached newline-separated key list.
+  printf '%s\n' "$VAULT_KEYS" | grep -qxF -- "$1"
+}
+
+vault_get() {
+  VAULT_PASSWORD="$VAULT_PASSWORD" node "$VAULT_SCRIPT" get "$1" \
+    || die "vault: failed to read $1"
+}
+
 # ── Preflight ─────────────────────────────────────────────────────────────────
 [ -f "$ASSET_ROOT/demo_api_server/.env" ] || die "demo_api_server/.env not found. Run bootstrap first."
 [ -f "$ASSET_ROOT/certs/api.ping.demo+2.pem" ]     || die "certs/api.ping.demo+2.pem not found. Run bootstrap first."
@@ -465,30 +506,6 @@ align_internal_secret() {
       | kubectl patch secret "$s" --namespace="$NS" --type merge --patch-file /dev/stdin >/dev/null 2>&1 || true
   done
   info "  BFF_INTERNAL_SECRET aligned across BFF + gateway + agent + langchain + ping-gateway + mcp-resource-server"
-}
-
-# ── Vault: cache the key list once so every secret_from_envfile() call can
-# cheaply check "is this key vault-managed" without re-opening the vault
-# per key. Fail closed: no vault, no VAULT_PASSWORD → abort, don't silently
-# fall back to .env for what should be vault-only secrets.
-VAULT_SCRIPT="$REPO_ROOT/demo_api_server/scripts/vault.js"
-[ -f "$VAULT_SCRIPT" ] || die "vault script not found at $VAULT_SCRIPT"
-if [ -z "${VAULT_PASSWORD:-}" ] && [ -f "$ASSET_ROOT/demo_api_server/.env" ]; then
-  VAULT_PASSWORD="$(grep -m1 '^VAULT_PASSWORD=' "$ASSET_ROOT/demo_api_server/.env" | cut -d= -f2- | tr -d '"')"
-fi
-[ -n "${VAULT_PASSWORD:-}" ] || die "VAULT_PASSWORD is required (export it, or set it in demo_api_server/.env)"
-info "Reading vault key list..."
-VAULT_KEYS="$(VAULT_PASSWORD="$VAULT_PASSWORD" node "$VAULT_SCRIPT" list)" \
-  || die "vault: failed to list keys — check VAULT_PASSWORD and secrets.vault"
-
-vault_has_key() {
-  # Exact-line match against the cached newline-separated key list.
-  printf '%s\n' "$VAULT_KEYS" | grep -qxF -- "$1"
-}
-
-vault_get() {
-  VAULT_PASSWORD="$VAULT_PASSWORD" node "$VAULT_SCRIPT" get "$1" \
-    || die "vault: failed to read $1"
 }
 
 # ── Per-service secrets (one per .env, mirroring docker-compose env_file) ─────
