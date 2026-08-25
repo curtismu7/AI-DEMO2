@@ -145,4 +145,39 @@ describe('mcpTransports/http session recovery', () => {
     // recovery handshakes).
     expect(axios.post).toHaveBeenCalledTimes(8);
   });
+
+  it('two different identities calling the same URL get separate sessions, not a shared one', async () => {
+    // routes/mcpInspector.js's privilegeVirtualProfile() builds a fresh
+    // profile object per request with a CONSTANT url but the calling
+    // admin's OWN bearer token as authValue — this is the exact shape that
+    // exposed the bug: keying the session cache on url alone would let
+    // admin A's session get reused under admin B's Authorization header.
+    const { transport, axios } = freshTransport();
+    const profileA = { url: profile.url, authHeader: 'Authorization', authValue: 'Bearer admin-a-token' };
+    const profileB = { url: profile.url, authHeader: 'Authorization', authValue: 'Bearer admin-b-token' };
+
+    axios.post
+      .mockResolvedValueOnce(jsonRpcResponse({ protocolVersion: '2024-11-05' }, { sessionId: 'sid-admin-a' })) // A's own handshake
+      .mockResolvedValueOnce({ status: 202, headers: {}, data: '' })
+      .mockResolvedValueOnce(jsonRpcResponse({ tools: [{ name: 'tool-a' }] })) // A's own tools/list
+      .mockResolvedValueOnce(jsonRpcResponse({ protocolVersion: '2024-11-05' }, { sessionId: 'sid-admin-b' })) // B's own handshake
+      .mockResolvedValueOnce({ status: 202, headers: {}, data: '' })
+      .mockResolvedValueOnce(jsonRpcResponse({ tools: [{ name: 'tool-b' }] })); // B's own tools/list
+
+    const resultA = await transport.listTools(profileA);
+    const resultB = await transport.listTools(profileB);
+
+    expect(resultA.tools).toEqual([{ name: 'tool-a' }]);
+    expect(resultB.tools).toEqual([{ name: 'tool-b' }]);
+    // 2 handshakes + 2 tools/list = 6. If the sessions collapsed onto one
+    // shared entry, B's call would have skipped its own handshake (already
+    // "initialized" from A) and only cost 4 total.
+    expect(axios.post).toHaveBeenCalledTimes(6);
+
+    // B's tools/list call must carry B's own Authorization header and B's
+    // own session id, never A's.
+    const bToolsListCall = axios.post.mock.calls[5];
+    expect(bToolsListCall[2].headers['Authorization']).toBe('Bearer admin-b-token');
+    expect(bToolsListCall[2].headers['Mcp-Session-Id']).toBe('sid-admin-b');
+  });
 });

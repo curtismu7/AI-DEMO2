@@ -11,10 +11,12 @@
  * requires an `initialize` handshake before any other call and ties
  * subsequent requests to the `Mcp-Session-Id` it returns — without both,
  * tools/list answers 400 "mcp-protocol-version header is required" or 404
- * "unknown or expired MCP-Session-Id". Session state is kept per profile.url
- * (this one transport instance serves every saved profile), mirroring the
- * same initialize/session-id contract routes/privilegeMcpSimple.js already
- * implements for its own fixed single-target relay.
+ * "unknown or expired MCP-Session-Id". Session state is kept per (url,
+ * authValue) pair, not per url alone (this one transport instance serves
+ * every saved profile) — see sessionKey()'s own comment for why a caller's
+ * identity has to be part of the key, mirroring the same initialize/
+ * session-id contract routes/privilegeMcpSimple.js already implements for
+ * its own fixed single-target relay.
  */
 const axios = require('axios');
 const { normalizeAxiosError } = require('../../utils/normalizeAxiosError');
@@ -22,14 +24,29 @@ const { normalizeAxiosError } = require('../../utils/normalizeAxiosError');
 const TIMEOUT_MS = 15_000;
 const DEFAULT_PROTOCOL_VERSION = '2024-11-05';
 
-// url -> { sessionId, protocolVersion, initialized, pending }
+// sessionKey(profile) -> { sessionId, protocolVersion, initialized, pending }
 const _sessions = new Map();
 
+/** profile.url alone is NOT a safe cache key: routes/mcpInspector.js's
+ * privilegeVirtualProfile() builds a fresh profile object per request with a
+ * CONSTANT url but the CALLING admin's OWN bearer token as authValue — one
+ * shared session keyed only by url would let the first admin to call cache
+ * an Mcp-Session-Id every other admin's later calls then silently reused
+ * under their own Authorization header (cross-identity session reuse,
+ * flagged in review of PR #2348). Folding authValue into the key gives each
+ * distinct identity its own session while still reusing one session across
+ * that same identity's repeat calls — profiles with no auth (a shared
+ * no-auth backend) collapse back to keying on url alone, unchanged. */
+function sessionKey(profile) {
+  return `${profile.url}::${profile.authValue || ''}`;
+}
+
 function getSession(profile) {
-  let session = _sessions.get(profile.url);
+  const key = sessionKey(profile);
+  let session = _sessions.get(key);
   if (!session) {
     session = { sessionId: null, protocolVersion: null, initialized: false, pending: null };
-    _sessions.set(profile.url, session);
+    _sessions.set(key, session);
   }
   return session;
 }
