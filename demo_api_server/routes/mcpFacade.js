@@ -288,6 +288,14 @@ router.post('/:door/mcp', express.json({ limit: '1mb', type: () => true }), asyn
         details,
       });
     }
+    if (upstream.status === 403) {
+      // No session to deliver a tool result into, so the client will fail the
+      // connection either way — make the reason it shows read as policy, not
+      // transport (Privilege agent door: "User … doesn't have access to MCP app").
+      const reason = parsed?.error?.message || parsed?.message || (typeof parsed?.error === 'string' ? parsed.error : '') || text.slice(0, 200) || 'no reason given';
+      res.set('Content-Type', 'application/json');
+      return res.send(JSON.stringify({ error: 'policy_denied', message: `You have been denied by Policy. ${door.label} refused ${method || 'the request'}: ${String(reason)}` }));
+    }
     res.set('Content-Type', upstream.headers.get('content-type') || 'application/json');
     return res.send(text);
   }

@@ -38,6 +38,10 @@ beforeAll(async () => {
         res.writeHead(200, { 'Content-Type': 'application/json', 'mcp-session-id': 'sess-1' });
         res.end(JSON.stringify({ jsonrpc: '2.0', id: rpc.id, result }));
       };
+      if (rpc.method === 'initialize' && rpc.params?.clientInfo?.name === 'denied-device') {
+        res.writeHead(403, { 'Content-Type': 'text/plain' });
+        return res.end("User b1645e7b doesn't have access to MCP app opensearch");
+      }
       if (rpc.method === 'initialize') {
         return reply({ protocolVersion: '2025-06-18', capabilities: { tools: {} }, serverInfo: { name: 'stub-gw', version: '1' } });
       }
@@ -61,6 +65,7 @@ beforeAll(async () => {
   process.env.MCP_FACADE_AGENT_GATEWAY_URL = upstreamUrl;
   process.env.MCP_FACADE_AGENT_GATEWAY_AS = 'http://localhost:3005';
   process.env.MCP_FACADE_AGENTLESS_URL = upstreamUrl;
+  process.env.PRIVILEGE_AGENT_MCPGW_URL = upstreamUrl;
   process.env.MCP_FACADE_REEL_BASE = 'https://ui.example';
 });
 
@@ -261,6 +266,15 @@ describe('/mcp-facade — relay + recording', () => {
     await request(a).post('/mcp-facade/agentless/mcp').set('Authorization', AUTH).set('mcp-protocol-version', '2025-06-18')
       .send({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
     expect(seen[1].headers['mcp-protocol-version']).toBe('2025-06-18');
+  });
+
+  test('403 on initialize (no session yet) is relayed as a policy_denied message, status kept', async () => {
+    const res = await request(app()).post('/mcp-facade/agent/mcp').set('Authorization', AUTH)
+      .send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'denied-device', version: '0' } } });
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('policy_denied');
+    expect(res.body.message).toMatch(/^You have been denied by Policy\. Privilege agent refused initialize: User b1645e7b doesn't have access to MCP app opensearch/);
+    expect(ledger.appendHop).not.toHaveBeenCalled();
   });
 
   test('GET /mcp is not offered through the façade', async () => {
