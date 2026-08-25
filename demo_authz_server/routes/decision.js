@@ -307,6 +307,33 @@ module.exports = async function decisionHandler(req, res) {
 
   log(`[AuthzServer/decision] policy=${workerId} ctx=${DecisionContext} tool=${ToolName || '(none)'} sub=${ClientId || '(none)'} actor=${ActClientId || '(none)'} aud=${TokenAudActual || TokenAudience || '(none)'} exp=${TokenExp || '(none)'} scopes=[${TokenScopes}] hitlApproved=${hitlApproved} intentValid=${IntentTokenValid || 'absent'} intentMatch=${IntentMatchesTool || 'absent'} intent=${IntentIntent || '(none)'} rar=${RarAuthorizationDetails ? 'present' : 'absent'}`);
 
+  // ── DecisionContext: TokenExchange — RFC 8693 token-exchange mint gate ────
+  // routes/token.js already verified the inbound subject/actor token signatures
+  // before calling here; this decision only answers whether the REQUESTED
+  // audience/scope may be minted, against the same resource/scope registry
+  // (scopeTopology.js) every other rule in this file treats as the source of
+  // truth. Runs BEFORE rules 0a-0f: those validate claims on an
+  // ALREADY-ISSUED MCP token (aud/exp/iat/nbf/iss against the gateway's own
+  // identity) and do not apply to a request for a brand-new token.
+  if (DecisionContext === 'TokenExchange') {
+    const { RequestedAudience = '', RequestedScope = '' } = params;
+    const allowedAuds = new Set(
+      [scopeTopology.gatewayAudience(), ...scopeTopology.upstreamAudiences()].filter(Boolean),
+    );
+    if (!allowedAuds.has(asStr(RequestedAudience))) {
+      warn(`[AuthzServer/decision] DENY — token exchange requested unknown audience: "${RequestedAudience}"`);
+      return deny(res, `invalid_target: audience "${RequestedAudience}" is not a known resource`);
+    }
+    const allowedScopeSet = new Set(scopeTopology.allowedScopes());
+    const requestedScopeList = asStr(RequestedScope).split(/\s+/).filter(Boolean);
+    const unknownScope = requestedScopeList.find((s) => !allowedScopeSet.has(s));
+    if (unknownScope) {
+      warn(`[AuthzServer/decision] DENY — token exchange requested unknown scope: "${unknownScope}"`);
+      return deny(res, `invalid_scope: "${unknownScope}" is not a known scope`);
+    }
+    return permit(res, 'token exchange permitted');
+  }
+
   // ── Rule 0a: sub (user identity) must be present ──────────────────────────
   if (!ClientId || !asStr(ClientId).trim()) {
     warn(`[AuthzServer/decision] DENY — missing sub`);
