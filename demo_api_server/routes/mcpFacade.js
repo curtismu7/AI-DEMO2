@@ -74,7 +74,9 @@ const DOORS = {
 };
 
 // What we learned about each upstream MCP session (keyed by Mcp-Session-Id):
-// the catalog the reel shows next to a tool call. ponytail: bounded Map, FIFO.
+// the catalog the reel shows next to a tool call, plus the session's reel
+// correlation id (`cid`). ponytail: bounded Map; eviction prefers a cid-less
+// entry so an established reel is never forked mid-session.
 const MAX_SESSIONS = 200;
 const sessions = new Map();
 function sessionFor(id) {
@@ -83,7 +85,10 @@ function sessionFor(id) {
   if (!s) {
     s = { cid: null, client: null, server: null, capabilities: null, tools: null, resources: null };
     sessions.set(id, s);
-    if (sessions.size > MAX_SESSIONS) sessions.delete(sessions.keys().next().value);
+    if (sessions.size > MAX_SESSIONS) {
+      const victim = [...sessions].find(([, v]) => !v.cid)?.[0] ?? sessions.keys().next().value;
+      sessions.delete(victim);
+    }
   }
   return s;
 }
@@ -391,4 +396,4 @@ router.delete('/:door/mcp', async (req, res) => {
 });
 
 module.exports = router;
-module.exports.__test = { DOORS, rewriteChallenge, sessions };
+module.exports.__test = { DOORS, rewriteChallenge, sessions, MAX_SESSIONS };

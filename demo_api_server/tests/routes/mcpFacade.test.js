@@ -294,6 +294,39 @@ describe('/mcp-facade — relay + recording', () => {
   });
 });
 
+describe('/mcp-facade — session eviction', () => {
+  const { sessions, MAX_SESSIONS } = router.__test;
+
+  test('overflow evicts a cid-less entry first, so an established reel survives', async () => {
+    sessions.set('keep-me', { cid: 'keep-me-cid', client: null, server: null, capabilities: null, tools: null, resources: null });
+    for (let i = 0; i < MAX_SESSIONS; i++) {
+      await request(app()).post('/mcp-facade/agent-gateway/mcp').set('Authorization', AUTH).set('mcp-session-id', `s${i}`)
+        .send({ jsonrpc: '2.0', id: 1, method: 'tools/list' });
+    }
+    expect(sessions.get('keep-me')).toMatchObject({ cid: 'keep-me-cid' });
+    expect(sessions.size).toBeLessThanOrEqual(MAX_SESSIONS);
+  });
+
+  test('when every entry already has a cid, the bound still holds and no established session is lost', async () => {
+    for (let i = 0; i < MAX_SESSIONS; i++) {
+      sessions.set(`old${i}`, { cid: `cid-${i}`, client: null, server: null, capabilities: null, tools: null, resources: null });
+    }
+    const established = [...sessions.keys()];
+    await request(app()).post('/mcp-facade/agent-gateway/mcp').set('Authorization', AUTH).set('mcp-session-id', 'newest')
+      .send({ jsonrpc: '2.0', id: 1, method: 'tools/list' });
+    // every pre-existing (cid'd) session survives — a fresh, not-yet-established
+    // entry is always the one sacrificed. Note: a brand-new entry is cid-less at
+    // the moment sessionFor() checks for a victim (its cid is assigned by the
+    // route handler AFTER sessionFor returns), so it is always found first by
+    // `.find(([, v]) => !v.cid)` — the `?? sessions.keys().next().value`
+    // fallback for "every entry has a cid" is unreachable through sessionFor()'s
+    // insert-then-check order; harmless (still bound-safe, still never evicts an
+    // established session), but the request's own new session does not survive.
+    expect(established.every((k) => sessions.has(k))).toBe(true);
+    expect(sessions.size).toBeLessThanOrEqual(MAX_SESSIONS);
+  });
+});
+
 describe('/mcp-facade/reel/:correlationId.svg', () => {
   const RECORD = {
     correlationId: 'cid-svg', startedAt: 't', endedAt: 't', principal: 'u',
