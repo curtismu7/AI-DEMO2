@@ -113,24 +113,22 @@ async function newAuthedPage() {
   return page;
 }
 
-// The one tool key in librechat-data-provider's `Tools` enum that plausibly
-// maps to the Artifacts feature (there is no literal `artifacts` entry —
-// only `AgentCapabilities.artifacts`, the separate endpoint-wide toggle).
-// UNVERIFIED against a live agent-builder UI (no browser available when
-// this was written) — if the reel-compliance test's artifact-fence count
-// stays at 0/RUNS while reel_url stays RUNS/RUNS, this is the first thing
-// to check: confirm the real key via the Tool Library dialog's "Artifacts"
-// entry and its resulting agent.tools entry, then fix this constant.
-const ARTIFACTS_TOOL_KEY = 'ui_resources';
+// Artifacts needs no per-agent tool entry — `ui_resources` (the `Tools`
+// enum's only artifact-adjacent key) was tried and disproven live: POSTing
+// it in `tools` gets it silently stripped (server responds with the agent
+// created, `tools: []`). Checked GET /api/endpoints instead: `artifacts` is
+// already in the live server's DEFAULT `endpoints.agents.capabilities` list
+// with no `endpoints.agents` block in librechat.yaml at all — it's an
+// endpoint-wide toggle, on by default, independent of any agent's `tools`
+// array. The `:::artifact{}` fence either renders because of that, or it
+// doesn't because the model didn't choose to emit it — nothing here to add.
 
 // Mirrors what the Agent Builder stores when you pick one tool from one MCP
-// server: the server marker plus `<tool>_mcp_<server>`. `instructions` and
-// the Artifacts tool are only added when explicitly requested — every other
-// caller (the plain door-proof tests) must not have its agent's behavior
-// changed by an unrelated feature.
+// server: the server marker plus `<tool>_mcp_<server>`. `instructions` is
+// only added when explicitly requested — every other caller (the plain
+// door-proof tests) must not have its agent's behavior changed.
 async function createAgent(request, { server, tool }, { instructions } = {}) {
   const tools = [`sys__server__sys_mcp_${server}`, `${tool}_mcp_${server}`];
-  if (instructions) tools.push(ARTIFACTS_TOOL_KEY);
   const r = await request.post(`${LC}/api/agents`, {
     headers: { Authorization: `Bearer ${session.token}` },
     data: {
@@ -321,9 +319,10 @@ test.describe('LibreChat MCP server doors — live', () => {
   // embed view — that fallback is the actual contract (§7 of
   // docs/superpowers/specs/2026-08-24-librechat-embedded-mcp-trace-design.md)
   // and is required every time. Whether the model *also* renders it as a
-  // LibreChat :::artifact fence is measured, not required — see
-  // ARTIFACTS_TOOL_KEY's own caveat above for why that number may read low
-  // until the tool key is confirmed live.
+  // LibreChat :::artifact fence is measured, not required — the `artifacts`
+  // endpoint capability is confirmed on by default (createAgent's own
+  // comment above), so a low count here means the model chose not to emit
+  // the fence, not a config gap.
   const REEL_INSTRUCTIONS = `When a tool result includes a line starting with "reel_url:", always render that URL as an artifact, in this exact form, replacing <url> with the value:
 
 :::artifact{identifier="reel" type="application/vnd.code-html" title="Live trace"}
