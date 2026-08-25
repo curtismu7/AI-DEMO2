@@ -22,13 +22,13 @@ const { normalizeAxiosError } = require('../../utils/normalizeAxiosError');
 const TIMEOUT_MS = 15_000;
 const DEFAULT_PROTOCOL_VERSION = '2024-11-05';
 
-// url -> { sessionId, protocolVersion, initialized }
+// url -> { sessionId, protocolVersion, initialized, pending }
 const _sessions = new Map();
 
 function getSession(profile) {
   let session = _sessions.get(profile.url);
   if (!session) {
-    session = { sessionId: null, protocolVersion: null, initialized: false };
+    session = { sessionId: null, protocolVersion: null, initialized: false, pending: null };
     _sessions.set(profile.url, session);
   }
   return session;
@@ -103,9 +103,10 @@ async function rawSend(profile, session, method, params, id) {
   return json ? json.result : undefined;
 }
 
-/** Handshake once per profile.url; cheap to skip on every later call. */
-async function ensureInitialized(profile, session) {
-  if (session.initialized) return;
+/** The actual initialize + notifications/initialized handshake. Never call
+ * directly — go through ensureInitialized/resetAndReinitialize so concurrent
+ * callers for the same profile.url share one attempt (see below). */
+async function performHandshake(profile, session) {
   const result = await rawSend(
     profile,
     session,
@@ -122,6 +123,41 @@ async function ensureInitialized(profile, session) {
   // the session is usable for real requests.
   await rawSend(profile, session, 'notifications/initialized', {}, undefined);
   session.initialized = true;
+}
+
+/** Handshake once per profile.url; cheap to skip on every later call.
+ *
+ * `session.pending` makes concurrent first-callers for the same profile.url
+ * share one handshake instead of each starting its own: two requests can
+ * arrive close enough together that both read `session.initialized ===
+ * false` before either has written `true`, and without this guard both
+ * would call performHandshake independently, each overwriting the other's
+ * sessionId on the one shared session object. The check-then-set below has
+ * no `await` between reading and writing `session.pending`, so it's atomic
+ * within Node's single-threaded event loop — no separate lock needed. */
+async function ensureInitialized(profile, session) {
+  if (session.initialized) return;
+  if (!session.pending) {
+    session.pending = performHandshake(profile, session).finally(() => {
+      session.pending = null;
+    });
+  }
+  return session.pending;
+}
+
+/** Same single-flight guard as ensureInitialized, for the recovery path:
+ * if two concurrent calls both discover the session expired, only the first
+ * should reset+reinitialize — the second must await that same attempt
+ * rather than resetting a session the first call just fixed. */
+async function resetAndReinitialize(profile, session) {
+  if (!session.pending) {
+    session.initialized = false;
+    session.sessionId = null;
+    session.pending = performHandshake(profile, session).finally(() => {
+      session.pending = null;
+    });
+  }
+  return session.pending;
 }
 
 /** True for the MCP spec's documented "session not found" signal (404) — the
@@ -145,9 +181,7 @@ async function send(profile, method, params) {
     return await rawSend(profile, session, method, params, ++_msgId);
   } catch (err) {
     if (!isExpiredSessionError(err)) throw err;
-    session.sessionId = null;
-    session.initialized = false;
-    await ensureInitialized(profile, session);
+    await resetAndReinitialize(profile, session);
     return rawSend(profile, session, method, params, ++_msgId);
   }
 }

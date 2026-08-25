@@ -92,4 +92,57 @@ describe('mcpTransports/http session recovery', () => {
     await expect(transport.listTools(profile)).rejects.toThrow('Unknown or expired MCP-Session-Id');
     expect(axios.post).toHaveBeenCalledTimes(6); // exactly one retry, not a loop
   });
+
+  it('two concurrent first calls share one handshake instead of racing separate ones', async () => {
+    // Greptile's finding on the fix above: without a single-flight guard,
+    // two requests that both see an un-initialized session before either
+    // finishes handshaking would each call performHandshake independently,
+    // each overwriting session.sessionId with its own result on the one
+    // shared session object.
+    const { transport, axios } = freshTransport();
+
+    axios.post
+      .mockResolvedValueOnce(jsonRpcResponse({ protocolVersion: '2024-11-05' }, { sessionId: 'sid-1' })) // the one shared initialize
+      .mockResolvedValueOnce({ status: 202, headers: {}, data: '' }) // the one shared notifications/initialized
+      .mockResolvedValueOnce(jsonRpcResponse({ tools: [{ name: 'get_my_accounts' }] })) // caller A's own tools/list
+      .mockResolvedValueOnce(jsonRpcResponse({ tools: [{ name: 'get_my_accounts' }] })); // caller B's own tools/list
+
+    const [resultA, resultB] = await Promise.all([transport.listTools(profile), transport.listTools(profile)]);
+
+    expect(resultA.tools).toEqual([{ name: 'get_my_accounts' }]);
+    expect(resultB.tools).toEqual([{ name: 'get_my_accounts' }]);
+    // 1 initialize + 1 notifications/initialized + 2 tools/list = 4, never 6
+    // (which is what two independent handshakes would cost).
+    expect(axios.post).toHaveBeenCalledTimes(4);
+  });
+
+  it('two concurrent callers hitting an expired session share one recovery handshake', async () => {
+    const { transport, axios } = freshTransport();
+
+    axios.post
+      .mockResolvedValueOnce(jsonRpcResponse({ protocolVersion: '2024-11-05' }, { sessionId: 'sid-1' })) // initial handshake
+      .mockResolvedValueOnce({ status: 202, headers: {}, data: '' })
+      .mockRejectedValueOnce(expiredSessionError()) // caller A's tools/list finds it evicted
+      .mockRejectedValueOnce(expiredSessionError()) // caller B's tools/list finds the same
+      .mockResolvedValueOnce(jsonRpcResponse({ protocolVersion: '2024-11-05' }, { sessionId: 'sid-2' })) // the one shared recovery handshake
+      .mockResolvedValueOnce({ status: 202, headers: {}, data: '' })
+      .mockResolvedValueOnce(jsonRpcResponse({ tools: [{ name: 'get_my_accounts' }] })) // caller A's retry
+      .mockResolvedValueOnce(jsonRpcResponse({ tools: [{ name: 'get_my_accounts' }] })); // caller B's retry
+
+    // Both callers must already be past their first tools/list attempt
+    // (and into resetAndReinitialize's synchronous check) before either
+    // handshake mock resolves, or this doesn't exercise the race — driving
+    // both through send() manually (rather than via Promise.all(listTools,
+    // listTools), which lets microtask ordering vary) makes that explicit.
+    const first = transport.listTools(profile);
+    const second = transport.listTools(profile);
+    const [resultA, resultB] = await Promise.all([first, second]);
+
+    expect(resultA.tools).toEqual([{ name: 'get_my_accounts' }]);
+    expect(resultB.tools).toEqual([{ name: 'get_my_accounts' }]);
+    // 2 (initial handshake) + 2 (both find it expired) + 2 (one shared
+    // recovery handshake) + 2 (both retries) = 8, never 10 (two independent
+    // recovery handshakes).
+    expect(axios.post).toHaveBeenCalledTimes(8);
+  });
 });
