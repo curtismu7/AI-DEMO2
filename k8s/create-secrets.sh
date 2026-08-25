@@ -23,6 +23,13 @@
 
 set -e
 
+DRY_RUN=0
+for arg in "$@"; do
+  case "$arg" in
+    --check|--dry-run) DRY_RUN=1 ;;
+  esac
+done
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 NS="${K8S_NAMESPACE:-ai-demo}"
@@ -140,11 +147,27 @@ secret_from_envfile() {
   set +o allexport
   [ -z "$decrypted_file" ] || rm -f "$decrypted_file"
 
-  local args=()
+  local args=() dry_run_report=()
   for k in "${keys[@]}"; do
-    local v="${!k:-}"
-    [ -n "$v" ] && args+=(--from-literal="${k}=${v}")
+    local env_v="${!k:-}"
+    if vault_has_key "$k"; then
+      if [ -n "$env_v" ]; then
+        die "SECURITY: $k is vault-managed but $env_file also has a non-empty value for it. Vault is the only allowed source for this key — remove the $k line from $env_file. (This is exactly the drift class that broke SE introspection on 2026-08-25 — see docs/superpowers/specs/2026-08-25-vault-in-k8s-design.md.)"
+      fi
+      local vault_v
+      vault_v="$(vault_get "$k")"
+      [ -n "$vault_v" ] && args+=(--from-literal="${k}=${vault_v}")
+      dry_run_report+=("$k -> vault")
+    else
+      [ -n "$env_v" ] && args+=(--from-literal="${k}=${env_v}")
+      dry_run_report+=("$k -> .env")
+    fi
   done
+  if [ "${DRY_RUN:-0}" = "1" ]; then
+    printf '[dry-run] %s:\n' "$secret_name"
+    printf '  %s\n' "${dry_run_report[@]}"
+    return
+  fi
 
   if [ "${#args[@]}" -eq 0 ]; then
     warn "  $env_file has no usable keys — skipping $secret_name"
@@ -442,6 +465,30 @@ align_internal_secret() {
       | kubectl patch secret "$s" --namespace="$NS" --type merge --patch-file /dev/stdin >/dev/null 2>&1 || true
   done
   info "  BFF_INTERNAL_SECRET aligned across BFF + gateway + agent + langchain + ping-gateway + mcp-resource-server"
+}
+
+# ── Vault: cache the key list once so every secret_from_envfile() call can
+# cheaply check "is this key vault-managed" without re-opening the vault
+# per key. Fail closed: no vault, no VAULT_PASSWORD → abort, don't silently
+# fall back to .env for what should be vault-only secrets.
+VAULT_SCRIPT="$REPO_ROOT/demo_api_server/scripts/vault.js"
+[ -f "$VAULT_SCRIPT" ] || die "vault script not found at $VAULT_SCRIPT"
+if [ -z "${VAULT_PASSWORD:-}" ] && [ -f "$ASSET_ROOT/demo_api_server/.env" ]; then
+  VAULT_PASSWORD="$(grep -m1 '^VAULT_PASSWORD=' "$ASSET_ROOT/demo_api_server/.env" | cut -d= -f2- | tr -d '"')"
+fi
+[ -n "${VAULT_PASSWORD:-}" ] || die "VAULT_PASSWORD is required (export it, or set it in demo_api_server/.env)"
+info "Reading vault key list..."
+VAULT_KEYS="$(VAULT_PASSWORD="$VAULT_PASSWORD" node "$VAULT_SCRIPT" list)" \
+  || die "vault: failed to list keys — check VAULT_PASSWORD and secrets.vault"
+
+vault_has_key() {
+  # Exact-line match against the cached newline-separated key list.
+  printf '%s\n' "$VAULT_KEYS" | grep -qxF -- "$1"
+}
+
+vault_get() {
+  VAULT_PASSWORD="$VAULT_PASSWORD" node "$VAULT_SCRIPT" get "$1" \
+    || die "vault: failed to read $1"
 }
 
 # ── Per-service secrets (one per .env, mirroring docker-compose env_file) ─────
