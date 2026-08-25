@@ -5,12 +5,12 @@ jest.mock('../../services/lmdb/transactionLedger.lmdb', () => ({
 }));
 jest.mock('../../services/transactionAssembler', () => ({ assemble: jest.fn() }));
 jest.mock('../../services/configStore', () => ({ getEffective: jest.fn(() => 'true') }));
-jest.mock('../../config/admin/tools', () => ({
-  buildAdminToolSchemas: jest.fn(async () => [
-    { name: 'list_pingone_tools', description: 'List tools', inputSchema: { type: 'object', properties: {} } },
-    { name: 'call_pingone_tool', description: 'Call a tool', inputSchema: { type: 'object', properties: {} } },
+jest.mock('../../services/mcpPingOneHttpAdapter', () => ({
+  listTools: jest.fn(async () => [
+    { name: 'listUsers', description: 'List users', inputSchema: { type: 'object', properties: {} } },
+    { name: 'getEnvironment', description: 'Get environment', inputSchema: { type: 'object', properties: {} } },
   ]),
-  executeAdminTool: jest.fn(async (name) => JSON.stringify({ tool: name, ok: true })),
+  callTool: jest.fn(async (name) => ({ content: [{ type: 'text', text: JSON.stringify({ tool: name, ok: true }) }] })),
 }));
 
 const http = require('http');
@@ -155,15 +155,15 @@ describe('/mcp-facade — RFC 9728 surface', () => {
 });
 
 describe('/mcp-facade/pingone-admin — local handler, no upstream fetch', () => {
-  // routes/mcpFacade.js lazy-requires config/admin/tools inside the handler
-  // body, and this repo's global setup.js calls jest.resetModules() after
-  // every test — a reference captured once at describe-load time would go
-  // stale after the first reset (mirrors adminTools.schemaSize.test.js's
-  // own fix for the identical issue). Re-require fresh per test instead.
-  let buildAdminToolSchemas;
-  let executeAdminTool;
+  // routes/mcpFacade.js lazy-requires mcpPingOneHttpAdapter inside the
+  // handler body, and this repo's global setup.js calls jest.resetModules()
+  // after every test — a reference captured once at describe-load time
+  // would go stale after the first reset (mirrors adminTools.schemaSize.
+  // test.js's own fix for the identical issue). Re-require fresh per test.
+  let listTools;
+  let callTool;
   beforeEach(() => {
-    ({ buildAdminToolSchemas, executeAdminTool } = require('../../config/admin/tools'));
+    ({ listTools, callTool } = require('../../services/mcpPingOneHttpAdapter'));
   });
 
   test('advertises no authorization server — worker creds are baked in, not per-caller', async () => {
@@ -180,27 +180,27 @@ describe('/mcp-facade/pingone-admin — local handler, no upstream fetch', () =>
     expect(res.headers['mcp-session-id']).toBeTruthy();
   });
 
-  test('tools/list returns the 4-tool wrapper, never touches the network', async () => {
+  test('tools/list returns the RAW hosted catalog, uncapped, never touches the facade\'s own upstream stub', async () => {
     const init = await request(app()).post('/mcp-facade/pingone-admin/mcp')
       .send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} });
     const sid = init.headers['mcp-session-id'];
     const res = await request(app()).post('/mcp-facade/pingone-admin/mcp').set('mcp-session-id', sid)
       .send({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
     expect(res.status).toBe(200);
-    expect(res.body.result.tools.map((t) => t.name)).toEqual(['list_pingone_tools', 'call_pingone_tool']);
-    expect(buildAdminToolSchemas).toHaveBeenCalled();
+    expect(res.body.result.tools.map((t) => t.name)).toEqual(['listUsers', 'getEnvironment']);
+    expect(listTools).toHaveBeenCalled();
     expect(seen).toEqual([]); // never hit the stub upstream server
   });
 
-  test('tools/call dispatches through executeAdminTool and returns its result as content', async () => {
+  test('tools/call dispatches through the raw adapter by hosted tool name and relays its result verbatim', async () => {
     const init = await request(app()).post('/mcp-facade/pingone-admin/mcp')
       .send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} });
     const sid = init.headers['mcp-session-id'];
     const res = await request(app()).post('/mcp-facade/pingone-admin/mcp').set('mcp-session-id', sid)
-      .send({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'list_pingone_tools', arguments: {} } });
+      .send({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'listUsers', arguments: { filter: 'username sw "curt"' } } });
     expect(res.status).toBe(200);
-    expect(executeAdminTool).toHaveBeenCalledWith('list_pingone_tools', {});
-    expect(JSON.parse(res.body.result.content[0].text)).toEqual({ tool: 'list_pingone_tools', ok: true });
+    expect(callTool).toHaveBeenCalledWith('listUsers', { filter: 'username sw "curt"' });
+    expect(JSON.parse(res.body.result.content[0].text)).toEqual({ tool: 'listUsers', ok: true });
   });
 
   test('DELETE tears down the local session without an upstream call', async () => {

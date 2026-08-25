@@ -162,13 +162,19 @@ mcpServers:
 
   # 7. Hosted PingOne MCP (the Management API surface, not banking) — via the
   #    facade's pingone-admin door. Worker client_credentials, baked in
-  #    server-side (config/admin/tools.js's own worker creds, same ones
-  #    bankingAgentLangGraphService.js's own pingone-admin path uses) — no
-  #    per-caller login, no OAuth challenge at all; every caller through this
-  #    door gets the same worker-level PingOne admin access. Exposes only
-  #    list_pingone_tools/call_pingone_tool (2 schemas), not the hosted
-  #    catalog's raw 242 tools, for the same context-budget reason as
-  #    privilege-agentless above.
+  #    server-side (demo_api_server's own worker creds) — no per-caller
+  #    login, no OAuth challenge at all; every caller through this door gets
+  #    the same worker-level PingOne admin access.
+  #
+  #    Exposes the RAW hosted catalog, uncapped — 85 tools / ~373KB of
+  #    schema measured live 2026-08-25 (this moves with PingOne's own
+  #    management-API coverage and the worker's roles, so don't treat that
+  #    number as fixed). Use it from an Agent with specific tools selected,
+  #    not the plain chat picker, which auto-attaches every tool from a
+  #    door and will blow past a small model's context window — same
+  #    caution as privilege-agentless above, just uncapped here by request
+  #    instead of routed through the list_pingone_tools/call_pingone_tool
+  #    wrapper bankingAgentLangGraphService.js's own pingone-admin path uses.
   #
   #    Local BFF only (verified live) — pingaws's BFF pod's own PingOne
   #    worker credentials are unverified for this door; point at

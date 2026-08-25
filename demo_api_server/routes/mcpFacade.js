@@ -87,17 +87,22 @@ const DOORS = {
  * purely so the rest of this file's session-tracking pipeline (reel
  * correlation, tool/capability caching) works unchanged for this door too.
  *
- * Delegates to config/admin/tools.js's list_pingone_tools/call_pingone_tool
- * wrapper (4 fixed schemas) instead of the raw hosted catalog — that
- * catalog has grown to 242 tools live, which blew past every local LLM
- * tier's context window before an MCP client's own tool-selection UI even
- * comes into it (see bankingAgentLangGraphService.js's identical fix).
+ * Exposes the hosted catalog RAW (mcpPingOneHttpAdapter's own listTools/
+ * callTool) — every tool the worker token's admin roles unlock, full JSON
+ * schemas, no cap. Measured live 2026-08-25: 85 tools, ~373KB of schema —
+ * this count moves with PingOne's own management-API coverage and the
+ * worker's roles, so treat any specific number here as a snapshot, not a
+ * guarantee. A client that auto-attaches every tool from this door (a bare
+ * chat picker, not an Agent builder's per-tool selection) will blow past a
+ * small model's context window the same way the raw catalog already did for
+ * bankingAgentLangGraphService.js's own pingone-admin path before that fix —
+ * this door deliberately does NOT carry that fix, by request.
  *
  * Returns a fetch Response-shaped object ({status, headers, text()}) so the
  * caller (POST /:door/mcp) doesn't need a separate code path for this door.
  */
 async function pingoneAdminLocalHandler({ rpc, method, sessionIdIn }) {
-  const { buildAdminToolSchemas, executeAdminTool } = require('../config/admin/tools');
+  const { listTools, callTool } = require('../services/mcpPingOneHttpAdapter');
   const headers = new Map();
   const respond = (status, body) => ({ status, headers, text: async () => JSON.stringify(body) });
 
@@ -123,7 +128,7 @@ async function pingoneAdminLocalHandler({ rpc, method, sessionIdIn }) {
   if (method === 'tools/list') {
     let tools;
     try {
-      tools = await buildAdminToolSchemas();
+      tools = await listTools();
     } catch (err) {
       return respond(200, { jsonrpc: '2.0', id: rpc.id ?? null, error: { code: -32000, message: `pingone_mcp_unavailable: ${err.message}` } });
     }
@@ -132,8 +137,13 @@ async function pingoneAdminLocalHandler({ rpc, method, sessionIdIn }) {
   if (method === 'tools/call') {
     const name = String(rpc.params?.name || '');
     const args = rpc.params?.arguments || {};
-    const raw = await executeAdminTool(name, args);
-    return respond(200, { jsonrpc: '2.0', id: rpc.id ?? null, result: { content: [{ type: 'text', text: raw }] } });
+    let result;
+    try {
+      result = await callTool(name, args);
+    } catch (err) {
+      return respond(200, { jsonrpc: '2.0', id: rpc.id ?? null, result: { isError: true, content: [{ type: 'text', text: `pingone_mcp_unavailable: ${err.message}` }] } });
+    }
+    return respond(200, { jsonrpc: '2.0', id: rpc.id ?? null, result });
   }
   return respond(200, { jsonrpc: '2.0', id: rpc.id ?? null, error: { code: -32601, message: `Method not found: ${method}` } });
 }
