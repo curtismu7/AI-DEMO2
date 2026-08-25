@@ -115,7 +115,9 @@ describe('/mcp-facade — RFC 9728 surface', () => {
       .send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} });
     expect(res.status).toBe(401);
     const www = res.headers['www-authenticate'];
-    expect(www).toMatch(/^Bearer realm="gw", scope="mcp:invoke", resource_metadata="http:\/\/127\.0\.0\.1:\d+\/mcp-facade\/agent-gateway\/\.well-known\/oauth-protected-resource"$/);
+    // scope widened to the door's tool scopes: clients request exactly what the
+    // challenge names, and mcp:invoke alone cannot call a tool.
+    expect(www).toMatch(/^Bearer realm="gw", scope="read write transfer mcp:invoke", resource_metadata="http:\/\/127\.0\.0\.1:\d+\/mcp-facade\/agent-gateway\/\.well-known\/oauth-protected-resource"$/);
     expect(www).not.toContain('upstream.invalid');
     expect(ledger.appendHop).not.toHaveBeenCalled();
   });
@@ -123,6 +125,10 @@ describe('/mcp-facade — RFC 9728 surface', () => {
   test('rewriteChallenge handles a bare Bearer challenge', () => {
     expect(router.__test.rewriteChallenge(null, 'http://f/prm')).toBe('Bearer resource_metadata="http://f/prm"');
     expect(router.__test.rewriteChallenge('Bearer', 'http://f/prm')).toBe('Bearer resource_metadata="http://f/prm"');
+    expect(router.__test.rewriteChallenge('Bearer', 'http://f/prm', ['read', 'mcp:invoke'])).toBe('Bearer scope="read mcp:invoke", resource_metadata="http://f/prm"');
+    expect(router.__test.rewriteChallenge('Bearer realm="x", scope="mcp:invoke"', 'http://f/prm', ['read', 'mcp:invoke'])).toBe('Bearer realm="x", scope="read mcp:invoke", resource_metadata="http://f/prm"');
+    // Privilege doors declare no scopes → challenge scope left as the gateway sent it
+    expect(router.__test.rewriteChallenge('Bearer realm="p", scope="openid"', 'http://f/prm', [])).toBe('Bearer realm="p", scope="openid", resource_metadata="http://f/prm"');
   });
 });
 
