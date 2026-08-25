@@ -11,9 +11,11 @@ mcpSettings:
   allowedAddresses:
     - 'host.docker.internal:8080'
     - 'host.docker.internal:9900'
-    # demo_api_server's BFF, host of mcp-facade (recording proxy for the
-    # three gateway doors below) — see docs/superpowers/specs/2026-08-24-
-    # librechat-embedded-mcp-trace-design.md and PR #2356.
+    # demo_api_server's BFF, host of mcp-facade (recording proxy) — see
+    # docs/superpowers/specs/2026-08-24-librechat-embedded-mcp-trace-design.md
+    # and PR #2356. Only opensearch-privilege-agent still targets it locally
+    # below; privilege-agentless/agent-gateway moved to the pingaws-hosted
+    # facade (public host, needs no allowlist entry of its own).
     - 'api.ping.demo:3001'
 
 endpoints:
@@ -124,21 +126,60 @@ mcpServers:
   #    self-referential resource_metadata, DCR against the real gateway,
   #    242 tools, get_my_accounts 200 with a reel_url attached.
   #
-  # Use it from an Agent, not the plain chat picker: the plain picker
-  # attaches all 242 tools (~30k tokens of schema, more than the 16k-ctx
-  # gpt-oss tier holds), while the Agent builder's MCP tool dialog lets
-  # you select only get_my_accounts.
+  # Points at the pingaws-hosted facade, not the local one — matches
+  # lmstudio/mcp.json's MCP Agentless-Banking, the reference this repo keeps
+  # both MCP clients' door lists in sync against. Use it from an Agent, not
+  # the plain chat picker: the plain picker attaches all 242 tools (~30k
+  # tokens of schema, more than the 16k-ctx gpt-oss tier holds), while the
+  # Agent builder's MCP tool dialog lets you select only get_my_accounts.
   privilege-agentless:
     type: streamable-http
-    url: 'https://api.ping.demo:3001/mcp-facade/agentless/mcp'
+    url: 'https://ai-demo.ping-devops.com/mcp-facade/agentless/mcp'
     timeout: 60000
 
-  # 5. Via the local Agent Gateway (demo_mcp_gateway) — the OAuth broker
-  #    from PR #2353 (RFC 8414 + 7591) fronted by the same facade so this
-  #    door gets the identical reel treatment as the two Privilege doors
-  #    above. Verified live 2026-08-24: 401 + self-referential
-  #    resource_metadata, same as privilege-agentless.
+  # 5. Via the Agent Gateway (demo_mcp_gateway) — the OAuth broker from
+  #    PR #2353 (RFC 8414 + 7591) fronted by the same facade so this door
+  #    gets the identical reel treatment as the two Privilege doors above.
+  #    Verified live 2026-08-24: 401 + self-referential resource_metadata,
+  #    same as privilege-agentless.
+  #
+  # pingaws-hosted, matching lmstudio/mcp.json's MCP AgentGateway-Banking.
   agent-gateway:
     type: streamable-http
-    url: 'https://api.ping.demo:3001/mcp-facade/agent-gateway/mcp'
+    url: 'https://ai-demo.ping-devops.com/mcp-facade/agent-gateway/mcp'
+    timeout: 60000
+
+  # 6. Direct, no facade — the public SE ingress in front of this repo's own
+  #    mcp-server (k8s/aws/se-ingress.yaml's mcp-public-door-ingress), fronted
+  #    by ping-gateway for real PingOne OAuth (not the local aidemo-mcp
+  #    door's MCP_AUTH_DISABLED shortcut). Matches lmstudio/mcp.json's MCP
+  #    Direct-Banking — same URL, same door, kept in sync across both
+  #    clients.
+  banking-direct:
+    type: streamable-http
+    url: 'https://cmuir-mcp.ping-devops.com/mcp'
+    timeout: 60000
+
+  # 7. Hosted PingOne MCP (the Management API surface, not banking) — via the
+  #    facade's pingone-admin door. Worker client_credentials, baked in
+  #    server-side (demo_api_server's own worker creds) — no per-caller
+  #    login, no OAuth challenge at all; every caller through this door gets
+  #    the same worker-level PingOne admin access.
+  #
+  #    Exposes the RAW hosted catalog, uncapped — 85 tools / ~373KB of
+  #    schema measured live 2026-08-25 (this moves with PingOne's own
+  #    management-API coverage and the worker's roles, so don't treat that
+  #    number as fixed). Use it from an Agent with specific tools selected,
+  #    not the plain chat picker, which auto-attaches every tool from a
+  #    door and will blow past a small model's context window — same
+  #    caution as privilege-agentless above, just uncapped here by request
+  #    instead of routed through the list_pingone_tools/call_pingone_tool
+  #    wrapper bankingAgentLangGraphService.js's own pingone-admin path uses.
+  #
+  #    Local BFF only (verified live) — pingaws's BFF pod's own PingOne
+  #    worker credentials are unverified for this door; point at
+  #    ai-demo.ping-devops.com only after confirming that.
+  pingone-admin:
+    type: streamable-http
+    url: 'https://api.ping.demo:3001/mcp-facade/pingone-admin/mcp'
     timeout: 60000

@@ -5,6 +5,13 @@ jest.mock('../../services/lmdb/transactionLedger.lmdb', () => ({
 }));
 jest.mock('../../services/transactionAssembler', () => ({ assemble: jest.fn() }));
 jest.mock('../../services/configStore', () => ({ getEffective: jest.fn(() => 'true') }));
+jest.mock('../../services/mcpPingOneHttpAdapter', () => ({
+  listTools: jest.fn(async () => [
+    { name: 'listUsers', description: 'List users', inputSchema: { type: 'object', properties: {} } },
+    { name: 'getEnvironment', description: 'Get environment', inputSchema: { type: 'object', properties: {} } },
+  ]),
+  callTool: jest.fn(async (name) => ({ content: [{ type: 'text', text: JSON.stringify({ tool: name, ok: true }) }] })),
+}));
 
 const http = require('http');
 const express = require('express');
@@ -122,7 +129,7 @@ describe('/mcp-facade — RFC 9728 surface', () => {
   test('unknown door → 404 listing the doors', async () => {
     const res = await request(app()).get('/mcp-facade/nope/.well-known/oauth-protected-resource');
     expect(res.status).toBe(404);
-    expect(res.body.doors).toEqual(['agent-gateway', 'agentless', 'agent']);
+    expect(res.body.doors).toEqual(['agent-gateway', 'agentless', 'agent', 'pingone-admin']);
   });
 
   test('an upstream 401 is relayed with resource_metadata rewritten to the façade', async () => {
@@ -144,6 +151,65 @@ describe('/mcp-facade — RFC 9728 surface', () => {
     expect(router.__test.rewriteChallenge('Bearer realm="x", scope="mcp:invoke"', 'http://f/prm', ['read', 'mcp:invoke'])).toBe('Bearer realm="x", scope="read mcp:invoke", resource_metadata="http://f/prm"');
     // Privilege doors declare no scopes → challenge scope left as the gateway sent it
     expect(router.__test.rewriteChallenge('Bearer realm="p", scope="openid"', 'http://f/prm', [])).toBe('Bearer realm="p", scope="openid", resource_metadata="http://f/prm"');
+  });
+});
+
+describe('/mcp-facade/pingone-admin — local handler, no upstream fetch', () => {
+  // routes/mcpFacade.js lazy-requires mcpPingOneHttpAdapter inside the
+  // handler body, and this repo's global setup.js calls jest.resetModules()
+  // after every test — a reference captured once at describe-load time
+  // would go stale after the first reset (mirrors adminTools.schemaSize.
+  // test.js's own fix for the identical issue). Re-require fresh per test.
+  let listTools;
+  let callTool;
+  beforeEach(() => {
+    ({ listTools, callTool } = require('../../services/mcpPingOneHttpAdapter'));
+  });
+
+  test('advertises no authorization server — worker creds are baked in, not per-caller', async () => {
+    const res = await request(app()).get('/mcp-facade/pingone-admin/.well-known/oauth-protected-resource');
+    expect(res.status).toBe(200);
+    expect(res.body.authorization_servers).toBeUndefined();
+  });
+
+  test('initialize succeeds with no Authorization header at all', async () => {
+    const res = await request(app()).post('/mcp-facade/pingone-admin/mcp')
+      .send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18' } });
+    expect(res.status).toBe(200);
+    expect(res.body.result.serverInfo.name).toBe('PingOne Admin (hosted MCP)');
+    expect(res.headers['mcp-session-id']).toBeTruthy();
+  });
+
+  test('tools/list returns the RAW hosted catalog, uncapped, never touches the facade\'s own upstream stub', async () => {
+    const init = await request(app()).post('/mcp-facade/pingone-admin/mcp')
+      .send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} });
+    const sid = init.headers['mcp-session-id'];
+    const res = await request(app()).post('/mcp-facade/pingone-admin/mcp').set('mcp-session-id', sid)
+      .send({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
+    expect(res.status).toBe(200);
+    expect(res.body.result.tools.map((t) => t.name)).toEqual(['listUsers', 'getEnvironment']);
+    expect(listTools).toHaveBeenCalled();
+    expect(seen).toEqual([]); // never hit the stub upstream server
+  });
+
+  test('tools/call dispatches through the raw adapter by hosted tool name and relays its result verbatim', async () => {
+    const init = await request(app()).post('/mcp-facade/pingone-admin/mcp')
+      .send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} });
+    const sid = init.headers['mcp-session-id'];
+    const res = await request(app()).post('/mcp-facade/pingone-admin/mcp').set('mcp-session-id', sid)
+      .send({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'listUsers', arguments: { filter: 'username sw "curt"' } } });
+    expect(res.status).toBe(200);
+    expect(callTool).toHaveBeenCalledWith('listUsers', { filter: 'username sw "curt"' });
+    expect(JSON.parse(res.body.result.content[0].text)).toEqual({ tool: 'listUsers', ok: true });
+  });
+
+  test('DELETE tears down the local session without an upstream call', async () => {
+    const init = await request(app()).post('/mcp-facade/pingone-admin/mcp')
+      .send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} });
+    const sid = init.headers['mcp-session-id'];
+    const res = await request(app()).delete('/mcp-facade/pingone-admin/mcp').set('mcp-session-id', sid);
+    expect(res.status).toBe(200);
+    expect(seen).toEqual([]);
   });
 });
 

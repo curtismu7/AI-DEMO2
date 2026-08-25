@@ -64,7 +64,89 @@ const DOORS = {
     scopes: [],
     forwardCorrelation: false,
   },
+  'pingone-admin': {
+    label: 'PingOne Admin',
+    // No real upstream fetch — see localHandler. Display-only, for hop details.
+    upstream: () => 'local:pingone-admin (config/admin/tools.js)',
+    // Worker client_credentials, baked in server-side — same model as the
+    // `agent` door above (the identity is fixed, not the caller's own
+    // login), so no OAuth challenge at all, matching authorizationServer:
+    // null there. Every caller through this door gets the same worker-level
+    // PingOne admin access; there is no per-user distinction.
+    authorizationServer: null,
+    scopes: [],
+    forwardCorrelation: false,
+    localHandler: pingoneAdminLocalHandler,
+  },
 };
+
+/**
+ * Local-only MCP handler for the pingone-admin door: no upstream fetch, no
+ * session concept to proxy (the hosted PingOne MCP server is stateless per
+ * mcpPingOneHttpAdapter.js's own comment) — a session id is minted here
+ * purely so the rest of this file's session-tracking pipeline (reel
+ * correlation, tool/capability caching) works unchanged for this door too.
+ *
+ * Exposes the hosted catalog RAW (mcpPingOneHttpAdapter's own listTools/
+ * callTool) — every tool the worker token's admin roles unlock, full JSON
+ * schemas, no cap. Measured live 2026-08-25: 85 tools, ~373KB of schema —
+ * this count moves with PingOne's own management-API coverage and the
+ * worker's roles, so treat any specific number here as a snapshot, not a
+ * guarantee. A client that auto-attaches every tool from this door (a bare
+ * chat picker, not an Agent builder's per-tool selection) will blow past a
+ * small model's context window the same way the raw catalog already did for
+ * bankingAgentLangGraphService.js's own pingone-admin path before that fix —
+ * this door deliberately does NOT carry that fix, by request.
+ *
+ * Returns a fetch Response-shaped object ({status, headers, text()}) so the
+ * caller (POST /:door/mcp) doesn't need a separate code path for this door.
+ */
+async function pingoneAdminLocalHandler({ rpc, method, sessionIdIn }) {
+  const { listTools, callTool } = require('../services/mcpPingOneHttpAdapter');
+  const headers = new Map();
+  const respond = (status, body) => ({ status, headers, text: async () => JSON.stringify(body) });
+
+  if (method === 'notifications/initialized' || String(method).startsWith('notifications/')) {
+    if (sessionIdIn) headers.set('mcp-session-id', sessionIdIn);
+    return { status: 202, headers, text: async () => '' };
+  }
+
+  const sessionId = sessionIdIn || crypto.randomUUID();
+  headers.set('mcp-session-id', sessionId);
+
+  if (method === 'initialize') {
+    return respond(200, {
+      jsonrpc: '2.0',
+      id: rpc.id ?? null,
+      result: {
+        protocolVersion: rpc.params?.protocolVersion || '2025-06-18',
+        capabilities: { tools: {} },
+        serverInfo: { name: 'PingOne Admin (hosted MCP)', version: '1.0.0' },
+      },
+    });
+  }
+  if (method === 'tools/list') {
+    let tools;
+    try {
+      tools = await listTools();
+    } catch (err) {
+      return respond(200, { jsonrpc: '2.0', id: rpc.id ?? null, error: { code: -32000, message: `pingone_mcp_unavailable: ${err.message}` } });
+    }
+    return respond(200, { jsonrpc: '2.0', id: rpc.id ?? null, result: { tools } });
+  }
+  if (method === 'tools/call') {
+    const name = String(rpc.params?.name || '');
+    const args = rpc.params?.arguments || {};
+    let result;
+    try {
+      result = await callTool(name, args);
+    } catch (err) {
+      return respond(200, { jsonrpc: '2.0', id: rpc.id ?? null, result: { isError: true, content: [{ type: 'text', text: `pingone_mcp_unavailable: ${err.message}` }] } });
+    }
+    return respond(200, { jsonrpc: '2.0', id: rpc.id ?? null, result });
+  }
+  return respond(200, { jsonrpc: '2.0', id: rpc.id ?? null, error: { code: -32601, message: `Method not found: ${method}` } });
+}
 
 // What we learned about each upstream MCP session (keyed by Mcp-Session-Id):
 // the catalog the reel shows next to a tool call, plus the session's reel
@@ -292,12 +374,14 @@ router.post('/:door/mcp', express.json({ limit: '1mb', type: () => true }), asyn
   const t0 = Date.now();
   let upstream;
   try {
-    upstream = await fetch(upstreamUrl, {
-      method: 'POST',
-      headers: forwardHeaders(req, correlationId),
-      body: JSON.stringify(rpc),
-      ...fetchOpts(upstreamUrl),
-    });
+    upstream = door.localHandler
+      ? await door.localHandler({ rpc, method, sessionIdIn: req.get('mcp-session-id') })
+      : await fetch(upstreamUrl, {
+        method: 'POST',
+        headers: forwardHeaders(req, correlationId),
+        body: JSON.stringify(rpc),
+        ...fetchOpts(upstreamUrl),
+      });
   } catch (err) {
     if (isCall) {
       hop(correlationId, { phase: 'mcp.tool', op: toolName, status: 'error', durationMs: Date.now() - t0, details: { error: err.message } });
@@ -456,6 +540,12 @@ router.get('/reel/:correlationId.svg', async (req, res) => {
 router.get('/:door/mcp', (req, res) => res.status(405).end());
 
 router.delete('/:door/mcp', async (req, res) => {
+  if (req.door.localHandler) {
+    // Stateless upstream (see pingoneAdminLocalHandler) — nothing to tear
+    // down but this door's own local session-tracking entry.
+    sessions.delete(req.get('mcp-session-id'));
+    return res.status(200).end();
+  }
   const upstreamUrl = req.door.upstream();
   try {
     const upstream = await fetch(upstreamUrl, { method: 'DELETE', headers: forwardHeaders(req, null), ...fetchOpts(upstreamUrl) });

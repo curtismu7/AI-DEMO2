@@ -14,22 +14,34 @@ cp lmstudio/mcp.json ~/.lmstudio/mcp.json   # then restart LM Studio
 | `MCP Agent-OpenSearch` | OpenSearch MCP **through the Privilege agent** (`cm-mcpgw` in K8s, namespace `ping-devops-cmuir`), through the **local** recording façade | the installed macOS Privilege Agent — no prompt |
 | `MCP Direct-OpenSearch` | the same OpenSearch MCP server (`cm-mcpgw` in K8s), **bypassing Privilege** | none — needs a port-forward first (below) |
 | `MCP AgentGateway-Banking` | this repo's Agent Gateway (`demo_mcp_gateway`, deployed to the SE cluster), through the **SE-hosted** recording façade | native OAuth via the gateway's broker (PR #2353, real Let's Encrypt cert) → PingOne login |
+| `MCP PingOne-Admin` | the hosted PingOne MCP server (Management API surface, not banking), through the **local** recording façade's `pingone-admin` door | none — worker `client_credentials` baked in server-side; every caller gets the same worker-level PingOne admin access, there's no per-caller login at all |
 
-All five doors ultimately talk to the SE cluster (`ping-devops-cmuir` namespace,
+The first five doors ultimately talk to the SE cluster (`ping-devops-cmuir` namespace,
 `ai-demo.ping-devops.com`) — the two OpenSearch doors reach it via a local hop
 (the Privilege Agent, or a `kubectl port-forward`) because their upstream has no
-public ingress; the three banking/gateway doors go straight to it.
+public ingress; the three banking/gateway doors go straight to it. `MCP PingOne-Admin`
+talks to PingOne's own hosted MCP server directly from the BFF, unrelated to the SE
+cluster's own app resources.
+
+`MCP PingOne-Admin` exposes PingOne's hosted catalog RAW, uncapped — 85 tools / ~373KB
+of schema measured live 2026-08-25 (moves with PingOne's own management-API coverage
+and the worker's roles, so don't treat that number as fixed). Attaching every tool from
+this door in one plain chat turn will blow past a small model's context window; pick
+specific tools instead when the client supports it.
 
 ## The recording façade (movie reel)
 
-Direct doors just work. The three doors that cross an authorization boundary go through
-the BFF's recording façade (`demo_api_server/routes/mcpFacade.js`, the client-agnostic half
-of `docs/superpowers/specs/2026-08-24-librechat-embedded-mcp-trace-design.md`) — `MCP
+Direct doors just work. The four doors that either cross an authorization boundary or
+route through the façade for another reason go through the BFF's recording façade
+(`demo_api_server/routes/mcpFacade.js`, the client-agnostic half of
+`docs/superpowers/specs/2026-08-24-librechat-embedded-mcp-trace-design.md`) — `MCP
 AgentGateway-Banking` and `MCP Agentless-Banking` at `https://ai-demo.ping-devops.com/mcp-facade/<door>/mcp`
-(the SE deployment); `MCP Agent-OpenSearch` at `http://localhost:3002/mcp-facade/agent/mcp`
-(local only — its upstream, the Privilege Agent listener, only resolves on this Mac). It
-relays every call unchanged, records the hops on the transaction ledger, and appends one
-extra block to every tool result:
+(the SE deployment); `MCP Agent-OpenSearch` and `MCP PingOne-Admin` at
+`http://localhost:3002/mcp-facade/<door>/mcp` (local only — `MCP Agent-OpenSearch`
+because its upstream, the Privilege Agent listener, only resolves on this Mac; `MCP
+PingOne-Admin` because the worker credentials it uses are configured on the local BFF,
+unverified on the SE deployment). It relays every call unchanged, records the hops on
+the transaction ledger, and appends one extra block to every tool result:
 
 ```text
 reel_url: https://localhost:4000/transaction-trace/embed/<correlationId>
