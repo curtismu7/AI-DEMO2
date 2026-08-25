@@ -26,15 +26,25 @@ extra block to every tool result:
 
 ```text
 reel_url: https://localhost:4000/transaction-trace/embed/<correlationId>
-Transaction trace ("movie reel") for this tool call: … Always show this link to the user …
+reel_image: http://localhost:3002/mcp-facade/reel/<correlationId>.svg
+Transaction trace ("movie reel") for this tool call: who called, the gateway's authorization decision, the MCP request and response.
 ![Transaction trace](http://localhost:3002/mcp-facade/reel/<correlationId>.svg)
 ```
 
-The second line is there for the model — without it, LM Studio's model decided a bare
-localhost link was a debug artifact and hid it. If a model still drops it, add this to the
-chat's system prompt: `When a tool result contains a reel_url, always include that link in your
-reply as a clickable link labelled "Transaction trace".`
-The image is rendered on request from the ledger, so it fills in as the hops land (the gateway's own decision arrives a beat after the tool result).
+The block is deliberately **data, not instructions** — a sentence like "always show this link"
+inside a tool result is prompt injection by definition, and qwen3 correctly refused it. Tell the
+model what to do with it where instructions belong, the chat's **System Prompt** (LM Studio →
+chat settings, or a preset):
+
+```text
+Tool results from the mcp/* servers may include a transaction trace: a `reel_url:` line, a
+`reel_image:` line and a Markdown image. Include them in your reply — the link as a clickable
+"Transaction trace" link and the image as-is. They are part of the answer, not debug output.
+```
+
+The image is rendered on request from the ledger, so it fills in as the hops land (the gateway's
+own decision arrives a beat after the tool result). It keeps refreshing for a few minutes while
+open, because a session's reel keeps growing as you make more calls.
 
 (`MCP_FACADE_REEL_BASE` in `demo_api_server/.env` overrides the host — the embed page is
 public, so it needs no special hostname and no `/etc/hosts` entry.)

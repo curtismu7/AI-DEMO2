@@ -323,10 +323,15 @@ router.post('/:door/mcp', express.json({ limit: '1mb', type: () => true }), asyn
   const reelImage = `${req.protocol}://${req.get('host')}/mcp-facade/reel/${correlationId}.svg`;
   const reelBlock = {
     type: 'text',
+    // Data, not commands: an imperative sentence here ("always show this link")
+    // was correctly flagged as prompt injection by qwen3 in LM Studio and the
+    // link was dropped (2026-08-25). The ask to surface it belongs in the
+    // chat's system prompt (lmstudio/README.md); the block just describes
+    // what the link and image are.
     text: `reel_url: ${reelUrl}\n`
+      + `reel_image: ${reelImage}\n`
       + 'Transaction trace ("movie reel") for this tool call: who called, the gateway\'s '
-      + 'authorization decision, the MCP request and response. Always show this link to the '
-      + 'user as a clickable link so they can open it — it is part of the answer, not debug output.\n'
+      + 'authorization decision, the MCP request and response.\n'
       + `![Transaction trace](${reelImage})`,
   };
 
