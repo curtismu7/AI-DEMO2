@@ -38,6 +38,10 @@ beforeAll(async () => {
         res.writeHead(200, { 'Content-Type': 'application/json', 'mcp-session-id': 'sess-1' });
         res.end(JSON.stringify({ jsonrpc: '2.0', id: rpc.id, result }));
       };
+      if (rpc.method === 'initialize' && rpc.params?.clientInfo?.name === 'denied-device') {
+        res.writeHead(403, { 'Content-Type': 'text/plain' });
+        return res.end("User b1645e7b doesn't have access to MCP app opensearch");
+      }
       if (rpc.method === 'initialize') {
         return reply({ protocolVersion: '2025-06-18', capabilities: { tools: {} }, serverInfo: { name: 'stub-gw', version: '1' } });
       }
@@ -61,6 +65,7 @@ beforeAll(async () => {
   process.env.MCP_FACADE_AGENT_GATEWAY_URL = upstreamUrl;
   process.env.MCP_FACADE_AGENT_GATEWAY_AS = 'http://localhost:3005';
   process.env.MCP_FACADE_AGENTLESS_URL = upstreamUrl;
+  process.env.PRIVILEGE_AGENT_MCPGW_URL = upstreamUrl;
   process.env.MCP_FACADE_REEL_BASE = 'https://ui.example';
 });
 
@@ -261,6 +266,49 @@ describe('/mcp-facade — relay + recording', () => {
     await request(a).post('/mcp-facade/agentless/mcp').set('Authorization', AUTH).set('mcp-protocol-version', '2025-06-18')
       .send({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
     expect(seen[1].headers['mcp-protocol-version']).toBe('2025-06-18');
+  });
+
+  describe('denied session — a door said 403 before any session existed', () => {
+    const initDenied = () => request(app()).post('/mcp-facade/agent/mcp').set('Authorization', AUTH)
+      .send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'denied-device', version: '0' } } });
+
+    test('initialize succeeds with the denial in MCP instructions and a denied- session id; the reel records the DENY', async () => {
+      const res = await initDenied();
+      expect(res.status).toBe(200);
+      expect(res.headers['mcp-session-id']).toMatch(/^denied-[0-9a-f-]{36}$/);
+      expect(res.body.result.serverInfo.name).toBe('Privilege agent (access denied)');
+      expect(res.body.result.instructions).toMatch(/^You have been denied by Policy\. Privilege agent refused initialize: User b1645e7b doesn't have access to MCP app opensearch/);
+      const hops = hopsByPhase();
+      expect(hops['mcp.step']).toMatchObject({ op: 'initialize', status: 'error', details: { httpStatus: 403 } });
+      expect(hops['gateway.authorize'].decision).toMatchObject({ outcome: 'deny', by: 'Privilege agent', source: 'inferred' });
+    });
+
+    test('tools/list in a denied session exposes one policy_denied tool and never reaches the upstream', async () => {
+      const init = await initDenied();
+      const sid = init.headers['mcp-session-id'];
+      const before = seen.length;
+      const res = await request(app()).post('/mcp-facade/agent/mcp').set('Authorization', AUTH).set('mcp-session-id', sid)
+        .send({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
+      expect(res.status).toBe(200);
+      expect(res.body.result.tools).toEqual([expect.objectContaining({ name: 'policy_denied', description: expect.stringMatching(/^You have been denied by Policy\./) })]);
+      expect(seen.length).toBe(before);
+    });
+
+    test('tools/call in a denied session answers "You have been denied by Policy." with the reel block, on the session reel', async () => {
+      const init = await initDenied();
+      const sid = init.headers['mcp-session-id'];
+      ledger.appendHop.mockClear();
+      const res = await request(app()).post('/mcp-facade/agent/mcp').set('Authorization', AUTH).set('mcp-session-id', sid)
+        .send({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'search', arguments: { q: 'x' } } });
+      expect(res.status).toBe(200);
+      expect(res.body.result.isError).toBe(true);
+      expect(res.body.result.content[0].text).toMatch(/^You have been denied by Policy\. Privilege agent refused initialize: User b1645e7b/);
+      expect(res.body.result.content[1].text).toMatch(/^reel_url: /);
+      const phases = ledger.appendHop.mock.calls.map(([, h]) => h.phase);
+      expect(phases).toEqual(['ui.request', 'gateway.authorize', 'mcp.tool', 'response']);
+      expect(new Set(ledger.appendHop.mock.calls.map(([id]) => id)).size).toBe(1);
+      expect(hopsByPhase()['gateway.authorize'].decision.outcome).toBe('deny');
+    });
   });
 
   test('GET /mcp is not offered through the façade', async () => {
