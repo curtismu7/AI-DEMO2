@@ -32,8 +32,9 @@ describe('workforce plugin', () => {
     expect(p).not.toMatch(/\bbank(ing)?\b/i);
   });
 
-  it('getAuthz gates submit_expense (stepUp+consent) and request_time_off (consent)', () => {
-    expect(plugin.getAuthz().submit_expense).toEqual({ stepUp: true, consent: true });
+  // submit_expense is consent-only since 2026-08-25 — see workforce/tools.js.
+  it('getAuthz gates submit_expense (consent) and request_time_off (consent)', () => {
+    expect(plugin.getAuthz().submit_expense).toEqual({ consent: true });
     expect(plugin.getAuthz().request_time_off).toEqual({ consent: true });
   });
 

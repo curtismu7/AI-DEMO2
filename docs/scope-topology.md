@@ -368,7 +368,7 @@ Granted scopes: `read`, `identity:read`
 | `view_benefits` | gateway | `read` | — |
 | `pto_balance` | gateway | `read` | — |
 | `list_expenses` | gateway | `read` | — |
-| `submit_expense` | gateway | `write` | step_up |
+| `submit_expense` | gateway | `write` | consent |
 | `request_time_off` | gateway | `write` | consent |
 | `view_records` | gateway | `read` | — |
 | `view_coverage` | gateway | `read` | — |
@@ -560,7 +560,7 @@ Granted scopes: `read`, `identity:read`
 | `view_trainings` | gateway | `read` | — |
 | `withdraw_training_enrollment` | gateway | `write` | — |
 | `buy_security` | gateway | `write` | — |
-| `large_trade` | gateway | `write` | step_up |
+| `large_trade` | gateway | `write` | consent |
 | `rebalance_portfolio` | gateway | `write` | — |
 | `sell_security` | gateway | `write` | — |
 | `view_dividends` | gateway | `read` | — |
