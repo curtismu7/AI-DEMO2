@@ -93,6 +93,10 @@ fi
 # don't silently fall back to .env for what should be vault-only secrets.
 VAULT_SCRIPT="$REPO_ROOT/demo_api_server/scripts/vault.js"
 [ -f "$VAULT_SCRIPT" ] || die "vault script not found at $VAULT_SCRIPT"
+# secrets.vault is gitignored, same worktree-fallback need as VAULT_PASSWORD
+# below — default to ASSET_ROOT (main checkout when run from a worktree)
+# rather than requiring every caller to export VAULT_PATH by hand.
+export VAULT_PATH="${VAULT_PATH:-$ASSET_ROOT/secrets.vault}"
 if [ -z "${VAULT_PASSWORD:-}" ] && [ -f "$ASSET_ROOT/demo_api_server/.env" ]; then
   VAULT_PASSWORD="$(grep -E '^VAULT_PASSWORD=.+' "$ASSET_ROOT/demo_api_server/.env" | head -1 | cut -d= -f2- | tr -d '"')"
 fi
@@ -200,11 +204,11 @@ secret_from_envfile() {
   for k in "${keys[@]}"; do
     local env_v="${!k:-}"
     if [ "$mode" != "legacy-env-only" ] && vault_has_key "$k"; then
-      if [ -n "$env_v" ]; then
-        die "SECURITY: $k is vault-managed but $env_file also has a non-empty value for it. Vault is the only allowed source for this key — remove the $k line from $env_file. (This is exactly the drift class that broke SE introspection on 2026-08-25 — see docs/superpowers/specs/2026-08-25-vault-in-k8s-design.md.)"
-      fi
       local vault_v
       vault_v="$(vault_get "$k")"
+      if [ -n "$env_v" ] && [ "$env_v" != "$vault_v" ]; then
+        die "SECURITY: $k is vault-managed and $env_file has a DIFFERENT non-empty value for it. The vault is authoritative — update $k in $env_file to match the vault value (or leave it blank), never leave a stale copy. (This is exactly the drift class that broke SE introspection on 2026-08-25 — see docs/superpowers/specs/2026-08-25-vault-in-k8s-design.md.)"
+      fi
       [ -n "$vault_v" ] && args+=(--from-literal="${k}=${vault_v}")
       dry_run_report+=("$k -> vault")
     else
