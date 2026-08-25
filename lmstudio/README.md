@@ -19,7 +19,7 @@ cp lmstudio/mcp.json ~/.lmstudio/mcp.json   # then restart LM Studio
 
 Direct doors just work. The three doors that cross an authorization boundary
 (`agent-gateway`, `agentless-mcpgw`, `agent-mcpgw`) go through the BFF's recording
-façade, `https://localhost:3001/mcp-facade/<door>/mcp` (`demo_api_server/routes/mcpFacade.js`,
+façade, `http://localhost:3002/mcp-facade/<door>/mcp` (`demo_api_server/routes/mcpFacade.js`,
 the client-agnostic half of `docs/superpowers/specs/2026-08-24-librechat-embedded-mcp-trace-design.md`).
 It relays every call unchanged, records the hops on the transaction ledger, and appends one
 extra block to every tool result:
@@ -37,9 +37,11 @@ P1AZ decision for `agent-gateway`, timing) plus the MCP side of the call — too
 descriptions, resources (or "not advertised"), the request arguments and the raw response.
 It keeps polling until the `response` hop lands, so open it as soon as the tool returns.
 
-The façade is HTTPS with the local mkcert certificate. If LM Studio refuses the
-certificate, trust the mkcert root for its Node runtime (`NODE_EXTRA_CA_CERTS="$(mkcert -CAROOT)/rootCA.pem"`
-in the environment LM Studio is launched from).
+The façade is served over plain HTTP on `127.0.0.1:3002` on purpose: LM Studio's MCP bridge
+is a Node process that does not trust the mkcert chain (`SELF_SIGNED_CERT_IN_CHAIN`, seen
+live 2026-08-24), the listener is loopback-only, and every call carries the client's own
+bearer. The same façade is also on the BFF's HTTPS port (`https://api.ping.demo:3001/mcp-facade/…`)
+for containerized clients such as LibreChat.
 
 `opensearch-direct` is ClusterIP-only in K8s, so open the tunnel before toggling it on:
 
