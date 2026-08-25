@@ -46,6 +46,29 @@ in the cached client's registered set) and re-run `ensureClient` when it
 isn't, instead of caching one client unconditionally for the process
 lifetime.
 
+### [ ] 2026-08-25 — `demo_mcp_gateway`'s RFC 8693 client duplicates `oauthService.js`'s request-building
+
+**Where:** `demo_mcp_gateway/src/auth/McpTokenExchangeClient.ts` vs.
+`demo_api_server/services/oauthService.js`.
+
+**What's wrong:** both independently build the same RFC 8693 token-exchange request shape
+(`grant_type`/`subject_token`/`actor_token`/`resource`/`scope`) and independently handle the
+same PingOne quirk — `resource=` (repeated) for a multi-resource client, `audience=` otherwise,
+because PingOne rejects a scope-less exchange with "May not request scopes for multiple
+resources" — each with its own comment explaining the same workaround. Investigated while
+deleting a *different*, dead duplication (`demo_api_server/services/rfc8693TokenExchangeService.js`
+and `subjectTokenService.js`, both unreachable — see the commit that added this entry); this one
+is real and live on both sides, so it wasn't in scope for that fix.
+
+**Why it wasn't fixed now:** the gateway is TypeScript, a separately deployed Node process from
+`demo_api_server`. Consolidating means a shared package published/linked between two
+independently-deployed services — real infrastructure work, not a code-only refactor, and
+disproportionate for two call sites.
+
+**What the real fix looks like:** if a third RFC 8693 client shows up anywhere in this repo, pull
+the request-building + PingOne-quirk logic into a small shared package both services depend on.
+Until then, two hand-synced copies is the cheaper trade.
+
 ### [x] 2026-08-24 — LibreChat Privilege MCP tool call blocked by LLM context size, not by anything in `librechat/`
 
 **Where:** `librechat/librechat.yaml`'s `mcpServers.privilege` block; the live

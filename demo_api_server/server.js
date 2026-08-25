@@ -2864,6 +2864,19 @@ if (require.main === module) {
         const keyFile  = process.env.SSL_KEY_FILE  ||
           (fs.existsSync(_mkcertKey) ? _mkcertKey : _k8sKey);
 
+        // Recording façade over plain HTTP, loopback only (docker-compose maps
+        // 127.0.0.1:3002). Host-side MCP clients — LM Studio's bridge is a Node
+        // process — do not trust the mkcert chain (SELF_SIGNED_CERT_IN_CHAIN,
+        // seen live 2026-08-24), and the façade is bearer-protected, so this
+        // listener serves ONLY routes/mcpFacade.js, never the session app.
+        if (process.env.MCP_FACADE_HTTP_PORT) {
+            const facadeApp = express();
+            facadeApp.use('/mcp-facade', require('./routes/mcpFacade'));
+            require('http').createServer(facadeApp).listen(process.env.MCP_FACADE_HTTP_PORT, () => {
+                console.log(`MCP façade (HTTP) on http://localhost:${process.env.MCP_FACADE_HTTP_PORT}/mcp-facade`);
+            });
+        }
+
         let server;
         if (fs.existsSync(certFile) && fs.existsSync(keyFile)) {
             // Single source of truth for the scheme the server actually bound — read by
