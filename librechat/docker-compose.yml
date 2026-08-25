@@ -38,9 +38,19 @@ services:
       # librechat.yaml's opensearch-privilege-agent/privilege-agentless/
       # agent-gateway entries) verifies. The Priv Agent's own procyon
       # TenantRoot CA is no longer needed here — LibreChat no longer talks
-      # to it directly; the facade does, on its own trust config.
+      # to it directly; the facade does, on its own trust config. Unused
+      # (but harmless) against the pingaws target below, which is fronted
+      # by a real public CA, not the local mkcert one.
       # Re-capture with `mkcert -CAROOT` if the dev CA is ever regenerated.
       NODE_EXTRA_CA_CERTS: /app/mkcert-rootCA.crt
+      # Which mounted config LibreChat loads (api/server/services/Config/
+      # loadCustomConfig.js reads this env var directly, no fork needed).
+      # Default: librechat.yaml (docker target, api.ping.demo:3001).
+      #   LIBRECHAT_CONFIG=librechat.pingaws.yaml docker compose \
+      #     -f librechat/docker-compose.yml up
+      # switches to the SE AWS cluster (ai-demo.ping-devops.com) instead —
+      # see librechat.pingaws.yaml's own header comment for what that drops.
+      CONFIG_PATH: /app/${LIBRECHAT_CONFIG:-librechat.yaml}
     volumes:
       - type: bind
         source: ./mkcert-rootCA.crt
@@ -51,6 +61,9 @@ services:
       - type: bind
         source: ./librechat.yaml
         target: /app/librechat.yaml
+      - type: bind
+        source: ./librechat.pingaws.yaml
+        target: /app/librechat.pingaws.yaml
       - librechat-data:/app/data
     restart: unless-stopped
 
