@@ -148,8 +148,12 @@ describe('/mcp-facade — relay + recording', () => {
     const content = call.body.result.content;
     expect(content[0]).toEqual({ type: 'text', text: '{"success":true,"count":4}' });
     expect(content[1].type).toBe('text');
-    expect(content[1].text).toMatch(/^reel_url: https:\/\/ui\.example\/transaction-trace\/embed\/[0-9a-f-]{36}$/);
-    const cid = content[1].text.split('/').pop();
+    const cid = content[1].text.split('\n')[0].split('/').pop();
+    const [first, hint, image] = content[1].text.split('\n');
+    expect(first).toMatch(/^reel_url: https:\/\/ui\.example\/transaction-trace\/embed\/[0-9a-f-]{36}$/);
+    expect(hint).toMatch(/Always show this link to the user/);
+    expect(image).toMatch(/^!\[Transaction trace\]\(http:\/\/127\.0\.0\.1:\d+\/mcp-facade\/reel\/[0-9a-f-]{36}\.svg\)$/);
+    expect(image).toContain(cid);
 
     // ui.request → mcp.tool → response, all on one correlation id, no inferred
     // gateway.authorize (the gateway records the real one itself).

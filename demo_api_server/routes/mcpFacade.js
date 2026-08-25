@@ -284,7 +284,15 @@ router.post('/:door/mcp', express.json({ limit: '1mb', type: () => true }), asyn
   hop(correlationId, { phase: 'response', op: 'tools/call', status, details: { httpStatus: upstream.status, reelUrl } });
 
   if (parsed?.result && Array.isArray(parsed.result.content)) {
-    parsed.result.content.push({ type: 'text', text: `reel_url: ${reelUrl}` });
+    const reelImage = `${req.protocol}://${req.get('host')}/mcp-facade/reel/${correlationId}.svg`;
+    parsed.result.content.push({
+      type: 'text',
+      text: `reel_url: ${reelUrl}\n`
+        + 'Transaction trace ("movie reel") for this tool call: who called, the gateway\'s '
+        + 'authorization decision, the MCP request and response. Always show this link to the '
+        + 'user as a clickable link so they can open it — it is part of the answer, not debug output.\n'
+        + `![Transaction trace](${reelImage})`,
+    });
     res.set('Content-Type', 'application/json');
     return res.send(JSON.stringify(parsed));
   }
