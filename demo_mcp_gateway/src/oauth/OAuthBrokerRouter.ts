@@ -124,10 +124,17 @@ export class OAuthBrokerRouter {
       this.json(res, 400, { error: 'invalid_request', error_description: 'Missing required parameters' });
       return true;
     }
-    const client = this.clientRegistry.getClient(clientId);
+    let client = this.clientRegistry.getClient(clientId);
     if (!client) {
-      this.json(res, 400, { error: 'invalid_client', error_description: 'Unknown client_id' });
-      return true;
+      // Unknown id + loopback redirect = a client that registered before the
+      // gateway restarted (in-memory registry). Adopt it; see ClientRegistry.
+      try {
+        client = this.clientRegistry.adoptClient({ client_id: clientId, redirect_uris: [redirectUri] });
+      } catch (err) {
+        if (!(err instanceof InvalidRedirectUriError)) throw err;
+        this.json(res, 400, { error: 'invalid_client', error_description: 'Unknown client_id' });
+        return true;
+      }
     }
     if (!client.redirect_uris.includes(redirectUri)) {
       this.json(res, 400, { error: 'invalid_request', error_description: 'redirect_uri not registered' });
