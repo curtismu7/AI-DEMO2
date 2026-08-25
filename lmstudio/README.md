@@ -27,12 +27,14 @@ extra block to every tool result:
 ```text
 reel_url: https://localhost:4000/transaction-trace/embed/<correlationId>
 Transaction trace ("movie reel") for this tool call: … Always show this link to the user …
+![Transaction trace](http://localhost:3002/mcp-facade/reel/<correlationId>.svg)
 ```
 
 The second line is there for the model — without it, LM Studio's model decided a bare
 localhost link was a debug artifact and hid it. If a model still drops it, add this to the
 chat's system prompt: `When a tool result contains a reel_url, always include that link in your
 reply as a clickable link labelled "Transaction trace".`
+The image is rendered on request from the ledger, so it fills in as the hops land (the gateway's own decision arrives a beat after the tool result).
 
 (`MCP_FACADE_REEL_BASE` in `demo_api_server/.env` overrides the host — the embed page is
 public, so it needs no special hostname and no `/etc/hosts` entry.)
@@ -41,7 +43,7 @@ LM Studio renders Markdown only (no embedded HTML — `docs/superpowers/specs/20
 so click that link: the page shows the hop-by-hop chain (identity, the gateway's real
 P1AZ decision for `agent-gateway`, timing) plus the MCP side of the call — tools and
 descriptions, resources (or "not advertised"), the request arguments and the raw response.
-It keeps polling until the `response` hop lands, so open it as soon as the tool returns.
+It keeps refreshing for a few minutes while open, because a session's reel keeps growing as you make more calls.
 
 The façade is served over plain HTTP on `127.0.0.1:3002` on purpose: LM Studio's MCP bridge
 is a Node process that does not trust the mkcert chain (`SELF_SIGNED_CERT_IN_CHAIN`, seen

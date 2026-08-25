@@ -11,8 +11,9 @@ const RECORD = {
   startedAt: "2026-08-24T22:00:00.000Z",
   endedAt: "2026-08-24T22:00:01.000Z",
   hops: [
+    { seq: 1, phase: "mcp.step", service: "mcp-facade", op: "initialize", status: "ok", durationMs: 9, details: { httpStatus: 200, client: { name: "LM Studio" } } },
     {
-      seq: 1, phase: "ui.request", service: "mcp-facade", op: "tools/call get_my_accounts",
+      seq: 2, phase: "ui.request", service: "mcp-facade", op: "tools/call get_my_accounts",
       identity: { sub: "user-1", scopes: ["read"], act: [] },
       details: {
         doorLabel: "Agent Gateway",
@@ -24,9 +25,9 @@ const RECORD = {
         arguments: { limit: 4 },
       },
     },
-    { seq: 2, phase: "gateway.authorize", service: "mcp-gateway", op: "get_my_accounts", decision: { outcome: "permit", by: "gateway" } },
-    { seq: 3, phase: "mcp.tool", service: "mcp-facade", op: "get_my_accounts", status: "ok", durationMs: 42, details: { httpStatus: 200, result: { content: [{ type: "text", text: "{\"success\":true}" }] } } },
-    { seq: 4, phase: "response", service: "mcp-facade", op: "tools/call", status: "ok", details: { reelUrl: "x" } },
+    { seq: 3, phase: "gateway.authorize", service: "mcp-gateway", op: "get_my_accounts", decision: { outcome: "permit", by: "gateway" } },
+    { seq: 4, phase: "mcp.tool", service: "mcp-facade", op: "get_my_accounts", status: "ok", durationMs: 42, details: { httpStatus: 200, result: { content: [{ type: "text", text: "{\"success\":true}" }] } } },
+    { seq: 5, phase: "response", service: "mcp-facade", op: "tools/call", status: "ok", details: { reelUrl: "x" } },
   ],
 };
 
@@ -58,7 +59,7 @@ describe("TransactionTraceEmbedPage", () => {
   it("renders the hops plus the MCP catalog, request and response once the record exists", async () => {
     apiClient.get.mockResolvedValue({ status: 200, data: RECORD });
     renderAt("cid-1");
-    await waitFor(() => expect(screen.getByTestId("hop-4")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId("hop-5")).toBeInTheDocument());
     expect(screen.getByText(/Agent Gateway · tools\/call get_my_accounts · client: LM Studio/)).toBeInTheDocument();
     // hop cards reuse the trace page's component
     expect(screen.getByText("✓ PERMIT")).toBeInTheDocument();
@@ -70,7 +71,7 @@ describe("TransactionTraceEmbedPage", () => {
     expect(mcp).toHaveTextContent('"limit": 4');
     expect(mcp).toHaveTextContent("✓ HTTP 200 · 42ms");
     expect(mcp).toHaveTextContent('{\\"success\\":true}');
-    // response hop present → polling stops after the first fetch
+    // first render is one fetch; the 2 s re-poll has not fired yet
     expect(apiClient.get).toHaveBeenCalledTimes(1);
   });
 

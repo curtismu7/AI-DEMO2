@@ -3,11 +3,15 @@
 jest.mock('../../services/lmdb/transactionLedger.lmdb', () => ({
   appendHop: jest.fn(),
 }));
+jest.mock('../../services/transactionAssembler', () => ({ assemble: jest.fn() }));
+jest.mock('../../services/configStore', () => ({ getEffective: jest.fn(() => 'true') }));
 
 const http = require('http');
 const express = require('express');
 const request = require('supertest');
 const ledger = require('../../services/lmdb/transactionLedger.lmdb');
+const { assemble } = require('../../services/transactionAssembler');
+const configStore = require('../../services/configStore');
 const router = require('../../routes/mcpFacade');
 
 // A stub gateway: 401 + RFC 9728 challenge without a bearer, JSON replies for
@@ -39,6 +43,10 @@ beforeAll(async () => {
       }
       if (rpc.method === 'tools/list') {
         return reply({ tools: [{ name: 'get_my_accounts', description: 'List my accounts', inputSchema: {} }] });
+      }
+      if (rpc.method === 'tools/call' && rpc.params?.name === 'get_sensitive_account_details') {
+        res.writeHead(403, { 'Content-Type': 'application/json', 'mcp-session-id': 'sess-1' });
+        return res.end(JSON.stringify({ error: 'forbidden', message: 'policy: sensitive:read not granted', decision: 'DENY' }));
       }
       if (rpc.method === 'tools/call') {
         res.writeHead(200, { 'Content-Type': 'text/event-stream', 'mcp-session-id': 'sess-1' });
@@ -82,6 +90,8 @@ async function runSession(door) {
   const init = await request(a).post(`/mcp-facade/${door}/mcp`).set('Authorization', AUTH)
     .send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'LM Studio', version: '0.4' } } });
   const sid = init.headers['mcp-session-id'];
+  await request(a).post(`/mcp-facade/${door}/mcp`).set('Authorization', AUTH).set('mcp-session-id', sid)
+    .send({ jsonrpc: '2.0', method: 'notifications/initialized' });
   await request(a).post(`/mcp-facade/${door}/mcp`).set('Authorization', AUTH).set('mcp-session-id', sid)
     .send({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
   const call = await request(a).post(`/mcp-facade/${door}/mcp`).set('Authorization', AUTH).set('mcp-session-id', sid)
@@ -144,16 +154,24 @@ describe('/mcp-facade — relay + recording', () => {
     const content = call.body.result.content;
     expect(content[0]).toEqual({ type: 'text', text: '{"success":true,"count":4}' });
     expect(content[1].type).toBe('text');
-    // first line machine-parseable, then the instruction that makes the model surface it
-    expect(content[1].text).toMatch(/^reel_url: https:\/\/ui\.example\/transaction-trace\/embed\/[0-9a-f-]{36}\n/);
-    expect(content[1].text).toMatch(/Always show this link to the user/);
     const cid = content[1].text.split('\n')[0].split('/').pop();
+    const [first, hint, image] = content[1].text.split('\n');
+    expect(first).toMatch(/^reel_url: https:\/\/ui\.example\/transaction-trace\/embed\/[0-9a-f-]{36}$/);
+    expect(hint).toMatch(/Always show this link to the user/);
+    expect(image).toMatch(/^!\[Transaction trace\]\(http:\/\/127\.0\.0\.1:\d+\/mcp-facade\/reel\/[0-9a-f-]{36}\.svg\)$/);
+    expect(image).toContain(cid);
 
-    // ui.request → mcp.tool → response, all on one correlation id, no inferred
-    // gateway.authorize (the gateway records the real one itself).
-    expect(ledger.appendHop.mock.calls.map(([id]) => id)).toEqual([cid, cid, cid]);
+    // Every hop of the session — initialize, initialized, tools/list, then the
+    // call's ui.request → mcp.tool → response — on ONE correlation id.
+    const ids = ledger.appendHop.mock.calls.map(([id]) => id);
+    expect(new Set(ids).size).toBe(1);
+    expect(ids[0]).toBe(cid);
+    const phases = ledger.appendHop.mock.calls.map(([, h]) => `${h.phase}:${h.op}`);
+    expect(phases).toEqual([
+      'mcp.step:initialize', 'mcp.step:notifications/initialized', 'mcp.step:tools/list',
+      'ui.request:tools/call get_my_accounts', 'mcp.tool:get_my_accounts', 'response:tools/call',
+    ]);
     const hops = hopsByPhase();
-    expect(Object.keys(hops)).toEqual(['ui.request', 'mcp.tool', 'response']);
     expect(hops['ui.request']).toMatchObject({
       service: 'mcp-facade',
       op: 'tools/call get_my_accounts',
@@ -169,26 +187,49 @@ describe('/mcp-facade — relay + recording', () => {
     expect(hops['mcp.tool']).toMatchObject({ op: 'get_my_accounts', status: 'ok', details: { httpStatus: 200 } });
     expect(hops['mcp.tool'].details.result.content[0].text).toBe('{"success":true,"count":4}');
     expect(hops.response.details.reelUrl).toBe(`https://ui.example/transaction-trace/embed/${cid}`);
+    // the initialize step carries the identity (record principal) and the negotiated session facts
+    const initHop = ledger.appendHop.mock.calls[0][1];
+    expect(initHop).toMatchObject({ phase: 'mcp.step', op: 'initialize', status: 'ok', identity: { sub: 'user-1' },
+      details: { httpStatus: 200, client: { name: 'LM Studio', version: '0.4' }, server: { name: 'stub-gw', version: '1' }, protocolVersion: '2025-06-18' } });
+    expect(ledger.appendHop.mock.calls[2][1].details).toMatchObject({ toolCount: 1 });
 
     // The gateway keys its own gateway.authorize hop by this header.
     const upstreamCall = seen.find((s) => s.rpc.method === 'tools/call');
     expect(upstreamCall.headers['x-correlation-id']).toBe(cid);
     expect(upstreamCall.headers.authorization).toBe(AUTH);
     expect(upstreamCall.headers['mcp-session-id']).toBe('sess-1');
+    // the session's correlation id rides on EVERY request to the gateway, not just the call
+    const upstreamList = seen.find((s) => s.rpc.method === 'tools/list');
+    expect(upstreamList.headers['x-correlation-id']).toBe(cid);
   });
 
-  test('non-tool calls pass through untouched (body, status, session header) and write no hops', async () => {
+  test('non-tool calls pass through untouched and are recorded as mcp.step hops on the session reel', async () => {
     const { init } = await runSession('agent-gateway');
     expect(init.body.result.serverInfo.name).toBe('stub-gw');
-    const phases = ledger.appendHop.mock.calls.map(([, h]) => h.phase);
-    expect(phases).not.toContain('initialize');
-    expect(phases.filter((p) => p === 'ui.request')).toHaveLength(1);
+    const steps = ledger.appendHop.mock.calls.map(([, h]) => h).filter((h) => h.phase === 'mcp.step');
+    expect(steps.map((h) => h.op)).toEqual(['initialize', 'notifications/initialized', 'tools/list']);
+    expect(steps.every((h) => h.service === 'mcp-facade' && h.details.httpStatus === 200 && Number.isFinite(h.durationMs))).toBe(true);
+  });
+
+  test('an unauthenticated 401 probe writes no hop (not a transaction)', async () => {
+    await request(app()).post('/mcp-facade/agent-gateway/mcp')
+      .send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} });
+    expect(ledger.appendHop).not.toHaveBeenCalled();
+  });
+
+  test('two tool calls in one session share one reel', async () => {
+    const { sid, call } = await runSession('agent-gateway');
+    const second = await request(app()).post('/mcp-facade/agent-gateway/mcp').set('Authorization', AUTH).set('mcp-session-id', sid)
+      .send({ jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'get_my_accounts', arguments: {} } });
+    const reelOf = (r) => r.body.result.content.at(-1).text.split('\n')[0];
+    expect(reelOf(second)).toBe(reelOf(call));
+    expect(new Set(ledger.appendHop.mock.calls.map(([id]) => id)).size).toBe(1);
   });
 
   test('Privilege doors add an inferred gateway.authorize hop (no policy trail to read)', async () => {
     await runSession('agentless');
     const hops = hopsByPhase();
-    expect(Object.keys(hops)).toEqual(['ui.request', 'gateway.authorize', 'mcp.tool', 'response']);
+    expect(Object.keys(hops)).toEqual(['mcp.step', 'ui.request', 'gateway.authorize', 'mcp.tool', 'response']);
     expect(hops['gateway.authorize'].decision).toEqual({ outcome: 'permit', by: 'Privilege agentless', reason: 'HTTP 200', source: 'inferred' });
     const upstreamCall = seen.find((s) => s.rpc.method === 'tools/call');
     expect(upstreamCall.headers['x-correlation-id']).toBeUndefined();
@@ -222,5 +263,107 @@ describe('/mcp-facade — relay + recording', () => {
   test('GET /mcp is not offered through the façade', async () => {
     const res = await request(app()).get('/mcp-facade/agent-gateway/mcp');
     expect(res.status).toBe(405);
+  });
+
+  test('403 on tools/call becomes an isError tool result that says "You have been denied by Policy."', async () => {
+    const a = app();
+    const res = await request(a).post('/mcp-facade/agentless/mcp').set('Authorization', AUTH).set('mcp-session-id', 'sess-1')
+      .send({ jsonrpc: '2.0', id: 7, method: 'tools/call', params: { name: 'get_sensitive_account_details', arguments: {} } });
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/application\/json/);
+    expect(res.body.id).toBe(7);
+    expect(res.body.result.isError).toBe(true);
+    const [msg, reel] = res.body.result.content;
+    expect(msg.type).toBe('text');
+    expect(msg.text).toMatch(/^You have been denied by Policy\.\n/);
+    expect(msg.text).toContain('Privilege agentless refused get_sensitive_account_details: policy: sensitive:read not granted');
+    expect(reel.text).toMatch(/^reel_url: /);
+    expect(reel.text).toMatch(/!\[Transaction trace\]\(http:\/\/127\.0\.0\.1:\d+\/mcp-facade\/reel\/[0-9a-f-]{36}\.svg\)/);
+    // the reel records the denial
+    const hops = hopsByPhase();
+    expect(hops['gateway.authorize'].decision).toMatchObject({ outcome: 'deny', source: 'inferred', reason: 'HTTP 403' });
+    expect(hops['mcp.tool']).toMatchObject({ status: 'error', details: { httpStatus: 403 } });
+    expect(hops.response).toMatchObject({ status: 'error', details: { httpStatus: 403 } });
+  });
+
+  test('401 on tools/call still passes through (the client must re-authenticate)', async () => {
+    const res = await request(app()).post('/mcp-facade/agentless/mcp')
+      .send({ jsonrpc: '2.0', id: 8, method: 'tools/call', params: { name: 'get_my_accounts', arguments: {} } });
+    expect(res.status).toBe(401);
+    expect(res.headers['www-authenticate']).toMatch(/resource_metadata=/);
+  });
+});
+
+describe('/mcp-facade — session eviction', () => {
+  const { sessions, MAX_SESSIONS } = router.__test;
+
+  test('overflow evicts a cid-less entry first, so an established reel survives', async () => {
+    sessions.set('keep-me', { cid: 'keep-me-cid', client: null, server: null, capabilities: null, tools: null, resources: null });
+    for (let i = 0; i < MAX_SESSIONS; i++) {
+      await request(app()).post('/mcp-facade/agent-gateway/mcp').set('Authorization', AUTH).set('mcp-session-id', `s${i}`)
+        .send({ jsonrpc: '2.0', id: 1, method: 'tools/list' });
+    }
+    expect(sessions.get('keep-me')).toMatchObject({ cid: 'keep-me-cid' });
+    expect(sessions.size).toBeLessThanOrEqual(MAX_SESSIONS);
+  });
+
+  test('when every entry already has a cid, the newcomer survives and the oldest established entry is evicted', async () => {
+    for (let i = 0; i < MAX_SESSIONS; i++) {
+      sessions.set(`old${i}`, { cid: `cid-${i}`, client: null, server: null, capabilities: null, tools: null, resources: null });
+    }
+    const oldestKey = sessions.keys().next().value;
+    // 'sess-1' is what the stub upstream always assigns, so the inbound id and
+    // the upstream-issued id match — no second, unrelated session gets created
+    // mid-request.
+    await request(app()).post('/mcp-facade/agent-gateway/mcp').set('Authorization', AUTH).set('mcp-session-id', 'sess-1')
+      .send({ jsonrpc: '2.0', id: 1, method: 'tools/list' });
+    expect(sessions.has('sess-1')).toBe(true);
+    expect(sessions.has(oldestKey)).toBe(false);
+    expect(sessions.size).toBe(MAX_SESSIONS);
+  });
+
+  test('bound never exceeds MAX_SESSIONS under repeated cid-less churn', async () => {
+    const a = app();
+    for (let i = 0; i < MAX_SESSIONS + 20; i++) {
+      await request(a).post('/mcp-facade/agent-gateway/mcp').set('Authorization', AUTH).set('mcp-session-id', `churn${i}`)
+        .send({ jsonrpc: '2.0', id: 1, method: 'tools/list' });
+      expect(sessions.size).toBeLessThanOrEqual(MAX_SESSIONS);
+    }
+  }, 60000);
+});
+
+describe('/mcp-facade/reel/:correlationId.svg', () => {
+  const RECORD = {
+    correlationId: 'cid-svg', startedAt: 't', endedAt: 't', principal: 'u',
+    hops: [{ seq: 1, phase: 'mcp.tool', service: 'mcp-facade', op: 'get_my_accounts', status: 'ok', durationMs: 5 }],
+  };
+
+  beforeEach(() => { configStore.getEffective.mockReturnValue('true'); });
+
+  test('renders the record as image/svg+xml with no-store', async () => {
+    assemble.mockResolvedValue(RECORD);
+    const res = await request(app()).get('/mcp-facade/reel/cid-svg.svg');
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/image\/svg\+xml/);
+    expect(res.headers['cache-control']).toBe('no-store');
+    // supertest/superagent buffers image/* mime types as a Buffer (res.body),
+    // not res.text — res.text is undefined for this content type.
+    expect(res.body.toString()).toContain('get_my_accounts');
+    expect(assemble).toHaveBeenCalledWith('cid-svg');
+  });
+
+  test('unknown id → 200 waiting frame (an <img> cannot show a JSON 404)', async () => {
+    assemble.mockResolvedValue(null);
+    const res = await request(app()).get('/mcp-facade/reel/nope.svg');
+    expect(res.status).toBe(200);
+    expect(res.body.toString()).toContain('Waiting for the first hop');
+  });
+
+  test('ledger feature off → 200 frame that says so', async () => {
+    configStore.getEffective.mockReturnValue('false');
+    const res = await request(app()).get('/mcp-facade/reel/cid-svg.svg');
+    expect(res.status).toBe(200);
+    expect(res.body.toString()).toContain('ff_transaction_ledger');
+    expect(assemble).not.toHaveBeenCalled();
   });
 });

@@ -31,6 +31,9 @@ const express = require('express');
 const crypto = require('crypto');
 const ledger = require('../services/lmdb/transactionLedger.lmdb');
 const { getProcyonDispatcher, isProcyonAgentUrl, decodeMcpBody } = require('./privilegeMcpClient');
+const { assemble } = require('../services/transactionAssembler');
+const configStore = require('../services/configStore');
+const { renderReelSvg } = require('../services/reelSvg');
 
 const router = express.Router();
 const SERVICE = 'mcp-facade';
@@ -64,16 +67,26 @@ const DOORS = {
 };
 
 // What we learned about each upstream MCP session (keyed by Mcp-Session-Id):
-// the catalog the reel shows next to a tool call. ponytail: bounded Map, FIFO.
+// the catalog the reel shows next to a tool call, plus the session's reel
+// correlation id (`cid`). ponytail: bounded Map; evicts BEFORE inserting the
+// newcomer so a new session is never its own eviction victim, preferring a
+// cid-less entry so an established reel is never forked mid-session.
 const MAX_SESSIONS = 200;
 const sessions = new Map();
 function sessionFor(id) {
   if (!id) return null;
   let s = sessions.get(id);
   if (!s) {
-    s = { client: null, server: null, capabilities: null, tools: null, resources: null };
+    if (sessions.size >= MAX_SESSIONS) {
+      // Bounded: drop the oldest session that has no reel yet; only if every
+      // existing session already owns a reel (cid) drop the oldest of those —
+      // never the session being created, so a new conversation always keeps
+      // its reel id and an established one is forked only at the hard bound.
+      const victim = [...sessions].find(([, v]) => !v.cid)?.[0] ?? sessions.keys().next().value;
+      sessions.delete(victim);
+    }
+    s = { cid: null, client: null, server: null, capabilities: null, tools: null, resources: null };
     sessions.set(id, s);
-    if (sessions.size > MAX_SESSIONS) sessions.delete(sessions.keys().next().value);
   }
   return s;
 }
@@ -178,8 +191,13 @@ router.post('/:door/mcp', express.json({ limit: '1mb', type: () => true }), asyn
   const method = typeof rpc.method === 'string' ? rpc.method : '';
   const isCall = method === 'tools/call';
   const toolName = isCall ? String(rpc.params?.name || '') : null;
-  const correlationId = isCall ? crypto.randomUUID() : null;
   const inbound = sessionFor(req.get('mcp-session-id'));
+  // One reel per MCP session: minted on the first request (initialize has no
+  // session id yet), remembered on the session when the upstream issues its
+  // Mcp-Session-Id, reused for every later request that carries it — so the
+  // whole lifecycle (initialize → tools/list → tools/call…) and the gateway's
+  // own decisions for each step land on the same record.
+  const correlationId = inbound?.cid || crypto.randomUUID();
   const upstreamUrl = door.upstream();
 
   if (isCall) {
@@ -226,6 +244,7 @@ router.post('/:door/mcp', express.json({ limit: '1mb', type: () => true }), asyn
 
   const sess = sessionFor(upstreamSession) || inbound;
   if (sess) {
+    if (!sess.cid) sess.cid = correlationId;
     if (method === 'initialize') {
       sess.client = rpc.params?.clientInfo || null;
       sess.server = parsed?.result?.serverInfo || null;
@@ -244,6 +263,31 @@ router.post('/:door/mcp', express.json({ limit: '1mb', type: () => true }), asyn
   }
 
   if (!isCall) {
+    // Every lifecycle step is on the reel — except unauthenticated probes,
+    // which are discovery noise, not a transaction.
+    if (upstream.status !== 401) {
+      const details = { httpStatus: upstream.status, door: req.params.door, doorLabel: door.label, error: clip(parsed?.error ?? null) };
+      if (method === 'initialize') {
+        Object.assign(details, {
+          client: rpc.params?.clientInfo || null,
+          protocolVersion: parsed?.result?.protocolVersion || null,
+          server: parsed?.result?.serverInfo || null,
+          capabilities: parsed?.result?.capabilities || null,
+        });
+      } else if (method === 'tools/list') {
+        details.toolCount = Array.isArray(parsed?.result?.tools) ? parsed.result.tools.length : null;
+      } else if (method === 'resources/list') {
+        details.resourceCount = Array.isArray(parsed?.result?.resources) ? parsed.result.resources.length : null;
+      }
+      hop(correlationId, {
+        phase: 'mcp.step',
+        op: method || 'unknown',
+        status: upstream.ok && !parsed?.error ? 'ok' : 'error',
+        durationMs,
+        ...(method === 'initialize' ? { identity: identityFromBearer(req.get('authorization')) } : {}),
+        details,
+      });
+    }
     res.set('Content-Type', upstream.headers.get('content-type') || 'application/json');
     return res.send(text);
   }
@@ -272,23 +316,67 @@ router.post('/:door/mcp', express.json({ limit: '1mb', type: () => true }), asyn
   const reelUrl = `${reelBase()}/transaction-trace/embed/${correlationId}`;
   hop(correlationId, { phase: 'response', op: 'tools/call', status, details: { httpStatus: upstream.status, reelUrl } });
 
+  // First line stays machine-parseable (`reel_url: <url>` — LibreChat's
+  // artifact instruction keys on it). The rest is for the MODEL: without it,
+  // LM Studio's model judged the bare localhost link a debug artifact and
+  // hid it from the user (seen live 2026-08-25).
+  const reelImage = `${req.protocol}://${req.get('host')}/mcp-facade/reel/${correlationId}.svg`;
+  const reelBlock = {
+    type: 'text',
+    text: `reel_url: ${reelUrl}\n`
+      + 'Transaction trace ("movie reel") for this tool call: who called, the gateway\'s '
+      + 'authorization decision, the MCP request and response. Always show this link to the '
+      + 'user as a clickable link so they can open it — it is part of the answer, not debug output.\n'
+      + `![Transaction trace](${reelImage})`,
+  };
+
+  if (upstream.status === 403) {
+    // A 403 on tools/call is the door's policy saying no — the one error the
+    // demo audience should read verbatim. Hand it to the model the MCP way
+    // (a tool result with isError) instead of a transport error it paraphrases.
+    const reason = rpcError?.message || parsed?.message || parsed?.error || text.slice(0, 200) || 'no reason given';
+    res.status(200).set('Content-Type', 'application/json');
+    return res.send(JSON.stringify({
+      jsonrpc: '2.0',
+      id: rpc.id ?? null,
+      result: {
+        isError: true,
+        content: [
+          { type: 'text', text: `You have been denied by Policy.\n${door.label} refused ${toolName}: ${String(reason)}` },
+          reelBlock,
+        ],
+      },
+    }));
+  }
+
   if (parsed?.result && Array.isArray(parsed.result.content)) {
-    // First line stays machine-parseable (`reel_url: <url>` — LibreChat's
-    // artifact instruction keys on it). The rest is for the MODEL: without it,
-    // LM Studio's model judged the bare localhost link a debug artifact and
-    // hid it from the user (seen live 2026-08-25).
-    parsed.result.content.push({
-      type: 'text',
-      text: `reel_url: ${reelUrl}\n`
-        + 'Transaction trace ("movie reel") for this tool call: who called, the gateway\'s '
-        + 'authorization decision, the MCP request and response. Always show this link to the '
-        + 'user as a clickable link so they can open it — it is part of the answer, not debug output.',
-    });
+    parsed.result.content.push(reelBlock);
     res.set('Content-Type', 'application/json');
     return res.send(JSON.stringify(parsed));
   }
   res.set('Content-Type', upstream.headers.get('content-type') || 'application/json');
   return res.send(text);
+});
+
+// GET /mcp-facade/reel/:correlationId.svg — the image the tool result embeds.
+// No auth (the id is the capability, same as /api/transaction-trace/embed).
+// Always answers with an SVG: an <img> cannot show a JSON error.
+router.get('/reel/:correlationId.svg', async (req, res) => {
+  res.set('Content-Type', renderReelSvg.CONTENT_TYPE);
+  res.set('Cache-Control', 'no-store');
+  if (configStore.getEffective('ff_transaction_ledger') === 'false') {
+    return res.send(renderReelSvg(null, {
+      title: 'Transaction trace — recording is off (ff_transaction_ledger)',
+      subtitle: 'Enable ff_transaction_ledger on the Feature Flags page to record.',
+    }));
+  }
+  let record = null;
+  try {
+    record = await assemble(req.params.correlationId);
+  } catch (err) {
+    console.warn('[mcpFacade] reel svg read failed:', err?.message);
+  }
+  return res.send(renderReelSvg(record));
 });
 
 // No server-initiated stream through the façade; spec-compliant clients treat
@@ -307,4 +395,4 @@ router.delete('/:door/mcp', async (req, res) => {
 });
 
 module.exports = router;
-module.exports.__test = { DOORS, rewriteChallenge, sessions };
+module.exports.__test = { DOORS, rewriteChallenge, sessions, MAX_SESSIONS };

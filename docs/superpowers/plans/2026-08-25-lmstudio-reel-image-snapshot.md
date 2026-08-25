@@ -1,0 +1,737 @@
+# LM Studio Reel Image Snapshot Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Put a server-rendered SVG filmstrip of the transaction trace into every façade tool result, so LM Studio's chat shows the movie reel inline instead of only a link.
+
+**Architecture:** A pure `renderReelSvg(record)` function turns the ledger record `transactionAssembler.assemble()` already produces into a compact SVG (one row per hop, decision badge, duration). `routes/mcpFacade.js` serves it at `GET /mcp-facade/reel/:correlationId.svg` — door-agnostic, no auth (same trust as `/api/transaction-trace/embed/:cid`), rendered at *view* time so late-arriving hops (the gateway's own `gateway.authorize`) are included. The appended tool-result block gains a Markdown image line above the existing `reel_url:` line. Nothing is stored; no image libraries.
+
+**Tech Stack:** Node 22 CommonJS, Express 4, jest + supertest (existing `demo_api_server` stack). No new dependencies.
+
+**Spec:** `docs/superpowers/specs/2026-08-24-lmstudio-mcp-client-design.md` §4 ("static image snapshot") and §5.3; the façade itself is `docs/superpowers/specs/2026-08-24-librechat-embedded-mcp-trace-design.md` §3–§4 (implemented in PR #2356).
+
+## Global Constraints
+
+- Emoji allowlist (REGRESSION_PLAN §0): the SVG uses plain text/CSS glyphs only — `✓` and `❌` are allowed; nothing else.
+- The first line of the appended block must stay byte-identical: `reel_url: <url>` (LibreChat's artifact instruction keys on it, PR #2362).
+- No auth on the SVG route (spec §4 of the embedded-trace design: "the id is the capability"; façade ids are random UUIDs).
+- No new npm dependencies; no PNG rendering, no headless browser on the server.
+- `{ error }` shape for JSON errors (demo_api_server/CLAUDE.md). The SVG route never returns JSON on the happy path — an `<img>` cannot show one.
+- Run tests with `CI=true ./node_modules/.bin/jest <file> --forceExit` from `demo_api_server/` (worktree needs `bash scripts/bootstrap-worktree.sh` first; `npx jest` pulls the wrong runtime).
+- Work in a worktree branch; stage files explicitly; never `git add -A`.
+
+---
+
+### Task 1: `renderReelSvg(record)` — pure SVG renderer
+
+**Files:**
+- Create: `demo_api_server/services/reelSvg.js`
+- Test: `demo_api_server/tests/services/reelSvg.test.js`
+
+**Interfaces:**
+- Consumes: the record shape returned by `services/transactionAssembler.js` `assemble(correlationId)` → `{ correlationId, startedAt, endedAt, principal, hops: [{ seq, ts, service, phase, op?, durationMs?, status?, decision?: { outcome, by, reason?, source? }, details? }] }`, or `null`.
+- Produces: `renderReelSvg(record, opts = {}) → string` (a complete `<svg …>` document). `opts.title` (string, optional) overrides the header. `record === null` renders a "waiting for the first hop" frame. `renderReelSvg.CONTENT_TYPE === 'image/svg+xml'`.
+
+- [ ] **Step 1: Write the failing tests**
+
+```js
+'use strict';
+const { renderReelSvg } = require('../../services/reelSvg');
+
+const RECORD = {
+  correlationId: 'cid-1',
+  startedAt: '2026-08-25T04:00:00.000Z',
+  endedAt: '2026-08-25T04:00:01.000Z',
+  principal: 'user-1',
+  hops: [
+    { seq: 1, phase: 'ui.request', service: 'mcp-facade', op: 'tools/call get_my_accounts',
+      identity: { sub: 'user-1' }, details: { doorLabel: 'Agent Gateway' } },
+    { seq: 2, phase: 'gateway.authorize', service: 'mcp-gateway', op: 'get_my_accounts',
+      decision: { outcome: 'permit', by: 'gateway' } },
+    { seq: 3, phase: 'mcp.tool', service: 'mcp-facade', op: 'get_my_accounts', status: 'ok', durationMs: 410 },
+    { seq: 4, phase: 'response', service: 'mcp-facade', op: 'tools/call', status: 'ok' },
+  ],
+};
+
+describe('renderReelSvg', () => {
+  test('renders one row per hop with service, phase, op and duration', () => {
+    const svg = renderReelSvg(RECORD);
+    expect(svg.startsWith('<svg')).toBe(true);
+    expect(svg).toContain('xmlns="http://www.w3.org/2000/svg"');
+    for (const h of RECORD.hops) expect(svg).toContain(`${h.service}`);
+    expect(svg).toContain('gateway.authorize');
+    expect(svg).toContain('410ms');
+    // header names the door and the call
+    expect(svg).toContain('Agent Gateway');
+    expect(svg).toContain('tools/call get_my_accounts');
+  });
+
+  test('renders decision badges: PERMIT, DENY, and the inferred marker', () => {
+    expect(renderReelSvg(RECORD)).toContain('✓ PERMIT');
+    const denied = { ...RECORD, hops: [{ seq: 1, phase: 'gateway.authorize', service: 'mcp-facade', op: 'x',
+      decision: { outcome: 'deny', by: 'Privilege agentless', reason: 'HTTP 403', source: 'inferred' } }] };
+    const svg = renderReelSvg(denied);
+    expect(svg).toContain('❌ DENY');
+    expect(svg).toContain('inferred');
+    expect(svg).toContain('HTTP 403');
+  });
+
+  test('escapes XML in hop text so a hostile tool name cannot break the document', () => {
+    const nasty = { ...RECORD, hops: [{ seq: 1, phase: 'mcp.tool', service: 'mcp-facade', op: '<script>alert(1)</script>&x' }] };
+    const svg = renderReelSvg(nasty);
+    expect(svg).not.toContain('<script>');
+    expect(svg).toContain('&lt;script&gt;alert(1)&lt;/script&gt;&amp;x');
+  });
+
+  test('null record renders a waiting frame that is still a valid svg', () => {
+    const svg = renderReelSvg(null);
+    expect(svg.startsWith('<svg')).toBe(true);
+    expect(svg).toContain('Waiting for the first hop');
+  });
+
+  test('height grows with the number of hops', () => {
+    const one = renderReelSvg({ ...RECORD, hops: RECORD.hops.slice(0, 1) });
+    const four = renderReelSvg(RECORD);
+    const h = (svg) => Number(svg.match(/height="(\d+)"/)[1]);
+    expect(h(four)).toBeGreaterThan(h(one));
+  });
+});
+```
+
+- [ ] **Step 2: Run the tests to verify they fail**
+
+Run: `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/services/reelSvg.test.js --forceExit`
+Expected: FAIL — `Cannot find module '../../services/reelSvg'`
+
+- [ ] **Step 3: Implement the renderer**
+
+```js
+'use strict';
+/**
+ * reelSvg.js — server-rendered "movie reel" snapshot of one transaction.
+ *
+ * LM Studio renders Markdown + images in chat but has no HTML/iframe hook
+ * (docs/superpowers/specs/2026-08-24-lmstudio-mcp-client-design.md §4), so the
+ * façade points a Markdown image at this. Pure function: record in, SVG out.
+ * Rendered at view time by routes/mcpFacade.js, so hops that land after the
+ * tool result (the gateway's own gateway.authorize) are included.
+ */
+const W = 880;
+const ROW = 44;
+const TOP = 64;
+const BOTTOM = 40;
+
+function esc(v) {
+  return String(v ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function decisionBadge(d, x, y) {
+  if (!d || d.outcome === 'n/a') return '';
+  const deny = d.outcome === 'deny';
+  const label = deny ? '❌ DENY' : '✓ PERMIT';
+  const extra = [d.source === 'inferred' ? 'inferred' : '', d.reason || ''].filter(Boolean).join(' · ');
+  return `<text x="${x}" y="${y}" font-size="12" fill="${deny ? '#b42318' : '#067647'}" font-weight="600">${esc(label)}</text>`
+    + (extra ? `<text x="${x + 76}" y="${y}" font-size="11" fill="#6b7280">${esc(extra)}</text>` : '');
+}
+
+function frame(height, body) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${height}" viewBox="0 0 ${W} ${height}" `
+    + `font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif">`
+    + `<rect x="0.5" y="0.5" width="${W - 1}" height="${height - 1}" rx="10" fill="#ffffff" stroke="#e5e7eb"/>`
+    + body + '</svg>';
+}
+
+function renderReelSvg(record, opts = {}) {
+  if (!record) {
+    return frame(96,
+      `<text x="24" y="40" font-size="16" font-weight="600" fill="#111827">Transaction trace</text>`
+      + `<text x="24" y="68" font-size="13" fill="#6b7280">Waiting for the first hop…</text>`);
+  }
+  const hops = Array.isArray(record.hops) ? record.hops : [];
+  const req = hops.find((h) => h.phase === 'ui.request');
+  const title = opts.title
+    || `Transaction trace — ${req?.op || 'external MCP call'}${req?.details?.doorLabel ? ` (${req.details.doorLabel})` : ''}`;
+  const height = TOP + hops.length * ROW + BOTTOM;
+  const spineX = 36;
+  let body = `<text x="24" y="34" font-size="16" font-weight="600" fill="#111827">${esc(title)}</text>`;
+  if (hops.length > 1) {
+    body += `<line x1="${spineX}" y1="${TOP}" x2="${spineX}" y2="${TOP + (hops.length - 1) * ROW}" stroke="#d1d5db" stroke-width="2"/>`;
+  }
+  hops.forEach((h, i) => {
+    const y = TOP + i * ROW;
+    const err = h.status === 'error' || h.decision?.outcome === 'deny';
+    body += `<circle cx="${spineX}" cy="${y}" r="12" fill="${err ? '#fee4e2' : '#eef2ff'}" stroke="${err ? '#b42318' : '#4f46e5'}"/>`
+      + `<text x="${spineX}" y="${y + 4}" font-size="11" text-anchor="middle" fill="#111827">${h.seq ?? i + 1}</text>`
+      + `<text x="60" y="${y - 2}" font-size="13" fill="#111827"><tspan font-weight="600">${esc(h.service)}</tspan>`
+      + `<tspan fill="#4f46e5" dx="8" font-family="ui-monospace, Menlo, monospace" font-size="12">${esc(h.phase)}</tspan>`
+      + (h.op ? `<tspan dx="8" font-family="ui-monospace, Menlo, monospace" font-size="12" fill="#374151">${esc(h.op)}</tspan>` : '')
+      + '</text>'
+      + decisionBadge(h.decision, 60, y + 16)
+      + (Number.isFinite(h.durationMs)
+        ? `<text x="${W - 24}" y="${y + 4}" font-size="12" text-anchor="end" fill="#6b7280">${h.durationMs}ms</text>` : '');
+  });
+  body += `<text x="24" y="${height - 14}" font-size="11" fill="#9ca3af">${esc(record.correlationId)}</text>`;
+  return frame(height, body);
+}
+
+renderReelSvg.CONTENT_TYPE = 'image/svg+xml';
+module.exports = { renderReelSvg };
+```
+
+- [ ] **Step 4: Run the tests to verify they pass**
+
+Run: `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/services/reelSvg.test.js --forceExit`
+Expected: PASS, 5 tests
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add demo_api_server/services/reelSvg.js demo_api_server/tests/services/reelSvg.test.js
+git commit -m "feat(reel): renderReelSvg — server-rendered SVG filmstrip of one transaction"
+```
+
+---
+
+### Task 2: `GET /mcp-facade/reel/:correlationId.svg`
+
+**Files:**
+- Modify: `demo_api_server/routes/mcpFacade.js` (add the route directly above the line `router.get('/:door/mcp', (req, res) => res.status(405).end());`, ~line 294; add two requires next to the existing `require('./privilegeMcpClient')` at ~line 33)
+- Test: `demo_api_server/tests/routes/mcpFacade.test.js` (append a `describe`)
+
+**Interfaces:**
+- Consumes: `renderReelSvg` (Task 1); `services/transactionAssembler.js` `assemble(correlationId) → Promise<record|null>`; `services/configStore.js` `getEffective('ff_transaction_ledger')`.
+- Produces: `GET /mcp-facade/reel/:correlationId.svg` → `200 image/svg+xml`, `Cache-Control: no-store` (the frame changes as hops land). Always 200 with an SVG body — a broken `<img>` is worse than a frame that says what happened. Task 3 relies on the exact path shape `/mcp-facade/reel/<cid>.svg`.
+
+- [ ] **Step 1: Write the failing tests** (append to `tests/routes/mcpFacade.test.js`, after the existing mocks — add a mock for the assembler and configStore at the top of the file, next to the ledger mock)
+
+```js
+// top of file, next to the existing jest.mock for transactionLedger:
+jest.mock('../../services/transactionAssembler', () => ({ assemble: jest.fn() }));
+jest.mock('../../services/configStore', () => ({ getEffective: jest.fn(() => 'true') }));
+const { assemble } = require('../../services/transactionAssembler');
+const configStore = require('../../services/configStore');
+
+// appended describe:
+describe('/mcp-facade/reel/:correlationId.svg', () => {
+  const RECORD = {
+    correlationId: 'cid-svg', startedAt: 't', endedAt: 't', principal: 'u',
+    hops: [{ seq: 1, phase: 'mcp.tool', service: 'mcp-facade', op: 'get_my_accounts', status: 'ok', durationMs: 5 }],
+  };
+
+  beforeEach(() => { configStore.getEffective.mockReturnValue('true'); });
+
+  test('renders the record as image/svg+xml with no-store', async () => {
+    assemble.mockResolvedValue(RECORD);
+    const res = await request(app()).get('/mcp-facade/reel/cid-svg.svg');
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/image\/svg\+xml/);
+    expect(res.headers['cache-control']).toBe('no-store');
+    expect(res.text).toContain('get_my_accounts');
+    expect(assemble).toHaveBeenCalledWith('cid-svg');
+  });
+
+  test('unknown id → 200 waiting frame (an <img> cannot show a JSON 404)', async () => {
+    assemble.mockResolvedValue(null);
+    const res = await request(app()).get('/mcp-facade/reel/nope.svg');
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('Waiting for the first hop');
+  });
+
+  test('ledger feature off → 200 frame that says so', async () => {
+    configStore.getEffective.mockReturnValue('false');
+    const res = await request(app()).get('/mcp-facade/reel/cid-svg.svg');
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('ff_transaction_ledger');
+    expect(assemble).not.toHaveBeenCalled();
+  });
+});
+```
+
+- [ ] **Step 2: Run the tests to verify they fail**
+
+Run: `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/routes/mcpFacade.test.js --forceExit`
+Expected: the three new tests FAIL with status 404 (Express falls through to the `/:door/...` param handler, which 404s on the unknown door `reel`); the existing tests still pass.
+
+- [ ] **Step 3: Add the route**
+
+Requires (next to the `privilegeMcpClient` require):
+
+```js
+const { assemble } = require('../services/transactionAssembler');
+const configStore = require('../services/configStore');
+const { renderReelSvg } = require('../services/reelSvg');
+```
+
+Route — place it ABOVE `router.param('door', …)`'s consumers, i.e. directly above `router.get('/:door/mcp', …)`. Because `/reel/...` would otherwise match `/:door/...`, the reel route must be registered before any `/:door/*` GET (Express matches in registration order; `router.param` only runs for routes whose pattern names `:door`, and `/reel/:correlationId.svg` does not).
+
+```js
+// GET /mcp-facade/reel/:correlationId.svg — the image the tool result embeds.
+// No auth (the id is the capability, same as /api/transaction-trace/embed).
+// Always answers with an SVG: an <img> cannot show a JSON error.
+router.get('/reel/:correlationId.svg', async (req, res) => {
+  res.set('Content-Type', renderReelSvg.CONTENT_TYPE);
+  res.set('Cache-Control', 'no-store');
+  if (configStore.getEffective('ff_transaction_ledger') === 'false') {
+    return res.send(renderReelSvg(null, { title: 'Transaction trace — recording is off (ff_transaction_ledger)' })
+      .replace('Waiting for the first hop…', 'Enable ff_transaction_ledger on the Feature Flags page to record.'));
+  }
+  let record = null;
+  try {
+    record = await assemble(req.params.correlationId);
+  } catch (err) {
+    console.warn('[mcpFacade] reel svg read failed:', err?.message);
+  }
+  return res.send(renderReelSvg(record));
+});
+```
+
+Note on `.svg` in the param: Express 4's path-to-regexp treats `:correlationId.svg` as the param followed by a literal `.svg` — the param excludes the dot. Verified by the tests (`req.params.correlationId === 'cid-svg'`).
+
+- [ ] **Step 4: Run the tests to verify they pass**
+
+Run: `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/routes/mcpFacade.test.js tests/services/reelSvg.test.js --forceExit`
+Expected: PASS — 14 + 5 tests
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add demo_api_server/routes/mcpFacade.js demo_api_server/tests/routes/mcpFacade.test.js
+git commit -m "feat(mcp-facade): GET /mcp-facade/reel/:cid.svg — the reel as an image"
+```
+
+---
+
+### Task 3: Render check in LM Studio (decision gate — no code)
+
+**Files:** none. This is the spec's open risk: does LM Studio's chat render a remote `http://localhost` image the model puts in its reply?
+
+- [ ] **Step 1: Serve the branch in the live stack**
+
+Run from the worktree: `npm run serve:worktree here` — then `docker restart ai-demo-api-server` is NOT needed (serve:worktree recreates the BFF). Confirm: `curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3002/mcp-facade/reel/anything.svg` → `200`.
+
+- [ ] **Step 2: Get a real correlation id**
+
+In LM Studio (`mcp/agent-gateway` on), ask "whats my checking balance". Copy the id from the `reel_url:` line of the tool result (View details), e.g. `5e7cf5d7-…`. Check `http://localhost:3002/mcp-facade/reel/<id>.svg` opens in a browser and shows the hops.
+
+- [ ] **Step 3: Ask the model to render the image**
+
+Send in the same chat: `Reply with exactly this Markdown and nothing else: ![Transaction trace](http://localhost:3002/mcp-facade/reel/<id>.svg)`
+
+Record the outcome in this file, replacing the line below:
+
+`RESULT: renders inline — confirmed by Curtis in LM Studio, 2026-08-25 (cid 7cfcbf92-c9f9-4ad4-94c5-5957f2fc1df8)`
+
+- [ ] **Step 4: Decide**
+
+- Renders inline → continue with Task 4.
+- Alt text only / raw Markdown → STOP. LM Studio does not load remote images from chat; the SVG route is still useful (the `reel_url` page can link to it), but Task 4's image line would just be noise. Commit the RESULT line, open the PR with Tasks 1–2 only, and note the finding in `docs/superpowers/specs/2026-08-24-lmstudio-mcp-client-design.md` §4.
+
+- [ ] **Step 5: Hand the stack back**
+
+`npm run serve:worktree main`
+
+---
+
+### Task 4: Image line in the tool-result block
+
+**Files:**
+- Modify: `demo_api_server/routes/mcpFacade.js` — the `parsed.result.content.push({ type: 'text', text: … })` block (~line 284, the block that starts with `` `reel_url: ${reelUrl}\n` ``)
+- Modify: `demo_api_server/tests/routes/mcpFacade.test.js` — the assertion `expect(content[1].text).toMatch(/Always show this link to the user/)`
+- Modify: `lmstudio/README.md` — the fenced `reel_url:` example
+
+**Interfaces:**
+- Consumes: the reel URL already computed as `reelUrl` (`${reelBase()}/transaction-trace/embed/${correlationId}`) and the façade base already computed by `facadeBase(req)` (`${req.protocol}://${req.get('host')}/mcp-facade/${req.params.door}`).
+- Produces: a third line in the block: `![Transaction trace](<facade-origin>/mcp-facade/reel/<cid>.svg)` where `<facade-origin>` is `req.protocol://req.get('host')` — the origin the client already reached the façade on, so LM Studio (`http://localhost:3002`) gets a plain-HTTP image URL and LibreChat (`https://api.ping.demo:3001`) gets one its container can reach.
+
+- [ ] **Step 1: Extend the failing test** — replace the single `Always show this link` assertion with:
+
+```js
+    const [first, hint, image] = content[1].text.split('\n');
+    expect(first).toMatch(/^reel_url: https:\/\/ui\.example\/transaction-trace\/embed\/[0-9a-f-]{36}$/);
+    expect(hint).toMatch(/Always show this link to the user/);
+    expect(image).toMatch(/^!\[Transaction trace\]\(http:\/\/127\.0\.0\.1:\d+\/mcp-facade\/reel\/[0-9a-f-]{36}\.svg\)$/);
+    expect(image).toContain(cid);
+```
+
+(`cid` is already derived two lines above from `content[1].text.split('\n')[0]`.)
+
+- [ ] **Step 2: Run to verify it fails**
+
+Run: `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/routes/mcpFacade.test.js --forceExit`
+Expected: FAIL — `image` is `undefined`
+
+- [ ] **Step 3: Add the line**
+
+Change the pushed block to:
+
+```js
+    const reelImage = `${req.protocol}://${req.get('host')}/mcp-facade/reel/${correlationId}.svg`;
+    parsed.result.content.push({
+      type: 'text',
+      text: `reel_url: ${reelUrl}\n`
+        + 'Transaction trace ("movie reel") for this tool call: who called, the gateway\'s '
+        + 'authorization decision, the MCP request and response. Always show this link to the '
+        + 'user as a clickable link so they can open it — it is part of the answer, not debug output.\n'
+        + `![Transaction trace](${reelImage})`,
+    });
+```
+
+- [ ] **Step 4: Run to verify it passes**
+
+Run: `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/routes/mcpFacade.test.js --forceExit`
+Expected: PASS
+
+- [ ] **Step 5: README** — in `lmstudio/README.md`, change the fenced example to three lines:
+
+```text
+reel_url: https://localhost:4000/transaction-trace/embed/<correlationId>
+Transaction trace ("movie reel") for this tool call: … Always show this link to the user …
+![Transaction trace](http://localhost:3002/mcp-facade/reel/<correlationId>.svg)
+```
+
+and add after the fence: `The image is rendered on request from the ledger, so it fills in as the hops land (the gateway's own decision arrives a beat after the tool result).`
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add demo_api_server/routes/mcpFacade.js demo_api_server/tests/routes/mcpFacade.test.js lmstudio/README.md
+git commit -m "feat(mcp-facade): embed the reel as a Markdown image in every tool result"
+```
+
+---
+
+### Task 6: 403 on `tools/call` → "You have been denied by Policy." tool result
+
+**Files:**
+- Modify: `demo_api_server/routes/mcpFacade.js` — the `tools/call` tail of `router.post('/:door/mcp', …)` (the block from `const rpcError = parsed?.error || null;` to the end of the handler)
+- Test: `demo_api_server/tests/routes/mcpFacade.test.js` (extend the stub upstream + append two tests)
+
+**Interfaces:**
+- Consumes: everything already in scope in that block — `upstream` (fetch Response), `parsed` (decoded body), `text` (raw body), `rpc`, `toolName`, `door`, `reelUrl`, `reelImage`, `correlationId`, `hop(...)`.
+- Produces: on `tools/call` with upstream HTTP 403, the façade answers **200 `application/json`** with `{ jsonrpc: '2.0', id: rpc.id ?? null, result: { isError: true, content: [ { type:'text', text: 'You have been denied by Policy.\n<door label> refused <tool>: <upstream reason>' }, <the same reel block as a success> ] } }`. The hops already written for this path (Privilege doors: `gateway.authorize` deny/inferred; all doors: `mcp.tool` status error with `httpStatus: 403`, `response` status error) are unchanged, so the reel shows ❌ DENY. Applies to all three doors: a 403 from the Agent Gateway is its P1AZ DENY, the same class of answer. 401 and every other status still pass through unchanged (401 must reach the client so it re-authenticates).
+
+**Why:** a raw 403 reaches LM Studio as `Streamable HTTP error: Error POSTing to endpoint: {...}` and the model reports a generic failure. A policy denial is the one error the demo audience should read verbatim; MCP's way to hand a tool failure to the model is a result with `isError: true`.
+
+- [ ] **Step 1: Write the failing tests** — extend the stub upstream in the test file: inside the `tools/call` branch, before the success reply, add
+
+```js
+      if (rpc.method === 'tools/call' && rpc.params?.name === 'get_sensitive_account_details') {
+        res.writeHead(403, { 'Content-Type': 'application/json', 'mcp-session-id': 'sess-1' });
+        return res.end(JSON.stringify({ error: 'forbidden', message: 'policy: sensitive:read not granted', decision: 'DENY' }));
+      }
+```
+
+and append to the relay `describe`:
+
+```js
+  test('403 on tools/call becomes an isError tool result that says "You have been denied by Policy."', async () => {
+    const a = app();
+    const res = await request(a).post('/mcp-facade/agentless/mcp').set('Authorization', AUTH).set('mcp-session-id', 'sess-1')
+      .send({ jsonrpc: '2.0', id: 7, method: 'tools/call', params: { name: 'get_sensitive_account_details', arguments: {} } });
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/application\/json/);
+    expect(res.body.id).toBe(7);
+    expect(res.body.result.isError).toBe(true);
+    const [msg, reel] = res.body.result.content;
+    expect(msg.type).toBe('text');
+    expect(msg.text).toMatch(/^You have been denied by Policy\.\n/);
+    expect(msg.text).toContain('Privilege agentless refused get_sensitive_account_details: policy: sensitive:read not granted');
+    expect(reel.text).toMatch(/^reel_url: /);
+    expect(reel.text).toMatch(/!\[Transaction trace\]\(http:\/\/127\.0\.0\.1:\d+\/mcp-facade\/reel\/[0-9a-f-]{36}\.svg\)/);
+    // the reel records the denial
+    const hops = hopsByPhase();
+    expect(hops['gateway.authorize'].decision).toMatchObject({ outcome: 'deny', source: 'inferred', reason: 'HTTP 403' });
+    expect(hops['mcp.tool']).toMatchObject({ status: 'error', details: { httpStatus: 403 } });
+    expect(hops.response).toMatchObject({ status: 'error', details: { httpStatus: 403 } });
+  });
+
+  test('401 on tools/call still passes through (the client must re-authenticate)', async () => {
+    const res = await request(app()).post('/mcp-facade/agentless/mcp')
+      .send({ jsonrpc: '2.0', id: 8, method: 'tools/call', params: { name: 'get_my_accounts', arguments: {} } });
+    expect(res.status).toBe(401);
+    expect(res.headers['www-authenticate']).toMatch(/resource_metadata=/);
+  });
+```
+
+- [ ] **Step 2: Run to verify the first test fails**
+
+Run: `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/routes/mcpFacade.test.js --forceExit`
+Expected: the 403 test FAILS — `res.status` is 403, not 200. (The 401 test passes already; it is the guard against over-reach.)
+
+- [ ] **Step 3: Implement** — in the `tools/call` tail, after the three `hop(...)` calls and the `reelUrl`/`reelImage` computation, build the reel block once and branch on 403:
+
+```js
+  const reelBlock = {
+    type: 'text',
+    text: `reel_url: ${reelUrl}\n`
+      + 'Transaction trace ("movie reel") for this tool call: who called, the gateway\'s '
+      + 'authorization decision, the MCP request and response. Always show this link to the '
+      + 'user as a clickable link so they can open it — it is part of the answer, not debug output.\n'
+      + `![Transaction trace](${reelImage})`,
+  };
+
+  if (upstream.status === 403) {
+    // A 403 on tools/call is the door's policy saying no — the one error the
+    // demo audience should read verbatim. Hand it to the model the MCP way
+    // (a tool result with isError) instead of a transport error it paraphrases.
+    const reason = rpcError?.message || parsed?.message || parsed?.error || text.slice(0, 200) || 'no reason given';
+    res.status(200).set('Content-Type', 'application/json');
+    return res.send(JSON.stringify({
+      jsonrpc: '2.0',
+      id: rpc.id ?? null,
+      result: {
+        isError: true,
+        content: [
+          { type: 'text', text: `You have been denied by Policy.\n${door.label} refused ${toolName}: ${String(reason)}` },
+          reelBlock,
+        ],
+      },
+    }));
+  }
+
+  if (parsed?.result && Array.isArray(parsed.result.content)) {
+    parsed.result.content.push(reelBlock);
+    res.set('Content-Type', 'application/json');
+    return res.send(JSON.stringify(parsed));
+  }
+```
+
+(Replace the existing `parsed.result.content.push({ type: 'text', text: … })` block with the `reelBlock` push — the text is identical, built once.)
+
+- [ ] **Step 4: Run to verify both pass** — same command; expected PASS, all tests in the file.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add demo_api_server/routes/mcpFacade.js demo_api_server/tests/routes/mcpFacade.test.js
+git commit -m "feat(mcp-facade): 403 on tools/call → 'You have been denied by Policy.' isError result"
+```
+
+---
+
+### Task 7: One reel per MCP session — record every MCP step (initialize, initialized, tools/list, resources/list, tools/call)
+
+**Why:** Curtis, live 2026-08-25: "We want to see all the steps of MCP (init, etc), this is too limiting." Today the façade mints a correlation id per `tools/call` and records only that call, so the reel starts at the tool call. The MCP lifecycle before it — `initialize` (client/server/protocol), `notifications/initialized`, `tools/list`, `resources/list` — and the gateway's own PERMIT decisions for those methods are invisible.
+
+**Files:**
+- Modify: `demo_api_server/routes/mcpFacade.js` — `sessionFor()` (add `cid`), the top of `router.post('/:door/mcp', …)` (correlation resolution), the post-response section (record `mcp.step` hops, remember `cid`)
+- Modify: `demo_api_server/services/reelSvg.js` — header title only
+- Modify: `demo_api_ui/src/pages/TransactionTraceEmbedPage.jsx` — use the LAST `ui.request` / `mcp.tool`, keep polling while open
+- Test: `demo_api_server/tests/routes/mcpFacade.test.js`, `demo_api_server/tests/services/reelSvg.test.js`, `demo_api_ui/src/pages/__tests__/TransactionTraceEmbedPage.test.jsx`
+
+**Interfaces:**
+- Consumes: the session cache `sessions` / `sessionFor(id)` (object `{ client, server, capabilities, tools, resources }`), `hop(correlationId, h)`, `forwardHeaders(req, correlationId)`, `identityFromBearer(auth)`, `decodeMcpBody`, and the `tools/call` tail as it stands after Task 6 (`reelBlock`, 403 branch).
+- Produces: (1) `sessionFor(id)` objects gain `cid: string|null`; (2) **the correlation id is per MCP session**: minted on the request that has no session id yet (`initialize`), stored on the session object when the upstream returns `Mcp-Session-Id`, reused for every later request carrying that session id; (3) a new hop phase **`mcp.step`** (`op` = the JSON-RPC method: `initialize` | `notifications/initialized` | `tools/list` | `resources/list` | anything else that is not `tools/call`) with `details.httpStatus`, `durationMs`, and per-method details (initialize: `client`, `server`, `protocolVersion`, `capabilities`; tools/list: `toolCount`; resources/list: `resourceCount`); (4) `X-Correlation-ID` is forwarded on **every** request for `forwardCorrelation` doors, so the Node gateway's own `gateway.authorize` hops for initialize/tools/list land on the same reel; (5) no hop is written for an upstream **401** (unauthenticated discovery probes are not a transaction); (6) `reel_url`/image are the SAME for every tool call in a session (the reel grows). `ui.request` / `mcp.tool` / `response` for `tools/call` are unchanged — they now share the session's id.
+
+The ledger's HTTP ingest (`routes/transactionHopIngest.js`) validates phases against `VALID_PHASES`; the façade writes in-process via `ledger.appendHop`, which does not, and `services/transactionInvariants.js` only inspects named phases (`token.exchange`, `mcp.tool`, `hitl.consent`, decision phases), so `mcp.step` is inert there. `TransactionTracePage`'s `HopCard` renders any phase string.
+
+- [ ] **Step 1: Write the failing tests (façade)** — in `tests/routes/mcpFacade.test.js`:
+
+Replace the assertion block in the test `'agent-gateway: tools/call is relayed, reel_url appended, three hops written, correlation forwarded'` that starts with `// ui.request → mcp.tool → response, all on one correlation id` and ends with `expect(hops.response.details.reelUrl)…` with:
+
+```js
+    // Every hop of the session — initialize, initialized, tools/list, then the
+    // call's ui.request → mcp.tool → response — on ONE correlation id.
+    const ids = ledger.appendHop.mock.calls.map(([id]) => id);
+    expect(new Set(ids).size).toBe(1);
+    expect(ids[0]).toBe(cid);
+    const phases = ledger.appendHop.mock.calls.map(([, h]) => `${h.phase}:${h.op}`);
+    expect(phases).toEqual([
+      'mcp.step:initialize', 'mcp.step:notifications/initialized', 'mcp.step:tools/list',
+      'ui.request:tools/call get_my_accounts', 'mcp.tool:get_my_accounts', 'response:tools/call',
+    ]);
+    const hops = hopsByPhase();
+    expect(hops['ui.request']).toMatchObject({
+      service: 'mcp-facade',
+      op: 'tools/call get_my_accounts',
+      identity: { sub: 'user-1', scopes: ['read', 'mcp:invoke'], aud: 'mcpgateway.ping.demo', clientId: 'c1' },
+      details: {
+        door: 'agent-gateway',
+        client: { name: 'LM Studio', version: '0.4' },
+        server: { name: 'stub-gw', version: '1' },
+        tools: [{ name: 'get_my_accounts', description: 'List my accounts' }],
+        arguments: { limit: 4 },
+      },
+    });
+    expect(hops['mcp.tool']).toMatchObject({ op: 'get_my_accounts', status: 'ok', details: { httpStatus: 200 } });
+    expect(hops['mcp.tool'].details.result.content[0].text).toBe('{"success":true,"count":4}');
+    expect(hops.response.details.reelUrl).toBe(`https://ui.example/transaction-trace/embed/${cid}`);
+    // the initialize step carries the identity (record principal) and the negotiated session facts
+    const init = ledger.appendHop.mock.calls[0][1];
+    expect(init).toMatchObject({ phase: 'mcp.step', op: 'initialize', status: 'ok', identity: { sub: 'user-1' },
+      details: { httpStatus: 200, client: { name: 'LM Studio', version: '0.4' }, server: { name: 'stub-gw', version: '1' }, protocolVersion: '2025-06-18' } });
+    expect(ledger.appendHop.mock.calls[2][1].details).toMatchObject({ toolCount: 1 });
+```
+
+and in the same test, after `expect(upstreamCall.headers['mcp-session-id']).toBe('sess-1');` add:
+
+```js
+    // the session's correlation id rides on EVERY request to the gateway, not just the call
+    const upstreamList = seen.find((s) => s.rpc.method === 'tools/list');
+    expect(upstreamList.headers['x-correlation-id']).toBe(cid);
+```
+
+Replace the test `'non-tool calls pass through untouched (body, status, session header) and write no hops'` with:
+
+```js
+  test('non-tool calls pass through untouched and are recorded as mcp.step hops on the session reel', async () => {
+    const { init } = await runSession('agent-gateway');
+    expect(init.body.result.serverInfo.name).toBe('stub-gw');
+    const steps = ledger.appendHop.mock.calls.map(([, h]) => h).filter((h) => h.phase === 'mcp.step');
+    expect(steps.map((h) => h.op)).toEqual(['initialize', 'notifications/initialized', 'tools/list']);
+    expect(steps.every((h) => h.service === 'mcp-facade' && h.details.httpStatus === 200 && Number.isFinite(h.durationMs))).toBe(true);
+  });
+
+  test('an unauthenticated 401 probe writes no hop (not a transaction)', async () => {
+    await request(app()).post('/mcp-facade/agent-gateway/mcp')
+      .send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} });
+    expect(ledger.appendHop).not.toHaveBeenCalled();
+  });
+
+  test('two tool calls in one session share one reel', async () => {
+    const { sid, call } = await runSession('agent-gateway');
+    const second = await request(app()).post('/mcp-facade/agent-gateway/mcp').set('Authorization', AUTH).set('mcp-session-id', sid)
+      .send({ jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'get_my_accounts', arguments: {} } });
+    const reelOf = (r) => r.body.result.content.at(-1).text.split('\n')[0];
+    expect(reelOf(second)).toBe(reelOf(call));
+    expect(new Set(ledger.appendHop.mock.calls.map(([id]) => id)).size).toBe(1);
+  });
+```
+
+Also update the Privilege-door test `'Privilege doors add an inferred gateway.authorize hop (no policy trail to read)'`: replace `expect(Object.keys(hops)).toEqual(['ui.request', 'gateway.authorize', 'mcp.tool', 'response']);` with `expect(Object.keys(hops)).toEqual(['mcp.step', 'ui.request', 'gateway.authorize', 'mcp.tool', 'response']);` and the 502 test: its single direct `tools/call` without a session still writes `ui.request`, `mcp.tool`, `response` on a fresh id — unchanged.
+
+- [ ] **Step 2: Run to verify they fail**
+
+Run: `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/routes/mcpFacade.test.js --forceExit`
+Expected: FAIL — phases list has no `mcp.step` entries; ids differ per call.
+
+- [ ] **Step 3: Implement (façade)**
+
+In `sessionFor`: `s = { cid: null, client: null, server: null, capabilities: null, tools: null, resources: null };`
+
+At the top of `router.post('/:door/mcp', …)` replace `const correlationId = isCall ? crypto.randomUUID() : null;` and the `inbound` line with:
+
+```js
+  const inbound = sessionFor(req.get('mcp-session-id'));
+  // One reel per MCP session: minted on the first request (initialize has no
+  // session id yet), remembered on the session when the upstream issues its
+  // Mcp-Session-Id, reused for every later request that carries it — so the
+  // whole lifecycle (initialize → tools/list → tools/call…) and the gateway's
+  // own decisions for each step land on the same record.
+  const correlationId = inbound?.cid || crypto.randomUUID();
+```
+
+`forwardHeaders(req, correlationId)` now always receives an id (no change needed there). In the `catch` for an unreachable upstream, the `if (isCall)` block stays as is.
+
+After `const sess = sessionFor(upstreamSession) || inbound;` add `if (sess && !sess.cid) sess.cid = correlationId;` as the first line inside `if (sess) { … }`.
+
+Replace the `if (!isCall) { … return res.send(text); }` block with:
+
+```js
+  if (!isCall) {
+    // Every lifecycle step is on the reel — except unauthenticated probes,
+    // which are discovery noise, not a transaction.
+    if (upstream.status !== 401) {
+      const details = { httpStatus: upstream.status, door: req.params.door, doorLabel: door.label, error: parsed?.error || null };
+      if (method === 'initialize') {
+        Object.assign(details, {
+          client: rpc.params?.clientInfo || null,
+          protocolVersion: parsed?.result?.protocolVersion || null,
+          server: parsed?.result?.serverInfo || null,
+          capabilities: parsed?.result?.capabilities || null,
+        });
+      } else if (method === 'tools/list') {
+        details.toolCount = Array.isArray(parsed?.result?.tools) ? parsed.result.tools.length : null;
+      } else if (method === 'resources/list') {
+        details.resourceCount = Array.isArray(parsed?.result?.resources) ? parsed.result.resources.length : null;
+      }
+      hop(correlationId, {
+        phase: 'mcp.step',
+        op: method || 'unknown',
+        status: upstream.ok && !parsed?.error ? 'ok' : 'error',
+        durationMs,
+        ...(method === 'initialize' ? { identity: identityFromBearer(req.get('authorization')) } : {}),
+        details,
+      });
+    }
+    res.set('Content-Type', upstream.headers.get('content-type') || 'application/json');
+    return res.send(text);
+  }
+```
+
+- [ ] **Step 4: Run façade tests to verify they pass** — same command; expected PASS (all tests in the file).
+
+- [ ] **Step 5: SVG title** — in `services/reelSvg.js` replace the two lines that compute `req` and `title` with:
+
+```js
+  const requests = hops.filter((h) => h.phase === 'ui.request');
+  const req = requests[requests.length - 1] || null;
+  const init = hops.find((h) => h.phase === 'mcp.step' && h.op === 'initialize') || null;
+  const door = req?.details?.doorLabel || init?.details?.doorLabel || '';
+  const title = opts.title
+    || `Transaction trace — ${req?.op || (init?.details?.client?.name ? `${init.details.client.name} MCP session` : 'MCP session')}${door ? ` (${door})` : ''}`;
+```
+
+and add to `tests/services/reelSvg.test.js`:
+
+```js
+  test('a session with no tool call yet is titled by the client from the initialize step', () => {
+    const svg = renderReelSvg({ ...RECORD, hops: [
+      { seq: 1, phase: 'mcp.step', service: 'mcp-facade', op: 'initialize', details: { doorLabel: 'Agent Gateway', client: { name: 'LM Studio' } } },
+      { seq: 2, phase: 'mcp.step', service: 'mcp-facade', op: 'tools/list', details: { toolCount: 242 } },
+    ] });
+    expect(svg).toContain('LM Studio MCP session (Agent Gateway)');
+    expect(svg).toContain('tools/list');
+  });
+```
+
+Run: `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/services/reelSvg.test.js --forceExit` → PASS.
+
+- [ ] **Step 6: Embed page — last call, keep polling** — in `demo_api_ui/src/pages/TransactionTraceEmbedPage.jsx`:
+
+Replace `findHop` with
+
+```jsx
+function findLastHop(hops, phase) {
+  const list = (hops || []).filter((h) => h.phase === phase);
+  return list.length ? list[list.length - 1] : null;
+}
+```
+
+use it for `request` and `tool` (`findLastHop(hops, "ui.request")`, `findLastHop(hops, "mcp.tool")`), delete the `done` variable and its two uses (`let done = false;`, `done = (body.hops || []).some(…)`) and change the scheduling line to `if (!cancelled && ++polls < MAX_POLLS) timer = setTimeout(load, POLL_MS);` — a session reel keeps growing, so the page keeps refreshing for up to `MAX_POLLS × POLL_MS` (3 min). In the test `TransactionTraceEmbedPage.test.jsx`, change the comment `// response hop present → polling stops after the first fetch` to `// first render is one fetch; the 2 s re-poll has not fired yet` (the assertion `toHaveBeenCalledTimes(1)` still holds), and add a hop with `phase: "mcp.step", op: "initialize"` as `seq: 0` … no: insert as the first hop `{ seq: 1, phase: "mcp.step", service: "mcp-facade", op: "initialize", status: "ok", durationMs: 9, details: { httpStatus: 200, client: { name: "LM Studio" } } }` and renumber the others 2–5; update `getByTestId("hop-4")` to `"hop-5"`.
+
+Run: `cd demo_api_ui && ./node_modules/.bin/vitest run src/pages/__tests__/TransactionTraceEmbedPage.test.jsx` → PASS; `npm run build` → exit 0.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add demo_api_server/routes/mcpFacade.js demo_api_server/services/reelSvg.js demo_api_server/tests/routes/mcpFacade.test.js demo_api_server/tests/services/reelSvg.test.js demo_api_ui/src/pages/TransactionTraceEmbedPage.jsx demo_api_ui/src/pages/__tests__/TransactionTraceEmbedPage.test.jsx
+git commit -m "feat(mcp-facade): one reel per MCP session — initialize, initialized, tools/list and every call on one record"
+```
+
+---
+
+### Task 5: Live verification, PR, deploy
+
+**Files:** none new.
+
+- [ ] **Step 0: Order** — Task 5 runs after Tasks 6 and 7. Live check must show initialize / tools/list rows on the reel and the same reel_url across two calls in one LM Studio chat.
+
+- [ ] **Step 1: Scoped tests + hygiene**
+
+Run: `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/routes/mcpFacade.test.js tests/services/reelSvg.test.js --forceExit` → PASS. Run from the worktree root: `npm run hygiene:check` → `RESULT pass=… fail=0`.
+
+- [ ] **Step 2: Live** — `npm run serve:worktree here`; in LM Studio ask "whats my checking balance"; expected: the reply shows the balance, the "Transaction trace" link, and the filmstrip image inline. Screenshot it. Then `curl -s http://localhost:3002/mcp-facade/reel/<cid>.svg | head -c 200` shows `<svg`. Hand back: `npm run serve:worktree main`.
+
+- [ ] **Step 3: Push + PR** (`gh pr create`, body = summary + the screenshot description + test lines; one `gh pr checks <n> --watch`).
+
+- [ ] **Step 4: After merge** — `git -C /Users/cmuir/Development/AI-DEMO2 pull --ff-only origin main` (sync script backs off on the untracked `.vscode/mcp.json`), `docker restart ai-demo-api-server` (bind-mounted, code only), then `scripts/deploy-live.sh <prev-stamp> <merge-sha>` from a worktree cwd for the stamp. Update the memory note `project-mcp-facade-reel-2026-08-24`.
+
+---
+
+## Self-review
+
+- Spec coverage: §4 "static image snapshot" → Tasks 1, 2, 4; §4's "no confirmed path to an embedded reel" risk → Task 3 gate; §5.3 "link first, evaluate the image upgrade after" → the link line stays, the image is additive.
+- Placeholders: Task 3 has a RESULT line to fill — deliberate, it is the measurement.
+- Type consistency: `renderReelSvg(record, opts)` and `renderReelSvg.CONTENT_TYPE` used identically in Tasks 1–2; `reelUrl`, `facadeBase`, `correlationId` names match `routes/mcpFacade.js` as merged in PRs #2356/#2361/#2362.
