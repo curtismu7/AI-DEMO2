@@ -1854,7 +1854,8 @@ function AppWithAuth() {
                 }}
               />
               <SpinnerHost />
-              <DemoScriptLauncher user={user} />
+              {/* Global overlay — off on no-chrome routes (embedded reel). */}
+              {isApiTrafficOnlyPage ? null : <DemoScriptLauncher user={user} />}
             </div>
           </ActivityNarrativeProvider>
           </ProofOfEnforcementProvider>
