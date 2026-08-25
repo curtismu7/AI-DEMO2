@@ -401,6 +401,14 @@ aws_build() {
   COMPOSE_PARALLEL_LIMIT=1 docker compose -p "$K8_COMPOSE_PROJECT" -f docker-compose.yml \
     --profile agents --profile demo-auth --profile rag build
 
+  # mcp-code-search and llamaindex-agent pin an explicit `image:` in
+  # docker-compose.yml, so `-p` above does not prefix them like every other
+  # service — they build as ai-demo-mcp-code-search / ai-demo-llamaindex-agent,
+  # not ai-demo-k8-*. tag_k8_images() already retags exactly these two (and
+  # no-ops on anything it doesn't find); call it before the IMAGE_MAP check
+  # below expects the ai-demo-k8-* names to exist.
+  tag_k8_images
+
   # local-image:ghcr-image pairs (indexed array — works on macOS bash 3.2).
   # Local side = compose default naming under -p: ai-demo-k8-<service>.
   local IMAGE_MAP=(
