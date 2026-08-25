@@ -69,6 +69,37 @@ data:
         # Proxy /jaeger/ to the in-cluster Jaeger query UI (plain HTTP; base path
         # set via QUERY_BASE_PATH=/jaeger on the jaeger deployment). Mirrors the
         # block in k8s/02-configmap.yaml (this file overrides that configmap on AWS).
+        # Recording façade for external MCP clients (LM Studio, LibreChat).
+        # Lives in the BFF, same upstream as /api/ above.
+        location /mcp-facade/ {
+            proxy_pass https://demo-api-server:3001/mcp-facade/;
+            proxy_ssl_verify off;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto https;
+        }
+
+        # Agent Gateway's own OAuth broker (RFC 8414 metadata + RFC 7591 DCR +
+        # authorize/callback/token) — reached DIRECTLY by the external client,
+        # not through the façade. Scoped to exactly these two prefixes: the
+        # gateway's other root-level routes (/health, /admin/*, /mcp) must
+        # stay internal — this is the only public door into mcp-gateway:3005.
+        # No public hostname exists for the gateway on its own (only
+        # individually-registered *.ping-devops.com names resolve), so it
+        # shares this host with the SPA/BFF — see PR #2375.
+        location /oauth/ {
+            proxy_pass http://mcp-gateway:3005/oauth/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-Proto https;
+        }
+        location = /.well-known/oauth-authorization-server {
+            proxy_pass http://mcp-gateway:3005/.well-known/oauth-authorization-server;
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-Proto https;
+        }
+
         location /jaeger/ {
             # No trailing slash on proxy_pass: preserve the /jaeger prefix so it
             # matches Jaeger's QUERY_BASE_PATH=/jaeger. Stripping it makes
