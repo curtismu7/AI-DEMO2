@@ -840,8 +840,15 @@ demo_sync_cmd() {
     kubectl rollout status deployment/mcp-gateway -n "$NS" --timeout=180s \
       || warn "mcp-gateway rollout slow — check: kubectl get pods -n $NS -l component=mcp-gateway"
   else
-    success "Real stack (P1AZ + PingGateway) — stopping demo mcp-gateway"
-    kubectl scale deployment/mcp-gateway -n "$NS" --replicas=0 2>/dev/null || true
+    # mcp-gateway is deliberately LEFT RUNNING here (changed 2026-08-25).
+    # It is no longer just the demo-mode gateway: external MCP clients (LM
+    # Studio et al) reach it through the BFF recording façade, whose
+    # agent-gateway door targets http://mcp-gateway:3005/mcp unconditionally
+    # and whose OAuth broker is served by this same deployment. Scaling it to
+    # 0 in real-stack mode 502'd every external door. The flag still selects
+    # what the demo UI routes to (proxy_gw_url / MCP_GATEWAY_HTTP_URL below)
+    # and whether ping-gateway runs — it just no longer stops this one.
+    success "Real stack (P1AZ + PingGateway) — routing demo UI at PingGateway (mcp-gateway stays up for external MCP doors)"
     kubectl scale deployment/ping-gateway -n "$NS" --replicas=1
     proxy_gw_url="http://ping-gateway:8080"
     kubectl rollout status deployment/ping-gateway -n "$NS" --timeout=300s \
