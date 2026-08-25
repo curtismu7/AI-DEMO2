@@ -3,11 +3,15 @@
 jest.mock('../../services/lmdb/transactionLedger.lmdb', () => ({
   appendHop: jest.fn(),
 }));
+jest.mock('../../services/transactionAssembler', () => ({ assemble: jest.fn() }));
+jest.mock('../../services/configStore', () => ({ getEffective: jest.fn(() => 'true') }));
 
 const http = require('http');
 const express = require('express');
 const request = require('supertest');
 const ledger = require('../../services/lmdb/transactionLedger.lmdb');
+const { assemble } = require('../../services/transactionAssembler');
+const configStore = require('../../services/configStore');
 const router = require('../../routes/mcpFacade');
 
 // A stub gateway: 401 + RFC 9728 challenge without a bearer, JSON replies for
@@ -220,5 +224,41 @@ describe('/mcp-facade — relay + recording', () => {
   test('GET /mcp is not offered through the façade', async () => {
     const res = await request(app()).get('/mcp-facade/agent-gateway/mcp');
     expect(res.status).toBe(405);
+  });
+});
+
+describe('/mcp-facade/reel/:correlationId.svg', () => {
+  const RECORD = {
+    correlationId: 'cid-svg', startedAt: 't', endedAt: 't', principal: 'u',
+    hops: [{ seq: 1, phase: 'mcp.tool', service: 'mcp-facade', op: 'get_my_accounts', status: 'ok', durationMs: 5 }],
+  };
+
+  beforeEach(() => { configStore.getEffective.mockReturnValue('true'); });
+
+  test('renders the record as image/svg+xml with no-store', async () => {
+    assemble.mockResolvedValue(RECORD);
+    const res = await request(app()).get('/mcp-facade/reel/cid-svg.svg');
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/image\/svg\+xml/);
+    expect(res.headers['cache-control']).toBe('no-store');
+    // supertest/superagent buffers image/* mime types as a Buffer (res.body),
+    // not res.text — res.text is undefined for this content type.
+    expect(res.body.toString()).toContain('get_my_accounts');
+    expect(assemble).toHaveBeenCalledWith('cid-svg');
+  });
+
+  test('unknown id → 200 waiting frame (an <img> cannot show a JSON 404)', async () => {
+    assemble.mockResolvedValue(null);
+    const res = await request(app()).get('/mcp-facade/reel/nope.svg');
+    expect(res.status).toBe(200);
+    expect(res.body.toString()).toContain('Waiting for the first hop');
+  });
+
+  test('ledger feature off → 200 frame that says so', async () => {
+    configStore.getEffective.mockReturnValue('false');
+    const res = await request(app()).get('/mcp-facade/reel/cid-svg.svg');
+    expect(res.status).toBe(200);
+    expect(res.body.toString()).toContain('ff_transaction_ledger');
+    expect(assemble).not.toHaveBeenCalled();
   });
 });

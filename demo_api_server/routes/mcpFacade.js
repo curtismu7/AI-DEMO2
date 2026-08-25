@@ -31,6 +31,9 @@ const express = require('express');
 const crypto = require('crypto');
 const ledger = require('../services/lmdb/transactionLedger.lmdb');
 const { getProcyonDispatcher, isProcyonAgentUrl, decodeMcpBody } = require('./privilegeMcpClient');
+const { assemble } = require('../services/transactionAssembler');
+const configStore = require('../services/configStore');
+const { renderReelSvg } = require('../services/reelSvg');
 
 const router = express.Router();
 const SERVICE = 'mcp-facade';
@@ -287,6 +290,25 @@ router.post('/:door/mcp', express.json({ limit: '1mb', type: () => true }), asyn
   }
   res.set('Content-Type', upstream.headers.get('content-type') || 'application/json');
   return res.send(text);
+});
+
+// GET /mcp-facade/reel/:correlationId.svg — the image the tool result embeds.
+// No auth (the id is the capability, same as /api/transaction-trace/embed).
+// Always answers with an SVG: an <img> cannot show a JSON error.
+router.get('/reel/:correlationId.svg', async (req, res) => {
+  res.set('Content-Type', renderReelSvg.CONTENT_TYPE);
+  res.set('Cache-Control', 'no-store');
+  if (configStore.getEffective('ff_transaction_ledger') === 'false') {
+    return res.send(renderReelSvg(null, { title: 'Transaction trace — recording is off (ff_transaction_ledger)' })
+      .replace('Waiting for the first hop…', 'Enable ff_transaction_ledger on the Feature Flags page to record.'));
+  }
+  let record = null;
+  try {
+    record = await assemble(req.params.correlationId);
+  } catch (err) {
+    console.warn('[mcpFacade] reel svg read failed:', err?.message);
+  }
+  return res.send(renderReelSvg(record));
 });
 
 // No server-initiated stream through the façade; spec-compliant clients treat
