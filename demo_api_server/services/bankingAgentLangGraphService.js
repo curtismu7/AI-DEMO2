@@ -442,34 +442,33 @@ function buildToolSchemasForAgent(activeVerticalId) {
 }
 
 /**
- * Build tool schemas for the PingOne Admin reason loop.
- * Fetches the tool list from the hosted PingOne MCP server (HTTP) and converts
- * to the JSON Schema shape runReasonLoop expects.
+ * Build tool schemas for the PingOne Admin reason loop. Delegates to the
+ * list_pingone_tools/call_pingone_tool wrapper (config/admin/tools.js — the
+ * same one adminAgentService.js already uses) instead of the hosted PingOne
+ * MCP server's raw catalog: that catalog has grown to 242 tools live, which
+ * blows past every local LLM tier's context window before the model ever
+ * sees the user's message.
  * @returns {Promise<Array<{ name: string, description: string, inputSchema: object }>>}
  */
 async function buildPingOneAdminToolSchemas() {
-  const { listTools } = require('./mcpPingOneHttpAdapter');
-  const tools = await listTools();
-  return tools.map((t) => ({
-    name: t.name,
-    description: t.description || '',
-    inputSchema: t.inputSchema || { type: 'object', properties: {} },
-  }));
+  const { buildAdminToolSchemas } = require('../config/admin/tools');
+  return buildAdminToolSchemas();
 }
 
 /**
- * Execute a PingOne Admin tool via the hosted PingOne MCP server (HTTP).
- * Auth is handled inside the adapter with a worker client_credentials token.
+ * Execute a PingOne Admin tool call. The LLM only ever sees the wrapper's 4
+ * tool names (never a raw hosted-tool name), so execution routes through the
+ * same wrapper the schemas above come from.
  * @returns {Promise<string>} JSON-stringified result
  */
 async function executePingOneTool(name, args) {
-  const { callTool } = require('./mcpPingOneHttpAdapter');
+  const { executeAdminTool } = require('../config/admin/tools');
   const { emitHop } = require('./transactionHop');
   const startedAt = Date.now();
   try {
-    const result = await callTool(name, args || {});
+    const result = await executeAdminTool(name, args || {});
     emitHop({ phase: 'mcp.tool', op: name, durationMs: Date.now() - startedAt, status: 'ok' });
-    return typeof result === 'string' ? result : JSON.stringify(result);
+    return result;
   } catch (err) {
     console.error('[executePingOneTool] Error calling tool %s: %s', name, err.message);
     emitHop({ phase: 'mcp.tool', op: name, durationMs: Date.now() - startedAt, status: 'error' });
