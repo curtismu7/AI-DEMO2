@@ -160,6 +160,7 @@ const {
 } = require('./routes/featureFlags');
 const mcpInspectorRoutes = require('./routes/mcpInspector');
 const mcpPingOneAdminAuthRoutes = require('./routes/mcpPingOneAdminAuth');
+const mcpPrivilegeAuthRoutes = require('./routes/mcpPrivilegeAuth');
 const mcpTrafficRoutes = require('./routes/mcpTraffic');
 const mcpToolScopesRouter = require('./routes/mcpToolScopes');
 const mcpGatewayConfigRouter = require('./routes/mcpGatewayConfig');
@@ -1199,6 +1200,7 @@ app.use('/api/setup', setupRoutes);
 app.use('/api/mcp', mcpToolScopesRouter);
 app.use('/api/mcp/inspector', mcpInspectorRoutes);
 app.use('/api/mcp/inspector/pingone-admin', mcpPingOneAdminAuthRoutes);
+app.use('/api/mcp/inspector/privilege', mcpPrivilegeAuthRoutes);
 // Privilege MCP Client — relay for the chat-first Privilege Gateway MCP client page
 app.use('/api/privilege-mcp', require('./routes/privilegeMcpClient'));
 // Minimal machine-to-machine sibling of the above: client_credentials token in,

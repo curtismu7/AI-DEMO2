@@ -244,6 +244,28 @@ function requirePingoneAdminLogin() {
   return err;
 }
 
+/** Session bearer for the built-in Privilege profile — null when not signed in or expired. */
+function privilegeAdminBearer(req) {
+  const tok = req.session?.privilegeMcpToken;
+  if (!tok || !tok.accessToken || !(tok.expiresAt > Date.now())) return null;
+  return tok.accessToken;
+}
+
+/** Wraps the session's Privilege token as a one-off profile so it can ride the http transport as-is. */
+function privilegeVirtualProfile(bearer) {
+  return {
+    url: 'https://cmuir-agentless-mcpgw.ping-devops.com/external/mcp',
+    authHeader: 'Authorization',
+    authValue: `Bearer ${bearer}`,
+  };
+}
+
+function requirePrivilegeLogin() {
+  const err = new Error('Sign in as Privilege admin to use this profile.');
+  err.code = 'privilege_login_required';
+  return err;
+}
+
 async function listToolsForProfile(profile, req) {
   if (profile.transport === 'websocket') {
     const { result, frames } = await mcpListToolsWithFrames(null, null, undefined, { serverUrl: profile.url });
@@ -261,6 +283,12 @@ async function listToolsForProfile(profile, req) {
     const bearer = pingoneAdminBearer(req);
     if (!bearer) throw requirePingoneAdminLogin();
     const { tools } = await mcpHttpTransport.listTools(pingoneVirtualProfile(bearer));
+    return { tools };
+  }
+  if (profile.transport === 'privilege') {
+    const bearer = privilegeAdminBearer(req);
+    if (!bearer) throw requirePrivilegeLogin();
+    const { tools } = await mcpHttpTransport.listTools(privilegeVirtualProfile(bearer));
     return { tools };
   }
   throw new Error(`Unknown transport: ${profile.transport}`);
@@ -284,6 +312,12 @@ async function callToolForProfile(profile, tool, params, req) {
     const bearer = pingoneAdminBearer(req);
     if (!bearer) throw requirePingoneAdminLogin();
     const result = await mcpHttpTransport.callTool(pingoneVirtualProfile(bearer), tool, params);
+    return { result };
+  }
+  if (profile.transport === 'privilege') {
+    const bearer = privilegeAdminBearer(req);
+    if (!bearer) throw requirePrivilegeLogin();
+    const result = await mcpHttpTransport.callTool(privilegeVirtualProfile(bearer), tool, params);
     return { result };
   }
   throw new Error(`Unknown transport: ${profile.transport}`);
@@ -312,6 +346,16 @@ async function handleProfileTools(req, res, profileId) {
         pingone_admin_login_required: true,
         loginUrl: '/api/mcp/inspector/pingone-admin/login',
         _source: 'pingone_admin_login_required',
+        _profileId: profile.id,
+        _profileLabel: profile.label,
+      });
+    }
+    if (err.code === 'privilege_login_required') {
+      return res.json({
+        tools: [],
+        privilege_login_required: true,
+        loginUrl: '/api/mcp/inspector/privilege/login',
+        _source: 'privilege_login_required',
         _profileId: profile.id,
         _profileLabel: profile.label,
       });
@@ -353,6 +397,14 @@ async function handleProfileInvoke(req, res, profileId, tool, params) {
         error: 'pingone_admin_login_required',
         message: err.message,
         loginUrl: '/api/mcp/inspector/pingone-admin/login',
+        _profileId: profile.id,
+      });
+    }
+    if (err.code === 'privilege_login_required') {
+      return res.status(401).json({
+        error: 'privilege_login_required',
+        message: err.message,
+        loginUrl: '/api/mcp/inspector/privilege/login',
         _profileId: profile.id,
       });
     }
