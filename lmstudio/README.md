@@ -43,7 +43,7 @@ LM Studio renders Markdown only (no embedded HTML — `docs/superpowers/specs/20
 so click that link: the page shows the hop-by-hop chain (identity, the gateway's real
 P1AZ decision for `agent-gateway`, timing) plus the MCP side of the call — tools and
 descriptions, resources (or "not advertised"), the request arguments and the raw response.
-It keeps polling until the `response` hop lands, so open it as soon as the tool returns.
+It keeps refreshing for a few minutes while open, because a session's reel keeps growing as you make more calls.
 
 The façade is served over plain HTTP on `127.0.0.1:3002` on purpose: LM Studio's MCP bridge
 is a Node process that does not trust the mkcert chain (`SELF_SIGNED_CERT_IN_CHAIN`, seen

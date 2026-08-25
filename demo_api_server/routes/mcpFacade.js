@@ -274,7 +274,7 @@ router.post('/:door/mcp', express.json({ limit: '1mb', type: () => true }), asyn
     // Every lifecycle step is on the reel — except unauthenticated probes,
     // which are discovery noise, not a transaction.
     if (upstream.status !== 401) {
-      const details = { httpStatus: upstream.status, door: req.params.door, doorLabel: door.label, error: parsed?.error || null };
+      const details = { httpStatus: upstream.status, door: req.params.door, doorLabel: door.label, error: clip(parsed?.error ?? null) };
       if (method === 'initialize') {
         Object.assign(details, {
           client: rpc.params?.clientInfo || null,
@@ -373,8 +373,10 @@ router.get('/reel/:correlationId.svg', async (req, res) => {
   res.set('Content-Type', renderReelSvg.CONTENT_TYPE);
   res.set('Cache-Control', 'no-store');
   if (configStore.getEffective('ff_transaction_ledger') === 'false') {
-    return res.send(renderReelSvg(null, { title: 'Transaction trace — recording is off (ff_transaction_ledger)' })
-      .replace('Waiting for the first hop…', 'Enable ff_transaction_ledger on the Feature Flags page to record.'));
+    return res.send(renderReelSvg(null, {
+      title: 'Transaction trace — recording is off (ff_transaction_ledger)',
+      subtitle: 'Enable ff_transaction_ledger on the Feature Flags page to record.',
+    }));
   }
   let record = null;
   try {

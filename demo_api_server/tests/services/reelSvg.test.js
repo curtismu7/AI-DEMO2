@@ -52,6 +52,11 @@ describe('renderReelSvg', () => {
     expect(svg).toContain('Waiting for the first hop');
   });
 
+  test('null record honors opts.title', () => {
+    const svg = renderReelSvg(null, { title: 'Custom title' });
+    expect(svg).toContain('Custom title');
+  });
+
   test('a session with no tool call yet is titled by the client from the initialize step', () => {
     const svg = renderReelSvg({ ...RECORD, hops: [
       { seq: 1, phase: 'mcp.step', service: 'mcp-facade', op: 'initialize', details: { doorLabel: 'Agent Gateway', client: { name: 'LM Studio' } } },
@@ -66,5 +71,18 @@ describe('renderReelSvg', () => {
     const four = renderReelSvg(RECORD);
     const h = (svg) => Number(svg.match(/height="(\d+)"/)[1]);
     expect(h(four)).toBeGreaterThan(h(one));
+  });
+
+  test('caps the filmstrip at the last 40 hops', () => {
+    const hops = Array.from({ length: 50 }, (_, i) => ({
+      seq: i + 1, phase: 'mcp.tool', service: 'mcp-facade', op: `step-${i + 1}`, status: 'ok',
+    }));
+    const svg = renderReelSvg({ ...RECORD, hops });
+    expect(svg).toContain('10 earlier hops not shown');
+    expect(svg).toContain('step-50');
+    expect(svg).not.toContain('step-1<');
+    const fortyHopSvg = renderReelSvg({ ...RECORD, hops: hops.slice(-40) });
+    const h = (s) => Number(s.match(/height="(\d+)"/)[1]);
+    expect(h(svg)).toBe(h(fortyHopSvg));
   });
 });

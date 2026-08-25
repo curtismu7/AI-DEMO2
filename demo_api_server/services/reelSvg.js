@@ -37,23 +37,28 @@ function frame(height, body) {
 function renderReelSvg(record, opts = {}) {
   if (!record) {
     return frame(96,
-      `<text x="24" y="40" font-size="16" font-weight="600" fill="#111827">Transaction trace</text>`
-      + `<text x="24" y="68" font-size="13" fill="#6b7280">Waiting for the first hop…</text>`);
+      `<text x="24" y="40" font-size="16" font-weight="600" fill="#111827">${esc(opts.title || 'Transaction trace')}</text>`
+      + `<text x="24" y="68" font-size="13" fill="#6b7280">${esc(opts.subtitle || 'Waiting for the first hop…')}</text>`);
   }
   const hops = Array.isArray(record.hops) ? record.hops : [];
+  const shown = hops.slice(-40);
+  const hidden = hops.length - shown.length;
   const requests = hops.filter((h) => h.phase === 'ui.request');
   const req = requests[requests.length - 1] || null;
   const init = hops.find((h) => h.phase === 'mcp.step' && h.op === 'initialize') || null;
   const door = req?.details?.doorLabel || init?.details?.doorLabel || '';
   const title = opts.title
     || `Transaction trace — ${req?.op || (init?.details?.client?.name ? `${init.details.client.name} MCP session` : 'MCP session')}${door ? ` (${door})` : ''}`;
-  const height = TOP + hops.length * ROW + BOTTOM;
+  const height = TOP + shown.length * ROW + BOTTOM;
   const spineX = 36;
   let body = `<text x="24" y="34" font-size="16" font-weight="600" fill="#111827">${esc(title)}</text>`;
-  if (hops.length > 1) {
-    body += `<line x1="${spineX}" y1="${TOP}" x2="${spineX}" y2="${TOP + (hops.length - 1) * ROW}" stroke="#d1d5db" stroke-width="2"/>`;
+  if (hidden > 0) {
+    body += `<text x="24" y="50" font-size="11" fill="#9ca3af">${esc(`… ${hidden} earlier hops not shown`)}</text>`;
   }
-  hops.forEach((h, i) => {
+  if (shown.length > 1) {
+    body += `<line x1="${spineX}" y1="${TOP}" x2="${spineX}" y2="${TOP + (shown.length - 1) * ROW}" stroke="#d1d5db" stroke-width="2"/>`;
+  }
+  shown.forEach((h, i) => {
     const y = TOP + i * ROW;
     const err = h.status === 'error' || h.decision?.outcome === 'deny';
     body += `<circle cx="${spineX}" cy="${y}" r="12" fill="${err ? '#fee4e2' : '#eef2ff'}" stroke="${err ? '#b42318' : '#4f46e5'}"/>`
