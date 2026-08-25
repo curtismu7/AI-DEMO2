@@ -186,6 +186,7 @@
     "/path/mortgage": "public",
     "/personal-agent": "public",
     "/personal-agent/client": "public",
+    "/transaction-trace/embed/:correlationId": "public",
     "/ping-ai-test-lab": "public",
     "/pingcli": "public",
     "/pinggateway-inspector": "public",

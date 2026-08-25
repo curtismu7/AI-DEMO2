@@ -1489,6 +1489,12 @@ router.put('/env', express.json(), requireAdminSession, (req, res) => {
 
 module.exports = router;
 
+// Shared with routes/mcpFacade.js — same Priv-Agent TLS/DNS dispatcher and
+// JSON-or-SSE decoder, so both relays reach the gateways the same way.
+module.exports.getProcyonDispatcher = getProcyonDispatcher;
+module.exports.isProcyonAgentUrl = isProcyonAgentUrl;
+module.exports.decodeMcpBody = decodeMcpBody;
+
 /** Test hooks — session-scoped SSE isolation canary. */
 module.exports.__test = {
   emitEvent,

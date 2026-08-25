@@ -149,6 +149,7 @@ import LangChainPage from "./pages/LangChainPage";
 import SnapshotImport from "./pages/SnapshotImport";
 import PersonalAgentStudioPage from "./pages/PersonalAgentStudioPage";
 import PersonalAgentClientWindow from "./pages/PersonalAgentClientWindow";
+import TransactionTraceEmbedPage from "./pages/TransactionTraceEmbedPage";
 import PingCliPage from "./components/PingCliPage";
 import LlamaVscodeGuidePage from "./components/LlamaVscodeGuidePage";
 import AdminRoute from "./routes/AdminRoute";
@@ -1012,6 +1013,15 @@ function AppWithAuth() {
                     <PersonalAgentClientWindow />
                   }
                 />
+                <Route
+                  path="/transaction-trace/embed/:correlationId"
+                  element={
+                    // Bare route — the reel an external MCP client's reel_url
+                    // opens (LM Studio link / LibreChat artifact iframe). No
+                    // session: the id is the capability. See routes/mcpFacade.js.
+                    <TransactionTraceEmbedPage />
+                  }
+                />
                 {/* Legacy Test Lab URL → unified Demo check */}
                 <Route path="/ping-ai-test-lab" element={<Navigate to="/check" replace />} />
                 <Route
@@ -1844,7 +1854,8 @@ function AppWithAuth() {
                 }}
               />
               <SpinnerHost />
-              <DemoScriptLauncher user={user} />
+              {/* Global overlay — off on no-chrome routes (embedded reel). */}
+              {isApiTrafficOnlyPage ? null : <DemoScriptLauncher user={user} />}
             </div>
           </ActivityNarrativeProvider>
           </ProofOfEnforcementProvider>
