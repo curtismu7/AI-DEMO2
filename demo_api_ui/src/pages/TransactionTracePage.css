@@ -4,6 +4,10 @@
   min-height: 100vh;
   max-width: 1200px;
   margin: 0 auto;
+  /* Everything below inherits this — under data-theme="dark" the app body colour is
+     the LIGHT-mode text, so unstyled text (the hop's <strong> service name) went
+     dark-on-dark. REGRESSION_PLAN §0: solid, high-contrast, both modes. */
+  color: var(--th-text, #111827);
 }
 
 .ttrace-header h1 {

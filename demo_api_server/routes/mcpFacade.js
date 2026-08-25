@@ -360,19 +360,19 @@ router.post('/:door/mcp', express.json({ limit: '1mb', type: () => true }), asyn
     if (upstream.status === 403) {
       const reason = parsed?.error?.message || parsed?.message || (typeof parsed?.error === 'string' ? parsed.error : '') || text.slice(0, 200) || 'no reason given';
       hop(correlationId, { phase: 'gateway.authorize', op: method, status: 'error',
-        decision: { outcome: 'deny', by: door.label, reason: String(reason), source: 'inferred' } });
+        decision: { outcome: 'deny', by: door.label, reason: String(reason).trim(), source: 'inferred' } });
       if (method === 'initialize') {
         const sid = `denied-${crypto.randomUUID()}`;
         const denied = sessionFor(sid);
         denied.cid = correlationId;
-        denied.denied = { reason: String(reason), method };
+        denied.denied = { reason: String(reason).trim(), method };
         denied.server = { name: `${door.label} (access denied)`, version: '0' };
         denied.client = rpc.params?.clientInfo || null;
         res.status(200).set('Mcp-Session-Id', sid).set('Content-Type', 'application/json');
         return res.send(JSON.stringify({ jsonrpc: '2.0', id: rpc.id ?? null, result: deniedInitializeResult(rpc, door, denied.denied) }));
       }
       res.set('Content-Type', 'application/json');
-      return res.send(JSON.stringify({ error: 'policy_denied', message: `You have been denied by Policy. ${door.label} refused ${method || 'the request'}: ${String(reason)}` }));
+      return res.send(JSON.stringify({ error: 'policy_denied', message: `You have been denied by Policy. ${door.label} refused ${method || 'the request'}: ${String(reason).trim()}` }));
     }
     res.set('Content-Type', upstream.headers.get('content-type') || 'application/json');
     return res.send(text);
@@ -414,7 +414,7 @@ router.post('/:door/mcp', express.json({ limit: '1mb', type: () => true }), asyn
       result: {
         isError: true,
         content: [
-          { type: 'text', text: `You have been denied by Policy.\n${door.label} refused ${toolName}: ${String(reason)}` },
+          { type: 'text', text: `You have been denied by Policy.\n${door.label} refused ${toolName}: ${String(reason).trim()}` },
           reelBlock,
         ],
       },
