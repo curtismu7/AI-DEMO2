@@ -13,8 +13,9 @@ import "./TransactionTracePage.css";
 const POLL_MS = 2000;
 const MAX_POLLS = 90; // hops for one call land within seconds; stop after 3 min
 
-function findHop(hops, phase) {
-  return (hops || []).find((h) => h.phase === phase) || null;
+function findLastHop(hops, phase) {
+  const list = (hops || []).filter((h) => h.phase === phase);
+  return list.length ? list[list.length - 1] : null;
 }
 
 function Json({ value }) {
@@ -36,7 +37,6 @@ export default function TransactionTraceEmbedPage() {
     let polls = 0;
     let timer = null;
     const load = async () => {
-      let done = false;
       try {
         const res = await apiClient.get(`/api/transaction-trace/embed/${encodeURIComponent(correlationId)}`, {
           _silent: true,
@@ -56,12 +56,11 @@ export default function TransactionTraceEmbedPage() {
             setDetail(body);
             setStatus("ok");
           }
-          done = (body.hops || []).some((h) => h.phase === "response");
         }
       } catch {
         if (!cancelled) setStatus("error");
       }
-      if (!cancelled && !done && ++polls < MAX_POLLS) timer = setTimeout(load, POLL_MS);
+      if (!cancelled && ++polls < MAX_POLLS) timer = setTimeout(load, POLL_MS);
     };
     load();
     return () => {
@@ -71,8 +70,8 @@ export default function TransactionTraceEmbedPage() {
   }, [correlationId]);
 
   const hops = detail?.hops || [];
-  const request = findHop(hops, "ui.request");
-  const tool = findHop(hops, "mcp.tool");
+  const request = findLastHop(hops, "ui.request");
+  const tool = findLastHop(hops, "mcp.tool");
   const meta = request?.details || {};
   const tools = Array.isArray(meta.tools) ? meta.tools : null;
   const resources = Array.isArray(meta.resources) ? meta.resources : null;

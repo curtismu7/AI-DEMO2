@@ -41,9 +41,12 @@ function renderReelSvg(record, opts = {}) {
       + `<text x="24" y="68" font-size="13" fill="#6b7280">Waiting for the first hop…</text>`);
   }
   const hops = Array.isArray(record.hops) ? record.hops : [];
-  const req = hops.find((h) => h.phase === 'ui.request');
+  const requests = hops.filter((h) => h.phase === 'ui.request');
+  const req = requests[requests.length - 1] || null;
+  const init = hops.find((h) => h.phase === 'mcp.step' && h.op === 'initialize') || null;
+  const door = req?.details?.doorLabel || init?.details?.doorLabel || '';
   const title = opts.title
-    || `Transaction trace — ${req?.op || 'external MCP call'}${req?.details?.doorLabel ? ` (${req.details.doorLabel})` : ''}`;
+    || `Transaction trace — ${req?.op || (init?.details?.client?.name ? `${init.details.client.name} MCP session` : 'MCP session')}${door ? ` (${door})` : ''}`;
   const height = TOP + hops.length * ROW + BOTTOM;
   const spineX = 36;
   let body = `<text x="24" y="34" font-size="16" font-weight="600" fill="#111827">${esc(title)}</text>`;

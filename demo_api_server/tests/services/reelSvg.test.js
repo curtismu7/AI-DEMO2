@@ -52,6 +52,15 @@ describe('renderReelSvg', () => {
     expect(svg).toContain('Waiting for the first hop');
   });
 
+  test('a session with no tool call yet is titled by the client from the initialize step', () => {
+    const svg = renderReelSvg({ ...RECORD, hops: [
+      { seq: 1, phase: 'mcp.step', service: 'mcp-facade', op: 'initialize', details: { doorLabel: 'Agent Gateway', client: { name: 'LM Studio' } } },
+      { seq: 2, phase: 'mcp.step', service: 'mcp-facade', op: 'tools/list', details: { toolCount: 242 } },
+    ] });
+    expect(svg).toContain('LM Studio MCP session (Agent Gateway)');
+    expect(svg).toContain('tools/list');
+  });
+
   test('height grows with the number of hops', () => {
     const one = renderReelSvg({ ...RECORD, hops: RECORD.hops.slice(0, 1) });
     const four = renderReelSvg(RECORD);
