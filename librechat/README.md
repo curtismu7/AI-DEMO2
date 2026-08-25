@@ -84,7 +84,7 @@ recreate a container whose compose-level config didn't change.
 | `opensearch-direct` | works if the Mac kubectl port-forward (`:9900`) is running | not offered — Mac-only port-forward |
 | `opensearch-privilege-agent` | works | **known-broken**: the façade reaches the Priv Agent over a Mac-local `:8643` listener; the pingaws-hosted façade (running in-cluster, not on the Mac) has no verified path to it — 502 `upstream_unavailable` is expected, not a bug to chase |
 | `privilege-agentless` | works | works — verified live |
-| `agent-gateway` | works | **intermittent** — 502 `upstream_unavailable` observed live 2026-08-25 even though this door doesn't depend on the Priv Agent (it fronts `demo_mcp_gateway`, in-cluster). Root cause not yet found — check whether `demo_mcp_gateway` is actually up in the pingaws namespace before assuming a LibreChat or façade bug |
+| `agent-gateway` | works | works — a 502 `upstream_unavailable` seen live 2026-08-25 was a routine `demo_mcp_gateway` rollout on the pingaws cluster catching this door mid-startup-probe (`kubectl -n ping-devops-cmuir get events` showed one `Unhealthy: connection refused` right after pod creation, then `2/2 Running` ~4s later) — not a bug. If this recurs, check `kubectl --context us -n ping-devops-cmuir get pods -l app=mcp-gateway` before assuming a LibreChat or façade problem |
 
 A door showing `OAuth Required: true` at LibreChat startup is normal — it
 means the façade answered its RFC 9728 discovery correctly and LibreChat
