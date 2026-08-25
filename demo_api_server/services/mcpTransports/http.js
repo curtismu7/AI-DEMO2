@@ -177,11 +177,17 @@ async function resetAndReinitialize(profile, session) {
   return session.pending;
 }
 
-/** True for the MCP spec's documented "session not found" signal (404) — the
- * gateway evicted a session we still think is live. Any other error (auth,
- * network, a genuine tool-call failure) must NOT trigger a reset+retry. */
+/** True ONLY for the MCP spec's documented "session not found" signal — the
+ * gateway evicted a session we still think is live. A bare 404 is not
+ * enough on its own: some `tools/call` requests are mutating (a transfer, a
+ * deposit), and this same 404 status covers a genuinely unrelated failure
+ * (a bad path, a server misconfiguration) too. Retrying THAT would replay
+ * the call — the message must also name the session, matching the exact
+ * wording this repo's own MCP servers use (`{"error":"Unknown or expired
+ * MCP-Session-Id..."}`), not just the status code. Flagged by review of
+ * PR #2348. */
 function isExpiredSessionError(err) {
-  return err && err.httpStatus === 404;
+  return Boolean(err && err.httpStatus === 404 && /session/i.test(err.message) && /expired|unknown/i.test(err.message));
 }
 
 // A session can go stale between calls (server-side eviction) — the first

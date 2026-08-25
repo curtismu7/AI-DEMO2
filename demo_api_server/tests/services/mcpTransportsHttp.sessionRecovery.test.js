@@ -180,4 +180,26 @@ describe('mcpTransports/http session recovery', () => {
     expect(bToolsListCall[2].headers['Authorization']).toBe('Bearer admin-b-token');
     expect(bToolsListCall[2].headers['Mcp-Session-Id']).toBe('sid-admin-b');
   });
+
+  it('does not retry on a 404 unrelated to session expiry, so a mutating tool call is never replayed', async () => {
+    // A bare httpStatus === 404 is not a safe retry trigger on its own: this
+    // same status covers genuinely unrelated failures (a bad path, a
+    // misconfigured server), and callTool() can wrap a MUTATING request
+    // (a transfer, a deposit) — replaying that on an unrelated 404 would
+    // double the side effect. Flagged in review of PR #2348.
+    const { transport, axios } = freshTransport();
+    const unrelatedNotFound = new Error('MCP HTTP 404: Not Found');
+    unrelatedNotFound.code = 'mcp_http_error';
+    unrelatedNotFound.httpStatus = 404;
+
+    axios.post
+      .mockResolvedValueOnce(jsonRpcResponse({ protocolVersion: '2024-11-05' }, { sessionId: 'sid-1' }))
+      .mockResolvedValueOnce({ status: 202, headers: {}, data: '' })
+      .mockRejectedValueOnce(unrelatedNotFound);
+
+    await expect(transport.callTool(profile, 'create_transfer', { amount: 500 })).rejects.toThrow('MCP HTTP 404: Not Found');
+    // 2 (handshake) + 1 (the one failed call) = 3 — no reset, no retry, no
+    // second tools/call that would double-execute the transfer.
+    expect(axios.post).toHaveBeenCalledTimes(3);
+  });
 });
