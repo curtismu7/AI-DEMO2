@@ -19,7 +19,7 @@ cp lmstudio/mcp.json ~/.lmstudio/mcp.json   # then restart LM Studio
 
 Direct doors just work. The three doors that cross an authorization boundary
 (`agent-gateway`, `agentless-mcpgw`, `agent-mcpgw`) go through the BFF's recording
-façade, `https://api.ping.demo:3001/mcp-facade/<door>/mcp` (`demo_api_server/routes/mcpFacade.js`,
+façade, `https://localhost:3001/mcp-facade/<door>/mcp` (`demo_api_server/routes/mcpFacade.js`,
 the client-agnostic half of `docs/superpowers/specs/2026-08-24-librechat-embedded-mcp-trace-design.md`).
 It relays every call unchanged, records the hops on the transaction ledger, and appends one
 extra block to every tool result:

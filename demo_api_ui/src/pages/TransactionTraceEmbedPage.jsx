@@ -112,7 +112,7 @@ export default function TransactionTraceEmbedPage() {
 
       {request ? (
         <section className="ttrace-detail" data-testid="embed-mcp">
-          <details open>
+          <details>
             <summary>
               <strong>Tools</strong> {tools ? `(${tools.length})` : "— not listed in this session"}
             </summary>
