@@ -128,7 +128,7 @@ Local LLM Proxy, model `gpt-oss-20b`, tools = `get_my_accounts` only, asked
 privilege · 3.3s" and replied with a masked account number and balance from
 the gateway.
 
-### [ ] 2026-08-24 — Agent Gateway HTTP `/mcp` advertises a protocol version it then rejects (`MCP-Protocol-Version` mismatch)
+### [x] 2026-08-24 — Agent Gateway HTTP `/mcp` advertises a protocol version it then rejects (`MCP-Protocol-Version` mismatch)
 
 **Where:** `demo_mcp_gateway/src/server/GatewayServer.ts` HTTP `/mcp` path — the `initialize`
 reply relays the upstream mcp-server's `protocolVersion` (`2026-07-28` observed live) while the
@@ -146,6 +146,16 @@ the `agent-gateway` door (`demo_api_server/routes/mcpFacade.js`, `dropProtocolHe
 
 **Real fix:** the gateway should advertise in `initialize` the version it actually enforces
 (or accept the version it advertised), then drop `dropProtocolHeader` from the façade.
+
+**RESOLVED (branch `worktree-fix-gateway-protocol-version`):** took the "accept the version it
+advertised" half — `demo_mcp_gateway/src/server/GatewayServer.ts`'s legacy per-request
+`MCP-Protocol-Version` check now validates against `SUPPORTED_PROTOCOL_VERSIONS` (already
+`['2025-11-25', '2026-07-28']`, the same list the Modern `_meta`-based check next to it already
+used) instead of the single `MCP_PROTOCOL_VERSION` constant. `MCP_PROTOCOL_VERSION` is untouched
+— it's still what the gateway sends on its own hop to the upstream mcp-server, a separate
+concern. Removed `dropProtocolHeader` from `demo_api_server/routes/mcpFacade.js` now that the
+gateway accepts the header it echoes back, so the `agent-gateway` door forwards
+`MCP-Protocol-Version` like every other door.
 
 ### [ ] 2026-08-24 — `k8s/create-secrets.sh` never falls back to the internal vault, so a vault-only secret silently never reaches the SE K8s Secret
 

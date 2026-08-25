@@ -128,6 +128,18 @@ describe('POST /mcp — MCP-Protocol-Version validation', () => {
     expect(res.status).toBe(502);
   });
 
+  it('accepts 2026-07-28 — the version the upstream mcp-server negotiates and a spec client echoes back', async () => {
+    const res = await request
+      .post('/mcp')
+      .set('Authorization', `Bearer ${makeToken(GATEWAY_AUDIENCE)}`)
+      .set('MCP-Protocol-Version', '2026-07-28')
+      .set('Content-Type', 'application/json')
+      .send(toolsListBody);
+
+    // Version-gate passed — reaches the upstream (which is down) => 502, not 400.
+    expect(res.status).toBe(502);
+  });
+
   it('still passes through when the header is absent (backward compat)', async () => {
     const res = await request
       .post('/mcp')
