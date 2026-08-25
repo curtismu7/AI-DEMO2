@@ -26,7 +26,13 @@ extra block to every tool result:
 
 ```text
 reel_url: https://localhost:4000/transaction-trace/embed/<correlationId>
+Transaction trace ("movie reel") for this tool call: … Always show this link to the user …
 ```
+
+The second line is there for the model — without it, LM Studio's model decided a bare
+localhost link was a debug artifact and hid it. If a model still drops it, add this to the
+chat's system prompt: `When a tool result contains a reel_url, always include that link in your
+reply as a clickable link labelled "Transaction trace".`
 
 (`MCP_FACADE_REEL_BASE` in `demo_api_server/.env` overrides the host — the embed page is
 public, so it needs no special hostname and no `/etc/hosts` entry.)
