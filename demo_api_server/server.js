@@ -1387,6 +1387,11 @@ app.use('/internal', require('./routes/mcpAuditIngest'));
 // per phase here so the BFF can assemble the full chain. Secret-guarded;
 // NOT browser-facing. Read back at /api/transaction-trace.
 app.use('/internal', require('./routes/transactionHopIngest'));
+// Recording façade for external MCP clients (LM Studio, LibreChat) — relays to
+// the Agent Gateway / Privilege doors, writes the hops above in-process, and
+// appends a reel_url to every tool result. No session: the client brings its
+// own bearer. Read back at /api/transaction-trace/embed/:correlationId.
+app.use('/mcp-facade', require('./routes/mcpFacade'));
 // Gateway-only vault-key bridge — IG fetches demo backend API keys (X-API-Key)
 // from here at request time. Secret-guarded + allow-listed; NOT browser-facing.
 app.use('/internal', require('./routes/vaultServiceKey'));
@@ -1453,6 +1458,10 @@ app.use('/api/token-chain', authenticateToken, tokenChainRoutes);
 app.use('/api/token-exchanges', authenticateToken, tokenExchangeLogRouter);
 // Transaction chain of custody — read side. Any logged-in user, matching the
 // accessibility of its Telemetry sibling (the Tracing page).
+// Compact reel for one external-door call (routes/mcpFacade.js mints the id).
+// Mounted BEFORE the authenticated read side: it is opened from a client with
+// no BFF session (an LM Studio reel_url link, a LibreChat artifact iframe).
+app.use('/api/transaction-trace/embed', require('./routes/transactionTraceEmbed'));
 app.use('/api/transaction-trace', authenticateToken, require('./routes/transactionTrace'));
 app.use('/api/token-display', authenticateToken, tokenDisplayRoutes);
 // The tracker dual-writes every /api/* call into a shared __global__ bucket that
@@ -1582,17 +1591,6 @@ app.get('/.well-known/openid-configuration', (_req, res) => {
   res.json(enterpriseIdpRoutes.buildDiscoveryDocument());
 });
 
-// Seed (or re-read, if env-overridden) the demo client external EMA clients
-// register with — logged once so an operator can paste it into MCP
-// Inspector's Client Settings dialog without hand-editing storage.
-{
-  const enterpriseIdpClientRegistry = require('./services/enterpriseIdpClientRegistry');
-  const inspectorClient = enterpriseIdpClientRegistry.getSeededInspectorClient();
-  console.log(
-    `[enterpriseIdp] Seeded EMA client for MCP Inspector — client_id=${inspectorClient.client_id} ` +
-    `client_secret=${inspectorClient.client_secret} redirect_uri=${inspectorClient.redirect_uris[0]}`,
-  );
-}
 const spiffeDemoRoutes = require('./routes/spiffeDemo');
 app.use('/api/demo/spiffe', spiffeDemoRoutes);
 const dpopDemoRoutes = require('./routes/dpopDemo');
@@ -2535,6 +2533,26 @@ process.on('uncaughtException', (err) => {
  * logged as warnings and never block requests (WR-22/WR-25).
  */
 async function runBackgroundStartupTasks() {
+    // ── EMA seeded Inspector client ───────────────────────────────────────────
+    // getSeededInspectorClient() reads client_id/client_secret via
+    // configStore.getEffective(), which only sees vault-loaded values once
+    // loadVaultIntoConfigStore() has run — this function is called from
+    // inside app.listen's callback specifically so that's already true (see
+    // the WR-22/WR-25 note below). Calling this at module scope instead (as
+    // it originally was) memoised a random fallback before the vault ever
+    // loaded, permanently shadowing the pinned client_secret for the life of
+    // the process.
+    try {
+        const enterpriseIdpClientRegistry = require('./services/enterpriseIdpClientRegistry');
+        const inspectorClient = enterpriseIdpClientRegistry.getSeededInspectorClient();
+        console.log(
+            `[enterpriseIdp] Seeded EMA client for MCP Inspector — client_id=${inspectorClient.client_id} ` +
+            `client_secret=${inspectorClient.client_secret} redirect_uri=${inspectorClient.redirect_uris[0]}`,
+        );
+    } catch (err) {
+        console.warn('[enterpriseIdp] Inspector client seed failed (non-fatal):', err.message);
+    }
+
     // ── LMDB OAuth endpoint sync ──────────────────────────────────────────────
     // Sync OAuth endpoints from .env into LMDB. If LMDB has stale cached values
     // (e.g., old authz-server:9001 from a prior run), overwrites them with correct

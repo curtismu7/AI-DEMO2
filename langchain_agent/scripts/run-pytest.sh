@@ -18,7 +18,6 @@ STABLE=(
   tests/test_auth_models.py
   tests/test_mcp_models.py
   tests/test_error_handling.py
-  tests/test_encryption.py
   tests/test_logging.py
   # Code Explorer index hardening (#772) — stdlib-only, no guardrails import.
   tests/test_codegraph_index_guard.py

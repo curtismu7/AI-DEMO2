@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "ping-banking": {
+      "url": "https://cmuir-mcp.ping-devops.com/mcp"
+    },
+    "agentless-mcpgw": {
+      "url": "https://localhost:3001/mcp-facade/agentless/mcp"
+    },
+    "agent-mcpgw": {
+      "url": "https://localhost:3001/mcp-facade/agent/mcp"
+    },
+    "agent-gateway": {
+      "url": "https://localhost:3001/mcp-facade/agent-gateway/mcp"
+    },
+    "opensearch-direct": {
+      "url": "http://localhost:9900/mcp"
+    }
+  }
+}

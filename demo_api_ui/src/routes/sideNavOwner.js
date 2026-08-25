@@ -25,7 +25,10 @@ export function isNoChromeRoute(pathNorm) {
     // Personal-agent pop-out client window: bare route, no nav shell (App.js
     // route comment) — was missing from this list, so signed-in users got the
     // full global sidebar inside the popup.
-    pathNorm === "/personal-agent/client"
+    pathNorm === "/personal-agent/client" ||
+    // Embedded movie reel opened from an external MCP client's reel_url (LM
+    // Studio link / LibreChat iframe): bare page, no chrome, no FAB.
+    pathNorm.startsWith("/transaction-trace/embed/")
   );
 }
 

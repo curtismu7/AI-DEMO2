@@ -1,13 +1,16 @@
 'use strict';
 
+jest.mock('../../services/configStore', () => ({ getEffective: jest.fn(() => '') }));
+
+const configStore = require('../../services/configStore');
 const registry = require('../../services/enterpriseIdpClientRegistry');
 
 describe('enterpriseIdpClientRegistry', () => {
   const ORIG = { ...process.env };
   beforeEach(() => {
     registry.resetForTests();
-    delete process.env.ENTERPRISE_IDP_INSPECTOR_CLIENT_ID;
-    delete process.env.ENTERPRISE_IDP_INSPECTOR_CLIENT_SECRET;
+    configStore.getEffective.mockReset();
+    configStore.getEffective.mockReturnValue('');
     delete process.env.ENTERPRISE_IDP_INSPECTOR_REDIRECT_URIS;
   });
   afterEach(() => { process.env = { ...ORIG }; registry.resetForTests(); });
@@ -33,10 +36,12 @@ describe('enterpriseIdpClientRegistry', () => {
     expect(registry.getClient(client.client_id)).toMatchObject({ client_id: client.client_id });
   });
 
-  test('honours ENTERPRISE_IDP_INSPECTOR_CLIENT_ID/SECRET env override for the seeded client', () => {
-    process.env.ENTERPRISE_IDP_INSPECTOR_CLIENT_ID = 'fixed-id';
-    process.env.ENTERPRISE_IDP_INSPECTOR_CLIENT_SECRET = 'fixed-secret';
-    registry.resetForTests();
+  test('honours configStore enterprise_idp_inspector_client_id/secret for the seeded client (env + vault backed)', () => {
+    configStore.getEffective.mockImplementation((k) => {
+      if (k === 'enterprise_idp_inspector_client_id') return 'fixed-id';
+      if (k === 'enterprise_idp_inspector_client_secret') return 'fixed-secret';
+      return '';
+    });
     const client = registry.getSeededInspectorClient();
     expect(client.client_id).toBe('fixed-id');
     expect(client.client_secret).toBe('fixed-secret');
