@@ -42,6 +42,7 @@ Edit→test→commit only in an **isolated git worktree** — concurrent session
 | Test | `./run-tests.sh unit` (fastest); `./run-tests.sh [api\|e2e\|all]`; `npm test` |
 | Hygiene | `npm run topology:verify`, `npm run hygiene:check`, `npm run authz:verify` |
 | LLM proxy | `:8090` via `demo_llm_proxy/` (`LLM_BACKEND=llamacpp` default; `omlx` on Apple Silicon) |
+| Monitoring | Grafana `/grafana` (login required) over Prometheus, scraping PingGateway's admin connector. Config in `monitoring/`, one copy shared by Docker and k8s. Alert rules evaluate but **route nowhere — no Alertmanager**. Set `GRAFANA_ADMIN_PASSWORD` before `create-secrets.sh`; it is internet-facing. |
 
 PingOne lifecycle (`setup:fresh`, `pingone:bootstrap`, import/export/reset) mutates a live environment — read the script before running. Prefer hosted PingOne MCP tools for app/population/user reads during development.
 

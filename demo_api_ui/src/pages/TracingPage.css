@@ -132,6 +132,72 @@
   font-size: 13px;
 }
 
+/* GatewayMcpMetrics — PingGateway's own counters, collapsed by default so the
+   page still opens on the trace list. Literal colors match this file's
+   convention rather than introducing theme tokens it does not otherwise use. */
+.gw-metrics {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 12px 16px;
+  margin-bottom: 24px;
+}
+
+.gw-metrics > summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: #374151;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.gw-metrics-hint {
+  font-weight: 400;
+  color: var(--tracing-muted, #6b7280);
+  font-variant-numeric: tabular-nums;
+}
+
+.gw-metrics-note {
+  color: var(--tracing-muted, #6b7280);
+  font-size: 12px;
+  margin: 10px 0 0;
+}
+
+.gw-metrics-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-top: 12px;
+  display: block;
+  overflow-x: auto;
+}
+
+.gw-metrics-table caption {
+  text-align: left;
+  font-weight: 600;
+  color: #374151;
+  padding-bottom: 6px;
+}
+
+.gw-metrics-table th {
+  text-align: left;
+  padding: 8px 12px;
+  background: #f3f4f6;
+  color: #374151;
+  font-weight: 600;
+  border-bottom: 1px solid #e5e7eb;
+  white-space: nowrap;
+}
+
+.gw-metrics-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #f3f4f6;
+  color: #111827;
+  font-variant-numeric: tabular-nums;
+}
+
 .tracing-table-wrap {
   overflow-x: auto;
   border: 1px solid #e5e7eb;
