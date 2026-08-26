@@ -180,6 +180,19 @@ const FLAG_REGISTRY = [
     defaultValue: true,
   },
 
+  {
+    id:           'ff_autonomous_agents',
+    name:         'Autonomous Agents',
+    category:     'Observability',
+    description:
+      'Let an agent run without a human turn. A scheduled job authenticates as the agent itself ' +
+      '(client_credentials — sub = agent, no act claim, because nobody delegated it) and records ' +
+      'the run so its token chain can be replayed. Viewable at Autonomous Agents.',
+    impact:       'ON = the scheduled job is registered and unattended runs happen. OFF = nothing is scheduled, no run can be started, and the page says so.',
+    type:         'boolean',
+    defaultValue: false,
+  },
+
   // ── MCP Server ─────────────────────────────────────────────────────────────
   {
     id:           'mcp_use_legacy_protocol',

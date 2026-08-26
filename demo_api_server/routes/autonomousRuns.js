@@ -7,15 +7,46 @@
  * run's token events are stored instead, and the UI hands them to the same
  * store the live path uses.
  *
- * Auth: authenticateToken, applied at the mount. An unattended run has no user
- * to own it — its principal is the agent — so there is no per-user ownership
- * filter here the way /api/transaction-trace has one. Any signed-in user can
- * see that the demo's scheduled agent ran and what it found.
+ * Auth: PUBLIC — no sign-in, by explicit decision, so the Autonomous Agents
+ * page can be opened and driven without a session. An unattended run has no
+ * user to own it (its principal is the agent), so there is no per-user
+ * ownership filter here the way /api/transaction-trace has one.
+ *
+ * What that exposes, stated plainly because it is a deliberate hole: anyone who
+ * can reach this host can read every unattended run, start one, and switch the
+ * feature on. The one narrowing applied is that /flag writes ONLY
+ * ff_autonomous_agents — a public write to arbitrary flags was never asked for
+ * and is not offered. Every other flag still requires the admin gate on
+ * /api/admin/feature-flags.
  */
 const express = require('express');
 const router = express.Router();
 const runStore = require('../services/lmdb/autonomousRunStore.lmdb');
 const scheduler = require('../services/autonomousAgentScheduler');
+const configStore = require('../services/configStore');
+
+/** The only flag this public route may write. */
+const FLAG = 'ff_autonomous_agents';
+
+// Flag read/write sits BEFORE the feature gate below: you cannot turn the
+// feature on through a route that refuses to answer while it is off.
+router.get('/flag', (req, res) => {
+  res.json({ flag: FLAG, enabled: scheduler.isEnabled() });
+});
+
+router.post('/flag', async (req, res) => {
+  const { enabled } = req.body || {};
+  if (typeof enabled !== 'boolean') {
+    return res.status(400).json({ error: 'enabled_must_be_boolean' });
+  }
+  try {
+    // setRaw takes a map, not (key, value) — see configStore.js:1407.
+    await configStore.setRaw({ [FLAG]: String(enabled) });
+    res.json({ flag: FLAG, enabled: scheduler.isEnabled() });
+  } catch (err) {
+    res.status(500).json({ error: 'flag_write_failed', message: err.message });
+  }
+});
 
 // The feature being off means no run should exist and none should be startable.
 // Reporting the feature state beats an empty list that reads like "it ran and

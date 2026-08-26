@@ -87,6 +87,7 @@
     "/accounts": "public",
     "/activity": "public",
     "/actor-token-education": "public",
+    "/autonomous-agents": "public",
     "/admin": "admin",
     "/admin/abercrombie-fitch": "admin",
     "/admin/banking": "admin",
