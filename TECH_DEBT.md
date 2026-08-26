@@ -101,7 +101,24 @@ production shape: no dedicated key plus a ciphertext `SESSION_SECRET`). RED-prov
 removing the guard fails 3 of 5. Full BFF suite 10,273 passed, 1 known flake
 (`mcpFacade`) that passes scoped.
 
-**Not done:** the demo-check parity probe suggested above. The guard catches the
+**Parity probe SHIPPED 2026-08-26 (branch `worktree-intent-key-parity-check`).**
+`services/checks/intentTokenKeyCheck.js` (`intent.key_parity`, Agent Gateway,
+blocking) compares the BFF's effective key against BOTH gateway env files through
+the `/repo` mount and reports by SHA-256 digest — key material never reaches a
+posture line. It distinguishes all four states seen here: peer with NO key
+("no_signing_key"), peer with a DIFFERENT key (the silent `invalid_signature`),
+a ciphertext BFF key (fails before comparing anything), and parity held only via
+the `SESSION_SECRET` fallback (warn — it works, but hands a gateway the
+browser-session key).
+
+It carries a vacuity guard, added because the first live run tripped it: run
+outside the container `/repo` is absent, neither peer file is readable, and it
+reported **`pass` having compared nothing** — the same shape of green-that-proves-
+nothing this whole entry is about. Now that case is `warn`. Verified live inside
+the BFF container: `pass — dedicated INTENT_TOKEN_SECRET, digest 33d0…, matches
+2/2 gateways`. 8 tests.
+
+**Still not done:** the guard catches the
 ciphertext case at the source, which is what actually happened; a BFF-vs-gateway
 key-parity check is still worth adding. And `SESSION_SECRET` in
 `demo_api_server/.env` is still configStore ciphertext — harmless for sessions (a
