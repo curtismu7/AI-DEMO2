@@ -434,7 +434,7 @@ fallback. RED-proven: replacing the memo with a plain IIFE fails 2 of 8.
 Full UI gate green — 3467 unit tests passed (434 files), `npm run build` exit 0.
 Run unscoped on purpose: this hook is called by nearly every screen.
 
-### [x] 2026-08-23 — native ID-JAG: PingGateway's own D-05 still blocks the real tool call even when the OLB-audience pin should redirect it
+### [ ] 2026-08-23 — native ID-JAG: PingGateway's own D-05 still blocks the real tool call even when the OLB-audience pin should redirect it
 
 Live E2E verification of PR #2268 (native ID-JAG gateway filter — mint → redeem
 → tool call) surfaced this while checking whether the redeemed, OLB-audienced
@@ -620,6 +620,57 @@ pin-could-not-move case keeps the mode audience. RED-proven: removing
 `pinnedAud ||` fails 2 of 5. Neighbouring classifier specs green
 (`mcpGatewayClient.reauth`, `attackSimulator.wrongAudFields`). Full BFF suite
 10,251 passed, 2 worker-contention flakes that pass scoped and touch neither file.
+
+**RE-OPENED 2026-08-26 — D-05 IS REAL AND IS NOW THE BLOCKER.** Ticking this
+`[x]` above was premature: the `expectedAud` fix was necessary and correct, but it
+unblocked the request rather than the feature. With all four blockers cleared the
+chain finally reaches the exact symptom this entry recorded on 2026-08-23:
+
+```
+bypass_attempt: token aud targets upstream mcpserver.ping.demo
+— cannot bypass gateway (D-05)
+```
+
+**Everything before the policy now works**, from the live gateway audit trail:
+
+| step | result |
+|---|---|
+| BFF destination | `http://mcp-gateway:3005/mcp` — the pin fired |
+| `TokenKidKnown` | `true` — the issuer/JWKS fix works |
+| `TokenIss` | `http://localhost:8080` — ID-JAG issuer recognised |
+| `TokenIntrospection` | skipped |
+| `GatewayTokenPolicy` | **passed** — the gateway's OWN D-05 equivalent is fine |
+| `P1AZDecision` | **blocked** — `denyingFilter` |
+
+So the entry's framing was wrong in one respect: it blamed *PingGateway's* Groovy
+D-05. The call never reaches PingGateway. The denial comes from the **P1AZ policy**
+(`engine: mock`, `policySource: p1az-mock`) evaluated by the NODE gateway.
+
+**The actual conflict is a design one.** Native ID-JAG deliberately mints a token
+audienced for the upstream MCP server (`resolveOwnAudience` — the AS may assert no
+other audience). D-05 treats exactly that audience as evidence of an attempted
+gateway bypass. Both are working as designed and they are mutually exclusive: no
+amount of routing or config makes an ID-JAG bearer satisfy D-05 as written.
+
+**There is precedent for the resolution.** PR #2400 ("exempt the external door
+from the actor-chain and D-05 rules") already carved out a caller that legitimately
+carries a non-gateway audience. An ID-JAG bearer is identifiable the same way — by
+`TokenIss` equal to the embedded AS issuer, which the audit trail already records
+and which the gateway already verifies cryptographically against oauth-mcp's JWKS
+before the policy runs.
+
+**Not done here, on purpose.** D-05 is an anti-bypass control; narrowing it is a
+security decision, not a bug fix, and per
+[[p1az-mock-is-authored-policy]] a mock-engine DENY is authored policy — the real
+change belongs in the P1AZ policy source, with the cloud snapshot kept in step.
+Whoever takes it should gate the exemption on the verified `TokenIss`, never on the
+audience alone, or D-05 stops meaning anything.
+
+**Unrelated, found in the same trail:** `IntentTokenValid: false` /
+`IntentTokenError: no_signing_key` — the gateway cannot verify the intent token the
+BFF mints (`[GW] Intent Token: INVALID (no_signing_key)`). It does not affect this
+denial (P1AZ blocked first) but it is a second missing-key wiring gap of the same
+family as the ID-JAG issuer one.
 
 **Also worth noting:** this whole path is arguably incoherent as configured —
 the ID-JAG is minted FOR the PingGateway resource, but oauth-mcp always redeems
