@@ -1,0 +1,79 @@
+# Alert rules for the MCP doors.
+#
+# These deliberately do NOT use ig_mcp_error_total. That counter misses requests
+# whose JSON-RPC envelope fails schema validation (see TECH_DEBT.md) — exactly
+# the traffic worth alerting on. ig_route_response_status_total counts every
+# response the gateway sent, including the rejections the MCP counter drops, so
+# these rules see the whole picture.
+#
+# NOTE: there is no Alertmanager in this stack. Rules evaluate and show as
+# pending/firing in Prometheus and in Grafana's alert-rule views, but nothing is
+# routed anywhere — no email, no Slack, no paging. Adding Alertmanager is a
+# separate decision; this gives the signal a home without pretending to notify.
+#
+# Thresholds are ratios, not counts, for a specific reason: a 401 on the external
+# door is NORMAL. Spec-following MCP clients discover the auth server by making
+# an unauthenticated request and reading the RFC 9728 challenge, so every healthy
+# client session starts with a rejection. Measured on the live door:
+# client_error 12 vs successful 13 — near 1:1 with everything working. Any
+# "client_error > 0" rule would fire permanently and be muted within a day.
+
+groups:
+  - name: mcp-doors
+    interval: 30s
+    rules:
+      # Fires when a door stops letting anyone through, rather than when it
+      # rejects anyone at all. The traffic floor keeps a single failed probe on
+      # an idle door from tripping it.
+      - alert: McpDoorMostlyRejecting
+        expr: |
+          (
+            sum by (route) (increase(ig_route_response_status_total{family="client_error", route=~".*mcp.*"}[10m]))
+            /
+            sum by (route) (increase(ig_route_response_status_total{route=~".*mcp.*"}[10m]))
+          ) > 0.8
+          and
+          sum by (route) (increase(ig_route_response_status_total{route=~".*mcp.*"}[10m])) >= 10
+        for: 10m
+        labels:
+          severity: warning
+          component: pinggateway
+        annotations:
+          summary: "MCP door {{ $labels.route }} is rejecting almost everything"
+          description: >-
+            Over 80% of responses on {{ $labels.route }} were 4xx for 10 minutes,
+            across at least 10 requests. Some 401s are expected (RFC 9728
+            discovery), so this means clients are failing to get past auth, not
+            merely being challenged. Check the P1AZ policy and the door's
+            expected audience before assuming a client bug.
+
+      # 5xx is never part of a healthy flow — no ratio, no tolerance.
+      - alert: McpDoorServerError
+        expr: sum by (route) (increase(ig_route_response_status_total{family="server_error", route=~".*mcp.*"}[5m])) > 0
+        for: 5m
+        labels:
+          severity: critical
+          component: pinggateway
+        annotations:
+          summary: "MCP door {{ $labels.route }} returned 5xx"
+          description: >-
+            {{ $labels.route }} returned server errors in the last 5 minutes.
+            Unlike a 4xx, nothing in the normal MCP flow produces one — check the
+            gateway log and whether the upstream MCP server is reachable.
+
+  - name: pinggateway-health
+    interval: 30s
+    rules:
+      # If this fires, every other panel and rule here is blind rather than calm.
+      - alert: PingGatewayMetricsDown
+        expr: up{job="pinggateway"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: pinggateway
+        annotations:
+          summary: "PingGateway admin connector is not answering"
+          description: >-
+            Prometheus cannot scrape ping-gateway:8085. The gateway may be down,
+            or its admin connector may have stopped while routes keep serving —
+            check the pod before trusting an all-quiet dashboard.

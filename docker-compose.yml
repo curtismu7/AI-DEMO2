@@ -64,6 +64,55 @@ services:
       - COLLECTOR_OTLP_ENABLED=true
     networks:
       - ai-demo
+
+  # Prometheus + Grafana read the metrics PingGateway already publishes on its
+  # admin connector (:8085). Unprofiled, same as jaeger above: observability is
+  # part of the default stack rather than something to remember to switch on.
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: ai-demo-prometheus
+    mem_limit: 1g
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=24h
+      - --web.enable-lifecycle
+    ports:
+      - "9090:9090"
+    volumes:
+      # The same file k8s/create-secrets.sh turns into the prometheus-config
+      # ConfigMap — one copy in the repo, both targets read it.
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+    networks:
+      - ai-demo
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    container_name: ai-demo-grafana
+    mem_limit: 512m
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    ports:
+      - "3000:3000"
+    environment:
+      # Served on its own origin locally, so no sub-path here (k8s puts it
+      # under /grafana/ behind nginx).
+      - GF_SERVER_ROOT_URL=http://localhost:3000/
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-ai-demo-grafana}
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    networks:
+      - ai-demo
+
   demo-api-server:
     build:
       context: .    # repo root — BFF references scope-topology.json and docs/ from ../../

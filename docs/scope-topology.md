@@ -307,6 +307,12 @@ Type: `WEB_APP`  ·  Grants: `client_credentials`, `token_exchange`
 
 Granted scopes: `read`, `pnr:read`
 
+### Super Banking Fraud Watch Agent
+
+Type: `WEB_APP`  ·  Grants: `client_credentials`
+
+Granted scopes: `read`
+
 ### Super Banking Agent
 
 Type: `WORKER`  ·  Grants: `client_credentials`

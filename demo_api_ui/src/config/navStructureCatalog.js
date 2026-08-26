@@ -78,6 +78,7 @@ export const NAV_STRUCTURE_CATALOG = [
     label: "PingOne Demo Apps",
     children: [
       "Self-Service Registration",
+      "M2M Client Credentials",
       "PingOne Test",
       "MFA Test",
       "Token Exchange Tester",
