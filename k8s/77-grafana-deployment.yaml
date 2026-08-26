@@ -60,6 +60,12 @@ spec:
               value: "$(PUBLIC_APP_URL)/grafana/"
             - name: GF_SERVER_SERVE_FROM_SUB_PATH
               value: "true"
+            # Jaeger datasource URL — differs by target. Here QUERY_BASE_PATH
+            # is /jaeger (k8s/73), and Jaeger answers the ROOT /api/services
+            # with its HTML shell and a 200, which Grafana would accept as a
+            # working datasource that never returns a trace.
+            - name: JAEGER_QUERY_URL
+              value: "http://jaeger:16686/jaeger"
             - name: GF_SECURITY_ADMIN_USER
               valueFrom:
                 secretKeyRef:

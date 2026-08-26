@@ -101,6 +101,9 @@ services:
       # Served on its own origin locally, so no sub-path here (k8s puts it
       # under /grafana/ behind nginx).
       - GF_SERVER_ROOT_URL=http://localhost:3000/
+      # No QUERY_BASE_PATH on the compose jaeger above, so no /jaeger suffix
+      # here — k8s sets one and needs it. See provisioning/datasources/jaeger.yml.
+      - JAEGER_QUERY_URL=http://jaeger:16686
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-ai-demo-grafana}
       - GF_AUTH_ANONYMOUS_ENABLED=false
