@@ -26,6 +26,7 @@ describe('jitCredentialBroker.mintCredential', () => {
     const minted = await broker.mintCredential({
       keyName: 'DEMO_API_RESOURCE_SERVER_KEY',
       tool: 'show_mortgage',
+      aud: 'mortgage',
       requester: 'ping-gateway',
     });
 
@@ -38,10 +39,36 @@ describe('jitCredentialBroker.mintCredential', () => {
     expect(claims.iss).toBe('bff-broker');
   });
 
+  // The backend gates on `aud` (its own route segment) rather than `tool`,
+  // because it always knows its own route and so needs no route->tool table --
+  // including for routes it loads from feature-records.generated.json.
+  test('binds the credential to the backend route via aud', async () => {
+    const minted = await broker.mintCredential({
+      keyName: 'DEMO_API_RESOURCE_SERVER_KEY',
+      tool: 'show_mortgage',
+      aud: 'mortgage',
+      requester: 'ping-gateway',
+    });
+
+    const claims = jwt.verify(minted.value, FAKE_BACKEND_KEY, { algorithms: ['HS256'] });
+    expect(claims.aud).toBe('mortgage');
+  });
+
+  test('refuses to mint without a route binding — an unbound credential is useless', async () => {
+    await expect(
+      broker.mintCredential({
+        keyName: 'DEMO_API_RESOURCE_SERVER_KEY',
+        tool: 'show_mortgage',
+        requester: 'ping-gateway',
+      }),
+    ).rejects.toMatchObject({ code: 'aud_required' });
+  });
+
   test('the credential expires — an already-expired one is rejected by verify', async () => {
     const minted = await broker.mintCredential({
       keyName: 'DEMO_API_RESOURCE_SERVER_KEY',
       tool: 'show_mortgage',
+      aud: 'mortgage',
       requester: 'ping-gateway',
     });
 
@@ -65,6 +92,7 @@ describe('jitCredentialBroker.mintCredential', () => {
     const minted = await broker.mintCredential({
       keyName: 'DEMO_API_RESOURCE_SERVER_KEY',
       tool: 'show_mortgage',
+      aud: 'mortgage',
       requester: 'ping-gateway',
     });
 
@@ -78,6 +106,7 @@ describe('jitCredentialBroker.mintCredential', () => {
       broker.mintCredential({
         keyName: 'DEMO_API_RESOURCE_SERVER_KEY',
         tool: 'show_mortgage',
+        aud: 'mortgage',
         requester: 'agent-42',
       }),
     ).rejects.toThrow(/revoked/i);
@@ -95,6 +124,7 @@ describe('jitCredentialBroker.mintCredential', () => {
       broker.mintCredential({
         keyName: 'DEMO_API_RESOURCE_SERVER_KEY',
         tool: 'show_mortgage',
+        aud: 'mortgage',
         requester: 'ping-gateway',
       }),
     ).rejects.toMatchObject({ code: 'signing_secret_unset' });

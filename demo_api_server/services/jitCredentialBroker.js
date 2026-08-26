@@ -27,13 +27,24 @@ function signingSecretFor(keyName) {
 }
 
 /**
- * Mint a credential bound to one tool and one short window.
+ * Mint a credential bound to one backend route and one short window.
  *
- * @param {{ keyName: string, tool: string, requester: string }} params
+ * @param {{ keyName: string, tool: string, aud: string, requester: string }} params
+ *   aud — the backend route segment this credential is valid for (e.g. 'mortgage').
+ *   tool — the MCP tool name, carried for audit/trace only; the backend gates on aud.
  * @returns {Promise<{ value: string, jti: string, expiresAt: number, ttlMs: number }>}
- * @throws when the requester is revoked, or the signing secret is unset
+ * @throws when the route binding is missing, the requester is revoked, or the
+ *   signing secret is unset
  */
-async function mintCredential({ keyName, tool, requester }) {
+async function mintCredential({ keyName, tool, aud, requester }) {
+  // An unbound credential would be valid against every backend route, which
+  // defeats the point. Refuse rather than mint one.
+  if (!aud) {
+    const err = new Error('Refusing to mint: no route binding (aud) supplied');
+    err.code = 'aud_required';
+    throw err;
+  }
+
   // Revocation, reusing the existing kill switch rather than inventing one.
   // Called through the module object (not a destructured reference) so a test
   // double installed on the module is always the one that runs.
@@ -55,7 +66,7 @@ async function mintCredential({ keyName, tool, requester }) {
   const jti = crypto.randomBytes(16).toString('hex');
 
   const value = jwt.sign(
-    { iss: ISSUER, sub: requester, tool, jti, iat, exp },
+    { iss: ISSUER, sub: requester, aud, tool, jti, iat, exp },
     secret,
     { algorithm: 'HS256' },
   );

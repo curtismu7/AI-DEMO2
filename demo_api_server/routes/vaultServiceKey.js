@@ -80,6 +80,10 @@ router.get('/vault/service-key', async (req, res) => {
       const minted = await jitCredentialBroker.mintCredential({
         keyName: name,
         tool: String(req.query.tool || ''),
+        // Backend route segment this credential is valid for. The broker
+        // refuses to mint without it, so a caller that forgets gets a 503
+        // rather than an unbound credential good against every route.
+        aud: String(req.query.aud || ''),
         requester: String(req.query.requester || 'gateway'),
       });
       return res.status(200).json({ name, value: minted.value, expiresAt: minted.expiresAt });
