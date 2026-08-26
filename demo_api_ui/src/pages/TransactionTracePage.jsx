@@ -1,6 +1,9 @@
 // demo_api_ui/src/pages/TransactionTracePage.jsx
 import React, { useCallback, useEffect, useState } from "react";
 import "./TransactionTracePage.css";
+// One source for how the PingGateway filters are named and explained, shared
+// with the Token Chain rail so the two surfaces cannot describe them differently.
+import { GW_STAGE_META } from "../services/tokenChainTrace/buildTraceSteps";
 
 const REFRESH_MS = 15000;
 const LIST_LIMIT = 50;
@@ -93,18 +96,24 @@ export function FilterChain({ chain, denyingFilter }) {
         // blocker. A filter reporting 'blocked' downstream of the real one
         // would double-count the failure.
         const blocked = f.filter === denyingFilter;
+        // Same labels and explanations the Token Chain rail uses. Sharing the
+        // map rather than restating it is the point: two hand-written
+        // descriptions of one filter chain drift, and the reel would otherwise
+        // show raw Java class names for filters the rail explains in English.
+        // Unknown filters fall back to the raw name, exactly as the rail does.
+        const meta = GW_STAGE_META[f.filter] || {};
+        const label = meta.label || f.filter;
+        const detail = blocked
+          ? `${label} stopped this request${f.decision ? ` (${f.decision})` : ""}`
+          : `${label}: ${f.result}${f.decision ? ` (${f.decision})` : ""}`;
         return (
           <span
             key={f.filter}
             className={`ttrace-filter ${blocked ? "blocked" : ""}`}
-            title={
-              blocked
-                ? `${f.filter} stopped this request${f.decision ? ` (${f.decision})` : ""}`
-                : `${f.filter}: ${f.result}${f.decision ? ` (${f.decision})` : ""}`
-            }
+            title={meta.note ? `${detail}\n\n${meta.note}` : detail}
           >
             {blocked ? "❌ " : ""}
-            {f.filter}
+            {label}
           </span>
         );
       })}
