@@ -22,6 +22,7 @@
     "sync:status": "bash scripts/sync-status.sh",
     "sync:unblock": "bash scripts/park-main-edits.sh",
     "serve:worktree": "bash scripts/serve-worktree.sh",
+    "stack:generation": "bash scripts/stack-generation.sh",
     "topology:verify:live": "bash scripts/topology-verify.sh && cd demo_api_server && npm run verify:scopes -- --manifest-diff",
     "test": "bash scripts/run-all-tests.sh",
     "test:api-server": "cd demo_api_server && npm test -- --forceExit",

@@ -321,7 +321,7 @@ instead of an empty array. New unit tests added in
 `oauth-mcp/src/tools/handlers/__tests__/accountNickname.test.ts` covering
 both fixes; full suite green (1079/1079) before deploy.
 
-### [ ] 2026-08-23 — `pingone_mgmt_client_id`/`_client_secret`/`_token_auth_method` are missing from `configStore.js`'s `FIELD_DEFS`
+### [x] 2026-08-23 — `pingone_mgmt_client_id`/`_client_secret`/`_token_auth_method` are missing from `configStore.js`'s `FIELD_DEFS`
 
 **Where:** `demo_api_server/services/configStore.js` — all three keys are
 referenced in `SECRET_KEYS` (the first two) and the env-alias table (all
@@ -345,6 +345,36 @@ finding #32's scope.
 `pingone_mgmt_private_key`'s `{ public: false, default: '' }` shape, adjusted
 for which of them are secrets), so any future admin-UI or route code path
 that calls `setConfig` with one of them doesn't silently no-op.
+
+**RESOLVED 2026-08-26 (branch `worktree-techdebt-small-correctness`).** All three
+registered next to `pingone_mgmt_private_key`, following the file's own
+conventions rather than that one key's shape: `client_id` `{ public: true }`
+(matching every other `*_CLIENT_ID`), `client_secret` `{ public: false }`
+(it is in `SECRET_KEYS`), and `token_auth_method`
+`{ public: true, default: 'basic' }` (matching the sibling
+`PINGONE_ADMIN_TOKEN_ENDPOINT_AUTH_METHOD`).
+
+The default was the one real decision here. `'post'` would have been wrong:
+every consumer — `pingOneClientService.js:68`, `pingOneUserService.js:71`,
+`pingoneTestRoutes.js:1072` — already reads
+`getEffective('pingone_mgmt_token_auth_method') || 'basic'`, and `getEffective`
+returns the `FIELD_DEFS` default when nothing else supplies a value. A `'post'`
+default would therefore have silently flipped the Management API worker's client
+authentication method on every deployment that doesn't set the env var. `'basic'`
+reproduces today's behaviour exactly.
+
+The entry's "latent, not currently triggered" read was re-confirmed: no
+`setConfig` call site writes any of the three today, and the basic/post self-heal
+in `pingOneTokenAuth.js` is in-memory only.
+
+Evidence: `src/__tests__/configStore.mgmtWorkerKeysSave.test.js` (5 tests) —
+`setConfig` round-trip per key, a `FIELD_DEFS` membership assertion, and a guard
+pinning the `'basic'` default to the consumers' fallback. It clears the env
+aliases first, since `getEffective` reads those ahead of the defaults and would
+otherwise mask what the spec asserts. RED-proven: removing the three entries
+fails 4 of 5. Full BFF suite green — 10,224 passed, 1 pre-existing environment
+failure (`anthropic.lmstudio.live.test.js`, `getaddrinfo ENOTFOUND
+api.ping.demo`; that host is absent from this machine's `/etc/hosts`).
 
 ### [x] 2026-08-23 — `useVertical()` reshapes the context into a new object on every call, defeating the Provider's own memoization
 
@@ -456,7 +486,7 @@ earlier in the flow.
    `mcpToolPipeline.js`-supplied first argument) is literally what's
    expected, not a value that predates trimming/normalization.
 
-### [ ] 2026-08-23 — a real HTTP request into `/api/agent/run` can arrive with `req.headers.cookie` empty while `req.session.user` is populated, breaking the native-ID-JAG mint for that turn
+### [x] 2026-08-23 — a real HTTP request into `/api/agent/run` can arrive with `req.headers.cookie` empty while `req.session.user` is populated, breaking the native-ID-JAG mint for that turn
 
 Same live-verification session as the entry above. `services/idJagService.js`'s
 `mintIdJag(req, ...)` forwards `req.headers.cookie` on its loopback POST to
@@ -517,6 +547,31 @@ obvious shared-mutable-state culprit spotted on read-through.
    `mintIdJag` to find exactly where `req.headers.cookie` stops being the
    original value.
 
+**RESOLVED — was already fixed when this entry was written; verified 2026-08-26.**
+PR #2281 (`0e407dbf`, merged 2026-08-23 14:53, ~4 hours after this entry was
+recorded at 11:07) fixed it and nobody came back to tick the box. The answer to
+the entry's own question 1 turned out to be "neither frontend nor backend loss":
+the follow-up turn does not arrive as a browser request at all. It comes through
+the `/internal/agent-tool` callback (`routes/agentTool.js:99`), which resolves
+the session server-side via `sessionStore.get()` and builds a synthetic `fakeReq`
+carrying `sessionID` but **no `headers` object whatsoever** — hence
+`outerHasUser: true, outerCookieLen: 0`, and hence "follow-up turns only, never
+the first". The entry's premise ("a real HTTP request into `/api/agent/run`")
+was the wrong frame; the duplicate-dispatch lead was a red herring.
+
+`idJagService.cookieHeader(req)` now re-signs a `connect.sid` from `req.sessionID`
+using express-session's own format when no real header exists. Verified today:
+the re-sign uses `process.env.SESSION_SECRET || 'dev-session-secret-change-in-production'`,
+character-for-character the expression `server.js:470` configures the session
+middleware with, so the loopback cookie validates against the same secret.
+`src/__tests__/idJagService.cookieForward.test.js` — 3 passed (real header
+forwarded unchanged / re-signed from sessionID / empty when neither exists), with
+the unsign algorithm re-implemented independently of the code under test.
+
+The entry's "what it is NOT" worry — that any other loopback cookie-forwarder is
+exposed to the same gap — does not materialise: `idJagService.js` is the only
+one. `authStateCookie.js` and `pkceStateCookie.js` read inbound browser cookies
+(different question) and `server.js:958` only counts cookie names.
 ### [x] 2026-08-23 — native ID-JAG gateway filter (PR #2268) was merged and unit-verified but never actually deployed — `demo_mcp_gateway`'s Docker image was stale
 
 While doing the live E2E verification that produced the two entries above,
@@ -622,7 +677,46 @@ stale lock on this stack turns into a worse outage than the race it prevents.
 before and after any live drive, and treat the run as void — not as a finding —
 if either moved. That one check is the difference between a bug report and an
 hour in the routing layer.
-### [ ] 2026-08-19 — 71 write actions across all 12 verticals reply "Here are your <verb noun>."
+
+**STEP 1 SHIPPED 2026-08-26 (branch `worktree-stack-generation-check`) — entry
+stays OPEN for steps 2 and 3.** `scripts/stack-generation.sh` +
+`npm run stack:generation`, exactly the "make the ground checkable, cheaply"
+option, changing no locking behaviour:
+
+```
+gen="$(npm run -s stack:generation)"
+...drive the UI, run the probe, present...
+npm run -s stack:generation -- --check "$gen"   # exit 1, and says why, if it moved
+```
+
+**One deliberate departure from this entry's own step 1:** the generation is
+DERIVED from `docker inspect` rather than stamped by `deploy-live.sh`. That
+matters here more than it looks. In the incident measured above, the restarts
+did NOT come from `deploy-live.sh` — its ledger recorded only two, both `ui`, at
+10:00 and 10:07, while the damaging recreates happened at 10:16:41 and 10:17:54.
+A counter written by `deploy-live.sh` would have missed the exact case this entry
+exists to catch. Reading the containers catches a recreate from any source:
+`deploy-live.sh`, `run-docker.sh restart`, `serve-worktree.sh`, or a bare
+`docker compose up`.
+
+The generation is container id AND `StartedAt` per container, because a recreate
+changes the id while a plain restart does not — an id-only check would silently
+pass the second case. Both invalidate a run, so both are in the string.
+
+`--check` failing prints which container moved, from what to what, and says in
+words that the run is void rather than a finding — the sentence whose absence
+cost an hour in the routing layer.
+
+Evidence: `scripts/stack-generation.test.sh` — 12 checks against a stub `docker`
+on PATH, covering recreate, same-id restart, a container disappearing, and
+misuse exiting 2 rather than a false pass. Verified against the live stack too.
+CLAUDE.md's deploy-cadence section now carries the before/after recipe, replacing
+the `docker inspect` incantation in this entry's "interim discipline" note.
+
+Steps 2 (broadcast to other sessions' sockets) and 3 (a drive lease with a TTL)
+are untouched, and step 3 should stay untouched until 1 and 2 prove insufficient
+— this entry's own warning about stale locks on this stack still stands.
+### [x] 2026-08-19 — 71 write actions across all 12 verticals reply "Here are your <verb noun>."
 
 Found while fixing UC8's "Here are your extend rental." (`REGRESSION_PLAN.md` §4,
 2026-08-19). The reply-heading builder in
@@ -657,7 +751,40 @@ the reply builder and give writes a single neutral confirmation template, keepin
 hand-written cases for the ones that read better. Scan that produced these numbers:
 `scratchpad/scan-writes.py` in the 2026-08-19 Demo Steps run.
 
-### [ ] 2026-08-19 — `serve:worktree` reports a state file, not the actual container mounts, and leaves the BFF without its gitignored config
+**RESOLVED 2026-08-26 (branch `worktree-write-action-reply-copy`).** Fixed as the
+entry scoped it — write-ness DERIVED, not guessed. The derivation already existed:
+`services/agentRestrictionsService.js`'s `getRequiredTier(toolName)` reads
+`scope-topology.json`'s `tools[].requiredScopes` and maps them through each scope's
+`riskLevel`, returning `'read'|'write'`. `buildVerticalReply()` now takes one branch
+ahead of the noun fallback — `getRequiredTier(action) === 'write'` →
+`` `Your ${action.replace(/_/g,' ')} request is complete.` `` — so no new loader, no
+action→write table to drift, and unknown tools tier as `'read'` (fail-open: the branch
+can only soften an existing heading, never invent a confirmation).
+
+Note the derivation is slightly BROADER than `p1az-decision.groovy`'s
+`isWriteToolLocal`, which does an exact `requiredScopes.contains('write')` and would
+miss `redeem_miles` (`['airlines:read','airlines:write']`). Going through `riskLevel`
+catches it. Same SoT, better predicate — the Groovy is worth aligning if it ever
+matters for tier enforcement, but that is a policy change, not copy, so it was left
+alone.
+
+Evidence: 100 tools tier as write across the whole topology; **0** still produce
+`Here are your ...`. All 10 hand-written cases are untouched (they precede the branch).
+`src/__tests__/buildVerticalReply.writeActions.test.js` grew from 12 to 19 tests —
+6 named samples, a whole-catalog sweep (every write tool, with a >50 vacuity guard),
+and a guard pinning the entry's four named traps (`afford_check`, `biggest_purchase`,
+`browse_gear`, `loyalty_balance`) as reads. RED-proven: disabling the branch fails 7
+of the 19. Neighbouring agent specs green
+(`agentInvokeRoute.mcpAuthorizeEvaluations`, `agentInvokeRoute.intentToken`,
+`agentReasoningClientLoopGuard`, `demoAgentRecursion.regression` — 12 passed).
+
+**Left behind on purpose:** those same four read actions still degrade to
+`Here are your afford check.` when `render` falls back to `'text'` (a failed MCP
+round-trip). They are reads, so they are outside this entry, and on the normal path
+their own `render` case answers first (`loyalty_balance` → `Your balance: N`). Fixing
+them is a read-side noun problem, not a write-ness one.
+
+### [x] 2026-08-19 — `serve:worktree` reports a state file, not the actual container mounts, and leaves the BFF without its gitignored config
 
 Two separate gaps, both hit while live-verifying the 2026-08-19 Demo Steps fixes.
 
@@ -683,6 +810,43 @@ Two separate gaps, both hit while live-verifying the 2026-08-19 Demo Steps fixes
 status output and re-apply if it disagrees, and (b) symlink or copy the main checkout's
 `demo_api_server/.env` and `data/persistent/*.db` into the target worktree when switching to
 it — the same way `node_modules` already has to be linked in.
+
+**RESOLVED 2026-08-26 (branch `worktree-serve-worktree-honesty`).** Both halves done, but
+the diagnosis in (a) was wrong in a way worth recording, and (b) was half unnecessary.
+
+**(a) was never a state file.** `print_status` has read `docker inspect` since the script was
+introduced in PR #2009 (2026-08-18), a day BEFORE this entry. The real cause is visible in
+the entry's own evidence: it reported the UI mount as the worktree while `docker inspect`
+showed `.../demo_api_ui/src -> /app/src` on main. `mount_source` only ever asked about
+`/app` — and **the UI serves from `/app/src`, not `/app`**. So the status line was reading
+live docker state and was still wrong, because it was reading the wrong mount. The overlay
+comment ("Both targets must move together") was added for the same reason; nothing checked
+that it held.
+
+Now `print_status` reads `/app/src` too and prints an explicit `UI  MOUNT SPLIT` line when
+the two disagree, and a new `verify_mounts` re-reads all three mounts after the recreate.
+A recreate that does not take is retried once — the cure the entry observed ("a second
+`serve:worktree here` fixed the mount") — and then **fails with exit 1** rather than
+printing "now serving:" over a stack that is serving something else.
+
+**(b) is one file, not two.** `demo_api_server/.env` is now copied from the main checkout on
+every non-main switch. `data/persistent/*.db` needs nothing: `docker inspect` confirms
+`/app/data/persistent` is the named volume `ai-demo_ai-demo-bff-data`, which mounts over
+whatever the source directory holds, so the databases never moved in the first place.
+Copied rather than symlinked — the mount hands the container the worktree directory, so a
+symlink inside it would resolve to a host path that does not exist in the container, and the
+BFF would see no `.env` at all. That is the same trap in a new costume, so it is spelled out
+at the call site.
+
+Evidence: `scripts/serve-worktree.test.sh` — 12 checks, run against a stub `docker` on
+PATH, so it never touches the shared stack. RED-proven in three separate passes: removing
+the `.env` copy fails 2, removing the mount verification fails 3, and removing just the
+`/app/src` half of `verify_mounts` fails exactly the test that reproduces the original
+symptom (`/app` moves, `/app/src` lags).
+
+**Not done:** the script still does not take the `.git/deploy-live.lock` that
+`deploy-live.sh` uses, so two sessions can still fight over the stack — that is the separate
+2026-08-19 "nothing protects a live UI drive" entry, still open.
 
 ### [x] 2026-08-18 — the accepted-gateway-identity list is maintained by hand in two places, and has now drifted twice
 
@@ -2703,7 +2867,7 @@ jest config so call history cannot leak between tests, then fix the fallout. Tha
 converts this class from "silently passing" to "loudly failing", which is the
 only way to find the rest.
 
-### [ ] 2026-08-18 — UI probes have no settle contract, so "the page renders nothing" is unreliable
+### [x] 2026-08-18 — UI probes have no settle contract, so "the page renders nothing" is unreliable
 
 **Where:** ad-hoc Playwright scripts driving the live stack; the recipe lives in
 memory (`playwright-live-ui-drive-recipe`), not in the repo.
@@ -2730,6 +2894,45 @@ that owns sign-in (the BFF redirect, since the top-nav button is 0x0 headless),
 the settle strategy (fixed wait plus a content assertion, never `networkidle`),
 and active-vertical resolution — so a probe asserts it reached a usable page
 before reporting what it did or did not find.
+
+**RESOLVED 2026-08-26 (branch `worktree-ui-probe-settle-contract`).**
+`demo_api_ui/tests/e2e/helpers/uiProbe.js` — `settle()`, `activeVertical()`,
+`requireVertical()`.
+
+Sign-in is NOT in it: `realLogin.js` (same directory) already owned the BFF
+redirect, so the helper covers only the two halves that were actually missing.
+
+The load-bearing design decision is that **everything throws rather than
+returning a falsy value.** A helper that returned `{chars: 0}` would reproduce
+false finding #1 exactly — that zero is what got written up as "the route renders
+nothing" for a page that in fact renders 1381 characters and 16 controls. The
+`ProbeNotSettled` message says in words that it is not a finding about the page,
+and names what it needed versus what it last saw. `requireVertical` does the same
+for false finding #2, naming both the assumed and the resolved vertical, because
+a phrase submitted into the wrong vertical matches nothing and the missing tool
+traffic is indistinguishable from a broken feature.
+
+Settle is a floor PLUS a quiet period, not a single threshold check: React renders
+in bursts, so one sample over the floor can be a mid-burst frame that then changes
+again. Pinned by a test that walks 0 -> 400 -> 900 -> 1381 chars and requires the
+final value.
+
+`networkidle` is called out at the top of the file as never usable here — the app
+holds SSE open for the session, so it burns its timeout. That is why every ad-hoc
+script invented its own wait and why they disagreed with each other.
+
+Evidence: `demo_api_ui/src/__tests__/uiProbe.test.js` — 10 tests, `page`
+duck-typed with scripted samples so the real helper runs with no browser. The
+spec lives under `src/` because `vite.config.js` excludes `tests/e2e/**` from
+vitest; had it sat beside the helper, nothing would have run it. RED-proven twice:
+returning the measurement instead of throwing fails 4, and settling on the first
+over-threshold frame fails the burst test. Full UI gate green — 3473 unit tests
+passed (435 files), `npm run build` exit 0.
+
+`demo_api_ui/CLAUDE.md` now carries the usage, so the next session finds it
+without re-deriving it from memory. Pairs with `npm run stack:generation` from the
+2026-08-19 live-drive entry: one answers "did the page render", the other answers
+"was it still the same stack".
 
 ### [x] 2026-08-18 — The group-policy board cannot produce a PERMIT, so the demo it exists for cannot be shown
 
@@ -3224,6 +3427,21 @@ the running app to confirm placement.
 **Why not fixed now:** it needs a decision about intended surface before any
 code change, and #1978 was a role-visibility fix that had no business also
 relocating a UI region.
+
+**PARTIALLY OVERTAKEN BY EVENTS — noted 2026-08-26, entry stays OPEN.** The
+specific call site this entry pins no longer exists: `AIAgent.js:10866`'s
+`{isLoggedIn && renderActionGroups()}` is now an unconditional
+`{renderActionGroups()}` (`AIAgent.js:11174`), consistent with the
+"show all actions, gate auth per use case from `auth-requirements.json`"
+direction. So the `isLoggedIn` half of the diagnosis is gone.
+
+What this entry actually asked has NOT been answered, which is why the box stays
+unticked: the entry's own conclusion was that the gating "lives in an ancestor,"
+not at the call site, so removing the call-site condition does not establish that
+`.ba-action-group` now mounts on `/dashboard` for either role. That still needs
+the live check the entry called for — `document.querySelectorAll('.ba-action-group').length`
+on `/dashboard` as customer and as admin — and it needs the settle contract from
+the "UI probes have no settle contract" entry, or a zero result means nothing.
 
 **What the real fix looks like:** establish which surfaces are meant to show
 action groups. If `/dashboard` is one, find the ancestor that is not mounting
@@ -4145,6 +4363,21 @@ var (e.g. `PINGONE_RESOURCE_MCP_SERVER_URI`, matching sibling resolvers'
 precedence) before falling back to `MCP_SERVER_RESOURCE_URI[0]`. (2) once
 DCR is meant to be exercised for real, set `DCR_INITIAL_ACCESS_TOKEN` in
 the deployment's env and document the value's provenance/rotation.
+
+**PART (1) RESOLVED 2026-08-26 (branch `worktree-techdebt-small-correctness`) —
+entry stays OPEN for part (2).** `resolveOwnAudience()` now prefers
+`PINGONE_RESOURCE_MCP_SERVER_URI` (first entry, since that var may itself be a
+comma list) and falls back to `MCP_SERVER_RESOURCE_URI[0]`, matching
+`JwtClaimVerifier`'s precedence. Confirmed inert today: the dedicated var is set
+in neither `docker-compose.yml` nor `k8s/`, and `printenv` inside the live
+`ai-demo-mcp-server` container shows it unset — so this changes no shipped
+behaviour and only removes the reordering fragility. Three tests added to
+`src/oauth/__tests__/TokenIssuer.test.ts` (14 total, RED-proven: 2 fail without
+the change).
+
+Part (2) is deliberately untouched. Wiring `DCR_INITIAL_ACCESS_TOKEN` means
+introducing a secret with no rotation story and no PingOne app behind it, which
+is exactly what this entry said not to do blind.
 
 ### [x] 2026-08-11 — gw-authorize fallback duplicated across two client consumers
 

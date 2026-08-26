@@ -624,6 +624,19 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   // (pingone_mgmt_token_auth_method). Generated via POST
   // /api/admin/config/generate-keypair. Encrypted at rest (see SECRET_KEYS).
   pingone_mgmt_private_key:              { public: false, default: '' },
+  // Management API worker credentials. Registered here so setConfig()'s
+  // unknown-key guard (`if (!(key in FIELD_DEFS)) continue;`) cannot silently
+  // drop them — the same class of bug fixed for pingone_mgmt_private_key in
+  // docs/RUNTIME_AUDIT_FINDINGS.md finding #32. Today they arrive only via the
+  // env-alias table (PINGONE_MGMT_* / PINGONE_WORKER_*), which getEffective()
+  // reads ahead of these defaults, so registration changes nothing at runtime.
+  // 'basic' matches both the sibling admin field
+  // (PINGONE_ADMIN_TOKEN_ENDPOINT_AUTH_METHOD) and every consumer's own
+  // `|| 'basic'` fallback, so the default is behaviour-preserving rather than
+  // a new opinion about worker auth.
+  pingone_mgmt_client_id:                { public: true,  default: '' },
+  pingone_mgmt_client_secret:            { public: false, default: '' },
+  pingone_mgmt_token_auth_method:        { public: true,  default: 'basic' },
   pingone_client_jwt_kid:                { public: true,  default: '' },
   // Dedicated private_key_jwt app for RFC 8693 token exchange (PRIVATE_KEY_JWT client auth).
   // Gated by ff_private_key_jwt_token_exchange. Client ID and private key are encrypted
