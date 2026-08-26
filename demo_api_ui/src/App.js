@@ -141,6 +141,7 @@ import AiControlPlanePage from "./pages/AiControlPlanePage";
 import CheckPage from "./pages/CheckPage";
 import TracingPage from "./pages/TracingPage";
 import TransactionTracePage from "./pages/TransactionTracePage";
+import AutonomousAgentsPage from "./pages/AutonomousAgentsPage";
 import FootprintPicksPage from "./pages/FootprintPicksPage";
 import FootprintMockGalleryPage from "./pages/FootprintMockGalleryPage";
 import FootprintLiveShellPage from "./pages/FootprintLiveShellPage";
@@ -1592,6 +1593,13 @@ function AppWithAuth() {
                             <Route
                               path="/actor-token-education"
                               element={<ActorTokenEducation />}
+                            />
+                            <Route
+                              // Public on purpose, including its feature
+                              // toggle — see auth-requirements.json. No guard
+                              // here, and authz:verify fails if that drifts.
+                              path="/autonomous-agents"
+                              element={<AutonomousAgentsPage />}
                             />
                             <Route
                               path="/token-compliance"

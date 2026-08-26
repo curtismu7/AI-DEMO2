@@ -101,10 +101,32 @@ function get(runId) {
   return null;
 }
 
+/**
+ * Patch a stored run in place, keeping its key (and so its position in the
+ * chronological range). A parked run is resumed, denied or expired long after
+ * it was written, and re-appending would make one run look like two.
+ *
+ * @param {string} runId
+ * @param {object} patch shallow-merged over the stored run
+ * @returns {object|null} the updated run, or null if there is no such run
+ */
+function update(runId, patch) {
+  if (!runId) return null;
+  const db = _db();
+  for (const { key, value } of db.getRange({ reverse: true })) {
+    if (value && value.runId === runId) {
+      const next = { ...value, ...patch };
+      db.putSync(key, next);
+      return next;
+    }
+  }
+  return null;
+}
+
 /** Test/reset helper — drops every stored run. */
 function clear() {
   const db = _db();
   for (const { key } of db.getRange()) db.removeSync(key);
 }
 
-module.exports = { append, list, get, clear, DB_NAME, MAX_RUNS };
+module.exports = { append, list, get, update, clear, DB_NAME, MAX_RUNS };

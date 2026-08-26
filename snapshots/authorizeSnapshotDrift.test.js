@@ -103,7 +103,12 @@ test('widening touches exactly one object — 104 in, 104 out, none added or rem
   // external-door exemption. It adds no condition/statement/rule of its own —
   // the exemption is extra OR branches inside the EXISTING audience condition,
   // which is why only the attribute count moved.
-  assert.strictEqual(objectCount, 104, 'snapshot object count drifted — see authorizeSnapshotCloudDelta.test.js');
+  // +8 (2026-08-26): the autonomous-agent standing mandate (step 9f) — the
+  // AgentClass and MandateMaxAmount ATTRIBUTEs, the IsAutonomousOverMandate and
+  // IsAutonomousWithoutMandate CONDITIONs, and a Statement+Rule pair each for
+  // the ciba-approval-required pause and the autonomous-no-mandate fail-closed
+  // deny. Cloud twin of mock Rule 0m.
+  assert.strictEqual(objectCount, 112, 'snapshot object count drifted — see authorizeSnapshotCloudDelta.test.js');
 
   // Rebuild the pre-1e8619d09 state: the condition matched only the first two
   // contexts. Everything else in the snapshot is already reconciled.

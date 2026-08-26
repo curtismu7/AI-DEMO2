@@ -1467,7 +1467,10 @@ app.use('/api/token-exchanges', authenticateToken, tokenExchangeLogRouter);
 // Compact reel for one external-door call (routes/mcpFacade.js mints the id).
 // Mounted BEFORE the authenticated read side: it is opened from a client with
 // no BFF session (an LM Studio reel_url link, a LibreChat artifact iframe).
-app.use('/api/autonomous-runs', authenticateToken, require('./routes/autonomousRuns'));
+// PUBLIC by explicit decision — the Autonomous Agents page is reachable signed
+// out, including its feature toggle. See the header of routes/autonomousRuns.js
+// for exactly what that exposes and the one narrowing applied.
+app.use('/api/autonomous-runs', require('./routes/autonomousRuns'));
 app.use('/api/transaction-trace/embed', require('./routes/transactionTraceEmbed'));
 app.use('/api/transaction-trace', authenticateToken, require('./routes/transactionTrace'));
 app.use('/api/token-display', authenticateToken, tokenDisplayRoutes);

@@ -71,7 +71,8 @@ Success: with the flag on and no browser open, a run appears in the trace with `
 
 This is where the class difference earns its keep. The autonomous run hits something it is not allowed to do alone.
 
-- The scheduled run attempts a write above a threshold → the existing authorize/HITL path returns the deliberate `INDETERMINATE` pause.
+- The scheduled run attempts a write above its standing mandate → the run **pauses**. A pause is `PERMIT` carrying an unfulfilled obligation, not a third decision value (`demo_authz_server/index.js`, INDETERMINATE rework 2026-08-19, pinned by `decision.contract.test.js`).
+- **`INDETERMINATE` is not a pause.** It is what policy evaluation returns when the inputs or rules never reach an explicit PERMIT or DENY — an unresolvable request. The PEP fails closed and treats it as DENY. An autonomous agent with no declared mandate is exactly that case: it is refused, and **no CIBA is raised**, because asking a human to approve a request no policy could reason about just moves an unbounded agent past a rubber stamp.
 - Instead of an in-session consent modal, the pause routes to CIBA — push to the owner's device, run parked until they approve or it expires.
 - Reuse `cibaService` / `cibaSimulatedService` unchanged.
 - **Launch on simulated CIBA.** The approval is fake; the parked run, the expiry, and the trace are all real, and the swap to real CIBA is env-var only (`PINGONE_CIBA_CLIENT_ID` / `_SECRET`) with no code change. Real CIBA needs the PingOne Admin + DaVinci console work in `docs/ciba-real-provisioning-todo.md` on env `01d89b06` — no MCP tool or script can do that part, so it is not allowed to block this phase.
