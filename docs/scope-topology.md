@@ -336,6 +336,15 @@ Granted scopes: `read`, `identity:read`
 | Tool | Surface | Required Scopes | Challenge |
 |---|---|---|---|
 | `code_search` | gateway | `code:search` | — |
+| `get_weather` | gateway | `read` | — |
+| `brave_news_search` | gateway | `read` | — |
+| `get_branch_hours` | gateway | `read` | — |
+| `jwt_verify_signature` | gateway | `read` | — |
+| `jwt_validate_claims` | gateway | `read` | — |
+| `jwt_fetch_jwks` | gateway | `read` | — |
+| `jwt_inspect_key` | gateway | `read` | — |
+| `demo_show_accounts` | gateway | `read` | — |
+| `demo_show_transactions` | gateway | `read` | — |
 | `get_code` | gateway | `code:search` | — |
 | `list_codebases` | gateway | `code:search` | — |
 | `get_my_accounts` | gateway | `read` | — |

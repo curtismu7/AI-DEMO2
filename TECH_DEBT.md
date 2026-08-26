@@ -16,6 +16,62 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [x] 2026-08-26 — nine gateway-routed tools were never registered in scope-topology, so the PDP denied them as `unknown_tool`
+
+**Where:** `scope-topology.json` and its hand-maintained twin
+`ping-gateway/config/scope-topology.json`.
+
+**What was wrong:** `demo_authz_server/routes/decision.js` Rule 3 fails closed when
+`ruleStore.requiredScopesForTool()` returns null — correct, but nine tools the
+gateways actively route were absent from the topology it reads:
+
+| tools | backend |
+|---|---|
+| `get_weather` | weather showcase |
+| `brave_news_search` | brave showcase |
+| `get_branch_hours` | PingGateway |
+| `jwt_verify_signature`, `jwt_validate_claims`, `jwt_fetch_jwks`, `jwt_inspect_key` | jwtverifier |
+| `demo_show_accounts`, `demo_show_transactions` | bankingdata disposition |
+
+**What made it demo-visible and hard to see:** the weather geofence
+(`checkWeatherScope` / `tx-weather-scope.groovy`) is a feature-flag driven gateway
+filter that runs AFTER authorization. With no policy entry the PDP denied first, so
+the geofence never evaluated. Measured live:
+
+```
+Austin, TX   403  unknown_tool: no policy defined for tool "get_weather"
+Miami        403  unknown_tool: no policy defined for tool "get_weather"
+(no city)    403  unknown_tool: no policy defined for tool "get_weather"
+```
+
+Austin is IN Texas and should PERMIT. So UC30 was broken outright, and **UC31 looked
+correct while being wrong**: it denies, as the demo intends, but for a missing-policy
+reason rather than the geofence. A test asserting only DENY passes either way, and a
+viewer cannot tell the difference — the same false-green shape as the dead intent-token
+verifier.
+
+**Fixed 2026-08-26 (branch `worktree-topology-missing-showcase-tools`):** all nine
+registered with `surface: gateway` and `requiredScopes: ["read"]`.
+
+`read`, not the finer `jwt:verify` / `accounts:read` / `transactions:read`, and that
+was not a shortcut: `allowedScopesByAudience.parity` rejected those three because the
+INBOUND gateway token carries gateway-audience scopes. The finer scopes live on the
+EXCHANGED, backend-audienced token; requiring them at the gateway surface would deny
+tools whose inbound token can never carry them. `get_my_accounts` is `["read"]` for
+exactly this reason, and all three were defined-but-unused by any gateway-surface tool.
+
+Verified with `npm run topology:verify` — PASSED, exit 0, after regenerating
+`docs/scope-topology.md` (a generated artifact; the gate caught it un-regenerated
+first, working as designed).
+
+**Known drift left alone:** `ping-gateway/config/scope-topology.json` is a
+hand-maintained copy that nothing generates or checks — it was last touched
+2026-08-12 and still lacks `get_loyalty_status` and `redeem_miles`, which root gained
+since. Both copies now carry the nine, but the pre-existing two-tool gap is untouched
+because I could not establish whether PingGateway is meant to serve airlines tools at
+all. A generator or a parity gate for those two files is the real fix; today nothing
+would notice them diverging again.
+
 ### [x] 2026-08-26 — native ID-JAG is a per-server grant, but the BFF took it for tools on OTHER servers, 502ing every non-banking vertical
 
 **Where:** `demo_api_server/services/agentMcpTokenService.js` (~1445, the

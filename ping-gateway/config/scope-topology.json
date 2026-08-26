@@ -301,6 +301,42 @@
       "requiredScopes": ["code:search"],
       "surface": "gateway"
     },
+    "get_weather": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "brave_news_search": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "get_branch_hours": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "jwt_verify_signature": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "jwt_validate_claims": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "jwt_fetch_jwks": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "jwt_inspect_key": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "demo_show_accounts": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "demo_show_transactions": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
     "get_code": {
       "requiredScopes": ["code:search"],
       "surface": "gateway"
