@@ -16,7 +16,7 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
-### [ ] 2026-08-26 — the banking circuit breaker counts 403 authorization denials as upstream failures, so a cross-owner probe DoSes banking for everyone
+### [x] 2026-08-26 — the banking circuit breaker counts 403 authorization denials as upstream failures, so a cross-owner probe DoSes banking for everyone
 
 **Where:** `oauth-mcp/src/utils/CircuitBreaker.ts` `execute()`, driven from
 `oauth-mcp/src/banking/BankingAPIClient.ts:543`.
@@ -63,6 +63,35 @@ Cheapest shape is an `isFailure?: (err) => boolean` on `CircuitBreakerConfig`,
 defaulting to today's behaviour so no other consumer changes, with
 `BankingAPIClient` passing the same test as `shouldRetryRequest`. Pin it with a
 test that fires 10 consecutive 403s and asserts the breaker stays CLOSED.
+
+**FIXED 2026-08-26 (branch `worktree-breaker-ignores-client-errors`).** Built as
+scoped: optional `isFailure` on `CircuitBreakerConfig`, defaulting to the original
+count-everything behaviour so no other consumer changes, and `BankingAPIClient`
+passes the same predicate its retry manager uses.
+
+Rather than add a second copy of the 4xx test, the retry path's inline logic was
+extracted to `BankingAPIClient.isClientError()` and BOTH policies now consume it —
+this file has already been burned once by two copies joined only by a keep-in-sync
+comment (see `tests/helpers/actionToTool.js`'s header), and this bug WAS the two
+policies disagreeing about the same response.
+
+Two deliberate calls worth recording:
+
+- **A non-failure error is NEUTRAL**, not a success. It neither trips the breaker
+  nor closes a HALF_OPEN one. The upstream did answer, but a rejected request is
+  thin evidence of health, and letting a 403 close the breaker is a bigger claim
+  than this fix needs to make.
+- **429 still counts as a failure**, unlike other 4xx — rate limiting IS upstream
+  distress, and the retry manager already treats it as retryable. Pinned by its
+  own test so nobody "simplifies" it into the 4xx bucket.
+- A throwing `isFailure` predicate fails SAFE (counts the error), so a broken
+  predicate can never mask a real outage. Also tested.
+
+Evidence: `src/utils/__tests__/CircuitBreaker.clientErrors.test.ts` — 26 tests.
+RED-proven: restoring the unconditional `onFailure()` fails 9, including
+"still serves requests after those 403s", which is the user-visible regression.
+The breaker still OPENs on ECONNREFUSED, 5xx and 429. Full oauth-mcp suite green:
+94 suites, 1197 tests.
 
 ### [x] 2026-08-26 — intent-token verification is dead on BOTH gateway paths, and the BFF signs with the vault CIPHERTEXT
 
