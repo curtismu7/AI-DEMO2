@@ -67,8 +67,14 @@ const DOORS = {
   },
   opensearch: {
     label: 'OpenSearch',
+    // Cross-namespace FQDN, not a short name: there were briefly TWO OpenSearch
+    // MCP servers — this one (Helm release cm-mcpgw, up 8d, the one the Mac
+    // port-forward always used) and a duplicate in the BFF's own namespace from
+    // a release whose gateway crash-looped on an expired ENV_PROXY_TOKEN. The
+    // duplicate was uninstalled 2026-08-26, so the surviving server does NOT
+    // live beside the BFF and a short name would not resolve.
     upstream: () => process.env.MCP_FACADE_OPENSEARCH_URL
-      || 'http://ping-mcpgw-opensearch-mcp-server:80/mcp',
+      || 'http://cm-mcpgw-opensearch-mcp-server.ping-devops-curtismuir.svc.cluster.local:80/mcp',
     // Reuses the Agent Gateway's OAuth broker: the client runs the same
     // RFC 9728 -> 8414 -> 7591 -> PKCE dance it already does for that door.
     authorizationServer: () => process.env.MCP_FACADE_AGENT_GATEWAY_AS || 'http://localhost:3005',
