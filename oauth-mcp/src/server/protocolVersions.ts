@@ -11,11 +11,49 @@
  * - Both versions work simultaneously during transition period
  */
 
-/** The latest protocol version this server speaks (also the negotiation counter-offer). */
+/** The latest protocol version this server speaks. */
 export const MCP_LATEST_PROTOCOL_VERSION = '2026-07-28';
 
 /** Earlier supported protocol versions (for dual-stack compatibility during migration). */
 export const MCP_SUPPORTED_VERSIONS = ['2026-07-28', '2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05'];
+
+/**
+ * The version actually ADVERTISED to clients — the counter-offer when a client
+ * asks for something this server does not speak.
+ *
+ * Overridable because "latest the server speaks" and "latest the deployment can
+ * deliver" are different questions once something sits in front of it. The
+ * public MCP door is proxied by PingGateway, whose own MCP filter
+ * (org.forgerock.openig.mcp.McpValidationFilter in openig-mcp-2026.6.0) speaks
+ * ONLY 2025-06-18 and 2025-11-25 — verified by extracting McpVersion.class from
+ * the shipped jar, which carries those two constants and their two schemas and
+ * nothing newer.
+ *
+ * Counter-offering 2026-07-28 through that gateway produces the worst failure
+ * shape there is: `initialize` succeeds (the filter does not police the
+ * handshake), then every later call is rejected 400 by the PROXY, so the client
+ * shows a connected server with an empty tool catalog and the error names a
+ * header the client set correctly. This module's own comment below already
+ * records that exact symptom from a previous round — same shape, different
+ * layer.
+ *
+ * Set MCP_ADVERTISED_PROTOCOL_VERSION=2025-11-25 for any deployment behind
+ * PingGateway. Invalid values throw AT STARTUP rather than at request time:
+ * advertising a version the server cannot honour is the bug this exists to
+ * prevent, so it must not be possible to typo it into production silently.
+ */
+export const MCP_ADVERTISED_PROTOCOL_VERSION: string = (() => {
+  const raw = (process.env.MCP_ADVERTISED_PROTOCOL_VERSION || '').trim();
+  if (!raw) return MCP_LATEST_PROTOCOL_VERSION;
+  if (!MCP_SUPPORTED_VERSIONS.includes(raw)) {
+    throw new Error(
+      `MCP_ADVERTISED_PROTOCOL_VERSION="${raw}" is not a version this server speaks. ` +
+      `Valid values: ${MCP_SUPPORTED_VERSIONS.join(', ')}.`,
+    );
+  }
+  return raw;
+})();
+
 
 /**
  * Does this server speak protocol version V? Matches negotiation acceptance:

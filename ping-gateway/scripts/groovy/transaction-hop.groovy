@@ -65,6 +65,15 @@ return next.handle(context, request).thenOnResult({ response ->
         def outcomeSource = 'inferred'
         def reason = null
         def op = null
+        // The PingGateway MCP filters that actually handled this request.
+        // p1az-decision.groovy already publishes them on the trail; forwarding
+        // them onto the hop is what puts them in the movie reel. Until now only
+        // /transaction-trace (buildTraceSteps.js) could see the chain, so the
+        // reel showed PingGateway's VERDICT while the product features that
+        // produced it — McpValidationFilter, McpAuditFilter, McpProtectionFilter
+        // — were invisible in the surface built to demonstrate them.
+        def filterChain = null
+        def denyingFilter = null
         try {
             def trailRaw = response.headers.getFirst('X-Gw-Audit-Trail')
             if (trailRaw) {
@@ -78,6 +87,8 @@ return next.handle(context, request).thenOnResult({ response ->
                     reason = az.reason as String
                     op = (az.tool ?: az.method) as String
                 }
+                if (trail?.filterChain instanceof List) filterChain = trail.filterChain
+                denyingFilter = trail?.denyingFilter as String
             }
         } catch (Exception ignored) { /* trail absent or unparseable — fall through */ }
         // FAIL-OPEN (see file header): the ledger is an observability surface, so a
@@ -94,6 +105,12 @@ return next.handle(context, request).thenOnResult({ response ->
             service      : 'ping-gateway',
             status       : (statusCode >= 400) ? 'error' : 'ok',
             decision     : [outcome: outcome, by: 'ping-gateway', reason: reason, source: outcomeSource],
+            // Omitted entirely when the trail was absent or unparseable, rather
+            // than sent as an empty list: the reel must be able to tell "no
+            // filter data" from "no filters ran", and this file fails open by
+            // design (see header) so a missing trail is a normal case.
+            filterChain  : filterChain,
+            denyingFilter: denyingFilter,
         ])
 
         // Daemon thread: URLConnection blocks in native I/O, and IG runs this

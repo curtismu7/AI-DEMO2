@@ -245,3 +245,35 @@
   .ttrace-detail { background: #1f2937; border-color: #374151; color: #e5e7eb; }
   .ttrace-node { background: #1f2937; }
 }
+
+/* PingGateway MCP filter chain — which product filters handled the hop, in
+   order. Neutral pills by default: these are informational, not verdicts, and
+   must not compete with the PERMIT/DENY badge beside them. Self-contained
+   backgrounds (same reasoning as .ttrace-inferred above) so they stay legible
+   in dark mode without depending on an inherited surface colour. */
+.ttrace-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.ttrace-filter {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--th-text-muted, #4b5563);
+  background: var(--th-surface-2, #f3f4f6);
+  border: 1px solid var(--th-border, #d1d5db);
+  border-radius: 8px;
+  padding: 0 6px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+/* Only the filter that actually stopped the call. Red matches the DENY badge
+   and the severed spine, so the eye lands on where the chain broke. */
+.ttrace-filter.blocked {
+  color: #b91c1c;
+  background: #fef2f2;
+  border-color: #fecaca;
+  font-weight: 600;
+}

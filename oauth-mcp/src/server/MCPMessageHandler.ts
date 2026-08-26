@@ -23,7 +23,7 @@ import { BankingToolProvider } from '../tools/BankingToolProvider';
 import { AuthenticationError, AuthErrorCodes } from '../interfaces/auth';
 import { authorizeLastHop } from '../auth/lastHopAuthorization';
 import { AuthenticationIntegration, AuthenticationResult } from './AuthenticationIntegration';
-import { MCP_LATEST_PROTOCOL_VERSION } from './protocolVersions';
+import { MCP_ADVERTISED_PROTOCOL_VERSION, MCP_SUPPORTED_VERSIONS } from './protocolVersions';
 import type { BankingToolDefinition } from '../tools/BankingToolRegistry';
 import { AuditLogger } from '../utils/AuditLogger';
 
@@ -793,13 +793,24 @@ export class MCPMessageHandler {
    */
   private negotiateProtocolVersion(clientVersion: string): string {
     const v = clientVersion.trim();
-    if (v.startsWith('2025-11-25')) {
-      return '2025-11-25';
+    // Honour ANY version this server actually speaks. The previous branches only
+    // matched 2025-11-25 and 2024-*, so a client asking for 2025-06-18 — which
+    // MCP_SUPPORTED_VERSIONS lists, and which the protocolVersions comment calls
+    // out as what most third-party clients send — fell through to the
+    // counter-offer and was answered with a NEWER version than it requested.
+    // Echoing the client's own supported version is what negotiation means, and
+    // it keeps the handshake result inside the range any proxy in front of us
+    // also speaks.
+    if (MCP_SUPPORTED_VERSIONS.includes(v)) {
+      return v;
     }
     if (v.startsWith('2024-')) {
       return '2024-11-05';
     }
-    // Unsupported/unknown version → counter-offer the server's latest supported version.
-    return MCP_LATEST_PROTOCOL_VERSION;
+    // Unknown version → counter-offer what this DEPLOYMENT advertises, which is
+    // not necessarily the newest the server speaks (see
+    // MCP_ADVERTISED_PROTOCOL_VERSION: behind PingGateway it must stay within
+    // what that proxy's own MCP filter can carry).
+    return MCP_ADVERTISED_PROTOCOL_VERSION;
   }
 }

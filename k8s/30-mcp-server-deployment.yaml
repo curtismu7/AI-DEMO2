@@ -62,6 +62,23 @@ spec:
         # changing it later invalidates every client that already registered.
         - name: OAUTH_ISSUER
           value: "https://cmuir-mcp.ping-devops.com"
+        # Cap the ADVERTISED protocol version to what the proxy in front of this
+        # server can carry. Traffic to cmuir-mcp reaches here through
+        # PingGateway, and openig-mcp-2026.6.0's own McpValidationFilter speaks
+        # ONLY 2025-06-18 and 2025-11-25 — confirmed by extracting
+        # McpVersion.class from the shipped jar, which carries those two
+        # constants and their two schemas and nothing newer.
+        #
+        # Without this the server counter-offers 2026-07-28, the client echoes
+        # it in MCP-Protocol-Version as the spec requires, and PingGateway
+        # rejects every non-initialize call with 400. The handshake still
+        # succeeds, so the client shows a connected server with an EMPTY tool
+        # catalog and blames a header it set correctly.
+        #
+        # Raise this only when the deployed PingGateway's McpVersion knows the
+        # newer version; the server itself already speaks it.
+        - name: MCP_ADVERTISED_PROTOCOL_VERSION
+          value: "2025-11-25"
         # Admit MCP clients we have never seen — ChatGPT, Claude, LM Studio.
         # None can be pre-registered: all require RFC 7591 dynamic registration
         # or a Client ID Metadata Document, and none offers a field for an
