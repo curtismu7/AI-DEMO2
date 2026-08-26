@@ -91,6 +91,11 @@ const ATTR = {
   // in HasValidMcpAudience — see the SoT note on deployment.externalDoorIssuers.
   TokenIss: '12345678-0029-4321-abcd-000000000029',
   ResourceOwnerId: '12345678-0019-4321-abcd-000000000019',
+  // Autonomous-agent standing mandate (step 9f). Inert sentinels: AgentClass ''
+  // means "not an autonomous run" and MandateMaxAmount 0 means "none declared",
+  // so a request omitting both changes no decision.
+  AgentClass: '12345678-0030-4321-abcd-000000000030',
+  MandateMaxAmount: '12345678-0031-4321-abcd-000000000031',
   RarMaxAmount: '12345678-0020-4321-abcd-000000000020',     // RFC 9396 granted amount ceiling (NUMBER, defaultValue 0 — see step 9)
   IntentTokenValid: '12345678-0025-4321-abcd-000000000025', // NOT -0021 (retired, see above)
   IntentMatchesTool: '12345678-0022-4321-abcd-000000000022',
@@ -167,6 +172,8 @@ const COND = {
   RequiresMcpStepUp: '23456789-0013-4321-abcd-000000000013',
   IsConsentTransaction: '23456789-0014-4321-abcd-000000000014',
   IsMcpFirstToolRequest: '23456789-0008-4321-abcd-000000000008',
+  IsAutonomousOverMandate: '23456789-0030-4321-abcd-000000000030',
+  IsAutonomousWithoutMandate: '23456789-0031-4321-abcd-000000000031',
   RarAmountExceeded: '23456789-0020-4321-abcd-000000000020', // RAR grant present AND Amount > RarMaxAmount (landed via #611)
   // UC21 tier conditions (step 10). Already imported and live-verified; this
   // reconciler now GENERATES their contents from the banking manifest instead of
@@ -196,6 +203,8 @@ const STMT = {
   // rar_amount_exceeded at -0020 which landed via #611); -0021 is retired
   // (its ver() version suffix collides with #615's bumped RAR statement
   // version — see the ATTR map note).
+  autonomousCiba: '34567890-0030-4321-abcd-000000000030',
+  autonomousNoMandate: '34567890-0031-4321-abcd-000000000031',
   bypassAttempt: '34567890-0015-4321-abcd-000000000015',
   resourceOwnerMismatch: '34567890-0016-4321-abcd-000000000016',
   intentInvalid: '34567890-0018-4321-abcd-000000000018',
@@ -216,6 +225,8 @@ const RULE = {
   // -0017 is retired (mcpDenyRarAmount, superseded by rarAmountExceeded above);
   // -0020 is taken by rarAmountExceeded; -0021 is retired (its ver() version
   // suffix collides with #615's bumped RAR rule version — see the ATTR map note).
+  autonomousCiba: '45678901-0030-4321-abcd-000000000030',
+  autonomousNoMandate: '45678901-0031-4321-abcd-000000000031',
   mcpDenyUpstreamAud: '45678901-0015-4321-abcd-000000000015',
   mcpDenyResourceOwner: '45678901-0016-4321-abcd-000000000016',
   mcpDenyIntentInvalid: '45678901-0018-4321-abcd-000000000018',
@@ -1156,6 +1167,108 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
   // 9e) Membership: MCP first-tool policy (before the catch-all permit). DenyOverrides
   // means placement is not strictly required, but keep it ahead of mcpPermitValid for clarity.
   addChild(POLICY.mcp, RULE.rarAmountExceeded, RULE.mcpPermitValid);
+
+  // ── 9f) Autonomous agent standing mandate ────────────────────────────────
+  // Cloud twin of mock Rule 0m (demo_authz_server/routes/decision.js). An agent
+  // running with nobody signed in has no user entitlements to bound it and no
+  // one present to consent, so the ceiling IS the consent — declared ahead of
+  // time on the agent's scope-topology entry and enforced HERE, by the PDP,
+  // rather than by the job that wants to spend.
+  //
+  // Both attributes default to their inert sentinel, so every request that
+  // exists today — none of which send either — is unaffected.
+  rarUpsert(requestAttr(
+    ATTR.AgentClass, 'AgentClass', 'STRING', 'none',
+    'Which class of agent is calling: "autonomous" for a run with nobody signed in '
+    + '(sub = agent, no act claim). defaultValue "none" — not the empty string — because '
+    + 'P1AZ leaves an empty STRING unresolved and answers INDETERMINATE for the WHOLE '
+    + 'decision; "none" resolves cleanly to != autonomous, so every human transaction and '
+    + 'worker-agent call leaves these rules inert instead of blowing up the decision.',
+  ), true);
+  rarUpsert(requestAttr(
+    ATTR.MandateMaxAmount, 'MandateMaxAmount', 'NUMBER', 0,
+    'The standing mandate the calling agent declares: the largest amount it may move '
+    + 'unattended. Sent by the BFF from scope-topology.json, the same way RarMaxAmount '
+    + 'carries the attested RAR ceiling — the NUMBER is the declaration, the DECISION '
+    + 'is this policy\'s. defaultValue 0 means "none declared", which fails closed.',
+  ), true);
+
+  // No mandate declared → the request never reaches an explicit permit, so the
+  // PDP fails closed. Deliberately a DENY and not a pause: asking a human to
+  // approve a request no policy could reason about moves an unbounded agent
+  // past a rubber stamp.
+  rarUpsert(conditionDef(
+    COND.IsAutonomousWithoutMandate, 'IsAutonomousWithoutMandate',
+    'AgentClass = autonomous AND MandateMaxAmount = 0 (none declared). Fails closed.',
+    { and: { conditions: [
+      { comparison: { left: { attribute: { id: ATTR.AgentClass } }, op: 'Equals', right: { constant: { value: 'autonomous' } } } },
+      { comparison: { left: { attribute: { id: ATTR.MandateMaxAmount } }, op: 'Equals', right: { constant: { value: '0' } } } },
+    ] } },
+  ), true);
+
+  // A mandate exists and the amount exceeds it → a rule matched and refuses to
+  // let the agent act ALONE. That is a pause, not a refusal: PERMIT carrying an
+  // unfulfilled obligation, which the PEP discharges by reaching the absent
+  // human over CIBA.
+  rarUpsert(conditionDef(
+    COND.IsAutonomousOverMandate, 'IsAutonomousOverMandate',
+    'AgentClass = autonomous AND MandateMaxAmount > 0 AND Amount > MandateMaxAmount.',
+    { and: { conditions: [
+      { comparison: { left: { attribute: { id: ATTR.AgentClass } }, op: 'Equals', right: { constant: { value: 'autonomous' } } } },
+      { comparison: { left: { attribute: { id: ATTR.MandateMaxAmount } }, op: 'GreaterThan', right: { constant: { value: '0' } } } },
+      { comparison: { left: { attribute: { id: ATTR.Amount } }, op: 'GreaterThan', right: { attribute: { id: ATTR.MandateMaxAmount } } } },
+    ] } },
+  ), true);
+
+  rarUpsert({
+    id: STMT.autonomousNoMandate, type: 'Statement',
+    version: ver('cccccccc', STMT.autonomousNoMandate, { code: 'autonomous-no-mandate', appliesTo: 'DENY' }),
+    name: 'Autonomous Agent Has No Mandate', shared: false,
+    description: 'Returned when an autonomous agent asks to move money without a declared standing mandate.',
+    code: 'autonomous-no-mandate', appliesTo: 'DENY', appliesIf: 'PATH_MATCHES',
+    payload: 'This agent runs unattended but declares no standing mandate, so there is nothing to '
+      + 'evaluate the request against. Declare a mandate for the agent; do not seek an approver.',
+    obligatory: false, attributes: [], services: [],
+  });
+
+  rarUpsert({
+    id: STMT.autonomousCiba, type: 'Statement',
+    version: ver('cccccccc', STMT.autonomousCiba, { code: 'ciba-approval-required', appliesTo: 'PERMIT' }),
+    name: 'Autonomous Agent Needs CIBA Approval', shared: false,
+    description: 'PERMIT-with-obligation returned when an unattended agent exceeds its standing mandate. '
+      + 'code ciba-approval-required is what the BFF matches to park the run and raise CIBA.',
+    code: 'ciba-approval-required', appliesTo: 'PERMIT', appliesIf: 'PATH_MATCHES',
+    payload: `Requested $\{{${ATTR.Amount}}} exceeds the standing mandate of $\{{${ATTR.MandateMaxAmount}}} `
+      + 'this agent may move unattended. The account owner must approve out of band before it proceeds.',
+    obligatory: false, attributes: [], services: [],
+  });
+
+  rarUpsert({
+    id: RULE.autonomousNoMandate, type: 'Rule', targets: [],
+    version: ver('dddddddd', RULE.autonomousNoMandate, { cond: COND.IsAutonomousWithoutMandate, stmt: STMT.autonomousNoMandate, effect: 'conditionalDenyElsePermit' }),
+    name: 'Deny Unattended Agent Without a Mandate',
+    description: 'DENY when an autonomous agent moves money with no declared ceiling. Fails closed.',
+    shared: false, disabled: false, statements: [STMT.autonomousNoMandate],
+    effectSettings: { type: 'conditionalDenyElsePermit', condition: { and: { conditions: [{ reference: { id: COND.IsAutonomousWithoutMandate } }] } } },
+    condition: { and: { conditions: [{ reference: { id: COND.IsAutonomousWithoutMandate } }] } },
+  });
+
+  rarUpsert({
+    id: RULE.autonomousCiba, type: 'Rule', targets: [],
+    version: ver('dddddddd', RULE.autonomousCiba, { cond: COND.IsAutonomousOverMandate, stmt: STMT.autonomousCiba, effect: 'unconditionalPermit' }),
+    name: 'Require CIBA Approval Over the Standing Mandate',
+    description: 'PERMIT with an unfulfilled ciba-approval obligation when an unattended agent exceeds '
+      + 'its standing mandate. The existing Deny Large Transactions rule still wins under DenyOverrides, '
+      + 'so the absolute ceiling stays absolute — nobody can approve past it.',
+    shared: false, disabled: false, statements: [STMT.autonomousCiba],
+    effectSettings: { type: 'unconditionalPermit' },
+    condition: { and: { conditions: [{ reference: { id: COND.IsAutonomousOverMandate } }] } },
+  });
+
+  // Transaction policy, ahead of the catch-all permit. An unattended transfer is
+  // not an MCP tool call, so it routes here, not to the Delegation policy.
+  addChild(POLICY.transaction, RULE.autonomousNoMandate, RULE.txPermitStandard);
+  addChild(POLICY.transaction, RULE.autonomousCiba, RULE.txPermitStandard);
 
   // 10) UC21 banking tier policy — "$2,000 Standard vs $50,000 PrivateBanking;
   // group membership expands capability", the demo's most concrete authz story.
