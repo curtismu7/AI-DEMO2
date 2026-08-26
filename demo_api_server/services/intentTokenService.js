@@ -68,6 +68,21 @@ const INTENT_TO_PERMITTED_TOOLS = {
   withdraw:                 ['create_withdrawal', 'get_my_accounts', 'get_account_balance'],
   update_profile:           ['update_contact_email'],
   request_waiver:           ['request_fee_waiver'],
+  // Cross-vertical showcase chips. server.js's _TOOL_TO_INTENT has no entry for
+  // these, so the minted intent falls back to the TOOL NAME at confidence 0.50 —
+  // hence the key here is the tool name. Without an entry, permittedToolsForIntent
+  // fell through to the vertical's read-only list (which excludes them) and the
+  // gateway denied every call:
+  //   intent_mismatch: tool "get_weather" not permitted for intent "get_weather"
+  //
+  // Each grants EXACTLY its own tool — these are single-purpose showcases, and a
+  // 0.50-confidence intent should widen nothing. The weather geofence
+  // (checkWeatherScope) and the brave blocklist still run downstream; this only
+  // lets the request reach them. Measured live 2026-08-26: UC30 (Austin, should
+  // PERMIT) and UC31 (Miami, should be geofenced) were BOTH failing here, so UC31
+  // looked correct while denying for the wrong reason.
+  get_weather:              ['get_weather'],
+  get_branch_hours:         ['get_branch_hours'],
   // Investment
   view_investments:         ['get_investment_accounts', 'get_investment_balance', 'get_portfolio_summary', 'get_investment_transactions', 'show_investment'],
   view_portfolios:          ['view_portfolios', 'view_holdings', 'view_portfolio_value', 'view_trades', 'view_dividends'],
