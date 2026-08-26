@@ -631,10 +631,29 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
   const actorCond = byId.get(COND.HasValidActorChain);
   if (actorCond) {
     const existing = [];
+    // Harvest ONLY plain ActClientId comparisons. This walk used to take every
+    // string constant it found, which was equivalent while the condition was a
+    // flat OR of actor ids. With the external-door exemption present —
+    // AND(ActClientId == '', TokenIss == <issuer>) — an unscoped walk re-reads
+    // '' and the issuer URLs as registered actors on the NEXT generation, and
+    // `actors` only ever grows ("never shrinks"), so they would be permanent.
+    //
+    // The empty string is the dangerous one: as a bare top-level branch it
+    // makes HasValidActorChain true for ANY token with no actor, which is the
+    // whole control. Caught by regenerating twice — the first pass looked
+    // correct. Skipping `and` nodes keeps the exemption out of the harvest;
+    // the left-attribute check keeps TokenIss constants out of it.
     const collect = (n) => {
       if (!n || typeof n !== 'object') return;
-      const v = n.comparison && n.comparison.right && n.comparison.right.constant;
-      if (v && typeof v.value === 'string') existing.push(v.value);
+      if (n.and) return;
+      if (n.comparison) {
+        const left = n.comparison.left && n.comparison.left.attribute;
+        const v = n.comparison.right && n.comparison.right.constant;
+        if (left && left.id === ATTR.ActClientId && v && typeof v.value === 'string' && v.value) {
+          existing.push(v.value);
+        }
+        return;
+      }
       Object.values(n).forEach(collect);
     };
     collect(actorCond.condition);
@@ -652,7 +671,13 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
       `ActClientId is one of the registered chain identities (${actors.length}): the MCP Token `
       + `Exchanger, the AI Agent, and each A2A specialist. A two-hop chain whose specialist is not `
       + `listed here is denied as an invalid actor, regardless of chain depth. Union of the ids `
-      + `already in the snapshot and PINGONE_A2A_*_AGENT_CLIENT_ID — never shrinks.`;
+      + `already in the snapshot and PINGONE_A2A_*_AGENT_CLIENT_ID — never shrinks.`
+      + (externalDoorAudience
+        ? ` PLUS an external-door exemption: an ABSENT actor (ActClientId '') is accepted ONLY when `
+          + `TokenIss is one of ${externalDoorIssuers.join(', ')}. That route has no exchange step by `
+          + `design, so its tokens carry no act to register — never a bare empty-actor match, which `
+          + `would drop this control for every un-delegated caller.`
+        : '');
     // The RULE description is what a reader sees in the policy UI. It said
     // "any of the 5 A2A specialist agents" while the list held 7 and the tenant
     // had 9 — a stale count is how nobody noticed four specialists were absent.
@@ -666,15 +691,38 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
       // ("a stale count is how nobody noticed") — content-derive so it lands.
       actorRule.version = ver('dddddddd', actorRule.id, { count: actors.length });
     }
-    actorCond.condition = { or: { conditions: actors.map((id) => ({
-      comparison: { left: { attribute: { id: ATTR.ActClientId } }, op: 'Equals', right: { constant: { value: id } } },
-    })) } };
+    // External-door exemption, same shape and same reason as the one in
+    // HasValidMcpAudience above. This allowlist can never contain the external
+    // door: that route has no exchange step by design, so its tokens carry NO
+    // act at all (ActClientId '') rather than an unregistered one. Verified
+    // live 2026-08-26 — with the audience fix imported, the door's next denial
+    // was "MCP Denied — Invalid Actor Chain".
+    //
+    // Deliberately an AND with the issuer, never a bare `ActClientId == ''`:
+    // an empty actor is exactly what an un-delegated internal call looks like,
+    // so exempting it unconditionally would drop the delegation control for
+    // every caller. Scoped to oauth-mcp's own issuer it grants nothing new —
+    // IG has already introspected the token against that AS.
+    const actorExemptions = (externalDoorAudience ? externalDoorIssuers : []).map((iss) => ({
+      and: { conditions: [
+        { comparison: { left: { attribute: { id: ATTR.ActClientId } }, op: 'Equals', right: { constant: { value: '' } } } },
+        { comparison: { left: { attribute: { id: ATTR.TokenIss } }, op: 'Equals', right: { constant: { value: iss } } } },
+      ] },
+    }));
+    actorCond.condition = { or: { conditions: [
+      ...actors.map((id) => ({
+        comparison: { left: { attribute: { id: ATTR.ActClientId } }, op: 'Equals', right: { constant: { value: id } } },
+      })),
+      ...actorExemptions,
+    ] } };
     // Content-derived version, same reason as ver() above: PingOne skips an
     // object whose version is unchanged, and this condition previously KEPT its
     // committed version when actors were unioned in — so a re-import could
     // never land a new specialist (found 2026-08-17: cloud held 9 actors, file
     // held 11+2 infra, and the import would have skipped the fix).
-    actorCond.version = ver('bbbbbbbb', COND.HasValidActorChain, { actors });
+    actorCond.version = ver('bbbbbbbb', COND.HasValidActorChain, {
+      actors, externalDoorIssuers, externalDoorAudience,
+    });
   }
 
   // 2) Ensure RequiresMcpStepUp condition (step_up tool list AND no MFA yet).
@@ -830,10 +878,29 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
     `TokenAudActual equals one of the upstream/backend audiences behind the gateway (${upstreamAudiences.join(', ')}). ` +
     'A client must obtain a gateway-targeted token and let the gateway exchange it for the next hop (D-05, mock Rule 0b-2). ' +
     'Single-aud comparison only — space-joined multi-aud values are caught at the PEP. ' +
-    'Generated from scope-topology.json resources — do not hand-edit.',
-    { or: { conditions: upstreamAudiences.map((uri) => ({
-      comparison: { left: { attribute: { id: ATTR.TokenAudActual } }, op: 'Equals', right: { constant: { value: uri } } },
-    })) } }), beforeSepIdx);
+    'Generated from scope-topology.json resources — do not hand-edit.' +
+    (externalDoorAudience
+      ? ` EXCEPT for the external door: a token issued by ${externalDoorIssuers.join(' / ')} is not a bypass, ` +
+        `because that route has no exchange step and is therefore ALWAYS upstream-audienced. This mirrors ` +
+        `PR #2274, which added exactly this exemption to the same D-05 check in p1az-decision.groovy; the ` +
+        `policy copy simply never got it.`
+      : ''),
+    // AND NOT(issuer is a declared door), rather than dropping the upstream
+    // audience from the list: every OTHER caller presenting that audience is
+    // still a confused-deputy bypass and must still be denied. The narrowing is
+    // on WHO issued the token, never on which audience is protected.
+    (externalDoorAudience
+      ? { and: { conditions: [
+        { or: { conditions: upstreamAudiences.map((uri) => ({
+          comparison: { left: { attribute: { id: ATTR.TokenAudActual } }, op: 'Equals', right: { constant: { value: uri } } },
+        })) } },
+        { not: { condition: { or: { conditions: externalDoorIssuers.map((iss) => ({
+          comparison: { left: { attribute: { id: ATTR.TokenIss } }, op: 'Equals', right: { constant: { value: iss } } },
+        })) } } } },
+      ] } }
+      : { or: { conditions: upstreamAudiences.map((uri) => ({
+        comparison: { left: { attribute: { id: ATTR.TokenAudActual } }, op: 'Equals', right: { constant: { value: uri } } },
+      })) } })), beforeSepIdx);
   upsert(denyStatement(STMT.bypassAttempt, 'MCP Denied — Audience Targets Upstream', 'mcp-bypass-attempt',
     'D-05 (bypass_attempt): the token\'s actual aud targets an upstream resource behind the gateway — a confused-deputy bypass. Mirrors mock Rule 0b-2 and the Node gateway GatewayTokenPolicy.',
     `{"denied": true, "reason": "bypass_attempt", "message": "Token aud '{{${ATTR.TokenAudActual}}}' targets an upstream resource behind the gateway. Obtain a gateway-targeted token and let the gateway exchange it for the next hop (D-05).", "tokenAudActual": "{{${ATTR.TokenAudActual}}}"}`), beforeFirstPolicyIdx);
