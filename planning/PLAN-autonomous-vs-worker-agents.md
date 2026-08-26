@@ -2,6 +2,10 @@
 
 Status: proposal, 2026-08-26. Nothing implemented yet.
 
+**Decided 2026-08-26** (was open): two jobs, read-only first then the write job with Phase 3 · each autonomous agent gets its **own** PingOne `AI_AGENT` registration · CIBA stays **simulated** for launch.
+
+Mockups of the console surfaces: <https://claude.ai/code/artifact/d1cc4e56-6959-4b18-aca1-e794f50bca2f>
+
 ## The distinction that matters
 
 Not "how smart is it" — **is a human present at the moment the token is minted?**
@@ -40,7 +44,7 @@ Each phase is independently demo-able and stops somewhere useful. Phase 1 alone 
 Declare which agents are which, and surface it. Today "agent" is one undifferentiated word in the UI and in PingOne.
 
 - Add `agentClass: "worker" | "autonomous"` to the agent registrations in `scope-topology.json`. It is a label, not a switch — nothing branches on it yet.
-- Mirror it as the PingOne AI Agent record's description/attribute during the migration already planned in [pingone-ai-agents-migration-plan.md](../docs/pingone-ai-agents-migration-plan.md), so the Directory > AI Agents list is filterable by class.
+- Give each autonomous agent its **own** PingOne `AI_AGENT` registration rather than reusing the root agent client, and carry `agentClass` on that record. This is what makes the class visible at the PingOne layer — per-agent revocation, per-agent audit, and a Directory > AI Agents list that can be filtered to "everything that runs unattended". Folds into the migration already planned in [pingone-ai-agents-migration-plan.md](../docs/pingone-ai-agents-migration-plan.md); costs one registration per job.
 - Show it in the token chain / trace surface: a worker chain shows `sub=user, act=agent`; an autonomous chain will show `sub=agent, no act`. The trace already renders both fields — this is a label, not new plumbing.
 
 Success: `npm run topology:verify` passes with the new field; the trace names the class for an existing run.
@@ -54,7 +58,12 @@ The minimum thing that makes an agent autonomous: it runs when no one is watchin
 - Persist the run through the existing `agentRunStore` / `agentTransactionTracker` so it lands in the trace and the activity log like any other run.
 - Behind `ff_autonomous_agents`, default OFF.
 
-Pick **one** narrow job for the demo — suggestion: a nightly "balance sweep / fraud watch" in Super Banking that reads and reports. Read-only first: no money moves without Phase 3.
+Two jobs, sequenced so risk arrives after the mechanism is proven:
+
+1. **Nightly Fraud Watch** (this phase) — scans overnight transactions, flags anomalies, **writes nothing**. It proves the unattended trigger and the `sub=agent`/no-`act` chain with nothing at stake.
+2. **Balance Sweep** (arrives with Phase 3) — moves money on a schedule, so it hits the mandate ceiling and gives Phase 3's CIBA pause something real to pause.
+
+Both in Super Banking. The read job alone never exceeds a ceiling, which is exactly why it cannot carry the Phase 3 story on its own.
 
 Success: with the flag on and no browser open, a run appears in the trace with `sub` = the agent and no `act` claim; with the flag off, nothing runs.
 
@@ -64,7 +73,9 @@ This is where the class difference earns its keep. The autonomous run hits somet
 
 - The scheduled run attempts a write above a threshold → the existing authorize/HITL path returns the deliberate `INDETERMINATE` pause.
 - Instead of an in-session consent modal, the pause routes to CIBA — push to the owner's device, run parked until they approve or it expires.
-- Reuse `cibaService` / `cibaSimulatedService` unchanged. Note `docs/ciba-real-provisioning-todo.md`: on env `01d89b06` the real CIBA client is still unprovisioned, so this demos simulated until that console work is done.
+- Reuse `cibaService` / `cibaSimulatedService` unchanged.
+- **Launch on simulated CIBA.** The approval is fake; the parked run, the expiry, and the trace are all real, and the swap to real CIBA is env-var only (`PINGONE_CIBA_CLIENT_ID` / `_SECRET`) with no code change. Real CIBA needs the PingOne Admin + DaVinci console work in `docs/ciba-real-provisioning-todo.md` on env `01d89b06` — no MCP tool or script can do that part, so it is not allowed to block this phase.
+- Phase 2's **Balance Sweep** job lands here, since it is the one that can exceed a ceiling.
 
 Success: the run parks; approving on the phone resumes it; expiry cancels it and shows as such in the trace.
 
@@ -85,8 +96,8 @@ Success: killing an autonomous agent stops the next scheduled run, and the lifec
 - No new UI surface. Class label goes on existing trace/roster surfaces.
 - No change to any worker-agent path. Phase 2 adds a second entry point; it does not touch the chat one.
 
-## Open questions
+## Still open
 
-1. Which vertical carries the autonomous demo? Super Banking is the default; a fraud/balance sweep tells the story best.
-2. Does the autonomous agent get its **own PingOne AI Agent identity**, or reuse the root "Super Banking AI Agent" client with a different grant path? Own identity is cleaner for the inventory story and costs one more registration.
-3. Real CIBA or simulated for the launch demo — gated on the console provisioning in `ciba-real-provisioning-todo.md`.
+1. What counts as an anomaly for Fraud Watch, and what does it do with one — activity-log entry, or something the user sees next sign-in?
+2. Where the mandate ceiling is stored. `agentRestrictions` holds the tier today; the ceiling (amount, count, window) needs a home that the authorize path can read without a second round trip.
+3. Whether an autonomous run should appear in the same Recent Runs list as worker runs (the mockup assumes yes) or a separate unattended feed.
