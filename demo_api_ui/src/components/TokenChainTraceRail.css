@@ -37,6 +37,20 @@
 .tctr-title-group {
   display: flex; align-items: center; gap: 10px;
 }
+/* Which class of agent ran this chain, derived from the tokens themselves
+   (deriveAgentClass.js) rather than asserted by config. It sits on the header
+   band, not the page, so it takes the same translucent treatment as the
+   neighbouring .tctr-view-mode instead of page-level --th-* tokens. Autonomous
+   is amber because it is the class that runs with nobody watching. */
+.tctr-agent-class {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 999px; white-space: nowrap;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.12);
+}
+.tctr-agent-class--autonomous {
+  border-color: #f0b429; color: #ffdd99; background: rgba(240, 180, 41, 0.18);
+}
 .tctr-view-mode {
   display: flex; padding: 2px; border: 1px solid rgba(255, 255, 255, 0.35);
   border-radius: 6px; background: rgba(15, 23, 42, 0.2);

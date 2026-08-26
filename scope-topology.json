@@ -353,61 +353,73 @@
     },
     "Super Banking AI Agent": {
       "type": "WEB_APP",
+      "agentClass": "worker",
       "grantTypes": ["client_credentials", "token_exchange"],
       "grantedScopes": ["agent:invoke", "admin:read"]
     },
     "Super Banking Investment Advisor Agent": {
       "type": "WEB_APP",
+      "agentClass": "worker",
       "grantTypes": ["client_credentials", "token_exchange"],
       "grantedScopes": ["invest:read"]
     },
     "Super Banking Records Specialist Agent": {
       "type": "WEB_APP",
+      "agentClass": "worker",
       "grantTypes": ["client_credentials", "token_exchange"],
       "grantedScopes": ["read", "records:read"]
     },
     "Super Banking Purchase Specialist Agent": {
       "type": "WEB_APP",
+      "agentClass": "worker",
       "grantTypes": ["client_credentials", "token_exchange"],
       "grantedScopes": ["read", "purchase:read"]
     },
     "Super Banking Membership Specialist Agent": {
       "type": "WEB_APP",
+      "agentClass": "worker",
       "grantTypes": ["client_credentials", "token_exchange"],
       "grantedScopes": ["read", "membership:read"]
     },
     "Super Banking Payroll Specialist Agent": {
       "type": "WEB_APP",
+      "agentClass": "worker",
       "grantTypes": ["client_credentials", "token_exchange"],
       "grantedScopes": ["read", "payroll:read"]
     },
     "Super Banking Tax Records Specialist Agent": {
       "type": "WEB_APP",
+      "agentClass": "worker",
       "grantTypes": ["client_credentials", "token_exchange"],
       "grantedScopes": ["read", "tax:read"]
     },
     "Super Banking Financial Aid Specialist Agent": {
       "type": "WEB_APP",
+      "agentClass": "worker",
       "grantTypes": ["client_credentials", "token_exchange"],
       "grantedScopes": ["read", "finaid:read"]
     },
     "Super Banking Supplier Contract Specialist Agent": {
       "type": "WEB_APP",
+      "agentClass": "worker",
       "grantTypes": ["client_credentials", "token_exchange"],
       "grantedScopes": ["read", "supplier:read"]
     },
     "Super Banking Holdings Specialist Agent": {
       "type": "WEB_APP",
+      "agentClass": "worker",
       "grantTypes": ["client_credentials", "token_exchange"],
       "grantedScopes": ["read", "holdings:read"]
     },
     "Super Banking Passenger Records Specialist Agent": {
       "type": "WEB_APP",
+      "agentClass": "worker",
       "grantTypes": ["client_credentials", "token_exchange"],
       "grantedScopes": ["read", "pnr:read"]
     },
     "Super Banking Agent": {
       "type": "WORKER",
+      "agentClass": "worker",
       "grantTypes": ["client_credentials"],
       "grantedScopes": []
     },
@@ -418,6 +430,7 @@
     },
     "Super Banking Identity Verification Specialist Agent": {
       "type": "WEB_APP",
+      "agentClass": "worker",
       "grantTypes": ["client_credentials", "token_exchange"],
       "grantedScopes": ["read", "identity:read"]
     }

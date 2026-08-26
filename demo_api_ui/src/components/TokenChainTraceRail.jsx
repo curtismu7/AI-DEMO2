@@ -17,6 +17,7 @@ import ChainViewMenu from "./ChainViewMenu";
 import DemoTrackBand from "./DemoTrackBand";
 import TokenChainPresenter from "./TokenChainPresenter";
 import TraceTokenSummary from "./TraceTokenSummary";
+import { deriveAgentClass, AGENT_CLASS_LABEL, AGENT_CLASS_TITLE } from "../services/tokenChainTrace/deriveAgentClass";
 import TraceMcpPanel from "./TraceMcpPanel";
 import TraceTrustPanel from "./TraceTrustPanel";
 import { SimpleStepper, DetailedStepper } from "./agent-clinical/TokensPane";
@@ -376,6 +377,7 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
     events: trace.tokenEvents,
   });
   const inspectClaims = inspectType ? resolveInspectClaims(trace.tokenEvents, inspectType) : null;
+  const agentClass = deriveAgentClass(trace.tokenEvents);
   const hasTraceActivity = Boolean(
     trace.startedAt || trace.prompt || (trace.tokenEvents && trace.tokenEvents.length) ||
     (trace.phases && trace.phases.length) || trace.mcpResult || trace.authorize ||
@@ -396,6 +398,14 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
       <div className="tctr-head">
         <div className="tctr-title-group">
           <span className="tctr-title">Token Chain</span>
+          {agentClass ? (
+            <span
+              className={`tctr-agent-class tctr-agent-class--${agentClass}`}
+              title={AGENT_CLASS_TITLE[agentClass]}
+            >
+              {AGENT_CLASS_LABEL[agentClass]}
+            </span>
+          ) : null}
         </div>
         <div className="tctr-toolbar">
           {tab !== "chain" ? (

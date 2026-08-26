@@ -254,6 +254,11 @@
               "type": "string"
             }
           },
+          "agentClass": {
+            "type": "string",
+            "enum": ["worker", "autonomous"],
+            "description": "Which class of agent this registration is, when it is an agent at all. worker = runs inside a live user session and delegates via RFC 8693 (sub=user, act=agent). autonomous = runs unattended from a schedule or event on its own identity (sub=agent, no act). Absent for non-agent apps (human sign-in, MCP infrastructure, bootstrap tooling)."
+          },
           "type": {
             "type": "string",
             "enum": [
