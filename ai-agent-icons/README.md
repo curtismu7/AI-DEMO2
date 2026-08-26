@@ -44,6 +44,7 @@ actually become `AI_AGENT`-typed without a full delete/recreate.
 | `20-pkce.png` | Demo AI App - PKCE |
 | `21-claude-code-client.png` | Claude Code - Banking Gateway |
 | `22-privilege.png` | PingOne Privilege |
+| `23-grafana-monitoring.png` | Demo AI App - Grafana Login |
 
 13 and 14 are uploaded to PingOne (Demo AI App - Agent Actor, Demo AI App - MCP
 Server Client) but their source files were never committed here — numbering
