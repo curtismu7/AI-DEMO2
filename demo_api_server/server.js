@@ -1539,6 +1539,10 @@ app.use('/api/logs', logsRoutes);
 // PingOne Configuration Audit — admin-accessible endpoint for validating resources and scopes
 app.use('/api/pingone/audit', pingoneAuditRoutes);
 
+// M2M Client Credentials sample — public, like the other PingOne Demo Apps pages.
+// The worker client secret stays server-side; the route returns rendered steps only.
+app.use('/api/m2m-sample', require('./routes/m2mSample'));
+
 // PingOne Test Page — /config is public (env settings only, no user data); all other endpoints require auth
 app.use('/api/pingone-test', (req, res, next) => {
     if (req.path === '/config' && req.method === 'GET') return next();

@@ -644,6 +644,12 @@ export default function AdminSideNav({
       icon: "tst",
       children: [
         { label: "Self-Service Registration", path: "/self-service", icon: "usr" },
+        {
+          label: "M2M Client Credentials",
+          path: "/m2m-sample",
+          icon: "key",
+          searchAlias: "machine to machine client credentials Protect sample",
+        },
         { label: "PingOne Test", path: "/pingone-test", icon: "tst" },
         { label: "MFA Test", path: "/mfa-test", icon: "lck" },
         {
