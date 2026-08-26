@@ -20,6 +20,11 @@ global:
   external_labels:
     stack: ai-demo
 
+# Alert rules live next door. No Alertmanager in this stack, so they evaluate and
+# surface in Prometheus/Grafana but are not routed anywhere — see alerts.yml.
+rule_files:
+  - alerts.yml
+
 scrape_configs:
   - job_name: pinggateway
     # Version is part of the path — PingGateway 2026.x dropped the older

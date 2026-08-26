@@ -66,16 +66,13 @@ services:
       - ai-demo
 
   # Prometheus + Grafana read the metrics PingGateway already publishes on its
-  # admin connector (:8085). Behind the `monitoring` profile so the default lean
-  # core stays lean — bring them up with:
-  #   docker compose --profile monitoring up -d prometheus grafana
-  # In Kubernetes they are always deployed (k8s/76-*, k8s/77-*).
+  # admin connector (:8085). Unprofiled, same as jaeger above: observability is
+  # part of the default stack rather than something to remember to switch on.
   prometheus:
     image: prom/prometheus:v2.55.1
     container_name: ai-demo-prometheus
     mem_limit: 1g
     restart: unless-stopped
-    profiles: ["monitoring"]
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
@@ -87,6 +84,7 @@ services:
       # The same file k8s/create-secrets.sh turns into the prometheus-config
       # ConfigMap — one copy in the repo, both targets read it.
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
     networks:
       - ai-demo
 
@@ -95,7 +93,6 @@ services:
     container_name: ai-demo-grafana
     mem_limit: 512m
     restart: unless-stopped
-    profiles: ["monitoring"]
     depends_on:
       - prometheus
     ports:

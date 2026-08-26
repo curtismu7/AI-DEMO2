@@ -614,6 +614,7 @@ if [ -f "$ASSET_ROOT/monitoring/prometheus.yml" ]; then
   kubectl create configmap prometheus-config \
     --namespace="$NS" \
     --from-file=prometheus.yml="$ASSET_ROOT/monitoring/prometheus.yml" \
+    --from-file=alerts.yml="$ASSET_ROOT/monitoring/alerts.yml" \
     --dry-run=client -o yaml | kubectl apply -f -
   kubectl create configmap grafana-datasources \
     --namespace="$NS" \
