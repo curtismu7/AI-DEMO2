@@ -29,7 +29,7 @@ const dataStore = require('../data/store');
 const agentCCTokenService = require('./agentCCTokenService');
 const cibaSimulated = require('./cibaSimulatedService');
 const { createUnattendedContext } = require('./unattendedRunContext');
-const { checkAmount, OUTCOME } = require('./agentMandate');
+const { authorizeUnattendedTransfer } = require('./autonomousAuthorize');
 
 /** The agent identity this job authenticates as. */
 const AGENT = 'Super Banking Balance Sweep Agent';
@@ -78,6 +78,7 @@ async function runBalanceSweep(deps = {}) {
     readAccounts = () => dataStore.getAllAccounts(),
     initiateCiba = (loginHint, bindingMessage) =>
       cibaSimulated.initiateSimulated(loginHint, bindingMessage, 'openid', ''),
+    authorize = authorizeUnattendedTransfer,
   } = deps;
 
   const floor = _positive(configStore.getEffective('BALANCE_SWEEP_FLOOR'), DEFAULT_FLOOR);
@@ -104,9 +105,23 @@ async function runBalanceSweep(deps = {}) {
     };
   }
 
-  const verdict = checkAmount(AGENT, sweep.amount);
+  // The POLICY decides, not this job. checkAmount() still resolves the declared
+  // mandate, but only so it can be SENT — the ceiling is enforced at the PDP.
+  const verdict = await authorize({ agentName: AGENT, amount: sweep.amount, type: 'transfer' });
 
-  if (verdict.outcome === OUTCOME.WITHIN) {
+  // The PDP being unreachable is not a permit. An unattended agent that cannot
+  // be authorized does not act.
+  if (verdict.outcome === 'unavailable') {
+    return {
+      status: 'failed', agent: AGENT, tokenEvents: ctx.tokenEvents,
+      scanned: accounts.length, floor,
+      proposal: sweep, findings: [],
+      error: `authorization unavailable: ${verdict.error}`,
+      summary: 'could not reach the policy engine — nothing moved',
+    };
+  }
+
+  if (verdict.outcome === 'permit') {
     return {
       status: 'completed', agent: AGENT, tokenEvents: ctx.tokenEvents,
       scanned: accounts.length, floor,
@@ -117,24 +132,28 @@ async function runBalanceSweep(deps = {}) {
     };
   }
 
-  // Nothing to evaluate against. This is the INDETERMINATE case and it FAILS
-  // CLOSED — no transfer, and deliberately NO CIBA. Asking a human to approve a
-  // request no policy could reason about just moves an unbounded agent past a
-  // rubber stamp. The fix is to declare a mandate, not to find an approver.
-  if (verdict.outcome === OUTCOME.INDETERMINATE) {
+  // The policy refused. The case that matters here is an agent with no declared
+  // mandate: nothing to evaluate against, so the request never reaches an
+  // explicit permit, and the PDP fails closed. Deliberately NOT a pause —
+  // asking a human to approve a request no policy could reason about just moves
+  // an unbounded agent past a rubber stamp. The fix is to declare a mandate,
+  // not to find an approver.
+  if (verdict.outcome === 'deny') {
     return {
       status: 'denied', agent: AGENT, tokenEvents: ctx.tokenEvents,
       scanned: accounts.length, floor,
-      mandate: null,
+      mandate: verdict.mandate,
       proposal: sweep,
       findings: [],
-      summary: verdict.reason,
+      decision: { decision: verdict.decision, reason: verdict.reason, code: verdict.code },
+      summary: verdict.reason || 'denied by policy',
     };
   }
 
-  // Over the ceiling: a rule matched and refuses to let the agent do this
-  // alone, which is a pause rather than a refusal. Park and ask the owner —
-  // the human this agent acts for, even though they are not here.
+  // outcome === 'pause': the policy PERMITTED, carrying an unfulfilled
+  // ciba-approval obligation. That is the authz server's shape for "legitimate
+  // request, needs a human" — the PEP discharges it by reaching the absent
+  // owner out of band. Park and ask.
   const owner = accounts.find((a) => a.id === sweep.fromAccountId);
   const loginHint = (owner && (owner.userId || owner.ownerId)) || 'demoUser';
   const bindingMessage = `Approve moving ${sweep.amount} from ${sweep.fromName}?`;
@@ -154,7 +173,8 @@ async function runBalanceSweep(deps = {}) {
       bindingMessage,
       engine: 'simulated',
     },
-    summary: verdict.reason,
+    decision: { decision: verdict.decision, reason: verdict.reason, code: verdict.code },
+    summary: verdict.reason || 'over the standing mandate — waiting on the owner',
   };
 }
 
