@@ -456,5 +456,16 @@
         }
       }
     }
+  ],
+  "links": [
+    {
+      "type": "link",
+      "title": "Traces (Jaeger)",
+      "tooltip": "Open Explore on the Jaeger datasource — the same gateway, per request",
+      "icon": "external link",
+      "url": "/grafana/explore?left=%7B%22datasource%22%3A%22ai-demo-jaeger%22%2C%22queries%22%3A%5B%7B%22queryType%22%3A%22search%22%2C%22service%22%3A%22pinggateway%22%7D%5D%2C%22range%22%3A%7B%22from%22%3A%22now-1h%22%2C%22to%22%3A%22now%22%7D%7D",
+      "targetBlank": true,
+      "keepTime": true
+    }
   ]
 }
