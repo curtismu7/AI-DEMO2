@@ -313,6 +313,12 @@ Type: `WEB_APP`  ·  Grants: `client_credentials`
 
 Granted scopes: `read`
 
+### Super Banking Balance Sweep Agent
+
+Type: `WEB_APP`  ·  Grants: `client_credentials`
+
+Granted scopes: `read`, `transfer`
+
 ### Super Banking Agent
 
 Type: `WORKER`  ·  Grants: `client_credentials`

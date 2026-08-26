@@ -254,6 +254,24 @@
               "type": "string"
             }
           },
+          "mandate": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "What this agent may do unattended without asking a human. Only meaningful on an autonomous agent: a worker agent is bounded by the session it runs in. Exceeding it does not fail the run -- it parks it for CIBA approval.",
+            "properties": {
+              "maxAmount": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "description": "Largest single amount the agent may move on its own."
+              },
+              "window": {
+                "type": "string",
+                "enum": ["run", "day"],
+                "description": "Period the ceiling applies over."
+              }
+            },
+            "required": ["maxAmount"]
+          },
           "agentClass": {
             "type": "string",
             "enum": ["worker", "autonomous"],

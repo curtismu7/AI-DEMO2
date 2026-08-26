@@ -80,12 +80,35 @@ router.get('/:runId', (req, res) => {
 // Fire a run without waiting for the cron. This is what makes the feature
 // demo-able at all -- nobody watches a demo at 02:00.
 router.post('/run', async (req, res) => {
+  const job = (req.body && req.body.job) || 'fraud-watch';
+  if (!scheduler.JOBS[job]) {
+    return res.status(400).json({ error: 'unknown_job', job, known: Object.keys(scheduler.JOBS) });
+  }
   try {
-    const run = await scheduler.runJobNow({ trigger: 'manual' });
+    const run = await scheduler.runJobNow({ trigger: 'manual', job });
     if (!run) return res.status(403).json({ error: 'feature_disabled', flag: 'ff_autonomous_agents' });
     res.json({ run });
   } catch (err) {
     res.status(500).json({ error: 'run_failed', message: err.message });
+  }
+});
+
+// The absent human answering. In the demo this is a button; in the real flow it
+// is the CIBA push landing on their device. Either way the run was holding the
+// transfer, so approval is what actually moves the money.
+router.post('/:runId/approve', async (req, res) => {
+  try {
+    res.json({ run: await scheduler.approveParkedRun(req.params.runId) });
+  } catch (err) {
+    res.status(err.httpStatus || 500).json({ error: err.message });
+  }
+});
+
+router.post('/:runId/deny', (req, res) => {
+  try {
+    res.json({ run: scheduler.denyParkedRun(req.params.runId) });
+  } catch (err) {
+    res.status(err.httpStatus || 500).json({ error: err.message });
   }
 });
 

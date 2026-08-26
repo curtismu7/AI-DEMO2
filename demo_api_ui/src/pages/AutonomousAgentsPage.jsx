@@ -56,16 +56,41 @@ export default function AutonomousAgentsPage() {
     }
   }
 
-  async function runNow() {
+  async function runNow(job) {
     setBusy(true);
     try {
-      const res = await apiClient.post("/api/autonomous-runs/run");
-      if (res.data?.run) {
-        notifySuccess("Run finished");
+      const res = await apiClient.post("/api/autonomous-runs/run", { job });
+      const run = res.data?.run;
+      if (run) {
+        notifySuccess(
+          run.status === "parked"
+            ? "Over the mandate — the run is waiting on approval"
+            : "Run finished",
+        );
         loadRuns();
       }
     } catch {
       notifyError("Could not start a run");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function decide(runId, decision) {
+    setBusy(true);
+    try {
+      const res = await apiClient.post(`/api/autonomous-runs/${runId}/${decision}`);
+      const run = res.data?.run;
+      notifySuccess(
+        run?.status === "completed"
+          ? "Approved — the transfer went through"
+          : run?.status === "denied"
+            ? "Declined — nothing moved"
+            : "The approval request had already expired",
+      );
+      loadRuns();
+    } catch {
+      notifyError("Could not record that decision");
     } finally {
       setBusy(false);
     }
@@ -125,12 +150,19 @@ export default function AutonomousAgentsPage() {
         <section className="aap-card">
           <div className="aap-runs-head">
             <h2 className="aap-h2">Runs</h2>
-            <button type="button" className="aap-btn" onClick={runNow} disabled={busy}>
-              Run now
-            </button>
+            <div className="aap-btnrow">
+              <button type="button" className="aap-btn" onClick={() => runNow("fraud-watch")} disabled={busy}>
+                Run fraud watch
+              </button>
+              <button type="button" className="aap-btn" onClick={() => runNow("balance-sweep")} disabled={busy}>
+                Run balance sweep
+              </button>
+            </div>
           </div>
           <p className="aap-sub">
-            The job runs at 02:00. "Run now" fires one immediately — nobody watches a demo at 02:00.
+            Fraud watch reads only and runs at 02:00. Balance sweep can move money and runs at 06:00 —
+            if what it wants to move is over the agent's standing mandate, the run parks and asks the
+            account owner instead. Nobody watches a demo at 02:00, so run one now.
           </p>
 
           {!runs.length ? (
@@ -142,9 +174,55 @@ export default function AutonomousAgentsPage() {
                   <button type="button" className="aap-open" onClick={() => replay(run.runId)}>
                     <span className="aap-job">{run.job}</span>
                     <span className="aap-when">{new Date(run.startedAt).toLocaleString()}</span>
-                    <span className="aap-desc">{describeRun(run)}</span>
+                    <span className="aap-desc">{run.summary || describeRun(run)}</span>
                     <span className="aap-trigger">{run.trigger}</span>
                   </button>
+
+                  {run.status === "parked" ? (
+                    <div className="aap-parked">
+                      <p className="aap-parked-head">Waiting on the account owner</p>
+                      <p className="aap-parked-body">
+                        The agent wants to move {run.proposal?.amount} from {run.proposal?.fromName}.
+                        Its standing mandate is {run.mandate?.maxAmount} per {run.mandate?.window},
+                        so it cannot do this on its own.
+                      </p>
+                      {run.mandate?.maxAmount ? (
+                        <div className="aap-gauge">
+                          <div className="aap-gauge-head">
+                            <span>Against the mandate</span>
+                            <b>
+                              {run.proposal?.amount} of {run.mandate.maxAmount}
+                            </b>
+                          </div>
+                          <div className="aap-gauge-track">
+                            <div className="aap-gauge-fill" />
+                          </div>
+                        </div>
+                      ) : null}
+                      <p className="aap-parked-sub">
+                        CIBA sent to {run.pending?.loginHint} — simulated, so it also
+                        self-approves after a minute.
+                      </p>
+                      <div className="aap-btnrow">
+                        <button
+                          type="button"
+                          className="aap-btn"
+                          onClick={() => decide(run.runId, "approve")}
+                          disabled={busy}
+                        >
+                          Approve
+                        </button>
+                        <button
+                          type="button"
+                          className="aap-btn aap-btn--deny"
+                          onClick={() => decide(run.runId, "deny")}
+                          disabled={busy}
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
                 </li>
               ))}
             </ul>
