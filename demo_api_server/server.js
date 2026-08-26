@@ -1443,6 +1443,9 @@ app.use('/api/admin', authenticateToken, adminRoutes);
 // AI Control Plane (cross-platform agent roster). Any authenticated user — the
 // router applies authenticateToken per-route; no admin role required.
 app.use('/api/control-plane', require('./routes/controlPlane'));
+// Agent registry — one merged view over the identity stores (PingOne apps,
+// demo-issued workload clients, A2A specialists) with scope-drift detection.
+app.use('/api/registry', require('./routes/agentRegistry'));
 app.use('/api/admin/management', adminManagementRoutes);
 app.use('/api/admin/setup', setupWizardRoutes);
 app.use('/api/admin/diagrams', authenticateToken, diagramsRoutes);

@@ -1,0 +1,149 @@
+'use strict';
+
+/**
+ * agentRegistryService — one view over the identity stores that already hold
+ * real data, so "what non-human identities exist here, and are they drifting?"
+ * has a single answer instead of nine disconnected ones.
+ *
+ * Deliberately NOT a new store. Every row is read live from an existing source;
+ * nothing is duplicated or cached, so the registry cannot go stale.
+ *
+ * Shape copied from data/serverInventory.js + GET /api/health/inventory: a
+ * source list, read independently, merged into an always-200 payload carrying
+ * per-source { up, error }. PingOne is a live HTTP call and WILL be down
+ * sometimes; the page must degrade to the other sources rather than 500.
+ */
+
+const agentBuilderService = require('./agentBuilderService');
+const oauthClientRegistry = require('./oauthClientRegistry');
+const a2aAgentCardService = require('./a2aAgentCardService');
+const agentLifecycleEvents = require('./agentLifecycleEvents');
+const scopeTopology = require('./scopeTopology');
+
+/**
+ * Run one source in isolation. A source that throws contributes `up: false`
+ * and zero rows — never an exception that costs the caller every other source.
+ */
+async function readSource(name, fn, out) {
+  try {
+    const rows = await fn();
+    out.sources[name] = { up: true, rows: rows.length };
+    out.rows.push(...rows);
+  } catch (err) {
+    out.sources[name] = { up: false, rows: 0, error: err?.message || String(err) };
+  }
+}
+
+/** Lifecycle is per-row and best-effort: a missing trail must not drop the row. */
+function lifecycleFor(agentId) {
+  try {
+    return (agentLifecycleEvents.query({ agentId, limit: 5 }) || []).slice(0, 5);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Expected scopes come from scope-topology.json (the SSOT); granted scopes come
+ * from the live PingOne grants. The gap between them is the governance signal.
+ */
+function scopeDriftFor(appName, grantedScopes) {
+  let expected = [];
+  try {
+    expected = scopeTopology.appGrantedScopes(appName) || [];
+  } catch {
+    expected = [];
+  }
+  const granted = new Set(grantedScopes);
+  const missing = expected.filter((s) => !granted.has(s));
+  return { expectedScopes: expected, missingScopes: missing, scopeDrift: missing.length > 0 };
+}
+
+/** PingOne applications — the authoritative agent inventory. */
+async function pingOneAgents() {
+  const apps = await agentBuilderService.listEnvironmentAgents();
+  return Promise.all(apps.map(async (app) => {
+    let granted = [];
+    try {
+      const grants = await agentBuilderService.getAgentGrants(app.id);
+      granted = Object.values(grants || {}).flat();
+    } catch {
+      granted = [];
+    }
+    return {
+      id: app.id,
+      name: app.name,
+      identityType: 'agent',
+      source: 'pingone',
+      credentialType: (app.grantTypes || []).join(', ') || null,
+      status: app.enabled ? 'active' : 'disabled',
+      builderCreated: !!app.builderCreated,
+      grantedScopes: granted,
+      ...scopeDriftFor(app.name, granted),
+      lifecycle: lifecycleFor(app.id),
+    };
+  }));
+}
+
+/**
+ * Demo-issued OAuth clients. These are `client_credentials` only by
+ * construction, which makes them workload identities — the NHI half of the
+ * diagram's Workload IDP box, as a filter over this registry rather than a
+ * separate inventory.
+ */
+function demoRegistryClients() {
+  const clients = oauthClientRegistry.listClients() || [];
+  return clients.map((c) => ({
+    id: c.client_id,
+    name: c.client_name,
+    identityType: (c.grant_types || []).includes('client_credentials') ? 'workload' : 'agent',
+    source: 'demo-registry',
+    credentialType: (c.grant_types || []).join(', ') || null,
+    status: c.status || 'active',
+    grantedScopes: typeof c.scope === 'string' ? c.scope.split(/\s+/).filter(Boolean) : [],
+    expectedScopes: [],
+    missingScopes: [],
+    // Not in scope-topology — these are issued at runtime, so there is no
+    // declared expectation to drift from.
+    scopeDrift: false,
+    lastUsed: c.last_used || null,
+    usageCount: c.usage_count || 0,
+    lifecycle: lifecycleFor(c.client_id),
+  }));
+}
+
+/** A2A specialists — real computed Agent Cards, previously invisible over HTTP. */
+function a2aSpecialists() {
+  const cards = a2aAgentCardService.buildAllSpecialistAgentCards() || [];
+  return cards.map((card) => ({
+    id: `a2a:${card.name}`,
+    name: card.name,
+    identityType: 'agent',
+    source: 'a2a',
+    credentialType: 'pingone-bearer',
+    status: 'active',
+    skills: (card.skills || []).map((s) => s.id).filter(Boolean),
+    grantedScopes: [],
+    expectedScopes: [],
+    missingScopes: [],
+    scopeDrift: false,
+    lifecycle: [],
+  }));
+}
+
+/**
+ * Build the registry. Always resolves — never throws — so a caller can render
+ * a partial view with the failures named.
+ * @returns {Promise<{ generatedAt: string, sources: object, rows: object[] }>}
+ */
+async function buildRegistry() {
+  const out = { generatedAt: new Date().toISOString(), sources: {}, rows: [] };
+
+  await readSource('pingone', pingOneAgents, out);
+  await readSource('demoRegistry', async () => demoRegistryClients(), out);
+  await readSource('a2a', async () => a2aSpecialists(), out);
+
+  return out;
+}
+
+module.exports = { buildRegistry };
