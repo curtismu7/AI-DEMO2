@@ -19,7 +19,12 @@ const router = express.Router();
 const PROVIDER_MODELS = {
   openai:              ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'],
   anthropic:           ['claude-opus-4-5', 'claude-sonnet-4-5', 'claude-3-5-haiku-20241022'],
-  groq:                ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'],
+  // GroqCloud retires models without notice, and provider availability is gated
+  // on GROQ_API_KEY alone (see key_set below) — so a decommissioned id here does
+  // not show as "unconfigured", it passes the health check and 404s mid-request.
+  // Verified against GET /openai/v1/models on 2026-08-26. qwen3.6-27b is live but
+  // omitted: it emits <think> into content, which the SPA renders verbatim.
+  groq:                ['openai/gpt-oss-20b', 'openai/gpt-oss-120b', 'qwen/qwen3.8-27b', 'groq/compound-mini'],
   google:              ['gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash'],
   helix:               ['gpt-4o', 'gpt-4o-mini', 'gemini-1.5-pro', 'claude-3-5-sonnet'],
   // LM Studio — Anthropic-compatible endpoint at /v1/messages.
@@ -37,7 +42,7 @@ const PROVIDER_MODELS = {
 const DEFAULT_MODELS = {
   openai:              'gpt-4o-mini',
   anthropic:           'claude-3-5-haiku-20241022',
-  groq:                'llama-3.1-8b-instant',
+  groq:                'openai/gpt-oss-20b',
   google:              'gemini-2.0-flash',
   helix:               'gpt-4o-mini',
   'anthropic-lmstudio': 'google/gemma-4-e2b',

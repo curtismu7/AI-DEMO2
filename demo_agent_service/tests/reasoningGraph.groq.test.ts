@@ -17,7 +17,7 @@ const baseReq: ReasonRequest = {
   tools: [{ name: 'get_account_balance', description: 'balance', inputSchema: { type: 'object', properties: {} } }],
   provider: 'groq',
   groqApiKey: 'test-key',
-  model: 'llama-3.3-70b-versatile',
+  model: 'openai/gpt-oss-20b',
 };
 
 describe('reasonOnce — groq provider', () => {

@@ -113,7 +113,7 @@ class LangChainConfig:
     # cloud service); get_llm() fails fast when it is blank.
     groq_base_url: str = "https://api.groq.com/openai/v1"
     groq_api_key: str = ""
-    groq_model: str = "llama-3.3-70b-versatile"
+    groq_model: str = "openai/gpt-oss-20b"
     # Gemini — OpenAI-compatible /v1beta/openai/ endpoint. Real key required;
     # get_llm() fails fast when it is blank.
     google_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
@@ -507,7 +507,7 @@ class ConfigManager:
             # GroqCloud — real key required; get_llm() fails fast when blank.
             groq_base_url=get_env_value("GROQ_BASE_URL", "https://api.groq.com/openai/v1"),
             groq_api_key=get_env_value("GROQ_API_KEY", ""),
-            groq_model=get_env_value("GROQ_MODEL", "llama-3.3-70b-versatile"),
+            groq_model=get_env_value("GROQ_MODEL", "openai/gpt-oss-20b"),
             # Gemini — real key required; get_llm() fails fast when blank.
             google_base_url=get_env_value("GOOGLE_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai/"),
             google_api_key=get_env_value("GOOGLE_API_KEY", ""),

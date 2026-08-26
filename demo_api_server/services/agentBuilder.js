@@ -30,7 +30,7 @@ const MAX_TOOL_ITERATIONS = 10;
 const DEFAULT_MODELS = {
   openai:    'gpt-4o-mini',
   anthropic: 'claude-3-5-haiku-20241022',
-  groq:      'llama-3.1-8b-instant',
+  groq:      'openai/gpt-oss-20b',
   google:    'gemini-2.0-flash',
   helix:     'gpt-4o-mini',
 };
