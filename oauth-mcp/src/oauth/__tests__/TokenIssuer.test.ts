@@ -47,6 +47,34 @@ describe('resolveOwnAudience', () => {
     process.env.MCP_SERVER_RESOURCE_URI = ' , , ';
     expect(resolveOwnAudience()).toBe('mcpserver.ping.demo');
   });
+
+  // The positional dependency this removes: MCP_SERVER_RESOURCE_URI[0] is only
+  // "our own" URI by convention. Reorder the list and this AS starts asserting
+  // an audience it has no authority to grant. Sibling resolvers already prefer
+  // the dedicated var (JwtClaimVerifier); this one now matches them.
+  it('prefers PINGONE_RESOURCE_MCP_SERVER_URI over the positional first entry', () => {
+    process.env.PINGONE_RESOURCE_MCP_SERVER_URI = 'mcpserver.ping.demo';
+    process.env.MCP_SERVER_RESOURCE_URI = 'mcpgateway.ping.demo,mcpserver.ping.demo';
+    expect(resolveOwnAudience()).toBe('mcpserver.ping.demo');
+  });
+
+  it('takes the first entry when the dedicated var is itself a comma list', () => {
+    process.env.PINGONE_RESOURCE_MCP_SERVER_URI = ' mcpserver.ping.demo , other.example ';
+    process.env.MCP_SERVER_RESOURCE_URI = 'mcpgateway.ping.demo';
+    expect(resolveOwnAudience()).toBe('mcpserver.ping.demo');
+  });
+
+  // Inert today: the dedicated var is unset in docker-compose.yml, k8s/, and
+  // the live ai-demo-mcp-server container, so behaviour is unchanged until an
+  // operator sets it.
+  it('falls through to MCP_SERVER_RESOURCE_URI when the dedicated var is unset or empty', () => {
+    delete process.env.PINGONE_RESOURCE_MCP_SERVER_URI;
+    process.env.MCP_SERVER_RESOURCE_URI = 'mcpserver.ping.demo,mcpgateway.ping.demo';
+    expect(resolveOwnAudience()).toBe('mcpserver.ping.demo');
+
+    process.env.PINGONE_RESOURCE_MCP_SERVER_URI = '  ,  ';
+    expect(resolveOwnAudience()).toBe('mcpserver.ping.demo');
+  });
 });
 
 jest.mock('jose', () => {
