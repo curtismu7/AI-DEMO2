@@ -434,7 +434,7 @@ fallback. RED-proven: replacing the memo with a plain IIFE fails 2 of 8.
 Full UI gate green — 3467 unit tests passed (434 files), `npm run build` exit 0.
 Run unscoped on purpose: this hook is called by nearly every screen.
 
-### [x] 2026-08-23 — native ID-JAG: PingGateway's own D-05 still blocks the real tool call even when the OLB-audience pin should redirect it
+### [ ] 2026-08-23 — native ID-JAG: PingGateway's own D-05 still blocks the real tool call even when the OLB-audience pin should redirect it
 
 Live E2E verification of PR #2268 (native ID-JAG gateway filter — mint → redeem
 → tool call) surfaced this while checking whether the redeemed, OLB-audienced
@@ -620,6 +620,64 @@ pin-could-not-move case keeps the mode audience. RED-proven: removing
 `pinnedAud ||` fails 2 of 5. Neighbouring classifier specs green
 (`mcpGatewayClient.reauth`, `attackSimulator.wrongAudFields`). Full BFF suite
 10,251 passed, 2 worker-contention flakes that pass scoped and touch neither file.
+
+**RESOLVED 2026-08-26 — and my own two earlier readings of this were wrong.**
+Ticking it `[x]` after the `expectedAud` fix was premature (that unblocked the
+REQUEST, not the feature), and the follow-up claim that D-05 and native ID-JAG
+are "mutually exclusive by design" was also wrong. They are not. **The exemption
+already existed in both implementations; it simply never fired.**
+
+With the earlier blockers cleared, a live signed turn reached the exact symptom
+this entry recorded on 2026-08-23:
+
+```
+bypass_attempt: token aud targets upstream mcpserver.ping.demo
+— cannot bypass gateway (D-05)
+```
+
+**What D-05 is:** a per-hop invariant — a client obtains a GATEWAY-audienced
+token, and only the gateway may exchange it for the next hop. So an upstream
+audience must never appear in a token presented at the gateway. It stops a
+leaked or forged OLB-audienced token being presented directly to skip the
+gateway's own checks. Implemented independently three times: the Node gateway
+(`GatewayTokenPolicy.ts`), the P1AZ policy (`demo_authz_server/routes/decision.js`)
+and PingGateway's Groovy.
+
+**Native ID-JAG is a legitimate exception and both live implementations know it.**
+`GatewayTokenPolicy.ts:145` wraps the blacklist in `if (!isIdJagIssuedToken(...))`;
+`decision.js:409` computes the same exemption. Both gate on the CRYPTOGRAPHICALLY
+VERIFIED `iss` — a token merely claiming that issuer never gets that far, because
+signature verification against oauth-mcp's JWKS happens first.
+
+**The actual bug: the same hardcoded-scheme trap, in a third place.**
+
+```js
+// demo_authz_server/routes/decision.js:408
+const idJagIssuer = process.env.OAUTH_MCP_ID_JAG_ISSUER
+  || process.env.OAUTH_MCP_ISSUER_URI
+  || 'https://localhost:8080';
+```
+
+`OAUTH_MCP_ID_JAG_ISSUER` was unset in `ai-demo-authz-server`, so it fell to that
+hardcoded `https://` — which never equals the token's real `http://localhost:8080`
+(mcp-server's `OAUTH_ISSUER`). Exemption skipped, D-05 denied. This is the same
+one-character defect fixed for `mcp-gateway` earlier the same day, which is why
+the audit trail showed `GatewayTokenPolicy: passed` but `P1AZDecision: blocked`.
+
+**Why no test caught it:** every unit test sets `OAUTH_MCP_ID_JAG_ISSUER` to
+`https://localhost:8080` explicitly and mints its fixture tokens with the same
+value, so the exemption always fires under test. The production value was the one
+combination never exercised.
+
+Fixed by wiring `OAUTH_MCP_ID_JAG_ISSUER` on `authz-server` to
+`${ENTERPRISE_MCP_AS_ISSUER}`, the same source the BFF and mcp-server use.
+`docker-compose.idJagIssuerScheme.test.js` now requires BOTH runtime consumers to
+declare it and all three sides to agree on the scheme — RED-proven by removing
+either one. **No policy was weakened: D-05 is unchanged, and the exemption still
+requires a verified issuer.**
+
+Box stays `[ ]` until a live signed turn confirms it end to end — this entry has
+now been closed prematurely twice, so the tick waits for evidence, not reasoning.
 
 **Also worth noting:** this whole path is arguably incoherent as configured —
 the ID-JAG is minted FOR the PingGateway resource, but oauth-mcp always redeems
