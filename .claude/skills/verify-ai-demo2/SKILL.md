@@ -81,9 +81,13 @@ container so env changes take effect too. Confirm with
 
 ### Image-built services: restart keeps OLD code, and looks healthy (2026-08-26)
 
-**Only `demo-api-server` and `ui` bind-mount source.** Every other service runs
-from a built image, so `./run-docker.sh restart <svc>` recreates the container
-from the EXISTING image.
+**Only `demo-api-server` and `ui` bind-mount source.** Every other service gets
+its CODE from a built image, so `./run-docker.sh restart <svc>` recreates the
+container from the EXISTING image.
+
+**Code and config are separate questions.** A service can take its code from an
+image and its config from a live mount, so the right verb depends on which one
+your change touched — see the ping-gateway row below.
 
 The reason this costs a session rather than a minute is not that restart
 doesn't rebuild — everyone knows that abstractly. It is that the container
@@ -96,6 +100,19 @@ normally trust says the deploy worked. Nothing anywhere reports staleness.
 | `mcp-server` (dir `oauth-mcp`) | **image** | `./run-docker.sh build mcp-server` |
 | `authz-server` (dir `demo_authz_server`) | **image**, and it BAKES `scope-topology.json` (build context is the repo root) | `./run-docker.sh build authz-server` |
 | `mcp-gateway` | image, plus a `/repo` mount for `dist` | check before assuming |
+| `ping-gateway` | image for code, but **`ping-gateway/config` is a live directory mount** — its `scope-topology.json` comes from the checkout | `./run-docker.sh restart ping-gateway` (rebuilding is wasted work) |
+
+**The asymmetry that catches people:** one change to `scope-topology.json`
+needs *two different verbs*, because `authz-server` bakes it into the image
+while `ping-gateway` mounts it from the checkout:
+
+```bash
+./run-docker.sh build   authz-server    # topology BAKED  (build context = repo root)
+./run-docker.sh restart ping-gateway    # topology MOUNTED (ping-gateway/config)
+```
+
+Rebuild both and you waste a build; restart both and you ship half the change —
+and per the paragraph above, both containers report healthy either way.
 
 Use the **compose service name**, not the directory: `authz-server`, never
 `demo_authz_server`. `authz-server` and `mcp-gateway` also sit behind
