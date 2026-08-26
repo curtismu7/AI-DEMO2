@@ -14,6 +14,7 @@
     "smoke:pingone-mcp": "node scripts/smoke-pingone-mcp.js",
     "patch:cursor-mcp": "node scripts/patch-cursor-mcp.js",
     "topology:generate": "node scripts/gen-service-topology.js generate",
+    "p1az:predict": "node scripts/predict-p1az-denies.mjs",
     "snapshot:check": "node snapshots/gen-authorize-snapshot.js --check",
     "snapshot:generate": "node snapshots/gen-authorize-snapshot.js",
     "topology:verify": "bash scripts/topology-verify.sh",
