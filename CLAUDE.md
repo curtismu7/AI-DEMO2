@@ -77,6 +77,8 @@ The expensive part is not opening a PR, it's watching it. `.claude/hooks/warn-to
 
 Deploy only after merge, only if you touched a bind-mounted service, and targeted (`scripts/deploy-live.sh` already is). Deploy is a singleton — check `npm run serve:worktree` before yanking the mounts out from under another session. The launchd job syncs main every 15 min, so a manual sync is only for "I need it current now".
 
+**Before and after any live UI drive, pin the stack generation:** `gen="$(npm run -s stack:generation)"` … `npm run -s stack:generation -- --check "$gen"`. Several sessions share one stack and any of them can recreate `ui`/`demo-api-server` mid-request; from the driver's side that looks exactly like an application bug (404/502, no server-side trace, and `docker logs` afterwards reads the *new* container). A non-zero `--check` means the run is void — not a finding.
+
 ## Before claiming done
 
 Use **Super Sports** as the default vertical for manual validation and tests that select a vertical. Keep another vertical only when that test explicitly verifies vertical-specific behavior.
