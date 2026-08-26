@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { FilterChain } from "../TransactionTracePage";
+import { GW_STAGE_META } from "../../services/tokenChainTrace/buildTraceSteps";
 
 // The PingGateway MCP filters are the product features this trace exists to
 // demonstrate. p1az-decision.groovy has always published them on the audit
@@ -14,13 +15,25 @@ describe("FilterChain", () => {
     { filter: "P1AZDecision", result: "forwarded", decision: "PERMIT" },
   ];
 
-  it("names each filter that handled the hop, in order", () => {
+  // Shares GW_STAGE_META with the Token Chain rail. Asserting against the map
+  // rather than hardcoded strings is what makes the two surfaces provably
+  // agree: change a label in one place and both move, or this fails.
+  it("uses the same human labels as the Token Chain rail, in order", () => {
     render(<FilterChain chain={chain} denyingFilter={null} />);
     const rendered = screen.getByTestId("filter-chain").textContent;
-    expect(rendered).toContain("McpValidationFilter");
-    expect(rendered).toContain("McpAuditFilter");
-    expect(rendered).toContain("McpProtectionFilter");
-    expect(rendered.indexOf("McpValidationFilter")).toBeLessThan(rendered.indexOf("P1AZDecision"));
+    expect(rendered).toContain(GW_STAGE_META.McpValidationFilter.label);
+    expect(rendered).toContain(GW_STAGE_META.McpAuditFilter.label);
+    expect(rendered).toContain(GW_STAGE_META.McpProtectionFilter.label);
+    expect(rendered.indexOf(GW_STAGE_META.McpValidationFilter.label))
+      .toBeLessThan(rendered.indexOf(GW_STAGE_META.P1AZDecision.label));
+    // The raw Java class name is what the reel showed before the map was
+    // shared — its absence is the regression guard.
+    expect(rendered).not.toContain("McpValidationFilter");
+  });
+
+  it("falls back to the raw filter name when the map has no entry", () => {
+    render(<FilterChain chain={[{ filter: "SomeFutureFilter", result: "passed" }]} denyingFilter={null} />);
+    expect(screen.getByTestId("filter-chain").textContent).toContain("SomeFutureFilter");
   });
 
   // Absent must not read as "no filters ran". Hops from other services never
@@ -40,7 +53,7 @@ describe("FilterChain", () => {
     const pills = screen.getByTestId("filter-chain").querySelectorAll(".ttrace-filter");
     const blocked = [...pills].filter((p) => p.classList.contains("blocked"));
     expect(blocked).toHaveLength(1);
-    expect(blocked[0].textContent).toContain("P1AZDecision");
+    expect(blocked[0].textContent).toContain(GW_STAGE_META.P1AZDecision.label);
   });
 
   // A PERMIT names no denying filter, so nothing should be flagged even though
