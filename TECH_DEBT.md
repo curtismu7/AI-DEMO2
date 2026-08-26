@@ -434,7 +434,7 @@ fallback. RED-proven: replacing the memo with a plain IIFE fails 2 of 8.
 Full UI gate green — 3467 unit tests passed (434 files), `npm run build` exit 0.
 Run unscoped on purpose: this hook is called by nearly every screen.
 
-### [ ] 2026-08-23 — native ID-JAG: PingGateway's own D-05 still blocks the real tool call even when the OLB-audience pin should redirect it
+### [x] 2026-08-23 — native ID-JAG: PingGateway's own D-05 still blocks the real tool call even when the OLB-audience pin should redirect it
 
 Live E2E verification of PR #2268 (native ID-JAG gateway filter — mint → redeem
 → tool call) surfaced this while checking whether the redeemed, OLB-audienced
@@ -598,6 +598,28 @@ and encodes a decision — once a bearer is pinned away from PingGateway, which
 audience is authoritative — that belongs with whoever owns the native-ID-JAG
 rollout. Whoever takes it should add the case to a test: a pinned ID-JAG bearer
 must not be failed against PingGateway's audience.
+
+**FIXED 2026-08-26 (branch `worktree-expected-aud-follows-pin`).** The decision
+above resolved as: **the pin audience is authoritative.** A pin only fires when
+the bearer's `aud` already contains the pin audience, so that value is correct
+for the destination by construction — there was nothing to weigh.
+
+`callToolViaGateway` now records `pinnedAud` at the moment a pin actually moves
+`base`, and the audience classifier prefers it over
+`resolveExpectedMcpResourceUri()`. Recorded ONLY inside
+`if (nodeUrl) { base = nodeUrl; pinnedAud = ...; }` — when no Node URL is
+configured the pin silently no-ops, the request really does go to PingGateway,
+and PingGateway's audience is still the right thing to judge against. Both pins
+(native ID-JAG and A2A) are covered; A2A had the identical latent bug.
+
+Evidence: `src/__tests__/mcpGatewayClient.pinnedAudience.test.js` (5 tests) — a
+pinned ID-JAG bearer reaches the Node gateway URL and is NOT
+GATEWAY_AUDIENCE_MISMATCH; same for A2A; an UNPINNED bearer on the PingGateway
+path still reports a genuine mismatch (no behaviour change there); and the
+pin-could-not-move case keeps the mode audience. RED-proven: removing
+`pinnedAud ||` fails 2 of 5. Neighbouring classifier specs green
+(`mcpGatewayClient.reauth`, `attackSimulator.wrongAudFields`). Full BFF suite
+10,251 passed, 2 worker-contention flakes that pass scoped and touch neither file.
 
 **Also worth noting:** this whole path is arguably incoherent as configured —
 the ID-JAG is minted FOR the PingGateway resource, but oauth-mcp always redeems
