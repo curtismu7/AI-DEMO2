@@ -344,6 +344,23 @@ const FLAG_REGISTRY = [
     warnIfEnabled: true,
   },
   {
+    id:           'ff_jit_credentials',
+    name:         'JIT credentials — short-TTL, tool-bound backend keys',
+    category:     'Token Exchange',
+    description:
+      'The gateway-only bridge hands back a 30-second credential signed with the backend service ' +
+      'key instead of the key itself, so the static secret never leaves the BFF. The credential is ' +
+      'bound to one tool, so a leaked one is valid for that tool only, for seconds. The backend ' +
+      'verifies with the key it already holds — nothing new is provisioned, and rotation still ' +
+      'goes through ROTATE_SERVICE_KEYS. Minting is refused for a revoked requester, and refusal ' +
+      'fails closed rather than falling back to the raw key.',
+    impact:
+      'OFF (default) = the bridge returns the raw static key, as today. ON = a short-TTL, ' +
+      'tool-bound credential; requires backends that verify it.',
+    type:         'boolean',
+    defaultValue: false,
+  },
+  {
     id:           'ff_dpop',
     name:         'DPoP — Sender-constrained tokens (RFC 9449)',
     category:     'Token Exchange',

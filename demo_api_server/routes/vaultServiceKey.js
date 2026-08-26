@@ -5,6 +5,7 @@
 // BFF_INTERNAL_SECRET and a hard allow-list so a real secret can never leak.
 const express = require('express');
 const configStore = require('../services/configStore');
+const jitCredentialBroker = require('../services/jitCredentialBroker');
 
 const router = express.Router();
 
@@ -38,7 +39,7 @@ const ALLOWED = new Set(['DEMO_API_RESOURCE_SERVER_KEY', 'DEMO_MCP_RESOURCE_SERV
 // demo_api_resource_server/server.js and ensure-service-keys.js KNOWN_DEFAULTS).
 const KNOWN_DEFAULT_KEYS = new Set(['demo-mortgage-key-0000', 'mortgage-compose-dev-key']);
 
-router.get('/vault/service-key', (req, res) => {
+router.get('/vault/service-key', async (req, res) => {
   if (disabledInsecure()) {
     console.error('[vaultServiceKey] BFF_INTERNAL_SECRET is unset/default under VAULT_INTERNAL_STRICT — endpoint DISABLED (503).');
     return res.status(503).json({ error: 'vault_disabled_insecure_secret' });
@@ -69,6 +70,27 @@ router.get('/vault/service-key', (req, res) => {
     );
     return res.status(503).json({ error: 'key_not_provisioned' });
   }
+
+  // ff_jit_credentials: hand back a short-TTL, tool-bound credential signed with
+  // the backend key instead of the key itself, so the static secret never leaves
+  // this process. Checked HERE, after every guard above, so the allow-list still
+  // short-circuits before configStore is consulted for anything.
+  if (configStore.getEffective('ff_jit_credentials') === 'true') {
+    try {
+      const minted = await jitCredentialBroker.mintCredential({
+        keyName: name,
+        tool: String(req.query.tool || ''),
+        requester: String(req.query.requester || 'gateway'),
+      });
+      return res.status(200).json({ name, value: minted.value, expiresAt: minted.expiresAt });
+    } catch (err) {
+      // Fail CLOSED. Falling back to the raw key here would silently undo the
+      // whole point of the flag the moment minting broke.
+      console.error(`[vaultServiceKey] JIT mint refused for ${name}: ${err.code || err.message}`);
+      return res.status(503).json({ error: err.code || 'jit_mint_failed' });
+    }
+  }
+
   return res.status(200).json({ name, value });
 });
 
