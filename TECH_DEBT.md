@@ -2840,7 +2840,7 @@ jest config so call history cannot leak between tests, then fix the fallout. Tha
 converts this class from "silently passing" to "loudly failing", which is the
 only way to find the rest.
 
-### [ ] 2026-08-18 — UI probes have no settle contract, so "the page renders nothing" is unreliable
+### [x] 2026-08-18 — UI probes have no settle contract, so "the page renders nothing" is unreliable
 
 **Where:** ad-hoc Playwright scripts driving the live stack; the recipe lives in
 memory (`playwright-live-ui-drive-recipe`), not in the repo.
@@ -2867,6 +2867,45 @@ that owns sign-in (the BFF redirect, since the top-nav button is 0x0 headless),
 the settle strategy (fixed wait plus a content assertion, never `networkidle`),
 and active-vertical resolution — so a probe asserts it reached a usable page
 before reporting what it did or did not find.
+
+**RESOLVED 2026-08-26 (branch `worktree-ui-probe-settle-contract`).**
+`demo_api_ui/tests/e2e/helpers/uiProbe.js` — `settle()`, `activeVertical()`,
+`requireVertical()`.
+
+Sign-in is NOT in it: `realLogin.js` (same directory) already owned the BFF
+redirect, so the helper covers only the two halves that were actually missing.
+
+The load-bearing design decision is that **everything throws rather than
+returning a falsy value.** A helper that returned `{chars: 0}` would reproduce
+false finding #1 exactly — that zero is what got written up as "the route renders
+nothing" for a page that in fact renders 1381 characters and 16 controls. The
+`ProbeNotSettled` message says in words that it is not a finding about the page,
+and names what it needed versus what it last saw. `requireVertical` does the same
+for false finding #2, naming both the assumed and the resolved vertical, because
+a phrase submitted into the wrong vertical matches nothing and the missing tool
+traffic is indistinguishable from a broken feature.
+
+Settle is a floor PLUS a quiet period, not a single threshold check: React renders
+in bursts, so one sample over the floor can be a mid-burst frame that then changes
+again. Pinned by a test that walks 0 -> 400 -> 900 -> 1381 chars and requires the
+final value.
+
+`networkidle` is called out at the top of the file as never usable here — the app
+holds SSE open for the session, so it burns its timeout. That is why every ad-hoc
+script invented its own wait and why they disagreed with each other.
+
+Evidence: `demo_api_ui/src/__tests__/uiProbe.test.js` — 10 tests, `page`
+duck-typed with scripted samples so the real helper runs with no browser. The
+spec lives under `src/` because `vite.config.js` excludes `tests/e2e/**` from
+vitest; had it sat beside the helper, nothing would have run it. RED-proven twice:
+returning the measurement instead of throwing fails 4, and settling on the first
+over-threshold frame fails the burst test. Full UI gate green — 3473 unit tests
+passed (435 files), `npm run build` exit 0.
+
+`demo_api_ui/CLAUDE.md` now carries the usage, so the next session finds it
+without re-deriving it from memory. Pairs with `npm run stack:generation` from the
+2026-08-19 live-drive entry: one answers "did the page render", the other answers
+"was it still the same stack".
 
 ### [x] 2026-08-18 — The group-policy board cannot produce a PERMIT, so the demo it exists for cannot be shown
 
