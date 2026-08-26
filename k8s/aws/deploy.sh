@@ -223,44 +223,48 @@ for manifest in \
   apply_patched "$K8S_DIR/$manifest"
 done
 
-# Privilege MCPGW gateway: deployed via Helm (k8s/helm/mcpgw), not a plain
-# manifest — see the chart's own comments for why. Uses the privilege-mcpgw
-# binary (mcpgw), which emits WWW-Authenticate OAuth challenges on tokenless
-# requests. OIDC config is read from pingone.env mounted from ping-mcpgw-secrets
-# (written + patched with the correct SERVER_URL by create-secrets.sh above).
-# Reuses ENV_PROXY_TOKEN from ping-mcpgw-secrets via --set-file (NOT
-# --set-string, which corrupts long JWTs during Helm's own CLI arg parsing).
+# MCPGW chart (k8s/helm/mcpgw): installs the OpenSearch backend only. The
+# agent-based Privilege GATEWAY pod is disabled by default as of 2026-08-26 —
+# it runs only in ping-devops-curtismuir (release cm-mcpgw); see
+# k8s/helm/mcpgw/values.yaml mcpgw.enabled for the full reasoning.
 #
-# Required on every SE deploy by default — a missing prerequisite fails the
-# whole run (after the rest of the stack has still applied, see the banner at
-# the bottom of this script) rather than silently shipping a demo without it.
-# Opt out with SKIP_MCPGW=1 when the gateway is deliberately not wanted.
+# This block no longer reads ENV_PROXY_TOKEN. It used to pass the token via
+# --set-file (never --set-string, which corrupts long JWTs during Helm's own
+# CLI arg parsing) — that is gone with the gateway pod, so an expired token is
+# no longer a deploy failure. Re-enabling the gateway means restoring both.
+#
+# Still installed on every SE deploy by default, because the OpenSearch backend
+# is real and other things point at it. Opt out with SKIP_MCPGW=1.
 MCPGW_DEPLOY_FAILED=0
 MCPGW_FAILURE_REASON=""
 if [[ -n "${PUBLIC_APP_URL:-}" && "${SKIP_MCPGW:-0}" != "1" ]]; then
   if ! command -v helm >/dev/null 2>&1; then
-    warn "  helm not installed — Privilege MCPGW gateway cannot be deployed"
+    warn "  helm not installed — MCPGW OpenSearch backend cannot be deployed"
     MCPGW_DEPLOY_FAILED=1
     MCPGW_FAILURE_REASON="helm is not installed (brew install helm)"
-  elif kubectl get secret ping-mcpgw-secrets -n "$NS" -o jsonpath='{.data.ENV_PROXY_TOKEN}' >/tmp/mcpgw-token.b64 2>/dev/null && [[ -s /tmp/mcpgw-token.b64 ]]; then
-    base64 -d </tmp/mcpgw-token.b64 >/tmp/mcpgw-token.txt
-    rm -f /tmp/mcpgw-token.b64
+  else
+    # The gateway pod itself is OFF (chart default mcpgw.enabled=false, 2026-08-26):
+    # the agent-based Privilege gateway lives ONLY in ping-devops-curtismuir
+    # (release cm-mcpgw). The copy installed here was a redundant duplicate whose
+    # ENV_PROXY_TOKEN is single-use and ~2h-lived, so every deploy reinstalled a
+    # pod that could never start and left smoke.sh reporting the demo "degraded".
+    #
+    # No token is read any more, and a missing/expired one is no longer a deploy
+    # failure — there is nothing here for it to authenticate. Deleting the pod by
+    # hand never held, because THIS block recreated it on the next deploy of any
+    # service; disabling it in the chart is what makes that stick.
+    #
+    # The OpenSearch pieces are NOT the gateway and stay deployed — they are a
+    # real backend other things point at, so the release is still installed.
     mcpgw_host="${PUBLIC_APP_URL#https://}"
     mcpgw_host="${mcpgw_host#http://}"
-    info "Deploying Privilege MCPGW gateway (Helm) — host: $mcpgw_host"
+    info "Deploying MCPGW OpenSearch backend (Helm) — gateway pod disabled, see k8s/helm/mcpgw/values.yaml"
     helm upgrade --install ping-mcpgw "$K8S_DIR/helm/mcpgw" \
       --namespace "$NS" \
       --set mcpgw.hostname="$mcpgw_host" \
       --set mcpgw.serverUrl="${PUBLIC_APP_URL}/mcpgw" \
       --set opensearch.enabled=true \
-      --set opensearchMcpServer.enabled=true \
-      --set-file mcpgw.proxyToken=/tmp/mcpgw-token.txt
-    rm -f /tmp/mcpgw-token.txt
-  else
-    warn "  Secret ping-mcpgw-secrets (or its ENV_PROXY_TOKEN key) not found — Privilege MCPGW gateway will NOT be deployed"
-    rm -f /tmp/mcpgw-token.b64
-    MCPGW_DEPLOY_FAILED=1
-    MCPGW_FAILURE_REASON="ping-mcpgw/procyon/config/proxy-token.env is missing or its token expired"
+      --set opensearchMcpServer.enabled=true
   fi
 fi
 
@@ -342,14 +346,15 @@ fi
 if [[ "$MCPGW_DEPLOY_FAILED" == "1" ]]; then
   echo
   echo -e "${RED}════════════════════════════════════════════════════════════════${NC}"
-  echo -e "${RED}  Privilege MCPGW gateway was NOT deployed: $MCPGW_FAILURE_REASON${NC}"
+  echo -e "${RED}  MCPGW OpenSearch backend was NOT deployed: $MCPGW_FAILURE_REASON${NC}"
   echo -e "${RED}  The rest of the stack above deployed fine.${NC}"
   echo -e "${RED}${NC}"
-  echo -e "${RED}  Fix: get a fresh token (Privilege console > Cloud > Gateways >${NC}"
-  echo -e "${RED}  Add via Docker), then:${NC}"
-  echo -e "${RED}    printf 'ENV_PROXY_TOKEN=%s\\n' 'eyJ...' \\\\${NC}"
-  echo -e "${RED}      > ping-mcpgw/procyon/config/proxy-token.env${NC}"
-  echo -e "${RED}  Then: ./run-pingaws.sh deploy${NC}"
+  echo -e "${RED}  Fix: brew install helm, then: ./run-pingaws.sh deploy${NC}"
+  echo -e "${RED}${NC}"
+  echo -e "${RED}  NB: this no longer means a missing or expired proxy token. The${NC}"
+  echo -e "${RED}  agent-based Privilege gateway is not installed in this namespace${NC}"
+  echo -e "${RED}  at all (it runs only in ping-devops-curtismuir) — see${NC}"
+  echo -e "${RED}  k8s/helm/mcpgw/values.yaml mcpgw.enabled.${NC}"
   echo -e "${RED}${NC}"
   echo -e "${RED}  To deploy without it on purpose: SKIP_MCPGW=1 ./run-pingaws.sh deploy${NC}"
   echo -e "${RED}════════════════════════════════════════════════════════════════${NC}"
