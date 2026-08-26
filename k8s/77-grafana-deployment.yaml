@@ -83,6 +83,65 @@ spec:
               value: "false"
             - name: GF_USERS_ALLOW_SIGN_UP
               value: "false"
+
+            # ── PingOne SSO ──────────────────────────────────────────────
+            # Grafana's generic OIDC connector against "Demo AI App - Grafana
+            # Login". A dedicated client: nothing here can affect the demo
+            # doors or Admin Login.
+            #
+            # The local admin form stays enabled ON PURPOSE (see
+            # GF_AUTH_DISABLE_LOGIN_FORM below). Grafana is internet-facing at
+            # /grafana, and a wrong secret or redirect URI would otherwise lock
+            # everyone out of the only tool that shows whether the gateway is
+            # healthy.
+            - name: PINGONE_ENV_ID
+              value: "01d89b06-66d5-430e-9f28-65636843788b"
+            - name: GF_AUTH_GENERIC_OAUTH_ENABLED
+              value: "true"
+            - name: GF_AUTH_GENERIC_OAUTH_NAME
+              value: "PingOne"
+            # Public identifier, not a secret — kept here so the client in use
+            # is reviewable in the manifest rather than hidden in a secret.
+            - name: GF_AUTH_GENERIC_OAUTH_CLIENT_ID
+              value: "48ed5e06-8ba2-428d-9c81-cf16eb57f7b4"
+            - name: GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-secrets
+                  key: GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET
+                  optional: true
+            - name: GF_AUTH_GENERIC_OAUTH_SCOPES
+              value: "openid profile email"
+            - name: GF_AUTH_GENERIC_OAUTH_AUTH_URL
+              value: "https://auth.pingone.com/$(PINGONE_ENV_ID)/as/authorize"
+            - name: GF_AUTH_GENERIC_OAUTH_TOKEN_URL
+              value: "https://auth.pingone.com/$(PINGONE_ENV_ID)/as/token"
+            - name: GF_AUTH_GENERIC_OAUTH_API_URL
+              value: "https://auth.pingone.com/$(PINGONE_ENV_ID)/as/userinfo"
+            # The app is created with pkceEnforcement S256_REQUIRED, so PingOne
+            # rejects the code exchange outright without this.
+            - name: GF_AUTH_GENERIC_OAUTH_USE_PKCE
+              value: "true"
+            # Claims come from attribute mappings added to the app — PingOne
+            # emits only `sub` by default, and without these Grafana
+            # authenticates the user and then cannot build an account.
+            - name: GF_AUTH_GENERIC_OAUTH_LOGIN_ATTRIBUTE_PATH
+              value: "preferred_username"
+            - name: GF_AUTH_GENERIC_OAUTH_EMAIL_ATTRIBUTE_PATH
+              value: "email"
+            - name: GF_AUTH_GENERIC_OAUTH_NAME_ATTRIBUTE_PATH
+              value: "name"
+            # A JMESPath literal, not a claim lookup: every PingOne user who
+            # signs in is a read-only Viewer. Editing is deliberately reserved
+            # to the local admin, and dashboards are provisioned from files
+            # anyway, so Editor would buy nothing.
+            - name: GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH
+              value: "'Viewer'"
+            - name: GF_AUTH_GENERIC_OAUTH_ALLOW_SIGN_UP
+              value: "true"
+            # Keep the local admin form as the lockout fallback.
+            - name: GF_AUTH_DISABLE_LOGIN_FORM
+              value: "false"
             # Nothing here should phone home from a demo cluster.
             - name: GF_ANALYTICS_REPORTING_ENABLED
               value: "false"
