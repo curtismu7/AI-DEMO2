@@ -196,6 +196,7 @@
     "/pingone-mcp-inspector": "public",
     "/pingone-setup": "public",
     "/pingone-test": "public",
+    "/m2m-sample": "public",
     "/platform-gaps": "public",
     "/policy-decision-trace": "public",
     "/postman": "admin",

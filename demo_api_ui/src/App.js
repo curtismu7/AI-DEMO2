@@ -188,6 +188,7 @@ import PublicRoutes, {
   GroupPolicyBoardPageRoute,
   PrivilegeMcpClientPageRoute,
   PingOneSetupPageRoute,
+  M2mCredentialsSamplePageRoute,
   PingOneTestPageRoute,
   ReportsPageRoute,
   SdkLoginCallbackRoute,
@@ -654,6 +655,12 @@ function AppWithAuth() {
                 <Route
                   path="/pingone-test"
                   element={<PingOneTestPageRoute user={user} logout={logout} />}
+                />
+                <Route
+                  path="/m2m-sample"
+                  element={
+                    <M2mCredentialsSamplePageRoute user={user} logout={logout} />
+                  }
                 />
                 <Route
                   path="/pingone-setup"

@@ -18,6 +18,7 @@ import LogoutPage from "../components/LogoutPage";
 import MFATestPage from "../components/MFATestPage";
 import PingOneSetupGuidePage from "../components/PingOneSetupGuidePage";
 import PingOneTestPage from "../components/PingOneTestPage";
+import M2mCredentialsSamplePage from "../pages/M2mCredentialsSamplePage";
 import PingOneSetup from "../pages/PingOneSetup";
 import SelfServicePage from "../components/SelfServicePage";
 import SetupPage from "../components/SetupPage";
@@ -67,6 +68,14 @@ export function SelfServicePageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <SelfServicePage />
+    </AppShell>
+  );
+}
+
+export function M2mCredentialsSamplePageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <M2mCredentialsSamplePage />
     </AppShell>
   );
 }
