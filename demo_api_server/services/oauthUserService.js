@@ -65,6 +65,29 @@ const logTokenInfo = (token, context = '') => {
   }
 };
 
+/**
+ * Should this request carry client authentication at all?
+ *
+ * A PingOne app with tokenEndpointAuthMethod NONE (PKCE-only public client)
+ * rejects ANY client authentication with
+ *   invalid_client — Request denied: Unsupported authentication method
+ * and it rejects an EMPTY `client_secret=` exactly the same way as a wrong one
+ * (verified against the live token endpoint). So the presence of a stored
+ * secret is not sufficient reason to send it — the app's configured method is.
+ *
+ * This bit us for real: the "Demo AI App - User Login" app was migrated to
+ * PKCE-only on 2026-08-24 while the BFF kept a now-obsolete user_client_secret,
+ * and every customer sign-in failed from that moment on. The old guard
+ * (`if (this.config.clientSecret)`) could not see the difference.
+ *
+ * Unset/empty method keeps the previous behaviour, so a confidential
+ * deployment is unaffected.
+ */
+function shouldSendClientSecret(config) {
+  if (!config.clientSecret) return false;
+  return String(config.tokenEndpointAuthMethod || '').trim().toLowerCase() !== 'none';
+}
+
 class OAuthUserService {
   constructor() {
     this.config = config;
@@ -148,7 +171,7 @@ class OAuthUserService {
         redirect_uri: redirectUri || this.config.redirectUri,
         client_id: this.config.clientId,
       });
-      if (this.config.clientSecret) {
+      if (shouldSendClientSecret(this.config)) {
         params.set('client_secret', this.config.clientSecret);
       }
       if (codeVerifier) {
@@ -190,7 +213,7 @@ class OAuthUserService {
       client_id: this.config.clientId,
       scope: this.config.scopes.join(' '),
     });
-    if (this.config.clientSecret) {
+    if (shouldSendClientSecret(this.config)) {
       body.set('client_secret', this.config.clientSecret);
     }
     try {
@@ -236,7 +259,7 @@ class OAuthUserService {
       refresh_token: refreshToken,
       client_id: this.config.clientId,
     });
-    if (this.config.clientSecret) body.set('client_secret', this.config.clientSecret);
+    if (shouldSendClientSecret(this.config)) body.set('client_secret', this.config.clientSecret);
     try {
       const response = await axios.post(this.config.tokenEndpoint, body.toString(), {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -262,7 +285,7 @@ class OAuthUserService {
       return;
     }
     const body = new URLSearchParams({ token, client_id: this.config.clientId });
-    if (this.config.clientSecret) body.set('client_secret', this.config.clientSecret);
+    if (shouldSendClientSecret(this.config)) body.set('client_secret', this.config.clientSecret);
     if (tokenType) body.set('token_type_hint', tokenType);
     try {
       await axios.post(revocationEndpoint, body.toString(), {

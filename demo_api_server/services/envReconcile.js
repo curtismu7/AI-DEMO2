@@ -118,6 +118,7 @@ const ENV_AGNOSTIC_KEYS = new Set([
   'ai_agent_token_endpoint_auth_method', 'mcp_exchanger_token_endpoint_auth_method',
   'pingone_token_exchange_auth_method', 'pingone_mcp_token_exchanger_cc_auth_method',
   'pingone_admin_token_endpoint_auth_method', 'pingone_mgmt_token_auth_method',
+  'pingone_user_token_endpoint_auth_method',
   'pingone_worker_token_auth_method', 'pingone_introspection_auth_method', 'mcp_gw_token_endpoint_auth_method',
   // introspection provider selection (p1az vs pingone) — a behaviour choice, not env identity
   'introspectionprovider',

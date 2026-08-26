@@ -29,6 +29,16 @@ const config = {
   get clientId()              { return configStore.getEffective('user_client_id'); },
   get clientSecret()          { return configStore.getEffective('user_client_secret'); },
   get redirectUri()           { return configStore.getEffective('user_redirect_uri'); },
+  /**
+   * How this client authenticates at the token endpoint, mirroring the PingOne
+   * app's own `tokenEndpointAuthMethod`. Only 'none' is acted on: a PKCE-only
+   * (public) app rejects ANY client authentication, including an empty
+   * `client_secret=`, with
+   *   invalid_client — Request denied: Unsupported authentication method
+   * Empty/unset keeps the historical behaviour (send the secret when one
+   * exists), so this cannot change a confidential deployment.
+   */
+  get tokenEndpointAuthMethod() { return configStore.getEffective('user_token_endpoint_auth_method'); },
 
   /**
    * OIDC + banking API scopes for authorize. Must yield ≥5 distinct scopes on the access token

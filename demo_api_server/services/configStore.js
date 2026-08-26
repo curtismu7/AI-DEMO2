@@ -190,6 +190,12 @@ const FIELD_DEFS = {
   PINGONE_USER_CLIENT_ID:         { public: true,  default: '' },
   PINGONE_USER_CLIENT_SECRET:     { public: false, default: '' },
   PINGONE_USER_REDIRECT_URI:      { public: true,  default: '' },
+  // Mirrors the PingOne app's own tokenEndpointAuthMethod for the END-USER app.
+  // Only 'none' is acted on (see oauthUserService.shouldSendClientSecret): a
+  // PKCE-only public app rejects any client authentication, an empty
+  // `client_secret=` included. Empty default = historical behaviour, so this is
+  // inert until someone sets it.
+  PINGONE_USER_TOKEN_ENDPOINT_AUTH_METHOD: { public: true, default: '' },
 
   // SDK centralized-login demo (/sdk-login) — a PUBLIC PKCE SPA client (token
   // endpoint auth = None, no secret). Browser-side token custody; this is NOT the
@@ -862,6 +868,7 @@ const ENV_FALLBACK_MAP = {
     'PINGONE_CORE_USER_REDIRECT_URI',
     'PINGONE_USER_REDIRECT_URI',
   ],
+  user_token_endpoint_auth_method: ['PINGONE_USER_TOKEN_ENDPOINT_AUTH_METHOD'],
   // SDK centralized-login demo (public PKCE SPA client) — see FIELD_DEFS above.
   pingone_sdk_demo_client_id:    ['PINGONE_SDK_DEMO_CLIENT_ID'],
   pingone_sdk_demo_redirect_uri: ['PINGONE_SDK_DEMO_REDIRECT_URI'],
