@@ -878,10 +878,29 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
     `TokenAudActual equals one of the upstream/backend audiences behind the gateway (${upstreamAudiences.join(', ')}). ` +
     'A client must obtain a gateway-targeted token and let the gateway exchange it for the next hop (D-05, mock Rule 0b-2). ' +
     'Single-aud comparison only — space-joined multi-aud values are caught at the PEP. ' +
-    'Generated from scope-topology.json resources — do not hand-edit.',
-    { or: { conditions: upstreamAudiences.map((uri) => ({
-      comparison: { left: { attribute: { id: ATTR.TokenAudActual } }, op: 'Equals', right: { constant: { value: uri } } },
-    })) } }), beforeSepIdx);
+    'Generated from scope-topology.json resources — do not hand-edit.' +
+    (externalDoorAudience
+      ? ` EXCEPT for the external door: a token issued by ${externalDoorIssuers.join(' / ')} is not a bypass, ` +
+        `because that route has no exchange step and is therefore ALWAYS upstream-audienced. This mirrors ` +
+        `PR #2274, which added exactly this exemption to the same D-05 check in p1az-decision.groovy; the ` +
+        `policy copy simply never got it.`
+      : ''),
+    // AND NOT(issuer is a declared door), rather than dropping the upstream
+    // audience from the list: every OTHER caller presenting that audience is
+    // still a confused-deputy bypass and must still be denied. The narrowing is
+    // on WHO issued the token, never on which audience is protected.
+    (externalDoorAudience
+      ? { and: { conditions: [
+        { or: { conditions: upstreamAudiences.map((uri) => ({
+          comparison: { left: { attribute: { id: ATTR.TokenAudActual } }, op: 'Equals', right: { constant: { value: uri } } },
+        })) } },
+        { not: { condition: { or: { conditions: externalDoorIssuers.map((iss) => ({
+          comparison: { left: { attribute: { id: ATTR.TokenIss } }, op: 'Equals', right: { constant: { value: iss } } },
+        })) } } } },
+      ] } }
+      : { or: { conditions: upstreamAudiences.map((uri) => ({
+        comparison: { left: { attribute: { id: ATTR.TokenAudActual } }, op: 'Equals', right: { constant: { value: uri } } },
+      })) } })), beforeSepIdx);
   upsert(denyStatement(STMT.bypassAttempt, 'MCP Denied — Audience Targets Upstream', 'mcp-bypass-attempt',
     'D-05 (bypass_attempt): the token\'s actual aud targets an upstream resource behind the gateway — a confused-deputy bypass. Mirrors mock Rule 0b-2 and the Node gateway GatewayTokenPolicy.',
     `{"denied": true, "reason": "bypass_attempt", "message": "Token aud '{{${ATTR.TokenAudActual}}}' targets an upstream resource behind the gateway. Obtain a gateway-targeted token and let the gateway exchange it for the next hop (D-05).", "tokenAudActual": "{{${ATTR.TokenAudActual}}}"}`), beforeFirstPolicyIdx);

@@ -350,13 +350,37 @@ test('3a: TokenAudActual attribute + TokenAudTargetsUpstream condition + deny ru
   const cond = findById(snap, COND.TokenAudTargetsUpstream);
   assert.ok(cond && cond.objectType === 'ConditionDefinition');
   const { upstreamAudiences } = loadSot();
+  // Shape since 2026-08-26 when a door is declared:
+  //   AND( OR(TokenAudActual == upstream_i), NOT( OR(TokenIss == issuer_j) ) )
+  // The upstream list is unchanged and still protected — the narrowing is on
+  // WHO issued the token, never on which audience is guarded.
+  const declaredIssuers = [...new Set(
+    Object.values((readSot().deployment || {}).environments || {})
+      .flatMap((e) => (e && e.externalDoorIssuers) || []),
+  )];
+  const audOr = declaredIssuers.length ? cond.condition.and.conditions[0].or : cond.condition.or;
   assert.deepStrictEqual(
-    cond.condition.or.conditions.map((c) => c.comparison.right.constant.value),
+    audOr.conditions.map((c) => c.comparison.right.constant.value),
     upstreamAudiences,
+    'the guarded upstream audience list must not shrink',
   );
-  for (const c of cond.condition.or.conditions) {
+  for (const c of audOr.conditions) {
     assert.strictEqual(c.comparison.left.attribute.id, ATTR.TokenAudActual);
     assert.strictEqual(c.comparison.op, 'Equals');
+  }
+  if (declaredIssuers.length) {
+    // Must be a NOT: an exemption expressed any other way (e.g. dropping the
+    // audience, or an OR) would stop denying real bypass attempts.
+    const notNode = cond.condition.and.conditions[1].not;
+    assert.ok(notNode, 'the external-door exemption must be a NOT over the issuer set');
+    assert.deepStrictEqual(
+      notNode.condition.or.conditions.map((c) => c.comparison.right.constant.value).sort(),
+      [...declaredIssuers].sort(),
+      'exempted issuers must come from scope-topology.json deployment.externalDoorIssuers',
+    );
+    for (const c of notNode.condition.or.conditions) {
+      assert.strictEqual(c.comparison.left.attribute.id, ATTR.TokenIss);
+    }
   }
   // The single-aud limitation must be documented on the object itself.
   assert.match(cond.description, /space-joined|single/i);
