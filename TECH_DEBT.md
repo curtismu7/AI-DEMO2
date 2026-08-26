@@ -595,6 +595,45 @@ stale lock on this stack turns into a worse outage than the race it prevents.
 before and after any live drive, and treat the run as void — not as a finding —
 if either moved. That one check is the difference between a bug report and an
 hour in the routing layer.
+
+**STEP 1 SHIPPED 2026-08-26 (branch `worktree-stack-generation-check`) — entry
+stays OPEN for steps 2 and 3.** `scripts/stack-generation.sh` +
+`npm run stack:generation`, exactly the "make the ground checkable, cheaply"
+option, changing no locking behaviour:
+
+```
+gen="$(npm run -s stack:generation)"
+...drive the UI, run the probe, present...
+npm run -s stack:generation -- --check "$gen"   # exit 1, and says why, if it moved
+```
+
+**One deliberate departure from this entry's own step 1:** the generation is
+DERIVED from `docker inspect` rather than stamped by `deploy-live.sh`. That
+matters here more than it looks. In the incident measured above, the restarts
+did NOT come from `deploy-live.sh` — its ledger recorded only two, both `ui`, at
+10:00 and 10:07, while the damaging recreates happened at 10:16:41 and 10:17:54.
+A counter written by `deploy-live.sh` would have missed the exact case this entry
+exists to catch. Reading the containers catches a recreate from any source:
+`deploy-live.sh`, `run-docker.sh restart`, `serve-worktree.sh`, or a bare
+`docker compose up`.
+
+The generation is container id AND `StartedAt` per container, because a recreate
+changes the id while a plain restart does not — an id-only check would silently
+pass the second case. Both invalidate a run, so both are in the string.
+
+`--check` failing prints which container moved, from what to what, and says in
+words that the run is void rather than a finding — the sentence whose absence
+cost an hour in the routing layer.
+
+Evidence: `scripts/stack-generation.test.sh` — 12 checks against a stub `docker`
+on PATH, covering recreate, same-id restart, a container disappearing, and
+misuse exiting 2 rather than a false pass. Verified against the live stack too.
+CLAUDE.md's deploy-cadence section now carries the before/after recipe, replacing
+the `docker inspect` incantation in this entry's "interim discipline" note.
+
+Steps 2 (broadcast to other sessions' sockets) and 3 (a drive lease with a TTL)
+are untouched, and step 3 should stay untouched until 1 and 2 prove insufficient
+— this entry's own warning about stale locks on this stack still stands.
 ### [ ] 2026-08-19 — 71 write actions across all 12 verticals reply "Here are your <verb noun>."
 
 Found while fixing UC8's "Here are your extend rental." (`REGRESSION_PLAN.md` §4,
