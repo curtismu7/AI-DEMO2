@@ -434,7 +434,7 @@ fallback. RED-proven: replacing the memo with a plain IIFE fails 2 of 8.
 Full UI gate green — 3467 unit tests passed (434 files), `npm run build` exit 0.
 Run unscoped on purpose: this hook is called by nearly every screen.
 
-### [ ] 2026-08-23 — native ID-JAG: PingGateway's own D-05 still blocks the real tool call even when the OLB-audience pin should redirect it
+### [x] 2026-08-23 — native ID-JAG: PingGateway's own D-05 still blocks the real tool call even when the OLB-audience pin should redirect it
 
 Live E2E verification of PR #2268 (native ID-JAG gateway filter — mint → redeem
 → tool call) surfaced this while checking whether the redeemed, OLB-audienced
@@ -676,8 +676,40 @@ declare it and all three sides to agree on the scheme — RED-proven by removing
 either one. **No policy was weakened: D-05 is unchanged, and the exemption still
 requires a verified issuer.**
 
-Box stays `[ ]` until a live signed turn confirms it end to end — this entry has
-now been closed prematurely twice, so the tick waits for evidence, not reasoning.
+**CONFIRMED LIVE 2026-08-26 — box ticked on evidence.** A signed
+`get_account_balance` turn as `demoUser` (banking vertical, follow-up turn after the
+account-picker disambiguation) now returns PERMIT in the gateway audit trail:
+
+```
+"authorize":{"decision":"PERMIT","engine":"mock","policySource":"p1az-mock"}
+"filterChain":[
+  {"filter":"TokenIntrospection","result":"skipped"},
+  {"filter":"GatewayTokenPolicy","result":"passed"},
+  {"filter":"P1AZDecision","result":"forwarded","decision":"PERMIT"},
+  {"filter":"mTLS","result":"skipped"},
+  {"filter":"BackendExchange","result":"skipped"}
+]
+"backend":{"target":"olb","audience":"mcpserver.ping.demo","exchanged":false}
+```
+
+`TokenIss: http://localhost:8080`, `TokenKidKnown: true`, `TokenAudActual:
+mcpserver.ping.demo` — the ID-JAG bearer is recognised, its key resolves, and the
+D-05 exemption fires. `BackendExchange: skipped` / `exchanged: false` is correct
+here, not a gap: ID-JAG is a per-server grant, so the token already carries the OLB
+audience and there is nothing to exchange. Run validated with
+`npm run stack:generation -- --check` ("stack unchanged — the run stands").
+
+**Five distinct blockers stood between this entry and that result**, each hiding
+the next: the mint allow-list (#2407), the Node gateway not running under the
+default compose profile, `expectedAud` not following the OLB pin (#2410), the
+gateway's ID-JAG issuer scheme (#2412), and the authz server's (#2413). None was
+the one the entry named.
+
+**Still open, from the same trail:** `IntentTokenValid: false` /
+`IntentTokenError: no_signing_key` — the gateway cannot verify the intent token the
+BFF mints. It blocks nothing (P1AZ permits regardless) but it is a third
+missing-key wiring gap of the same family, and it means the intent-token evidence
+is not actually being checked on this path.
 
 **Also worth noting:** this whole path is arguably incoherent as configured —
 the ID-JAG is minted FOR the PingGateway resource, but oauth-mcp always redeems
