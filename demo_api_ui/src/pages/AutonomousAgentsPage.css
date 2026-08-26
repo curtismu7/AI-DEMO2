@@ -17,8 +17,10 @@
   font-size: 14px;
   line-height: 1.6;
 }
+/* No monospace stack here on purpose: index.css strips monospace from
+   pre/code/kbd/samp/tt repo-wide and a unit test enforces it. The inset
+   background and size shift carry "this is an identifier" on their own. */
 .aap code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.9em;
   background: var(--th-bg-inset, #f1f5f9);
   padding: 1px 5px;
