@@ -34,6 +34,7 @@ const { getProcyonDispatcher, isProcyonAgentUrl, decodeMcpBody } = require('./pr
 const { assemble } = require('../services/transactionAssembler');
 const configStore = require('../services/configStore');
 const { renderReelSvg } = require('../services/reelSvg');
+const jwksService = require('../services/jwksService');
 
 const router = express.Router();
 const SERVICE = 'mcp-facade';
@@ -63,6 +64,34 @@ const DOORS = {
     authorizationServer: null,
     scopes: [],
     forwardCorrelation: false,
+  },
+  opensearch: {
+    label: 'OpenSearch',
+    upstream: () => process.env.MCP_FACADE_OPENSEARCH_URL
+      || 'http://ping-mcpgw-opensearch-mcp-server:80/mcp',
+    // Reuses the Agent Gateway's OAuth broker: the client runs the same
+    // RFC 9728 -> 8414 -> 7591 -> PKCE dance it already does for that door.
+    authorizationServer: () => process.env.MCP_FACADE_AGENT_GATEWAY_AS || 'http://localhost:3005',
+    scopes: ['mcp:invoke'],
+    forwardCorrelation: false,
+    // THE REASON THIS DOOR EXISTS. The OpenSearch MCP server has no auth of
+    // its own -- it answers any caller -- so unlike every other door here the
+    // façade cannot rely on the upstream to issue the 401 that starts the
+    // OAuth dance (see the `upstream.status === 401` branch in relay()). It
+    // would happily relay anonymous traffic to a tool set that includes
+    // SearchIndexTool and GenericOpenSearchApiTool. requireBearer makes the
+    // FAÇADE do the challenging and the verifying instead.
+    requireBearer: true,
+    // Explicit, not resolveExpectedMcpResourceUri(): that helper answers for
+    // whichever gateway the demo UI is routed to (PingGateway's URI when
+    // ff_mcp_gateway_pinggateway is ON, as it is on SE), but the token a client
+    // gets from the broker above is always minted for the NODE gateway's own
+    // resource. Verified against a live broker token: aud
+    // ['mcpgateway.ping.demo'], iss https://auth.pingone.com/<env>/as, RS256.
+    // Deriving it from routing mode would reject every valid token on SE.
+    expectedAudience: () => process.env.MCP_FACADE_OPENSEARCH_AUD
+      || process.env.MCP_GW_RESOURCE_URI
+      || 'mcpgateway.ping.demo',
   },
   'pingone-admin': {
     label: 'PingOne Admin',
@@ -252,6 +281,63 @@ router.get('/:door/.well-known/oauth-protected-resource', (req, res) => {
   return res.json(body);
 });
 
+/**
+ * Verify a door's inbound bearer when the upstream will not do it for us
+ * (door.requireBearer). Full RS256 verification against PingOne's JWKS —
+ * signature, expiry, and audience — because a decode-only check would accept
+ * any self-made JWT, which is the same as no gate at all.
+ *
+ * Fails CLOSED: any missing key, malformed token, or JWKS error denies. The
+ * caller turns a denial into the RFC 9728 challenge that starts the OAuth
+ * dance, so a denial is a recoverable "go authenticate", not a dead end.
+ *
+ * @returns {Promise<{ok: true} | {ok: false, reason: string}>}
+ */
+async function verifyDoorBearer(req, door) {
+  const raw = String(req.get('authorization') || '');
+  const m = /^Bearer\s+(.+)$/i.exec(raw.trim());
+  if (!m) return { ok: false, reason: 'missing_bearer' };
+  const token = m[1].trim();
+  const parts = token.split('.');
+  if (parts.length !== 3) return { ok: false, reason: 'malformed_token' };
+
+  let header;
+  let claims;
+  try {
+    header = JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf8'));
+    claims = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+  } catch {
+    return { ok: false, reason: 'malformed_token' };
+  }
+  if (header.alg !== 'RS256') return { ok: false, reason: 'unsupported_alg' };
+  if (!header.kid) return { ok: false, reason: 'missing_kid' };
+
+  let key;
+  try {
+    key = await jwksService.getPublicKey(header.kid);
+  } catch {
+    return { ok: false, reason: 'jwks_unavailable' };
+  }
+  if (!key) return { ok: false, reason: 'unknown_kid' };
+
+  const verified = crypto.createVerify('RSA-SHA256')
+    .update(`${parts[0]}.${parts[1]}`)
+    .verify(key, Buffer.from(parts[2], 'base64url'));
+  if (!verified) return { ok: false, reason: 'bad_signature' };
+
+  // exp is seconds since epoch; treat a token with no exp as invalid rather
+  // than eternal.
+  if (typeof claims.exp !== 'number') return { ok: false, reason: 'missing_exp' };
+  if (claims.exp * 1000 <= Date.now()) return { ok: false, reason: 'expired' };
+
+  const expected = door.expectedAudience && door.expectedAudience();
+  if (expected) {
+    const aud = Array.isArray(claims.aud) ? claims.aud : [claims.aud].filter(Boolean);
+    if (!aud.includes(expected)) return { ok: false, reason: 'audience_mismatch' };
+  }
+  return { ok: true };
+}
+
 function forwardHeaders(req, correlationId) {
   const headers = { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' };
   const passthrough = ['authorization', 'mcp-session-id', 'mcp-protocol-version'];
@@ -346,6 +432,23 @@ router.post('/:door/mcp', express.json({ limit: '1mb', type: () => true }), asyn
   // own decisions for each step land on the same record.
   const correlationId = inbound?.cid || crypto.randomUUID();
   const upstreamUrl = door.upstream();
+
+  // Doors whose upstream has no auth of its own are gated HERE, before the
+  // relay — otherwise anonymous traffic reaches it. Answering with the same
+  // RFC 9728 challenge the upstream-401 path builds means an unauthenticated
+  // client discovers the AS and completes OAuth exactly as it does elsewhere;
+  // the door behaves like every other one from the client's side.
+  if (door.requireBearer) {
+    const verdict = await verifyDoorBearer(req, door);
+    if (!verdict.ok) {
+      res.set('WWW-Authenticate', rewriteChallenge(null, `${facadeBase(req)}/.well-known/oauth-protected-resource`, door.scopes));
+      return res.status(401).json({
+        jsonrpc: '2.0',
+        id: rpc.id ?? null,
+        error: { code: -32001, message: 'Unauthorized', data: { reason: verdict.reason } },
+      });
+    }
+  }
 
   if (isCall) {
     hop(correlationId, {
@@ -557,4 +660,4 @@ router.delete('/:door/mcp', async (req, res) => {
 });
 
 module.exports = router;
-module.exports.__test = { DOORS, rewriteChallenge, sessions, MAX_SESSIONS };
+module.exports.__test = { DOORS, rewriteChallenge, sessions, MAX_SESSIONS, verifyDoorBearer };
