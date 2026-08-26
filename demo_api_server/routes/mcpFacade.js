@@ -65,6 +65,17 @@ const DOORS = {
     scopes: [],
     forwardCorrelation: false,
   },
+  'agent-cmuir': {
+    label: 'Privilege agent (cmuir OpenSearch)',
+    // Second Agentic App under the same ai-demo-agent Mesh Cluster as the
+    // `agent` door above, registered 2026-08-26 against
+    // ping-mcpgw-opensearch-mcp-server.ping-devops-cmuir (see mcpFacade.test.js).
+    upstream: () => process.env.PRIVILEGE_AGENT_CMUIR_MCPGW_URL
+      || 'https://opensearch-cmuir.default.applications.procyon.ai:8643/mcp',
+    authorizationServer: null,
+    scopes: [],
+    forwardCorrelation: false,
+  },
   opensearch: {
     label: 'OpenSearch',
     // Cross-namespace FQDN, not a short name: there were briefly TWO OpenSearch
