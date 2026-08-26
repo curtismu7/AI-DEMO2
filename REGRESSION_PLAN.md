@@ -105,6 +105,66 @@ read the configured host. A new browser origin must be added to ALL of:
 ## §4 — Bug Fix Log
 Reverse-chronological, newest first.
 
+### 2026-08-26 — Customer sign-in broken since 2026-08-24: BFF sent a client_secret to a PKCE-only app
+
+**Files changed:** `demo_api_server/services/oauthUserService.js`,
+`demo_api_server/config/oauthUser.js`, `demo_api_server/services/configStore.js`,
+`demo_api_server/services/envReconcile.js`, plus
+`src/__tests__/oauthUserService.pkceNoClientAuth.test.js`.
+
+**What was broken:** every customer sign-in failed. The PingOne app
+"Demo AI App - User Login" was migrated to `tokenEndpointAuthMethod: NONE`
+(PKCE-only public client) at `2026-08-24T11:55:27Z`, while the BFF kept a
+now-obsolete `user_client_secret` in its persisted config. `exchangeCodeForToken`
+guarded only on whether a secret EXISTS, so it kept sending `client_secret`, and
+PingOne rejected every exchange with
+`invalid_client — Request denied: Unsupported authentication method`.
+
+**Why it did not look like an auth bug:** the callback redirects to
+`/dashboard?error=callback_failed&detail=invalid_client`, and because the action
+chips no longer gate on `isLoggedIn`, the dashboard renders a full, normal-looking
+guest view — same 6 action groups a signed-in customer sees. `/api/auth/session`
+answering `{"authenticated":false,"user":null}` was the only visible tell. A probe
+that counted chips would have reported the page as working.
+
+**How it was proven** (live token endpoint, same app, deliberately invalid code so
+only client authentication was under test):
+
+| request | PingOne response |
+|---|---|
+| no client auth | `invalid_grant` — client auth accepted |
+| `client_secret=<dummy>` | `invalid_client` — Unsupported authentication method |
+| `Basic <id:dummy>` | `invalid_client` — Unsupported authentication method |
+| `client_secret=` (EMPTY) | `invalid_client` — Unsupported authentication method |
+
+A full authorization-code + PKCE run with **no** client auth, using the BFF's exact
+scope list, returned HTTP 200 with a real access/id/refresh token for `demoUser` —
+so the app was never the problem.
+
+That empty-secret row is the reason `if (clientSecret)` was never a sufficient
+guard: PingOne rejects a blank `client_secret=` exactly like a wrong one.
+
+**What was fixed:** `shouldSendClientSecret(config)` now consults the app's
+configured method as well as the secret's presence, applied at all four sites in
+`oauthUserService` that attach client auth. New config key
+`PINGONE_USER_TOKEN_ENDPOINT_AUTH_METHOD` (`user_token_endpoint_auth_method`),
+registered in `FIELD_DEFS`, the env-alias table, and `envReconcile`'s
+classification. **Only `none` is acted on** and the default is empty, so a
+confidential deployment behaves exactly as before.
+
+The stale `user_client_secret` was also cleared from the BFF config — either fix
+alone restores sign-in; together, a secret reappearing cannot silently break it again.
+
+**Evidence:** `oauthUserService.pkceNoClientAuth.test.js` — 7 tests, RED-proven
+(4 fail if the guard ignores the method). Full BFF suite: 10,240 passed; 4
+suites failed only under `--maxWorkers=4` and pass scoped (known worker-contention
+flake), none touching the changed files.
+
+**Watch out:** `docker exec ai-demo-api-server node -e "...configStore..."` reports
+this secret as EMPTY, because that process never runs the app bootstrap (no dotenv,
+no vault decrypt). Four consecutive reads said "no secret" while the running server
+had one. Ask the running process (`GET /api/admin/config` → `*_set`) instead.
+
 
 ### 2026-08-24 — mcp-resource-server: explicit audience honoured, RFC 9728 challenge URL, invest SQLite cleanups
 
