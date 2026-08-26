@@ -40,6 +40,12 @@ spec:
           name: query
         - containerPort: 4317
           name: otlp-grpc
+        # COLLECTOR_OTLP_ENABLED already starts the OTLP/HTTP receiver on 4318 —
+        # confirmed listening in the running pod — it was simply never declared
+        # or exposed. PingGateway's OTLP exporter takes an HTTP URL, so this is
+        # the port it needs; the Node services keep using 4317 (gRPC).
+        - containerPort: 4318
+          name: otlp-http
         env:
         - name: COLLECTOR_OTLP_ENABLED
           value: "true"
@@ -85,6 +91,12 @@ spec:
     targetPort: 4317
     protocol: TCP
     name: otlp-grpc
+  # OTLP/HTTP — what PingGateway's exporter speaks. Cluster-internal like the
+  # rest of this Service; no ingress maps it.
+  - port: 4318
+    targetPort: 4318
+    protocol: TCP
+    name: otlp-http
   selector:
     app: ai-demo
     component: jaeger
