@@ -718,7 +718,7 @@ round-trip). They are reads, so they are outside this entry, and on the normal p
 their own `render` case answers first (`loyalty_balance` → `Your balance: N`). Fixing
 them is a read-side noun problem, not a write-ness one.
 
-### [ ] 2026-08-19 — `serve:worktree` reports a state file, not the actual container mounts, and leaves the BFF without its gitignored config
+### [x] 2026-08-19 — `serve:worktree` reports a state file, not the actual container mounts, and leaves the BFF without its gitignored config
 
 Two separate gaps, both hit while live-verifying the 2026-08-19 Demo Steps fixes.
 
@@ -744,6 +744,43 @@ Two separate gaps, both hit while live-verifying the 2026-08-19 Demo Steps fixes
 status output and re-apply if it disagrees, and (b) symlink or copy the main checkout's
 `demo_api_server/.env` and `data/persistent/*.db` into the target worktree when switching to
 it — the same way `node_modules` already has to be linked in.
+
+**RESOLVED 2026-08-26 (branch `worktree-serve-worktree-honesty`).** Both halves done, but
+the diagnosis in (a) was wrong in a way worth recording, and (b) was half unnecessary.
+
+**(a) was never a state file.** `print_status` has read `docker inspect` since the script was
+introduced in PR #2009 (2026-08-18), a day BEFORE this entry. The real cause is visible in
+the entry's own evidence: it reported the UI mount as the worktree while `docker inspect`
+showed `.../demo_api_ui/src -> /app/src` on main. `mount_source` only ever asked about
+`/app` — and **the UI serves from `/app/src`, not `/app`**. So the status line was reading
+live docker state and was still wrong, because it was reading the wrong mount. The overlay
+comment ("Both targets must move together") was added for the same reason; nothing checked
+that it held.
+
+Now `print_status` reads `/app/src` too and prints an explicit `UI  MOUNT SPLIT` line when
+the two disagree, and a new `verify_mounts` re-reads all three mounts after the recreate.
+A recreate that does not take is retried once — the cure the entry observed ("a second
+`serve:worktree here` fixed the mount") — and then **fails with exit 1** rather than
+printing "now serving:" over a stack that is serving something else.
+
+**(b) is one file, not two.** `demo_api_server/.env` is now copied from the main checkout on
+every non-main switch. `data/persistent/*.db` needs nothing: `docker inspect` confirms
+`/app/data/persistent` is the named volume `ai-demo_ai-demo-bff-data`, which mounts over
+whatever the source directory holds, so the databases never moved in the first place.
+Copied rather than symlinked — the mount hands the container the worktree directory, so a
+symlink inside it would resolve to a host path that does not exist in the container, and the
+BFF would see no `.env` at all. That is the same trap in a new costume, so it is spelled out
+at the call site.
+
+Evidence: `scripts/serve-worktree.test.sh` — 12 checks, run against a stub `docker` on
+PATH, so it never touches the shared stack. RED-proven in three separate passes: removing
+the `.env` copy fails 2, removing the mount verification fails 3, and removing just the
+`/app/src` half of `verify_mounts` fails exactly the test that reproduces the original
+symptom (`/app` moves, `/app/src` lags).
+
+**Not done:** the script still does not take the `.git/deploy-live.lock` that
+`deploy-live.sh` uses, so two sessions can still fight over the stack — that is the separate
+2026-08-19 "nothing protects a live UI drive" entry, still open.
 
 ### [x] 2026-08-18 — the accepted-gateway-identity list is maintained by hand in two places, and has now drifted twice
 
