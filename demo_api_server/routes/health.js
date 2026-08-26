@@ -699,6 +699,8 @@ router.get('/inventory/sizes', async (_req, res) => {
 });
 
 router.use('/tracing', require('./tracing'));
+// PingGateway's own MCP counters, read from its admin connector (:8085).
+router.use('/gateway-metrics', require('./gatewayMetrics'));
 
 module.exports = router;
 

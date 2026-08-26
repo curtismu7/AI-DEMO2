@@ -10,6 +10,7 @@ import {
 } from "./tracingServiceSelect";
 import TraceGraphView from "../components/TraceGraphView";
 import ProjectedTimeline from "../components/ProjectedTimeline";
+import GatewayMcpMetrics from "../components/GatewayMcpMetrics";
 
 const REFRESH_MS = 15000;
 const LOOKBACK_OPTIONS = [
@@ -320,6 +321,8 @@ export default function TracingPage() {
           <span className="tracing-meta">OTLP {status.otelEndpoint}</span>
         )}
       </div>
+
+      <GatewayMcpMetrics />
 
       {error && (
         <div className="tracing-error" role="alert">

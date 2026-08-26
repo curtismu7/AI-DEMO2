@@ -16,6 +16,47 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-08-26 — `ig_mcp_error_total` does not count schema-invalid JSON-RPC envelopes
+
+PingGateway's `McpValidationFilter` publishes `ig_mcp_error_total` on the admin
+connector, labelled by JSON-RPC error code. It counts most rejections but not
+all: a request whose envelope fails JSON-RPC **schema** validation is rejected
+with a 400 and never reaches the counter.
+
+Measured live against `00-mcp-external-door` on `ping-devops-cmuir`, each case
+driven through the real OAuth flow with a valid token, reading the counter
+before and after:
+
+| Case sent | Gateway response | Counter |
+|---|---|---|
+| unsupported `MCP-Protocol-Version` header | 400 `-32600` | +3 of 3 |
+| unknown MCP method (`does/not/exist`) | 400 `-32600` | +2 of 2 |
+| unknown tool (`no_such_tool`) | 400 `-32602` | +1 of 1 |
+| envelope missing `jsonrpc` property | 400 `-32600` | **0 of 2** |
+
+The last row is the gap. The gateway answers
+`{"code":-32600,"message":"Invalid Request: Invalid JSON-RPC Request","data":["required property 'jsonrpc' not found"]}`
+and `ig_mcp_error_total{mcp_error="-32600"}` stays flat across repeated sends
+(7.0 → 7.0). Schema validation evidently runs before the point where the filter
+records the error, so those rejections are invisible to metrics.
+
+Why it wasn't fixed here: it is upstream product behaviour in `openig-mcp`, not
+demo code — there is nothing in this repo to correct. What this repo can do, and
+does, is refuse to present the number as a total: `routes/gatewayMetrics.js`
+documents the gap and the UI panel labels the figure "a floor, not a total".
+
+The real fix is upstream — the counter should increment wherever the filter
+emits a JSON-RPC error, including the schema-validation path. Worth raising with
+Ping if anyone builds alerting on this metric, because the blind spot covers
+exactly the traffic an operator most wants alerted on: a client sending
+structurally broken envelopes. Until then, treat `ig_mcp_error_total` as a lower
+bound and corroborate with `ig_http_server_*` status counts.
+
+Reproduce: `demo_api_server/tests/routes/gatewayMetrics.test.js` covers the
+parser; the live probe is an authenticated `tools/list` POST with `jsonrpc`
+omitted from the body, with the counter read from
+`http://ping-gateway:8085/metrics/prometheus/0.0.4` either side.
+
 ### [x] 2026-08-26 — intent-token verification is dead on BOTH gateway paths, and the BFF signs with the vault CIPHERTEXT
 
 **Where:** `demo_api_server/services/intentTokenService.js:8`,
