@@ -27,7 +27,7 @@ Everything else (MCP tools, gateway, scope topology, trace) is identical. This i
 - `services/agentCCTokenService.js` does mint a pure `client_credentials` token — but as Step 1 of the two-exchange chain, *inside* a user request. It is a machine hop, not an autonomous actor.
 - The only cron in the BFF is `lighthouseScheduler.js` (Lighthouse audits). No scheduled agent run exists.
 - CIBA (`cibaService.js` real / `cibaSimulatedService.js`) is built and reachable, but fires during an in-session HITL pause — i.e. we ask an absent-user question while the user is present.
-- The A2A specialists (11 apps) are described in [pingone-ai-agents-migration-plan.md](pingone-ai-agents-migration-plan.md) as "autonomous actors". They are not — they are sub-hops of a user-initiated chain. The migration to PingOne `AI_AGENT` identity type is still right, but the word "autonomous" there is wrong today.
+- The A2A specialists (11 apps) are described in [pingone-ai-agents-migration-plan.md](../docs/pingone-ai-agents-migration-plan.md) as "autonomous actors". They are not — they are sub-hops of a user-initiated chain. The migration to PingOne `AI_AGENT` identity type is still right, but the word "autonomous" there is wrong today.
 
 So the gap is exactly one thing: **there is no way for an agent run to start without a human turn.** Add that trigger and every other primitive we need is already built.
 
@@ -40,7 +40,7 @@ Each phase is independently demo-able and stops somewhere useful. Phase 1 alone 
 Declare which agents are which, and surface it. Today "agent" is one undifferentiated word in the UI and in PingOne.
 
 - Add `agentClass: "worker" | "autonomous"` to the agent registrations in `scope-topology.json`. It is a label, not a switch — nothing branches on it yet.
-- Mirror it as the PingOne AI Agent record's description/attribute during the migration already planned in [pingone-ai-agents-migration-plan.md](pingone-ai-agents-migration-plan.md), so the Directory > AI Agents list is filterable by class.
+- Mirror it as the PingOne AI Agent record's description/attribute during the migration already planned in [pingone-ai-agents-migration-plan.md](../docs/pingone-ai-agents-migration-plan.md), so the Directory > AI Agents list is filterable by class.
 - Show it in the token chain / trace surface: a worker chain shows `sub=user, act=agent`; an autonomous chain will show `sub=agent, no act`. The trace already renders both fields — this is a label, not new plumbing.
 
 Success: `npm run topology:verify` passes with the new field; the trace names the class for an existing run.
@@ -80,7 +80,7 @@ Success: killing an autonomous agent stops the next scheduled run, and the lifec
 
 ## What this plan deliberately does not do
 
-- No new token type, no new grant, no AIP / transaction-token adoption. Those drafts are surveyed in [IETF-AGENT-AUTH-DRAFTS-2026.md](IETF-AGENT-AUTH-DRAFTS-2026.md); the demo's existing RFC 8693 + CIBA story covers autonomous-vs-worker without them.
+- No new token type, no new grant, no AIP / transaction-token adoption. Those drafts are surveyed in [IETF-AGENT-AUTH-DRAFTS-2026.md](../docs/IETF-AGENT-AUTH-DRAFTS-2026.md); the demo's existing RFC 8693 + CIBA story covers autonomous-vs-worker without them.
 - No agent-to-agent autonomy (an autonomous agent spawning autonomous agents). One level.
 - No new UI surface. Class label goes on existing trace/roster surfaces.
 - No change to any worker-agent path. Phase 2 adds a second entry point; it does not touch the chat one.
