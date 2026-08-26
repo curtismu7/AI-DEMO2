@@ -376,7 +376,7 @@ fails 4 of 5. Full BFF suite green — 10,224 passed, 1 pre-existing environment
 failure (`anthropic.lmstudio.live.test.js`, `getaddrinfo ENOTFOUND
 api.ping.demo`; that host is absent from this machine's `/etc/hosts`).
 
-### [ ] 2026-08-23 — `useVertical()` reshapes the context into a new object on every call, defeating the Provider's own memoization
+### [x] 2026-08-23 — `useVertical()` reshapes the context into a new object on every call, defeating the Provider's own memoization
 
 **Where:** `demo_api_ui/src/vertical/useVertical.js` — every non-null-context
 return path (lines 29–41) builds `{ activeId: ctx.activeId, pageManifest:
@@ -406,6 +406,33 @@ deliberately rather than folding into an unrelated bug fix.
 primitive/derived values that actually determine its shape (`ctx`,
 `isAdminScope`), so a `React.memo`'d consumer or a `useEffect` deps array
 keyed on `useVertical()`'s output stops re-firing on every unrelated render.
+
+**RESOLVED 2026-08-26 (branch `worktree-use-vertical-memo`).** Done as scoped:
+`useMemo` keyed on `[ctx, isAdminScope]`, which is the complete dependency set —
+every field in the returned object is either read off `ctx` or derived from both.
+
+Two details the entry did not call out:
+
+- The **early `!ctx` return had to move inside the memo**, because a hook cannot
+  be called conditionally. That branch is now a frozen module constant
+  (`NO_PROVIDER`) rather than a fresh literal, so the no-provider path is stable
+  too — it was the one path that would otherwise still churn a new object every
+  render.
+- `isAdminScope` is derived as a **boolean before** the memo rather than passing
+  `location.pathname` as a dependency. Keyed on the raw pathname, the memo would
+  invalidate on every navigation; keyed on the boolean it invalidates only when
+  a route actually crosses the `/admin` boundary — which is the only thing about
+  the path this hook cares about.
+
+Evidence: `src/vertical/__tests__/useVertical.test.jsx` grew 4 -> 8. The four new
+tests capture every value the hook returns and compare identity: same object
+across an unchanged re-render, a NEW object when the context value really
+changes, correct recompute when the route crosses into admin scope (so the memo
+is not sticky enough to become a correctness bug), and a stable no-provider
+fallback. RED-proven: replacing the memo with a plain IIFE fails 2 of 8.
+
+Full UI gate green — 3467 unit tests passed (434 files), `npm run build` exit 0.
+Run unscoped on purpose: this hook is called by nearly every screen.
 
 ### [ ] 2026-08-23 — native ID-JAG: PingGateway's own D-05 still blocks the real tool call even when the OLB-audience pin should redirect it
 
