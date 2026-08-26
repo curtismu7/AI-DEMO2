@@ -16,6 +16,64 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [x] 2026-08-26 — native ID-JAG is a per-server grant, but the BFF took it for tools on OTHER servers, 502ing every non-banking vertical
+
+**Where:** `demo_api_server/services/agentMcpTokenService.js` (~1445, the
+`maybeResolveNativeIdJagToken` call site).
+
+**What was wrong:** a redeemed ID-JAG bearer carries exactly ONE audience —
+oauth-mcp's own resource (`TokenIssuer.resolveOwnAudience`; the AS is not entitled
+to assert any other). The BFF took the native path for EVERY tool, resolving the
+resource from the routing mode rather than from the backend the tool actually
+reaches.
+
+`demo_mcp_gateway/src/router.ts` `routeTool()` sends **ten** verticals — retail,
+sporting-goods, healthcare, government, manufacturing, university, workforce,
+airlines, A&F, investment — to the `invest` backend. Only banking defaults to
+`olb`. For all the rest the gateway PERMITs, its ID-JAG exemption then correctly
+refuses to forward (the token's aud is not the invest resource, and forwarding
+would widen what an ID-JAG bearer reaches beyond what D-05 verified), it falls
+through to the RFC 8693 exchange, and PingOne rejects a token it did not sign:
+
+```
+RFC 8693 exchange to backend=invest (resource=mcp-invest.ping.demo,...)
+rejected with HTTP 400 — invalid_request:
+Cannot parse token claims for request param 'subject_token'
+```
+
+→ HTTP 502 `Gateway upstream error` for the tool call.
+
+**How it surfaced:** it was NOT reachable this morning. Before the `expectedAud`
+fix, every ID-JAG call was rejected BFF-side before leaving the process, so no
+vertical ever got here. Completing the ID-JAG chain made banking work and exposed
+that every other vertical could not. The incompatibility pre-existed; finishing the
+chain is what made it visible — and briefly made the default demo vertical (Super
+Sports) return 502.
+
+**Fixed 2026-08-26 (branch `worktree-idjag-olb-tools-only`):** take the native path
+only when the tool actually lives on the OLB server; everything else falls through
+to the RFC 8693 stand-in, unchanged and working.
+
+The OLB set is read from the BFF's OWN banking tool registry
+(`getBankingToolDefinitions`, 11 tools) rather than by copying `router.ts`'s routing
+sets — this repo has been burned twice by a second copy joined only by a
+keep-in-sync comment. The failure modes are asymmetric and both land safe: a genuine
+OLB tool missing from the registry merely loses the native path and uses the
+exchange (today's working behaviour); the reverse would reproduce the 502 the guard
+exists to stop.
+
+Evidence: `src/__tests__/agentMcpTokenService.idJagOlbOnly.test.js` — 15 tests
+pinning the predicate for the three OLB tools, seven invest-backed vertical tools,
+and the null/unknown fail-safe. It also asserts the predicate is exported at all,
+because a skipped suite reads as green. RED-proven: removing the gate fails 8 of 15.
+Full BFF suite 10,334 passed, 0 failures.
+
+**Worth knowing for the next per-server grant:** the more correct long-term shape is
+minting the ID-JAG for the backend the tool routes to, so invest-backed verticals get
+the native path too. That needs the invest resource allow-listed on both legs
+(`ENTERPRISE_MCP_RESOURCE_URIS` and `MCP_SERVER_RESOURCE_URI`) and a per-tool
+resource resolution in the mint — a bigger change than restoring the demo warranted.
+
 ### [ ] 2026-08-26 — `ig_mcp_error_total` does not count schema-invalid JSON-RPC envelopes
 
 PingGateway's `McpValidationFilter` publishes `ig_mcp_error_total` on the admin
