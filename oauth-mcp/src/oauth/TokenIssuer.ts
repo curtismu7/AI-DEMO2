@@ -28,7 +28,19 @@ export function resolveAudience(): string[] {
  *  full list stays the *accepted* set on the inbound side (see
  *  TokenIntrospector.audienceAccepted), which is a different question. */
 export function resolveOwnAudience(): string {
-  return resolveAudience()[0] || 'mcpserver.ping.demo';
+  // Prefer the dedicated var, matching the precedence every other "what is MY
+  // resource URI" resolver in this service already uses (JwtClaimVerifier:
+  // PINGONE_RESOURCE_MCP_SERVER_URI || MCP_SERVER_RESOURCE_URI || ...). Taking
+  // MCP_SERVER_RESOURCE_URI[0] positionally is correct in every shipped config
+  // today, but it silently becomes wrong the moment that list is reordered —
+  // and the entries after the first name OTHER resource servers, so a
+  // reordering would have this AS assert an audience it has no authority over.
+  // Unset everywhere today, so this is inert until someone sets it.
+  const dedicated = (process.env.PINGONE_RESOURCE_MCP_SERVER_URI || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)[0];
+  return dedicated || resolveAudience()[0] || 'mcpserver.ping.demo';
 }
 
 export class TokenIssuer {
