@@ -486,6 +486,67 @@ earlier in the flow.
    `mcpToolPipeline.js`-supplied first argument) is literally what's
    expected, not a value that predates trimming/normalization.
 
+**INVESTIGATED 2026-08-26 (branch `worktree-idjag-pinggateway-allowlist`) — entry
+stays OPEN: D-05 itself is still unproven, but it is no longer the blocker.**
+
+The two things that made this unreproducible are gone: the empty-cookie mint
+failure was PR #2281, and customer sign-in (broken 2026-08-24 → 2026-08-26, see
+REGRESSION_PLAN §4) is fixed. A real signed `show my balance` turn as `demoUser`
+on the banking vertical now runs end to end.
+
+**It does not reach D-05 any more. It fails two legs earlier:**
+
+```
+POST /api/enterprise-idp/token 400
+[demo-agent/tools] error: invalid_target
+  resource https://api.ping.demo:3036/mcp is not an approved MCP server.
+```
+
+Native ID-JAG has two legs and each checks the requested resource against a
+DIFFERENT list — leg 1 (mint, `routes/enterpriseIdp.js`) against
+`ENTERPRISE_MCP_RESOURCE_URIS`, leg 2 (redeem, mcp-server's `IdJagGrantHandler`)
+against `MCP_SERVER_RESOURCE_URI`. Under this demo's default routing
+(`ff_mcp_gateway_pinggateway=true`) `resolveExpectedMcpResourceUri()` returns
+`pingone_resource_pinggateway_uri` = `https://api.ping.demo:3036/mcp`, so both
+legs are asked for that URI. It was listed on leg 2 and **missing on leg 1**, so
+every mint 400'd and the tool call was never attempted.
+
+`MCP_SERVER_RESOURCE_URI`'s own comment in `docker-compose.yml` asserted that
+"the demo-api-server side already allow-lists the same URI via
+`ENTERPRISE_MCP_RESOURCE_URIS`" — nothing checked that claim, and it was false.
+Fixed on the compose default, with
+`src/__tests__/docker-compose.enterpriseIdJagAllowlist.test.js` (4 tests) now
+checking it: leg 1 ⊇ every mintable audience leg 2 serves. RED-proven — reverting
+the one compose value fails 2 of 4.
+
+**The pin's inputs were all fine, so step 3 of the plan above is NOT the bug.**
+Re-verified live in the BFF container: `MCP_PINGGATEWAY_URL` ===
+`MCP_GATEWAY_HTTP_URL` === `http://ping-gateway:8080`,
+`PINGONE_RESOURCE_MCP_SERVER_URI` = `mcpserver.ping.demo`, and both `base` and
+`pgUrl` are trailing-slash-normalised before comparison.
+
+**Second blocker, newly found and NOT in the original entry:** the pin's
+destination does not exist under default runtime. `mcpGatewayClient.js`'s OLB pin
+redirects to `mcp_demo_gateway_url` (`http://mcp-gateway:3005`), but the
+`mcp-gateway` service sits behind the **`demo-auth` compose profile** while
+`run-docker.sh` defaults to core + rag — `docker ps` shows only
+`ai-demo-ping-gateway`. So even once the mint succeeds, a correctly-pinned call
+has nothing listening at the other end. Note the pin fails SILENTLY in the
+adjacent case: `if (nodeUrl) base = nodeUrl;` no-ops when the URL is empty, which
+is the same shape of quiet failure this entry has been chasing.
+
+**What is still unknown:** whether D-05 fires once both blockers are cleared.
+Answering it needs `--profile demo-auth` (or an equivalent) so the Node gateway
+is actually up, then a re-run of the same signed turn. Until then the original
+D-05 observation should be treated as recorded-but-unreproduced.
+
+**Also worth noting:** this whole path is arguably incoherent as configured —
+the ID-JAG is minted FOR the PingGateway resource, but oauth-mcp always redeems
+it audienced to its OWN resource (`resolveOwnAudience`), PingGateway rejects that
+audience (D-05), and the pin exists to route around PingGateway to a gateway that
+is not running. That is a design question, not a bug fix, and it belongs to
+whoever owns the native-ID-JAG rollout.
+
 ### [x] 2026-08-23 — a real HTTP request into `/api/agent/run` can arrive with `req.headers.cookie` empty while `req.session.user` is populated, breaking the native-ID-JAG mint for that turn
 
 Same live-verification session as the entry above. `services/idJagService.js`'s

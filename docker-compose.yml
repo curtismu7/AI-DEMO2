@@ -137,7 +137,19 @@ services:
       # invalid_target unless it's explicitly allow-listed here. Setting this
       # REPLACES the whole default list (see getAllowedResourceUris), so both
       # existing audiences are repeated rather than dropped.
-      ENTERPRISE_MCP_RESOURCE_URIS: "${ENTERPRISE_MCP_RESOURCE_URIS:-mcpserver.ping.demo,mcpgateway.ping.demo,http://localhost:8080/mcp}"
+      # https://api.ping.demo:3036/mcp is REQUIRED for this demo's DEFAULT routing
+      # (ff_mcp_gateway_pinggateway=true). In that mode
+      # mcpToolAuthorizationService.resolveExpectedMcpResourceUri() returns
+      # pingone_resource_pinggateway_uri, so the native ID-JAG mint asks for that
+      # URI — and without it here the mint 400s with
+      #   invalid_target: resource https://api.ping.demo:3036/mcp is not an approved MCP server
+      # before the tool call is ever attempted. MCP_SERVER_RESOURCE_URI (~L500)
+      # has always listed it, and its comment there already claimed "the
+      # demo-api-server side already allow-lists the same URI via
+      # ENTERPRISE_MCP_RESOURCE_URIS" — which was not true until now. The two
+      # lists must move together; docker-compose.enterpriseIdJagAllowlist.test.js
+      # fails if they drift apart again.
+      ENTERPRISE_MCP_RESOURCE_URIS: "${ENTERPRISE_MCP_RESOURCE_URIS:-mcpserver.ping.demo,mcpgateway.ping.demo,http://localhost:8080/mcp,https://api.ping.demo:3036/mcp}"
       NODE_OPTIONS: "-r /otel/otel-instrument.js"
       JAEGER_QUERY_URL: "http://jaeger:16686"
       # Don't wipe persisted sessions on every restart/recreate — otherwise each
