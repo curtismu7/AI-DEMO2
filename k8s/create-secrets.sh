@@ -640,10 +640,17 @@ if [ -f "$ASSET_ROOT/monitoring/prometheus.yml" ]; then
     grafana_pass="ai-demo-grafana"
     warn "  GRAFANA_ADMIN_PASSWORD unset — using the default. Set it before any long-lived deployment."
   fi
+  # PingOne SSO client secret for "Demo AI App - Grafana Login". Empty is fine:
+  # Grafana still starts and the local admin form still works, so a stack
+  # without it degrades to password login rather than breaking.
+  grafana_oauth_secret="${GRAFANA_PINGONE_CLIENT_SECRET:-}"
+  [ -n "$grafana_oauth_secret" ] \
+    || warn "  GRAFANA_PINGONE_CLIENT_SECRET unset — PingOne SSO button will not work; local admin login still will."
   kubectl create secret generic grafana-secrets \
     --namespace="$NS" \
     --from-literal=GF_SECURITY_ADMIN_USER="$grafana_user" \
     --from-literal=GF_SECURITY_ADMIN_PASSWORD="$grafana_pass" \
+    --from-literal=GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET="$grafana_oauth_secret" \
     --dry-run=client -o yaml | kubectl apply -f -
   info "  grafana-secrets applied (user: $grafana_user)."
 else
