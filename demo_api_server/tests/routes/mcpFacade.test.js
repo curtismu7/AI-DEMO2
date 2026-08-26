@@ -129,7 +129,7 @@ describe('/mcp-facade — RFC 9728 surface', () => {
   test('unknown door → 404 listing the doors', async () => {
     const res = await request(app()).get('/mcp-facade/nope/.well-known/oauth-protected-resource');
     expect(res.status).toBe(404);
-    expect(res.body.doors).toEqual(['agent-gateway', 'agentless', 'agent', 'opensearch', 'pingone-admin']);
+    expect(res.body.doors).toEqual(['agent-gateway', 'agentless', 'agent', 'agent-cmuir', 'opensearch', 'pingone-admin']);
   });
 
   test('an upstream 401 is relayed with resource_metadata rewritten to the façade', async () => {
