@@ -321,7 +321,7 @@ instead of an empty array. New unit tests added in
 `oauth-mcp/src/tools/handlers/__tests__/accountNickname.test.ts` covering
 both fixes; full suite green (1079/1079) before deploy.
 
-### [ ] 2026-08-23 — `pingone_mgmt_client_id`/`_client_secret`/`_token_auth_method` are missing from `configStore.js`'s `FIELD_DEFS`
+### [x] 2026-08-23 — `pingone_mgmt_client_id`/`_client_secret`/`_token_auth_method` are missing from `configStore.js`'s `FIELD_DEFS`
 
 **Where:** `demo_api_server/services/configStore.js` — all three keys are
 referenced in `SECRET_KEYS` (the first two) and the env-alias table (all
@@ -345,6 +345,36 @@ finding #32's scope.
 `pingone_mgmt_private_key`'s `{ public: false, default: '' }` shape, adjusted
 for which of them are secrets), so any future admin-UI or route code path
 that calls `setConfig` with one of them doesn't silently no-op.
+
+**RESOLVED 2026-08-26 (branch `worktree-techdebt-small-correctness`).** All three
+registered next to `pingone_mgmt_private_key`, following the file's own
+conventions rather than that one key's shape: `client_id` `{ public: true }`
+(matching every other `*_CLIENT_ID`), `client_secret` `{ public: false }`
+(it is in `SECRET_KEYS`), and `token_auth_method`
+`{ public: true, default: 'basic' }` (matching the sibling
+`PINGONE_ADMIN_TOKEN_ENDPOINT_AUTH_METHOD`).
+
+The default was the one real decision here. `'post'` would have been wrong:
+every consumer — `pingOneClientService.js:68`, `pingOneUserService.js:71`,
+`pingoneTestRoutes.js:1072` — already reads
+`getEffective('pingone_mgmt_token_auth_method') || 'basic'`, and `getEffective`
+returns the `FIELD_DEFS` default when nothing else supplies a value. A `'post'`
+default would therefore have silently flipped the Management API worker's client
+authentication method on every deployment that doesn't set the env var. `'basic'`
+reproduces today's behaviour exactly.
+
+The entry's "latent, not currently triggered" read was re-confirmed: no
+`setConfig` call site writes any of the three today, and the basic/post self-heal
+in `pingOneTokenAuth.js` is in-memory only.
+
+Evidence: `src/__tests__/configStore.mgmtWorkerKeysSave.test.js` (5 tests) —
+`setConfig` round-trip per key, a `FIELD_DEFS` membership assertion, and a guard
+pinning the `'basic'` default to the consumers' fallback. It clears the env
+aliases first, since `getEffective` reads those ahead of the defaults and would
+otherwise mask what the spec asserts. RED-proven: removing the three entries
+fails 4 of 5. Full BFF suite green — 10,224 passed, 1 pre-existing environment
+failure (`anthropic.lmstudio.live.test.js`, `getaddrinfo ENOTFOUND
+api.ping.demo`; that host is absent from this machine's `/etc/hosts`).
 
 ### [ ] 2026-08-23 — `useVertical()` reshapes the context into a new object on every call, defeating the Provider's own memoization
 
@@ -429,7 +459,7 @@ earlier in the flow.
    `mcpToolPipeline.js`-supplied first argument) is literally what's
    expected, not a value that predates trimming/normalization.
 
-### [ ] 2026-08-23 — a real HTTP request into `/api/agent/run` can arrive with `req.headers.cookie` empty while `req.session.user` is populated, breaking the native-ID-JAG mint for that turn
+### [x] 2026-08-23 — a real HTTP request into `/api/agent/run` can arrive with `req.headers.cookie` empty while `req.session.user` is populated, breaking the native-ID-JAG mint for that turn
 
 Same live-verification session as the entry above. `services/idJagService.js`'s
 `mintIdJag(req, ...)` forwards `req.headers.cookie` on its loopback POST to
@@ -490,6 +520,31 @@ obvious shared-mutable-state culprit spotted on read-through.
    `mintIdJag` to find exactly where `req.headers.cookie` stops being the
    original value.
 
+**RESOLVED — was already fixed when this entry was written; verified 2026-08-26.**
+PR #2281 (`0e407dbf`, merged 2026-08-23 14:53, ~4 hours after this entry was
+recorded at 11:07) fixed it and nobody came back to tick the box. The answer to
+the entry's own question 1 turned out to be "neither frontend nor backend loss":
+the follow-up turn does not arrive as a browser request at all. It comes through
+the `/internal/agent-tool` callback (`routes/agentTool.js:99`), which resolves
+the session server-side via `sessionStore.get()` and builds a synthetic `fakeReq`
+carrying `sessionID` but **no `headers` object whatsoever** — hence
+`outerHasUser: true, outerCookieLen: 0`, and hence "follow-up turns only, never
+the first". The entry's premise ("a real HTTP request into `/api/agent/run`")
+was the wrong frame; the duplicate-dispatch lead was a red herring.
+
+`idJagService.cookieHeader(req)` now re-signs a `connect.sid` from `req.sessionID`
+using express-session's own format when no real header exists. Verified today:
+the re-sign uses `process.env.SESSION_SECRET || 'dev-session-secret-change-in-production'`,
+character-for-character the expression `server.js:470` configures the session
+middleware with, so the loopback cookie validates against the same secret.
+`src/__tests__/idJagService.cookieForward.test.js` — 3 passed (real header
+forwarded unchanged / re-signed from sessionID / empty when neither exists), with
+the unsign algorithm re-implemented independently of the code under test.
+
+The entry's "what it is NOT" worry — that any other loopback cookie-forwarder is
+exposed to the same gap — does not materialise: `idJagService.js` is the only
+one. `authStateCookie.js` and `pkceStateCookie.js` read inbound browser cookies
+(different question) and `server.js:958` only counts cookie names.
 ### [x] 2026-08-23 — native ID-JAG gateway filter (PR #2268) was merged and unit-verified but never actually deployed — `demo_mcp_gateway`'s Docker image was stale
 
 While doing the live E2E verification that produced the two entries above,
@@ -3198,6 +3253,21 @@ the running app to confirm placement.
 code change, and #1978 was a role-visibility fix that had no business also
 relocating a UI region.
 
+**PARTIALLY OVERTAKEN BY EVENTS — noted 2026-08-26, entry stays OPEN.** The
+specific call site this entry pins no longer exists: `AIAgent.js:10866`'s
+`{isLoggedIn && renderActionGroups()}` is now an unconditional
+`{renderActionGroups()}` (`AIAgent.js:11174`), consistent with the
+"show all actions, gate auth per use case from `auth-requirements.json`"
+direction. So the `isLoggedIn` half of the diagnosis is gone.
+
+What this entry actually asked has NOT been answered, which is why the box stays
+unticked: the entry's own conclusion was that the gating "lives in an ancestor,"
+not at the call site, so removing the call-site condition does not establish that
+`.ba-action-group` now mounts on `/dashboard` for either role. That still needs
+the live check the entry called for — `document.querySelectorAll('.ba-action-group').length`
+on `/dashboard` as customer and as admin — and it needs the settle contract from
+the "UI probes have no settle contract" entry, or a zero result means nothing.
+
 **What the real fix looks like:** establish which surfaces are meant to show
 action groups. If `/dashboard` is one, find the ancestor that is not mounting
 and fix it. If it is not, move the condition to the call site so it reads
@@ -4118,6 +4188,21 @@ var (e.g. `PINGONE_RESOURCE_MCP_SERVER_URI`, matching sibling resolvers'
 precedence) before falling back to `MCP_SERVER_RESOURCE_URI[0]`. (2) once
 DCR is meant to be exercised for real, set `DCR_INITIAL_ACCESS_TOKEN` in
 the deployment's env and document the value's provenance/rotation.
+
+**PART (1) RESOLVED 2026-08-26 (branch `worktree-techdebt-small-correctness`) —
+entry stays OPEN for part (2).** `resolveOwnAudience()` now prefers
+`PINGONE_RESOURCE_MCP_SERVER_URI` (first entry, since that var may itself be a
+comma list) and falls back to `MCP_SERVER_RESOURCE_URI[0]`, matching
+`JwtClaimVerifier`'s precedence. Confirmed inert today: the dedicated var is set
+in neither `docker-compose.yml` nor `k8s/`, and `printenv` inside the live
+`ai-demo-mcp-server` container shows it unset — so this changes no shipped
+behaviour and only removes the reordering fragility. Three tests added to
+`src/oauth/__tests__/TokenIssuer.test.ts` (14 total, RED-proven: 2 fail without
+the change).
+
+Part (2) is deliberately untouched. Wiring `DCR_INITIAL_ACCESS_TOKEN` means
+introducing a secret with no rotation story and no PingOne app behind it, which
+is exactly what this entry said not to do blind.
 
 ### [x] 2026-08-11 — gw-authorize fallback duplicated across two client consumers
 
