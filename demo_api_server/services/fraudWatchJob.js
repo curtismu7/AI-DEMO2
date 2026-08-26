@@ -1,0 +1,99 @@
+'use strict';
+/**
+ * fraudWatchJob.js — the demo's first autonomous agent job.
+ *
+ * Scans the last window of transactions for anything over a configured amount
+ * and records what it found. READ ONLY: it moves no money and mutates no
+ * record. That is deliberate for Phase 2 — the point of this job is the
+ * identity path (an agent authenticating as itself with nobody signed in), not
+ * the fraud logic. A threshold is the dumbest rule that still needs the agent
+ * to hold a token to do its work.
+ *
+ * The write-capable job (Balance Sweep) arrives with Phase 3, because it is the
+ * one that can exceed a mandate ceiling and so has something for CIBA to pause.
+ *
+ * Collaborators are injected with real defaults so the job is unit-testable
+ * without reaching PingOne or a mocking framework.
+ */
+
+const configStore = require('./configStore');
+const dataStore = require('../data/store');
+const agentCCTokenService = require('./agentCCTokenService');
+const { createUnattendedContext } = require('./unattendedRunContext');
+
+const DEFAULT_THRESHOLD = 1000;
+const DEFAULT_WINDOW_HOURS = 24;
+
+/** The agent identity this job authenticates as. */
+const AGENT = 'Super Banking Fraud Watch Agent';
+
+function _number(raw, fallback) {
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+/**
+ * Run one Fraud Watch pass.
+ *
+ * @param {object} deps
+ *   - now {Date}              clock, injectable so the window is testable
+ *   - getToken {function}     mints the agent's own token; default = real CC grant
+ *   - readTransactions {function} returns every transaction to consider
+ * @returns {Promise<{status, agent, findings, tokenEvents, scanned, threshold, error?}>}
+ */
+async function runFraudWatch(deps = {}) {
+  const {
+    now = new Date(),
+    getToken = (ctx) => agentCCTokenService.getAgentCCToken(ctx, { scope: ['read'] }),
+    readTransactions = () => dataStore.getAllTransactions(),
+  } = deps;
+
+  const threshold = _number(configStore.getEffective('FRAUD_WATCH_THRESHOLD'), DEFAULT_THRESHOLD);
+  const windowHours = _number(configStore.getEffective('FRAUD_WATCH_WINDOW_HOURS'), DEFAULT_WINDOW_HOURS);
+  const ctx = createUnattendedContext({ agent: AGENT });
+
+  let token;
+  try {
+    token = await getToken(ctx);
+  } catch (err) {
+    // No token, no run. Recording the failure is the point — a scheduled job
+    // that silently stops authenticating is exactly the thing an unattended
+    // agent must not be able to do quietly.
+    return {
+      status: 'failed',
+      agent: AGENT,
+      error: err.message,
+      findings: [],
+      tokenEvents: ctx.tokenEvents,
+      scanned: 0,
+      threshold,
+    };
+  }
+
+  ctx.recordAgentToken(token);
+
+  const cutoff = new Date(now.getTime() - windowHours * 3600 * 1000);
+  const all = readTransactions() || [];
+  const inWindow = all.filter((t) => t && t.createdAt && new Date(t.createdAt) >= cutoff);
+  const findings = inWindow
+    .filter((t) => Number(t.amount) > threshold)
+    .map((t) => ({
+      transactionId: t.id,
+      amount: Number(t.amount),
+      type: t.type || null,
+      description: t.description || t.merchant || null,
+      createdAt: new Date(t.createdAt).toISOString(),
+      reason: `over the ${threshold} threshold`,
+    }));
+
+  return {
+    status: 'completed',
+    agent: AGENT,
+    findings,
+    tokenEvents: ctx.tokenEvents,
+    scanned: inWindow.length,
+    threshold,
+  };
+}
+
+module.exports = { runFraudWatch, AGENT, DEFAULT_THRESHOLD, DEFAULT_WINDOW_HOURS };
