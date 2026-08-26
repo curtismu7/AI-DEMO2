@@ -79,6 +79,50 @@ re-read on `restart`; use `docker compose up -d <service>` to recreate the
 container so env changes take effect too. Confirm with
 `docker compose logs <service> --since <window>` rather than assuming.
 
+### Image-built services: restart keeps OLD code, and looks healthy (2026-08-26)
+
+**Only `demo-api-server` and `ui` bind-mount source.** Every other service runs
+from a built image, so `./run-docker.sh restart <svc>` recreates the container
+from the EXISTING image.
+
+The reason this costs a session rather than a minute is not that restart
+doesn't rebuild — everyone knows that abstractly. It is that the container
+comes up **healthy** and logs a **clean startup**, so every signal you would
+normally trust says the deploy worked. Nothing anywhere reports staleness.
+
+| service | how it gets code | to deploy a change |
+|---|---|---|
+| `demo-api-server`, `ui` | bind mount | `scripts/deploy-live.sh` |
+| `mcp-server` (dir `oauth-mcp`) | **image** | `./run-docker.sh build mcp-server` |
+| `authz-server` (dir `demo_authz_server`) | **image**, and it BAKES `scope-topology.json` (build context is the repo root) | `./run-docker.sh build authz-server` |
+| `mcp-gateway` | image, plus a `/repo` mount for `dist` | check before assuming |
+
+Use the **compose service name**, not the directory: `authz-server`, never
+`demo_authz_server`. `authz-server` and `mcp-gateway` also sit behind
+`profiles: ["demo-auth"]`, which the default core+rag set does not start — a
+missing container after a plain restart is that, **not a crash**.
+`deploy-live.sh` brings them up.
+
+**Verify by content, in-container, AFTER the build:**
+
+```bash
+docker exec ai-demo-authz-server grep -c '<marker from YOUR OWN diff>' /repo/scope-topology.json
+```
+
+`authz-server` has no source or topology bind mount (only `/certs` and
+`/otel`) — which is *why* the restart is silent, there is no mounted file to
+notice. The repo lands at `/repo` inside the image. Before a rebuild that grep
+returns `0` with the container healthy.
+
+Two traps, both hit on 2026-08-26:
+
+- **Grep a marker from your OWN diff.** Checking one from somebody else's
+  recently-merged PR passes whether or not your code is in the image — a check
+  that proves nothing.
+- **A currently-correct image does not track main.** It is current because a
+  human rebuilt it after merging. Never infer "no rebuild needed here" from
+  finding today's code in there.
+
 ## Known gotcha not re-verified in this pass
 
 Staging `services/configStore.js` (or files that touch it) can trigger a
