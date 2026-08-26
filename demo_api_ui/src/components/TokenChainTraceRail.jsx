@@ -18,6 +18,7 @@ import DemoTrackBand from "./DemoTrackBand";
 import TokenChainPresenter from "./TokenChainPresenter";
 import TraceTokenSummary from "./TraceTokenSummary";
 import { deriveAgentClass, AGENT_CLASS_LABEL, AGENT_CLASS_TITLE } from "../services/tokenChainTrace/deriveAgentClass";
+import UnattendedRunsPanel from "./UnattendedRunsPanel";
 import TraceMcpPanel from "./TraceMcpPanel";
 import TraceTrustPanel from "./TraceTrustPanel";
 import { SimpleStepper, DetailedStepper } from "./agent-clinical/TokensPane";
@@ -378,6 +379,7 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
   });
   const inspectClaims = inspectType ? resolveInspectClaims(trace.tokenEvents, inspectType) : null;
   const agentClass = deriveAgentClass(trace.tokenEvents);
+  const [unattendedOpen, setUnattendedOpen] = useState(false);
   const hasTraceActivity = Boolean(
     trace.startedAt || trace.prompt || (trace.tokenEvents && trace.tokenEvents.length) ||
     (trace.phases && trace.phases.length) || trace.mcpResult || trace.authorize ||
@@ -408,6 +410,14 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
           ) : null}
         </div>
         <div className="tctr-toolbar">
+          <button
+            type="button"
+            className="tctr-back-btn"
+            onClick={() => setUnattendedOpen(true)}
+            title="Replay a scheduled run that happened with nobody signed in"
+          >
+            Unattended
+          </button>
           {tab !== "chain" ? (
             <button
               type="button"
@@ -661,6 +671,7 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
       <ClaimDetailsModal isOpen={!!inspectType} tokenType={inspectType || "user"}
         liveClaims={inspectClaims} onClose={() => setInspectType(null)} />
       <TokenLegendModal isOpen={legendOpen} onClose={() => setLegendOpen(false)} />
+      <UnattendedRunsPanel isOpen={unattendedOpen} onClose={() => setUnattendedOpen(false)} />
     </div>
   );
 }

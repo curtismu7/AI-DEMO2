@@ -36,6 +36,7 @@ require('./scripts/check-env');
 // Wired below at .listen() time so the cache is populated BEFORE the first request.
 const { loadVaultIntoConfigStore } = require('./services/vaultLoader');
 const { startScheduler: startLighthouseScheduler } = require('./services/lighthouseScheduler');
+const { startScheduler: startAutonomousScheduler } = require('./services/autonomousAgentScheduler');
 
 // ConfigStore must be required early so oauth config module getters are ready
 const configStore = require('./services/configStore');
@@ -1463,6 +1464,7 @@ app.use('/api/token-exchanges', authenticateToken, tokenExchangeLogRouter);
 // Compact reel for one external-door call (routes/mcpFacade.js mints the id).
 // Mounted BEFORE the authenticated read side: it is opened from a client with
 // no BFF session (an LM Studio reel_url link, a LibreChat artifact iframe).
+app.use('/api/autonomous-runs', authenticateToken, require('./routes/autonomousRuns'));
 app.use('/api/transaction-trace/embed', require('./routes/transactionTraceEmbed'));
 app.use('/api/transaction-trace', authenticateToken, require('./routes/transactionTrace'));
 app.use('/api/token-display', authenticateToken, tokenDisplayRoutes);
@@ -2936,6 +2938,9 @@ if (require.main === module) {
         // completed, causing false "credentials not configured" warnings.
         setImmediate(() => runBackgroundStartupTasks());
         const lighthouseTask = startLighthouseScheduler();
+        // The only path by which an agent run starts without a user turn.
+        // Returns null (registers nothing) while ff_autonomous_agents is off.
+        startAutonomousScheduler();
 
         // k8s rollout contract: the replacement pod boots while this one is
         // still in its termination grace period, and both mount the same LMDB
