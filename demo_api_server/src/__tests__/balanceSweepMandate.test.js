@@ -72,16 +72,42 @@ test('the runtime override beats the declared ceiling, so a demo can force a pau
   expect(run.status).toBe('parked');
 });
 
-// An undeclared ceiling means nobody has said what this agent may do alone.
-// Reading that as "unlimited" is the dangerous default.
-test('an agent with no declared mandate may not move anything unattended', () => {
+// An undeclared ceiling means there is nothing to evaluate against, so the
+// request never reaches an explicit permit or deny. That is INDETERMINATE, and
+// a PEP must fail closed on it — NOT treat it as "needs approval".
+test('no declared mandate is indeterminate, not a ceiling breach', () => {
   const { configStore, mandate } = load();
   withConfig(configStore, {});
 
   const verdict = mandate.checkAmount('Super Banking Fraud Watch Agent', 1);
 
-  expect(verdict.withinMandate).toBe(false);
+  expect(verdict.outcome).toBe(mandate.OUTCOME.INDETERMINATE);
   expect(verdict.mandate).toBeNull();
+});
+
+// The bug this pins: an unbounded agent must be REFUSED, not sent to a human.
+// Asking someone to approve a request no policy could reason about just moves
+// it past a rubber stamp. Deny, and raise no CIBA at all.
+test('an agent with no declared mandate is denied and never raises CIBA', async () => {
+  // Strip the mandate from the manifest the resolver reads, so the agent
+  // genuinely declares none. Spying on getMandate would not work: checkAmount
+  // calls it as a direct internal reference, not through the exports object.
+  jest.doMock('../../services/scopeTopology', () => ({
+    _manifest: () => ({ apps: { 'Super Banking Balance Sweep Agent': { agentClass: 'autonomous' } } }),
+  }));
+  const configStore = require('../../services/configStore');
+  const { runBalanceSweep } = require('../../services/balanceSweepJob');
+  // Large enough that a ceiling would otherwise have been breached.
+  withConfig(configStore, { BALANCE_SWEEP_FLOOR: '1000' });
+  const initiateCiba = jest.fn();
+
+  const run = await runBalanceSweep(deps({ initiateCiba }));
+
+  expect(run.status).toBe('denied');
+  expect(initiateCiba).not.toHaveBeenCalled();
+  expect(run.pending).toBeUndefined();
+  expect(run.findings).toEqual([]);
+  expect(run.summary).toMatch(/failing closed/);
 });
 
 test('nothing over the floor is a completed run with no proposal', async () => {

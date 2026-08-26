@@ -47,12 +47,31 @@ function getMandate(agentName) {
 }
 
 /**
- * Does this amount need a human before the agent may proceed?
+ * Three outcomes, not two. "Cannot be evaluated" and "evaluated, and the answer
+ * is no" are different things and must not resolve the same way:
  *
- * No mandate → yes, always. That is the safe reading: an undeclared ceiling
- * means nobody has said what this agent may do alone, not that anything goes.
+ *   WITHIN        a rule matched and allows it — act, nobody needed.
+ *   OVER_CEILING  a rule matched and refuses it alone — this is a PAUSE. It is
+ *                 the shape the authz server calls PERMIT-with-an-unfulfilled-
+ *                 obligation: legitimate request, needs a human. Raise CIBA.
+ *   INDETERMINATE nothing to evaluate against — no mandate is declared, so the
+ *                 inputs never reach an explicit permit or deny. The PEP must
+ *                 FAIL CLOSED. Do NOT raise CIBA: asking a human to approve a
+ *                 request the engine could not reason about invites a
+ *                 rubber-stamp on something nobody has bounded.
  *
- * @returns {{ withinMandate: boolean, mandate: object|null, amount: number, reason: string }}
+ * Collapsing INDETERMINATE into OVER_CEILING is the bug this shape exists to
+ * prevent — it sends an unbounded agent to a human for approval instead of
+ * refusing it outright.
+ */
+const OUTCOME = {
+  WITHIN: 'within_mandate',
+  OVER_CEILING: 'over_ceiling',
+  INDETERMINATE: 'indeterminate',
+};
+
+/**
+ * @returns {{ outcome: string, mandate: object|null, amount: number, reason: string }}
  */
 function checkAmount(agentName, amount) {
   const mandate = getMandate(agentName);
@@ -60,21 +79,26 @@ function checkAmount(agentName, amount) {
 
   if (!mandate) {
     return {
-      withinMandate: false,
+      outcome: OUTCOME.INDETERMINATE,
       mandate: null,
       amount: value,
-      reason: 'no mandate is declared for this agent, so nothing may be moved unattended',
+      reason: 'no mandate is declared for this agent, so there is nothing to evaluate against — failing closed',
     };
   }
   if (value > mandate.maxAmount) {
     return {
-      withinMandate: false,
+      outcome: OUTCOME.OVER_CEILING,
       mandate,
       amount: value,
       reason: `${value} is over the ${mandate.maxAmount} the agent may move on its own`,
     };
   }
-  return { withinMandate: true, mandate, amount: value, reason: 'within the standing mandate' };
+  return {
+    outcome: OUTCOME.WITHIN,
+    mandate,
+    amount: value,
+    reason: 'within the standing mandate',
+  };
 }
 
-module.exports = { getMandate, checkAmount, OVERRIDE_KEY };
+module.exports = { getMandate, checkAmount, OUTCOME, OVERRIDE_KEY };

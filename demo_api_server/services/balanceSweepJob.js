@@ -11,9 +11,13 @@
  *   1. authenticate as the agent itself (client_credentials — sub = agent, no
  *      act claim, because nobody delegated it)
  *   2. work out a sweep: surplus over the floor, from checking to savings
- *   3. check it against the standing mandate
- *        within  → execute now, nobody needed
- *        over    → PARK the run and raise CIBA to the account owner
+ *   3. check it against the standing mandate — three outcomes, not two:
+ *        within        execute now, nobody needed
+ *        over ceiling  a rule matched and refuses it alone → PARK and raise
+ *                      CIBA to the account owner. This is a pause.
+ *        indeterminate no mandate declared, so nothing to evaluate against →
+ *                      DENY and fail closed, raising NO CIBA. "Cannot be
+ *                      evaluated" is not "needs approval".
  *
  * The transfer is NOT executed at park time. It executes on approval, in
  * approveParkedRun(). A parked run that had already moved the money would make
@@ -25,7 +29,7 @@ const dataStore = require('../data/store');
 const agentCCTokenService = require('./agentCCTokenService');
 const cibaSimulated = require('./cibaSimulatedService');
 const { createUnattendedContext } = require('./unattendedRunContext');
-const { checkAmount } = require('./agentMandate');
+const { checkAmount, OUTCOME } = require('./agentMandate');
 
 /** The agent identity this job authenticates as. */
 const AGENT = 'Super Banking Balance Sweep Agent';
@@ -102,7 +106,7 @@ async function runBalanceSweep(deps = {}) {
 
   const verdict = checkAmount(AGENT, sweep.amount);
 
-  if (verdict.withinMandate) {
+  if (verdict.outcome === OUTCOME.WITHIN) {
     return {
       status: 'completed', agent: AGENT, tokenEvents: ctx.tokenEvents,
       scanned: accounts.length, floor,
@@ -113,8 +117,24 @@ async function runBalanceSweep(deps = {}) {
     };
   }
 
-  // Over the ceiling: park and ask the owner. The account owner is the human
-  // this agent acts for even though they are not here.
+  // Nothing to evaluate against. This is the INDETERMINATE case and it FAILS
+  // CLOSED — no transfer, and deliberately NO CIBA. Asking a human to approve a
+  // request no policy could reason about just moves an unbounded agent past a
+  // rubber stamp. The fix is to declare a mandate, not to find an approver.
+  if (verdict.outcome === OUTCOME.INDETERMINATE) {
+    return {
+      status: 'denied', agent: AGENT, tokenEvents: ctx.tokenEvents,
+      scanned: accounts.length, floor,
+      mandate: null,
+      proposal: sweep,
+      findings: [],
+      summary: verdict.reason,
+    };
+  }
+
+  // Over the ceiling: a rule matched and refuses to let the agent do this
+  // alone, which is a pause rather than a refusal. Park and ask the owner —
+  // the human this agent acts for, even though they are not here.
   const owner = accounts.find((a) => a.id === sweep.fromAccountId);
   const loginHint = (owner && (owner.userId || owner.ownerId)) || 'demoUser';
   const bindingMessage = `Approve moving ${sweep.amount} from ${sweep.fromName}?`;
