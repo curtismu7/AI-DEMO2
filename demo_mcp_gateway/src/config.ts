@@ -144,6 +144,15 @@ export interface GatewayConfig {
   bffInternalIdTokenUrl: string;
   // Phase 266: shared secret for BFF /internal/id-token requests
   bffInternalSecret: string;
+  // JIT credentials: BFF-internal bridge that mints a short-TTL, route-bound
+  // credential in place of the static backend service key.
+  //
+  // Optional on the TYPE, always set by buildConfig(): only test stubs omit
+  // them, and `undefined` is exactly the right default (feature off, which is
+  // the existing behaviour byte-for-byte). Making them required forced a dozen
+  // unrelated suites to declare a credential flag they do not care about.
+  bffVaultKeyUrl?: string;
+  jitCredentialsEnabled?: boolean;
   // Phase 266: base URL of banking_resource_server (e.g. http://localhost:3001)
   bankingResourceServerBaseUrl: string;
   // Phase 266: OAuth audience for banking_resource_server — MUST match BANKING_API_RESOURCE_URI
@@ -396,6 +405,8 @@ export function loadConfig(): GatewayConfig {
     apiResourceServerApiKey: optional('DEMO_API_RESOURCE_SERVER_KEY', ''),
     bffInternalIdTokenUrl: optional('BFF_INTERNAL_ID_TOKEN_URL', 'http://localhost:3001/internal/id-token'),
     bffInternalSecret: optional('BFF_INTERNAL_SECRET', DEFAULT_BFF_INTERNAL_SECRET),
+    bffVaultKeyUrl: optional('BFF_VAULT_KEY_URL', 'http://localhost:3001/internal/vault/service-key'),
+    jitCredentialsEnabled: process.env.MCP_GW_JIT_CREDENTIALS === 'true',
     bankingResourceServerBaseUrl: optional('BANKING_RESOURCE_SERVER_BASE_URL', 'http://localhost:3001'),
     bankingResourceServerResourceUri: optional('BANKING_RESOURCE_SERVER_RESOURCE_URI', 'https://banking-resource-server.ping.demo'),
     mtlsEnabled: process.env.MCP_MTLS_ENABLED === 'true',
