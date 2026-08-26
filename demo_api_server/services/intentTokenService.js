@@ -7,6 +7,24 @@ const INTENT_TTL_SECONDS = 300; // 5-minute window per agent run
 function getSigningKey() {
   const key = process.env.INTENT_TOKEN_SECRET || process.env.SESSION_SECRET;
   if (!key) throw new Error('[intentTokenService] INTENT_TOKEN_SECRET (or SESSION_SECRET) not set');
+  // `encrypted:...` is configStore's OWN at-rest ciphertext format. configStore
+  // skips such a value when it appears in .env (the 2026-08-21 invalid_client
+  // incident, docs/vault.md), but THIS reads process.env directly, so nothing
+  // stopped the BFF signing every intent token with the literal ciphertext
+  // string. It "works" — an HMAC key is just bytes — and is undetectable from
+  // here: the signature is valid, and only the gateways fail, silently, because
+  // they were handed the real secret and can never match it. Both verifiers
+  // shipped as dead code for weeks on the strength of that.
+  // Fail loudly instead: an unresolvable key is a configuration error, not a
+  // usable secret.
+  if (key.startsWith('encrypted:')) {
+    throw new Error(
+      '[intentTokenService] signing key resolved to configStore ciphertext ' +
+      '("encrypted:..."), not a real secret — set a plaintext INTENT_TOKEN_SECRET ' +
+      'in demo_api_server/.env and re-run scripts/refresh-service-envs.js so both ' +
+      'gateways verify with the same key.',
+    );
+  }
   return key;
 }
 

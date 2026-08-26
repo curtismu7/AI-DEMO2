@@ -16,6 +16,98 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [x] 2026-08-26 — intent-token verification is dead on BOTH gateway paths, and the BFF signs with the vault CIPHERTEXT
+
+**Where:** `demo_api_server/services/intentTokenService.js:8`,
+`demo_mcp_gateway/src/intentTokenValidator.ts:40`,
+`ping-gateway/scripts/groovy/p1az-decision.groovy`,
+`demo_api_server/scripts/refresh-service-envs.js` (~504, ~690).
+
+**What's wrong:** all three sides resolve the HMAC key as
+`INTENT_TOKEN_SECRET || SESSION_SECRET`, and no two of them arrive at the same
+value. Found in the gateway audit trail of a real `get_account_balance` turn:
+`IntentTokenValid: "false"`, `IntentTokenError: "no_signing_key"`.
+
+| path | state | cause |
+|---|---|---|
+| Node gateway (`mcp-gateway`) | `no_signing_key` — visible in `gw_audit_trail` | `demo_mcp_gateway/.env` carries no `INTENT_TOKEN_SECRET`; neither var is set in the container, so `getSigningKey()` throws |
+| PingGateway (IG) | `invalid_signature` — **silent** | `ping-gateway/.env` has a 48-char key; the BFF's effective key is a DIFFERENT 207-char value, so every HMAC check fails |
+
+**The root cause is worse than the wiring.** `demo_api_server/.env` contains
+`SESSION_SECRET=encrypted:…` — the vault CIPHERTEXT, 206 chars — and
+`intentTokenService.getSigningKey()` reads `process.env` directly. `configStore`'s
+`encrypted:`-in-.env guard (added after the 2026-08-21 `invalid_client` incident,
+see `docs/vault.md`) does not apply to `process.env`, so **the BFF signs intent
+tokens with the literal ciphertext string**. Verified: the BFF's runtime
+`SESSION_SECRET` is 207 bytes beginning `encrypted:`, and its SHA differs from
+`ping-gateway/.env`'s value. Any service handed the *real* secret can never match
+it — which is precisely why ping-gateway's key looks correct and still fails.
+
+`refresh-service-envs.js` already tries to fix this: both the
+`demo_mcp_gateway/.env` and `ping-gateway/.env` blocks emit
+`INTENT_TOKEN_SECRET: fb('INTENT_TOKEN_SECRET') || fb('SESSION_SECRET')`, each with
+a comment describing this exact dead-verifier bug (PR #2055, 2026-08-18). It does
+not work, because `fb()` reads `demo_api_server/.env` — where `SESSION_SECRET` is
+the ciphertext and `INTENT_TOKEN_SECRET` is absent entirely.
+
+**Consequence:** ~190 lines of HMAC checking in `p1az-decision.groovy` plus the
+Node validator are inert. The PDP receives `IntentTokenValid: false` and permits
+anyway, so **the intent-token evidence the demo claims to bind is not being
+checked on either path.** Nothing is blocked, which is why it went unnoticed.
+
+**Why it wasn't fixed now:** the repair needs secret material — either a new
+dedicated `INTENT_TOKEN_SECRET` provisioned in the vault and propagated, or
+stopping `SESSION_SECRET` from resolving to its own ciphertext, which touches
+session signing (REGRESSION_PLAN §1). Both are decisions about credentials rather
+than bug fixes, and this was found while closing an unrelated entry.
+
+**Real fix — preferred:** provision a DEDICATED `INTENT_TOKEN_SECRET` (vault),
+have `refresh-service-envs.js` emit it to both gateway env files, and let all
+three sides resolve it first. That is better than sharing `SESSION_SECRET` across
+services regardless of the ciphertext bug — a gateway should not hold the key that
+signs browser sessions. Add a startup assertion that the resolved key is not
+`encrypted:`-prefixed, so this fails loudly instead of silently signing with
+ciphertext. A parity check (BFF effective key vs each gateway's) belongs in the
+demo-check framework next to `gatewayMetadataCheck`.
+
+**RESOLVED 2026-08-26 (branch `worktree-intent-token-ciphertext-guard`).** Took the
+preferred option: a DEDICATED key, so no gateway holds the browser-session secret.
+
+`INTENT_TOKEN_SECRET` (48 chars, `openssl rand -base64 36`) provisioned in
+`demo_api_server/.env`. It has to live there rather than the vault:
+`intentTokenService` reads `process.env`, and a vault-only entry is decrypted by
+configStore, which never reaches `process.env`. `scripts/refresh-service-envs.js`
+needed NO change — its `fb('INTENT_TOKEN_SECRET') || fb('SESSION_SECRET')` blocks
+(PR #2055) were correct all along and had simply never had a value to find.
+Re-running it propagated the key to `demo_mcp_gateway/.env` and `ping-gateway/.env`;
+all three files and all three running containers now hash identically.
+
+**Verified live** — same signed `get_account_balance` turn, gateway audit trail:
+
+```
+IntentTokenValid: "true"    IntentMatchesTool: "true"   IntentTokenError: ""
+IntentIntent: "view_balance"  IntentConfidence: "0.97"  decision: "PERMIT"
+```
+
+Previously `IntentTokenValid: "false"` / `no_signing_key`. The ~190 lines of HMAC
+checking now actually run. Run validated with `stack:generation --check`.
+
+**Guard added so it cannot silently regress:** `intentTokenService.getSigningKey()`
+now throws if the resolved key is `encrypted:`-prefixed, naming both the fault and
+the fix. This was undetectable from the signing side — an HMAC key is just bytes, so
+the signature was always valid and only the verifiers failed. Pinned by
+`src/__tests__/intentTokenService.ciphertextKey.test.js` (5 tests, including the exact
+production shape: no dedicated key plus a ciphertext `SESSION_SECRET`). RED-proven:
+removing the guard fails 3 of 5. Full BFF suite 10,273 passed, 1 known flake
+(`mcpFacade`) that passes scoped.
+
+**Not done:** the demo-check parity probe suggested above. The guard catches the
+ciphertext case at the source, which is what actually happened; a BFF-vs-gateway
+key-parity check is still worth adding. And `SESSION_SECRET` in
+`demo_api_server/.env` is still configStore ciphertext — harmless for sessions (a
+consistent key is a valid key) but the same trap for any future consumer that reads
+it from `process.env`.
+
 ### [ ] 2026-08-26 — `ping-mcpgw` Helm release's only remaining purpose is a backend it doesn't gate
 
 **Where:** `k8s/helm/mcpgw` release `ping-mcpgw` in `ping-devops-cmuir`.
