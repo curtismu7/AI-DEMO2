@@ -100,35 +100,6 @@ data:
             proxy_set_header X-Forwarded-Proto https;
         }
 
-        # OpenSearch MCP server (Helm release ping-mcpgw). Until now the only
-        # way to reach this was a `kubectl port-forward` to localhost:9900 —
-        # a tunnel that dies with the laptop, so the door only worked for
-        # whoever was running it. This publishes it like the banking doors.
-        #
-        # KNOWN COUPLING, deliberately accepted: this is a literal upstream, so
-        # nginx resolves it once at startup and will refuse to start if the
-        # service is absent — and it belongs to a third-party Helm release
-        # (ping-mcpgw) that this repo does not manage; part of that release was
-        # deleted by hand on 2026-08-25. If it is ever fully uninstalled, delete
-        # this block too or the frontend will not come up.
-        # A resolver + variable upstream would localise that failure to a 502 on
-        # this path, but nginx's resolver ignores /etc/resolv.conf search domains
-        # and would need a namespace-qualified FQDN — and k8s/aws/deploy.sh only
-        # rewrites the literal string "namespace: ai-demo", so an FQDN here
-        # cannot follow the target namespace. The literal short name is the only
-        # form that works in both ai-demo and ping-devops-cmuir.
-        location /opensearch-mcp/ {
-            proxy_pass http://ping-mcpgw-opensearch-mcp-server:80/;
-            proxy_http_version 1.1;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto https;
-            # MCP streamable-HTTP: responses may be SSE, so no buffering.
-            proxy_buffering off;
-            proxy_read_timeout 300s;
-        }
-
         # Proxy /jaeger/ to the in-cluster Jaeger query UI (plain HTTP; base path
         # set via QUERY_BASE_PATH=/jaeger on the jaeger deployment). Mirrors the
         # block in k8s/02-configmap.yaml (this file overrides that configmap on AWS).
