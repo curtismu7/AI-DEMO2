@@ -16,7 +16,7 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
-### [ ] 2026-08-26 — intent-token verification is dead on BOTH gateway paths, and the BFF signs with the vault CIPHERTEXT
+### [x] 2026-08-26 — intent-token verification is dead on BOTH gateway paths, and the BFF signs with the vault CIPHERTEXT
 
 **Where:** `demo_api_server/services/intentTokenService.js:8`,
 `demo_mcp_gateway/src/intentTokenValidator.ts:40`,
@@ -69,6 +69,44 @@ signs browser sessions. Add a startup assertion that the resolved key is not
 `encrypted:`-prefixed, so this fails loudly instead of silently signing with
 ciphertext. A parity check (BFF effective key vs each gateway's) belongs in the
 demo-check framework next to `gatewayMetadataCheck`.
+
+**RESOLVED 2026-08-26 (branch `worktree-intent-token-ciphertext-guard`).** Took the
+preferred option: a DEDICATED key, so no gateway holds the browser-session secret.
+
+`INTENT_TOKEN_SECRET` (48 chars, `openssl rand -base64 36`) provisioned in
+`demo_api_server/.env`. It has to live there rather than the vault:
+`intentTokenService` reads `process.env`, and a vault-only entry is decrypted by
+configStore, which never reaches `process.env`. `scripts/refresh-service-envs.js`
+needed NO change — its `fb('INTENT_TOKEN_SECRET') || fb('SESSION_SECRET')` blocks
+(PR #2055) were correct all along and had simply never had a value to find.
+Re-running it propagated the key to `demo_mcp_gateway/.env` and `ping-gateway/.env`;
+all three files and all three running containers now hash identically.
+
+**Verified live** — same signed `get_account_balance` turn, gateway audit trail:
+
+```
+IntentTokenValid: "true"    IntentMatchesTool: "true"   IntentTokenError: ""
+IntentIntent: "view_balance"  IntentConfidence: "0.97"  decision: "PERMIT"
+```
+
+Previously `IntentTokenValid: "false"` / `no_signing_key`. The ~190 lines of HMAC
+checking now actually run. Run validated with `stack:generation --check`.
+
+**Guard added so it cannot silently regress:** `intentTokenService.getSigningKey()`
+now throws if the resolved key is `encrypted:`-prefixed, naming both the fault and
+the fix. This was undetectable from the signing side — an HMAC key is just bytes, so
+the signature was always valid and only the verifiers failed. Pinned by
+`src/__tests__/intentTokenService.ciphertextKey.test.js` (5 tests, including the exact
+production shape: no dedicated key plus a ciphertext `SESSION_SECRET`). RED-proven:
+removing the guard fails 3 of 5. Full BFF suite 10,273 passed, 1 known flake
+(`mcpFacade`) that passes scoped.
+
+**Not done:** the demo-check parity probe suggested above. The guard catches the
+ciphertext case at the source, which is what actually happened; a BFF-vs-gateway
+key-parity check is still worth adding. And `SESSION_SECRET` in
+`demo_api_server/.env` is still configStore ciphertext — harmless for sessions (a
+consistent key is a valid key) but the same trap for any future consumer that reads
+it from `process.env`.
 
 ### [ ] 2026-08-26 — `ping-mcpgw` Helm release's only remaining purpose is a backend it doesn't gate
 
