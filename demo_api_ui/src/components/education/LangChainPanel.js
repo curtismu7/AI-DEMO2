@@ -6,7 +6,7 @@ const LCEL_SNIPPET = `# LangChain 0.3.x LCEL pattern
 from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-llm = ChatGroq(model="llama-3.1-8b-instant", api_key=groq_key)
+llm = ChatGroq(model="openai/gpt-oss-20b", api_key=groq_key)
 
 # Bind tools so the model can call them
 chain = prompt | llm.bind_tools(tools)
@@ -20,7 +20,7 @@ while True:
 
 const PROVIDER_TABLE = `| Provider   | Package                  | Default model              |
 |------------|--------------------------|----------------------------|
-| Groq       | langchain-groq           | llama-3.1-8b-instant       |
+| Groq       | langchain-groq           | openai/gpt-oss-20b         |
 | OpenAI     | langchain-openai         | gpt-4o-mini                |
 | Anthropic  | langchain-anthropic      | claude-haiku-4-5-20251001  |
 | Google AI  | langchain-google-genai   | gemini-2.0-flash           |
