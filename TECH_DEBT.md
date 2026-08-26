@@ -540,6 +540,65 @@ Answering it needs `--profile demo-auth` (or an equivalent) so the Node gateway
 is actually up, then a re-run of the same signed turn. Until then the original
 D-05 observation should be treated as recorded-but-unreproduced.
 
+**ANSWERED 2026-08-26, second pass (branch `worktree-idjag-d05-findings`) — the
+cause is NOT D-05, and not any of this entry's three hypotheses.**
+
+With both blockers cleared (PR #2407's allow-list fix, and `deploy-live.sh`
+bringing up `ai-demo-mcp-gateway`), a real signed turn as `demoUser` now gets all
+the way to `get_account_balance`. The mint succeeds
+(`POST /api/enterprise-idp/token 200`) and the turn fails here instead:
+
+```
+[MCP Proxy] Error calling get_account_balance: Wrong audience: the access token's
+aud is [mcpserver.ping.demo] but the gateway requires "https://api.ping.demo:3036/mcp".
+This is a configuration drift, not an expired token...
+```
+
+**No D-05. No `bypass_attempt`. And no HTTP request at all** — neither
+`ai-demo-mcp-gateway` nor `ai-demo-ping-gateway` logged anything in the window.
+The rejection is entirely BFF-side.
+
+**The defect: `expectedAud` does not follow the OLB pin.**
+`mcpGatewayClient.js`'s audience classifier (~L452) computes
+
+```js
+const expectedAud = require('./mcpToolAuthorizationService').resolveExpectedMcpResourceUri() || ...
+```
+
+which is the **per-mode** resolver — under `ff_mcp_gateway_pinggateway=true` it
+returns `https://api.ping.demo:3036/mcp`. But by the time that runs, the OLB pin
+(~L163) has already rewritten `base` to the NODE gateway. The request's
+destination changed; the expected audience did not. So a correctly-pinned ID-JAG
+bearer is failed against the audience of a gateway it is deliberately no longer
+being sent to.
+
+The pin is working. The Node gateway would accept the token — its live
+`MCP_GW_RESOURCE_URI` is
+`mcpgateway.ping.demo,https://api.ping.demo:3036/mcp,mcpgateway-a2a.ping.demo,mcpserver.ping.demo`,
+which includes `mcpserver.ping.demo`. Nothing downstream ever gets the chance.
+
+Note the classifier's own comment describes fixing the MIRROR of this bug ("use
+the SAME per-mode resolver the token was minted with — otherwise on the IG path
+the token's aud is compared against the Node-gateway aud"). That fix was correct
+for the unpinned IG path and introduced this one for the pinned path. The
+audience to compare against is a property of the **effective destination after
+pinning**, not of the routing mode.
+
+**Each of this entry's three hypotheses is now ruled out**, all re-verified live:
+1. the aud DOES match — the token carries `mcpserver.ping.demo`, exactly as the
+   discovery token did;
+2. the tool-call token does NOT diverge from the discovery token;
+3. the `pgUrl && base === pgUrl` guard is fine — `getMcpGatewayHttpUrl()` returns
+   `MCP_PINGGATEWAY_URL` verbatim under the flag and both sides are
+   trailing-slash-normalised before comparison.
+
+**Not fixed here on purpose.** The repair is small (derive `expectedAud` from the
+post-pin destination rather than the mode) but it sits on a protected auth path
+and encodes a decision — once a bearer is pinned away from PingGateway, which
+audience is authoritative — that belongs with whoever owns the native-ID-JAG
+rollout. Whoever takes it should add the case to a test: a pinned ID-JAG bearer
+must not be failed against PingGateway's audience.
+
 **Also worth noting:** this whole path is arguably incoherent as configured —
 the ID-JAG is minted FOR the PingGateway resource, but oauth-mcp always redeems
 it audienced to its OWN resource (`resolveOwnAudience`), PingGateway rejects that
