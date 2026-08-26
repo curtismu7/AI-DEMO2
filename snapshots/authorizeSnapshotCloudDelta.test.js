@@ -110,7 +110,16 @@ test('step 0: HasValidMcpAudience is an OR of TokenAudience Equals <SoT gateway 
     'the generator and demo_authz_server/routes/import-snapshot.js both derive the accepted audience set from that marker',
   );
 
-  const branches = cond.condition.or.conditions;
+  // Two branch shapes since 2026-08-26: a bare comparison per gateway identity,
+  // and an AND(aud, iss) per external-door issuer. Split them and check each
+  // shape on its own terms — a bare mcpserver.ping.demo branch (the audience
+  // without the issuer) would be a real hole, so it must fail here.
+  const allBranches = cond.condition.or.conditions;
+  const branches = allBranches.filter((c) => c.comparison);
+  const exemptions = allBranches.filter((c) => c.and);
+  assert.strictEqual(branches.length + exemptions.length, allBranches.length,
+    'every HasValidMcpAudience branch must be either a gateway comparison or an external-door AND');
+
   assert.deepStrictEqual(
     branches.map((c) => c.comparison.right.constant.value),
     expected,
@@ -119,6 +128,27 @@ test('step 0: HasValidMcpAudience is an OR of TokenAudience Equals <SoT gateway 
   for (const c of branches) {
     assert.strictEqual(c.comparison.left.attribute.id, ATTR.TokenAudience);
     assert.strictEqual(c.comparison.op, 'Equals');
+  }
+
+  // External-door exemption: derived from deployment.externalDoorIssuers, and
+  // ALWAYS paired with the upstream MCP server audience — never the audience
+  // alone, which D-05 exists to deny.
+  const declaredIssuers = Object.values((readSot().deployment || {}).environments || {})
+    .flatMap((e) => (e && e.externalDoorIssuers) || []);
+  assert.deepStrictEqual(
+    exemptions.map((c) => c.and.conditions[1].comparison.right.constant.value).sort(),
+    [...new Set(declaredIssuers)].sort(),
+    'external-door exemptions must come from scope-topology.json deployment.externalDoorIssuers',
+  );
+  const mcpServerUri = sotResources['Super Banking MCP Server'].uri;
+  for (const c of exemptions) {
+    const [audCmp, issCmp] = c.and.conditions;
+    assert.strictEqual(audCmp.comparison.left.attribute.id, ATTR.TokenAudience);
+    assert.strictEqual(audCmp.comparison.right.constant.value, mcpServerUri,
+      'the exemption must be scoped to the upstream MCP server audience');
+    assert.strictEqual(issCmp.comparison.left.attribute.id, ATTR.TokenIss,
+      'the exemption must be gated on TokenIss — an audience-only branch would bypass D-05');
+    assert.strictEqual(issCmp.comparison.op, 'Equals');
   }
 });
 
@@ -558,9 +588,12 @@ test('kid: exactly one rule carries the invalid-kid statement, as a conditional 
 // Structure — exactly the intended delta, idempotent, committed
 // ─────────────────────────────────────────────────────────────────────────────
 
-test('structure: the committed snapshot carries all 30 new objects (103 total) and is reconciled', () => {
+test('structure: the committed snapshot carries all 30 new objects (104 total) and is reconciled', () => {
   const committed = readSnapshot();
-  assert.strictEqual(committed.length, 103, '73 pre-delta objects + 9 attrs + 7 conds + 7 stmts + 7 rules');
+  // +1 (2026-08-26): the TokenIss ATTRIBUTE for HasValidMcpAudience's
+  // external-door exemption — 10 attrs now. No new condition/statement/rule:
+  // the exemption is extra OR branches inside the existing audience condition.
+  assert.strictEqual(committed.length, 104, '73 pre-delta objects + 10 attrs + 7 conds + 7 stmts + 7 rules');
   assert.deepStrictEqual(reconcile(clone(committed), loadSot()), committed,
     'committed snapshot is out of date — run: node snapshots/gen-authorize-snapshot.js');
 

@@ -73,6 +73,12 @@
               "pingGatewayResourceUri": {
                 "type": "string",
                 "description": "PingGateway resource server URI (alternate gateway endpoint)"
+              },
+              "externalDoorIssuers": {
+                "type": "array",
+                "items": { "type": "string" },
+                "uniqueItems": true,
+                "description": "Issuer (`iss`) values of oauth-mcp's embedded AS for each public MCP door in this environment — OAUTH_ISSUER, which PR #2244 requires to equal the door's ingress host. SoT for the P1AZ external-door audience exemption: HasValidMcpAudience accepts the upstream MCP server audience ONLY when the token's iss is one of these, mirroring PR #2274's D-05 exemption in p1az-decision.groovy. An array because one environment can front several doors."
               }
             }
           }

@@ -303,8 +303,10 @@ test('a FOREIGN audience constant is BLOCKED with the snapshot/SoT sets reported
 test('a DROPPED accepted audience is BLOCKED — a partial set denies one gateway wholesale', async () => {
   const snapshot = loadSnapshot();
   const cond = audienceCondition(snapshot);
+  // Branches are no longer uniformly comparisons: the external-door exemption
+  // adds AND(aud, iss) branches, which this drop-one test must leave alone.
   cond.condition.or.conditions = cond.condition.or.conditions.filter(
-    (c) => c.comparison.right.constant.value !== 'https://api.ping.demo:3036/mcp',
+    (c) => !c.comparison || c.comparison.right.constant.value !== 'https://api.ping.demo:3036/mcp',
   );
   const res = await validate(snapshot);
   assert.strictEqual(res.statusCode, 409);
