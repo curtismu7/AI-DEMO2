@@ -9,22 +9,57 @@ Proven end to end 2026-08-17 against PingOne env `0428ba4f-169c-436b-aff9-b23049
 
 Scope: the SE Helm path where the gateway runs in Kubernetes and the MCP client reaches it through the Priv Agent on a Mac. For the local Docker gateway, the BFF MCP client relay, and the PingOne-token wall, read `privilege-cloud-mcp` instead — different deployment, different failure modes.
 
-## Current cmuir deployments (verified 2026-08-20)
+## Source of truth: agent → curtismuir only, agentless → cmuir (verified 2026-08-26)
 
-Read `privilege/AGENTLESS-CONFIGURATION.md` before Agentless work and
-`privilege/AGENT-CONFIGURATION.md` before Agent work.
+This rule broke twice in one day (`ping-mcpgw-mcpgw` kept getting
+reinstalled) before the root cause was found and fixed — read this section
+before creating or repointing anything agent- or agentless-related.
 
-- Agentless: namespace `ping-devops-cmuir`, release `agentless-mcpgw`, cluster
-  `ai-demo-cmuir`, app `cmuir`, client URL
-  `https://cmuir-agentless-mcpgw.ping-devops.com/cmuir/mcp`.
-- Agent: app `cmuir2`, client URL
-  `https://opensearch.default.applications.procyon.ai:8643/mcp`. The Agent owns
-  authentication; do not configure a client ID or gateway OAuth in the demo client.
-- Current Agentless gateway digest:
-  `sha256:0faad5903a5bd72539b1df525e3c7bc5d458a5bd324aac9755b8af99dfa6647d`.
+**The one gateway pod:** the only agent-based gateway pod that should ever
+run is `cm-mcpgw-mcpgw` in `ping-devops-curtismuir` (Helm release `cm-mcpgw`,
+Mesh Cluster `ai-demo-agent`, PingOne env `0428ba4f-169c-436b-aff9-b230496e0e3b`
+"Privilege Agent" — healthy, stable since 2026-08-21). **Never install a
+second agent-based gateway pod in `ping-devops-cmuir`.** `ping-mcpgw-mcpgw`
+(Helm release `ping-mcpgw`, chart `k8s/helm/mcpgw`) was exactly that — a
+redundant duplicate, unfixably crash-looping on a stale `ENV_PROXY_TOKEN`
+(only ~2h validity, can't survive being reinstalled by every SE deploy). It
+was deleted for good in PR #2391: `k8s/helm/mcpgw`'s `mcpgw.enabled` now
+defaults `false`, and `k8s/aws/deploy.sh` only installs the gateway piece
+when `DEPLOY_MCPGW_GATEWAY=1` is explicitly set with a fresh token — every
+plain `./run-pingaws.sh deploy` now leaves it off. The `ping-mcpgw` release
+still exists (chart still installed on every SE deploy) solely to host
+`ping-mcpgw-opensearch(-mcp-server)` — see the TECH_DEBT.md entry for why
+that's a known, accepted oddity rather than something to "fix" by deleting
+the release.
 
-Do not use the OpenSearch backend or app name for the cmuir Agentless deployment.
-OpenSearch belongs to the working Agent use case.
+**Agentic Apps under the one gateway's Mesh Cluster (`ai-demo-agent`)** — both
+point at the SAME curtismuir OpenSearch backend, deliberately, so neither one
+depends on the `ping-mcpgw` release:
+
+| App | Backend Name | Frontend Name (client URL) |
+|---|---|---|
+| `opensearch` | `http://cm-mcpgw-opensearch-mcp-server.ping-devops-curtismuir.svc.cluster.local/sse` | `opensearch.default.applications.procyon.ai:8643/mcp` |
+| `opensearch-cmuir` | same as above (repointed 2026-08-26 — originally pointed at `ping-mcpgw-opensearch-mcp-server.ping-devops-cmuir`, the doomed release's own backend) | `opensearch-cmuir.default.applications.procyon.ai:8643/mcp` |
+
+`demo_api_server/routes/mcpFacade.js` doors `agent` and `agent-cmuir` proxy
+to those two Frontend Names respectively (`agent-cmuir` added in PR #2390 for
+the `MCP Agent-OpenSearch-CMUIR` LM Studio entry) — a console-side Backend
+Name repoint is transparent to both, no code change needed.
+
+**Agentless: namespace `ping-devops-cmuir`, release `agentless-mcpgw`**,
+cluster `ai-demo-cmuir`, app `cmuir`, client URL
+`https://cmuir-agentless-mcpgw.ping-devops.com/cmuir/mcp`. Read
+`privilege/AGENTLESS-CONFIGURATION.md` before Agentless work and
+`privilege/AGENT-CONFIGURATION.md` before Agent work. Current Agentless
+gateway digest: `sha256:0faad5903a5bd72539b1df525e3c7bc5d458a5bd324aac9755b8af99dfa6647d`.
+The Agent owns authentication; do not configure a client ID or gateway OAuth
+in the demo client.
+
+Before creating a new Agentic App or repointing a Backend Name: agent-mode
+things point at curtismuir's stable resources (`cm-mcpgw-*`); agentless-mode
+things point at cmuir's `agentless-mcpgw`. A `ping-mcpgw-*` or other
+cmuir-namespaced backend behind an *agent*-mode app/door is a smell — check
+whether curtismuir already has the equivalent before wiring a new one up.
 
 ## Pick the variant before touching anything
 

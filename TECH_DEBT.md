@@ -16,6 +16,35 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-08-26 — `ping-mcpgw` Helm release's only remaining purpose is a backend it doesn't gate
+
+**Where:** `k8s/helm/mcpgw` release `ping-mcpgw` in `ping-devops-cmuir`.
+
+**What's wrong:** the release's gateway piece (`mcpgw.enabled`) was set to
+`false` for good in PR #2391 — it was a redundant duplicate of the one real
+agent-based gateway in `ping-devops-curtismuir` (`cm-mcpgw-mcpgw`), and could
+never stay up anyway (its `ENV_PROXY_TOKEN` is ~2h-lived and every SE deploy
+used to reinstall it with a 5-day-stale one). That leaves the release
+installing only `ping-mcpgw-opensearch` and `ping-mcpgw-opensearch-mcp-server`
+— a gateway chart, still deployed on every SE deploy, whose sole surviving
+purpose is an OpenSearch backend nothing in the Privilege console even points
+at any more (the `opensearch-cmuir` Agentic App was repointed the same day to
+curtismuir's `cm-mcpgw-opensearch-mcp-server` instead, precisely so it
+wouldn't depend on this release). See
+`.claude/skills/privilege-mcpgw-agent-k8s/SKILL.md` for the full routing
+rule this incident produced.
+
+**Why it wasn't fixed now:** the clean end state — moving OpenSearch out of
+`k8s/helm/mcpgw` into its own chart, or dropping the `ping-mcpgw` release
+from `deploy.sh` entirely once nothing references its backend — was raised
+the same day and deliberately deferred; disabling the broken gateway piece
+without touching anything currently working was the requested scope.
+
+**Real fix:** once nothing depends on `ping-mcpgw-opensearch*` (or once it's
+confirmed genuinely unused), either extract `opensearch`/`opensearch-mcp-server`
+into a standalone chart so a gateway release stops shipping a non-gateway
+backend, or stop installing `ping-mcpgw` from `deploy.sh` altogether.
+
 ### [ ] 2026-08-24 — `mcpPrivilegeAuth.js`'s cached DCR client can't serve a callback origin discovered after registration
 
 **Where:** `demo_api_server/routes/mcpPrivilegeAuth.js`'s `ensureClient()` —
