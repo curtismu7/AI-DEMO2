@@ -605,6 +605,50 @@ else
   warn "ping-gateway/config/admin.json not found — skipping ping-gateway-config ConfigMap"
 fi
 
+# ── Monitoring: Prometheus scrape config + Grafana provisioning ───────────────
+# Same trick as ping-gateway-config above: generate the ConfigMaps from the real
+# files under monitoring/ so Docker Compose and Kubernetes read one copy and the
+# two cannot drift.
+if [ -f "$ASSET_ROOT/monitoring/prometheus.yml" ]; then
+  info "Creating monitoring ConfigMaps from source files..."
+  kubectl create configmap prometheus-config \
+    --namespace="$NS" \
+    --from-file=prometheus.yml="$ASSET_ROOT/monitoring/prometheus.yml" \
+    --dry-run=client -o yaml | kubectl apply -f -
+  kubectl create configmap grafana-datasources \
+    --namespace="$NS" \
+    --from-file="$ASSET_ROOT/monitoring/grafana/provisioning/datasources/" \
+    --dry-run=client -o yaml | kubectl apply -f -
+  kubectl create configmap grafana-dashboard-provider \
+    --namespace="$NS" \
+    --from-file="$ASSET_ROOT/monitoring/grafana/provisioning/dashboards/" \
+    --dry-run=client -o yaml | kubectl apply -f -
+  kubectl create configmap grafana-dashboards \
+    --namespace="$NS" \
+    --from-file="$ASSET_ROOT/monitoring/grafana/dashboards/" \
+    --dry-run=client -o yaml | kubectl apply -f -
+  info "  prometheus-config, grafana-datasources, grafana-dashboard-provider, grafana-dashboards applied."
+
+  # Grafana admin login. GRAFANA_ADMIN_PASSWORD from the environment wins; the
+  # fallback exists so a fresh cluster comes up loginable rather than broken.
+  # Grafana is internet-facing via /grafana/, so change this for any deployment
+  # that outlives a demo.
+  grafana_user="${GRAFANA_ADMIN_USER:-admin}"
+  grafana_pass="${GRAFANA_ADMIN_PASSWORD:-}"
+  if [ -z "$grafana_pass" ]; then
+    grafana_pass="ai-demo-grafana"
+    warn "  GRAFANA_ADMIN_PASSWORD unset — using the default. Set it before any long-lived deployment."
+  fi
+  kubectl create secret generic grafana-secrets \
+    --namespace="$NS" \
+    --from-literal=GF_SECURITY_ADMIN_USER="$grafana_user" \
+    --from-literal=GF_SECURITY_ADMIN_PASSWORD="$grafana_pass" \
+    --dry-run=client -o yaml | kubectl apply -f -
+  info "  grafana-secrets applied (user: $grafana_user)."
+else
+  warn "monitoring/prometheus.yml not found — skipping monitoring ConfigMaps"
+fi
+
 # ── Restart deployments so already-running pods pick up what we just applied ──
 # K8s does not hot-reload Secret/ConfigMap-sourced env vars into a running
 # container — re-applying a secret above is a no-op for any pod that's already
@@ -614,7 +658,7 @@ fi
 # consumes a secret/configmap this script manages, so "rotate" always means
 # rotate for the running pod too, not just for the next full deploy.
 info "Restarting deployments to pick up refreshed secrets/configmaps..."
-for dep in demo-api-server mcp-gateway mcp-server langchain-agent agent-service api-resource-server ping-gateway; do
+for dep in demo-api-server mcp-gateway mcp-server langchain-agent agent-service api-resource-server ping-gateway prometheus grafana; do
   if kubectl get deployment "$dep" --namespace="$NS" &>/dev/null; then
     kubectl rollout restart deployment "$dep" --namespace="$NS" >/dev/null
     info "  restarted $dep"

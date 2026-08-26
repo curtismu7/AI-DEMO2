@@ -1,0 +1,21 @@
+# Grafana dashboard provisioning — loads every dashboard JSON mounted at
+# /var/lib/grafana/dashboards. Same reasoning as the datasource: provisioned so
+# a pod restart cannot lose it.
+apiVersion: 1
+
+providers:
+  - name: ai-demo
+    orgId: 1
+    folder: ''
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    # The file on disk is the source of truth, matching the datasource's
+    # editable:false. With allowUiUpdates:true Grafana keeps UI edits instead of
+    # re-reading the file, so a mid-demo experiment would silently become the
+    # permanent dashboard. Viewing, time ranges and template vars still work;
+    # only saving over the provisioned copy is blocked.
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false
