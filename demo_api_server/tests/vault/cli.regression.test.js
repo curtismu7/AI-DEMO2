@@ -404,3 +404,28 @@ describe('vault CLI — resolveVaultPath', () => {
     expect(p.endsWith('/secrets.vault')).toBe(true);
   });
 });
+
+
+describe('vault CLI — module.exports is assigned before main() runs', () => {
+  // Regression: the `if (require.main === module) main()` block used to sit
+  // ABOVE `module.exports = {...}`. getPassword() reaches through
+  // module.exports._promptForPassword (and cmdSet() through
+  // module.exports._readAllStdin) for test-stubbability, so on a TTY the CLI
+  // died with "module.exports._promptForPassword is not a function" before it
+  // could ever prompt — every subcommand was unusable interactively.
+  //
+  // This asserts source order rather than behavior: reproducing the crash needs
+  // a real TTY, and pty allocation differs between macOS and Linux CI.
+  test('the require.main block appears after the exports assignment', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const src = fs.readFileSync(
+      path.join(__dirname, '..', '..', 'scripts', 'vault.js'),
+      'utf8',
+    );
+    const exportsAt = src.indexOf('module.exports = {');
+    const mainAt = src.indexOf('require.main === module');
+    expect(exportsAt).toBeGreaterThan(-1);
+    expect(mainAt).toBeGreaterThan(exportsAt);
+  });
+});
