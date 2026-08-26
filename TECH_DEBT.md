@@ -595,7 +595,7 @@ stale lock on this stack turns into a worse outage than the race it prevents.
 before and after any live drive, and treat the run as void — not as a finding —
 if either moved. That one check is the difference between a bug report and an
 hour in the routing layer.
-### [ ] 2026-08-19 — 71 write actions across all 12 verticals reply "Here are your <verb noun>."
+### [x] 2026-08-19 — 71 write actions across all 12 verticals reply "Here are your <verb noun>."
 
 Found while fixing UC8's "Here are your extend rental." (`REGRESSION_PLAN.md` §4,
 2026-08-19). The reply-heading builder in
@@ -629,6 +629,39 @@ same signal `p1az-decision.groovy`'s tier check uses (`isWriteToolLocal`). Threa
 the reply builder and give writes a single neutral confirmation template, keeping the 10
 hand-written cases for the ones that read better. Scan that produced these numbers:
 `scratchpad/scan-writes.py` in the 2026-08-19 Demo Steps run.
+
+**RESOLVED 2026-08-26 (branch `worktree-write-action-reply-copy`).** Fixed as the
+entry scoped it — write-ness DERIVED, not guessed. The derivation already existed:
+`services/agentRestrictionsService.js`'s `getRequiredTier(toolName)` reads
+`scope-topology.json`'s `tools[].requiredScopes` and maps them through each scope's
+`riskLevel`, returning `'read'|'write'`. `buildVerticalReply()` now takes one branch
+ahead of the noun fallback — `getRequiredTier(action) === 'write'` →
+`` `Your ${action.replace(/_/g,' ')} request is complete.` `` — so no new loader, no
+action→write table to drift, and unknown tools tier as `'read'` (fail-open: the branch
+can only soften an existing heading, never invent a confirmation).
+
+Note the derivation is slightly BROADER than `p1az-decision.groovy`'s
+`isWriteToolLocal`, which does an exact `requiredScopes.contains('write')` and would
+miss `redeem_miles` (`['airlines:read','airlines:write']`). Going through `riskLevel`
+catches it. Same SoT, better predicate — the Groovy is worth aligning if it ever
+matters for tier enforcement, but that is a policy change, not copy, so it was left
+alone.
+
+Evidence: 100 tools tier as write across the whole topology; **0** still produce
+`Here are your ...`. All 10 hand-written cases are untouched (they precede the branch).
+`src/__tests__/buildVerticalReply.writeActions.test.js` grew from 12 to 19 tests —
+6 named samples, a whole-catalog sweep (every write tool, with a >50 vacuity guard),
+and a guard pinning the entry's four named traps (`afford_check`, `biggest_purchase`,
+`browse_gear`, `loyalty_balance`) as reads. RED-proven: disabling the branch fails 7
+of the 19. Neighbouring agent specs green
+(`agentInvokeRoute.mcpAuthorizeEvaluations`, `agentInvokeRoute.intentToken`,
+`agentReasoningClientLoopGuard`, `demoAgentRecursion.regression` — 12 passed).
+
+**Left behind on purpose:** those same four read actions still degrade to
+`Here are your afford check.` when `render` falls back to `'text'` (a failed MCP
+round-trip). They are reads, so they are outside this entry, and on the normal path
+their own `render` case answers first (`loyalty_balance` → `Your balance: N`). Fixing
+them is a read-side noun problem, not a write-ness one.
 
 ### [ ] 2026-08-19 — `serve:worktree` reports a state file, not the actual container mounts, and leaves the BFF without its gitignored config
 
