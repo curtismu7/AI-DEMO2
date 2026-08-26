@@ -91,7 +91,7 @@ test('regeneration is idempotent — reconciling the committed snapshot is a no-
   assert.deepStrictEqual(reconcile(again, loadSot()), committed);
 });
 
-test('widening touches exactly one object — 103 in, 103 out, none added or removed', () => {
+test('widening touches exactly one object — 104 in, 104 out, none added or removed', () => {
   const committed = readSnapshot();
   const objectCount = committed.length;
   // 73 pre-cloud-delta objects + 30 added: 21 by the fine-grained deny steps,
@@ -99,7 +99,11 @@ test('widening touches exactly one object — 103 in, 103 out, none added or rem
   // 7 conditions, 7 statements, 7 rules in total) — pinned so an accidental
   // add/remove in the reconciler shows up as a count change here and in
   // authorizeSnapshotCloudDelta.test.js.
-  assert.strictEqual(objectCount, 103, 'snapshot object count drifted — see authorizeSnapshotCloudDelta.test.js');
+  // +1 (2026-08-26): the TokenIss ATTRIBUTE, added for HasValidMcpAudience's
+  // external-door exemption. It adds no condition/statement/rule of its own —
+  // the exemption is extra OR branches inside the EXISTING audience condition,
+  // which is why only the attribute count moved.
+  assert.strictEqual(objectCount, 104, 'snapshot object count drifted — see authorizeSnapshotCloudDelta.test.js');
 
   // Rebuild the pre-1e8619d09 state: the condition matched only the first two
   // contexts. Everything else in the snapshot is already reconciled.

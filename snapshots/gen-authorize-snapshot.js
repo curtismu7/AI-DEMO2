@@ -85,6 +85,11 @@ const ATTR = {
   // so the tier rules do nothing until ff_authorize_group_policy is on.
   UserTier: '12345678-0015-4321-abcd-000000000015',
   TokenAudActual: '12345678-0018-4321-abcd-000000000018',
+  // The token's `iss`. Both gateways already send it (p1az-decision.groovy's
+  // TokenIss parameter); it was simply never declared as an attribute, so no
+  // condition could read it. Used ONLY by the external-door audience exemption
+  // in HasValidMcpAudience — see the SoT note on deployment.externalDoorIssuers.
+  TokenIss: '12345678-0029-4321-abcd-000000000029',
   ResourceOwnerId: '12345678-0019-4321-abcd-000000000019',
   RarMaxAmount: '12345678-0020-4321-abcd-000000000020',     // RFC 9396 granted amount ceiling (NUMBER, defaultValue 0 — see step 9)
   IntentTokenValid: '12345678-0025-4321-abcd-000000000025', // NOT -0021 (retired, see above)
@@ -366,7 +371,27 @@ function deriveSot(sot) {
     ...UPSTREAM_RESOURCE_NAMES.map((name) => requireUri(name, 'the D-05 upstream audience blacklist')),
     process.env.BANKING_RESOURCE_SERVER_RESOURCE_URI || BANKING_RS_URI_DEFAULT,
   ].filter((u) => u && u !== gatewayUri);
-  return { consent, stepUp, writeTools, a2aDelegated, acceptedGatewayAudiences, upstreamAudiences };
+  // External-door exemption (see the SoT note on deployment.externalDoorIssuers).
+  // The external door has no exchange step by design, so its tokens are ALWAYS
+  // audienced at the upstream MCP server — which HasValidMcpAudience denies and
+  // the D-05 blacklist independently denies. PR #2274 already solved the D-05
+  // half in p1az-decision.groovy by exempting oauth-mcp's own issuer; this is
+  // the same exemption for the policy half. Derived, never hardcoded
+  // (REGRESSION_PLAN §3): a door added to the SoT needs no edit here.
+  const envs = (sot.deployment && sot.deployment.environments) || {};
+  const externalDoorIssuers = [...new Set(
+    Object.values(envs).flatMap((e) => (e && e.externalDoorIssuers) || []),
+  )];
+  // Deliberately NOT fatal when empty: unlike the gateway set (whose emptiness
+  // denies all MCP traffic), an empty exemption set just means no door is
+  // declared — the OR keeps its existing gateway branches and nothing widens.
+  const externalDoorAudience = externalDoorIssuers.length
+    ? requireUri('Super Banking MCP Server', 'the external-door audience exemption')
+    : null;
+  return {
+    consent, stepUp, writeTools, a2aDelegated, acceptedGatewayAudiences, upstreamAudiences,
+    externalDoorIssuers, externalDoorAudience,
+  };
 }
 
 function loadSot() {
@@ -435,7 +460,7 @@ function loadTiers() {
   return deriveTiers(JSON.parse(fs.readFileSync(BANKING_MANIFEST, 'utf8')));
 }
 
-function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGatewayAudiences, upstreamAudiences }, tiers = loadTiers()) {
+function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGatewayAudiences, upstreamAudiences, externalDoorIssuers = [], externalDoorAudience = null }, tiers = loadTiers()) {
   const byId = new Map(snap.map((o) => [o.id, o]));
   const sepIdx = snap.findIndex((o) => o.type === 'SnapshotPackageFile$PackageSeparator');
 
@@ -451,14 +476,39 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
     `TokenAudience (the token's real aud) is one of the accepted gateway identities ` +
     `(${acceptedGatewayAudiences.join(', ')}). A token minted for any other resource fails this ` +
     `and is denied by "MCP Deny — Invalid Token Audience". Generated from scope-topology.json ` +
-    `gateway resource URIs for the AI Demo environment — do not hand-edit.`;
-  audCond.condition = { or: { conditions: acceptedGatewayAudiences.map((uri) => ({
-    comparison: { left: { attribute: { id: ATTR.TokenAudience } }, op: 'Equals', right: { constant: { value: uri } } },
-  })) } };
+    `gateway resource URIs for the AI Demo environment — do not hand-edit.` +
+    (externalDoorAudience
+      ? ` PLUS an external-door exemption: ${externalDoorAudience} (the upstream MCP server, which the ` +
+        `external door addresses directly because that route has no exchange step) is accepted ONLY when ` +
+        `TokenIss is one of ${externalDoorIssuers.join(', ')} — oauth-mcp's embedded AS, whose signature IG ` +
+        `has already verified by introspection before this policy runs. Same exemption-by-issuer shape as ` +
+        `PR #2274's D-05 fix in p1az-decision.groovy.`
+      : '');
+  // Gateway identities, plus one narrow branch per external-door issuer. The
+  // exemption is an AND, never a bare audience: mcpserver.ping.demo is accepted
+  // ONLY when the token also came from oauth-mcp's embedded AS. Widening only —
+  // an added OR branch cannot deny anything that passes today.
+  const externalDoorBranches = (externalDoorAudience ? externalDoorIssuers : []).map((iss) => ({
+    and: { conditions: [
+      { comparison: { left: { attribute: { id: ATTR.TokenAudience } }, op: 'Equals', right: { constant: { value: externalDoorAudience } } } },
+      { comparison: { left: { attribute: { id: ATTR.TokenIss } }, op: 'Equals', right: { constant: { value: iss } } } },
+    ] },
+  }));
+  audCond.condition = { or: { conditions: [
+    ...acceptedGatewayAudiences.map((uri) => ({
+      comparison: { left: { attribute: { id: ATTR.TokenAudience } }, op: 'Equals', right: { constant: { value: uri } } },
+    })),
+    ...externalDoorBranches,
+  ] } };
   // Content-derived version (see ver() note): mutate-in-place at a frozen
   // version means PingOne skips the object on import and a new audience can
   // never land — the #1311/#1897 trap class.
-  audCond.version = ver('bbbbbbbb', COND.HasValidMcpAudience, { acceptedGatewayAudiences });
+  // externalDoor* MUST be in the version input: mutate-in-place at a frozen
+  // version means PingOne skips the object on import and the exemption never
+  // lands — the #1311/#1897 trap class this ver() note warns about.
+  audCond.version = ver('bbbbbbbb', COND.HasValidMcpAudience, {
+    acceptedGatewayAudiences, externalDoorIssuers, externalDoorAudience,
+  });
 
   // 1) Generalize RequiresHitlConsent -> consent tool list.
   const hitlCond = byId.get(COND.RequiresHitlConsent);
@@ -770,6 +820,12 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
   upsert(requestAttr(ATTR.TokenAudActual, 'TokenAudActual', 'STRING', '',
     "The ACTUAL aud claim of the presented token, as introspected (single value; a multi-aud token is space-joined " +
     "and only caught at the PEP). Used by the D-05 anti-bypass deny. Default '' keeps the rule inert when absent."), afterLastAttrIdx);
+  upsert(requestAttr(ATTR.TokenIss, 'TokenIss', 'STRING', '',
+    "The presented token's `iss`. Both gateways already send it; it had no ATTRIBUTE so no condition could " +
+    "read it. Used ONLY by HasValidMcpAudience's external-door exemption, which accepts the upstream MCP " +
+    "server audience when iss is one of scope-topology.json's deployment.externalDoorIssuers. Default '' " +
+    "means a caller that omits it matches no issuer, so the exemption stays inert and the gateway-audience " +
+    "branches decide — fail-safe, since '' can never equal a declared issuer."), afterLastAttrIdx);
   upsert(conditionDef(COND.TokenAudTargetsUpstream, 'TokenAudTargetsUpstream',
     `TokenAudActual equals one of the upstream/backend audiences behind the gateway (${upstreamAudiences.join(', ')}). ` +
     'A client must obtain a gateway-targeted token and let the gateway exchange it for the next hop (D-05, mock Rule 0b-2). ' +
