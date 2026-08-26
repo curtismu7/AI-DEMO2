@@ -1084,6 +1084,16 @@ services:
     environment:
       NODE_ENV: production
       AUTHZ_PORT: "9001"
+      # D-05 anti-bypass has an ID-JAG exemption (routes/decision.js ~L408): a token
+      # whose `iss` is oauth-mcp's embedded AS is a legitimate per-server grant, not a
+      # gateway bypass. The comparison is exact string equality against this value,
+      # and the built-in fallback is https://localhost:8080 while mcp-server actually
+      # issues http://localhost:8080 — so unwired, the exemption never fired and every
+      # native ID-JAG tool call was DENIED as bypass_attempt. Same one-character scheme
+      # trap already fixed on mcp-gateway (OAUTH_MCP_ID_JAG_ISSUER, PR #2412); the unit
+      # tests set the var explicitly to https://, so they never caught it.
+      # Track the SAME source the BFF and mcp-server use.
+      OAUTH_MCP_ID_JAG_ISSUER: "${ENTERPRISE_MCP_AS_ISSUER:-http://localhost:8080}"
       HOST: "0.0.0.0"
       # HOST above is non-loopback and 9001 is published to the host (see ports:),
       # so rulesWrite.js's guardOk() now fails closed on PUT /rules and

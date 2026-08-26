@@ -52,10 +52,16 @@ const only = (key) => {
 };
 
 describe('native ID-JAG embedded-AS issuer agreement', () => {
-  it('mcp-gateway declares OAUTH_MCP_ID_JAG_ISSUER at all', () => {
-    // Left unset it falls back to tokenValidator's hardcoded https:// default,
-    // which is the bug this test exists for.
-    expect(only('OAUTH_MCP_ID_JAG_ISSUER').length).toBeGreaterThan(0);
+  // TWO services read OAUTH_MCP_ID_JAG_ISSUER at runtime and each has its own
+  // hardcoded https:// fallback:
+  //   mcp-gateway   tokenValidator.ts  _idJagIssuer()      — decides whether to
+  //                                                          use oauth-mcp's JWKS
+  //   authz-server  routes/decision.js ~L408               — decides whether the
+  //                                                          D-05 exemption applies
+  // Wiring one and not the other is exactly what happened: the gateway accepted
+  // the token and the policy then denied it as bypass_attempt.
+  it('BOTH runtime consumers declare OAUTH_MCP_ID_JAG_ISSUER', () => {
+    expect(only('OAUTH_MCP_ID_JAG_ISSUER').length).toBeGreaterThanOrEqual(2);
   });
 
   it('the minting issuer and the gateway s expected issuer agree exactly', () => {
