@@ -732,6 +732,17 @@ services:
       # accept it directly. tokenValidator.ts's ID-JAG filter verifies these tokens
       # against oauth-mcp's own JWKS (not PingOne's) before this aud check ever runs.
       MCP_GW_RESOURCE_URI: "mcpgateway.ping.demo,https://api.ping.demo:3036/mcp,mcpgateway-a2a.ping.demo,mcpserver.ping.demo"
+      # Native ID-JAG: tokens redeemed at oauth-mcp are signed by ITS OWN key, not
+      # PingOne's, so tokenValidator only reaches for oauth-mcp's JWKS when the
+      # token's `iss` matches this value exactly. Its built-in default is
+      # https://localhost:8080 while mcp-server actually issues http://localhost:8080
+      # (OAUTH_ISSUER, and the BFF's ENTERPRISE_MCP_AS_ISSUER) — that one-character
+      # scheme difference made isIdJagIssuedToken() false, so every ID-JAG bearer fell
+      # through to PingOne validation and died with 'No matching JWKS key found for
+      # kid=<oauth-mcp key>'. Track the SAME source rather than keeping a second
+      # hardcoded guess in sync by hand — docker-compose.yml already warns about
+      # exactly this scheme hazard on ENTERPRISE_MCP_AS_ISSUER (~L125).
+      OAUTH_MCP_ID_JAG_ISSUER: "${ENTERPRISE_MCP_AS_ISSUER:-http://localhost:8080}"
       PINGAUTHORIZE_ENDPOINT: "http://authz-server:9001"
       # Declare the mock explicitly. Decision provenance (contract C2) and the
       # /health posture block both derive "is this a real PDP?" by comparing the
