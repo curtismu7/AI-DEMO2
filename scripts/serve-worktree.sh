@@ -18,6 +18,8 @@
 #   scripts/serve-worktree.sh here       # serve the worktree you are standing in
 #   scripts/serve-worktree.sh main       # hand the stack back to the main checkout
 #   scripts/serve-worktree.sh <path>     # serve an explicit checkout
+#
+# Self-check (stubs docker, touches nothing): bash scripts/serve-worktree.test.sh
 set -euo pipefail
 
 MAIN="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
@@ -38,6 +40,18 @@ print_status() {
   fi
   describe "BFF" "$bff" "$MAIN/demo_api_server"
   describe "UI " "$ui"  "$MAIN/demo_api_ui"
+
+  # The UI serves from /app/src, not /app. Reporting only /app is how a status
+  # line could truthfully say "worktree" while `docker inspect` showed
+  # .../demo_api_ui/src -> /app/src still on main — the change under test was not
+  # being served, and the verification run blamed the fix. The overlay now moves
+  # both mounts together; this makes it impossible for them to disagree quietly.
+  local ui_src
+  ui_src="$(mount_source "$UI_CONTAINER" /app/src)"
+  if [[ -n "$ui" && -n "$ui_src" && "$ui_src" != "$ui/src" ]]; then
+    echo "UI  MOUNT SPLIT    /app -> $ui   but /app/src -> $ui_src"
+    echo "                   /app/src wins for served source — re-run 'serve-worktree.sh here'"
+  fi
 }
 
 describe() {  # $1 = label, $2 = actual mount source, $3 = the main-checkout path
@@ -53,6 +67,50 @@ describe() {  # $1 = label, $2 = actual mount source, $3 = the main-checkout pat
   else
     echo "$label  worktree        $src"
   fi
+}
+
+# A worktree carries no gitignored files, and the BFF loads demo_api_server/.env
+# ITSELF at runtime — the --project-directory pin above only makes Compose's own
+# env_file entries resolve against main, which is a different mechanism. Without
+# this every OAuth login against the worktree fails with
+# "invalid_client — Request denied: Invalid client credentials", which reads as
+# broken auth rather than a missing file.
+#
+# Copied, not symlinked: the mount hands the container the worktree directory, so
+# a symlink inside it would resolve to a host path that does not exist in the
+# container and the BFF would see no .env at all.
+#
+# Nothing else needs copying. data/persistent (LMDB, config.db, banking.db) is the
+# named volume ai-demo-bff-data mounted over /app/data/persistent, and /repo,
+# /certs and secrets.vault are all bound from MAIN by absolute path — none of them
+# move when the source mount does.
+copy_bff_env() {
+  local target="$1"
+  [[ "$target" == "$MAIN" ]] && return 0
+  if [[ ! -f "$MAIN/demo_api_server/.env" ]]; then
+    echo "warning: $MAIN/demo_api_server/.env does not exist — the BFF will start without one" >&2
+    return 0
+  fi
+  cp "$MAIN/demo_api_server/.env" "$target/demo_api_server/.env"
+  echo "  copied demo_api_server/.env from the main checkout (gitignored, so the worktree has none)"
+}
+
+# The recreate is not always believed on the first try: a run has been observed
+# reporting the new worktree while `docker inspect` still showed the old mount,
+# and a second identical invocation fixed it. Reporting from docker inspect (which
+# print_status already does) makes that visible; this makes it not happen. One
+# retry matches the observed cure — then fail loudly rather than hand back a stack
+# that is silently serving the wrong source.
+verify_mounts() {
+  local target="$1" bff ui ui_src
+  bff="$(mount_source "$BFF_CONTAINER" /app)"
+  ui="$(mount_source "$UI_CONTAINER" /app)"
+  # /app/src is checked explicitly: it is the mount the UI actually serves from,
+  # and the one that was observed lagging behind /app.
+  ui_src="$(mount_source "$UI_CONTAINER" /app/src)"
+  [[ "$bff" == "$target/demo_api_server" \
+     && "$ui" == "$target/demo_api_ui" \
+     && "$ui_src" == "$target/demo_api_ui/src" ]]
 }
 
 target=""
@@ -78,12 +136,29 @@ else
   export WORKTREE_SRC_ROOT="$target"
 fi
 
-docker compose \
-  --project-directory "$MAIN" \
-  -f "$MAIN/docker-compose.yml" \
-  -f "$MAIN/docker-compose.override.yml" \
-  -f "$MAIN/docker-compose.worktree.yml" \
-  up -d --no-deps --force-recreate demo-api-server ui
+copy_bff_env "$target"
+
+recreate() {
+  docker compose \
+    --project-directory "$MAIN" \
+    -f "$MAIN/docker-compose.yml" \
+    -f "$MAIN/docker-compose.override.yml" \
+    -f "$MAIN/docker-compose.worktree.yml" \
+    up -d --no-deps --force-recreate demo-api-server ui
+}
+
+recreate
+if ! verify_mounts "$target"; then
+  echo "mounts did not move on the first recreate — retrying once" >&2
+  recreate
+  if ! verify_mounts "$target"; then
+    echo
+    echo "error: the stack is NOT serving $target after two attempts." >&2
+    echo "       Do not trust a verification run against it — what docker reports is:" >&2
+    print_status >&2
+    exit 1
+  fi
+fi
 
 echo
 echo "now serving:"
