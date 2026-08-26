@@ -330,6 +330,7 @@ const FIELD_DEFS = {
   mcp_use_legacy_protocol: { public: true, default: 'false' }, // When 'true', BFF uses protocolVersion 2024-11-05 in MCP initialize; default (false) = 2025-11-25
 ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to Heuristics for known chips (true) vs LLM only (false)
   ff_prompt_injection_guard: { public: true, default: 'true'  }, // Block common prompt-injection patterns on NL/agent inputs
+  ff_jit_credentials:       { public: true, default: 'false' }, // Bridge returns a 30s tool-bound credential instead of the raw backend key
   ff_agent_results_panel:    { public: true, default: 'false' }, // Floating Results Panel in Banking Agent (off by default)
   ff_agui_enabled:           { public: true, default: 'true'  }, // AG-UI streaming agent via POST /api/agent/run
   ff_activity_narration:     { public: true, default: 'true'  }, // "What's happening" activity narration panel (always visible when on, no toggle)
@@ -923,6 +924,7 @@ const ENV_FALLBACK_MAP = {
   agent_mcp_allowed_scopes: ['AGENT_MCP_ALLOWED_SCOPES'],
   ff_heuristic_enabled:            ['FF_HEURISTIC_ENABLED'],
   ff_prompt_injection_guard:       ['FF_PROMPT_INJECTION_GUARD'],
+  ff_jit_credentials:              ['FF_JIT_CREDENTIALS'],
   ff_mcp_gateway_pinggateway:      ['FF_MCP_GATEWAY_PINGGATEWAY'],
   ff_mcp_gateway_jwks:             ['FF_MCP_GATEWAY_JWKS'],
   ff_aam:                          ['FF_AAM'],
@@ -2265,6 +2267,7 @@ async function syncOAuthEndpointsToLmdb() {
   const FF_ENV_MAP = {
     ff_heuristic_enabled:       'FF_HEURISTIC_ENABLED',
     ff_prompt_injection_guard:  'FF_PROMPT_INJECTION_GUARD',
+    ff_jit_credentials:         'FF_JIT_CREDENTIALS',
     ff_mcp_gateway_pinggateway: 'FF_MCP_GATEWAY_PINGGATEWAY',
     ff_mcp_gateway_jwks:        'FF_MCP_GATEWAY_JWKS',
     ff_aam:                     'FF_AAM',
