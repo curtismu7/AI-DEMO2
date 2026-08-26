@@ -58,7 +58,7 @@ describe('GET /internal/vault/service-key — JIT credentials', () => {
 
   test('flag ON returns a minted credential instead of the raw key', async () => {
     withFlag(true);
-    const res = await get({ name: KEY_NAME, tool: 'show_mortgage' });
+    const res = await get({ name: KEY_NAME, tool: 'show_mortgage', aud: 'mortgage' });
 
     expect(res.status).toBe(200);
     // The point of the change: the static key never leaves the BFF.
