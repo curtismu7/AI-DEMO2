@@ -1,6 +1,36 @@
 {
   "mode": "PRODUCTION",
   "streamingEnabled": true,
+  "//openTelemetry": [
+    "PingGateway was the ONE component missing from the distributed trace. Every",
+    "other service reports to Jaeger (demo-api-server, mcp-gateway, mcp-server,",
+    "mcp-resource-server, authz-server, hitl-service, agent-service) — but not the",
+    "gateway that makes the authorization decision, so a trace showed the BFF's",
+    "call and the backend's work with a hole where PingGateway's P1AZ hop belongs.",
+    "",
+    "OpenTelemetry is disabled by default in PingGateway and is configured HERE,",
+    "not by the OTEL_EXPORTER_OTLP_ENDPOINT env the Node services use — that is a",
+    "Node SDK convention and IG ignores it.",
+    "",
+    "Endpoint is OTLP/HTTP (4318, /v1/traces), NOT the 4317 gRPC port the Node",
+    "services use: this exporter takes an HTTP URL. Jaeger already listened on",
+    "4318; only its Service omitted the port (added in the same commit).",
+    "",
+    "Sampling is parentBasedAlwaysOn by default, so IG joins traces the BFF has",
+    "already started rather than beginning its own — which is the point: the hop",
+    "appears inside the existing trace, not beside it."
+  ],
+  "openTelemetry": {
+    "tracing": {
+      "enabled": true,
+      "exporter": {
+        "type": "otlp",
+        "config": {
+          "endpoint": "http://jaeger:4318/v1/traces"
+        }
+      }
+    }
+  },
   "connectors": [
     { "port": 8080, "host": "0.0.0.0" },
     { "port": 8443, "host": "0.0.0.0", "tls": "PgServerTlsOptions" }
