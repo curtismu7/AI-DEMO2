@@ -119,9 +119,22 @@ prose must match that turn's `/api/mcp/tool` payload (grounding).
 
 | vertical | store | money keys |
 |---|---|---|
-| banking | `demo_api_server/data/runtimeData.json` (`users`/`accounts`, match `userId`) | `balance` |
+| banking | **`GET /api/accounts/my` as the signed-in user** — see the warning below | `balance` |
 | retail (**Great Buy**) | `config/verticals/retail/seed.json` → `orders`, `rewards` | `amount` |
 | healthcare (**CareConnect**) | `config/verticals/healthcare/seed.json` → `billingHistory`, `claims` | **`amountDue`** — NOT `amount` |
+
+**Banking: `runtimeData.json` is NOT the banking API's source of truth.** Measured
+2026-08-26: it holds `demoUser` (id `5`) with accounts `5df6774d…`/`90ff30a4…` at
+`2961.36`/`9272.29`, while the banking API actually serves that user
+`chk-1aee…`/`sav-1aee…`/`loan-1ae…`/`cc-1aee7…` at `5000`/`5000`/`-12000`/`-1850` —
+keyed off the PingOne sub, not the local numeric id. Four accounts, not two, and
+not one matching balance.
+
+A test written from `runtimeData.json` therefore asserts against the wrong data AND
+sends other owners' account ids, which the API correctly 403s. Five of those trip
+the circuit breaker and take banking down for 60s for everyone (TECH_DEBT
+2026-08-26). Use `GET /api/accounts/my` in the signed-in page context, or that
+turn's own tool payload.
 
 **Key names differ per vertical.** A generic `/^(amount|balance|total)$/` scan finds **0**
 money in healthcare and wrongly reports "no ground truth". Check the seed's real keys first:

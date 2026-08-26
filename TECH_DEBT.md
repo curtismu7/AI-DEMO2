@@ -16,6 +16,54 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-08-26 — the banking circuit breaker counts 403 authorization denials as upstream failures, so a cross-owner probe DoSes banking for everyone
+
+**Where:** `oauth-mcp/src/utils/CircuitBreaker.ts` `execute()`, driven from
+`oauth-mcp/src/banking/BankingAPIClient.ts:543`.
+
+**What's wrong:** the breaker treats every thrown error identically —
+
+```ts
+try { const result = await fn(); this.onSuccess(); return result; }
+catch (error) { this.onFailure(); throw error; }
+```
+
+so a 403 `Access denied. You can only check your own account balance.` — an
+authorization control working exactly as designed — counts the same as the banking
+API being unreachable. With `failureThreshold: 5` and `resetTimeout: 60000`, **five
+cross-owner reads open the breaker for a minute and take banking tools down for
+every user**, not just the caller who probed.
+
+Found live: a value-assertion sweep passed four `account_id`s that were not
+demoUser's, earned four 403s plus one more failure, and the next call returned
+`Banking API is currently unavailable (circuit breaker open)`. The banking API
+itself was healthy throughout (`/health` 200, container up 9 hours).
+
+**This is reachable on purpose.** UC10 is the demo's cross-owner attack simulation
+— its whole point is to present another owner's account id and be denied. Running
+it a handful of times in a demo trips the breaker and the next legitimate "show my
+balance" fails with an infrastructure error, which reads as the demo being broken
+rather than the control working.
+
+**The same file already knows better.** `BankingAPIClient.shouldRetryRequest()`
+deliberately excludes 4xx-except-429 from retries ("Don't retry authentication
+errors"). So the two resilience policies disagree on the same responses: a 403 is
+"not worth retrying" but IS "evidence the upstream is failing". Only one of those
+can be right, and the retry side has it.
+
+**Why it wasn't fixed now:** it is a resilience-policy decision (which classes of
+error are evidence of upstream sickness) on a security-adjacent path, and it was
+found while doing something else. It also self-heals in 60s, so it degrades a demo
+rather than breaking the stack.
+
+**Real fix:** give the breaker the same predicate the retry manager already uses —
+do not call `onFailure()` for 4xx except 429. A client error means the request was
+wrong, not that the server is sick; counting it inverts the breaker's purpose.
+Cheapest shape is an `isFailure?: (err) => boolean` on `CircuitBreakerConfig`,
+defaulting to today's behaviour so no other consumer changes, with
+`BankingAPIClient` passing the same test as `shouldRetryRequest`. Pin it with a
+test that fires 10 consecutive 403s and asserts the breaker stays CLOSED.
+
 ### [x] 2026-08-26 — intent-token verification is dead on BOTH gateway paths, and the BFF signs with the vault CIPHERTEXT
 
 **Where:** `demo_api_server/services/intentTokenService.js:8`,
