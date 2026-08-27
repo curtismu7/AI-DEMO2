@@ -30,6 +30,13 @@ describe("side-nav ownership", () => {
     ["/logs", null, "shell"], // no-chrome stays no-chrome for guests too
     // Pop-out client window is a bare popup — no global sidebar inside it.
     ["/personal-agent/client", user, "shell"],
+    // Standalone sample URLs opt out of the global chrome. These routes render
+    // no AppShell either, so "shell" here means nothing renders a nav at all —
+    // which is the point of them.
+    ["/standalone", user, "shell"],
+    ["/standalone/mfa-demo", user, "shell"],
+    ["/standalone/runner/m2m", user, "shell"],
+    ["/standalone/mfa-demo", null, "shell"], // and the same for guests
   ];
 
   it.each(cases)("%s (user=%s) is owned by %s", (pathname, u, owner) => {

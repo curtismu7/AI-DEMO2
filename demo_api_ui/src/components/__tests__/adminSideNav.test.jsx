@@ -155,9 +155,9 @@ describe("AdminSideNav — best-of-breed pass", () => {
     expect(liveLink).toHaveAttribute("href", "/use-cases/live");
   });
 
-  it("includes Delegated Commerce in the Demos customization catalog", () => {
-    const demos = NAV_STRUCTURE_CATALOG.find((group) => group.label === "Demos");
-    expect(demos.children).toContain("Delegated Commerce (guided demo)");
+  it("includes Delegated Commerce in the AI Flows customization catalog", () => {
+    const flows = NAV_STRUCTURE_CATALOG.find((group) => group.label === "AI Flows");
+    expect(flows.children).toContain("Delegated Commerce (guided demo)");
   });
 
   it("Weather MCP runs UC30 (weather-mcp-texas-permit) via demo/run", async () => {

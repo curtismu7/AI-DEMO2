@@ -191,6 +191,9 @@ import PublicRoutes, {
   PrivilegeMcpClientPageRoute,
   PingOneSetupPageRoute,
   M2mCredentialsSamplePageRoute,
+  StandaloneIndexRoute,
+  StandaloneSampleRoute,
+  StandaloneRunnerRoute,
   SampleM2mPageRoute,
   SampleCustomAdminRolePageRoute,
   SampleUserRegistrationPageRoute,
@@ -667,6 +670,18 @@ function AppWithAuth() {
                   element={
                     <M2mCredentialsSamplePageRoute user={user} logout={logout} />
                   }
+                />
+                {/* Standalone sample URLs — the same sample pages with no
+                    AppShell around them, for sharing or screen-sharing without
+                    the demo. Public: they render no session-dependent UI. */}
+                <Route path="/standalone" element={<StandaloneIndexRoute />} />
+                <Route
+                  path="/standalone/runner/m2m"
+                  element={<StandaloneRunnerRoute />}
+                />
+                <Route
+                  path="/standalone/:sampleId"
+                  element={<StandaloneSampleRoute />}
                 />
                 {/* PingOne sample apps — what each teaches, plus its code in 5 stacks */}
                 <Route

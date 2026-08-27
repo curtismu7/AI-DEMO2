@@ -245,6 +245,11 @@ export default function AdminSideNav({
   const [navOrder, setNavOrder] = useState(null);
   const [childOrder, setChildOrder] = useState(null);
   const showPacEditorLink = isLocalHost();
+  // Grafana is served differently per target and there is no single URL that
+  // works in both: under /grafana on the same origin in k8s (nginx proxies it),
+  // and on its own port in Docker Compose, which is a different origin from the
+  // UI. Same split the BFF makes for tracesUiUrl.
+  const grafanaUrl = isLocalHost() ? "http://localhost:3000" : "/grafana";
 
   // Per-user sidebar customization (Demo Config page). Returns [] when
   // ff_sidebar_customization is OFF or the request fails — full nav either way.
@@ -479,37 +484,9 @@ export default function AdminSideNav({
     },
     { label: "Themes", path: "/themes", icon: "cfg" },
     {
-      // Customer-facing demo pages — visible to admins too ("there is no
-      // reason to hide on admin dashboard", 2026-08-10): the presenter drives
-      // these demos from an admin session. customerOnly was dropped from
-      // Agent Lifecycle when it moved here.
-      label: "Customer Demos",
-      icon: "demo",
-      children: [
-        {
-          label: "Agent Lifecycle (guided demo)",
-          path: "/agent-lifecycle",
-          icon: "agt",
-          adminOnly: true,
-        },
-        {
-          label: "Personal Agent",
-          path: "/personal-agent",
-          icon: "agt",
-          adminOnly: true,
-        },
-      ],
-    },
-    {
       label: "Demos",
       icon: "demo",
       children: [
-        {
-          label: "Delegated Commerce (guided demo)",
-          path: "/delegated-commerce",
-          icon: "agt",
-          adminOnly: true,
-        },
         {
           label: "Weather MCP",
           icon: "mcp",
@@ -552,7 +529,6 @@ export default function AdminSideNav({
           action: () => window.dispatchEvent(new CustomEvent("demo-script-toggle")),
         },
         { label: "Demo Config", path: "/demo-config", icon: "cfg", adminOnly: true },
-        { label: "Family Delegation", path: "/delegation", icon: "usr", adminOnly: true },
       ],
     },
     // Latest report — shown when agent run completes
@@ -567,7 +543,7 @@ export default function AdminSideNav({
         ]
       : []),
     {
-      label: "AI Agents",
+      label: "AI Flows",
       icon: "agt",
       children: [
         {
@@ -599,6 +575,25 @@ export default function AdminSideNav({
           path: "/autonomous-agents",
           icon: "clk",
         },
+        {
+          label: "Personal Agent",
+          path: "/personal-agent",
+          icon: "agt",
+          adminOnly: true,
+        },
+        {
+          label: "Agent Lifecycle (guided demo)",
+          path: "/agent-lifecycle",
+          icon: "agt",
+          adminOnly: true,
+        },
+        {
+          label: "Delegated Commerce (guided demo)",
+          path: "/delegated-commerce",
+          icon: "agt",
+          adminOnly: true,
+        },
+        { label: "Family Delegation", path: "/delegation", icon: "usr", adminOnly: true },
         { label: "LangChain Agent", path: "/langchain", icon: "agt" },
         {
           label: "Ungoverned Agent",
@@ -961,6 +956,16 @@ export default function AdminSideNav({
         { label: "Service Graph", path: "/telemetry", icon: "log" },
         { label: "Tracing", path: "/tracing", icon: "log" },
         { label: "Transaction Trace", path: "/transaction-trace", icon: "log" },
+        {
+          // External, so it uses the same action+window.open shape as PAC
+          // Editor rather than a router path. Grafana holds PingGateway's own
+          // metrics and is where traces open now that the public /jaeger/
+          // route is gone; without this entry you have to know the URL.
+          label: "Grafana",
+          icon: "log",
+          searchAlias: "metrics dashboards prometheus pinggateway traces",
+          action: () => window.open(grafanaUrl, "_blank", "noopener,noreferrer"),
+        },
         { label: "Health Check", path: "/check", icon: "clk" },
       ],
     },
