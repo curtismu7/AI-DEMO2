@@ -95,6 +95,18 @@ const INTENT_TO_PERMITTED_TOOLS = {
   // these 17 drive a chip, and only chips are demo-reachable. The other 143 are
   // left alone rather than mapped blind.
   redeem_miles:                   ['redeem_miles'],
+  // UC38's OTHER tool. The chip declares primaryTool: redeem_miles, but the use
+  // case runs two tools -- its own whatLong says the agent "calls
+  // get_loyalty_status to check the miles balance and redeem_miles to upgrade
+  // the cabin". Only the primary one is declared anywhere machine-readable, so
+  // the chip-reachability gate could not see this one and it stayed
+  // intent-unreachable after #2442. Confirmed live 2026-08-26 from PingGateway's
+  // audit trail, which is the only place the reason appears -- the BFF response
+  // body says just "access_denied":
+  //   IntentMatchesTool: "false"
+  //   "Tool 'get_loyalty_status' is not in the validated intent token's
+  //    permitted_tools."
+  get_loyalty_status:             ['get_loyalty_status'],
   request_document:               ['request_document'],
   request_fee_tier_review:        ['request_fee_tier_review'],
   request_housing_assignment:     ['request_housing_assignment'],

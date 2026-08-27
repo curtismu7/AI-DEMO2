@@ -110,3 +110,36 @@ describe('the new entries stay least-privilege', () => {
     for (const t of ADDED) expect(fallback).not.toContain(t);
   });
 });
+
+// ── Secondary tools ──────────────────────────────────────────────────────────
+// The gate above derives from primaryTool, which is the ONLY tool a use case
+// declares machine-readably. UC38 runs two: its own whatLong says the agent
+// "calls get_loyalty_status to check the miles balance and redeem_miles to
+// upgrade the cabin". Only redeem_miles is declared, so get_loyalty_status was
+// invisible to the gate and stayed intent-unreachable after the first pass --
+// found live, not by any test.
+//
+// This list is hand-written BECAUSE nothing declares secondary tools; that is
+// the actual gap, recorded in TECH_DEBT. Until a use case can declare them, a
+// short explicit list beats no coverage. Keep it small: add an entry only for a
+// tool a use case's own text says it calls.
+describe('secondary tools named in a use case are reachable too', () => {
+  const SECONDARY = [['UC38', 'airlines', 'get_loyalty_status']];
+
+  it.each(SECONDARY)('%s (%s) can reach %s', (_uc, vertical, tool) => {
+    expect(permittedToolsForIntent(tool, vertical)).toContain(tool);
+  });
+
+  // Least privilege, same rule as every other entry in this file.
+  it.each(SECONDARY)('%s (%s): %s grants exactly itself', (_uc, _vertical, tool) => {
+    expect(INTENT_TO_PERMITTED_TOOLS[tool]).toEqual([tool]);
+  });
+
+  // The claim above is that the use case's own text names the tool. If someone
+  // rewrites UC38 so it no longer does, this entry needs rejustifying.
+  it('UC38 still names get_loyalty_status in its own description', () => {
+    const uc38 = USE_CASES.find((u) => u.id === 'UC38');
+    expect(uc38).toBeDefined();
+    expect(`${uc38.whatLong || ''} ${uc38.what || ''}`).toContain('get_loyalty_status');
+  });
+});
