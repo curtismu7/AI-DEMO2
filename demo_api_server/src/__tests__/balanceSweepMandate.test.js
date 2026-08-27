@@ -50,8 +50,14 @@ function load() {
   return { configStore, runBalanceSweep, authorizeUnattendedTransfer };
 }
 
+// Credentials are always present: these tests are about the mandate, and an
+// unprovisioned agent now refuses before the policy is ever consulted.
+const AGENT_CREDS = {
+  pingone_balance_sweep_agent_client_id: 'bs-client',
+  pingone_balance_sweep_agent_client_secret: 'shh',
+};
 const withConfig = (configStore, map = {}) =>
-  configStore.getEffective.mockImplementation((k) => map[k]);
+  configStore.getEffective.mockImplementation((k) => ({ ...AGENT_CREDS, ...map })[k]);
 
 function deps(httpClient, over = {}) {
   return {

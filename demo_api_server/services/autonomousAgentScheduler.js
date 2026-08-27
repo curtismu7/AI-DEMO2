@@ -40,8 +40,79 @@ const JOBS = {
   },
 };
 
+// ── Arming expiry (dead-man switch) ─────────────────────────────────────────
+// The feature switches itself OFF an hour after it was armed. Autonomous agents
+// are the one thing here that acts with nobody watching, so "somebody turned it
+// on to show it and walked away" must not leave crons firing indefinitely. It
+// must be re-armed deliberately, not merely not-turned-off.
+//
+// isEnabled() enforces the deadline on its own — even if the sweep never runs,
+// an expired arm cannot start a job. The sweep exists to make the UI agree with
+// reality and to stamp a flag that was flipped somewhere other than this
+// feature's own route.
+const ARMED_AT_KEY = 'AUTONOMOUS_AGENTS_ARMED_AT';
+const ARM_TTL_MS = 60 * 60 * 1000; // 1 hour
+const ARM_SWEEP_MS = 60 * 1000;
+
+function _armedAt() {
+  const raw = Number(configStore.getEffective(ARMED_AT_KEY));
+  return Number.isFinite(raw) && raw > 0 ? raw : null;
+}
+
+/** Has the arming window elapsed? Unstamped is NOT expired — see armSweep. */
+function isArmExpired(now = Date.now()) {
+  const armedAt = _armedAt();
+  return armedAt !== null && now - armedAt > ARM_TTL_MS;
+}
+
+/** Record the moment the feature was armed. Called when it is switched on. */
+async function markArmed(now = Date.now()) {
+  await configStore.setRaw({ [ARMED_AT_KEY]: String(now) });
+}
+
+/** Switch the feature off and clear the arm stamp. */
+async function disarm(reason = 'arming window elapsed') {
+  await configStore.setRaw({ ff_autonomous_agents: 'false', [ARMED_AT_KEY]: '' });
+  console.log(`[autonomous-scheduler] disarmed — ${reason}`);
+}
+
 function isEnabled() {
-  return configStore.getEffective('ff_autonomous_agents') === 'true';
+  if (configStore.getEffective('ff_autonomous_agents') !== 'true') return false;
+  // An expired arm is off, whatever the flag says. This is the enforcement
+  // point; the sweep is only housekeeping.
+  return !isArmExpired();
+}
+
+/**
+ * Periodic housekeeping for the arming window:
+ *   - flag on with no stamp (someone flipped it via the admin flags UI, which
+ *     knows nothing about arming) → stamp it now, starting the clock. Without
+ *     this, that path would arm the feature forever.
+ *   - stamp past the deadline → switch the flag off so the UI stops claiming
+ *     the feature is on, and cancel the live crons.
+ */
+function startArmSweep({ intervalMs = ARM_SWEEP_MS } = {}) {
+  const timer = setInterval(async () => {
+    try {
+      const flagOn = configStore.getEffective('ff_autonomous_agents') === 'true';
+      if (!flagOn) return;
+      if (_armedAt() === null) {
+        await markArmed();
+        console.log('[autonomous-scheduler] armed flag had no timestamp — clock started now');
+        return;
+      }
+      if (isArmExpired()) {
+        // Cancel the crons, but do NOT revoke: re-arming must bring the jobs
+        // back without anyone having to un-revoke them first.
+        _stopTasks();
+        await disarm();
+      }
+    } catch (err) {
+      console.warn('[autonomous-scheduler] arm sweep failed:', err.message);
+    }
+  }, intervalMs);
+  if (timer.unref) timer.unref();
+  return timer;
 }
 
 // ── Revocation ──────────────────────────────────────────────────────────────
@@ -81,21 +152,37 @@ async function _persistRevoked(set) {
  * @param {object} opts - agent: scope-topology apps{} key; omit for all
  * @returns {Promise<{stopped: string[], agents: string[]}>}
  */
+/**
+ * Stop live cron handles WITHOUT recording a revocation.
+ *
+ * Disarming and revoking are different things: an expired arming window means
+ * "stop until somebody re-arms", while a kill means "this agent does not run
+ * again until explicitly un-revoked". Routing disarm through stopSchedules()
+ * would persist a revocation that survives re-arming, and the feature would
+ * look broken the next time somebody switched it on.
+ */
+function _stopTasks({ agent } = {}) {
+  const stopped = [];
+  for (const [job, def] of Object.entries(JOBS)) {
+    if (agent && def.agent !== agent) continue;
+    const task = _tasks.get(job);
+    if (!task) continue;
+    try { task.stop(); } catch (err) {
+      console.warn(`[autonomous-scheduler] could not stop ${job}: ${err.message}`);
+    }
+    _tasks.delete(job);
+    stopped.push(job);
+  }
+  return stopped;
+}
+
 async function stopSchedules({ agent } = {}) {
   const revoked = _revokedSet();
-  const stopped = [];
+  const stopped = _stopTasks({ agent });
   const agents = [];
 
   for (const [job, def] of Object.entries(JOBS)) {
     if (agent && def.agent !== agent) continue;
-    const task = _tasks.get(job);
-    if (task) {
-      try { task.stop(); } catch (err) {
-        console.warn(`[autonomous-scheduler] could not stop ${job}: ${err.message}`);
-      }
-      _tasks.delete(job);
-      stopped.push(job);
-    }
     revoked.add(def.agent);
     agents.push(def.agent);
   }
@@ -178,6 +265,10 @@ async function runJobNow({ trigger = 'manual', job = 'fraud-watch' } = {}) {
     ...(result.threshold !== undefined ? { threshold: result.threshold } : {}),
     ...(result.floor !== undefined ? { floor: result.floor } : {}),
     ...(result.mandate ? { mandate: result.mandate } : {}),
+    // Which client actually authenticated, and whether that was the agent's own
+    // registration. Persisted so a stored run cannot later be read as proof of
+    // an identity it never used.
+    ...(result.identity ? { identity: result.identity } : {}),
     ...(result.proposal ? { proposal: result.proposal } : {}),
     ...(result.pending ? { pending: result.pending } : {}),
     ...(result.summary ? { summary: result.summary } : {}),
@@ -309,6 +400,12 @@ function startScheduler() {
 
 module.exports = {
   startScheduler,
+  startArmSweep,
+  markArmed,
+  disarm,
+  isArmExpired,
+  ARMED_AT_KEY,
+  ARM_TTL_MS,
   runJobNow,
   isEnabled,
   stopSchedules,

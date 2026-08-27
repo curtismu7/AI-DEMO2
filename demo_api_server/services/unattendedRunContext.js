@@ -41,21 +41,39 @@ function createUnattendedContext({ agent } = {}) {
      * Add the rail-shaped event for the agent's own token.
      *
      * The claims here are what make the run classify correctly downstream:
-     * `sub` is the agent, and there is deliberately no `act` claim and no
-     * user-token event, because nobody delegated this. deriveAgentClass() in
-     * the UI reads exactly that and renders "Autonomous".
+     * there is deliberately no `act` claim and no user-token event, because
+     * nobody delegated this. deriveAgentClass() reads exactly that and renders
+     * "Autonomous".
+     *
+     * `sub` shows ONLY what is really in the token, falling back to the OAuth
+     * client that obtained it — never to the agent's display name. A PingOne
+     * client_credentials token often carries no `sub` at all, and substituting
+     * a friendly name there made the rail display an identity the token did not
+     * contain: the trace asserting "Fraud Watch Agent acted" while the token
+     * had been issued to a shared client. On a demo whose whole claim is that
+     * the token proves who acted, that is the one direction it must not fail.
+     *
+     * @param {object} token   result of getAgentCCToken (carries claims + clientId)
+     * @param {object} opts    ownIdentity: false when the agent had to borrow a
+     *                         shared client because its own is unprovisioned
      */
-    recordAgentToken(token) {
+    recordAgentToken(token, { ownIdentity = true } = {}) {
       const claims = (token && token.claims) || {};
+      const actingClientId = (token && token.clientId) || null;
       tokenEvents.push({
         id: AGENT_TOKEN_EVENT_ID,
-        label: 'Agent Token (unattended)',
+        label: `Agent Token (unattended) — ${agent || 'agent'}`,
         timestamp: new Date().toISOString(),
+        // Surfaced alongside the claims, never inside them: this is what the
+        // demo INTENDED, and the claims are what actually happened.
+        declaredAgent: agent || null,
+        ownIdentity,
         claims: {
-          sub: claims.sub || agent || null,
+          sub: claims.sub || actingClientId || null,
           aud: claims.aud || null,
           scope: claims.scope || (token && token.scope) || null,
           iss: claims.iss || null,
+          client_id: actingClientId,
         },
       });
     },

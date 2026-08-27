@@ -15,7 +15,15 @@
  */
 
 jest.mock('../../services/configStore', () => ({ setRaw: jest.fn(async () => {}), getEffective: jest.fn() }));
-jest.mock('../../services/autonomousAgentScheduler', () => ({ isEnabled: jest.fn(), runJobNow: jest.fn() }));
+// markArmed/disarm are called by the route: turning the flag on starts the
+// one-hour arming clock, turning it off clears it.
+jest.mock('../../services/autonomousAgentScheduler', () => ({
+  isEnabled: jest.fn(),
+  runJobNow: jest.fn(),
+  markArmed: jest.fn(async () => {}),
+  disarm: jest.fn(async () => {}),
+  ARM_TTL_MS: 3600000,
+}));
 jest.mock('../../services/lmdb/autonomousRunStore.lmdb', () => ({ list: jest.fn(() => []), get: jest.fn(() => null) }));
 
 const express = require('express');
@@ -51,6 +59,18 @@ test('the flag can be turned on while the feature is off', async () => {
 
   expect(res.status).toBe(200);
   expect(configStore.setRaw).toHaveBeenCalledWith({ ff_autonomous_agents: 'true' });
+  // Switching it on must start the clock, or it stays armed indefinitely.
+  expect(scheduler.markArmed).toHaveBeenCalled();
+  expect(res.body.armExpiresInMs).toBe(3600000);
+});
+
+test('switching it off disarms rather than only clearing the flag', async () => {
+  const { app, scheduler } = harness();
+  scheduler.isEnabled.mockReturnValue(false);
+
+  await request(app).post('/api/autonomous-runs/flag').send({ enabled: false });
+
+  expect(scheduler.disarm).toHaveBeenCalled();
 });
 
 test('writes only ff_autonomous_agents, whatever else is sent', async () => {
