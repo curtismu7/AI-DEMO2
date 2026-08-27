@@ -588,6 +588,12 @@ export default function AdminSideNav({
           path: "/agent-flow-inspector",
           icon: "flw",
         },
+        {
+          // Public on purpose (auth-requirements.json) — no adminOnly here.
+          label: "Autonomous Agents",
+          path: "/autonomous-agents",
+          icon: "clk",
+        },
         { label: "LangChain Agent", path: "/langchain", icon: "agt" },
         {
           label: "Ungoverned Agent",

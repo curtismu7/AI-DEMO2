@@ -46,6 +46,7 @@ export const NAV_STRUCTURE_CATALOG = [
       "AI Control Plane",
       "PingOne Agent Builder",
       "Agent & Token Flow History",
+      "Autonomous Agents",
       "LangChain Agent",
       "Ungoverned Agent",
     ],
