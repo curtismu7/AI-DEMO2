@@ -70,7 +70,15 @@ let _entriesLoaded = 0;
 // explicit — a prefix match would let a hostile vault entry set LD_PRELOAD
 // (T-269-17). Add a name here only when a consumer genuinely cannot use
 // configStore.
-const ENV_EXPORT_ALLOWLIST = Object.freeze(['BFF_INTERNAL_SECRET']);
+// INTENT_TOKEN_SECRET added 2026-08-27. intentTokenService.getSigningKey()
+// reads process.env directly and cannot use configStore: it must resolve the
+// SAME bytes the gateways verify with, and configStore's env-first order lets a
+// stale .env copy shadow the vault. Because the loop below OVERWRITES
+// process.env, listing it here makes the VAULT the final answer for this key —
+// a diverged .env value can no longer decide what signs intent tokens.
+// getSigningKey() reads lazily, per the "read process.env lazily" note above,
+// so it sees the injected value rather than a require-time capture.
+const ENV_EXPORT_ALLOWLIST = Object.freeze(['BFF_INTERNAL_SECRET', 'INTENT_TOKEN_SECRET']);
 
 async function loadVaultIntoConfigStore(opts = {}) {
   // run-demo.sh exports VAULT_PATH="" (empty string) when the operator did not
@@ -272,6 +280,10 @@ function isVaultUnlockedThisProcess() { return _unlocked; }
 function vaultEntryCountThisProcess() { return _entriesLoaded; }
 
 module.exports = {
+  // Exported so the vault-wins guarantee is testable: a name dropped from this
+  // list silently returns that key to "whichever copy wins", which for
+  // INTENT_TOKEN_SECRET is an outage nothing reports.
+  ENV_EXPORT_ALLOWLIST,
   filterVaultForReconcile,
   loadVaultIntoConfigStore,
   unlockVaultAtRuntime,
