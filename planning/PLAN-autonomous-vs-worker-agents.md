@@ -84,7 +84,7 @@ Success: the run parks; approving on the phone resumes it; expiry cancels it and
 
 An autonomous agent has no session to end, so containment has to be explicit.
 
-- Mandate: what this agent may do unattended, expressed as the scopes it can get and a ceiling (amount, count, window). The `agentRestrictions` tier (`read` / `write` / `none`) in `agentRestrictionsService.js` is already the right shape — extend it with the ceiling rather than inventing a second mechanism.
+- Mandate: **done in Phase 3, and not where this line expected.** `agentRestrictions` derives a read/write tier from tool risk and holds no number, so there was nothing to extend. The ceiling is declared on the agent's `scope-topology.json` entry and *enforced by the policy engine* (decision rule 0m + its cloud twin), not by the job that wants to spend. `agentMandate.js` only resolves what gets sent.
 - Revocation: the existing kill switch + `agentLifecycleEvents` (joiner/mover/leaver, SailPoint forwarder) already covers "disable this agent". For an autonomous agent it must also cancel the schedule, not just deny the next tool call.
 - Design reference already in repo: `docs/superpowers/specs/2026-06-27-agent-access-revocation-design.md`.
 
