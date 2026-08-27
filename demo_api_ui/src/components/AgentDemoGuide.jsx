@@ -1055,12 +1055,12 @@ export const DEMO_SCENARIOS = [
   {
     id: "security-demo-closer",
     title: "Close — Kill Switch (~1.5 min)",
-    description: "Navigate to AI Control Plane and revoke the agent instance. The forced logout IS the payoff.",
+    description: "Navigate to Agent Kill Switch and revoke the agent instance. The forced logout IS the payoff.",
     applicableSteps: [],
     steps: [
       {
-        action: "Navigate to AI Control Plane",
-        prompt: "Left nav: AI Control Plane",
+        action: "Navigate to Agent Kill Switch",
+        prompt: "Left nav: Agent Kill Switch",
         explanation:
           "Use Instance scope (the default) — it self-recovers and is safe for the shared env. Do NOT use 'full' scope (disables the PingOne app for every user). Do NOT re-run a step afterward.",
         watch: [

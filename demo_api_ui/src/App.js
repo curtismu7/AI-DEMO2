@@ -138,6 +138,7 @@ import { useOAuthUrlCleanup } from "./hooks/useOAuthUrlCleanup";
 import { useServerHealthCheck } from "./hooks/useServerHealthCheck";
 import AdminThemesPage from "./pages/AdminThemesPage";
 import AiControlPlanePage from "./pages/AiControlPlanePage";
+import ControlPlanePage from "./pages/ControlPlanePage";
 import AgentRegistryPage from "./pages/AgentRegistryPage";
 import CheckPage from "./pages/CheckPage";
 import TracingPage from "./pages/TracingPage";
@@ -827,6 +828,22 @@ function AppWithAuth() {
                 <Route
                   path="/reports"
                   element={<ReportsPageRoute user={user} logout={logout} />}
+                />
+                {/* Agentic Control Plane — the five zones, any logged-in user. */}
+                <Route
+                  path="/control-plane"
+                  element={
+                    loading ? null : user ? (
+                      <>
+                        <TopNav user={user} onLogout={logout} />
+                        <main className="main-content">
+                          <ControlPlanePage />
+                        </main>
+                      </>
+                    ) : (
+                      <SignInRequired />
+                    )
+                  }
                 />
                 {/* AI Control Plane — any logged-in user (not admin-only) */}
                 <Route

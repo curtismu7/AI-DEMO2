@@ -163,7 +163,7 @@ const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "local.ping-devops.co
 const AUTO_EXPAND_SECTIONS = [
   { id: "customer-demos", paths: ["/agent-lifecycle"] },
   { id: "demos", paths: ["/delegated-commerce", "/use-cases", "/use-cases/live", "/demo-track", "/group-policy", "/demo-config", "/delegation", "/delegation-chain-value"] },
-  { id: "ai-agents", paths: ["/ai-control-plane", "/agent-registry", "/agent", "/agent-builder", "/agent-flow-inspector", "/langchain", "/ungoverned-agent", "/servers"] },
+  { id: "ai-agents", paths: ["/ai-control-plane", "/control-plane", "/agent-registry", "/agent", "/agent-builder", "/agent-flow-inspector", "/langchain", "/ungoverned-agent", "/servers"] },
   { id: "pingone-mcp", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/privilege-mcp-client", "/privilege-mcp-learning"] },
   { id: "banking-mcp", paths: ["/webmcp", "/ping-ai-test-lab"] },
   { id: "banking-mcp-gateways", paths: ["/agent-gateway-inspector", "/pinggateway-test", "/mcp-traffic", "/token-security", "/agent-gateway-capabilities"] },
@@ -547,10 +547,17 @@ export default function AdminSideNav({
       icon: "agt",
       children: [
         {
-          label: "AI Control Plane",
-          path: "/ai-control-plane",
+          label: "Agentic Control Plane",
+          path: "/control-plane",
           icon: "sec",
           highlight: true,
+        },
+        {
+          // Renamed: this is the kill-switch roster, reachable from the
+          // Governance zone. It never was the control plane.
+          label: "Agent Kill Switch",
+          path: "/ai-control-plane",
+          icon: "sec",
           introGate: true,
         },
         {

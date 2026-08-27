@@ -167,6 +167,27 @@ function provisionedResourceName(resourceName) {
   return (p && p.resourceNames && p.resourceNames[resourceName]) || resourceName;
 }
 
+/**
+ * Topology name for a provisioned PingOne app display name — the reverse of
+ * provisioning.appNames, e.g. "Demo AI App - Investment Advisor Agent" ->
+ * "Super Banking Investment Advisor Agent". Falls back to the input when there
+ * is no mapping, so a caller already holding a topology name is unaffected.
+ *
+ * The app-side mirror of provisionedResourceName(). Without it a caller holding
+ * a PingOne name reaches appGrantedScopes() with a key the manifest does not
+ * have and silently gets [] — indistinguishable from "this app declares no
+ * scopes", which is what made every identity in the agent registry read as
+ * unverified while 12 of 13 had a declared expectation.
+ */
+function topologyAppName(appName) {
+  if (!appName) return appName;
+  const names = (load().provisioning || {}).appNames || {};
+  for (const [logical, provisioned] of Object.entries(names)) {
+    if (provisioned === appName) return logical;
+  }
+  return appName;
+}
+
 // Canonical PingOne resource-server audiences, keyed by role. The single source
 // of truth for these hostnames is the resources[].uri fields in
 // scope-topology.json. Identity-format / delegation / RFC 9728 services derive
@@ -276,6 +297,7 @@ module.exports = {
   resourceMirroredScopes,
   resourceUri,
   provisionedResourceName,
+  topologyAppName,
   audiences,
   appEntry,
   serverEntry,

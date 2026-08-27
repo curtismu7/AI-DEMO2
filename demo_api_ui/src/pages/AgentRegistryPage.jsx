@@ -73,7 +73,8 @@ export default function AgentRegistryPage() {
   }, [filtered]);
 
   const selected = rows.find((r) => r.id === selectedId) || null;
-  const driftCount = rows.filter((r) => r.scopeDrift).length;
+  const driftCount = rows.filter((r) => r.scopeStatus === 'drift').length;
+  const unverifiedCount = rows.filter((r) => r.scopeStatus === 'unverified').length;
 
   // A source that is down is reported, never hidden — a blank section would
   // read as "no such identities" rather than "we could not ask".
@@ -104,7 +105,7 @@ export default function AgentRegistryPage() {
                 key={r.id}
                 label={r.name || r.id}
                 active={r.id === selectedId}
-                badges={r.scopeDrift ? ['sensitive'] : []}
+                badges={r.scopeStatus === 'drift' ? ['sensitive'] : []}
                 onClick={() => setSelectedId(r.id)}
               />
             ))}
@@ -158,13 +159,20 @@ export default function AgentRegistryPage() {
 
         {selected && tab === 'scopes' && (
           <div>
-            {selected.scopeDrift ? (
+            {selected.scopeStatus === 'drift' && (
               <p className="inspector-shell-form-error">
                 ⚠️ Scope drift — granted does not match what scope-topology declares.
                 Missing: {(selected.missingScopes || []).join(', ')}
               </p>
-            ) : (
+            )}
+            {selected.scopeStatus === 'match' && (
               <p>✅ Granted scopes match the topology declaration.</p>
+            )}
+            {selected.scopeStatus === 'unverified' && (
+              <p>
+                Not verified — scope-topology declares no expectation for this identity,
+                so there was nothing to compare against. This is not the same as a clean result.
+              </p>
             )}
             <div className="inspector-shell-field">
               <label>Granted</label>
@@ -172,7 +180,7 @@ export default function AgentRegistryPage() {
             </div>
             <div className="inspector-shell-field">
               <label>Expected (scope-topology)</label>
-              <div>{(selected.expectedScopes || []).join(', ') || '—'}</div>
+              <div>{(selected.expectedScopes || []).join(', ') || 'none declared'}</div>
             </div>
           </div>
         )}
@@ -206,7 +214,7 @@ export default function AgentRegistryPage() {
       statusText={
         error ? 'registry unavailable'
           : loading ? 'loading'
-          : `${rows.length} identities · ${driftCount} with scope drift`
+          : `${rows.length} identities · ${driftCount} with scope drift · ${unverifiedCount} unverified`
       }
       banner={banner}
       actions={
