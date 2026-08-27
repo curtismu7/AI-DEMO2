@@ -17,12 +17,12 @@ const PAYLOAD = {
       id: 'app-1', name: 'Super Banking AI Agent', identityType: 'agent', source: 'pingone',
       credentialType: 'AUTHORIZATION_CODE', status: 'active',
       grantedScopes: ['agent:invoke'], expectedScopes: ['agent:invoke', 'admin:read'],
-      missingScopes: ['admin:read'], scopeDrift: true, lifecycle: [],
+      missingScopes: ['admin:read'], scopeStatus: 'drift', lifecycle: [],
     },
     {
       id: 'mcp-client-abc', name: 'Batch job', identityType: 'workload', source: 'demo-registry',
       credentialType: 'client_credentials', status: 'active',
-      grantedScopes: ['read'], expectedScopes: [], missingScopes: [], scopeDrift: false,
+      grantedScopes: ['read'], expectedScopes: [], missingScopes: [], scopeStatus: 'unverified',
       lifecycle: [],
     },
   ],
@@ -48,6 +48,16 @@ describe('AgentRegistryPage', () => {
     render(<AgentRegistryPage />);
 
     await waitFor(() => expect(screen.getByText(/1 with scope drift/)).toBeTruthy());
+  });
+
+  it('distinguishes unverified from clean', async () => {
+    apiClient.get.mockResolvedValue({ data: PAYLOAD });
+    render(<AgentRegistryPage />);
+
+    // 1 row drifts; the other was never compared, so it must NOT be counted
+    // as clean and must NOT be counted as drift.
+    await waitFor(() => expect(screen.getByText(/1 with scope drift/)).toBeInTheDocument());
+    expect(screen.getByText(/1 unverified/)).toBeInTheDocument();
   });
 
   // The reason the API degrades per source at all: a dead PingOne must not read

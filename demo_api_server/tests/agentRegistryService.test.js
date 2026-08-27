@@ -195,17 +195,31 @@ describe('agentRegistryService.buildRegistry', () => {
     const out = await registry.buildRegistry();
 
     const row = out.rows.find((r) => r.id === 'app-1');
-    expect(row.scopeDrift).toBe(true);
+    expect(row.scopeStatus).toBe('drift');
     expect(row.missingScopes).toEqual(['admin:read']);
   });
 
-  test('reports no drift when granted matches expected', async () => {
+  test('reports match when granted covers everything expected', async () => {
     scopeTopology.appGrantedScopes.mockReturnValue(['agent:invoke']);
 
     const out = await registry.buildRegistry();
     const row = out.rows.find((r) => r.id === 'app-1');
-    expect(row.scopeDrift).toBe(false);
+    expect(row.scopeStatus).toBe('match');
     expect(row.missingScopes).toEqual([]);
+  });
+
+  test('reports unverified when there was no expectation to compare against', async () => {
+    // The bug this replaces: an empty expectation produced scopeDrift:false,
+    // which is indistinguishable from a real match. All 12 a2a rows are this
+    // case, and every one of them read as verified-clean.
+    scopeTopology.appGrantedScopes.mockReturnValue([]);
+
+    const out = await registry.buildRegistry();
+
+    expect(out.rows.find((r) => r.id === 'app-1').scopeStatus).toBe('unverified');
+    // Sources that never had an expectation report the same, not 'match'.
+    expect(out.rows.find((r) => r.source === 'a2a').scopeStatus).toBe('unverified');
+    expect(out.rows.every((r) => r.scopeDrift === undefined)).toBe(true);
   });
 
   test('degrades per source: PingOne down still returns the other rows', async () => {

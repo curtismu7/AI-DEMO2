@@ -47,17 +47,28 @@ function lifecycleFor(agentId) {
 /**
  * Expected scopes come from scope-topology.json (the SSOT); granted scopes come
  * from the live PingOne grants. The gap between them is the governance signal.
+ *
+ * Three outcomes, not two. An EMPTY expectation is not a match — it means the
+ * comparison never happened. Collapsing those two into `scopeDrift: false` made
+ * all 12 A2A rows read as verified-clean when nothing had been compared.
  */
-function scopeDriftFor(appName, grantedScopes) {
+function scopeStatusFor(appName, grantedScopes) {
   let expected = [];
   try {
     expected = scopeTopology.appGrantedScopes(appName) || [];
   } catch {
     expected = [];
   }
+  if (expected.length === 0) {
+    return { expectedScopes: [], missingScopes: [], scopeStatus: 'unverified' };
+  }
   const granted = new Set(grantedScopes);
   const missing = expected.filter((s) => !granted.has(s));
-  return { expectedScopes: expected, missingScopes: missing, scopeDrift: missing.length > 0 };
+  return {
+    expectedScopes: expected,
+    missingScopes: missing,
+    scopeStatus: missing.length > 0 ? 'drift' : 'match',
+  };
 }
 
 /** PingOne applications — the authoritative agent inventory. */
@@ -80,7 +91,7 @@ async function pingOneAgents() {
       status: app.enabled ? 'active' : 'disabled',
       builderCreated: !!app.builderCreated,
       grantedScopes: granted,
-      ...scopeDriftFor(app.name, granted),
+      ...scopeStatusFor(app.name, granted),
       lifecycle: lifecycleFor(app.id),
     };
   }));
@@ -104,9 +115,7 @@ function demoRegistryClients() {
     grantedScopes: typeof c.scope === 'string' ? c.scope.split(/\s+/).filter(Boolean) : [],
     expectedScopes: [],
     missingScopes: [],
-    // Not in scope-topology — these are issued at runtime, so there is no
-    // declared expectation to drift from.
-    scopeDrift: false,
+    scopeStatus: 'unverified',
     lastUsed: c.last_used || null,
     usageCount: c.usage_count || 0,
     lifecycle: lifecycleFor(c.client_id),
@@ -139,7 +148,7 @@ function a2aSpecialists() {
       grantedScopes: [],
       expectedScopes: [],
       missingScopes: [],
-      scopeDrift: false,
+      scopeStatus: 'unverified',
       lifecycle: [],
     }));
 }
@@ -177,7 +186,7 @@ function runtimeAgents(req) {
         grantedScopes: [],
         expectedScopes: [],
         missingScopes: [],
-        scopeDrift: false,
+        scopeStatus: 'unverified',
         lifecycle: lifecycleFor(a.id),
       });
     }
@@ -197,7 +206,7 @@ function runtimeAgents(req) {
       grantedScopes: [],
       expectedScopes: [],
       missingScopes: [],
-      scopeDrift: false,
+      scopeStatus: 'unverified',
       lifecycle: history,
     });
   }
