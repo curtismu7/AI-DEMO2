@@ -15,6 +15,38 @@ import './ControlPlanePage.css';
 const SEVERITY_ORDER = { critical: 0, advisory: 1, structural: 2 };
 const SEVERITY_LABEL = { critical: 'critical', advisory: 'advisory', structural: 'structural' };
 
+// A finding's domain routes to the page where it is actionable. A domain with
+// no mapping renders no action rather than a dead link.
+const DOMAIN_ROUTE = {
+  governance: { label: 'Kill-switch roster', href: '/ai-control-plane' },
+  registry: { label: 'Open registry', href: '/agent-registry' },
+  discovery: { label: 'Platform gaps', href: '/platform-gaps' },
+  observability: { label: 'Grafana', href: '/grafana' },
+};
+
+// Compact, readable evidence — not a JSON dump. Arrays join and truncate so a
+// long list can't flood the row.
+function formatEvidence(evidence) {
+  const entries = Object.entries(evidence || {}).filter(([, v]) => v !== null && v !== undefined && v !== '');
+  if (entries.length === 0) return null;
+  return entries.map(([k, v]) => {
+    if (Array.isArray(v)) {
+      const shown = v.slice(0, 5).join(', ');
+      return `${k}: ${shown}${v.length > 5 ? `, +${v.length - 5} more` : ''}`;
+    }
+    return `${k}: ${v}`;
+  }).join(' · ');
+}
+
+// A zone's dot reflects what its source actually reported, never a hardcoded
+// "everything is fine". `down` is the only state that changes the color —
+// `structural`/`not-wired` read as the existing neutral gap dot.
+function dotClass(state) {
+  if (state === 'down') return 'cp-dot--crit';
+  if (state === 'structural' || state === 'not-wired') return 'cp-dot--gap';
+  return 'cp-dot--ok';
+}
+
 export default function ControlPlanePage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -55,10 +87,15 @@ export default function ControlPlanePage() {
   const observability = zones.observability || { backends: [], links: [] };
   const enforcement = data?.enforcement || [];
 
-  const liveSourceCount = Object.values(data?.sources || {}).filter((s) => s.state === 'live').length;
+  const registrySourceCount = Object.keys(registry.bySource).length;
   const verifiedCount = Math.max(0, registry.total - registry.unverified);
   const critCount = findings.filter((f) => f.severity === 'critical').length;
   const advisoryCount = findings.filter((f) => f.severity === 'advisory').length;
+
+  const sources = data?.sources || {};
+  const catalogDown = sources.catalog?.state === 'down';
+  const registryDown = sources.registry?.state === 'down';
+  const governanceDown = sources.lifecycle?.state === 'down';
 
   if (loading && !data) {
     return <div className="cp-page cp-page--loading">Loading control plane…</div>;
@@ -80,6 +117,9 @@ export default function ControlPlanePage() {
           <span className="cp-brand__name">Agentic Control Plane</span>
           <span className="cp-brand__sub">Visibility across the agent landscape</span>
         </div>
+        <span className="cp-topbar__ts" data-testid="generated-at">
+          {data?.generatedAt ? `Generated ${new Date(data.generatedAt).toLocaleString()}` : ''}
+        </span>
         <button type="button" className="cp-btn" onClick={load} disabled={loading}>Refresh</button>
       </header>
 
@@ -104,6 +144,13 @@ export default function ControlPlanePage() {
         </button>
       </div>
 
+      {error && data && (
+        <p className="cp-banner" data-testid="refresh-error-banner">
+          ⚠️ Refresh failed — {error}. Showing the last successful load{data.generatedAt
+            ? ` (generated ${new Date(data.generatedAt).toLocaleString()})` : ''}.
+        </p>
+      )}
+
       {downSources.length > 0 && (
         <p className="cp-banner">
           ⚠️ {downSources.map((s) => `${s.name}: ${s.error || 'unavailable'}`).join(' · ')} — showing the rest.
@@ -121,8 +168,12 @@ export default function ControlPlanePage() {
           <section className="cp-kpis" aria-label="Summary">
             <div className="cp-kpi" data-testid="kpi-identities">
               <div className="cp-kpi__label">Identities</div>
-              <div className="cp-kpi__val">{registry.total}</div>
-              <div className="cp-kpi__note">across {liveSourceCount} live source{liveSourceCount === 1 ? '' : 's'}</div>
+              <div className="cp-kpi__val">{registryDown ? '—' : registry.total}</div>
+              <div className="cp-kpi__note">
+                {registryDown
+                  ? 'registry source is down — could not ask'
+                  : `across ${registrySourceCount} identity source${registrySourceCount === 1 ? '' : 's'}`}
+              </div>
             </div>
             <button
               type="button"
@@ -147,11 +198,13 @@ export default function ControlPlanePage() {
             </div>
             <div className="cp-kpi">
               <div className="cp-kpi__label">Lifecycle events</div>
-              <div className="cp-kpi__val">{governance.totalEvents}</div>
+              <div className="cp-kpi__val">{governanceDown ? '—' : governance.totalEvents}</div>
               <div className="cp-kpi__note">
-                {governance.recent && governance.recent.length > 0
-                  ? `most recent: ${governance.recent[0].eventType || governance.recent[0].timestamp || ''}`
-                  : 'none recorded'}
+                {governanceDown
+                  ? 'lifecycle source is down — could not ask'
+                  : governance.recent && governance.recent.length > 0
+                    ? `most recent: ${governance.recent[0].eventType || governance.recent[0].timestamp || ''}`
+                    : 'none recorded'}
               </div>
             </div>
           </section>
@@ -159,23 +212,31 @@ export default function ControlPlanePage() {
           <div className="cp-zones">
             <section className="cp-zone">
               <div className="cp-zone__head">
-                <span className="cp-dot cp-dot--ok" />
+                <span className={`cp-dot ${dotClass(catalogDown ? 'down' : 'live')}`} />
                 <span className="cp-zone__title">Agent / MCP Catalog</span>
-                <span className="cp-zone__count">{catalog.services} services</span>
+                {catalogDown
+                  ? <span className="cp-zone__count cp-zone__count--down">could not ask</span>
+                  : <span className="cp-zone__count">{catalog.services} services</span>}
               </div>
               <div className="cp-zone__body">
-                <div className="cp-stat">
-                  <span className="cp-stat__big">{catalog.mcpServers}</span>
-                  <span className="cp-stat__cap">MCP servers registered and probed live</span>
-                </div>
-                <ul className="cp-mini">
-                  {catalog.items.map((it) => (
-                    <li key={it.key}>
-                      <span className="cp-mini__name">{it.name}</span>
-                      <span className="cp-mini__meta">{it.lang}</span>
-                    </li>
-                  ))}
-                </ul>
+                {catalogDown ? (
+                  <p className="cp-stat__cap">Catalog source is down — could not ask.</p>
+                ) : (
+                  <>
+                    <div className="cp-stat">
+                      <span className="cp-stat__big">{catalog.mcpServers}</span>
+                      <span className="cp-stat__cap">MCP servers registered</span>
+                    </div>
+                    <ul className="cp-mini">
+                      {catalog.items.map((it) => (
+                        <li key={it.key}>
+                          <span className="cp-mini__name">{it.name}</span>
+                          <span className="cp-mini__meta">{it.lang}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
               </div>
               {catalog.links.length > 0 && (
                 <div className="cp-zone__foot">
@@ -188,9 +249,11 @@ export default function ControlPlanePage() {
 
             <section className="cp-zone cp-zone--wide">
               <div className="cp-zone__head">
-                <span className="cp-dot cp-dot--ok" />
+                <span className={`cp-dot ${dotClass(registryDown ? 'down' : 'live')}`} />
                 <span className="cp-zone__title">Agent Registry</span>
-                <span className="cp-zone__count">{registry.total} identities · {Object.keys(registry.bySource).length} sources</span>
+                {registryDown
+                  ? <span className="cp-zone__count cp-zone__count--down">could not ask</span>
+                  : <span className="cp-zone__count">{registry.total} identities · {registrySourceCount} sources</span>}
               </div>
               <div className="cp-zone__body">
                 <ul className="cp-legend">
@@ -206,7 +269,9 @@ export default function ControlPlanePage() {
                 {registry.links.map((l) => (
                   <a key={l.href} className="cp-link" href={l.href}>{l.label} →</a>
                 ))}
-                <span className="cp-foot-note">{registry.revoked} revoked · {registry.unverified} unverified</span>
+                <span className="cp-foot-note">
+                  {registryDown ? 'could not ask' : `${registry.revoked} revoked · ${registry.unverified} unverified`}
+                </span>
               </div>
             </section>
 
@@ -229,9 +294,11 @@ export default function ControlPlanePage() {
 
             <section className="cp-zone">
               <div className="cp-zone__head">
-                <span className="cp-dot cp-dot--warn" />
+                <span className={`cp-dot ${dotClass(governanceDown ? 'down' : 'live')}`} />
                 <span className="cp-zone__title">Agent Governance</span>
-                <span className="cp-zone__count">{governance.totalEvents} events</span>
+                {governanceDown
+                  ? <span className="cp-zone__count cp-zone__count--down">could not ask</span>
+                  : <span className="cp-zone__count">{governance.totalEvents} events</span>}
               </div>
               <div className="cp-zone__body">
                 <ul className="cp-legend">
@@ -286,7 +353,9 @@ export default function ControlPlanePage() {
                   <div className="cp-enforcement__name">{e.name}</div>
                   <div className="cp-enforcement__will">Will show: {e.willShow}</div>
                   <a className="cp-link" href={e.today}>Today →</a>
-                  <span className="cp-pill cp-pill--gap">not wired</span>
+                  <span className={`cp-pill ${e.state === 'not-wired' ? 'cp-pill--gap' : 'cp-pill--ok'}`}>
+                    {e.state === 'not-wired' ? 'not wired' : e.state}
+                  </span>
                 </div>
               ))}
             </div>
@@ -306,19 +375,29 @@ export default function ControlPlanePage() {
           </div>
 
           <section className="cp-queue" aria-label="Triage queue">
-            {findings.map((f) => (
-              <article key={f.id} className={`cp-item cp-item--${f.severity === 'critical' ? 'crit' : 'warn'}`}>
-                <div className="cp-item__stripe" />
-                <div className="cp-item__main">
-                  <div className="cp-item__top">
-                    <span className={`cp-pill cp-pill--${f.severity === 'critical' ? 'crit' : 'warn'}`}>{SEVERITY_LABEL[f.severity]}</span>
-                    <span className="cp-pill cp-pill--domain">{f.domain}</span>
-                    <span className="cp-item__title" data-testid="finding-title">{f.title}</span>
+            {findings.map((f) => {
+              const evidenceText = formatEvidence(f.evidence);
+              const action = DOMAIN_ROUTE[f.domain];
+              return (
+                <article key={f.id} className={`cp-item cp-item--${f.severity === 'critical' ? 'crit' : 'warn'}`}>
+                  <div className="cp-item__stripe" />
+                  <div className="cp-item__main">
+                    <div className="cp-item__top">
+                      <span className={`cp-pill cp-pill--${f.severity === 'critical' ? 'crit' : 'warn'}`}>{SEVERITY_LABEL[f.severity]}</span>
+                      <span className="cp-pill cp-pill--domain">{f.domain}</span>
+                      <span className="cp-item__title" data-testid="finding-title">{f.title}</span>
+                    </div>
+                    <p className="cp-item__body">{f.detail}</p>
+                    {evidenceText && <p className="cp-item__evidence" data-testid="finding-evidence">{evidenceText}</p>}
                   </div>
-                  <p className="cp-item__body">{f.detail}</p>
-                </div>
-              </article>
-            ))}
+                  {action && (
+                    <div className="cp-item__action">
+                      <a className="cp-link" href={action.href}>{action.label} →</a>
+                    </div>
+                  )}
+                </article>
+              );
+            })}
             {declared.map((d) => (
               <article key={d.id} className="cp-item cp-item--gap">
                 <div className="cp-item__stripe" />

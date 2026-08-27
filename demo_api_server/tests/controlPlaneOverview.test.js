@@ -86,3 +86,51 @@ test('never throws — the caller always gets a payload', async () => {
   const out = await overview.buildOverview({ session: {} });
   expect(out.generatedAt).toEqual(expect.any(String));
 });
+
+// Finding 7 — the Task 1 -> Task 3 seam: nothing previously asserted the
+// registry zone's aggregation, so reverting registryZone to the removed
+// scopeDrift field would stay green while the page silently reports 0
+// unverified. Pinned against the beforeEach fixture: 1 pingone row
+// (scopeStatus: 'match'), 1 a2a row (scopeStatus: 'unverified').
+test('registry zone aggregates bySource/unverified/drift/revoked from the rows', async () => {
+  const out = await overview.buildOverview({ session: {} });
+
+  expect(out.zones.registry).toMatchObject({
+    total: 2,
+    bySource: { pingone: 1, a2a: 1 },
+    byType: { agent: 2 },
+    revoked: 0,
+    drift: 0,
+    unverified: 1,
+  });
+});
+
+// Finding 7 — F-1 ruling: query() and summary() are folded into ONE
+// readSource call because they hit the same LMDB store, so one store outage
+// must produce exactly one source-down finding, not two for the same cause.
+test('a broken lifecycle store yields exactly one source-down finding', async () => {
+  agentLifecycleEvents.query.mockImplementation(() => { throw new Error('lmdb down'); });
+
+  const out = await overview.buildOverview({ session: {} });
+
+  const lifecycleFindings = out.findings.filter(
+    (f) => f.rule === 'source-down' && f.evidence.source === 'lifecycle',
+  );
+  expect(lifecycleFindings).toHaveLength(1);
+  expect(out.sources.registry.state).toBe('live');
+});
+
+// Finding 7 — governanceZone had no test at all.
+test('governance zone summarizes events and links to the kill-switch roster', async () => {
+  agentLifecycleEvents.query.mockReturnValue([
+    { eventType: 'leaver', timestamp: '2026-08-20T00:00:00.000Z', agentId: 'x' },
+  ]);
+  agentLifecycleEvents.summary.mockReturnValue({ totalEvents: 5, byEventType: { leaver: 3, mover: 2 } });
+
+  const out = await overview.buildOverview({ session: {} });
+
+  expect(out.zones.governance.totalEvents).toBe(5);
+  expect(out.zones.governance.byEventType).toEqual({ leaver: 3, mover: 2 });
+  expect(out.zones.governance.recent).toHaveLength(1);
+  expect(out.zones.governance.links).toEqual([{ label: 'Kill-switch roster', href: '/ai-control-plane' }]);
+});

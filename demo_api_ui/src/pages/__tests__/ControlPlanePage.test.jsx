@@ -112,4 +112,102 @@ describe('ControlPlanePage', () => {
     await waitFor(() => expect(screen.getByText(/nothing verified/i)).toBeInTheDocument());
     expect(screen.queryByText(/granted matches scope-topology/i)).not.toBeInTheDocument();
   });
+
+  // Finding 1 — the catalog is a static inventory, never probed. The caption
+  // must not claim otherwise.
+  it('does not claim MCP servers were probed live', async () => {
+    apiClient.get.mockResolvedValue({ data: PAYLOAD });
+    render(<ControlPlanePage />);
+
+    await waitFor(() => expect(screen.getByText(/MCP servers registered/)).toBeInTheDocument());
+    expect(screen.queryByText(/probed live/i)).not.toBeInTheDocument();
+  });
+
+  // Finding 2 — a down registry source must not render as a healthy zero.
+  it('does not render a confident zero when the registry source is down', async () => {
+    // Mirrors what buildOverview actually ships when registry fails: sources
+    // names the outage AND the zone falls back to its all-zero default.
+    apiClient.get.mockResolvedValue({
+      data: {
+        ...PAYLOAD,
+        sources: { ...PAYLOAD.sources, registry: { state: 'down', error: 'PingOne unreachable' } },
+        zones: { ...PAYLOAD.zones, registry: { total: 0, bySource: {}, byType: {}, revoked: 0, drift: 0, unverified: 0, links: [] } },
+      },
+    });
+    render(<ControlPlanePage />);
+
+    await waitFor(() => expect(screen.getAllByText(/could not ask/i).length).toBeGreaterThan(0));
+    expect(screen.getByTestId('kpi-identities')).not.toHaveTextContent('0');
+    expect(screen.getByTestId('kpi-identities')).toHaveTextContent(/could not ask/i);
+  });
+
+  // Finding 4 — findings must render evidence and a domain-routed action, not
+  // dead-end at title + detail.
+  it('renders finding evidence and a domain action', async () => {
+    apiClient.get.mockResolvedValue({ data: PAYLOAD });
+    render(<ControlPlanePage />);
+
+    await waitFor(() => expect(screen.getByRole('tab', { name: /Triage/ })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('tab', { name: /Triage/ }));
+
+    const evidence = await screen.findAllByTestId('finding-evidence');
+    expect(evidence[0]).toHaveTextContent(/agentId: default-agent/);
+    expect(evidence[0]).toHaveTextContent(/count: 4/);
+    // governance domain routes to the kill-switch roster
+    expect(screen.getByRole('link', { name: /Kill-switch roster/ })).toHaveAttribute('href', '/ai-control-plane');
+    // registry domain routes to the registry
+    expect(screen.getByRole('link', { name: /Open registry/ })).toHaveAttribute('href', '/agent-registry');
+  });
+
+  // Finding 6 — the Identities KPI note must describe identity sources, not
+  // every live subsystem (catalog/lifecycle included).
+  it('describes the Identities KPI note as identity sources', async () => {
+    apiClient.get.mockResolvedValue({ data: PAYLOAD });
+    render(<ControlPlanePage />);
+
+    // PAYLOAD.zones.registry.bySource has 3 keys; PAYLOAD.sources has 3 live-ish
+    // entries too, so a wrong implementation could coincidentally read '3' —
+    // assert the label names identity sources, not merely the number.
+    await waitFor(() => expect(screen.getByTestId('kpi-identities')).toHaveTextContent(/identity source/i));
+  });
+
+  // Finding 8 — a failed Refresh on an already-loaded page must surface a
+  // banner, not silently keep stale numbers under "cannot go stale" copy.
+  it('surfaces a non-fatal refresh failure without dropping the loaded data', async () => {
+    apiClient.get.mockResolvedValueOnce({ data: PAYLOAD });
+    render(<ControlPlanePage />);
+    await waitFor(() => expect(screen.getByTestId('kpi-identities')).toHaveTextContent('33'));
+
+    apiClient.get.mockRejectedValueOnce({ response: { data: { error: 'network_error' } } });
+    fireEvent.click(screen.getByRole('button', { name: /Refresh/ }));
+
+    await waitFor(() => expect(screen.getByTestId('refresh-error-banner')).toBeInTheDocument());
+    expect(screen.getByTestId('refresh-error-banner')).toHaveTextContent(/network_error/);
+    // stale data is still on screen, not blanked
+    expect(screen.getByTestId('kpi-identities')).toHaveTextContent('33');
+  });
+
+  // Finding 8 — generatedAt is in the payload and must be checkable on screen.
+  it('renders generatedAt in the topbar', async () => {
+    apiClient.get.mockResolvedValue({ data: PAYLOAD });
+    render(<ControlPlanePage />);
+
+    await waitFor(() => expect(screen.getByTestId('generated-at')).not.toHaveTextContent(''));
+  });
+
+  // Finding 8 — the enforcement pill must be driven by state, not hardcoded,
+  // so a Phase 2 card flipping to `live` reads correctly.
+  it('drives the enforcement pill from state instead of hardcoding "not wired"', async () => {
+    apiClient.get.mockResolvedValue({
+      data: { ...PAYLOAD, enforcement: [
+        { id: 'p1az', name: 'Fine-Grained Authorization', state: 'live',
+          willShow: 'P1AZ decisions per agent', today: '/pingone-authorize' },
+      ] },
+    });
+    render(<ControlPlanePage />);
+
+    await waitFor(() => expect(screen.getByText('Fine-Grained Authorization')).toBeInTheDocument());
+    expect(screen.getByText('live')).toBeInTheDocument();
+    expect(screen.queryByText(/not wired/i)).not.toBeInTheDocument();
+  });
 });
