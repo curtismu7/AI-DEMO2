@@ -116,7 +116,10 @@ services:
       - GF_AUTH_GENERIC_OAUTH_CLIENT_ID=${GRAFANA_PINGONE_CLIENT_ID:-48ed5e06-8ba2-428d-9c81-cf16eb57f7b4}
       - GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET=${GRAFANA_PINGONE_CLIENT_SECRET:-}
       - GF_AUTH_GENERIC_OAUTH_SCOPES=openid profile email
-      - GF_AUTH_GENERIC_OAUTH_AUTH_URL=https://auth.pingone.com/${PINGONE_ENVIRONMENT_ID:-01d89b06-66d5-430e-9f28-65636843788b}/as/authorize
+      # login_hint prefills the PingOne username box. Grafana has no setting for
+      # it, so it rides on the auth URL — its OAuth library sees the existing
+      # "?" and appends the rest with "&". Blank GRAFANA_LOGIN_HINT to drop it.
+      - GF_AUTH_GENERIC_OAUTH_AUTH_URL=https://auth.pingone.com/${PINGONE_ENVIRONMENT_ID:-01d89b06-66d5-430e-9f28-65636843788b}/as/authorize?login_hint=${GRAFANA_LOGIN_HINT:-demoUser}
       - GF_AUTH_GENERIC_OAUTH_TOKEN_URL=https://auth.pingone.com/${PINGONE_ENVIRONMENT_ID:-01d89b06-66d5-430e-9f28-65636843788b}/as/token
       - GF_AUTH_GENERIC_OAUTH_API_URL=https://auth.pingone.com/${PINGONE_ENVIRONMENT_ID:-01d89b06-66d5-430e-9f28-65636843788b}/as/userinfo
       # The app enforces PKCE S256; without this the code exchange is rejected.
