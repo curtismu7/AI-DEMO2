@@ -145,7 +145,7 @@ router.get('/config/status', (req, res) => {
       agent_modes: AGENT_MODES.map((m) => ({ id: m.id, label: m.label, external: m.external })),
     });
   } catch (err) {
-    console.error('[langchainConfig GET] Error:', err);
+    console.error('[langchainConfig GET] Error:', err?.stack || String(err));
     res.status(500).json({ error: 'Internal server error' });
   }
 });

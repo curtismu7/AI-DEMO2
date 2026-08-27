@@ -78,7 +78,7 @@ router.get('/status', async (req, res) => {
     res.json(status);
 
   } catch (error) {
-    console.error('Error getting migration status:', error);
+    console.error('Error getting migration status:', error?.stack || String(error));
     
     await writeExchangeEvent({
       timestamp: new Date().toISOString(),
@@ -117,7 +117,7 @@ router.get('/dashboard', requireAdminAccess, async (req, res) => {
     res.json(dashboard);
 
   } catch (error) {
-    console.error('Error getting migration dashboard:', error);
+    console.error('Error getting migration dashboard:', error?.stack || String(error));
     
     await writeExchangeEvent({
       timestamp: new Date().toISOString(),
@@ -168,7 +168,7 @@ router.post('/phase', requireAdminAccess, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error updating migration phase:', error);
+    console.error('Error updating migration phase:', error?.stack || String(error));
     
     await writeExchangeEvent({
       timestamp: new Date().toISOString(),
@@ -263,7 +263,7 @@ router.get('/guide', async (req, res) => {
     res.json(guide);
 
   } catch (error) {
-    console.error('Error getting migration guide:', error);
+    console.error('Error getting migration guide:', error?.stack || String(error));
     
     res.status(500).json({
       error: 'guide_error',
@@ -307,7 +307,7 @@ router.post('/validate', async (req, res) => {
     res.json(validationResult);
 
   } catch (error) {
-    console.error('Error validating OAuth setup:', error);
+    console.error('Error validating OAuth setup:', error?.stack || String(error));
     
     await writeExchangeEvent({
       timestamp: new Date().toISOString(),
@@ -344,7 +344,7 @@ router.get('/statistics', requireAdminAccess, async (req, res) => {
     res.json(statistics);
 
   } catch (error) {
-    console.error('Error getting migration statistics:', error);
+    console.error('Error getting migration statistics:', error?.stack || String(error));
     
     res.status(500).json({
       error: 'statistics_error',
@@ -386,7 +386,7 @@ router.post('/export', requireAdminAccess, async (req, res) => {
     res.send(exportData.data);
 
   } catch (error) {
-    console.error('Error exporting migration data:', error);
+    console.error('Error exporting migration data:', error?.stack || String(error));
     
     await writeExchangeEvent({
       timestamp: new Date().toISOString(),

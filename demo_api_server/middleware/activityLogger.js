@@ -155,11 +155,11 @@ const logActivity = (req, res, next) => {
 
       // Store the activity log (async, but don't wait for it)
       dataStore.createActivityLog(logEntry).catch(error => {
-        console.error('Error creating activity log:', error);
+        console.error('Error creating activity log:', error?.stack || String(error));
       });
 
     } catch (error) {
-      console.error('Error logging activity:', error);
+      console.error('Error logging activity:', error?.stack || String(error));
     }
 
     // Call original send method

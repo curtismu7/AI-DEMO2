@@ -128,7 +128,7 @@ async function refreshIfExpiring(req, res, next) {
       // re-authenticate mid-session.
       await new Promise((resolve) => {
         req.session.save((err) => {
-          if (err) console.error('[tokenRefresh] Session save error:', err);
+          if (err) console.error('[tokenRefresh] Session save error:', err?.stack || String(err));
           resolve();
         });
       });

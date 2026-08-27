@@ -101,7 +101,7 @@ router.get('/', authenticateToken, requireScopes(['read']), async (req, res) => 
     });
     res.json({ transactions: transactionsWithNames, total });
   } catch (error) {
-    console.error('Error getting transactions:', error);
+    console.error('Error getting transactions:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to get transactions' });
   }
 });
@@ -160,7 +160,7 @@ router.get('/my', authenticateToken, requireNotAdmin, async (req, res) => {
       count: transactionsWithUsername.length
     });
   } catch (error) {
-    console.error('Error getting user transactions:', error);
+    console.error('Error getting user transactions:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to get your transactions' });
   }
 });
@@ -314,7 +314,7 @@ router.post(
       // Express 4 does not catch async throws — without this the client hangs on
       // "Verifying…" forever (seen 2026-07-22 when getCanonicalPublicOrigin was
       // imported but not exported).
-      console.error('[ConsentChallenge] verify-otp failed:', err);
+      console.error('[ConsentChallenge] verify-otp failed:', err?.stack || String(err));
       if (!res.headersSent) {
         return res.status(500).json({
           error: 'verify_otp_failed',
@@ -410,7 +410,7 @@ router.get('/:id', authenticateToken, requireScopes(['read']), async (req, res) 
     
     res.json({ transaction });
   } catch (error) {
-    console.error('Error getting transaction:', error);
+    console.error('Error getting transaction:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to get transaction' });
   }
 });
@@ -929,7 +929,7 @@ router.post('/', authenticateToken, async (req, res) => {
       });
     }
   } catch (error) {
-    console.error('Error creating transaction:', error);
+    console.error('Error creating transaction:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to create transaction' });
   }
 });
@@ -948,7 +948,7 @@ router.put('/:id', blockInDemoMode('transaction update'), authenticateToken, req
     }
     res.json({ message: 'Transaction updated successfully', transaction });
   } catch (error) {
-    console.error('Error updating transaction:', error);
+    console.error('Error updating transaction:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to update transaction' });
   }
 });
@@ -967,7 +967,7 @@ router.delete('/:id', blockInDemoMode('transaction deletion'), authenticateToken
     }
     res.json({ message: 'Transaction deleted successfully' });
   } catch (error) {
-    console.error('Error deleting transaction:', error);
+    console.error('Error deleting transaction:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to delete transaction' });
   }
 });

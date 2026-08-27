@@ -50,7 +50,7 @@ router.post(
         description: transaction.description,
       });
     } catch (err) {
-      console.error('[demoAttackSeeds] seed-poisoned-transaction error:', err);
+      console.error('[demoAttackSeeds] seed-poisoned-transaction error:', err?.stack || String(err));
       return res.status(500).json({ error: 'internal_error', message: err.message });
     }
   }
@@ -94,7 +94,7 @@ router.post(
         notes: updated.notes,
       });
     } catch (err) {
-      console.error('[demoAttackSeeds] seed-poisoned-account-note error:', err);
+      console.error('[demoAttackSeeds] seed-poisoned-account-note error:', err?.stack || String(err));
       return res.status(500).json({ error: 'internal_error', message: err.message });
     }
   }

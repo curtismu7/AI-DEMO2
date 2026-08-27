@@ -72,7 +72,7 @@ function resourceValidationMiddleware(req, res, next) {
 
     next();
   } catch (error) {
-    console.error('Resource validation error:', error);
+    console.error('Resource validation error:', error?.stack || String(error));
     return res.status(500).json({
       error: 'resource_validation_failed',
       message: 'Resource validation failed'
@@ -147,7 +147,7 @@ function resourceScopeValidationMiddleware(req, res, next) {
 
     next();
   } catch (error) {
-    console.error('Resource scope validation error:', error);
+    console.error('Resource scope validation error:', error?.stack || String(error));
     return res.status(500).json({
       error: 'resource_scope_validation_failed',
       message: 'Resource scope validation failed'
@@ -189,7 +189,7 @@ function resourceAuditMiddleware(req, res, next) {
         req.auditService.logResourceAccess(auditEntry);
       }
     } catch (error) {
-      console.error('Resource audit logging error:', error);
+      console.error('Resource audit logging error:', error?.stack || String(error));
     }
   });
 

@@ -164,13 +164,13 @@ router.get('/login', (req, res) => {
     // so the state/verifier are persisted before PingOne sends the callback.
     req.session.save((err) => {
       if (err) {
-        console.error('[oauth] Session save error before redirect:', err);
+        console.error('[oauth] Session save error before redirect:', err?.stack || String(err));
         return res.status(500).json({ error: 'Failed to initiate OAuth login' });
       }
       res.redirect(authUrl);
     });
   } catch (error) {
-    console.error('OAuth login error:', error);
+    console.error('OAuth login error:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to initiate OAuth login' });
   }
 });
@@ -197,7 +197,7 @@ router.get('/callback', async (req, res) => {
 
     // Check for OAuth errors
     if (error) {
-      console.error('OAuth error:', error);
+      console.error('OAuth error:', error?.stack || String(error));
       logAppEvent('oauth', 'error', `OAuth callback error from PingOne: ${error}`,
         { tag: 'oauth/callback-error', metadata: { oauthError: error } });
       // Self-heal: if PingOne rejected the redirect_uri, patch it before next attempt.
@@ -455,7 +455,7 @@ router.get('/callback', async (req, res) => {
       });
     });
   } catch (error) {
-    console.error('OAuth callback error:', error);
+    console.error('OAuth callback error:', error?.stack || String(error));
     const detail = error.pingoneError || 'unknown';
     const desc   = error.pingoneDesc   || '';
     const query  = desc
@@ -487,7 +487,7 @@ router.get('/logout', async (req, res) => {
 
   req.session.destroy((err) => {
     if (err) {
-      console.error('Session destruction error:', err);
+      console.error('Session destruction error:', err?.stack || String(err));
     }
     if (logoutUserId) {
       posthog.capture({ distinctId: logoutUserId, event: 'user_logged_out' });
@@ -595,7 +595,7 @@ router.post('/refresh', async (req, res) => {
     // the session store (e.g. Redis timeout on a different Lambda/instance).
     return req.session.save((err) => {
       if (err) {
-        console.error('[admin refresh] Session save error:', err);
+        console.error('[admin refresh] Session save error:', err?.stack || String(err));
         return res.status(500).json({ error: 'session_persist_failed', message: 'Token refreshed but session save failed. Please retry.' });
       }
       return res.json({ success: true, expiresAt: req.session.oauthTokens.expiresAt });
