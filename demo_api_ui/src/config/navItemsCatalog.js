@@ -9,7 +9,7 @@ export const NAV_ITEM_CATALOG = [
   "Dashboard",
   "Themes",
   "Demos",
-  "AI Agents",
+  "AI Flows",
   "PingOne MCP",
   "MCP & Gateways",
   "PingOne Demo Apps",

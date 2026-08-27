@@ -484,37 +484,9 @@ export default function AdminSideNav({
     },
     { label: "Themes", path: "/themes", icon: "cfg" },
     {
-      // Customer-facing demo pages — visible to admins too ("there is no
-      // reason to hide on admin dashboard", 2026-08-10): the presenter drives
-      // these demos from an admin session. customerOnly was dropped from
-      // Agent Lifecycle when it moved here.
-      label: "Customer Demos",
-      icon: "demo",
-      children: [
-        {
-          label: "Agent Lifecycle (guided demo)",
-          path: "/agent-lifecycle",
-          icon: "agt",
-          adminOnly: true,
-        },
-        {
-          label: "Personal Agent",
-          path: "/personal-agent",
-          icon: "agt",
-          adminOnly: true,
-        },
-      ],
-    },
-    {
       label: "Demos",
       icon: "demo",
       children: [
-        {
-          label: "Delegated Commerce (guided demo)",
-          path: "/delegated-commerce",
-          icon: "agt",
-          adminOnly: true,
-        },
         {
           label: "Weather MCP",
           icon: "mcp",
@@ -557,7 +529,6 @@ export default function AdminSideNav({
           action: () => window.dispatchEvent(new CustomEvent("demo-script-toggle")),
         },
         { label: "Demo Config", path: "/demo-config", icon: "cfg", adminOnly: true },
-        { label: "Family Delegation", path: "/delegation", icon: "usr", adminOnly: true },
       ],
     },
     // Latest report — shown when agent run completes
@@ -572,7 +543,7 @@ export default function AdminSideNav({
         ]
       : []),
     {
-      label: "AI Agents",
+      label: "AI Flows",
       icon: "agt",
       children: [
         {
@@ -604,6 +575,25 @@ export default function AdminSideNav({
           path: "/autonomous-agents",
           icon: "clk",
         },
+        {
+          label: "Personal Agent",
+          path: "/personal-agent",
+          icon: "agt",
+          adminOnly: true,
+        },
+        {
+          label: "Agent Lifecycle (guided demo)",
+          path: "/agent-lifecycle",
+          icon: "agt",
+          adminOnly: true,
+        },
+        {
+          label: "Delegated Commerce (guided demo)",
+          path: "/delegated-commerce",
+          icon: "agt",
+          adminOnly: true,
+        },
+        { label: "Family Delegation", path: "/delegation", icon: "usr", adminOnly: true },
         { label: "LangChain Agent", path: "/langchain", icon: "agt" },
         {
           label: "Ungoverned Agent",
