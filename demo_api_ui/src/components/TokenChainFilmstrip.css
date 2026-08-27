@@ -588,6 +588,17 @@ body:has(.dashboard-content.ud-body.ud-focus-mode) .footer {
   grid-template-rows: auto;
   width: 100%;
   border-top: 1px solid var(--th-border, #e2e8f0);
+  /* Pinned to the bottom of the viewport. Unpinned, this wrapper is the last
+     child of a ~3500px dashboard, so the reel sat at y~2800 and was never on
+     screen in float or dock mode — the reason it read as "missing" while focus
+     mode (which gives it a grid row) showed it fine. Opaque background and
+     z-index because it now overlaps the content it used to sit below. */
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  max-height: 40vh;
+  overflow: auto;
+  background: var(--th-bg-page, #ffffff);
 }
 
 @media (max-width: 900px) {
