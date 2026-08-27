@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import AgentClientSkin from '../components/AgentClientSkin';
 import SecurityRail from '../components/SecurityRail';
+import TokenChainFilmstrip from '../components/TokenChainFilmstrip';
 import { useTokenChainOptional } from '../context/TokenChainContext';
 
 const SKINS = ['privilege', 'claude', 'claude-terminal', 'gpt', 'gemini'];
@@ -204,6 +205,12 @@ export default function PersonalAgentStudioPage() {
             onReplay={handleReplay}
           />
         )}
+      </div>
+
+      {/* Movie reel — same TokenChainFilmstrip the dashboard uses, so a personal
+          agent test shows the RFC 8693 delegation path it exercised. */}
+      <div className="tcfs-float-host" style={{ flexShrink: 0, maxHeight: '45%' }}>
+        <TokenChainFilmstrip />
       </div>
     </div>
   );
