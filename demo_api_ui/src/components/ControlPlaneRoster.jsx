@@ -11,7 +11,7 @@ const REVOKE_MS = 520;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const nowStamp = () => new Date().toLocaleTimeString();
 
-// AI Control Plane roster. Any logged-in user. The live row is the real agent
+// Agent Kill Switch roster. Any logged-in user. The live row is the real agent
 // (real PingOne revocation via the existing kill-switch endpoint); the other
 // rows are Ping-governed demo identities stopped via the control-plane API.
 export default function ControlPlaneRoster({ openKillSwitchModal }) {
@@ -187,7 +187,7 @@ export default function ControlPlaneRoster({ openKillSwitchModal }) {
 
       <div className="cp-head">
         <div className="cp-title">
-          Ping &mdash; AI Control Plane
+          Ping &mdash; Agent Kill Switch
           <small>ONE PLACE TO GOVERN AI ACROSS EVERY PLATFORM</small>
         </div>
         {user?.role === "admin" && (

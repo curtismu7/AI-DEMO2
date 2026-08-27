@@ -112,6 +112,7 @@
     "/agent-onboarding-flow-subway": "public",
     "/agentic-trust": "public",
     "/ai-control-plane": "user",
+    "/control-plane": "user",
     "/agent-registry": "user",
     "/api-traffic": "public",
     "/architecture/canvas": "public",

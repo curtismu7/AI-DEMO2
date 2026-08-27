@@ -576,10 +576,17 @@ export default function AdminSideNav({
       icon: "agt",
       children: [
         {
-          label: "AI Control Plane",
-          path: "/ai-control-plane",
+          label: "Agentic Control Plane",
+          path: "/control-plane",
           icon: "sec",
           highlight: true,
+        },
+        {
+          // Renamed: this is the kill-switch roster, reachable from the
+          // Governance zone. It never was the control plane.
+          label: "Agent Kill Switch",
+          path: "/ai-control-plane",
+          icon: "sec",
           introGate: true,
         },
         {

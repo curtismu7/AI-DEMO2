@@ -43,7 +43,8 @@ export const NAV_STRUCTURE_CATALOG = [
   {
     label: "AI Agents",
     children: [
-      "AI Control Plane",
+      "Agentic Control Plane",
+      "Agent Kill Switch",
       "Agent Registry",
       "PingOne Agent Builder",
       "Agent & Token Flow History",
