@@ -239,7 +239,7 @@ export function backendHttpMcpUrl(target: BackendTarget, config: GatewayConfig):
   if (target === 'jwtverifier') return config.mcpJwtVerifierHttpUrl;
   if (target === 'weather') return config.mcpWeatherHttpUrl;
   if (target === 'brave') return config.mcpBraveHttpUrl;
-  if (target === 'audit') return config.mcpAuditHttpUrl;
+  if (target === 'audit') return config.mcpAuditHttpUrl ?? 'http://localhost:8898';
   return '';
 }
 
