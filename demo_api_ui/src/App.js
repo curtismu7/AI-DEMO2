@@ -218,7 +218,6 @@ import { ProtocolPlaygroundPageRoute } from "./routes/ProtocolPlaygroundRoutes";
 import { monitorApiHealth } from "./services/bankingRestartNotificationService";
 import {
   isBankingAgentDashboardRoute,
-  isEmbeddedAgentDockRoute,
   isLiveWorkbenchRoute,
   isAgentLifecycleRoute,
   isEnterpriseMcpDemoRoute,
@@ -462,7 +461,6 @@ function AppWithAuth() {
 
   /** Floating agent: dashboard homes only. Embedded dock: those routes plus `/config` (setup-focused assistant). */
   const onDashboardAgentRoute = isBankingAgentDashboardRoute(pathname);
-  const onEmbeddedDockRoute = isEmbeddedAgentDockRoute(pathname);
 
   // Routes where UserDashboard is rendered (handles its own middle FAB + split layout and its own bottom dock).
   // Admin uses Dashboard.js on /admin — those routes need the global float/dock from App.
@@ -487,12 +485,6 @@ function AppWithAuth() {
   // Suppress float on signed-in / only when UserDashboard owns middle placement.
   const marketingAgentSurface = isPublicMarketingAgentPath(pathname) && !user;
 
-  // Landing /: always show float agent, never bottom dock.
-  // No Boolean(user) check — guests on /dashboard get the bottom dock agent
-  // (same reasoning as onMiddlePlacementInDashboard: guest must be able to start the demo).
-  const hasEmbeddedDockLayout =
-    agentPlacement === "bottom" && onEmbeddedDockRoute;
-
   const onMonitoringRoute = isMonitoringRoute(pathname);
 
   const agentDisabled = appFlags.agentUiMode === "disabled";
@@ -500,9 +492,6 @@ function AppWithAuth() {
   const showFloatingAgent =
     !agentDisabled &&
     !isApiTrafficOnlyPage &&
-    (!hasEmbeddedDockLayout ||
-      onMonitoringRoute ||
-      (Boolean(user) && agentFab && onDashboardAgentRoute)) &&
     (marketingAgentSurface ||
       (Boolean(user) && agentPlacement === "none") ||
       (Boolean(user) && onMonitoringRoute) ||
@@ -535,24 +524,18 @@ function AppWithAuth() {
    *  zero listeners. */
   const shouldMountSingleAgent =
     showFloatingAgent ||
-    hasEmbeddedDockLayout ||
     onMiddlePlacementInDashboard ||
     onLiveWorkbenchRoute ||
     onAgentLifecycleRoute ||
     onEnterpriseMcpDemoRoute;
 
-  // When the single agent is portaled into the bottom dock host it must wear
-  // the dock's inline chrome (no floating frame/drag), exactly as the old
-  // per-dock <AIAgent mode="inline" embeddedDockBottom> did. Float and
-  // all other surfaces keep the default floating chrome.
-  // clinicalSplit (set by TalkPane via AgentUiModeContext when ff_agent_clinical_split=on)
-  // takes precedence over hasEmbeddedDockLayout — it renders BankingAgent with
-  // splitColumnChrome so the existing .ba-mode-inline.ba-split-column styles apply.
+  // Inline chrome (no floating frame/drag) for the surfaces that host the agent
+  // in a column; float and everything else keep the default floating chrome.
+  // The bottom-dock branch that used to sit between these two went with the dock
+  // layout — see AgentUiModeContext for why 'bottom' no longer exists.
   let singleAgentSurfaceProps = {};
   if (clinicalSplit) {
     singleAgentSurfaceProps = { mode: "inline", splitColumnChrome: true };
-  } else if (hasEmbeddedDockLayout) {
-    singleAgentSurfaceProps = { mode: "inline", embeddedDockBottom: true, splitColumnChrome: true };
   } else if (onMiddlePlacementInDashboard) {
     // Middle column owns the agent surface — render inline so the floating
     // dock chrome doesn't appear inside the column. Same pattern as the
@@ -577,7 +560,7 @@ function AppWithAuth() {
           <ProofOfEnforcementProvider vertical={activeVerticalId || undefined} enabled={!!user}>
           <ActivityNarrativeProvider>
             <div
-              className={`App end-user-nano${isOnDashboard ? " App--on-dashboard" : ""}${hasEmbeddedDockLayout ? " App--has-embedded-dock" : ""}${sessionReauth ? " App--session-reauth" : ""}`}
+              className={`App end-user-nano${isOnDashboard ? " App--on-dashboard" : ""}${sessionReauth ? " App--session-reauth" : ""}`}
             >
               <OfflineBanner />
               <ToastContainer

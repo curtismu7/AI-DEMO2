@@ -94,16 +94,24 @@ describe("Focus Mode filmstrip guard", () => {
     const direct = p2026.match(/<TokenChainFilmstrip\s*\/>/g) || [];
     const docks = p2026.match(/<ReelDock\s*\/>/g) || [];
     expect(direct).toHaveLength(1);
-    expect(docks).toHaveLength(2);
+    expect(docks).toHaveLength(1);
     expect(p2026).toMatch(/\{showFilmstrip && <TokenChainFilmstrip\s*\/>\}/);
     const dockGuards = p2026.match(/\{showFilmstrip && <ReelDock\s*\/>\}/g) || [];
-    expect(dockGuards).toHaveLength(2);
+    expect(dockGuards).toHaveLength(1);
   });
 
-  test("bottom-dock layout renders the enabled reel below the dock", () => {
-    expect(p2026).toMatch(
-      /<EmbeddedAgentDock[\s\S]*?agentPlacement=\{agentPlacement\}[\s\S]*?\{showFilmstrip && <ReelDock\s*\/>\}/,
-    );
+  // The bottom-dock guard that sat here went with the dock layout itself. What
+  // replaces it is the assertion that the layout cannot come back by accident:
+  // two placements, and a persisted 'bottom' coerces rather than rendering a
+  // branch nobody maintains.
+  test("the dock layout is gone from the dashboard and the context", () => {
+    // Usage, not the word: two comments still mention EmbeddedAgentDock as the
+    // source of a drag-cleanup pattern, and that is fine.
+    expect(p2026).not.toMatch(/<EmbeddedAgentDock/);
+    expect(p2026).not.toContain('import EmbeddedAgentDock');
+    expect(p2026).not.toMatch(/agentPlacement === "bottom"/);
+    const ctx = read("../context/AgentUiModeContext.js");
+    expect(ctx).toMatch(/p === 'bottom' \|\| p === 'right-dock'/);
   });
 
   // The switch is only meaningful if turning it off removes the reel in the

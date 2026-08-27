@@ -38,7 +38,9 @@ const { mockCustomerDashboard } = require('./helpers/customerDashboardMocks');
 // The three layouts /dashboard can be in, read from localStorage by
 // AgentUiModeContext. All three must show the reel; #3 and #4 were each a bug in
 // exactly one of them, found only when someone happened to demo in that layout.
-const PLACEMENTS = ['middle', 'none', 'bottom'];
+// 'bottom' is not here because the dock layout is gone — AgentUiModeContext
+// coerces a persisted 'bottom' to 'middle', which the last case below proves.
+const PLACEMENTS = ['middle', 'none'];
 
 /**
  * The shared helper pins ff_customer_skin_ping2026 OFF (classic dashboard, which
@@ -159,5 +161,17 @@ test('the pinned reel collapses, comes back, and does not persist collapsed', as
   await expect(reel).toBeHidden();
   await page.reload();
   await expect(reel).toBeVisible({ timeout: 15000 });
+  await expect(reel).toBeInViewport();
+});
+
+// A browser that persisted the retired dock layout must not end up in a branch
+// nobody maintains — it lands in Focus Mode, reel and all.
+test('a persisted bottom-dock placement coerces to Focus Mode', async ({ page }) => {
+  await mockDashboardWithReel(page, 'bottom');
+  await page.goto('/dashboard');
+
+  await expect(page.locator('.user-dashboard--split3')).toBeVisible({ timeout: 15000 });
+  const reel = page.locator('.tcfs-chain');
+  await expect(reel).toBeVisible();
   await expect(reel).toBeInViewport();
 });
