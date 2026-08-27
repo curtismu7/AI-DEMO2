@@ -21,7 +21,7 @@ trap 'rm -rf "$STUB_DIR"' EXIT
 cat > "$STUB_DIR/kubectl" <<'STUB'
 #!/bin/bash
 echo "$*" >> "$KUBECTL_LOG"
-[ "$1 $2" = "config current-context" ] && echo us
+[ "$1 $2" = "config current-context" ] && echo "${FAKE_CONTEXT:-us}"
 exit 0
 STUB
 chmod +x "$STUB_DIR/kubectl"
@@ -93,6 +93,39 @@ check "run-pingaws.sh undeploy --yes forwards the override" "yes" "$(deleted)"
 : > "$KUBECTL_LOG"
 SE_NAMESPACE="$NS" "$BASEDIR/run-pingaws.sh" stop >/dev/null 2>&1
 check "run-pingaws.sh stop deletes nothing" "no" "$(deleted)"
+
+# 8. Nothing may delete a NAMESPACE on the shared cluster. se-undeploy never
+#    does — it deletes only what is inside one — but `destroy` does, and it is
+#    for the local cluster only. The danger is running it while pointed at the
+#    SE cluster, which is the normal state after any se-* command.
+namespace_deleted() { grep -q 'delete namespace' "$KUBECTL_LOG" && echo yes || echo no; }
+
+# Assert on the REFUSAL, not just on "no delete happened". With stdin closed,
+# destroy aborts at its `Type 'yes'` prompt anyway, so "nothing was deleted"
+# is true with or without the context guard and proves nothing. The guard is
+# only demonstrated by the refusal message and the non-zero exit.
+destroy_on() { # destroy_on <context> -> yes|no, did the context guard refuse?
+  : > "$KUBECTL_LOG"
+  local out
+  out=$(FAKE_CONTEXT="$1" bash "$BASEDIR/k8s/deploy.sh" destroy </dev/null 2>&1) || true
+  echo "$out" | grep -q 'Refusing: kubectl context' && echo yes || echo no
+}
+
+check "destroy refuses on the SE context" "yes" "$(destroy_on us)"
+check "destroy deletes no namespace on the SE context" "no" "$(namespace_deleted)"
+check "destroy refuses on the SE OIDC context" "yes" "$(destroy_on ping-dev-aws-us-east-2-oidc)"
+check "destroy refuses on an EKS context" "yes" "$(destroy_on my-eks-cluster)"
+
+# A local context must get PAST the guard, or this would also pass with destroy
+# broken outright. It then stops at the `Type 'yes'` prompt without deleting.
+check "destroy does not refuse on a local context" "no" "$(destroy_on orbstack)"
+check "destroy still deletes no namespace unconfirmed" "no" "$(namespace_deleted)"
+
+# se-undeploy must never issue a namespace delete, on any context.
+: > "$KUBECTL_LOG"
+SE_NAMESPACE="$NS" "$BASEDIR/run-k8.sh" se-undeploy --yes </dev/null >/dev/null 2>&1
+check "se-undeploy deletes resources" "yes" "$(deleted)"
+check "se-undeploy never deletes the namespace" "no" "$(namespace_deleted)"
 
 if [ "$FAIL" = 0 ]; then
   echo "PASS — se-undeploy guard and stop refusal hold"

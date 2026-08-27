@@ -588,7 +588,30 @@ stop_forward() {
 }
 
 destroy() {
+  # This is the ONLY command in the repo that deletes a namespace, and it is
+  # meant for the local cluster only. Nothing may delete a namespace on the
+  # shared SE cluster: those are cluster-managed, and getting one back needs a
+  # JIRA DEVHELP ticket. `se-undeploy` deliberately deletes only the resources
+  # INSIDE its namespace for the same reason.
+  #
+  # Guarded on the kubectl context rather than on $NS, because the danger is
+  # running this while pointed at the shared cluster — which is the normal
+  # state after any se-* command, since those switch the context to `us`.
+  local ctx
+  ctx="$(kubectl config current-context 2>/dev/null || true)"
+  case "$ctx" in
+    us|ping-dev-aws-us-east-2*|*eks*|*aws*)
+      demo_err "Refusing: kubectl context is '$ctx' — a shared/remote cluster."
+      demo_err "destroy deletes a whole namespace and is for the LOCAL cluster only."
+      demo_err "To clear the SE namespace without deleting it: ./run-pingaws.sh undeploy"
+      demo_err "If you really mean a local teardown, switch context first:"
+      demo_err "  kubectl config use-context orbstack   # or docker-desktop"
+      exit 1
+      ;;
+  esac
+
   warn "This will delete the entire $NS namespace and all resources."
+  warn "kubectl context: $ctx"
   read -r -p "Type 'yes' to confirm: " confirm
   [ "$confirm" = "yes" ] || { info "Aborted."; exit 0; }
   kubectl delete namespace "$NS"

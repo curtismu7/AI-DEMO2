@@ -11,7 +11,8 @@
 #   ./run-pingaws.sh deploy             # deploy only (images already in GHCR)
 #   ./run-pingaws.sh status             # show pods in your SE namespace
 #   ./run-pingaws.sh rag [on|off]       # build/start or stop the RAG stack
-#   ./run-pingaws.sh undeploy           # delete workloads AND secrets (asks first)
+#   ./run-pingaws.sh undeploy           # delete workloads AND secrets INSIDE your
+#                                       # namespace (asks first). The namespace is kept.
 #   ./run-pingaws.sh update code [svc]  # rebuild/redeploy changed service(s)
 #   ./run-pingaws.sh update config      # push secrets/configmaps (no rebuild)
 #   ./run-pingaws.sh update pingone     # re-bootstrap PingOne redirect URIs
@@ -54,9 +55,10 @@ Usage:
   ./run-pingaws.sh deploy           deploy only (no rebuild)
   ./run-pingaws.sh status           show SE pod status
   ./run-pingaws.sh rag [on|off]     build/start or stop the RAG stack
-  ./run-pingaws.sh undeploy         tear down the SHARED SE namespace: deletes
-                                    workloads AND secrets, takes ai-demo.ping-devops.com
-                                    down for everyone, asks before it does (--yes skips)
+  ./run-pingaws.sh undeploy         delete everything INSIDE your SHARED SE namespace:
+                                    workloads AND secrets. The namespace itself is KEPT.
+                                    Takes ai-demo.ping-devops.com down for everyone on it,
+                                    so it asks before it does (--yes skips)
   ./run-pingaws.sh update code [svc…]
                                     rebuild/redeploy (all, or bff|frontend|mcp|…)
   ./run-pingaws.sh update config    push .env / configmaps (no image rebuild)
@@ -133,8 +135,9 @@ case "$cmd" in
     echo "    ./run-k8.sh stop            # local kubernetes stack" >&2
     echo "    ./run-docker.sh stop        # docker compose stack" >&2
     echo >&2
-    echo "  Or to tear down the SHARED SE cluster namespace?" >&2
-    echo "    ./run-pingaws.sh undeploy   # deletes workloads AND secrets; asks first" >&2
+    echo "  Or to clear out the SHARED SE cluster namespace?" >&2
+    echo "    ./run-pingaws.sh undeploy   # deletes workloads AND secrets inside it," >&2
+    echo "                                # keeps the namespace; asks first" >&2
     exit 1
     ;;
   update)

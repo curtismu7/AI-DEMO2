@@ -41,9 +41,11 @@
 #   ./run-k8.sh se-deploy     # deploy to SE cluster (auto-derives your namespace)
 #   ./run-k8.sh se-all        # se-build + se-deploy
 #   ./run-k8.sh se-status     # switch to the SE cluster + your namespace, show pod status
-#   ./run-k8.sh se-undeploy   # tear down your SE namespace: deletes workloads AND
+#   ./run-k8.sh se-undeploy   # delete everything INSIDE your SE namespace: workloads AND
 #                             # secrets, so create-secrets.sh must be re-run before the
-#                             # next deploy. Asks first; --yes (or SE_UNDEPLOY_YES=1) skips.
+#                             # next deploy. The namespace itself is KEPT — it is
+#                             # cluster-managed and is never deleted by this script.
+#                             # Asks first; --yes (or SE_UNDEPLOY_YES=1) skips.
 #                             # NOT the same as `stop` below, which is only local.
 #
 #   Namespace is auto-derived from your Ping email (cmuir@pingidentity.com → ping-devops-cmuir).
@@ -691,8 +693,9 @@ se_undeploy() {
 
   if [[ "$assume_yes" != "1" ]]; then
     echo
-    demo_warn "About to UNDEPLOY the SE cluster namespace: $ns"
+    demo_warn "About to delete everything INSIDE the SE namespace: $ns"
     echo "  Deletes: deployments, services, ingresses, configmaps, secrets (ALL of them)"
+    echo "  KEEPS:   the namespace $ns itself — it is cluster-managed and is NOT deleted"
     echo "  Effect:  https://ai-demo.ping-devops.com stops resolving — for everyone on this namespace"
     echo "  After:   create-secrets.sh must be re-run before the next deploy"
     echo "  Undo:    none — a redeploy is the only way back"
@@ -703,9 +706,9 @@ se_undeploy() {
     # branch. Prefer the real terminal over stdin so a piped `yes` cannot
     # auto-confirm a teardown.
     if { : </dev/tty; } 2>/dev/null; then
-      read -r -p "Undeploy $ns? [y/N] " reply </dev/tty || true
+      read -r -p "Delete all resources in $ns? (namespace itself is kept) [y/N] " reply </dev/tty || true
     elif [[ -t 0 ]]; then
-      read -r -p "Undeploy $ns? [y/N] " reply || true
+      read -r -p "Delete all resources in $ns? (namespace itself is kept) [y/N] " reply || true
     else
       demo_err "se-undeploy needs confirmation and has no terminal to ask at."
       demo_err "Re-run with --yes (or SE_UNDEPLOY_YES=1) if this is really intended."
