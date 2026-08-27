@@ -16,6 +16,7 @@
 
 import { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
+import { useTheme } from "../context/ThemeContext";
 import { SAMPLE_APPS, getSampleApp } from "../data/sampleApps";
 import SampleAppPage from "./SampleAppPage";
 import M2mCredentialsSamplePage from "./M2mCredentialsSamplePage";
@@ -44,7 +45,14 @@ function useStandaloneTitle(title) {
 
 // A thin bar so a shared link has somewhere to go next. This is the whole of
 // the chrome — no app nav, no agent, no session state.
+//
+// It does carry the theme toggle, which is not chrome for its own sake: the
+// pages are dark-capable, the app's own toggle lives in the TopNav these routes
+// deliberately drop, and without it a visitor is stuck in whatever theme the
+// stored preference happened to leave them in with no way out.
 function StandaloneShell({ children, current }) {
+  const { darkMode, toggleDarkMode } = useTheme();
+
   return (
     <div className="st-root">
       <header className="st-bar">
@@ -62,6 +70,15 @@ function StandaloneShell({ children, current }) {
             </Link>
           ))}
         </nav>
+        <button
+          type="button"
+          className="st-theme"
+          onClick={toggleDarkMode}
+          aria-pressed={darkMode}
+          title="Switch this page between light and dark"
+        >
+          {darkMode ? "Light mode" : "Dark mode"}
+        </button>
       </header>
       <main className="st-main">{children}</main>
     </div>

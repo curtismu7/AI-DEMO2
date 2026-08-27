@@ -51,6 +51,26 @@ a.st-brand:visited {
 .st-link:focus-visible,
 .st-brand:focus-visible { outline: 2px solid var(--th-text-invert); outline-offset: 2px; }
 
+/* Pushed to the right end of the bar; `auto` rather than a fixed gap so it stays
+   put as the sample links wrap. Colours come from --th-text-invert, not the page
+   tokens: the bar is a dark band in BOTH themes, so a token that flips with the
+   theme would make this unreadable in one of them. */
+.st-theme {
+  margin-left: auto;
+  appearance: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12.5px;
+  white-space: nowrap;
+  padding: 5px 12px;
+  border-radius: 4px;
+  color: var(--th-text-invert);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+}
+.st-theme:hover { background: rgba(255, 255, 255, 0.2); }
+.st-theme:focus-visible { outline: 2px solid var(--th-text-invert); outline-offset: 2px; }
+
 .st-main { padding: 0; }
 
 .st-index { max-width: 980px; margin: 0 auto; padding: 40px 24px 64px; }
