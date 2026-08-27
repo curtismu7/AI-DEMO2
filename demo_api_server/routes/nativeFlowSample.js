@@ -255,6 +255,35 @@ async function resumeAndExchange(session, steps) {
     return ok;
 }
 
+// Ask the management API what actually became of the registered account.
+//
+// The flow and the account are two different things. This demo points both
+// samples at one app, whose sign-on policy mandates MFA, so after the emailed
+// code is accepted the flow runs the policy and dies on the brand-new user:
+// status FAILED, error MFA_DISABLED. The registration itself succeeded — the
+// account reads ACCOUNT_OK, up from VERIFICATION_REQUIRED — so reporting that
+// flow status as a failed registration would be wrong.
+//
+// Verified by inspecting the account after a FAILED run rather than by reading
+// the status: a wrong code fails differently (INVALID_VALUE on verificationCode)
+// and leaves the account at VERIFICATION_REQUIRED, so the two are distinguishable.
+async function confirmRegistration(session, flowBody) {
+    if (!session.createdUserID || !session.workerToken) return null;
+    const { apiPath, envID } = session.creds;
+    const get = session._fetch || fetch; // seam so the outcome logic is testable
+    const resp = await get(`${apiPath}/v1/environments/${envID}/users/${session.createdUserID}`, {
+        headers: { Authorization: `Bearer ${session.workerToken}` },
+    });
+    if (resp.status >= 400) return null;
+    const user = await resp.json();
+    return {
+        verified: user && user.lifecycle && user.lifecycle.status === 'ACCOUNT_OK',
+        username: (user && user.username) || '',
+        // Only MFA_DISABLED is the expected stop; anything else is worth showing.
+        stoppedBy: (flowBody && flowBody.error && flowBody.error.code) || '',
+    };
+}
+
 // Delete the account the registration sample created. Not in the upstream
 // sample, which leaves one behind on every run.
 async function teardown(session, steps) {
@@ -470,9 +499,17 @@ router.post('/otp', express.json(), async (req, res) => {
         const body = session.sample === 'mfa-demo' ? { otp } : { verificationCode: otp };
         const check = await postFlow(session, cfg.otpType, body);
         const status = check.parsed && check.parsed.status;
+
+        // For registration the flow status alone does not say whether the code
+        // worked, so ask what became of the account before judging the step.
+        const outcome = cfg.creates && status !== 'COMPLETED'
+            ? await confirmRegistration(session, check.parsed)
+            : null;
+        const accepted = status === 'COMPLETED' || Boolean(outcome && outcome.verified);
+
         steps.push({
             title: session.sample === 'mfa-demo' ? 'Check the one-time passcode' : 'Verify the emailed code',
-            ok: status === 'COMPLETED',
+            ok: accepted,
             url: `POST ${check.url}`,
             body: scrub(pretty(check.rawText)),
             detail: `<code>${escapeHTML(cfg.otpType)}</code> tells the flow engine this POST carries a code rather than another attempt at the previous action.<br>`
@@ -483,6 +520,21 @@ router.post('/otp', express.json(), async (req, res) => {
         let success = false;
         if (status === 'COMPLETED') {
             success = await resumeAndExchange(session, steps);
+        } else if (outcome && outcome.verified) {
+            // The account is real and verified; only the sign-in that the shared
+            // sign-on policy appends afterwards could not run.
+            success = true;
+            steps.push({
+                title: 'Account created and verified',
+                ok: true,
+                detail: `<code>${escapeHTML(outcome.username)}</code> is now <code>ACCOUNT_OK</code>, up from <code>VERIFICATION_REQUIRED</code> — the emailed code was accepted and registration is complete. `
+                    + 'That is where the upstream sample stops too.<br><br>'
+                    + `The flow itself then reports <code>${escapeHTML(status || 'FAILED')}</code>`
+                    + (outcome.stoppedBy ? ` / <code>${escapeHTML(outcome.stoppedBy)}</code>` : '')
+                    + ', because this demo points both native-flow samples at one application whose sign-on policy requires MFA — and a brand-new account has no MFA device to challenge. '
+                    + 'So there is no authorization code to resume for, and no token exchange. Upstream the two samples are separate apps with separate policies, which is what avoids this.',
+                rawDetail: true,
+            });
         }
         await teardown(session, steps);
         flows.delete(flowId);
@@ -502,3 +554,4 @@ module.exports = router;
 module.exports._SAMPLES = SAMPLES;
 module.exports._OTP_PENDING = OTP_PENDING;
 module.exports._scrub = scrub;
+module.exports._confirmRegistration = confirmRegistration;

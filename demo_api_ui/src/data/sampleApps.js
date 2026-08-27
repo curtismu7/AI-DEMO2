@@ -75,8 +75,9 @@ export const SAMPLE_APPS = [
     tagline: "Self-service sign-up with email verification, then an OIDC sign-in",
     summary:
       "A native flow (response_mode=pi.flow) drives registration server-side: create the user, " +
-      "verify their email with a one-time code, then resume the flow to get an authorization " +
-      "code and exchange it for tokens. No browser redirect is involved at any point.",
+      "then verify their email with a one-time code. No browser redirect is involved at any " +
+      "point. Signing the new account in is a separate flow — registration on its own does not " +
+      "produce tokens.",
     teaches: [
       "How response_mode=pi.flow replaces the browser redirect with a server-driven flow",
       "Why the vendor content types matter — application/json returns 415",
@@ -88,7 +89,7 @@ export const SAMPLE_APPS = [
       "Identity Data Admin creates the OIDC app, population and sign-on policy; Environment Admin enables self-registration.",
     runnable: "partial",
     runNote:
-      "Runs live. It registers a real account, PingOne emails a verification code, and you type that code in below to finish the flow — there is no mock for the inbox. The account is deleted afterwards unless you say otherwise.",
+      "Runs live. It registers a real account, PingOne emails a verification code, and you type that code in below — there is no mock for the inbox. It ends at a verified account, which is where the upstream sample ends too; the flow reports FAILED after that because this demo shares one MFA-requiring application between both native-flow samples and a brand-new account has no MFA device. The account is deleted afterwards unless you say otherwise.",
     writes: true,
     runnerApi: "/api/native-flow-sample",
     runLabel: "Register a test account",

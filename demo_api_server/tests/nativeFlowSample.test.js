@@ -110,6 +110,49 @@ describe('nativeFlowSample request guards', () => {
     });
 });
 
+describe('nativeFlowSample registration outcome', () => {
+    // The registration flow reports FAILED / MFA_DISABLED even when the emailed
+    // code was accepted, because the shared app's sign-on policy requires MFA and
+    // the brand-new account has no device. The account is the source of truth,
+    // not the flow status — verified live: ACCOUNT_OK after a FAILED run, still
+    // VERIFICATION_REQUIRED after a genuinely wrong code.
+    const { _confirmRegistration: confirm } = routerModule;
+
+    function session(userJSON, status = 200) {
+        return {
+            createdUserID: 'u-1',
+            workerToken: 't',
+            creds: { apiPath: 'https://api.example', envID: 'e-1' },
+            _fetch: async () => ({ status, json: async () => userJSON }),
+        };
+    }
+
+    const FAILED_MFA = { status: 'FAILED', error: { code: 'MFA_DISABLED' } };
+
+    it('treats ACCOUNT_OK as a successful registration despite a FAILED flow', async () => {
+        const out = await confirm(
+            session({ username: 'sample-reg-1', lifecycle: { status: 'ACCOUNT_OK' } }),
+            FAILED_MFA,
+        );
+        expect(out.verified).toBe(true);
+        expect(out.username).toBe('sample-reg-1');
+        expect(out.stoppedBy).toBe('MFA_DISABLED');
+    });
+
+    it('does not call a wrong code a success', async () => {
+        const out = await confirm(
+            session({ username: 'sample-reg-2', lifecycle: { status: 'VERIFICATION_REQUIRED' } }),
+            { status: 'VERIFICATION_CODE_REQUIRED' },
+        );
+        expect(out.verified).toBe(false);
+    });
+
+    it('reports nothing when the account cannot be read', async () => {
+        expect(await confirm(session({}, 404), FAILED_MFA)).toBe(null);
+        expect(await confirm({ createdUserID: null, workerToken: 't' }, FAILED_MFA)).toBe(null);
+    });
+});
+
 describe('nativeFlowSample sample definitions', () => {
     it('uses the vendor content types the flow engine requires', () => {
         // application/json here returns 415 from PingOne, so these must stay
