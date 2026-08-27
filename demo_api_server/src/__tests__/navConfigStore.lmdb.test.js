@@ -4,7 +4,7 @@ const store = require('../../services/lmdb/navConfigStore.lmdb');
 
 const KNOWN_NAV_LABELS = [
   "Home", "Dashboard", "Themes", "Use Cases", "Agent Demo Guide",
-  "Family Delegation", "AI Agents", "PingOne MCP", "MCP & Gateways",
+  "Family Delegation", "AI Flows", "PingOne MCP", "MCP & Gateways",
   "PingOne Demo Apps", "Delegation & Consent", "Authorize", "OAuth & Identity",
   "Industry Verticals", "Users & Accounts", "AI Attack Demos", "Monitoring",
   "Telemetry", "Diagrams", "Agent Studio (Preview)", "Learn & Present",

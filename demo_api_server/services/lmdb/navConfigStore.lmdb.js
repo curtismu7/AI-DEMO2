@@ -44,7 +44,7 @@ const BUILTIN_CONFIGS = [
     name: 'Learning',
     isBuiltin: true,
     hiddenLabels: [
-      'Themes', 'Agent Demo Guide', 'Family Delegation', 'AI Agents',
+      'Themes', 'Agent Demo Guide', 'Family Delegation', 'AI Flows',
       'PingOne MCP', 'MCP & Gateways', 'Delegation & Consent',
       'Industry Verticals', 'Users & Accounts', 'AI Attack Demos',
       'Monitoring', 'Telemetry', 'Agent Studio (Preview)', 'Developer Tools',
