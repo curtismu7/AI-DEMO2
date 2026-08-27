@@ -92,13 +92,12 @@ describe('Feature Flags Route', () => {
       expect(flag.category).toBeDefined();
     });
 
-    it('registers ff_admin_skin_ping2026 with default true', async () => {
+    // ff_admin_skin_ping2026 was removed with the second admin skin: the two
+    // differed only in CSS, so the flag bought a second visual QA surface and
+    // nothing else. It must not come back by accident.
+    it('no longer registers ff_admin_skin_ping2026', async () => {
       const res = await request(app).get('/api/admin/feature-flags');
-      const flag = res.body.flags.find(f => f.id === 'ff_admin_skin_ping2026');
-      expect(flag).toBeDefined();
-      expect(flag.type).toBe('boolean');
-      expect(flag.defaultValue).toBe(true);
-      expect(flag.category).toBe('UI / Dashboard');
+      expect(res.body.flags.find(f => f.id === 'ff_admin_skin_ping2026')).toBeUndefined();
     });
 
     it('registers ff_customer_skin_ping2026 with default false', async () => {
