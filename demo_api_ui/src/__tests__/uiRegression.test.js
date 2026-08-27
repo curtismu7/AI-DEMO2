@@ -289,6 +289,7 @@ describe("CSS/JS monospace regression", () => {
         f.includes("ApiExplorerPanel.css") ||             // HTTP method/path badge display (intentional)
         f.includes("LearningLogLearnPane.css") ||        // correlation id display (intentional)
         f.includes("M2mCredentialsSamplePage.css") ||    // ported PingOne m2m sample: URL/JWT/JSON display (intentional)
+        f.includes("SampleAppPage.css") ||               // sample-app source code display (intentional)
         f.includes("McpGatewayOauthFlowPage.css") ||     // OAuth flow code/token display (intentional)
         f.includes("TokenSecurityTester.css") ||         // security tester tree/token display (intentional)
         f.includes("TokenTopologyPanel.css") ||          // lane identifier display (intentional)

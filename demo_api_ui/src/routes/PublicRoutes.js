@@ -18,6 +18,7 @@ import LogoutPage from "../components/LogoutPage";
 import MFATestPage from "../components/MFATestPage";
 import PingOneSetupGuidePage from "../components/PingOneSetupGuidePage";
 import PingOneTestPage from "../components/PingOneTestPage";
+import SampleAppPage from "../pages/SampleAppPage";
 import M2mCredentialsSamplePage from "../pages/M2mCredentialsSamplePage";
 import PingOneSetup from "../pages/PingOneSetup";
 import SelfServicePage from "../components/SelfServicePage";
@@ -68,6 +69,40 @@ export function SelfServicePageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <SelfServicePage />
+    </AppShell>
+  );
+}
+
+// One wrapper per sample app. SampleAppPage is shared; sampleId selects the
+// content from data/sampleApps.js + data/sampleCode.json.
+export function SampleM2mPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <SampleAppPage sampleId="m2m-credentials" />
+    </AppShell>
+  );
+}
+
+export function SampleCustomAdminRolePageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <SampleAppPage sampleId="custom-admin-role" />
+    </AppShell>
+  );
+}
+
+export function SampleUserRegistrationPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <SampleAppPage sampleId="user-registration" />
+    </AppShell>
+  );
+}
+
+export function SampleMfaDemoPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <SampleAppPage sampleId="mfa-demo" />
     </AppShell>
   );
 }

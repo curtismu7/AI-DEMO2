@@ -1,0 +1,279 @@
+/* Shared layout for the PingOne sample-app pages.
+ *
+ * These are documentation pages, so they use the app's own --th-* tokens
+ * rather than the upstream sample's plain-HTML look. The live runner
+ * (M2mCredentialsSamplePage) keeps the sample's verbatim styling; that is
+ * deliberate and scoped to its own container.
+ */
+
+.sa-page {
+  padding: 24px 28px 56px;
+  max-width: 1080px;
+  margin: 0 auto;
+  color: var(--th-text);
+}
+
+.sa-head {
+  border-bottom: 1px solid var(--th-border);
+  padding-bottom: 18px;
+  margin-bottom: 22px;
+}
+
+.sa-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--th-text-muted);
+}
+
+.sa-head h1 {
+  font-size: 26px;
+  font-weight: 700;
+  margin: 8px 0 6px;
+  color: var(--th-text);
+}
+
+.sa-tagline {
+  color: var(--th-text-muted);
+  font-size: 15px;
+  margin: 0;
+}
+
+.sa-summary {
+  color: var(--th-text);
+  font-size: 15px;
+  line-height: 1.6;
+  max-width: 76ch;
+  margin: 16px 0 0;
+}
+
+/* ---- fact strip ---- */
+.sa-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.sa-fact {
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--th-text);
+}
+
+.sa-fact b {
+  color: var(--th-text-muted);
+  font-weight: 600;
+  margin-right: 6px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.sa-warn {
+  border-color: #b8002f;
+  background: rgba(184, 0, 47, 0.08);
+}
+
+/* ---- teaches list ---- */
+.sa-panel {
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-radius: 8px;
+  padding: 18px 20px;
+  margin-top: 22px;
+}
+
+.sa-panel h2 {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0 0 12px;
+  color: var(--th-text);
+}
+
+.sa-panel ul {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--th-text);
+}
+
+.sa-panel li {
+  margin-bottom: 8px;
+  line-height: 1.55;
+  font-size: 14.5px;
+}
+
+.sa-panel li:last-child {
+  margin-bottom: 0;
+}
+
+/* ---- stack picker ---- */
+.sa-stackbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 30px 0 4px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--th-border);
+}
+
+.sa-stackbar-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--th-text-muted);
+  margin-right: 4px;
+}
+
+.sa-stack-btn {
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
+  color: var(--th-text);
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sa-stack-btn:hover {
+  border-color: var(--th-border-strong);
+}
+
+.sa-stack-btn[aria-pressed="true"] {
+  background: #b8002f;
+  border-color: #b8002f;
+  color: #fff;
+}
+
+.sa-stack-btn:focus-visible {
+  outline: 2px solid var(--th-text);
+  outline-offset: 2px;
+}
+
+/* ---- code sections ---- */
+.sa-section {
+  margin-top: 26px;
+}
+
+.sa-section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.sa-section h3 {
+  font-size: 17px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--th-text);
+}
+
+.sa-file {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 12px;
+  color: var(--th-text-muted);
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
+  border-radius: 4px;
+  padding: 2px 7px;
+}
+
+.sa-note {
+  color: var(--th-text);
+  font-size: 14.5px;
+  line-height: 1.6;
+  max-width: 80ch;
+  margin: 10px 0 12px;
+}
+
+.sa-note code {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 12.5px;
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
+  border-radius: 3px;
+  padding: 1px 5px;
+}
+
+.sa-code {
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
+  border-left: 3px solid #b8002f;
+  border-radius: 6px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  margin: 0;
+}
+
+.sa-code code {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--th-text);
+  white-space: pre;
+}
+
+.sa-missing {
+  color: var(--th-text-muted);
+  font-size: 14px;
+  font-style: italic;
+}
+
+/* ---- run panel ---- */
+.sa-run {
+  margin-top: 30px;
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-radius: 8px;
+  padding: 18px 20px;
+}
+
+.sa-run h2 {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0 0 8px;
+}
+
+.sa-run p {
+  color: var(--th-text);
+  font-size: 14.5px;
+  margin: 0 0 14px;
+  max-width: 78ch;
+  line-height: 1.6;
+}
+
+.sa-btn {
+  background: #e1003b;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  padding: 9px 18px;
+  font-size: 14.5px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.sa-btn:hover {
+  background: #c40034;
+}
+
+.sa-btn:focus-visible {
+  outline: 2px solid var(--th-text);
+  outline-offset: 2px;
+}
+
+@media (max-width: 720px) {
+  .sa-page {
+    padding: 18px 16px 40px;
+  }
+}

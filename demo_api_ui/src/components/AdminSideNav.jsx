@@ -646,16 +646,40 @@ export default function AdminSideNav({
       ],
     },
     {
+      label: "PingOne Sample Apps",
+      icon: "tst",
+      children: [
+        {
+          label: "M2M Client Credentials",
+          path: "/samples/m2m-credentials",
+          icon: "key",
+          searchAlias: "machine to machine client credentials protect sample",
+        },
+        {
+          label: "Custom Admin Role",
+          path: "/samples/custom-admin-role",
+          icon: "pol",
+          searchAlias: "delegated administration custom role sample",
+        },
+        {
+          label: "User Registration",
+          path: "/samples/user-registration",
+          icon: "usr",
+          searchAlias: "self service registration email verification pi.flow sample",
+        },
+        {
+          label: "Login with MFA",
+          path: "/samples/mfa-demo",
+          icon: "lck",
+          searchAlias: "multi factor authentication native flow sample",
+        },
+      ],
+    },
+    {
       label: "PingOne Demo Apps",
       icon: "tst",
       children: [
         { label: "Self-Service Registration", path: "/self-service", icon: "usr" },
-        {
-          label: "M2M Client Credentials",
-          path: "/m2m-sample",
-          icon: "key",
-          searchAlias: "machine to machine client credentials Protect sample",
-        },
         { label: "PingOne Test", path: "/pingone-test", icon: "tst" },
         { label: "MFA Test", path: "/mfa-test", icon: "lck" },
         {
