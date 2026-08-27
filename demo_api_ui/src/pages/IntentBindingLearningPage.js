@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useEducationUIOptional } from "../context/EducationUIContext";
 import { EDU } from "../components/education/educationIds";
@@ -52,6 +52,136 @@ function useColumnRun(action, defaultAmount) {
   return { amount, setAmount, loading, result, error, run };
 }
 
+const REEL_FRAME_MS = 1400;
+
+/**
+ * One frame per hop of the exchange this run actually made. A live run replays
+ * the real PAR push the BFF performed (parRequest/parResponse); a simulated run
+ * never touches PingOne, so it replays the call this page itself made.
+ */
+export function buildReelFrames(result, sentBody) {
+  if (!result) return [];
+  const permit = result.status === 200;
+  if (!result.parRequest) {
+    return [
+      {
+        chip: "Request",
+        side: "request",
+        title: "Request — POST /api/demo/intent-binding/run",
+        caption: "Simulated mode — the decision is made by the local engine, no PAR push to PingOne.",
+        body: sentBody,
+      },
+      {
+        chip: "Response",
+        side: permit ? "permit" : "deny",
+        title: `Response — HTTP ${result.status}`,
+        caption: result.reason || "",
+        body: result,
+      },
+    ];
+  }
+  const failed = Boolean(result.parResponse && result.parResponse.error);
+  return [
+    {
+      chip: "Request",
+      side: "request",
+      title: `Request — POST ${result.parRequest.url}`,
+      caption: "Authorization details pushed to PingOne (PAR, RFC 9126 + RAR, RFC 9396).",
+      body: result.parRequest,
+    },
+    {
+      chip: "Response",
+      side: failed ? "deny" : "response",
+      title: failed ? "Response — PAR push rejected" : "Response — request_uri issued",
+      caption: failed
+        ? "PingOne refused the pushed request; nothing was bound."
+        : "PingOne stored the request and returned a reference to it. The amount is not checked here.",
+      body: result.parResponse,
+    },
+    {
+      chip: "Decision",
+      side: permit ? "permit" : "deny",
+      title: permit ? "Decision — PERMIT" : `Decision — DENY (${result.errorCode})`,
+      caption: result.reason || "",
+      body: { status: result.status, errorCode: result.errorCode, requestUri: result.requestUri },
+    },
+  ];
+}
+
+function RunReel({ kind, result, action, amount, live }) {
+  const frames = React.useMemo(
+    () => buildReelFrames(result, { action, requestedAmount: Number(amount), live }),
+    [result, action, amount, live],
+  );
+  const [index, setIndex] = useState(0);
+  const [playing, setPlaying] = useState(true);
+  const last = frames.length - 1;
+
+  useEffect(() => {
+    setIndex(0);
+    setPlaying(true);
+  }, [frames]);
+
+  useEffect(() => {
+    if (!playing || index >= last) {
+      if (playing && index >= last) setPlaying(false);
+      return undefined;
+    }
+    const t = setTimeout(() => setIndex((n) => n + 1), REEL_FRAME_MS);
+    return () => clearTimeout(t);
+  }, [playing, index, last]);
+
+  if (!frames.length) return null;
+  const frame = frames[index];
+
+  return (
+    <div className="ib-reel" data-testid={`ib-reel-${kind}`}>
+      <div className="ib-reel-head">
+        <strong>Reel</strong>
+        <span className="ib-reel-count">
+          {index + 1} / {frames.length}
+        </span>
+        <div className="ib-reel-ctrls">
+          <button type="button" onClick={() => { setPlaying(false); setIndex((n) => Math.max(0, n - 1)); }} disabled={index === 0}>
+            Prev
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (index >= last) { setIndex(0); setPlaying(true); } else { setPlaying((p) => !p); }
+            }}
+          >
+            {index >= last ? "Replay" : playing ? "Pause" : "Play"}
+          </button>
+          <button type="button" onClick={() => { setPlaying(false); setIndex((n) => Math.min(last, n + 1)); }} disabled={index === last}>
+            Next
+          </button>
+        </div>
+      </div>
+      <ol className="ib-reel-strip">
+        {frames.map((f, n) => (
+          <li key={f.chip}>
+            <button
+              type="button"
+              aria-label={`Frame ${n + 1}: ${f.chip}`}
+              aria-current={n === index}
+              className={n === index ? "is-active" : undefined}
+              onClick={() => { setPlaying(false); setIndex(n); }}
+            >
+              {f.chip}
+            </button>
+          </li>
+        ))}
+      </ol>
+      <div className={`ib-reel-frame ib-reel-frame--${frame.side}`}>
+        <div className="ib-reel-title">{frame.title}</div>
+        {frame.caption ? <p className="ib-reel-caption">{frame.caption}</p> : null}
+        <pre className="ib-reel-json">{JSON.stringify(frame.body, null, 2)}</pre>
+      </div>
+    </div>
+  );
+}
+
 function IntentBindingColumn({ kind, title, outcomeLabel, rationale, col, live }) {
   return (
     <div className={`ib-col ib-col--${kind}`}>
@@ -86,6 +216,9 @@ function IntentBindingColumn({ kind, title, outcomeLabel, rationale, col, live }
             ))}
           </ul>
         </div>
+      ) : null}
+      {col.result ? (
+        <RunReel kind={kind} result={col.result} action={kind} amount={col.amount} live={live} />
       ) : null}
     </div>
   );

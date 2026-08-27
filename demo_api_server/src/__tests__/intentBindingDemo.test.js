@@ -498,6 +498,15 @@ describe('POST /api/demo/intent-binding/run — live mode restores ff_authorize_
             expect(res.status).toBe(200);
             expect(res.body.sim).toBe('par-permit');
             expect(res.body.requestUri).toBe('urn:ietf:params:oauth:request_uri:test');
+            // Reel frames on the learning page replay this exchange — the
+            // pushed form must be present and must never carry the secret.
+            expect(res.body.parRequest.url).toBe('https://auth.pingone.com/env-1/as/par');
+            expect(res.body.parRequest.form.client_secret).toBe('<redacted>');
+            expect(res.body.parRequest.form.authorization_details[0].amount).toBe(80);
+            expect(res.body.parResponse).toEqual({
+              request_uri: 'urn:ietf:params:oauth:request_uri:test',
+              expires_in: 60,
+            });
             expect(pushAuthorizationRequest).toHaveBeenCalledWith(
               'https://auth.pingone.com/env-1/as/par',
               'actor-client',
