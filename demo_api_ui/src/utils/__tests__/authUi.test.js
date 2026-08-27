@@ -10,6 +10,7 @@ import {
   USER_SESSION_EXPIRED_MESSAGE,
   navigateToCustomerOAuthLogin,
   navigateToAdminOAuthLogin,
+  navigateToCustomerOAuthForceLogin,
   _resetSessionExpiryNotifyForTests,
 } from '../authUi';
 
@@ -219,6 +220,59 @@ describe('authUi', () => {
 
       expect(window.location.href).toMatch(/\/api\/auth\/oauth\/login$/);
       expect(window.location.href).not.toMatch(/\/oauth\/user\/login/);
+    });
+
+    // Without return_to, signing in from an expired session dropped the user
+    // somewhere other than the page they were interrupted on.
+    describe('return_to', () => {
+      const stubLocation = (pathname) => {
+        delete window.location;
+        window.location = {
+          href: '',
+          pathname,
+          assign: jest.fn(),
+          replace: jest.fn(),
+          reload: jest.fn(),
+        };
+      };
+
+      it('force login keeps force=true and joins return_to with &', () => {
+        stubLocation('/agent-gateway-inspector');
+
+        navigateToCustomerOAuthForceLogin();
+
+        expect(window.location.href).toContain('?force=true');
+        expect(window.location.href).toContain(
+          '&return_to=%2Fagent-gateway-inspector',
+        );
+        // A second '?' would make the BFF read return_to as part of force's value.
+        expect(window.location.href.match(/\?/g)).toHaveLength(1);
+      });
+
+      it('force login accepts an explicit returnTo over the current path', () => {
+        stubLocation('/somewhere-else');
+
+        navigateToCustomerOAuthForceLogin('/tracing');
+
+        expect(window.location.href).toContain('&return_to=%2Ftracing');
+      });
+
+      it('force login sends the landing page to /dashboard, not back to /', () => {
+        stubLocation('/');
+
+        navigateToCustomerOAuthForceLogin();
+
+        expect(window.location.href).toContain('&return_to=%2Fdashboard');
+      });
+
+      it('admin login joins return_to with ? since it has no other query', () => {
+        stubLocation('/agent-gateway-inspector');
+
+        navigateToAdminOAuthLogin();
+
+        expect(window.location.href).toContain('?return_to=%2Fagent-gateway-inspector');
+        expect(window.location.href.match(/\?/g)).toHaveLength(1);
+      });
     });
   });
 });

@@ -16,6 +16,38 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [x] 2026-08-27 — a BroadcastChannel test raced its own subscriber, and a stale branch made it look like a suite-wide problem
+
+`LiveUseCaseWorkbenchPage` subscribes to the `demo-script` BroadcastChannel in an
+effect keyed on `[useCases, handleRunSelected]`, and its handler drops anything
+it cannot resolve:
+
+```js
+const uc = useCases.find((u) => u.id === e.data.ucId);
+if (!uc) return;                 // message silently discarded
+```
+
+The test posted its Run message after waiting for tile TEXT to render — but the
+DOM commit and the effect re-subscribing with a populated `useCases` are separate
+commits. A message landing in that gap is dropped, the run never starts, and the
+assertion fails with `Number of calls: 0`. It failed in CI and on loaded local
+runs while passing in isolation and under `--no-file-parallelism`.
+
+**RESOLVED** on `worktree-reauth-modal-and-pgtest`: both Run messages now re-post
+until the run is observed, guarded so a retry cannot start a second overlapping
+chain. Three consecutive full parallel runs clean afterwards.
+
+The part worth keeping is the diagnostic mistake. Chasing this, four *different*
+unrelated tests failed across runs, which looked like proof that the suite had
+latent races any new file could tip — and that conclusion was written up here as
+fact. It was unsound: the branch was **10 commits behind main**, so every
+"main passes / my branch fails" comparison was against a moving target. After
+rebasing, the same branch passed three times in a row.
+
+**Before concluding a suite is flaky, check `git rev-list --count HEAD..origin/main`.**
+A stale branch produces exactly the symptom of a nondeterministic suite, and
+`--no-file-parallelism` passing does not distinguish the two.
+
 ### [x] 2026-08-27 — a use case declares only its FIRST tool, so every later tool it calls is invisible to every gate
 
 `useCases.js` gives a use case one machine-readable tool: `primaryTool`. UC38
