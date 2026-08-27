@@ -55,7 +55,12 @@ function lifecycleFor(agentId) {
 function scopeStatusFor(appName, grantedScopes) {
   let expected = [];
   try {
-    expected = scopeTopology.appGrantedScopes(appName) || [];
+    // PingOne knows these apps by their provisioned DISPLAY name; the manifest
+    // keys them by their logical name. Forwarding the display name straight to
+    // appGrantedScopes() returns [], which this function then reports as
+    // 'unverified' — so every identity read as never-compared while 12 of 13
+    // had a declared expectation in the manifest all along.
+    expected = scopeTopology.appGrantedScopes(scopeTopology.topologyAppName(appName)) || [];
   } catch {
     expected = [];
   }

@@ -25,6 +25,7 @@ jest.mock('../services/agentLifecycleEvents', () => ({ query: jest.fn(), emit: j
 jest.mock('../services/scopeTopology', () => ({
   allApps: jest.fn(),
   appGrantedScopes: jest.fn(),
+  topologyAppName: jest.fn(),
 }));
 
 const agentBuilderService = require('../services/agentBuilderService');
@@ -63,6 +64,8 @@ function happyPath() {
     { id: 'chatgpt', label: 'ChatGPT', source: 'azure', sourceLabel: 'Azure', status: 'active' },
   ]);
   scopeTopology.allApps.mockReturnValue(['Super Banking AI Agent']);
+  // Identity by default — the translation is exercised explicitly in its own test.
+  scopeTopology.topologyAppName.mockImplementation((n) => n);
   scopeTopology.appGrantedScopes.mockReturnValue(['agent:invoke', 'admin:read']);
 }
 
@@ -206,6 +209,30 @@ describe('agentRegistryService.buildRegistry', () => {
     const row = out.rows.find((r) => r.id === 'app-1');
     expect(row.scopeStatus).toBe('match');
     expect(row.missingScopes).toEqual([]);
+  });
+
+  test('looks the expectation up by TOPOLOGY name, not the PingOne display name', async () => {
+    // scope-topology.json keys apps by their logical name; PingOne knows them
+    // by their provisioned display name. Skipping the translation returns an
+    // empty expectation, which the row then reports as `unverified` — so every
+    // identity in the environment read as never-compared while 12 of 13 had a
+    // declared expectation sitting right there in the manifest.
+    agentBuilderService.listEnvironmentAgents.mockResolvedValue([
+      { id: 'app-1', name: 'Demo AI App - AI Agent Actor', enabled: true, grantTypes: [] },
+    ]);
+    scopeTopology.topologyAppName.mockImplementation((n) =>
+      (n === 'Demo AI App - AI Agent Actor' ? 'Super Banking AI Agent' : n));
+    // Only the LOGICAL name resolves. If the service forwards the display name,
+    // this returns [] and the row degrades to 'unverified'.
+    scopeTopology.appGrantedScopes.mockImplementation((n) =>
+      (n === 'Super Banking AI Agent' ? ['agent:invoke', 'admin:read'] : []));
+
+    const out = await registry.buildRegistry();
+    const row = out.rows.find((r) => r.id === 'app-1');
+
+    expect(scopeTopology.topologyAppName).toHaveBeenCalledWith('Demo AI App - AI Agent Actor');
+    expect(row.scopeStatus).toBe('drift');
+    expect(row.missingScopes).toEqual(['admin:read']);
   });
 
   test('reports unverified when there was no expectation to compare against', async () => {
