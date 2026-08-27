@@ -1554,6 +1554,11 @@ app.use('/api/pingone/audit', pingoneAuditRoutes);
 // The worker client secret stays server-side; the route returns rendered steps only.
 app.use('/api/m2m-sample', require('./routes/m2mSample'));
 
+// Custom Admin Role sample — public, like the other sample pages. WRITES to the
+// environment (creates a role and a worker app), then deletes both unless the
+// caller opts out.
+app.use('/api/custom-admin-role-sample', require('./routes/customAdminRoleSample'));
+
 // PingOne Test Page — /config is public (env settings only, no user data); all other endpoints require auth
 app.use('/api/pingone-test', (req, res, next) => {
     if (req.path === '/config' && req.method === 'GET') return next();

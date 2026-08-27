@@ -40,6 +40,7 @@ export const SAMPLE_APPS = [
     runnable: "full",
     runNote: "Runs end-to-end against the configured environment. Creates nothing.",
     writes: false,
+    runnerHref: "/m2m-sample",
   },
   {
     id: "custom-admin-role",
@@ -61,8 +62,11 @@ export const SAMPLE_APPS = [
       "Environment Admin is sufficient. Do NOT grant Organization Admin — the sample is deliberately built to avoid needing it.",
     runnable: "full",
     runNote:
-      "Runs end-to-end, but WRITES to the environment: it creates a custom role and a demo worker app on every run, and the sample has no teardown.",
+      "Runs end-to-end against the configured environment. It creates a custom role and a demo worker app — the upstream sample leaves both behind, so this page deletes them afterwards unless you say otherwise.",
     writes: true,
+    runnerApi: "/api/custom-admin-role-sample",
+    runLabel: "Run the workflow",
+    cleanupLabel: "Delete the role and app afterwards (recommended)",
   },
   {
     id: "user-registration",
