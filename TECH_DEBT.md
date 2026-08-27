@@ -16,6 +16,53 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-08-27 — a use case declares only its FIRST tool, so every later tool it calls is invisible to every gate
+
+`useCases.js` gives a use case one machine-readable tool: `primaryTool`. UC38
+runs two. Its own `whatLong` says so:
+
+> The agent then calls **get_loyalty_status** to check the miles balance and
+> **redeem_miles** to upgrade the cabin on the next upcoming booking.
+
+Only `redeem_miles` is declared. So `get_loyalty_status` was invisible to the
+chip-reachability gate, stayed intent-unreachable through #2442, and was found by
+driving the live stack rather than by any test.
+
+**Why this is worse than one missing entry**: the gate derives its cases from the
+catalog specifically so a new chip is covered automatically. That guarantee is
+only as wide as what the catalog declares — one tool. Any use case that runs a
+read-then-write pair, a lookup-then-act flow, or an A2A chain has undeclared
+tools, and no gate in the repo can see them. `useCases.primaryTool.test.js` has
+the same ceiling.
+
+**How the reason was found**, worth recording because it cost a wrong conclusion:
+the BFF response body for an intent denial says only
+
+```json
+{"error":"gateway_policy_denied","gatewayErrorCode":"access_denied","message":"access_denied"}
+```
+
+The actual reason is in PingGateway's `x-gw-audit-trail` response header, which
+the BFF logs but does not forward:
+
+```
+IntentMatchesTool: "false"
+"MCP Denied - Intent Tool Mismatch: Tool 'get_loyalty_status' is not in the
+ validated intent token's permitted_tools."
+```
+
+A probe classifying denials by response body cannot tell `intent_mismatch` from
+`consent required` from `A2A delegation required` — all three arrive as
+`access_denied`. One did exactly that during this work and reported a clean bill
+for a tool that was in fact intent-denied.
+
+**Real fix**: let a use case declare the tools it calls (`tools: [...]`, with
+`primaryTool` staying the chip's entry point), then widen the reachability gate
+to the declared set and drop the hand-written `SECONDARY` list in
+`demo_api_server/tests/intentTokenService.chipReachability.test.js`. Separately,
+consider surfacing the audit-trail deny code in the BFF error body — the
+information already reaches the BFF and is dropped on the floor.
+
 ### [ ] 2026-08-26 — `sensitive_passenger_record` requires only bare `read`, a weaker scope than its non-sensitive sibling
 
 `scope-topology.json`:
