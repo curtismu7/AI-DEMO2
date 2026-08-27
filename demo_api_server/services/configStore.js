@@ -832,6 +832,17 @@ const ENV_FALLBACK_MAP = {
   // resolves env vars through THIS table, not by uppercasing the key, so
   // without an entry the .env value is silently ignored and the agent falls
   // back to "not provisioned" with nothing to explain why.
+  // Autonomous-agent tuning knobs. Aliased so they are settable from .env like
+  // every other setting here — without an entry getEffective() ignores the env
+  // var entirely and the only way to change them is the admin config API, which
+  // makes the parked-run case (sweep above the mandate but below the absolute
+  // ceiling) impossible to stage for a demo.
+  balance_sweep_floor:                      ['BALANCE_SWEEP_FLOOR'],
+  fraud_watch_threshold:                    ['FRAUD_WATCH_THRESHOLD'],
+  fraud_watch_window_hours:                 ['FRAUD_WATCH_WINDOW_HOURS'],
+  autonomous_mandate_max_amount:            ['AUTONOMOUS_MANDATE_MAX_AMOUNT'],
+  autonomous_fraud_watch_cron:              ['AUTONOMOUS_FRAUD_WATCH_CRON'],
+  autonomous_balance_sweep_cron:            ['AUTONOMOUS_BALANCE_SWEEP_CRON'],
   pingone_fraud_watch_agent_client_id:      ['PINGONE_FRAUD_WATCH_AGENT_CLIENT_ID'],
   pingone_fraud_watch_agent_client_secret:  ['PINGONE_FRAUD_WATCH_AGENT_CLIENT_SECRET'],
   pingone_balance_sweep_agent_client_id:    ['PINGONE_BALANCE_SWEEP_AGENT_CLIENT_ID'],
@@ -2379,3 +2390,8 @@ module.exports.getErrorDetails = getErrorDetails;
 module.exports.mapErrorToCode = mapErrorToCode;
 module.exports.syncOAuthEndpointsToLmdb = syncOAuthEndpointsToLmdb;
 module.exports.detectRotatedCredentials = detectRotatedCredentials;
+// Exported so tests can assert a setting is actually reachable from .env.
+// getEffective() consults THIS table rather than uppercasing the key, so a
+// missing entry means the env var is silently ignored — the failure mode is a
+// value that looks configured and is not.
+module.exports.ENV_FALLBACK_MAP = ENV_FALLBACK_MAP;
