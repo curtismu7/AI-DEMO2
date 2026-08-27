@@ -43,9 +43,19 @@ function happyPath() {
     { client_id: 'mcp-client-abc', client_name: 'Batch job', grant_types: ['client_credentials'],
       scope: 'read', status: 'active', last_used: null, usage_count: 0 },
   ]);
-  a2aAgentCardService.buildAllSpecialistAgentCards.mockReturnValue([
-    { name: 'Banking Specialist', skills: [{ id: 'balance' }] },
-  ]);
+  // The REAL shape: an object keyed by vertical, not an array. The first
+  // version of this mock returned an array — matching a wrong assumption — so
+  // the suite agreed with the bug and `cards.map is not a function` only showed
+  // up in the browser. A mock that does not match the real signature cannot
+  // fail.
+  //
+  // 'retail' and 'abercrombie-fitch' genuinely share the card NAME "Purchase
+  // History Specialist", so rows must be keyed by vertical or they collide.
+  a2aAgentCardService.buildAllSpecialistAgentCards.mockReturnValue({
+    banking: { name: 'Investment Advisor', skills: [{ id: 'holdings' }] },
+    retail: { name: 'Purchase History Specialist', skills: [{ id: 'orders' }] },
+    'abercrombie-fitch': { name: 'Purchase History Specialist', skills: [{ id: 'orders' }] },
+  });
   agentLifecycleEvents.query.mockReturnValue([]);
   scopeTopology.allApps.mockReturnValue(['Super Banking AI Agent']);
   scopeTopology.appGrantedScopes.mockReturnValue(['agent:invoke', 'admin:read']);
@@ -55,6 +65,24 @@ describe('agentRegistryService.buildRegistry', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     happyPath();
+  });
+
+  test('reads the a2a card map without blowing that source up', async () => {
+    const out = await registry.buildRegistry();
+
+    // Regression: shipped calling .map() on an object, so this source failed
+    // with "cards.map is not a function" and the page showed
+    // "1 source unavailable" in the browser while every suite stayed green.
+    expect(out.sources.a2a.up).toBe(true);
+    expect(out.rows.filter((r) => r.source === 'a2a')).toHaveLength(3);
+  });
+
+  test('keys a2a rows by vertical, so two specialists sharing a name do not collide', async () => {
+    const out = await registry.buildRegistry();
+    const ids = out.rows.filter((r) => r.source === 'a2a').map((r) => r.id);
+
+    // retail and abercrombie-fitch are both "Purchase History Specialist".
+    expect(new Set(ids).size).toBe(ids.length);
   });
 
   test('unions the identity stores into one row set', async () => {
