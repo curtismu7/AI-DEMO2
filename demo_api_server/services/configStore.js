@@ -827,6 +827,15 @@ const _lmdbConfig = require('./lmdb/configStore.lmdb');
 // NOTE: env vars always take priority — over LMDB and committed defaults.
 // This ensures env vars override anything saved in the Config UI.
 const ENV_FALLBACK_MAP = {
+  // Autonomous agents authenticate as themselves, each with its OWN client.
+  // These need aliases like every other PingOne credential here: getEffective()
+  // resolves env vars through THIS table, not by uppercasing the key, so
+  // without an entry the .env value is silently ignored and the agent falls
+  // back to "not provisioned" with nothing to explain why.
+  pingone_fraud_watch_agent_client_id:      ['PINGONE_FRAUD_WATCH_AGENT_CLIENT_ID'],
+  pingone_fraud_watch_agent_client_secret:  ['PINGONE_FRAUD_WATCH_AGENT_CLIENT_SECRET'],
+  pingone_balance_sweep_agent_client_id:    ['PINGONE_BALANCE_SWEEP_AGENT_CLIENT_ID'],
+  pingone_balance_sweep_agent_client_secret:['PINGONE_BALANCE_SWEEP_AGENT_CLIENT_SECRET'],
   pingone_environment_id: ['PINGONE_ENVIRONMENT_ID'],
   pingone_region:         ['PINGONE_REGION'],
   pingone_base_url:       ['PINGONE_BASE_URL'],
