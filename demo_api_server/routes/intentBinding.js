@@ -109,17 +109,34 @@ router.post('/run', authenticateToken, async (req, res) => {
       const INTENT_CAP = 100;
       const amount = Number(requestedAmount) || 0;
 
-      try {
-        const authPayload = {
-          scope: 'openid profile email',
-          authorization_details: [{
-            type: 'banking_transaction',
-            actions: ['transfer'],
-            amount,
-            payee: 'acme-utilities',
-          }],
-        };
+      const authPayload = {
+        scope: 'openid profile email',
+        authorization_details: [{
+          type: 'banking_transaction',
+          actions: ['transfer'],
+          amount,
+          payee: 'acme-utilities',
+        }],
+      };
 
+      // Mirrors the form parService actually posts (services/parService.js
+      // parParams), minus the secret and the PKCE challenge — the learning
+      // page replays this as the "request" frame of its reel.
+      const parRequest = {
+        method: 'POST',
+        url: parEndpoint,
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        form: {
+          client_id: clientId,
+          client_secret: '<redacted>',
+          response_type: 'code',
+          scope: authPayload.scope,
+          code_challenge_method: 'S256',
+          authorization_details: authPayload.authorization_details,
+        },
+      };
+
+      try {
         // Prefer PUBLIC_APP_URL, then fall back across every known demo host so a
         // stale Actor allowlist (only api.ping.demo while the SPA is on
         // local.ping-devops.com) still completes the live demo.
@@ -154,6 +171,8 @@ router.post('/run', authenticateToken, async (req, res) => {
             : `DENY — $${amount} exceeds the $${INTENT_CAP} declared intent (via PAR)`,
           requestUri: parResult.requestUri,
           redirectUri: parResult.redirectUri,
+          parRequest: { ...parRequest, form: { ...parRequest.form, redirect_uri: parResult.redirectUri } },
+          parResponse: { request_uri: parResult.requestUri, expires_in: parResult.expiresIn },
           tokenChainEvents: withinIntent
             ? [
                 ...parPushEvents,
@@ -175,6 +194,8 @@ router.post('/run', authenticateToken, async (req, res) => {
           status: 403,
           errorCode: classified.errorCode,
           reason: classified.reason,
+          parRequest,
+          parResponse: { error: classified.errorCode, error_description: classified.reason },
           tokenChainEvents: [
             { id: 'par-push', label: 'PAR Endpoint Push', status: 'error' },
           ],
