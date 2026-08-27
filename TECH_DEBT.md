@@ -63,6 +63,29 @@ to the declared set and drop the hand-written `SECONDARY` list in
 consider surfacing the audit-trail deny code in the BFF error body — the
 information already reaches the BFF and is dropped on the floor.
 
+**MEASURED 2026-08-27 — the gap is real but its blast radius today is one, and
+that one is fixed.** Swept all 57 use cases for prose naming a gateway tool that
+is not that use case's `primaryTool` in any vertical:
+
+```
+use cases naming an undeclared tool : 9 of 57
+undeclared (use case, tool) pairs   : 9
+...gateway + intent-unreachable     : none — UC38 was the only one
+```
+
+Eight of the nine are the English word "transfer" matching the `transfer` entry
+in `scope-topology.json`, which is `surface: "legacy-alias"`, not `gateway` —
+substring false positives, not undeclared tools. UC38/`get_loyalty_status` was
+the only genuine instance, fixed in #2446.
+
+So this stays open as a **latent** structural gap, not an active bug: nothing is
+broken by it right now, and the `SECONDARY` list in the reachability test has
+exactly one entry. Priority should be judged accordingly — the fix is worth doing
+before the catalog grows more multi-tool use cases, not urgently today. Note the
+sweep is a FLOOR: it only counts exact tool-name matches, so a use case
+describing a second tool in English ("check the balance, then transfer") is not
+counted and would still be invisible.
+
 ### [ ] 2026-08-26 — `sensitive_passenger_record` requires only bare `read`, a weaker scope than its non-sensitive sibling
 
 `scope-topology.json`:
@@ -100,6 +123,46 @@ base scope matters; if it is not, `sensitive_passenger_record` should require
 `airlines:read` + `sensitive:read` like `sensitive_airline_bookings`. Then drop
 the exclusion from the test.
 
+**WITHDRAWN 2026-08-27 — this entry was wrong.** `sensitive_passenger_record` is
+not an outlier; it is the convention. Every A2A-delegated tool in
+`scope-topology.json` has exactly this shape:
+
+| tool | requiredScopes | a2aDelegatedScope | challengeType |
+|---|---|---|---|
+| `sensitive_customer_identity` | `read` | `identity:read` | consent |
+| `sensitive_holdings` | `read` | `holdings:read` | consent |
+| `sensitive_membership_details` | `read` | `membership:read` | consent |
+| `sensitive_order_history` | `read` | `purchase:read` | consent |
+| `sensitive_passenger_record` | `read` | `pnr:read` | consent |
+| `sensitive_patient_records` | `read` | `records:read` | consent |
+| `sensitive_payroll_details` | `read` | `payroll:read` | consent |
+| `sensitive_student_finance` | `read` | `finaid:read` | consent |
+| `sensitive_supplier_contract` | `read` | `supplier:read` | consent |
+| `sensitive_tax_record` | `read` | `tax:read` | consent |
+
+Ten for ten. The base scope is deliberately coarse because it is not the gate:
+`requiredScopes` gates the tool call, while `a2aDelegatedScope` is the dedicated
+scope minted for the specialist in Exchange #2 — a different hop, and per
+`REGRESSION_PLAN.md` §"never let an A2A specialist's derived scope be read or
+write", the one that carries the authorization. Confirmed live: an unmediated
+call to `sensitive_membership_details` denies with *"MCP Denied — A2A Delegation
+Required"*, not on scope.
+
+The comparison that produced this entry was against `sensitive_airline_bookings`
+(`airlines:read` + `sensitive:read`) — which is the **only** `sensitive_*` tool
+with no `a2aDelegatedScope`, i.e. the singleton, not the norm. Measuring one
+member of a class of ten against the sole member of a different class is what
+made the convention look like a defect.
+
+Nothing to fix. The `SCOPE_GATED` exclusion in
+`demo_mcp_gateway/tests/airlinesDispatch.test.ts` stays, but for the right
+reason: A2A-delegated tools are gated on their delegated scope, so holding them
+to `airlines:read` would assert a contract that does not apply to them.
+
+Left open only as a question worth someone's judgement, NOT as a defect: should
+`sensitive_airline_bookings` be A2A-delegated like its ten peers? It is the one
+sensitive tool reachable without agent mediation.
+
 ### [ ] 2026-08-26 — 143 gateway tools are intent-unreachable; only the 17 chip-driven ones were mapped
 
 `server.js` mints `intent = _TOOL_TO_INTENT[tool] || tool`, and the gateway then
@@ -136,6 +199,53 @@ ones from the catalog, and extend
 `demo_api_server/tests/intentTokenService.chipReachability.test.js` from "every
 chip-driven tool" to "every dispatchable tool" once "dispatchable" has a
 definition the test can compute.
+
+**INVENTORY DONE 2026-08-27 — and "unproven" was too generous. Most of them are
+plainly broken.** Current count after #2442/#2446: 142 of 244 unreachable.
+Classified by the highest-priority surface that can dispatch each:
+
+| surface | count | meaning |
+|---|---|---|
+| chip (`primaryTool`) | 0 | fixed by #2442 |
+| **vertical heuristic** | **99** | **a typed phrase reaches it — BROKEN** |
+| plugin `getTools()` | 26 | the LLM may pick it |
+| named in UC prose | 0 | fixed by #2446 |
+| no surface modelled | 17 | mostly `jwt_*`, `pingone_*`, `demo_show_*` — teaching/admin surfaces this classifier does not model, NOT proof they are dead |
+
+The 99 are not theoretical. A vertical's `getHeuristics()` maps a phrase regex
+straight to a tool name, and these are ordinary demo phrases. Driven live in
+Super Sports, each routing correctly and then dying at the intent gate:
+
+```
+"my addresses"                routed->list_addresses       call 403
+"show my invoices"            routed->list_invoices        call 403
+"my wishlist"                 routed->list_wishlist        call 403
+"my subscriptions"            routed->list_subscriptions   call 403
+"what promotions do you have" routed->list_promotions      call 403
+```
+
+All five denials confirmed as the intent gate, from the gateway audit trail:
+`IntentMatchesTool: "false"` ×5. So the heuristic does its job, the tool exists,
+and the intent map is what refuses.
+
+**These are not deliberately denied.** `permittedToolsForIntent` falls back to
+`READ_ONLY_TOOLS_BY_VERTICAL[vertical]`, which excludes them — the same
+incomplete-map failure that broke `get_weather`, `get_branch_hours` and the 17.
+The fallback's narrowing is a real security control (it stopped cross-vertical
+exposure) but it was never intended as the gate for a tool the demo dispatches
+on purpose.
+
+**Do NOT fix by adding 99 hand-written entries.** Today produced three separate
+bugs from hand-kept copies of one list (`AIRLINES_TOOLS` in `router.ts`,
+`INVEST_BACKEND_TOOLS` in the Groovy, and that test's own array). Derive the
+self-grant set from the dispatch registry instead — per vertical, the union of
+`getHeuristics()` actions and `getTools()` names, intersected with
+gateway-surface tools — so it cannot drift and stays bounded to what the demo can
+actually dispatch. Anything outside that set keeps failing closed.
+
+A blanket "intent equals tool name always self-permits" would be simpler and is
+**wrong**: it makes the fallback's narrowing unreachable and removes the
+fail-closed default for genuinely unknown tools.
 
 **Also noted, unfixed**: `ping-gateway/config/scope-topology.json` is a
 hand-maintained twin of the root `scope-topology.json` and has drifted by two
