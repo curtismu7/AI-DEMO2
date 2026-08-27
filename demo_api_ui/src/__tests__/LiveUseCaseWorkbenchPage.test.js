@@ -209,11 +209,30 @@ describe('LiveUseCaseWorkbenchPage', () => {
       await waitFor(() => expect(screen.getAllByText(/Delegated access with proof/).length).toBeGreaterThan(0));
 
       const sender = new BroadcastChannel('demo-script');
-      sender.postMessage({ type: 'run', ucId: 'UC1' }); // A: triggered first (slow)
+      // A: triggered first (slow). Posting once here is a race: the page's
+      // listener closes over `useCases` and drops any message whose ucId it
+      // cannot find, and that effect re-subscribes only after the fetch
+      // populates useCases — a separate commit from the text this test already
+      // waited for. A message landing in the gap is silently discarded and the
+      // run never starts ("Number of calls: 0"). Re-post until the run is
+      // actually observed, and only while it has not been, so the retry cannot
+      // start a second overlapping A chain.
       await waitFor(() => {
+        if (apiClient.post.mock.calls.length === 0) {
+          sender.postMessage({ type: 'run', ucId: 'UC1' });
+        }
         expect(apiClient.post).toHaveBeenCalledWith('/api/use-cases/demo/run', { useCaseId: 'delegated-access-with-proof', vertical: 'banking' });
       });
-      sender.postMessage({ type: 'run', ucId: 'UC6' }); // B: triggered second (fast), before A resolves
+      // B: triggered second (fast), before A resolves. Same delivery race — the
+      // effect re-subscribes whenever handleRunSelected's identity changes,
+      // which A's run just caused — so retry until B's run is observed too.
+      await waitFor(() => {
+        const bPosted = apiClient.post.mock.calls.some(
+          ([url, body]) => url === '/api/use-cases/demo/run' && body?.useCaseId === 'authz-denied',
+        );
+        if (!bPosted) sender.postMessage({ type: 'run', ucId: 'UC6' });
+        expect(apiClient.post).toHaveBeenCalledWith('/api/use-cases/demo/run', { useCaseId: 'authz-denied', vertical: 'banking' });
+      });
 
       // Let B's chain fully resolve and dispatch first.
       await waitFor(() => {
