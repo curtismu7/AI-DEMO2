@@ -47,6 +47,10 @@ export interface GatewayConfig {
   // which forwards the original bearer token unchanged on these two routes.
   mcpWeatherHttpUrl: string;
   mcpBraveHttpUrl: string;
+  // Optional so the many hand-built config fixtures in tests/ don't all have to
+  // grow a field they never exercise. loadConfig() always sets it, so it is
+  // only ever absent in a test literal — backendHttpMcpUrl() falls back.
+  mcpAuditHttpUrl?: string;
   // Live feature-flag lookups against the BFF — same two flags tx-weather-scope.groovy
   // and tx-brave-scope.groovy read (ff_weather_mcp_showcase / ff_weather_mcp_allowed_state,
   // ff_brave_mcp_showcase). Uses bffInternalSecret (below) as the shared-secret header.
@@ -361,6 +365,7 @@ export function loadConfig(): GatewayConfig {
       optional('MCP_JWTVERIFIER_RESOURCE_URI', 'mcp-jwt-verifier.ping.demo')),
     mcpWeatherHttpUrl: optional('MCP_WEATHER_BACKEND_URL', 'http://localhost:8896'),
     mcpBraveHttpUrl: optional('MCP_BRAVE_BACKEND_URL', 'http://localhost:8897'),
+    mcpAuditHttpUrl: optional('MCP_AUDIT_BACKEND_URL', 'http://localhost:8898'),
     bffWeatherFlagUrl: optional('BFF_WEATHER_FLAG_URL', ''),
     bffBraveFlagUrl: optional('BFF_BRAVE_FLAG_URL', ''),
     pingAuthorizeEndpoint: optional('PINGAUTHORIZE_ENDPOINT', ''),

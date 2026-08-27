@@ -800,6 +800,7 @@ services:
       # bearer token unchanged, same as ping-gateway's rsFilter->ReverseProxyHandler chain.
       MCP_WEATHER_BACKEND_URL: "http://mcp-weather:8896"
       MCP_BRAVE_BACKEND_URL: "http://mcp-brave:8897"
+      MCP_AUDIT_BACKEND_URL: "http://mcp-audit:8898"
       BFF_WEATHER_FLAG_URL: "https://api.ping.demo:3001/internal/feature-flags/weather-mcp-showcase"
       BFF_BRAVE_FLAG_URL: "https://api.ping.demo:3001/internal/feature-flags/brave-mcp-showcase"
       MCP_GW_PASSTHROUGH_TO_MCP_SERVER: "false"
@@ -1088,6 +1089,33 @@ services:
         required: false
     environment:
       PORT: "8897"
+    networks:
+      - ai-demo
+    restart: unless-stopped
+
+  # ── MCP Audit (PingOne audit log, read-only) ────────────────────────────────
+  # Three read-only tools over the PingOne Management API activities endpoint.
+  # NOT a proxy to PingOne's hosted MCP: that endpoint stopped accepting worker
+  # client_credentials (401 Invalid authentication, 2026-08-27) and wants a user
+  # token, which a gateway backend cannot produce. The Management API underneath
+  # answers the same worker token fine, so the tools call it directly.
+  # Reuses the BFF's worker app — no new PingOne client to provision.
+  mcp-audit:
+    build:
+      context: ./demo_mcp_audit
+      dockerfile: Dockerfile
+      args:
+        GIT_SHA: ${GIT_SHA:-unknown}
+    container_name: ai-demo-mcp-audit
+    ports:
+      - "8898:8898"
+    env_file:
+      - path: ./demo_api_server/.env
+        required: false
+      - path: ./demo_mcp_audit/.env
+        required: false
+    environment:
+      PORT: "8898"
     networks:
       - ai-demo
     restart: unless-stopped
