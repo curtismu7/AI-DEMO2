@@ -25,6 +25,7 @@
 #   hitl      demo_hitl_service   → ai-demo-hitl-service       → hitl-service
 #   invest    demo_mcp_resource_server     → ai-demo-mcp-resource-server         → mcp-resource-server
 #   mortgage  demo_api_resource_server → ai-demo-api-resource-server → api-resource-server
+#   llm       demo_llm_proxy      → ai-demo-llm-proxy          → llm-proxy
 
 set -euo pipefail
 
@@ -53,6 +54,7 @@ compose_svc() {
     hitl)     echo "hitl-service" ;;
     invest)   echo "mcp-resource-server" ;;
     mortgage) echo "api-resource-server" ;;
+    llm)      echo "llm-proxy" ;;
     *)        echo "" ;;
   esac
 }
@@ -72,6 +74,7 @@ ghcr_img() {
     hitl)     echo "ai-demo-hitl-service" ;;
     invest)   echo "ai-demo-mcp-resource-server" ;;
     mortgage) echo "ai-demo-api-resource-server" ;;
+    llm)      echo "ai-demo-llm-proxy" ;;
     *)        echo "" ;;
   esac
 }
@@ -86,6 +89,14 @@ SE_COMPOSE_PROJECT="ai-demo-se"
 
 local_img() {
   # Compose default image naming: <project>-<service>.
+  #
+  # EXCEPT for services that pin an explicit `image:` in docker-compose.yml —
+  # Compose then ignores the project prefix entirely, so the derived name names
+  # an image that was never built and `docker tag` fails with "No such image".
+  # llm-proxy pins `image: ai-demo-llm-proxy:latest` (docker-compose.yml).
+  case "$1" in
+    llm) echo "ai-demo-llm-proxy"; return ;;
+  esac
   local svc; svc="$(compose_svc "$1")"
   [[ -n "$svc" ]] && echo "${SE_COMPOSE_PROJECT}-${svc}" || echo ""
 }
@@ -105,6 +116,7 @@ k8s_dep() {
     hitl)     echo "hitl-service" ;;
     invest)   echo "mcp-resource-server" ;;
     mortgage) echo "api-resource-server" ;;
+    llm)      echo "llm-proxy" ;;
     *)        echo "" ;;
   esac
 }
