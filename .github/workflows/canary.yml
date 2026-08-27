@@ -1,5 +1,7 @@
 # Live-site canary: signs in as the demo user and runs UC1 ("Delegated access
-# with proof") end-to-end against ai-demo.ping-devops.com every 30 minutes.
+# with proof") end-to-end against ai-demo.ping-devops.com. The cron below asks
+# for every 30 minutes; GitHub throttles scheduled workflows and actually
+# delivers a few runs a day, hours apart. Do not rely on it as a heartbeat.
 # A red run means the demo a customer would see is broken — check the uploaded
 # screenshot artifact and scripts/canary/uc1-canary.js failure markers.
 #

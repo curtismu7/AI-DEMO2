@@ -29,7 +29,9 @@
 // reel. Measured 2026-08-27: a live run reports 1 failed while the same live
 // page, unmocked, has the reel at y=623 bottom=699 in a 700px viewport.
 // The live guard is the reel check in scripts/canary/uc1-canary.js, which runs
-// every 30 minutes against a really signed-in session and mocks nothing.
+// against a really signed-in session and mocks nothing. Its cron says */30 but
+// GitHub throttles scheduled workflows hard — observed gaps are 2-10 hours, so
+// treat it as "a few times a day", not a 30-minute heartbeat.
 const { test, expect } = require('@playwright/test');
 const { mockCustomerDashboard } = require('./helpers/customerDashboardMocks');
 
