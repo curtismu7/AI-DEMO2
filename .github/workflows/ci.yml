@@ -216,6 +216,22 @@ jobs:
       - name: Vite build gate
         run: npm --prefix demo_api_ui run build
 
+      # The movie reel has gone missing FIVE times, and every previous guard was
+      # a static source check that stayed green while the reel was off screen.
+      # This is one Playwright spec, four assertions, all `toBeInViewport()` —
+      # the only check that fails for all five causes. The API is mocked, so it
+      # runs against the dev server this job starts, with no stack behind it.
+      # One chromium download (~40s) on UI PRs only; the alternative has cost a
+      # live demo five times.
+      - name: Install chromium for the movie-reel lock
+        run: npm --prefix demo_api_ui exec -- playwright install --with-deps chromium
+      - name: Movie reel is on screen (Playwright)
+        working-directory: demo_api_ui
+        run: node_modules/.bin/playwright test tests/e2e/movie-reel-visible.spec.js
+        env:
+          CI: 'true'
+          BANKING_UI_PORT: '4173'
+
   unwired-service-suites:
     # 2026-08-17: an audit found ~117 test files across ten services that NO job
     # ran — the same pattern this file already documents three times above

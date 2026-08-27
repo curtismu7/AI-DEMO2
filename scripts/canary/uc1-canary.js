@@ -126,6 +126,32 @@ function fail(msg) {
     } else {
       console.log(`CANARY PASS: UC1 result rendered (matched ${successHit}) — ...${tail.slice(-200)}`);
     }
+
+    // ── The movie reel must be ON SCREEN, not merely in the DOM ───────────
+    // Five "the reel is gone" reports, and every guard before this one checked
+    // that the component rendered — which stayed true while it sat below the
+    // fold. We are already signed in on /dashboard after a real run, so the
+    // check costs nothing and runs against the live site every 30 minutes.
+    const reel = await page.evaluate(() => {
+      const el = document.querySelector('.tcfs-chain');
+      if (!el) return { present: false };
+      const r = el.getBoundingClientRect();
+      return {
+        present: true,
+        onScreen: r.height > 0 && r.bottom > 0 && r.top < window.innerHeight,
+        top: Math.round(r.top),
+        vh: window.innerHeight,
+      };
+    });
+    if (!reel.present) {
+      await shoot('canary-reel-missing.png');
+      fail('movie reel (.tcfs-chain) is not in the DOM on /dashboard');
+    } else if (!reel.onScreen) {
+      await shoot('canary-reel-offscreen.png');
+      fail(`movie reel is in the DOM but off screen (top=${reel.top}, viewport=${reel.vh})`);
+    } else {
+      console.log('canary: movie reel on screen');
+    }
   } catch (err) {
     await shoot('canary-error.png');
     fail(err.message);

@@ -28,6 +28,16 @@
      out of the transcript. */
   grid-template-rows: auto minmax(220px, 1fr) minmax(0, auto);
   align-items: stretch;
+  /* `1fr` only means "take the rest" if the grid itself is bounded, and nothing
+     ever bounded it. The grid grew to the agent transcript's intrinsic height
+     (1187px on a 700px-tall window), so the chain row — the reel — sat at
+     y=1203, off the bottom of the screen. It fit at 760px+ purely by luck of
+     content height, which is why this read as "the reel is gone" on a laptop
+     and "works fine" on a big monitor.
+     --ud-focus-chrome is the space above this grid (TopNav + main padding),
+     measured at 94px. If that chrome ever changes, movie-reel-visible.spec.js
+     fails on the short-window case — that is the knob's calibration check. */
+  max-height: calc(100dvh - var(--ud-focus-chrome, 94px));
 }
 
 /* The strip spans both columns and is only as tall as its controls. */
