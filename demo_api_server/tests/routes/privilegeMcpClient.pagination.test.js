@@ -13,6 +13,12 @@ function buildSession() {
     config: { mcpUrl: 'http://mock-mcp.test' },
     mcpSession: { era: 'modern', sessionId: null, protocolVersion: '2025-06-18', nextRequestId: 1, initialized: true },
     oauth: {},
+    // Real sessions always carry this (see the clientSessions.set in
+    // routes/privilegeMcpClient.js), and fetchMcp reads .active unguarded to
+    // decide whether to race a timeout. Omitting it here made the fixture
+    // diverge from the only session shape production ever builds — the two
+    // changes merged cleanly and still failed on this.
+    eventStream: { controller: null, active: false, disabled: false },
   };
 }
 

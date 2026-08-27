@@ -94,7 +94,7 @@ fails the same way, don't debug the Graph nodes — recreate the app through
 the dedicated MCP Server creation flow instead of editing/repurposing an
 existing object.
 
-### MCP Inspector-specific: `tools/list` hangs through this gateway, `curl` does not
+### MCP Inspector-specific: `tools/list` hangs through this gateway, `curl` does not — root cause confirmed
 
 Once auth and routing both worked, MCP Inspector's UI showed "Couldn't load
 tools — Request timed out" — but `curl` issuing the identical `tools/list`
@@ -103,14 +103,43 @@ call (same session ID, same bearer token, fresh connection) returned
 follow-up `tools/call` for `get_my_accounts` likewise succeeded instantly.
 The gateway's own logs showed **zero** trace of Inspector's `tools/list`
 request ever arriving — not a policy denial, not a filter-processing hang,
-nothing. Read as an MCP Inspector Node client quirk sending a new POST over
-an HTTP/2 connection that already has a long-lived SSE GET stream open
-through this specific proxy (`mcpgw` runs its own response-rewriting
-`mcpfilter` layer on the streamed channel, per-request `X-Procyon-Mcp-Cap`
-capability headers) — not a bug in the banking flow, `mcp-server`, or the
-gateway's policy enforcement, all of which are confirmed correct via `curl`.
-If this needs a working browser-based demo, test with a client other than
-MCP Inspector, or drive `curl`/Postman for the live proof.
+nothing.
+
+**Confirmed root cause, verified against our own BFF client's code**
+(`demo_api_server/routes/privilegeMcpClient.js`'s `fetchMcp`): our BFF issues
+every MCP message — `initialize`, `notifications/initialized`, `tools/list`,
+`tools/call` — as an independent, standalone `fetch()` POST that reads the
+whole response body and returns; it never opens a persistent `GET /mcp`
+stream. `curl`'s working calls match this exact shape (fresh connection,
+POST, read full response). MCP Inspector implements the *fuller* Streamable
+HTTP transport: after `initialize` it opens a long-lived `GET /mcp` with
+`Accept: text/event-stream` for server-pushed messages, and sends later
+calls as separate POSTs over that same session while the GET stream stays
+open — spec-legal MCP behavior, just a harder case. `mcpgw` runs its own
+response-rewriting `mcpfilter` layer on streamed channels (per-request
+`X-Procyon-Mcp-Cap` capability headers); the working theory is that layer
+doesn't handle a concurrent POST arriving while it's already holding a
+stream open on the same session, and that's a real gap in the vendor's
+proxy — not a bug in the banking flow, `mcp-server`, or Privilege's policy
+enforcement, all confirmed correct via `curl`.
+
+**This is why the BFF's own Privilege MCP client (`/privilege-mcp-client`,
+"Agentless gateway — banking (external)" preset, see "Demo client
+configuration" below) works today where MCP Inspector doesn't** — not
+because it's smarter, but because its simpler transport happens to avoid
+the exact case that trips up this proxy. If this needs a working
+browser-based demo before the transport gap above is understood/fixed on
+the vendor side, use the BFF's own client or drive `curl`/Postman for the
+live proof — not MCP Inspector.
+
+**Open follow-up, not yet done:** try upgrading the BFF's `fetchMcp` to the
+fuller Streamable HTTP pattern (persistent SSE GET alongside POSTs) behind a
+flag, to see whether it reproduces the same hang — that would confirm the
+theory definitively and tell us whether a real fix exists on our side (e.g.
+a retry/reconnect) versus something only the vendor can fix. Needs a safe
+fallback to the current known-working POST-only mode if the fuller pattern
+does turn out to break, since this is the client tonight's fix intends to be
+the primary external-client demo path going forward.
 
 ## What Agentless means
 

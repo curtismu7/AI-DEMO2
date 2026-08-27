@@ -13,7 +13,29 @@ function paramsOf(tool) {
     name,
     type: (schema && schema.type) || 'any',
     required: required.has(name),
+    enumValues: Array.isArray(schema?.enum) ? schema.enum : null,
   }));
+}
+
+// Best-effort JSON.parse for the args textarea — mid-edit it can be invalid
+// JSON, so every caller treats a parse failure as "no known values" rather
+// than throwing.
+function tryParseArgs(args) {
+  try {
+    const parsed = JSON.parse(args || '{}');
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+// Required params with no value yet (missing key, or blank string) — the
+// call this file's own executeToolCall will send has a param that will
+// come through as '' server-side, which is rarely what's intended (see
+// ToolsTable's "Missing required" warning below).
+function missingRequiredParams(params, args) {
+  const parsed = tryParseArgs(args);
+  return params.filter((p) => p.required && (parsed[p.name] === undefined || parsed[p.name] === null || parsed[p.name] === ''));
 }
 
 // Prefill an args object with one empty entry per property, so the box shows the
@@ -208,6 +230,7 @@ function FragmentRow({ tool, params, isOpen, selected = false, presentMode, onTo
                   ))}
                 </div>
               )}
+              <EnumParamFields params={params} args={args} onArgs={onArgs} />
               <span className="ptt-args-label">Arguments (JSON)</span>
               <textarea
                 className="ptt-args"
@@ -217,7 +240,21 @@ function FragmentRow({ tool, params, isOpen, selected = false, presentMode, onTo
                 onChange={(e) => onArgs(e.target.value)}
                 onClick={(e) => e.stopPropagation()}
               />
-              <button type="button" className="ptt-execute" onClick={(e) => { e.stopPropagation(); onRun(); }} disabled={busy}>
+              {(() => {
+                const missing = missingRequiredParams(params, args);
+                if (missing.length === 0) return null;
+                return (
+                  <div className="ptt-missing-required">
+                    Missing required: {missing.map((p) => p.name).join(', ')} — this call will not run until filled in.
+                  </div>
+                );
+              })()}
+              <button
+                type="button"
+                className="ptt-execute"
+                onClick={(e) => { e.stopPropagation(); onRun(); }}
+                disabled={busy || missingRequiredParams(params, args).length > 0}
+              >
                 {busy ? 'Executing...' : 'Execute'}
               </button>
               {result !== undefined && (
@@ -231,5 +268,39 @@ function FragmentRow({ tool, params, isOpen, selected = false, presentMode, onTo
         </tr>
       )}
     </>
+  );
+}
+
+// A dropdown per enum-typed parameter (e.g. account_type), writing straight
+// into the same args JSON the textarea below edits — no separate state, no
+// risk of the two disagreeing. Nothing renders when the tool has no enum
+// parameters.
+function EnumParamFields({ params, args, onArgs }) {
+  const enumParams = params.filter((p) => p.enumValues);
+  if (enumParams.length === 0) return null;
+  const parsed = tryParseArgs(args);
+  return (
+    <div className="ptt-enum-fields">
+      {enumParams.map((p) => (
+        <label key={p.name} className="ptt-enum-field">
+          <span>{p.name}{p.required ? '*' : ''}</span>
+          <select
+            value={parsed[p.name] ?? ''}
+            onClick={(e) => e.stopPropagation()}
+            onChange={(e) => {
+              const next = { ...parsed };
+              if (e.target.value === '') delete next[p.name];
+              else next[p.name] = e.target.value;
+              onArgs(JSON.stringify(next, null, 2));
+            }}
+          >
+            <option value="">{p.required ? '— choose a value —' : '(none)'}</option>
+            {p.enumValues.map((v) => (
+              <option key={v} value={v}>{v}</option>
+            ))}
+          </select>
+        </label>
+      ))}
+    </div>
   );
 }
