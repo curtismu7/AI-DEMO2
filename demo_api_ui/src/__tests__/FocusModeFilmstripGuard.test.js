@@ -130,4 +130,22 @@ describe("Focus Mode filmstrip guard", () => {
     const trace = read("../pages/TransactionTracePage.jsx");
     expect(trace).toMatch(/<div className="tcfs-float-host">\s*\n\s*<TokenChainFilmstrip\s*\/>/);
   });
+
+  // The live canary skips its reel assertion when the dashboard on screen has no
+  // reel by design, and it tells the two apart by `.customer-skin-p1`. That is
+  // the ONLY class that separates them: the roots are otherwise near-identical
+  // and the CLASSIC dashboard also carries user-dashboard--2026,
+  // refined-customer-surface and data-rd-v2. The first version of that gate used
+  // user-dashboard--2026 and would have skipped nothing, leaving the canary red
+  // on every run. If either assertion below fails, fix the canary's selector in
+  // scripts/canary/uc1-canary.js in the same commit.
+  test("customer-skin-p1 marks the Ping2026 dashboard and ONLY it", () => {
+    expect(classic).not.toContain("customer-skin-p1");
+    expect(p2026).toContain("customer-skin-p1 user-dashboard user-dashboard--2026");
+  });
+
+  test("the clinical-split root is also skin-p1, so the canary must exclude it", () => {
+    // It has no reel by design — the early return renders AgentClinicalHost only.
+    expect(p2026).toContain("customer-skin-p1 user-dashboard user-dashboard--clinical-split");
+  });
 });

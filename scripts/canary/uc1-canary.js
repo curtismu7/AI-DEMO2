@@ -138,25 +138,36 @@ function fail(msg) {
     // classic UserDashboard, which has no filmstrip by design and a static
     // guard forbidding one. Asserting unconditionally made this canary fail
     // every run on the very deployment it watches, and a permanently-red canary
-    // takes the UC1 check down with it. `.user-dashboard--2026` is the root
-    // class the Ping2026 dashboard carries; the clinical-split layout does not
-    // carry it either, and also has no reel by design.
+    // takes the UC1 check down with it.
+    //
+    // `.customer-skin-p1` is the discriminator, and it is the ONLY one: the two
+    // dashboards' root elements are otherwise near-identical, and the classic
+    // one carries `user-dashboard--2026`, `refined-customer-surface` and
+    // `data-rd-v2` as well — the first version of this gate used
+    // `.user-dashboard--2026` and would have skipped nothing.
+    // `customer-skin-p1` appears 0 times in UserDashboard.js and on both
+    // Ping2026 roots. The clinical-split layout is one of those roots and has no
+    // reel by design, so it is excluded too. FocusModeFilmstripGuard.test.js
+    // locks both facts.
     const reel = await page.evaluate(() => {
-      const ping2026 = !!document.querySelector('.user-dashboard--2026');
+      const skin = !!document.querySelector('.customer-skin-p1');
+      const clinical = !!document.querySelector('.user-dashboard--clinical-split');
+      const expected = skin && !clinical;
       const el = document.querySelector('.tcfs-chain');
-      if (!el) return { ping2026, present: false };
+      if (!el) return { expected, clinical, present: false };
       const r = el.getBoundingClientRect();
       return {
-        ping2026,
+        expected,
+        clinical,
         present: true,
         onScreen: r.height > 0 && r.bottom > 0 && r.top < window.innerHeight,
         top: Math.round(r.top),
         vh: window.innerHeight,
       };
     });
-    if (!reel.ping2026) {
+    if (!reel.expected) {
       console.log(
-        'canary: classic dashboard skin (ff_customer_skin_ping2026 off) — no reel by design, reel check skipped',
+        `canary: ${reel.clinical ? 'clinical-split layout' : 'classic dashboard skin (ff_customer_skin_ping2026 off)'} — no reel by design, reel check skipped`,
       );
     } else if (!reel.present) {
       await shoot('canary-reel-missing.png');
