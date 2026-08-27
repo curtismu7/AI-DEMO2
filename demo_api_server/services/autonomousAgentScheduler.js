@@ -44,6 +44,100 @@ function isEnabled() {
   return configStore.getEffective('ff_autonomous_agents') === 'true';
 }
 
+// ── Revocation ──────────────────────────────────────────────────────────────
+// An autonomous agent has no session to end, so killing it has to cancel the
+// SCHEDULE. Denying its next tool call is not containment: the cron keeps
+// firing, each run authenticates, and only the tool call is refused — the agent
+// is still acting.
+//
+// The revoked set is persisted in configStore rather than held in memory,
+// because a BFF restart would otherwise re-register the cron and silently
+// re-arm an agent somebody had killed. That is the failure worth spending ten
+// lines on.
+const REVOKED_KEY = 'AUTONOMOUS_AGENTS_REVOKED';
+
+/** Live cron handles, by job id, so they can be stopped without a restart. */
+const _tasks = new Map();
+
+function _revokedSet() {
+  const raw = configStore.getEffective(REVOKED_KEY) || '';
+  return new Set(String(raw).split(',').map((s) => s.trim()).filter(Boolean));
+}
+
+/** Is this agent currently revoked? */
+function isAgentStopped(agentName) {
+  return _revokedSet().has(agentName);
+}
+
+async function _persistRevoked(set) {
+  await configStore.setRaw({ [REVOKED_KEY]: [...set].join(',') });
+}
+
+/**
+ * Cancel unattended runs for an agent (or all agents when none is named).
+ * Stops the live cron handle AND records the revocation, so a restart does not
+ * re-arm it.
+ *
+ * @param {object} opts - agent: scope-topology apps{} key; omit for all
+ * @returns {Promise<{stopped: string[], agents: string[]}>}
+ */
+async function stopSchedules({ agent } = {}) {
+  const revoked = _revokedSet();
+  const stopped = [];
+  const agents = [];
+
+  for (const [job, def] of Object.entries(JOBS)) {
+    if (agent && def.agent !== agent) continue;
+    const task = _tasks.get(job);
+    if (task) {
+      try { task.stop(); } catch (err) {
+        console.warn(`[autonomous-scheduler] could not stop ${job}: ${err.message}`);
+      }
+      _tasks.delete(job);
+      stopped.push(job);
+    }
+    revoked.add(def.agent);
+    agents.push(def.agent);
+  }
+
+  await _persistRevoked(revoked);
+
+  // One leaver event per agent, so a cancelled schedule reaches the
+  // control-plane feed (and the SailPoint forwarder) as a real revocation
+  // rather than only a log line. Best-effort: failing to journal must not stop
+  // the containment that just happened.
+  try {
+    const lifecycle = require('./agentLifecycleEvents');
+    agents.forEach((agentName) => lifecycle.emit({
+      eventType: 'leaver',
+      agentId: agentName,
+      agentLabel: agentName,
+      source: 'this-app',
+      kind: 'autonomous',
+      reason: 'schedule-cancelled',
+      metadata: { stoppedJobs: stopped, revokedVia: 'kill-switch' },
+    }));
+  } catch (e) {
+    console.warn('[autonomous-scheduler] lifecycle emit failed:', e.message);
+  }
+
+  console.log(`[autonomous-scheduler] revoked ${agents.join(', ') || '(none)'} — cancelled ${stopped.length} schedule(s)`);
+  return { stopped, agents };
+}
+
+/**
+ * Lift a revocation. Does NOT re-register the cron — that happens on the next
+ * startScheduler(), i.e. the next restart. Said plainly here so nobody reads a
+ * successful un-revoke as "it is scheduled again".
+ */
+async function resumeSchedules({ agent } = {}) {
+  const revoked = _revokedSet();
+  const agents = agent ? [agent] : Object.values(JOBS).map((d) => d.agent);
+  agents.forEach((a) => revoked.delete(a));
+  await _persistRevoked(revoked);
+  return { agents, rescheduledOnRestart: true };
+}
+
 /**
  * Run one job and persist the outcome.
  * @returns {Promise<object|null>} the stored run, or null when disabled
@@ -55,6 +149,14 @@ async function runJobNow({ trigger = 'manual', job = 'fraud-watch' } = {}) {
   }
   const def = JOBS[job];
   if (!def) throw new Error(`unknown job: ${job}`);
+
+  // Belt and braces against the cancel racing a tick already in flight, and
+  // against anything that calls runJobNow directly (the manual "Run now"
+  // button does). A revoked agent does not run, whatever fired it.
+  if (isAgentStopped(def.agent)) {
+    console.log(`[autonomous-scheduler] ${job} skipped — ${def.agent} is revoked`);
+    return null;
+  }
 
   let result;
   try {
@@ -182,16 +284,24 @@ function startScheduler() {
 
   const tasks = [];
   for (const [job, def] of Object.entries(JOBS)) {
+    // A revoked agent is not re-armed by a restart. Without this the kill
+    // switch would hold only until the next deploy, which is not containment.
+    if (isAgentStopped(def.agent)) {
+      console.log(`[autonomous-scheduler] ${job} NOT registered — ${def.agent} is revoked`);
+      continue;
+    }
     const schedule = configStore.getEffective(def.cronKey) || def.defaultCron;
     const valid = cron.validate(schedule) ? schedule : def.defaultCron;
     if (!cron.validate(schedule)) {
       console.warn(`[autonomous-scheduler] Invalid cron "${schedule}" for ${job} — using "${def.defaultCron}"`);
     }
-    tasks.push(cron.schedule(valid, () => {
+    const task = cron.schedule(valid, () => {
       runJobNow({ trigger: `cron ${valid}`, job }).catch((err) => {
         console.error(`[autonomous-scheduler] ${job} tick failed:`, err.message);
       });
-    }));
+    });
+    _tasks.set(job, task);
+    tasks.push(task);
     console.log(`[autonomous-scheduler] ${job} registered: "${valid}"`);
   }
   return tasks;
@@ -201,6 +311,10 @@ module.exports = {
   startScheduler,
   runJobNow,
   isEnabled,
+  stopSchedules,
+  resumeSchedules,
+  isAgentStopped,
+  REVOKED_KEY,
   approveParkedRun,
   denyParkedRun,
   isParkedRunApproved,
