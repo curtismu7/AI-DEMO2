@@ -31,11 +31,9 @@ const DEFAULT_SERVICE = process.env.OTEL_SERVICE_NAME || 'demo-api-server';
  * PUBLIC_APP_URL is unset and Grafana is served on its own port rather than
  * under /grafana.
  */
-function tracesUiBase() {
-  const publicAppUrl = String(configStore.getEffective('public_app_url') || '').trim();
-  const derived = publicAppUrl ? `${publicAppUrl}/grafana` : 'http://localhost:3000';
-  return (process.env.TRACES_UI_URL || derived).replace(/\/$/, '');
-}
+// Shared with the control-plane overview so the two cannot disagree about
+// where Grafana lives. See services/observabilityUrls.js.
+const { tracesUiUrl: tracesUiBase } = require('../services/observabilityUrls');
 
 /** Candidate Jaeger query bases — same env-first → compose → localhost pattern as inventory. */
 function jaegerCandidates() {

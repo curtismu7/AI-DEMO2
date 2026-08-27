@@ -1575,9 +1575,11 @@ function AppWithAuth() {
                             <Route
                               path="/agent-builder"
                               element={
-                                <RequireAdminLogin user={user}>
+                                loading ? null : user ? (
                                   <AgentBuilderPage />
-                                </RequireAdminLogin>
+                                ) : (
+                                  <SignInRequired />
+                                )
                               }
                             />
                             <Route
