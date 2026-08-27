@@ -131,7 +131,7 @@ export default function ControlPlanePage() {
               onClick={() => setView('triage')}
             >
               <div className="cp-kpi__label">Needs attention <span className="cp-kpi__go">→</span></div>
-              <div className="cp-kpi__val">{findings.length}</div>
+              <div className="cp-kpi__val" data-testid="kpi-attention-value">{findings.length}</div>
               <div className="cp-kpi__note">{critCount} critical · {advisoryCount} advisory · {declared.length} structural</div>
             </button>
             <div className="cp-kpi">

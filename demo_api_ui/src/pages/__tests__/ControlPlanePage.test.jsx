@@ -53,7 +53,11 @@ describe('ControlPlanePage', () => {
 
     // 2 findings, 1 declared. Structural facts are counted separately because
     // nothing the reader does today can action them.
-    await waitFor(() => expect(screen.getByTestId('kpi-attention')).toHaveTextContent('2'));
+    await waitFor(() => expect(screen.getByTestId('kpi-attention-value')).toHaveTextContent('2'));
+    // declared structural facts are counted separately — nothing the reader
+    // can action today — so this must be findings.length (2), never
+    // findings.length + declared.length (3).
+    expect(screen.getByTestId('kpi-attention-value')).not.toHaveTextContent('3');
   });
 
   it('switches to triage and lists findings worst-first', async () => {
