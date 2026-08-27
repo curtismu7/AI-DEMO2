@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { buildReelFrames } from "../IntentBindingLearningPage";
 
 const LIVE_RESULT = {
@@ -47,5 +49,21 @@ describe("buildReelFrames", () => {
 
   it("renders nothing before a run", () => {
     expect(buildReelFrames(null, {})).toEqual([]);
+  });
+});
+
+// Measured live at a 960px viewport: a plain `1fr 1fr` is `minmax(auto, 1fr)`,
+// so the reel's min-content widened the drift track to 803px, squeezed the
+// permit column to 182px and overflowed the page by 173px. `.App` clips
+// overflow-x, so the $500 column was cut off rather than scrollable.
+describe("ib-split track sizing", () => {
+  const css = fs.readFileSync(path.join(__dirname, "..", "IntentBindingLearningPage.css"), "utf8");
+
+  it("keeps both run columns shrinkable", () => {
+    expect(css).toMatch(/\.ib-split \{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+  });
+
+  it("wraps long JSON instead of widening the column", () => {
+    expect(css).toMatch(/\.ib-reel-json \{[^}]*white-space: pre-wrap/);
   });
 });

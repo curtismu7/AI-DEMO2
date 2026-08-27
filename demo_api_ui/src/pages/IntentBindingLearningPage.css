@@ -61,7 +61,7 @@
   overflow-x: auto;
 }
 
-.ib-split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+.ib-split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
 @media (max-width: 720px) { .ib-split { grid-template-columns: 1fr; } }
 
 .ib-col { border-radius: 10px; padding: 16px; border: 1px solid var(--border-color, #d8dde5); background: var(--surface-color, #fff); }
@@ -94,7 +94,7 @@
 
 /* Run reel — request/response playback for one $80 or $500 run. */
 .ib-reel { margin-top: 12px; border: 1px solid var(--border-color, #d8dde5); border-radius: 8px; background: var(--surface-secondary, #eef1f5); padding: 10px 12px; }
-.ib-reel-head { display: flex; align-items: center; gap: 8px; }
+.ib-reel-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .ib-reel-head strong { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; }
 .ib-reel-count { font-size: 0.72rem; color: var(--text-secondary, #5b6472); font-family: var(--font-family-mono); }
 .ib-reel-ctrls { margin-left: auto; display: flex; gap: 6px; }
@@ -121,4 +121,4 @@
 .ib-reel-frame--deny { border-left-color: var(--brand-error, #f44336); }
 .ib-reel-title { font-size: 0.78rem; font-weight: 700; font-family: var(--font-family-mono); word-break: break-all; }
 .ib-reel-caption { margin: 4px 0 0; font-size: 0.75rem; color: var(--text-secondary, #5b6472); line-height: 1.4; }
-.ib-reel-json { margin: 8px 0 0; max-height: 220px; overflow: auto; font-size: 0.72rem; line-height: 1.45; background: var(--surface-secondary, #f7f9fc); border-radius: 6px; padding: 8px 10px; }
+.ib-reel-json { margin: 8px 0 0; max-height: 220px; overflow: auto; white-space: pre-wrap; word-break: break-all; font-size: 0.72rem; line-height: 1.45; background: var(--surface-secondary, #f7f9fc); border-radius: 6px; padding: 8px 10px; }
