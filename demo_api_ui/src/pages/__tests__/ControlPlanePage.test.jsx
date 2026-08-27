@@ -16,11 +16,15 @@ const PAYLOAD = {
                 revoked: 2, drift: 0, unverified: 12, links: [{ label: 'Open registry', href: '/agent-registry' }] },
     discovery: { surfaces: ['Browsers', 'Endpoints', 'Workloads'], wired: 0 },
     governance: { totalEvents: 7, byEventType: { leaver: 6, mover: 1 }, recent: [], links: [] },
-    observability: { backends: [{ name: 'Grafana', detail: 'dashboards' }], links: [] },
+    observability: { backends: [
+      { name: 'Grafana', detail: 'dashboards', href: 'http://localhost:3000', external: true },
+      { name: 'Jaeger', detail: 'distributed traces', href: null, external: true },
+    ], links: [] },
   },
   enforcement: [
     { id: 'p1az', name: 'Fine-Grained Authorization', state: 'not-wired',
-      willShow: 'P1AZ decisions per agent', today: '/pingone-authorize' },
+      willShow: 'P1AZ decisions per agent', today: '/pingone-authorize',
+      todayLabel: 'P1AZ Inspector' },
   ],
   findings: [
     { id: 'repeat-revocation:default-agent', rule: 'repeat-revocation', severity: 'critical',
@@ -209,5 +213,37 @@ describe('ControlPlanePage', () => {
     await waitFor(() => expect(screen.getByText('Fine-Grained Authorization')).toBeInTheDocument());
     expect(screen.getByText('live')).toBeInTheDocument();
     expect(screen.queryByText(/not wired/i)).not.toBeInTheDocument();
+  });
+  it('makes the backend NAME the link, not a separate row beneath it', async () => {
+    apiClient.get.mockResolvedValue({ data: PAYLOAD });
+    render(<ControlPlanePage />);
+
+    // Grafana lives on its own origin in Compose, so the emitted href must be
+    // the absolute one the BFF derived — '/grafana' is a 404 on a local stack.
+    const grafana = await screen.findByRole('link', { name: 'Grafana' });
+    expect(grafana).toHaveAttribute('href', 'http://localhost:3000');
+    expect(grafana).toHaveAttribute('target', '_blank');
+    expect(grafana).toHaveAttribute('rel', expect.stringContaining('noopener'));
+  });
+
+  it('leaves a backend with no declared URL as plain text', async () => {
+    apiClient.get.mockResolvedValue({ data: PAYLOAD });
+    render(<ControlPlanePage />);
+
+    // A null href must not become a link that cannot work.
+    await waitFor(() => expect(screen.getByText('Jaeger')).toBeInTheDocument());
+    expect(screen.queryByRole('link', { name: 'Jaeger' })).not.toBeInTheDocument();
+  });
+
+  it('names where an enforcement card leads instead of saying "Today"', async () => {
+    apiClient.get.mockResolvedValue({ data: PAYLOAD });
+    render(<ControlPlanePage />);
+
+    // The card name itself links, and the destination is named — "Today →"
+    // told the reader nothing about where they would land.
+    const byName = await screen.findByRole('link', { name: 'Fine-Grained Authorization' });
+    expect(byName).toHaveAttribute('href', '/pingone-authorize');
+    expect(screen.getByRole('link', { name: /P1AZ Inspector/ })).toHaveAttribute('href', '/pingone-authorize');
+    expect(screen.queryByRole('link', { name: /^Today/ })).not.toBeInTheDocument();
   });
 });

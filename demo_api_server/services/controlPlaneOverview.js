@@ -21,6 +21,7 @@ const agentRegistryService = require('./agentRegistryService');
 const agentLifecycleEvents = require('./agentLifecycleEvents');
 const { SERVER_INVENTORY } = require('../data/serverInventory');
 const findings = require('./controlPlaneFindings');
+const observabilityUrls = require('./observabilityUrls');
 
 /** Enforcement services are observed, not owned — in the reference architecture
  *  they sit outside the control-plane box, so they render as their own band
@@ -32,6 +33,7 @@ const ENFORCEMENT = [
     state: 'not-wired',
     willShow: 'P1AZ decisions per agent, deny reasons, policy version',
     today: '/pingone-authorize',
+    todayLabel: 'P1AZ Inspector',
   },
   {
     id: 'aigateway',
@@ -39,6 +41,7 @@ const ENFORCEMENT = [
     state: 'not-wired',
     willShow: 'which agents route through which gate, tool-level allow and deny',
     today: '/agent-gateway-inspector',
+    todayLabel: 'Agent Gateway Inspector',
   },
   {
     id: 'privilege',
@@ -46,6 +49,7 @@ const ENFORCEMENT = [
     state: 'not-wired',
     willShow: 'LLM, MCP, A2A and AI Guard sub-gateway state, injected credentials',
     today: '/privilege-mcp-client',
+    todayLabel: 'AI Gateway Client',
   },
 ];
 
@@ -102,15 +106,15 @@ function governanceZone(events, summary) {
  *  Grafana, and duplicating that probe here would be a second source of truth. */
 function observabilityZone() {
   return {
+    // Each backend carries its own href so the NAME is the link. A null href
+    // renders as plain text rather than a link that cannot work — Jaeger has no
+    // declared browser URL unless JAEGER_UI_URL is set.
     backends: [
-      { name: 'Grafana', detail: 'dashboards over Prometheus' },
-      { name: 'Jaeger', detail: 'distributed traces' },
-      { name: 'Transaction trace', detail: 'one chain per correlation id' },
+      { name: 'Grafana', detail: 'dashboards over Prometheus', href: observabilityUrls.tracesUiUrl(), external: true },
+      { name: 'Jaeger', detail: 'distributed traces', href: observabilityUrls.jaegerUiUrl(), external: true },
+      { name: 'Transaction trace', detail: 'one chain per correlation id', href: '/agent-flow-inspector' },
     ],
-    links: [
-      { label: 'Grafana', href: '/grafana' },
-      { label: 'Agent & token flow history', href: '/agent-flow-inspector' },
-    ],
+    links: [],
   };
 }
 

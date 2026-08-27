@@ -101,7 +101,7 @@
     "/admin/university": "admin",
     "/admin/verticals": "admin",
     "/admin/workforce": "admin",
-    "/agent-builder": "admin",
+    "/agent-builder": "user",
     "/agent-flow-inspector": "public",
     "/agent-gateway-capabilities": "public",
     "/agent-gateway-inspector": "public",

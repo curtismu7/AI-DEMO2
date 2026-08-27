@@ -569,7 +569,6 @@ export default function AdminSideNav({
           label: "PingOne Agent Builder",
           path: "/agent-builder",
           icon: "tool",
-          adminOnly: true,
         },
         {
           label: "Agent & Token Flow History",

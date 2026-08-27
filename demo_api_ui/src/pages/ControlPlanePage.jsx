@@ -329,7 +329,20 @@ export default function ControlPlanePage() {
                 <ul className="cp-mini">
                   {observability.backends.map((b) => (
                     <li key={b.name}>
-                      <span className="cp-mini__name">{b.name}</span>
+                      {/* The NAME is the link. A backend with no declared browser
+                          URL stays plain text rather than becoming a link that
+                          cannot work. */}
+                      {b.href ? (
+                        <a
+                          className="cp-mini__name cp-mini__name--link"
+                          href={b.href}
+                          {...(b.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                        >
+                          {b.name}
+                        </a>
+                      ) : (
+                        <span className="cp-mini__name">{b.name}</span>
+                      )}
                       <span className="cp-mini__meta">{b.detail}</span>
                     </li>
                   ))}
@@ -350,9 +363,16 @@ export default function ControlPlanePage() {
             <div className="cp-enforcement__row">
               {enforcement.map((e) => (
                 <div key={e.id} className="cp-enforcement__card">
-                  <div className="cp-enforcement__name">{e.name}</div>
+                  {/* The card NAME is the link to where that data lives today —
+                      "Today →" named nothing and gave the reader no idea where
+                      it would land. */}
+                  <a className="cp-enforcement__name cp-enforcement__name--link" href={e.today}>
+                    {e.name}
+                  </a>
                   <div className="cp-enforcement__will">Will show: {e.willShow}</div>
-                  <a className="cp-link" href={e.today}>Today →</a>
+                  <div className="cp-enforcement__today">
+                    Today: <a className="cp-link" href={e.today}>{e.todayLabel || e.today} →</a>
+                  </div>
                   <span className={`cp-pill ${e.state === 'not-wired' ? 'cp-pill--gap' : 'cp-pill--ok'}`}>
                     {e.state === 'not-wired' ? 'not wired' : e.state}
                   </span>
