@@ -4,6 +4,7 @@ import "./TransactionTracePage.css";
 // One source for how the PingGateway filters are named and explained, shared
 // with the Token Chain rail so the two surfaces cannot describe them differently.
 import { GW_STAGE_META } from "../services/tokenChainTrace/buildTraceSteps";
+import TokenChainFilmstrip from "../components/TokenChainFilmstrip";
 
 const REFRESH_MS = 15000;
 const LIST_LIMIT = 50;
@@ -331,6 +332,15 @@ export default function TransactionTracePage() {
           </li>
         ))}
       </ul>
+
+      {/* Movie reel - the same TokenChainFilmstrip the dashboard mounts, over
+          the same global store. This page explains one recorded turn hop by hop
+          but had no live chain of its own. .tcfs is display:contents, so it
+          needs the .tcfs-float-host grid wrapper, exactly as the dashboard's
+          float and dock layouts do. */}
+      <div className="tcfs-float-host">
+        <TokenChainFilmstrip />
+      </div>
     </div>
   );
 }

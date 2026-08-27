@@ -111,4 +111,23 @@ describe("Focus Mode filmstrip guard", () => {
     const guards = (p2026.match(/showFilmstrip &&/g) || []).length;
     expect(guards).toBeGreaterThanOrEqual(renders);
   });
+
+  // Locked 2026-08-27, fourth "the reel is gone": it was RENDERED in float and
+  // dock mode but sat at y~2800 of a ~3500px page, below every banking card, so
+  // nobody ever scrolled to it. Focus Mode gives it a grid row; the other two
+  // layouts only had .tcfs-float-host, which flowed with the document. Pinning
+  // that wrapper is what makes the reel visible in all three layouts.
+  const filmstripCss = read("../components/TokenChainFilmstrip.css");
+
+  test(".tcfs-float-host is pinned to the viewport bottom", () => {
+    const rule = filmstripCss.match(/\.tcfs-float-host \{[^}]*\}/);
+    expect(rule).not.toBeNull();
+    expect(rule[0]).toMatch(/position:\s*sticky/);
+    expect(rule[0]).toMatch(/bottom:\s*0/);
+  });
+
+  test("Transaction Trace mounts the reel in the same wrapper", () => {
+    const trace = read("../pages/TransactionTracePage.jsx");
+    expect(trace).toMatch(/<div className="tcfs-float-host">\s*\n\s*<TokenChainFilmstrip\s*\/>/);
+  });
 });
