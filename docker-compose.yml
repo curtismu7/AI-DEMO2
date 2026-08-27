@@ -227,6 +227,13 @@ services:
       ENTERPRISE_MCP_RESOURCE_URIS: "${ENTERPRISE_MCP_RESOURCE_URIS:-mcpserver.ping.demo,mcpgateway.ping.demo,http://localhost:8080/mcp,https://api.ping.demo:3036/mcp}"
       NODE_OPTIONS: "-r /otel/otel-instrument.js"
       JAEGER_QUERY_URL: "http://jaeger:16686"
+      # Where the BROWSER opens traces. Without this the BFF derives
+      # "<public_app_url>/grafana", which is right in k8s (nginx proxies
+      # /grafana) and wrong here: nothing serves that path on the UI origin, so
+      # the /tracing page's "Open traces in Grafana" link landed on the SPA
+      # catch-all — a 200 with the app's own index.html, which looks like it
+      # worked. Compose publishes Grafana on the host at :3000, so name it.
+      TRACES_UI_URL: "${TRACES_UI_URL:-http://localhost:3000}"
       # Don't wipe persisted sessions on every restart/recreate — otherwise each
       # api-server boot logs out all users (server.js defaults this ON when unset),
       # so a redeploy silently blanks logged-in pages like /themes until re-auth.
