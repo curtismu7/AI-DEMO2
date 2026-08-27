@@ -15,26 +15,26 @@
           "js": {
             "lang": "javascript",
             "file": "js/index.js",
-            "code": "             `Form body:<br>&nbsp;&nbsp;<code>grant_type=client_credentials</code>`,\n  rawDetail: true,\n  body:      `client_id:     ${clientID}\\ngrant_type:    client_credentials`,\n});\n\n// Step 2: Call the token endpoint.\n// A successful response contains access_token (JWT), token_type (\"Bearer\"),\n// and expires_in (seconds). There is no refresh_token in client_credentials\n// flows \u2014 when the token expires, simply re-run this same request.\nlet tokStatus = 0, tokRaw = '', tokParsed = null, tokOK = false;\ntry {\n  const resp = await fetch(tokenURL, {\n    method: 'POST',\n    headers: {\n      'Content-Type':  'application/x-www-form-urlencoded',\n      'Authorization': `Basic ${basic}`,\n    },\n    body: 'grant_type=client_credentials',\n  });\n  tokStatus = resp.status;\n  tokRaw    = await resp.text();\n  try { tokParsed = JSON.parse(tokRaw); } catch (_) {}\n  tokOK = tokStatus < 400;\n} catch (err) {\n  tokRaw = err.message;\n}",
-            "line": 480
+            "code": "steps.push({\n  title:     '1. Build token request',\n  ok:        true,\n  url:       `POST ${tokenURL}`,\n  detail:    `The client_credentials grant requires no user interaction. The only inputs are the client's own credentials.<br><br>` +\n             `Headers:<br>&nbsp;&nbsp;<code>Authorization: Basic base64(client_id:client_secret)</code><br>&nbsp;&nbsp;<code>Content-Type: application/x-www-form-urlencoded</code><br>` +\n             `Form body:<br>&nbsp;&nbsp;<code>grant_type=client_credentials</code>`,\n  rawDetail: true,\n  body:      `client_id:     ${clientID}\\ngrant_type:    client_credentials`,\n});",
+            "line": 474
           },
           "python": {
             "lang": "python",
             "file": "python/app.py",
-            "code": "        \"Form body:<br>&nbsp;&nbsp;<code>grant_type=client_credentials</code>\"\n    ),\n    body=f\"client_id:     {CLIENT_ID}\\ngrant_type:    client_credentials\",\n))\n\n# Step 2: Call the token endpoint.\n# A successful response contains access_token (JWT), token_type (\"Bearer\"),\n# and expires_in (seconds until expiry). There is no refresh_token because\n# re-authentication in client_credentials is trivial \u2014 just resend the same\n# request with the same credentials.\ntry:\n    tok_resp = requests.post(\n        token_url,\n        data={\"grant_type\": \"client_credentials\"},\n        headers={\n            \"Authorization\": f\"Basic {basic}\",\n            \"Content-Type\": \"application/x-www-form-urlencoded\",\n        },\n        timeout=HTTP_TIMEOUT,\n    )\n    tok_raw = tok_resp.content\n    tok_status = tok_resp.status_code\n    try:\n        tok_parsed = tok_resp.json()\n    except Exception:\n        tok_parsed = {}\nexcept requests.RequestException as exc:\n    tok_raw = str(exc).encode()\n    tok_status = 0\n    tok_parsed = {}",
-            "line": 586
+            "code": "items.append(StepResult(\n    title=\"1. Build token request\",\n    ok=True,\n    url=f\"POST {token_url}\",\n    detail=(\n        \"The client_credentials grant requires no user interaction. The only inputs are the client's own credentials.<br><br>\"\n        \"Headers:<br>&nbsp;&nbsp;<code>Authorization: Basic base64(client_id:client_secret)</code><br>\"\n        \"&nbsp;&nbsp;<code>Content-Type: application/x-www-form-urlencoded</code><br>\"\n        \"Form body:<br>&nbsp;&nbsp;<code>grant_type=client_credentials</code>\"\n    ),\n    body=f\"client_id:     {CLIENT_ID}\\ngrant_type:    client_credentials\",\n))",
+            "line": 578
           },
           "react": {
             "lang": "javascript",
             "file": "react/server/index.js",
-            "code": "    'Form body:\\n  grant_type=client_credentials',\n  body: `client_id:     ${clientID}\\ngrant_type:    client_credentials`,\n  collapsed: false,\n});\n\n// Step 2: Call the token endpoint.\n// A successful response contains access_token (JWT), token_type (\"Bearer\"),\n// and expires_in. There is no refresh_token in client_credentials flows \u2014\n// when the token expires, simply re-send the same credential exchange.\nconst basic = Buffer.from(`${clientID}:${clientSecret}`).toString('base64');\nlet tokRaw, tokParsed = null, tokStatus = 0, tokErr = null;\ntry {\n  const tokResp = await fetch(tokenURL, {\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/x-www-form-urlencoded',\n      'Authorization': `Basic ${basic}`,\n    },\n    body: new URLSearchParams({ grant_type: 'client_credentials' }),\n  });\n  tokStatus = tokResp.status;\n  tokRaw = await tokResp.text();\n  try { tokParsed = JSON.parse(tokRaw); } catch {}\n} catch (err) {\n  tokErr = err;\n}",
-            "line": 206
+            "code": "steps.push({\n  title: '1. Build token request',\n  ok: true,\n  url: `POST ${tokenURL}`,\n  detail:\n    'The client_credentials grant requires no user interaction. The only inputs are the client\\'s own credentials.\\n\\n' +\n    'Headers:\\n  Authorization: Basic base64(client_id:client_secret)\\n  Content-Type: application/x-www-form-urlencoded\\n' +\n    'Form body:\\n  grant_type=client_credentials',\n  body: `client_id:     ${clientID}\\ngrant_type:    client_credentials`,\n  collapsed: false,\n});",
+            "line": 199
           },
           "angular": {
             "lang": "javascript",
             "file": "angular/server/index.js",
-            "code": "          'Form body:\\n  grant_type=client_credentials',\n  body: `client_id:     ${clientID}\\ngrant_type:    client_credentials`,\n  collapsed: false,\n});\n\n// \u2500\u2500 2. Call token endpoint \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n// A successful response contains access_token (JWT), token_type (\"Bearer\"),\n// and expires_in. There is no refresh_token in client_credentials flows \u2014\n// when the token expires, simply re-send the same credential exchange.\nlet tokStatus = 0;\nlet tokRaw = '';\nlet tokParsed = null;\ntry {\n  const tokResp = await fetch(tokenURL, {\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/x-www-form-urlencoded',\n      'Authorization': `Basic ${basic}`,\n    },\n    body: new URLSearchParams({ grant_type: 'client_credentials' }),\n  });\n  tokStatus = tokResp.status;\n  tokRaw = await tokResp.text();\n  try { tokParsed = JSON.parse(tokRaw); } catch {}\n} catch (err) {\n  steps.push({ title: '2. Token endpoint response', ok: false, url: `POST ${tokenURL}`, detail: `Request failed: ${err.message}`, body: '', collapsed: false });\n  return { success: false, steps };\n}",
-            "line": 209
+            "code": "// \u2500\u2500 1. Build token request \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nsteps.push({\n  title: '1. Build token request',\n  ok: true,\n  url: `POST ${tokenURL}`,\n  detail: 'The client_credentials grant requires no user interaction. The only inputs are the client\\'s own credentials.\\n\\n' +\n          'Headers:\\n  Authorization: Basic base64(client_id:client_secret)\\n  Content-Type: application/x-www-form-urlencoded\\n' +\n          'Form body:\\n  grant_type=client_credentials',\n  body: `client_id:     ${clientID}\\ngrant_type:    client_credentials`,\n  collapsed: false,\n});",
+            "line": 202
           }
         }
       },
@@ -95,8 +95,8 @@
           "python": {
             "lang": "python",
             "file": "python/app.py",
-            "code": "        pub.verify(sig, signed_input, padding.PKCS1v15(), hashes.SHA256())\n    except Exception as exc:\n        return f\"Signature INVALID: {exc}\"\n    return \"\"\n\n\ndef validate_access_claims(claims: dict, expected_issuer: str, expected_client_id: str) -> dict:\n    \"\"\"Validate the claims that must be present and correct in a client_credentials token.\n\n    Returns a dict of {claim_name: error_string} for every failing check.\n    An empty dict means all checks passed.\n\n    Key M2M point: PingOne Worker app tokens do not have a \"sub\" claim because\n    there is no authenticated user. The client's identity is in \"client_id\".\n    Validating client_id (not sub) is essential for M2M token consumers.\n\n    exp must be in the future. iat must not be more than 60 seconds in the\n    future (tolerates minor clock skew between the token issuer and this server).\n    There is no nonce check because nonces are only meaningful in interactive\n    flows that involve a browser redirect.\n    \"\"\"\n    errs = {}\n    iss = claims.get(\"iss\", \"\")\n    if iss != expected_issuer:\n        errs[\"iss\"] = f\"got {iss!r}, want {expected_issuer!r}\"\n    cid = claims.get(\"client_id\", \"\")\n    if cid != expected_client_id:\n        errs[\"client_id\"] = f\"got {cid!r}, want {expected_client_id!r}\"\n    now = int(time.time())\n    exp = claims.get(\"exp\")\n    if exp is None:\n        errs[\"exp\"] = \"missing or non-numeric\"\n    else:\n        try:\n            if int(exp) < now:\n                errs[\"exp\"] = f\"expired (exp={int(exp)}, now={now})\"\n        except (TypeError, ValueError):\n            errs[\"exp\"] = \"missing or non-numeric\"\n    iat = claims.get(\"iat\")\n    if iat is not None:\n        try:",
-            "line": 285
+            "code": "    try:\n        pub.verify(sig, signed_input, padding.PKCS1v15(), hashes.SHA256())\n    except Exception as exc:\n        return f\"Signature INVALID: {exc}\"\n    return \"\"\n\n\ndef validate_access_claims(claims: dict, expected_issuer: str, expected_client_id: str) -> dict:\n    \"\"\"Validate the claims that must be present and correct in a client_credentials token.\n\n    Returns a dict of {claim_name: error_string} for every failing check.\n    An empty dict means all checks passed.\n\n    Key M2M point: PingOne Worker app tokens do not have a \"sub\" claim because\n    there is no authenticated user. The client's identity is in \"client_id\".\n    Validating client_id (not sub) is essential for M2M token consumers.\n\n    exp must be in the future. iat must not be more than 60 seconds in the\n    future (tolerates minor clock skew between the token issuer and this server).\n    There is no nonce check because nonces are only meaningful in interactive\n    flows that involve a browser redirect.\n    \"\"\"\n    errs = {}\n    iss = claims.get(\"iss\", \"\")\n    if iss != expected_issuer:\n        errs[\"iss\"] = f\"got {iss!r}, want {expected_issuer!r}\"\n    cid = claims.get(\"client_id\", \"\")\n    if cid != expected_client_id:\n        errs[\"client_id\"] = f\"got {cid!r}, want {expected_client_id!r}\"\n    now = int(time.time())\n    exp = claims.get(\"exp\")\n    if exp is None:\n        errs[\"exp\"] = \"missing or non-numeric\"\n    else:\n        try:\n            if int(exp) < now:\n                errs[\"exp\"] = f\"expired (exp={int(exp)}, now={now})\"\n        except (TypeError, ValueError):\n            errs[\"exp\"] = \"missing or non-numeric\"\n    iat = claims.get(\"iat\")\n    if iat is not None:",
+            "line": 284
           },
           "react": {
             "lang": "javascript",
@@ -204,8 +204,8 @@
           "js": {
             "lang": "javascript",
             "file": "js/index.js",
-            "code": "  const body        = new URLSearchParams({ grant_type: 'client_credentials' });\n  const credentials = Buffer.from(`${workerClientID}:${workerClientSecret}`).toString('base64');\n\n  const resp = await fetch(`${authPath}/${workerEnvID}/as/token`, {\n    method: 'POST',\n    headers: {\n      'Content-Type':  'application/x-www-form-urlencoded',\n      'Authorization': `Basic ${credentials}`,\n    },\n    body,\n  });\n  const json = await resp.json();\n  if (!json.access_token) {\n    throw new Error(`No access_token in response: ${JSON.stringify(json)}`);\n  }\n  return json.access_token;\n}",
-            "line": 178
+            "code": " * grant. This is the correct grant for server-to-server admin operations where\n * no end-user is present. The resulting token inherits the platform roles\n * (e.g. Environment Admin) assigned to the worker app in PingOne.\n *\n * Authentication is HTTP Basic: credentials are base64-encoded as\n * \"clientID:clientSecret\" in the Authorization header. This corresponds to the\n * CLIENT_SECRET_BASIC token endpoint authentication method in PingOne.\n */\nasync function getAdminToken() {\n  const body        = new URLSearchParams({ grant_type: 'client_credentials' });\n  const credentials = Buffer.from(`${workerClientID}:${workerClientSecret}`).toString('base64');\n\n  const resp = await fetch(`${authPath}/${workerEnvID}/as/token`, {\n    method: 'POST',\n    headers: {\n      'Content-Type':  'application/x-www-form-urlencoded',\n      'Authorization': `Basic ${credentials}`,\n    },\n    body,\n  });\n  const json = await resp.json();\n  if (!json.access_token) {\n    throw new Error(`No access_token in response: ${JSON.stringify(json)}`);\n  }\n  return json.access_token;\n}",
+            "line": 169
           },
           "python": {
             "lang": "python",
@@ -216,14 +216,14 @@
           "react": {
             "lang": "javascript",
             "file": "react/server/index.js",
-            "code": "  const body = new URLSearchParams({ grant_type: 'client_credentials' });\n  const credentials = Buffer.from(`${workerClientID}:${workerClientSecret}`).toString('base64');\n  const resp = await fetch(`${authPath}/${workerEnvID}/as/token`, {\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/x-www-form-urlencoded',\n      'Authorization': `Basic ${credentials}`,\n    },\n    body,\n  });\n  const json = await resp.json();\n  if (!json.access_token) throw new Error(`No access_token: ${JSON.stringify(json)}`);\n  return json.access_token;\n}",
-            "line": 67
+            "code": " *\n * client_credentials is the correct grant for server-to-server calls where no\n * end-user is involved. The resulting token inherits the platform roles assigned\n * to the worker app (Environment Admin in this case).\n *\n * Authentication uses HTTP Basic: credentials are base64-encoded as\n * \"clientID:clientSecret\" in the Authorization header (CLIENT_SECRET_BASIC).\n */\nasync function getAdminToken() {\n  const body = new URLSearchParams({ grant_type: 'client_credentials' });\n  const credentials = Buffer.from(`${workerClientID}:${workerClientSecret}`).toString('base64');\n  const resp = await fetch(`${authPath}/${workerEnvID}/as/token`, {\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/x-www-form-urlencoded',\n      'Authorization': `Basic ${credentials}`,\n    },\n    body,\n  });\n  const json = await resp.json();\n  if (!json.access_token) throw new Error(`No access_token: ${JSON.stringify(json)}`);\n  return json.access_token;\n}",
+            "line": 58
           },
           "angular": {
             "lang": "javascript",
             "file": "angular/server/index.js",
-            "code": "  const body = new URLSearchParams({ grant_type: 'client_credentials' });\n  const credentials = Buffer.from(`${workerClientID}:${workerClientSecret}`).toString('base64');\n  const resp = await fetch(`${authPath}/${workerEnvID}/as/token`, {\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/x-www-form-urlencoded',\n      'Authorization': `Basic ${credentials}`,\n    },\n    body,\n  });\n  const json = await resp.json();\n  if (!json.access_token) throw new Error(`No access_token: ${JSON.stringify(json)}`);\n  return json.access_token;\n}",
-            "line": 66
+            "code": " *\n * client_credentials is the correct grant for server-to-server calls where no\n * end-user is present. The resulting token inherits the platform roles assigned\n * to the worker app (Environment Admin in this case).\n *\n * Authentication uses HTTP Basic: credentials are base64-encoded as\n * \"clientID:clientSecret\" in the Authorization header (CLIENT_SECRET_BASIC).\n */\nasync function getAdminToken() {\n  const body = new URLSearchParams({ grant_type: 'client_credentials' });\n  const credentials = Buffer.from(`${workerClientID}:${workerClientSecret}`).toString('base64');\n  const resp = await fetch(`${authPath}/${workerEnvID}/as/token`, {\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/x-www-form-urlencoded',\n      'Authorization': `Basic ${credentials}`,\n    },\n    body,\n  });\n  const json = await resp.json();\n  if (!json.access_token) throw new Error(`No access_token: ${JSON.stringify(json)}`);\n  return json.access_token;\n}",
+            "line": 57
           }
         }
       },
@@ -350,8 +350,8 @@
           "go": {
             "lang": "go",
             "file": "go/main.go",
-            "code": "\t\"%s/%s/as/authorize?response_type=code&client_id=%s&redirect_uri=http://localhost:3000/callback&scope=openid%%20profile&response_mode=pi.flow\",\n\tauthPath, envID, clientID,\n)\nreqInit, _ := http.NewRequest(\"GET\", authURL, nil)\nreqInit.Header.Set(\"Accept\", \"*/*\")\n\ninitResp, err := client.Do(reqInit)\nif err != nil {\n\trenderError(w, \"Failed to initialize flow: \"+err.Error())\n\treturn\n}\ndefer initResp.Body.Close()\ncookies = captureCookies(cookies, initResp)",
-            "line": 343
+            "code": "//\n// response_mode=pi.flow tells PingOne to return a JSON body with a flow ID\n// instead of redirecting the browser to a hosted login page. The JSON also\n// signals which operations are allowed on this flow (e.g. registration).\n//\n// Accept: */* is required because the flow API returns a PingOne vendor\n// content type (application/vnd.pingidentity.*+json). Sending\n// Accept: application/json causes a 406.\nauthURL := fmt.Sprintf(\n\t\"%s/%s/as/authorize?response_type=code&client_id=%s&redirect_uri=http://localhost:3000/callback&scope=openid%%20profile&response_mode=pi.flow\",\n\tauthPath, envID, clientID,\n)\nreqInit, _ := http.NewRequest(\"GET\", authURL, nil)\nreqInit.Header.Set(\"Accept\", \"*/*\")",
+            "line": 334
           },
           "js": {
             "lang": "javascript",
@@ -393,8 +393,8 @@
           "js": {
             "lang": "javascript",
             "file": "js/index.js",
-            "code": "    'Content-Type': 'application/vnd.pingidentity.user.register+json',\n    'Accept': '*/*',\n    'Cookie': cookieHeader(cookies),\n  },\n  body: JSON.stringify({ username, email, password }),\n  redirect: 'manual',\n});\ncaptureCookies(cookies, regResp);\nconst regJson = await regResp.json();",
-            "line": 289
+            "code": "// Step 2: Register the new user.\n// The Content-Type header selects the registration operation on the flow.\n// The body must include at minimum username, email, and password. PingOne\n// validates the password against the environment's password policy before\n// creating the account.\nconst regResp = await fetch(`${authPath}/${envID}/flows/${flowID}`, {\n  method: 'POST',\n  headers: {\n    'Content-Type': 'application/vnd.pingidentity.user.register+json',\n    'Accept': '*/*',\n    'Cookie': cookieHeader(cookies),\n  },\n  body: JSON.stringify({ username, email, password }),\n  redirect: 'manual',\n});\ncaptureCookies(cookies, regResp);\nconst regJson = await regResp.json();",
+            "line": 281
           },
           "python": {
             "lang": "python",
@@ -405,14 +405,14 @@
           "react": {
             "lang": "javascript",
             "file": "react/server/index.js",
-            "code": "    'Content-Type': 'application/vnd.pingidentity.user.register+json',\n    'Accept': '*/*',\n    'Cookie': cookieHeader(session.cookies),\n  },\n  body: JSON.stringify({ username, email, password }),\n  redirect: 'manual',\n});\ncaptureCookies(session.cookies, regResp);\nconst regJson = await regResp.json();",
-            "line": 182
+            "code": "// Step 2: Register the new user.\n// The Content-Type selects the registration operation. PingOne validates the\n// password against the environment's policy before creating the account.\nconst regResp = await fetch(`${authPath}/${envID}/flows/${flowID}`, {\n  method: 'POST',\n  headers: {\n    'Content-Type': 'application/vnd.pingidentity.user.register+json',\n    'Accept': '*/*',\n    'Cookie': cookieHeader(session.cookies),\n  },\n  body: JSON.stringify({ username, email, password }),\n  redirect: 'manual',\n});\ncaptureCookies(session.cookies, regResp);\nconst regJson = await regResp.json();",
+            "line": 176
           },
           "angular": {
             "lang": "javascript",
             "file": "angular/server/index.js",
-            "code": "    'Content-Type': 'application/vnd.pingidentity.user.register+json',\n    'Accept': '*/*',\n    'Cookie': cookieHeader(session.cookies),\n  },\n  body: JSON.stringify({ username, email, password }),\n  redirect: 'manual',\n});\ncaptureCookies(session.cookies, regResp);\nconst regJson = await regResp.json();",
-            "line": 171
+            "code": "// Step 2: Register the new user.\n// The Content-Type selects the registration operation on the flow.\n// PingOne validates the password against the environment's policy before\n// creating the account.\nconst regResp = await fetch(`${authPath}/${envID}/flows/${flowID}`, {\n  method: 'POST',\n  headers: {\n    'Content-Type': 'application/vnd.pingidentity.user.register+json',\n    'Accept': '*/*',\n    'Cookie': cookieHeader(session.cookies),\n  },\n  body: JSON.stringify({ username, email, password }),\n  redirect: 'manual',\n});\ncaptureCookies(session.cookies, regResp);\nconst regJson = await regResp.json();",
+            "line": 164
           }
         }
       },
@@ -430,8 +430,8 @@
           "js": {
             "lang": "javascript",
             "file": "js/index.js",
-            "code": "    'Content-Type': 'application/vnd.pingidentity.user.verify+json',\n    'Accept': '*/*',\n    'Cookie': cookieHeader(cookies),\n  },\n  body: JSON.stringify({ verificationCode: code }),\n  redirect: 'manual',\n});\ncaptureCookies(cookies, verifyResp);\nconst verifyJson = await verifyResp.json();",
-            "line": 339
+            "code": "// Content-Type application/vnd.pingidentity.user.verify+json tells PingOne\n// this POST carries an OTP, not another registration attempt.\nconst verifyResp = await fetch(`${authPath}/${envID}/flows/${flowID}`, {\n  method: 'POST',\n  headers: {\n    'Content-Type': 'application/vnd.pingidentity.user.verify+json',\n    'Accept': '*/*',\n    'Cookie': cookieHeader(cookies),\n  },\n  body: JSON.stringify({ verificationCode: code }),\n  redirect: 'manual',\n});\ncaptureCookies(cookies, verifyResp);\nconst verifyJson = await verifyResp.json();",
+            "line": 334
           },
           "python": {
             "lang": "python",
@@ -442,14 +442,14 @@
           "react": {
             "lang": "javascript",
             "file": "react/server/index.js",
-            "code": "    'Content-Type': 'application/vnd.pingidentity.user.verify+json',\n    'Accept': '*/*',\n    'Cookie': cookieHeader(session.cookies),\n  },\n  body: JSON.stringify({ verificationCode: code }),\n  redirect: 'manual',\n});\ncaptureCookies(session.cookies, verifyResp);\nconst verifyJson = await verifyResp.json();",
-            "line": 224
+            "code": "// Content-Type application/vnd.pingidentity.user.verify+json distinguishes\n// this OTP submission from another registration or login attempt on the same\n// flow endpoint.\nconst verifyResp = await fetch(`${authPath}/${envID}/flows/${session.flowID}`, {\n  method: 'POST',\n  headers: {\n    'Content-Type': 'application/vnd.pingidentity.user.verify+json',\n    'Accept': '*/*',\n    'Cookie': cookieHeader(session.cookies),\n  },\n  body: JSON.stringify({ verificationCode: code }),\n  redirect: 'manual',\n});\ncaptureCookies(session.cookies, verifyResp);\nconst verifyJson = await verifyResp.json();",
+            "line": 218
           },
           "angular": {
             "lang": "javascript",
             "file": "angular/server/index.js",
-            "code": "    'Content-Type': 'application/vnd.pingidentity.user.verify+json',\n    'Accept': '*/*',\n    'Cookie': cookieHeader(session.cookies),\n  },\n  body: JSON.stringify({ verificationCode: code }),\n  redirect: 'manual',\n});\ncaptureCookies(session.cookies, verifyResp);\nconst verifyJson = await verifyResp.json();",
-            "line": 210
+            "code": "// Content-Type application/vnd.pingidentity.user.verify+json tells PingOne\n// this is an OTP submission, not a new registration or login attempt.\nconst verifyResp = await fetch(`${authPath}/${envID}/flows/${session.flowID}`, {\n  method: 'POST',\n  headers: {\n    'Content-Type': 'application/vnd.pingidentity.user.verify+json',\n    'Accept': '*/*',\n    'Cookie': cookieHeader(session.cookies),\n  },\n  body: JSON.stringify({ verificationCode: code }),\n  redirect: 'manual',\n});\ncaptureCookies(session.cookies, verifyResp);\nconst verifyJson = await verifyResp.json();",
+            "line": 205
           }
         }
       },
@@ -504,8 +504,8 @@
           "js": {
             "lang": "javascript",
             "file": "js/index.js",
-            "code": "    grant_type: 'authorization_code',\n    code: authCode,\n    redirect_uri: 'http://localhost:3000/callback',\n  }),\n});\nconst tokenJson = await tokenResp.json();\nif (!tokenJson.access_token) return res.send(errorHTML(`Failed to parse access token. Output: ${JSON.stringify(tokenJson)}`));",
-            "line": 444
+            "code": "const tokenResp = await fetch(`${authPath}/${envID}/as/token`, {\n  method: 'POST',\n  headers: {\n    'Content-Type': 'application/x-www-form-urlencoded',\n    'Authorization': `Basic ${creds}`,\n  },\n  body: new URLSearchParams({\n    grant_type: 'authorization_code',\n    code: authCode,\n    redirect_uri: 'http://localhost:3000/callback',\n  }),\n});\nconst tokenJson = await tokenResp.json();\nif (!tokenJson.access_token) return res.send(errorHTML(`Failed to parse access token. Output: ${JSON.stringify(tokenJson)}`));",
+            "line": 437
           },
           "python": {
             "lang": "python",
@@ -516,14 +516,14 @@
           "react": {
             "lang": "javascript",
             "file": "react/server/index.js",
-            "code": "        grant_type: 'authorization_code',\n        code: authCode,\n        redirect_uri: 'http://localhost:3000/callback',\n      }),\n    });\n    const tokenJson = await tokenResp.json();\n    if (!tokenJson.access_token) return res.status(400).json({ status: 'ERROR', message: `Failed to parse token: ${JSON.stringify(tokenJson)}` });\n    return res.json({ status: 'COMPLETED', accessToken: tokenJson.access_token });\n  } catch (err) {\n    return res.status(500).json({ status: 'ERROR', message: err.message });\n  }\n});",
-            "line": 320
+            "code": "    const tokenResp = await fetch(`${authPath}/${envID}/as/token`, {\n      method: 'POST',\n      headers: {\n        'Content-Type': 'application/x-www-form-urlencoded',\n        'Authorization': `Basic ${creds}`,\n      },\n      body: new URLSearchParams({\n        grant_type: 'authorization_code',\n        code: authCode,\n        redirect_uri: 'http://localhost:3000/callback',\n      }),\n    });\n    const tokenJson = await tokenResp.json();\n    if (!tokenJson.access_token) return res.status(400).json({ status: 'ERROR', message: `Failed to parse token: ${JSON.stringify(tokenJson)}` });\n    return res.json({ status: 'COMPLETED', accessToken: tokenJson.access_token });\n  } catch (err) {\n    return res.status(500).json({ status: 'ERROR', message: err.message });\n  }\n});",
+            "line": 313
           },
           "angular": {
             "lang": "javascript",
             "file": "angular/server/index.js",
-            "code": "        grant_type: 'authorization_code',\n        code: authCode,\n        redirect_uri: 'http://localhost:3000/callback',\n      }),\n    });\n    const tokenJson = await tokenResp.json();\n    if (!tokenJson.access_token) return res.status(400).json({ status: 'ERROR', message: `Failed to parse token: ${JSON.stringify(tokenJson)}` });\n    return res.json({ status: 'COMPLETED', accessToken: tokenJson.access_token });\n  } catch (err) {\n    return res.status(500).json({ status: 'ERROR', message: err.message });\n  }\n});",
-            "line": 305
+            "code": "    const tokenResp = await fetch(`${authPath}/${envID}/as/token`, {\n      method: 'POST',\n      headers: {\n        'Content-Type': 'application/x-www-form-urlencoded',\n        'Authorization': `Basic ${creds}`,\n      },\n      body: new URLSearchParams({\n        grant_type: 'authorization_code',\n        code: authCode,\n        redirect_uri: 'http://localhost:3000/callback',\n      }),\n    });\n    const tokenJson = await tokenResp.json();\n    if (!tokenJson.access_token) return res.status(400).json({ status: 'ERROR', message: `Failed to parse token: ${JSON.stringify(tokenJson)}` });\n    return res.json({ status: 'COMPLETED', accessToken: tokenJson.access_token });\n  } catch (err) {\n    return res.status(500).json({ status: 'ERROR', message: err.message });\n  }\n});",
+            "line": 298
           }
         }
       }
@@ -539,8 +539,8 @@
           "go": {
             "lang": "go",
             "file": "go/main.go",
-            "code": "\t\"%s/%s/as/authorize?response_type=code&client_id=%s&redirect_uri=http://localhost:3000/callback&scope=openid%%20profile&response_mode=pi.flow\",\n\tauthPath, envID, clientID,\n)\nreqInit, _ := http.NewRequest(\"GET\", authURL, nil)\nreqInit.Header.Set(\"Accept\", \"*/*\")\n\nresp, err := client.Do(reqInit)\nif err != nil {\n\trenderError(w, \"Failed to initialize flow: \"+err.Error())\n\treturn\n}\ndefer resp.Body.Close()\n// Capture any cookies PingOne sets on the authorize response. These are\n// typically ST and ST-NO-SS and must accompany every later /flows/ call.\nsession.capture(resp)",
-            "line": 365
+            "code": "//\n// response_mode=pi.flow instructs PingOne to return the initial flow state\n// as JSON instead of issuing a browser redirect. The response body contains\n// an \"id\" field \u2014 the flow ID used on all subsequent /flows/{id} calls.\n//\n// Accept: */* is required because PingOne may return a vendor content type\n// (application/vnd.pingidentity.*+json). Sending Accept: application/json\n// alone causes a 406 Not Acceptable on some flow configurations.\nauthURL := fmt.Sprintf(\n\t\"%s/%s/as/authorize?response_type=code&client_id=%s&redirect_uri=http://localhost:3000/callback&scope=openid%%20profile&response_mode=pi.flow\",\n\tauthPath, envID, clientID,\n)\nreqInit, _ := http.NewRequest(\"GET\", authURL, nil)\nreqInit.Header.Set(\"Accept\", \"*/*\")",
+            "line": 356
           },
           "js": {
             "lang": "javascript",
@@ -582,26 +582,26 @@
           "js": {
             "lang": "javascript",
             "file": "js/index.js",
-            "code": "    'Content-Type': 'application/vnd.pingidentity.usernamePassword.check+json',\n    'Accept': '*/*',\n    'Authorization': `Bearer ${session.adminToken}`,\n    'Cookie': cookieHeader(session),\n  },\n  body: JSON.stringify({ username, password }),\n  redirect: 'manual',\n});\ncaptureCookies(session, loginResp);\nconst loginJson = await loginResp.json();\nconsole.log(`[login] credentials result status=${loginJson.status} id=${loginJson.id}`);",
-            "line": 254
+            "code": "//\n// Content-Type: application/vnd.pingidentity.usernamePassword.check+json\n//   tells the flow engine which action to perform. Using application/json\n//   here returns a 415 Unsupported Media Type.\n//\n// Authorization: Bearer <adminToken> \u2014 the management-plane bearer token.\n// Cookie: <ST; ST-NO-SS> \u2014 the session cookies from step 1.\n// Both headers are required; omitting either causes a 401.\nconst loginResp = await fetch(`${authPath}/${envID}/flows/${flowID}`, {\n  method: 'POST',\n  headers: {\n    'Content-Type': 'application/vnd.pingidentity.usernamePassword.check+json',\n    'Accept': '*/*',\n    'Authorization': `Bearer ${session.adminToken}`,\n    'Cookie': cookieHeader(session),\n  },\n  body: JSON.stringify({ username, password }),\n  redirect: 'manual',\n});\ncaptureCookies(session, loginResp);\nconst loginJson = await loginResp.json();\nconsole.log(`[login] credentials result status=${loginJson.status} id=${loginJson.id}`);",
+            "line": 243
           },
           "python": {
             "lang": "python",
             "file": "python/app.py",
-            "code": "        \"Content-Type\": \"application/vnd.pingidentity.usernamePassword.check+json\",\n        \"Accept\": \"*/*\",\n        \"Authorization\": f\"Bearer {admin_token}\",\n        \"Cookie\": cookie_header(session),\n    },\n    allow_redirects=False,\n)\ncapture_cookies(session, login_resp)\nlogin_json = login_resp.json()\nlog.info(\"[login] credentials result status=%s id=%s\", login_json.get(\"status\"), login_json.get(\"id\"))",
-            "line": 289
+            "code": "# Content-Type: application/vnd.pingidentity.usernamePassword.check+json\n#   tells the flow engine which action to perform. Using application/json\n#   here results in a 415 Unsupported Media Type.\n#\n# Authorization: Bearer <admin_token> \u2014 the management-plane bearer token.\n# Cookie: <ST; ST-NO-SS> \u2014 the session cookies from step 1.\n# Both headers are required on every /flows/ call; omitting either causes\n# a 401 even when the other is present.\nlogin_resp = requests.post(\n    f\"{AUTH_PATH}/{ENV_ID}/flows/{flow_id}\",\n    json={\"username\": username, \"password\": password},\n    headers={\n        \"Content-Type\": \"application/vnd.pingidentity.usernamePassword.check+json\",\n        \"Accept\": \"*/*\",\n        \"Authorization\": f\"Bearer {admin_token}\",\n        \"Cookie\": cookie_header(session),\n    },\n    allow_redirects=False,\n)\ncapture_cookies(session, login_resp)\nlogin_json = login_resp.json()\nlog.info(\"[login] credentials result status=%s id=%s\", login_json.get(\"status\"), login_json.get(\"id\"))",
+            "line": 277
           },
           "react": {
             "lang": "javascript",
             "file": "react/server/index.js",
-            "code": "        'Content-Type': 'application/vnd.pingidentity.usernamePassword.check+json',\n        'Accept': '*/*',\n        'Authorization': `Bearer ${session.adminToken}`,\n        'Cookie': cookieHeader(session),\n      },\n      body: JSON.stringify({ username, password }),\n      redirect: 'manual',\n    });\n    captureCookies(session, loginResp);\n    const loginJson = await loginResp.json();\n    // PingOne may return an updated flow ID after the credential check. Always\n    // use the latest ID so subsequent calls target the correct flow state.\n    if (loginJson.id) flowID = loginJson.id;\n    session.flowID = flowID; // persist for use in /api/mfa-verify\n\n    // Route based on the flow status:\n    //   COMPLETED \u2014 no MFA required; finish the flow and return the token.\n    //   OTP_REQUIRED / DEVICE_SELECTION_REQUIRED /\n    //   MULTI_FACTOR_AUTHENTICATION_REQUIRED \u2014 OTP sent; tell the client to\n    //     show the MFA form.\n    if (loginJson.status === 'COMPLETED') {\n      const token = await finishFlow(session, flowID);\n      return res.json({ status: 'COMPLETED', accessToken: token });\n    }\n    if (['OTP_REQUIRED', 'DEVICE_SELECTION_REQUIRED', 'MULTI_FACTOR_AUTHENTICATION_REQUIRED'].includes(loginJson.status)) {\n      return res.json({ status: 'MFA_REQUIRED' });\n    }\n    return res.status(400).json({ status: 'ERROR', message: `Unexpected status: ${JSON.stringify(loginJson)}` });\n  } catch (err) {\n    return res.status(500).json({ status: 'ERROR', message: err.message });\n  }\n});",
-            "line": 190
+            "code": "  // Step 2: Submit credentials to the active flow.\n  //\n  // Content-Type: application/vnd.pingidentity.usernamePassword.check+json\n  //   tells the flow engine which action to perform.\n  //\n  // Authorization: Bearer <adminToken> \u2014 the management-plane bearer token.\n  // Cookie: <ST; ST-NO-SS> \u2014 the session cookies from step 1.\n  // Both headers are required; omitting either causes a 401.\n  const loginResp = await fetch(`${authPath}/${envID}/flows/${flowID}`, {\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/vnd.pingidentity.usernamePassword.check+json',\n      'Accept': '*/*',\n      'Authorization': `Bearer ${session.adminToken}`,\n      'Cookie': cookieHeader(session),\n    },\n    body: JSON.stringify({ username, password }),\n    redirect: 'manual',\n  });\n  captureCookies(session, loginResp);\n  const loginJson = await loginResp.json();\n  // PingOne may return an updated flow ID after the credential check. Always\n  // use the latest ID so subsequent calls target the correct flow state.\n  if (loginJson.id) flowID = loginJson.id;\n  session.flowID = flowID; // persist for use in /api/mfa-verify\n\n  // Route based on the flow status:\n  //   COMPLETED \u2014 no MFA required; finish the flow and return the token.\n  //   OTP_REQUIRED / DEVICE_SELECTION_REQUIRED /\n  //   MULTI_FACTOR_AUTHENTICATION_REQUIRED \u2014 OTP sent; tell the client to\n  //     show the MFA form.\n  if (loginJson.status === 'COMPLETED') {\n    const token = await finishFlow(session, flowID);\n    return res.json({ status: 'COMPLETED', accessToken: token });\n  }\n  if (['OTP_REQUIRED', 'DEVICE_SELECTION_REQUIRED', 'MULTI_FACTOR_AUTHENTICATION_REQUIRED'].includes(loginJson.status)) {\n    return res.json({ status: 'MFA_REQUIRED' });\n  }\n  return res.status(400).json({ status: 'ERROR', message: `Unexpected status: ${JSON.stringify(loginJson)}` });\n} catch (err) {\n  return res.status(500).json({ status: 'ERROR', message: err.message });",
+            "line": 179
           },
           "angular": {
             "lang": "javascript",
             "file": "angular/server/index.js",
-            "code": "        'Content-Type': 'application/vnd.pingidentity.usernamePassword.check+json',\n        'Accept': '*/*',\n        'Authorization': `Bearer ${session.adminToken}`,\n        'Cookie': cookieHeader(session),\n      },\n      body: JSON.stringify({ username, password }),\n      redirect: 'manual',\n    });\n    captureCookies(session, loginResp);\n    const loginJson = await loginResp.json();\n    // PingOne may return an updated flow ID after the credential check. Always\n    // use the latest ID so subsequent calls target the correct flow state.\n    if (loginJson.id) flowID = loginJson.id;\n    session.flowID = flowID; // persist for use in /api/mfa-verify\n\n    // Route based on the flow status:\n    //   COMPLETED \u2014 no MFA required; finish the flow and return the token.\n    //   OTP_REQUIRED / DEVICE_SELECTION_REQUIRED /\n    //   MULTI_FACTOR_AUTHENTICATION_REQUIRED \u2014 OTP sent; tell the client to\n    //     show the MFA form.\n    if (loginJson.status === 'COMPLETED') {\n      const token = await finishFlow(session, flowID);\n      return res.json({ status: 'COMPLETED', accessToken: token });\n    }\n    if (['OTP_REQUIRED', 'DEVICE_SELECTION_REQUIRED', 'MULTI_FACTOR_AUTHENTICATION_REQUIRED'].includes(loginJson.status)) {\n      return res.json({ status: 'MFA_REQUIRED' });\n    }\n    return res.status(400).json({ status: 'ERROR', message: `Unexpected status: ${JSON.stringify(loginJson)}` });\n  } catch (err) {\n    return res.status(500).json({ status: 'ERROR', message: err.message });\n  }\n});",
-            "line": 190
+            "code": "  // Step 2: Submit credentials to the active flow.\n  //\n  // Content-Type: application/vnd.pingidentity.usernamePassword.check+json\n  //   tells the flow engine which action to perform.\n  //\n  // Authorization: Bearer <adminToken> \u2014 the management-plane bearer token.\n  // Cookie: <ST; ST-NO-SS> \u2014 the session cookies from step 1.\n  // Both headers are required; omitting either causes a 401.\n  const loginResp = await fetch(`${authPath}/${envID}/flows/${flowID}`, {\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/vnd.pingidentity.usernamePassword.check+json',\n      'Accept': '*/*',\n      'Authorization': `Bearer ${session.adminToken}`,\n      'Cookie': cookieHeader(session),\n    },\n    body: JSON.stringify({ username, password }),\n    redirect: 'manual',\n  });\n  captureCookies(session, loginResp);\n  const loginJson = await loginResp.json();\n  // PingOne may return an updated flow ID after the credential check. Always\n  // use the latest ID so subsequent calls target the correct flow state.\n  if (loginJson.id) flowID = loginJson.id;\n  session.flowID = flowID; // persist for use in /api/mfa-verify\n\n  // Route based on the flow status:\n  //   COMPLETED \u2014 no MFA required; finish the flow and return the token.\n  //   OTP_REQUIRED / DEVICE_SELECTION_REQUIRED /\n  //   MULTI_FACTOR_AUTHENTICATION_REQUIRED \u2014 OTP sent; tell the client to\n  //     show the MFA form.\n  if (loginJson.status === 'COMPLETED') {\n    const token = await finishFlow(session, flowID);\n    return res.json({ status: 'COMPLETED', accessToken: token });\n  }\n  if (['OTP_REQUIRED', 'DEVICE_SELECTION_REQUIRED', 'MULTI_FACTOR_AUTHENTICATION_REQUIRED'].includes(loginJson.status)) {\n    return res.json({ status: 'MFA_REQUIRED' });\n  }\n  return res.status(400).json({ status: 'ERROR', message: `Unexpected status: ${JSON.stringify(loginJson)}` });\n} catch (err) {\n  return res.status(500).json({ status: 'ERROR', message: err.message });",
+            "line": 179
           }
         }
       },
@@ -619,26 +619,26 @@
           "js": {
             "lang": "javascript",
             "file": "js/index.js",
-            "code": "    'Content-Type': 'application/vnd.pingidentity.otp.check+json',\n    'Accept': '*/*',\n    'Authorization': `Bearer ${session.adminToken}`,\n    'Cookie': cookieHeader(session),\n  },\n  body: JSON.stringify({ otp }),\n  redirect: 'manual',\n});\ncaptureCookies(session, mfaResp);\nconst mfaJson = await mfaResp.json();\nconsole.log('[mfa] result:', mfaJson);",
-            "line": 308
+            "code": "// Content-Type: application/vnd.pingidentity.otp.check+json tells the\n// flow engine to validate the OTP against the user's enrolled MFA device.\n// The same Accept: */* and dual-auth (Bearer + cookies) rules apply here.\nconst mfaResp = await fetch(`${authPath}/${envID}/flows/${flowID}`, {\n  method: 'POST',\n  headers: {\n    'Content-Type': 'application/vnd.pingidentity.otp.check+json',\n    'Accept': '*/*',\n    'Authorization': `Bearer ${session.adminToken}`,\n    'Cookie': cookieHeader(session),\n  },\n  body: JSON.stringify({ otp }),\n  redirect: 'manual',\n});\ncaptureCookies(session, mfaResp);\nconst mfaJson = await mfaResp.json();\nconsole.log('[mfa] result:', mfaJson);",
+            "line": 302
           },
           "python": {
             "lang": "python",
             "file": "python/app.py",
-            "code": "        \"Content-Type\": \"application/vnd.pingidentity.otp.check+json\",\n        \"Accept\": \"*/*\",\n        \"Authorization\": f\"Bearer {session['admin_token']}\",\n        \"Cookie\": cookie_header(session),\n    },\n    allow_redirects=False,\n)\ncapture_cookies(session, mfa_resp)\nmfa_json = mfa_resp.json()\nlog.info(\"[mfa] result: %s\", mfa_json)",
-            "line": 342
+            "code": "# Content-Type: application/vnd.pingidentity.otp.check+json tells the\n# flow engine to validate the OTP against the user's enrolled MFA device.\n# The same Accept: */* and dual-auth (Bearer + cookies) rules apply here.\nmfa_resp = requests.post(\n    f\"{AUTH_PATH}/{ENV_ID}/flows/{flow_id}\",\n    json={\"otp\": otp},\n    headers={\n        \"Content-Type\": \"application/vnd.pingidentity.otp.check+json\",\n        \"Accept\": \"*/*\",\n        \"Authorization\": f\"Bearer {session['admin_token']}\",\n        \"Cookie\": cookie_header(session),\n    },\n    allow_redirects=False,\n)\ncapture_cookies(session, mfa_resp)\nmfa_json = mfa_resp.json()\nlog.info(\"[mfa] result: %s\", mfa_json)",
+            "line": 335
           },
           "react": {
             "lang": "javascript",
             "file": "react/server/index.js",
-            "code": "    'Content-Type': 'application/vnd.pingidentity.otp.check+json',\n    'Accept': '*/*',\n    'Authorization': `Bearer ${session.adminToken}`,\n    'Cookie': cookieHeader(session),\n  },\n  body: JSON.stringify({ otp }),\n  redirect: 'manual',\n});\ncaptureCookies(session, mfaResp);\nconst mfaJson = await mfaResp.json();\n// Update the stored flowID if PingOne issued a new one after the OTP check.\nif (mfaJson.id) session.flowID = mfaJson.id;",
-            "line": 244
+            "code": "// Content-Type: application/vnd.pingidentity.otp.check+json tells the\n// flow engine to validate the OTP against the user's enrolled MFA device.\n// The same Accept: */* and dual-auth (Bearer + cookies) rules apply here.\nconst mfaResp = await fetch(`${authPath}/${envID}/flows/${session.flowID}`, {\n  method: 'POST',\n  headers: {\n    'Content-Type': 'application/vnd.pingidentity.otp.check+json',\n    'Accept': '*/*',\n    'Authorization': `Bearer ${session.adminToken}`,\n    'Cookie': cookieHeader(session),\n  },\n  body: JSON.stringify({ otp }),\n  redirect: 'manual',\n});\ncaptureCookies(session, mfaResp);\nconst mfaJson = await mfaResp.json();\n// Update the stored flowID if PingOne issued a new one after the OTP check.\nif (mfaJson.id) session.flowID = mfaJson.id;",
+            "line": 238
           },
           "angular": {
             "lang": "javascript",
             "file": "angular/server/index.js",
-            "code": "    'Content-Type': 'application/vnd.pingidentity.otp.check+json',\n    'Accept': '*/*',\n    'Authorization': `Bearer ${session.adminToken}`,\n    'Cookie': cookieHeader(session),\n  },\n  body: JSON.stringify({ otp }),\n  redirect: 'manual',\n});\ncaptureCookies(session, mfaResp);\nconst mfaJson = await mfaResp.json();\n// Update the stored flowID if PingOne issued a new one after the OTP check.\nif (mfaJson.id) session.flowID = mfaJson.id;",
-            "line": 244
+            "code": "// Content-Type: application/vnd.pingidentity.otp.check+json tells the\n// flow engine to validate the OTP against the user's enrolled MFA device.\n// The same Accept: */* and dual-auth (Bearer + cookies) rules apply here.\nconst mfaResp = await fetch(`${authPath}/${envID}/flows/${session.flowID}`, {\n  method: 'POST',\n  headers: {\n    'Content-Type': 'application/vnd.pingidentity.otp.check+json',\n    'Accept': '*/*',\n    'Authorization': `Bearer ${session.adminToken}`,\n    'Cookie': cookieHeader(session),\n  },\n  body: JSON.stringify({ otp }),\n  redirect: 'manual',\n});\ncaptureCookies(session, mfaResp);\nconst mfaJson = await mfaResp.json();\n// Update the stored flowID if PingOne issued a new one after the OTP check.\nif (mfaJson.id) session.flowID = mfaJson.id;",
+            "line": 238
           }
         }
       },
@@ -650,8 +650,8 @@
           "go": {
             "lang": "go",
             "file": "go/main.go",
-            "code": "\tfor _, cookie := range resp.Cookies() {\n\t\tupdated := false\n\t\tfor i, c := range s.cookies {\n\t\t\tif c.Name == cookie.Name {\n\t\t\t\ts.cookies[i] = cookie\n\t\t\t\tupdated = true\n\t\t\t\tbreak\n\t\t\t}\n\t\t}\n\t\tif !updated {\n\t\t\ts.cookies = append(s.cookies, cookie)\n\t\t}\n\t}\n}",
-            "line": 115
+            "code": "// capture merges Set-Cookie values from a PingOne response into the session.\n// If a cookie with the same name is already present it is replaced (PingOne\n// may issue updated ST values across flow steps), otherwise the cookie is\n// appended.\nfunc (s *flowSession) capture(resp *http.Response) {\n\tfor _, cookie := range resp.Cookies() {\n\t\tupdated := false\n\t\tfor i, c := range s.cookies {\n\t\t\tif c.Name == cookie.Name {\n\t\t\t\ts.cookies[i] = cookie\n\t\t\t\tupdated = true\n\t\t\t\tbreak\n\t\t\t}\n\t\t}\n\t\tif !updated {\n\t\t\ts.cookies = append(s.cookies, cookie)\n\t\t}\n\t}\n}",
+            "line": 110
           },
           "js": {
             "lang": "javascript",
@@ -687,14 +687,14 @@
           "go": {
             "lang": "go",
             "file": "go/main.go",
-            "code": "reqResume, _ := http.NewRequest(\"GET\", fmt.Sprintf(\"%s/%s/as/resume?flowId=%s\", authPath, envID, flowID), nil)\nreqResume.Header.Set(\"Accept\", \"*/*\")\n// The ST / ST-NO-SS cookies established during the flow must accompany\n// the resume call so PingOne can locate and complete the session. The\n// admin bearer token is NOT sent here \u2014 /as/resume is an authorization\n// endpoint, not the management plane.\nfor _, cookie := range session.cookies {\n\treqResume.AddCookie(cookie)\n}\n\nresumeResp, err := client.Do(reqResume)\nif err != nil {\n\trenderError(w, \"Failed to call resume: \"+err.Error())\n\treturn\n}\ndefer resumeResp.Body.Close()\nsession.capture(resumeResp)",
-            "line": 532
+            "code": "//   - More commonly, PingOne issues a 302 redirect to the registered\n//     redirect_uri with ?code=<value> appended. The no-redirect HTTP client\n//     is used so the Location header is returned to this code rather than\n//     followed automatically.\n//\n// Only the session cookies are required on the resume call \u2014 no admin bearer\n// token is needed because /as/resume is part of the OAuth 2.0 authorization\n// endpoint, not the management API.\nfunc completeLoginAndRender(w http.ResponseWriter, flowID string, session *flowSession, client *http.Client) {\n\treqResume, _ := http.NewRequest(\"GET\", fmt.Sprintf(\"%s/%s/as/resume?flowId=%s\", authPath, envID, flowID), nil)\n\treqResume.Header.Set(\"Accept\", \"*/*\")\n\t// The ST / ST-NO-SS cookies established during the flow must accompany\n\t// the resume call so PingOne can locate and complete the session. The\n\t// admin bearer token is NOT sent here \u2014 /as/resume is an authorization\n\t// endpoint, not the management plane.\n\tfor _, cookie := range session.cookies {\n\t\treqResume.AddCookie(cookie)\n\t}",
+            "line": 523
           },
           "js": {
             "lang": "javascript",
             "file": "js/index.js",
-            "code": "const resumeResp = await fetch(`${authPath}/${envID}/as/resume?flowId=${flowID}`, {\n  headers: {\n    'Accept': '*/*',\n    'Cookie': cookieHeader(session),\n  },\n  redirect: 'manual',\n});\ncaptureCookies(session, resumeResp);\nconsole.log(`[resume] status code: ${resumeResp.status}`);",
-            "line": 353
+            "code": "//     return a JSON body containing authorizeResponse.code.\n//   - More commonly, PingOne issues a 302 redirect to the registered\n//     redirect_uri with ?code= in the query string. redirect: 'manual' keeps\n//     us in control so we can read the Location header ourselves.\n//\n// Only the session cookies are sent here \u2014 no admin bearer token is required\n// because /as/resume is part of the OAuth 2.0 authorization endpoint, not\n// the management plane.\nasync function completeLoginAndRender(res, flowID, session) {\n  const resumeResp = await fetch(`${authPath}/${envID}/as/resume?flowId=${flowID}`, {\n    headers: {\n      'Accept': '*/*',\n      'Cookie': cookieHeader(session),\n    },\n    redirect: 'manual',\n  });\n  captureCookies(session, resumeResp);\n  console.log(`[resume] status code: ${resumeResp.status}`);",
+            "line": 344
           },
           "python": {
             "lang": "python",
@@ -705,14 +705,14 @@
           "react": {
             "lang": "javascript",
             "file": "react/server/index.js",
-            "code": "const resumeResp = await fetch(`${authPath}/${envID}/as/resume?flowId=${flowID}`, {\n  headers: { Accept: '*/*', Cookie: cookieHeader(session) },\n  redirect: 'manual',\n});\ncaptureCookies(session, resumeResp);\n\n// Try JSON body first; fall back to the Location redirect URL.\nlet authCode = '';\nconst ct = resumeResp.headers.get('content-type') || '';\nif (ct.includes('json')) {\n  const j = await resumeResp.json();\n  authCode = j?.authorizeResponse?.code || '';\n}\nif (!authCode) {\n  const loc = resumeResp.headers.get('location');\n  if (loc) try { authCode = new URL(loc).searchParams.get('code') || ''; } catch {}\n}\nif (!authCode) throw new Error('Failed to get authorization code from resume.');",
-            "line": 280
+            "code": "//   - PingOne may return a JSON body containing authorizeResponse.code, or\n//   - PingOne may issue a 302 redirect to the registered redirect_uri with\n//     ?code= in the query string. redirect: 'manual' keeps us in control so\n//     we can read the Location header ourselves.\n//\n// Only the session cookies are sent to /as/resume. The admin bearer token is\n// NOT required because /as/resume is part of the OAuth 2.0 authorization\n// endpoint, not the management plane.\nasync function finishFlow(session, flowID) {\n  const resumeResp = await fetch(`${authPath}/${envID}/as/resume?flowId=${flowID}`, {\n    headers: { Accept: '*/*', Cookie: cookieHeader(session) },\n    redirect: 'manual',\n  });\n  captureCookies(session, resumeResp);",
+            "line": 271
           },
           "angular": {
             "lang": "javascript",
             "file": "angular/server/index.js",
-            "code": "const resumeResp = await fetch(`${authPath}/${envID}/as/resume?flowId=${flowID}`, {\n  headers: { Accept: '*/*', Cookie: cookieHeader(session) },\n  redirect: 'manual',\n});\ncaptureCookies(session, resumeResp);\n\n// Try JSON body first; fall back to the Location redirect URL.\nlet authCode = '';\nconst ct = resumeResp.headers.get('content-type') || '';\nif (ct.includes('json')) {\n  const j = await resumeResp.json();\n  authCode = j?.authorizeResponse?.code || '';\n}\nif (!authCode) {\n  const loc = resumeResp.headers.get('location');\n  if (loc) try { authCode = new URL(loc).searchParams.get('code') || ''; } catch {}\n}\nif (!authCode) throw new Error('Failed to get authorization code from resume.');",
-            "line": 280
+            "code": "//   - PingOne may return a JSON body containing authorizeResponse.code, or\n//   - PingOne may issue a 302 redirect to the registered redirect_uri with\n//     ?code= in the query string. redirect: 'manual' keeps us in control so\n//     we can read the Location header ourselves.\n//\n// Only the session cookies are sent to /as/resume. The admin bearer token is\n// NOT required because /as/resume is part of the OAuth 2.0 authorization\n// endpoint, not the management plane.\nasync function finishFlow(session, flowID) {\n  const resumeResp = await fetch(`${authPath}/${envID}/as/resume?flowId=${flowID}`, {\n    headers: { Accept: '*/*', Cookie: cookieHeader(session) },\n    redirect: 'manual',\n  });\n  captureCookies(session, resumeResp);",
+            "line": 271
           }
         }
       }

@@ -156,8 +156,25 @@ def extract(text, anchor, lang):
     if idx is None:
         return None
 
-    # walk back over at most a few lines of attached comment
+    # First climb to the start of the enclosing statement. The anchor often
+    # lands inside a call's argument list or an object literal, and a snippet
+    # that opens with `'Content-Type': ...` or a bare format string teaches
+    # nothing — the reader needs the line that makes the call.
+    CONT_START = ('"', "'", "`", ".", ",", ")", "}", "]")
+    CONT_END = ("(", ",", "{", "[", "=", "+", "&&", "||", ":")
     start = idx
+    climb = 10
+    while start > 0 and climb > 0:
+        cur = lines[start].strip()
+        prev = lines[start - 1].strip()
+        if not prev or is_comment(lines[start - 1], cm):
+            break
+        if cur.startswith(CONT_START) or prev.endswith(CONT_END):
+            start -= 1; climb -= 1
+        else:
+            break
+
+    # then take at most a few lines of attached comment above it
     budget = 8
     while start > 0 and budget > 0:
         prev = lines[start - 1].strip()
