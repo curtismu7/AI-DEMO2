@@ -69,6 +69,18 @@ suites are meant to run deliberately:
 *different disjoint set* of suites failing each run. Re-run any failure in
 isolation before calling it a regression, and compare against a stashed baseline.
 
+**This is not jest-only — `demo_api_ui`'s vitest run does it too**, and
+`--maxWorkers` is a jest flag that will not help you there. Observed
+2026-08-26/27 on both runners: four different BFF suites across four runs
+(`demoAgentNl`, `privilegeMcpClient.status`, `ciba`, `mcpFacade`), and two
+different UI suites across two consecutive runs of *identical* code
+(`navStructureCatalog`, then `PrivilegeMcpClientPage.clearGuide`). Every one
+passed in isolation.
+
+The tell is the *disjointness*: a real regression fails the same suite twice.
+Whichever runner you are on, re-run the failing suite alone before treating it
+as a finding — `cd demo_api_ui && npx vitest run <file>` for the UI side.
+
 ## Docker service changes
 
 Check the service's block in `docker-compose.yml` before assuming a rebuild
@@ -269,7 +281,7 @@ one stash stack.
 | Symptom | Cause | Fix |
 |---|---|---|
 | jest: "No tests found, exiting with code 1" run from a `.claude/worktrees/*` path | Fixed in PR #950 — the config self-detects worktrees | Run plain `CI=true npm test -- --forceExit --maxWorkers=4`. Do **not** pass `--testPathIgnorePatterns`; it replaces the list and drags `/tests/real/` against the live stack |
-| Different disjoint suites fail on each run of the same code | Parallel-load contention, not a regression | `--maxWorkers=4`, re-run the failing suite in isolation, compare to a stashed baseline |
+| Different disjoint suites fail on each run of the same code — **jest OR vitest** | Parallel-load contention, not a regression. A real regression fails the SAME suite twice | re-run the failing suite alone before calling it a finding. BFF: `--maxWorkers=4` (jest-only flag). UI: `cd demo_api_ui && npx vitest run <file>` |
 | `topology:verify` fails at step 6/7, `sh: jest: command not found` | Worktree has no `demo_mcp_gateway/node_modules` | Symlink it from the main checkout — this is a worktree gap, not drift |
 | `graphify query` errors in a worktree | `graphify-out/graph.json` (~44MB) exists only in the main checkout | Use grep/Read and say so; run `graphify update .` in the main checkout after merge |
 | jest can't find `node_modules` in a worktree | worktrees don't inherit installed deps (lockfiles are gitignored repo-wide) | `bash scripts/bootstrap-worktree.sh` — links every service and verifies declared deps resolve |
