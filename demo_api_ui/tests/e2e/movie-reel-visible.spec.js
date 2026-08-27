@@ -133,3 +133,31 @@ for (const surface of SURFACES) {
     await expect(reel).toBeInViewport();
   });
 }
+
+
+// The collapse toggle on the pinned dock. The reel is 40vh of a float-mode
+// dashboard whose point is an unobstructed view, so it can be put away — but
+// putting it away must NOT survive a reload. A persisted "hidden" is how the
+// reel vanished for an entire browser profile in #1896, invisible to everyone
+// else and with no self-heal, so the reload half of this test is the real
+// assertion.
+test('the pinned reel collapses, comes back, and does not persist collapsed', async ({ page }) => {
+  await mockDashboardWithReel(page, 'none');
+  await page.goto('/dashboard');
+
+  const reel = page.locator('.tcfs-chain');
+  await expect(reel).toBeVisible({ timeout: 15000 });
+
+  await page.getByRole('button', { name: /collapse token chain/i }).click();
+  await expect(reel).toBeHidden();
+
+  await page.getByRole('button', { name: /show token chain/i }).click();
+  await expect(reel).toBeVisible();
+
+  // Collapse again, then reload: the reel must be back.
+  await page.getByRole('button', { name: /collapse token chain/i }).click();
+  await expect(reel).toBeHidden();
+  await page.reload();
+  await expect(reel).toBeVisible({ timeout: 15000 });
+  await expect(reel).toBeInViewport();
+});
