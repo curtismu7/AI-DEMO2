@@ -75,8 +75,9 @@ export const SAMPLE_APPS = [
     tagline: "Self-service sign-up with email verification, then an OIDC sign-in",
     summary:
       "A native flow (response_mode=pi.flow) drives registration server-side: create the user, " +
-      "verify their email with a one-time code, then resume the flow to get an authorization " +
-      "code and exchange it for tokens. No browser redirect is involved at any point.",
+      "then verify their email with a one-time code. No browser redirect is involved at any " +
+      "point. Signing the new account in is a separate flow — registration on its own does not " +
+      "produce tokens.",
     teaches: [
       "How response_mode=pi.flow replaces the browser redirect with a server-driven flow",
       "Why the vendor content types matter — application/json returns 415",
@@ -88,8 +89,11 @@ export const SAMPLE_APPS = [
       "Identity Data Admin creates the OIDC app, population and sign-on policy; Environment Admin enables self-registration.",
     runnable: "partial",
     runNote:
-      "Runs as far as the email verification step. Completing it needs a real inbox to receive the one-time code — there is no mock.",
+      "Runs live. It registers a real account, PingOne emails a verification code, and you type that code in below — there is no mock for the inbox. It ends at a verified account, which is where the upstream sample ends too; the flow reports FAILED after that because this demo shares one MFA-requiring application between both native-flow samples and a brand-new account has no MFA device. The account is deleted afterwards unless you say otherwise.",
     writes: true,
+    runnerApi: "/api/native-flow-sample",
+    runLabel: "Register a test account",
+    cleanupLabel: "Delete the registered account afterwards (recommended)",
   },
   {
     id: "mfa-demo",
@@ -102,7 +106,7 @@ export const SAMPLE_APPS = [
       "tokens. The flow's session cookies must be captured and replayed by hand.",
     teaches: [
       "How a native flow signals that MFA is required, and the statuses to branch on",
-      "That /flows/{id} needs BOTH a worker bearer token AND the replayed session cookies",
+      "That the sample's \"/flows/{id} needs a worker bearer token\" claim does not hold — the endpoint is on auth.pingone.com and rejects a management-API token",
       "Why the sample manages cookies manually instead of relying on a cookie jar",
       "Why this sample validates credentials at startup and refuses to boot without them",
     ],
@@ -111,8 +115,10 @@ export const SAMPLE_APPS = [
       "Also requires Email to be enabled in the environment's default device authentication policy, or enrollment fails.",
     runnable: "partial",
     runNote:
-      "Runs as far as the MFA challenge. Completing it needs a real inbox to receive the passcode — there is no mock.",
+      "Runs live against a pre-provisioned test user, so it creates nothing and needs no cleanup. PingOne emails a passcode at the MFA step and you type it in below to finish — there is no mock for the inbox.",
     writes: true,
+    runnerApi: "/api/native-flow-sample",
+    runLabel: "Sign in with MFA",
   },
 ];
 
