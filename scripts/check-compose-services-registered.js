@@ -22,16 +22,24 @@
  * resolved at runtime by _optional_group_services, so is_known_service accepts
  * them). Anything else must be named in ALLOWED_UNREGISTERED with a reason.
  *
- * Parses YAML directly rather than shelling out to `docker compose config`:
- * that needs the gitignored .env files and a running Docker, and CI has
- * neither.
+ * Reads docker-compose.yml as text rather than shelling out to
+ * `docker compose config` (needs the gitignored .env files and a running
+ * daemon) or requiring the `yaml` package (root node_modules are NOT installed
+ * in CI's hygiene job — that is how the first version of this script failed the
+ * very gate it was added to). Every other check in hygiene:check parses its
+ * inputs the same dependency-free way.
+ *
+ * Only two things are extracted, so a full parser is not warranted: the service
+ * names (keys at exactly two-space indent under `services:`) and each service's
+ * `profiles:` list. The parser self-checks — finding zero services or zero
+ * SERVICES entries is a hard failure, so silent parser rot cannot pass
+ * vacuously.
  */
 
 'use strict';
 
 const fs = require('fs');
 const path = require('path');
-const YAML = require('yaml');
 
 const ROOT = path.join(__dirname, '..');
 const COMPOSE = path.join(ROOT, 'docker-compose.yml');
@@ -74,8 +82,78 @@ function fail(lines) {
   process.exit(1);
 }
 
-const compose = YAML.parse(fs.readFileSync(COMPOSE, 'utf8'));
-const services = compose && compose.services ? Object.keys(compose.services) : [];
+/**
+ * Service name -> its `profiles:` array, read straight from the compose text.
+ * @returns {Map<string, string[]>}
+ */
+function parseComposeServices(text) {
+  const lines = text.split('\n');
+  const out = new Map();
+
+  let inServices = false;
+  let current = null;
+  // Only collect `- x` items while inside a profiles: block. Without this the
+  // parser also swallows command:/args: entries, which sit at the same indent —
+  // measured: it read "-c" and "--web.enable-lifecycle" as profile names.
+  let inProfiles = false;
+
+  for (const raw of lines) {
+    const line = raw.replace(/\s+$/, '');
+    if (line === '' || /^\s*#/.test(line)) continue;
+
+    // A key at column 0 opens or closes the services block.
+    if (/^[A-Za-z0-9_.-]+:/.test(line)) {
+      inServices = line.startsWith('services:');
+      current = null;
+      inProfiles = false;
+      continue;
+    }
+    if (!inServices) continue;
+
+    // Exactly two spaces = a service name.
+    const svc = /^ {2}([A-Za-z0-9][A-Za-z0-9._-]*):\s*$/.exec(line);
+    if (svc) {
+      current = svc[1];
+      out.set(current, []);
+      inProfiles = false;
+      continue;
+    }
+    if (!current) continue;
+
+    // Any other four-space key closes a profiles: block.
+    if (/^ {4}[A-Za-z0-9_.-]+:/.test(line) && !/^ {4}profiles:/.test(line)) {
+      inProfiles = false;
+    }
+
+    // profiles: ["a", "b"]  |  profiles: [a]  |  profiles:\n      - a
+    const inline = /^ {4}profiles:\s*\[(.+)\]\s*$/.exec(line);
+    if (inline) {
+      out.set(
+        current,
+        inline[1]
+          .split(',')
+          .map((s) => s.trim().replace(/^["']|["']$/g, ''))
+          .filter(Boolean),
+      );
+      inProfiles = false;
+      continue;
+    }
+    if (/^ {4}profiles:\s*$/.test(line)) {
+      out.set(current, []);
+      inProfiles = true;
+      continue;
+    }
+    if (!inProfiles) continue;
+
+    const item = /^ {6}-\s*["']?([A-Za-z0-9._-]+)["']?\s*$/.exec(line);
+    if (item) out.get(current).push(item[1]);
+    else inProfiles = false;
+  }
+  return out;
+}
+
+const composeServices = parseComposeServices(fs.readFileSync(COMPOSE, 'utf8'));
+const services = [...composeServices.keys()];
 if (services.length === 0) fail(['docker-compose.yml declares no services — refusing to pass vacuously']);
 
 const launcher = fs.readFileSync(LAUNCHER, 'utf8');
@@ -95,7 +173,7 @@ const problems = [];
 const staleAllow = new Set(Object.keys(ALLOWED_UNREGISTERED));
 
 for (const name of services) {
-  const profiles = compose.services[name].profiles || [];
+  const profiles = composeServices.get(name) || [];
   const viaProfile = profiles.some((p) => OPTIONAL_PROFILES.has(p));
   const known = registered.has(name) || viaProfile;
 
