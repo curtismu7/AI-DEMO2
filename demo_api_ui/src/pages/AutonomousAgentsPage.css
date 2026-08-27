@@ -164,3 +164,132 @@
   color: var(--th-text-muted, #556070);
   font-size: 11.5px;
 }
+
+/* ── Explainer ─────────────────────────────────────────────────────────── */
+.aap-explain { gap: 14px; }
+.aap-body {
+  margin: 0;
+  max-width: 74ch;
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--th-text, #0f172a);
+}
+.aap-h3 { margin: 0 0 6px; font-size: 13px; font-weight: 600; }
+.aap-points {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 74ch;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--th-text-muted, #556070);
+}
+.aap-points strong { color: var(--th-text, #0f172a); }
+
+.aap-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 720px) { .aap-compare { grid-template-columns: 1fr; } }
+.aap-compare-col {
+  padding: 12px 14px;
+  border: 1px solid var(--th-border, #dbe2ea);
+  border-radius: 8px;
+  background: var(--th-bg-inset, #f1f5f9);
+}
+.aap-compare-col ul {
+  margin: 0;
+  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--th-text-muted, #556070);
+}
+/* The same two accents the trace badge uses: navy for delegated, amber for
+   unattended. Consistency across surfaces is the point — a reader who learns
+   the colour here reads it correctly on the rail. */
+.aap-compare-col--worker { box-shadow: inset 3px 0 0 #16325c; }
+.aap-compare-col--auto { box-shadow: inset 3px 0 0 #a1620a; }
+
+.aap-uses { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+@media (max-width: 860px) { .aap-uses { grid-template-columns: 1fr; } }
+.aap-use {
+  padding: 12px 14px;
+  border: 1px solid var(--th-border, #dbe2ea);
+  border-radius: 8px;
+}
+.aap-use p {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--th-text-muted, #556070);
+}
+.aap-use strong { color: var(--th-text, #0f172a); }
+
+/* ── Expanded run ──────────────────────────────────────────────────────── */
+.aap-chev {
+  color: var(--th-text-muted, #556070);
+  font-size: 11px;
+  width: 12px;
+}
+.aap-open {
+  grid-template-columns: auto auto 1fr auto;
+  align-items: baseline;
+}
+.aap-status {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+.aap-status--completed { color: #0f7b4f; }
+.aap-status--parked { color: #a1620a; }
+.aap-status--denied,
+.aap-status--failed { color: #b3261e; }
+.aap-status--expired { color: var(--th-text-muted, #556070); }
+
+.aap-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 14px 14px;
+  border-top: 1px solid var(--th-border, #dbe2ea);
+}
+.aap-kv {
+  display: grid;
+  grid-template-columns: 170px 1fr;
+  gap: 6px 14px;
+  margin: 10px 0 0;
+  font-size: 12.5px;
+}
+@media (max-width: 640px) { .aap-kv { grid-template-columns: 1fr; gap: 2px; } }
+.aap-kv dt { color: var(--th-text-muted, #556070); }
+.aap-kv dd { margin: 0; color: var(--th-text, #0f172a); }
+
+.aap-findings ul {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12.5px;
+  color: var(--th-text-muted, #556070);
+}
+
+/* The reel is a full component with its own geometry — give it room and let it
+   scroll sideways rather than squeezing the chain. */
+.aap-reel { display: flex; flex-direction: column; gap: 6px; }
+.aap-reel-frame {
+  border: 1px solid var(--th-border, #dbe2ea);
+  border-radius: 8px;
+  background: var(--th-bg-card, #ffffff);
+  overflow-x: auto;
+  min-height: 260px;
+}
