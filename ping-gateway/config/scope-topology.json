@@ -2,57 +2,156 @@
   "$schema": "./scope-topology.schema.json",
   "version": 3,
   "deployment": {
-    "_comment": "Public app URLs per deployment environment. Master SoT for PINGONE_PUBLIC_APP_URL and PINGONE_RESOURCE_PINGGATEWAY_URI. Used to derive redirect URIs in configStore at startup. .env must still provide PingOne secrets (ClientID, ClientSecret) — this section is non-sensitive config only. local.publicAppUrl must stay under ping-devops.com: WebAuthn requires the FIDO2 rp.id to be the origin's host or a registrable parent of it, and PingOne rejects any rp.id whose TLD is not public, so passkeys can never work on api.ping.demo — it needs 127.0.0.1 local.ping-devops.com in /etc/hosts. pingGatewayResourceUri stays on api.ping.demo because it is an OAuth AUDIENCE registered in PingOne, not a browser origin; changing it causes invalid_aud.",
+    "_comment": "Public app URLs per deployment environment. Master SoT for PINGONE_PUBLIC_APP_URL and PINGONE_RESOURCE_PINGGATEWAY_URI. Used to derive redirect URIs in configStore at startup. .env must still provide PingOne secrets (ClientID, ClientSecret) — this section is non-sensitive config only. local.publicAppUrl must stay under ping-devops.com: WebAuthn requires the FIDO2 rp.id to be the origin's host or a registrable parent of it, and PingOne rejects any rp.id whose TLD is not public, so passkeys can never work on api.ping.demo — it needs 127.0.0.1 local.ping-devops.com in /etc/hosts. pingGatewayResourceUri stays on api.ping.demo because it is an OAuth AUDIENCE registered in PingOne, not a browser origin; changing it causes invalid_aud. externalDoorIssuers lists the `iss` values of oauth-mcp's embedded AS for each public MCP door (OAUTH_ISSUER, which PR #2244 requires to equal the door's ingress host). It is the SoT for the P1AZ audience exemption: an external-door token is ALWAYS audienced at the upstream MCP server (that route has no exchange step by design), which HasValidMcpAudience would otherwise deny — so the generated policy accepts mcpserver.ping.demo ONLY for these issuers. Same shape as PR #2274's D-05 exemption in p1az-decision.groovy, which exempts by issuer for the same reason. A door added here and nowhere else still gets the exemption; a token forging one of these `iss` values is caught earlier, because IG introspects it against that AS before the policy runs. NOTE: local's https://localhost:8080 is a development issuer living in a cloud policy — deliberate (a local stack can drive the door), but it is the one entry here that grants nothing in production and could be dropped if the exemption set is ever tightened.",
     "environments": {
-      "local": { "publicAppUrl": "https://local.ping-devops.com:4000", "pingGatewayResourceUri": "https://api.ping.demo:3036/mcp" },
-      "k8s": { "publicAppUrl": "https://ai-demo.ping-devops.com", "pingGatewayResourceUri": "https://ai-demo.ping-devops.com/mcp" }
+      "local": { "publicAppUrl": "https://local.ping-devops.com:4000", "pingGatewayResourceUri": "https://api.ping.demo:3036/mcp", "externalDoorIssuers": ["https://localhost:8080"] },
+      "k8s": { "publicAppUrl": "https://ai-demo.ping-devops.com", "pingGatewayResourceUri": "https://ai-demo.ping-devops.com/mcp", "externalDoorIssuers": ["https://cmuir-mcp.ping-devops.com", "https://ai-demo-mcp.ping-devops.com"] }
     },
     "redirectUris": { "_comment": "Derived from publicAppUrl by configStore at startup. Uncomment and set manually only to override auto-derivation.", "adminCallback": "/api/auth/oauth/callback", "userCallback": "/api/auth/oauth/user/callback" }
   },
   "provisioning": {
     "appPrefix": "Demo AI App",
-    "resourceNames": { "Super Banking API": "Demo API", "Super Banking MCP Server": "Demo MCP Server", "Super Banking MCP Invest": "Demo MCP Invest", "Super Banking MCP JWT Verifier": "Demo MCP JWT Verifier", "Super Banking MCP Gateway": "Demo MCP Gateway", "Super Banking Agent Gateway": "Demo Agent Gateway", "Super Banking A2A Intermediate": "Demo A2A Intermediate", "Super Banking A2A Intermediate - Investment Advisor": "Super Banking A2A Intermediate - Investment Advisor", "Super Banking A2A Intermediate - Records Specialist": "Super Banking A2A Intermediate - Records Specialist", "Super Banking A2A Intermediate - Purchase History Specialist": "Super Banking A2A Intermediate - Purchase History Specialist", "Super Banking A2A Intermediate - Membership Specialist": "Super Banking A2A Intermediate - Membership Specialist", "Super Banking A2A Intermediate - Payroll Specialist": "Super Banking A2A Intermediate - Payroll Specialist", "Super Banking A2A Intermediate - Tax Records Specialist": "Super Banking A2A Intermediate - Tax Records Specialist", "Super Banking A2A Intermediate - Financial Aid Specialist": "Super Banking A2A Intermediate - Financial Aid Specialist", "Super Banking A2A Intermediate - Supplier Contract Specialist": "Super Banking A2A Intermediate - Supplier Contract Specialist", "Super Banking A2A Intermediate - Holdings Specialist": "Super Banking A2A Intermediate - Holdings Specialist", "Super Banking A2A Intermediate - Passenger Records Specialist": "Super Banking A2A Intermediate - Passenger Records Specialist", "Super Banking A2A MCP Gateway": "Super Banking A2A MCP Gateway", "Super Banking PingGateway MCP": "Demo PingGateway MCP", "Super Banking A2A Intermediate - Identity Verification Specialist": "Super Banking A2A Intermediate - Identity Verification Specialist" },
-    "appNames": { "Super Banking User App": "Demo AI App - User Login", "Super Banking Admin App": "Demo AI App - Admin Login", "Super Banking MCP Server": "Demo AI App - MCP Server Client", "Super Banking MCP Gateway": "Demo AI App - MCP Gateway", "Super Banking MCP Exchanger": "Demo AI App - Token Exchanger", "Super Banking AI Agent": "Demo AI App - AI Agent Actor", "Super Banking Agent": "Demo AI App - Agent Actor", "Super Banking Worker": "Demo AI App - Introspection Worker", "Super Banking Investment Advisor Agent": "Demo AI App - Investment Advisor Agent", "Super Banking Records Specialist Agent": "Demo AI App - Records Specialist Agent", "Super Banking Purchase Specialist Agent": "Demo AI App - Purchase Specialist Agent", "Super Banking Membership Specialist Agent": "Demo AI App - Membership Specialist Agent", "Super Banking Payroll Specialist Agent": "Demo AI App - Payroll Specialist Agent", "Super Banking Tax Records Specialist Agent": "Demo AI App - Tax Records Specialist Agent", "Super Banking Financial Aid Specialist Agent": "Demo AI App - Financial Aid Specialist Agent", "Super Banking Supplier Contract Specialist Agent": "Demo AI App - Supplier Contract Specialist Agent", "Super Banking Holdings Specialist Agent": "Demo AI App - Holdings Specialist Agent", "Super Banking Passenger Records Specialist Agent": "Demo AI App - Passenger Records Specialist Agent", "Super Banking Step 9 Exchanger": "Demo AI App - MCP Step 9 Exchanger", "Super Banking Identity Verification Specialist Agent": "Demo AI App - Identity Verification Specialist Agent" }
+    "resourceNames": { "Super Banking API": "Demo API", "Super Banking MCP Server": "Demo MCP Server", "Super Banking MCP Invest": "Demo MCP Invest", "Super Banking MCP JWT Verifier": "Demo MCP JWT Verifier", "Super Banking MCP Gateway": "Demo MCP Gateway", "Super Banking Agent Gateway": "Demo Agent Gateway", "Super Banking A2A Intermediate": "Demo A2A Intermediate", "Super Banking A2A Intermediate - Investment Advisor": "Super Banking A2A Intermediate - Investment Advisor", "Super Banking A2A Intermediate - Records Specialist": "Super Banking A2A Intermediate - Records Specialist", "Super Banking A2A Intermediate - Purchase History Specialist": "Super Banking A2A Intermediate - Purchase History Specialist", "Super Banking A2A Intermediate - Membership Specialist": "Super Banking A2A Intermediate - Membership Specialist", "Super Banking A2A Intermediate - Payroll Specialist": "Super Banking A2A Intermediate - Payroll Specialist", "Super Banking A2A Intermediate - Tax Records Specialist": "Super Banking A2A Intermediate - Tax Records Specialist", "Super Banking A2A Intermediate - Financial Aid Specialist": "Super Banking A2A Intermediate - Financial Aid Specialist", "Super Banking A2A Intermediate - Supplier Contract Specialist": "Super Banking A2A Intermediate - Supplier Contract Specialist", "Super Banking A2A Intermediate - Holdings Specialist": "Super Banking A2A Intermediate - Holdings Specialist", "Super Banking A2A Intermediate - Passenger Records Specialist": "Super Banking A2A Intermediate - Passenger Records Specialist", "Super Banking A2A MCP Gateway": "Super Banking A2A MCP Gateway", "Super Banking PingGateway MCP": "Demo PingGateway MCP", "Super Banking PingGateway MCP - API-Key": "MCP Gateway - API-Key", "Super Banking A2A Intermediate - Identity Verification Specialist": "Super Banking A2A Intermediate - Identity Verification Specialist" },
+    "appNames": { "Super Banking User App": "Demo AI App - User Login", "Super Banking Admin App": "Demo AI App - Admin Login", "Super Banking MCP Server": "Demo AI App - MCP Server Client", "Super Banking MCP Gateway": "Demo AI App - MCP Gateway", "Super Banking MCP Exchanger": "Demo AI App - Token Exchanger", "Super Banking AI Agent": "Demo AI App - AI Agent Actor", "Super Banking Fraud Watch Agent": "Demo AI App - Fraud Watch Agent", "Super Banking Balance Sweep Agent": "Demo AI App - Balance Sweep Agent", "Super Banking Agent": "Demo AI App - Agent Actor", "Super Banking Worker": "Demo AI App - Introspection Worker", "Super Banking Investment Advisor Agent": "Demo AI App - Investment Advisor Agent", "Super Banking Records Specialist Agent": "Demo AI App - Records Specialist Agent", "Super Banking Purchase Specialist Agent": "Demo AI App - Purchase Specialist Agent", "Super Banking Membership Specialist Agent": "Demo AI App - Membership Specialist Agent", "Super Banking Payroll Specialist Agent": "Demo AI App - Payroll Specialist Agent", "Super Banking Tax Records Specialist Agent": "Demo AI App - Tax Records Specialist Agent", "Super Banking Financial Aid Specialist Agent": "Demo AI App - Financial Aid Specialist Agent", "Super Banking Supplier Contract Specialist Agent": "Demo AI App - Supplier Contract Specialist Agent", "Super Banking Holdings Specialist Agent": "Demo AI App - Holdings Specialist Agent", "Super Banking Passenger Records Specialist Agent": "Demo AI App - Passenger Records Specialist Agent", "Super Banking Step 9 Exchanger": "Demo AI App - MCP Step 9 Exchanger", "Super Banking Identity Verification Specialist Agent": "Demo AI App - Identity Verification Specialist Agent" }
   },
   "mappedClaims": {
     "_comment": "Scope-to-attributes gating (P14C-83315). Enabled on Super Banking API resource. Maps each scope to attributes that appear in tokens. Feature flag P14C-83315-custom-resource-scope-to-attributes-support must be enabled in PingOne.",
     "Super Banking API": [
-      { "scope": "read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "write", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "transfer", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "accounts:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "transactions:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "mortgage:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "largepurchase:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "records:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "gear:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "expense:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "permits:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "transcript:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "tax:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "finaid:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "supplier:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "purchase:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "membership:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "payroll:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "invest:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "holdings:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "airlines:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "airlines:write", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "pnr:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "sensitive:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "workorders:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "identity:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "ai:agent:read", "attributes": [] },
-      { "scope": "ai_agent", "attributes": [] },
-      { "scope": "admin:read", "attributes": [] },
-      { "scope": "admin:write", "attributes": [] },
-      { "scope": "admin:delete", "attributes": [] },
-      { "scope": "users:read", "attributes": [] },
-      { "scope": "users:manage", "attributes": [] }
+      {
+        "scope": "read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "write",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "transfer",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "accounts:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "transactions:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "mortgage:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "largepurchase:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "records:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "gear:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "expense:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "permits:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "transcript:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "tax:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "finaid:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "supplier:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "purchase:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "membership:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "payroll:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "invest:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "holdings:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "airlines:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "airlines:write",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "pnr:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "sensitive:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "workorders:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "identity:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "ai:agent:read",
+        "attributes": []
+      },
+      {
+        "scope": "ai_agent",
+        "attributes": []
+      },
+      {
+        "scope": "admin:read",
+        "attributes": []
+      },
+      {
+        "scope": "admin:write",
+        "attributes": []
+      },
+      {
+        "scope": "admin:delete",
+        "attributes": []
+      },
+      {
+        "scope": "users:read",
+        "attributes": []
+      },
+      {
+        "scope": "users:manage",
+        "attributes": []
+      }
     ]
   },
-  "aliases": { "banking:mcp:invoke": "mcp:invoke", "gateway:mcp:invoke": "mcp:invoke", "server:mcp:invoke": "mcp:invoke", "pinggateway:invoke": "mcp:invoke", "ai:agent": "ai:agent:read" },
+  "aliases": { "banking:mcp:invoke": "mcp:invoke", "gateway:mcp:invoke": "mcp:invoke", "apikey:mcp:invoke": "mcp:invoke", "server:mcp:invoke": "mcp:invoke", "pinggateway:invoke": "mcp:invoke", "ai:agent": "ai:agent:read" },
   "scopes": {
     "read": { "description": "Read accounts, balances, transactions", "riskLevel": "low", "resource": "Super Banking API", "category": "data" },
     "write": { "description": "Write operations (deposit/withdrawal/transfer)", "riskLevel": "high", "resource": "Super Banking API", "category": "data" },
@@ -110,11 +209,29 @@
     },
     "Super Banking MCP Server": {
       "uri": "mcpserver.ping.demo",
+      "audienceEnv": {
+        "var": "MCP_SERVER_RESOURCE_URI",
+        "surfaces": [
+          { "file": "docker-compose.yml", "kind": "yaml" },
+          { "file": "k8s/02-configmap.yaml", "kind": "yaml" }
+        ]
+      },
       "scopes": ["mcp:invoke", "code:search"],
       "mirroredScopes": ["read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "tax:read", "finaid:read", "supplier:read", "invest:read", "airlines:read", "airlines:write", "pnr:read", "ai:agent:read", "admin:read", "admin:write", "admin:delete", "users:read", "users:manage", "workorders:read", "sensitive:read", "code:search"]
     },
     "Super Banking MCP Invest": {
       "uri": "mcp-invest.ping.demo",
+      "audienceEnv": {
+        "var": "MCP_RESOURCE_SERVER_RESOURCE_URI",
+        "surfaces": [
+          { "file": "docker-compose.yml", "kind": "yaml" },
+          { "file": "k8s/02-configmap.yaml", "kind": "yaml" },
+          { "file": "privilege/ai-demo-whole-stack/ai-demo-stack/templates/02-configmap.yaml", "kind": "yaml" },
+          { "file": "demo_mcp_resource_server/.env.example", "kind": "env" },
+          { "file": "demo_api_server/scripts/refresh-service-envs.js", "kind": "js" }
+        ],
+        "sourcePin": { "file": "demo_mcp_resource_server/src/server/acceptedAudiences.ts", "mustInclude": "RESOURCE_URI_ENV = 'MCP_RESOURCE_SERVER_RESOURCE_URI'" }
+      },
       "scopes": ["mcp:invoke"],
       "mirroredScopes": ["invest:read", "airlines:read", "airlines:write", "pnr:read", "read"]
     },
@@ -124,6 +241,15 @@
     },
     "Super Banking MCP Gateway": {
       "uri": "mcpgateway.ping.demo",
+      "role": "mcp-gateway",
+      "audienceEnv": {
+        "var": "MCP_GW_RESOURCE_URI",
+        "surfaces": [
+          { "file": "docker-compose.yml", "kind": "yaml" },
+          { "file": "k8s/02-configmap.yaml", "kind": "yaml" },
+          { "file": "demo_mcp_gateway/.env.example", "kind": "env" }
+        ]
+      },
       "scopes": ["mcp:invoke"],
       "mirroredScopes": ["read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "tax:read", "finaid:read", "supplier:read", "invest:read", "airlines:read", "airlines:write", "pnr:read", "workorders:read", "sensitive:read", "code:search"]
     },
@@ -178,11 +304,19 @@
     },
     "Super Banking A2A MCP Gateway": {
       "uri": "mcpgateway-a2a.ping.demo",
+      "role": "mcp-gateway",
       "scopes": ["read", "invest:read", "holdings:read", "records:read", "tax:read", "finaid:read", "supplier:read", "purchase:read", "membership:read", "payroll:read", "pnr:read", "identity:read"]
     },
     "Super Banking PingGateway MCP": {
       "uri": "https://api.ping.demo:3036/mcp",
+      "role": "mcp-gateway",
       "scopes": ["gateway:mcp:invoke"]
+    },
+    "Super Banking PingGateway MCP - API-Key": {
+      "uri": "https://api.ping.demo:3036/mcp/apikey",
+      "role": "mcp-gateway",
+      "scopes": ["apikey:mcp:invoke"],
+      "mirroredScopes": ["mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "workorders:read", "invest:read"]
     },
     "Super Banking A2A Intermediate - Identity Verification Specialist": {
       "uri": "a2a-intermediate-identity.ping.demo",
@@ -219,61 +353,86 @@
     },
     "Super Banking AI Agent": {
       "type": "WEB_APP",
+      "agentClass": "worker",
       "grantTypes": ["client_credentials", "token_exchange"],
       "grantedScopes": ["agent:invoke", "admin:read"]
     },
     "Super Banking Investment Advisor Agent": {
       "type": "WEB_APP",
+      "agentClass": "worker",
       "grantTypes": ["client_credentials", "token_exchange"],
       "grantedScopes": ["invest:read"]
     },
     "Super Banking Records Specialist Agent": {
       "type": "WEB_APP",
+      "agentClass": "worker",
       "grantTypes": ["client_credentials", "token_exchange"],
       "grantedScopes": ["read", "records:read"]
     },
     "Super Banking Purchase Specialist Agent": {
       "type": "WEB_APP",
+      "agentClass": "worker",
       "grantTypes": ["client_credentials", "token_exchange"],
       "grantedScopes": ["read", "purchase:read"]
     },
     "Super Banking Membership Specialist Agent": {
       "type": "WEB_APP",
+      "agentClass": "worker",
       "grantTypes": ["client_credentials", "token_exchange"],
       "grantedScopes": ["read", "membership:read"]
     },
     "Super Banking Payroll Specialist Agent": {
       "type": "WEB_APP",
+      "agentClass": "worker",
       "grantTypes": ["client_credentials", "token_exchange"],
       "grantedScopes": ["read", "payroll:read"]
     },
     "Super Banking Tax Records Specialist Agent": {
       "type": "WEB_APP",
+      "agentClass": "worker",
       "grantTypes": ["client_credentials", "token_exchange"],
       "grantedScopes": ["read", "tax:read"]
     },
     "Super Banking Financial Aid Specialist Agent": {
       "type": "WEB_APP",
+      "agentClass": "worker",
       "grantTypes": ["client_credentials", "token_exchange"],
       "grantedScopes": ["read", "finaid:read"]
     },
     "Super Banking Supplier Contract Specialist Agent": {
       "type": "WEB_APP",
+      "agentClass": "worker",
       "grantTypes": ["client_credentials", "token_exchange"],
       "grantedScopes": ["read", "supplier:read"]
     },
     "Super Banking Holdings Specialist Agent": {
       "type": "WEB_APP",
+      "agentClass": "worker",
       "grantTypes": ["client_credentials", "token_exchange"],
       "grantedScopes": ["read", "holdings:read"]
     },
     "Super Banking Passenger Records Specialist Agent": {
       "type": "WEB_APP",
+      "agentClass": "worker",
       "grantTypes": ["client_credentials", "token_exchange"],
       "grantedScopes": ["read", "pnr:read"]
     },
+    "Super Banking Fraud Watch Agent": {
+      "type": "WEB_APP",
+      "agentClass": "autonomous",
+      "grantTypes": ["client_credentials"],
+      "grantedScopes": ["read"]
+    },
+    "Super Banking Balance Sweep Agent": {
+      "type": "WEB_APP",
+      "agentClass": "autonomous",
+      "mandate": { "maxAmount": 500, "window": "day" },
+      "grantTypes": ["client_credentials"],
+      "grantedScopes": ["read", "transfer"]
+    },
     "Super Banking Agent": {
       "type": "WORKER",
+      "agentClass": "worker",
       "grantTypes": ["client_credentials"],
       "grantedScopes": []
     },
@@ -284,6 +443,7 @@
     },
     "Super Banking Identity Verification Specialist Agent": {
       "type": "WEB_APP",
+      "agentClass": "worker",
       "grantTypes": ["client_credentials", "token_exchange"],
       "grantedScopes": ["read", "identity:read"]
     }
@@ -294,6 +454,7 @@
     "demo_mcp_server": { "resource": "Super Banking MCP Server", "validatesAudience": "mcpgateway.ping.demo", "gatesOnToolScopes": true, "description": "Backend MCP tool server. Gateway forwards the inbound bearer UNCHANGED (no re-exchange — see authorizeMcpRequest.ts Step 4 + GatewayTokenPolicy D-05), so the server validates aud === mcpgateway.ping.demo (MCP_SERVER_RESOURCE_URI), the same gateway-targeted audience. PingOne token exchange cannot issue a separate server aud alongside the gateway aud (returns invalid_scope: May not request scopes for multiple resources)." },
     "demo_agent_service": { "resource": "Super Banking Agent Gateway", "validatesAudience": "agentgateway.ping.demo", "gatesOnToolScopes": false, "description": "Agent Gateway (Two-Exchange Step 1 audience for the AI Agent client-credentials token)." },
     "ping_gateway": { "resource": "Super Banking PingGateway MCP", "validatesAudience": "https://api.ping.demo:3036/mcp", "gatesOnToolScopes": true, "description": "PingGateway (IG) alternate MCP gateway. Inbound scope spelling is gateway:mcp:invoke (aliases to mcp:invoke). Audience is the RFC 8707 resource URI (local :3036/mcp); k8s may override via deployment.environments.*.pingGatewayResourceUri." },
+    "ping_gateway_apikey": { "resource": "Super Banking PingGateway MCP - API-Key", "validatesAudience": "https://api.ping.demo:3036/mcp/apikey", "gatesOnToolScopes": true, "description": "PingGateway (IG) api-key-disposition route (00-mcp-apikey.json), for show_mortgage/show_gear_order/etc. Distinct audience from ping_gateway so a /mcp-scoped token cannot be replayed against /mcp/apikey. Inbound scope spelling is apikey:mcp:invoke, plus the tool's own mirroredScopes entry." },
     "demo_a2a_mcp_gateway": { "resource": "Super Banking A2A MCP Gateway", "validatesAudience": "mcpgateway-a2a.ping.demo", "gatesOnToolScopes": true, "description": "A2A specialists Exchange #2 destination — separate from Super Banking MCP Gateway so nested-act SPEL never touches the non-A2A two-exchange flow. Listed in MCP_GW_RESOURCE_URI alongside the shared gateway audience." }
   },
   "tools": {
@@ -396,7 +557,9 @@
     },
     "pay_airline_fee": {
       "requiredScopes": ["airlines:read", "airlines:write"],
-      "surface": "gateway"
+      "surface": "gateway",
+      "challengeType": "consent",
+      "requiresAgentMediation": true
     },
     "get_airline_bookings": {
       "requiredScopes": ["airlines:read"],
@@ -510,7 +673,7 @@
     "submit_expense": {
       "requiredScopes": ["write"],
       "surface": "gateway",
-      "challengeType": "step_up",
+      "challengeType": "consent",
       "requiresAgentMediation": true
     },
     "request_time_off": {
@@ -785,7 +948,9 @@
     },
     "pay_fee": {
       "requiredScopes": ["write"],
-      "surface": "gateway"
+      "surface": "gateway",
+      "challengeType": "consent",
+      "requiresAgentMediation": true
     },
     "release_record": {
       "requiredScopes": ["write"],
@@ -875,7 +1040,9 @@
     },
     "pay_bill": {
       "requiredScopes": ["write"],
-      "surface": "gateway"
+      "surface": "gateway",
+      "challengeType": "consent",
+      "requiresAgentMediation": true
     },
     "refill_prescription": {
       "requiredScopes": ["write"],
@@ -931,7 +1098,9 @@
     },
     "approve_purchase_order": {
       "requiredScopes": ["write"],
-      "surface": "gateway"
+      "surface": "gateway",
+      "challengeType": "consent",
+      "requiresAgentMediation": true
     },
     "close_maintenance_ticket": {
       "requiredScopes": ["write"],
@@ -1173,7 +1342,9 @@
     },
     "pay_tuition_balance": {
       "requiredScopes": ["write"],
-      "surface": "gateway"
+      "surface": "gateway",
+      "challengeType": "consent",
+      "requiresAgentMediation": true
     },
     "register_course": {
       "requiredScopes": ["write"],
@@ -1328,7 +1499,8 @@
     "large_trade": {
       "requiredScopes": ["write"],
       "surface": "gateway",
-      "challengeType": "step_up"
+      "challengeType": "consent",
+      "requiresAgentMediation": true
     },
     "rebalance_portfolio": {
       "requiredScopes": ["write"],
@@ -1422,6 +1594,14 @@
     },
     "browse_gear": {
       "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "get_loyalty_status": {
+      "requiredScopes": ["airlines:read"],
+      "surface": "gateway"
+    },
+    "redeem_miles": {
+      "requiredScopes": ["airlines:read", "airlines:write"],
       "surface": "gateway"
     }
   },
