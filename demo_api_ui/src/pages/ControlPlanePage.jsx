@@ -137,7 +137,13 @@ export default function ControlPlanePage() {
             <div className="cp-kpi">
               <div className="cp-kpi__label">Scope drift</div>
               <div className="cp-kpi__val">{registry.drift}<span className="cp-kpi__unit">/ {verifiedCount}</span></div>
-              <div className="cp-kpi__note">granted matches scope-topology</div>
+              <div className="cp-kpi__note">
+                {verifiedCount === 0
+                  ? 'nothing verified — no declared expectation'
+                  : registry.drift > 0
+                    ? `${registry.drift} of ${verifiedCount} drifting from scope-topology`
+                    : 'granted matches scope-topology'}
+              </div>
             </div>
             <div className="cp-kpi">
               <div className="cp-kpi__label">Lifecycle events</div>

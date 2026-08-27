@@ -100,4 +100,16 @@ describe('ControlPlanePage', () => {
     // …and the rest of the board is still there.
     expect(screen.getByText(/22 services/)).toBeInTheDocument();
   });
+
+  it('does not claim a scope comparison that never happened', async () => {
+    apiClient.get.mockResolvedValue({ data: {
+      ...PAYLOAD,
+      zones: { ...PAYLOAD.zones, registry: { ...PAYLOAD.zones.registry, total: 33, drift: 0, unverified: 33 } },
+    } });
+    render(<ControlPlanePage />);
+
+    // Live data: every identity is unverified, so asserting a match is false.
+    await waitFor(() => expect(screen.getByText(/nothing verified/i)).toBeInTheDocument());
+    expect(screen.queryByText(/granted matches scope-topology/i)).not.toBeInTheDocument();
+  });
 });
