@@ -225,7 +225,7 @@ router.get('/chain', async (req, res) => {
     const tokenChain = await buildTokenChain(req);
     res.json(tokenChain);
   } catch (error) {
-    console.error('Token chain API error:', error);
+    console.error('Token chain API error:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to fetch token chain data' });
   }
 });
@@ -239,7 +239,7 @@ router.get('/session-preview', async (req, res) => {
     const { tokenEvents } = await agentMcpTokenService.buildSessionPreviewTokenEvents(req);
     res.json({ tokenEvents });
   } catch (error) {
-    console.error('Token session-preview error:', error);
+    console.error('Token session-preview error:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to load session token preview' });
   }
 });
@@ -337,7 +337,7 @@ async function agentCcPreviewHandler(req, res) {
       });
     }
   } catch (error) {
-    console.error('Token agent-cc-preview error:', error);
+    console.error('Token agent-cc-preview error:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to load agent CC token preview' });
   }
 }
@@ -407,7 +407,7 @@ router.get('/:tokenId', async (req, res) => {
     }
     res.json(tokenInfo);
   } catch (error) {
-    console.error('Token detail API error:', error);
+    console.error('Token detail API error:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to fetch token details' });
   }
 });
@@ -437,7 +437,7 @@ router.post('/validate', async (req, res) => {
       });
     }
   } catch (error) {
-    console.error('Token validation API error:', error);
+    console.error('Token validation API error:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to validate token' });
   }
 });
@@ -593,7 +593,7 @@ router.post('/exchange-test', async (req, res) => {
       });
     }
   } catch (error) {
-    console.error('Token exchange test API error:', error);
+    console.error('Token exchange test API error:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to perform token exchange' });
   }
 });

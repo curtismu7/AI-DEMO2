@@ -66,7 +66,7 @@ router.get('/dashboard', requireAdminAccess, async (req, res) => {
     res.json(dashboard);
 
   } catch (error) {
-    console.error('Error getting security dashboard:', error);
+    console.error('Error getting security dashboard:', error?.stack || String(error));
     
     await writeExchangeEvent({
       timestamp: new Date().toISOString(),
@@ -144,7 +144,7 @@ router.get('/alerts', requireAdminAccess, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error getting security alerts:', error);
+    console.error('Error getting security alerts:', error?.stack || String(error));
     
     res.status(500).json({
       error: 'alerts_error',
@@ -199,7 +199,7 @@ router.post('/alerts/:alertId/resolve', requireAdminAccess, async (req, res) => 
     });
 
   } catch (error) {
-    console.error('Error resolving security alert:', error);
+    console.error('Error resolving security alert:', error?.stack || String(error));
     
     res.status(500).json({
       error: 'resolution_error',
@@ -233,7 +233,7 @@ router.get('/clients/:clientId/report', requireAdminAccess, async (req, res) => 
     res.json(report);
 
   } catch (error) {
-    console.error('Error getting client security report:', error);
+    console.error('Error getting client security report:', error?.stack || String(error));
     
     res.status(500).json({
       error: 'report_error',
@@ -273,7 +273,7 @@ router.post('/monitor/token-usage', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error monitoring token usage:', error);
+    console.error('Error monitoring token usage:', error?.stack || String(error));
     
     res.status(500).json({
       error: 'monitoring_error',
@@ -307,7 +307,7 @@ router.post('/monitor/authentication', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error monitoring authentication:', error);
+    console.error('Error monitoring authentication:', error?.stack || String(error));
     
     res.status(500).json({
       error: 'monitoring_error',
@@ -341,7 +341,7 @@ router.post('/monitor/credential-rotation', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error monitoring credential rotation:', error);
+    console.error('Error monitoring credential rotation:', error?.stack || String(error));
     
     res.status(500).json({
       error: 'monitoring_error',
@@ -406,7 +406,7 @@ router.post('/alerts/generate', requireAdminAccess, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error generating security alert:', error);
+    console.error('Error generating security alert:', error?.stack || String(error));
     
     res.status(500).json({
       error: 'generation_error',
@@ -459,7 +459,7 @@ router.get('/anomalies', requireAdminAccess, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error getting security anomalies:', error);
+    console.error('Error getting security anomalies:', error?.stack || String(error));
     
     res.status(500).json({
       error: 'anomalies_error',
@@ -494,7 +494,7 @@ router.post('/cleanup', requireAdminAccess, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error cleaning up security data:', error);
+    console.error('Error cleaning up security data:', error?.stack || String(error));
     
     res.status(500).json({
       error: 'cleanup_error',
@@ -530,7 +530,7 @@ router.get('/metrics', requireAdminAccess, async (req, res) => {
     res.json(metrics);
 
   } catch (error) {
-    console.error('Error getting security metrics:', error);
+    console.error('Error getting security metrics:', error?.stack || String(error));
     
     res.status(500).json({
       error: 'metrics_error',
@@ -568,7 +568,7 @@ router.get('/config', requireAdminAccess, async (req, res) => {
     res.json(config);
 
   } catch (error) {
-    console.error('Error getting security config:', error);
+    console.error('Error getting security config:', error?.stack || String(error));
     
     res.status(500).json({
       error: 'config_error',

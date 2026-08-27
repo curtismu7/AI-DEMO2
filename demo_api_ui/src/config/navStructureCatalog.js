@@ -19,16 +19,8 @@ export const NAV_STRUCTURE_CATALOG = [
   },
   { label: "Themes" },
   {
-    label: "Customer Demos",
-    children: [
-      "Agent Lifecycle (guided demo)",
-      "Personal Agent",
-    ],
-  },
-  {
     label: "Demos",
     children: [
-      "Delegated Commerce (guided demo)",
       "Weather MCP",
       "Use Cases",
       "Use Cases (Live)",
@@ -37,15 +29,21 @@ export const NAV_STRUCTURE_CATALOG = [
       "Group Policy Board",
       "Demo Script",
       "Demo Config",
-      "Family Delegation",
     ],
   },
   {
-    label: "AI Agents",
+    label: "AI Flows",
     children: [
-      "AI Control Plane",
+      "Agentic Control Plane",
+      "Agent Kill Switch",
+      "Agent Registry",
       "PingOne Agent Builder",
       "Agent & Token Flow History",
+      "Autonomous Agents",
+      "Personal Agent",
+      "Agent Lifecycle (guided demo)",
+      "Delegated Commerce (guided demo)",
+      "Family Delegation",
       "LangChain Agent",
       "Ungoverned Agent",
     ],
@@ -72,6 +70,15 @@ export const NAV_STRUCTURE_CATALOG = [
       "Ping AI Test Lab",
       "Agent Gateway Inspector",
       "Capability Tour",
+    ],
+  },
+  {
+    label: "PingOne Sample Apps",
+    children: [
+      "M2M Client Credentials",
+      "Custom Admin Role",
+      "User Registration",
+      "Login with MFA",
     ],
   },
   {
@@ -173,6 +180,7 @@ export const NAV_STRUCTURE_CATALOG = [
       "Service Graph",
       "Tracing",
       "Transaction Trace",
+      "Grafana",
       "Health Check",
     ],
   },
@@ -192,6 +200,7 @@ export const NAV_STRUCTURE_CATALOG = [
       "Agent Onboarding Flow (MM)",
       "Agent Gateway OAuth Flow (MM)",
       "Invest Dual-Auth (MM)",
+      "External Door MCP Flow (MM)",
       "AI Agent Gateway (MM)",
       "Privilege Gateway Topologies (MM)",
       "Gateway vs P1AZ Enforcement (MM)",

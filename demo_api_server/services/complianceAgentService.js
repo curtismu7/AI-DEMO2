@@ -59,7 +59,7 @@ async function initializeComplianceSession(userId) {
     const result = await makeRequest('POST', '/init', { user_id: userId });
     return result.data;
   } catch (error) {
-    console.error('Compliance session init error:', error);
+    console.error('Compliance session init error:', error?.stack || String(error));
     throw error;
   }
 }
@@ -133,7 +133,7 @@ async function processComplianceMessage(message, transaction, userId, tokenEvent
       }
     };
   } catch (error) {
-    console.error('Compliance check error:', error);
+    console.error('Compliance check error:', error?.stack || String(error));
     return {
       success: false,
       reply: `Compliance service error: ${error.message}`,

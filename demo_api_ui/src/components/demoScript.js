@@ -129,10 +129,10 @@ export const DEMO_SCRIPT = {
   closer: {
     title: "Close - kill switch (~1.5 min)",
     navPath: "/ai-control-plane",
-    navLabel: "Go to AI Control Plane",
+    navLabel: "Go to Agent Kill Switch",
     warn: "One deliberate hop to /ai-control-plane. Use INSTANCE scope (the default) - it self-recovers and is safe for the shared env. Do NOT use full (disables the PingOne app for every user of that client). Do NOT re-run a step afterward - with instance scope it would just work again.",
     steps: [
-      "Left nav: AI Control Plane.",
+      "Left nav: Agent Kill Switch.",
       "On the LIVE row, click the red STOP button.",
       "In the confirm modal: keep scope Instance, pick a reason, click Confirm Stop Agent.",
     ],

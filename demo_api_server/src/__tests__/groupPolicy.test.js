@@ -39,6 +39,33 @@ describe('groupPolicy', () => {
       expect(groupPolicy.requiredGroupForTool('get_my_accounts', 'banking')).toBeNull();
       expect(groupPolicy.requiredGroupForTool(undefined, 'banking')).toBeNull();
     });
+
+    it('finding #48: fails closed (non-null) for a non-banking vertical when manifest resolution throws', () => {
+      const spy = jest
+        .spyOn(verticalManifest.resolver, 'resolve')
+        .mockImplementation(() => {
+          throw new Error('manifest resolution boom');
+        });
+      try {
+        expect(groupPolicy.requiredGroupForTool('sensitive_patient_records', 'healthcare')).not.toBeNull();
+      } finally {
+        spy.mockRestore();
+      }
+    });
+
+    it('falls back to the legacy banking config when manifest resolution throws for banking', () => {
+      const spy = jest
+        .spyOn(verticalManifest.resolver, 'resolve')
+        .mockImplementation(() => {
+          throw new Error('manifest resolution boom');
+        });
+      try {
+        expect(groupPolicy.requiredGroupForTool('get_sensitive_account_details', 'banking'))
+          .toBe('AI_Demo_Privileged');
+      } finally {
+        spy.mockRestore();
+      }
+    });
   });
 
   describe('groupsForUserSync', () => {

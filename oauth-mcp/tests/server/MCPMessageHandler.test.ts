@@ -668,6 +668,34 @@ describe('MCPMessageHandler', () => {
       const response = await handler.handleHandshake(handshakeMessage, mockContext);
       expect(response.result?.protocolVersion).toBe('2025-11-25');
     });
+
+    // Regression: negotiation only matched 2025-11-25 and 2024-*, so a client
+    // asking for 2025-06-18 — a version MCP_SUPPORTED_VERSIONS lists and the
+    // most common third-party default — fell through to the counter-offer and
+    // was answered with a NEWER version than it asked for. Behind PingGateway
+    // that counter-offer is one the proxy cannot carry, so the handshake
+    // "succeeded" and every later call 400'd at the proxy.
+    it.each(['2025-06-18', '2025-03-26', '2025-11-25'])(
+      'echoes %s back rather than counter-offering something newer',
+      async (requested) => {
+        const response = await handler.handleHandshake({
+          id: `h-${requested}`,
+          method: 'initialize',
+          params: { protocolVersion: requested, capabilities: {}, clientInfo: { name: 'test', version: '1.0.0' } },
+        } as HandshakeMessage, mockContext);
+        expect(response.result?.protocolVersion).toBe(requested);
+      },
+    );
+
+    it('counter-offers the ADVERTISED version for a version it does not speak', async () => {
+      const { MCP_ADVERTISED_PROTOCOL_VERSION } = require('../../src/server/protocolVersions');
+      const response = await handler.handleHandshake({
+        id: 'h-unknown',
+        method: 'initialize',
+        params: { protocolVersion: '2099-01-01', capabilities: {}, clientInfo: { name: 'test', version: '1.0.0' } },
+      } as HandshakeMessage, mockContext);
+      expect(response.result?.protocolVersion).toBe(MCP_ADVERTISED_PROTOCOL_VERSION);
+    });
   });
 
   describe('logging/setLevel', () => {

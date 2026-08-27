@@ -98,7 +98,7 @@ async function createSampleDataForCustomer(userId, firstName, lastName) {
     console.debug(`Created sample data for customer ${firstName} ${lastName} (vertical: ${result.vertical})`);
     return result;
   } catch (error) {
-    console.error('Error creating sample data for customer:', error);
+    console.error('Error creating sample data for customer:', error?.stack || String(error));
     throw error;
   }
 }
@@ -281,7 +281,7 @@ router.get('/login', (req, res) => {
       res.redirect(url);
     });
   } catch (error) {
-    console.error('OAuth login error:', error);
+    console.error('OAuth login error:', error?.stack || String(error));
     redirectEndUserOAuthSpaFailure(req, res, { error: 'oauth_init_failed' });
   }
 });
@@ -540,7 +540,7 @@ router.get('/callback', async (req, res) => {
         try {
           await reseedIfVerticalMismatch(user.id, user.firstName, user.lastName);
         } catch (error) {
-          console.error('Failed to create sample data for new customer:', error);
+          console.error('Failed to create sample data for new customer:', error?.stack || String(error));
         }
       }
     } else {
@@ -559,7 +559,7 @@ router.get('/callback', async (req, res) => {
         try {
           await reseedIfVerticalMismatch(user.id, user.firstName, user.lastName);
         } catch (error) {
-          console.error('Failed to reseed accounts on login:', error);
+          console.error('Failed to reseed accounts on login:', error?.stack || String(error));
         }
       }
     }
@@ -741,7 +741,7 @@ router.get('/callback', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('OAuth callback error:', error);
+    console.error('OAuth callback error:', error?.stack || String(error));
     const detail = error.pingoneError || 'unknown';
     const desc   = error.pingoneDesc   || '';
     redirectEndUserOAuthSpaFailure(req, res, {
@@ -800,13 +800,13 @@ router.get('/stepup', (req, res) => {
     console.log(`[StepUp] Initiating MFA step-up with acr_values=${acrValue}`);
     req.session.save((err) => {
       if (err) {
-        console.error('[StepUp] Session save error:', err);
+        console.error('[StepUp] Session save error:', err?.stack || String(err));
         return res.redirect(`${getFrontendOrigin()}/dashboard?error=stepup_init_failed`);
       }
       res.redirect(url);
     });
   } catch (error) {
-    console.error('[StepUp] Error initiating step-up:', error);
+    console.error('[StepUp] Error initiating step-up:', error?.stack || String(error));
     res.redirect(`${getFrontendOrigin()}/dashboard?error=stepup_init_failed`);
   }
 });
@@ -986,7 +986,7 @@ router.get('/logout', async (req, res) => {
 
   req.session.destroy((err) => {
     if (err) {
-      console.error('Session destruction error:', err);
+      console.error('Session destruction error:', err?.stack || String(err));
     }
 
     clearAllAuthCookies(res, _isProd());
@@ -1016,7 +1016,7 @@ router.post('/refresh', async (req, res) => {
       tokenType:    tokenData.token_type    || 'Bearer',
     };
     req.session.save((err) => {
-      if (err) console.error('[refresh] Session save error:', err);
+      if (err) console.error('[refresh] Session save error:', err?.stack || String(err));
     });
     return res.json({ success: true, expiresAt: req.session.oauthTokens.expiresAt });
   } catch (err) {
@@ -1105,7 +1105,7 @@ router.post('/initiate-otp', async (req, res) => {
 
   req.session.save(async (err) => {
     if (err) {
-      console.error('[OTP] Session save error:', err);
+      console.error('[OTP] Session save error:', err?.stack || String(err));
       return res.status(500).json({ error: 'session_error' });
     }
 
@@ -1266,7 +1266,7 @@ router.post('/verify-otp', async (req, res) => {
 
   req.session.save((err) => {
     if (err) {
-      console.error('[OTP] Session save error after verify:', err);
+      console.error('[OTP] Session save error after verify:', err?.stack || String(err));
       return res.status(500).json({ error: 'session_error' });
     }
     console.log(`[OTP] Step-up verified for user ${req.session.user?.id}`);
@@ -1294,17 +1294,17 @@ router.post('/success-screen-preference', (req, res) => {
       req.session.user.hideSuccessScreen = hideSuccessScreen;
       req.session.save((err) => {
         if (err) {
-          console.error('[success-screen-preference] Session save error:', err);
+          console.error('[success-screen-preference] Session save error:', err?.stack || String(err));
           return res.status(500).json({ error: 'session_error' });
         }
         res.json({ hideSuccessScreen, message: 'Preference updated' });
       });
     }).catch((err) => {
-      console.error('[success-screen-preference] Update error:', err);
+      console.error('[success-screen-preference] Update error:', err?.stack || String(err));
       res.status(500).json({ error: 'update_failed' });
     });
   } catch (error) {
-    console.error('[success-screen-preference] Error:', error);
+    console.error('[success-screen-preference] Error:', error?.stack || String(error));
     res.status(500).json({ error: 'server_error' });
   }
 });
@@ -1342,17 +1342,17 @@ router.post('/notification-preferences', (req, res) => {
       req.session.user.notificationPrefs = notificationPrefs;
       req.session.save((err) => {
         if (err) {
-          console.error('[notification-preferences] Session save error:', err);
+          console.error('[notification-preferences] Session save error:', err?.stack || String(err));
           return res.status(500).json({ error: 'session_error' });
         }
         res.json({ notificationPrefs, message: 'Preference updated' });
       });
     }).catch((err) => {
-      console.error('[notification-preferences] Update error:', err);
+      console.error('[notification-preferences] Update error:', err?.stack || String(err));
       res.status(500).json({ error: 'update_failed' });
     });
   } catch (error) {
-    console.error('[notification-preferences] Error:', error);
+    console.error('[notification-preferences] Error:', error?.stack || String(error));
     res.status(500).json({ error: 'server_error' });
   }
 });

@@ -6,16 +6,61 @@
  * of a hardcoded PingOne worker token, so it works against any remote MCP
  * server that speaks Streamable HTTP (e.g. Brave Search run with
  * `--transport http`).
+ *
+ * A stateful spec-conformant server (the Privilege gateway, confirmed live)
+ * requires an `initialize` handshake before any other call and ties
+ * subsequent requests to the `Mcp-Session-Id` it returns — without both,
+ * tools/list answers 400 "mcp-protocol-version header is required" or 404
+ * "unknown or expired MCP-Session-Id". Session state is kept per (url,
+ * authValue) pair, not per url alone (this one transport instance serves
+ * every saved profile) — see sessionKey()'s own comment for why a caller's
+ * identity has to be part of the key, mirroring the same initialize/
+ * session-id contract routes/privilegeMcpSimple.js already implements for
+ * its own fixed single-target relay.
  */
 const axios = require('axios');
 const { normalizeAxiosError } = require('../../utils/normalizeAxiosError');
 
 const TIMEOUT_MS = 15_000;
+const DEFAULT_PROTOCOL_VERSION = '2024-11-05';
 
-function buildHeaders(profile) {
+// sessionKey(profile) -> { sessionId, protocolVersion, initialized, pending }
+const _sessions = new Map();
+
+/** profile.url alone is NOT a safe cache key: routes/mcpInspector.js's
+ * privilegeVirtualProfile() builds a fresh profile object per request with a
+ * CONSTANT url but the CALLING admin's OWN bearer token as authValue — one
+ * shared session keyed only by url would let the first admin to call cache
+ * an Mcp-Session-Id every other admin's later calls then silently reused
+ * under their own Authorization header (cross-identity session reuse,
+ * flagged in review of PR #2348). Folding authValue into the key gives each
+ * distinct identity its own session while still reusing one session across
+ * that same identity's repeat calls — profiles with no auth (a shared
+ * no-auth backend) collapse back to keying on url alone, unchanged. */
+function sessionKey(profile) {
+  return `${profile.url}::${profile.authValue || ''}`;
+}
+
+function getSession(profile) {
+  const key = sessionKey(profile);
+  let session = _sessions.get(key);
+  if (!session) {
+    session = { sessionId: null, protocolVersion: null, initialized: false, pending: null };
+    _sessions.set(key, session);
+  }
+  return session;
+}
+
+function buildHeaders(profile, session, method) {
   const headers = { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' };
   if (String(profile.authHeader || '').trim() && String(profile.authValue || '').trim()) {
     headers[profile.authHeader] = profile.authValue;
+  }
+  if (session.sessionId) headers['Mcp-Session-Id'] = session.sessionId;
+  // Every non-initialize request needs this, per the same contract
+  // privilegeMcpSimple.js already implements for the Privilege gateway.
+  if (method !== 'initialize') {
+    headers['MCP-Protocol-Version'] = session.protocolVersion || DEFAULT_PROTOCOL_VERSION;
   }
   return headers;
 }
@@ -25,6 +70,7 @@ function extractJsonRpc(data) {
   if (data && typeof data === 'object') return data;
   if (typeof data !== 'string') return data;
   const trimmed = data.trim();
+  if (!trimmed) return undefined; // notifications get an empty 202/204 body
   if (trimmed.startsWith('{')) return JSON.parse(trimmed);
   const dataLines = trimmed.split('\n').filter((l) => l.startsWith('data:'));
   if (dataLines.length) return JSON.parse(dataLines[dataLines.length - 1].slice(5).trim());
@@ -33,15 +79,15 @@ function extractJsonRpc(data) {
 
 let _msgId = 0;
 
-async function send(profile, method, params) {
-  const id = ++_msgId;
+/** One raw JSON-RPC POST. Captures a fresh Mcp-Session-Id if the server sent one. */
+async function rawSend(profile, session, method, params, id) {
   let resp;
   try {
     resp = await axios.post(
       profile.url,
-      { jsonrpc: '2.0', id, method, params },
+      id === undefined ? { jsonrpc: '2.0', method, params } : { jsonrpc: '2.0', id, method, params },
       {
-        headers: buildHeaders(profile),
+        headers: buildHeaders(profile, session, method),
         timeout: TIMEOUT_MS,
         validateStatus: (s) => s >= 200 && s < 300,
         responseType: 'text',
@@ -51,8 +97,6 @@ async function send(profile, method, params) {
   } catch (err) {
     const status = err.response?.status;
     if (!status) {
-      // Transport failure (timeout / connection refused): normalize instead of
-      // leaking the raw axios message.
       throw normalizeAxiosError(err, { label: 'MCP HTTP request', timeoutMs: TIMEOUT_MS });
     }
     const body = err.response?.data;
@@ -63,6 +107,9 @@ async function send(profile, method, params) {
     throw e;
   }
 
+  const sid = resp.headers['mcp-session-id'];
+  if (sid) session.sessionId = sid;
+
   const json = extractJsonRpc(resp.data);
   if (json && json.error) {
     const e = new Error(json.error.message || 'MCP JSON-RPC error');
@@ -71,6 +118,95 @@ async function send(profile, method, params) {
     throw e;
   }
   return json ? json.result : undefined;
+}
+
+/** The actual initialize + notifications/initialized handshake. Never call
+ * directly — go through ensureInitialized/resetAndReinitialize so concurrent
+ * callers for the same profile.url share one attempt (see below). */
+async function performHandshake(profile, session) {
+  const result = await rawSend(
+    profile,
+    session,
+    'initialize',
+    {
+      protocolVersion: DEFAULT_PROTOCOL_VERSION,
+      capabilities: {},
+      clientInfo: { name: 'AI-DEMO2 MCP Inspector', version: '1.0.0' },
+    },
+    ++_msgId,
+  );
+  session.protocolVersion = (result && result.protocolVersion) || DEFAULT_PROTOCOL_VERSION;
+  // Notification (no id, no response body expected) — required by spec before
+  // the session is usable for real requests.
+  await rawSend(profile, session, 'notifications/initialized', {}, undefined);
+  session.initialized = true;
+}
+
+/** Handshake once per profile.url; cheap to skip on every later call.
+ *
+ * `session.pending` makes concurrent first-callers for the same profile.url
+ * share one handshake instead of each starting its own: two requests can
+ * arrive close enough together that both read `session.initialized ===
+ * false` before either has written `true`, and without this guard both
+ * would call performHandshake independently, each overwriting the other's
+ * sessionId on the one shared session object. The check-then-set below has
+ * no `await` between reading and writing `session.pending`, so it's atomic
+ * within Node's single-threaded event loop — no separate lock needed. */
+async function ensureInitialized(profile, session) {
+  if (session.initialized) return;
+  if (!session.pending) {
+    session.pending = performHandshake(profile, session).finally(() => {
+      session.pending = null;
+    });
+  }
+  return session.pending;
+}
+
+/** Same single-flight guard as ensureInitialized, for the recovery path:
+ * if two concurrent calls both discover the session expired, only the first
+ * should reset+reinitialize — the second must await that same attempt
+ * rather than resetting a session the first call just fixed. */
+async function resetAndReinitialize(profile, session) {
+  if (!session.pending) {
+    session.initialized = false;
+    session.sessionId = null;
+    session.pending = performHandshake(profile, session).finally(() => {
+      session.pending = null;
+    });
+  }
+  return session.pending;
+}
+
+/** True ONLY for the MCP spec's documented "session not found" signal — the
+ * gateway evicted a session we still think is live. A bare 404 is not
+ * enough on its own: some `tools/call` requests are mutating (a transfer, a
+ * deposit), and this same 404 status covers a genuinely unrelated failure
+ * (a bad path, a server misconfiguration) too. Retrying THAT would replay
+ * the call — the message must also name the session, matching the exact
+ * wording this repo's own MCP servers use (`{"error":"Unknown or expired
+ * MCP-Session-Id..."}`), not just the status code. Flagged by review of
+ * PR #2348. */
+function isExpiredSessionError(err) {
+  return Boolean(err && err.httpStatus === 404 && /session/i.test(err.message) && /expired|unknown/i.test(err.message));
+}
+
+// A session can go stale between calls (server-side eviction) — the first
+// call after that returns 404 "unknown or expired session", and without a
+// reset every later call for that profile.url fails the same way until the
+// process restarts (confirmed live against oauth-mcp's identical contract
+// elsewhere in this repo: `{"error":"Unknown or expired MCP-Session-Id..."}`
+// at 404). Reset and retry the handshake exactly once — a second failure is
+// a real error, not staleness, and must propagate.
+async function send(profile, method, params) {
+  const session = getSession(profile);
+  await ensureInitialized(profile, session);
+  try {
+    return await rawSend(profile, session, method, params, ++_msgId);
+  } catch (err) {
+    if (!isExpiredSessionError(err)) throw err;
+    await resetAndReinitialize(profile, session);
+    return rawSend(profile, session, method, params, ++_msgId);
+  }
 }
 
 async function listTools(profile) {

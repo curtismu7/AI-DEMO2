@@ -1053,6 +1053,36 @@ async function resolveMcpTokenEnterpriseManaged(req, tokenEvents) {
  * to the stand-in — falling back would hand a token to a user the IdP just
  * refused, which is precisely the failure enterprise-managed auth exists to stop.
  */
+/**
+ * Does this tool live on the OLB MCP server — the only backend a native ID-JAG
+ * bearer is audienced for?
+ *
+ * Read from the BFF's OWN banking tool registry rather than by copying
+ * demo_mcp_gateway/src/router.ts's routing sets: this repo has already been burned
+ * by a second copy joined only by a keep-in-sync comment (see
+ * tests/helpers/actionToTool.js's header).
+ *
+ * The failure modes are asymmetric and both land on the safe side: a genuine OLB
+ * tool missing from the registry merely loses the native path and uses the RFC 8693
+ * exchange (the behaviour that works today), while the reverse would reproduce the
+ * 502 this guard exists to stop.
+ */
+function isOlbBackedTool(toolName) {
+  if (!toolName) return false;
+  try {
+    const { getBankingToolDefinitions } = require('./agentBuilder');
+    const defs = getBankingToolDefinitions() || [];
+    const names = (Array.isArray(defs) ? defs : Object.values(defs))
+      .map((d) => (d && d.name) || d)
+      .filter((n) => typeof n === 'string');
+    return names.includes(toolName);
+  } catch {
+    // Registry unavailable — prefer the exchange path over minting a grant that
+    // may be for the wrong server.
+    return false;
+  }
+}
+
 async function maybeResolveNativeIdJagToken(req, tokenEvents, { resource, scope } = {}) {
   if (!idJagService.isNativeIdJagEnabled()) return null;
   if (!resource) return null;
@@ -1442,7 +1472,24 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
   // issues this token by redeeming an IdP-signed grant, so no RFC 8693 exchange
   // at PingOne is involved. Returns null unless native mode is configured, in
   // which case everything below runs exactly as it does today.
-  if (isEnterpriseManagedFlagOn()) {
+  // Native ID-JAG is a PER-SERVER grant: the redeemed token carries exactly one
+  // audience, oauth-mcp's own resource (TokenIssuer.resolveOwnAudience — the AS is
+  // not entitled to assert any other). Correct for tools the gateway routes to the
+  // OLB backend, WRONG for every other backend.
+  //
+  // routeTool() sends ten verticals (retail, sporting-goods, healthcare, government,
+  // manufacturing, university, workforce, airlines, A&F, investment) to the `invest`
+  // backend. For those, the gateway's ID-JAG exemption correctly refuses to forward —
+  // the token's aud is not the invest resource, and forwarding would widen what an
+  // ID-JAG bearer reaches beyond what D-05 verified — so it falls through to the RFC
+  // 8693 exchange, where PingOne rejects a token it did not sign:
+  //   "Cannot parse token claims for request param 'subject_token'"
+  // and the call 502s. Measured live 2026-08-26 on list_gear; every non-banking
+  // vertical was affected.
+  //
+  // So: take the native path only when the tool actually lives on the OLB server.
+  // Everything else falls through to the RFC 8693 stand-in below, unchanged.
+  if (isEnterpriseManagedFlagOn() && isOlbBackedTool(tool)) {
     // Mode-aware, not the plain mcpResourceUri above: under this demo's default
     // PingGateway routing the gateway requires the pinggateway resource URI
     // (https://api.ping.demo:3036/mcp), not mcpserver.ping.demo — matching
@@ -2822,6 +2869,9 @@ function describeBlockedToken(resolved, tokenEvents) {
 }
 
 module.exports = {
+  // Exported for the ID-JAG-scope regression spec — the predicate decides whether
+  // a per-server ID-JAG grant is even applicable to this tool.
+  __test: { isOlbBackedTool },
   resolveMcpAccessToken,
   resolveMcpAccessTokenWithEvents,
   describeBlockedToken,

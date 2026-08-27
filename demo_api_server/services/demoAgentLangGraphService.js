@@ -141,6 +141,7 @@ const z = require('zod');
 const appEventService = require('./appEventService');
 const { parseHeuristic, buildCatalogMessage, resolveVerticalRouting } = require('./nlIntentParser');
 const { resolveAgentMode } = require('./agentModeResolver');
+const { getRequiredTier } = require('./agentRestrictionsService');
 const configStore = require('./configStore');
 const runtimeSettings = require('../config/runtimeSettings');
 const dataStore = require('../data/store');
@@ -1293,6 +1294,17 @@ function buildVerticalReply(action, data, render, verticalCtx) {
   if (action === 'lookup_customer') {
     const count = data && data.count;
     return count === 1 ? `Found 1 matching customer.` : `Found ${count || 0} matching customers.`;
+  }
+  // Generic write confirmation for every write action without a hand-written
+  // case above. Write-ness is DERIVED from scope-topology.json's riskLevel via
+  // getRequiredTier() — the same signal p1az-decision.groovy's tier check uses
+  // — not guessed from the action name. A name-based rule ("no read verb =>
+  // write") misclassifies genuine reads that lack a read verb (afford_check,
+  // biggest_purchase, browse_gear, loyalty_balance), which is exactly why the
+  // 71 broken headings sat unfixed. Unknown tools tier as 'read' and fall
+  // through to the noun fallback, so this can only ever soften, never invent.
+  if (getRequiredTier(action) === 'write') {
+    return `Your ${action.replace(/_/g, ' ')} request is complete.`;
   }
   // Fallback: derive the noun from the ACTION name (e.g. view_benefits ->
   // "benefits", list_expenses -> "expenses") rather than term.accounts, which

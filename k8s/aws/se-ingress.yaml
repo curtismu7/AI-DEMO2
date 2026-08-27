@@ -23,6 +23,27 @@ spec:
   - host: ai-demo.ping-devops.com
     http:
       paths:
+      # Grafana is routed here rather than proxied by the frontend's nginx, so
+      # the app does not depend on it existing. nginx resolves a literal
+      # upstream at STARTUP and exits if it does not resolve, so a
+      # `proxy_pass http://grafana` inside the frontend meant a missing Grafana
+      # crash-looped the frontend and took the WHOLE site down — the app, /api
+      # and every other route with it. That happened on 2026-08-27.
+      #
+      # As an ingress path the blast radius is one path: a missing Grafana is a
+      # 503 on /grafana and nothing else. Longest-prefix wins, so this beats the
+      # "/" rule below regardless of list order.
+      #
+      # No rewrite-target: the /grafana prefix must reach Grafana intact to match
+      # its GF_SERVER_ROOT_URL + GF_SERVER_SERVE_FROM_SUB_PATH, or the UI loads
+      # blank.
+      - path: /grafana
+        pathType: Prefix
+        backend:
+          service:
+            name: grafana
+            port:
+              number: 3000
       - path: /
         pathType: Prefix
         backend:

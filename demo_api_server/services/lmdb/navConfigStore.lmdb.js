@@ -44,7 +44,7 @@ const BUILTIN_CONFIGS = [
     name: 'Learning',
     isBuiltin: true,
     hiddenLabels: [
-      'Themes', 'Agent Demo Guide', 'Family Delegation', 'AI Agents',
+      'Themes', 'Agent Demo Guide', 'Family Delegation', 'AI Flows',
       'PingOne MCP', 'MCP & Gateways', 'Delegation & Consent',
       'Industry Verticals', 'Users & Accounts', 'AI Attack Demos',
       'Monitoring', 'Telemetry', 'Agent Studio (Preview)', 'Developer Tools',
@@ -54,13 +54,28 @@ const BUILTIN_CONFIGS = [
   },
 ];
 
+// A builtin's stored copy is a CACHE of BUILTIN_CONFIGS, never user data:
+// createConfig only mints `cfg_*` ids and deleteConfig refuses isBuiltin, so
+// nothing can edit one. Seeding only-when-absent therefore meant an edit here
+// reached new installs and nowhere else — renaming a nav group left every
+// existing install hiding a label that no longer existed, silently. Write
+// through instead, keeping createdAt so the age of the preset survives.
 function seedBuiltins() {
   const db = _db();
   for (const cfg of BUILTIN_CONFIGS) {
-    if (db.get(`config:${cfg.id}`) === undefined) {
-      const now = Date.now();
-      db.putSync(`config:${cfg.id}`, { ...cfg, createdAt: now, updatedAt: now });
-    }
+    const prev = db.get(`config:${cfg.id}`);
+    // listConfigs() calls this on every read; skip the write when nothing
+    // moved so we don't churn LMDB (and updatedAt) on each page load.
+    const same = prev
+      && JSON.stringify([prev.name, prev.hiddenLabels, prev.flagSnapshot])
+         === JSON.stringify([cfg.name, cfg.hiddenLabels, cfg.flagSnapshot]);
+    if (same) continue;
+    const now = Date.now();
+    db.putSync(`config:${cfg.id}`, {
+      ...cfg,
+      createdAt: prev ? prev.createdAt : now,
+      updatedAt: now,
+    });
   }
 }
 

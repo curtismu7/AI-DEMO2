@@ -6,9 +6,11 @@
  * profiles are seeded once and protected from deletion: DEFAULT_PROFILE_ID
  * (this app's own banking MCP server — routes/mcpInspector.js keeps its
  * existing session-bearer / RFC 8693 / local-catalog-fallback behavior
- * untouched for it) and PINGONE_PROFILE_ID (the hosted PingOne MCP server,
+ * untouched for it), PINGONE_PROFILE_ID (the hosted PingOne MCP server,
  * authenticated via routes/mcpPingOneAdminAuth.js's admin login rather than a
- * stored secret). Any other profile dispatches through mcpTransports/*.
+ * stored secret), and PRIVILEGE_PROFILE_ID (the external Privilege Cloud MCP
+ * gateway, authenticated via routes/mcpPrivilegeAuth.js's admin login). Any
+ * other profile dispatches through mcpTransports/*.
  *
  * Secrets (authValue, env values) are persisted in LMDB but never returned by
  * listProfiles()/createProfile() — callers needing them for an actual MCP call
@@ -19,8 +21,10 @@ const lmdb = require('./lmdb/mcpProfileStore.lmdb');
 
 const DEFAULT_PROFILE_ID = 'default-banking';
 const PINGONE_PROFILE_ID = 'built-in-pingone-mcp';
-// 'pingone' is a reserved built-in transport — createProfile() (the public
-// POST /profiles path) never accepts it; only ensureBuiltInsSeeded() writes it.
+const PRIVILEGE_PROFILE_ID = 'built-in-privilege-mcp';
+// 'pingone' and 'privilege' are reserved built-in transports —
+// createProfile() (the public POST /profiles path) never accepts them; only
+// ensureBuiltInsSeeded() writes them.
 const TRANSPORTS = new Set(['websocket', 'http', 'stdio']);
 
 function ensureBuiltInsSeeded() {
@@ -39,6 +43,16 @@ function ensureBuiltInsSeeded() {
       id: PINGONE_PROFILE_ID,
       label: 'PingOne MCP (admin)',
       transport: 'pingone',
+      isDefault: false,
+      isBuiltIn: true,
+      createdAt: new Date().toISOString(),
+    });
+  }
+  if (!lmdb.getProfile(PRIVILEGE_PROFILE_ID)) {
+    lmdb.saveProfile(PRIVILEGE_PROFILE_ID, {
+      id: PRIVILEGE_PROFILE_ID,
+      label: 'Privilege MCP (admin)',
+      transport: 'privilege',
       isDefault: false,
       isBuiltIn: true,
       createdAt: new Date().toISOString(),
@@ -73,6 +87,9 @@ function getProfile(id) {
 function createProfile({ label, transport, url, authHeader, authValue, command, args, env }) {
   if (transport === 'pingone') {
     throw new Error('the pingone transport is reserved for the built-in PingOne MCP profile');
+  }
+  if (transport === 'privilege') {
+    throw new Error('the privilege transport is reserved for the built-in Privilege MCP profile');
   }
   if (!TRANSPORTS.has(transport)) {
     throw new Error(`transport must be one of: ${[...TRANSPORTS].join(', ')}`);
@@ -109,7 +126,7 @@ function createProfile({ label, transport, url, authHeader, authValue, command, 
 }
 
 function deleteProfile(id) {
-  if (id === DEFAULT_PROFILE_ID || id === PINGONE_PROFILE_ID) {
+  if (id === DEFAULT_PROFILE_ID || id === PINGONE_PROFILE_ID || id === PRIVILEGE_PROFILE_ID) {
     const err = new Error('built-in profiles cannot be deleted');
     err.code = 'default_profile_protected';
     throw err;
@@ -126,6 +143,7 @@ function deleteProfile(id) {
 module.exports = {
   DEFAULT_PROFILE_ID,
   PINGONE_PROFILE_ID,
+  PRIVILEGE_PROFILE_ID,
   listProfiles,
   getProfile,
   createProfile,

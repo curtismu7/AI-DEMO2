@@ -16,6 +16,960 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [x] 2026-08-27 — a BroadcastChannel test raced its own subscriber, and a stale branch made it look like a suite-wide problem
+
+`LiveUseCaseWorkbenchPage` subscribes to the `demo-script` BroadcastChannel in an
+effect keyed on `[useCases, handleRunSelected]`, and its handler drops anything
+it cannot resolve:
+
+```js
+const uc = useCases.find((u) => u.id === e.data.ucId);
+if (!uc) return;                 // message silently discarded
+```
+
+The test posted its Run message after waiting for tile TEXT to render — but the
+DOM commit and the effect re-subscribing with a populated `useCases` are separate
+commits. A message landing in that gap is dropped, the run never starts, and the
+assertion fails with `Number of calls: 0`. It failed in CI and on loaded local
+runs while passing in isolation and under `--no-file-parallelism`.
+
+**RESOLVED** on `worktree-reauth-modal-and-pgtest`: both Run messages now re-post
+until the run is observed, guarded so a retry cannot start a second overlapping
+chain. Three consecutive full parallel runs clean afterwards.
+
+The part worth keeping is the diagnostic mistake. Chasing this, four *different*
+unrelated tests failed across runs, which looked like proof that the suite had
+latent races any new file could tip — and that conclusion was written up here as
+fact. It was unsound: the branch was **10 commits behind main**, so every
+"main passes / my branch fails" comparison was against a moving target. After
+rebasing, the same branch passed three times in a row.
+
+**Before concluding a suite is flaky, check `git rev-list --count HEAD..origin/main`.**
+A stale branch produces exactly the symptom of a nondeterministic suite, and
+`--no-file-parallelism` passing does not distinguish the two.
+
+### [x] 2026-08-27 — a use case declares only its FIRST tool, so every later tool it calls is invisible to every gate
+
+`useCases.js` gives a use case one machine-readable tool: `primaryTool`. UC38
+runs two. Its own `whatLong` says so:
+
+> The agent then calls **get_loyalty_status** to check the miles balance and
+> **redeem_miles** to upgrade the cabin on the next upcoming booking.
+
+Only `redeem_miles` is declared. So `get_loyalty_status` was invisible to the
+chip-reachability gate, stayed intent-unreachable through #2442, and was found by
+driving the live stack rather than by any test.
+
+**Why this is worse than one missing entry**: the gate derives its cases from the
+catalog specifically so a new chip is covered automatically. That guarantee is
+only as wide as what the catalog declares — one tool. Any use case that runs a
+read-then-write pair, a lookup-then-act flow, or an A2A chain has undeclared
+tools, and no gate in the repo can see them. `useCases.primaryTool.test.js` has
+the same ceiling.
+
+**How the reason was found**, worth recording because it cost a wrong conclusion:
+the BFF response body for an intent denial says only
+
+```json
+{"error":"gateway_policy_denied","gatewayErrorCode":"access_denied","message":"access_denied"}
+```
+
+The actual reason is in PingGateway's `x-gw-audit-trail` response header, which
+the BFF logs but does not forward:
+
+```
+IntentMatchesTool: "false"
+"MCP Denied - Intent Tool Mismatch: Tool 'get_loyalty_status' is not in the
+ validated intent token's permitted_tools."
+```
+
+A probe classifying denials by response body cannot tell `intent_mismatch` from
+`consent required` from `A2A delegation required` — all three arrive as
+`access_denied`. One did exactly that during this work and reported a clean bill
+for a tool that was in fact intent-denied.
+
+**Real fix**: let a use case declare the tools it calls (`tools: [...]`, with
+`primaryTool` staying the chip's entry point), then widen the reachability gate
+to the declared set and drop the hand-written `SECONDARY` list in
+`demo_api_server/tests/intentTokenService.chipReachability.test.js`. Separately,
+consider surfacing the audit-trail deny code in the BFF error body — the
+information already reaches the BFF and is dropped on the floor.
+
+**MEASURED 2026-08-27 — the gap is real but its blast radius today is one, and
+that one is fixed.** Swept all 57 use cases for prose naming a gateway tool that
+is not that use case's `primaryTool` in any vertical:
+
+```
+use cases naming an undeclared tool : 9 of 57
+undeclared (use case, tool) pairs   : 9
+...gateway + intent-unreachable     : none — UC38 was the only one
+```
+
+Eight of the nine are the English word "transfer" matching the `transfer` entry
+in `scope-topology.json`, which is `surface: "legacy-alias"`, not `gateway` —
+substring false positives, not undeclared tools. UC38/`get_loyalty_status` was
+the only genuine instance, fixed in #2446.
+
+So this stays open as a **latent** structural gap, not an active bug: nothing is
+broken by it right now, and the `SECONDARY` list in the reachability test has
+exactly one entry. Priority should be judged accordingly — the fix is worth doing
+before the catalog grows more multi-tool use cases, not urgently today. Note the
+sweep is a FLOOR: it only counts exact tool-name matches, so a use case
+describing a second tool in English ("check the balance, then transfer") is not
+counted and would still be invisible.
+
+**RESOLVED 2026-08-27.** A use case can now declare every gateway tool it calls:
+`secondaryTools: [...]` alongside `primaryTool` (the chip's entry point).
+UC38 declares `['get_loyalty_status']`, and two gates make the field
+self-maintaining rather than another hand-kept list:
+
+- `demo_api_server/tests/useCases.secondaryTools.test.js` — fails when an
+  entry's own prose names a **gateway-surface** tool it does not declare.
+  Filtering to gateway surface is what makes this precise: sweeping all of
+  scope-topology matches the English word "transfer" against the `transfer`
+  legacy-alias entry in eight unrelated use cases (9 hits, 8 false), while
+  gateway-only yields exactly 1 (UC38, real). It also asserts `resolveUseCase`
+  does not strip the new field — this repo has shipped a schema silently
+  dropping unknown fields before.
+- `intentTokenService.chipReachability.test.js` — its `SECONDARY` array is gone.
+  It now derives secondary tools from the catalog, so a new multi-tool use case
+  is covered the moment it is added, with a vacuity guard so a dropped field
+  cannot make the sweep iterate zero cases and pass.
+
+Verified: delete `secondaryTools` from UC38 → 5 failed / 81 passed across both
+files; restore → 96 passed. Whole affected surface, 19 suites: 842 passed.
+
+**Still a floor, by design.** The gate keys on an exact tool name in the prose.
+A use case describing its second tool in English ("check the balance, then move
+the money") declares nothing and is still invisible. Closing that would mean
+either a schema requiring `secondaryTools` on every multi-step entry — noise on
+the ~50 single-tool use cases — or inferring tools from prose, which is guesswork.
+The exact-name floor catches the shape that actually bit us and costs nothing.
+
+### [ ] 2026-08-26 — `sensitive_passenger_record` requires only bare `read`, a weaker scope than its non-sensitive sibling
+
+`scope-topology.json`:
+
+```jsonc
+"get_airline_bookings":       { "requiredScopes": ["airlines:read"] }
+"sensitive_airline_bookings": { "requiredScopes": ["airlines:read", "sensitive:read"], "challengeType": "consent" }
+"sensitive_passenger_record": { "requiredScopes": ["read"], "challengeType": "consent",
+                                "a2aDelegatedScope": "pnr:read", "a2aDelegated": true,
+                                "requiresAgentMediation": true }
+```
+
+Every other airlines tool requires `airlines:read`. The one holding PNR data
+requires only `read` — which every session already carries. Its consent-gated
+sibling requires *more* (`airlines:read` + `sensitive:read`), so this is not the
+house style for sensitive tools.
+
+**Why it was left as found**: it is plausibly deliberate. The entry carries
+`a2aDelegatedScope: "pnr:read"` plus `a2aDelegated` and `requiresAgentMediation`,
+so the real gate may be the delegated scope and the mediation requirement rather
+than the base scope, with `read` acting as a deliberate floor for a tool only
+ever reached through an A2A specialist. Changing a live PDP scope requirement to
+find out is not a drive-by — it would either break the A2A chain or silently
+widen nothing, and neither outcome is visible from the topology file alone.
+
+**How it surfaced**: `demo_mcp_gateway/tests/airlinesDispatch.test.ts` used to
+name three airlines tools by hand. Deriving that list from the resource server's
+exported `AIRLINES_TOOL_NAMES` (nine tools) made the pre-existing
+`airlines:read` assertion cover this one for the first time, and it failed. The
+test now excludes it by name with the reasoning inline.
+
+**Real fix**: decide which gate is authoritative for an agent-mediated tool. If
+`a2aDelegatedScope` is the gate, say so once in the schema and stop implying the
+base scope matters; if it is not, `sensitive_passenger_record` should require
+`airlines:read` + `sensitive:read` like `sensitive_airline_bookings`. Then drop
+the exclusion from the test.
+
+**WITHDRAWN 2026-08-27 — this entry was wrong.** `sensitive_passenger_record` is
+not an outlier; it is the convention. Every A2A-delegated tool in
+`scope-topology.json` has exactly this shape:
+
+| tool | requiredScopes | a2aDelegatedScope | challengeType |
+|---|---|---|---|
+| `sensitive_customer_identity` | `read` | `identity:read` | consent |
+| `sensitive_holdings` | `read` | `holdings:read` | consent |
+| `sensitive_membership_details` | `read` | `membership:read` | consent |
+| `sensitive_order_history` | `read` | `purchase:read` | consent |
+| `sensitive_passenger_record` | `read` | `pnr:read` | consent |
+| `sensitive_patient_records` | `read` | `records:read` | consent |
+| `sensitive_payroll_details` | `read` | `payroll:read` | consent |
+| `sensitive_student_finance` | `read` | `finaid:read` | consent |
+| `sensitive_supplier_contract` | `read` | `supplier:read` | consent |
+| `sensitive_tax_record` | `read` | `tax:read` | consent |
+
+Ten for ten. The base scope is deliberately coarse because it is not the gate:
+`requiredScopes` gates the tool call, while `a2aDelegatedScope` is the dedicated
+scope minted for the specialist in Exchange #2 — a different hop, and per
+`REGRESSION_PLAN.md` §"never let an A2A specialist's derived scope be read or
+write", the one that carries the authorization. Confirmed live: an unmediated
+call to `sensitive_membership_details` denies with *"MCP Denied — A2A Delegation
+Required"*, not on scope.
+
+The comparison that produced this entry was against `sensitive_airline_bookings`
+(`airlines:read` + `sensitive:read`) — which is the **only** `sensitive_*` tool
+with no `a2aDelegatedScope`, i.e. the singleton, not the norm. Measuring one
+member of a class of ten against the sole member of a different class is what
+made the convention look like a defect.
+
+Nothing to fix. The `SCOPE_GATED` exclusion in
+`demo_mcp_gateway/tests/airlinesDispatch.test.ts` stays, but for the right
+reason: A2A-delegated tools are gated on their delegated scope, so holding them
+to `airlines:read` would assert a contract that does not apply to them.
+
+**Follow-up ANSWERED 2026-08-27 — and the answer is no.** The open question was
+whether `sensitive_airline_bookings` should be A2A-delegated like its ten peers,
+since it is the one sensitive tool reachable without agent mediation. Digging in,
+the premise was wrong twice over.
+
+**First: the ten are not a class of sensitive tools.** They are one A2A
+specialist tool *per vertical*, from `demo_api_server/config/a2aSpecialists.js`:
+
+```
+healthcare  records    sensitive_patient_records     manufacturing supplier  sensitive_supplier_contract
+retail      purchase   sensitive_order_history       investment    holdings  sensitive_holdings
+sporting-g  membership sensitive_membership_details  airlines      passenger sensitive_passenger_record
+workforce   payroll    sensitive_payroll_details     admin         identity  sensitive_customer_identity
+government  tax        sensitive_tax_record          university    finaid    sensitive_student_finance
+```
+
+Airlines' slot is already taken. `sensitive_airline_bookings` is not a missing
+eleventh member; it is a second airlines sensitive tool with no specialist slot.
+
+**Second: airlines runs THREE tiers on purpose**, where healthcare runs two:
+
+| tier | tool | gate | chip `useCaseId` |
+|---|---|---|---|
+| plain | `get_airline_bookings` | `airlines:read` | — |
+| consent | `sensitive_airline_bookings` | `airlines:read` + `sensitive:read`, `challengeType: consent` | **`hitl-consent`** |
+| A2A-only | `sensitive_passenger_record` | `read` + `pnr:read`, `requiresAgentMediation` | **`a2a-delegation`** |
+
+Both sensitive tools have their own chip in
+`config/verticals/airlines/manifest.json` ("🔐 Sensitive reservations" and
+"Sensitive passenger record"), driving two different use cases. The resource
+server states the split in its own comment: `pnr:read` exists so "the delegation
+chain is the only way in", while `sensitive_airline_bookings` "carries
+`sensitive:read`, so the plain lookup stays ungated and only THIS one prompts".
+
+**What converting it would cost.** `requiresAgentMediation: true` DENIES any call
+with no `act` claim (`demo_authz_server/routes/decision.js` Rule ~721, gated on
+`REQUIRE_ACT_FOR_AGENT_TOOLS`, which defaults ON). The "🔐 Sensitive
+reservations" chip and the `/sensitive.*(booking|reservation)/` heuristic would
+both start failing `missing_act`, deleting airlines' HITL-consent demo and
+duplicating what `sensitive_passenger_record` already shows. It would also need a
+new `bookings:read` scope provisioned on the live `Super Banking A2A MCP Gateway`
+resource (verified live: 12 scopes, no `bookings:read`) BEFORE any code merge, or
+Exchange #2 dies with `invalid_scope`.
+
+**Decision: leave the tool exactly as it is.** The asymmetry is the design, not a
+defect. Recorded in `REGRESSION_PLAN.md` §1 ("Airlines is THREE tiers, not two")
+so the next person does not re-file this finding — as I did.
+
+### [x] 2026-08-26 — 143 gateway tools are intent-unreachable; only the 17 chip-driven ones were mapped
+
+`server.js` mints `intent = _TOOL_TO_INTENT[tool] || tool`, and the gateway then
+denies anything that intent does not permit:
+
+```
+intent_mismatch: tool "view_wishlist" not permitted for intent "view_wishlist"
+```
+
+A tool with no `_TOOL_TO_INTENT` override AND no `INTENT_TO_PERMITTED_TOOLS`
+entry is therefore unreachable — the minted intent is the tool name, and the
+unknown-intent fallback (the vertical's non-sensitive reads) excludes it.
+
+Measured 2026-08-26: **160 of 244** gateway-surface tools are in that state.
+
+**What was fixed** (PR #2442): the **17** that drive a chip. Chips are the
+demo-reachable surface, so those were provably broken.
+
+**What was NOT fixed**: the remaining **143**. They are not known to be broken —
+they are known to be *unproven*. Nothing in the demo drives them today, so there
+is no evidence any of them is reached at all; mapping them blind would add 143
+`tool: [tool]` entries whose only justification is symmetry, and would make the
+chip-reachability gate assert a scope nobody has validated.
+
+**Why not now**: the real question is upstream of the intent map — is each of
+those 143 a live tool that nothing routes to yet, a dead alias, or a
+never-implemented catalog stub? That inventory is the fix; the mapping is a
+consequence of it. Doing the mapping first would bury the inventory question
+under a green test.
+
+**Real fix**: classify the 143 by whether any surface (chip, LLM route, A2A
+chain, guided-demo step) can dispatch them. Map the live ones, delete the dead
+ones from the catalog, and extend
+`demo_api_server/tests/intentTokenService.chipReachability.test.js` from "every
+chip-driven tool" to "every dispatchable tool" once "dispatchable" has a
+definition the test can compute.
+
+**INVENTORY DONE 2026-08-27 — and "unproven" was too generous. Most of them are
+plainly broken.** Current count after #2442/#2446: 142 of 244 unreachable.
+Classified by the highest-priority surface that can dispatch each:
+
+| surface | count | meaning |
+|---|---|---|
+| chip (`primaryTool`) | 0 | fixed by #2442 |
+| **vertical heuristic** | **99** | **a typed phrase reaches it — BROKEN** |
+| plugin `getTools()` | 26 | the LLM may pick it |
+| named in UC prose | 0 | fixed by #2446 |
+| no surface modelled | 17 | mostly `jwt_*`, `pingone_*`, `demo_show_*` — teaching/admin surfaces this classifier does not model, NOT proof they are dead |
+
+The 99 are not theoretical. A vertical's `getHeuristics()` maps a phrase regex
+straight to a tool name, and these are ordinary demo phrases. Driven live in
+Super Sports, each routing correctly and then dying at the intent gate:
+
+```
+"my addresses"                routed->list_addresses       call 403
+"show my invoices"            routed->list_invoices        call 403
+"my wishlist"                 routed->list_wishlist        call 403
+"my subscriptions"            routed->list_subscriptions   call 403
+"what promotions do you have" routed->list_promotions      call 403
+```
+
+All five denials confirmed as the intent gate, from the gateway audit trail:
+`IntentMatchesTool: "false"` ×5. So the heuristic does its job, the tool exists,
+and the intent map is what refuses.
+
+**These are not deliberately denied.** `permittedToolsForIntent` falls back to
+`READ_ONLY_TOOLS_BY_VERTICAL[vertical]`, which excludes them — the same
+incomplete-map failure that broke `get_weather`, `get_branch_hours` and the 17.
+The fallback's narrowing is a real security control (it stopped cross-vertical
+exposure) but it was never intended as the gate for a tool the demo dispatches
+on purpose.
+
+**Do NOT fix by adding 99 hand-written entries.** Today produced three separate
+bugs from hand-kept copies of one list (`AIRLINES_TOOLS` in `router.ts`,
+`INVEST_BACKEND_TOOLS` in the Groovy, and that test's own array). Derive the
+self-grant set from the dispatch registry instead — per vertical, the union of
+`getHeuristics()` actions and `getTools()` names, intersected with
+gateway-surface tools — so it cannot drift and stays bounded to what the demo can
+actually dispatch. Anything outside that set keeps failing closed.
+
+A blanket "intent equals tool name always self-permits" would be simpler and is
+**wrong**: it makes the fallback's narrowing unreachable and removes the
+fail-closed default for genuinely unknown tools.
+
+**CLOSED 2026-08-27 — re-measured after #2450, and the remainder is not broken.**
+229 of 244 gateway tools are now reachable. Re-running the classification with
+the SHIPPED logic (vertical *directories*, 16, not the 14 manifest `VERTICALS`
+the first sweep used) and applying `_TOOL_TO_INTENT` — without the override map
+the sweep reports `show_mortgage` as unreachable when its real intent
+`view_mortgage` permits it, the same blind spot that produced three false
+failures in the first chip-reachability test — leaves **13**:
+
+```
+brave_news_search   demo_show_accounts     jwt_decode_full      jwt_verify_signature
+call_pingone_operation  demo_show_transactions  jwt_fetch_jwks   user_profile_card
+create_wire_transfer    discover_oas_operations jwt_inspect_key
+get_account_nickname                            jwt_validate_claims
+```
+
+**The intent gate does not apply to any of them.** `demo_mcp_gateway/src/index.ts`:
+
+```js
+const intentValidation = xIntentToken || config.intentTokenRequired === true
+  ? validateIntentToken(xIntentToken, toolName) : null;
+```
+
+The gate runs only when an intent token is *present*. Three independent
+confirmations that these tools never carry one:
+
+1. `INTENT_TOKEN_REQUIRED` is unset on the live gateway → `intentTokenRequired`
+   is `false`, so a token-less call skips validation entirely.
+2. `mintIntentToken` has five call sites (`agentRun.js`, `agentInvokeRoute.js`,
+   `devTools.js`, `attackSimulatorService.js`, `server.js`). The MCP façade —
+   `routes/mcpFacade.js`, 680 lines, the external-client door — is not one of
+   them and sends no `X-Intent-Token`.
+3. Driving `jwt_verify_signature` through the BFF path that *does* mint returns
+   `502 Unknown tool` — that route does not even know these tools. Their only
+   caller is an external MCP client (LM Studio, MCP Inspector, the façade).
+
+`ServerCapabilitiesPanel.js` lists the `jwt_*` names, but as documentation text,
+not a dispatcher.
+
+**Nothing to fix. One latent risk worth knowing**: setting
+`INTENT_TOKEN_REQUIRED=true` would deny all 13 at once, because a token-less
+external call would then be validated and fail `no_intent_token`. That flag is
+the switch to check first if external MCP clients ever start returning
+`intent_token_invalid`.
+
+**Also noted, unfixed**: `ping-gateway/config/scope-topology.json` is a
+hand-maintained twin of the root `scope-topology.json` and has drifted by two
+tools (`get_loyalty_status`, `redeem_miles`). `npm run topology:verify` does not
+compare them, so nothing catches it.
+
+### [x] 2026-08-26 — nine gateway-routed tools were never registered in scope-topology, so the PDP denied them as `unknown_tool`
+
+**Where:** `scope-topology.json` and its hand-maintained twin
+`ping-gateway/config/scope-topology.json`.
+
+**What was wrong:** `demo_authz_server/routes/decision.js` Rule 3 fails closed when
+`ruleStore.requiredScopesForTool()` returns null — correct, but nine tools the
+gateways actively route were absent from the topology it reads:
+
+| tools | backend |
+|---|---|
+| `get_weather` | weather showcase |
+| `brave_news_search` | brave showcase |
+| `get_branch_hours` | PingGateway |
+| `jwt_verify_signature`, `jwt_validate_claims`, `jwt_fetch_jwks`, `jwt_inspect_key` | jwtverifier |
+| `demo_show_accounts`, `demo_show_transactions` | bankingdata disposition |
+
+**What made it demo-visible and hard to see:** the weather geofence
+(`checkWeatherScope` / `tx-weather-scope.groovy`) is a feature-flag driven gateway
+filter that runs AFTER authorization. With no policy entry the PDP denied first, so
+the geofence never evaluated. Measured live:
+
+```
+Austin, TX   403  unknown_tool: no policy defined for tool "get_weather"
+Miami        403  unknown_tool: no policy defined for tool "get_weather"
+(no city)    403  unknown_tool: no policy defined for tool "get_weather"
+```
+
+Austin is IN Texas and should PERMIT. So UC30 was broken outright, and **UC31 looked
+correct while being wrong**: it denies, as the demo intends, but for a missing-policy
+reason rather than the geofence. A test asserting only DENY passes either way, and a
+viewer cannot tell the difference — the same false-green shape as the dead intent-token
+verifier.
+
+**Fixed 2026-08-26 (branch `worktree-topology-missing-showcase-tools`):** all nine
+registered with `surface: gateway` and `requiredScopes: ["read"]`.
+
+`read`, not the finer `jwt:verify` / `accounts:read` / `transactions:read`, and that
+was not a shortcut: `allowedScopesByAudience.parity` rejected those three because the
+INBOUND gateway token carries gateway-audience scopes. The finer scopes live on the
+EXCHANGED, backend-audienced token; requiring them at the gateway surface would deny
+tools whose inbound token can never carry them. `get_my_accounts` is `["read"]` for
+exactly this reason, and all three were defined-but-unused by any gateway-surface tool.
+
+Verified with `npm run topology:verify` — PASSED, exit 0, after regenerating
+`docs/scope-topology.md` (a generated artifact; the gate caught it un-regenerated
+first, working as designed).
+
+**Known drift left alone:** `ping-gateway/config/scope-topology.json` is a
+hand-maintained copy that nothing generates or checks — it was last touched
+2026-08-12 and still lacks `get_loyalty_status` and `redeem_miles`, which root gained
+since. Both copies now carry the nine, but the pre-existing two-tool gap is untouched
+because I could not establish whether PingGateway is meant to serve airlines tools at
+all. A generator or a parity gate for those two files is the real fix; today nothing
+would notice them diverging again.
+
+### [x] 2026-08-26 — native ID-JAG is a per-server grant, but the BFF took it for tools on OTHER servers, 502ing every non-banking vertical
+
+**Where:** `demo_api_server/services/agentMcpTokenService.js` (~1445, the
+`maybeResolveNativeIdJagToken` call site).
+
+**What was wrong:** a redeemed ID-JAG bearer carries exactly ONE audience —
+oauth-mcp's own resource (`TokenIssuer.resolveOwnAudience`; the AS is not entitled
+to assert any other). The BFF took the native path for EVERY tool, resolving the
+resource from the routing mode rather than from the backend the tool actually
+reaches.
+
+`demo_mcp_gateway/src/router.ts` `routeTool()` sends **ten** verticals — retail,
+sporting-goods, healthcare, government, manufacturing, university, workforce,
+airlines, A&F, investment — to the `invest` backend. Only banking defaults to
+`olb`. For all the rest the gateway PERMITs, its ID-JAG exemption then correctly
+refuses to forward (the token's aud is not the invest resource, and forwarding
+would widen what an ID-JAG bearer reaches beyond what D-05 verified), it falls
+through to the RFC 8693 exchange, and PingOne rejects a token it did not sign:
+
+```
+RFC 8693 exchange to backend=invest (resource=mcp-invest.ping.demo,...)
+rejected with HTTP 400 — invalid_request:
+Cannot parse token claims for request param 'subject_token'
+```
+
+→ HTTP 502 `Gateway upstream error` for the tool call.
+
+**How it surfaced:** it was NOT reachable this morning. Before the `expectedAud`
+fix, every ID-JAG call was rejected BFF-side before leaving the process, so no
+vertical ever got here. Completing the ID-JAG chain made banking work and exposed
+that every other vertical could not. The incompatibility pre-existed; finishing the
+chain is what made it visible — and briefly made the default demo vertical (Super
+Sports) return 502.
+
+**Fixed 2026-08-26 (branch `worktree-idjag-olb-tools-only`):** take the native path
+only when the tool actually lives on the OLB server; everything else falls through
+to the RFC 8693 stand-in, unchanged and working.
+
+The OLB set is read from the BFF's OWN banking tool registry
+(`getBankingToolDefinitions`, 11 tools) rather than by copying `router.ts`'s routing
+sets — this repo has been burned twice by a second copy joined only by a
+keep-in-sync comment. The failure modes are asymmetric and both land safe: a genuine
+OLB tool missing from the registry merely loses the native path and uses the
+exchange (today's working behaviour); the reverse would reproduce the 502 the guard
+exists to stop.
+
+Evidence: `src/__tests__/agentMcpTokenService.idJagOlbOnly.test.js` — 15 tests
+pinning the predicate for the three OLB tools, seven invest-backed vertical tools,
+and the null/unknown fail-safe. It also asserts the predicate is exported at all,
+because a skipped suite reads as green. RED-proven: removing the gate fails 8 of 15.
+Full BFF suite 10,334 passed, 0 failures.
+
+**Worth knowing for the next per-server grant:** the more correct long-term shape is
+minting the ID-JAG for the backend the tool routes to, so invest-backed verticals get
+the native path too. That needs the invest resource allow-listed on both legs
+(`ENTERPRISE_MCP_RESOURCE_URIS` and `MCP_SERVER_RESOURCE_URI`) and a per-tool
+resource resolution in the mint — a bigger change than restoring the demo warranted.
+
+### [ ] 2026-08-26 — `ig_mcp_error_total` does not count schema-invalid JSON-RPC envelopes
+
+PingGateway's `McpValidationFilter` publishes `ig_mcp_error_total` on the admin
+connector, labelled by JSON-RPC error code. It counts most rejections but not
+all: a request whose envelope fails JSON-RPC **schema** validation is rejected
+with a 400 and never reaches the counter.
+
+Measured live against `00-mcp-external-door` on `ping-devops-cmuir`, each case
+driven through the real OAuth flow with a valid token, reading the counter
+before and after:
+
+| Case sent | Gateway response | Counter |
+|---|---|---|
+| unsupported `MCP-Protocol-Version` header | 400 `-32600` | +3 of 3 |
+| unknown MCP method (`does/not/exist`) | 400 `-32600` | +2 of 2 |
+| unknown tool (`no_such_tool`) | 400 `-32602` | +1 of 1 |
+| envelope missing `jsonrpc` property | 400 `-32600` | **0 of 2** |
+
+The last row is the gap. The gateway answers
+`{"code":-32600,"message":"Invalid Request: Invalid JSON-RPC Request","data":["required property 'jsonrpc' not found"]}`
+and `ig_mcp_error_total{mcp_error="-32600"}` stays flat across repeated sends
+(7.0 → 7.0). Schema validation evidently runs before the point where the filter
+records the error, so those rejections are invisible to metrics.
+
+Why it wasn't fixed here: it is upstream product behaviour in `openig-mcp`, not
+demo code — there is nothing in this repo to correct. What this repo can do, and
+does, is refuse to present the number as a total: `routes/gatewayMetrics.js`
+documents the gap and the UI panel labels the figure "a floor, not a total".
+
+The real fix is upstream — the counter should increment wherever the filter
+emits a JSON-RPC error, including the schema-validation path. Worth raising with
+Ping if anyone builds alerting on this metric, because the blind spot covers
+exactly the traffic an operator most wants alerted on: a client sending
+structurally broken envelopes. Until then, treat `ig_mcp_error_total` as a lower
+bound and corroborate with `ig_http_server_*` status counts.
+
+Reproduce: `demo_api_server/tests/routes/gatewayMetrics.test.js` covers the
+parser; the live probe is an authenticated `tools/list` POST with `jsonrpc`
+omitted from the body, with the counter read from
+`http://ping-gateway:8085/metrics/prometheus/0.0.4` either side.
+### [x] 2026-08-26 — the banking circuit breaker counts 403 authorization denials as upstream failures, so a cross-owner probe DoSes banking for everyone
+
+**Where:** `oauth-mcp/src/utils/CircuitBreaker.ts` `execute()`, driven from
+`oauth-mcp/src/banking/BankingAPIClient.ts:543`.
+
+**What's wrong:** the breaker treats every thrown error identically —
+
+```ts
+try { const result = await fn(); this.onSuccess(); return result; }
+catch (error) { this.onFailure(); throw error; }
+```
+
+so a 403 `Access denied. You can only check your own account balance.` — an
+authorization control working exactly as designed — counts the same as the banking
+API being unreachable. With `failureThreshold: 5` and `resetTimeout: 60000`, **five
+cross-owner reads open the breaker for a minute and take banking tools down for
+every user**, not just the caller who probed.
+
+Found live: a value-assertion sweep passed four `account_id`s that were not
+demoUser's, earned four 403s plus one more failure, and the next call returned
+`Banking API is currently unavailable (circuit breaker open)`. The banking API
+itself was healthy throughout (`/health` 200, container up 9 hours).
+
+**This is reachable on purpose.** UC10 is the demo's cross-owner attack simulation
+— its whole point is to present another owner's account id and be denied. Running
+it a handful of times in a demo trips the breaker and the next legitimate "show my
+balance" fails with an infrastructure error, which reads as the demo being broken
+rather than the control working.
+
+**The same file already knows better.** `BankingAPIClient.shouldRetryRequest()`
+deliberately excludes 4xx-except-429 from retries ("Don't retry authentication
+errors"). So the two resilience policies disagree on the same responses: a 403 is
+"not worth retrying" but IS "evidence the upstream is failing". Only one of those
+can be right, and the retry side has it.
+
+**Why it wasn't fixed now:** it is a resilience-policy decision (which classes of
+error are evidence of upstream sickness) on a security-adjacent path, and it was
+found while doing something else. It also self-heals in 60s, so it degrades a demo
+rather than breaking the stack.
+
+**Real fix:** give the breaker the same predicate the retry manager already uses —
+do not call `onFailure()` for 4xx except 429. A client error means the request was
+wrong, not that the server is sick; counting it inverts the breaker's purpose.
+Cheapest shape is an `isFailure?: (err) => boolean` on `CircuitBreakerConfig`,
+defaulting to today's behaviour so no other consumer changes, with
+`BankingAPIClient` passing the same test as `shouldRetryRequest`. Pin it with a
+test that fires 10 consecutive 403s and asserts the breaker stays CLOSED.
+
+**FIXED 2026-08-26 (branch `worktree-breaker-ignores-client-errors`).** Built as
+scoped: optional `isFailure` on `CircuitBreakerConfig`, defaulting to the original
+count-everything behaviour so no other consumer changes, and `BankingAPIClient`
+passes the same predicate its retry manager uses.
+
+Rather than add a second copy of the 4xx test, the retry path's inline logic was
+extracted to `BankingAPIClient.isClientError()` and BOTH policies now consume it —
+this file has already been burned once by two copies joined only by a keep-in-sync
+comment (see `tests/helpers/actionToTool.js`'s header), and this bug WAS the two
+policies disagreeing about the same response.
+
+Two deliberate calls worth recording:
+
+- **A non-failure error is NEUTRAL**, not a success. It neither trips the breaker
+  nor closes a HALF_OPEN one. The upstream did answer, but a rejected request is
+  thin evidence of health, and letting a 403 close the breaker is a bigger claim
+  than this fix needs to make.
+- **429 still counts as a failure**, unlike other 4xx — rate limiting IS upstream
+  distress, and the retry manager already treats it as retryable. Pinned by its
+  own test so nobody "simplifies" it into the 4xx bucket.
+- A throwing `isFailure` predicate fails SAFE (counts the error), so a broken
+  predicate can never mask a real outage. Also tested.
+
+Evidence: `src/utils/__tests__/CircuitBreaker.clientErrors.test.ts` — 26 tests.
+RED-proven: restoring the unconditional `onFailure()` fails 9, including
+"still serves requests after those 403s", which is the user-visible regression.
+The breaker still OPENs on ECONNREFUSED, 5xx and 429. Full oauth-mcp suite green:
+94 suites, 1197 tests.
+
+### [x] 2026-08-26 — intent-token verification is dead on BOTH gateway paths, and the BFF signs with the vault CIPHERTEXT
+
+**Where:** `demo_api_server/services/intentTokenService.js:8`,
+`demo_mcp_gateway/src/intentTokenValidator.ts:40`,
+`ping-gateway/scripts/groovy/p1az-decision.groovy`,
+`demo_api_server/scripts/refresh-service-envs.js` (~504, ~690).
+
+**What's wrong:** all three sides resolve the HMAC key as
+`INTENT_TOKEN_SECRET || SESSION_SECRET`, and no two of them arrive at the same
+value. Found in the gateway audit trail of a real `get_account_balance` turn:
+`IntentTokenValid: "false"`, `IntentTokenError: "no_signing_key"`.
+
+| path | state | cause |
+|---|---|---|
+| Node gateway (`mcp-gateway`) | `no_signing_key` — visible in `gw_audit_trail` | `demo_mcp_gateway/.env` carries no `INTENT_TOKEN_SECRET`; neither var is set in the container, so `getSigningKey()` throws |
+| PingGateway (IG) | `invalid_signature` — **silent** | `ping-gateway/.env` has a 48-char key; the BFF's effective key is a DIFFERENT 207-char value, so every HMAC check fails |
+
+**The root cause is worse than the wiring.** `demo_api_server/.env` contains
+`SESSION_SECRET=encrypted:…` — the vault CIPHERTEXT, 206 chars — and
+`intentTokenService.getSigningKey()` reads `process.env` directly. `configStore`'s
+`encrypted:`-in-.env guard (added after the 2026-08-21 `invalid_client` incident,
+see `docs/vault.md`) does not apply to `process.env`, so **the BFF signs intent
+tokens with the literal ciphertext string**. Verified: the BFF's runtime
+`SESSION_SECRET` is 207 bytes beginning `encrypted:`, and its SHA differs from
+`ping-gateway/.env`'s value. Any service handed the *real* secret can never match
+it — which is precisely why ping-gateway's key looks correct and still fails.
+
+`refresh-service-envs.js` already tries to fix this: both the
+`demo_mcp_gateway/.env` and `ping-gateway/.env` blocks emit
+`INTENT_TOKEN_SECRET: fb('INTENT_TOKEN_SECRET') || fb('SESSION_SECRET')`, each with
+a comment describing this exact dead-verifier bug (PR #2055, 2026-08-18). It does
+not work, because `fb()` reads `demo_api_server/.env` — where `SESSION_SECRET` is
+the ciphertext and `INTENT_TOKEN_SECRET` is absent entirely.
+
+**Consequence:** ~190 lines of HMAC checking in `p1az-decision.groovy` plus the
+Node validator are inert. The PDP receives `IntentTokenValid: false` and permits
+anyway, so **the intent-token evidence the demo claims to bind is not being
+checked on either path.** Nothing is blocked, which is why it went unnoticed.
+
+**Why it wasn't fixed now:** the repair needs secret material — either a new
+dedicated `INTENT_TOKEN_SECRET` provisioned in the vault and propagated, or
+stopping `SESSION_SECRET` from resolving to its own ciphertext, which touches
+session signing (REGRESSION_PLAN §1). Both are decisions about credentials rather
+than bug fixes, and this was found while closing an unrelated entry.
+
+**Real fix — preferred:** provision a DEDICATED `INTENT_TOKEN_SECRET` (vault),
+have `refresh-service-envs.js` emit it to both gateway env files, and let all
+three sides resolve it first. That is better than sharing `SESSION_SECRET` across
+services regardless of the ciphertext bug — a gateway should not hold the key that
+signs browser sessions. Add a startup assertion that the resolved key is not
+`encrypted:`-prefixed, so this fails loudly instead of silently signing with
+ciphertext. A parity check (BFF effective key vs each gateway's) belongs in the
+demo-check framework next to `gatewayMetadataCheck`.
+
+**RESOLVED 2026-08-26 (branch `worktree-intent-token-ciphertext-guard`).** Took the
+preferred option: a DEDICATED key, so no gateway holds the browser-session secret.
+
+`INTENT_TOKEN_SECRET` (48 chars, `openssl rand -base64 36`) provisioned in
+`demo_api_server/.env`. It has to live there rather than the vault:
+`intentTokenService` reads `process.env`, and a vault-only entry is decrypted by
+configStore, which never reaches `process.env`. `scripts/refresh-service-envs.js`
+needed NO change — its `fb('INTENT_TOKEN_SECRET') || fb('SESSION_SECRET')` blocks
+(PR #2055) were correct all along and had simply never had a value to find.
+Re-running it propagated the key to `demo_mcp_gateway/.env` and `ping-gateway/.env`;
+all three files and all three running containers now hash identically.
+
+**Verified live** — same signed `get_account_balance` turn, gateway audit trail:
+
+```
+IntentTokenValid: "true"    IntentMatchesTool: "true"   IntentTokenError: ""
+IntentIntent: "view_balance"  IntentConfidence: "0.97"  decision: "PERMIT"
+```
+
+Previously `IntentTokenValid: "false"` / `no_signing_key`. The ~190 lines of HMAC
+checking now actually run. Run validated with `stack:generation --check`.
+
+**Guard added so it cannot silently regress:** `intentTokenService.getSigningKey()`
+now throws if the resolved key is `encrypted:`-prefixed, naming both the fault and
+the fix. This was undetectable from the signing side — an HMAC key is just bytes, so
+the signature was always valid and only the verifiers failed. Pinned by
+`src/__tests__/intentTokenService.ciphertextKey.test.js` (5 tests, including the exact
+production shape: no dedicated key plus a ciphertext `SESSION_SECRET`). RED-proven:
+removing the guard fails 3 of 5. Full BFF suite 10,273 passed, 1 known flake
+(`mcpFacade`) that passes scoped.
+
+**Parity probe SHIPPED 2026-08-26 (branch `worktree-intent-key-parity-check`).**
+`services/checks/intentTokenKeyCheck.js` (`intent.key_parity`, Agent Gateway,
+blocking) compares the BFF's effective key against BOTH gateway env files through
+the `/repo` mount and reports by SHA-256 digest — key material never reaches a
+posture line. It distinguishes all four states seen here: peer with NO key
+("no_signing_key"), peer with a DIFFERENT key (the silent `invalid_signature`),
+a ciphertext BFF key (fails before comparing anything), and parity held only via
+the `SESSION_SECRET` fallback (warn — it works, but hands a gateway the
+browser-session key).
+
+It carries a vacuity guard, added because the first live run tripped it: run
+outside the container `/repo` is absent, neither peer file is readable, and it
+reported **`pass` having compared nothing** — the same shape of green-that-proves-
+nothing this whole entry is about. Now that case is `warn`. Verified live inside
+the BFF container: `pass — dedicated INTENT_TOKEN_SECRET, digest 33d0…, matches
+2/2 gateways`. 8 tests.
+
+**Still not done:** the guard catches the
+ciphertext case at the source, which is what actually happened; a BFF-vs-gateway
+key-parity check is still worth adding. And `SESSION_SECRET` in
+`demo_api_server/.env` is still configStore ciphertext — harmless for sessions (a
+consistent key is a valid key) but the same trap for any future consumer that reads
+it from `process.env`.
+
+### [ ] 2026-08-26 — `ping-mcpgw` Helm release's only remaining purpose is a backend it doesn't gate
+
+**Where:** `k8s/helm/mcpgw` release `ping-mcpgw` in `ping-devops-cmuir`.
+
+**What's wrong:** the release's gateway piece (`mcpgw.enabled`) was set to
+`false` for good in PR #2391 — it was a redundant duplicate of the one real
+agent-based gateway in `ping-devops-curtismuir` (`cm-mcpgw-mcpgw`), and could
+never stay up anyway (its `ENV_PROXY_TOKEN` is ~2h-lived and every SE deploy
+used to reinstall it with a 5-day-stale one). That leaves the release
+installing only `ping-mcpgw-opensearch` and `ping-mcpgw-opensearch-mcp-server`
+— a gateway chart, still deployed on every SE deploy, whose sole surviving
+purpose is an OpenSearch backend nothing in the Privilege console even points
+at any more (the `opensearch-cmuir` Agentic App was repointed the same day to
+curtismuir's `cm-mcpgw-opensearch-mcp-server` instead, precisely so it
+wouldn't depend on this release). See
+`.claude/skills/privilege-mcpgw-agent-k8s/SKILL.md` for the full routing
+rule this incident produced.
+
+**Why it wasn't fixed now:** the clean end state — moving OpenSearch out of
+`k8s/helm/mcpgw` into its own chart, or dropping the `ping-mcpgw` release
+from `deploy.sh` entirely once nothing references its backend — was raised
+the same day and deliberately deferred; disabling the broken gateway piece
+without touching anything currently working was the requested scope.
+
+**Real fix:** once nothing depends on `ping-mcpgw-opensearch*` (or once it's
+confirmed genuinely unused), either extract `opensearch`/`opensearch-mcp-server`
+into a standalone chart so a gateway release stops shipping a non-gateway
+backend, or stop installing `ping-mcpgw` from `deploy.sh` altogether.
+
+### [ ] 2026-08-24 — `mcpPrivilegeAuth.js`'s cached DCR client can't serve a callback origin discovered after registration
+
+**Where:** `demo_api_server/routes/mcpPrivilegeAuth.js`'s `ensureClient()` —
+`_clientCache` is process-lifetime, keyed by nothing (one client for the whole
+process), registered once against `inspectorCallbackUrls(req)`'s snapshot at
+first-call time.
+
+**What's wrong:** if `PUBLIC_APP_URL` changes at runtime (a config-store
+write, not a redeploy) to a host not already in the hardcoded set
+(`local.ping-devops.com:4000`, `api.ping.demo:4000`) or `CORS_ORIGIN`, a login
+from that new origin computes a `redirect_uri` the cached DCR client was never
+registered with — the gateway's token exchange rejects the mismatch, and
+nothing in this process re-registers until it restarts. Flagged by Greptile's
+review of PR #2348 (P2, non-blocking).
+
+**Why it wasn't fixed now:** narrow, self-recovering-on-restart edge case —
+`PUBLIC_APP_URL` changing mid-process is not part of this demo's normal
+operation, and the current code already defends the two real hostnames this
+repo actually serves from plus `CORS_ORIGIN`. A proper fix (re-register on
+cache-miss-by-origin, or invalidate on config change) adds real complexity
+for a scenario that hasn't been observed in practice — the same judgment call
+`mcpTransports/http.js`'s sibling session-eviction gap made before its own
+fix landed in this same PR.
+
+**Real fix:** key `_clientCache` by the set of registered `redirect_uris`
+(or simplest: by whether the current request's `callbackUrl(req)` is already
+in the cached client's registered set) and re-run `ensureClient` when it
+isn't, instead of caching one client unconditionally for the process
+lifetime.
+
+### [ ] 2026-08-25 — `demo_mcp_gateway`'s RFC 8693 client duplicates `oauthService.js`'s request-building
+
+**Where:** `demo_mcp_gateway/src/auth/McpTokenExchangeClient.ts` vs.
+`demo_api_server/services/oauthService.js`.
+
+**What's wrong:** both independently build the same RFC 8693 token-exchange request shape
+(`grant_type`/`subject_token`/`actor_token`/`resource`/`scope`) and independently handle the
+same PingOne quirk — `resource=` (repeated) for a multi-resource client, `audience=` otherwise,
+because PingOne rejects a scope-less exchange with "May not request scopes for multiple
+resources" — each with its own comment explaining the same workaround. Investigated while
+deleting a *different*, dead duplication (`demo_api_server/services/rfc8693TokenExchangeService.js`
+and `subjectTokenService.js`, both unreachable — see the commit that added this entry); this one
+is real and live on both sides, so it wasn't in scope for that fix.
+
+**Why it wasn't fixed now:** the gateway is TypeScript, a separately deployed Node process from
+`demo_api_server`. Consolidating means a shared package published/linked between two
+independently-deployed services — real infrastructure work, not a code-only refactor, and
+disproportionate for two call sites.
+
+**What the real fix looks like:** if a third RFC 8693 client shows up anywhere in this repo, pull
+the request-building + PingOne-quirk logic into a small shared package both services depend on.
+Until then, two hand-synced copies is the cheaper trade.
+
+### [x] 2026-08-24 — LibreChat Privilege MCP tool call blocked by LLM context size, not by anything in `librechat/`
+
+**Where:** `librechat/librechat.yaml`'s `mcpServers.privilege` block; the live
+LLM backend served via `demo_llm_proxy/` at `:8090`.
+
+**What's wrong:** Task 5 of
+`docs/superpowers/plans/2026-08-24-librechat-privilege-mcp-client.md` proved
+the OAuth flow end-to-end against the real PingOne Privilege gateway —
+Dynamic Client Registration and a real login both succeeded, and LibreChat's
+MCP server panel showed "Connected." But a live proof of an actual
+`get_my_accounts` tool call through LibreChat's chat UI is blocked:
+`curl localhost:8090/v1/models` confirms the live LLM backend's real context
+window is 8192 tokens, while the Privilege MCP server's full 242-tool
+catalog alone needs roughly 30243 tokens of schema just to describe the
+tools — about 4x more than the model can hold before any conversation or
+tool-result content is added. This is an LLM-capacity vs. tool-catalog-size
+mismatch, not a bug in `docker-compose.yml`, `.env.example`, or
+`librechat.yaml`.
+
+**Why it wasn't fixed now:** this repo's LLM tiers/context sizes are frozen
+by prior policy, so swapping to a larger-context tier is out of scope. The
+currently-pinned LibreChat version (`version: 1.3.14` config schema,
+`librechat-dev:latest` image) has no librechat.yaml-side or LibreChat-side
+option to filter or scope which of an MCP server's tools get advertised to
+the model, so there is also no config-only way to shrink the catalog.
+
+**Real fix:** either (a) gateway/MCP-server-side tool-catalog scoping — the
+`privilege` MCP server or the agentless gateway in front of it exposes a
+reduced tool set to this client instead of the full 242, or (b) a
+larger-context local model tier. Both are out of scope for the LibreChat
+proof-of-concept plan that found this.
+
+**RESOLVED** (branch `worktree-agent-abb04d0a310af8164`, PR #2343, same day):
+the diagnosis above was half right. The catalog-size mismatch is real for
+LibreChat's plain chat picker, but the blocker underneath it was different:
+the phi tier (`:8091`) is started without `--jinja`, so llama-server drops
+the `tools` field outright — `prompt_tokens` stays at 9 with a tool attached,
+so no tool call could ever have happened on that tier at any catalog size.
+Neither of the "real fix" options was needed:
+
+- Tool calling: `librechat.yaml`'s custom endpoint now lists `gpt-oss-20b`.
+  `demo_llm_proxy/router.js` `classFromModel()` routes any `/gpt-oss/` model
+  name to `:8096` — the only tier started with `--jinja` — which returns real
+  `tool_calls`. No frozen LLM setting changed.
+- Catalog scoping: a native LibreChat feature. The Agent Builder's MCP tool
+  dialog selects individual tools (`agent.tools` stores
+  `get_my_accounts_mcp_privilege`, and `ToolService.loadAgentTools` filters
+  on it), so the model sees one schema instead of 242. An uncommitted
+  client-side truncating proxy (`mcp-tools-proxy.js`) was tried first and
+  discarded: LibreChat's `assertResourceBoundToServer` rejects any OAuth
+  flow whose RFC 9728 `resource` origin differs from the configured server
+  URL, so a proxy on a different origin can never pass discovery.
+
+Proven live 2026-08-24 21:27 (Task 5 of the plan): an Agent with provider
+Local LLM Proxy, model `gpt-oss-20b`, tools = `get_my_accounts` only, asked
+"What are my account balances?" — LibreChat showed "Ran get_my_accounts in
+privilege · 3.3s" and replied with a masked account number and balance from
+the gateway.
+
+### [x] 2026-08-24 — Agent Gateway HTTP `/mcp` advertises a protocol version it then rejects (`MCP-Protocol-Version` mismatch)
+
+**Where:** `demo_mcp_gateway/src/server/GatewayServer.ts` HTTP `/mcp` path — the `initialize`
+reply relays the upstream mcp-server's `protocolVersion` (`2026-07-28` observed live) while the
+per-request `MCP-Protocol-Version` header check only accepts `2025-11-25`
+(`unsupported_protocol_version`, `supported: ["2025-11-25"]`). Absence of the header is tolerated.
+
+**What's wrong:** a spec-following Streamable-HTTP client (MCP SDK, LM Studio, LibreChat)
+echoes the version negotiated in `initialize` on every later request, so `tools/list` /
+`tools/call` 400 through this door. Found 2026-08-24 while live-verifying the recording
+façade (PR #2356) with a client that echoes the negotiated version.
+
+**Why not fixed now:** the façade only needed to reach the gateway; it drops the header for
+the `agent-gateway` door (`demo_api_server/routes/mcpFacade.js`, `dropProtocolHeader` — a
+`ponytail:` shortcut). Clients talking to `:3005/mcp` directly still hit the mismatch.
+
+**Real fix:** the gateway should advertise in `initialize` the version it actually enforces
+(or accept the version it advertised), then drop `dropProtocolHeader` from the façade.
+
+**RESOLVED (branch `worktree-fix-gateway-protocol-version`):** took the "accept the version it
+advertised" half — `demo_mcp_gateway/src/server/GatewayServer.ts`'s legacy per-request
+`MCP-Protocol-Version` check now validates against `SUPPORTED_PROTOCOL_VERSIONS` (already
+`['2025-11-25', '2026-07-28']`, the same list the Modern `_meta`-based check next to it already
+used) instead of the single `MCP_PROTOCOL_VERSION` constant. `MCP_PROTOCOL_VERSION` is untouched
+— it's still what the gateway sends on its own hop to the upstream mcp-server, a separate
+concern. Removed `dropProtocolHeader` from `demo_api_server/routes/mcpFacade.js` now that the
+gateway accepts the header it echoes back, so the `agent-gateway` door forwards
+`MCP-Protocol-Version` like every other door.
+
+### [x] 2026-08-24 — `k8s/create-secrets.sh` never falls back to the internal vault, so a vault-only secret silently never reaches the SE K8s Secret — RESOLVED 2026-08-25
+
+**Resolved:** `docs/superpowers/plans/2026-08-25-vault-in-k8s.md` implements
+exactly the "Real fix" below, plus a guard-rail: for any vault-managed key,
+`create-secrets.sh` now uses the vault's value, and hard-fails the deploy if
+`.env` has a *different* non-empty value for that key (drift), rather than
+silently letting either source win. `.env` files keep their real values
+(matching the vault) rather than being blanked — local Docker/native runs
+are unaffected, since `configStore.js`'s own `.env` → vault → LMDB order
+already prefers `.env` when present and it now always matches.
+
+**Where:** `k8s/create-secrets.sh`'s `secret_from_envfile()` (~line 103-154),
+called by `se-update-config.sh` / `run-pingaws.sh update config`.
+
+**What's wrong:** the SE K8s live-canary (`ai-demo.ping-devops.com`) started
+failing every scheduled run with `?error=callback_failed&detail=invalid_client`
+right after PingOne sign-in. The BFF's masked diagnostic log
+(`demo_api_server/routes/oauthUser.js:154-162`) showed `user_secret=MISSING`
+for env `01d89b06`. `PINGONE_USER_CLIENT_SECRET` *is* present in the local
+encrypted vault (`secrets.vault`, confirmed via `npm run vault:list` — names
+only, value not decoded), so it resolves fine for anything running with
+`VAULT_PASSWORD` set (local Docker, native `./run.sh`). But
+`create-secrets.sh` only ever reads `demo_api_server/.env` (dotenvx-decrypted
+if needed, see the script's own `encrypted:` handling at line 113 — that's
+dotenvx's whole-file encryption, a *different* mechanism from
+`configStore.js`'s per-value `encrypted:...` vault-shadow ciphertext added in
+the 2026-08-21 incident). A secret that lives only in the internal vault (not
+as a plain `.env` line) is invisible to this script and never makes it into
+the `ai-demo-secrets` K8s Secret at all. The script's own comment at line
+383-384 already documents the consequence: *"In-cluster the BFF has no vault
+password and no LMDB entry"* — so there's no runtime fallback in the pod
+either. Net effect: any secret migrated into the vault (the whole point of
+the 08-21 hardening) silently stops reaching the SE cluster.
+
+**Why it wasn't fixed now:** the immediate unblock was a one-off
+`vault:get` + `kubectl create secret --dry-run=client -o yaml | kubectl apply`
+patch of the single key (handed to the user to run — reading a decrypted
+vault value and writing a live K8s Secret both correctly hit the agent
+permission classifier's secret-handling guard). The real fix — teaching
+`secret_from_envfile()` to `vault:get` any `ENV_FALLBACK_MAP` key it doesn't
+find in `.env` before giving up on it — touches a deploy script every SE
+session relies on and deserves review on its own, not a same-session
+drive-by.
+
+**Real fix:** in `create-secrets.sh`, after sourcing the (decrypted) `.env`
+and before building the `--from-literal` args, for any key with no value try
+`VAULT_PASSWORD=... node demo_api_server/scripts/vault.js get <KEY>` and use
+that if `.env` came up empty — mirroring `configStore.js`'s own `.env` →
+vault → LMDB resolution order so the K8s path matches local behavior instead
+of silently diverging from it.
+
+**Update 2026-08-24 (same day):** the triggering symptom for
+`PINGONE_USER_CLIENT_SECRET` specifically is now moot — the User Login
+PingOne app (`83572007-b2c7...`) was switched to PKCE-only
+(`tokenEndpointAuthMethod: NONE`), so that key isn't needed anywhere anymore
+(see `docs/ENV.md`). The underlying `create-secrets.sh` gap is still real for
+any *other* vault-only secret (e.g. if `PINGONE_ADMIN_CLIENT_SECRET` is ever
+vault-migrated without also flipping the Admin app to PKCE-only), so this
+entry stays open.
+
 ### [x] 2026-08-24 — `get_my_accounts`'s output schema doesn't match the Banking API's actual response shape
 
 **Where:** `oauth-mcp/src/tools/BankingToolRegistry.ts` (declared output
@@ -91,7 +1045,7 @@ instead of an empty array. New unit tests added in
 `oauth-mcp/src/tools/handlers/__tests__/accountNickname.test.ts` covering
 both fixes; full suite green (1079/1079) before deploy.
 
-### [ ] 2026-08-23 — `pingone_mgmt_client_id`/`_client_secret`/`_token_auth_method` are missing from `configStore.js`'s `FIELD_DEFS`
+### [x] 2026-08-23 — `pingone_mgmt_client_id`/`_client_secret`/`_token_auth_method` are missing from `configStore.js`'s `FIELD_DEFS`
 
 **Where:** `demo_api_server/services/configStore.js` — all three keys are
 referenced in `SECRET_KEYS` (the first two) and the env-alias table (all
@@ -116,7 +1070,37 @@ finding #32's scope.
 for which of them are secrets), so any future admin-UI or route code path
 that calls `setConfig` with one of them doesn't silently no-op.
 
-### [ ] 2026-08-23 — `useVertical()` reshapes the context into a new object on every call, defeating the Provider's own memoization
+**RESOLVED 2026-08-26 (branch `worktree-techdebt-small-correctness`).** All three
+registered next to `pingone_mgmt_private_key`, following the file's own
+conventions rather than that one key's shape: `client_id` `{ public: true }`
+(matching every other `*_CLIENT_ID`), `client_secret` `{ public: false }`
+(it is in `SECRET_KEYS`), and `token_auth_method`
+`{ public: true, default: 'basic' }` (matching the sibling
+`PINGONE_ADMIN_TOKEN_ENDPOINT_AUTH_METHOD`).
+
+The default was the one real decision here. `'post'` would have been wrong:
+every consumer — `pingOneClientService.js:68`, `pingOneUserService.js:71`,
+`pingoneTestRoutes.js:1072` — already reads
+`getEffective('pingone_mgmt_token_auth_method') || 'basic'`, and `getEffective`
+returns the `FIELD_DEFS` default when nothing else supplies a value. A `'post'`
+default would therefore have silently flipped the Management API worker's client
+authentication method on every deployment that doesn't set the env var. `'basic'`
+reproduces today's behaviour exactly.
+
+The entry's "latent, not currently triggered" read was re-confirmed: no
+`setConfig` call site writes any of the three today, and the basic/post self-heal
+in `pingOneTokenAuth.js` is in-memory only.
+
+Evidence: `src/__tests__/configStore.mgmtWorkerKeysSave.test.js` (5 tests) —
+`setConfig` round-trip per key, a `FIELD_DEFS` membership assertion, and a guard
+pinning the `'basic'` default to the consumers' fallback. It clears the env
+aliases first, since `getEffective` reads those ahead of the defaults and would
+otherwise mask what the spec asserts. RED-proven: removing the three entries
+fails 4 of 5. Full BFF suite green — 10,224 passed, 1 pre-existing environment
+failure (`anthropic.lmstudio.live.test.js`, `getaddrinfo ENOTFOUND
+api.ping.demo`; that host is absent from this machine's `/etc/hosts`).
+
+### [x] 2026-08-23 — `useVertical()` reshapes the context into a new object on every call, defeating the Provider's own memoization
 
 **Where:** `demo_api_ui/src/vertical/useVertical.js` — every non-null-context
 return path (lines 29–41) builds `{ activeId: ctx.activeId, pageManifest:
@@ -147,7 +1131,34 @@ primitive/derived values that actually determine its shape (`ctx`,
 `isAdminScope`), so a `React.memo`'d consumer or a `useEffect` deps array
 keyed on `useVertical()`'s output stops re-firing on every unrelated render.
 
-### [ ] 2026-08-23 — native ID-JAG: PingGateway's own D-05 still blocks the real tool call even when the OLB-audience pin should redirect it
+**RESOLVED 2026-08-26 (branch `worktree-use-vertical-memo`).** Done as scoped:
+`useMemo` keyed on `[ctx, isAdminScope]`, which is the complete dependency set —
+every field in the returned object is either read off `ctx` or derived from both.
+
+Two details the entry did not call out:
+
+- The **early `!ctx` return had to move inside the memo**, because a hook cannot
+  be called conditionally. That branch is now a frozen module constant
+  (`NO_PROVIDER`) rather than a fresh literal, so the no-provider path is stable
+  too — it was the one path that would otherwise still churn a new object every
+  render.
+- `isAdminScope` is derived as a **boolean before** the memo rather than passing
+  `location.pathname` as a dependency. Keyed on the raw pathname, the memo would
+  invalidate on every navigation; keyed on the boolean it invalidates only when
+  a route actually crosses the `/admin` boundary — which is the only thing about
+  the path this hook cares about.
+
+Evidence: `src/vertical/__tests__/useVertical.test.jsx` grew 4 -> 8. The four new
+tests capture every value the hook returns and compare identity: same object
+across an unchanged re-render, a NEW object when the context value really
+changes, correct recompute when the route crosses into admin scope (so the memo
+is not sticky enough to become a correctness bug), and a stable no-provider
+fallback. RED-proven: replacing the memo with a plain IIFE fails 2 of 8.
+
+Full UI gate green — 3467 unit tests passed (434 files), `npm run build` exit 0.
+Run unscoped on purpose: this hook is called by nearly every screen.
+
+### [x] 2026-08-23 — native ID-JAG: PingGateway's own D-05 still blocks the real tool call even when the OLB-audience pin should redirect it
 
 Live E2E verification of PR #2268 (native ID-JAG gateway filter — mint → redeem
 → tool call) surfaced this while checking whether the redeemed, OLB-audienced
@@ -199,7 +1210,239 @@ earlier in the flow.
    `mcpToolPipeline.js`-supplied first argument) is literally what's
    expected, not a value that predates trimming/normalization.
 
-### [ ] 2026-08-23 — a real HTTP request into `/api/agent/run` can arrive with `req.headers.cookie` empty while `req.session.user` is populated, breaking the native-ID-JAG mint for that turn
+**INVESTIGATED 2026-08-26 (branch `worktree-idjag-pinggateway-allowlist`) — entry
+stays OPEN: D-05 itself is still unproven, but it is no longer the blocker.**
+
+The two things that made this unreproducible are gone: the empty-cookie mint
+failure was PR #2281, and customer sign-in (broken 2026-08-24 → 2026-08-26, see
+REGRESSION_PLAN §4) is fixed. A real signed `show my balance` turn as `demoUser`
+on the banking vertical now runs end to end.
+
+**It does not reach D-05 any more. It fails two legs earlier:**
+
+```
+POST /api/enterprise-idp/token 400
+[demo-agent/tools] error: invalid_target
+  resource https://api.ping.demo:3036/mcp is not an approved MCP server.
+```
+
+Native ID-JAG has two legs and each checks the requested resource against a
+DIFFERENT list — leg 1 (mint, `routes/enterpriseIdp.js`) against
+`ENTERPRISE_MCP_RESOURCE_URIS`, leg 2 (redeem, mcp-server's `IdJagGrantHandler`)
+against `MCP_SERVER_RESOURCE_URI`. Under this demo's default routing
+(`ff_mcp_gateway_pinggateway=true`) `resolveExpectedMcpResourceUri()` returns
+`pingone_resource_pinggateway_uri` = `https://api.ping.demo:3036/mcp`, so both
+legs are asked for that URI. It was listed on leg 2 and **missing on leg 1**, so
+every mint 400'd and the tool call was never attempted.
+
+`MCP_SERVER_RESOURCE_URI`'s own comment in `docker-compose.yml` asserted that
+"the demo-api-server side already allow-lists the same URI via
+`ENTERPRISE_MCP_RESOURCE_URIS`" — nothing checked that claim, and it was false.
+Fixed on the compose default, with
+`src/__tests__/docker-compose.enterpriseIdJagAllowlist.test.js` (4 tests) now
+checking it: leg 1 ⊇ every mintable audience leg 2 serves. RED-proven — reverting
+the one compose value fails 2 of 4.
+
+**The pin's inputs were all fine, so step 3 of the plan above is NOT the bug.**
+Re-verified live in the BFF container: `MCP_PINGGATEWAY_URL` ===
+`MCP_GATEWAY_HTTP_URL` === `http://ping-gateway:8080`,
+`PINGONE_RESOURCE_MCP_SERVER_URI` = `mcpserver.ping.demo`, and both `base` and
+`pgUrl` are trailing-slash-normalised before comparison.
+
+**Second blocker, newly found and NOT in the original entry:** the pin's
+destination does not exist under default runtime. `mcpGatewayClient.js`'s OLB pin
+redirects to `mcp_demo_gateway_url` (`http://mcp-gateway:3005`), but the
+`mcp-gateway` service sits behind the **`demo-auth` compose profile** while
+`run-docker.sh` defaults to core + rag — `docker ps` shows only
+`ai-demo-ping-gateway`. So even once the mint succeeds, a correctly-pinned call
+has nothing listening at the other end. Note the pin fails SILENTLY in the
+adjacent case: `if (nodeUrl) base = nodeUrl;` no-ops when the URL is empty, which
+is the same shape of quiet failure this entry has been chasing.
+
+**What is still unknown:** whether D-05 fires once both blockers are cleared.
+Answering it needs `--profile demo-auth` (or an equivalent) so the Node gateway
+is actually up, then a re-run of the same signed turn. Until then the original
+D-05 observation should be treated as recorded-but-unreproduced.
+
+**ANSWERED 2026-08-26, second pass (branch `worktree-idjag-d05-findings`) — the
+cause is NOT D-05, and not any of this entry's three hypotheses.**
+
+With both blockers cleared (PR #2407's allow-list fix, and `deploy-live.sh`
+bringing up `ai-demo-mcp-gateway`), a real signed turn as `demoUser` now gets all
+the way to `get_account_balance`. The mint succeeds
+(`POST /api/enterprise-idp/token 200`) and the turn fails here instead:
+
+```
+[MCP Proxy] Error calling get_account_balance: Wrong audience: the access token's
+aud is [mcpserver.ping.demo] but the gateway requires "https://api.ping.demo:3036/mcp".
+This is a configuration drift, not an expired token...
+```
+
+**No D-05. No `bypass_attempt`. And no HTTP request at all** — neither
+`ai-demo-mcp-gateway` nor `ai-demo-ping-gateway` logged anything in the window.
+The rejection is entirely BFF-side.
+
+**The defect: `expectedAud` does not follow the OLB pin.**
+`mcpGatewayClient.js`'s audience classifier (~L452) computes
+
+```js
+const expectedAud = require('./mcpToolAuthorizationService').resolveExpectedMcpResourceUri() || ...
+```
+
+which is the **per-mode** resolver — under `ff_mcp_gateway_pinggateway=true` it
+returns `https://api.ping.demo:3036/mcp`. But by the time that runs, the OLB pin
+(~L163) has already rewritten `base` to the NODE gateway. The request's
+destination changed; the expected audience did not. So a correctly-pinned ID-JAG
+bearer is failed against the audience of a gateway it is deliberately no longer
+being sent to.
+
+The pin is working. The Node gateway would accept the token — its live
+`MCP_GW_RESOURCE_URI` is
+`mcpgateway.ping.demo,https://api.ping.demo:3036/mcp,mcpgateway-a2a.ping.demo,mcpserver.ping.demo`,
+which includes `mcpserver.ping.demo`. Nothing downstream ever gets the chance.
+
+Note the classifier's own comment describes fixing the MIRROR of this bug ("use
+the SAME per-mode resolver the token was minted with — otherwise on the IG path
+the token's aud is compared against the Node-gateway aud"). That fix was correct
+for the unpinned IG path and introduced this one for the pinned path. The
+audience to compare against is a property of the **effective destination after
+pinning**, not of the routing mode.
+
+**Each of this entry's three hypotheses is now ruled out**, all re-verified live:
+1. the aud DOES match — the token carries `mcpserver.ping.demo`, exactly as the
+   discovery token did;
+2. the tool-call token does NOT diverge from the discovery token;
+3. the `pgUrl && base === pgUrl` guard is fine — `getMcpGatewayHttpUrl()` returns
+   `MCP_PINGGATEWAY_URL` verbatim under the flag and both sides are
+   trailing-slash-normalised before comparison.
+
+**Not fixed here on purpose.** The repair is small (derive `expectedAud` from the
+post-pin destination rather than the mode) but it sits on a protected auth path
+and encodes a decision — once a bearer is pinned away from PingGateway, which
+audience is authoritative — that belongs with whoever owns the native-ID-JAG
+rollout. Whoever takes it should add the case to a test: a pinned ID-JAG bearer
+must not be failed against PingGateway's audience.
+
+**FIXED 2026-08-26 (branch `worktree-expected-aud-follows-pin`).** The decision
+above resolved as: **the pin audience is authoritative.** A pin only fires when
+the bearer's `aud` already contains the pin audience, so that value is correct
+for the destination by construction — there was nothing to weigh.
+
+`callToolViaGateway` now records `pinnedAud` at the moment a pin actually moves
+`base`, and the audience classifier prefers it over
+`resolveExpectedMcpResourceUri()`. Recorded ONLY inside
+`if (nodeUrl) { base = nodeUrl; pinnedAud = ...; }` — when no Node URL is
+configured the pin silently no-ops, the request really does go to PingGateway,
+and PingGateway's audience is still the right thing to judge against. Both pins
+(native ID-JAG and A2A) are covered; A2A had the identical latent bug.
+
+Evidence: `src/__tests__/mcpGatewayClient.pinnedAudience.test.js` (5 tests) — a
+pinned ID-JAG bearer reaches the Node gateway URL and is NOT
+GATEWAY_AUDIENCE_MISMATCH; same for A2A; an UNPINNED bearer on the PingGateway
+path still reports a genuine mismatch (no behaviour change there); and the
+pin-could-not-move case keeps the mode audience. RED-proven: removing
+`pinnedAud ||` fails 2 of 5. Neighbouring classifier specs green
+(`mcpGatewayClient.reauth`, `attackSimulator.wrongAudFields`). Full BFF suite
+10,251 passed, 2 worker-contention flakes that pass scoped and touch neither file.
+
+**RESOLVED 2026-08-26 — and my own two earlier readings of this were wrong.**
+Ticking it `[x]` after the `expectedAud` fix was premature (that unblocked the
+REQUEST, not the feature), and the follow-up claim that D-05 and native ID-JAG
+are "mutually exclusive by design" was also wrong. They are not. **The exemption
+already existed in both implementations; it simply never fired.**
+
+With the earlier blockers cleared, a live signed turn reached the exact symptom
+this entry recorded on 2026-08-23:
+
+```
+bypass_attempt: token aud targets upstream mcpserver.ping.demo
+— cannot bypass gateway (D-05)
+```
+
+**What D-05 is:** a per-hop invariant — a client obtains a GATEWAY-audienced
+token, and only the gateway may exchange it for the next hop. So an upstream
+audience must never appear in a token presented at the gateway. It stops a
+leaked or forged OLB-audienced token being presented directly to skip the
+gateway's own checks. Implemented independently three times: the Node gateway
+(`GatewayTokenPolicy.ts`), the P1AZ policy (`demo_authz_server/routes/decision.js`)
+and PingGateway's Groovy.
+
+**Native ID-JAG is a legitimate exception and both live implementations know it.**
+`GatewayTokenPolicy.ts:145` wraps the blacklist in `if (!isIdJagIssuedToken(...))`;
+`decision.js:409` computes the same exemption. Both gate on the CRYPTOGRAPHICALLY
+VERIFIED `iss` — a token merely claiming that issuer never gets that far, because
+signature verification against oauth-mcp's JWKS happens first.
+
+**The actual bug: the same hardcoded-scheme trap, in a third place.**
+
+```js
+// demo_authz_server/routes/decision.js:408
+const idJagIssuer = process.env.OAUTH_MCP_ID_JAG_ISSUER
+  || process.env.OAUTH_MCP_ISSUER_URI
+  || 'https://localhost:8080';
+```
+
+`OAUTH_MCP_ID_JAG_ISSUER` was unset in `ai-demo-authz-server`, so it fell to that
+hardcoded `https://` — which never equals the token's real `http://localhost:8080`
+(mcp-server's `OAUTH_ISSUER`). Exemption skipped, D-05 denied. This is the same
+one-character defect fixed for `mcp-gateway` earlier the same day, which is why
+the audit trail showed `GatewayTokenPolicy: passed` but `P1AZDecision: blocked`.
+
+**Why no test caught it:** every unit test sets `OAUTH_MCP_ID_JAG_ISSUER` to
+`https://localhost:8080` explicitly and mints its fixture tokens with the same
+value, so the exemption always fires under test. The production value was the one
+combination never exercised.
+
+Fixed by wiring `OAUTH_MCP_ID_JAG_ISSUER` on `authz-server` to
+`${ENTERPRISE_MCP_AS_ISSUER}`, the same source the BFF and mcp-server use.
+`docker-compose.idJagIssuerScheme.test.js` now requires BOTH runtime consumers to
+declare it and all three sides to agree on the scheme — RED-proven by removing
+either one. **No policy was weakened: D-05 is unchanged, and the exemption still
+requires a verified issuer.**
+
+**CONFIRMED LIVE 2026-08-26 — box ticked on evidence.** A signed
+`get_account_balance` turn as `demoUser` (banking vertical, follow-up turn after the
+account-picker disambiguation) now returns PERMIT in the gateway audit trail:
+
+```
+"authorize":{"decision":"PERMIT","engine":"mock","policySource":"p1az-mock"}
+"filterChain":[
+  {"filter":"TokenIntrospection","result":"skipped"},
+  {"filter":"GatewayTokenPolicy","result":"passed"},
+  {"filter":"P1AZDecision","result":"forwarded","decision":"PERMIT"},
+  {"filter":"mTLS","result":"skipped"},
+  {"filter":"BackendExchange","result":"skipped"}
+]
+"backend":{"target":"olb","audience":"mcpserver.ping.demo","exchanged":false}
+```
+
+`TokenIss: http://localhost:8080`, `TokenKidKnown: true`, `TokenAudActual:
+mcpserver.ping.demo` — the ID-JAG bearer is recognised, its key resolves, and the
+D-05 exemption fires. `BackendExchange: skipped` / `exchanged: false` is correct
+here, not a gap: ID-JAG is a per-server grant, so the token already carries the OLB
+audience and there is nothing to exchange. Run validated with
+`npm run stack:generation -- --check` ("stack unchanged — the run stands").
+
+**Five distinct blockers stood between this entry and that result**, each hiding
+the next: the mint allow-list (#2407), the Node gateway not running under the
+default compose profile, `expectedAud` not following the OLB pin (#2410), the
+gateway's ID-JAG issuer scheme (#2412), and the authz server's (#2413). None was
+the one the entry named.
+
+**Still open, from the same trail:** `IntentTokenValid: false` /
+`IntentTokenError: no_signing_key` — the gateway cannot verify the intent token the
+BFF mints. It blocks nothing (P1AZ permits regardless) but it is a third
+missing-key wiring gap of the same family, and it means the intent-token evidence
+is not actually being checked on this path.
+
+**Also worth noting:** this whole path is arguably incoherent as configured —
+the ID-JAG is minted FOR the PingGateway resource, but oauth-mcp always redeems
+it audienced to its OWN resource (`resolveOwnAudience`), PingGateway rejects that
+audience (D-05), and the pin exists to route around PingGateway to a gateway that
+is not running. That is a design question, not a bug fix, and it belongs to
+whoever owns the native-ID-JAG rollout.
+
+### [x] 2026-08-23 — a real HTTP request into `/api/agent/run` can arrive with `req.headers.cookie` empty while `req.session.user` is populated, breaking the native-ID-JAG mint for that turn
 
 Same live-verification session as the entry above. `services/idJagService.js`'s
 `mintIdJag(req, ...)` forwards `req.headers.cookie` on its loopback POST to
@@ -260,6 +1503,31 @@ obvious shared-mutable-state culprit spotted on read-through.
    `mintIdJag` to find exactly where `req.headers.cookie` stops being the
    original value.
 
+**RESOLVED — was already fixed when this entry was written; verified 2026-08-26.**
+PR #2281 (`0e407dbf`, merged 2026-08-23 14:53, ~4 hours after this entry was
+recorded at 11:07) fixed it and nobody came back to tick the box. The answer to
+the entry's own question 1 turned out to be "neither frontend nor backend loss":
+the follow-up turn does not arrive as a browser request at all. It comes through
+the `/internal/agent-tool` callback (`routes/agentTool.js:99`), which resolves
+the session server-side via `sessionStore.get()` and builds a synthetic `fakeReq`
+carrying `sessionID` but **no `headers` object whatsoever** — hence
+`outerHasUser: true, outerCookieLen: 0`, and hence "follow-up turns only, never
+the first". The entry's premise ("a real HTTP request into `/api/agent/run`")
+was the wrong frame; the duplicate-dispatch lead was a red herring.
+
+`idJagService.cookieHeader(req)` now re-signs a `connect.sid` from `req.sessionID`
+using express-session's own format when no real header exists. Verified today:
+the re-sign uses `process.env.SESSION_SECRET || 'dev-session-secret-change-in-production'`,
+character-for-character the expression `server.js:470` configures the session
+middleware with, so the loopback cookie validates against the same secret.
+`src/__tests__/idJagService.cookieForward.test.js` — 3 passed (real header
+forwarded unchanged / re-signed from sessionID / empty when neither exists), with
+the unsign algorithm re-implemented independently of the code under test.
+
+The entry's "what it is NOT" worry — that any other loopback cookie-forwarder is
+exposed to the same gap — does not materialise: `idJagService.js` is the only
+one. `authStateCookie.js` and `pkceStateCookie.js` read inbound browser cookies
+(different question) and `server.js:958` only counts cookie names.
 ### [x] 2026-08-23 — native ID-JAG gateway filter (PR #2268) was merged and unit-verified but never actually deployed — `demo_mcp_gateway`'s Docker image was stale
 
 While doing the live E2E verification that produced the two entries above,
@@ -365,7 +1633,46 @@ stale lock on this stack turns into a worse outage than the race it prevents.
 before and after any live drive, and treat the run as void — not as a finding —
 if either moved. That one check is the difference between a bug report and an
 hour in the routing layer.
-### [ ] 2026-08-19 — 71 write actions across all 12 verticals reply "Here are your <verb noun>."
+
+**STEP 1 SHIPPED 2026-08-26 (branch `worktree-stack-generation-check`) — entry
+stays OPEN for steps 2 and 3.** `scripts/stack-generation.sh` +
+`npm run stack:generation`, exactly the "make the ground checkable, cheaply"
+option, changing no locking behaviour:
+
+```
+gen="$(npm run -s stack:generation)"
+...drive the UI, run the probe, present...
+npm run -s stack:generation -- --check "$gen"   # exit 1, and says why, if it moved
+```
+
+**One deliberate departure from this entry's own step 1:** the generation is
+DERIVED from `docker inspect` rather than stamped by `deploy-live.sh`. That
+matters here more than it looks. In the incident measured above, the restarts
+did NOT come from `deploy-live.sh` — its ledger recorded only two, both `ui`, at
+10:00 and 10:07, while the damaging recreates happened at 10:16:41 and 10:17:54.
+A counter written by `deploy-live.sh` would have missed the exact case this entry
+exists to catch. Reading the containers catches a recreate from any source:
+`deploy-live.sh`, `run-docker.sh restart`, `serve-worktree.sh`, or a bare
+`docker compose up`.
+
+The generation is container id AND `StartedAt` per container, because a recreate
+changes the id while a plain restart does not — an id-only check would silently
+pass the second case. Both invalidate a run, so both are in the string.
+
+`--check` failing prints which container moved, from what to what, and says in
+words that the run is void rather than a finding — the sentence whose absence
+cost an hour in the routing layer.
+
+Evidence: `scripts/stack-generation.test.sh` — 12 checks against a stub `docker`
+on PATH, covering recreate, same-id restart, a container disappearing, and
+misuse exiting 2 rather than a false pass. Verified against the live stack too.
+CLAUDE.md's deploy-cadence section now carries the before/after recipe, replacing
+the `docker inspect` incantation in this entry's "interim discipline" note.
+
+Steps 2 (broadcast to other sessions' sockets) and 3 (a drive lease with a TTL)
+are untouched, and step 3 should stay untouched until 1 and 2 prove insufficient
+— this entry's own warning about stale locks on this stack still stands.
+### [x] 2026-08-19 — 71 write actions across all 12 verticals reply "Here are your <verb noun>."
 
 Found while fixing UC8's "Here are your extend rental." (`REGRESSION_PLAN.md` §4,
 2026-08-19). The reply-heading builder in
@@ -400,7 +1707,40 @@ the reply builder and give writes a single neutral confirmation template, keepin
 hand-written cases for the ones that read better. Scan that produced these numbers:
 `scratchpad/scan-writes.py` in the 2026-08-19 Demo Steps run.
 
-### [ ] 2026-08-19 — `serve:worktree` reports a state file, not the actual container mounts, and leaves the BFF without its gitignored config
+**RESOLVED 2026-08-26 (branch `worktree-write-action-reply-copy`).** Fixed as the
+entry scoped it — write-ness DERIVED, not guessed. The derivation already existed:
+`services/agentRestrictionsService.js`'s `getRequiredTier(toolName)` reads
+`scope-topology.json`'s `tools[].requiredScopes` and maps them through each scope's
+`riskLevel`, returning `'read'|'write'`. `buildVerticalReply()` now takes one branch
+ahead of the noun fallback — `getRequiredTier(action) === 'write'` →
+`` `Your ${action.replace(/_/g,' ')} request is complete.` `` — so no new loader, no
+action→write table to drift, and unknown tools tier as `'read'` (fail-open: the branch
+can only soften an existing heading, never invent a confirmation).
+
+Note the derivation is slightly BROADER than `p1az-decision.groovy`'s
+`isWriteToolLocal`, which does an exact `requiredScopes.contains('write')` and would
+miss `redeem_miles` (`['airlines:read','airlines:write']`). Going through `riskLevel`
+catches it. Same SoT, better predicate — the Groovy is worth aligning if it ever
+matters for tier enforcement, but that is a policy change, not copy, so it was left
+alone.
+
+Evidence: 100 tools tier as write across the whole topology; **0** still produce
+`Here are your ...`. All 10 hand-written cases are untouched (they precede the branch).
+`src/__tests__/buildVerticalReply.writeActions.test.js` grew from 12 to 19 tests —
+6 named samples, a whole-catalog sweep (every write tool, with a >50 vacuity guard),
+and a guard pinning the entry's four named traps (`afford_check`, `biggest_purchase`,
+`browse_gear`, `loyalty_balance`) as reads. RED-proven: disabling the branch fails 7
+of the 19. Neighbouring agent specs green
+(`agentInvokeRoute.mcpAuthorizeEvaluations`, `agentInvokeRoute.intentToken`,
+`agentReasoningClientLoopGuard`, `demoAgentRecursion.regression` — 12 passed).
+
+**Left behind on purpose:** those same four read actions still degrade to
+`Here are your afford check.` when `render` falls back to `'text'` (a failed MCP
+round-trip). They are reads, so they are outside this entry, and on the normal path
+their own `render` case answers first (`loyalty_balance` → `Your balance: N`). Fixing
+them is a read-side noun problem, not a write-ness one.
+
+### [x] 2026-08-19 — `serve:worktree` reports a state file, not the actual container mounts, and leaves the BFF without its gitignored config
 
 Two separate gaps, both hit while live-verifying the 2026-08-19 Demo Steps fixes.
 
@@ -426,6 +1766,43 @@ Two separate gaps, both hit while live-verifying the 2026-08-19 Demo Steps fixes
 status output and re-apply if it disagrees, and (b) symlink or copy the main checkout's
 `demo_api_server/.env` and `data/persistent/*.db` into the target worktree when switching to
 it — the same way `node_modules` already has to be linked in.
+
+**RESOLVED 2026-08-26 (branch `worktree-serve-worktree-honesty`).** Both halves done, but
+the diagnosis in (a) was wrong in a way worth recording, and (b) was half unnecessary.
+
+**(a) was never a state file.** `print_status` has read `docker inspect` since the script was
+introduced in PR #2009 (2026-08-18), a day BEFORE this entry. The real cause is visible in
+the entry's own evidence: it reported the UI mount as the worktree while `docker inspect`
+showed `.../demo_api_ui/src -> /app/src` on main. `mount_source` only ever asked about
+`/app` — and **the UI serves from `/app/src`, not `/app`**. So the status line was reading
+live docker state and was still wrong, because it was reading the wrong mount. The overlay
+comment ("Both targets must move together") was added for the same reason; nothing checked
+that it held.
+
+Now `print_status` reads `/app/src` too and prints an explicit `UI  MOUNT SPLIT` line when
+the two disagree, and a new `verify_mounts` re-reads all three mounts after the recreate.
+A recreate that does not take is retried once — the cure the entry observed ("a second
+`serve:worktree here` fixed the mount") — and then **fails with exit 1** rather than
+printing "now serving:" over a stack that is serving something else.
+
+**(b) is one file, not two.** `demo_api_server/.env` is now copied from the main checkout on
+every non-main switch. `data/persistent/*.db` needs nothing: `docker inspect` confirms
+`/app/data/persistent` is the named volume `ai-demo_ai-demo-bff-data`, which mounts over
+whatever the source directory holds, so the databases never moved in the first place.
+Copied rather than symlinked — the mount hands the container the worktree directory, so a
+symlink inside it would resolve to a host path that does not exist in the container, and the
+BFF would see no `.env` at all. That is the same trap in a new costume, so it is spelled out
+at the call site.
+
+Evidence: `scripts/serve-worktree.test.sh` — 12 checks, run against a stub `docker` on
+PATH, so it never touches the shared stack. RED-proven in three separate passes: removing
+the `.env` copy fails 2, removing the mount verification fails 3, and removing just the
+`/app/src` half of `verify_mounts` fails exactly the test that reproduces the original
+symptom (`/app` moves, `/app/src` lags).
+
+**Not done:** the script still does not take the `.git/deploy-live.lock` that
+`deploy-live.sh` uses, so two sessions can still fight over the stack — that is the separate
+2026-08-19 "nothing protects a live UI drive" entry, still open.
 
 ### [x] 2026-08-18 — the accepted-gateway-identity list is maintained by hand in two places, and has now drifted twice
 
@@ -2446,7 +3823,7 @@ jest config so call history cannot leak between tests, then fix the fallout. Tha
 converts this class from "silently passing" to "loudly failing", which is the
 only way to find the rest.
 
-### [ ] 2026-08-18 — UI probes have no settle contract, so "the page renders nothing" is unreliable
+### [x] 2026-08-18 — UI probes have no settle contract, so "the page renders nothing" is unreliable
 
 **Where:** ad-hoc Playwright scripts driving the live stack; the recipe lives in
 memory (`playwright-live-ui-drive-recipe`), not in the repo.
@@ -2473,6 +3850,45 @@ that owns sign-in (the BFF redirect, since the top-nav button is 0x0 headless),
 the settle strategy (fixed wait plus a content assertion, never `networkidle`),
 and active-vertical resolution — so a probe asserts it reached a usable page
 before reporting what it did or did not find.
+
+**RESOLVED 2026-08-26 (branch `worktree-ui-probe-settle-contract`).**
+`demo_api_ui/tests/e2e/helpers/uiProbe.js` — `settle()`, `activeVertical()`,
+`requireVertical()`.
+
+Sign-in is NOT in it: `realLogin.js` (same directory) already owned the BFF
+redirect, so the helper covers only the two halves that were actually missing.
+
+The load-bearing design decision is that **everything throws rather than
+returning a falsy value.** A helper that returned `{chars: 0}` would reproduce
+false finding #1 exactly — that zero is what got written up as "the route renders
+nothing" for a page that in fact renders 1381 characters and 16 controls. The
+`ProbeNotSettled` message says in words that it is not a finding about the page,
+and names what it needed versus what it last saw. `requireVertical` does the same
+for false finding #2, naming both the assumed and the resolved vertical, because
+a phrase submitted into the wrong vertical matches nothing and the missing tool
+traffic is indistinguishable from a broken feature.
+
+Settle is a floor PLUS a quiet period, not a single threshold check: React renders
+in bursts, so one sample over the floor can be a mid-burst frame that then changes
+again. Pinned by a test that walks 0 -> 400 -> 900 -> 1381 chars and requires the
+final value.
+
+`networkidle` is called out at the top of the file as never usable here — the app
+holds SSE open for the session, so it burns its timeout. That is why every ad-hoc
+script invented its own wait and why they disagreed with each other.
+
+Evidence: `demo_api_ui/src/__tests__/uiProbe.test.js` — 10 tests, `page`
+duck-typed with scripted samples so the real helper runs with no browser. The
+spec lives under `src/` because `vite.config.js` excludes `tests/e2e/**` from
+vitest; had it sat beside the helper, nothing would have run it. RED-proven twice:
+returning the measurement instead of throwing fails 4, and settling on the first
+over-threshold frame fails the burst test. Full UI gate green — 3473 unit tests
+passed (435 files), `npm run build` exit 0.
+
+`demo_api_ui/CLAUDE.md` now carries the usage, so the next session finds it
+without re-deriving it from memory. Pairs with `npm run stack:generation` from the
+2026-08-19 live-drive entry: one answers "did the page render", the other answers
+"was it still the same stack".
 
 ### [x] 2026-08-18 — The group-policy board cannot produce a PERMIT, so the demo it exists for cannot be shown
 
@@ -2967,6 +4383,21 @@ the running app to confirm placement.
 **Why not fixed now:** it needs a decision about intended surface before any
 code change, and #1978 was a role-visibility fix that had no business also
 relocating a UI region.
+
+**PARTIALLY OVERTAKEN BY EVENTS — noted 2026-08-26, entry stays OPEN.** The
+specific call site this entry pins no longer exists: `AIAgent.js:10866`'s
+`{isLoggedIn && renderActionGroups()}` is now an unconditional
+`{renderActionGroups()}` (`AIAgent.js:11174`), consistent with the
+"show all actions, gate auth per use case from `auth-requirements.json`"
+direction. So the `isLoggedIn` half of the diagnosis is gone.
+
+What this entry actually asked has NOT been answered, which is why the box stays
+unticked: the entry's own conclusion was that the gating "lives in an ancestor,"
+not at the call site, so removing the call-site condition does not establish that
+`.ba-action-group` now mounts on `/dashboard` for either role. That still needs
+the live check the entry called for — `document.querySelectorAll('.ba-action-group').length`
+on `/dashboard` as customer and as admin — and it needs the settle contract from
+the "UI probes have no settle contract" entry, or a zero result means nothing.
 
 **What the real fix looks like:** establish which surfaces are meant to show
 action groups. If `/dashboard` is one, find the ancestor that is not mounting
@@ -3888,6 +5319,21 @@ var (e.g. `PINGONE_RESOURCE_MCP_SERVER_URI`, matching sibling resolvers'
 precedence) before falling back to `MCP_SERVER_RESOURCE_URI[0]`. (2) once
 DCR is meant to be exercised for real, set `DCR_INITIAL_ACCESS_TOKEN` in
 the deployment's env and document the value's provenance/rotation.
+
+**PART (1) RESOLVED 2026-08-26 (branch `worktree-techdebt-small-correctness`) —
+entry stays OPEN for part (2).** `resolveOwnAudience()` now prefers
+`PINGONE_RESOURCE_MCP_SERVER_URI` (first entry, since that var may itself be a
+comma list) and falls back to `MCP_SERVER_RESOURCE_URI[0]`, matching
+`JwtClaimVerifier`'s precedence. Confirmed inert today: the dedicated var is set
+in neither `docker-compose.yml` nor `k8s/`, and `printenv` inside the live
+`ai-demo-mcp-server` container shows it unset — so this changes no shipped
+behaviour and only removes the reordering fragility. Three tests added to
+`src/oauth/__tests__/TokenIssuer.test.ts` (14 total, RED-proven: 2 fail without
+the change).
+
+Part (2) is deliberately untouched. Wiring `DCR_INITIAL_ACCESS_TOKEN` means
+introducing a secret with no rotation story and no PingOne app behind it, which
+is exactly what this entry said not to do blind.
 
 ### [x] 2026-08-11 — gw-authorize fallback duplicated across two client consumers
 

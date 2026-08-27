@@ -64,7 +64,7 @@ describe("TracingPage", () => {
       vi.fn((url) => {
         const u = String(url);
         if (u.includes("/tracing/status")) {
-          return jsonOk({ ok: true, jaegerUiUrl: "http://jaeger", otelEndpoint: "http://otel" });
+          return jsonOk({ ok: true, tracesUiUrl: "http://grafana", otelEndpoint: "http://otel" });
         }
         if (u.includes("/tracing/services")) {
           return jsonOk({ services: ["quiet-svc", "busy-svc"] });
@@ -101,15 +101,15 @@ describe("TracingPage", () => {
     expect(screen.queryByText(/Try another service/i)).not.toBeInTheDocument();
   });
 
-  it("appends a trailing slash to the Open Jaeger UI link so nginx's /jaeger/ location matches", async () => {
+  it("opens traces in Grafana Explore, never at Jaeger's own unauthenticated UI", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn((url) => {
         const u = String(url);
         if (u.includes("/tracing/status")) {
-          // Backend's jaegerUiBase() strips trailing slashes — the raw value
+          // Backend's tracesUiBase() strips trailing slashes — the raw value
           // reaching the page never has one.
-          return jsonOk({ ok: true, jaegerUiUrl: "https://ai-demo.ping-devops.com/jaeger" });
+          return jsonOk({ ok: true, tracesUiUrl: "https://ai-demo.ping-devops.com/grafana" });
         }
         if (u.includes("/tracing/services")) {
           return jsonOk({ services: ["quiet-svc"] });
@@ -119,8 +119,17 @@ describe("TracingPage", () => {
     );
 
     render(<TracingPage />);
-    const link = await screen.findByRole("link", { name: "Open Jaeger UI" });
-    expect(link).toHaveAttribute("href", "https://ai-demo.ping-devops.com/jaeger/");
+    const link = await screen.findByRole("link", { name: "Open traces in Grafana" });
+    const href = link.getAttribute("href");
+
+    expect(href).toContain("https://ai-demo.ping-devops.com/grafana/explore");
+    // Grafana 11's current deep-link shape; the older `left=` JSON is deprecated.
+    expect(href).toContain("schemaVersion=1");
+    // The datasource must be named or Explore opens on whatever was last used.
+    expect(decodeURIComponent(href)).toContain("ai-demo-jaeger");
+    // The whole point: no link back to the removed public Jaeger route.
+    expect(href).not.toContain("/jaeger/");
+    expect(href).not.toContain(":16686");
   });
 
   it("honors a stored service even when another has newer traces", async () => {
@@ -130,7 +139,7 @@ describe("TracingPage", () => {
       vi.fn((url) => {
         const u = String(url);
         if (u.includes("/tracing/status")) {
-          return jsonOk({ ok: true, jaegerUiUrl: "http://jaeger" });
+          return jsonOk({ ok: true, tracesUiUrl: "http://grafana" });
         }
         if (u.includes("/tracing/services")) {
           return jsonOk({ services: ["quiet-svc", "busy-svc"] });
@@ -155,7 +164,7 @@ describe("TracingPage", () => {
       vi.fn((url) => {
         const u = String(url);
         if (u.includes("/tracing/status")) {
-          return jsonOk({ ok: true, jaegerUiUrl: "http://jaeger" });
+          return jsonOk({ ok: true, tracesUiUrl: "http://grafana" });
         }
         if (u.includes("/tracing/services")) {
           return jsonOk({ services: ["a-svc", "b-svc"] });
@@ -188,7 +197,7 @@ describe("TracingPage", () => {
       vi.fn((url) => {
         const u = String(url);
         if (u.includes("/tracing/status")) {
-          return jsonOk({ ok: true, jaegerUiUrl: "http://jaeger", otelEndpoint: "http://otel" });
+          return jsonOk({ ok: true, tracesUiUrl: "http://grafana", otelEndpoint: "http://otel" });
         }
         if (u.includes("/tracing/services")) {
           return jsonOk({ services: ["quiet-svc", "busy-svc"] });

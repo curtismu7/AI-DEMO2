@@ -10,6 +10,7 @@ import {
 } from "./tracingServiceSelect";
 import TraceGraphView from "../components/TraceGraphView";
 import ProjectedTimeline from "../components/ProjectedTimeline";
+import GatewayMcpMetrics from "../components/GatewayMcpMetrics";
 
 const REFRESH_MS = 15000;
 const LOOKBACK_OPTIONS = [
@@ -233,13 +234,38 @@ export default function TracingPage() {
     bootstrap();
   };
 
-  const jaegerUiUrl = status?.jaegerUiUrl || "http://localhost:16686";
-  // nginx only defines location /jaeger/ (trailing slash) — a bare /jaeger
-  // link 301s through the SPA fallback to an unreachable internal port
-  // instead of proxying to Jaeger. Only the plain "open UI" link needs this;
-  // traceUrl's /trace/:id suffix already lands inside /jaeger/ either way.
-  const jaegerUiRootUrl = jaegerUiUrl.endsWith("/") ? jaegerUiUrl : `${jaegerUiUrl}/`;
-  const traceUrl = (traceId) => `${jaegerUiUrl}/trace/${traceId}`;
+  // Traces open in GRAFANA, not Jaeger's own UI: the public /jaeger/ route is
+  // gone because Jaeger has no auth and was serving its query API to anyone.
+  // Grafana reads Jaeger as a datasource behind a login.
+  const tracesUiUrl = status?.tracesUiUrl || "http://localhost:3000";
+  const JAEGER_DS_UID = "ai-demo-jaeger";
+
+  /**
+   * Grafana Explore deep link. The `panes` + schemaVersion form is Grafana 11's
+   * current shape (the older `left=` JSON is deprecated). Verified against a
+   * live Grafana 11.3: with a trace id it selects the TraceID query type,
+   * fills the field and renders the waterfall; without one it opens Explore
+   * with the Jaeger datasource already selected.
+   */
+  const exploreUrl = (traceId) => {
+    const panes = {
+      a: {
+        datasource: JAEGER_DS_UID,
+        queries: [
+          {
+            refId: "A",
+            datasource: { type: "jaeger", uid: JAEGER_DS_UID },
+            ...(traceId ? { query: traceId } : {}),
+          },
+        ],
+        range: { from: "now-1h", to: "now" },
+      },
+    };
+    return `${tracesUiUrl}/explore?schemaVersion=1&orgId=1&panes=${encodeURIComponent(JSON.stringify(panes))}`;
+  };
+
+  const tracesUiRootUrl = exploreUrl(null);
+  const traceUrl = (traceId) => exploreUrl(traceId);
   const showFullEmpty =
     !loading && !error && traces.length === 0 && (selectionSource === "manual" || selectionSource === "stored");
   const showLightEmpty =
@@ -263,11 +289,11 @@ export default function TracingPage() {
           )}
           <a
             className="tracing-btn tracing-btn--secondary"
-            href={jaegerUiRootUrl}
+            href={tracesUiRootUrl}
             target="_blank"
             rel="noopener noreferrer"
           >
-            Open Jaeger UI
+            Open traces in Grafana
           </a>
           <button type="button" className="tracing-btn" onClick={handleRetry} disabled={loading}>
             Refresh
@@ -320,6 +346,8 @@ export default function TracingPage() {
           <span className="tracing-meta">OTLP {status.otelEndpoint}</span>
         )}
       </div>
+
+      <GatewayMcpMetrics />
 
       {error && (
         <div className="tracing-error" role="alert">

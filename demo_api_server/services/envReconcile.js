@@ -118,6 +118,7 @@ const ENV_AGNOSTIC_KEYS = new Set([
   'ai_agent_token_endpoint_auth_method', 'mcp_exchanger_token_endpoint_auth_method',
   'pingone_token_exchange_auth_method', 'pingone_mcp_token_exchanger_cc_auth_method',
   'pingone_admin_token_endpoint_auth_method', 'pingone_mgmt_token_auth_method',
+  'pingone_user_token_endpoint_auth_method',
   'pingone_worker_token_auth_method', 'pingone_introspection_auth_method', 'mcp_gw_token_endpoint_auth_method',
   // introspection provider selection (p1az vs pingone) — a behaviour choice, not env identity
   'introspectionprovider',
@@ -164,6 +165,9 @@ const ENV_AGNOSTIC_KEYS = new Set([
   // ID-JAG endpoint instead of the demo IdP — move it to ENV_SCOPED_KEYS at that point.
   'enterprise_idp_issuer', 'enterprise_idp_jwks_url', 'enterprise_mcp_as_token_url',
   'enterprise_mcp_as_issuer', 'enterprise_mcp_policy_cache_ttl_ms',
+  // EMA legs 1-2 seeded Inspector client identity — an application-level demo
+  // credential, not tied to which PingOne environment is active.
+  'enterprise_idp_inspector_client_id', 'enterprise_idp_inspector_client_secret',
   // ciba
   'ciba_enabled', 'ciba_token_delivery_mode', 'ciba_binding_message',
   'ciba_poll_interval_ms', 'ciba_auth_request_expiry',

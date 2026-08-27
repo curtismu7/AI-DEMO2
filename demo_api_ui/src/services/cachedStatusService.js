@@ -39,6 +39,10 @@ export async function getCachedStatus(url, config = {}) {
   };
 
   // Make request and cache it. Silent status endpoints must stay silent.
+  // `promise` is referenced inside its own .then/.catch below to detect
+  // whether a newer, faster request already replaced this cache entry by
+  // the time this one resolves -- an older, slower overlapping request must
+  // never clobber a fresher cached response with stale data.
   const promise = fetch(url, requestConfig)
     .then((r) => {
       if (!r.ok) throw new Error(`${url} returned ${r.status}`);
@@ -50,12 +54,18 @@ export async function getCachedStatus(url, config = {}) {
     })
     .then((data) => {
       // Anchor expiry to resolution time, not request-start, so slow requests get a full TTL
-      cache[cacheKey] = { promise: Promise.resolve(data), expires: Date.now() + CACHE_TTL_MS };
+      if (cache[cacheKey]?.promise === promise) {
+        cache[cacheKey] = { promise: Promise.resolve(data), expires: Date.now() + CACHE_TTL_MS };
+      }
       return data;
     })
     .catch((err) => {
-      // Don't cache errors; allow retry on next call
-      delete cache[cacheKey];
+      // Don't cache errors; allow retry on next call — but only if this
+      // request still owns the cache entry (an unrelated fresher entry
+      // must not be evicted by a stale request's failure).
+      if (cache[cacheKey]?.promise === promise) {
+        delete cache[cacheKey];
+      }
       throw err;
     });
 

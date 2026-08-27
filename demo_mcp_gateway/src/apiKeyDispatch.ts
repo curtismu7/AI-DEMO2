@@ -90,6 +90,40 @@ function getToolMeta(toolName: string): ToolMeta {
  * @param apiKeyMaskedLast4    last4 of the service key (Token Chain display only)
  * @param config               GatewayConfig (apiResourceServerBaseUrl / ApiKey)
  */
+/**
+ * Fetch a short-TTL, route-bound credential from the BFF bridge.
+ *
+ * Deliberately NOT cached: per-call is the whole point — a cached credential is
+ * just the static key again with extra steps. Mirrors fetchIdTokenFromBff in
+ * dualTokenDispatch.ts, which already does this handshake.
+ *
+ * Returns null on any refusal so the caller can fail closed. Never falls back
+ * to the static key: that would silently undo the flag exactly when it matters.
+ */
+async function fetchServiceCredential(
+  keyName: string,
+  toolName: string,
+  aud: string,
+  config: GatewayConfig,
+): Promise<string | null> {
+  const url =
+    `${config.bffVaultKeyUrl}?name=${encodeURIComponent(keyName)}` +
+    `&tool=${encodeURIComponent(toolName)}` +
+    `&aud=${encodeURIComponent(aud)}` +
+    '&requester=mcp-gateway';
+  try {
+    const resp = await axios.get(url, {
+      headers: { 'x-internal-gateway-secret': config.bffInternalSecret },
+      timeout: 3000,
+      validateStatus: (s: number) => s < 500,
+    });
+    if (resp.status !== 200) return null;
+    return resp.data?.value || null;
+  } catch {
+    return null;
+  }
+}
+
 export async function buildApiKeyToolResult(
   toolName: string,
   userSub: string,
@@ -138,9 +172,29 @@ export async function buildApiKeyToolResult(
   // The last4 shown here must reflect the key ACTUALLY sent to the backend,
   // not the caller-passed apiKeyMaskedLast4.
   // show_investment uses the invest service's own key; all others use the data service key.
-  const effectiveKey = toolName === 'show_investment'
+  const isInvest = toolName === 'show_investment';
+  let effectiveKey = isInvest
     ? (config.mcpResourceServerApiKey || injected)
     : injected;
+
+  // JIT credentials: ask the broker for a credential bound to THIS tool's
+  // backend route, instead of presenting the long-lived shared key. Fail closed
+  // on refusal — a revoked requester must not fall back to the static key.
+  if (config.jitCredentialsEnabled) {
+    const keyName = isInvest ? 'DEMO_MCP_RESOURCE_SERVER_KEY' : 'DEMO_API_RESOURCE_SERVER_KEY';
+    const aud = isInvest ? 'invest' : (APIKEY_BACKEND_ROUTES[toolName] || '');
+    const minted = await fetchServiceCredential(keyName, toolName, aud, config);
+    if (!minted) {
+      return {
+        ok: false,
+        code: -32500,
+        message: `${meta.displayName} credential broker refused to issue a credential`,
+        data: { credentialPath: 'api_key' },
+      };
+    }
+    effectiveKey = minted;
+  }
+
   const backendLast4 = effectiveKey.length >= 4 ? effectiveKey.slice(-4) : last4;
   let mResp;
   try {

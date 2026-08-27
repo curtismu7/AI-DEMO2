@@ -67,7 +67,7 @@ async function fetchJwks(jwksUri, { allowHttp = false } = {}) {
         try {
           const parsed = JSON.parse(data);
           const keys = parsed.keys || [];
-          jwksCache.set(jwksUri, { keys, expiresAt: Date.now() + JWKS_TTL_MS });
+          jwksCache.set(jwksUri, { keys, expiresAt: Date.now() + JWKS_TTL_MS, pemByKid: new Map() });
           resolve(keys);
         } catch (err) {
           reject(new Error(`Failed to parse JWKS response: ${err.message}`));
@@ -93,6 +93,24 @@ function jwkToPem(jwk) {
   // Use Node.js native key import
   const key = crypto.createPublicKey({ key: jwk, format: 'jwk' });
   return key.export({ type: 'spki', format: 'pem' });
+}
+
+/**
+ * PEM export is pure CPU work re-derivable from the same JWK, so cache it
+ * alongside the JWKS entry it came from — one export per key per JWKS
+ * refresh instead of one per validateToken() call within the 10-minute
+ * JWKS cache window.
+ */
+function getPemForJwk(jwksUri, jwk) {
+  const entry = jwksCache.get(jwksUri);
+  const cacheKey = jwk.kid || jwk.kty;
+  if (entry) {
+    const cached = entry.pemByKid.get(cacheKey);
+    if (cached) return cached;
+  }
+  const pem = jwkToPem(jwk);
+  if (entry) entry.pemByKid.set(cacheKey, pem);
+  return pem;
 }
 
 /**
@@ -143,7 +161,7 @@ async function validateToken(token, { jwksUri, issuer, audience, allowHttp = fal
     throw new Error(`No matching JWKS key found (no kid in token, no RSA key in JWKS)`);
   }
 
-  const pem = jwkToPem(jwk);
+  const pem = getPemForJwk(jwksUri, jwk);
 
   // Verify options — the allow-list is a fixed, server-controlled value.
   // NEVER derive it from the token's own (unverified) header: doing so lets

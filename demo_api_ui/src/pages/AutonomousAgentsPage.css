@@ -1,0 +1,314 @@
+/* Autonomous Agents page. Page-level surface, so it uses the --th-* semantic
+   tokens with literal fallbacks — both themes, per REGRESSION_PLAN. */
+.aap {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  max-width: 900px;
+  color: var(--th-text, #0f172a);
+  /* Explicit base. Without it the page inherited the shell's smaller size and
+     every rule below was relative to something this page never chose — which is
+     why it read small next to its own headings. */
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.aap-head { display: flex; flex-direction: column; gap: 8px; }
+.aap-title { margin: 0; font-size: 30px; font-weight: 600; }
+.aap-lede {
+  margin: 0;
+  max-width: 64ch;
+  color: var(--th-text-muted, #556070);
+  font-size: 16px;
+  line-height: 1.6;
+}
+/* No monospace stack here on purpose: index.css strips monospace from
+   pre/code/kbd/samp/tt repo-wide and a unit test enforces it. The inset
+   background and size shift carry "this is an identifier" on their own. */
+.aap code {
+  font-size: 0.9em;
+  background: var(--th-bg-inset, #f1f5f9);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.aap-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--th-border, #dbe2ea);
+  border-radius: 10px;
+  background: var(--th-bg-card, #ffffff);
+}
+
+.aap-h2 { margin: 0; font-size: 17px; font-weight: 600; }
+.aap-sub {
+  margin: 0;
+  color: var(--th-text-muted, #556070);
+  font-size: 14.5px;
+  line-height: 1.5;
+}
+.aap-empty { margin: 0; color: var(--th-text-muted, #556070); font-size: 15px; }
+
+.aap-toggle-row,
+.aap-runs-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.aap-toggle-row > div { display: flex; flex-direction: column; gap: 4px; }
+
+/* Switch: a real button, not a styled checkbox, so it keeps focus + aria-pressed. */
+.aap-switch {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px 5px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--th-border-strong, #c3cdd9);
+  background: var(--th-bg-inset, #f1f5f9);
+  color: var(--th-text-muted, #556070);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.aap-switch:disabled { opacity: 0.55; cursor: default; }
+.aap-switch:focus-visible { outline: 2px solid var(--th-border-strong, #c3cdd9); outline-offset: 2px; }
+.aap-switch-knob {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--th-text-muted, #556070);
+}
+/* Amber when on: the same signal the Autonomous badge carries on the rail. */
+.aap-switch--on {
+  border-color: #a1620a;
+  background: #fdf3e2;
+  color: #a1620a;
+}
+.aap-switch--on .aap-switch-knob { background: #a1620a; }
+
+.aap-btn {
+  font: inherit;
+  font-size: 14px;
+  padding: 6px 13px;
+  border-radius: 6px;
+  border: 1px solid var(--th-border-strong, #c3cdd9);
+  background: var(--th-bg-card, #ffffff);
+  color: var(--th-text, #0f172a);
+  cursor: pointer;
+}
+.aap-btn:disabled { opacity: 0.55; cursor: default; }
+
+.aap-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.aap-row {
+  border: 1px solid var(--th-border, #dbe2ea);
+  border-radius: 8px;
+  box-shadow: inset 3px 0 0 #a1620a;
+}
+.aap-row--failed,
+.aap-row--denied { box-shadow: inset 3px 0 0 #b3261e; }
+.aap-row--expired { box-shadow: inset 3px 0 0 var(--th-border-strong, #c3cdd9); }
+
+.aap-btnrow { display: flex; gap: 8px; flex-wrap: wrap; }
+.aap-btn--deny { border-color: #b3261e; color: #b3261e; }
+
+/* A run holding a transfer until an absent human answers. */
+.aap-parked {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 12px 12px;
+  padding: 12px;
+  border: 1px solid #a1620a;
+  border-radius: 8px;
+  background: #fdf3e2;
+  color: #0f172a;
+}
+.aap-parked-head { margin: 0; font-size: 14.5px; font-weight: 600; color: #a1620a; }
+.aap-parked-body { margin: 0; font-size: 14px; line-height: 1.5; }
+.aap-parked-sub { margin: 0; font-size: 13px; color: #6b5a3e; }
+
+.aap-gauge { display: flex; flex-direction: column; gap: 5px; }
+.aap-gauge-head { display: flex; justify-content: space-between; font-size: 13.5px; color: #6b5a3e; }
+.aap-gauge-head b { color: #0f172a; font-variant-numeric: tabular-nums; font-weight: 600; }
+.aap-gauge-track { height: 7px; border-radius: 4px; background: rgba(161, 98, 10, 0.18); overflow: hidden; }
+/* Full bar on purpose: a parked run is by definition over its ceiling. */
+.aap-gauge-fill { height: 100%; width: 100%; background: #a1620a; }
+
+.aap-open {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 3px 10px;
+  padding: 10px 12px;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 8px;
+}
+.aap-open:hover { background: var(--th-bg-inset, #f1f5f9); }
+.aap-open:focus-visible { outline: 2px solid var(--th-border-strong, #c3cdd9); outline-offset: -2px; }
+
+.aap-job { font-weight: 600; font-size: 15px; }
+.aap-when,
+.aap-trigger {
+  color: var(--th-text-muted, #556070);
+  font-size: 13.5px;
+  text-align: right;
+}
+.aap-desc {
+  grid-column: 1 / -1;
+  color: var(--th-text-muted, #556070);
+  font-size: 13.5px;
+}
+
+/* ── Explainer ─────────────────────────────────────────────────────────── */
+.aap-explain { gap: 14px; }
+.aap-body {
+  margin: 0;
+  max-width: 70ch;
+  font-size: 15.5px;
+  line-height: 1.7;
+  color: var(--th-text, #0f172a);
+}
+.aap-h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; }
+.aap-points {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 74ch;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--th-text-muted, #556070);
+}
+.aap-points strong { color: var(--th-text, #0f172a); }
+
+.aap-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 720px) { .aap-compare { grid-template-columns: 1fr; } }
+.aap-compare-col {
+  padding: 12px 14px;
+  border: 1px solid var(--th-border, #dbe2ea);
+  border-radius: 8px;
+  background: var(--th-bg-inset, #f1f5f9);
+}
+.aap-compare-col ul {
+  margin: 0;
+  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--th-text-muted, #556070);
+}
+/* The same two accents the trace badge uses: navy for delegated, amber for
+   unattended. Consistency across surfaces is the point — a reader who learns
+   the colour here reads it correctly on the rail. */
+.aap-compare-col--worker { box-shadow: inset 3px 0 0 #16325c; }
+.aap-compare-col--auto { box-shadow: inset 3px 0 0 #a1620a; }
+
+.aap-uses { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+@media (max-width: 860px) { .aap-uses { grid-template-columns: 1fr; } }
+.aap-use {
+  padding: 12px 14px;
+  border: 1px solid var(--th-border, #dbe2ea);
+  border-radius: 8px;
+}
+.aap-use p {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--th-text-muted, #556070);
+}
+.aap-use strong { color: var(--th-text, #0f172a); }
+
+/* ── Expanded run ──────────────────────────────────────────────────────── */
+.aap-chev {
+  color: var(--th-text-muted, #556070);
+  font-size: 13px;
+  width: 12px;
+}
+.aap-open {
+  grid-template-columns: auto auto 1fr auto;
+  align-items: baseline;
+}
+.aap-status {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+.aap-status--completed { color: #0f7b4f; }
+.aap-status--parked { color: #a1620a; }
+.aap-status--denied,
+.aap-status--failed { color: #b3261e; }
+.aap-status--expired { color: var(--th-text-muted, #556070); }
+
+.aap-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 14px 14px;
+  border-top: 1px solid var(--th-border, #dbe2ea);
+}
+.aap-kv {
+  display: grid;
+  grid-template-columns: 170px 1fr;
+  gap: 6px 14px;
+  margin: 10px 0 0;
+  font-size: 14.5px;
+}
+@media (max-width: 640px) { .aap-kv { grid-template-columns: 1fr; gap: 2px; } }
+.aap-kv dt { color: var(--th-text-muted, #556070); }
+.aap-kv dd { margin: 0; color: var(--th-text, #0f172a); }
+
+.aap-findings ul {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14.5px;
+  color: var(--th-text-muted, #556070);
+}
+
+/* The reel is a full component with its own geometry — give it room and let it
+   scroll sideways rather than squeezing the chain. */
+.aap-reel { display: flex; flex-direction: column; gap: 6px; }
+.aap-reel-frame {
+  border: 1px solid var(--th-border, #dbe2ea);
+  border-radius: 8px;
+  background: var(--th-bg-card, #ffffff);
+  overflow-x: auto;
+  min-height: 260px;
+}
+
+/* Shown when the acting identity is not the declared one. Deliberately loud:
+   a silent mismatch is what this whole change exists to stop. */
+.aap-warn {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #a1620a;
+  border-radius: 8px;
+  background: #fdf3e2;
+  color: #0f172a;
+  font-size: 14.5px;
+  line-height: 1.55;
+}
+.aap-warn strong { color: #a1620a; }

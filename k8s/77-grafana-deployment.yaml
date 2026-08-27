@@ -1,0 +1,222 @@
+# Grafana — the only monitoring UI reachable from outside the cluster.
+#
+# Datasource and dashboards are provisioned from files (monitoring/grafana/**,
+# turned into ConfigMaps by k8s/create-secrets.sh) rather than clicked in: this
+# pod's storage is an emptyDir, so anything configured through the UI is gone on
+# the next restart.
+#
+# Sign-in is required. Anonymous access is off and sign-up is off, so the admin
+# account provisioned from grafana-secrets is the only way in. That matters more
+# here than it does for /jaeger: these panels expose the gateway's route names,
+# JVM state and error counts, and this path is on the public internet.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: grafana
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: ai-demo
+      component: grafana
+  template:
+    metadata:
+      labels:
+        app: ai-demo
+        component: grafana
+    spec:
+      securityContext:
+        # grafana image runs as uid 472; the emptyDir must be writable by it.
+        fsGroup: 472
+      containers:
+        - name: grafana
+          image: grafana/grafana:11.3.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+              name: http
+          env:
+            # Read first so the ROOT_URL below can interpolate it. optional:true
+            # keeps the pod starting on a stack where the secret has not been
+            # created yet — Grafana then serves on its own origin.
+            - name: PUBLIC_APP_URL
+              valueFrom:
+                secretKeyRef:
+                  name: ai-demo-secrets
+                  key: PUBLIC_APP_URL
+                  optional: true
+            # Served under /grafana/ behind nginx, so Grafana has to build its
+            # own asset and redirect URLs with that prefix or the UI loads blank.
+            - name: GF_SERVER_ROOT_URL
+              value: "$(PUBLIC_APP_URL)/grafana/"
+            - name: GF_SERVER_SERVE_FROM_SUB_PATH
+              value: "true"
+            # Jaeger datasource URL — differs by target. Here QUERY_BASE_PATH
+            # is /jaeger (k8s/73), and Jaeger answers the ROOT /api/services
+            # with its HTML shell and a 200, which Grafana would accept as a
+            # working datasource that never returns a trace.
+            - name: JAEGER_QUERY_URL
+              value: "http://jaeger:16686/jaeger"
+            - name: GF_SECURITY_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-secrets
+                  key: GF_SECURITY_ADMIN_USER
+                  optional: true
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-secrets
+                  key: GF_SECURITY_ADMIN_PASSWORD
+                  optional: true
+            # Login required: no anonymous viewing, no self sign-up.
+            - name: GF_AUTH_ANONYMOUS_ENABLED
+              value: "false"
+            - name: GF_USERS_ALLOW_SIGN_UP
+              value: "false"
+
+            # ── PingOne SSO ──────────────────────────────────────────────
+            # Grafana's generic OIDC connector against "Demo AI App - Grafana
+            # Login". A dedicated client: nothing here can affect the demo
+            # doors or Admin Login.
+            #
+            # The local admin form stays enabled ON PURPOSE (see
+            # GF_AUTH_DISABLE_LOGIN_FORM below). Grafana is internet-facing at
+            # /grafana, and a wrong secret or redirect URI would otherwise lock
+            # everyone out of the only tool that shows whether the gateway is
+            # healthy.
+            - name: PINGONE_ENV_ID
+              value: "01d89b06-66d5-430e-9f28-65636843788b"
+            - name: GF_AUTH_GENERIC_OAUTH_ENABLED
+              value: "true"
+            - name: GF_AUTH_GENERIC_OAUTH_NAME
+              value: "PingOne"
+            # Public identifier, not a secret — kept here so the client in use
+            # is reviewable in the manifest rather than hidden in a secret.
+            - name: GF_AUTH_GENERIC_OAUTH_CLIENT_ID
+              value: "48ed5e06-8ba2-428d-9c81-cf16eb57f7b4"
+            - name: GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-secrets
+                  key: GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET
+                  optional: true
+            - name: GF_AUTH_GENERIC_OAUTH_SCOPES
+              value: "openid profile email"
+            # Prefills the PingOne username box so a demo does not start by
+            # typing. Verified live: without login_hint the field renders empty,
+            # with it the field renders "demoUser".
+            #
+            # Grafana has no login_hint setting, so it rides on the auth URL.
+            # That is safe: Grafana's OAuth library detects the existing "?" and
+            # appends its own params with "&" — confirmed by inspecting the real
+            # redirect, which comes out as
+            #   ...as/authorize?login_hint=demoUser&client_id=...&code_challenge=...
+            # Blank this to drop the prefill; it is only a prefill, and anyone
+            # can clear the box and sign in as someone else.
+            - name: GRAFANA_LOGIN_HINT
+              value: "demoUser"
+            - name: GF_AUTH_GENERIC_OAUTH_AUTH_URL
+              value: "https://auth.pingone.com/$(PINGONE_ENV_ID)/as/authorize?login_hint=$(GRAFANA_LOGIN_HINT)"
+            - name: GF_AUTH_GENERIC_OAUTH_TOKEN_URL
+              value: "https://auth.pingone.com/$(PINGONE_ENV_ID)/as/token"
+            - name: GF_AUTH_GENERIC_OAUTH_API_URL
+              value: "https://auth.pingone.com/$(PINGONE_ENV_ID)/as/userinfo"
+            # The app is created with pkceEnforcement S256_REQUIRED, so PingOne
+            # rejects the code exchange outright without this.
+            - name: GF_AUTH_GENERIC_OAUTH_USE_PKCE
+              value: "true"
+            # Claims come from attribute mappings added to the app — PingOne
+            # emits only `sub` by default, and without these Grafana
+            # authenticates the user and then cannot build an account.
+            - name: GF_AUTH_GENERIC_OAUTH_LOGIN_ATTRIBUTE_PATH
+              value: "preferred_username"
+            - name: GF_AUTH_GENERIC_OAUTH_EMAIL_ATTRIBUTE_PATH
+              value: "email"
+            - name: GF_AUTH_GENERIC_OAUTH_NAME_ATTRIBUTE_PATH
+              value: "name"
+            # A JMESPath literal, not a claim lookup: every PingOne user who
+            # signs in is a read-only Viewer. Editing is deliberately reserved
+            # to the local admin, and dashboards are provisioned from files
+            # anyway, so Editor would buy nothing.
+            - name: GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH
+              value: "'Viewer'"
+            - name: GF_AUTH_GENERIC_OAUTH_ALLOW_SIGN_UP
+              value: "true"
+            # Keep the local admin form as the lockout fallback.
+            - name: GF_AUTH_DISABLE_LOGIN_FORM
+              value: "false"
+            # Nothing here should phone home from a demo cluster.
+            - name: GF_ANALYTICS_REPORTING_ENABLED
+              value: "false"
+            - name: GF_ANALYTICS_CHECK_FOR_UPDATES
+              value: "false"
+          volumeMounts:
+            - name: datasources
+              mountPath: /etc/grafana/provisioning/datasources
+            - name: dashboard-provider
+              mountPath: /etc/grafana/provisioning/dashboards
+            - name: dashboards
+              mountPath: /var/lib/grafana/dashboards
+            - name: data
+              mountPath: /var/lib/grafana
+              subPath: data
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "50m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 3
+            failureThreshold: 3
+      volumes:
+        - name: datasources
+          configMap:
+            name: grafana-datasources
+            optional: true
+        - name: dashboard-provider
+          configMap:
+            name: grafana-dashboard-provider
+            optional: true
+        - name: dashboards
+          configMap:
+            name: grafana-dashboards
+            optional: true
+        - name: data
+          emptyDir: {}
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: grafana
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3000
+      targetPort: 3000
+      protocol: TCP
+      name: http
+  selector:
+    app: ai-demo
+    component: grafana

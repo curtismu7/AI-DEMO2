@@ -4,9 +4,9 @@
   "ucId": "UC2",
   "trigger": "show my sensitive membership details",
   "expectedOutcome": "PERMIT",
-  "capturedAt": "2026-07-27T21:25:37.980Z",
-  "seedHash": "c48bf4072b509915",
+  "capturedAt": "2026-08-24T14:02:07.675Z",
+  "seedHash": "bbfe417d11c6b000",
   "reply": "Delegation complete — Membership Specialist retrieved sensitive membership details on your behalf (act-chain depth 2).",
   "agentPath": null,
-  "tokenEventCount": 14
+  "tokenEventCount": 15
 }

@@ -66,21 +66,70 @@ data:
             proxy_cache_bypass $http_upgrade;
         }
 
-        # Proxy /jaeger/ to the in-cluster Jaeger query UI (plain HTTP; base path
-        # set via QUERY_BASE_PATH=/jaeger on the jaeger deployment). Mirrors the
-        # block in k8s/02-configmap.yaml (this file overrides that configmap on AWS).
-        location /jaeger/ {
-            # No trailing slash on proxy_pass: preserve the /jaeger prefix so it
-            # matches Jaeger's QUERY_BASE_PATH=/jaeger. Stripping it makes
-            # /jaeger/api/* hit Jaeger's SPA catch-all (HTML) instead of the
-            # query API (JSON), which breaks the trace view.
-            proxy_pass http://jaeger:16686;
+        # External MCP client doors (LM Studio, LibreChat). These three routes
+        # existed ONLY in k8s/02-configmap.yaml, which this file overrides on
+        # AWS/SE — so every deploy that re-applied this configmap silently
+        # removed them and nginx answered POSTs with its own 405 HTML. Added
+        # here 2026-08-25 so they survive a deploy. Keep in sync with the
+        # matching blocks in k8s/02-configmap.yaml.
+
+        # Recording façade in the BFF — same host/cert as /api/ above.
+        location /mcp-facade/ {
+            proxy_pass https://demo-api-server:3001/mcp-facade/;
+            proxy_ssl_verify off;
             proxy_http_version 1.1;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto https;
         }
+
+        # Agent Gateway's own OAuth broker (RFC 8414 metadata + RFC 7591 DCR +
+        # authorize/callback/token) — reached DIRECTLY by the external client,
+        # not through the façade. Scoped to exactly these two prefixes: the
+        # gateway's other root-level routes (/health, /admin/*, /mcp) must
+        # stay internal — this is the only public door into mcp-gateway:3005.
+        location /oauth/ {
+            proxy_pass http://mcp-gateway:3005/oauth/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-Proto https;
+        }
+        location = /.well-known/oauth-authorization-server {
+            proxy_pass http://mcp-gateway:3005/.well-known/oauth-authorization-server;
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-Proto https;
+        }
+
+        # There is deliberately NO location /jaeger/ here.
+        #
+        # Jaeger has no authentication of any kind, so proxying it published its
+        # query API to the internet: GET /jaeger/api/services returned the full
+        # service list to anyone, unauthenticated. Traces carry request URLs,
+        # correlation ids and the service topology — strictly more than the
+        # Grafana metrics next door, which require a login.
+        #
+        # Traces are still reachable, behind sign-in: Grafana has Jaeger as a
+        # datasource (monitoring/grafana/provisioning/datasources/jaeger.yml) and
+        # talks to jaeger:16686 in-cluster, never through nginx. The /tracing
+        # page links into Grafana Explore instead of Jaeger's own UI.
+        #
+        # The BFF's own /api/health/tracing/* proxy is unaffected — it reaches
+        # Jaeger server-side and is governed by auth-requirements.json.
+
+        # There is deliberately NO location /grafana/ here. It moved to its own
+        # path on the SE ingress (k8s/aws/se-ingress.yaml), routed straight to
+        # the grafana Service.
+        #
+        # Why: nginx resolves the literal upstream in `proxy_pass http://grafana`
+        # at STARTUP and exits when it does not resolve. So proxying Grafana from
+        # here made the entire app depend on Grafana existing — on 2026-08-27 a
+        # deploy without it crash-looped the frontend and took the whole site
+        # down, /api and the MCP door included, not just /grafana.
+        #
+        # Every remaining proxy_pass in this file (demo-api-server, mcp-gateway)
+        # has the same startup-resolution property, so anything added here must
+        # be a Service the frontend genuinely cannot serve without. Grafana is
+        # not: it is a separate tool that happens to share a hostname.
 
         # Security headers
         add_header X-Frame-Options "SAMEORIGIN" always;

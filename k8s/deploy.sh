@@ -115,6 +115,13 @@ deploy() {
   kubectl apply -f "$SCRIPT_DIR/65-mastra-agent-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/66-openai-agent-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/67-pydantic-agent-deployment.yaml"
+  # Monitoring — MUST be applied before the frontend. nginx resolves the
+  # literal upstream in `proxy_pass http://grafana` at STARTUP and exits if it
+  # does not resolve ("host not found in upstream"), so a frontend that starts
+  # without the grafana Service does not degrade to a broken /grafana — it
+  # crash-loops and takes the WHOLE site down.
+  kubectl apply -f "$SCRIPT_DIR/76-prometheus-deployment.yaml"
+  kubectl apply -f "$SCRIPT_DIR/77-grafana-deployment.yaml"
   # Frontend
   kubectl apply -f "$SCRIPT_DIR/10-frontend-deployment.yaml"
 
@@ -588,7 +595,30 @@ stop_forward() {
 }
 
 destroy() {
+  # This is the ONLY command in the repo that deletes a namespace, and it is
+  # meant for the local cluster only. Nothing may delete a namespace on the
+  # shared SE cluster: those are cluster-managed, and getting one back needs a
+  # JIRA DEVHELP ticket. `se-undeploy` deliberately deletes only the resources
+  # INSIDE its namespace for the same reason.
+  #
+  # Guarded on the kubectl context rather than on $NS, because the danger is
+  # running this while pointed at the shared cluster — which is the normal
+  # state after any se-* command, since those switch the context to `us`.
+  local ctx
+  ctx="$(kubectl config current-context 2>/dev/null || true)"
+  case "$ctx" in
+    us|ping-dev-aws-us-east-2*|*eks*|*aws*)
+      demo_err "Refusing: kubectl context is '$ctx' — a shared/remote cluster."
+      demo_err "destroy deletes a whole namespace and is for the LOCAL cluster only."
+      demo_err "To clear the SE namespace without deleting it: ./run-pingaws.sh undeploy"
+      demo_err "If you really mean a local teardown, switch context first:"
+      demo_err "  kubectl config use-context orbstack   # or docker-desktop"
+      exit 1
+      ;;
+  esac
+
   warn "This will delete the entire $NS namespace and all resources."
+  warn "kubectl context: $ctx"
   read -r -p "Type 'yes' to confirm: " confirm
   [ "$confirm" = "yes" ] || { info "Aborted."; exit 0; }
   kubectl delete namespace "$NS"
@@ -840,8 +870,15 @@ demo_sync_cmd() {
     kubectl rollout status deployment/mcp-gateway -n "$NS" --timeout=180s \
       || warn "mcp-gateway rollout slow — check: kubectl get pods -n $NS -l component=mcp-gateway"
   else
-    success "Real stack (P1AZ + PingGateway) — stopping demo mcp-gateway"
-    kubectl scale deployment/mcp-gateway -n "$NS" --replicas=0 2>/dev/null || true
+    # mcp-gateway is deliberately LEFT RUNNING here (changed 2026-08-25).
+    # It is no longer just the demo-mode gateway: external MCP clients (LM
+    # Studio et al) reach it through the BFF recording façade, whose
+    # agent-gateway door targets http://mcp-gateway:3005/mcp unconditionally
+    # and whose OAuth broker is served by this same deployment. Scaling it to
+    # 0 in real-stack mode 502'd every external door. The flag still selects
+    # what the demo UI routes to (proxy_gw_url / MCP_GATEWAY_HTTP_URL below)
+    # and whether ping-gateway runs — it just no longer stops this one.
+    success "Real stack (P1AZ + PingGateway) — routing demo UI at PingGateway (mcp-gateway stays up for external MCP doors)"
     kubectl scale deployment/ping-gateway -n "$NS" --replicas=1
     proxy_gw_url="http://ping-gateway:8080"
     kubectl rollout status deployment/ping-gateway -n "$NS" --timeout=300s \

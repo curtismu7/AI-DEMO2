@@ -1444,6 +1444,36 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
     [accounts],
   );
 
+  // Recent-transactions feed: sort + Today/Yesterday/date-bucket grouping.
+  // Depends only on `transactions` — memoized so it doesn't re-run on every
+  // unrelated re-render (e.g. typing in the transfer amount field).
+  const recentTxGroups = useMemo(() => {
+    const sorted = [...transactions]
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, 20);
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const yesterdayStart = new Date(todayStart);
+    yesterdayStart.setDate(todayStart.getDate() - 1);
+
+    const groups = [];
+    for (const tx of sorted) {
+      const dStart = new Date(tx.createdAt);
+      dStart.setHours(0, 0, 0, 0);
+      const label =
+        dStart >= todayStart
+          ? "Today"
+          : dStart >= yesterdayStart
+            ? "Yesterday"
+            : format(dStart, "EEE, MMM d");
+      const last = groups[groups.length - 1];
+      if (!last || last.label !== label) groups.push({ label, items: [tx] });
+      else last.items.push(tx);
+    }
+    return groups;
+  }, [transactions]);
+
   const accountsAnchorRef = useRef(null);
   const agentColumnRef = useRef(null);
 
@@ -2515,33 +2545,10 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
           </p>
         )}
         {(() => {
-          const sorted = [...transactions]
-            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-            .slice(0, 20);
+          const txGroups = recentTxGroups;
 
-          if (sorted.length === 0) {
+          if (txGroups.length === 0) {
             return null;
-          }
-
-          const todayStart = new Date();
-          todayStart.setHours(0, 0, 0, 0);
-          const yesterdayStart = new Date(todayStart);
-          yesterdayStart.setDate(todayStart.getDate() - 1);
-
-          const txGroups = [];
-          for (const tx of sorted) {
-            const dStart = new Date(tx.createdAt);
-            dStart.setHours(0, 0, 0, 0);
-            const label =
-              dStart >= todayStart
-                ? "Today"
-                : dStart >= yesterdayStart
-                  ? "Yesterday"
-                  : format(dStart, "EEE, MMM d");
-            const last = txGroups[txGroups.length - 1];
-            if (!last || last.label !== label)
-              txGroups.push({ label, items: [tx] });
-            else last.items.push(tx);
           }
 
           const txTypeStyle = (type) => {

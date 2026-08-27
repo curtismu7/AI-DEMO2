@@ -71,7 +71,7 @@ const DEFAULT_MODELS: Record<string, string> = {
   llamacpp: 'local-model',
   mlx: 'local-model',
   google: 'gemini-2.0-flash',
-  groq: 'llama-3.3-70b-versatile',
+  groq: 'openai/gpt-oss-20b',
 };
 
 // Map our internal ReasonMessage[] to LangChain BaseMessage[] for the llama.cpp path.

@@ -146,6 +146,7 @@ const DENY_CODE_BY_REASON_PREFIX = {
   malformed_user_groups: 'mcp-user-not-in-group',
   user_not_in_group: 'mcp-user-not-in-group',
   amount_exceeds_ceiling: 'transaction-denied',
+  autonomous_no_mandate: 'autonomous-no-mandate',
   tier_tool_not_allowed: 'mcp-tier-tool-not-allowed',
   tier_amount_exceeded: 'mcp-tier-amount-exceeded',
   invalid_kid: 'mcp-invalid-kid',
@@ -214,6 +215,10 @@ module.exports = async function decisionHandler(req, res) {
   const params = req.body?.parameters || {};
 
   const {
+    // Autonomous-agent standing mandate (Rule 0m). Both default to '' so every
+    // existing caller — which sends neither — leaves the rule inert.
+    AgentClass = '',
+    MandateMaxAmount = '',
     DecisionContext = '',
     ToolName = '',
     ClientId = '',
@@ -306,6 +311,83 @@ module.exports = async function decisionHandler(req, res) {
   });
 
   log(`[AuthzServer/decision] policy=${workerId} ctx=${DecisionContext} tool=${ToolName || '(none)'} sub=${ClientId || '(none)'} actor=${ActClientId || '(none)'} aud=${TokenAudActual || TokenAudience || '(none)'} exp=${TokenExp || '(none)'} scopes=[${TokenScopes}] hitlApproved=${hitlApproved} intentValid=${IntentTokenValid || 'absent'} intentMatch=${IntentMatchesTool || 'absent'} intent=${IntentIntent || '(none)'} rar=${RarAuthorizationDetails ? 'present' : 'absent'}`);
+
+  // ── Rule 0m: Autonomous agent standing mandate ───────────────────────────
+  // An agent running with nobody signed in has no user entitlements to bound it
+  // and no one present to consent, so the ceiling IS the consent — granted ahead
+  // of time in the agent's declaration and enforced HERE rather than in the
+  // caller. Inert unless the caller declares AgentClass='autonomous'.
+  //
+  // Three outcomes, and the middle one is the point:
+  //   no mandate     nothing to evaluate against, so the request never reaches an
+  //                  explicit permit or deny → DENY, fail closed. Deliberately
+  //                  NOT a pause: asking a human to approve a request no policy
+  //                  could reason about moves an unbounded agent past a rubber
+  //                  stamp.
+  //   over ceiling   a rule matched and refuses it ALONE → PERMIT carrying an
+  //                  unfulfilled ciba-approval obligation. The PEP raises CIBA.
+  //   within         falls through to the rest of policy unchanged.
+  if (AgentClass === 'autonomous') {
+    const amt = parseFloat(TransactionAmount);
+    if (TransactionAmount !== '' && Number.isNaN(amt)) {
+      warn(`[AuthzServer/decision] DENY — invalid_transaction_amount: autonomous agent sent "${TransactionAmount}"`);
+      return deny(res, `invalid_transaction_amount: TransactionAmount "${TransactionAmount}" could not be parsed as a number`);
+    }
+    const ceiling = MandateMaxAmount === '' ? NaN : parseFloat(MandateMaxAmount);
+    if (Number.isNaN(ceiling) || ceiling <= 0) {
+      warn('[AuthzServer/decision] DENY — autonomous_no_mandate: no standing mandate to evaluate against');
+      return deny(res, 'autonomous_no_mandate: the agent declares no standing mandate, so nothing may be moved unattended');
+    }
+
+    // The absolute limit is checked BEFORE the pause, and that order is the
+    // point: past this line there is no approval to give. Offering a human the
+    // chance to wave through a $50k unattended transfer because it "only" needs
+    // consent would make the absolute ceiling advisory.
+    const DENY_CEILING_USD = parseFloat(process.env.SIMULATED_AUTHORIZE_DENY_AMOUNT || '2000');
+    if (!Number.isNaN(amt) && amt > DENY_CEILING_USD) {
+      warn(`[AuthzServer/decision] DENY — amount_exceeds_ceiling: $${amt} > $${DENY_CEILING_USD} (autonomous)`);
+      return deny(res, `amount_exceeds_ceiling: $${amt} exceeds the absolute deny limit of $${DENY_CEILING_USD}`);
+    }
+
+    if (!Number.isNaN(amt) && amt > ceiling) {
+      log(`[AuthzServer/decision] PERMIT+obligation — CIBA_APPROVAL: $${amt} > standing mandate $${ceiling}`);
+      return pausePermit(res, 'CIBA_APPROVAL', 'ciba-approval-required');
+    }
+
+    // Within the mandate. Rule 0m is TERMINAL for an autonomous transfer: the
+    // rules below are MCP-tool-call shaped (audience, act chain, tool scopes)
+    // and an unattended transfer is not an MCP tool call — falling through
+    // would deny it on `invalid_aud` for a gateway it never talks to.
+    log(`[AuthzServer/decision] PERMIT — autonomous within standing mandate: $${amt} <= $${ceiling}`);
+    return permit(res, 'AUTONOMOUS_WITHIN_MANDATE');
+  }
+
+  // ── DecisionContext: TokenExchange — RFC 8693 token-exchange mint gate ────
+  // routes/token.js already verified the inbound subject/actor token signatures
+  // before calling here; this decision only answers whether the REQUESTED
+  // audience/scope may be minted, against the same resource/scope registry
+  // (scopeTopology.js) every other rule in this file treats as the source of
+  // truth. Runs BEFORE rules 0a-0f: those validate claims on an
+  // ALREADY-ISSUED MCP token (aud/exp/iat/nbf/iss against the gateway's own
+  // identity) and do not apply to a request for a brand-new token.
+  if (DecisionContext === 'TokenExchange') {
+    const { RequestedAudience = '', RequestedScope = '' } = params;
+    const allowedAuds = new Set(
+      [scopeTopology.gatewayAudience(), ...scopeTopology.upstreamAudiences()].filter(Boolean),
+    );
+    if (!allowedAuds.has(asStr(RequestedAudience))) {
+      warn(`[AuthzServer/decision] DENY — token exchange requested unknown audience: "${RequestedAudience}"`);
+      return deny(res, `invalid_target: audience "${RequestedAudience}" is not a known resource`);
+    }
+    const allowedScopeSet = new Set(scopeTopology.allowedScopes());
+    const requestedScopeList = asStr(RequestedScope).split(/\s+/).filter(Boolean);
+    const unknownScope = requestedScopeList.find((s) => !allowedScopeSet.has(s));
+    if (unknownScope) {
+      warn(`[AuthzServer/decision] DENY — token exchange requested unknown scope: "${unknownScope}"`);
+      return deny(res, `invalid_scope: "${unknownScope}" is not a known scope`);
+    }
+    return permit(res, 'token exchange permitted');
+  }
 
   // ── Rule 0a: sub (user identity) must be present ──────────────────────────
   if (!ClientId || !asStr(ClientId).trim()) {
@@ -1141,7 +1223,14 @@ function deny(res, reason, code) {
  * @param {'STEP_UP'|'HITL_CONSENT'|'ELICITATION'} reason
  */
 function obligationFor(reason) {
-  const id = { STEP_UP: 'step-up', HITL_CONSENT: 'hitl-consent', ELICITATION: 'elicitation-confirm' }[reason];
+  const id = {
+    STEP_UP: 'step-up',
+    HITL_CONSENT: 'hitl-consent',
+    ELICITATION: 'elicitation-confirm',
+    // Autonomous agent over its standing mandate: the PEP must reach the absent
+    // human out of band (CIBA) rather than prompt a session that does not exist.
+    CIBA_APPROVAL: 'ciba-approval',
+  }[reason];
   return [{ id, type: reason, obligatory: true, fulfilled: false }];
 }
 

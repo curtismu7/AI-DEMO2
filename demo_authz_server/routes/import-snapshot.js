@@ -196,11 +196,22 @@ module.exports = async function importSnapshot(req, res) {
     } else {
       let attributeEquality = false;
       const audConstants = [];
+      // Only constants compared against TokenAudience count. Previously every
+      // branch compared that one attribute so an unfiltered walk was
+      // equivalent; the external-door exemption also compares TokenIss, and
+      // collecting those issuer URLs as if they were audiences produced a false
+      // mcp_audience_mismatch. Resolved by NAME from the snapshot's own
+      // ATTRIBUTE objects so this stays correct if the id ever changes.
+      const audienceAttrIds = new Set(
+        attributes.filter((a) => a.name === 'TokenAudience').map((a) => a.id),
+      );
+      const isAudienceLeft = (cmp) => !audienceAttrIds.size
+        || (cmp.left && cmp.left.attribute && audienceAttrIds.has(cmp.left.attribute.id));
       const walkAud = (node) => {
         if (!node || typeof node !== 'object') return;
         if (node.comparison) {
           if (node.comparison.right && node.comparison.right.attribute) attributeEquality = true;
-          if (node.comparison.right && node.comparison.right.constant) {
+          if (node.comparison.right && node.comparison.right.constant && isAudienceLeft(node.comparison)) {
             const v = node.comparison.right.constant.value;
             if (typeof v === 'string' && v) audConstants.push(v);
           }
@@ -221,15 +232,35 @@ module.exports = async function importSnapshot(req, res) {
             'gateway identity constants.',
         });
       }
+      // External-door exemption (2026-08-26): HasValidMcpAudience also accepts
+      // the upstream MCP server audience, but ONLY inside an AND with TokenIss.
+      // walkAud recurses into `and`, so that constant lands in audConstants and
+      // would read as a foreign identity — a false mcp_audience_mismatch 409,
+      // the same drift-between-copies failure this validator already carries a
+      // comment about. Expect it whenever the SoT declares a door.
+      const declaredDoorIssuers = Object.values(
+        (manifest.deployment && manifest.deployment.environments) || {},
+      ).flatMap((e) => (e && e.externalDoorIssuers) || []);
+      const externalDoorAud = declaredDoorIssuers.length
+        && manifest.resources
+        && manifest.resources['Super Banking MCP Server']
+        && manifest.resources['Super Banking MCP Server'].uri;
+      const expectedAuds = [...new Set(
+        externalDoorAud ? [...sotGatewayAuds, externalDoorAud] : sotGatewayAuds,
+      )].sort();
       const snapshotAuds = [...new Set(audConstants)].sort();
-      if (!attributeEquality && JSON.stringify(snapshotAuds) !== JSON.stringify(sotGatewayAuds)) {
+      if (!attributeEquality && JSON.stringify(snapshotAuds) !== JSON.stringify(expectedAuds)) {
         conflicts.push({
           type: 'mcp_audience_mismatch',
           snapshot: snapshotAuds,
-          sot: sotGatewayAuds,
+          // expectedAuds, not sotGatewayAuds: with a door declared the expected
+          // set includes the external-door audience, and reporting the narrower
+          // set would send a reader hunting a "foreign" identity that is correct.
+          sot: expectedAuds,
           message:
-            'HasValidMcpAudience constants do not match the SoT gateway identities. A dropped identity ' +
-            'denies that gateway wholesale; a foreign one admits no real caller.',
+            'HasValidMcpAudience constants do not match the SoT gateway identities' +
+            (externalDoorAud ? ' plus the external-door audience' : '') +
+            '. A dropped identity denies that gateway wholesale; a foreign one admits no real caller.',
         });
       }
     }

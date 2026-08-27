@@ -1,7 +1,7 @@
 import DraggableModal from "./DraggableModal";
 import "./KillSwitchConfirmModal.css";
 
-// Entry gate shown when the user clicks the "AI Control Plane" side-nav item.
+// Entry gate shown when the user clicks the "Agent Kill Switch" side-nav item.
 // Reuses the Stop-Agent confirm modal's look, but it does NOT stop anything —
 // confirming just navigates into the control-plane console.
 export default function ControlPlaneIntroModal({ isOpen, onConfirm, onCancel }) {
@@ -9,7 +9,7 @@ export default function ControlPlaneIntroModal({ isOpen, onConfirm, onCancel }) 
     <DraggableModal
       isOpen={isOpen}
       onClose={onCancel}
-      title="Enter AI Control Plane"
+      title="Enter Agent Kill Switch"
       defaultWidth={480}
       defaultHeight={360}
       storageKey="control-plane-intro-modal"
@@ -29,7 +29,7 @@ export default function ControlPlaneIntroModal({ isOpen, onConfirm, onCancel }) 
       <div className="dm-scroll">
         <div className="ksm-instructions">
           <p className="ksm-instructions-lead">
-            The AI Control Plane is where you <strong>govern, authorize, audit,
+            The Agent Kill Switch is where you <strong>govern, authorize, audit,
             and shut down</strong> AI agents across every platform — your live
             agent plus connected platforms like ChatGPT, Copilot, Glean, and
             others. Stopping an agent here revokes its identity at Ping, so

@@ -841,19 +841,40 @@ async function runMcpToolPipeline(ctx) {
                 }
             ));
         } catch (err) {
-            deps.emit({
-                phase: 'introspection_error_degraded'
-            });
-            tokenEvents.push(deps.buildTokenEvent(
-                'session-token-introspection',
-                'Session Token — PingOne Introspection (RFC 7662)',
-                'degraded',
-                null,
-                `Introspection endpoint error — continuing in degraded mode. ${err.message}`,
-                { rfc: 'RFC 7662' }
-            ));
-            logger.error(_CAT, `[MCP Proxy] Session token introspection error for tool ${tool}: ${err.message}`);
-            // Continue on introspection failure (graceful degradation) but log the error
+            // INTROSPECTION_NOT_CONFIGURED means no credential could introspect THIS
+            // token's issuer (see tokenIntrospectionService.selectIntrospectionCredentials)
+            // — expected and permanent for a PKCE-only public client with no client_secret
+            // (e.g. the User Login app since 2026-08-24), not a transient failure. Same
+            // distinction tokenVerificationService.js already makes for this error code:
+            // skip quietly instead of logging an ERROR every single call.
+            if (err.code === 'INTROSPECTION_NOT_CONFIGURED') {
+                deps.emit({
+                    phase: 'introspection_not_configured'
+                });
+                tokenEvents.push(deps.buildTokenEvent(
+                    'session-token-introspection',
+                    'Session Token — PingOne Introspection (RFC 7662)',
+                    'skipped',
+                    null,
+                    'No introspection credential for this token\'s issuer — session token liveness is not verified on this tool call.',
+                    { rfc: 'RFC 7662' }
+                ));
+                logger.warn(_CAT, `[MCP Proxy] Session token introspection skipped for tool ${tool}: no credential for this token's issuer`);
+            } else {
+                deps.emit({
+                    phase: 'introspection_error_degraded'
+                });
+                tokenEvents.push(deps.buildTokenEvent(
+                    'session-token-introspection',
+                    'Session Token — PingOne Introspection (RFC 7662)',
+                    'degraded',
+                    null,
+                    `Introspection endpoint error — continuing in degraded mode. ${err.message}`,
+                    { rfc: 'RFC 7662' }
+                ));
+                logger.error(_CAT, `[MCP Proxy] Session token introspection error for tool ${tool}: ${err.message}`);
+            }
+            // Continue on introspection failure either way (graceful degradation)
         }
     } else {
         deps.emit({

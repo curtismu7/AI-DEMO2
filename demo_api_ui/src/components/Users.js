@@ -123,6 +123,7 @@ const Users = ({ user, onLogout }) => {
       );
     } catch (err) {
       console.error('Failed to update agentRestrictions:', err);
+      notifyError('Failed to update agent restrictions');
     } finally {
       setAgentRestrictionsUpdating((prev) => ({ ...prev, [userId]: false }));
     }

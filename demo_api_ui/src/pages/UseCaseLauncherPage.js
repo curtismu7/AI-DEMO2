@@ -7,7 +7,7 @@
  * A5.2 (slim launch drawer on /agent) — NOT included here; deferred.
  * A5.3 — FF-aware notice + inline toggle; Run auto-enables required flags.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AttackAnatomyExplainer from '../components/AttackAnatomyExplainer';
 import GroupMembershipToggle from '../components/GroupMembershipToggle';
@@ -293,14 +293,21 @@ function AttackSimResult({ result }) {
 /**
  * PromptSection — displays agent prompt with copy button.
  */
-function PromptSection({ prompt }) {
+export function PromptSection({ prompt }) {
   const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(prompt).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
+    navigator.clipboard.writeText(prompt).then(
+      () => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      },
+      () => {
+        setCopyFailed(true);
+        setTimeout(() => setCopyFailed(false), 2000);
+      }
+    );
   };
 
   return (
@@ -311,10 +318,10 @@ function PromptSection({ prompt }) {
           type="button"
           className={`uc-card__copy-btn${copied ? ' uc-card__copy-btn--copied' : ''}`}
           onClick={handleCopy}
-          title={copied ? 'Copied!' : 'Copy prompt'}
+          title={copied ? 'Copied!' : copyFailed ? 'Copy failed' : 'Copy prompt'}
           aria-label="Copy prompt to clipboard"
         >
-          {copied ? '✓ Copied' : 'Copy'}
+          {copied ? '✓ Copied' : copyFailed ? 'Copy failed' : 'Copy'}
         </button>
       </div>
       <p className="uc-card__what-to-say">{prompt}</p>
@@ -754,6 +761,11 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
   // Lifecycle of the chip "Run" the user last clicked, for one card at a time:
   // { id, state: 'running' | 'error', msg? }. Guards double-clicks and surfaces errors.
   const [chipRun, setChipRun] = useState(null);
+  // Monotonic token for the in-flight chip launch chain. Bumped at the start of
+  // every handleRun call; a chain checks its captured token against this ref
+  // before applying its result, so a slower, earlier launch can never clobber
+  // chipRun/navigate() after a faster, later launch has already landed.
+  const chipRunTokenRef = useRef(0);
 
   const [query, setQuery] = useState('');
 
@@ -825,6 +837,7 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
       setChipRun({ id: uc.id, state: 'error', msg: 'This use case is misconfigured (no id).' });
       return;
     }
+    const myRunToken = ++chipRunTokenRef.current;
     setChipRun({ id: uc.id, state: 'running' });
     // Auto-arm required flags so Run is not blocked when maturity is flag:* or A2A.
     // Skipped for public use cases: arming PATCHes an admin route, and its 401
@@ -848,6 +861,9 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
           .then(() => data);
       })
       .then((data) => {
+        // A newer Run click has since started its own chain — discard this
+        // stale one so it can't overwrite chipRun or navigate over the newer run.
+        if (myRunToken !== chipRunTokenRef.current) return;
         // Navigation unmounts this page, so chipRun need not be cleared here.
         // Persist launcher origin so TopNav can show "← Use Cases" after AIAgent
         // clears router state.
@@ -863,6 +879,7 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
         });
       })
       .catch((err) => {
+        if (myRunToken !== chipRunTokenRef.current) return;
         console.error('Failed to run use case:', err);
         // The BFF now says WHICH sign-in a refused step wants, so offer it
         // instead of printing a dead error the visitor can do nothing with.
@@ -922,33 +939,46 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
       });
   }, [recordCompleted]);
 
-  const happyPathAll = useCases.filter(
-    (uc) => uc.expectedOutcome === 'PERMIT' && !PROGRESSIVE_TRUST_STRIP_IDS.has(uc.id)
+  // These derivations used to run directly in the render body on every
+  // render (including unrelated state changes elsewhere in this large
+  // component), re-scanning the full cross-vertical use-case catalog on
+  // every keystroke in the search box. Memoized on the inputs that
+  // actually change: the `*All`/id-Set derivations depend only on
+  // `useCases` (or nothing, for the static config lookups), and the
+  // query-filtered lists depend on those plus `query` (finding #66,
+  // round-4 audit).
+  const authorizeIds = useMemo(() => new Set(allPingOneAuthorizeUCIds()), []);
+  const agentGatewayIds = useMemo(() => new Set(allAgentGatewayUCIds()), []);
+
+  const happyPathAll = useMemo(
+    () => useCases.filter(
+      (uc) => uc.expectedOutcome === 'PERMIT' && !PROGRESSIVE_TRUST_STRIP_IDS.has(uc.id)
+    ),
+    [useCases]
   );
-  const happyPathIds = new Set(happyPathAll.map((uc) => uc.id));
-  const happyPath = happyPathAll.filter((uc) => matchesQuery(uc, query));
+  const happyPathIds = useMemo(() => new Set(happyPathAll.map((uc) => uc.id)), [happyPathAll]);
+  const happyPath = useMemo(() => happyPathAll.filter((uc) => matchesQuery(uc, query)), [happyPathAll, query]);
 
-  const authorizeIds = new Set(allPingOneAuthorizeUCIds());
-  const authorizeAll = useCases.filter((uc) => authorizeIds.has(uc.id));
-  const authorizeVisible = authorizeAll.filter((uc) => matchesQuery(uc, query));
+  const authorizeAll = useMemo(() => useCases.filter((uc) => authorizeIds.has(uc.id)), [useCases, authorizeIds]);
+  const authorizeVisible = useMemo(() => authorizeAll.filter((uc) => matchesQuery(uc, query)), [authorizeAll, query]);
 
-  const grouped = TRACK_ORDER.map((track) => ({
+  const grouped = useMemo(() => TRACK_ORDER.map((track) => ({
     track,
     items: useCases
       .filter((uc) => uc.track === track && !happyPathIds.has(uc.id))
       .filter((uc) => matchesQuery(uc, query)),
-  }));
+  })), [useCases, happyPathIds, query]);
 
-  const demoTrackItemsForStrip = useCases.filter((uc) => uc.track === 'demo');
+  const demoTrackItemsForStrip = useMemo(() => useCases.filter((uc) => uc.track === 'demo'), [useCases]);
 
-  const demoAll = DEMO_USE_CASE_IDS
-    .map((id) => useCases.find((uc) => uc.id === id))
-    .filter(Boolean);
-  const demoVisible = demoAll.filter((uc) => matchesQuery(uc, query));
+  const demoAll = useMemo(
+    () => DEMO_USE_CASE_IDS.map((id) => useCases.find((uc) => uc.id === id)).filter(Boolean),
+    [useCases]
+  );
+  const demoVisible = useMemo(() => demoAll.filter((uc) => matchesQuery(uc, query)), [demoAll, query]);
 
-  const agentGatewayIds = new Set(allAgentGatewayUCIds());
-  const agentGatewayAll = useCases.filter((uc) => agentGatewayIds.has(uc.id));
-  const agentGatewayVisible = agentGatewayAll.filter((uc) => matchesQuery(uc, query));
+  const agentGatewayAll = useMemo(() => useCases.filter((uc) => agentGatewayIds.has(uc.id)), [useCases, agentGatewayIds]);
+  const agentGatewayVisible = useMemo(() => agentGatewayAll.filter((uc) => matchesQuery(uc, query)), [agentGatewayAll, query]);
 
   const isSearching = query.trim().length > 0;
   // getDisplayItems mirrors the demo-track STRIP_IDS exclusion applied at

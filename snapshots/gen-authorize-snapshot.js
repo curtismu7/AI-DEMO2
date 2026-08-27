@@ -85,7 +85,17 @@ const ATTR = {
   // so the tier rules do nothing until ff_authorize_group_policy is on.
   UserTier: '12345678-0015-4321-abcd-000000000015',
   TokenAudActual: '12345678-0018-4321-abcd-000000000018',
+  // The token's `iss`. Both gateways already send it (p1az-decision.groovy's
+  // TokenIss parameter); it was simply never declared as an attribute, so no
+  // condition could read it. Used ONLY by the external-door audience exemption
+  // in HasValidMcpAudience — see the SoT note on deployment.externalDoorIssuers.
+  TokenIss: '12345678-0029-4321-abcd-000000000029',
   ResourceOwnerId: '12345678-0019-4321-abcd-000000000019',
+  // Autonomous-agent standing mandate (step 9f). Inert sentinels: AgentClass ''
+  // means "not an autonomous run" and MandateMaxAmount 0 means "none declared",
+  // so a request omitting both changes no decision.
+  AgentClass: '12345678-0030-4321-abcd-000000000030',
+  MandateMaxAmount: '12345678-0031-4321-abcd-000000000031',
   RarMaxAmount: '12345678-0020-4321-abcd-000000000020',     // RFC 9396 granted amount ceiling (NUMBER, defaultValue 0 — see step 9)
   IntentTokenValid: '12345678-0025-4321-abcd-000000000025', // NOT -0021 (retired, see above)
   IntentMatchesTool: '12345678-0022-4321-abcd-000000000022',
@@ -162,6 +172,8 @@ const COND = {
   RequiresMcpStepUp: '23456789-0013-4321-abcd-000000000013',
   IsConsentTransaction: '23456789-0014-4321-abcd-000000000014',
   IsMcpFirstToolRequest: '23456789-0008-4321-abcd-000000000008',
+  IsAutonomousOverMandate: '23456789-0030-4321-abcd-000000000030',
+  IsAutonomousWithoutMandate: '23456789-0031-4321-abcd-000000000031',
   RarAmountExceeded: '23456789-0020-4321-abcd-000000000020', // RAR grant present AND Amount > RarMaxAmount (landed via #611)
   // UC21 tier conditions (step 10). Already imported and live-verified; this
   // reconciler now GENERATES their contents from the banking manifest instead of
@@ -191,6 +203,8 @@ const STMT = {
   // rar_amount_exceeded at -0020 which landed via #611); -0021 is retired
   // (its ver() version suffix collides with #615's bumped RAR statement
   // version — see the ATTR map note).
+  autonomousCiba: '34567890-0030-4321-abcd-000000000030',
+  autonomousNoMandate: '34567890-0031-4321-abcd-000000000031',
   bypassAttempt: '34567890-0015-4321-abcd-000000000015',
   resourceOwnerMismatch: '34567890-0016-4321-abcd-000000000016',
   intentInvalid: '34567890-0018-4321-abcd-000000000018',
@@ -211,6 +225,8 @@ const RULE = {
   // -0017 is retired (mcpDenyRarAmount, superseded by rarAmountExceeded above);
   // -0020 is taken by rarAmountExceeded; -0021 is retired (its ver() version
   // suffix collides with #615's bumped RAR rule version — see the ATTR map note).
+  autonomousCiba: '45678901-0030-4321-abcd-000000000030',
+  autonomousNoMandate: '45678901-0031-4321-abcd-000000000031',
   mcpDenyUpstreamAud: '45678901-0015-4321-abcd-000000000015',
   mcpDenyResourceOwner: '45678901-0016-4321-abcd-000000000016',
   mcpDenyIntentInvalid: '45678901-0018-4321-abcd-000000000018',
@@ -366,7 +382,27 @@ function deriveSot(sot) {
     ...UPSTREAM_RESOURCE_NAMES.map((name) => requireUri(name, 'the D-05 upstream audience blacklist')),
     process.env.BANKING_RESOURCE_SERVER_RESOURCE_URI || BANKING_RS_URI_DEFAULT,
   ].filter((u) => u && u !== gatewayUri);
-  return { consent, stepUp, writeTools, a2aDelegated, acceptedGatewayAudiences, upstreamAudiences };
+  // External-door exemption (see the SoT note on deployment.externalDoorIssuers).
+  // The external door has no exchange step by design, so its tokens are ALWAYS
+  // audienced at the upstream MCP server — which HasValidMcpAudience denies and
+  // the D-05 blacklist independently denies. PR #2274 already solved the D-05
+  // half in p1az-decision.groovy by exempting oauth-mcp's own issuer; this is
+  // the same exemption for the policy half. Derived, never hardcoded
+  // (REGRESSION_PLAN §3): a door added to the SoT needs no edit here.
+  const envs = (sot.deployment && sot.deployment.environments) || {};
+  const externalDoorIssuers = [...new Set(
+    Object.values(envs).flatMap((e) => (e && e.externalDoorIssuers) || []),
+  )];
+  // Deliberately NOT fatal when empty: unlike the gateway set (whose emptiness
+  // denies all MCP traffic), an empty exemption set just means no door is
+  // declared — the OR keeps its existing gateway branches and nothing widens.
+  const externalDoorAudience = externalDoorIssuers.length
+    ? requireUri('Super Banking MCP Server', 'the external-door audience exemption')
+    : null;
+  return {
+    consent, stepUp, writeTools, a2aDelegated, acceptedGatewayAudiences, upstreamAudiences,
+    externalDoorIssuers, externalDoorAudience,
+  };
 }
 
 function loadSot() {
@@ -435,7 +471,7 @@ function loadTiers() {
   return deriveTiers(JSON.parse(fs.readFileSync(BANKING_MANIFEST, 'utf8')));
 }
 
-function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGatewayAudiences, upstreamAudiences }, tiers = loadTiers()) {
+function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGatewayAudiences, upstreamAudiences, externalDoorIssuers = [], externalDoorAudience = null }, tiers = loadTiers()) {
   const byId = new Map(snap.map((o) => [o.id, o]));
   const sepIdx = snap.findIndex((o) => o.type === 'SnapshotPackageFile$PackageSeparator');
 
@@ -451,14 +487,39 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
     `TokenAudience (the token's real aud) is one of the accepted gateway identities ` +
     `(${acceptedGatewayAudiences.join(', ')}). A token minted for any other resource fails this ` +
     `and is denied by "MCP Deny — Invalid Token Audience". Generated from scope-topology.json ` +
-    `gateway resource URIs for the AI Demo environment — do not hand-edit.`;
-  audCond.condition = { or: { conditions: acceptedGatewayAudiences.map((uri) => ({
-    comparison: { left: { attribute: { id: ATTR.TokenAudience } }, op: 'Equals', right: { constant: { value: uri } } },
-  })) } };
+    `gateway resource URIs for the AI Demo environment — do not hand-edit.` +
+    (externalDoorAudience
+      ? ` PLUS an external-door exemption: ${externalDoorAudience} (the upstream MCP server, which the ` +
+        `external door addresses directly because that route has no exchange step) is accepted ONLY when ` +
+        `TokenIss is one of ${externalDoorIssuers.join(', ')} — oauth-mcp's embedded AS, whose signature IG ` +
+        `has already verified by introspection before this policy runs. Same exemption-by-issuer shape as ` +
+        `PR #2274's D-05 fix in p1az-decision.groovy.`
+      : '');
+  // Gateway identities, plus one narrow branch per external-door issuer. The
+  // exemption is an AND, never a bare audience: mcpserver.ping.demo is accepted
+  // ONLY when the token also came from oauth-mcp's embedded AS. Widening only —
+  // an added OR branch cannot deny anything that passes today.
+  const externalDoorBranches = (externalDoorAudience ? externalDoorIssuers : []).map((iss) => ({
+    and: { conditions: [
+      { comparison: { left: { attribute: { id: ATTR.TokenAudience } }, op: 'Equals', right: { constant: { value: externalDoorAudience } } } },
+      { comparison: { left: { attribute: { id: ATTR.TokenIss } }, op: 'Equals', right: { constant: { value: iss } } } },
+    ] },
+  }));
+  audCond.condition = { or: { conditions: [
+    ...acceptedGatewayAudiences.map((uri) => ({
+      comparison: { left: { attribute: { id: ATTR.TokenAudience } }, op: 'Equals', right: { constant: { value: uri } } },
+    })),
+    ...externalDoorBranches,
+  ] } };
   // Content-derived version (see ver() note): mutate-in-place at a frozen
   // version means PingOne skips the object on import and a new audience can
   // never land — the #1311/#1897 trap class.
-  audCond.version = ver('bbbbbbbb', COND.HasValidMcpAudience, { acceptedGatewayAudiences });
+  // externalDoor* MUST be in the version input: mutate-in-place at a frozen
+  // version means PingOne skips the object on import and the exemption never
+  // lands — the #1311/#1897 trap class this ver() note warns about.
+  audCond.version = ver('bbbbbbbb', COND.HasValidMcpAudience, {
+    acceptedGatewayAudiences, externalDoorIssuers, externalDoorAudience,
+  });
 
   // 1) Generalize RequiresHitlConsent -> consent tool list.
   const hitlCond = byId.get(COND.RequiresHitlConsent);
@@ -581,10 +642,29 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
   const actorCond = byId.get(COND.HasValidActorChain);
   if (actorCond) {
     const existing = [];
+    // Harvest ONLY plain ActClientId comparisons. This walk used to take every
+    // string constant it found, which was equivalent while the condition was a
+    // flat OR of actor ids. With the external-door exemption present —
+    // AND(ActClientId == '', TokenIss == <issuer>) — an unscoped walk re-reads
+    // '' and the issuer URLs as registered actors on the NEXT generation, and
+    // `actors` only ever grows ("never shrinks"), so they would be permanent.
+    //
+    // The empty string is the dangerous one: as a bare top-level branch it
+    // makes HasValidActorChain true for ANY token with no actor, which is the
+    // whole control. Caught by regenerating twice — the first pass looked
+    // correct. Skipping `and` nodes keeps the exemption out of the harvest;
+    // the left-attribute check keeps TokenIss constants out of it.
     const collect = (n) => {
       if (!n || typeof n !== 'object') return;
-      const v = n.comparison && n.comparison.right && n.comparison.right.constant;
-      if (v && typeof v.value === 'string') existing.push(v.value);
+      if (n.and) return;
+      if (n.comparison) {
+        const left = n.comparison.left && n.comparison.left.attribute;
+        const v = n.comparison.right && n.comparison.right.constant;
+        if (left && left.id === ATTR.ActClientId && v && typeof v.value === 'string' && v.value) {
+          existing.push(v.value);
+        }
+        return;
+      }
       Object.values(n).forEach(collect);
     };
     collect(actorCond.condition);
@@ -602,7 +682,13 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
       `ActClientId is one of the registered chain identities (${actors.length}): the MCP Token `
       + `Exchanger, the AI Agent, and each A2A specialist. A two-hop chain whose specialist is not `
       + `listed here is denied as an invalid actor, regardless of chain depth. Union of the ids `
-      + `already in the snapshot and PINGONE_A2A_*_AGENT_CLIENT_ID — never shrinks.`;
+      + `already in the snapshot and PINGONE_A2A_*_AGENT_CLIENT_ID — never shrinks.`
+      + (externalDoorAudience
+        ? ` PLUS an external-door exemption: an ABSENT actor (ActClientId '') is accepted ONLY when `
+          + `TokenIss is one of ${externalDoorIssuers.join(', ')}. That route has no exchange step by `
+          + `design, so its tokens carry no act to register — never a bare empty-actor match, which `
+          + `would drop this control for every un-delegated caller.`
+        : '');
     // The RULE description is what a reader sees in the policy UI. It said
     // "any of the 5 A2A specialist agents" while the list held 7 and the tenant
     // had 9 — a stale count is how nobody noticed four specialists were absent.
@@ -616,15 +702,38 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
       // ("a stale count is how nobody noticed") — content-derive so it lands.
       actorRule.version = ver('dddddddd', actorRule.id, { count: actors.length });
     }
-    actorCond.condition = { or: { conditions: actors.map((id) => ({
-      comparison: { left: { attribute: { id: ATTR.ActClientId } }, op: 'Equals', right: { constant: { value: id } } },
-    })) } };
+    // External-door exemption, same shape and same reason as the one in
+    // HasValidMcpAudience above. This allowlist can never contain the external
+    // door: that route has no exchange step by design, so its tokens carry NO
+    // act at all (ActClientId '') rather than an unregistered one. Verified
+    // live 2026-08-26 — with the audience fix imported, the door's next denial
+    // was "MCP Denied — Invalid Actor Chain".
+    //
+    // Deliberately an AND with the issuer, never a bare `ActClientId == ''`:
+    // an empty actor is exactly what an un-delegated internal call looks like,
+    // so exempting it unconditionally would drop the delegation control for
+    // every caller. Scoped to oauth-mcp's own issuer it grants nothing new —
+    // IG has already introspected the token against that AS.
+    const actorExemptions = (externalDoorAudience ? externalDoorIssuers : []).map((iss) => ({
+      and: { conditions: [
+        { comparison: { left: { attribute: { id: ATTR.ActClientId } }, op: 'Equals', right: { constant: { value: '' } } } },
+        { comparison: { left: { attribute: { id: ATTR.TokenIss } }, op: 'Equals', right: { constant: { value: iss } } } },
+      ] },
+    }));
+    actorCond.condition = { or: { conditions: [
+      ...actors.map((id) => ({
+        comparison: { left: { attribute: { id: ATTR.ActClientId } }, op: 'Equals', right: { constant: { value: id } } },
+      })),
+      ...actorExemptions,
+    ] } };
     // Content-derived version, same reason as ver() above: PingOne skips an
     // object whose version is unchanged, and this condition previously KEPT its
     // committed version when actors were unioned in — so a re-import could
     // never land a new specialist (found 2026-08-17: cloud held 9 actors, file
     // held 11+2 infra, and the import would have skipped the fix).
-    actorCond.version = ver('bbbbbbbb', COND.HasValidActorChain, { actors });
+    actorCond.version = ver('bbbbbbbb', COND.HasValidActorChain, {
+      actors, externalDoorIssuers, externalDoorAudience,
+    });
   }
 
   // 2) Ensure RequiresMcpStepUp condition (step_up tool list AND no MFA yet).
@@ -770,14 +879,39 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
   upsert(requestAttr(ATTR.TokenAudActual, 'TokenAudActual', 'STRING', '',
     "The ACTUAL aud claim of the presented token, as introspected (single value; a multi-aud token is space-joined " +
     "and only caught at the PEP). Used by the D-05 anti-bypass deny. Default '' keeps the rule inert when absent."), afterLastAttrIdx);
+  upsert(requestAttr(ATTR.TokenIss, 'TokenIss', 'STRING', '',
+    "The presented token's `iss`. Both gateways already send it; it had no ATTRIBUTE so no condition could " +
+    "read it. Used ONLY by HasValidMcpAudience's external-door exemption, which accepts the upstream MCP " +
+    "server audience when iss is one of scope-topology.json's deployment.externalDoorIssuers. Default '' " +
+    "means a caller that omits it matches no issuer, so the exemption stays inert and the gateway-audience " +
+    "branches decide — fail-safe, since '' can never equal a declared issuer."), afterLastAttrIdx);
   upsert(conditionDef(COND.TokenAudTargetsUpstream, 'TokenAudTargetsUpstream',
     `TokenAudActual equals one of the upstream/backend audiences behind the gateway (${upstreamAudiences.join(', ')}). ` +
     'A client must obtain a gateway-targeted token and let the gateway exchange it for the next hop (D-05, mock Rule 0b-2). ' +
     'Single-aud comparison only — space-joined multi-aud values are caught at the PEP. ' +
-    'Generated from scope-topology.json resources — do not hand-edit.',
-    { or: { conditions: upstreamAudiences.map((uri) => ({
-      comparison: { left: { attribute: { id: ATTR.TokenAudActual } }, op: 'Equals', right: { constant: { value: uri } } },
-    })) } }), beforeSepIdx);
+    'Generated from scope-topology.json resources — do not hand-edit.' +
+    (externalDoorAudience
+      ? ` EXCEPT for the external door: a token issued by ${externalDoorIssuers.join(' / ')} is not a bypass, ` +
+        `because that route has no exchange step and is therefore ALWAYS upstream-audienced. This mirrors ` +
+        `PR #2274, which added exactly this exemption to the same D-05 check in p1az-decision.groovy; the ` +
+        `policy copy simply never got it.`
+      : ''),
+    // AND NOT(issuer is a declared door), rather than dropping the upstream
+    // audience from the list: every OTHER caller presenting that audience is
+    // still a confused-deputy bypass and must still be denied. The narrowing is
+    // on WHO issued the token, never on which audience is protected.
+    (externalDoorAudience
+      ? { and: { conditions: [
+        { or: { conditions: upstreamAudiences.map((uri) => ({
+          comparison: { left: { attribute: { id: ATTR.TokenAudActual } }, op: 'Equals', right: { constant: { value: uri } } },
+        })) } },
+        { not: { condition: { or: { conditions: externalDoorIssuers.map((iss) => ({
+          comparison: { left: { attribute: { id: ATTR.TokenIss } }, op: 'Equals', right: { constant: { value: iss } } },
+        })) } } } },
+      ] } }
+      : { or: { conditions: upstreamAudiences.map((uri) => ({
+        comparison: { left: { attribute: { id: ATTR.TokenAudActual } }, op: 'Equals', right: { constant: { value: uri } } },
+      })) } })), beforeSepIdx);
   upsert(denyStatement(STMT.bypassAttempt, 'MCP Denied — Audience Targets Upstream', 'mcp-bypass-attempt',
     'D-05 (bypass_attempt): the token\'s actual aud targets an upstream resource behind the gateway — a confused-deputy bypass. Mirrors mock Rule 0b-2 and the Node gateway GatewayTokenPolicy.',
     `{"denied": true, "reason": "bypass_attempt", "message": "Token aud '{{${ATTR.TokenAudActual}}}' targets an upstream resource behind the gateway. Obtain a gateway-targeted token and let the gateway exchange it for the next hop (D-05).", "tokenAudActual": "{{${ATTR.TokenAudActual}}}"}`), beforeFirstPolicyIdx);
@@ -1033,6 +1167,108 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
   // 9e) Membership: MCP first-tool policy (before the catch-all permit). DenyOverrides
   // means placement is not strictly required, but keep it ahead of mcpPermitValid for clarity.
   addChild(POLICY.mcp, RULE.rarAmountExceeded, RULE.mcpPermitValid);
+
+  // ── 9f) Autonomous agent standing mandate ────────────────────────────────
+  // Cloud twin of mock Rule 0m (demo_authz_server/routes/decision.js). An agent
+  // running with nobody signed in has no user entitlements to bound it and no
+  // one present to consent, so the ceiling IS the consent — declared ahead of
+  // time on the agent's scope-topology entry and enforced HERE, by the PDP,
+  // rather than by the job that wants to spend.
+  //
+  // Both attributes default to their inert sentinel, so every request that
+  // exists today — none of which send either — is unaffected.
+  rarUpsert(requestAttr(
+    ATTR.AgentClass, 'AgentClass', 'STRING', 'none',
+    'Which class of agent is calling: "autonomous" for a run with nobody signed in '
+    + '(sub = agent, no act claim). defaultValue "none" — not the empty string — because '
+    + 'P1AZ leaves an empty STRING unresolved and answers INDETERMINATE for the WHOLE '
+    + 'decision; "none" resolves cleanly to != autonomous, so every human transaction and '
+    + 'worker-agent call leaves these rules inert instead of blowing up the decision.',
+  ), true);
+  rarUpsert(requestAttr(
+    ATTR.MandateMaxAmount, 'MandateMaxAmount', 'NUMBER', 0,
+    'The standing mandate the calling agent declares: the largest amount it may move '
+    + 'unattended. Sent by the BFF from scope-topology.json, the same way RarMaxAmount '
+    + 'carries the attested RAR ceiling — the NUMBER is the declaration, the DECISION '
+    + 'is this policy\'s. defaultValue 0 means "none declared", which fails closed.',
+  ), true);
+
+  // No mandate declared → the request never reaches an explicit permit, so the
+  // PDP fails closed. Deliberately a DENY and not a pause: asking a human to
+  // approve a request no policy could reason about moves an unbounded agent
+  // past a rubber stamp.
+  rarUpsert(conditionDef(
+    COND.IsAutonomousWithoutMandate, 'IsAutonomousWithoutMandate',
+    'AgentClass = autonomous AND MandateMaxAmount = 0 (none declared). Fails closed.',
+    { and: { conditions: [
+      { comparison: { left: { attribute: { id: ATTR.AgentClass } }, op: 'Equals', right: { constant: { value: 'autonomous' } } } },
+      { comparison: { left: { attribute: { id: ATTR.MandateMaxAmount } }, op: 'Equals', right: { constant: { value: '0' } } } },
+    ] } },
+  ), true);
+
+  // A mandate exists and the amount exceeds it → a rule matched and refuses to
+  // let the agent act ALONE. That is a pause, not a refusal: PERMIT carrying an
+  // unfulfilled obligation, which the PEP discharges by reaching the absent
+  // human over CIBA.
+  rarUpsert(conditionDef(
+    COND.IsAutonomousOverMandate, 'IsAutonomousOverMandate',
+    'AgentClass = autonomous AND MandateMaxAmount > 0 AND Amount > MandateMaxAmount.',
+    { and: { conditions: [
+      { comparison: { left: { attribute: { id: ATTR.AgentClass } }, op: 'Equals', right: { constant: { value: 'autonomous' } } } },
+      { comparison: { left: { attribute: { id: ATTR.MandateMaxAmount } }, op: 'GreaterThan', right: { constant: { value: '0' } } } },
+      { comparison: { left: { attribute: { id: ATTR.Amount } }, op: 'GreaterThan', right: { attribute: { id: ATTR.MandateMaxAmount } } } },
+    ] } },
+  ), true);
+
+  rarUpsert({
+    id: STMT.autonomousNoMandate, type: 'Statement',
+    version: ver('cccccccc', STMT.autonomousNoMandate, { code: 'autonomous-no-mandate', appliesTo: 'DENY' }),
+    name: 'Autonomous Agent Has No Mandate', shared: false,
+    description: 'Returned when an autonomous agent asks to move money without a declared standing mandate.',
+    code: 'autonomous-no-mandate', appliesTo: 'DENY', appliesIf: 'PATH_MATCHES',
+    payload: 'This agent runs unattended but declares no standing mandate, so there is nothing to '
+      + 'evaluate the request against. Declare a mandate for the agent; do not seek an approver.',
+    obligatory: false, attributes: [], services: [],
+  });
+
+  rarUpsert({
+    id: STMT.autonomousCiba, type: 'Statement',
+    version: ver('cccccccc', STMT.autonomousCiba, { code: 'ciba-approval-required', appliesTo: 'PERMIT' }),
+    name: 'Autonomous Agent Needs CIBA Approval', shared: false,
+    description: 'PERMIT-with-obligation returned when an unattended agent exceeds its standing mandate. '
+      + 'code ciba-approval-required is what the BFF matches to park the run and raise CIBA.',
+    code: 'ciba-approval-required', appliesTo: 'PERMIT', appliesIf: 'PATH_MATCHES',
+    payload: `Requested $\{{${ATTR.Amount}}} exceeds the standing mandate of $\{{${ATTR.MandateMaxAmount}}} `
+      + 'this agent may move unattended. The account owner must approve out of band before it proceeds.',
+    obligatory: false, attributes: [], services: [],
+  });
+
+  rarUpsert({
+    id: RULE.autonomousNoMandate, type: 'Rule', targets: [],
+    version: ver('dddddddd', RULE.autonomousNoMandate, { cond: COND.IsAutonomousWithoutMandate, stmt: STMT.autonomousNoMandate, effect: 'conditionalDenyElsePermit' }),
+    name: 'Deny Unattended Agent Without a Mandate',
+    description: 'DENY when an autonomous agent moves money with no declared ceiling. Fails closed.',
+    shared: false, disabled: false, statements: [STMT.autonomousNoMandate],
+    effectSettings: { type: 'conditionalDenyElsePermit', condition: { and: { conditions: [{ reference: { id: COND.IsAutonomousWithoutMandate } }] } } },
+    condition: { and: { conditions: [{ reference: { id: COND.IsAutonomousWithoutMandate } }] } },
+  });
+
+  rarUpsert({
+    id: RULE.autonomousCiba, type: 'Rule', targets: [],
+    version: ver('dddddddd', RULE.autonomousCiba, { cond: COND.IsAutonomousOverMandate, stmt: STMT.autonomousCiba, effect: 'unconditionalPermit' }),
+    name: 'Require CIBA Approval Over the Standing Mandate',
+    description: 'PERMIT with an unfulfilled ciba-approval obligation when an unattended agent exceeds '
+      + 'its standing mandate. The existing Deny Large Transactions rule still wins under DenyOverrides, '
+      + 'so the absolute ceiling stays absolute — nobody can approve past it.',
+    shared: false, disabled: false, statements: [STMT.autonomousCiba],
+    effectSettings: { type: 'unconditionalPermit' },
+    condition: { and: { conditions: [{ reference: { id: COND.IsAutonomousOverMandate } }] } },
+  });
+
+  // Transaction policy, ahead of the catch-all permit. An unattended transfer is
+  // not an MCP tool call, so it routes here, not to the Delegation policy.
+  addChild(POLICY.transaction, RULE.autonomousNoMandate, RULE.txPermitStandard);
+  addChild(POLICY.transaction, RULE.autonomousCiba, RULE.txPermitStandard);
 
   // 10) UC21 banking tier policy — "$2,000 Standard vs $50,000 PrivateBanking;
   // group membership expands capability", the demo's most concrete authz story.

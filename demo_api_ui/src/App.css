@@ -1002,6 +1002,23 @@
   line-height: 1.45;
 }
 
+/* Session-expiry modal. The banner's text colour (#78350f) is tuned for the
+   amber banner background and reads wrong on the modal's own surface, so the
+   modal restates it. Both colours are solid and high-contrast — REGRESSION_PLAN
+   §0 forbids muted grey hint text in modals. */
+.session-reauth-modal .session-reauth-banner__text {
+  color: #111827;
+  flex: none;
+}
+
+.session-reauth-modal__hint {
+  margin: 12px 0 0;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #1f2937;
+  line-height: 1.45;
+}
+
 .session-reauth-banner__actions {
   display: flex;
   flex-wrap: wrap;

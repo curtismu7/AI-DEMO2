@@ -1,0 +1,28 @@
+# Jaeger as a second datasource, so traces and metrics live in one pane.
+#
+# Grafana ships the Jaeger datasource in core — no plugin to install — and Jaeger
+# is already running in both targets, so this adds no services.
+#
+# The URL comes from an env var because the two deployment targets serve Jaeger
+# at DIFFERENT paths, and getting it wrong fails in a way that looks like
+# success:
+#   k8s     QUERY_BASE_PATH=/jaeger is set  -> http://jaeger:16686/jaeger
+#   compose no base path                    -> http://jaeger:16686
+# With the base path set, Jaeger answers the ROOT /api/services with its UI's
+# HTML shell and a 200 — measured, not assumed. Grafana's "Save & test" reports
+# that as a working datasource, and then no trace ever loads. routes/tracing.js
+# carries the same warning for the BFF's own proxy.
+apiVersion: 1
+
+datasources:
+  - name: Jaeger
+    type: jaeger
+    access: proxy
+    uid: ai-demo-jaeger
+    url: ${JAEGER_QUERY_URL}
+    editable: false
+    jsonData:
+      # Service dependency graph built from the traces themselves — the view
+      # that shows PingGateway sitting between the BFF and the MCP servers.
+      nodeGraph:
+        enabled: true

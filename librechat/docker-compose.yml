@@ -1,0 +1,85 @@
+# librechat/docker-compose.yml
+#
+# Standalone LibreChat + MongoDB stack for the Privilege-agentless MCP client
+# proof (docs/superpowers/specs/2026-08-24-librechat-dual-door-mcp-client-design.md).
+# Deliberately NOT part of this repo's root docker-compose.yml / run-docker.sh —
+# exploratory client tooling, not a demo-facing service.
+#
+# ponytail: only `api` + `mongodb` are defined. LibreChat's own vendor compose
+# also ships meilisearch/vectordb/rag_api for search+RAG; none of that is
+# needed to boot MCP support (SEARCH=false by default, RAG is opt-in and
+# unrelated to tool calls) — add them back only if a future feature in this
+# stack actually needs search or file-embedding RAG.
+services:
+  api:
+    container_name: librechat
+    image: registry.librechat.ai/danny-avila/librechat-dev:latest
+    ports:
+      - "127.0.0.1:3080:3080"
+    depends_on:
+      - mongodb
+    extra_hosts:
+      # Reach the host-run LLM proxy (demo_llm_proxy/, :8090) the same way
+      # this repo's own docker-compose.yml does for the identical proxy
+      # (see docker-compose.yml:1124, :1828-1830).
+      - "host.docker.internal:host-gateway"
+      # The BFF's mkcert cert (demo_api_server's own dev cert) does NOT
+      # list host.docker.internal in its SAN — only api.ping.demo,
+      # local.ping-devops.com, demo-api-server, localhost, 127.0.0.1 (see
+      # this repo's root docker-compose.yml:144-145). Alias the one that's
+      # actually in the cert to the same host gateway instead of trying to
+      # widen the cert — verified live 2026-08-25: host.docker.internal
+      # fails TLS hostname verification even with the CA trusted
+      # (ERR_TLS_CERT_ALTNAME_INVALID); api.ping.demo does not.
+      - "api.ping.demo:host-gateway"
+    environment:
+      # Trust this repo's own mkcert-issued dev CA so LibreChat's outbound
+      # HTTPS to the BFF's mcp-facade (demo_api_server, :3001 — see
+      # librechat.yaml's opensearch-privilege-agent/privilege-agentless/
+      # agent-gateway entries) verifies. The Priv Agent's own procyon
+      # TenantRoot CA is no longer needed here — LibreChat no longer talks
+      # to it directly; the facade does, on its own trust config. Unused
+      # (but harmless) against the pingaws target below, which is fronted
+      # by a real public CA, not the local mkcert one.
+      # Re-capture with `mkcert -CAROOT` if the dev CA is ever regenerated.
+      NODE_EXTRA_CA_CERTS: /app/mkcert-rootCA.crt
+      # Which mounted config LibreChat loads (api/server/services/Config/
+      # loadCustomConfig.js reads this env var directly, no fork needed).
+      # Default: librechat.yaml (docker target, api.ping.demo:3001).
+      #   LIBRECHAT_CONFIG=librechat.pingaws.yaml docker compose \
+      #     -f librechat/docker-compose.yml up
+      # switches to the SE AWS cluster (ai-demo.ping-devops.com) instead —
+      # see librechat.pingaws.yaml's own header comment for what that drops.
+      CONFIG_PATH: /app/${LIBRECHAT_CONFIG:-librechat.yaml}
+    volumes:
+      - type: bind
+        source: ./mkcert-rootCA.crt
+        target: /app/mkcert-rootCA.crt
+      - type: bind
+        source: ./.env
+        target: /app/.env
+      - type: bind
+        source: ./librechat.yaml
+        target: /app/librechat.yaml
+      - type: bind
+        source: ./librechat.pingaws.yaml
+        target: /app/librechat.pingaws.yaml
+      - librechat-data:/app/data
+    restart: unless-stopped
+
+  mongodb:
+    container_name: librechat-mongodb
+    # mongo:8.0.20 (LibreChat's vendor default) requires AVX instructions.
+    # Docker Desktop on Apple Silicon runs amd64 images under emulation,
+    # which does not support AVX, and the container crash-loops on startup.
+    # mongo:4.4.18 is LibreChat's own documented AVX-free fallback
+    # (docker-compose.override.yml.example, "OLDER CPU WITHOUT AVX SUPPORT").
+    image: mongo:4.4.18
+    command: mongod --noauth
+    volumes:
+      - librechat-mongo-data:/data/db
+    restart: unless-stopped
+
+volumes:
+  librechat-data:
+  librechat-mongo-data:

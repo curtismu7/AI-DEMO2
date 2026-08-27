@@ -1,0 +1,128 @@
+/* Standalone sample URLs.
+ *
+ * Uses the app's own --th-* tokens so light and dark both work — ThemeContext
+ * stamps data-theme on :root, above the router, so they resolve here with no
+ * AppShell in the tree.
+ */
+
+.st-root {
+  min-height: 100vh;
+  background: var(--th-bg-page);
+  color: var(--th-text);
+}
+
+.st-bar {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding: 12px 24px;
+  background: var(--th-bg-band);
+  border-bottom: 1px solid var(--th-border);
+}
+.st-brand {
+  color: var(--th-text-invert);
+  font-weight: 700;
+  font-size: 15px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.st-brand:hover { text-decoration: underline; }
+
+.st-links { display: flex; gap: 6px; flex-wrap: wrap; }
+a.st-link,
+a.st-link:link,
+a.st-link:visited,
+a.st-link:hover,
+a.st-brand,
+a.st-brand:link,
+a.st-brand:visited {
+  text-decoration: none;
+}
+.st-link {
+  color: var(--th-text-invert);
+  opacity: 0.78;
+  font-size: 13.5px;
+  padding: 4px 10px;
+  border-radius: 4px;
+}
+.st-link:hover { opacity: 1; background: rgba(255, 255, 255, 0.12); }
+.st-on { opacity: 1; background: rgba(255, 255, 255, 0.18); font-weight: 600; }
+.st-link:focus-visible,
+.st-brand:focus-visible { outline: 2px solid var(--th-text-invert); outline-offset: 2px; }
+
+/* Pushed to the right end of the bar; `auto` rather than a fixed gap so it stays
+   put as the sample links wrap. Colours come from --th-text-invert, not the page
+   tokens: the bar is a dark band in BOTH themes, so a token that flips with the
+   theme would make this unreadable in one of them. */
+.st-theme {
+  margin-left: auto;
+  appearance: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12.5px;
+  white-space: nowrap;
+  padding: 5px 12px;
+  border-radius: 4px;
+  color: var(--th-text-invert);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+}
+.st-theme:hover { background: rgba(255, 255, 255, 0.2); }
+.st-theme:focus-visible { outline: 2px solid var(--th-text-invert); outline-offset: 2px; }
+
+.st-main { padding: 0; }
+
+.st-index { max-width: 980px; margin: 0 auto; padding: 40px 24px 64px; }
+.st-index h1 { margin: 0 0 10px; font-size: 30px; color: var(--th-text); }
+.st-lede {
+  margin: 0 0 28px;
+  font-size: 15.5px;
+  line-height: 1.6;
+  color: var(--th-text-muted);
+  max-width: 68ch;
+}
+
+.st-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+/* Link states spelled out: a bare `.st-card { text-decoration: none }` loses to
+ * the app's global anchor styling, which underlines the whole card. Decoration
+ * propagates from the anchor to its children, so the heading and text cannot
+ * opt out on their own — it has to be cancelled here. */
+a.st-card,
+a.st-card:link,
+a.st-card:visited,
+a.st-card:hover,
+a.st-card:focus,
+a.st-card:active {
+  text-decoration: none;
+}
+.st-card {
+  display: block;
+  padding: 18px 20px;
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-radius: 8px;
+  color: var(--th-text);
+}
+.st-card:hover { border-color: var(--th-border-strong); }
+.st-card:focus-visible { outline: 2px solid var(--th-text); outline-offset: 2px; }
+.st-card h2 { margin: 0 0 6px; font-size: 17px; color: var(--th-text); }
+.st-card p { margin: 0 0 10px; font-size: 14px; line-height: 1.5; color: var(--th-text-muted); }
+.st-card-meta { font-size: 12.5px; color: var(--th-text-muted); }
+
+.st-back {
+  display: inline-block;
+  margin-top: 16px;
+  color: var(--th-text);
+  font-size: 14px;
+}
+
+@media (max-width: 640px) {
+  .st-bar { gap: 10px; padding: 10px 16px; }
+  .st-index { padding: 28px 16px 48px; }
+  .st-index h1 { font-size: 24px; }
+}

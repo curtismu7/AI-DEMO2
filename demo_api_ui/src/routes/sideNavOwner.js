@@ -25,7 +25,17 @@ export function isNoChromeRoute(pathNorm) {
     // Personal-agent pop-out client window: bare route, no nav shell (App.js
     // route comment) — was missing from this list, so signed-in users got the
     // full global sidebar inside the popup.
-    pathNorm === "/personal-agent/client"
+    pathNorm === "/personal-agent/client" ||
+    // Embedded movie reel opened from an external MCP client's reel_url (LM
+    // Studio link / LibreChat iframe): bare page, no chrome, no FAB.
+    pathNorm.startsWith("/transaction-trace/embed/") ||
+    // Standalone sample URLs: the PingOne sample pages with none of this demo
+    // around them, for sharing or screen-sharing. Skipping AppShell is not
+    // enough on its own — the side nav, footer and panels are rendered by
+    // App.js above <Routes>, so a route that never touches AppShell still gets
+    // all of them unless it opts out here.
+    pathNorm === "/standalone" ||
+    pathNorm.startsWith("/standalone/")
   );
 }
 

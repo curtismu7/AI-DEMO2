@@ -36,7 +36,7 @@ router.post('/par', express.json(), (req, res) => {
       expires_in
     });
   } catch (error) {
-    console.error('[PAR] Error:', error);
+    console.error('[PAR] Error:', error?.stack || String(error));
     res.status(500).json({
       error: 'server_error',
       error_description: 'Internal server error'
@@ -67,7 +67,7 @@ router.get('/authorize', (req, res) => {
       state: req.query.state || undefined
     });
   } catch (error) {
-    console.error('[PAR Authorize] Error:', error);
+    console.error('[PAR Authorize] Error:', error?.stack || String(error));
     res.status(500).json({
       error: 'server_error',
       error_description: 'Internal server error'

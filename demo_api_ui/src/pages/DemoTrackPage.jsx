@@ -100,16 +100,24 @@ export default function DemoTrackPage() {
   const [expanded, setExpanded] = useState(null); // stepId | null — manual expand overlay
   const [error, setError] = useState(null);
 
+  // load() is invoked from four independent, overlapping call sites (the 5s
+  // poll, startRun, onStepClick, runSlot) — a slower, older request can
+  // resolve after a newer one and clobber fresher state. Guard with a
+  // monotonic request id: only the most recently-issued call may setState.
+  const loadReqIdRef = useRef(0);
   const load = useCallback(async () => {
+    const myReqId = ++loadReqIdRef.current;
     try {
       const [stateRes, runsRes] = await Promise.all([
         apiClient.get("/api/demo-track"),
         apiClient.get("/api/demo-track/runs"),
       ]);
+      if (myReqId !== loadReqIdRef.current) return; // a newer load() has since started
       setState(stateRes.data);
       setHistory(runsRes.data.runs || []);
       setError(null);
     } catch (e) {
+      if (myReqId !== loadReqIdRef.current) return;
       setError(e.message);
     }
   }, []);

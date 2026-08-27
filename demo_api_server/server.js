@@ -6,6 +6,12 @@
 // services/dotenvxBootstrap.js.
 require('./services/dotenvxBootstrap').bootstrapDotenvx();
 
+// Give every axios call a timeout before any module can issue one. Without this
+// the ~78 call sites that supply none hang until the OS TCP timeout; a per-call
+// `timeout:` still wins, so deliberate values are untouched. See
+// utils/axiosDefaults.js.
+require('./utils/axiosDefaults').applyAxiosDefaults();
+
 // New Relic APM must be required before Sentry and all app modules — the ONLY
 // thing allowed above it is the dotenvx bootstrap, which NR itself depends on
 // for a decrypted NR_LICENSE_KEY. No-op when NR_LICENSE_KEY is absent
@@ -36,6 +42,10 @@ require('./scripts/check-env');
 // Wired below at .listen() time so the cache is populated BEFORE the first request.
 const { loadVaultIntoConfigStore } = require('./services/vaultLoader');
 const { startScheduler: startLighthouseScheduler } = require('./services/lighthouseScheduler');
+const {
+  startScheduler: startAutonomousScheduler,
+  startArmSweep: startAutonomousArmSweep,
+} = require('./services/autonomousAgentScheduler');
 
 // ConfigStore must be required early so oauth config module getters are ready
 const configStore = require('./services/configStore');
@@ -160,6 +170,7 @@ const {
 } = require('./routes/featureFlags');
 const mcpInspectorRoutes = require('./routes/mcpInspector');
 const mcpPingOneAdminAuthRoutes = require('./routes/mcpPingOneAdminAuth');
+const mcpPrivilegeAuthRoutes = require('./routes/mcpPrivilegeAuth');
 const mcpTrafficRoutes = require('./routes/mcpTraffic');
 const mcpToolScopesRouter = require('./routes/mcpToolScopes');
 const mcpGatewayConfigRouter = require('./routes/mcpGatewayConfig');
@@ -1199,6 +1210,7 @@ app.use('/api/setup', setupRoutes);
 app.use('/api/mcp', mcpToolScopesRouter);
 app.use('/api/mcp/inspector', mcpInspectorRoutes);
 app.use('/api/mcp/inspector/pingone-admin', mcpPingOneAdminAuthRoutes);
+app.use('/api/mcp/inspector/privilege', mcpPrivilegeAuthRoutes);
 // Privilege MCP Client — relay for the chat-first Privilege Gateway MCP client page
 app.use('/api/privilege-mcp', require('./routes/privilegeMcpClient'));
 // Minimal machine-to-machine sibling of the above: client_credentials token in,
@@ -1387,6 +1399,11 @@ app.use('/internal', require('./routes/mcpAuditIngest'));
 // per phase here so the BFF can assemble the full chain. Secret-guarded;
 // NOT browser-facing. Read back at /api/transaction-trace.
 app.use('/internal', require('./routes/transactionHopIngest'));
+// Recording façade for external MCP clients (LM Studio, LibreChat) — relays to
+// the Agent Gateway / Privilege doors, writes the hops above in-process, and
+// appends a reel_url to every tool result. No session: the client brings its
+// own bearer. Read back at /api/transaction-trace/embed/:correlationId.
+app.use('/mcp-facade', require('./routes/mcpFacade'));
 // Gateway-only vault-key bridge — IG fetches demo backend API keys (X-API-Key)
 // from here at request time. Secret-guarded + allow-listed; NOT browser-facing.
 app.use('/internal', require('./routes/vaultServiceKey'));
@@ -1436,6 +1453,9 @@ app.use('/api/admin', authenticateToken, adminRoutes);
 // AI Control Plane (cross-platform agent roster). Any authenticated user — the
 // router applies authenticateToken per-route; no admin role required.
 app.use('/api/control-plane', require('./routes/controlPlane'));
+// Agent registry — one merged view over the identity stores (PingOne apps,
+// demo-issued workload clients, A2A specialists) with scope-drift detection.
+app.use('/api/registry', require('./routes/agentRegistry'));
 app.use('/api/admin/management', adminManagementRoutes);
 app.use('/api/admin/setup', setupWizardRoutes);
 app.use('/api/admin/diagrams', authenticateToken, diagramsRoutes);
@@ -1453,6 +1473,14 @@ app.use('/api/token-chain', authenticateToken, tokenChainRoutes);
 app.use('/api/token-exchanges', authenticateToken, tokenExchangeLogRouter);
 // Transaction chain of custody — read side. Any logged-in user, matching the
 // accessibility of its Telemetry sibling (the Tracing page).
+// Compact reel for one external-door call (routes/mcpFacade.js mints the id).
+// Mounted BEFORE the authenticated read side: it is opened from a client with
+// no BFF session (an LM Studio reel_url link, a LibreChat artifact iframe).
+// PUBLIC by explicit decision — the Autonomous Agents page is reachable signed
+// out, including its feature toggle. See the header of routes/autonomousRuns.js
+// for exactly what that exposes and the one narrowing applied.
+app.use('/api/autonomous-runs', require('./routes/autonomousRuns'));
+app.use('/api/transaction-trace/embed', require('./routes/transactionTraceEmbed'));
 app.use('/api/transaction-trace', authenticateToken, require('./routes/transactionTrace'));
 app.use('/api/token-display', authenticateToken, tokenDisplayRoutes);
 // The tracker dual-writes every /api/* call into a shared __global__ bucket that
@@ -1528,6 +1556,20 @@ app.use('/api/logs', logsRoutes);
 // PingOne Configuration Audit — admin-accessible endpoint for validating resources and scopes
 app.use('/api/pingone/audit', pingoneAuditRoutes);
 
+// M2M Client Credentials sample — public, like the other PingOne Demo Apps pages.
+// The worker client secret stays server-side; the route returns rendered steps only.
+app.use('/api/m2m-sample', require('./routes/m2mSample'));
+
+// Custom Admin Role sample — public, like the other sample pages. WRITES to the
+// environment (creates a role and a worker app), then deletes both unless the
+// caller opts out.
+app.use('/api/custom-admin-role-sample', require('./routes/customAdminRoleSample'));
+
+// Native-flow samples (mfa-demo, user-registration) — public, same as above.
+// Two-phase: /run stops once PingOne emails a one-time code, /otp finishes the
+// flow. user-registration creates an account and deletes it unless told not to.
+app.use('/api/native-flow-sample', require('./routes/nativeFlowSample'));
+
 // PingOne Test Page — /config is public (env settings only, no user data); all other endpoints require auth
 app.use('/api/pingone-test', (req, res, next) => {
     if (req.path === '/config' && req.method === 'GET') return next();
@@ -1571,6 +1613,17 @@ app.use('/api/demo/xaa', xaaIdJagDemoRoutes);
 // RS256 assertions the MCP Authorization Server verifies and redeems.
 const enterpriseIdpRoutes = require('./routes/enterpriseIdp');
 app.use('/api/enterprise-idp', enterpriseIdpRoutes);
+
+// Discovery for external EMA clients (e.g. MCP Inspector's Client Settings ->
+// Enterprise-Managed Authorization): the issuer origin, not /api/enterprise-idp,
+// is what a client's OIDC discovery step fetches from. Public, no auth.
+app.get('/.well-known/oauth-authorization-server', (_req, res) => {
+  res.json(enterpriseIdpRoutes.buildDiscoveryDocument());
+});
+app.get('/.well-known/openid-configuration', (_req, res) => {
+  res.json(enterpriseIdpRoutes.buildDiscoveryDocument());
+});
+
 const spiffeDemoRoutes = require('./routes/spiffeDemo');
 app.use('/api/demo/spiffe', spiffeDemoRoutes);
 const dpopDemoRoutes = require('./routes/dpopDemo');
@@ -2513,6 +2566,26 @@ process.on('uncaughtException', (err) => {
  * logged as warnings and never block requests (WR-22/WR-25).
  */
 async function runBackgroundStartupTasks() {
+    // ── EMA seeded Inspector client ───────────────────────────────────────────
+    // getSeededInspectorClient() reads client_id/client_secret via
+    // configStore.getEffective(), which only sees vault-loaded values once
+    // loadVaultIntoConfigStore() has run — this function is called from
+    // inside app.listen's callback specifically so that's already true (see
+    // the WR-22/WR-25 note below). Calling this at module scope instead (as
+    // it originally was) memoised a random fallback before the vault ever
+    // loaded, permanently shadowing the pinned client_secret for the life of
+    // the process.
+    try {
+        const enterpriseIdpClientRegistry = require('./services/enterpriseIdpClientRegistry');
+        const inspectorClient = enterpriseIdpClientRegistry.getSeededInspectorClient();
+        console.log(
+            `[enterpriseIdp] Seeded EMA client for MCP Inspector — client_id=${inspectorClient.client_id} ` +
+            `client_secret=${inspectorClient.client_secret} redirect_uri=${inspectorClient.redirect_uris[0]}`,
+        );
+    } catch (err) {
+        console.warn('[enterpriseIdp] Inspector client seed failed (non-fatal):', err.message);
+    }
+
     // ── LMDB OAuth endpoint sync ──────────────────────────────────────────────
     // Sync OAuth endpoints from .env into LMDB. If LMDB has stale cached values
     // (e.g., old authz-server:9001 from a prior run), overwrites them with correct
@@ -2822,6 +2895,20 @@ if (require.main === module) {
         const keyFile  = process.env.SSL_KEY_FILE  ||
           (fs.existsSync(_mkcertKey) ? _mkcertKey : _k8sKey);
 
+        // Recording façade over plain HTTP, loopback only (docker-compose maps
+        // 127.0.0.1:3002). Host-side MCP clients — LM Studio's bridge is a Node
+        // process — do not trust the mkcert chain (SELF_SIGNED_CERT_IN_CHAIN,
+        // seen live 2026-08-24), and every relayed call carries the client's own
+        // bearer, and the only other thing it serves is the public read-only reel
+        // image (routes/mcpFacade.js) — never the session app.
+        if (process.env.MCP_FACADE_HTTP_PORT) {
+            const facadeApp = express();
+            facadeApp.use('/mcp-facade', require('./routes/mcpFacade'));
+            require('http').createServer(facadeApp).listen(process.env.MCP_FACADE_HTTP_PORT, () => {
+                console.log(`MCP façade (HTTP) on http://localhost:${process.env.MCP_FACADE_HTTP_PORT}/mcp-facade`);
+            });
+        }
+
         let server;
         if (fs.existsSync(certFile) && fs.existsSync(keyFile)) {
             // Single source of truth for the scheme the server actually bound — read by
@@ -2880,6 +2967,12 @@ if (require.main === module) {
         // completed, causing false "credentials not configured" warnings.
         setImmediate(() => runBackgroundStartupTasks());
         const lighthouseTask = startLighthouseScheduler();
+        // The only path by which an agent run starts without a user turn.
+        // Returns null (registers nothing) while ff_autonomous_agents is off.
+        startAutonomousScheduler();
+        // Dead-man switch: autonomous agents disarm themselves an hour after
+        // being switched on, so a demo left running does not keep firing crons.
+        startAutonomousArmSweep();
 
         // k8s rollout contract: the replacement pod boots while this one is
         // still in its termination grace period, and both mount the same LMDB

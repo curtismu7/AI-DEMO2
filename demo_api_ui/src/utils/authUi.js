@@ -265,18 +265,44 @@ export function navigateToCustomerOAuthLogin(returnTo) {
   window.location.href = `${apiUrl}/api/auth/oauth/user/login${suffix}`;
 }
 
-/** Force re-authentication — clears existing session and sends prompt=login to PingOne. */
-export function navigateToCustomerOAuthForceLogin() {
+/**
+ * Force re-authentication — clears existing session and sends prompt=login to PingOne.
+ * @param {string} [returnTo] - app path to land on after login (BFF `return_to`).
+ *   Same defaulting as navigateToCustomerOAuthLogin. Without it the user signs
+ *   back in and lands somewhere other than the page they were interrupted on,
+ *   which is what made a session expiry lose your place mid-task.
+ */
+export function navigateToCustomerOAuthForceLogin(returnTo) {
   const apiUrl =
     process.env.REACT_APP_API_URL || (typeof window !== 'undefined' ? window.location.origin : '');
-  window.location.href = `${apiUrl}/api/auth/oauth/user/login?force=true`;
+
+  let destination = returnTo;
+  if (!destination && typeof window !== 'undefined') {
+    const currentPath = window.location.pathname;
+    destination = currentPath === '/' ? '/dashboard' : currentPath;
+  }
+
+  // force=true is already in the query, so return_to joins with &.
+  const suffix = destination ? `&return_to=${encodeURIComponent(destination)}` : '';
+  window.location.href = `${apiUrl}/api/auth/oauth/user/login?force=true${suffix}`;
 }
 
-/** Redirect to admin OAuth Backend-for-Frontend (BFF) route. */
-export function navigateToAdminOAuthLogin() {
+/**
+ * Redirect to admin OAuth Backend-for-Frontend (BFF) route.
+ * @param {string} [returnTo] - app path to land on after login (BFF `return_to`).
+ */
+export function navigateToAdminOAuthLogin(returnTo) {
   const apiUrl =
     process.env.REACT_APP_API_URL || (typeof window !== 'undefined' ? window.location.origin : '');
-  window.location.href = `${apiUrl}/api/auth/oauth/login`;
+
+  let destination = returnTo;
+  if (!destination && typeof window !== 'undefined') {
+    const currentPath = window.location.pathname;
+    destination = currentPath === '/' ? '/dashboard' : currentPath;
+  }
+
+  const suffix = destination ? `?return_to=${encodeURIComponent(destination)}` : '';
+  window.location.href = `${apiUrl}/api/auth/oauth/login${suffix}`;
 }
 
 /**

@@ -33,4 +33,17 @@ function consume(userId, tool, amount) {
   return expiresAt > Date.now();
 }
 
-module.exports = { record, consume };
+// A receipt whose bearer-token retry never happens (abandoned retry, amount
+// mismatch, or the transfer going through the session-based hitlCredit.js
+// path instead) is only ever cleaned up reactively inside consume() -- never
+// proactively -- so it would otherwise sit in the Map for the life of the
+// process. Mirrors the periodic-sweep pattern in http2McpBridge.js.
+function _sweepExpired() {
+  const now = Date.now();
+  for (const [k, expiresAt] of receipts) {
+    if (expiresAt <= now) receipts.delete(k);
+  }
+}
+setInterval(_sweepExpired, TTL_MS).unref();
+
+module.exports = { record, consume, _receiptCountForTests: () => receipts.size };

@@ -161,7 +161,7 @@ describe('GET /api/health/tracing/traces/:id', () => {
   });
 });
 
-describe('jaegerUiUrl derivation on /status', () => {
+describe('tracesUiUrl derivation on /status', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     axios.get.mockResolvedValue({ status: 200, data: { data: [] } });
@@ -171,29 +171,41 @@ describe('jaegerUiUrl derivation on /status', () => {
   });
   afterEach(() => {
     configStore.getEffective.mockRestore();
-    delete process.env.JAEGER_UI_URL;
+    delete process.env.TRACES_UI_URL;
   });
 
-  test('explicit JAEGER_UI_URL wins and trailing slash is stripped', async () => {
-    process.env.JAEGER_UI_URL = 'https://explicit.example/jaeger/';
+  test('explicit TRACES_UI_URL wins and trailing slash is stripped', async () => {
+    process.env.TRACES_UI_URL = 'https://explicit.example/grafana/';
     configStore.getEffective.mockReturnValue('https://ignored.example');
     const res = await request(buildApp()).get('/api/health/tracing/status');
-    expect(res.body.jaegerUiUrl).toBe('https://explicit.example/jaeger');
+    expect(res.body.tracesUiUrl).toBe('https://explicit.example/grafana');
   });
 
-  test('derives from public_app_url (env or LMDB, via configStore) when JAEGER_UI_URL is unset', async () => {
-    delete process.env.JAEGER_UI_URL;
+  test('derives from public_app_url (env or LMDB, via configStore) when TRACES_UI_URL is unset', async () => {
+    delete process.env.TRACES_UI_URL;
     configStore.getEffective.mockImplementation((key) =>
       key === 'public_app_url' ? 'https://ai-demo.ping-devops.com' : '');
     const res = await request(buildApp()).get('/api/health/tracing/status');
-    expect(res.body.jaegerUiUrl).toBe('https://ai-demo.ping-devops.com/jaeger');
+    expect(res.body.tracesUiUrl).toBe('https://ai-demo.ping-devops.com/grafana');
     expect(configStore.getEffective).toHaveBeenCalledWith('public_app_url');
   });
 
-  test('falls back to localhost when neither JAEGER_UI_URL nor public_app_url is set', async () => {
-    delete process.env.JAEGER_UI_URL;
+  test('falls back to the local Grafana origin when neither is set', async () => {
+    delete process.env.TRACES_UI_URL;
     configStore.getEffective.mockReturnValue('');
     const res = await request(buildApp()).get('/api/health/tracing/status');
-    expect(res.body.jaegerUiUrl).toBe('http://localhost:16686');
+    expect(res.body.tracesUiUrl).toBe('http://localhost:3000');
+  });
+
+  // The whole point of the change: nothing hands the browser a Jaeger URL any
+  // more, because the public /jaeger/ route is gone and Jaeger has no auth.
+  test('never advertises a browser-reachable Jaeger URL', async () => {
+    delete process.env.TRACES_UI_URL;
+    configStore.getEffective.mockImplementation((key) =>
+      key === 'public_app_url' ? 'https://ai-demo.ping-devops.com' : '');
+    const res = await request(buildApp()).get('/api/health/tracing/status');
+    expect(res.body.jaegerUiUrl).toBeUndefined();
+    expect(res.body.tracesUiUrl).not.toMatch(/\/jaeger/);
+    expect(res.body.tracesUiUrl).not.toMatch(/16686/);
   });
 });

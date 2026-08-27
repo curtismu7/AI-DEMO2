@@ -71,6 +71,9 @@ const PEP_SOURCES = [
   'demo_mcp_gateway/src/auth/PingOneAuthorizeClient.ts',
   'demo_mcp_gateway/src/pingAuthorizeGuard.ts',
   'demo_api_server/services/pingOneAuthorizeService.js',
+  // The unattended-agent PEP: builds its own decision request (no session to
+  // borrow one from), so it is a source this contract must know about.
+  'demo_api_server/services/autonomousAuthorize.js',
 ];
 
 function requiredRequestAttributes() {

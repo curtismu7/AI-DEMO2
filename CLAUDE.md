@@ -42,6 +42,7 @@ Edit→test→commit only in an **isolated git worktree** — concurrent session
 | Test | `./run-tests.sh unit` (fastest); `./run-tests.sh [api\|e2e\|all]`; `npm test` |
 | Hygiene | `npm run topology:verify`, `npm run hygiene:check`, `npm run authz:verify` |
 | LLM proxy | `:8090` via `demo_llm_proxy/` (`LLM_BACKEND=llamacpp` default; `omlx` on Apple Silicon) |
+| Monitoring | Grafana `/grafana` over Prometheus, scraping PingGateway's admin connector; Jaeger is a second datasource. Config in `monitoring/`, one copy shared by Docker and k8s. Alert rules evaluate but **route nowhere — no Alertmanager**. Sign-in is PingOne SSO (`Demo AI App - Grafana Login`, everyone a Viewer) **plus** the local admin form, kept deliberately as the lockout fallback. Set `GRAFANA_ADMIN_PASSWORD` and `GRAFANA_PINGONE_CLIENT_SECRET` before `create-secrets.sh`; it is internet-facing. |
 
 PingOne lifecycle (`setup:fresh`, `pingone:bootstrap`, import/export/reset) mutates a live environment — read the script before running. Prefer hosted PingOne MCP tools for app/population/user reads during development.
 
@@ -76,6 +77,8 @@ Commit often (free, and uncommitted work is the only work that dies). **Push onc
 The expensive part is not opening a PR, it's watching it. `.claude/hooks/warn-token-leaks.py` warns (never blocks) on the three biggest leaks — repeat `gh pr checks` polling instead of one `--watch`, an unscoped test run, and a whole-stack `run-docker.sh restart`. Proceed past a warning when you have a reason and say why; suppress with `# no-leak-warn`. Self-check: `bash .claude/hooks/warn-token-leaks.test.sh`.
 
 Deploy only after merge, only if you touched a bind-mounted service, and targeted (`scripts/deploy-live.sh` already is). Deploy is a singleton — check `npm run serve:worktree` before yanking the mounts out from under another session. The launchd job syncs main every 15 min, so a manual sync is only for "I need it current now".
+
+**Before and after any live UI drive, pin the stack generation:** `gen="$(npm run -s stack:generation)"` … `npm run -s stack:generation -- --check "$gen"`. Several sessions share one stack and any of them can recreate `ui`/`demo-api-server` mid-request; from the driver's side that looks exactly like an application bug (404/502, no server-side trace, and `docker logs` afterwards reads the *new* container). A non-zero `--check` means the run is void — not a finding.
 
 ## Before claiming done
 

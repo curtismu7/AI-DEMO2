@@ -186,7 +186,7 @@ function bankingLookup(req, res) {
     transactions.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     res.json({ user, query, vertical: 'banking', data: { accounts, transactions: transactions.slice(0, 200) } });
   } catch (error) {
-    console.error('banking lookup error:', error);
+    console.error('banking lookup error:', error?.stack || String(error));
     res.status(500).json({ error: 'lookup_failed', message: error.message });
   }
 }

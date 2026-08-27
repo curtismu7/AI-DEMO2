@@ -31,6 +31,26 @@ npm run build        # vite build — the gate; a green test run is not enough
 
 E2E needs a running stack **on `local.ping-devops.com:4000`** (see root "Watch out").
 
+## Ad-hoc probes against the live stack
+
+Driving the real app to check something? Use `tests/e2e/helpers/uiProbe.js` with
+`realLogin.js` — do not hand-roll a wait.
+
+```js
+await loginAsCustomer(page);          // realLogin.js owns sign-in (nav button is 0x0 headless)
+const seen = await settle(page);      // THROWS if the page never renders — never returns a 0
+await requireVertical(page, 'sporting-goods');  // THROWS if the session resolved elsewhere
+```
+
+**Never `networkidle`** — the app holds SSE open, so it does not fire. Both helpers
+throw rather than returning falsy, because a falsy return is what gets written up
+as a finding: a probe that sampled too early once produced "renders nothing" for a
+page that renders 1381 characters, and a retail phrase submitted into a banking
+session was nearly reported as a broken feature.
+
+Pair it with `npm run -s stack:generation` before/after, or another session
+recreating the stack mid-run will look like an application bug.
+
 ## Modals — always DraggableModal
 
 - ❌ hand-rolled overlay `<div>`, raw `<dialog>`, `window.confirm()`

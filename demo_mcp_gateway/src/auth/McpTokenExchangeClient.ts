@@ -167,13 +167,20 @@ export class McpTokenExchangeClient {
   private async getActorToken(): Promise<string> {
     if (_actorToken && _actorToken.expiresAt > Date.now() + 5000) return _actorToken.token;
 
-    // Prefer the MCP Token Exchanger principal (GW_INTROSPECTION_CLIENT_*) —
-    // that app is granted `gateway:mcp:invoke` on the gateway resource. The
-    // MCP Gateway app (MCP_GW_CLIENT_ID) is intentionally granted tool scopes
-    // on OLB/invest backends instead; a bare CC mint with it fails PingOne's
+    // The actor must hold a grant on the target resource. The MCP Token
+    // Exchanger app is the principal that does; the MCP Gateway app
+    // (MCP_GW_CLIENT_ID) is intentionally granted tool scopes on OLB/invest
+    // backends instead, so a bare CC mint with it fails PingOne's
     // multi-resource check ("May not request scopes for multiple resources").
-    const actorClientId = this.config.introspectionClientId || this.config.clientId;
-    const actorClientSecret = this.config.introspectionClientSecret || this.config.clientSecret;
+    // Prefer the dedicated actor pair (PINGONE_TOKEN_EXCHANGER_CLIENT_*), then
+    // the introspection principal, then the gateway client — the introspection
+    // pair can no longer be assumed to name the exchanger, because the
+    // authz-server sidecar needs GW_INTROSPECTION_* pointed at the resource's
+    // OWN client (the only principal PingOne answers active:true for).
+    const actorClientId =
+      this.config.actorClientId || this.config.introspectionClientId || this.config.clientId;
+    const actorClientSecret =
+      this.config.actorClientSecret || this.config.introspectionClientSecret || this.config.clientSecret;
 
     const params = new URLSearchParams({ grant_type: 'client_credentials' });
     // RFC 8707: narrow to ONE resource. MCP_GW_RESOURCE_URI may be a comma-list
@@ -185,7 +192,12 @@ export class McpTokenExchangeClient {
     if (actorResource) params.set('resource', actorResource);
     // Explicit single-resource scope — required when the client has grants on
     // more than one resource (see oauthService.getClientCredentialsTokenAs).
-    params.set('scope', 'gateway:mcp:invoke');
+    // Per-resource, NOT a constant: the invocation-scope spelling differs by
+    // gateway resource (scope-topology.json `aliases`), and this mint narrows
+    // to the ONE resource picked above — so the scope has to be that
+    // resource's spelling. Default `mcp:invoke` is what the Node gateway's own
+    // resource carries; MCP_GW_ACTOR_SCOPE overrides for the others.
+    params.set('scope', this.config.actorTokenScope || 'mcp:invoke');
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/x-www-form-urlencoded',

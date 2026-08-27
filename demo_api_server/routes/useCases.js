@@ -308,6 +308,17 @@ router.post('/uc20/audit', authenticateToken, async (req, res) => {
 // NOTE: In production, persist to database with automatic cleanup of expired requests.
 const cibaRequests = new Map(); // auth_req_id -> {userId, status, approvedAt, expiresAt}
 
+// Deny and expired-poll paths delete their own entry, but an approved or
+// abandoned request (no poll after expiry) is never touched again — sweep
+// the backstop, same idiom as demoTrackService.js's _sweepStaleBuckets.
+function _sweepExpiredCibaRequests() {
+  const now = Date.now();
+  for (const [authReqId, req] of cibaRequests) {
+    if (req.expiresAt < now) cibaRequests.delete(authReqId);
+  }
+}
+setInterval(_sweepExpiredCibaRequests, 60 * 60 * 1000).unref();
+
 // POST /api/use-cases/uc15/initiate  → UC15 CIBA initiate (start out-of-band flow)
 router.post('/uc15/initiate', authenticateToken, (req, res) => {
   try {
@@ -516,3 +527,5 @@ router.get('/golden/:vertical/:useCaseId', (req, res) => {
 });
 
 module.exports = router;
+module.exports._cibaRequestsForTest = cibaRequests;
+module.exports._sweepExpiredCibaRequestsForTest = _sweepExpiredCibaRequests;

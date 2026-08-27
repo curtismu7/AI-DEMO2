@@ -290,7 +290,7 @@ router.post('/:clientId/rotate-secret', extractRequestMetadata, requireAdmin, as
  * Error handling middleware
  */
 router.use((err, req, res, next) => {
-  console.error('[OAuth Clients] Error:', err);
+  console.error('[OAuth Clients] Error:', err?.stack || String(err));
   
   res.status(err.status || 500).json({
     error: 'server_error',

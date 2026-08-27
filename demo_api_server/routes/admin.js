@@ -77,7 +77,7 @@ router.get('/stats', requireAdmin, requireScopes(['admin']), (req, res) => {
     res.json({ stats });
 
   } catch (error) {
-    console.error('Get stats error:', error);
+    console.error('Get stats error:', error?.stack || String(error));
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -94,7 +94,7 @@ router.get('/users/hints', requireAdmin, requireScopes(['admin']), async (req, r
       return res.json({ hints: p1Hints, source: 'pingone' });
     }
     if (error) {
-      console.warn('[admin] users/hints PingOne failed, using local fallback:', error);
+      console.warn('[admin] users/hints PingOne failed, using local fallback:', error?.stack || String(error));
     }
     const users = dataStore.getAllUsers();
     const hints = users
@@ -207,7 +207,7 @@ router.post('/transactions/lookup', requireAdmin, requireScopes(['admin']), asyn
       totalTransactions: transactions.length,
     });
   } catch (error) {
-    console.error('Admin transactions lookup error:', error);
+    console.error('Admin transactions lookup error:', error?.stack || String(error));
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -267,7 +267,7 @@ router.get('/activity', authenticateToken, (req, res) => {
     });
 
   } catch (error) {
-    console.error('Get activity logs error:', error);
+    console.error('Get activity logs error:', error?.stack || String(error));
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -305,7 +305,7 @@ router.get('/activity/user/:username', requireAdmin, requireScopes(['admin']), (
     });
 
   } catch (error) {
-    console.error('Get user activity logs error:', error);
+    console.error('Get user activity logs error:', error?.stack || String(error));
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -342,7 +342,7 @@ router.get('/activity/userid/:userId', requireAdmin, requireScopes(['admin']), (
     });
 
   } catch (error) {
-    console.error('Get user ID activity logs error:', error);
+    console.error('Get user ID activity logs error:', error?.stack || String(error));
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -360,7 +360,7 @@ router.get('/activity/recent', authenticateToken, (req, res) => {
     res.json({ logs });
 
   } catch (error) {
-    console.error('Get recent activity error:', error);
+    console.error('Get recent activity error:', error?.stack || String(error));
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -384,7 +384,7 @@ router.get('/activity/summary', authenticateToken, (req, res) => {
     res.json({ summary: summaryArray });
 
   } catch (error) {
-    console.error('Get activity summary error:', error);
+    console.error('Get activity summary error:', error?.stack || String(error));
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -420,7 +420,7 @@ router.get('/activity/users/summary', requireAdmin, requireScopes(['admin']), (r
     res.json({ userSummary: summaryArray });
 
   } catch (error) {
-    console.error('Get user activity summary error:', error);
+    console.error('Get user activity summary error:', error?.stack || String(error));
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -448,7 +448,7 @@ router.delete('/activity/clear', requireAdmin, requireScopes(['admin']), (req, r
     });
 
   } catch (error) {
-    console.error('Clear activity logs error:', error);
+    console.error('Clear activity logs error:', error?.stack || String(error));
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -490,7 +490,7 @@ router.get('/activity/export', requireAdmin, requireScopes(['admin']), (req, res
     res.send(csvContent);
 
   } catch (error) {
-    console.error('Export activity logs error:', error);
+    console.error('Export activity logs error:', error?.stack || String(error));
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -567,7 +567,7 @@ router.put('/settings', requireAdmin, requireScopes(['admin']), async (req, res)
     console.log(`[Settings] Updated by ${changedBy}: ${updatedKeys}`);
     res.json({ message: 'Settings updated successfully.', settings: result.settings });
   } catch (error) {
-    console.error('Settings update error:', error);
+    console.error('Settings update error:', error?.stack || String(error));
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -591,7 +591,7 @@ router.get('/oauth-debug-log', requireAdmin, requireScopes(['admin']), async (re
             : 'Logs stored under data/logs/oauth-verbose.log on the API host.',
     });
   } catch (error) {
-    console.error('oauth-debug-log read error:', error);
+    console.error('oauth-debug-log read error:', error?.stack || String(error));
     res.status(500).json({ error: 'log_read_failed', message: error.message });
   }
 });
@@ -601,7 +601,7 @@ router.delete('/oauth-debug-log', requireAdmin, requireScopes(['admin']), async 
     await oauthVerboseLogStore.clear();
     res.json({ ok: true, message: 'OAuth verbose log cleared.' });
   } catch (error) {
-    console.error('oauth-debug-log clear error:', error);
+    console.error('oauth-debug-log clear error:', error?.stack || String(error));
     res.status(500).json({ error: 'log_clear_failed', message: error.message });
   }
 });
@@ -627,7 +627,7 @@ router.get('/bootstrap/export', requireAdmin, requireScopes(['admin']), (req, re
     res.setHeader('Content-Disposition', 'attachment; filename="bootstrapData.json"');
     res.send(json);
   } catch (error) {
-    console.error('bootstrap export error:', error);
+    console.error('bootstrap export error:', error?.stack || String(error));
     res.status(500).json({ error: 'bootstrap_export_failed', message: error.message });
   }
 });
@@ -658,7 +658,7 @@ router.post('/bootstrap/export', requireAdmin, requireScopes(['admin']), async (
     await fs.writeFile(outPath, `${JSON.stringify(body, null, 2)}\n`, 'utf8');
     res.json({ ok: true, path: outPath });
   } catch (error) {
-    console.error('bootstrap write error:', error);
+    console.error('bootstrap write error:', error?.stack || String(error));
     res.status(500).json({ error: 'bootstrap_write_failed', message: error.message });
   }
 });
@@ -707,7 +707,7 @@ router.post('/banking/accounts/:accountId/seed-charges', requireAdmin, requireSc
       account: refreshed,
     });
   } catch (error) {
-    console.error('seed-charges error:', error);
+    console.error('seed-charges error:', error?.stack || String(error));
     res.status(500).json({ error: 'seed_failed', message: error.message });
   }
 });
@@ -721,7 +721,7 @@ router.get('/setup/management-probe', requireAdmin, async (_req, res) => {
     const result = await probeManagementApiAccess();
     res.status(200).json(result);
   } catch (error) {
-    console.error('management-probe error:', error);
+    console.error('management-probe error:', error?.stack || String(error));
     res.status(500).json({ ok: false, error: 'probe_failed' });
   }
 });
@@ -754,7 +754,7 @@ router.post(
       });
       res.status(result.ok ? 200 : 422).json(result);
     } catch (error) {
-      console.error('pingone-bootstrap-run error:', error);
+      console.error('pingone-bootstrap-run error:', error?.stack || String(error));
       res.status(500).json({ ok: false, error: error.message || 'bootstrap_failed' });
     }
   }
@@ -806,7 +806,7 @@ router.post(
 
       res.json(result);
     } catch (error) {
-      console.error('Scope update error:', error);
+      console.error('Scope update error:', error?.stack || String(error));
       res.status(500).json({
         error: 'scope_update_failed',
         message: error.message || 'Failed to update scopes'
@@ -832,7 +832,7 @@ router.get(
       
       res.json(credentialStatus);
     } catch (error) {
-      console.error('Credential status check error:', error);
+      console.error('Credential status check error:', error?.stack || String(error));
       res.status(500).json({
         error: 'credential_check_failed',
         message: error.message
@@ -1155,7 +1155,7 @@ router.post('/reset-demo', authenticateToken, async (req, res) => {
     console.log('[admin] Demo state reset by:', req.session?.user?.email || 'unknown');
     res.json({ ok: true, message: 'Demo state cleared. Reload the browser to start fresh.' });
   } catch (error) {
-    console.error('[admin] reset-demo error:', error);
+    console.error('[admin] reset-demo error:', error?.stack || String(error));
     res.status(500).json({ error: 'reset_failed', message: error.message });
   }
 });
@@ -1183,7 +1183,7 @@ router.get('/app-events', requireAdmin, requireScopes(['admin']), (req, res) => 
       categories,
     });
   } catch (error) {
-    console.error('Get app-events error:', error);
+    console.error('Get app-events error:', error?.stack || String(error));
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -1196,7 +1196,7 @@ router.get('/app-events/categories', requireAdmin, requireScopes(['admin']), (re
     const categories = appEventService.getEventsByCategory();
     res.json({ categories });
   } catch (error) {
-    console.error('Get app-events categories error:', error);
+    console.error('Get app-events categories error:', error?.stack || String(error));
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -1264,7 +1264,7 @@ router.post('/app-events', authenticateToken, (req, res) => {
     const event = appEventService.logEvent(category, severity, message, { tag, metadata });
     res.status(201).json({ event });
   } catch (error) {
-    console.error('[admin] POST /app-events error:', error);
+    console.error('[admin] POST /app-events error:', error?.stack || String(error));
     res.status(500).json({ error: 'internal_server_error' });
   }
 });

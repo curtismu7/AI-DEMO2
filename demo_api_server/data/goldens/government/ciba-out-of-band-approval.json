@@ -4,9 +4,9 @@
   "ucId": "UC22",
   "trigger": "pay the $150 fee",
   "expectedOutcome": "PERMIT",
-  "capturedAt": "2026-07-27T00:27:33.864Z",
-  "seedHash": "883b08745d6e1401",
-  "reply": "PingOne Authorize requires additional authentication before MCP tools can run.",
+  "capturedAt": "2026-08-24T14:01:55.078Z",
+  "seedHash": "9d3354388fed65d8",
+  "reply": "Here are your pay fee.",
   "agentPath": null,
-  "tokenEventCount": 13
+  "tokenEventCount": 24
 }

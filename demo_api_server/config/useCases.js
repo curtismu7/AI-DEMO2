@@ -1791,6 +1791,16 @@ const RAW_USE_CASES = [
       authz: 'Can extend this pattern: add a P1AZ policy that further constrains the personal agent\'s allowed actions based on the user\'s loyalty tier.',
     },
     primaryTool: 'redeem_miles',
+    // The SECOND tool this use case runs. `primaryTool` is the chip's entry
+    // point and was, until now, the only tool a use case declared anywhere
+    // machine-readable — so every gate built on this catalog was blind to the
+    // rest of a multi-tool flow. get_loyalty_status sat intent-unreachable
+    // through two rounds of fixes because nothing could see it; it was found by
+    // driving the live stack, not by a test (PR #2446).
+    // Declare every gateway tool a use case calls, not just the first.
+    // `useCases.secondaryTools.test.js` fails on a gateway tool named in this
+    // entry's prose but absent from primaryTool/secondaryTools.
+    secondaryTools: ['get_loyalty_status'],
     studioPath: '/personal-agent',
     perVertical: {
       airlines: {
@@ -1865,10 +1875,14 @@ function resolveUseCase(id, vertical) {
   if (!base) return undefined;
   if (!vertical || vertical === 'banking' || !base.perVertical || !base.perVertical[vertical]) {
     const { perVertical, match, ...rest } = base;
+    // No perVertical override applies here, so rest.primaryTool === base.primaryTool
+    // always — reuse the value stamped once at module load instead of re-deriving
+    // it (isA2aDelegatedPrimaryTool -> scopeTopology.load() does a sync fs.statSync
+    // every call).
     return {
       ...rest,
       resourceServer: resolveResourceServer(rest.primaryTool),
-      a2aDelegated: isA2aDelegatedPrimaryTool(rest.primaryTool),
+      a2aDelegated: base.a2aDelegated,
     };
   }
   const ov = base.perVertical[vertical];
@@ -1881,7 +1895,11 @@ function resolveUseCase(id, vertical) {
   return {
     ...rest,
     resourceServer: resolveResourceServer(rest.primaryTool),
-    a2aDelegated: isA2aDelegatedPrimaryTool(rest.primaryTool),
+    // Only recompute when the override actually swapped primaryTool; otherwise
+    // reuse the precomputed base value (same statSync-avoidance as above).
+    a2aDelegated: rest.primaryTool === base.primaryTool
+      ? base.a2aDelegated
+      : isA2aDelegatedPrimaryTool(rest.primaryTool),
   };
 }
 

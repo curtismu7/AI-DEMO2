@@ -12,6 +12,19 @@ round 1 had already touched and to report only genuinely new, distinct
 issues there. 12 of 12 candidate findings (#28–#39) survived verification —
 0 rejected.
 
+**Round 3 (2026-08-23, same day, after round 2 fully fixed and merged in
+PR #2294):** same design again, against the post-round-2 codebase, told
+about all 39 files touched by rounds 1–2. 17 of 17 candidate findings
+(#40–#56) survived verification — 0 rejected.
+
+**Round 4 (2026-08-23, same day, after round 3 fully fixed and merged in
+PR #2297):** same 6-finder-agent + adversarial-verify-per-candidate design,
+run as a Workflow against the post-round-3 codebase, told about all 52
+files touched by rounds 1–3. 10 of 10 candidate findings (#57–#66)
+survived verification — 0 rejected. Unlike prior rounds, round 4 fixes each
+get their own PR (fix → PR → merge in batches of 3) instead of one PR per
+fully-fixed round.
+
 **Working rule:** when a finding is fixed, flip its Status to `FIXED` with the
 PR number (or commit) and evidence **in the same commit as the fix**, and add a
 Changelog line. A status column that lags the code is the same false-green
@@ -64,6 +77,47 @@ failure `docs/UI_FINDINGS.md` warns about.
 | 37 | Perf | `services/traceProjector.js` | low | FIXED |
 | 38 | Perf | `demo_api_ui/.../context/ActivityNarrativeContext.js` | medium | FIXED |
 | 39 | Perf | `demo_api_ui/.../ScopeAuditPage.js` | medium | FIXED |
+| 40 | Runtime | `services/cibaTransactionReceipt.js` | medium | FIXED |
+| 41 | Runtime | `services/hitlCredit.js` | medium | FIXED |
+| 42 | Runtime | `services/http2McpBridge.js` | low | FIXED |
+| 43 | Runtime | `routes/privilegeMcpClient.js` | low | FIXED |
+| 44 | Runtime | `demo_api_ui/.../services/spinnerActivityService.js` | medium | FIXED |
+| 45 | Runtime | `demo_api_ui/.../services/cachedStatusService.js` | low | FIXED |
+| 46 | Swallowed | `routes/mcpGatewayConfig.js` | medium | FIXED |
+| 47 | Swallowed | `routes/agentConsentRoute.js` | high | FIXED |
+| 48 | Swallowed | `services/groupPolicy.js` | low | FIXED |
+| 49 | Swallowed | `demo_api_ui/.../components/Users.js` | medium | FIXED |
+| 50 | Swallowed | `demo_api_ui/.../components/ActivityLogs.js` | medium | FIXED |
+| 51 | Swallowed | `demo_api_ui/.../components/ThemeZonePanel.js` | high | FIXED |
+| 52 | Swallowed | `demo_api_ui/.../pages/ResourceServerJourneyPage.jsx` | medium | FIXED |
+| 53 | Perf | `middleware/activityLogger.js` | medium | FIXED |
+| 54 | Perf | `services/tokenValidationService.js` | low | FIXED |
+| 55 | Perf | `services/agentScopes.js` | low | FIXED |
+| 56 | Perf | `demo_api_ui/.../components/UserDashboard.js` | medium | FIXED |
+| 57 | Runtime | `services/pingOneAuthorizeService.js` | medium | FIXED |
+| 58 | Runtime | `services/lighthouseService.js` | low | FIXED |
+| 59 | Runtime | `demo_api_ui/.../pages/PrivilegeMcpClientPage.jsx` | medium | FIXED |
+| 60 | Runtime | `demo_api_ui/.../components/AgentGatewayLogPanel.jsx` | low | FIXED |
+| 61 | Runtime | `demo_api_ui/.../components/NewRelicDashboard.jsx` | low | FIXED |
+| 62 | Swallowed | `routes/enterpriseIdp.js` | medium | FIXED |
+| 63 | Swallowed | `demo_api_ui/.../services/agentAccessConsent.js` | high | FIXED |
+| 64 | Swallowed | `demo_api_ui/.../services/logout.js` | medium | FIXED |
+| 65 | Perf | `services/configStore.js` | medium | FIXED |
+| 66 | Perf | `demo_api_ui/.../pages/UseCaseLauncherPage.js` | medium | FIXED |
+| 67 | Runtime | `demo_mcp_gateway/src/server/GatewayServer.ts` | medium | FIXED |
+| 68 | Perf | `demo_mcp_gateway/src/rateLimit.ts` | medium | FIXED |
+| 69 | Perf | `demo_mcp_resource_server/src/db/retailDb.ts`, `workforceDb.ts` | low | FIXED |
+| 70 | Runtime | `routes/accounts.js` (`provisionDemoAccounts`) | high | FIXED |
+| 71 | Runtime | `routes/useCases.js` (`cibaRequests`) | low | FIXED |
+| 72 | Swallowed | `routes/demoScenario.js` (`restoreAccountsFromSnapshot`) | medium | FIXED |
+| 73 | Perf | `config/useCases.js` (`resolveUseCase`) | low | FIXED |
+| 74 | Runtime | `demo_api_ui/.../pages/UseCaseLauncherPage.js` (`handleRun`) | medium | FIXED |
+| 75 | Runtime | `demo_api_ui/.../pages/LiveUseCaseWorkbenchPage.js` (`handleRunChip`) | high | FIXED |
+| 76 | Runtime | `demo_api_ui/.../pages/DemoTrackPage.jsx` (`load`) | medium | FIXED |
+| 77 | Runtime | `demo_api_ui/.../components/DemoStepsDropdown.jsx` (`loadSteps`) | medium | FIXED |
+| 78 | Runtime | `demo_api_ui/.../pages/UseCaseLauncherPage.js` (`PromptSection.handleCopy`) | low | FIXED |
+| 79 | Perf | `demo_api_ui/.../components/DemoStepsDropdown.jsx` (completed-id lookups) | low | FIXED |
+| 80 | Perf | `demo_api_ui/.../pages/LiveUseCaseWorkbenchPage.js` (resize divider) | low | FIXED |
 
 ---
 
@@ -1133,8 +1187,1640 @@ ScopeAuditPage.fixAll` — 1/1 passed; full UI suite (417 files / 3421 tests)
 
 ---
 
+## Round 3 findings (2026-08-23)
+
+### 40. CIBA transaction receipts never evicted if never consumed — FIXED
+
+**File:** `demo_api_server/services/cibaTransactionReceipt.js`, line 16
+
+**Issue:** The `receipts` Map backing `record()`/`consume()` has no periodic
+TTL sweep or size cap — the only removal path is `consume()` deleting its
+own key. An expiry timestamp is stored but nothing ever checks it
+proactively; it's only checked reactively inside `consume()` at the moment a
+matching key happens to be looked up again.
+
+**Trigger scenario:** `routes/ciba.js` calls `record(userId, tool, amount)`
+on every out-of-band CIBA approval. `consume()` is only called from
+`routes/transactions.js` on the MCP/agent bearer-token path with the exact
+same key. Any approval whose bearer-token retry never happens with that
+identical key (abandoned retry, mismatched amount, or the transfer instead
+going through the session-based `hitlCredit.js` path) leaves its entry in
+the Map permanently.
+
+**Fix:** Added a `_sweepExpired()` function and a periodic unref'd
+`setInterval` (fires every `TTL_MS`, 5 minutes) that deletes any receipt
+whose stored expiry has passed, mirroring the pattern already used in
+`http2McpBridge.js`'s `cleanupInterval`.
+
+**Evidence:** New `cibaTransactionReceipt.sweep.test.js` uses fake timers:
+records a receipt, advances 6 minutes with no `consume()` call at all, and
+asserts the receipt count (via a new `_receiptCountForTests()` test-only
+export) drops to 0 — proving the module's own interval evicted it, not a
+manual call. A second test confirms normal single-use `consume()` behavior
+is unchanged. Proven to fail against the pre-fix file
+(`_receiptCountForTests` didn't exist) and pass against the fix. `cd
+demo_api_server && CI=true npx jest
+src/__tests__/cibaTransactionReceipt.sweep.test.js
+src/__tests__/ciba.test.js
+src/__tests__/mcpToolAuthorization.hitlAmountBind.test.js --forceExit
+--maxWorkers=4` — 3 suites / 65 tests passed.
+
+### 41. HITL credit check-then-act race across an awaited policy call — FIXED
+
+**File:** `demo_api_server/services/hitlCredit.js`, line 33
+
+**Issue:** `isFresh()` only reads session HITL state; `consume()` is a
+separate call the caller must invoke afterward. A real awaited network call
+to the authorization policy engine happens between the `isFresh()` read and
+the `consume()` write, so the check-then-act is not atomic.
+
+**Trigger scenario:** `routes/transactions.js` calls `isFresh()` (no
+consume), then `await transactionAuthorizationService.evaluateTransactionPolicy(...)`,
+then `consume()` only after that resolves. Two concurrent `POST
+/api/transactions` requests on the same session immediately after one CIBA
+approval can both pass the `isFresh()` check before either reaches
+`consume()`, so both get authorized off a single one-time approval.
+
+**Fix:** `express-session` gives each concurrent request its own
+independently-loaded session snapshot (saved back separately at response
+time), so an in-session-object flag can't serialize two truly concurrent
+requests — a plain `consumeIfFresh(session)` synchronous helper would still
+race if it only touched the session object. Instead added a real
+cross-request lock: `hitlCredit.js` gained `claim()`/`release()` backed by a
+process-local `Map` keyed by session id (same reason `cibaTransactionReceipt.js`
+keeps its own state out of the session object). `claim()` atomically checks
+`isFresh()` and that no other concurrent request currently holds the
+session's claim; a claim self-expires after `CLAIM_TTL_MS` (3s — comfortably
+longer than any single awaited call in this path) so a caller that
+determines the credit wasn't needed and can't call `release()` on every
+return path doesn't wedge the credit for more than a few seconds. User
+confirmed this approach (a real lock, not a narrower single-file patch or
+leaving it open) after being shown the tradeoffs.
+  - `routes/transactions.js`: `isFresh()` → `claim()`; releases immediately
+    via `release()` in the branch where the claim turned out unneeded
+    (`authz.hitlConsentDischarged` false), since this function's full
+    control flow is visible and every exit path can be tracked.
+  - `services/mcpToolAuthorizationService.js`: `isFresh()` → `claim()` at
+    its one call site; relies on the TTL self-expiry rather than an
+    explicit `release()`, since this function has three mutually-exclusive
+    `hitlRequired` gates spread across many return paths and instrumenting
+    all of them risked introducing a new bug for a narrower payoff than the
+    3-second self-heal already provides.
+
+**Evidence:** New `hitlCredit.claim`/`release` tests in `hitlCredit.test.js`
+prove: two independent session *objects* sharing the same `id` (simulating
+two concurrent requests, each with its own deserialized snapshot) can't both
+claim; `release()` frees it immediately for the next request; `consume()`
+also frees it; an unreleased claim self-expires after `CLAIM_TTL_MS`; a
+session with no `id` falls back to unlocked `isFresh()` semantics. Proven to
+fail against the pre-fix file (5/5 new tests — `claim`/`release` didn't
+exist) and pass against the fix (14/14). `cd demo_api_server && CI=true npx
+jest src/__tests__/hitlCredit.test.js src/__tests__/ciba.test.js
+src/__tests__/cibaService.test.js
+src/__tests__/mcpToolAuthorization.hitlAmountBind.test.js
+tests/services/transactionAuthorizationService.rfc9470.test.js
+src/__tests__/cibaTransactionReceipt.sweep.test.js --forceExit
+--maxWorkers=4` — 6 suites / 120 tests passed. Full server suite run
+separately since this touches a shared session-security primitive used by
+both the REST and MCP authorization paths.
+
+### 42. HTTP/2 connection pool cap silently bypassed under sustained concurrent load — FIXED
+
+**File:** `demo_api_server/services/http2McpBridge.js`, line 52
+
+**Issue:** `createHttp2Session()`'s pool-cap enforcement calls
+`evictOldest()`, which is a no-op whenever every pooled entry currently has
+`pendingStreams > 0` — yet the unconditional `pool.set(key, ...)` still runs
+afterward regardless of whether eviction succeeded.
+
+**Trigger scenario:** With `MAX_POOL_SIZE = 5` and 5 distinct pool keys all
+mid-flight (`pendingStreams > 0` on each), a 6th distinct key triggers
+`evictOldest()` finding nothing evictable, then still gets added, growing
+the pool past its configured cap.
+
+**Fix:** `evictOldest()` now selects the least-recently-used entry
+regardless of `pendingStreams`, and calls `session.close()` on it — Node's
+own graceful HTTP/2 shutdown, which stops accepting new streams but lets
+any in-flight ones finish naturally, so no in-progress request is ever
+aborted by this change.
+
+**Evidence:** New test in `http2McpBridge.test.js` fills the pool to
+`MAX_POOL_SIZE` (5), marks every entry's `pendingStreams = 1` (the exact
+condition that made eviction a no-op), then requests a 6th distinct session
+and asserts the pool stays at 5. Proven to fail against the pre-fix file
+(grew to 6) and pass against the fix. `cd demo_api_server && CI=true npx
+jest src/__tests__/http2McpBridge.test.js --forceExit --maxWorkers=4` —
+14/14 passed.
+
+### 43. Unbounded pagination loops against an operator-configured MCP upstream — FIXED
+
+**File:** `demo_api_server/routes/privilegeMcpClient.js`, line 607
+
+**Issue:** `listAllMcpPages()` and `discoverPolicyTools()` both page through
+an upstream MCP server via a `do { ... } while (cursor)` loop with no
+iteration cap and no repeated-cursor detection.
+
+**Trigger scenario:** The MCP endpoint is operator-configured via
+`PRIVILEGE_AGENTLESS_MCPGW_URL`/`PRIVILEGE_AGENT_MCPGW_URL` with no allowlist
+restricting it to a fixed trusted host. A pagination bug on the configured
+upstream (repeating a cursor, or always emitting a fresh `nextCursor`) hangs
+the request indefinitely.
+
+**Fix:** Added `MAX_MCP_PAGES = 100` and a `seenCursors` `Set` to both loops
+— either an excessive page count or a repeated cursor now breaks with a
+logged warning instead of looping forever.
+
+**Evidence:** New `privilegeMcpClient.pagination.test.js` (via a new
+`listAllMcpPages` entry in the file's existing `__test` hook export) proves
+three cases: an upstream that emits a fresh cursor forever stops at exactly
+100 pages; one that repeats a cursor stops after 2 calls; one that
+terminates normally is unaffected. While proving the fail-before case, the
+pre-fix loop didn't just hang — it actually **crashed the Node process**
+(stack/heap exhaustion, `SIGABRT`) under test, a stronger confirmation of
+the bug's severity than the "hangs indefinitely" description suggested.
+`cd demo_api_server && CI=true npx jest
+tests/routes/privilegeMcpClient.pagination.test.js --forceExit
+--maxWorkers=4` — 3/3 passed; full `privilegeMcpClient` test directory (14
+suites / 50 tests) — no regressions.
+
+### 44. Stopped-then-restarted activity poller can apply a stale response to the new session — FIXED
+
+**File:** `demo_api_ui/src/services/spinnerActivityService.js`, line 127
+
+**Issue:** `poll()` checks the module-level `_stopped` flag only once,
+synchronously, before its `await` — it never re-checks after the await
+resumes. A poll started under one session that is stopped and quickly
+restarted before the response arrives still applies its stale response's
+side effects to the new session's state.
+
+**Trigger scenario:** A poll is in flight; `stop()` fires, then `start()`
+fires again quickly (resetting `_events`/`_clientEventId`/`_sinceTimestamp`).
+When the original poll's response arrives, it already passed the top-of-function
+`_stopped` check (back when it was still false), so it proceeds
+unconditionally, corrupting the new session's event feed and polling
+cursor with data belonging to the ended session.
+
+**Fix:** Added a `_generation` counter bumped in `start()`/`stop()`.
+`poll()` captures it before its await and re-checks it in both the success
+and catch paths after the await resumes, returning early (discarding the
+response) if the generation changed.
+
+**Evidence:** New test mocks `axios`, defers the first poll's response,
+calls `start()` → `stop()` → `start()` while it's still pending, then
+resolves the stale response with a distinguishable event and asserts it
+never lands in `getEvents()`. Proven to fail against the pre-fix file (the
+stale event landed) and pass against the fix. `npm --prefix demo_api_ui run
+test:unit -- spinnerActivityService` — 1/1 passed; full UI suite (418 files
+/ 3422 tests) — no regressions. `npm --prefix demo_api_ui run build` —
+exit 0.
+
+### 45. Cached-status fetch can be clobbered by an older, slower overlapping request — FIXED
+
+**File:** `demo_api_ui/src/services/cachedStatusService.js`, line 51
+
+**Issue:** The fetch's resolve handler unconditionally overwrites
+`cache[cacheKey]` with no check that the entry it's writing to is still the
+one this fetch was launched for. Two overlapping requests for the same URL
+that resolve out of order let an older, slower response clobber a newer,
+already-cached fresher response.
+
+**Trigger scenario:** Call A is slow (12s) and its cache TTL (10s) elapses
+before it resolves, so call B fires fresh and resolves quickly, caching
+fresher data. When A finally resolves, its handler still runs unconditionally
+and overwrites the cache with stale data and a new expiry.
+
+**Fix:** The `.then`/`.catch` handlers now close over their own `promise`
+(the same `const` they're chained from) and only write to or delete
+`cache[cacheKey]` when `cache[cacheKey]?.promise === promise` — i.e. only
+when this fetch's own cache entry hasn't already been replaced by a newer
+one.
+
+**Evidence:** New test uses fake timers: starts a slow call A, advances past
+its TTL, starts a fast call B (caches fresh data), resolves A's slow
+response afterward, then asserts a third call still serves B's fresh data
+(not A's stale overwrite) with no extra fetch. Proven to fail against the
+pre-fix file (stale data won) and pass against the fix. `npm --prefix
+demo_api_ui run test:unit -- cachedStatusService` — 1/1 passed; full UI
+suite (419 files / 3423 tests) — no regressions. `npm --prefix demo_api_ui
+run build` — exit 0.
+
+### 46. MCP gateway config persist failure still reports success — FIXED
+
+**File:** `demo_api_server/routes/mcpGatewayConfig.js`, line 483
+
+**Issue:** `POST /api/admin/mcp-gateway/config` swallows a
+`configStore.setRaw` persist failure (both the persist-only branch and the
+gateway-push branch) and still responds `ok:true` (`persistedOnly:true` in
+the persist-only case), telling the admin UI the config was saved when the
+LMDB persist actually threw.
+
+**Trigger scenario:** POST with persist-only fields, or a mix that also
+includes gateway fields, while `configStore.setRaw(toStore)` rejects — the
+catch only `console.warn`s, and the response is built unconditionally
+afterward reporting success either way.
+
+**Fix:** Both persist branches (persist-only and gateway-push-then-persist)
+now return `502 { ok:false, error, detail }` when `configStore.setRaw`
+rejects, instead of falling through to the unconditional `ok:true` response.
+
+**Evidence:** New tests added to `demo_api_server/tests/mcpGatewayConfig.test.js`
+(`finding #46: persist-only path reports ok:false when setRaw rejects` and
+`finding #46: gateway-push path reports ok:false when setRaw rejects after a
+successful push`) proven to fail (`Expected: 502, Received: 200`) against the
+pre-fix file and pass against the fix. Full file green:
+`CI=true ./node_modules/.bin/jest tests/mcpGatewayConfig.test.js --forceExit --maxWorkers=4`
+→ 16 passed.
+
+### 47. Agent-consent route has no error handling — a Redis failure hangs the request forever — FIXED
+
+**File:** `demo_api_server/routes/agentConsentRoute.js`, line 22
+
+**Issue:** `POST /api/agent/consent/:runId` has no try/catch around its
+awaited `agentRunStore` calls, so a rejected promise (Redis-backed
+`RedisStore`) leaves the request hanging forever instead of returning an
+error response.
+
+**Trigger scenario:** With `RedisStore` in use, if its `_init()` failed at
+startup (or Redis errors later), `agentRunStore.getRunState(runId)` rejects.
+`express-async-errors` is listed in `package.json` but never `require`d
+anywhere, and there's no try/catch in this handler, so Express 4 doesn't
+forward the rejection to `res` — it becomes a process-level
+`unhandledRejection` and the HTTP response is never sent. Same exposure at
+`publishConsent` and `deleteRunState`.
+
+**Fix:** Wrapped the whole handler body in try/catch; a rejection from any
+`agentRunStore` call now returns `503 { error, detail }` instead of leaving
+the request hanging.
+
+**Evidence:** New test added to `demo_api_server/tests/agentConsentRoute.test.js`
+(`finding #47: returns an error response instead of hanging when the store
+rejects`) proven to fail — it actually timed out at 30s against the pre-fix
+file, matching the "hangs forever" description — and pass against the fix.
+Full file green:
+`CI=true ./node_modules/.bin/jest tests/agentConsentRoute.test.js --forceExit --maxWorkers=4`
+→ 6 passed.
+
+### 48. Group-policy manifest error is indistinguishable from "no groups configured" — FIXED
+
+**File:** `demo_api_server/services/groupPolicy.js`, line 49
+
+**Issue:** `_getVerticalManifest`'s catch block collapses a genuine
+manifest-resolution error to the same `null` returned when a vertical
+simply has no groups block; `requiredGroupForTool` then treats a
+thrown-error vertical as unrestricted for any non-banking vertical.
+
+**Trigger scenario:** `ff_authorize_group_policy` enabled,
+`verticalManifest.resolver.resolve(verticalId)` throws for a non-banking
+vertical instead of returning normally — no PingOne group is ever required
+for that vertical's restricted tools, silently permitting tools meant to be
+group-restricted.
+
+**Fix:** `_getVerticalManifest`/`_groupsConfig` now return a distinct
+`MANIFEST_RESOLUTION_ERROR` sentinel (a `Symbol`) instead of `null` when
+resolution throws. `requiredGroupForTool` checks for that sentinel: for
+banking it still falls back to the legacy `config/group-policy.json` data
+(unchanged behavior), but for every other vertical — which has no legacy
+fallback — it now fails closed, returning a group name no user actually
+holds, so the tool is treated as restricted-and-denied rather than
+unrestricted.
+
+**Evidence:** New tests added to `demo_api_server/src/__tests__/groupPolicy.test.js`
+(`finding #48: fails closed (non-null) for a non-banking vertical when
+manifest resolution throws` and a companion test confirming banking's legacy
+fallback still works) proven to fail (`Received: null`) against the pre-fix
+file and pass against the fix. Full file green:
+`CI=true ./node_modules/.bin/jest src/__tests__/groupPolicy.test.js --forceExit --maxWorkers=4`
+→ 18 passed. Also re-ran known callers'
+tests (`tests/sensitiveToolsGated.test.js`, `tests/a2aAdminVerticals.test.js`)
+since this is an authz-adjacent file: 96 passed.
+
+### 49. Agent-restrictions save failure gives the admin zero feedback — FIXED
+
+**File:** `demo_api_ui/src/components/Users.js`, line 115
+
+**Issue:** `updateAgentRestrictions`'s catch block only `console.error`s the
+PATCH failure, giving the admin no visible feedback that the
+agent-restriction change did not save.
+
+**Trigger scenario:** Admin changes the agent-restrictions dropdown; the
+PATCH fails (403/network/500). The catch does nothing but log; the spinner
+still clears in `finally`, so the UI silently reverts with no toast.
+
+**Fix:** Added `notifyError('Failed to update agent restrictions')` to the
+catch block.
+
+**Evidence:** New test
+`demo_api_ui/src/components/__tests__/Users.agentRestrictions.test.jsx`
+(`finding #49: notifies the admin when updateAgentRestrictions PATCH
+fails`) proven to fail (timeout waiting for `notifyError` to be called)
+against the pre-fix file and pass against the fix.
+
+### 50. Activity-log export/clear failures give zero on-screen feedback — FIXED
+
+**File:** `demo_api_ui/src/components/ActivityLogs.js`, line 124
+
+**Issue:** `exportLogs()` and `clearOldLogs()` catch their request failures
+with only `console.error`, giving no on-screen indication that the CSV
+export or log purge failed.
+
+**Trigger scenario:** Admin clicks Export and the GET fails — no file
+downloads, no toast, looks like a no-op. Or admin confirms the clear-logs
+dialog and the DELETE fails — nothing is cleared but the dialog closing
+implies success.
+
+**Fix:** Added `notifyError(...)` to both `exportLogs`'s and
+`clearOldLogs`'s catch blocks.
+
+**Evidence:** New tests in
+`demo_api_ui/src/components/__tests__/ActivityLogs.errorFeedback.test.jsx`
+(`finding #50: notifies the admin when exportLogs fails` and `finding #50:
+notifies the admin when clearOldLogs fails`) proven to fail against the
+pre-fix file and pass against the fix.
+
+### 51. Theme-zone save reports success even when the server rejects it — FIXED
+
+**File:** `demo_api_ui/src/components/ThemeZonePanel.js`, line 33
+
+**Issue:** `persist()` never checks `response.ok`, so a failed PUT/DELETE
+(403/500) resolves the promise just like a 200 — `refetch()` runs and the
+caller's catch never fires, so a failed save is never rolled back or
+reported.
+
+**Trigger scenario:** Admin's PUT/DELETE to `/api/admin/vertical-themes/:id`
+403s or 500s. `persist`'s `fetch(...).then(() => refetch())` resolves on any
+HTTP response body, so the "applied"/"reset" toast fires and the optimistic
+override is kept as if saved — even though nothing persisted server-side.
+
+**Fix:** `persist` now checks `response.ok` and throws when the server
+rejects, so `applyPalette`/`resetZone`'s `await persist(...)` throws before
+reaching the `setToast(...)` success line — the false success toast no
+longer fires. The existing `catch { /* keep optimistic */ }` (a pre-existing,
+deliberate choice for network errors) now applies uniformly to HTTP-error
+responses too.
+
+**Evidence:** New test
+`demo_api_ui/src/components/__tests__/ThemeZonePanel.persistFailure.test.jsx`
+(`finding #51: does not show a success toast when the server rejects the
+save`) proven to fail (toast rendered with "SaaS Blue applied to Header
+gradient") against the pre-fix file and pass against the fix.
+
+### 52. Resource-server journey page swallows every fetch error, not just 401s — FIXED
+
+**File:** `demo_api_ui/src/pages/ResourceServerJourneyPage.jsx`, line 258
+
+**Issue:** The `on401` catch handler swallows every rejection, not just
+401s — it returns `null` unconditionally, so a 500 or network failure is
+silently absorbed and the page renders as an empty/loading state instead of
+showing any error.
+
+**Trigger scenario:** The summary-inflow or vertical-record fetch fails
+with a 500 or network error. `on401` only branches on `e.response?.status
+=== 401`, but returns `null` on every branch regardless, so `Promise.all`
+resolves normally and the page shows its normal empty-data layout with no
+error message.
+
+**Fix:** `on401` now re-throws any non-401 error instead of returning
+`null` unconditionally. A new `.catch()` on the `Promise.all(...)` sets a
+new `fetchError` state (distinct from `needsSignIn`), rendered as a generic
+error message (`.rsj-fetch-error` in `ResourceServerJourneyPage.css`).
+
+**Evidence:** New test in
+`demo_api_ui/src/pages/__tests__/ResourceServerJourneyPage.test.jsx`
+(`finding #52: non-401 fetch failures › shows a generic error, not the
+empty/loading layout, on a 500`) proven to fail against the pre-fix file
+and pass against the fix. Full file green (10 passed).
+
+### 53. Response-body capture computed on every request, then discarded — FIXED
+
+**File:** `demo_api_server/middleware/activityLogger.js`, line 105
+
+**Issue:** The response-body capture block does `JSON.stringify`/`JSON.parse`
+work on every successful response body under 10KB, builds `responseBody`,
+but the value is never used — `logEntry.responseBody` is hardcoded to
+`null` a few lines later with an explicit "disabled — may contain PII"
+comment.
+
+**Trigger scenario:** Any response with status < 400 flowing through the
+globally-mounted `logActivity` middleware with a body under 10,000 chars
+triggers the stringify/parse/redaction work, whose result is discarded.
+
+**Fix:** Deleted the dead computation block entirely — its result was never
+read (`logEntry.responseBody` is hardcoded `null` a few lines later).
+
+**Evidence:** Pure dead-code removal with zero externally observable
+behavior change, so there is no fail-before/pass-after test to write (the
+output was already hardcoded `null` before and after). Verified by running
+the existing suite unchanged and confirming it still passes:
+`CI=true ./node_modules/.bin/jest tests/middleware/activityLogger.ledgerHop.test.js src/__tests__/middleware/activityLogger.test.js --forceExit --maxWorkers=4`
+— 2 suites / 7 tests passed. `activityLogger` is globally-mounted shared
+middleware, so also ran the full server suite:
+`CI=true ./node_modules/.bin/jest --forceExit --maxWorkers=4` — 851/853
+suites, 10096 tests passed.
+
+### 54. JWK-to-PEM conversion re-derived on every token validation despite a 10-minute JWKS cache — FIXED
+
+**File:** `demo_api_server/services/tokenValidationService.js`, line 146
+
+**Issue:** `validateToken()` calls `jwkToPem(jwk)` on every invocation even
+though the underlying JWK is cached for 10 minutes — the PEM conversion
+itself is never cached or memoized by kid.
+
+**Trigger scenario:** Any JWT-mode request validated within the same
+10-minute cache window re-derives the PEM for the same key on every call.
+
+**Fix:** Each JWKS cache entry now carries a `pemByKid` Map, populated
+lazily by a new `getPemForJwk(jwksUri, jwk)` helper — the first
+`validateToken()` call for a given key computes and caches its PEM; every
+subsequent call within the same 10-minute JWKS cache window reads the
+cached PEM instead of re-running `crypto.createPublicKey`/`.export()`.
+
+**Evidence:** New test `tests/services/tokenValidationService.pemCache.test.js`
+(`derives the PEM once, then reuses it across repeat validateToken calls
+for the same kid`) spies on `crypto.createPublicKey` and proves it's called
+once (not twice) across two `validateToken()` calls for the same token;
+fails against the pre-fix file (`Received: 2`) and passes against the fix.
+`tokenValidationService` is auth-adjacent, so also ran its full sibling
+suite plus known callers:
+`CI=true ./node_modules/.bin/jest tests/services/tokenValidationService.pemCache.test.js tests/services/tokenValidationService.allowHttp.test.js tests/services/tokenValidationService.algConfusion.test.js tests/mcpResourceServerAudience.regression.test.js tests/idJagJwksTrust.test.js tests/verticalToolAudience.regression.test.js src/__tests__/a2aProtocolCards.test.js src/__tests__/agentMcpTokenService.test.js --forceExit --maxWorkers=4`
+— 8 suites / 127 tests passed.
+
+### 55. Per-tool scope resolution re-checks the manifest file's mtime once per tool — FIXED
+
+**File:** `demo_api_server/services/agentScopes.js`, line 71
+
+**Issue:** `resolveAgentScopes()` calls `scopeTopology.toolScopes(name)`
+once per tool name inside a for-loop; each call goes through `load()`,
+which does a synchronous `fs.statSync()` for staleness-checking on every
+call — so N tools means N blocking stat syscalls where a single manifest
+load would suffice.
+
+**Trigger scenario:** Any call to `resolveAgentScopes` for a vertical with
+multiple tools causes one `fs.statSync` call per unique tool name in the
+loop.
+
+**Fix:** `resolveAgentScopes` now calls the already-exported
+`scopeTopology._manifest()` once before the loop and reads
+`manifest.tools[name].requiredScopes` directly instead of calling
+`toolScopes(name)` per tool. Root-caused one level further than the finding
+text: `isWriteIsh(scope)` — called once per scope inside the very same
+loop — also called `scopeTopology.scopeMeta(scope)`, i.e. `load()`, i.e.
+another `fs.statSync()` per scope. Gave `isWriteIsh` an optional second
+`manifest` param (defaults to the existing `scopeTopology.scopeMeta()` path
+for its other, non-hot-loop callers) so the loop can pass the preloaded
+manifest and eliminate every redundant stat, not just the `toolScopes` ones.
+
+**Evidence:** New test `finding #55: loads the scope-topology manifest once
+per call, not once per tool` in `src/__tests__/agentScopes.test.js` spies on
+`fs.statSync` around one `resolveAgentScopes('banking', true)` call — fails
+against the pre-fix file (91 stat calls) and passes against the fix (≤1).
+Full file green (11 passed). Also re-ran `scopeTopology`'s own suite and
+every other `resolveAgentScopes`/`isWriteIsh` caller:
+`CI=true ./node_modules/.bin/jest src/__tests__/agentScopes.test.js src/__tests__/scopeTopology.regression.test.js tests/a2aDelegatedScopeIsolation.test.js tests/airlinesVertical.test.js src/__tests__/agentToolsResolver.test.js src/__tests__/agentToolsResolver.degraded.test.js --forceExit --maxWorkers=4`
+— 6 suites / 116 tests passed.
+
+### 56. Recent-transactions feed re-sorted and re-grouped on every render — FIXED
+
+**File:** `demo_api_ui/src/components/UserDashboard.js`, line 2517
+
+**Issue:** The recent-transactions feed (sort + Today/Yesterday/date-bucket
+grouping) is recomputed from the full `transactions` array on every render
+via an inline IIFE, not memoized with `useMemo`, despite depending only on
+`transactions`. Identical unmemoized pattern duplicated in
+`UserDashboardPing2026.js`.
+
+**Trigger scenario:** Any state update in this large component (e.g. typing
+in the transfer amount field) re-renders the whole component, re-executing
+the sort+group derivation on every keystroke even though `transactions`
+didn't change.
+
+**Fix:** Pulled the sort+group derivation out of the inline render IIFE and
+into a `useMemo` keyed on `[transactions]` (placed alongside the file's
+other memos, `totalBalance`/`totalDebt`), in both `UserDashboard.js` and
+`UserDashboardPing2026.js`. `UserDashboard.js` is byte-for-byte frozen by a
+sha256 canary in `UserDashboardPing2026.test.js` (test #8) — re-baselined
+in the same commit with a dated comment explaining why.
+
+**Evidence:** New test `finding #56: does not re-sort/re-group recent
+transactions on an unrelated re-render` in `UserDashboard.test.js` spies on
+`Array.prototype.sort`, types into the (unrelated) transfer-amount field,
+and asserts no sort call — fails against the pre-fix file (`Received: 1`)
+and passes against the fix. Full UI suite green: `npm run test:unit` → 422
+files / 3429 tests (includes the re-baselined canary and all
+`UserDashboardPing2026` suites, 29 tests). Build gate green: `npm run
+build` → exit 0.
+
+---
+
+## Round 4 findings (2026-08-23)
+
+### 57. Worker-token single-flight cache ignores credential identity, letting a credential rotation hand a caller a token minted with stale creds — FIXED
+
+**File:** `demo_api_server/services/pingOneAuthorizeService.js`, line 252
+
+**Issue:** `getWorkerToken()` correctly gates its *cache read* on
+`_workerTokenCache.credKey === credKey`, but the single-flight branch right
+after it (`if (_workerTokenInflight) return _workerTokenInflight;`) had no
+credKey comparison at all. The in-flight IIFE closes over the `creds`/
+`credKey` captured from whichever call originally started it, and on
+resolution unconditionally overwrote `_workerTokenCache` with that original
+(possibly now-stale) credKey — poisoning the cache for later callers too.
+
+**Trigger scenario:** An admin rotates the PingOne Authorize worker
+credentials (`authorize_worker_client_id`/`secret`, or the
+`PINGONE_WORKER_CLIENT_ID`/`SECRET` env aliases) via `/config` while a
+`getWorkerToken()` call is already in flight for the OLD credentials (cache
+cold — e.g. right after a config reload). A second `evaluate()` call
+arriving in that window computes the NEW credKey, finds `_workerTokenInflight`
+truthy, and awaits that same promise — receiving a token minted against the
+OLD worker app/environment, which it then presents to the PingOne Authorize
+decision endpoint, causing spurious 401s or a decision evaluated under the
+wrong worker identity. Nothing invalidates the in-flight guard on credential
+rotation — the only reset path (`_resetAuthorizeRuntimeState()`) is an
+explicit test-only hook, never called from any config-update route.
+
+**Fix:** Added a `_workerTokenInflightKey` variable, set alongside
+`_workerTokenInflight` when a request starts and cleared in the same
+`finally`. The single-flight branch now only reuses the in-flight promise
+when `_workerTokenInflightKey === credKey`; otherwise it falls through and
+starts a new `_requestWorkerToken(creds)` call (running concurrently with
+the stale one), so a caller after a credential rotation always gets a
+token minted with its own resolved creds. `_resetAuthorizeRuntimeState()`
+(the test-reset hook) also resets the new variable.
+
+**Evidence:** New test
+`demo_api_server/tests/pingOneAuthorizeService.workerTokenRace.test.js`
+(`a caller with rotated credentials does not receive a token minted for
+the old credentials`) mocks `configStore`/`fetch` with a deferred-resolve
+pattern to start one request, rotate credentials mid-flight, and start a
+second — proven to fail against the pre-fix file (`Expected length: 2,
+Received length: 1` — the second caller reused the stale in-flight
+promise) and pass against the fix. This is authz-adjacent shared code, so
+also ran the existing `pingOneAuthorizeWorkerTokenCache.test.js` (5
+passed) and the full server suite:
+`cd demo_api_server && CI=true ./node_modules/.bin/jest --forceExit --maxWorkers=4`
+— 852/854 suites, 10095/10219 tests passed (the 2 failures —
+`runtime-settings-api.test.js`, `intentBindingDemo.test.js` — are the
+documented full-suite-parallel-load flake; both passed 100% re-run in
+isolation).
+
+### 58. Lighthouse "single audit in progress" guard is released before the timed-out audit's Chrome process actually finishes tearing down — FIXED
+
+**File:** `demo_api_server/services/lighthouseService.js`, line 82
+
+**Issue:** `runLighthouseAudit()` races the real audit promise against a
+60s timeout promise. On timeout, the timeout callback fired `chrome.kill()`
+fire-and-forget (not awaited) and immediately rejected — settling
+`Promise.race` right away — while the real Chrome process/lighthouse run
+kept executing in the background; nothing checked a `timedOut` flag to
+abort it early, and if `chrome` was never assigned by the 60s mark (still
+inside `chromeLauncher.launch()`), no kill was even attempted. The route
+treated the outer race's settlement as its sole "is an audit running"
+signal, clearing `isRunning = false` as soon as the timeout rejection won —
+while the original Chrome/lighthouse process was still alive.
+
+**Trigger scenario:** `POST /api/admin/lighthouse/run` runs long enough to
+hit `AUDIT_TIMEOUT_MS` (slow page load, or a cold-machine Chrome install
+still pending at 60s). An admin (or an automated retry) immediately POSTs
+`/run` again; the guard was open, so a second Chrome+lighthouse instance
+launched concurrently with the still-terminating first one, defeating the
+single-flight guard and doubling resource usage.
+
+**Fix:** Moved the single-flight lock into `lighthouseService.js` itself.
+`runLighthouseAudit()` now throws `LIGHTHOUSE_BUSY` synchronously (before
+any `await`) if `_isRunning` is already true, and `_isRunning` is only
+cleared inside the real audit work's own `finally` block — after `await
+chrome.kill()` — not when the outer `Promise.race` settles. Restructured
+the chrome-launch try/catch to live inside that same outer try/finally so
+`_isRunning` clears on every exit path (success, lighthouse() throwing, or
+launch() throwing). The route no longer sets/clears `isRunning` itself —
+it only reads it for a fast 429 pre-check, and now also catches
+`LIGHTHOUSE_BUSY` as a defense-in-depth 429 for the race window between
+that pre-check and the call. This also automatically closes the gap for
+`lighthouseScheduler.js`'s cron-triggered call, which had zero guarding of
+its own — it's now protected by the same service-level lock.
+
+**Evidence:** New test
+`demo_api_server/tests/lighthouseService.auditGuardRace.test.js` (`isRunning
+stays true (and a retry is rejected) until real Chrome teardown finishes
+after a timeout`) uses fake timers plus deferred `chrome-launcher`/
+`lighthouse` mocks to fire the 60s timeout while the real work is still
+pending, then asserts `isRunning` is still `true` and a concurrent call
+rejects `LIGHTHOUSE_BUSY` — proven to fail against the pre-fix file
+(`Expected: true, Received: false`) and pass against the fix. Existing
+`lighthouseRoute.regression.test.js` (11 tests, unchanged) still passes —
+the route-level 429/503/504/200 contract is preserved.
+
+### 59. Sidebar/terminal drag listeners leak on document if mouseup fires outside the page — FIXED
+
+**File:** `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`, line 172
+
+**Issue:** `startSidebarDrag`/`startTerminalDrag` each attached
+document-level `mousemove`/`mouseup` listeners on `mousedown`, with the
+only removal path inside the `mouseup` handler itself. No `useEffect`
+cleanup, pointer capture, or `window blur`/`mouseleave` fallback existed
+for the case where the button is released outside the document.
+
+**Trigger scenario:** User drags the sidebar/terminal resize handle toward
+the viewport edge and releases the mouse over the OS taskbar, another
+window, or an iframe — `mouseup` never reaches `document`, the listeners
+are never removed, and every subsequent mouse move anywhere on the page
+keeps forcibly resizing the sidebar/terminal using the stale
+`startX`/`startW` captured at drag start, until the user happens to
+mouseup over the document again.
+
+**Fix:** Switched both handlers from mouse events to pointer events with
+`setPointerCapture(e.pointerId)` on drag start (wrapped in try/catch for
+environments without Pointer Capture support) — this keeps
+`pointermove`/`pointerup` delivered to the handle element even after the
+cursor leaves the document, closing the leak at its root. Also added a
+`dragCleanupRef` + unmount effect (mirroring `useDividerDrag`'s pattern) so
+an unmount mid-drag (route change with the button held) removes the
+listeners too, as a second, independent safety net.
+
+**Evidence:** New test
+`demo_api_ui/src/pages/__tests__/PrivilegeMcpClientPage.dragCleanup.test.jsx`
+(`engages pointer capture and removes document listeners on unmount
+mid-drag`) proven to fail against the pre-fix file (`setPointerCapture`
+never called — the old code used plain mouse events) and pass against the
+fix. All 6 sibling test files for this page (17 tests total) still pass.
+
+### 60. Stale-response race: overlapping log fetches can overwrite newer results with older ones — FIXED
+
+**File:** `demo_api_ui/src/components/AgentGatewayLogPanel.jsx`, line 44
+
+**Issue:** `fetchLogs`/`fetchDecisions`, wired through `refresh()` and both
+an initial-load effect and a 4s autoRefresh interval (plus the filter
+input's Enter key calling `fetchLogs()` directly), had no request
+sequencing (no requestId guard, no `AbortController`). Multiple in-flight
+calls to `/api/admin/agent-gateway/logs` could resolve out of order.
+
+**Trigger scenario:** User changes the filter input and presses Enter
+while a previous `fetchLogs()` (triggered by the prior filter, or by the
+4s autoRefresh tick against a slow docker-log tail read) is still in
+flight. If the older request's response arrived after the newer one,
+`setLogs`/`setLogError` from the stale request overwrote the fresh state,
+silently showing log lines that don't match the currently-selected
+filter/tail.
+
+**Fix:** Added a monotonically incrementing ref for each fetcher
+(`logsReqIdRef`, `decisionsReqIdRef`), captured at the start of each call
+and checked before every `setState` call (success and error/finally
+paths) — a response only applies if it's still the most recently issued
+request for that fetcher.
+
+**Evidence:** New test
+`demo_api_ui/src/components/__tests__/AgentGatewayLogPanel.staleResponse.test.jsx`
+(`an older filter request does not overwrite a newer one that resolved
+first`) uses deferred promises to resolve a newer request before an older
+one — proven to fail against the pre-fix file (rendered "OLD line"
+instead of "NEW line") and pass against the fix.
+
+### 61. Stale-response race: rapid time-window changes can render data for the wrong window — FIXED
+
+**File:** `demo_api_ui/src/components/NewRelicDashboard.jsx`, line 70
+
+**Issue:** `load()` depended on `[win, search]` and was called on mount and
+every 30s via `setInterval`, with no request sequencing or cancellation
+when `win`/`search` changed mid-flight. The window-selector buttons were
+never disabled while a request was loading, so nothing stopped a user from
+firing a second request before the first resolved.
+
+**Trigger scenario:** Admin clicks through the window selector quickly
+(e.g. default 1h then 24h). The 24h request queries a larger range and can
+resolve after a request issued right after it; if it did, its response
+overwrote `data`, so the stage strip, sparkline, category stats, and event
+stream all rendered the wrong window's data while the window control
+itself showed the newly-selected one.
+
+**Fix:** Added a monotonically incrementing `reqIdRef`, captured at the
+start of `load()` and checked before `setData`/`setState` in both the
+success and error paths — same pattern as finding #60
+(`AgentGatewayLogPanel.jsx`) and finding #45 (`cachedStatusService.js`).
+
+**Evidence:** New test in
+`demo_api_ui/src/components/__tests__/NewRelicDashboard.test.jsx`
+(`finding #61: an older, slower window request does not overwrite a newer
+one that resolved first`) uses deferred promises to resolve a 24h-window
+request before the initial 1h one — proven to fail against the pre-fix
+file (rendered stale `13` instead of `999`) and pass against the fix. Full
+file green (20 tests, including all 19 pre-existing).
+
+### 62. ID-JAG token-mint route has zero error handling — an internal throw hangs the request (or crashes the process) — FIXED
+
+**File:** `demo_api_server/routes/enterpriseIdp.js`, line 40
+
+**Issue:** `router.post('/token', ...)` was an async handler with NO
+try/catch anywhere in its body — unlike the rest of the codebase's
+established convention. It awaits a policy check then synchronously calls
+`jwt.sign(..., enterpriseIdpKey.getPrivateKeyPem(), ...)`. Express 4 does
+not catch rejected promises from async route handlers, and
+`express-async-errors` is listed in `package.json` but never `require()`'d
+anywhere, so no global safety net existed.
+
+**Trigger scenario:** A signed-in user POSTs a well-formed RFC 8693
+token-exchange request to `/api/enterprise-idp/token`.
+`enterpriseIdpKey.getPrivateKeyPem()` lazily builds/signs the key on first
+call from `process.env.ENTERPRISE_IDP_SIGNING_KEY_PEM` — if that env var
+is malformed/truncated (a realistic copy/paste misconfiguration; there is
+no startup validation anywhere), `crypto.createPrivateKey` throws
+synchronously inside the async handler. The promise rejection was
+unhandled: the requester got no response at all, and in dev/test (no
+`CRASH_GUARD=1`) the whole BFF process hard-exits, taking down every other
+in-flight request.
+
+**Fix:** Wrapped the handler body in try/catch, matching the pattern used
+by every sibling route: on catch, log and return
+`res.status(500).json({ error: 'server_error', error_description: err.message })`.
+
+**Evidence:** New test in
+`demo_api_server/src/__tests__/enterpriseIdpRoutes.test.js` (`finding #62:
+an internal throw (e.g. malformed signing key) returns a 500, not a hang`)
+mocks `enterpriseIdpKey.getPrivateKeyPem` to throw — proven to fail against
+the pre-fix file (the request genuinely hung, hitting jest's 30s test
+timeout, exactly matching the "hangs the request" description) and pass
+against the fix. Full file green (8 tests) plus the 3 sibling
+`enterpriseIdp*` test files (17 tests) unaffected.
+
+### 63. Consent-decline block fails open when localStorage read throws — FIXED
+
+**File:** `demo_api_ui/src/services/agentAccessConsent.js`, line 5
+
+**Issue:** `isAgentBlockedByConsentDecline()` — the actual gate `AIAgent.js`
+checks at 6 call sites before letting the AI agent keep acting after a
+user declines a high-value transaction — wrapped its `localStorage.getItem`
+in a try/catch that swallowed any exception and returned `false`: the same
+value returned for a legitimate "never declined" state.
+`setAgentBlockedByConsentDecline` had the identical fail-silent pattern on
+the write side.
+
+**Trigger scenario:** In a browsing context where `localStorage` access
+throws (storage disabled by enterprise/browser policy, a hardened privacy
+extension, or a partitioned/sandboxed iframe — some raise `SecurityError`
+on `getItem`, not just `setItem`), a user who declines a high-value
+transaction has the decline silently fail to persist — and independent of
+that, any later `getItem` failure alone made the check return `false`, so
+the agent was treated as never having been blocked and kept acting despite
+the explicit decline.
+
+**Fix:** An in-memory module-level flag (`_memoryBlocked`) is now the
+source of truth — `isAgentBlockedByConsentDecline()` reads only that,
+never `localStorage` directly, so a storage failure occurring *after*
+module init can no longer flip the answer. `localStorage` is used only as
+best-effort persistence for surviving reloads. If the *initial* read
+itself throws (storage inaccessible from the start), the module now fails
+CLOSED — `_memoryBlocked` defaults to `true` — instead of `false`.
+
+**Evidence:** New test
+`demo_api_ui/src/services/__tests__/agentAccessConsent.failClosed.test.js`
+(`finding #63: reports blocked=true when the initial localStorage read
+throws`) proven to fail against the pre-fix file (`Received: false`) and
+pass against the fix. Uses `vi.stubGlobal` to replace `localStorage`
+outright rather than spying on `Storage.prototype` — where the Storage
+methods live differs between Node 22 (CI) and Node 26 (local), so a
+prototype spy silently misses on one of the two runtimes (see
+`useCustomChips.test.js` for the same established pattern). Also verifies
+a later storage failure does not flip an already-established
+`blocked=false` back to blocked.
+
+### 64. Logout button treats a failed session-clear the same as a successful one — FIXED
+
+**File:** `demo_api_ui/src/services/logout.js`, line 21
+
+**Issue:** `performLogout()` — wired directly to the "Log out"/"Sign Out"
+button — calls `fetch('/api/auth/logout')` to have the BFF clear the
+session cookie, then navigates to the returned `logoutUrl`. Its `.catch()`
+swallowed any fetch failure and navigated to `/` exactly as it would on
+success, with no indication the server-side session was never cleared.
+
+**Trigger scenario:** A transient network failure (or an aborted fetch,
+e.g. a backgrounded tab during navigation) causes the fetch to
+`/api/auth/logout` to reject before reaching the server. The catch
+swallowed it and redirected to `/`, which renders as a logged-out landing
+page, but the BFF session cookie was never cleared — the user (or the next
+person on a shared/public machine) could still be treated as authenticated
+by any request that reuses the still-valid cookie.
+
+**Fix:** The catch handler now calls `notifyError('Logout failed — please
+try again.')` and does **not** navigate away. Deliberately does not fall
+back to a direct `window.location.href = '/api/auth/logout'` navigation —
+this file's own top comment documents that a direct navigation loses the
+`Set-Cookie` clear behind the CRA dev proxy's 302→PingOne redirect, which
+is exactly why `fetch()` is used here in the first place; falling back to
+it on failure would silently reintroduce that already-fixed bug. Staying
+on the current page (still genuinely signed in, matching reality) and
+surfacing the error is the safer minimal fix.
+
+**Evidence:** New test
+`demo_api_ui/src/services/__tests__/logout.failureFeedback.test.js`
+(`finding #64: notifies the user and does not navigate away when the
+logout fetch fails`) proven to fail against the pre-fix file (`notifyError`
+never called) and pass against the fix. A second test confirms the success
+path (`logoutUrl` navigation) is unchanged. Also ran the 5 test files that
+exercise `performLogout` callers (`AdminSideNav`/`DemoSetupPanel`
+sign-out): 28 tests, unaffected.
+
+### 65. ConfigStore.getEffective() rebuilds a ~230-entry alias map from scratch on every call — FIXED
+
+**File:** `demo_api_server/services/configStore.js`, line 1074
+
+**Issue:** `getEffective(key)` declared a ~360-line, ~230-key
+`envFallbackMap` object literal inside the method body — allocated fresh
+on every single invocation, even though the map is 100% static and never
+depends on the `key` argument (only indexed afterward).
+
+**Trigger scenario:** This is a hot path, not an edge case:
+`middleware/auth.js`'s `requireScopes` gate calls `getEffective` twice per
+scope-checked request; `mcpGatewayClient.js`'s `getMcpGatewayHttpUrl()` —
+documented as "the single chokepoint every tool-call path uses" — calls it
+2-4 times per invocation; `demoStepPrerequisites.js`'s
+`checkChipPrerequisites` calls it once per required flag in a loop. ~204
+call sites project-wide mean a single request can trigger dozens of full
+rebuilds of this literal.
+
+**Fix:** Hoisted the object literal out of the method body to module scope
+as `const ENV_FALLBACK_MAP = { ... };`, declared once before the
+`ConfigStore` class (matching the file's existing `FIELD_DEFS` pattern),
+and updated the lookup site to reference it directly. No behavior change —
+the map never varied per-call.
+
+**Evidence:** New test
+`demo_api_server/src/__tests__/configStore.envFallbackMapHoisted.test.js`
+proves via static source-text inspection (same technique as
+`NewRelicDashboard.test.js`'s CSS dark-mode-ground checks) that
+`ENV_FALLBACK_MAP` is declared once, before the class, and no longer
+inside `getEffective()`'s own body — proven to fail against the pre-fix
+file (the module-scope declaration doesn't exist yet) and pass against the
+fix. Ran the existing functional regression suite
+(`configStore.get.envFallback.test.js`, `configStore.envReconcile.test.js`)
+— 21 passed, confirming no output changed. `configStore.js` is core shared
+infrastructure, so also ran the full server suite: 850/856 suites passed
+(the 4 failures — `anthropic.lmstudio.live.test.js`,
+`attackSimulator.test.js`, `rfc9728-integration-verification.test.js`,
+`rfc9728-integration.test.js` — are pre-existing/environmental: confirmed
+by re-running them against the unmodified pre-fix file, which fails
+identically).
+
+### 66. UseCaseLauncherPage rebuilds every track/authorize/agent-gateway list on every render — FIXED
+
+**File:** `demo_api_ui/src/pages/UseCaseLauncherPage.js`, line 925
+
+**Issue:** `happyPathAll`/`happyPathIds`/`happyPath`, `authorizeIds`/
+`authorizeAll`/`authorizeVisible`, `grouped`, `demoTrackItemsForStrip`,
+`demoAll`/`demoVisible`, and `agentGatewayIds`/`agentGatewayAll`/
+`agentGatewayVisible` — 13 derived values covering the full cross-vertical
+use-case catalog — were plain `const` assignments in the render body: every
+one re-filtered/re-mapped/rebuilt Sets from scratch on every render,
+regardless of what triggered it (a feature-flag toggle, an attack-sim
+result, opening an education panel — none of which change `useCases` or
+the search `query`).
+
+**Trigger scenario:** This page is the primary `/use-cases` catalog view;
+every keystroke in the search box, every flag toggle, and every
+attack-sim/chip-run result re-renders it, and each render re-scanned the
+full catalog across all 13 derivations — the exact "same table rebuilt
+every render" pattern already fixed elsewhere this round (finding #65).
+
+**Fix:** Wrapped all 13 derivations in `useMemo`. The `*All`/id-Set
+derivations depend only on `[useCases]` (or `[]` for the static
+capability-ledger lookups); the query-filtered lists depend on their
+`*All` plus `[query]` — so an unrelated re-render (e.g. a flag toggle)
+now reuses the previous computation instead of rebuilding it.
+
+**Evidence:** New test
+`demo_api_ui/src/pages/__tests__/UseCaseLauncherPage.memoization.test.jsx`
+(`does not recompute authorize/agent-gateway id sets on an unrelated
+re-render`) spies on the capability-ledger lookups
+(`allPingOneAuthorizeUCIds`/`allAgentGatewayUCIds`) and triggers a
+flag-toggle re-render (the same interaction as the existing T6d test) —
+proven to fail against the pre-fix file (call count increased) and pass
+against the fix (call count unchanged). Full existing regression suite for
+this page green: `UseCaseLauncherPage.test.js` (37 tests) and
+`UseCaseLauncherPage.loginPrompt.test.jsx` (3 tests) unaffected. UI build
+gate green.
+
+### 67. GET /mcp SSE passthrough never closes the client response when the upstream connection resets mid-stream — FIXED
+
+**File:** `demo_mcp_gateway/src/server/GatewayServer.ts`, line 598
+(`pipeGetToUpstream`)
+
+**Issue:** Once the upstream response starts (`res.writeHead(...)` +
+`upstreamRes.pipe(res, { end: true })`), the only teardown hook for the
+upstream stream erroring was `upstreamRes.on('error', finish)`, and
+`finish()` only resolves an internal promise and detaches the client-close
+listeners — it never calls `res.end()`/`res.destroy()`. Node's
+`stream.pipe()` does not auto-end the destination when the source emits
+`'error'` (only on source `'end'`).
+
+**Trigger scenario:** A client opens `GET /mcp` (SSE) and the gateway has
+already sent headers and started piping the upstream event stream. The
+upstream `mcp-server` connection then resets mid-stream (a routine
+occurrence in this demo stack — container restarts, network blips). The
+gateway's `upstreamRes` emits `'error'`; `finish()` runs but never ends
+`res`, so the client's SSE connection hangs open indefinitely.
+
+**Fix:** The `upstreamRes.on('error', ...)` handler now calls `res.end()`
+(guarded on `!res.writableEnded`) before/alongside `finish()`, so the
+client connection is always terminated when the upstream stream errors
+after headers are sent — mirroring the existing `onClientClose` teardown
+pattern already used for the opposite direction.
+
+**Evidence:** New test
+`demo_mcp_gateway/tests/gateway-sse-upstream-error.test.ts` (`ends the
+client-facing SSE response when the upstream connection resets
+mid-stream`) abruptly destroys the upstream socket mid-stream (empirically
+confirmed this fires Node's `'error'`/ECONNRESET on the piped
+`IncomingMessage`, not just `'close'`) and asserts the client-facing
+response ends within 2s — proven to fail against the pre-fix file (times
+out, "client-facing SSE response never ended") and pass against the fix.
+Full related suite green: `gateway-sse-client-close.test.js`,
+`gateway-server.test.js`, and the new test — 23 tests. `npm run build`
+(tsc) green.
+
+### 68. Rate-limit key map grows without bound — no cap, no eviction — FIXED
+
+**File:** `demo_mcp_gateway/src/rateLimit.ts`, line 40 (`SlidingWindowLimiter`)
+
+**Issue:** `_windows` (`Map<string, number[]>` keyed by `${sub}:${toolName}`)
+filtered each key's own timestamp array down to the live window on every
+`check()` call, but never removed the Map entry itself — even when the
+filtered array went empty, the code still `.set()` the key back in. Unlike
+every sibling per-caller cache in this codebase
+(`McpTokenExchangeClient`'s exchange cache, `GatewayIntrospectionClient`'s
+introspection cache — both capped via `boundedTokenCache.ts`'s
+`cacheInsertWithEviction`), this Map had no cap and no periodic sweep.
+
+**Trigger scenario:** With `GATEWAY_RATE_LIMIT_ENABLED=true` (UC18),
+`checkRateLimit()` runs on every `tools/call`, both WS
+(`index.ts handleMessage`) and HTTP (`middleware/authorizeMcpRequest.ts`)
+transports, keyed by verified subject + tool name. Over the gateway
+process's lifetime (it runs for days/weeks in the demo stack), every
+distinct (user, tool) pair ever seen — across logins, token rotations, and
+different agent actors — added a permanent entry that was never reclaimed.
+
+**Fix:** Reused the existing `cacheInsertWithEviction` sweep-expired-
+then-FIFO-evict helper (`boundedTokenCache.ts`) that the sibling caches
+already use — the value shape became `{ timestamps, expiresAt }` (expiry =
+when this key's own window fully clears) so it fits the helper's generic
+`{ expiresAt: number }` contract, capped at 1000 tracked keys
+(`RATE_LIMIT_WINDOWS_MAX`, matching `McpTokenExchangeClient`'s existing
+cap convention). No functional change to rate-limiting behavior itself.
+
+**Evidence:** New test in `demo_mcp_gateway/tests/rateLimit.test.ts`
+(`caps total tracked keys instead of growing unboundedly`) calls `check()`
+with 1500 distinct keys and asserts the internal Map never exceeds 1000
+entries — proven to fail against the pre-fix file (`Received: 1500`) and
+pass against the fix. Full related suite green: `rateLimit.test.ts`,
+`adminConfig-ratelimit.test.ts`, `authorizeMcpRequest-rateLimit.test.ts` —
+29 tests, no regressions. `npm run build` (tsc) green.
+
+### 69. insertOrder / insertExpense id generation rescans all prior inserts on every call — FIXED
+
+**File:** `demo_mcp_resource_server/src/db/retailDb.ts`, line 131
+(`insertOrder`); `demo_mcp_resource_server/src/db/workforceDb.ts`, line 120
+(`insertExpense`) — identical duplicated pattern in both
+
+**Issue:** Both functions derive their next id's suffix by
+`SELECT id FROM <table> WHERE id LIKE '<prefix>-new-%'`, pulling every
+prior `ord-new-*`/`exp-new-*` row into Node and reducing in JS to find the
+highest existing suffix — on every single `checkout`/`submit_expense`
+call, not just once. Per-call cost grows linearly with the number of
+prior inserts (O(N^2) cumulative across N calls in a session).
+
+**Trigger scenario:** A long-running demo session (or a scripted loop)
+repeatedly calling the retail `checkout` tool or the workforce
+`submit_expense` tool — each call opens a fresh SQLite connection and
+does a full scan + JS-side reduce over every previously-placed
+order/expense before it can insert the next row, so the tool call's
+response time keeps growing the longer the demo instance stays up.
+
+**Fix:** Replaced the `SELECT` + JS-reduce with a single SQL `MAX()`
+aggregate (`SELECT MAX(CAST(SUBSTR(id, LENGTH('<prefix>-new-') + 1) AS
+INTEGER)) AS maxN FROM <table> WHERE id LIKE '<prefix>-new-%'`) in both
+functions, so SQLite computes the max instead of shipping every row to
+Node. Identical "highest existing suffix" semantics preserved — the
+existing `insertOrder`/`insertExpense` tests already prove a deleted
+middle row can't have its id reused, and both still pass unchanged.
+
+**Evidence:** New test
+`demo_mcp_resource_server/tests/insertIdSqlMax.test.ts` proves via static
+source-text inspection (same technique as
+`configStore.envFallbackMapHoisted.test.js` for finding #65 — a pure
+query-shape optimization has no externally observable behavior
+difference) that both functions now use the SQL `MAX()` aggregate and no
+longer contain the JS `rows.reduce(...)` scan — proven to fail against
+the pre-fix files (4/4 assertions fail: aggregate absent, reduce still
+present) and pass against the fix. Full functional regression green:
+`retailDb.test.ts` + `workforceDb.test.ts` (including the
+deleted-middle-row-can't-reuse-an-id tests) — 19 tests total, no
+behavior change. `npm run build` (tsc) green.
+
+### 70. Concurrent first-load requests double-provision a new user's demo accounts and duplicate sample transactions — FIXED
+
+**File:** `demo_api_server/routes/accounts.js` (`provisionDemoAccounts`)
+
+**Issue:** `GET /api/demo-scenario`'s handler had an unguarded
+check-then-act: when a brand-new user had zero accounts, it called
+`provisionDemoAccounts(uid)`. Two overlapping requests for the same new
+user (two tabs, or any two overlapping calls) both observed zero accounts
+and both ran full provisioning concurrently. Account records self-heal
+(deterministic ids just get overwritten), but the ~11 sample transactions
+`createTransaction` mints always get a fresh random id with no dedup — each
+concurrent call inserted its own full set, permanently duplicating the
+user's transaction history.
+
+**Trigger scenario:** A brand-new user with no accounts triggers two
+overlapping `GET /api/demo-scenario` (or `POST /accounts/reset-demo`)
+requests. Both race into the empty-accounts branch and both provision,
+each independently creating ~11 duplicate sample transactions.
+
+**Fix:** `provisionDemoAccounts` now guards itself with a module-level
+`Map<userId, Promise>` single-flight pattern (matching
+`pingOneAuthorizeService.js`'s existing worker-token fetch guard) — a
+second overlapping caller for the same userId awaits the first call's
+in-flight promise instead of re-running the provision-and-seed sequence.
+The map entry is cleaned up via `.finally()`. This guards the shared
+function itself, so it also covers `POST /accounts/reset-demo`, the only
+other caller.
+
+**Evidence:** New test
+`demo_api_server/tests/accounts.provisionDemoAccountsRace.test.js` calls
+`provisionDemoAccounts` twice concurrently for a brand-new user and
+asserts `createTransaction` was called exactly 11 times (not 22) —
+proven to fail against the pre-fix file (22 calls) and pass against the
+fix. Regression: 6 suites / 45 tests green.
+
+### 71. In-memory cibaRequests Map grows without bound — no expiry sweep — FIXED
+
+**File:** `demo_api_server/routes/useCases.js` (`cibaRequests`)
+
+**Issue:** `cibaRequests`, a module-level Map accumulating one entry per
+`POST /api/use-cases/uc15/initiate` call, was only cleaned up lazily (an
+explicit deny, or a poll landing after expiry) — unlike the comparable
+pattern already used in `demoTrackService.js`'s `_sweepStaleBuckets`. Any
+initiate call whose poll never lands after expiry (approved before/at
+expiry, or abandoned) left its entry for the life of the process.
+
+**Trigger scenario:** Repeatedly firing the UC15 CIBA chip (demo
+walkthroughs, conformance runs, long-running automated step-verification)
+without every request polling again after its 5-minute expiry leaves a
+permanent entry each time, growing unboundedly over server uptime.
+
+**Fix:** Added `_sweepExpiredCibaRequests`, an hourly `setInterval(...).
+unref()` sweep deleting any entry whose `expiresAt` has passed —
+mirroring `demoTrackService.js`'s idiom exactly. Existing explicit-delete
+paths are untouched; the sweep is a backstop only.
+
+**Evidence:** New test
+`demo_api_server/tests/useCasesCibaSweep.test.js` installs jest fake
+timers before requiring the module (so the module-level `setInterval`
+registers against the fake clock), inserts an already-expired entry,
+advances past the sweep, and asserts it's gone; a second case confirms a
+not-yet-expired entry survives. Proven to fail against the pre-fix file
+(hooks don't exist) and pass against the fix. Regression: 7 suites / 260
+tests green.
+
+### 72. Cold-start account restore silently discards data on any LMDB read error, permanently overwriting the real snapshot with fresh defaults — FIXED
+
+**File:** `demo_api_server/routes/demoScenario.js` (`restoreAccountsFromSnapshot`)
+
+**Issue:** `restoreAccountsFromSnapshot()` wrapped the entire restore —
+including `demoScenarioStore.load(userId)`, which can throw on
+env-open/read failure — in one try/catch that logged a warning and
+returned `[]` on ANY failure, indistinguishable from the legitimate "no
+snapshot exists" case. The `GET /` handler then treated the empty array
+as "nothing to restore," reprovisioned fresh default accounts, and
+persisted them over the previously-saved (real) snapshot — permanently
+destroying data a failed read never got to see.
+
+**Trigger scenario:** Server cold-starts, and at that moment the
+demoScenarioStore LMDB env is transiently unavailable (still opening,
+disk hiccup, corrupted env file) so `lmdb.get()` throws.
+`GET /api/demo/scenario` silently reprovisions and persists default
+accounts, permanently overwriting the user's real customized snapshot
+with only a console.warn as any trace.
+
+**Fix:** Confirmed `demoScenarioStore.load()` never throws for the
+legitimate "no snapshot" case — it resolves to an object simply missing
+`accountSnapshot`, already handled cleanly by the existing
+`Array.isArray` check. The try/catch was therefore only ever catching
+genuine failures. Removed it entirely: a genuine error now propagates to
+the `GET /` handler's existing outer try/catch, which returns
+`500 { error: 'demo_scenario_failed' }` instead of falling through to
+reprovision-and-overwrite.
+
+**Evidence:** New test
+`demo_api_server/tests/routes/demoScenarioRestoreSnapshot.test.js`: case 1
+confirms the legitimate "no snapshot" path still reprovisions cleanly (no
+regression); case 2 confirms a genuine `demoScenarioStore.load` rejection
+now returns 500 and never calls `provisionDemoAccounts`/`save`. Proven to
+fail against the pre-fix file (silently reprovisions) and pass against
+the fix. Regression: 2 suites / 4 tests green.
+
+### 73. resolveUseCase() re-derives a2aDelegated (with a sync fs.statSync per call) instead of reusing the value already precomputed at module load — FIXED
+
+**File:** `demo_api_server/config/useCases.js` (`resolveUseCase`)
+
+**Issue:** `USE_CASES` is built once at module load with `a2aDelegated`
+already stamped on every entry. `resolveUseCase()` discarded that
+precomputed value and recomputed it via `isA2aDelegatedPrimaryTool()` on
+every invocation — which does a synchronous `fs.statSync()` on the
+scope-topology manifest every call. `listUseCases(vertical)` maps every
+~57 catalog entries through `resolveUseCase`, so a single
+`GET /api/use-cases` did ~57 blocking stat syscalls per request for a
+value identical to `base.a2aDelegated` in the common case.
+
+**Trigger scenario:** Any client hitting `GET /api/use-cases` for a
+vertical recomputes `a2aDelegated` for the whole catalog synchronously
+instead of reusing the value stamped at boot.
+
+**Fix:** Both call sites now reuse `base.a2aDelegated` when the resolved
+`primaryTool` matches `base.primaryTool` (no perVertical override changed
+it), only calling `isA2aDelegatedPrimaryTool()` when an override actually
+swaps `primaryTool` for that vertical.
+
+**Evidence:** New test
+`demo_api_server/tests/useCases.resolveUseCaseA2aDelegatedReuse.test.js`
+spies on `scopeTopology.isA2aDelegatedTool` and asserts
+`listUseCases('banking')` makes zero extra calls beyond module load (was
+27 before the fix) and that resolved values are unchanged — proven to
+fail against the pre-fix file and pass against the fix. Regression: 6
+suites / 489 tests green.
+
+### 74. Concurrent chip Run clicks race the /dashboard navigation — a slower launch can overwrite a faster, later one — FIXED
+
+**File:** `demo_api_ui/src/pages/UseCaseLauncherPage.js` (`handleRun`)
+
+**Issue:** `handleRun` tracked the in-flight chip launch in a single
+`chipRun` object, not keyed per `uc.id`. When a second card's Run was
+clicked while a first card's async chain (flag-arm PATCH → demo/run POST
+→ verticals/active POST → navigate) was still in flight, both chains
+eventually called `navigate('/dashboard', ...)` independently — whichever
+resolved last won regardless of click order.
+
+**Trigger scenario:** A presenter clicks Run on a flag-gated card (extra
+PATCH round-trip) then, before it resolves, clicks Run on a plain card.
+The plain card's chain finishes first and navigates; the flag-gated
+card's chain finishes moments later and navigates again, silently
+replacing the router state with the stale, first-clicked scenario.
+
+**Fix:** Added a monotonic `chipRunTokenRef`, bumped at the start of
+every `handleRun` call; the `.then`/`.catch` chain checks its captured
+token against the ref before calling `navigate`/`recordCompleted`/
+`markCameFromUseCases`, discarding a stale chain's resolution.
+
+**Evidence:** New test in
+`demo_api_ui/src/__tests__/UseCaseLauncherPage.test.js` clicks Run on a
+slow flag-gated card then a fast plain card before the first resolves,
+asserts `navigate` is called once with the fast card's data, and stays at
+one call after the stale chain resolves — proven to fail against the
+pre-fix file (2 navigate calls) and pass against the fix. Regression: 3
+files / 42 tests green; UI build green.
+
+### 75. Overlapping chip launches race the 'banking-agent-prefill' event — an older click's prompt can land after a newer one — FIXED
+
+**File:** `demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.js` (`handleRunChip`)
+
+**Issue:** `handleRunChip` fires two sequential POSTs then dispatches
+`window.dispatchEvent(new CustomEvent('banking-agent-prefill', { detail:
+{..., autoSend: true} }))`. Nothing checked that the resolving chain
+still corresponded to the most-recently-triggered run before dispatching
+with `autoSend: true` — whichever chain resolved last dispatched last, and
+the agent auto-sent whatever text arrived last. Root-cause investigation
+found the real-world trigger is not ordinary tile clicks (the tile's Run
+button self-disables while running) but the `demo-script`
+`BroadcastChannel` listener used by the teleprompter/popped-out
+second-screen, which calls `handleRunChip` directly, unguarded by that
+button state.
+
+**Trigger scenario:** Two overlapping `run` messages arrive over the
+`demo-script` BroadcastChannel (teleprompter/second-screen). If the
+first-triggered run's two-POST chain resolves after the second's, the
+agent receives and auto-sends the first (stale) prompt after already
+having run the second — executing an unintended scenario live, with no
+error surfaced. HIGH severity: directly misfires a live agent action
+during a demo.
+
+**Fix:** Added a monotonic `runChipTokenRef`, captured at the top of each
+`handleRunChip` call; both the success and error handlers bail out if a
+newer run has since started, so a stale chain can never dispatch the
+prefill event or mutate `runState`.
+
+**Evidence:** New test in
+`demo_api_ui/src/__tests__/LiveUseCaseWorkbenchPage.test.js` uses an
+in-process fake `BroadcastChannel` (Node's native one broadcasts across
+worker threads and would leak into sibling test files) to fire an older
+(slow) then newer (fast) run message, and asserts exactly one
+`banking-agent-prefill` dispatch, carrying the newer run's message —
+proven to fail against the pre-fix file (2 dispatches) and pass against
+the fix, verified flake-free across 7 runs. Regression: 32/32 tests
+green; full UI suite and build green.
+
+### 76. Demo Track's overlapping polls/actions can let a stale /api/demo-track response revert a just-proved step — FIXED
+
+**File:** `demo_api_ui/src/pages/DemoTrackPage.jsx` (`load`)
+
+**Issue:** `load()` had no cancellation/sequencing guard and is invoked
+from four independent, overlapping call sites: a 5s poll interval,
+`startRun`, `onStepClick`, and `runSlot` after every chip/sim run. Each
+call unconditionally applied its own response via `setState`, so a
+slower, older request could resolve after a newer one and overwrite
+fresher state.
+
+**Trigger scenario:** A presenter clicks Run on a slot right as the
+periodic 5s poll also fires `load()`. `runSlot`'s own post-run `load()`
+can resolve before the concurrently in-flight interval poll (reflecting
+pre-run state); when the interval's response lands, the just-completed
+step visibly reverts from "proved" back to "pending" mid-demo until the
+next poll catches up.
+
+**Fix:** Added a monotonic request-id ref inside `load()` itself — only
+the most recently-issued call may apply its response via `setState`,
+protecting all four call sites uniformly with no change to the call
+sites themselves.
+
+**Evidence:** New test
+`demo_api_ui/src/pages/__tests__/DemoTrackPage.staleResponse.test.jsx`
+(mirroring `AgentGatewayLogPanel.staleResponse.test.jsx`'s pattern) fires
+an older `load()` that resolves after a newer one and asserts the DOM
+reflects the newer state — proven to fail against the pre-fix file
+(reverts to old state) and pass against the fix. Regression: 9/9 tests
+green; UI build green.
+
+### 77. Demo Steps dropdown races catalog fetches across a vertical switch while open — FIXED
+
+**File:** `demo_api_ui/src/components/DemoStepsDropdown.jsx` (`loadSteps`)
+
+**Issue:** `loadSteps` closed over the `vertical` prop; the effect
+re-invoked it whenever `vertical` changed while the panel was open,
+issuing a second fetch without cancelling or waiting for the first, with
+no check that a `.then` response still matched the currently-selected
+vertical.
+
+**Trigger scenario:** A presenter opens the dropdown for banking, then
+switches vertical to healthcare while it's still open. If banking's fetch
+resolves after healthcare's (ordinary network variance), it overwrites
+the list — the dropdown shows banking's steps while the app is actually
+on healthcare; clicking Run then dispatches a chip/useCaseId meaningless
+for the active vertical.
+
+**Fix:** Added a monotonic `loadStepsReqIdRef` (mirroring
+`AgentGatewayLogPanel.jsx`'s `fetchLogs`/`fetchDecisions` pattern) —
+`loadSteps` captures a request id at issue time, and the `.then`/`.catch`/
+`.finally` handlers bail if a newer request has since been issued.
+
+**Evidence:** New test
+`demo_api_ui/src/components/__tests__/DemoStepsDropdown.staleResponse.test.jsx`
+switches vertical mid-fetch, resolves the newer vertical first then the
+older, and asserts the newer vertical's step stays rendered rather than
+being clobbered — proven to fail against the pre-fix file and pass
+against the fix. Regression: 25/25 tests green; UI build green.
+
+### 78. Copy-to-clipboard in the use-case prompt card has no rejection handler — FIXED
+
+**File:** `demo_api_ui/src/pages/UseCaseLauncherPage.js` (`PromptSection.handleCopy`)
+
+**Issue:** `handleCopy` called `navigator.clipboard.writeText(prompt).
+then(...)` with no `.catch`. `writeText()` rejects in ordinary conditions
+(document not focused after a modal closes, clipboard permission denied,
+insecure context), producing an unhandled promise rejection every time.
+
+**Trigger scenario:** A presenter clicks Copy on a chip prompt right
+after closing a modal — Chrome throws `NotAllowedError: Document is not
+focused` from `writeText()`, unhandled, surfacing as an uncaught
+rejection.
+
+**Fix:** Added a reject branch mirroring the existing success-state
+pattern — a new `copyFailed` state shows "Copy failed" on the button for
+2s then resets, instead of leaving the rejection unhandled.
+
+**Evidence:** New test
+`demo_api_ui/src/pages/__tests__/UseCaseLauncherPage.copyPrompt.test.jsx`
+mocks `writeText` to reject and asserts no unhandled rejection plus the
+"Copy failed" state renders (a second case covers the existing success
+path) — proven to fail against the pre-fix file (explicit "Unhandled
+Rejection" reported) and pass against the fix. Regression: 4 files / 43
+tests green; UI build green.
+
+### 79. DemoStepsDropdown re-derives the completed-id Set from sessionStorage 2-3x per rendered row on every render — FIXED
+
+**File:** `demo_api_ui/src/components/DemoStepsDropdown.jsx` (completed-id lookups)
+
+**Issue:** `completedCount`, `nextPrimaryId`, and each row's `renderStep`
+each called `isUseCaseCompleted(uc.id)` independently; that helper does a
+fresh `sessionStorage.getItem` + `JSON.parse` + `Set` rebuild on every
+single call — never read once and reused, unlike
+`UseCaseLauncherPage.js`'s existing pattern for the same data.
+
+**Trigger scenario:** Opening the Demo Steps popout and typing in the
+search box re-renders the component on every keystroke, each render
+redundantly re-parsing sessionStorage ~2-3x per row (~50-70 parses for
+~23 rows).
+
+**Fix:** Call `getCompletedUseCaseIds()` once per render into a local
+const, and replace every `isUseCaseCompleted(uc.id)` call site with
+`completedIds.has(uc.id)` — zero behavior change, pure perf.
+
+**Evidence:** New test
+`demo_api_ui/src/components/__tests__/DemoStepsDropdown.completedIds.test.jsx`
+wraps both `isUseCaseCompleted` and `getCompletedUseCaseIds` with call
+counters and asserts the combined call count for a 21-row mount stays
+bounded (≤5) — proven to fail against the pre-fix file (49 calls) and
+pass against the fix. Regression: 25/25 tests green; UI build green.
+
+### 80. Resize-divider aria-valuemax forces a synchronous layout read on every render, including every pointermove during a drag — FIXED
+
+**File:** `demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.js` (resize divider)
+
+**Issue:** `aria-valuemax` called `runLayoutRef.current.
+getBoundingClientRect()` directly in JSX, so it ran on every render — not
+just on resize. Dragging the divider fires `pointermove` → `setAgentW` →
+re-render → this line's synchronous layout read (forced reflow), on every
+event of the drag, and on unrelated state changes too.
+
+**Trigger scenario:** Dragging the agent/token-chain resize divider: each
+`pointermove` forces a synchronous layout read purely to keep an aria
+attribute current.
+
+**Fix:** Added a `runLayoutWidth` state variable populated once at mount
+and thereafter only via `ResizeObserver` when the container actually
+resizes (same pattern already used in `AIAgent.js`), reading the cached
+value in JSX instead of calling `getBoundingClientRect()` inline. The
+computed value is unchanged — only how often it's recomputed.
+
+**Evidence:** New test in
+`demo_api_ui/src/pages/__tests__/LiveUseCaseWorkbenchPage.test.jsx` spies
+on `Element.prototype.getBoundingClientRect` after mount, fires 5
+unrelated re-renders, and asserts zero further calls — proven to fail
+against the pre-fix file (5 calls, one per re-render) and pass against
+the fix. Regression: 2 files / 32 tests green; UI build green.
+
+---
+
 ## Changelog
 
+- 2026-08-24 — #80 FIXED (round 7 — use-case/demo-step audit):
+  `LiveUseCaseWorkbenchPage.js`'s resize-divider `aria-valuemax` now reads
+  a `ResizeObserver`-cached width instead of calling
+  `getBoundingClientRect()` inline in JSX on every render, including every
+  `pointermove` during a drag. New test proven to fail against the
+  pre-fix file (5 layout reads on 5 unrelated re-renders) and pass against
+  the fix (0); 32 tests + UI build green.
+- 2026-08-24 — #79 FIXED (round 7): `DemoStepsDropdown.jsx`'s
+  `completedCount`/`nextPrimaryId`/`renderStep` now read the completed-id
+  Set once per render instead of each independently re-parsing
+  sessionStorage. New test proven to fail against the pre-fix file (49
+  calls for 21 rows) and pass against the fix (≤5); 25 tests + UI build
+  green.
+- 2026-08-24 — #78 FIXED (round 7): `UseCaseLauncherPage.js`'s
+  `PromptSection.handleCopy` now handles a rejected
+  `navigator.clipboard.writeText()` (document-not-focused, permission
+  denied) instead of leaving it an unhandled rejection. New test proven to
+  fail against the pre-fix file and pass against the fix; 43 tests + UI
+  build green.
+- 2026-08-24 — #77 FIXED (round 7): `DemoStepsDropdown.jsx`'s `loadSteps`
+  gained a monotonic request-id ref, closing the window where switching
+  vertical while the panel is open could let a stale, older vertical's
+  catalog fetch overwrite a newer vertical's already-rendered list. New
+  test proven to fail against the pre-fix file and pass against the fix;
+  25 tests + UI build green.
+- 2026-08-24 — #76 FIXED (round 7): `DemoTrackPage.jsx`'s `load()` gained
+  a monotonic request-id ref, closing the window where a slower poll (or
+  any of its 4 overlapping call sites) could resolve after a fresher
+  post-run fetch and revert a just-proved step on the presenter's screen.
+  New test proven to fail against the pre-fix file and pass against the
+  fix; 9 tests + UI build green.
+- 2026-08-24 — #75 FIXED (round 7, high severity):
+  `LiveUseCaseWorkbenchPage.js`'s `handleRunChip` gained a monotonic
+  run-token ref — closing the window where two overlapping runs
+  triggered via the `demo-script` BroadcastChannel (teleprompter/
+  second-screen) could let an older click's stale prompt auto-send to the
+  agent after a newer click already ran. New test proven to fail against
+  the pre-fix file (2 prefill dispatches) and pass against the fix (1);
+  32 tests + full UI suite + build green.
+- 2026-08-24 — #74 FIXED (round 7): `UseCaseLauncherPage.js`'s
+  `handleRun` gained a monotonic run-token ref, closing the window where a
+  slower first-clicked chip's navigation could land after a faster,
+  later-clicked chip's navigation and silently replace the router state.
+  New test proven to fail against the pre-fix file (2 navigate calls) and
+  pass against the fix (1); 42 tests + UI build green.
+- 2026-08-24 — #73 FIXED (round 7): `config/useCases.js`'s
+  `resolveUseCase()` now reuses the `a2aDelegated` value precomputed at
+  module load instead of recomputing it (and its sync `fs.statSync`) on
+  every call — ~57 blocking stat syscalls per `GET /api/use-cases`
+  eliminated in the common case. New test proven to fail against the
+  pre-fix file (27 extra calls) and pass against the fix (0); 489 tests
+  green.
+- 2026-08-24 — #72 FIXED (round 7): `demoScenario.js`'s
+  `restoreAccountsFromSnapshot()` no longer swallows a genuine LMDB read
+  error into the same `[]` result as a legitimate "no snapshot" — a
+  transient store failure could previously trigger silent reprovisioning
+  that permanently overwrote a user's real account snapshot with fresh
+  defaults. New test proven to fail against the pre-fix file and pass
+  against the fix; 4 tests green.
+- 2026-08-24 — #71 FIXED (round 7): `useCases.js`'s `cibaRequests` Map
+  gained an hourly sweep for expired entries, matching
+  `demoTrackService.js`'s existing `_sweepStaleBuckets` idiom — closing an
+  unbounded-growth gap for UC15 CIBA requests that are approved or
+  abandoned and never polled again. New test proven to fail against the
+  pre-fix file and pass against the fix; 260 tests green.
+- 2026-08-24 — #70 FIXED (round 7, high severity): `accounts.js`'s
+  `provisionDemoAccounts` is now single-flight per userId — closing a
+  race where two overlapping first-load requests for the same brand-new
+  user each independently provisioned a full set of ~11 sample
+  transactions, permanently duplicating the user's transaction history.
+  New test proven to fail against the pre-fix file (22 transactions) and
+  pass against the fix (11); 45 tests green.
+- 2026-08-24 — #69 FIXED (round 6 — new-area audit): `retailDb.ts`'s
+  `insertOrder` and `workforceDb.ts`'s `insertExpense` now derive their
+  next id's suffix via a single SQL `MAX()` aggregate instead of pulling
+  every prior row into Node and reducing in JS on every call — a per-call
+  cost that grew with every order/expense ever placed in the session
+  (O(N^2) cumulative). New source-inspection test proven to fail against
+  the pre-fix files and pass against the fix; 19 functional regression
+  tests unaffected (including the deleted-row-can't-reuse-an-id
+  semantics); `tsc` build green.
+- 2026-08-24 — #68 FIXED (round 5 — new-area audit): `rateLimit.ts`'s
+  `SlidingWindowLimiter._windows` Map is now capped at 1000 tracked keys via
+  the existing `cacheInsertWithEviction` sweep+FIFO-evict helper (already
+  used by this codebase's other per-caller caches) instead of growing
+  without bound for the gateway process's lifetime. New test proven to
+  fail against the pre-fix file (1500 unbounded entries) and pass against
+  the fix (capped at 1000); 29 related tests + `tsc` build green.
+- 2026-08-24 — #67 FIXED (round 5 — new-area audit): `GatewayServer.ts`'s
+  GET `/mcp` SSE passthrough now ends the client-facing response when the
+  upstream connection resets mid-stream, instead of leaving it open
+  forever — `stream.pipe()` doesn't auto-end the destination on a source
+  `'error'`, only on source `'end'`. New test abruptly destroys the
+  upstream socket mid-stream and proves the client response ends; failed
+  (timed out) against the pre-fix file, passes against the fix. 23 related
+  tests + `tsc` build green.
+- 2026-08-23 — #66 FIXED: `UseCaseLauncherPage.js`'s 13 track/authorize/
+  agent-gateway/demo derivations (`happyPath*`, `authorize*`, `grouped`,
+  `demoTrackItemsForStrip`, `demo*`, `agentGateway*`) are now `useMemo`-
+  wrapped instead of being plain `const` assignments re-scanning the full
+  use-case catalog on every render — including renders unrelated to
+  `useCases`/`query`, like a feature-flag toggle. New test spying on the
+  capability-ledger lookups proven to fail against the pre-fix file (call
+  count increased on an unrelated re-render) and pass against the fix; full
+  existing regression suite (40 tests across 2 files) and UI build gate
+  green.
+- 2026-08-23 — #65 FIXED: `configStore.js`'s `ENV_FALLBACK_MAP` (~230
+  entries) is now declared once at module scope instead of being
+  re-allocated inside `getEffective()` on every call — a hot path called
+  ~204 times project-wide, some inside loops. New source-inspection test
+  proven to fail against the pre-fix file and pass against the fix;
+  functional regression suite green (21 tests, output unchanged); full
+  server suite green (850/856 suites — 4 pre-existing/environmental
+  failures confirmed unrelated).
+- 2026-08-23 — #64 FIXED: `logout.js`'s `performLogout()` catch now calls
+  `notifyError(...)` and stays put instead of navigating to `/` on a fetch
+  failure — closing the window where a failed session-clear looked
+  identical to a successful logout while the BFF session cookie was still
+  valid. Deliberately does not fall back to a direct-navigation retry, to
+  avoid reintroducing the cookie-clearing bug this file's own `fetch()`
+  approach was written to avoid. New test proven to fail against the
+  pre-fix file and pass against the fix; 5 caller test files (28 tests)
+  unaffected.
+- 2026-08-23 — #63 FIXED (high severity): `agentAccessConsent.js`'s
+  `isAgentBlockedByConsentDecline()` now reads an in-memory flag as its
+  source of truth instead of `localStorage` directly, and fails CLOSED
+  (`blocked=true`) instead of open (`false`) when the initial storage read
+  itself throws — closing the window where a hardened-privacy/enterprise
+  browsing context could make the AI banking agent silently keep acting
+  after a user explicitly declined a high-value transaction. New test
+  proven to fail against the pre-fix file and pass against the fix.
+- 2026-08-23 — #62 FIXED: `enterpriseIdp.js`'s `POST /token` handler is now
+  wrapped in try/catch, returning `500 { error: 'server_error' }` instead
+  of hanging forever (or hard-crashing the process in dev/test) when an
+  internal call throws — e.g. a malformed `ENTERPRISE_IDP_SIGNING_KEY_PEM`.
+  New test proven to fail against the pre-fix file (hit jest's 30s test
+  timeout — the request genuinely hung) and pass against the fix; full
+  file green (8 tests) plus 3 sibling `enterpriseIdp*` files (17 tests)
+  unaffected.
+- 2026-08-23 — #61 FIXED: `NewRelicDashboard.jsx`'s `load()` gained a
+  monotonic `reqIdRef`, checked before `setData`/`setState`, closing the
+  window where a rapid window-selector change (e.g. 1h then 24h) could
+  have the slower, older request resolve after the newer one and render
+  the wrong window's data. Same pattern as finding #60. New test proven to
+  fail against the pre-fix file and pass against the fix; full file green
+  (20 tests).
+- 2026-08-23 — #60 FIXED: `AgentGatewayLogPanel.jsx`'s `fetchLogs`/
+  `fetchDecisions` gained monotonic request-id refs, checked before every
+  `setState`, closing the window where an older, slower overlapping fetch
+  (a previous filter, or a stale autoRefresh tick) could overwrite a newer
+  response. New test proven to fail against the pre-fix file and pass
+  against the fix.
+- 2026-08-23 — #59 FIXED: `PrivilegeMcpClientPage.jsx`'s sidebar/terminal
+  resize handles switched from mouse events to pointer events with
+  `setPointerCapture`, so `pointermove`/`pointerup` keep being delivered
+  even after the cursor leaves the document — closing the leak where a
+  mouseup outside the page left the drag listeners (and forced resizing)
+  attached forever. Also added an unmount-safety-net cleanup. New test
+  proven to fail against the pre-fix file and pass against the fix; all 6
+  sibling test files for this page (17 tests) unaffected.
+- 2026-08-23 — #58 FIXED: `lighthouseService.js`'s single-flight
+  `_isRunning` guard is now managed entirely inside the service and only
+  clears after the real Chrome teardown (`await chrome.kill()`) completes,
+  not when the outer 60s timeout race settles — closing the window where
+  an immediate retry after a timeout could launch a second concurrent
+  Chrome instance. The route no longer sets/clears `isRunning` itself,
+  only reads it for a fast pre-check. New test proven to fail against the
+  pre-fix file and pass against the fix; existing route regression suite
+  (11 tests) unaffected.
+- 2026-08-23 — #57 FIXED: `pingOneAuthorizeService.js`'s worker-token
+  single-flight guard now tracks the credKey it was started for
+  (`_workerTokenInflightKey`) and only reuses the in-flight promise for a
+  matching credKey, closing the window where a credential rotation
+  mid-flight could hand a caller a token minted with stale creds. New test
+  proven to fail against the pre-fix file and pass against the fix; full
+  server suite green (852/854 suites, 10095 tests; 2 known flakes passed
+  in isolation).
+- 2026-08-23 — #53, #54, #55, #56 FIXED (performance, round 3 complete —
+  all of #40–56 now FIXED): `activityLogger.js`'s dead response-body
+  capture block (computed, never read) deleted outright. `tokenValidationService.js`
+  now caches the derived PEM per `(jwksUri, kid)` alongside the existing
+  10-minute JWKS cache instead of re-deriving it from the JWK on every
+  `validateToken()` call. `agentScopes.js`'s `resolveAgentScopes` now loads
+  the scope-topology manifest once per call instead of once per tool (and,
+  going one level past the finding's own description, once per scope too
+  via `isWriteIsh`) — cut a 91-`fs.statSync`-call resolution down to ≤1.
+  `UserDashboard.js`/`UserDashboardPing2026.js`'s recent-transactions
+  sort+group derivation is now `useMemo`-keyed on `[transactions]` instead
+  of recomputing on every unrelated re-render; `UserDashboard.js`'s sha256
+  canary re-baselined in the same commit. New tests for #54/#55/#56 proven
+  to fail against each pre-fix file and pass against the fix (#53 has no
+  externally observable behavior to test — verified via the unchanged
+  existing suite instead). Full server suite green (851/853 suites, 10096
+  tests) since this batch touches shared middleware and auth-adjacent
+  services. Full UI suite green (422 files / 3429 tests) plus `npm run
+  build` green.
+- 2026-08-23 — #49, #50, #51, #52 FIXED (UI-side swallowed errors):
+  `Users.js`'s `updateAgentRestrictions` and `ActivityLogs.js`'s
+  `exportLogs`/`clearOldLogs` catch blocks now call `notifyError(...)`
+  instead of only `console.error`; `ThemeZonePanel.js`'s `persist()` now
+  checks `response.ok` and throws on failure so a rejected save no longer
+  shows a false "applied"/"reset" success toast; `ResourceServerJourneyPage.jsx`'s
+  `on401` now re-throws non-401 errors, and a new `fetchError` state
+  (distinct from `needsSignIn`) renders a generic error message on a
+  genuine fetch failure instead of the normal empty-data layout. New tests
+  for all four proven to fail against each pre-fix file and pass against
+  the fix. Full UI suite green: 422 files / 3428 tests, plus `npm run
+  build` (the gate) green.
+- 2026-08-23 — #46, #47, #48 FIXED (server-side swallowed errors):
+  `mcpGatewayConfig.js`'s POST /config now returns `502 { ok:false }` instead
+  of `ok:true` when `configStore.setRaw` rejects, on both the persist-only
+  and gateway-push-then-persist branches; `agentConsentRoute.js`'s consent
+  handler is now wrapped in try/catch and returns `503` instead of hanging
+  forever on a Redis-store rejection; `groupPolicy.js` now distinguishes a
+  thrown manifest-resolution error from a legitimate "no groups configured"
+  null, and `requiredGroupForTool` fails closed for non-banking verticals
+  when resolution throws (banking keeps its legacy-config fallback,
+  unchanged). New tests for all three proven to fail against the pre-fix
+  files and pass against the fixes; each touched suite green, plus
+  `groupPolicy`'s known authz-adjacent callers re-run green (96 passed).
+- 2026-08-23 — #45 FIXED: `cachedStatusService.js`'s fetch handlers now
+  self-reference their own `promise` and only write/delete the cache entry
+  when it's still the current one, closing the window where an older,
+  slower overlapping request could clobber a fresher cached response. New
+  test proven to fail against the pre-fix file and pass against the fix;
+  full UI suite green (419 files / 3423 tests). **This closes the Runtime
+  category for round 3 (#40–45 all FIXED).**
+- 2026-08-23 — #44 FIXED: `spinnerActivityService.js` gained a `_generation`
+  counter bumped in `start()`/`stop()`, checked in `poll()` after its await
+  in both success and error paths, discarding a stale response from an
+  ended/replaced session. New test proven to fail against the pre-fix file
+  and pass against the fix; full UI suite green (418 files / 3422 tests).
+- 2026-08-23 — #43 FIXED: `privilegeMcpClient.js`'s `listAllMcpPages`/
+  `discoverPolicyTools` gained a `MAX_MCP_PAGES` cap and repeated-cursor
+  detection. New test proven to fail against the pre-fix file — which
+  actually crashed the process (SIGABRT) rather than just hanging — and pass
+  against the fix; 50 tests passed across the full `privilegeMcpClient` test
+  directory.
+- 2026-08-23 — #42 FIXED: `http2McpBridge.js`'s `evictOldest()` now selects
+  the LRU entry regardless of `pendingStreams` and calls Node's graceful
+  `session.close()` (drains in-flight streams, doesn't abort them), closing
+  the gap where the pool cap was silently bypassed when every entry was
+  mid-flight. New test proven to fail against the pre-fix file (pool grew to
+  6) and pass against the fix; 14/14 tests passed.
+- 2026-08-23 — #41 FIXED: `hitlCredit.js` gained `claim()`/`release()` — a
+  cross-request lock (process-local Map keyed by session id, TTL 3s) closing
+  the race between the `isFresh()` read and the `consume()` write across an
+  awaited policy call. User confirmed the lock-based approach over a
+  narrower single-file patch or leaving it open. Wired into
+  `routes/transactions.js` (with explicit `release()`) and
+  `mcpToolAuthorizationService.js` (relies on TTL self-expiry, given its
+  three mutually-exclusive gates spread across many return paths). New
+  tests proven to fail against the pre-fix file (5/5) and pass against the
+  fix (14/14); 120 tests passed across affected suites.
+- 2026-08-23 — #40 FIXED: `cibaTransactionReceipt.js` gained a periodic
+  unref'd `setInterval` sweep (mirrors `http2McpBridge.js`'s
+  `cleanupInterval`) that evicts expired, never-consumed receipts. New test
+  proven to fail against the pre-fix file and pass against the fix; 65
+  tests passed across affected suites.
+- 2026-08-23 — Round 3 audit run: re-ran the same 6-finder + per-category
+  adversarial-verify design against the post-round-2 codebase (after PR
+  #2294 merged all 12 round-2 fixes). 17/17 candidate findings survived
+  verification, added as #40–#56, all OPEN — none fixed yet.
 - 2026-08-23 — #39 FIXED: `ScopeAuditPage.js`'s `handleAddScope` gained an
   optional `{ refresh: false }` so `handleFixAll`/`handleFixEverything` skip
   the per-scope reload and reload once after the batch instead. New test

@@ -36,7 +36,10 @@ export default function ThemeZonePanel({ verticalId }) {
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
-    }).then(() => refetch()), [verticalId, refetch]);
+    }).then((r) => {
+      if (!r.ok) throw new Error(`persist failed: ${r.status}`);
+      return refetch();
+    }), [verticalId, refetch]);
 
   const applyPalette = async (zone, palette) => {
     const cssVars = resolveZoneCssVars(zone, palette);

@@ -382,6 +382,20 @@ describe('audit hardening — a2aDelegatedScope, provisioning maps, naming', () 
     expect(missing).toEqual([]);
   });
 
+  // Every app whose name says "Agent" must declare which class of agent it is.
+  // Without this the field is a label nobody has to keep true: Phase 2 adds an
+  // agent that runs unattended, forgets agentClass, and the PingOne inventory
+  // still reads "all workers" while a scheduler is minting sub=agent tokens.
+  // "Super Banking Worker" is Management API bootstrap tooling, not an agent.
+  test('every agent app declares an agentClass', () => {
+    const NOT_AN_AGENT = new Set(['Super Banking Worker']);
+    const unlabelled = Object.entries(manifest.apps)
+      .filter(([name]) => /\bAgent\b/.test(name) && !NOT_AN_AGENT.has(name))
+      .filter(([, app]) => !app.agentClass)
+      .map(([name]) => name);
+    expect(unlabelled).toEqual([]);
+  });
+
   // Scope naming convention: lowercase segments joined by ':' (1-3 segments).
   // ai_agent is the sole grandfathered snake_case exception — do not add more.
   test('scope names follow the colon-delimited lowercase convention', () => {

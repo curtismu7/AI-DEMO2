@@ -1,6 +1,9 @@
 // demo_api_ui/src/pages/TransactionTracePage.jsx
 import React, { useCallback, useEffect, useState } from "react";
 import "./TransactionTracePage.css";
+// One source for how the PingGateway filters are named and explained, shared
+// with the Token Chain rail so the two surfaces cannot describe them differently.
+import { GW_STAGE_META } from "../services/tokenChainTrace/buildTraceSteps";
 
 const REFRESH_MS = 15000;
 const LIST_LIMIT = 50;
@@ -75,10 +78,53 @@ function Decision({ decision }) {
   );
 }
 
+// The PingGateway filters that handled this hop, in the order they ran.
+// PingGateway's own MCP module does this work — McpValidationFilter (protocol
+// + schema), McpAuditFilter, McpProtectionFilter (OAuth2) — and until now the
+// trace showed only its VERDICT, so the product features that produced it were
+// invisible in the surface built to demonstrate them.
+//
+// Renders nothing when the hop carries no chain: hops from other services never
+// have one, and ping-gateway omits it when the audit trail was unreadable
+// (transaction-hop.groovy fails open). Absent must not read as "no filters ran".
+export function FilterChain({ chain, denyingFilter }) {
+  if (!Array.isArray(chain) || chain.length === 0) return null;
+  return (
+    <div className="ttrace-filters" data-testid="filter-chain">
+      {chain.map((f) => {
+        // Only the filter that actually stopped the call is marked as the
+        // blocker. A filter reporting 'blocked' downstream of the real one
+        // would double-count the failure.
+        const blocked = f.filter === denyingFilter;
+        // Same labels and explanations the Token Chain rail uses. Sharing the
+        // map rather than restating it is the point: two hand-written
+        // descriptions of one filter chain drift, and the reel would otherwise
+        // show raw Java class names for filters the rail explains in English.
+        // Unknown filters fall back to the raw name, exactly as the rail does.
+        const meta = GW_STAGE_META[f.filter] || {};
+        const label = meta.label || f.filter;
+        const detail = blocked
+          ? `${label} stopped this request${f.decision ? ` (${f.decision})` : ""}`
+          : `${label}: ${f.result}${f.decision ? ` (${f.decision})` : ""}`;
+        return (
+          <span
+            key={f.filter}
+            className={`ttrace-filter ${blocked ? "blocked" : ""}`}
+            title={meta.note ? `${detail}\n\n${meta.note}` : detail}
+          >
+            {blocked ? "❌ " : ""}
+            {label}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 // Hops are rendered as nodes on a continuous vertical spine. `severed` marks
 // hops at/after the earliest violation — the spine (and the node) turns red
 // from that point on, so a broken chain of custody is legible at a glance.
-function HopCard({ hop, violations, severed }) {
+export function HopCard({ hop, violations, severed }) {
   return (
     <>
       <li
@@ -106,6 +152,7 @@ function HopCard({ hop, violations, severed }) {
           </div>
           <Identity identity={hop.identity} />
           <Decision decision={hop.decision} />
+          <FilterChain chain={hop.filterChain} denyingFilter={hop.denyingFilter} />
         </div>
       </li>
       {violations.map((v) => (

@@ -1,0 +1,15 @@
+# Grafana datasource provisioning — the Prometheus above is the only source.
+# Provisioned rather than clicked in: a Grafana pod restart wipes anything
+# configured through the UI, and this stack's pods restart often.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    # Fixed uid so the provisioned dashboard can reference it by name and keep
+    # working across reinstalls (a generated uid changes and orphans the panels).
+    uid: ai-demo-prometheus
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false

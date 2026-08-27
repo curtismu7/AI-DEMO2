@@ -1,0 +1,12 @@
+{
+  "vertical": "sporting-goods",
+  "useCaseId": "a2a-generalist-mismatch",
+  "ucId": "UC2.6",
+  "trigger": "simulate an agent identity mismatch",
+  "expectedOutcome": "PERMIT_THEN_DENY",
+  "capturedAt": "2026-08-24T14:02:08.922Z",
+  "seedHash": "bbfe417d11c6b000",
+  "reply": "Delegation complete — Membership Specialist retrieved sensitive membership details on your behalf (act-chain depth 2).",
+  "agentPath": null,
+  "tokenEventCount": 16
+}

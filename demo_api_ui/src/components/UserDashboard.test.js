@@ -210,4 +210,48 @@ describe("UserDashboard", () => {
     expect(notifyError).not.toHaveBeenCalledWith("policy_not_found");
     expect(notifyError).not.toHaveBeenCalledWith("Transfer failed");
   });
+
+  it("finding #56: does not re-sort/re-group recent transactions on an unrelated re-render", async () => {
+    const accounts = [
+      { id: "acc-1", accountType: "checking", accountNumber: "1111", balance: 500 },
+      { id: "acc-2", accountType: "savings", accountNumber: "2222", balance: 900 },
+    ];
+    const transactions = [
+      { id: "tx-1", type: "deposit", amount: 100, description: "Paycheck", createdAt: new Date().toISOString() },
+      { id: "tx-2", type: "withdrawal", amount: 20, description: "Coffee", createdAt: new Date(Date.now() - 86400000).toISOString() },
+    ];
+
+    vi.mocked(getCachedJson).mockImplementation(async (url) => {
+      if (url === "/api/auth/oauth/user/status") {
+        return { data: { authenticated: true, user: mockUser } };
+      }
+      return { data: { authenticated: false } };
+    });
+
+    vi.mocked(apiClient.get).mockImplementation(async (url) => {
+      if (url === "/api/accounts/my") return { data: { accounts } };
+      if (url === "/api/transactions/my") return { data: { transactions } };
+      return { data: [] };
+    });
+
+    renderDashboard();
+
+    const transferButtons = await screen.findAllByRole("button", { name: "Transfer" });
+    fireEvent.click(transferButtons[0]);
+    const form = await screen.findByRole("form", { name: "Transfer form" });
+    const amountInput = within(form).getByPlaceholderText("Enter amount");
+
+    // Confirm the tx feed actually rendered before establishing the baseline.
+    await screen.findByText("Paycheck");
+
+    const sortSpy = vi.spyOn(Array.prototype, "sort");
+    sortSpy.mockClear();
+
+    // Unrelated state change — typing in the transfer amount field re-renders
+    // the component but must not touch `transactions`.
+    fireEvent.change(amountInput, { target: { value: "5" } });
+
+    expect(sortSpy).not.toHaveBeenCalled();
+    sortSpy.mockRestore();
+  });
 });

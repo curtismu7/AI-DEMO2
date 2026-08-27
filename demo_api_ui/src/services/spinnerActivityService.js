@@ -86,6 +86,12 @@ let _stopped = false;
 let _lastServerEventAt = null;
 let _idleCheckCount = 0;
 const _listeners = new Set();
+// Bumped by start()/stop(). A poll() already in flight when the session is
+// stopped and quickly restarted only checked `_stopped` before its await —
+// never after — so its response could still land on (and corrupt) a new
+// session's state. Captured at the top of poll() and re-checked after the
+// await, before any side effects.
+let _generation = 0;
 
 function notify() {
   const snapshot = [..._events];
@@ -126,10 +132,12 @@ function pushEvent(evt) {
 
 async function poll() {
   if (_stopped) return;
+  const gen = _generation;
   try {
     const params = { limit: 20 };
     if (_sinceTimestamp) params.since = _sinceTimestamp;
     const res = await _http.get('/api/app-events', { params });
+    if (gen !== _generation) return; // session stopped/restarted while this was in flight
     const serverEvents = res.data?.events || [];
 
     for (const e of serverEvents) {
@@ -158,6 +166,7 @@ async function poll() {
       }
     }
   } catch (err) {
+    if (gen !== _generation) return; // stale error from an ended/replaced session
     const status = err?.response?.status;
     // Non-admin or unauthenticated — silently stop, no retries
     if (status === 401 || status === 403) {
@@ -176,6 +185,7 @@ export const spinnerActivity = {
    */
   start() {
     if (_pollTimer) return; // already running
+    _generation++;
     _stopped = false;
     // Preserve events buffered by addClientEvent before start()
     if (!_startedAt) {
@@ -198,6 +208,7 @@ export const spinnerActivity = {
    * Stop polling. Called when spinner hides.
    */
   stop() {
+    _generation++;
     _stopped = true;
     _startedAt = null;
     if (_pollTimer) {

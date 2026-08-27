@@ -360,11 +360,6 @@ async function main() {
   }
 }
 
-// Run only when invoked directly. When require()'d by tests, exports are used.
-if (require.main === module) {
-  main();
-}
-
 module.exports = {
   parseArgsAndDispatch,
   getPassword,
@@ -380,3 +375,11 @@ module.exports = {
   cmdDelete,
   cmdRotate,
 };
+
+// Run only when invoked directly. When require()'d by tests, exports are used.
+// MUST stay below module.exports: getPassword()/cmdSet() reach through
+// module.exports for the prompt and stdin helpers, so running main() first
+// crashed the CLI with "_promptForPassword is not a function".
+if (require.main === module) {
+  main();
+}

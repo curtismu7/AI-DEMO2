@@ -442,6 +442,22 @@ function pinSummary() {
 
 // ── Main request handler ───────────────────────────────────────────────────
 const server = http.createServer((req, res) => {
+  // GET /livez — LIVENESS only: "is this process still serving HTTP", never
+  // "is a backend ready". Deliberately unconditional 200.
+  //
+  // /health answers the readiness question and returns 503 while no tier is
+  // loaded, which is correct for readiness and wrong for liveness. Pointing a
+  // liveness probe at it means a cold start gets SIGTERM'd on a timer: the 20B
+  // tier takes ~11 minutes to pull and load, while liveness gives up after
+  // ~100s (10s initial + 3 x 30s), so Kubernetes killed llm-proxy roughly every
+  // 100 seconds while it waited — six restarts on 2026-08-27. Restarting cannot
+  // make a model load faster; it only resets the wait.
+  if (req.url === '/livez' && req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'alive' }));
+    return;
+  }
+
   if (req.url === '/health' && req.method === 'GET') {
     checkHealth(); // fire-and-forget refresh
     // Swap mode: exactly one tier loaded is the NORMAL state — healthy means

@@ -48,7 +48,8 @@ jest.mock('../../services/mcpPingOneHttpAdapter', () => ({
 // non-default dispatch are admin-gated); pass x-test-role: user to exercise
 // the customer 403 path. The unauthenticated 401 behavior is left intact.
 // x-test-pingone-token (JSON) seeds req.session.pingoneMcpAdminToken for the
-// built-in PingOne profile's dispatch.
+// built-in PingOne profile's dispatch; x-test-privilege-token does the same
+// for req.session.privilegeMcpToken.
 function testSession(req, res, next) {
   req.session = req.session || {};
   if (req.headers['x-test-authed']) {
@@ -59,6 +60,9 @@ function testSession(req, res, next) {
   }
   if (req.headers['x-test-pingone-token']) {
     req.session.pingoneMcpAdminToken = JSON.parse(req.headers['x-test-pingone-token']);
+  }
+  if (req.headers['x-test-privilege-token']) {
+    req.session.privilegeMcpToken = JSON.parse(req.headers['x-test-privilege-token']);
   }
   next();
 }
@@ -370,6 +374,79 @@ describe('Generic MCP Inspector — profiles', () => {
         .post('/api/mcp/inspector/profiles')
         .set('x-test-authed', '1')
         .send({ label: 'sneaky', transport: 'pingone' });
+      expect(res.status).toBe(400);
+    });
+  });
+
+  describe('built-in Privilege MCP profile (transport: privilege)', () => {
+    const PRIVILEGE_PROFILE_ID = 'built-in-privilege-mcp';
+
+    it('is seeded automatically and cannot be deleted', async () => {
+      const list = await request(app).get('/api/mcp/inspector/profiles');
+      const privilegeProfile = list.body.profiles.find((p) => p.id === PRIVILEGE_PROFILE_ID);
+      expect(privilegeProfile).toMatchObject({ transport: 'privilege', isBuiltIn: true });
+
+      const del = await request(app)
+        .delete(`/api/mcp/inspector/profiles/${PRIVILEGE_PROFILE_ID}`)
+        .set('x-test-authed', '1');
+      expect(del.status).toBe(400);
+      expect(del.body.error).toBe('default_profile_protected');
+    });
+
+    it('signals privilege_login_required when no session token is present (GET /tools)', async () => {
+      const res = await request(app)
+        .get(`/api/mcp/inspector/tools?profile=${PRIVILEGE_PROFILE_ID}`)
+        .set('x-test-authed', '1');
+      expect(res.status).toBe(200);
+      expect(res.body.privilege_login_required).toBe(true);
+      expect(res.body.loginUrl).toBe('/api/mcp/inspector/privilege/login');
+      expect(res.body.tools).toEqual([]);
+      expect(mockHttpListTools).not.toHaveBeenCalled();
+    });
+
+    it('signals privilege_login_required when the session token is expired', async () => {
+      const expired = JSON.stringify({ accessToken: 'stale', expiresAt: Date.now() - 1000 });
+      const res = await request(app)
+        .get(`/api/mcp/inspector/tools?profile=${PRIVILEGE_PROFILE_ID}`)
+        .set('x-test-authed', '1')
+        .set('x-test-privilege-token', expired);
+      expect(res.body.privilege_login_required).toBe(true);
+    });
+
+    it('dispatches to the http transport with the session token as a Bearer header when signed in', async () => {
+      const token = JSON.stringify({ accessToken: 'privilege-mcp-token', expiresAt: Date.now() + 60000 });
+      mockHttpListTools.mockResolvedValue({ tools: [{ name: 'get_my_accounts' }] });
+
+      const res = await request(app)
+        .get(`/api/mcp/inspector/tools?profile=${PRIVILEGE_PROFILE_ID}`)
+        .set('x-test-authed', '1')
+        .set('x-test-privilege-token', token);
+
+      expect(res.status).toBe(200);
+      expect(res.body._source).toBe('profile');
+      expect(res.body.tools).toEqual([{ name: 'get_my_accounts' }]);
+      expect(mockHttpListTools).toHaveBeenCalledWith({
+        url: 'https://cmuir-agentless-mcpgw.ping-devops.com/external/mcp',
+        authHeader: 'Authorization',
+        authValue: 'Bearer privilege-mcp-token',
+      });
+    });
+
+    it('POST /invoke 401s with privilege_login_required when not signed in', async () => {
+      const res = await request(app)
+        .post('/api/mcp/inspector/invoke')
+        .set('x-test-authed', '1')
+        .send({ tool: 'get_my_accounts', params: {}, profile: PRIVILEGE_PROFILE_ID });
+      expect(res.status).toBe(401);
+      expect(res.body.error).toBe('privilege_login_required');
+      expect(res.body.loginUrl).toBe('/api/mcp/inspector/privilege/login');
+    });
+
+    it('rejects transport:"privilege" on POST /profiles (reserved for the built-in)', async () => {
+      const res = await request(app)
+        .post('/api/mcp/inspector/profiles')
+        .set('x-test-authed', '1')
+        .send({ label: 'sneaky', transport: 'privilege' });
       expect(res.status).toBe(400);
     });
   });

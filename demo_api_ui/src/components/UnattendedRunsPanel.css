@@ -1,0 +1,91 @@
+/* Unattended runs picker. Page-level surface, so it uses the --th-* semantic
+   tokens (both themes) rather than the trace rail's header-band treatment. */
+.uarp {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  color: var(--th-text, #0f172a);
+  font-size: 13px;
+}
+
+.uarp-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.uarp-lede {
+  margin: 0;
+  color: var(--th-text-muted, #556070);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.uarp-empty {
+  margin: 0;
+  color: var(--th-text-muted, #556070);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.uarp-run {
+  flex: 0 0 auto;
+  font: inherit;
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--th-border-strong, #c3cdd9);
+  background: var(--th-bg-card, #fff);
+  color: var(--th-text, #0f172a);
+  cursor: pointer;
+}
+.uarp-run:disabled { opacity: 0.55; cursor: default; }
+
+.uarp-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.uarp-row {
+  border: 1px solid var(--th-border, #dbe2ea);
+  border-radius: 8px;
+  background: var(--th-bg-card, #fff);
+  /* Amber stripe: the same signal the Autonomous badge carries on the rail. */
+  box-shadow: inset 3px 0 0 #a1620a;
+}
+.uarp-row--failed { box-shadow: inset 3px 0 0 #b3261e; }
+
+.uarp-open {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 3px 10px;
+  padding: 10px 12px;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 8px;
+}
+.uarp-open:hover { background: var(--th-bg-inset, #f1f5f9); }
+.uarp-open:focus-visible { outline: 2px solid var(--th-border-strong, #c3cdd9); outline-offset: -2px; }
+
+.uarp-job { font-weight: 600; }
+.uarp-when,
+.uarp-trigger {
+  color: var(--th-text-muted, #556070);
+  font-size: 11.5px;
+  text-align: right;
+}
+.uarp-desc {
+  grid-column: 1 / -1;
+  color: var(--th-text-muted, #556070);
+  font-size: 11.5px;
+}

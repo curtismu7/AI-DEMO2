@@ -86,6 +86,62 @@ const ALLOWED_ENV_VARS = Object.freeze([
   // vault:migrate-from-env copies it from .env on a fresh install.
   'DEMO_API_RESOURCE_SERVER_KEY',
   'DEMO_MCP_RESOURCE_SERVER_KEY',
+  // Added 2026-08-25 (vault-in-k8s): GW_INTROSPECTION_CLIENT_ID/SECRET were
+  // declared with different values in demo_mcp_gateway/.env vs
+  // demo_api_server/.env; ai-demo-secrets (built from the latter) loaded
+  // last in K8s envFrom and silently won, breaking live PingOne token
+  // introspection on the SE cluster. Vault-backing this key removes the
+  // possibility of two files disagreeing.
+  'GW_INTROSPECTION_CLIENT_ID',
+  'GW_INTROSPECTION_CLIENT_SECRET',
+  // Added 2026-08-25 (vault-in-k8s Task 1): the rest of the secret-shaped
+  // (`_SECRET`/`_KEY`/`_PASSWORD`-suffixed) names found across all 7
+  // secret-loading services' .env files (demo_api_server, demo_mcp_gateway,
+  // oauth-mcp, demo_hitl_service, langchain_agent, demo_agent_service,
+  // ping-gateway) that weren't already covered above. Same rationale as the
+  // GW_INTROSPECTION pair: any name a service treats as a real secret must
+  // be vault-backed so two .env files can never silently disagree on it.
+  'ANTHROPIC_API_KEY',
+  'BRANDFETCH_API_KEY',
+  'ENTERPRISE_IDP_PINGONE_CLIENT_SECRET',
+  'GOOGLE_API_KEY',
+  'GROQ_API_KEY',
+  'HITL_INTERNAL_SECRET',
+  'LANGCHAIN_ENCRYPTION_MASTER_KEY',
+  'MCP_SERVER_ENCRYPTION_KEY',
+  'NR_CLI_API_KEY',
+  'NR_LICENSE_KEY',
+  'NR_USER_API_KEY',
+  'PINGONE_A2A_FINAID_AGENT_CLIENT_SECRET',
+  'PINGONE_A2A_HOLDINGS_AGENT_CLIENT_SECRET',
+  'PINGONE_A2A_IDENTITY_AGENT_CLIENT_SECRET',
+  'PINGONE_A2A_INVESTMENT_AGENT_CLIENT_SECRET',
+  'PINGONE_A2A_MEMBERSHIP_AGENT_CLIENT_SECRET',
+  'PINGONE_A2A_PASSENGER_AGENT_CLIENT_SECRET',
+  'PINGONE_A2A_PAYROLL_AGENT_CLIENT_SECRET',
+  'PINGONE_A2A_PURCHASE_AGENT_CLIENT_SECRET',
+  'PINGONE_A2A_RECORDS_AGENT_CLIENT_SECRET',
+  'PINGONE_A2A_SUPPLIER_AGENT_CLIENT_SECRET',
+  'PINGONE_A2A_TAX_AGENT_CLIENT_SECRET',
+  'PINGONE_AGENT_CLIENT_SECRET',
+  'PRIVILEGE_SSO_CLIENT_SECRET',
+  'ENCRYPTION_KEY',
+  'OAUTH_MCP_PINGONE_CLIENT_SECRET',
+  'PINGONE_CLIENT_SECRET',
+  'PINGONE_MCP_EXCHANGER_CLIENT_SECRET',
+  'ENCRYPTION_MASTER_KEY',
+  'INTENT_TOKEN_SECRET',
+  'INTROSPECT_CLIENT_SECRET',
+  'P1AZ_WORKER_CLIENT_SECRET',
+  'TE_CLIENT_SECRET',
+  // Deliberately NOT added, same judgment call already made and documented
+  // for dotenvx encryption in demo_api_server/scripts/dotenvx-encrypt-envs.js
+  // (ADDITIONAL_SECRET_NAMES comment, 2026-08-18): `DOTENV_PUBLIC_KEY` (meant
+  // to stay plaintext — that's the whole point of an asymmetric public key),
+  // `VAULT_PASSWORD` (unlocks the vault; can't be vault-resident itself), and
+  // the `DEMO_ADMIN_PASSWORD` / `DEMO_USER_PASSWORD` / `DEMO_DELEGATE_PASSWORD`
+  // trio (intentionally-public demo sign-in credentials documented for
+  // presenters, not access-control secrets).
 ]);
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');

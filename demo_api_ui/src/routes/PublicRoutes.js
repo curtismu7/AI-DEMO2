@@ -18,6 +18,13 @@ import LogoutPage from "../components/LogoutPage";
 import MFATestPage from "../components/MFATestPage";
 import PingOneSetupGuidePage from "../components/PingOneSetupGuidePage";
 import PingOneTestPage from "../components/PingOneTestPage";
+import SampleAppPage from "../pages/SampleAppPage";
+import M2mCredentialsSamplePage from "../pages/M2mCredentialsSamplePage";
+import {
+  StandaloneIndex,
+  StandaloneSample,
+  StandaloneRunnerShell,
+} from "../pages/StandaloneSamples";
 import PingOneSetup from "../pages/PingOneSetup";
 import SelfServicePage from "../components/SelfServicePage";
 import SetupPage from "../components/SetupPage";
@@ -67,6 +74,64 @@ export function SelfServicePageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <SelfServicePage />
+    </AppShell>
+  );
+}
+
+// One wrapper per sample app. SampleAppPage is shared; sampleId selects the
+// content from data/sampleApps.js + data/sampleCode.json.
+export function SampleM2mPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <SampleAppPage sampleId="m2m-credentials" />
+    </AppShell>
+  );
+}
+
+export function SampleCustomAdminRolePageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <SampleAppPage sampleId="custom-admin-role" />
+    </AppShell>
+  );
+}
+
+export function SampleUserRegistrationPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <SampleAppPage sampleId="user-registration" />
+    </AppShell>
+  );
+}
+
+export function SampleMfaDemoPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <SampleAppPage sampleId="mfa-demo" />
+    </AppShell>
+  );
+}
+
+// The /standalone/* routes take no user and no logout on purpose: they render
+// no AppShell, so there is no TopNav to sign in from and no session state to
+// pass down. That is the whole point of them — the same sample pages with none
+// of this demo around them.
+export function StandaloneIndexRoute() {
+  return <StandaloneIndex />;
+}
+
+export function StandaloneSampleRoute() {
+  return <StandaloneSample />;
+}
+
+export function StandaloneRunnerRoute() {
+  return <StandaloneRunnerShell />;
+}
+
+export function M2mCredentialsSamplePageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <M2mCredentialsSamplePage />
     </AppShell>
   );
 }

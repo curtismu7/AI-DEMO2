@@ -14,7 +14,13 @@
  */
 
 const TRANSACTION_FIELDS = new Set(['Amount', 'TransactionType', 'UserId', 'Acr']);
-const MCP_FIELDS = new Set(['ToolName', 'TokenAudience', 'ActClientId', 'UserId', 'HitlApproved', 'McpResourceUri', 'DecisionContext']);
+// TokenIss joined the MCP set on 2026-08-26 with HasValidMcpAudience's
+// external-door exemption. classifyDomain requires EVERY attribute in a rule's
+// condition to be an MCP field, so omitting it silently reclassified
+// "MCP Deny — Invalid Token Audience" as 'custom' and changed its generated
+// test-case preset. It is an MCP decision field like the rest: both gateways
+// already send it on every MCP decision request.
+const MCP_FIELDS = new Set(['ToolName', 'TokenAudience', 'ActClientId', 'UserId', 'HitlApproved', 'McpResourceUri', 'DecisionContext', 'TokenIss']);
 
 // Mirrors the tuned-to-PERMIT defaults already hardcoded in EvaluatePanel's
 // component state (PingOneAuthorizePage.jsx) for the transaction/mcp presets.

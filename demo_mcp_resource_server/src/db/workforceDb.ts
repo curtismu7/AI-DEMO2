@@ -119,13 +119,13 @@ export function listExpenses(): Expense[] {
  */
 export function insertExpense(input: { category: string; amount: number; description?: string; submittedDate?: string }): Expense {
   return withDb((conn) => {
-    const rows = conn
-      .prepare("SELECT id FROM expenses WHERE id LIKE 'exp-new-%'")
-      .all() as unknown as Array<{ id: string }>;
-    const highest = rows.reduce((max, r) => {
-      const n = Number.parseInt(String(r.id).slice('exp-new-'.length), 10);
-      return Number.isFinite(n) && n > max ? n : max;
-    }, 0);
+    // SQL MAX() instead of shipping every prior row into JS to reduce — same
+    // "highest existing suffix" semantics, without a per-call full-table scan
+    // whose cost grows with every expense ever submitted this session.
+    const row = conn
+      .prepare("SELECT MAX(CAST(SUBSTR(id, LENGTH('exp-new-') + 1) AS INTEGER)) AS maxN FROM expenses WHERE id LIKE 'exp-new-%'")
+      .get() as { maxN: number | null } | undefined;
+    const highest = row?.maxN ?? 0;
 
     const expense: Expense = {
       id: `exp-new-${highest + 1}`,

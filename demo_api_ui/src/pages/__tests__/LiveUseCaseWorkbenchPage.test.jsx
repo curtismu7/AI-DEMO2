@@ -437,3 +437,32 @@ describe('LiveUseCaseWorkbenchPage — rail focus scroll-and-pulse (real selecto
     expect(card).toHaveClass('luw-step-pulse');
   });
 });
+
+// Perf regression (finding #80): the resize divider's aria-valuemax used to
+// call runLayoutRef.current.getBoundingClientRect() directly in JSX, so it
+// forced a synchronous layout read on EVERY render — not just when the run
+// layout container actually resized. The fix caches the width via
+// ResizeObserver (src/setupTests.js doesn't polyfill ResizeObserver, so in
+// this jsdom environment the effect's one-time `update()` call at mount is
+// the only read that ever happens) and reads that cached value in JSX
+// instead. Prove it by spying on getBoundingClientRect *after* mount and
+// driving several unrelated re-renders (typing in the drawer filter) — a
+// fixed component makes zero further layout reads; the pre-fix component
+// would make one per keystroke.
+describe('LiveUseCaseWorkbenchPage — resize divider aria-valuemax layout reads', () => {
+  it('does not call getBoundingClientRect on unrelated re-renders after mount', () => {
+    render(<LiveUseCaseWorkbenchPage />);
+
+    const spy = vi.spyOn(Element.prototype, 'getBoundingClientRect');
+
+    const filterInput = screen.getByPlaceholderText('Filter use cases…');
+    fireEvent.change(filterInput, { target: { value: 'a' } });
+    fireEvent.change(filterInput, { target: { value: 'ab' } });
+    fireEvent.change(filterInput, { target: { value: 'abc' } });
+    fireEvent.change(filterInput, { target: { value: 'abcd' } });
+    fireEvent.change(filterInput, { target: { value: 'abcde' } });
+
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
+});

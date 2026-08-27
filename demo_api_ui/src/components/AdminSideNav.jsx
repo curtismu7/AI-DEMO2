@@ -163,7 +163,7 @@ const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "local.ping-devops.co
 const AUTO_EXPAND_SECTIONS = [
   { id: "customer-demos", paths: ["/agent-lifecycle"] },
   { id: "demos", paths: ["/delegated-commerce", "/use-cases", "/use-cases/live", "/demo-track", "/group-policy", "/demo-config", "/delegation", "/delegation-chain-value"] },
-  { id: "ai-agents", paths: ["/ai-control-plane", "/agent", "/agent-builder", "/agent-flow-inspector", "/langchain", "/ungoverned-agent", "/servers"] },
+  { id: "ai-agents", paths: ["/ai-control-plane", "/control-plane", "/agent-registry", "/agent", "/agent-builder", "/agent-flow-inspector", "/langchain", "/ungoverned-agent", "/servers"] },
   { id: "pingone-mcp", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/privilege-mcp-client", "/privilege-mcp-learning"] },
   { id: "banking-mcp", paths: ["/webmcp", "/ping-ai-test-lab"] },
   { id: "banking-mcp-gateways", paths: ["/agent-gateway-inspector", "/pinggateway-test", "/mcp-traffic", "/token-security", "/agent-gateway-capabilities"] },
@@ -245,6 +245,11 @@ export default function AdminSideNav({
   const [navOrder, setNavOrder] = useState(null);
   const [childOrder, setChildOrder] = useState(null);
   const showPacEditorLink = isLocalHost();
+  // Grafana is served differently per target and there is no single URL that
+  // works in both: under /grafana on the same origin in k8s (nginx proxies it),
+  // and on its own port in Docker Compose, which is a different origin from the
+  // UI. Same split the BFF makes for tracesUiUrl.
+  const grafanaUrl = isLocalHost() ? "http://localhost:3000" : "/grafana";
 
   // Per-user sidebar customization (Demo Config page). Returns [] when
   // ff_sidebar_customization is OFF or the request fails — full nav either way.
@@ -479,37 +484,9 @@ export default function AdminSideNav({
     },
     { label: "Themes", path: "/themes", icon: "cfg" },
     {
-      // Customer-facing demo pages — visible to admins too ("there is no
-      // reason to hide on admin dashboard", 2026-08-10): the presenter drives
-      // these demos from an admin session. customerOnly was dropped from
-      // Agent Lifecycle when it moved here.
-      label: "Customer Demos",
-      icon: "demo",
-      children: [
-        {
-          label: "Agent Lifecycle (guided demo)",
-          path: "/agent-lifecycle",
-          icon: "agt",
-          adminOnly: true,
-        },
-        {
-          label: "Personal Agent",
-          path: "/personal-agent",
-          icon: "agt",
-          adminOnly: true,
-        },
-      ],
-    },
-    {
       label: "Demos",
       icon: "demo",
       children: [
-        {
-          label: "Delegated Commerce (guided demo)",
-          path: "/delegated-commerce",
-          icon: "agt",
-          adminOnly: true,
-        },
         {
           label: "Weather MCP",
           icon: "mcp",
@@ -552,7 +529,6 @@ export default function AdminSideNav({
           action: () => window.dispatchEvent(new CustomEvent("demo-script-toggle")),
         },
         { label: "Demo Config", path: "/demo-config", icon: "cfg", adminOnly: true },
-        { label: "Family Delegation", path: "/delegation", icon: "usr", adminOnly: true },
       ],
     },
     // Latest report — shown when agent run completes
@@ -567,27 +543,63 @@ export default function AdminSideNav({
         ]
       : []),
     {
-      label: "AI Agents",
+      label: "AI Flows",
       icon: "agt",
       children: [
         {
-          label: "AI Control Plane",
-          path: "/ai-control-plane",
+          label: "Agentic Control Plane",
+          path: "/control-plane",
           icon: "sec",
           highlight: true,
+        },
+        {
+          // Renamed: this is the kill-switch roster, reachable from the
+          // Governance zone. It never was the control plane.
+          label: "Agent Kill Switch",
+          path: "/ai-control-plane",
+          icon: "sec",
           introGate: true,
+        },
+        {
+          label: "Agent Registry",
+          path: "/agent-registry",
+          icon: "sec",
         },
         {
           label: "PingOne Agent Builder",
           path: "/agent-builder",
           icon: "tool",
-          adminOnly: true,
         },
         {
           label: "Agent & Token Flow History",
           path: "/agent-flow-inspector",
           icon: "flw",
         },
+        {
+          // Public on purpose (auth-requirements.json) — no adminOnly here.
+          label: "Autonomous Agents",
+          path: "/autonomous-agents",
+          icon: "clk",
+        },
+        {
+          label: "Personal Agent",
+          path: "/personal-agent",
+          icon: "agt",
+          adminOnly: true,
+        },
+        {
+          label: "Agent Lifecycle (guided demo)",
+          path: "/agent-lifecycle",
+          icon: "agt",
+          adminOnly: true,
+        },
+        {
+          label: "Delegated Commerce (guided demo)",
+          path: "/delegated-commerce",
+          icon: "agt",
+          adminOnly: true,
+        },
+        { label: "Family Delegation", path: "/delegation", icon: "usr", adminOnly: true },
         { label: "LangChain Agent", path: "/langchain", icon: "agt" },
         {
           label: "Ungoverned Agent",
@@ -637,6 +649,36 @@ export default function AdminSideNav({
           icon: "rte",
         },
         { label: "Capability Tour", path: "/agent-gateway-capabilities", icon: "shld" },
+      ],
+    },
+    {
+      label: "PingOne Sample Apps",
+      icon: "tst",
+      children: [
+        {
+          label: "M2M Client Credentials",
+          path: "/samples/m2m-credentials",
+          icon: "key",
+          searchAlias: "machine to machine client credentials protect sample",
+        },
+        {
+          label: "Custom Admin Role",
+          path: "/samples/custom-admin-role",
+          icon: "pol",
+          searchAlias: "delegated administration custom role sample",
+        },
+        {
+          label: "User Registration",
+          path: "/samples/user-registration",
+          icon: "usr",
+          searchAlias: "self service registration email verification pi.flow sample",
+        },
+        {
+          label: "Login with MFA",
+          path: "/samples/mfa-demo",
+          icon: "lck",
+          searchAlias: "multi factor authentication native flow sample",
+        },
       ],
     },
     {
@@ -920,6 +962,16 @@ export default function AdminSideNav({
         { label: "Service Graph", path: "/telemetry", icon: "log" },
         { label: "Tracing", path: "/tracing", icon: "log" },
         { label: "Transaction Trace", path: "/transaction-trace", icon: "log" },
+        {
+          // External, so it uses the same action+window.open shape as PAC
+          // Editor rather than a router path. Grafana holds PingGateway's own
+          // metrics and is where traces open now that the public /jaeger/
+          // route is gone; without this entry you have to know the URL.
+          label: "Grafana",
+          icon: "log",
+          searchAlias: "metrics dashboards prometheus pinggateway traces",
+          action: () => window.open(grafanaUrl, "_blank", "noopener,noreferrer"),
+        },
         { label: "Health Check", path: "/check", icon: "clk" },
       ],
     },
@@ -960,6 +1012,7 @@ export default function AdminSideNav({
         { label: "Agent Onboarding Flow (MM)", path: "/agent-onboarding-flow-mermaid", icon: "arc", className: "admin-side-nav__item--onboarding-white" },
         { label: "Agent Gateway OAuth Flow (MM)", path: "/mcp-gateway-oauth-flow", icon: "log" },
         { label: "Invest Dual-Auth (MM)", path: "/invest-dual-auth", icon: "rte" },
+        { label: "External Door MCP Flow (MM)", path: "/external-door-diagrams", icon: "arc" },
         { label: "AI Agent Gateway (MM)", path: "/privilege-mcp-diagrams", icon: "lck" },
         { label: "Privilege Gateway Topologies (MM)", path: "/privilege-gateway-topologies", icon: "arc" },
         { label: "Gateway vs P1AZ Enforcement (MM)", path: "/gateway-enforcement-map", icon: "arc" },

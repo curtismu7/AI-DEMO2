@@ -89,6 +89,38 @@ export interface GatewayConfig {
   // than the gateway's own client credentials.  Falls back to clientId/Secret.
   introspectionClientId: string;
   introspectionClientSecret: string;
+  /**
+   * Scope requested when minting the gateway's OWN client_credentials actor
+   * token (McpTokenExchangeClient.getActorToken). NOT a constant: the inbound
+   * invocation-scope SPELLING differs per gateway resource — scope-topology.json
+   * `aliases` maps `gateway:mcp:invoke` (PingGateway MCP),
+   * `apikey:mcp:invoke` (PingGateway api-key route), `pinggateway:invoke` and
+   * `server:mcp:invoke` all onto the canonical `mcp:invoke`, which is the
+   * spelling the Node gateway's own resource (`mcpgateway.ping.demo`) actually
+   * carries. The actor mint narrows to ONE resource (RFC 8707, the first entry
+   * of MCP_GW_RESOURCE_URI), so the scope must be that resource's spelling —
+   * a single hard-coded literal cannot be right for both gateways at once.
+   * Override with MCP_GW_ACTOR_SCOPE when targeting a resource whose spelling
+   * differs from the default.
+   *
+   * Optional so the many hand-built GatewayConfig fixtures stay valid; when
+   * absent the client falls back to the same canonical default.
+   */
+  actorTokenScope?: string;
+  /**
+   * Principal used for the actor-token mint. The exchange actor must hold a
+   * grant on the target resource; the gateway's own app (MCP_GW_CLIENT_ID) is
+   * deliberately granted tool scopes on the OLB/invest backends instead, so a
+   * bare client_credentials mint with it fails PingOne's multi-resource check.
+   * Sourced from PINGONE_TOKEN_EXCHANGER_CLIENT_ID/SECRET — a dedicated pair
+   * rather than reusing GW_INTROSPECTION_* , which the authz-server sidecar
+   * needs pointed at a DIFFERENT principal (the resource's own client, the only
+   * one PingOne will answer active:true for). One env var cannot serve both.
+   * Falls back to the introspection principal, then the gateway client, so
+   * existing single-principal deployments are unchanged.
+   */
+  actorClientId?: string;
+  actorClientSecret?: string;
   // Token introspection provider: 'pinggateway' (default) or 'p1az'.
   // 'pinggateway' = PingGateway (ForgeRock IG) performs introspection (default).
   // 'p1az' = PingOne Authorize receives introspection result for policy evaluation (optional).
@@ -112,6 +144,15 @@ export interface GatewayConfig {
   bffInternalIdTokenUrl: string;
   // Phase 266: shared secret for BFF /internal/id-token requests
   bffInternalSecret: string;
+  // JIT credentials: BFF-internal bridge that mints a short-TTL, route-bound
+  // credential in place of the static backend service key.
+  //
+  // Optional on the TYPE, always set by buildConfig(): only test stubs omit
+  // them, and `undefined` is exactly the right default (feature off, which is
+  // the existing behaviour byte-for-byte). Making them required forced a dozen
+  // unrelated suites to declare a credential flag they do not care about.
+  bffVaultKeyUrl?: string;
+  jitCredentialsEnabled?: boolean;
   // Phase 266: base URL of banking_resource_server (e.g. http://localhost:3001)
   bankingResourceServerBaseUrl: string;
   // Phase 266: OAuth audience for banking_resource_server — MUST match BANKING_API_RESOURCE_URI
@@ -347,6 +388,10 @@ export function loadConfig(): GatewayConfig {
     introspectionEnabled: optional('GW_INTROSPECTION_ENABLED', 'true') !== 'false',
     introspectionClientId: optional('GW_INTROSPECTION_CLIENT_ID', ''),
     introspectionClientSecret: optional('GW_INTROSPECTION_CLIENT_SECRET', ''),
+    // See the interface docs above: per-resource scope spelling, not a constant.
+    actorTokenScope: optional('MCP_GW_ACTOR_SCOPE', 'mcp:invoke'),
+    actorClientId: optional('PINGONE_TOKEN_EXCHANGER_CLIENT_ID', ''),
+    actorClientSecret: optional('PINGONE_TOKEN_EXCHANGER_CLIENT_SECRET', ''),
     introspectionProvider: (process.env.INTROSPECTION_PROVIDER === 'p1az' ? 'p1az' : 'pinggateway') as 'pinggateway' | 'p1az',
     devBypass: DEV_BYPASS,
     mcpServerPassthrough: process.env.MCP_GW_PASSTHROUGH_TO_MCP_SERVER === 'true',
@@ -360,6 +405,8 @@ export function loadConfig(): GatewayConfig {
     apiResourceServerApiKey: optional('DEMO_API_RESOURCE_SERVER_KEY', ''),
     bffInternalIdTokenUrl: optional('BFF_INTERNAL_ID_TOKEN_URL', 'http://localhost:3001/internal/id-token'),
     bffInternalSecret: optional('BFF_INTERNAL_SECRET', DEFAULT_BFF_INTERNAL_SECRET),
+    bffVaultKeyUrl: optional('BFF_VAULT_KEY_URL', 'http://localhost:3001/internal/vault/service-key'),
+    jitCredentialsEnabled: process.env.MCP_GW_JIT_CREDENTIALS === 'true',
     bankingResourceServerBaseUrl: optional('BANKING_RESOURCE_SERVER_BASE_URL', 'http://localhost:3001'),
     bankingResourceServerResourceUri: optional('BANKING_RESOURCE_SERVER_RESOURCE_URI', 'https://banking-resource-server.ping.demo'),
     mtlsEnabled: process.env.MCP_MTLS_ENABLED === 'true',

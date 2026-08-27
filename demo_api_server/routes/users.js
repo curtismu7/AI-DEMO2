@@ -64,7 +64,7 @@ router.get('/query/by-email/:email', authenticateToken, requireAIAgent, (req, re
     });
 
   } catch (error) {
-    console.error('AI agent user query error:', error);
+    console.error('AI agent user query error:', error?.stack || String(error));
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -78,7 +78,7 @@ router.get('/', authenticateToken, requireScopes(['read']), requireAdmin, async 
     const raw = result._embedded?.users || [];
     res.json({ users: raw.map(normalizePingOneUser), total: raw.length });
   } catch (error) {
-    console.error('Get users error:', error);
+    console.error('Get users error:', error?.stack || String(error));
     res.status(500).json({ error: 'Internal server error', message: error.message });
   }
 });
@@ -99,7 +99,7 @@ router.get('/:userId', authenticateToken, requireScopes(['read']), requireOwners
     res.json({ user: userWithoutPassword });
 
   } catch (error) {
-    console.error('Get user error:', error);
+    console.error('Get user error:', error?.stack || String(error));
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -152,7 +152,7 @@ router.post('/', blockInDemoMode('user creation'), authenticateToken, requireSco
     });
 
   } catch (error) {
-    console.error('Create user error:', error);
+    console.error('Create user error:', error?.stack || String(error));
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -193,7 +193,7 @@ router.put('/:userId', authenticateToken, requireScopes(['write']), requireOwner
     });
 
   } catch (error) {
-    console.error('Update user error:', error);
+    console.error('Update user error:', error?.stack || String(error));
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -209,7 +209,7 @@ router.delete('/:userId', blockInDemoMode('user deletion'), authenticateToken, r
     res.json({ message: 'User deleted successfully' });
 
   } catch (error) {
-    console.error('Delete user error:', error);
+    console.error('Delete user error:', error?.stack || String(error));
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -223,7 +223,7 @@ router.get('/search/:query', authenticateToken, requireScopes(['read']), require
     const raw = result._embedded?.users || [];
     res.json({ users: raw.map(normalizePingOneUser) });
   } catch (error) {
-    console.error('Search users error:', error);
+    console.error('Search users error:', error?.stack || String(error));
     res.status(500).json({ error: 'Internal server error', message: error.message });
   }
 });
@@ -248,7 +248,7 @@ router.patch('/:userId/attributes', authenticateToken, requireScopes(['write']),
 
     res.json({ success: true, userId });
   } catch (error) {
-    console.error('PATCH user attributes error:', error);
+    console.error('PATCH user attributes error:', error?.stack || String(error));
     res.status(500).json({ error: 'Internal server error', message: error.message });
   }
 });

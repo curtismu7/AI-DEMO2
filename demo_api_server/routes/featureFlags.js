@@ -180,6 +180,19 @@ const FLAG_REGISTRY = [
     defaultValue: true,
   },
 
+  {
+    id:           'ff_autonomous_agents',
+    name:         'Autonomous Agents',
+    category:     'Observability',
+    description:
+      'Let an agent run without a human turn. A scheduled job authenticates as the agent itself ' +
+      '(client_credentials — sub = agent, no act claim, because nobody delegated it) and records ' +
+      'the run so its token chain can be replayed. Viewable at Autonomous Agents.',
+    impact:       'ON = the scheduled job is registered and unattended runs happen. OFF = nothing is scheduled, no run can be started, and the page says so.',
+    type:         'boolean',
+    defaultValue: false,
+  },
+
   // ── MCP Server ─────────────────────────────────────────────────────────────
   {
     id:           'mcp_use_legacy_protocol',
@@ -342,6 +355,23 @@ const FLAG_REGISTRY = [
     type:         'boolean',
     defaultValue: false,
     warnIfEnabled: true,
+  },
+  {
+    id:           'ff_jit_credentials',
+    name:         'JIT credentials — short-TTL, tool-bound backend keys',
+    category:     'Token Exchange',
+    description:
+      'The gateway-only bridge hands back a 30-second credential signed with the backend service ' +
+      'key instead of the key itself, so the static secret never leaves the BFF. The credential is ' +
+      'bound to one tool, so a leaked one is valid for that tool only, for seconds. The backend ' +
+      'verifies with the key it already holds — nothing new is provisioned, and rotation still ' +
+      'goes through ROTATE_SERVICE_KEYS. Minting is refused for a revoked requester, and refusal ' +
+      'fails closed rather than falling back to the raw key.',
+    impact:
+      'OFF (default) = the bridge returns the raw static key, as today. ON = a short-TTL, ' +
+      'tool-bound credential; requires backends that verify it.',
+    type:         'boolean',
+    defaultValue: false,
   },
   {
     id:           'ff_dpop',

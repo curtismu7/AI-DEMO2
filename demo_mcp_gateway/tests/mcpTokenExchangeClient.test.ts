@@ -200,7 +200,42 @@ describe('McpTokenExchangeClient — F10 actor_token on Exchange #3', () => {
     await client.exchange(subjectToken, 'get_my_accounts');
     const cc = new URLSearchParams(String(mockedPost.mock.calls[0][1]));
     expect(cc.get('resource')).toBe('mcpgateway.ping.demo');
+    // The scope must match the SPELLING carried by the resource the mint
+    // narrowed to. `mcpgateway.ping.demo` carries `mcp:invoke`; requesting
+    // `gateway:mcp:invoke` here (the PingGateway MCP resource's spelling) is
+    // what PingOne rejects live with "At least one scope must be granted".
+    expect(cc.get('scope')).toBe('mcp:invoke');
+  });
+
+  it('uses the configured actor scope rather than a hard-coded spelling', async () => {
+    mockCcThenExchange();
+    const client = new McpTokenExchangeClient({
+      ...config,
+      gatewayResourceUri: 'https://api.ping.demo:3036/mcp',
+      actorTokenScope: 'gateway:mcp:invoke',
+    });
+    await client.exchange(subjectToken, 'get_my_accounts');
+    const cc = new URLSearchParams(String(mockedPost.mock.calls[0][1]));
+    expect(cc.get('resource')).toBe('https://api.ping.demo:3036/mcp');
     expect(cc.get('scope')).toBe('gateway:mcp:invoke');
+  });
+
+  it('prefers the dedicated actor principal over the introspection principal', async () => {
+    mockCcThenExchange();
+    const client = new McpTokenExchangeClient({
+      ...config,
+      gatewayResourceUri: 'mcpgateway.ping.demo',
+      actorClientId: 'exchanger-client',
+      actorClientSecret: 'exchanger-secret',
+      // The authz-server sidecar needs these pointed at the resource's own
+      // client; the actor mint must NOT pick them up.
+      introspectionClientId: 'resource-own-client',
+      introspectionClientSecret: 'resource-own-secret',
+    });
+    await client.exchange(subjectToken, 'get_my_accounts');
+    const cc = new URLSearchParams(String(mockedPost.mock.calls[0][1]));
+    expect(cc.get('client_id')).toBe('exchanger-client');
+    expect(cc.get('client_secret')).toBe('exchanger-secret');
   });
 
   it('mints the actor token as the exchanger principal when introspection client is set', async () => {
@@ -215,7 +250,7 @@ describe('McpTokenExchangeClient — F10 actor_token on Exchange #3', () => {
     const cc = new URLSearchParams(String(mockedPost.mock.calls[0][1]));
     expect(cc.get('client_id')).toBe('exchanger-client');
     expect(cc.get('client_secret')).toBe('exchanger-secret');
-    expect(cc.get('scope')).toBe('gateway:mcp:invoke');
+    expect(cc.get('scope')).toBe('mcp:invoke');
   });
 
   it('fails closed when the actor token cannot be minted', async () => {

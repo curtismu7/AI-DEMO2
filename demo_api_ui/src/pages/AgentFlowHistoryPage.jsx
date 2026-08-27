@@ -69,14 +69,20 @@ export default function AgentFlowHistoryPage() {
 
   useEffect(() => { fetchRuns(); }, [fetchRuns]);
 
-  // Default to the latest run once the list loads.
-  useEffect(() => {
-    if (runs && runs.length && selectedRunId == null) {
-      setSelectedRunId(runs[0].runId);
-    }
-  }, [runs, selectedRunId]);
-
-  const selectedRun = runs?.find((r) => r.runId === selectedRunId) || null;
+  // Default to the latest run until the user picks one — DERIVED, not stored.
+  // An effect that wrote the default read selectedRunId from its own render, so
+  // one scheduled while nothing was selected still fired after a click and
+  // clobbered the choice with runs[0]. Click quickly and the detail pane snapped
+  // back to the newest run; in CI it surfaced as AgentFlowHistoryPage.test.jsx
+  // getting run_2 where it expected run_1. Deriving removes the ordering
+  // question entirely: there is no second writer.
+  //
+  // Only the "nothing picked yet" case defaults; once the user has picked, a
+  // missing run still resolves to null exactly as before. Removing the race is
+  // the whole change.
+  const selectedRun = (selectedRunId
+    ? runs?.find((r) => r.runId === selectedRunId)
+    : runs?.[0]) || null;
 
   return (
     <div className="agent-flow-history-page">
@@ -104,7 +110,7 @@ export default function AgentFlowHistoryPage() {
             <div className="afh-sidebar-empty">No agent runs recorded yet.</div>
           )}
           {runs && runs.map((run) => {
-            const active = run.runId === selectedRunId;
+            const active = run.runId === selectedRun?.runId;
             const duration = formatDuration(run.startedAt, run.completedAt);
             const status = run.success === false ? 'failed' : 'success';
             return (

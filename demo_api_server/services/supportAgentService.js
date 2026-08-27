@@ -139,7 +139,7 @@ async function processSupportMessage(message, sessionId, tokenEvents = []) {
       }
     };
   } catch (error) {
-    console.error('Support agent error:', error);
+    console.error('Support agent error:', error?.stack || String(error));
     return {
       success: false,
       reply: `I encountered an error processing your request: ${error.message}`,

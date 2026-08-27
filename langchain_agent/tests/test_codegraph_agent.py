@@ -82,13 +82,13 @@ class TestResolveModel:
     def test_groq_used_when_anthropic_not_configured(self, monkeypatch):
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
         monkeypatch.setenv("GROQ_API_KEY", "gsk_realkey")
-        monkeypatch.setenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+        monkeypatch.setenv("GROQ_MODEL", "openai/gpt-oss-20b")
         with patch("src.codegraph.agent.OpenAIModel") as MockOpenAI, \
              patch("src.codegraph.agent.OpenAIProvider") as MockProvider:
             MockOpenAI.return_value = MagicMock()
             _resolve_model()
         MockOpenAI.assert_called_once()
-        assert MockOpenAI.call_args.kwargs["model_name"] == "llama-3.3-70b-versatile"
+        assert MockOpenAI.call_args.kwargs["model_name"] == "openai/gpt-oss-20b"
         assert MockProvider.call_args.kwargs["base_url"] == "https://api.groq.com/openai/v1"
         assert MockProvider.call_args.kwargs["api_key"] == "gsk_realkey"
 

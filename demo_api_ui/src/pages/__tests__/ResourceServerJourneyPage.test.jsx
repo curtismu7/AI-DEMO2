@@ -168,4 +168,22 @@ describe('ResourceServerJourneyPage', () => {
       expect(await screen.findByText('Full Token Details')).toBeInTheDocument();
     });
   });
+
+  describe('finding #52: non-401 fetch failures', () => {
+    it('shows a generic error, not the empty/loading layout, on a 500', async () => {
+      bffAxios.get.mockImplementation((url) => {
+        if (url === '/api/resource-server/summary-inflow') {
+          const err = new Error('boom');
+          err.response = { status: 500 };
+          return Promise.reject(err);
+        }
+        return Promise.reject(new Error(`unexpected: ${url}`));
+      });
+
+      renderAt('/rs/olb');
+
+      expect(await screen.findByText(/Failed to load resource server data/i)).toBeInTheDocument();
+      expect(screen.queryByText(/Sign in to see the live token/i)).not.toBeInTheDocument();
+    });
+  });
 });
