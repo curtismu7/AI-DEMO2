@@ -52,6 +52,18 @@ import org.forgerock.util.promise.Promises
 // and an airlines write tool absent from this set falls through to the OLB
 // chain, where the BFF's airlines plugin disowns it ("no handler for
 // pay_airline_fee"). Adding the remaining four completes the mirror.
+//
+// It did not. get_loyalty_status and redeem_miles were still absent, and UC38
+// died the same way -- "no handler for redeem_miles" -- with the P1AZ decision
+// reading PERMIT, because dispatch happens after authorization. Found live
+// 2026-08-26. Three hand-kept copies of this list existed (here, router.ts, and
+// the dispatch test's own array) with no parity gate between them, so each fix
+// corrected one copy and left the others to be rediscovered.
+//
+// demo_mcp_gateway/tests/airlinesDispatch.test.ts now derives the expected set
+// from demo_mcp_resource_server's exported AIRLINES_TOOL_NAMES and holds BOTH
+// this file and router.ts to it. Add a handler there and this list is required
+// to follow.
 def INVEST_BACKEND_TOOLS = [
     'get_airline_bookings',
     'get_flight_status',
@@ -60,6 +72,8 @@ def INVEST_BACKEND_TOOLS = [
     'cancel_airline_reservation',
     'sensitive_airline_bookings',
     'sensitive_passenger_record',
+    'get_loyalty_status',
+    'redeem_miles',
     'get_investment_accounts',
     'get_investment_balance',
     'get_investment_transactions',
@@ -76,6 +90,8 @@ def SCOPE_FOR_TOOL = [
     cancel_airline_reservation : 'airlines:read airlines:write',
     sensitive_airline_bookings : 'airlines:read sensitive:read',
     sensitive_passenger_record : 'read',
+    get_loyalty_status         : 'airlines:read',
+    redeem_miles               : 'airlines:read airlines:write',
     get_investment_accounts    : 'invest:read',
     get_investment_balance     : 'invest:read',
     get_investment_transactions: 'invest:read',
