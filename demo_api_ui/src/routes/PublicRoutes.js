@@ -43,6 +43,7 @@ import PrivilegeDemoPage from "../pages/PrivilegeDemoPage";
 import EnterpriseMcpDemoPage from '../pages/EnterpriseMcpDemoPage';
 import GroupPolicyBoardPage from '../pages/GroupPolicyBoardPage';
 import PrivilegeMcpClientPage from "../pages/PrivilegeMcpClientPage";
+import AuditAgentPage from "../pages/AuditAgentPage";
 
 export default function PublicRoutes({ user, logout }) {
   return (
@@ -275,6 +276,15 @@ export function PrivilegeMcpClientPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <PrivilegeMcpClientPage />
+    </AppShell>
+  );
+}
+
+/** Audit Agent — agent scoped to PingOne audit tools by Privilege policy. */
+export function AuditAgentPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <AuditAgentPage />
     </AppShell>
   );
 }

@@ -12,6 +12,7 @@ export const NAV_STRUCTURE_CATALOG = [
     children: [
       "Protocol Playground",
       "AI Gateway Client",
+      "Audit Agent",
       "AI Agent Gateway Guide",
       "AI Agent Gateway Diagrams",
       "Privilege Gateway Topologies",

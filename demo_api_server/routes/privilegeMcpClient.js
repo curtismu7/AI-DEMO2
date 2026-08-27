@@ -10,6 +10,12 @@ const DEFAULT_AGENTLESS_MCP_URL =
   'https://cmuir-agentless-mcpgw.ping-devops.com/cmuir/mcp';
 const DEFAULT_AGENT_MCP_URL =
   'https://opensearch.default.applications.procyon.ai:8643/mcp';
+// `audit` Agentic App on the same agentless gateway as DEFAULT_AGENTLESS_MCP_URL.
+// Its backend is PingOne's hosted admin MCP (~76-85 tools); the Privilege policy
+// on this application is what narrows the list to the audit tools. Nothing here
+// filters — the narrowing has to stay server-side to be worth demonstrating.
+const DEFAULT_AUDIT_MCP_URL =
+  'https://cmuir-agentless-mcpgw.ping-devops.com/audit/mcp';
 const MCP_PROTOCOL_VERSION = '2026-07-28';
 const LEGACY_MCP_PROTOCOL_VERSION = '2024-11-05';
 const MCP_CLIENT_INFO = { name: 'PingOne Privilege MCP Client', version: '2.0.0' };
@@ -1015,6 +1021,11 @@ router.get('/state', (req, res) => {
       label: 'Agentless gateway — banking (external)',
       mode: 'agentless',
       url: process.env.PRIVILEGE_AGENTLESS_MCPGW_URL_BANKING || '',
+    },
+    {
+      label: 'Agentless gateway — PingOne audit (policy-scoped)',
+      mode: 'agentless',
+      url: process.env.PRIVILEGE_AGENTLESS_MCPGW_URL_AUDIT || DEFAULT_AUDIT_MCP_URL,
     },
   ].filter((p) => p.url);
   res.json({

@@ -190,6 +190,7 @@ import PublicRoutes, {
   EnterpriseMcpDemoPageRoute,
   GroupPolicyBoardPageRoute,
   PrivilegeMcpClientPageRoute,
+  AuditAgentPageRoute,
   PingOneSetupPageRoute,
   M2mCredentialsSamplePageRoute,
   StandaloneIndexRoute,
@@ -1053,6 +1054,12 @@ function AppWithAuth() {
                   path="/privilege-mcp-client"
                   element={
                     <PrivilegeMcpClientPageRoute user={user} logout={logout} />
+                  }
+                />
+                <Route
+                  path="/audit-agent"
+                  element={
+                    <AuditAgentPageRoute user={user} logout={logout} />
                   }
                 />
                 <Route
