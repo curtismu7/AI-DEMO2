@@ -42,7 +42,16 @@ router.post('/flag', async (req, res) => {
   try {
     // setRaw takes a map, not (key, value) — see configStore.js:1407.
     await configStore.setRaw({ [FLAG]: String(enabled) });
-    res.json({ flag: FLAG, enabled: scheduler.isEnabled() });
+    // Start (or clear) the one-hour arming clock. Turning this on is the one
+    // action here that leaves something running unattended, so it expires by
+    // default rather than by somebody remembering.
+    if (enabled) await scheduler.markArmed();
+    else await scheduler.disarm('switched off');
+    res.json({
+      flag: FLAG,
+      enabled: scheduler.isEnabled(),
+      armExpiresInMs: enabled ? scheduler.ARM_TTL_MS : null,
+    });
   } catch (err) {
     res.status(500).json({ error: 'flag_write_failed', message: err.message });
   }

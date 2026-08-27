@@ -36,7 +36,10 @@ require('./scripts/check-env');
 // Wired below at .listen() time so the cache is populated BEFORE the first request.
 const { loadVaultIntoConfigStore } = require('./services/vaultLoader');
 const { startScheduler: startLighthouseScheduler } = require('./services/lighthouseScheduler');
-const { startScheduler: startAutonomousScheduler } = require('./services/autonomousAgentScheduler');
+const {
+  startScheduler: startAutonomousScheduler,
+  startArmSweep: startAutonomousArmSweep,
+} = require('./services/autonomousAgentScheduler');
 
 // ConfigStore must be required early so oauth config module getters are ready
 const configStore = require('./services/configStore');
@@ -2951,6 +2954,9 @@ if (require.main === module) {
         // The only path by which an agent run starts without a user turn.
         // Returns null (registers nothing) while ff_autonomous_agents is off.
         startAutonomousScheduler();
+        // Dead-man switch: autonomous agents disarm themselves an hour after
+        // being switched on, so a demo left running does not keep firing crons.
+        startAutonomousArmSweep();
 
         // k8s rollout contract: the replacement pod boots while this one is
         // still in its termination grace period, and both mount the same LMDB
