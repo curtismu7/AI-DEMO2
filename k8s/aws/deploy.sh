@@ -275,6 +275,79 @@ if [[ -n "${PUBLIC_APP_URL:-}" && "${SKIP_MCPGW:-0}" != "1" ]]; then
       --set opensearch.enabled=true \
       --set opensearchMcpServer.enabled=true
   fi
+
+  # ── Agentless Privilege gateway ──────────────────────────────────────────
+  # Its own Helm release, from a chart outside k8s/ entirely
+  # (pingone-privgateway-helm-main/agentless/agentless-mcpgw).
+  #
+  # Deliberately NOT a plain `helm upgrade --install`: the gateway's proxy token
+  # is single-use and valid ~2h, so reinstalling on every deploy would recreate
+  # a pod with a dead token and CrashLoopBackOff — exactly the failure that made
+  # mcpgw.enabled false above. Three cases:
+  #
+  #   release already present   -> left strictly alone (never disturb a running
+  #                                gateway; upgrades are a deliberate manual act)
+  #   absent + token supplied   -> installed
+  #   absent + no token         -> LOUD warning, never silence
+  #
+  # That last case is why this block exists. On 2026-08-27 `se-undeploy` deleted
+  # this release and the next `se-deploy` said nothing about it, so the agentless
+  # demo was simply missing until a console screenshot showed one gateway where
+  # there should have been two.
+  agentless_chart="$K8S_DIR/../pingone-privgateway-helm-main/agentless/agentless-mcpgw"
+  if [[ -d "$agentless_chart" ]]; then
+    if helm status agentless-mcpgw --namespace "$NS" &>/dev/null; then
+      info "Agentless gateway: release present — left untouched (upgrade it deliberately, not via deploy)"
+    else
+      # Token from AGENTLESS_PROXY_TOKEN, or a file named by
+      # AGENTLESS_PROXY_TOKEN_FILE. Generate one in the Privilege console:
+      # Gateways -> Add New -> Add via Docker, and copy the ENV_PROXY_TOKEN value.
+      agentless_token="${AGENTLESS_PROXY_TOKEN:-}"
+      if [[ -z "$agentless_token" && -n "${AGENTLESS_PROXY_TOKEN_FILE:-}" && -r "${AGENTLESS_PROXY_TOKEN_FILE}" ]]; then
+        agentless_token="$(tr -d '[:space:]' < "${AGENTLESS_PROXY_TOKEN_FILE}")"
+      fi
+
+      if [[ -z "$agentless_token" ]]; then
+        warn "Agentless gateway MISSING and no token supplied — the Privilege agentless demo will not work."
+        warn "  Its release was not found in $NS, and this deploy cannot recreate it without a registration token."
+        warn "  Fix: Privilege console -> Gateways -> Add New -> Add via Docker, copy ENV_PROXY_TOKEN, then:"
+        warn "    AGENTLESS_PROXY_TOKEN=<token> ./run-k8.sh se-deploy    (or install the chart directly)"
+      else
+        # OIDC settings come from the secret create-secrets.sh wrote earlier in
+        # this same run, so there is exactly one source for them.
+        _agl() { kubectl get secret ai-demo-secrets -n "$NS" -o jsonpath="{.data.$1}" 2>/dev/null | base64 -d; }
+        agentless_host="${AGENTLESS_HOSTNAME:-}"
+        if [[ -z "$agentless_host" ]]; then
+          agentless_host="$(_agl PRIVILEGE_AGENTLESS_MCPGW_URL)"
+          agentless_host="${agentless_host#https://}"
+          agentless_host="${agentless_host%%/*}"
+        fi
+        agentless_env="$(_agl PRIVILEGE_SSO_ENV_ID)"
+        agentless_cid="$(_agl PRIVILEGE_SSO_CLIENT_ID)"
+        agentless_sec="$(_agl PRIVILEGE_SSO_CLIENT_SECRET)"
+
+        if [[ -z "$agentless_host" || -z "$agentless_env" || -z "$agentless_cid" ]]; then
+          warn "Agentless gateway: token supplied but PRIVILEGE_* values are missing from ai-demo-secrets — skipping rather than installing a gateway that cannot authenticate."
+        else
+          info "Agentless gateway: absent and token supplied — installing at $agentless_host"
+          helm install agentless-mcpgw "$agentless_chart" \
+            --namespace "$NS" \
+            --set hostname="$agentless_host" \
+            --set namespace="$NS" \
+            --set proxyToken="$agentless_token" \
+            --set opensearch.enabled=false \
+            --set opensearchMcpServer.enabled=false \
+            --set oidc.serverUrl="https://$agentless_host" \
+            --set oidc.clientId="$agentless_cid" \
+            --set oidc.clientSecret="$agentless_sec" \
+            --set oidc.authUrl="https://auth.pingone.com/$agentless_env/as/authorize" \
+            --set oidc.tokenUrl="https://auth.pingone.com/$agentless_env/as/token" \
+            --set oidc.userUrl="https://auth.pingone.com/$agentless_env/as/userinfo" \
+            || warn "Agentless gateway install failed — the rest of the stack is unaffected"
+        fi
+      fi
+    fi
+  fi
 fi
 
 if [[ -n "$K8S_NAMESPACE" ]]; then
