@@ -149,6 +149,12 @@ jobs:
       # never reaches a cluster, and it needs no .env or PING_EMAIL.
       - name: Deploy teardown guards — own tests
         run: bash scripts/test-se-undeploy-guard.sh
+      # The image build resolves its compose file relative to $PWD, so running
+      # it from anywhere but the repo root builds the wrong tree — and exits 0
+      # while doing it, so the push ships nothing and the deploy still reports
+      # success. docker is stubbed here; nothing is built or pushed.
+      - name: Build cwd guard — own tests
+        run: bash scripts/test-k8-build-cwd.sh
 
   api-server-tests:
     name: API server tests (Jest)
