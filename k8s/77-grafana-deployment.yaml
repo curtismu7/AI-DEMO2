@@ -112,8 +112,21 @@ spec:
                   optional: true
             - name: GF_AUTH_GENERIC_OAUTH_SCOPES
               value: "openid profile email"
+            # Prefills the PingOne username box so a demo does not start by
+            # typing. Verified live: without login_hint the field renders empty,
+            # with it the field renders "demoUser".
+            #
+            # Grafana has no login_hint setting, so it rides on the auth URL.
+            # That is safe: Grafana's OAuth library detects the existing "?" and
+            # appends its own params with "&" — confirmed by inspecting the real
+            # redirect, which comes out as
+            #   ...as/authorize?login_hint=demoUser&client_id=...&code_challenge=...
+            # Blank this to drop the prefill; it is only a prefill, and anyone
+            # can clear the box and sign in as someone else.
+            - name: GRAFANA_LOGIN_HINT
+              value: "demoUser"
             - name: GF_AUTH_GENERIC_OAUTH_AUTH_URL
-              value: "https://auth.pingone.com/$(PINGONE_ENV_ID)/as/authorize"
+              value: "https://auth.pingone.com/$(PINGONE_ENV_ID)/as/authorize?login_hint=$(GRAFANA_LOGIN_HINT)"
             - name: GF_AUTH_GENERIC_OAUTH_TOKEN_URL
               value: "https://auth.pingone.com/$(PINGONE_ENV_ID)/as/token"
             - name: GF_AUTH_GENERIC_OAUTH_API_URL
