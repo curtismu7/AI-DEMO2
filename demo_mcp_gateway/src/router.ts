@@ -71,6 +71,12 @@ const AIRLINES_TOOLS = new Set([
   'get_flight_status',
   'check_seat_availability',
   'sensitive_passenger_record',
+  // UC38's pair. Both were missing while the resource server had handlers for
+  // them, so they fell through to 'olb' and died on the exact symptom this
+  // comment block warns about: "no handler for redeem_miles", after a fully
+  // valid exchange. Verified live 2026-08-26.
+  'get_loyalty_status',
+  'redeem_miles',
 ]);
 
 // Healthcare vertical (CareConnect) pilot for the Phase-1 SQLite migration.

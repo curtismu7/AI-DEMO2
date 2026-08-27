@@ -16,6 +16,43 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-08-26 — `sensitive_passenger_record` requires only bare `read`, a weaker scope than its non-sensitive sibling
+
+`scope-topology.json`:
+
+```jsonc
+"get_airline_bookings":       { "requiredScopes": ["airlines:read"] }
+"sensitive_airline_bookings": { "requiredScopes": ["airlines:read", "sensitive:read"], "challengeType": "consent" }
+"sensitive_passenger_record": { "requiredScopes": ["read"], "challengeType": "consent",
+                                "a2aDelegatedScope": "pnr:read", "a2aDelegated": true,
+                                "requiresAgentMediation": true }
+```
+
+Every other airlines tool requires `airlines:read`. The one holding PNR data
+requires only `read` — which every session already carries. Its consent-gated
+sibling requires *more* (`airlines:read` + `sensitive:read`), so this is not the
+house style for sensitive tools.
+
+**Why it was left as found**: it is plausibly deliberate. The entry carries
+`a2aDelegatedScope: "pnr:read"` plus `a2aDelegated` and `requiresAgentMediation`,
+so the real gate may be the delegated scope and the mediation requirement rather
+than the base scope, with `read` acting as a deliberate floor for a tool only
+ever reached through an A2A specialist. Changing a live PDP scope requirement to
+find out is not a drive-by — it would either break the A2A chain or silently
+widen nothing, and neither outcome is visible from the topology file alone.
+
+**How it surfaced**: `demo_mcp_gateway/tests/airlinesDispatch.test.ts` used to
+name three airlines tools by hand. Deriving that list from the resource server's
+exported `AIRLINES_TOOL_NAMES` (nine tools) made the pre-existing
+`airlines:read` assertion cover this one for the first time, and it failed. The
+test now excludes it by name with the reasoning inline.
+
+**Real fix**: decide which gate is authoritative for an agent-mediated tool. If
+`a2aDelegatedScope` is the gate, say so once in the schema and stop implying the
+base scope matters; if it is not, `sensitive_passenger_record` should require
+`airlines:read` + `sensitive:read` like `sensitive_airline_bookings`. Then drop
+the exclusion from the test.
+
 ### [ ] 2026-08-26 — 143 gateway tools are intent-unreachable; only the 17 chip-driven ones were mapped
 
 `server.js` mints `intent = _TOOL_TO_INTENT[tool] || tool`, and the gateway then
