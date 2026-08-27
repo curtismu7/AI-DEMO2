@@ -271,6 +271,12 @@ async function runJobNow({ trigger = 'manual', job = 'fraud-watch' } = {}) {
     ...(result.identity ? { identity: result.identity } : {}),
     ...(result.proposal ? { proposal: result.proposal } : {}),
     ...(result.pending ? { pending: result.pending } : {}),
+    // The POLICY's verdict and statement code. Without this the stored run has
+    // no evidence the decision came from PingOne Authorize rather than from the
+    // job's own arithmetic -- which is the entire claim this feature makes. The
+    // run still LOOKED right without it (summary carries the prose), so the gap
+    // was invisible until a live parked run showed "Policy said" blank.
+    ...(result.decision ? { decision: result.decision } : {}),
     ...(result.summary ? { summary: result.summary } : {}),
     ...(result.error ? { error: result.error } : {}),
   });
