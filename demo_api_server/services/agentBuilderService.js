@@ -23,6 +23,7 @@ const configStore = require('./configStore');
 const { getManagementToken } = require('./pingOneClientService');
 const { getCanonicalPublicOrigin } = require('./vercelPublicUrl');
 const { sanitizeAxiosCause } = require('../utils/sanitizeAxiosCause');
+const agentLifecycleEvents = require('./agentLifecycleEvents');
 
 const BUILDER_MARKER = 'Created by Agent Builder for ';
 
@@ -141,6 +142,33 @@ async function getAgentForUser(user) {
  * its canonical payload (copied grant types like CLIENT_CREDENTIALS would be
  * rejected on a WEB_APP).
  */
+/**
+ * Record a joiner/leaver against the PingOne APPLICATION id.
+ *
+ * Every other emitter in the repo (killSwitchService, controlPlane) keys on a
+ * runtime agent handle, so nothing ever wrote history under the id the agent
+ * registry looks rows up by — its Lifecycle tab was empty by construction.
+ * These two calls are where a PingOne agent's history starts.
+ *
+ * Never throws: losing an audit line must not lose the agent that was just
+ * created, or leave a deleted app half-deleted.
+ */
+function recordAgentLifecycle(eventType, agent, user, reason) {
+  try {
+    agentLifecycleEvents.emit({
+      eventType,
+      agentId: agent.id,
+      agentLabel: agent.name || agent.id,
+      source: 'pingone',
+      kind: 'live',
+      reason,
+      actor: user ? { userId: user.id, username: user.username } : null,
+    });
+  } catch (err) {
+    console.warn('[agentBuilder] lifecycle emit failed:', err?.message || String(err));
+  }
+}
+
 async function createAgentForUser(user, overrides = {}) {
   const opts = await requestOptions();
   const existing = await findAgentRaw(user, opts);
@@ -164,7 +192,9 @@ async function createAgentForUser(user, overrides = {}) {
       aiPayload.grantTypes = overrides.grantTypes;
     }
     const res = await axios.post(`${apiBase()}/applications`, aiPayload, { ...opts, validateStatus: () => true });
-    return { created: true, agent: summarizeAgent(res.data) };
+    const agent = summarizeAgent(res.data);
+    recordAgentLifecycle('joiner', agent, user, 'agent-builder');
+    return { created: true, agent };
   } catch (err) {
     if (!isAgentTypeUnsupported(err)) throw err;
   }
@@ -188,7 +218,9 @@ async function createAgentForUser(user, overrides = {}) {
     pkceEnforcement: 'OPTIONAL',
   };
   const res = await axios.post(`${apiBase()}/applications`, payload, { ...opts, validateStatus: () => true });
-  return { created: true, agent: summarizeAgent(res.data) };
+  const agent = summarizeAgent(res.data);
+  recordAgentLifecycle('joiner', agent, user, 'agent-builder');
+  return { created: true, agent };
 }
 
 async function deleteAgentForUser(user) {
@@ -199,6 +231,7 @@ async function deleteAgentForUser(user) {
     throw Object.assign(new Error('Refusing to delete: app was not created by Agent Builder for this user'), { code: 'forbidden' });
   }
   await axios.delete(`${apiBase()}/applications/${raw.id}`, opts);
+  recordAgentLifecycle('leaver', raw, user, 'agent-builder-delete');
 }
 
 // Known demo agent clients shown in the picker even when their app type
