@@ -27,7 +27,7 @@ import { GatewayConfig } from './config';
 // (00-mcp-weather.json / 00-mcp-brave.json) — same HTTP-forward shape as
 // 'jwtverifier', plus a scope-policy check (see scopePolicies.ts) run in
 // GatewayServer.forwardToUpstream() before the call reaches the backend.
-export type BackendTarget = 'olb' | 'invest' | 'apikey' | 'dualtoken' | 'bankingdata' | 'jwtverifier' | 'weather' | 'brave';
+export type BackendTarget = 'olb' | 'invest' | 'apikey' | 'dualtoken' | 'bankingdata' | 'jwtverifier' | 'weather' | 'brave' | 'audit';
 
 const OLB_TOOLS = new Set([
   'get_my_accounts',
@@ -157,6 +157,15 @@ const WEATHER_TOOLS = new Set(['get_weather']);
 // name the BFF (mcpGatewayClient.js BRAVE_TOOLS) calls on both gateways.
 const BRAVE_TOOLS = new Set(['brave_news_search']);
 
+// demo_mcp_audit — read-only PingOne audit log. These three names are the whole
+// backend: it implements nothing else, so the gateway cannot reach a wider
+// PingOne surface through this target even if a caller asks for one.
+const AUDIT_TOOLS = new Set([
+  'search_audit_activities',
+  'get_audit_activity',
+  'audit_summary',
+]);
+
 // Path A: api_key disposition.
 //   Phase 266 shipped this target as a Gateway-only marker (no backend call).
 //   Phase 267 makes `show_mortgage` the first apikey tool that actually
@@ -205,6 +214,7 @@ export function routeTool(toolName: string): BackendTarget {
   if (JWT_VERIFIER_TOOLS.has(toolName))  return 'jwtverifier';
   if (WEATHER_TOOLS.has(toolName))       return 'weather';
   if (BRAVE_TOOLS.has(toolName))         return 'brave';
+  if (AUDIT_TOOLS.has(toolName))         return 'audit';
   if (APIKEY_TOOLS.has(toolName))        return 'apikey';
   if (DUALTOKEN_TOOLS.has(toolName))     return 'dualtoken';
   if (BANKINGDATA_TOOLS.has(toolName))   return 'bankingdata';
@@ -216,7 +226,7 @@ export function routeTool(toolName: string): BackendTarget {
 // them use WebSocket. Without this guard, they would silently fall through
 // to mcpOlbWsUrl (wrong backend).
 export function backendWsUrl(target: BackendTarget, config: GatewayConfig): string {
-  if (target === 'apikey' || target === 'dualtoken' || target === 'bankingdata' || target === 'jwtverifier' || target === 'weather' || target === 'brave') return '';
+  if (target === 'apikey' || target === 'dualtoken' || target === 'bankingdata' || target === 'jwtverifier' || target === 'weather' || target === 'brave' || target === 'audit') return '';
   return target === 'invest' ? config.mcpResourceServerWsUrl : config.mcpOlbWsUrl;
 }
 
@@ -229,6 +239,7 @@ export function backendHttpMcpUrl(target: BackendTarget, config: GatewayConfig):
   if (target === 'jwtverifier') return config.mcpJwtVerifierHttpUrl;
   if (target === 'weather') return config.mcpWeatherHttpUrl;
   if (target === 'brave') return config.mcpBraveHttpUrl;
+  if (target === 'audit') return config.mcpAuditHttpUrl;
   return '';
 }
 
