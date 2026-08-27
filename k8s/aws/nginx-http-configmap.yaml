@@ -100,21 +100,21 @@ data:
             proxy_set_header X-Forwarded-Proto https;
         }
 
-        # Proxy /jaeger/ to the in-cluster Jaeger query UI (plain HTTP; base path
-        # set via QUERY_BASE_PATH=/jaeger on the jaeger deployment). Mirrors the
-        # block in k8s/02-configmap.yaml (this file overrides that configmap on AWS).
-        location /jaeger/ {
-            # No trailing slash on proxy_pass: preserve the /jaeger prefix so it
-            # matches Jaeger's QUERY_BASE_PATH=/jaeger. Stripping it makes
-            # /jaeger/api/* hit Jaeger's SPA catch-all (HTML) instead of the
-            # query API (JSON), which breaks the trace view.
-            proxy_pass http://jaeger:16686;
-            proxy_http_version 1.1;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto https;
-        }
+        # There is deliberately NO location /jaeger/ here.
+        #
+        # Jaeger has no authentication of any kind, so proxying it published its
+        # query API to the internet: GET /jaeger/api/services returned the full
+        # service list to anyone, unauthenticated. Traces carry request URLs,
+        # correlation ids and the service topology — strictly more than the
+        # Grafana metrics next door, which require a login.
+        #
+        # Traces are still reachable, behind sign-in: Grafana has Jaeger as a
+        # datasource (monitoring/grafana/provisioning/datasources/jaeger.yml) and
+        # talks to jaeger:16686 in-cluster, never through nginx. The /tracing
+        # page links into Grafana Explore instead of Jaeger's own UI.
+        #
+        # The BFF's own /api/health/tracing/* proxy is unaffected — it reaches
+        # Jaeger server-side and is governed by auth-requirements.json.
 
         # Proxy /grafana/ to the in-cluster Grafana (plain HTTP; sub-path set via
         # GF_SERVER_SERVE_FROM_SUB_PATH + GF_SERVER_ROOT_URL on the deployment).

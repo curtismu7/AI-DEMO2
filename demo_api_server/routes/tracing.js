@@ -17,16 +17,24 @@ const router = express.Router();
 const DEFAULT_SERVICE = process.env.OTEL_SERVICE_NAME || 'demo-api-server';
 
 /**
- * Browser-facing Jaeger UI base URL. Explicit JAEGER_UI_URL wins; otherwise
- * derive from the app's public origin (configStore.getEffective('public_app_url')
- * — resolves .env PUBLIC_APP_URL first, then LMDB) so deep links resolve at the
- * demo base URL (e.g. https://ai-demo.ping-devops.com/jaeger). Falls back to localhost
- * for local docker/native, where PUBLIC_APP_URL is unset.
+ * Browser-facing base for viewing traces — now GRAFANA, not Jaeger's own UI.
+ *
+ * Jaeger has no authentication of any kind, and the /jaeger/ route served its
+ * query API to anyone on the internet: GET /jaeger/api/services returned the
+ * full service list unauthenticated. That route is removed (see the nginx
+ * configmaps); Grafana reaches Jaeger in-cluster as a datasource and requires a
+ * login, so traces are still one click away but behind sign-in.
+ *
+ * Explicit TRACES_UI_URL wins; otherwise derive from the app's public origin
+ * (configStore.getEffective('public_app_url') — .env PUBLIC_APP_URL first, then
+ * LMDB). Falls back to the local Grafana origin for docker/native, where
+ * PUBLIC_APP_URL is unset and Grafana is served on its own port rather than
+ * under /grafana.
  */
-function jaegerUiBase() {
+function tracesUiBase() {
   const publicAppUrl = String(configStore.getEffective('public_app_url') || '').trim();
-  const derived = publicAppUrl ? `${publicAppUrl}/jaeger` : 'http://localhost:16686';
-  return (process.env.JAEGER_UI_URL || derived).replace(/\/$/, '');
+  const derived = publicAppUrl ? `${publicAppUrl}/grafana` : 'http://localhost:3000';
+  return (process.env.TRACES_UI_URL || derived).replace(/\/$/, '');
 }
 
 /** Candidate Jaeger query bases — same env-first → compose → localhost pattern as inventory. */
@@ -75,7 +83,11 @@ router.get('/status', async (_req, res) => {
   res.status(200).json({
     ok: Boolean(base),
     jaegerQueryUrl: base,
-    jaegerUiUrl: jaegerUiBase(),
+    // Renamed from jaegerUiUrl: it points at Grafana now, and a field called
+    // jaegerUiUrl holding a Grafana URL is the kind of thing that misleads for
+    // years. jaegerQueryUrl above is unchanged — that is still Jaeger, reached
+    // server-side by this proxy, never by the browser.
+    tracesUiUrl: tracesUiBase(),
     defaultService: DEFAULT_SERVICE,
     otelEndpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT || null,
     timestamp: new Date().toISOString(),
@@ -94,7 +106,7 @@ router.get('/services', async (_req, res) => {
   try {
     const resp = await axios.get(`${base}/api/services`, { timeout: 5000 });
     const services = Array.isArray(resp.data?.data) ? resp.data.data : [];
-    return res.json({ services, jaegerUiUrl: jaegerUiBase() });
+    return res.json({ services, tracesUiUrl: tracesUiBase() });
   } catch (err) {
     return res.status(502).json({
       error: 'jaeger_query_failed',
@@ -236,7 +248,7 @@ router.get('/traces', async (req, res) => {
       limit,
       lookback,
       traces,
-      jaegerUiUrl: jaegerUiBase(),
+      tracesUiUrl: tracesUiBase(),
       timestamp: new Date().toISOString(),
     });
   } catch (err) {
