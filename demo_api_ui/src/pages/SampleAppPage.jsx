@@ -11,6 +11,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { STACKS, getSampleApp } from "../data/sampleApps";
 import sampleCode from "../data/sampleCode.json";
+import SampleRunner from "./SampleRunner";
 import "./SampleAppPage.css";
 
 const STACK_STORAGE_KEY = "sample_app_stack";
@@ -163,14 +164,22 @@ export default function SampleAppPage({ sampleId }) {
       <section className="sa-run">
         <h2>Run it</h2>
         <p>{app.runNote}</p>
-        {app.id === "m2m-credentials" ? (
-          <Link className="sa-btn" to="/m2m-sample">
-            Open the live M2M runner
+        {app.runnerApi ? (
+          <SampleRunner
+            api={app.runnerApi}
+            writes={app.writes}
+            runLabel={app.runLabel || "Run the workflow"}
+            cleanupLabel={app.cleanupLabel || "Clean up afterwards"}
+          />
+        ) : app.runnerHref ? (
+          <Link className="sa-btn" to={app.runnerHref}>
+            Open the live runner
           </Link>
         ) : (
           <p className="sa-missing">
-            A live runner for this sample is not wired into the demo. Clone the sample repo and run
-            it locally with the commands above.
+            No live runner is wired into the demo for this sample — it cannot finish without a real
+            inbox to receive the one-time code. Clone the sample repo and run it locally with the
+            commands above.
           </p>
         )}
       </section>
