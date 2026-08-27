@@ -19,8 +19,17 @@
 // toBeInViewport() is the assertion that fails for every one of them.
 //
 // The API is mocked (same helper customer-dashboard.spec.js uses) so this runs
-// in CI against a plain dev server with no stack behind it, and identically
-// against the live stack via PLAYWRIGHT_BASE_URL.
+// in CI against a plain dev server with no stack behind it. That is the ONLY
+// way to run it.
+//
+// Do NOT point it at the live stack with PLAYWRIGHT_BASE_URL. The mocks claim a
+// signed-in customer while the real BFF answers every endpoint they do not cover
+// as signed out, and the app raises its "Sign in required" modal over a
+// half-mocked page — the short-window case then fails on a modal, not on the
+// reel. Measured 2026-08-27: a live run reports 1 failed while the same live
+// page, unmocked, has the reel at y=623 bottom=699 in a 700px viewport.
+// The live guard is the reel check in scripts/canary/uc1-canary.js, which runs
+// every 30 minutes against a really signed-in session and mocks nothing.
 const { test, expect } = require('@playwright/test');
 const { mockCustomerDashboard } = require('./helpers/customerDashboardMocks');
 
