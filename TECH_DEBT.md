@@ -159,9 +159,53 @@ Nothing to fix. The `SCOPE_GATED` exclusion in
 reason: A2A-delegated tools are gated on their delegated scope, so holding them
 to `airlines:read` would assert a contract that does not apply to them.
 
-Left open only as a question worth someone's judgement, NOT as a defect: should
-`sensitive_airline_bookings` be A2A-delegated like its ten peers? It is the one
-sensitive tool reachable without agent mediation.
+**Follow-up ANSWERED 2026-08-27 — and the answer is no.** The open question was
+whether `sensitive_airline_bookings` should be A2A-delegated like its ten peers,
+since it is the one sensitive tool reachable without agent mediation. Digging in,
+the premise was wrong twice over.
+
+**First: the ten are not a class of sensitive tools.** They are one A2A
+specialist tool *per vertical*, from `demo_api_server/config/a2aSpecialists.js`:
+
+```
+healthcare  records    sensitive_patient_records     manufacturing supplier  sensitive_supplier_contract
+retail      purchase   sensitive_order_history       investment    holdings  sensitive_holdings
+sporting-g  membership sensitive_membership_details  airlines      passenger sensitive_passenger_record
+workforce   payroll    sensitive_payroll_details     admin         identity  sensitive_customer_identity
+government  tax        sensitive_tax_record          university    finaid    sensitive_student_finance
+```
+
+Airlines' slot is already taken. `sensitive_airline_bookings` is not a missing
+eleventh member; it is a second airlines sensitive tool with no specialist slot.
+
+**Second: airlines runs THREE tiers on purpose**, where healthcare runs two:
+
+| tier | tool | gate | chip `useCaseId` |
+|---|---|---|---|
+| plain | `get_airline_bookings` | `airlines:read` | — |
+| consent | `sensitive_airline_bookings` | `airlines:read` + `sensitive:read`, `challengeType: consent` | **`hitl-consent`** |
+| A2A-only | `sensitive_passenger_record` | `read` + `pnr:read`, `requiresAgentMediation` | **`a2a-delegation`** |
+
+Both sensitive tools have their own chip in
+`config/verticals/airlines/manifest.json` ("🔐 Sensitive reservations" and
+"Sensitive passenger record"), driving two different use cases. The resource
+server states the split in its own comment: `pnr:read` exists so "the delegation
+chain is the only way in", while `sensitive_airline_bookings` "carries
+`sensitive:read`, so the plain lookup stays ungated and only THIS one prompts".
+
+**What converting it would cost.** `requiresAgentMediation: true` DENIES any call
+with no `act` claim (`demo_authz_server/routes/decision.js` Rule ~721, gated on
+`REQUIRE_ACT_FOR_AGENT_TOOLS`, which defaults ON). The "🔐 Sensitive
+reservations" chip and the `/sensitive.*(booking|reservation)/` heuristic would
+both start failing `missing_act`, deleting airlines' HITL-consent demo and
+duplicating what `sensitive_passenger_record` already shows. It would also need a
+new `bookings:read` scope provisioned on the live `Super Banking A2A MCP Gateway`
+resource (verified live: 12 scopes, no `bookings:read`) BEFORE any code merge, or
+Exchange #2 dies with `invalid_scope`.
+
+**Decision: leave the tool exactly as it is.** The asymmetry is the design, not a
+defect. Recorded in `REGRESSION_PLAN.md` §1 ("Airlines is THREE tiers, not two")
+so the next person does not re-file this finding — as I did.
 
 ### [ ] 2026-08-26 — 143 gateway tools are intent-unreachable; only the 17 chip-driven ones were mapped
 
