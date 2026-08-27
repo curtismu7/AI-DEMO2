@@ -316,3 +316,19 @@
   background: #b8002f; color: #fff; border-radius: 4px; padding: 6px 12px;
   font-weight: 600; font-size: 13.5px; margin-top: 16px;
 }
+
+/* Second phase of a native flow: PingOne has emailed a code, ask for it. */
+.sr-otp {
+  margin-top: 18px; padding: 14px 16px;
+  background: var(--th-bg-card); border: 1px solid var(--th-border-strong);
+  border-radius: 6px;
+}
+.sr-otp-prompt { margin: 0 0 12px; font-size: 13.5px; line-height: 1.55; color: var(--th-text); }
+.sr-otp-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sr-otp-row label { font-size: 13.5px; color: var(--th-text); }
+.sr-otp-row input {
+  font-family: ui-monospace, Menlo, monospace; font-size: 14px; letter-spacing: 2px;
+  width: 10ch; padding: 7px 10px; color: var(--th-text);
+  background: var(--th-bg-inset); border: 1px solid var(--th-border); border-radius: 4px;
+}
+.sr-otp-row input:focus-visible { outline: 2px solid var(--th-text); outline-offset: 1px; }

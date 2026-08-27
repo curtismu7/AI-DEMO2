@@ -167,9 +167,9 @@ export default function SampleAppPage({ sampleId }) {
         {app.runnerApi ? (
           <SampleRunner
             api={app.runnerApi}
-            writes={app.writes}
+            sample={app.id}
             runLabel={app.runLabel || "Run the workflow"}
-            cleanupLabel={app.cleanupLabel || "Clean up afterwards"}
+            cleanupLabel={app.cleanupLabel}
           />
         ) : app.runnerHref ? (
           <Link className="sa-btn" to={app.runnerHref}>

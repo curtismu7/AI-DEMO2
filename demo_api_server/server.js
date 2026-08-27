@@ -1559,6 +1559,11 @@ app.use('/api/m2m-sample', require('./routes/m2mSample'));
 // caller opts out.
 app.use('/api/custom-admin-role-sample', require('./routes/customAdminRoleSample'));
 
+// Native-flow samples (mfa-demo, user-registration) — public, same as above.
+// Two-phase: /run stops once PingOne emails a one-time code, /otp finishes the
+// flow. user-registration creates an account and deletes it unless told not to.
+app.use('/api/native-flow-sample', require('./routes/nativeFlowSample'));
+
 // PingOne Test Page — /config is public (env settings only, no user data); all other endpoints require auth
 app.use('/api/pingone-test', (req, res, next) => {
     if (req.path === '/config' && req.method === 'GET') return next();
