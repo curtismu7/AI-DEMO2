@@ -131,19 +131,34 @@ function fail(msg) {
     // Five "the reel is gone" reports, and every guard before this one checked
     // that the component rendered — which stayed true while it sat below the
     // fold. We are already signed in on /dashboard after a real run, so the
-    // check costs nothing and runs against the live site every 30 minutes.
+    // check costs nothing.
+    //
+    // Only the Ping2026 skin has a reel. When ff_customer_skin_ping2026 is off
+    // — as it is on ai-demo.ping-devops.com — /dashboard renders the FROZEN
+    // classic UserDashboard, which has no filmstrip by design and a static
+    // guard forbidding one. Asserting unconditionally made this canary fail
+    // every run on the very deployment it watches, and a permanently-red canary
+    // takes the UC1 check down with it. `.user-dashboard--2026` is the root
+    // class the Ping2026 dashboard carries; the clinical-split layout does not
+    // carry it either, and also has no reel by design.
     const reel = await page.evaluate(() => {
+      const ping2026 = !!document.querySelector('.user-dashboard--2026');
       const el = document.querySelector('.tcfs-chain');
-      if (!el) return { present: false };
+      if (!el) return { ping2026, present: false };
       const r = el.getBoundingClientRect();
       return {
+        ping2026,
         present: true,
         onScreen: r.height > 0 && r.bottom > 0 && r.top < window.innerHeight,
         top: Math.round(r.top),
         vh: window.innerHeight,
       };
     });
-    if (!reel.present) {
+    if (!reel.ping2026) {
+      console.log(
+        'canary: classic dashboard skin (ff_customer_skin_ping2026 off) — no reel by design, reel check skipped',
+      );
+    } else if (!reel.present) {
       await shoot('canary-reel-missing.png');
       fail('movie reel (.tcfs-chain) is not in the DOM on /dashboard');
     } else if (!reel.onScreen) {
