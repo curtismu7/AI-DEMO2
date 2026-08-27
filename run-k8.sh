@@ -259,13 +259,23 @@ build() {
   # mounts it into the langchain-agent container, breaking SQLite.
   mkdir -p "$BASEDIR/.codegraph"
   [[ -f "$BASEDIR/.codegraph/codegraph.db" ]] || touch "$BASEDIR/.codegraph/codegraph.db"
+  # `-f docker-compose.yml` is relative, and compose resolves every build
+  # context against it — so without this cd the build follows the CALLER's cwd.
+  # Run from a worktree and it builds that tree instead, which fails on the
+  # generated paths a worktree has never had (`langchain_agent/repo-src`) — and
+  # the failure does not reach the exit status, so the push silently ships
+  # nothing while the deploy reports success. Subshell, so $PWD is untouched
+  # for everything after; same idiom as stop_local() above.
   # Parallel builds of 10+ images can crash OrbStack's Docker daemon; one at a time.
-  COMPOSE_PARALLEL_LIMIT=1 docker compose -p "$K8_COMPOSE_PROJECT" -f docker-compose.yml build \
-    demo-api-server ui mcp-server langchain-agent agent-service \
-    hitl-service mcp-resource-server api-resource-server mcp-proxy authz-server mcp-gateway \
-    mcp-weather mcp-brave
-  COMPOSE_PARALLEL_LIMIT=1 docker compose -p "$K8_COMPOSE_PROJECT" -f docker-compose.yml --profile demo-auth build mcp-jwt-verifier
-  COMPOSE_PARALLEL_LIMIT=1 docker compose -p "$K8_COMPOSE_PROJECT" -f docker-compose.yml --profile k8-build build tier-manager-k8 llm-proxy
+  (
+    cd "$BASEDIR" || die "cannot cd to $BASEDIR"
+    COMPOSE_PARALLEL_LIMIT=1 docker compose -p "$K8_COMPOSE_PROJECT" -f docker-compose.yml build \
+      demo-api-server ui mcp-server langchain-agent agent-service \
+      hitl-service mcp-resource-server api-resource-server mcp-proxy authz-server mcp-gateway \
+      mcp-weather mcp-brave
+    COMPOSE_PARALLEL_LIMIT=1 docker compose -p "$K8_COMPOSE_PROJECT" -f docker-compose.yml --profile demo-auth build mcp-jwt-verifier
+    COMPOSE_PARALLEL_LIMIT=1 docker compose -p "$K8_COMPOSE_PROJECT" -f docker-compose.yml --profile k8-build build tier-manager-k8 llm-proxy
+  ) || die "image build failed"
   tag_k8_images
   success "Images built and tagged for K8."
 }
@@ -403,8 +413,13 @@ aws_build() {
   # --profile rag: the two project-owned RAG services (IMAGE_MAP below).
   # Bare `compose build` skips profiled services → "No such image" on push.
   # COMPOSE_PARALLEL_LIMIT=1: OrbStack often OOM-/daemon-crash on parallel builds.
-  COMPOSE_PARALLEL_LIMIT=1 docker compose -p "$K8_COMPOSE_PROJECT" -f docker-compose.yml \
-    --profile agents --profile demo-auth --profile rag build
+  # Same relative-path trap as build() above — cd first or the SE images are
+  # built from whatever directory the caller happened to be in.
+  (
+    cd "$BASEDIR" || die "cannot cd to $BASEDIR"
+    COMPOSE_PARALLEL_LIMIT=1 docker compose -p "$K8_COMPOSE_PROJECT" -f docker-compose.yml \
+      --profile agents --profile demo-auth --profile rag build
+  ) || die "image build failed"
 
   # mcp-code-search and llamaindex-agent pin an explicit `image:` in
   # docker-compose.yml, so `-p` above does not prefix them like every other
