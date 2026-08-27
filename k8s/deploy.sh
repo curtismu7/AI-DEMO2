@@ -115,6 +115,13 @@ deploy() {
   kubectl apply -f "$SCRIPT_DIR/65-mastra-agent-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/66-openai-agent-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/67-pydantic-agent-deployment.yaml"
+  # Monitoring — MUST be applied before the frontend. nginx resolves the
+  # literal upstream in `proxy_pass http://grafana` at STARTUP and exits if it
+  # does not resolve ("host not found in upstream"), so a frontend that starts
+  # without the grafana Service does not degrade to a broken /grafana — it
+  # crash-loops and takes the WHOLE site down.
+  kubectl apply -f "$SCRIPT_DIR/76-prometheus-deployment.yaml"
+  kubectl apply -f "$SCRIPT_DIR/77-grafana-deployment.yaml"
   # Frontend
   kubectl apply -f "$SCRIPT_DIR/10-frontend-deployment.yaml"
 

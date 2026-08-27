@@ -201,7 +201,14 @@ apply_patched "$K8S_DIR/21-api-server-logs-pvc.yaml"
 apply_patched "$K8S_DIR/31-mcp-server-oauth-state-pvc.yaml"
 
 # Deploy in dependency order (jaeger first so the OTLP collector is up before
-# the instrumented services start exporting spans)
+# the instrumented services start exporting spans).
+#
+# ORDER IS LOAD-BEARING at the end of this list: nginx resolves the literal
+# upstream in `proxy_pass http://grafana` at STARTUP and exits when it does not
+# resolve ("host not found in upstream"). A frontend applied before the grafana
+# Service exists does not degrade to a broken /grafana — it crash-loops and the
+# WHOLE site is down. So 76/77 come before 10-frontend, and anything that adds a
+# new literal upstream to the nginx configmap must add its Service here too.
 for manifest in \
   73-jaeger-deployment.yaml \
   30-mcp-server-deployment.yaml \
@@ -218,6 +225,8 @@ for manifest in \
   65-mastra-agent-deployment.yaml \
   66-openai-agent-deployment.yaml \
   67-pydantic-agent-deployment.yaml \
+  76-prometheus-deployment.yaml \
+  77-grafana-deployment.yaml \
   10-frontend-deployment.yaml; do
   info "Applying $manifest..."
   apply_patched "$K8S_DIR/$manifest"
