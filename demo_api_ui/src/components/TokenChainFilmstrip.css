@@ -594,8 +594,11 @@ body:has(.dashboard-content.ud-body.ud-focus-mode) .footer {
 .tcfs-float-host {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 380px);
-  grid-template-areas: "chain spotlight";
-  grid-template-rows: auto;
+  /* The toggle bar spans both columns above the reel. ReelDock owns it. */
+  grid-template-areas:
+    "toggle toggle"
+    "chain spotlight";
+  grid-template-rows: auto auto;
   width: 100%;
   border-top: 1px solid var(--th-border, #e2e8f0);
   /* Pinned to the bottom of the viewport. Unpinned, this wrapper is the last
@@ -614,8 +617,37 @@ body:has(.dashboard-content.ud-body.ud-focus-mode) .footer {
 @media (max-width: 900px) {
   .tcfs-float-host {
     grid-template-columns: 1fr;
-    grid-template-areas: "chain" "spotlight";
+    grid-template-areas: "toggle" "chain" "spotlight";
   }
+}
+
+/* Collapsed: only the toggle bar remains, still pinned to the bottom. The 40vh
+   cap is lifted because the bar sizes itself. Session-only — see ReelDock.jsx
+   for why this state is never persisted. */
+.tcfs-float-host--collapsed {
+  max-height: none;
+}
+
+.tcfs-float-host--collapsed .tcfs-spotlight,
+.tcfs-float-host--collapsed .tcfs-chain {
+  display: none;
+}
+
+.tcfs-dock-toggle {
+  grid-area: toggle;
+  justify-self: end;
+  border: 0;
+  background: none;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--th-text-muted, #64748b);
+  cursor: pointer;
+}
+
+.tcfs-dock-toggle:hover {
+  color: var(--th-text, #0f172a);
+  text-decoration: underline;
 }
 
 :root[data-theme="dark"] .tcfs-float-host { border-top-color: #26304a; }

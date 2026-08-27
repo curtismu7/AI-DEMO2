@@ -87,27 +87,32 @@ describe("Focus Mode filmstrip guard", () => {
   // the same state, or the control silently governs a branch nobody is looking
   // at. Verified live: 25 `tcfs` nodes present with `.tcfs-float-host` absent,
   // i.e. the copy on screen was the ungated one.
-  test("EVERY TokenChainFilmstrip render is gated on showFilmstrip", () => {
-    const renders = p2026.match(/<TokenChainFilmstrip\s*\/>/g) || [];
-    expect(renders).toHaveLength(3);
-    // No render may sit outside a showFilmstrip guard.
-    expect(p2026).not.toMatch(/\n\s*<TokenChainFilmstrip\s*\/>\s*\n\s*<\/div>\s*\n\s*\)\s*:/);
+  // The float and dock copies now render <ReelDock/> — the sticky host plus its
+  // collapse toggle — while Focus Mode still renders the filmstrip straight into
+  // its grid row. Three reel renders either way, and all three stay gated.
+  test("EVERY reel render is gated on showFilmstrip", () => {
+    const direct = p2026.match(/<TokenChainFilmstrip\s*\/>/g) || [];
+    const docks = p2026.match(/<ReelDock\s*\/>/g) || [];
+    expect(direct).toHaveLength(1);
+    expect(docks).toHaveLength(2);
     expect(p2026).toMatch(/\{showFilmstrip && <TokenChainFilmstrip\s*\/>\}/);
-    const hostedGuards = p2026.match(/\{showFilmstrip && \(\s*\n\s*<div className="tcfs-float-host">/g) || [];
-    expect(hostedGuards).toHaveLength(2);
+    const dockGuards = p2026.match(/\{showFilmstrip && <ReelDock\s*\/>\}/g) || [];
+    expect(dockGuards).toHaveLength(2);
   });
 
-  test("bottom-dock layout renders the enabled filmstrip below the dock", () => {
+  test("bottom-dock layout renders the enabled reel below the dock", () => {
     expect(p2026).toMatch(
-      /<EmbeddedAgentDock[\s\S]*?agentPlacement=\{agentPlacement\}[\s\S]*?\{showFilmstrip && \([\s\S]*?<TokenChainFilmstrip\s*\/>/,
+      /<EmbeddedAgentDock[\s\S]*?agentPlacement=\{agentPlacement\}[\s\S]*?\{showFilmstrip && <ReelDock\s*\/>\}/,
     );
   });
 
   // The switch is only meaningful if turning it off removes the reel in the
   // layout the user is actually in. Counting guards vs renders catches a future
   // third render site added ungated.
-  test("filmstrip renders and showFilmstrip guards stay in balance", () => {
-    const renders = (p2026.match(/<TokenChainFilmstrip\s*\/>/g) || []).length;
+  test("reel renders and showFilmstrip guards stay in balance", () => {
+    const renders =
+      (p2026.match(/<TokenChainFilmstrip\s*\/>/g) || []).length +
+      (p2026.match(/<ReelDock\s*\/>/g) || []).length;
     const guards = (p2026.match(/showFilmstrip &&/g) || []).length;
     expect(guards).toBeGreaterThanOrEqual(renders);
   });
@@ -126,9 +131,28 @@ describe("Focus Mode filmstrip guard", () => {
     expect(rule[0]).toMatch(/bottom:\s*0/);
   });
 
-  test("Transaction Trace mounts the reel in the same wrapper", () => {
+  test("Transaction Trace mounts the same pinned dock", () => {
     const trace = read("../pages/TransactionTracePage.jsx");
-    expect(trace).toMatch(/<div className="tcfs-float-host">\s*\n\s*<TokenChainFilmstrip\s*\/>/);
+    expect(trace).toMatch(/<ReelDock\s*\/>/);
+    expect(trace).toContain('import ReelDock from "../components/ReelDock"');
+  });
+
+  // The collapse toggle added the second piece of hide-the-reel state in this
+  // codebase. The first one persisted, and hid the reel in one browser profile
+  // permanently (#1896). This one must default to EXPANDED and never reach
+  // storage, so a reload always brings the reel back.
+  test("ReelDock defaults to expanded and never persists collapsed", () => {
+    const dock = read("../components/ReelDock.jsx");
+    expect(dock).toMatch(/useState\(false\)/);
+    expect(dock).not.toMatch(/localStorage|sessionStorage/);
+  });
+
+  // .tcfs is display:contents, so the reel cannot lay itself out — every pinned
+  // mount needs this host, and it is now written once instead of three times.
+  test("ReelDock owns the sticky host markup", () => {
+    const dock = read("../components/ReelDock.jsx");
+    expect(dock).toContain("tcfs-float-host");
+    expect(p2026).not.toContain('className="tcfs-float-host"');
   });
 
   // The live canary skips its reel assertion when the dashboard on screen has no

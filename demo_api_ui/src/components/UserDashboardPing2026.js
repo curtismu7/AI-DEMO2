@@ -36,6 +36,7 @@ import {
 import { extractRfc9470Challenge } from "../utils/wwwAuthenticate";
 import DashboardTokenRail from "./DashboardTokenRail";
 import TokenChainFilmstrip from "./TokenChainFilmstrip";
+import ReelDock from "./ReelDock";
 import SimpleStepperBar from "./SimpleStepperBar";
 import AgentResponseMirror from "./AgentResponseMirror";
 import ExchangeModeToggle from "./ExchangeModeToggle";
@@ -3638,11 +3639,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               agentPlacement={agentPlacement}
             />
             {/* Movie reel filmstrip — toggled via More › Movie reel in the agent header */}
-            {showFilmstrip && (
-              <div className="tcfs-float-host">
-                <TokenChainFilmstrip />
-              </div>
-            )}
+            {showFilmstrip && <ReelDock />}
           </>
         ) : (
           // Float mode ('none'): 2-column layout — token rail + content; FAB is a
@@ -3698,11 +3695,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
             {/* Response mirror — shows last agent reply on main page when toggled on */}
             <AgentResponseMirror />
             {/* Movie reel filmstrip — toggled via More › Movie reel in the agent header */}
-            {showFilmstrip && (
-              <div className="tcfs-float-host">
-                <TokenChainFilmstrip />
-              </div>
-            )}
+            {showFilmstrip && <ReelDock />}
           </div>
         )
       )}
