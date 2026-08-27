@@ -60,6 +60,28 @@ function _bucketKey(sessionId) {
 const _runs = new Map();
 const _histories = new Map();
 
+// Buckets are never evicted otherwise — a new one is created per distinct
+// session (new cookie post login/logout, new incognito window, session
+// regeneration) and nothing ever dropped an old one. Track last-touch time
+// and sweep buckets idle past BUCKET_TTL_MS; this is a presenter walkthrough
+// tool, so a bucket untouched for a day is safe to drop.
+const BUCKET_TTL_MS = 24 * 60 * 60 * 1000;
+const _lastAccessed = new Map();
+function _touch(bucket) {
+  _lastAccessed.set(bucket, Date.now());
+}
+function _sweepStaleBuckets() {
+  const cutoff = Date.now() - BUCKET_TTL_MS;
+  for (const [bucket, last] of _lastAccessed) {
+    if (last < cutoff) {
+      _runs.delete(bucket);
+      _histories.delete(bucket);
+      _lastAccessed.delete(bucket);
+    }
+  }
+}
+setInterval(_sweepStaleBuckets, 60 * 60 * 1000).unref();
+
 function _persist(bucket) {
   try {
     if (!lmdb) return;
@@ -69,6 +91,7 @@ function _persist(bucket) {
 }
 
 function _hydrate(bucket) {
+  _touch(bucket);
   if (!_histories.has(bucket)) {
     let history;
     try { history = (lmdb && lmdb.get(HISTORY_KEY_PREFIX + bucket)) || []; } catch { history = []; }
@@ -284,4 +307,5 @@ module.exports = {
   getState, startRun, setActiveStep, armSlot, getHistory,
   observeToolCall, observeDecision, observeAttackSim,
   _resetForTests,
+  _bucketCountForTests: () => _runs.size,
 };

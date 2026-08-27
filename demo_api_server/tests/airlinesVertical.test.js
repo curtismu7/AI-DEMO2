@@ -213,13 +213,23 @@ describe('airlines vertical', () => {
     expect(scopeTopology.toolSurface('pay_airline_fee')).toBe('gateway');
   });
 
-  // pay_airline_fee declares step_up so live P1AZ includes it in RequiresMcpStepUp
-  // (the MCP Delegation policy condition). The amount ladder still decides for
-  // amount-bearing calls: declaresStepUp in decision.js only fires when !hasAmount,
-  // so UC6 ($2500 DENY) and UC8 ($300 HITL) are unaffected.
-  test('pay_airline_fee has no challengeType (amount-ladder gates it instead)', () => {
+  // This previously asserted the OPPOSITE — that pay_airline_fee needs no
+  // challengeType because "the amount ladder gates it instead". That belief was
+  // never true of the live policy, and it is why a $300 change fee paid with no
+  // human consent (SE AWS, 2026-08-25).
+  //
+  // Probed live against the MCP decision endpoint, with a valid audience and
+  // actor so the rules actually evaluate:
+  //   $150 / $300 / $600  -> PERMIT, statements: [mcp-tool-authorized]   (NO gate)
+  //   $2500               -> DENY,   statements: [mcp-tier-amount-exceeded]
+  // The obligation is amount-INDEPENDENT on this endpoint: create_transfer
+  // (challengeType consent) returns HITL at 150/300/600 alike. Only the tier
+  // ceiling reads the amount. So the consent gate comes from the tool list and
+  // nothing else — UC7's $600 step-up is produced by the use-case catalog's
+  // declared stepUpMethod re-labelling that HITL, not by a second policy band.
+  test('pay_airline_fee is consent-gated — the amount ladder does NOT gate it', () => {
     const topology = require('../../scope-topology.json');
-    expect(topology.tools.pay_airline_fee.challengeType).toBeUndefined();
+    expect(topology.tools.pay_airline_fee.challengeType).toBe('consent');
   });
 
   test('the resource server declares the same tools and scope', () => {

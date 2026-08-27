@@ -4,9 +4,9 @@
 // The FIRST entry is this server's canonical resource URI (RFC 9728 metadata,
 // health, logs); the full list feeds aud validation.
 //
-// This server's own canonical audience is ALWAYS accepted, even when the env
-// carries another service's list — see resolveResourceUriEnv below for why that
-// happens.
+// When the value arrives via the LEGACY var it may be another service's list
+// (see resolveResourceUriEnv below), so this server's own canonical audience is
+// unioned in. A value set on this server's own var is honoured as-is.
 
 export const OWN_AUDIENCE = 'mcp-invest.ping.demo';
 
@@ -42,12 +42,12 @@ export function resolveResourceUriEnv(
   return { value: undefined, source: undefined };
 }
 
-export function resolveAcceptedAudiences(envValue?: string): string[] {
+export function resolveAcceptedAudiences(envValue?: string, source?: string): string[] {
   const list = (envValue || OWN_AUDIENCE)
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
-  if (!list.includes(OWN_AUDIENCE)) {
+  if (source === LEGACY_RESOURCE_URI_ENV && !list.includes(OWN_AUDIENCE)) {
     list.push(OWN_AUDIENCE);
   }
   return list;

@@ -133,6 +133,7 @@ const ActivityLogs = ({ user, onLogout }) => {
       link.remove();
     } catch (error) {
       console.error('Export error:', error);
+      notifyError('Failed to export activity logs');
     }
   };
 
@@ -143,6 +144,7 @@ const ActivityLogs = ({ user, onLogout }) => {
         fetchLogs();
       } catch (error) {
         console.error('Clear logs error:', error);
+        notifyError('Failed to clear old activity logs');
       }
     }
   };

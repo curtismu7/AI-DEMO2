@@ -36,7 +36,7 @@ router.post('/init', agentSessionMiddleware, requestEventEmitterMiddleware, asyn
       framework: 'mastra'
     });
   } catch (error) {
-    console.error('Support agent init error:', error);
+    console.error('Support agent init error:', error?.stack || String(error));
     res.status(500).json({
       success: false,
       error: error.message
@@ -63,7 +63,7 @@ router.post('/message', agentSessionMiddleware, requestEventEmitterMiddleware, a
 
     res.json(result);
   } catch (error) {
-    console.error('Support agent message error:', error);
+    console.error('Support agent message error:', error?.stack || String(error));
     res.status(500).json({
       success: false,
       reply: `Error processing your message: ${error.message}`,

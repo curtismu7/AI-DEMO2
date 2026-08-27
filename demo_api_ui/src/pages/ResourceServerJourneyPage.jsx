@@ -242,6 +242,7 @@ export default function ResourceServerJourneyPage() {
   const [verticalData, setVerticalData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [needsSignIn, setNeedsSignIn] = useState(false);
+  const [fetchError, setFetchError] = useState(false);
   const [theme, setTheme] = useState(() => localStorage.getItem('rsj-theme') || 'dark');
 
   const toggleTheme = useCallback(() => {
@@ -255,9 +256,14 @@ export default function ResourceServerJourneyPage() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setNeedsSignIn(false);
+    setFetchError(false);
     const on401 = (e) => {
-      if (e.response?.status === 401) setNeedsSignIn(true);
-      return null;
+      if (e.response?.status === 401) {
+        setNeedsSignIn(true);
+        return null;
+      }
+      throw e;
     };
     const fetches = [bffAxios.get('/api/resource-server/summary-inflow').catch(on401)];
     if (rsType === 'apikey' && toolName) {
@@ -267,6 +273,10 @@ export default function ResourceServerJourneyPage() {
       if (cancelled) return;
       if (inflowRes?.data) setInflowData(inflowRes.data);
       if (vertRes?.data) setVerticalData(vertRes.data);
+      setLoading(false);
+    }).catch(() => {
+      if (cancelled) return;
+      setFetchError(true);
       setLoading(false);
     });
     return () => { cancelled = true; };
@@ -290,6 +300,9 @@ export default function ResourceServerJourneyPage() {
       <div className="rsj-body">
         {needsSignIn && (
           <SignInPrompt message="Sign in to see the live token and data proof for this resource server." />
+        )}
+        {fetchError && !needsSignIn && (
+          <div className="rsj-fetch-error">Failed to load resource server data. Please try again.</div>
         )}
 
         {/* Split view: token left / data right */}

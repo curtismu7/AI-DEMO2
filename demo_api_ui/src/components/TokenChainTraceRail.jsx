@@ -1,7 +1,7 @@
 // Compact full-pipeline trace rail for the portal token rails and the agent
 // TokenChainModal. Single-column by construction (no viewport media queries).
 // Spec: docs/superpowers/specs/2026-07-02-token-chain-trace-rail-design.md
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import apiClient from "../services/apiClient";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
 import { MCP_STEP_IDS, buildRunStory, chainBadge } from "../services/tokenChainTrace/buildTraceSteps";
@@ -17,6 +17,8 @@ import ChainViewMenu from "./ChainViewMenu";
 import DemoTrackBand from "./DemoTrackBand";
 import TokenChainPresenter from "./TokenChainPresenter";
 import TraceTokenSummary from "./TraceTokenSummary";
+import { deriveAgentClass, AGENT_CLASS_LABEL, AGENT_CLASS_TITLE } from "../services/tokenChainTrace/deriveAgentClass";
+import UnattendedRunsPanel from "./UnattendedRunsPanel";
 import TraceMcpPanel from "./TraceMcpPanel";
 import TraceTrustPanel from "./TraceTrustPanel";
 import { SimpleStepper, DetailedStepper } from "./agent-clinical/TokensPane";
@@ -349,12 +351,14 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
   }, [tokenChain, mcpRouteOnly]);
 
   const { trace } = snap;
-  const classicSteps = mcpRouteOnly
-    ? snap.steps.filter((s) => MCP_STEP_IDS.includes(s.id))
-    : snap.steps;
-  const steps = viewMode === "classic"
-    ? classicSteps
-    : buildLiveTokenChainSteps(classicSteps, trace);
+  const classicSteps = useMemo(
+    () => (mcpRouteOnly ? snap.steps.filter((s) => MCP_STEP_IDS.includes(s.id)) : snap.steps),
+    [snap.steps, mcpRouteOnly],
+  );
+  const steps = useMemo(
+    () => (viewMode === "classic" ? classicSteps : buildLiveTokenChainSteps(classicSteps, trace)),
+    [viewMode, classicSteps, trace],
+  );
   const dots = mcpRouteOnly ? MCP_ROUTE_DOTS : CHAIN_DOTS;
   // Clearing a run (or switching to a Live view that has not produced steps
   // yet) must drop both the selection and the presenter. Otherwise the flag
@@ -374,6 +378,8 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
     events: trace.tokenEvents,
   });
   const inspectClaims = inspectType ? resolveInspectClaims(trace.tokenEvents, inspectType) : null;
+  const agentClass = deriveAgentClass(trace.tokenEvents);
+  const [unattendedOpen, setUnattendedOpen] = useState(false);
   const hasTraceActivity = Boolean(
     trace.startedAt || trace.prompt || (trace.tokenEvents && trace.tokenEvents.length) ||
     (trace.phases && trace.phases.length) || trace.mcpResult || trace.authorize ||
@@ -394,8 +400,24 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
       <div className="tctr-head">
         <div className="tctr-title-group">
           <span className="tctr-title">Token Chain</span>
+          {agentClass ? (
+            <span
+              className={`tctr-agent-class tctr-agent-class--${agentClass}`}
+              title={AGENT_CLASS_TITLE[agentClass]}
+            >
+              {AGENT_CLASS_LABEL[agentClass]}
+            </span>
+          ) : null}
         </div>
         <div className="tctr-toolbar">
+          <button
+            type="button"
+            className="tctr-back-btn"
+            onClick={() => setUnattendedOpen(true)}
+            title="Replay a scheduled run that happened with nobody signed in"
+          >
+            Unattended
+          </button>
           {tab !== "chain" ? (
             <button
               type="button"
@@ -649,6 +671,7 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
       <ClaimDetailsModal isOpen={!!inspectType} tokenType={inspectType || "user"}
         liveClaims={inspectClaims} onClose={() => setInspectType(null)} />
       <TokenLegendModal isOpen={legendOpen} onClose={() => setLegendOpen(false)} />
+      <UnattendedRunsPanel isOpen={unattendedOpen} onClose={() => setUnattendedOpen(false)} />
     </div>
   );
 }

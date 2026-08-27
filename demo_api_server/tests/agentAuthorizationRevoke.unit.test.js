@@ -121,3 +121,29 @@ describe('DELETE /api/agent-authorization/hard (hard revoke)', () => {
     expect(res.body.sessionClear).toBe(true);
   });
 });
+
+// Regression guard: if revokeDelegation's failure means a record's status
+// never actually flips, findActiveByActorAndGrantor keeps returning the SAME
+// still-active record forever. Before the fix, both cleanup while-loops had
+// no attempt cap and would spin indefinitely on a record that never clears.
+// MAX_REVOKE_ATTEMPTS in routes/agentAuthorization.js is 10; expect 1 initial
+// revoke + 10 retry-loop revokes = 11 total calls, then a terminated response.
+describe('agentAuthorization revoke loops are bounded (no infinite spin)', () => {
+  it('DELETE /hard gives up after the attempt cap and reports ok:false with a warning', async () => {
+    delegationStore.findActiveByActorAndGrantor.mockReturnValue({ id: 'stuck-del' }); // never clears
+    const res = await request(makeApp()).delete('/api/agent-authorization/hard');
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(false);
+    expect(res.body.revoked).toBe('hard');
+    expect(res.body.warning).toBeTruthy();
+    expect(delegationService.revokeDelegation).toHaveBeenCalledTimes(11);
+  }, 8000);
+
+  it('DELETE / gives up after the attempt cap and returns 502 revoke_incomplete', async () => {
+    delegationStore.findActiveByActorAndGrantor.mockReturnValue({ id: 'stuck-del-2' }); // never clears
+    const res = await request(makeApp()).delete('/api/agent-authorization');
+    expect(res.status).toBe(502);
+    expect(res.body.error).toBe('revoke_incomplete');
+    expect(delegationService.revokeDelegation).toHaveBeenCalledTimes(11);
+  }, 8000);
+});

@@ -179,7 +179,7 @@ def _resolve_model():
 
     if _groq_configured():
         key = os.getenv("GROQ_API_KEY", "")
-        model_name = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+        model_name = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
         logger.info("CodeGraph LLM: Groq %s", model_name)
         return OpenAIModel(
             model_name=model_name,

@@ -40,7 +40,8 @@ import { checkInternalSecret, isP1AZActive, usingRealPdpEndpoint } from '../conf
 import { getScopesForGatewayTool, getChallengeTypeForTool, evaluateScopeDecisionUnconditionally } from '../auth/toolScopes';
 import { evaluateTierDecision, parseRestrictedTools } from '../tierEnforce';
 import { teachLog } from '../teachLogger';
-import { routeTool } from '../router';
+import { routeTool, backendResourceUri } from '../router';
+import { isIdJagIssuedToken } from '../tokenValidator';
 import { selfBaseUrl } from '../selfBaseUrl';
 import { buildApiKeyToolResult } from '../apiKeyDispatch';
 import { buildDualTokenToolResult } from '../dualTokenDispatch';
@@ -168,7 +169,7 @@ function stampFilterTrail(
  * pipeline is bypassed and these functions are used instead.
  */
 export interface AuthorizeMcpRequestDeps {
-  introspect: (token: string) => Promise<{ active: boolean; sub?: string; exp?: number; error?: string; scope?: string; act?: { sub?: string } }>;
+  introspect: (token: string) => Promise<{ active: boolean; sub?: string; exp?: number; error?: string; scope?: string; act?: { sub?: string }; aud?: string | string[]; iss?: string }>;
   authorize: (
     decoded: any,
     method: string,
@@ -383,7 +384,7 @@ export function buildAuthorizeMcpRequest(
         return;
       }
       auditTrail.policy = { passed: true };
-      decoded = { sub: introspResult.sub, scope: introspResult.scope, act: introspResult.act };
+      decoded = { sub: introspResult.sub, scope: introspResult.scope, act: introspResult.act, aud: introspResult.aud, iss: introspResult.iss };
       // Capture introspection result for passing to P1AZ (test path as well)
       introspectionResult = {
         active: introspResult.active,
@@ -1279,6 +1280,31 @@ export function buildAuthorizeMcpRequest(
       teachLog.info('gateway audit trail', { gw_audit_trail: auditTrail });
       await forward(bearerToken, outBody);
       return;
+    }
+
+    // ── Step 3.7: native ID-JAG — already the final backend token, skip re-exchange ──
+    // A native-ID-JAG-redeemed bearer is signed by oauth-mcp's own embedded AS and
+    // already audienced at the target backend (that's the whole point of the MCP
+    // Enterprise-Managed Authorization extension — a per-server grant with no
+    // gateway-mediated exchange). Sending it as Step 4's subject_token to PingOne's
+    // real RFC 8693 exchanger fails closed with "Cannot parse token claims for
+    // request param 'subject_token'": PingOne cannot parse a token it did not sign.
+    // Forward it unchanged instead, same posture as the weather/brave showcase
+    // above — but ONLY when the token's own aud already IS the resolved backend's
+    // resource URI, so this can never widen what an ID-JAG token reaches beyond
+    // what GatewayTokenPolicy's D-05 exemption already verified it may carry.
+    if (method === 'tools/call' && toolName && isIdJagIssuedToken(decoded)) {
+      const idJagTarget = routeTool(toolName);
+      const idJagBackend = idJagTarget === 'invest' || idJagTarget === 'jwtverifier' ? idJagTarget : 'olb';
+      const idJagTargetAud = backendResourceUri(idJagBackend, config);
+      const idJagAudList = Array.isArray(decoded.aud) ? decoded.aud : [decoded.aud];
+      if (idJagAudList.includes(idJagTargetAud)) {
+        auditTrail.backend = { target: idJagBackend, audience: idJagTargetAud, cached: false, exchanged: false };
+        setAuditHeader(res);
+        teachLog.info('gateway audit trail', { gw_audit_trail: auditTrail });
+        await forward(bearerToken, outBody);
+        return;
+      }
     }
 
     // ── Step 4: RFC 8693 exchange, then forward (spec §4) ──────────────────────────

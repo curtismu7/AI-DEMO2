@@ -1632,6 +1632,37 @@ const RAW_USE_CASES = [
     perVertical: READ_PER_VERTICAL,
   },
   {
+    // Same feature as UC39 above (kept adjacent — same source research, same
+    // track): this is the successful-path walkthrough of the whole ID-JAG
+    // chain via its own dedicated page; UC39 is that feature's revocation story.
+    id: 'UC40',
+    useCaseId: 'enterprise-managed-mcp-authorization',
+    track: 'controls',
+    title: 'Enterprise-Managed MCP Authorization (native ID-JAG)',
+    buyerStory: 'IT wants MCP access granted centrally per employee and per server — not a consent screen per MCP server, and not a shared credential the agent framework has to hold.',
+    pingOneSolution: 'The enterprise IdP evaluates PingOne group policy and signs a single-use Identity Assertion JWT Authorization Grant (ID-JAG); the MCP Authorization Server verifies it and issues an access token scoped to that one server — no MCP-side consent screen, and no token at all for an employee IT hasn\'t granted.',
+    trigger: { type: 'link', path: '/demo/enterprise-mcp', label: 'Open Enterprise-Managed MCP Auth' },
+    expectedOutcome: 'PERMIT',
+    evidence: { tokenChain: ['user-token', 'enterprise-managed-mode', 'id-jag-issued', 'id-jag-redeemed'], activity: ['token', 'mcp'] },
+    codeRefs: [
+      'demo_api_server/services/idJagService.js',
+      'demo_api_server/routes/enterpriseIdp.js',
+      'oauth-mcp/src/oauth/IdJagGrantHandler.ts',
+      'demo_api_ui/src/pages/EnterpriseMcpDemoPage.jsx',
+    ],
+    maturity: 'flag:ff_enterprise_managed_mcp_auth',
+    owasp: { threats: ['T8', 'T9'], sections: ['§4.1.1', '§8'] },
+    whatToSay: 'Arm the flag, ask for a balance — watch the token chain: an ID-JAG issued by the enterprise IdP, redeemed at the MCP Authorization Server, and that\'s the token that calls the tool. No MCP-side consent screen anywhere in the flow.',
+    advanced: false,
+    whatLong: 'Walks the full MCP Enterprise-Managed Authorization extension end to end from a dedicated page: arm ff_enterprise_managed_mcp_auth, send a request that needs a tool call, and step through the live token-chain pipeline — group-membership policy evaluated at the IdP before anything is minted, a signed single-use ID-JAG issued naming this user/server/scopes, that grant redeemed at the MCP Authorization Server for an access token, and that exact token calling the tool.',
+    businessValue: 'Centralizes MCP access grants at the IdP instead of per-server consent screens or a shared static credential the agent framework has to hold — the access decision, the grant, and the revocation all live in one place IT already controls.',
+    productRoles: {
+      idp: 'Evaluates PingOne group policy and signs the ID-JAG before anything is minted.',
+      authz: 'The MCP Authorization Server verifies the ID-JAG and issues the scoped access token.',
+    },
+    primaryTool: null,
+  },
+  {
     id: 'UC27',
     useCaseId: 'hitl-consent-bypass-attempt',
     track: 'hitl',
@@ -1760,6 +1791,16 @@ const RAW_USE_CASES = [
       authz: 'Can extend this pattern: add a P1AZ policy that further constrains the personal agent\'s allowed actions based on the user\'s loyalty tier.',
     },
     primaryTool: 'redeem_miles',
+    // The SECOND tool this use case runs. `primaryTool` is the chip's entry
+    // point and was, until now, the only tool a use case declared anywhere
+    // machine-readable — so every gate built on this catalog was blind to the
+    // rest of a multi-tool flow. get_loyalty_status sat intent-unreachable
+    // through two rounds of fixes because nothing could see it; it was found by
+    // driving the live stack, not by a test (PR #2446).
+    // Declare every gateway tool a use case calls, not just the first.
+    // `useCases.secondaryTools.test.js` fails on a gateway tool named in this
+    // entry's prose but absent from primaryTool/secondaryTools.
+    secondaryTools: ['get_loyalty_status'],
     studioPath: '/personal-agent',
     perVertical: {
       airlines: {
@@ -1834,10 +1875,14 @@ function resolveUseCase(id, vertical) {
   if (!base) return undefined;
   if (!vertical || vertical === 'banking' || !base.perVertical || !base.perVertical[vertical]) {
     const { perVertical, match, ...rest } = base;
+    // No perVertical override applies here, so rest.primaryTool === base.primaryTool
+    // always — reuse the value stamped once at module load instead of re-deriving
+    // it (isA2aDelegatedPrimaryTool -> scopeTopology.load() does a sync fs.statSync
+    // every call).
     return {
       ...rest,
       resourceServer: resolveResourceServer(rest.primaryTool),
-      a2aDelegated: isA2aDelegatedPrimaryTool(rest.primaryTool),
+      a2aDelegated: base.a2aDelegated,
     };
   }
   const ov = base.perVertical[vertical];
@@ -1850,7 +1895,11 @@ function resolveUseCase(id, vertical) {
   return {
     ...rest,
     resourceServer: resolveResourceServer(rest.primaryTool),
-    a2aDelegated: isA2aDelegatedPrimaryTool(rest.primaryTool),
+    // Only recompute when the override actually swapped primaryTool; otherwise
+    // reuse the precomputed base value (same statSync-avoidance as above).
+    a2aDelegated: rest.primaryTool === base.primaryTool
+      ? base.a2aDelegated
+      : isA2aDelegatedPrimaryTool(rest.primaryTool),
   };
 }
 

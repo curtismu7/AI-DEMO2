@@ -22,26 +22,94 @@ import { getScopesForTool } from './toolScopeMap';
 import type { BankingToolDefinition } from './BankingToolRegistry';
 import { Session, AuthErrorCodes, AuthenticationError, UserTokens } from '../interfaces/auth';
 import { TokenExchangeRequest } from '../interfaces/tokenExchange';
+import { resolveEmbeddedIssuer } from '../oauth/embeddedIssuer';
+import { TokenStore } from '../oauth/TokenStore';
 
 export interface TokenResolverDeps {
   authManager: BankingAuthenticationManager;
   tokenExchangeService?: TokenExchangeService;
   logger: Logger;
+  /** Looks up the real PingOne access token stashed alongside a self-issued
+   *  agentToken minted via authorization_code federation (external door).
+   *  Absent in the internal-hop wiring, where every agentToken is already
+   *  PingOne-issued and this lookup would never hit. */
+  tokenStore?: TokenStore;
 }
 
 export interface TokenResolution {
   token: string;
-  source: 'agent-passthrough' | 'agent-step9-exchange' | 'user-rfc8693-exchange' | 'user-passthrough-noexchange';
+  source: 'agent-passthrough' | 'agent-federated-passthrough' | 'agent-step9-exchange' | 'user-rfc8693-exchange' | 'user-passthrough-noexchange';
+}
+
+/**
+ * Step 9 exists to re-exchange a PingOne-issued gateway token at PingOne for
+ * a Banking-API-audienced one. A self-issued agentToken — minted by this
+ * server's own embedded AS, whether via native ID-JAG redemption
+ * (OAuthRouter.redeemIdJag) or its own native OAuth flow — was never issued
+ * by PingOne, so PingOne always rejects the re-exchange with "Cannot parse
+ * token claims for request param 'subject_token'". Signature verification
+ * already happened upstream (AuthenticationIntegration.validateAgentAuthentication),
+ * so this is an unverified decode for routing only — same trust model as the
+ * gateway's own ID-JAG exemption (demo_mcp_gateway/src/tokenValidator.ts).
+ */
+function isSelfIssuedToken(token: string): boolean {
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return false;
+    const decoded = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    return decoded.iss === resolveEmbeddedIssuer();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * A self-issued token minted via a real PingOne authorization_code federation
+ * (external door, browser login) has the real PingOne access token stashed
+ * against its `jti` in the TokenStore (see OAuthRouter.handleAuthorizeCallback
+ * + TokenIssuer.issueAuthorizationCode). client_credentials tokens never get
+ * one — there's no real user to federate — so this correctly returns null for
+ * those, same as before this existed.
+ */
+function resolveFederatedSubjectToken(token: string, tokenStore?: TokenStore): string | null {
+  if (!tokenStore) return null;
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+    const decoded = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    const jti = decoded.jti as string | undefined;
+    if (!jti) return null;
+    const issued = tokenStore.introspect(jti);
+    if (!issued || issued.revoked || !issued.pingOneAccessToken) return null;
+    // issued.expiresAt is seconds-since-epoch (TokenIssuer mirrors the JWT exp
+    // claim convention); Date.now() is milliseconds. Comparing them directly
+    // made every stash read as already-expired the instant it was created —
+    // confirmed live via temporary diagnostic logging (jti always hit this
+    // branch within ~100ms of being minted). Scale to the same unit.
+    if (Date.now() >= issued.expiresAt * 1000) return null;
+    return issued.pingOneAccessToken;
+  } catch {
+    return null;
+  }
 }
 
 export class TokenResolver {
   constructor(private deps: TokenResolverDeps) {}
 
   async resolve(session: Session, tool: BankingToolDefinition, agentToken?: string): Promise<TokenResolution> {
-    const { tokenExchangeService, logger } = this.deps;
+    const { tokenExchangeService, tokenStore, logger } = this.deps;
 
     let token: string;
     if (agentToken) {
+      if (isSelfIssuedToken(agentToken)) {
+        const federatedToken = resolveFederatedSubjectToken(agentToken, tokenStore);
+        if (federatedToken) {
+          logger.debug(`[BankingToolProvider] Self-issued agent token — using its federated PingOne subject token for ${tool.name}`);
+          return { token: federatedToken, source: 'agent-federated-passthrough' };
+        }
+        logger.debug(`[BankingToolProvider] Self-issued agent token — skipping Step 9 resource exchange for ${tool.name}`);
+        return { token: agentToken, source: 'agent-passthrough' };
+      }
       // Step 9: Second RFC 8693 exchange — exchange gateway-scoped token for resource-scoped token.
       // Gated on BANKING_API_RESOURCE_URI: when absent, fall back to using gateway token directly
       // for backward compatibility (e.g. local dev without full resource server config).

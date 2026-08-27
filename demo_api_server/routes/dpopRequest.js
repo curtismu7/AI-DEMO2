@@ -45,7 +45,7 @@ router.post('/oauth/token', express.json(), (req, res) => {
       scope: scope || 'default'
     });
   } catch (error) {
-    console.error('[DPoP Token] Error:', error);
+    console.error('[DPoP Token] Error:', error?.stack || String(error));
     res.status(500).json({
       error: 'server_error',
       error_description: 'Internal server error'
@@ -80,7 +80,7 @@ router.post('/gateway/verify-dpop', express.json(), (req, res) => {
       token_thumbprint: 'jic_encoded_thumbprint'
     });
   } catch (error) {
-    console.error('[DPoP Verify] Error:', error);
+    console.error('[DPoP Verify] Error:', error?.stack || String(error));
     res.status(500).json({
       error: 'invalid_dpop_proof',
       error_description: 'Failed to verify DPoP proof'

@@ -18,6 +18,7 @@
  * server only checks the signature — it keeps working until exp. That's the JWT-mode risk.
  */
 const https = require('https');
+const http = require('http');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 
@@ -28,9 +29,14 @@ const JWKS_TTL_MS = 10 * 60 * 1000; // 10 minutes
 /**
  * Fetch PingOne JWKS and cache the result.
  * @param {string} jwksUri
+ * @param {object} [opts]
+ * @param {boolean} [opts.allowHttp] Skip the HTTPS-only guard for this one fetch —
+ *   ONLY for oauth-mcp's own embedded-AS JWKS, reachable exclusively over the
+ *   internal Docker network (never internet-facing) and served over plain HTTP
+ *   there today. Every other caller (PingOne) stays HTTPS-only, unchanged.
  * @returns {Promise<Array>} array of JWK objects
  */
-async function fetchJwks(jwksUri) {
+async function fetchJwks(jwksUri, { allowHttp = false } = {}) {
   const cached = jwksCache.get(jwksUri);
   if (cached && Date.now() < cached.expiresAt) {
     return cached.keys;
@@ -39,26 +45,29 @@ async function fetchJwks(jwksUri) {
   // Enforce HTTPS — JWKS must never be fetched over plaintext to prevent MITM
   // injection of attacker-controlled signing keys.
   const url = new URL(jwksUri);
-  if (url.protocol !== 'https:') {
+  const isAllowedHttp = allowHttp && url.protocol === 'http:';
+  if (url.protocol !== 'https:' && !isAllowedHttp) {
     throw new Error(`JWKS URI must use HTTPS (got ${url.protocol}). Refusing to fetch signing keys over insecure transport.`);
   }
 
   return new Promise((resolve, reject) => {
     const options = {
       hostname: url.hostname,
+      port: url.port || undefined,
       path: url.pathname + url.search,
       method: 'GET',
       headers: { Accept: 'application/json' },
     };
 
-    const req = https.request(options, (res) => {
+    const transport = isAllowedHttp ? http : https;
+    const req = transport.request(options, (res) => {
       let data = '';
       res.on('data', (chunk) => { data += chunk; });
       res.on('end', () => {
         try {
           const parsed = JSON.parse(data);
           const keys = parsed.keys || [];
-          jwksCache.set(jwksUri, { keys, expiresAt: Date.now() + JWKS_TTL_MS });
+          jwksCache.set(jwksUri, { keys, expiresAt: Date.now() + JWKS_TTL_MS, pemByKid: new Map() });
           resolve(keys);
         } catch (err) {
           reject(new Error(`Failed to parse JWKS response: ${err.message}`));
@@ -87,6 +96,24 @@ function jwkToPem(jwk) {
 }
 
 /**
+ * PEM export is pure CPU work re-derivable from the same JWK, so cache it
+ * alongside the JWKS entry it came from — one export per key per JWKS
+ * refresh instead of one per validateToken() call within the 10-minute
+ * JWKS cache window.
+ */
+function getPemForJwk(jwksUri, jwk) {
+  const entry = jwksCache.get(jwksUri);
+  const cacheKey = jwk.kid || jwk.kty;
+  if (entry) {
+    const cached = entry.pemByKid.get(cacheKey);
+    if (cached) return cached;
+  }
+  const pem = jwkToPem(jwk);
+  if (entry) entry.pemByKid.set(cacheKey, pem);
+  return pem;
+}
+
+/**
  * Validate a JWT against PingOne JWKS.
  * Throws if invalid; returns the decoded payload if valid.
  *
@@ -95,9 +122,10 @@ function jwkToPem(jwk) {
  * @param {string} opts.jwksUri   e.g. https://auth.pingone.com/{envId}/as/jwks
  * @param {string} [opts.issuer]  Expected issuer (optional but recommended)
  * @param {string} [opts.audience] Expected audience (optional)
+ * @param {boolean} [opts.allowHttp] See fetchJwks — internal oauth-mcp JWKS only.
  * @returns {Promise<object>} decoded JWT payload
  */
-async function validateToken(token, { jwksUri, issuer, audience } = {}) {
+async function validateToken(token, { jwksUri, issuer, audience, allowHttp = false } = {}) {
   // Decode header to get kid
   const decoded = jwt.decode(token, { complete: true });
   if (!decoded || !decoded.header) {
@@ -106,7 +134,7 @@ async function validateToken(token, { jwksUri, issuer, audience } = {}) {
   const { kid } = decoded.header;
 
   // Fetch JWKS
-  const keys = await fetchJwks(jwksUri);
+  const keys = await fetchJwks(jwksUri, { allowHttp });
 
   // Find matching key
   let jwk;
@@ -119,7 +147,7 @@ async function validateToken(token, { jwksUri, issuer, audience } = {}) {
       // Invalidate the cache and re-fetch once before hard-rejecting, so a rotation
       // doesn't cause a 10-minute 401 outage for the full cache TTL.
       jwksCache.delete(jwksUri);
-      const freshKeys = await fetchJwks(jwksUri);
+      const freshKeys = await fetchJwks(jwksUri, { allowHttp });
       jwk = freshKeys.find((k) => k.kid === kid);
       if (!jwk) {
         throw new Error(`No matching JWKS key found for kid=${kid}`);
@@ -133,7 +161,7 @@ async function validateToken(token, { jwksUri, issuer, audience } = {}) {
     throw new Error(`No matching JWKS key found (no kid in token, no RSA key in JWKS)`);
   }
 
-  const pem = jwkToPem(jwk);
+  const pem = getPemForJwk(jwksUri, jwk);
 
   // Verify options — the allow-list is a fixed, server-controlled value.
   // NEVER derive it from the token's own (unverified) header: doing so lets

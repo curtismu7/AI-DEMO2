@@ -31,6 +31,8 @@ data:
   PUBLIC_APP_URL: "https://local.ping-devops.com:4000"
   PINGONE_PUBLIC_APP_URL: "https://local.ping-devops.com:4000"
   REACT_APP_CLIENT_URL: "https://local.ping-devops.com:4000"
+  MCP_FACADE_REEL_BASE: "https://local.ping-devops.com:4000"
+  MCP_FACADE_AGENT_GATEWAY_AS: "https://local.ping-devops.com:4000"
   FRONTEND_ADMIN_URL: "https://local.ping-devops.com:4000/admin"
   FRONTEND_DASHBOARD_URL: "https://local.ping-devops.com:4000/dashboard"
   CORS_ORIGIN: "https://local.ping-devops.com:4000,https://api.ping.demo:4000"
@@ -244,17 +246,57 @@ data:
             proxy_cache_bypass $http_upgrade;
         }
 
-        location /jaeger/ {
-            # No trailing slash on proxy_pass: preserve the /jaeger prefix so it
-            # matches Jaeger's QUERY_BASE_PATH=/jaeger. Stripping it makes
-            # /jaeger/api/* hit Jaeger's SPA catch-all (HTML) instead of the
-            # query API (JSON), which breaks the trace view.
-            proxy_pass http://jaeger:16686;
+        # Recording façade for external MCP clients (LM Studio, LibreChat).
+        # Lives in the BFF, same host/cert as /api/ above.
+        location /mcp-facade/ {
+            proxy_pass https://demo-api-server:3001/mcp-facade/;
+            proxy_ssl_trusted_certificate /etc/nginx/certs/rootCA.pem;
+            proxy_ssl_verify              on;
+            proxy_ssl_name                api.ping.demo;
+            proxy_ssl_server_name         on;
             proxy_http_version 1.1;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        # Agent Gateway's own OAuth broker (RFC 8414 metadata + RFC 7591 DCR +
+        # authorize/callback/token) — reached DIRECTLY by the external client,
+        # not through the façade. Scoped to exactly these two prefixes: the
+        # gateway's other root-level routes (/health, /admin/*, /mcp) must
+        # stay internal — this is the only public door into mcp-gateway:3005.
+        location /oauth/ {
+            proxy_pass http://mcp-gateway:3005/oauth/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+        location = /.well-known/oauth-authorization-server {
+            proxy_pass http://mcp-gateway:3005/.well-known/oauth-authorization-server;
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        # No location /jaeger/ — mirrors k8s/aws/nginx-http-configmap.yaml (that
+        # file overrides this one on AWS). Jaeger has no authentication, so
+        # proxying it exposed its query API unauthenticated. Traces now open in
+        # Grafana, which reads Jaeger as an in-cluster datasource behind a login.
+
+        # Proxy /grafana/ to the in-cluster Grafana. Mirrors the block in
+        # k8s/aws/nginx-http-configmap.yaml (that file overrides this one on AWS).
+        # Login required — anonymous access is off on the deployment. Prometheus
+        # is deliberately not proxied: it has no auth of its own.
+        location /grafana/ {
+            # No trailing slash on proxy_pass: keep the /grafana prefix so it
+            # matches GF_SERVER_ROOT_URL, or the UI loads blank.
+            proxy_pass http://grafana:3000;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
         }
 
         add_header X-Frame-Options "SAMEORIGIN" always;

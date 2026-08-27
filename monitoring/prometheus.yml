@@ -1,0 +1,36 @@
+# Prometheus scrape config — shared by Docker Compose and Kubernetes.
+#
+# k8s/create-secrets.sh turns this file into the `prometheus-config` ConfigMap
+# (same trick as ping-gateway-config), so there is exactly one copy of this
+# config in the repo and both deployment targets read it.
+#
+# One target on purpose: PingGateway is the only component in this stack that
+# publishes Prometheus metrics. The Node services are instrumented for OpenTelemetry
+# traces, which go to Jaeger over OTLP — a different pipeline entirely, and not
+# something Prometheus can scrape. Adding `prom-client` to them would be a much
+# larger change than wiring up metrics the gateway already publishes.
+#
+# The gateway serves this on its ADMIN connector (8085), which is a different
+# port from the one serving routes (8080/8443) and is unauthenticated by design.
+# Both stay cluster-internal; only Grafana is reachable from outside.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    stack: ai-demo
+
+# Alert rules live next door. No Alertmanager in this stack, so they evaluate and
+# surface in Prometheus/Grafana but are not routed anywhere — see alerts.yml.
+rule_files:
+  - alerts.yml
+
+scrape_configs:
+  - job_name: pinggateway
+    # Version is part of the path — PingGateway 2026.x dropped the older
+    # /openig prefix, so this is the current location, not a legacy alias.
+    metrics_path: /metrics/prometheus/0.0.4
+    static_configs:
+      - targets: ['ping-gateway:8085']
+        labels:
+          service: pinggateway

@@ -27,12 +27,44 @@ const MAX_CALLS_PER_SESSION = 100;
 const sessionTokens = new Map();
 const MAX_TOKENS_PER_SESSION = 50;
 
+// Both maps above are keyed by sessionId with no TTL on the KEY itself (only
+// the array value under each key is capped) — every distinct session that
+// ever tracks a call or token leaves a permanent entry, independent of the
+// session's own expiry. lastActivity + the sweep below tie this data's
+// lifetime to services/lmdb/sessionStore.js's own default ttl/cleanup cadence
+// (24h TTL, hourly sweep) instead of the process lifetime. GLOBAL_SESSION_ID
+// is intentionally never touched here — it is a shared, long-lived ring
+// buffer, not a per-user session.
+const lastActivity = new Map(); // sessionId -> last write timestamp
+const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
+const CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
+
+function touchActivity(sessionId) {
+  if (sessionId === GLOBAL_SESSION_ID) return;
+  lastActivity.set(sessionId, Date.now());
+}
+
+/** Delete tracked calls/tokens for any session inactive past SESSION_TTL_MS. */
+function sweepStaleTrackerSessions() {
+  const cutoff = Date.now() - SESSION_TTL_MS;
+  for (const [sessionId, ts] of lastActivity) {
+    if (ts < cutoff) {
+      lastActivity.delete(sessionId);
+      apiCalls.delete(sessionId);
+      sessionTokens.delete(sessionId);
+    }
+  }
+}
+
+setInterval(sweepStaleTrackerSessions, CLEANUP_INTERVAL_MS).unref();
+
 /**
  * Push a call onto a session bucket, trimming to MAX_CALLS_PER_SESSION.
  * @param {string} sessionId
  * @param {object} call
  */
 function pushCall(sessionId, call) {
+  touchActivity(sessionId);
   if (!apiCalls.has(sessionId)) {
     apiCalls.set(sessionId, []);
   }
@@ -259,6 +291,7 @@ function trackToken(sessionId = 'default', tokenData) {
 
   if (!token) return;
 
+  touchActivity(sessionId);
   if (!sessionTokens.has(sessionId)) {
     sessionTokens.set(sessionId, []);
   }
@@ -301,6 +334,17 @@ function clearSessionTokens(sessionId = 'default') {
 function _resetForTests() {
   apiCalls.clear();
   sessionTokens.clear();
+  lastActivity.clear();
+}
+
+/** Backdate a session's last-activity timestamp (tests only). */
+function _setLastActivityForTests(sessionId, timestamp) {
+  lastActivity.set(sessionId, timestamp);
+}
+
+/** Whether any tracked data still exists for a session (tests only). */
+function _hasTrackedDataForTests(sessionId) {
+  return apiCalls.has(sessionId) || sessionTokens.has(sessionId) || lastActivity.has(sessionId);
 }
 
 module.exports = {
@@ -312,6 +356,9 @@ module.exports = {
   trackToken,
   getSessionTokens,
   clearSessionTokens,
+  sweepStaleTrackerSessions,
   _resetForTests,
+  _setLastActivityForTests,
+  _hasTrackedDataForTests,
   redactBodyKeys,
 };

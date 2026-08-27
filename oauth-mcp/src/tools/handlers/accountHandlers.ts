@@ -49,24 +49,37 @@ export const executeGetMyAccounts: HandlerFn = async (deps, token, params) => {
   }
 
   if (account_type) {
-    accounts = accounts.filter((a: Account) => a.accountType === account_type);
+    // accountType is inconsistently cased/named across the seed data
+    // ('CHECKING'/'SAVINGS' from the banking seed vs lowercase 'loan' and
+    // 'credit_card' from the account-spec builder), same mismatch
+    // pickAccountForNickname above already normalizes for. The tool's own
+    // enum offers 'credit', not 'credit_card'.
+    const wanted = account_type === 'credit' ? 'credit_card' : account_type;
+    accounts = accounts.filter(
+      (a: Account) => a.accountType?.toLowerCase() === wanted.toLowerCase(),
+    );
   }
 
+  // GET_MY_ACCOUNTS_OUTPUT (outputSchemas.ts) requires accountNumber and
+  // types every optional field as plain `string` (no null) — accounts
+  // seeded via the minimal path (checking/savings) never set several of
+  // these upstream. '' is the established "no value" convention here (see
+  // formatAccountNickname above), not null.
   const mappedAccounts = accounts.map((account: Account) => ({
     id: account.id,
     accountType: account.accountType,
-    name: account.name || null,
-    accountNumber: account.accountNumber,
+    name: account.name || '',
+    accountNumber: account.accountNumber || '',
     balance: account.balance,
     currency: account.currency || 'USD',
     status: account.status || 'active',
-    accountHolderName: account.accountHolderName || null,
-    swiftCode: account.swiftCode || null,
-    iban: account.iban || null,
-    branchName: account.branchName || null,
-    branchCode: account.branchCode || null,
-    openedDate: account.openedDate || null,
-    notes: account.notes || null,
+    accountHolderName: account.accountHolderName || '',
+    swiftCode: account.swiftCode || '',
+    iban: account.iban || '',
+    branchName: account.branchName || '',
+    branchCode: account.branchCode || '',
+    openedDate: account.openedDate || '',
+    notes: account.notes || '',
     createdAt: account.createdAt,
   }));
 

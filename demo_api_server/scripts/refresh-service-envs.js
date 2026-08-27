@@ -21,6 +21,53 @@ const http  = require('http');
 const ROOT = path.resolve(__dirname, '..', '..');
 const API_ENV = path.join(ROOT, 'demo_api_server', '.env');
 
+/**
+ * Read named entries from the vault, so it can win over a stale .env copy.
+ *
+ * Password resolution mirrors run-docker.sh: VAULT_PASSWORD from the
+ * environment, else the VAULT_PASSWORD line in demo_api_server/.env. Any
+ * failure -- no vault file, no password, wrong password -- returns {} and the
+ * caller falls back to .env, so a fresh clone with no vault is unaffected.
+ *
+ * @param {string[]} names UPPER_CASE entry names
+ * @returns {Promise<Record<string,string>>}
+ */
+async function loadVaultSecrets(names, root = ROOT) {
+  const out = {};
+  try {
+    const vaultFile = path.join(root, 'secrets.vault');
+    if (!fs.existsSync(vaultFile)) return out;
+
+    let password = process.env.VAULT_PASSWORD || '';
+    const apiEnv = path.join(root, 'demo_api_server', '.env');
+    if (!password && fs.existsSync(apiEnv)) {
+      const m = fs.readFileSync(apiEnv, 'utf8').match(/^VAULT_PASSWORD=(.*)$/m);
+      if (m) password = m[1].trim().replace(/^['"]|['"]$/g, '');
+    }
+    if (!password) return out;
+
+    const { openVault } = require(path.join(root, 'demo_api_server', 'lib', 'vault'));
+    const handle = await openVault(vaultFile, password);
+    try {
+      for (const name of names) {
+        // The vault API takes UPPER_CASE names (NAME_RE in lib/vault). Do not
+        // copy vaultLoader's `data[name.toLowerCase()]` — that indexes a map it
+        // already lowercased itself, it is not the read API's contract.
+        const v = await handle.read(name);
+        if (typeof v === 'string' && v !== '') out[name] = v;
+      }
+    } finally {
+      if (typeof handle.close === 'function') await handle.close();
+    }
+    if (Object.keys(out).length) {
+      console.log('[refresh-envs] vault supplied: ' + Object.keys(out).join(', '));
+    }
+  } catch (err) {
+    console.warn('[refresh-envs] vault unavailable (' + err.message + ') -- falling back to .env');
+  }
+  return out;
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function parseEnv(filePath) {
@@ -339,6 +386,19 @@ async function main() {
   // Convenience: fall back to whatever bootstrap already wrote to api_server .env
   const fb = (key) => apiVars[key] || '';
 
+  // ── Vault-first resolution for locally-generated shared secrets ────────────
+  // The VAULT is the final answer. This matters for INTENT_TOKEN_SECRET above
+  // all: the BFF signs intent tokens with it and BOTH gateways verify against
+  // it, so if this script copies a stale .env value into the gateway env files
+  // while the BFF reads the vault (vaultLoader ENV_EXPORT_ALLOWLIST), the
+  // signatures are valid and nothing can match them — silent, and exactly the
+  // 2026-08-25 SE introspection outage.
+  //
+  // Degrades to the .env value when the vault is absent or locked, so a fresh
+  // clone with no vault behaves as it always did.
+  const vaultSecrets = await loadVaultSecrets(['INTENT_TOKEN_SECRET']);
+  const fbVault = (key) => vaultSecrets[key] || fb(key);
+
   const creds = {
     mcpGatewayClientId:     apps.mcpGateway?.clientId     || fb('PINGONE_MCP_GATEWAY_CLIENT_ID'),
     mcpGatewaySecret:       mcpGwSecret                   || fb('PINGONE_MCP_GATEWAY_CLIENT_SECRET'),
@@ -509,7 +569,7 @@ async function main() {
     // both gateways verify with the SAME key. Same env-block override rule as
     // BFF_INTERNAL_SECRET (docker-compose mcp-gateway): supplied via env_file,
     // never pinned in compose `environment:`.
-    INTENT_TOKEN_SECRET:               fb('INTENT_TOKEN_SECRET') || fb('SESSION_SECRET'),
+    INTENT_TOKEN_SECRET:               fbVault('INTENT_TOKEN_SECRET') || fb('SESSION_SECRET'),
   });
   console.log('[refresh-envs] Wrote demo_mcp_gateway/.env');
 
@@ -687,7 +747,7 @@ async function main() {
     // code on the running stack. Mirror the BFF's own resolution order
     // (services/intentTokenService.js) so both sides derive the SAME key
     // whichever one is actually configured.
-    INTENT_TOKEN_SECRET:            fb('INTENT_TOKEN_SECRET') || fb('SESSION_SECRET'),
+    INTENT_TOKEN_SECRET:            fbVault('INTENT_TOKEN_SECRET') || fb('SESSION_SECRET'),
     BFF_VAULT_KEY_URL:              'https://api.ping.demo:3001/internal/vault/service-key',
     PG_API_RESOURCE_SERVER_URL:        'http://api-resource-server:8082',
     // HITL is enforced at this gateway now: p1az-decision.groovy turns a PingOne
@@ -726,6 +786,13 @@ async function main() {
     // isn't a valid URI, so it needs a scheme.
     DELEGATION_RESOURCE_AUDIENCE:   'https://test',
     DELEGATION_RESOURCE_SCOPE:      'test',
+    // ping-gateway/scripts/groovy/external-door-401-metadata.groovy (public MCP
+    // door for external agents like LM Studio/Claude Desktop, host
+    // cmuir-mcp.ping-devops.com hardcoded in the route's own condition) reads
+    // this for the resource_metadata hint on its 401 — no topology SoT entry
+    // exists for this single-purpose SE-cluster endpoint; fb() lets it be
+    // overridden per-deploy.
+    OAUTH_MCP_ISSUER_URI:           fb('OAUTH_MCP_ISSUER_URI') || 'https://cmuir-mcp.ping-devops.com',
   });
   console.log('[refresh-envs] Wrote ping-gateway/.env');
 
@@ -739,7 +806,16 @@ async function main() {
   console.log('[refresh-envs] All service .env files refreshed from PingOne.');
 }
 
-main().catch(err => {
-  console.error('[refresh-envs] Fatal error:', err.message);
-  process.exit(1);
-});
+// Only run the CLI when invoked directly. Without this guard, `require()`ing
+// the module to unit-test loadVaultSecrets executes the whole refresh (and its
+// process.exit), which is both a failing test and a script that rewrites every
+// service .env as a side effect of being imported.
+if (require.main === module) {
+  main().catch(err => {
+    console.error('[refresh-envs] Fatal error:', err.message);
+    process.exit(1);
+  });
+}
+
+// Exported for tests. Running this file directly is unaffected.
+module.exports = { loadVaultSecrets };

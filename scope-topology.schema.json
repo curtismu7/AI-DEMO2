@@ -73,6 +73,12 @@
               "pingGatewayResourceUri": {
                 "type": "string",
                 "description": "PingGateway resource server URI (alternate gateway endpoint)"
+              },
+              "externalDoorIssuers": {
+                "type": "array",
+                "items": { "type": "string" },
+                "uniqueItems": true,
+                "description": "Issuer (`iss`) values of oauth-mcp's embedded AS for each public MCP door in this environment — OAUTH_ISSUER, which PR #2244 requires to equal the door's ingress host. SoT for the P1AZ external-door audience exemption: HasValidMcpAudience accepts the upstream MCP server audience ONLY when the token's iss is one of these, mirroring PR #2274's D-05 exemption in p1az-decision.groovy. An array because one environment can front several doors."
               }
             }
           }
@@ -247,6 +253,29 @@
             "items": {
               "type": "string"
             }
+          },
+          "mandate": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "What this agent may do unattended without asking a human. Only meaningful on an autonomous agent: a worker agent is bounded by the session it runs in. Exceeding it does not fail the run -- it parks it for CIBA approval.",
+            "properties": {
+              "maxAmount": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "description": "Largest single amount the agent may move on its own."
+              },
+              "window": {
+                "type": "string",
+                "enum": ["run", "day"],
+                "description": "Period the ceiling applies over."
+              }
+            },
+            "required": ["maxAmount"]
+          },
+          "agentClass": {
+            "type": "string",
+            "enum": ["worker", "autonomous"],
+            "description": "Which class of agent this registration is, when it is an agent at all. worker = runs inside a live user session and delegates via RFC 8693 (sub=user, act=agent). autonomous = runs unattended from a schedule or event on its own identity (sub=agent, no act). Absent for non-agent apps (human sign-in, MCP infrastructure, bootstrap tooling)."
           },
           "type": {
             "type": "string",

@@ -26,8 +26,13 @@ const { verticalManifest } = require('./verticalManifest');
 // write scope (e.g. records:write) is gated automatically and read-ish admin
 // scopes (admin:read, users:read = medium) are NOT mis-gated. Falls back to the
 // name heuristic only when a scope carries no SoT metadata.
-function isWriteIsh(scope) {
-  const meta = scopeTopology.scopeMeta(scope);
+// `manifest` is an optional preloaded scope-topology manifest (from
+// scopeTopology._manifest()) so a hot loop can pass one in instead of
+// making isWriteIsh call scopeMeta() — and therefore load(), and therefore
+// fs.statSync() — again on every invocation. Public single-arg callers are
+// unaffected: they still go through scopeTopology.scopeMeta() as before.
+function isWriteIsh(scope, manifest) {
+  const meta = manifest ? (manifest.scopes[scope] || null) : scopeTopology.scopeMeta(scope);
   if (meta && meta.riskLevel) {
     return meta.riskLevel === 'high' || meta.riskLevel === 'critical';
   }
@@ -67,9 +72,15 @@ function resolveAgentScopes(vertical, allowWrite) {
     }
   } catch { /* unknown vertical — fall through to base scopes below */ }
 
+  // Load the manifest once for the whole loop instead of letting each
+  // per-tool/per-scope accessor call load() (and its fs.statSync
+  // staleness check) on its own.
+  const manifest = scopeTopology._manifest();
   for (const name of toolNames) {
-    for (const s of scopeTopology.toolScopes(name)) {
-      if (isWriteIsh(s)) writeScopes.add(s);
+    const t = manifest.tools[name];
+    const scopes = t ? t.requiredScopes : ['read'];
+    for (const s of scopes) {
+      if (isWriteIsh(s, manifest)) writeScopes.add(s);
       else readScopes.add(s);
     }
   }

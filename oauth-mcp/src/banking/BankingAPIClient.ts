@@ -62,6 +62,9 @@ export class BankingAPIClient {
       failureThreshold: this.config.circuitBreakerThreshold,
       resetTimeout: 60000, // 1 minute
       monitoringPeriod: 10000, // 10 seconds
+      // A client error is not upstream sickness. Same predicate the retry manager
+      // uses, so the two policies can no longer disagree about the same response.
+      isFailure: (error: unknown) => !BankingAPIClient.isClientError(error),
       ...options.circuitBreakerConfig
     };
     this.circuitBreaker = new CircuitBreaker(circuitBreakerConfig);
@@ -574,21 +577,37 @@ export class BankingAPIClient {
   /**
    * Determine if a request should be retried
    */
-  private shouldRetryRequest(error: Error): boolean {
-    // Don't retry authentication errors (4xx except 429)
-    if ('statusCode' in error) {
-      const statusCode = (error as any).statusCode;
-      if (statusCode >= 400 && statusCode < 500 && statusCode !== 429) {
-        return false;
-      }
+  /**
+   * A 4xx (except 429) — the REQUEST was wrong, not the server.
+   *
+   * Two policies need exactly this distinction and they used to disagree, which
+   * is the bug (TECH_DEBT 2026-08-26): the retry manager already refused to retry
+   * a 403, while the circuit breaker counted that same 403 as evidence the
+   * upstream was failing. Five cross-owner reads — precisely what UC10's attack
+   * simulation does on purpose — opened the breaker and took banking down for
+   * every user for a minute, while the API was healthy the whole time.
+   *
+   * ONE predicate, consumed by both, because this file has already been burned by
+   * two copies joined only by a keep-in-sync comment (see actionToTool's header).
+   */
+  static isClientError(error: unknown): boolean {
+    if (!error || typeof error !== 'object') return false;
+    const statusCode = (error as any).statusCode;
+    if (typeof statusCode === 'number' && statusCode >= 400 && statusCode < 500 && statusCode !== 429) {
+      return true;
     }
+    // Raw axios errors, before mapError wraps them.
+    const status = (error as any).response?.status;
+    if (typeof status === 'number' && status >= 400 && status < 500 && status !== 429) {
+      return true;
+    }
+    return false;
+  }
 
-    // Raw axios errors (before mapError wraps them) — don't retry typical client errors
-    if (this.isAxiosLikeError(error) && error.response) {
-      const status = error.response.status;
-      if (status >= 400 && status < 500 && status !== 429) {
-        return false;
-      }
+  private shouldRetryRequest(error: Error): boolean {
+    // 4xx except 429 — the request was wrong, retrying cannot help.
+    if (BankingAPIClient.isClientError(error)) {
+      return false;
     }
 
     // Don't retry client validation errors

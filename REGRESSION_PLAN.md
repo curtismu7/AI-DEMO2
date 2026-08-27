@@ -60,6 +60,7 @@ minimal diff.
 | HITL receipt single-use on the Node gateway (locked 2026-08-17, PR #1959) | `demo_mcp_gateway/src/hitlClient.ts` `verifyAndConsumeHitlReceipt()` — must post to the **consuming** `/challenges/:id/verify`, and **both** transports must call it: HTTP `middleware/authorizeMcpRequest.ts` and WebSocket `index.ts`. A non-consuming verify lets one human approval authorize unlimited tool calls |
 | tools/list backend outage scope (locked 2026-08-18, PR #1980) | `demo_mcp_gateway/src/toolsListHealth.ts` — `'total'` (zero live backends read) vs `'partial'` (some answered). Only `'total'` may clear the outage; "any success clears everything" reported a healthy gateway serving a truncated tool list |
 | MCP gateway suite is a blocking, serial gate (locked 2026-08-18, PR #1980) | `.github/workflows/ci.yml` (`SUITE_BLOCKING=1 npm run test:mcp-gateway`), `scripts/test-service-suite.sh` (`mcp-gateway` → `DEFAULT_WORKERS=1`). Eight suites bind a real listening socket and race at 2 workers (`socket hang up`); serial is also faster (6.5s vs ~19s). Do not raise the worker count and do not make the job non-blocking |
+| Airlines is THREE tiers, not two (locked 2026-08-27) | `scope-topology.json`, `demo_api_server/config/verticals/airlines/manifest.json`, `demo_mcp_resource_server/src/tools/airlinesTools.ts`. `get_airline_bookings` (plain, `airlines:read`) → `sensitive_airline_bookings` (**consent**, `airlines:read`+`sensitive:read`, chip "🔐 Sensitive reservations", `useCaseId: hitl-consent`) → `sensitive_passenger_record` (**A2A-only**, `read`+`a2aDelegatedScope: pnr:read`+`requiresAgentMediation`, chip `useCaseId: a2a-delegation`). Two different demos in one vertical. **Do not "align" `sensitive_airline_bookings` with the other ten `sensitive_*` tools** — those ten are one A2A specialist tool *per vertical* (`config/a2aSpecialists.js`), and airlines' slot is already `sensitive_passenger_record`. Adding `requiresAgentMediation` to it would DENY the consent chip with `missing_act` (`demo_authz_server/routes/decision.js` Rule ~721, `REQUIRE_ACT_FOR_AGENT_TOOLS` defaults on) and delete airlines' HITL-consent demo. See TECH_DEBT 2026-08-26 |
 
 ---
 
@@ -104,6 +105,96 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 Reverse-chronological, newest first.
+
+### 2026-08-26 — Customer sign-in broken since 2026-08-24: BFF sent a client_secret to a PKCE-only app
+
+**Files changed:** `demo_api_server/services/oauthUserService.js`,
+`demo_api_server/config/oauthUser.js`, `demo_api_server/services/configStore.js`,
+`demo_api_server/services/envReconcile.js`, plus
+`src/__tests__/oauthUserService.pkceNoClientAuth.test.js`.
+
+**What was broken:** every customer sign-in failed. The PingOne app
+"Demo AI App - User Login" was migrated to `tokenEndpointAuthMethod: NONE`
+(PKCE-only public client) at `2026-08-24T11:55:27Z`, while the BFF kept a
+now-obsolete `user_client_secret` in its persisted config. `exchangeCodeForToken`
+guarded only on whether a secret EXISTS, so it kept sending `client_secret`, and
+PingOne rejected every exchange with
+`invalid_client — Request denied: Unsupported authentication method`.
+
+**Why it did not look like an auth bug:** the callback redirects to
+`/dashboard?error=callback_failed&detail=invalid_client`, and because the action
+chips no longer gate on `isLoggedIn`, the dashboard renders a full, normal-looking
+guest view — same 6 action groups a signed-in customer sees. `/api/auth/session`
+answering `{"authenticated":false,"user":null}` was the only visible tell. A probe
+that counted chips would have reported the page as working.
+
+**How it was proven** (live token endpoint, same app, deliberately invalid code so
+only client authentication was under test):
+
+| request | PingOne response |
+|---|---|
+| no client auth | `invalid_grant` — client auth accepted |
+| `client_secret=<dummy>` | `invalid_client` — Unsupported authentication method |
+| `Basic <id:dummy>` | `invalid_client` — Unsupported authentication method |
+| `client_secret=` (EMPTY) | `invalid_client` — Unsupported authentication method |
+
+A full authorization-code + PKCE run with **no** client auth, using the BFF's exact
+scope list, returned HTTP 200 with a real access/id/refresh token for `demoUser` —
+so the app was never the problem.
+
+That empty-secret row is the reason `if (clientSecret)` was never a sufficient
+guard: PingOne rejects a blank `client_secret=` exactly like a wrong one.
+
+**What was fixed:** `shouldSendClientSecret(config)` now consults the app's
+configured method as well as the secret's presence, applied at all four sites in
+`oauthUserService` that attach client auth. New config key
+`PINGONE_USER_TOKEN_ENDPOINT_AUTH_METHOD` (`user_token_endpoint_auth_method`),
+registered in `FIELD_DEFS`, the env-alias table, and `envReconcile`'s
+classification. **Only `none` is acted on** and the default is empty, so a
+confidential deployment behaves exactly as before.
+
+The stale `user_client_secret` was also cleared from the BFF config — either fix
+alone restores sign-in; together, a secret reappearing cannot silently break it again.
+
+**Evidence:** `oauthUserService.pkceNoClientAuth.test.js` — 7 tests, RED-proven
+(4 fail if the guard ignores the method). Full BFF suite: 10,240 passed; 4
+suites failed only under `--maxWorkers=4` and pass scoped (known worker-contention
+flake), none touching the changed files.
+
+**Watch out:** `docker exec ai-demo-api-server node -e "...configStore..."` reports
+this secret as EMPTY, because that process never runs the app bootstrap (no dotenv,
+no vault decrypt). Four consecutive reads said "no secret" while the running server
+had one. Ask the running process (`GET /api/admin/config` → `*_set`) instead.
+
+
+### 2026-08-24 — mcp-resource-server: explicit audience honoured, RFC 9728 challenge URL, invest SQLite cleanups
+
+**Files changed:** `demo_mcp_resource_server/src/server/acceptedAudiences.ts` (+ test),
+`demo_mcp_resource_server/src/index.ts`, `demo_mcp_resource_server/src/tools/investToolHandler.ts`,
+`demo_mcp_resource_server/src/db/investDb.ts`, `seed/invest.seed.json`, `README.md`, tests.
+
+**What was broken:** (1) `resolveAcceptedAudiences` appended `mcp-invest.ping.demo`
+to ANY env value, so a standalone deployment with its own
+`MCP_RESOURCE_SERVER_RESOURCE_URI` silently accepted the demo audience too and
+logged "env value is stale" on every boot. (2) The 401 `resource_metadata` was
+`"<audience>/.well-known/..."` — not a URL, so client OAuth discovery could not
+fetch it. (3) `investToolHandler` froze the BFF-vs-SQLite choice at module load
+and carried two parallel switches; `investDb` copied airlines' subject/fallback
+resolution that nothing consumed.
+
+**What was fixed:** union of `OWN_AUDIENCE` now happens only when the value came
+from the LEGACY var (`MCP_SERVER_RESOURCE_URI`, the shared-configmap fan-out
+that caused the 2026-08-16 outage); an explicit own-var value is honoured as-is.
+`resource_metadata` is built from the request host (`resourceMetadataUrl`).
+Backend read per call; one switch; `resolveInvestor()` returns the single
+seeded investor.
+
+**Do not break:** legacy-sourced values MUST still union `mcp-invest.ping.demo`;
+first env entry stays the canonical RFC 9728 `resource`; the live stack's own-var
+list (`mcp-invest.ping.demo,mcp-resource-server.ping.demo,mcpgateway.ping.demo`)
+resolves unchanged. STRICT_AUTH / JWKS verification untouched.
+
+**Verify:** `cd demo_mcp_resource_server && node_modules/.bin/jest tests/acceptedAudiences.test.ts tests/resourceUriEnv.test.ts tests/httpMcp.test.ts tests/investSqlite.test.ts && node_modules/.bin/tsc --noEmit`.
 
 ### 2026-08-22 — Top 5 bugs found in a cross-service live bug hunt
 

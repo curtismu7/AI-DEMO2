@@ -307,10 +307,15 @@ function mcpRpc(agentToken, followMethod, followParams, userSub, correlationId, 
         /** @type {'awaiting_init' | 'awaiting_follow'} */
         let phase = 'awaiting_init';
 
-        const timeout = setTimeout(() => {
+        // A `let`, not `const`: the elicitation/sampling branches below clear and
+        // re-arm this budget around a server-initiated request so the 15s window
+        // for the tools/list|tools/call round trip doesn't race the up-to-60s
+        // human-response wait elicitation/create can introduce mid-flight.
+        const armTimeout = () => setTimeout(() => {
           ws.terminate();
           reject(new Error('MCP call timed out'));
         }, 15000);
+        let timeout = armTimeout();
 
         ws.on('error', (err) => {
           clearTimeout(timeout);
@@ -442,6 +447,11 @@ function mcpRpc(agentToken, followMethod, followParams, userSub, correlationId, 
                   });
                 }
 
+                // Elicitation waits on a human (up to 60s) — the 15s outer budget
+                // is for the tools/list|tools/call round trip, not this wait, so
+                // clear it here and re-arm once the response is back on the wire.
+                clearTimeout(timeout);
+
                 // Create a promise to wait for the browser's elicitation response
                 createElicitationPromise(msg.id, 60000)
                   .then((elicitationResponse) => {
@@ -462,6 +472,7 @@ function mcpRpc(agentToken, followMethod, followParams, userSub, correlationId, 
                       correlationId: correlationId || null,
                       payload: { result: elicitationResponse }
                     });
+                    timeout = armTimeout();
                   })
                   .catch((err) => {
                     // Send error response to server
@@ -484,6 +495,7 @@ function mcpRpc(agentToken, followMethod, followParams, userSub, correlationId, 
                       correlationId: correlationId || null,
                       payload: { error: { message: err.message } }
                     });
+                    timeout = armTimeout();
                   });
                 return;
               }
@@ -501,6 +513,9 @@ function mcpRpc(agentToken, followMethod, followParams, userSub, correlationId, 
                 if (msg.params && msg.params.systemPrompt) {
                   chatMessages.unshift({ role: 'system', content: msg.params.systemPrompt });
                 }
+                // Same race as elicitation above: a local-LLM completion isn't
+                // bounded by the 15s round-trip budget, so clear/re-arm around it.
+                clearTimeout(timeout);
                 callLlamaCpp(chatMessages)
                   .then((text) => {
                     ws.send(JSON.stringify({
@@ -513,6 +528,7 @@ function mcpRpc(agentToken, followMethod, followParams, userSub, correlationId, 
                         stopReason: 'endTurn',
                       },
                     }));
+                    timeout = armTimeout();
                   })
                   .catch((err) => {
                     ws.send(JSON.stringify({
@@ -520,6 +536,7 @@ function mcpRpc(agentToken, followMethod, followParams, userSub, correlationId, 
                       id: msg.id,
                       error: { code: -32001, message: 'Sampling failed: ' + err.message },
                     }));
+                    timeout = armTimeout();
                   });
                 return;
               }

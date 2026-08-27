@@ -54,15 +54,30 @@ describe("Focus Mode filmstrip guard", () => {
 
   // Locked 2026-08-17 (PR #1896): #1784 gated the float-mode filmstrip behind
   // ba_show_filmstrip === "1", default OFF — the filmstrip silently vanished
-  // for every user who never touched the toggle. Default must stay ON
-  // (unset/anything but "0" shows it); only an explicit toggle-off hides it.
-  test("Ping2026 defaults the filmstrip toggle ON (only \"0\" hides it)", () => {
-    expect(p2026).toMatch(/localStorage\.getItem\("ba_show_filmstrip"\)\s*!==\s*"0"/);
+  // for every user who never touched the toggle. Default must stay ON.
+  //
+  // Strengthened 2026-08-25, third disappearance: defaulting ON was not enough
+  // while "off" was PERSISTED. One stray click wrote ba_show_filmstrip="0" to
+  // localStorage and hid the reel in that browser profile permanently — across
+  // reloads, redeploys and demos, invisible to everyone else, no self-heal.
+  // Hiding is now session-only React state and is never written to storage, so
+  // a reload always restores the reel. These two tests keep their original
+  // purpose (default ON) and additionally pin that no persistence returns.
+  const aiAgent = read("../components/AIAgent.js");
+
+  test("Ping2026 defaults the filmstrip ON with no storage read", () => {
+    expect(p2026).not.toMatch(/getItem\(\s*["']ba_show_filmstrip["']\s*\)/);
+    expect(p2026).toMatch(/const \[showFilmstrip, setShowFilmstrip\] = useState\(true\)/);
   });
 
-  const aiAgent = read("../components/AIAgent.js");
-  test("AIAgent's own Movie reel state defaults ON to match", () => {
-    expect(aiAgent).toMatch(/localStorage\.getItem\("ba_show_filmstrip"\)\s*!==\s*"0"/);
+  test("AIAgent's own Movie reel state defaults ON to match, unpersisted", () => {
+    expect(aiAgent).not.toMatch(/getItem\(\s*["']ba_show_filmstrip["']\s*\)/);
+    // The toggle must not write the flag back.
+    expect(aiAgent).not.toMatch(/setItem\(\s*["']ba_show_filmstrip["']/);
+  });
+
+  test("an already-poisoned browser is actively healed on mount", () => {
+    expect(aiAgent).toMatch(/removeItem\(\s*["']ba_show_filmstrip["']\s*\)/);
   });
 
   // Locked 2026-08-18: the Focus Mode copy rendered UNCONDITIONALLY while only

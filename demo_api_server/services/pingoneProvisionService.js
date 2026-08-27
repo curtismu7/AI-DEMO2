@@ -1399,24 +1399,27 @@ class PingOneProvisionService {
       const existingGrants = (await this.makeRequest('GET', `/applications/${appId}/grants`))
         .data._embedded?.grants || [];
 
-      // Build set of scope names already granted on OTHER resources.
-      const otherResourceScopeNames = new Set();
-      for (const g of existingGrants) {
-        if (g.resource?.id === resourceId) continue;            // skip same resource
-        for (const s of (g.scopes || [])) {
-          // Look up the name by id from any other resource's scope list.
-          // We have idByName for THIS resource; for cross-resource we'd need a
-          // lookup. Cheaper: just fetch the names of scopes in this grant.
-        }
-      }
-      // The above can't cheaply resolve cross-resource scope IDs to names.
-      // Simpler: pre-fetch ALL resources' scopes once.
+      // Build set of scope names already granted on OTHER resources. Resolving
+      // a cross-resource scope id to its name needs that resource's own scope
+      // list — fetch each DISTINCT other resource once (not once per grant;
+      // a single app can hold several grants against the same resource).
       const allOtherNames = new Set();
+      const otherResourceIds = [...new Set(
+        existingGrants
+          .filter(g => g.resource?.id && g.resource.id !== resourceId)
+          .map(g => g.resource.id)
+      )];
+      const otherResourceScopesById = new Map(
+        await Promise.all(otherResourceIds.map(async (rid) => {
+          const scopes = (await this.makeRequest('GET', `/resources/${rid}/scopes`))
+            .data._embedded?.scopes || [];
+          return [rid, new Map(scopes.map(s => [s.id, s.name]))];
+        }))
+      );
       for (const g of existingGrants) {
-        if (g.resource?.id === resourceId) continue;
-        const otherScopes = (await this.makeRequest('GET', `/resources/${g.resource.id}/scopes`))
-          .data._embedded?.scopes || [];
-        const otherIdToName = new Map(otherScopes.map(s => [s.id, s.name]));
+        if (!g.resource?.id || g.resource.id === resourceId) continue;
+        const otherIdToName = otherResourceScopesById.get(g.resource.id);
+        if (!otherIdToName) continue;
         for (const s of (g.scopes || [])) {
           const n = otherIdToName.get(s.id);
           if (n) allOtherNames.add(n);
@@ -3662,6 +3665,29 @@ class PingOneProvisionService {
    *   { deleted: { apps, resources, groups, attrs, users },
    *     skipped: { ... }, failed: [...] }
    */
+  /**
+   * Runs `fn` over `items` with at most `limit` in flight at once. Used by
+   * wipeEnvironment's delete loops below: sequential-per-category DELETEs
+   * were the biggest source of wall-clock time in a reset, but unlimited
+   * parallelism risks PingOne Management API rate limits, so this stays
+   * modest (5) rather than firing every DELETE at once. Step messages are
+   * emitted in COMPLETION order under concurrency, not the original list
+   * order — an accepted tradeoff for a wizard progress log, not a
+   * correctness concern (each message still names its own item).
+   */
+  async _mapLimit(items, limit, fn) {
+    const results = new Array(items.length);
+    let next = 0;
+    const worker = async () => {
+      while (next < items.length) {
+        const i = next++;
+        results[i] = await fn(items[i], i);
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+    return results;
+  }
+
   async wipeEnvironment(config, onStep = () => {}) {
     await this.initialize(config.envId, config.workerClientId, config.workerClientSecret, config.region);
 
@@ -3709,17 +3735,17 @@ class PingOneProvisionService {
     }
     const ownedApps = apps.filter(a => isOwnedApp(a.name));
     step('🗑️', `Found ${apps.length} application(s); ${ownedApps.length} match demo prefixes — preserving worker (${config.workerClientId})`);
-    for (const app of apps) {
+    await this._mapLimit(apps, 5, async (app) => {
       // Always preserve the worker we're auth'd as — even if it has the prefix.
       if (app.id === config.workerClientId || app.clientId === config.workerClientId) {
         summary.skipped.apps++;
         step('⏭️', `Kept worker app: ${app.name}`);
-        continue;
+        return;
       }
       if (!isOwnedApp(app.name)) {
         summary.skipped.apps++;
         // Don't spam a line per non-demo app; total skipped count surfaces in the summary.
-        continue;
+        return;
       }
       try {
         await this.makeRequest('DELETE', `/applications/${app.id}`);
@@ -3729,7 +3755,7 @@ class PingOneProvisionService {
         summary.failed.push({ kind: 'app', id: app.id, name: app.name, error: err.message });
         step('❌', `Failed to delete app '${app.name}': ${err.message}`);
       }
-    }
+    });
 
     // --- Resource servers ------------------------------------------------
     step('🔍', 'Listing resource servers…');
@@ -3739,10 +3765,10 @@ class PingOneProvisionService {
     } catch (err) {
       step('❌', `Could not list resources: ${err.message}`);
     }
-    for (const r of resources) {
+    await this._mapLimit(resources, 5, async (r) => {
       if (!isOwnedResource(r.name)) {
         summary.skipped.resources++;
-        continue;
+        return;
       }
       try {
         await this.makeRequest('DELETE', `/resources/${r.id}`);
@@ -3752,7 +3778,7 @@ class PingOneProvisionService {
         summary.failed.push({ kind: 'resource', id: r.id, name: r.name, error: err.message });
         step('❌', `Failed to delete resource '${r.name}': ${err.message}`);
       }
-    }
+    });
 
     // --- Groups ----------------------------------------------------------
     step('🔍', 'Listing groups…');
@@ -3762,10 +3788,10 @@ class PingOneProvisionService {
     } catch (err) {
       step('❌', `Could not list groups: ${err.message}`);
     }
-    for (const g of groups) {
+    await this._mapLimit(groups, 5, async (g) => {
       if (!DEMO_GROUPS.has(g.name)) {
         summary.skipped.groups++;
-        continue;
+        return;
       }
       try {
         await this.makeRequest('DELETE', `/groups/${g.id}`);
@@ -3775,7 +3801,7 @@ class PingOneProvisionService {
         summary.failed.push({ kind: 'group', id: g.id, name: g.name, error: err.message });
         step('❌', `Failed to delete group '${g.name}': ${err.message}`);
       }
-    }
+    });
 
     // --- User schema attributes -----------------------------------------
     // CUSTOM only — CORE/STANDARD are managed by PingOne and refuse delete.
@@ -3788,10 +3814,10 @@ class PingOneProvisionService {
       }
       if (this._userSchemaId) {
         const attrs = (await this.makeRequest('GET', `/schemas/${this._userSchemaId}/attributes`)).data._embedded?.attributes || [];
-        for (const a of attrs) {
+        await this._mapLimit(attrs, 5, async (a) => {
           if (a.type !== 'CUSTOM' || !DEMO_ATTRS.has(a.name)) {
             summary.skipped.attrs++;
-            continue;
+            return;
           }
           try {
             await this.makeRequest('DELETE', `/schemas/${this._userSchemaId}/attributes/${a.id}`);
@@ -3801,7 +3827,7 @@ class PingOneProvisionService {
             summary.failed.push({ kind: 'attr', id: a.id, name: a.name, error: err.message });
             step('❌', `Failed to delete attribute '${a.name}': ${err.message}`);
           }
-        }
+        });
       }
     } catch (err) {
       step('❌', `Could not enumerate user schema: ${err.message}`);
@@ -3812,7 +3838,7 @@ class PingOneProvisionService {
     // a full page that has no demo users in it (we don't blindly drain — we
     // just need to find the 3 demo users by username).
     step('🔍', 'Deleting demo users (demoUser, demoAdmin, demoDelegate)…');
-    for (const username of DEMO_USERS) {
+    await this._mapLimit([...DEMO_USERS], 5, async (username) => {
       try {
         const q = encodeURIComponent(`username eq "${username}"`);
         const page = await this.makeRequest('GET', `/users?filter=${q}&limit=10`);
@@ -3820,9 +3846,9 @@ class PingOneProvisionService {
         if (users.length === 0) {
           // Nothing to delete; count as skipped so summary doesn't lie.
           summary.skipped.users++;
-          continue;
+          return;
         }
-        for (const u of users) {
+        await this._mapLimit(users, 5, async (u) => {
           try {
             await this.makeRequest('DELETE', `/users/${u.id}`);
             summary.deleted.users++;
@@ -3831,11 +3857,11 @@ class PingOneProvisionService {
             summary.failed.push({ kind: 'user', id: u.id, name: u.username, error: err.message });
             step('❌', `Failed to delete user '${u.username}': ${err.message}`);
           }
-        }
+        });
       } catch (err) {
         step('❌', `Could not search for user '${username}': ${err.message}`);
       }
-    }
+    });
 
     const totalSkipped = summary.skipped.apps + summary.skipped.resources + summary.skipped.groups + summary.skipped.attrs + summary.skipped.users;
     step('🎉', `Wipe complete. Deleted: ${summary.deleted.apps} apps, ${summary.deleted.resources} resources, ${summary.deleted.groups} groups, ${summary.deleted.attrs} attrs, ${summary.deleted.users} users. Preserved (non-demo): ${totalSkipped}. Failures: ${summary.failed.length}.`);

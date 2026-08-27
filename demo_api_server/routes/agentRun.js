@@ -108,6 +108,11 @@ function _recordTraceEvents(runId, chunk, owner, framework) {
       expiresAt: Date.now() + _TRACE_TTL_MS,
       owner: owner || null,
       framework: framework || null,
+      // Maintained incrementally as events arrive (see below) so
+      // _summarizeRun is an O(1) field read instead of an O(events) rescan
+      // on every GET /runs poll, for every run in the store.
+      status: 'in_progress',
+      threadId: null,
     };
     _traceStore.set(runId, entry);
     // Evict oldest entries if store exceeds cap
@@ -126,6 +131,11 @@ function _recordTraceEvents(runId, chunk, owner, framework) {
     try {
       const evt = JSON.parse(line.slice(6));
       entry.events.push(evt);
+      if (!entry.threadId && evt.threadId) entry.threadId = evt.threadId;
+      if (evt.type === 'RUN_ERROR') entry.status = 'failed';
+      if (evt.type === 'RUN_FINISHED' && entry.status !== 'failed') {
+        entry.status = evt.outcome?.type === 'interrupt' ? 'interrupted' : 'success';
+      }
       if (evt.type === 'RUN_FINISHED' && evt.outcome?.type === 'interrupt' && owner) {
         hitlSuspended = true;
         agentRunStore.setRunState(runId, {
@@ -781,18 +791,29 @@ const FRAMEWORK_LABELS = {
 // Derive a list-friendly summary from a trace's raw AG-UI events — status,
 // thread id and framework label without the caller re-scanning events itself.
 function _summarizeRun(runId, entry) {
-  let status = 'in_progress';
-  let threadId = null;
-  for (const evt of entry.events) {
-    if (!threadId && evt && evt.threadId) threadId = evt.threadId;
-    if (evt && evt.type === 'RUN_ERROR') status = 'failed';
-    if (evt && evt.type === 'RUN_FINISHED' && status !== 'failed') {
-      status = evt.outcome?.type === 'interrupt' ? 'interrupted' : 'success';
+  // status/threadId are maintained incrementally in _recordTraceEvents as
+  // each event arrives — this used to rescan entry.events in full on every
+  // call, which GET /runs did once per run in the store, on every poll.
+  // entry.status is undefined (never `'in_progress'` or any other computed
+  // value) only for an entry that didn't go through _recordTraceEvents —
+  // fall back to the full scan there so correctness never depends on how an
+  // entry was created.
+  let status = entry.status;
+  let threadId = entry.threadId;
+  if (status === undefined) {
+    status = 'in_progress';
+    threadId = null;
+    for (const evt of entry.events) {
+      if (!threadId && evt && evt.threadId) threadId = evt.threadId;
+      if (evt && evt.type === 'RUN_ERROR') status = 'failed';
+      if (evt && evt.type === 'RUN_FINISHED' && status !== 'failed') {
+        status = evt.outcome?.type === 'interrupt' ? 'interrupted' : 'success';
+      }
     }
   }
   return {
     runId,
-    threadId,
+    threadId: threadId ?? null,
     startedAt: entry.startedAt,
     lastEventAt: entry.lastEventAt,
     status,
@@ -852,7 +873,11 @@ router.get('/runs', (req, res) => {
     runs.push(_summarizeRun(runId, entry));
   }
   runs.sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0));
-  res.json({ runs, count: runs.length });
+  const total = runs.length;
+  const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+  const limit = Math.min(200, Math.max(1, parseInt(req.query.limit, 10) || total || 1));
+  const page = req.query.limit || req.query.offset ? runs.slice(offset, offset + limit) : runs;
+  res.json({ runs: page, count: page.length, total });
 });
 
 // GET /runs/:runId/events — retrieve AG-UI events recorded for a completed run.

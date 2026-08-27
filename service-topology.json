@@ -41,6 +41,8 @@
     "PUBLIC_APP_URL": "public",
     "PINGONE_PUBLIC_APP_URL": "public",
     "REACT_APP_CLIENT_URL": "public",
+    "MCP_FACADE_REEL_BASE": "public",
+    "MCP_FACADE_AGENT_GATEWAY_AS": "public",
     "FRONTEND_ADMIN_URL": "public:/admin",
     "FRONTEND_DASHBOARD_URL": "public:/dashboard",
     "CORS_ORIGIN": "literal:https://local.ping-devops.com:4000,https://api.ping.demo:4000",

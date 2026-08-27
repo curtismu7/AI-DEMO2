@@ -65,3 +65,50 @@ describe("useDraggablePanel restore clamping", () => {
     expect(captured.pos).toEqual({ x: 900, y: 80 });
   });
 });
+
+describe("useDraggablePanel unmount mid-drag", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    captured = undefined;
+    document.body.style.userSelect = "";
+  });
+
+  afterEach(() => {
+    document.body.style.userSelect = "";
+    localStorage.clear();
+  });
+
+  // Regression: handleDragStart set document.body.style.userSelect = 'none' and
+  // attached pointermove/pointerup/pointercancel to the drag target, torn down
+  // only by the drag's own onUp. If the component unmounted mid-drag (e.g. the
+  // panel's own onClose fires while the user is still holding the pointer down),
+  // onUp never ran and the page was left permanently unselectable.
+  it("resets userSelect and removes drag listeners if unmounted before pointerup", () => {
+    const { unmount } = render(<Probe />);
+
+    const target = document.createElement("div");
+    document.body.appendChild(target);
+    const removeSpy = jest.spyOn(target, "removeEventListener");
+
+    captured.handleDragStart({
+      button: 0,
+      target,
+      currentTarget: target,
+      clientX: 150,
+      clientY: 150,
+      preventDefault: () => {},
+      pointerId: 1,
+    });
+
+    expect(document.body.style.userSelect).toBe("none");
+
+    unmount();
+
+    expect(document.body.style.userSelect).toBe("");
+    expect(removeSpy).toHaveBeenCalledWith("pointermove", expect.any(Function));
+    expect(removeSpy).toHaveBeenCalledWith("pointerup", expect.any(Function));
+    expect(removeSpy).toHaveBeenCalledWith("pointercancel", expect.any(Function));
+
+    document.body.removeChild(target);
+  });
+});

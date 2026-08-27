@@ -80,7 +80,13 @@ router.get('/', authenticateToken, requireScopes(['read']), async (req, res) => 
       return res.status(403).json({ error: 'Access denied. Admin role required.' });
     }
     
-    const transactions = dataStore.getAllTransactions();
+    const allTransactions = dataStore.getAllTransactions();
+    const total = allTransactions.length;
+    const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+    const limit = Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || total || 1));
+    const transactions = (req.query.limit || req.query.offset)
+      ? allTransactions.slice(offset, offset + limit)
+      : allTransactions;
     const allUsers = dataStore.getAllUsers();
     const userMap = {};
     for (const u of allUsers) { userMap[u.id] = u; }
@@ -93,9 +99,9 @@ router.get('/', authenticateToken, requireScopes(['read']), async (req, res) => 
         ownerEmail: owner?.email || null,
       };
     });
-    res.json({ transactions: transactionsWithNames });
+    res.json({ transactions: transactionsWithNames, total });
   } catch (error) {
-    console.error('Error getting transactions:', error);
+    console.error('Error getting transactions:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to get transactions' });
   }
 });
@@ -154,7 +160,7 @@ router.get('/my', authenticateToken, requireNotAdmin, async (req, res) => {
       count: transactionsWithUsername.length
     });
   } catch (error) {
-    console.error('Error getting user transactions:', error);
+    console.error('Error getting user transactions:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to get your transactions' });
   }
 });
@@ -294,7 +300,7 @@ router.post(
         result = await txConsent.verifyMfa(req, challengeId, { deviceId, otp: otp || otpCode, fido2Assertion }, origin);
       } else {
         const { otpCode } = req.body || {};
-        result = txConsent.verifyOtp(req, challengeId, otpCode);
+        result = await txConsent.verifyOtp(req, challengeId, otpCode);
       }
       if (!result.ok) return res.status(result.status).json(result.json);
       req.session.save((saveErr) => {
@@ -308,7 +314,7 @@ router.post(
       // Express 4 does not catch async throws — without this the client hangs on
       // "Verifying…" forever (seen 2026-07-22 when getCanonicalPublicOrigin was
       // imported but not exported).
-      console.error('[ConsentChallenge] verify-otp failed:', err);
+      console.error('[ConsentChallenge] verify-otp failed:', err?.stack || String(err));
       if (!res.headersSent) {
         return res.status(500).json({
           error: 'verify_otp_failed',
@@ -404,7 +410,7 @@ router.get('/:id', authenticateToken, requireScopes(['read']), async (req, res) 
     
     res.json({ transaction });
   } catch (error) {
-    console.error('Error getting transaction:', error);
+    console.error('Error getting transaction:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to get transaction' });
   }
 });
@@ -625,12 +631,16 @@ router.post('/', authenticateToken, async (req, res) => {
     // r.consentRequired, even though sessionStepUpFresh already cleared the
     // step-up gate. Single-use, same pattern as stepUpVerified above.
     let sessionHitlFresh = false;
-    if (hitlCredit.isFresh(req.session, { amount: hitlAmount })) {
+    let sessionHitlClaimed = false;
+    if (hitlCredit.claim(req.session, { amount: hitlAmount })) {
       // Amount-bound + consume-on-use (services/hitlCredit.js): a live CIBA
       // credit for this amount applies, but do NOT spend it yet — consume it
       // below only if it actually discharged the consent gate, so an unrelated
-      // call never burns it out from under a pending retry.
+      // call never burns it out from under a pending retry. claim() (rather
+      // than the old isFresh()) also locks out a second concurrent request on
+      // this same session until release()/consume() runs below.
       sessionHitlFresh = true;
+      sessionHitlClaimed = true;
     } else if (hasBearerAuth) {
       // Bearer-token calls (demo_mcp_server's BankingAPIClient, the real MCP/
       // agent path) carry no session cookie, so the check above never fires
@@ -678,6 +688,11 @@ router.post('/', authenticateToken, async (req, res) => {
     // burn the credit (fixes the cross-consumer starvation with the MCP gate).
     if (authz.hitlConsentDischarged) {
       hitlCredit.consume(req.session);
+    } else if (sessionHitlClaimed) {
+      // Claimed but not needed this request — release immediately rather
+      // than waiting out the claim's TTL, so a pending retry on this same
+      // session isn't wrongly told the credit is already held.
+      hitlCredit.release(req.session);
     }
 
     if (authz.ran) {
@@ -914,7 +929,7 @@ router.post('/', authenticateToken, async (req, res) => {
       });
     }
   } catch (error) {
-    console.error('Error creating transaction:', error);
+    console.error('Error creating transaction:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to create transaction' });
   }
 });
@@ -933,7 +948,7 @@ router.put('/:id', blockInDemoMode('transaction update'), authenticateToken, req
     }
     res.json({ message: 'Transaction updated successfully', transaction });
   } catch (error) {
-    console.error('Error updating transaction:', error);
+    console.error('Error updating transaction:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to update transaction' });
   }
 });
@@ -952,7 +967,7 @@ router.delete('/:id', blockInDemoMode('transaction deletion'), authenticateToken
     }
     res.json({ message: 'Transaction deleted successfully' });
   } catch (error) {
-    console.error('Error deleting transaction:', error);
+    console.error('Error deleting transaction:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to delete transaction' });
   }
 });

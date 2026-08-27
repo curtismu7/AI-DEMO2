@@ -1,6 +1,6 @@
 // One pipeline step — a native <details> card. Dumb renderer over the neutral
 // step.detail shape produced by buildTraceSteps; knows nothing about sources.
-import React from "react";
+import React, { useMemo } from "react";
 import JsonHighlight, { tokenize, formatJson } from "./shared/JsonHighlight";
 import { useEducationUIOptional } from "../context/EducationUIContext";
 import { stageReplay } from "../services/inspectorReplay";
@@ -288,7 +288,7 @@ export function hasPopoutWorthyDetail(d) {
   return false;
 }
 
-export default function TraceStepCard({ step, onInspect, defaultOpen = false, useCase = null }) {
+function TraceStepCard({ step, onInspect, defaultOpen = false, useCase = null }) {
   const eduUi = useEducationUIOptional();
   const d = step.detail || {};
   const notInPath = step.status === "notinpath";
@@ -298,6 +298,10 @@ export default function TraceStepCard({ step, onInspect, defaultOpen = false, us
   const more = d.moreDetail || null;
   const canOpenEdu = Boolean(more?.edu && eduUi?.open);
   const replay = d.replay || null;
+  const beforeAfterChangedClaims = useMemo(
+    () => claimDiffs(d.beforeAfter?.before?.text, d.beforeAfter?.after?.text),
+    [d.beforeAfter?.before?.text, d.beforeAfter?.after?.text],
+  );
 
   // Stash this run's actual request, then open the inspector on it. Falls back
   // to the bare page when sessionStorage is unavailable.
@@ -407,7 +411,7 @@ export default function TraceStepCard({ step, onInspect, defaultOpen = false, us
                   <h4>{d.beforeAfter.before?.title || "Before"}</h4>
                   <pre className="tctr-code jh-dark"><HighlightedText
                     text={d.beforeAfter.before?.text || "—"}
-                    changedClaims={claimDiffs(d.beforeAfter.before?.text, d.beforeAfter.after?.text)}
+                    changedClaims={beforeAfterChangedClaims}
                     side="before"
                   /></pre>
                 </div>
@@ -415,7 +419,7 @@ export default function TraceStepCard({ step, onInspect, defaultOpen = false, us
                   <h4>{d.beforeAfter.after?.title || "After"}</h4>
                   <pre className="tctr-code jh-dark"><HighlightedText
                     text={d.beforeAfter.after?.text || "—"}
-                    changedClaims={claimDiffs(d.beforeAfter.before?.text, d.beforeAfter.after?.text)}
+                    changedClaims={beforeAfterChangedClaims}
                     side="after"
                   /></pre>
                 </div>
@@ -469,3 +473,5 @@ export default function TraceStepCard({ step, onInspect, defaultOpen = false, us
     </details>
   );
 }
+
+export default React.memo(TraceStepCard);

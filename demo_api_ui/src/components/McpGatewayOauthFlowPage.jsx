@@ -7,6 +7,39 @@ import React, { useEffect, useRef, useState } from "react";
 import mermaid from "mermaid";
 import DiagramExportBar from "./DiagramExportBar";
 import "./McpGatewayOauthFlowPage.css";
+import "./PrivilegeMcpDiagramPage.css";
+
+export const ARCHITECTURE_SOURCE = `graph TB
+    subgraph client["Client"]
+        A["Agent<br/>(OAuth Client)"]
+    end
+
+    subgraph gw["demo_mcp_gateway — OAuth Resource Server"]
+        G["Agent Gateway<br/>local JWT pre-filter (10)<br/>RFC 7662 introspection (11-12)<br/>PingOne Authorize PDP check (13)<br/>RFC 8693 token exchange (14-15)"]
+    end
+
+    subgraph mcp["demo_mcp_server — MCP Server (Banking, Mock)"]
+        M["MCP Server<br/>independently re-verifies the<br/>exchanged token's signature via JWKS (17)"]
+    end
+
+    subgraph pingone["PingOne — Authorization Server"]
+        P["auth.pingone.com<br/>issues, introspects,<br/>and exchanges tokens"]
+    end
+
+    A -->|"1-2) connect, initialize<br/>no token"| G
+    G -->|"3) 401 + WWW-Authenticate"| A
+    A -->|"4) GET .well-known/<br/>oauth-protected-resource"| G
+    A -->|"6) OAuth2 authorization request"| P
+    P -->|"7) access token"| A
+    A -->|"9) initialize, Bearer token"| G
+    G <-->|"11-12) introspect, RFC 7662"| P
+    G <-->|"14-15) token exchange, RFC 8693"| P
+    G -->|"16) forward initialize,<br/>exchanged token"| M
+    M -->|"18) capabilities"| G
+    G -->|"19) forward capabilities"| A
+
+    classDef gwNode stroke-width:3px
+    class G gwNode`;
 
 const MERMAID_SOURCE = `sequenceDiagram
     participant U as User
@@ -115,8 +148,11 @@ const NOTES = [
 
 export default function McpGatewayOauthFlowPage() {
   const containerRef = useRef(null);
+  const archRef = useRef(null);
   const [source, setSource] = useState(MERMAID_SOURCE);
+  const [archSource, setArchSource] = useState(ARCHITECTURE_SOURCE);
   const [renderError, setRenderError] = useState(null);
+  const [archRenderError, setArchRenderError] = useState(null);
   const renderIdRef = useRef(0);
 
   useEffect(() => {
@@ -148,7 +184,69 @@ export default function McpGatewayOauthFlowPage() {
     };
   }, [source]);
 
+  useEffect(() => {
+    let cancelled = false;
+    setArchRenderError(null);
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: "dark",
+      securityLevel: "loose",
+      flowchart: { useMaxWidth: true },
+    });
+
+    async function renderArch() {
+      try {
+        const id = `mcp-gateway-oauth-flow-arch-${++renderIdRef.current}`;
+        const { svg } = await mermaid.render(id, archSource);
+        if (!cancelled && archRef.current) {
+          archRef.current.innerHTML = svg;
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setArchRenderError(err?.message || "Mermaid render failed");
+        }
+      }
+    }
+    renderArch();
+    return () => {
+      cancelled = true;
+    };
+  }, [archSource]);
+
   return (
+    <>
+    <div className="pmd-page">
+      <div className="pmd-hero">
+        <span className="pmd-eyebrow">demo_mcp_gateway &rarr; demo_mcp_server</span>
+        <h1>Agent Gateway OAuth Flow — Architecture</h1>
+        <p className="pmd-sub">
+          Topology behind the sequence diagram below: the gateway sits between the
+          agent and the MCP server as an OAuth Resource Server, introspecting and
+          exchanging the token with PingOne before ever forwarding a request downstream.
+        </p>
+      </div>
+
+      <DiagramExportBar
+        source={archSource}
+        sourceFilename="mcp-gateway-oauth-flow-architecture.mmd"
+        onSourceChange={setArchSource}
+      />
+
+      <div className="pmd-panel">
+        {archRenderError ? (
+          <p className="pmd-error">Diagram failed to render: {archRenderError}</p>
+        ) : (
+          <div className="pmd-diagram" ref={archRef} aria-label="Agent Gateway OAuth flow architecture diagram" />
+        )}
+      </div>
+
+      <p className="pmd-footer">
+        Step numbers match the sequence diagram below — the gateway's own local JWT
+        pre-filter (step 10) is a cheap check, not the authoritative gate; steps
+        11-12 (RFC 7662 introspection) are the real one.
+      </p>
+    </div>
+
     <div className="mgof-page">
       <div className="mgof-hero">
         <span className="mgof-eyebrow">demo_mcp_gateway &rarr; demo_mcp_server</span>
@@ -202,5 +300,6 @@ export default function McpGatewayOauthFlowPage() {
         this diagram collapses to the one banking backend.
       </p>
     </div>
+    </>
   );
 }

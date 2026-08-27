@@ -86,7 +86,13 @@ export default function CreateUserPanel({ onClose, onCreated }) {
     try {
       const r = await bffAxios.get(`/api/users/search/${encodeURIComponent(q)}`);
       setDelegateResults(r.data.users || []);
-    } catch { setDelegateResults([]); }
+      setFieldErrors(fe => (fe.delegateUser ? { ...fe, delegateUser: undefined } : fe));
+    } catch {
+      // Distinguish "search failed" from a genuine zero-match result — both
+      // previously rendered as an empty dropdown with no signal either way.
+      setDelegateResults([]);
+      setFieldErrors(fe => ({ ...fe, delegateUser: 'Search failed. Try again.' }));
+    }
   }, []);
 
   useEffect(() => {

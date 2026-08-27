@@ -74,7 +74,13 @@ router.get('/', authenticateToken, requireScopes(['read']), async (req, res) => 
     if (req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Access denied. Admin role required.' });
     }
-    const accounts = dataStore.getAllAccounts();
+    const allAccounts = dataStore.getAllAccounts();
+    const total = allAccounts.length;
+    const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+    const limit = Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || total || 1));
+    const accounts = (req.query.limit || req.query.offset)
+      ? allAccounts.slice(offset, offset + limit)
+      : allAccounts;
     const allUsers = dataStore.getAllUsers();
     const userMap = {};
     for (const u of allUsers) {
@@ -89,15 +95,34 @@ router.get('/', authenticateToken, requireScopes(['read']), async (req, res) => 
         ownerName: owner ? `${owner.firstName || ''} ${owner.lastName || ''}`.trim() : null,
       };
     });
-    res.json({ accounts: enriched });
+    res.json({ accounts: enriched, total });
   } catch (error) {
-    console.error('Error getting accounts:', error);
+    console.error('Error getting accounts:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to get accounts' });
   }
 });
 
 // Provision demo accounts + sample history for a user. Idempotent — always resets balances.
+// Single-flight per userId: two overlapping first-load requests for the same
+// brand-new user (two tabs, a double-invoked mount effect) would otherwise both
+// observe zero accounts and both run this, each inserting its own full set of
+// sample transactions (createTransaction mints a fresh random id — nothing dedups
+// or cleans those up). A second overlapping caller now awaits the first call's
+// result instead of re-running the provision-and-seed sequence.
+const _provisionInflight = new Map(); // userId -> Promise<Account[]>
+
 async function provisionDemoAccounts(userId) {
+  const inflight = _provisionInflight.get(userId);
+  if (inflight) return inflight;
+
+  const promise = _provisionDemoAccountsUnguarded(userId).finally(() => {
+    _provisionInflight.delete(userId);
+  });
+  _provisionInflight.set(userId, promise);
+  return promise;
+}
+
+async function _provisionDemoAccountsUnguarded(userId) {
   // Remove existing accounts for this user so we can reset balances cleanly
   const existing = dataStore.getAccountsByUserId(userId);
   const deletedAccountIds = new Set(existing.map((a) => a.id));
@@ -270,7 +295,7 @@ router.get('/my', authenticateToken, requireNotAdmin, async (req, res) => {
       }),
     });
   } catch (error) {
-    console.error('Error getting user accounts:', error);
+    console.error('Error getting user accounts:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to get your accounts' });
   }
 });
@@ -289,7 +314,7 @@ router.post('/reset-demo', authenticateToken, async (req, res) => {
     posthog.capture({ distinctId: req.user.id, event: 'demo_reset' });
     res.json({ message: 'Demo reset successfully', accounts });
   } catch (error) {
-    console.error('Error resetting demo:', error);
+    console.error('Error resetting demo:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to reset demo' });
   }
 });
@@ -316,7 +341,7 @@ router.post('/reset-all-demo', authenticateToken, requireScopes(['write']), asyn
     );
     res.json({ message: `Reset ${demoUserIds.length} demo user(s). Fresh accounts will be provisioned on next login.` });
   } catch (error) {
-    console.error('Error resetting all demo accounts:', error);
+    console.error('Error resetting all demo accounts:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to reset demo accounts' });
   }
 });
@@ -335,7 +360,7 @@ router.get('/:id', authenticateToken, requireScopes(['read']), async (req, res) 
     }
     res.json({ account });
   } catch (error) {
-    console.error('Error getting account:', error);
+    console.error('Error getting account:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to get account' });
   }
 });
@@ -365,7 +390,7 @@ router.get('/:id/balance', authenticateToken, requireScopes(['read']), async (re
     const balance = dataStore.getAccountBalance(account.id);
     res.json({ balance });
   } catch (error) {
-    console.error('Error getting account balance:', error);
+    console.error('Error getting account balance:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to get account balance' });
   }
 });
@@ -383,7 +408,7 @@ router.post('/', blockInDemoMode('account creation'), authenticateToken, require
     await saveAccountSnapshot(account.userId);
     res.status(201).json({ message: 'Account created successfully', account });
   } catch (error) {
-    console.error('Error creating account:', error);
+    console.error('Error creating account:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to create account' });
   }
 });
@@ -404,7 +429,7 @@ router.put('/:id', blockInDemoMode('account update'), authenticateToken, require
     await saveAccountSnapshot(account.userId);
     res.json({ message: 'Account updated successfully', account });
   } catch (error) {
-    console.error('Error updating account:', error);
+    console.error('Error updating account:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to update account' });
   }
 });
@@ -429,7 +454,7 @@ router.delete('/:id', blockInDemoMode('account deletion'), authenticateToken, re
     }
     res.json({ message: 'Account deleted successfully' });
   } catch (error) {
-    console.error('Error deleting account:', error);
+    console.error('Error deleting account:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to delete account' });
   }
 });
@@ -471,7 +496,7 @@ router.patch('/:id/contact-email', authenticateToken, requireScopes(['write']), 
     }
     res.json({ success: true, accountId: req.params.id, email: new_email });
   } catch (error) {
-    console.error('Error updating contact email:', error);
+    console.error('Error updating contact email:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to update contact email' });
   }
 });

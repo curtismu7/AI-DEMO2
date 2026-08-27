@@ -127,7 +127,15 @@ def keyName  = KEY_FOR_TOOL[toolName]
 if (!keyName) {
     return rpcError(rpcId, -32500, 'apikey-dispatch: no vault key configured for ' + toolName)
 }
-def keyResp = httpGet(bffVaultUrl + '?name=' + keyName, ['x-internal-gateway-secret': bffSecret])
+// tool + aud let the BFF mint a short-TTL credential bound to THIS backend
+// route when ff_jit_credentials is on. Both values come from the hardcoded maps
+// above, so they need no escaping. With the flag off the BFF ignores them and
+// returns the static key exactly as before, so this is backward compatible.
+def keyUrl = bffVaultUrl + '?name=' + keyName +
+             '&tool=' + toolName +
+             '&aud=' + routeSeg +
+             '&requester=ping-gateway'
+def keyResp = httpGet(keyUrl, ['x-internal-gateway-secret': bffSecret])
 if (keyResp.code != 200) {
     logger.warn('[apikey-dispatch] vault bridge returned ' + keyResp.code + ' for ' + keyName)
     return rpcError(rpcId, -32500, 'apikey-dispatch: could not fetch service key (bridge ' + keyResp.code + ')')

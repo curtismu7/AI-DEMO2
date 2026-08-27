@@ -496,7 +496,7 @@ router.post('/run-tests', (req, res) => {
  * Error handling middleware
  */
 router.use((error, req, res, next) => {
-    console.error('[setupWizard] Route error:', error);
+    console.error('[setupWizard] Route error:', error?.stack || String(error));
 
     if (!res.headersSent) {
         res.status(500).json({

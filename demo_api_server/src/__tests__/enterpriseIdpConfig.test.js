@@ -29,4 +29,18 @@ describe('enterprise IdP config keys', () => {
     expect(FIELD_DEFS.enterprise_mcp_policy_cache_ttl_ms.default).toBe('300000');
     expect(String(configStore.getEffective('enterprise_mcp_policy_cache_ttl_ms'))).toBe('300000');
   });
+
+  // routes/featureFlags.js's PINNED_ENV_ALIASES lists FF_ENTERPRISE_MANAGED_MCP_AUTH
+  // under the rule "Only flags with an env alias in configStore's fallback map
+  // belong here" — this asserts that alias actually exists, not just the claim.
+  test('FF_ENTERPRISE_MANAGED_MCP_AUTH env var drives ff_enterprise_managed_mcp_auth', () => {
+    const ORIG = process.env.FF_ENTERPRISE_MANAGED_MCP_AUTH;
+    try {
+      process.env.FF_ENTERPRISE_MANAGED_MCP_AUTH = 'true';
+      expect(configStore.getEffective('ff_enterprise_managed_mcp_auth')).toBe('true');
+    } finally {
+      if (ORIG === undefined) delete process.env.FF_ENTERPRISE_MANAGED_MCP_AUTH;
+      else process.env.FF_ENTERPRISE_MANAGED_MCP_AUTH = ORIG;
+    }
+  });
 });

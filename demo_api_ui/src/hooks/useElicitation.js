@@ -9,6 +9,7 @@ import bffAxios from '../services/bffAxios';
 function useElicitation() {
   const [elicitation, setElicitation] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState(null);
   const elicitationTimeoutRef = useRef(null);
 
   // Clean up timeout on unmount
@@ -22,6 +23,7 @@ function useElicitation() {
 
   // Handle elicitation event from SSE (called by the tool pipeline listener)
   const handleElicitationRequest = useCallback((event) => {
+    setError(null);
     setElicitation({
       elicitationId: event.elicitationId,
       mode: event.mode,
@@ -44,6 +46,7 @@ function useElicitation() {
     if (!elicitation || isSubmitting) return;
 
     setIsSubmitting(true);
+    setError(null);
     try {
       await bffAxios.post('/api/mcp/elicit/response', {
         elicitationId: elicitation.elicitationId,
@@ -58,7 +61,9 @@ function useElicitation() {
       }
     } catch (err) {
       console.error('Failed to submit elicitation response:', err);
-      // Keep dialog open on error so user can retry
+      // Keep dialog open on error so user can retry, but surface it --
+      // silently resetting to idle looked identical to a successful submit.
+      setError('Failed to send your response. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -66,6 +71,7 @@ function useElicitation() {
 
   const cancel = useCallback(() => {
     setElicitation(null);
+    setError(null);
     if (elicitationTimeoutRef.current) {
       clearTimeout(elicitationTimeoutRef.current);
     }
@@ -74,6 +80,7 @@ function useElicitation() {
   return {
     elicitation,
     isSubmitting,
+    error,
     handleElicitationRequest,
     submitElicitation,
     cancel,

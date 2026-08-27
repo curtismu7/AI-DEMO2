@@ -102,27 +102,6 @@ const logActivity = (req, res, next) => {
         action = 'VIEW_ACTIVITY_LOGS';
       }
 
-      // Capture response body (but limit size to avoid memory issues)
-      let responseBody = null;
-      try {
-        if (data && res.statusCode < 400) {
-          // Only capture successful responses and limit size
-          const responseData = typeof data === 'string' ? data : JSON.stringify(data);
-          if (responseData.length < 10000) { // Limit to 10KB
-            responseBody = typeof data === 'string' ? JSON.parse(data) : data;
-          } else {
-            responseBody = { message: 'Response too large to display' };
-          }
-        }
-      } catch (parseError) {
-        // If we can't parse the response, store a truncated version
-        const responseStr = typeof data === 'string' ? data : JSON.stringify(data);
-        responseBody = { 
-          message: 'Response parsing failed',
-          preview: responseStr.substring(0, 500) + (responseStr.length > 500 ? '...' : '')
-        };
-      }
-
       // Capture authorization header for cURL generation (REDACTED for security)
       const authHeader = req.get('Authorization');
       
@@ -176,11 +155,11 @@ const logActivity = (req, res, next) => {
 
       // Store the activity log (async, but don't wait for it)
       dataStore.createActivityLog(logEntry).catch(error => {
-        console.error('Error creating activity log:', error);
+        console.error('Error creating activity log:', error?.stack || String(error));
       });
 
     } catch (error) {
-      console.error('Error logging activity:', error);
+      console.error('Error logging activity:', error?.stack || String(error));
     }
 
     // Call original send method

@@ -29,6 +29,12 @@ let globalRestartState = {
 
 let contextSubscribers = [];
 
+// Tracks a retryHealthCheck() call already in flight so a concurrent caller
+// (e.g. the user clicking "Retry Now" while the automatic handle504Error
+// chain is still awaiting checkServerHealth()) joins the same check instead
+// of starting a second one that races the first over globalRestartState.
+let _inFlightHealthCheck = null;
+
 /**
  * Notify all subscribers (components using the hook) of state changes
  */
@@ -122,26 +128,38 @@ export async function checkServerHealth(timeoutMs = 5000) {
  * Retry health check with exponential backoff
  */
 async function retryHealthCheck() {
-  if (globalRestartState.attemptCount >= globalRestartState.maxAttempts) {
-    console.warn('[RestartNotification] Max retries reached');
-    // Keep modal visible, stop retrying
-    globalRestartState.isRetrying = false;
+  if (_inFlightHealthCheck) {
+    return _inFlightHealthCheck;
+  }
+
+  _inFlightHealthCheck = (async () => {
+    if (globalRestartState.attemptCount >= globalRestartState.maxAttempts) {
+      console.warn('[RestartNotification] Max retries reached');
+      // Keep modal visible, stop retrying
+      globalRestartState.isRetrying = false;
+      return false;
+    }
+
+    incrementAttempt();
+    const isHealthy = await checkServerHealth();
+
+    if (isHealthy) {
+      hideRestartModal();
+      return true;
+    }
+
+    // Schedule next retry
+    const nextDelay = getNextDelay();
+
+    globalRestartState.retryTimeoutId = setTimeout(retryHealthCheck, nextDelay);
     return false;
+  })();
+
+  try {
+    return await _inFlightHealthCheck;
+  } finally {
+    _inFlightHealthCheck = null;
   }
-
-  incrementAttempt();
-  const isHealthy = await checkServerHealth();
-
-  if (isHealthy) {
-    hideRestartModal();
-    return true;
-  }
-
-  // Schedule next retry
-  const nextDelay = getNextDelay();
-
-  globalRestartState.retryTimeoutId = setTimeout(retryHealthCheck, nextDelay);
-  return false;
 }
 
 /**
@@ -277,6 +295,7 @@ export const __internal__ = {
       isRetrying: false,
     };
     contextSubscribers = [];
+    _inFlightHealthCheck = null;
     notifySubscribers();
   },
 };

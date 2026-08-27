@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { getAgentAuthStatus, setAgentAuthorization } from '../services/agentAuthorizationService';
 import { requestSilentReauth } from '../utils/authUi';
+import { notifyError } from '../utils/appToast';
 import { useVertical } from '../vertical/useVertical';
 import { useDemoTour } from '../context/DemoTourContext';
 
@@ -141,10 +142,13 @@ function AgentAuthorizationCard() {
     setWorking(true);
     try {
       const data = await setAgentAuthorization(!authorized);
+      setStatus((prev) => (prev ? { ...prev, authorized: !authorized } : prev));
       if (data.reauthRequired) {
         requestSilentReauth(window.location.pathname);
       }
-    } catch {
+    } catch (err) {
+      notifyError(err.message || 'Could not update agent authorization.');
+    } finally {
       setWorking(false);
     }
   };

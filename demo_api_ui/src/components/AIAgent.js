@@ -6,6 +6,7 @@ import React, {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { PopOutPortal } from "./FloatingPanel";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useEducationUIOptional } from "../context/EducationUIContext";
 import { useIndustryBranding } from "../context/IndustryBrandingContext";
@@ -76,6 +77,7 @@ import { requiredFlagsForUseCase } from "../utils/requiredDemoFlags";
 import { isApprovalBlockError, isStepUpBlockError } from "../utils/stepUpError";
 import apiClient from "../services/apiClient";
 import { formatAxiosError } from "../utils/formatAxiosError";
+import { windowTranscript } from "../utils/transcriptWindow";
 import { adminCustomerContext } from "../services/adminCustomerContext";
 import ScopePicker from "./ScopePicker";
 import ComplianceModal from "./ComplianceModal";
@@ -389,6 +391,8 @@ export default function BankingAgent({
   // Always start collapsed on page load — never restore open state from localStorage.
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  /** Pop-out: the panel's Window object when popped out to its own browser window, else null. */
+  const [poppedOutWin, setPoppedOutWin] = useState(null);
   const [showResourceServerInterstitial, resourceServerInterstitialEl] = useResourceServerInterstitial();
   /** Discovery popout — "All actions" overlay. */
   const [showDiscovery, setShowDiscovery] = useState(false);
@@ -498,6 +502,12 @@ export default function BankingAgent({
   // land between scheduled polls; waking the exact in-flight poller makes the
   // retry deterministic instead of waiting on (or losing) its next timer.
   const cibaPollersRef = useRef(new Map());
+  // Pending setTimeout ids for the recursive CIBA poll chains below, keyed the
+  // same as cibaPollersRef, plus a flag so an in-flight fetch's continuation
+  // (already past the last cleared timer) still no-ops after unmount instead
+  // of calling addMessage/runAction against a dead component instance.
+  const cibaPollTimeoutsRef = useRef(new Map());
+  const cibaUnmountedRef = useRef(false);
   useEffect(() => {
     const wakeCibaPoller = (event) => {
       try {
@@ -506,7 +516,12 @@ export default function BankingAgent({
       } catch (_) { /* ignore unrelated storage events */ }
     };
     window.addEventListener('storage', wakeCibaPoller);
-    return () => window.removeEventListener('storage', wakeCibaPoller);
+    return () => {
+      window.removeEventListener('storage', wakeCibaPoller);
+      cibaUnmountedRef.current = true;
+      cibaPollTimeoutsRef.current.forEach((timeoutId) => clearTimeout(timeoutId));
+      cibaPollTimeoutsRef.current.clear();
+    };
   }, []);
   const prewarmGuardRef = useRef(null);
   if (!prewarmGuardRef.current) prewarmGuardRef.current = makeReentrancyGuard();
@@ -633,6 +648,8 @@ export default function BankingAgent({
   const [resultPanel, setResultPanel] = useState(null);
   const resultPanelRef = useRef(null);
   const terminologyRef = useRef(null);
+  /** Guards refreshAfterTransaction below against out-of-order fetch resolution. */
+  const refreshRequestIdRef = useRef(0);
   /** Live bounding rect of the agent panel — used to anchor the results pop-out */
   const [agentBounds, setAgentBounds] = useState(null);
   /** MCP server connection status for header display */
@@ -771,10 +788,18 @@ export default function BankingAgent({
       return false;
     }
   });
-  // Default ON — only an explicit Movie reel toggle-off ("0") hides it.
+  // Always ON at mount. Hiding is deliberately NOT persisted: a single stray
+  // click on the Movie reel switch used to write ba_show_filmstrip="0" to
+  // localStorage, which hid the reel in that browser profile forever — across
+  // reloads, deploys and demos, invisible to everyone else and with no
+  // self-heal. That is the "the reel disappeared again" incident, twice. The
+  // toggle still works for the current session; a reload always brings it back.
   const [showFilmstrip, setShowFilmstrip] = useState(() => {
     try {
-      return localStorage.getItem("ba_show_filmstrip") !== "0";
+      // One-time cleanup of the stale flag so a browser poisoned before this
+      // change stops hiding the reel.
+      localStorage.removeItem("ba_show_filmstrip");
+      return true;
     } catch {
       return true;
     }
@@ -803,6 +828,7 @@ export default function BankingAgent({
   const {
     elicitation,
     isSubmitting: elicitationSubmitting,
+    error: elicitationError,
     handleElicitationRequest,
     submitElicitation,
     cancel: cancelElicitation,
@@ -1982,6 +2008,46 @@ export default function BankingAgent({
     for (const t of availableTools) if (t && t.name) map[t.name] = t;
     return map;
   }, [availableTools]);
+  // Long-running sessions render the full transcript with no cap — every
+  // message bubble stays mounted for the life of the conversation. Cap the
+  // default render to the most recent N, with a manual "show earlier"
+  // escape hatch rather than a virtualization dependency.
+  const TRANSCRIPT_RECENT_CAP = 150;
+  const [transcriptShowAll, setTranscriptShowAll] = useState(false);
+  // proofRunId -> id of the LAST assistant bubble carrying that run's verdict.
+  // The transcript's role filter always includes "assistant" regardless of
+  // showRfcInfo (that flag only adds "token-event" rows), so no filter
+  // replication is needed here. Used by the message-list render to find "is
+  // this row the one that shows the ProofStrip" in O(1) instead of an O(N)
+  // slice+some scan per assistant row (O(N^2) total, re-run on every render
+  // including streaming token updates).
+  const lastProofBubbleIdByRunId = useMemo(() => {
+    const map = new Map();
+    for (const m of messages) {
+      if (m.role === "assistant" && m.proofRunId != null) {
+        map.set(m.proofRunId, m.id); // later messages overwrite — last one wins
+      }
+    }
+    return map;
+  }, [messages]);
+  // Transcript role filter, extracted so the recent-N cap below can slice it
+  // — identical predicate to what the render used inline before this fix.
+  const transcriptFilteredMsgs = useMemo(
+    () =>
+      messages.filter(
+        (msg) =>
+          msg.role === "user" ||
+          msg.role === "assistant" ||
+          msg.role === "error" ||
+          (showRfcInfo && msg.role === "token-event"),
+      ),
+    [messages, showRfcInfo],
+  );
+  const { hiddenCount: transcriptHiddenCount, visible: visibleFilteredMsgs } = windowTranscript(
+    transcriptFilteredMsgs,
+    TRANSCRIPT_RECENT_CAP,
+    transcriptShowAll,
+  );
   // Cold-start warm of the PingOne Authorize connection as soon as the user is
   // logged in, so the first tool discovery / tool call doesn't blip into the
   // "Demo Authorize" degraded fallback. Best-effort + server-side throttled.
@@ -2999,9 +3065,84 @@ export default function BankingAgent({
     [panelSize, dragPos],
   );
 
+  // Pop out: opens the panel in its own real browser window (native OS drag/resize
+  // takes over there), or closes it and returns the panel to this window. Copies
+  // this document's stylesheets so the popup renders with the same styles — same
+  // approach as FloatingPanel's PopOutPortal (a separate React root is required in
+  // the popup document; a bare createPortal there leaves synthetic events bound to
+  // this window's root).
+  const handlePopOutWindow = useCallback(() => {
+    if (poppedOutWin) {
+      if (!poppedOutWin.closed) poppedOutWin.close();
+      setPoppedOutWin(null);
+      return;
+    }
+    const win = window.open(
+      "about:blank",
+      "banking-agent-popout",
+      "width=440,height=720,resizable=yes,scrollbars=yes",
+    );
+    if (!win) return;
+
+    const styleLinks = Array.from(
+      document.querySelectorAll('link[rel="stylesheet"]'),
+    )
+      .map((el) => `<link rel="stylesheet" href="${el.href}">`)
+      .join("\n");
+    const inlineStyles = Array.from(document.querySelectorAll("style"))
+      .map((el) => `<style>${el.textContent}</style>`)
+      .join("\n");
+
+    win.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>${brandShortName} AI Agent</title>
+  ${styleLinks}
+  ${inlineStyles}
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; background: #fff; }
+    #fp-popout-root { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+  </style>
+</head>
+<body><div id="fp-popout-root"></div></body>
+</html>`);
+    win.document.close();
+    try {
+      win.history.pushState({}, "", "/agent-popout");
+    } catch (_) {}
+    win.addEventListener("beforeunload", () => setPoppedOutWin(null));
+    setPoppedOutWin(win);
+  }, [poppedOutWin, brandShortName]);
+
+  // Close the popped-out window if the panel itself unmounts (e.g. sign-out).
+  useEffect(() => {
+    return () => {
+      if (poppedOutWin && !poppedOutWin.closed) poppedOutWin.close();
+    };
+  }, [poppedOutWin]);
+
   // Panel position: override CSS anchoring when user has dragged the window
   // In inline mode the CSS (.ba-mode-inline) handles size — no inline style needed
-  const panelStyle = isInline
+  // Popped-out: fill the popup window's own viewport. The real OS window already
+  // provides drag/resize there, so the computed float-mode geometry doesn't apply.
+  const panelStyle = poppedOutWin
+    ? {
+        position: "static",
+        left: "auto",
+        top: "auto",
+        right: "auto",
+        bottom: "auto",
+        width: "100%",
+        height: "100%",
+        flex: "1 1 auto",
+        minHeight: 0,
+        maxWidth: "none",
+        maxHeight: "none",
+        transform: "none",
+      }
+    : isInline
     ? {}
     : isExpanded
       ? {
@@ -8272,15 +8413,19 @@ export default function BankingAgent({
 
   // Cancel any in-flight agent request when this instance unmounts OR the
   // route changes away from where it was issued — prevents state updates on
-  // a dead/wrong instance and mis-attributed Token Chain events.
+  // a dead/wrong instance and mis-attributed Token Chain events. Also aborts
+  // useAgentRun's own AbortController-driven stream (aguiRun) — that one was
+  // previously left running past unmount, calling onEvent/onStateSnapshot/
+  // onFinished closures over a dead instance's setState functions.
   useEffect(() => {
     return () => {
       if (sendAbortRef.current) {
         try { sendAbortRef.current.abort(); } catch (_) {}
         sendAbortRef.current = null;
       }
+      aguiAbort();
     };
-  }, [location.pathname]);
+  }, [location.pathname, aguiAbort]);
 
   // Keep resultPanelRef current so the refresh handler below can read it without stale closure.
   useEffect(() => {
@@ -8310,11 +8455,17 @@ export default function BankingAgent({
     const refreshAfterTransaction = () => {
       const currentPanel = resultPanelRef.current;
       const terminology = terminologyRef.current;
+      // banking-transaction-completed can fire twice in quick succession;
+      // if an older fetch resolves after a newer one, applying its result
+      // would silently revert the panel to stale data. Only the response
+      // matching the request id captured at ITS OWN dispatch time may apply.
+      const requestId = ++refreshRequestIdRef.current;
 
       // Always refresh liveAccounts (drives form dropdowns + accounts/balance result panels)
       fetch("/api/accounts/my", { credentials: "include" })
         .then((r) => (r.ok ? r.json() : null))
         .then((data) => {
+          if (requestId !== refreshRequestIdRef.current) return;
           if (!data?.accounts?.length) return;
           const fresh = data.accounts.map(normalizeAccountRow);
           setLiveAccounts(fresh);
@@ -8342,6 +8493,7 @@ export default function BankingAgent({
         fetch("/api/transactions/my?limit=30", { credentials: "include" })
           .then((r) => (r.ok ? r.json() : null))
           .then((data) => {
+            if (requestId !== refreshRequestIdRef.current) return;
             if (!data?.transactions) return;
             setResultPanel({
               type: "transactions",
@@ -8579,20 +8731,20 @@ export default function BankingAgent({
     const apiBase = process.env.REACT_APP_API_URL || "";
     let settled = false;
     const poll = async () => {
-      if (settled) return;
+      if (settled || cibaUnmountedRef.current) return;
       let res;
       try {
         res = await fetch(`${apiBase}/api/auth/ciba/poll/${authReqId}`, {
           credentials: "include",
         });
       } catch (_) {
-        setTimeout(poll, intervalMs);
+        cibaPollTimeoutsRef.current.set(authReqId, setTimeout(poll, intervalMs));
         return;
       }
       // 404 after another poller already approved is a soft miss — ignore once
       // we have resumed. 403/410 remain hard terminal denies.
       if (res.status === 404) {
-        if (settled) return;
+        if (settled || cibaUnmountedRef.current) return;
         const data = await res.json().catch(() => ({}));
         addMessage(
           "assistant",
@@ -8602,6 +8754,7 @@ export default function BankingAgent({
         agentFlowDiagram.completeMfaChallenge(false);
         setCibaApproving(null);
         cibaPollersRef.current.delete(authReqId);
+        cibaPollTimeoutsRef.current.delete(authReqId);
         settled = true;
         return;
       }
@@ -8615,24 +8768,26 @@ export default function BankingAgent({
         agentFlowDiagram.completeMfaChallenge(false);
         setCibaApproving(null);
         cibaPollersRef.current.delete(authReqId);
+        cibaPollTimeoutsRef.current.delete(authReqId);
         settled = true;
         return;
       }
       const data = await res.json().catch(() => ({}));
       if (data.status === "approved") {
-        if (settled) return;
+        if (settled || cibaUnmountedRef.current) return;
         settled = true;
         agentFlowDiagram.completeMfaChallenge(true);
         setCibaApproving(null);
         cibaPollersRef.current.delete(authReqId);
+        cibaPollTimeoutsRef.current.delete(authReqId);
         runAction(actionId, form, { isRefire: true });
         return;
       }
       // still pending
-      setTimeout(poll, intervalMs);
+      cibaPollTimeoutsRef.current.set(authReqId, setTimeout(poll, intervalMs));
     };
     cibaPollersRef.current.set(authReqId, poll);
-    setTimeout(poll, intervalMs);
+    cibaPollTimeoutsRef.current.set(authReqId, setTimeout(poll, intervalMs));
   };
 
   /**
@@ -8955,18 +9110,18 @@ export default function BankingAgent({
     const apiBase = process.env.REACT_APP_API_URL || "";
     let settled = false;
     const poll = async () => {
-      if (settled) return;
+      if (settled || cibaUnmountedRef.current) return;
       let res;
       try {
         res = await fetch(`${apiBase}/api/auth/ciba/poll/${authReqId}`, {
           credentials: "include",
         });
       } catch (_) {
-        setTimeout(poll, intervalMs);
+        cibaPollTimeoutsRef.current.set(authReqId, setTimeout(poll, intervalMs));
         return;
       }
       if (res.status === 404) {
-        if (settled) return;
+        if (settled || cibaUnmountedRef.current) return;
         const data = await res.json().catch(() => ({}));
         addMessage(
           "assistant",
@@ -8976,6 +9131,7 @@ export default function BankingAgent({
         agentFlowDiagram.completeMfaChallenge(false);
         setCibaApproving(null);
         cibaPollersRef.current.delete(authReqId);
+        cibaPollTimeoutsRef.current.delete(authReqId);
         settled = true;
         return;
       }
@@ -8989,16 +9145,18 @@ export default function BankingAgent({
         agentFlowDiagram.completeMfaChallenge(false);
         setCibaApproving(null);
         cibaPollersRef.current.delete(authReqId);
+        cibaPollTimeoutsRef.current.delete(authReqId);
         settled = true;
         return;
       }
       const data = await res.json().catch(() => ({}));
       if (data.status === "approved") {
-        if (settled) return;
+        if (settled || cibaUnmountedRef.current) return;
         settled = true;
         agentFlowDiagram.completeMfaChallenge(true);
         setCibaApproving(null);
         cibaPollersRef.current.delete(authReqId);
+        cibaPollTimeoutsRef.current.delete(authReqId);
         setNlLoading(true);
         try {
           emitResumeDispatch("sent", { text, useCaseId: useCaseId || null, exit: "ciba-retry" });
@@ -9031,10 +9189,10 @@ export default function BankingAgent({
         return;
       }
       // still pending
-      setTimeout(poll, intervalMs);
+      cibaPollTimeoutsRef.current.set(authReqId, setTimeout(poll, intervalMs));
     };
     cibaPollersRef.current.set(authReqId, poll);
-    setTimeout(poll, intervalMs);
+    cibaPollTimeoutsRef.current.set(authReqId, setTimeout(poll, intervalMs));
   };
 
   const handleP1MfaError = (errorMsg) => {
@@ -9159,7 +9317,8 @@ export default function BankingAgent({
       )}
 
       {/* Panel */}
-      {effectiveIsOpen && (
+      {effectiveIsOpen && (() => {
+        const panelEl = (
         <div
           className={`banking-agent-panel ba-mode-light${isExpanded && !isInline ? " ba-expanded" : ""}${isInline ? " ba-mode-inline" : ""}${isBottomDock ? " ba-embedded-bottom-dock" : ""}${splitChrome ? " ba-split-column" : ""}${distinctFloatingChrome && isInline ? " ba-popout-mode" : ""}`}
           role="dialog"
@@ -9172,12 +9331,13 @@ export default function BankingAgent({
           style={{ ...panelStyle, '--ba-agent-bg': pageManifest?.theme?.cssVars?.['--app-primary-red'] }}
         >
           {/* Header — spans full width */}
-          {/* In inline mode: no drag handle. In float mode: drag to reposition */}
+          {/* In inline mode: no drag handle. Popped out: the OS window is dragged
+              instead. In float mode: drag to reposition. */}
           <div
             role="button"
-            tabIndex={isInline ? -1 : 0}
-            className={`ba-header${isInline ? "" : " banking-agent-drag-handle"}`}
-            onPointerDown={isInline ? undefined : handleDragStart}
+            tabIndex={isInline || poppedOutWin ? -1 : 0}
+            className={`ba-header${isInline || poppedOutWin ? "" : " banking-agent-drag-handle"}`}
+            onPointerDown={isInline || poppedOutWin ? undefined : handleDragStart}
           >
             <div className="ba-header-top">
               <div className="ba-header-left">
@@ -9414,13 +9574,13 @@ export default function BankingAgent({
                         checked={showFilmstrip}
                         onChange={(e) => {
                           const newVal = e.target.checked;
-                          try {
-                            localStorage.setItem("ba_show_filmstrip", newVal ? "1" : "0");
-                          } catch {}
+                          // Deliberately NOT persisted — see the showFilmstrip
+                          // initializer. Session-only, so a reload always
+                          // restores the reel.
                           setShowFilmstrip(newVal);
                           window.dispatchEvent(new CustomEvent("agent-filmstrip-toggle", { detail: { on: newVal } }));
                         }}
-                        title="Show or hide the token chain movie reel at the bottom of the page"
+                        title="Show or hide the token chain movie reel for this session (returns on reload)"
                       >
                         Movie reel
                       </Check>
@@ -9606,8 +9766,9 @@ export default function BankingAgent({
                   Clear progress
                 </button>
                 </div>
-                {/* Expand/restore — float mode only (unchanged) */}
-                {!isInline && (
+                {/* Expand/restore — float mode only, hidden when popped out
+                    (the OS window controls size there instead) */}
+                {!isInline && !poppedOutWin && (
                   <button
                     type="button"
                     className="ba-icon-btn"
@@ -9620,6 +9781,24 @@ export default function BankingAgent({
                     }
                   >
                     {isExpanded ? "⊟" : "⊞"}
+                  </button>
+                )}
+                {/* Pop out — float mode only. Moves the panel into its own real
+                    browser window so it stops covering the page; click again
+                    (from either window) to bring it back. */}
+                {!isInline && (
+                  <button
+                    type="button"
+                    className="ba-icon-btn ba-popout-btn"
+                    onClick={handlePopOutWindow}
+                    aria-label={
+                      poppedOutWin ? "Bring agent back into page" : "Pop out to new window"
+                    }
+                    title={
+                      poppedOutWin ? "Bring agent back into page" : "Pop out to new window"
+                    }
+                  >
+                    🪟
                   </button>
                 )}
                 {/* System graph link — float mode only; on /admin the strip has it */}
@@ -9639,11 +9818,17 @@ export default function BankingAgent({
                   <button
                     type="button"
                     className="ba-icon-btn ba-close-btn"
-                    onClick={() => setIsOpen(false)}
+                    onClick={() => {
+                      setIsOpen(false);
+                      if (poppedOutWin) {
+                        if (!poppedOutWin.closed) poppedOutWin.close();
+                        setPoppedOutWin(null);
+                      }
+                    }}
                     aria-label="Close agent"
                     title="Close"
                   >
-                    ✕
+                    −
                   </button>
                 )}
               </div>
@@ -11228,14 +11413,17 @@ export default function BankingAgent({
                     </p>
                   </div>
                 )}
-                {messages
-                  .filter(
-                    (msg) =>
-                      msg.role === "user" ||
-                      msg.role === "assistant" ||
-                      msg.role === "error" ||
-                      (showRfcInfo && msg.role === "token-event"),
-                  )
+                {transcriptHiddenCount > 0 && (
+                  <button
+                    type="button"
+                    className="ba-show-earlier-btn"
+                    onClick={() => setTranscriptShowAll(true)}
+                  >
+                    Show {transcriptHiddenCount} earlier message
+                    {transcriptHiddenCount === 1 ? "" : "s"}
+                  </button>
+                )}
+                {visibleFilteredMsgs
                   .map((msg, msgIdx, filteredMsgs) => {
                     // One strip per RUN, on that run's last assistant bubble.
                     // A run can emit several bubbles ("Running Demo step 1…"
@@ -11244,13 +11432,7 @@ export default function BankingAgent({
                     const showProofFor =
                       msg.role === "assistant" &&
                       msg.proofRunId != null &&
-                      !filteredMsgs
-                        .slice(msgIdx + 1)
-                        .some(
-                          (m) =>
-                            m.role === "assistant" &&
-                            m.proofRunId === msg.proofRunId,
-                        )
+                      lastProofBubbleIdByRunId.get(msg.proofRunId) === msg.id
                         ? msg.proofRunId
                         : null;
                     if (msg.role === "reasoning") {
@@ -11804,8 +11986,9 @@ export default function BankingAgent({
               </div>
             </div>
           </div>
-          {/* Resize handles — all 8 directions, float mode only */}
-          {!isInline && (
+          {/* Resize handles — all 8 directions, float mode only. Hidden when
+              popped out: the OS window itself is resized instead. */}
+          {!isInline && !poppedOutWin && (
             <>
               <div
                 role="button"
@@ -11866,7 +12049,25 @@ export default function BankingAgent({
             </>
           )}
         </div>
-      )}
+        );
+        return poppedOutWin && !poppedOutWin.closed ? (
+          <>
+            <PopOutPortal win={poppedOutWin}>{panelEl}</PopOutPortal>
+            <div className="ba-popout-placeholder">
+              <span>🪟 {brandShortName} AI Agent — popped out</span>
+              <button
+                type="button"
+                className="ba-popout-placeholder-btn"
+                onClick={handlePopOutWindow}
+              >
+                Bring back
+              </button>
+            </div>
+          </>
+        ) : (
+          panelEl
+        );
+      })()}
       <TokenFlowDetailModal
         isOpen={showTokenChain}
         onClose={() => setShowTokenChain(false)}
@@ -11986,6 +12187,7 @@ export default function BankingAgent({
           elicitation={elicitation}
           onSubmit={submitElicitation}
           onCancel={cancelElicitation}
+          error={elicitationError}
         />
       )}
     </div>

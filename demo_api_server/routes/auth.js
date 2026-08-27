@@ -30,7 +30,7 @@ router.post('/login', (req, res) => {
     // Regenerate session ID on privilege elevation to prevent session fixation
     req.session.regenerate((err) => {
       if (err) {
-        console.error('Session regeneration error during login:', err);
+        console.error('Session regeneration error during login:', err?.stack || String(err));
         return res.status(500).json({ error: 'Internal server error' });
       }
       req.session.user = user;
@@ -57,7 +57,7 @@ router.post('/login', (req, res) => {
     });
 
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('Login error:', error?.stack || String(error));
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -104,7 +104,7 @@ router.post('/register', async (req, res) => {
     // Regenerate session ID on privilege elevation to prevent session fixation
     req.session.regenerate((err) => {
       if (err) {
-        console.error('Session regeneration error during register:', err);
+        console.error('Session regeneration error during register:', err?.stack || String(err));
         return res.status(500).json({ error: 'Internal server error' });
       }
       req.session.user = newUser;
@@ -132,7 +132,7 @@ router.post('/register', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Registration error:', error);
+    console.error('Registration error:', error?.stack || String(error));
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -190,7 +190,7 @@ router.get('/me', authenticateToken, (req, res) => {
     res.json({ user: userWithoutPassword });
 
   } catch (error) {
-    console.error('Get user error:', error);
+    console.error('Get user error:', error?.stack || String(error));
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -229,7 +229,7 @@ router.put('/change-password', authenticateToken, async (req, res) => {
     res.json({ message: 'Password changed successfully' });
 
   } catch (error) {
-    console.error('Change password error:', error);
+    console.error('Change password error:', error?.stack || String(error));
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -109,7 +109,7 @@ router.post('/', authenticateToken, async (req, res) => {
 
     return res.json(buildResponse(results, results.toolCall.success));
   } catch (error) {
-    console.error('PingOne setup error:', error);
+    console.error('PingOne setup error:', error?.stack || String(error));
     res.status(500).json({ success: false, error: error.message });
   }
 });

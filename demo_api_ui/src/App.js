@@ -27,6 +27,7 @@ import McpGatewayOauthFlowPage from "./components/McpGatewayOauthFlowPage";
 import PrivilegeMcpDiagramPage from "./components/PrivilegeMcpDiagramPage";
 import PrivilegeGatewayTopologyPage from "./components/PrivilegeGatewayTopologyPage";
 import InvestDualAuthDiagramPage from "./components/InvestDualAuthDiagramPage";
+import ExternalDoorDiagramPage from "./components/ExternalDoorDiagramPage";
 import GatewayEnforcementMapPage from "./components/GatewayEnforcementMapPage";
 import ResourceServerPlacementPage from "./components/ResourceServerPlacementPage";
 import ResourceServerCheckpointPage from "./components/ResourceServerCheckpointPage";
@@ -137,9 +138,11 @@ import { useOAuthUrlCleanup } from "./hooks/useOAuthUrlCleanup";
 import { useServerHealthCheck } from "./hooks/useServerHealthCheck";
 import AdminThemesPage from "./pages/AdminThemesPage";
 import AiControlPlanePage from "./pages/AiControlPlanePage";
+import AgentRegistryPage from "./pages/AgentRegistryPage";
 import CheckPage from "./pages/CheckPage";
 import TracingPage from "./pages/TracingPage";
 import TransactionTracePage from "./pages/TransactionTracePage";
+import AutonomousAgentsPage from "./pages/AutonomousAgentsPage";
 import FootprintPicksPage from "./pages/FootprintPicksPage";
 import FootprintMockGalleryPage from "./pages/FootprintMockGalleryPage";
 import FootprintLiveShellPage from "./pages/FootprintLiveShellPage";
@@ -148,6 +151,7 @@ import LangChainPage from "./pages/LangChainPage";
 import SnapshotImport from "./pages/SnapshotImport";
 import PersonalAgentStudioPage from "./pages/PersonalAgentStudioPage";
 import PersonalAgentClientWindow from "./pages/PersonalAgentClientWindow";
+import TransactionTraceEmbedPage from "./pages/TransactionTraceEmbedPage";
 import PingCliPage from "./components/PingCliPage";
 import LlamaVscodeGuidePage from "./components/LlamaVscodeGuidePage";
 import AdminRoute from "./routes/AdminRoute";
@@ -186,6 +190,14 @@ import PublicRoutes, {
   GroupPolicyBoardPageRoute,
   PrivilegeMcpClientPageRoute,
   PingOneSetupPageRoute,
+  M2mCredentialsSamplePageRoute,
+  StandaloneIndexRoute,
+  StandaloneSampleRoute,
+  StandaloneRunnerRoute,
+  SampleM2mPageRoute,
+  SampleCustomAdminRolePageRoute,
+  SampleUserRegistrationPageRoute,
+  SampleMfaDemoPageRoute,
   PingOneTestPageRoute,
   ReportsPageRoute,
   SdkLoginCallbackRoute,
@@ -464,8 +476,10 @@ function AppWithAuth() {
   // Enterprise-Managed MCP Auth demo (/demo/enterprise-mcp) — no inline column
   // host of its own, so it only needs shouldMountSingleAgent below (default
   // floating chrome), not the inline-chrome branch onLiveWorkbenchRoute and
-  // onAgentLifecycleRoute get.
-  const onEnterpriseMcpDemoRoute = Boolean(user) && isEnterpriseMcpDemoRoute(pathname);
+  // onAgentLifecycleRoute get. NO Boolean(user) check: the route is public
+  // now (see the route comment below), and a guest still needs the floating
+  // agent mounted to try step 2 — same reasoning as onMiddlePlacementInDashboard.
+  const onEnterpriseMcpDemoRoute = isEnterpriseMcpDemoRoute(pathname);
 
   // Landing home (/): show floating agent even when signed out.
   // Suppress float on signed-in / only when UserDashboard owns middle placement.
@@ -652,6 +666,45 @@ function AppWithAuth() {
                   element={<PingOneTestPageRoute user={user} logout={logout} />}
                 />
                 <Route
+                  path="/m2m-sample"
+                  element={
+                    <M2mCredentialsSamplePageRoute user={user} logout={logout} />
+                  }
+                />
+                {/* Standalone sample URLs — the same sample pages with no
+                    AppShell around them, for sharing or screen-sharing without
+                    the demo. Public: they render no session-dependent UI. */}
+                <Route path="/standalone" element={<StandaloneIndexRoute />} />
+                <Route
+                  path="/standalone/runner/m2m"
+                  element={<StandaloneRunnerRoute />}
+                />
+                <Route
+                  path="/standalone/:sampleId"
+                  element={<StandaloneSampleRoute />}
+                />
+                {/* PingOne sample apps — what each teaches, plus its code in 5 stacks */}
+                <Route
+                  path="/samples/m2m-credentials"
+                  element={<SampleM2mPageRoute user={user} logout={logout} />}
+                />
+                <Route
+                  path="/samples/custom-admin-role"
+                  element={
+                    <SampleCustomAdminRolePageRoute user={user} logout={logout} />
+                  }
+                />
+                <Route
+                  path="/samples/user-registration"
+                  element={
+                    <SampleUserRegistrationPageRoute user={user} logout={logout} />
+                  }
+                />
+                <Route
+                  path="/samples/mfa-demo"
+                  element={<SampleMfaDemoPageRoute user={user} logout={logout} />}
+                />
+                <Route
                   path="/pingone-setup"
                   element={<PingOneSetupPageRoute user={user} logout={logout} />}
                 />
@@ -784,6 +837,22 @@ function AppWithAuth() {
                         <TopNav user={user} onLogout={logout} />
                         <main className="main-content">
                           <AiControlPlanePage openKillSwitchModal={openKillSwitchModal} />
+                        </main>
+                      </>
+                    ) : (
+                      <SignInRequired />
+                    )
+                  }
+                />
+                {/* Agent Registry — any logged-in user, same level as the Control Plane */}
+                <Route
+                  path="/agent-registry"
+                  element={
+                    loading ? null : user ? (
+                      <>
+                        <TopNav user={user} onLogout={logout} />
+                        <main className="main-content">
+                          <AgentRegistryPage />
                         </main>
                       </>
                     ) : (
@@ -942,18 +1011,18 @@ function AppWithAuth() {
                     )
                   }
                 />
-                {/* MCP Enterprise-Managed Authorization demo. Signed-in users
-                    only: it flips a feature flag and drives the agent, both of
-                    which need a session. SignInRequired, never a redirect — a
-                    presenter who lands here logged out must be told why, not
-                    silently bounced home. */}
+                {/* MCP Enterprise-Managed Authorization demo. Public: the
+                    explainer and token-chain filmstrip render for anyone.
+                    Arming the flag / running the scenario both call
+                    authenticated BFF endpoints that fail closed on their own
+                    (armEnterpriseMcpDemo's 401 surfaces as a friendly toast,
+                    readEnterpriseMcpDemoState never throws) — no separate
+                    sign-in gate needed here. */}
                 <Route
                   path="/demo/enterprise-mcp"
                   element={
-                    loading ? null : user ? (
+                    loading ? null : (
                       <EnterpriseMcpDemoPageRoute user={user} logout={logout} />
-                    ) : (
-                      <SignInRequired />
                     )
                   }
                 />
@@ -1007,6 +1076,15 @@ function AppWithAuth() {
                   element={
                     // Bare route for pop-out window — no nav shell.
                     <PersonalAgentClientWindow />
+                  }
+                />
+                <Route
+                  path="/transaction-trace/embed/:correlationId"
+                  element={
+                    // Bare route — the reel an external MCP client's reel_url
+                    // opens (LM Studio link / LibreChat artifact iframe). No
+                    // session: the id is the capability. See routes/mcpFacade.js.
+                    <TransactionTraceEmbedPage />
                   }
                 />
                 {/* Legacy Test Lab URL → unified Demo check */}
@@ -1538,6 +1616,10 @@ function AppWithAuth() {
                               element={<InvestDualAuthDiagramPage />}
                             />
                             <Route
+                              path="/external-door-diagrams"
+                              element={<ExternalDoorDiagramPage />}
+                            />
+                            <Route
                               path="/gateway-enforcement-map"
                               element={<GatewayEnforcementMapPage />}
                             />
@@ -1568,6 +1650,13 @@ function AppWithAuth() {
                             <Route
                               path="/actor-token-education"
                               element={<ActorTokenEducation />}
+                            />
+                            <Route
+                              // Public on purpose, including its feature
+                              // toggle — see auth-requirements.json. No guard
+                              // here, and authz:verify fails if that drifts.
+                              path="/autonomous-agents"
+                              element={<AutonomousAgentsPage />}
                             />
                             <Route
                               path="/token-compliance"
@@ -1837,7 +1926,8 @@ function AppWithAuth() {
                 }}
               />
               <SpinnerHost />
-              <DemoScriptLauncher user={user} />
+              {/* Global overlay — off on no-chrome routes (embedded reel). */}
+              {isApiTrafficOnlyPage ? null : <DemoScriptLauncher user={user} />}
             </div>
           </ActivityNarrativeProvider>
           </ProofOfEnforcementProvider>

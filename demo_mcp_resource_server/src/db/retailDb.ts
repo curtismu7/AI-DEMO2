@@ -130,13 +130,13 @@ export function getOrder(id: string): Order | null {
  */
 export function insertOrder(input: { product: string; amount: number; sku?: string; date?: string }): Order {
   return withDb((conn) => {
-    const rows = conn
-      .prepare("SELECT id FROM orders WHERE id LIKE 'ord-new-%'")
-      .all() as unknown as Array<{ id: string }>;
-    const highest = rows.reduce((max, r) => {
-      const n = Number.parseInt(String(r.id).slice('ord-new-'.length), 10);
-      return Number.isFinite(n) && n > max ? n : max;
-    }, 0);
+    // SQL MAX() instead of shipping every prior row into JS to reduce — same
+    // "highest existing suffix" semantics, without a per-call full-table scan
+    // whose cost grows with every order ever placed this session.
+    const row = conn
+      .prepare("SELECT MAX(CAST(SUBSTR(id, LENGTH('ord-new-') + 1) AS INTEGER)) AS maxN FROM orders WHERE id LIKE 'ord-new-%'")
+      .get() as { maxN: number | null } | undefined;
+    const highest = row?.maxN ?? 0;
 
     const order: Order = {
       id: `ord-new-${highest + 1}`,

@@ -47,6 +47,9 @@ import { appendEnterpriseWwwAuthHint, buildEnterpriseExtensionBlock, isEnterpris
 import { runWithCorrelation } from '../correlationContext';
 import { buildAuthzHealth } from '../authzPosture';
 import { toolsListBackendOutage } from '../toolsListHealth';
+import { OAuthBrokerRouter } from '../oauth/OAuthBrokerRouter';
+import { ClientRegistry } from '../oauth/ClientRegistry';
+import { BrokerTokenStore } from '../oauth/BrokerTokenStore';
 
 const MCP_SESSION_HEADER = 'mcp-session-id';
 const MCP_PROTO_HEADER = 'mcp-protocol-version';
@@ -163,9 +166,19 @@ export class GatewayServer {
   // id 1 (cross-caller cancellation / DoS). The WS transport avoids this by
   // giving each connection its own inFlightCalls map (index.ts).
   private readonly inFlightCalls = new Map<string, AbortController>();
+  private oauthBroker: OAuthBrokerRouter;
 
   constructor({ config, upstreamMcpUrl, requestMiddleware, mtlsCerts }: GatewayServerOptions) {
     this.config = config;
+    this.oauthBroker = new OAuthBrokerRouter(
+      new ClientRegistry(),
+      new BrokerTokenStore(),
+      // MCP_GW_RESOURCE_URI is a comma-list of accepted audiences in compose
+      // (tokenValidator splits it); the PingOne `resource` param takes ONE —
+      // the first is the gateway's own primary audience (mcpgateway.ping.demo).
+      (this.config.gatewayResourceUri || '').split(',')[0].trim(),
+      GATEWAY_SCOPES,
+    );
     this.upstreamMcpUrl = (
       upstreamMcpUrl ||
       process.env.UPSTREAM_MCP_URL ||
@@ -229,8 +242,14 @@ export class GatewayServer {
     const method = req.method || 'GET';
 
     if (url === '/.well-known/oauth-protected-resource' && method === 'GET') {
-      this.handleMetadata(res);
+      this.handleMetadata(req, res);
       return;
+    }
+
+    if (this.isOAuthBrokerPath(url) ) {
+      const parsedUrl = new URL(url, `http://${req.headers.host || 'localhost'}`);
+      const handled = await this.oauthBroker.handle(req, res, parsedUrl);
+      if (handled) return;
     }
 
     if (url === '/health' && method === 'GET') {
@@ -373,6 +392,17 @@ export class GatewayServer {
     res.end(JSON.stringify({ error: 'not_found' }));
   }
 
+  // Path match for the OAuth broker (RFC 8414 AS metadata + DCR + authorize/
+  // callback/token) — dispatched to OAuthBrokerRouter in handleRequest().
+  private isOAuthBrokerPath(url: string): boolean {
+    const pathname = url.split('?')[0];
+    return pathname === '/.well-known/oauth-authorization-server'
+      || pathname === '/oauth/register'
+      || pathname === '/oauth/authorize'
+      || pathname === '/oauth/callback'
+      || pathname === '/oauth/token';
+  }
+
   // ---------------------------------------------------------------------------
   // Internal-secret gate for the /admin surface (mirrors index.ts BL-01/WR-07).
   // Refuses to compare against an empty/weak secret (would let a header-less
@@ -409,9 +439,8 @@ export class GatewayServer {
   // clients must authenticate against. (D-02)
   // ---------------------------------------------------------------------------
 
-  private handleMetadata(res: ServerResponse): void {
+  private handleMetadata(req: IncomingMessage, res: ServerResponse): void {
     const pingOneEnvId = process.env.PINGONE_ENVIRONMENT_ID || '';
-    const pingOneRegion = process.env.PINGONE_REGION || 'com';
 
     const metadata: Record<string, unknown> = {
       resource: this.config.gatewayResourceUri,
@@ -421,10 +450,14 @@ export class GatewayServer {
       resource_documentation: 'https://datatracker.ietf.org/doc/html/rfc9728',
     };
 
+    // Points at THIS gateway's own OAuth broker (RFC 8414 AS metadata +
+    // DCR), not raw PingOne — PingOne has no open dynamic client
+    // registration, so a generic MCP client pointed there would fail before
+    // ever reaching a token. The broker relays the real PingOne token.
+    // Must be a URL the client can GET (same reasoning as resource_metadata
+    // below) — the audience string is not one.
     if (pingOneEnvId) {
-      metadata.authorization_servers = [
-        `https://auth.pingone.${pingOneRegion}/${pingOneEnvId}/as`,
-      ];
+      metadata.authorization_servers = [selfBaseUrl(req, this.config.port)];
     }
 
     if (isEnterpriseManagedMcpAuthEnabled()) {
@@ -595,7 +628,13 @@ export class GatewayServer {
           res.writeHead(upstreamRes.statusCode ?? 200, sseHeaders);
           upstreamRes.pipe(res, { end: true });
           upstreamRes.on('end', finish);
-          upstreamRes.on('error', finish);
+          upstreamRes.on('error', () => {
+            // pipe() only ends the destination on source 'end', never on source
+            // 'error' — without this the client-facing SSE response is left open
+            // forever when the upstream connection resets mid-stream.
+            if (!res.writableEnded) res.end();
+            finish();
+          });
         },
       );
       // The `timeout` request option only ARMS the socket timer; it fires nothing
@@ -750,13 +789,23 @@ export class GatewayServer {
       // SHOULD send MCP-Protocol-Version on every request; a value the gateway
       // doesn't support gets a 400, not a silent pass-through. `initialize` is
       // exempt — that request IS the negotiation, before any version is agreed.
+      // Checked against SUPPORTED_PROTOCOL_VERSIONS (not the single
+      // MCP_PROTOCOL_VERSION the gateway uses for its OWN upstream hop) because
+      // `initialize`'s reply relays whatever protocolVersion the upstream
+      // mcp-server negotiated — a spec-following client then echoes that value
+      // back on every later request, and a single-version check here rejected
+      // it (TECH_DEBT: "Agent Gateway HTTP /mcp protocol-version mismatch").
       const inboundProtocolVersion = req.headers[MCP_PROTO_HEADER] as string | undefined;
-      if (inboundProtocolVersion && parsedRpc.method !== 'initialize' && inboundProtocolVersion !== MCP_PROTOCOL_VERSION) {
+      if (
+        inboundProtocolVersion
+        && parsedRpc.method !== 'initialize'
+        && !(SUPPORTED_PROTOCOL_VERSIONS as readonly string[]).includes(inboundProtocolVersion)
+      ) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
           error: 'unsupported_protocol_version',
-          message: `This gateway supports MCP protocol version ${MCP_PROTOCOL_VERSION}, not ${inboundProtocolVersion}.`,
-          supported: [MCP_PROTOCOL_VERSION],
+          message: `This gateway supports MCP protocol version(s) ${SUPPORTED_PROTOCOL_VERSIONS.join(', ')}, not ${inboundProtocolVersion}.`,
+          supported: SUPPORTED_PROTOCOL_VERSIONS,
         }));
         return;
       }

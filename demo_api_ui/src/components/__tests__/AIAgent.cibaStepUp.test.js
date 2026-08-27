@@ -229,3 +229,35 @@ describe("runAction mcp_step_up_required — CIBA vs MFA", () => {
     expect(called("/api/auth/ciba/initiate")).toBe(false);
   });
 });
+
+describe("pollCibaStepUp — unmount cleanup", () => {
+  it("clears the pending poll timer on unmount instead of continuing to poll a dead instance", async () => {
+    vi.useFakeTimers();
+    try {
+      callMcpTool.mockRejectedValue(stepUpError("ciba"));
+      const { unmount } = renderAgent({ user: customerUser, mode: "inline" });
+      await act(async () => {
+        fireEvent.click(screen.getByText("Account nickname"));
+      });
+
+      // Let the CIBA initiate POST resolve and pollCibaStepUp arm its first
+      // setTimeout(poll, (interval=5)*1000) from the beforeEach fetch mock.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(called("/api/auth/ciba/initiate")).toBe(true);
+      expect(called("/api/auth/ciba/poll/")).toBe(false);
+
+      unmount();
+
+      // Well past several poll intervals. Before the fix, the recursive
+      // setTimeout chain kept firing against the unmounted instance
+      // regardless — this is exactly that window.
+      await vi.advanceTimersByTimeAsync(60000);
+
+      expect(called("/api/auth/ciba/poll/")).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

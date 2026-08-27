@@ -23,6 +23,27 @@ spec:
   - host: ai-demo.ping-devops.com
     http:
       paths:
+      # Grafana is routed here rather than proxied by the frontend's nginx, so
+      # the app does not depend on it existing. nginx resolves a literal
+      # upstream at STARTUP and exits if it does not resolve, so a
+      # `proxy_pass http://grafana` inside the frontend meant a missing Grafana
+      # crash-looped the frontend and took the WHOLE site down — the app, /api
+      # and every other route with it. That happened on 2026-08-27.
+      #
+      # As an ingress path the blast radius is one path: a missing Grafana is a
+      # 503 on /grafana and nothing else. Longest-prefix wins, so this beats the
+      # "/" rule below regardless of list order.
+      #
+      # No rewrite-target: the /grafana prefix must reach Grafana intact to match
+      # its GF_SERVER_ROOT_URL + GF_SERVER_SERVE_FROM_SUB_PATH, or the UI loads
+      # blank.
+      - path: /grafana
+        pathType: Prefix
+        backend:
+          service:
+            name: grafana
+            port:
+              number: 3000
       - path: /
         pathType: Prefix
         backend:
@@ -74,11 +95,20 @@ spec:
       # dynamic client registration, and the discovery chain dead-ends with
       # nothing naming the cause. Routing this one path to mcp-server puts the
       # document back in the hands of the server that actually knows its own
-      # issuer. Exact beats Prefix in ingress-nginx, so only this path diverges;
-      # everything else on this host still goes through the gateway and its
-      # P1AZ decision.
+      # issuer.
+      #
+      # pathType Prefix, not Exact: RFC 9728 §3.1 has clients request
+      # <well-known>/<resource-path> (here: .../oauth-protected-resource/mcp),
+      # not the bare well-known path — confirmed live via MCP Inspector, which
+      # got routed past this Exact rule to ping-gateway's global handler and
+      # was told to register at PingOne directly (the exact failure mode this
+      # rule exists to prevent, just for the suffixed request shape). Prefix
+      # matches both the bare path and any /-delimited subpath, and still
+      # loses to nothing here: ingress-nginx picks the longest matching path,
+      # so this stays more specific than the catch-all `/` rule below for any
+      # request actually under oauth-protected-resource/.
       - path: /.well-known/oauth-protected-resource
-        pathType: Exact
+        pathType: Prefix
         backend:
           service:
             name: mcp-server

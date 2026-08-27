@@ -123,3 +123,19 @@ test('more than 20 items disables Run with a cap message; invalid JSON also disa
   expect(screen.getByRole('button', { name: 'Run bulk decision' })).toBeDisabled();
   expect(screen.getByText(/Invalid JSON/)).toBeInTheDocument();
 });
+
+// Regression guard: a load failure previously left `endpoints` empty with no
+// error state set at all, indistinguishable from a tenant with no policy
+// configured ("No decision endpoints found" either way).
+test('surfaces a message when the live-policy endpoint list fails to load', async () => {
+  bffAxios.get.mockImplementation((url) => {
+    if (url === '/api/authorize/pingone-live-policy') {
+      return Promise.reject({ response: { data: { message: 'PingOne unreachable' } } });
+    }
+    return Promise.resolve({ data: {} });
+  });
+  render(<BulkDecisionPanel />);
+
+  await waitFor(() => expect(bffAxios.get).toHaveBeenCalledWith('/api/authorize/pingone-live-policy'));
+  await screen.findByText('PingOne unreachable');
+});

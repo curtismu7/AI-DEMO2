@@ -78,4 +78,30 @@ describe('GET /.well-known/oauth-protected-resource', () => {
     // Addressed as an external client reaches it, not by the in-cluster name.
     expect(call.json.resource).toBe('https://cmuir-mcp.ping-devops.com/mcp');
   });
+
+  it('also answers the RFC 9728 §3.1 resource-path-suffixed form (.../oauth-protected-resource/mcp)', async () => {
+    // Confirmed live via MCP Inspector: it requests the suffixed form, not the
+    // bare well-known path. Before this fix the request fell through to a 404
+    // here even after the ingress routed it correctly.
+    process.env.MCP_OPEN_CLIENT_REGISTRATION = 'true';
+    process.env.OAUTH_ISSUER = 'https://cmuir-mcp.ping-devops.com';
+
+    const call = fakeReqRes('/.well-known/oauth-protected-resource/mcp');
+    await (makeTransport() as never as {
+      handleRequest: (a: IncomingMessage, b: ServerResponse, c: string) => Promise<void>;
+    }).handleRequest(call.req, call.res, '/.well-known/oauth-protected-resource/mcp');
+
+    expect(call.statusCode).toBe(200);
+    expect(call.json.authorization_servers).toEqual(['https://cmuir-mcp.ping-devops.com']);
+    expect(call.json.resource).toBe('https://cmuir-mcp.ping-devops.com/mcp');
+  });
+
+  it('does not match an unrelated path that merely shares the prefix', async () => {
+    const call = fakeReqRes('/.well-known/oauth-protected-resource-unrelated');
+    await (makeTransport() as never as {
+      handleRequest: (a: IncomingMessage, b: ServerResponse, c: string) => Promise<void>;
+    }).handleRequest(call.req, call.res, '/.well-known/oauth-protected-resource-unrelated');
+
+    expect(call.statusCode).not.toBe(200);
+  });
 });

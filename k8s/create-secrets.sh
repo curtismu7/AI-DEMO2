@@ -23,6 +23,13 @@
 
 set -e
 
+DRY_RUN=0
+for arg in "$@"; do
+  case "$arg" in
+    --check|--dry-run) DRY_RUN=1 ;;
+  esac
+done
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 NS="${K8S_NAMESPACE:-ai-demo}"
@@ -62,6 +69,51 @@ if [ ! -f "$ASSET_ROOT/demo_api_server/.env" ]; then
     fi
   fi
 fi
+
+# ── --check/--dry-run scope warning ───────────────────────────────────────────
+# The flag only wraps secret_from_envfile()'s own value-resolution report (per
+# the plan's Testing section — a vault-vs-.env SOURCE preview, not a whole-
+# script dry-run). Every other mutation below (TLS-certs apply, service-API-key
+# / internal-secret alignment, Helix/Google/Groq/Anthropic key mirroring,
+# ping-mcpgw-secrets, ping-gateway-config, and the final rollout-restart loop)
+# still runs for real. Say so loudly so nobody mistakes --check for a safe
+# no-op against a live shared cluster.
+if [ "$DRY_RUN" = "1" ]; then
+  warn "--check/--dry-run only previews vault-vs-.env value SOURCE for secret_from_envfile() calls."
+  warn "It is NOT a full dry-run — this run still performs every other kubectl mutation in this script"
+  warn "(TLS-certs apply, key alignment/mirroring, ping-mcpgw-secrets, ping-gateway-config, and the"
+  warn "final rollout-restart of every deployment in namespace $NS)."
+fi
+
+# ── Vault: preflight + cache the key list once, before ANY kubectl call, so a
+# missing/wrong VAULT_PASSWORD aborts before this script touches the live
+# cluster at all (a vault failure discovered only at the first
+# secret_from_envfile() call would leave the tls-certs secret already applied
+# — a partial write). Fail closed: no vault script, no VAULT_PASSWORD → abort,
+# don't silently fall back to .env for what should be vault-only secrets.
+VAULT_SCRIPT="$REPO_ROOT/demo_api_server/scripts/vault.js"
+[ -f "$VAULT_SCRIPT" ] || die "vault script not found at $VAULT_SCRIPT"
+# secrets.vault is gitignored, same worktree-fallback need as VAULT_PASSWORD
+# below — default to ASSET_ROOT (main checkout when run from a worktree)
+# rather than requiring every caller to export VAULT_PATH by hand.
+export VAULT_PATH="${VAULT_PATH:-$ASSET_ROOT/secrets.vault}"
+if [ -z "${VAULT_PASSWORD:-}" ] && [ -f "$ASSET_ROOT/demo_api_server/.env" ]; then
+  VAULT_PASSWORD="$(grep -E '^VAULT_PASSWORD=.+' "$ASSET_ROOT/demo_api_server/.env" | head -1 | cut -d= -f2- | tr -d '"')"
+fi
+[ -n "${VAULT_PASSWORD:-}" ] || die "VAULT_PASSWORD is required (export it, or set it in demo_api_server/.env)"
+info "Reading vault key list..."
+VAULT_KEYS="$(VAULT_PASSWORD="$VAULT_PASSWORD" node "$VAULT_SCRIPT" list)" \
+  || die "vault: failed to list keys — check VAULT_PASSWORD and secrets.vault"
+
+vault_has_key() {
+  # Exact-line match against the cached newline-separated key list.
+  printf '%s\n' "$VAULT_KEYS" | grep -qxF -- "$1"
+}
+
+vault_get() {
+  VAULT_PASSWORD="$VAULT_PASSWORD" node "$VAULT_SCRIPT" get "$1" \
+    || die "vault: failed to read $1"
+}
 
 # ── Preflight ─────────────────────────────────────────────────────────────────
 [ -f "$ASSET_ROOT/demo_api_server/.env" ] || die "demo_api_server/.env not found. Run bootstrap first."
@@ -104,6 +156,14 @@ info "tls-certs secret applied."
 # Usage: secret_from_envfile <secret-name> <path-to-.env>
 secret_from_envfile() {
   local secret_name="$1" env_file="$2"
+  # Optional 3rd arg: pass "legacy-env-only" for a service that deliberately
+  # runs its own independent secret architecture outside the shared vault
+  # (e.g. oauth-mcp, see oauth-mcp/src/vault.ts's own header comment — it was
+  # migrated OFF secrets.vault on purpose). Skips vault consultation and the
+  # drift guard-rail entirely for this one call, restoring pre-2026-08-25
+  # .env-only behavior. Do not add this for any other service without the
+  # same kind of documented, deliberate reason.
+  local mode="${3:-}"
   if [ ! -f "$env_file" ]; then
     warn "  $env_file not found — skipping secret $secret_name"
     return
@@ -140,11 +200,29 @@ secret_from_envfile() {
   set +o allexport
   [ -z "$decrypted_file" ] || rm -f "$decrypted_file"
 
-  local args=()
+  local args=() dry_run_report=()
   for k in "${keys[@]}"; do
-    local v="${!k:-}"
-    [ -n "$v" ] && args+=(--from-literal="${k}=${v}")
+    local env_v="${!k:-}"
+    if [ "$mode" != "legacy-env-only" ] && vault_has_key "$k"; then
+      local vault_v
+      vault_v="$(vault_get "$k")"
+      if [ -n "$env_v" ] && [ "$env_v" != "$vault_v" ]; then
+        die "SECURITY: $k is vault-managed and $env_file has a DIFFERENT non-empty value for it. The vault is authoritative — update $k in $env_file to match the vault value (or leave it blank), never leave a stale copy. (This is exactly the drift class that broke SE introspection on 2026-08-25 — see docs/superpowers/specs/2026-08-25-vault-in-k8s-design.md.)"
+      fi
+      [ -n "$vault_v" ] && args+=(--from-literal="${k}=${vault_v}")
+      dry_run_report+=("$k -> vault")
+    else
+      [ -n "$env_v" ] && args+=(--from-literal="${k}=${env_v}")
+      local mode_suffix=""
+      [ "$mode" = "legacy-env-only" ] && mode_suffix=" (legacy-env-only)"
+      dry_run_report+=("$k -> .env${mode_suffix}")
+    fi
   done
+  if [ "${DRY_RUN:-0}" = "1" ]; then
+    printf '[dry-run] %s:\n' "$secret_name"
+    printf '  %s\n' "${dry_run_report[@]}"
+    return
+  fi
 
   if [ "${#args[@]}" -eq 0 ]; then
     warn "  $env_file has no usable keys — skipping $secret_name"
@@ -449,7 +527,7 @@ info "Creating per-service secrets from each service's .env..."
 secret_from_envfile ai-demo-secrets   "$ASSET_ROOT/demo_api_server/.env"    # BFF (master)
 override_redirect_uris_for_public_origin                                    # public origin beats local .env redirect URIs
 align_service_api_keys                                                      # one key for the vault bridge AND the mortgage backend
-secret_from_envfile mcp-secrets       "$ASSET_ROOT/oauth-mcp/.env"    # MCP server
+secret_from_envfile mcp-secrets       "$ASSET_ROOT/oauth-mcp/.env" legacy-env-only  # MCP server — own independent secret architecture, see oauth-mcp/src/vault.ts
 secret_from_envfile hitl-secrets      "$ASSET_ROOT/demo_hitl_service/.env"  # HITL service — HITL_INTERNAL_SECRET
 secret_from_envfile langchain-secrets "$ASSET_ROOT/langchain_agent/.env"    # LangChain agent
 inject_helix_api_key                                                        # Helix key from <agent>.json keyfile (patches langchain-secrets — must run after it exists)
@@ -527,6 +605,58 @@ else
   warn "ping-gateway/config/admin.json not found — skipping ping-gateway-config ConfigMap"
 fi
 
+# ── Monitoring: Prometheus scrape config + Grafana provisioning ───────────────
+# Same trick as ping-gateway-config above: generate the ConfigMaps from the real
+# files under monitoring/ so Docker Compose and Kubernetes read one copy and the
+# two cannot drift.
+if [ -f "$ASSET_ROOT/monitoring/prometheus.yml" ]; then
+  info "Creating monitoring ConfigMaps from source files..."
+  kubectl create configmap prometheus-config \
+    --namespace="$NS" \
+    --from-file=prometheus.yml="$ASSET_ROOT/monitoring/prometheus.yml" \
+    --from-file=alerts.yml="$ASSET_ROOT/monitoring/alerts.yml" \
+    --dry-run=client -o yaml | kubectl apply -f -
+  kubectl create configmap grafana-datasources \
+    --namespace="$NS" \
+    --from-file="$ASSET_ROOT/monitoring/grafana/provisioning/datasources/" \
+    --dry-run=client -o yaml | kubectl apply -f -
+  kubectl create configmap grafana-dashboard-provider \
+    --namespace="$NS" \
+    --from-file="$ASSET_ROOT/monitoring/grafana/provisioning/dashboards/" \
+    --dry-run=client -o yaml | kubectl apply -f -
+  kubectl create configmap grafana-dashboards \
+    --namespace="$NS" \
+    --from-file="$ASSET_ROOT/monitoring/grafana/dashboards/" \
+    --dry-run=client -o yaml | kubectl apply -f -
+  info "  prometheus-config, grafana-datasources, grafana-dashboard-provider, grafana-dashboards applied."
+
+  # Grafana admin login. GRAFANA_ADMIN_PASSWORD from the environment wins; the
+  # fallback exists so a fresh cluster comes up loginable rather than broken.
+  # Grafana is internet-facing via /grafana/, so change this for any deployment
+  # that outlives a demo.
+  grafana_user="${GRAFANA_ADMIN_USER:-admin}"
+  grafana_pass="${GRAFANA_ADMIN_PASSWORD:-}"
+  if [ -z "$grafana_pass" ]; then
+    grafana_pass="ai-demo-grafana"
+    warn "  GRAFANA_ADMIN_PASSWORD unset — using the default. Set it before any long-lived deployment."
+  fi
+  # PingOne SSO client secret for "Demo AI App - Grafana Login". Empty is fine:
+  # Grafana still starts and the local admin form still works, so a stack
+  # without it degrades to password login rather than breaking.
+  grafana_oauth_secret="${GRAFANA_PINGONE_CLIENT_SECRET:-}"
+  [ -n "$grafana_oauth_secret" ] \
+    || warn "  GRAFANA_PINGONE_CLIENT_SECRET unset — PingOne SSO button will not work; local admin login still will."
+  kubectl create secret generic grafana-secrets \
+    --namespace="$NS" \
+    --from-literal=GF_SECURITY_ADMIN_USER="$grafana_user" \
+    --from-literal=GF_SECURITY_ADMIN_PASSWORD="$grafana_pass" \
+    --from-literal=GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET="$grafana_oauth_secret" \
+    --dry-run=client -o yaml | kubectl apply -f -
+  info "  grafana-secrets applied (user: $grafana_user)."
+else
+  warn "monitoring/prometheus.yml not found — skipping monitoring ConfigMaps"
+fi
+
 # ── Restart deployments so already-running pods pick up what we just applied ──
 # K8s does not hot-reload Secret/ConfigMap-sourced env vars into a running
 # container — re-applying a secret above is a no-op for any pod that's already
@@ -536,7 +666,7 @@ fi
 # consumes a secret/configmap this script manages, so "rotate" always means
 # rotate for the running pod too, not just for the next full deploy.
 info "Restarting deployments to pick up refreshed secrets/configmaps..."
-for dep in demo-api-server mcp-gateway mcp-server langchain-agent agent-service api-resource-server ping-gateway; do
+for dep in demo-api-server mcp-gateway mcp-server langchain-agent agent-service api-resource-server ping-gateway prometheus grafana; do
   if kubectl get deployment "$dep" --namespace="$NS" &>/dev/null; then
     kubectl rollout restart deployment "$dep" --namespace="$NS" >/dev/null
     info "  restarted $dep"

@@ -8,6 +8,7 @@ import DiagramExportBar from "./DiagramExportBar";
 import { useThemeOptional } from "../context/ThemeContext";
 import "./PrivilegeMcpDiagramPage.css";
 import "./PrivilegeGatewayTopologyPage.css";
+import "./McpGatewayOauthFlowPage.css";
 
 const AGENT_SOURCE = `flowchart LR
     subgraph cloud["Priv Cloud"]
@@ -123,6 +124,79 @@ export const TABS = [
   },
 ];
 
+export const SEQUENCE_SOURCE = `sequenceDiagram
+    autonumber
+    box rgb(240,240,255) Agent-based — local Priv Agent tunnels out
+    participant Client
+    participant Agent as Priv Agent (local)
+    participant Proxy as Privilege public proxy
+    participant GW as MCP Gateway (in-cluster)
+    participant MCP as MCP Server
+    end
+
+    Note over Proxy,GW: setup, once: console/proxy config sync,<br/>agent installed via magic link, gateway dials<br/>out — standing TLS link on 443
+    Client->>Agent: MCP request, HTTPS :8643/sse
+    Agent->>Proxy: TLS tunnel :443
+    Proxy->>GW: rides the standing link from setup
+    GW->>GW: evaluate JIT policy<br/>(Agentic Apps > Policy)
+    alt permitted
+        GW->>MCP: cluster-local HTTP /sse
+        MCP-->>GW: result
+        GW-->>Proxy: result
+        Proxy-->>Agent: result
+        Agent-->>Client: result
+    else denied
+        GW-->>Proxy: denied at step 6
+    end
+
+    box rgb(255,245,235) Agentless — client connects straight to ingress
+    participant Client2 as Client
+    participant ING as Ingress
+    participant GW2 as MCP Gateway (in-cluster)
+    participant P1 as PingOne AS
+    participant MCP2 as MCP Server
+    end
+
+    Note over ING,GW2: setup, once: console pushes proxy config<br/>to gateway over gRPC (proxyToken from Helm install)
+    Client2->>ING: HTTPS :443 request
+    ING->>P1: first contact: authorization-code<br/>sign-in (Client Secret Basic)
+    P1-->>ING: identity (userinfo)
+    ING->>GW2: route to gateway :8680
+    GW2->>GW2: evaluate JIT policy against<br/>signed-in PingOne user
+    alt permitted
+        GW2->>MCP2: cluster-local HTTP /sse
+        MCP2-->>GW2: result
+        GW2-->>ING: result
+        ING-->>Client2: result
+    else denied
+        GW2-->>ING: denied at step 3
+    end`;
+
+const SEQUENCE_NOTES = [
+  {
+    title: "Agent-based — local agent tunnels out",
+    items: [
+      { text: "The MCP client never leaves the device — it talks to the local Priv Agent's frontend, which tunnels everything out over a standing TLS link the gateway itself dialed to the public proxy." },
+      { text: "Nothing connects inbound to the cluster: the gateway wants port 8680, but the cluster ingress only carries 443, so the gateway reaches out instead of being reached." },
+      { text: "JIT policy is evaluated at the gateway once the request rides back down the standing link from the proxy." },
+    ],
+  },
+  {
+    title: "Agentless — direct ingress + OIDC",
+    items: [
+      { text: "No local agent — the client connects straight to the cluster ingress over HTTPS." },
+      { text: "On first contact, the gateway's own PingOne OIDC client runs an authorization-code sign-in — this identity check happens inline, before the request ever reaches the JIT policy step." },
+      { text: "The console still pushes proxy configuration to the gateway over gRPC, but there is no public proxy or tunnel in the data path — the client's traffic terminates at the cluster ingress directly." },
+    ],
+  },
+  {
+    title: "Key difference",
+    items: [
+      { text: "Both variants converge on the same JIT policy check and the same cluster-local hop to the MCP server — what differs is how the client's identity and traffic reach the gateway: a locally-installed agent tunneling out, or a direct OIDC sign-in against the ingress." },
+    ],
+  },
+];
+
 const LEGEND = [
   { className: "pgt-swatch--cloud", label: "Priv Cloud" },
   { className: "pgt-swatch--device", label: "User Device" },
@@ -133,10 +207,13 @@ const LEGEND = [
 
 export default function PrivilegeGatewayTopologyPage() {
   const containerRef = useRef(null);
+  const seqRef = useRef(null);
   const { darkMode } = useThemeOptional();
   const [activeTab, setActiveTab] = useState("agent");
   const [source, setSource] = useState(AGENT_SOURCE);
+  const [seqSource, setSeqSource] = useState(SEQUENCE_SOURCE);
   const [renderError, setRenderError] = useState(null);
+  const [seqRenderError, setSeqRenderError] = useState(null);
   const renderIdRef = useRef(0);
 
   useEffect(() => {
@@ -171,9 +248,37 @@ export default function PrivilegeGatewayTopologyPage() {
     return () => { cancelled = true; };
   }, [source, darkMode]);
 
+  useEffect(() => {
+    let cancelled = false;
+    setSeqRenderError(null);
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: darkMode ? "dark" : "default",
+      securityLevel: "loose",
+      sequence: { useMaxWidth: true, wrap: true },
+    });
+
+    async function renderSeq() {
+      try {
+        const id = `privilege-gateway-topology-seq-${++renderIdRef.current}`;
+        const { svg } = await mermaid.render(id, seqSource);
+        if (!cancelled && seqRef.current) {
+          seqRef.current.innerHTML = svg;
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setSeqRenderError(err?.message || "Mermaid render failed");
+        }
+      }
+    }
+    renderSeq();
+    return () => { cancelled = true; };
+  }, [seqSource, darkMode]);
+
   const activeTabMeta = TABS.find((t) => t.id === activeTab);
 
   return (
+    <>
     <div className="pmd-page pgt-page">
       <div className="pmd-hero">
         <span className="pmd-eyebrow">PingOne Privilege · MCP Gateway</span>
@@ -266,5 +371,59 @@ export default function PrivilegeGatewayTopologyPage() {
         <code>privgateway</code> and <code>agentless-mcpgw</code> values.
       </p>
     </div>
+
+    <div className="mgof-page">
+      <div className="mgof-hero">
+        <span className="mgof-eyebrow">PingOne Privilege · MCP Gateway</span>
+        <h1>Request Flow: Agent-based vs Agentless</h1>
+        <p className="mgof-sub">
+          Same JIT policy check, same cluster-local hop to the MCP server — the two
+          variants differ in how the client's identity and traffic reach the gateway.
+          The top flow tunnels through a locally-installed Priv Agent; the bottom flow
+          connects straight to the cluster ingress and signs in via PingOne OIDC.
+        </p>
+      </div>
+
+      <DiagramExportBar
+        source={seqSource}
+        sourceFilename="privilege-gateway-request-flow.mmd"
+        onSourceChange={setSeqSource}
+      />
+
+      <div className="mgof-panel">
+        {seqRenderError ? (
+          <p className="mgof-error">Diagram failed to render: {seqRenderError}</p>
+        ) : (
+          <div className="mgof-diagram" ref={seqRef} aria-label="Privilege gateway request flow sequence diagram" />
+        )}
+      </div>
+
+      <div className="mgof-notes">
+        {SEQUENCE_NOTES.map((group) => (
+          <div className="mgof-note-group" key={group.title}>
+            <h2>{group.title}</h2>
+            <ul>
+              {group.items.map((item, idx) => (
+                <li key={idx}>{item.text}</li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+
+      <p className="mgof-footer">
+        Source:{" "}
+        <a
+          className="pmd-link"
+          href="https://pingidentity.atlassian.net/wiki/x/SwDRwg"
+          target="_blank"
+          rel="noreferrer"
+        >
+          PingOne Privilege MCP Gateway: Instructional Demo Setup
+        </a>{" "}
+        (SE Confluence), same steps numbered in the topology diagrams above.
+      </p>
+    </div>
+    </>
   );
 }

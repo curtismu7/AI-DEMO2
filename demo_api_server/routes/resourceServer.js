@@ -84,7 +84,7 @@ router.get('/summary', (req, res) => {
       resourceServerInfo,
     });
   } catch (error) {
-    console.error('[resource-server] summary error:', error);
+    console.error('[resource-server] summary error:', error?.stack || String(error));
     res.status(500).json({ error: 'internal_error', message: 'Failed to build resource server summary.' });
   }
 });
@@ -136,7 +136,7 @@ router.get('/summary-inflow', (req, res) => {
       },
     });
   } catch (error) {
-    console.error('[resource-server] summary-inflow error:', error);
+    console.error('[resource-server] summary-inflow error:', error?.stack || String(error));
     res.status(500).json({ error: 'internal_error', message: 'Failed to build in-flow resource server summary.' });
   }
 });

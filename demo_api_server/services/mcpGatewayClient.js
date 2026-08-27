@@ -127,6 +127,13 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         const nodeUrl = (process.env.MCP_GATEWAY_HTTP_URL || configStore.getEffective('mcp_gateway_http_url') || '').replace(/\/$/, '');
         if (nodeUrl) base = nodeUrl;
     }
+    // Set by a pin below to the audience that CAUSED the redirect. A pin only
+    // fires when the bearer's `aud` already contains that value, so it is by
+    // construction the correct expected audience for the destination the request
+    // is now going to — see the audience classifier further down, which would
+    // otherwise judge a pinned bearer against the audience of the gateway it was
+    // deliberately routed away from.
+    let pinnedAud = null;
     // A2A nested-act tokens are audienced to the DEDICATED A2A gateway resource
     // (a2a_gateway_audience / A2A_GATEWAY_AUDIENCE), which only the Node Demo
     // Agent Gateway accepts (comma-list MCP_GW_RESOURCE_URI). PingGateway (IG)
@@ -146,7 +153,10 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
             if (audList.includes(a2aAud)) {
                 const nodeUrl = (process.env.MCP_DEMO_GATEWAY_URL
                     || configStore.getEffective('mcp_demo_gateway_url') || '').replace(/\/$/, '');
-                if (nodeUrl) base = nodeUrl;
+                // Only when the redirect actually happens: an empty nodeUrl leaves
+                // base on PingGateway, and then PingGateway's audience is still the
+                // right one to judge against.
+                if (nodeUrl) { base = nodeUrl; pinnedAud = a2aAud; }
             }
         }
     }
@@ -170,7 +180,8 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
             if (audList.includes(olbAud)) {
                 const nodeUrl = (process.env.MCP_DEMO_GATEWAY_URL
                     || configStore.getEffective('mcp_demo_gateway_url') || '').replace(/\/$/, '');
-                if (nodeUrl) base = nodeUrl;
+                // Same as A2A above: record the audience only if we really moved.
+                if (nodeUrl) { base = nodeUrl; pinnedAud = olbAud; }
             }
         }
     }
@@ -314,7 +325,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         const agentOrigin = new URL(
             process.env.WBA_SIGNATURE_AGENT_URL
             || process.env.BFF_BASE_URL
-            || 'http://localhost:3001'
+            || 'https://localhost:3001'
         ).origin;
         Object.assign(headers, signWebBotAuthHeaders({
             authority: new URL(url).host,
@@ -449,7 +460,17 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         // compared against the Node-gateway aud, so every IG rejection is
         // mislabeled "wrong audience", masking the real cause. Falls back to the
         // old chain for the Node-gateway path / if resolution is unavailable.
+        // pinnedAud FIRST. resolveExpectedMcpResourceUri() answers "what audience
+        // does the active ROUTING MODE expect", which is the wrong question once a
+        // pin has moved this request off that mode's gateway. Under
+        // ff_mcp_gateway_pinggateway it returns PingGateway's resource URI, so a
+        // native ID-JAG bearer (aud = oauth-mcp's own resource, pinned to the Node
+        // gateway, which accepts it) was failed GATEWAY_AUDIENCE_MISMATCH against a
+        // gateway it was never sent to — before any HTTP request left the BFF.
+        // The audience to judge against is a property of the effective DESTINATION,
+        // not of the mode. See TECH_DEBT 2026-08-23 (native ID-JAG / D-05).
         const expectedAud =
+            pinnedAud ||
             require('./mcpToolAuthorizationService').resolveExpectedMcpResourceUri() ||
             process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI ||
             configStore.getEffective('pingone_resource_mcp_gateway_uri') ||

@@ -629,9 +629,9 @@ describe('verifyMfa — one-time OTP path', () => {
     expect(txConsent.getChallengePath(req, CHALLENGE_ID)).toBe('onetime');
   });
 
-  test('verifyOtp rejects oneTimePath challenges with not_mfa_path', () => {
+  test('verifyOtp rejects oneTimePath challenges with not_mfa_path', async () => {
     const req = makeReqWithOnetimeChallenge(CHALLENGE_ID);
-    const result = txConsent.verifyOtp(req, CHALLENGE_ID, '654321');
+    const result = await txConsent.verifyOtp(req, CHALLENGE_ID, '654321');
     expect(result.ok).toBe(false);
     expect(result.status).toBe(409);
     expect(result.json.error).toBe('not_mfa_path');
@@ -783,5 +783,65 @@ describe('reinitMfaDevices', () => {
     const result = await txConsent.reinitMfaDevices(req, 'nonexistent');
     expect(result.ok).toBe(false);
     expect(result.status).toBe(404);
+  });
+});
+
+describe('verifyOtp — concurrent-request lock (race regression guard)', () => {
+  const CHALLENGE_ID = 'chal-race-1';
+
+  function makeReqWithOtpPendingChallenge() {
+    return makeReq({
+      session: {
+        txConsentChallenges: {
+          [CHALLENGE_ID]: {
+            userId: '5',
+            status: 'otp_pending',
+            // Deliberately not a real hash of any code below — only the
+            // '123123' demo bypass is expected to ever succeed here.
+            otpHash: 'not-a-real-hash',
+            otpSalt: 'salt',
+            otpAttempts: 0,
+            otpExpiresAt: Date.now() + 60_000,
+            snapshot: { amount: 100, type: 'transfer' },
+          },
+        },
+      },
+    });
+  }
+
+  // Two requests for the SAME challenge, fired without awaiting between them
+  // (a double-clicked Verify button, or a browser retry mid-flight). Before
+  // the fix, each ran verifyOtp's synchronous body against its own read of
+  // ch — both would see otpAttempts === 0 and both decrement to 1,
+  // silently giving an attacker two guesses for the cost of one against the
+  // OTP_MAX_ATTEMPTS lockout.
+  test('rejects the overlapping call instead of letting both race the attempt counter', async () => {
+    const req = makeReqWithOtpPendingChallenge();
+
+    const [first, second] = await Promise.all([
+      txConsent.verifyOtp(req, CHALLENGE_ID, '111111'),
+      txConsent.verifyOtp(req, CHALLENGE_ID, '222222'),
+    ]);
+
+    const busy = [first, second].filter((r) => r.json && r.json.error === 'challenge_busy');
+    const processed = [first, second].filter((r) => !(r.json && r.json.error === 'challenge_busy'));
+
+    expect(busy).toHaveLength(1);
+    expect(busy[0].status).toBe(409);
+    expect(processed).toHaveLength(1);
+    // Only ONE of the two wrong-code attempts was actually evaluated.
+    expect(req.session.txConsentChallenges[CHALLENGE_ID].otpAttempts).toBe(1);
+  });
+
+  test('a later call for the same challenge succeeds once the first has finished', async () => {
+    const req = makeReqWithOtpPendingChallenge();
+
+    const first = await txConsent.verifyOtp(req, CHALLENGE_ID, '111111');
+    expect(first.ok).toBe(false);
+    expect(first.json.error).toBe('otp_incorrect');
+
+    // Lock was released — this is not "busy", it's a fresh evaluation.
+    const second = await txConsent.verifyOtp(req, CHALLENGE_ID, '123123');
+    expect(second.ok).toBe(true);
   });
 });

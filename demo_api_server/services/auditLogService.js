@@ -258,6 +258,13 @@ async function pruneOldLogs(retentionDays = 90) {
   }
 }
 
+// Periodically enforce the 90-day retention policy so auditLogs' per-agent
+// arrays don't grow unbounded — pruneOldLogs() existed but had no caller
+// anywhere in the codebase (pattern mirrors mcpGatewayRateLimit.js's
+// _evictionInterval / securityMonitoringService.js's _snapshotTimer).
+const PRUNE_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+setInterval(() => { pruneOldLogs(); }, PRUNE_INTERVAL_MS).unref();
+
 module.exports = {
   recordKillEvent,
   recordKillFailure,

@@ -188,7 +188,15 @@ export class HttpMCPTransport {
       return;
     }
 
-    if (pathname === '/.well-known/oauth-protected-resource') {
+    // RFC 9728 §3.1: a client constructs this URL as <well-known>/<resource-path>
+    // (e.g. .../oauth-protected-resource/mcp), not just the bare well-known
+    // path — match the segment-delimited suffix too, or such a request 404s
+    // here even after the ingress correctly routes it (see
+    // k8s/aws/se-ingress.yaml's matching fix).
+    if (
+      pathname === '/.well-known/oauth-protected-resource' ||
+      pathname.startsWith('/.well-known/oauth-protected-resource/')
+    ) {
       this.handleMetadata(req, res);
       return;
     }

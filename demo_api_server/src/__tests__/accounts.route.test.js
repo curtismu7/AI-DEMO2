@@ -146,6 +146,25 @@ describe('GET /api/accounts — admin list', () => {
     const res = await request(app).get('/api/accounts');
     expect(res.status).toBe(401);
   });
+
+  it('returns every account and the total when no limit/offset is given', async () => {
+    const app = buildApp();
+    const res = await request(app).get('/api/accounts').set('x-test-user', adminHeader());
+    expect(res.status).toBe(200);
+    expect(res.body.accounts).toHaveLength(_store.accounts.length);
+    expect(res.body.total).toBe(_store.accounts.length);
+  });
+
+  it('slices the response when limit/offset are given', async () => {
+    const app = buildApp();
+    const res = await request(app)
+      .get('/api/accounts?limit=1&offset=1')
+      .set('x-test-user', adminHeader());
+    expect(res.status).toBe(200);
+    expect(res.body.accounts).toHaveLength(1);
+    expect(res.body.accounts[0].id).toBe(_store.accounts[1].id);
+    expect(res.body.total).toBe(_store.accounts.length);
+  });
 });
 
 // ── GET /:id ──────────────────────────────────────────────────────────────────

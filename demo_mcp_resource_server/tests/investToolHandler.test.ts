@@ -9,6 +9,9 @@
 
 import axios from 'axios';
 
+// A banking API is configured → these exported handlers build BFF URLs.
+process.env.BANKING_API_BASE_URL = 'https://bff.test';
+
 jest.mock('axios');
 const mockedGet = axios.get as jest.Mock;
 

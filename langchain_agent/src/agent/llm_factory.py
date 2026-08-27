@@ -55,7 +55,7 @@ def get_llm(
     llamacpp_base_url: str = "http://127.0.0.1:8090",
     llamacpp_model: str = "phi-4-mini-instruct",
     groq_base_url: str = "https://api.groq.com/openai/v1",
-    groq_model: str = "llama-3.3-70b-versatile",
+    groq_model: str = "openai/gpt-oss-20b",
     google_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai/",
     google_model: str = "gemini-2.0-flash",
     # Helix-specific kwargs (passed through from LangChainConfig)

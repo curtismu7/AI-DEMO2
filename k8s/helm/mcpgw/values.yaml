@@ -3,6 +3,21 @@
 # via --set or a separate --values secrets.yaml — never committed to source control.
 
 mcpgw:
+  # OFF by default (2026-08-26). The agent-based Privilege gateway is deployed
+  # ONLY in ping-devops-curtismuir (release cm-mcpgw). The copy this chart used
+  # to install into the app namespace was a redundant duplicate, and its
+  # ENV_PROXY_TOKEN is single-use and valid ~2h from issuance — so every deploy
+  # reinstalled a pod that could never start, CrashLoopBackOff'd, and made
+  # k8s/smoke.sh report the whole demo "degraded". Deleting the pod did not
+  # help: k8s/aws/deploy.sh reinstalled it on the next deploy of ANY service.
+  #
+  # The OpenSearch pieces below are independent of the gateway and stay ON —
+  # they are a real backend that other things point at.
+  #
+  # Set true (with a FRESH token from the Privilege console: Gateways -> Add
+  # New -> Add via Docker, into ping-mcpgw/procyon/config/proxy-token.env) only
+  # if an agent-based gateway is genuinely wanted in THIS namespace.
+  enabled: false
   hostname: "ai-demo.ping-devops.com"
   # privilege-mcpgw binary (mcpgw). Pinned digest for the verified build is in
   # k8s/75-ping-mcpgw-deployment.yaml; :latest is safe here because deploy.sh

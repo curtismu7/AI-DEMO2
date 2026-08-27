@@ -386,6 +386,15 @@ async function unrevokeAgent(agentId) {
     await new Promise((resolve, reject) => {
       sessionStore.destroy(`agent:${agentId}:revoked`, (err) => (err ? reject(err) : resolve()));
     });
+    // Lift the unattended-schedule revocation on the same path, so the 10-minute
+    // auto-reset brings an autonomous agent back with everything else. Without
+    // this, killing one in a demo would leave it dead until someone edited
+    // config — the schedule is re-registered on the next BFF start.
+    try {
+      await require('./autonomousAgentScheduler').resumeSchedules();
+    } catch (e) {
+      console.warn('[killSwitch] Could not lift the schedule revocation:', e.message);
+    }
     return true;
   } catch (error) {
     console.warn('[killSwitch] Error clearing revocation flag:', error.message);
@@ -527,7 +536,6 @@ async function killAgent(agentId, reason = 'manual_red_button', userId = null, o
 
   try {
     console.log(`[killSwitch] Executing kill switch for agent ${agentId}. Reason: ${reason}. Scope: ${scope}`);
-    killAgent._userId = userId || null;
 
     // 1. Revoke access_token + id_token at PingOne (form-encoded, RFC 7009)
     const revokeResult = await revokeAllTokens(oauthTokens);
@@ -550,7 +558,6 @@ async function killAgent(agentId, reason = 'manual_red_button', userId = null, o
     //    leave the human account enabled so the demo can sign back in.
     let userDisableResult = null;
     if (scope === 'instance') {
-      killAgent._userId = null;
       pushStep({
         key: 'user_disable',
         label: 'Disable the PingOne user account',
@@ -560,9 +567,8 @@ async function killAgent(agentId, reason = 'manual_red_button', userId = null, o
         skipReason: 'instance_scope',
       });
     } else {
-      if (killAgent._userId) {
-        userDisableResult = await disableUserAtPingOne(killAgent._userId);
-        killAgent._userId = null;
+      if (userId) {
+        userDisableResult = await disableUserAtPingOne(userId);
       }
       pushStep({
         key: 'user_disable',
@@ -616,6 +622,33 @@ async function killAgent(agentId, reason = 'manual_red_button', userId = null, o
         skipReason: applicationsDisabled.length === 0 ? 'no_app_configured' : undefined,
       });
     }
+
+    // 2.5 Cancel any unattended schedule this agent runs on.
+    //
+    // Every other step here stops the agent from ACTING on a request. An
+    // autonomous agent makes its own requests: its cron keeps firing whether or
+    // not a human is anywhere near it, so leaving the schedule armed means the
+    // agent is still running — waking up, authenticating, and being refused one
+    // call at a time. Cancelling the schedule is what makes "stop this agent"
+    // true for an agent nobody is driving.
+    //
+    // Deliberately unconditional: the scheduler owns the mapping from job to
+    // agent, and stopping schedules for an agent that has none is a no-op.
+    let scheduleResult = { stopped: [], agents: [] };
+    try {
+      scheduleResult = await require('./autonomousAgentScheduler').stopSchedules();
+    } catch (e) {
+      console.warn('[killSwitch] Could not cancel unattended schedules:', e.message);
+    }
+    pushStep({
+      key: 'cancel_schedules',
+      label: 'Cancel unattended schedules',
+      detail: scheduleResult.stopped.length > 0
+        ? `${scheduleResult.stopped.join(', ')} cancelled — the agent will not wake itself up again. The revocation is persisted, so a BFF restart does not re-arm it.`
+        : 'No unattended schedule was registered — nothing to cancel. Autonomous agents are recorded as revoked either way, so one cannot be armed while the kill is in force.',
+      ran: true,
+      skipped: false,
+    });
 
     // 3. Capture state BEFORE invalidating sessions
     const stateSnapshot = await captureAgentState(agentId);

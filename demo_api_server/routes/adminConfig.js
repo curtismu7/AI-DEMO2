@@ -292,7 +292,7 @@ router.post('/generate-keypair', requireAdminOrUnconfigured, async (req, res) =>
     jwk.kid = require('crypto').randomUUID();
 
     // Persist private key to config store
-    configStore.setConfig({ pingone_mgmt_private_key: privateKey });
+    await configStore.setConfig({ pingone_mgmt_private_key: privateKey });
 
     res.json({ ok: true, publicKeyPem: publicKey, jwk });
   } catch (err) {

@@ -20,6 +20,13 @@ async function runLighthouseAudit(url) {
   const chromeLauncher = require('chrome-launcher');
   const lighthouse = require('lighthouse').default ?? require('lighthouse');
 
+  if (_isRunning) {
+    const err = new Error('An audit is already in progress');
+    err.code = 'LIGHTHOUSE_BUSY';
+    throw err;
+  }
+  _isRunning = true;
+
   let chrome;
   let timedOut = false;
   let timeoutHandle;
@@ -34,16 +41,22 @@ async function runLighthouseAudit(url) {
     }, AUDIT_TIMEOUT_MS);
   });
 
+  // _isRunning is cleared here — inside the REAL work's finally — not when
+  // the outer Promise.race below settles. On a timeout, this IIFE keeps
+  // running in the background (Chrome launch/lighthouse run/chrome.kill())
+  // and only clears the guard once that real teardown actually finishes, so
+  // an immediate retry after a timeout can't launch a second Chrome instance
+  // concurrently with the still-terminating first one.
   const auditPromise = (async () => {
     try {
-      chrome = await chromeLauncher.launch({ chromeFlags: ['--headless', '--no-sandbox', '--disable-gpu'] });
-    } catch (e) {
-      const err = new Error('Chrome could not be launched: ' + e.message);
-      err.code = 'CHROME_NOT_FOUND';
-      throw err;
-    }
+      try {
+        chrome = await chromeLauncher.launch({ chromeFlags: ['--headless', '--no-sandbox', '--disable-gpu'] });
+      } catch (e) {
+        const err = new Error('Chrome could not be launched: ' + e.message);
+        err.code = 'CHROME_NOT_FOUND';
+        throw err;
+      }
 
-    try {
       const runnerResult = await lighthouse(url, {
         port: chrome.port,
         onlyCategories: ['performance', 'accessibility', 'best-practices', 'seo'],
@@ -74,7 +87,8 @@ async function runLighthouseAudit(url) {
       if (!timedOut) saveResult(result);
       return result;
     } finally {
-      await chrome.kill().catch(() => {});
+      if (chrome) await chrome.kill().catch(() => {});
+      _isRunning = false;
     }
   })();
 

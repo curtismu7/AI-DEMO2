@@ -36,7 +36,7 @@ router.get('/chips', async (req, res) => {
         : {}),
     });
   } catch (error) {
-    console.error('[fallback-route] Error resolving chips:', error);
+    console.error('[fallback-route] Error resolving chips:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to resolve fallback chips' });
   }
 });

@@ -49,7 +49,7 @@ router.get('/', (req, res) => {
       calls
     });
   } catch (error) {
-    console.error('[apiCallTracker] Error retrieving calls:', error);
+    console.error('[apiCallTracker] Error retrieving calls:', error?.stack || String(error));
     res.status(500).json({
       success: false,
       error: error.message
@@ -72,7 +72,7 @@ router.delete('/', (req, res) => {
       message: 'API calls cleared'
     });
   } catch (error) {
-    console.error('[apiCallTracker] Error clearing calls:', error);
+    console.error('[apiCallTracker] Error clearing calls:', error?.stack || String(error));
     res.status(500).json({
       success: false,
       error: error.message
@@ -99,7 +99,7 @@ router.post('/', async (req, res) => {
       call
     });
   } catch (error) {
-    console.error('[apiCallTracker] Error tracking call:', error);
+    console.error('[apiCallTracker] Error tracking call:', error?.stack || String(error));
     res.status(500).json({
       success: false,
       error: error.message
@@ -124,7 +124,7 @@ router.get('/tokens', (req, res) => {
       tokens
     });
   } catch (error) {
-    console.error('[apiCallTracker] Error retrieving tokens:', error);
+    console.error('[apiCallTracker] Error retrieving tokens:', error?.stack || String(error));
     res.status(500).json({
       success: false,
       error: error.message
@@ -148,7 +148,7 @@ router.delete('/tokens', (req, res) => {
       message: 'Tokens cleared'
     });
   } catch (error) {
-    console.error('[apiCallTracker] Error clearing tokens:', error);
+    console.error('[apiCallTracker] Error clearing tokens:', error?.stack || String(error));
     res.status(500).json({
       success: false,
       error: error.message

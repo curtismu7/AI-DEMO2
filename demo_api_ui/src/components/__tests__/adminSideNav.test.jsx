@@ -155,9 +155,9 @@ describe("AdminSideNav — best-of-breed pass", () => {
     expect(liveLink).toHaveAttribute("href", "/use-cases/live");
   });
 
-  it("includes Delegated Commerce in the Demos customization catalog", () => {
-    const demos = NAV_STRUCTURE_CATALOG.find((group) => group.label === "Demos");
-    expect(demos.children).toContain("Delegated Commerce (guided demo)");
+  it("includes Delegated Commerce in the AI Flows customization catalog", () => {
+    const flows = NAV_STRUCTURE_CATALOG.find((group) => group.label === "AI Flows");
+    expect(flows.children).toContain("Delegated Commerce (guided demo)");
   });
 
   it("Weather MCP runs UC30 (weather-mcp-texas-permit) via demo/run", async () => {
@@ -213,6 +213,7 @@ describe("AdminSideNav — best-of-breed pass", () => {
                   Inspectors: [
                     "PingOne MCP Setup",
                     "MCP Inspector",
+                    "Enterprise-Managed MCP Auth",
                     "Agent Gateway Inspector",
                     "P1AZ Inspector",
                   ],
@@ -231,10 +232,10 @@ describe("AdminSideNav — best-of-breed pass", () => {
     const inspectors = screen.getByRole("region", { name: "Inspectors" });
     expect(within(inspectors).getByText("PingOne MCP Setup")).toBeInTheDocument();
 
-    // The claiming override consolidates "MCP Inspector" into Inspectors too, so
-    // "PingOne MCP" is left with no children and is dropped from the nav
-    // entirely (a childless group has no path to link to) — and the moved
-    // child appears exactly once, in Inspectors.
+    // The claiming override consolidates every "PingOne MCP" child into
+    // Inspectors too, so "PingOne MCP" is left with no children and is dropped
+    // from the nav entirely (a childless group has no path to link to) — and
+    // the moved child appears exactly once, in Inspectors.
     expect(screen.getAllByText("PingOne MCP Setup")).toHaveLength(1);
     expect(screen.queryByText("PingOne MCP")).toBeNull();
     vi.unstubAllGlobals();

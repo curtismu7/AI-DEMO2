@@ -1,6 +1,7 @@
 import { TokenResolver } from '../../src/tools/TokenResolver';
 import { BankingAuthenticationManager } from '../../src/auth/BankingAuthenticationManager';
 import { TokenExchangeService } from '../../src/auth/TokenExchangeService';
+import { TokenStore } from '../../src/oauth/TokenStore';
 import { Logger, createDefaultLoggerConfig } from '../../src/utils/Logger';
 import { tokenCache } from '../../src/services/tokenCacheService';
 import { Session, AuthenticationError } from '../../src/interfaces/auth';
@@ -68,6 +69,101 @@ describe('TokenResolver', () => {
     expect(res.token).toBe('agent-tok');
     expect(res.source).toBe('agent-passthrough');
     expect(tokenExchangeService.exchangeToken).not.toHaveBeenCalled();
+  });
+
+  it('agent-passthrough: skips Step 9 for a self-issued agentToken even when resource URI is configured', async () => {
+    process.env.BANKING_API_RESOURCE_URI = 'https://banking.example';
+    const b64u = (o: object) => Buffer.from(JSON.stringify(o)).toString('base64url');
+    const selfIssuedToken = `${b64u({ alg: 'RS256' })}.${b64u({ iss: 'https://localhost:8080', sub: 'user-1' })}.sig`;
+    const r = new TokenResolver({ authManager, tokenExchangeService, logger });
+    const res = await r.resolve(makeSession(), baseTool, selfIssuedToken);
+    expect(res.token).toBe(selfIssuedToken);
+    expect(res.source).toBe('agent-passthrough');
+    expect(tokenExchangeService.exchangeToken).not.toHaveBeenCalled();
+  });
+
+  it('agent-federated-passthrough: uses the stashed real PingOne token for a self-issued agentToken minted via authorization_code federation', async () => {
+    process.env.BANKING_API_RESOURCE_URI = 'https://banking.example';
+    const b64u = (o: object) => Buffer.from(JSON.stringify(o)).toString('base64url');
+    const selfIssuedToken = `${b64u({ alg: 'RS256' })}.${b64u({ iss: 'https://localhost:8080', sub: 'real-pingone-user', jti: 'jti-1' })}.sig`;
+    const tokenStore = new TokenStore();
+    tokenStore.trackToken({
+      jti: 'jti-1',
+      clientId: 'client-1',
+      subject: 'real-pingone-user',
+      scope: 'mcp:invoke read',
+      // IssuedToken.issuedAt/expiresAt are seconds-since-epoch (TokenIssuer
+      // mirrors the JWT exp claim convention) — not milliseconds.
+      issuedAt: Math.floor(Date.now() / 1000),
+      expiresAt: Math.floor(Date.now() / 1000) + 3600,
+      revoked: false,
+      pingOneAccessToken: 'real-pingone-access-token',
+    });
+    const r = new TokenResolver({ authManager, tokenExchangeService, tokenStore, logger });
+    const res = await r.resolve(makeSession(), baseTool, selfIssuedToken);
+    expect(res.token).toBe('real-pingone-access-token');
+    expect(res.source).toBe('agent-federated-passthrough');
+    expect(tokenExchangeService.exchangeToken).not.toHaveBeenCalled();
+  });
+
+  it('agent-passthrough: falls back to the self-issued token when the TokenStore has no stashed PingOne token for it (client_credentials case)', async () => {
+    process.env.BANKING_API_RESOURCE_URI = 'https://banking.example';
+    const b64u = (o: object) => Buffer.from(JSON.stringify(o)).toString('base64url');
+    const selfIssuedToken = `${b64u({ alg: 'RS256' })}.${b64u({ iss: 'https://localhost:8080', sub: 'client-1', jti: 'jti-2' })}.sig`;
+    const tokenStore = new TokenStore();
+    tokenStore.trackToken({
+      jti: 'jti-2',
+      clientId: 'client-1',
+      subject: 'client-1',
+      scope: 'mcp:invoke read',
+      issuedAt: Math.floor(Date.now() / 1000),
+      expiresAt: Math.floor(Date.now() / 1000) + 3600,
+      revoked: false,
+      // no pingOneAccessToken — this is what a client_credentials grant tracks
+    });
+    const r = new TokenResolver({ authManager, tokenExchangeService, tokenStore, logger });
+    const res = await r.resolve(makeSession(), baseTool, selfIssuedToken);
+    expect(res.token).toBe(selfIssuedToken);
+    expect(res.source).toBe('agent-passthrough');
+    expect(tokenExchangeService.exchangeToken).not.toHaveBeenCalled();
+  });
+
+  it('agent-passthrough: falls back to the self-issued token when the stashed PingOne token has expired', async () => {
+    process.env.BANKING_API_RESOURCE_URI = 'https://banking.example';
+    const b64u = (o: object) => Buffer.from(JSON.stringify(o)).toString('base64url');
+    const selfIssuedToken = `${b64u({ alg: 'RS256' })}.${b64u({ iss: 'https://localhost:8080', sub: 'real-pingone-user', jti: 'jti-3' })}.sig`;
+    const tokenStore = new TokenStore();
+    tokenStore.trackToken({
+      jti: 'jti-3',
+      clientId: 'client-1',
+      subject: 'real-pingone-user',
+      scope: 'mcp:invoke read',
+      issuedAt: Math.floor(Date.now() / 1000) - 7200,
+      expiresAt: Math.floor(Date.now() / 1000) - 3600, // expired an hour ago
+      revoked: false,
+      pingOneAccessToken: 'stale-pingone-access-token',
+    });
+    const r = new TokenResolver({ authManager, tokenExchangeService, tokenStore, logger });
+    const res = await r.resolve(makeSession(), baseTool, selfIssuedToken);
+    expect(res.token).toBe(selfIssuedToken);
+    expect(res.source).toBe('agent-passthrough');
+  });
+
+  it('agent-step9-exchange: still exchanges a PingOne-issued agentToken when resource URI is configured', async () => {
+    process.env.BANKING_API_RESOURCE_URI = 'https://banking.example';
+    const b64u = (o: object) => Buffer.from(JSON.stringify(o)).toString('base64url');
+    const pingOneToken = `${b64u({ alg: 'RS256' })}.${b64u({ iss: 'https://auth.pingone.com/env-123/as', sub: 'user-1' })}.sig`;
+    (tokenExchangeService.exchangeToken as jest.Mock).mockResolvedValue({
+      access_token: 'resource-tok',
+      token_type: 'Bearer',
+      expires_in: 60,
+      issued_token_type: 'urn:ietf:params:oauth:token-type:access_token',
+    });
+    const r = new TokenResolver({ authManager, tokenExchangeService, logger });
+    const res = await r.resolve(makeSession(), baseTool, pingOneToken);
+    expect(res.token).toBe('resource-tok');
+    expect(res.source).toBe('agent-step9-exchange');
+    expect(tokenExchangeService.exchangeToken).toHaveBeenCalledTimes(1);
   });
 
   it('agent-step9-exchange: exchanges when agentToken + resource URI present', async () => {

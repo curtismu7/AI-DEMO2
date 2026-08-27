@@ -125,6 +125,43 @@ body > .banking-agent-float-root .banking-agent-panel {
   font-weight: 700;
 }
 
+/* ─── Pop-out placeholder — shown in-page while the panel lives in its own
+   browser window (see PopOutPortal in AIAgent.js) ────────────────────────── */
+.ba-popout-placeholder {
+  position: fixed;
+  bottom: var(--fab-bottom, 28px);
+  right: var(--float-edge, 28px);
+  z-index: 10059;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--th-bg-card);
+  color: var(--th-text-primary, #1a1a2e);
+  border: 1.5px solid #2563eb;
+  box-shadow:
+    0 4px 24px rgba(65, 105, 225, 0.25),
+    0 1px 6px rgba(0, 0, 0, 0.12);
+  font-size: 13px;
+}
+
+.ba-popout-placeholder-btn {
+  border: none;
+  background: #2563eb;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ba-popout-placeholder-btn:hover {
+  background: #3158d3;
+}
+
 /* ─── Chat Panel ─────────────────────────────────────────────────────────
    Canonical --ba-* token block. !important because this must win over
    .ba-mode-light (higher specificity, no !important) which is always
@@ -1081,6 +1118,25 @@ body > .banking-agent-float-root .banking-agent-panel {
   color: var(--ba-muted);
   font-size: 13px;
   line-height: 1.6;
+}
+.ba-show-earlier-btn {
+  display: block;
+  width: calc(100% - 24px);
+  margin: 8px 12px;
+  padding: 6px 10px;
+  background: transparent;
+  border: 1px dashed var(--ba-border);
+  border-radius: 6px;
+  color: var(--ba-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+.ba-show-earlier-btn:hover {
+  background: rgba(65, 105, 225, 0.12);
+  color: var(--ba-text);
 }
 
 /* ─── Legacy header classes (kept for backward compat) ───────────────── */

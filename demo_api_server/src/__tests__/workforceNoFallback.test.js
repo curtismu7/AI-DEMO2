@@ -53,8 +53,9 @@ describe('workforce active — no banking fallback anywhere in the shared path',
     expect(JSON.stringify(out)).not.toMatch(/accountId|fromId|toId|routingNumber/);
   });
 
-  it('authz comes from the workforce plugin (submit_expense stepUp+consent gated)', () => {
+  // consent-only since 2026-08-25 — see workforce/tools.js.
+  it('authz comes from the workforce plugin (submit_expense consent gated)', () => {
     const authz = dispatch.authzFor('workforce', () => { throw new Error('legacy'); });
-    expect(authz.submit_expense).toEqual({ stepUp: true, consent: true });
+    expect(authz.submit_expense).toEqual({ consent: true });
   });
 });

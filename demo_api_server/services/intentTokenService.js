@@ -4,9 +4,36 @@ const crypto = require('node:crypto');
 
 const INTENT_TTL_SECONDS = 300; // 5-minute window per agent run
 
+// The vault is the final answer for this key. vaultLoader lists
+// INTENT_TOKEN_SECRET in ENV_EXPORT_ALLOWLIST and OVERWRITES process.env at
+// boot, so when a vault entry exists it beats whatever .env said — a diverged
+// .env copy can no longer decide what signs intent tokens, which is the drift
+// that broke SE introspection on 2026-08-25. Falling back to .env (and then
+// SESSION_SECRET) still works for deployments with no vault.
 function getSigningKey() {
   const key = process.env.INTENT_TOKEN_SECRET || process.env.SESSION_SECRET;
   if (!key) throw new Error('[intentTokenService] INTENT_TOKEN_SECRET (or SESSION_SECRET) not set');
+  // `encrypted:...` is configStore's OWN at-rest ciphertext format. configStore
+  // skips such a value when it appears in .env (the 2026-08-21 invalid_client
+  // incident, docs/vault.md), but THIS reads process.env directly, so nothing
+  // stopped the BFF signing every intent token with the literal ciphertext
+  // string. It "works" — an HMAC key is just bytes — and is undetectable from
+  // here: the signature is valid, and only the gateways fail, silently, because
+  // they were handed the real secret and can never match it. Both verifiers
+  // shipped as dead code for weeks on the strength of that.
+  // Fail loudly instead: an unresolvable key is a configuration error, not a
+  // usable secret.
+  if (key.startsWith('encrypted:')) {
+    throw new Error(
+      '[intentTokenService] signing key resolved to configStore ciphertext ' +
+      '("encrypted:..."), not a real secret — set a plaintext INTENT_TOKEN_SECRET ' +
+      'in the VAULT (npm run vault:set INTENT_TOKEN_SECRET), then re-run ' +
+      'scripts/refresh-service-envs.js so both gateways verify with the same key. ' +
+      'The vault wins for the BFF (vaultLoader ENV_EXPORT_ALLOWLIST) and now ' +
+      'supplies the gateway env files too; a .env value is only the fallback ' +
+      'when no vault entry exists.',
+    );
+  }
   return key;
 }
 
@@ -50,6 +77,68 @@ const INTENT_TO_PERMITTED_TOOLS = {
   withdraw:                 ['create_withdrawal', 'get_my_accounts', 'get_account_balance'],
   update_profile:           ['update_contact_email'],
   request_waiver:           ['request_fee_waiver'],
+  // Cross-vertical showcase chips. server.js's _TOOL_TO_INTENT has no entry for
+  // these, so the minted intent falls back to the TOOL NAME at confidence 0.50 —
+  // hence the key here is the tool name. Without an entry, permittedToolsForIntent
+  // fell through to the vertical's read-only list (which excludes them) and the
+  // gateway denied every call:
+  //   intent_mismatch: tool "get_weather" not permitted for intent "get_weather"
+  //
+  // Each grants EXACTLY its own tool — these are single-purpose showcases, and a
+  // 0.50-confidence intent should widen nothing. The weather geofence
+  // (checkWeatherScope) and the brave blocklist still run downstream; this only
+  // lets the request reach them. Measured live 2026-08-26: UC30 (Austin, should
+  // PERMIT) and UC31 (Miami, should be geofenced) were BOTH failing here, so UC31
+  // looked correct while denying for the wrong reason.
+  get_weather:              ['get_weather'],
+  get_branch_hours:         ['get_branch_hours'],
+
+  // Chip-driven tools that no intent permitted, so the gateway denied them with
+  //   intent_mismatch: tool "view_wishlist" not permitted for intent "view_wishlist"
+  // None has a _TOOL_TO_INTENT override, so the minted intent IS the tool name
+  // (confidence 0.50) and the fallback — the vertical's non-sensitive reads —
+  // excludes them. Each grants EXACTLY its own tool; a 0.50-confidence fallback
+  // intent must widen nothing.
+  //
+  // Scope is deliberate. 160 gateway-surface tools are intent-unreachable; only
+  // these 17 drive a chip, and only chips are demo-reachable. The other 143 are
+  // left alone rather than mapped blind.
+  redeem_miles:                   ['redeem_miles'],
+  // UC38's OTHER tool. The chip declares primaryTool: redeem_miles, but the use
+  // case runs two tools -- its own whatLong says the agent "calls
+  // get_loyalty_status to check the miles balance and redeem_miles to upgrade
+  // the cabin". Only the primary one is declared anywhere machine-readable, so
+  // the chip-reachability gate could not see this one and it stayed
+  // intent-unreachable after #2442. Confirmed live 2026-08-26 from PingGateway's
+  // audit trail, which is the only place the reason appears -- the BFF response
+  // body says just "access_denied":
+  //   IntentMatchesTool: "false"
+  //   "Tool 'get_loyalty_status' is not in the validated intent token's
+  //    permitted_tools."
+  get_loyalty_status:             ['get_loyalty_status'],
+  request_document:               ['request_document'],
+  request_fee_tier_review:        ['request_fee_tier_review'],
+  request_housing_assignment:     ['request_housing_assignment'],
+  request_price_adjustment:       ['request_price_adjustment'],
+  request_schedule_change:        ['request_schedule_change'],
+  request_spec_exception:         ['request_spec_exception'],
+  submit_filing:                  ['submit_filing'],
+  view_wishlist:                  ['view_wishlist'],
+
+  // These eight carry challengeType: consent, so consent fires BEFORE the intent
+  // check and they deny correctly today. Mapped anyway because the post-consent
+  // retry re-mints the same tool-name intent and would hit this wall next — a
+  // latent break that only shows after someone completes a consent flow.
+  // Adding an intent entry cannot weaken consent: challengeType is a separate
+  // gate and is untouched.
+  sensitive_holdings:             ['sensitive_holdings'],
+  sensitive_membership_details:   ['sensitive_membership_details'],
+  sensitive_order_history:        ['sensitive_order_history'],
+  sensitive_passenger_record:     ['sensitive_passenger_record'],
+  sensitive_patient_records:      ['sensitive_patient_records'],
+  sensitive_payroll_details:      ['sensitive_payroll_details'],
+  sensitive_student_finance:      ['sensitive_student_finance'],
+  sensitive_supplier_contract:    ['sensitive_supplier_contract'],
   // Investment
   view_investments:         ['get_investment_accounts', 'get_investment_balance', 'get_portfolio_summary', 'get_investment_transactions', 'show_investment'],
   view_portfolios:          ['view_portfolios', 'view_holdings', 'view_portfolio_value', 'view_trades', 'view_dividends'],
@@ -217,12 +306,96 @@ function ownEntry(map, key) {
   return  Object.hasOwn(map, key) ? map[key] : undefined;
 }
 
+/**
+ * Tools each vertical can actually DISPATCH, derived from the vertical plugins.
+ *
+ * Why derived and not another map: `server.js` mints `intent =
+ * _TOOL_TO_INTENT[tool] || tool`, so a tool with no entry above minted its own
+ * name as the intent, missed both maps, fell through to the vertical's
+ * read-only list — which excludes it — and was denied. That is not a policy
+ * decision, it is an incomplete map, and it broke `get_weather`,
+ * `get_branch_hours` and 17 chip tools before anyone noticed a pattern.
+ *
+ * Measured 2026-08-27: 142 of 244 gateway tools were in that state, and 99 of
+ * them are reachable by an ordinary typed phrase (a vertical heuristic maps a
+ * regex straight to a tool name). Driven live in Super Sports, "my addresses" /
+ * "show my invoices" / "my wishlist" / "my subscriptions" / "what promotions do
+ * you have" all routed correctly and then 403'd here, five for five.
+ *
+ * Hand-listing 99 entries was the other option and is what this file must NOT
+ * become: the same day produced three separate bugs from hand-kept copies of a
+ * single list (AIRLINES_TOOLS in router.ts, INVEST_BACKEND_TOOLS in the Groovy,
+ * and a test's own array). Deriving from the plugins means adding a heuristic or
+ * a tool cannot leave this behind.
+ *
+ * Scope of the grant, deliberately narrow:
+ *   - per VERTICAL, so retail's list_wishlist is not granted in banking
+ *   - only gateway-surface tools in scope-topology
+ *   - exactly ONE tool per intent — never a widening
+ *   - anything NOT dispatchable still falls through and fails closed
+ *
+ * This does not weaken any other gate. consent/step_up (`challengeType`), A2A
+ * delegation (`a2aDelegatedScope` + `requiresAgentMediation`), the scope check
+ * and the P1AZ decision are separate and unchanged — verified live, where
+ * `sensitive_membership_details` still denies with "A2A Delegation Required"
+ * while its intent validates (`IntentMatchesTool: true`).
+ *
+ * Lazy + memoized on purpose: `config/useCases.js` requires THIS module, so
+ * touching the config tree at load time is a require cycle. By first call
+ * everything is loaded. A failure degrades to the old fallback rather than
+ * breaking token minting, because an unmintable token fails every tool call.
+ */
+let _dispatchable = null;
+
+function dispatchableToolsFor(vertical) {
+  if (_dispatchable === null) {
+    _dispatchable = new Map();
+    try {
+      const fs = require('node:fs');
+      const path = require('node:path');
+      const topology = require(path.join(__dirname, '..', '..', 'scope-topology.json'));
+      const isGatewayTool = (n) => topology.tools[n] && topology.tools[n].surface === 'gateway';
+
+      const dir = path.join(__dirname, '..', 'config', 'verticals');
+      const ids = fs.readdirSync(dir, { withFileTypes: true })
+        .filter((e) => e.isDirectory() && e.name !== 'shared')
+        .map((e) => e.name);
+
+      for (const id of ids) {
+        let plugin;
+        try {
+          plugin = require(path.join(dir, id));
+        } catch {
+          continue; // a dir without a loadable plugin dispatches nothing
+        }
+        const tools = new Set();
+        for (const h of (typeof plugin.getHeuristics === 'function' ? plugin.getHeuristics() : [])) {
+          if (h && h.action && isGatewayTool(h.action)) tools.add(h.action);
+        }
+        for (const t of (typeof plugin.getTools === 'function' ? plugin.getTools() : [])) {
+          if (t && t.name && isGatewayTool(t.name)) tools.add(t.name);
+        }
+        _dispatchable.set(id, tools);
+      }
+    } catch {
+      // Leave the map empty: every intent then takes the read-only fallback,
+      // i.e. exactly the behaviour before this existed.
+    }
+  }
+  return _dispatchable.get(vertical) || null;
+}
+
 function permittedToolsForIntent(intent, vertical) {
   const verticalOverrides = ownEntry(VERTICAL_INTENT_TO_PERMITTED_TOOLS, vertical);
   const byVerticalIntent = verticalOverrides && ownEntry(verticalOverrides, intent);
   if (byVerticalIntent) return byVerticalIntent;
   const byIntent = ownEntry(INTENT_TO_PERMITTED_TOOLS, intent);
   if (byIntent) return byIntent;
+  // The intent is the name of a tool this vertical can dispatch: permit exactly
+  // that tool. See dispatchableToolsFor — this replaces ~99 hand-written
+  // self-granting entries and cannot drift when a heuristic or tool is added.
+  const dispatchable = dispatchableToolsFor(vertical);
+  if (dispatchable && dispatchable.has(intent)) return [intent];
   // Unknown/unclassified intent: restrict to the current vertical's non-sensitive
   // reads instead of every read tool across every vertical (which exposed
   // get_sensitive_account_details / query_user_by_email / other verticals' data to

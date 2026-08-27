@@ -55,4 +55,24 @@ describe('delegationGate', () => {
     delegationGate(req, res, next);
     expect(next).toHaveBeenCalled();
   });
+
+  // Regression guard: a JWT-shaped token (2+ dot segments) whose payload
+  // segment fails base64/JSON decode must fail closed, not silently pass
+  // through as "non-delegated" — a previously-revoked delegate agent's token
+  // could otherwise trip this exact path and bypass the 403 entirely.
+  it('fails closed (401) when the token is JWT-shaped but the payload cannot be decoded', () => {
+    const req = {
+      headers: { authorization: 'Bearer x.not-valid-base64-json!!!.x' },
+      user: { id: 'user-1' },
+    };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    const next = jest.fn();
+    delegationGate(req, res, next);
+    expect(next).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ error: 'invalid_token' })
+    );
+    expect(delegationStore.findActiveByActorAndGrantor).not.toHaveBeenCalled();
+  });
 });

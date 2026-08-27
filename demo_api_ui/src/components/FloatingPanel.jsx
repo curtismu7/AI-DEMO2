@@ -10,7 +10,7 @@ import './FloatingPanel.css';
  * inside the popup (including "Bring back") is dead. The separate root gives the
  * popup its own event-delegation tree. Mirrors DraggableModal's PopOutPortal.
  */
-function PopOutPortal({ win, children }) {
+export function PopOutPortal({ win, children }) {
   const rootRef = useRef(null);
   const containerRef = useRef(null);
 

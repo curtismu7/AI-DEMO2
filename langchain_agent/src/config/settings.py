@@ -4,7 +4,7 @@ Configuration management for environment-specific settings.
 import os
 import json
 from typing import Optional, Dict, Any, Type
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from pathlib import Path
 from abc import ABC, abstractmethod
 
@@ -68,6 +68,22 @@ class MCPConfig:
 
 
 @dataclass
+class PrivilegeConfig:
+    """Configuration for the PingOne Privilege Cloud MCP Gateway (agentless mode).
+
+    All fields default blank/off — Privilege is opt-in. Only required when
+    external_client.py is run with --server privilege.
+    """
+    client_id: str = ""  # PRIVILEGE_MCP_CLIENT_ID
+    client_secret: str = ""  # PRIVILEGE_MCP_CLIENT_SECRET
+    authorize_url: str = ""  # PRIVILEGE_MCP_AUTHORIZE_URL
+    token_url: str = ""  # PRIVILEGE_MCP_TOKEN_URL
+    redirect_uri: str = ""  # PRIVILEGE_MCP_REDIRECT_URI
+    scope: str = "openid"  # PRIVILEGE_MCP_SCOPE
+    callback_port: int = 8765  # PRIVILEGE_MCP_CALLBACK_PORT — local loopback OAuth callback
+
+
+@dataclass
 class LangChainConfig:
     """Configuration for LangChain agent."""
     model_name: str = "llama3.2"
@@ -97,7 +113,7 @@ class LangChainConfig:
     # cloud service); get_llm() fails fast when it is blank.
     groq_base_url: str = "https://api.groq.com/openai/v1"
     groq_api_key: str = ""
-    groq_model: str = "llama-3.3-70b-versatile"
+    groq_model: str = "openai/gpt-oss-20b"
     # Gemini — OpenAI-compatible /v1beta/openai/ endpoint. Real key required;
     # get_llm() fails fast when it is blank.
     google_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
@@ -171,6 +187,7 @@ class AppConfig:
     mcp: MCPConfig
     chat: ChatConfig
     langchain: LangChainConfig
+    privilege: PrivilegeConfig = field(default_factory=PrivilegeConfig)
 
 
 class BaseEnvironmentConfig(ABC):
@@ -439,7 +456,37 @@ class ConfigManager:
             raise ValueError(
                 f"MCP_TRANSPORT must be one of {_valid_transports}, got {mcp_config.mcp_transport!r}"
             )
-        
+
+        # Privilege Cloud MCP Gateway configuration (opt-in, agentless mode)
+        privilege_config = PrivilegeConfig(
+            client_id=get_env_value("PRIVILEGE_MCP_CLIENT_ID", ""),
+            client_secret=get_env_value("PRIVILEGE_MCP_CLIENT_SECRET", ""),
+            authorize_url=get_env_value("PRIVILEGE_MCP_AUTHORIZE_URL", ""),
+            token_url=get_env_value("PRIVILEGE_MCP_TOKEN_URL", ""),
+            redirect_uri=get_env_value("PRIVILEGE_MCP_REDIRECT_URI", ""),
+            scope=get_env_value("PRIVILEGE_MCP_SCOPE", "openid"),
+            callback_port=int(get_env_value("PRIVILEGE_MCP_CALLBACK_PORT", "8765")),
+        )
+
+        # Same plaintext-on-the-wire concern as HI-04 above: the token exchange
+        # sends the auth code, PKCE verifier, and client_secret to token_url.
+        # http:// there would ship credentials in clear text. Unlike the
+        # MCP_SERVER_*_ENDPOINT check above, this isn't gated to production —
+        # this repo has no sandbox/prod distinction (PingOne credentials are
+        # always real), and there's no legitimate http:// case for a PingOne
+        # cloud endpoint the way MCP_SERVER_*'s local:// covers a same-host
+        # dev gateway. Only checked when set — Privilege is opt-in and blank
+        # is the (safe) default.
+        for _field_name, _url in (
+            ("PRIVILEGE_MCP_AUTHORIZE_URL", privilege_config.authorize_url),
+            ("PRIVILEGE_MCP_TOKEN_URL", privilege_config.token_url),
+        ):
+            if _url and not _url.startswith("https://"):
+                raise ValueError(
+                    f"{_field_name} must use https:// "
+                    f"(got {_url.split('://')[0]}://...)"
+                )
+
         # LangChain configuration
         langchain_config = LangChainConfig(
             model_name=get_env_value("LANGCHAIN_MODEL_NAME", "llama3.2"),
@@ -460,7 +507,7 @@ class ConfigManager:
             # GroqCloud — real key required; get_llm() fails fast when blank.
             groq_base_url=get_env_value("GROQ_BASE_URL", "https://api.groq.com/openai/v1"),
             groq_api_key=get_env_value("GROQ_API_KEY", ""),
-            groq_model=get_env_value("GROQ_MODEL", "llama-3.3-70b-versatile"),
+            groq_model=get_env_value("GROQ_MODEL", "openai/gpt-oss-20b"),
             # Gemini — real key required; get_llm() fails fast when blank.
             google_base_url=get_env_value("GOOGLE_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai/"),
             google_api_key=get_env_value("GOOGLE_API_KEY", ""),
@@ -529,7 +576,8 @@ class ConfigManager:
             security=security_config,
             mcp=mcp_config,
             chat=chat_config,
-            langchain=langchain_config
+            langchain=langchain_config,
+            privilege=privilege_config,
         )
         
         # Validate configuration for the environment
@@ -558,7 +606,10 @@ class ConfigManager:
 
         if 'langchain' in config_dict:
             config_dict['langchain']['openai_api_key'] = "[REDACTED]"
-        
+
+        if 'privilege' in config_dict and config_dict['privilege'].get('client_secret'):
+            config_dict['privilege']['client_secret'] = "[REDACTED]"
+
         with open(output_path, 'w') as f:
             json.dump(config_dict, f, indent=2, default=str)
     
@@ -577,9 +628,10 @@ class ConfigManager:
         configs = {}
 
         # HI-04: in production, agent bearer tokens travel via Authorization
-        # header over WebSocket. Plain ws:// puts them on the wire in clear
-        # text. Reject anything that isn't wss:// or local:// at startup so
-        # the misconfiguration is loud, not silent.
+        # header. Plain ws:// or http:// puts them on the wire in clear text.
+        # wss:// and https:// are both TLS-encrypted (same protection), and
+        # local:// never leaves the host — accept all three, reject only the
+        # two plaintext schemes, so the misconfiguration is loud, not silent.
         environment = (os.getenv("ENVIRONMENT") or "development").lower()
         is_production = environment == "production"
 
@@ -589,10 +641,12 @@ class ConfigManager:
                 # Extract server name from environment variable
                 server_name = key.replace("MCP_SERVER_", "").replace("_ENDPOINT", "").lower()
 
-                if is_production and not (value.startswith("wss://") or value.startswith("local://")):
+                _allowed_prod_schemes = ("wss://", "https://", "local://")
+                if is_production and not value.startswith(_allowed_prod_schemes):
                     raise ValueError(
-                        f"MCP server '{server_name}' endpoint must use wss:// or local:// "
-                        f"in production (got {value.split('://')[0]}://...)"
+                        f"MCP server '{server_name}' endpoint must use "
+                        f"wss://, https://, or local:// in production "
+                        f"(got {value.split('://')[0]}://...)"
                     )
 
                 # IN-05: "".split(",") yields [""] (one empty element), not

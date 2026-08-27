@@ -87,6 +87,22 @@ describe('processAgentMessage — pingone-admin reports the tools it called', ()
     expect(result.toolsCalled.length).toBeGreaterThan(0);
   });
 
+  test('sends the small pingone-admin wrapper tool set to the reason loop, not the raw hosted catalog', async () => {
+    // The hosted PingOne MCP catalog has grown to 242 tools live — sending it
+    // straight to a local LLM tier blew past the tier's context window before
+    // the model ever saw the user's message (see TECH_DEBT / config/admin/tools.js's
+    // own comment on the identical fix for the other pingone-admin agent path).
+    mockLoopResult.value = { ok: true, answer: 'Here are the users.', inputTokens: 1, outputTokens: 1 };
+
+    await invoke();
+
+    const { runReasonLoop } = require('../services/agentReasoningClient');
+    const sentTools = runReasonLoop.mock.calls[0][0].tools;
+    expect(sentTools.map((t) => t.name).sort()).toEqual([
+      'api_key_demo', 'call_pingone_tool', 'dual_token_demo', 'list_pingone_tools',
+    ]);
+  });
+
   test('toolsCalled is [] — never undefined — when no tool ran', async () => {
     // runReasonLoop omits the key entirely on a no-tool run (same convention as
     // `truncated`), so the caller must default it rather than pass it through.

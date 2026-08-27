@@ -46,6 +46,14 @@
             "auditService": "AuditService"
           }
         },
+        {
+          "name": "ExternalDoor401Metadata",
+          "type": "ScriptableFilter",
+          "config": {
+            "type": "application/x-groovy",
+            "file": "external-door-401-metadata.groovy"
+          }
+        },
         "ExternalDoorResourceServerFilter",
         {
           "name": "McpProtocol",
@@ -77,6 +85,14 @@
           "config": {
             "type": "application/x-groovy",
             "file": "p1az-decision.groovy"
+          }
+        },
+        {
+          "name": "ExternalDoorToolsFilter",
+          "type": "ScriptableFilter",
+          "config": {
+            "type": "application/x-groovy",
+            "file": "external-door-tools-filter.groovy"
           }
         }
       ],

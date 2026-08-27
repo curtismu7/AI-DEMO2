@@ -42,11 +42,17 @@ describe('workforce tools', () => {
     expect(Array.isArray(out.result.expenses)).toBe(true);
   });
 
-  it('submit_expense (write) writes + stepUp+consent authz', async () => {
+  // consent-only since 2026-08-25. It declared stepUp too, and
+  // gen-vertical-tools resolves stepUp BEFORE consent, so challengeType came
+  // out 'step_up' — the live MCP policy then answered step-up for UC8's $300
+  // where the catalog expects HITL (a ProofStrip Mismatch). Every other
+  // vertical's UC6/7/8 amount tool is consent-only; UC7's $600 step-up comes
+  // from the use-case catalog's declared stepUpMethod, not from this flag.
+  it('submit_expense (write) writes + consent authz', async () => {
     const out = await execute('submit_expense', { category: 'Meals', amount: 42 }, { userId: 'u' });
     expect(out.result.status).toBe('Submitted');
     const def = tools.find((t) => t.name === 'submit_expense');
-    expect(def.authz).toEqual({ stepUp: true, consent: true });
+    expect(def.authz).toEqual({ consent: true });
   });
 
   it('request_time_off (write) decrements pto + consent authz', async () => {

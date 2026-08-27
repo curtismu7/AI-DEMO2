@@ -72,4 +72,25 @@ describe("AdminSideNav Telemetry group", () => {
     renderAt("/transaction-trace");
     expect(await screen.findByText("Transaction Trace")).toBeVisible();
   });
+
+  it("offers Grafana in Telemetry — it holds the gateway's metrics and is where traces open now", async () => {
+    renderAt("/transaction-trace");
+    expect(await screen.findByText("Grafana")).toBeInTheDocument();
+  });
+
+  it("opens Grafana in a new tab rather than routing to it, since it is not a React route", async () => {
+    const open = vi.fn();
+    vi.stubGlobal("open", open);
+    renderAt("/transaction-trace");
+
+    (await screen.findByText("Grafana")).click();
+
+    expect(open).toHaveBeenCalledTimes(1);
+    const [url, target, features] = open.mock.calls[0];
+    // jsdom serves tests from localhost, so the local-origin branch applies.
+    expect(url).toBe("http://localhost:3000");
+    expect(target).toBe("_blank");
+    expect(features).toBe("noopener,noreferrer");
+    vi.unstubAllGlobals();
+  });
 });

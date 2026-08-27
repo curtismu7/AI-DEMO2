@@ -39,6 +39,7 @@ See also: [Audit Table](./audit-table.md), [Step Verification Report](./step-ver
 - [**UC32** — Live-reconfigure the gateway's scope policy](./weather-mcp-live-reconfigure.md) ✅ 🛡️
 - [**UC25** — Enterprise-managed MCP access](./enterprise-managed-mcp-access.md) 🚩 🛡️
 - [**UC39** — Centralized MCP revocation](./enterprise-mcp-revocation.md) 🚩 🛡️
+- [**UC40** — Enterprise-Managed MCP Authorization (native ID-JAG)](./enterprise-managed-mcp-authorization.md) 🚩 🛡️
 - [**UC28** — Tool set as the authorization boundary (Air Canada pattern)](./unauthorized-commitment-fee-waiver.md) ✅ 🛡️
 - [**UC37** — Verified Trust — signed agent assertion on A2A delegation](./verified-trust-a2a-assertion.md) 🚩 🛡️
 

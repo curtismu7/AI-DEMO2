@@ -6,7 +6,7 @@ import './ElicitationDialog.css';
  * Renders either a form (form mode) or URL consent dialog (URL mode)
  * based on the server's elicitation request.
  */
-export default function ElicitationDialog({ elicitation, onSubmit, onCancel }) {
+export default function ElicitationDialog({ elicitation, onSubmit, onCancel, error }) {
   const [formData, setFormData] = useState({});
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -169,6 +169,7 @@ export default function ElicitationDialog({ elicitation, onSubmit, onCancel }) {
                 </div>
               ))}
             </form>
+            {error && <p className="elicit-modal__submit-error">{error}</p>}
           </div>
 
           <div className="elicit-modal__footer">
@@ -219,6 +220,7 @@ export default function ElicitationDialog({ elicitation, onSubmit, onCancel }) {
                 ⚠️ Please verify this is the correct domain before opening.
               </p>
             </div>
+            {error && <p className="elicit-modal__submit-error">{error}</p>}
           </div>
 
           <div className="elicit-modal__footer">

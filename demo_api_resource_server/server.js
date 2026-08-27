@@ -69,11 +69,74 @@ function apiKeyMatches(presented) {
   return crypto.timingSafeEqual(presentedDigest, API_KEY_DIGEST);
 }
 
-// Middleware: X-API-Key gate.
+// --- JIT credentials -------------------------------------------------------
+// The BFF broker can mint a short-TTL credential signed with THIS service's
+// key instead of handing the key itself to the gateway (ff_jit_credentials).
+// Verified here with node crypto rather than a JWT library: this service is
+// deliberately dependency-minimal, and a new dependency would break
+// bootstrap-worktree until every checkout reinstalled.
+//
+// Hand-rolled JWT verification has two classic holes, both closed below:
+// the algorithm is pinned to HS256 (so `alg: none` and algorithm confusion
+// are rejected), and the signature is compared before any claim is trusted.
+
+function verifyJitCredential(presented, expectedAud) {
+  const parts = presented.split('.');
+  if (parts.length !== 3) return false;
+  const [encHeader, encPayload, encSig] = parts;
+
+  let header;
+  let claims;
+  try {
+    header = JSON.parse(Buffer.from(encHeader, 'base64url').toString('utf8'));
+    claims = JSON.parse(Buffer.from(encPayload, 'base64url').toString('utf8'));
+  } catch (_e) {
+    return false;
+  }
+
+  // Pin the algorithm. Never read `alg` to decide how to verify. This also
+  // rejects a token that is correctly HMAC-signed but declares a different
+  // alg — the case a signature check alone cannot catch.
+  if (!header || header.alg !== 'HS256') return false;
+
+  const expected = crypto
+    .createHmac('sha256', API_KEY)
+    .update(`${encHeader}.${encPayload}`)
+    .digest();
+  let presentedSig;
+  try {
+    presentedSig = Buffer.from(encSig, 'base64url');
+  } catch (_e) {
+    return false;
+  }
+  if (presentedSig.length !== expected.length) return false;
+  if (!crypto.timingSafeEqual(presentedSig, expected)) return false;
+
+  // Only now are the claims trustworthy.
+  if (claims.iss !== 'bff-broker') return false;
+  // Route binding: this service knows its own route, so no route->tool table is
+  // needed — including for routes loaded from feature-records.generated.json.
+  if (!claims.aud || claims.aud !== expectedAud) return false;
+  if (typeof claims.exp !== 'number' || claims.exp <= Math.floor(Date.now() / 1000)) return false;
+
+  return true;
+}
+
+// Middleware: X-API-Key gate. Accepts either a JIT credential bound to this
+// route, or the legacy static key (the ff_jit_credentials=off path).
 function requireApiKey(req, res, next) {
   const presented = req.headers['x-api-key'];
   if (!presented || typeof presented !== 'string') {
     return res.status(401).json({ error: 'api_key_missing', message: 'X-API-Key header required' });
+  }
+  // A dotted triple can only be a credential attempt — never fall through to
+  // the static compare for one, so a malformed credential fails as a credential.
+  if (presented.split('.').length === 3) {
+    const route = String(req.path || '').replace(/^\//, '');
+    if (!verifyJitCredential(presented, route)) {
+      return res.status(401).json({ error: 'jit_credential_invalid' });
+    }
+    return next();
   }
   if (!apiKeyMatches(presented)) {
     return res.status(401).json({ error: 'api_key_invalid' });

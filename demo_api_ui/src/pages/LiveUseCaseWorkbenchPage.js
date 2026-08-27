@@ -226,6 +226,21 @@ export default function LiveUseCaseWorkbenchPage() {
   useEffect(() => { storeWidth(DRAWER_KEY, drawerW); }, [drawerW]);
   useEffect(() => { storeWidth(AGENT_KEY, agentW); }, [agentW]);
 
+  // Cache the run-layout width via ResizeObserver instead of reading
+  // getBoundingClientRect() inline in JSX (aria-valuemax below), which would
+  // force a synchronous layout read on every render — including every
+  // pointermove while dragging the resize divider.
+  const [runLayoutWidth, setRunLayoutWidth] = useState(0);
+  useEffect(() => {
+    const el = runLayoutRef.current;
+    if (!el) return undefined;
+    const update = () => setRunLayoutWidth(el.getBoundingClientRect().width);
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(update) : null;
+    if (ro) ro.observe(el);
+    update();
+    return () => ro?.disconnect();
+  }, []);
+
   /**
    * Drag a vertical divider until pointerup, feeding each clientX to `apply`.
    * @param {import('react').PointerEvent} e
@@ -296,13 +311,18 @@ export default function LiveUseCaseWorkbenchPage() {
     return () => { cancelled = true; };
   }, [vertical]);
 
+  // Guards against an older, slower Run click's two-POST chain resolving
+  // after a newer click's chain and firing banking-agent-prefill last.
+  const runChipTokenRef = useRef(0);
   const handleRunChip = useCallback((uc) => {
     const useCaseId = uc.useCaseId;
+    const myRunToken = ++runChipTokenRef.current;
     setSelectedId(uc.id);
     setRunState({ id: uc.id, state: 'running' });
     apiClient.post('/api/use-cases/demo/run', { useCaseId, vertical })
       .then(({ data }) => apiClient.post('/api/verticals/active', { id: vertical }).then(() => data))
       .then((data) => {
+        if (myRunToken !== runChipTokenRef.current) return; // a newer Run click superseded this one
         setRunState({ id: uc.id, state: 'done' });
         if (String(uc.expectedOutcome || '').toUpperCase().includes('HITL')
           || /transfer/i.test(data.triggerText || '')) {
@@ -314,6 +334,7 @@ export default function LiveUseCaseWorkbenchPage() {
         }));
       })
       .catch((err) => {
+        if (myRunToken !== runChipTokenRef.current) return;
         setRunState({ id: uc.id, state: 'error', msg: err.message || 'Failed to launch scenario' });
       });
   }, [vertical]);
@@ -683,7 +704,7 @@ export default function LiveUseCaseWorkbenchPage() {
                 aria-label="Resize agent and token chain columns"
                 aria-valuenow={agentW ?? PANE_MIN}
                 aria-valuemin={PANE_MIN}
-                aria-valuemax={Math.max(PANE_MIN, Math.round(runLayoutRef.current?.getBoundingClientRect().width ?? 0) - PANE_MIN)}
+                aria-valuemax={Math.max(PANE_MIN, Math.round(runLayoutWidth) - PANE_MIN)}
                 tabIndex={0}
                 onPointerDown={(e) => startResize(e, applyAgentW)}
                 onDoubleClick={() => setAgentW(null)}

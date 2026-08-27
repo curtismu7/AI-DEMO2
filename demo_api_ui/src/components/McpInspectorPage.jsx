@@ -1124,6 +1124,8 @@ function useCustomServerSource() {
   const [profileError, setProfileError] = useState(null);
   const [pingoneAdminLoginUrl, setPingoneAdminLoginUrl] = useState(null);
   const [pingoneAdminError, setPingoneAdminError] = useState(null);
+  const [privilegeLoginUrl, setPrivilegeLoginUrl] = useState(null);
+  const [privilegeError, setPrivilegeError] = useState(null);
   const [showAddServer, setShowAddServer] = useState(false);
   const [addProfileError, setAddProfileError] = useState(null);
   const [newProfile, setNewProfile] = useState({
@@ -1156,6 +1158,29 @@ function useCustomServerSource() {
     }
   }, []);
 
+  // Surface a failed Privilege admin login (routes/mcpPrivilegeAuth.js
+  // redirects back to ?source=custom&privilege_error=... on state mismatch /
+  // token exchange failure), same shape as the PingOne admin handling above.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const err = params.get('privilege_error');
+    if (err) {
+      setPrivilegeError(err);
+      params.delete('privilege_error');
+      const qs = params.toString();
+      window.history.replaceState({}, '', qs ? `${window.location.pathname}?${qs}` : window.location.pathname);
+    }
+  }, []);
+
+  // Deep-link straight to a specific profile (e.g. the LibreChat footer link
+  // opens ?source=custom&profile=built-in-privilege-mcp so a real tool call
+  // in LibreChat is easy to inspect without an extra dropdown click).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const profileId = params.get('profile');
+    if (profileId) setSelectedProfileId(profileId);
+  }, []);
+
   const loadProfiles = useCallback(async () => {
     try {
       const { data } = await apiClient.get('/api/mcp/inspector/profiles');
@@ -1173,6 +1198,7 @@ function useCustomServerSource() {
     setLoadingTools(true);
     setProfileError(null);
     setPingoneAdminLoginUrl(null);
+    setPrivilegeLoginUrl(null);
     const isNonDefaultProfile = selectedProfileId && selectedProfileId !== defaultProfileId;
     try {
       const qs = isNonDefaultProfile ? `?profile=${encodeURIComponent(selectedProfileId)}` : '';
@@ -1190,6 +1216,9 @@ function useCustomServerSource() {
       }
       if (data.pingone_admin_login_required) {
         setPingoneAdminLoginUrl(data.loginUrl || '/api/mcp/inspector/pingone-admin/login');
+      }
+      if (data.privilege_login_required) {
+        setPrivilegeLoginUrl(data.loginUrl || '/api/mcp/inspector/privilege/login');
       }
       setMfaRequired(!!data.mfa_required);
       setStepUpMethod(data.step_up_method || '');
@@ -1462,6 +1491,23 @@ function useCustomServerSource() {
               onClick={() => { window.location.href = pingoneAdminLoginUrl; }}
             >
               Sign in as PingOne admin
+            </button>
+          </div>
+        )}
+        {privilegeError && (
+          <div style={{ background: '#fef2f2', color: '#991b1b', padding: '8px 20px', fontSize: 12 }}>
+            <strong>Privilege sign-in failed.</strong> {privilegeError}
+          </div>
+        )}
+        {privilegeLoginUrl && (
+          <div style={{ background: '#eff6ff', color: '#1e40af', padding: '8px 20px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <strong>Privilege sign-in required.</strong>{' '}
+            This profile calls the external Privilege Cloud MCP gateway via PingOne OAuth, not a stored secret.
+            <button
+              className="inspector-shell-topbar__btn inspector-shell-topbar__btn--active"
+              onClick={() => { window.location.href = privilegeLoginUrl; }}
+            >
+              Sign in via PingOne
             </button>
           </div>
         )}

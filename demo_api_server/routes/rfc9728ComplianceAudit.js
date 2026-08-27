@@ -29,7 +29,7 @@ router.get('/audit/compliance', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('RFC 9728 compliance audit error:', error);
+    console.error('RFC 9728 compliance audit error:', error?.stack || String(error));
     res.status(500).json({
       success: false,
       error: 'Compliance audit failed',
@@ -53,7 +53,7 @@ router.get('/audit/metadata', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('RFC 9728 metadata audit error:', error);
+    console.error('RFC 9728 metadata audit error:', error?.stack || String(error));
     res.status(500).json({
       success: false,
       error: 'Metadata audit failed',
@@ -77,7 +77,7 @@ router.get('/audit/endpoint', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('RFC 9728 endpoint audit error:', error);
+    console.error('RFC 9728 endpoint audit error:', error?.stack || String(error));
     res.status(500).json({
       success: false,
       error: 'Endpoint audit failed',
@@ -101,7 +101,7 @@ router.get('/audit/security', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('RFC 9728 security audit error:', error);
+    console.error('RFC 9728 security audit error:', error?.stack || String(error));
     res.status(500).json({
       success: false,
       error: 'Security audit failed',
@@ -125,7 +125,7 @@ router.get('/audit/educational', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('RFC 9728 educational audit error:', error);
+    console.error('RFC 9728 educational audit error:', error?.stack || String(error));
     res.status(500).json({
       success: false,
       error: 'Educational audit failed',
@@ -177,7 +177,7 @@ router.get('/audit/summary', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('RFC 9728 summary audit error:', error);
+    console.error('RFC 9728 summary audit error:', error?.stack || String(error));
     res.status(500).json({
       success: false,
       error: 'Summary audit failed',

@@ -43,10 +43,37 @@ import org.forgerock.util.promise.Promises
 
 // Tools served by demo_mcp_resource_server rather than the banking MCP server.
 // Mirrors AIRLINES_TOOLS + INVEST_TOOLS in demo_mcp_gateway/src/router.ts.
+//
+// pay_airline_fee / cancel_airline_reservation / sensitive_airline_bookings /
+// sensitive_passenger_record were missing here even though router.ts has always
+// had them (found 2026-08-24 while chasing a live UC7 pay_airline_fee failure):
+// demo_mcp_gateway is scaled to 0 replicas on the SE cluster, so this Groovy
+// filter — not router.ts — is what actually dispatches every tool call there,
+// and an airlines write tool absent from this set falls through to the OLB
+// chain, where the BFF's airlines plugin disowns it ("no handler for
+// pay_airline_fee"). Adding the remaining four completes the mirror.
+//
+// It did not. get_loyalty_status and redeem_miles were still absent, and UC38
+// died the same way -- "no handler for redeem_miles" -- with the P1AZ decision
+// reading PERMIT, because dispatch happens after authorization. Found live
+// 2026-08-26. Three hand-kept copies of this list existed (here, router.ts, and
+// the dispatch test's own array) with no parity gate between them, so each fix
+// corrected one copy and left the others to be rediscovered.
+//
+// demo_mcp_gateway/tests/airlinesDispatch.test.ts now derives the expected set
+// from demo_mcp_resource_server's exported AIRLINES_TOOL_NAMES and holds BOTH
+// this file and router.ts to it. Add a handler there and this list is required
+// to follow.
 def INVEST_BACKEND_TOOLS = [
     'get_airline_bookings',
     'get_flight_status',
     'check_seat_availability',
+    'pay_airline_fee',
+    'cancel_airline_reservation',
+    'sensitive_airline_bookings',
+    'sensitive_passenger_record',
+    'get_loyalty_status',
+    'redeem_miles',
     'get_investment_accounts',
     'get_investment_balance',
     'get_investment_transactions',
@@ -59,6 +86,12 @@ def SCOPE_FOR_TOOL = [
     get_airline_bookings       : 'airlines:read',
     get_flight_status          : 'airlines:read',
     check_seat_availability    : 'airlines:read',
+    pay_airline_fee            : 'airlines:read airlines:write',
+    cancel_airline_reservation : 'airlines:read airlines:write',
+    sensitive_airline_bookings : 'airlines:read sensitive:read',
+    sensitive_passenger_record : 'read',
+    get_loyalty_status         : 'airlines:read',
+    redeem_miles               : 'airlines:read airlines:write',
     get_investment_accounts    : 'invest:read',
     get_investment_balance     : 'invest:read',
     get_investment_transactions: 'invest:read',

@@ -135,7 +135,7 @@ router.post('/token', extractClientCredentials, extractRequestMetadata, async (r
     res.json(tokenResponse);
 
   } catch (error) {
-    console.error('[OAuth Token] Error processing grant:', error);
+    console.error('[OAuth Token] Error processing grant:', error?.stack || String(error));
     
     const statusCode = error.status || 500;
     const errorCode = error.code || 'server_error';
@@ -168,7 +168,7 @@ router.post('/introspect', extractRequestMetadata, (req, res, next) => {
     res.json(introspection);
 
   } catch (error) {
-    console.error('[OAuth Introspect] Error:', error);
+    console.error('[OAuth Introspect] Error:', error?.stack || String(error));
     
     res.status(500).json({
       error: 'server_error',
@@ -199,7 +199,7 @@ router.post('/revoke', extractRequestMetadata, (req, res, next) => {
     res.status(200).json({});
 
   } catch (error) {
-    console.error('[OAuth Revoke] Error:', error);
+    console.error('[OAuth Revoke] Error:', error?.stack || String(error));
     
     // Always return 200 for revocation to avoid token leakage
     res.status(200).json({});
@@ -237,7 +237,7 @@ router.get('/token/statistics', extractRequestMetadata, async (req, res, next) =
     res.json(stats);
 
   } catch (error) {
-    console.error('[OAuth Stats] Error:', error);
+    console.error('[OAuth Stats] Error:', error?.stack || String(error));
     
     res.status(500).json({
       error: 'server_error',
@@ -280,7 +280,7 @@ router.post('/token/cleanup', extractRequestMetadata, async (req, res, next) => 
     });
 
   } catch (error) {
-    console.error('[OAuth Cleanup] Error:', error);
+    console.error('[OAuth Cleanup] Error:', error?.stack || String(error));
     
     res.status(500).json({
       error: 'server_error',
@@ -342,7 +342,7 @@ function validateOAuthToken(requiredScopes = []) {
  * Error handling middleware
  */
 router.use((err, req, res, next) => {
-  console.error('[OAuth Token] Unhandled error:', err);
+  console.error('[OAuth Token] Unhandled error:', err?.stack || String(err));
   
   res.status(500).json({
     error: 'server_error',

@@ -4,10 +4,10 @@
   "ucId": "UC8",
   "trigger": "extend my rental $300",
   "expectedOutcome": "HITL_REQUIRED",
-  "capturedAt": "2026-07-27T00:28:19.822Z",
-  "seedHash": "c48bf4072b509915",
-  "reply": "PingOne Authorize requires human approval before MCP tools can run.",
+  "capturedAt": "2026-08-24T14:03:44.715Z",
+  "seedHash": "bbfe417d11c6b000",
+  "reply": "Transaction requires human approval (HITL consent)",
   "requiresConsent": true,
   "agentPath": null,
-  "tokenEventCount": 13
+  "tokenEventCount": 20
 }

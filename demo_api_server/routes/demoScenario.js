@@ -100,31 +100,31 @@ async function saveAccountSnapshot(userId) {
 /**
  * On cold-start, the in-memory dataStore loses all accounts.  Rebuild them from
  * the last snapshot stored in demoScenarioStore (Redis/KV).
- * Returns the restored accounts array, or [] if no snapshot is available.
+ * Returns the restored accounts array, or [] if no snapshot exists (the
+ * legitimate case — demoScenarioStore.load() never throws for "not found",
+ * it just omits accountSnapshot).  A genuine read/create failure (e.g. the
+ * LMDB env is transiently unavailable) is NOT swallowed here — it propagates
+ * to the caller so a transient store error can't be mistaken for "no
+ * snapshot" and trigger reprovisioning fresh accounts over the real ones.
  */
 async function restoreAccountsFromSnapshot(userId) {
-  try {
-    const scenario = await demoScenarioStore.load(userId);
-    if (!Array.isArray(scenario.accountSnapshot) || scenario.accountSnapshot.length === 0) return [];
-    const restored = [];
-    for (const snap of scenario.accountSnapshot) {
-      const existing = dataStore.getAccountById(snap.id);
-      if (existing) {
-        restored.push(existing);
-      } else {
-        const acct = await dataStore.createAccount({
-          ...snap,
-          userId,
-          createdAt: new Date(),
-        });
-        restored.push(acct);
-      }
+  const scenario = await demoScenarioStore.load(userId);
+  if (!Array.isArray(scenario.accountSnapshot) || scenario.accountSnapshot.length === 0) return [];
+  const restored = [];
+  for (const snap of scenario.accountSnapshot) {
+    const existing = dataStore.getAccountById(snap.id);
+    if (existing) {
+      restored.push(existing);
+    } else {
+      const acct = await dataStore.createAccount({
+        ...snap,
+        userId,
+        createdAt: new Date(),
+      });
+      restored.push(acct);
     }
-    return restored;
-  } catch (e) {
-    console.warn('[demoScenario] restoreAccountsFromSnapshot failed:', e.message);
-    return [];
   }
+  return restored;
 }
 
 /** Allowed account types from the Demo config UI (new rows). */

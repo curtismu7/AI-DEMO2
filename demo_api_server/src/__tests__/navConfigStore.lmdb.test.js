@@ -1,10 +1,11 @@
 'use strict';
 
 const store = require('../../services/lmdb/navConfigStore.lmdb');
+const { getDb } = require('../../services/lmdb/openEnv');
 
 const KNOWN_NAV_LABELS = [
   "Home", "Dashboard", "Themes", "Use Cases", "Agent Demo Guide",
-  "Family Delegation", "AI Agents", "PingOne MCP", "MCP & Gateways",
+  "Family Delegation", "AI Flows", "PingOne MCP", "MCP & Gateways",
   "PingOne Demo Apps", "Delegation & Consent", "Authorize", "OAuth & Identity",
   "Industry Verticals", "Users & Accounts", "AI Attack Demos", "Monitoring",
   "Telemetry", "Diagrams", "Agent Studio (Preview)", "Learn & Present",
@@ -91,6 +92,38 @@ describe('navConfigStore.lmdb', () => {
     expect(store.isChildOrder({ Demos: 'Use Cases' })).toBe(false);
     expect(store.isChildOrder({ Demos: [1] })).toBe(false);
     expect(store.isChildOrder(null)).toBe(false);
+  });
+
+  // Renaming a nav group edits BUILTIN_CONFIGS, but an install that had already
+  // seeded kept the old label forever and silently stopped hiding the group.
+  // Builtins are code-owned (createConfig mints cfg_* ids, deleteConfig refuses
+  // isBuiltin), so the stored copy must track the constant, not outlive it.
+  test('a builtin whose stored copy has drifted is reconciled from code', () => {
+    const db = getDb(store.DB_NAME);
+    store.listConfigs();
+    const before = store.getConfig('learning');
+
+    // Simulate an install seeded before a nav-group rename. Read the drift back
+    // off the db directly — every public getter seeds, so going through the API
+    // here would heal it before the assertion and the test would prove nothing.
+    db.putSync('config:learning', { ...before, hiddenLabels: ['Some Old Label'] });
+    expect(db.get('config:learning').hiddenLabels).toEqual(['Some Old Label']);
+
+    store.listConfigs();
+
+    const after = store.getConfig('learning');
+    const code = store.BUILTIN_CONFIGS.find((c) => c.id === 'learning');
+    expect(after.hiddenLabels).toEqual(code.hiddenLabels);
+    expect(after.createdAt).toBe(before.createdAt); // age survives the rewrite
+  });
+
+  // The reconcile runs on every listConfigs(), so it has to be a no-op when
+  // nothing moved — otherwise each page load rewrites three keys.
+  test('reconciling leaves an up-to-date builtin untouched', () => {
+    store.listConfigs();
+    const first = store.getConfig('demo-mode');
+    store.listConfigs();
+    expect(store.getConfig('demo-mode').updatedAt).toBe(first.updatedAt);
   });
 
   test('every BUILTIN_CONFIGS hiddenLabels entry is a real, known nav label', () => {

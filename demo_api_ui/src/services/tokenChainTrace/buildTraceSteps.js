@@ -625,7 +625,12 @@ export function chainBadge(trace, steps) {
 // the chain says what each one DID rather than echoing a Java class name. Any
 // stage the gateway adds later still renders — it just falls back to its raw
 // name with no blurb, which is better than being dropped.
-const GW_STAGE_META = {
+// Exported so the movie reel's FilterChain renders the SAME labels and notes as
+// the Token Chain rail. The reel started out printing raw Java class names,
+// which meant the two surfaces described one filter chain two different ways —
+// the drift this map already exists to prevent (see the note on the IG stages
+// below, added when they were rendering under their raw names here).
+export const GW_STAGE_META = {
   TokenIntrospection: { label: "Token introspection", note: "RFC 7662 call to PingOne — is this token still live?" },
   GatewayTokenPolicy: { label: "Gateway token policy", note: "Local check: audience, scope and the act delegation chain." },
   P1AZDecision: { label: "PingOne Authorize decision", note: "The gateway's OWN policy call — separate from the BFF's earlier one." },

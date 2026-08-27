@@ -48,6 +48,11 @@ spec:
         ports:
         - containerPort: 8080
           name: http
+        # adminConnector — declared so the pod spec states it rather than
+        # leaving a listening port undocumented. IG binds this whether or not
+        # it is declared here; the Service is what actually makes it reachable.
+        - containerPort: 8085
+          name: metrics
         # All PingOne / secret values come from ping-gateway-secrets (sourced from
         # ping-gateway/.env by create-secrets.sh). Cluster-internal addresses that
         # differ from the .env standalone defaults are overridden inline below.
@@ -256,6 +261,23 @@ spec:
     targetPort: 8080
     protocol: TCP
     name: http
+  # PingGateway's adminConnector (default 8085) — the monitoring surface, on a
+  # DIFFERENT port from routes by design. It was already listening; nothing
+  # reached it because the Service exposed only 8080. Serves
+  # /metrics/prometheus/0.0.4 (the /openig prefix was removed in 2025.x) with
+  # per-route MCP counters: ig_route_request_active{route="00-mcp-external-door"}
+  # and friends, plus ig_http_server_* timings.
+  #
+  # CLUSTER-INTERNAL ONLY. The Service is ClusterIP and no ingress maps this
+  # port. That matters because the endpoint is UNAUTHENTICATED by default —
+  # PingGateway's docs are explicit that "no special credentials or privileges
+  # are required". Publishing it beyond the cluster needs a
+  # metricsProtectionFilter in admin.json first (NOT apiProtectionFilter, which
+  # is a different thing and does not govern this endpoint).
+  - port: 8085
+    targetPort: 8085
+    protocol: TCP
+    name: metrics
   # MCP sessions are stateful (Mcp-Session-Id). Pin each client to the same
   # pod for the session lifetime, same as mcp-server's service.
   sessionAffinity: ClientIP

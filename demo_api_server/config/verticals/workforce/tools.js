@@ -64,7 +64,14 @@ function buildWorkforceTools(store) {
         required: [],
       },
       scopes: ['write'],
-      authz: { stepUp: true, consent: true },
+      // consent only, matching retail `checkout` and every other UC6/7/8 amount
+      // tool. Declaring stepUp too made gen-vertical-tools derive
+      // challengeType 'step_up' (stepUp wins), so the live MCP policy answered
+      // step-up for UC8's $300 where the catalog expects HITL — a Mismatch.
+      // The obligation is amount-independent there, so UC7's $600 step-up comes
+      // from the use-case catalog's declared stepUpMethod re-labelling the HITL,
+      // exactly as it does for create_transfer and checkout.
+      authz: { consent: true },
     },
     {
       name: 'request_time_off',
