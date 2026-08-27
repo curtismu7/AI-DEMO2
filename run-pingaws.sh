@@ -11,7 +11,7 @@
 #   ./run-pingaws.sh deploy             # deploy only (images already in GHCR)
 #   ./run-pingaws.sh status             # show pods in your SE namespace
 #   ./run-pingaws.sh rag [on|off]       # build/start or stop the RAG stack
-#   ./run-pingaws.sh undeploy | stop    # remove app resources (keep namespace)
+#   ./run-pingaws.sh undeploy           # delete workloads AND secrets (asks first)
 #   ./run-pingaws.sh update code [svc]  # rebuild/redeploy changed service(s)
 #   ./run-pingaws.sh update config      # push secrets/configmaps (no rebuild)
 #   ./run-pingaws.sh update pingone     # re-bootstrap PingOne redirect URIs
@@ -54,7 +54,9 @@ Usage:
   ./run-pingaws.sh deploy           deploy only (no rebuild)
   ./run-pingaws.sh status           show SE pod status
   ./run-pingaws.sh rag [on|off]     build/start or stop the RAG stack
-  ./run-pingaws.sh undeploy | stop  remove app from your namespace
+  ./run-pingaws.sh undeploy         tear down the SHARED SE namespace: deletes
+                                    workloads AND secrets, takes ai-demo.ping-devops.com
+                                    down for everyone, asks before it does (--yes skips)
   ./run-pingaws.sh update code [svc…]
                                     rebuild/redeploy (all, or bff|frontend|mcp|…)
   ./run-pingaws.sh update config    push .env / configmaps (no image rebuild)
@@ -113,8 +115,27 @@ case "$cmd" in
   rag)
     exec "$RUN_K8" se-rag "$@"
     ;;
-  undeploy|stop|se-undeploy)
+  undeploy|se-undeploy)
     exec "$RUN_K8" se-undeploy "$@"
+    ;;
+  # `stop` used to be a third alias for the full SE teardown above. It is not
+  # one any more, because the same word means the opposite thing one script
+  # over: `./run-k8.sh stop` is a harmless local stop, while this script's
+  # `stop` wiped a shared cluster namespace. Anyone who learned the first and
+  # typed the second got a teardown they did not ask for — and would answer
+  # "no" in good faith to "did you undeploy?", because they typed `stop`.
+  #
+  # Refuse and name both real commands rather than guessing which was meant.
+  stop)
+    echo "Refusing: 'stop' is ambiguous here and used to mean a full SE teardown." >&2
+    echo >&2
+    echo "  Did you mean to stop the LOCAL stack?" >&2
+    echo "    ./run-k8.sh stop            # local kubernetes stack" >&2
+    echo "    ./run-docker.sh stop        # docker compose stack" >&2
+    echo >&2
+    echo "  Or to tear down the SHARED SE cluster namespace?" >&2
+    echo "    ./run-pingaws.sh undeploy   # deletes workloads AND secrets; asks first" >&2
+    exit 1
     ;;
   update)
     sub="${1:-}"

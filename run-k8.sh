@@ -41,7 +41,10 @@
 #   ./run-k8.sh se-deploy     # deploy to SE cluster (auto-derives your namespace)
 #   ./run-k8.sh se-all        # se-build + se-deploy
 #   ./run-k8.sh se-status     # switch to the SE cluster + your namespace, show pod status
-#   ./run-k8.sh se-undeploy   # remove all app resources from your SE namespace (run when done!)
+#   ./run-k8.sh se-undeploy   # tear down your SE namespace: deletes workloads AND
+#                             # secrets, so create-secrets.sh must be re-run before the
+#                             # next deploy. Asks first; --yes (or SE_UNDEPLOY_YES=1) skips.
+#                             # NOT the same as `stop` below, which is only local.
 #
 #   Namespace is auto-derived from your Ping email (cmuir@pingidentity.com → ping-devops-cmuir).
 #   Override with: SE_NAMESPACE=ping-devops-yourname ./run-pingaws.sh
@@ -670,6 +673,50 @@ se_deploy_banner() {
 se_undeploy() {
   local ns
   ns="$(derive_se_namespace)"
+
+  # Confirm before touching anything. This wipes a SHARED cluster namespace —
+  # it takes https://ai-demo.ping-devops.com down for everyone, not just you —
+  # and it deletes secrets as well as workloads, so create-secrets.sh has to be
+  # re-run before the next deploy. There is no undo.
+  #
+  # Confirmation is skipped for --yes / SE_UNDEPLOY_YES=1, and when there is no
+  # terminal to ask at: refuse rather than assume consent from a script.
+  local assume_yes="${SE_UNDEPLOY_YES:-}"
+  local arg
+  for arg in "$@"; do
+    case "$arg" in
+      -y|--yes) assume_yes=1 ;;
+    esac
+  done
+
+  if [[ "$assume_yes" != "1" ]]; then
+    echo
+    demo_warn "About to UNDEPLOY the SE cluster namespace: $ns"
+    echo "  Deletes: deployments, services, ingresses, configmaps, secrets (ALL of them)"
+    echo "  Effect:  https://ai-demo.ping-devops.com stops resolving — for everyone on this namespace"
+    echo "  After:   create-secrets.sh must be re-run before the next deploy"
+    echo "  Undo:    none — a redeploy is the only way back"
+    echo
+    local reply=""
+    # Probe /dev/tty by opening it — `[[ -r /dev/tty ]]` can pass where the open
+    # then fails, which leaks "Device not configured" and lands in the wrong
+    # branch. Prefer the real terminal over stdin so a piped `yes` cannot
+    # auto-confirm a teardown.
+    if { : </dev/tty; } 2>/dev/null; then
+      read -r -p "Undeploy $ns? [y/N] " reply </dev/tty || true
+    elif [[ -t 0 ]]; then
+      read -r -p "Undeploy $ns? [y/N] " reply || true
+    else
+      demo_err "se-undeploy needs confirmation and has no terminal to ask at."
+      demo_err "Re-run with --yes (or SE_UNDEPLOY_YES=1) if this is really intended."
+      return 1
+    fi
+    if [[ "$reply" != "y" && "$reply" != "Y" && "$reply" != "yes" ]]; then
+      info "Undeploy cancelled — nothing was changed."
+      return 0
+    fi
+  fi
+
   info "SE cluster undeploy → namespace: $ns"
   local ctx
   ctx="$(kubectl config current-context 2>/dev/null || true)"
@@ -736,7 +783,7 @@ case "${1:-all}" in
   se-all)      aws_build; se_deploy ;;
   se-status)   se_status ;;
   se-rag)      se_rag "${2:-on}" ;;
-  se-undeploy) se_undeploy ;;
+  se-undeploy) se_undeploy "${@:2}" ;;
   aws-build)  aws_build ;;
   aws-deploy) aws_deploy; aws_finish ;;
   aws-all)    aws_build; aws_deploy; aws_finish ;;
