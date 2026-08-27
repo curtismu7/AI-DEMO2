@@ -42,7 +42,10 @@ function Annotated({ text }) {
   );
 }
 
-export default function SampleAppPage({ sampleId }) {
+// runnerHref overrides where the "open the live runner" button points. The
+// standalone routes pass their own so the one link on this page does not drop
+// the reader back into the demo they are being shown without.
+export default function SampleAppPage({ sampleId, runnerHref }) {
   const app = getSampleApp(sampleId);
   const [stack, setStack] = useState(readStoredStack);
 
@@ -172,7 +175,7 @@ export default function SampleAppPage({ sampleId }) {
             cleanupLabel={app.cleanupLabel}
           />
         ) : app.runnerHref ? (
-          <Link className="sa-btn" to={app.runnerHref}>
+          <Link className="sa-btn" to={runnerHref || app.runnerHref}>
             Open the live runner
           </Link>
         ) : (
