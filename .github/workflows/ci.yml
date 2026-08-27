@@ -143,6 +143,12 @@ jobs:
         run: node --test scripts/check-auth-requirements.test.js
       - name: Topology no-drift gate
         run: npm run topology:verify
+      # se-undeploy wipes a SHARED cluster namespace, so its confirmation and
+      # the `stop` refusal are worth a gate: a future edit that drops either
+      # would be silent otherwise. kubectl is stubbed inside the test, so this
+      # never reaches a cluster, and it needs no .env or PING_EMAIL.
+      - name: Deploy teardown guards — own tests
+        run: bash scripts/test-se-undeploy-guard.sh
 
   api-server-tests:
     name: API server tests (Jest)
