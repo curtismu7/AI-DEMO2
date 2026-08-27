@@ -138,6 +138,7 @@ import { useOAuthUrlCleanup } from "./hooks/useOAuthUrlCleanup";
 import { useServerHealthCheck } from "./hooks/useServerHealthCheck";
 import AdminThemesPage from "./pages/AdminThemesPage";
 import AiControlPlanePage from "./pages/AiControlPlanePage";
+import AgentRegistryPage from "./pages/AgentRegistryPage";
 import CheckPage from "./pages/CheckPage";
 import TracingPage from "./pages/TracingPage";
 import TransactionTracePage from "./pages/TransactionTracePage";
@@ -796,6 +797,22 @@ function AppWithAuth() {
                         <TopNav user={user} onLogout={logout} />
                         <main className="main-content">
                           <AiControlPlanePage openKillSwitchModal={openKillSwitchModal} />
+                        </main>
+                      </>
+                    ) : (
+                      <SignInRequired />
+                    )
+                  }
+                />
+                {/* Agent Registry — any logged-in user, same level as the Control Plane */}
+                <Route
+                  path="/agent-registry"
+                  element={
+                    loading ? null : user ? (
+                      <>
+                        <TopNav user={user} onLogout={logout} />
+                        <main className="main-content">
+                          <AgentRegistryPage />
                         </main>
                       </>
                     ) : (
