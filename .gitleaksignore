@@ -13,6 +13,10 @@ demo_api_server/.env.example:generic-api-key:146
 ping-gateway/.env.example:generic-api-key:55
 scope-topology.json:generic-api-key:287
 scope-topology.json:generic-api-key:401
+# ping-gateway keeps its own tracked copy of scope-topology.json (not a mount of
+# the root file), so the same two URL literals need ignoring on that path too.
+ping-gateway/config/scope-topology.json:generic-api-key:316
+ping-gateway/config/scope-topology.json:generic-api-key:457
 snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json:generic-api-key:27
 snapshots/authorizeSnapshotCloudDelta.test.js:generic-api-key:82
 docs/scope-topology.md:generic-api-key:184
