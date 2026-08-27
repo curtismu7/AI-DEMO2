@@ -245,6 +245,11 @@ export default function AdminSideNav({
   const [navOrder, setNavOrder] = useState(null);
   const [childOrder, setChildOrder] = useState(null);
   const showPacEditorLink = isLocalHost();
+  // Grafana is served differently per target and there is no single URL that
+  // works in both: under /grafana on the same origin in k8s (nginx proxies it),
+  // and on its own port in Docker Compose, which is a different origin from the
+  // UI. Same split the BFF makes for tracesUiUrl.
+  const grafanaUrl = isLocalHost() ? "http://localhost:3000" : "/grafana";
 
   // Per-user sidebar customization (Demo Config page). Returns [] when
   // ff_sidebar_customization is OFF or the request fails — full nav either way.
@@ -961,6 +966,16 @@ export default function AdminSideNav({
         { label: "Service Graph", path: "/telemetry", icon: "log" },
         { label: "Tracing", path: "/tracing", icon: "log" },
         { label: "Transaction Trace", path: "/transaction-trace", icon: "log" },
+        {
+          // External, so it uses the same action+window.open shape as PAC
+          // Editor rather than a router path. Grafana holds PingGateway's own
+          // metrics and is where traces open now that the public /jaeger/
+          // route is gone; without this entry you have to know the URL.
+          label: "Grafana",
+          icon: "log",
+          searchAlias: "metrics dashboards prometheus pinggateway traces",
+          action: () => window.open(grafanaUrl, "_blank", "noopener,noreferrer"),
+        },
         { label: "Health Check", path: "/check", icon: "clk" },
       ],
     },
