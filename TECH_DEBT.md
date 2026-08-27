@@ -16,7 +16,7 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
-### [ ] 2026-08-27 — a use case declares only its FIRST tool, so every later tool it calls is invisible to every gate
+### [x] 2026-08-27 — a use case declares only its FIRST tool, so every later tool it calls is invisible to every gate
 
 `useCases.js` gives a use case one machine-readable tool: `primaryTool`. UC38
 runs two. Its own `whatLong` says so:
@@ -85,6 +85,34 @@ before the catalog grows more multi-tool use cases, not urgently today. Note the
 sweep is a FLOOR: it only counts exact tool-name matches, so a use case
 describing a second tool in English ("check the balance, then transfer") is not
 counted and would still be invisible.
+
+**RESOLVED 2026-08-27.** A use case can now declare every gateway tool it calls:
+`secondaryTools: [...]` alongside `primaryTool` (the chip's entry point).
+UC38 declares `['get_loyalty_status']`, and two gates make the field
+self-maintaining rather than another hand-kept list:
+
+- `demo_api_server/tests/useCases.secondaryTools.test.js` — fails when an
+  entry's own prose names a **gateway-surface** tool it does not declare.
+  Filtering to gateway surface is what makes this precise: sweeping all of
+  scope-topology matches the English word "transfer" against the `transfer`
+  legacy-alias entry in eight unrelated use cases (9 hits, 8 false), while
+  gateway-only yields exactly 1 (UC38, real). It also asserts `resolveUseCase`
+  does not strip the new field — this repo has shipped a schema silently
+  dropping unknown fields before.
+- `intentTokenService.chipReachability.test.js` — its `SECONDARY` array is gone.
+  It now derives secondary tools from the catalog, so a new multi-tool use case
+  is covered the moment it is added, with a vacuity guard so a dropped field
+  cannot make the sweep iterate zero cases and pass.
+
+Verified: delete `secondaryTools` from UC38 → 5 failed / 81 passed across both
+files; restore → 96 passed. Whole affected surface, 19 suites: 842 passed.
+
+**Still a floor, by design.** The gate keys on an exact tool name in the prose.
+A use case describing its second tool in English ("check the balance, then move
+the money") declares nothing and is still invisible. Closing that would mean
+either a schema requiring `secondaryTools` on every multi-step entry — noise on
+the ~50 single-tool use cases — or inferring tools from prose, which is guesswork.
+The exact-name floor catches the shape that actually bit us and costs nothing.
 
 ### [ ] 2026-08-26 — `sensitive_passenger_record` requires only bare `read`, a weaker scope than its non-sensitive sibling
 
@@ -207,7 +235,7 @@ Exchange #2 dies with `invalid_scope`.
 defect. Recorded in `REGRESSION_PLAN.md` §1 ("Airlines is THREE tiers, not two")
 so the next person does not re-file this finding — as I did.
 
-### [ ] 2026-08-26 — 143 gateway tools are intent-unreachable; only the 17 chip-driven ones were mapped
+### [x] 2026-08-26 — 143 gateway tools are intent-unreachable; only the 17 chip-driven ones were mapped
 
 `server.js` mints `intent = _TOOL_TO_INTENT[tool] || tool`, and the gateway then
 denies anything that intent does not permit:
@@ -290,6 +318,50 @@ actually dispatch. Anything outside that set keeps failing closed.
 A blanket "intent equals tool name always self-permits" would be simpler and is
 **wrong**: it makes the fallback's narrowing unreachable and removes the
 fail-closed default for genuinely unknown tools.
+
+**CLOSED 2026-08-27 — re-measured after #2450, and the remainder is not broken.**
+229 of 244 gateway tools are now reachable. Re-running the classification with
+the SHIPPED logic (vertical *directories*, 16, not the 14 manifest `VERTICALS`
+the first sweep used) and applying `_TOOL_TO_INTENT` — without the override map
+the sweep reports `show_mortgage` as unreachable when its real intent
+`view_mortgage` permits it, the same blind spot that produced three false
+failures in the first chip-reachability test — leaves **13**:
+
+```
+brave_news_search   demo_show_accounts     jwt_decode_full      jwt_verify_signature
+call_pingone_operation  demo_show_transactions  jwt_fetch_jwks   user_profile_card
+create_wire_transfer    discover_oas_operations jwt_inspect_key
+get_account_nickname                            jwt_validate_claims
+```
+
+**The intent gate does not apply to any of them.** `demo_mcp_gateway/src/index.ts`:
+
+```js
+const intentValidation = xIntentToken || config.intentTokenRequired === true
+  ? validateIntentToken(xIntentToken, toolName) : null;
+```
+
+The gate runs only when an intent token is *present*. Three independent
+confirmations that these tools never carry one:
+
+1. `INTENT_TOKEN_REQUIRED` is unset on the live gateway → `intentTokenRequired`
+   is `false`, so a token-less call skips validation entirely.
+2. `mintIntentToken` has five call sites (`agentRun.js`, `agentInvokeRoute.js`,
+   `devTools.js`, `attackSimulatorService.js`, `server.js`). The MCP façade —
+   `routes/mcpFacade.js`, 680 lines, the external-client door — is not one of
+   them and sends no `X-Intent-Token`.
+3. Driving `jwt_verify_signature` through the BFF path that *does* mint returns
+   `502 Unknown tool` — that route does not even know these tools. Their only
+   caller is an external MCP client (LM Studio, MCP Inspector, the façade).
+
+`ServerCapabilitiesPanel.js` lists the `jwt_*` names, but as documentation text,
+not a dispatcher.
+
+**Nothing to fix. One latent risk worth knowing**: setting
+`INTENT_TOKEN_REQUIRED=true` would deny all 13 at once, because a token-less
+external call would then be validated and fail `no_intent_token`. That flag is
+the switch to check first if external MCP clients ever start returning
+`intent_token_invalid`.
 
 **Also noted, unfixed**: `ping-gateway/config/scope-topology.json` is a
 hand-maintained twin of the root `scope-topology.json` and has drifted by two
