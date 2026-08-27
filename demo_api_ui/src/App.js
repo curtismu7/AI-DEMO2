@@ -190,6 +190,10 @@ import PublicRoutes, {
   PrivilegeMcpClientPageRoute,
   PingOneSetupPageRoute,
   M2mCredentialsSamplePageRoute,
+  SampleM2mPageRoute,
+  SampleCustomAdminRolePageRoute,
+  SampleUserRegistrationPageRoute,
+  SampleMfaDemoPageRoute,
   PingOneTestPageRoute,
   ReportsPageRoute,
   SdkLoginCallbackRoute,
@@ -662,6 +666,27 @@ function AppWithAuth() {
                   element={
                     <M2mCredentialsSamplePageRoute user={user} logout={logout} />
                   }
+                />
+                {/* PingOne sample apps — what each teaches, plus its code in 5 stacks */}
+                <Route
+                  path="/samples/m2m-credentials"
+                  element={<SampleM2mPageRoute user={user} logout={logout} />}
+                />
+                <Route
+                  path="/samples/custom-admin-role"
+                  element={
+                    <SampleCustomAdminRolePageRoute user={user} logout={logout} />
+                  }
+                />
+                <Route
+                  path="/samples/user-registration"
+                  element={
+                    <SampleUserRegistrationPageRoute user={user} logout={logout} />
+                  }
+                />
+                <Route
+                  path="/samples/mfa-demo"
+                  element={<SampleMfaDemoPageRoute user={user} logout={logout} />}
                 />
                 <Route
                   path="/pingone-setup"
