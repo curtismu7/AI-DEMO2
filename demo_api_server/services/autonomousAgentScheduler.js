@@ -178,6 +178,10 @@ async function runJobNow({ trigger = 'manual', job = 'fraud-watch' } = {}) {
     ...(result.threshold !== undefined ? { threshold: result.threshold } : {}),
     ...(result.floor !== undefined ? { floor: result.floor } : {}),
     ...(result.mandate ? { mandate: result.mandate } : {}),
+    // Which client actually authenticated, and whether that was the agent's own
+    // registration. Persisted so a stored run cannot later be read as proof of
+    // an identity it never used.
+    ...(result.identity ? { identity: result.identity } : {}),
     ...(result.proposal ? { proposal: result.proposal } : {}),
     ...(result.pending ? { pending: result.pending } : {}),
     ...(result.summary ? { summary: result.summary } : {}),

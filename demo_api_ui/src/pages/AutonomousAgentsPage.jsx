@@ -360,6 +360,13 @@ export default function AutonomousAgentsPage() {
                                   ? `${openRun.proposal.amount} from ${openRun.proposal.fromName}`
                                   : null}
                               </Row>
+                              <Row label="Authenticated as">
+                                {openRun.identity
+                                  ? (openRun.identity.ownIdentity
+                                    ? "its own PingOne registration"
+                                    : "a SHARED client — not its own registration")
+                                  : null}
+                              </Row>
                               <Row label="Policy said">
                                 {openRun.decision
                                   ? `${openRun.decision.decision} · ${openRun.decision.code || "no code"}`
@@ -367,6 +374,14 @@ export default function AutonomousAgentsPage() {
                               </Row>
                               <Row label="Error">{openRun.error}</Row>
                             </dl>
+
+                            {openRun.identity && !openRun.identity.ownIdentity ? (
+                              <p className="aap-warn">
+                                <strong>This run did not use its own identity.</strong>{" "}
+                                {openRun.identity.reason}. The token chain below shows the client
+                                that actually authenticated, not the agent named above.
+                              </p>
+                            ) : null}
 
                             {openRun.findings?.length ? (
                               <div className="aap-findings">

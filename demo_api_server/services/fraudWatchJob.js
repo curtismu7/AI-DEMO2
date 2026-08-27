@@ -20,6 +20,7 @@ const configStore = require('./configStore');
 const dataStore = require('../data/store');
 const agentCCTokenService = require('./agentCCTokenService');
 const { createUnattendedContext } = require('./unattendedRunContext');
+const { resolveAgentCredentials } = require('./agentIdentity');
 
 const DEFAULT_THRESHOLD = 1000;
 const DEFAULT_WINDOW_HOURS = 24;
@@ -44,17 +45,24 @@ function _number(raw, fallback) {
 async function runFraudWatch(deps = {}) {
   const {
     now = new Date(),
-    getToken = (ctx) => agentCCTokenService.getAgentCCToken(ctx, { scope: ['read'] }),
+    // The agent's OWN client when it is provisioned. Without this the run
+    // authenticates as the shared token-exchanger and the declared identity is
+    // decorative -- see agentIdentity.js.
+    getToken = (ctx, creds) => agentCCTokenService.getAgentCCToken(ctx, {
+      scope: ['read'],
+      ...(creds.clientId ? { clientId: creds.clientId, clientSecret: creds.clientSecret } : {}),
+    }),
     readTransactions = () => dataStore.getAllTransactions(),
   } = deps;
 
   const threshold = _number(configStore.getEffective('FRAUD_WATCH_THRESHOLD'), DEFAULT_THRESHOLD);
   const windowHours = _number(configStore.getEffective('FRAUD_WATCH_WINDOW_HOURS'), DEFAULT_WINDOW_HOURS);
   const ctx = createUnattendedContext({ agent: AGENT });
+  const creds = resolveAgentCredentials(AGENT);
 
   let token;
   try {
-    token = await getToken(ctx);
+    token = await getToken(ctx, creds);
   } catch (err) {
     // No token, no run. Recording the failure is the point — a scheduled job
     // that silently stops authenticating is exactly the thing an unattended
@@ -62,6 +70,7 @@ async function runFraudWatch(deps = {}) {
     return {
       status: 'failed',
       agent: AGENT,
+      identity: { ownIdentity: creds.ownIdentity, reason: creds.reason },
       error: err.message,
       findings: [],
       tokenEvents: ctx.tokenEvents,
@@ -70,7 +79,7 @@ async function runFraudWatch(deps = {}) {
     };
   }
 
-  ctx.recordAgentToken(token);
+  ctx.recordAgentToken(token, { ownIdentity: creds.ownIdentity });
 
   const cutoff = new Date(now.getTime() - windowHours * 3600 * 1000);
   const all = readTransactions() || [];
@@ -89,6 +98,7 @@ async function runFraudWatch(deps = {}) {
   return {
     status: 'completed',
     agent: AGENT,
+    identity: { ownIdentity: creds.ownIdentity, reason: creds.reason },
     findings,
     tokenEvents: ctx.tokenEvents,
     scanned: inWindow.length,

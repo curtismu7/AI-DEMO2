@@ -29,6 +29,7 @@ const dataStore = require('../data/store');
 const agentCCTokenService = require('./agentCCTokenService');
 const cibaSimulated = require('./cibaSimulatedService');
 const { createUnattendedContext } = require('./unattendedRunContext');
+const { resolveAgentCredentials } = require('./agentIdentity');
 const { authorizeUnattendedTransfer } = require('./autonomousAuthorize');
 
 /** The agent identity this job authenticates as. */
@@ -74,7 +75,11 @@ function _planSweep(accounts, floor) {
  */
 async function runBalanceSweep(deps = {}) {
   const {
-    getToken = (ctx) => agentCCTokenService.getAgentCCToken(ctx, { scope: ['read', 'transfer'] }),
+    // The agent's OWN client when it is provisioned -- see agentIdentity.js.
+    getToken = (ctx, creds) => agentCCTokenService.getAgentCCToken(ctx, {
+      scope: ['read', 'transfer'],
+      ...(creds.clientId ? { clientId: creds.clientId, clientSecret: creds.clientSecret } : {}),
+    }),
     readAccounts = () => dataStore.getAllAccounts(),
     initiateCiba = (loginHint, bindingMessage) =>
       cibaSimulated.initiateSimulated(loginHint, bindingMessage, 'openid', ''),
@@ -83,23 +88,26 @@ async function runBalanceSweep(deps = {}) {
 
   const floor = _positive(configStore.getEffective('BALANCE_SWEEP_FLOOR'), DEFAULT_FLOOR);
   const ctx = createUnattendedContext({ agent: AGENT });
+  const creds = resolveAgentCredentials(AGENT);
 
   let token;
   try {
-    token = await getToken(ctx);
+    token = await getToken(ctx, creds);
   } catch (err) {
     return {
       status: 'failed', agent: AGENT, error: err.message,
+      identity: { ownIdentity: creds.ownIdentity, reason: creds.reason },
       findings: [], tokenEvents: ctx.tokenEvents,
     };
   }
-  ctx.recordAgentToken(token);
+  ctx.recordAgentToken(token, { ownIdentity: creds.ownIdentity });
 
   const accounts = readAccounts() || [];
   const sweep = _planSweep(accounts, floor);
   if (!sweep) {
     return {
       status: 'completed', agent: AGENT, findings: [], tokenEvents: ctx.tokenEvents,
+      identity: { ownIdentity: creds.ownIdentity, reason: creds.reason },
       scanned: accounts.length, floor,
       summary: `nothing over the ${floor} floor to sweep`,
     };
@@ -114,6 +122,7 @@ async function runBalanceSweep(deps = {}) {
   if (verdict.outcome === 'unavailable') {
     return {
       status: 'failed', agent: AGENT, tokenEvents: ctx.tokenEvents,
+      identity: { ownIdentity: creds.ownIdentity, reason: creds.reason },
       scanned: accounts.length, floor,
       proposal: sweep, findings: [],
       error: `authorization unavailable: ${verdict.error}`,
@@ -124,6 +133,7 @@ async function runBalanceSweep(deps = {}) {
   if (verdict.outcome === 'permit') {
     return {
       status: 'completed', agent: AGENT, tokenEvents: ctx.tokenEvents,
+      identity: { ownIdentity: creds.ownIdentity, reason: creds.reason },
       scanned: accounts.length, floor,
       mandate: verdict.mandate,
       proposal: sweep,
@@ -141,6 +151,7 @@ async function runBalanceSweep(deps = {}) {
   if (verdict.outcome === 'deny') {
     return {
       status: 'denied', agent: AGENT, tokenEvents: ctx.tokenEvents,
+      identity: { ownIdentity: creds.ownIdentity, reason: creds.reason },
       scanned: accounts.length, floor,
       mandate: verdict.mandate,
       proposal: sweep,
@@ -161,6 +172,7 @@ async function runBalanceSweep(deps = {}) {
 
   return {
     status: 'parked', agent: AGENT, tokenEvents: ctx.tokenEvents,
+      identity: { ownIdentity: creds.ownIdentity, reason: creds.reason },
     scanned: accounts.length, floor,
     mandate: verdict.mandate,
     proposal: sweep,

@@ -135,6 +135,13 @@ async function getAgentCCToken(req, options = {}) {
       scope: tokenData.scope || scopes,
       vertical: vertical || undefined, // echoed for the (vertical, scopeSet) token cache key
       claims, // For UI Token Chain panel (decoded, sanitized)
+      // WHICH OAuth client actually got this token. A client_credentials token
+      // from PingOne frequently carries no `sub`, so a caller that wants to
+      // display the acting identity has nothing to show and is tempted to
+      // substitute a friendly name — which then displays an identity the token
+      // does not contain. Returning the clientId gives callers something true
+      // to fall back to.
+      clientId,
     };
   } catch (error) {
     const errorMessage = error.response?.data?.error_description || error.message;

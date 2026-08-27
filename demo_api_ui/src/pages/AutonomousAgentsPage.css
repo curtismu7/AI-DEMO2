@@ -293,3 +293,17 @@
   overflow-x: auto;
   min-height: 260px;
 }
+
+/* Shown when the acting identity is not the declared one. Deliberately loud:
+   a silent mismatch is what this whole change exists to stop. */
+.aap-warn {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #a1620a;
+  border-radius: 8px;
+  background: #fdf3e2;
+  color: #0f172a;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+.aap-warn strong { color: #a1620a; }
