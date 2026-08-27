@@ -16,6 +16,44 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-08-27 — the UI suite has latent races that surface when ANY test file is added
+
+Adding one test file to `demo_api_ui` made the full parallel run fail — in a
+*different* unrelated test each time. Measured while adding
+`SessionReauthBanner.test.jsx`:
+
+| Run | Files | Result |
+|---|---|---|
+| main, parallel | 439 | pass, pass |
+| trivial no-op file added, parallel | 440 | pass |
+| the real new test file, parallel | 440 | **fail x3**, pass x1 |
+| the real new test file, **sequential** | 440 | **pass** |
+
+The three casualties were all async-ordering tests, none related to the change:
+
+- `LiveUseCaseWorkbenchPage` — "an older Run trigger resolving after a newer one
+  does not fire the stale prefill"
+- `TransactionConsentModal.declineScope` — "dismissing at the OTP step aborts"
+- `DelegatedCommercePage` — step counter "1 of 4" not yet rendered
+
+`--no-file-parallelism` passes every time, which rules out state corruption and
+points at real timing assumptions in those tests. A trivial extra file does not
+trigger it; a file that renders React does. So the variable is added LOAD
+shifting the parallel schedule, not the new file's content.
+
+Why it wasn't fixed here: the races are in three unrelated suites and each needs
+its own fix (proper `waitFor`/fake timers rather than assuming an order). Doing
+that inside a change about sign-in modals would have buried it.
+
+Consequence to know about: **a green local run is not evidence the suite is
+sound, and a red one is not necessarily your fault.** Anyone adding UI tests may
+see an unrelated failure. Confirm with `--no-file-parallelism` before chasing it,
+and attribute against a clean main run.
+
+The real fix is to make those three deterministic. Until then CI remains the
+gate, and its Node 22 runner has different timing again (see
+[[project-ui-ci-job-and-node-storage-trap]]).
+
 ### [x] 2026-08-27 — a use case declares only its FIRST tool, so every later tool it calls is invisible to every gate
 
 `useCases.js` gives a use case one machine-readable tool: `primaryTool`. UC38
