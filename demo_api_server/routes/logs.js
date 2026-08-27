@@ -91,7 +91,7 @@ router.get('/app', async (req, res) => {
       hasMore: allLogs.length > parseInt(limit)
     });
   } catch (error) {
-    console.error('Error fetching app logs:', error);
+    console.error('Error fetching app logs:', error?.stack || String(error));
     res.status(500).json({ error: error.message });
   }
 });
@@ -309,7 +309,7 @@ router.post('/runtime-message', (req, res) => {
 
     return res.json({ ok: true });
   } catch (error) {
-    console.error('Error capturing runtime message:', error);
+    console.error('Error capturing runtime message:', error?.stack || String(error));
     return res.status(500).json({ ok: false, error: 'Failed to capture runtime message' });
   }
 });

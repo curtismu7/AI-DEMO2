@@ -229,7 +229,7 @@ router.get('/search', async (req, res) => {
     if (err.code === 'BRAVE_NOT_CONFIGURED') {
       return res.status(503).json({ ok: false, error: err.code, message: err.message });
     }
-    console.error('[bankingAgentNl] search error:', err);
+    console.error('[bankingAgentNl] search error:', err?.stack || String(err));
     return res.status(500).json({ ok: false, error: 'search_failed', message: 'Search request failed' });
   }
 });

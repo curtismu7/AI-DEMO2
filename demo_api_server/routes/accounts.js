@@ -97,7 +97,7 @@ router.get('/', authenticateToken, requireScopes(['read']), async (req, res) => 
     });
     res.json({ accounts: enriched, total });
   } catch (error) {
-    console.error('Error getting accounts:', error);
+    console.error('Error getting accounts:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to get accounts' });
   }
 });
@@ -295,7 +295,7 @@ router.get('/my', authenticateToken, requireNotAdmin, async (req, res) => {
       }),
     });
   } catch (error) {
-    console.error('Error getting user accounts:', error);
+    console.error('Error getting user accounts:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to get your accounts' });
   }
 });
@@ -314,7 +314,7 @@ router.post('/reset-demo', authenticateToken, async (req, res) => {
     posthog.capture({ distinctId: req.user.id, event: 'demo_reset' });
     res.json({ message: 'Demo reset successfully', accounts });
   } catch (error) {
-    console.error('Error resetting demo:', error);
+    console.error('Error resetting demo:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to reset demo' });
   }
 });
@@ -341,7 +341,7 @@ router.post('/reset-all-demo', authenticateToken, requireScopes(['write']), asyn
     );
     res.json({ message: `Reset ${demoUserIds.length} demo user(s). Fresh accounts will be provisioned on next login.` });
   } catch (error) {
-    console.error('Error resetting all demo accounts:', error);
+    console.error('Error resetting all demo accounts:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to reset demo accounts' });
   }
 });
@@ -360,7 +360,7 @@ router.get('/:id', authenticateToken, requireScopes(['read']), async (req, res) 
     }
     res.json({ account });
   } catch (error) {
-    console.error('Error getting account:', error);
+    console.error('Error getting account:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to get account' });
   }
 });
@@ -390,7 +390,7 @@ router.get('/:id/balance', authenticateToken, requireScopes(['read']), async (re
     const balance = dataStore.getAccountBalance(account.id);
     res.json({ balance });
   } catch (error) {
-    console.error('Error getting account balance:', error);
+    console.error('Error getting account balance:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to get account balance' });
   }
 });
@@ -408,7 +408,7 @@ router.post('/', blockInDemoMode('account creation'), authenticateToken, require
     await saveAccountSnapshot(account.userId);
     res.status(201).json({ message: 'Account created successfully', account });
   } catch (error) {
-    console.error('Error creating account:', error);
+    console.error('Error creating account:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to create account' });
   }
 });
@@ -429,7 +429,7 @@ router.put('/:id', blockInDemoMode('account update'), authenticateToken, require
     await saveAccountSnapshot(account.userId);
     res.json({ message: 'Account updated successfully', account });
   } catch (error) {
-    console.error('Error updating account:', error);
+    console.error('Error updating account:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to update account' });
   }
 });
@@ -454,7 +454,7 @@ router.delete('/:id', blockInDemoMode('account deletion'), authenticateToken, re
     }
     res.json({ message: 'Account deleted successfully' });
   } catch (error) {
-    console.error('Error deleting account:', error);
+    console.error('Error deleting account:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to delete account' });
   }
 });
@@ -496,7 +496,7 @@ router.patch('/:id/contact-email', authenticateToken, requireScopes(['write']), 
     }
     res.json({ success: true, accountId: req.params.id, email: new_email });
   } catch (error) {
-    console.error('Error updating contact email:', error);
+    console.error('Error updating contact email:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to update contact email' });
   }
 });

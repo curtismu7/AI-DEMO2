@@ -50,7 +50,7 @@ router.post('/log', (req, res) => {
 
     res.json({ logged: true });
   } catch (error) {
-    console.error('Error logging token exchange:', error);
+    console.error('Error logging token exchange:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to log exchange' });
   }
 });
@@ -108,7 +108,7 @@ router.get('/', (req, res) => {
       offset
     });
   } catch (error) {
-    console.error('Error retrieving token exchanges:', error);
+    console.error('Error retrieving token exchanges:', error?.stack || String(error));
     res.status(500).json({ error: 'Failed to retrieve exchanges' });
   }
 });

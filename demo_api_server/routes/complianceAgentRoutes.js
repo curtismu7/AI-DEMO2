@@ -33,7 +33,7 @@ router.post('/init', agentSessionMiddleware, requestEventEmitterMiddleware, asyn
       framework: 'pydantic-ai'
     });
   } catch (error) {
-    console.error('Compliance init error:', error);
+    console.error('Compliance init error:', error?.stack || String(error));
     res.status(500).json({
       success: false,
       error: error.message
@@ -65,7 +65,7 @@ router.post('/message', agentSessionMiddleware, requestEventEmitterMiddleware, a
 
     res.json(result);
   } catch (error) {
-    console.error('Compliance message error:', error);
+    console.error('Compliance message error:', error?.stack || String(error));
     res.status(500).json({
       success: false,
       reply: `Error processing compliance check: ${error.message}`,

@@ -6,6 +6,12 @@
 // services/dotenvxBootstrap.js.
 require('./services/dotenvxBootstrap').bootstrapDotenvx();
 
+// Give every axios call a timeout before any module can issue one. Without this
+// the ~78 call sites that supply none hang until the OS TCP timeout; a per-call
+// `timeout:` still wins, so deliberate values are untouched. See
+// utils/axiosDefaults.js.
+require('./utils/axiosDefaults').applyAxiosDefaults();
+
 // New Relic APM must be required before Sentry and all app modules — the ONLY
 // thing allowed above it is the dotenvx bootstrap, which NR itself depends on
 // for a decrypted NR_LICENSE_KEY. No-op when NR_LICENSE_KEY is absent
