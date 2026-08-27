@@ -12,9 +12,16 @@ function RegistrationSlot() {
     <section className="alp-slot alp-slot--video">
       <h2 className="alp-slot__title">1. Register agent + scoped consent</h2>
       <p className="alp-slot__desc">
-        A user registers an AI agent and delegates account access via a
-        scoped consent screen. Recorded walkthrough (live registration isn't
-        built yet):
+        A user registers an AI agent and delegates account access via a scoped
+        consent screen. This step is live: <a href="/agent-builder">PingOne
+        Agent Builder</a> creates a real PingOne application for the signed-in
+        user and sets its resource grants, and the new identity then appears in
+        the <a href="/agent-registry">Agent Registry</a> alongside every other
+        agent and workload identity.
+      </p>
+      <p className="alp-slot__desc">
+        The recording below walks through the same step end to end, including
+        the consent screen:
       </p>
       <video
         className="alp-video"
