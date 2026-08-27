@@ -112,23 +112,35 @@ function demoRegistryClients() {
   }));
 }
 
-/** A2A specialists — real computed Agent Cards, previously invisible over HTTP. */
+/**
+ * A2A specialists — real computed Agent Cards.
+ *
+ * buildAllSpecialistAgentCards returns an OBJECT KEYED BY VERTICAL, not an
+ * array. Treating it as an array shipped `cards.map is not a function`, which
+ * surfaced only as "1 source unavailable" in the browser.
+ *
+ * Rows are keyed by vertical rather than card name because names are NOT
+ * unique — retail and abercrombie-fitch are both "Purchase History Specialist".
+ */
 function a2aSpecialists() {
-  const cards = a2aAgentCardService.buildAllSpecialistAgentCards() || [];
-  return cards.map((card) => ({
-    id: `a2a:${card.name}`,
-    name: card.name,
-    identityType: 'agent',
-    source: 'a2a',
-    credentialType: 'pingone-bearer',
-    status: 'active',
-    skills: (card.skills || []).map((s) => s.id).filter(Boolean),
-    grantedScopes: [],
-    expectedScopes: [],
-    missingScopes: [],
-    scopeDrift: false,
-    lifecycle: [],
-  }));
+  const byVertical = a2aAgentCardService.buildAllSpecialistAgentCards() || {};
+  return Object.entries(byVertical)
+    .filter(([, card]) => card)
+    .map(([vertical, card]) => ({
+      id: `a2a:${vertical}`,
+      name: card.name,
+      vertical,
+      identityType: 'agent',
+      source: 'a2a',
+      credentialType: 'pingone-bearer',
+      status: 'active',
+      skills: (card.skills || []).map((s) => s.id).filter(Boolean),
+      grantedScopes: [],
+      expectedScopes: [],
+      missingScopes: [],
+      scopeDrift: false,
+      lifecycle: [],
+    }));
 }
 
 /**
