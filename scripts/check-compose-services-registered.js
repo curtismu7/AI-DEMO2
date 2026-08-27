@@ -59,7 +59,13 @@ const OPTIONAL_PROFILES = new Set(['rag', 'agents', 'tracing', 'demo-auth', 'mcp
  */
 const ALLOWED_UNREGISTERED = {
   'llm-proxy':
-    'deploy-live.sh:222 documents this — run-docker.sh does not manage llm-proxy; rebuild it directly with docker compose up -d --build llm-proxy',
+    'MUST stay unregistered, not merely unmanaged: clear_stale_host_listeners() ' +
+    'kills any non-Docker listener on every port in the SERVICES table, and with ' +
+    'LLM_BACKEND=omlx|mlx the HOST owns :8090 — registering it would shoot the ' +
+    'host LLM backend on every start (run-docker.sh:1138, deploy-live.sh:222). ' +
+    'Recreate it with compose directly: --no-deps --force-recreate llm-proxy; ' +
+    'add --build only when the image itself is stale, since se-update-code.sh llm ' +
+    'already rebuilds and pushes it.',
   'tier-manager-k8':
     'k8s-only tier manager; the Docker stack drives tiers through llm-proxy, so it is never started by the launcher',
   'ungoverned-agent':
