@@ -4,6 +4,16 @@
  * classify as autonomous, and the scan window/threshold actually bound what it
  * reports. Collaborators are injected, so nothing here reaches PingOne.
  */
+// The agent must read as PROVISIONED here: these tests describe what a run
+// does, not what happens when it has no identity (see agentOwnIdentity.test.js).
+// Without credentials the job now refuses before minting anything.
+jest.mock('../../services/configStore', () => ({
+  getEffective: jest.fn((k) => ({
+    pingone_fraud_watch_agent_client_id: 'fw-client',
+    pingone_fraud_watch_agent_client_secret: 'shh',
+  })[k]),
+}));
+
 const { runFraudWatch } = require('../../services/fraudWatchJob');
 
 const NOW = new Date('2026-08-26T12:00:00Z');

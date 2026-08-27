@@ -40,9 +40,7 @@ test('uses the agent\'s own client when it is configured', () => {
   expect(creds).toMatchObject({ clientId: 'fw-client', clientSecret: 'shh', ownIdentity: true });
 });
 
-// Not fail-closed on purpose: the registrations are declared in topology but
-// unprovisioned, so refusing would break a working demo. It must be MARKED.
-test('falls back to the shared client and marks the run as not its own identity', () => {
+test('reports no own identity when the credentials are unconfigured', () => {
   const { identity } = load({});
 
   const creds = identity.resolveAgentCredentials(AGENT);
@@ -50,6 +48,21 @@ test('falls back to the shared client and marks the run as not its own identity'
   expect(creds.ownIdentity).toBe(false);
   expect(creds.clientId).toBeNull();
   expect(creds.reason).toMatch(/not been provisioned|not configured/);
+});
+
+// Fail closed: an agent with no identity of its own must not borrow one. The
+// run refuses BEFORE minting anything -- no token request is made at all.
+test('an unprovisioned agent refuses to run and never mints a token', async () => {
+  load({});
+  const { runFraudWatch } = require('../../services/fraudWatchJob');
+  const getToken = jest.fn();
+
+  const run = await runFraudWatch({ getToken, readTransactions: () => [] });
+
+  expect(run.status).toBe('failed');
+  expect(run.error).toMatch(/agent_not_provisioned/);
+  expect(getToken).not.toHaveBeenCalled();
+  expect(run.tokenEvents).toEqual([]);
 });
 
 test('an agent with no credential mapping is also marked, not silently allowed', () => {
@@ -67,7 +80,6 @@ test('the token event never shows the agent name as the subject', () => {
   // Exactly what PingOne returned in the live run: decoded claims, no sub.
   ctx.recordAgentToken(
     { claims: { aud: ['mcpgateway.ping.demo'], scope: 'read' }, scope: 'read', clientId: 'f4dd707d' },
-    { ownIdentity: false },
   );
 
   const evt = ctx.tokenEvents.find((e) => e.id === 'agent-actor-token');
@@ -76,7 +88,6 @@ test('the token event never shows the agent name as the subject', () => {
   expect(evt.claims.client_id).toBe('f4dd707d');
   // The intent is still visible — beside the claims, never inside them.
   expect(evt.declaredAgent).toBe(AGENT);
-  expect(evt.ownIdentity).toBe(false);
 });
 
 test('a token that does carry a sub shows that sub', () => {
@@ -91,11 +102,11 @@ test('a token that does carry a sub shows that sub', () => {
 });
 
 // Still autonomous either way: borrowing a client does not make it delegated.
-test('the run still classifies as autonomous when it borrows a client', () => {
+test('a run with no sub still classifies as autonomous', () => {
   const { ctxFactory } = load({});
   const ctx = ctxFactory.createUnattendedContext({ agent: AGENT });
 
-  ctx.recordAgentToken({ claims: {}, clientId: 'shared' }, { ownIdentity: false });
+  ctx.recordAgentToken({ claims: {}, clientId: 'fw-client' });
 
   expect(ctx.tokenEvents.some((e) => e.claims && e.claims.act)).toBe(false);
   expect(ctx.tokenEvents.some((e) => e.id === 'user-token')).toBe(false);

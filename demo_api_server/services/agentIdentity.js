@@ -13,13 +13,19 @@
  * trace papered over it. This resolves the agent's own credentials when they
  * are configured, and says plainly when they are not.
  *
- * DELIBERATELY NOT FAIL-CLOSED. The registrations exist in the topology but
- * have never been provisioned in the tenant (Phase 1: "topology entry only,
- * the live tenant is untouched"), so refusing to run without them would break
- * a working demo to punish a gap the operator has not been given the chance to
- * close. Instead the run proceeds on the shared client and is MARKED as having
- * done so, everywhere it is visible. A visible gap gets fixed; a hidden one
- * gets demoed.
+ * FAIL CLOSED. An agent with no credentials of its own does not run at all --
+ * it does not fall back to the shared token-exchanger client, and no token is
+ * minted. Borrowing an identity is exactly how the declared agent and the
+ * acting client drifted apart in the first place, and a demo that keeps working
+ * on a borrowed identity teaches the wrong lesson more convincingly than a
+ * broken one teaches nothing.
+ *
+ * The consequence is deliberate and worth stating: until
+ * <prefix>_client_id/_secret are configured AND the app is provisioned in the
+ * tenant, every autonomous run fails with agent_not_provisioned. That is the
+ * intended state -- the registrations exist in scope-topology.json but the
+ * Phase 1 decision was "topology entry only, the live tenant is untouched", so
+ * the gap is real and now visible rather than papered over.
  */
 
 const configStore = require('./configStore');

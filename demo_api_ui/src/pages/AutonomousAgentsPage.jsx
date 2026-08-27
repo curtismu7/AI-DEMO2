@@ -364,7 +364,7 @@ export default function AutonomousAgentsPage() {
                                 {openRun.identity
                                   ? (openRun.identity.ownIdentity
                                     ? "its own PingOne registration"
-                                    : "a SHARED client — not its own registration")
+                                    : "nothing — it has no identity of its own")
                                   : null}
                               </Row>
                               <Row label="Policy said">
@@ -377,9 +377,11 @@ export default function AutonomousAgentsPage() {
 
                             {openRun.identity && !openRun.identity.ownIdentity ? (
                               <p className="aap-warn">
-                                <strong>This run did not use its own identity.</strong>{" "}
-                                {openRun.identity.reason}. The token chain below shows the client
-                                that actually authenticated, not the agent named above.
+                                <strong>This agent has no identity of its own, so it did not run.</strong>{" "}
+                                {openRun.identity.reason}. It deliberately does not borrow a shared
+                                client: an agent acting under someone else's identity is the thing
+                                this demo exists to make visible. Configure its credentials and
+                                provision the registration, and the run proceeds.
                               </p>
                             ) : null}
 

@@ -50,7 +50,8 @@ async function runFraudWatch(deps = {}) {
     // decorative -- see agentIdentity.js.
     getToken = (ctx, creds) => agentCCTokenService.getAgentCCToken(ctx, {
       scope: ['read'],
-      ...(creds.clientId ? { clientId: creds.clientId, clientSecret: creds.clientSecret } : {}),
+      clientId: creds.clientId,
+      clientSecret: creds.clientSecret,
     }),
     readTransactions = () => dataStore.getAllTransactions(),
   } = deps;
@@ -59,6 +60,22 @@ async function runFraudWatch(deps = {}) {
   const windowHours = _number(configStore.getEffective('FRAUD_WATCH_WINDOW_HOURS'), DEFAULT_WINDOW_HOURS);
   const ctx = createUnattendedContext({ agent: AGENT });
   const creds = resolveAgentCredentials(AGENT);
+
+  // No identity of its own, no run. The agent's registration is declared in
+  // scope-topology.json but its credentials are not configured, so there is
+  // nothing to authenticate AS. Borrowing the shared token-exchanger client
+  // would let the demo keep working while the trace showed an identity the
+  // token does not carry -- which is the defect this guard exists to prevent.
+  // Refuse before minting anything.
+  if (!creds.ownIdentity) {
+    return {
+      status: 'failed', agent: AGENT,
+      identity: { ownIdentity: false, reason: creds.reason },
+      error: `agent_not_provisioned: ${creds.reason}`,
+      findings: [], tokenEvents: ctx.tokenEvents,
+      summary: 'refused — the agent has no identity of its own to act with',
+    };
+  }
 
   let token;
   try {
@@ -79,7 +96,7 @@ async function runFraudWatch(deps = {}) {
     };
   }
 
-  ctx.recordAgentToken(token, { ownIdentity: creds.ownIdentity });
+  ctx.recordAgentToken(token, { ownIdentity: true });
 
   const cutoff = new Date(now.getTime() - windowHours * 3600 * 1000);
   const all = readTransactions() || [];

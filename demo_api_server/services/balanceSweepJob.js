@@ -78,7 +78,8 @@ async function runBalanceSweep(deps = {}) {
     // The agent's OWN client when it is provisioned -- see agentIdentity.js.
     getToken = (ctx, creds) => agentCCTokenService.getAgentCCToken(ctx, {
       scope: ['read', 'transfer'],
-      ...(creds.clientId ? { clientId: creds.clientId, clientSecret: creds.clientSecret } : {}),
+      clientId: creds.clientId,
+      clientSecret: creds.clientSecret,
     }),
     readAccounts = () => dataStore.getAllAccounts(),
     initiateCiba = (loginHint, bindingMessage) =>
@@ -90,6 +91,22 @@ async function runBalanceSweep(deps = {}) {
   const ctx = createUnattendedContext({ agent: AGENT });
   const creds = resolveAgentCredentials(AGENT);
 
+  // No identity of its own, no run. The agent's registration is declared in
+  // scope-topology.json but its credentials are not configured, so there is
+  // nothing to authenticate AS. Borrowing the shared token-exchanger client
+  // would let the demo keep working while the trace showed an identity the
+  // token does not carry -- which is the defect this guard exists to prevent.
+  // Refuse before minting anything.
+  if (!creds.ownIdentity) {
+    return {
+      status: 'failed', agent: AGENT,
+      identity: { ownIdentity: false, reason: creds.reason },
+      error: `agent_not_provisioned: ${creds.reason}`,
+      findings: [], tokenEvents: ctx.tokenEvents,
+      summary: 'refused — the agent has no identity of its own to act with',
+    };
+  }
+
   let token;
   try {
     token = await getToken(ctx, creds);
@@ -100,7 +117,7 @@ async function runBalanceSweep(deps = {}) {
       findings: [], tokenEvents: ctx.tokenEvents,
     };
   }
-  ctx.recordAgentToken(token, { ownIdentity: creds.ownIdentity });
+  ctx.recordAgentToken(token, { ownIdentity: true });
 
   const accounts = readAccounts() || [];
   const sweep = _planSweep(accounts, floor);
