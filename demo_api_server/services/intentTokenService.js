@@ -4,6 +4,12 @@ const crypto = require('node:crypto');
 
 const INTENT_TTL_SECONDS = 300; // 5-minute window per agent run
 
+// The vault is the final answer for this key. vaultLoader lists
+// INTENT_TOKEN_SECRET in ENV_EXPORT_ALLOWLIST and OVERWRITES process.env at
+// boot, so when a vault entry exists it beats whatever .env said — a diverged
+// .env copy can no longer decide what signs intent tokens, which is the drift
+// that broke SE introspection on 2026-08-25. Falling back to .env (and then
+// SESSION_SECRET) still works for deployments with no vault.
 function getSigningKey() {
   const key = process.env.INTENT_TOKEN_SECRET || process.env.SESSION_SECRET;
   if (!key) throw new Error('[intentTokenService] INTENT_TOKEN_SECRET (or SESSION_SECRET) not set');
@@ -21,8 +27,11 @@ function getSigningKey() {
     throw new Error(
       '[intentTokenService] signing key resolved to configStore ciphertext ' +
       '("encrypted:..."), not a real secret — set a plaintext INTENT_TOKEN_SECRET ' +
-      'in demo_api_server/.env and re-run scripts/refresh-service-envs.js so both ' +
-      'gateways verify with the same key.',
+      'in the VAULT (npm run vault:set INTENT_TOKEN_SECRET), then re-run ' +
+      'scripts/refresh-service-envs.js so both gateways verify with the same key. ' +
+      'The vault wins for the BFF (vaultLoader ENV_EXPORT_ALLOWLIST) and now ' +
+      'supplies the gateway env files too; a .env value is only the fallback ' +
+      'when no vault entry exists.',
     );
   }
   return key;

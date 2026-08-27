@@ -49,12 +49,18 @@ const demoMcpGatewayEnvBlock = () => envBlock("'demo_mcp_gateway', '.env'", 'Wro
 
 // The gateway must land on the SAME key the BFF signs with, or every Intent
 // Token fails verification. demo_api_server/services/intentTokenService.js
-// resolves `INTENT_TOKEN_SECRET || SESSION_SECRET`; both gateway blocks mirror
-// that resolution so every side agrees whichever one is actually configured.
+// resolves `INTENT_TOKEN_SECRET || SESSION_SECRET` from process.env, and
+// vaultLoader OVERWRITES process.env for that name (ENV_EXPORT_ALLOWLIST), so
+// the BFF signs with the VAULT value whenever one exists.
+//
+// Hence fbVault(), not fb(): reading .env here while the BFF reads the vault is
+// precisely how the two sides diverge, and the divergence is silent — valid
+// signatures that nothing can match (SE introspection, 2026-08-25). fbVault
+// falls back to fb() when there is no vault, so a fresh clone is unchanged.
 function assertIntentSecretWiring(block) {
   const line = block.split('\n').find((l) => l.includes('INTENT_TOKEN_SECRET'));
   expect(line).toBeDefined();
-  expect(line).toMatch(/fb\('INTENT_TOKEN_SECRET'\)/);
+  expect(line).toMatch(/fbVault\('INTENT_TOKEN_SECRET'\)/);
   expect(line).toMatch(/fb\('SESSION_SECRET'\)/);
   // INTENT_TOKEN_SECRET wins over SESSION_SECRET (resolution order).
   expect(line.indexOf("fb('INTENT_TOKEN_SECRET')"))
@@ -70,7 +76,7 @@ describe('refresh-service-envs — ping-gateway/.env', () => {
     const block = pingGatewayEnvBlock();
     const line = block.split('\n').find((l) => l.includes('INTENT_TOKEN_SECRET'));
     expect(line).toBeDefined();
-    expect(line).toMatch(/fb\('INTENT_TOKEN_SECRET'\)/);
+    expect(line).toMatch(/fbVault\('INTENT_TOKEN_SECRET'\)/);
     expect(line).toMatch(/fb\('SESSION_SECRET'\)/);
   });
 
