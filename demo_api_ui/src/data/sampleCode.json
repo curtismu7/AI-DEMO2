@@ -1,0 +1,721 @@
+{
+  "m2m-credentials": {
+    "sections": [
+      {
+        "id": "token",
+        "title": "The client credentials request",
+        "note": "The entire grant, in one HTTP call. The client authenticates with its own ID and secret over HTTP Basic \u2014 no user, no browser redirect, no authorization code, no PKCE. This is the right grant whenever there is no human in the loop.",
+        "code": {
+          "go": {
+            "lang": "go",
+            "file": "go/main.go",
+            "code": "form.Set(\"grant_type\", \"client_credentials\")\n\nbasic := base64.StdEncoding.EncodeToString([]byte(clientID + \":\" + clientSecret))\n\ncards = append(cards, card{\n\tTitle: \"1. Build token request\",\n\tOK:    true,\n\tURL:   \"POST \" + tokenURL,\n\tDetail: template.HTML(`The client_credentials grant requires no user interaction. The only inputs are the client's own credentials.<br><br>` +\n\t\t`Headers:<br>&nbsp;&nbsp;<code>Authorization: Basic base64(client_id:client_secret)</code><br>&nbsp;&nbsp;<code>Content-Type: application/x-www-form-urlencoded</code><br>` +\n\t\t`Form body:<br>&nbsp;&nbsp;<code>grant_type=client_credentials</code>`),\n\tBody: fmt.Sprintf(\"client_id:     %s\\ngrant_type:    client_credentials\", clientID),\n})",
+            "line": 186
+          },
+          "js": {
+            "lang": "javascript",
+            "file": "js/index.js",
+            "code": "             `Form body:<br>&nbsp;&nbsp;<code>grant_type=client_credentials</code>`,\n  rawDetail: true,\n  body:      `client_id:     ${clientID}\\ngrant_type:    client_credentials`,\n});\n\n// Step 2: Call the token endpoint.\n// A successful response contains access_token (JWT), token_type (\"Bearer\"),\n// and expires_in (seconds). There is no refresh_token in client_credentials\n// flows \u2014 when the token expires, simply re-run this same request.\nlet tokStatus = 0, tokRaw = '', tokParsed = null, tokOK = false;\ntry {\n  const resp = await fetch(tokenURL, {\n    method: 'POST',\n    headers: {\n      'Content-Type':  'application/x-www-form-urlencoded',\n      'Authorization': `Basic ${basic}`,\n    },\n    body: 'grant_type=client_credentials',\n  });\n  tokStatus = resp.status;\n  tokRaw    = await resp.text();\n  try { tokParsed = JSON.parse(tokRaw); } catch (_) {}\n  tokOK = tokStatus < 400;\n} catch (err) {\n  tokRaw = err.message;\n}",
+            "line": 480
+          },
+          "python": {
+            "lang": "python",
+            "file": "python/app.py",
+            "code": "        \"Form body:<br>&nbsp;&nbsp;<code>grant_type=client_credentials</code>\"\n    ),\n    body=f\"client_id:     {CLIENT_ID}\\ngrant_type:    client_credentials\",\n))\n\n# Step 2: Call the token endpoint.\n# A successful response contains access_token (JWT), token_type (\"Bearer\"),\n# and expires_in (seconds until expiry). There is no refresh_token because\n# re-authentication in client_credentials is trivial \u2014 just resend the same\n# request with the same credentials.\ntry:\n    tok_resp = requests.post(\n        token_url,\n        data={\"grant_type\": \"client_credentials\"},\n        headers={\n            \"Authorization\": f\"Basic {basic}\",\n            \"Content-Type\": \"application/x-www-form-urlencoded\",\n        },\n        timeout=HTTP_TIMEOUT,\n    )\n    tok_raw = tok_resp.content\n    tok_status = tok_resp.status_code\n    try:\n        tok_parsed = tok_resp.json()\n    except Exception:\n        tok_parsed = {}\nexcept requests.RequestException as exc:\n    tok_raw = str(exc).encode()\n    tok_status = 0\n    tok_parsed = {}",
+            "line": 586
+          },
+          "react": {
+            "lang": "javascript",
+            "file": "react/server/index.js",
+            "code": "    'Form body:\\n  grant_type=client_credentials',\n  body: `client_id:     ${clientID}\\ngrant_type:    client_credentials`,\n  collapsed: false,\n});\n\n// Step 2: Call the token endpoint.\n// A successful response contains access_token (JWT), token_type (\"Bearer\"),\n// and expires_in. There is no refresh_token in client_credentials flows \u2014\n// when the token expires, simply re-send the same credential exchange.\nconst basic = Buffer.from(`${clientID}:${clientSecret}`).toString('base64');\nlet tokRaw, tokParsed = null, tokStatus = 0, tokErr = null;\ntry {\n  const tokResp = await fetch(tokenURL, {\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/x-www-form-urlencoded',\n      'Authorization': `Basic ${basic}`,\n    },\n    body: new URLSearchParams({ grant_type: 'client_credentials' }),\n  });\n  tokStatus = tokResp.status;\n  tokRaw = await tokResp.text();\n  try { tokParsed = JSON.parse(tokRaw); } catch {}\n} catch (err) {\n  tokErr = err;\n}",
+            "line": 206
+          },
+          "angular": {
+            "lang": "javascript",
+            "file": "angular/server/index.js",
+            "code": "          'Form body:\\n  grant_type=client_credentials',\n  body: `client_id:     ${clientID}\\ngrant_type:    client_credentials`,\n  collapsed: false,\n});\n\n// \u2500\u2500 2. Call token endpoint \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n// A successful response contains access_token (JWT), token_type (\"Bearer\"),\n// and expires_in. There is no refresh_token in client_credentials flows \u2014\n// when the token expires, simply re-send the same credential exchange.\nlet tokStatus = 0;\nlet tokRaw = '';\nlet tokParsed = null;\ntry {\n  const tokResp = await fetch(tokenURL, {\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/x-www-form-urlencoded',\n      'Authorization': `Basic ${basic}`,\n    },\n    body: new URLSearchParams({ grant_type: 'client_credentials' }),\n  });\n  tokStatus = tokResp.status;\n  tokRaw = await tokResp.text();\n  try { tokParsed = JSON.parse(tokRaw); } catch {}\n} catch (err) {\n  steps.push({ title: '2. Token endpoint response', ok: false, url: `POST ${tokenURL}`, detail: `Request failed: ${err.message}`, body: '', collapsed: false });\n  return { success: false, steps };\n}",
+            "line": 209
+          }
+        }
+      },
+      {
+        "id": "jwks",
+        "title": "Fetching PingOne's signing keys",
+        "note": "The access token is a JWT. To trust it you need PingOne's public signing keys. Cache this in production and re-fetch only when you meet a `kid` you have not seen \u2014 not on every request.",
+        "code": {
+          "go": {
+            "lang": "go",
+            "file": "go/main.go",
+            "code": "// Step 4: Fetch the JWKS (JSON Web Key Set).\n// The JWKS endpoint publishes the RSA public keys PingOne uses to sign\n// tokens. Each key has a \"kid\" (key ID) that matches the \"kid\" in the JWT\n// header, allowing the verifier to pick the right key when multiple keys\n// are in rotation. In production, you should cache the JWKS and only\n// re-fetch when you encounter a \"kid\" you have not seen before.\njwksURL := fmt.Sprintf(\"%s/%s/as/jwks\", authPath, envID)\njwksResp, jwksErr := http.Get(jwksURL)\nvar jwksRaw []byte\nvar jwks map[string]interface{}\nif jwksErr == nil {\n\tdefer jwksResp.Body.Close()\n\tjwksRaw, _ = io.ReadAll(jwksResp.Body)\n\t_ = json.Unmarshal(jwksRaw, &jwks)\n}\ncards = append(cards, card{\n\tTitle:     \"4. Fetch JWKS\",\n\tOK:        jwksErr == nil,\n\tURL:       \"GET \" + jwksURL,\n\tDetail:    \"Public keys used to verify the access token signature. In production, cache this response and re-fetch only when a new <code>kid</code> is encountered.\",\n\tBody:      prettyJSONOrRaw(jwksRaw),\n\tCollapsed: true,\n})",
+            "line": 251
+          },
+          "js": {
+            "lang": "javascript",
+            "file": "js/index.js",
+            "code": "// Step 4: Fetch the JWKS (JSON Web Key Set).\n// PingOne publishes its public signing keys at /as/jwks. The kid (key ID) in\n// each JWKS entry matches the kid in the JWT header, allowing us to pick the\n// correct key when multiple keys are in rotation. In production you should\n// cache the JWKS and only re-fetch on a cache miss (new kid encountered).\nconst jwksURL = `${authPath}/${envID}/as/jwks`;\nlet jwksRaw = '', jwksParsed = null, jwksOK = false;\ntry {\n  const resp = await fetch(jwksURL);\n  jwksRaw   = await resp.text();\n  try { jwksParsed = JSON.parse(jwksRaw); } catch (_) {}\n  jwksOK = resp.status < 400;\n} catch (err) {\n  jwksRaw = err.message;\n}",
+            "line": 543
+          },
+          "python": {
+            "lang": "python",
+            "file": "python/app.py",
+            "code": "# Step 4: Fetch the JWKS (JSON Web Key Set).\n# PingOne publishes its public signing keys at /as/jwks. The kid (key ID) in\n# each JWKS entry matches the kid in the JWT header, allowing us to pick the\n# correct key when PingOne rotates its signing keys. In production, cache\n# the JWKS and only re-fetch when a new kid is encountered.\njwks_url = f\"{AUTH_PATH}/{ENV_ID}/as/jwks\"\ntry:\n    jwks_resp = requests.get(jwks_url, timeout=HTTP_TIMEOUT)\n    jwks_raw = jwks_resp.content\n    jwks_status = jwks_resp.status_code\n    jwks_ok = jwks_status < 400\n    try:\n        jwks = jwks_resp.json()\n    except Exception:\n        jwks = {}\nexcept requests.RequestException as exc:\n    jwks_raw = str(exc).encode()\n    jwks_status = 0\n    jwks_ok = False\n    jwks = {}",
+            "line": 666
+          },
+          "react": {
+            "lang": "javascript",
+            "file": "react/server/index.js",
+            "code": "// Step 4: Fetch the JWKS (JSON Web Key Set).\n// PingOne publishes its RSA public signing keys at /as/jwks. The kid in each\n// JWKS entry matches the kid in the JWT header, enabling correct key\n// selection when PingOne rotates signing keys. In production, cache the JWKS\n// and re-fetch only on a cache miss (new kid encountered).\nconst jwksURL = `${authPath}/${envID}/as/jwks`;\nlet jwksRaw, jwksParsed = null, jwksErr = null;\ntry {\n  const jwksResp = await fetch(jwksURL);\n  jwksRaw = await jwksResp.text();\n  try { jwksParsed = JSON.parse(jwksRaw); } catch {}\n} catch (err) {\n  jwksErr = err;\n}\nsteps.push({\n  title: '4. Fetch JWKS',\n  ok: !jwksErr,\n  url: `GET ${jwksURL}`,\n  detail: jwksErr\n    ? `Failed to fetch JWKS: ${jwksErr.message}`\n    : 'Public keys used to verify the access token signature. In production, cache this response and re-fetch only when a new kid is encountered.',\n  body: jwksRaw ? pretty(jwksRaw) : '',\n  collapsed: true,\n});",
+            "line": 268
+          },
+          "angular": {
+            "lang": "javascript",
+            "file": "angular/server/index.js",
+            "code": "// \u2500\u2500 4. Fetch JWKS \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n// PingOne publishes its RSA public signing keys at /as/jwks. Each key's kid\n// matches the kid in the JWT header, enabling correct key selection during\n// key rotation. In production, cache the JWKS and re-fetch only on a cache\n// miss (new kid encountered).\nconst jwksURL = `${authPath}/${envID}/as/jwks`;\nlet jwksStatus = 0;\nlet jwksRaw = '';\nlet jwksParsed = null;\nlet jwksFetchErr = null;\ntry {\n  const jwksResp = await fetch(jwksURL);\n  jwksStatus = jwksResp.status;\n  jwksRaw = await jwksResp.text();\n  try { jwksParsed = JSON.parse(jwksRaw); } catch {}\n} catch (err) {\n  jwksFetchErr = err;\n}\nsteps.push({\n  title: '4. Fetch JWKS',\n  ok: jwksFetchErr === null && jwksStatus < 400,\n  url: `GET ${jwksURL}`,\n  detail: 'Public keys used to verify the access token signature. In production, cache this response and re-fetch only when a new kid is encountered.',\n  body: jwksFetchErr ? jwksFetchErr.message : pretty(jwksRaw),\n  collapsed: true,\n});",
+            "line": 273
+          }
+        }
+      },
+      {
+        "id": "verify",
+        "title": "Verifying the signature",
+        "note": "The signed input is exactly `base64url(header).base64url(payload)` as transmitted. Any change to the token \u2014 even reordering JSON keys \u2014 invalidates it. Match the key by the `kid` in the JWT header.",
+        "code": {
+          "go": {
+            "lang": "go",
+            "file": "go/main.go",
+            "code": "\treturn rsa.VerifyPKCS1v15(pub, crypto.SHA256, digest[:], sig)\n}\n\n// jwkToRSAPublicKey converts a JWK (JSON Web Key) object into a Go\n// *rsa.PublicKey that can be passed to rsa.VerifyPKCS1v15.\n//\n// An RSA JWK has two components:\n//   - \"n\": the modulus (base64url-encoded big-endian bytes)\n//   - \"e\": the public exponent (base64url-encoded big-endian bytes)\n//\n// Both are decoded from base64url, then interpreted as unsigned big-endian\n// integers to construct the RSA public key.\nfunc jwkToRSAPublicKey(jwk map[string]interface{}) (*rsa.PublicKey, error) {\n\tkty, _ := jwk[\"kty\"].(string)\n\tif kty != \"RSA\" {\n\t\treturn nil, fmt.Errorf(\"unsupported kty %q (RSA only)\", kty)\n\t}\n\tnStr, _ := jwk[\"n\"].(string)\n\teStr, _ := jwk[\"e\"].(string)\n\tnBytes, err := base64.RawURLEncoding.DecodeString(nStr)\n\tif err != nil {\n\t\treturn nil, fmt.Errorf(\"decode n: %w\", err)\n\t}\n\teBytes, err := base64.RawURLEncoding.DecodeString(eStr)\n\tif err != nil {\n\t\treturn nil, fmt.Errorf(\"decode e: %w\", err)\n\t}\n\tvar ePadded [8]byte\n\tcopy(ePadded[8-len(eBytes):], eBytes)\n\te := int(binary.BigEndian.Uint64(ePadded[:]))\n\tn := new(big.Int).SetBytes(nBytes)\n\treturn &rsa.PublicKey{N: n, E: e}, nil\n}",
+            "line": 807
+          },
+          "js": {
+            "lang": "javascript",
+            "file": "js/index.js",
+            "code": "  const verify = crypto.createVerify('SHA256');\n  verify.update(signedInput);\n  if (!verify.verify(pem, sig)) throw new Error('Signature verification failed');\n}\n\n// --- Claim validation ---\n\n// validateAccessClaims checks the claims that must be present and valid in a\n// PingOne client_credentials access token.\n//\n// Key M2M-specific point: PingOne Worker app tokens do not have a \"sub\" claim\n// because there is no authenticated user. The client's identity is in the\n// \"client_id\" claim instead. Always validate client_id when consuming M2M\n// tokens \u2014 an attacker with a valid token from a different client would pass\n// a \"sub\" check that was accidentally checking the wrong field.\nfunction validateAccessClaims(payload, expectedIssuer, expectedClientID) {\n  const errs = {};\n  if (payload.iss !== expectedIssuer) {\n    errs['iss'] = `got \"${payload.iss}\", want \"${expectedIssuer}\"`;\n  }\n  // PingOne Worker app tokens use client_id (not sub) to identify the client.\n  if (payload.client_id !== expectedClientID) {\n    errs['client_id'] = `got \"${payload.client_id}\", want \"${expectedClientID}\"`;\n  }\n  const nowSec = Math.floor(Date.now() / 1000);\n  if (typeof payload.exp === 'number') {\n    if (payload.exp < nowSec) errs['exp'] = `expired (exp=${payload.exp}, now=${nowSec})`;\n  } else {\n    errs['exp'] = 'missing or non-numeric';\n  }\n  // Allow up to 60 seconds of clock skew before flagging iat as future.\n  if (typeof payload.iat === 'number') {\n    if (payload.iat > nowSec + 60) errs['iat'] = `in the future (iat=${payload.iat}, now=${nowSec})`;\n  }\n  return errs;\n}",
+            "line": 255
+          },
+          "python": {
+            "lang": "python",
+            "file": "python/app.py",
+            "code": "        pub.verify(sig, signed_input, padding.PKCS1v15(), hashes.SHA256())\n    except Exception as exc:\n        return f\"Signature INVALID: {exc}\"\n    return \"\"\n\n\ndef validate_access_claims(claims: dict, expected_issuer: str, expected_client_id: str) -> dict:\n    \"\"\"Validate the claims that must be present and correct in a client_credentials token.\n\n    Returns a dict of {claim_name: error_string} for every failing check.\n    An empty dict means all checks passed.\n\n    Key M2M point: PingOne Worker app tokens do not have a \"sub\" claim because\n    there is no authenticated user. The client's identity is in \"client_id\".\n    Validating client_id (not sub) is essential for M2M token consumers.\n\n    exp must be in the future. iat must not be more than 60 seconds in the\n    future (tolerates minor clock skew between the token issuer and this server).\n    There is no nonce check because nonces are only meaningful in interactive\n    flows that involve a browser redirect.\n    \"\"\"\n    errs = {}\n    iss = claims.get(\"iss\", \"\")\n    if iss != expected_issuer:\n        errs[\"iss\"] = f\"got {iss!r}, want {expected_issuer!r}\"\n    cid = claims.get(\"client_id\", \"\")\n    if cid != expected_client_id:\n        errs[\"client_id\"] = f\"got {cid!r}, want {expected_client_id!r}\"\n    now = int(time.time())\n    exp = claims.get(\"exp\")\n    if exp is None:\n        errs[\"exp\"] = \"missing or non-numeric\"\n    else:\n        try:\n            if int(exp) < now:\n                errs[\"exp\"] = f\"expired (exp={int(exp)}, now={now})\"\n        except (TypeError, ValueError):\n            errs[\"exp\"] = \"missing or non-numeric\"\n    iat = claims.get(\"iat\")\n    if iat is not None:\n        try:",
+            "line": 285
+          },
+          "react": {
+            "lang": "javascript",
+            "file": "react/server/index.js",
+            "code": "  const verify = crypto.createVerify('SHA256');\n  verify.update(signedInput);\n  const valid = verify.verify(pubKey, sig);\n  if (!valid) throw new Error('Signature verification failed');\n}\n\n// ---------------------------------------------------------------------------\n// Claim validation\n// ---------------------------------------------------------------------------\n\n// validateAccessClaims checks the claims that must be present and correct in a\n// PingOne client_credentials access token.\n//\n// Key M2M-specific point: PingOne Worker app tokens do NOT have a \"sub\" claim\n// because there is no authenticated user. The client's identity is in the\n// \"client_id\" claim. Checking client_id (not sub) is essential \u2014 a token from\n// a different client would pass a sub check that accidentally targets the wrong\n// field.\nfunction validateAccessClaims(payload, expectedIssuer, expectedClientID) {\n  const errs = {};\n  if (payload.iss !== expectedIssuer) {\n    errs.iss = `got \"${payload.iss}\", want \"${expectedIssuer}\"`;\n  }\n  // PingOne Worker app tokens use client_id (not sub) to identify the client.\n  if (payload.client_id !== expectedClientID) {\n    errs.client_id = `got \"${payload.client_id}\", want \"${expectedClientID}\"`;\n  }\n  const now = Math.floor(Date.now() / 1000);\n  if (typeof payload.exp !== 'number') {\n    errs.exp = 'missing or non-numeric';\n  } else if (payload.exp < now) {\n    errs.exp = `expired (exp=${payload.exp}, now=${now})`;\n  }\n  // Allow up to 60 seconds of clock skew before flagging iat as future.\n  if (typeof payload.iat === 'number' && payload.iat > now + 60) {\n    errs.iat = `in the future (iat=${payload.iat}, now=${now})`;\n  }\n  return errs;\n}",
+            "line": 107
+          },
+          "angular": {
+            "lang": "javascript",
+            "file": "angular/server/index.js",
+            "code": "  const verify = crypto.createVerify('SHA256');\n  verify.update(signedInput, 'utf8');\n  const valid = verify.verify(pem, sig);\n  if (!valid) throw new Error('Signature verification failed');\n}\n\n// \u2500\u2500 Claim validation \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n// validateAccessClaims checks the claims that must be present and correct in a\n// PingOne client_credentials access token.\n//\n// Key M2M-specific point: PingOne Worker app tokens do NOT have a \"sub\" claim\n// because there is no authenticated user. The client's identity is in the\n// \"client_id\" claim. Always validate client_id when consuming M2M tokens.\nfunction validateAccessClaims(payload, expectedIssuer, expectedClientID) {\n  const errs = {};\n  if (payload.iss !== expectedIssuer) {\n    errs.iss = `got \"${payload.iss}\", want \"${expectedIssuer}\"`;\n  }\n  // PingOne Worker app tokens use client_id (not sub) to identify the client.\n  if (payload.client_id !== expectedClientID) {\n    errs.client_id = `got \"${payload.client_id}\", want \"${expectedClientID}\"`;\n  }\n  const now = Math.floor(Date.now() / 1000);\n  if (typeof payload.exp !== 'number') {\n    errs.exp = 'missing or non-numeric';\n  } else if (payload.exp < now) {\n    errs.exp = `expired (exp=${payload.exp}, now=${now})`;\n  }\n  // Allow up to 60 seconds of clock skew before flagging iat as future.\n  if (typeof payload.iat === 'number' && payload.iat > now + 60) {\n    errs.iat = `in the future (iat=${payload.iat}, now=${now})`;\n  }\n  return errs;\n}",
+            "line": 126
+          }
+        }
+      },
+      {
+        "id": "claims",
+        "title": "Validating the claims",
+        "note": "A cryptographically valid token can still be the wrong token. Check `iss`, `exp`, `iat` \u2014 and critically `client_id`, because PingOne worker tokens have no `sub`. Validating `sub` here would silently pass for any client.",
+        "code": {
+          "go": {
+            "lang": "go",
+            "file": "go/main.go",
+            "code": "//   client_id: PingOne Worker app tokens carry the client ID here (not in\n//              \"sub\" \u2014 the subject claim is absent in M2M tokens because\n//              there is no authenticated user).\n//   exp:       the token must not be expired.\n//   iat:       the issued-at time should not be in the future (clock skew\n//              of up to 60 seconds is tolerated).\n// There is intentionally no \"nonce\" check because nonces are only\n// meaningful in interactive flows that involve a browser redirect.\nexpectedIssuer := fmt.Sprintf(\"%s/%s/as\", authPath, envID)\nclaimsErrs := validateAccessClaims(payload, expectedIssuer, clientID)\ncards = append(cards, card{\n\tTitle: \"6. Validate access token claims\",\n\tOK:    len(claimsErrs) == 0,\n\tDetail: template.HTML(fmt.Sprintf(\n\t\t`Required checks: <code>iss</code> matches <code>%s</code>, <code>client_id</code> matches <code>%s</code>, <code>exp</code> &gt; now, <code>iat</code> not in the future.<br>Note: PingOne Worker app tokens use <code>client_id</code> (not <code>sub</code>) to identify the client. There is no <code>nonce</code> \u2014 no user authentication was involved.<br>%s`,\n\t\ttemplate.HTMLEscapeString(expectedIssuer),\n\t\ttemplate.HTMLEscapeString(clientID),\n\t\trenderClaimChecks(claimsErrs),\n\t)),\n\tBody: prettyAny(payload),\n})",
+            "line": 295
+          },
+          "js": {
+            "lang": "javascript",
+            "file": "js/index.js",
+            "code": "// validateAccessClaims checks the claims that must be present and valid in a\n// PingOne client_credentials access token.\n//\n// Key M2M-specific point: PingOne Worker app tokens do not have a \"sub\" claim\n// because there is no authenticated user. The client's identity is in the\n// \"client_id\" claim instead. Always validate client_id when consuming M2M\n// tokens \u2014 an attacker with a valid token from a different client would pass\n// a \"sub\" check that was accidentally checking the wrong field.\nfunction validateAccessClaims(payload, expectedIssuer, expectedClientID) {\n  const errs = {};\n  if (payload.iss !== expectedIssuer) {\n    errs['iss'] = `got \"${payload.iss}\", want \"${expectedIssuer}\"`;\n  }\n  // PingOne Worker app tokens use client_id (not sub) to identify the client.\n  if (payload.client_id !== expectedClientID) {\n    errs['client_id'] = `got \"${payload.client_id}\", want \"${expectedClientID}\"`;\n  }\n  const nowSec = Math.floor(Date.now() / 1000);\n  if (typeof payload.exp === 'number') {\n    if (payload.exp < nowSec) errs['exp'] = `expired (exp=${payload.exp}, now=${nowSec})`;\n  } else {\n    errs['exp'] = 'missing or non-numeric';\n  }\n  // Allow up to 60 seconds of clock skew before flagging iat as future.\n  if (typeof payload.iat === 'number') {\n    if (payload.iat > nowSec + 60) errs['iat'] = `in the future (iat=${payload.iat}, now=${nowSec})`;\n  }\n  return errs;\n}",
+            "line": 262
+          },
+          "python": {
+            "lang": "python",
+            "file": "python/app.py",
+            "code": "def validate_access_claims(claims: dict, expected_issuer: str, expected_client_id: str) -> dict:\n    \"\"\"Validate the claims that must be present and correct in a client_credentials token.\n\n    Returns a dict of {claim_name: error_string} for every failing check.\n    An empty dict means all checks passed.\n\n    Key M2M point: PingOne Worker app tokens do not have a \"sub\" claim because\n    there is no authenticated user. The client's identity is in \"client_id\".\n    Validating client_id (not sub) is essential for M2M token consumers.\n\n    exp must be in the future. iat must not be more than 60 seconds in the\n    future (tolerates minor clock skew between the token issuer and this server).\n    There is no nonce check because nonces are only meaningful in interactive\n    flows that involve a browser redirect.\n    \"\"\"\n    errs = {}\n    iss = claims.get(\"iss\", \"\")\n    if iss != expected_issuer:\n        errs[\"iss\"] = f\"got {iss!r}, want {expected_issuer!r}\"\n    cid = claims.get(\"client_id\", \"\")\n    if cid != expected_client_id:\n        errs[\"client_id\"] = f\"got {cid!r}, want {expected_client_id!r}\"\n    now = int(time.time())\n    exp = claims.get(\"exp\")\n    if exp is None:\n        errs[\"exp\"] = \"missing or non-numeric\"\n    else:\n        try:\n            if int(exp) < now:\n                errs[\"exp\"] = f\"expired (exp={int(exp)}, now={now})\"\n        except (TypeError, ValueError):\n            errs[\"exp\"] = \"missing or non-numeric\"\n    iat = claims.get(\"iat\")\n    if iat is not None:\n        try:\n            if int(iat) > now + 60:\n                errs[\"iat\"] = f\"in the future (iat={int(iat)}, now={now})\"\n        except (TypeError, ValueError):\n            pass\n    return errs",
+            "line": 291
+          },
+          "react": {
+            "lang": "javascript",
+            "file": "react/server/index.js",
+            "code": "// validateAccessClaims checks the claims that must be present and correct in a\n// PingOne client_credentials access token.\n//\n// Key M2M-specific point: PingOne Worker app tokens do NOT have a \"sub\" claim\n// because there is no authenticated user. The client's identity is in the\n// \"client_id\" claim. Checking client_id (not sub) is essential \u2014 a token from\n// a different client would pass a sub check that accidentally targets the wrong\n// field.\nfunction validateAccessClaims(payload, expectedIssuer, expectedClientID) {\n  const errs = {};\n  if (payload.iss !== expectedIssuer) {\n    errs.iss = `got \"${payload.iss}\", want \"${expectedIssuer}\"`;\n  }\n  // PingOne Worker app tokens use client_id (not sub) to identify the client.\n  if (payload.client_id !== expectedClientID) {\n    errs.client_id = `got \"${payload.client_id}\", want \"${expectedClientID}\"`;\n  }\n  const now = Math.floor(Date.now() / 1000);\n  if (typeof payload.exp !== 'number') {\n    errs.exp = 'missing or non-numeric';\n  } else if (payload.exp < now) {\n    errs.exp = `expired (exp=${payload.exp}, now=${now})`;\n  }\n  // Allow up to 60 seconds of clock skew before flagging iat as future.\n  if (typeof payload.iat === 'number' && payload.iat > now + 60) {\n    errs.iat = `in the future (iat=${payload.iat}, now=${now})`;\n  }\n  return errs;\n}",
+            "line": 117
+          },
+          "angular": {
+            "lang": "javascript",
+            "file": "angular/server/index.js",
+            "code": "// validateAccessClaims checks the claims that must be present and correct in a\n// PingOne client_credentials access token.\n//\n// Key M2M-specific point: PingOne Worker app tokens do NOT have a \"sub\" claim\n// because there is no authenticated user. The client's identity is in the\n// \"client_id\" claim. Always validate client_id when consuming M2M tokens.\nfunction validateAccessClaims(payload, expectedIssuer, expectedClientID) {\n  const errs = {};\n  if (payload.iss !== expectedIssuer) {\n    errs.iss = `got \"${payload.iss}\", want \"${expectedIssuer}\"`;\n  }\n  // PingOne Worker app tokens use client_id (not sub) to identify the client.\n  if (payload.client_id !== expectedClientID) {\n    errs.client_id = `got \"${payload.client_id}\", want \"${expectedClientID}\"`;\n  }\n  const now = Math.floor(Date.now() / 1000);\n  if (typeof payload.exp !== 'number') {\n    errs.exp = 'missing or non-numeric';\n  } else if (payload.exp < now) {\n    errs.exp = `expired (exp=${payload.exp}, now=${now})`;\n  }\n  // Allow up to 60 seconds of clock skew before flagging iat as future.\n  if (typeof payload.iat === 'number' && payload.iat > now + 60) {\n    errs.iat = `in the future (iat=${payload.iat}, now=${now})`;\n  }\n  return errs;\n}",
+            "line": 134
+          }
+        }
+      },
+      {
+        "id": "risk",
+        "title": "Gating the call on a Protect risk score",
+        "note": "PingOne Protect scores the event and returns LOW / MEDIUM / HIGH. The sample runs this twice \u2014 once from the real caller IP, once from a known Tor exit node \u2014 and blocks the downstream management call when the score comes back HIGH.",
+        "code": {
+          "go": {
+            "lang": "go",
+            "file": "go/main.go",
+            "code": "riskURL := fmt.Sprintf(\"%s/v1/environments/%s/riskEvaluations\", apiPath, envID)\n\n// Steps 7a / 8a \u2014 User A: trusted caller.\n// The risk evaluation event is populated with the real IP address of the\n// browser that triggered this request and user.type=EXTERNAL. EXTERNAL\n// indicates a known, authenticated user operating from a normal network.\n// PingOne Protect is expected to return LOW or MEDIUM, allowing the\n// downstream management API call to proceed.\ncards = append(cards, card{Divider: true, Title: \"User A \u2014 trusted (real IP, type=EXTERNAL)\"})\n\nclientIP := callerIP(r)\nriskBodyA := map[string]interface{}{\n\t\"event\": map[string]interface{}{\n\t\t\"ip\":   clientIP,\n\t\t\"flow\": map[string]interface{}{\"type\": \"AUTHENTICATION\"},\n\t\t\"session\": map[string]interface{}{\"id\": \"m2m-demo-session-a\"},\n\t\t\"user\": map[string]interface{}{\n\t\t\t\"id\":   \"m2m-user-trusted\",\n\t\t\t\"type\": \"EXTERNAL\",\n\t\t\t\"name\": \"m2m-user-trusted\",\n\t\t},\n\t\t\"browser\":     map[string]interface{}{\"userAgent\": r.Header.Get(\"User-Agent\")},\n\t\t\"sharingType\": \"SHARED\",\n\t\t\"targetResource\": map[string]interface{}{\n\t\t\t\"id\":   \"m2m-demo-resource\",\n\t\t\t\"name\": \"m2m-demo-resource\",\n\t\t},\n\t},\n\t\"riskPolicySet\": map[string]interface{}{\"id\": riskPolicySetID},\n}\nriskLevelA, riskScoreA, riskCardsA := runRiskAndGate(accessToken, riskURL, mgmtURL, riskBodyA, \"7a\", \"8a\", r)\ncards = append(cards, riskCardsA...)",
+            "line": 347
+          },
+          "js": {
+            "lang": "javascript",
+            "file": "js/index.js",
+            "code": "// Protect path \u2014 risk evaluation before each management API call.\nconst riskURL = `${apiPath}/v1/environments/${envID}/riskEvaluations`;\n\n// Steps 7a / 8a \u2014 User A: trusted caller.\n// We send the real client IP and user.type=EXTERNAL (a known, identified\n// user operating from a normal network). PingOne Protect should return\n// LOW or MEDIUM, and the management API call proceeds.\nconst clientIPAddr = callerIP(req);\nconst riskBodyA = {\n  event: {\n    ip:   clientIPAddr,\n    flow: { type: 'AUTHENTICATION' },\n    session: { id: 'm2m-demo-session-a' },\n    user: { id: 'm2m-user-trusted', type: 'EXTERNAL', name: 'm2m-user-trusted' },\n    browser:     { userAgent: req.headers['user-agent'] || '' },\n    sharingType: 'SHARED',\n    targetResource: { id: 'm2m-demo-resource', name: 'm2m-demo-resource' },\n  },\n  riskPolicySet: { id: riskPolicySetID },\n};",
+            "line": 654
+          },
+          "python": {
+            "lang": "python",
+            "file": "python/app.py",
+            "code": "# Protect path \u2014 risk evaluation before each management API call.\nrisk_url = f\"{API_PATH}/v1/environments/{ENV_ID}/riskEvaluations\"\n\n# Steps 7a / 8a \u2014 User A: trusted caller.\n# Real client IP, user.type=EXTERNAL (a known, identified user on a normal\n# network). PingOne Protect should return LOW or MEDIUM, and the\n# management API call proceeds.\nitems.append({\"divider\": True, \"title\": \"User A \u2014 trusted (real IP, type=EXTERNAL)\"})\n\nclient_ip = caller_ip(req)\nrisk_body_a = {\n    \"event\": {\n        \"ip\": client_ip,\n        \"flow\": {\"type\": \"AUTHENTICATION\"},\n        \"session\": {\"id\": \"m2m-demo-session-a\"},\n        \"user\": {\n            \"id\": \"m2m-user-trusted\",\n            \"type\": \"EXTERNAL\",\n            \"name\": \"m2m-user-trusted\",\n        },\n        \"browser\": {\"userAgent\": req.headers.get(\"User-Agent\", \"\")},\n        \"sharingType\": \"SHARED\",\n        \"targetResource\": {\n            \"id\": \"m2m-demo-resource\",\n            \"name\": \"m2m-demo-resource\",\n        },\n    },\n    \"riskPolicySet\": {\"id\": RISK_POLICY_SET_ID},\n}\nitems.extend(run_risk_and_gate(access_token, risk_url, mgmt_url, risk_body_a, \"7a\", \"8a\"))",
+            "line": 813
+          },
+          "react": {
+            "lang": "javascript",
+            "file": "react/server/index.js",
+            "code": "const riskURL = `${apiPath}/v1/environments/${envID}/riskEvaluations`;\nconst clientIp = callerIP(req);\nconst clientUA = req.headers['user-agent'] || '';\n\n// Steps 7a / 8a \u2014 User A: trusted caller.\n// Real client IP, user.type=EXTERNAL (known user on normal network).\n// Expected: LOW or MEDIUM risk. Management API call proceeds.\nsteps.push({ divider: true, title: 'User A \u2014 trusted (real IP, type=EXTERNAL)' });\n\nconst riskBodyA = {\n  event: {\n    ip:   clientIp,\n    flow: { type: 'AUTHENTICATION' },\n    session: { id: 'm2m-demo-session-a' },\n    user: { id: 'm2m-user-trusted', type: 'EXTERNAL', name: 'm2m-user-trusted' },\n    browser:     { userAgent: clientUA },\n    sharingType: 'SHARED',\n    targetResource: { id: 'm2m-demo-resource', name: 'm2m-demo-resource' },\n  },\n  riskPolicySet: { id: riskPolicySetID },\n};\nconst riskStepsA = await runRiskAndGate(accessToken, riskURL, mgmtURL, riskBodyA, '7a', '8a');\nsteps.push(...riskStepsA);",
+            "line": 369
+          },
+          "angular": {
+            "lang": "javascript",
+            "file": "angular/server/index.js",
+            "code": "const riskURL = `${apiPath}/v1/environments/${envID}/riskEvaluations`;\n\n// \u2500\u2500 Divider: User A \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n// Steps 7a / 8a: trusted caller.\n// IP 127.0.0.1, user.type=EXTERNAL (known user on a normal network).\n// Expected: LOW or MEDIUM risk. Management API call proceeds.\nsteps.push({ divider: true, title: 'User A \u2014 trusted (real IP, type=EXTERNAL)' });\n\nconst riskBodyA = {\n  event: {\n    ip:   '127.0.0.1',\n    flow: { type: 'AUTHENTICATION' },\n    session: { id: 'm2m-demo-session-a' },\n    user: { id: 'm2m-user-trusted', type: 'EXTERNAL', name: 'm2m-user-trusted' },\n    browser:     { userAgent: 'Mozilla/5.0' },\n    sharingType: 'SHARED',\n    targetResource: { id: 'm2m-demo-resource', name: 'm2m-demo-resource' },\n  },\n  riskPolicySet: { id: riskPolicySetID },\n};\nconst riskStepsA = await runRiskAndGate(accessToken, riskURL, mgmtURL, riskBodyA, '7a', '8a');\nsteps.push(...riskStepsA);",
+            "line": 367
+          }
+        }
+      }
+    ]
+  },
+  "custom-admin-role": {
+    "sections": [
+      {
+        "id": "token",
+        "title": "Getting a management token",
+        "note": "Same client_credentials grant as the M2M sample. The worker app must already hold the Environment Admin role \u2014 without it the role-creation calls below return 403.",
+        "code": {
+          "go": {
+            "lang": "go",
+            "file": "go/main.go",
+            "code": "\tbody.Set(\"grant_type\", \"client_credentials\")\n\treq, _ := http.NewRequest(\"POST\", fmt.Sprintf(\"%s/%s/as/token\", authPath, workerEnvID), strings.NewReader(body.Encode()))\n\treq.Header.Set(\"Content-Type\", \"application/x-www-form-urlencoded\")\n\treq.SetBasicAuth(workerClientID, workerClientSecret)\n\n\tresp, err := http.DefaultClient.Do(req)\n\tif err != nil {\n\t\treturn \"\", err\n\t}\n\tdefer resp.Body.Close()\n\tvar j map[string]interface{}\n\tjson.NewDecoder(resp.Body).Decode(&j)\n\ttoken, ok := j[\"access_token\"].(string)\n\tif !ok {\n\t\treturn \"\", fmt.Errorf(\"no access_token: %v\", j)\n\t}\n\treturn token, nil\n}",
+            "line": 273
+          },
+          "js": {
+            "lang": "javascript",
+            "file": "js/index.js",
+            "code": "  const body        = new URLSearchParams({ grant_type: 'client_credentials' });\n  const credentials = Buffer.from(`${workerClientID}:${workerClientSecret}`).toString('base64');\n\n  const resp = await fetch(`${authPath}/${workerEnvID}/as/token`, {\n    method: 'POST',\n    headers: {\n      'Content-Type':  'application/x-www-form-urlencoded',\n      'Authorization': `Basic ${credentials}`,\n    },\n    body,\n  });\n  const json = await resp.json();\n  if (!json.access_token) {\n    throw new Error(`No access_token in response: ${JSON.stringify(json)}`);\n  }\n  return json.access_token;\n}",
+            "line": 178
+          },
+          "python": {
+            "lang": "python",
+            "file": "python/app.py",
+            "code": "  1. Obtain an admin bearer token (client_credentials grant) from the PingOne\n     token endpoint. The worker app must hold the Environment Admin platform\n     role. All management API calls require this Bearer token; Environment\n     Admin is needed because creating custom roles and assigning them is a\n     privileged operation.\n\n  2. Select a subset of permissions using the service:action:resource format\n     (e.g. \"applications:read:application\"). We take read + update for\n     applications, giving holders narrower access than the full Environment\n     Admin role.\n\n  3. POST /environments/{envID}/roles \u2014 create the custom admin role.\n     Two fields deserve attention:\n       applicableTo    \u2014 [\"ENVIRONMENT\"] means the role is assigned at\n                         environment scope. Custom roles do not use POPULATION\n                         scope.\n       canBeAssignedBy \u2014 lists platform role IDs whose holders may delegate\n                         the custom role. We reference the Environment Admin\n                         platform role by its fixed, global ID. If empty/omitted,\n                         no one can assign the role \u2014 not even an Environment Admin.\n\n  4. Create a demo worker app to receive the custom role assignment. The app\n     is created within the workflow so the demo is self-contained.\n\n  5. POST /applications/{appID}/roleAssignments \u2014 assign the custom role to\n     the demo app. scope.type is \"ENVIRONMENT\" because the role has\n     applicableTo: [\"ENVIRONMENT\"]. scope.id is the environment where the\n     role applies.\n\n  6. GET /applications/{appID}/roleAssignments \u2014 verify the custom role ID\n     appears in the app's role assignments.\n\nPrerequisites: a worker app (client_credentials) with Environment Admin.\nSet PINGONE_WORKER_ENV_ID, PINGONE_WORKER_CLIENT_ID, PINGONE_WORKER_CLIENT_SECRET,\nPINGONE_ENV_ID, PINGONE_AUTH_PATH, and PINGONE_API_PATH in .env.\n\"\"\"\nimport html\nimport json\nimport logging\nimport os\nimport base64",
+            "line": 12
+          },
+          "react": {
+            "lang": "javascript",
+            "file": "react/server/index.js",
+            "code": "  const body = new URLSearchParams({ grant_type: 'client_credentials' });\n  const credentials = Buffer.from(`${workerClientID}:${workerClientSecret}`).toString('base64');\n  const resp = await fetch(`${authPath}/${workerEnvID}/as/token`, {\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/x-www-form-urlencoded',\n      'Authorization': `Basic ${credentials}`,\n    },\n    body,\n  });\n  const json = await resp.json();\n  if (!json.access_token) throw new Error(`No access_token: ${JSON.stringify(json)}`);\n  return json.access_token;\n}",
+            "line": 67
+          },
+          "angular": {
+            "lang": "javascript",
+            "file": "angular/server/index.js",
+            "code": "  const body = new URLSearchParams({ grant_type: 'client_credentials' });\n  const credentials = Buffer.from(`${workerClientID}:${workerClientSecret}`).toString('base64');\n  const resp = await fetch(`${authPath}/${workerEnvID}/as/token`, {\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/x-www-form-urlencoded',\n      'Authorization': `Basic ${credentials}`,\n    },\n    body,\n  });\n  const json = await resp.json();\n  if (!json.access_token) throw new Error(`No access_token: ${JSON.stringify(json)}`);\n  return json.access_token;\n}",
+            "line": 66
+          }
+        }
+      },
+      {
+        "id": "create-role",
+        "title": "Creating the custom role",
+        "note": "A custom admin role bundles a narrow set of permissions. `canBeAssignedBy` names which platform role is allowed to hand it out \u2014 this is what makes delegated administration safe.",
+        "code": {
+          "go": {
+            "lang": "go",
+            "file": "go/main.go",
+            "code": "customRolePayload := map[string]interface{}{\n\t\"name\":            fmt.Sprintf(\"Application Manager (Read/Update) %d\", roleSuffix),\n\t\"description\":     \"Read and update applications; cannot create or delete them.\",\n\t\"applicableTo\":    []string{\"ENVIRONMENT\"},\n\t\"permissions\":     selected,\n\t\"canBeAssignedBy\": []map[string]string{{\"id\": envAdminRoleID}},\n}\nreqURL, status, raw, parsed, err := apiCall(\"POST\", \"/environments/\"+envID+\"/roles\", token, customRolePayload)\nstep3 := stepResult{Title: \"Create custom admin role\", Body: pretty(raw), Detail: fmt.Sprintf(\"HTTP %d\", status), URL: \"POST \" + reqURL}\nif err != nil || status >= 400 {\n\tif err != nil {\n\t\tstep3.Detail = err.Error()\n\t}\n\tsteps = append(steps, step3)\n\treturn pageData{Success: false, Steps: steps}\n}\ncustomRoleID, _ := parsed[\"id\"].(string)\nif customRoleID == \"\" {\n\tstep3.Detail = \"Role created but response contained no id.\"\n\tsteps = append(steps, step3)\n\treturn pageData{Success: false, Steps: steps}\n}\nstep3.OK = true\nstep3.Detail = fmt.Sprintf(\"HTTP %d \u2014 custom role id=%s\", status, customRoleID)\nsteps = append(steps, step3)",
+            "line": 379
+          },
+          "js": {
+            "lang": "javascript",
+            "file": "js/index.js",
+            "code": "const customRolePayload = {\n  name:            `Application Manager (Read/Update) ${roleSuffix}`,\n  description:     'Read and update applications; cannot create or delete them.',\n  applicableTo:    ['ENVIRONMENT'],\n  permissions:     selected,\n  canBeAssignedBy: [{ id: ENV_ADMIN_ROLE_ID }],\n};\nlet res = await apiCall('POST', `/environments/${envID}/roles`, token, customRolePayload);\nconst step3 = { title: 'Create custom admin role', body: pretty(res.rawText), detail: `HTTP ${res.status}`, url: `POST ${res.fullURL}` };\nif (res.status >= 400) {\n  steps.push(step3);\n  return { success: false, steps };\n}\nconst customRoleID = res.parsed && res.parsed.id;\nif (!customRoleID) {\n  step3.detail = 'Role created but response contained no id.';\n  steps.push(step3);\n  return { success: false, steps };\n}\nstep3.ok     = true;\nstep3.detail = `HTTP ${res.status} \u2014 custom role id=${customRoleID}`;\nsteps.push(step3);",
+            "line": 296
+          },
+          "python": {
+            "lang": "python",
+            "file": "python/app.py",
+            "code": "  3. POST /environments/{envID}/roles \u2014 create the custom admin role.\n     Two fields deserve attention:\n       applicableTo    \u2014 [\"ENVIRONMENT\"] means the role is assigned at\n                         environment scope. Custom roles do not use POPULATION\n                         scope.\n       canBeAssignedBy \u2014 lists platform role IDs whose holders may delegate\n                         the custom role. We reference the Environment Admin\n                         platform role by its fixed, global ID. If empty/omitted,\n                         no one can assign the role \u2014 not even an Environment Admin.\n\n  4. Create a demo worker app to receive the custom role assignment. The app\n     is created within the workflow so the demo is self-contained.\n\n  5. POST /applications/{appID}/roleAssignments \u2014 assign the custom role to\n     the demo app. scope.type is \"ENVIRONMENT\" because the role has\n     applicableTo: [\"ENVIRONMENT\"]. scope.id is the environment where the\n     role applies.\n\n  6. GET /applications/{appID}/roleAssignments \u2014 verify the custom role ID\n     appears in the app's role assignments.\n\nPrerequisites: a worker app (client_credentials) with Environment Admin.\nSet PINGONE_WORKER_ENV_ID, PINGONE_WORKER_CLIENT_ID, PINGONE_WORKER_CLIENT_SECRET,\nPINGONE_ENV_ID, PINGONE_AUTH_PATH, and PINGONE_API_PATH in .env.\n\"\"\"\nimport html\nimport json\nimport logging\nimport os\nimport base64\nimport time\nfrom dataclasses import dataclass, field\nfrom typing import Any, Optional\n\nimport requests\nfrom dotenv import load_dotenv\nfrom flask import Flask, request\n\nload_dotenv()",
+            "line": 23
+          },
+          "react": {
+            "lang": "javascript",
+            "file": "react/server/index.js",
+            "code": "const customRolePayload = {\n  name: `Application Manager (Read/Update) ${roleSuffix}`,\n  description: 'Read and update applications; cannot create or delete them.',\n  applicableTo: ['ENVIRONMENT'],\n  permissions: selected,\n  canBeAssignedBy: [{ id: ENV_ADMIN_ROLE_ID }],\n};\nconst roleRes = await apiCall('POST', `/environments/${envID}/roles`, token, customRolePayload);\nconst step3 = {\n  title: 'Create custom admin role',\n  url: `POST ${roleRes.fullURL}`,\n  body: pretty(roleRes.raw),\n  detail: `HTTP ${roleRes.status}`,\n  collapsed: false,\n  ok: false,\n};\nif (roleRes.status >= 400) {\n  steps.push(step3);\n  return { success: false, steps };\n}\nconst customRoleID = roleRes.parsed?.id ?? '';\nif (!customRoleID) {\n  step3.detail = 'Role created but response contained no id.';\n  steps.push(step3);\n  return { success: false, steps };\n}\nstep3.ok = true;\nstep3.detail = `HTTP ${roleRes.status} \u2014 custom role id=${customRoleID}`;\nsteps.push(step3);",
+            "line": 174
+          },
+          "angular": {
+            "lang": "javascript",
+            "file": "angular/server/index.js",
+            "code": "// Step 3: create the custom admin role.\n// POST /environments/{envID}/roles creates a role scoped to the target\n// environment; this is distinct from GET /roles (read-only platform roles).\n//\n// canBeAssignedBy references the Environment Admin platform role ID,\n// granting Environment Admin holders authority to delegate this custom role.\nconst customRolePayload = {\n  name: `Application Manager (Read/Update) ${roleSuffix}`,\n  description: 'Read and update applications; cannot create or delete them.',\n  applicableTo: ['ENVIRONMENT'],\n  permissions: selected,\n  canBeAssignedBy: [{ id: ENV_ADMIN_ROLE_ID }],\n};\nconst r3 = await apiCall('POST', `/environments/${envID}/roles`, token, customRolePayload);\nconst step3 = {\n  title: 'Create custom admin role',\n  ok: false,\n  detail: `HTTP ${r3.status}`,\n  body: pretty(r3.raw),\n  url: `POST ${r3.url}`,\n  collapsed: false,\n};\nif (r3.status >= 400) {\n  steps.push(step3);\n  return { success: false, steps };\n}\nconst customRoleID = r3.parsed?.id ?? '';\nif (!customRoleID) {\n  step3.detail = 'Role created but response contained no id.';\n  steps.push(step3);\n  return { success: false, steps };\n}\nstep3.ok = true;\nstep3.detail = `HTTP ${r3.status} \u2014 custom role id=${customRoleID}`;\nsteps.push(step3);",
+            "line": 166
+          }
+        }
+      },
+      {
+        "id": "role-id",
+        "title": "Why the role ID is hardcoded",
+        "note": "Environment Admin has a fixed, global ID across every PingOne tenant. Referencing it directly avoids a `GET /roles` lookup that an Environment Admin worker cannot perform anyway \u2014 listing platform roles needs Organization Admin. This is a deliberate least-privilege choice.",
+        "code": {
+          "go": {
+            "lang": "go",
+            "file": "go/main.go",
+            "code": "// envAdminRoleID is the fixed, global ID of the Environment Admin built-in\n// platform role. It is identical across every PingOne tenant, so we can\n// reference it directly in canBeAssignedBy without a separate GET /roles\n// lookup \u2014 which an Environment Admin worker cannot perform anyway, since\n// listing platform roles requires Organization Admin.\n// See https://apidocs.pingidentity.com/pingone/platform/v1/api/#built-in-admin-roles\nconst envAdminRoleID = \"29ddce68-cd7f-4b2a-b6fc-f7a19553b496\"\n\nfunc main() {\n\tif err := godotenv.Load(); err != nil {\n\t\tlog.Println(\"No .env file found. Falling back to system environment variables.\")\n\t}\n\n\tworkerEnvID = os.Getenv(\"PINGONE_WORKER_ENV_ID\")\n\tworkerClientID = os.Getenv(\"PINGONE_WORKER_CLIENT_ID\")\n\tworkerClientSecret = os.Getenv(\"PINGONE_WORKER_CLIENT_SECRET\")\n\tenvID = os.Getenv(\"PINGONE_ENV_ID\")\n\tauthPath = strings.TrimRight(os.Getenv(\"PINGONE_AUTH_PATH\"), \"/\")\n\tapiPath = strings.TrimRight(os.Getenv(\"PINGONE_API_PATH\"), \"/\")\n\tapiPath = strings.TrimSuffix(apiPath, \"/v1\")",
+            "line": 98
+          },
+          "js": {
+            "lang": "javascript",
+            "file": "js/index.js",
+            "code": "// Environment Admin is a built-in platform role with a fixed, global ID across\n// every PingOne tenant. Referencing it directly in canBeAssignedBy avoids a\n// separate GET /roles lookup \u2014 which an Environment Admin worker cannot perform\n// anyway, since listing platform roles requires Organization Admin.\n// See: https://apidocs.pingidentity.com/pingone/platform/v1/api/#built-in-admin-roles\nconst ENV_ADMIN_ROLE_ID = '29ddce68-cd7f-4b2a-b6fc-f7a19553b496';\n\n// --- Workflow ---\n\n/**\n * runWorkflow executes the full custom admin role lifecycle and returns\n * { success, steps[] }. Each step is a plain object matching the StepResult\n * shape. On failure the function returns immediately, leaving steps populated\n * up to and including the failed step so the UI can highlight the problem.\n */\nasync function runWorkflow() {\n  const steps = [];\n\n  // Step 1: obtain a bearer token via client_credentials.\n  // The worker app must hold Environment Admin \u2014 without it, later calls\n  // to create custom roles or assign them will return 403 Forbidden.\n  let token;\n  try {\n    token = await getAdminToken();\n  } catch (err) {\n    steps.push({ title: 'Obtain admin access token', ok: false, detail: err.message });\n    return { success: false, steps };\n  }\n  steps.push({ title: 'Obtain admin access token', ok: true, detail: 'client_credentials grant succeeded.' });",
+            "line": 239
+          },
+          "python": {
+            "lang": "python",
+            "file": "python/app.py",
+            "code": "# Environment Admin is a built-in platform role with a fixed, global ID across\n# every PingOne tenant. Referencing it directly in canBeAssignedBy avoids a\n# separate GET /roles lookup \u2014 which an Environment Admin worker cannot perform\n# anyway, since listing platform roles requires Organization Admin.\n# See https://apidocs.pingidentity.com/pingone/platform/v1/api/#built-in-admin-roles\nENV_ADMIN_ROLE_ID = \"29ddce68-cd7f-4b2a-b6fc-f7a19553b496\"\n\nlogging.basicConfig(level=logging.INFO, format=\"%(asctime)s %(message)s\")\nlog = logging.getLogger(\"p1-custom-admin-role\")\n\n\n# ---------------------------------------------------------------------------\n# Data types\n# ---------------------------------------------------------------------------\n\n@dataclass\nclass StepResult:\n    \"\"\"Represents the outcome of a single workflow step for display in the results page.\n\n    Fields:\n        title     -- human-readable step name shown as the card heading.\n        ok        -- True on success; False renders the heading in red.\n        detail    -- one-line summary (e.g. \"HTTP 201 \u2014 id=abc123\").\n        body      -- pretty-printed JSON response body; shown in a <details> element.\n        url       -- \"METHOD https://full/url\" shown as a monospace badge.\n        collapsed -- if True, the <details> element starts closed (used for long\n                     responses like the full platform-roles list).\n    \"\"\"\n    title: str\n    ok: bool = False\n    detail: str = \"\"\n    body: str = \"\"\n    url: str = \"\"\n    collapsed: bool = False\n\n\n# ---------------------------------------------------------------------------\n# HTML templates\n# ---------------------------------------------------------------------------\n\nINDEX_HTML = f\"\"\"<!DOCTYPE html>",
+            "line": 86
+          },
+          "react": {
+            "lang": "javascript",
+            "file": "react/server/index.js",
+            "code": "// Environment Admin is a built-in platform role with a fixed, global ID across\n// every PingOne tenant. Referencing it directly in canBeAssignedBy avoids a\n// separate GET /roles lookup \u2014 which an Environment Admin worker cannot perform\n// anyway, since listing platform roles requires Organization Admin.\n// See https://apidocs.pingidentity.com/pingone/platform/v1/api/#built-in-admin-roles\nconst ENV_ADMIN_ROLE_ID = '29ddce68-cd7f-4b2a-b6fc-f7a19553b496';\n\n// ---------------------------------------------------------------------------\n// PingOne API helpers\n// ---------------------------------------------------------------------------\n\n/**\n * Obtain a short-lived bearer token via the OAuth 2.0 client_credentials grant.\n *\n * client_credentials is the correct grant for server-to-server calls where no\n * end-user is involved. The resulting token inherits the platform roles assigned\n * to the worker app (Environment Admin in this case).\n *\n * Authentication uses HTTP Basic: credentials are base64-encoded as\n * \"clientID:clientSecret\" in the Authorization header (CLIENT_SECRET_BASIC).\n */\nasync function getAdminToken() {\n  const body = new URLSearchParams({ grant_type: 'client_credentials' });\n  const credentials = Buffer.from(`${workerClientID}:${workerClientSecret}`).toString('base64');\n  const resp = await fetch(`${authPath}/${workerEnvID}/as/token`, {\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/x-www-form-urlencoded',\n      'Authorization': `Basic ${credentials}`,\n    },\n    body,\n  });\n  const json = await resp.json();\n  if (!json.access_token) throw new Error(`No access_token: ${JSON.stringify(json)}`);\n  return json.access_token;\n}",
+            "line": 45
+          },
+          "angular": {
+            "lang": "javascript",
+            "file": "angular/server/index.js",
+            "code": "// Environment Admin is a built-in platform role with a fixed, global ID across\n// every PingOne tenant. Referencing it directly in canBeAssignedBy avoids a\n// separate GET /roles lookup \u2014 which an Environment Admin worker cannot perform\n// anyway, since listing platform roles requires Organization Admin.\n// See https://apidocs.pingidentity.com/pingone/platform/v1/api/#built-in-admin-roles\nconst ENV_ADMIN_ROLE_ID = '29ddce68-cd7f-4b2a-b6fc-f7a19553b496';\n\n// \u2500\u2500 PingOne helpers \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n/**\n * Obtain a short-lived bearer token via the OAuth 2.0 client_credentials grant.\n *\n * client_credentials is the correct grant for server-to-server calls where no\n * end-user is present. The resulting token inherits the platform roles assigned\n * to the worker app (Environment Admin in this case).\n *\n * Authentication uses HTTP Basic: credentials are base64-encoded as\n * \"clientID:clientSecret\" in the Authorization header (CLIENT_SECRET_BASIC).\n */\nasync function getAdminToken() {\n  const body = new URLSearchParams({ grant_type: 'client_credentials' });\n  const credentials = Buffer.from(`${workerClientID}:${workerClientSecret}`).toString('base64');\n  const resp = await fetch(`${authPath}/${workerEnvID}/as/token`, {\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/x-www-form-urlencoded',\n      'Authorization': `Basic ${credentials}`,\n    },\n    body,\n  });\n  const json = await resp.json();\n  if (!json.access_token) throw new Error(`No access_token: ${JSON.stringify(json)}`);\n  return json.access_token;\n}",
+            "line": 46
+          }
+        }
+      },
+      {
+        "id": "assign",
+        "title": "Assigning the role to an application",
+        "note": "The assignment is scoped: `scope.type=ENVIRONMENT` grants the role only inside one environment, not across the organization. Scope is what keeps a delegated admin role from becoming a global one.",
+        "code": {
+          "go": {
+            "lang": "go",
+            "file": "go/main.go",
+            "code": "reqURL, status, raw, _, err = apiCall(\"POST\", \"/environments/\"+envID+\"/applications/\"+demoAppID+\"/roleAssignments\", token, appRolePayload)\nstep5 := stepResult{Title: \"Assign custom role to demo app\", Body: pretty(raw), Detail: fmt.Sprintf(\"HTTP %d\", status), URL: \"POST \" + reqURL}\nif err != nil || status >= 400 {\n\tif err != nil {\n\t\tstep5.Detail = err.Error()\n\t}\n\tsteps = append(steps, step5)\n\treturn pageData{Success: false, Steps: steps}\n}\nstep5.OK = true\nsteps = append(steps, step5)",
+            "line": 446
+          },
+          "js": {
+            "lang": "javascript",
+            "file": "js/index.js",
+            "code": "res = await apiCall('POST', `/environments/${envID}/applications/${demoAppID}/roleAssignments`, token, appRolePayload);\nconst step5 = { title: 'Assign custom role to demo app', body: pretty(res.rawText), detail: `HTTP ${res.status}`, url: `POST ${res.fullURL}` };\nif (res.status >= 400) {\n  steps.push(step5);\n  return { success: false, steps };\n}\nstep5.ok = true;\nsteps.push(step5);",
+            "line": 354
+          },
+          "python": {
+            "lang": "python",
+            "file": "python/app.py",
+            "code": "  5. POST /applications/{appID}/roleAssignments \u2014 assign the custom role to\n     the demo app. scope.type is \"ENVIRONMENT\" because the role has\n     applicableTo: [\"ENVIRONMENT\"]. scope.id is the environment where the\n     role applies.\n\n  6. GET /applications/{appID}/roleAssignments \u2014 verify the custom role ID\n     appears in the app's role assignments.\n\nPrerequisites: a worker app (client_credentials) with Environment Admin.\nSet PINGONE_WORKER_ENV_ID, PINGONE_WORKER_CLIENT_ID, PINGONE_WORKER_CLIENT_SECRET,\nPINGONE_ENV_ID, PINGONE_AUTH_PATH, and PINGONE_API_PATH in .env.\n\"\"\"\nimport html\nimport json\nimport logging\nimport os\nimport base64\nimport time\nfrom dataclasses import dataclass, field\nfrom typing import Any, Optional\n\nimport requests\nfrom dotenv import load_dotenv\nfrom flask import Flask, request\n\nload_dotenv()",
+            "line": 36
+          },
+          "react": {
+            "lang": "javascript",
+            "file": "react/server/index.js",
+            "code": "const arRes = await apiCall('POST', `/environments/${envID}/applications/${demoAppID}/roleAssignments`, token, appRolePayload);\nconst step5 = {\n  title: 'Assign custom role to demo app',\n  url: `POST ${arRes.fullURL}`,\n  body: pretty(arRes.raw),\n  detail: `HTTP ${arRes.status}`,\n  collapsed: false,\n  ok: false,\n};\nif (arRes.status >= 400) {\n  steps.push(step5);\n  return { success: false, steps };\n}\nstep5.ok = true;\nsteps.push(step5);",
+            "line": 246
+          },
+          "angular": {
+            "lang": "javascript",
+            "file": "angular/server/index.js",
+            "code": "const r5 = await apiCall('POST', `/environments/${envID}/applications/${demoAppID}/roleAssignments`, token, appRolePayload);\nconst step5 = {\n  title: 'Assign custom role to demo app',\n  ok: false,\n  detail: `HTTP ${r5.status}`,\n  body: pretty(r5.raw),\n  url: `POST ${r5.url}`,\n  collapsed: false,\n};\nif (r5.status >= 400) {\n  steps.push(step5);\n  return { success: false, steps };\n}\nstep5.ok = true;\nsteps.push(step5);",
+            "line": 244
+          }
+        }
+      }
+    ]
+  },
+  "user-registration": {
+    "sections": [
+      {
+        "id": "authorize",
+        "title": "Starting a native flow",
+        "note": "`response_mode=pi.flow` makes PingOne return JSON with a flow ID instead of redirecting the browser. Your server drives the flow directly. Note the `redirect_uri` in this URL is never actually visited \u2014 there is no callback handler anywhere in this sample.",
+        "code": {
+          "go": {
+            "lang": "go",
+            "file": "go/main.go",
+            "code": "\t\"%s/%s/as/authorize?response_type=code&client_id=%s&redirect_uri=http://localhost:3000/callback&scope=openid%%20profile&response_mode=pi.flow\",\n\tauthPath, envID, clientID,\n)\nreqInit, _ := http.NewRequest(\"GET\", authURL, nil)\nreqInit.Header.Set(\"Accept\", \"*/*\")\n\ninitResp, err := client.Do(reqInit)\nif err != nil {\n\trenderError(w, \"Failed to initialize flow: \"+err.Error())\n\treturn\n}\ndefer initResp.Body.Close()\ncookies = captureCookies(cookies, initResp)",
+            "line": 343
+          },
+          "js": {
+            "lang": "javascript",
+            "file": "js/index.js",
+            "code": "// Step 1: Initialise the PingOne authentication flow.\nconst authURL = `${authPath}/${envID}/as/authorize?response_type=code&client_id=${clientID}&redirect_uri=http://localhost:3000/callback&scope=openid%20profile&response_mode=pi.flow`;\nconst initResp = await fetch(authURL, { headers: { Accept: '*/*' }, redirect: 'manual' });\ncaptureCookies(cookies, initResp);\nconst initJson = await initResp.json();\nconst flowID = initJson.id;\nif (!flowID) return res.send(errorHTML(`Failed to retrieve flowId. Response: ${JSON.stringify(initJson)}`));",
+            "line": 273
+          },
+          "python": {
+            "lang": "python",
+            "file": "python/app.py",
+            "code": "1. GET  /as/authorize?response_mode=pi.flow\n   Initialises a PingOne authentication session. response_mode=pi.flow makes\n   PingOne return a JSON body containing a flow ID rather than redirecting the\n   browser to a hosted login page. The response also sets session cookies that\n   must be replayed on every subsequent call to the same flow.\n\n2. POST /flows/{flow_id}  Content-Type: application/vnd.pingidentity.user.register+json\n   Creates the new user. PingOne validates the password against the environment's\n   password policy and either:\n   - Returns status=COMPLETED immediately (no email verification configured).\n   - Returns status=VERIFICATION_CODE_REQUIRED and emails a 6-digit OTP.\n\n3. POST /flows/{flow_id}  Content-Type: application/vnd.pingidentity.user.verify+json\n   (Only when step 2 required verification.) Submits the OTP. A\n   status=COMPLETED response means the account is fully active.\n\nSign-on sub-flow (4 steps)\n---------------------------\n1. GET  /as/authorize?response_mode=pi.flow  (fresh session, independent of any\n   prior registration flow)\n2. POST /flows/{flow_id}  Content-Type: application/vnd.pingidentity.usernamePassword.check+json\n   Validates credentials. status=COMPLETED means PingOne accepted them.\n3. GET  /as/resume?flowId={flow_id}\n   Bridges the native flow back to the OAuth 2.0 layer. PingOne either issues a\n   302 redirect to the callback URI with ?code=... in the Location header, or\n   returns a JSON body with authorizeResponse.code. Both cases are handled below.\n4. POST /as/token \u2014 standard OAuth 2.0 authorization_code token exchange.\n\nCookie handling\n---------------\nPingOne sets session cookies (ST, ST-NO-SS) when the /as/authorize flow is\ninitialised. All subsequent requests to the same flow must replay those cookies\nverbatim. The requests library follows redirects and manages a per-Session cookie\njar, but that jar applies RFC 6265 path scoping which silently drops cookies when\nthe request path differs. This file captures and replays cookies manually using a\nplain list of \"name=value\" strings.\n\"\"\"\n\nimport os\nimport base64\nimport logging",
+            "line": 19
+          },
+          "react": {
+            "lang": "javascript",
+            "file": "react/server/index.js",
+            "code": "// Step 1: Initialise the PingOne authentication flow.\n// response_mode=pi.flow returns JSON with a flow ID; redirect: 'manual'\n// prevents fetch from following any 302 PingOne might emit if the flag were\n// absent or misread. Accept: '*/*' is required because the flow API returns\n// a vendor content type (application/vnd.pingidentity.*+json).\nconst authURL = `${authPath}/${envID}/as/authorize?response_type=code&client_id=${clientID}&redirect_uri=http://localhost:3000/callback&scope=openid%20profile&response_mode=pi.flow`;\nconst initResp = await fetch(authURL, { headers: { Accept: '*/*' }, redirect: 'manual' });\ncaptureCookies(session.cookies, initResp);\nconst initJson = await initResp.json();\nconst flowID = initJson.id;\nif (!flowID) return res.status(400).json({ status: 'ERROR', message: `No flowId: ${JSON.stringify(initJson)}` });\nsession.flowID = flowID;",
+            "line": 163
+          },
+          "angular": {
+            "lang": "javascript",
+            "file": "angular/server/index.js",
+            "code": "// Step 1: Initialise the PingOne authentication flow.\n// response_mode=pi.flow \u2192 JSON body with flow ID (no browser redirect).\n// redirect: 'manual' \u2192 don't follow any 302 PingOne might emit.\n// Accept: '*/*' \u2192 required; the flow API uses vendor content types.\nconst authURL = `${authPath}/${envID}/as/authorize?response_type=code&client_id=${clientID}&redirect_uri=http://localhost:3000/callback&scope=openid%20profile&response_mode=pi.flow`;\nconst initResp = await fetch(authURL, { headers: { Accept: '*/*' }, redirect: 'manual' });\ncaptureCookies(session.cookies, initResp);\nconst initJson = await initResp.json();\nconst flowID = initJson.id;\nif (!flowID) return res.status(400).json({ status: 'ERROR', message: `No flowId: ${JSON.stringify(initJson)}` });\nsession.flowID = flowID;",
+            "line": 152
+          }
+        }
+      },
+      {
+        "id": "register",
+        "title": "Submitting the registration",
+        "note": "The vendor content type is what tells the flow engine which action to perform. Sending `application/json` here returns 415. This is the single most common mistake when hand-rolling these calls.",
+        "code": {
+          "go": {
+            "lang": "go",
+            "file": "go/main.go",
+            "code": "reqReg.Header.Set(\"Content-Type\", \"application/vnd.pingidentity.user.register+json\")\nreqReg.Header.Set(\"Accept\", \"*/*\")\nreqReg.Header.Set(\"Cookie\", cookieHeader(cookies))\n\nregResp, err := client.Do(reqReg)\nif err != nil {\n\trenderError(w, \"Failed to submit registration: \"+err.Error())\n\treturn\n}\ndefer regResp.Body.Close()\ncookies = captureCookies(cookies, regResp)",
+            "line": 378
+          },
+          "js": {
+            "lang": "javascript",
+            "file": "js/index.js",
+            "code": "    'Content-Type': 'application/vnd.pingidentity.user.register+json',\n    'Accept': '*/*',\n    'Cookie': cookieHeader(cookies),\n  },\n  body: JSON.stringify({ username, email, password }),\n  redirect: 'manual',\n});\ncaptureCookies(cookies, regResp);\nconst regJson = await regResp.json();",
+            "line": 289
+          },
+          "python": {
+            "lang": "python",
+            "file": "python/app.py",
+            "code": "2. POST /flows/{flow_id}  Content-Type: application/vnd.pingidentity.user.register+json\n   Creates the new user. PingOne validates the password against the environment's\n   password policy and either:\n   - Returns status=COMPLETED immediately (no email verification configured).\n   - Returns status=VERIFICATION_CODE_REQUIRED and emails a 6-digit OTP.\n\n3. POST /flows/{flow_id}  Content-Type: application/vnd.pingidentity.user.verify+json\n   (Only when step 2 required verification.) Submits the OTP. A\n   status=COMPLETED response means the account is fully active.\n\nSign-on sub-flow (4 steps)\n---------------------------\n1. GET  /as/authorize?response_mode=pi.flow  (fresh session, independent of any\n   prior registration flow)\n2. POST /flows/{flow_id}  Content-Type: application/vnd.pingidentity.usernamePassword.check+json\n   Validates credentials. status=COMPLETED means PingOne accepted them.\n3. GET  /as/resume?flowId={flow_id}\n   Bridges the native flow back to the OAuth 2.0 layer. PingOne either issues a\n   302 redirect to the callback URI with ?code=... in the Location header, or\n   returns a JSON body with authorizeResponse.code. Both cases are handled below.\n4. POST /as/token \u2014 standard OAuth 2.0 authorization_code token exchange.\n\nCookie handling\n---------------\nPingOne sets session cookies (ST, ST-NO-SS) when the /as/authorize flow is\ninitialised. All subsequent requests to the same flow must replay those cookies\nverbatim. The requests library follows redirects and manages a per-Session cookie\njar, but that jar applies RFC 6265 path scoping which silently drops cookies when\nthe request path differs. This file captures and replays cookies manually using a\nplain list of \"name=value\" strings.\n\"\"\"\n\nimport os\nimport base64\nimport logging\nfrom urllib.parse import urlparse, parse_qs\n\nimport requests\nfrom dotenv import load_dotenv\nfrom flask import Flask, request",
+            "line": 25
+          },
+          "react": {
+            "lang": "javascript",
+            "file": "react/server/index.js",
+            "code": "    'Content-Type': 'application/vnd.pingidentity.user.register+json',\n    'Accept': '*/*',\n    'Cookie': cookieHeader(session.cookies),\n  },\n  body: JSON.stringify({ username, email, password }),\n  redirect: 'manual',\n});\ncaptureCookies(session.cookies, regResp);\nconst regJson = await regResp.json();",
+            "line": 182
+          },
+          "angular": {
+            "lang": "javascript",
+            "file": "angular/server/index.js",
+            "code": "    'Content-Type': 'application/vnd.pingidentity.user.register+json',\n    'Accept': '*/*',\n    'Cookie': cookieHeader(session.cookies),\n  },\n  body: JSON.stringify({ username, email, password }),\n  redirect: 'manual',\n});\ncaptureCookies(session.cookies, regResp);\nconst regJson = await regResp.json();",
+            "line": 171
+          }
+        }
+      },
+      {
+        "id": "verify",
+        "title": "Checking the emailed OTP",
+        "note": "PingOne emails a one-time code and the flow waits for it. There is no mock \u2014 this step cannot be completed without a real, reachable mailbox.",
+        "code": {
+          "go": {
+            "lang": "go",
+            "file": "go/main.go",
+            "code": "req.Header.Set(\"Content-Type\", \"application/vnd.pingidentity.user.verify+json\")\nreq.Header.Set(\"Accept\", \"*/*\")\nreq.Header.Set(\"Cookie\", cookieHeader(cookies))\n\nverifyResp, err := client.Do(req)\nif err != nil {\n\trenderError(w, \"Failed to submit verification code: \"+err.Error())\n\treturn\n}\ndefer verifyResp.Body.Close()",
+            "line": 442
+          },
+          "js": {
+            "lang": "javascript",
+            "file": "js/index.js",
+            "code": "    'Content-Type': 'application/vnd.pingidentity.user.verify+json',\n    'Accept': '*/*',\n    'Cookie': cookieHeader(cookies),\n  },\n  body: JSON.stringify({ verificationCode: code }),\n  redirect: 'manual',\n});\ncaptureCookies(cookies, verifyResp);\nconst verifyJson = await verifyResp.json();",
+            "line": 339
+          },
+          "python": {
+            "lang": "python",
+            "file": "python/app.py",
+            "code": "3. POST /flows/{flow_id}  Content-Type: application/vnd.pingidentity.user.verify+json\n   (Only when step 2 required verification.) Submits the OTP. A\n   status=COMPLETED response means the account is fully active.\n\nSign-on sub-flow (4 steps)\n---------------------------\n1. GET  /as/authorize?response_mode=pi.flow  (fresh session, independent of any\n   prior registration flow)\n2. POST /flows/{flow_id}  Content-Type: application/vnd.pingidentity.usernamePassword.check+json\n   Validates credentials. status=COMPLETED means PingOne accepted them.\n3. GET  /as/resume?flowId={flow_id}\n   Bridges the native flow back to the OAuth 2.0 layer. PingOne either issues a\n   302 redirect to the callback URI with ?code=... in the Location header, or\n   returns a JSON body with authorizeResponse.code. Both cases are handled below.\n4. POST /as/token \u2014 standard OAuth 2.0 authorization_code token exchange.\n\nCookie handling\n---------------\nPingOne sets session cookies (ST, ST-NO-SS) when the /as/authorize flow is\ninitialised. All subsequent requests to the same flow must replay those cookies\nverbatim. The requests library follows redirects and manages a per-Session cookie\njar, but that jar applies RFC 6265 path scoping which silently drops cookies when\nthe request path differs. This file captures and replays cookies manually using a\nplain list of \"name=value\" strings.\n\"\"\"\n\nimport os\nimport base64\nimport logging\nfrom urllib.parse import urlparse, parse_qs\n\nimport requests\nfrom dotenv import load_dotenv\nfrom flask import Flask, request\n\nload_dotenv()",
+            "line": 31
+          },
+          "react": {
+            "lang": "javascript",
+            "file": "react/server/index.js",
+            "code": "    'Content-Type': 'application/vnd.pingidentity.user.verify+json',\n    'Accept': '*/*',\n    'Cookie': cookieHeader(session.cookies),\n  },\n  body: JSON.stringify({ verificationCode: code }),\n  redirect: 'manual',\n});\ncaptureCookies(session.cookies, verifyResp);\nconst verifyJson = await verifyResp.json();",
+            "line": 224
+          },
+          "angular": {
+            "lang": "javascript",
+            "file": "angular/server/index.js",
+            "code": "    'Content-Type': 'application/vnd.pingidentity.user.verify+json',\n    'Accept': '*/*',\n    'Cookie': cookieHeader(session.cookies),\n  },\n  body: JSON.stringify({ verificationCode: code }),\n  redirect: 'manual',\n});\ncaptureCookies(session.cookies, verifyResp);\nconst verifyJson = await verifyResp.json();",
+            "line": 210
+          }
+        }
+      },
+      {
+        "id": "resume",
+        "title": "Resuming to get the authorization code",
+        "note": "`/as/resume` ends the native flow and hands back an authorization code, either in JSON or via a 302 Location header. Both shapes are handled.",
+        "code": {
+          "go": {
+            "lang": "go",
+            "file": "go/main.go",
+            "code": "// into the OAuth layer. GET /as/resume?flowId=... does that bridge. PingOne\n// may respond with:\n//   - A 302 redirect to the registered redirect_uri with ?code=... in the\n//     Location header (the standard OIDC redirect).\n//   - A JSON body containing authorizeResponse.code (when the client signals\n//     it can handle JSON responses).\n// Both formats are checked below so the app works regardless of which one\n// PingOne sends.\nreqResume, _ := http.NewRequest(\"GET\", fmt.Sprintf(\"%s/%s/as/resume?flowId=%s\", authPath, envID, flowID), nil)\nreqResume.Header.Set(\"Accept\", \"*/*\")\nreqResume.Header.Set(\"Cookie\", cookieHeader(cookies))\n\nresumeResp, err := client.Do(reqResume)\nif err != nil {\n\trenderError(w, \"Failed to resume flow: \"+err.Error())\n\treturn\n}\ndefer resumeResp.Body.Close()\ncookies = captureCookies(cookies, resumeResp)",
+            "line": 544
+          },
+          "js": {
+            "lang": "javascript",
+            "file": "js/index.js",
+            "code": "// Step 3: Resume to get the authorization code.\n// redirect: 'manual' is critical here \u2014 the code is in the Location header\n// of the 302 response and would be lost if fetch followed the redirect.\nconst resumeResp = await fetch(`${authPath}/${envID}/as/resume?flowId=${flowID}`, {\n  headers: { Accept: '*/*', Cookie: cookieHeader(cookies) },\n  redirect: 'manual',\n});\ncaptureCookies(cookies, resumeResp);\n\nlet authCode = '';\nconst ct = resumeResp.headers.get('content-type') || '';\nif (ct.includes('json')) {\n  const j = await resumeResp.json();\n  authCode = j?.authorizeResponse?.code || '';\n}\nif (!authCode) {\n  // Fall back to the Location header (standard OIDC redirect case).\n  const loc = resumeResp.headers.get('location');\n  if (loc) try { authCode = new URL(loc).searchParams.get('code') || ''; } catch {}\n}\nif (!authCode) return res.send(errorHTML('Failed to get authorization code from resume.'));",
+            "line": 412
+          },
+          "python": {
+            "lang": "python",
+            "file": "python/app.py",
+            "code": "3. GET  /as/resume?flowId={flow_id}\n   Bridges the native flow back to the OAuth 2.0 layer. PingOne either issues a\n   302 redirect to the callback URI with ?code=... in the Location header, or\n   returns a JSON body with authorizeResponse.code. Both cases are handled below.\n4. POST /as/token \u2014 standard OAuth 2.0 authorization_code token exchange.\n\nCookie handling\n---------------\nPingOne sets session cookies (ST, ST-NO-SS) when the /as/authorize flow is\ninitialised. All subsequent requests to the same flow must replay those cookies\nverbatim. The requests library follows redirects and manages a per-Session cookie\njar, but that jar applies RFC 6265 path scoping which silently drops cookies when\nthe request path differs. This file captures and replays cookies manually using a\nplain list of \"name=value\" strings.\n\"\"\"\n\nimport os\nimport base64\nimport logging\nfrom urllib.parse import urlparse, parse_qs\n\nimport requests\nfrom dotenv import load_dotenv\nfrom flask import Flask, request\n\nload_dotenv()",
+            "line": 41
+          },
+          "react": {
+            "lang": "javascript",
+            "file": "react/server/index.js",
+            "code": "// Step 3: Resume to obtain the authorization code.\nconst resumeResp = await fetch(`${authPath}/${envID}/as/resume?flowId=${flowID}`, {\n  headers: { Accept: '*/*', Cookie: cookieHeader(session.cookies) },\n  redirect: 'manual',\n});\ncaptureCookies(session.cookies, resumeResp);\n\nlet authCode = '';\nconst ct = resumeResp.headers.get('content-type') || '';\nif (ct.includes('json')) {\n  const j = await resumeResp.json();\n  authCode = j?.authorizeResponse?.code || '';\n}\nif (!authCode) {\n  // Standard OIDC redirect: code is a query parameter on the Location URL.\n  const loc = resumeResp.headers.get('location');\n  if (loc) try { authCode = new URL(loc).searchParams.get('code') || ''; } catch {}\n}\nif (!authCode) return res.status(400).json({ status: 'ERROR', message: 'Failed to get authorization code.' });",
+            "line": 291
+          },
+          "angular": {
+            "lang": "javascript",
+            "file": "angular/server/index.js",
+            "code": "// Step 3: Resume to obtain the authorization code.\nconst resumeResp = await fetch(`${authPath}/${envID}/as/resume?flowId=${flowID}`, {\n  headers: { Accept: '*/*', Cookie: cookieHeader(session.cookies) },\n  redirect: 'manual',\n});\ncaptureCookies(session.cookies, resumeResp);\n\nlet authCode = '';\nconst ct = resumeResp.headers.get('content-type') || '';\nif (ct.includes('json')) {\n  const j = await resumeResp.json();\n  authCode = j?.authorizeResponse?.code || '';\n}\nif (!authCode) {\n  const loc = resumeResp.headers.get('location');\n  if (loc) try { authCode = new URL(loc).searchParams.get('code') || ''; } catch {}\n}\nif (!authCode) return res.status(400).json({ status: 'ERROR', message: 'Failed to get authorization code.' });",
+            "line": 277
+          }
+        }
+      },
+      {
+        "id": "token",
+        "title": "Exchanging the code for tokens",
+        "note": "From here it is an ordinary OAuth 2.0 code exchange. The `redirect_uri` must match the one sent to `/as/authorize` exactly, even though no redirect ever happened.",
+        "code": {
+          "go": {
+            "lang": "go",
+            "file": "go/main.go",
+            "code": "data.Set(\"grant_type\", \"authorization_code\")\ndata.Set(\"code\", authCode)\ndata.Set(\"redirect_uri\", \"http://localhost:3000/callback\")\n\nreqToken, _ := http.NewRequest(\"POST\", fmt.Sprintf(\"%s/%s/as/token\", authPath, envID), strings.NewReader(data.Encode()))\nreqToken.Header.Set(\"Content-Type\", \"application/x-www-form-urlencoded\")\nreqToken.SetBasicAuth(clientID, clientSecret)",
+            "line": 595
+          },
+          "js": {
+            "lang": "javascript",
+            "file": "js/index.js",
+            "code": "    grant_type: 'authorization_code',\n    code: authCode,\n    redirect_uri: 'http://localhost:3000/callback',\n  }),\n});\nconst tokenJson = await tokenResp.json();\nif (!tokenJson.access_token) return res.send(errorHTML(`Failed to parse access token. Output: ${JSON.stringify(tokenJson)}`));",
+            "line": 444
+          },
+          "python": {
+            "lang": "python",
+            "file": "python/app.py",
+            "code": "4. POST /as/token \u2014 standard OAuth 2.0 authorization_code token exchange.\n\nCookie handling\n---------------\nPingOne sets session cookies (ST, ST-NO-SS) when the /as/authorize flow is\ninitialised. All subsequent requests to the same flow must replay those cookies\nverbatim. The requests library follows redirects and manages a per-Session cookie\njar, but that jar applies RFC 6265 path scoping which silently drops cookies when\nthe request path differs. This file captures and replays cookies manually using a\nplain list of \"name=value\" strings.\n\"\"\"\n\nimport os\nimport base64\nimport logging\nfrom urllib.parse import urlparse, parse_qs\n\nimport requests\nfrom dotenv import load_dotenv\nfrom flask import Flask, request\n\nload_dotenv()",
+            "line": 45
+          },
+          "react": {
+            "lang": "javascript",
+            "file": "react/server/index.js",
+            "code": "        grant_type: 'authorization_code',\n        code: authCode,\n        redirect_uri: 'http://localhost:3000/callback',\n      }),\n    });\n    const tokenJson = await tokenResp.json();\n    if (!tokenJson.access_token) return res.status(400).json({ status: 'ERROR', message: `Failed to parse token: ${JSON.stringify(tokenJson)}` });\n    return res.json({ status: 'COMPLETED', accessToken: tokenJson.access_token });\n  } catch (err) {\n    return res.status(500).json({ status: 'ERROR', message: err.message });\n  }\n});",
+            "line": 320
+          },
+          "angular": {
+            "lang": "javascript",
+            "file": "angular/server/index.js",
+            "code": "        grant_type: 'authorization_code',\n        code: authCode,\n        redirect_uri: 'http://localhost:3000/callback',\n      }),\n    });\n    const tokenJson = await tokenResp.json();\n    if (!tokenJson.access_token) return res.status(400).json({ status: 'ERROR', message: `Failed to parse token: ${JSON.stringify(tokenJson)}` });\n    return res.json({ status: 'COMPLETED', accessToken: tokenJson.access_token });\n  } catch (err) {\n    return res.status(500).json({ status: 'ERROR', message: err.message });\n  }\n});",
+            "line": 305
+          }
+        }
+      }
+    ]
+  },
+  "mfa-demo": {
+    "sections": [
+      {
+        "id": "authorize",
+        "title": "Starting a native flow",
+        "note": "Same native-flow start as user-registration: JSON, not a redirect. PingOne sets `ST` and `ST-NO-SS` session cookies here that must be captured and replayed on every later call.",
+        "code": {
+          "go": {
+            "lang": "go",
+            "file": "go/main.go",
+            "code": "\t\"%s/%s/as/authorize?response_type=code&client_id=%s&redirect_uri=http://localhost:3000/callback&scope=openid%%20profile&response_mode=pi.flow\",\n\tauthPath, envID, clientID,\n)\nreqInit, _ := http.NewRequest(\"GET\", authURL, nil)\nreqInit.Header.Set(\"Accept\", \"*/*\")\n\nresp, err := client.Do(reqInit)\nif err != nil {\n\trenderError(w, \"Failed to initialize flow: \"+err.Error())\n\treturn\n}\ndefer resp.Body.Close()\n// Capture any cookies PingOne sets on the authorize response. These are\n// typically ST and ST-NO-SS and must accompany every later /flows/ call.\nsession.capture(resp)",
+            "line": 365
+          },
+          "js": {
+            "lang": "javascript",
+            "file": "js/index.js",
+            "code": "// Step 1: Initialise the PingOne Flow session.\n//\n// response_mode=pi.flow \u2014 return JSON flow state instead of redirecting.\n// Accept: */* \u2014 required because PingOne uses vendor content types; a\n//   strict Accept: application/json causes a 406 Not Acceptable.\n// redirect: 'manual' \u2014 prevents fetch from silently following any 302\n//   PingOne might issue, so we always get the raw response.\nconst authURL = `${authPath}/${envID}/as/authorize?response_type=code&client_id=${clientID}&redirect_uri=http://localhost:3000/callback&scope=openid%20profile&response_mode=pi.flow`;\nconst initResp = await fetch(authURL, { headers: { Accept: '*/*' }, redirect: 'manual' });\ncaptureCookies(session, initResp);\nconst initJson = await initResp.json();\nlet flowID = initJson.id;\nconsole.log(`[login] authorize flowID: ${flowID}`);",
+            "line": 228
+          },
+          "python": {
+            "lang": "python",
+            "file": "python/app.py",
+            "code": "    f\"&redirect_uri=http://localhost:3000/callback&scope=openid%20profile&response_mode=pi.flow\"\n)\ninit_resp = requests.get(auth_url, headers={\"Accept\": \"*/*\"}, allow_redirects=False)\ncapture_cookies(session, init_resp)\nflow_id = init_resp.json().get(\"id\")\nlog.info(\"[login] authorize flowID: %s\", flow_id)",
+            "line": 268
+          },
+          "react": {
+            "lang": "javascript",
+            "file": "react/server/index.js",
+            "code": "// Step 1: Initialise the PingOne Flow session.\n//\n// response_mode=pi.flow \u2014 return JSON flow state instead of redirecting.\n// Accept: */* \u2014 required because PingOne uses vendor content types; a\n//   strict Accept: application/json causes a 406 Not Acceptable.\n// redirect: 'manual' \u2014 prevents fetch from following any 302 automatically.\nconst authURL = `${authPath}/${envID}/as/authorize?response_type=code&client_id=${clientID}&redirect_uri=http://localhost:3000/callback&scope=openid%20profile&response_mode=pi.flow`;\nconst initResp = await fetch(authURL, { headers: { Accept: '*/*' }, redirect: 'manual' });\ncaptureCookies(session, initResp);\nconst initJson = await initResp.json();\nlet flowID = initJson.id;\n\n// Step 2: Submit credentials to the active flow.\n//\n// Content-Type: application/vnd.pingidentity.usernamePassword.check+json\n//   tells the flow engine which action to perform.\n//\n// Authorization: Bearer <adminToken> \u2014 the management-plane bearer token.\n// Cookie: <ST; ST-NO-SS> \u2014 the session cookies from step 1.\n// Both headers are required; omitting either causes a 401.\nconst loginResp = await fetch(`${authPath}/${envID}/flows/${flowID}`, {\n  method: 'POST',\n  headers: {\n    'Content-Type': 'application/vnd.pingidentity.usernamePassword.check+json',\n    'Accept': '*/*',\n    'Authorization': `Bearer ${session.adminToken}`,\n    'Cookie': cookieHeader(session),\n  },\n  body: JSON.stringify({ username, password }),\n  redirect: 'manual',\n});\ncaptureCookies(session, loginResp);\nconst loginJson = await loginResp.json();\n// PingOne may return an updated flow ID after the credential check. Always\n// use the latest ID so subsequent calls target the correct flow state.\nif (loginJson.id) flowID = loginJson.id;\nsession.flowID = flowID; // persist for use in /api/mfa-verify\n\n// Route based on the flow status:\n//   COMPLETED \u2014 no MFA required; finish the flow and return the token.\n//   OTP_REQUIRED / DEVICE_SELECTION_REQUIRED /",
+            "line": 167
+          },
+          "angular": {
+            "lang": "javascript",
+            "file": "angular/server/index.js",
+            "code": "// Step 1: Initialise the PingOne Flow session.\n//\n// response_mode=pi.flow \u2014 return JSON flow state instead of redirecting.\n// Accept: */* \u2014 required because PingOne uses vendor content types; a\n//   strict Accept: application/json causes a 406 Not Acceptable.\n// redirect: 'manual' \u2014 prevents fetch from following any 302 automatically.\nconst authURL = `${authPath}/${envID}/as/authorize?response_type=code&client_id=${clientID}&redirect_uri=http://localhost:3000/callback&scope=openid%20profile&response_mode=pi.flow`;\nconst initResp = await fetch(authURL, { headers: { Accept: '*/*' }, redirect: 'manual' });\ncaptureCookies(session, initResp);\nconst initJson = await initResp.json();\nlet flowID = initJson.id;\n\n// Step 2: Submit credentials to the active flow.\n//\n// Content-Type: application/vnd.pingidentity.usernamePassword.check+json\n//   tells the flow engine which action to perform.\n//\n// Authorization: Bearer <adminToken> \u2014 the management-plane bearer token.\n// Cookie: <ST; ST-NO-SS> \u2014 the session cookies from step 1.\n// Both headers are required; omitting either causes a 401.\nconst loginResp = await fetch(`${authPath}/${envID}/flows/${flowID}`, {\n  method: 'POST',\n  headers: {\n    'Content-Type': 'application/vnd.pingidentity.usernamePassword.check+json',\n    'Accept': '*/*',\n    'Authorization': `Bearer ${session.adminToken}`,\n    'Cookie': cookieHeader(session),\n  },\n  body: JSON.stringify({ username, password }),\n  redirect: 'manual',\n});\ncaptureCookies(session, loginResp);\nconst loginJson = await loginResp.json();\n// PingOne may return an updated flow ID after the credential check. Always\n// use the latest ID so subsequent calls target the correct flow state.\nif (loginJson.id) flowID = loginJson.id;\nsession.flowID = flowID; // persist for use in /api/mfa-verify\n\n// Route based on the flow status:\n//   COMPLETED \u2014 no MFA required; finish the flow and return the token.\n//   OTP_REQUIRED / DEVICE_SELECTION_REQUIRED /",
+            "line": 167
+          }
+        }
+      },
+      {
+        "id": "credentials",
+        "title": "Submitting username and password",
+        "note": "The response `status` drives everything next: `COMPLETED` means no MFA was required, while `OTP_REQUIRED` / `DEVICE_SELECTION_REQUIRED` / `MULTI_FACTOR_AUTHENTICATION_REQUIRED` mean PingOne has sent a challenge.",
+        "code": {
+          "go": {
+            "lang": "go",
+            "file": "go/main.go",
+            "code": "reqLogin.Header.Set(\"Content-Type\", \"application/vnd.pingidentity.usernamePassword.check+json\")\nreqLogin.Header.Set(\"Accept\", \"*/*\")\nsession.applyFlow(reqLogin)\n\nloginResp, err := client.Do(reqLogin)\nif err != nil {\n\trenderError(w, \"Failed to submit credentials: \"+err.Error())\n\treturn\n}\ndefer loginResp.Body.Close()\nsession.capture(loginResp)",
+            "line": 396
+          },
+          "js": {
+            "lang": "javascript",
+            "file": "js/index.js",
+            "code": "    'Content-Type': 'application/vnd.pingidentity.usernamePassword.check+json',\n    'Accept': '*/*',\n    'Authorization': `Bearer ${session.adminToken}`,\n    'Cookie': cookieHeader(session),\n  },\n  body: JSON.stringify({ username, password }),\n  redirect: 'manual',\n});\ncaptureCookies(session, loginResp);\nconst loginJson = await loginResp.json();\nconsole.log(`[login] credentials result status=${loginJson.status} id=${loginJson.id}`);",
+            "line": 254
+          },
+          "python": {
+            "lang": "python",
+            "file": "python/app.py",
+            "code": "        \"Content-Type\": \"application/vnd.pingidentity.usernamePassword.check+json\",\n        \"Accept\": \"*/*\",\n        \"Authorization\": f\"Bearer {admin_token}\",\n        \"Cookie\": cookie_header(session),\n    },\n    allow_redirects=False,\n)\ncapture_cookies(session, login_resp)\nlogin_json = login_resp.json()\nlog.info(\"[login] credentials result status=%s id=%s\", login_json.get(\"status\"), login_json.get(\"id\"))",
+            "line": 289
+          },
+          "react": {
+            "lang": "javascript",
+            "file": "react/server/index.js",
+            "code": "        'Content-Type': 'application/vnd.pingidentity.usernamePassword.check+json',\n        'Accept': '*/*',\n        'Authorization': `Bearer ${session.adminToken}`,\n        'Cookie': cookieHeader(session),\n      },\n      body: JSON.stringify({ username, password }),\n      redirect: 'manual',\n    });\n    captureCookies(session, loginResp);\n    const loginJson = await loginResp.json();\n    // PingOne may return an updated flow ID after the credential check. Always\n    // use the latest ID so subsequent calls target the correct flow state.\n    if (loginJson.id) flowID = loginJson.id;\n    session.flowID = flowID; // persist for use in /api/mfa-verify\n\n    // Route based on the flow status:\n    //   COMPLETED \u2014 no MFA required; finish the flow and return the token.\n    //   OTP_REQUIRED / DEVICE_SELECTION_REQUIRED /\n    //   MULTI_FACTOR_AUTHENTICATION_REQUIRED \u2014 OTP sent; tell the client to\n    //     show the MFA form.\n    if (loginJson.status === 'COMPLETED') {\n      const token = await finishFlow(session, flowID);\n      return res.json({ status: 'COMPLETED', accessToken: token });\n    }\n    if (['OTP_REQUIRED', 'DEVICE_SELECTION_REQUIRED', 'MULTI_FACTOR_AUTHENTICATION_REQUIRED'].includes(loginJson.status)) {\n      return res.json({ status: 'MFA_REQUIRED' });\n    }\n    return res.status(400).json({ status: 'ERROR', message: `Unexpected status: ${JSON.stringify(loginJson)}` });\n  } catch (err) {\n    return res.status(500).json({ status: 'ERROR', message: err.message });\n  }\n});",
+            "line": 190
+          },
+          "angular": {
+            "lang": "javascript",
+            "file": "angular/server/index.js",
+            "code": "        'Content-Type': 'application/vnd.pingidentity.usernamePassword.check+json',\n        'Accept': '*/*',\n        'Authorization': `Bearer ${session.adminToken}`,\n        'Cookie': cookieHeader(session),\n      },\n      body: JSON.stringify({ username, password }),\n      redirect: 'manual',\n    });\n    captureCookies(session, loginResp);\n    const loginJson = await loginResp.json();\n    // PingOne may return an updated flow ID after the credential check. Always\n    // use the latest ID so subsequent calls target the correct flow state.\n    if (loginJson.id) flowID = loginJson.id;\n    session.flowID = flowID; // persist for use in /api/mfa-verify\n\n    // Route based on the flow status:\n    //   COMPLETED \u2014 no MFA required; finish the flow and return the token.\n    //   OTP_REQUIRED / DEVICE_SELECTION_REQUIRED /\n    //   MULTI_FACTOR_AUTHENTICATION_REQUIRED \u2014 OTP sent; tell the client to\n    //     show the MFA form.\n    if (loginJson.status === 'COMPLETED') {\n      const token = await finishFlow(session, flowID);\n      return res.json({ status: 'COMPLETED', accessToken: token });\n    }\n    if (['OTP_REQUIRED', 'DEVICE_SELECTION_REQUIRED', 'MULTI_FACTOR_AUTHENTICATION_REQUIRED'].includes(loginJson.status)) {\n      return res.json({ status: 'MFA_REQUIRED' });\n    }\n    return res.status(400).json({ status: 'ERROR', message: `Unexpected status: ${JSON.stringify(loginJson)}` });\n  } catch (err) {\n    return res.status(500).json({ status: 'ERROR', message: err.message });\n  }\n});",
+            "line": 190
+          }
+        }
+      },
+      {
+        "id": "otp",
+        "title": "Checking the MFA one-time passcode",
+        "note": "A different vendor content type for the OTP step. Note the dual authentication: these `/flows/{id}` calls need BOTH an admin worker bearer token AND the replayed session cookies. Omit either and you get a 401.",
+        "code": {
+          "go": {
+            "lang": "go",
+            "file": "go/main.go",
+            "code": "req.Header.Set(\"Content-Type\", \"application/vnd.pingidentity.otp.check+json\")\nreq.Header.Set(\"Accept\", \"*/*\")\nsession.applyFlow(req)\n\nlog.Printf(\"[mfa] sending OTP check, flowID=%s\", flowID)\n\nmfaResp, err := client.Do(req)\nif err != nil {\n\trenderError(w, \"Failed to submit MFA code: \"+err.Error())\n\treturn\n}\ndefer mfaResp.Body.Close()\nsession.capture(mfaResp)",
+            "line": 476
+          },
+          "js": {
+            "lang": "javascript",
+            "file": "js/index.js",
+            "code": "    'Content-Type': 'application/vnd.pingidentity.otp.check+json',\n    'Accept': '*/*',\n    'Authorization': `Bearer ${session.adminToken}`,\n    'Cookie': cookieHeader(session),\n  },\n  body: JSON.stringify({ otp }),\n  redirect: 'manual',\n});\ncaptureCookies(session, mfaResp);\nconst mfaJson = await mfaResp.json();\nconsole.log('[mfa] result:', mfaJson);",
+            "line": 308
+          },
+          "python": {
+            "lang": "python",
+            "file": "python/app.py",
+            "code": "        \"Content-Type\": \"application/vnd.pingidentity.otp.check+json\",\n        \"Accept\": \"*/*\",\n        \"Authorization\": f\"Bearer {session['admin_token']}\",\n        \"Cookie\": cookie_header(session),\n    },\n    allow_redirects=False,\n)\ncapture_cookies(session, mfa_resp)\nmfa_json = mfa_resp.json()\nlog.info(\"[mfa] result: %s\", mfa_json)",
+            "line": 342
+          },
+          "react": {
+            "lang": "javascript",
+            "file": "react/server/index.js",
+            "code": "    'Content-Type': 'application/vnd.pingidentity.otp.check+json',\n    'Accept': '*/*',\n    'Authorization': `Bearer ${session.adminToken}`,\n    'Cookie': cookieHeader(session),\n  },\n  body: JSON.stringify({ otp }),\n  redirect: 'manual',\n});\ncaptureCookies(session, mfaResp);\nconst mfaJson = await mfaResp.json();\n// Update the stored flowID if PingOne issued a new one after the OTP check.\nif (mfaJson.id) session.flowID = mfaJson.id;",
+            "line": 244
+          },
+          "angular": {
+            "lang": "javascript",
+            "file": "angular/server/index.js",
+            "code": "    'Content-Type': 'application/vnd.pingidentity.otp.check+json',\n    'Accept': '*/*',\n    'Authorization': `Bearer ${session.adminToken}`,\n    'Cookie': cookieHeader(session),\n  },\n  body: JSON.stringify({ otp }),\n  redirect: 'manual',\n});\ncaptureCookies(session, mfaResp);\nconst mfaJson = await mfaResp.json();\n// Update the stored flowID if PingOne issued a new one after the OTP check.\nif (mfaJson.id) session.flowID = mfaJson.id;",
+            "line": 244
+          }
+        }
+      },
+      {
+        "id": "cookies",
+        "title": "Replaying the flow session cookies",
+        "note": "Node's fetch has no cookie jar, and path scoping would drop PingOne's cookies anyway. The sample captures the raw name=value pairs and rebuilds the Cookie header by hand \u2014 a detail that costs hours if you miss it.",
+        "code": {
+          "go": {
+            "lang": "go",
+            "file": "go/main.go",
+            "code": "\tfor _, cookie := range resp.Cookies() {\n\t\tupdated := false\n\t\tfor i, c := range s.cookies {\n\t\t\tif c.Name == cookie.Name {\n\t\t\t\ts.cookies[i] = cookie\n\t\t\t\tupdated = true\n\t\t\t\tbreak\n\t\t\t}\n\t\t}\n\t\tif !updated {\n\t\t\ts.cookies = append(s.cookies, cookie)\n\t\t}\n\t}\n}",
+            "line": 115
+          },
+          "js": {
+            "lang": "javascript",
+            "file": "js/index.js",
+            "code": "// Why not use a cookie jar?\n//   Node's fetch does not have a built-in cookie jar, and RFC 6265 path\n//   scoping would silently drop PingOne's ST / ST-NO-SS cookies when the\n//   request path changes between flow steps. Storing raw name=value pairs\n//   and building the Cookie header manually is the only reliable approach.\n//\n// If a cookie with the same name is already stored it is replaced, because\n// PingOne may issue updated ST values across flow steps.\nfunction captureCookies(session, resp) {\n  const setCookie = resp.headers.getSetCookie ? resp.headers.getSetCookie() : resp.headers.raw?.()['set-cookie'] || [];\n  for (const raw of setCookie) {\n    const nameValue = raw.split(';')[0]; // strip path, domain, etc.\n    const name = nameValue.split('=')[0];\n    const idx = session.cookies.findIndex(c => c.startsWith(`${name}=`));\n    if (idx >= 0) session.cookies[idx] = nameValue;\n    else session.cookies.push(nameValue);\n  }\n}",
+            "line": 108
+          },
+          "python": {
+            "lang": "python",
+            "file": "python/app.py",
+            "code": "def capture_cookies(session: dict, resp: requests.Response) -> None:\n    \"\"\"Extract Set-Cookie values from a PingOne response into session['cookies'].\n\n    Why manual capture instead of a requests.Session cookie jar?\n      The requests library respects RFC 6265 path scoping: a cookie whose\n      Path attribute does not match the current request path is silently\n      dropped. PingOne's ST and ST-NO-SS cookies are issued on /as/authorize\n      but need to be sent on /flows/{id} \u2014 a different path. A cookie jar\n      would drop them. Storing raw \"name=value\" strings and building the\n      Cookie header manually bypasses this entirely.\n\n    If a cookie with the same name already exists it is replaced, because\n    PingOne may issue updated ST values across flow steps.\n    \"\"\"\n    for name, value in resp.cookies.items():\n        entry = f\"{name}={value}\"\n        idx = next((i for i, c in enumerate(session[\"cookies\"]) if c.startswith(f\"{name}=\")), -1)\n        if idx >= 0:\n            session[\"cookies\"][idx] = entry\n        else:\n            session[\"cookies\"].append(entry)",
+            "line": 117
+          },
+          "react": {
+            "lang": "javascript",
+            "file": "react/server/index.js",
+            "code": "// Why manual capture instead of a cookie jar?\n//   Node's fetch has no built-in cookie jar, and RFC 6265 path scoping would\n//   silently drop PingOne's ST / ST-NO-SS cookies when the request path\n//   changes between flow steps. Manual capture-and-replay is the only\n//   reliable approach.\n//\n// If a cookie with the same name already exists it is replaced, because\n// PingOne may issue updated ST values across flow steps.\nfunction captureCookies(session, resp) {\n  const setCookie = resp.headers.getSetCookie ? resp.headers.getSetCookie() : [];\n  for (const raw of setCookie) {\n    const nv = raw.split(';')[0]; // strip path, domain, expiry attributes\n    const name = nv.split('=')[0];\n    const idx = session.cookies.findIndex(c => c.startsWith(`${name}=`));\n    if (idx >= 0) session.cookies[idx] = nv;\n    else session.cookies.push(nv);\n  }\n}",
+            "line": 116
+          },
+          "angular": {
+            "lang": "javascript",
+            "file": "angular/server/index.js",
+            "code": "// Why manual capture instead of a cookie jar?\n//   Node's fetch has no built-in cookie jar, and RFC 6265 path scoping would\n//   silently drop PingOne's ST / ST-NO-SS cookies when the request path\n//   changes between flow steps. Manual capture-and-replay is the only\n//   reliable approach.\n//\n// If a cookie with the same name already exists it is replaced, because\n// PingOne may issue updated ST values across flow steps.\nfunction captureCookies(session, resp) {\n  const setCookie = resp.headers.getSetCookie ? resp.headers.getSetCookie() : [];\n  for (const raw of setCookie) {\n    const nv = raw.split(';')[0]; // strip path, domain, expiry attributes\n    const name = nv.split('=')[0];\n    const idx = session.cookies.findIndex(c => c.startsWith(`${name}=`));\n    if (idx >= 0) session.cookies[idx] = nv;\n    else session.cookies.push(nv);\n  }\n}",
+            "line": 116
+          }
+        }
+      },
+      {
+        "id": "resume",
+        "title": "Resuming to get the authorization code",
+        "note": "Signals the native flow is done. PingOne returns either JSON containing `authorizeResponse.code` or a 302 to the registered redirect_uri.",
+        "code": {
+          "go": {
+            "lang": "go",
+            "file": "go/main.go",
+            "code": "reqResume, _ := http.NewRequest(\"GET\", fmt.Sprintf(\"%s/%s/as/resume?flowId=%s\", authPath, envID, flowID), nil)\nreqResume.Header.Set(\"Accept\", \"*/*\")\n// The ST / ST-NO-SS cookies established during the flow must accompany\n// the resume call so PingOne can locate and complete the session. The\n// admin bearer token is NOT sent here \u2014 /as/resume is an authorization\n// endpoint, not the management plane.\nfor _, cookie := range session.cookies {\n\treqResume.AddCookie(cookie)\n}\n\nresumeResp, err := client.Do(reqResume)\nif err != nil {\n\trenderError(w, \"Failed to call resume: \"+err.Error())\n\treturn\n}\ndefer resumeResp.Body.Close()\nsession.capture(resumeResp)",
+            "line": 532
+          },
+          "js": {
+            "lang": "javascript",
+            "file": "js/index.js",
+            "code": "const resumeResp = await fetch(`${authPath}/${envID}/as/resume?flowId=${flowID}`, {\n  headers: {\n    'Accept': '*/*',\n    'Cookie': cookieHeader(session),\n  },\n  redirect: 'manual',\n});\ncaptureCookies(session, resumeResp);\nconsole.log(`[resume] status code: ${resumeResp.status}`);",
+            "line": 353
+          },
+          "python": {
+            "lang": "python",
+            "file": "python/app.py",
+            "code": "/as/resume signals PingOne that the native flow is complete. PingOne either:\n  - Returns a JSON body with authorizeResponse.code (less common), or\n  - Issues a 302 redirect to the registered redirect_uri with ?code= in\n    the query string (most common).\nBoth paths are handled here. allow_redirects=False is essential \u2014 without\nit, requests would silently follow the redirect and we would lose the\nLocation header that carries the authorization code.\n\nOnly the session cookies are sent to /as/resume. The admin bearer token\nis NOT required here because /as/resume is part of the OAuth 2.0\nauthorization endpoint, not the management plane.\n\"\"\"\nresume_resp = requests.get(\n    f\"{AUTH_PATH}/{ENV_ID}/as/resume?flowId={flow_id}\",\n    headers={\"Accept\": \"*/*\", \"Cookie\": cookie_header(session)},\n    allow_redirects=False,\n)\ncapture_cookies(session, resume_resp)\nlog.info(\"[resume] status code: %s\", resume_resp.status_code)",
+            "line": 371
+          },
+          "react": {
+            "lang": "javascript",
+            "file": "react/server/index.js",
+            "code": "const resumeResp = await fetch(`${authPath}/${envID}/as/resume?flowId=${flowID}`, {\n  headers: { Accept: '*/*', Cookie: cookieHeader(session) },\n  redirect: 'manual',\n});\ncaptureCookies(session, resumeResp);\n\n// Try JSON body first; fall back to the Location redirect URL.\nlet authCode = '';\nconst ct = resumeResp.headers.get('content-type') || '';\nif (ct.includes('json')) {\n  const j = await resumeResp.json();\n  authCode = j?.authorizeResponse?.code || '';\n}\nif (!authCode) {\n  const loc = resumeResp.headers.get('location');\n  if (loc) try { authCode = new URL(loc).searchParams.get('code') || ''; } catch {}\n}\nif (!authCode) throw new Error('Failed to get authorization code from resume.');",
+            "line": 280
+          },
+          "angular": {
+            "lang": "javascript",
+            "file": "angular/server/index.js",
+            "code": "const resumeResp = await fetch(`${authPath}/${envID}/as/resume?flowId=${flowID}`, {\n  headers: { Accept: '*/*', Cookie: cookieHeader(session) },\n  redirect: 'manual',\n});\ncaptureCookies(session, resumeResp);\n\n// Try JSON body first; fall back to the Location redirect URL.\nlet authCode = '';\nconst ct = resumeResp.headers.get('content-type') || '';\nif (ct.includes('json')) {\n  const j = await resumeResp.json();\n  authCode = j?.authorizeResponse?.code || '';\n}\nif (!authCode) {\n  const loc = resumeResp.headers.get('location');\n  if (loc) try { authCode = new URL(loc).searchParams.get('code') || ''; } catch {}\n}\nif (!authCode) throw new Error('Failed to get authorization code from resume.');",
+            "line": 280
+          }
+        }
+      }
+    ]
+  }
+}
