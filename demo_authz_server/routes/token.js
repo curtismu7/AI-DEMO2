@@ -23,6 +23,13 @@
 
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
+const spiffeActorToken = require('../spiffeActorToken');
+
+/** RFC 8693 token type for a JWT-SVID presented as actor_token. */
+const SVID_ACTOR_TYPE = 'urn:ietf:params:oauth:token-type:jwt';
+
+/** Read per call, not at module load, so a test or a restart-free flip is seen. */
+const spiffeActorEnabled = () => process.env.FF_SPIFFE_ACTOR_TOKEN === 'true';
 
 function randomId() {
   try { return require('crypto').randomUUID(); } catch { return `token-${Date.now()}`; }
@@ -142,6 +149,36 @@ module.exports = async function tokenHandler(req, res) {
   const audience = body.audience || body.resource || 'unknown';
   const scopes = body.scope || 'read';
 
+  // ── JWT-SVID as actor_token (ff_spiffe_actor_token) ──────────────────────
+  // Parity with PingFederate's JWT Token Processor 2.0: a SPIFFE workload
+  // presents its SVID as the ACTOR, and the spiffe:// URI lands in act.sub so
+  // the chain records which workload acted. PingOne cloud cannot do this — it
+  // has no trusted-external-issuer object (docs/SPIFFE_PLAN.md), which is why
+  // the behaviour lives in this parity mock.
+  //
+  // Verified against the SPIFFE trust bundle (RS256), NOT AUTHZ_JWT_SECRET.
+  // Falling through to the HS256 path would try to verify an RS256 token with a
+  // symmetric secret — it fails, but for the wrong reason and with a misleading
+  // error, so the branch is explicit.
+  let spiffeActClaim = null;
+  if (actorToken && body.actor_token_type === SVID_ACTOR_TYPE) {
+    if (!spiffeActorEnabled()) {
+      return res.status(400).json({
+        error: 'invalid_request',
+        error_description: `actor_token_type ${SVID_ACTOR_TYPE} is not enabled (ff_spiffe_actor_token is off)`,
+      });
+    }
+    const svid = await spiffeActorToken.verifySvid(actorToken);
+    if (!svid.valid) {
+      console.warn(`[AuthzServer/token] SVID actor_token refused: ${svid.reason}`);
+      return res.status(400).json({
+        error: 'invalid_grant',
+        error_description: `actor_token is not a valid JWT-SVID: ${svid.reason}`,
+      });
+    }
+    spiffeActClaim = svid.spiffeId;
+  }
+
   // Validate subject token
   if (!subjectToken) {
     return res.status(400).json({
@@ -152,7 +189,13 @@ module.exports = async function tokenHandler(req, res) {
 
   let subClaim, actClaim;
   try {
-    ({ subClaim, actClaim } = verifyExchangeTokens(subjectToken, actorToken));
+    // A verified SVID supplies the actor itself, so the legacy HS256 actor path
+    // is skipped for it — passing null keeps subject verification unchanged.
+    ({ subClaim, actClaim } = verifyExchangeTokens(
+      subjectToken,
+      spiffeActClaim ? null : actorToken,
+    ));
+    if (spiffeActClaim) actClaim = spiffeActClaim;
   } catch (err) {
     if (err.code === 'NOT_CONFIGURED') {
       console.error('[AuthzServer/token] CRITICAL: AUTHZ_JWT_SECRET not configured — refusing to mint tokens with a default key. Set AUTHZ_JWT_SECRET and restart.');
