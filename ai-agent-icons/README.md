@@ -13,6 +13,24 @@ app reuses the same door glyph). Standing convention: **every new PingOne app
 gets a distinct icon** — never leave it on the default Ping logo. See
 [[feedback-p1-app-needs-new-icon]] in project memory.
 
+**2026-08-27 — 13/14, the autonomous agents.** `13-fraud-watch-agent.png` and
+`14-balance-sweep-agent.png`, for the two apps added with the autonomous-agent
+work. Both use the amber `#a1620a` that means "runs unattended" everywhere else
+in this demo — the Autonomous badge on the Token Chain rail, the parked-run
+strip, the compare column on the Autonomous Agents page. Sharing one hue across
+the two is deliberate: the colour says *class*, the glyph says *which job*
+(a magnifier whose lens is a clock face for the scheduled watcher; surplus
+arcing between two stacks for the sweep).
+
+These two are `WEB_APP`, not `AI_AGENT`, unlike the twelve above. `type` cannot
+be set on create or changed on update through the Applications API — verified
+again 2026-08-27, the PUT returns 200 and the type is unchanged — so an
+AI_AGENT registration has to be made by hand in `Directory > AI Agents`, which
+mints a new client_id and makes it a swap rather than an edit. Deliberate
+decision to keep them as WEB_APP: functionally identical for
+client_credentials, and the cost is that they do not appear in the AI Agents
+inventory.
+
 Deliberately left on the generic Ping logo: `PingOne DaVinci Connection`
 (platform-managed connector, not demo-authored) and two `20260708-*`
 timestamped ephemeral workers from a scripted skill run (throwaway, not worth
