@@ -83,6 +83,41 @@ const INTENT_TO_PERMITTED_TOOLS = {
   // looked correct while denying for the wrong reason.
   get_weather:              ['get_weather'],
   get_branch_hours:         ['get_branch_hours'],
+
+  // Chip-driven tools that no intent permitted, so the gateway denied them with
+  //   intent_mismatch: tool "view_wishlist" not permitted for intent "view_wishlist"
+  // None has a _TOOL_TO_INTENT override, so the minted intent IS the tool name
+  // (confidence 0.50) and the fallback — the vertical's non-sensitive reads —
+  // excludes them. Each grants EXACTLY its own tool; a 0.50-confidence fallback
+  // intent must widen nothing.
+  //
+  // Scope is deliberate. 160 gateway-surface tools are intent-unreachable; only
+  // these 17 drive a chip, and only chips are demo-reachable. The other 143 are
+  // left alone rather than mapped blind.
+  redeem_miles:                   ['redeem_miles'],
+  request_document:               ['request_document'],
+  request_fee_tier_review:        ['request_fee_tier_review'],
+  request_housing_assignment:     ['request_housing_assignment'],
+  request_price_adjustment:       ['request_price_adjustment'],
+  request_schedule_change:        ['request_schedule_change'],
+  request_spec_exception:         ['request_spec_exception'],
+  submit_filing:                  ['submit_filing'],
+  view_wishlist:                  ['view_wishlist'],
+
+  // These eight carry challengeType: consent, so consent fires BEFORE the intent
+  // check and they deny correctly today. Mapped anyway because the post-consent
+  // retry re-mints the same tool-name intent and would hit this wall next — a
+  // latent break that only shows after someone completes a consent flow.
+  // Adding an intent entry cannot weaken consent: challengeType is a separate
+  // gate and is untouched.
+  sensitive_holdings:             ['sensitive_holdings'],
+  sensitive_membership_details:   ['sensitive_membership_details'],
+  sensitive_order_history:        ['sensitive_order_history'],
+  sensitive_passenger_record:     ['sensitive_passenger_record'],
+  sensitive_patient_records:      ['sensitive_patient_records'],
+  sensitive_payroll_details:      ['sensitive_payroll_details'],
+  sensitive_student_finance:      ['sensitive_student_finance'],
+  sensitive_supplier_contract:    ['sensitive_supplier_contract'],
   // Investment
   view_investments:         ['get_investment_accounts', 'get_investment_balance', 'get_portfolio_summary', 'get_investment_transactions', 'show_investment'],
   view_portfolios:          ['view_portfolios', 'view_holdings', 'view_portfolio_value', 'view_trades', 'view_dividends'],

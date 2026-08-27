@@ -16,6 +16,48 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-08-26 — 143 gateway tools are intent-unreachable; only the 17 chip-driven ones were mapped
+
+`server.js` mints `intent = _TOOL_TO_INTENT[tool] || tool`, and the gateway then
+denies anything that intent does not permit:
+
+```
+intent_mismatch: tool "view_wishlist" not permitted for intent "view_wishlist"
+```
+
+A tool with no `_TOOL_TO_INTENT` override AND no `INTENT_TO_PERMITTED_TOOLS`
+entry is therefore unreachable — the minted intent is the tool name, and the
+unknown-intent fallback (the vertical's non-sensitive reads) excludes it.
+
+Measured 2026-08-26: **160 of 244** gateway-surface tools are in that state.
+
+**What was fixed** (PR #2442): the **17** that drive a chip. Chips are the
+demo-reachable surface, so those were provably broken.
+
+**What was NOT fixed**: the remaining **143**. They are not known to be broken —
+they are known to be *unproven*. Nothing in the demo drives them today, so there
+is no evidence any of them is reached at all; mapping them blind would add 143
+`tool: [tool]` entries whose only justification is symmetry, and would make the
+chip-reachability gate assert a scope nobody has validated.
+
+**Why not now**: the real question is upstream of the intent map — is each of
+those 143 a live tool that nothing routes to yet, a dead alias, or a
+never-implemented catalog stub? That inventory is the fix; the mapping is a
+consequence of it. Doing the mapping first would bury the inventory question
+under a green test.
+
+**Real fix**: classify the 143 by whether any surface (chip, LLM route, A2A
+chain, guided-demo step) can dispatch them. Map the live ones, delete the dead
+ones from the catalog, and extend
+`demo_api_server/tests/intentTokenService.chipReachability.test.js` from "every
+chip-driven tool" to "every dispatchable tool" once "dispatchable" has a
+definition the test can compute.
+
+**Also noted, unfixed**: `ping-gateway/config/scope-topology.json` is a
+hand-maintained twin of the root `scope-topology.json` and has drifted by two
+tools (`get_loyalty_status`, `redeem_miles`). `npm run topology:verify` does not
+compare them, so nothing catches it.
+
 ### [x] 2026-08-26 — nine gateway-routed tools were never registered in scope-topology, so the PDP denied them as `unknown_tool`
 
 **Where:** `scope-topology.json` and its hand-maintained twin
