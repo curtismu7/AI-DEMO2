@@ -297,12 +297,96 @@ function ownEntry(map, key) {
   return  Object.hasOwn(map, key) ? map[key] : undefined;
 }
 
+/**
+ * Tools each vertical can actually DISPATCH, derived from the vertical plugins.
+ *
+ * Why derived and not another map: `server.js` mints `intent =
+ * _TOOL_TO_INTENT[tool] || tool`, so a tool with no entry above minted its own
+ * name as the intent, missed both maps, fell through to the vertical's
+ * read-only list — which excludes it — and was denied. That is not a policy
+ * decision, it is an incomplete map, and it broke `get_weather`,
+ * `get_branch_hours` and 17 chip tools before anyone noticed a pattern.
+ *
+ * Measured 2026-08-27: 142 of 244 gateway tools were in that state, and 99 of
+ * them are reachable by an ordinary typed phrase (a vertical heuristic maps a
+ * regex straight to a tool name). Driven live in Super Sports, "my addresses" /
+ * "show my invoices" / "my wishlist" / "my subscriptions" / "what promotions do
+ * you have" all routed correctly and then 403'd here, five for five.
+ *
+ * Hand-listing 99 entries was the other option and is what this file must NOT
+ * become: the same day produced three separate bugs from hand-kept copies of a
+ * single list (AIRLINES_TOOLS in router.ts, INVEST_BACKEND_TOOLS in the Groovy,
+ * and a test's own array). Deriving from the plugins means adding a heuristic or
+ * a tool cannot leave this behind.
+ *
+ * Scope of the grant, deliberately narrow:
+ *   - per VERTICAL, so retail's list_wishlist is not granted in banking
+ *   - only gateway-surface tools in scope-topology
+ *   - exactly ONE tool per intent — never a widening
+ *   - anything NOT dispatchable still falls through and fails closed
+ *
+ * This does not weaken any other gate. consent/step_up (`challengeType`), A2A
+ * delegation (`a2aDelegatedScope` + `requiresAgentMediation`), the scope check
+ * and the P1AZ decision are separate and unchanged — verified live, where
+ * `sensitive_membership_details` still denies with "A2A Delegation Required"
+ * while its intent validates (`IntentMatchesTool: true`).
+ *
+ * Lazy + memoized on purpose: `config/useCases.js` requires THIS module, so
+ * touching the config tree at load time is a require cycle. By first call
+ * everything is loaded. A failure degrades to the old fallback rather than
+ * breaking token minting, because an unmintable token fails every tool call.
+ */
+let _dispatchable = null;
+
+function dispatchableToolsFor(vertical) {
+  if (_dispatchable === null) {
+    _dispatchable = new Map();
+    try {
+      const fs = require('node:fs');
+      const path = require('node:path');
+      const topology = require(path.join(__dirname, '..', '..', 'scope-topology.json'));
+      const isGatewayTool = (n) => topology.tools[n] && topology.tools[n].surface === 'gateway';
+
+      const dir = path.join(__dirname, '..', 'config', 'verticals');
+      const ids = fs.readdirSync(dir, { withFileTypes: true })
+        .filter((e) => e.isDirectory() && e.name !== 'shared')
+        .map((e) => e.name);
+
+      for (const id of ids) {
+        let plugin;
+        try {
+          plugin = require(path.join(dir, id));
+        } catch {
+          continue; // a dir without a loadable plugin dispatches nothing
+        }
+        const tools = new Set();
+        for (const h of (typeof plugin.getHeuristics === 'function' ? plugin.getHeuristics() : [])) {
+          if (h && h.action && isGatewayTool(h.action)) tools.add(h.action);
+        }
+        for (const t of (typeof plugin.getTools === 'function' ? plugin.getTools() : [])) {
+          if (t && t.name && isGatewayTool(t.name)) tools.add(t.name);
+        }
+        _dispatchable.set(id, tools);
+      }
+    } catch {
+      // Leave the map empty: every intent then takes the read-only fallback,
+      // i.e. exactly the behaviour before this existed.
+    }
+  }
+  return _dispatchable.get(vertical) || null;
+}
+
 function permittedToolsForIntent(intent, vertical) {
   const verticalOverrides = ownEntry(VERTICAL_INTENT_TO_PERMITTED_TOOLS, vertical);
   const byVerticalIntent = verticalOverrides && ownEntry(verticalOverrides, intent);
   if (byVerticalIntent) return byVerticalIntent;
   const byIntent = ownEntry(INTENT_TO_PERMITTED_TOOLS, intent);
   if (byIntent) return byIntent;
+  // The intent is the name of a tool this vertical can dispatch: permit exactly
+  // that tool. See dispatchableToolsFor — this replaces ~99 hand-written
+  // self-granting entries and cannot drift when a heuristic or tool is added.
+  const dispatchable = dispatchableToolsFor(vertical);
+  if (dispatchable && dispatchable.has(intent)) return [intent];
   // Unknown/unclassified intent: restrict to the current vertical's non-sensitive
   // reads instead of every read tool across every vertical (which exposed
   // get_sensitive_account_details / query_user_by_email / other verticals' data to
