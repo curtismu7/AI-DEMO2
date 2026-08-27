@@ -116,25 +116,20 @@ data:
         # The BFF's own /api/health/tracing/* proxy is unaffected — it reaches
         # Jaeger server-side and is governed by auth-requirements.json.
 
-        # Proxy /grafana/ to the in-cluster Grafana (plain HTTP; sub-path set via
-        # GF_SERVER_SERVE_FROM_SUB_PATH + GF_SERVER_ROOT_URL on the deployment).
-        # Unlike /jaeger/, this one requires a login — Grafana runs with anonymous
-        # access off, because these panels expose gateway internals. Prometheus
-        # itself is deliberately NOT proxied: it has no auth of its own.
-        location /grafana/ {
-            # No trailing slash on proxy_pass: keep the /grafana prefix so it
-            # matches GF_SERVER_ROOT_URL. Stripping it makes Grafana build asset
-            # and redirect URLs without the prefix and the UI loads blank.
-            proxy_pass http://grafana:3000;
-            proxy_http_version 1.1;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto https;
-            # Grafana's live features use websockets.
-            proxy_set_header Upgrade $http_upgrade;
-            proxy_set_header Connection "upgrade";
-        }
+        # There is deliberately NO location /grafana/ here. It moved to its own
+        # path on the SE ingress (k8s/aws/se-ingress.yaml), routed straight to
+        # the grafana Service.
+        #
+        # Why: nginx resolves the literal upstream in `proxy_pass http://grafana`
+        # at STARTUP and exits when it does not resolve. So proxying Grafana from
+        # here made the entire app depend on Grafana existing — on 2026-08-27 a
+        # deploy without it crash-looped the frontend and took the whole site
+        # down, /api and the MCP door included, not just /grafana.
+        #
+        # Every remaining proxy_pass in this file (demo-api-server, mcp-gateway)
+        # has the same startup-resolution property, so anything added here must
+        # be a Service the frontend genuinely cannot serve without. Grafana is
+        # not: it is a separate tool that happens to share a hostname.
 
         # Security headers
         add_header X-Frame-Options "SAMEORIGIN" always;

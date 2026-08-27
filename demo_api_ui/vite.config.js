@@ -39,17 +39,11 @@ export default defineConfig(({ mode }) => {
   const hostname = cfg('REACT_APP_API_HOST') || (apiHttps ? 'api.ping.demo' : 'localhost')
   const httpTarget = `${apiHttps ? 'https' : 'http'}://${hostname}:${apiPort}`
   const wsTarget = `${apiHttps ? 'wss' : 'ws'}://${hostname}:${apiPort}`
-  // Jaeger itself is always plain HTTP on 16686. REACT_APP_API_HOST is only set
-  // in Docker (docker-compose.override.yml: demo-api-server) — its presence is
-  // the same docker-vs-native signal the BFF's own jaegerCandidates() resolves
-  // via env, just inlined here since Vite can't reach that Node module.
-  const jaegerTarget = cfg('REACT_APP_API_HOST') ? 'http://jaeger:16686' : 'http://localhost:16686'
-
   // Fail loud: surface the resolved proxy target at boot so a misconfigured
   // host/port is visible in `docker logs ai-demo-ui` instead of silently
   // hitting loopback and masquerading as a "servers down" error.
   console.log(
-    `[vite] dev proxy: /api,/health,/pinggateway-test.html → ${httpTarget}  |  /ws → ${wsTarget}  |  /jaeger → ${jaegerTarget}`,
+    `[vite] dev proxy: /api,/health,/pinggateway-test.html → ${httpTarget}  |  /ws → ${wsTarget}`,
   )
   if (process.env.HTTPS !== 'false') {
     if (mkcert) {
@@ -180,14 +174,11 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: false,
         },
-        // Raw Jaeger UI ("Open Jaeger UI" link) — mirrors nginx.conf's
-        // location /jaeger/ (no path rewrite: preserves the /jaeger prefix so
-        // it matches Jaeger's own QUERY_BASE_PATH=/jaeger).
-        '/jaeger': {
-          target: jaegerTarget,
-          changeOrigin: true,
-          secure: false,
-        },
+        // No /jaeger proxy: nothing links to Jaeger's own UI any more. The
+        // "Open Jaeger UI" button became "Open traces in Grafana" when the
+        // public /jaeger/ route was removed — Jaeger has no authentication, and
+        // that route was serving its query API to anyone. Traces are reached
+        // through Grafana's Jaeger datasource, which requires a login.
       },
     },
 
