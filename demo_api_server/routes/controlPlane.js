@@ -7,6 +7,7 @@ const { getLiveAgentRow } = require('../services/controlPlane/liveAgentInfo');
 const auditLogService = require('../services/auditLogService');
 const appEventService = require('../services/appEventService');
 const agentLifecycleEvents = require('../services/agentLifecycleEvents');
+const controlPlaneOverview = require('../services/controlPlaneOverview');
 
 // Honest-subset stop for a demo platform identity: writes a REAL immutable audit
 // record and emits a control_plane push event, then flips session status. Does
@@ -99,6 +100,26 @@ router.get('/lifecycle-events', authenticateToken, (req, res) => {
   if (agentId) filters.agentId = agentId;
   if (limit) filters.limit = Math.min(Number(limit) || 50, 500);
   return res.json({ events: agentLifecycleEvents.query(filters), summary: agentLifecycleEvents.summary() });
+});
+
+/**
+ * GET /api/control-plane/overview
+ *
+ * The whole control-plane surface in one request: five zones, the enforcement
+ * band, and the computed findings. 200 whenever the response can be assembled
+ * at all — a dead source shows as `sources.<name>.state === 'down'` and every
+ * other zone still renders.
+ *
+ * `req` is passed through because the registry's runtime source reads the
+ * session-scoped control-plane roster.
+ */
+router.get('/overview', authenticateToken, async (req, res) => {
+  try {
+    return res.json(await controlPlaneOverview.buildOverview(req));
+  } catch (err) {
+    console.error('[controlPlane] overview failed:', err?.stack || String(err));
+    return res.status(500).json({ error: 'overview_unavailable' });
+  }
 });
 
 module.exports = router;
