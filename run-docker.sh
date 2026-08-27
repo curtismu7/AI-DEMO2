@@ -707,6 +707,8 @@ fi
 SERVICES=(
   "demo-api-server|BFF (Express)        |3001|https://api.ping.demo:3001"
   "jaeger|Jaeger (tracing UI)    |16686|http://localhost:16686"
+  "prometheus|Prometheus (metrics)  |9090|http://localhost:9090"
+  "grafana|Grafana (dashboards)  |3000|http://localhost:3000"
   "ui|UI (React / nginx)   |4000|https://local.ping-devops.com:4000"
   "mcp-server|MCP Server            |8080|http://localhost:8080"
   "mcp-gateway|MCP Gateway           |3005|http://localhost:3005"
