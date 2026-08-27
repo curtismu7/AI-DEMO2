@@ -97,3 +97,39 @@ test('the reel is on screen without scrolling on a short laptop window', async (
   await expect(reel).toBeVisible({ timeout: 15000 });
   await expect(reel).toBeInViewport();
 });
+
+
+// The reel is not only on /dashboard. These surfaces mount the same component
+// and had no viewport coverage at all — the exact gap that let #4 and #5 ship.
+// /transaction-trace is the only one needing a session; the other two are public
+// by design (see auth-requirements.json).
+//
+// /autonomous-agents is deliberately NOT here: its reel renders only inside an
+// opened run that captured token events, so covering it means seeding a run
+// first. Conditional-by-design is a different thing from off-screen, and a test
+// that seeds state to reach it would not have caught any of the five bugs.
+//
+// `scrollTo` marks a page where the reel is a section of a normal scrolling
+// document rather than part of a fixed app surface. There, scrolling to reach it
+// is the design, so the assertion is "reachable and then actually in the
+// viewport" — which still fails if the reel is clipped, zero-height or absent,
+// but does not demand it be above the fold. /dashboard and /transaction-trace
+// keep the strict no-scroll form: both pin the reel deliberately, so needing a
+// scroll there IS the bug.
+const SURFACES = [
+  { path: '/transaction-trace', name: 'Transaction Trace' },
+  { path: '/demo/enterprise-mcp', name: 'the Enterprise MCP demo', scrollTo: true },
+  { path: '/personal-agent', name: 'Personal Agent Studio' },
+];
+
+for (const surface of SURFACES) {
+  test(`movie reel is on screen on ${surface.name}`, async ({ page }) => {
+    await mockDashboardWithReel(page, null);
+    await page.goto(surface.path);
+
+    const reel = page.locator('.tcfs-chain');
+    await expect(reel).toBeVisible({ timeout: 15000 });
+    if (surface.scrollTo) await reel.scrollIntoViewIfNeeded();
+    await expect(reel).toBeInViewport();
+  });
+}
