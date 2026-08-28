@@ -21,8 +21,8 @@
   min-height: var(--stack-fab-height, 44px);
   padding: 0 12px;
   background: #0f766e;
-  color: #fff;
-  -webkit-text-fill-color: #fff;
+  color: var(--th-text-invert);
+  -webkit-text-fill-color: var(--th-text-invert);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px;
   font-size: 0.8125rem;
@@ -68,7 +68,7 @@
   right: 0;
   bottom: 0;
   width: min(740px, 96vw);
-  background: #fff;
+  background: var(--th-bg-card);
   z-index: 1220;
   display: flex;
   flex-direction: column;
@@ -111,7 +111,7 @@
   justify-content: space-between;
   padding: 1.1rem 1.25rem 0.75rem;
   background: #0f766e;
-  color: #fff;
+  color: var(--th-text-invert);
   flex-shrink: 0;
 }
 
@@ -142,14 +142,14 @@
   transition: color 0.15s;
 }
 .cimd-close:hover {
-  color: #fff;
+  color: var(--th-text-invert);
 }
 
 /* ---------- Tabs ---------- */
 .cimd-tabs {
   display: flex;
   background: var(--brand-light-gray);
-  border-bottom: 2px solid #DDDDDD;
+  border-bottom: 2px solid var(--th-border);
   flex-shrink: 0;
   overflow-x: auto;
 }
@@ -161,7 +161,7 @@
   background: transparent;
   font-size: 0.76rem;
   font-weight: 500;
-  color: #999999;
+  color: var(--th-text-faint);
   cursor: pointer;
   white-space: nowrap;
   border-bottom: 2px solid transparent;
@@ -199,7 +199,7 @@
   margin-bottom: 0.35em;
 }
 .cimd-body strong {
-  color: #0f172a;
+  color: var(--th-text);
 }
 .cimd-body code {
   background: #f0fdfa;
@@ -254,14 +254,14 @@
 }
 .cimd-table th {
   background: #0f766e;
-  color: #fff;
+  color: var(--th-text-invert);
   padding: 8px 12px;
   text-align: left;
   font-weight: 600;
 }
 .cimd-table td {
   padding: 7px 12px;
-  border-bottom: 1px solid #DDDDDD;
+  border-bottom: 1px solid var(--th-border);
   vertical-align: top;
 }
 .cimd-table tr:nth-child(even) td {
@@ -330,15 +330,15 @@
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: #DDDDDD;
-  border: 2px solid #CCCCCC;
+  background: var(--th-bg-hover);
+  border: 2px solid var(--th-border-strong);
   flex-shrink: 0;
   transition: background 0.25s, border-color 0.25s;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 9px;
-  color: #fff;
+  color: var(--th-text-invert);
   font-weight: 700;
 }
 .cimd-sim-dot.done {
@@ -361,7 +361,7 @@
 
 .cimd-sim-progress-label {
   font-size: var(--font-size-xs);
-  color: #999999;
+  color: var(--th-text-faint);
   margin-left: 6px;
   font-weight: 600;
 }
@@ -414,7 +414,7 @@
 .cimd-spinner {
   width: 20px;
   height: 20px;
-  border: 2px solid #DDDDDD;
+  border: 2px solid var(--th-border);
   border-top: 2px solid #0d9488;
   border-radius: 50%;
   animation: cimd-spin 0.75s linear infinite;
@@ -460,7 +460,7 @@
 }
 
 .cimd-check-detail {
-  color: #666666;
+  color: var(--th-text-muted);
   font-size: 0.77rem;
   display: block;
   margin-top: 1px;
@@ -489,7 +489,7 @@
 .cimd-input {
   flex: 1;
   padding: 0.45rem 0.75rem;
-  border: 1px solid #CCCCCC;
+  border: 1px solid var(--th-border-strong);
   border-radius: 6px;
   font-size: 0.82rem;
   outline: none;
@@ -519,23 +519,23 @@
 
 .cimd-btn--primary {
   background: linear-gradient(180deg, var(--app-primary-red-mid) 0%, var(--app-primary-red) 100%);
-  color: #fff;
+  color: var(--th-text-invert);
   border: 1px solid var(--app-primary-red-border);
 }
 .cimd-btn--primary:hover {
   background: linear-gradient(180deg, var(--app-primary-red) 0%, var(--app-primary-red-hover) 100%);
   box-shadow: 0 2px 8px rgba(127, 29, 29, 0.25);
-  color: #fff;
+  color: var(--th-text-invert);
 }
 
 .cimd-btn--secondary {
   background: linear-gradient(180deg, var(--app-primary-red-mid) 0%, var(--app-primary-red) 100%);
-  color: #fff;
+  color: var(--th-text-invert);
   border: 1px solid var(--app-primary-red-border);
 }
 .cimd-btn--secondary:hover {
   background: linear-gradient(180deg, var(--app-primary-red) 0%, var(--app-primary-red-hover) 100%);
-  color: #fff;
+  color: var(--th-text-invert);
 }
 
 /* ---------- Setup step list ---------- */
@@ -555,7 +555,7 @@
   height: 28px;
   border-radius: 50%;
   background: #0f766e;
-  color: #fff;
+  color: var(--th-text-invert);
   font-size: 0.8rem;
   font-weight: 700;
   display: flex;
@@ -571,5 +571,5 @@
 }
 .cimd-setup-step-body span {
   font-size: 0.81rem;
-  color: #666666;
+  color: var(--th-text-muted);
 }
