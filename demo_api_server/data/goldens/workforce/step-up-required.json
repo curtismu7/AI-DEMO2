@@ -4,9 +4,9 @@
   "ucId": "UC7",
   "trigger": "submit a $600 expense",
   "expectedOutcome": "STEP_UP",
-  "capturedAt": "2026-07-27T00:27:59.520Z",
+  "capturedAt": "2026-08-28T20:05:27.908Z",
   "seedHash": "53b2bac25e5daf21",
-  "reply": "PingOne Authorize requires additional authentication before MCP tools can run.",
+  "reply": "PingOne Authorize requires additional authentication before this tool can run.",
   "agentPath": null,
-  "tokenEventCount": 13
+  "tokenEventCount": 21
 }
