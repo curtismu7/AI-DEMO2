@@ -182,6 +182,11 @@ services:
       # fetches use the service name. The authorize URL handed to the browser
       # deliberately keeps the advertised localhost form.
       MCP_FACADE_AGENT_GATEWAY_AS_INTERNAL: "http://mcp-gateway:3005"
+      # Operator-registered client on the gateway broker. The broker refuses
+      # non-loopback redirect_uris and pins every DYNAMIC client to mcp:invoke
+      # (both deliberate — /oauth/register is unauthenticated), so this
+      # server-side relay cannot be a dynamic client and must be configured.
+      AGENT_GATEWAY_BROKER_CLIENT_ID: "ai-demo-bff-audit"
       # Open-access demo flag — same value the mcp-server gets. The BFF reads it
       # only to gate /api/path/demo-subject-token (mints the demo-user token the
       # mcp-server needs as a Step 9 subject_token on the Privilege open-access
@@ -806,6 +811,14 @@ services:
       # bearer token unchanged, same as ping-gateway's rsFilter->ReverseProxyHandler chain.
       MCP_WEATHER_BACKEND_URL: "http://mcp-weather:8896"
       MCP_BRAVE_BACKEND_URL: "http://mcp-brave:8897"
+      # Static broker client for the BFF relay (see ClientRegistry.seedStaticClient).
+      # Non-loopback redirect and a scope narrower than mcp:invoke — both only
+      # legitimate because this comes from server config, not an anonymous
+      # registration request.
+      MCP_GW_OAUTH_STATIC_CLIENT_ID: "ai-demo-bff-audit"
+      MCP_GW_OAUTH_STATIC_CLIENT_NAME: "AI Demo BFF (audit door)"
+      MCP_GW_OAUTH_STATIC_REDIRECT_URIS: "https://local.ping-devops.com:4000/api/privilege-mcp/auth/callback,https://ai-demo.ping-devops.com/api/privilege-mcp/auth/callback"
+      MCP_GW_OAUTH_STATIC_SCOPE: "audit:read"
       MCP_AUDIT_BACKEND_URL: "http://mcp-audit:8898"
       BFF_WEATHER_FLAG_URL: "https://api.ping.demo:3001/internal/feature-flags/weather-mcp-showcase"
       BFF_BRAVE_FLAG_URL: "https://api.ping.demo:3001/internal/feature-flags/brave-mcp-showcase"
