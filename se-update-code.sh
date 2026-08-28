@@ -205,14 +205,21 @@ if [[ "$SERVICE" == "--promote" ]]; then
   shift 2
   KEYS="${*:-$ALL_KEYS}"
 
+  # Validate every key before anything mutates (login, retag) — otherwise
+  # `--promote <sha> llm notakey` would retag llm to :latest and only then
+  # die on notakey, leaving the registry moved with exit 1 and nothing rolled.
+  for key in $KEYS; do
+    [[ -n "$(ghcr_img "$key")" ]] || die "Unknown service '$key'. Valid: ${ALL_KEYS}"
+  done
+
   info "Logging in to GHCR..."
+  docker logout ghcr.io >/dev/null 2>&1 || true
   gh auth token | docker login ghcr.io -u "$GITHUB_OWNER" --password-stdin \
     || die "GHCR login failed — run: gh auth login"
 
   promoted=""; skipped=""
   for key in $KEYS; do
     g_img="$(ghcr_img "$key")"
-    [[ -n "$g_img" ]] || die "Unknown service '$key'. Valid: ${ALL_KEYS}"
     src="${REGISTRY}/${g_img}:sha-${SHA}"
     if ! docker buildx imagetools inspect "$src" >/dev/null 2>&1; then
       skipped="${skipped} ${key}"
@@ -230,11 +237,21 @@ if [[ "$SERVICE" == "--promote" ]]; then
   [[ -n "$promoted" ]] || die "No image carries tag sha-${SHA} — did CI build this commit?"
   [[ -n "$skipped" ]] && warn "No sha-${SHA} image for:${skipped}"
 
+  # gateway and authz both map to the mcp-gateway deployment — dedupe so a
+  # default promote doesn't roll it twice (same idiom as the force-restart
+  # loop below).
+  seen=""
   for key in $promoted; do
     dep="$(k8s_dep "$key")"
+    case " $seen " in *" $dep "*) continue ;; esac
+    seen="$seen $dep"
     info "Rolling deployment/${dep} in $NS..."
     kubectl rollout restart "deployment/${dep}" -n "$NS"
-    kubectl rollout status  "deployment/${dep}" -n "$NS" --timeout=180s
+    # llm-proxy's rollout wait is known to time out while llama-tier5 loads
+    # its model — warn, don't die, or a fully-promoted-and-rolled deploy
+    # exits 1 and suppresses the success line below.
+    kubectl rollout status "deployment/${dep}" -n "$NS" --timeout=180s \
+      || warn "Rollout wait timed out for ${dep} — check with: kubectl rollout status deployment/${dep} -n ${NS}"
   done
   success "Promoted sha-${SHA}:${promoted}"
   exit 0
