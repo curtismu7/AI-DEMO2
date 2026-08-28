@@ -361,9 +361,9 @@
 }
 
 .config-page__callout--purple {
-  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  background: var(--th-bg-inset);
   border-color: rgba(100, 116, 139, 0.35);
-  color: #334155;
+  color: var(--th-text-body);
 }
 
 .config-page__divider {
@@ -528,14 +528,14 @@
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  background: #fff;
+  background: var(--th-bg-card);
   border: 1px solid var(--p1-border);
   border-radius: 10px;
   padding: 0.75rem 1.25rem;
   cursor: pointer;
   font-size: 0.9375rem;
   font-weight: 600;
-  color: #374151;
+  color: var(--th-text-body);
   text-align: left;
   transition:
     background 0.15s,
@@ -698,7 +698,7 @@
 .config-page__industry-logo {
   flex-shrink: 0;
   border-radius: 10px;
-  background: #fff;
+  background: var(--th-bg-card);
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
 }
 
@@ -739,7 +739,7 @@
 }
 
 .config-page__agent-scope-row:hover {
-  border-color: #cccccc;
+  border-color: var(--th-border-strong);
 }
 
 .config-page__agent-scope-row--on {
@@ -762,7 +762,7 @@
 
 .config-page__agent-scope-code {
   font-size: 0.72rem;
-  color: #374151;
+  color: var(--th-text-body);
   word-break: break-word;
   overflow-wrap: break-word;
 }

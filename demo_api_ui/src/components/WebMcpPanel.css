@@ -79,7 +79,7 @@
 
 .webmcp-discovery-phase__technical {
   font-size: var(--font-size-2xs);
-  color: #64748b;
+  color: var(--th-text-muted);
   font-family: var(--font-mono);
 }
 
@@ -174,7 +174,7 @@
   width: 14px;
   height: 14px;
   border: 2px solid rgba(255, 255, 255, 0.4);
-  border-top-color: #fff;
+  border-top-color: var(--th-text-invert);
   border-radius: 50%;
   animation: webmcp-spin 0.7s linear infinite;
   flex-shrink: 0;
@@ -237,8 +237,8 @@
   margin-bottom: 4px;
   padding: 6px 8px;
   border-radius: 3px;
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
 }
 
 /* ── Result area ────────────────────────────────────────────────────────── */
@@ -356,8 +356,8 @@
 .webmcp-error pre {
   margin: 6px 0 0;
   padding: 8px;
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
   border-radius: 4px;
   font-size: var(--font-size-sm);
   color: #0f2044;
@@ -371,7 +371,7 @@
   margin: 6px 0 8px;
   font-family: var(--font-mono);
   font-size: var(--font-size-2xs);
-  color: #94a3b8;
+  color: var(--th-text-faint);
 }
 
 .webmcp-error__summary {
@@ -384,7 +384,7 @@
 .webmcp-error__summary th {
   text-align: right;
   padding: 2px 8px 2px 0;
-  color: #94a3b8;
+  color: var(--th-text-faint);
   font-weight: 500;
   white-space: nowrap;
   vertical-align: top;
@@ -395,19 +395,19 @@
   text-align: left;
   padding: 2px 0;
   font-family: var(--font-mono);
-  color: #1e293b;
+  color: var(--th-text-body);
   word-break: break-word;
 }
 
 .webmcp-error__full {
   margin-top: 8px;
   padding-left: 8px;
-  border-left: 2px solid #e2e8f0;
+  border-left: 2px solid var(--th-border);
 }
 
 .webmcp-error__full > summary {
   font-size: var(--font-size-2xs);
-  color: #94a3b8;
+  color: var(--th-text-faint);
   cursor: pointer;
 }
 

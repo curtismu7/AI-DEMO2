@@ -263,6 +263,29 @@ textarea {
   --th-border: #dbe2ea;
   --th-border-strong: #c3cdd9;
   --th-bg-hover: #eef2f7;
+
+  /* ── The --color-* family, finally defined ────────────────────────────
+     24 of these were referenced 225 times across 14 files and declared
+     NOWHERE. Every use carries a fallback, so nothing looked broken — but the
+     token was a fiction: the rule reads as themed while no theme switch can
+     reach it, and the same token fell back to different colours in different
+     files (--color-text-secondary was #374151 in one and #555 in another).
+     Aliasing them onto --th-* makes those 225 uses themed and collapses the
+     drift, without touching a single consuming file.
+
+     NOT defined here: --color-primary / --color-accent / --color-danger. Their
+     fallbacks disagree across files (#005f99 vs #4f46e5 — a teal and an
+     indigo), so picking one is a brand decision, not a cleanup. They keep
+     rendering their per-file fallback exactly as today. */
+  --color-text: var(--th-text);
+  --color-text-primary: var(--th-text);
+  --color-heading: var(--th-text);
+  --color-text-secondary: var(--th-text-body);
+  --color-text-muted: var(--th-text-muted);
+  --color-border: var(--th-border);
+  --color-surface: var(--th-bg-card);
+  --color-background-light: var(--th-bg-inset);
+  --color-header-bg: var(--th-bg-inset);
   --th-code-bg: #f1f5f9;
   --th-code-text: #0f172a;
 

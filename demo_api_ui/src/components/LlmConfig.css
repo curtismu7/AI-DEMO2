@@ -9,20 +9,20 @@
   margin: 0 0 0.35rem;
   font-size: 1.25rem;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--th-text);
   letter-spacing: -0.01em;
 }
 .cfg-page-heading p {
   margin: 0;
   font-size: 0.875rem;
-  color: #64748b;
+  color: var(--th-text-muted);
 }
 
 /* ── Provider selector label ────────────────────────────────── */
 .cfg-provider-label {
   font-size: 0.72rem;
   font-weight: 700;
-  color: #64748b;
+  color: var(--th-text-muted);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   margin-bottom: 0.75rem;
@@ -31,10 +31,10 @@
 /* ── Segmented provider selector ────────────────────────────── */
 .cfg-segment-wrap {
   display: inline-flex;
-  border: 1.5px solid #cbd5e1;
+  border: 1.5px solid var(--th-border-strong);
   border-radius: 12px;
   overflow: hidden;
-  background: #f1f5f9;
+  background: var(--th-bg-inset);
   padding: 3px;
   gap: 2px;
   margin-bottom: 1.75rem;
@@ -42,7 +42,7 @@
 .cfg-segment-btn {
   padding: 9px 22px;
   background: transparent;
-  color: #475569;
+  color: var(--th-text-body);
   border: none;
   border-radius: 9px;
   font-size: 0.875rem;
@@ -56,7 +56,7 @@
   font-family: inherit;
 }
 .cfg-segment-btn--active {
-  background: #fff;
+  background: var(--th-bg-card);
   color: #1e40af;
   font-weight: 700;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
@@ -68,7 +68,7 @@
 .cfg-segment-status--active   { color: #16a34a; }
 .cfg-segment-status--warn     { color: #d97706; }
 .cfg-segment-status--error    { color: #dc2626; }
-.cfg-segment-status--unknown  { color: #94a3b8; }
+.cfg-segment-status--unknown  { color: var(--th-text-faint); }
 
 /* ── Tier model table ───────────────────────────────────────── */
 .cfg-table {
@@ -78,20 +78,20 @@
 .cfg-table td {
   text-align: left;
   padding: 0.5rem 0.65rem;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--th-border);
   vertical-align: top;
 }
 .cfg-table th {
   font-size: 0.7rem;
   font-weight: 700;
-  color: #64748b;
+  color: var(--th-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
 .cfg-card {
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
   border-radius: 14px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   overflow: hidden;
@@ -108,12 +108,12 @@
 .cfg-card-title {
   font-size: 0.95rem;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--th-text);
   margin: 0 0 2px;
 }
 .cfg-card-sub {
   font-size: 0.78rem;
-  color: #64748b;
+  color: var(--th-text-muted);
   margin: 0;
 }
 .cfg-card-sub a {
@@ -140,7 +140,7 @@
 .cfg-badge--active        { background: #dcfce7; color: #15803d; }
 .cfg-badge--unconfigured  { background: #fef9c3; color: #854d0e; }
 .cfg-badge--unreachable   { background: #fee2e2; color: #991b1b; }
-.cfg-badge--loading       { background: #f1f5f9; color: #64748b; }
+.cfg-badge--loading       { background: var(--th-bg-inset); color: var(--th-text-muted); }
 
 /* ── Field grid ─────────────────────────────────────────────── */
 .cfg-grid {
@@ -162,7 +162,7 @@
 .cfg-label {
   font-size: 0.72rem;
   font-weight: 700;
-  color: #64748b;
+  color: var(--th-text-muted);
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -170,12 +170,12 @@
   font-weight: 400;
   text-transform: none;
   font-size: 0.72rem;
-  color: #94a3b8;
+  color: var(--th-text-faint);
   margin-left: 4px;
 }
 .cfg-hint {
   font-size: 0.72rem;
-  color: #94a3b8;
+  color: var(--th-text-faint);
   margin: 0;
 }
 
@@ -183,11 +183,11 @@
 .cfg-input,
 .cfg-select {
   padding: 9px 12px;
-  border: 1.5px solid #d1d5db;
+  border: 1.5px solid var(--th-border-strong);
   border-radius: 8px;
   font-size: 0.875rem;
-  color: #111827;
-  background: #fff;
+  color: var(--th-text);
+  background: var(--th-bg-card);
   width: 100%;
   box-sizing: border-box;
   font-family: inherit;
@@ -230,31 +230,31 @@
 }
 .cfg-btn--primary {
   background: #2563eb;
-  color: #fff;
+  color: var(--th-text-invert);
   border: none;
 }
 .cfg-btn--primary:hover:not(:disabled) { background: #1d4ed8; }
 .cfg-btn--green {
   background: #059669;
-  color: #fff;
+  color: var(--th-text-invert);
   border: none;
 }
 .cfg-btn--green:hover:not(:disabled) { background: #047857; }
 .cfg-btn--purple {
   background: #7c3aed;
-  color: #fff;
+  color: var(--th-text-invert);
   border: none;
 }
 .cfg-btn--purple:hover:not(:disabled) { background: #6d28d9; }
 .cfg-btn--secondary {
-  background: #f8fafc;
-  color: #374151;
-  border: 1.5px solid #e2e8f0;
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
+  border: 1.5px solid var(--th-border);
   font-weight: 500;
 }
-.cfg-btn--secondary:hover:not(:disabled) { background: #f1f5f9; }
+.cfg-btn--secondary:hover:not(:disabled) { background: var(--th-bg-inset); }
 .cfg-btn--danger {
-  background: #fff;
+  background: var(--th-bg-card);
   color: #dc2626;
   border: 1.5px solid #fecaca;
   font-weight: 500;
@@ -265,16 +265,16 @@
 /* ── Info / setup boxes ─────────────────────────────────────── */
 .cfg-info-panel {
   padding: 0.875rem 1rem;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
   border-radius: 10px;
   font-size: 0.82rem;
-  color: #374151;
+  color: var(--th-text-body);
 }
 .cfg-info-panel strong {
   display: block;
   margin-bottom: 0.35rem;
-  color: #0f172a;
+  color: var(--th-text);
   font-size: 0.82rem;
 }
 .cfg-info-panel ul {
@@ -285,21 +285,21 @@
 .cfg-setup-box {
   margin-bottom: 1.5rem;
   padding: 1rem 1.25rem;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
   border-radius: 10px;
 }
 .cfg-setup-box p {
   margin: 0 0 0.6rem;
   font-weight: 700;
   font-size: 0.85rem;
-  color: #0f172a;
+  color: var(--th-text);
 }
 .cfg-setup-box ol {
   margin: 0;
   padding-left: 1.25rem;
   font-size: 0.85rem;
-  color: #374151;
+  color: var(--th-text-body);
   line-height: 1.8;
 }
 
@@ -339,7 +339,7 @@
 }
 .cfg-progress-track {
   height: 6px;
-  background: #e5e7eb;
+  background: var(--th-bg-hover);
   border-radius: 3px;
   overflow: hidden;
   margin-bottom: 0.4rem;
@@ -352,15 +352,15 @@
 }
 .cfg-progress-label {
   font-size: 0.78rem;
-  color: #6b7280;
+  color: var(--th-text-muted);
   margin: 0;
 }
 
 /* ── Code block ─────────────────────────────────────────────── */
 .cfg-code {
   display: block;
-  background: #f3f4f6;
-  border: 1px solid #e5e7eb;
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
   border-radius: 6px;
   padding: 0.5rem 0.75rem;
   font-size: 0.82rem;
