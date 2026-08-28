@@ -100,15 +100,12 @@ describe('Feature Flags Route', () => {
       expect(res.body.flags.find(f => f.id === 'ff_admin_skin_ping2026')).toBeUndefined();
     });
 
-    it('registers ff_customer_skin_ping2026 with default false', async () => {
+    // ff_customer_skin_ping2026 chose between this dashboard and a frozen
+    // classic one. The classic component is gone — 97% duplicated, 52 unique
+    // lines, no capability of its own — so there is nothing left to switch.
+    it('no longer registers ff_customer_skin_ping2026', async () => {
       const res = await request(app).get('/api/admin/feature-flags');
-      const flag = res.body.flags.find(f => f.id === 'ff_customer_skin_ping2026');
-      expect(flag).toBeDefined();
-      expect(flag.type).toBe('boolean');
-      expect(flag.defaultValue).toBe(false);
-      expect(flag.value).toBe(false);
-      expect(flag.category).toBe('UI / Dashboard');
-      expect(flag.name).toBe('Customer UI — New Ping2026 Skin');
+      expect(res.body.flags.find(f => f.id === 'ff_customer_skin_ping2026')).toBeUndefined();
     });
 
     it('registers ff_sidebar_customization with default true', async () => {

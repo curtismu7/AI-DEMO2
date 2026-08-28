@@ -1,6 +1,6 @@
 /* eslint-disable import/first -- jest.mock must precede imports */
 
-// Polyfill window.scrollTo for jsdom (UserDashboard handlers reference it)
+// Polyfill window.scrollTo for jsdom (dashboard handlers reference it)
 if (typeof window !== "undefined" && !window.scrollTo) {
   window.scrollTo = jest.fn();
 }
@@ -118,15 +118,24 @@ vi.mock("react-toastify", () => ({
   },
 }));
 
-import React from "react";
-import { render, waitFor } from "@testing-library/react";
-import UserDashboard from "../../components/UserDashboard";
+// This test used to render the classic UserDashboard in jsdom and query the
+// container. That component is deleted, and the obvious retarget — render
+// UserDashboardPing2026 instead — is the wrong move: it is ~3,700 lines with a
+// large provider surface, which is exactly why FocusModeFilmstripGuard checks it
+// statically rather than rendering it. Rendering it here made this file the
+// heaviest in the suite for a one-attribute assertion.
+//
+// The assertion itself is unchanged in meaning: data-refined-surface="customer"
+// is what the refined-surface CSS keys on, and it must stay on the dashboard
+// root. Asserted against the source, like the other guards on this component.
+const fs = require("node:fs");
+const path = require("node:path");
 
-test("customer dashboard renders a refined surface container", async () => {
-  const { container } = await waitFor(() => render(<UserDashboard user={{ name: "Demo" }} />));
-  await waitFor(() =>
-    expect(
-      container.querySelector('[data-refined-surface="customer"]'),
-    ).not.toBeNull(),
+test("customer dashboard root carries the refined surface hook", () => {
+  const src = fs.readFileSync(
+    path.resolve(__dirname, "../../components/UserDashboardPing2026.js"),
+    "utf8",
   );
+  expect(src).toContain('data-refined-surface="customer"');
+  expect(src).toContain("refined-customer-surface");
 });

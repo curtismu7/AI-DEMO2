@@ -133,26 +133,16 @@ function fail(msg) {
     // fold. We are already signed in on /dashboard after a real run, so the
     // check costs nothing.
     //
-    // Only the Ping2026 skin has a reel. When ff_customer_skin_ping2026 is off
-    // — as it is on ai-demo.ping-devops.com — /dashboard renders the FROZEN
-    // classic UserDashboard, which has no filmstrip by design and a static
-    // guard forbidding one. Asserting unconditionally made this canary fail
-    // every run on the very deployment it watches, and a permanently-red canary
-    // takes the UC1 check down with it.
-    //
-    // `.customer-skin-p1` is the discriminator, and it is the ONLY one: the two
-    // dashboards' root elements are otherwise near-identical, and the classic
-    // one carries `user-dashboard--2026`, `refined-customer-surface` and
-    // `data-rd-v2` as well — the first version of this gate used
-    // `.user-dashboard--2026` and would have skipped nothing.
-    // `customer-skin-p1` appears 0 times in UserDashboard.js and on both
-    // Ping2026 roots. The clinical-split layout is one of those roots and has no
-    // reel by design, so it is excluded too. FocusModeFilmstripGuard.test.js
-    // locks both facts.
+    // The skin half of this gate is gone with the classic dashboard: there is
+    // one customer dashboard now, so /dashboard always has a reel unless the
+    // clinical-split layout is on, which replaces it with an audit timeline by
+    // design. (The gate used to also test `.customer-skin-p1` to tell the
+    // Ping2026 dashboard from the frozen classic one — and before that, wrongly,
+    // `.user-dashboard--2026`, which BOTH dashboards carried, so it skipped
+    // nothing and the canary failed every run.)
     const reel = await page.evaluate(() => {
-      const skin = !!document.querySelector('.customer-skin-p1');
       const clinical = !!document.querySelector('.user-dashboard--clinical-split');
-      const expected = skin && !clinical;
+      const expected = !clinical;
       const el = document.querySelector('.tcfs-chain');
       if (!el) return { expected, clinical, present: false };
       const r = el.getBoundingClientRect();
@@ -166,9 +156,7 @@ function fail(msg) {
       };
     });
     if (!reel.expected) {
-      console.log(
-        `canary: ${reel.clinical ? 'clinical-split layout' : 'classic dashboard skin (ff_customer_skin_ping2026 off)'} — no reel by design, reel check skipped`,
-      );
+      console.log('canary: clinical-split layout — no reel by design, reel check skipped');
     } else if (!reel.present) {
       await shoot('canary-reel-missing.png');
       fail('movie reel (.tcfs-chain) is not in the DOM on /dashboard');

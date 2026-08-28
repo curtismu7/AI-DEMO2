@@ -9,7 +9,6 @@
  *   5. At least one Transfer button in the DOM
  *   6. TransactionConsentModal not open on mount
  *   7. OTP modal overlay not in DOM on mount
- *   8. UserDashboard.js is byte-for-byte frozen (sha256 canary)
  *
  * Test setup: fetch is mocked globally; react-router-dom hooks are mocked;
  * required contexts are provided with minimal stubs.
@@ -313,35 +312,7 @@ test("9. ConfirmModal (Reset Demo) mounts in clinical-split branch when showRese
   }
 });
 
-test("8. UserDashboard.js is byte-for-byte frozen (sha256 canary)", () => {
-  // Re-baselined 2026-08-23: the inline recent-transactions sort/group IIFE
-  // (finding #56, runtime audit round 3) was pulled into a `useMemo` keyed on
-  // `transactions` so it doesn't re-run on every unrelated re-render — pure
-  // perf, no behavior change.
-  // Re-baselined 2026-08-18 (3): removed the dead applyDemoTransaction path —
-  // every caller sits behind `if (!user) return` while isDemoMode is only true
-  // signed OUT, so the branch was unreachable; it hid an unguarded
-  // money-creation shape (`to` credited in full, `from` clamped at 0) worth
-  // deleting before it was ever wired live (bug-hunt honourable mention).
-  // Earlier 2026-08-18 (2): register both resize drags' teardown in a
-  // dragCleanupRef invoked on unmount, so a route change mid-drag no longer
-  // leaks document listeners / a stuck body cursor (same fix as
-  // EmbeddedAgentDock). Earlier 2026-08-18: customer-dashboard step-up lifecycle fixes —
-  // guard the email-OTP agent-resume broadcast on agentTriggeredStepUp (FIX 6),
-  // clear the CIBA auto-initiate timers in dismissStepUp / toast onClose /
-  // effect cleanup (FIX 7), and reset agentTriggeredStepUp on the push-timeout,
-  // TOTP-expiry and OTP-expiry failure paths (FIX 8). Earlier 2026-08-09 (2):
-  // an admin_token_forbidden 403 now falls back to demo data instead of an
-  // error toast. Earlier same-day: dropped the StaleSessionBanner mount and
-  // import. Previous 2026-08-07: guard 401 redirect when propUser is null.
-  // If this test fails, UserDashboard.js was modified — confirm the change
-  // is intended, then update this hash.
-  const FROZEN_SHA256 =
-    "7ee6bda08a90d4b3447e645d80abc2a4292e016a81212f5430f51f566f980848";
-
-  const filePath = node_path.resolve(__dirname, "../UserDashboard.js");
-  const content = node_fs.readFileSync(filePath);
-  const actual = node_crypto.createHash("sha256").update(content).digest("hex");
-
-  expect(actual).toBe(FROZEN_SHA256);
-});
+// Test 8 was a byte-for-byte sha256 canary over UserDashboard.js, the frozen
+// classic dashboard. That component is deleted, so there is nothing to freeze:
+// the guard that replaced it lives in FocusModeFilmstripGuard.test.js and
+// asserts exactly one customer dashboard component exists.

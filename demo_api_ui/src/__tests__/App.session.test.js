@@ -100,9 +100,6 @@ vi.mock("../components/LandingPage", () => ({ default: () => (
 vi.mock("../components/Dashboard", () => ({ default: () => (
   <div data-testid="dashboard" />
 ) }));
-vi.mock("../components/UserDashboard", () => ({ default: () => (
-  <div data-testid="user-dashboard" />
-) }));
 vi.mock("../components/AIAgent", () => ({ default: () => null }));
 vi.mock("../components/CIBAPanel", () => ({ default: () => null }));
 vi.mock("../components/CimdSimPanel", () => ({ default: () => null }));
