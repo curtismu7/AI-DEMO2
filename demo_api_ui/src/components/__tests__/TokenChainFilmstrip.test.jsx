@@ -65,20 +65,21 @@ test("zoom controls resize the step-detail sheet and persist across the same key
   const reset = screen.getByRole("button", { name: "Reset token chain text size" });
   const sheetBody = document.querySelector(".tcfs-sheet-body");
 
+  // Opens at the 120% default, not 100% — the sheet is read off a projector.
   expect(reset).toBeDisabled();
-  expect(sheetBody.style.zoom).toBe("1");
+  expect(sheetBody.style.zoom).toBe("1.2");
 
   fireEvent.click(bigger);
-  expect(sheetBody.style.zoom).toBe("1.1");
+  expect(sheetBody.style.zoom).toBe("1.3");
   expect(reset).not.toBeDisabled();
-  expect(localStorage.getItem("tctr:zoom")).toBe("1.1");
+  expect(localStorage.getItem("tctr:zoom:v2")).toBe("1.3");
 
   fireEvent.click(smaller);
   fireEvent.click(smaller);
-  expect(sheetBody.style.zoom).toBe("0.9");
+  expect(sheetBody.style.zoom).toBe("1.1");
 
   fireEvent.click(reset);
-  expect(sheetBody.style.zoom).toBe("1");
+  expect(sheetBody.style.zoom).toBe("1.2");
   expect(reset).toBeDisabled();
 });
 
