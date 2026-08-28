@@ -47,7 +47,7 @@
   font-weight: 700;
   border-radius: 999px;
   padding: 2px 9px;
-  background: #e2e8f0;
+  background: var(--th-bg-hover);
   color: var(--th-text);
 }
 

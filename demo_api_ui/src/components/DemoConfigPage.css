@@ -229,7 +229,7 @@
   padding: 7px 9px;
   border: 1px solid #e2e8f0;
   border-radius: 6px;
-  background: #f8fafc;
+  background: var(--th-bg-inset);
   margin-bottom: 8px;
   box-sizing: border-box;
 }
@@ -366,7 +366,7 @@
 .dc-child-item {
   font-size: 11.5px;
   color: var(--th-text);
-  background: #f8fafc;
+  background: var(--th-bg-inset);
   border: 1px solid #e2e8f0;
   border-radius: 5px;
   padding: 2px 7px;

@@ -1791,7 +1791,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   padding-left: 8px;
 }
 .banking-agent-msg.token-event .banking-agent-msg-bubble {
-  background: #f0f7ff;
+  background: var(--th-bg-inset);
   color: var(--th-text);
   border: 1px solid #bfdbfe;
   border-left: 4px solid #1d4ed8;
@@ -5111,7 +5111,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   padding: 6px 12px;
   border-radius: 6px;
   border: 1px solid var(--th-border-strong);
-  background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%);
+  background: var(--th-bg-inset);
   color: var(--th-text);
   font-size: var(--font-size-sm);
   font-weight: 600;

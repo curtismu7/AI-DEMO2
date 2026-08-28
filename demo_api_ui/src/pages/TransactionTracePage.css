@@ -1,6 +1,6 @@
 .ttrace-page {
   padding: 20px;
-  background: #f9fafb;
+  background: var(--th-bg-card);
   min-height: 100vh;
   max-width: 1200px;
   margin: 0 auto;
@@ -54,7 +54,7 @@
   cursor: pointer;
 }
 
-.ttrace-row:hover { background: #f3f4f6; }
+.ttrace-row:hover { background: var(--th-bg-inset); }
 .ttrace-time { color: var(--th-text, #111827); font-variant-numeric: tabular-nums; }
 .ttrace-cid { font-family: var(--font-mono); flex: 1; }
 .ttrace-count { color: var(--th-text, #111827); }
@@ -92,7 +92,7 @@
 /* Unknown must not read as a failure — an unavailable witness is not tampering. */
 .ttrace-recon.match { background: #ecfdf5; color: #047857; }
 .ttrace-recon.mismatch { background: #fef2f2; color: #b91c1c; }
-.ttrace-recon.unknown { background: #f3f4f6; color: var(--th-text, #111827); border-style: dashed; }
+.ttrace-recon.unknown { background: var(--th-bg-inset); color: var(--th-text, #111827); border-style: dashed; }
 
 .ttrace-links { margin-left: auto; display: flex; gap: 12px; font-size: var(--font-size-sm); }
 .ttrace-links a { color: #1d4ed8; font-weight: 600; text-decoration: none; }
@@ -149,8 +149,8 @@
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: #fff;
-  border: 2px solid #d1d5db;
+  background: var(--th-bg-card);
+  border: 2px solid var(--th-border-strong);
   color: var(--th-text, #111827);
   font-size: var(--font-size-xs);
   font-weight: 700;
@@ -183,7 +183,7 @@
 .ttrace-derived {
   font-size: var(--font-size-xs);
   color: var(--th-text, #111827);
-  background: #f3f4f6;
+  background: var(--th-bg-inset);
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   padding: 0 6px;
