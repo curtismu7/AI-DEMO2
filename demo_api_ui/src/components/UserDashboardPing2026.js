@@ -45,7 +45,6 @@ import TokenChainTraceRail from "./TokenChainTraceRail";
 import { useSessionToken } from '../context/SessionTokenContext';
 import ConfirmModal from "./ConfirmModal";
 import TransactionConsentModal from "./TransactionConsentModal";
-import EmbeddedAgentDock from "./EmbeddedAgentDock";
 import WebMcpPanel from "./WebMcpPanel";
 import FloatingPanel from "./FloatingPanel";
 import "./UserDashboard.css";
@@ -54,7 +53,6 @@ import OAuthTokenDisplayPage from "./OAuthTokenDisplayPage";
 import { useVertical } from "../vertical/useVertical";
 import RetailDashboard from "./RetailDashboard";
 import AgentClinicalHost from "./agent-clinical/AgentClinicalHost";
-import AgentIdentityCard from "./AgentIdentityCard";
 
 /** Format a number as USD currency — $1,234.56 */
 const fmt = (n) =>
@@ -3610,40 +3608,14 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           {showFilmstrip && <TokenChainFilmstrip />}
         </div>
       ) : (
-        // V2 bottom-dock layout: 2-col grid (main + rail) + fixed dock + under-the-hood panels
-        // OR float mode when agentPlacement === 'none': 2-column layout — token rail + content; FAB from App.js
-        agentPlacement === "bottom" ? (
-          <>
-            <div className="rd2-page-grid">
-              <main
-                className="rd2-main-col"
-                id="main-dashboard-content"
-                tabIndex={-1}
-              >
-                {isRetailDashboard ? (
-                  <RetailDashboard data={pageMockData} />
-                ) : (
-                  renderBankingMain()
-                )}
-              </main>
-              <aside className="rd2-right-rail" aria-label="Agent and token chain">
-                <AgentIdentityCard />
-                <div className="rd2-token-card">
-                  <ExchangeModeToggle hideTable />
-                  <TokenChainTraceRail />
-                </div>
-              </aside>
-            </div>
-            <EmbeddedAgentDock
-              user={user}
-              agentPlacement={agentPlacement}
-            />
-            {/* Movie reel filmstrip — toggled via More › Movie reel in the agent header */}
-            {showFilmstrip && <ReelDock />}
-          </>
-        ) : (
-          // Float mode ('none'): 2-column layout — token rail + content; FAB is a
-          // fixed overlay from App.js
+        // Float mode ('none'): 2-column layout — token rail + content; FAB is a
+        // fixed overlay from App.js.
+        //
+        // The bottom-dock layout used to sit here as a third branch. The picker
+        // stopped offering it ("Phase 4e"), so the only way into it was a value
+        // persisted before that — a layout nothing in the UI could enter or
+        // leave. AgentUiModeContext now coerces 'bottom' to 'middle', so those
+        // browsers land in Focus Mode on their next load.
           <div className="ud-body-outer">
             <div className="dashboard-content ud-body ud-body--2026 ud-body--floating ud-body--float-mode">
               <main
@@ -3697,7 +3669,6 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
             {/* Movie reel filmstrip — toggled via More › Movie reel in the agent header */}
             {showFilmstrip && <ReelDock />}
           </div>
-        )
       )}
 
       {/* Middle-layout open FAB — shown when middle placement hasn't been expanded yet.

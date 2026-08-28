@@ -738,20 +738,6 @@ const FLAG_REGISTRY = [
     defaultValue: true,
   },
   {
-    id:           'ff_admin_skin_ping2026',
-    name:         'Admin UI — New Ping Console Skin',
-    category:     'UI / Dashboard',
-    description:
-      'When **ON** (default), the admin sidebar and admin page chrome use the redesigned ' +
-      'PingOne console look — light sidebar, Ping wordmark, light-gray content background. ' +
-      'When **OFF**, the classic dark sidebar is shown. Visual skin only: nav items, routes, ' +
-      'and behavior are identical in both skins. Takes effect on next page load.',
-    impact:
-      'ON (default) = new Ping console skin. OFF = classic dark admin sidebar (instant revert, no redeploy).',
-    type:         'boolean',
-    defaultValue: true,
-  },
-  {
     id:           'ff_customer_skin_ping2026',
     name:         'Customer UI — New Ping2026 Skin',
     category:     'UI / Dashboard',

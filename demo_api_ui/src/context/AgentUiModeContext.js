@@ -6,7 +6,7 @@ const STORAGE_KEY_V2 = 'banking_agent_ui_v2';
 
 /**
  * @typedef {object} AgentUiState
- * @property {'middle' | 'bottom' | 'none'} placement — Middle = split-column agent host; bottom = full-width dashboard with agent dock at bottom; none = float-only.
+ * @property {'middle' | 'none'} placement — Middle = split-column agent host; none = float-only. ('bottom', the dock layout, was removed; persisted values coerce to middle.)
  * @property {boolean} fab — Also show floating FAB on dashboard routes (invalid with placement none unless true).
  */
 
@@ -55,17 +55,22 @@ function readState() {
       const p = o?.placement;
       const fab = o?.fab;
       const mode = typeof o?.mode === 'string' ? o.mode : null;
-      if ((p === 'middle' || p === 'bottom' || p === 'none') && typeof fab === 'boolean') {
+      if ((p === 'middle' || p === 'none') && typeof fab === 'boolean') {
         if (p === 'none' && !fab) {
           return { placement: 'none', fab: true, mode };
         }
         return { placement: p, fab, mode };
       }
-      // Any persisted placement outside the valid {middle, bottom, none} set —
-      // including the older 'right-dock' / 'left-dock' — coerces to middle so a
-      // persisted value never yields a no-agent state. Other unknown placements
-      // fall through to readLegacyMode() below.
-      if (p === 'right-dock' || p === 'left-dock') {
+      // Any persisted placement outside the valid {middle, none} set — including
+      // the retired 'bottom' dock and the older 'right-dock' / 'left-dock' —
+      // coerces to middle so a persisted value never yields a no-agent state.
+      // Other unknown placements fall through to readLegacyMode() below.
+      //
+      // 'bottom' joined that list when the dock layout was removed. The picker
+      // had already stopped offering it (AdminSideNav "Phase 4e"), so the only
+      // way to be in it was a value persisted before that — which meant a
+      // layout nothing in the UI could get you into or out of.
+      if (p === 'bottom' || p === 'right-dock' || p === 'left-dock') {
         return { placement: 'middle', fab: typeof fab === 'boolean' ? fab : true, mode };
       }
     }

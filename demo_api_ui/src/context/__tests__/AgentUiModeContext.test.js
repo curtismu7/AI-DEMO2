@@ -112,10 +112,13 @@ describe("persisted dock placements: removed coerce to middle, valid preserved",
 		expect(screen.getByTestId("placement")).toHaveTextContent("middle");
 	});
 
-	it("a persisted 'bottom' placement is preserved (v2 dashboard bottom-dock)", () => {
-		// 'bottom' was re-introduced as a first-class placement by the v2
-		// dashboard bottom-dock layout (0bb474b8); it is valid and must NOT be
-		// coerced. (Supersedes the earlier Phase-4d 'bottom archived' behaviour.)
+	it("a persisted 'bottom' placement coerces to middle (dock layout removed)", () => {
+		// This test asserted the opposite until the dock layout was removed.
+		// 'bottom' had been re-introduced as a first-class placement by the v2
+		// dashboard (0bb474b8), then quietly dropped from the picker in Phase 4e
+		// — leaving a layout that only a previously-persisted value could reach.
+		// The branch is gone now, so the value must coerce rather than select a
+		// layout that no longer renders.
 		localStorage.setItem(
 			STORAGE_KEY_V2,
 			JSON.stringify({ placement: "bottom", fab: true }),
@@ -125,7 +128,7 @@ describe("persisted dock placements: removed coerce to middle, valid preserved",
 				<ModeProbe />
 			</AgentUiModeProvider>,
 		);
-		expect(screen.getByTestId("placement")).toHaveTextContent("bottom");
+		expect(screen.getByTestId("placement")).toHaveTextContent("middle");
 		expect(screen.getByTestId("fab")).toHaveTextContent("1");
 	});
 });

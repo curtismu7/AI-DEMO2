@@ -7,43 +7,31 @@ function Probe() {
   return null;
 }
 
-const flagsResponse = (value) => ({
-  ok: true,
-  json: async () => ({ flags: [{ id: "ff_admin_skin_ping2026", value }] }),
-});
-
+// The flag-on / flag-off / fetch-failed cases are gone with the flag: there is
+// one admin skin now, so the hook has nothing to decide. What is still worth
+// pinning is that the class goes on, comes off on unmount, and that no network
+// call is involved — a fetch here would reintroduce the failure mode the flag
+// version had, where a slow or failed response left the admin chrome unstyled.
 describe("useAdminSkin", () => {
   afterEach(() => {
     document.body.classList.remove("admin-skin-p1");
     jest.restoreAllMocks();
   });
 
-  it("applies the body class when the flag is on", async () => {
-    jest.spyOn(global, "fetch").mockResolvedValue(flagsResponse(true));
+  it("applies the body class unconditionally", async () => {
     render(<Probe />);
     await waitFor(() =>
       expect(document.body.classList.contains("admin-skin-p1")).toBe(true),
     );
   });
 
-  it("removes the body class when the flag is off", async () => {
-    jest.spyOn(global, "fetch").mockResolvedValue(flagsResponse(false));
+  it("does not fetch feature flags", () => {
+    const fetchSpy = jest.spyOn(global, "fetch");
     render(<Probe />);
-    await waitFor(() =>
-      expect(document.body.classList.contains("admin-skin-p1")).toBe(false),
-    );
-  });
-
-  it("defaults to the new skin when the fetch fails", async () => {
-    jest.spyOn(global, "fetch").mockRejectedValue(new Error("network"));
-    render(<Probe />);
-    await waitFor(() =>
-      expect(document.body.classList.contains("admin-skin-p1")).toBe(true),
-    );
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it("removes the body class on unmount", async () => {
-    jest.spyOn(global, "fetch").mockResolvedValue(flagsResponse(true));
     const { unmount } = render(<Probe />);
     await waitFor(() =>
       expect(document.body.classList.contains("admin-skin-p1")).toBe(true),

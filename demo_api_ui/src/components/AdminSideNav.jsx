@@ -431,9 +431,6 @@ export default function AdminSideNav({
         setDashboardLayout("split3");
         next = { placement: "middle", fab };
         needsReload = false; // live context update — no flash
-      } else if (p === "bottom") {
-        setDashboardLayout("classic");
-        next = { placement: "bottom", fab };
       } else {
         next = { placement: "none", fab: true };
       }
@@ -1159,9 +1156,9 @@ export default function AdminSideNav({
     : navItems;
 
   // Agent UI placement options for the expandable dropdown.
-  // Phase 4e: Bottom dock removed from the picker (legacy code paths in
-  // App.js / EmbeddedAgentDock still understand placement === 'bottom' for
-  // back-compat with persisted state, but the option is no longer offered).
+  // Two layouts, and they are the only two: the bottom dock came out of this
+  // picker in Phase 4e and its code paths are now gone too, so a persisted
+  // 'bottom' coerces to middle in AgentUiModeContext.
   // 'middle' is rendered as "Embedded" — the dashboard split layout is
   // where the agent lives inline.
   const agentPlacementOptions = [

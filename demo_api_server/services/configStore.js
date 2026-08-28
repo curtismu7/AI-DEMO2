@@ -354,7 +354,6 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   mcp_inspector_pingone_live:      { public: true, default: 'true'  }, // PingOne MCP Inspector page queries the stdio server live (page-only; does NOT reroute agent calls)
   ff_show_agent_in_middle: { public: true, default: 'false' }, // Show banking column alongside centered agent (legacy dashboard layout)
   ff_customer_skin_ping2026: { public: true, default: 'false' }, // Customer dashboard new Ping2026 skin (component fork via DashboardContent). OFF by default — must match routes/featureFlags.js FLAG_REGISTRY (defaultValue:false); unfinished component, not for prod-on.
-  ff_admin_skin_ping2026:    { public: true, default: 'true'  }, // Admin dashboard new Ping2026 skin — ON by default
   ff_sidebar_customization:  { public: true, default: 'true'  }, // Per-user sidebar item visibility (Demo Config page); must match routes/featureFlags.js FLAG_REGISTRY (defaultValue:true)
   ff_preflight_modal:        { public: true, default: 'false' }, // Preflight modal on the dashboard (demo prep)
   ff_use_cases_launcher:     { public: true, default: 'true'  }, // Use-Case Launcher page at /use-cases (A5)
