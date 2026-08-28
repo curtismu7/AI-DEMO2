@@ -16,6 +16,77 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-08-28 — CI cannot push images: GHCR packages are user-owned, unlinked
+
+Every `push-image` job fails at its final step with
+`denied: permission_denied: write_package`. The build, the `docker tag`, and the
+matrix selection all succeed first — only the push is refused.
+
+The 14 `ai-demo-*` container packages were created by hand-pushes from a laptop,
+so GHCR records them as owned by the **user account** `curtismu7`. GitHub Actions
+authenticates as the **repository** via `GITHUB_TOKEN`, and a user-owned package
+grants no repository write access by default. All 14 report `repository: None` —
+they are linked to nothing. Confirmed empirically: `docker buildx imagetools
+create` against the same package succeeds when run with the user's own token, so
+the package is writable and only the Actions identity is denied.
+
+This is **not** a visibility issue. Visibility governs pull; this governs push.
+`ai-demo-frontend` is public and fails identically to the private ones.
+
+**Why it wasn't fixed now:** there is no REST endpoint for package Actions access
+on a user-owned package — the GitHub UI is the only route, one package at a time,
+and it is an account-settings change rather than anything in this repo. The
+`repository` field also does not reflect an Actions-access grant, so the grant
+cannot be verified by API either; only an actual push settles it.
+
+**The consequence while open:** no image exists for any merge, so **no commit is
+promotable**. `./se-update-code.sh --promote <sha>` correctly dies rather than
+promoting something stale, so this fails loudly rather than shipping wrong code —
+but SE still only moves by hand-built image, which is the gap this whole feature
+was built to close.
+
+**What the real fix looks like:** per package —
+`https://github.com/users/curtismu7/packages/container/<pkg>/settings` → Manage
+Actions access → Add Repository → `AI-DEMO2` → change role from the default
+**Read** to **Write**. Read alone fails with the identical message, which is the
+step most likely to be missed. Alternative if per-package clicking is untenable:
+a fine-grained PAT with `write:packages` as repo secret `GHCR_TOKEN`, swapped
+into `docker/login-action` in `.github/workflows/build-images.yml` — trades 14
+clicks for a long-lived broader-scoped credential in repo secrets.
+
+**To verify once granted** (no commit needed — the matrix is already correct):
+`gh run rerun 33165014221 --failed`, which is merge `09a755c10`, whose matrix
+selected `llm` alone. Then confirm the `sha-` tag exists and that `:latest` is
+still `sha256:76fc7bb2...`.
+
+### [ ] 2026-08-28 — post-merge verification of the promote path is incomplete
+
+Steps 4-5 of the CI build-and-push plan's post-merge checklist have never run,
+because every one of them needs an image that the entry above prevents existing:
+promoting a real SHA, watching the SE rollout, and proving the promoted code
+actually serves traffic (`/livez` -> 200 from inside the cluster).
+
+**Why it wasn't fixed now:** blocked entirely on the GHCR grant. Not a code gap.
+
+**Partially retired already:** the one piece that could be tested without a CI
+push has been — `docker buildx imagetools create` was exercised directly against
+`ai-demo-llm-proxy` on 2026-08-28: exit 0 in **1.2s**, and the log reads
+`copying sha256:db20e433...`, confirming it copies the manifest rather than
+re-resolving it, so a multi-arch image survives a promote. That was the design's
+load-bearing unproven assumption and it holds. The ~16-minute rebuild it replaces
+is the comparison that justifies the SHA-tag design.
+
+**What remains:** after the grant, promote a real SHA and confirm the pod serves
+it. A green `kubectl rollout status` is **not** sufficient evidence — on
+2026-08-27 `successfully rolled out` was reported while the pod was still the old
+crash-looping one. The checklist is in `.claude/HANDOFF-ci-build-push.md`.
+
+**Also note:** a stray `probe-delete-me` tag exists on `ai-demo-llm-proxy` from
+the `imagetools` verification. It shares `:latest`'s digest, and a GHCR "version"
+is a digest rather than a tag — so deleting that version via API would delete the
+image `:latest` points at. Remove it via the Versions UI or leave it; do not
+script its deletion.
+
 ### [ ] 2026-08-28 — two parallel module trees in demo_api_server (`X.js` vs `src/X.js`)
 
 `demo_api_server` carries near-duplicate copies of several modules at two
