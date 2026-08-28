@@ -147,6 +147,13 @@ demo_api_server/data/persistent/lmdb/data.mdb
 /restrictions.yaml
 /content-api.zip
 /out.txt
+/README (1).md
+/agentless-mcpgw/
+/agentless-mcpgw-*.tgz
+/privgateway-*.tgz
+/pingone-privgateway-helm-main.zip
+/deploy-privgateway.prompt.md
+/privilege/agentless-mcpgw-values.*.yaml
 
 # Encrypted credential vault — NEVER commit. This repo is PUBLIC, and the vault's
 # AES-256-GCM ciphertext is only as strong as VAULT_PASSWORD, which is the same
