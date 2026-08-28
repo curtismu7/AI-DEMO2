@@ -63,8 +63,8 @@
 | UC9 | [Group / entitlement check](./group-entitlement-check.md) | controls | 🚩 flag-gated (ff_authorize_group_policy) | 🛡️ T3 |  |
 | UC22 | [CIBA out-of-band approval](./ciba-out-of-band-approval.md) | hitl | 🚩 flag-gated (ciba_enabled) | 🛡️ T10 |  |
 | UC12 | [Token theft / replay defense](./token-theft-replay.md) | attacks | 🚩 flag-gated (ff_dpop) | 🛡️ T9 |  |
-| UC14 | [PAR intent violation (Pushed Auth Request)](./rar-intent-violation.md) | attacks | 🚩 flag-gated (ff_rar) | 🛡️ T6 |  |
-| UC14b | [PAR intent verified (PERMIT)](./rar-intent-verified.md) | learn | 🚩 flag-gated (ff_rar) |  |  |
+| UC14 | [PAR + RAR intent violation (pushed intent exceeded)](./par-rar-intent-violation.md) | attacks | 🚩 flag-gated (ff_rar) | 🛡️ T6 |  |
+| UC14b | [PAR + RAR intent verified (PERMIT)](./par-rar-intent-verified.md) | learn | 🚩 flag-gated (ff_rar) |  |  |
 | UC25 | [Enterprise-managed MCP access](./enterprise-managed-mcp-access.md) | controls | 🚩 flag-gated (ff_enterprise_managed_mcp_auth) | 🛡️ T8, T9 |  |
 | UC39 | [Centralized MCP revocation](./enterprise-mcp-revocation.md) | controls | 🚩 flag-gated (ff_enterprise_managed_mcp_auth) | 🛡️ T8, T9 |  |
 | UC40 | [Enterprise-Managed MCP Authorization (native ID-JAG)](./enterprise-managed-mcp-authorization.md) | controls | 🚩 flag-gated (ff_enterprise_managed_mcp_auth) | 🛡️ T8, T9 |  |

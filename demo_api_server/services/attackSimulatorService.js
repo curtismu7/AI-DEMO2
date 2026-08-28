@@ -57,7 +57,7 @@ const SIM_USE_CASE_IDS = {
   'cross-owner-account': 'cross-owner-account',
   'replayed-token': 'token-theft-replay',
   'rogue-actor': 'confused-deputy-actor-injection',
-  'rar-exceeded': 'rar-intent-violation',
+  'rar-exceeded': 'par-rar-intent-violation',
   'tampered-intent-token': 'intent-token-tampering',
   'impersonation-no-act': 'impersonation-blocked',
   'rate-limit-burst': 'rate-limit-defense',
@@ -1737,7 +1737,7 @@ async function runIntentBindingDemo(action, req, requestedAmount) {
       reason: 'No access token in session — user must be logged in', tokenChainEvents: [],
     };
   }
-  const useCaseId = 'rar-intent-verified';
+  const useCaseId = 'par-rar-intent-verified';
   const tokenChainEvents = [];
   return _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, requestedAmount);
 }

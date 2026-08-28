@@ -1022,7 +1022,7 @@ const RAW_USE_CASES = [
   },
   {
     id: 'UC14',
-    useCaseId: 'rar-intent-violation',
+    useCaseId: 'par-rar-intent-violation',
     track: 'attacks',
     title: 'PAR + RAR intent violation (pushed intent exceeded)',
     buyerStory: "An agent that exceeds the amount or payee granted via Pushed Authorization Request (RFC 9126) must be denied.",
@@ -1046,7 +1046,7 @@ const RAW_USE_CASES = [
   },
   {
     id: 'UC14b',
-    useCaseId: 'rar-intent-verified',
+    useCaseId: 'par-rar-intent-verified',
     track: 'learn',
     title: 'PAR + RAR intent verified (PERMIT)',
     buyerStory: 'A transfer that stays within its PAR (RFC 9126) request_uri authorization cap is verified and permitted — the legitimate counterpart to the PAR overage attack.',
