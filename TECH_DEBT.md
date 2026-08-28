@@ -16,6 +16,71 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-08-28 — UC34/UC35 sit on the 120s reasoning timeout: ~50% failure, measured
+
+**What's wrong.** `ai-spot-unusual-patterns` (UC34) and `ai-explain-last-denial`
+(UC35) fail roughly half the time, and have poisoned REPLAY goldens on at least
+three separate captures across different verticals — including one where the
+stack generation was UNCHANGED, so it is not the container-recreate class.
+
+Measured against the live stack on 2026-08-28, **after** the `:3006` 403 was
+fixed (so this is not that bug):
+
+| chip | run | elapsed | result |
+|---|---|---|---|
+| UC34 | 1 | **121.0s** | `reasoning_unavailable` |
+| UC34 | 2 | **121.2s** | `reasoning_unavailable` |
+| UC34 | 3 | 68.9s | ok — full markdown table |
+| UC35 | 1 | 90.8s | `empty_answer` |
+| UC35 | 2 | 35.5s | ok |
+| UC35 | 3 | 38.2s | ok |
+
+3/6 failed. `llm-timeouts.json` sets `REASON_LOOP_TIMEOUT_MS = 120000`; both
+UC34 failures returned at 121s. That is the ceiling, hit exactly.
+
+**Why this pair specifically.** They are the only two chips whose reply is
+free-form LLM prose. Every other chip returns a deterministic tool result.
+UC34's own definition says "the LLM decides what to look at and how to summarize
+it"; UC35's says it narrates the decision "not a canned script". So they are the
+only chips whose latency scales with how much the model chooses to write — and
+UC34 renders a markdown table, which is why it is the slower of the two and sits
+closest to the ceiling. Successful runs span 35s to 69s against a 120s limit:
+the margin is thin and the variance is large.
+
+**Why it poisons goldens rather than erroring.** The failure comes back as
+**HTTP 200** with the failure prose in the body. At the HTTP layer it looks like
+a success, so a capture records it. `scripts/golden-failure-prose.js` exists for
+exactly this and does catch it on both the capture and check sides — the guard
+works. What it cannot do is make the underlying call succeed.
+
+**Why it wasn't fixed now.** The obvious remedy — raise
+`REASON_LOOP_TIMEOUT_MS` — lands on a FROZEN LLM setting, and that value is read
+by six places including both Dockerfiles, `docker-compose.yml`, the UI's
+`demoAgentService.js` and a dedicated `demoAgentService.timeoutSync.test.js`
+whose whole purpose is keeping them aligned. It is a coordinated change with
+demo-pacing consequences (a slower failure is worse in front of an audience than
+a faster one), not a one-line bump, and not a call to make as a drive-by.
+
+**What the real fix looks like — three options, in rough order of preference:**
+
+1. **Bound UC34's output.** It is slow because it renders a table. Tightening
+   that prompt pulls it away from the ceiling without touching any timeout or
+   frozen setting. Smallest blast radius; fixes the worst offender only.
+2. **Stop capturing goldens for this pair.** They are the only chips whose reply
+   is non-deterministic by design, so they were arguably never good golden
+   candidates — a golden of generated prose is a snapshot of one sampling, not a
+   contract. Does nothing for the live 50% failure rate.
+3. **Raise the ceiling.** Simplest to describe, but it is a frozen setting, it
+   makes an already-slow path slower before it fails, and it treats the symptom.
+
+(1) and (2) are complementary; (3) is independent of both.
+
+**Reproduce:** POST `{ prompt, vertical }` to `/api/agent/invoke` with an
+enduser session cookie, using each chip's `trigger.text` from
+`demo_api_server/config/useCases.js`. Check the reply against
+`failurePatternFor()` in `scripts/golden-failure-prose.js`. Three runs each is
+enough to see it.
+
 ### [ ] 2026-08-28 — `llm-proxy` can be deployed by neither deploy path
 
 **What's wrong.** `demo_llm_proxy` is the only service that no sanctioned
