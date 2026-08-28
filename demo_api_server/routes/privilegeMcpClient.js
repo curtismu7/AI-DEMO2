@@ -1076,6 +1076,12 @@ async function beginOAuthFlow(session, req) {
   const brokerClientId = process.env.AGENT_GATEWAY_BROKER_CLIENT_ID;
   if (selfAdvertised && brokerClientId) {
     clientId = brokerClientId;
+    // dcrClientId is "the client this flow actually used" — the token exchange
+    // reads it and falls back to session.config.clientId (the PingOne app).
+    // Setting only `clientId` above authorized as ai-demo-bff-audit and then
+    // exchanged as the PingOne app, which the broker rejects with
+    // invalid_grant "Code was issued to a different client/redirect".
+    dcrClientId = brokerClientId;
   } else if (selfAdvertised) {
     // Not every self-advertising gateway requires DCR — some already trust the
     // configured client_id. Try DCR, but a gateway that doesn't support it (no
