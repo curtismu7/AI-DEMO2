@@ -27,7 +27,11 @@ on:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # PR runs keep superseding each other (the Actions-minutes saving this was
+  # for), but a push to main must always run to completion: cancelling a main
+  # run mid-build-and-push leaves that merge commit's SHA with no image ever
+  # built, and promotion is by SHA — permanently unpromotable.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -460,6 +464,25 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate langchain-agent build inputs
+        if: matrix.key == 'agent'
+        # Mirrors se-update-code.sh's build-input preflight (lines 196-216).
+        # langchain_agent/repo-src/ and langchain_agent/codegraph.db are both
+        # generated, gitignored files the Dockerfile COPYs — a clean checkout
+        # (this runner) has neither. se-update-code.sh generates them itself,
+        # but only after --print-map's early exit, so this job never runs
+        # that path; --print-map must stay reachable with no .env, Docker, or
+        # cluster access, so the preflight can't move earlier — it has to be
+        # reproduced here instead.
+        run: |
+          set -euo pipefail
+          if [ ! -d langchain_agent/repo-src ]; then
+            python3 scripts/build-codegraph.py --stage-src langchain_agent/repo-src
+          fi
+          if [ ! -s langchain_agent/codegraph.db ]; then
+            python3 scripts/build-codegraph.py
+            cp -f .codegraph/demo-codegraph.db langchain_agent/codegraph.db
+          fi
       - name: Build via compose, then push the sha tag
         # Build through docker compose, NOT a bare buildx with an assumed
         # context. Build contexts vary and cannot be derived from sourceDir:
