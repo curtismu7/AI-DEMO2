@@ -13,15 +13,15 @@ import "./CibaApprovalPage.css";
 
 const PAGE_STYLE = {
   minHeight: "100vh",
-  background: "#f4f4f5",
+  background: "var(--th-bg-page)",
 };
 
 const DETAIL_BOX_STYLE = {
-  background: "#f8f8f8",
+  background: "var(--th-bg-inset)",
   borderRadius: 6,
   padding: 12,
   fontSize: 13,
-  color: "#1a1a1a",
+  color: "var(--th-text)",
   margin: "12px 0 0",
 };
 
@@ -41,8 +41,8 @@ const FOOTER_BTN_DENY = {
   padding: "10px 16px",
   border: "none",
   borderRadius: 6,
-  background: "#eee",
-  color: "#333",
+  background: "var(--th-bg-inset)",
+  color: "var(--th-text)",
   fontWeight: 600,
   cursor: "pointer",
 };
@@ -52,7 +52,7 @@ const FOOTER_BTN_RETRY = {
   padding: "10px 16px",
   border: "1px solid #0a7c3f",
   borderRadius: 6,
-  background: "#fff",
+  background: "var(--th-bg-card)",
   color: "#0a7c3f",
   fontWeight: 600,
   cursor: "pointer",

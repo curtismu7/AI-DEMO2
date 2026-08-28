@@ -3955,7 +3955,7 @@ function HistoryEntry({ entry }) {
         <div
           style={{
             padding: "6px 12px 10px 28px",
-            background: "#f8fafc",
+            background: "var(--th-bg-inset)",
             borderTop: "1px solid #e2e8f0",
           }}
         >
