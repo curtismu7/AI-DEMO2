@@ -173,7 +173,7 @@
   margin-bottom: 8px;
 }
 .asp-hero h1 {
-  font-size: 28px;
+  font-size: var(--font-size-h1);
   font-weight: 800;
   margin: 0 0 8px;
   letter-spacing: -0.015em;
@@ -268,20 +268,20 @@
   min-width: 160px;
 }
 .asp-rowcard .s {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: var(--asp-ink-2);
 }
 .asp-rowcard .empty {
   color: var(--asp-ink-3);
   font-style: italic;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   text-align: center;
   width: 100%;
   padding: 18px 0;
 }
 
 .asp-badge {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   padding: 4px 10px;
   border-radius: 999px;
@@ -348,7 +348,7 @@
 }
 .asp-gapstatus {
   display: inline-block;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   padding: 4px 10px;
   border-radius: 999px;

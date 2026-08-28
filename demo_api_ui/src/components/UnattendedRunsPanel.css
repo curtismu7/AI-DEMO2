@@ -5,7 +5,7 @@
   flex-direction: column;
   gap: 12px;
   color: var(--th-text, #0f172a);
-  font-size: 13px;
+  font-size: var(--font-size-sm);
 }
 
 .uarp-head {
@@ -32,7 +32,7 @@
 .uarp-run {
   flex: 0 0 auto;
   font: inherit;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   padding: 6px 12px;
   border-radius: 6px;
   border: 1px solid var(--th-border-strong, #c3cdd9);

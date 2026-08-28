@@ -28,13 +28,13 @@
 
 .sdp-title {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 700;
   color: var(--th-text);
 }
 
 .sdp-lane {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -43,7 +43,7 @@
 
 .sdp-status {
   margin-left: auto;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   border-radius: 999px;
   padding: 2px 9px;
@@ -59,7 +59,7 @@
 .sdp-section { margin-bottom: 9px; }
 
 .sdp-section-label {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -85,7 +85,7 @@
   grid-template-columns: minmax(90px, 25%) 1fr;
   gap: 8px;
   /* monospace: token claim keys and values line up for scanning */
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 11.5px;
 }
 
@@ -107,7 +107,7 @@
 }
 
 .sdp-ba-title {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   color: var(--th-text-muted);
   margin-bottom: 3px;
@@ -118,7 +118,7 @@
   grid-template-columns: minmax(52px, 32%) 1fr;
   gap: 6px;
   /* monospace: claim keys and values line up across the two columns */
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 11.5px;
   padding: 1px 4px;
   border-radius: 3px;
@@ -137,7 +137,7 @@
 
 .sdp-nochange {
   margin: 0 0 9px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: var(--th-text-muted);
   background: var(--th-bg-inset);
   border-radius: 6px;
@@ -149,7 +149,7 @@
 .sdp-payload { margin-bottom: 9px; }
 
 .sdp-payload-title {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   color: var(--th-text-muted);
   margin: 2px 0 3px 11px;
 }
@@ -157,7 +157,7 @@
 .sdp-pre {
   margin: 0;
   /* monospace: raw HTTP request/response payloads */
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 11.5px;
   line-height: 1.45;
   color: var(--th-text);
@@ -178,7 +178,7 @@
 }
 
 .sdp-rfc {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   color: #3730a3;
   background: #e0e7ff;
@@ -237,5 +237,5 @@
 .sdp-stage[data-status="error"] { border-left-color: #ef4444; }
 .sdp-stage[data-status="notinpath"] { border-left-color: #cbd5e1; opacity: .65; }
 .sdp-stage-name { font-weight: 700; }
-.sdp-stage-result { color: var(--th-text-muted); margin-left: 6px; font-family: ui-monospace, Menlo, monospace; }
+.sdp-stage-result { color: var(--th-text-muted); margin-left: 6px; font-family: var(--font-mono); }
 .sdp-stage-note { display: block; color: var(--th-text-muted); font-size: 11.5px; margin-top: 1px; }

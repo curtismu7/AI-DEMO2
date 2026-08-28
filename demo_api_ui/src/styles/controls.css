@@ -82,7 +82,7 @@ body input[type="checkbox"]:not(.ctl-raw):disabled { opacity: .55; cursor: not-a
   background-position: right 12px center;
   padding: 9px 34px 9px 13px;
   font: inherit;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   color: var(--ctl-ink);
   cursor: pointer;
   transition: border-color .15s ease, box-shadow .15s ease;

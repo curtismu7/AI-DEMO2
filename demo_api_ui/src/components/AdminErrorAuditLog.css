@@ -21,7 +21,7 @@
 
 .audit-header h2 {
   margin: 0;
-  font-size: 24px;
+  font-size: var(--font-size-2xl);
   font-weight: 700;
   color: #1f2937;
   flex: 1;
@@ -38,7 +38,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #374151;
   cursor: pointer;
 }
@@ -60,7 +60,7 @@
   border-radius: 6px;
   border: 1px solid #d1d5db;
   background: white;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
@@ -115,7 +115,7 @@
   padding: 0 6px;
   background: rgba(0, 0, 0, 0.2);
   border-radius: 10px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
 }
 
@@ -134,7 +134,7 @@
 
 .audit-empty p {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--font-size-body);
 }
 
 .audit-entry {
@@ -167,14 +167,14 @@
 }
 
 .audit-entry__timestamp {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #6b7280;
   font-family: inherit;
 }
 
 .audit-entry__code {
   font-weight: 600;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   padding: 4px 8px;
   border-radius: 3px;
   white-space: nowrap;
@@ -198,7 +198,7 @@
 }
 
 .audit-entry__message {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #374151;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -208,7 +208,7 @@
 
 .audit-entry__toggle {
   color: #6b7280;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   text-align: center;
   width: 24px;
   flex-shrink: 0;
@@ -230,7 +230,7 @@
 
 .detail-row strong {
   display: block;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   color: #1f2937;
   margin-bottom: 4px;
@@ -240,7 +240,7 @@
 
 .detail-row p {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #374151;
   line-height: 1.6;
   word-wrap: break-word;
@@ -251,7 +251,7 @@
   padding: 12px 0;
   text-align: right;
   color: #9ca3af;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
 }
 
 /* Mobile responsive */
@@ -271,7 +271,7 @@
   }
 
   .audit-entry__timestamp {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
   }
 
   .audit-entry__message {

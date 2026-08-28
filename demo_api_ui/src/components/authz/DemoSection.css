@@ -1,11 +1,11 @@
 .demo-section { border: 1px solid var(--border, #d0d5dd); border-radius: 10px; margin-bottom: 12px; overflow: hidden; }
-.demo-section-header { width: 100%; display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: #f9fafb; border: 0; cursor: pointer; text-align: left; font-size: 15px; }
+.demo-section-header { width: 100%; display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: #f9fafb; border: 0; cursor: pointer; text-align: left; font-size: var(--font-size-base); }
 .demo-section.is-open .demo-section-header { background: #eef2ff; }
-.demo-section-num { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 999px; background: #4338ca; color: #fff; font-size: 12px; font-weight: 700; }
+.demo-section-num { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 999px; background: #4338ca; color: #fff; font-size: var(--font-size-2xs); font-weight: 700; }
 .demo-section-title { font-weight: 600; flex: 1; }
 .demo-section-chevron { color: #667085; }
 .demo-section-body { padding: 16px; }
 .demo-section-concept { margin: 0 0 8px; color: #344054; line-height: 1.5; }
-.demo-section-doc { font-size: 13px; }
+.demo-section-doc { font-size: var(--font-size-sm); }
 .demo-section-demo { margin-top: 12px; }
 .demo-section-note { margin: 8px 0 0; color: var(--color-text-muted, #374151); font-size: 0.875rem; }

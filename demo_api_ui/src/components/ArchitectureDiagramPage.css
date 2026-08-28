@@ -483,7 +483,7 @@
   color: #fff;
   border: none;
   border-radius: 4px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 500;
   cursor: pointer;
   transition: background 150ms ease;
@@ -524,7 +524,7 @@
 
 .arch-chain-header h3 {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 600;
   color: #1f2937;
 }
@@ -532,7 +532,7 @@
 .arch-chain-close {
   background: none;
   border: none;
-  font-size: 24px;
+  font-size: var(--font-size-2xl);
   color: #6b7280;
   cursor: pointer;
   padding: 0;

@@ -43,7 +43,7 @@
   border: none;
   cursor: pointer;
   color: inherit;
-  font-size: 14px;
+  font-size: var(--font-size-body);
 }
 
 .dc-toast {
@@ -99,7 +99,7 @@
   font-weight: 700;
 }
 .dc-count {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: var(--th-text);
   font-variant-numeric: tabular-nums;
 }
@@ -138,7 +138,7 @@
 .dc-btn-primary,
 .dc-panel__actions button {
   font-family: inherit;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   border-radius: 8px;
   padding: 9px 16px;
@@ -159,7 +159,7 @@
   font-weight: 700;
 }
 .dc-hint {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: var(--th-text);
   margin: 0 0 14px;
   line-height: 1.5;
@@ -236,7 +236,7 @@
 .dc-new-config button {
   width: 100%;
   padding: 7px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
 }
 
 /* ── Group-list (new reorder view) ─────────────────────── */
@@ -320,7 +320,7 @@
   background: #f1f5f9;
 }
 .dc-child-count {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-variant-numeric: tabular-nums;
 }
 
@@ -337,7 +337,7 @@
   width: 26px;
   height: 26px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #6b7280;
   display: flex;
   align-items: center;
@@ -391,7 +391,7 @@
 
 .dc-btn-secondary {
   font-family: inherit;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   border-radius: 8px;
   padding: 9px 16px;

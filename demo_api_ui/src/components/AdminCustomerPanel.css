@@ -267,20 +267,20 @@
   color: var(--admin-ink);
   border-radius: 999px;
   padding: 3px 10px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   cursor: pointer;
 }
 .acp-hint-chip:hover { background: var(--admin-tint); border-color: color-mix(in srgb, var(--admin-accent) 30%, var(--admin-surface)); }
 .acp-lookup { margin-top: 14px; }
 .acp-lookup__h {
   margin: 14px 0 6px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: .04em;
   color: var(--admin-muted);
 }
 .acp-kv { margin: 0; display: grid; gap: 2px; }
-.acp-kv__row { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; border-bottom: 1px solid var(--admin-line); font-size: 13px; }
+.acp-kv__row { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; border-bottom: 1px solid var(--admin-line); font-size: var(--font-size-sm); }
 .acp-kv__row dt { color: var(--admin-muted); }
 .acp-kv__row dd { margin: 0; color: var(--admin-ink); font-weight: 600; }

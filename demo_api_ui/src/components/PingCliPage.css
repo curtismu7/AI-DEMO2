@@ -15,7 +15,7 @@
 }
 
 .pingcli-install p {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #475569;
   margin: 0 0 10px;
   line-height: 1.6;
@@ -38,12 +38,12 @@
 .pingcli-collapse-chevron {
   flex-shrink: 0;
   width: 1em;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   color: #64748b;
 }
 
 .pingcli-collapse-title {
-  font-size: 15px;
+  font-size: var(--font-size-base);
   font-weight: 700;
   line-height: 1.3;
 }
@@ -62,11 +62,11 @@
 }
 
 .pingcli-collapse-nested .pingcli-collapse-title {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
 }
 
 .pingcli-cat-section .pingcli-collapse-title {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -85,7 +85,7 @@
 
 .pingcli-prereqs-section .pingcli-prereqs-meta {
   display: block;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #64748b;
   margin: 0 0 10px;
 }
@@ -96,8 +96,8 @@
   border-radius: 8px;
   border-left: 3px solid #38bdf8;
   padding: 14px 16px;
-  font-family: ui-monospace, 'SF Mono', 'Menlo', 'Consolas', monospace;
-  font-size: 15px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-base);
   margin: 8px 0 12px;
   display: flex;
   align-items: center;
@@ -111,7 +111,7 @@
   min-width: 0;
   background: transparent;
   color: #f8fafc;
-  font-size: 15px;
+  font-size: var(--font-size-base);
   font-weight: 500;
   line-height: 1.45;
   letter-spacing: 0.01em;
@@ -126,7 +126,7 @@
   border: none;
   border-radius: 5px;
   padding: 7px 12px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
@@ -139,7 +139,7 @@
 }
 
 .pingcli-install-hint {
-  font-size: 12px !important;
+  font-size: var(--font-size-2xs) !important;
   color: #64748b !important;
   margin: -2px 0 12px !important;
 }
@@ -150,11 +150,11 @@
   color: #0f172a;
   padding: 1px 5px;
   border-radius: 3px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
 }
 
 .pingcli-install h3 {
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 700;
   color: #0f172a;
   margin: 16px 0 8px;
@@ -163,7 +163,7 @@
 .pingcli-howto-list {
   margin: 0 0 12px;
   padding-left: 20px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #475569;
   line-height: 1.65;
 }
@@ -177,18 +177,18 @@
   color: #0f172a;
   padding: 1px 5px;
   border-radius: 3px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
 }
 
 /* ── Command categories ──────────────────────────────── */
 .pingcli-run-note {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #475569;
   margin: 0 0 16px;
 }
 
 .pingcli-section-title {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -234,7 +234,7 @@
 }
 
 .pingcli-cmd-label {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   color: #0f172a;
   display: flex;
@@ -243,8 +243,8 @@
 }
 
 .pingcli-cmd-command {
-  font-family: 'SF Mono', 'Fira Code', monospace;
-  font-size: 11px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
   color: #64748b;
   white-space: nowrap;
   overflow: hidden;
@@ -257,7 +257,7 @@
   border: 1px solid #e2e8f0;
   border-radius: 4px;
   padding: 3px 9px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
@@ -280,7 +280,7 @@
   border: none;
   border-radius: 5px;
   padding: 5px 14px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   cursor: pointer;
 }
@@ -327,7 +327,7 @@
   margin: 0 0 16px;
   padding: 10px 14px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   color: #0f172a;
   border: 1px solid #e2e8f0;
@@ -353,7 +353,7 @@
 }
 
 .pingcli-run-status-mark {
-  font-size: 15px;
+  font-size: var(--font-size-base);
   line-height: 1;
 }
 
@@ -405,7 +405,7 @@
 }
 
 .pingcli-prereqs-title {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 800;
   color: #0f172a;
   text-transform: uppercase;
@@ -413,7 +413,7 @@
 }
 
 .pingcli-prereqs-meta {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   color: #475569;
 }
@@ -443,7 +443,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 700;
   color: #0f172a;
 }
@@ -457,7 +457,7 @@
   border-radius: 999px;
   background: #3b82f6;
   color: #fff;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 800;
   flex-shrink: 0;
 }
@@ -468,8 +468,8 @@
   color: #e2e8f0;
   border-radius: 6px;
   padding: 10px 12px;
-  font-family: 'SF Mono', 'Fira Code', monospace;
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
   line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
@@ -477,7 +477,7 @@
 
 .pingcli-prereqs-note {
   margin: 6px 0 0;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #64748b;
   line-height: 1.45;
 }
@@ -520,7 +520,7 @@
 }
 
 .pingcli-view-bar-label {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 800;
   color: #1e40af;
   text-transform: uppercase;
@@ -534,7 +534,7 @@
   border: 1px solid #93c5fd;
   border-radius: 6px;
   padding: 6px 14px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 700;
   cursor: pointer;
 }
@@ -562,7 +562,7 @@
 .pingcli-results-empty {
   margin: 0;
   padding: 20px 16px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #64748b;
 }
 
@@ -586,7 +586,7 @@
 
 .pingcli-form-row dt {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 700;
   color: #475569;
   word-break: break-word;
@@ -594,14 +594,14 @@
 
 .pingcli-form-row dd {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #0f172a;
   word-break: break-word;
 }
 
 .pingcli-terminal-prompt {
-  font-family: 'SF Mono', 'Fira Code', monospace;
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
   color: #94a3b8;
 }
 
@@ -611,7 +611,7 @@
 }
 
 .pingcli-terminal-status {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   color: #64748b;
 }
 
@@ -621,8 +621,8 @@
 .pingcli-terminal-body {
   background: #0f172a;
   color: #e2e8f0;
-  font-family: 'SF Mono', 'Fira Code', monospace;
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
   line-height: 1.7;
   padding: 16px;
   min-height: 160px;
@@ -673,7 +673,7 @@
 }
 
 .pingcli-results-title {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 800;
   color: #0f172a;
   text-transform: uppercase;
@@ -681,7 +681,7 @@
 }
 
 .pingcli-results-meta {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   color: #475569;
 }
@@ -693,7 +693,7 @@
 .pingcli-results-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
 }
 
 .pingcli-results-table th {
@@ -739,7 +739,7 @@
 }
 
 .pingcli-editor-lang {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -750,7 +750,7 @@
 }
 
 .pingcli-editor-lines {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   color: #64748b;
 }
 
@@ -761,7 +761,7 @@
   border: 1px solid #475569;
   border-radius: 5px;
   padding: 4px 12px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s;
@@ -792,8 +792,8 @@
 }
 
 .pingcli-line-numbers span {
-  font-family: ui-monospace, 'SF Mono', 'Menlo', 'Consolas', monospace;
-  font-size: 11px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
   line-height: 1.7;
   color: #475569;
 }
@@ -801,8 +801,8 @@
 .pingcli-editor-code {
   margin: 0;
   padding: 16px;
-  font-family: ui-monospace, 'SF Mono', 'Menlo', 'Consolas', monospace;
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
   line-height: 1.7;
   color: #e2e8f0;
   background: transparent;

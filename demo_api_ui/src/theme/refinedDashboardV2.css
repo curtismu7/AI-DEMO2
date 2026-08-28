@@ -432,7 +432,7 @@
 }
 /* Framework badge pill */
 .rd2-dock .embedded-agent-dock__framework-badge {
-  font-family: "IBM Plex Mono", monospace;
+  font-family: var(--font-mono);
   font-size: .6rem;
   letter-spacing: .1em;
   text-transform: uppercase;
@@ -561,7 +561,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-family: "IBM Plex Mono", monospace;
+  font-family: var(--font-mono);
   font-size: .6rem;
   letter-spacing: .14em;
   text-transform: uppercase;
@@ -585,7 +585,7 @@
   border: none; padding: 0;
 }
 .ba-embedded-bottom-dock .ba-dock-identity__scope {
-  font-family: "IBM Plex Mono", monospace;
+  font-family: var(--font-mono);
   font-size: .6rem; letter-spacing: .04em;
   padding: 2px 7px; border-radius: 999px;
   border: 1px solid var(--rd2-line-1, #e4e4e0);
@@ -754,7 +754,7 @@
   background: color-mix(in srgb, var(--theme-accent, #1b3a6b) 6%, #ffffff);
   border-bottom: 1px solid var(--rd2-line-1, #e4e4e0);
   font-size: .75rem;
-  font-family: "IBM Plex Mono", monospace;
+  font-family: var(--font-mono);
   letter-spacing: .04em;
   color: var(--rd2-ink-2, #4c4c48);
 }
@@ -853,7 +853,7 @@
   margin: 0;
 }
 [data-rd-v2] .ud-profile-card__role {
-  font-family: "IBM Plex Mono", monospace;
+  font-family: var(--font-mono);
   font-size: .7rem;
   letter-spacing: .08em;
   text-transform: uppercase;
@@ -869,7 +869,7 @@
   background: color-mix(in srgb, var(--theme-accent, #1b3a6b) 10%, #ffffff);
   border: 1px solid var(--theme-accent, #1b3a6b);
   border-radius: 999px;
-  font-family: "IBM Plex Mono", monospace;
+  font-family: var(--font-mono);
   font-size: .65rem;
   letter-spacing: .04em;
   color: var(--theme-accent, #1b3a6b);
@@ -932,21 +932,21 @@
   margin: 0;
 }
 [data-rd-v2] .account-card__type {
-  font-family: "IBM Plex Mono", monospace;
+  font-family: var(--font-mono);
   font-size: .65rem;
   letter-spacing: .04em;
   text-transform: uppercase;
   color: var(--rd2-ink-3, #8c8c88);
 }
 [data-rd-v2] .account-card__balance {
-  font-family: "IBM Plex Mono", monospace;
+  font-family: var(--font-mono);
   font-size: .85rem;
   letter-spacing: .02em;
   color: var(--rd2-ink-2, #4c4c48);
   margin: 0;
 }
 [data-rd-v2] .account-card__number {
-  font-family: "IBM Plex Mono", monospace;
+  font-family: var(--font-mono);
   font-size: .7rem;
   letter-spacing: .08em;
   color: var(--rd2-ink-3, #8c8c88);
@@ -1062,7 +1062,7 @@
   border-radius: 6px;
   padding: 12px;
   margin-bottom: 8px;
-  font-family: "IBM Plex Mono", monospace;
+  font-family: var(--font-mono);
   font-size: .7rem;
   letter-spacing: .03em;
   color: var(--rd2-ink-2, #4c4c48);
@@ -1186,7 +1186,7 @@
   height: 48px;
   padding: 0;
   text-align: center;
-  font-family: "IBM Plex Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 1.2rem;
   font-weight: 600;
   letter-spacing: .1em;
@@ -1321,7 +1321,7 @@
 }
 
 [data-rd-v2] .landing-logo p:last-child {
-  font-family: "IBM Plex Mono", monospace;
+  font-family: var(--font-mono);
   font-size: .65rem;
   letter-spacing: .04em;
   text-transform: uppercase;
@@ -1570,7 +1570,7 @@ body {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-family: var(--rd2-font-mono, "IBM Plex Mono", monospace);
+  font-family: var(--font-mono);
   font-size: .7rem;
   letter-spacing: .04em;
   text-transform: uppercase;
@@ -1608,7 +1608,7 @@ body {
 }
 
 [data-rd-v2] .rd2-agent-card__meta-key {
-  font-family: var(--rd2-font-mono, "IBM Plex Mono", monospace);
+  font-family: var(--font-mono);
   font-size: .65rem;
   letter-spacing: .04em;
   text-transform: uppercase;
@@ -1617,7 +1617,7 @@ body {
 }
 
 [data-rd-v2] .rd2-agent-card__meta-val {
-  font-family: var(--rd2-font-mono, "IBM Plex Mono", monospace);
+  font-family: var(--font-mono);
   font-size: .8rem;
   letter-spacing: .02em;
   color: var(--rd2-ink-2, #4c4c48);
@@ -1667,7 +1667,7 @@ body {
 /* (consolidated with earlier .ud-hero rules — see line 57) */
 
 [data-rd-v2] .ud-hero__eyebrow {
-  font-family: var(--rd2-font-mono, "IBM Plex Mono", monospace);
+  font-family: var(--font-mono);
   font-size: .75rem;
   letter-spacing: .08em;
   text-transform: uppercase;

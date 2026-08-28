@@ -20,7 +20,7 @@
 }
 
 .ba-grounded-head {
-  font-size: 15px;
+  font-size: var(--font-size-base);
   font-weight: 700;
   line-height: 1.35;
   color: var(--brand-dark-gray);
@@ -29,7 +29,7 @@
 
 .ba-grounded-why {
   margin: 8px 0 0;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   line-height: 1.5;
   color: var(--brand-dark-gray);
   overflow-wrap: anywhere;
@@ -54,7 +54,7 @@
 
 .ba-grounded-claim-text {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   line-height: 1.5;
   color: var(--brand-dark-gray);
   overflow-wrap: anywhere;
@@ -78,7 +78,7 @@
   border-radius: var(--btn-radius);
   border: 1px solid var(--brand-navy);
   background: var(--brand-white);
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   line-height: 1.4;
   color: var(--brand-navy);
   overflow-wrap: anywhere;
@@ -101,7 +101,7 @@
   border-radius: var(--inner-card-radius);
   background: var(--brand-light-gray);
   border: 1px solid var(--brand-warning);
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   line-height: 1.5;
   color: var(--brand-dark-gray);

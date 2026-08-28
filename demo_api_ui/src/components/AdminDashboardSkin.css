@@ -83,7 +83,7 @@
   margin: 0;
   padding: 12px 16px;
   border-bottom: 1px solid var(--admin-line);
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 800;
   letter-spacing: 0.01em;
   color: var(--admin-ink);
@@ -106,7 +106,7 @@
 
 .admin-dashboard-page .dash-shell-card h3 {
   margin: 14px 0 8px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -122,7 +122,7 @@
   border: 1px solid var(--admin-line);
   border-radius: 10px;
   padding: 10px 12px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: var(--admin-ink);
   background: var(--admin-surface);
 }
@@ -140,7 +140,7 @@
   border: 1px solid var(--admin-line);
   border-radius: 9px;
   padding: 8px 14px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 700;
   color: var(--admin-ink);
   background: var(--admin-surface);

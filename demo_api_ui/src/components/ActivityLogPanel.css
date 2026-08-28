@@ -5,7 +5,7 @@
   flex: 1;
   min-height: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   background: #ffffff;
   color: #0f172a;
 }
@@ -25,7 +25,7 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   padding: 3px 8px;
   border-radius: 99px;
@@ -64,7 +64,7 @@
   border-radius: 6px;
   background: #f8fafc;
   color: #475569;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   cursor: pointer;
   transition: background 0.15s;
 }
@@ -89,7 +89,7 @@
   border-radius: 99px;
   background: #f1f5f9;
   color: #475569;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -99,7 +99,7 @@
   padding: 2px 8px;
   border: 1.5px solid transparent;
   border-radius: 99px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
@@ -141,7 +141,7 @@
   justify-content: center;
   height: 100%;
   color: #94a3b8;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   padding: 32px;
   text-align: center;
 }
@@ -182,20 +182,20 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #1e293b;
 }
 
 .alp-row-time {
-  font-family: "SF Mono", "Fira Code", "Fira Mono", monospace;
-  font-size: 11px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
   color: #94a3b8;
   flex-shrink: 0;
 }
 
 .alp-row-sev {
   flex-shrink: 0;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
 }
 
 .alp-row-expand-icon {
@@ -235,7 +235,7 @@
   margin: 10px 4px 6px;
   padding: 8px 12px;
   border-radius: 8px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 700;
   letter-spacing: 0.02em;
   border: 1px dashed transparent;
@@ -255,12 +255,12 @@
 
 .alp-flow-divider__label {
   text-transform: uppercase;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
 }
 
 .alp-flow-divider__corr {
-  font-family: "SF Mono", "Fira Code", "Fira Mono", monospace;
-  font-size: 11px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
   font-weight: 600;
   padding: 1px 6px;
   border-radius: 4px;
@@ -294,8 +294,8 @@
   background: #f1f5f9;
   border: 1px solid #e2e8f0;
   border-radius: 6px;
-  font-family: "SF Mono", "Fira Code", "Fira Mono", monospace;
-  font-size: 11px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
   color: #1e293b;
   white-space: pre-wrap;
   word-break: break-all;
@@ -313,7 +313,7 @@
 
 .tab-btn {
   padding: 6px 12px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 500;
   background: none;
   border: none;

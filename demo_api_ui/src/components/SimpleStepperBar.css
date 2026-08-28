@@ -14,7 +14,7 @@
 }
 
 .ssb-title {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   color: #475569;
   letter-spacing: 0.04em;
@@ -38,7 +38,7 @@
 .ssb-toggle {
   margin-left: auto;
   padding: 1px 8px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   color: #2563eb;
   background: none;

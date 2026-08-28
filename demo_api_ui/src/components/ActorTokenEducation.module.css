@@ -11,7 +11,7 @@
   color: #1a3a52;
   margin-top: 0;
   margin-bottom: 16px;
-  font-size: 24px;
+  font-size: var(--font-size-2xl);
   font-weight: 600;
 }
 
@@ -19,7 +19,7 @@
   color: #2c5aa0;
   margin-top: 24px;
   margin-bottom: 16px;
-  font-size: 18px;
+  font-size: var(--font-size-h3);
   font-weight: 600;
 }
 
@@ -74,7 +74,7 @@
   font-weight: 600;
   color: #0066cc;
   margin-bottom: 8px;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -90,7 +90,7 @@
   padding: 12px;
   border-radius: 4px;
   font-family: inherit;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #2c5aa0;
   overflow-x: auto;
   margin-top: 8px;
@@ -99,7 +99,7 @@
 .arrow {
   text-align: center;
   color: #0066cc;
-  font-size: 20px;
+  font-size: var(--font-size-xl);
   font-weight: bold;
   margin: 8px 0;
 }
@@ -299,7 +299,7 @@
   }
 
   .actorTokenEducation h2 {
-    font-size: 20px;
+    font-size: var(--font-size-xl);
   }
 
   .diagram {
@@ -307,6 +307,6 @@
   }
 
   .token {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
   }
 }

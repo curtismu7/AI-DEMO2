@@ -60,7 +60,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   color: #2563eb !important;
   border: 1.5px solid #2563eb !important;
   color: #fff;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 700;
   letter-spacing: 0.01em;
   border: none;
@@ -116,12 +116,12 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .banking-agent-fab-icon {
-  font-size: 20px;
+  font-size: var(--font-size-xl);
   line-height: 1;
 }
 
 .banking-agent-fab-label {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 700;
 }
 
@@ -143,14 +143,14 @@ body > .banking-agent-float-root .banking-agent-panel {
   box-shadow:
     0 4px 24px rgba(65, 105, 225, 0.25),
     0 1px 6px rgba(0, 0, 0, 0.12);
-  font-size: 13px;
+  font-size: var(--font-size-sm);
 }
 
 .ba-popout-placeholder-btn {
   border: none;
   background: #2563eb;
   color: #fff;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 700;
   padding: 6px 12px;
   border-radius: 8px;
@@ -258,7 +258,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 .banking-agent-panel:not(.ba-mode-inline) .ba-suggestion,
 .banking-agent-panel:not(.ba-mode-inline) .ba-action-item {
   padding: 5px 7px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   line-height: 1.3;
   border-radius: 6px;
 }
@@ -302,7 +302,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 
 /* "▾ Learn more" collapsible toggle chip */
 .ba-learn-more-toggle {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
 }
 
@@ -311,7 +311,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   width: 100%;
   text-align: left;
   padding: 7px 10px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #1a1a1a;
   background: var(--th-bg-card);
   border: 1.5px solid #2563eb;
@@ -335,7 +335,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   width: 100%;
   text-align: left;
   padding: 7px 10px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: var(--ba-chip-txt);
   background: var(--ba-chip-bg);
   border: 1px solid var(--ba-chip-bd);
@@ -474,7 +474,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   display: block;
   width: 100%;
   padding: 7px 10px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 500;
   border-radius: 8px;
   cursor: pointer;
@@ -569,7 +569,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 
 .ba-middle-col-title {
   flex: 1 1 0%;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   color: var(--ba-muted);
   white-space: nowrap;
@@ -588,7 +588,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   border-radius: 4px;
   background: transparent;
   color: var(--ba-muted);
-  font-size: 14px;
+  font-size: var(--font-size-body);
   line-height: 1;
   cursor: pointer;
   padding: 0;
@@ -899,14 +899,14 @@ body > .banking-agent-float-root .banking-agent-panel {
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
 }
 .ba-title {
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 700;
   color: #000 !important;
   margin: 0 0 2px;
   line-height: 1.35;
 }
 .ba-subtitle {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #000 !important;
   line-height: 1.4;
 }
@@ -975,7 +975,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   height: 28px;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -990,7 +990,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 .ba-graph-link-btn {
   width: auto;
   padding: 0 10px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
 }
 
@@ -1033,7 +1033,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 700;
   letter-spacing: 0.01em;
   padding: 7px 16px 7px 10px;
@@ -1100,7 +1100,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   text-align: center;
   padding: 24px 16px 12px;
   color: var(--ba-muted);
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   line-height: 1.6;
 }
 .ba-show-earlier-btn {
@@ -1112,7 +1112,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   border: 1px dashed var(--ba-border);
   border-radius: 6px;
   color: var(--ba-muted);
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   cursor: pointer;
   transition:
     background 0.12s,
@@ -1132,7 +1132,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   cursor: grabbing;
 }
 .banking-agent-avatar {
-  font-size: 18px;
+  font-size: var(--font-size-h3);
   flex-shrink: 0;
   align-self: flex-end;
 }
@@ -1159,7 +1159,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   text-align: center;
   padding: 20px 12px;
   color: #6f6f6f;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   line-height: 1.5;
 }
 
@@ -1171,7 +1171,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   padding: 8px 10px;
   background: var(--th-bg-inset);
   color: #525252;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   line-height: 1.45;
 }
 
@@ -1192,7 +1192,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .banking-agent-learn code {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   background: #e8e8e8;
   padding: 1px 4px;
   border-radius: 3px;
@@ -1200,7 +1200,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 
 .banking-agent-learn-hint {
   margin: 10px 0 0;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   color: #6f6f6f;
 }
 
@@ -1209,7 +1209,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   width: 100%;
   margin-bottom: 8px;
   padding: 8px 10px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   color: #3158d3;
   background: var(--th-bg-card);
@@ -1235,7 +1235,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   text-align: left;
   padding: 8px 10px;
   margin-bottom: 8px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   color: #3158d3;
   background: var(--th-bg-inset);
@@ -1252,7 +1252,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .banking-agent-learn-chip {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   padding: 6px 8px;
   border-radius: 999px;
   border: 1px solid #c6d4ff;
@@ -1269,7 +1269,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 
 .banking-agent-nl-label {
   display: block;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   color: #525252;
   margin-bottom: 4px;
@@ -1278,7 +1278,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 .banking-agent-nl-input {
   width: 100%;
   box-sizing: border-box;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   padding: 8px;
   border: 1px solid #ccc;
   border-radius: 8px;
@@ -1296,7 +1296,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 
 .banking-agent-nl-send {
   padding: 6px 14px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   background: #4169e1;
   color: #fff;
@@ -1326,7 +1326,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .banking-agent-msg-avatar {
-  font-size: 18px;
+  font-size: var(--font-size-h3);
   flex-shrink: 0;
   align-self: flex-end;
 }
@@ -1335,7 +1335,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   max-width: 90%;
   padding: 12px 16px;
   border-radius: 16px;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   line-height: 1.65;
   overflow-wrap: break-word;
   word-break: normal;
@@ -1347,7 +1347,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 .banking-agent-msg-bubble table {
   border-collapse: collapse;
   width: 100%;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   white-space: nowrap;
 }
 
@@ -1371,7 +1371,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 .ba-msg-table {
   border-collapse: collapse;
   width: 100%;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   white-space: nowrap;
   margin: 8px 0;
 }
@@ -1411,7 +1411,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .banking-agent-msg.assistant[data-source="helix"] .banking-agent-msg-label {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   color: #dc2626;
   margin-bottom: 6px;
@@ -1435,7 +1435,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 
 /* Source indicator labels */
 .banking-agent-msg-label {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   margin-bottom: 6px;
   text-transform: uppercase;
@@ -1501,7 +1501,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   color: #fff;
   border: none;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   cursor: pointer;
   transition: background 0.2s;
@@ -1672,7 +1672,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   color: #1a7a3c;
   font-size: 0.78rem;
   font-weight: 500;
-  font-family: monospace;
+  font-family: var(--font-mono);
   cursor: pointer;
   transition: background 0.12s ease, border-color 0.12s ease;
 }
@@ -1796,7 +1796,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   border: 1px solid #bfdbfe;
   border-left: 4px solid #1d4ed8;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
 
   line-height: 1.75;
   padding: 14px 16px 12px;
@@ -1810,7 +1810,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 
 /* ─── RFC annotation card ("what just happened") ───────────────────────── */
 .ba-rfc-card {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   line-height: 1.6;
 }
 .ba-rfc-card__title {
@@ -1848,10 +1848,10 @@ body > .banking-agent-float-root .banking-agent-panel {
   color: #1d4ed8;
   border-radius: 3px;
   padding: 0 4px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
 }
 .ba-rfc-card__footer {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: var(--th-text-muted);
   border-top: 1px solid #bfdbfe;
   padding-top: 7px;
@@ -2069,7 +2069,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   border-radius: 12px;
   background: #f0fdf4;
   color: #14532d;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 650;
 }
 
@@ -2222,7 +2222,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   gap: 2px;
 }
 .ba-chip {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   padding: 6px 14px;
   border-radius: 999px;
   border: 1.5px solid #2563eb;
@@ -2283,7 +2283,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   border: 1px solid #93c5fd;
   border-radius: 6px;
   color: #1e40af;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
@@ -2296,7 +2296,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   background: var(--ba-accent);
   border: 1px solid var(--ba-accent);
   color: #fff;
-  font-size: 15px;
+  font-size: var(--font-size-base);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -2320,7 +2320,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   border-radius: 8px;
   padding: 8px 16px;
   margin-right: 20px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-family: inherit;
   outline: none;
   transition: border-color 0.15s;
@@ -2366,7 +2366,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   min-width: 90px;
   padding: 8px 10px;
   border-radius: 8px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   cursor: pointer;
   text-align: center;
@@ -2415,7 +2415,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .banking-agent-field label {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   color: var(--ba-muted);
   text-transform: uppercase;
@@ -2426,7 +2426,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   border: 1px solid var(--ba-input-bd);
   border-radius: 6px;
   padding: 7px 10px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-family: inherit;
   outline: none;
   background: var(--ba-input-bg);
@@ -2453,7 +2453,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   border: none;
   border-radius: 6px;
   padding: 8px 12px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   cursor: pointer;
   transition:
     background 0.15s,
@@ -2477,7 +2477,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   border: 1px solid var(--app-primary-red-border);
   border-radius: 6px;
   padding: 8px 12px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   cursor: pointer;
   transition: background 0.15s;
 }
@@ -2568,7 +2568,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   background: var(--th-bg-inset);
   color: #525252;
   border: 1px solid #e0e0e0;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   margin-top: 4px;
 }
 
@@ -2608,7 +2608,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .banking-agent-next-label {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   color: #198038;
   letter-spacing: 0.04em;
@@ -2655,7 +2655,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .bar-rp-title {
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 700;
 }
 
@@ -2667,7 +2667,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   height: 26px;
   border-radius: 50%;
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2686,7 +2686,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 .bar-rp-empty {
   text-align: center;
   color: #8d8d8d;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   padding: 24px 0;
 }
 
@@ -2694,12 +2694,12 @@ body > .banking-agent-float-root .banking-agent-panel {
 .bar-rp-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 15px;
+  font-size: var(--font-size-base);
 }
 
 .bar-rp-table th {
   text-align: left;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -2741,7 +2741,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   display: inline-block;
   padding: 2px 7px;
   border-radius: 999px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   text-transform: capitalize;
   background: #e8f0fe;
@@ -2761,7 +2761,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .bar-rp-date {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #6f6f6f;
   white-space: nowrap;
 }
@@ -2775,13 +2775,13 @@ body > .banking-agent-float-root .banking-agent-panel {
   gap: 8px;
 }
 .bar-rp-balance-label {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: #6f6f6f;
 }
 .bar-rp-balance-value {
-  font-size: 36px;
+  font-size: var(--font-size-4xl);
   font-weight: 700;
   color: #0f4c81;
   font-variant-numeric: tabular-nums;
@@ -2798,7 +2798,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   font-size: 32px;
 }
 .bar-rp-confirm-body {
-  font-size: 14px;
+  font-size: var(--font-size-body);
   line-height: 1.7;
   color: #161616;
 }
@@ -2810,12 +2810,12 @@ body > .banking-agent-float-root .banking-agent-panel {
   background: #e8e8e8;
   padding: 1px 5px;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
 }
 
 .bar-rp-text {
   padding: 16px;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   line-height: 1.7;
   color: #161616;
   white-space: pre-wrap;
@@ -2967,7 +2967,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   border: 1px solid var(--ba-border);
   background: var(--ba-surface);
   color: var(--ba-text);
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 500;
   line-height: 1.2;
   cursor: default;
@@ -2984,7 +2984,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 
 .ba-tool-chip-name {
   font-family: inherit;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
 }
 
 .ba-tool-chip-sep {
@@ -2994,7 +2994,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 
 .ba-tool-chip-status {
   color: var(--ba-muted);
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 500;
 }
 
@@ -3012,7 +3012,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 
 .ba-tool-chip-chev {
   color: var(--ba-muted);
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   margin-left: 2px;
 }
 
@@ -3060,7 +3060,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   border-radius: 6px;
   border: 1px solid rgba(252, 165, 165, 0.25);
   background: rgba(252, 165, 165, 0.05);
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   line-height: 1.5;
   display: flex;
   flex-direction: column;
@@ -3378,7 +3378,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   min-width: unset;
   white-space: nowrap;
   padding: 5px 10px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
 }
 
 /* ─── Dashboard inline agent (ud-dashboard-inline-agent) ──────────────────────
@@ -3537,7 +3537,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   border-radius: 6px;
   background: var(--ba-input-bg);
   color: var(--ba-text);
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-family: inherit;
   transition: border-color 0.15s;
 }
@@ -3567,7 +3567,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   background: linear-gradient(90deg, #fffbeb 0%, #fef9c3 100%);
   border: 1px solid #fbbf24;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   line-height: 1.5;
   color: #78350f;
 }
@@ -3584,7 +3584,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   background: #d97706;
   color: #fff;
   font-weight: 600;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   cursor: pointer;
 }
 
@@ -3605,7 +3605,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   background: linear-gradient(90deg, #fef2f2 0%, #fff7ed 100%);
   border: 1px solid #fecaca;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   line-height: 1.45;
   color: #7f1d1d;
 }
@@ -3726,7 +3726,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .ba-degraded-banner {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   line-height: 1.35;
   padding: 6px 12px;
   background: #fef2f2;
@@ -3748,7 +3748,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   border: none;
   cursor: pointer;
   padding: 0;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #92400e;
   line-height: 1;
 }
@@ -4042,7 +4042,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   background: #dbeafe;
   border: 1px solid #93c5fd;
   color: var(--brand-navy);
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 500;
   transition:
     background 0.12s,
@@ -4078,7 +4078,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .ba-left-label {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   color: var(--ba-text-secondary, #374151);
   text-transform: uppercase;
@@ -4131,7 +4131,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .ba-action-item--title {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   line-height: 1.2;
 }
@@ -4143,7 +4143,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .ba-action-item--arrow {
-  font-size: 14px;
+  font-size: var(--font-size-body);
   opacity: 0.8;
   transition: transform 0.2s ease;
 }
@@ -4168,7 +4168,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   background: rgba(65, 105, 225, 0.08);
   border: 1px solid rgba(65, 105, 225, 0.15);
   color: var(--ba-text-primary, var(--brand-dark-gray));
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 500;
   transition: all 0.15s ease;
 }
@@ -4180,7 +4180,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .ba-action-item--guest .ba-action-item-icon {
-  font-size: 14px;
+  font-size: var(--font-size-body);
   opacity: 0.8;
 }
 
@@ -4308,11 +4308,11 @@ body > .banking-agent-float-root .banking-agent-panel {
   }
 
   .ba-action-item--title {
-    font-size: 13px;
+    font-size: var(--font-size-sm);
   }
 
   .ba-action-item--desc {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
   }
 
   .ba-session-timer {
@@ -4392,7 +4392,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   width: auto;
   min-width: 52px;
   padding: 0 12px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   background: var(--app-primary-blue-mid);
   color: #ffffff;
@@ -4478,7 +4478,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   border-left: 5px solid #dc2626;
 }
 .ba-inline-consent-head {
-  font-size: 15px;
+  font-size: var(--font-size-base);
   font-weight: 700;
   margin-bottom: 10px;
   color: #991b1b;
@@ -4487,7 +4487,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   list-style: none;
   padding: 0;
   margin: 0 0 10px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
 }
 .ba-inline-consent-details li {
   margin-bottom: 4px;
@@ -4498,7 +4498,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   color: #92400e;
   padding: 8px 12px;
   border-radius: 0 6px 6px 0;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 500;
   margin-bottom: 12px;
 }
@@ -4512,7 +4512,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   border: none;
   color: var(--th-text);
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   padding: 6px 12px;
   min-height: 44px;
   border-radius: 8px;
@@ -4526,7 +4526,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   border: none;
   border-radius: 8px;
   padding: 8px 18px;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 600;
   cursor: pointer;
   min-height: 44px;
@@ -4580,7 +4580,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   border: none;
   cursor: pointer;
   color: var(--ba-chip-txt);
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -4600,7 +4600,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 /** Group icon (emoji representing the category) */
 .ba-group-icon {
   display: inline-block;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   width: 16px;
   text-align: center;
 }
@@ -4646,7 +4646,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   display: inline-flex;
   width: auto !important;
   padding: 4px 10px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   white-space: nowrap;
 }
 
@@ -4670,7 +4670,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.15s ease;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   line-height: 1.4;
   white-space: nowrap;
   flex-wrap: nowrap;
@@ -4742,12 +4742,12 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .banking-agent-messages--condensed .ba-message-content {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   line-height: 1.4;
 }
 
 .banking-agent-messages--condensed .ba-message-title {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   margin-bottom: 2px;
 }
 
@@ -4758,7 +4758,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   background: var(--ba-accent-light, rgba(65, 105, 225, 0.08));
   border: 2px solid var(--ba-accent, #4169e1);
   border-radius: 8px;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 500;
   position: relative;
   z-index: 10;
@@ -4838,7 +4838,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 .ba-all-actions-btn {
   display: block;
   width: 100%;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   padding: 6px 10px;
   border-radius: 8px;
@@ -4909,7 +4909,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   justify-content: space-between;
   padding: 12px 16px 8px;
   border-bottom: 1px solid var(--ba-border);
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   color: var(--ba-text);
 }
@@ -4925,7 +4925,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: var(--font-size-body);
 }
 .ba-discovery-close:hover {
   background: rgba(65, 105, 225, 0.12);
@@ -4939,7 +4939,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 .ba-discovery-search {
   display: block;
   box-sizing: border-box;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   padding: 8px 12px;
   border-radius: 8px;
   background: var(--ba-bg);
@@ -4961,10 +4961,10 @@ body > .banking-agent-float-root .banking-agent-panel {
   padding: 24px 16px;
   text-align: center;
   color: var(--ba-muted);
-  font-size: 11px;
+  font-size: var(--font-size-xs);
 }
 .ba-discovery-empty-heading {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   color: var(--ba-text);
   margin-bottom: 6px;
@@ -4980,7 +4980,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 .ba-header-toggle-label {
   height: 28px;
   gap: 8px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   white-space: nowrap;
   /* Light box groups each switch with its own label so it's clear which
@@ -5035,7 +5035,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   border: 1.5px solid #2563eb;
   background: var(--th-bg-card);
   color: #2563eb;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s;
@@ -5113,7 +5113,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   border: 1px solid var(--th-border-strong);
   background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%);
   color: var(--th-text);
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s;
@@ -5214,7 +5214,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .ba-hg-label__chev {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   line-height: 1;
 }
 
@@ -5255,7 +5255,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   background: var(--ba-surface, var(--th-bg-inset));
   color: var(--ba-text, var(--th-text));
   font: inherit;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
@@ -5268,7 +5268,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .ba-jump-latest__chev {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   line-height: 1;
 }
 
@@ -5316,7 +5316,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   border: 1px solid #15803d;
   background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
   color: #fff;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 800;
   box-shadow:
     0 3px 10px rgba(22, 163, 74, 0.35),
@@ -5356,7 +5356,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   border: 1px solid #6d28d9;
   background: linear-gradient(180deg, #8b5cf6 0%, #7c3aed 100%);
   color: #fff;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 800;
   cursor: pointer;
   white-space: nowrap;
@@ -5376,7 +5376,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   padding: 0 10px;
   border-radius: 7px;
   background: var(--th-bg-card);
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
@@ -5445,7 +5445,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   width: 100%;
   box-sizing: border-box;
   padding: 5px 26px 5px 10px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #f8fafc;
   background: #334155;
   border: 1px solid #64748b;
@@ -5472,7 +5472,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   width: 16px;
   height: 16px;
   padding: 0;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   line-height: 1;
   color: #cbd5e1;
   background: transparent;
@@ -5485,7 +5485,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .ba-demo-steps-popout__progress {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   letter-spacing: normal;
   text-transform: none;
@@ -5514,7 +5514,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .ba-agent-popout-hdr__clear {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   letter-spacing: normal;
   text-transform: none;
@@ -5532,7 +5532,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .ba-agent-popout-hdr__progress {
-  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 0.72rem;
   font-weight: 600;
   color: #e2e8f0;
@@ -5602,7 +5602,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .ba-demo-steps-popout__clear {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   letter-spacing: normal;
   text-transform: none;
@@ -5620,7 +5620,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .ba-demo-steps-popout__stop-agent {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   letter-spacing: normal;
   text-transform: none;
@@ -5640,7 +5640,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 .ba-demo-steps-popout__status {
   margin: 0;
   padding: 12px 14px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   /* §0: solid text, not muted gray. */
   color: var(--ba-text, var(--th-text));
 }
@@ -5685,7 +5685,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   background: transparent;
   color: var(--ba-text, var(--th-text));
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   line-height: 1.35;
 }
 
@@ -5718,7 +5718,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   border-radius: 999px;
   border: 2px solid var(--th-border-strong);
   background: var(--th-bg-card);
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   color: var(--ba-text, var(--th-text));
 }
@@ -5735,7 +5735,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 .ba-demo-steps-popout__id {
   display: inline-flex;
   align-self: flex-start;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   letter-spacing: 0.02em;
   color: #1d4ed8;
@@ -5749,7 +5749,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   align-self: flex-start;
   font-size: 10px;
   font-weight: 600;
-  font-family: monospace;
+  font-family: var(--font-mono);
   border-radius: 3px;
   padding: 1px 5px;
   margin-left: auto;
@@ -5789,7 +5789,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   border: none;
   background: transparent;
   color: var(--ba-text, var(--th-text));
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   cursor: pointer;
   text-align: left;
@@ -5935,7 +5935,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   border-radius: 12px;
   background-color: var(--ba-bg, var(--th-bg-card));
   color: var(--ba-text, var(--th-text));
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 500;
   cursor: pointer;
   transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
@@ -6036,7 +6036,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 .scope-picker__label {
   flex: 0 0 auto;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   color: var(--ba-text, var(--th-text));
 }
@@ -6069,7 +6069,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 .scope-picker__hint {
   margin: 0;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   line-height: 1.4;
   color: var(--ba-text, var(--th-text));
 }
@@ -6207,7 +6207,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   width: calc(100% - 24px);
   margin: 12px 12px 8px;
   padding: 8px 12px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   border-radius: 8px;
   border: 1px solid rgba(65, 105, 225, 0.45);
   background: var(--ba-bg);
@@ -6324,7 +6324,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   cursor: pointer;
   transition: background 0.1s;
   font-family: inherit;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
 }
 .ba-popout-list-item:hover {
   background: rgba(65, 105, 225, 0.1);
@@ -6339,14 +6339,14 @@ body > .banking-agent-float-root .banking-agent-panel {
 
 .ba-popout-item-name {
   grid-area: name;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   color: var(--th-text);
   line-height: 1.3;
 }
 .ba-popout-item-desc {
   grid-area: desc;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   color: var(--th-text);
   line-height: 1.3;
 }
@@ -6382,10 +6382,10 @@ body > .banking-agent-float-root .banking-agent-panel {
   padding: 20px 12px;
   text-align: center;
   color: var(--ba-muted);
-  font-size: 11px;
+  font-size: var(--font-size-xs);
 }
 .ba-popout-empty-heading {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   color: var(--ba-text);
   margin-bottom: 6px;
@@ -6458,7 +6458,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .ba-inline-result-title {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 700;
 }
 
@@ -6470,7 +6470,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   height: 22px;
   border-radius: 50%;
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -6900,7 +6900,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   transition: background 0.15s;
   padding: 0 14px !important;
   opacity: 1 !important;
-  font-size: 14px !important;
+  font-size: var(--font-size-body) !important;
   font-weight: 600 !important;
 }
 .ba-send-btn:hover {
@@ -7066,8 +7066,8 @@ button.ba-action-btn:hover {
   padding: 4px 12px;
   background: var(--th-bg-inset);
   border-top: 1px solid var(--th-border);
-  font-size: 11px;
-  font-family: ui-monospace, "SFMono-Regular", monospace;
+  font-size: var(--font-size-xs);
+  font-family: var(--font-mono);
   color: var(--th-text-muted);
   border-radius: 0 0 14px 14px;
   gap: 8px;
@@ -7096,7 +7096,7 @@ button.ba-action-btn:hover {
 }
 
 .vertical-hero-label {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--th-text-muted);
@@ -7104,7 +7104,7 @@ button.ba-action-btn:hover {
 }
 
 .vertical-hero-value {
-  font-size: 18px;
+  font-size: var(--font-size-h3);
   font-weight: 700;
   color: var(--th-text);
 }
@@ -7112,7 +7112,7 @@ button.ba-action-btn:hover {
 .ba-authz-degraded-badge {
   margin: 8px 12px 0;
   padding: 4px 8px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   color: #c0600a;
   background: rgba(230, 126, 34, 0.12);

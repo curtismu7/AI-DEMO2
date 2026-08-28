@@ -16,14 +16,14 @@
 
 .tracing-header h1 {
   margin: 0;
-  font-size: 24px;
+  font-size: var(--font-size-2xl);
   font-weight: 700;
   color: #111827;
 }
 
 .tracing-subtitle {
   margin: 4px 0 0 0;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   color: #4b5563;
   max-width: 52rem;
 }
@@ -36,7 +36,7 @@
 }
 
 .tracing-meta {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #6b7280;
   white-space: nowrap;
 }
@@ -47,7 +47,7 @@
   border-radius: 6px;
   background: #ffffff;
   color: #111827;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   cursor: pointer;
   text-decoration: none;
@@ -77,7 +77,7 @@
   display: inline-block;
   padding: 4px 10px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
 }
 
@@ -98,12 +98,12 @@
   border-radius: 6px;
   background: #fef2f2;
   color: #991b1b;
-  font-size: 14px;
+  font-size: var(--font-size-body);
 }
 
 .tracing-error-hint {
   margin: 8px 0 0 0;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #7f1d1d;
 }
 
@@ -118,7 +118,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   color: #374151;
 }
@@ -129,7 +129,7 @@
   border: 1px solid #d1d5db;
   border-radius: 6px;
   background: #fff;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
 }
 
 /* GatewayMcpMetrics — PingGateway's own counters, collapsed by default so the
@@ -161,14 +161,14 @@
 
 .gw-metrics-note {
   color: var(--tracing-muted, #6b7280);
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   margin: 10px 0 0;
 }
 
 .gw-metrics-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   margin-top: 12px;
   display: block;
   overflow-x: auto;
@@ -209,7 +209,7 @@
 .tracing-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
 }
 
 .tracing-table th {
@@ -241,7 +241,7 @@
 }
 
 .tracing-id code {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #4b5563;
 }
 
@@ -280,7 +280,7 @@
 
 .tracing-bridge {
   margin: 0 0 12px 0;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #4b5563;
   line-height: 1.5;
 }
@@ -296,7 +296,7 @@
 
 .tracing-detail-legend {
   margin: 0 0 8px 0;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #6b7280;
   line-height: 1.4;
 }
@@ -307,10 +307,10 @@
 
 .tracing-detail-row > td { padding: 0; }
 .tracing-detail { padding: 10px 14px; display: flex; flex-direction: column; gap: 4px; }
-.tracing-detail--msg { color: var(--tracing-muted, #6b7280); font-size: 13px; }
+.tracing-detail--msg { color: var(--tracing-muted, #6b7280); font-size: var(--font-size-sm); }
 .tracing-detail--error { color: #b91c1c; }
 
-.tracing-span-row { display: grid; grid-template-columns: 260px 1fr 72px; align-items: center; gap: 8px; font-size: 12px; }
+.tracing-span-row { display: grid; grid-template-columns: 260px 1fr 72px; align-items: center; gap: 8px; font-size: var(--font-size-2xs); }
 .tracing-span-label { display: flex; gap: 6px; overflow: hidden; white-space: nowrap; }
 .tracing-span-svc { color: var(--tracing-muted, #6b7280); }
 .tracing-span-op { text-overflow: ellipsis; overflow: hidden; }
@@ -337,14 +337,14 @@
 }
 .tracing-explainer summary {
   cursor: pointer;
-  font-size: 15px;
+  font-size: var(--font-size-base);
   font-weight: 600;
   color: #1f2937;
 }
 .tracing-explainer > p {
   margin: 10px 0 0 0;
   color: #374151;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   line-height: 1.6;
 }
 .tracing-glossary {
@@ -362,13 +362,13 @@
   flex: 0 0 auto;
   min-width: 62px;
   font-weight: 600;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #1f2937;
 }
 .tracing-glossary dd {
   margin: 0;
   color: #4b5563;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   line-height: 1.5;
 }
 
@@ -390,7 +390,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   color: #374151;
   cursor: pointer;
@@ -450,7 +450,7 @@
   background: #0f172a;
   color: #e2e8f0;
   font-family: ui-sans-serif, system-ui, sans-serif;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   line-height: 1.5;
   white-space: pre-wrap;
   pointer-events: none;
@@ -493,7 +493,7 @@
   border-radius: 6px;
   background: #1e293b;
   color: #e2e8f0;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 600;
   line-height: 1;
   cursor: pointer;
@@ -521,7 +521,7 @@
 
 .tracing-graph-panel h3 {
   margin: 10px 0 8px 0;
-  font-size: 15px;
+  font-size: var(--font-size-base);
   font-weight: 600;
   color: #f1f5f9;
 }
@@ -531,7 +531,7 @@
   grid-template-columns: auto 1fr;
   gap: 4px 12px;
   margin: 0 0 12px 0;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
 }
 
 .tracing-graph-panel-facts dt {
@@ -609,7 +609,7 @@
   border-radius: 50%;
   background: #e5e7eb;
   color: #374151;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   flex-shrink: 0;
 }
@@ -646,13 +646,13 @@
 
 .tracing-step-title {
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   color: #111827;
 }
 
 .tracing-step-dur {
   margin-left: auto;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #6b7280;
   font-variant-numeric: tabular-nums;
 }
@@ -680,7 +680,7 @@
   grid-template-columns: repeat(2, 1fr);
   gap: 10px 16px;
   margin: 0;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
 }
 
 .tracing-step-facet {
@@ -707,7 +707,7 @@
 
 .tracing-step-source {
   margin: 0 0 8px 0;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #6b7280;
   font-weight: 500;
 }
@@ -717,7 +717,7 @@
   padding: 10px 12px;
   background: #f3f4f6;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #374151;
   overflow-x: auto;
   line-height: 1.4;
@@ -737,7 +737,7 @@
   border-bottom: 2px solid transparent;
   background: transparent;
   color: #6b7280;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   cursor: pointer;
 }

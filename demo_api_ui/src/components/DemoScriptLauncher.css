@@ -12,7 +12,7 @@
   color: #ffffff;
   border: 1px solid #374151;
   border-radius: 20px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 700;
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
@@ -98,7 +98,7 @@
   top: 8px;
   right: 8px;
   padding: 4px 12px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 800;
   color: #ffffff;
   background: #047857;
@@ -121,7 +121,7 @@
 .dsl-nav-btn {
   margin: 0 0 12px;
   padding: 6px 14px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 700;
   color: #ffffff;
   background: #1d4ed8;
@@ -193,7 +193,7 @@
 }
 
 .dsl-size-label {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 700;
   color: #374151;
 }
@@ -201,7 +201,7 @@
 .dsl-size-btn {
   min-width: 34px;
   padding: 4px 8px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 800;
   color: #ffffff;
   background: #111827;
@@ -221,7 +221,7 @@
 
 .dsl-size-val {
   min-width: 38px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 700;
   color: #111827;
   text-align: center;
@@ -229,7 +229,7 @@
 
 .dsl-close-btn {
   padding: 4px 14px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 700;
   color: #111827;
   background: #ffffff;

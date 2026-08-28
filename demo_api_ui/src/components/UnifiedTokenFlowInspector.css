@@ -52,7 +52,7 @@
 
 .utfi-title {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--font-size-h3);
   font-weight: 600;
   color: #0f172a;
   letter-spacing: -0.01em;
@@ -60,7 +60,7 @@
 
 .utfi-subtitle {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #1e293b;
   font-weight: 400;
 }
@@ -76,7 +76,7 @@
   border: 1px solid #d1d5db;
   border-radius: 6px;
   padding: 6px 12px;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   color: #374151;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -94,7 +94,7 @@
 }
 
 .utfi-btn-close {
-  font-size: 18px;
+  font-size: var(--font-size-h3);
   line-height: 1;
   padding: 4px 10px;
 }
@@ -119,7 +119,7 @@
 
 .utfi-btn-sm {
   padding: 4px 8px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   border: none;
   background: transparent;
   color: #1e293b;
@@ -187,7 +187,7 @@
 }
 
 .utfi-section-icon {
-  font-size: 20px;
+  font-size: var(--font-size-xl);
 }
 
 .utfi-section-header h3 {
@@ -202,7 +202,7 @@
   padding: 4px 10px;
   background: #eff6ff;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #2563eb;
   font-weight: 500;
 }
@@ -258,12 +258,12 @@
   gap: 8px;
   font-weight: 600;
   color: #0f172a;
-  font-size: 14px;
+  font-size: var(--font-size-body);
 }
 
 .utfi-toggle-icon {
   color: #334155;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   transition: color 0.2s ease;
 }
 
@@ -308,12 +308,12 @@
 .utfi-empty-msg {
   text-align: center;
   color: #1e293b;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   padding: 16px;
 }
 
 .utfi-sync-error {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #92400e;
   background: #fef3c7;
   border: 1px solid #fde68a;
@@ -342,7 +342,7 @@
   padding: 10px 12px;
   background: #f1f5f9;
   border-bottom: 1px solid #e5e7eb;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 500;
   color: #334155;
   cursor: pointer;
@@ -366,7 +366,7 @@
   padding: 10px 12px;
   background: #f1f5f9;
   border-bottom: 1px solid #e5e7eb;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 500;
   color: #334155;
 }
@@ -381,7 +381,7 @@
   gap: 12px;
   padding: 10px 12px;
   border-bottom: 1px solid #f1f5f9;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
 }
 
 .utfi-step:last-child {
@@ -398,7 +398,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   color: #2563eb;
   flex-shrink: 0;
@@ -415,7 +415,7 @@
 }
 
 .utfi-step-detail {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #1e293b;
 }
 
@@ -428,7 +428,7 @@
   display: inline-block;
   padding: 4px 10px;
   border-radius: 12px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -490,7 +490,7 @@
   padding: 10px 12px;
   background: #f1f5f9;
   border-bottom: 1px solid #e5e7eb;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 500;
   color: #334155;
 }
@@ -509,7 +509,7 @@
   background: #ffffff;
   border-left: 3px solid #3b82f6;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -536,7 +536,7 @@
 .utfi-token-type {
   padding: 2px 8px;
   border-radius: 3px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   background: #eff6ff;
   color: #2563eb;
@@ -555,12 +555,12 @@
 .utfi-token-time {
   margin-left: auto;
   color: #334155;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
 }
 
 .utfi-token-claim {
   color: #1e293b;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   margin-top: 4px;
 }
 
@@ -570,7 +570,7 @@
   border-radius: 3px;
   font-family: inherit;
   color: #1d4ed8;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
 }
 
 /* ============================================================================
@@ -594,7 +594,7 @@
   grid-template-columns: 140px 1fr;
   gap: 12px;
   padding: 8px 0;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   border-bottom: 1px solid #f1f5f9;
 }
 
@@ -611,12 +611,12 @@
   color: #1e293b;
   word-break: break-word;
   font-family: inherit;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
 }
 
 .utfi-muted {
   color: #1e293b;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
 }
 
 /* Scopes */
@@ -632,7 +632,7 @@
   background: #eff6ff;
   border: 1px solid #bfdbfe;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 500;
   color: #1d4ed8;
   white-space: nowrap;
@@ -664,14 +664,14 @@
 
 .utfi-error-content h4 {
   margin: 0 0 4px 0;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   color: #0f172a;
   font-weight: 600;
 }
 
 .utfi-error-content p {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #1e293b;
 }
 
@@ -683,7 +683,7 @@
   border-radius: 4px;
   border: 1px solid #e5e7eb;
   font-family: inherit;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #1e293b;
   max-height: 300px;
   overflow-y: auto;
@@ -713,7 +713,7 @@
   text-align: center;
   padding: 20px;
   color: #1e293b;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
 }
 
 .utfi-hint {
@@ -721,7 +721,7 @@
   border-left: 3px solid #3b82f6;
   padding: 10px 12px;
   border-radius: 4px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #1e293b;
   margin: 0;
 }
@@ -1200,7 +1200,7 @@
   padding: 10px 12px;
   background: #f1f5f9;
   border-bottom: 1px solid #e5e7eb;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 500;
   color: #334155;
   flex-wrap: wrap;
@@ -1208,7 +1208,7 @@
 }
 
 .utfi-detail-hint {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 400;
   color: #64748b;
   font-style: italic;
@@ -1257,7 +1257,7 @@
   border: none;
   background: transparent;
   color: #64748b;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 500;
   cursor: pointer;
   border-bottom: 2px solid transparent;

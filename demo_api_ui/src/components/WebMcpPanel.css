@@ -4,7 +4,7 @@
 .webmcp-loading {
   color: #4a6080;
   padding: 12px 0;
-  font-size: 15px;
+  font-size: var(--font-size-base);
 }
 
 .webmcp-loading__header {
@@ -72,15 +72,15 @@
 }
 
 .webmcp-discovery-phase__label {
-  font-size: 14px;
+  font-size: var(--font-size-body);
   color: #1f2937;
   font-weight: 500;
 }
 
 .webmcp-discovery-phase__technical {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #64748b;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
 }
 
 /* Badge: consent / step-up */
@@ -89,7 +89,7 @@
   margin-top: 5px;
   padding: 2px 7px;
   border-radius: 3px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   letter-spacing: 0.3px;
 }
@@ -115,7 +115,7 @@
   border: 1px dashed #c0ccd8;
   border-radius: 8px;
   color: #7a90ac;
-  font-size: 15px;
+  font-size: var(--font-size-base);
   text-align: center;
   line-height: 1.6;
 }
@@ -128,7 +128,7 @@
   padding: 12px 14px;
   border-radius: 6px;
   margin-bottom: 14px;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   line-height: 1.5;
 }
 
@@ -159,7 +159,7 @@
 .webmcp-gate-notice p {
   margin: 0;
   color: #4a6080;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
 }
 
 
@@ -189,7 +189,7 @@
   border-radius: 6px;
   background: #eff6ff;
   border: 1px solid #bfdbfe;
-  font-size: 15px;
+  font-size: var(--font-size-base);
   color: #1e40af;
 }
 
@@ -222,7 +222,7 @@
 
 .webmcp-stream-log h5 {
   margin: 0 0 8px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #4a6080;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -230,7 +230,7 @@
 
 .webmcp-stream-event {
   font-family: inherit;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #0f2044;
   white-space: pre-wrap;
   word-break: break-all;
@@ -249,7 +249,7 @@
 
 .webmcp-result h5 {
   margin: 10px 0 8px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #4a6080;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -262,7 +262,7 @@
   border: 1px solid #d0d9e8;
   border-radius: 6px;
   font-family: inherit;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   color: #0f2044;
   white-space: pre-wrap;
   word-break: break-all;
@@ -277,7 +277,7 @@
   gap: 10px;
   padding: 12px 14px;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   line-height: 1.5;
 }
 
@@ -321,7 +321,7 @@
 
 .webmcp-result-context p {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #4a6080;
   line-height: 1.6;
 }
@@ -338,19 +338,19 @@
 
 .webmcp-error p {
   margin: 0 0 6px;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   color: #dc2626;
 }
 
 .webmcp-error details {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #4a6080;
 }
 
 .webmcp-error summary {
   cursor: pointer;
   color: #4a6080;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
 }
 
 .webmcp-error pre {
@@ -359,7 +359,7 @@
   background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 4px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #0f2044;
   white-space: pre-wrap;
   word-break: break-all;
@@ -369,15 +369,15 @@
 
 .webmcp-error__status {
   margin: 6px 0 8px;
-  font-family: monospace;
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
   color: #94a3b8;
 }
 
 .webmcp-error__summary {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   margin-bottom: 10px;
 }
 
@@ -394,7 +394,7 @@
 .webmcp-error__summary td {
   text-align: left;
   padding: 2px 0;
-  font-family: monospace;
+  font-family: var(--font-mono);
   color: #1e293b;
   word-break: break-word;
 }
@@ -406,14 +406,14 @@
 }
 
 .webmcp-error__full > summary {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #94a3b8;
   cursor: pointer;
 }
 
 .webmcp-error__full pre {
   margin: 6px 0 0;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   max-height: 300px;
   overflow-y: auto;
 }

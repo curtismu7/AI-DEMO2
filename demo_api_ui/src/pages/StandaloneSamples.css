@@ -23,7 +23,7 @@
 .st-brand {
   color: var(--th-text-invert);
   font-weight: 700;
-  font-size: 15px;
+  font-size: var(--font-size-base);
   text-decoration: none;
   white-space: nowrap;
 }
@@ -74,7 +74,7 @@ a.st-brand:visited {
 .st-main { padding: 0; }
 
 .st-index { max-width: 980px; margin: 0 auto; padding: 40px 24px 64px; }
-.st-index h1 { margin: 0 0 10px; font-size: 30px; color: var(--th-text); }
+.st-index h1 { margin: 0 0 10px; font-size: var(--font-size-3xl); color: var(--th-text); }
 .st-lede {
   margin: 0 0 28px;
   font-size: 15.5px;
@@ -110,19 +110,19 @@ a.st-card:active {
 }
 .st-card:hover { border-color: var(--th-border-strong); }
 .st-card:focus-visible { outline: 2px solid var(--th-text); outline-offset: 2px; }
-.st-card h2 { margin: 0 0 6px; font-size: 17px; color: var(--th-text); }
-.st-card p { margin: 0 0 10px; font-size: 14px; line-height: 1.5; color: var(--th-text-muted); }
+.st-card h2 { margin: 0 0 6px; font-size: var(--font-size-lg); color: var(--th-text); }
+.st-card p { margin: 0 0 10px; font-size: var(--font-size-body); line-height: 1.5; color: var(--th-text-muted); }
 .st-card-meta { font-size: 12.5px; color: var(--th-text-muted); }
 
 .st-back {
   display: inline-block;
   margin-top: 16px;
   color: var(--th-text);
-  font-size: 14px;
+  font-size: var(--font-size-body);
 }
 
 @media (max-width: 640px) {
   .st-bar { gap: 10px; padding: 10px 16px; }
   .st-index { padding: 28px 16px 48px; }
-  .st-index h1 { font-size: 24px; }
+  .st-index h1 { font-size: var(--font-size-2xl); }
 }

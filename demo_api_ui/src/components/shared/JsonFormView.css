@@ -40,7 +40,7 @@
   color: #0f172a;
 }
 .jfv-value-text {
-  font-family: ui-monospace, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 0.82rem;
 }
 .jfv-empty {

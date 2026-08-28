@@ -1,6 +1,6 @@
 .json-viewer {
-  font-family: 'SF Mono', 'Fira Code', monospace;
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
   line-height: 1.5;
   color: var(--pp-text-secondary);
   background-color: var(--pp-bg-code);

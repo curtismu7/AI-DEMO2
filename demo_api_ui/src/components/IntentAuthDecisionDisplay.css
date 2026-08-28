@@ -12,7 +12,7 @@
 
 .iad-title {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 600;
   color: #374151;
   text-transform: uppercase;
@@ -24,7 +24,7 @@
 }
 
 .iad-intent-label {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 500;
   color: #6b7280;
   text-transform: uppercase;
@@ -60,7 +60,7 @@
 }
 
 .iad-score-label {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 500;
   color: #6b7280;
   text-transform: uppercase;
@@ -68,7 +68,7 @@
 }
 
 .iad-score-value {
-  font-size: 18px;
+  font-size: var(--font-size-h3);
   font-weight: 700;
   color: var(--score-bg, #1f2937);
 }
@@ -80,7 +80,7 @@
 }
 
 .iad-reason-label {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 500;
   color: #6b7280;
   text-transform: uppercase;
@@ -88,14 +88,14 @@
 }
 
 .iad-reason-text {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #374151;
   line-height: 1.5;
 }
 
 .iad-recommendation {
   margin-top: 12px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   color: #374151;
 }
@@ -121,7 +121,7 @@
   border-left: 3px solid #3b82f6;
   padding: 8px 12px;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
 }
 
 .iad-compact-row {

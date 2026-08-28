@@ -71,7 +71,7 @@
 
 .mcp-tools-modal-header h2 {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--font-size-h3);
   font-weight: 600;
   color: #1e3a8a;
   line-height: 1.4;
@@ -80,7 +80,7 @@
 .mcp-tools-close-btn {
   background: none;
   border: none;
-  font-size: 28px;
+  font-size: var(--font-size-h1);
   color: #6b7280;
   cursor: pointer;
   padding: 0;
@@ -113,7 +113,7 @@
   padding: 10px 12px;
   border: 1px solid #d1d5db;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   outline: none;
   transition:
     border-color 0.2s,
@@ -167,7 +167,7 @@
 .mcp-tool-name {
   display: flex;
   align-items: center;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 600;
   color: #111827;
   margin-bottom: 6px;
@@ -179,7 +179,7 @@
 }
 
 .mcp-tool-description {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #6b7280;
   margin: 6px 0 8px 0;
   line-height: 1.4;
@@ -188,7 +188,7 @@
 /* ─── Tool inputs/parameters ────────────────────────────────────────────── */
 
 .mcp-tool-inputs {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #4b5563;
 }
 
@@ -211,7 +211,7 @@
   color: #1e40af;
   padding: 3px 8px;
   border-radius: 4px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 500;
   border: 1px solid #bfdbfe;
 }
@@ -219,7 +219,7 @@
 /* ─── Tool action hint ──────────────────────────────────────────────────── */
 
 .mcp-tool-action {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #0284c7;
   font-weight: 500;
   margin-top: 6px;
@@ -240,7 +240,7 @@
   height: 150px;
   text-align: center;
   color: #6b7280;
-  font-size: 14px;
+  font-size: var(--font-size-body);
 }
 
 /* ─── Modal footer ──────────────────────────────────────────────────────── */
@@ -260,7 +260,7 @@
   border: none;
   padding: 8px 16px;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 500;
   cursor: pointer;
   transition: background-color 0.2s;
@@ -307,11 +307,11 @@
   }
 
   .mcp-tool-name {
-    font-size: 13px;
+    font-size: var(--font-size-sm);
   }
 
   .mcp-tool-description {
-    font-size: 12px;
+    font-size: var(--font-size-2xs);
   }
 }
 

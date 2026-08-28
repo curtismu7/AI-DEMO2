@@ -21,7 +21,7 @@
   border: none;
   background: transparent;
   color: var(--app-text-secondary, #666666);
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 600;
   font-family: var(--app-font-family, 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif);
   cursor: pointer;
@@ -62,7 +62,7 @@
 
 .architecture-tab-content p {
   margin: 8px 0;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   color: var(--app-text-secondary, #666666);
   line-height: 1.5;
   font-family: var(--app-font-family, 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif);
@@ -73,7 +73,7 @@
   padding: 0;
   list-style-position: inside;
   color: var(--app-text-secondary, #666666);
-  font-size: 14px;
+  font-size: var(--font-size-body);
   line-height: 1.6;
   font-family: var(--app-font-family, 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif);
 }
@@ -99,7 +99,7 @@
 }
 
 .token-flow-mode-indicator {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: var(--app-text-secondary, #666666);
   margin: 0;
   padding: 8px;

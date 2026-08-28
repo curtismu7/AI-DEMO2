@@ -78,7 +78,7 @@
   border-bottom: 1px solid #e2e8f0;
   background: #f8fafc;
 }
-.agc-current { font-family: ui-monospace, Menlo, monospace; font-size: 0.85rem; color: #0f172a; }
+.agc-current { font-family: var(--font-mono); font-size: 0.85rem; color: #0f172a; }
 .agc-spacer { flex: 1; }
 .agc-muted { color: #94a3b8; font-size: 0.8rem; }
 .agc-dirty { color: #b45309; font-size: 0.8rem; font-weight: 600; }
@@ -137,7 +137,7 @@
 }
 .agc-issue--error .agc-issue-badge { background: #fee2e2; color: #991b1b; }
 .agc-issue--warn .agc-issue-badge { background: #fef3c7; color: #92400e; }
-.agc-issue-path { font-family: ui-monospace, Menlo, monospace; color: #475569; white-space: nowrap; }
+.agc-issue-path { font-family: var(--font-mono); color: #475569; white-space: nowrap; }
 .agc-issue-msg { color: #334155; }
 
 /* ---- restart banner ---- */

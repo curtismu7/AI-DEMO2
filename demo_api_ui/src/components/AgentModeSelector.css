@@ -19,7 +19,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 700;
   color: var(--text-primary, var(--th-text));
   letter-spacing: 0.3px;
@@ -35,7 +35,7 @@
   height: 32px;
   padding: 0 32px 0 12px;
   background-position: right 11px center;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 700;
   color: var(--ctl-brand, #0b69a3);
   white-space: nowrap;
@@ -45,7 +45,7 @@
 .ams--compact .ams-select {
   height: 26px;
   padding: 0 26px 0 8px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
 }
 .ams-select:hover:not(:disabled) {
   box-shadow: 0 4px 12px rgba(11, 105, 163, 0.18);
@@ -63,7 +63,7 @@
 .ams-degraded {
   margin: 4px 0 0;
   padding: 8px 10px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   line-height: 1.4;
   color: #92400e;
   background: #fffbeb;
@@ -85,7 +85,7 @@
   pointer-events: none;
 }
 .ams-degraded-chip {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   color: #92400e;
   background: #fffbeb;
@@ -99,7 +99,7 @@
 .ams-autoswitch {
   margin: 4px 0 0;
   padding: 8px 10px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   line-height: 1.4;
   color: #92400e;

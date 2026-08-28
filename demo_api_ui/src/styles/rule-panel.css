@@ -21,14 +21,14 @@
 
 .rp-header__title {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 700;
   color: #111;
 }
 
 .rp-header__sub {
   margin: 2px 0 0;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #666;
 }
 
@@ -61,7 +61,7 @@
 }
 
 .rp-list-hint {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   color: #777;
   font-style: italic;
   padding: 5px 10px 4px;
@@ -93,14 +93,14 @@
 }
 
 .rp-list-item__name {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   color: #111;
   margin-bottom: 3px;
 }
 
 .rp-list-item__sub {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   color: #777;
   line-height: 1.4;
   margin-bottom: 5px;
@@ -116,14 +116,14 @@
 }
 
 .rp-detail__title {
-  font-size: 15px;
+  font-size: var(--font-size-base);
   font-weight: 700;
   color: #111;
   margin: 0 0 6px;
 }
 
 .rp-detail__desc {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #444;
   line-height: 1.6;
   margin: 0 0 14px;
@@ -140,7 +140,7 @@
 }
 
 .rp-test-form__heading {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   color: #888;
   text-transform: uppercase;
@@ -160,7 +160,7 @@
 
 .rp-test-form__label {
   display: block;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   color: #666;
   margin-bottom: 4px;
 }
@@ -170,7 +170,7 @@
   border: 1px solid #d1d5db;
   border-radius: 5px;
   padding: 6px 10px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #111;
   background: #fff;
   box-sizing: border-box;
@@ -197,7 +197,7 @@
   border: none;
   border-radius: 6px;
   padding: 7px 18px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s;

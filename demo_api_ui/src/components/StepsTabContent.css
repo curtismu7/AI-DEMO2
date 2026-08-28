@@ -5,7 +5,7 @@
 .stc-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: var(--th-text);
 }
 
@@ -31,7 +31,7 @@
 
 .stc-num {
   color: var(--th-text-muted);
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   width: 34px;
   font-weight: 600;
 }
@@ -56,7 +56,7 @@
 
 .stc-st--halt {
   color: #dc2626;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
 }
 
 .stc-st--skip {
@@ -65,22 +65,22 @@
 
 .stc-st--acquiring {
   color: #1d4ed8;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
 }
 
 .stc-st--waiting {
   color: var(--th-text-muted);
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
 }
 
 .stc-st--failed {
   color: #dc2626;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
 }
 
 .stc-st--notinpath {
   color: var(--th-text-muted);
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
 }
 
 .stc-row--notinpath .stc-step {
@@ -108,7 +108,7 @@
 }
 
 .stc-empty {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: var(--th-text-muted);
   font-style: italic;
   padding: 16px;

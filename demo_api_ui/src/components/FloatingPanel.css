@@ -42,7 +42,7 @@
 }
 
 .fp-title {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
@@ -63,7 +63,7 @@
   height: 24px;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -187,7 +187,7 @@
   align-items: center;
   gap: 10px;
   color: var(--th-text-muted);
-  font-size: 14px;
+  font-size: var(--font-size-body);
 }
 
 .fp-btn-popin {

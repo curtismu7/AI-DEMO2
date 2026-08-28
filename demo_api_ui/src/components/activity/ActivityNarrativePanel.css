@@ -18,16 +18,16 @@
   cursor: grab;
   user-select: none;
 }
-.anp-title { font-weight: 600; font-size: 13px; }
+.anp-title { font-weight: 600; font-size: var(--font-size-sm); }
 .anp-btn {
   background: rgba(255, 255, 255, 0.18);
   border: none; color: #fff; border-radius: 6px;
-  width: 24px; height: 24px; cursor: pointer; font-size: 13px;
+  width: 24px; height: 24px; cursor: pointer; font-size: var(--font-size-sm);
 }
 .anp-body { padding: 10px 12px; overflow-y: auto; flex: 1; }
 .anp-request { margin-bottom: 12px; }
-.anp-request-head { font-weight: 600; font-size: 12px; color: #1a2b4a; margin-bottom: 4px; }
-.anp-summary { font-size: 12px; color: #475467; }
+.anp-request-head { font-weight: 600; font-size: var(--font-size-2xs); color: #1a2b4a; margin-bottom: 4px; }
+.anp-summary { font-size: var(--font-size-2xs); color: #475467; }
 
 /* Idle / empty state — friendly intro + "waiting and working" indicator. */
 .anp-empty {
@@ -61,12 +61,12 @@
   0%   { transform: scale(0.5); opacity: 0.55; }
   100% { transform: scale(2.6); opacity: 0; }
 }
-.anp-empty-title { font-weight: 600; font-size: 14px; color: #1a2b4a; }
-.anp-empty-text { font-size: 12px; line-height: 1.5; color: #475467; max-width: 260px; }
+.anp-empty-title { font-weight: 600; font-size: var(--font-size-body); color: #1a2b4a; }
+.anp-empty-text { font-size: var(--font-size-2xs); line-height: 1.5; color: #475467; max-width: 260px; }
 .anp-empty-status {
   display: inline-flex; align-items: center; gap: 7px;
   margin-top: 4px;
-  font-size: 11px; font-weight: 600; letter-spacing: 0.02em;
+  font-size: var(--font-size-xs); font-weight: 600; letter-spacing: 0.02em;
   color: #1a73e8;
   background: rgba(26, 115, 232, 0.08);
   border-radius: 999px;
@@ -87,7 +87,7 @@
   .anp-empty-pulse span:nth-child(1),
   .anp-empty-pulse span:nth-child(2) { opacity: 0.3; }
 }
-.anp-step { display: flex; gap: 8px; align-items: baseline; font-size: 13px; padding: 2px 0; color: #1a2b4a; }
+.anp-step { display: flex; gap: 8px; align-items: baseline; font-size: var(--font-size-sm); padding: 2px 0; color: #1a2b4a; }
 .anp-step--security .anp-step-text { color: #8a4b00; }
 .anp-step--error .anp-step-text { color: #b42318; }
 .anp-glyph { width: 14px; text-align: center; flex: none; }

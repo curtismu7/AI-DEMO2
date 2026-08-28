@@ -18,7 +18,7 @@
 
 .scope-ref__state-detail {
   margin: 0.5rem 0 1rem;
-  font-family: 'SF Mono', 'Fira Code', Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 0.82rem;
   color: #7f1d1d;
   word-break: break-word;

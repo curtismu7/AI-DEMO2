@@ -33,7 +33,7 @@
 
 .elicit-modal__title {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--font-size-h3);
   font-weight: 600;
   color: #1a1a1a;
 }
@@ -41,7 +41,7 @@
 .elicit-modal__close {
   background: none;
   border: none;
-  font-size: 24px;
+  font-size: var(--font-size-2xl);
   cursor: pointer;
   padding: 0;
   color: #666;
@@ -72,7 +72,7 @@
 
 .elicit-modal__message {
   margin: 0 0 16px 0;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   color: #333;
   line-height: 1.5;
 }
@@ -84,7 +84,7 @@
   border: 1px solid #d32f2f;
   border-radius: 6px;
   color: #b71c1c;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 500;
   line-height: 1.4;
 }
@@ -102,7 +102,7 @@
 }
 
 .elicit-form__label {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 500;
   color: #1a1a1a;
 }
@@ -117,7 +117,7 @@
   padding: 8px 12px;
   border: 1px solid #d0d0d0;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-family: inherit;
   transition: border-color 0.2s;
 }
@@ -148,7 +148,7 @@
 }
 
 .elicit-form__error {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #d32f2f;
   margin-top: 2px;
 }
@@ -163,7 +163,7 @@
 
 .elicit-url-label {
   margin: 0 0 8px 0;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #666;
   font-weight: 500;
 }
@@ -173,16 +173,16 @@
   border: 1px solid #d0d0d0;
   border-radius: 4px;
   padding: 10px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #1976d2;
   word-break: break-all;
-  font-family: 'Monaco', 'Courier New', monospace;
+  font-family: var(--font-mono);
   margin-bottom: 8px;
 }
 
 .elicit-url-warning {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #d32f2f;
   line-height: 1.4;
 }
@@ -199,7 +199,7 @@
   padding: 8px 16px;
   border: none;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 500;
   cursor: pointer;
   transition: background 0.2s, opacity 0.2s;

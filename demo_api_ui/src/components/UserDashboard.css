@@ -1157,7 +1157,7 @@
 .account-card h3 {
   margin: 0 0 3px;
   color: var(--th-text);
-  font-size: 15px;
+  font-size: var(--font-size-base);
   font-weight: 700;
   letter-spacing: -0.01em;
   line-height: 1.2;
@@ -1213,7 +1213,7 @@
 
 .account-number {
   color: var(--th-text-muted);
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   margin: 0;
   font-family: var(--font-family-mono);
   letter-spacing: 0.04em;
@@ -1228,7 +1228,7 @@
 }
 
 .balance {
-  font-size: 28px;
+  font-size: var(--font-size-h1);
   font-weight: 800;
   color: var(--th-text);
   margin: 0;
@@ -1241,7 +1241,7 @@
 }
 
 .balance-label {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   color: var(--th-text-muted);
   font-weight: 500;
 }
@@ -1268,7 +1268,7 @@
   justify-content: center;
   padding: 8px 0;
   border-radius: 8px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   cursor: pointer;
   transition:
@@ -1317,7 +1317,7 @@
   padding: 10px 18px;
   background: none;
   border: none;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   color: var(--th-text-muted);
   cursor: pointer;
@@ -1369,7 +1369,7 @@
 }
 
 .detail-value {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: var(--th-text);
   font-weight: 500;
   font-family: var(--font-family-mono);
@@ -2232,7 +2232,7 @@
   border-radius: 6px;
   padding: 15px;
   font-family: inherit;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   line-height: 1.4;
   color: #2c3e50;
   word-break: break-all;
@@ -2851,7 +2851,7 @@
 
 .user-dashboard--2026 .ud-hero__insight {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   line-height: 1.5;
   color: var(--th-text-muted);
   max-width: 42rem;
@@ -2878,7 +2878,7 @@
 
 .user-dashboard--2026 .ud-hero__debt {
   margin: 6px 0 0;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-variant-numeric: tabular-nums;
   color: #8b3252;
   display: flex;
@@ -2935,7 +2935,7 @@
   align-items: center;
   justify-content: center;
   padding: 8px 16px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   font-family: inherit;
   letter-spacing: 0.01em;
@@ -2989,7 +2989,7 @@
   align-items: center;
   gap: 0.35rem 0.6rem;
   padding: 0.5rem 0 0.25rem;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   color: var(--th-text-muted);
 }
 
@@ -3023,7 +3023,7 @@
   display: inline-flex;
   align-items: center;
   padding: 5px 11px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   color: #2c5282;
   background: var(--th-bg-inset);
@@ -3084,7 +3084,7 @@
 /* Account Holder profile card */
 .ud-profile-card h2 {
   margin: 0 0 12px;
-  font-size: 15px;
+  font-size: var(--font-size-base);
   font-weight: 700;
   color: var(--th-text);
 }
@@ -4021,7 +4021,7 @@
 .ud-float-chain-btn {
   width: 100%;
   padding: 6px 10px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   text-align: left;
   background: var(--th-bg-card, #fff);
   border: 1px solid var(--brand-medium-gray, #e5e7eb);

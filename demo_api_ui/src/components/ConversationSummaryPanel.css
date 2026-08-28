@@ -6,7 +6,7 @@
   border: 1px solid var(--ba-border, var(--th-border));
   border-radius: 8px;
   background: var(--ba-surface, var(--th-bg-inset));
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: var(--ba-text, var(--th-text));
 }
 

@@ -31,7 +31,7 @@
   display: inline-block;
   background: var(--vfp-accent);
   color: #fff;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   letter-spacing: 0.08em;
   padding: 4px 10px;
@@ -40,14 +40,14 @@
 }
 
 .vfp-title {
-  font-size: 22px;
+  font-size: var(--font-size-h2);
   font-weight: 600;
   color: #1f2937;
   margin: 4px 0 6px 0;
 }
 
 .vfp-subtitle {
-  font-size: 14px;
+  font-size: var(--font-size-body);
   color: #4b5563;
   margin: 0;
   line-height: 1.5;
@@ -77,7 +77,7 @@
 }
 
 .vfp-card-title {
-  font-size: 15px;
+  font-size: var(--font-size-base);
   font-weight: 700;
   color: #111827;
   margin: 0 0 12px 0;
@@ -105,13 +105,13 @@
 }
 
 .vfp-field-row dt {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #6b7280;
   font-weight: 500;
 }
 
 .vfp-field-row dd {
-  font-size: 14px;
+  font-size: var(--font-size-body);
   color: #1f2937;
   margin: 0;
   font-weight: 500;
@@ -123,7 +123,7 @@
 }
 
 .vfp-swap-line {
-  font-size: 14px;
+  font-size: var(--font-size-body);
   color: #374151;
   line-height: 1.55;
   margin: 0 0 14px 0;
@@ -142,12 +142,12 @@
 .vfp-swap-label {
   font-weight: 600;
   color: #4b5563;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
 }
 
 .vfp-swap-value {
-  font-family: ui-monospace, "SF Mono", Monaco, "Cascadia Mono", monospace;
-  font-size: 14px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-body);
   background: var(--vfp-accent-code);
   padding: 2px 8px;
   border-radius: 2px;
@@ -161,13 +161,13 @@
 }
 
 .vfp-swap-details li {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #4b5563;
   line-height: 1.6;
 }
 
 .vfp-flow-text {
-  font-size: 14px;
+  font-size: var(--font-size-body);
   color: #374151;
   line-height: 1.6;
   margin: 0 0 14px 0;
@@ -194,23 +194,23 @@
 }
 
 .vfp-flow-detail dt {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   color: var(--vfp-accent-dd);
 }
 
 .vfp-flow-detail dd {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #1f2937;
   margin: 0;
 }
 
 .vfp-flow-detail code {
-  font-family: ui-monospace, "SF Mono", Monaco, "Cascadia Mono", monospace;
+  font-family: var(--font-mono);
   background: var(--vfp-accent-code);
   padding: 2px 6px;
   border-radius: 2px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
 }
 
 .vfp-actions {
@@ -224,7 +224,7 @@
   border: none;
   padding: 10px 18px;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 600;
   cursor: pointer;
 }
@@ -237,7 +237,7 @@
 }
 
 .vfp-learning-intro {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #374151;
   margin: 0 0 16px 0;
   line-height: 1.6;

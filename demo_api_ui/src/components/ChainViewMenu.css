@@ -72,7 +72,7 @@
 }
 
 .cvm-item-count {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: #047857;
@@ -82,13 +82,13 @@
 }
 
 .cvm-item-hint {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   color: var(--th-text-muted);
 }
 
 .cvm-note {
   margin: 4px 9px 3px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   color: var(--th-text-muted);
   border-top: 1px solid var(--th-border);
   padding-top: 6px;

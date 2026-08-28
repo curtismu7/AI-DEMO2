@@ -1346,7 +1346,7 @@ a.pingone-test-button--primary:visited {
   border: 1px solid rgba(239, 68, 68, 0.4);
   border-radius: 6px;
   color: #fca5a5;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 500;
   cursor: pointer;
   transition: background 0.15s;

@@ -17,7 +17,7 @@
 .alp-subtitle {
   color: #555;
   margin-bottom: 40px;
-  font-size: 15px;
+  font-size: var(--font-size-base);
 }
 .alp-body { display: flex; gap: 2rem; align-items: flex-start; flex-wrap: nowrap; }
 .alp-slots { flex: 1 1 auto; min-width: 0; }
@@ -38,21 +38,21 @@
   margin-bottom: 0;
 }
 .alp-slot__title {
-  font-size: 15px;
+  font-size: var(--font-size-base);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   margin-bottom: 10px;
 }
-.alp-slot__desc { color: #555; margin-bottom: 16px; font-size: 14px; line-height: 1.5; }
-.alp-slot__status { margin-top: 14px; font-size: 14px; }
+.alp-slot__desc { color: #555; margin-bottom: 16px; font-size: var(--font-size-body); line-height: 1.5; }
+.alp-slot__status { margin-top: 14px; font-size: var(--font-size-body); }
 .alp-video { width: 100%; display: block; }
 .alp-btn {
   background: #1a1a1a;
   color: #fff;
   border: none;
   padding: 14px 28px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -63,10 +63,10 @@
   background: #f7f6f4;
   padding: 16px;
   overflow-x: auto;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   margin-top: 16px;
 }
-.alp-error { color: #b3261e; margin-top: 10px; font-size: 14px; }
+.alp-error { color: #b3261e; margin-top: 10px; font-size: var(--font-size-body); }
 .alp-spinner {
   display: inline-block;
   width: 12px;
@@ -85,7 +85,7 @@
   display: inline-block;
   margin-top: 16px;
   color: #1a1a1a;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -101,7 +101,7 @@
   background: #f0f0f0;
   border: 1px solid #ddd;
   padding: 8px 16px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   cursor: pointer;
   border-radius: 4px;
@@ -126,7 +126,7 @@
   padding: 24px;
   text-align: center;
   color: #888;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   margin-top: 16px;
 }
 .alp-form-card {
@@ -145,7 +145,7 @@
   flex-direction: column;
 }
 .alp-form-label {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -153,7 +153,7 @@
   margin-bottom: 6px;
 }
 .alp-form-value {
-  font-size: 14px;
+  font-size: var(--font-size-body);
   color: #1a1a1a;
   word-break: break-word;
   padding: 8px;

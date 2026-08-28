@@ -20,7 +20,7 @@
 }
 
 .sa-eyebrow {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -36,13 +36,13 @@
 
 .sa-tagline {
   color: var(--th-text-muted);
-  font-size: 15px;
+  font-size: var(--font-size-base);
   margin: 0;
 }
 
 .sa-summary {
   color: var(--th-text);
-  font-size: 15px;
+  font-size: var(--font-size-base);
   line-height: 1.6;
   max-width: 76ch;
   margin: 16px 0 0;
@@ -61,7 +61,7 @@
   border: 1px solid var(--th-border);
   border-radius: 6px;
   padding: 8px 12px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: var(--th-text);
 }
 
@@ -69,7 +69,7 @@
   color: var(--th-text-muted);
   font-weight: 600;
   margin-right: 6px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -123,7 +123,7 @@
 }
 
 .sa-stackbar-label {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -170,15 +170,15 @@
 }
 
 .sa-section h3 {
-  font-size: 17px;
+  font-size: var(--font-size-lg);
   font-weight: 700;
   margin: 0;
   color: var(--th-text);
 }
 
 .sa-file {
-  font-family: ui-monospace, Menlo, monospace;
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
   color: var(--th-text-muted);
   background: var(--th-bg-inset);
   border: 1px solid var(--th-border);
@@ -195,7 +195,7 @@
 }
 
 .sa-note code {
-  font-family: ui-monospace, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 12.5px;
   background: var(--th-bg-inset);
   border: 1px solid var(--th-border);
@@ -214,7 +214,7 @@
 }
 
 .sa-code code {
-  font-family: ui-monospace, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 12.5px;
   line-height: 1.65;
   color: var(--th-text);
@@ -223,7 +223,7 @@
 
 .sa-missing {
   color: var(--th-text-muted);
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-style: italic;
 }
 
@@ -281,11 +281,11 @@
 /* ---- live runner ---- */
 .sr-cleanup {
   display: flex; align-items: center; gap: 8px; margin: 0 0 14px;
-  font-size: 14px; color: var(--th-text); cursor: pointer;
+  font-size: var(--font-size-body); color: var(--th-text); cursor: pointer;
 }
 .sr-meta { margin-top: 12px; font-size: 12.5px; color: var(--th-text-muted); }
 .sr-meta code, .sr-detail code {
-  font-family: ui-monospace, Menlo, monospace; font-size: 12px;
+  font-family: var(--font-mono); font-size: var(--font-size-2xs);
   background: var(--th-bg-inset); border: 1px solid var(--th-border);
   border-radius: 3px; padding: 1px 5px;
 }
@@ -298,7 +298,7 @@
 .sr-ok { color: #0a7a0a; }
 .sr-err { color: #b00020; }
 .sr-url {
-  font-family: ui-monospace, Menlo, monospace; font-size: 12px;
+  font-family: var(--font-mono); font-size: var(--font-size-2xs);
   color: var(--th-text-muted); background: var(--th-bg-card);
   border: 1px solid var(--th-border); border-radius: 3px; padding: 3px 7px;
   margin: 4px 0 6px; display: block; word-break: break-all;
@@ -309,7 +309,7 @@
 .sr-card pre {
   background: var(--th-bg-card); border: 1px solid var(--th-border);
   border-radius: 4px; padding: 10px 12px; overflow-x: auto;
-  font-family: ui-monospace, Menlo, monospace; font-size: 12px;
+  font-family: var(--font-mono); font-size: var(--font-size-2xs);
   color: var(--th-text); margin: 6px 0 0;
 }
 .sr-divider {
@@ -327,7 +327,7 @@
 .sr-otp-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .sr-otp-row label { font-size: 13.5px; color: var(--th-text); }
 .sr-otp-row input {
-  font-family: ui-monospace, Menlo, monospace; font-size: 14px; letter-spacing: 2px;
+  font-family: var(--font-mono); font-size: var(--font-size-body); letter-spacing: 2px;
   width: 10ch; padding: 7px 10px; color: var(--th-text);
   background: var(--th-bg-inset); border: 1px solid var(--th-border); border-radius: 4px;
 }

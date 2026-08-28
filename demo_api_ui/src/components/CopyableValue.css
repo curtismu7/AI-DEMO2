@@ -13,7 +13,7 @@
 }
 
 .copyable-value-label {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   color: #1a1a2e;
   line-height: 1.5;
@@ -84,14 +84,14 @@
   padding: 9px 12px;
   border: none;
   outline: none;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   line-height: 1.5;
   letter-spacing: 0.01em;
   min-width: 0;
 }
 
 .copyable-value-input--mono {
-  font-family: ui-monospace, 'SFMono-Regular', Menlo, 'Courier New', monospace;
+  font-family: var(--font-mono);
   letter-spacing: 0.03em;
 }
 
@@ -104,7 +104,7 @@
   padding: 0 14px;
   border: none;
   cursor: pointer;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   white-space: nowrap;
   line-height: 1;
@@ -126,7 +126,7 @@
 }
 
 .copyable-value-hint {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   color: #6b7280;
   margin-top: 4px;
   line-height: 1.6;
@@ -136,6 +136,6 @@
   background: #f3f4f6;
   padding: 1px 4px;
   border-radius: 3px;
-  font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
-  font-size: 11px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
 }

@@ -2,7 +2,7 @@
 .pcg-title-bar {
   font-family: var(--v2-font-display, "Fraunces", Georgia, serif);
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   margin-bottom: 8px;
 }
 .pcg-grid {
@@ -38,9 +38,9 @@
 .pcg-body { padding: 9px 10px 10px; display: flex; flex-direction: column; gap: 5px; flex: 1; }
 .pcg-price-row { display: flex; align-items: baseline; gap: 5px; flex-wrap: wrap; }
 .pcg-price {
-  font-family: var(--v2-font-mono, "IBM Plex Mono", ui-monospace, monospace);
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   background: #fde68a;
   color: #7c4a03;
@@ -48,13 +48,13 @@
   border-radius: 4px;
 }
 .pcg-price-strike {
-  font-family: var(--v2-font-mono, "IBM Plex Mono", ui-monospace, monospace);
-  font-size: 11px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
   color: #a89568;
   text-decoration: line-through;
 }
 .pcg-status {
-  font-family: var(--v2-font-mono, "IBM Plex Mono", ui-monospace, monospace);
+  font-family: var(--font-mono);
   font-size: 11.5px;
   font-weight: 600;
   background: var(--th-bg-inset, #eef0f8);

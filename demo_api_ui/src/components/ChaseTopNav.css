@@ -46,7 +46,7 @@ a.chase-nav-link:link,
 a.chase-nav-link:visited {
   color: white;
   text-decoration: none;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 500;
   opacity: 0.9;
   transition: opacity 0.2s ease;
@@ -76,18 +76,18 @@ a.chase-nav-link:visited {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
 }
 
 .chase-user-name {
   font-weight: 600;
   color: white;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
 }
 
 .chase-user-role {
   opacity: 0.85;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   color: rgba(255, 255, 255, 0.7);
 }
 
@@ -97,7 +97,7 @@ a.chase-nav-link:visited {
   border: 1px solid rgba(255, 255, 255, 0.3);
   color: white;
   padding: 8px 12px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 500;
   cursor: pointer;
   border-radius: 4px;
@@ -115,7 +115,7 @@ a.chase-nav-link:visited {
 }
 
 .chase-nav-button--theme {
-  font-size: 14px;
+  font-size: var(--font-size-body);
   padding: 6px 10px;
   border: none;
 }
@@ -125,7 +125,7 @@ a.chase-nav-link:visited {
 }
 
 .chase-nav-button--role {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
 }
 
 .chase-nav-button--logout {
@@ -150,7 +150,7 @@ a.chase-nav-link:visited {
   }
 
   .chase-nav-link {
-    font-size: 13px;
+    font-size: var(--font-size-sm);
   }
 
   .chase-user-greeting {
@@ -183,16 +183,16 @@ a.chase-nav-link:visited {
   }
 
   .chase-brand-name {
-    font-size: 14px;
+    font-size: var(--font-size-body);
   }
 
   .chase-nav-link {
-    font-size: 12px;
+    font-size: var(--font-size-2xs);
   }
 
   .chase-nav-button {
     padding: 6px 10px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
   }
 }
 
@@ -210,7 +210,7 @@ a.chase-nav-link:visited {
   }
 
   .chase-nav-link {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
   }
 
   .chase-nav-button {

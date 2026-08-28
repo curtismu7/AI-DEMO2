@@ -480,7 +480,7 @@ tr.audit-detail-row > td {
   margin: 0;
   width: 100%;
   box-sizing: border-box;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 0.8rem;
   line-height: 1.5;
   background: #1e2433;

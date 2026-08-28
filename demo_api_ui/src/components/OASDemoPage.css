@@ -60,7 +60,7 @@
   background: rgba(255,255,255,0.2);
   border-radius: 4px;
   padding: 1px 5px;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-size: 0.85em;
   color: #fff !important;
 }
@@ -148,7 +148,7 @@
 .oas-flow-detail {
   font-size: 0.7rem;
   color: #6b7280;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 .oas-flow-detail code {
@@ -308,7 +308,7 @@
   border-radius: 4px;
   font-size: 0.72rem;
   font-weight: 700;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   letter-spacing: 0.04em;
   color: #fff;
   min-width: 48px;
@@ -317,7 +317,7 @@
 
 .oas-op-path {
   flex-shrink: 0;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-size: 0.82rem;
   color: #374151;
 }
@@ -371,7 +371,7 @@
   font-size: 0.7rem;
   font-weight: 600;
   color: #166534;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   white-space: nowrap;
 }
 
@@ -426,7 +426,7 @@
 }
 
 .oas-op-dl code {
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-size: 0.8em;
   background: #e5e7eb;
   border-radius: 3px;
@@ -438,7 +438,7 @@
   display: inline-block;
   padding: 1px 6px;
   border-radius: 3px;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-size: 0.78rem;
   font-weight: 700;
 }
@@ -520,7 +520,7 @@
   background: #0f172a;
   color: #e2e8f0;
   border-radius: 6px;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-size: 0.78rem;
   overflow-x: auto;
   max-height: 320px;
@@ -546,7 +546,7 @@
 .oas-scheme-name {
   font-size: 0.9rem;
   font-weight: 700;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   color: #1d4ed8;
 }
 
@@ -590,7 +590,7 @@
   color: #e2e8f0;
   border-radius: 8px;
   padding: 1.25rem 1.5rem;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-size: 0.78rem;
   line-height: 1.5;
   overflow: auto;

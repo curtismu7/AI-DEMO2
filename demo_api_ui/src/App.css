@@ -291,7 +291,7 @@
   border: 1px solid rgba(148, 163, 184, 0.4);
   border-radius: 5px;
   color: #999999;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   line-height: 1;
   padding: 3px 8px;
   cursor: pointer;
@@ -311,7 +311,7 @@
   border: 1px solid rgba(148, 163, 184, 0.4);
   border-radius: 5px;
   color: #999999;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   line-height: 1;
   padding: 3px 8px;
   cursor: pointer;
@@ -466,13 +466,13 @@
 }
 
 .auth-loading-title {
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 600;
   color: var(--brand-dark-gray);
 }
 
 .auth-loading-sub {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #475569;
 }
 

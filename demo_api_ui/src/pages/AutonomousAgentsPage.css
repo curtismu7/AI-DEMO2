@@ -9,12 +9,12 @@
   /* Explicit base. Without it the page inherited the shell's smaller size and
      every rule below was relative to something this page never chose — which is
      why it read small next to its own headings. */
-  font-size: 15px;
+  font-size: var(--font-size-base);
   line-height: 1.6;
 }
 
 .aap-head { display: flex; flex-direction: column; gap: 8px; }
-.aap-title { margin: 0; font-size: 30px; font-weight: 600; }
+.aap-title { margin: 0; font-size: var(--font-size-3xl); font-weight: 600; }
 .aap-lede {
   margin: 0;
   max-width: 64ch;
@@ -42,14 +42,14 @@
   background: var(--th-bg-card, #ffffff);
 }
 
-.aap-h2 { margin: 0; font-size: 17px; font-weight: 600; }
+.aap-h2 { margin: 0; font-size: var(--font-size-lg); font-weight: 600; }
 .aap-sub {
   margin: 0;
   color: var(--th-text-muted, #556070);
   font-size: 14.5px;
   line-height: 1.5;
 }
-.aap-empty { margin: 0; color: var(--th-text-muted, #556070); font-size: 15px; }
+.aap-empty { margin: 0; color: var(--th-text-muted, #556070); font-size: var(--font-size-base); }
 
 .aap-toggle-row,
 .aap-runs-head {
@@ -72,7 +72,7 @@
   background: var(--th-bg-inset, #f1f5f9);
   color: var(--th-text-muted, #556070);
   font: inherit;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 600;
   cursor: pointer;
 }
@@ -94,7 +94,7 @@
 
 .aap-btn {
   font: inherit;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   padding: 6px 13px;
   border-radius: 6px;
   border: 1px solid var(--th-border-strong, #c3cdd9);
@@ -130,8 +130,8 @@
   color: #0f172a;
 }
 .aap-parked-head { margin: 0; font-size: 14.5px; font-weight: 600; color: #a1620a; }
-.aap-parked-body { margin: 0; font-size: 14px; line-height: 1.5; }
-.aap-parked-sub { margin: 0; font-size: 13px; color: #6b5a3e; }
+.aap-parked-body { margin: 0; font-size: var(--font-size-body); line-height: 1.5; }
+.aap-parked-sub { margin: 0; font-size: var(--font-size-sm); color: #6b5a3e; }
 
 .aap-gauge { display: flex; flex-direction: column; gap: 5px; }
 .aap-gauge-head { display: flex; justify-content: space-between; font-size: 13.5px; color: #6b5a3e; }
@@ -157,7 +157,7 @@
 .aap-open:hover { background: var(--th-bg-inset, #f1f5f9); }
 .aap-open:focus-visible { outline: 2px solid var(--th-border-strong, #c3cdd9); outline-offset: -2px; }
 
-.aap-job { font-weight: 600; font-size: 15px; }
+.aap-job { font-weight: 600; font-size: var(--font-size-base); }
 .aap-when,
 .aap-trigger {
   color: var(--th-text-muted, #556070);
@@ -179,7 +179,7 @@
   line-height: 1.7;
   color: var(--th-text, #0f172a);
 }
-.aap-h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; }
+.aap-h3 { margin: 0 0 6px; font-size: var(--font-size-base); font-weight: 600; }
 .aap-points {
   margin: 0;
   padding-left: 18px;
@@ -187,7 +187,7 @@
   flex-direction: column;
   gap: 8px;
   max-width: 74ch;
-  font-size: 15px;
+  font-size: var(--font-size-base);
   line-height: 1.6;
   color: var(--th-text-muted, #556070);
 }
@@ -239,7 +239,7 @@
 /* ── Expanded run ──────────────────────────────────────────────────────── */
 .aap-chev {
   color: var(--th-text-muted, #556070);
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   width: 12px;
 }
 .aap-open {
@@ -247,7 +247,7 @@
   align-items: baseline;
 }
 .aap-status {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   padding: 2px 8px;
   border-radius: 999px;

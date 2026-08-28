@@ -27,7 +27,7 @@
    equivalent. Uses --dash-* tokens (not --nrd-*, see note above) since this
    markup renders inside DashboardShell's `.dash` root, which is what
    actually defines those custom properties at runtime. */
-.nrd-sev { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--dash-ink-2); white-space: nowrap; }
+.nrd-sev { display: inline-flex; align-items: center; gap: 6px; font-size: var(--font-size-2xs); color: var(--dash-ink-2); white-space: nowrap; }
 .nrd-sev::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--dash-ok); flex: none; }
 .nrd-sev-warn::before, .nrd-sev-warning::before { background: var(--dash-warn); }
 .nrd-sev-error::before, .nrd-sev-err::before { background: var(--dash-bad); }

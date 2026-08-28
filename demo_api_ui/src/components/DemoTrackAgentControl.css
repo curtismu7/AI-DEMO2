@@ -1,6 +1,6 @@
 /* Demo Track agent header control + picker (mock: demo-track-agent-mock.html) */
 .dta-trigger {
-  font-size: 11px; border: 1px solid #e3e7eb; border-radius: 999px;
+  font-size: var(--font-size-xs); border: 1px solid #e3e7eb; border-radius: 999px;
   background: #fff; padding: 4px 10px; cursor: pointer; color: #16324f; white-space: nowrap;
 }
 .dta-trigger b { font-weight: 700; }

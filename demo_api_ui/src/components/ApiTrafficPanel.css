@@ -86,7 +86,7 @@
 }
 
 .api-traffic-title {
-  font-size: 17px;
+  font-size: var(--font-size-lg);
   font-weight: 600;
   color: #0f172a;
   display: flex;
@@ -97,7 +97,7 @@
 }
 
 .api-traffic-count {
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 500;
   color: #999999;
   background: #dddddd;
@@ -106,7 +106,7 @@
 }
 
 .api-traffic-frozen-badge {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   letter-spacing: 0.06em;
   color: #92400e;
@@ -129,7 +129,7 @@
   border: 1px solid #cccccc;
   border-radius: 5px;
   color: #0f172a;
-  font-size: 15px;
+  font-size: var(--font-size-base);
   padding: 5px 10px;
   width: min(280px, 42vw);
   outline: none;
@@ -165,7 +165,7 @@
   border: 1px solid #cccccc;
   border-radius: 5px;
   color: #0f172a;
-  font-size: 15px;
+  font-size: var(--font-size-base);
   padding: 5px 10px;
   min-width: 120px;
   outline: none;
@@ -181,7 +181,7 @@
   border: 1px solid #cccccc;
   border-radius: 5px;
   color: #666666;
-  font-size: 15px;
+  font-size: var(--font-size-base);
   font-weight: 500;
   padding: 5px 11px;
   cursor: pointer;
@@ -283,7 +283,7 @@
   border: none;
   cursor: pointer;
   text-align: left;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   color: #1e3a5f;
   transition: background 0.12s;
@@ -306,14 +306,14 @@
   flex-shrink: 0;
   background: #cbd5e1;
   color: #334155;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   padding: 1px 6px;
   border-radius: 10px;
 }
 
 .api-method-badge {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 700;
   letter-spacing: 0.04em;
   padding: 2px 6px;
@@ -353,19 +353,19 @@
   background: #064e3b;
   color: #6ee7b7;
   min-width: 72px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
 }
 .api-method-badge--TOKEN-AGENT {
   background: #7c2d12;
   color: #fed7aa;
   min-width: 76px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
 }
 .api-method-badge--TOKEN-XCHG {
   background: #3b0764;
   color: #d8b4fe;
   min-width: 56px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
 }
 .api-method-badge--TOKEN-SKIP {
   background: #451a03;
@@ -381,23 +381,23 @@
   background: #0c4a6e;
   color: #93c5fd;
   min-width: 68px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
 }
 .api-method-badge--TOKEN-INTRO {
   background: #312e81;
   color: #c7d2fe;
   min-width: 68px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
 }
 .api-method-badge--TOKEN-VERIFY {
   background: #14532d;
   color: #bbf7d0;
   min-width: 56px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
 }
 
 .api-status-badge {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   padding: 1px 7px;
   border-radius: 4px;
@@ -425,7 +425,7 @@
 }
 
 .api-entry-url {
-  font-size: 15px;
+  font-size: var(--font-size-base);
   color: var(--brand-dark-gray);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -434,7 +434,7 @@
 }
 
 .api-entry-dur {
-  font-size: 14px;
+  font-size: var(--font-size-body);
   color: #94a3b8;
   flex-shrink: 0;
 }
@@ -466,7 +466,7 @@
 }
 
 .api-detail-tab {
-  font-size: 15px;
+  font-size: var(--font-size-base);
   font-weight: 500;
   padding: 9px 14px;
   background: transparent;
@@ -516,13 +516,13 @@
 
 .api-detail-summary-label {
   color: #999999;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 600;
   margin-right: 6px;
 }
 
 .api-detail-summary-value {
-  font-size: 15px;
+  font-size: var(--font-size-base);
   color: #0f172a;
 }
 
@@ -535,25 +535,25 @@
 
 .api-detail-summary-mono {
   font-family: inherit;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   color: #999999;
 }
 
 .api-detail-mcp-line {
   margin: 10px 0 0;
-  font-size: 15px;
+  font-size: var(--font-size-base);
   color: #0369a1;
 }
 
 .api-detail-muted {
   color: #94a3b8;
-  font-size: 15px;
+  font-size: var(--font-size-base);
   margin: 0;
 }
 
 pre.api-json {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--font-size-base);
   font-family: inherit;
   color: var(--brand-dark-gray);
   white-space: pre-wrap;
@@ -565,7 +565,7 @@ pre.api-json {
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 4px 14px;
-  font-size: 15px;
+  font-size: var(--font-size-base);
   font-family: inherit;
 }
 .api-detail-kv-key {
@@ -580,7 +580,7 @@ pre.api-json {
 }
 
 .api-detail-err {
-  font-size: 15px;
+  font-size: var(--font-size-base);
   color: #b91c1c;
   background: #fef2f2;
   border: 1px solid #fca5a5;
@@ -610,12 +610,12 @@ pre.api-json {
   flex-wrap: wrap;
 }
 .api-token-event-label {
-  font-size: 17px;
+  font-size: var(--font-size-lg);
   font-weight: 600;
   color: #334155;
 }
 .api-token-event-status {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   padding: 2px 8px;
   border-radius: 10px;
@@ -648,23 +648,23 @@ pre.api-json {
 }
 
 .api-token-event-alg {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #94a3b8;
   font-family: inherit;
   margin-left: auto;
 }
 .api-token-event-rfc {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #0369a1;
   margin: 0 0 8px;
 }
 .api-token-event-may-act {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #999999;
   margin: 0 0 10px;
 }
 .api-token-event-explanation {
-  font-size: 15px;
+  font-size: var(--font-size-base);
   color: #666666;
   line-height: 1.6;
   margin: 0;
@@ -675,7 +675,7 @@ pre.api-json {
 .api-claims-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   margin-top: 4px;
 }
 .api-claims-th {
@@ -684,7 +684,7 @@ pre.api-json {
   border-bottom: 1px solid #333;
   color: #aaa;
   font-weight: 600;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -727,11 +727,11 @@ pre.api-json {
 }
 .api-claims-td--rfc .api-claims-rfc-ref {
   color: #0369a1;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
 }
 .api-claims-td--note {
   color: #9ca3af;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   padding: 6px 14px;
   line-height: 1.5;
 }
@@ -745,7 +745,7 @@ pre.api-json {
 }
 .api-claims-empty {
   color: #6b7280;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   padding: 8px 4px;
   margin: 0;
 }

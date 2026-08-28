@@ -81,7 +81,7 @@
   border: 1px solid var(--pp-border);
   border-radius: 6px;
   padding: 5px 10px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: var(--pp-text-secondary);
   cursor: pointer;
   transition: background 0.12s;
@@ -113,7 +113,7 @@
 
 .pp-intro__title {
   margin: 0 0 8px;
-  font-size: 20px;
+  font-size: var(--font-size-xl);
   font-weight: 700;
 }
 
@@ -147,7 +147,7 @@
 
 .pp-intro__cols p {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   line-height: 1.55;
   color: var(--pp-text-secondary);
 }
@@ -181,7 +181,7 @@
 /* --- Sidebar --- */
 
 .sidebar-title {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -204,7 +204,7 @@
   background: none;
   border: none;
   color: var(--pp-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-size-body);
   padding: 10px 12px;
   border-radius: 6px;
   cursor: pointer;
@@ -237,14 +237,14 @@
 
 .viewer-header h2 {
   margin: 0 0 4px;
-  font-size: 22px;
+  font-size: var(--font-size-h2);
   font-weight: 600;
   color: var(--pp-text);
 }
 
 .viewer-description {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   color: var(--pp-text-muted);
 }
 
@@ -285,8 +285,8 @@
 }
 
 .pp-explainer__badge {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 11px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
   font-weight: 700;
   letter-spacing: 0.04em;
   padding: 3px 8px;
@@ -303,14 +303,14 @@
 }
 
 .pp-explainer__title {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
 }
 
 .pp-explainer__para {
   margin: 0 0 8px;
   max-width: 92ch;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   line-height: 1.55;
   color: var(--pp-text-secondary);
 }
@@ -346,7 +346,7 @@
 }
 
 .pp-mermaid__caption {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -368,7 +368,7 @@
 
 .pp-mermaid__error {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: var(--pp-err-badge-text, #b91c1c);
 }
 
@@ -390,7 +390,7 @@
 }
 
 .progress-text {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: var(--pp-text-muted);
   white-space: nowrap;
 }
@@ -436,7 +436,7 @@
   border: 1px solid var(--pp-btn-border);
   border-radius: 8px;
   padding: 8px 16px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 500;
   cursor: pointer;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
@@ -459,7 +459,7 @@
   border: 1px solid var(--pp-btn-primary-bg);
   border-radius: 8px;
   padding: 8px 16px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   cursor: pointer;
   transition: background 0.12s;
@@ -490,7 +490,7 @@
 
 .activity-header h4 {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -502,7 +502,7 @@
   background-color: var(--pp-error-bg);
   border-bottom: 1px solid var(--pp-error-border);
   color: var(--pp-error-text);
-  font-size: 13px;
+  font-size: var(--font-size-sm);
 }
 
 .activity-error__signin {
@@ -520,7 +520,7 @@
 .activity-empty {
   padding: 20px;
   color: var(--pp-text-muted);
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   text-align: center;
 }
 
@@ -537,13 +537,13 @@
 }
 
 .entry-step {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 500;
   color: var(--pp-text);
 }
 
 .entry-status {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   padding: 2px 8px;
   border-radius: 4px;
@@ -560,8 +560,8 @@
 }
 
 .entry-method {
-  font-size: 12px;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: var(--font-size-2xs);
+  font-family: var(--font-mono);
   color: var(--pp-text-muted);
 }
 
@@ -594,7 +594,7 @@
 }
 
 .entry-detail__tag {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -603,8 +603,8 @@
 }
 
 .entry-detail__meta {
-  font-family: 'SF Mono', 'Fira Code', monospace;
-  font-size: 11px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
   color: var(--pp-text-secondary);
   word-break: break-all;
   min-width: 0;

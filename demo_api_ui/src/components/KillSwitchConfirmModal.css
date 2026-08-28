@@ -59,12 +59,12 @@
 }
 
 .ksm-header-icon {
-  font-size: 20px;
+  font-size: var(--font-size-xl);
   line-height: 1;
 }
 
 .ksm-header-title {
-  font-size: 15px;
+  font-size: var(--font-size-base);
   font-weight: 800;
   color: #fff;
   letter-spacing: 0.06em;
@@ -78,7 +78,7 @@
 }
 
 .ksm-instructions-lead {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #374151;
   margin: 0 0 14px;
   line-height: 1.5;
@@ -97,7 +97,7 @@
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #fff;
   line-height: 1.45;
 }
@@ -114,7 +114,7 @@
   background: #1e293b;
   border: 1px solid #475569;
   color: #fff;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -161,7 +161,7 @@
 
 .ksm-label {
   display: block;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   color: #374151;
   text-transform: uppercase;
@@ -176,7 +176,7 @@
   background: #ffffff;
   border: 1px solid #d1d5db;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-family: inherit;
   color: #111827;
   box-sizing: border-box;
@@ -243,13 +243,13 @@
 }
 
 .ksm-scope-title {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 700;
   color: #111827;
 }
 
 .ksm-scope-desc {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #374151;
   line-height: 1.45;
 }
@@ -260,7 +260,7 @@
   padding: 10px 14px;
   margin-bottom: 14px;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   line-height: 1.5;
   color: #111827;
@@ -282,7 +282,7 @@
 
 .ksm-result-mechanism {
   margin: 0 0 14px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #6b7280;
   line-height: 1.5;
 }
@@ -295,13 +295,13 @@
   border-radius: 6px;
   background: #f3f4f6;
   border: 1px solid #d1d5db;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #374151;
   line-height: 1.5;
 }
 
 .ksm-result-mechanism code {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   color: #374151;
   background: #f3f4f6;
   padding: 1px 4px;
@@ -335,7 +335,7 @@
   text-align: center;
   padding: 2px 8px;
   border-radius: 4px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.03em;
@@ -355,7 +355,7 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
 }
 
 .ksm-result-text strong {
@@ -375,7 +375,7 @@
   background: #fef2f2;
   border: 1px solid #fecaca;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #991b1b;
   line-height: 1.5;
 }
@@ -388,7 +388,7 @@
   border: 1px solid #b91c1c;
   border-radius: 6px;
   color: #ffffff;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s;
@@ -470,12 +470,12 @@
 }
 
 .ksm-emergency-btn__icon {
-  font-size: 28px;
+  font-size: var(--font-size-h1);
   line-height: 1;
 }
 
 .ksm-emergency-btn__label {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 800;
   letter-spacing: 0.1em;
   text-align: center;
@@ -505,7 +505,7 @@
   background: linear-gradient(135deg, #dc2626, #991b1b);
   border: none;
   color: #fff;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
@@ -535,6 +535,6 @@
     height: 110px;
   }
   .ksm-emergency-btn__icon {
-    font-size: 24px;
+    font-size: var(--font-size-2xl);
   }
 }

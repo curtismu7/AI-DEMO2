@@ -5,7 +5,7 @@
   overflow: hidden;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
 }
 
 /* ── Header bar ─────────────────────────────────────────────────────────── */
@@ -30,7 +30,7 @@
   align-items: center;
   gap: 8px;
   font-weight: 600;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   flex: 1;
   min-width: 0;
 }
@@ -42,7 +42,7 @@
 }
 
 .token-card__toggle {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   opacity: 0.85;
   white-space: nowrap;
   margin-left: 12px;
@@ -55,7 +55,7 @@
   padding: 6px 16px;
   display: flex;
   gap: 24px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   color: #1c3a8a;
   flex-wrap: wrap;
 }
@@ -106,9 +106,9 @@
   color: #1971c2;
   padding: 2px 8px;
   border-radius: 4px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
-  font-family: monospace;
+  font-family: var(--font-mono);
 }
 
 .token-card__typ-badge {
@@ -116,9 +116,9 @@
   color: #6741d9;
   padding: 2px 8px;
   border-radius: 4px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
-  font-family: monospace;
+  font-family: var(--font-mono);
 }
 
 /* ── Claim grid ─────────────────────────────────────────────────────────── */
@@ -130,7 +130,7 @@
 
 .token-card__claim-key {
   color: #868e96;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   padding-top: 1px;
   word-break: keep-all;
 }
@@ -141,8 +141,8 @@
 }
 
 .token-card__claim-val {
-  font-family: monospace;
-  font-size: 11px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
   word-break: break-all;
   color: #212529;
 }
@@ -159,13 +159,13 @@
   color: #2e7d32;
   padding: 2px 8px;
   border-radius: 10px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
 }
 
 /* ── Raw JSON ───────────────────────────────────────────────────────────── */
 .token-card__raw-toggle {
   color: #3b5bdb;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   cursor: pointer;
   font-weight: 500;
   list-style: none;
@@ -182,7 +182,7 @@
   border-radius: 4px;
   padding: 10px;
   font-size: 10px;
-  font-family: monospace;
+  font-family: var(--font-mono);
   color: #495057;
   line-height: 1.6;
   margin-top: 6px;
@@ -258,5 +258,5 @@
   border-top: none;
   border-radius: 0 0 8px 8px;
   color: #b91c1c;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
 }

@@ -49,7 +49,7 @@
 }
 
 .loadingText {
-  font-size: 14px;
+  font-size: var(--font-size-body);
   color: rgba(255, 255, 255, 0.8);
   margin-top: 16px;
   font-weight: 500;
@@ -62,7 +62,7 @@
   }
 
   .heroText {
-    font-size: 24px;
+    font-size: var(--font-size-2xl);
   }
 
   .heroContent {

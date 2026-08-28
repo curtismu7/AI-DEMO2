@@ -455,7 +455,7 @@
 }
 
 .configuration-section__title {
-  font-size: 15px;
+  font-size: var(--font-size-base);
   font-weight: 700;
   color: #0f172a;
   margin: 0 0 10px 0;

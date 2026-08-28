@@ -90,7 +90,7 @@
   background: var(--agd-accent-soft);
   color: var(--agd-accent-soft-text);
   border: 1px solid var(--agd-border-light);
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
 }
 
@@ -134,7 +134,7 @@
   color: var(--agd-text-primary);
   border-radius: 999px;
   padding: 10px 14px;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 600;
   cursor: pointer;
   transition: transform 180ms ease, background 180ms ease,
@@ -174,7 +174,7 @@
 }
 
 .agd-lane-title {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -208,12 +208,12 @@
 
 .agd-card h3 {
   margin: 0 0 8px;
-  font-size: 17px;
+  font-size: var(--font-size-lg);
   line-height: 1.2;
 }
 .agd-card p {
   margin: 0 0 10px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   line-height: 1.5;
   color: var(--agd-text-secondary);
 }
@@ -229,7 +229,7 @@
   align-items: center;
   border-radius: 999px;
   padding: 6px 10px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 700;
   border: 1px solid var(--agd-border-light);
   background: var(--agd-bg-mid);
@@ -275,11 +275,11 @@
 }
 .agd-callout h4 {
   margin: 0 0 6px;
-  font-size: 14px;
+  font-size: var(--font-size-body);
 }
 .agd-callout p {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: var(--agd-text-secondary);
   line-height: 1.45;
 }
@@ -291,7 +291,7 @@
   align-items: center;
   margin-top: 16px;
   color: var(--agd-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-size-sm);
 }
 .agd-legend-item {
   display: inline-flex;
@@ -321,7 +321,7 @@
 .agd-footer-note {
   margin-top: 14px;
   color: var(--agd-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   line-height: 1.5;
 }
 

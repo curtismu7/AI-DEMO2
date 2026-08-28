@@ -5,7 +5,7 @@
   padding: 1rem;
   margin: 1rem 0;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   animation: slideDown 0.3s ease-out;
 }
 
@@ -94,8 +94,8 @@
   background-color: rgba(0, 0, 0, 0.1);
   padding: 2px 6px;
   border-radius: 3px;
-  font-family: 'Courier New', monospace;
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
 }
 
 .banner-details {
@@ -131,8 +131,8 @@
   background-color: rgba(0, 0, 0, 0.1);
   padding: 2px 6px;
   border-radius: 3px;
-  font-family: 'Courier New', monospace;
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
 }
 
 /* Content layout */
@@ -144,7 +144,7 @@
 }
 
 .banner-icon {
-  font-size: 24px;
+  font-size: var(--font-size-2xl);
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -167,7 +167,7 @@
   padding: 0.5rem 1rem;
   border: none;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -208,7 +208,7 @@
   color: inherit;
   border: none;
   padding: 0.25rem 0.5rem;
-  font-size: 20px;
+  font-size: var(--font-size-xl);
   line-height: 1;
 }
 
@@ -242,11 +242,11 @@
   }
 
   .banner-icon {
-    font-size: 20px;
+    font-size: var(--font-size-xl);
   }
 
   .banner-text h3 {
-    font-size: 14px;
+    font-size: var(--font-size-body);
   }
 
   .banner-actions {

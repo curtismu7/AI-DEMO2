@@ -4,7 +4,7 @@
 .grd-root { margin-top: 8px; }
 
 .grd-caption {
-	font-size: 13px;
+	font-size: var(--font-size-sm);
 	color: #4a6080;
 	margin: 0 0 14px;
 }
@@ -24,7 +24,7 @@
 
 .grd-arrow {
 	align-self: center;
-	font-size: 28px;
+	font-size: var(--font-size-h1);
 	color: #9bb0c9;
 	font-weight: 700;
 	flex: 0 0 auto;
@@ -39,8 +39,8 @@
 	padding: 12px 14px;
 }
 .grd-node--source { background: #eef4fb; border-color: #c2d4e8; }
-.grd-node-title { font-size: 14px; font-weight: 700; color: #1a1a2e; display: block; margin-bottom: 8px; }
-.grd-node-note { font-size: 11px; color: #6b7e96; margin: 6px 0 0; }
+.grd-node-title { font-size: var(--font-size-body); font-weight: 700; color: #1a1a2e; display: block; margin-bottom: 8px; }
+.grd-node-note { font-size: var(--font-size-xs); color: #6b7e96; margin: 6px 0 0; }
 
 /* Gateway pipeline */
 .grd-gateway {
@@ -51,7 +51,7 @@
 	height: 100%;
 }
 .grd-gateway-head {
-	font-size: 13px;
+	font-size: var(--font-size-sm);
 	font-weight: 700;
 	color: #2b6cb0;
 	text-transform: uppercase;
@@ -63,7 +63,7 @@
 	background: #fdf3e2;
 	border: 1px solid #e7c27d;
 	color: #8a5d12;
-	font-size: 11px;
+	font-size: var(--font-size-xs);
 	font-weight: 600;
 	border-radius: 6px;
 	padding: 6px 8px;
@@ -82,7 +82,7 @@
 
 .grd-stage-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .grd-stage-title { font-size: 12.5px; font-weight: 600; color: #1a1a2e; }
-.grd-stage-desc { font-size: 11px; color: #5a6b80; margin: 4px 0 0; line-height: 1.4; }
+.grd-stage-desc { font-size: var(--font-size-xs); color: #5a6b80; margin: 4px 0 0; line-height: 1.4; }
 
 .grd-pill {
 	font-size: 10px;
@@ -105,7 +105,7 @@
 }
 .grd-route--disabled { opacity: 0.5; }
 .grd-route-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
-.grd-route-name { font-size: 13px; font-weight: 700; color: #1a1a2e; }
+.grd-route-name { font-size: var(--font-size-sm); font-weight: 700; color: #1a1a2e; }
 
 .grd-badge {
 	font-size: 10px;
@@ -130,7 +130,7 @@
 	font-size: 11.5px;
 	color: #1a2433;
 	word-break: break-all;
-	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	font-family: var(--font-mono);
 }
 
 .grd-route-tools { margin-top: 4px; }
@@ -141,7 +141,7 @@
 	color: #3a4a5f;
 	border-radius: 4px;
 	padding: 2px 6px;
-	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	font-family: var(--font-mono);
 }
 
 @media (max-width: 900px) {

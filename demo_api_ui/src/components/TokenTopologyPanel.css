@@ -7,7 +7,7 @@
   background: #0d1117;
   color: #e6edf3;
   font-family: 'Inter', system-ui, sans-serif;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   overflow: hidden;
 }
 
@@ -43,7 +43,7 @@
   background: #0d1117;
   border: 1px solid #6e7681;
   border-radius: 8px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
 }
 .ttp-theme-control > span.active {
@@ -91,11 +91,11 @@
   letter-spacing: .1em;
   font-weight: 700;
   color: #6e7681;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
 }
 .ttp-ctx-prompt {
   font-size: 11.5px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   background: #21262d;
   border: 1px solid #3d444d;
   border-radius: 4px;
@@ -108,7 +108,7 @@
 }
 .ttp-ctx-mode {
   font-size: 10.5px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   color: #8b949e;
   background: #21262d;
   border: 1px solid #3d444d;
@@ -120,7 +120,7 @@
   align-items: center;
   gap: 4px;
   padding: 4px 10px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 500;
   color: #8b949e;
   background: #21262d;
@@ -136,7 +136,7 @@
   color: #e6edf3;
   border-color: #6e7681;
 }
-.ttp-clear-icon { font-size: 13px; }
+.ttp-clear-icon { font-size: var(--font-size-sm); }
 
 /* ── main layout ── */
 .ttp-body {
@@ -162,12 +162,12 @@
   gap: 10px;
   flex: 1;
   color: #6e7681;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-style: italic;
   text-align: center;
 }
 .ttp-idle-icon {
-  font-size: 28px;
+  font-size: var(--font-size-h1);
   opacity: .4;
   animation: ttp-pulse 2s ease-in-out infinite;
 }
@@ -177,7 +177,7 @@
   letter-spacing: .12em;
   font-weight: 700;
   color: #6e7681;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
 }
 /* Height of the callout band reserved above EVERY node so the boxes stay on one
    baseline. Connectors offset by the same amount to meet the box, not the callout. */
@@ -291,7 +291,7 @@
   letter-spacing: .12em;
   font-weight: 700;
   color: #6e7681;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 /* ── topology node (BIGGER) ── */
@@ -336,7 +336,7 @@
 .ttp-status {
   position: absolute;
   top: 7px; right: 8px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   width: 18px; height: 18px;
   border-radius: 50%;
@@ -370,9 +370,9 @@
 }
 
 .ttp-icon {
-  font-size: 15px;
+  font-size: var(--font-size-base);
   margin-bottom: 4px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-weight: 700;
   letter-spacing: .04em;
 }
@@ -392,7 +392,7 @@
 /* lane badges */
 .ttp-lane {
   font-size: 9px; font-weight: 700;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   letter-spacing: .04em;
   padding: 2px 6px;
   border-radius: 3px;
@@ -424,7 +424,7 @@
   display: flex;
   gap: 4px;
   font-size: 10px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
 }
 .ttp-nc-k { color: #2f81f7; font-weight: 600; min-width: 40px; flex-shrink: 0; }
 .ttp-nc-v { color: #8b949e; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -446,12 +446,12 @@
 }
 .ttp-conn.ghost { opacity: .4; }
 .ttp-line { width: 30px; height: 2px; background: #3d444d; }
-.ttp-arrowhead { color: #3d444d; font-size: 13px; line-height: 1; }
+.ttp-arrowhead { color: #3d444d; font-size: var(--font-size-sm); line-height: 1; }
 .ttp-conn-label {
   font-size: 9px;
   font-weight: 700;
   letter-spacing: .04em;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   color: #8b949e;
   background: rgba(139,148,158,.12);
   border-radius: 9px;
@@ -479,8 +479,8 @@
   gap: 10px;
   color: #f5f3ff;
 }
-.ttp-a2a-heading strong { font-size: 14px; }
-.ttp-a2a-heading span { color: #c4b5fd; font-size: 11px; }
+.ttp-a2a-heading strong { font-size: var(--font-size-body); }
+.ttp-a2a-heading span { color: #c4b5fd; font-size: var(--font-size-xs); }
 .ttp-evidence-flow { display: grid; gap: 6px; }
 .ttp-evidence-label {
   color: #e9d5ff;
@@ -565,7 +565,7 @@
 }
 .ttp-insp-title {
   flex: 1;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
@@ -576,7 +576,7 @@
   border: none;
   color: #6e7681;
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   padding: 2px 5px;
 }
 .ttp-insp-close:hover { color: #e6edf3; }
@@ -627,10 +627,10 @@
   letter-spacing: .1em;
   font-weight: 700;
   color: #6e7681;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
 }
 .ttp-detail-text {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #e6edf3;
   line-height: 1.6;
 }
@@ -650,9 +650,9 @@
   gap: 6px;
 }
 .ttp-decision-outcome {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 700;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   padding: 4px 10px;
   border-radius: 4px;
   width: fit-content;
@@ -661,14 +661,14 @@
 .ttp-decision-outcome.deny   { color: #f85149; background: rgba(248,81,73,.1); border: 1px solid rgba(248,81,73,.2); }
 
 /* ── formatted value styles ── */
-.ttp-fv-null { color: #6e7681; font-style: italic; font-size: 11px; }
-.ttp-fv-bool { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; }
+.ttp-fv-null { color: #6e7681; font-style: italic; font-size: var(--font-size-xs); }
+.ttp-fv-bool { font-family: var(--font-mono); font-size: var(--font-size-xs); font-weight: 600; }
 .ttp-fv-bool.ok   { color: #3fb950; }
 .ttp-fv-bool.warn { color: #f85149; }
-.ttp-fv-num  { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #d2a8ff; }
+.ttp-fv-num  { font-family: var(--font-mono); font-size: var(--font-size-xs); color: #d2a8ff; }
 .ttp-fv-str  { font-size: 11.5px; color: #e6edf3; word-break: break-word; line-height: 1.5; }
-.ttp-fv-str.long { font-size: 11px; color: #8b949e; }
-.ttp-fv-str.ttp-fv-mono { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #8b949e; }
+.ttp-fv-str.long { font-size: var(--font-size-xs); color: #8b949e; }
+.ttp-fv-str.ttp-fv-mono { font-family: var(--font-mono); font-size: 10px; color: #8b949e; }
 .ttp-fv-obj {
   display: flex;
   flex-direction: column;
@@ -683,7 +683,7 @@
   font-size: 11.5px;
 }
 .ttp-fv-k {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10.5px;
   font-weight: 600;
   color: #2f81f7;
@@ -711,8 +711,8 @@
   border: 1px solid #30363d;
   border-radius: 6px;
   overflow: hidden;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
 }
 .ttp-ct-row {
   display: grid;
@@ -733,8 +733,8 @@
   border: 1px solid #30363d;
   border-radius: 8px;
   padding: 10px 12px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
   color: #e6edf3;
   white-space: pre;
   overflow-x: auto;
@@ -742,8 +742,8 @@
 }
 
 .ttp-act-chip {
-  font-size: 11px;
-  font-family: 'JetBrains Mono', monospace;
+  font-size: var(--font-size-xs);
+  font-family: var(--font-mono);
   color: #3fb950;
   background: rgba(63,185,80,.07);
   border: 1px solid rgba(63,185,80,.2);
@@ -753,7 +753,7 @@
 .ttp-rfc-row { display: flex; gap: 5px; flex-wrap: wrap; }
 .ttp-rfc {
   font-size: 9.5px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   background: rgba(47,129,247,.1);
   color: #2f81f7;
   border: 1px solid rgba(47,129,247,.2);
@@ -771,8 +771,8 @@
   gap: 10px;
   padding: 20px;
 }
-.ttp-insp-empty-icon { font-size: 28px; opacity: .4; }
-.ttp-insp-empty-text { font-size: 12px; color: #6e7681; text-align: center; line-height: 1.5; }
+.ttp-insp-empty-icon { font-size: var(--font-size-h1); opacity: .4; }
+.ttp-insp-empty-text { font-size: var(--font-size-2xs); color: #6e7681; text-align: center; line-height: 1.5; }
 
 /* ── light theme ── */
 .ttp-modal--dark {

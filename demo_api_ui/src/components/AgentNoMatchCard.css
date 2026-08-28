@@ -22,7 +22,7 @@
 }
 
 .ba-nomatch-head {
-  font-size: 15px;
+  font-size: var(--font-size-base);
   font-weight: 700;
   line-height: 1.35;
   color: var(--brand-dark-gray);
@@ -31,7 +31,7 @@
 
 .ba-nomatch-why {
   margin: 8px 0 0;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   line-height: 1.5;
   color: var(--brand-dark-gray);
   overflow-wrap: anywhere;
@@ -58,7 +58,7 @@
   align-items: baseline;
   gap: 2px 6px;
   min-width: 0;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   line-height: 1.5;
 }
 
@@ -80,7 +80,7 @@
 }
 
 .ba-nomatch-suggest-label {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   color: var(--brand-dark-gray);
   margin-bottom: 8px;

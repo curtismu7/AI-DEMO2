@@ -12,7 +12,7 @@
 
 .ttrace-header h1 {
   margin: 0;
-  font-size: 24px;
+  font-size: var(--font-size-2xl);
   font-weight: 700;
   color: var(--th-text, #111827);
 }
@@ -20,7 +20,7 @@
 .ttrace-sub {
   margin: 4px 0 16px;
   color: var(--th-text, #111827);
-  font-size: 14px;
+  font-size: var(--font-size-body);
 }
 
 .ttrace-notice {
@@ -29,7 +29,7 @@
   border-radius: 6px;
   padding: 12px 14px;
   margin-bottom: 12px;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   color: #374151;
 }
 
@@ -49,14 +49,14 @@
   border: 1px solid #e5e7eb;
   border-radius: 6px;
   margin-bottom: 6px;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   text-align: left;
   cursor: pointer;
 }
 
 .ttrace-row:hover { background: #f3f4f6; }
 .ttrace-time { color: var(--th-text, #111827); font-variant-numeric: tabular-nums; }
-.ttrace-cid { font-family: ui-monospace, "SF Mono", Menlo, monospace; flex: 1; }
+.ttrace-cid { font-family: var(--font-mono); flex: 1; }
 .ttrace-count { color: var(--th-text, #111827); }
 
 .ttrace-detail {
@@ -83,7 +83,7 @@
 .ttrace-verdict.incomplete { color: #b45309; }
 
 .ttrace-recon {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   padding: 2px 8px;
   border-radius: 10px;
   border: 1px solid #e5e7eb;
@@ -94,11 +94,11 @@
 .ttrace-recon.mismatch { background: #fef2f2; color: #b91c1c; }
 .ttrace-recon.unknown { background: #f3f4f6; color: var(--th-text, #111827); border-style: dashed; }
 
-.ttrace-links { margin-left: auto; display: flex; gap: 12px; font-size: 13px; }
+.ttrace-links { margin-left: auto; display: flex; gap: 12px; font-size: var(--font-size-sm); }
 .ttrace-links a { color: #1d4ed8; font-weight: 600; text-decoration: none; }
 .ttrace-links a:hover { text-decoration: underline; }
 
-.ttrace-detail-error { color: #b91c1c; font-size: 13px; }
+.ttrace-detail-error { color: #b91c1c; font-size: var(--font-size-sm); }
 .ttrace-detail-error p { margin: 0 0 8px; }
 
 .ttrace-retry-btn {
@@ -107,7 +107,7 @@
   color: #b91c1c;
   border-radius: 6px;
   padding: 4px 10px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   cursor: pointer;
 }
@@ -152,7 +152,7 @@
   background: #fff;
   border: 2px solid #d1d5db;
   color: var(--th-text, #111827);
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -166,22 +166,22 @@
   gap: 10px;
   align-items: baseline;
   flex-wrap: wrap;
-  font-size: 14px;
+  font-size: var(--font-size-body);
 }
 
-.ttrace-phase { color: var(--th-text, #111827); font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; }
-.ttrace-op { color: var(--th-text, #111827); font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; }
+.ttrace-phase { color: var(--th-text, #111827); font-family: var(--font-mono); font-size: var(--font-size-2xs); }
+.ttrace-op { color: var(--th-text, #111827); font-family: var(--font-mono); font-size: var(--font-size-2xs); }
 .ttrace-ms {
   color: var(--th-text, #111827);
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   margin-left: auto;
-  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
 
 .ttrace-derived {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   color: var(--th-text, #111827);
   background: #f3f4f6;
   border: 1px solid #e5e7eb;
@@ -194,21 +194,21 @@
   gap: 12px;
   flex-wrap: wrap;
   margin-top: 4px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: var(--th-text, #111827);
-  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-family: var(--font-mono);
 }
 
-.ttrace-decision { margin-top: 4px; font-size: 12px; font-weight: 600; }
+.ttrace-decision { margin-top: 4px; font-size: var(--font-size-2xs); font-weight: 600; }
 .ttrace-decision.deny { color: #b91c1c; }
 .ttrace-decision.permit { color: #047857; }
-.ttrace-reason { font-weight: 400; color: var(--th-text, #111827); margin-left: 8px; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+.ttrace-reason { font-weight: 400; color: var(--th-text, #111827); margin-left: 8px; font-family: var(--font-mono); }
 
 /* A status-inferred outcome is a guess, not a confirmed PDP verdict — amber so it
    reads as caution and never as an authoritative decision. Self-contained pill
    background (like the reconciliation pills) so it stays legible in dark mode. */
 .ttrace-inferred {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   color: #b45309;
   background: #fffbeb;
@@ -227,7 +227,7 @@
   color: #b91c1c;
   padding: 8px 12px 8px 26px;
   margin: 0 0 0 9px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
 }
 
@@ -259,14 +259,14 @@
 }
 
 .ttrace-filter {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 500;
   color: var(--th-text-muted, #4b5563);
   background: var(--th-surface-2, #f3f4f6);
   border: 1px solid var(--th-border, #d1d5db);
   border-radius: 8px;
   padding: 0 6px;
-  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-family: var(--font-mono);
 }
 
 /* Only the filter that actually stopped the call. Red matches the DENY badge

@@ -17,7 +17,7 @@
   display: inline-block;
   background: #1f2937;
   color: #fff;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   letter-spacing: 0.08em;
   padding: 4px 10px;
@@ -26,14 +26,14 @@
 }
 
 .p266-arch-header h1 {
-  font-size: 28px;
+  font-size: var(--font-size-h1);
   font-weight: 700;
   color: #0f172a;
   margin: 6px 0 4px 0;
 }
 
 .p266-arch-subtitle {
-  font-size: 15px;
+  font-size: var(--font-size-base);
   color: #4b5563;
   margin: 0;
   line-height: 1.55;
@@ -81,14 +81,14 @@
 
 .p266-arch-spec-section h2,
 .p266-arch-notes h2 {
-  font-size: 18px;
+  font-size: var(--font-size-h3);
   font-weight: 700;
   color: #0f172a;
   margin: 0 0 12px 0;
 }
 
 .p266-arch-spec-intro {
-  font-size: 14px;
+  font-size: var(--font-size-body);
   color: #4b5563;
   margin: 0 0 16px 0;
   line-height: 1.55;
@@ -106,8 +106,8 @@
 }
 
 .p266-arch-spec-list dt {
-  font-family: ui-monospace, "SF Mono", Monaco, "Cascadia Mono", monospace;
-  font-size: 13px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
   font-weight: 600;
   color: #1e40af;
   padding: 6px 10px;
@@ -117,7 +117,7 @@
 }
 
 .p266-arch-spec-list dd {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #374151;
   line-height: 1.5;
   margin: 0;
@@ -130,7 +130,7 @@
 }
 
 .p266-arch-notes li {
-  font-size: 14px;
+  font-size: var(--font-size-body);
   color: #374151;
   line-height: 1.6;
   margin-bottom: 12px;
@@ -143,8 +143,8 @@
 .p266-arch-notes code {
   background: #f3f4f6;
   color: #1f2937;
-  font-family: ui-monospace, "SF Mono", Monaco, "Cascadia Mono", monospace;
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
   padding: 1px 5px;
   border-radius: 3px;
 }

@@ -19,7 +19,7 @@
 .smp-band { margin-bottom: 10px; }
 .smp-band:last-of-type { margin-bottom: 0; }
 .smp-cabin-label {
-  font-family: var(--v2-font-mono, "IBM Plex Mono", ui-monospace, monospace);
+  font-family: var(--font-mono);
   font-size: 9px;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -51,4 +51,4 @@
 }
 .smp-sw { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
 .smp-summary { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--th-border, #e0e3ee); font-size: 12.5px; }
-.smp-summary-info strong { font-family: var(--v2-font-mono, "IBM Plex Mono", ui-monospace, monospace); }
+.smp-summary-info strong { font-family: var(--font-mono); }

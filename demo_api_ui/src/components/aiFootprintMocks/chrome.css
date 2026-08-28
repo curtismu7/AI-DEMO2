@@ -6,7 +6,7 @@
   padding: 2px 8px;
   border: 1px solid currentColor;
   border-radius: 3px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   opacity: 0.9;
   white-space: nowrap;
 }
@@ -38,7 +38,7 @@
   display: grid;
   place-items: center;
   color: inherit;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   opacity: 0.75;
   border: 1px dashed currentColor;
 }
@@ -95,7 +95,7 @@
   background: var(--bg);
   color: var(--fg);
   font-family: var(--ui);
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   border: 1px solid var(--border);
   overflow: hidden;
 }
@@ -125,7 +125,7 @@
   flex-shrink: 0;
 }
 
-.afm-vcs-title strong { flex: 1; text-align: center; font-weight: 500; font-size: 12px; }
+.afm-vcs-title strong { flex: 1; text-align: center; font-weight: 500; font-size: var(--font-size-2xs); }
 
 .afm-vcs-dots { display: flex; gap: 5px; }
 .afm-vcs-dots i {
@@ -202,7 +202,7 @@
   color: inherit;
   padding: 3px 12px 3px 22px;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   cursor: pointer;
 }
 
@@ -233,7 +233,7 @@
   display: flex;
   align-items: center;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   border-right: 1px solid var(--border);
   background: var(--bg);
 }
@@ -244,7 +244,7 @@
   padding: 12px 14px;
   overflow: auto;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   line-height: 1.5;
   white-space: pre;
   color: inherit;
@@ -286,7 +286,7 @@
   padding: 0 10px;
   border-bottom: 1px solid var(--border);
   font-weight: 600;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
 }
 
 .afm-vcs-status {
@@ -352,15 +352,15 @@
   font: inherit;
 }
 
-.afm-claude-section { margin: 20px 8px 6px; color: var(--claude-muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
-.afm-claude-thread { padding: 8px 10px; border-radius: 7px; color: #5c5753; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.afm-claude-section { margin: 20px 8px 6px; color: var(--claude-muted); font-size: var(--font-size-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+.afm-claude-thread { padding: 8px 10px; border-radius: 7px; color: #5c5753; font-size: var(--font-size-2xs); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .afm-claude-thread.is-on { color: var(--claude-ink); background: #ddd9d1; }
-.afm-claude-project { margin: 18px 8px 0; padding-top: 14px; border-top: 1px solid #d6d2ca; color: var(--claude-muted); font-size: 12px; }
+.afm-claude-project { margin: 18px 8px 0; padding-top: 14px; border-top: 1px solid #d6d2ca; color: var(--claude-muted); font-size: var(--font-size-2xs); }
 .afm-claude-main { flex: 1; display: flex; flex-direction: column; min-width: 0; background: #faf9f6; }
 .afm-claude-chat-head { height: 54px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; border-bottom: 1px solid var(--claude-line); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
 .afm-claude-chat-head div { display: flex; flex-direction: column; gap: 2px; }
-.afm-claude-chat-head strong { font-size: 14px; }
-.afm-claude-chat-head div span { color: var(--claude-muted); font-size: 11px; }
+.afm-claude-chat-head strong { font-size: var(--font-size-body); }
+.afm-claude-chat-head div span { color: var(--claude-muted); font-size: var(--font-size-xs); }
 .afm-claude-connected { padding: 4px 8px; border: 1px solid #c9bfb7; border-radius: 999px; color: #7e402b; background: #f5e7df; font-size: 10px; }
 
 /* ── ChatGPT ── */
@@ -380,7 +380,7 @@
   background: var(--bg);
   color: var(--fg);
   font-family: var(--ui);
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   border: 1px solid var(--border);
   overflow: hidden;
 }
@@ -430,13 +430,13 @@
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 8px 10px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
 }
 
 .afm-cgpt-side .item {
   padding: 7px 8px;
   border-radius: 8px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: var(--muted);
 }
 
@@ -458,7 +458,7 @@
   font-weight: 600;
 }
 
-.afm-cgpt-mhead span { margin-left: 8px; font-weight: 400; font-size: 11px; color: var(--muted); }
+.afm-cgpt-mhead span { margin-left: 8px; font-weight: 400; font-size: var(--font-size-xs); color: var(--muted); }
 
 .afm-cgpt-foot {
   padding: 8px;
@@ -477,7 +477,7 @@
   border: 1px solid #d8dce3;
   overflow: hidden;
   font-family: "Segoe UI", system-ui, sans-serif;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   background: #f4f6f8;
   color: #1f2937;
 }
@@ -525,8 +525,8 @@
   border-color: #1e293b;
 }
 
-.afm-saas-card h4 { margin: 0 0 6px; font-size: 13px; }
-.afm-saas-card p { margin: 0; color: #6b7280; font-size: 11px; line-height: 1.4; }
+.afm-saas-card h4 { margin: 0 0 6px; font-size: var(--font-size-sm); }
+.afm-saas-card p { margin: 0; color: #6b7280; font-size: var(--font-size-xs); line-height: 1.4; }
 .afm-saas--glean .afm-saas-card p { color: #94a3b8; }
 
 .afm-saas-agent {
@@ -549,7 +549,7 @@
   padding: 0 10px;
   border-bottom: 1px solid #e5e7eb;
   font-weight: 600;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
 }
 
 .afm-saas--glean .afm-saas-agent .ah { border-bottom-color: #1e293b; }
@@ -562,8 +562,8 @@
   min-height: 320px;
   border: 1px solid #333;
   overflow: hidden;
-  font-family: "SF Mono", Menlo, Consolas, monospace;
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
   background: #0d1117;
   color: #c9d1d9;
 }
@@ -593,7 +593,7 @@
 
 .afm-code--cursor .afm-code-bar { background: #141414; border-bottom-color: #2a2a2a; }
 
-.afm-code-bar strong { flex: 1; font-size: 12px; }
+.afm-code-bar strong { flex: 1; font-size: var(--font-size-2xs); }
 
 .afm-code-body { flex: 1; display: flex; min-height: 0; }
 
@@ -636,7 +636,7 @@
   border: 1px dashed #569cd6;
   border-radius: 4px;
   color: #9cdcfe;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   background: rgba(86, 156, 214, 0.08);
 }
 
@@ -660,7 +660,7 @@
   border-bottom: 1px solid #30363d;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-weight: 600;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
 }
 
 /* ── Enterprise console (Self-Managed / Agentic) ── */
@@ -690,10 +690,10 @@
   flex-shrink: 0;
 }
 
-.afm-ent-top strong { flex: 1; font-size: 13px; font-weight: 650; }
+.afm-ent-top strong { flex: 1; font-size: var(--font-size-sm); font-weight: 650; }
 
 .afm-ent-fw {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -713,7 +713,7 @@
   background: #020617;
   border-right: 1px solid #1e293b;
   padding: 12px 0;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
 }
 
 .afm-ent-rail-lbl {
@@ -756,7 +756,7 @@
   justify-content: space-between;
   padding: 0 14px;
   border-bottom: 1px solid #1e293b;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   flex-shrink: 0;
 }

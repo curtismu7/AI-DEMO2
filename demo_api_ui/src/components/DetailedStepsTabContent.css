@@ -56,7 +56,7 @@
   font-weight: 700;
   flex-shrink: 0;
   margin-top: 1px;
-  font-family: ui-monospace, 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 .dstc-num--ok   { background: #dcfce7; color: #16a34a; }
@@ -110,7 +110,7 @@
   border: 1px solid #bfdbfe;
   border-radius: 4px;
   padding: 1px 5px;
-  font-family: ui-monospace, 'Fira Code', monospace;
+  font-family: var(--font-mono);
   white-space: nowrap;
 }
 
@@ -120,8 +120,8 @@
   border: 1px solid var(--th-border);
   border-radius: 5px;
   overflow: hidden;
-  font-family: ui-monospace, 'Fira Code', monospace;
-  font-size: 11px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
 }
 
 .dstc-claim-row {
@@ -162,11 +162,11 @@
 /* Error box shown on halted step */
 .dstc-error {
   margin: 0 12px 8px 40px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   color: #b91c1c;
   background: #fef2f2;
   border: 1px solid #fecaca;
   border-radius: 4px;
   padding: 6px 8px;
-  font-family: ui-monospace, 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }

@@ -22,7 +22,7 @@
   display: inline-block;
   background: #ca8a04;
   color: #fff;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   letter-spacing: 0.08em;
   padding: 4px 10px;
@@ -32,7 +32,7 @@
 }
 
 .akp-title {
-  font-size: 22px;
+  font-size: var(--font-size-h2);
   font-weight: 600;
   color: #1f2937;
   margin: 8px 0 0 0;
@@ -68,16 +68,16 @@
 }
 
 .akp-key-value {
-  font-family: monospace;
+  font-family: var(--font-mono);
   background: #fef3c7;
   padding: 2px 6px;
   border-radius: 2px;
   color: #92400e;
-  font-size: 14px;
+  font-size: var(--font-size-body);
 }
 
 .akp-note {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #6b7280;
   margin-top: 12px;
   line-height: 1.5;
@@ -94,7 +94,7 @@
   border: none;
   padding: 10px 18px;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s;
@@ -111,7 +111,7 @@
   padding: 16px;
   border-radius: 4px;
   margin-bottom: 16px;
-  font-size: 14px;
+  font-size: var(--font-size-body);
 }
 
 .akp-loading {
@@ -129,7 +129,7 @@
 }
 
 .akp-learning-title {
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 700;
   color: #111827;
   margin: 0 0 10px 0;
@@ -138,7 +138,7 @@
 }
 
 .akp-learning-intro {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #374151;
   margin: 0 0 14px 0;
   line-height: 1.6;

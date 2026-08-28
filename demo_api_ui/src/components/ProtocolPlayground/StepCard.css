@@ -36,7 +36,7 @@
   border: 2px solid var(--pp-border);
   border-radius: 50%;
   font-weight: 700;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   color: var(--pp-text);
 }
 
@@ -47,20 +47,20 @@
 
 .step-title {
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   color: var(--pp-text);
   margin-bottom: 4px;
 }
 
 .step-description {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: var(--pp-text-secondary);
   line-height: 1.4;
 }
 
 .step-status {
   flex-shrink: 0;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   padding: 4px 8px;
   border-radius: 4px;
@@ -83,7 +83,7 @@
   justify-content: center;
   gap: 8px;
   margin-bottom: 12px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: var(--pp-text-muted);
 }
 
@@ -91,7 +91,7 @@
   padding: 4px 10px;
   background: var(--pp-bg-code);
   border-radius: 4px;
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-weight: 500;
 }
 
@@ -106,7 +106,7 @@
 
 .step-execute-btn {
   padding: 6px 16px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   border: 1px solid var(--pp-btn-primary-bg);
   border-radius: 4px;

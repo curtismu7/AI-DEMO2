@@ -11,7 +11,7 @@
   padding: 4px 8px;
   border: 1px solid #e2e8f0;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
 }
 
 .ll-learn-list {
@@ -27,7 +27,7 @@
 .ll-learn-empty {
   margin: 24px 12px;
   color: #64748b;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   line-height: 1.45;
 }
 
@@ -60,7 +60,7 @@
 .ll-learn-row__time {
   font-variant-numeric: tabular-nums;
   color: #64748b;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
 }
 
 .ll-learn-row__sev {
@@ -72,11 +72,11 @@
   padding: 0 4px;
   border-radius: 4px;
   color: #fff;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
 }
 
 .ll-learn-row__cat {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   border: 1px solid;
   border-radius: 99px;
@@ -86,13 +86,13 @@
 
 .ll-learn-row__msg {
   flex: 1 1 180px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #0f172a;
 }
 
 .ll-learn-row__corr {
-  font-size: 11px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--font-size-xs);
+  font-family: var(--font-mono);
   border: 1px dashed #cbd5e1;
   border-radius: 4px;
   padding: 2px 6px;
@@ -110,7 +110,7 @@
   padding: 8px 10px 10px;
   border-top: 1px solid #e2e8f0;
   background: #f8fafc;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   overflow: auto;
   max-height: 200px;
 }
@@ -128,7 +128,7 @@
   background: #f1f5f9;
   color: #475569;
   padding: 4px 12px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   cursor: pointer;
 }
