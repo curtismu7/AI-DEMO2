@@ -3,6 +3,7 @@
 import React from 'react';
 import EducationDrawer from '../shared/EducationDrawer';
 import { EduImplIntro, SNIP_PAR_MOCK } from './educationImplementationSnippets';
+import ParRarComparison from './ParRarComparison';
 
 const Code = ({ children }) => (
   <code style={{
@@ -153,13 +154,18 @@ client_id=myapp&response_type=code&scope=openid read
       ),
     },
     {
+      id: 'vs',
+      label: 'PAR vs RAR',
+      content: <ParRarComparison />,
+    },
+    {
       id: 'inrepo',
       label: 'In this repo',
       content: (
         <>
           <h3 style={{ marginTop: 0 }}>PAR in AI Demo</h3>
           <EduImplIntro mock>
-            Sign-in here uses Authorization Code + PKCE without pushing parameters via PAR first. The snippet shows the pattern you would add on the BFF before redirecting the browser.
+            Sign-in here uses Authorization Code + PKCE without pushing parameters via PAR first — the snippet shows the pattern you would add on the BFF before redirecting the browser. The Intent Binding page is different: in Live mode it performs a real authenticated push to PingOne's as/par endpoint and displays the request_uri PingOne returns. Note that the push always succeeds — PingOne stores the authorization_details without evaluating them — so the PERMIT/DENY you see there is the demo comparing the amount to its declared cap, not a PingOne verdict.
           </EduImplIntro>
           <pre className="edu-code">{SNIP_PAR_MOCK}</pre>
         </>

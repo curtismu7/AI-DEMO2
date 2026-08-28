@@ -2,6 +2,7 @@
 // Education drawer — Rich Authorization Requests (RFC 9396)
 import React from 'react';
 import EducationDrawer from '../shared/EducationDrawer';
+import ParRarComparison from './ParRarComparison';
 import { EduImplIntro, SNIP_RAR_MOCK } from './educationImplementationSnippets';
 
 const Code = ({ children }) => (
@@ -181,6 +182,11 @@ export default function RARPanel({ isOpen, onClose, initialTabId }) {
       ),
     },
     {
+      id: 'vs',
+      label: 'PAR vs RAR',
+      content: <ParRarComparison />,
+    },
+    {
       id: 'inrepo',
       label: 'In this repo',
       content: (
@@ -191,7 +197,12 @@ export default function RARPanel({ isOpen, onClose, initialTabId }) {
             BFF builds them per tool call and carries them in the TraT <code>azd</code> envelope, where the MCP gateway enforces
             that the executed call is a subset of the grant. On a human-approved (HITL) retry the grant is built from the
             arguments the human approved rather than from the agent&apos;s own request. Use this shape when integrating a
-            PingOne policy that expects RAR in the authorization request itself.
+            PingOne policy that expects RAR in the authorization request itself. Two caveats worth knowing: PingOne SSO
+            does not mint authorization_details, so the grant is built by the BFF rather than by the authorization
+            server; and subset enforcement has to be armed — the gateway check needs
+            <code>ff_rar_gateway_enforcement</code>, and the policy-server check needs <code>FF_RAR</code> in the
+            authz-server environment. With <code>ff_rar</code> ON but neither armed, the details are built and carried
+            but nothing enforces them.
           </EduImplIntro>
           <pre className="edu-code">{SNIP_RAR_MOCK}</pre>
         </>
