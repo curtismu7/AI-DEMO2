@@ -121,11 +121,54 @@ k8s_dep() {
   esac
 }
 
+# Source directory per service, for CI's path filter. A fifth map rather than a
+# join against data/serverInventory.js because that join fails for exactly one
+# service — the BFF is `demo-api-server` to Compose but `api-server` to
+# serverInventory. A join that works for 13 of 14 and silently drops the most
+# important one is worse than no join. check-service-map-complete.js
+# cross-checks these values against serverInventory so the two cannot drift.
+source_dir() {
+  case "$1" in
+    bff)      echo "demo_api_server" ;;
+    frontend) echo "demo_api_ui" ;;
+    mcp)      echo "oauth-mcp" ;;
+    gateway)  echo "demo_mcp_gateway" ;;
+    agent)    echo "langchain_agent" ;;
+    agentsvc) echo "demo_agent_service" ;;
+    authz)    echo "demo_authz_server" ;;
+    mastra)   echo "mastra_agent" ;;
+    openai)   echo "openai_agent" ;;
+    pydantic) echo "pydantic_agent" ;;
+    hitl)     echo "demo_hitl_service" ;;
+    invest)   echo "demo_mcp_resource_server" ;;
+    mortgage) echo "demo_api_resource_server" ;;
+    llm)      echo "demo_llm_proxy" ;;
+    *)        echo "" ;;
+  esac
+}
+
 # Every key here must exist in local_img/ghcr_img/k8s_dep/compose_svc — the "build
 # and push ALL" loop and the "roll every deployment" loop both iterate this list,
 # so a key missing here is silently skipped by a full deploy while still working
 # when named explicitly. agent-service was in all four maps but not this list.
 ALL_KEYS="bff frontend mcp gateway agent agentsvc authz mastra openai pydantic hitl invest mortgage llm"
+
+# --print-map: emit the service map as JSON and exit. Must run BEFORE the
+# GITHUB_OWNER and derive_ns() blocks below — CI has no .env, and derive_ns
+# dies without one. Emits image NAMES, not URIs; the caller owns the registry
+# prefix, so this command needs no GitHub owner and no network.
+if [[ "${1:-}" == "--print-map" ]]; then
+  printf '['
+  sep=""
+  for key in $ALL_KEYS; do
+    printf '%s{"key":"%s","sourceDir":"%s","composeService":"%s","ghcrImage":"%s","localImage":"%s","k8sDeployment":"%s"}' \
+      "$sep" "$key" "$(source_dir "$key")" "$(compose_svc "$key")" \
+      "$(ghcr_img "$key")" "$(local_img "$key")" "$(k8s_dep "$key")"
+    sep=","
+  done
+  printf ']\n'
+  exit 0
+fi
 
 GITHUB_OWNER="${GITHUB_OWNER:-}"
 if [[ -z "$GITHUB_OWNER" ]]; then
@@ -149,6 +192,71 @@ derive_ns() {
 
 NS="$(derive_ns)"
 SERVICE="${1:-}"
+
+# ── Promote a CI-built SHA to :latest and roll ───────────────────────────────
+# CI pushes immutable sha-<commit> tags and never writes :latest, so nothing on
+# SE moves until this runs. imagetools retags REGISTRY-SIDE: no pull, no
+# rebuild, seconds instead of ~16 minutes, and it copies the manifest rather
+# than re-resolving it — a pull/tag/push from an arm64 Mac would silently
+# narrow a multi-arch image to one platform.
+if [[ "$SERVICE" == "--promote" ]]; then
+  SHA="${2:-}"
+  [[ -n "$SHA" ]] || die "Usage: ./se-update-code.sh --promote <sha> [key...]"
+  [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || die "Invalid SHA '$SHA' — CI tags the full 40-character commit SHA (git rev-parse origin/main), not a short one"
+  shift 2
+  KEYS="${*:-$ALL_KEYS}"
+
+  # Validate every key before anything mutates (login, retag) — otherwise
+  # `--promote <sha> llm notakey` would retag llm to :latest and only then
+  # die on notakey, leaving the registry moved with exit 1 and nothing rolled.
+  for key in $KEYS; do
+    [[ -n "$(ghcr_img "$key")" ]] || die "Unknown service '$key'. Valid: ${ALL_KEYS}"
+  done
+
+  info "Logging in to GHCR..."
+  docker logout ghcr.io >/dev/null 2>&1 || true
+  gh auth token | docker login ghcr.io -u "$GITHUB_OWNER" --password-stdin \
+    || die "GHCR login failed — run: gh auth login"
+
+  promoted=""; skipped=""
+  for key in $KEYS; do
+    g_img="$(ghcr_img "$key")"
+    src="${REGISTRY}/${g_img}:sha-${SHA}"
+    if ! docker buildx imagetools inspect "$src" >/dev/null 2>&1; then
+      skipped="${skipped} ${key}"
+      continue
+    fi
+    info "Promoting ${g_img} sha-${SHA} → latest"
+    docker buildx imagetools create -t "${REGISTRY}/${g_img}:latest" "$src" \
+      || die "Retag failed for ${g_img}"
+    promoted="${promoted} ${key}"
+  done
+
+  # A silent no-op is the failure mode this guards against: two separate ones
+  # cost hours on 2026-08-27 (the demo-flag reset, and restart keeping stale
+  # layers), both invisible in a long log.
+  [[ -n "$promoted" ]] || die "No image carries tag sha-${SHA} — did CI build this commit?"
+  [[ -n "$skipped" ]] && warn "No sha-${SHA} image for:${skipped}"
+
+  # gateway and authz both map to the mcp-gateway deployment — dedupe so a
+  # default promote doesn't roll it twice (same idiom as the force-restart
+  # loop below).
+  seen=""
+  for key in $promoted; do
+    dep="$(k8s_dep "$key")"
+    case " $seen " in *" $dep "*) continue ;; esac
+    seen="$seen $dep"
+    info "Rolling deployment/${dep} in $NS..."
+    kubectl rollout restart "deployment/${dep}" -n "$NS"
+    # llm-proxy's rollout wait is known to time out while llama-tier5 loads
+    # its model — warn, don't die, or a fully-promoted-and-rolled deploy
+    # exits 1 and suppresses the success line below.
+    kubectl rollout status "deployment/${dep}" -n "$NS" --timeout=180s \
+      || warn "Rollout wait timed out for ${dep} — check with: kubectl rollout status deployment/${dep} -n ${NS}"
+  done
+  success "Promoted sha-${SHA}:${promoted}"
+  exit 0
+fi
 
 # ── Build-input preflight ─────────────────────────────────────────────────────
 # langchain_agent/repo-src/ is a GENERATED staging dir (gitignored) that the

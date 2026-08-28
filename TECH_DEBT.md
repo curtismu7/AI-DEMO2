@@ -16,6 +16,74 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-08-28 — a sixth service map exists outside the hygiene gate
+
+`k8s/aws/deploy.sh:60-77` holds `IMAGE_MAP`, an indexed-array local-name-to-GHCR-name
+mapping used to rewrite image refs in the SE K8s manifests. It is a service map
+in the same sense as the five `scripts/check-service-map-complete.js` gates —
+but it lives outside that gate entirely.
+
+**Why it wasn't fixed now:** `check-service-map-complete.js` iterates
+`ALL_KEYS` from `se-update-code.sh`; wiring a sixth, differently-shaped map
+(indexed array of `local:ghcr` pairs, not keyed by service) into the same
+checker is a bigger change than this branch's scope, and nothing is broken
+today — all 14 `ghcrImage` values from `--print-map` were verified present in
+`IMAGE_MAP` as of this branch (checked 2026-08-28).
+
+**The risk:** a future service added to the five gated maps and missed in
+`IMAGE_MAP` — the same class of drift this branch closes for the other five,
+just one map further out. It would surface as a K8s deployment silently still
+pointing at a local (or stale) image name after an otherwise-clean CI build.
+
+**What the real fix looks like:** either fold `IMAGE_MAP` into the generated
+service map (derive it from `--print-map` instead of hand-maintaining it), or
+add a sixth assertion to `check-service-map-complete.js` that every
+`ghcrImage` in the map also appears in `k8s/aws/deploy.sh`'s `IMAGE_MAP`.
+
+### [ ] 2026-08-28 — shared root files never trigger a CI build
+
+Six of the fourteen CI-built services build from `context: .` (the repo root)
+and their Dockerfiles `COPY` root-level inputs that belong to no service's
+`sourceDir`:
+
+- `demo_api_server/Dockerfile:39-52` — `scope-topology.json`,
+  `service-topology.json`, `llm-timeouts.json`, `docs/`,
+  `graphify-out/*.kb.json`, `snapshots/*`
+- `demo_mcp_gateway/Dockerfile:8,38-43` — `scope-topology.json`,
+  `mcp-tool-schemas.json`
+- `demo_authz_server/Dockerfile:20-25` — `scope-topology.json`,
+  `snapshots/gen-authorize-snapshot.js` and its snapshot JSON
+- `demo_api_ui/Dockerfile:30` — `llm-timeouts.json`
+
+`scripts/ci-build-matrix.js` selects services purely by whether a changed path
+starts with `entry.sourceDir/`. A merge touching only `scope-topology.json`
+touches none of those prefixes, produces an empty matrix, and logs "no
+service source changed — building nothing" — which reads as correct, and
+isn't.
+
+**Why it wasn't fixed now:** encoding root-file-to-service dependencies would
+be a fifteenth copy of the service map (which root file feeds which
+service's image), and that hand-maintained duplication is exactly the drift
+this whole design exists to eliminate. There is no single source of truth for
+"which Dockerfiles COPY which root file" short of parsing every Dockerfile at
+build-matrix time, which is a real feature, not a one-line fix.
+
+**The mitigation already in place:** the failure is loud at the other end.
+`./se-update-code.sh --promote <sha>` dies with "No image carries tag
+sha-<sha>" for any service CI never built for that commit — it does not
+silently promote stale. So the consequence of this gap is "that commit is
+unpromotable for the affected service(s)," never "you shipped stale code
+without knowing."
+
+**Workaround:** promote a later SHA whose merge also touched the affected
+service's own directory, or make the root-file change together with a touch
+inside the affected service's `sourceDir` in the same merge.
+
+**What the real fix looks like:** a small explicit table (root path → service
+keys it affects) consulted by `ci-build-matrix.js` alongside the sourceDir
+prefix match — accepting the fifteenth-copy cost deliberately, with a comment
+explaining why it's the one hand-maintained exception.
+
 ### [x] 2026-08-27 — a BroadcastChannel test raced its own subscriber, and a stale branch made it look like a suite-wide problem
 
 `LiveUseCaseWorkbenchPage` subscribes to the `demo-script` BroadcastChannel in an
