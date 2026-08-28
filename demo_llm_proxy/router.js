@@ -313,7 +313,17 @@ function swapTo(cls) {
   // wedge the queue. Clear the single-flight slot when this swap settles, unless
   // a newer swap has already taken the slot.
   swapChain = promise.catch(() => {});
-  promise.finally(() => { if (swapInFlight === entry) swapInFlight = null; });
+  // The trailing .catch is load-bearing. `.finally()` returns a NEW promise that
+  // ADOPTS this swap's rejection, and that derived promise had no handler — so a
+  // failing swap produced an unhandled rejection and Node (>=15) killed the
+  // router. `swapChain`'s catch and the caller's catch each cover a different
+  // branch; neither covers this one.
+  //
+  // Observed on the SE cluster: 5 restarts, each "pin warm-up failed:
+  // tier-manager timeout" logged as non-fatal and then exit 1 one line later.
+  // A slow tier-manager at startup must not take the proxy down with it — every
+  // agent depends on :8090.
+  promise.finally(() => { if (swapInFlight === entry) swapInFlight = null; }).catch(() => {});
   return promise;
 }
 

@@ -41,14 +41,46 @@ async function loginViaBff({ envId, region, username, password, loginPath, callb
   }
   if (!flowId) throw new Error('loginViaBff: could not extract flowId');
 
-  const base    = `https://auth.pingone.${region || 'com'}/${envId}/as`;
-  const flowUrl = `https://auth.pingone.${region || 'com'}/${envId}/flows/${flowId}`;
+  // Take the origin AND the environment id from the authorize URL the BFF just
+  // redirected to, rather than rebuilding them from env vars.
+  //
+  // PINGONE_ENVIRONMENT_ID is not set for the e2e runner — it is absent from
+  // .env, tests/e2e/.env.e2e and the shell — so `envId` was undefined and every
+  // headless login built https://auth.pingone.com/undefined/flows/<id>, which
+  // PingOne answers with a bare 400 INVALID_REQUEST and no field detail. The
+  // redirect target cannot be undefined and cannot drift from whatever
+  // environment the BFF is really configured against, which is the environment
+  // the flow actually lives in.
+  let authOrigin;
+  let flowEnvId;
+  try {
+    const u = new URL(pingLoc);
+    authOrigin = u.origin;
+    [, flowEnvId] = u.pathname.split('/');
+  } catch (_) { /* fall through to the env-var form below */ }
+  if (!flowEnvId) {
+    authOrigin = `https://auth.pingone.${region || 'com'}`;
+    flowEnvId = envId;
+  }
+  if (!flowEnvId) throw new Error('loginViaBff: could not determine PingOne environment id');
+
+  const base    = `${authOrigin}/${flowEnvId}/as`;
+  const flowUrl = `${authOrigin}/${flowEnvId}/flows/${flowId}`;
   const rc = await axios.post(flowUrl, { username, password }, {
     headers: { 'Content-Type': 'application/vnd.pingidentity.usernamePassword.check+json', Cookie: pCookies },
     validateStatus:()=>true, httpsAgent,
   });
   pCookies = merge(pCookies, (rc.headers['set-cookie']||[]).map(c=>c.split(';')[0]).join('; '));
-  if (rc.data?.status !== 'COMPLETED') throw new Error(`loginViaBff: flow not COMPLETED: ${rc.data?.status}`);
+  if (rc.data?.status !== 'COMPLETED') {
+    // Report what PingOne actually said. `status` is undefined whenever the
+    // response is not a flow object at all — an error envelope, an MFA/consent
+    // step, an expired flow — so "flow not COMPLETED: undefined" named the one
+    // field guaranteed to be missing while hiding every field that identifies the
+    // cause. It cost an afternoon. The whole body, not a hand-picked subset:
+    // PingOne puts the actionable part in `details[].target` when it sends one.
+    const detail = (typeof rc.data === 'object' ? JSON.stringify(rc.data) : String(rc.data)).slice(0, 500);
+    throw new Error(`loginViaBff: flow not COMPLETED (HTTP ${rc.status}, status=${rc.data?.status}): ${detail}`);
+  }
 
   const rr = await axios.get(`${base}/resume?flowId=${flowId}`, {
     maxRedirects:0, validateStatus:()=>true, httpsAgent, headers:{Cookie:pCookies},

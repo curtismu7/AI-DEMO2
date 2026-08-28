@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useEducationUIOptional } from "../context/EducationUIContext";
 import { EDU } from "../components/education/educationIds";
+import SignInPrompt from "../components/SignInPrompt";
 import "./IntentBindingLearningPage.css";
 
 /**
@@ -24,10 +25,12 @@ function useColumnRun(action, defaultAmount) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [needsAuth, setNeedsAuth] = useState(false);
 
   const run = async (live) => {
     setLoading(true);
     setError(null);
+    setNeedsAuth(false);
     setResult(null);
     try {
       const res = await fetch("/api/demo/intent-binding/run", {
@@ -37,7 +40,13 @@ function useColumnRun(action, defaultAmount) {
         body: JSON.stringify({ action, requestedAmount: Number(amount), live }),
       });
       const data = await res.json();
-      if (!res.ok) {
+      if (res.status === 401) {
+        // The page is declared `public` in auth-requirements.json and renders for
+        // everyone, but /api/demo/intent-binding/run is behind the bearer gate, so
+        // a signed-out visitor can press Run and get "authentication_required".
+        // Standing rule: show the page and ASK — never surface a raw 401.
+        setNeedsAuth(true);
+      } else if (!res.ok) {
         setError(data.reason || data.error || "Request failed");
       } else {
         setResult(data);
@@ -49,7 +58,7 @@ function useColumnRun(action, defaultAmount) {
     }
   };
 
-  return { amount, setAmount, loading, result, error, run };
+  return { amount, setAmount, loading, result, error, needsAuth, run };
 }
 
 const REEL_FRAME_MS = 1400;
@@ -202,6 +211,12 @@ function IntentBindingColumn({ kind, title, outcomeLabel, rationale, col, live }
           {col.loading ? "Running…" : "Run"}
         </button>
       </div>
+      {col.needsAuth ? (
+        <SignInPrompt
+          variant="strip"
+          message="Running the live decision needs a signed-in session — the PAR push is made on your behalf."
+        />
+      ) : null}
       {col.error ? (
         <div className={`ib-status ib-status--${kind === "permit" ? "permit" : "deny"}`}>{col.error}</div>
       ) : null}
