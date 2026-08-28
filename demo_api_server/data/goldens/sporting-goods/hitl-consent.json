@@ -4,10 +4,10 @@
   "ucId": "UC8",
   "trigger": "extend my rental $300",
   "expectedOutcome": "HITL_REQUIRED",
-  "capturedAt": "2026-08-24T14:03:44.715Z",
+  "capturedAt": "2026-08-28T15:12:04.021Z",
   "seedHash": "bbfe417d11c6b000",
   "reply": "Transaction requires human approval (HITL consent)",
   "requiresConsent": true,
   "agentPath": null,
-  "tokenEventCount": 20
+  "tokenEventCount": 21
 }

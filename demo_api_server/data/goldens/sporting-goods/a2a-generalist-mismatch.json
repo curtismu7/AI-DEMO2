@@ -4,9 +4,9 @@
   "ucId": "UC2.6",
   "trigger": "simulate an agent identity mismatch",
   "expectedOutcome": "PERMIT_THEN_DENY",
-  "capturedAt": "2026-08-24T14:02:08.922Z",
+  "capturedAt": "2026-08-28T15:11:58.742Z",
   "seedHash": "bbfe417d11c6b000",
-  "reply": "Delegation complete — Membership Specialist retrieved sensitive membership details on your behalf (act-chain depth 2).",
+  "reply": "❌ Delegated to Membership Specialist, but sensitive_membership_details failed: gateway_policy_denied.",
   "agentPath": null,
-  "tokenEventCount": 16
+  "tokenEventCount": 17
 }

@@ -4,9 +4,10 @@
   "ucId": "UC8",
   "trigger": "pay the $300 fee",
   "expectedOutcome": "HITL_REQUIRED",
-  "capturedAt": "2026-08-24T14:01:52.840Z",
+  "capturedAt": "2026-08-28T15:10:15.936Z",
   "seedHash": "9d3354388fed65d8",
-  "reply": "Here are your pay fee.",
+  "reply": "Transaction requires human approval (HITL consent)",
+  "requiresConsent": true,
   "agentPath": null,
-  "tokenEventCount": 24
+  "tokenEventCount": 21
 }

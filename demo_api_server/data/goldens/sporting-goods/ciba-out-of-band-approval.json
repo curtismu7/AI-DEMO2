@@ -4,9 +4,9 @@
   "ucId": "UC22",
   "trigger": "extend my rental $150",
   "expectedOutcome": "PERMIT",
-  "capturedAt": "2026-08-24T14:03:46.070Z",
+  "capturedAt": "2026-08-28T15:12:05.029Z",
   "seedHash": "bbfe417d11c6b000",
   "reply": "PingOne Authorize requires additional authentication before this tool can run.",
   "agentPath": null,
-  "tokenEventCount": 20
+  "tokenEventCount": 21
 }
