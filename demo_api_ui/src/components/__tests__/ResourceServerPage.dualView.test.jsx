@@ -89,10 +89,9 @@ describe('ResourceServerPage dual view', () => {
   it('shows auth gate when summary returns 401', async () => {
     bffAxios.get.mockRejectedValue({ response: { status: 401 } });
     render(<MemoryRouter><ResourceServerPage /></MemoryRouter>);
-    expect(await screen.findByText(/Authentication Required/i)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Log In/i })).toHaveAttribute(
-      'href',
-      '/api/auth/oauth/user/login',
-    );
+    expect(await screen.findByText(/Sign in required/i)).toBeInTheDocument();
+    // Was a bare <a href="/api/auth/oauth/user/login"> — no return_to, so
+    // signing in dropped the user somewhere else. SignInPrompt carries the path.
+    expect(screen.getByRole('button', { name: /Sign in/i })).toBeInTheDocument();
   });
 });

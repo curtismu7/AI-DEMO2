@@ -14,9 +14,9 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import bffAxios from "../services/bffAxios";
-import { navigateToCustomerOAuthLogin } from "../utils/authUi";
 import TokenChainTraceRail from "./TokenChainTraceRail";
 import "./AccessIdTokenPathPage.css";
+import SignInPrompt from "./SignInPrompt";
 
 function ClaimsList({ title, claims }) {
   if (!claims || Object.keys(claims).length === 0) {
@@ -74,25 +74,20 @@ export default function AccessIdTokenPathPage() {
     // Surface the two clean failure modes from /api/resource-server/identity:
     //   401 — session expired / no bearer (T-266-04-05)
     //   412 — session has no id_token, login flow lacked openid scope (T-266-04-07)
-    let userMessage;
-    if (errorStatus === 412 || error === "id_token_missing") {
-      userMessage =
-        "Your session does not include an id_token. Please sign in again to request the openid scope.";
-    } else if (errorStatus === 401) {
-      userMessage = "Your session has expired. Please sign in again.";
-    } else {
-      userMessage = `Unable to load access + id-token path info: ${error}`;
-    }
+    const needsSignIn =
+      errorStatus === 401 || errorStatus === 412 || error === "id_token_missing";
     return (
       <div className="aitp-container">
-        <div className="aitp-error">{userMessage}</div>
-        {(errorStatus === 401 || errorStatus === 412 || error === "id_token_missing") && (
-          <button
-            className="aitp-back-btn"
-            onClick={() => navigateToCustomerOAuthLogin(window.location.pathname)}
-          >
-            Sign in
-          </button>
+        {needsSignIn ? (
+          <SignInPrompt
+            message={
+              errorStatus === 401
+                ? "Your session has expired. Sign in again to continue."
+                : "Your session does not include an id_token. Sign in again to request the openid scope."
+            }
+          />
+        ) : (
+          <div className="aitp-error">{`Unable to load access + id-token path info: ${error}`}</div>
         )}
         <button
           className="aitp-back-btn"

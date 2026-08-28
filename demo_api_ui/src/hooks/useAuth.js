@@ -168,7 +168,11 @@ export function useAuth() {
       }
       const role = d.role === "admin" ? "admin" : "customer";
       const isHITL = d.isHITL === true;
-      setSessionReauth({ message: d.message.trim(), role, isHITL });
+      // `detail` is raw provider text (e.g. "jwt expired") — SignInModal shows
+      // it behind a disclosure, never as the leading sentence.
+      const detail =
+        typeof d.detail === "string" && d.detail.trim() ? d.detail.trim() : undefined;
+      setSessionReauth({ message: d.message.trim(), detail, role, isHITL });
     };
     window.addEventListener(SESSION_REAUTH_EVENT, onSessionReauth);
     return () =>

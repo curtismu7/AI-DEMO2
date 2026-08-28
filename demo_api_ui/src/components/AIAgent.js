@@ -87,7 +87,7 @@ import { EDU } from "./education/educationIds";
 import FidoStepUpModal from "./FidoStepUpModal";
 import MCPToolsListModal from "./MCPToolsListModal";
 import OtpStepUpModal from "./OtpStepUpModal";
-import QuickLoginModal from "./QuickLoginModal";
+import SignInModal from "./SignInModal";
 import DemoAuthzFallbackModal from "./DemoAuthzFallbackModal";
 import TransactionConsentModal from "./TransactionConsentModal";
 import DraggableModal from "./DraggableModal";
@@ -11327,7 +11327,7 @@ export default function BankingAgent({
                       <div className="ba-left-auth-notice">
                         {marketingGuestChatEnabled
                           ? "Banking uses PingOne — we’ll redirect you when you ask for accounts, transfers, etc."
-                          : "Sign in required to access AI banking features"}
+                          : "Sign in required — AI banking features need a signed-in session."}
                       </div>
                       <button
                         type="button"
@@ -11340,7 +11340,7 @@ export default function BankingAgent({
                             : "Configure credentials first"
                         }
                       >
-                        Customer Sign In
+                        Sign in
                       </button>
                       <button
                         type="button"
@@ -11353,7 +11353,7 @@ export default function BankingAgent({
                             : "Configure credentials first"
                         }
                       >
-                        Admin Sign In
+                        Sign in as admin
                       </button>
                       <button
                         type="button"
@@ -12184,7 +12184,10 @@ export default function BankingAgent({
         );
       })()}
       {showLoginModal && (
-        <QuickLoginModal pathname={window.location.pathname} onClose={() => setShowLoginModal(false)} />
+        <SignInModal
+          message="Signing in as a bank customer is required to complete the Human-in-the-Loop approval step."
+          onDismiss={() => setShowLoginModal(false)}
+        />
       )}
       <DemoAuthzFallbackModal
         open={showAuthzFallbackModal}

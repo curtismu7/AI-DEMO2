@@ -77,46 +77,6 @@
   to { transform: rotate(360deg); }
 }
 
-/* Auth required */
-.rsp-auth-required {
-  text-align: center;
-  padding: 60px 24px;
-  background: #0f172a;
-  border-radius: 12px;
-  border: 1px solid #1e293b;
-}
-
-.rsp-lock-icon {
-  font-size: 48px;
-  display: block;
-  margin-bottom: 16px;
-}
-
-.rsp-auth-required h2 {
-  color: #f1f5f9;
-  margin: 0 0 8px;
-}
-
-.rsp-auth-required p {
-  color: #94a3b8;
-  margin: 0 0 24px;
-}
-
-.rsp-login-btn {
-  display: inline-block;
-  padding: 10px 24px;
-  background: #3b82f6;
-  color: #fff;
-  border-radius: 8px;
-  text-decoration: none;
-  font-weight: 600;
-  transition: background 0.2s;
-}
-
-.rsp-login-btn:hover {
-  background: #2563eb;
-}
-
 /* Error */
 .rsp-error {
   text-align: center;

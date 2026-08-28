@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import apiClient from '../services/apiClient';
 import './PingOneAudit.css';
+import SignInPrompt from './SignInPrompt';
 
 /**
  * PingOneAudit component — displays resource and scope validation results.
@@ -12,12 +13,14 @@ export default function PingOneAudit() {
   const [auditResults, setAuditResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [authRequired, setAuthRequired] = useState(false);
   const [auditedAt, setAuditedAt] = useState(null);
 
   /** Fetch audit results from the API */
   const handleRefreshAudit = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setAuthRequired(false);
     setAuditResults(null);
 
     try {
@@ -30,7 +33,7 @@ export default function PingOneAudit() {
       }
     } catch (err) {
       if (err.response?.status === 401) {
-        setError('Not authenticated. Please sign in to view audit results.');
+        setAuthRequired(true);
       } else {
         const msg = err?.response?.data?.message || err?.message || 'Failed to fetch audit results';
         setError(msg);
@@ -79,6 +82,15 @@ export default function PingOneAudit() {
           <div className="spinner" />
           <p>Auditing PingOne resources and scopes...</p>
         </div>
+      </div>
+    );
+  }
+
+  // Render: sign-in required — its own state, not an error with a Retry button
+  if (authRequired) {
+    return (
+      <div className="pingone-audit-container">
+        <SignInPrompt message="Sign in to view audit results." />
       </div>
     );
   }

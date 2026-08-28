@@ -995,23 +995,6 @@
   line-height: 1.45;
 }
 
-/* Session-expiry modal. The banner's text colour (#78350f) is tuned for the
-   amber banner background and reads wrong on the modal's own surface, so the
-   modal restates it. Both colours are solid and high-contrast — REGRESSION_PLAN
-   §0 forbids muted grey hint text in modals. */
-.session-reauth-modal .session-reauth-banner__text {
-  color: #111827;
-  flex: none;
-}
-
-.session-reauth-modal__hint {
-  margin: 12px 0 0;
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: #1f2937;
-  line-height: 1.45;
-}
-
 .session-reauth-banner__actions {
   display: flex;
   flex-wrap: wrap;
@@ -1937,6 +1920,98 @@
 
 .signin-prompt__btn:hover {
   background: #1d4ed8;
+}
+
+/* Small CTA — the strip form factor sits inside a 12px bar. */
+.signin-prompt__btn--sm {
+  padding: 0.3rem 0.85rem;
+  font-size: 0.8rem;
+  flex: none;
+}
+
+/* Secondary CTA (Dismiss). Bordered, not grey-on-grey: REGRESSION_PLAN §0
+   forbids muted low-contrast text in modals. */
+.signin-prompt__btn--ghost {
+  background: transparent;
+  color: var(--th-text);
+  border: 1px solid var(--th-border-strong);
+}
+
+.signin-prompt__btn--ghost:hover {
+  background: var(--th-bg-hover);
+}
+
+/* Strip: same design as the card, for content that still renders below it.
+   One colour for every sign-in surface — never the red/orange error palette,
+   because needing to sign in is not a failure. */
+.signin-strip {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 1.25rem;
+  background: var(--th-primary-bg);
+  border-bottom: 1px solid var(--th-primary-border);
+  font-size: 0.8rem;
+  color: var(--th-text);
+}
+
+.signin-strip__text {
+  margin: 0;
+  flex: 1 1 240px;
+  line-height: 1.45;
+}
+
+.signin-strip__title {
+  font-weight: 700;
+}
+
+/* Sign-in interrupt (SignInModal). Solid, high-contrast text only. */
+.signin-modal__text {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--th-text);
+  line-height: 1.45;
+}
+
+.signin-modal__hint {
+  margin: 0.75rem 0 0;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--th-text);
+  line-height: 1.45;
+}
+
+/* Raw provider text ("jwt expired") — available, never the leading sentence. */
+.signin-modal__detail {
+  margin-top: 0.9rem;
+  font-size: 0.85rem;
+  color: var(--th-text);
+}
+
+.signin-modal__detail summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.signin-modal__detail code {
+  display: block;
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.7rem;
+  background: var(--th-code-bg);
+  color: var(--th-code-text);
+  border-radius: 4px;
+  font-size: 0.8rem;
+  overflow-x: auto;
+}
+
+.signin-modal__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 /* Shared split-pane divider handle (useDividerDrag consumers). Grid pages give

@@ -421,22 +421,6 @@
   font-weight: 600;
 }
 
-/* No Profile State */
-.ssp-no-profile {
-  text-align: center;
-  padding: 3rem;
-}
-
-.ssp-no-profile h3 {
-  color: #999999;
-  margin-bottom: 1rem;
-}
-
-.ssp-no-profile p {
-  color: #94a3b8;
-  margin-bottom: 2rem;
-}
-
 /* Responsive Design */
 @media (max-width: 640px) {
   .ssp-root {

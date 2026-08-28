@@ -308,7 +308,7 @@ const Dashboard = ({ user, onLogout }) => {
               );
             } else {
               toastAdminSessionError(
-                "Your session has expired. Please sign in again.",
+                "Your session has expired. Sign in again to continue.",
                 navigateToAdminOAuthLogin,
               );
             }

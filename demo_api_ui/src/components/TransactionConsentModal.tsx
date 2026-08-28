@@ -349,7 +349,7 @@ const TransactionConsentModal: FC<TransactionConsentModalProps> = ({
       const status = e.response?.status;
       if (status === 401) {
         notifyError(
-          "Session expired. Please sign in again to complete this transaction.",
+          "Your session has expired. Sign in again to complete this transaction.",
         );
       } else {
         notifyError(

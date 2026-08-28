@@ -17,7 +17,7 @@ import { consumeReplay } from '../services/inspectorReplay';
 import { notifyError } from '../utils/appToast';
 import { formatAxiosError } from '../utils/formatAxiosError';
 import { getCalls, subscribe as subscribeMcpCalls, appendMcpCall } from '../services/mcpCallStore';
-import { navigateToCustomerOAuthLogin } from '../utils/authUi';
+import SignInPrompt from './SignInPrompt';
 import JsonHighlight from './shared/JsonHighlight';
 import JsonFormView from './shared/JsonFormView';
 import InspectorShell from './shared/InspectorShell';
@@ -531,12 +531,7 @@ function useBankingSource() {
     middle: (
       <>
         {needsLogin && (
-          <div style={{ background: '#fef2f2', color: '#991b1b', padding: '8px 20px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
-            <strong>Sign in required.</strong> This tools/call needs a valid BFF session.
-            <button className="inspector-shell-topbar__btn inspector-shell-topbar__btn--active" onClick={navigateToCustomerOAuthLogin}>
-              Log in
-            </button>
-          </div>
+          <SignInPrompt variant="strip" message="This tools/call needs a valid BFF session." />
         )}
         {selectedTool ? (
           <>
@@ -676,7 +671,7 @@ function usePingOneSource() {
     } catch (e) {
       if (e.response?.status === 401) {
         setAuthRequired(true);
-        setData({ enabled: false, tools: [], reason: 'Sign in required to query the PingOne MCP server.', _source: 'unauthenticated' });
+        setData({ enabled: false, tools: [], reason: '', _source: 'unauthenticated' });
       } else {
         notifyError(formatAxiosError(e, 'Failed to query the PingOne MCP server'));
         setData({ enabled: false, tools: [], reason: formatAxiosError(e, 'Failed to query the PingOne MCP server'), error: true, _source: 'client_error' });
@@ -777,19 +772,19 @@ function usePingOneSource() {
   return {
     statusOn: !!enabled,
     statusText: enabled ? `Connected — ${tools.length} tools` : 'Disconnected',
-    banner: (!enabled || data?.error || authRequired) ? (
+    // Auth is its own condition with its own affordance — it is not an
+    // "error" and must not share the orange error banner.
+    banner: authRequired ? (
+      <SignInPrompt
+        variant="strip"
+        message="Querying the hosted PingOne MCP server needs a valid BFF session. If tools stay empty after signing in, use Live: ON (admin)."
+      />
+    ) : (!enabled || data?.error) ? (
       <div style={{ background: '#fff7ed', color: '#9a3412', padding: '8px 20px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <span>
-          <strong>{authRequired ? 'Sign in required.' : enabled ? 'PingOne MCP error.' : 'Live query is off.'}</strong>{' '}
-          {data?.reason || (authRequired
-            ? 'Log in, then use Live: ON (admin) if tools stay empty.'
-            : 'Turn Live: ON to load tools from the hosted PingOne MCP server.')}
+          <strong>{enabled ? 'PingOne MCP error.' : 'Live query is off.'}</strong>{' '}
+          {data?.reason || 'Turn Live: ON to load tools from the hosted PingOne MCP server.'}
         </span>
-        {authRequired && (
-          <button className="inspector-shell-topbar__btn inspector-shell-topbar__btn--active" onClick={navigateToCustomerOAuthLogin}>
-            Log in
-          </button>
-        )}
       </div>
     ) : null,
     actions: (
@@ -1524,12 +1519,7 @@ function useCustomServerSource() {
           </div>
         )}
         {needsLogin && (
-          <div style={{ background: '#fef2f2', color: '#991b1b', padding: '8px 20px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
-            <strong>Sign in required.</strong> This tools/call needs a valid BFF session.
-            <button className="inspector-shell-topbar__btn inspector-shell-topbar__btn--active" onClick={navigateToCustomerOAuthLogin}>
-              Log in
-            </button>
-          </div>
+          <SignInPrompt variant="strip" message="This tools/call needs a valid BFF session." />
         )}
       </>
     ),
@@ -1912,12 +1902,7 @@ function useProtocolSource() {
     middle: (
       <>
         {needsLogin && (
-          <div style={{ background: '#fef2f2', color: '#991b1b', padding: '8px 20px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
-            <strong>Sign in required.</strong> This call needs a valid BFF session.
-            <button className="inspector-shell-topbar__btn inspector-shell-topbar__btn--active" onClick={navigateToCustomerOAuthLogin}>
-              Log in
-            </button>
-          </div>
+          <SignInPrompt variant="strip" message="This call needs a valid BFF session." />
         )}
         {selectedMethod ? (
           <>

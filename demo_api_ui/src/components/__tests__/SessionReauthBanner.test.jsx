@@ -70,7 +70,7 @@ describe("SessionReauthBanner", () => {
     window.history.pushState({}, "", "/agent-gateway-inspector");
     render(<SessionReauthBanner message="expired" role="customer" onDismiss={() => {}} />);
 
-    screen.getByRole("button", { name: "Sign In" }).click();
+    screen.getByRole("button", { name: "Sign in" }).click();
 
     expect(navSpies.force).toHaveBeenCalledWith("/agent-gateway-inspector");
   });
@@ -79,7 +79,7 @@ describe("SessionReauthBanner", () => {
     window.history.pushState({}, "", "/admin");
     render(<SessionReauthBanner message="expired" role="admin" onDismiss={() => {}} />);
 
-    screen.getByRole("button", { name: "Admin Sign In" }).click();
+    screen.getByRole("button", { name: "Sign in as admin" }).click();
 
     expect(navSpies.admin).toHaveBeenCalledWith("/admin");
     expect(navSpies.force).not.toHaveBeenCalled();
