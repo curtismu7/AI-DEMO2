@@ -16,6 +16,108 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-08-28 — BFF_INTERNAL_SECRET: two call sites disagree about where the vault lands
+
+**What's wrong.** The BFF↔`agent-service` shared secret is resolved two
+incompatible ways, and two authoritative comments assert opposite things:
+
+- `demo_api_server/utils/internalSecret.js:13-17` — the canonical shared
+  resolver, built specifically to converge six hand-rolled module-scope copies.
+  Its comment says a vault-supplied secret "could never be seen" at module
+  scope and that resolving lazily per call "is what lets the vault actually
+  supply this secret." Line 30 reads `process.env.BFF_INTERNAL_SECRET` only.
+- `demo_api_server/services/agentReasoningClient.js:45-49` — says the opposite:
+  "The vault loads into configStore (not process.env), so process.env holds
+  only the .env fallback value which may differ." Line 50 therefore reads
+  `configStore.getEffective('BFF_INTERNAL_SECRET')` first.
+
+Both cannot be true. Each author wrote their call site to match their belief,
+so the codebase now holds both models simultaneously.
+
+**Which one reality matches.** Measured 2026-08-28 in the running stack:
+`BFF_INTERNAL_SECRET` is a 206-character `encrypted:...` value in the
+environment of BOTH `demo-api-server` and `agent-service`. So the vault is not
+supplying a usable plaintext through `process.env`, and `internalSecret.js`'s
+premise does not hold in this deployment.
+
+**And that value is CORRUPT, which is the real defect.** `encrypted:` is
+configStore's OWN internal ciphertext format — not dotenvx, not a vault
+envelope. `services/configStore.js:780-786` states it outright: it "belongs in
+LMDB rows, never in .env", and a prior export/import round-trip putting it
+there literally is what caused the 2026-08-21 `invalid_client` incident, where
+it shadowed a correct vault-held PingOne client secret. This is that same
+incident class, a different key.
+
+configStore SCREENS the prefix (`_isCiphertextEnvValue`, one screen shared by
+`getEffective()`'s `readEnv()` and `get()`'s env fallback) and falls back to
+vault/LMDB — which is why the BFF sends the real plaintext and is NOT the
+broken side here.
+
+**What it broke.** `agent-service` (`demo_agent_service/src/index.ts:70`) reads
+`process.env` with no decrypt step, so its secret IS the raw ciphertext. The
+BFF's reasoning client sends the decrypted plaintext. They cannot match:
+
+    [agentReasoningClient] :3006 reason call failed: ERR_BAD_REQUEST
+    status=403 body={"error":"forbidden"}
+
+Every LLM-analysis chip (UC34 `ai-spot-unusual-patterns`, UC35
+`ai-explain-last-denial`) fails in all 9 verticals as a result, and it presents
+to the user as "The llamacpp LLM could not complete this request" — sending
+people to the model, the proxy and the resident tiers, none of which are
+involved. It also blocks golden capture for 3 use cases (see PR #2563).
+
+**Why it was not fixed now.** It is not a one-side change. THREE hops must move
+together, and two of them work today only because both ends are equally wrong
+(ciphertext compared against ciphertext):
+
+| hop | resolves via | today |
+|---|---|---|
+| BFF → `/reason` (`agentReasoningClient.js:50`) | configStore (plaintext) | **403** |
+| BFF → `/run` (`routes/agentRun.js:197`) | `process.env` (ciphertext) | works |
+| `agent-service` → BFF `/internal/agent-tool` (`agentRunHandler.ts:204`, validated by `agentTool.js` via `internalSecretMatches()`) | `process.env` both ends (ciphertext) | works |
+
+Making `agent-service` decrypt repairs `/reason` and breaks the other two.
+
+**What the real fix looks like.** TWO parts, and only the first fixes the 403.
+
+1. *Root cause — config, not code.* Replace the corrupt `encrypted:...` value in
+   `demo_api_server/.env` and `demo_agent_service/.env` with the real plaintext
+   (or remove it BFF-side so the vault supplies it, and set agent-service's
+   explicitly). There is NO decrypt path to add to `agent-service`: the value is
+   configStore's own format and needs configStore's key plus the vault, neither
+   of which agent-service has or should have. Any plan of the form "make
+   agent-service decrypt it" is not implementable.
+
+2. *Convergence — code.* Point `agentReasoningClient.js:50` and
+   `agentRun.js:197` at `utils/internalSecret.js` so one secret stops being
+   resolved three different ways. This does not fix the 403 on its own; it
+   removes the split that made the fault so hard to see, and settles the comment
+   contradiction above. Also verify these, unaudited:
+`routes/codegraphProxy.js:13`, `routes/mcpInspector.js:903`,
+`demo_agent_service/src/transactionHop.ts:37` (agent-service presenting the
+secret OUTBOUND — needs the same treatment as the inbound check).
+
+**Worth adding.** `agent-service` should refuse to start when
+`BFF_INTERNAL_SECRET` begins with `encrypted:`, mirroring the `process.exit(1)`
+it already does for the committed dev default and mirroring configStore's screen
+on the BFF side. Today a corrupt value produces a silent 403 that surfaces to
+users as "the LLM could not complete this request" — a loud startup failure
+naming the cause would have made this a one-minute diagnosis instead of a long
+one, and would stop a third occurrence of this class.
+
+**The tempting wrong fix.** Dropping `agentReasoningClient.js` to env-first
+makes it consistent with the canonical helper and turns the 403 green — by
+converging everything on the CIPHERTEXT. Consistent and wrong: it breaks the
+moment the key rotates or anything starts decrypting properly, and it reverses
+the deliberate design at `agentReasoningClient.js:45-49`.
+
+**Diagnosis note.** This was expensive to find because
+`agentReasoningClient.js`'s catch logged only `err.code`, and axios reports
+every 4xx as `ERR_BAD_REQUEST` — so a 403, a 400 and a transport failure were
+indistinguishable, and all three surfaced as `reasoning_unavailable`. Fixed in
+PR #2564 (logs `err.response.status` and `.data`); that log line is what
+produced the `403 forbidden` above. Found with `ai-demo2-d0`.
+
 
 
 
