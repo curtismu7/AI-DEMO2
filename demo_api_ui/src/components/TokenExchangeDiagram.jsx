@@ -10,7 +10,13 @@ import DiagramExportBar from './DiagramExportBar';
 const trunc = (v, n = 40) => {
   if (v == null) return '';
   const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
-  return s.length > n ? s.slice(0, n - 1) + '…' : s;
+  const t = s.length > n ? s.slice(0, n - 1) + '…' : s;
+  // Mermaid node labels are "…"-delimited, so a literal " in a claim value
+  // closes the label early and the whole diagram fails to parse. aud is the
+  // usual offender — it arrives as an array and stringifies to
+  // ["enduser.ping.demo"]. Every dynamic value in this file goes through
+  // trunc, so this is the one place that has to be safe.
+  return t.replace(/"/g, "'");
 };
 
 const kpad  = (k) => k.padEnd(11);
@@ -46,7 +52,7 @@ function claimRows(claims, keys) {
 
 // ── diagram builder — incremental ────────────────────────────────────────────
 
-function buildDiagramSource(trace, steps) {
+export function buildDiagramSource(trace, steps) {
   const events = trace?.tokenEvents || [];
   const hasActivity = !!(trace?.startedAt || events.length);
 
