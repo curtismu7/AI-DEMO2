@@ -90,9 +90,9 @@
 
 .search-form {
   padding: 20px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--th-border);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--th-bg-card);
 }
 
 .search-form h2 {
@@ -111,7 +111,7 @@
 .search-input {
   flex: 1;
   padding: 10px 12px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--th-border-strong);
   border-radius: 4px;
   font-size: var(--font-size-body);
   font-family: inherit;
@@ -124,7 +124,7 @@
 }
 
 .search-input:disabled {
-  background-color: #f3f4f6;
+  background-color: var(--th-bg-inset);
   cursor: not-allowed;
 }
 
@@ -172,15 +172,15 @@
 
 .codebases-list {
   padding: 20px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--th-border);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--th-bg-card);
 }
 
 .codebases-hint {
   margin: 0 0 10px 0;
   font-size: var(--font-size-2xs);
-  color: #6b7280;
+  color: var(--th-text-muted);
   line-height: 1.4;
 }
 
@@ -197,7 +197,7 @@
   margin: 0 0 12px 0;
   font-size: var(--font-size-body);
   font-weight: 600;
-  color: #374151;
+  color: var(--th-text-body);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -212,15 +212,15 @@
 
 .codebase-item {
   padding: 10px 12px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--th-border);
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.2s;
-  background: #f9fafb;
+  background: var(--th-bg-card);
 }
 
 .codebase-item:hover {
-  background: #f3f4f6;
+  background: var(--th-bg-inset);
   border-color: #059669;
 }
 
@@ -238,7 +238,7 @@
 
 .codebase-meta {
   font-size: var(--font-size-xs);
-  color: #9ca3af;
+  color: var(--th-text-faint);
 }
 
 /* ── Ask/Search tab strip ─────────────────────────────────────────────────
@@ -459,7 +459,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--th-text-invert);
   font-size: 0.7rem;
   font-weight: 600;
   margin-top: 2px;
@@ -501,7 +501,7 @@
 
 .code-search-page .code-search-ask .message-row.user .message-bubble {
   background: var(--cs-accent);
-  color: #ffffff;
+  color: var(--th-text-invert);
   border-top-right-radius: var(--v2-r-sm, 4px);
 }
 
@@ -655,7 +655,7 @@
   height: 36px;
   border-radius: var(--v2-r-lg, 12px);
   background: var(--cs-accent);
-  color: #fff;
+  color: var(--th-text-invert);
   border: none;
   cursor: pointer;
   font-size: 0.78rem;
@@ -676,7 +676,7 @@
   height: 36px;
   border-radius: var(--v2-r-lg, 12px);
   background: var(--cs-accent);
-  color: #fff;
+  color: var(--th-text-invert);
   border: none;
   cursor: pointer;
   display: flex;
