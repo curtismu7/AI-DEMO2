@@ -4,9 +4,9 @@
   "ucId": "UC6",
   "trigger": "pay my $2500 bill",
   "expectedOutcome": "DENY",
-  "capturedAt": "2026-07-27T00:26:54.365Z",
-  "seedHash": "956244bc8453547f",
-  "reply": "❌ PingOne Authorize denied MCP tool access for this session.",
+  "capturedAt": "2026-08-28T15:11:21.970Z",
+  "seedHash": "b473f7681d702ce5",
+  "reply": "❌ 2500 exceeds tier ceiling 2000",
   "agentPath": null,
-  "tokenEventCount": 13
+  "tokenEventCount": 22
 }

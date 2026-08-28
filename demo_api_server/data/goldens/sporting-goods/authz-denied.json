@@ -4,9 +4,9 @@
   "ucId": "UC6",
   "trigger": "extend my rental $2500",
   "expectedOutcome": "DENY",
-  "capturedAt": "2026-07-27T00:28:16.934Z",
-  "seedHash": "c48bf4072b509915",
-  "reply": "❌ PingOne Authorize denied MCP tool access for this session.",
+  "capturedAt": "2026-08-28T15:12:01.894Z",
+  "seedHash": "bbfe417d11c6b000",
+  "reply": "❌ 2500 exceeds tier ceiling 2000",
   "agentPath": null,
-  "tokenEventCount": 13
+  "tokenEventCount": 22
 }

@@ -4,7 +4,7 @@
   "ucId": "UC24",
   "trigger": "What city offices are near me?",
   "expectedOutcome": "PERMIT",
-  "capturedAt": "2026-08-24T14:01:55.248Z",
+  "capturedAt": "2026-08-28T15:10:17.007Z",
   "seedHash": "9d3354388fed65d8",
   "reply": "City & County office locations — found 4:",
   "agentPath": null,

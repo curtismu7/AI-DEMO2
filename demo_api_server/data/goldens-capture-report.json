@@ -1,153 +1,40 @@
 {
-  "capturedAt": "2026-08-24T14:03:53.391Z",
-  "skipped": 18,
+  "capturedAt": "2026-08-28T15:12:08.228Z",
+  "captured": 10,
+  "skipped": 5,
   "byReason": {
-    "client_dispatched_no_reply": {
-      "count": 3,
-      "pairs": [
-        "government/mortgage-delegated-access",
-        "healthcare/mortgage-delegated-access",
-        "sporting-goods/mortgage-delegated-access"
-      ]
-    },
     "unhealthy_result": {
-      "count": 12,
+      "count": 5,
       "pairs": [
-        "government/authz-denied",
-        "government/code-search",
-        "government/unauthorized-commitment-fee-waiver",
-        "government/weather-mcp-texas-deny",
-        "healthcare/authz-denied",
-        "healthcare/code-search",
-        "healthcare/unauthorized-commitment-fee-waiver",
-        "healthcare/weather-mcp-texas-deny",
-        "sporting-goods/authz-denied",
+        "sporting-goods/a2a-delegation",
         "sporting-goods/code-search",
+        "sporting-goods/mortgage-delegated-access",
         "sporting-goods/unauthorized-commitment-fee-waiver",
-        "sporting-goods/weather-mcp-texas-deny"
-      ]
-    },
-    "agent_could_not_complete": {
-      "count": 3,
-      "pairs": [
-        "government/ai-explain-last-denial",
-        "government/ai-spot-unusual-patterns",
-        "sporting-goods/ai-explain-last-denial"
+        "sporting-goods/weather-mcp-texas-permit"
       ]
     }
   },
   "skips": [
     {
-      "vertical": "healthcare",
-      "useCaseId": "mortgage-delegated-access",
-      "ucId": "UC33",
-      "reason": "client_dispatched_no_reply",
-      "detail": "heuristic action \"vertical_feature_demo\" is client-dispatched — the UI calls the tool and renders; no agent reply exists to record"
-    },
-    {
-      "vertical": "healthcare",
-      "useCaseId": "authz-denied",
-      "ucId": "UC6",
+      "vertical": "sporting-goods",
+      "useCaseId": "a2a-delegation",
+      "ucId": "UC2",
       "reason": "unhealthy_result",
-      "detail": "HTTP 200: ❌ access_denied"
-    },
-    {
-      "vertical": "healthcare",
-      "useCaseId": "weather-mcp-texas-deny",
-      "ucId": "UC31",
-      "reason": "unhealthy_result",
-      "detail": "HTTP 200: ❌ Agent Gateway: weather scope restricted to Texas (demo policy) — city not recognized as Texas"
-    },
-    {
-      "vertical": "healthcare",
-      "useCaseId": "code-search",
-      "ucId": "UC-TOOL1",
-      "reason": "unhealthy_result",
-      "detail": "HTTP 200: ❌ Insufficient scope for tool 'code_search'"
-    },
-    {
-      "vertical": "healthcare",
-      "useCaseId": "unauthorized-commitment-fee-waiver",
-      "ucId": "UC28",
-      "reason": "unhealthy_result",
-      "detail": "HTTP 200: ❌ access_denied"
-    },
-    {
-      "vertical": "government",
-      "useCaseId": "mortgage-delegated-access",
-      "ucId": "UC33",
-      "reason": "client_dispatched_no_reply",
-      "detail": "heuristic action \"vertical_feature_demo\" is client-dispatched — the UI calls the tool and renders; no agent reply exists to record"
-    },
-    {
-      "vertical": "government",
-      "useCaseId": "ai-spot-unusual-patterns",
-      "ucId": "UC34",
-      "reason": "agent_could_not_complete",
-      "detail": "The llamacpp LLM could not complete this request (reasoning_unavailable). If the stack was just deployed or restarted, the local model takes several minutes to "
-    },
-    {
-      "vertical": "government",
-      "useCaseId": "ai-explain-last-denial",
-      "ucId": "UC35",
-      "reason": "agent_could_not_complete",
-      "detail": "The llamacpp LLM could not complete this request (reasoning_unavailable). If the stack was just deployed or restarted, the local model takes several minutes to "
-    },
-    {
-      "vertical": "government",
-      "useCaseId": "authz-denied",
-      "ucId": "UC6",
-      "reason": "unhealthy_result",
-      "detail": "HTTP 200: ❌ 2500 exceeds tier ceiling 2000"
-    },
-    {
-      "vertical": "government",
-      "useCaseId": "weather-mcp-texas-deny",
-      "ucId": "UC31",
-      "reason": "unhealthy_result",
-      "detail": "HTTP 200: ❌ Agent Gateway: weather scope restricted to Texas (demo policy) — city not recognized as Texas"
-    },
-    {
-      "vertical": "government",
-      "useCaseId": "code-search",
-      "ucId": "UC-TOOL1",
-      "reason": "unhealthy_result",
-      "detail": "HTTP 200: ❌ Insufficient scope for tool 'code_search'"
-    },
-    {
-      "vertical": "government",
-      "useCaseId": "unauthorized-commitment-fee-waiver",
-      "ucId": "UC28",
-      "reason": "unhealthy_result",
-      "detail": "HTTP 200: ❌ access_denied"
+      "detail": "HTTP 200: ❌ Delegated to Membership Specialist, but sensitive_membership_details failed: gateway_policy_denied."
     },
     {
       "vertical": "sporting-goods",
       "useCaseId": "mortgage-delegated-access",
       "ucId": "UC33",
-      "reason": "client_dispatched_no_reply",
-      "detail": "heuristic action \"gear_warranty_demo\" is client-dispatched — the UI calls the tool and renders; no agent reply exists to record"
-    },
-    {
-      "vertical": "sporting-goods",
-      "useCaseId": "ai-explain-last-denial",
-      "ucId": "UC35",
-      "reason": "agent_could_not_complete",
-      "detail": "The llamacpp LLM could not complete this request (reasoning_unavailable). If the stack was just deployed or restarted, the local model takes several minutes to "
-    },
-    {
-      "vertical": "sporting-goods",
-      "useCaseId": "authz-denied",
-      "ucId": "UC6",
       "reason": "unhealthy_result",
-      "detail": "HTTP 200: ❌ 2500 exceeds tier ceiling 2000"
+      "detail": "HTTP 200: ❌ access_denied"
     },
     {
       "vertical": "sporting-goods",
-      "useCaseId": "weather-mcp-texas-deny",
-      "ucId": "UC31",
+      "useCaseId": "weather-mcp-texas-permit",
+      "ucId": "UC30",
       "reason": "unhealthy_result",
-      "detail": "HTTP 200: ❌ Agent Gateway: weather scope restricted to Texas (demo policy) — city not recognized as Texas"
+      "detail": "HTTP 200: ❌ intent_mismatch: tool \"get_weather\" not permitted for intent \"unknown\""
     },
     {
       "vertical": "sporting-goods",

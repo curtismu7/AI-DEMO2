@@ -4,9 +4,9 @@
   "ucId": "UC1",
   "trigger": "show my permits",
   "expectedOutcome": "PERMIT",
-  "capturedAt": "2026-08-24T13:59:13.702Z",
+  "capturedAt": "2026-08-28T15:10:09.282Z",
   "seedHash": "9d3354388fed65d8",
   "reply": "Here are your permits.",
   "agentPath": null,
-  "tokenEventCount": 24
+  "tokenEventCount": 25
 }

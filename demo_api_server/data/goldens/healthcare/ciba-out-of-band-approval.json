@@ -4,9 +4,9 @@
   "ucId": "UC22",
   "trigger": "pay my $150 bill",
   "expectedOutcome": "PERMIT",
-  "capturedAt": "2026-08-24T13:59:02.953Z",
+  "capturedAt": "2026-08-28T15:11:25.251Z",
   "seedHash": "b473f7681d702ce5",
-  "reply": "Here are your pay bill.",
+  "reply": "PingOne Authorize requires additional authentication before this tool can run.",
   "agentPath": null,
-  "tokenEventCount": 24
+  "tokenEventCount": 21
 }
