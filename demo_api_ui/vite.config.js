@@ -208,6 +208,24 @@ export default defineConfig(({ mode }) => {
       // Pin the test process to UTC so date/time formatting assertions are
       // deterministic across machines and CI runners regardless of local TZ.
       env: { TZ: 'UTC' },
+      // Give each worker a heap big enough for the whole suite.
+      //
+      // Node's default old-space limit is ~4 GB per process, and vitest reuses a
+      // worker across many files, so memory accumulates: 3.5k tests over 440+
+      // jsdom files with `css: true` walks past 8 GB and the worker dies with
+      // "Ineffective mark-compacts near heap limit". That reads as a machine
+      // problem — it is not. Measured on a 64 GB box with 51% memory free, the
+      // suite OOMed at 4 GB, at 6 GB and at 8 GB, and passed at 14 GB; a single
+      // heavy file (a full dashboard render) OOMed on its own at 3 GB.
+      //
+      // CI has been surviving on the default because its Node 22 collects
+      // differently from a local Node 26 — which makes this the worst kind of
+      // trap: green on the runner, unrunnable on the machine of whoever is
+      // trying to verify before pushing. 12 GB is headroom on any box that can
+      // run the stack, and workers only reserve what they use.
+      poolOptions: {
+        forks: { execArgv: ['--max-old-space-size=12288'] },
+      },
       exclude: [
         '**/node_modules/**',
         '**/dist/**',
