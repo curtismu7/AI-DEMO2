@@ -837,6 +837,22 @@ function toInternalAs(url) {
 }
 
 /**
+ * The inverse of toInternalAs, for the one URL the BROWSER has to follow.
+ *
+ * The broker builds its RFC 8414 document from the Host it was reached on, so
+ * fetching that document over the internal name yields internal URLs for BOTH
+ * endpoints — including authorization_endpoint. Handing that to the browser
+ * sends it to http://mcp-gateway:3005, which resolves only inside the compose
+ * network. Verified live: the redirect landed on an unreachable host.
+ */
+function toExternalAs(url) {
+  const internal = process.env.MCP_FACADE_AGENT_GATEWAY_AS_INTERNAL;
+  const external = process.env.MCP_FACADE_AGENT_GATEWAY_AS || 'http://localhost:3005';
+  if (!internal) return String(url).replace(/\/$/, '');
+  return String(url).replace(internal.replace(/\/$/, ''), external.replace(/\/$/, '')).replace(/\/$/, '');
+}
+
+/**
  * RFC 9728 -> RFC 8414 discovery for an MCP resource that advertises a
  * protected-resource document.
  *
@@ -880,8 +896,11 @@ async function discoverProtectedResource(mcpUrl, headers = {}) {
   if (!asMeta.authorization_endpoint || !asMeta.token_endpoint) return null;
 
   return {
-    // Browser-facing: keep whatever the resource advertised.
-    authorizationUri: asMeta.authorization_endpoint,
+    // Browser-facing: force back to the published origin. The document we just
+    // read was generated from the internal Host, so this field arrives internal
+    // too — handing it straight to the browser sends it somewhere only the
+    // compose network can resolve.
+    authorizationUri: toExternalAs(asMeta.authorization_endpoint),
     // Server-facing: the relay POSTs the code exchange itself, so this one has
     // to resolve from inside the container.
     tokenUri: toInternalAs(asMeta.token_endpoint),
@@ -1048,7 +1067,11 @@ async function beginOAuthFlow(session, req) {
     // /register, or a non-conforming response) must not break sign-in: fall
     // back to the configured client_id exactly as before this feature existed.
     try {
-      const dcr = await getOrRegisterDcrClient(authorizationUri, redirectUri);
+      // Registration is a server-side POST, so it needs the internal origin —
+      // authorizationUri is deliberately the browser-facing one and would be
+      // Connection-refused from in here, silently falling back to the configured
+      // PingOne client id that this AS has never heard of.
+      const dcr = await getOrRegisterDcrClient(toInternalAs(authorizationUri), redirectUri);
       clientId = dcr.clientId;
       dcrClientId = dcr.clientId;
       dcrClientSecret = dcr.clientSecret;
