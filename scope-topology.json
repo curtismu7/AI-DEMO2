@@ -470,6 +470,18 @@
       "requiredScopes": ["read"],
       "surface": "gateway"
     },
+    "search_audit_activities": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "get_audit_activity": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "audit_summary": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
     "get_branch_hours": {
       "requiredScopes": ["read"],
       "surface": "gateway"

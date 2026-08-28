@@ -344,6 +344,9 @@ Granted scopes: `read`, `identity:read`
 | `code_search` | gateway | `code:search` | — |
 | `get_weather` | gateway | `read` | — |
 | `brave_news_search` | gateway | `read` | — |
+| `search_audit_activities` | gateway | `read` | — |
+| `get_audit_activity` | gateway | `read` | — |
+| `audit_summary` | gateway | `read` | — |
 | `get_branch_hours` | gateway | `read` | — |
 | `jwt_verify_signature` | gateway | `read` | — |
 | `jwt_validate_claims` | gateway | `read` | — |
