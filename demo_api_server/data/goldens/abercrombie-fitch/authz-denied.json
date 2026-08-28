@@ -1,11 +1,11 @@
 {
-  "vertical": "government",
+  "vertical": "abercrombie-fitch",
   "useCaseId": "authz-denied",
   "ucId": "UC6",
-  "trigger": "pay the $2500 fee",
+  "trigger": "checkout A&F outerwear for $2500",
   "expectedOutcome": "DENY",
-  "capturedAt": "2026-08-28T17:35:52.501Z",
-  "seedHash": "9d3354388fed65d8",
+  "capturedAt": "2026-08-28T17:42:48.842Z",
+  "seedHash": "005fc03655ff4340",
   "reply": "❌ 2500 exceeds tier ceiling 2000",
   "agentPath": null,
   "tokenEventCount": 22

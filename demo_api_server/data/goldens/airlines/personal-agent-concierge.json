@@ -1,0 +1,12 @@
+{
+  "vertical": "airlines",
+  "useCaseId": "personal-agent-concierge",
+  "ucId": "UC38",
+  "trigger": "have my agent use my miles for an upgrade",
+  "expectedOutcome": "PERMIT",
+  "capturedAt": "2026-08-28T17:50:39.891Z",
+  "seedHash": null,
+  "reply": "Your personal agent needs to verify your identity before acting on your behalf. Please complete multi-factor authentication.",
+  "agentPath": null,
+  "tokenEventCount": 0
+}

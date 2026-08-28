@@ -4,7 +4,7 @@
   "ucId": "UC2.6",
   "trigger": "simulate an agent identity mismatch",
   "expectedOutcome": "PERMIT_THEN_DENY",
-  "capturedAt": "2026-08-28T15:11:58.742Z",
+  "capturedAt": "2026-08-28T17:36:39.264Z",
   "seedHash": "bbfe417d11c6b000",
   "reply": "❌ Delegated to Membership Specialist, but sensitive_membership_details failed: gateway_policy_denied.",
   "agentPath": null,

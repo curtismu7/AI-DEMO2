@@ -4,7 +4,7 @@
   "ucId": "UC22",
   "trigger": "pay the $150 fee",
   "expectedOutcome": "PERMIT",
-  "capturedAt": "2026-08-28T15:10:16.895Z",
+  "capturedAt": "2026-08-28T17:36:00.706Z",
   "seedHash": "9d3354388fed65d8",
   "reply": "PingOne Authorize requires additional authentication before this tool can run.",
   "agentPath": null,

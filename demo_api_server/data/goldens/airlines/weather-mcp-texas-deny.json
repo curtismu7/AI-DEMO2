@@ -1,11 +1,11 @@
 {
-  "vertical": "government",
+  "vertical": "airlines",
   "useCaseId": "weather-mcp-texas-deny",
   "ucId": "UC31",
   "trigger": "what's the weather in Miami",
   "expectedOutcome": "DENY",
-  "capturedAt": "2026-08-28T17:36:05.952Z",
-  "seedHash": "9d3354388fed65d8",
+  "capturedAt": "2026-08-28T17:50:37.487Z",
+  "seedHash": null,
   "reply": "❌ intent_mismatch: tool \"get_weather\" not permitted for intent \"unknown\"",
   "agentPath": null,
   "tokenEventCount": 13

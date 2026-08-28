@@ -1,0 +1,12 @@
+{
+  "vertical": "abercrombie-fitch",
+  "useCaseId": "mortgage-delegated-access",
+  "ucId": "UC33",
+  "trigger": "show my saved items at A&F",
+  "expectedOutcome": "PERMIT",
+  "capturedAt": "2026-08-28T17:41:42.731Z",
+  "seedHash": "005fc03655ff4340",
+  "reply": "Here are your wishlist.",
+  "agentPath": null,
+  "tokenEventCount": 25
+}

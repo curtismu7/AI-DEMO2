@@ -4,7 +4,7 @@
   "ucId": "UC7",
   "trigger": "extend my rental $600",
   "expectedOutcome": "STEP_UP",
-  "capturedAt": "2026-08-28T15:12:03.012Z",
+  "capturedAt": "2026-08-28T17:39:56.774Z",
   "seedHash": "bbfe417d11c6b000",
   "reply": "PingOne Authorize requires additional authentication before this tool can run.",
   "agentPath": null,

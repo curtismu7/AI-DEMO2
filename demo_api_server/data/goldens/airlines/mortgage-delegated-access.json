@@ -1,0 +1,12 @@
+{
+  "vertical": "airlines",
+  "useCaseId": "mortgage-delegated-access",
+  "ucId": "UC33",
+  "trigger": "what is the status of flight UA328",
+  "expectedOutcome": "PERMIT",
+  "capturedAt": "2026-08-28T17:49:19.025Z",
+  "seedHash": null,
+  "reply": "Here are your flight status.",
+  "agentPath": null,
+  "tokenEventCount": 24
+}

@@ -1,0 +1,12 @@
+{
+  "vertical": "airlines",
+  "useCaseId": "progressive-trust-public-access",
+  "ucId": "UC24",
+  "trigger": "What airports are near me?",
+  "expectedOutcome": "PERMIT",
+  "capturedAt": "2026-08-28T17:50:35.200Z",
+  "seedHash": null,
+  "reply": "United airport locations — found 5:",
+  "agentPath": null,
+  "tokenEventCount": 4
+}

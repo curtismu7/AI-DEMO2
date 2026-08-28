@@ -1,0 +1,12 @@
+{
+  "vertical": "airlines",
+  "useCaseId": "authz-denied",
+  "ucId": "UC6",
+  "trigger": "pay a $2500 change fee",
+  "expectedOutcome": "DENY",
+  "capturedAt": "2026-08-28T17:50:29.320Z",
+  "seedHash": null,
+  "reply": "❌ access_denied",
+  "agentPath": null,
+  "tokenEventCount": 23
+}
