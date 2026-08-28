@@ -20,7 +20,7 @@
 }
 
 .azc-title {
-  font-size: 22px;
+  font-size: var(--font-size-h2);
   font-weight: 700;
   color: #0f172a;
   margin: 0 0 6px;
@@ -28,7 +28,7 @@
 }
 
 .azc-subtitle {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #64748b;
   margin: 0;
   line-height: 1.5;
@@ -46,7 +46,7 @@
   display: inline-block;
   padding: 4px 10px;
   border-radius: 20px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -80,7 +80,7 @@
   background: white;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 500;
   color: #475569;
   transition:
@@ -99,7 +99,7 @@
   text-align: center;
   padding: 40px;
   color: #64748b;
-  font-size: 14px;
+  font-size: var(--font-size-body);
 }
 
 .azc-error {
@@ -109,7 +109,7 @@
   padding: 12px 16px;
   border-radius: 6px;
   margin-bottom: 20px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   display: flex;
   align-items: center;
   gap: 12px;
@@ -122,7 +122,7 @@
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -141,7 +141,7 @@
   border: none;
   background: none;
   color: #64748b;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 500;
   cursor: pointer;
   border-bottom: 2px solid transparent;
@@ -181,14 +181,14 @@
 
 .azc-section > h3 {
   margin: 0 0 6px;
-  font-size: 15px;
+  font-size: var(--font-size-base);
   font-weight: 700;
   color: #0f172a;
 }
 
 .azc-section > h4 {
   margin: 0 0 10px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 700;
   color: #334155;
   text-transform: uppercase;
@@ -198,7 +198,7 @@
 /* ── Description / hints ─────────────────────────────────────────────── */
 
 .azc-description {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #64748b;
   margin: 0 0 20px;
   line-height: 1.6;
@@ -278,14 +278,14 @@
 }
 
 .azc-mcp-section__label {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   color: #1e293b;
   margin-bottom: 4px;
 }
 
 .azc-mcp-section__hint {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #94a3b8;
   margin-bottom: 10px;
   line-height: 1.4;
@@ -339,7 +339,7 @@
 
 .azc-field-label {
   grid-area: label;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   color: #1e293b;
 }
@@ -350,7 +350,7 @@
   border: 1px solid #cbd5e1;
   border-radius: 6px;
   font-family: inherit;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 600;
   color: #0f172a;
   background: #f8fafc;
@@ -373,7 +373,7 @@
   border: 1px solid #cbd5e1;
   border-radius: 6px;
   font-family: inherit;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #1e293b;
   background: #f8fafc;
   resize: vertical;
@@ -392,7 +392,7 @@
 
 .azc-field-hint {
   grid-area: hint;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #94a3b8;
   line-height: 1.4;
 }
@@ -434,7 +434,7 @@
   color: white;
   border: none;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s;
@@ -454,7 +454,7 @@
 .azc-alert {
   padding: 12px 16px;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   line-height: 1.5;
   margin-bottom: 16px;
 }
@@ -501,7 +501,7 @@
 }
 
 .azc-info-label {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   color: #94a3b8;
   text-transform: uppercase;
@@ -509,7 +509,7 @@
 }
 
 .azc-info-item code {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #1e293b;
   font-weight: 500;
   word-break: break-all;
@@ -521,7 +521,7 @@
 .azc-env-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   margin-bottom: 16px;
 }
 
@@ -553,18 +553,18 @@
   padding: 2px 6px;
   border-radius: 4px;
   font-family: inherit;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #334155;
 }
 
 .azc-env-val {
   color: #475569;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   word-break: break-all;
 }
 
 .azc-env-note {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #94a3b8;
   margin: 0;
 }
@@ -575,7 +575,7 @@
   padding: 1px 5px;
   border-radius: 3px;
   font-family: inherit;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   color: #334155;
 }
 
@@ -590,7 +590,7 @@
 }
 
 .azc-rules-list li {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #475569;
   line-height: 1.5;
 }
@@ -624,27 +624,27 @@
 }
 
 .azc-scope-name {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #1d4ed8;
   font-weight: 700;
   font-family: inherit;
 }
 
 .azc-scope-label {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   color: #1e293b;
 }
 
 .azc-scope-description {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #64748b;
   margin: 0;
   line-height: 1.4;
 }
 
 .azc-scope-hint {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   color: #94a3b8;
 }
 
@@ -657,7 +657,7 @@
   color: white;
   border: none;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   cursor: pointer;
   text-decoration: none;

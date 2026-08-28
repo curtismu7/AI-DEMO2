@@ -1,12 +1,12 @@
 .annotated-result { border: 1px solid var(--border, #d0d5dd); border-radius: 8px; padding: 12px; margin-top: 12px; }
 .ar-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
 /* Decision badge styles are reused from .authz-badge in AuthzTestPage.css. */
-.ar-engine { color: #667085; font-size: 12px; }
+.ar-engine { color: #667085; font-size: var(--font-size-2xs); }
 .ar-trace { display: grid; gap: 4px; margin-bottom: 8px; }
-.ar-trace-row { display: grid; grid-template-columns: 100px 1fr; gap: 8px; font-size: 13px; }
+.ar-trace-row { display: grid; grid-template-columns: 100px 1fr; gap: 8px; font-size: var(--font-size-sm); }
 .ar-k { color: #667085; font-weight: 600; }
-.ar-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; }
+.ar-mono { font-family: var(--font-mono); white-space: pre-wrap; }
 .ar-statements { margin: 6px 0; }
-.ar-statements-title { font-weight: 600; font-size: 12px; color: #344054; margin-bottom: 2px; }
+.ar-statements-title { font-weight: 600; font-size: var(--font-size-2xs); color: #344054; margin-bottom: 2px; }
 .ar-stmt-type { font-weight: 700; }
-.ar-output pre { background: #f9fafb; padding: 8px; border-radius: 6px; overflow: auto; font-size: 12px; }
+.ar-output pre { background: #f9fafb; padding: 8px; border-radius: 6px; overflow: auto; font-size: var(--font-size-2xs); }

@@ -20,14 +20,14 @@
 }
 
 .trism-slide-title {
-  font-size: 20px;
+  font-size: var(--font-size-xl);
   font-weight: 700;
   color: #1f2937;
   margin: 0;
 }
 
 .trism-slide-subtitle {
-  font-size: 14px;
+  font-size: var(--font-size-body);
   color: #6b7280;
   margin: 4px 0 0;
 }
@@ -38,7 +38,7 @@
 }
 
 .trism-slide-section h4 {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 700;
   color: #1e40af;
   text-transform: uppercase;
@@ -50,7 +50,7 @@
 
 /* Explanation block */
 .trism-slide-explanation {
-  font-size: 15px;
+  font-size: var(--font-size-base);
   color: #374151;
   line-height: 1.6;
   background: #f9fafb;
@@ -82,13 +82,13 @@
 .trism-feature-name {
   font-weight: 600;
   color: #059669;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   margin-bottom: 4px;
 }
 
 .trism-feature-component {
   font-family: inherit;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #6b7280;
   background: #f3f4f6;
   display: inline-block;
@@ -98,7 +98,7 @@
 }
 
 .trism-feature-desc {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #374151;
   line-height: 1.4;
 }
@@ -124,7 +124,7 @@
 }
 
 .trism-demo-hint {
-  font-size: 14px;
+  font-size: var(--font-size-body);
   color: #92400e;
   line-height: 1.5;
   margin: 0;
@@ -141,15 +141,15 @@
   }
 
   .trism-slide-icon {
-    font-size: 36px;
+    font-size: var(--font-size-4xl);
   }
 
   .trism-slide-title {
-    font-size: 18px;
+    font-size: var(--font-size-h3);
   }
 
   .trism-slide-explanation {
-    font-size: 14px;
+    font-size: var(--font-size-body);
     padding: 10px 12px;
   }
 }

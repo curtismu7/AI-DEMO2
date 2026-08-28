@@ -9,7 +9,7 @@
 .pgt-doc-link {
   display: inline-block;
   margin-top: 6px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
 }
 
 .pgt-legend {
@@ -19,7 +19,7 @@
   margin: 0 0 12px;
   padding: 0;
   list-style: none;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: var(--pmd-ink-2);
 }
 
@@ -50,7 +50,7 @@
   flex-direction: column;
   gap: 8px;
   max-width: 760px;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   color: var(--pmd-ink);
 }
 
@@ -60,7 +60,7 @@
 }
 
 .pgt-steps__heading {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--pmd-ink-2);
@@ -71,7 +71,7 @@
   background: #b3282d;
   color: #ffffff;
   font-weight: 700;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   width: 24px;
   height: 24px;
   border-radius: 50%;

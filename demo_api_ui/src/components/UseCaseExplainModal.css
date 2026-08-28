@@ -132,7 +132,7 @@
   border-radius: 8px;
   padding: 0.7rem 0.85rem;
   margin-top: 0.4rem;
-  font-family: ui-monospace, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 0.78rem;
   color: #cdd7ec;
   overflow-x: auto;

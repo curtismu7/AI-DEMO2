@@ -68,7 +68,7 @@
 }
 
 .date-cell {
-  font-family: 'Monaco', 'Menlo', monospace;
+  font-family: var(--font-mono);
   font-size: 0.85rem;
   color: #666;
 }

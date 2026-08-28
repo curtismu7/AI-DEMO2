@@ -57,14 +57,14 @@
 
 .trism-panel-header-left h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: var(--font-size-xl);
   font-weight: 700;
   color: #1f2937;
 }
 
 .trism-panel-subtitle {
   margin: 4px 0 0;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #6b7280;
 }
 
@@ -81,7 +81,7 @@
   border-radius: 6px;
   background: #f9fafb;
   color: #374151;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
@@ -103,7 +103,7 @@
   border: none;
   background: #f3f4f6;
   border-radius: 6px;
-  font-size: 20px;
+  font-size: var(--font-size-xl);
   color: #6b7280;
   cursor: pointer;
   display: flex;
@@ -140,7 +140,7 @@
   padding: 8px 20px;
   border: none;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
@@ -184,7 +184,7 @@
   border: 2px solid #e5e7eb;
   background: #ffffff;
   cursor: pointer;
-  font-size: 18px;
+  font-size: var(--font-size-h3);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -211,7 +211,7 @@
 }
 
 .trism-glossary-intro {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #6b7280;
   margin: 0 0 16px;
 }
@@ -236,12 +236,12 @@
 .trism-glossary-term {
   font-weight: 700;
   color: #1e40af;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   margin: 0 0 4px;
 }
 
 .trism-glossary-def {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #4b5563;
   line-height: 1.5;
   margin: 0;
@@ -272,13 +272,13 @@
   .trism-nav-btn {
     padding: 8px 12px;
     min-width: 80px;
-    font-size: 13px;
+    font-size: var(--font-size-sm);
   }
 
   .trism-dot {
     width: 30px;
     height: 30px;
-    font-size: 14px;
+    font-size: var(--font-size-body);
   }
 }
 
@@ -299,6 +299,6 @@
   .trism-dot {
     width: 26px;
     height: 26px;
-    font-size: 12px;
+    font-size: var(--font-size-2xs);
   }
 }

@@ -15,14 +15,14 @@
 
 .servers-header h1 {
   margin: 0;
-  font-size: 24px;
+  font-size: var(--font-size-2xl);
   font-weight: 700;
   color: #111827;
 }
 
 .servers-subtitle {
   margin: 4px 0 0 0;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   color: #4b5563;
 }
 
@@ -33,7 +33,7 @@
 }
 
 .servers-meta {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #374151;
   white-space: nowrap;
 }
@@ -44,7 +44,7 @@
   border-radius: 6px;
   background: #ffffff;
   color: #111827;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   cursor: pointer;
 }
@@ -65,14 +65,14 @@
   border-radius: 6px;
   background: #fef2f2;
   color: #991b1b;
-  font-size: 14px;
+  font-size: var(--font-size-body);
 }
 
 .servers-loading {
   padding: 40px 0;
   text-align: center;
   color: #374151;
-  font-size: 15px;
+  font-size: var(--font-size-base);
 }
 
 .servers-group {
@@ -96,7 +96,7 @@
 .servers-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
 }
 
 .servers-table th {
@@ -139,8 +139,8 @@
 .col-latency,
 .col-size {
   white-space: nowrap;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
   color: #374151;
 }
 
@@ -177,7 +177,7 @@
   border-radius: 999px;
   background: #f3f4f6;
   color: #374151;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   white-space: nowrap;
 }

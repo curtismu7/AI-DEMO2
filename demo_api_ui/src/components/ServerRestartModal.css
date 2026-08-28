@@ -81,7 +81,7 @@
 }
 
 .server-restart-content .modal-header h2 {
-  font-size: 18px;
+  font-size: var(--font-size-h3);
   font-weight: 600;
   color: var(--modal-header-text, #ffffff);
   margin: 0;
@@ -110,7 +110,7 @@
 
 /* Message text */
 .restart-message {
-  font-size: 14px;
+  font-size: var(--font-size-body);
   color: var(--app-gray-700, #374151);
   margin: 0 0 8px;
   line-height: 1.4;
@@ -118,7 +118,7 @@
 
 /* Attempt counter */
 .attempt-counter {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: var(--app-gray-600, #4b5563);
   margin: 0;
   font-weight: 500;
@@ -139,7 +139,7 @@
 .server-restart-content .btn {
   padding: 8px 16px;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 500;
   cursor: pointer;
   border: none;

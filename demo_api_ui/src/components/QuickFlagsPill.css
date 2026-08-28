@@ -9,7 +9,7 @@
   border: 1px solid rgba(255, 255, 255, 0.35);
   background: rgba(255, 255, 255, 0.08);
   color: var(--brand-topnav-text, #ffffff); /* pill lives on the topnav; inherit picks up dark body text */
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
@@ -31,7 +31,7 @@
   border-radius: 10px;
   box-shadow: 0 10px 32px rgba(16, 24, 40, 0.18);
   padding: 10px 12px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
 }
 
 .qfp-hint,
@@ -39,7 +39,7 @@
   padding: 4px 8px;
   border-radius: 6px;
   margin-bottom: 6px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
 }
 .qfp-hint { background: #fef6e7; color: #8a6116; }
 .qfp-error { background: #fdecec; color: #a12622; }
@@ -56,7 +56,7 @@
 .qfp-group { padding: 6px 0; border-top: 1px solid #eef1f7; }
 .qfp-group:first-of-type { border-top: none; }
 .qfp-group-title {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -72,12 +72,12 @@
   padding: 3px 0;
 }
 .qfp-row-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.qfp-missing { color: #98a1b8; font-size: 12px; }
+.qfp-missing { color: #98a1b8; font-size: var(--font-size-2xs); }
 
 .qfp-segmented { display: inline-flex; align-items: center; gap: 0; }
 .qfp-seg-btn {
   padding: 2px 8px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   border: 1px solid #cdd5e4;
   background: #f6f8fc;
   color: #3c4763;
@@ -113,7 +113,7 @@
 }
 .qfp-toggle--on .qfp-toggle-knob { left: 16px; }
 
-.qfp-lock { font-size: 12px; }
+.qfp-lock { font-size: var(--font-size-2xs); }
 
 .qfp-preset {
   padding: 6px 0 8px;
@@ -124,13 +124,13 @@
   padding: 4px 8px;
   border-radius: 6px;
   margin: 4px 0 6px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
 }
 .qfp-preset-status--ok { background: #e8f6ee; color: #1b6b3a; }
 .qfp-preset-status--warn { background: #fef6e7; color: #8a6116; }
 .qfp-preset-notice {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   margin-bottom: 6px;
   color: #3c4763;
 }
@@ -141,7 +141,7 @@
   border: 1px solid #1b62d6;
   background: #1b62d6;
   color: #fff;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   cursor: pointer;
 }

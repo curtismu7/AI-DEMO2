@@ -1,15 +1,15 @@
 /* demo_api_ui/src/components/TokenChainDemoTrackTab.css */
-.tct-root { padding: 10px 4px; font-size: 13px; }
+.tct-root { padding: 10px 4px; font-size: var(--font-size-sm); }
 .tct-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .tct-score { font-weight: 600; color: var(--tcd-muted, #5f6b76); }
 .tct-newrun {
-  margin-left: auto; font-size: 12px; font-weight: 600; padding: 5px 12px;
+  margin-left: auto; font-size: var(--font-size-2xs); font-weight: 600; padding: 5px 12px;
   cursor: pointer; color: #fff; background: #16324f; border: none; border-radius: 6px;
 }
 .tct-newrun:hover { background: #1e4066; }
 .tct-newrun:disabled { opacity: .6; cursor: default; }
 .tct-newrun--failed { background: #c62828; }
-.tct-open-page { font-size: 11px; margin-left: 8px; color: #16324f; text-decoration: none; }
+.tct-open-page { font-size: var(--font-size-xs); margin-left: 8px; color: #16324f; text-decoration: none; }
 .tct-open-page:hover { text-decoration: underline; }
 .tct-act { font-size: 10px; font-weight: 800; letter-spacing: 0.08em; color: #5f6b76; margin: 12px 2px 6px; }
 .tct-step { border: 1px solid #e3e7eb; border-radius: 8px; margin-bottom: 7px; background: #fbfcfd; }
@@ -17,7 +17,7 @@
 .tct-step--done { border-color: #1e7b34; }
 .tct-step-head { display: flex; width: 100%; align-items: center; gap: 8px; padding: 8px 10px; background: none; border: none; cursor: pointer; text-align: left; }
 .tct-step-title { font-weight: 600; }
-.tct-step-ucs { margin-left: auto; font-size: 11px; color: #5f6b76; }
+.tct-step-ucs { margin-left: auto; font-size: var(--font-size-xs); color: #5f6b76; }
 .tct-slots { padding: 0 10px 8px; }
 .tct-slot-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
 .tct-tag { font-size: 9px; font-weight: 800; width: 42px; text-align: center; border-radius: 4px; padding: 2px 0; }
@@ -30,17 +30,17 @@
 .tct-decision { font-weight: 400; color: #16324f; }
 .tct-gauntlet { padding: 0 10px 8px; display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
 .tct-gauntlet-score { font-weight: 700; color: #16324f; flex-basis: 100%; }
-.tct-tile { font-size: 11px; border: 1px dashed #e3e7eb; border-radius: 5px; padding: 3px 8px; color: #5f6b76; }
+.tct-tile { font-size: var(--font-size-xs); border: 1px dashed #e3e7eb; border-radius: 5px; padding: 3px 8px; color: #5f6b76; }
 .tct-tile--blocked { border-style: solid; border-color: #1e7b34; color: #1e7b34; font-weight: 600; }
 .tct-proved { border-top: 1px solid #e3e7eb; padding: 8px 10px; }
 .tct-proved h5 { font-size: 9.5px; letter-spacing: 0.1em; color: #16324f; margin: 0 0 5px; }
 .tct-proved-line { display: flex; gap: 6px; margin-bottom: 3px; }
 .tct-mark-g { color: #1e7b34; font-weight: 800; }
 .tct-mark-r { color: #c62828; font-weight: 800; }
-.tct-say { margin-top: 5px; font-size: 11px; background: #fff8e6; border-radius: 5px; padding: 5px 8px; }
+.tct-say { margin-top: 5px; font-size: var(--font-size-xs); background: #fff8e6; border-radius: 5px; padding: 5px 8px; }
 .tct-error, .tct-loading { padding: 12px; color: #5f6b76; }
 /* Plain-language "why" under a filled slot (what happened, why blocked) */
-.tct-reason { font-size: 12px; line-height: 1.4; padding: 4px 0 2px 50px; color: #5f6b76; }
+.tct-reason { font-size: var(--font-size-2xs); line-height: 1.4; padding: 4px 0 2px 50px; color: #5f6b76; }
 .tct-reason--g { color: #1e7b34; }
 .tct-reason--r { color: #c62828; }
 .tct-reason-code {

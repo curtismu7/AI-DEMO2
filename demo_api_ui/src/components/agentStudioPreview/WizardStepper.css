@@ -86,7 +86,7 @@
   letter-spacing: -0.01em;
 }
 .asp-wiz-card p {
-  font-size: 14px;
+  font-size: var(--font-size-body);
   color: var(--asp-ink-2);
   line-height: 1.6;
   max-width: 52ch;

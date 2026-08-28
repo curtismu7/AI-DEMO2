@@ -31,13 +31,13 @@
   margin-bottom: 8px;
 }
 .rsp-hero h1 {
-  font-size: 22px;
+  font-size: var(--font-size-h2);
   margin: 0 0 8px;
   letter-spacing: -0.01em;
 }
 .rsp-sub {
   color: var(--rsp-ink-2);
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   margin: 0;
   max-width: 80ch;
   line-height: 1.5;
@@ -57,7 +57,7 @@
 }
 .rsp-error {
   color: var(--rsp-accent);
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   margin: 0;
 }
 
@@ -101,7 +101,7 @@
 .rsp-rules {
   padding-left: 20px;
   max-width: 80ch;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   line-height: 1.55;
 }
 .rsp-rules li {
@@ -113,7 +113,7 @@
 
 .rsp-footer {
   color: var(--rsp-ink-2);
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   margin-top: 24px;
   max-width: 80ch;
 }

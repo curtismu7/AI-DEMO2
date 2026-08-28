@@ -27,7 +27,7 @@
   border-radius: 50%;
   background: linear-gradient(135deg, #004687, #0066CC);
   color: #ffffff;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -37,7 +37,7 @@
 
 .user-menu-dropdown-icon {
   color: #ffffff;
-  font-size: 18px;
+  font-size: var(--font-size-h3);
   transition: transform 0.15s ease;
 }
 
@@ -84,7 +84,7 @@
   border-radius: 50%;
   background: linear-gradient(135deg, #004687, #0066CC);
   color: #ffffff;
-  font-size: 18px;
+  font-size: var(--font-size-h3);
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -98,7 +98,7 @@
 }
 
 .user-menu-name {
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 600;
   color: #333;
   margin-bottom: 2px;
@@ -108,7 +108,7 @@
 }
 
 .user-menu-email {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #64748b;
   margin-bottom: 2px;
   white-space: nowrap;
@@ -117,14 +117,14 @@
 }
 
 .user-menu-userid {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   color: #94a3b8;
-  font-family: monospace;
+  font-family: var(--font-mono);
   margin-top: 1px;
 }
 
 .user-menu-role {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   color: #64748b;
   font-weight: 500;
 }
@@ -147,7 +147,7 @@
   background: transparent;
   border: none;
   color: #333;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   padding: 10px 16px;
   text-align: left;
   cursor: pointer;
@@ -161,7 +161,7 @@
 }
 
 .user-menu-item-icon {
-  font-size: 18px;
+  font-size: var(--font-size-h3);
   color: #64748b;
   flex-shrink: 0;
 }
@@ -174,7 +174,7 @@
   margin-left: auto;
   background: #f44336;
   color: #ffffff;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   padding: 2px 8px;
   border-radius: 10px;

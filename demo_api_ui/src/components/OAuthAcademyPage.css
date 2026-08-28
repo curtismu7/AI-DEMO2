@@ -372,7 +372,7 @@
 }
 
 .oauth-academy-page .oa-token-chain-label {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   color: #16a34a;
   margin-bottom: 10px;

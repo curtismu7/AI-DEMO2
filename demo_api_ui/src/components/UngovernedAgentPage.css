@@ -16,7 +16,7 @@
 }
 .ungov-badge-hero {
   display: inline-block;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 700;
   letter-spacing: 0.08em;
   color: #fff;
@@ -26,7 +26,7 @@
   margin-bottom: 12px;
 }
 .ungov-header h1 {
-  font-size: 30px;
+  font-size: var(--font-size-3xl);
   font-weight: 700;
   margin: 0 0 8px;
 }
@@ -43,13 +43,13 @@
   margin-bottom: 36px;
 }
 .ungov-section h2 {
-  font-size: 20px;
+  font-size: var(--font-size-xl);
   font-weight: 700;
   margin: 0 0 10px;
 }
 .ungov-intro,
 .ungov-section-intro {
-  font-size: 15px;
+  font-size: var(--font-size-base);
   color: #4a586b;
   line-height: 1.6;
   max-width: 820px;
@@ -68,13 +68,13 @@
 }
 .ungov-proof-step { flex: 1; display: grid; grid-template-columns: auto 1fr; column-gap: 9px; align-items: center; padding: 10px 12px; border-radius: 8px; background: #fff; border: 1px solid #dce3eb; }
 .ungov-proof-step > span { grid-row: span 2; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: #0a2540; color: #fff; font-weight: 800; }
-.ungov-proof-step strong { font-size: 13px; color: #1a2330; }
+.ungov-proof-step strong { font-size: var(--font-size-sm); color: #1a2330; }
 .ungov-proof-step small { color: #4a586b; font-size: 11.5px; }
 .ungov-proof-step--danger { border-color: #f2b8ae; background: #fff8f6; }
 .ungov-proof-step--danger > span { background: #b42318; }
 .ungov-proof-step--safe { border-color: #a9dfc7; background: #f5fcf8; }
 .ungov-proof-step--safe > span { background: #12805c; }
-.ungov-proof-arrow { align-self: center; color: #7a8797; font-size: 20px; font-weight: 700; }
+.ungov-proof-arrow { align-self: center; color: #7a8797; font-size: var(--font-size-xl); font-weight: 700; }
 .ungov-watch-callout { margin-top: 18px; padding: 14px 16px; border-left: 4px solid #b42318; border-radius: 0 8px 8px 0; background: #fff8f5; color: #29404f; font-size: 13.5px; line-height: 1.55; }
 .ungov-page a {
   color: #0a66c2;
@@ -104,7 +104,7 @@
 .ungov-table__head {
   background: #0a2540;
   color: #fff;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 700;
 }
 .ungov-table__head > span {
@@ -148,7 +148,7 @@
   background: #fff;
 }
 .ungov-demo-col h3 {
-  font-size: 15px;
+  font-size: var(--font-size-base);
   font-weight: 700;
   margin: 0 0 8px;
 }
@@ -177,7 +177,7 @@
 .ungov-code-block code {
   background: transparent;
   color: #e2e8f0;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   overflow-x: auto;
   white-space: nowrap;
 }
@@ -188,7 +188,7 @@
   border: 1px solid #334155;
   border-radius: 4px;
   padding: 4px 10px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   cursor: pointer;
 }
 .ungov-copy-btn:hover {
@@ -212,12 +212,12 @@
   border-bottom: 1px solid #e3e8ef;
 }
 .ungov-widget__head h3 {
-  font-size: 15px;
+  font-size: var(--font-size-base);
   font-weight: 700;
   margin: 0;
 }
 .ungov-widget__hint {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #6b7a8d;
 }
 .ungov-widget__empty {
@@ -249,19 +249,19 @@
   min-width: 0;
 }
 .ungov-row__type {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: #6b7a8d;
 }
 .ungov-row__amount {
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 700;
   color: #0a2540;
 }
 .ungov-row__desc {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #4a586b;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -274,7 +274,7 @@
   flex-shrink: 0;
 }
 .ungov-row__time {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #98a4b3;
 }
 .ungov-badge {
@@ -313,18 +313,18 @@
   gap: 8px;
 }
 .ungov-threat__id {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 700;
   color: #b42318;
 }
 .ungov-threat__name {
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 700;
   color: #0a2540;
 }
 .ungov-threat__why {
   flex-basis: 100%;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #4a586b;
   line-height: 1.5;
 }
@@ -332,7 +332,7 @@
   background: none;
   border: none;
   color: #0a66c2;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 600;
   cursor: pointer;
   padding: 0;

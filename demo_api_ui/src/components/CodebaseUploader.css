@@ -7,7 +7,7 @@
 
 .codebase-uploader h2 {
   margin: 0 0 20px 0;
-  font-size: 18px;
+  font-size: var(--font-size-h3);
   font-weight: 600;
   color: #1f2937;
 }
@@ -26,7 +26,7 @@
 
 .form-group label {
   font-weight: 500;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   color: #374151;
 }
 
@@ -35,7 +35,7 @@
   padding: 10px;
   border: 1px solid #d1d5db;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-family: inherit;
 }
 
@@ -52,7 +52,7 @@
 }
 
 .file-name {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #059669;
   font-weight: 500;
 }
@@ -63,7 +63,7 @@
   border: 1px solid #fecaca;
   border-radius: 4px;
   color: #dc2626;
-  font-size: 14px;
+  font-size: var(--font-size-body);
 }
 
 /* Higher specificity than global button resets (board B6 on /code-search). */
@@ -76,7 +76,7 @@
   border-radius: 4px;
   font-weight: 500;
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   transition: background-color 0.2s;
 }
 

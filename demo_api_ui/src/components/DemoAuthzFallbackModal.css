@@ -6,7 +6,7 @@
 }
 .demo-authz-fallback__body {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   line-height: 1.5;
   color: var(--ba-text, var(--th-text));
 }
@@ -28,7 +28,7 @@
 .demo-authz-fallback__row dt {
   flex: 0 0 110px;
   margin: 0;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 700;
   color: #0f172a;
   text-transform: uppercase;
@@ -36,19 +36,19 @@
 }
 .demo-authz-fallback__row dd {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #1e293b;
   word-break: break-word;
 }
 .demo-authz-fallback__err {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
   color: #b91c1c;
 }
 .demo-authz-fallback__ok {
   align-self: flex-end;
   padding: 8px 16px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   color: #ffffff;
   background: #4169e1;

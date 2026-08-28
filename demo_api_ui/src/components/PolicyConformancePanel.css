@@ -18,7 +18,7 @@
 
 .pcp__title {
   margin: 0 0 4px;
-  font-size: 15px;
+  font-size: var(--font-size-base);
   font-weight: 700;
   color: var(--app-text, #1a1d21);
 }
@@ -27,7 +27,7 @@
 .pcp__sub {
   margin: 0;
   max-width: 62ch;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   line-height: 1.45;
   color: var(--app-text, #1a1d21);
 }
@@ -39,7 +39,7 @@
   border-radius: 6px;
   background: var(--app-primary-red, #b91c1c);
   color: #fff;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   cursor: pointer;
 }
@@ -51,7 +51,7 @@
 .pcp__error,
 .pcp__summary {
   margin: 12px 0 0;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   line-height: 1.45;
   color: var(--app-text, #1a1d21);
 }
@@ -70,7 +70,7 @@
 .pcp__table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
 }
 
 .pcp__table th,
@@ -82,7 +82,7 @@
 }
 
 .pcp__table thead th {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--app-text, #1a1d21);

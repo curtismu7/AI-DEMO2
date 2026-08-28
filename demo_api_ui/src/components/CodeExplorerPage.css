@@ -35,7 +35,7 @@
   color: #1e293b;
 }
 .cex-wake-sub {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #64748b;
   max-width: 300px;
   line-height: 1.55;

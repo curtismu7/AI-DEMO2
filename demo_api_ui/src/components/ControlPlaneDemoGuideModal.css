@@ -2,7 +2,7 @@
 
 .cpg-body {
   padding: 4px 2px 8px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   line-height: 1.55;
   color: #111827;
 }
@@ -19,7 +19,7 @@
 
 .cpg-body h4 {
   margin: 18px 0 8px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -48,7 +48,7 @@
   border: 1px solid #e5e7eb;
   border-radius: 4px;
   padding: 1px 5px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #b91c1c;
 }
 

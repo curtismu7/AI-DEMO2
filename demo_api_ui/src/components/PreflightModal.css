@@ -9,7 +9,7 @@
 }
 
 .pf-verdict {
-  font-size: 15px;
+  font-size: var(--font-size-base);
   font-weight: 700;
   padding: 10px 12px;
   border-radius: 6px;
@@ -41,7 +41,7 @@
 .pf-btn:hover:not(:disabled) { background: #1b2f45; }
 .pf-btn:disabled { opacity: 0.65; cursor: default; }
 
-.pf-ranat { font-size: 12px; color: #3d5a75; }
+.pf-ranat { font-size: var(--font-size-2xs); color: #3d5a75; }
 
 .pf-row {
   border: 1px solid #d5dde5;
@@ -61,10 +61,10 @@
   gap: 8px;
   flex-wrap: wrap;
 }
-.pf-icon { font-size: 14px; }
+.pf-icon { font-size: var(--font-size-body); }
 .pf-name { font-weight: 700; color: #12263a; }
 .pf-cat {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   color: #26415e;
   background: #eef2f7;
@@ -74,7 +74,7 @@
 
 .pf-detail {
   margin-top: 4px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   line-height: 1.45;
   color: #12263a;
   overflow-wrap: anywhere;
@@ -83,7 +83,7 @@
 /* The fix line is the point of a failed row — never de-emphasised. */
 .pf-next {
   margin-top: 6px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   line-height: 1.45;
   color: #12263a;
   background: #f4f7fa;

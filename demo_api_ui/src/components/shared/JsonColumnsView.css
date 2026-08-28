@@ -44,8 +44,8 @@
   gap: 8px;
   width: 100%;
   padding: 6px 12px;
-  font-size: 13px;
-  font-family: 'SF Mono', SFMono-Regular, monospace;
+  font-size: var(--font-size-sm);
+  font-family: var(--font-mono);
   color: #334155;
   background: none;
   border: none;
@@ -74,13 +74,13 @@
 .jcv-row-key { color: #0550ae; font-weight: 600; }
 .jcv-row-preview {
   color: #64748b;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 9rem;
 }
-.jcv-row-caret { color: #94a3b8; font-size: 12px; }
+.jcv-row-caret { color: #94a3b8; font-size: var(--font-size-2xs); }
 
 .jcv-col--detail {
   flex: 1 0 240px;
@@ -89,8 +89,8 @@
 }
 .jcv-detail-path {
   padding: 0 12px 6px;
-  font-family: 'SF Mono', SFMono-Regular, monospace;
-  font-size: 11px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
   color: #64748b;
   word-break: break-all;
 }
@@ -100,8 +100,8 @@
   background: #f1f5f9;
   border: 1px solid #e2e8f0;
   border-radius: 6px;
-  font-family: 'SF Mono', SFMono-Regular, monospace;
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
   line-height: 1.7;
   white-space: pre-wrap;
   word-break: break-word;
@@ -112,7 +112,7 @@
   align-items: center;
   justify-content: center;
   color: #64748b;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   text-align: center;
   padding: 40px 20px;
 }

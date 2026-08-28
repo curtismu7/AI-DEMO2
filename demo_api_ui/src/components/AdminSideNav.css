@@ -51,7 +51,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  font-size: var(--font-size-h3);
   transition: all 0.2s ease;
   z-index: 1000;
 }
@@ -144,7 +144,7 @@
   -webkit-appearance: none;
   appearance: none;
   font-family: inherit;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   letter-spacing: 0.01em;
   color: #1a2332 !important;
@@ -278,7 +278,7 @@
   background: var(--sidenav-filter-bg);
   color: var(--sidenav-filter-fg);
   font-family: inherit;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
 }
 .admin-side-nav__filter-input::placeholder {
   color: var(--sidenav-filter-placeholder);
@@ -307,7 +307,7 @@
   border-radius: 4px;
   background: transparent;
   color: var(--sidenav-filter-clear);
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   cursor: pointer;
 }
 .admin-side-nav__filter-clear:hover {
@@ -317,7 +317,7 @@
 .admin-side-nav__filter-empty {
   padding: 12px 16px;
   color: var(--sidenav-filter-empty);
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-style: italic;
 }
 
@@ -354,7 +354,7 @@
   color: rgba(255, 255, 255, 0.85);
   text-decoration: none;
   border-radius: 0;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 400;
   transition: all 0.2s ease;
   white-space: nowrap;
@@ -411,7 +411,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: rgba(255, 255, 255, 0.6);
   transition: transform 0.2s ease;
   flex-shrink: 0;
@@ -435,7 +435,7 @@
 /* Child items in submenu */
 .admin-side-nav__item--child {
   padding-left: 28px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: rgba(255, 255, 255, 0.75);
 }
 
@@ -485,7 +485,7 @@
 /* Flyout header — shows the group name (top-level labels are hidden collapsed) */
 .admin-side-nav__flyout-title {
   padding: 8px 16px 6px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;

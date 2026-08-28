@@ -63,7 +63,7 @@
 }
 
 .logout-title {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
 }
 
@@ -94,7 +94,7 @@
   background: rgba(255, 255, 255, 0.16);
   display: grid;
   place-items: center;
-  font-size: 22px;
+  font-size: var(--font-size-h2);
 }
 
 .logout-hello {
@@ -114,7 +114,7 @@
 
 .logout-secure {
   margin-top: auto;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   font-weight: 700;
@@ -137,7 +137,7 @@
 }
 
 .logout-label {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   font-weight: 700;
@@ -145,7 +145,7 @@
 }
 
 .logout-value {
-  font-size: 15px;
+  font-size: var(--font-size-base);
   font-weight: 600;
   color: #0f172a;
   word-break: break-word;
@@ -156,7 +156,7 @@
 
 .logout-tick {
   color: var(--theme-accent, #0e7c86);
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 700;
 }
 
@@ -176,7 +176,7 @@
 .logout-action {
   padding: 8px 18px;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 700;
   cursor: pointer;
   transition: filter 0.15s, background 0.15s;

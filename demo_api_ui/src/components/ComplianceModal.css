@@ -27,14 +27,14 @@
 
 .compliance-modal__modal-title {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 600;
   color: #1e3a8a;
   flex: 1;
 }
 
 .compliance-modal__action-label {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #1f2937;
   font-weight: 500;
 }
@@ -61,7 +61,7 @@
 }
 
 .compliance-modal__last-response-body {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #111827;
   line-height: 1.5;
   word-break: break-word;
@@ -71,7 +71,7 @@
   text-align: center;
   padding: 20px 0;
   color: #1f2937;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   line-height: 1.5;
 }
 
@@ -85,7 +85,7 @@
   background: #f3f4f6;
   padding: 8px 12px;
   border-radius: 4px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   color: #1f2937;
   text-transform: uppercase;
@@ -101,7 +101,7 @@
   padding: 8px 10px;
   margin-bottom: 4px;
   border-radius: 4px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #111827;
   transition: background 0.15s ease;
 }
@@ -160,7 +160,7 @@
 .compliance-modal__icon {
   flex-shrink: 0;
   min-width: 18px;
-  font-size: 14px;
+  font-size: var(--font-size-body);
 }
 
 .compliance-modal__label {
@@ -174,7 +174,7 @@
   margin-top: -2px;
   margin-bottom: 6px;
   padding: 6px 8px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #1f2937;
   background: #f3f4f6;
   border-left: 2px dashed #d1d5db;
@@ -183,7 +183,7 @@
 }
 
 .compliance-modal__skip-note {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #1f2937;
   padding: 12px;
   margin-top: 12px;

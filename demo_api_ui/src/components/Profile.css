@@ -91,7 +91,7 @@
 }
 
 .up-field__value--mono {
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 0.85rem;
   color: #444;
   word-break: break-all;

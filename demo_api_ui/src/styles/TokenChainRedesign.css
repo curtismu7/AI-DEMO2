@@ -5,7 +5,7 @@
   border-radius: 6px;
   padding: 12px 16px;
   color: #92400e;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   line-height: 1.5;
   margin-bottom: 20px;
   display: flex;
@@ -52,13 +52,13 @@
 }
 
 .tems-summary-icon {
-  font-size: 18px;
+  font-size: var(--font-size-h3);
   flex-shrink: 0;
 }
 
 .tems-summary-text {
   flex: 1;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 500;
   color: #1e293b;
 }
@@ -72,7 +72,7 @@
   padding: 0 8px;
   background: #dbeafe;
   border-radius: 12px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   color: #004687;
   flex-shrink: 0;
@@ -84,7 +84,7 @@
   border: none;
   border-radius: 6px;
   color: #ffffff;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -111,7 +111,7 @@
 .tems-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #1e293b;
 }
 
@@ -147,7 +147,7 @@
   justify-content: center;
   padding: 4px 10px;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -189,7 +189,7 @@
   }
 
   .tems-table {
-    font-size: 12px;
+    font-size: var(--font-size-2xs);
   }
 
   .tems-table th,
@@ -238,7 +238,7 @@
 
 .tlm-modal-title {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--font-size-h3);
   font-weight: 600;
   color: #ffffff;
 }
@@ -247,7 +247,7 @@
   background: none;
   border: none;
   color: #ffffff;
-  font-size: 28px;
+  font-size: var(--font-size-h1);
   cursor: pointer;
   padding: 0;
   line-height: 1;
@@ -308,7 +308,7 @@
 }
 
 .tlm-item-description {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #334155;
   line-height: 1.4;
 }
@@ -333,7 +333,7 @@
   }
 
   .tlm-close-btn {
-    font-size: 24px;
+    font-size: var(--font-size-2xl);
   }
 }
 
@@ -350,8 +350,8 @@
   border-left: 3px solid #2563eb;
   border-radius: 6px;
   padding: 16px;
-  font-family: 'Courier New', Courier, monospace;
-  font-size: 13px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
   line-height: 1.6;
   color: #1e293b;
   overflow-x: auto;
@@ -386,7 +386,7 @@
 }
 
 .utfi-rfc-label {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   color: #334155;
   background: #f1f5f9;
@@ -477,13 +477,13 @@
 
 .utfi-modal-title {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--font-size-h3);
   font-weight: 600;
   color: #1e293b;
 }
 
 .utfi-modal-live-badge {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   color: #047857;
   background: #d1fae5;
@@ -496,7 +496,7 @@
 .utfi-modal-close {
   background: none;
   border: none;
-  font-size: 28px;
+  font-size: var(--font-size-h1);
   color: #334155;
   cursor: pointer;
   padding: 0;
@@ -534,15 +534,15 @@
 }
 
 .utfi-claim-key {
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: 13px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
   font-weight: 600;
   color: #2563eb;
 }
 
 .utfi-claim-value {
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: 13px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
   color: #334155;
   word-break: break-all;
   padding: 4px 0;
@@ -551,7 +551,7 @@
 }
 
 .utfi-claim-description {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #334155;
   line-height: 1.4;
 }
@@ -570,7 +570,7 @@
   padding: 8px 16px;
   border-radius: 6px;
   border: none;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -611,15 +611,15 @@
   }
 
   .utfi-claim-key {
-    font-size: 12px;
+    font-size: var(--font-size-2xs);
   }
 
   .utfi-claim-value {
-    font-size: 12px;
+    font-size: var(--font-size-2xs);
   }
 
   .utfi-claim-description {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
   }
 }
 
@@ -665,7 +665,7 @@
 
 .tlm-modal-title {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--font-size-h3);
   font-weight: 600;
   color: #1e293b;
 }
@@ -674,7 +674,7 @@
 .tlm-close-btn {
   background: none;
   border: none;
-  font-size: 28px;
+  font-size: var(--font-size-h1);
   color: #334155;
   cursor: pointer;
   padding: 0;
@@ -738,13 +738,13 @@
 
 /* Legend item text */
 .tlm-item-title {
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 600;
   color: #0f172a;
 }
 
 .tlm-item-description {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #334155;
   line-height: 1.4;
 }
@@ -778,10 +778,10 @@
   }
 
   .tlm-item-title {
-    font-size: 13px;
+    font-size: var(--font-size-sm);
   }
 
   .tlm-item-description {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
   }
 }

@@ -67,7 +67,7 @@
 .dash-search-input { font: inherit; font-size: 12.5px; width: 168px; padding: 6px 0; border: 0; background: transparent; color: var(--dash-ink); }
 .dash-search-input:focus-visible { outline: none; }
 .dash-search-input::placeholder { color: var(--dash-ink-3); }
-.dash-search-clear { font-size: 11px; line-height: 1; padding: 5px 7px; border: 0; border-radius: 6px; background: transparent; color: var(--dash-ink-3); cursor: pointer; }
+.dash-search-clear { font-size: var(--font-size-xs); line-height: 1; padding: 5px 7px; border: 0; border-radius: 6px; background: transparent; color: var(--dash-ink-3); cursor: pointer; }
 .dash-search-clear:hover { color: var(--dash-ink); background: var(--dash-surface-2); }
 .dash-search-clear:focus-visible { outline: 2px solid var(--dash-accent); outline-offset: -2px; }
 
@@ -82,7 +82,7 @@
 @media (prefers-reduced-motion: reduce) { .dash-thumb { transition: none; } }
 
 .dash-msg { padding: 22px; border: 1px solid var(--dash-line); border-radius: 8px; background: var(--dash-surface); color: var(--dash-ink-2); font-size: 13.5px; }
-.dash-msg code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; color: var(--dash-ink); }
+.dash-msg code { font-family: var(--font-mono); font-size: 12.5px; color: var(--dash-ink); }
 .dash-msg-err { border-color: var(--dash-bad); color: var(--dash-bad); }
 
 .dash-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -95,9 +95,9 @@
 .dash-strip { display: flex; overflow-x: auto; }
 .dash-stat { flex: 1 1 0; min-width: 128px; padding: 13px 14px; border-right: 1px solid var(--dash-line-soft); display: flex; flex-direction: column; gap: 3px; }
 .dash-stat:last-child { border-right: 0; }
-.dash-stat-label { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; color: var(--dash-ink-3); white-space: nowrap; }
-.dash-stat-value { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; font-size: 25px; font-weight: 700; line-height: 1.15; }
-.dash-stat-note { font-size: 11px; color: var(--dash-ink-3); }
+.dash-stat-label { font-family: var(--font-mono); font-size: var(--font-size-xs); color: var(--dash-ink-3); white-space: nowrap; }
+.dash-stat-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 25px; font-weight: 700; line-height: 1.15; }
+.dash-stat-note { font-size: var(--font-size-xs); color: var(--dash-ink-3); }
 .dash-stat-bar { height: 3px; border-radius: 2px; background: var(--dash-accent); margin-top: 5px; }
 .dash-stat.is-zero .dash-stat-value, .dash-stat.is-zero .dash-stat-label { opacity: .55; }
 .dash-stat.is-zero .dash-stat-bar { background: var(--dash-line); }
@@ -109,10 +109,10 @@
 .dash-tbl-wrap { overflow-x: auto; }
 .dash-tbl { border-collapse: collapse; width: 100%; min-width: 720px; }
 .dash-tbl th { text-align: left; font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--dash-ink-3); padding: 9px 15px; border-bottom: 1px solid var(--dash-line); background: var(--dash-surface-2); white-space: nowrap; }
-.dash-tbl td { padding: 9px 15px; border-bottom: 1px solid var(--dash-line-soft); font-size: 13px; vertical-align: top; }
+.dash-tbl td { padding: 9px 15px; border-bottom: 1px solid var(--dash-line-soft); font-size: var(--font-size-sm); vertical-align: top; }
 .dash-tbl tr:last-child td { border-bottom: 0; }
-.dash-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; font-size: 12px; color: var(--dash-ink-3); white-space: nowrap; }
-.dash-chip { display: inline-block; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: var(--dash-accent-soft); color: var(--dash-accent); white-space: nowrap; }
+.dash-mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: var(--font-size-2xs); color: var(--dash-ink-3); white-space: nowrap; }
+.dash-chip { display: inline-block; font-family: var(--font-mono); font-size: var(--font-size-xs); font-weight: 600; padding: 2px 7px; border-radius: 4px; background: var(--dash-accent-soft); color: var(--dash-accent); white-space: nowrap; }
 
 .dash-spark { display: block; width: 100%; height: auto; }
-.dash-spark-max { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; font-weight: 700; fill: var(--dash-ink-3); }
+.dash-spark-max { font-family: var(--font-mono); font-size: 10.5px; font-weight: 700; fill: var(--dash-ink-3); }

@@ -24,7 +24,7 @@
   background: #f6f3eb;
   color: #1b1b1b;
   border: 1px solid #e5e5e5;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
 }
 
@@ -38,7 +38,7 @@
 
 .aof-subhead {
   max-width: 860px;
-  font-size: 15px;
+  font-size: var(--font-size-base);
   line-height: 1.5;
   color: #6b7280;
   margin: 0;
@@ -91,7 +91,7 @@
   color: var(--aof-text-primary);
   border-radius: 999px;
   padding: 8px 14px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   cursor: pointer;
   transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
@@ -107,13 +107,13 @@
   margin-top: -4px;
 }
 .aof-story-tab {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   padding: 6px 12px;
 }
 
 .aof-persona {
   margin: 0 0 14px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: var(--aof-text-secondary);
 }
 
@@ -146,12 +146,12 @@
 }
 .aof-box h3 {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   line-height: 1.25;
 }
 .aof-box-subtitle {
   margin: 2px 0 0;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   color: var(--aof-text-secondary);
 }
 
@@ -181,7 +181,7 @@
   gap: 10px;
 }
 .aof-box-col-heading {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   color: var(--aof-brand);
   margin-bottom: 4px;
@@ -189,7 +189,7 @@
 .aof-box-col ul {
   margin: 0;
   padding-left: 16px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   line-height: 1.5;
   color: var(--aof-text-secondary);
 }
@@ -197,7 +197,7 @@
 .aof-box-bullets {
   margin: 0;
   padding-left: 16px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   line-height: 1.55;
   color: var(--aof-text-secondary);
 }
@@ -269,7 +269,7 @@
   background: var(--aof-border-light);
 }
 .aof-row-connector-chevron {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   line-height: 1;
 }
 
@@ -286,7 +286,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -320,7 +320,7 @@
   margin-top: 16px;
   padding-top: 12px;
   border-top: 1px solid var(--aof-border-light);
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   color: var(--aof-text-secondary);
 }
 .aof-legend-title {
@@ -370,7 +370,7 @@
   color: var(--aof-text-primary);
   border-radius: 8px;
   padding: 6px 14px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   cursor: pointer;
 }
@@ -389,7 +389,7 @@
 
 .aof-step-count {
   margin-left: auto;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: var(--aof-text-secondary);
 }
 
@@ -402,11 +402,11 @@
 }
 .aof-step-detail h4 {
   margin: 0 0 6px;
-  font-size: 14px;
+  font-size: var(--font-size-body);
 }
 .aof-step-detail p {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   line-height: 1.5;
   color: var(--aof-text-secondary);
 }
@@ -416,7 +416,7 @@
   padding: 12px 14px;
   border-radius: 12px;
   border: 1px dashed var(--aof-brand);
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   line-height: 1.5;
 }
 

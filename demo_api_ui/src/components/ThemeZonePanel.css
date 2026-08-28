@@ -30,7 +30,7 @@
 }
 
 .tzp-zone-label {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   color: #334155;
   min-width: 150px;
@@ -87,7 +87,7 @@
   background: #fff;
   border: 1.5px dashed #cbd5e1;
   color: #94a3b8;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   line-height: 1;
   display: flex;
   align-items: center;
@@ -106,7 +106,7 @@
   margin-top: 6px;
   background: #1e293b;
   color: #fff;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   padding: 7px 14px;
   border-radius: 20px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);

@@ -32,7 +32,7 @@
 }
 
 .sstp-title {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -65,7 +65,7 @@
   border-radius: 6px;
   width: 24px;
   height: 24px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   line-height: 1;
   cursor: pointer;
   color: #475569;
@@ -91,7 +91,7 @@
 .sstp-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: #1e293b;
 }
 
@@ -117,7 +117,7 @@
 
 .sstp-num {
   color: #64748b;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   width: 34px;
 }
 
@@ -137,7 +137,7 @@
 
 .sstp-st--halt {
   color: #dc2626;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
 }
 
 .sstp-st--skip {
@@ -146,22 +146,22 @@
 
 .sstp-st--acquiring {
   color: #1d4ed8;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
 }
 
 .sstp-st--waiting {
   color: #64748b;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
 }
 
 .sstp-st--failed {
   color: #dc2626;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
 }
 
 .sstp-st--notinpath {
   color: #94a3b8;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
 }
 
 /* Not-in-path row — step was never applicable to this run; crossed out,
@@ -194,7 +194,7 @@
 /* -- Empty state ----------------------------------------------------------------- */
 
 .sstp-empty {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #94a3b8;
   font-style: italic;
   padding: 16px;

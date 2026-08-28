@@ -207,7 +207,7 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
 .luw-card__rs-badge {
   font-size: 0.68rem;
   font-weight: 600;
-  font-family: monospace;
+  font-family: var(--font-mono);
   border-radius: 3px;
   padding: 1px 5px;
   white-space: nowrap;

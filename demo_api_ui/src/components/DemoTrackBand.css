@@ -26,7 +26,7 @@
    which is why Act 1 read inline and Act 2 read as a heading. */
 .dtb-act {
   flex: 0 0 100%;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -58,7 +58,7 @@
   border-radius: 999px;
   border: 1px solid var(--th-border-strong);
   background: var(--th-bg-inset);
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--th-text-muted);
@@ -97,7 +97,7 @@
 
 .dtb-cap {
   display: inline-block;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   color: #3730a3;
   background: #e0e7ff;

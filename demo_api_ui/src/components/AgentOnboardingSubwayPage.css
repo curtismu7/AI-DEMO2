@@ -21,7 +21,7 @@
 }
 
 .aos-hero h1 {
-  font-size: 24px;
+  font-size: var(--font-size-2xl);
   font-weight: 800;
   margin: 0 0 6px;
   letter-spacing: -0.01em;
@@ -75,7 +75,7 @@
 
 .aos-persona {
   color: var(--aos-ink-3);
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   margin: 0 0 22px;
 }
 
@@ -155,7 +155,7 @@
   margin-bottom: 24px;
 }
 .aos-eyebrow {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -171,7 +171,7 @@
 .aos-card p {
   margin: 0 auto;
   color: var(--aos-ink-2);
-  font-size: 14px;
+  font-size: var(--font-size-body);
   line-height: 1.65;
   max-width: 54ch;
 }
@@ -204,7 +204,7 @@
   color: var(--aos-ink);
   padding: 12px 26px;
   border-radius: 99px;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 700;
   cursor: pointer;
 }
@@ -225,7 +225,7 @@
   border: 1px solid var(--aos-border);
   background: var(--aos-panel);
   color: var(--aos-ink-2);
-  font-size: 15px;
+  font-size: var(--font-size-base);
   cursor: pointer;
   display: flex;
   align-items: center;

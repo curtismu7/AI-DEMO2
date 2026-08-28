@@ -33,7 +33,7 @@
   align-items: center;
   justify-content: space-between;
 }
-.tctr-title { font-size: 14px; font-weight: 700; }
+.tctr-title { font-size: var(--font-size-body); font-weight: 700; }
 .tctr-title-group {
   display: flex; align-items: center; gap: 10px;
 }
@@ -57,7 +57,7 @@
 }
 .tctr-view-mode button {
   border: 0; border-radius: 4px; padding: 2px 7px; background: transparent;
-  color: #cbd5e1; font: inherit; font-size: 11px; font-weight: 700; cursor: pointer;
+  color: #cbd5e1; font: inherit; font-size: var(--font-size-xs); font-weight: 700; cursor: pointer;
 }
 .tctr-view-mode button.active {
   color: #16325c; background: var(--th-bg-card);
@@ -80,7 +80,7 @@
   background: transparent;
   color: var(--th-text-muted, #556070);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 700;
   cursor: pointer;
 }
@@ -153,7 +153,7 @@
 }
 .tctr-live-empty {
   margin: 10px 12px; padding: 16px; border: 1px dashed var(--tctr-border);
-  border-radius: 6px; color: var(--tctr-text); text-align: center; font-size: 12px;
+  border-radius: 6px; color: var(--tctr-text); text-align: center; font-size: var(--font-size-2xs);
 }
 
 /* Presenter text size — steps the rail's `zoom` (see TokenChainTraceRail.jsx). */
@@ -190,13 +190,13 @@
 .tctr-arrow { color: var(--th-text-muted); font-weight: 400; }
 .tctr-badge {
   margin-left: auto; background: var(--brand-navy, #1d4ed8); color: #fff;
-  font-size: 12px; padding: 2px 8px; border-radius: 999px; font-weight: 700;
+  font-size: var(--font-size-2xs); padding: 2px 8px; border-radius: 999px; font-weight: 700;
 }
 /* An errored run must not wear the same confident badge as a clean one. */
 .tctr-badge--error { background: #b91c1c; }
 
 .tctr-sec-label {
-  font-size: 12px; font-weight: 700; color: var(--tctr-muted); text-transform: uppercase;
+  font-size: var(--font-size-2xs); font-weight: 700; color: var(--tctr-muted); text-transform: uppercase;
   letter-spacing: 0.06em; padding: 8px 12px 2px;
 }
 
@@ -205,7 +205,7 @@
 .tctr-step:last-of-type { border-bottom: none; }
 .tctr-step > summary {
   list-style: none; display: flex; align-items: center; gap: 7px;
-  padding: 9px 12px; cursor: pointer; font-size: 13px;
+  padding: 9px 12px; cursor: pointer; font-size: var(--font-size-sm);
 }
 .tctr-step > summary::-webkit-details-marker { display: none; }
 .tctr-step > summary:hover { background: var(--tctr-row-hover); }
@@ -232,14 +232,14 @@
 }
 /* Disclosure caret — signals each step is expandable */
 .tctr-step-chev {
-  flex: 0 0 auto; font-size: 11px; color: var(--th-text-muted); margin-left: 2px;
+  flex: 0 0 auto; font-size: var(--font-size-xs); color: var(--th-text-muted); margin-left: 2px;
   transition: transform 0.15s;
 }
 .tctr-step[open] > summary .tctr-step-chev { transform: rotate(90deg); color: var(--th-text-muted); }
 .tctr-step > summary:hover .tctr-step-chev { color: var(--th-text-muted); }
 
 .tctr-lane {
-  font-size: 11px; font-weight: 800; letter-spacing: 0.04em; border-radius: 4px;
+  font-size: var(--font-size-xs); font-weight: 800; letter-spacing: 0.04em; border-radius: 4px;
   padding: 1px 5px; flex: 0 0 auto; align-self: center; white-space: nowrap;
 }
 .tctr-lane--pingone { background: #dbeafe; color: #1e40af; }
@@ -256,17 +256,17 @@
 .tctr-lane--invest { background: #a7f3d0; color: #065f46; }
 
 .tctr-step-body {
-  padding: 10px 12px 12px 24px; font-size: 13px; color: var(--th-text);
+  padding: 10px 12px 12px 24px; font-size: var(--font-size-sm); color: var(--th-text);
   background: var(--tctr-step-body-bg); border-top: 1px solid var(--tctr-border);
 }
 .tctr-step-body h4 {
-  font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;
+  font-size: var(--font-size-2xs); text-transform: uppercase; letter-spacing: 0.05em;
   color: var(--th-text-muted); margin: 10px 0 4px; font-weight: 700;
 }
 .tctr-narrative { margin: 0 0 4px; }
 .tctr-why {
   margin: 0 0 8px; padding: 8px 10px; border-radius: 6px;
-  background: #eff6ff; border: 1px solid #bfdbfe; color: #1e3a8a; font-size: 13px;
+  background: #eff6ff; border: 1px solid #bfdbfe; color: #1e3a8a; font-size: var(--font-size-sm);
 }
 .tctr-why-lbl { font-weight: 700; margin-right: 4px; }
 .tctr-story {
@@ -291,9 +291,9 @@
 }
 .tctr-step-actions { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 6px; }
 .tctr-code {
-  background: var(--th-bg-card); color: #bae6fd; font-size: 12px; padding: 8px;
+  background: var(--th-bg-card); color: #bae6fd; font-size: var(--font-size-2xs); padding: 8px;
   border-radius: 6px; margin: 4px 0; overflow-x: auto; line-height: 1.5;
-  font-family: ui-monospace, Menlo, monospace; white-space: pre-wrap; word-break: break-word;
+  font-family: var(--font-mono); white-space: pre-wrap; word-break: break-word;
 }
 .tctr-claim-diff {
   border-radius: 3px;
@@ -304,14 +304,14 @@
 .tctr-claim-diff--after { background: rgba(45, 212, 191, 0.24); }
 .tctr-kv { display: grid; grid-template-columns: 92px 1fr; gap: 3px 8px; font-size: 12.5px; margin: 4px 0; }
 .tctr-kv-k { color: var(--th-text-muted); font-weight: 600; }
-.tctr-kv-v { font-family: ui-monospace, Menlo, monospace; font-size: 12px; word-break: break-all; }
+.tctr-kv-v { font-family: var(--font-mono); font-size: var(--font-size-2xs); word-break: break-all; }
 .tctr-kv-v--json {
   margin: 0; padding: 8px; overflow-x: auto; border: 1px solid var(--th-border-strong);
   border-radius: 6px; background: var(--th-bg-inset); line-height: 1.5; white-space: pre-wrap; word-break: break-word;
 }
 .tctr-rfc {
   display: inline-block; background: #e0e7ff; color: #3730a3; border-radius: 4px;
-  font-size: 11px; font-weight: 700; padding: 1px 5px; margin: 4px 3px 0 0;
+  font-size: var(--font-size-xs); font-weight: 700; padding: 1px 5px; margin: 4px 3px 0 0;
 }
 .tctr-decision { border-radius: 6px; padding: 6px 9px; font-size: 12.5px; font-weight: 700; margin: 4px 0; }
 .tctr-decision--permit { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
@@ -328,20 +328,20 @@
 .tctr-stage[data-status="error"] { border-left-color: #ef4444; }
 .tctr-stage[data-status="notinpath"] { border-left-color: #cbd5e1; opacity: .65; }
 .tctr-stage-name { font-weight: 700; }
-.tctr-stage-result { color: var(--th-text-muted); margin-left: 6px; font-family: ui-monospace, Menlo, monospace; }
+.tctr-stage-result { color: var(--th-text-muted); margin-left: 6px; font-family: var(--font-mono); }
 .tctr-stage-note { display: block; color: var(--th-text-muted); font-size: 11.5px; margin-top: 1px; }
-.tctr-scope-diff { display: flex; gap: 6px; align-items: center; font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; flex-wrap: wrap; margin: 4px 0; }
+.tctr-scope-diff { display: flex; gap: 6px; align-items: center; font-family: var(--font-mono); font-size: 12.5px; flex-wrap: wrap; margin: 4px 0; }
 .tctr-sc { border-radius: 4px; padding: 1px 6px; background: #e2e8f0; }
 .tctr-sc--gone { text-decoration: line-through; color: var(--th-text-muted); }
 .tctr-sc--kept { background: #dcfce7; color: #166534; font-weight: 700; }
-.tctr-sc-note { color: var(--th-text-muted); font-size: 12px; }
+.tctr-sc-note { color: var(--th-text-muted); font-size: var(--font-size-2xs); }
 /* Scoped with .tctr on purpose — do NOT flatten to a bare `.tctr-inspect`.
    PingOne's end-user-nano sheet ships
    `.end-user-nano button { font-size: inherit }`, and (0,1,1) outranks a lone
    class, so these actions (buttons) would silently inherit the 12px step body
    while the <a> variants kept their own size. */
 .tctr .tctr-inspect {
-  color: var(--brand-navy, #1d4ed8); font-weight: 600; font-size: 14px;
+  color: var(--brand-navy, #1d4ed8); font-weight: 600; font-size: var(--font-size-body);
   cursor: pointer; background: none; border: none; padding: 4px 0 0;
   text-decoration: underline; text-underline-offset: 2px;
 }
@@ -358,7 +358,7 @@
 .tctr-chev { transition: transform 0.15s; font-size: 11.5px; color: var(--th-text-muted); }
 .tctr-acc[open] .tctr-chev { transform: rotate(90deg); }
 .tctr-count {
-  margin-left: auto; font-size: 12px; font-weight: 600; color: var(--th-text-muted);
+  margin-left: auto; font-size: var(--font-size-2xs); font-weight: 600; color: var(--th-text-muted);
   background: var(--th-bg-inset); border-radius: 999px; padding: 1px 7px;
 }
 .tctr-acc-body { padding: 2px 12px 12px; }
@@ -374,19 +374,19 @@
 .tctr-tok--agent .tctr-tok-name { color: #7e22ce; }
 .tctr-tok--mcp .tctr-tok-name { color: #047857; }
 .tctr-tok-role { font-size: 11.5px; color: var(--th-text-muted); background: rgba(255, 255, 255, 0.6); padding: 1px 6px; border-radius: 4px; }
-.tctr-tok-claims { font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: var(--th-text); line-height: 1.5; }
+.tctr-tok-claims { font-family: var(--font-mono); font-size: var(--font-size-2xs); color: var(--th-text); line-height: 1.5; }
 .tctr-tok-inspect {
   float: right; background: var(--th-bg-card); border: 1px solid var(--th-border-strong); border-radius: 5px;
-  font-size: 12px; font-weight: 600; padding: 2px 8px; cursor: pointer; color: var(--brand-navy, #1d4ed8);
+  font-size: var(--font-size-2xs); font-weight: 600; padding: 2px 8px; cursor: pointer; color: var(--brand-navy, #1d4ed8);
 }
 .tctr-tok-changes { margin-top: 6px; border-top: 1px dashed rgba(15, 23, 42, 0.15); padding-top: 5px; }
-.tctr-tok-change { display: grid; grid-template-columns: 52px 1fr; gap: 6px; font-size: 12px; }
-.tctr-tok-empty { padding: 10px 12px; font-size: 13px; color: var(--th-text-muted); font-style: italic; }
+.tctr-tok-change { display: grid; grid-template-columns: 52px 1fr; gap: 6px; font-size: var(--font-size-2xs); }
+.tctr-tok-empty { padding: 10px 12px; font-size: var(--font-size-sm); color: var(--th-text-muted); font-style: italic; }
 
 /* MCP tab panel */
 .tctr-mcp .tctr-sec-label { padding-top: 12px; }
 .tctr-mcp-empty {
-  padding: 10px 12px; font-size: 13px; color: var(--th-text-muted); font-style: italic;
+  padding: 10px 12px; font-size: var(--font-size-sm); color: var(--th-text-muted); font-style: italic;
 }
 
 /* Trust tab — DPoP / RAR posture (shown when ff_dpop / ff_rar or evidence) */
@@ -400,7 +400,7 @@
 }
 .tctr-trust > p {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: var(--th-text-muted);
 }
 .tctr-trust__row {
@@ -410,7 +410,7 @@
   border-radius: 8px;
   border: 1px solid #d4ddea;
   padding: 10px 12px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
 }
 .tctr-trust__row--ok {
   background: #f0fdf4;

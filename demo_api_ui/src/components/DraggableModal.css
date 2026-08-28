@@ -79,7 +79,7 @@
 }
 
 .dm-title {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
@@ -103,7 +103,7 @@
   cursor: pointer;
   /* 13px unweighted made the 🪟 and ✕ glyphs hard to pick out against the
      dark title bar — they are the only controls up there. */
-  font-size: 15px;
+  font-size: var(--font-size-base);
   font-weight: 700;
   line-height: 1;
   display: flex;
@@ -180,7 +180,7 @@
   border: 1px solid var(--th-border-strong);
   border-radius: 6px;
   color: var(--th-text);
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 500;
   cursor: pointer;
   transition: background 0.15s;
@@ -294,7 +294,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: var(--th-text);
 }
 
@@ -304,7 +304,7 @@
   border-radius: 5px;
   color: var(--th-text);
   padding: 3px 10px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   cursor: pointer;
 }
 .dm-placeholder-btn:hover {

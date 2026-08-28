@@ -74,7 +74,7 @@
   background: transparent;
   border: none;
   color: #999999;
-  font-size: 24px;
+  font-size: var(--font-size-2xl);
   cursor: pointer;
   padding: 4px 12px;
   border-radius: 4px;
@@ -113,7 +113,7 @@
 .log-viewer-hint {
   width: 100%;
   flex-basis: 100%;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: #666666;
   margin: 0 0 8px;
   padding: 6px 10px;
@@ -139,7 +139,7 @@
   margin: 0;
   max-height: 140px;
   overflow: auto;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   line-height: 1.35;
   color: var(--brand-dark-gray);
   background: var(--brand-light-gray);
@@ -152,7 +152,7 @@
 
 .log-details-empty {
   color: #94a3b8;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
 }
 
 .runtime-chip {
@@ -161,7 +161,7 @@
   color: var(--brand-dark-gray);
   padding: 6px 12px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -184,14 +184,14 @@
   padding: 1px 7px;
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.10);
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   line-height: 1.2;
 }
 
 .control-group label {
   color: #666666;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   white-space: nowrap;
 }
 
@@ -202,7 +202,7 @@
   color: #0f172a;
   padding: 6px 12px;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   outline: none;
   transition: border-color 0.2s;
 }
@@ -234,7 +234,7 @@
   color: #666666;
   padding: 6px 16px;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 500;
   cursor: pointer;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
@@ -264,7 +264,7 @@
   border: 1px solid #CCCCCC;
   padding: 6px 16px;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 500;
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
@@ -283,7 +283,7 @@
   padding: 12px 24px;
   background: var(--brand-light-gray);
   border-bottom: 1px solid #DDDDDD;
-  font-size: 14px;
+  font-size: var(--font-size-body);
 }
 
 .log-stats span {
@@ -296,7 +296,7 @@
   background: #fef2f2;
   color: #b91c1c;
   border-bottom: 1px solid #fca5a5;
-  font-size: 14px;
+  font-size: var(--font-size-body);
 }
 
 .log-table-container {
@@ -309,7 +309,7 @@
   width: 100%;
   border-collapse: collapse;
   font-family: inherit;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
 }
 
 .log-table thead {
@@ -325,7 +325,7 @@
   color: #999999;
   font-weight: 600;
   border-bottom: 2px solid #DDDDDD;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -347,7 +347,7 @@
 
 .log-time {
   color: #94a3b8;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   white-space: nowrap;
 }
 
@@ -360,7 +360,7 @@
   padding: 3px 8px;
   border-radius: 3px;
   color: #fff;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   letter-spacing: 0.5px;
 }
@@ -380,7 +380,7 @@
   background: #DDDDDD;
   color: #999999;
   border-radius: 3px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
 }
 
 .log-row.log-error {
@@ -407,7 +407,7 @@
   background: var(--brand-light-gray);
   border-top: 1px solid #DDDDDD;
   color: #999999;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   border-radius: 0 0 8px 8px;
 }
 
