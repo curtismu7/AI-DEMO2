@@ -49,11 +49,14 @@ const FLAG_REGISTRY = [
     id:           'ff_authorize_fail_open',
     name:         'Authorize — Fail Open',
     category:     'PingOne Authorize',
-    description:  'When the Authorize API call fails (network timeout, misconfiguration), allow the transaction to proceed.',
-    impact:       'ON = fail open (warn + allow). OFF = fail closed (deny transaction on any Authorize error). Recommended: ON during initial testing.',
+    description:  'When the Authorize API call fails (network timeout, misconfiguration), allow the transaction to proceed. OVERRIDES authorize_mode: turning this ON forces failover_mode=permit everywhere, including a deployment that explicitly stored the strict authorize_mode=\'pingone\'.',
+    impact:       'ON = fail open (warn + allow) on EVERY authorize path — transactions, MCP tools and agent restrictions — regardless of authorize_mode. OFF = honour authorize_mode (fail closed by default). To keep the demo running through a PingOne outage WITHOUT disabling the gate, set authorize_mode=\'pingone_fallback_simulated\' instead: it still evaluates every call, just with the demo engine.',
     type:         'boolean',
     defaultValue: false,
-    warnIfDisabled: true, // warn in UI that OFF = hard fail
+    // ON is the unsafe state, so the UI warning belongs there. This was
+    // warnIfDisabled, which warned on OFF — the fail-CLOSED default — and stayed
+    // silent on the setting that disables every authorize gate at once.
+    warnIfEnabled: true,
   },
   {
     id:           'ff_authorize_deposits',

@@ -420,12 +420,12 @@ undecodable Bearer token, with `ff_agent_restrictions` on — skips the
 tier-restriction check entirely.
 
 **Fix:** The `!userId` branch now routes through the exact same
-`failoverPermits()`/503 pattern used by the other 3 "can't determine"
+`failoverMode()`/503 pattern used by the other 3 "can't determine"
 branches in this file (worker token missing, PingOne non-2xx, unexpected
 exception).
 
 **Evidence:** 2 new tests (fails closed by default; fails open when
-`AGENT_RESTRICTIONS_FAILOVER=permit`) mirroring the file's existing
+`failover_mode=permit`) mirroring the file's existing
 fails-CLOSED/fails-OPEN pair pattern for the other branches. The
 fails-closed test confirmed to fail against the pre-fix file (`next()` was
 called unconditionally) and pass against the fix. `cd demo_api_server && CI=true npx jest tests/agentRestrictionsGate.test.js --forceExit` — 11/11 passed.

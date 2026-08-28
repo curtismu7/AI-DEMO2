@@ -20,6 +20,10 @@ jest.mock('../services/agentRestrictionsService', () => ({
 jest.mock('../services/simulatedAuthorizeService', () => ({
   evaluateAgentRestrictions: jest.fn(() => ({ decision: 'DENY', reason: 'agent_restrictions_write_blocked', path: 'simulated', decisionId: 'sim-1' })),
   isSimulatedModeEnabled: jest.fn(() => true),
+  // The gate now takes both its engine choice and its failover policy from here,
+  // so authorize_mode governs this gate exactly as it governs the transaction
+  // and MCP-tool paths.
+  resolveAuthorizeMode: jest.fn(() => ({ mode: 'simulated', useSimulated: true, failoverMode: 'deny' })),
 }));
 
 jest.mock('../services/pingOneAuthorizeService', () => ({
@@ -69,6 +73,9 @@ beforeEach(() => {
   simulatedAuthorizeService.evaluateAgentRestrictions.mockReturnValue({
     decision: 'DENY', reason: 'agent_restrictions_write_blocked', path: 'simulated', decisionId: 'sim-1',
   });
+  simulatedAuthorizeService.resolveAuthorizeMode.mockReturnValue({
+    mode: 'simulated', useSimulated: true, failoverMode: 'deny',
+  });
   require('../routes/mcpDecisionPolling').createPendingDecision.mockReturnValue({ taskId: 'task-abc-123' });
   require('../middleware/agentRestrictionsCache').cache.get.mockReturnValue(null);
 });
@@ -114,14 +121,17 @@ test('returns 428 with taskId on DENY', async () => {
   expect(mockNext).not.toHaveBeenCalled();
 });
 
-// P1AZ mode: ff_authorize_real='true' and authorize_mode defaulting to 'pingone'
-// send the gate down the real-evaluator branch.
+// The gate reads its engine + failover policy from resolveAuthorizeMode, so the
+// tests drive that one function rather than the flags behind it. Coverage of the
+// flags-to-mode mapping itself lives in authorizeMode.resolve.test.js.
+function setAuthorizeMode({ mode = 'pingone', useSimulated = false, failoverMode = 'deny' } = {}) {
+  require('../services/simulatedAuthorizeService').resolveAuthorizeMode
+    .mockReturnValue({ mode, useSimulated, failoverMode });
+}
+
+// P1AZ mode: real evaluator, fail closed on error.
 function selectP1azMode() {
-  require('../services/configStore').getEffective.mockImplementation((key) => {
-    if (key === 'ff_agent_restrictions') return 'true';
-    if (key === 'ff_authorize_real') return 'true';
-    return null;
-  });
+  setAuthorizeMode({ mode: 'pingone', useSimulated: false, failoverMode: 'deny' });
 }
 
 test('P1AZ mode evaluates against PingOne, not the simulated engine', async () => {
@@ -146,6 +156,25 @@ test('P1AZ mode evaluates against PingOne, not the simulated engine', async () =
   expect(simulatedAuthorizeService.evaluateAgentRestrictions).not.toHaveBeenCalled();
   expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
     authorize_engine: 'pingone',
+  }));
+});
+
+test('P1AZ error under failover_mode=fallback_simulated evaluates with the demo engine', async () => {
+  // The one sanctioned substitution: the operator chose
+  // authorize_mode='pingone_fallback_simulated', so a genuine P1AZ failure is
+  // re-evaluated by the demo engine rather than 503-ing — the same policy the
+  // transaction and MCP-tool paths apply. The response says which engine ruled.
+  setAuthorizeMode({ mode: 'pingone_fallback_simulated', useSimulated: false, failoverMode: 'fallback_simulated' });
+  const pingOneAuthorizeService = require('../services/pingOneAuthorizeService');
+  pingOneAuthorizeService.evaluateAgentRestrictions.mockRejectedValue(new Error('PingOne unreachable'));
+  const simulatedAuthorizeService = require('../services/simulatedAuthorizeService');
+
+  await agentRestrictionsGate(makeReq(), mockRes, mockNext);
+
+  expect(simulatedAuthorizeService.evaluateAgentRestrictions).toHaveBeenCalled();
+  expect(mockRes.status).toHaveBeenCalledWith(428);
+  expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
+    authorize_engine: 'fallback_simulated',
   }));
 });
 
@@ -184,9 +213,7 @@ test('fails CLOSED when restrictions are undeterminable (no worker creds) — de
   svc.isAgentRestricted.mockImplementation(real.isAgentRestricted);
   svc.getRequiredTier.mockReturnValue('write');
   const prevEnv = process.env.PINGONE_ENVIRONMENT_ID;
-  const prevFo = process.env.AGENT_RESTRICTIONS_FAILOVER;
   delete process.env.PINGONE_ENVIRONMENT_ID;
-  delete process.env.AGENT_RESTRICTIONS_FAILOVER;
   try {
     await agentRestrictionsGate(makeReq(), mockRes, mockNext);
     // failover value 'none' → restricted → DENY path (428), never next().
@@ -194,19 +221,17 @@ test('fails CLOSED when restrictions are undeterminable (no worker creds) — de
     expect(mockNext).not.toHaveBeenCalled();
   } finally {
     if (prevEnv === undefined) delete process.env.PINGONE_ENVIRONMENT_ID; else process.env.PINGONE_ENVIRONMENT_ID = prevEnv;
-    if (prevFo === undefined) delete process.env.AGENT_RESTRICTIONS_FAILOVER; else process.env.AGENT_RESTRICTIONS_FAILOVER = prevFo;
   }
 });
 
-test('fails OPEN when AGENT_RESTRICTIONS_FAILOVER=permit and creds missing', async () => {
+test('fails OPEN when failover_mode=permit and creds missing', async () => {
   const svc = require('../services/agentRestrictionsService');
   const real = jest.requireActual('../services/agentRestrictionsService');
   svc.isAgentRestricted.mockImplementation(real.isAgentRestricted);
   svc.getRequiredTier.mockReturnValue('write');
+  setAuthorizeMode({ useSimulated: true, failoverMode: 'permit' });
   const prevEnv = process.env.PINGONE_ENVIRONMENT_ID;
-  const prevFo = process.env.AGENT_RESTRICTIONS_FAILOVER;
   delete process.env.PINGONE_ENVIRONMENT_ID;
-  process.env.AGENT_RESTRICTIONS_FAILOVER = 'permit';
   try {
     await agentRestrictionsGate(makeReq(), mockRes, mockNext);
     // failover value 'write' → not restricted → next(), no 428.
@@ -214,49 +239,57 @@ test('fails OPEN when AGENT_RESTRICTIONS_FAILOVER=permit and creds missing', asy
     expect(mockRes.status).not.toHaveBeenCalledWith(428);
   } finally {
     if (prevEnv === undefined) delete process.env.PINGONE_ENVIRONMENT_ID; else process.env.PINGONE_ENVIRONMENT_ID = prevEnv;
-    if (prevFo === undefined) delete process.env.AGENT_RESTRICTIONS_FAILOVER; else process.env.AGENT_RESTRICTIONS_FAILOVER = prevFo;
+  }
+});
+
+test('failover_mode=fallback_simulated keeps the gate closed when the level is undeterminable', async () => {
+  // 'fallback_simulated' means "keep evaluating with the demo engine", not
+  // "assume unrestricted". The restriction level is still unknown here, so the
+  // gate must not hand out 'write' the way failover_mode=permit does.
+  const svc = require('../services/agentRestrictionsService');
+  const real = jest.requireActual('../services/agentRestrictionsService');
+  svc.isAgentRestricted.mockImplementation(real.isAgentRestricted);
+  svc.getRequiredTier.mockReturnValue('write');
+  setAuthorizeMode({ mode: 'pingone_fallback_simulated', useSimulated: true, failoverMode: 'fallback_simulated' });
+  const prevEnv = process.env.PINGONE_ENVIRONMENT_ID;
+  delete process.env.PINGONE_ENVIRONMENT_ID;
+  try {
+    await agentRestrictionsGate(makeReq(), mockRes, mockNext);
+    expect(mockRes.status).toHaveBeenCalledWith(428);
+    expect(mockNext).not.toHaveBeenCalled();
+  } finally {
+    if (prevEnv === undefined) delete process.env.PINGONE_ENVIRONMENT_ID; else process.env.PINGONE_ENVIRONMENT_ID = prevEnv;
   }
 });
 
 // Regression guard: an agent-originated request with no session user AND an
 // undecodable Bearer token previously hit the ONE branch in this file that
-// unconditionally called next() regardless of AGENT_RESTRICTIONS_FAILOVER --
+// unconditionally called next() regardless of the failover policy --
 // contradicting the module's own documented fail-closed default.
 test('fails CLOSED (503) when no userId is resolvable (malformed Bearer JWT, no session user) — default', async () => {
-  const prevFo = process.env.AGENT_RESTRICTIONS_FAILOVER;
-  delete process.env.AGENT_RESTRICTIONS_FAILOVER;
-  try {
-    const req = {
-      headers: { authorization: 'Bearer header.not-valid-base64url-json!!!.sig' },
-      session: {},
-      user: { actor: { sub: 'some-agent' } },
-    };
-    await agentRestrictionsGate(req, mockRes, mockNext);
-    expect(mockNext).not.toHaveBeenCalled();
-    expect(mockRes.status).toHaveBeenCalledWith(503);
-    expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
-      code: 'agent_restrictions_unavailable',
-    }));
-  } finally {
-    if (prevFo === undefined) delete process.env.AGENT_RESTRICTIONS_FAILOVER; else process.env.AGENT_RESTRICTIONS_FAILOVER = prevFo;
-  }
+  const req = {
+    headers: { authorization: 'Bearer header.not-valid-base64url-json!!!.sig' },
+    session: {},
+    user: { actor: { sub: 'some-agent' } },
+  };
+  await agentRestrictionsGate(req, mockRes, mockNext);
+  expect(mockNext).not.toHaveBeenCalled();
+  expect(mockRes.status).toHaveBeenCalledWith(503);
+  expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
+    code: 'agent_restrictions_unavailable',
+  }));
 });
 
-test('fails OPEN (next()) when no userId is resolvable and AGENT_RESTRICTIONS_FAILOVER=permit', async () => {
-  const prevFo = process.env.AGENT_RESTRICTIONS_FAILOVER;
-  process.env.AGENT_RESTRICTIONS_FAILOVER = 'permit';
-  try {
-    const req = {
-      headers: { authorization: 'Bearer header.not-valid-base64url-json!!!.sig' },
-      session: {},
-      user: { actor: { sub: 'some-agent' } },
-    };
-    await agentRestrictionsGate(req, mockRes, mockNext);
-    expect(mockNext).toHaveBeenCalled();
-    expect(mockRes.status).not.toHaveBeenCalled();
-  } finally {
-    if (prevFo === undefined) delete process.env.AGENT_RESTRICTIONS_FAILOVER; else process.env.AGENT_RESTRICTIONS_FAILOVER = prevFo;
-  }
+test('fails OPEN (next()) when no userId is resolvable and failover_mode=permit', async () => {
+  setAuthorizeMode({ useSimulated: true, failoverMode: 'permit' });
+  const req = {
+    headers: { authorization: 'Bearer header.not-valid-base64url-json!!!.sig' },
+    session: {},
+    user: { actor: { sub: 'some-agent' } },
+  };
+  await agentRestrictionsGate(req, mockRes, mockNext);
+  expect(mockNext).toHaveBeenCalled();
+  expect(mockRes.status).not.toHaveBeenCalled();
 });
 
 test('resolves userId from Bearer JWT when session has no user', async () => {
