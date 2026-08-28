@@ -1,46 +1,54 @@
 {
-  "capturedAt": "2026-08-28T17:50:39.944Z",
-  "captured": 11,
-  "skipped": 4,
+  "capturedAt": "2026-08-28T20:05:33.940Z",
+  "captured": 10,
+  "skipped": 5,
   "byReason": {
     "unhealthy_result": {
-      "count": 4,
+      "count": 5,
       "pairs": [
-        "airlines/a2a-delegation",
-        "airlines/ai-spot-unusual-patterns",
-        "airlines/code-search",
-        "airlines/weather-mcp-texas-permit"
+        "workforce/a2a-delegation",
+        "workforce/ai-spot-unusual-patterns",
+        "workforce/code-search",
+        "workforce/unauthorized-commitment-fee-waiver",
+        "workforce/weather-mcp-texas-permit"
       ]
     }
   },
   "skips": [
     {
-      "vertical": "airlines",
+      "vertical": "workforce",
       "useCaseId": "a2a-delegation",
       "ucId": "UC2",
       "reason": "unhealthy_result",
-      "detail": "HTTP 200: ❌ Delegated to Passenger Records Specialist, but sensitive_passenger_record failed: gateway_policy_denied."
+      "detail": "HTTP 200: ❌ Delegated to Payroll Specialist, but sensitive_payroll_details failed: gateway_policy_denied."
     },
     {
-      "vertical": "airlines",
+      "vertical": "workforce",
       "useCaseId": "ai-spot-unusual-patterns",
       "ucId": "UC34",
       "reason": "unhealthy_result",
-      "detail": "HTTP 200: ❌ The Passenger Records Specialist can only run: sensitive_passenger_record. It is not authorized for \"sensitive_airline_bookings\"."
+      "detail": "HTTP 200: ❌ The Payroll Specialist can only run: sensitive_payroll_details. It is not authorized for \"analysis_tool\"."
     },
     {
-      "vertical": "airlines",
+      "vertical": "workforce",
       "useCaseId": "weather-mcp-texas-permit",
       "ucId": "UC30",
       "reason": "unhealthy_result",
       "detail": "HTTP 200: ❌ intent_mismatch: tool \"get_weather\" not permitted for intent \"unknown\""
     },
     {
-      "vertical": "airlines",
+      "vertical": "workforce",
       "useCaseId": "code-search",
       "ucId": "UC-TOOL1",
       "reason": "unhealthy_result",
       "detail": "HTTP 200: ❌ Insufficient scope for tool 'code_search'"
+    },
+    {
+      "vertical": "workforce",
+      "useCaseId": "unauthorized-commitment-fee-waiver",
+      "ucId": "UC28",
+      "reason": "unhealthy_result",
+      "detail": "HTTP 200: ❌ access_denied"
     }
   ]
 }

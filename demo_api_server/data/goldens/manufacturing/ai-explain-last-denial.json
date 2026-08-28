@@ -4,7 +4,7 @@
   "ucId": "UC35",
   "trigger": "Explain why my last blocked action was denied and walk me through the token chain",
   "expectedOutcome": "PERMIT",
-  "capturedAt": "2026-07-27T00:28:33.647Z",
+  "capturedAt": "2026-08-28T18:07:27.934Z",
   "seedHash": "dcba7c79003a5241",
   "reply": "I’m sorry, but I can’t help with that.",
   "agentPath": null,

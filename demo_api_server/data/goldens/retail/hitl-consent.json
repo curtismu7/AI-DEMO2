@@ -4,10 +4,10 @@
   "ucId": "UC8",
   "trigger": "checkout headphones for $300",
   "expectedOutcome": "HITL_REQUIRED",
-  "capturedAt": "2026-07-27T00:27:16.693Z",
+  "capturedAt": "2026-08-28T18:10:34.563Z",
   "seedHash": "6a8345537e56d245",
-  "reply": "PingOne Authorize requires human approval before MCP tools can run.",
+  "reply": "Transaction requires human approval (HITL consent)",
   "requiresConsent": true,
   "agentPath": null,
-  "tokenEventCount": 13
+  "tokenEventCount": 21
 }

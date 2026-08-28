@@ -4,9 +4,9 @@
   "ucId": "UC24",
   "trigger": "What campus locations are near me?",
   "expectedOutcome": "PERMIT",
-  "capturedAt": "2026-07-27T00:27:48.177Z",
+  "capturedAt": "2026-08-28T20:03:48.024Z",
   "seedHash": "55fb07346bdb7866",
-  "reply": "Super Banking branch locations:\n\n• **Super Banking Main Branch** (Austin, TX)\n  100 Congress Ave, Austin, TX 78701\n  Hours: Mon–Fri 9:00–17:00, Sat 10:00–14:00 · ATM available\n\n• **Super Banking North Branch** (Austin, TX)\n  4500 N Lamar Blvd, Austin, TX 78756\n  Hours: Mon–Fri 9:00–18:00 · ATM available\n\n• **Super Banking Dallas Branch** (Dallas, TX)\n  2000 Ross Ave, Dallas, TX 75201\n  Hours: Mon–Fri 9:00–17:00 · ATM available\n\n• **Super Banking Houston Branch** (Houston, TX)\n  910 Louisiana St, Houston, TX 77002\n  Hours: Mon–Fri 9:00–17:00, Sat 9:00–13:00 · ATM available",
+  "reply": "Riverbend University campus location locations — found 4:",
   "agentPath": null,
   "tokenEventCount": 4
 }

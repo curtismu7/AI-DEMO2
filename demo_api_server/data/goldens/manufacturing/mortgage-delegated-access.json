@@ -1,0 +1,12 @@
+{
+  "vertical": "manufacturing",
+  "useCaseId": "mortgage-delegated-access",
+  "ucId": "UC33",
+  "trigger": "show my work order status",
+  "expectedOutcome": "PERMIT",
+  "capturedAt": "2026-08-28T18:07:09.272Z",
+  "seedHash": "dcba7c79003a5241",
+  "reply": "Here are your current work orders and their status:\n\n| Order ID | Product | Type | Qty | Completed | Status | Due Date |\n|----------|---------|------|-----|-----------|--------|----------|\n| **WO‑4001** | Bracket Assembly A12 | Assembly | 500 | 320 | **In Production** | 2026‑07‑05 |\n| **WO‑4002** | Spindle Housing | Machining | 120 | 120 | **Inspection** | 2026‑06‑28 |\n| **WO‑4003** | Anodized Panel | Finishing | 800 | 0 | **Queued** | 2026‑07‑12 |\n| **WO‑4004** | Gearbox Plate | Machining | 240 | 240 | **Released** | 2026‑06‑20 |\n\nLet me know if you’d like to schedule a run, release a work order, or view more details on any of these.",
+  "agentPath": null,
+  "tokenEventCount": 25
+}

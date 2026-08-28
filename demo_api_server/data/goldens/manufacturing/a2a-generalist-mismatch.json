@@ -1,0 +1,12 @@
+{
+  "vertical": "manufacturing",
+  "useCaseId": "a2a-generalist-mismatch",
+  "ucId": "UC2.6",
+  "trigger": "simulate an agent identity mismatch",
+  "expectedOutcome": "PERMIT_THEN_DENY",
+  "capturedAt": "2026-08-28T18:06:45.883Z",
+  "seedHash": "dcba7c79003a5241",
+  "reply": "❌ Delegated to Supplier Contract Specialist, but sensitive_supplier_contract failed: gateway_policy_denied.",
+  "agentPath": null,
+  "tokenEventCount": 17
+}

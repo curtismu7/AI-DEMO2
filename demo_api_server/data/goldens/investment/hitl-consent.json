@@ -4,10 +4,10 @@
   "ucId": "UC8",
   "trigger": "execute a large trade of $300",
   "expectedOutcome": "HITL_REQUIRED",
-  "capturedAt": "2026-07-27T00:29:06.506Z",
+  "capturedAt": "2026-08-28T18:06:23.366Z",
   "seedHash": null,
-  "reply": "PingOne Authorize requires human approval before MCP tools can run.",
+  "reply": "Transaction requires human approval (HITL consent)",
   "requiresConsent": true,
   "agentPath": null,
-  "tokenEventCount": 13
+  "tokenEventCount": 21
 }

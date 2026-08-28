@@ -4,9 +4,9 @@
   "ucId": "UC6",
   "trigger": "checkout headphones for $2500",
   "expectedOutcome": "DENY",
-  "capturedAt": "2026-07-27T00:27:13.929Z",
+  "capturedAt": "2026-08-28T18:10:31.750Z",
   "seedHash": "6a8345537e56d245",
-  "reply": "❌ PingOne Authorize denied MCP tool access for this session.",
+  "reply": "❌ 2500 exceeds tier ceiling 2000",
   "agentPath": null,
-  "tokenEventCount": 13
+  "tokenEventCount": 22
 }

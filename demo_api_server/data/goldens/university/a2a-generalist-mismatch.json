@@ -1,0 +1,12 @@
+{
+  "vertical": "university",
+  "useCaseId": "a2a-generalist-mismatch",
+  "ucId": "UC2.6",
+  "trigger": "simulate an agent identity mismatch",
+  "expectedOutcome": "PERMIT_THEN_DENY",
+  "capturedAt": "2026-08-28T19:58:29.136Z",
+  "seedHash": "55fb07346bdb7866",
+  "reply": "❌ Delegated to Financial Aid Specialist, but sensitive_student_finance failed: gateway_policy_denied.",
+  "agentPath": null,
+  "tokenEventCount": 17
+}
