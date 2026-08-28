@@ -68,6 +68,11 @@ const GATEWAY_SCOPES = [
   'mcp:invoke',
   'mortgage:read',  // Phase 267 — Path A api_key disposition
   'ai_agent',
+  // The audit façade door advertises audit:read and clients request exactly it.
+  // The broker only mints scopes it advertises, so an omission here does not
+  // error — the scope is silently dropped and the caller gets a token that sees
+  // the full surface, which is the opposite of what that door exists for.
+  'audit:read',
 ];
 
 // HTTP request-body cap. The WS transport is hardened with maxPayload

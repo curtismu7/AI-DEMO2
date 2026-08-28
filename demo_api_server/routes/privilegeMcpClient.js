@@ -815,6 +815,59 @@ function hasAllRequiredArguments(tool, args) {
   return (tool.inputSchema?.required || []).every((name) => args?.[name] !== undefined && args[name] !== '');
 }
 
+/**
+ * RFC 9728 -> RFC 8414 discovery for an MCP resource that advertises a
+ * protected-resource document.
+ *
+ * Elicits the challenge with a POST, not a GET: the mcp-facade doors answer GET
+ * with 405 and no WWW-Authenticate, so a GET probe learns nothing. We follow the
+ * `resource_metadata` pointer the challenge gives rather than guessing a
+ * well-known path, because the façade serves it nested under the door
+ * (/mcp-facade/<door>/.well-known/...), not at the RFC's host-root location.
+ *
+ * Returns null — never throws for a resource that simply isn't this shape — so
+ * the caller falls through to its existing branches unchanged.
+ *
+ * @returns {Promise<null | {authorizationUri: string, tokenUri: string, issuer: string,
+ *   selfAdvertised: true, advertisedScopes: string[] }>}
+ */
+async function discoverProtectedResource(mcpUrl, headers = {}) {
+  const probe = await fetch(mcpUrl, {
+    method: 'POST',
+    headers: { ...headers, 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 'discovery', method: 'tools/list', params: {} }),
+  });
+  if (probe.status !== 401) return null;
+
+  const challenge = probe.headers.get('www-authenticate') || '';
+  const metaUrl = challenge.match(/resource_metadata="([^"]+)"/)?.[1];
+  if (!metaUrl) return null;
+
+  const metaRes = await fetch(metaUrl, { method: 'GET' });
+  if (!metaRes.ok) return null;
+  const meta = await metaRes.json();
+  const asUrl = Array.isArray(meta.authorization_servers) ? meta.authorization_servers[0] : null;
+  if (!asUrl) return null;
+
+  const asMetaRes = await fetch(`${asUrl.replace(/\/$/, '')}/.well-known/oauth-authorization-server`, { method: 'GET' });
+  if (!asMetaRes.ok) return null;
+  const asMeta = await asMetaRes.json();
+  if (!asMeta.authorization_endpoint || !asMeta.token_endpoint) return null;
+
+  return {
+    authorizationUri: asMeta.authorization_endpoint,
+    tokenUri: asMeta.token_endpoint,
+    issuer: asMeta.issuer || new URL(asMeta.authorization_endpoint).origin,
+    // selfAdvertised drives DCR upstream: this AS keeps its own client registry,
+    // so the configured PingOne client id means nothing to it.
+    selfAdvertised: true,
+    // The whole point of a narrow door. Without this the flow would request
+    // session.config.scopes ("openid profile email") and the gateway would hand
+    // back whatever that implies rather than the door's advertised scope.
+    advertisedScopes: Array.isArray(meta.scopes_supported) ? meta.scopes_supported : [],
+  };
+}
+
 async function discoverAuth(session) {
   const discoverHeaders = {};
   const mcpUrlParsed = new URL(session.config.mcpUrl);
@@ -853,6 +906,19 @@ async function discoverAuth(session) {
       authorizationUri, tokenUri, selfAdvertised: true,
       issuer: body.issuer || new URL(authorizationUri).origin,
     };
+  }
+
+  // RFC 9728 discovery — for doors that advertise a protected-resource document
+  // instead of minting `authorization_uri`/`token_uri` into the body the way the
+  // Privilege gateway does. The mcp-facade doors are this shape: a GET answers
+  // 405 with no challenge at all, so the block above sees nothing and this used
+  // to fall straight through to the PingOne branch below, signing the user in
+  // with the Privilege SSO client and a token the door's AS never issued.
+  try {
+    const rfc9728 = await discoverProtectedResource(session.config.mcpUrl, discoverHeaders);
+    if (rfc9728) return rfc9728;
+  } catch (err) {
+    emitEvent(session, 'oauth', { phase: 'rfc9728_skipped', error: err.message });
   }
 
   // PingOne OIDC discovery fallback
@@ -936,7 +1002,7 @@ async function getOrRegisterDcrClient(authorizationUri, redirectUri) {
 // builds the PKCE authorization URL. Does not set pendingAuth.returnTo —
 // callers that need it set it on the returned object's session afterward.
 async function beginOAuthFlow(session, req) {
-  const { authorizationUri, tokenUri, issuer, selfAdvertised } = await discoverAuth(session);
+  const { authorizationUri, tokenUri, issuer, selfAdvertised, advertisedScopes } = await discoverAuth(session);
   const verifier = randomString(48);
   const challenge = sha256Base64Url(verifier);
   const oauthState = randomString(24);
@@ -968,7 +1034,13 @@ async function beginOAuthFlow(session, req) {
   authUrl.searchParams.set('response_type', 'code');
   authUrl.searchParams.set('code_challenge', challenge);
   authUrl.searchParams.set('code_challenge_method', 'S256');
-  authUrl.searchParams.set('scope', session.config.scopes);
+  // A resource that advertises its own scopes wins over the session default:
+  // requesting "openid profile email" at a door that exists to hand out
+  // `audit:read` would defeat the narrowing the door was built for.
+  const requestedScopes = advertisedScopes?.length
+    ? advertisedScopes.join(' ')
+    : session.config.scopes;
+  authUrl.searchParams.set('scope', requestedScopes);
   authUrl.searchParams.set('redirect_uri', redirectUri);
   authUrl.searchParams.set('state', oauthState);
   const loginHint = process.env.PRIVILEGE_LOGIN_HINT || req.session?.user?.email;
