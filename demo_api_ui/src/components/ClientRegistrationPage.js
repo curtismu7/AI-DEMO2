@@ -276,7 +276,7 @@ export default function ClientRegistrationPage({ user, onLogout }) {
           className="app-page-toolbar-btn"
           onClick={() => openPanel(EDU.CIMD, 'what')}
         >
-          📖 Learn: CIMD
+          Learn: CIMD
         </button>
       </div>
 

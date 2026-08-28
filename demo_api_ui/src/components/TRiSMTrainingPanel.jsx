@@ -42,7 +42,7 @@ const SLIDES = [
     principleNumber: 3,
     title: 'Security & Privacy by Design',
     subtitle: 'Encrypt everything, validate all tokens, minimize access',
-    icon: '🔒',
+    icon: '🔐',
     whatItMeans: 'Protect data flowing through the system. Prevent prompt injection, token theft, data exfiltration. Use encryption and secure channels.',
     howWeMeetIt: [
       { feature: 'Token Scope Isolation', component: 'Middleware', description: 'User tokens access user resources; agent tokens access agent resources — never mixed' },
@@ -152,7 +152,7 @@ export default function TRiSMTrainingPanel({ isOpen, onClose }) {
               onClick={() => setShowGlossary(!showGlossary)}
               aria-label="Toggle glossary"
             >
-              📖 Glossary
+              Glossary
             </button>
             <button className="trism-panel-close" onClick={onClose} aria-label="Close training panel">
               &times;
@@ -235,7 +235,7 @@ function TRiSMGlossaryInline() {
 
   return (
     <div className="trism-glossary">
-      <h4>📖 AI TRiSM Glossary</h4>
+      <h4>AI TRiSM Glossary</h4>
       <p className="trism-glossary-intro">
         Key terms used throughout this training and the banking demo.
       </p>

@@ -46,16 +46,16 @@ const SILENT_ROUTES = new Set([
 
 /** Friendly labels for client-side API calls (longest-prefix match wins) */
 const CLIENT_LABELS = {
-  'POST /api/mcp/tool':             '🤖 Calling MCP tool',
-  'GET /api/mcp':                   '🤖 Connecting to MCP server',
+  'POST /api/mcp/tool':             'Calling MCP tool',
+  'GET /api/mcp':                   'Connecting to MCP server',
   'POST /api/transactions':         '💳 Submitting transaction',
   'GET /api/transactions':          '📜 Loading transactions',
-  'GET /api/accounts':              '🏦 Loading accounts',
+  'GET /api/accounts':              'Loading accounts',
   'POST /api/auth/ciba':            '📱 Initiating CIBA push',
-  'POST /api/tokens':               '🔄 Exchanging tokens',
+  'POST /api/tokens':               'Exchanging tokens',
   'GET /api/tokens':                '🔑 Loading token info',
   'GET /api/token-chain':           '⛓️ Loading token chain',
-  'POST /api/delegated':            '🔄 Requesting delegated access',
+  'POST /api/delegated':            'Requesting delegated access',
   'GET /api/authorize':             '⚖️ Checking authorization',
   'POST /api/authorize':            '⚖️ Evaluating access policy',
   'POST /api/admin/setup':          '⚙️ Running PingOne setup',

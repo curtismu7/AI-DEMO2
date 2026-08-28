@@ -2972,7 +2972,7 @@ function ClaimsStrip({ event, hints }) {
                     {r.injectedScopeNames.includes(s) && (
                       <span className="tcd-scope-injected-tag">
                         {" "}
-                        ⚡ INJECTED
+                        INJECTED
                       </span>
                     )}
                   </span>
@@ -3445,7 +3445,7 @@ function EventRow({
   // Compact hints shown on the row — click inspect for full educational detail
   const triggerHint =
     event.trigger === "high_risk"
-      ? { text: "⚡ High-Risk Transaction", cls: "warn" }
+      ? { text: "High-Risk Transaction", cls: "warn" }
       : null;
   const actHint =
     event.actPresent === true
@@ -3458,7 +3458,7 @@ function EventRow({
   // scope injection hint — shows when scopes were BFF-injected (demo mode)
   const scopeInjectedHint =
     event.scopeInjected === true
-      ? { text: "⚡ Scopes INJECTED (demo)", cls: "warn" }
+      ? { text: "Scopes INJECTED (demo)", cls: "warn" }
       : null;
   // introspection hint — shows when BFF validates tokens via PingOne introspection (not just local JWT decode)
   const introspectionHint =

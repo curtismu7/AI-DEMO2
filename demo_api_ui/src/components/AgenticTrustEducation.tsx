@@ -147,7 +147,7 @@ export const AgenticTrustEducation: React.FC = () => {
           </div>
           <div className={styles.flowArrow}>
             <div className={styles.flowLine} />
-            <span className={styles.flowAnnotation}>🤖 Agent Identity (Client Creds)</span>
+            <span className={styles.flowAnnotation}>Agent Identity (Client Creds)</span>
           </div>
           <div className={styles.flowNode}>
             <div className={styles.flowIcon}>🧠</div>
@@ -155,7 +155,7 @@ export const AgenticTrustEducation: React.FC = () => {
           </div>
           <div className={styles.flowArrow}>
             <div className={styles.flowLine} />
-            <span className={styles.flowAnnotation}>🔄 Token Exchange (RFC 8693)</span>
+            <span className={styles.flowAnnotation}>Token Exchange (RFC 8693)</span>
           </div>
           <div className={styles.flowNode}>
             <div className={styles.flowIcon}>⚙️</div>
@@ -163,7 +163,7 @@ export const AgenticTrustEducation: React.FC = () => {
           </div>
           <div className={styles.flowArrow}>
             <div className={styles.flowLine} />
-            <span className={styles.flowAnnotation}>🔒 Vault Credentials (Last Mile)</span>
+            <span className={styles.flowAnnotation}>🔐 Vault Credentials (Last Mile)</span>
           </div>
           <div className={styles.flowNode}>
             <div className={styles.flowIcon}>🏦</div>

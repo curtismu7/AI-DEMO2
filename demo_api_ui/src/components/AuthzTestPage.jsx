@@ -638,7 +638,7 @@ export default function AuthzTestPage() {
 								disabled={quickEnabling}
 								onClick={enableSimulated}
 							>
-								{quickEnabling ? "Enabling…" : "⚡ Enable Simulated Mode"}
+								{quickEnabling ? "Enabling…" : "Enable Simulated Mode"}
 							</button>
 						</>
 					)}
@@ -653,7 +653,7 @@ export default function AuthzTestPage() {
 								disabled={quickEnabling}
 								onClick={enableSimulated}
 							>
-								{quickEnabling ? "Enabling…" : "⚡ Switch to Simulated Mode"}
+								{quickEnabling ? "Enabling…" : "Switch to Simulated Mode"}
 							</button>
 						</>
 					)}
@@ -671,7 +671,7 @@ export default function AuthzTestPage() {
 						setEngineSaveMsg(null);
 					}}
 				>
-					<span>⚙ Engine Settings</span>
+					<span>Engine Settings</span>
 					<span className="authz-engine-settings-chevron">
 						{engineSettingsOpen ? "▾" : "▸"}
 					</span>

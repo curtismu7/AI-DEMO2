@@ -666,7 +666,7 @@ export default function DemoSetupPanel() {
               <span style={{ fontSize: '1.2rem', minWidth: '1rem', display: 'inline-block' }}>{collapsedSections.accountProfile ? '▶' : '▼'}</span>
               Account Profile Fields{' '}
               <span style={{ marginLeft: '0.5rem', fontSize: '0.75rem', fontWeight: 400, color: '#92400e', background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 4, padding: '0.1rem 0.4rem' }}>
-                🔒 Sensitive fields require sensitive:read
+                🔐 Sensitive fields require sensitive:read
               </span>
             </h2>
           </button>
@@ -674,7 +674,7 @@ export default function DemoSetupPanel() {
             <>
               <p className="demo-data-hint">
                 Configure extended account details returned by the AI agent after the user grants explicit consent.
-                Fields marked <strong>🔒 Sensitive</strong> are only returned via <code>get_sensitive_account_details</code> after consent.
+                Fields marked <strong>🔐 Sensitive</strong> are only returned via <code>get_sensitive_account_details</code> after consent.
               </p>
               {ACCOUNT_TYPES.filter((s) => typeSlots[s.type]?.enabled).length === 0 && (
                 <p className="demo-data-hint" style={{ fontStyle: 'italic' }}>No accounts enabled — enable accounts in the <strong>Accounts</strong> section above.</p>
@@ -697,9 +697,9 @@ export default function DemoSetupPanel() {
                         </label>
                       ))}
                       <div style={{ border: '1px solid #fcd34d', borderRadius: 6, padding: '0.5rem 0.75rem', background: '#fffbeb', marginTop: '0.5rem' }}>
-                        <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#92400e', marginBottom: '0.4rem' }}>🔒 Sensitive — requires sensitive:read</div>
+                        <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#92400e', marginBottom: '0.4rem' }}>🔐 Sensitive — requires sensitive:read</div>
                         <label className="demo-data-field demo-data-field--inline">
-                          <span>Routing Number 🔒</span>
+                          <span>Routing Number 🔐</span>
                           <input type="text" value={prof.routingNumber || ''} maxLength={50} onChange={(e) => setProf('routingNumber', e.target.value)} />
                         </label>
                         <label className="demo-data-field demo-data-field--checkbox" style={{ marginTop: '0.25rem' }}>
@@ -707,7 +707,7 @@ export default function DemoSetupPanel() {
                           <span>Include routing number in response</span>
                         </label>
                         <label className="demo-data-field demo-data-field--inline" style={{ marginTop: '0.5rem' }}>
-                          <span>Full Account Number 🔒</span>
+                          <span>Full Account Number 🔐</span>
                           <input type="text" value={prof.accountNumberFull || ''} maxLength={50} onChange={(e) => setProf('accountNumberFull', e.target.value)} />
                         </label>
                         <label className="demo-data-field demo-data-field--checkbox" style={{ marginTop: '0.25rem' }}>
@@ -854,7 +854,7 @@ export default function DemoSetupPanel() {
             onClick={handleResetDemo}
             disabled={demoResetting}
           >
-            {demoResetting ? 'Resetting…' : '🔄 Reset Demo'}
+            {demoResetting ? 'Resetting…' : 'Reset Demo'}
           </button>
         </section>
         </>

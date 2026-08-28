@@ -491,7 +491,7 @@ const SecuritySettings = ({ user, onLogout }) => {
                 <th style={{ padding: '10px 20px', textAlign: 'left', color: '#374151', fontWeight: '600' }}>Step-up threshold</th>
                 <td style={{ padding: '10px 20px', color: '#374151' }}>
                   {settings.stepUpWithdrawalsAlways
-                    ? '⚡ All withdrawals (stepUpWithdrawalsAlways)'
+                    ? 'All withdrawals (stepUpWithdrawalsAlways)'
                     : settings.stepUpAmountThreshold > 0
                       ? `$${settings.stepUpAmountThreshold}+ transactions`
                       : 'All amounts ($0 threshold)'}

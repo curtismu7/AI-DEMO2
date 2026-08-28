@@ -80,7 +80,7 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
       {
         label: "Step-up MFA",
         description: "Multi-factor authentication escalation",
-        icon: "🔒",
+        icon: "🔐",
       },
       {
         label: "Introspection (RFC 7662)",
@@ -214,7 +214,7 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
       {
         label: "Sensitive Data & Disclosure",
         description: "Protecting sensitive information",
-        icon: "🔒",
+        icon: "🔐",
       },
       {
         label: "Gateway vs P1AZ Decision Split",
@@ -477,7 +477,7 @@ export default function LearningHub() {
             fontWeight: 600,
           }}
         >
-          🌐 Share these topics on the web — open the public Learning Hub ↗
+          Share these topics on the web — open the public Learning Hub ↗
         </a>
 
         <LearningHubAgent />

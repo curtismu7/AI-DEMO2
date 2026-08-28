@@ -118,6 +118,144 @@ indistinguishable, and all three surfaced as `reasoning_unavailable`. Fixed in
 PR #2564 (logs `err.response.status` and `.data`); that log line is what
 produced the `403 forbidden` above. Found with `ai-demo2-d0`.
 
+
+
+
+### [ ] 2026-08-28 — two accessibility/robustness leftovers from the contrast pass
+
+Both surfaced by the live dark-mode contrast probe
+(`tests/e2e/darkModeContrast.real.spec.js`) and left deliberately.
+
+**`<code>` renders at 3.38:1, and it is not ours.** `#d63384` on a faint tint
+— Bootstrap 5's default code colour, arriving through `end-user-nano.css`,
+an EXTERNAL Ping stylesheet we do not own. Below WCAG AA (4.5) for text.
+Fixing it means overriding a vendor stylesheet, which is a deliberate choice
+rather than a bug fix, so it was recorded rather than patched. Reproduce at
+`/mfa-test` with the theme stamped dark.
+
+**A guest sign-in timer is never cancelled.** `AIAgent.js` `handleLoginAction`
+schedules a 150ms `setTimeout` whose job is a full-page navigation. It carries
+a `typeof window === "undefined"` guard so it no longer throws after a test
+environment is torn down, but the timer itself is still uncancelled.
+
+The guard was chosen over `clearTimeout` on unmount ON PURPOSE: the timer's
+entire purpose is to navigate away, so cancelling it when the panel unmounts
+could abort a real sign-in, and that could not be ruled out without tracing the
+whole flow. Paying this off means establishing whether the panel can unmount
+mid-sign-in; if it cannot, `clearTimeout` is the cleaner fix.
+
+Worth knowing for both: an uncaught error AFTER teardown makes Vitest exit
+NON-ZERO while printing "N passed" — a red build with a green-looking summary,
+which is easy to re-run past without reading.
+
+
+### [ ] 2026-08-28 — design-token adoption is partial: colour, shadow, radius, weight
+
+Found while converting components onto `--th-*`. Each is measured on main
+AFTER that work, so these are the numbers that remain, not the ones we started
+with.
+
+**Colour — 16,486 hard-coded hex against 2,411 token uses.** 1,605 distinct
+values. 26 components were converted; the rest were not. The damage is
+near-duplicates: six near-identical whites (`#ffffff` `#f8fafc` `#f9fafb`
+`#fffbeb` `#fafafa` `#f8f9fa`) accounted for ~1,979 uses when first measured —
+the same visual colour written six ways, which is why surfaces differ subtly
+between pages.
+
+*Why it wasn't finished.* A blind sweep was built and REVERTED: it touched 193
+files and introduced 73 rules where `color` follows the theme while the surface
+stays a hard-coded literal, inverting in dark mode. Worse, 73 was only the
+same-rule cases — text inheriting a light surface from an ancestor is
+statically invisible. The safe unit is a whole component, surface and text
+together, which is how the 26 were done.
+
+*Do not* collapse the four text levels (`#0f172a` / `#374151` / `#556070` /
+`#94a3b8`) into one token. They are heading / body / secondary / faint across
+~1,300 uses; one "text" colour flattens the hierarchy. `--th-text`,
+`--th-text-body`, `--th-text-muted`, `--th-text-faint` exist for this.
+
+**box-shadow — 348 distinct literals for 517 uses.** Nearly every shadow in the
+app is unique. There is no shadow scale; `--modal-shadow` and `--card-shadow`
+exist but almost nothing uses them.
+
+**border-radius — 80 distinct literals across 2,633 uses**, with 6px / 8px /
+4px / 3px all competing for the same job. `--btn-radius` (8px),
+`--card-border-radius` (12px), `--modal-radius` (12px) and `--inner-card-radius`
+(8px) exist and are largely unused.
+
+**font-weight — 12 distinct values**, including `650`, `750`, `550`, `900` and
+`800`. Most faces do not have those weights, so the browser synthesises or
+rounds them; the intended emphasis is not what renders.
+
+**What the real fix looks like.** Colour: continue per component, worst-first,
+running the inversion check (themed text over a hard-coded light surface) after
+each — that check is what made the 26 safe. Shadow/radius/weight: pick the
+existing tokens as canonical, then sweep exact matches only, the way the type
+scale was adopted (1,974 declarations, zero visual change, because every
+mapping was value-identical).
+
+### [ ] 2026-08-28 — the monospace test's filename allowlist is now mostly stale
+
+`uiRegression.test.js` bans the fixed-width literal in CSS through a
+hand-maintained allowlist of ~45 FILENAMES, each commented "intentional" for
+code/token display — a list that grew every time someone displayed a token.
+
+`--font-mono` now exists and 281 hard-coded stacks across 81 files were
+converted to `var(--font-mono)`, which carries no banned literal. Those files
+therefore no longer need their allowlist entry, but the entries were left in
+place: they are harmless, and pruning 45 conditions in the same commit that
+moved 81 files would have made the diff unreviewable.
+
+**12 CSS files still declare the literal directly** and genuinely need an
+entry. The real fix is to convert those 12, then delete the allowlist entirely
+and assert only that `var(--font-mono)` is used — turning a per-FILE exemption
+list into a per-PURPOSE token, which is what it should have been.
+
+Note `--font-family-mono` was named "mono" but resolved to a SANS stack, so
+every consumer asking for a fixed-width face silently got a proportional one.
+It now aliases `--font-mono`.
+
+
+### [ ] 2026-08-28 — 271 emoji outside the §0 allowlist, in 53 files
+
+**What's wrong.** `REGRESSION_PLAN.md` §0's emoji allowlist is a project-wide
+hard rule, but nothing enforced it app-wide. The only test was
+`supportConsole/__tests__/supportConsoleConfig.test.js`, scoped to that one
+config — so violations accumulated unchallenged: **342 uses of 94 distinct
+emoji across 63 files** when first measured.
+
+71 were fixed immediately, leaving **271 in 53 files**:
+
+- `🔒` → `🔐` (22 uses, 13 files). An exact allowlisted equivalent — §0 defines
+  `🔐` as "security/lock" — so this was a pure swap.
+- 49 more where the glyph merely led a text label that already carried the
+  meaning (`🔄 Refresh`, `📋 Token History`), so dropping it lost nothing.
+
+**Why the rest wasn't fixed now.** The remainder each need a semantic decision,
+and mechanical substitution is the wrong tool. `🏦` on a transfer row in
+`UserTransactions` is a *label*, not decoration. `🤖` (19 uses) distinguishes
+agent-authored rows from user-authored ones and has no allowlisted counterpart
+— `👤` is spoken for as the HITL consent marker. Choosing replacements is a
+design pass, not a sweep, and doing it blind is how the token-chain education
+icons would have lost their meaning.
+
+**What the real fix looks like.** Per file, decide whether each glyph is
+decoration (drop it), a duplicate of adjacent text (drop it), or load-bearing
+(replace with a CSS icon or semantic HTML per §0, or propose adding the glyph
+to §0 — which is what happened for `🔧`). Then drop the file from the ratchet
+and lower the baseline.
+
+**Guarded meanwhile.** `demo_api_ui/src/__tests__/emojiAllowlistAppWide.test.js`
+is a ratchet: it fails if the total exceeds 271 or if the dirty-file count
+exceeds 53. It cannot force cleanup, but the number can only go down. Verified
+to fail on introduction by adding three emoji and watching both assertions fire.
+
+It reads the allowlist from §0 via `__tests__/helpers/emojiAllowlistSource.js`
+rather than restating it — the list was once written out in five places and
+they drifted, one listing six entries while the others listed ten, so an agent
+reading the wrong copy stripped four legitimate emoji.
+
+
 ### [x] 2026-08-28 — CI cannot push images: GHCR packages are user-owned, unlinked
 
 Every `push-image` job fails at its final step with

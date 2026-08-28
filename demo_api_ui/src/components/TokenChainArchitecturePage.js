@@ -20,13 +20,13 @@ graph LR
       HumanToken["Human Token<br/>━━━━━━<br/>sub: user1<br/>may_act: agent1"]
     end
 
-    subgraph Agent["🤖 AGENT"]
+    subgraph Agent["AGENT"]
       AgentSvc["Agent Service"]
       LLM["LLM<br/>tool selector"]
       AgentToken["Agent Token<br/>━━━━━━<br/>client_id: agent1<br/>SPIFFE SVID"]
     end
 
-    subgraph Exchange["🔄 TOKEN EXCHANGE"]
+    subgraph Exchange["TOKEN EXCHANGE"]
       TxService["Exchange Service"]
       TxToken["TX Token<br/>━━━━━━<br/>sub: user1<br/>act: agent1<br/>scope: mcp"]
     end
@@ -162,14 +162,14 @@ export default function TokenChainArchitecturePage({ user }) {
         </div>
 
         <div style={{ padding: '1.5rem', background: '#f5f5f5', borderRadius: '6px', borderLeft: '4px solid #3b5998' }}>
-          <div style={{ fontWeight: '600', marginBottom: '0.5rem', color: '#3b5998' }}>🤖 Agent</div>
+          <div style={{ fontWeight: '600', marginBottom: '0.5rem', color: '#3b5998' }}>Agent</div>
           <div style={{ fontSize: '0.9rem', color: '#555' }}>
             Gets own token (client creds), routes to LLM for tool selection
           </div>
         </div>
 
         <div style={{ padding: '1.5rem', background: '#f5f5f5', borderRadius: '6px', borderLeft: '4px solid #28a745' }}>
-          <div style={{ fontWeight: '600', marginBottom: '0.5rem', color: '#28a745' }}>🔄 Token Exchange</div>
+          <div style={{ fontWeight: '600', marginBottom: '0.5rem', color: '#28a745' }}>Token Exchange</div>
           <div style={{ fontSize: '0.9rem', color: '#555' }}>
             Combines human + agent tokens into single TX token for MCP calls
           </div>

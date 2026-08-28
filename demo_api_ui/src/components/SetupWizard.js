@@ -553,7 +553,7 @@ export default function SetupWizard({
       <div className="wizard-code-block">{envContents}</div>
       <div className="wizard-complete-actions">
         <button className="wizard-btn-primary" onClick={copyEnv}>
-          📋 Copy .env
+          Copy .env
         </button>
         {copyToast && <span className="wizard-copy-toast">{copyToast}</span>}
         <button

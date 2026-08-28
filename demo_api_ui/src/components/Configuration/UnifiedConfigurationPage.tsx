@@ -1023,11 +1023,11 @@ const IdpSetupGuide: FC<{
   const mcpAud = mcpResourceUri || "<mcp-server-public-url>";
 
   const tabs = [
-    { id: "overview", label: "📋 Overview & Checklist" },
+    { id: "overview", label: "Overview & Checklist" },
     { id: "apps", label: "🔑 Applications" },
     { id: "redirects", label: "↩ Redirect URIs" },
     { id: "resources", label: "🗂 Resources & Scopes" },
-    { id: "endpoints", label: "🌐 OAuth Endpoints" },
+    { id: "endpoints", label: "OAuth Endpoints" },
     { id: "debug", label: "🐛 Debug Info" },
   ];
 

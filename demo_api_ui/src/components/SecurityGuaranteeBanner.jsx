@@ -20,7 +20,7 @@ export function SecurityGuaranteeBanner() {
   return (
     <div className="utfi-security-guarantee">
       <div className="utfi-security-text">
-        🔒 <strong>Security guarantee:</strong> User Token and Agent Token are secrets —
+        🔐 <strong>Security guarantee:</strong> User Token and Agent Token are secrets —
         stored only on Backend-for-Frontend (BFF). Only the Delegated Access Token
         (limited scope + nested delegation proof) reaches the MCP Server.
       </div>

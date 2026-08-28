@@ -139,7 +139,7 @@ export default function OAuthTokenDisplayPage() {
           <h2>OAuth Token Information</h2>
         </div>
         <div className="otdp-card otdp-flow-start-card">
-          <div className="otdp-flow-icon">🔒</div>
+          <div className="otdp-flow-icon">🔐</div>
           <h3>No Active Session</h3>
           <p className="otdp-flow-desc">
             Click <strong>Log In</strong> to see the live token flow — the browser POSTs to the MCP

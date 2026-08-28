@@ -260,7 +260,7 @@ function TokenEventDetail({ entry }) {
           {entry.alg && <span className="api-token-event-alg">{entry.alg}</span>}
         </div>
         {entry.rfc && (
-          <p className="api-token-event-rfc">📋 {entry.rfc}</p>
+          <p className="api-token-event-rfc">{entry.rfc}</p>
         )}
         {entry.mayActPresent !== undefined && (
           <p className="api-token-event-may-act">

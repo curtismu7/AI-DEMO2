@@ -190,7 +190,7 @@ export default function TokenExchangeDiagram({ exchangeType = 'person-to-agent' 
               padding: '8px 14px', marginBottom: 20, color: '#86efac',
               fontSize: '0.73rem', fontWeight: 600, display: 'flex', gap: 8, alignItems: 'flex-start',
             }}>
-              <span>🔒</span>
+              <span>🔐</span>
               <span>Raw tokens stay server-side. Only decoded claims reach the browser. <code style={{ fontWeight: 400, color: '#4ade80' }}>sub</code> is preserved end-to-end through every exchange.</span>
             </div>
 

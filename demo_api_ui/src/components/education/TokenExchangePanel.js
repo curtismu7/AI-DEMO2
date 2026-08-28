@@ -86,7 +86,7 @@ function TokenFlowDiagram() {
           alignItems: 'flex-start',
           gap: '8px',
         }}>
-          <span style={{ flexShrink: 0 }} aria-hidden>🔒</span>
+          <span style={{ flexShrink: 0 }} aria-hidden>🔐</span>
           <span style={{ flex: '1 1 220px', minWidth: 0 }}>
             Security guarantee: The User Token NEVER leaves the Backend-for-Frontend (BFF) — only the MCP Token reaches the MCP Server or Banking API.
           </span>
@@ -151,7 +151,7 @@ function TokenFlowDiagram() {
             { key: 'aud', val: 'Backend-for-Frontend (BFF) / PingOne client', note: 'broad' },
             { key: 'scope', val: 'openid email *', note: 'broad' },
             { key: 'act', val: '(absent)', note: '' },
-            { key: 'stays in', val: 'Backend-for-Frontend (BFF) session only', note: '🔒 never forwarded' },
+            { key: 'stays in', val: 'Backend-for-Frontend (BFF) session only', note: '🔐 never forwarded' },
           ]}
         />
         <TokenCompareCard
@@ -304,13 +304,13 @@ export default function TokenExchangePanel({ isOpen, onClose, initialTabId }) {
                 <td style={{ padding: '8px 10px', borderBottom: '1px solid #334155' }}><strong>User Token</strong></td>
                 <td style={{ padding: '8px 10px', borderBottom: '1px solid #334155' }}>PingOne login flow</td>
                 <td style={{ padding: '8px 10px', borderBottom: '1px solid #334155' }}>Authenticating the user session in the Backend-for-Frontend (BFF)</td>
-                <td style={{ padding: '8px 10px', borderBottom: '1px solid #334155', color: '#86efac' }}>🔒 Backend-for-Frontend (BFF) only</td>
+                <td style={{ padding: '8px 10px', borderBottom: '1px solid #334155', color: '#86efac' }}>🔐 Backend-for-Frontend (BFF) only</td>
               </tr>
               <tr>
                 <td style={{ padding: '8px 10px', borderBottom: '1px solid #334155' }}><strong>Agent Token</strong></td>
                 <td style={{ padding: '8px 10px', borderBottom: '1px solid #334155' }}>Client credentials grant</td>
                 <td style={{ padding: '8px 10px', borderBottom: '1px solid #334155' }}>actor_token in the RFC 8693 exchange request</td>
-                <td style={{ padding: '8px 10px', borderBottom: '1px solid #334155', color: '#86efac' }}>🔒 Backend-for-Frontend (BFF) only</td>
+                <td style={{ padding: '8px 10px', borderBottom: '1px solid #334155', color: '#86efac' }}>🔐 Backend-for-Frontend (BFF) only</td>
               </tr>
               <tr>
                 <td style={{ padding: '8px 10px' }}><strong>MCP Token</strong></td>
@@ -565,7 +565,7 @@ BFF_CLIENT_ID=<your-bff-oauth-client-id>`}</pre>
               <p><strong>User Token — decoded claims</strong></p>
               <pre className="edu-code"><JsonHighlight value={live.userToken.payload} /></pre>
               <p style={{ marginTop: '12px', padding: '10px', background: '#14532d', borderRadius: '6px', color: '#86efac', fontSize: '0.83rem' }}>
-                🔒 <strong>The MCP Token</strong> is minted on the server when the AI Agent makes a tool call — it is never
+                🔐 <strong>The MCP Token</strong> is minted on the server when the AI Agent makes a tool call — it is never
                 stored in the browser. To see the MCP Token claims, make a banking request via the AI Agent panel
                 and watch the Token Chain display on your dashboard.
               </p>

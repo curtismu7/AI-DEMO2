@@ -33,7 +33,7 @@ function Warn({ children }) {
 function Partial({ children }) {
   return (
     <div style={{ background: '#fefce8', border: '1px solid #fde68a', borderLeft: '3px solid #ca8a04', borderRadius: 6, padding: '10px 14px', margin: '0.75rem 0', fontSize: '0.84rem', color: '#78350f', lineHeight: 1.55 }}>
-      <strong>⚡ Partial Support:</strong> {children}
+      <strong>Partial Support:</strong> {children}
     </div>
   );
 }

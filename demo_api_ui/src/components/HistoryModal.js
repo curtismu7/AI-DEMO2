@@ -207,7 +207,7 @@ export default function HistoryModal({ history, onClear }) {
       </style></head>
       <body>
         <div class="toolbar">
-          <h3>📋 Token History — ${esc(history.length)} entries</h3>
+          <h3>Token History — ${esc(history.length)} entries</h3>
           <button onclick="window.opener&&window.opener.postMessage('token-history-clear','${esc(targetOrigin)}')">✕ Clear</button>
           <button onclick="window.close()">✕ Close</button>
         </div>
@@ -258,7 +258,7 @@ export default function HistoryModal({ history, onClear }) {
           {open ? '▾' : '▸'}
         </button>
         <span style={{ flex: 1, fontSize: '0.78rem', fontWeight: 700, color: '#334155' }}>
-          📋 Token History ({history.length})
+          Token History ({history.length})
         </span>
         <button
           onMouseDown={e => e.stopPropagation()}

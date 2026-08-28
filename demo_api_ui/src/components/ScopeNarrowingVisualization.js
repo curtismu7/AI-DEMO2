@@ -255,7 +255,7 @@ export default function ScopeNarrowingVisualization() {
       {/* Last Mile Vault Section */}
       <div style={vaultContainerStyle}>
         <div style={vaultTitleStyle}>
-          🔒 Last Mile Security — Tool Credential Management
+          🔐 Last Mile Security — Tool Credential Management
           <span style={vaultBadgeStyle}>Concept</span>
         </div>
         <p style={vaultTextStyle}>

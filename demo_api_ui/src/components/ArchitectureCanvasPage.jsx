@@ -487,7 +487,7 @@ export default function ArchitectureCanvasPage() {
             </button>
             <button className="btn-delete" disabled={!selectedEdge} onClick={handleDeleteEdge}>✕ Delete Edge</button>
             <button className={`btn-ping${pinging ? ' pinging' : ''}`} onClick={handlePingAll} disabled={pinging}>
-              {pinging ? '⏳ Pinging…' : '⚡ Ping All'}
+              {pinging ? '⏳ Pinging…' : 'Ping All'}
             </button>
             <button className="btn-export" onClick={() => {
               const slug = selectedFlow ? `-${selectedFlow}` : '-full';

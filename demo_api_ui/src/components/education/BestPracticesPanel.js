@@ -91,7 +91,7 @@ const PRACTICES = [
   },
   {
     id: 'privilege',
-    icon: '🔒',
+    icon: '🔐',
     title: 'Enforce Least Privilege',
     tagline: 'Limit agent access',
     bullets: ['Use short-lived tokens', 'Require human approval'],

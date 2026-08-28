@@ -177,7 +177,7 @@ export default function PostmanCollectionsPage({ user, onLogout }) {
       case 'Demo Runner': return '🚀';
       case 'Developer': return '💻';
       case 'Engineer': return '🔧';
-      case 'Security Engineer': return '🔒';
+      case 'Security Engineer': return '🔐';
       default: return '📋';
     }
   };
@@ -197,7 +197,7 @@ export default function PostmanCollectionsPage({ user, onLogout }) {
 
         {/* Environment Files - Always show first */}
         <section className="postman-section">
-          <h2>📋 Environments</h2>
+          <h2>Environments</h2>
           <div className="postman-grid">
             {ENVIRONMENT_FILES.map((envFile) => (
               <div key={envFile.filename} className="postman-card postman-card--environment">
@@ -330,7 +330,7 @@ export default function PostmanCollectionsPage({ user, onLogout }) {
 
         {/* Resources */}
         <section className="postman-section">
-          <h2>📖 Additional Resources</h2>
+          <h2>Additional Resources</h2>
           <div className="postman-resources">
             <a 
               href="/docs/POSTMAN-GUIDE.md" 

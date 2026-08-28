@@ -2916,7 +2916,7 @@ function FlowHistory({ history, onClear }) {
             color: "#334155",
           }}
         >
-          📋 Token History — {history.length} token
+          Token History — {history.length} token
           {history.length !== 1 ? "s" : ""} captured
         </span>
         <button
