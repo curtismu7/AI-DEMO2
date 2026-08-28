@@ -4,15 +4,12 @@
  * Forwards POST /api/codegraph/reindex → langchain_agent /codegraph/reindex (JSON).
  */
 const http = require('http');
+const { internalSecret } = require('../utils/internalSecret');
 
 const LANGCHAIN_AGENT_URL = process.env.LANGCHAIN_AGENT_HTTP_URL || 'http://127.0.0.1:8888';
 
 // The agent's FastAPI app (port 8888) gates every route on this shared secret,
 // so the BFF must present it — the same value agentRun.js sends on /run.
-function internalSecret() {
-  return process.env.BFF_INTERNAL_SECRET || 'dev-shared-secret-change-me';
-}
-
 /**
  * Forward a POST to the langchain_agent and stream its response back.
  * @param {string} path                 upstream path (e.g. '/codegraph/query')

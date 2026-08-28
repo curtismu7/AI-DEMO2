@@ -22,6 +22,7 @@
 const express = require('express');
 const http = require('http');
 const configStore = require('../services/configStore');
+const { internalSecret } = require('../utils/internalSecret');
 const agentFrameworkOrchestrator = require('../services/agentFrameworkOrchestrator');
 const { resolveAgentMode } = require('../services/agentModeResolver');
 const { verticalManifest } = require('../services/verticalManifest');
@@ -191,10 +192,6 @@ async function resolveAgentTarget({ message, vertical } = {}) {
   const port = FRAMEWORK_PORTS[framework] ?? FRAMEWORK_PORTS.langchain;
   const hostname = FRAMEWORK_HOSTS[framework] ?? FRAMEWORK_HOSTS.langchain;
   return { hostname, port };
-}
-
-function getInternalSecret() {
-  return process.env.BFF_INTERNAL_SECRET || 'dev-shared-secret-change-me';
 }
 
 // When the active vertical ships a plugin, external runtimes must see the
@@ -688,7 +685,7 @@ router.post('/run', nrTransactionMiddleware, async (req, res) => {
     headers: {
       'Content-Type': 'application/json',
       'Content-Length': Buffer.byteLength(bodyStr),
-      'x-internal-gateway-secret': getInternalSecret(),
+      'x-internal-gateway-secret': internalSecret(),
     },
   };
 
