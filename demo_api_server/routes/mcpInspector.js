@@ -6,6 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const configStore = require('../services/configStore');
+const { internalSecret } = require('../utils/internalSecret');
 const { resolveMcpAccessTokenWithEvents } = require('../services/agentMcpTokenService');
 const {
   MCP_TOOL_SCOPES,
@@ -900,7 +901,7 @@ router.post('/rpc', requireSession, express.json(), async (req, res) => {
 router.get('/langchain-host', async (req, res) => {
   const base = (process.env.LANGCHAIN_AGENT_HTTP_URL || 'http://127.0.0.1:8888').replace(/\/$/, '');
   const url = `${base}/inspector/mcp-host`;
-  const secret = process.env.BFF_INTERNAL_SECRET || 'dev-shared-secret-change-me';
+  const secret = internalSecret();
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 3000);
