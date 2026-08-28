@@ -7,12 +7,12 @@ FROM node:22-alpine
 # association for an Actions-access grant to attach to. That is why CI could not
 # push and why the per-package UI grant appeared to do nothing.
 #
-# EXPERIMENT (2026-08-28, llm-proxy only): if this links the package, the classic
-# PAT added in #2540 can be dropped and build-images.yml can go back to
-# GITHUB_TOKEN — short-lived and repo-scoped, rather than a long-lived broad
-# credential in repo secrets. Verify with:
-#   gh api user/packages/container/ai-demo-llm-proxy --jq .repository.full_name
-# Roll out to the other 13 Dockerfiles only once this one is confirmed.
+# CONFIRMED 2026-08-28 (#2545): the first push carrying this label flipped
+# ai-demo-llm-proxy from repository: NONE to curtismu7/AI-DEMO2, which let
+# build-images.yml go back to GITHUB_TOKEN and retire the classic PAT. Any
+# service whose Dockerfile lacks this label will fail its push exactly as before
+# — add the label, do not reach for a PAT. Check with:
+#   gh api user/packages/container/<pkg> --jq .repository.full_name
 LABEL org.opencontainers.image.source=https://github.com/curtismu7/AI-DEMO2
 
 WORKDIR /app
