@@ -23,9 +23,11 @@ permissions:
 jobs:
   build-images:
     name: Build and push service images
-    # Merges only. On a PR there is no merged commit to tag, and CI must not
-    # push images for code that may never land.
-    if: github.event_name == 'push'
+    # Merges, plus an explicit manual run. NOT pull_request: on a PR there is no
+    # merged commit to tag, and CI must not push images for code that may never
+    # land. workflow_dispatch is someone deciding to rebuild on purpose, which is
+    # a different thing from a PR building itself.
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04-arm
     permissions:
       contents: read
@@ -41,11 +43,22 @@ jobs:
       - name: Collect changed paths
         id: changed
         run: |
+          # A manual run means "rebuild everything" — the only reason to click it
+          # is that something OUTSIDE the diff changed: a GHCR package's Actions
+          # access grant, a base image, an expired credential. A path diff cannot
+          # see any of those, so feeding the matcher every tracked file is what
+          # makes the matrix whole. No flag and no matrix change needed: the
+          # matcher already builds a service when any path under its sourceDir
+          # appears, and every sourceDir appears in `git ls-files`.
+          BEFORE="${{ github.event.before }}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "[changed] manual dispatch — building every service" >&2
+            git ls-files > changed.txt
           # github.event.before is all-zeroes for a force-push or a first push.
           # Build nothing rather than everything: a missed build is recoverable
           # by hand, a surprise 14-image build is noise nobody asked for.
-          BEFORE="${{ github.event.before }}"
-          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ] \
+          elif [ -z "$BEFORE" ] \
+             || [ "$BEFORE" = "0000000000000000000000000000000000000000" ] \
              || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
             echo "[changed] unresolvable base '$BEFORE' — building nothing" >&2
             : > changed.txt
