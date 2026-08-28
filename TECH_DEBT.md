@@ -16,6 +16,119 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-08-28 — two parallel module trees in demo_api_server (`X.js` vs `src/X.js`)
+
+`demo_api_server` carries near-duplicate copies of several modules at two
+depths: `middleware/tokenErrorMiddleware.js` and
+`src/middleware/tokenErrorMiddleware.js`, `services/errorMessageBuilder.js` and
+`src/services/errorMessageBuilder.js`, and others. Live `require()`s resolve to
+the NON-`src` copy; the `src/` half was dead. The dead half was removed in
+PR #2521, but nothing stops the pattern recurring.
+
+**Why it wasn't fixed now:** removing the dead copies was already the scope of
+that branch. Collapsing the two trees — deciding which depth is canonical and
+moving the survivors — is a much larger, higher-risk change, and the layout is
+documented in `demo_api_server/CLAUDE.md` as-is.
+
+**The risk:** this is actively dangerous to reason about, not merely untidy.
+Basename matching cannot distinguish the two, so any tool or agent that greps
+`errorMessageBuilder` sees hits for both and cannot tell which is live. The
+parked dead-code sweep this PR replaced was built that way and would have
+deleted three live files, one of them `utils/jwtDecoder.js`, which
+`middleware/auth.js` requires — i.e. it would have broken authentication.
+
+**What the real fix looks like:** pick one canonical depth (`src/` or not),
+move the surviving modules there in one mechanical commit, and add a hygiene
+assertion that no basename exists at both depths.
+
+### [ ] 2026-08-28 — `src/services/tokenValidationService.js` is kept alive only by dead files
+
+PR #2521 removed 27 unreferenced modules but deliberately kept this one. It IS
+a resolved `require()` target — but every file that requires it is itself in
+the dead cluster that was removed around it, so nothing reachable from
+`server.js` or any test uses it.
+
+**Why it wasn't fixed now:** the deletion criterion used was "no resolved
+reference names this file", which is deliberately conservative and
+under-deletes. Establishing "reachable from an entrypoint" instead means
+computing a real reachability closure, which is a different (and more
+error-prone) analysis than the one that branch needed.
+
+**The risk:** low — it is dead weight, not a hazard. The cost is that the next
+dead-code pass will re-derive the same ambiguity from scratch.
+
+**What the real fix looks like:** a reachability walk from the real entrypoints
+(`server.js`, every `tests/**` and `src/__tests__/**` file, `scripts/**`)
+rather than a reference-existence check, then delete whatever the closure does
+not reach. Note the `jest.mock()` caveat below.
+
+### [ ] 2026-08-28 — dead-code analysis must resolve `jest.mock()`, not just `require()`
+
+A module referenced ONLY by a `jest.mock('../../services/x')` string is invisible
+to a `require()`-only scan, and deleting it does not break any import — it
+breaks jest's resolver at mock time. The failure signature is a suite that
+FAILS TO RUN with **0 failed tests**, which does not look like a missing module.
+
+This bit PR #2521 during development: `services/configHostnameService.js` was
+classified dead, and `node -e "require('./server.js')"` loaded the entire module
+graph afterwards with zero `MODULE_NOT_FOUND`. Only the full jest suite caught it.
+
+**Why it wasn't fixed now:** the fix landed ad hoc in that branch's analysis
+(the resolver was extended to `require`, `jest.mock`, `jest.doMock`,
+`jest.unmock`, `jest.requireActual` and dynamic `import()`), but it lives in a
+throwaway script, not in the repo.
+
+**The risk:** the next person doing this re-derives the require-only version,
+gets a clean boot check, and ships a branch that reds the suite — or worse,
+trusts the boot check the way this session initially did.
+
+**What the real fix looks like:** commit the resolver as a script under
+`scripts/` (or adopt `knip`, whose config was drafted in the parked branch) so
+the analysis is reproducible rather than reconstructed each time.
+
+### [ ] 2026-08-28 — `demo_api_server` dependencies never re-verified after the dead-code removal
+
+PR #2521 deleted 27 modules but deliberately left `package.json` untouched. The
+parked sweep it replaced also stripped 8 dependencies and 2,895 lock lines,
+claiming they were orphaned by those deletions. That claim was never checked
+against current `main`.
+
+**Why it wasn't fixed now:** dependency removal has its own blast radius —
+a transitive or lazily-`require()`d dependency looks unused to a static scan —
+and folding it into a deletion commit would have made the diff impossible to
+review as one thing.
+
+**The risk:** carrying dead dependencies costs install time and audit surface.
+Low urgency, but the information is currently stale rather than absent, which
+is worse — someone may trust the parked branch's list.
+
+**What the real fix looks like:** re-derive orphaned deps against current
+`main` (not the parked list), remove them in their own commit, and verify with a
+clean `npm ci` plus the full server suite.
+
+### [ ] 2026-08-28 — SE smoke check 2/7 races a terminating replica and fails a healthy deploy
+
+`se-update-code.sh`'s post-deploy smoke check "no pod predates deploy start"
+reported `[FAIL] pods running PRE-deploy images: frontend` on a deploy that was
+in fact correct, and the script exited 1 with the live demo healthy.
+
+Verified by hand afterwards: the running pod's imageID was
+`sha256:350e590d…`, byte-identical to GHCR's current `:latest`, it started
+after the deploy, and the served bundle contained the newly-shipped markers.
+The rollout log shows `1 old replicas are pending termination` twice — the
+check sampled the old replica mid-termination.
+
+**Why it wasn't fixed now:** the deploy this was found on had to be verified
+and reported first, and the check is in a script that runs against a live SE
+cluster — changing it deserves its own branch and its own verification.
+
+**The risk:** the check cries wolf on a good deploy. Worse than a missing check,
+because the documented remediation (`kubectl rollout restart`) is a no-op that
+appears to fix it, training the reader to ignore the check.
+
+**What the real fix looks like:** filter pods to `status.phase == Running` with
+no `deletionTimestamp` before comparing start times, or compare the deployment's
+`observedGeneration`/`updatedReplicas` instead of per-pod timestamps.
 ### [ ] 2026-08-28 — gateway tools/list is only governed on the WebSocket transport
 
 The audit-agent work shipped a door that advertises `audit:read`, a scope wired
