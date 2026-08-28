@@ -441,13 +441,13 @@ function Inspector({ step, topologyNodes, onClose }) {
       {/* Mini Interaction Map */}
       <div className="ttp-insp-interaction-map" style={{ padding: '12px 14px', background: 'rgba(0,0,0,0.2)', borderBottom: '1px solid #30363d', fontSize: '11px', textAlign: 'center', marginBottom: '8px' }}>
         {prevNode && (
-          <><span style={{ color: '#8b949e' }}>[{prevNode.icon}] {prevNode.name}</span> <span style={{ fontWeight: 'bold', margin: '0 4px' }}>➔</span> </>
+          <><span style={{ color: '#8b949e' }}>[{prevNode.icon}] {prevNode.name}</span> <span style={{ fontWeight: 'bold', margin: '0 4px' }}>→</span> </>
         )}
         <span style={{ color: '#a78bfa', border: '1px solid #a78bfa', borderRadius: '4px', padding: '2px 6px', fontWeight: 'bold' }}>
           [{activeNode?.icon}] {activeNode?.name || 'Current'}
         </span>
         {nextNode && (
-          <> <span style={{ fontWeight: 'bold', margin: '0 4px' }}>➔</span> <span style={{ color: '#8b949e' }}>[{nextNode.icon}] {nextNode.name}</span></>
+          <> <span style={{ fontWeight: 'bold', margin: '0 4px' }}>→</span> <span style={{ color: '#8b949e' }}>[{nextNode.icon}] {nextNode.name}</span></>
         )}
       </div>
 

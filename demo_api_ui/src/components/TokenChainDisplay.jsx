@@ -447,7 +447,7 @@ function AudienceEduBox({ event }) {
     return (
       <div className="tcd-edu-box tcd-edu-box--neutral">
         <div className="tcd-edu-box-hd">
-          <span className="tcd-edu-icon">🎯</span>
+          <span className="tcd-edu-icon">🔑</span>
           <strong>
             aud — audience (which resource server accepts this token)
           </strong>
@@ -488,7 +488,7 @@ function AudienceEduBox({ event }) {
         className={`tcd-edu-box ${failed ? "tcd-edu-box--error" : "tcd-edu-box--neutral"}`}
       >
         <div className="tcd-edu-box-hd">
-          <span className="tcd-edu-icon">{failed ? "❌" : "🎯"}</span>
+          <span className="tcd-edu-icon">{failed ? "❌" : "✅"}</span>
           <strong>audience= parameter — RFC 8707 Resource Indicator</strong>
           <RfcRef rfc="RFC 8707" />
         </div>
@@ -859,7 +859,7 @@ function KillSwitchEduBox({ event }) {
   return (
     <div className="tcd-edu-box tcd-edu-box--error">
       <div className="tcd-edu-box-hd">
-        <span className="tcd-edu-icon">🛑</span>
+        <span className="tcd-edu-icon">❌</span>
         <strong>RFC 7009 Token Revocation — Emergency Stop Activated</strong>
         <RfcRef rfc="RFC 7009" />
       </div>
@@ -997,7 +997,7 @@ function JwksVerifyEduBox({ event }) {
     cls = "tcd-edu-box--ok";
     headline = "Signature Verified via JWKS";
   } else if (verified && fallback === "introspection") {
-    icon = "🔄";
+    icon = "✅";
     cls = "tcd-edu-box--neutral";
     headline =
       "Liveness Confirmed via RFC 7662 Introspection (JWKS unavailable)";
@@ -1120,7 +1120,7 @@ function ExchangeCheckList({ event }) {
       className={`tcd-edu-box ${failed ? "tcd-edu-box--error" : "tcd-edu-box--neutral"}`}
     >
       <div className="tcd-edu-box-hd">
-        <span className="tcd-edu-icon">{failed ? "❌" : "🔍"}</span>
+        <span className="tcd-edu-icon">{failed ? "❌" : "✅"}</span>
         <strong>
           {failed
             ? "Exchange failed — PingOne validation"
@@ -1299,7 +1299,7 @@ function GwIntrospectionEduBox({ event }) {
   return (
     <div className={`tcd-edu-box ${pending || skipped ? "tcd-edu-box--neutral" : active ? "tcd-edu-box--ok" : "tcd-edu-box--error"}`}>
       <div className="tcd-edu-box-hd">
-        <span className="tcd-edu-icon">{pending ? "⏳" : active ? "✅" : skipped ? "⚠️" : "❌"}</span>
+        <span className="tcd-edu-icon">{pending ? "…" : active ? "✅" : skipped ? "⚠️" : "❌"}</span>
         <strong>PingOne — RFC 7662 Token Introspection</strong>
         <RfcRef rfc="RFC 7662" />
       </div>
@@ -1358,7 +1358,7 @@ function McpToolBox({ event }) {
   return (
     <div className={`tcd-edu-box ${isInvoked ? 'tcd-edu-box--neutral' : (succeeded ? 'tcd-edu-box--ok' : 'tcd-edu-box--error')}`}>
       <div className="tcd-edu-box-hd">
-        <span className="tcd-edu-icon">{isInvoked ? '⚡' : (succeeded ? '✅' : '❌')}</span>
+        <span className="tcd-edu-icon">{isInvoked ? '→' : (succeeded ? '✅' : '❌')}</span>
         <strong>{isInvoked ? 'Tool Dispatched to MCP Server' : (succeeded ? 'Tool Succeeded' : 'Tool Failed')}</strong>
       </div>
       <div className="tcd-edu-body">
@@ -1396,7 +1396,7 @@ function GatewayRouteBox({ event }) {
   return (
     <div className="tcd-edu-box tcd-edu-box--neutral">
       <div className="tcd-edu-box-hd">
-        <span className="tcd-edu-icon">🔀</span>
+        <span className="tcd-edu-icon">→</span>
         <strong>Ping Agent Gateway Route</strong>
       </div>
       <div className="tcd-edu-body">
@@ -2317,7 +2317,7 @@ function EventDetail({ event, chainEvents }) {
       {event.jwtFullDecode && (
         <details className="tcd-collapsible">
           <summary className="tcd-collapsible-header">
-            🔓 Full Decoded Token (JSON)
+            🔐 Full Decoded Token (JSON)
           </summary>
           <div className="tcd-collapsible-body">
             <pre className="tcd-jwt-dump jh-dark">
@@ -2610,7 +2610,7 @@ function openInNewWindow(event) {
     ${
       fullJwtJson
         ? `<div class="full-jwt">
-      <div class="section-title">🔓 Full Decoded Token (JSON)</div>
+      <div class="section-title">🔐 Full Decoded Token (JSON)</div>
       <pre class="pre">${fullJwtJson}</pre>
     </div>`
         : ""

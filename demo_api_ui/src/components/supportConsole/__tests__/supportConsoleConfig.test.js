@@ -2,7 +2,7 @@
 import { CONFIGS, VERTICAL_ORDER, getVerticalConfig, resolveConsoleVertical } from '../supportConsoleConfig';
 
 // REGRESSION_PLAN §0 — the only emoji permitted anywhere in the UI.
-const ALLOWED = ['⚠️', '✅', '❌', '🔐', '✕', '✓', '👤', '🔑', '🪟', '📚'];
+const ALLOWED = ['⚠️', '✅', '❌', '🔐', '✕', '✓', '👤', '🔑', '🪟', '📚', '🔧'];
 
 function hasDisallowedEmoji(value) {
   let s = String(value);

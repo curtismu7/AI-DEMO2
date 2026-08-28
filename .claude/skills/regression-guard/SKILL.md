@@ -51,8 +51,11 @@ If your change is nowhere near these, you don't need this skill — proceed norm
    unrelated regressions sneak in.
 4. **Follow the hard UI rules** (`§0`) for any UI/text change:
    - Emoji allowlist — the ONLY emojis permitted in skills, commands, code, and
-     UI text are `⚠️` `✅` `❌` `🔐` `✕` (close) `✓` (check). Everything else is
-     plain text or CSS / semantic icons.
+     UI text are `⚠️` `✅` `❌` `🔐` `✕` (close) `✓` (check) `👤` (HITL consent)
+     `🔑` (step-up / MFA) `🪟` (pop out to new window) `📚` (knowledge
+     grounding) `🔧` (MCP tool marker). Everything else is plain text or CSS /
+     semantic icons. `REGRESSION_PLAN.md` §0 is the source of truth — this list
+     had drifted to six and must be kept equal to it.
    - No muted modal text — modals use solid high-contrast colors, never
      low-contrast gray hint text.
 5. **Run the UI build gate** — after any `demo_api_ui/` change, the work is not
