@@ -4,7 +4,7 @@
   "ucId": "UC2.6",
   "trigger": "simulate an agent identity mismatch",
   "expectedOutcome": "PERMIT_THEN_DENY",
-  "capturedAt": "2026-08-28T15:10:11.768Z",
+  "capturedAt": "2026-08-28T17:33:56.405Z",
   "seedHash": "9d3354388fed65d8",
   "reply": "❌ Delegated to Tax Records Specialist, but sensitive_tax_record failed: gateway_policy_denied.",
   "agentPath": null,

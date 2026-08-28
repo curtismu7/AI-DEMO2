@@ -1,11 +1,11 @@
 {
-  "vertical": "government",
+  "vertical": "airlines",
   "useCaseId": "step-up-required",
   "ucId": "UC7",
-  "trigger": "pay the $600 fee",
+  "trigger": "pay a $600 change fee",
   "expectedOutcome": "STEP_UP",
-  "capturedAt": "2026-08-28T17:35:54.926Z",
-  "seedHash": "9d3354388fed65d8",
+  "capturedAt": "2026-08-28T17:50:30.846Z",
+  "seedHash": null,
   "reply": "PingOne Authorize requires additional authentication before this tool can run.",
   "agentPath": null,
   "tokenEventCount": 21

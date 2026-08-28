@@ -61,7 +61,7 @@ BFF's reasoning client sends the decrypted plaintext. They cannot match:
     status=403 body={"error":"forbidden"}
 
 Every LLM-analysis chip (UC34 `ai-spot-unusual-patterns`, UC35
-`ai-explain-last-denial`) fails in all 9 verticals as a result, and it presents
+`ai-explain-last-denial`) fails in all 11 verticals as a result, and it presents
 to the user as "The llamacpp LLM could not complete this request" — sending
 people to the model, the proxy and the resident tiers, none of which are
 involved. It also blocks golden capture for 3 use cases (see PR #2563).

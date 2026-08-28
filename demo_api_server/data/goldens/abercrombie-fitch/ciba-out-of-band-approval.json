@@ -1,11 +1,11 @@
 {
-  "vertical": "sporting-goods",
+  "vertical": "abercrombie-fitch",
   "useCaseId": "ciba-out-of-band-approval",
   "ucId": "UC22",
-  "trigger": "extend my rental $150",
+  "trigger": "checkout A&F outerwear for $150",
   "expectedOutcome": "PERMIT",
-  "capturedAt": "2026-08-28T17:39:59.280Z",
-  "seedHash": "bbfe417d11c6b000",
+  "capturedAt": "2026-08-28T17:42:52.761Z",
+  "seedHash": "005fc03655ff4340",
   "reply": "PingOne Authorize requires additional authentication before this tool can run.",
   "agentPath": null,
   "tokenEventCount": 21

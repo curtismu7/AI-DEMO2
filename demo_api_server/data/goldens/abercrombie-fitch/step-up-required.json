@@ -1,11 +1,11 @@
 {
-  "vertical": "government",
+  "vertical": "abercrombie-fitch",
   "useCaseId": "step-up-required",
   "ucId": "UC7",
-  "trigger": "pay the $600 fee",
+  "trigger": "checkout A&F outerwear for $600",
   "expectedOutcome": "STEP_UP",
-  "capturedAt": "2026-08-28T17:35:54.926Z",
-  "seedHash": "9d3354388fed65d8",
+  "capturedAt": "2026-08-28T17:42:50.198Z",
+  "seedHash": "005fc03655ff4340",
   "reply": "PingOne Authorize requires additional authentication before this tool can run.",
   "agentPath": null,
   "tokenEventCount": 21

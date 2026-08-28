@@ -1,11 +1,11 @@
 {
-  "vertical": "sporting-goods",
+  "vertical": "airlines",
   "useCaseId": "ciba-out-of-band-approval",
   "ucId": "UC22",
-  "trigger": "extend my rental $150",
+  "trigger": "pay a $150 change fee",
   "expectedOutcome": "PERMIT",
-  "capturedAt": "2026-08-28T17:39:59.280Z",
-  "seedHash": "bbfe417d11c6b000",
+  "capturedAt": "2026-08-28T17:50:34.744Z",
+  "seedHash": null,
   "reply": "PingOne Authorize requires additional authentication before this tool can run.",
   "agentPath": null,
   "tokenEventCount": 21

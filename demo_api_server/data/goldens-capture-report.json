@@ -1,54 +1,46 @@
 {
-  "capturedAt": "2026-08-28T15:12:08.228Z",
-  "captured": 10,
-  "skipped": 5,
+  "capturedAt": "2026-08-28T17:50:39.944Z",
+  "captured": 11,
+  "skipped": 4,
   "byReason": {
     "unhealthy_result": {
-      "count": 5,
+      "count": 4,
       "pairs": [
-        "sporting-goods/a2a-delegation",
-        "sporting-goods/code-search",
-        "sporting-goods/mortgage-delegated-access",
-        "sporting-goods/unauthorized-commitment-fee-waiver",
-        "sporting-goods/weather-mcp-texas-permit"
+        "airlines/a2a-delegation",
+        "airlines/ai-spot-unusual-patterns",
+        "airlines/code-search",
+        "airlines/weather-mcp-texas-permit"
       ]
     }
   },
   "skips": [
     {
-      "vertical": "sporting-goods",
+      "vertical": "airlines",
       "useCaseId": "a2a-delegation",
       "ucId": "UC2",
       "reason": "unhealthy_result",
-      "detail": "HTTP 200: ❌ Delegated to Membership Specialist, but sensitive_membership_details failed: gateway_policy_denied."
+      "detail": "HTTP 200: ❌ Delegated to Passenger Records Specialist, but sensitive_passenger_record failed: gateway_policy_denied."
     },
     {
-      "vertical": "sporting-goods",
-      "useCaseId": "mortgage-delegated-access",
-      "ucId": "UC33",
+      "vertical": "airlines",
+      "useCaseId": "ai-spot-unusual-patterns",
+      "ucId": "UC34",
       "reason": "unhealthy_result",
-      "detail": "HTTP 200: ❌ access_denied"
+      "detail": "HTTP 200: ❌ The Passenger Records Specialist can only run: sensitive_passenger_record. It is not authorized for \"sensitive_airline_bookings\"."
     },
     {
-      "vertical": "sporting-goods",
+      "vertical": "airlines",
       "useCaseId": "weather-mcp-texas-permit",
       "ucId": "UC30",
       "reason": "unhealthy_result",
       "detail": "HTTP 200: ❌ intent_mismatch: tool \"get_weather\" not permitted for intent \"unknown\""
     },
     {
-      "vertical": "sporting-goods",
+      "vertical": "airlines",
       "useCaseId": "code-search",
       "ucId": "UC-TOOL1",
       "reason": "unhealthy_result",
       "detail": "HTTP 200: ❌ Insufficient scope for tool 'code_search'"
-    },
-    {
-      "vertical": "sporting-goods",
-      "useCaseId": "unauthorized-commitment-fee-waiver",
-      "ucId": "UC28",
-      "reason": "unhealthy_result",
-      "detail": "HTTP 200: ❌ access_denied"
     }
   ]
 }

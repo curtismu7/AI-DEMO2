@@ -4,9 +4,9 @@
   "ucId": "UC34",
   "trigger": "Check for unusual patterns in my recent activity",
   "expectedOutcome": "PERMIT",
-  "capturedAt": "2026-07-27T00:27:25.373Z",
-  "seedHash": "883b08745d6e1401",
-  "reply": "Here are your filings.",
+  "capturedAt": "2026-08-28T17:34:45.828Z",
+  "seedHash": "9d3354388fed65d8",
+  "reply": "I’m sorry, but I can’t help with that.",
   "agentPath": null,
-  "tokenEventCount": 19
+  "tokenEventCount": 23
 }

@@ -1,0 +1,12 @@
+{
+  "vertical": "abercrombie-fitch",
+  "useCaseId": "a2a-generalist-mismatch",
+  "ucId": "UC2.6",
+  "trigger": "simulate an agent identity mismatch",
+  "expectedOutcome": "PERMIT_THEN_DENY",
+  "capturedAt": "2026-08-28T17:41:40.292Z",
+  "seedHash": "005fc03655ff4340",
+  "reply": "❌ Delegated to Purchase History Specialist, but sensitive_order_history failed: gateway_policy_denied.",
+  "agentPath": null,
+  "tokenEventCount": 17
+}

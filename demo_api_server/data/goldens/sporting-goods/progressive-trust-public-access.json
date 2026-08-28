@@ -4,7 +4,7 @@
   "ucId": "UC24",
   "trigger": "What stores are near me?",
   "expectedOutcome": "PERMIT",
-  "capturedAt": "2026-08-28T15:12:05.117Z",
+  "capturedAt": "2026-08-28T17:39:59.399Z",
   "seedHash": "bbfe417d11c6b000",
   "reply": "Super Sports store locations — found 4:",
   "agentPath": null,

@@ -1,0 +1,12 @@
+{
+  "vertical": "airlines",
+  "useCaseId": "delegated-access-with-proof",
+  "ucId": "UC1",
+  "trigger": "show my reservations",
+  "expectedOutcome": "PERMIT",
+  "capturedAt": "2026-08-28T17:49:11.829Z",
+  "seedHash": null,
+  "reply": "Here are your airline bookings.",
+  "agentPath": null,
+  "tokenEventCount": 24
+}

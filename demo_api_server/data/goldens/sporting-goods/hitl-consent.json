@@ -4,7 +4,7 @@
   "ucId": "UC8",
   "trigger": "extend my rental $300",
   "expectedOutcome": "HITL_REQUIRED",
-  "capturedAt": "2026-08-28T15:12:04.021Z",
+  "capturedAt": "2026-08-28T17:39:58.279Z",
   "seedHash": "bbfe417d11c6b000",
   "reply": "Transaction requires human approval (HITL consent)",
   "requiresConsent": true,

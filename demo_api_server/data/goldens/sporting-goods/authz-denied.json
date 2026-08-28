@@ -4,7 +4,7 @@
   "ucId": "UC6",
   "trigger": "extend my rental $2500",
   "expectedOutcome": "DENY",
-  "capturedAt": "2026-08-28T15:12:01.894Z",
+  "capturedAt": "2026-08-28T17:39:54.884Z",
   "seedHash": "bbfe417d11c6b000",
   "reply": "❌ 2500 exceeds tier ceiling 2000",
   "agentPath": null,

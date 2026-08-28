@@ -1,0 +1,12 @@
+{
+  "vertical": "government",
+  "useCaseId": "mortgage-delegated-access",
+  "ucId": "UC33",
+  "trigger": "show my permit status",
+  "expectedOutcome": "PERMIT",
+  "capturedAt": "2026-08-28T17:34:26.588Z",
+  "seedHash": "9d3354388fed65d8",
+  "reply": "Here are your current permits and their status:\n\n| Permit ID | Type | Subject | Jurisdiction | Issued | Expires | Status | Inspector |\n|-----------|------|---------|--------------|--------|---------|--------|-----------|\n| **P‑1001** | Building | 1234 Maple Street, Springfield, IL | City of Springfield | 2026‑02‑10 | 2026‑12‑01 | **Active** | M. Alvarez (Code Enforcement) |\n| **P‑1002** | Business | Maple Cafe LLC | City of Springfield | 2025‑09‑15 | 2026‑09‑15 | **Active** | — |\n| **P‑1003** | Professional | General Contractor License | State of Illinois | 2024‑07‑01 | 2026‑07‑01 | **Renewal Due** | — |\n| **P‑1004** | Building | 88 Oak Avenue – deck addition | City of Springfield | 2025‑05‑20 | 2025‑11‑20 | **Released** | T. Nguyen (Code Enforcement) |\n\nLet me know if you’d like to view details for a specific permit, check fees, or take any action on one of them.",
+  "agentPath": null,
+  "tokenEventCount": 25
+}
