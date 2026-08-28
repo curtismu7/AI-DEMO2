@@ -3472,6 +3472,14 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
       <>
         <div className="customer-skin-p1 user-dashboard user-dashboard--clinical-split agent-clinical-host">
           <AgentClinicalHost />
+          {/* Movie reel — same ReelDock the float layout uses, so the sticky
+              bottom-pin and the collapse toggle come for free. This branch is an
+              EARLY RETURN, so it never reaches the two reel renders further down;
+              until now the clinical layout was the one customer surface with no
+              reel at all. .agent-clinical-host is display:block over a 100vh
+              shell, the same shape as float mode, so .tcfs-float-host's
+              position:sticky/bottom:0 pins it without any clinical-specific CSS. */}
+          {showFilmstrip && <ReelDock />}
         </div>
         {renderGlobalModals()}
       </>

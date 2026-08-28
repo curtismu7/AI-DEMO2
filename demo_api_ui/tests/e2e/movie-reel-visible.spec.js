@@ -47,7 +47,7 @@ const PLACEMENTS = ['middle', 'none'];
  * has no reel by design). Registered after it, so this handler wins — Playwright
  * matches routes newest-first — without editing a helper five other specs use.
  */
-async function mockDashboardWithReel(page, placement) {
+async function mockDashboardWithReel(page, placement, { clinicalSplit = false } = {}) {
   await mockCustomerDashboard(page);
   await page.route('**/api/admin/feature-flags**', (route) =>
     route.fulfill({
@@ -56,7 +56,7 @@ async function mockDashboardWithReel(page, placement) {
       body: JSON.stringify({
         flags: [
           { id: 'ff_show_agent_in_middle', value: true },
-          { id: 'ff_agent_clinical_split', value: false },
+          { id: 'ff_agent_clinical_split', value: clinicalSplit },
           { id: 'ff_customer_skin_ping2026', value: true },
         ],
       }),
@@ -85,6 +85,23 @@ for (const placement of PLACEMENTS) {
     await expect(reel).toBeInViewport();
   });
 }
+
+test('movie reel is on screen in the clinical-split layout', async ({ page }) => {
+  // Clinical split is an EARLY RETURN in UserDashboardPing2026 — it never reaches
+  // the two reel renders further down, so it was the one customer surface with no
+  // reel at all. Its own case here because no placement value routes into it:
+  // the flag does, and the placement loop above pins the flag OFF.
+  await mockDashboardWithReel(page, null, { clinicalSplit: true });
+  await page.goto('/dashboard');
+
+  // Prove we are actually in the clinical layout — otherwise a flag-plumbing
+  // regression would silently retest the float layout and pass.
+  await expect(page.locator('.user-dashboard--clinical-split')).toBeVisible({ timeout: 15000 });
+
+  const reel = page.locator('.tcfs-chain');
+  await expect(reel).toBeVisible({ timeout: 15000 });
+  await expect(reel).toBeInViewport();
+});
 
 test('the reel is on screen without scrolling on a short laptop window', async ({ page }) => {
   // 1440x700 — a 1440x900 laptop minus browser chrome and the menu bar. Focus

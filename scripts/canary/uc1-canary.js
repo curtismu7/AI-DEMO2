@@ -134,12 +134,17 @@ function fail(msg) {
     // check costs nothing.
     //
     // The skin half of this gate is gone with the classic dashboard: there is
-    // one customer dashboard now, so /dashboard always has a reel unless the
-    // clinical-split layout is on, which replaces it with an audit timeline by
-    // design. (The gate used to also test `.customer-skin-p1` to tell the
-    // Ping2026 dashboard from the frozen classic one — and before that, wrongly,
-    // `.user-dashboard--2026`, which BOTH dashboards carried, so it skipped
-    // nothing and the canary failed every run.)
+    // one customer dashboard now. (The gate used to also test `.customer-skin-p1`
+    // to tell the Ping2026 dashboard from the frozen classic one — and before
+    // that, wrongly, `.user-dashboard--2026`, which BOTH dashboards carried, so
+    // it skipped nothing and the canary failed every run.)
+    //
+    // The clinical-split skip below is now a DEPLOY-LAG allowance, not a design
+    // statement: clinical split renders a ReelDock too as of this change. It is
+    // kept because this canary runs against ai-demo.ping-devops.com, whose
+    // frontend is deployed by hand — tightening it to expect a reel in every
+    // layout would go red until SE is updated, which is noise, not signal.
+    // Tighten it (drop the skip, expect unconditionally) once SE carries this.
     const reel = await page.evaluate(() => {
       const clinical = !!document.querySelector('.user-dashboard--clinical-split');
       const expected = !clinical;
@@ -156,7 +161,7 @@ function fail(msg) {
       };
     });
     if (!reel.expected) {
-      console.log('canary: clinical-split layout — no reel by design, reel check skipped');
+      console.log('canary: clinical-split layout — reel check skipped pending the SE frontend deploy');
     } else if (!reel.present) {
       await shoot('canary-reel-missing.png');
       fail('movie reel (.tcfs-chain) is not in the DOM on /dashboard');

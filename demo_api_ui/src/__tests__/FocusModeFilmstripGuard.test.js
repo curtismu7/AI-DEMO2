@@ -103,10 +103,25 @@ describe("Focus Mode filmstrip guard", () => {
     const direct = p2026.match(/<TokenChainFilmstrip\s*\/>/g) || [];
     const docks = p2026.match(/<ReelDock\s*\/>/g) || [];
     expect(direct).toHaveLength(1);
-    expect(docks).toHaveLength(1);
+    // Two ReelDocks now: float, and the clinical-split branch.
+    expect(docks).toHaveLength(2);
     expect(p2026).toMatch(/\{showFilmstrip && <TokenChainFilmstrip\s*\/>\}/);
     const dockGuards = p2026.match(/\{showFilmstrip && <ReelDock\s*\/>\}/g) || [];
-    expect(dockGuards).toHaveLength(1);
+    expect(dockGuards).toHaveLength(2);
+  });
+
+  // Clinical split is an early return, so it is invisible to every guard that
+  // reasons about the main return's branches — which is exactly how it ended up
+  // as the one customer layout with no reel. Pin the render inside that branch
+  // by position, not by count: a fifth disappearance would otherwise just be a
+  // number changing in the test above.
+  test("the clinical-split branch renders the reel", () => {
+    const branch = p2026.indexOf("if (clinicalSplitEnabled) {");
+    expect(branch).toBeGreaterThan(-1);
+    const endOfBranch = p2026.indexOf("if (loading) {", branch);
+    expect(endOfBranch).toBeGreaterThan(branch);
+    const clinicalJsx = p2026.slice(branch, endOfBranch);
+    expect(clinicalJsx).toMatch(/\{showFilmstrip && <ReelDock\s*\/>\}/);
   });
 
   // The bottom-dock guard that sat here went with the dock layout itself. What
