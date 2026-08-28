@@ -382,23 +382,15 @@ body > .banking-agent-float-root .banking-agent-panel {
   line-height: 1.25;
   border-radius: var(--btn-radius);
   cursor: pointer;
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red-mid) 0%,
-    var(--app-primary-red) 100%
-  );
+  background: var(--signin-accent);
   color: #fff;
   border: 1px solid var(--app-primary-red-border);
   box-shadow: 0 1px 3px rgba(127, 29, 29, 0.28);
   transition: var(--btn-transition);
 }
 .ba-left-auth-btn:hover:not(:disabled) {
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red) 0%,
-    var(--app-primary-red-hover) 100%
-  );
-  border-color: var(--app-primary-red-hover);
+  background: var(--signin-accent-hover);
+  border-color: var(--signin-accent-hover);
   color: #fff;
 }
 .ba-left-auth-btn:disabled {
@@ -473,12 +465,8 @@ body > .banking-agent-float-root .banking-agent-panel {
   color: #1d4ed8;
 }
 .ba-left-auth-btn.primary:hover {
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red) 0%,
-    var(--app-primary-red-hover) 100%
-  );
-  border-color: var(--app-primary-red-hover);
+  background: var(--signin-accent-hover);
+  border-color: var(--signin-accent-hover);
   color: #fff;
 }
 
@@ -690,12 +678,8 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .banking-agent-panel:not(.ba-mode-inline) .ba-left-auth-btn {
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red-mid) 0%,
-    var(--app-primary-red) 100%
-  );
-  border-color: var(--app-primary-red-border);
+  background: var(--signin-accent);
+  border-color: var(--signin-accent);
   color: #fff;
 }
 .banking-agent-panel:not(.ba-mode-inline)
@@ -805,8 +789,8 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .banking-agent-panel:not(.ba-mode-inline).ba-mode-light .ba-left-auth-notice {
-  background: rgba(65, 105, 225, 0.1);
-  border-color: #93b4ff;
+  background: var(--signin-accent-bg);
+  border-color: var(--signin-accent-border);
 }
 
 /* Light mode: floating suggestions + actions use a solid light-blue pill */

@@ -227,6 +227,17 @@ tt {
   --th-text-invert: #ffffff;
   --th-border: #dbe2ea;
   --th-border-strong: #c3cdd9;
+  --th-bg-hover: #eef2f7;
+  --th-code-bg: #f1f5f9;
+  --th-code-text: #0f172a;
+
+  /* Sign-in surfaces (card, strip, interrupt) share ONE accent. Deliberately
+     identical in both themes: the whole point is that every "sign in" affordance
+     reads the same wherever it appears. Only the tint below changes. */
+  --signin-accent: #2563eb;
+  --signin-accent-hover: #1d4ed8;
+  --signin-accent-bg: #eff6ff;
+  --signin-accent-border: #bfdbfe;
 }
 :root[data-theme="dark"] {
   --th-bg-page: #0b1220;
@@ -238,6 +249,15 @@ tt {
   --th-text-invert: #ffffff;
   --th-border: #26304a;
   --th-border-strong: #34405e;
+  --th-bg-hover: #1b2540;
+  --th-code-bg: #0b1220;
+  --th-code-text: #e2e8f0;
+
+  /* Same accent, darker tint. */
+  --signin-accent: #2563eb;
+  --signin-accent-hover: #1d4ed8;
+  --signin-accent-bg: #16233c;
+  --signin-accent-border: #2f4a7a;
 }
 
 html {
