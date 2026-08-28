@@ -4,9 +4,9 @@
   "ucId": "UC6",
   "trigger": "transfer $2500 from checking to savings",
   "expectedOutcome": "DENY",
-  "capturedAt": "2026-08-28T18:01:15.532Z",
+  "capturedAt": "2026-07-27T00:26:39.647Z",
   "seedHash": null,
-  "reply": "Transfer failed: local-fallback: insufficient_scope: missing transfer",
+  "reply": "Transfer failed: PingOne Authorize denied MCP tool access for this session.",
   "agentPath": null,
   "tokenEventCount": 13
 }
