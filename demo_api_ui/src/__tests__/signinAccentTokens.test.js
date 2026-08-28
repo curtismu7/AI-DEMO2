@@ -31,7 +31,8 @@ const defined = new Set(
 );
 
 /** Selectors that style a sign-in surface. */
-const SIGNIN = /^\.(signin-prompt|signin-strip|signin-modal|ba-left-auth)/;
+const SIGNIN =
+  /^\.(signin-prompt|signin-strip|signin-modal|ba-left-auth|session-reauth-banner)/;
 
 describe('sign-in surfaces use one defined accent', () => {
   it('references no custom property that is never defined', () => {
@@ -66,12 +67,27 @@ describe('sign-in surfaces use one defined accent', () => {
     expect(values[0]).toBe(values[1]);
   });
 
-  it('gives the sign-in button an explicit font-family', () => {
+  it('gives every sign-in button an explicit font-family', () => {
     const app = fs.readFileSync(path.join(SRC, 'App.css'), 'utf8');
-    const rule = app.match(/\.signin-prompt__btn\s*\{([^}]*)\}/);
 
     // Buttons do not inherit font-family from body; without this the only
-    // control on the page renders in the browser's UI font.
-    expect(rule?.[1]).toMatch(/font-family:/);
+    // control on the surface renders in the browser's UI font.
+    for (const sel of ['.signin-prompt__btn', '.session-reauth-banner__btn']) {
+      const rule = app.match(
+        new RegExp(`\\${sel}\\s*\\{([^}]*)\\}`),
+      );
+      expect(rule?.[1], `${sel} must set font-family`).toMatch(/font-family:/);
+    }
+  });
+
+  it('leaves no amber left over from the old HITL palette', () => {
+    const app = fs.readFileSync(path.join(SRC, 'App.css'), 'utf8');
+    const banner = app.match(
+      /\.session-reauth-banner[\s\S]*?(?=\n\/\* ═|\n\.otp-step-up)/,
+    )?.[0];
+
+    // #b45309 / #92400e / #f59e0b / #fef3c7 / #78350f were the amber set the
+    // session-expiry modal used to borrow from this banner.
+    expect(banner).not.toMatch(/#(b45309|92400e|f59e0b|fef3c7|fde68a|78350f)/i);
   });
 });
