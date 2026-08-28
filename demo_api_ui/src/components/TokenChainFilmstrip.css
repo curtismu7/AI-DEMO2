@@ -11,8 +11,19 @@
 
 /* Focus Mode layout — the agreed mock: agent left, spotlight right, chain full
    width beneath both. Scoped to .ud-focus-mode so the 'bottom' and 'none'
-   branches, and the frozen classic dashboard, are untouched. */
-.dashboard-content.ud-body.ud-focus-mode {
+   branches, and the frozen classic dashboard, are untouched.
+
+   The `.user-dashboard--2026` ancestor and `:not(.ud-middle-collapsed)` are
+   specificity, not scope. At 0,3,0 this rule LOST to the 2026-skin split3 rules
+   in UserDashboard.css — `auto minmax(0,1fr) auto` (3-col) and `auto auto`
+   (--no-banking) — which are equal or higher and later in source. Measured on a
+   1658px grid: `1088.77px 569.234px 0px` instead of the 921/737 declared here.
+   `auto` sizes the agent track from its CONTENT, so a wide hero image or chip
+   row grew it and squeezed the spotlight until the chain header was unreadable.
+   Collapsed is excluded because that state deliberately hands the second track
+   to the float-reserve card. */
+.user-dashboard--2026
+  .dashboard-content.ud-body.ud-focus-mode:not(.ud-middle-collapsed) {
   display: grid;
   /* The agent takes the wider half: the spotlight is static intro copy until a
      step is picked, while the transcript is the thing being read the whole demo. */
@@ -281,7 +292,9 @@ body:has(.dashboard-content.ud-body.ud-focus-mode) .footer {
 
 /* Narrow: fall back to one column so the spotlight never becomes a slot. */
 @media (max-width: 1100px) {
-  .dashboard-content.ud-body.ud-focus-mode {
+  /* Same specificity bump as the base rule, or that rule would beat this one. */
+  .user-dashboard--2026
+    .dashboard-content.ud-body.ud-focus-mode:not(.ud-middle-collapsed) {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas: "agent" "spotlight" "chain";
   }
