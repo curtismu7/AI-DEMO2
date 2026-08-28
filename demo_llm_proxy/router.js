@@ -1,9 +1,5 @@
 #!/usr/bin/env node
 
-// Touched 2026-08-28 to exercise the CI build-and-push path end to end: a
-// change inside demo_llm_proxy/ must select exactly one service (llm) and push
-// ghcr.io/<owner>/ai-demo-llm-proxy:sha-<commit> without moving :latest.
-
 const http = require('http');
 const httpProxy = require('http-proxy');
 const crypto = require('crypto');
