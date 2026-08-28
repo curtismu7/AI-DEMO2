@@ -106,6 +106,62 @@ read the configured host. A new browser origin must be added to ALL of:
 ## §4 — Bug Fix Log
 Reverse-chronological, newest first.
 
+### 2026-08-28 — Sign-in prompts: 14 dead CTAs, a lost return path, and raw JWT text as the first sentence (PR #2519)
+
+**Files changed:** `demo_api_ui/src/components/SignInModal.jsx` (new),
+`SignInPrompt.js`, `SessionReauthBanner.js`, `McpInspectorPage.jsx`,
+`DelegationPage.js`, `ResourceServerPage.{jsx,css}`, `SelfServicePage.{js,css}`,
+`PingOneAudit.jsx`, `AccessIdTokenPathPage.jsx`, `AIAgent.js`,
+`utils/{authUi,dashboardToast,appToast}.js`, `hooks/useAuth.js`, `App.{js,css}`,
+`Users.js`, `Accounts.js`, `Transactions.js`, `Dashboard.js`,
+`TransactionConsentModal.tsx`; `QuickLoginModal.js` deleted. 29 files.
+
+**What was broken:** twelve different designs answered "you need to sign in"
+across ~60 call sites — five accent colours, four button shapes, three verbs.
+Three were real defects, not styling:
+
+1. `utils/dashboardToast.js` had degraded to a bare `toast.error`. Its
+   `onSignIn` / `onAdminSignIn` argument — passed by all 14 call sites — was
+   documented as "unused; kept for call-site compatibility" and wired to
+   nothing, so the user was told to sign in, given nothing to click, and the
+   toast auto-dismissed. `utils/appToast.js`'s header still documented the
+   dispatch that no longer happened.
+2. `DelegationPage.js` linked to `/api/auth/login` as a bare `<a>` with no
+   `return_to`, so signing in from the token-chain page dropped the user
+   elsewhere.
+3. `notifySessionExpiredIfNeeded` concatenated raw provider text onto the
+   human sentence — `${desc} Sign in again to continue.` rendered as
+   "PingOne token validation failed: jwt expired Sign in again to continue."
+
+**What was fixed:** converged on three form factors — `SignInPrompt`
+(`variant="card"` unchanged default, new `variant="strip"`) and the new
+`SignInModal` interrupt. `dashboardToast` now dispatches `SESSION_REAUTH_EVENT`
+(restoring the behaviour `appToast.js` already documented) with both signatures
+unchanged, so no call site was edited. Raw provider text travels as a separate
+`detail` on the event and renders behind a disclosure in `SignInModal`.
+One accent (`#2563eb`) on `--th-*` tokens, replacing five hard-coded colours,
+several of which were dark-mode-blind.
+
+**Do not break:**
+- `SessionReauthBanner`'s `isHITL` branch is UNCHANGED and must stay so — it is
+  the HITL consent surface (§1). It is no longer the colour source for session
+  expiry; do not re-couple the two by restyling one to match the other.
+- `toastCustomerError` / `toastAdminSessionError` keep their two-argument
+  signatures on purpose (14 call sites). Do not "clean up" the ignored second
+  argument, and do not regress them to `toast.error` — a toast cannot carry the
+  CTA this fix exists to provide.
+- `returnTo` must stay a BARE PATHNAME at every sign-in call site; the BFF's
+  `sanitizePostLoginReturnPath` rejects query strings.
+- `notifySessionExpiredIfNeeded` must not concatenate `detail` into `message`
+  again. Guarded by `utils/__tests__/authUi.test.js` → "keeps raw provider text
+  out of the leading sentence".
+- Auth is not an error: the sign-in strip must not be rendered in the red/orange
+  error palette it was pulled out of in `McpInspectorPage.jsx`.
+
+**Verify:** `cd demo_api_ui && npm run test:unit && npm run build` — 3548 passed
+across 444 files, build exit 0. Targeted checks:
+`npx vitest run src/utils/__tests__/dashboardToast.test.js src/utils/__tests__/authUi.test.js src/components/__tests__/SessionReauthBanner.test.jsx`.
+
 ### 2026-08-26 — Customer sign-in broken since 2026-08-24: BFF sent a client_secret to a PKCE-only app
 
 **Files changed:** `demo_api_server/services/oauthUserService.js`,
