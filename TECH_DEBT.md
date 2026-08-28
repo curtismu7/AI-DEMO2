@@ -16,6 +16,160 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-08-28 — UC34/UC35 sit on the 120s reasoning timeout: ~50% failure, measured
+
+**What's wrong.** `ai-spot-unusual-patterns` (UC34) and `ai-explain-last-denial`
+(UC35) fail roughly half the time, and have poisoned REPLAY goldens on at least
+three separate captures across different verticals — including one where the
+stack generation was UNCHANGED, so it is not the container-recreate class.
+
+Measured against the live stack on 2026-08-28, **after** the `:3006` 403 was
+fixed (so this is not that bug):
+
+| chip | run | elapsed | result |
+|---|---|---|---|
+| UC34 | 1 | **121.0s** | `reasoning_unavailable` |
+| UC34 | 2 | **121.2s** | `reasoning_unavailable` |
+| UC34 | 3 | 68.9s | ok — full markdown table |
+| UC35 | 1 | 90.8s | `empty_answer` |
+| UC35 | 2 | 35.5s | ok |
+| UC35 | 3 | 38.2s | ok |
+
+3/6 failed. `llm-timeouts.json` sets `REASON_LOOP_TIMEOUT_MS = 120000`; both
+UC34 failures returned at 121s. That is the ceiling, hit exactly.
+
+**Why this pair specifically.** They are the only two chips whose reply is
+free-form LLM prose. Every other chip returns a deterministic tool result.
+UC34's own definition says "the LLM decides what to look at and how to summarize
+it"; UC35's says it narrates the decision "not a canned script". So they are the
+only chips whose latency scales with how much the model chooses to write — and
+UC34 renders a markdown table, which is why it is the slower of the two and sits
+closest to the ceiling. Successful runs span 35s to 69s against a 120s limit:
+the margin is thin and the variance is large.
+
+**Why it poisons goldens rather than erroring.** The failure comes back as
+**HTTP 200** with the failure prose in the body. At the HTTP layer it looks like
+a success, so a capture records it. `scripts/golden-failure-prose.js` exists for
+exactly this and does catch it on both the capture and check sides — the guard
+works. What it cannot do is make the underlying call succeed.
+
+**Why it wasn't fixed now.** The obvious remedy — raise
+`REASON_LOOP_TIMEOUT_MS` — lands on a FROZEN LLM setting, and that value is read
+by six places including both Dockerfiles, `docker-compose.yml`, the UI's
+`demoAgentService.js` and a dedicated `demoAgentService.timeoutSync.test.js`
+whose whole purpose is keeping them aligned. It is a coordinated change with
+demo-pacing consequences (a slower failure is worse in front of an audience than
+a faster one), not a one-line bump, and not a call to make as a drive-by.
+
+**What the real fix looks like — three options, in rough order of preference:**
+
+1. **Bound UC34's output.** It is slow because it renders a table. Tightening
+   that prompt pulls it away from the ceiling without touching any timeout or
+   frozen setting. Smallest blast radius; fixes the worst offender only.
+2. **Stop capturing goldens for this pair.** They are the only chips whose reply
+   is non-deterministic by design, so they were arguably never good golden
+   candidates — a golden of generated prose is a snapshot of one sampling, not a
+   contract. Does nothing for the live 50% failure rate.
+3. **Raise the ceiling.** Simplest to describe, but it is a frozen setting, it
+   makes an already-slow path slower before it fails, and it treats the symptom.
+
+(1) and (2) are complementary; (3) is independent of both.
+
+**Reproduce:** POST `{ prompt, vertical }` to `/api/agent/invoke` with an
+enduser session cookie, using each chip's `trigger.text` from
+`demo_api_server/config/useCases.js`. Check the reply against
+`failurePatternFor()` in `scripts/golden-failure-prose.js`. Three runs each is
+enough to see it.
+
+### [ ] 2026-08-28 — `llm-proxy` can be deployed by neither deploy path
+
+**What's wrong.** `demo_llm_proxy` is the only service that no sanctioned
+deploy route can update:
+
+- `scripts/deploy-live.sh` skips it and says so — "run-docker.sh does not manage
+  llm-proxy (see its SERVICES table); rebuild it directly: docker compose up -d
+  --build llm-proxy". It still prints its normal `done — live stack serves
+  <sha>` line afterwards.
+- `./run-docker.sh build llm-proxy` answers `✗ Unknown service: llm-proxy` and
+  lists the 20-odd services it does know. The name appears elsewhere in that
+  script (line 108, and the oMLX `:8090` guards), so it is half-known — enough
+  to be started as part of a group, not enough to be built on its own.
+- Raw `docker compose up` is blocked by a PreToolUse hook, correctly: parallel
+  sessions converging on the same project caused five container-name conflicts
+  on 2026-08-02.
+
+So the only route is the one the tooling deliberately blocks, via its
+`# force-compose` escape hatch.
+
+**Why it bites silently.** `llm-proxy` is image-built, so a restart keeps the
+old code — the usual bind-mount intuition is wrong here. Deploying #2576 on
+2026-08-28, `deploy-live` reported success while the container kept running
+six-hour-old code; the only way to notice was grepping `/app/router.js` inside
+the container and finding one occurrence of a pattern the fixed file has twice.
+Anyone trusting the "done" line ships a fix that is not running.
+
+**Why it wasn't fixed now.** Adding `llm-proxy` to `run-docker.sh`'s SERVICES
+table touches the launcher's `:8090` ownership logic, which is entangled with
+the oMLX-vs-llamacpp backend switch (`run-docker.sh:485-531` omits `llm-proxy`
+when host oMLX owns the port). That is a deliberate design with FROZEN settings
+around it, and changing it while shipping an unrelated one-line rejection fix
+would have been exactly the drive-by this file exists to prevent.
+
+**What the real fix looks like.** Give `run-docker.sh` a `build llm-proxy` path
+that respects the existing backend guard — refusing with a clear message when
+host oMLX owns `:8090` rather than silently omitting the service. Then
+`deploy-live` can call it like every other baked-image service and drop its
+"rebuild it directly" note.
+
+### [ ] 2026-08-28 — a failure class: "logged as handled, fatal anyway"
+
+**What's wrong.** Three separate incidents in one day shared one shape: a
+failure was caught and logged as non-fatal, while the damage happened on a path
+nobody printed. Each cost hours, and each was initially misdiagnosed as
+something else entirely.
+
+1. **`services/agentReasoningClient.js:86`** logged `err.code || err.message`
+   and discarded `err.response.status`/`.data`. Axios sets
+   `ERR_BAD_REQUEST` for any 4xx, so a 403 from `agent-service` surfaced to
+   users as "The llamacpp LLM could not complete this request
+   (reasoning_unavailable)" — an LLM outage that was not an LLM outage. It broke
+   every LLM-analysis chip in all 11 verticals. Fixed by #2564, which logs
+   status and body; the answer arrived on the first request afterwards.
+
+2. **`demo_agent_service/src/reasonRoute.ts:18-31`** returns 403 and 400 before
+   the correlation-logging scope at L39 — deliberately, per its own comment. So
+   agent-service is *silent by design* for both, and "agent-service logs
+   nothing" was read as evidence the request never arrived. It is evidence of
+   nothing at all.
+
+3. **`demo_llm_proxy/router.js:316`** attached `promise.finally(cleanup)` with
+   no catch. `.finally()` returns a NEW promise that ADOPTS the rejection; two
+   other catches nearby each covered a different branch. A failed swap logged
+   `pin warm-up failed: tier-manager timeout` as non-fatal, then exited 1 one
+   line later. Five restarts on the SE cluster. Fixed in #2576.
+
+**The tell, in all three:** the log says handled, the behaviour says otherwise.
+When a message reports a failure as tolerated and the system dies anyway, the
+message is describing a *different* code path than the one doing the damage.
+
+**Why it wasn't fixed as a class.** Each was fixed where it was found. There is
+no repo-wide lint for "caught, logged, and still fatal", and the three
+mechanisms differ — a discarded field, an early return before the log scope, and
+an adopted promise rejection. Only the diagnostic *symptom* is common.
+
+**What the real fix looks like.** Two cheap conventions, neither enforced today:
+
+- When catching an HTTP client error, log `err.response?.status` and a truncated
+  `err.response?.data` — never `err.code` alone. `err.code` is the same string
+  for every 4xx and 5xx.
+- A `process.on('unhandledRejection')` handler in every long-lived Node service
+  that logs before exiting. All three services here run without one, so Node's
+  default terminated `llm-proxy` with no attribution beyond a bare stack.
+
+**Related:** the `BFF_INTERNAL_SECRET` entry below is the same investigation —
+instance (1) and (2) are why its root cause took three sessions and two wrong
+theories to reach.
+
 ### [ ] 2026-08-28 — BFF_INTERNAL_SECRET: two call sites disagree about where the vault lands
 
 **What's wrong.** The BFF↔`agent-service` shared secret is resolved two
