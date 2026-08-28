@@ -193,6 +193,53 @@ derive_ns() {
 NS="$(derive_ns)"
 SERVICE="${1:-}"
 
+# ── Promote a CI-built SHA to :latest and roll ───────────────────────────────
+# CI pushes immutable sha-<commit> tags and never writes :latest, so nothing on
+# SE moves until this runs. imagetools retags REGISTRY-SIDE: no pull, no
+# rebuild, seconds instead of ~16 minutes, and it copies the manifest rather
+# than re-resolving it — a pull/tag/push from an arm64 Mac would silently
+# narrow a multi-arch image to one platform.
+if [[ "$SERVICE" == "--promote" ]]; then
+  SHA="${2:-}"
+  [[ -n "$SHA" ]] || die "Usage: ./se-update-code.sh --promote <sha> [key...]"
+  shift 2
+  KEYS="${*:-$ALL_KEYS}"
+
+  info "Logging in to GHCR..."
+  gh auth token | docker login ghcr.io -u "$GITHUB_OWNER" --password-stdin \
+    || die "GHCR login failed — run: gh auth login"
+
+  promoted=""; skipped=""
+  for key in $KEYS; do
+    g_img="$(ghcr_img "$key")"
+    [[ -n "$g_img" ]] || die "Unknown service '$key'. Valid: ${ALL_KEYS}"
+    src="${REGISTRY}/${g_img}:sha-${SHA}"
+    if ! docker buildx imagetools inspect "$src" >/dev/null 2>&1; then
+      skipped="${skipped} ${key}"
+      continue
+    fi
+    info "Promoting ${g_img} sha-${SHA} → latest"
+    docker buildx imagetools create -t "${REGISTRY}/${g_img}:latest" "$src" \
+      || die "Retag failed for ${g_img}"
+    promoted="${promoted} ${key}"
+  done
+
+  # A silent no-op is the failure mode this guards against: two separate ones
+  # cost hours on 2026-08-27 (the demo-flag reset, and restart keeping stale
+  # layers), both invisible in a long log.
+  [[ -n "$promoted" ]] || die "No image carries tag sha-${SHA} — did CI build this commit?"
+  [[ -n "$skipped" ]] && warn "No sha-${SHA} image for:${skipped}"
+
+  for key in $promoted; do
+    dep="$(k8s_dep "$key")"
+    info "Rolling deployment/${dep} in $NS..."
+    kubectl rollout restart "deployment/${dep}" -n "$NS"
+    kubectl rollout status  "deployment/${dep}" -n "$NS" --timeout=180s
+  done
+  success "Promoted sha-${SHA}:${promoted}"
+  exit 0
+fi
+
 # ── Build-input preflight ─────────────────────────────────────────────────────
 # langchain_agent/repo-src/ is a GENERATED staging dir (gitignored) that the
 # langchain-agent Dockerfile COPYs — a clean checkout has none and the build
