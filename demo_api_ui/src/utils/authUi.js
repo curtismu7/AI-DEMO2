@@ -12,6 +12,16 @@ export const USER_SESSION_EXPIRED_MESSAGE =
 
 const DEFAULT_SESSION_EXPIRED_MESSAGE = USER_SESSION_EXPIRED_MESSAGE;
 
+/**
+ * Canonical copy for the sign-in INTERRUPT (SignInModal). Distinct from
+ * `USER_SESSION_EXPIRED_MESSAGE`, which is the soft guest-chat nudge: by the
+ * time the modal opens the session is provably gone, so say that plainly.
+ * Raw provider text ("jwt expired") travels separately as `detail` and is
+ * never concatenated onto this sentence.
+ */
+export const SESSION_EXPIRED_INTERRUPT_MESSAGE =
+  'Your session has expired. Sign in again to continue.';
+
 /** Throttle duplicate banners when several API calls 401 at once. */
 let lastSessionExpiryNotifyAt = 0;
 const SESSION_EXPIRY_NOTIFY_MS = 8000;
@@ -212,17 +222,14 @@ export function notifySessionExpiredIfNeeded(opts = {}) {
       : typeof body?.message === 'string'
         ? body.message.trim()
         : '';
-  const message =
-    desc && /expired|invalid|sign in|log in/i.test(desc)
-      ? /sign in again|log in again/i.test(desc)
-        ? desc
-        : `${desc} Sign in again to continue.`
-      : DEFAULT_SESSION_EXPIRED_MESSAGE;
 
   window.dispatchEvent(
     new CustomEvent(SESSION_REAUTH_EVENT, {
       detail: {
-        message,
+        message: SESSION_EXPIRED_INTERRUPT_MESSAGE,
+        // Raw provider text kept, but demoted: SignInModal shows it behind a
+        // disclosure instead of leading with "jwt expired".
+        detail: desc || undefined,
         role: sessionReauthRoleForPath(pathname),
         invalidateSession: true,
       },

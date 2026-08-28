@@ -45,7 +45,7 @@ const Accounts = ({ user, onLogout }) => {
       setLoading(true);
       const sessionUser = await resolveSessionUser();
       if (!sessionUser) {
-        toastAdminSessionError('Your session has expired. Please sign in again.', navigateToAdminOAuthLogin);
+        toastAdminSessionError('Your session has expired. Sign in again to continue.', navigateToAdminOAuthLogin);
         return;
       }
       const response = await bffAxios.get('/api/accounts');
@@ -54,7 +54,7 @@ const Accounts = ({ user, onLogout }) => {
       console.error('Accounts error:', error);
       
       if (error.response?.status === 401) {
-        toastAdminSessionError('Your session has expired. Please sign in again.', navigateToAdminOAuthLogin);
+        toastAdminSessionError('Your session has expired. Sign in again to continue.', navigateToAdminOAuthLogin);
       } else if (error.response?.status === 403) {
         notifyError('You do not have permission to view accounts.');
       } else {

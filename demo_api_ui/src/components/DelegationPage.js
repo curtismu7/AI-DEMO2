@@ -4,6 +4,7 @@ import { requestSilentReauth } from '../utils/authUi';
 import { notifyError } from '../utils/appToast';
 import { useVertical } from '../vertical/useVertical';
 import { useDemoTour } from '../context/DemoTourContext';
+import SignInPrompt from './SignInPrompt';
 
 const VALID_SCOPES = [
   { key: 'view_accounts',     label: 'View Accounts',    description: 'See account list and details' },
@@ -336,19 +337,10 @@ function LiveTokenChainPanel() {
       </p>
 
       {needsLogin && (
-        <div style={{
-          padding: '12px 16px', background: '#eff6ff', border: '1px solid #bfdbfe',
-          borderRadius: 8, fontSize: 13, color: '#1e40af', display: 'flex',
-          alignItems: 'center', gap: 10,
-        }}>
-          <span style={{ fontSize: 18 }}>[!]</span>
-          <span>
-            <strong>Sign in required</strong> — the token chain is only available for
-            authenticated sessions.{' '}
-            <a href='/api/auth/login' style={{ color: '#1d4ed8', fontWeight: 600 }}>Log in</a>{' '}
-            to see live delegation events here.
-          </span>
-        </div>
+        <SignInPrompt
+          variant="strip"
+          message="The token chain is only available for authenticated sessions. Sign in to see live delegation events here."
+        />
       )}
       {error && <div style={S.errorBanner}>{error}</div>}
 

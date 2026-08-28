@@ -5,6 +5,7 @@ import bffAxios from '../services/bffAxios';
 import ResourceServerTester, { INFLOW_PROBE_TARGETS, INFLOW_SOURCES } from './ResourceServerTester';
 import { formatCurrency, formatDateTime } from '../utils/formatters';
 import './ResourceServerPage.css';
+import SignInPrompt from './SignInPrompt';
 
 const CLAIM_GLOSSARY = {
   sub: 'Subject — unique identifier of the authenticated user',
@@ -202,12 +203,7 @@ export default function ResourceServerPage() {
   if (error === 'auth') {
     return (
       <div className="rsp-container">
-        <div className="rsp-auth-required">
-          <span className="rsp-lock-icon" aria-hidden="true">🔐</span>
-          <h2>Authentication Required</h2>
-          <p>Please sign in to access the OIDC Resource Server.</p>
-          <a href="/api/auth/oauth/user/login" className="rsp-login-btn">Log In</a>
-        </div>
+        <SignInPrompt message="Sign in to access the OIDC Resource Server." />
       </div>
     );
   }

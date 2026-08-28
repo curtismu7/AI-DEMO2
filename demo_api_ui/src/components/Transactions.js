@@ -33,7 +33,7 @@ const Transactions = ({ user, onLogout }) => {
         const sessionUser = await resolveSessionUser();
         if (cancelled) return;
         if (!sessionUser) {
-          toastAdminSessionError('Your session has expired. Please sign in again.', navigateToAdminOAuthLogin);
+          toastAdminSessionError('Your session has expired. Sign in again to continue.', navigateToAdminOAuthLogin);
           return;
         }
         const response = await bffAxios.get('/api/transactions');
@@ -44,7 +44,7 @@ const Transactions = ({ user, onLogout }) => {
         console.error('Transactions error:', error);
 
         if (error.response?.status === 401) {
-          toastAdminSessionError('Your session has expired. Please sign in again.', navigateToAdminOAuthLogin);
+          toastAdminSessionError('Your session has expired. Sign in again to continue.', navigateToAdminOAuthLogin);
         } else if (error.response?.status === 403) {
           notifyError('You do not have permission to view transactions.');
         } else {

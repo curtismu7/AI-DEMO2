@@ -6,6 +6,7 @@ import {
   isSessionExpiredApiError,
   normalizeAuthFailure,
   notifySessionExpiredIfNeeded,
+  SESSION_EXPIRED_INTERRUPT_MESSAGE,
   SESSION_REAUTH_EVENT,
   USER_SESSION_EXPIRED_MESSAGE,
   navigateToCustomerOAuthLogin,
@@ -155,6 +156,29 @@ describe('authUi', () => {
       const detail = handler.mock.calls[0][0].detail;
       expect(detail.invalidateSession).toBe(true);
       expect(detail.message).toMatch(/sign in/i);
+
+      window.removeEventListener(SESSION_REAUTH_EVENT, handler);
+    });
+
+    it('keeps raw provider text out of the leading sentence', () => {
+      const handler = jest.fn();
+      window.addEventListener(SESSION_REAUTH_EVENT, handler);
+      window.history.pushState({}, '', '/dashboard');
+
+      notifySessionExpiredIfNeeded({
+        status: 401,
+        body: {
+          error: 'invalid_token',
+          error_description: 'PingOne token validation failed: jwt expired',
+        },
+      });
+
+      const detail = handler.mock.calls[0][0].detail;
+      // The sentence the user reads first must be ours, not PingOne's.
+      expect(detail.message).toBe(SESSION_EXPIRED_INTERRUPT_MESSAGE);
+      expect(detail.message).not.toMatch(/jwt expired/i);
+      // ...but the raw text is still carried, for the disclosure.
+      expect(detail.detail).toBe('PingOne token validation failed: jwt expired');
 
       window.removeEventListener(SESSION_REAUTH_EVENT, handler);
     });

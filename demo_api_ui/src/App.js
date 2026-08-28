@@ -574,6 +574,7 @@ function AppWithAuth() {
               {sessionReauth && (
                 <SessionReauthBanner
                   message={sessionReauth.message}
+                  detail={sessionReauth.detail}
                   role={sessionReauth.role}
                   isHITL={sessionReauth.isHITL || false}
                   onDismiss={() => setSessionReauth(null)}

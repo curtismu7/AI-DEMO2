@@ -219,7 +219,7 @@ describe("PingOneAudit Component", () => {
 			fireEvent.click(screen.getByRole("button", { name: /run audit/i }));
 
 			await waitFor(() => {
-				expect(screen.getByText(/Not authenticated/)).toBeInTheDocument();
+				expect(screen.getByText(/Sign in to view audit results/)).toBeInTheDocument();
 			});
 		});
 

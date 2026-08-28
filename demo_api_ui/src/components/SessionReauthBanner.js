@@ -2,15 +2,16 @@
 import { navigateToAdminOAuthLogin, navigateToCustomerOAuthForceLogin } from '../utils/authUi';
 import { useEducationUI } from '../context/EducationUIContext';
 import { EDU } from './education/educationIds';
-import DraggableModal from './DraggableModal';
+import SignInModal from './SignInModal';
 
 /**
  * Shown when the session is invalid and the user must sign in again, and — via
  * `isHITL` — when a transfer is waiting on manual approval.
  *
  * Two presentations on purpose:
- *   session expiry → DraggableModal, because it interrupts a task and the user
- *                    should deal with it before carrying on
+ *   session expiry → `SignInModal`, the shared sign-in interrupt, because it
+ *                    interrupts a task and the user should deal with it before
+ *                    carrying on
  *   isHITL         → the original fixed banner, UNCHANGED. HITL consent is a
  *                    protected flow (REGRESSION_PLAN §1) and restyling it was
  *                    not part of the ask.
@@ -18,9 +19,9 @@ import DraggableModal from './DraggableModal';
  * Either way the sign-in carries `returnTo`, so the user lands back on the page
  * they were interrupted on rather than somewhere else.
  *
- * @param {{ message: string, role: 'admin' | 'customer', onDismiss: () => void, isHITL?: boolean }} props
+ * @param {{ message: string, detail?: string, role: 'admin' | 'customer', onDismiss: () => void, isHITL?: boolean }} props
  */
-export default function SessionReauthBanner({ message, role, onDismiss, isHITL = false }) {
+export default function SessionReauthBanner({ message, detail, role, onDismiss, isHITL = false }) {
   const { open } = useEducationUI();
 
   // A bare path: the BFF's sanitizePostLoginReturnPath rejects query strings,
@@ -65,33 +66,13 @@ export default function SessionReauthBanner({ message, role, onDismiss, isHITL =
     );
   }
 
-  // ── Session expiry: modal ─────────────────────────────────────────────────
+  // ── Session expiry: the shared sign-in interrupt ─────────────────────
   return (
-    <DraggableModal
-      isOpen
-      onClose={onDismiss}
-      title="Sign in required"
-      className="session-reauth-modal"
-      defaultWidth={460}
-      defaultHeight={260}
-      minHeight={220}
-      footer={
-        <div className="session-reauth-banner__actions">
-          <button type="button" className="session-reauth-banner__btn session-reauth-banner__btn--primary" onClick={handleSignIn}>
-            {signInLabel}
-          </button>
-          <button type="button" className="session-reauth-banner__btn session-reauth-banner__btn--ghost" onClick={onDismiss}>
-            Dismiss
-          </button>
-        </div>
-      }
-    >
-      <p className="session-reauth-banner__text" role="alert" aria-live="assertive">
-        {message}
-      </p>
-      <p className="session-reauth-modal__hint">
-        You&apos;ll come back to this page after signing in.
-      </p>
-    </DraggableModal>
+    <SignInModal
+      message={message}
+      detail={detail}
+      role={role === 'admin' ? 'admin' : 'customer'}
+      onDismiss={onDismiss}
+    />
   );
 }
