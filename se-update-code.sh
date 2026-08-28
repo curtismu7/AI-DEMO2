@@ -125,7 +125,7 @@ k8s_dep() {
 # and push ALL" loop and the "roll every deployment" loop both iterate this list,
 # so a key missing here is silently skipped by a full deploy while still working
 # when named explicitly. agent-service was in all four maps but not this list.
-ALL_KEYS="bff frontend mcp gateway agent agentsvc authz mastra openai pydantic hitl invest mortgage"
+ALL_KEYS="bff frontend mcp gateway agent agentsvc authz mastra openai pydantic hitl invest mortgage llm"
 
 GITHUB_OWNER="${GITHUB_OWNER:-}"
 if [[ -z "$GITHUB_OWNER" ]]; then
