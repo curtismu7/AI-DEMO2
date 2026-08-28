@@ -926,7 +926,7 @@ export default function TokenFlowDetailModal({ isOpen, onClose }) {
             title="Toggle light/dark"
             style={{ marginLeft: 'auto', background: 'transparent', width: 'auto', minWidth: 32, padding: '0 8px', fontSize: 16 }}
           >
-            {darkMode ? '◐' : '☾'}
+            {darkMode ? 'Light' : 'Dark'}
           </button>
         </div>
 

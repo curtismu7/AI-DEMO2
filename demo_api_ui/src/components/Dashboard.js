@@ -441,7 +441,7 @@ const Dashboard = ({ user, onLogout }) => {
                   <strong>SCOPE INJECTION ENABLED — Demo Mode</strong>
                   <span>
                     Banking scopes are being injected by the BFF (not from
-                    PingOne). Check Token Chain for ⚡ INJECTED badges.
+                    PingOne). Check Token Chain for INJECTED badges.
                   </span>
                 </div>
                 <button

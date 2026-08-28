@@ -181,9 +181,11 @@ textarea {
   --modal-body-bg: #ffffff;
   --modal-body-text: #111827;
   --modal-body-text-secondary: #374151;
-  --modal-btn-size: 28px;
-  --modal-btn-bg: rgba(255, 255, 255, 0.12);
-  --modal-btn-bg-hover: rgba(255, 255, 255, 0.28);
+  /* Title-bar controls (🪟 pop out, ✕ close). Bumped from 28px / 0.12 alpha:
+     at that size and contrast they were hard to see against the dark header. */
+  --modal-btn-size: 30px;
+  --modal-btn-bg: rgba(255, 255, 255, 0.22);
+  --modal-btn-bg-hover: rgba(255, 255, 255, 0.42);
   --modal-btn-radius: 6px;
   --modal-overlay-bg: rgba(10, 15, 30, 0.5);
   /* --modal-overlay-blur removed to prevent background blur */

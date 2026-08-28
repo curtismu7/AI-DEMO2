@@ -5909,7 +5909,7 @@ export default function BankingAgent({
         const taskId = err.taskId;
         addMessage(
           "assistant",
-          `⛔ Restricted Action\n\n${reason}\n\nPlease review and approve or deny this action.`,
+          `⚠️ Restricted Action\n\n${reason}\n\nPlease review and approve or deny this action.`,
           actionId,
         );
         setHitlPendingIntent({

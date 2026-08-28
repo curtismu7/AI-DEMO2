@@ -101,7 +101,11 @@
   height: var(--modal-btn-size, 28px);
   border-radius: var(--modal-btn-radius, 6px);
   cursor: pointer;
-  font-size: 13px;
+  /* 13px unweighted made the 🪟 and ✕ glyphs hard to pick out against the
+     dark title bar — they are the only controls up there. */
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
   display: flex;
   align-items: center;
   justify-content: center;
