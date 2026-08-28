@@ -34,9 +34,9 @@
 /* ─── Header ─────────────────────────────────────────────────────────────── */
 .tcd-header {
   padding: 18px 18px 14px;
-  border-bottom: 1px solid #e2e8f0;
-  background: #ffffff;
-  color: #0f172a;
+  border-bottom: 1px solid var(--th-border);
+  background: var(--th-bg-card);
+  color: var(--th-text);
 }
 
 .tcd-header-title-row {
@@ -51,7 +51,7 @@
   font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: #0f172a;
+  color: var(--th-text);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -120,7 +120,7 @@
 
 .tcd-header-sub {
   font-size: var(--tcd-size-body);
-  color: #1e293b;
+  color: var(--th-text-body);
   margin: 0;
   line-height: 1.4;
   max-width: 100%;
@@ -156,7 +156,7 @@
 
 .tcd-last-updated {
   font-size: 0.75rem;
-  color: #374151;
+  color: var(--th-text-body);
 }
 
 /* Live dot pulses when receiving live data */
@@ -236,7 +236,7 @@
 
 .tcd-tab.active {
   color: var(--brand-navy);
-  background: #fff;
+  background: var(--th-bg-card);
   box-shadow:
     0 -2px 0 var(--brand-navy) inset,
     0 2px 8px rgba(15, 23, 42, 0.06);
@@ -250,7 +250,7 @@
     var(--brand-navy) 0%,
     var(--brand-navy) 100%
   );
-  color: #fff;
+  color: var(--th-text-invert);
   border-radius: 999px;
   padding: 2px 8px;
   line-height: 1.35;
@@ -364,9 +364,9 @@
    card + struck-through title; the wrap-level rail treatment lives at
    .tcd-event-wrap--notinpath below the connector rules. */
 .tcd-event.notinpath {
-  border-color: #94a3b8;
+  border-color: var(--th-border-strong);
   border-style: dashed;
-  background: #f8fafc;
+  background: var(--th-bg-inset);
   box-shadow: none;
 }
 
@@ -499,10 +499,13 @@
   color: #14532d;
   border-color: #86efac;
 }
+/* Status badge: the gradient is decorative and stays literal, so its label
+   must stay literal too — a themed colour over a fixed light fill inverts in
+   dark mode. Surface and text move together or not at all. */
 .tcd-badge--exchanged {
   background: linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%);
-  color: #334155;
-  border-color: #94a3b8;
+  color: #374151;
+  border-color: #cbd5e1;
 }
 .tcd-badge--acquiring {
   background: linear-gradient(180deg, #fef9c3 0%, #fde047 100%);
@@ -515,9 +518,9 @@
   border-color: #cccccc;
 }
 .tcd-badge--notinpath {
-  background: #f8fafc;
-  color: #64748b;
-  border-color: #94a3b8;
+  background: var(--th-bg-inset);
+  color: var(--th-text-muted);
+  border-color: var(--th-border-strong);
   border-style: dashed;
   box-shadow: none;
 }
@@ -529,7 +532,7 @@
 .tcd-badge--waiting {
   background: linear-gradient(180deg, var(--brand-light-gray) 0%, #dddddd 100%);
   color: #666666;
-  border-color: #94a3b8;
+  border-color: var(--th-border-strong);
 }
 
 /* Token type badge */
@@ -570,7 +573,7 @@
 .tcd-token-type--invalid {
   background: linear-gradient(180deg, var(--brand-light-gray) 0%, #dddddd 100%);
   color: #666666;
-  border-color: #94a3b8;
+  border-color: var(--th-border-strong);
 }
 
 .tcd-spinner {
@@ -619,13 +622,13 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #374151;
+  color: var(--th-text-body);
   margin-bottom: -4px;
 }
 
 /* ─── Collapsible sections ────────────────────────────────────────────────── */
 .tcd-collapsible {
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--th-border);
   border-radius: 8px;
   /* No overflow:hidden — it clips summary header when siblings expand.
      Border-radius is preserved by the inner elements using border-radius too. */
@@ -646,14 +649,14 @@
   text-transform: uppercase;
   padding: 8px 14px;
   cursor: pointer;
-  background: #f0f2f5;
-  color: #4b5563;
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
   user-select: none;
   list-style: none;
   display: flex;
   align-items: center;
   gap: 8px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--th-border);
   transition: background 0.15s;
 }
 
@@ -669,7 +672,7 @@
 .tcd-collapsible-header::before {
   content: "▶";
   font-size: 9px;
-  color: #374151;
+  color: var(--th-text-body);
   transition: transform 0.15s ease;
   flex-shrink: 0;
 }
@@ -862,7 +865,7 @@
 }
 
 .tcd-edu-code {
-  background: #ffffff;
+  background: var(--th-bg-card);
   color: #1f2937;
   font-size: var(--font-size-2xs);
   font-family: inherit;
@@ -892,7 +895,7 @@
   flex-direction: column;
   gap: 5px;
   padding: 9px 14px;
-  color: #374151;
+  color: var(--th-text-body);
   font-size: var(--tcd-size-body);
 }
 
@@ -903,7 +906,7 @@
 
 .tcd-edu-na-reason {
   font-size: var(--tcd-size-detail);
-  color: #6b7280;
+  color: var(--th-text-muted);
   font-style: italic;
 }
 
@@ -913,14 +916,14 @@
   gap: 2px;
   font-style: normal;
   font-size: var(--font-size-2xs);
-  color: #374151;
+  color: var(--th-text-body);
 }
 
 .tcd-edu-na-rfc-tag {
   font-family: inherit;
   font-size: var(--font-size-xs);
   font-weight: 600;
-  color: #4b5563;
+  color: var(--th-text-body);
   letter-spacing: 0.01em;
 }
 
@@ -970,7 +973,7 @@
 .tcd-trust > p {
   margin: 0;
   font-size: var(--tcd-size-detail);
-  color: #6b7280;
+  color: var(--th-text-muted);
 }
 
 .tcd-trust__row {
@@ -1013,9 +1016,9 @@
 }
 
 .tcd-trust__row--off .tcd-trust__badge {
-  background: #ffffff;
-  border-color: #d1d5db;
-  color: #6b7280;
+  background: var(--th-bg-card);
+  border-color: var(--th-border-strong);
+  color: var(--th-text-muted);
 }
 
 .tcd-root .tcd-trust .tcd-trust__row strong {
@@ -1054,7 +1057,7 @@
 
 .tcd-edu-check-lbl {
   font-weight: 700;
-  color: #4b5563;
+  color: var(--th-text-body);
   flex-shrink: 0;
   min-width: 18px;
   font-size: var(--font-size-2xs);
@@ -1072,13 +1075,13 @@
 .tcd-a2a-diagram {
   margin: 10px 0 14px;
   padding: 12px 14px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
   border-radius: 8px;
   font-family: var(--font-mono);
   font-size: var(--font-size-2xs);
   line-height: 1.45;
-  color: #0f172a;
+  color: var(--th-text);
   white-space: pre;
   overflow-x: auto;
 }
@@ -1086,20 +1089,20 @@
 .tcd-a2a-hop {
   margin-top: 14px;
   padding-top: 10px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--th-border);
 }
 
 .tcd-a2a-hop-title {
   margin: 0 0 8px;
   font-size: 0.85rem;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--th-text);
 }
 
 /* ─── Exchange request preview ───────────────────────────────────────────── */
 .tcd-exchange-req {
-  background: #fff;
-  border: 1px solid #e0e0e0;
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
   border-radius: 6px;
   overflow: hidden;
 }
@@ -1109,10 +1112,10 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #374151;
+  color: var(--th-text-body);
   padding: 8px 14px;
-  background: #f4f4f4;
-  border-bottom: 1px solid #e0e0e0;
+  background: var(--th-bg-inset);
+  border-bottom: 1px solid var(--th-border);
 }
 
 .tcd-exchange-req pre {
@@ -1155,7 +1158,7 @@ pre.tcd-jwt-dump.jh-dark {
 
 /* ─── Claims panel ───────────────────────────────────────────────────────── */
 .tcd-claims {
-  background: #ffffff;
+  background: var(--th-bg-card);
   border: 1px solid rgba(148, 163, 184, 0.25);
   border-radius: 6px;
   overflow: hidden;
@@ -1168,7 +1171,7 @@ pre.tcd-jwt-dump.jh-dark {
   font-weight: 600;
   color: #1f2937;
   padding: 6px 12px;
-  background: #f3f4f6;
+  background: var(--th-bg-inset);
   border-bottom: 1px solid rgba(148, 163, 184, 0.2);
   letter-spacing: 0.03em;
 }
@@ -1187,7 +1190,7 @@ pre.tcd-jwt-dump.jh-dark {
 
 .tcd-claims-table td:first-child {
   font-weight: 600;
-  color: #374151;
+  color: var(--th-text-body);
   white-space: nowrap;
   width: 40%;
 }
@@ -1196,7 +1199,7 @@ pre.tcd-jwt-dump.jh-dark {
   margin: 0;
   padding: 8px 10px;
   font-size: var(--font-size-sm);
-  color: #374151;
+  color: var(--th-text-body);
   font-style: italic;
 }
 
@@ -1229,35 +1232,35 @@ pre.tcd-jwt-dump.jh-dark {
 .tcd-claim-key {
   font-size: var(--font-size-body);
   font-weight: 700;
-  color: #1a1a1a;
+  color: var(--th-text);
   min-width: 90px;
   flex-shrink: 0;
 }
 
 /* Highlight special claim keys */
 .tcd-claim--aud .tcd-claim-key {
-  color: #1a1a1a;
+  color: var(--th-text);
 }
 .tcd-claim--scope .tcd-claim-key {
-  color: #1a1a1a;
+  color: var(--th-text);
 }
 .tcd-claim--act .tcd-claim-key {
-  color: #1a1a1a;
+  color: var(--th-text);
 }
 .tcd-claim--may-act .tcd-claim-key {
-  color: #1a1a1a;
+  color: var(--th-text);
 }
 
 .tcd-claim-sep {
   font-size: var(--font-size-body);
-  color: #1a1a1a;
+  color: var(--th-text);
   flex-shrink: 0;
 }
 
 .tcd-claim-val {
   font-size: var(--font-size-body);
   font-family: inherit;
-  color: #1a1a1a;
+  color: var(--th-text);
   margin: 0;
   white-space: pre-wrap;
   word-break: break-all;
@@ -1265,16 +1268,16 @@ pre.tcd-jwt-dump.jh-dark {
 }
 
 .tcd-claim--aud .tcd-claim-val {
-  color: #1a1a1a;
+  color: var(--th-text);
 }
 .tcd-claim--scope .tcd-claim-val {
-  color: #1a1a1a;
+  color: var(--th-text);
 }
 .tcd-claim--act .tcd-claim-val {
-  color: #1a1a1a;
+  color: var(--th-text);
 }
 .tcd-claim--may-act .tcd-claim-val {
-  color: #1a1a1a;
+  color: var(--th-text);
 }
 
 /* ─── Connector between events ───────────────────────────────────────────── */
@@ -1296,7 +1299,7 @@ pre.tcd-jwt-dump.jh-dark {
 
 .tcd-connector-arrow {
   font-size: var(--font-size-sm);
-  color: #334155;
+  color: var(--th-text-body);
   line-height: 1;
   font-weight: 700;
 }
@@ -1305,12 +1308,12 @@ pre.tcd-jwt-dump.jh-dark {
    dips around the bypassed card rather than through it. */
 .tcd-connector--bypass .tcd-connector-line {
   background: none;
-  border-left: 2px dashed #94a3b8;
+  border-left: 2px dashed var(--th-border-strong);
   width: 0;
   border-radius: 0;
 }
 .tcd-connector--bypass .tcd-connector-arrow {
-  color: #94a3b8;
+  color: var(--th-text-faint);
 }
 
 /* ─── Not-in-path bypass rail ────────────────────────────────────────────────
@@ -1347,7 +1350,7 @@ pre.tcd-jwt-dump.jh-dark {
   left: 13px;
   top: 44px;
   width: 17px;
-  border-top: 2px dashed #94a3b8;
+  border-top: 2px dashed var(--th-border-strong);
 }
 
 /* ─── Scope delta strip (between connector events) ──────────────────────── */
@@ -1358,15 +1361,15 @@ pre.tcd-jwt-dump.jh-dark {
   gap: 4px;
   padding: 4px 8px;
   border-radius: 6px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
   font-size: 0.7rem;
   margin: 2px 0;
   max-width: 280px;
 }
 .tcd-scope-delta-label {
   font-weight: 600;
-  color: #374151;
+  color: var(--th-text-body);
   font-size: 0.68rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -1410,10 +1413,10 @@ pre.tcd-jwt-dump.jh-dark {
 }
 
 .tcd-hist-entry {
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--th-border);
   border-radius: 8px;
   overflow: hidden;
-  background: #fff;
+  background: var(--th-bg-card);
   flex-shrink: 0;
 }
 
@@ -1423,7 +1426,7 @@ pre.tcd-jwt-dump.jh-dark {
   align-items: center;
   gap: 8px;
   padding: 7px 10px;
-  background: #fafafa;
+  background: var(--th-bg-card);
   border: none;
   font-size: var(--font-size-body);
   text-align: left;
@@ -1467,12 +1470,12 @@ pre.tcd-jwt-dump.jh-dark {
 
 .tcd-hist-steps {
   font-size: var(--font-size-xs);
-  color: #374151;
+  color: var(--th-text-body);
 }
 
 .tcd-hist-ts {
   font-size: var(--font-size-2xs);
-  color: #4b5563;
+  color: var(--th-text-body);
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -1480,7 +1483,7 @@ pre.tcd-jwt-dump.jh-dark {
 /* Events inside an open history entry (kept for backwards compat if any) */
 .tcd-hist-entry .tcd-events {
   padding: 6px 8px;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid var(--th-border);
 }
 
 /* ─── Legend ─────────────────────────────────────────────────────────────── */
@@ -1499,7 +1502,7 @@ pre.tcd-jwt-dump.jh-dark {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.07em;
-  color: #475569;
+  color: var(--th-text-body);
   margin-bottom: 2px;
 }
 
@@ -1536,7 +1539,7 @@ pre.tcd-jwt-dump.jh-dark {
 .tcd-events::-webkit-scrollbar-track,
 .tcd-claims::-webkit-scrollbar-track,
 .tcd-exchange-req pre::-webkit-scrollbar-track {
-  background: #f4f4f4;
+  background: var(--th-bg-inset);
 }
 
 .tcd-events::-webkit-scrollbar-thumb,
@@ -1560,7 +1563,7 @@ pre.tcd-jwt-dump.jh-dark {
 .tcd-event.notinpath .tcd-event-label {
   text-decoration: line-through;
   text-decoration-thickness: 1.5px;
-  color: #64748b;
+  color: var(--th-text-muted);
 }
 
 /* ─── "Token Details" button row — below the claims strip ───────────────── */
@@ -1578,7 +1581,7 @@ pre.tcd-jwt-dump.jh-dark {
   background: #1d4ed8;
   border: none;
   border-radius: 6px;
-  color: #fff;
+  color: var(--th-text-invert);
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.05em;
@@ -1713,7 +1716,7 @@ pre.tcd-jwt-dump.jh-dark {
 
 .tci-btn--close:hover {
   background: rgba(239, 68, 68, 0.4);
-  color: #ffffff;
+  color: var(--th-text-invert);
 }
 
 /* ─── Inspector body ─────────────────────────────────────────────────────── */
@@ -1728,7 +1731,7 @@ pre.tcd-jwt-dump.jh-dark {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  background: #ffffff;
+  background: var(--th-bg-card);
   /* Ensure collapsible <details> elements are never clipped */
   contain: none;
   --tcd-ink: #1e293b;
@@ -1737,57 +1740,57 @@ pre.tcd-jwt-dump.jh-dark {
 
 /* Light-theme overrides for tcd-* components inside inspector */
 .tci-body .tcd-explanation {
-  color: #475569;
+  color: var(--th-text-body);
   font-size: 0.82rem;
   line-height: 1.55;
 }
 
 .tci-body .tcd-section-title {
-  color: #0f172a;
+  color: var(--th-text);
   margin-bottom: 4px;
-  border-bottom-color: #e5e7eb;
+  border-bottom-color: var(--th-border);
 }
 
 .tci-body .tcd-collapsible {
-  border-color: #e5e7eb;
+  border-color: var(--th-border);
   overflow: visible;
 }
 
 .tci-body .tcd-collapsible-header {
-  background: #f8fafc;
-  color: #0f172a;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
 }
 
 .tci-body .tcd-collapsible-body {
-  background: #ffffff;
+  background: var(--th-bg-card);
 }
 
 .tci-body .tcd-claims {
-  background: #f8fafc;
-  border-color: #e5e7eb;
+  background: var(--th-bg-inset);
+  border-color: var(--th-border);
   max-height: none;
 }
 
 .tci-body .tcd-claims-alg {
-  background: #f1f5f9;
-  border-color: #e5e7eb;
-  color: #374151;
+  background: var(--th-bg-inset);
+  border-color: var(--th-border);
+  color: var(--th-text-body);
 }
 
 .tci-body .tcd-claim {
-  border-bottom-color: #e5e7eb;
+  border-bottom-color: var(--th-border);
 }
 
 .tci-body .tcd-claim-key {
-  color: #374151;
+  color: var(--th-text-body);
 }
 
 .tci-body .tcd-claim-sep {
-  color: #475569;
+  color: var(--th-text-body);
 }
 
 .tci-body .tcd-claim-val {
-  color: #1e293b;
+  color: var(--th-text-body);
 }
 
 .tci-body .tcd-claim--may-act {
@@ -1804,18 +1807,18 @@ pre.tcd-jwt-dump.jh-dark {
 }
 
 .tci-body .tcd-exchange-req {
-  background: #f8fafc;
-  border-color: #e5e7eb;
+  background: var(--th-bg-inset);
+  border-color: var(--th-border);
 }
 
 .tci-body .tcd-exchange-req-title {
-  background: #f1f5f9;
-  border-color: #e5e7eb;
-  color: #475569;
+  background: var(--th-bg-inset);
+  border-color: var(--th-border);
+  color: var(--th-text-body);
 }
 
 .tci-body .tcd-exchange-req pre {
-  color: #1e293b;
+  color: var(--th-text-body);
   /* No max-height cap — the inspector body itself scrolls */
 }
 
@@ -1832,7 +1835,7 @@ pre.tcd-jwt-dump.jh-dark {
 }
 
 .tci-body .tcd-full-jwt pre.tcd-jwt-dump {
-  color: #1e293b;
+  color: var(--th-text-body);
   max-height: none;
   overflow-y: visible;
   margin: 0;
@@ -1894,7 +1897,7 @@ pre.tcd-jwt-dump.jh-dark {
 }
 
 .tci-body::-webkit-scrollbar-track {
-  background: #f8fafc;
+  background: var(--th-bg-inset);
 }
 
 .tci-body::-webkit-scrollbar-thumb {
@@ -1913,9 +1916,9 @@ pre.tcd-jwt-dump.jh-dark {
   gap: 4px 10px;
   margin-top: 6px;
   padding: 7px 10px;
-  background: #f8fafc;
+  background: var(--th-bg-inset);
   border-radius: 6px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--th-border);
 }
 .tcd-cs-item {
   display: inline-flex;
@@ -1925,14 +1928,14 @@ pre.tcd-jwt-dump.jh-dark {
   font-family: inherit;
 }
 .tcd-cs-key {
-  color: #475569;
+  color: var(--th-text-body);
   font-weight: 700;
 }
 .tcd-cs-key::after {
   content: ":";
 }
 .tcd-cs-val {
-  color: #1e293b;
+  color: var(--th-text-body);
   word-break: break-all;
 }
 .tcd-cs-act .tcd-cs-key {
@@ -1954,7 +1957,7 @@ pre.tcd-jwt-dump.jh-dark {
   color: #15803d;
 }
 .tcd-cs-scope .tcd-cs-val {
-  color: #334155;
+  color: var(--th-text-body);
 }
 .tcd-cs-expired .tcd-cs-val {
   color: #b91c1c;
@@ -1994,11 +1997,11 @@ pre.tcd-jwt-dump.jh-dark {
   color: #93c5fd;
 }
 .tcd-exc-banner--slate .tcd-exc-badge {
-  color: #374151;
+  color: var(--th-text-body);
 }
 .tcd-exc-desc {
   font-size: 0.69rem;
-  color: #374151;
+  color: var(--th-text-body);
   font-family: inherit;
 }
 
@@ -2073,12 +2076,12 @@ pre.tcd-jwt-dump.jh-dark {
 
 .tcd-mcp-results-count {
   font-size: 0.75rem;
-  color: #64748b;
+  color: var(--th-text-muted);
 }
 
 .tcd-mcp-result-card {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
   border-radius: 8px;
   padding: 12px;
   display: flex;
@@ -2087,8 +2090,8 @@ pre.tcd-jwt-dump.jh-dark {
 }
 
 .tcd-mcp-result-card:hover {
-  border-color: #cbd5e1;
-  background: #f1f5f9;
+  border-color: var(--th-border-strong);
+  background: var(--th-bg-inset);
 }
 
 .tcd-mcp-result-header {
@@ -2128,12 +2131,12 @@ pre.tcd-jwt-dump.jh-dark {
 .tcd-mcp-result-duration {
   margin-left: auto;
   font-size: 0.75rem;
-  color: #374151;
+  color: var(--th-text-body);
 }
 
 .tcd-mcp-result-summary {
   font-size: 0.85rem;
-  color: #475569;
+  color: var(--th-text-body);
   padding: 0 4px;
 }
 
@@ -2159,7 +2162,7 @@ pre.tcd-jwt-dump.jh-dark {
   flex-wrap: wrap;
   font-family: inherit;
   font-size: 0.68rem;
-  color: #374151;
+  color: var(--th-text-body);
   margin-top: 3px;
 }
 
@@ -2176,15 +2179,15 @@ pre.tcd-jwt-dump.jh-dark {
 }
 
 .tcd-aud-label {
-  color: #374151;
+  color: var(--th-text-body);
   font-size: 0.68rem;
   font-family: inherit;
 }
 
 /* ── NL Routing Card (Step 0) ─────────────────────────────────────────────── */
 .tcd-nl-card {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
   border-left: 3px solid #2563eb;
   border-radius: 6px;
   padding: 10px 14px;
@@ -2201,7 +2204,7 @@ pre.tcd-jwt-dump.jh-dark {
 
 .tcd-nl-card__step {
   background: #2563eb;
-  color: #fff;
+  color: var(--th-text-invert);
   font-size: 0.65rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -2213,20 +2216,20 @@ pre.tcd-jwt-dump.jh-dark {
 .tcd-nl-card__title {
   font-size: 0.78rem;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--th-text-body);
   flex: 1;
 }
 
 .tcd-nl-card__time {
   font-size: 0.68rem;
-  color: #94a3b8;
+  color: var(--th-text-faint);
 }
 
 .tcd-nl-card__row {
   display: flex;
   gap: 8px;
   font-size: 0.75rem;
-  color: #374151;
+  color: var(--th-text-body);
   margin-bottom: 4px;
   align-items: flex-start;
 }
@@ -2237,13 +2240,13 @@ pre.tcd-jwt-dump.jh-dark {
 
 .tcd-nl-card__key {
   font-weight: 600;
-  color: #64748b;
+  color: var(--th-text-muted);
   min-width: 52px;
   flex-shrink: 0;
 }
 
 .tcd-nl-card__val {
-  color: #1e293b;
+  color: var(--th-text-body);
 }
 
 .tcd-nl-card__prompt {
@@ -2254,7 +2257,7 @@ pre.tcd-jwt-dump.jh-dark {
 .tcd-nl-card__intent {
   font-family: var(--font-family-mono);
   font-size: 0.72rem;
-  background: #f1f5f9;
+  background: var(--th-bg-inset);
   padding: 1px 5px;
   border-radius: 3px;
 }
@@ -2281,13 +2284,13 @@ pre.tcd-jwt-dump.jh-dark {
 }
 
 .tcd-nl-source--llm {
-  background: #f1f5f9;
-  color: #334155;
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
 }
 
 .tcd-nl-source__detail {
   font-weight: 400;
-  color: #64748b;
+  color: var(--th-text-muted);
   margin-left: 4px;
 }
 
@@ -2307,7 +2310,7 @@ pre.tcd-jwt-dump.jh-dark {
   margin-left: auto;
   font-size: var(--tcd-size-caption);
   font-weight: 500;
-  color: #94a3b8;
+  color: var(--th-text-faint);
   letter-spacing: 0.03em;
   white-space: nowrap;
 }
@@ -2374,7 +2377,7 @@ pre.tcd-jwt-dump.jh-dark {
   padding: 3px 7px;
   border-radius: 999px;
   background: #5b21b6;
-  color: #fff;
+  color: var(--th-text-invert);
   font-size: 10px;
   font-weight: 800;
   text-transform: uppercase;
@@ -2389,14 +2392,14 @@ pre.tcd-jwt-dump.jh-dark {
 
 .tcd-a2a-modal {
   --modal-body-bg: #fff;
-  color: #111827;
+  color: var(--th-text);
 }
 .tcd-a2a-modal__body {
   flex: 1;
   overflow: auto;
   padding: 14px;
-  background: #fff;
-  color: #111827;
+  background: var(--th-bg-card);
+  color: var(--th-text);
 }
 .tcd-a2a-paths {
   display: grid;
@@ -2407,10 +2410,10 @@ pre.tcd-jwt-dump.jh-dark {
   display: grid;
   gap: 3px;
   padding: 9px 10px;
-  border: 1px solid #94a3b8;
+  border: 1px solid var(--th-border-strong);
   border-radius: 6px;
-  background: #fff;
-  color: #111827;
+  background: var(--th-bg-card);
+  color: var(--th-text);
 }
 .tcd-a2a-path strong { color: #312e81; }
 
@@ -2426,9 +2429,9 @@ pre.tcd-jwt-dump.jh-dark {
   font-weight: 600;
   letter-spacing: 0.02em;
   white-space: nowrap;
-  color: #475569;
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
+  color: var(--th-text-body);
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
 }
 .tcd-auth-method-chip--jwks {
   color: #166534;
@@ -2451,7 +2454,7 @@ pre.tcd-jwt-dump.jh-dark {
   font-weight: 600;
   letter-spacing: 0.06em;
   border-radius: 8px 8px 0 0;
-  color: #fff;
+  color: var(--th-text-invert);
   opacity: 1;
 }
 .tcd-path-oauth_bearer > .tcd-path-badge {
@@ -2504,11 +2507,11 @@ pre.tcd-jwt-dump.jh-dark {
   display: block;
   margin-top: 6px;
   padding: 10px 12px;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
   border-radius: 4px;
   font-size: var(--font-size-2xs);
-  color: #374151;
+  color: var(--th-text-body);
   line-height: 1.5;
   white-space: normal;
   position: relative;
@@ -2526,9 +2529,9 @@ pre.tcd-jwt-dump.jh-dark {
    narrowing, scope add/remove, and delegation (act) changes vs the previous
    step's token. */
 .tcd-event-diff {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--th-border);
   border-left: 3px solid #2563eb;
-  background: #f8fafc;
+  background: var(--th-bg-inset);
   border-radius: 4px;
   padding: 6px 10px;
   display: flex;
@@ -2540,7 +2543,7 @@ pre.tcd-jwt-dump.jh-dark {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #475569;
+  color: var(--th-text-body);
 }
 .tcd-event-diff-row {
   display: flex;
@@ -2551,7 +2554,7 @@ pre.tcd-jwt-dump.jh-dark {
 }
 .tcd-event-diff-label {
   font-weight: 600;
-  color: #1e293b;
+  color: var(--th-text-body);
 }
 .tcd-event-diff-detail {
   font-family: var(--font-family-mono);
@@ -2566,7 +2569,7 @@ pre.tcd-jwt-dump.jh-dark {
   color: #15803d;
 }
 .tcd-diff-arrow {
-  color: #64748b;
+  color: var(--th-text-muted);
 }
 
 /* ── TLS Security Card ──────────────────────────────────────────────────────── */
@@ -2589,7 +2592,7 @@ pre.tcd-jwt-dump.jh-dark {
 
 .tcd-tls-card__badge {
   background: #16a34a;
-  color: #fff;
+  color: var(--th-text-invert);
   font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -2632,15 +2635,15 @@ pre.tcd-jwt-dump.jh-dark {
 }
 
 .tcd-tls-hop {
-  background: #fff;
+  background: var(--th-bg-card);
   border: 1px solid #d1fae5;
   border-radius: 5px;
   padding: 8px 10px;
 }
 
 .tcd-tls-hop--internal {
-  background: #f8fafc;
-  border-color: #e2e8f0;
+  background: var(--th-bg-inset);
+  border-color: var(--th-border);
   opacity: 0.85;
 }
 
@@ -2656,18 +2659,18 @@ pre.tcd-jwt-dump.jh-dark {
 .tcd-tls-hop__to {
   font-size: 0.73rem;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--th-text-body);
 }
 
 .tcd-tls-hop__arrow {
   font-size: 0.73rem;
-  color: #94a3b8;
+  color: var(--th-text-faint);
 }
 
 .tcd-tls-hop__host {
   font-size: 0.68rem;
-  background: #f1f5f9;
-  color: #374151;
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
   padding: 1px 5px;
   border-radius: 3px;
   font-family: var(--font-family-mono);
@@ -2694,13 +2697,13 @@ pre.tcd-jwt-dump.jh-dark {
 
 .tcd-tls-hop__cert {
   font-size: 0.68rem;
-  color: #64748b;
+  color: var(--th-text-muted);
   margin-bottom: 3px;
 }
 
 .tcd-tls-hop__note {
   font-size: 0.7rem;
-  color: #475569;
+  color: var(--th-text-body);
   line-height: 1.4;
 }
 .tcd-trat-badge {
@@ -2744,7 +2747,7 @@ pre.tcd-jwt-dump.jh-dark {
 .tcd-trat-claims-detail {
   margin-top: 8px;
   padding: 8px 12px;
-  background: #f8fafc;
+  background: var(--th-bg-inset);
   border-radius: 4px;
   font-family: var(--font-mono);
   font-size: 0.75rem;
@@ -2800,7 +2803,7 @@ pre.tcd-jwt-dump.jh-dark {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--th-bg-card);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
   transition: transform 0.18s ease;
 }
@@ -2816,12 +2819,12 @@ pre.tcd-jwt-dump.jh-dark {
   border: 1px solid rgba(148, 163, 184, 0.5);
   border-radius: 999px;
   overflow: hidden;
-  background: #fff;
+  background: var(--th-bg-card);
 }
 .tcd-walk__seg button {
   border: none;
   border-right: 1px solid rgba(148, 163, 184, 0.5);
-  background: #fff;
+  background: var(--th-bg-card);
   color: var(--tcd-muted);
   font-size: var(--font-size-2xs);
   font-weight: 600;
@@ -2833,12 +2836,12 @@ pre.tcd-jwt-dump.jh-dark {
 }
 .tcd-walk__seg button.is-on {
   background: var(--brand-navy);
-  color: #fff;
+  color: var(--th-text-invert);
 }
 
 .tcd-walk__btn {
   border: 1px solid rgba(148, 163, 184, 0.5);
-  background: #fff;
+  background: var(--th-bg-card);
   color: var(--tcd-ink);
   font-size: var(--font-size-2xs);
   font-weight: 600;
@@ -2886,7 +2889,7 @@ pre.tcd-jwt-dump.jh-dark {
   flex: none;
   border-radius: 50%;
   border: 1px solid rgba(148, 163, 184, 0.6);
-  background: #fff;
+  background: var(--th-bg-card);
   color: var(--tcd-muted);
   font-size: var(--font-size-2xs);
   font-weight: 700;
@@ -2905,7 +2908,7 @@ pre.tcd-jwt-dump.jh-dark {
   z-index: 1200;
   width: 320px;
   max-width: calc(100vw - 24px);
-  background: #fff;
+  background: var(--th-bg-card);
   border: 1px solid rgba(148, 163, 184, 0.5);
   border-radius: 12px;
   box-shadow: 0 14px 40px rgba(20, 40, 80, 0.2);
@@ -2917,7 +2920,7 @@ pre.tcd-jwt-dump.jh-dark {
   gap: 8px;
   padding: 11px 14px;
   background: var(--brand-navy);
-  color: #fff;
+  color: var(--th-text-invert);
 }
 .tcd-step-explainer__step {
   font-size: 10.5px;
@@ -2938,7 +2941,7 @@ pre.tcd-jwt-dump.jh-dark {
   border: none;
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.18);
-  color: #fff;
+  color: var(--th-text-invert);
   font-size: var(--font-size-base);
   line-height: 1;
   cursor: pointer;

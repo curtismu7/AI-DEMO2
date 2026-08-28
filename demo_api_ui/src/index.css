@@ -247,7 +247,13 @@ textarea {
   --th-bg-inset: #f1f5f9;
   --th-bg-band: #16325c;
   --th-text: #0f172a;
+  /* Four emphasis levels, not one. #0f172a / #374151 / #556070 /
+     #94a3b8 are used as heading / body / secondary / faint; collapsing
+     them to a single "text" colour flattens the hierarchy. Values are
+     the dominant literal each replaces, so adoption is a no-op in light. */
+  --th-text-body: #374151;
   --th-text-muted: #556070;
+  --th-text-faint: #94a3b8;
   --th-text-invert: #ffffff;
   --th-border: #dbe2ea;
   --th-border-strong: #c3cdd9;
@@ -269,7 +275,10 @@ textarea {
   --th-bg-inset: #1b2540;
   --th-bg-band: #102847;
   --th-text: #e2e8f0;
+  /* Same four levels, inverted for the dark ground. */
+  --th-text-body: #c7d2e0;
   --th-text-muted: #94a3b8;
+  --th-text-faint: #6b7a90;
   --th-text-invert: #ffffff;
   --th-border: #26304a;
   --th-border-strong: #34405e;
