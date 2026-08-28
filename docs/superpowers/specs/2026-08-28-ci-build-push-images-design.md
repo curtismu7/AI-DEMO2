@@ -121,8 +121,18 @@ Steps:
    outputs would build everything on every merge.
 2. **A node script** joins the filter result against `--print-map` and emits a
    matrix of `{ key, ghcrImage, context }`.
-3. **Matrix job per service:**
-   `docker buildx build --push -t ghcr.io/<owner>/<image>:sha-<commit>`
+3. **Matrix job per service:** build through `docker compose build <service>`
+   under `-p ai-demo-se --profile demo-auth`, then `docker tag` the resulting
+   local image to `ghcr.io/<owner>/<image>:sha-<commit>` and push it.
+
+   Compose owns the build, deliberately. A service's build context is **not**
+   its source directory: `demo-api-server` builds from the repo root (the BFF
+   reads `scope-topology.json` and `docs/`) with
+   `dockerfile: demo_api_server/Dockerfile`, while `llm-proxy` builds from
+   `./demo_llm_proxy`. Putting context and dockerfile in the service map would
+   be a sixth and seventh copy of what `docker-compose.yml` already holds, and
+   `--profile demo-auth` is required or `authz-server` and `mcp-gateway` are
+   silently skipped — the trap `se-update-code.sh` already documents.
 4. **No `:latest` write. No rollout. No kubectl.** The workflow needs no cluster
    credentials at all, which is itself a property worth keeping.
 
