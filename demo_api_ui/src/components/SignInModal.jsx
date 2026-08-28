@@ -51,8 +51,12 @@ export default function SignInModal({
       title={admin ? "Admin sign-in required" : "Sign in required"}
       className="signin-modal"
       defaultWidth={460}
-      defaultHeight={detail ? 300 : 260}
-      minHeight={220}
+      /* Sized for the COLLAPSED state. `detail` renders as a closed <details>,
+         so reserving room for its expanded content left a band of empty white
+         under two lines of text. The body scrolls, and the panel is resizable,
+         so opening the disclosure costs nothing. */
+      defaultHeight={detail ? 244 : 224}
+      minHeight={200}
       footer={
         <div className="signin-modal__actions">
           {footerExtra}
