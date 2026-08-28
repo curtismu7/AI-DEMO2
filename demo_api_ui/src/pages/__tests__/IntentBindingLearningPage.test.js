@@ -91,3 +91,30 @@ test("status boxes use permit green / deny red by column kind", async () => {
     expect(container.querySelector(".ib-col--drift .ib-status--deny")).toBeTruthy();
   });
 });
+
+// The page is declared `public` in auth-requirements.json, but
+// /api/demo/intent-binding/run sits behind the bearer gate. A signed-out visitor
+// pressing Run used to get the raw machine code "authentication_required" in the
+// status box — the dead-end the SignInPrompt standing rule exists to prevent.
+test("a 401 from Run asks the visitor to sign in instead of showing the raw code", async () => {
+  global.fetch.mockResolvedValueOnce({
+    ok: false,
+    status: 401,
+    json: async () => ({
+      error: "authentication_required",
+      error_description: "Access token is required",
+    }),
+  });
+
+  render(
+    <MemoryRouter>
+      <IntentBindingLearningPage />
+    </MemoryRouter>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: /run permit/i }));
+
+  expect(await screen.findByText(/needs a signed-in session/i)).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /^sign in$/i })).toBeInTheDocument();
+  // The bare machine code must never reach the user.
+  expect(screen.queryByText(/authentication_required/)).toBeNull();
+});
