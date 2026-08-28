@@ -176,6 +176,12 @@ services:
       NODE_TLS_REJECT_UNAUTHORIZED: "0"
       # Plain-HTTP façade listener — see the 127.0.0.1:3002 port mapping above.
       MCP_FACADE_HTTP_PORT: "3002"
+      # The gateway's OAuth broker advertises itself as localhost:3005 for the
+      # BROWSER (published port). The BFF is a sibling container where that is
+      # Connection-refused, so its server-side metadata and token-endpoint
+      # fetches use the service name. The authorize URL handed to the browser
+      # deliberately keeps the advertised localhost form.
+      MCP_FACADE_AGENT_GATEWAY_AS_INTERNAL: "http://mcp-gateway:3005"
       # Open-access demo flag — same value the mcp-server gets. The BFF reads it
       # only to gate /api/path/demo-subject-token (mints the demo-user token the
       # mcp-server needs as a Step 9 subject_token on the Privilege open-access
