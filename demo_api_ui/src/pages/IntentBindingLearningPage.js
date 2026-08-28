@@ -261,14 +261,14 @@ export default function IntentBindingLearningPage() {
         ))}
       </ol>
 
-      <div className="ib-grant-card">
-        <strong>Authorization payload pushed to PAR endpoint (RFC 9126):</strong>
+      <div className="ib-grant-card" id="par">
+        <strong>RAR authorization_details (RFC 9396), pushed via PAR (RFC 9126):</strong>
         <pre className="ib-grant-json">{JSON.stringify(PAR_PAYLOAD, null, 2)}</pre>
       </div>
 
       <div id="rar">
         <div className="ib-flow-diagram">
-          <strong>PAR flow through the system:</strong>
+          <strong>PAR + RAR flow through the system:</strong>
           <svg viewBox="0 0 1000 200" className="ib-flow-svg">
             <rect x="10" y="40" width="110" height="60" rx="4" fill="#e3f2fd" stroke="#1976d2" strokeWidth="2" />
             <text x="65" y="75" textAnchor="middle" fontSize="14" fontWeight="500">User Declares</text>
@@ -339,9 +339,12 @@ export default function IntentBindingLearningPage() {
       </div>
 
       <p className="ib-edu-link">
-        For deeper PAR background, see the{" "}
-        <button type="button" className="ib-link-btn" onClick={() => edu && edu.open(EDU.RAR, "what")}>
+        PAR (RFC 9126) is how the request travels; RAR (RFC 9396) is what it means. See the{" "}
+        <button type="button" className="ib-link-btn" onClick={() => edu && edu.open(EDU.PAR, "what")}>
           PAR education panel
+        </button>{" "}or the{" "}
+        <button type="button" className="ib-link-btn" onClick={() => edu && edu.open(EDU.RAR, "what")}>
+          RAR education panel
         </button>.
       </p>
 
