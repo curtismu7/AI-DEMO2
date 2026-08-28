@@ -80,6 +80,33 @@ describe('sign-in surfaces use one defined accent', () => {
     }
   });
 
+  it('references no undefined custom property anywhere in the app CSS', () => {
+    // Widened from the sign-in surfaces to every stylesheet: the same silent
+    // failure was found in the modal shell's neighbours (--p1-mono,
+    // --rsi-accent) during the pop-out audit.
+    const missing = [];
+
+    FILES.forEach((file, i) => {
+      for (const use of ALL_CSS[i].matchAll(/var\(\s*(--[a-zA-Z0-9-]+)\s*([,)])/g)) {
+        if (use[2] === ')' && !defined.has(use[1])) {
+          missing.push(`${path.relative(SRC, file)} ${use[1]}`);
+        }
+      }
+    });
+
+    expect([...new Set(missing)]).toEqual([]);
+  });
+
+  it('gives the modal shell dark-mode surfaces', () => {
+    const index = fs.readFileSync(path.join(SRC, 'index.css'), 'utf8');
+    const dark = index.match(/:root\[data-theme="dark"\]\s*\{([^}]*)\}/)?.[1] ?? '';
+
+    // Defined for light only, every pop-out modal kept a white body in dark mode.
+    for (const token of ['--modal-body-bg', '--modal-footer-bg']) {
+      expect(dark, `${token} needs a dark value`).toContain(token);
+    }
+  });
+
   it('leaves no amber left over from the old HITL palette', () => {
     const app = fs.readFileSync(path.join(SRC, 'App.css'), 'utf8');
     const banner = app.match(

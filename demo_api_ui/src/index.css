@@ -18,6 +18,18 @@ tt {
     -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Arial, sans-serif;
 }
 
+/* Global reset: form controls do NOT inherit font-family from body — browsers
+   give them their own UI font. Without this a button renders in Segoe UI /
+   system-ui beside body text in --font-primary, which is why 340 button rules
+   across the app each had to remember `font-family: inherit` and 90 of them
+   forgot. An element selector, so any class rule still overrides it. */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
 /* Toast notifications must sit above all fixed/portal UI (hamburger menu is z-index 10055). */
 .Toastify__toast-container {
   z-index: 10100 !important;
@@ -258,6 +270,16 @@ tt {
   --signin-accent-hover: #1d4ed8;
   --signin-accent-bg: #16233c;
   --signin-accent-border: #2f4a7a;
+
+  /* The modal design system was defined for light only, so every pop-out
+     modal kept a white body and a near-white footer in dark mode. The header
+     was already dark, so only the surfaces below it needed a dark pair. */
+  --modal-body-bg: #131c2e;
+  --modal-body-text: #e2e8f0;
+  --modal-body-text-secondary: #b6c2d4;
+  --modal-footer-bg: #0f1729;
+  --modal-footer-border: #26304a;
+  --modal-border: 1px solid rgba(255, 255, 255, 0.09);
 }
 
 html {

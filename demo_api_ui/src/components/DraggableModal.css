@@ -162,18 +162,20 @@
   justify-content: flex-end;
   gap: 8px;
   padding: 10px 14px;
-  border-top: 1px solid #e5e7eb;
+  /* --modal-footer-* were already defined in index.css and simply not used
+     here; the hard-coded #fafafa had even drifted from the token's #f9fafb. */
+  border-top: 1px solid var(--modal-footer-border);
   position: relative;
   z-index: 1;
-  background: #fafafa;
+  background: var(--modal-footer-bg);
 }
 
 .dm-close-btn {
   padding: 6px 18px;
-  background: #f3f4f6;
-  border: 1px solid #d1d5db;
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border-strong);
   border-radius: 6px;
-  color: #374151;
+  color: var(--th-text);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
@@ -181,7 +183,7 @@
 }
 
 .dm-close-btn:hover {
-  background: #e5e7eb;
+  background: var(--th-bg-hover);
 }
 
 /* ── 8-direction resize handles ────────────────────────────────────────── */
@@ -257,9 +259,9 @@
   height: var(--dm-corner);
   cursor: nwse-resize;
   background-image:
-    radial-gradient(circle, #9ca3af 1px, transparent 1px),
-    radial-gradient(circle, #9ca3af 1px, transparent 1px),
-    radial-gradient(circle, #9ca3af 1px, transparent 1px);
+    radial-gradient(circle, var(--th-text-muted) 1px, transparent 1px),
+    radial-gradient(circle, var(--th-text-muted) 1px, transparent 1px),
+    radial-gradient(circle, var(--th-text-muted) 1px, transparent 1px);
   background-size: 4px 4px;
   background-position:
     3px 3px,
@@ -281,28 +283,28 @@
   bottom: 20px;
   right: 20px;
   z-index: 9999;
-  background: #f9fafb;
-  border: 2px dashed #9ca3af;
+  background: var(--th-bg-card);
+  border: 2px dashed var(--th-border-strong);
   border-radius: 8px;
   padding: 10px 14px;
   display: flex;
   align-items: center;
   gap: 10px;
   font-size: 13px;
-  color: #6b7280;
+  color: var(--th-text);
 }
 
 .dm-placeholder-btn {
-  background: #e5e7eb;
-  border: 1px solid #d1d5db;
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border-strong);
   border-radius: 5px;
-  color: #374151;
+  color: var(--th-text);
   padding: 3px 10px;
   font-size: 12px;
   cursor: pointer;
 }
 .dm-placeholder-btn:hover {
-  background: #d1d5db;
+  background: var(--th-bg-hover);
 }
 
 /* ── TokenChainDisplay inside modal — fill body, remove outer chrome ─────── */
