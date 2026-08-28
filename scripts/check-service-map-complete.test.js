@@ -9,7 +9,7 @@
 
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { checkMap } = require('./check-service-map-complete');
+const { checkMap, readInventory } = require('./check-service-map-complete');
 
 const GOOD = [
   { key: 'bff', sourceDir: 'demo_api_server', composeService: 'demo-api-server',
@@ -51,4 +51,10 @@ test('reports every offending key, not just the first', () => {
     { ...GOOD[0], key: 'b', sourceDir: '' },
   ];
   assert.strictEqual(checkMap(bad, INVENTORY).length, 2);
+});
+
+test('readInventory parses all 18 sourceDir entries from serverInventory.js', () => {
+  const inventory = readInventory();
+  assert.strictEqual(Object.keys(inventory).length, 18);
+  assert.strictEqual(inventory.demo_api_server, 'api-server');
 });

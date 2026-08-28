@@ -6,6 +6,9 @@
  * Static hygiene: every service key resolves in ALL FIVE lookups, and every
  * declared sourceDir is a directory data/serverInventory.js also knows about.
  *
+ * Blind spot by design: ALL_KEYS is this gate's iteration source, so a key
+ * deleted from ALL_KEYS entirely is invisible here.
+ *
  * Why this gate exists: a key present in four maps and missing from the fifth
  * is invisible. `se-update-code.sh <key>` keeps working while the build-all
  * and roll-all loops silently skip it — so the path you test is the one that
@@ -78,7 +81,16 @@ function main() {
     console.error('[service-map] FAIL — --print-map returned no services; parser or ALL_KEYS is broken');
     return 1;
   }
-  const errors = checkMap(map, readInventory());
+  const inventory = readInventory();
+  const inventoryCount = Object.keys(inventory).length;
+  if (inventoryCount !== 18) {
+    console.error(
+      `[service-map] FAIL — readInventory parsed ${inventoryCount} sourceDir entries, ` +
+      'expected 18; the parser is broken, not the map',
+    );
+    return 1;
+  }
+  const errors = checkMap(map, inventory);
   if (errors.length) {
     for (const e of errors) console.error('[service-map] FAIL —', e);
     return 1;
