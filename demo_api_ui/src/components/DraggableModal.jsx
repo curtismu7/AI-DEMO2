@@ -173,7 +173,13 @@ export default function DraggableModal({
       .map((el) => `<style>${el.textContent}</style>`)
       .join("\n");
 
-    win.document.write(`<!DOCTYPE html><html><head>
+    // The popout copies the parent's stylesheets, so --th-* resolves there —
+    // but data-theme lives on the PARENT's <html> and is not copied, so every
+    // popped-out panel rendered in light mode whatever the user had chosen.
+    const themeAttr = document.documentElement.getAttribute("data-theme");
+    const themeStamp = themeAttr ? ` data-theme="${themeAttr}"` : "";
+
+    win.document.write(`<!DOCTYPE html><html${themeStamp}><head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>${title}</title>

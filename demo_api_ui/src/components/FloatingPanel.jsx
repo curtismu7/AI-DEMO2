@@ -173,8 +173,14 @@ export default function FloatingPanel({
       .map((el) => `<style>${el.textContent}</style>`)
       .join('\n');
 
+    // Same as DraggableModal: the copied stylesheets bring --th-* along, but
+    // data-theme is on the parent's <html> and would otherwise be lost, so the
+    // popout always rendered light.
+    const themeAttr = document.documentElement.getAttribute('data-theme');
+    const themeStamp = themeAttr ? ` data-theme="${themeAttr}"` : '';
+
     win.document.write(`<!DOCTYPE html>
-<html>
+<html${themeStamp}>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -182,7 +188,7 @@ export default function FloatingPanel({
   ${styleLinks}
   ${inlineStyles}
   <style>
-    html, body { margin: 0; padding: 0; height: 100%; background: #fff; }
+    html, body { margin: 0; padding: 0; height: 100%; background: var(--th-bg-card); }
     #fp-popout-root { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
   </style>
 </head>
@@ -213,14 +219,14 @@ export default function FloatingPanel({
       <>
         {/* Portal: render the actual React children into the pop-out window's DOM */}
         <PopOutPortal win={popoutWin}>
-          <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: '#fff' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: 'var(--th-bg-card)' }}>
             {/* Mini title bar inside pop-out */}
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'6px 12px', background:'linear-gradient(135deg,#1a1a2e 0%,#16213e 100%)', color:'#fff', flexShrink:0 }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'6px 12px', background:'var(--modal-header-bg)', color:'var(--modal-header-text)', flexShrink:0 }}>
               <span style={{ fontSize:13, fontWeight:600 }}>{title}</span>
               <button
                 onClick={handlePopOut}
                 title="Bring back"
-                style={{ background:'rgba(255,255,255,0.15)', border:'none', color:'#fff', width:24, height:24, borderRadius:4, cursor:'pointer', fontSize:12 }}
+                style={{ background:'var(--modal-btn-bg)', border:'none', color:'var(--modal-header-text)', width:30, height:30, borderRadius:6, cursor:'pointer', fontSize:15, fontWeight:700 }}
               >⤶</button>
             </div>
             <div style={{ flex:1, minHeight:0, overflow:'hidden' }}>
