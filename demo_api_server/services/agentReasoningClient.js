@@ -83,7 +83,19 @@ async function runReasonLoop(p) {
         { headers: { 'x-internal-gateway-secret': secret }, timeout: REASON_LOOP_TIMEOUT_MS },
       );
     } catch (err) {
-      console.warn('[agentReasoningClient] :3006 reason call failed:', err.code || err.message);
+      // Log the HTTP status and body, not just err.code. axios reports EVERY 4xx as
+      // ERR_BAD_REQUEST, so a 403 (shared-secret mismatch) and a 400 (malformed
+      // messages[]/tools[]) were indistinguishable from a transport failure here —
+      // and all three surfaced to the user as "the LLM could not complete this
+      // request", sending people to look at the model instead of the hop. The
+      // :3006 body is a fixed {error} string from reasonRoute.ts, never user data.
+      const status = err.response?.status;
+      const detail = err.response?.data;
+      console.warn(
+        '[agentReasoningClient] :3006 reason call failed:',
+        err.code || err.message,
+        status ? `status=${status} body=${JSON.stringify(detail)}` : '(no response)',
+      );
       return { ok: false, reason: 'reasoning_unavailable' };
     }
     const data = resp.data;
