@@ -128,8 +128,8 @@ export default function PolicyDecisionTracePage() {
           <PolicyDecisionTree policies={policies} result={result} />
         </div>
       ) : (
-        <div style={{ padding: '40px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
-          <p style={{ marginBottom: '8px', fontWeight: 600, color: '#0f172a' }}>No decision trace loaded</p>
+        <div style={{ padding: '40px', textAlign: 'center', color: 'var(--th-text-muted)', fontSize: '13px' }}>
+          <p style={{ marginBottom: '8px', fontWeight: 600, color: 'var(--th-text)' }}>No decision trace loaded</p>
           <p>Run an evaluation on PingOne Authorize, then open the trace from there.</p>
         </div>
       )}

@@ -677,7 +677,7 @@ const Dashboard = ({ user, onLogout }) => {
                       style={{
                         marginTop: "1rem",
                         fontSize: "0.9rem",
-                        color: "#374151",
+                        color: "var(--th-text)",
                         lineHeight: 1.5,
                       }}
                     >
