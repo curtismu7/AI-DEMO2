@@ -35,10 +35,23 @@ Both cannot be true. Each author wrote their call site to match their belief,
 so the codebase now holds both models simultaneously.
 
 **Which one reality matches.** Measured 2026-08-28 in the running stack:
-`BFF_INTERNAL_SECRET` is a 206-character dotenvx `encrypted:...` ciphertext in
-the environment of BOTH `demo-api-server` and `agent-service`. So the vault is
-not supplying a usable plaintext through `process.env`, and
-`internalSecret.js`'s premise does not hold in this deployment.
+`BFF_INTERNAL_SECRET` is a 206-character `encrypted:...` value in the
+environment of BOTH `demo-api-server` and `agent-service`. So the vault is not
+supplying a usable plaintext through `process.env`, and `internalSecret.js`'s
+premise does not hold in this deployment.
+
+**And that value is CORRUPT, which is the real defect.** `encrypted:` is
+configStore's OWN internal ciphertext format — not dotenvx, not a vault
+envelope. `services/configStore.js:780-786` states it outright: it "belongs in
+LMDB rows, never in .env", and a prior export/import round-trip putting it
+there literally is what caused the 2026-08-21 `invalid_client` incident, where
+it shadowed a correct vault-held PingOne client secret. This is that same
+incident class, a different key.
+
+configStore SCREENS the prefix (`_isCiphertextEnvValue`, one screen shared by
+`getEffective()`'s `readEnv()` and `get()`'s env fallback) and falls back to
+vault/LMDB — which is why the BFF sends the real plaintext and is NOT the
+broken side here.
 
 **What it broke.** `agent-service` (`demo_agent_service/src/index.ts:70`) reads
 `process.env` with no decrypt step, so its secret IS the raw ciphertext. The
@@ -65,15 +78,32 @@ together, and two of them work today only because both ends are equally wrong
 
 Making `agent-service` decrypt repairs `/reason` and breaks the other two.
 
-**What the real fix looks like.** Converge on `utils/internalSecret.js` — the
-resolver that already exists for exactly this reason — and make it return the
-DECRYPTED value while keeping the lazy per-call resolution it has for good
-reason. Then point `agentReasoningClient.js` and `agentRun.js` at it, and give
-`agent-service` the equivalent (its `.env.keys` is already mounted as an
-`env_file`; nothing calls dotenvx with it). Also verify these, unaudited:
+**What the real fix looks like.** TWO parts, and only the first fixes the 403.
+
+1. *Root cause — config, not code.* Replace the corrupt `encrypted:...` value in
+   `demo_api_server/.env` and `demo_agent_service/.env` with the real plaintext
+   (or remove it BFF-side so the vault supplies it, and set agent-service's
+   explicitly). There is NO decrypt path to add to `agent-service`: the value is
+   configStore's own format and needs configStore's key plus the vault, neither
+   of which agent-service has or should have. Any plan of the form "make
+   agent-service decrypt it" is not implementable.
+
+2. *Convergence — code.* Point `agentReasoningClient.js:50` and
+   `agentRun.js:197` at `utils/internalSecret.js` so one secret stops being
+   resolved three different ways. This does not fix the 403 on its own; it
+   removes the split that made the fault so hard to see, and settles the comment
+   contradiction above. Also verify these, unaudited:
 `routes/codegraphProxy.js:13`, `routes/mcpInspector.js:903`,
 `demo_agent_service/src/transactionHop.ts:37` (agent-service presenting the
 secret OUTBOUND — needs the same treatment as the inbound check).
+
+**Worth adding.** `agent-service` should refuse to start when
+`BFF_INTERNAL_SECRET` begins with `encrypted:`, mirroring the `process.exit(1)`
+it already does for the committed dev default and mirroring configStore's screen
+on the BFF side. Today a corrupt value produces a silent 403 that surfaces to
+users as "the LLM could not complete this request" — a loud startup failure
+naming the cause would have made this a one-minute diagnosis instead of a long
+one, and would stop a third occurrence of this class.
 
 **The tempting wrong fix.** Dropping `agentReasoningClient.js` to env-first
 makes it consistent with the canonical helper and turns the 403 green — by
