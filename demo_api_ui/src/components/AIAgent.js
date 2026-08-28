@@ -12074,7 +12074,15 @@ export default function BankingAgent({
       />
       <SimpleStepperPanel
         isOpen={showSimpleStepper}
-        onClose={() => setShowSimpleStepper(false)}
+        onClose={() => {
+          // Persist, same as the "Simple step" switch. Without this the ✕ only
+          // closed it for the current render and ba_show_simple_stepper stayed
+          // "1", so the panel came back on every page load.
+          try {
+            localStorage.setItem("ba_show_simple_stepper", "0");
+          } catch {}
+          setShowSimpleStepper(false);
+        }}
       />
       {(() => {
         // Copy + builder per modal kind. 'tool' filters are case-insensitive
