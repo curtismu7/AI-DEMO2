@@ -16,21 +16,25 @@ let _workerTokenExpiry = 0;
 // ff_agent_restrictions ON, so if the restriction level cannot be determined
 // (worker creds missing, PingOne unreachable, API error, evaluation throws) the
 // gate must NOT silently grant full 'write' access — a transient outage would
-// otherwise defeat the whole feature. Set AGENT_RESTRICTIONS_FAILOVER=permit
-// (or the agent_restrictions_failover config key) for the legacy fail-open.
-function failoverPermits() {
-  const mode = String(
-    process.env.AGENT_RESTRICTIONS_FAILOVER ||
-    configStore.get('agent_restrictions_failover') ||
-    'restrict'
-  ).toLowerCase();
-  return mode === 'permit';
+// otherwise defeat the whole feature.
+//
+// The policy comes from resolveAuthorizeMode, the same source of truth the
+// transaction and MCP-tool paths use, so one authorize_mode governs all three.
+// This gate used to carry a private AGENT_RESTRICTIONS_FAILOVER dial with its own
+// two-state vocabulary (restrict|permit), which meant an operator choosing
+// authorize_mode='pingone_fallback_simulated' got the demo engine everywhere
+// except here. Defaults are unchanged: authorize_mode='pingone' → 'deny'.
+function failoverMode() {
+  return simulatedAuthorizeService.resolveAuthorizeMode(configStore).failoverMode;
 }
 
 // The restriction value to apply when we cannot determine the real one.
 // 'write' = unrestricted (fail open); 'none' = fully restricted (fail closed).
+// Only an explicit failover_mode=permit opens this up — under
+// 'fallback_simulated' the level is still unknown, so the gate stays closed and
+// the simulated engine decides on a restricted user rather than an invented one.
 function failoverRestrictionValue() {
-  return failoverPermits() ? 'write' : 'none';
+  return failoverMode() === 'permit' ? 'write' : 'none';
 }
 
 async function getWorkerToken() {
@@ -142,8 +146,8 @@ async function agentRestrictionsGate(req, res, next) {
     // fetch error, unexpected exception) — this was previously the one
     // exception that unconditionally called next(), contradicting the
     // module's own documented fail-closed default.
-    if (failoverPermits()) {
-      logger.warn('[agentRestrictionsGate] No userId resolvable, failing open (AGENT_RESTRICTIONS_FAILOVER=permit)');
+    if (failoverMode() === 'permit') {
+      logger.warn('[agentRestrictionsGate] No userId resolvable, failing open (failover_mode=permit)');
       return next();
     }
     logger.warn('[agentRestrictionsGate] No userId resolvable, failing closed');
@@ -162,37 +166,61 @@ async function agentRestrictionsGate(req, res, next) {
       return next();
     }
 
-    // Respect the configured authorize_mode, not just isSimulatedModeEnabled.
-    // When ff_authorize_real=false, use simulated engine regardless of authorize_mode.
-    // Otherwise, when authorize_mode is 'pingone', prefer P1AZ.
-    const ffSimulated = configStore.getEffective('ff_authorize_real') !== 'true';
-    const authorizeMode = configStore.getEffective('authorize_mode') || 'pingone';
-    const useSimulated = ffSimulated || authorizeMode === 'simulated';
+    // Engine selection comes from resolveAuthorizeMode, which reads
+    // ff_authorize_real and authorize_mode the same way the transaction and MCP
+    // paths do. The local derivation this replaces tested ff_authorize_real
+    // `!== 'true'`, so a boolean true stored in LMDB (rather than the string)
+    // sent this gate to the simulated engine while the rest of the system stayed
+    // on P1AZ — resolveAuthorizeMode treats only an explicit false as the override.
+    const { useSimulated } = simulatedAuthorizeService.resolveAuthorizeMode(configStore);
     let authzResult;
-    const decidedEngine = useSimulated ? 'simulated' : 'pingone';
+    let decidedEngine = useSimulated ? 'simulated' : 'pingone';
 
     if (useSimulated) {
       authzResult = simulatedAuthorizeService.evaluateAgentRestrictions({
         agentRestrictions, requiredTier, userId, agentSub, tool: toolName,
       });
     } else {
-      // P1AZ was selected, so P1AZ decides — there is no substitution branch. An
-      // unconfigured endpoint or an unreachable PingOne throws, and the catch
-      // below fails closed (503) under the default AGENT_RESTRICTIONS_FAILOVER.
-      // This used to fall back to the simulated engine whenever the real
-      // evaluator was missing, which it always was; the response said
-      // authorize_engine:'simulated' but the gate was the demo engine every time.
+      // P1AZ was selected, so P1AZ decides — there is no substitution branch here.
+      // An unconfigured endpoint or an unreachable PingOne throws, and the catch
+      // below applies the failover policy. This used to fall back to the
+      // simulated engine whenever the real evaluator was missing, which it always
+      // was; the response said authorize_engine:'simulated' but the gate was the
+      // demo engine every time.
       const pingOneAuthorizeService = require('../services/pingOneAuthorizeService');
-      authzResult = await pingOneAuthorizeService.evaluateAgentRestrictions({
-        subject: userId,
-        environment: {
-          agentRestrictions,
-          requiredTier,
-          agentSub,
-          tool: toolName,
-          ff_agent_restrictions: 'true',
-        },
-      });
+      try {
+        authzResult = await pingOneAuthorizeService.evaluateAgentRestrictions({
+          subject: userId,
+          environment: {
+            agentRestrictions,
+            requiredTier,
+            agentSub,
+            tool: toolName,
+            ff_agent_restrictions: 'true',
+          },
+        });
+      } catch (p1azErr) {
+        // Failover applies to a P1AZ evaluation failure specifically — scoped
+        // here rather than to the whole block so an unrelated error later (a
+        // failed createPendingDecision) can never be mistaken for an outage and
+        // answered with a demo-engine decision.
+        const mode = failoverMode();
+        if (mode === 'permit') {
+          logger.error('[agentRestrictionsGate] PingOne Authorize failed, failing open (failover_mode=permit) — this call is NOT authorized',
+            { err: p1azErr.message, userId, toolName });
+          return next();
+        }
+        if (mode === 'fallback_simulated') {
+          logger.warn('[agentRestrictionsGate] PingOne Authorize failed, falling back to the simulated engine (failover_mode=fallback_simulated)',
+            { err: p1azErr.message, userId, toolName });
+          authzResult = simulatedAuthorizeService.evaluateAgentRestrictions({
+            agentRestrictions, requiredTier, userId, agentSub, tool: toolName,
+          });
+          decidedEngine = 'fallback_simulated';
+        } else {
+          throw p1azErr; // failover_mode=deny — the outer catch fails closed (503)
+        }
+      }
     }
 
     if (authzResult.decision === 'PERMIT') return next();
@@ -219,8 +247,8 @@ async function agentRestrictionsGate(req, res, next) {
       authorize_engine: decidedEngine,
     });
   } catch (err) {
-    if (failoverPermits()) {
-      logger.error('[agentRestrictionsGate] Unexpected error, failing open (AGENT_RESTRICTIONS_FAILOVER=permit)', { err: err.message });
+    if (failoverMode() === 'permit') {
+      logger.error('[agentRestrictionsGate] Unexpected error, failing open (failover_mode=permit)', { err: err.message });
       return next();
     }
     logger.error('[agentRestrictionsGate] Unexpected error, failing closed', { err: err.message });
