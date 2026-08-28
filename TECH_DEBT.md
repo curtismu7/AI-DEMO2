@@ -16,7 +16,7 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
-### [ ] 2026-08-28 — CI cannot push images: GHCR packages are user-owned, unlinked
+### [x] 2026-08-28 — CI cannot push images: GHCR packages are user-owned, unlinked
 
 Every `push-image` job fails at its final step with
 `denied: permission_denied: write_package`. The build, the `docker tag`, and the
@@ -59,6 +59,44 @@ clicks for a long-lived broader-scoped credential in repo secrets.
 selected `llm` alone. Then confirm the `sha-` tag exists and that `:latest` is
 still `sha256:76fc7bb2...`.
 
+**RESOLVED** — PR #2540, verified on merge `622feba36` (branch
+`worktree-ci-ghcr-pat`, then `worktree-ghcr-push-test`).
+
+*What it turned out to be, versus what this entry guessed:* the diagnosis was
+right — repository identity, not visibility, not a broken package. What the entry
+got wrong was the remedy. It named per-package Actions access as "the real fix"
+and the PAT as a fallback. Per-package access was tried first and **could not be
+made to take**: the denial was byte-identical before and after, and the change is
+not observable through any API, so it could not even be confirmed as applied. The
+fallback became the fix.
+
+*The fix:* `build-images.yml` now authenticates with a **classic** PAT in
+repository secret `GHCR_TOKEN` (fine-grained tokens do not reliably support the
+container registry), and `username:` is `github.repository_owner` rather than
+`github.actor` — the PAT belongs to the owner, while actor is whoever triggered
+the run, so a merge by anyone else would pair a mismatched username with the
+owner's token. A guard step fails naming the secret if it is absent, because a
+missing secret otherwise surfaces as an authentication error and reads as "the
+token is wrong" rather than "there is no token".
+
+*Evidence:* run 33167899190 on `622feba36` — job `llm` success;
+`sha-622feba367f2b5ee6fb93c0fbbffca2eadc6e7cc` resolves to
+`sha256:ce892608...`; `:latest` still `sha256:76fc7bb2...`, a **different**
+digest, so a push demonstrably did not move it.
+
+*Two things this leaves behind, deliberately recorded:*
+
+1. **This is the weaker option on security grounds** — a long-lived,
+   broadly-scoped credential in repository secrets, where `GITHUB_TOKEN` was
+   short-lived and repository-scoped. It was taken because the stronger option
+   could not be made to work, not because it is better. **Why per-package Actions
+   access did not take was never established.** If it can be, reverting is a
+   two-line change to the `docker/login-action` step.
+2. A re-run cannot test a change to this workflow. GitHub re-runs use the
+   workflow file from the *triggering commit*, so verifying any future change to
+   the login or push step needs a fresh merge touching a service directory, not
+   `gh run rerun`.
+
 ### [ ] 2026-08-28 — post-merge verification of the promote path is incomplete
 
 Steps 4-5 of the CI build-and-push plan's post-merge checklist have never run,
@@ -86,6 +124,36 @@ the `imagetools` verification. It shares `:latest`'s digest, and a GHCR "version
 is a digest rather than a tag — so deleting that version via API would delete the
 image `:latest` points at. Remove it via the Versions UI or leave it; do not
 script its deletion.
+
+**PARTLY RESOLVED** — 2026-08-28, once the push blocker above was fixed. Stays
+unchecked: the promote itself has still never run.
+
+*Now verified*, on run 33167899190 / merge `622feba36`, having previously been
+blocked behind a push that never succeeded:
+
+- the CI `docker push` lands an immutable tag —
+  `sha-622feba367f2b5ee6fb93c0fbbffca2eadc6e7cc` → `sha256:ce892608...`
+- **`:latest` does not move on a push** — still `sha256:76fc7bb2...`, a
+  *different* digest from the tag just pushed. This is the property the whole
+  design rests on and it had never been observed against a real CI push before,
+  only against runs that failed short of pushing.
+
+*Still not verified, and it needs the live shared SE cluster:*
+`./se-update-code.sh --promote 622feba367f2b5ee6fb93c0fbbffca2eadc6e7cc llm`,
+then proving the pod actually serves the promoted image:
+
+```bash
+kubectl --context us exec -n ping-devops-cmuir deploy/demo-api-server -- \
+  sh -c 'curl -s -o /dev/null -w "/livez -> %{http_code}\n" http://llm-proxy:8090/livez'
+```
+
+Expect `200`. A green `kubectl rollout status` is **not** sufficient evidence —
+on 2026-08-27 `successfully rolled out` was reported while the pod was still the
+old crash-looping one. That is the specific trap this step exists to catch.
+
+*Promotable commits:* only merges after `4d9ad6d31` (the PAT fix) have images.
+Everything merged before it — including the feature's own merge commit — has no
+image and is permanently unpromotable.
 
 ### [ ] 2026-08-28 — two parallel module trees in demo_api_server (`X.js` vs `src/X.js`)
 
