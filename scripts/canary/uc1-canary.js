@@ -139,20 +139,24 @@ function fail(msg) {
     // that, wrongly, `.user-dashboard--2026`, which BOTH dashboards carried, so
     // it skipped nothing and the canary failed every run.)
     //
-    // The clinical-split skip below is now a DEPLOY-LAG allowance, not a design
-    // statement: clinical split renders a ReelDock too as of this change. It is
-    // kept because this canary runs against ai-demo.ping-devops.com, whose
-    // frontend is deployed by hand — tightening it to expect a reel in every
-    // layout would go red until SE is updated, which is noise, not signal.
-    // Tighten it (drop the skip, expect unconditionally) once SE carries this.
+    // No layout is exempt any more. Clinical split used to be skipped here --
+    // it was an early return in UserDashboardPing2026 that never reached either
+    // reel render, so the canary encoded its absence as "no reel by design".
+    // PR #2524 gave it a ReelDock, and the SE frontend carrying that was
+    // verified on 2026-08-28 (the served bundle contains tcfs-float-host,
+    // "Collapse token chain" and user-dashboard--clinical-split), so the
+    // deploy-lag allowance that kept the skip alive is spent.
+    //
+    // `clinical` is still reported, purely so a failure message names which
+    // layout was live -- the two layouts pin the reel by different mechanisms
+    // (a grid row in focus mode, a sticky host in clinical/float), so knowing
+    // which one was on screen is the first thing you need when this goes red.
     const reel = await page.evaluate(() => {
       const clinical = !!document.querySelector('.user-dashboard--clinical-split');
-      const expected = !clinical;
       const el = document.querySelector('.tcfs-chain');
-      if (!el) return { expected, clinical, present: false };
+      if (!el) return { clinical, present: false };
       const r = el.getBoundingClientRect();
       return {
-        expected,
         clinical,
         present: true,
         onScreen: r.height > 0 && r.bottom > 0 && r.top < window.innerHeight,
@@ -160,16 +164,15 @@ function fail(msg) {
         vh: window.innerHeight,
       };
     });
-    if (!reel.expected) {
-      console.log('canary: clinical-split layout — reel check skipped pending the SE frontend deploy');
-    } else if (!reel.present) {
+    const layout = reel.clinical ? 'clinical-split' : 'focus/float';
+    if (!reel.present) {
       await shoot('canary-reel-missing.png');
-      fail('movie reel (.tcfs-chain) is not in the DOM on /dashboard');
+      fail(`movie reel (.tcfs-chain) is not in the DOM on /dashboard (layout: ${layout})`);
     } else if (!reel.onScreen) {
       await shoot('canary-reel-offscreen.png');
-      fail(`movie reel is in the DOM but off screen (top=${reel.top}, viewport=${reel.vh})`);
+      fail(`movie reel is in the DOM but off screen (layout: ${layout}, top=${reel.top}, viewport=${reel.vh})`);
     } else {
-      console.log('canary: movie reel on screen');
+      console.log(`canary: movie reel on screen (layout: ${layout})`);
     }
   } catch (err) {
     await shoot('canary-error.png');

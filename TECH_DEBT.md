@@ -87,6 +87,253 @@ is a digest rather than a tag — so deleting that version via API would delete 
 image `:latest` points at. Remove it via the Versions UI or leave it; do not
 script its deletion.
 
+### [ ] 2026-08-28 — two parallel module trees in demo_api_server (`X.js` vs `src/X.js`)
+
+`demo_api_server` carries near-duplicate copies of several modules at two
+depths: `middleware/tokenErrorMiddleware.js` and
+`src/middleware/tokenErrorMiddleware.js`, `services/errorMessageBuilder.js` and
+`src/services/errorMessageBuilder.js`, and others. Live `require()`s resolve to
+the NON-`src` copy; the `src/` half was dead. The dead half was removed in
+PR #2521, but nothing stops the pattern recurring.
+
+**Why it wasn't fixed now:** removing the dead copies was already the scope of
+that branch. Collapsing the two trees — deciding which depth is canonical and
+moving the survivors — is a much larger, higher-risk change, and the layout is
+documented in `demo_api_server/CLAUDE.md` as-is.
+
+**The risk:** this is actively dangerous to reason about, not merely untidy.
+Basename matching cannot distinguish the two, so any tool or agent that greps
+`errorMessageBuilder` sees hits for both and cannot tell which is live. The
+parked dead-code sweep this PR replaced was built that way and would have
+deleted three live files, one of them `utils/jwtDecoder.js`, which
+`middleware/auth.js` requires — i.e. it would have broken authentication.
+
+**What the real fix looks like:** pick one canonical depth (`src/` or not),
+move the surviving modules there in one mechanical commit, and add a hygiene
+assertion that no basename exists at both depths.
+
+### [ ] 2026-08-28 — `src/services/tokenValidationService.js` is kept alive only by dead files
+
+PR #2521 removed 27 unreferenced modules but deliberately kept this one. It IS
+a resolved `require()` target — but every file that requires it is itself in
+the dead cluster that was removed around it, so nothing reachable from
+`server.js` or any test uses it.
+
+**Why it wasn't fixed now:** the deletion criterion used was "no resolved
+reference names this file", which is deliberately conservative and
+under-deletes. Establishing "reachable from an entrypoint" instead means
+computing a real reachability closure, which is a different (and more
+error-prone) analysis than the one that branch needed.
+
+**The risk:** low — it is dead weight, not a hazard. The cost is that the next
+dead-code pass will re-derive the same ambiguity from scratch.
+
+**What the real fix looks like:** a reachability walk from the real entrypoints
+(`server.js`, every `tests/**` and `src/__tests__/**` file, `scripts/**`)
+rather than a reference-existence check, then delete whatever the closure does
+not reach. Note the `jest.mock()` caveat below.
+
+### [ ] 2026-08-28 — dead-code analysis must resolve `jest.mock()`, not just `require()`
+
+A module referenced ONLY by a `jest.mock('../../services/x')` string is invisible
+to a `require()`-only scan, and deleting it does not break any import — it
+breaks jest's resolver at mock time. The failure signature is a suite that
+FAILS TO RUN with **0 failed tests**, which does not look like a missing module.
+
+This bit PR #2521 during development: `services/configHostnameService.js` was
+classified dead, and `node -e "require('./server.js')"` loaded the entire module
+graph afterwards with zero `MODULE_NOT_FOUND`. Only the full jest suite caught it.
+
+**Why it wasn't fixed now:** the fix landed ad hoc in that branch's analysis
+(the resolver was extended to `require`, `jest.mock`, `jest.doMock`,
+`jest.unmock`, `jest.requireActual` and dynamic `import()`), but it lives in a
+throwaway script, not in the repo.
+
+**The risk:** the next person doing this re-derives the require-only version,
+gets a clean boot check, and ships a branch that reds the suite — or worse,
+trusts the boot check the way this session initially did.
+
+**What the real fix looks like:** commit the resolver as a script under
+`scripts/` (or adopt `knip`, whose config was drafted in the parked branch) so
+the analysis is reproducible rather than reconstructed each time.
+
+### [ ] 2026-08-28 — `demo_api_server` dependencies never re-verified after the dead-code removal
+
+PR #2521 deleted 27 modules but deliberately left `package.json` untouched. The
+parked sweep it replaced also stripped 8 dependencies and 2,895 lock lines,
+claiming they were orphaned by those deletions. That claim was never checked
+against current `main`.
+
+**Why it wasn't fixed now:** dependency removal has its own blast radius —
+a transitive or lazily-`require()`d dependency looks unused to a static scan —
+and folding it into a deletion commit would have made the diff impossible to
+review as one thing.
+
+**The risk:** carrying dead dependencies costs install time and audit surface.
+Low urgency, but the information is currently stale rather than absent, which
+is worse — someone may trust the parked branch's list.
+
+**What the real fix looks like:** re-derive orphaned deps against current
+`main` (not the parked list), remove them in their own commit, and verify with a
+clean `npm ci` plus the full server suite.
+
+### [ ] 2026-08-28 — SE smoke check 2/7 races a terminating replica and fails a healthy deploy
+
+`se-update-code.sh`'s post-deploy smoke check "no pod predates deploy start"
+reported `[FAIL] pods running PRE-deploy images: frontend` on a deploy that was
+in fact correct, and the script exited 1 with the live demo healthy.
+
+Verified by hand afterwards: the running pod's imageID was
+`sha256:350e590d…`, byte-identical to GHCR's current `:latest`, it started
+after the deploy, and the served bundle contained the newly-shipped markers.
+The rollout log shows `1 old replicas are pending termination` twice — the
+check sampled the old replica mid-termination.
+
+**Why it wasn't fixed now:** the deploy this was found on had to be verified
+and reported first, and the check is in a script that runs against a live SE
+cluster — changing it deserves its own branch and its own verification.
+
+**The risk:** the check cries wolf on a good deploy. Worse than a missing check,
+because the documented remediation (`kubectl rollout restart`) is a no-op that
+appears to fix it, training the reader to ignore the check.
+
+**What the real fix looks like:** filter pods to `status.phase == Running` with
+no `deletionTimestamp` before comparing start times, or compare the deployment's
+`observedGeneration`/`updatedReplicas` instead of per-pod timestamps.
+### [ ] 2026-08-28 — deploy-live silently no-ops on a compose `environment:` change
+
+`scripts/deploy-live.sh` maps changed **paths** in the merged diff to compose
+services. A change to `docker-compose.yml` that only adds or edits an
+`environment:` entry touches no service path, so the script exits 0, prints
+nothing about that service, and deploys nothing. Container env is frozen at
+create, so the running service keeps the old value while the checkout, the
+merge and the deploy all look clean.
+
+Observed twice on 2026-08-28 while wiring the audit door: adding
+`GATEWAY_OAUTH_BROKER_PINGONE_CLIENT_ID` and the `MCP_GW_OAUTH_STATIC_*` block
+merged and "deployed" successfully, and `docker exec ... env` still reported
+`<unset>`. Only an explicit `./run-docker.sh restart mcp-gateway` (which
+recreates) picked them up.
+
+**Why it wasn't fixed now:** the path-to-service mapping is the whole reason
+deploy-live is fast and targeted; making it parse `docker-compose.yml` for which
+services' `environment:` blocks changed is a real change to the deploy path, and
+the branch that hit this was already several layers deep in an unrelated fix.
+
+**The risk:** the silent direction. A restart-needed change that *fails* is
+obvious; one that reports success and does nothing is not. It reads as "the code
+is wrong" and sends you debugging the feature instead of the deploy — which is
+exactly what happened here, twice, before `docker exec ... env` was checked.
+Same failure mode as the image-built-services trap already in this file, one
+layer further out.
+
+**What the real fix looks like:** have deploy-live diff `docker-compose.yml`
+structurally (not by path) and recreate any service whose `environment:`,
+`env_file:` or `build.args` changed — or, cheaper, detect that
+`docker-compose.yml` is in the diff at all and print a loud "compose changed —
+env-only edits need `run-docker.sh restart <svc>`; deploy-live will not do it"
+rather than silently succeeding.
+
+### [ ] 2026-08-28 — gateway tools/list is only governed on the WebSocket transport
+
+The audit-agent work shipped a door that advertises `audit:read`, a scope wired
+through all four config points, a PingOne scope, and an OAuth chain that
+demonstrably issues a narrow token (`scope: audit:read mcp:invoke openid`,
+verified live). The gateway then returned **242 tools** to it.
+
+`demo_mcp_gateway/src/index.ts` is the **WebSocket** transport and owns the only
+`tools/list` aggregation and the only `guardToolsList(..., candidateNames)` call.
+`src/server/GatewayServer.ts` is the **HTTP** transport and has no `tools/list`
+handling at all — it relays the upstream body verbatim
+(`res.end(Buffer.from(upstream.data))`, ~line 1102). So over HTTP the PDP is only
+ever asked the generic `DecisionContext: McpRequest` question, which
+`demo_authz_server` Rule 2.9 permits wholesale (`ToolName: ""`, "no tool to
+evaluate"). Proof: **zero `McpToolsList` decisions appear in the authz logs**
+for a request that returned 242 tools.
+
+Both halves of the intended mechanism already exist and were written for each
+other — the gateway sends `DecisionContext: 'McpToolsList'` with
+`CandidateTools`, and `demo_authz_server/routes/decision.js:~549` computes
+`DeniedTools` from `requiredScopesForTool` vs granted scopes. They are simply
+never connected on the HTTP path.
+
+**Why it wasn't fixed now:** `GatewayServer` has no decoded token — the HTTP
+path authorizes in the `authorizeMcpRequest` middleware and passes the forwarder
+only `callerScope`. Fixing it means threading the decoded token (or the
+middleware's authz result) into `forwardToUpstream` AND adding a response filter
+that handles both the plain-JSON and SSE (`event: message`) shapes. That changes
+authorization for **every** HTTP MCP caller — LM Studio, LibreChat, every façade
+door — not just the page that surfaced it. Too broad to land at the tail of the
+branch that found it.
+
+**The risk:** any demo or doc that claims a scope-narrowed MCP client is
+overstating it on the HTTP path. A caller holding only `audit:read` still
+discovers the full catalog; only `tools/call` is gated per-tool. The narrowing
+reads as working because the token really is narrow — the gap is entirely in
+whether anything acts on it during discovery.
+
+**What the real fix looks like:** thread the decoded token into
+`GatewayServer.forwardToUpstream`, and for `jsonRpc.method === 'tools/list'`
+call `guardToolsList` with the upstream tool names, dropping `deniedTools`
+before relaying. Note a P1AZ policy alone cannot fix this — no rule can narrow
+a decision that is never asked with a tool list. A cheaper interim option worth
+evaluating first: point the page at the WebSocket transport, where the
+narrowing already works.
+
+### [ ] 2026-08-28 — the BFF's pingone-admin façade door is broken upstream
+
+`demo_api_server/routes/mcpFacade.js`'s `pingone-admin` door calls PingOne's
+hosted admin MCP (`mcp.pingone.com/admin/<envId>/mcp`) with a worker
+`client_credentials` token via `mcpPingOneHttpAdapter.js`. That endpoint has
+stopped accepting worker tokens — it answers `401 Invalid authentication`
+(verified live 2026-08-27 both directly and through the door). The door's own
+comment citing "85 tools, measured 2026-08-25" is therefore stale.
+
+**Why it wasn't fixed now:** the hosted server wants a USER token, which an
+unattended door cannot produce. Fixing it means either giving that door an
+interactive OAuth path (it currently has `authorizationServer: null` by design,
+so identity is fixed and per-user distinction does not exist there) or dropping
+the door. Both are design decisions, not repairs, and the audit work routed
+around it by calling the Management API `activities` endpoint directly — which
+answers the same worker token fine.
+
+**The risk:** anything relying on that door for PingOne admin tools fails at
+call time with an opaque `pingone_mcp_unavailable`, and the stale comment
+invites someone to trust a tool count that no longer exists.
+
+**What the real fix looks like:** decide whether `pingone-admin` should become
+a user-OAuth door (matching `audit`/`agentless`) or be retired; either way,
+correct the comment so the next reader does not assume 85 working tools.
+
+### [ ] 2026-08-28 — no dynamically-registered client can hold a custom gateway scope
+
+`demo_mcp_gateway/src/oauth/ClientRegistry.ts` pins **every** DCR client to
+`brokerRegistrationScope()` (`mcp:invoke`) and refuses non-loopback
+`redirect_uris`. Both are deliberate — `/oauth/register` is unauthenticated, and
+either control removed is a privilege escalation.
+
+The consequence is easy to miss: **no dynamic client can ever obtain
+`audit:read`, including LM Studio and any other spec-following MCP client.** A
+door can advertise a narrow scope, and a DCR client will faithfully request it,
+and the broker will still mint `mcp:invoke`. The audit work needed a
+server-side, non-loopback client, so it added the operator-configured
+`MCP_GW_OAUTH_STATIC_*` path (PR #2520) — but that only serves clients someone
+configures by hand.
+
+**Why it wasn't fixed now:** relaxing either control to serve external clients
+reopens exactly the escalation they were added to close. Serving them properly
+needs a different mechanism (per-door registration scope, or an authenticated
+registration endpoint), which is a design decision.
+
+**The risk:** an external-client demo that claims per-door scope narrowing will
+not behave as described — the client gets `mcp:invoke` regardless of what the
+door advertised, and the mismatch is silent.
+
+**What the real fix looks like:** either make the registration scope per-door
+(the door already carries `scopes`, so the broker could mint what that door
+advertises) or require authentication on `/oauth/register` for anything beyond
+`mcp:invoke`. Not a relaxation of the loopback rule.
+
 ### [ ] 2026-08-28 — a sixth service map exists outside the hygiene gate
 
 `k8s/aws/deploy.sh:60-77` holds `IMAGE_MAP`, an indexed-array local-name-to-GHCR-name
