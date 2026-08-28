@@ -216,12 +216,19 @@ export function notifySessionExpiredIfNeeded(opts = {}) {
 
   clearStatusCache();
 
+  // The first field with real CONTENT, not merely the first field present.
+  // Two bugs this replaces, both of which emptied the "What the server said"
+  // disclosure while the server had in fact said something:
+  //   - `error` was never consulted, so the many endpoints that return a bare
+  //     { error: 'authentication_required' } (pathInfo, mcpDecisionPolling,
+  //     resourceServer) produced no detail at all.
+  //   - an empty error_description won the old ternary outright and suppressed
+  //     a populated `message` alongside it, because the branch was chosen on the
+  //     field being a string rather than on it being non-empty.
   const desc =
-    typeof body?.error_description === 'string'
-      ? body.error_description.trim()
-      : typeof body?.message === 'string'
-        ? body.message.trim()
-        : '';
+    [body?.error_description, body?.message, body?.error]
+      .map((v) => (typeof v === 'string' ? v.trim() : ''))
+      .find(Boolean) || '';
 
   window.dispatchEvent(
     new CustomEvent(SESSION_REAUTH_EVENT, {
