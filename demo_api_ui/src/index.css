@@ -174,7 +174,12 @@ textarea {
   --modal-shadow:
     0 20px 48px rgba(0, 0, 0, 0.22), 0 4px 12px rgba(0, 0, 0, 0.1);
   --modal-border: 1px solid rgba(0, 0, 0, 0.08);
-  --modal-header-bg: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  /* Navy, not near-black. #1a1a2e/#16213e read as black beside the demo's own
+     dark bands, so every modal looked like it had lost its styling. These are
+     the two navies already in the UI: --ba-split-navy (the assistant header)
+     into --th-bg-band (the token-chain header bar). One token — every
+     DraggableModal and FloatingPanel title bar reads it. */
+  --modal-header-bg: linear-gradient(135deg, #1e3a5f 0%, #16325c 100%);
   --modal-header-text: #ffffff;
   --modal-header-sub: rgba(255, 255, 255, 0.65);
   --modal-header-height: 48px;
