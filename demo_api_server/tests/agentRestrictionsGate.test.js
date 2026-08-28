@@ -22,6 +22,10 @@ jest.mock('../services/simulatedAuthorizeService', () => ({
   isSimulatedModeEnabled: jest.fn(() => true),
 }));
 
+jest.mock('../services/pingOneAuthorizeService', () => ({
+  evaluateAgentRestrictions: jest.fn(),
+}));
+
 jest.mock('../routes/mcpDecisionPolling', () => ({
   createPendingDecision: jest.fn(() => ({ taskId: 'task-abc-123' })),
 }));
@@ -110,31 +114,60 @@ test('returns 428 with taskId on DENY', async () => {
   expect(mockNext).not.toHaveBeenCalled();
 });
 
-test('P1AZ mode with no real evaluator surfaces the simulated-engine substitution (not silent)', async () => {
-  // authorize_mode defaults to 'pingone' and ff_authorize_real is unset, so the
-  // gate takes the P1AZ branch — but pingOneAuthorizeService.evaluateAgentRestrictions
-  // does not exist, so it falls back to the simulated engine. That substitution must be
-  // observable: the DENY body carries authorize_engine + a fallback reason, and a warn logs.
-  const { logger } = require('../utils/logger');
-  const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
-  const configStore = require('../services/configStore');
-  configStore.getEffective.mockImplementation((key) => {
+// P1AZ mode: ff_authorize_real='true' and authorize_mode defaulting to 'pingone'
+// send the gate down the real-evaluator branch.
+function selectP1azMode() {
+  require('../services/configStore').getEffective.mockImplementation((key) => {
     if (key === 'ff_agent_restrictions') return 'true';
     if (key === 'ff_authorize_real') return 'true';
     return null;
   });
+}
+
+test('P1AZ mode evaluates against PingOne, not the simulated engine', async () => {
+  selectP1azMode();
+  const pingOneAuthorizeService = require('../services/pingOneAuthorizeService');
+  pingOneAuthorizeService.evaluateAgentRestrictions.mockResolvedValue({
+    decision: 'DENY', reason: 'agent_restrictions_write_blocked', decisionId: 'p1az-1',
+  });
+  const simulatedAuthorizeService = require('../services/simulatedAuthorizeService');
 
   await agentRestrictionsGate(makeReq(), mockRes, mockNext);
 
+  expect(pingOneAuthorizeService.evaluateAgentRestrictions).toHaveBeenCalledWith({
+    subject: 'oauth-user-1',
+    environment: expect.objectContaining({
+      agentRestrictions: 'none',
+      requiredTier: 'write',
+      agentSub: 'agent-client-id',
+      tool: 'create_transfer',
+    }),
+  });
+  expect(simulatedAuthorizeService.evaluateAgentRestrictions).not.toHaveBeenCalled();
   expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
-    authorize_engine: 'simulated',
-    authorize_fallback: 'pingone_evaluator_unavailable',
+    authorize_engine: 'pingone',
   }));
-  expect(warnSpy).toHaveBeenCalledWith(
-    expect.stringContaining('evaluateAgentRestrictions is not implemented'),
-    expect.any(Object),
+});
+
+test('P1AZ mode fails CLOSED when the evaluator throws — never substitutes the demo engine', async () => {
+  // An unconfigured decision endpoint or an unreachable PingOne both arrive here
+  // as a throw. The gate must 503 rather than quietly letting the in-process
+  // simulated engine make a decision the operator would read as "PingOne said so".
+  selectP1azMode();
+  const pingOneAuthorizeService = require('../services/pingOneAuthorizeService');
+  pingOneAuthorizeService.evaluateAgentRestrictions.mockRejectedValue(
+    new Error('Agent restrictions decision endpoint is not configured.'),
   );
-  warnSpy.mockRestore();
+  const simulatedAuthorizeService = require('../services/simulatedAuthorizeService');
+
+  await agentRestrictionsGate(makeReq(), mockRes, mockNext);
+
+  expect(mockRes.status).toHaveBeenCalledWith(503);
+  expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
+    code: 'agent_restrictions_unavailable',
+  }));
+  expect(simulatedAuthorizeService.evaluateAgentRestrictions).not.toHaveBeenCalled();
+  expect(mockNext).not.toHaveBeenCalled();
 });
 
 test('calls next() when agentRestrictions permits', async () => {

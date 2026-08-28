@@ -878,6 +878,45 @@ async function evaluateMcpToolDelegation(opts) {
   return _postDecisionEndpoint(endpointId, buildMcpDelegationParameters(opts));
 }
 
+/**
+ * Agent-restrictions evaluation (Trust Framework: DecisionContext=AgentRestrictions).
+ * Reuses the MCP decision endpoint — both contexts are keyed off DecisionContext
+ * inside the same Trust Framework — and falls back to the transaction endpoint
+ * only if no MCP endpoint is configured.
+ *
+ * Throws when the environment or endpoint is unconfigured. agentRestrictionsGate
+ * catches that and fails closed (503), which is the point: a missing P1AZ
+ * evaluator must not quietly hand the decision to the in-process demo engine.
+ *
+ * @param {object}  opts
+ * @param {string}  opts.subject               PingOne user id the restriction applies to
+ * @param {object}  [opts.environment]         { agentRestrictions, requiredTier, agentSub, tool, ff_agent_restrictions }
+ */
+async function evaluateAgentRestrictions({ subject, environment = {} }) {
+  const creds = _getCredentials();
+  const endpointId = creds.mcpDecisionEndpointId || creds.decisionEndpointId;
+
+  if (!creds.envId) {
+    throw new Error('PingOne environment ID is not configured.');
+  }
+  if (!endpointId) {
+    throw new Error(
+      'Agent restrictions decision endpoint is not configured. Set authorize_mcp_decision_endpoint_id in Admin → Config.',
+    );
+  }
+
+  return _postDecisionEndpoint(endpointId, {
+    DecisionContext: 'AgentRestrictions',
+    UserId: subject,
+    AgentSub: environment.agentSub || '',
+    ToolName: environment.tool || '',
+    AgentRestrictions: environment.agentRestrictions || 'none',
+    RequiredTier: environment.requiredTier || 'write',
+    ...(environment.ff_agent_restrictions ? { ff_agent_restrictions: true } : {}),
+    Timestamp: new Date().toISOString(),
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Phase 1 — Legacy PDP evaluation (fallback path)
 // POST /v1/environments/{envId}/governance/policyDecisionPoints/{policyId}/evaluate
@@ -1646,6 +1685,7 @@ module.exports = {
   _evaluateWithBreaker,
   evaluateTransaction,
   evaluateMcpToolDelegation,
+  evaluateAgentRestrictions,
   buildMcpDelegationParameters,
   evaluateDecisionEndpoint,
   evaluateDecisionEndpointBulk,

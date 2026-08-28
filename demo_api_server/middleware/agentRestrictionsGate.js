@@ -169,40 +169,30 @@ async function agentRestrictionsGate(req, res, next) {
     const authorizeMode = configStore.getEffective('authorize_mode') || 'pingone';
     const useSimulated = ffSimulated || authorizeMode === 'simulated';
     let authzResult;
-    let decidedEngine = useSimulated ? 'simulated' : 'pingone';
-    let engineFallbackReason = null;
+    const decidedEngine = useSimulated ? 'simulated' : 'pingone';
 
     if (useSimulated) {
       authzResult = simulatedAuthorizeService.evaluateAgentRestrictions({
         agentRestrictions, requiredTier, userId, agentSub, tool: toolName,
       });
     } else {
+      // P1AZ was selected, so P1AZ decides — there is no substitution branch. An
+      // unconfigured endpoint or an unreachable PingOne throws, and the catch
+      // below fails closed (503) under the default AGENT_RESTRICTIONS_FAILOVER.
+      // This used to fall back to the simulated engine whenever the real
+      // evaluator was missing, which it always was; the response said
+      // authorize_engine:'simulated' but the gate was the demo engine every time.
       const pingOneAuthorizeService = require('../services/pingOneAuthorizeService');
-      if (typeof pingOneAuthorizeService.evaluateAgentRestrictions === 'function') {
-        authzResult = await pingOneAuthorizeService.evaluateAgentRestrictions({
-          subject: userId,
-          environment: {
-            agentRestrictions,
-            requiredTier,
-            agentSub,
-            tool: toolName,
-            ff_agent_restrictions: 'true',
-          },
-        });
-      } else {
-        // authorize_mode=pingone was selected, but the real P1AZ agent-restrictions
-        // evaluator is not implemented — the decision is actually made by the
-        // SIMULATED engine. Make this substitution OBSERVABLE (log + response
-        // marker) instead of silent, so an operator is never misled into believing
-        // real PingOne Authorize enforced this gate. Parity with every other
-        // fallback in this file, which all log. Decision behavior is unchanged.
-        logger.warn('[agentRestrictionsGate] authorize_mode=pingone but pingOneAuthorizeService.evaluateAgentRestrictions is not implemented — decision made by the simulated engine', { userId, toolName });
-        decidedEngine = 'simulated';
-        engineFallbackReason = 'pingone_evaluator_unavailable';
-        authzResult = simulatedAuthorizeService.evaluateAgentRestrictions({
-          agentRestrictions, requiredTier, userId, agentSub, tool: toolName,
-        });
-      }
+      authzResult = await pingOneAuthorizeService.evaluateAgentRestrictions({
+        subject: userId,
+        environment: {
+          agentRestrictions,
+          requiredTier,
+          agentSub,
+          tool: toolName,
+          ff_agent_restrictions: 'true',
+        },
+      });
     }
 
     if (authzResult.decision === 'PERMIT') return next();
@@ -227,7 +217,6 @@ async function agentRestrictionsGate(req, res, next) {
       agentRestrictions,
       requiredTier,
       authorize_engine: decidedEngine,
-      ...(engineFallbackReason ? { authorize_fallback: engineFallbackReason } : {}),
     });
   } catch (err) {
     if (failoverPermits()) {
