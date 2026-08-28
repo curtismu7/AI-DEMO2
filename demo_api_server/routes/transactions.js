@@ -3,6 +3,7 @@ const router = express.Router();
 const dataStore = require('../data/store');
 const { authenticateToken, requireScopes, requireNotAdmin } = require('../middleware/auth');
 const { blockInDemoMode } = require('../middleware/demoMode');
+const { idempotency } = require('../middleware/idempotency');
 const runtimeSettings = require('../config/runtimeSettings');
 const transactionAuthorizationService = require('../services/transactionAuthorizationService');
 const configStore = require('../services/configStore');
@@ -420,7 +421,9 @@ router.get('/:id', authenticateToken, requireScopes(['read']), async (req, res) 
 // only carry openid/profile/email. Once a resource server is configured in PingOne and
 // ENDUSER_AUDIENCE is set, restore requireScopes(['transactions:write', 'write']).
 // Ownership is enforced below (non-admin users can only act on their own accounts).
-router.post('/', authenticateToken, async (req, res) => {
+// `idempotency` sits after authenticateToken because the key is scoped per user.
+// It is a no-op unless the caller sends an Idempotency-Key header.
+router.post('/', authenticateToken, idempotency, async (req, res) => {
   try {
     let { fromAccountId, toAccountId, amount, type, description, userId } = req.body;
 

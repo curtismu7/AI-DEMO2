@@ -18,6 +18,11 @@ const RUNTIME_DATA_PATH = path.join(__dirname, 'runtimeData.json');
 const BACKUP_DIR = path.join(__dirname, 'backups');
 const MAX_BACKUPS = 3;
 const MAX_ACTIVITY_LOGS = 1000;
+// ponytail: fixed-size window, not a TTL sweep. runtimeData.json is git-tracked,
+// so the ledger must not grow without bound; oldest-out on insert is the whole
+// policy. If a demo ever needs "this key expires 24h after its transfer",
+// timestamp-based expiry replaces this — `startedAt` is already recorded.
+const MAX_IDEMPOTENCY_KEYS = 500;
 const BACKUP_INTERVAL_MS = 15 * 60 * 1000;
 
 class DataStore {
@@ -27,6 +32,13 @@ class DataStore {
     this.transactions = new Map();
     this.activityLogs = new Map();
     this.subscriptions = new Map();
+    // Idempotency records live HERE, in the same store as the balances they
+    // guard, so both land in the same atomic snapshot write (_atomicWrite is a
+    // tmp file + rename). Keeping them in a separate store — Redis next to this
+    // JSON — is the split-brain hazard: the key write surviving while the
+    // balance write did not would block the client's retry forever against a
+    // transfer that never happened.
+    this.idempotencyKeys = new Map();
     this._persistPending = false;
     this._transferLocks = new Map(); // Per-account transfer locks for concurrency safety
     this.initializeData();
@@ -141,18 +153,21 @@ class DataStore {
     const transactions = Array.isArray(snapshot.transactions) ? snapshot.transactions : [];
     const activityLogs = Array.isArray(snapshot.activityLogs) ? snapshot.activityLogs : [];
     const subscriptions = Array.isArray(snapshot.subscriptions) ? snapshot.subscriptions : [];
+    const idempotencyKeys = Array.isArray(snapshot.idempotencyKeys) ? snapshot.idempotencyKeys : [];
 
     this.users.clear();
     this.accounts.clear();
     this.transactions.clear();
     this.activityLogs.clear();
     this.subscriptions.clear();
+    this.idempotencyKeys.clear();
 
     users.forEach((user) => { this.users.set(user.id, { ...user, createdAt: user.createdAt ? new Date(user.createdAt) : user.createdAt }); });
     accounts.forEach((account) => { this.accounts.set(account.id, { ...account, createdAt: account.createdAt ? new Date(account.createdAt) : account.createdAt }); });
     transactions.forEach((transaction) => { this.transactions.set(transaction.id, { ...transaction, createdAt: transaction.createdAt ? new Date(transaction.createdAt) : transaction.createdAt }); });
     activityLogs.forEach((log) => { this.activityLogs.set(log.id, { ...log, timestamp: log.timestamp ? new Date(log.timestamp) : log.timestamp }); });
     subscriptions.forEach((sub) => { this.subscriptions.set(sub.id, { ...sub, createdAt: sub.createdAt ? new Date(sub.createdAt) : sub.createdAt, nextBillingDate: sub.nextBillingDate ? new Date(sub.nextBillingDate) : sub.nextBillingDate }); });
+    idempotencyKeys.forEach((record) => { this.idempotencyKeys.set(record.key, record); });
   }
 
   _atomicWrite(filePath, data) {
@@ -237,7 +252,54 @@ class DataStore {
       transactions: Array.from(this.transactions.values()),
       activityLogs: redactedLogs,
       subscriptions: Array.from(this.subscriptions.values()),
+      // Only settled records are persisted. An 'in_progress' reservation belongs
+      // to a request that this process was still serving, so after a restart it
+      // can only be a tombstone that blocks a legitimate retry forever.
+      idempotencyKeys: Array.from(this.idempotencyKeys.values()).filter((r) => r.state === 'completed'),
     };
+  }
+
+  /**
+   * Claim `key` for a request, or report who already holds it.
+   *
+   * Synchronous and single-statement by design: this is the check-and-reserve of
+   * the Idempotent Consumer pattern, and it only works if nothing can interleave
+   * between the read and the write. Node's event loop gives that for free here —
+   * an `await` between the two would hand a concurrent duplicate the same miss.
+   *
+   * Returns null when the caller now owns the key and must proceed, or the
+   * existing record when it does not.
+   */
+  reserveIdempotencyKey(key) {
+    const existing = this.idempotencyKeys.get(key);
+    if (existing) return existing;
+
+    while (this.idempotencyKeys.size >= MAX_IDEMPOTENCY_KEYS) {
+      this.idempotencyKeys.delete(this.idempotencyKeys.keys().next().value);
+    }
+    this.idempotencyKeys.set(key, { key, state: 'in_progress', startedAt: new Date().toISOString() });
+    return null;
+  }
+
+  /**
+   * Fill a reservation with the response to replay. Persisted in the same
+   * snapshot as the balances the request just moved.
+   */
+  completeIdempotencyKey(key, status, body) {
+    const record = this.idempotencyKeys.get(key);
+    if (!record) return;
+    this.idempotencyKeys.set(key, { ...record, state: 'completed', status, body, completedAt: new Date().toISOString() });
+    this.persistAllData();
+  }
+
+  /**
+   * Drop a reservation whose request failed. Without this a transfer that blew
+   * up on an upstream 500 would leave the key wedged at 'in_progress' and the
+   * client could never retry it — the exact deadlock idempotency is meant to
+   * prevent.
+   */
+  releaseIdempotencyKey(key) {
+    this.idempotencyKeys.delete(key);
   }
 
   initializeSampleData() {

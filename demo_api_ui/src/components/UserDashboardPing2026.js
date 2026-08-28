@@ -54,6 +54,13 @@ import { useVertical } from "../vertical/useVertical";
 import RetailDashboard from "./RetailDashboard";
 import AgentClinicalHost from "./agent-clinical/AgentClinicalHost";
 
+/**
+ * True when the server answered from its idempotency ledger rather than by
+ * performing the operation again — i.e. no money moved on this request.
+ */
+const wasReplayed = (response) =>
+  response?.headers?.["idempotency-replayed"] === "true";
+
 /** Format a number as USD currency — $1,234.56 */
 const fmt = (n) =>
   typeof n === "number"
@@ -271,6 +278,15 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
     amount: "",
     description: "",
   });
+  // Which money action is in flight, so its button can refuse a second click.
+  const [busyAction, setBusyAction] = useState(null);
+  // Set when the server answered from its idempotency ledger rather than by
+  // moving money again — the visible proof that the replay was a no-op.
+  const [replayNotice, setReplayNotice] = useState(null);
+  // One key per SUBMISSION, not per request: a retry has to carry the same key
+  // as the attempt it is retrying, or the server sees an unrelated transfer and
+  // executes it. Cleared only once the submission settles.
+  const idempotencyKeys = useRef({});
   const [depositForm, setDepositForm] = useState({
     amount: "",
     description: "",
@@ -1692,6 +1708,47 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
   };
 
 
+  /**
+   * POST a money movement exactly once per submission.
+   *
+   * Two guards, because they catch different things: `busyAction` stops the
+   * second click ever leaving the browser, and the Idempotency-Key stops a
+   * request that DID leave — a retry after a timeout, a resubmitted form — from
+   * moving funds twice. The button alone can't help once the request is in
+   * flight, and the key alone can't stop a double click reaching the server.
+   *
+   * Returns null when the click was swallowed as a duplicate, so callers skip
+   * their success path.
+   */
+  const postMoneyMovement = async (action, body) => {
+    if (busyAction) return null;
+    setBusyAction(action);
+    setReplayNotice(null);
+
+    if (!idempotencyKeys.current[action]) {
+      idempotencyKeys.current[action] = crypto.randomUUID();
+    }
+
+    try {
+      const response = await apiClient.post("/api/transactions", body, {
+        headers: { "Idempotency-Key": idempotencyKeys.current[action] },
+      });
+      // Settled: the next submission is a genuinely new operation and must not
+      // reuse this key, or it would be answered from the ledger and never run.
+      delete idempotencyKeys.current[action];
+      if (wasReplayed(response)) {
+        setReplayNotice(
+          "Replayed — the original request was returned. No second transaction was created.",
+        );
+      }
+      return response;
+    } finally {
+      // Deliberately NOT clearing the key on failure: that attempt is exactly
+      // what a retry needs to be idempotent against.
+      setBusyAction(null);
+    }
+  };
+
   const handleTransfer = async (e) => {
     e.preventDefault();
 
@@ -1710,7 +1767,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
 
 
     try {
-      await apiClient.post("/api/transactions", {
+      const sent = await postMoneyMovement("transfer", {
         fromAccountId: selectedAccount.id,
         toAccountId: transferForm.toAccountId,
         amount: parseFloat(transferForm.amount),
@@ -1718,6 +1775,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
         description: transferForm.description || "Transfer between accounts",
         userId: user.id,
       });
+      if (!sent) return;
 
       // Reset form and refresh data
       setTransferForm({ toAccountId: "", amount: "", description: "" });
@@ -1729,7 +1787,13 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
         }),
       );
 
-      notifySuccess("Transfer completed successfully!");
+      // A replay moved no money. Saying "completed successfully" for it would be
+      // the exact false confirmation this feature exists to prevent.
+      notifySuccess(
+        wasReplayed(sent)
+          ? "Already processed — the original transfer was returned."
+          : "Transfer completed successfully!",
+      );
     } catch (error) {
       const d = error.response?.data;
       // RFC 9470 mode (ff_rfc9470_challenge): 401 + WWW-Authenticate challenge.
@@ -1809,7 +1873,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
 
 
     try {
-      await apiClient.post("/api/transactions", {
+      const sent = await postMoneyMovement("deposit", {
         fromAccountId: null,
         toAccountId: depositAccount.id,
         amount: parseFloat(depositForm.amount),
@@ -1817,6 +1881,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
         description: depositForm.description || "Deposit to account",
         userId: user.id,
       });
+      if (!sent) return;
 
       // Reset form and refresh data
       setDepositForm({ amount: "", description: "" });
@@ -1828,7 +1893,11 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
         }),
       );
 
-      notifySuccess("Deposit completed successfully!");
+      notifySuccess(
+        wasReplayed(sent)
+          ? "Already processed — the original deposit was returned."
+          : "Deposit completed successfully!",
+      );
     } catch (error) {
       const d = error.response?.data;
       // RFC 9470 mode (ff_rfc9470_challenge): 401 + WWW-Authenticate challenge.
@@ -1907,7 +1976,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
 
 
     try {
-      await apiClient.post("/api/transactions", {
+      const sent = await postMoneyMovement("withdrawal", {
         fromAccountId: withdrawAccount.id,
         toAccountId: null,
         amount: parseFloat(withdrawForm.amount),
@@ -1915,6 +1984,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
         description: withdrawForm.description || "Withdrawal from account",
         userId: user.id,
       });
+      if (!sent) return;
 
       // Reset form and refresh data
       setWithdrawForm({ amount: "", description: "" });
@@ -1926,7 +1996,11 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
         }),
       );
 
-      notifySuccess("Withdrawal completed successfully!");
+      notifySuccess(
+        wasReplayed(sent)
+          ? "Already processed — the original withdrawal was returned."
+          : "Withdrawal completed successfully!",
+      );
     } catch (error) {
       const d = error.response?.data;
       // RFC 9470 mode (ff_rfc9470_challenge): 401 + WWW-Authenticate challenge.
@@ -2228,6 +2302,22 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
       {/* Account Summary */}
       <div ref={accountsAnchorRef} className="section">
         <h2 className="ud-accounts-heading">Your Accounts</h2>
+        {/* Lives here rather than inside the transfer form: a successful submit
+            clears selectedAccount and unmounts that form, so a notice rendered
+            inside it would vanish in the same tick it was set. */}
+        {replayNotice && (
+          <p
+            className="demo-notice"
+            data-testid="idempotency-replay-notice"
+            style={{
+              color: "var(--th-text-muted, #6b7280)",
+              fontSize: "0.85rem",
+              marginBottom: "0.75rem",
+            }}
+          >
+            ✅ {replayNotice}
+          </p>
+        )}
         {isDemoMode && (
           <p
             className="demo-notice"
@@ -2507,10 +2597,10 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
                 <button
                   type="submit"
                   className="transfer-btn"
-                  disabled={!user}
+                  disabled={!user || busyAction === "transfer"}
                   title={!user ? "Sign in to transfer funds" : undefined}
                 >
-                  Transfer
+                  {busyAction === "transfer" ? "Transferring…" : "Transfer"}
                 </button>
                 <button
                   type="button"
@@ -2573,10 +2663,10 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
                 <button
                   type="submit"
                   className="deposit-submit-btn"
-                  disabled={!user}
+                  disabled={!user || busyAction === "deposit"}
                   title={!user ? "Sign in to deposit funds" : undefined}
                 >
-                  Deposit
+                  {busyAction === "deposit" ? "Depositing…" : "Deposit"}
                 </button>
                 <button
                   type="button"
@@ -2635,10 +2725,10 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
                 <button
                   type="submit"
                   className="withdraw-submit-btn"
-                  disabled={!user}
+                  disabled={!user || busyAction === "withdrawal"}
                   title={!user ? "Sign in to withdraw funds" : undefined}
                 >
-                  Withdraw
+                  {busyAction === "withdrawal" ? "Withdrawing…" : "Withdraw"}
                 </button>
                 <button
                   type="button"

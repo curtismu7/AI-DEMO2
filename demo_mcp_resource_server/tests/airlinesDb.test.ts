@@ -15,9 +15,18 @@ import {
   listSeats,
   nextFlightFor,
   recordFeePayment,
+  redeemUpgrade,
   resolvePassenger,
   withDb,
 } from '../src/db/airlinesDb';
+
+const pointsOf = (passengerRef: string): number => withDb((db) => (db
+  .prepare('SELECT loyalty_points FROM passengers WHERE passenger_ref = ?')
+  .get(passengerRef) as { loyalty_points: number }).loyalty_points);
+
+const cabinOf = (confirmationNumber: string): string => withDb((db) => (db
+  .prepare('SELECT cabin FROM bookings WHERE confirmation_number = ?')
+  .get(confirmationNumber) as { cabin: string }).cabin);
 
 afterAll(() => {
   fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -109,5 +118,37 @@ describe('fee_payments', () => {
 
   it('lists across all confirmations when none is named', () => {
     expect(listFeePayments().length).toBeGreaterThanOrEqual(3);
+  });
+});
+
+// The transactional boundary. Each of these asserts the SAME property from a
+// different failure: nothing partial survives. Against the previous two-call
+// version the first two cases both left the points deducted, which is exactly
+// the partial state that made a retry deduct twice.
+describe('redeemUpgrade', () => {
+  it('deducts the points and moves the cabin together', () => {
+    const before = pointsOf('UA-PAX-0001');
+    redeemUpgrade('UA-PAX-0001', 1000, 'K7XR2M', 'Business');
+
+    expect(pointsOf('UA-PAX-0001')).toBe(before - 1000);
+    expect(cabinOf('K7XR2M')).toBe('Business');
+  });
+
+  it('deducts nothing when the booking does not exist', () => {
+    const before = pointsOf('UA-PAX-0001');
+    expect(() => redeemUpgrade('UA-PAX-0001', 1000, 'NOSUCH', 'First'))
+      .toThrow(/No reservation NOSUCH/);
+
+    expect(pointsOf('UA-PAX-0001')).toBe(before);
+  });
+
+  it('refuses rather than clamping when the balance is short, leaving the cabin alone', () => {
+    const before = pointsOf('UA-PAX-0001');
+    const cabin = cabinOf('K7XR2M');
+    expect(() => redeemUpgrade('UA-PAX-0001', before + 1, 'K7XR2M', 'First'))
+      .toThrow(/Insufficient miles/);
+
+    expect(pointsOf('UA-PAX-0001')).toBe(before);
+    expect(cabinOf('K7XR2M')).toBe(cabin);
   });
 });

@@ -13,7 +13,7 @@ import { MemoryRouter } from "react-router-dom";
 import UserDashboardPing2026 from "./UserDashboardPing2026";
 import apiClient from "../services/apiClient";
 import { getCachedJson } from "../services/cachedStatusService";
-import { notifyError } from "../utils/appToast";
+import { notifyError, notifySuccess } from "../utils/appToast";
 
 // ── Context hooks ────────────────────────────────────────────────────────────
 
@@ -211,5 +211,91 @@ describe("UserDashboardPing2026", () => {
     // which would show the raw error code instead of the friendly message.
     expect(notifyError).not.toHaveBeenCalledWith("policy_not_found");
     expect(notifyError).not.toHaveBeenCalledWith("Transfer failed");
+  });
+});
+
+describe("UserDashboardPing2026 — duplicate transfers", () => {
+  const accounts = [
+    { id: "acc-1", accountType: "checking", accountNumber: "1111", balance: 500 },
+    { id: "acc-2", accountType: "savings", accountNumber: "2222", balance: 900 },
+  ];
+
+  // Opens the transfer form on the first account and fills it in.
+  async function openFilledTransferForm() {
+    vi.mocked(getCachedJson).mockImplementation(async (url) =>
+      url === "/api/auth/oauth/user/status"
+        ? { data: { authenticated: true, user: mockUser } }
+        : { data: { authenticated: false } },
+    );
+    vi.mocked(apiClient.get).mockImplementation(async (url) => {
+      if (url === "/api/accounts/my") return { data: { accounts } };
+      if (url === "/api/transactions/my") return { data: { transactions: [] } };
+      return { data: [] };
+    });
+
+    renderDashboard();
+
+    const transferButtons = await screen.findAllByRole("button", { name: "Transfer" });
+    fireEvent.click(transferButtons[0]);
+
+    const form = await screen.findByRole("form", { name: "Transfer form" });
+    fireEvent.change(within(form).getByRole("combobox"), { target: { value: "acc-2" } });
+    fireEvent.change(within(form).getByPlaceholderText("Enter amount"), {
+      target: { value: "100" },
+    });
+    return form;
+  }
+
+  beforeEach(() => vi.clearAllMocks());
+
+  it("sends an Idempotency-Key with the transfer", async () => {
+    vi.mocked(apiClient.post).mockResolvedValue({ data: { id: "txn-1" }, headers: {} });
+
+    const form = await openFilledTransferForm();
+    fireEvent.submit(form);
+
+    await waitFor(() => expect(apiClient.post).toHaveBeenCalledTimes(1));
+    expect(apiClient.post).toHaveBeenCalledWith(
+      "/api/transactions",
+      expect.objectContaining({ type: "transfer" }),
+      expect.objectContaining({
+        headers: expect.objectContaining({ "Idempotency-Key": expect.any(String) }),
+      }),
+    );
+  });
+
+  // The double-click. Without the busy guard both submits reach the network and
+  // the server sees two transfers it has no way to tell apart.
+  it("ignores a second submit while the first is still in flight", async () => {
+    let settle;
+    vi.mocked(apiClient.post).mockImplementation(
+      () => new Promise((resolve) => { settle = resolve; }),
+    );
+
+    const form = await openFilledTransferForm();
+    fireEvent.submit(form);
+    await waitFor(() => expect(apiClient.post).toHaveBeenCalledTimes(1));
+
+    fireEvent.submit(form);
+    fireEvent.submit(form);
+    expect(apiClient.post).toHaveBeenCalledTimes(1);
+
+    settle({ data: { id: "txn-1" }, headers: {} });
+  });
+
+  it("says the request was replayed instead of claiming a second transfer completed", async () => {
+    vi.mocked(apiClient.post).mockResolvedValue({
+      data: { id: "txn-1" },
+      headers: { "idempotency-replayed": "true" },
+    });
+
+    const form = await openFilledTransferForm();
+    fireEvent.submit(form);
+
+    await screen.findByTestId("idempotency-replay-notice");
+    expect(notifySuccess).toHaveBeenCalledWith(
+      "Already processed — the original transfer was returned.",
+    );
+    expect(notifySuccess).not.toHaveBeenCalledWith("Transfer completed successfully!");
   });
 });

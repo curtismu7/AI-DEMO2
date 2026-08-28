@@ -119,7 +119,7 @@ export function getOrder(id: string): Order | null {
  * while `list_orders` came from this database, so a placed order was invisible
  * to the very next "show my orders" — the seed-store divergence in TECH_DEBT.
  *
- * Mutating (like upgradeCabinOnBooking in airlinesDb, unlike the deliberately
+ * Mutating (like redeemUpgrade in airlinesDb, unlike the deliberately
  * read-only cancelReservation): the point of the demo is that the order appears
  * in the list afterwards. seedIfEmpty only refills an EMPTY table, so the new
  * row survives restarts without clobbering the seeded ones.
