@@ -359,7 +359,7 @@ const TOKEN_FLOW_AUD_HOPS = [
     activeTo: 5,
   },
   {
-    icon: "🔄",
+    icon: "",
     label: "RFC 8693 #1",
     aud: "(exchange)",
     isExchange: true,
@@ -367,7 +367,7 @@ const TOKEN_FLOW_AUD_HOPS = [
     activeTo: 6,
   },
   {
-    icon: "🔀",
+    icon: "",
     label: "Gateway Token",
     aud: "mcp-gateway",
     act: "agent-client-id",

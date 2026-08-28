@@ -46,7 +46,7 @@ export default function OAuthHealthDashboard() {
   };
 
   const renderStatus = (status) => {
-    const icons = { pass: '✅', fail: '❌', warn: '⚠️', unknown: '❓' };
+    const icons = { pass: '✅', fail: '❌', warn: '⚠️', unknown: '' };
     const colors = { pass: '#10b981', fail: '#ef4444', warn: '#f59e0b', unknown: '#6b7280' };
     return <span style={{ color: colors[status] }}>{icons[status]}</span>;
   };

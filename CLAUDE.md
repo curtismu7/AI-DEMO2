@@ -17,7 +17,7 @@ Litmus for new rules here: would removing the line cause a mistake the agent cou
 
 **[REGRESSION_PLAN.md](REGRESSION_PLAN.md)** is the source of truth for what must not break — read `§0` (hard UI/style) and `§1` (protected areas) before touching auth, token exchange, BFF sessions, or UI. Invoke `.claude/skills/regression-guard/` first; if it disagrees with the file, the file wins.
 
-Always-on hard rule from `§0` — **emoji allowlist only:** `⚠️` `✅` `❌` `🔐` `✕` `✓` `👤` `🔑` `🪟` `📚` `🔧`. Everything else: plain text, CSS, or semantic HTML.
+Always-on hard rule from `§0` — **emoji allowlist only:** `⚠️` `✅` `❌` `🔐` `✕` `✓` `👤` `🔑` `🪟` `📚` `🔧` plus the product icon set (`🤖` `🏦` `🛡` `📋` `☐` `🔍` `⚙` `🔗` `🌐` `🧠` `⚖` `🔀` `⚡` `💼` `🔄` `🧑` `📊` `📄` `🛠` `📖` `💳` `✋` `📡` `✦` `👥` `📅` `🎛` `💬`). Everything else: plain text, CSS, or semantic HTML. `§0` carries each glyph's declared job and is the source of truth.
 
 **[TECH_DEBT.md](TECH_DEBT.md)** tracks known architectural gaps found while fixing something else — correct enough to ship, worth fixing properly later. Add an entry when you knowingly leave one behind; check it before re-deriving a gap someone already scoped.
 

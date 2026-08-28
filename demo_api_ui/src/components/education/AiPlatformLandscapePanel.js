@@ -37,7 +37,7 @@ function AwsContent() {
   const c = '#f97316';
   return (
     <div>
-      <VendorHeader emoji="🟠" name="Amazon Web Services" tagline="Build with the broadest AI/ML portfolio on the planet" color={c} />
+      <VendorHeader emoji="●" name="Amazon Web Services" tagline="Build with the broadest AI/ML portfolio on the planet" color={c} />
       <ToolCard name="Amazon Bedrock" category="Foundation Model API" color={c}
         description="Managed serverless API for 30+ foundation models (Anthropic Claude, Meta Llama, Mistral, Titan, etc.). No GPU management; pay-per-token. Supports RAG via Knowledge Bases, multi-step agents via Bedrock Agents, and fine-tuning." />
       <ToolCard name="Amazon SageMaker" category="ML Platform" color={c}
@@ -65,7 +65,7 @@ function MicrosoftContent() {
   const c = 'var(--brand-navy)';
   return (
     <div>
-      <VendorHeader emoji="🔷" name="Microsoft Azure AI" tagline="AI everywhere, from infrastructure to copilots" color={c} />
+      <VendorHeader emoji="●" name="Microsoft Azure AI" tagline="AI everywhere, from infrastructure to copilots" color={c} />
       <ToolCard name="Azure OpenAI Service" category="Foundation Model API" color={c}
         description="Microsoft-hosted GPT-5.5, DALL-E, Whisper. Same models as OpenAI.com with enterprise SLAs, data residency, private networking (VNet), and Azure AD auth. Fine-tuning available." />
       <ToolCard name="Azure AI Foundry" category="AI Development Platform" color={c}
@@ -90,7 +90,7 @@ function GoogleContent() {
   const c = '#16a34a';
   return (
     <div>
-      <VendorHeader emoji="🟢" name="Google Cloud AI" tagline="From research breakthroughs to production AI" color={c} />
+      <VendorHeader emoji="●" name="Google Cloud AI" tagline="From research breakthroughs to production AI" color={c} />
       <ToolCard name="Vertex AI" category="AI Platform" color={c}
         description="Google Cloud's unified ML/AI platform: train, deploy, and manage models. Model Garden hosts 160+ models (Gemini, Llama, Mistral, Claude via Anthropic partnership). AutoML for no-code training." />
       <ToolCard name="Gemini API / Google AI Studio" category="Foundation Model API" color={c}
@@ -115,14 +115,14 @@ function IbmContent() {
   const c = 'var(--brand-navy)';
   return (
     <div>
-      <VendorHeader emoji="🔵" name="IBM watsonx" tagline="Enterprise AI built for trust, transparency, and governance" color={c} />
+      <VendorHeader emoji="●" name="IBM watsonx" tagline="Enterprise AI built for trust, transparency, and governance" color={c} />
       <ToolCard name="watsonx.ai" category="AI Studio" color={c}
         description="Train, validate, tune, and deploy foundation models and ML models. Model library includes IBM Granite (open-source), Llama, Mistral. Prompt Lab for prompt engineering." />
       <ToolCard name="IBM Granite Models" category="Foundation Models" color={c}
         description="IBM's own open-source model family (Granite-13B, Granite-3B, Code models). Apache 2.0 licensed with full transparency on training data (curated, documented lineage). Designed for enterprise: smaller, cost-efficient, auditable." />
       <ToolCard name="watsonx.data" category="Data Lakehouse" color={c}
         description="Open lakehouse architecture (Presto, Apache Spark, Apache Iceberg). Connects AI to governed data at scale. Reduces data warehouse costs by up to 50%." />
-      <ToolCard name="watsonx.governance" category="AI Governance ⭐" color={c}
+      <ToolCard name="watsonx.governance" category="AI Governance " color={c}
         description="Automated model risk management: bias detection, drift monitoring, explainability, regulatory compliance (EU AI Act, SR 11-7). This is IBM's key differentiator vs. other vendors." />
       <ToolCard name="Watson Assistant" category="Conversational AI" color={c}
         description="Enterprise chatbot builder. Integrates with watsonx.ai for LLM backbone. Deploys to web, phone, Slack, Salesforce." />
@@ -141,7 +141,7 @@ function AnthropicContent() {
   const c = '#7c3aed';
   return (
     <div>
-      <VendorHeader emoji="🟣" name="Anthropic" tagline="AI safety focused — powerful, steerable, and honest" color={c} />
+      <VendorHeader emoji="●" name="Anthropic" tagline="AI safety focused — powerful, steerable, and honest" color={c} />
       <ToolCard name="Claude 5 — Opus 4.8 / Sonnet 5 / Haiku 4.5" category="Foundation Models" color={c}
         description="Claude is Anthropic's frontier model family. Claude 5 family (2026): Opus 4.8 is most capable for complex reasoning; Sonnet 5 is the best price/performance balance; Haiku 4.5 is fastest/cheapest. The frontier line also ships Claude Fable 5 and Claude Mythos 5. 200K token context window. Claude 4.x and Claude 3.5/Opus 3 are prior generations." />
       <ToolCard name="Claude API (api.anthropic.com)" category="Direct API" color={c}
@@ -165,7 +165,7 @@ function OpenAiContent() {
   const c = '#059669';
   return (
     <div>
-      <VendorHeader emoji="🟩" name="OpenAI" tagline="From research lab to the AI infrastructure of the internet" color={c} />
+      <VendorHeader emoji="●" name="OpenAI" tagline="From research lab to the AI infrastructure of the internet" color={c} />
       <ToolCard name="GPT-5.5 / GPT-5" category="Foundation Models" color={c}
         description="GPT-5.5 is OpenAI's current flagship — multimodal (text/image/audio) with built-in reasoning modes, replacing the separate o-series. GPT-4o and o1/o3 are now previous-generation models." />
       <ToolCard name="OpenAI API — Chat Completions" category="Direct API" color={c}
@@ -200,10 +200,10 @@ function ComparisonContent() {
     ['Agent framework', 'Bedrock Agents', 'Copilot Studio / Semantic Kernel', 'Vertex AI Agent Builder', 'Watson Assistant', 'None native', 'Assistants API'],
     ['RAG / enterprise search', 'Bedrock KB + Kendra', 'Azure AI Search', 'Vertex AI RAG / Agent Builder', 'Watson Discovery + watsonx.data', 'None native', 'File Search (Assistants)'],
     ['Fine-tuning', 'Bedrock + SageMaker', 'Azure OpenAI fine-tuning', 'Vertex AI supervised tuning', 'watsonx.ai fine-tuning', 'Not public', 'GPT-4o fine-tuning'],
-    ['Open-source models', 'Llama/Mistral via Bedrock', 'Phi-3/4, Llama via Foundry', 'Gemma, Llama via Vertex', 'Granite (Apache 2.0) ⭐', 'None', 'None (proprietary)'],
-    ['AI governance / safety', 'SageMaker Clarify (bias)', 'Azure AI Content Safety', 'Vertex Model Monitoring', 'watsonx.governance ⭐', 'Constitutional AI', 'Moderation API'],
+    ['Open-source models', 'Llama/Mistral via Bedrock', 'Phi-3/4, Llama via Foundry', 'Gemma, Llama via Vertex', 'Granite (Apache 2.0) ', 'None', 'None (proprietary)'],
+    ['AI governance / safety', 'SageMaker Clarify (bias)', 'Azure AI Content Safety', 'Vertex Model Monitoring', 'watsonx.governance ', 'Constitutional AI', 'Moderation API'],
     ['Multimodal', 'Bedrock + Rekognition', 'GPT-5.5 via Azure OpenAI', 'Gemini natively', 'Limited', 'Claude 5 (image)', 'GPT-5.5 natively'],
-    ['On-premises / air-gapped', 'AWS Outposts', 'Azure Stack', 'Distributed Cloud', 'watsonx on-prem ⭐', 'None', 'None'],
+    ['On-premises / air-gapped', 'AWS Outposts', 'Azure Stack', 'Distributed Cloud', 'watsonx on-prem ', 'None', 'None'],
     ['Pricing model', 'Per-token + compute', 'Per-token + compute', 'Per-token + compute', 'Per-token + platform', 'Per-token', 'Per-token'],
   ];
   const bestFor = [
@@ -247,7 +247,7 @@ function ComparisonContent() {
       ))}
 
       <p style={{ fontSize: '0.78rem', color: '#374151', marginTop: '1.2rem', fontStyle: 'italic' }}>
-        ⭐ = significant differentiator. Table reflects public information as of mid-2026. Check each vendor's docs for current pricing and feature availability.
+        = significant differentiator. Table reflects public information as of mid-2026. Check each vendor's docs for current pricing and feature availability.
       </p>
     </div>
   );

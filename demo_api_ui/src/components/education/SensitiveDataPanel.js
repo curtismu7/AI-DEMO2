@@ -133,7 +133,7 @@ function RarSelectiveContent() {
       </p>
 
       <Section title="RAR in One Sentence">
-        <Callout icon="📜" color="#0369a1" bg="#eff6ff" border="var(--brand-navy)">
+        <Callout icon="📄" color="#0369a1" bg="#eff6ff" border="var(--brand-navy)">
           Instead of <code>scope=sensitive:read</code>, a client sends an{' '}
           <code>authorization_details</code> JSON array that says:{' '}
           <em>"I want read access to the full account number of account ABC, for the next 5 minutes."</em>

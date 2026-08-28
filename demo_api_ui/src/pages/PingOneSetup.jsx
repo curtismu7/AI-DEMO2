@@ -231,7 +231,7 @@ export default function PingOneSetup() {
 
           {/* Hosted Remote MCP Server */}
           <div className="help-section">
-            <h3>🔌 Connect an IDE (hosted Remote MCP Server)</h3>
+            <h3>Connect an IDE (hosted Remote MCP Server)</h3>
             <p>
               For interactive OAuth access from Claude Code, Cursor, or VS Code — separate from
               the worker credentials above — connect to PingOne&apos;s hosted admin MCP server:

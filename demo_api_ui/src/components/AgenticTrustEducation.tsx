@@ -121,7 +121,7 @@ export const AgenticTrustEducation: React.FC = () => {
           rel="noopener noreferrer"
           className={styles.videoLink}
         >
-          📺 Watch the Agentic Trust presentation
+          📡 Watch the Agentic Trust presentation
         </a>
       </header>
 

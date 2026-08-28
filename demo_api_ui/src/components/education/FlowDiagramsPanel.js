@@ -32,7 +32,7 @@ export default function FlowDiagramsPanel({ isOpen, onClose, initialTabId }) {
           </ul>
 
           <div style={{ marginTop: '16px', padding: '12px', background: '#e3f2fd', border: '1px solid #bbdefb', borderRadius: '6px' }}>
-            <h5 style={{ margin: '0 0 8px 0', fontSize: '0.9rem', color: '#1565c0' }}>📂 File Locations</h5>
+            <h5 style={{ margin: '0 0 8px 0', fontSize: '0.9rem', color: '#1565c0' }}>File Locations</h5>
             <p style={{ margin: '0', fontSize: '0.85rem', color: '#424242' }}>
               All diagrams are located in the <code>docs/</code> directory with <code>.drawio</code> extension.
               Open them in <a href="https://app.diagrams.net" target="_blank" rel="noopener noreferrer">draw.io</a> for editing.

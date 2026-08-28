@@ -159,7 +159,7 @@ export default function AgentOnboardingSubwayPage() {
           onClick={onPlayToggle}
           title="Autoplay"
         >
-          {playing ? "❚❚" : "▶"}
+          {playing ? "||" : "▶"}
         </button>
         <button type="button" className="aos-btn-pill primary" onClick={onNext} disabled={stepIndex === steps.length - 1}>
           {stepIndex === steps.length - 1 ? "Done ✓" : "Continue →"}

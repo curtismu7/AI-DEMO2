@@ -28,7 +28,7 @@ const TYPOGRAPHIC = new Set([
 ]);
 
 /** Violations at the commit that introduced this ratchet. Only ever go down. */
-const BASELINE = 271;
+const BASELINE = 0;
 
 function walk(dir, out = []) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -69,7 +69,7 @@ describe('emoji allowlist — app-wide ratchet', () => {
     expect(allowed.has('🔐')).toBe(true);
   });
 
-  it(`does not exceed the ${BASELINE}-use baseline`, () => {
+  it(`holds at the ${BASELINE}-use baseline`, () => {
     // Growing this number means new emoji entered the UI. Fix them, or if a
     // NEW glyph is genuinely warranted, add it to §0 first — that is the
     // source of truth this test reads.
@@ -80,6 +80,6 @@ describe('emoji allowlist — app-wide ratchet', () => {
     const dirty = [...perFile.keys()].sort();
     // Snapshot-free on purpose: the list is long and churns as files are
     // cleaned. What matters is that it only ever shrinks.
-    expect(dirty.length).toBeLessThanOrEqual(53);
+    expect(dirty).toEqual([]);
   });
 });

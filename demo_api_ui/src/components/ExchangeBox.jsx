@@ -3,9 +3,9 @@ import React from 'react';
 const TYPE_CONFIG = {
   'person-to-agent': { color: '#10b981', icon: '👤', label: 'Person → Agent', borderColor: '#059669' },
   'person-to-mcp': { color: '#3b82f6', icon: '👤', label: 'Person → MCP', borderColor: '#1d4ed8' },
-  'agent-to-a2a': { color: '#8b5cf6', icon: '🤖', label: 'Agent → A2A', borderColor: '#6d28d9' },
-  introspection: { color: '#6b7280', icon: '🔍', label: 'Introspection', borderColor: '#4b5563' },
-  unknown: { color: '#d1d5db', icon: '❓', label: 'Unknown', borderColor: '#9ca3af' }
+  'agent-to-a2a': { color: '#8b5cf6', icon: '', label: 'Agent → A2A', borderColor: '#6d28d9' },
+  introspection: { color: '#6b7280', icon: '', label: 'Introspection', borderColor: '#4b5563' },
+  unknown: { color: '#d1d5db', icon: '', label: 'Unknown', borderColor: '#9ca3af' }
 };
 
 export function ExchangeBox({ exchange, onInspect }) {

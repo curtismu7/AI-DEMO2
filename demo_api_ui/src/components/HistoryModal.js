@@ -87,7 +87,7 @@ function HistoryEntry({ entry }) {
           background: isLive ? '#059669' : '#004687', color: '#fff',
           fontSize: '0.6rem', fontWeight: 700, borderRadius: 20, padding: '2px 7px', whiteSpace: 'nowrap', flexShrink: 0,
         }}>
-          {isLive ? '🔴 LIVE' : `Step ${entry.stepNum}`}
+          {isLive ? 'LIVE' : `Step ${entry.stepNum}`}
         </span>
         <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#475569', flex: 1, lineHeight: 1.3 }}>{entry.label}</span>
         <span style={{ color: '#374151', fontSize: '0.75rem' }}>{collapsed ? '▸' : '▾'}</span>
@@ -214,7 +214,7 @@ export default function HistoryModal({ history, onClear }) {
         <div class="body">
       ${history.map(e => `
         <div class="entry">
-          <span class="chip">${e.isLive ? '🔴 LIVE' : 'Step ' + esc(e.stepNum)}</span>
+          <span class="chip">${e.isLive ? 'LIVE' : 'Step ' + esc(e.stepNum)}</span>
           <span class="label">${esc(e.label || '')}</span>
           ${[e.token, e.token2, e.isTokenExchange ? e.tokenOut : null].filter(Boolean).map(t => `
             <div class="card"><strong style="font-size:0.78rem">${esc(t.type || 'Token')}</strong>

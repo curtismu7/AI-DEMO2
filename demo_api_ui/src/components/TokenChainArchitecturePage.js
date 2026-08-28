@@ -10,7 +10,7 @@ import ArchitectureDiagramPage from './ArchitectureDiagramPage';
 const MERMAID_DIAGRAM = `
 %%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#2E5090', 'primaryTextColor': '#fff', 'primaryBorderColor': '#1a3a5c', 'lineColor': '#4a7bb8', 'secondaryColor': '#28a745', 'tertiaryColor': '#f57c00', 'fontFamily': 'sans-serif'}, 'flowchart': {'useMaxWidth': true}}}%%
 graph LR
-    subgraph Client["🖥️ CLIENT"]
+    subgraph Client["CLIENT"]
       User["👤 User"]
       OLB["OLB Application<br/>chatbot"]
     end
@@ -31,7 +31,7 @@ graph LR
       TxToken["TX Token<br/>━━━━━━<br/>sub: user1<br/>act: agent1<br/>scope: mcp"]
     end
 
-    subgraph Gateway["🚪 GATEWAY"]
+    subgraph Gateway["GATEWAY"]
       GWService["Agent Gateway<br/>route & introspect"]
       AuthCall["authorize()<br/>check token"]
     end
@@ -40,17 +40,17 @@ graph LR
       PingAuthz["PingAuthorize<br/>Policy Engine<br/>Read metadata"]
     end
 
-    subgraph MCPs["🔌 MCP SERVERS"]
+    subgraph MCPs["MCP SERVERS"]
       MCP_OLB["MCP OLB<br/>mcp-olb.bxf.com"]
       MCP_Invest["MCP Resource Server<br/>mcp-resource-server.bxf.com"]
     end
 
-    subgraph Resources["📊 RESOURCES"]
+    subgraph Resources["RESOURCES"]
       RS_OLB["olb-resource<br/>/balance /transfer"]
       RS_Invest["invest-resource<br/>API key vault"]
     end
 
-    subgraph Safety["🛡️ SAFETY"]
+    subgraph Safety["SAFETY"]
       HITL["HITL/CIBA<br/>step-up"]
       Metadata["Agent metadata<br/>capabilities"]
     end
@@ -176,7 +176,7 @@ export default function TokenChainArchitecturePage({ user }) {
         </div>
 
         <div style={{ padding: '1.5rem', background: '#f5f5f5', borderRadius: '6px', borderLeft: '4px solid #f57c00' }}>
-          <div style={{ fontWeight: '600', marginBottom: '0.5rem', color: '#f57c00' }}>🚪 Gateway</div>
+          <div style={{ fontWeight: '600', marginBottom: '0.5rem', color: '#f57c00' }}>Gateway</div>
           <div style={{ fontSize: '0.9rem', color: '#555' }}>
             Routes tool calls, enforces authorization checks, handles introspection
           </div>
@@ -190,21 +190,21 @@ export default function TokenChainArchitecturePage({ user }) {
         </div>
 
         <div style={{ padding: '1.5rem', background: '#f5f5f5', borderRadius: '6px', borderLeft: '4px solid #6f42c1' }}>
-          <div style={{ fontWeight: '600', marginBottom: '0.5rem', color: '#6f42c1' }}>🔌 MCP Servers</div>
+          <div style={{ fontWeight: '600', marginBottom: '0.5rem', color: '#6f42c1' }}>MCP Servers</div>
           <div style={{ fontSize: '0.9rem', color: '#555' }}>
             Tool providers, validate tokens, forward to resources with optional exchange
           </div>
         </div>
 
         <div style={{ padding: '1.5rem', background: '#f5f5f5', borderRadius: '6px', borderLeft: '4px solid #17a2b8' }}>
-          <div style={{ fontWeight: '600', marginBottom: '0.5rem', color: '#17a2b8' }}>📊 Resources</div>
+          <div style={{ fontWeight: '600', marginBottom: '0.5rem', color: '#17a2b8' }}>Resources</div>
           <div style={{ fontSize: '0.9rem', color: '#555' }}>
             Backend APIs behind MCP servers, may do token exchange for API keys
           </div>
         </div>
 
         <div style={{ padding: '1.5rem', background: '#f5f5f5', borderRadius: '6px', borderLeft: '4px solid #ffc107' }}>
-          <div style={{ fontWeight: '600', marginBottom: '0.5rem', color: '#000' }}>🛡️ HITL/CIBA</div>
+          <div style={{ fontWeight: '600', marginBottom: '0.5rem', color: '#000' }}>HITL/CIBA</div>
           <div style={{ fontSize: '0.9rem', color: '#555' }}>
             Step-up flow for high-risk actions (transfers), requires Multi-Factor ACR
           </div>

@@ -324,7 +324,7 @@ function HttpEntryDetail({ entry }) {
           </div>
           {isMcp && (
             <p className="api-detail-mcp-line">
-              🔌 MCP tool <strong>{entry.requestBody?.tool || 'tool call'}</strong>
+              📡 MCP tool <strong>{entry.requestBody?.tool || 'tool call'}</strong>
             </p>
           )}
         </div>

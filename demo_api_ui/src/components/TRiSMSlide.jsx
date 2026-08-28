@@ -70,7 +70,7 @@ export default function TRiSMSlide({ slide }) {
 
       {/* Live Demo */}
       <div className="trism-slide-section trism-demo-section">
-        <h4>🎬 Try it live</h4>
+        <h4>Try it live</h4>
         <div className="trism-demo-placeholder">
           <p className="trism-demo-hint">
             {getDemoHint(slide.liveDemo)}

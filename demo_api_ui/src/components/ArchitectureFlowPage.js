@@ -233,7 +233,7 @@ const INITIAL_NODES = [
     data: {
       label: "Your IdP",
       label2: "OAuth AS / SSO",
-      icon: "🏛️",
+      icon: "🏦",
       colorClass: "",
     },
   },
@@ -368,7 +368,7 @@ const INITIAL_NODES = [
     data: {
       label: "Specialist Agent",
       label2: "Investment / Records / Purchase",
-      icon: "🎯",
+      icon: "",
       colorClass: "",
     },
   },
@@ -1031,16 +1031,16 @@ const SIMULATE_STEPS = [
 // ─── Aud trail ────────────────────────────────────────────────────────────────
 
 const AUD_HOPS = [
-  { icon: "🤖", label: "CC Token", aud: "agent1", activeFrom: 0, activeTo: 5 },
+  { icon: "", label: "CC Token", aud: "agent1", activeFrom: 0, activeTo: 5 },
   {
-    icon: "🪪",
+    icon: "",
     label: "Subject Token",
     aud: "agent1",
     activeFrom: 13,
     activeTo: 15,
   },
   {
-    icon: "🔄",
+    icon: "",
     label: "RFC 8693 ①",
     aud: "(exchange)",
     isExchange: true,
@@ -1048,7 +1048,7 @@ const AUD_HOPS = [
     activeTo: 16,
   },
   {
-    icon: "🔀",
+    icon: "",
     label: "TX Token",
     aud: "mcp-gw",
     act: "agent1",
@@ -2847,7 +2847,7 @@ export default function ArchitectureFlowPage({ user }) {
                   lineHeight: 1.5,
                 }}
               >
-                🎫 Token details appear here
+                💳 Token details appear here
                 <br />
                 during simulation
               </div>

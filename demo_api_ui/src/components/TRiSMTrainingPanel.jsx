@@ -87,7 +87,7 @@ const SLIDES = [
     principleNumber: 6,
     title: 'Identity, Access & Least Privilege',
     subtitle: 'Agent = first-class identity with minimal permissions',
-    icon: '🪪',
+    icon: '👤',
     whatItMeans: 'Agent is a first-class identity (like a user). Strong authentication via OAuth. Least privilege: agent only accesses what it needs — never more.',
     howWeMeetIt: [
       { feature: 'Agent as Identity', component: 'PingOne', description: 'Registered as separate application with own Client ID in PingOne' },
