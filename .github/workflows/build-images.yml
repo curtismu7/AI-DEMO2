@@ -74,41 +74,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
-      # GHCR_TOKEN, not GITHUB_TOKEN. The ai-demo-* packages are owned by the
-      # USER account (they were created by hand-pushes from a laptop), and
-      # GITHUB_TOKEN authenticates as the REPOSITORY, which a user-owned package
-      # grants no write access to by default — every push failed with
-      # "denied: permission_denied: write_package" while the build, tag and
-      # matrix all succeeded. Granting per-package Actions access is the
-      # least-privilege fix but is UI-only, unverifiable by API, and did not
-      # take; a classic PAT with write:packages authenticates as the package
-      # owner and sidesteps package permissions entirely.
+      # GITHUB_TOKEN — short-lived and repository-scoped. A classic PAT was used
+      # briefly (#2540, reverted by #2548, restored here) while the real cause was
+      # being found. Do not reach for a PAT again; read on first.
       #
-      # Must be a CLASSIC PAT — fine-grained tokens do not reliably support the
-      # container registry.
+      # Pushing to a GHCR package needs TWO things, and either one missing gives
+      # the identical "denied: permission_denied: write_package" — which is what
+      # made this expensive to diagnose:
       #
-      # The guard below exists because a missing secret otherwise surfaces as an
-      # authentication error, which reads as "the token is wrong" rather than
-      # "there is no token" — the same misattribution this whole feature exists
-      # to stop.
-      - name: Require GHCR_TOKEN
-        run: |
-          set -euo pipefail
-          if [ -z "${GHCR_TOKEN}" ]; then
-            echo "::error::GHCR_TOKEN is not set. Create a CLASSIC PAT with write:packages and add it as repository secret GHCR_TOKEN." >&2
-            exit 1
-          fi
-        env:
-          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+      #   1. LABEL org.opencontainers.image.source in the service's Dockerfile.
+      #      Links the package to this repo on push (#2545: repository NONE ->
+      #      curtismu7/AI-DEMO2). In-repo, applies on the next push.
+      #   2. The package's "Manage Actions access" list must contain this repo
+      #      with the Write role. UI-only, cannot be set or read through any API,
+      #      and it starts EMPTY.
       #
-      # username is repository_owner, NOT github.actor: the PAT belongs to the
-      # owner, and actor is whoever triggered the run, so a merge by anyone else
-      # would present a mismatched username with the owner's token.
+      # These are independent. #2546 had (1) without (2) — the package named this
+      # repo as its Repository source while the Actions access list was empty —
+      # and the push was still refused. That is the trap.
+      #
+      # What was NOT the cause, all disproved: a missing token scope (the runner
+      # prints "Packages: write"), the repo's read-only default workflow
+      # permissions (the job-level permissions block elevates it correctly), and
+      # package visibility (public packages failed identically).
+      #
+      # A NEW service therefore needs both steps. Its first CI push will fail
+      # until they are done.
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GHCR_TOKEN }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Generate langchain-agent build inputs
         if: matrix.key == 'agent'
         # Mirrors se-update-code.sh's build-input preflight (lines 196-216).
