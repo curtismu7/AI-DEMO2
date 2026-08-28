@@ -106,7 +106,7 @@ function TokenCardGridItem({ type, tokenData = null, onInspect }) {
           onClick={() => onInspect(type, tokenData)}
           aria-label={`Inspect ${typeConfig.label}`}
         >
-          🔍 Inspect
+          Inspect
         </button>
       </div>
     </div>

@@ -16,6 +16,47 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+
+### [ ] 2026-08-28 — 271 emoji outside the §0 allowlist, in 53 files
+
+**What's wrong.** `REGRESSION_PLAN.md` §0's emoji allowlist is a project-wide
+hard rule, but nothing enforced it app-wide. The only test was
+`supportConsole/__tests__/supportConsoleConfig.test.js`, scoped to that one
+config — so violations accumulated unchallenged: **342 uses of 94 distinct
+emoji across 63 files** when first measured.
+
+71 were fixed immediately, leaving **271 in 53 files**:
+
+- `🔒` → `🔐` (22 uses, 13 files). An exact allowlisted equivalent — §0 defines
+  `🔐` as "security/lock" — so this was a pure swap.
+- 49 more where the glyph merely led a text label that already carried the
+  meaning (`🔄 Refresh`, `📋 Token History`), so dropping it lost nothing.
+
+**Why the rest wasn't fixed now.** The remainder each need a semantic decision,
+and mechanical substitution is the wrong tool. `🏦` on a transfer row in
+`UserTransactions` is a *label*, not decoration. `🤖` (19 uses) distinguishes
+agent-authored rows from user-authored ones and has no allowlisted counterpart
+— `👤` is spoken for as the HITL consent marker. Choosing replacements is a
+design pass, not a sweep, and doing it blind is how the token-chain education
+icons would have lost their meaning.
+
+**What the real fix looks like.** Per file, decide whether each glyph is
+decoration (drop it), a duplicate of adjacent text (drop it), or load-bearing
+(replace with a CSS icon or semantic HTML per §0, or propose adding the glyph
+to §0 — which is what happened for `🔧`). Then drop the file from the ratchet
+and lower the baseline.
+
+**Guarded meanwhile.** `demo_api_ui/src/__tests__/emojiAllowlistAppWide.test.js`
+is a ratchet: it fails if the total exceeds 271 or if the dirty-file count
+exceeds 53. It cannot force cleanup, but the number can only go down. Verified
+to fail on introduction by adding three emoji and watching both assertions fire.
+
+It reads the allowlist from §0 via `__tests__/helpers/emojiAllowlistSource.js`
+rather than restating it — the list was once written out in five places and
+they drifted, one listing six entries while the others listed ten, so an agent
+reading the wrong copy stripped four legitimate emoji.
+
+
 ### [x] 2026-08-28 — CI cannot push images: GHCR packages are user-owned, unlinked
 
 Every `push-image` job fails at its final step with

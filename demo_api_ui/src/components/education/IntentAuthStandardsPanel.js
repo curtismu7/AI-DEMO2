@@ -479,22 +479,22 @@ export default function IntentAuthStandardsPanel({ isOpen, onClose, initialTabId
               <tr>
                 <td>Cryptographic mandate (AP2/Verifiable Intent)</td>
                 <td>❌ Not implemented</td>
-                <td>🔄 Future</td>
+                <td>Future</td>
               </tr>
               <tr>
                 <td>W3C Verifiable Credentials</td>
                 <td>❌ Not implemented</td>
-                <td>🔄 Future</td>
+                <td>Future</td>
               </tr>
               <tr>
                 <td>KYA full agent identity passport</td>
                 <td>⚠️ Partial (authority score only)</td>
-                <td>🔄 Future</td>
+                <td>Future</td>
               </tr>
               <tr>
                 <td>Multi-hop <code>act</code> chain</td>
                 <td>Single-hop delegation only</td>
-                <td>🔄 Future</td>
+                <td>Future</td>
               </tr>
             </tbody>
           </table>

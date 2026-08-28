@@ -220,7 +220,7 @@ function HistoryPanel({ history, onClear }) {
           {open ? '▾' : '▸'}
         </button>
         <span className="arch-history__title">
-          📋 Token History — {history.length} token{history.length !== 1 ? 's' : ''} captured
+          Token History — {history.length} token{history.length !== 1 ? 's' : ''} captured
         </span>
         <button className="arch-history__clear" onClick={onClear} title="Clear history">
           ✕ Clear

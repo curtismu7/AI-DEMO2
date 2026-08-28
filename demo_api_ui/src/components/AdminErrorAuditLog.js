@@ -66,7 +66,7 @@ export default function AdminErrorAuditLog() {
             <input type="checkbox" checked={autoRefresh} onChange={e => setAutoRefresh(e.target.checked)} />
             Auto-refresh (5s)
           </label>
-          <button className="btn btn-secondary" onClick={handleRefresh} type="button">🔄 Refresh</button>
+          <button className="btn btn-secondary" onClick={handleRefresh} type="button">Refresh</button>
         </div>
       </div>
 

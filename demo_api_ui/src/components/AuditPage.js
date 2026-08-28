@@ -545,7 +545,7 @@ export default function AuditPage({ onClose } = {}) {
     return (
       <div className="audit-popout-page">
         <div className="audit-popout-titlebar">
-          <span className="audit-float-title">🔍 MCP Audit Trail</span>
+          <span className="audit-float-title">MCP Audit Trail</span>
           <div className="audit-float-titlebar-actions">
             {lastUpdatedLabel}
             {refreshControl}
@@ -572,7 +572,7 @@ export default function AuditPage({ onClose } = {}) {
         <div key={dir} className={`audit-resize-handle audit-resize-${dir}`} onMouseDown={onResizeMouseDown(dir)} />
       ))}
       <div className="audit-float-titlebar" onMouseDown={onTitleBarMouseDown}>
-        <span className="audit-float-title">🔍 MCP Audit Trail</span>
+        <span className="audit-float-title">MCP Audit Trail</span>
         <div className="audit-float-titlebar-actions">
           {lastUpdatedLabel}
           {refreshControl}

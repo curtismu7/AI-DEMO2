@@ -3043,7 +3043,7 @@ function TokenLineageDiff({
 			>
 				<span className="tld-icon">{open ? "\u25BC" : "\u25B6"}</span>
 				<span className="tld-label">
-					🔀 Token Lineage Diff — {fromLabel || "Input"} → {toLabel || "Output"}
+					Token Lineage Diff — {fromLabel || "Input"} → {toLabel || "Output"}
 				</span>
 				{unexpected.length > 0 && (
 					<span className="tld-badge tld-badge--unexpected">

@@ -138,7 +138,7 @@ export default function FlowDiagramsPanel({ isOpen, onClose, initialTabId }) {
           </ul>
 
           <div style={{ marginTop: '16px', padding: '12px', background: '#e8f5e8', border: '1px solid #a5d6a7', borderRadius: '6px' }}>
-            <h5 style={{ margin: '0 0 8px 0', fontSize: '0.9rem', color: '#2e7d32' }}>📋 Implementation</h5>
+            <h5 style={{ margin: '0 0 8px 0', fontSize: '0.9rem', color: '#2e7d32' }}>Implementation</h5>
             <p style={{ margin: '0', fontSize: '0.85rem', color: '#424242' }}>
               See <code>banking_api_server/services/humanInLoopService.js</code> for the consent service
               implementation and approval workflow management.
@@ -201,7 +201,7 @@ export default function FlowDiagramsPanel({ isOpen, onClose, initialTabId }) {
           </ul>
 
           <div style={{ marginTop: '16px', padding: '12px', background: '#fff3e0', border: '1px solid #ffb74d', borderRadius: '6px' }}>
-            <h5 style={{ margin: '0 0 8px 0', fontSize: '0.9rem', color: '#ef6c00' }}>🔄 Key Flows</h5>
+            <h5 style={{ margin: '0 0 8px 0', fontSize: '0.9rem', color: '#ef6c00' }}>Key Flows</h5>
             <p style={{ margin: '0', fontSize: '0.85rem', color: '#424242' }}>
               This diagram combines multiple flows: User login → Agent request → Token exchange → 
               MCP tool call → Banking API → Response. Each step includes detailed RFC compliance notes.

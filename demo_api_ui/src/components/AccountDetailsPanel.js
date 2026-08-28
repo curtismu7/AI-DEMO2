@@ -104,7 +104,7 @@ function AccountDetailsPanel({ accountData, initialPos, onClose }) {
           {/* Accounts Section */}
           {accounts && accounts.length > 0 && (
             <div className="adp-section">
-              <h3 className="adp-section-title">🏦 Your Accounts ({accounts.length})</h3>
+              <h3 className="adp-section-title">Your Accounts ({accounts.length})</h3>
               <div className="adp-accounts">
                 {accounts.map((account, idx) => (
                   <div key={idx} className="adp-account-card">

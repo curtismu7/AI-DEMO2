@@ -137,7 +137,7 @@ export default function PingOneSetup() {
                 className="btn btn-primary"
                 disabled={loading || !credentials.environmentId || !credentials.clientId || !credentials.clientSecret}
               >
-                {loading ? '🔄 Testing...' : '✓ Run Setup & Test'}
+                {loading ? 'Testing...' : '✓ Run Setup & Test'}
               </button>
             </form>
           </div>

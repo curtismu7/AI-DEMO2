@@ -108,7 +108,7 @@ scope: "sensitive:read" →  full account number, routing number
       </Section>
 
       <Section title="This Demo">
-        <Callout icon="🔒" color="#0d9488" bg="#f0fdfa" border="#0d9488">
+        <Callout icon="🔐" color="#0d9488" bg="#f0fdfa" border="#0d9488">
           The <strong>sensitive:read</strong> scope is gated by three layers:
           <ol style={{ marginTop: '0.4rem', paddingLeft: '1.2rem', lineHeight: 1.7 }}>
             <li>Scope check — token must carry <code>sensitive:read</code> or <code>read</code>.</li>

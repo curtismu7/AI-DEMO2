@@ -686,7 +686,7 @@ function OAuthInspectorSection({ selectedToken, onOpenClaimsModal, activeTab }) 
         </div>
         <div className="utfi-card utfi-card--error">
           <div className="utfi-error-content">
-            <div className="utfi-error-icon">🔒</div>
+            <div className="utfi-error-icon">🔐</div>
             <div>
               <h4>No Active OAuth Session</h4>
               <p>Sign in with PingOne OAuth to view your token information.</p>
@@ -1059,7 +1059,7 @@ export default function UnifiedTokenFlowInspector({ floatingByDefault = false, s
             title="Show token legend"
             aria-label="Token Legend"
           >
-            📋 Token Legend
+            Token Legend
           </button>
           {showToggle && (
             <button
