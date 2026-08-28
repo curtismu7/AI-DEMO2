@@ -1,8 +1,9 @@
 # CI build-and-push to GHCR — status and remaining work
 
 **Updated:** 2026-08-28
-**Shipped:** PRs #2525, #2529, #2533 — all merged.
-**Blocked on:** one GitHub settings change, described below. Nothing else.
+**Shipped:** PRs #2525, #2529, #2533, #2536, #2540, #2542 — all merged.
+**State:** working end to end. One step never run — the promote against the live SE
+cluster — plus two credential chores. Both below.
 
 ---
 
@@ -28,46 +29,42 @@ deliberate human step that moves SE.
 
 ---
 
-## THE ONE THING BLOCKING IT
+## Status: working. Two chores remain.
 
-Every `push-image` job fails at the final step:
+The pipeline builds, tags and **pushes**. Verified on run 33167899190 / merge
+`622feba36`. What is left is not code:
 
-```
-denied: permission_denied: write_package
-```
+1. **Rotate the PAT.** The token in repository secret `GHCR_TOKEN` was pasted into
+   a chat transcript, so treat it as compromised regardless of how it is used.
+   Revoke at `https://github.com/settings/tokens`, issue a fresh **classic** PAT
+   with `write:packages`, update the secret. CI fails loudly on the guard step in
+   between, so there is no silent window.
+2. **Delete the `CANARY` repository secret.** It holds that same token value and
+   nothing in the repo reads it — the only references anywhere are
+   `CANARY_USERNAME` and `CANARY_PASSWORD`, in `canary.yml`.
 
-**Cause.** The `ai-demo-*` packages are owned by the *user account*, created by
-hand-pushes from a laptop. GitHub Actions authenticates as the *repository* via
-`GITHUB_TOKEN`, and a user-owned package grants no repository write access by
-default. All 14 packages report `repository: None` — they are linked to nothing.
+### How the auth ended up as a PAT
 
-This is **not** about visibility. Visibility governs pull; this governs push.
-`ai-demo-frontend` is public and fails identically.
+`GITHUB_TOKEN` cannot push here. The `ai-demo-*` packages are owned by the **user
+account** (created by hand-pushes from a laptop); `GITHUB_TOKEN` authenticates as
+the **repository**, and a user-owned package grants it no write access. Every push
+failed with `denied: permission_denied: write_package` while the build, tag and
+matrix all succeeded ahead of it. Not a visibility issue — `ai-demo-frontend` is
+public and failed identically.
 
-**Fix — once per package, UI only.** There is no REST endpoint for it.
+Per-package Actions access is the least-privilege fix and was tried first. It
+**could not be made to take**: the denial was byte-identical before and after, and
+the setting is not observable through any API, so it could not be confirmed as
+applied. **Why it did not work was never established** — that answer is on a
+settings page, and if it can be made to work, reverting to `GITHUB_TOKEN` is a
+two-line change.
 
-1. `https://github.com/users/curtismu7/packages/container/<package>/settings`
-2. **Manage Actions access**
-3. **Add Repository** → `AI-DEMO2`
-4. Change its role from the default **Read** to **Write** — *this step is easy to
-   miss, and Read alone fails with the same message.*
+### A trap for whoever changes this workflow next
 
-The 14 packages the matrix can build:
-
-`ai-demo-demo-api-server`, `ai-demo-frontend`, `ai-demo-mcp-server`,
-`ai-demo-mcp-gateway`, `ai-demo-agent-service`, `ai-demo-authz-server`,
-`ai-demo-mastra-agent`, `ai-demo-openai-agent`, `ai-demo-pydantic-agent`,
-`ai-demo-hitl-service`, `ai-demo-mcp-invest`, `ai-demo-mortgage-service`,
-`ai-demo-langchain-agent`, `ai-demo-llm-proxy`
-
-**To verify after granting** — no commit needed, the matrix is already correct:
-
-```bash
-gh run rerun 33165014221 --failed
-gh run watch 33165014221 --exit-status
-```
-
-That run is merge `09a755c10`, whose matrix correctly selected `llm` alone.
+**A re-run cannot test a change to `build-images.yml`.** GitHub re-runs use the
+workflow file from the *triggering commit*, so a re-run of an old failed job
+exercises the old file. Verifying any change to the login or push step needs a
+fresh merge that touches a service directory. This cost a wasted cycle today.
 
 ---
 
@@ -83,17 +80,20 @@ That run is merge `09a755c10`, whose matrix correctly selected `llm` alone.
 | **`imagetools create` works and is fast** | **1.2s**, and the log reads `copying sha256:db20e433…` — it *copies* the manifest rather than re-resolving, so a multi-arch image survives. vs ~16 min for a rebuild. |
 | `langchain-agent` builds in CI | built to completion locally after the preflight; both generated-file COPY layers resolved |
 
-Only the final `docker push` is unproven, and only because of the grant.
+| **`docker push` lands an immutable tag** | run 33167899190 / `622feba36` — `sha-622feba367f2b5ee6fb93c0fbbffca2eadc6e7cc` resolves to `sha256:ce892608...` |
+| **A push does not move `:latest`** | after that push, `:latest` is still `sha256:76fc7bb2...` — a *different* digest from the tag just written |
+
+Everything in the chain is now verified except the promote itself.
 
 ---
 
-## Remaining after the grant
+## The one step never run
 
-1. Re-run the failed job (command above); confirm `sha-09a755c10…` exists in GHCR.
-2. Re-check `:latest` is still `sha256:76fc7bb2…`.
-3. `./se-update-code.sh --promote <full-40-char-sha> llm` — full SHA; it now rejects
-   a short one rather than blaming CI.
-4. Confirm SE actually serves it:
+Promoting against the live shared SE cluster. Everything upstream is verified.
+
+1. `./se-update-code.sh --promote 622feba367f2b5ee6fb93c0fbbffca2eadc6e7cc llm`
+   — full 40-char SHA; it now rejects a short one rather than blaming CI.
+2. Confirm SE actually serves it:
    ```bash
    kubectl --context us exec -n ping-devops-cmuir deploy/demo-api-server -- \
      sh -c 'curl -s -o /dev/null -w "/livez -> %{http_code}\n" http://llm-proxy:8090/livez'
@@ -102,9 +102,8 @@ Only the final `docker push` is unproven, and only because of the grant.
    2026-08-27 `successfully rolled out` was reported while the pod was still the old
    crash-looping one.
 
-No image exists for any commit merged before the grant, so those SHAs stay
-unpromotable. The first promotable commit is the first service-touching merge after
-access is granted.
+Only merges after `4d9ad6d31` (the PAT fix) have images. Everything before it —
+including the feature's own merge commit — is permanently unpromotable.
 
 ---
 
