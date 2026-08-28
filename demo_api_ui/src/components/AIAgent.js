@@ -3458,6 +3458,14 @@ export default function BankingAgent({
         /* keep default redirect */
       }
       setTimeout(() => {
+        // This fires 150ms after the click, which can be AFTER a unit test's
+        // jsdom environment is torn down — the timer is deliberately not
+        // cancelled, because its whole job is a full-page navigation and
+        // cancelling it on unmount could abort a real sign-in. Without this
+        // guard it throws "window is not defined" post-teardown, which Vitest
+        // reports as `Errors 1` and a NON-ZERO exit alongside "447 passed":
+        // a red build with a green-looking summary, intermittently.
+        if (typeof window === "undefined") return;
         const p = (location.pathname || "").replace(/\/$/, "") || "/";
         const params = new URLSearchParams();
         if (isPublicMarketingAgentPath(p))
