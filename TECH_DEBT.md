@@ -17,6 +17,103 @@ deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
 
+
+
+### [ ] 2026-08-28 — two accessibility/robustness leftovers from the contrast pass
+
+Both surfaced by the live dark-mode contrast probe
+(`tests/e2e/darkModeContrast.real.spec.js`) and left deliberately.
+
+**`<code>` renders at 3.38:1, and it is not ours.** `#d63384` on a faint tint
+— Bootstrap 5's default code colour, arriving through `end-user-nano.css`,
+an EXTERNAL Ping stylesheet we do not own. Below WCAG AA (4.5) for text.
+Fixing it means overriding a vendor stylesheet, which is a deliberate choice
+rather than a bug fix, so it was recorded rather than patched. Reproduce at
+`/mfa-test` with the theme stamped dark.
+
+**A guest sign-in timer is never cancelled.** `AIAgent.js` `handleLoginAction`
+schedules a 150ms `setTimeout` whose job is a full-page navigation. It carries
+a `typeof window === "undefined"` guard so it no longer throws after a test
+environment is torn down, but the timer itself is still uncancelled.
+
+The guard was chosen over `clearTimeout` on unmount ON PURPOSE: the timer's
+entire purpose is to navigate away, so cancelling it when the panel unmounts
+could abort a real sign-in, and that could not be ruled out without tracing the
+whole flow. Paying this off means establishing whether the panel can unmount
+mid-sign-in; if it cannot, `clearTimeout` is the cleaner fix.
+
+Worth knowing for both: an uncaught error AFTER teardown makes Vitest exit
+NON-ZERO while printing "N passed" — a red build with a green-looking summary,
+which is easy to re-run past without reading.
+
+
+### [ ] 2026-08-28 — design-token adoption is partial: colour, shadow, radius, weight
+
+Found while converting components onto `--th-*`. Each is measured on main
+AFTER that work, so these are the numbers that remain, not the ones we started
+with.
+
+**Colour — 16,486 hard-coded hex against 2,411 token uses.** 1,605 distinct
+values. 26 components were converted; the rest were not. The damage is
+near-duplicates: six near-identical whites (`#ffffff` `#f8fafc` `#f9fafb`
+`#fffbeb` `#fafafa` `#f8f9fa`) accounted for ~1,979 uses when first measured —
+the same visual colour written six ways, which is why surfaces differ subtly
+between pages.
+
+*Why it wasn't finished.* A blind sweep was built and REVERTED: it touched 193
+files and introduced 73 rules where `color` follows the theme while the surface
+stays a hard-coded literal, inverting in dark mode. Worse, 73 was only the
+same-rule cases — text inheriting a light surface from an ancestor is
+statically invisible. The safe unit is a whole component, surface and text
+together, which is how the 26 were done.
+
+*Do not* collapse the four text levels (`#0f172a` / `#374151` / `#556070` /
+`#94a3b8`) into one token. They are heading / body / secondary / faint across
+~1,300 uses; one "text" colour flattens the hierarchy. `--th-text`,
+`--th-text-body`, `--th-text-muted`, `--th-text-faint` exist for this.
+
+**box-shadow — 348 distinct literals for 517 uses.** Nearly every shadow in the
+app is unique. There is no shadow scale; `--modal-shadow` and `--card-shadow`
+exist but almost nothing uses them.
+
+**border-radius — 80 distinct literals across 2,633 uses**, with 6px / 8px /
+4px / 3px all competing for the same job. `--btn-radius` (8px),
+`--card-border-radius` (12px), `--modal-radius` (12px) and `--inner-card-radius`
+(8px) exist and are largely unused.
+
+**font-weight — 12 distinct values**, including `650`, `750`, `550`, `900` and
+`800`. Most faces do not have those weights, so the browser synthesises or
+rounds them; the intended emphasis is not what renders.
+
+**What the real fix looks like.** Colour: continue per component, worst-first,
+running the inversion check (themed text over a hard-coded light surface) after
+each — that check is what made the 26 safe. Shadow/radius/weight: pick the
+existing tokens as canonical, then sweep exact matches only, the way the type
+scale was adopted (1,974 declarations, zero visual change, because every
+mapping was value-identical).
+
+### [ ] 2026-08-28 — the monospace test's filename allowlist is now mostly stale
+
+`uiRegression.test.js` bans the fixed-width literal in CSS through a
+hand-maintained allowlist of ~45 FILENAMES, each commented "intentional" for
+code/token display — a list that grew every time someone displayed a token.
+
+`--font-mono` now exists and 281 hard-coded stacks across 81 files were
+converted to `var(--font-mono)`, which carries no banned literal. Those files
+therefore no longer need their allowlist entry, but the entries were left in
+place: they are harmless, and pruning 45 conditions in the same commit that
+moved 81 files would have made the diff unreviewable.
+
+**12 CSS files still declare the literal directly** and genuinely need an
+entry. The real fix is to convert those 12, then delete the allowlist entirely
+and assert only that `var(--font-mono)` is used — turning a per-FILE exemption
+list into a per-PURPOSE token, which is what it should have been.
+
+Note `--font-family-mono` was named "mono" but resolved to a SANS stack, so
+every consumer asking for a fixed-width face silently got a proportional one.
+It now aliases `--font-mono`.
+
+
 ### [ ] 2026-08-28 — 271 emoji outside the §0 allowlist, in 53 files
 
 **What's wrong.** `REGRESSION_PLAN.md` §0's emoji allowlist is a project-wide
