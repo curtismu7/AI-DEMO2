@@ -73,7 +73,7 @@ export default function GatewayConsentModal({
     >
       <div className="dm-scroll">
         <span className="gcm-hitl-badge">Human-in-the-Loop — <strong>manual approval required</strong></span>
-        <p style={{ marginTop: 12, fontSize: '0.88rem', color: '#1e293b', lineHeight: 1.5 }}>
+        <p style={{ marginTop: 12, fontSize: '0.88rem', color: 'var(--th-text)', lineHeight: 1.5 }}>
           The agent is requesting permission to proceed. Review the details before approving.
         </p>
         {challengeId && (
@@ -82,11 +82,11 @@ export default function GatewayConsentModal({
         {expiresAt && (
           <p className="gcm-expires">Expires: {new Date(expiresAt).toLocaleTimeString()}</p>
         )}
-        <ul style={{ fontSize: '0.85rem', color: '#374151', paddingLeft: '1.2em', margin: '10px 0' }}>
+        <ul style={{ fontSize: '0.85rem', color: 'var(--th-text)', paddingLeft: '1.2em', margin: '10px 0' }}>
           <li>A one-time verification code will be sent to your registered contact</li>
           <li>This approval is recorded in the audit trail</li>
         </ul>
-        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: 12, fontSize: '0.85rem', color: '#1e293b', cursor: 'pointer' }}>
+        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: 12, fontSize: '0.85rem', color: 'var(--th-text)', cursor: 'pointer' }}>
           <input
             type="checkbox"
             checked={agreed}

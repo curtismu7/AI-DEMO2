@@ -107,6 +107,24 @@ describe('sign-in surfaces use one defined accent', () => {
     }
   });
 
+  it('keeps the inspector shell on theme tokens, not a hard-coded light palette', () => {
+    const css = fs.readFileSync(
+      path.join(SRC, 'components/shared/InspectorShell.css'), 'utf8',
+    );
+
+    // It had 96 hard-coded hex and zero tokens — a fully light-mode shell.
+    // Structural colours (surface / border / text) must stay tokenised;
+    // semantic badge and accent colours are deliberately left as literals.
+    expect(css).toMatch(/var\(--th-/);
+
+    const structural = [
+      '#cbd5e1', '#e2e8f0', '#94a3b8', '#64748b',
+      '#1e293b', '#334155', '#475569', '#f8fafc', '#f1f5f9',
+    ];
+    const leaked = structural.filter((h) => new RegExp(h, 'i').test(css));
+    expect(leaked, 'structural colours must use --th-* tokens').toEqual([]);
+  });
+
   it('leaves no amber left over from the old HITL palette', () => {
     const app = fs.readFileSync(path.join(SRC, 'App.css'), 'utf8');
     const banner = app.match(
