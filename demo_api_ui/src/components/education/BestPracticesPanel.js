@@ -180,7 +180,7 @@ export default function BestPracticesPanel({ isOpen, onClose, initialTabId }) {
             human sponsor, and control what it can do.
           </p>
 
-          <PracticeCard icon="🆔" title="Identify &amp; Classify AI Agents">
+          <PracticeCard icon="👤" title="Identify &amp; Classify AI Agents">
             The AI Demo BFF registers a dedicated agent OAuth client separate from the user
             client. Every MCP token carries a <code>client_id</code> that identifies the agent — not
             the user, not the BFF app — so audit logs can always attribute actions to the right
@@ -230,7 +230,7 @@ export default function BestPracticesPanel({ isOpen, onClose, initialTabId }) {
             audit tagging — when an agent is acting.
           </p>
 
-          <PracticeCard icon="🏷️" title="Identify When a Session is Agentic">
+          <PracticeCard icon="📋" title="Identify When a Session is Agentic">
             AI Demo marks every request that triggers an MCP tool call. The RFC 8693 exchange
             produces a token with an <code>act</code> claim — any downstream service can inspect
             this claim to know the session is agentic <em>without</em> out-of-band signalling.
@@ -242,7 +242,7 @@ export default function BestPracticesPanel({ isOpen, onClose, initialTabId }) {
             are blocked at the BFF — PingOne never sees the exchange request.
           </PracticeCard>
 
-          <PracticeCard icon="📌" title="Tag Agent Sessions">
+          <PracticeCard icon="" title="Tag Agent Sessions">
             The MCP WebSocket initialize message carries <code>agentToken</code> (the exchanged
             MCP token) and <code>userSub</code> (the human principal's PingOne subject) as separate
             fields — the MCP server can log both to tag every server-side action with its human
@@ -287,7 +287,7 @@ ws.initialize({
             it) and the agent (who executed it).
           </p>
 
-          <PracticeCard icon="🚫" title="Never Forward the User Token">
+          <PracticeCard icon="❌" title="Never Forward the User Token">
             <code>agentMcpTokenService.js</code> enforces RFC 8693 exchange as a hard requirement.
             If <code>mcp_resource_uri</code> is not configured the call throws <code>503 mcp_resource_uri_required</code>{' '}
             — there is no configuration or code path that forwards the raw user access token to
@@ -360,7 +360,7 @@ scope=accounts:read
             at the BFF — PingOne never processes the exchange.
           </PracticeCard>
 
-          <PracticeCard icon="⏱️" title="Use Short-Lived Tokens">
+          <PracticeCard icon="📊" title="Use Short-Lived Tokens">
             The exchanged MCP token has the lifetime set by PingOne on the token-exchange grant
             (typically shorter than the user token). The BFF middleware (<code>refreshIfExpiring</code>)
             proactively refreshes the user token when it is within 5 minutes of expiry — keeping
@@ -419,7 +419,7 @@ if (!isToolPermittedByAgentPolicy(toolScopes, agentAllowedSet)) {
             approval logged for audit.
           </p>
 
-          <PracticeCard icon="📲" title="Prompt Human for Sensitive Operations (CIBA)">
+          <PracticeCard icon="📡" title="Prompt Human for Sensitive Operations (CIBA)">
             CIBA (Client-Initiated Backchannel Authentication) sends an out-of-band approval
             request to the user's registered device <em>before</em> the agent receives the token
             it needs to proceed. The agent polls until approved — or times out and halts.
@@ -428,7 +428,7 @@ if (!isToolPermittedByAgentPolicy(toolScopes, agentAllowedSet)) {
             you step through this flow live.
           </PracticeCard>
 
-          <PracticeCard icon="☑️" title="Transaction Consent Modal">
+          <PracticeCard icon="✓" title="Transaction Consent Modal">
             High-value transfers pop up an in-app consent dialog that the customer must tick.
             The agent cannot complete the transfer until the human has explicitly approved the
             specific amount and recipient. The consent challenge ID is stored server-side and

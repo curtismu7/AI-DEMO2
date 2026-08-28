@@ -533,7 +533,7 @@ const CfgSecretField: FC<{
         onClick={() => onToggle(fieldKey)}
         aria-label={showSecrets[fieldKey] ? "Hide" : "Show"}
       >
-        {showSecrets[fieldKey] ? "🙈" : "👁"}
+        {showSecrets[fieldKey] ? "🔍" : "🔍"}
       </button>
     </div>
     {help && <p className="cfg-field-help">{help}</p>}
@@ -1026,9 +1026,9 @@ const IdpSetupGuide: FC<{
     { id: "overview", label: "Overview & Checklist" },
     { id: "apps", label: "🔑 Applications" },
     { id: "redirects", label: "↩ Redirect URIs" },
-    { id: "resources", label: "🗂 Resources & Scopes" },
+    { id: "resources", label: "Resources & Scopes" },
     { id: "endpoints", label: "OAuth Endpoints" },
-    { id: "debug", label: "🐛 Debug Info" },
+    { id: "debug", label: "Debug Info" },
   ];
 
   const ValueRow: React.FC<{
@@ -1436,7 +1436,7 @@ const IdpSetupGuide: FC<{
               </code>{" "}
               scopes assigned to Customer App + AI Agent App
             </div>
-            <div>☐ Test Connection passes on PingOne Config tab</div>
+            <div>Test Connection passes on PingOne Config tab</div>
             <div>
               ☐ Admin login works at <strong>/admin</strong> &nbsp;·&nbsp; User
               login works at <strong>/</strong>
@@ -3679,7 +3679,7 @@ const UnifiedConfigurationPage: FC<{
             onKeyDown={(e) => e.key === "Escape" && setThemeChangeModal(null)}
             role="presentation"
           >
-            <div style={{ fontSize: "3rem", marginBottom: "0.5rem" }}>✨</div>
+            <div style={{ fontSize: "3rem", marginBottom: "0.5rem" }}></div>
             <h2
               style={{
                 margin: "0 0 0.5rem 0",

@@ -72,7 +72,7 @@ function ProductCard({ item, onAction, action }) {
         </div>
         <p className="pcg-title">{item.name}</p>
         <div className="pcg-meta">
-          {item.rating != null && <>{item.rating}★ ({item.reviewCount})<span className="pcg-dot" /></>}
+          {item.rating != null && <>{item.rating}({item.reviewCount})<span className="pcg-dot" /></>}
           {item.stock}
         </div>
         <div className="pcg-btn">

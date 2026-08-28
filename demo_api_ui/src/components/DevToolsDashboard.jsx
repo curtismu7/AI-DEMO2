@@ -13,10 +13,10 @@ import McpTrafficPage from './McpTrafficPage';
 import ApiExplorerPanel from './ApiExplorerPanel';
 
 const TABS = [
-  { id: 'chain',     icon: '🔗', label: 'Token Chain' },
-  { id: 'inspector', icon: '🔬', label: 'Flow Inspector' },
-  { id: 'traffic',   icon: '🔌', label: 'MCP Traffic' },
-  { id: 'api',       icon: '📡', label: 'API Explorer' },
+  { id: 'chain',     icon: '', label: 'Token Chain' },
+  { id: 'inspector', icon: '', label: 'Flow Inspector' },
+  { id: 'traffic',   icon: '', label: 'MCP Traffic' },
+  { id: 'api',       icon: '', label: 'API Explorer' },
 ];
 
 export default function DevToolsDashboard({
@@ -34,7 +34,7 @@ export default function DevToolsDashboard({
 
   return (
     <FloatingPanel
-      title="🛠 Dev Tools Dashboard"
+      title="Dev Tools Dashboard"
       defaultWidth={defaultWidth}
       defaultHeight={defaultHeight}
       defaultX={defaultX}

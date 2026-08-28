@@ -173,7 +173,7 @@ export default function ExchangeModeToggle({ hideTable = false }) {
             <p className="emt-note">
               {isTransaction ? (
                 <>
-                  🔬 <strong>Draft mode active:</strong> Transaction Tokens add per-operation context (
+                  🔍 <strong>Draft mode active:</strong> Transaction Tokens add per-operation context (
                   <code>txn_id</code>, <code>txn_scope</code>) to each delegation.
                   {' '}Set <code>TOKEN_EXCHANGE_MODE=rfc_8693</code> in BFF <code>.env</code> to switch back.
                 </>

@@ -1068,7 +1068,7 @@ export default function UnifiedTokenFlowInspector({ floatingByDefault = false, s
               title={isFloating ? 'Dock panel' : 'Float panel'}
               aria-label={isFloating ? 'Dock' : 'Float'}
             >
-              {isFloating ? '📌' : '⛓'}
+              {isFloating ? '' : '🔗'}
             </button>
           )}
           {effectiveShowClose && (

@@ -357,7 +357,7 @@ function TransactionTokensTab() {
             ['Audit Trail', 'Agent ID only (act claim)', 'Transaction ID + scope + timestamp'],
             ['Replay Protection', 'TTL only', 'Transaction ID enables replay detection'],
             ['Key Claim', 'act (actor chain)', 'txn_id + txn_scope'],
-            ['Status', '✅ RFC — Stable', '🔬 IETF Draft — In progress'],
+            ['Status', '✅ RFC — Stable', 'IETF Draft — In progress'],
           ].map(([aspect, rfc, txn], i) => (
             <tr key={aspect} style={{ borderBottom: '1px solid #f3f4f6', background: i % 2 ? '#f9fafb' : 'white' }}>
               <td style={{ padding: '7px 10px', fontWeight: 600 }}>{aspect}</td>

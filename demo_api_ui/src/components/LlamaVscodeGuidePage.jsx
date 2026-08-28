@@ -31,7 +31,7 @@ export default function LlamaVscodeGuidePage() {
           color: "#e7e9ee",
         }}
       >
-        <span style={{ fontSize: 22 }}>🦙</span>
+        <span style={{ fontSize: 22 }}>🧠</span>
         <div style={{ flex: 1 }}>
           <div style={{ fontWeight: 700 }}>llama-vscode Setup Guide</div>
           <div style={{ fontSize: 13, color: "#a7adba" }}>

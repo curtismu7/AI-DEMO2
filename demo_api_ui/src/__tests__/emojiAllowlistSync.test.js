@@ -21,7 +21,12 @@ const REPO = path.resolve(
 const read = (rel) => fs.readFileSync(path.join(REPO, rel), 'utf8');
 
 /** Pull the emoji out of a single statement, in order, de-duped. */
-function listed(text, anchor, span = 12) {
+/**
+ * Read to the END of the statement, not a fixed number of lines. A 12-line
+ * window silently truncated §0 once the allowlist grew past it, so the test
+ * compared a partial truth against complete mirrors and failed all four.
+ */
+function listed(text, anchor, span = 40) {
   const lines = text.split('\n');
   const start = lines.findIndex((l) => l.includes(anchor));
   expect(start, `anchor not found: ${anchor}`).toBeGreaterThan(-1);

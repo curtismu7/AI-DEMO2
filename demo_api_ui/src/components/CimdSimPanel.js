@@ -868,7 +868,7 @@ ${JSON.stringify(cimdDoc, null, 2)}`}</CodeBlock>
               </div>
               <div className="cimd-checks" style={{ marginTop: '6px' }}>
                 <div className="cimd-check cimd-check--info">
-                  <span className="cimd-check-icon">🆔</span>
+                  <span className="cimd-check-icon">👤</span>
                   <div>
                     <strong>client_id</strong> — must exactly match the URL the AS
                     fetched. Any mismatch is a security violation (DNS rebinding protection).

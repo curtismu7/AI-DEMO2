@@ -41,7 +41,7 @@ function QuestionCard({ question, answer, color = 'blue' }) {
       background: `${borderColor}08`,
     }}>
       <p style={{ margin: '0 0 4px', fontSize: '0.82rem', color: '#374151', fontStyle: 'italic' }}>
-        ❓ {question}
+        {question}
       </p>
       <p style={{ margin: 0, fontSize: '0.86rem', fontWeight: 700, color: borderColor }}>
         → {answer}
@@ -567,7 +567,7 @@ const exchanged = await pingoneTokenExchange({
           fontSize: '0.83rem',
           color: 'var(--brand-navy)',
         }}>
-          <strong>💡 To see Level 3 in action:</strong> enable the AI Banking Assistant, ask it to
+          <strong>To see Level 3 in action:</strong> enable the AI Banking Assistant, ask it to
           transfer more than $500. You will see the HITL consent popup, the PingOne Authorize gate
           (if enabled in Feature Flags), and the agent token in the JWT panel — all in one flow.
         </div>
