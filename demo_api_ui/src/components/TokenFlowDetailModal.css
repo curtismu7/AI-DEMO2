@@ -197,6 +197,8 @@
 
 /* Step list */
 .tfd-steps { flex: 1; overflow-y: auto; }
+/* Cross-App / Least Agency render no step rows — do not let the empty list eat the height. */
+.tfd-steps:empty { flex: 0; }
 
 /* Simple step row */
 .tfd-step {
