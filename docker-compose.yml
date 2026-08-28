@@ -1220,6 +1220,17 @@ services:
     environment:
       NODE_ENV: production
       AUTHZ_PORT: "9001"
+      # RFC 9396 RAR subset enforcement (routes/decision.js rule 3c). This was unset in
+      # every deployment, which made RAR look enforced while nothing enforced it:
+      # the BFF's ff_rar builds authorization_details and carries them in the TraT
+      # azd envelope, mcp-gateway forwards them here as RarAuthorizationDetails, and
+      # this service logged `rar=present` and then skipped the check because
+      # process.env.FF_RAR was unset. ff_rar (configStore, BFF) and FF_RAR (container
+      # env, here) are different switches with confusingly similar names — flipping the
+      # admin-UI toggle arms the minting, never the enforcement. The rule is a no-op
+      # when no authorization_details are present, so this is safe to leave on.
+      # Covered by demo_authz_server/tests/decision.rar.test.js (13 tests).
+      FF_RAR: "true"
       # D-05 anti-bypass has an ID-JAG exemption (routes/decision.js ~L408): a token
       # whose `iss` is oauth-mcp's embedded AS is a legitimate per-server grant, not a
       # gateway bypass. The comparison is exact string equality against this value,

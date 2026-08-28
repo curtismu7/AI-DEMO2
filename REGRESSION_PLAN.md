@@ -107,6 +107,40 @@ read the configured host. A new browser origin must be added to ALL of:
 ## §4 — Bug Fix Log
 Reverse-chronological, newest first.
 
+### 2026-08-28 — RAR looked enforced but nothing enforced it: `FF_RAR` was unset in every deployment
+
+**Files changed:** `docker-compose.yml` (authz-server `environment`).
+
+**What was broken:** with `ff_rar=true` the BFF built RFC 9396
+`authorization_details` and carried them in the TraT `azd` envelope,
+`mcp-gateway` forwarded them to the policy server as
+`RarAuthorizationDetails`, and `demo_authz_server/routes/decision.js`
+logged `rar=present` — then skipped rule 3c entirely, because that rule is
+gated on `process.env.FF_RAR === 'true'` and `FF_RAR` was set in no compose
+file, no `.env` and no k8s manifest. Meanwhile `ff_rar_gateway_enforcement`
+defaults to `false` by design, so the gateway's own `enforceRarSubset` was
+not running either, and `mcp-gateway`'s `PINGAUTHORIZE_ENDPOINT` points at
+`authz-server:9001`, so cloud P1AZ's authored `RarMaxAmount` rule was not in
+the path. All three enforcement points were inert at once. The failure was
+silent and read as success: the token-chain UI renders an "intent-bound"
+event with the full payload and the PDP logs `rar=present`.
+
+**What was fixed:** `FF_RAR: "true"` on the `authz-server` service, arming
+the enforcement point the design already nominates as the single one.
+
+**Do not break:** `ff_rar` (configStore, read by the BFF) and `FF_RAR`
+(container env, read by authz-server) are *different switches* with
+near-identical names — `ff_rar` arms the minting, `FF_RAR` arms the
+enforcement. Flipping the admin-UI toggle does not arm enforcement. Do not
+also set `ff_rar_gateway_enforcement=true`: `configStore.js` documents that
+it stays off so the policy server is the sole RAR decision point, and
+arming both double-enforces. Rule 3c is a no-op when no
+`authorization_details` are present, so leaving `FF_RAR` on is safe.
+
+**Verify:** `cd demo_authz_server && node --test tests/decision.rar.test.js`
+— 13/13, including `RAR-3` (amount 500 vs granted 100 → DENY
+`rar_amount_exceeded`) and `RAR-1`, which pins the unarmed no-op behaviour.
+
 ### 2026-08-28 — Sign-in prompts: 14 dead CTAs, a lost return path, and raw JWT text as the first sentence (PR #2519)
 
 **Files changed:** `demo_api_ui/src/components/SignInModal.jsx` (new),
