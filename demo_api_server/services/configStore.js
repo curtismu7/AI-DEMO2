@@ -1335,13 +1335,49 @@ class ConfigStore {
   _loadFromLmdb() {
     const rows = _lmdbConfig.loadAll();
     const decoded = {};
+    const repairs = {};
     for (const row of rows) {
       // Bootstrap keys: load into cache so they can serve as a fallback when
       // .env is absent. getEffective() still consults process.env first for
       // these keys, so .env always wins when set. See REGRESSION_PLAN §4.
-      decoded[row.key] = SECRET_KEYS.has(String(row.key).toUpperCase()) ? _decrypt(row.value) : row.value;
+      if (!SECRET_KEYS.has(String(row.key).toUpperCase())) {
+        decoded[row.key] = row.value;
+        continue;
+      }
+      const plain = _decrypt(row.value);
+      if (plain) {
+        decoded[row.key] = plain;
+        continue;
+      }
+      // Undecryptable row — a rotated or mismatched DEMO_CONFIG_KEY. _decrypt
+      // already warned and returned '', so the field reads as "not set" and the
+      // same warning repeats on every boot forever. If a RAW env fallback exists
+      // the correct value is right there, so adopt it and re-encrypt the row
+      // under the current key: the credential works again and the warning stops.
+      //
+      // Never adopts an "encrypted:..." value — that is this module's own
+      // ciphertext leaking back through .env, the 2026-08-21 invalid_client
+      // incident, and readEnv() rejects it for the same reason.
+      const envVars = ENV_FALLBACK_MAP[String(row.key).toLowerCase()] || [];
+      const repaired = envVars.map((k) => process.env[k]).find((v) => v && !v.startsWith('encrypted:'));
+      decoded[row.key] = repaired ? repaired.trim() : '';
+      if (repaired) repairs[row.key] = decoded[row.key];
     }
     this._setCache(decoded, 'sqlite');
+
+    // Write AFTER the cache is populated: a failed repair write must still leave
+    // the process running on the recovered values, and the write is best-effort
+    // by design (a read-only or locked LMDB is not a reason to fail boot).
+    if (Object.keys(repairs).length > 0) {
+      console.warn(`[ConfigStore] Repairing ${Object.keys(repairs).length} undecryptable secret row(s) from env fallback: ${Object.keys(repairs).join(', ')}`);
+      try {
+        for (const [key, value] of Object.entries(repairs)) {
+          _lmdbConfig.upsert(key, _encrypt(value));
+        }
+      } catch (err) {
+        console.warn('[ConfigStore] LMDB repair write failed:', err.message);
+      }
+    }
   }
 
   // -------------------------------------------------------------------------
