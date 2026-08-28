@@ -2,12 +2,18 @@
 //
 // /audit-agent — an agent that can reach PingOne's audit log and nothing else.
 //
-// The backend behind the gateway is PingOne's hosted admin MCP, which serves its
-// whole management catalog (~76-85 tools, measured live). What reaches this page
-// is whatever the Privilege policy on the `audit` Agentic App allows. That
-// narrowing is the entire point of the page, so nothing here filters the tool
-// list — a client-side allowlist would show the same screen whether the policy
-// worked or not, which would make the demo prove nothing.
+// The relay points at the `audit` façade door, whose upstream is the SHARED
+// Agent Gateway — the same one that serves the full banking surface. What
+// narrows this page to three tools is the door's advertised scope: it serves
+// scopes_supported: ['audit:read'], the relay's OAuth asks for only that, and
+// the gateway filters tools/list to what the token permits.
+//
+// So nothing here filters the tool list, deliberately. A client-side allowlist
+// would render the same screen whether the scope narrowing worked or not, which
+// would make the page prove nothing.
+//
+// (The original design routed through Privilege. That was abandoned once the
+// hosted PingOne MCP stopped accepting worker client_credentials.)
 //
 // Backend is the same BFF relay the /privilege-mcp-client page uses; this page
 // only points it at the `audit` preset first.
@@ -20,7 +26,7 @@ import "./AuditAgentPage.css";
 const API_BASE = "/api/privilege-mcp";
 // Matches the preset label in demo_api_server/routes/privilegeMcpClient.js.
 // Selected by label rather than hardcoding the URL so an operator can repoint
-// PRIVILEGE_AGENTLESS_MCPGW_URL_AUDIT without a UI change.
+// AUDIT_MCP_URL without a UI change.
 const AUDIT_PRESET = /pingone audit/i;
 
 function errText(err) {
@@ -60,7 +66,7 @@ export default function AuditAgentPage() {
         const preset = (state.presets || []).find((p) => AUDIT_PRESET.test(p.label || ""));
         if (!preset) {
           setNotice(
-            "No audit gateway preset is configured. Set PRIVILEGE_AGENTLESS_MCPGW_URL_AUDIT on the BFF.",
+            "No audit gateway preset is configured. Set AUDIT_MCP_URL on the BFF.",
           );
           setPhase("signed-out");
           return;
@@ -132,7 +138,7 @@ export default function AuditAgentPage() {
       <header className="aap-head">
         <h1>Audit Agent</h1>
         <p className="aap-sub">
-          An agent restricted to PingOne&apos;s audit log by Privilege policy — not by this page.
+          An agent restricted to PingOne&apos;s audit log by gateway scope — not by this page.
         </p>
       </header>
 
@@ -140,21 +146,21 @@ export default function AuditAgentPage() {
 
       <section className="aap-scope">
         <div className="aap-scope-row">
-          <span className="aap-label">Gateway</span>
+          <span className="aap-label">Door</span>
           <code>{gatewayUrl || "—"}</code>
         </div>
         <div className="aap-scope-row">
           <span className="aap-label">Tools allowed</span>
           <strong>{phase === "ready" ? tools.length : "—"}</strong>
           <span className="aap-hint">
-            of PingOne&apos;s full admin catalog. Everything else is denied upstream.
+            The same gateway serves the full banking surface; this door&apos;s token cannot reach it.
           </span>
         </div>
       </section>
 
       {phase === "signed-out" && (
         <section className="aap-connect">
-          <p>Sign in to the gateway to see which tools policy allows.</p>
+          <p>Sign in to the gateway to see which tools this door&apos;s scope allows.</p>
           <button type="button" onClick={connect} disabled={busy}>
             {busy ? "Connecting…" : "Connect to gateway"}
           </button>

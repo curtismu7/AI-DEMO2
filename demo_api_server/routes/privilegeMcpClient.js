@@ -10,12 +10,21 @@ const DEFAULT_AGENTLESS_MCP_URL =
   'https://cmuir-agentless-mcpgw.ping-devops.com/cmuir/mcp';
 const DEFAULT_AGENT_MCP_URL =
   'https://opensearch.default.applications.procyon.ai:8643/mcp';
-// `audit` Agentic App on the same agentless gateway as DEFAULT_AGENTLESS_MCP_URL.
-// Its backend is PingOne's hosted admin MCP (~76-85 tools); the Privilege policy
-// on this application is what narrows the list to the audit tools. Nothing here
-// filters — the narrowing has to stay server-side to be worth demonstrating.
+// The `audit` façade door, NOT Privilege — that route was abandoned once the
+// hosted PingOne MCP stopped accepting worker client_credentials (401 "Invalid
+// authentication", 2026-08-27).
+//
+// The door's upstream is the shared Agent Gateway, so what narrows this to the
+// three audit tools is the door's advertised scope: it serves
+// scopes_supported: ['audit:read'], the relay's OAuth asks for only that, and
+// the gateway filters tools/list to what the token permits. Point this at the
+// gateway directly and the page gets the full banking surface instead.
+//
+// Plain-HTTP façade port (MCP_FACADE_HTTP_PORT=3002) rather than :3001 — the
+// relay calls this server-side, and the HTTPS listener uses mkcert certs that a
+// self-call would have to be told to trust.
 const DEFAULT_AUDIT_MCP_URL =
-  'https://cmuir-agentless-mcpgw.ping-devops.com/audit/mcp';
+  'http://localhost:3002/mcp-facade/audit/mcp';
 const MCP_PROTOCOL_VERSION = '2026-07-28';
 const LEGACY_MCP_PROTOCOL_VERSION = '2024-11-05';
 const MCP_CLIENT_INFO = { name: 'PingOne Privilege MCP Client', version: '2.0.0' };
@@ -1023,9 +1032,12 @@ router.get('/state', (req, res) => {
       url: process.env.PRIVILEGE_AGENTLESS_MCPGW_URL_BANKING || '',
     },
     {
-      label: 'Agentless gateway — PingOne audit (policy-scoped)',
+      label: 'Agent Gateway — PingOne audit (scope-narrowed)',
+      // mode 'agentless' selects the OAuth-capable config slot, which is what
+      // this door needs (it issues a 401 challenge and an AS to discover).
+      // It does NOT mean Privilege agentless — that route is gone.
       mode: 'agentless',
-      url: process.env.PRIVILEGE_AGENTLESS_MCPGW_URL_AUDIT || DEFAULT_AUDIT_MCP_URL,
+      url: process.env.AUDIT_MCP_URL || DEFAULT_AUDIT_MCP_URL,
     },
   ].filter((p) => p.url);
   res.json({
