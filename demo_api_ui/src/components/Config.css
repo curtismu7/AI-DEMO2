@@ -627,7 +627,12 @@
 }
 
 .config-page__env-key {
-  font-family: var(--p1-mono);
+  /* --p1-mono is defined nowhere, so this rule was silently dropped. Point it
+     at the app's own token instead, which is what every other consumer of that
+     token gets. The token resolves to a sans stack by house style (see the
+     global pre/code reset in index.css and its regression test), so this keeps
+     the column consistent rather than changing its face. */
+  font-family: var(--font-family-mono);
   padding: 0.15rem 0.5rem 0.15rem 0;
   white-space: nowrap;
   vertical-align: top;

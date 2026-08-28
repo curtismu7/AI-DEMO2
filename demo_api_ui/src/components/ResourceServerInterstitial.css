@@ -181,9 +181,11 @@
   animation: rsi-arrow-glow 1.5s ease-in-out infinite;
 }
 
+/* --rsi-accent is never defined; every other use in this file passes #2563eb
+   as the fallback, and these two forgot — so the glow animated with no colour. */
 @keyframes rsi-arrow-glow {
-  0%, 100% { box-shadow: 0 0 4px var(--rsi-accent); }
-  50%      { box-shadow: 0 0 12px var(--rsi-accent); }
+  0%, 100% { box-shadow: 0 0 4px var(--rsi-accent, #2563eb); }
+  50%      { box-shadow: 0 0 12px var(--rsi-accent, #2563eb); }
 }
 
 /* ── Detail card ──────────────────────────────────────────────── */
