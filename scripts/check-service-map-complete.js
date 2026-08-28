@@ -67,6 +67,13 @@ function checkMap(map, inventory) {
         'data/serverInventory.js does not list — one of the two has drifted',
       );
     }
+    if (entry.sourceDir && !fs.existsSync(path.join(ROOT, entry.sourceDir))) {
+      errors.push(
+        `service "${entry.key}" declares sourceDir "${entry.sourceDir}", which ` +
+        'does not exist on disk — a rename updated neither se-update-code.sh nor ' +
+        'data/serverInventory.js, so CI would build nothing for this service',
+      );
+    }
   }
   return errors;
 }

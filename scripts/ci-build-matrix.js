@@ -20,7 +20,7 @@ const fs = require('fs');
 /**
  * @param {object[]} map from `se-update-code.sh --print-map`
  * @param {string[]} changedPaths repo-relative paths changed by the merge
- * @returns {{include: {key:string, ghcrImage:string, composeService:string, context:string}[]}}
+ * @returns {{include: {key:string, ghcrImage:string, composeService:string, localImage:string}[]}}
  */
 function buildMatrix(map, changedPaths) {
   const include = [];
@@ -31,15 +31,15 @@ function buildMatrix(map, changedPaths) {
     const prefix = `${entry.sourceDir}/`;
     const touched = changedPaths.some((p) => p.startsWith(prefix));
     if (!touched) continue;
+    // No build-context field here: the build runs through docker compose,
+    // which owns the real build context and dockerfile path — those vary per
+    // service and are NOT derivable from sourceDir (the BFF builds from the
+    // repo root, not from demo_api_server/).
     include.push({
       key: entry.key,
       ghcrImage: entry.ghcrImage,
       composeService: entry.composeService,
-      // The build runs through docker compose, which owns the real build
-      // context and dockerfile path — those vary per service and are NOT
-      // derivable from sourceDir (the BFF builds from the repo root).
       localImage: entry.localImage,
-      context: entry.sourceDir,
     });
   }
   return { include };

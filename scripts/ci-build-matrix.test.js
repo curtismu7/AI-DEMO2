@@ -31,7 +31,7 @@ test('maps the UI to ai-demo-frontend, not ai-demo-ui', () => {
   const m = buildMatrix(MAP, ['demo_api_ui/src/App.js']);
   assert.strictEqual(m.include[0].ghcrImage, 'ai-demo-frontend');
   assert.strictEqual(m.include[0].composeService, 'ui');
-  assert.strictEqual(m.include[0].context, 'demo_api_ui');
+  assert.strictEqual(m.include[0].localImage, 'x');
 });
 
 test('selects several services when the change spans them', () => {

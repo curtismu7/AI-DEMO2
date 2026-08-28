@@ -19,6 +19,10 @@ const GOOD = [
 const INVENTORY = { demo_api_server: 'api-server' };
 
 test('passes a complete map', () => {
+  // Also covers the documented BFF naming mismatch: serverInventory calls this
+  // directory's service `api-server`; Compose calls it `demo-api-server`. The
+  // gate checks the DIRECTORY exists in the inventory, never that the service
+  // names agree — that is the mismatch the whole design routes around.
   assert.deepStrictEqual(checkMap(GOOD, INVENTORY), []);
 });
 
@@ -31,18 +35,25 @@ test('fails a key with an empty field — the ALL_KEYS omission class', () => {
 });
 
 test('fails a sourceDir that is not a real directory in the inventory', () => {
+  // Also not a real directory on disk, so both the inventory-agreement check
+  // and the on-disk-existence check fire — two independent problems, two errors.
   const bad = [{ ...GOOD[0], sourceDir: 'demo_api_serverrr' }];
   const errs = checkMap(bad, INVENTORY);
-  assert.strictEqual(errs.length, 1);
+  assert.strictEqual(errs.length, 2);
   assert.match(errs[0], /demo_api_serverrr/);
+  assert.match(errs[1], /demo_api_serverrr/);
 });
 
-test('accepts the documented BFF naming mismatch without special-casing it away', () => {
-  // serverInventory calls this directory's service `api-server`; Compose calls
-  // it `demo-api-server`. The gate checks the DIRECTORY exists in the
-  // inventory, never that the service names agree — that is the mismatch the
-  // whole design routes around.
-  assert.deepStrictEqual(checkMap(GOOD, INVENTORY), []);
+test('fails a sourceDir that both files agree on but that does not exist on disk — the rename case', () => {
+  // Both lookups agree on a path that no longer exists: a rename that updated
+  // neither se-update-code.sh nor serverInventory.js. Without the on-disk
+  // check this passes and CI silently builds nothing for the service forever.
+  const bad = [{ ...GOOD[0], sourceDir: 'demo_api_server_renamed_away' }];
+  const inventory = { demo_api_server_renamed_away: 'bff' };
+  const errs = checkMap(bad, inventory);
+  assert.strictEqual(errs.length, 1);
+  assert.match(errs[0], /demo_api_server_renamed_away/);
+  assert.match(errs[0], /bff/);
 });
 
 test('reports every offending key, not just the first', () => {

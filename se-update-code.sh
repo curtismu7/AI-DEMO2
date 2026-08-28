@@ -202,6 +202,7 @@ SERVICE="${1:-}"
 if [[ "$SERVICE" == "--promote" ]]; then
   SHA="${2:-}"
   [[ -n "$SHA" ]] || die "Usage: ./se-update-code.sh --promote <sha> [key...]"
+  [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || die "Invalid SHA '$SHA' — CI tags the full 40-character commit SHA (git rev-parse origin/main), not a short one"
   shift 2
   KEYS="${*:-$ALL_KEYS}"
 
