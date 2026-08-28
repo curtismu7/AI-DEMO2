@@ -219,6 +219,29 @@ function warnIfAuthorizeModeUnconfigured() {
   }
 }
 
+// Advisory (never fatal): ff_authorize_fail_open is checked FIRST in every branch
+// of resolveAuthorizeMode, so it forces failover_mode=permit even when a
+// deployment has explicitly stored the strict authorize_mode='pingone'. An
+// operator who turned it on for one demo has disabled the failover policy on
+// every authorize path, and nothing else says so at boot — the per-request
+// fail-open logs only appear once PingOne is already failing.
+function warnIfAuthorizeFailOpen() {
+  try {
+    const configStore = require('./configStore');
+    if (configStore.getEffective('ff_authorize_fail_open') !== 'true') return;
+    const { resolveAuthorizeMode } = require('./simulatedAuthorizeService');
+    const { mode } = resolveAuthorizeMode(configStore);
+    console.warn(
+      `[STARTUP GUARD] ff_authorize_fail_open=true — every authorize path FAILS OPEN.\n` +
+      `  Transactions, MCP tools and agent restrictions are all permitted when PingOne Authorize errors,` +
+      ` overriding authorize_mode='${mode}'.\n` +
+      `  Set ff_authorize_fail_open=false to honour authorize_mode, or authorize_mode='pingone_fallback_simulated'` +
+      ` to keep evaluating with the demo engine during an outage.`);
+  } catch (err) {
+    console.warn(`[STARTUP GUARD] ff_authorize_fail_open check skipped: ${err.message}`);
+  }
+}
+
 // Advisory (never fatal): the working Privilege MCP config lives in the RUNNING
 // container (env is frozen at create time), so a stale root .env silently
 // regresses it on the next `compose up`. Catch the two smoking guns of that
@@ -274,6 +297,7 @@ function clearRedirectUrisFromConfigStore() {
 function runStartupConfigGuard() {
   clearRedirectUrisFromConfigStore();
   warnIfAuthorizeModeUnconfigured();
+  warnIfAuthorizeFailOpen();
   warnIfPrivilegeConfigRegressed();
   let issues;
   try {
@@ -297,4 +321,4 @@ function runStartupConfigGuard() {
   process.exit(1);
 }
 
-module.exports = { runStartupConfigGuard, collectIssues, warnIfAuthorizeModeUnconfigured, warnIfPrivilegeConfigRegressed };
+module.exports = { runStartupConfigGuard, collectIssues, warnIfAuthorizeModeUnconfigured, warnIfAuthorizeFailOpen, warnIfPrivilegeConfigRegressed };
