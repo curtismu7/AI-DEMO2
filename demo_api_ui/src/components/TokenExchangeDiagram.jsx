@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import mermaid from 'mermaid';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
+import { useThemeOptional } from '../context/ThemeContext';
 import DiagramExportBar from './DiagramExportBar';
 
 // ── helpers ─────────────────────────────────────────────────────────────────
@@ -26,16 +27,64 @@ const isDone = (step) => step && (step.status === 'done' || step.status === 'err
 
 // ── colours ──────────────────────────────────────────────────────────────────
 
-const C = {
-  user:    { fill: '#0c2040', color: '#7dd3fc', stroke: '#2563eb' },
-  agent:   { fill: '#1a1535', color: '#c4b5fd', stroke: '#7c3aed' },
-  exchange:{ fill: '#231700', color: '#fbbf24', stroke: '#b45309' },
-  issued:  { fill: '#0a2418', color: '#6ee7b7', stroke: '#059669' },
-  authzOk: { fill: '#0f1a2e', color: '#a5b4fc', stroke: '#4f46e5' },
-  authzDn: { fill: '#2d0a0a', color: '#fca5a5', stroke: '#dc2626' },
-  gateway: { fill: '#071a0f', color: '#86efac', stroke: '#16a34a' },
-  mcp:     { fill: '#071520', color: '#67e8f9', stroke: '#0891b2' },
+// One hue per role, two lightness ramps. The dark ramp is the original; the
+// light ramp is its mirror (tint fill / dark ink / same mid stroke), so a node
+// is recognisable as "the exchange one" in either mode.
+//
+// `line`, `edgeLabel` and `surface` are the reason this file needed splitting
+// at all: mermaid's built-in `dark` theme draws its connector lines in a pale
+// grey, and the panel that hosts this diagram has a WHITE body. The arrows and
+// their `subject_token` / `actor_token` labels were being drawn pale-on-white
+// and were effectively invisible. Pinning lineColor/textColor per mode — and
+// painting the canvas `surface` under them — is what makes them visible.
+const PALETTES = {
+  dark: {
+    user:    { fill: '#0c2040', color: '#7dd3fc', stroke: '#2563eb' },
+    agent:   { fill: '#1a1535', color: '#c4b5fd', stroke: '#7c3aed' },
+    exchange:{ fill: '#231700', color: '#fbbf24', stroke: '#b45309' },
+    issued:  { fill: '#0a2418', color: '#6ee7b7', stroke: '#059669' },
+    authzOk: { fill: '#0f1a2e', color: '#a5b4fc', stroke: '#4f46e5' },
+    authzDn: { fill: '#2d0a0a', color: '#fca5a5', stroke: '#dc2626' },
+    gateway: { fill: '#071a0f', color: '#86efac', stroke: '#16a34a' },
+    mcp:     { fill: '#071520', color: '#67e8f9', stroke: '#0891b2' },
+    idle:    { fill: '#0d1117', color: '#94a3b8', stroke: '#334155' },
+    line: '#94a3b8',
+    edgeLabel: '#e2e8f0',
+    edgeLabelBg: '#0d1117',
+    surface: '#0d1117',
+    clusterBg: '#111827',
+    clusterBorder: '#334155',
+    title: '#e2e8f0',
+    noticeBg: '#2a1a00',
+    noticeBd: '#d97706',
+    noticeFg: '#fbbf24',
+    errorFg: '#fca5a5',
+  },
+  light: {
+    user:    { fill: '#eff6ff', color: '#1e3a8a', stroke: '#2563eb' },
+    agent:   { fill: '#f5f3ff', color: '#4c1d95', stroke: '#7c3aed' },
+    exchange:{ fill: '#fffbeb', color: '#78350f', stroke: '#b45309' },
+    issued:  { fill: '#ecfdf5', color: '#065f46', stroke: '#059669' },
+    authzOk: { fill: '#eef2ff', color: '#3730a3', stroke: '#4f46e5' },
+    authzDn: { fill: '#fef2f2', color: '#991b1b', stroke: '#dc2626' },
+    gateway: { fill: '#f0fdf4', color: '#14532d', stroke: '#16a34a' },
+    mcp:     { fill: '#ecfeff', color: '#155e75', stroke: '#0891b2' },
+    idle:    { fill: '#f8fafc', color: '#475569', stroke: '#cbd5e1' },
+    line: '#475569',
+    edgeLabel: '#0f172a',
+    edgeLabelBg: '#ffffff',
+    surface: '#ffffff',
+    clusterBg: '#f1f5f9',
+    clusterBorder: '#cbd5e1',
+    title: '#0f172a',
+    noticeBg: '#fffbeb',
+    noticeBd: '#d97706',
+    noticeFg: '#92400e',
+    errorFg: '#b91c1c',
+  },
 };
+
+const paletteFor = (dark) => (dark ? PALETTES.dark : PALETTES.light);
 
 const sty = (id, c) =>
   `    style ${id} fill:${c.fill},color:${c.color},stroke:${c.stroke},stroke-width:1px`;
@@ -52,7 +101,10 @@ function claimRows(claims, keys) {
 
 // ── diagram builder — incremental ────────────────────────────────────────────
 
-export function buildDiagramSource(trace, steps) {
+// `dark` defaults to true: this diagram was dark-only until now, and the
+// existing callers/tests that pass two arguments keep the colours they had.
+export function buildDiagramSource(trace, steps, dark = true) {
+  const C = paletteFor(dark);
   const events = trace?.tokenEvents || [];
   const hasActivity = !!(trace?.startedAt || events.length);
 
@@ -62,7 +114,7 @@ export function buildDiagramSource(trace, steps) {
     IDLE["Waiting for trace...
         Run a tool from the agent
         to see tokens appear here."]
-    style IDLE fill:#0d1117,color:#374151,stroke:#1e293b,stroke-dasharray:5 5,stroke-width:2px`;
+    style IDLE fill:${C.idle.fill},color:${C.idle.color},stroke:${C.idle.stroke},stroke-dasharray:5 5,stroke-width:2px`;
   }
 
   const userTok  = findEv(events, 'user-token');
@@ -197,7 +249,7 @@ export function buildDiagramSource(trace, steps) {
         lines.push(`        ${kpad('scope')}    enforced at gateway`);
     lines.push(`"]`);
     lines.push(`    end`);
-    styles.push(sty('TC', mcpStep?.status === 'error' ? { fill:'#2d0a0a', color:'#fca5a5', stroke:'#dc2626' } : C.mcp));
+    styles.push(sty('TC', mcpStep?.status === 'error' ? C.authzDn : C.mcp));
   }
 
   // ── Arrows — only when both endpoints are present ────────────────────────
@@ -226,6 +278,10 @@ export default function TokenExchangeDiagram() {
   const containerRef            = useRef(null);
   const renderIdRef             = useRef(0);
   const [renderError, setRenderError] = useState(null);
+  // Optional: this panel is portaled and several suites render it standalone,
+  // outside ThemeProvider. useThemeOptional returns inert light mode there.
+  const { darkMode } = useThemeOptional();
+  const P = paletteFor(darkMode);
 
   useEffect(() => {
     return tokenChainTraceStore.subscribe((s) => {
@@ -235,7 +291,7 @@ export default function TokenExchangeDiagram() {
     });
   }, []);
 
-  const liveSource = buildDiagramSource(snap.trace, snap.steps);
+  const liveSource = buildDiagramSource(snap.trace, snap.steps, darkMode);
   const source     = override ?? liveSource;
 
   useEffect(() => {
@@ -245,9 +301,29 @@ export default function TokenExchangeDiagram() {
 
     mermaid.initialize({
       startOnLoad: false,
-      theme: 'dark',
+      theme: darkMode ? 'dark' : 'default',
       securityLevel: 'loose',
-      flowchart: { htmlLabels: false, useMaxWidth: true, curve: 'basis' },
+      // lineColor/textColor are NOT decoration. Mermaid picks connector and
+      // edge-label colours from the theme, and the theme has no idea what this
+      // panel's body colour is — that mismatch is what made the arrows and the
+      // subject_token / actor_token labels disappear. Pin them to the palette.
+      themeVariables: {
+        lineColor: P.line,
+        textColor: P.edgeLabel,
+        edgeLabelBackground: P.edgeLabelBg,
+        // Subgraph boxes ("BFF · RFC 8693 Token Exchange", "MCP Server"). The
+        // built-in fills are a mid grey in dark and a pale yellow in light, and
+        // both render their title in a grey that is barely on the box.
+        clusterBkg: P.clusterBg,
+        clusterBorder: P.clusterBorder,
+        titleColor: P.title,
+      },
+      // useMaxWidth:false — this is the readability half of the fix. With it
+      // true mermaid scales the WHOLE svg down to the panel's width, and this
+      // diagram is wide (five subgraphs of claim tables), so every label was
+      // being shrunk to a few pixels. False renders at natural size and lets
+      // the container (overflow:auto) scroll instead of shrinking the type.
+      flowchart: { htmlLabels: false, useMaxWidth: false, curve: 'basis' },
     });
 
     async function render() {
@@ -263,7 +339,9 @@ export default function TokenExchangeDiagram() {
     }
     render();
     return () => { cancelled = true; };
-  }, [source]);
+    // darkMode is a real dependency: with an uploaded .mmd, `source` is frozen,
+    // so a theme flip would otherwise leave the old SVG on screen.
+  }, [source, darkMode, P]);
 
   const handleImport     = useCallback((text) => setOverride(text.trim() || null), []);
   const handleResetToLive = useCallback(() => setOverride(null), []);
@@ -276,21 +354,21 @@ export default function TokenExchangeDiagram() {
         onSourceChange={handleImport}
       />
       {override && (
-        <div style={{ padding: '2px 8px', background: '#2a1a00', borderBottom: '1px solid #d97706', fontSize: 11, color: '#fbbf24', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: '2px 8px', background: P.noticeBg, borderBottom: `1px solid ${P.noticeBd}`, fontSize: 11, color: P.noticeFg, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span>Custom diagram — live data paused</span>
           <button type="button" onClick={handleResetToLive}
-            style={{ background: 'none', border: 'none', color: '#fbbf24', cursor: 'pointer', fontSize: 11, textDecoration: 'underline', padding: 0 }}>
+            style={{ background: 'none', border: 'none', color: P.noticeFg, cursor: 'pointer', fontSize: 11, textDecoration: 'underline', padding: 0 }}>
             Reset to live
           </button>
         </div>
       )}
       {renderError ? (
-        <div style={{ padding: 12, color: '#fca5a5', fontSize: 12, fontFamily: 'monospace' }}>
+        <div style={{ padding: 12, background: P.surface, color: P.errorFg, fontSize: 12, fontFamily: 'monospace' }}>
           Render error: {renderError}
         </div>
       ) : (
         <div ref={containerRef} role="img" aria-label="Token exchange flow diagram"
-          style={{ flex: 1, overflow: 'auto', padding: 8 }} />
+          style={{ flex: 1, overflow: 'auto', padding: 8, background: P.surface }} />
       )}
     </div>
   );
