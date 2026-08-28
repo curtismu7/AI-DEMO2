@@ -57,6 +57,25 @@ const DOORS = {
     scopes: [],
     forwardCorrelation: false,
   },
+  audit: {
+    label: 'PingOne audit (scope-narrowed)',
+    // Same upstream as the agent-gateway door — the gateway is NOT audit-only,
+    // and must not be. What makes this door narrow is `scopes` below: it is
+    // advertised in this door's oauth-protected-resource metadata and in its
+    // 401 challenge, so a client discovers `audit:read` and asks for only that.
+    // The gateway then filters tools/list to what the token permits
+    // (guardToolsList -> vertical filter -> scope-denied split), leaving the
+    // three demo_mcp_audit tools. A caller through agent-gateway gets the full
+    // banking surface from the very same code path.
+    //
+    // So the narrowing is per-URL and enforced on the token, not a filter here
+    // — do not add a tool allowlist to this door, or a scope regression would
+    // stop being visible.
+    upstream: () => process.env.MCP_FACADE_AUDIT_URL || 'http://mcp-gateway:3005/mcp',
+    authorizationServer: () => process.env.MCP_FACADE_AGENT_GATEWAY_AS || 'http://localhost:3005',
+    scopes: ['audit:read'],
+    forwardCorrelation: true,
+  },
   agent: {
     label: 'Privilege agent',
     upstream: () => process.env.PRIVILEGE_AGENT_MCPGW_URL
