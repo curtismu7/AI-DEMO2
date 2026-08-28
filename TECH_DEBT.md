@@ -16,6 +16,106 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-08-28 — gateway tools/list is only governed on the WebSocket transport
+
+The audit-agent work shipped a door that advertises `audit:read`, a scope wired
+through all four config points, a PingOne scope, and an OAuth chain that
+demonstrably issues a narrow token (`scope: audit:read mcp:invoke openid`,
+verified live). The gateway then returned **242 tools** to it.
+
+`demo_mcp_gateway/src/index.ts` is the **WebSocket** transport and owns the only
+`tools/list` aggregation and the only `guardToolsList(..., candidateNames)` call.
+`src/server/GatewayServer.ts` is the **HTTP** transport and has no `tools/list`
+handling at all — it relays the upstream body verbatim
+(`res.end(Buffer.from(upstream.data))`, ~line 1102). So over HTTP the PDP is only
+ever asked the generic `DecisionContext: McpRequest` question, which
+`demo_authz_server` Rule 2.9 permits wholesale (`ToolName: ""`, "no tool to
+evaluate"). Proof: **zero `McpToolsList` decisions appear in the authz logs**
+for a request that returned 242 tools.
+
+Both halves of the intended mechanism already exist and were written for each
+other — the gateway sends `DecisionContext: 'McpToolsList'` with
+`CandidateTools`, and `demo_authz_server/routes/decision.js:~549` computes
+`DeniedTools` from `requiredScopesForTool` vs granted scopes. They are simply
+never connected on the HTTP path.
+
+**Why it wasn't fixed now:** `GatewayServer` has no decoded token — the HTTP
+path authorizes in the `authorizeMcpRequest` middleware and passes the forwarder
+only `callerScope`. Fixing it means threading the decoded token (or the
+middleware's authz result) into `forwardToUpstream` AND adding a response filter
+that handles both the plain-JSON and SSE (`event: message`) shapes. That changes
+authorization for **every** HTTP MCP caller — LM Studio, LibreChat, every façade
+door — not just the page that surfaced it. Too broad to land at the tail of the
+branch that found it.
+
+**The risk:** any demo or doc that claims a scope-narrowed MCP client is
+overstating it on the HTTP path. A caller holding only `audit:read` still
+discovers the full catalog; only `tools/call` is gated per-tool. The narrowing
+reads as working because the token really is narrow — the gap is entirely in
+whether anything acts on it during discovery.
+
+**What the real fix looks like:** thread the decoded token into
+`GatewayServer.forwardToUpstream`, and for `jsonRpc.method === 'tools/list'`
+call `guardToolsList` with the upstream tool names, dropping `deniedTools`
+before relaying. Note a P1AZ policy alone cannot fix this — no rule can narrow
+a decision that is never asked with a tool list. A cheaper interim option worth
+evaluating first: point the page at the WebSocket transport, where the
+narrowing already works.
+
+### [ ] 2026-08-28 — the BFF's pingone-admin façade door is broken upstream
+
+`demo_api_server/routes/mcpFacade.js`'s `pingone-admin` door calls PingOne's
+hosted admin MCP (`mcp.pingone.com/admin/<envId>/mcp`) with a worker
+`client_credentials` token via `mcpPingOneHttpAdapter.js`. That endpoint has
+stopped accepting worker tokens — it answers `401 Invalid authentication`
+(verified live 2026-08-27 both directly and through the door). The door's own
+comment citing "85 tools, measured 2026-08-25" is therefore stale.
+
+**Why it wasn't fixed now:** the hosted server wants a USER token, which an
+unattended door cannot produce. Fixing it means either giving that door an
+interactive OAuth path (it currently has `authorizationServer: null` by design,
+so identity is fixed and per-user distinction does not exist there) or dropping
+the door. Both are design decisions, not repairs, and the audit work routed
+around it by calling the Management API `activities` endpoint directly — which
+answers the same worker token fine.
+
+**The risk:** anything relying on that door for PingOne admin tools fails at
+call time with an opaque `pingone_mcp_unavailable`, and the stale comment
+invites someone to trust a tool count that no longer exists.
+
+**What the real fix looks like:** decide whether `pingone-admin` should become
+a user-OAuth door (matching `audit`/`agentless`) or be retired; either way,
+correct the comment so the next reader does not assume 85 working tools.
+
+### [ ] 2026-08-28 — no dynamically-registered client can hold a custom gateway scope
+
+`demo_mcp_gateway/src/oauth/ClientRegistry.ts` pins **every** DCR client to
+`brokerRegistrationScope()` (`mcp:invoke`) and refuses non-loopback
+`redirect_uris`. Both are deliberate — `/oauth/register` is unauthenticated, and
+either control removed is a privilege escalation.
+
+The consequence is easy to miss: **no dynamic client can ever obtain
+`audit:read`, including LM Studio and any other spec-following MCP client.** A
+door can advertise a narrow scope, and a DCR client will faithfully request it,
+and the broker will still mint `mcp:invoke`. The audit work needed a
+server-side, non-loopback client, so it added the operator-configured
+`MCP_GW_OAUTH_STATIC_*` path (PR #2520) — but that only serves clients someone
+configures by hand.
+
+**Why it wasn't fixed now:** relaxing either control to serve external clients
+reopens exactly the escalation they were added to close. Serving them properly
+needs a different mechanism (per-door registration scope, or an authenticated
+registration endpoint), which is a design decision.
+
+**The risk:** an external-client demo that claims per-door scope narrowing will
+not behave as described — the client gets `mcp:invoke` regardless of what the
+door advertised, and the mismatch is silent.
+
+**What the real fix looks like:** either make the registration scope per-door
+(the door already carries `scopes`, so the broker could mint what that door
+advertises) or require authentication on `/oauth/register` for anything beyond
+`mcp:invoke`. Not a relaxation of the loopback rule.
+
 ### [ ] 2026-08-28 — a sixth service map exists outside the hygiene gate
 
 `k8s/aws/deploy.sh:60-77` holds `IMAGE_MAP`, an indexed-array local-name-to-GHCR-name
