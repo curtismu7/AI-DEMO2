@@ -27,11 +27,10 @@ on:
 
 concurrency:
   group: ci-${{ github.ref }}
-  # PR runs keep superseding each other (the Actions-minutes saving this was
-  # for), but a push to main must always run to completion: cancelling a main
-  # run mid-build-and-push leaves that merge commit's SHA with no image ever
-  # built, and promotion is by SHA — permanently unpromotable.
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  # Superseding is safe here: this workflow only runs tests. Image builds live
+  # in build-images.yml, which keys its own group by github.sha precisely so a
+  # merge's build can never be evicted by a later merge — see that file.
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -405,109 +404,3 @@ jobs:
         run: npm run test:mcp-resource-server
       - name: Cloud P1AZ snapshot drift + DecisionContext coverage
         run: npm run test:snapshots
-
-  build-images:
-    name: Build and push service images
-    # Merges only. On a PR there is no merged commit to tag, and CI must not
-    # push images for code that may never land.
-    if: github.event_name == 'push'
-    runs-on: ubuntu-24.04-arm
-    permissions:
-      contents: read
-      packages: write
-    outputs:
-      any: ${{ steps.matrix.outputs.any }}
-      matrix: ${{ steps.matrix.outputs.matrix }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Collect changed paths
-        id: changed
-        run: |
-          # github.event.before is all-zeroes for a force-push or a first push.
-          # Build nothing rather than everything: a missed build is recoverable
-          # by hand, a surprise 14-image build is noise nobody asked for.
-          BEFORE="${{ github.event.before }}"
-          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ] \
-             || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
-            echo "[changed] unresolvable base '$BEFORE' — building nothing" >&2
-            : > changed.txt
-          else
-            git diff --name-only "$BEFORE" "${{ github.sha }}" > changed.txt
-          fi
-          wc -l < changed.txt
-
-      - name: Compute build matrix
-        id: matrix
-        run: |
-          ./se-update-code.sh --print-map > map.json
-          node scripts/ci-build-matrix.js map.json changed.txt >> "$GITHUB_OUTPUT"
-
-  push-image:
-    name: ${{ matrix.key }}
-    needs: build-images
-    if: needs.build-images.outputs.any == 'true'
-    runs-on: ubuntu-24.04-arm
-    permissions:
-      contents: read
-      packages: write
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(needs.build-images.outputs.matrix) }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Generate langchain-agent build inputs
-        if: matrix.key == 'agent'
-        # Mirrors se-update-code.sh's build-input preflight (lines 196-216).
-        # langchain_agent/repo-src/ and langchain_agent/codegraph.db are both
-        # generated, gitignored files the Dockerfile COPYs — a clean checkout
-        # (this runner) has neither. se-update-code.sh generates them itself,
-        # but only after --print-map's early exit, so this job never runs
-        # that path; --print-map must stay reachable with no .env, Docker, or
-        # cluster access, so the preflight can't move earlier — it has to be
-        # reproduced here instead.
-        run: |
-          set -euo pipefail
-          if [ ! -d langchain_agent/repo-src ]; then
-            python3 scripts/build-codegraph.py --stage-src langchain_agent/repo-src
-          fi
-          if [ ! -s langchain_agent/codegraph.db ]; then
-            python3 scripts/build-codegraph.py
-            cp -f .codegraph/demo-codegraph.db langchain_agent/codegraph.db
-          fi
-      - name: Build via compose, then push the sha tag
-        # Build through docker compose, NOT a bare buildx with an assumed
-        # context. Build contexts vary and cannot be derived from sourceDir:
-        # demo-api-server uses `context: .` (the repo root, because the BFF
-        # references scope-topology.json and docs/) with
-        # `dockerfile: demo_api_server/Dockerfile`, while llm-proxy uses
-        # `context: ./demo_llm_proxy` with `dockerfile: Dockerfile`. Encoding
-        # those in the service map would be a sixth and seventh copy of what
-        # docker-compose.yml already owns. Compose knows them; use Compose.
-        #
-        # --profile demo-auth: authz-server and mcp-gateway sit behind that
-        # profile and are silently skipped without it — the same trap
-        # se-update-code.sh documents in build_and_push().
-        #
-        # -p ai-demo-se matches SE_COMPOSE_PROJECT so the local tag equals the
-        # map's localImage, including llm-proxy's explicit `image:` override.
-        #
-        # NEVER :latest. Every SE deployment is imagePullPolicy: Always, so a
-        # moving :latest means the next restart of any pod — a crash, an
-        # eviction, a drain — silently pulls whatever was last merged. An
-        # immutable sha tag is inert until a human promotes it.
-        run: |
-          set -euo pipefail
-          URI="ghcr.io/${{ github.repository_owner }}/${{ matrix.ghcrImage }}:sha-${{ github.sha }}"
-          docker compose -p ai-demo-se -f docker-compose.yml --profile demo-auth \
-            build "${{ matrix.composeService }}"
-          docker tag "${{ matrix.localImage }}:latest" "$URI"
-          docker push "$URI"
