@@ -34,7 +34,7 @@
 
 .mgc-subtitle {
   font-size: 16px;
-  color: #666;
+  color: var(--th-text-muted);
   margin: 0;
 }
 
@@ -66,8 +66,8 @@
 
 .mgc-refresh-btn {
   padding: 6px 14px;
-  background: #f4f4f4;
-  border: 1px solid #ddd;
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
   border-radius: 6px;
   cursor: pointer;
   font-size: var(--font-size-sm);
@@ -89,13 +89,13 @@
   background: transparent;
   cursor: pointer;
   font-size: var(--font-size-body);
-  color: #666;
+  color: var(--th-text-muted);
   border-bottom: 2px solid transparent;
   margin-bottom: -2px;
   transition: all 0.15s;
 }
 .mgc-tab:hover {
-  color: #333;
+  color: var(--th-text-body);
 }
 .mgc-tab--active {
   color: var(--brand-navy, #1d4ed8);
@@ -153,7 +153,7 @@
   font-size: var(--font-size-2xs);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #374151;
+  color: var(--th-text-body);
   margin-bottom: 4px;
 }
 .mgc-on {
@@ -222,7 +222,7 @@
   margin-bottom: 8px;
   padding: 5px 12px;
   background: #0070f3;
-  color: #fff;
+  color: var(--th-text-invert);
   border: none;
   border-radius: 6px;
   cursor: pointer;
@@ -284,7 +284,7 @@
 .mgc-loading {
   padding: 40px;
   text-align: center;
-  color: #374151;
+  color: var(--th-text-body);
 }
 .mgc-error {
   padding: 20px;
@@ -344,7 +344,7 @@
   margin-top: 6px;
   padding: 8px 20px;
   background: var(--primary, #2563eb);
-  color: #fff;
+  color: var(--th-text-invert);
   border: none;
   border-radius: 6px;
   font-size: 0.9rem;
@@ -389,7 +389,7 @@
 /* Phase 264 — Docs & Setup tab */
 .mgc-doc-card {
   background: white;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--th-border);
   border-radius: 10px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
   padding: 16px;
@@ -403,7 +403,7 @@
 }
 .mgc-doc-card-desc {
   font-size: var(--font-size-body);
-  color: #666;
+  color: var(--th-text-muted);
   margin: 0 0 8px;
   line-height: 1.4;
 }
@@ -425,7 +425,7 @@
 .mgc-wizard-step {
   display: flex;
   flex-direction: column;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--th-border);
   border-radius: 10px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
   margin-bottom: 12px;
@@ -436,7 +436,7 @@
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  background: #f8f9fa;
+  background: var(--th-bg-card);
   cursor: default;
 }
 .mgc-wizard-step-circle {
@@ -452,11 +452,11 @@
 }
 .mgc-wizard-step-circle--complete {
   background: #28a745;
-  color: #fff;
+  color: var(--th-text-invert);
 }
 .mgc-wizard-step-circle--needs-input {
   background: #ffc107;
-  color: #333;
+  color: #374151;
 }
 .mgc-wizard-step-circle--pending {
   background: #e2e3e5;
@@ -470,18 +470,18 @@
 }
 .mgc-wizard-step-status {
   font-size: var(--font-size-body);
-  color: #666;
+  color: var(--th-text-muted);
 }
 .mgc-wizard-step-body {
   padding: 16px;
-  background: #fff;
+  background: var(--th-bg-card);
   border-top: 1px solid #e9ecef;
 }
 
 /* Phase 264 — Required badge */
 .mgc-badge--required {
   background: #ffc107;
-  color: #333;
+  color: #374151;
   font-size: var(--font-size-xs);
   font-weight: 600;
   padding: 2px 7px;
@@ -492,8 +492,8 @@
 
 /* Phase 264 — read-only input */
 .mgc-input--readonly {
-  background: #f8f9fa;
-  color: #999;
+  background: var(--th-bg-card);
+  color: var(--th-text-faint);
   cursor: default;
   font-family: var(--font-mono);
   letter-spacing: 0.03em;
@@ -506,7 +506,7 @@
   margin-left: 8px;
   padding: 5px 12px;
   background: #0070f3;
-  color: #fff;
+  color: var(--th-text-invert);
   border: none;
   border-radius: 6px;
   cursor: pointer;

@@ -10,8 +10,8 @@
 
 /* Header Styles */
 .configuration-header {
-  background: #ffffff;
-  border-bottom: 1px solid #e2e8f0;
+  background: var(--th-bg-card);
+  border-bottom: 1px solid var(--th-border);
   padding: 1rem 2rem;
   position: sticky;
   top: 0;
@@ -34,14 +34,14 @@
 .configuration-header__title {
   font-size: 1.25rem;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--th-text);
   margin: 0 0 0.2rem 0;
   letter-spacing: -0.02em;
 }
 
 .configuration-header__subtitle {
   font-size: 0.875rem;
-  color: #64748b;
+  color: var(--th-text-muted);
   margin: 0;
 }
 
@@ -91,7 +91,7 @@
 .configuration-header__btn.saving {
   background: var(--color-warning, #ffc107);
   border-color: var(--color-warning, #ffc107);
-  color: #212529;
+  color: #0f172a;
 }
 
 .configuration-header__btn.saved {
@@ -200,7 +200,7 @@
   outline: 1px solid rgba(3, 105, 161, 0.3);
 }
 .configuration-tab[class*="configuration-tab--"]:hover:not(.active) {
-  background: #f8fafc;
+  background: var(--th-bg-inset);
   border-left-color: rgba(3, 105, 161, 0.25);
 }
 .tab-icon {
@@ -447,7 +447,7 @@
 /* Configuration Section — aligned with azc-panel / sp-panel design system */
 .configuration-section {
   background: white;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--th-border);
   border-radius: 10px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
   padding: 16px 22px;
@@ -457,10 +457,10 @@
 .configuration-section__title {
   font-size: var(--font-size-base);
   font-weight: 700;
-  color: #0f172a;
+  color: var(--th-text);
   margin: 0 0 10px 0;
   padding-bottom: 8px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--th-border);
 }
 
 .configuration-section__content {
@@ -791,7 +791,7 @@
   cursor: pointer;
   font-weight: 600;
   font-size: 0.875rem;
-  color: #1e293b;
+  color: var(--th-text-body);
 }
 
 .cfg-toggle-input {
@@ -835,8 +835,8 @@
 .unified-configuration-page .form-input,
 .unified-configuration-page select.form-input,
 .unified-configuration-page textarea.form-input {
-  background-color: #ffffff !important;
-  color: #111827 !important;
+  background-color: var(--th-bg-card) !important;
+  color: var(--th-text) !important;
   border: 1.5px solid #9ca3af !important;
 }
 .unified-configuration-page .form-input:focus,
@@ -852,22 +852,22 @@
 .unified-configuration-page .form-label {
   font-size: 1rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--th-text);
 }
 .cfg-field-help {
   font-size: 0.9rem;
-  color: #374151;
+  color: var(--th-text-body);
   margin: 0.25rem 0 0;
   line-height: 1.45;
 }
 .idp-setup-label {
-  color: #374151;
+  color: var(--th-text-body);
   font-size: 0.9rem;
   font-weight: 600;
   white-space: nowrap;
 }
 .idp-setup-value {
-  color: #111827;
+  color: var(--th-text);
   font-family: inherit;
   font-size: 0.9rem;
 }
@@ -897,8 +897,8 @@
 }
 
 .scenario-card {
-  background: #ffffff;
-  border: 2px solid #e5e7eb;
+  background: var(--th-bg-card);
+  border: 2px solid var(--th-border);
   border-radius: 10px;
   padding: 1rem 1.125rem;
   text-align: left;
@@ -935,7 +935,7 @@
 .scenario-card__label {
   font-weight: 700;
   font-size: 0.95rem;
-  color: #111827;
+  color: var(--th-text);
   flex: 1;
 }
 
@@ -943,7 +943,7 @@
   font-size: 0.7rem;
   font-weight: 700;
   background: #2563eb;
-  color: #fff;
+  color: var(--th-text-invert);
   border-radius: 999px;
   padding: 0.15rem 0.55rem;
   letter-spacing: 0.03em;
@@ -960,7 +960,7 @@
 
 .scenario-card__desc {
   font-size: 0.85rem;
-  color: #374151;
+  color: var(--th-text-body);
   line-height: 1.5;
   margin: 0;
 }
@@ -969,8 +969,8 @@
 .uimode-preview {
   border-radius: 7px;
   overflow: hidden;
-  border: 1.5px solid #e5e7eb;
-  background: #f9fafb;
+  border: 1.5px solid var(--th-border);
+  background: var(--th-bg-card);
   height: 120px;
   position: relative;
 }
@@ -1014,8 +1014,8 @@
   top: 14px;
   bottom: 0;
   width: 46%;
-  background: #fff;
-  border-left: 1.5px solid #e5e7eb;
+  background: var(--th-bg-card);
+  border-left: 1.5px solid var(--th-border);
   padding: 6px 6px;
   display: flex;
   flex-direction: column;
@@ -1075,7 +1075,7 @@
   width: 22px;
   height: 22px;
   background: #2563eb;
-  color: #fff;
+  color: var(--th-text-invert);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -1104,7 +1104,7 @@
   font-size: 0.65rem;
   font-weight: 700;
   background: #dc2626;
-  color: #fff;
+  color: var(--th-text-invert);
   border-radius: 4px;
   padding: 1px 5px;
   letter-spacing: 0.04em;
@@ -1114,8 +1114,8 @@
 .uimode-preview {
   border-radius: 7px;
   overflow: hidden;
-  border: 1.5px solid #e5e7eb;
-  background: #f9fafb;
+  border: 1.5px solid var(--th-border);
+  background: var(--th-bg-card);
   height: 120px;
   position: relative;
 }
@@ -1152,8 +1152,8 @@
   top: 14px;
   bottom: 0;
   width: 46%;
-  background: #fff;
-  border-left: 1.5px solid #e5e7eb;
+  background: var(--th-bg-card);
+  border-left: 1.5px solid var(--th-border);
   padding: 6px;
   display: flex;
   flex-direction: column;
@@ -1201,7 +1201,7 @@
   width: 22px;
   height: 22px;
   background: #2563eb;
-  color: #fff;
+  color: var(--th-text-invert);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -1227,7 +1227,7 @@
   font-size: 0.65rem;
   font-weight: 700;
   background: #dc2626;
-  color: #fff;
+  color: var(--th-text-invert);
   border-radius: 4px;
   padding: 1px 5px;
   letter-spacing: 0.04em;
@@ -1255,48 +1255,48 @@
   font-size: 0.88rem;
 }
 .scope-table thead tr {
-  background: #f3f4f6;
+  background: var(--th-bg-inset);
 }
 .scope-th-check {
   width: 64px;
   padding: 0.45rem 0.75rem;
   text-align: center;
   font-weight: 600;
-  color: #374151;
-  border-bottom: 2px solid #e5e7eb;
+  color: var(--th-text-body);
+  border-bottom: 2px solid var(--th-border);
 }
 .scope-th-name {
   width: 220px;
   padding: 0.45rem 0.75rem;
   text-align: left;
   font-weight: 600;
-  color: #374151;
-  border-bottom: 2px solid #e5e7eb;
+  color: var(--th-text-body);
+  border-bottom: 2px solid var(--th-border);
 }
 .scope-th-desc {
   padding: 0.45rem 0.75rem;
   text-align: left;
   font-weight: 600;
-  color: #374151;
-  border-bottom: 2px solid #e5e7eb;
+  color: var(--th-text-body);
+  border-bottom: 2px solid var(--th-border);
 }
 .scope-row {
   border-bottom: 1px solid #f3f4f6;
   transition: background 0.1s;
 }
 .scope-row:hover {
-  background: #f9fafb;
+  background: var(--th-bg-card);
 }
 .scope-row--on {
   background: #f5f3ff;
 }
 .scope-row--on:hover {
-  background: #f1f5f9;
+  background: var(--th-bg-inset);
 }
 .scope-code {
   font-family: inherit;
   font-size: 0.82rem;
-  background: #f1f5f9;
+  background: var(--th-bg-inset);
   color: #4338ca;
   border-radius: 3px;
   padding: 1px 5px;
@@ -1314,7 +1314,7 @@
 }
 .scope-td-desc {
   padding: 0.5rem 0.75rem;
-  color: #374151;
+  color: var(--th-text-body);
 }
 .scope-checkbox {
   width: 16px;
@@ -1356,8 +1356,8 @@
   align-items: center;
   gap: 1rem;
   padding: 1.25rem 2rem;
-  background: #fff;
-  border-top: 2px solid #e5e7eb;
+  background: var(--th-bg-card);
+  border-top: 2px solid var(--th-border);
   border-radius: 0 0 10px 10px;
   margin-top: 0;
   position: sticky;
@@ -1368,7 +1368,7 @@
 
 .cfg-section-save-btn {
   background: #dc2626;
-  color: #fff;
+  color: var(--th-text-invert);
   border: none;
   border-radius: 7px;
   padding: 0.6rem 1.5rem;
@@ -1401,7 +1401,7 @@
 
 .cfg-section-save-hint {
   font-size: 0.82rem;
-  color: #374151;
+  color: var(--th-text-body);
   font-style: italic;
 }
 .cfg-section-save-btn--saved + .cfg-section-save-hint {
@@ -1430,10 +1430,10 @@
 .ff-search-input {
   flex: 1;
   padding: 0.55rem 0.85rem;
-  border: 1.5px solid #d1d5db;
+  border: 1.5px solid var(--th-border-strong);
   border-radius: 8px;
   font-size: 0.875rem;
-  background: #fff;
+  background: var(--th-bg-card);
   outline: none;
   transition: border-color 0.15s;
 }
@@ -1443,12 +1443,12 @@
 }
 .ff-search-count {
   font-size: 0.78rem;
-  color: #374151;
+  color: var(--th-text-body);
   white-space: nowrap;
 }
 .ff-search-empty {
   font-size: 0.875rem;
-  color: #374151;
+  color: var(--th-text-body);
   padding: 0.75rem 0;
 }
 
@@ -1461,8 +1461,8 @@
 }
 .ff-flag-id {
   font-size: 0.7rem;
-  color: #374151;
-  background: #f3f4f6;
+  color: var(--th-text-body);
+  background: var(--th-bg-inset);
   border-radius: 4px;
   padding: 0.05rem 0.35rem;
   font-family: inherit;

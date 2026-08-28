@@ -46,9 +46,9 @@
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  background: #f8fafc;
+  background: var(--th-bg-inset);
   border-radius: 6px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--th-border);
 }
 
 .tems-summary-icon {
@@ -60,7 +60,7 @@
   flex: 1;
   font-size: var(--font-size-body);
   font-weight: 500;
-  color: #1e293b;
+  color: var(--th-text-body);
 }
 
 .tems-summary-badge {
@@ -83,7 +83,7 @@
   background: #2563eb;
   border: none;
   border-radius: 6px;
-  color: #ffffff;
+  color: var(--th-text-invert);
   font-size: var(--font-size-sm);
   font-weight: 500;
   cursor: pointer;
@@ -105,31 +105,31 @@
   margin-top: 12px;
   border-radius: 6px;
   overflow: hidden;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--th-border);
 }
 
 .tems-table {
   width: 100%;
   border-collapse: collapse;
   font-size: var(--font-size-sm);
-  color: #1e293b;
+  color: var(--th-text-body);
 }
 
 .tems-table thead {
-  background: #f1f5f9;
-  border-bottom: 2px solid #e2e8f0;
+  background: var(--th-bg-inset);
+  border-bottom: 2px solid var(--th-border);
 }
 
 .tems-table th {
   padding: 12px 16px;
   text-align: left;
   font-weight: 600;
-  color: #334155;
+  color: var(--th-text-body);
 }
 
 .tems-table td {
   padding: 12px 16px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--th-border);
 }
 
 .tems-table tbody tr:last-child td {
@@ -137,7 +137,7 @@
 }
 
 .tems-table tbody tr:hover {
-  background: #f8fafc;
+  background: var(--th-bg-inset);
 }
 
 /* Token type badges */
@@ -216,7 +216,7 @@
 }
 
 .tlm-modal-content {
-  background: #ffffff;
+  background: var(--th-bg-card);
   border-radius: 8px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
   max-width: 600px;
@@ -240,13 +240,13 @@
   margin: 0;
   font-size: var(--font-size-h3);
   font-weight: 600;
-  color: #ffffff;
+  color: var(--th-text-invert);
 }
 
 .tlm-close-btn {
   background: none;
   border: none;
-  color: #ffffff;
+  color: var(--th-text-invert);
   font-size: var(--font-size-h1);
   cursor: pointer;
   padding: 0;
@@ -304,12 +304,12 @@
 .tlm-item-title {
   font-size: 16px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--th-text-body);
 }
 
 .tlm-item-description {
   font-size: var(--font-size-sm);
-  color: #334155;
+  color: var(--th-text-body);
   line-height: 1.4;
 }
 
@@ -346,14 +346,14 @@
 }
 
 .utfi-flow-diagram {
-  background: #fafafa;
+  background: var(--th-bg-card);
   border-left: 3px solid #2563eb;
   border-radius: 6px;
   padding: 16px;
   font-family: var(--font-mono);
   font-size: var(--font-size-sm);
   line-height: 1.6;
-  color: #1e293b;
+  color: var(--th-text-body);
   overflow-x: auto;
   white-space: pre-wrap;
   word-wrap: break-word;
@@ -362,12 +362,12 @@
 .utfi-flow-title {
   font-weight: 600;
   margin-bottom: 12px;
-  color: #0f172a;
+  color: var(--th-text);
 }
 
 .utfi-flow-line {
   height: 1px;
-  background: #e2e8f0;
+  background: var(--th-bg-hover);
   margin: 12px 0;
 }
 
@@ -381,22 +381,22 @@
 }
 
 .utfi-flow-sep {
-  color: #334155;
+  color: var(--th-text-body);
   margin: 0 2px;
 }
 
 .utfi-rfc-label {
   font-size: var(--font-size-xs);
   font-weight: 600;
-  color: #334155;
-  background: #f1f5f9;
+  color: var(--th-text-body);
+  background: var(--th-bg-inset);
   padding: 2px 6px;
   border-radius: 3px;
   margin: 0 4px;
 }
 
 .utfi-flow-arrow {
-  color: #334155;
+  color: var(--th-text-body);
   margin: 0 4px;
 }
 
@@ -466,7 +466,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 20px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--th-border);
 }
 
 .utfi-modal-title-group {
@@ -479,7 +479,7 @@
   margin: 0;
   font-size: var(--font-size-h3);
   font-weight: 600;
-  color: #1e293b;
+  color: var(--th-text-body);
 }
 
 .utfi-modal-live-badge {
@@ -497,7 +497,7 @@
   background: none;
   border: none;
   font-size: var(--font-size-h1);
-  color: #334155;
+  color: var(--th-text-body);
   cursor: pointer;
   padding: 0;
   line-height: 1;
@@ -505,7 +505,7 @@
 }
 
 .utfi-modal-close:hover {
-  color: #0f172a;
+  color: var(--th-text);
 }
 
 /* Modal body */
@@ -528,7 +528,7 @@
   flex-direction: column;
   gap: 6px;
   padding: 12px;
-  background: #f8fafc;
+  background: var(--th-bg-inset);
   border-radius: 6px;
   border-left: 3px solid #2563eb;
 }
@@ -543,7 +543,7 @@
 .utfi-claim-value {
   font-family: var(--font-mono);
   font-size: var(--font-size-sm);
-  color: #334155;
+  color: var(--th-text-body);
   word-break: break-all;
   padding: 4px 0;
   max-height: 150px;
@@ -552,7 +552,7 @@
 
 .utfi-claim-description {
   font-size: var(--font-size-2xs);
-  color: #334155;
+  color: var(--th-text-body);
   line-height: 1.4;
 }
 
@@ -562,7 +562,7 @@
   justify-content: flex-end;
   gap: 10px;
   padding: 16px 20px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--th-border);
 }
 
 /* Modal button */
@@ -660,14 +660,14 @@
   justify-content: space-between;
   align-items: center;
   padding: 20px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--th-border);
 }
 
 .tlm-modal-title {
   margin: 0;
   font-size: var(--font-size-h3);
   font-weight: 600;
-  color: #1e293b;
+  color: var(--th-text-body);
 }
 
 /* Close button */
@@ -675,7 +675,7 @@
   background: none;
   border: none;
   font-size: var(--font-size-h1);
-  color: #334155;
+  color: var(--th-text-body);
   cursor: pointer;
   padding: 0;
   line-height: 1;
@@ -683,7 +683,7 @@
 }
 
 .tlm-close-btn:hover {
-  color: #0f172a;
+  color: var(--th-text);
 }
 
 /* Modal body */
@@ -707,9 +707,9 @@
   align-items: center;
   gap: 12px;
   padding: 16px;
-  background: #f8fafc;
+  background: var(--th-bg-inset);
   border-radius: 8px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--th-border);
   text-align: center;
 }
 
@@ -740,12 +740,12 @@
 .tlm-item-title {
   font-size: var(--font-size-body);
   font-weight: 600;
-  color: #0f172a;
+  color: var(--th-text);
 }
 
 .tlm-item-description {
   font-size: var(--font-size-2xs);
-  color: #334155;
+  color: var(--th-text-body);
   line-height: 1.4;
 }
 

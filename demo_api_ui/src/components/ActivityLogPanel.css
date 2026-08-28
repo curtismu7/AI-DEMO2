@@ -6,8 +6,8 @@
   min-height: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-size: var(--font-size-sm);
-  background: #ffffff;
-  color: #0f172a;
+  background: var(--th-bg-card);
+  color: var(--th-text);
 }
 
 /* ─── Toolbar ──────────────────────────────────────────────────────────────── */
@@ -16,7 +16,7 @@
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--th-border);
   flex-shrink: 0;
   flex-wrap: wrap;
 }
@@ -60,15 +60,15 @@
 
 .alp-btn {
   padding: 3px 10px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--th-border);
   border-radius: 6px;
-  background: #f8fafc;
-  color: #475569;
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
   font-size: var(--font-size-2xs);
   cursor: pointer;
   transition: background 0.15s;
 }
-.alp-btn:hover { background: #f1f5f9; }
+.alp-btn:hover { background: var(--th-bg-inset); }
 
 .alp-spacer { flex: 1; }
 
@@ -78,22 +78,22 @@
   align-items: center;
   gap: 6px;
   padding: 6px 12px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--th-border);
   flex-shrink: 0;
   flex-wrap: wrap;
 }
 
 .alp-filter-all {
   padding: 2px 8px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--th-border-strong);
   border-radius: 99px;
-  background: #f1f5f9;
-  color: #475569;
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
   font-size: var(--font-size-xs);
   cursor: pointer;
   white-space: nowrap;
 }
-.alp-filter-all:hover { background: #e2e8f0; }
+.alp-filter-all:hover { background: var(--th-bg-hover); }
 
 .alp-pill {
   padding: 2px 8px;
@@ -123,9 +123,9 @@
 .alp-cat--helix         { background: #dcfce7; color: #14532d; border-color: #86efac; }
 .alp-cat--agent         { background: #e0f2fe; color: #075985; border-color: #7dd3fc; }
 .alp-cat--agent_prompt  { background: #ecfccb; color: #365314; border-color: #bef264; }
-.alp-cat--session       { background: #f1f5f9; color: #334155; border-color: #94a3b8; }
+.alp-cat--session       { background: var(--th-bg-inset); color: var(--th-text-body); border-color: var(--th-border-strong); }
 .alp-cat--jwks          { background: #f4f4f5; color: #3f3f46; border-color: #a1a1aa; }
-.alp-cat--auth_lifecycle{ background: #f9fafb; color: #374151; border-color: #9ca3af; }
+.alp-cat--auth_lifecycle{ background: var(--th-bg-card); color: var(--th-text-body); border-color: var(--th-text-faint); }
 
 /* ─── Event list ───────────────────────────────────────────────────────────── */
 .alp-list {
@@ -140,7 +140,7 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: #94a3b8;
+  color: var(--th-text-faint);
   font-size: var(--font-size-sm);
   padding: 32px;
   text-align: center;
@@ -149,11 +149,11 @@
 /* ─── Event card ───────────────────────────────────────────────────────────── */
 .alp-card {
   border-radius: 6px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--th-border);
   border-left-width: 3px;
   margin: 4px 8px;
   overflow: hidden;
-  background: #ffffff;
+  background: var(--th-bg-card);
 }
 
 .alp-card-header {
@@ -173,7 +173,7 @@
 }
 
 .alp-card-header--expandable:hover {
-  background: #f8fafc;
+  background: var(--th-bg-inset);
 }
 
 .alp-card-msg {
@@ -183,13 +183,13 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: var(--font-size-2xs);
-  color: #1e293b;
+  color: var(--th-text-body);
 }
 
 .alp-row-time {
   font-family: var(--font-mono);
   font-size: var(--font-size-xs);
-  color: #94a3b8;
+  color: var(--th-text-faint);
   flex-shrink: 0;
 }
 
@@ -201,7 +201,7 @@
 .alp-row-expand-icon {
   flex-shrink: 0;
   font-size: 10px;
-  color: #94a3b8;
+  color: var(--th-text-faint);
   transition: transform 0.15s;
 }
 .alp-row-expand-icon--open {
@@ -221,10 +221,10 @@
 .alp-cat-border--helix          { border-left-color: #22c55e; }
 .alp-cat-border--agent          { border-left-color: #0ea5e9; }
 .alp-cat-border--agent_prompt   { border-left-color: #84cc16; }
-.alp-cat-border--session        { border-left-color: #94a3b8; }
+.alp-cat-border--session        { border-left-color: var(--th-border-strong); }
 .alp-cat-border--jwks           { border-left-color: #a1a1aa; }
-.alp-cat-border--auth_lifecycle { border-left-color: #9ca3af; }
-.alp-cat-border--unknown        { border-left-color: #cbd5e1; }
+.alp-cat-border--auth_lifecycle { border-left-color: var(--th-text-faint); }
+.alp-cat-border--unknown        { border-left-color: var(--th-border-strong); }
 
 /* ─── Agent flow bookends (demo start/end of one transaction) ─────────────── */
 .alp-flow-divider {
@@ -291,12 +291,12 @@
 .alp-row-detail pre {
   margin: 0;
   padding: 8px 10px;
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
   border-radius: 6px;
   font-family: var(--font-mono);
   font-size: var(--font-size-xs);
-  color: #1e293b;
+  color: var(--th-text-body);
   white-space: pre-wrap;
   word-break: break-all;
   max-height: 200px;
@@ -308,7 +308,7 @@
   display: flex;
   gap: 4px;
   padding: 8px 12px 0;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--th-border);
 }
 
 .tab-btn {

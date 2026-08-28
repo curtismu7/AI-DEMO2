@@ -1,6 +1,6 @@
 .tracing-page {
   padding: 20px;
-  background: #f9fafb;
+  background: var(--th-bg-card);
   min-height: 100vh;
   max-width: 1200px;
   margin: 0 auto;
@@ -18,13 +18,13 @@
   margin: 0;
   font-size: var(--font-size-2xl);
   font-weight: 700;
-  color: #111827;
+  color: var(--th-text);
 }
 
 .tracing-subtitle {
   margin: 4px 0 0 0;
   font-size: var(--font-size-body);
-  color: #4b5563;
+  color: var(--th-text-body);
   max-width: 52rem;
 }
 
@@ -37,16 +37,16 @@
 
 .tracing-meta {
   font-size: var(--font-size-sm);
-  color: #6b7280;
+  color: var(--th-text-muted);
   white-space: nowrap;
 }
 
 .tracing-btn {
   padding: 6px 14px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--th-border-strong);
   border-radius: 6px;
-  background: #ffffff;
-  color: #111827;
+  background: var(--th-bg-card);
+  color: var(--th-text);
   font-size: var(--font-size-sm);
   font-weight: 600;
   cursor: pointer;
@@ -54,7 +54,7 @@
 }
 
 .tracing-btn:hover:not(:disabled) {
-  background: #f3f4f6;
+  background: var(--th-bg-inset);
 }
 
 .tracing-btn:disabled {
@@ -63,7 +63,7 @@
 }
 
 .tracing-btn--secondary {
-  background: #f9fafb;
+  background: var(--th-bg-card);
 }
 
 .tracing-status-row {
@@ -120,15 +120,15 @@
   gap: 4px;
   font-size: var(--font-size-2xs);
   font-weight: 600;
-  color: #374151;
+  color: var(--th-text-body);
 }
 
 .tracing-filter select {
   min-width: 200px;
   padding: 6px 10px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--th-border-strong);
   border-radius: 6px;
-  background: #fff;
+  background: var(--th-bg-card);
   font-size: var(--font-size-sm);
 }
 
@@ -136,9 +136,9 @@
    page still opens on the trace list. Literal colors match this file's
    convention rather than introducing theme tokens it does not otherwise use. */
 .gw-metrics {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--th-border);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--th-bg-card);
   padding: 12px 16px;
   margin-bottom: 24px;
 }
@@ -146,7 +146,7 @@
 .gw-metrics > summary {
   cursor: pointer;
   font-weight: 600;
-  color: #374151;
+  color: var(--th-text-body);
   display: flex;
   justify-content: space-between;
   gap: 12px;
@@ -177,32 +177,32 @@
 .gw-metrics-table caption {
   text-align: left;
   font-weight: 600;
-  color: #374151;
+  color: var(--th-text-body);
   padding-bottom: 6px;
 }
 
 .gw-metrics-table th {
   text-align: left;
   padding: 8px 12px;
-  background: #f3f4f6;
-  color: #374151;
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
   font-weight: 600;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--th-border);
   white-space: nowrap;
 }
 
 .gw-metrics-table td {
   padding: 8px 12px;
   border-bottom: 1px solid #f3f4f6;
-  color: #111827;
+  color: var(--th-text);
   font-variant-numeric: tabular-nums;
 }
 
 .tracing-table-wrap {
   overflow-x: auto;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--th-border);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--th-bg-card);
   margin-bottom: 24px;
 }
 
@@ -215,21 +215,21 @@
 .tracing-table th {
   text-align: left;
   padding: 10px 12px;
-  background: #f3f4f6;
-  color: #374151;
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
   font-weight: 600;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--th-border);
 }
 
 .tracing-table td {
   padding: 10px 12px;
   border-bottom: 1px solid #f3f4f6;
-  color: #111827;
+  color: var(--th-text);
   vertical-align: middle;
 }
 
 .tracing-table tbody tr:hover {
-  background: #f9fafb;
+  background: var(--th-bg-card);
 }
 
 .tracing-op {
@@ -242,7 +242,7 @@
 
 .tracing-id code {
   font-size: var(--font-size-2xs);
-  color: #4b5563;
+  color: var(--th-text-body);
 }
 
 .tracing-link {
@@ -258,7 +258,7 @@
 
 .tracing-empty {
   text-align: center;
-  color: #6b7280;
+  color: var(--th-text-muted);
   padding: 32px 16px !important;
 }
 
@@ -281,7 +281,7 @@
 .tracing-bridge {
   margin: 0 0 12px 0;
   font-size: var(--font-size-sm);
-  color: #4b5563;
+  color: var(--th-text-body);
   line-height: 1.5;
 }
 
@@ -297,7 +297,7 @@
 .tracing-detail-legend {
   margin: 0 0 8px 0;
   font-size: var(--font-size-2xs);
-  color: #6b7280;
+  color: var(--th-text-muted);
   line-height: 1.4;
 }
 
@@ -330,10 +330,10 @@
 .tracing-explainer {
   margin-bottom: 16px;
   padding: 12px 18px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--th-border);
   border-left: 3px solid #3b82f6;
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--th-bg-card);
 }
 .tracing-explainer summary {
   cursor: pointer;
@@ -343,7 +343,7 @@
 }
 .tracing-explainer > p {
   margin: 10px 0 0 0;
-  color: #374151;
+  color: var(--th-text-body);
   font-size: var(--font-size-body);
   line-height: 1.6;
 }
@@ -367,7 +367,7 @@
 }
 .tracing-glossary dd {
   margin: 0;
-  color: #4b5563;
+  color: var(--th-text-body);
   font-size: var(--font-size-sm);
   line-height: 1.5;
 }
@@ -392,7 +392,7 @@
   gap: 8px;
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: #374151;
+  color: var(--th-text-body);
   cursor: pointer;
 }
 
@@ -463,7 +463,7 @@
 }
 
 .tracing-graph-tooltip-muted {
-  color: #94a3b8;
+  color: var(--th-text-faint);
 }
 
 .tracing-graph-tooltip-hr {
@@ -535,7 +535,7 @@
 }
 
 .tracing-graph-panel-facts dt {
-  color: #94a3b8;
+  color: var(--th-text-faint);
   font-weight: 600;
 }
 
@@ -559,7 +559,7 @@
 }
 
 .tracing-graph-panel-spans .tracing-span-dur {
-  color: #94a3b8;
+  color: var(--th-text-faint);
 }
 
 /* ── Projected steps timeline (ProjectedTimeline) ──────────────────────────────── */
@@ -571,16 +571,16 @@
 
 .tracing-step-card {
   padding: 14px 16px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--th-border);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--th-bg-card);
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .tracing-step-card:hover {
-  border-color: #d1d5db;
-  background: #f9fafb;
+  border-color: var(--th-border-strong);
+  background: var(--th-bg-card);
 }
 
 .tracing-step-card--error {
@@ -607,8 +607,8 @@
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: #e5e7eb;
-  color: #374151;
+  background: var(--th-bg-hover);
+  color: var(--th-text-body);
   font-size: var(--font-size-2xs);
   font-weight: 600;
   flex-shrink: 0;
@@ -635,8 +635,8 @@
 }
 
 .tracing-step-icon--database {
-  background: #d1d5db;
-  color: #374151;
+  background: var(--th-bg-hover);
+  color: var(--th-text-body);
 }
 
 .tracing-step-icon--bell {
@@ -647,13 +647,13 @@
 .tracing-step-title {
   font-weight: 600;
   font-size: var(--font-size-body);
-  color: #111827;
+  color: var(--th-text);
 }
 
 .tracing-step-dur {
   margin-left: auto;
   font-size: var(--font-size-2xs);
-  color: #6b7280;
+  color: var(--th-text-muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -691,34 +691,34 @@
 
 .tracing-step-facet dt {
   font-weight: 600;
-  color: #374151;
+  color: var(--th-text-body);
 }
 
 .tracing-step-facet dd {
   margin: 0;
-  color: #4b5563;
+  color: var(--th-text-body);
 }
 
 .tracing-step-details {
   margin-top: 12px;
   padding-top: 12px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--th-border);
 }
 
 .tracing-step-source {
   margin: 0 0 8px 0;
   font-size: var(--font-size-2xs);
-  color: #6b7280;
+  color: var(--th-text-muted);
   font-weight: 500;
 }
 
 .tracing-step-details pre {
   margin: 0;
   padding: 10px 12px;
-  background: #f3f4f6;
+  background: var(--th-bg-inset);
   border-radius: 6px;
   font-size: var(--font-size-2xs);
-  color: #374151;
+  color: var(--th-text-body);
   overflow-x: auto;
   line-height: 1.4;
 }
@@ -728,7 +728,7 @@
   display: flex;
   gap: 4px;
   padding: 8px 14px 0 14px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--th-border);
 }
 
 .tracing-detail-tab {
@@ -736,14 +736,14 @@
   border: none;
   border-bottom: 2px solid transparent;
   background: transparent;
-  color: #6b7280;
+  color: var(--th-text-muted);
   font-size: var(--font-size-sm);
   font-weight: 600;
   cursor: pointer;
 }
 
 .tracing-detail-tab:hover {
-  color: #374151;
+  color: var(--th-text-body);
 }
 
 .tracing-detail-tab--active {

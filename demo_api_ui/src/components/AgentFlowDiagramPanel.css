@@ -26,7 +26,7 @@
   gap: 0.5rem;
   padding: 0.55rem 0.65rem 0.55rem 0.75rem;
   background: rgba(255, 255, 255, 0.75);
-  border-bottom: 1px solid #dddddd;
+  border-bottom: 1px solid var(--th-border);
   cursor: grab;
   user-select: none;
 }
@@ -75,10 +75,10 @@
   justify-content: center;
   width: 1.85rem;
   height: 1.85rem;
-  border: 1px solid #cccccc;
+  border: 1px solid var(--th-border-strong);
   border-radius: 8px;
-  background: #fff;
-  color: #666666;
+  background: var(--th-bg-card);
+  color: var(--th-text-muted);
   font-size: 1rem;
   line-height: 1;
   cursor: pointer;
@@ -90,7 +90,7 @@
 
 .afd-btn:hover {
   background: var(--brand-light-gray);
-  border-color: #94a3b8;
+  border-color: var(--th-border-strong);
 }
 
 .afd-btn--close:hover {
@@ -110,10 +110,10 @@
   padding: 0.5rem 0.6rem;
   font-size: 0.75rem;
   line-height: 1.45;
-  color: #666666;
+  color: var(--th-text-muted);
   background: rgba(255, 255, 255, 0.7);
   border-radius: 8px;
-  border: 1px dashed #cccccc;
+  border: 1px dashed var(--th-border-strong);
 }
 
 .afd-flow {
@@ -142,14 +142,14 @@
   height: 11px;
   border-radius: 50%;
   margin-top: 0.45rem;
-  border: 2px solid #cccccc;
-  background: #fff;
+  border: 2px solid var(--th-border-strong);
+  background: var(--th-bg-card);
   z-index: 1;
 }
 
 .afd-step--pending .afd-step-dot {
   background: var(--brand-light-gray);
-  border-color: #cccccc;
+  border-color: var(--th-border-strong);
 }
 
 .afd-step--active .afd-step-dot {
@@ -196,7 +196,7 @@
   margin-bottom: 0.35rem;
   padding: 0.5rem 0.65rem;
   background: rgba(255, 255, 255, 0.92);
-  border: 1px solid #dddddd;
+  border: 1px solid var(--th-border);
   border-radius: 10px;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
@@ -215,7 +215,7 @@
   margin: 0;
   font-size: 0.78rem;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--th-text);
   line-height: 1.3;
 }
 
@@ -223,7 +223,7 @@
   margin: 0.25rem 0 0;
   font-size: 0.7rem;
   line-height: 1.45;
-  color: #999999;
+  color: var(--th-text-faint);
 }
 
 .afd-badge {
@@ -239,7 +239,7 @@
 
 .afd-badge--pending {
   background: var(--brand-light-gray);
-  color: #999999;
+  color: var(--th-text-faint);
 }
 
 .afd-badge--active {
@@ -344,14 +344,14 @@
 .afd-empty {
   margin: 0;
   font-size: 0.8rem;
-  color: #999999;
+  color: var(--th-text-faint);
   line-height: 1.5;
 }
 
 .afd-sse-block {
   margin-top: 0.85rem;
   padding-top: 0.75rem;
-  border-top: 1px solid #dddddd;
+  border-top: 1px solid var(--th-border);
 }
 
 .afd-sse-title {
@@ -380,18 +380,18 @@
   font-size: 0.75rem;
   line-height: 1.35;
   background: rgba(255, 255, 255, 0.85);
-  border: 1px solid #dddddd;
+  border: 1px solid var(--th-border);
   border-radius: 8px;
 }
 
 .afd-sse-label {
   font-weight: 600;
-  color: #0f172a;
+  color: var(--th-text);
 }
 
 .afd-sse-detail {
   font-size: 0.75rem;
-  color: #999999;
+  color: var(--th-text-faint);
   word-break: break-word;
 }
 
@@ -399,7 +399,7 @@
   margin-bottom: 1rem;
   padding: 0.75rem;
   background: rgba(255, 255, 255, 0.85);
-  border: 1px solid #dddddd;
+  border: 1px solid var(--th-border);
   border-radius: 8px;
 }
 
@@ -417,10 +417,10 @@
   padding: 0.25rem 0.5rem;
   font-size: 0.7rem;
   background: var(--brand-light-gray);
-  border: 1px solid #cccccc;
+  border: 1px solid var(--th-border-strong);
   border-radius: 4px;
   cursor: pointer;
-  color: #666666;
+  color: var(--th-text-muted);
 }
 
 .afd-token-toggle:hover {
@@ -439,7 +439,7 @@
   gap: 0.5rem;
   padding: 0.35rem;
   background: var(--brand-light-gray);
-  border: 1px solid #dddddd;
+  border: 1px solid var(--th-border);
   border-radius: 6px;
   font-size: 0.7rem;
 }
@@ -460,9 +460,9 @@
 }
 
 .afd-token-type--agent_token {
-  background: #e2e8f0;
-  color: #334155;
-  border: 1px solid #94a3b8;
+  background: var(--th-bg-hover);
+  color: var(--th-text-body);
+  border: 1px solid var(--th-border-strong);
 }
 
 .afd-token-type--exchanged_token {
@@ -472,13 +472,13 @@
 }
 
 .afd-token-user {
-  color: #999999;
+  color: var(--th-text-faint);
   font-family: inherit;
   font-size: 0.65rem;
 }
 
 .afd-token-more {
-  color: #94a3b8;
+  color: var(--th-text-faint);
   font-size: 0.65rem;
   font-style: italic;
 }
@@ -492,12 +492,12 @@
 
 .afd-tc-empty {
   font-size: 0.75rem;
-  color: #94a3b8;
+  color: var(--th-text-faint);
   margin: 4px 0;
 }
 
 .afd-tc-card {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--th-border);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.92);
   overflow: hidden;
@@ -542,14 +542,14 @@
   color: #065f46;
 }
 .afd-tc-type--default {
-  background: #f1f5f9;
-  color: #475569;
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
 }
 
 .afd-tc-label {
   flex: 1;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--th-text-body);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -558,14 +558,14 @@
 .afd-tc-time {
   flex-shrink: 0;
   font-size: 0.65rem;
-  color: #94a3b8;
+  color: var(--th-text-faint);
   font-variant-numeric: tabular-nums;
 }
 
 .afd-tc-chevron {
   flex-shrink: 0;
   font-size: 0.6rem;
-  color: #94a3b8;
+  color: var(--th-text-faint);
 }
 
 .afd-tc-summary {
@@ -583,16 +583,16 @@
   border-radius: 10px;
   font-size: 0.65rem;
   font-weight: 500;
-  background: #f1f5f9;
-  color: #475569;
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
   white-space: nowrap;
   max-width: 180px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .afd-tc-pill--sub {
-  background: #e2e8f0;
-  color: #334155;
+  background: var(--th-bg-hover);
+  color: var(--th-text-body);
 }
 .afd-tc-pill--act {
   background: #dbeafe;
@@ -625,7 +625,7 @@
 
 /* Expanded detail */
 .afd-tc-detail {
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--th-border);
   padding: 8px 9px;
   display: flex;
   flex-direction: column;
@@ -635,7 +635,7 @@
 .afd-tc-explanation {
   margin: 0;
   font-size: 0.72rem;
-  color: #475569;
+  color: var(--th-text-body);
   line-height: 1.5;
 }
 
@@ -661,12 +661,12 @@
 .afd-tc-pre {
   margin: 0;
   padding: 6px 8px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
   border-radius: 6px;
   font-size: 0.64rem;
   line-height: 1.55;
-  color: #334155;
+  color: var(--th-text-body);
   overflow-x: auto;
   white-space: pre;
   font-family: inherit;
