@@ -16,6 +16,78 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-08-28 — BFF_INTERNAL_SECRET: two call sites disagree about where the vault lands
+
+**What's wrong.** The BFF↔`agent-service` shared secret is resolved two
+incompatible ways, and two authoritative comments assert opposite things:
+
+- `demo_api_server/utils/internalSecret.js:13-17` — the canonical shared
+  resolver, built specifically to converge six hand-rolled module-scope copies.
+  Its comment says a vault-supplied secret "could never be seen" at module
+  scope and that resolving lazily per call "is what lets the vault actually
+  supply this secret." Line 30 reads `process.env.BFF_INTERNAL_SECRET` only.
+- `demo_api_server/services/agentReasoningClient.js:45-49` — says the opposite:
+  "The vault loads into configStore (not process.env), so process.env holds
+  only the .env fallback value which may differ." Line 50 therefore reads
+  `configStore.getEffective('BFF_INTERNAL_SECRET')` first.
+
+Both cannot be true. Each author wrote their call site to match their belief,
+so the codebase now holds both models simultaneously.
+
+**Which one reality matches.** Measured 2026-08-28 in the running stack:
+`BFF_INTERNAL_SECRET` is a 206-character dotenvx `encrypted:...` ciphertext in
+the environment of BOTH `demo-api-server` and `agent-service`. So the vault is
+not supplying a usable plaintext through `process.env`, and
+`internalSecret.js`'s premise does not hold in this deployment.
+
+**What it broke.** `agent-service` (`demo_agent_service/src/index.ts:70`) reads
+`process.env` with no decrypt step, so its secret IS the raw ciphertext. The
+BFF's reasoning client sends the decrypted plaintext. They cannot match:
+
+    [agentReasoningClient] :3006 reason call failed: ERR_BAD_REQUEST
+    status=403 body={"error":"forbidden"}
+
+Every LLM-analysis chip (UC34 `ai-spot-unusual-patterns`, UC35
+`ai-explain-last-denial`) fails in all 9 verticals as a result, and it presents
+to the user as "The llamacpp LLM could not complete this request" — sending
+people to the model, the proxy and the resident tiers, none of which are
+involved. It also blocks golden capture for 3 use cases (see PR #2563).
+
+**Why it was not fixed now.** It is not a one-side change. THREE hops must move
+together, and two of them work today only because both ends are equally wrong
+(ciphertext compared against ciphertext):
+
+| hop | resolves via | today |
+|---|---|---|
+| BFF → `/reason` (`agentReasoningClient.js:50`) | configStore (plaintext) | **403** |
+| BFF → `/run` (`routes/agentRun.js:197`) | `process.env` (ciphertext) | works |
+| `agent-service` → BFF `/internal/agent-tool` (`agentRunHandler.ts:204`, validated by `agentTool.js` via `internalSecretMatches()`) | `process.env` both ends (ciphertext) | works |
+
+Making `agent-service` decrypt repairs `/reason` and breaks the other two.
+
+**What the real fix looks like.** Converge on `utils/internalSecret.js` — the
+resolver that already exists for exactly this reason — and make it return the
+DECRYPTED value while keeping the lazy per-call resolution it has for good
+reason. Then point `agentReasoningClient.js` and `agentRun.js` at it, and give
+`agent-service` the equivalent (its `.env.keys` is already mounted as an
+`env_file`; nothing calls dotenvx with it). Also verify these, unaudited:
+`routes/codegraphProxy.js:13`, `routes/mcpInspector.js:903`,
+`demo_agent_service/src/transactionHop.ts:37` (agent-service presenting the
+secret OUTBOUND — needs the same treatment as the inbound check).
+
+**The tempting wrong fix.** Dropping `agentReasoningClient.js` to env-first
+makes it consistent with the canonical helper and turns the 403 green — by
+converging everything on the CIPHERTEXT. Consistent and wrong: it breaks the
+moment the key rotates or anything starts decrypting properly, and it reverses
+the deliberate design at `agentReasoningClient.js:45-49`.
+
+**Diagnosis note.** This was expensive to find because
+`agentReasoningClient.js`'s catch logged only `err.code`, and axios reports
+every 4xx as `ERR_BAD_REQUEST` — so a 403, a 400 and a transport failure were
+indistinguishable, and all three surfaced as `reasoning_unavailable`. Fixed in
+PR #2564 (logs `err.response.status` and `.data`); that log line is what
+produced the `403 forbidden` above. Found with `ai-demo2-d0`.
+
 ### [x] 2026-08-28 — CI cannot push images: GHCR packages are user-owned, unlinked
 
 Every `push-image` job fails at its final step with
