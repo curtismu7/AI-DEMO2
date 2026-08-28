@@ -396,7 +396,7 @@ async function main() {
   //
   // Degrades to the .env value when the vault is absent or locked, so a fresh
   // clone with no vault behaves as it always did.
-  const vaultSecrets = await loadVaultSecrets(['INTENT_TOKEN_SECRET']);
+  const vaultSecrets = await loadVaultSecrets(['INTENT_TOKEN_SECRET', 'BFF_INTERNAL_SECRET']);
   const fbVault = (key) => vaultSecrets[key] || fb(key);
 
   const creds = {
@@ -461,7 +461,7 @@ async function main() {
     // (fresh environment) — findObject() then falls back to audience as before.
     ...resourceIds,
     TWO_EXCHANGE_INTERMEDIATE_SCOPE:    fb('TWO_EXCHANGE_INTERMEDIATE_SCOPE') || 'agent:invoke',
-    BFF_INTERNAL_SECRET:      fb('BFF_INTERNAL_SECRET'),
+    BFF_INTERNAL_SECRET:      fbVault('BFF_INTERNAL_SECRET'),
     HITL_INTERNAL_SECRET:     fb('HITL_INTERNAL_SECRET'),
     PINGONE_AI_AGENT_ACTOR_CLIENT_ID:     creds.aiAgentClientId,
     PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET: creds.aiAgentSecret,
@@ -739,7 +739,7 @@ async function main() {
     PG_INVEST_SCOPE:                'invest:read',
     PG_OLB_BACKEND_URL:             'http://mcp-server:8080',
     PG_INVEST_BACKEND_URL:          'http://mcp-resource-server:8081',
-    BFF_INTERNAL_SECRET:            fb('BFF_INTERNAL_SECRET') || 'dev-shared-secret-change-me',
+    BFF_INTERNAL_SECRET:            fbVault('BFF_INTERNAL_SECRET') || 'dev-shared-secret-change-me',
     // Intent Token verification in scripts/groovy/p1az-decision.groovy resolves
     // `INTENT_TOKEN_SECRET ?: SESSION_SECRET`. Neither was emitted here, so the
     // filter found no key and silently omitted its decision keys
