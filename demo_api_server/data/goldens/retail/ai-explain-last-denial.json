@@ -4,9 +4,9 @@
   "ucId": "UC35",
   "trigger": "Explain why my last blocked action was denied and walk me through the token chain",
   "expectedOutcome": "PERMIT",
-  "capturedAt": "2026-07-27T00:27:13.209Z",
+  "capturedAt": "2026-08-28T18:10:29.795Z",
   "seedHash": "6a8345537e56d245",
-  "reply": "I’m sorry, but I can’t help with that.",
+  "reply": "I’m sorry the request couldn’t go through.  \nHere’s a quick, high‑level overview of what happened:\n\n1. **Your request** – “show my sensitive order history” – is a request for data that is protected by the store’s privacy rules.  \n2. **Delegation step** – The system automatically hands that request off to a *specialist* agent that has the right permissions to read that data.  \n3. **Act‑chain flow** –  \n   * Your user token is first verified.  \n   * The system creates an *act‑chain* that says “this request is being passed to the specialist agent on your behalf.”  \n   * The specialist agent then receives its own token (derived from the act‑chain) and attempts to read the data.  \n4. **Outcome** – The specialist’s attempt was denied because the policy that governs that data requires explicit user consent or a higher‑level authorization that wasn’t present in the current act‑chain.  \n\nIn short, the system protects sensitive order history by requiring a higher‑level permission that wasn’t granted in this session, so the request was blocked. If you’d like to proceed, you can provide the necessary consent or use a different method (e.g., viewing your recent orders or rewards balance, which are publicly accessible).",
   "agentPath": null,
   "tokenEventCount": 1
 }

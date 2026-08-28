@@ -4,9 +4,9 @@
   "ucId": "UC8",
   "trigger": "transfer $300 from checking to savings",
   "expectedOutcome": "HITL_REQUIRED",
-  "capturedAt": "2026-07-27T00:26:42.461Z",
+  "capturedAt": "2026-08-28T18:01:16.720Z",
   "seedHash": null,
-  "reply": "PingOne Authorize requires human approval before MCP tools can run.",
+  "reply": "Transfer failed: local-fallback: insufficient_scope: missing transfer",
   "agentPath": null,
   "tokenEventCount": 13
 }

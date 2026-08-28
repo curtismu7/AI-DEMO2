@@ -1,46 +1,118 @@
 {
-  "capturedAt": "2026-08-28T17:50:39.944Z",
-  "captured": 11,
-  "skipped": 4,
+  "capturedAt": "2026-08-28T18:17:47.707Z",
+  "captured": 2,
+  "skipped": 13,
   "byReason": {
     "unhealthy_result": {
-      "count": 4,
+      "count": 13,
       "pairs": [
-        "airlines/a2a-delegation",
-        "airlines/ai-spot-unusual-patterns",
-        "airlines/code-search",
-        "airlines/weather-mcp-texas-permit"
+        "university/a2a-delegation",
+        "university/ai-explain-last-denial",
+        "university/ai-spot-unusual-patterns",
+        "university/authz-denied",
+        "university/ciba-out-of-band-approval",
+        "university/code-search",
+        "university/hitl-consent",
+        "university/mortgage-delegated-access",
+        "university/progressive-trust-public-access",
+        "university/step-up-required",
+        "university/unauthorized-commitment-fee-waiver",
+        "university/weather-mcp-texas-deny",
+        "university/weather-mcp-texas-permit"
       ]
     }
   },
   "skips": [
     {
-      "vertical": "airlines",
+      "vertical": "university",
       "useCaseId": "a2a-delegation",
       "ucId": "UC2",
       "reason": "unhealthy_result",
-      "detail": "HTTP 200: ❌ Delegated to Passenger Records Specialist, but sensitive_passenger_record failed: gateway_policy_denied."
+      "detail": "HTTP 200: ❌ Delegated to Financial Aid Specialist, but sensitive_student_finance failed: gateway_policy_denied."
     },
     {
-      "vertical": "airlines",
+      "vertical": "university",
+      "useCaseId": "mortgage-delegated-access",
+      "ucId": "UC33",
+      "reason": "unhealthy_result",
+      "detail": "HTTP 0: (empty reply)"
+    },
+    {
+      "vertical": "university",
       "useCaseId": "ai-spot-unusual-patterns",
       "ucId": "UC34",
       "reason": "unhealthy_result",
-      "detail": "HTTP 200: ❌ The Passenger Records Specialist can only run: sensitive_passenger_record. It is not authorized for \"sensitive_airline_bookings\"."
+      "detail": "HTTP 0: (empty reply)"
     },
     {
-      "vertical": "airlines",
+      "vertical": "university",
+      "useCaseId": "ai-explain-last-denial",
+      "ucId": "UC35",
+      "reason": "unhealthy_result",
+      "detail": "HTTP 0: (empty reply)"
+    },
+    {
+      "vertical": "university",
+      "useCaseId": "authz-denied",
+      "ucId": "UC6",
+      "reason": "unhealthy_result",
+      "detail": "HTTP 0: (empty reply)"
+    },
+    {
+      "vertical": "university",
+      "useCaseId": "step-up-required",
+      "ucId": "UC7",
+      "reason": "unhealthy_result",
+      "detail": "HTTP 0: (empty reply)"
+    },
+    {
+      "vertical": "university",
+      "useCaseId": "hitl-consent",
+      "ucId": "UC8",
+      "reason": "unhealthy_result",
+      "detail": "HTTP 0: (empty reply)"
+    },
+    {
+      "vertical": "university",
+      "useCaseId": "ciba-out-of-band-approval",
+      "ucId": "UC22",
+      "reason": "unhealthy_result",
+      "detail": "HTTP 0: (empty reply)"
+    },
+    {
+      "vertical": "university",
+      "useCaseId": "progressive-trust-public-access",
+      "ucId": "UC24",
+      "reason": "unhealthy_result",
+      "detail": "HTTP 0: (empty reply)"
+    },
+    {
+      "vertical": "university",
       "useCaseId": "weather-mcp-texas-permit",
       "ucId": "UC30",
       "reason": "unhealthy_result",
-      "detail": "HTTP 200: ❌ intent_mismatch: tool \"get_weather\" not permitted for intent \"unknown\""
+      "detail": "HTTP 0: (empty reply)"
     },
     {
-      "vertical": "airlines",
+      "vertical": "university",
+      "useCaseId": "weather-mcp-texas-deny",
+      "ucId": "UC31",
+      "reason": "unhealthy_result",
+      "detail": "HTTP 0: (empty reply)"
+    },
+    {
+      "vertical": "university",
       "useCaseId": "code-search",
       "ucId": "UC-TOOL1",
       "reason": "unhealthy_result",
-      "detail": "HTTP 200: ❌ Insufficient scope for tool 'code_search'"
+      "detail": "HTTP 0: (empty reply)"
+    },
+    {
+      "vertical": "university",
+      "useCaseId": "unauthorized-commitment-fee-waiver",
+      "ucId": "UC28",
+      "reason": "unhealthy_result",
+      "detail": "HTTP 0: (empty reply)"
     }
   ]
 }

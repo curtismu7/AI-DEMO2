@@ -4,9 +4,9 @@
   "ucId": "UC1",
   "trigger": "list my orders",
   "expectedOutcome": "PERMIT",
-  "capturedAt": "2026-07-27T00:27:06.336Z",
+  "capturedAt": "2026-08-28T18:07:44.541Z",
   "seedHash": "6a8345537e56d245",
   "reply": "Here are your Activity (6 total).",
   "agentPath": null,
-  "tokenEventCount": 19
+  "tokenEventCount": 25
 }
