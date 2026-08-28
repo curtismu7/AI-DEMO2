@@ -777,6 +777,32 @@ function _getEncryptionKey() {
   return _encryptionKeyCache;
 }
 
+// Hardening (2026-08-21 incident): "encrypted:..." is this module's OWN internal
+// ciphertext format. It belongs in LMDB rows, never in .env. A prior
+// export/import round-trip put it there literally, which silently shadowed a
+// correct vault-held PingOne client secret and sent the ciphertext itself to
+// PingOne as client_secret (invalid_client) until diagnosed by hand. See
+// docs/vault.md "Troubleshooting: invalid_client after everything looks
+// configured".
+//
+// This lives here, shared, because there are TWO readers of process.env in this
+// module — getEffective()'s readEnv() and get()'s transparent env fallback — and
+// only the first one screened. getEffective() falls through readEnv() to
+// readStored(), which calls get(), so a screened value came straight back out of
+// the unscreened path. One screen, both callers.
+//
+// Warn once per env key: get() is called on hot paths and a per-call warn would
+// bury the log.
+const _warnedCiphertextEnvKeys = new Set();
+function _isCiphertextEnvValue(envKey, value) {
+  if (typeof value !== 'string' || !value.startsWith('encrypted:')) return false;
+  if (!_warnedCiphertextEnvKeys.has(envKey)) {
+    _warnedCiphertextEnvKeys.add(envKey);
+    console.warn(`[ConfigStore] ${envKey} in .env looks like internal ciphertext ("encrypted:..."), not a raw secret — ignoring it and falling back to vault/LMDB. See docs/vault.md#troubleshooting.`);
+  }
+  return true;
+}
+
 function _encrypt(plaintext) {
   try {
     const key = _getEncryptionKey();
@@ -1399,7 +1425,13 @@ class ConfigStore {
     // of bug that caused P1AZ "worker credentials not configured" warnings even
     // though PINGONE_WORKER_CLIENT_ID was present in .env.
     const envVal = process.env[upper];
-    return (envVal !== undefined && envVal !== '') ? envVal : null;
+    if (envVal === undefined || envVal === '') return null;
+    // Same screen getEffective()'s readEnv() applies. Without it this fallback
+    // was the way around that one: getEffective() rejects an "encrypted:..."
+    // env value, then falls through to readStored() -> this.get(), which read
+    // the very same process.env entry and returned the ciphertext.
+    if (_isCiphertextEnvValue(upper, envVal)) return null;
+    return envVal;
   }
 
   /**
@@ -1534,19 +1566,10 @@ class ConfigStore {
       for (const envKey of envVars) {
         const v = process.env[envKey];
         if (!v) continue;
-        // Hardening (2026-08-21 incident): "encrypted:..." is this module's OWN
-        // internal ciphertext format (see _encrypt/_decrypt above) — it must never
-        // appear in .env, only in LMDB rows. A prior export/import round-trip put
-        // it there literally, which silently shadowed a correct vault-held PingOne
-        // client secret and sent the ciphertext itself to PingOne as client_secret
-        // (invalid_client) until diagnosed by hand. Skip a value in that shape and
-        // fall through to the vault/LMDB tier instead of trusting it — see
-        // docs/vault.md "Troubleshooting: invalid_client after everything looks
-        // configured" for the full incident writeup.
-        if (v.startsWith('encrypted:')) {
-          console.warn(`[ConfigStore] ${envKey} in .env looks like internal ciphertext ("encrypted:..."), not a raw secret — ignoring it and falling back to vault/LMDB. See docs/vault.md#troubleshooting.`);
-          continue;
-        }
+        // See _isCiphertextEnvValue above for the incident this screens for.
+        // Skip a value in that shape and fall through to the vault/LMDB tier
+        // instead of trusting it.
+        if (_isCiphertextEnvValue(envKey, v)) continue;
         return v.trim();
       }
       return null;
