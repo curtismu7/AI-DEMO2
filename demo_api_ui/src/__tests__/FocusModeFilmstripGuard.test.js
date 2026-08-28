@@ -5,15 +5,15 @@
 // large provider surface, and EmbeddedDockLayoutGuard.test.js already
 // establishes this pattern for the same file.
 //
-// The last two tests are the point of the exercise. TokenChainTraceRail mounts
-// on ~20 surfaces and UserDashboard.js is frozen behind a sha256 canary; the
-// filmstrip is a sibling over the same store, never an edit to either.
+// TokenChainTraceRail mounts on ~20 surfaces, so the filmstrip is a sibling over
+// the same store rather than an edit to it. (This note used to name the frozen
+// classic UserDashboard.js as the second thing not to touch; that component has
+// since been deleted, so only the rail constraint remains.)
 const fs = require("node:fs");
 const path = require("node:path");
 
 const read = (p) => fs.readFileSync(path.resolve(__dirname, p), "utf8");
 const p2026 = read("../components/UserDashboardPing2026.js");
-const classic = read("../components/UserDashboard.js");
 const rail = read("../components/TokenChainTraceRail.jsx");
 
 describe("Focus Mode filmstrip guard", () => {
@@ -47,9 +47,18 @@ describe("Focus Mode filmstrip guard", () => {
     expect(rail.includes("TokenChainFilmstrip")).toBe(false);
   });
 
-  test("the frozen classic dashboard gains no Focus Mode markup", () => {
-    expect(classic.includes("ud-focus-mode")).toBe(false);
-    expect(classic.includes("TokenChainFilmstrip")).toBe(false);
+  // Was: "the frozen classic dashboard gains no Focus Mode markup". The classic
+  // dashboard is deleted — 3,374 lines, 97% of them verbatim in the Ping2026
+  // component — so the guard is now that it does not come back. A second
+  // dashboard is what made every reel question ambiguous.
+  test("there is exactly one customer dashboard component", () => {
+    const fs = require("node:fs");
+    const path = require("node:path");
+    const dir = path.resolve(__dirname, "../components");
+    const dashboards = fs
+      .readdirSync(dir)
+      .filter((f) => /^UserDashboard.*\.js$/.test(f) && !f.endsWith(".test.js"));
+    expect(dashboards).toEqual(["UserDashboardPing2026.js"]);
   });
 
   // Locked 2026-08-17 (PR #1896): #1784 gated the float-mode filmstrip behind
@@ -163,21 +172,26 @@ describe("Focus Mode filmstrip guard", () => {
     expect(p2026).not.toContain('className="tcfs-float-host"');
   });
 
-  // The live canary skips its reel assertion when the dashboard on screen has no
-  // reel by design, and it tells the two apart by `.customer-skin-p1`. That is
-  // the ONLY class that separates them: the roots are otherwise near-identical
-  // and the CLASSIC dashboard also carries user-dashboard--2026,
-  // refined-customer-surface and data-rd-v2. The first version of that gate used
-  // user-dashboard--2026 and would have skipped nothing, leaving the canary red
-  // on every run. If either assertion below fails, fix the canary's selector in
-  // scripts/canary/uc1-canary.js in the same commit.
-  test("customer-skin-p1 marks the Ping2026 dashboard and ONLY it", () => {
-    expect(classic).not.toContain("customer-skin-p1");
-    expect(p2026).toContain("customer-skin-p1 user-dashboard user-dashboard--2026");
+  // The live canary skips its reel assertion on the one layout that has no reel
+  // by design. With a single customer dashboard, that is the whole gate: the
+  // clinical split, whose early return renders AgentClinicalHost and an audit
+  // timeline instead of the reel.
+  //
+  // This guard has now outlived two selectors. It first used
+  // `.user-dashboard--2026`, which BOTH dashboards carried, so the canary
+  // skipped nothing and failed on every run; then `.customer-skin-p1`, which
+  // genuinely separated the two components. Deleting the classic dashboard
+  // removed the thing being discriminated. If this fails, fix the canary's
+  // selector in scripts/canary/uc1-canary.js in the same commit.
+  test("the clinical-split root keeps the class the canary excludes on", () => {
+    expect(p2026).toContain("user-dashboard--clinical-split");
   });
 
-  test("the clinical-split root is also skin-p1, so the canary must exclude it", () => {
-    // It has no reel by design — the early return renders AgentClinicalHost only.
-    expect(p2026).toContain("customer-skin-p1 user-dashboard user-dashboard--clinical-split");
+  test("the canary no longer gates on a customer-skin discriminator", () => {
+    const canary = read("../../../scripts/canary/uc1-canary.js");
+    // Usage, not the word: the comment above the gate still recounts the two
+    // selectors this check has already outlived, and that history is the point.
+    expect(canary).not.toMatch(/querySelector\(['"]\.customer-skin-p1/);
+    expect(canary).toMatch(/querySelector\(['"]\.user-dashboard--clinical-split/);
   });
 });

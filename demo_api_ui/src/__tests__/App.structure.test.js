@@ -19,7 +19,6 @@
 // (network hooks, EventSource, WebSocket setup at module level). The smoke test
 // only checks routing structure, not component content.
 vi.mock("../components/AIAgent", () => ({ default: () => null }));
-vi.mock("../components/EmbeddedAgentDock", () => ({ default: () => null }));
 vi.mock("../routes/AppShell", () => ({ default: ({ children }) => children }));
 vi.mock("../components/AuthzTestPage", () => ({ default: () => null }));
 vi.mock("../components/ComplianceModalPopout", () => ({ default: () => null }));
@@ -46,7 +45,6 @@ const appSrc = fs.readFileSync(
 describe("App.js — critical imports", () => {
   const cases = [
     ["AIAgent", 'import AIAgent from "./components/AIAgent"'],
-    ["EmbeddedAgentDock", 'import EmbeddedAgentDock from "./components/EmbeddedAgentDock"'],
     ["SessionTokenProvider", 'import { SessionTokenProvider } from "./context/SessionTokenContext"'],
     ["resolveEmbeddedFocus from demoAgentSafety", 'import { resolveEmbeddedFocus } from "./components/demoAgentSafety"'],
     ["DashboardContent", 'import { DashboardContent } from "./routes/CustomerRoutes"'],
@@ -86,8 +84,11 @@ describe("App.js — critical JSX placements", () => {
     expect(appSrc).toContain("embeddedFocus={resolveEmbeddedFocus(pathname)}");
   });
 
-  test("EmbeddedAgentDock is rendered at App level", () => {
-    expect(appSrc).toContain("<EmbeddedAgentDock");
+  // EmbeddedAgentDock was deleted with the bottom-dock layout: the component
+  // returned null unless placement === 'bottom', and that placement no longer
+  // exists, so the App-level mount could never render anything.
+  test("EmbeddedAgentDock is gone from App", () => {
+    expect(appSrc).not.toContain("EmbeddedAgentDock");
   });
 
   test("DashboardContent is rendered inside the /dashboard route", () => {

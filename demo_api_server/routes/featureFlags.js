@@ -738,21 +738,6 @@ const FLAG_REGISTRY = [
     defaultValue: true,
   },
   {
-    id:           'ff_customer_skin_ping2026',
-    name:         'Customer UI — New Ping2026 Skin',
-    category:     'UI / Dashboard',
-    description:
-      'When **ON**, the customer dashboard renders the redesigned `UserDashboardPing2026` component ' +
-      '(new layout, vertical switcher, live optimistic data, inline token chain). ' +
-      'When **OFF** (default), the classic `UserDashboard` component is shown. ' +
-      'The old component is frozen; flag OFF is a total revert with no redeploy required.',
-    impact:
-      'OFF (default) = classic customer dashboard, no change. ' +
-      'ON = new Ping2026 customer dashboard component; requires B2 behaviors to be built before enabling in production.',
-    type:         'boolean',
-    defaultValue: false,
-  },
-  {
     id:           'ff_sidebar_customization',
     name:         'Sidebar Customization',
     category:     'UI / Dashboard',

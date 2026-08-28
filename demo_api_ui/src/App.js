@@ -59,7 +59,6 @@ import DelegatedCommercePage from "./pages/DelegatedCommercePage";
 import DemoGuidePopout from "./components/DemoGuidePopout";
 import DemoServerCheckModal from "./components/DemoServerCheckModal";
 import { resolveEmbeddedFocus } from "./components/demoAgentSafety";
-import EmbeddedAgentDock from "./components/EmbeddedAgentDock";
 import EducationPanelsHost from "./components/education/EducationPanelsHost";
 import DemoConfigPage from "./components/DemoConfigPage";
 import FeatureFlagsPage from "./components/FeatureFlagsPage";
@@ -1873,20 +1872,6 @@ function AppWithAuth() {
                 onClose={() => setLogViewerOpen(false)}
                 categoryFilter={appFlags.logFilterCategories}
               />
-              {/* UserDashboard renders EmbeddedAgentDock inside its layout. App-level dock sits in document
-              order directly above the footer on non-dashboard routes.
-              Guest landing (/) always uses float agent — no bottom dock. */}
-              {!loading &&
-                !onUserDashboardRoute &&
-                !onLiveWorkbenchRoute &&
-                !(!user && isPublicMarketingAgentPath(pathname)) && (
-                  <ErrorBoundary>
-                    <EmbeddedAgentDock
-                      user={user}
-                      agentPlacement={agentPlacement}
-                    />
-                  </ErrorBoundary>
-                )}
               {!isApiTrafficOnlyPage && <Footer user={user} />}
               <AuthorizeFallbackListener />
               <ServerRestartModal />

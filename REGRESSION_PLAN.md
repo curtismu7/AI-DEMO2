@@ -40,12 +40,12 @@ minimal diff.
 | Session store callback discipline | `services/lmdb/sessionStore.js` — must call `cb(err)` on every store op |
 | Token audience check | `middleware/auth.js` — never hardcode `aud` defaults |
 | Status endpoint token expiry | `routes/oauthUser.js`, `routes/oauth.js` — check `expiresAt` |
-| REAUTH_KEY re-auth guard | `UserDashboard.js` — clear key only on success |
+| REAUTH_KEY re-auth guard | `UserDashboardPing2026.js` — clear key only on success |
 | Agent form account IDs | `AIAgent.js` `liveAccounts` state |
 | Transfer HITL enforcement | `services/transactionConsentChallenge.js`, `routes/transactions.js` (428 enforcement) |
 | Demo accounts on cold-start | `accounts.js`, `demoScenario.js` — save/restore snapshot order |
-| Middle layout start state | `UserDashboard.js` `middleAgentOpen` init |
-| Bottom dock on dashboard routes | `App.js`, `EmbeddedAgentDock.js` |
+| Middle layout start state | `UserDashboardPing2026.js` `middleAgentOpen` init |
+| Agent placement on dashboard routes | `App.js`, `AgentUiModeContext.js` — 'bottom' coerces to middle (dock layout removed) |
 | Admin role detection | `routes/oauthUser.js` 4-signal check |
 | Customer-only data endpoints | `middleware/auth.js` `requireNotAdmin`, `routes/accounts.js` + `routes/transactions.js` (`/my`) — admin tokens must 403 |
 | configStore / Config UI | `services/configStore.js`, `routes/adminConfig.js` |
