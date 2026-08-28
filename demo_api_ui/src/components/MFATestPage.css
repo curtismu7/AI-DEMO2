@@ -46,14 +46,14 @@
   gap: 1rem;
   margin-bottom: 2rem;
   padding-bottom: 1rem;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--th-border);
 }
 
 .mfa-test-title {
   font-size: 2rem;
   font-weight: 600;
   margin: 0;
-  color: #333;
+  color: var(--th-text-body);
 }
 
 .mfa-test-meta {
@@ -179,7 +179,7 @@
 
 .mfa-test-section {
   background-color: white;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--th-border);
   border-radius: 8px;
   padding: 1.5rem;
 }
@@ -188,7 +188,7 @@
   font-size: 1.25rem;
   font-weight: 600;
   margin: 0 0 1rem 0;
-  color: #333;
+  color: var(--th-text-body);
 }
 
 .config-display {
@@ -201,23 +201,23 @@
   display: flex;
   justify-content: space-between;
   padding: 0.5rem;
-  background-color: #f8f9fa;
+  background-color: var(--th-bg-card);
   border-radius: 4px;
 }
 
 .config-label {
   font-weight: 500;
-  color: #666;
+  color: var(--th-text-muted);
 }
 
 .config-value {
   font-family: inherit;
-  color: #333;
+  color: var(--th-text-body);
 }
 
 .test-card {
-  background-color: #f8f9fa;
-  border: 1px solid #e0e0e0;
+  background-color: var(--th-bg-card);
+  border: 1px solid var(--th-border);
   border-radius: 6px;
   padding: 1rem;
   margin-bottom: 1rem;
@@ -254,7 +254,7 @@
   font-size: 1rem;
   font-weight: 600;
   margin: 0;
-  color: #333;
+  color: var(--th-text-body);
 }
 
 .status-badge {
@@ -293,14 +293,14 @@
 .otp-verify-section {
   margin-top: 1rem;
   padding-top: 1rem;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid var(--th-border);
 }
 
 .otp-verify-title {
   font-size: 1rem;
   font-weight: 600;
   margin: 0 0 1rem 0;
-  color: #333;
+  color: var(--th-text-body);
 }
 
 .otp-input-group {
@@ -336,7 +336,7 @@
   font-size: 1rem;
   font-weight: 600;
   margin: 0 0 0.75rem 0;
-  color: #333;
+  color: var(--th-text-body);
 }
 
 .devices-items {
@@ -350,7 +350,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 0.75rem;
-  background-color: #f8f9fa;
+  background-color: var(--th-bg-card);
   border-radius: 4px;
   margin-bottom: 0.5rem;
   gap: 1rem;
@@ -373,12 +373,12 @@
 
 .device-nickname-label {
   font-weight: 600;
-  color: #1e293b;
+  color: var(--th-text-body);
   font-size: 0.95rem;
 }
 
 .device-contact {
-  color: #64748b;
+  color: var(--th-text-muted);
   font-size: 0.85rem;
   font-family:
     -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu",
@@ -387,13 +387,13 @@
 
 .device-type {
   font-weight: 500;
-  color: #333;
+  color: var(--th-text-body);
 }
 
 .device-id {
   font-family: inherit;
   font-size: 0.875rem;
-  color: #666;
+  color: var(--th-text-muted);
 }
 
 .info-text {
@@ -406,14 +406,14 @@
 .fido-verify-section {
   margin-top: 1rem;
   padding-top: 1rem;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid var(--th-border);
 }
 
 .fido-verify-title {
   font-size: 1rem;
   font-weight: 600;
   margin: 0 0 1rem 0;
-  color: #333;
+  color: var(--th-text-body);
 }
 
 .mfa-test-warning-banner {
@@ -538,7 +538,7 @@
 .da-value {
   font-family: inherit;
   font-size: 0.78rem;
-  color: #1e293b;
+  color: var(--th-text-body);
   word-break: break-all;
 }
 
@@ -550,14 +550,14 @@
 }
 
 .da-desc {
-  color: #64748b;
+  color: var(--th-text-muted);
   font-size: 0.75rem;
   font-style: italic;
 }
 
 /* ── Enhanced device list (Phase 139) ──────────────────────────────── */
 .device-nickname {
-  color: #374151;
+  color: var(--th-text-body);
   font-size: 0.85rem;
   font-weight: 500;
 }
@@ -583,12 +583,12 @@
 }
 
 .device-status--unknown {
-  background: #f1f5f9;
-  color: #64748b;
+  background: var(--th-bg-inset);
+  color: var(--th-text-muted);
 }
 
 .device-meta {
-  color: #94a3b8;
+  color: var(--th-text-faint);
   font-family: inherit;
   font-size: 0.72rem;
 }
@@ -674,8 +674,8 @@
   color: #15803d;
 }
 .wih-method--browser {
-  background: #faf5ff;
-  color: #334155;
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
 }
 .wih-endpoint {
   background: #f0fdf4;
@@ -686,7 +686,7 @@
   word-break: break-all;
 }
 .wih-note {
-  color: #6b7280;
+  color: var(--th-text-muted);
   font-size: 0.72rem;
   font-style: italic;
 }
@@ -743,16 +743,16 @@
 .mfa-user-picker__input {
   width: 100%;
   padding: 6px 10px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--th-border-strong);
   border-radius: 6px;
-  background: #fff;
+  background: var(--th-bg-card);
   font-size: 0.85rem;
   box-sizing: border-box;
 }
 
 .mfa-user-picker__input:disabled {
-  background: #f1f5f9;
-  color: #94a3b8;
+  background: var(--th-bg-inset);
+  color: var(--th-text-faint);
   cursor: not-allowed;
 }
 
@@ -768,8 +768,8 @@
   left: 0;
   right: 0;
   z-index: 200;
-  background: #fff;
-  border: 1px solid #cbd5e1;
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border-strong);
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   max-height: 220px;
@@ -794,38 +794,38 @@
 
 .mfa-user-picker__opt-name {
   font-weight: 500;
-  color: #1e293b;
+  color: var(--th-text-body);
   font-size: 0.85rem;
 }
 
 .mfa-user-picker__opt-email {
-  color: #64748b;
+  color: var(--th-text-muted);
   font-size: 0.78rem;
 }
 
 .mfa-user-picker__refresh {
   padding: 5px 9px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--th-border-strong);
   border-radius: 6px;
-  background: #fff;
+  background: var(--th-bg-card);
   cursor: pointer;
   font-size: 0.95rem;
   line-height: 1;
-  color: #475569;
+  color: var(--th-text-body);
 }
 
 .mfa-user-picker__refresh:hover {
-  background: #f1f5f9;
+  background: var(--th-bg-inset);
 }
 
 .mfa-user-picker__clear {
   padding: 4px 10px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--th-border-strong);
   border-radius: 6px;
-  background: #fff;
+  background: var(--th-bg-card);
   cursor: pointer;
   font-size: 0.8rem;
-  color: #475569;
+  color: var(--th-text-body);
 }
 
 .mfa-user-picker__active {
@@ -838,14 +838,14 @@
 .device-picker {
   margin: 1rem 0;
   padding: 1rem;
-  background: #f8f9fa;
-  border: 1px solid #e0e0e0;
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
   border-radius: 6px;
 }
 
 .device-picker-label {
   font-weight: 600;
-  color: #333;
+  color: var(--th-text-body);
   font-size: 0.95rem;
   margin: 0 0 0.75rem 0;
 }
@@ -861,13 +861,13 @@
   align-items: center;
   justify-content: space-between;
   padding: 0.75rem 1rem;
-  background: white;
-  border: 2px solid #e0e0e0;
+  background: var(--th-bg-card);
+  border: 2px solid var(--th-border);
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s;
   font-size: 0.95rem;
-  color: #333;
+  color: var(--th-text-body);
   text-align: left;
   gap: 1rem;
 }
@@ -882,12 +882,12 @@
 
 .device-button-nickname {
   font-weight: 600;
-  color: #1e293b;
+  color: var(--th-text-body);
   font-size: 0.95rem;
 }
 
 .device-button-info {
-  color: #64748b;
+  color: var(--th-text-muted);
   font-size: 0.85rem;
   word-break: break-all;
 }
@@ -926,8 +926,8 @@
 
 /* ── MFATestCard (Simplified test card with API preview first) ──────────── */
 .mfa-test-card {
-  background: white;
-  border: 1px solid #e0e0e0;
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
   border-radius: 6px;
   padding: 1rem;
   margin-bottom: 1rem;
@@ -956,7 +956,7 @@
 .mfa-test-card__api-preview {
   margin-bottom: 1rem;
   padding: 0.75rem;
-  background: #f5f5f5;
+  background: var(--th-bg-inset);
   border-radius: 4px;
   border-left: 3px solid #1976d2;
 }
@@ -1002,7 +1002,7 @@
   font-family:
     -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu",
     "Cantarell", sans-serif;
-  color: #333;
+  color: var(--th-text-body);
   font-size: 0.8rem;
   word-break: break-all;
 }

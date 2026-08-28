@@ -142,7 +142,7 @@
   color: #003366;
   margin: 0 0 1.5rem 0;
   padding-bottom: 0.75rem;
-  border-bottom: 2px solid #e0e0e0;
+  border-bottom: 2px solid var(--th-border);
 }
 
 /* Grid Layout */
@@ -154,8 +154,8 @@
 
 /* Test Cards */
 .test-card {
-  background: #f8f9fa;
-  border: 1px solid #e0e0e0;
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
   border-radius: 8px;
   padding: 1.5rem;
   transition: all 0.3s ease;
@@ -270,8 +270,8 @@
 .test-card-detail {
   margin: 0.5rem 0 0.75rem;
   padding: 0.625rem 0.875rem;
-  background: #f8f9fa;
-  border: 1px solid #e0e0e0;
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
   border-radius: 6px;
   font-size: 0.8rem;
 }
@@ -296,11 +296,11 @@
 
 .code-block {
   display: block;
-  background: #f5f5f5;
-  color: #333;
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
   padding: 1rem;
   border-radius: 6px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--th-border);
   font-family:
     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
     Cantarell, sans-serif;
@@ -352,8 +352,8 @@
 .test-card-config {
   margin: 0.75rem 0;
   padding: 0.75rem;
-  background: #fff;
-  border: 1px solid #e0e0e0;
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
   border-radius: 6px;
   font-size: 0.85rem;
 }
@@ -368,7 +368,7 @@
 .pingone-test-card-config {
   margin-top: 1rem;
   padding: 0.75rem;
-  background-color: #f8f9fa;
+  background-color: var(--th-bg-card);
   border-radius: 4px;
   font-size: 0.875rem;
 }
@@ -389,7 +389,7 @@
 }
 
 .config-value {
-  color: #212529;
+  color: var(--th-text);
   text-align: right;
   max-width: 60%;
   word-break: break-word;
@@ -505,7 +505,7 @@ a.pingone-test-button--primary:visited {
   padding: 1rem;
   background: linear-gradient(135deg, #f5f7fa 0%, #e8eaf6 100%);
   border-radius: 8px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--th-border);
 }
 
 .token-expiry {
@@ -514,7 +514,7 @@ a.pingone-test-button--primary:visited {
   padding: 0.375rem 0.75rem;
   background: white;
   border-radius: 4px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--th-border);
   font-weight: 500;
 }
 
@@ -582,7 +582,7 @@ a.pingone-test-button--primary:visited {
 .form-input,
 .form-select {
   padding: 0.75rem;
-  border: 1px solid #ccc;
+  border: 1px solid var(--th-border-strong);
   border-radius: 4px;
   font-size: 0.95rem;
   font-family: inherit;
@@ -668,8 +668,8 @@ a.pingone-test-button--primary:visited {
 }
 
 .asset-card {
-  background: #f8f9fa;
-  border: 1px solid #e0e0e0;
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
   border-radius: 8px;
   padding: 1rem;
 }
@@ -783,7 +783,7 @@ a.pingone-test-button--primary:visited {
 .asset-table-title {
   font-size: 0.95rem;
   font-weight: 600;
-  color: #374151;
+  color: var(--th-text-body);
   margin-bottom: 0.75rem;
 }
 
@@ -791,27 +791,27 @@ a.pingone-test-button--primary:visited {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.8rem;
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
   border-radius: 6px;
   overflow: hidden;
 }
 
 .asset-table-th {
-  background: #f1f5f9;
+  background: var(--th-bg-inset);
   padding: 0.5rem 0.75rem;
   text-align: left;
   font-weight: 600;
   font-size: 0.78rem;
-  color: #475569;
-  border-bottom: 1px solid #e5e7eb;
+  color: var(--th-text-body);
+  border-bottom: 1px solid var(--th-border);
   white-space: nowrap;
 }
 
 .asset-table-td {
   padding: 0.6rem 0.75rem;
   vertical-align: top;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--th-border);
 }
 
 .asset-table tr:last-child .asset-table-td {
@@ -824,7 +824,7 @@ a.pingone-test-button--primary:visited {
 }
 
 .asset-table-row--ok {
-  background: #fff;
+  background: var(--th-bg-card);
 }
 
 .asset-table-row--warn {
@@ -837,7 +837,7 @@ a.pingone-test-button--primary:visited {
 
 .asset-rs-name {
   font-size: 0.78rem;
-  color: #374151;
+  color: var(--th-text-body);
   margin-bottom: 2px;
 }
 
@@ -874,8 +874,8 @@ a.pingone-test-button--primary:visited {
 }
 
 .asset-badge--type {
-  background: #f1f5f9;
-  color: #475569;
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
 }
 
 /* ─── Token card column wrapper (TestCard + DecodedTokenPanel stacked) ──── */
@@ -928,15 +928,15 @@ a.pingone-test-button--primary:visited {
   flex-wrap: wrap;
   gap: 0.35rem;
   margin-bottom: 1rem;
-  border-bottom: 2px solid #e2e8f0;
+  border-bottom: 2px solid var(--th-border);
   padding-bottom: 0.5rem;
 }
 
 .asset-tab {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
   border-radius: 6px 6px 0 0;
-  color: #64748b;
+  color: var(--th-text-muted);
   cursor: pointer;
   font-size: 0.78rem;
   font-weight: 500;
@@ -952,7 +952,7 @@ a.pingone-test-button--primary:visited {
 }
 
 .asset-tab--active {
-  background: #fff;
+  background: var(--th-bg-card);
   border-bottom: 2px solid #3b5bdb;
   color: #3b5bdb;
   font-weight: 600;
@@ -960,8 +960,8 @@ a.pingone-test-button--primary:visited {
 
 /* ── SPEL / Token Policy cards (Phase 139) ───────────────────────────── */
 .spel-policy-card {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
   border-radius: 6px;
   margin-bottom: 0.75rem;
   padding: 0.75rem 1rem;
@@ -970,7 +970,7 @@ a.pingone-test-button--primary:visited {
 .spel-policy-name {
   font-size: 0.9rem;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--th-text-body);
   margin-bottom: 0.4rem;
 }
 
@@ -980,14 +980,14 @@ a.pingone-test-button--primary:visited {
 
 .spel-claims {
   margin-top: 0.5rem;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--th-border);
   padding-top: 0.5rem;
 }
 
 .spel-claims-title {
   font-size: 0.78rem;
   font-weight: 600;
-  color: #475569;
+  color: var(--th-text-body);
   margin-bottom: 0.4rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -1127,7 +1127,7 @@ a.pingone-test-button--primary:visited {
 }
 
 .wih-note {
-  color: #6b7280;
+  color: var(--th-text-muted);
   font-size: 0.72rem;
   font-style: italic;
 }
@@ -1173,7 +1173,7 @@ a.pingone-test-button--primary:visited {
 .tld-badge {
   background: #9333ea;
   border-radius: 10px;
-  color: #fff;
+  color: var(--th-text-invert);
   font-size: 0.68rem;
   font-weight: 700;
   padding: 1px 7px;
@@ -1229,7 +1229,7 @@ a.pingone-test-button--primary:visited {
 }
 
 .tld-claim-key {
-  color: #334155;
+  color: var(--th-text-body);
   font-family: inherit;
   font-size: 0.78rem;
   font-weight: 600;
@@ -1257,8 +1257,8 @@ a.pingone-test-button--primary:visited {
   color: #7f1d1d;
 }
 .tld-kind--same {
-  background: #e2e8f0;
-  color: #64748b;
+  background: var(--th-bg-hover);
+  color: var(--th-text-muted);
 }
 
 .tld-values {
@@ -1287,8 +1287,8 @@ a.pingone-test-button--primary:visited {
   color: #1e40af;
 }
 .tld-val--same {
-  background: #f1f5f9;
-  color: #475569;
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
 }
 
 .tld-arrow {
@@ -1302,7 +1302,7 @@ a.pingone-test-button--primary:visited {
 }
 
 .tld-same-summary {
-  color: #94a3b8;
+  color: var(--th-text-faint);
   cursor: pointer;
   font-size: 0.75rem;
   padding: 0.2rem 0;
@@ -1332,7 +1332,7 @@ a.pingone-test-button--primary:visited {
 }
 .scope-fix-panel__desc {
   font-size: 1rem;
-  color: #94a3b8;
+  color: var(--th-text-faint);
   margin: 0;
   display: flex;
   align-items: center;
@@ -1371,7 +1371,7 @@ a.pingone-test-button--primary:visited {
 }
 .scope-fix-result--err {
   background: rgba(239, 68, 68, 0.15);
-  color: #fff;
+  color: var(--th-text-invert);
   border: 1px solid rgba(239, 68, 68, 0.5);
 }
 
@@ -1482,14 +1482,14 @@ a.pingone-test-button--primary:visited {
   gap: 0.5rem;
   margin: 0 0 1rem 0;
   padding: 0.5rem 0.875rem;
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
   border-radius: 6px;
   font-size: 0.95rem;
 }
 
 .pingone-test-identity__label {
-  color: #475569;
+  color: var(--th-text-body);
   font-weight: 600;
 }
 
@@ -1525,15 +1525,15 @@ a.pingone-test-button--primary:visited {
 }
 
 .pingone-test-section--collapsible.is-open .pingone-test-section-toggle {
-  border-bottom: 2px solid #e0e0e0;
+  border-bottom: 2px solid var(--th-border);
 }
 
 .pingone-test-section-toggle:hover {
-  background: #f8fafc;
+  background: var(--th-bg-inset);
 }
 
 .pingone-test-section-caret {
-  color: #64748b;
+  color: var(--th-text-muted);
   font-size: 1.1rem;
   line-height: 1;
 }
@@ -1558,7 +1558,7 @@ a.pingone-test-button--primary:visited {
 .pingone-test-section-body .pingone-test-subsection-title:not(:first-child) {
   margin-top: 2rem;
   padding-top: 1.5rem;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid var(--th-border);
 }
 
 /* Exchange-flow segmented selector */
@@ -1568,8 +1568,8 @@ a.pingone-test-button--primary:visited {
   gap: 0.25rem;
   padding: 0.25rem;
   margin-bottom: 1.5rem;
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
   border-radius: 8px;
 }
 
@@ -1581,11 +1581,11 @@ a.pingone-test-button--primary:visited {
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 600;
-  color: #475569;
+  color: var(--th-text-body);
 }
 
 .exchange-flow-selector__btn:hover {
-  background: #e2e8f0;
+  background: var(--th-bg-hover);
 }
 
 .exchange-flow-selector__btn.is-active {
