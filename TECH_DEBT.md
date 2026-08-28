@@ -129,6 +129,40 @@ appears to fix it, training the reader to ignore the check.
 **What the real fix looks like:** filter pods to `status.phase == Running` with
 no `deletionTimestamp` before comparing start times, or compare the deployment's
 `observedGeneration`/`updatedReplicas` instead of per-pod timestamps.
+### [ ] 2026-08-28 — deploy-live silently no-ops on a compose `environment:` change
+
+`scripts/deploy-live.sh` maps changed **paths** in the merged diff to compose
+services. A change to `docker-compose.yml` that only adds or edits an
+`environment:` entry touches no service path, so the script exits 0, prints
+nothing about that service, and deploys nothing. Container env is frozen at
+create, so the running service keeps the old value while the checkout, the
+merge and the deploy all look clean.
+
+Observed twice on 2026-08-28 while wiring the audit door: adding
+`GATEWAY_OAUTH_BROKER_PINGONE_CLIENT_ID` and the `MCP_GW_OAUTH_STATIC_*` block
+merged and "deployed" successfully, and `docker exec ... env` still reported
+`<unset>`. Only an explicit `./run-docker.sh restart mcp-gateway` (which
+recreates) picked them up.
+
+**Why it wasn't fixed now:** the path-to-service mapping is the whole reason
+deploy-live is fast and targeted; making it parse `docker-compose.yml` for which
+services' `environment:` blocks changed is a real change to the deploy path, and
+the branch that hit this was already several layers deep in an unrelated fix.
+
+**The risk:** the silent direction. A restart-needed change that *fails* is
+obvious; one that reports success and does nothing is not. It reads as "the code
+is wrong" and sends you debugging the feature instead of the deploy — which is
+exactly what happened here, twice, before `docker exec ... env` was checked.
+Same failure mode as the image-built-services trap already in this file, one
+layer further out.
+
+**What the real fix looks like:** have deploy-live diff `docker-compose.yml`
+structurally (not by path) and recreate any service whose `environment:`,
+`env_file:` or `build.args` changed — or, cheaper, detect that
+`docker-compose.yml` is in the diff at all and print a loud "compose changed —
+env-only edits need `run-docker.sh restart <svc>`; deploy-live will not do it"
+rather than silently succeeding.
+
 ### [ ] 2026-08-28 — gateway tools/list is only governed on the WebSocket transport
 
 The audit-agent work shipped a door that advertises `audit:read`, a scope wired
