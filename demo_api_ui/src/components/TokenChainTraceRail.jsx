@@ -27,19 +27,27 @@ import TokenLegendModal from "./TokenLegendModal";
 import TokenChainDemoTrackTab from "./TokenChainDemoTrackTab";
 import "./TokenChainTraceRail.css";
 
-const ZOOM_KEY = "tctr:zoom";
+// v2: the persist effect writes on mount, so every browser that has ever
+// opened this surface already has "1" under the old key — keeping it would
+// make the new default a no-op for everyone. A fresh key retires that.
+const ZOOM_KEY = "tctr:zoom:v2";
 const VIEW_MODE_KEY = "tctr:view-mode";
 const ZOOM_MIN = 0.8;
 const ZOOM_MAX = 1.6;
 const ZOOM_STEP = 0.1;
+// Opens one notch above 100%. This surface is read off a projector at the
+// back of a room — the claims tables and JSON blobs are the evidence, and at
+// 100% they were being squinted at. On the 0.1 grid so A-/A+ still land on
+// round values, and the % button resets here rather than to 100%.
+const ZOOM_DEFAULT = 1.2;
 
 /** Restore the presenter's saved rail scale, or 1 when unset/unreadable. */
 function readStoredZoom() {
   try {
     const v = Number(window.localStorage.getItem(ZOOM_KEY));
-    return v >= ZOOM_MIN && v <= ZOOM_MAX ? v : 1;
+    return v >= ZOOM_MIN && v <= ZOOM_MAX ? v : ZOOM_DEFAULT;
   } catch {
-    return 1;
+    return ZOOM_DEFAULT;
   }
 }
 
@@ -490,8 +498,8 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
                   <button
                     type="button"
                     className="tctr-zoom-pct"
-                    onClick={() => setZoom(1)}
-                    disabled={zoom === 1}
+                    onClick={() => setZoom(ZOOM_DEFAULT)}
+                    disabled={zoom === ZOOM_DEFAULT}
                     title="Reset token chain text size"
                     aria-label="Reset token chain text size"
                   >
