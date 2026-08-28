@@ -32,6 +32,7 @@
 | `ai:agent:read` | medium | Super Banking API | Agent invocation permission |
 | `mcp:invoke` | medium | Super Banking MCP Server | Invoke MCP tools via the gateway (RFC 8693 exchange) |
 | `code:search` | low | Super Banking MCP Server | Search and read the indexed source code (read-only) |
+| `audit:read` | low | Super Banking MCP Server | Read the PingOne audit log (activities) through the gateway — read-only, no write path exists |
 | `jwt:verify` | low | Super Banking MCP JWT Verifier | Invoke JWT/JWKS diagnostic tools (decode, verify signature, validate claims, fetch JWKS, inspect key) |
 | `agent:invoke` | medium | Super Banking Agent Gateway | Invoke the Agent Gateway (Two-Exchange Step 1 audience) |
 | `ai_agent` | medium | Super Banking API | AI agent identity |
@@ -91,7 +92,7 @@ Audience: `mcpgateway.ping.demo`
 
 Native scopes: `mcp:invoke`
 
-Mirrored scopes (RFC 8693 exchange-hop, ARCHITECTURE-TRUTHS T-10): `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `tax:read`, `finaid:read`, `supplier:read`, `invest:read`, `airlines:read`, `airlines:write`, `pnr:read`, `workorders:read`, `sensitive:read`, `code:search`
+Mirrored scopes (RFC 8693 exchange-hop, ARCHITECTURE-TRUTHS T-10): `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `tax:read`, `finaid:read`, `supplier:read`, `invest:read`, `airlines:read`, `airlines:write`, `pnr:read`, `workorders:read`, `sensitive:read`, `code:search`, `audit:read`
 
 ### Super Banking Agent Gateway
 
@@ -99,7 +100,7 @@ Audience: `agentgateway.ping.demo`
 
 Native scopes: `agent:invoke`
 
-Mirrored scopes (RFC 8693 exchange-hop, ARCHITECTURE-TRUTHS T-10): `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `tax:read`, `finaid:read`, `supplier:read`, `invest:read`, `airlines:read`, `airlines:write`, `pnr:read`, `workorders:read`, `sensitive:read`, `code:search`
+Mirrored scopes (RFC 8693 exchange-hop, ARCHITECTURE-TRUTHS T-10): `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `tax:read`, `finaid:read`, `supplier:read`, `invest:read`, `airlines:read`, `airlines:write`, `pnr:read`, `workorders:read`, `sensitive:read`, `code:search`, `audit:read`
 
 ### Super Banking A2A Intermediate
 
@@ -344,6 +345,9 @@ Granted scopes: `read`, `identity:read`
 | `code_search` | gateway | `code:search` | — |
 | `get_weather` | gateway | `read` | — |
 | `brave_news_search` | gateway | `read` | — |
+| `search_audit_activities` | gateway | `audit:read` | — |
+| `get_audit_activity` | gateway | `audit:read` | — |
+| `audit_summary` | gateway | `audit:read` | — |
 | `get_branch_hours` | gateway | `read` | — |
 | `jwt_verify_signature` | gateway | `read` | — |
 | `jwt_validate_claims` | gateway | `read` | — |
