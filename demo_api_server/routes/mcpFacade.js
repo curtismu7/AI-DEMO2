@@ -376,10 +376,25 @@ async function verifyDoorBearer(req, door) {
 
 function forwardHeaders(req, correlationId) {
   const headers = { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' };
-  const passthrough = ['authorization', 'mcp-session-id', 'mcp-protocol-version'];
+  // mcp-method / mcp-name are REQUIRED by MCP 2026-07-28 Streamable HTTP
+  // whenever the body carries Modern `_meta`, and the gateway rejects a
+  // mismatch with -32020. The façade forwards the body untouched, so dropping
+  // these headers produced a request that declared Modern and then failed its
+  // own contract: "Missing required header: Mcp-Method" on every tools/list
+  // through a door, with the relay looking correct at both ends.
+  // mcp-param-* carries x-mcp-header tool arguments (see addModernHeaders in
+  // privilegeMcpClient.js) and is forwarded for the same reason.
+  const passthrough = ['authorization', 'mcp-session-id', 'mcp-protocol-version', 'mcp-method', 'mcp-name'];
   for (const h of passthrough) {
     const v = req.get(h);
     if (v) headers[h] = v;
+  }
+  // Mcp-Param-* is an open-ended family (one per x-mcp-header tool argument),
+  // so it cannot be listed above.
+  for (const [name, value] of Object.entries(req.headers)) {
+    if (name.toLowerCase().startsWith('mcp-param-') && typeof value === 'string') {
+      headers[name] = value;
+    }
   }
   if (correlationId && req.door.forwardCorrelation) headers['X-Correlation-ID'] = correlationId;
   return headers;
