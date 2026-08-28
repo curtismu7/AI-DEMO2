@@ -912,6 +912,9 @@ async function discoverProtectedResource(mcpUrl, headers = {}) {
     // session.config.scopes ("openid profile email") and the gateway would hand
     // back whatever that implies rather than the door's advertised scope.
     advertisedScopes: Array.isArray(meta.scopes_supported) ? meta.scopes_supported : [],
+    tokenEndpointAuthMethods: Array.isArray(asMeta.token_endpoint_auth_methods_supported)
+      ? asMeta.token_endpoint_auth_methods_supported
+      : [],
   };
 }
 
@@ -1017,7 +1020,7 @@ const dcrClientCache = new Map();
 // Dynamic Client Registration (RFC 7591) against a self-advertising gateway.
 // MCPGW's own /authorize and /token don't recognize PingOne app ids — this is
 // the credential they actually expect.
-async function getOrRegisterDcrClient(authorizationUri, redirectUri) {
+async function getOrRegisterDcrClient(authorizationUri, redirectUri, tokenEndpointAuthMethod = 'client_secret_post') {
   const registerUri = new URL(authorizationUri);
   registerUri.pathname = registerUri.pathname.replace(/\/authorize$/, '/register');
   const cacheKey = registerUri.toString();
@@ -1030,7 +1033,11 @@ async function getOrRegisterDcrClient(authorizationUri, redirectUri) {
       redirect_uris: [redirectUri],
       client_name: 'ai-demo-bff',
       application_type: 'web',
-      token_endpoint_auth_method: 'client_secret_post',
+      // Must match what the AS advertises. The gateway broker supports only
+      // 'none' (public + PKCE) and answers 400 to client_secret_post — which the
+      // dcr_skipped catch swallowed, leaving a PingOne client id in front of an
+      // AS that keeps its own registry.
+      token_endpoint_auth_method: tokenEndpointAuthMethod,
     }),
   });
   const text = await response.text();
@@ -1049,7 +1056,7 @@ async function getOrRegisterDcrClient(authorizationUri, redirectUri) {
 // builds the PKCE authorization URL. Does not set pendingAuth.returnTo —
 // callers that need it set it on the returned object's session afterward.
 async function beginOAuthFlow(session, req) {
-  const { authorizationUri, tokenUri, issuer, selfAdvertised, advertisedScopes } = await discoverAuth(session);
+  const { authorizationUri, tokenUri, issuer, selfAdvertised, advertisedScopes, tokenEndpointAuthMethods } = await discoverAuth(session);
   const verifier = randomString(48);
   const challenge = sha256Base64Url(verifier);
   const oauthState = randomString(24);
@@ -1071,7 +1078,10 @@ async function beginOAuthFlow(session, req) {
       // authorizationUri is deliberately the browser-facing one and would be
       // Connection-refused from in here, silently falling back to the configured
       // PingOne client id that this AS has never heard of.
-      const dcr = await getOrRegisterDcrClient(toInternalAs(authorizationUri), redirectUri);
+      const dcrAuthMethod = tokenEndpointAuthMethods?.length && !tokenEndpointAuthMethods.includes('client_secret_post')
+        ? tokenEndpointAuthMethods[0]
+        : 'client_secret_post';
+      const dcr = await getOrRegisterDcrClient(toInternalAs(authorizationUri), redirectUri, dcrAuthMethod);
       clientId = dcr.clientId;
       dcrClientId = dcr.clientId;
       dcrClientSecret = dcr.clientSecret;
