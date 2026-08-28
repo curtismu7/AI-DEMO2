@@ -121,11 +121,54 @@ k8s_dep() {
   esac
 }
 
+# Source directory per service, for CI's path filter. A fifth map rather than a
+# join against data/serverInventory.js because that join fails for exactly one
+# service — the BFF is `demo-api-server` to Compose but `api-server` to
+# serverInventory. A join that works for 13 of 14 and silently drops the most
+# important one is worse than no join. check-service-map-complete.js
+# cross-checks these values against serverInventory so the two cannot drift.
+source_dir() {
+  case "$1" in
+    bff)      echo "demo_api_server" ;;
+    frontend) echo "demo_api_ui" ;;
+    mcp)      echo "oauth-mcp" ;;
+    gateway)  echo "demo_mcp_gateway" ;;
+    agent)    echo "langchain_agent" ;;
+    agentsvc) echo "demo_agent_service" ;;
+    authz)    echo "demo_authz_server" ;;
+    mastra)   echo "mastra_agent" ;;
+    openai)   echo "openai_agent" ;;
+    pydantic) echo "pydantic_agent" ;;
+    hitl)     echo "demo_hitl_service" ;;
+    invest)   echo "demo_mcp_resource_server" ;;
+    mortgage) echo "demo_api_resource_server" ;;
+    llm)      echo "demo_llm_proxy" ;;
+    *)        echo "" ;;
+  esac
+}
+
 # Every key here must exist in local_img/ghcr_img/k8s_dep/compose_svc — the "build
 # and push ALL" loop and the "roll every deployment" loop both iterate this list,
 # so a key missing here is silently skipped by a full deploy while still working
 # when named explicitly. agent-service was in all four maps but not this list.
 ALL_KEYS="bff frontend mcp gateway agent agentsvc authz mastra openai pydantic hitl invest mortgage llm"
+
+# --print-map: emit the service map as JSON and exit. Must run BEFORE the
+# GITHUB_OWNER and derive_ns() blocks below — CI has no .env, and derive_ns
+# dies without one. Emits image NAMES, not URIs; the caller owns the registry
+# prefix, so this command needs no GitHub owner and no network.
+if [[ "${1:-}" == "--print-map" ]]; then
+  printf '['
+  sep=""
+  for key in $ALL_KEYS; do
+    printf '%s{"key":"%s","sourceDir":"%s","composeService":"%s","ghcrImage":"%s","localImage":"%s","k8sDeployment":"%s"}' \
+      "$sep" "$key" "$(source_dir "$key")" "$(compose_svc "$key")" \
+      "$(ghcr_img "$key")" "$(local_img "$key")" "$(k8s_dep "$key")"
+    sep=","
+  done
+  printf ']\n'
+  exit 0
+fi
 
 GITHUB_OWNER="${GITHUB_OWNER:-}"
 if [[ -z "$GITHUB_OWNER" ]]; then
