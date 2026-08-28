@@ -1034,8 +1034,11 @@
   border-radius: 3px;
 }
 
+/* Was #b0bec5 with white text — 1.91:1, which fails WCAG AA in BOTH themes,
+   not just dark. Blue-grey 600 keeps the status-badge family (cf. --running's
+   #0277bd) and clears AA at 5.4:1. Found by the live contrast probe. */
 .mfa-test-card__status--pending {
-  background: #b0bec5;
+  background: #546e7a;
   color: white;
 }
 

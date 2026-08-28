@@ -20,13 +20,15 @@ const { settle } = require('./helpers/uiProbe');
 
 /** Routes that host the stylesheets the static scan flagged. */
 const ROUTES = [
-  ['/dashboard', 'AIAgent, TokenChainDisplay, DraggableModal'],
-  ['/token-chain', 'TokenChainDisplay, TokenChainTraceRail'],
-  ['/mcp-inspector', 'InspectorShell, signin-strip'],
-  ['/delegation', 'DelegationPage, signin-strip'],
-  ['/self-service', 'SelfServicePage'],
+  // The components converted to --th-* tokens, plus the shells they sit in.
+  ['/token-chain', 'TokenChainDisplay — 437 hex -> 271'],
+  ['/mcp-inspector', 'InspectorShell + signin strip'],
+  ['/pingone-test', 'PingOneTestPage — 251 -> 192'],
+  ['/mfa-test', 'MFATestPage — 182 -> 129'],
+  ['/dashboard', 'AIAgent, UnifiedTokenFlowInspector'],
+  ['/transaction-trace', 'TransactionTracePage'],
   ['/audit', 'AuditPage'],
-  ['/config', 'Config.css'],
+  ['/config', 'Config'],
 ];
 
 /** In-page: relative luminance + WCAG contrast ratio. */
