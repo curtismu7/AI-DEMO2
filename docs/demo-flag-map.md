@@ -22,8 +22,8 @@ Beat order and `SECURITY_DEMO_USE_CASE_IDS` agree (10 steps).
 | 3 | `UC24` — Act 1 — Public catalog access | Agent answers from public branch data (Austin, Dallas, Houston, Miami, Denver) — no user | — | yes |
 | 4 | `UC6` — Authz denied | Agent attempts a transfer over the policy ceiling — PingOne Authorize decides, not the a | — | yes |
 | 5 | `UC8` — HITL consent | Same transfer, under the ceiling but over the auto-approve line — a human must consent. | — | yes |
-| 6 | `UC14b` — PAR intent verified (PERMIT) | Agent pushes its intent (amount, payee) to PingOne as a PAR, then transfers within that  | `ff_rar` | yes |
-| 7 | `UC14` — PAR intent violation (Pushed Auth Request) | Same PAR grant, but the agent now asks for more than it pushed — intent is a contract. | `ff_rar` | — |
+| 6 | `UC14b` — PAR + RAR intent verified (PERMIT) | Agent pushes its intent (amount, payee) to PingOne as a PAR, then transfers within that  | `ff_rar` | yes |
+| 7 | `UC14` — PAR + RAR intent violation (pushed intent exceeded) | Same PAR grant, but the agent now asks for more than it pushed — intent is a contract. | `ff_rar` | — |
 | 8 | `UC31` — Third-party MCP server — out-of-scope call denied | Agent calls a third-party weather MCP for an out-of-policy location — egress control on  | — | yes |
 | 9 | `UC12` — Token theft / replay defense | Attacker steals the user's token and replays it straight at the backend, skipping the ga | `ff_dpop` | — |
 | 10 | `UC5` — Wrong / insufficient scope | An MCP server reaches for a tool it was never scoped for — scope is a hard ceiling. | — | — |
