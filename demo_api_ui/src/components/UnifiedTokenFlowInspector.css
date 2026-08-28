@@ -4,22 +4,22 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #ffffff;
+  background: var(--th-bg-card);
   border-radius: 12px;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
   overflow: hidden;
   font-family:
     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
     Cantarell, sans-serif;
-  color: #1e293b;
+  color: var(--th-text-body);
 }
 
 .utfi-container.utfi-floating {
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--th-border-strong);
 }
 
 .utfi-container.utfi-fixed {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--th-border);
   width: 100%;
   box-sizing: border-box;
   min-height: calc(100vh - 8rem);
@@ -34,8 +34,8 @@
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  background: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
+  background: var(--th-bg-inset);
+  border-bottom: 1px solid var(--th-border);
   cursor: grab;
 }
 
@@ -54,14 +54,14 @@
   margin: 0;
   font-size: var(--font-size-h3);
   font-weight: 600;
-  color: #0f172a;
+  color: var(--th-text);
   letter-spacing: -0.01em;
 }
 
 .utfi-subtitle {
   margin: 0;
   font-size: var(--font-size-sm);
-  color: #1e293b;
+  color: var(--th-text-body);
   font-weight: 400;
 }
 
@@ -72,25 +72,25 @@
 }
 
 .utfi-btn {
-  background: #ffffff;
-  border: 1px solid #d1d5db;
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border-strong);
   border-radius: 6px;
   padding: 6px 12px;
   font-size: var(--font-size-body);
-  color: #374151;
+  color: var(--th-text-body);
   cursor: pointer;
   transition: all 0.2s ease;
   font-weight: 500;
 }
 
 .utfi-btn:hover {
-  background: #f3f4f6;
-  border-color: #9ca3af;
-  color: #111827;
+  background: var(--th-bg-inset);
+  border-color: var(--th-text-faint);
+  color: var(--th-text);
 }
 
 .utfi-btn:active {
-  background: #e5e7eb;
+  background: var(--th-bg-hover);
 }
 
 .utfi-btn-close {
@@ -106,7 +106,7 @@
 }
 
 .utfi-btn-primary {
-  background: #eff6ff;
+  background: var(--th-bg-inset);
   border-color: #bfdbfe;
   color: #2563eb;
 }
@@ -122,12 +122,12 @@
   font-size: var(--font-size-2xs);
   border: none;
   background: transparent;
-  color: #1e293b;
+  color: var(--th-text-body);
 }
 
 .utfi-btn-sm:hover {
-  color: #111827;
-  background: #f3f4f6;
+  color: var(--th-text);
+  background: var(--th-bg-inset);
 }
 
 /* ============================================================================
@@ -145,7 +145,7 @@
 .utfi-left {
   overflow-y: auto;
   padding: 16px;
-  border-right: 1px solid #e5e7eb;
+  border-right: 1px solid var(--th-border);
 }
 
 .utfi-right {
@@ -154,7 +154,7 @@
 }
 
 .utfi-divider {
-  background: #e5e7eb;
+  background: var(--th-bg-hover);
 }
 
 /* Responsive: stack on small screens */
@@ -165,7 +165,7 @@
 
   .utfi-left {
     border-right: none;
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid var(--th-border);
   }
 
   .utfi-divider {
@@ -183,7 +183,7 @@
   gap: 12px;
   padding: 12px 0 16px 0;
   margin-bottom: 12px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--th-border);
 }
 
 .utfi-section-icon {
@@ -194,13 +194,13 @@
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: #0f172a;
+  color: var(--th-text);
 }
 
 .utfi-tool-name {
   margin-left: auto;
   padding: 4px 10px;
-  background: #eff6ff;
+  background: var(--th-bg-inset);
   border-radius: 4px;
   font-size: var(--font-size-2xs);
   color: #2563eb;
@@ -218,8 +218,8 @@
  * ============================================================================ */
 
 .utfi-card {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
   border-radius: 8px;
   margin-bottom: 12px;
   overflow: hidden;
@@ -227,8 +227,8 @@
 }
 
 .utfi-card:hover {
-  background: #fafafa;
-  border-color: #d1d5db;
+  background: var(--th-bg-card);
+  border-color: var(--th-border-strong);
 }
 
 .utfi-card--error {
@@ -242,14 +242,14 @@
   justify-content: space-between;
   padding: 12px;
   cursor: pointer;
-  background: #f8fafc;
+  background: var(--th-bg-inset);
   border-bottom: 1px solid #f1f5f9;
   transition: all 0.2s ease;
   user-select: none;
 }
 
 .utfi-card-header:hover {
-  background: #f1f5f9;
+  background: var(--th-bg-inset);
 }
 
 .utfi-card-title {
@@ -257,18 +257,18 @@
   align-items: center;
   gap: 8px;
   font-weight: 600;
-  color: #0f172a;
+  color: var(--th-text);
   font-size: var(--font-size-body);
 }
 
 .utfi-toggle-icon {
-  color: #334155;
+  color: var(--th-text-body);
   font-size: var(--font-size-2xs);
   transition: color 0.2s ease;
 }
 
 .utfi-card-header:hover .utfi-toggle-icon {
-  color: #334155;
+  color: var(--th-text-body);
 }
 
 .utfi-card-content {
@@ -307,7 +307,7 @@
 .utfi-empty-state,
 .utfi-empty-msg {
   text-align: center;
-  color: #1e293b;
+  color: var(--th-text-body);
   font-size: var(--font-size-body);
   padding: 16px;
 }
@@ -329,8 +329,8 @@
 }
 
 .utfi-flow-section {
-  background: #f8fafc;
-  border: 1px solid #e5e7eb;
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
   border-radius: 6px;
   overflow: hidden;
 }
@@ -340,11 +340,11 @@
   align-items: center;
   justify-content: space-between;
   padding: 10px 12px;
-  background: #f1f5f9;
-  border-bottom: 1px solid #e5e7eb;
+  background: var(--th-bg-inset);
+  border-bottom: 1px solid var(--th-border);
   font-size: var(--font-size-sm);
   font-weight: 500;
-  color: #334155;
+  color: var(--th-text-body);
   cursor: pointer;
 }
 
@@ -356,19 +356,19 @@
 
 /* Steps */
 .utfi-steps {
-  background: #f8fafc;
-  border: 1px solid #e5e7eb;
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
   border-radius: 6px;
   overflow: hidden;
 }
 
 .utfi-steps-header {
   padding: 10px 12px;
-  background: #f1f5f9;
-  border-bottom: 1px solid #e5e7eb;
+  background: var(--th-bg-inset);
+  border-bottom: 1px solid var(--th-border);
   font-size: var(--font-size-sm);
   font-weight: 500;
-  color: #334155;
+  color: var(--th-text-body);
 }
 
 .utfi-steps-list {
@@ -393,7 +393,7 @@
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: #eff6ff;
+  background: var(--th-bg-inset);
   border: 1px solid #bfdbfe;
   display: flex;
   align-items: center;
@@ -410,13 +410,13 @@
 
 .utfi-step-title {
   font-weight: 500;
-  color: #0f172a;
+  color: var(--th-text);
   margin-bottom: 2px;
 }
 
 .utfi-step-detail {
   font-size: var(--font-size-2xs);
-  color: #1e293b;
+  color: var(--th-text-body);
 }
 
 .utfi-step-status {
@@ -434,8 +434,8 @@
 }
 
 .utfi-badge--pending {
-  background: #f1f5f9;
-  color: #334155;
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
 }
 
 .utfi-badge--active {
@@ -464,8 +464,8 @@
 }
 
 .utfi-badge--provider {
-  background: #f1f5f9;
-  color: #334155;
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
   margin-left: 8px;
 }
 
@@ -477,8 +477,8 @@
 
 /* Token chain */
 .utfi-token-chain-section {
-  background: #f8fafc;
-  border: 1px solid #e5e7eb;
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
   border-radius: 6px;
   overflow: hidden;
 }
@@ -488,11 +488,11 @@
   align-items: center;
   justify-content: space-between;
   padding: 10px 12px;
-  background: #f1f5f9;
-  border-bottom: 1px solid #e5e7eb;
+  background: var(--th-bg-inset);
+  border-bottom: 1px solid var(--th-border);
   font-size: var(--font-size-sm);
   font-weight: 500;
-  color: #334155;
+  color: var(--th-text-body);
 }
 
 .utfi-token-chain {
@@ -506,7 +506,7 @@
 
 .utfi-token-event {
   padding: 8px 10px;
-  background: #ffffff;
+  background: var(--th-bg-card);
   border-left: 3px solid #3b82f6;
   border-radius: 4px;
   font-size: var(--font-size-2xs);
@@ -515,7 +515,7 @@
 }
 
 .utfi-token-event:hover {
-  background: #f8fafc;
+  background: var(--th-bg-inset);
   border-left-color: #1d4ed8;
 }
 
@@ -538,7 +538,7 @@
   border-radius: 3px;
   font-size: var(--font-size-xs);
   font-weight: 600;
-  background: #eff6ff;
+  background: var(--th-bg-inset);
   color: #2563eb;
 }
 
@@ -548,24 +548,24 @@
 }
 
 .utfi-token-type--mcp-token {
-  background: #f1f5f9;
-  color: #334155;
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
 }
 
 .utfi-token-time {
   margin-left: auto;
-  color: #334155;
+  color: var(--th-text-body);
   font-size: var(--font-size-xs);
 }
 
 .utfi-token-claim {
-  color: #1e293b;
+  color: var(--th-text-body);
   font-size: var(--font-size-2xs);
   margin-top: 4px;
 }
 
 .utfi-token-claim code {
-  background: #f1f5f9;
+  background: var(--th-bg-inset);
   padding: 2px 6px;
   border-radius: 3px;
   font-family: inherit;
@@ -604,18 +604,18 @@
 
 .utfi-claim-key {
   font-weight: 500;
-  color: #374151;
+  color: var(--th-text-body);
 }
 
 .utfi-claim-value {
-  color: #1e293b;
+  color: var(--th-text-body);
   word-break: break-word;
   font-family: inherit;
   font-size: var(--font-size-2xs);
 }
 
 .utfi-muted {
-  color: #1e293b;
+  color: var(--th-text-body);
   font-size: var(--font-size-sm);
 }
 
@@ -629,7 +629,7 @@
 .utfi-scope-badge {
   display: inline-block;
   padding: 4px 10px;
-  background: #eff6ff;
+  background: var(--th-bg-inset);
   border: 1px solid #bfdbfe;
   border-radius: 4px;
   font-size: var(--font-size-2xs);
@@ -665,26 +665,26 @@
 .utfi-error-content h4 {
   margin: 0 0 4px 0;
   font-size: var(--font-size-body);
-  color: #0f172a;
+  color: var(--th-text);
   font-weight: 600;
 }
 
 .utfi-error-content p {
   margin: 0;
   font-size: var(--font-size-sm);
-  color: #1e293b;
+  color: var(--th-text-body);
 }
 
 /* Raw JSON */
 .utfi-raw-json {
   margin: 0;
   padding: 10px;
-  background: #f8fafc;
+  background: var(--th-bg-inset);
   border-radius: 4px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--th-border);
   font-family: inherit;
   font-size: var(--font-size-2xs);
-  color: #1e293b;
+  color: var(--th-text-body);
   max-height: 300px;
   overflow-y: auto;
   line-height: 1.5;
@@ -695,7 +695,7 @@
 }
 
 .utfi-raw-json::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: var(--th-bg-inset);
   border-radius: 6px;
 }
 
@@ -712,17 +712,17 @@
 .utfi-loading {
   text-align: center;
   padding: 20px;
-  color: #1e293b;
+  color: var(--th-text-body);
   font-size: var(--font-size-sm);
 }
 
 .utfi-hint {
-  background: #eff6ff;
+  background: var(--th-bg-inset);
   border-left: 3px solid #3b82f6;
   padding: 10px 12px;
   border-radius: 4px;
   font-size: var(--font-size-sm);
-  color: #1e293b;
+  color: var(--th-text-body);
   margin: 0;
 }
 
@@ -800,7 +800,7 @@
 /* Print styles */
 @media print {
   .utfi-container {
-    border: 1px solid #ccc;
+    border: 1px solid var(--th-border-strong);
   }
 
   .utfi-header-actions {
@@ -828,7 +828,7 @@
 .utfi-exchange-desc {
   margin: 0 0 12px 0;
   font-size: 0.85rem;
-  color: #1e293b;
+  color: var(--th-text-body);
   line-height: 1.4;
   font-style: italic;
 }
@@ -847,7 +847,7 @@
 }
 
 .utfi-exchange-timeline::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: var(--th-bg-inset);
   border-radius: 3px;
 }
 
@@ -861,9 +861,9 @@
 }
 
 .utfi-exchange-event {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--th-border);
   border-radius: 6px;
-  background: #f8fafc;
+  background: var(--th-bg-inset);
   padding: 10px;
   display: flex;
   flex-direction: column;
@@ -891,7 +891,7 @@
 
 .utfi-event-time {
   font-size: 0.75rem;
-  color: #374151;
+  color: var(--th-text-body);
   font-family: inherit;
 }
 
@@ -951,13 +951,13 @@
 
 .utfi-event-label {
   font-weight: 600;
-  color: #1e293b;
+  color: var(--th-text-body);
   min-width: 100px;
   flex-shrink: 0;
 }
 
 .utfi-event-value {
-  color: #333;
+  color: var(--th-text-body);
   font-family: inherit;
   word-break: break-all;
   flex: 1;
@@ -965,9 +965,9 @@
 
 .utfi-event-message {
   font-size: 0.8rem;
-  color: #1e293b;
+  color: var(--th-text-body);
   padding: 6px 8px;
-  background: white;
+  background: var(--th-bg-card);
   border-left: 2px solid #4f7df3;
   border-radius: 2px;
   line-height: 1.3;
@@ -1044,10 +1044,10 @@
   color: #c2410c;
 }
 .utfi-no-scopes-detail {
-  color: #334155;
+  color: var(--th-text-body);
 }
 .utfi-no-scopes-detail code {
-  background: #f1f5f9;
+  background: var(--th-bg-inset);
   padding: 1px 4px;
   border-radius: 3px;
   font-size: 0.7rem;
@@ -1071,7 +1071,7 @@
   color: #166534;
 }
 .utfi-rfc-inline-hint--info {
-  background: #eff6ff;
+  background: var(--th-bg-inset);
   border-left-color: #60a5fa;
   color: #1e40af;
 }
@@ -1160,11 +1160,11 @@
   align-items: flex-start;
   gap: 8px;
   font-size: 0.7rem;
-  color: #374151;
+  color: var(--th-text-body);
   line-height: 1.45;
 }
 .utfi-exchange-primer-row code {
-  background: #f3f4f6;
+  background: var(--th-bg-inset);
   padding: 1px 4px;
   border-radius: 3px;
   font-size: 0.68rem;
@@ -1186,8 +1186,8 @@
  * ============================================================================ */
 
 .utfi-detailed-steps {
-  background: #f8fafc;
-  border: 1px solid #e5e7eb;
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
   border-radius: 6px;
   overflow: hidden;
   margin-top: 12px;
@@ -1198,11 +1198,11 @@
   align-items: center;
   justify-content: space-between;
   padding: 10px 12px;
-  background: #f1f5f9;
-  border-bottom: 1px solid #e5e7eb;
+  background: var(--th-bg-inset);
+  border-bottom: 1px solid var(--th-border);
   font-size: var(--font-size-sm);
   font-weight: 500;
-  color: #334155;
+  color: var(--th-text-body);
   flex-wrap: wrap;
   gap: 8px;
 }
@@ -1210,7 +1210,7 @@
 .utfi-detail-hint {
   font-size: var(--font-size-xs);
   font-weight: 400;
-  color: #64748b;
+  color: var(--th-text-muted);
   font-style: italic;
 }
 
@@ -1228,7 +1228,7 @@
 }
 
 .utfi-detailed-steps-list::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: var(--th-bg-inset);
   border-radius: 4px;
 }
 
@@ -1245,8 +1245,8 @@
 .utfi-tabs {
   display: flex;
   gap: 0;
-  border-bottom: 1px solid #e2e8f0;
-  background: #f8fafc;
+  border-bottom: 1px solid var(--th-border);
+  background: var(--th-bg-inset);
   padding: 0;
   margin: 0;
 }
@@ -1256,7 +1256,7 @@
   padding: 12px 16px;
   border: none;
   background: transparent;
-  color: #64748b;
+  color: var(--th-text-muted);
   font-size: var(--font-size-sm);
   font-weight: 500;
   cursor: pointer;
@@ -1267,13 +1267,13 @@
 
 .utfi-tab:hover {
   color: #1e40af;
-  background: #fff;
+  background: var(--th-bg-card);
 }
 
 .utfi-tab--active {
   color: #1e40af;
   border-bottom-color: #1e40af;
-  background: #fff;
+  background: var(--th-bg-card);
 }
 
 /* Chain view */
