@@ -816,6 +816,27 @@ function hasAllRequiredArguments(tool, args) {
 }
 
 /**
+ * Rewrite a browser-facing authorization-server URL to one this process can
+ * actually reach.
+ *
+ * The Agent Gateway's OAuth broker advertises itself as http://localhost:3005 —
+ * correct for the browser, which reaches it through the published port. The BFF
+ * runs in a sibling container where that port is Connection-refused, so a
+ * server-side fetch of AS metadata or the token endpoint has to use the compose
+ * service name instead. Without this the whole RFC 9728 path silently failed and
+ * sign-in fell back to PingOne.
+ *
+ * Only rewrites the one origin it knows about; anything else is returned
+ * untouched so an external AS (PingOne, a real gateway host) is unaffected.
+ */
+function toInternalAs(url) {
+  const internal = process.env.MCP_FACADE_AGENT_GATEWAY_AS_INTERNAL;
+  const external = process.env.MCP_FACADE_AGENT_GATEWAY_AS || 'http://localhost:3005';
+  if (!internal) return String(url).replace(/\/$/, '');
+  return String(url).replace(external.replace(/\/$/, ''), internal.replace(/\/$/, '')).replace(/\/$/, '');
+}
+
+/**
  * RFC 9728 -> RFC 8414 discovery for an MCP resource that advertises a
  * protected-resource document.
  *
@@ -849,14 +870,21 @@ async function discoverProtectedResource(mcpUrl, headers = {}) {
   const asUrl = Array.isArray(meta.authorization_servers) ? meta.authorization_servers[0] : null;
   if (!asUrl) return null;
 
-  const asMetaRes = await fetch(`${asUrl.replace(/\/$/, '')}/.well-known/oauth-authorization-server`, { method: 'GET' });
+  // The AS is advertised for the BROWSER (a published localhost port). This code
+  // runs inside the BFF container, where that port is Connection-refused — the
+  // gateway is a sibling container. So metadata is fetched over the internal
+  // name while the authorize URL handed back stays browser-reachable.
+  const asMetaRes = await fetch(`${toInternalAs(asUrl)}/.well-known/oauth-authorization-server`, { method: 'GET' });
   if (!asMetaRes.ok) return null;
   const asMeta = await asMetaRes.json();
   if (!asMeta.authorization_endpoint || !asMeta.token_endpoint) return null;
 
   return {
+    // Browser-facing: keep whatever the resource advertised.
     authorizationUri: asMeta.authorization_endpoint,
-    tokenUri: asMeta.token_endpoint,
+    // Server-facing: the relay POSTs the code exchange itself, so this one has
+    // to resolve from inside the container.
+    tokenUri: toInternalAs(asMeta.token_endpoint),
     issuer: asMeta.issuer || new URL(asMeta.authorization_endpoint).origin,
     // selfAdvertised drives DCR upstream: this AS keeps its own client registry,
     // so the configured PingOne client id means nothing to it.

@@ -66,7 +66,8 @@ function wireFetch() {
         authorization_servers: [AS],
       });
     }
-    if (u === `${AS}/.well-known/oauth-authorization-server`) {
+    if (u === `${AS}/.well-known/oauth-authorization-server`
+        || u === 'http://mcp-gateway:3005/.well-known/oauth-authorization-server') {
       return jsonRes({
         issuer: AS,
         authorization_endpoint: `${AS}/oauth/authorize`,
@@ -113,6 +114,26 @@ describe('privilege-mcp auth/start — RFC 9728 door', () => {
     const url = new URL(res.body.authUrl);
     expect(url.searchParams.get('scope')).toBe('audit:read');
     expect(url.searchParams.get('scope')).not.toContain('openid');
+  });
+
+  it('fetches AS metadata over the internal name but redirects the browser to the advertised one', async () => {
+    // The broker advertises localhost:3005 for the BROWSER. Inside the BFF
+    // container that port is Connection-refused (the gateway is a sibling), so
+    // the server-side fetches must use the compose service name while the
+    // authorize URL stays browser-reachable. Getting this backwards makes
+    // discovery fail silently and sign-in fall back to PingOne — which is
+    // exactly what happened live before this rewrite existed.
+    process.env.MCP_FACADE_AGENT_GATEWAY_AS_INTERNAL = 'http://mcp-gateway:3005';
+    try {
+      const res = await startAuth();
+      const fetched = global.fetch.mock.calls.map((c) => String(c[0]));
+      expect(fetched).toContain('http://mcp-gateway:3005/.well-known/oauth-authorization-server');
+      expect(fetched).not.toContain('http://localhost:3005/.well-known/oauth-authorization-server');
+      // ...but the browser is still sent to the published port.
+      expect(new URL(res.body.authUrl).origin).toBe(AS);
+    } finally {
+      delete process.env.MCP_FACADE_AGENT_GATEWAY_AS_INTERNAL;
+    }
   });
 
   it('registers a DCR client rather than reusing the configured PingOne id', async () => {
