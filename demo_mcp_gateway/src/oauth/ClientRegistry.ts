@@ -54,6 +54,44 @@ function assertLoopback(uri: string): void {
 export class ClientRegistry {
   private clients: Map<string, OAuthBrokerClient> = new Map();
 
+  constructor() {
+    this.seedStaticClient();
+  }
+
+  /**
+   * Seed one operator-configured client from env.
+   *
+   * The loopback rule and the pinned scope above exist because /oauth/register
+   * is UNAUTHENTICATED — anyone who can reach it could otherwise name their own
+   * redirect target or scope. A client configured in server env is a different
+   * trust level entirely: whoever set it already controls the deployment. So a
+   * static client may use a non-loopback redirect (the BFF's own callback is
+   * https://local.ping-devops.com:4000/..., which assertLoopback rejects by
+   * design) and may hold a scope narrower or wider than mcp:invoke.
+   *
+   * This is the supported way for a server-side relay to hold audit:read: the
+   * audit façade door advertises that scope, but no DYNAMIC client can ever be
+   * granted it, and weakening either DCR control to work around that would
+   * reopen the escalation both were added to close.
+   */
+  private seedStaticClient(): void {
+    const clientId = process.env.MCP_GW_OAUTH_STATIC_CLIENT_ID;
+    const redirectUris = (process.env.MCP_GW_OAUTH_STATIC_REDIRECT_URIS || '')
+      .split(',')
+      .map((u) => u.trim())
+      .filter(Boolean);
+    if (!clientId || redirectUris.length === 0) return;
+
+    this.clients.set(clientId, {
+      client_id: clientId,
+      client_name: process.env.MCP_GW_OAUTH_STATIC_CLIENT_NAME || 'Configured server-side client',
+      grant_types: ['authorization_code'],
+      redirect_uris: redirectUris,
+      token_endpoint_auth_method: 'none',
+      scope: process.env.MCP_GW_OAUTH_STATIC_SCOPE || brokerRegistrationScope(),
+    });
+  }
+
   registerClient(input: RegisterClientInput): OAuthBrokerClient {
     if (!input.redirect_uris || input.redirect_uris.length === 0) {
       throw new InvalidRedirectUriError('(none provided)');

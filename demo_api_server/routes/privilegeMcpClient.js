@@ -1068,7 +1068,15 @@ async function beginOAuthFlow(session, req) {
   let clientId = session.config.clientId;
   let dcrClientId = null;
   let dcrClientSecret = null;
-  if (selfAdvertised) {
+  // A client the operator registered on the gateway broker beats DCR. The
+  // broker refuses to register non-loopback redirect_uris and pins every
+  // dynamic client to mcp:invoke — both deliberate, because /oauth/register is
+  // unauthenticated. This relay is server-side with a non-loopback callback and
+  // needs the door's own scope, so it cannot be a dynamic client at all.
+  const brokerClientId = process.env.AGENT_GATEWAY_BROKER_CLIENT_ID;
+  if (selfAdvertised && brokerClientId) {
+    clientId = brokerClientId;
+  } else if (selfAdvertised) {
     // Not every self-advertising gateway requires DCR — some already trust the
     // configured client_id. Try DCR, but a gateway that doesn't support it (no
     // /register, or a non-conforming response) must not break sign-in: fall
