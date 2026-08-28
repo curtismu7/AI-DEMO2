@@ -819,6 +819,13 @@ services:
       MCP_GW_OAUTH_STATIC_CLIENT_NAME: "AI Demo BFF (audit door)"
       MCP_GW_OAUTH_STATIC_REDIRECT_URIS: "https://local.ping-devops.com:4000/api/privilege-mcp/auth/callback,https://ai-demo.ping-devops.com/api/privilege-mcp/auth/callback"
       MCP_GW_OAUTH_STATIC_SCOPE: "audit:read"
+      # The broker federates the USER login to PingOne. Reuses the existing
+      # "Claude Code - Banking Gateway" app (c8392dc4) — a public PKCE client
+      # that already carries http://localhost:3005/oauth/callback in its
+      # redirect URIs and is described as the gateway-audience client. No new
+      # PingOne app; audit:read was added to its existing grant on the
+      # Super Banking MCP Gateway resource.
+      GATEWAY_OAUTH_BROKER_PINGONE_CLIENT_ID: "c8392dc4-2d82-4e49-92a8-79a78401faf5"
       MCP_AUDIT_BACKEND_URL: "http://mcp-audit:8898"
       BFF_WEATHER_FLAG_URL: "https://api.ping.demo:3001/internal/feature-flags/weather-mcp-showcase"
       BFF_BRAVE_FLAG_URL: "https://api.ping.demo:3001/internal/feature-flags/brave-mcp-showcase"
