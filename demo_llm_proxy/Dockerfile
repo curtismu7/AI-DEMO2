@@ -1,18 +1,22 @@
 FROM node:22-alpine
 
-# Links the pushed GHCR package to this repository. Without it a package stays
-# owned by whoever first pushed it with `repository: NONE`, and a repository's
-# GITHUB_TOKEN — even holding `Packages: write`, which it does — is refused with
-# "denied: permission_denied: write_package", because there is no repo-to-package
-# association for an Actions-access grant to attach to. That is why CI could not
-# push and why the per-package UI grant appeared to do nothing.
+# Links the pushed GHCR package to this repository. A package first pushed by
+# hand stays at `repository: NONE`; the first push carrying this label flips it
+# (verified 2026-08-28, #2545: NONE -> curtismu7/AI-DEMO2).
 #
-# CONFIRMED 2026-08-28 (#2545): the first push carrying this label flipped
-# ai-demo-llm-proxy from repository: NONE to curtismu7/AI-DEMO2, which let
-# build-images.yml go back to GITHUB_TOKEN and retire the classic PAT. Any
-# service whose Dockerfile lacks this label will fail its push exactly as before
-# — add the label, do not reach for a PAT. Check with:
-#   gh api user/packages/container/<pkg> --jq .repository.full_name
+# Keep it — a linked package is strictly better than an unlinked one, and it is
+# a prerequisite for ever granting a repository Actions access. But be clear
+# what it does NOT do: linking alone did NOT let GITHUB_TOKEN push. #2546 tried
+# exactly that against this now-linked package and still got
+# "denied: permission_denied: write_package", so it was reverted and the classic
+# PAT in GHCR_TOKEN remains what actually authenticates the push.
+#
+# So linking is NECESSARY BUT NOT SUFFICIENT. The remaining piece is the
+# per-package Actions-access grant, which is UI-only. It is worth retrying now
+# that an association exists — when it was first attempted the package was
+# unlinked, so there was arguably nothing for the grant to attach to. If that
+# grant then works, build-images.yml can drop the PAT (see #2546 for the exact
+# revert).
 LABEL org.opencontainers.image.source=https://github.com/curtismu7/AI-DEMO2
 
 WORKDIR /app
