@@ -631,6 +631,135 @@ DPoP (RFC 9449) proof verification, Web Bot Auth (`wbaMode=enforce`), and postur
 
 ---
 
+## Pass 9 — 2026-08-16 (fresh-territory sweep)
+
+7 verified (refused to pad to 10 — codebase had 8 prior passes; hunters ruled out several hypotheses instead of inventing findings). Ruled-out negatives noted at the bottom.
+
+| # | Severity | Status | Title | File:Line |
+|---|----------|--------|-------|-----------|
+| 55 | High | 🟢 Fixed | Delegated-commerce consent scope check filters to bare `read`/`write` — namespaced-scope tools get vacuously-true consent | `demo_api_server/services/delegatedCommerceRuntime.js:82-95` |
+| 56 | High | 🟢 Fixed | Node gateway truncates multi-aud token to `aud[0]` — defeats the D-05 confused-deputy anti-bypass the Groovy path enforces (+ Rule 0b-2 comma-split parity nit) | `demo_mcp_gateway/src/auth/PingOneAuthorizeClient.ts:160`, `pingAuthorizeGuard.ts:161`, `demo_authz_server/routes/decision.js:357` |
+| 57 | Medium | 🟢 Fixed | Reverse tabnabbing — `window.open` on a server-supplied elicitation URL omits `noopener` | `demo_api_ui/src/components/ElicitationDialog.jsx:222` |
+| 58 | Medium | 🟢 Fixed | Optional number field submits `NaN` → serialized as `null` to the BFF (client validation gap) | `demo_api_ui/src/components/ElicitationDialog.jsx:35-43,121` |
+| 59 | Medium | 🟢 Fixed | mastra_agent never closes the open text bubble at a tool-call boundary — same class as #43 (openai), distinct instance | `mastra_agent/src/runHandler.ts:119-124` |
+| 60 | Low | 🟢 Fixed | mastra_agent has no empty-messages fallback — empty/filtered `messages` calls `agent.stream([])` | `mastra_agent/src/runHandler.ts:89-94` |
+| 61 | Low | 🟢 Fixed | Invest resource-server tool interpolates `period`/`limit` into the BFF query string unencoded/unvalidated | `demo_mcp_resource_server/src/tools/investToolHandler.ts:50-65` |
+
+### 55. Delegated-commerce consent scope bypass — High
+```js
+const requiredScopes = scopeTopology.toolScopes(tool)
+  .filter((scope) => scope === 'read' || scope === 'write');   // keeps only bare tokens
+...
+sufficient: registration.status === 'active' && !expired &&
+  requiredScopes.every((scope) => consentScopes.includes(scope)),
+```
+`scope-topology.json` declares tool scopes as namespaced strings (`sensitive:read`, `airlines:write`, `transfer`). The filter keeps only literal `read`/`write`, so any tool lacking those bare tokens yields `requiredScopes = []` → `[].every()` is vacuously `true` → `sufficient:true` regardless of what the customer consented to. `evaluateMcpFirstToolGate` (`mcpToolAuthorizationService.js:947`) then never raises `delegated_consent_scope_denied`.
+**Trigger:** customer consents to `['read']` only; the delegated agent calls `get_sensitive_account_details` (`["read","sensitive:read"]`→`["read"]`) or `create_wire_transfer` (`["read","transfer"]`→`["read"]`) and passes; vertical write tools with no secondary challenge (`redeem_miles`/`pay_airline_fee`, `["airlines:read","airlines:write"]`→`[]`) have this as their SOLE consent control and it's fully silent — a read-only-consented agent performs writes. (Banking `create_transfer`=`["write","transfer"]`→`["write"]` is correctly gated, which masked the bug.)
+**Fix:** classify each namespaced scope into an access class (any `*:write`/`transfer` ⇒ needs write consent, any `sensitive:*` ⇒ elevated) before `every()`, or compare consent against the tool's FULL `requiredScopes`. Filtering must never turn "requires write" into "requires nothing."
+**Fixed:** PR [#1882](https://github.com/curtismu7/AI-DEMO2/pull/1882) — classifies each namespaced scope into the customer's `read`/`write` consent vocabulary (any `*:write`/`write`/`transfer`/`sensitive:*` ⇒ write consent, unreachable by read-only). Read-only agents now denied on sensitive/wire/airline-write tools; banking gating unchanged. 40/40 tests across 8 suites.
+
+### 56. Node gateway multi-aud truncation defeats D-05 anti-bypass — High
+```ts
+const tokenAud = Array.isArray(decoded.aud) ? (decoded.aud[0] ?? '') : (decoded.aud ?? '');
+base.TokenAudActual = tokenAud;   // only the FIRST aud element
+```
+The Groovy gateway was deliberately fixed to send the FULL space-joined aud list (`p1az-decision.groovy:278-283`, comment cites "mock Rule 0b-2's D-05 anti-bypass splits this on whitespace, so a multi-aud confused-deputy token is still caught"). The Node gateway still sends only `aud[0]`.
+**Trigger:** a confused-deputy token `aud=["...mcpgateway...","...banking-resource-server..."]` through the Node gateway → `TokenAudActual` = gateway URI only → Rule 0b passes, Rule 0b-2 sees no upstream → PERMIT. The identical token through the Groovy pinggateway → DENY `bypass_attempt`. The anti-bypass control is enforced on one transport, silently defeated on the other.
+**Plus parity nit:** `decision.js:337` Rule 0b splits `TokenAudActual` on `/[\s,]+/` (comma-aware) but Rule 0b-2 (`:357`) splits on `/\s+/` only — a comma-joined multi-aud would pass Rule 0b yet collapse to one element in Rule 0b-2.
+**Fix:** send the full aud (`Array.isArray(decoded.aud) ? decoded.aud.join(' ') : decoded.aud`) in both TS files, matching Groovy; and make Rule 0b-2 split on `/[\s,]+/` too.
+
+### 57. Reverse tabnabbing on elicitation URL — Medium
+```jsx
+await onSubmit({ action: 'accept' });
+window.open(url, '_blank', 'secure');   // 'secure' is not a real feature; no noopener
+```
+`url` comes straight from the MCP server's elicitation request. The features string omits `noopener`, so the opened page keeps a live `window.opener`.
+**Trigger:** a hostile/compromised MCP server returns a url-mode elicitation to `attacker.example`; user clicks "Open in Browser"; the new tab does `window.opener.location = <phishing clone>`, navigating the banking-demo tab to credential harvesting.
+**Fix:** `window.open(url, '_blank', 'noopener,noreferrer')`; drop the bogus `'secure'` token.
+
+### 58. Optional number field → NaN → null to BFF — Medium
+`parseFloat('')` on a cleared number input is `NaN`, stored in `formData[key]`. `validateForm` only checks presence of `required` keys, so a non-required number field holding `NaN` passes; `JSON.stringify(NaN)` → `null`, so the BFF receives `key:null` for a schema-declared number.
+**Fix:** store the raw string or guard `Number.isNaN` and set an error; validate numeric type/range for all present fields, not just presence of required ones.
+
+### 59. mastra text bubble not closed at tool-call boundary — Medium
+```ts
+} else if (part.type === 'tool-call') {
+  await emitter.onToolStart(...);   // never closes the open text message
+```
+Both siblings close it (openai `run_handler.py:259`, langchain `message_processor.py:1240`); mastra only closes in its `tool-error` branch, not the success `tool-call` path. Same defect class as the fixed #43, distinct instance.
+**Trigger:** model streams lead-in text then calls a tool → `TEXT_MESSAGE_START` with no matching `END` before `TOOL_CALL_START`; post-tool narration merges into the still-open bubble (every text msg reuses `messageId: this.runId`) → tool card renders interleaved inside an unterminated assistant message.
+**Fix:** `if (streaming) { await emitter.onLlmEnd(); streaming = false; }` in the `tool-call` branch.
+**Fixed:** PR [#1880](https://github.com/curtismu7/AI-DEMO2/pull/1880) (with #60). 6/6 tests, tsc clean.
+
+### 60. mastra no empty-messages fallback — Low
+`coreMessages` filters to string-content messages; if empty/all-filtered, `agent.stream([])` is called with no user turn (the openai sibling guards with `... or [{"role":"user","content":""}]`).
+**Trigger:** malformed/empty `messages` in the `/run` payload → the AI SDK errors or yields an empty stream → generic run failure instead of graceful handling.
+**Fix:** fall back to a single placeholder user message when `coreMessages.length === 0`.
+**Fixed:** PR [#1880](https://github.com/curtismu7/AI-DEMO2/pull/1880) (with #59) — placeholder `{role:'user',content:''}` when empty, mirroring openai sibling.
+
+### 61. Invest tool unencoded query params — Low
+```ts
+return callBff(`/api/investment/accounts/${encodeURIComponent(accountId)}/portfolio?period=${period}`, token);
+return callBff(`.../transactions?limit=${limit}`, token);
+```
+`account_id` is encoded but `period`/`limit` are concatenated raw; `limit === 0` silently becomes `20` (`0 || 20`). Account stays path-bound/encoded (no pivot), target is the trusted BFF — validation/consistency gap, not an auth bypass.
+**Fix:** `encodeURIComponent(String(period))`; validate `limit` as a bounded integer instead of `|| 20`.
+
+### Ruled out in pass 9 (verified NOT bugs — don't re-chase)
+- **Other-vertical IDOR** (healthcare/gov/manufacturing/retail/etc. resource-server tools): NOT an IDOR — unlike banking, those tables carry no owner/subject column; they're shared demo reference datasets. Airlines scopes correctly via `resolvePassenger(subject)`.
+- **`p1az-decision.groovy` `_p1azTokenCache` unsynchronized writes** (flagged by the code review): verified BENIGN — each write assigns a whole new map (JVM reference assignment is atomic), so a reader never sees a torn `token`/`expiresAt` pair; worst case is a redundant token fetch, never a wrong decision.
+- **X-Authz-Simulated / header-trust spoofing** in p1az-decision.groovy: correctly closed — `trustedCaller` requires a constant-time `MessageDigest.isEqual` match of `BFF_INTERNAL_SECRET`; simulated headers read only when trusted; untrusted falls through to the real backend (fails closed).
+
+---
+
+## Pass 10 — 2026-08-16 (Agent Gateway focus; MCP hold lifted)
+
+14 verified gateway-path bugs (find + code review). 2 High. Full review observations in CODE_REVIEW.md's gateway section. The 4 previously-held MCP bugs (#56/#57/#58/#61) were fixed this pass too (PRs #1887/#1886/#1885).
+
+| # | Sev | Status | Title | File:Line |
+|---|-----|--------|-------|-----------|
+| 62 | Medium | 🟢 Fixed | `applyJsonPatch` drops depth≥3 STATE_DELTA ops (and array-index inserts) — enforcement/authorize/token panels go stale | `demo_api_ui/src/hooks/useAgentRun.js:58-100` |
+| 63 | Medium | 🟢 Fixed | Gateway-tester Chain tab marks a rate-limited/DENY call as green "OK" (predicate omits rateLimited/429/decision) | `demo_api_ui/src/components/AgentGatewayTester.jsx:585` |
+| 64 | Medium | 🟢 Fixed | Streaming `TOOL_CALL_ARGS` parsed per-delta and replaced, not accumulated — args lost on fragmented streams | `demo_api_ui/src/hooks/useAgentState.js:195-206` |
+| 65 | High | 🟢 Fixed | Empty `authorization_details: []` bypasses RAR intent-subset enforcement under `REQUIRE_RAR_INTENT` | `demo_mcp_gateway/src/rarEnforce.ts:47`, `middleware/authorizeMcpRequest.ts:864`, `pingAuthorizeGuard.ts:277-281` |
+| 66 | Medium | 🟢 Fixed | WS transport never surfaces the step-up obligation — falls through to generic `insufficient_scope`, step-up flow dead on WS | `demo_mcp_gateway/src/index.ts:826-832`, `pingAuthorizeGuard.ts:442,455` |
+| 67 | High | 🟢 Fixed | Gateway-unreachable fails OPEN — a down/slow gateway routes every agent tool call through unauthenticated local execution (all policy skipped) | `demo_api_server/services/mcpToolPipeline.js:1640-1698` |
+| 68 | Medium | 🟢 Fixed | 403 `hitl_required` path drops `gwAuditTrail` — authorize evidence lost, ProofStrip shows "failed before authorize" on a gate that fired | `demo_api_server/services/mcpGatewayClient.js:618-635` |
+| 69 | Low | 🟢 Fixed | Stray `console.log` reads `tool.name`/`mcpAccessToken?.scope` (both always undefined; `tool`/token are strings) on every tool call | `demo_api_server/services/mcpToolPipeline.js:480,490` |
+| 70 | Medium | 🟢 Fixed | HTTP `inFlightCalls` registry is process-global keyed by bare JSON-RPC id — `notifications/cancelled {requestId:1}` aborts another caller's call | `demo_mcp_gateway/src/server/GatewayServer.ts:145,682,772` |
+| 71 | Medium | 🟢 Fixed | Runtime rate-limit reconfig is a silent no-op — admin changes `rateLimitMaxRequests`/`WindowMs`, returns 200, live limiter keeps old thresholds until restart | `demo_mcp_gateway/src/middleware/authorizeMcpRequest.ts:212-217` |
+| 72 | Low-Med | 🟢 Fixed | HTTP `readBody` has no size cap (WS was hardened with `maxPayload` 1 MB, HTTP wasn't) — authenticated caller can stream arbitrarily large bodies into memory | `demo_mcp_gateway/src/server/GatewayServer.ts:997-1004` |
+| 73 | Medium | 🟢 Fixed | IG `p1az-decision.groovy` never sends `ToolDestructive`/`ElicitationConfirmed` etc — elicitation confirmation gate silently skipped on the IG/mock-backend path | `ping-gateway/scripts/groovy/p1az-decision.groovy:795-854` |
+| 74 | Medium | ⚪ Not a bug | `/mcp/brave` + `/mcp/weather` IG routes have no inbound auth (no rsFilter/introspection/p1az) — only a fail-open flag + content filter; unauth caller reaches upstream MCP | `ping-gateway/config/routes/00-mcp-brave.json`, `00-mcp-weather.json`, `tx-brave-scope.groovy:10-21` |
+| 75 | Low | 🟢 Fixed | `delegation-validate.groovy` `.add`s identity headers instead of replacing — a pre-set `X-Delegation-User` survives, downstream `getFirst()` reads the forged value | `ping-gateway/scripts/groovy/delegation-validate.groovy:76-78` |
+
+**Pass-10 fix status (all resolved — verified against `main` 2026-08-28):**
+- **MERGED:** #62,#63,#64 (PR [#1891](https://github.com/curtismu7/AI-DEMO2/pull/1891)) · #65,#66,#71 (PR [#1892](https://github.com/curtismu7/AI-DEMO2/pull/1892)) · #67,#68,#69 (PR [#1894](https://github.com/curtismu7/AI-DEMO2/pull/1894)) · #70,#72 (PR [#1890](https://github.com/curtismu7/AI-DEMO2/pull/1890)) · #73,#75 (PR [#1893](https://github.com/curtismu7/AI-DEMO2/pull/1893)).
+- **#74 is not a bug** — the brave/weather IG routes DO chain `rsFilter`; the hunter's premise was stale.
+- The #70 duplicate-fix reconcile is settled: PR #1851 and PR #1890 both merged.
+- The handoff note that used to sit here asked a future agent to chase #67/#68/#69, which were still in flight when it was written. They landed in PR #1894 ("stop gateway-unreachable failing open to unauthorized local execution"); `mcpToolPipeline.js` now emits `gateway_unreachable_no_fallback` and refuses the ungated local path. Nothing from pass 10 is outstanding.
+
+### 65. Empty `authorization_details: []` bypasses RAR intent-subset — High
+`enforceRarSubset` early-returns `{ok:true}` when `details.length === 0`, and the required-intent guard treats `[]` as "present" (`if (!_rarDetails)` — `[]` is truthy → skipped). Since `_rarDetails` is populated only from the caller-supplied `X-TraT-Context` (the mode this runs in, `ALLOW_UNSIGNED_TRAT_CONTEXT=true`), an attacker sets `azd.authorization_details: []` and the amount/payee subset checks are entirely skipped — defeating the control's fail-closed intent, on both transports.
+**Fix:** when `requireRarIntent`, treat `_rarDetails.length === 0` as missing → fail closed (or drop the `length===0` early-return so the no-matching-grant DENY fires).
+
+### 67. Gateway-unreachable fails OPEN to local execution — High
+When `useGateway` is true the BFF's own authorize gate is deliberately skipped (gateway is sole PDP), but `_normalizeGatewayNetworkError` turns a down gateway into an error whose message contains `ECONNREFUSED`/`timed out`, so `isConnErr` is true → the pipeline runs the tool via `callToolLocal`, bypassing the gateway, MCP server, and PingOne Authorize (group/tier/RAR/scope all skipped). Contradicts the hardening on the sibling no-bearer and exchange-failure paths in the same file (the latter made opt-in OFF via `ff_local_fallback_on_exchange_failure`).
+**Trigger:** gateway container down/slow → every agent tool call (transfers, cross-owner reads) executes locally with zero policy enforcement.
+**Fix:** when `useGateway`, don't local-fall-back on gateway transport errors — return `GATEWAY_UNREACHABLE`/`GATEWAY_TIMEOUT` (503/504), or gate behind the same `ff_local_fallback_on_exchange_failure` opt-in with a `_degraded` marker.
+
+*(Entries #62-64, #66, #68-75: see the per-hunter detail captured in the pass-10 review; each has file:line, snippet, trigger, and fix direction. Summarized in the table above; expanded on fix.)*
+
+### Gateway review observations (not bugs — recorded for CODE_REVIEW.md)
+- **HTTP/WS enforcement is hand-mirrored** (scope backstop, tier, RAR, obligation→response) across `authorizeMcpRequest.ts` and `guardToolCall`/`index.ts` — bugs #66 and the aud-truncation (#56) are this drift class. Recommend one shared decision→transport-neutral outcome mapper + a parity test asserting identical error taxonomy per obligation.
+- **Intent-token `permitted_tools` not locally enforced** (`intentTokenValidator.ts:99`) — only the PDP checks it; in local-fallback mode an intent token for tool A is accepted for tool B.
+- **Delegated-consent revocation may be bypassed in gateway mode** — `evaluateMcpFirstToolGate` (the only place `resolveConsentContext` runs) is skipped when `useGateway`; confirm the gateway independently enforces delegated-commerce consent/revocation.
+- **RFC 8693 subject-swap only warns** (`agentMcpTokenService.js:1636`) — `exchanged.sub !== userSub` pushes a warning but forwards the token; should fail closed.
+- **IG↔Node parity by prose, no golden-payload test**; `p1az-decision.groovy` is 65KB untested; `HttpURLConnection` helpers copy-pasted across 4 Groovy scripts; `invest-dispatch.groovy` collapses backend status to 200 (opposite of `olb-token-exchange.groovy`'s deliberate preservation).
+- **Mermaid `securityLevel:'loose'` + editable source + `innerHTML`** on the diagram pages; **brittle single-line `data:` SSE parse** (`useAgentRun.js:42`); **`CopyButton` setTimeout no cleanup**.
+
+---
+
 ## How to rerun
 
 Ask: "audit the project for bugs, update BUGS.md" — new pass gets appended as `## Pass N — <date>`, existing entries get status updated in place (do not duplicate a still-open bug into a new pass table).
