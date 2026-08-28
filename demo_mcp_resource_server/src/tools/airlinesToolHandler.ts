@@ -15,15 +15,14 @@
 import { randomUUID } from 'node:crypto';
 import {
   airlinesDatabaseName,
-  deductLoyaltyPoints,
   getFlight,
   getPassengerRecord,
   listBookings,
   listSeats,
   nextFlightFor,
   recordFeePayment,
+  redeemUpgrade,
   resolvePassenger,
-  upgradeCabinOnBooking,
 } from '../db/airlinesDb';
 
 const SOURCE = 'sqlite';
@@ -365,8 +364,20 @@ function redeemMiles(args: Record<string, unknown>, subject: string): unknown {
     };
   }
 
-  deductLoyaltyPoints(passenger.passenger_ref, POINTS_PER_UPGRADE);
-  upgradeCabinOnBooking(booking.confirmation_number, targetCabin);
+  // One transaction: the points and the cabin move together or not at all. The
+  // guards above already cover the two ways this throws, so reaching the catch
+  // means the row changed under us — report it as a failed redemption rather
+  // than letting it surface as a tool crash. Nothing was written either way.
+  try {
+    redeemUpgrade(passenger.passenger_ref, POINTS_PER_UPGRADE, booking.confirmation_number, targetCabin);
+  } catch (err) {
+    return {
+      source: SOURCE,
+      matchedBy,
+      redeemed: false,
+      note: err instanceof Error ? err.message : 'Redemption failed; no miles were deducted.',
+    };
+  }
 
   return {
     source: SOURCE,

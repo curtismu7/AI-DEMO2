@@ -335,28 +335,54 @@ export function recordFeePayment(input: FeePaymentInput): FeePayment {
 }
 
 /**
- * Deduct loyalty points from a passenger. Called by redeem_miles after the
- * redemption is confirmed. Clamps to zero so a replayed demo can't go negative.
+ * Redeem miles for a cabin upgrade: deduct the points AND move the booking, or
+ * do neither. Mutates the booking row so the demo survives a page reload —
+ * unlike cancelReservation, which deliberately stays read-only. The seed
+ * re-applies only on an empty table, so the change persists across restarts
+ * without overwriting other demo data.
+ *
+ * Both writes share ONE connection inside ONE transaction. They used to be two
+ * separate `withDb` calls — two connections, two autocommits — so a failure
+ * between them spent the points with nothing to show for it. That also broke the
+ * caller's replay guard: "already in that cabin" is what makes a retry safe, and
+ * with the upgrade half missing, a retry deducted a second time.
+ *
+ * Throws rather than returning a flag so a partial state can never be reported
+ * as success.
  */
-export function deductLoyaltyPoints(passengerRef: string, points: number): void {
+export function redeemUpgrade(
+  passengerRef: string,
+  points: number,
+  confirmationNumber: string,
+  newCabin: string,
+): void {
   withDb((conn) => {
-    conn.prepare(
-      'UPDATE passengers SET loyalty_points = MAX(0, loyalty_points - ?) WHERE passenger_ref = ?',
-    ).run(points, passengerRef);
-  });
-}
+    conn.exec('BEGIN');
+    try {
+      // `loyalty_points >= ?` is the authoritative balance check, and replaces the
+      // MAX(0, …) clamp this used to carry: refusing the write is strictly better
+      // than silently zeroing the balance. The caller checks first for a friendly
+      // message, but it reads the passenger row before this transaction opens, so
+      // only the guard here is safe against a stale read.
+      const deducted = conn.prepare(
+        'UPDATE passengers SET loyalty_points = loyalty_points - ? WHERE passenger_ref = ? AND loyalty_points >= ?',
+      ).run(points, passengerRef, points);
+      if (deducted.changes === 0) {
+        throw new Error(`Insufficient miles for ${passengerRef}: ${points} required.`);
+      }
 
-/**
- * Upgrade a booking's cabin class. Mutates the row so the demo survives a
- * page reload — unlike cancelReservation which deliberately stays read-only.
- * The seed re-applies only on an empty table, so the change persists across
- * restarts without overwriting other demo data.
- */
-export function upgradeCabinOnBooking(confirmationNumber: string, newCabin: string): void {
-  withDb((conn) => {
-    conn.prepare(
-      'UPDATE bookings SET cabin = ? WHERE confirmation_number = ?',
-    ).run(newCabin, confirmationNumber);
+      const upgraded = conn.prepare(
+        'UPDATE bookings SET cabin = ? WHERE confirmation_number = ?',
+      ).run(newCabin, confirmationNumber);
+      if (upgraded.changes === 0) {
+        throw new Error(`No reservation ${confirmationNumber} to upgrade.`);
+      }
+
+      conn.exec('COMMIT');
+    } catch (err) {
+      conn.exec('ROLLBACK');
+      throw err;
+    }
   });
 }
 
