@@ -1782,6 +1782,7 @@ function buildAllowedScopesByAudience() {
     'workorders:read',    // field-service — work-order vertical tools
     'sensitive:read',     // sensitive account/record details (consent-gated downstream)
     'code:search',        // code-search MCP tools (code_search/get_code/list_codebases)
+    'audit:read',         // audit MCP tools (search_audit_activities/get_audit_activity/audit_summary)
     'admin:read',         // admin — lookup/view customer profile, accounts, transactions
     'admin:write',        // admin — freeze account, adjust balance, reset password
     'admin:delete',       // admin — delete customer
@@ -1811,6 +1812,7 @@ function buildAllowedScopesByAudience() {
     'workorders:read',    // field-service — work-order vertical tools
     'sensitive:read',     // sensitive account/record details (consent-gated downstream)
     'code:search',        // code-search MCP tools (code_search/get_code/list_codebases)
+    'audit:read',         // audit MCP tools (search_audit_activities/get_audit_activity/audit_summary)
     'admin:read',         // admin — lookup/view customer profile, accounts, transactions
     'admin:write',        // admin — freeze account, adjust balance, reset password
     'admin:delete',       // admin — delete customer

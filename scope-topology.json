@@ -179,6 +179,7 @@
     "ai:agent:read": { "description": "Agent invocation permission", "riskLevel": "medium", "resource": "Super Banking API", "category": "agent" },
     "mcp:invoke": { "description": "Invoke MCP tools via the gateway (RFC 8693 exchange)", "riskLevel": "medium", "resource": "Super Banking MCP Server", "category": "infra" },
     "code:search": { "description": "Search and read the indexed source code (read-only)", "riskLevel": "low", "resource": "Super Banking MCP Server", "category": "infra" },
+    "audit:read": { "description": "Read the PingOne audit log (activities) through the gateway — read-only, no write path exists", "riskLevel": "low", "resource": "Super Banking MCP Server", "category": "infra" },
     "jwt:verify": { "description": "Invoke JWT/JWKS diagnostic tools (decode, verify signature, validate claims, fetch JWKS, inspect key)", "riskLevel": "low", "resource": "Super Banking MCP JWT Verifier", "category": "infra" },
     "agent:invoke": { "description": "Invoke the Agent Gateway (Two-Exchange Step 1 audience)", "riskLevel": "medium", "resource": "Super Banking Agent Gateway", "category": "infra" },
     "ai_agent": { "description": "AI agent identity", "riskLevel": "medium", "resource": "Super Banking API", "category": "ai" },
@@ -251,12 +252,12 @@
         ]
       },
       "scopes": ["mcp:invoke"],
-      "mirroredScopes": ["read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "tax:read", "finaid:read", "supplier:read", "invest:read", "airlines:read", "airlines:write", "pnr:read", "workorders:read", "sensitive:read", "code:search"]
+      "mirroredScopes": ["read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "tax:read", "finaid:read", "supplier:read", "invest:read", "airlines:read", "airlines:write", "pnr:read", "workorders:read", "sensitive:read", "code:search", "audit:read"]
     },
     "Super Banking Agent Gateway": {
       "uri": "agentgateway.ping.demo",
       "scopes": ["agent:invoke"],
-      "mirroredScopes": ["read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "tax:read", "finaid:read", "supplier:read", "invest:read", "airlines:read", "airlines:write", "pnr:read", "workorders:read", "sensitive:read", "code:search"]
+      "mirroredScopes": ["read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "tax:read", "finaid:read", "supplier:read", "invest:read", "airlines:read", "airlines:write", "pnr:read", "workorders:read", "sensitive:read", "code:search", "audit:read"]
     },
     "Super Banking A2A Intermediate": {
       "uri": "a2a-intermediate.ping.demo",
@@ -471,15 +472,15 @@
       "surface": "gateway"
     },
     "search_audit_activities": {
-      "requiredScopes": ["read"],
+      "requiredScopes": ["audit:read"],
       "surface": "gateway"
     },
     "get_audit_activity": {
-      "requiredScopes": ["read"],
+      "requiredScopes": ["audit:read"],
       "surface": "gateway"
     },
     "audit_summary": {
-      "requiredScopes": ["read"],
+      "requiredScopes": ["audit:read"],
       "surface": "gateway"
     },
     "get_branch_hours": {
