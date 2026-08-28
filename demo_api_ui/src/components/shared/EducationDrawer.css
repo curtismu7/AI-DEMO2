@@ -203,25 +203,25 @@
 }
 
 .edu-table thead tr {
-  background: #1e293b;
-  color: #f1f5f9;
+  background: var(--th-bg-band);
+  color: var(--th-text-invert);
 }
 
 .edu-table th {
   padding: 0.75rem;
   text-align: left;
-  border: 1px solid #334155;
+  border: 1px solid var(--th-border-strong);
   font-weight: 600;
 }
 
 .edu-table td {
   padding: 0.75rem;
-  border: 1px solid #334155;
+  border: 1px solid var(--th-border-strong);
   vertical-align: top;
 }
 
 .edu-table tbody tr:nth-child(even) {
-  background: #f8fafc;
+  background: var(--th-bg-inset);
 }
 
 /* ── Education section / info box ────────────────────────────────────────── */

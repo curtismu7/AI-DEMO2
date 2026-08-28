@@ -112,7 +112,7 @@ describe('AttackSimulator — structural (no creds needed)', () => {
     'cross-owner-account': 'cross-owner-account',
     'replayed-token': 'token-theft-replay',
     'rogue-actor': 'confused-deputy-actor-injection',
-    'rar-exceeded': 'rar-intent-violation',
+    'rar-exceeded': 'par-rar-intent-violation',
     'tampered-intent-token': 'intent-token-tampering',
     'impersonation-no-act': 'impersonation-blocked',
     'rate-limit-burst': 'rate-limit-defense',

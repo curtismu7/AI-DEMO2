@@ -460,7 +460,7 @@ describe('POST /api/demo/intent-binding/run — live mode restores ff_authorize_
     await new Promise((resolve, reject) => {
       jest.isolateModules(() => {
         const { app, supertest } = bootIsolatedApp({
-          runResult: { sim: 'rar-permit', useCaseId: 'rar-intent-verified', status: 200, errorCode: null, reason: 'PERMIT', tokenChainEvents: [] },
+          runResult: { sim: 'rar-permit', useCaseId: 'par-rar-intent-verified', status: 200, errorCode: null, reason: 'PERMIT', tokenChainEvents: [] },
           config: {
             pingone_environment_id: 'env-1',
             public_app_url: 'https://api.ping.demo:4000',
@@ -628,7 +628,7 @@ describe('POST /api/demo/intent-binding/run — live mode restores ff_authorize_
     await new Promise((resolve, reject) => {
       jest.isolateModules(() => {
         const { app, supertest, configStore } = bootIsolatedApp({
-          runResult: { sim: 'rar-permit', useCaseId: 'rar-intent-verified', status: 200, errorCode: null, reason: 'PERMIT', tokenChainEvents: [] },
+          runResult: { sim: 'rar-permit', useCaseId: 'par-rar-intent-verified', status: 200, errorCode: null, reason: 'PERMIT', tokenChainEvents: [] },
         });
         supertest(app)
           .post('/api/demo/intent-binding/run')

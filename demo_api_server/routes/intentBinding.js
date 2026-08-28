@@ -163,7 +163,7 @@ router.post('/run', authenticateToken, async (req, res) => {
         }
         return res.status(200).json({
           sim: withinIntent ? 'par-permit' : 'par-deny',
-          useCaseId: withinIntent ? 'par-intent-verified' : 'par-intent-violation',
+          useCaseId: withinIntent ? 'par-rar-intent-verified' : 'par-rar-intent-violation',
           status: withinIntent ? 200 : 403,
           errorCode: withinIntent ? null : 'intent_exceeded',
           reason: withinIntent

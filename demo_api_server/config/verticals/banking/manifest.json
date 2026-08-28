@@ -133,7 +133,7 @@
       },
       { "id": "bk-mfa", "label": "🔑 Transfer $600", "message": "transfer $600 from checking to savings", "mode": "both", "hitlTrigger": true, "challenge": "step_up", "tool": "create_transfer", "useCaseId": "step-up-required" },
       { "id": "bk7", "label": "My mortgage", "message": "show my mortgage", "mode": "both", "tool": "show_mortgage", "useCaseId": "delegated-access-with-proof" },
-      { "id": "bk-intent", "label": "Intent-bound transfer", "message": "run an intent-bound transfer within my RAR grant", "mode": "both", "tool": "create_transfer", "useCaseId": "rar-intent-verified" },
+      { "id": "bk-intent", "label": "Intent-bound transfer", "message": "run an intent-bound transfer within my RAR grant", "mode": "both", "tool": "create_transfer", "useCaseId": "par-rar-intent-verified" },
       { "id": "bk-dpop", "label": "DPoP / replay defense", "message": "fire a token with the wrong audience at the gateway", "mode": "direct", "tool": "test_wrong_audience", "useCaseId": "token-theft-replay" },
       { "id": "bk8", "label": "Biggest spending categories", "message": "What are my biggest categories", "mode": "llm", "tool": "get_my_transactions" },
       { "id": "bk-direct", "label": "Direct MCP", "message": "get my accounts", "mode": "direct", "tool": "get_my_accounts" },
