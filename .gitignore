@@ -76,6 +76,11 @@ setup-config.md
 # check exempts only untracked `.claude/*.md`, so the launchd sync would stall
 # silently. Credentials are better kept outside the repo entirely.
 users.txt
+# Same for the obvious siblings: the next scratch note will not be called
+# users.txt.
+passwords.txt
+credentials.txt
+*-credentials.txt
 # App-generated config/import backups (were committed by accident)
 *.bak
 demo_api_server/.env.pre-import-*
