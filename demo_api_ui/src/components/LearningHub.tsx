@@ -125,6 +125,11 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         icon: "📡",
       },
       {
+        label: "Agent-to-Agent (A2A)",
+        description: "Nested-act delegation and the A2A wire protocol",
+        icon: "🔗",
+      },
+      {
         label: "MCP Server Discovery",
         description: "How agents discover and register MCP servers",
         icon: "🔍",
@@ -356,6 +361,7 @@ export default function LearningHub() {
     },
     "mcp-agents": {
       "MCP Protocol": () => openEdu(EDU.MCP_PROTOCOL, "what"),
+      "Agent-to-Agent (A2A)": () => openEdu(EDU.A2A_DELEGATION, "protocol"),
       "MCP Server Discovery": () => openEdu(EDU.MCP_PROTOCOL, "discovery"),
       "MCP: MFA Gate on Tools": () => openEdu(EDU.MCP_PROTOCOL, "mfa-gate"),
       "MCP Elicitation": () => openEdu(EDU.MCP_ELICITATION, "what"),

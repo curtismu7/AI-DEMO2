@@ -1,0 +1,153 @@
+/* demo_api_ui/src/pages/A2AProtocolLearningPage.css
+ *
+ * Theme tokens only — no literals for surfaces, lines or ink, and no dark
+ * block. Per THEMING.md the best dark-mode fix adds no dark rules at all: every
+ * colour here is a --th-* token that already flips under
+ * :root[data-theme="dark"]. Never add a prefers-color-scheme query (THEMING.md
+ * rule 1 — that is the incident-#1212 class).
+ *
+ * The real token vocabulary is --th-bg-page/-band/-card/-inset, --th-text/
+ * -body/-muted/-faint, --th-border/-strong, --th-code-bg/-text and
+ * --th-status-{success,warning,error,info}(-text|-bg). --th-space-*,
+ * --th-text-secondary and --th-error do NOT exist.
+ */
+
+.a2l-page {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 24px;
+  color: var(--th-text);
+}
+
+.a2l-h1 { font-size: 1.7rem; margin: 0 0 8px; color: var(--th-text); }
+.a2l-sub { margin: 0 0 16px; max-width: 70ch; color: var(--th-text-body); }
+.a2l-h2 { font-size: 1.15rem; margin: 0 0 6px; display: flex; align-items: center; gap: 10px; }
+.a2l-lead { margin: 0 0 14px; max-width: 78ch; color: var(--th-text-muted); }
+.a2l-meta { color: var(--th-text-faint); font-size: 0.85rem; }
+
+.a2l-num {
+  display: inline-grid;
+  place-items: center;
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
+  font-size: 0.85rem;
+  color: var(--th-text-muted);
+}
+
+.a2l-header { border-bottom: 1px solid var(--th-border); padding-bottom: 16px; margin-bottom: 8px; }
+
+.a2l-vertical { display: inline-flex; align-items: center; gap: 8px; font-size: 0.9rem; }
+.a2l-vertical select {
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border: 1px solid var(--th-border-strong);
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+
+.a2l-section { padding: 22px 0; border-bottom: 1px solid var(--th-border); }
+
+.a2l-layers { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 12px; }
+@media (max-width: 760px) { .a2l-layers { grid-template-columns: 1fr; } }
+
+.a2l-layer {
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+.a2l-layer h3 { margin: 0 0 8px; font-size: 1rem; color: var(--th-text); }
+.a2l-layer p { margin: 0 0 8px; color: var(--th-text-body); }
+
+.a2l-links { font-size: 0.9rem; color: var(--th-text-muted); }
+.a2l-links a { color: var(--th-text); }
+
+.a2l-facts { list-style: none; padding: 0; margin: 0 0 14px; display: grid; gap: 6px; }
+.a2l-facts li { color: var(--th-text-body); font-size: 0.92rem; }
+.a2l-facts b { color: var(--th-text); margin-right: 8px; }
+
+/* Provenance chips — the honesty signal. Distinct enough to scan, never
+ * decorative: 'live-http' is the only one that means a real browser request. */
+.a2l-prov {
+  display: inline-block;
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg-inset);
+  color: var(--th-text-muted);
+  white-space: nowrap;
+}
+.a2l-prov--live-http {
+  background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
+  border-color: var(--th-status-success);
+}
+.a2l-prov--replay {
+  background: var(--th-status-info-bg);
+  color: var(--th-status-info-text);
+  border-color: var(--th-status-info);
+}
+
+.a2l-pane {
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+.a2l-pane--failed { border-color: var(--th-status-error); }
+.a2l-pane-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+.a2l-pane-title { font-weight: 600; color: var(--th-text); }
+.a2l-pane-caption { margin: 0 0 8px; font-size: 0.85rem; color: var(--th-text-muted); }
+.a2l-pane-note {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+  color: var(--th-text-body);
+  border-left: 3px solid var(--th-border-strong);
+  padding-left: 10px;
+}
+.a2l-pane-url { margin: 0 0 8px; font-size: 0.8rem; color: var(--th-text-faint); word-break: break-all; }
+/* Monospace comes from the <code> element, never a font-family declaration —
+ * src/__tests__/uiRegression.test.js forbids monospace in CSS project-wide. */
+
+.a2l-json,
+.a2l-diagram {
+  background: var(--th-code-bg);
+  color: var(--th-code-text);
+  border: 1px solid var(--th-border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  overflow-x: auto;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  margin: 0;
+}
+.a2l-diagram { margin-top: 12px; }
+
+.a2l-btn {
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border: 1px solid var(--th-border-strong);
+  border-radius: 6px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.a2l-btn:hover { background: var(--th-bg-hover); }
+.a2l-btn:disabled { opacity: 0.6; cursor: default; }
+.a2l-btn--primary { border-color: var(--th-border-strong); font-weight: 600; }
+
+.a2l-runbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.a2l-status { font-size: 0.88rem; color: var(--th-text-muted); margin: 0 0 10px; }
+.a2l-status code { color: var(--th-text-body); }
+.a2l-err { color: var(--th-status-error-text); font-size: 0.88rem; }
+.a2l-empty { color: var(--th-text-faint); font-style: italic; }
+
+.a2l-caveats { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+.a2l-caveats li { color: var(--th-text-body); max-width: 82ch; }
+.a2l-caveats code { background: var(--th-bg-inset); padding: 1px 5px; border-radius: 4px; }
