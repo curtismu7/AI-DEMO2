@@ -2115,7 +2115,16 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
           const last = messages[messages.length - 1];
           messages[messages.length - 1] = {
             ...last,
-            content: `${last.content}\n\nHere is my recent activity, already retrieved for you via ${activityTool}. Analyse THIS data and name anything unusual. Do not say you cannot retrieve it, and do not ask me to paste it.\n\n${compact}`,
+            // The brevity clause is a TIMEOUT fix, not a style preference.
+            // Without it the model reproduced the whole activity set as a
+            // markdown table before commenting on it, and generation time scales
+            // with what it chooses to write. Measured 2026-08-28: UC34 returned
+            // at 121.0s and 121.2s against REASON_LOOP_TIMEOUT_MS = 120000 — the
+            // ceiling, hit exactly — and the server's give-up prose was then
+            // recorded as a REPLAY golden. Successful runs took 35-69s, so the
+            // margin was thin and the variance large. Re-emitting rows the user
+            // already has is the expensive half and the least useful half.
+            content: `${last.content}\n\nHere is my recent activity, already retrieved for you via ${activityTool}. Analyse THIS data and name anything unusual. Do not say you cannot retrieve it, and do not ask me to paste it.\n\nAnswer in at most five short bullet points naming only what is unusual and why. Do NOT reproduce the rows as a table or list them back — I already have them.\n\n${compact}`,
           };
           preToolsCalled.push(activityTool);
           preToolResults.push({ name: activityTool, result: activity });
