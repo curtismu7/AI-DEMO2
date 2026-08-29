@@ -57,6 +57,24 @@ const AGENT_FAILURE_PROSE = [
   // Authorize denial is a demo; a local-fallback scope error is a defect.
   /insufficient_scope/i,
   /local-fallback:/i,
+  // The model's flat refusal. Found on 7 goldens on 2026-08-28, ALL of them
+  // UC34/UC35 (ai-spot-unusual-patterns / ai-explain-last-denial) across
+  // government, healthcare, investment, manufacturing x2, sporting-goods and
+  // university — captured 2026-07-27 through 2026-08-28, i.e. this has been
+  // recurring for a month while the gate stayed green.
+  //
+  // Those two use cases are the free-form LLM-analysis chips: no primaryTool,
+  // the model reasons over live data and chooses its own tools. When it declines
+  // the prompt instead, the reply is 38 characters and check-goldens had nothing
+  // to match it with, so a refusal became the canonical answer.
+  //
+  // Straight and curly apostrophes both occur in model output. Tested against
+  // all 131 goldens: matches those 7 and nothing else. It does NOT touch the
+  // short legitimate replies — "PingOne Authorize requires additional
+  // authentication" (x20), "intent_mismatch: tool not permitted" (x11),
+  // "Transaction requires human approval (HITL consent)" (x10) — all of which
+  // are policy working and are correct goldens.
+  /i['\u2019]?m sorry,? but i can['\u2019]?t help with that/i,
 ];
 
 /**
