@@ -47,6 +47,7 @@
 .ftcp-controls {
   display: flex;
   gap: 0.25rem;
+  flex-shrink: 0;
 }
 
 .ftcp-btn {
