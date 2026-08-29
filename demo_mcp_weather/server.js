@@ -53,6 +53,10 @@ function startChild() {
     child = null;
   });
 
+  child.stderr.on('data', (chunk) => {
+    console.error(`[mcp-weather] child stderr: ${chunk}`);
+  });
+
   // One-time MCP handshake so the child is always ready for tools/list and
   // tools/call regardless of whether the HTTP caller sends its own initialize.
   sendRaw({
@@ -151,6 +155,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     try {
+      console.log(`[mcp-weather] incoming RPC: method=${rpc.method}, tool=${rpc.params?.name || 'N/A'}`);
       // Agent/BFF call get_weather; third-party weather-mcp's default ENABLED_TOOLS
       // has get_current_conditions (not get_weather). Rewrite at the bridge so
       // gateway-scoped PERMIT demos return real weather instead of isError.
@@ -161,14 +166,17 @@ const server = http.createServer(async (req, res) => {
         rpc.params &&
         rpc.params.name === 'get_weather'
       ) {
+        console.log(`[mcp-weather] rewriting get_weather → get_current_conditions`);
         forward = {
           ...rpc,
           params: { ...rpc.params, name: 'get_current_conditions' },
         };
       }
       const result = await callChild(forward);
+      console.log(`[mcp-weather] result: ${JSON.stringify(result).slice(0, 200)}`);
       return send(res, 200, result);
     } catch (e) {
+      console.error(`[mcp-weather] error calling child: ${e.message}`);
       return send(res, 502, { jsonrpc: '2.0', id: rpc.id != null ? rpc.id : null, error: { code: -32000, message: e.message } });
     }
   }
