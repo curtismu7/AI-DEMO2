@@ -81,6 +81,51 @@ enduser session cookie, using each chip's `trigger.text` from
 `failurePatternFor()` in `scripts/golden-failure-prose.js`. Three runs each is
 enough to see it.
 
+**PARTLY RESOLVED 2026-08-29 (UC34 only) — branch `fix-uc34-analysis-brevity`.**
+
+Two corrections to the entry above, both found by reading further:
+
+- `unusual_patterns` IS in `CLIENT_DISPATCHED_ACTIONS`, but
+  `capture-goldens.real.spec.js:226-231` deliberately overrides the
+  client-dispatch skip for UC34/UC35 — "reaching the LLM is the intent, the
+  analysis reply IS the artifact". So the capture is not misusing the API; it
+  wants the LLM reply.
+- That override runs with `timeout: 120_000`, which is EXACTLY
+  `REASON_LOOP_TIMEOUT_MS`. There is zero margin: the server gives up at 120s
+  and returns its failure prose, and the client is at its own deadline at the
+  same instant. Whichever wins, the capture records a failure.
+
+**What was fixed.** The UC34 activity pre-fetch appended "Analyse THIS data and
+name anything unusual" with no length bound, so the model reproduced all 25
+injected rows as a markdown table before commenting — the expensive half, and
+the least useful half, since the caller already has the rows. Added a five-bullet
+cap and an explicit "do not reproduce the rows".
+
+Measured before/after on the same stack, same session:
+
+| | before | after |
+|---|---|---|
+| UC34 | 121.0s ✗, 121.2s ✗, 68.9s ✓ — **2/3 failed** | 105.0s ✓, 86.7s ✓, 34.1s ✓, 22.0s ✓ — **0/4 failed** |
+| UC35 | 90.8s ✗, 35.5s ✓, 38.2s ✓ — 1/3 | 120.4s ✗, 122.1s ✗, 45.5s ✓, 120.2s ✗ — 3/4 |
+
+**UC35 IS STILL OPEN and this did not touch it.** `ACTIVITY_ANALYSIS_RE` matches
+UC34's text and not UC35's (verified directly), so the pre-fetch branch the fix
+lives in never runs for UC35. Its 3/4 is the same 120s ceiling, unchanged — if
+anything the sample suggests it is the worse of the two once UC34 is out of the
+way.
+
+**Caveat on the evidence:** 3-4 runs per chip is a small sample against a
+naturally variable generation time. The direction and the mechanism agree
+(fewer output tokens → less time → further from a fixed ceiling), and UC34's
+slowest post-fix run (105s) still sits under the 120s limit its pre-fix runs
+were exceeding — but this is not a statistical claim.
+
+**Still to do for UC35:** options (2) and (3) from the list above are unchanged
+and now apply to UC35 alone. There is no equivalent "stop reproducing the data"
+lever there — UC35 narrates a token chain rather than echoing rows — so the
+honest remedies are to stop capturing a golden for it, or to revisit the
+ceiling.
+
 ### [ ] 2026-08-28 — `llm-proxy` can be deployed by neither deploy path
 
 **What's wrong.** `demo_llm_proxy` is the only service that no sanctioned
@@ -662,7 +707,7 @@ appears to fix it, training the reader to ignore the check.
 **What the real fix looks like:** filter pods to `status.phase == Running` with
 no `deletionTimestamp` before comparing start times, or compare the deployment's
 `observedGeneration`/`updatedReplicas` instead of per-pod timestamps.
-### [ ] 2026-08-28 — deploy-live silently no-ops on a compose `environment:` change
+### [x] 2026-08-28 — deploy-live silently no-ops on a compose `environment:` change
 
 `scripts/deploy-live.sh` maps changed **paths** in the merged diff to compose
 services. A change to `docker-compose.yml` that only adds or edits an
@@ -695,6 +740,23 @@ structurally (not by path) and recreate any service whose `environment:`,
 `docker-compose.yml` is in the diff at all and print a loud "compose changed —
 env-only edits need `run-docker.sh restart <svc>`; deploy-live will not do it"
 rather than silently succeeding.
+
+**FIXED 2026-08-29 (PR #2590)** — took the structural option, not the warning.
+`run-docker.sh restart` already recreates, which is exactly what picks up new
+env, so deploy-live now *deploys* these services instead of telling a human to.
+`scripts/compose-env-diff.js` compares the `environment:`, `env_file:` and
+`build.args` blocks of each service between the two revisions and names the ones
+that changed; deploy-live feeds them into `add_restart`. Structural rather than
+hunk-based because a hunk says which LINES moved, not which SERVICE owns them,
+and `environment:` blocks all look alike at block boundaries.
+
+Verified by replaying the incident: `8f06af5f2~1..8f06af5f2` (the audit-door
+commit, which touched *only* `docker-compose.yml`) now resolves to
+`mcp-gateway` — the exact service that stayed `<unset>`. Comment-only and
+whitespace edits deliberately do not trigger a recreate; a brand-new service is
+skipped, since it is not running to be recreated. If the comparison itself ever
+fails, deploy-live says so loudly rather than swallowing it — a silent failure
+here would restore the very staleness this closes.
 
 ### [ ] 2026-08-28 — gateway tools/list is only governed on the WebSocket transport
 
@@ -796,7 +858,7 @@ door advertised, and the mismatch is silent.
 advertises) or require authentication on `/oauth/register` for anything beyond
 `mcp:invoke`. Not a relaxation of the loopback rule.
 
-### [ ] 2026-08-28 — a sixth service map exists outside the hygiene gate
+### [x] 2026-08-28 — a sixth service map exists outside the hygiene gate
 
 `k8s/aws/deploy.sh:60-77` holds `IMAGE_MAP`, an indexed-array local-name-to-GHCR-name
 mapping used to rewrite image refs in the SE K8s manifests. It is a service map
@@ -820,7 +882,22 @@ service map (derive it from `--print-map` instead of hand-maintaining it), or
 add a sixth assertion to `check-service-map-complete.js` that every
 `ghcrImage` in the map also appears in `k8s/aws/deploy.sh`'s `IMAGE_MAP`.
 
-### [ ] 2026-08-28 — shared root files never trigger a CI build
+**FIXED 2026-08-29 (PR #2592)** — took the second option. `readImageMap()`
+parses the `IMAGE_MAP` array out of `k8s/aws/deploy.sh` as text and
+`checkMap()` now asserts every `ghcrImage` appears there. Only that direction
+is asserted: extra `IMAGE_MAP` entries are legitimate, since it also carries
+images this repo does not CI-build (`tier-manager`, `mcp-code-search`,
+`llamaindex-agent`).
+
+The parser is sanity-guarded the same way `inventoryCount` is — if it reads
+fewer pairs than there are services, it fails as a broken parser rather than
+passing everything vacuously, which is the exact way a text-parsing gate goes
+quietly useless.
+
+Verified by removing `ai-demo-mcp-gateway` from `IMAGE_MAP`: the gate failed
+naming the service, and passed again once restored. 10/10 unit tests.
+
+### [x] 2026-08-28 — shared root files never trigger a CI build
 
 Six of the fourteen CI-built services build from `context: .` (the repo root)
 and their Dockerfiles `COPY` root-level inputs that belong to no service's
@@ -863,6 +940,57 @@ inside the affected service's `sourceDir` in the same merge.
 keys it affects) consulted by `ci-build-matrix.js` alongside the sourceDir
 prefix match — accepting the fifteenth-copy cost deliberately, with a comment
 explaining why it's the one hand-maintained exception.
+
+**FIXED 2026-08-29 (PR #2593)** — without the fifteenth copy. The objection
+above applies to a *hand-maintained* table; these dependencies are **derived**
+by reading the Dockerfiles that already declare them, so there is nothing to
+keep in sync. `rootDependencies()` reads each service's COPY sources and keeps
+the ones inside no service's `sourceDir`; `buildMatrix()` matches changed paths
+against those alongside the prefix match.
+
+Build contexts are read from compose rather than assumed, and that distinction
+carries the correctness: a COPY source resolves against the build CONTEXT, so
+`COPY scripts/boot.js` means the service's own `scripts/` under
+`context: ./demo_llm_proxy` and the repo root's under `context: .`. Only
+root-context services can depend on a root file; assuming otherwise would
+rebuild local-context services on every unrelated tooling change.
+
+Derivation reproduces this entry's hand-written list exactly, and found a fifth
+service it missed — `langchain_agent` COPYs `scripts/build-codegraph.py`:
+
+| changed path | now builds |
+|---|---|
+| `scope-topology.json` | bff, gateway, authz |
+| `llm-timeouts.json` | bff, frontend |
+| `mcp-tool-schemas.json` | gateway |
+| `docs/**`, `graphify-out/*.kb.json` | bff |
+| `snapshots/*P1AZ.snapshot.json` | bff, authz |
+| `README.md` | (nothing — no false positives) |
+
+21/21 unit tests, four of them asserting the non-triggers. The promote-side
+guard described above stays as the backstop; it is now the second line of
+defence rather than the only one.
+
+### [ ] 2026-08-29 — three near-identical compose service-block readers
+
+`check-ghcr-source-labels.js` (wants `build:`), `compose-env-diff.js` (wants
+`environment:`/`env_file:`/`build.args`) and `ci-build-matrix.js` (wants
+`build.context`) each carry their own ~20-line text scanner that splits
+`docker-compose.yml` into service blocks. All three parse two-space keys under
+`services:` and all three had to independently learn not to treat a top-level
+`volumes:` entry as a service.
+
+**Why it wasn't fixed now:** the three landed as three separate PRs
+(#2590, #2592, #2593) and lifting a shared module across in-flight branches
+would have produced conflicts for no behavioural gain.
+
+**The risk:** low and slow — a compose-syntax edge case fixed in one and not
+the others. The blast radius is a gate reading the wrong block, not a runtime
+failure.
+
+**What the real fix looks like:** `scripts/lib/composeBlocks.js` exporting the
+service-block split, with each caller keeping only its own key extraction.
+Dependency-free, since all three run where root `node_modules` may be absent.
 
 ### [x] 2026-08-27 — a BroadcastChannel test raced its own subscriber, and a stale branch made it look like a suite-wide problem
 
