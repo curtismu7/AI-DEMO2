@@ -20,6 +20,11 @@
  * Start: node src/index.js
  */
 
+// MUST stay above every other require. routes/challenges.js reads
+// HITL_INTERNAL_SECRET at module-load time, so a `encrypted:...` value has to
+// be decrypted before that require runs — see dotenvxBootstrap.js.
+require('./dotenvxBootstrap').bootstrapDotenvx();
+
 require('dotenv').config();
 
 const express = require('express');

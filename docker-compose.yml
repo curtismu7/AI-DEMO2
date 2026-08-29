@@ -1021,6 +1021,14 @@ services:
     env_file:
       - path: ./demo_hitl_service/.env
         required: false
+      # dotenvx runtime decrypt key (vault→dotenvx cutover) — see demo-api-server's
+      # env_file entry for the full rationale (env_file not environment:; separate
+      # file from what it decrypts). Without it HITL_INTERNAL_SECRET stays
+      # `encrypted:...` here while the BFF sends the decrypted plaintext, and
+      # routes/challenges.js 401s every internal caller. required:false: no-op
+      # pre-migration.
+      - path: ./.env.keys
+        required: false
     volumes:
       - ./scripts:/otel:ro  # dir mount: survives git pull replacing the file (a single-file bind mount pins the old inode and crash-loops node -r)
       - ./certs:/certs:ro  # dir mount, not a single file -- a single-file bind pins the inode
