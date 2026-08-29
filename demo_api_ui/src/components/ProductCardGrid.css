@@ -1,6 +1,6 @@
 /* demo_api_ui/src/components/ProductCardGrid.css */
 .pcg-title-bar {
-  font-family: var(--v2-font-display, "Fraunces", Georgia, serif);
+  font-family: var(--rd2-font-display, "Fraunces", Georgia, serif);
   font-weight: 600;
   font-size: var(--font-size-body);
   margin-bottom: 8px;
