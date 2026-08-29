@@ -21,6 +21,8 @@ Always-on hard rule from `§0` — **emoji allowlist only:** `⚠️` `✅` `❌
 
 **[TECH_DEBT.md](TECH_DEBT.md)** tracks known architectural gaps found while fixing something else — correct enough to ship, worth fixing properly later. Add an entry when you knowingly leave one behind; check it before re-deriving a gap someone already scoped.
 
+**[THEMING.md](THEMING.md)** is the one way to do light/dark. Dark is `:root[data-theme="dark"]` only — never `prefers-color-scheme`. Prefer converting literals to `--th-*` tokens over writing a dark block, and verify with `getComputedStyle` on the live page, not by grepping the stylesheet (skins and `!important` make the file lie). **Editing a page's stylesheet? Migrate it in the same PR; if it is already migrated, skip it.** 190 of 274 stylesheets are still unmigrated, so this closes opportunistically — never in one sweep.
+
 ## Working practice — worktree (required)
 
 Edit→test→commit only in an **isolated git worktree** — concurrent sessions share one index and collisions have wiped staged work.
