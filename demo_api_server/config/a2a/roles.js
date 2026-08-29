@@ -24,17 +24,7 @@ const SPECIALIST_COORDINATOR_ROLE = {
   verbose: false,
 };
 
-const AUTHORIZATION_REVIEWER_ROLE = {
-  role: 'Authorization Reviewer',
-  goal: 'Validate that the delegation request and scopes can be approved by the authorization server. ' +
-        'Flag any scope requests that may be denied by policy.',
-  backstory: 'You understand PingOne authorization policies and RFC 8693 chained delegation. ' +
-             'You catch authorization violations early and suggest scope modifications if needed.',
-  verbose: false,
-};
-
 module.exports = {
   DECISION_MAKER_ROLE,
   SPECIALIST_COORDINATOR_ROLE,
-  AUTHORIZATION_REVIEWER_ROLE,
 };

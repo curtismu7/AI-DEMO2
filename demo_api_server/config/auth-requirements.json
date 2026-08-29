@@ -84,6 +84,7 @@
   },
   "routes": {
     "/": "public",
+    "/a2a-protocol-learning": "public",
     "/accounts": "public",
     "/activity": "public",
     "/actor-token-education": "public",

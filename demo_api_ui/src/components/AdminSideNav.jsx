@@ -162,7 +162,7 @@ const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "local.ping-devops.co
 // `allNavItems` below — update both together when renaming a group.
 const AUTO_EXPAND_SECTIONS = [
   { id: "customer-demos", paths: ["/agent-lifecycle"] },
-  { id: "demos", paths: ["/delegated-commerce", "/use-cases", "/use-cases/live", "/demo-track", "/group-policy", "/demo-config", "/delegation", "/delegation-chain-value"] },
+  { id: "demos", paths: ["/delegated-commerce", "/use-cases", "/use-cases/live", "/demo-track", "/group-policy", "/demo-config", "/delegation", "/delegation-chain-value", "/a2a-protocol-learning"] },
   { id: "ai-agents", paths: ["/ai-control-plane", "/control-plane", "/agent-registry", "/agent", "/agent-builder", "/agent-flow-inspector", "/langchain", "/ungoverned-agent", "/servers"] },
   { id: "pingone-mcp", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/privilege-mcp-client", "/privilege-mcp-learning"] },
   { id: "banking-mcp", paths: ["/webmcp", "/ping-ai-test-lab"] },
@@ -520,6 +520,7 @@ export default function AdminSideNav({
         { label: "Use Cases (Live)", path: "/use-cases/live", icon: "demo" },
         { label: "Guided Demo Track", path: "/demo-track", icon: "demo" },
         { label: "Delegation Chain Value", path: "/delegation-chain-value", icon: "demo" },
+        { label: "A2A Protocol & Identity", path: "/a2a-protocol-learning", icon: "demo" },
         { label: "Group Policy Board", path: "/group-policy", icon: "demo" },
         {
           label: "Demo Script",

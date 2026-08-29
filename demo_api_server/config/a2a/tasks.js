@@ -29,22 +29,7 @@ function buildCoordinatorTask(agent, vertical, tools, message) {
   };
 }
 
-function buildAuthorizationTask(agent, specialistName, tool) {
-  return {
-    description:
-      `Review this delegation request for authorization feasibility:\n` +
-      `Specialist: ${specialistName}\n` +
-      `Requested tool: ${tool}\n\n` +
-      'Determine if this delegation can be approved by PingOne Authorize (RFC 8693 chained token).\n' +
-      'Respond with JSON: { "approved": boolean, "blockers": string[] }',
-    expected_output:
-      'A JSON review with approval status and any blockers.',
-    agent,
-  };
-}
-
 module.exports = {
   buildDecisionTask,
   buildCoordinatorTask,
-  buildAuthorizationTask,
 };

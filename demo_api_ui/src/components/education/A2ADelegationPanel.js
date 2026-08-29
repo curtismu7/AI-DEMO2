@@ -188,6 +188,11 @@ export default function A2ADelegationPanel({ isOpen, onClose, initialTabId }) {
             Every vertical specialist exposes{' '}
             <code>/a2a/specialists/&lt;vertical&gt;/.well-known/agent-card.json</code>.
           </p>
+          <p style={{ color: '#374151' }}>
+            To see it actually happen — a live Agent Card, the bearer gate refusing an
+            unauthenticated call, and a real nested-<code>act</code> chain hop by hop —
+            open <a href="/a2a-protocol-learning">A2A Protocol &amp; Identity</a>.
+          </p>
           <h3>Official docs &amp; samples</h3>
           <ul>
             <li>

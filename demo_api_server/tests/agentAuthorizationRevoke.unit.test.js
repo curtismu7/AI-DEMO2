@@ -34,6 +34,13 @@ let delegationService;
 let revokeToken;
 
 beforeEach(() => {
+  // resetModules() does NOT hand back fresh jest.fn()s here — the mock registry
+  // outlives it, so call counts accumulated across every test in the file and
+  // the two "exactly 11 calls" assertions below read 14 and 25 instead. Clear
+  // usage data explicitly. mockClear keeps the implementations the jest.mock
+  // factories installed (mockResolvedValue / the getEffective mapping), so only
+  // calls/instances/results are reset — see [[jest-resetmodules-stale-mock-handles]].
+  jest.clearAllMocks();
   delegationStore = require('../services/lmdb/delegationStore.lmdb');
   delegationService = require('../services/delegationService');
   ({ revokeToken } = require('../services/tokenRevocation'));
