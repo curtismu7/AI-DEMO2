@@ -73,6 +73,13 @@ export default function DelegationChainValuePage() {
     }
   }, []);
 
+  const handleClearAll = useCallback(() => {
+    setStatus({});
+    setResults({});
+  }, []);
+
+  const hasResults = Object.keys(results).length > 0;
+
   return (
     <div className="dcv-page">
       <p className="dcv-eyebrow">WHY THIS DEMO EXISTS</p>
@@ -83,6 +90,13 @@ export default function DelegationChainValuePage() {
         runs through the live token-exchange and authorization path, then shows the evidence in
         the token-chain panel.
       </p>
+      {hasResults && (
+        <div className="dcv-controls">
+          <button type="button" onClick={handleClearAll} className="dcv-clear-button">
+            Clear
+          </button>
+        </div>
+      )}
       {RUNS.map((entry) => (
         <section key={entry.key} className="dcv-run">
           <h2>{entry.heading}</h2>
