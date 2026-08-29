@@ -198,11 +198,20 @@ without `.env` silently un-registers every actor. `HasValidActorChain`'s version
 is content-derived; leave it that way or PingOne skips the object and the import
 is a no-op.
 
-**Still stale (not fixed here):** `HasValidA2aGeneralist`
-(`23456789-0012-…`) hardcodes `71e878ea-…` as "the registered AI Agent
-generalist". That application no longer exists in env `01d89b06`, so two-hop A2A
-chains will still DENY "Invalid A2A Generalist" after this import. It is
-hand-authored — the generator does not touch it.
+**`HasValidA2aGeneralist`'s stale id is INERT — do not "fix" it.**
+`23456789-0012-…` names `71e878ea-…`, an app that no longer exists in env
+`01d89b06`, which looks like the same drift. It is not. Rule
+`45678901-0009` fires on `and(RequiresA2aDelegation, not(HasValidA2aGeneralist))`
+and `RequiresA2aDelegation` is itself scoped to `ActChainDepth < 2`, so only
+single-hop calls reach the condition, `NestedActClientId` is always empty, and
+`HasValidA2aGeneralist` can never be true whatever id it names. Measured
+2026-08-29 with `scripts/predict-p1az-denies.mjs` on `get_portfolio_summary`:
+depth=2 PERMITs with the live id AND with the stale one (identical), depth=1
+with no nested actor DENYs. Live traffic agrees — 50 consecutive gateway
+decisions, all `ActChainDepth:1` / `NestedActClientId:""`. The rule's DESCRIPTION
+claimed the opposite ("fires when ActChainDepth >= 2"), which is what made the id
+look load-bearing; that wording is corrected here and its version bumped so the
+correction actually imports. Changing the id would be a no-op import.
 
 **Verify:** `bash scripts/test-snapshots.sh` (47 passed) and
 `node snapshots/gen-authorize-snapshot.js --check` (up to date) — then the fix
