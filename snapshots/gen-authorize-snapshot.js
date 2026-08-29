@@ -669,20 +669,28 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
     };
     collect(actorCond.condition);
 
+    // PINGONE_AI_AGENT_ACTOR_CLIENT_ID belongs here too: it is the actor on
+    // EVERY agent-mediated tool call (the BFF stamps it as X-Act-Client-Id),
+    // not just the A2A hops. The harvest matched only PINGONE_A2A_*, so when
+    // the actor app was recreated on 2026-08-22 ("Migrated to AI_AGENT type")
+    // its new client id never entered the list and every McpToolCall through
+    // PingGateway came back DENY / mcp-invalid-actor — UC14b's PERMIT included.
     const fromEnv = Object.keys(process.env)
-      .filter((k) => /^PINGONE_A2A_[A-Z0-9]+_AGENT_CLIENT_ID$/.test(k))
+      .filter((k) => /^PINGONE_A2A_[A-Z0-9]+_AGENT_CLIENT_ID$/.test(k)
+        || k === 'PINGONE_AI_AGENT_ACTOR_CLIENT_ID')
       .map((k) => (process.env[k] || '').trim())
       .filter(Boolean);
 
     const actors = [...new Set([...existing, ...fromEnv])].sort();
     if (actors.length > existing.length) {
-      console.log(`  actor chain: +${actors.length - existing.length} specialist id(s) from env`);
+      console.log(`  actor chain: +${actors.length - existing.length} actor id(s) from env`);
     }
     actorCond.description =
       `ActClientId is one of the registered chain identities (${actors.length}): the MCP Token `
       + `Exchanger, the AI Agent, and each A2A specialist. A two-hop chain whose specialist is not `
       + `listed here is denied as an invalid actor, regardless of chain depth. Union of the ids `
-      + `already in the snapshot and PINGONE_A2A_*_AGENT_CLIENT_ID — never shrinks.`
+      + `already in the snapshot, PINGONE_AI_AGENT_ACTOR_CLIENT_ID and `
+      + `PINGONE_A2A_*_AGENT_CLIENT_ID — never shrinks.`
       + (externalDoorAudience
         ? ` PLUS an external-door exemption: an ABSENT actor (ActClientId '') is accepted ONLY when `
           + `TokenIss is one of ${externalDoorIssuers.join(', ')}. That route has no exchange step by `

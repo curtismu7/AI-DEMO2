@@ -9,6 +9,7 @@
     "test": "jest"
   },
   "dependencies": {
+    "@dotenvx/primitives": "^2.2.0",
     "@opentelemetry/auto-instrumentations-node": "^0.59.0",
     "@opentelemetry/exporter-trace-otlp-grpc": "^0.200.0",
     "@opentelemetry/sdk-node": "^0.200.0",
