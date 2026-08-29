@@ -77,6 +77,48 @@ describe('/internal/agent-tool — A2A fast-path', () => {
     expect(res.body.result).toMatchObject({ delegated: true, actChainDepth: 2 });
   });
 
+  // RED PROOF for 2026-08-29: delegate_to_specialist is the delegation TRIGGER,
+  // not an a2aDelegated tool, so verticalForA2aTool() never matched it and it
+  // fell through to executeBffTool — landing on the a2a overlay's fallback
+  // executeTool, which answers "must be handled by the A2A interception". The
+  // AG-UI agent (demo_agent_service calls this endpoint for every tool) emitted
+  // the tool call and nothing performed the handoff.
+  it('routes delegate_to_specialist through the delegation service using the session vertical', async () => {
+    const app = buildApp();
+    const res = await post(app, {
+      tool: 'delegate_to_specialist',
+      args: { subtask: 'get my portfolio summary' },
+      sessionId: 's1',
+    });
+
+    expect(res.status).toBe(200);
+    expect(mockExecuteBffTool).not.toHaveBeenCalled();
+    expect(mockExecuteA2aDelegation).toHaveBeenCalledTimes(1);
+    const [vertical, callArgs] = mockExecuteA2aDelegation.mock.calls[0];
+    // Session carries no active_vertical here, so the documented default holds.
+    expect(vertical).toBe('banking');
+    // The trigger's args are passed straight through — NOT wrapped as
+    // { tool, args }, which is the shape only a direct a2aDelegated tool uses.
+    expect(callArgs).toEqual({ subtask: 'get my portfolio summary' });
+    expect(callArgs.tool).toBeUndefined();
+  });
+
+  it('delegate_to_specialist follows the session active_vertical when set', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use((req, _res, next) => {
+      req.sessionStore = { get: (_id, cb) => cb(null, { ...SESSION, active_vertical: 'healthcare' }) };
+      next();
+    });
+    app.use('/internal', require('../routes/agentTool'));
+
+    const res = await post(app, { tool: 'delegate_to_specialist', args: {}, sessionId: 's1' });
+
+    expect(res.status).toBe(200);
+    expect(mockExecuteA2aDelegation).toHaveBeenCalledTimes(1);
+    expect(mockExecuteA2aDelegation.mock.calls[0][0]).toBe('healthcare');
+  });
+
   it('leaves ordinary tools on the direct executeBffTool path', async () => {
     const app = buildApp();
     const res = await post(app, { tool: 'get_my_accounts', args: {}, sessionId: 's1' });
