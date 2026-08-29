@@ -18,16 +18,13 @@
 
 :root {
   --ctl-brand: #0b69a3;
-  --ctl-ink: #102a43;
-  --ctl-line: #d9e2ec;
-  --ctl-line-strong: #b6c2cf;
+  /* Ink and lines read the app's semantic tokens (index.css), which carry
+     their own dark pair — so no dark block here. Only the brand stays local. */
+  --ctl-ink: var(--th-text);
+  --ctl-line: var(--th-border);
+  --ctl-line-strong: var(--th-border-strong);
   --ctl-radius: 10px;
   --ctl-ring: 0 0 0 3px rgba(11, 105, 163, 0.35);
-}
-:root[data-theme="dark"] {
-  --ctl-ink: #e2e8f0;
-  --ctl-line: #34405e;
-  --ctl-line-strong: #4b5875;
 }
 
 /* ── Global checkbox sweep — native <input type="checkbox"> → box variant ──

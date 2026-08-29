@@ -20,7 +20,7 @@
 
 .qfp-dropdown {
   position: fixed;
-  z-index: 10050;
+  z-index: var(--z-shell);
   min-width: 320px;
   max-width: 380px;
   max-height: 70vh;
