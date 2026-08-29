@@ -16,7 +16,7 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
-### [ ] 2026-08-29 — demo passwords rotated in PingOne and `.env` only; vault and SE k8s still hold the old ones
+### [x] 2026-08-29 — demo passwords rotated in PingOne and `.env` only; vault and SE k8s still hold the old ones
 
 `DEMO_USER_PASSWORD` and `DEMO_ADMIN_PASSWORD` had been world-readable in public
 git history since 2026-06-29 (see `.claude/SECRET-REMEDIATION-2026-08-28.md`).
@@ -54,6 +54,37 @@ namespace, then confirm from the cluster the way it was confirmed locally —
 `$`, and Compose interpolated it away — the `.env` held `Harbor7$Falcon29` and
 the container held `Harbor7`. Never put `$` in a secret destined for an `.env`,
 and verify with `docker exec <c> sh -c 'echo ${#VAR}'`, never by reading the file.
+
+**RESOLVED 2026-08-29, same day** — and **this entry's vault claim was wrong.**
+
+- **Vault never held the demo passwords.** `vault:list` shows neither
+  `DEMO_USER_PASSWORD` nor `DEMO_ADMIN_PASSWORD`. The concern that
+  `refresh-service-envs.js` would reintroduce old values via vault does not
+  apply to these two keys. The entry asserted the drift from reading
+  `vault-migrate.js`'s key handling rather than listing the vault.
+- **SE reconciled.** All 12 entries across the 6 secrets (`agent-secrets`,
+  `ai-demo-secrets`, `gateway-secrets`, `hitl-secrets`, `langchain-secrets`,
+  `mcp-secrets`) were patched, and the 7 consuming deployments restarted.
+  `grafana` also mounts `ai-demo-secrets` but never authenticates as these
+  users, so it was left alone rather than bouncing an internet-facing login.
+- **Verified by hash across all three places** — the values PingOne confirmed at
+  set time, the local container, and an SE pod all match.
+
+**The framing in this entry was also backwards.** It called the drift a security
+exposure ("SE may still accept a public password"). It could not: PingOne is the
+single authority and had already rejected the leaked values, so stale copies
+made SE *fail to authenticate*, not accept anything. The drift was a functional
+break, not a hole.
+
+**A second trap, worse than the `$` one.** Verifying with PingOne's
+`password.check` endpoint using deliberately WRONG passwords accumulates failed
+attempts and locks the account out of subsequent checks — including checks of
+the *correct* password, while `status` still reads `OK`. This produced two
+false readings in opposite directions before it was spotted, and was only
+resolved by setting a fresh password (which clears the counter) and checking in
+the same call. **Never probe a live account with a known-wrong password.**
+Compare hashes across sources instead, and spend at most one `password.check`
+per user, with the value you believe is correct.
 
 ### [ ] 2026-08-28 — UC34/UC35 sit on the 120s reasoning timeout: ~50% failure, measured
 
