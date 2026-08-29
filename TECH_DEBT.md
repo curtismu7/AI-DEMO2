@@ -16,6 +16,45 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-08-29 — demo passwords rotated in PingOne and `.env` only; vault and SE k8s still hold the old ones
+
+`DEMO_USER_PASSWORD` and `DEMO_ADMIN_PASSWORD` had been world-readable in public
+git history since 2026-06-29 (see `.claude/SECRET-REMEDIATION-2026-08-28.md`).
+Both were rotated on 2026-08-29: set in PingOne via the Management API,
+propagated to all 11 live per-service `.env` files, and the BFF recreated so the
+container picked them up. PingOne now rejects both leaked values.
+
+**Why it wasn't finished:** the rotation was deliberately scoped to "PingOne +
+`.env` + restart" to keep the blast radius small while other sessions were
+driving the shared stack. Vault and the SE cluster were left for a quieter
+moment rather than reconciled blind.
+
+**The drift:** anything that reads these two values from somewhere other than a
+local `.env` still has the OLD, publicly-known password:
+
+- **Vault** — `demo_api_server/scripts/vault-migrate.js` handles both keys.
+- **SE k8s secrets** — created by `create-secrets.sh`; the cluster was not
+  touched.
+- `demo_api_server/scripts/refresh-service-envs.js` regenerates per-service
+  `.env` files; if it sources from vault rather than the BFF `.env`, running it
+  would *reintroduce* the old values.
+
+**The risk:** the SE demo at `ai-demo.ping-devops.com` may still accept a
+password that is public. That is the same exposure the rotation was meant to
+close, just on the deployment nobody re-checked. Silent, because local sign-in
+works fine.
+
+**What the real fix looks like:** reconcile vault first (it is the upstream for
+`refresh-service-envs.js`), then re-run `create-secrets.sh` for the SE
+namespace, then confirm from the cluster the way it was confirmed locally —
+`kubectl exec` the value out and validate it against PingOne's
+`password.check` endpoint, rather than trusting that the secret was applied.
+
+**One trap worth carrying forward:** the first generated password contained a
+`$`, and Compose interpolated it away — the `.env` held `Harbor7$Falcon29` and
+the container held `Harbor7`. Never put `$` in a secret destined for an `.env`,
+and verify with `docker exec <c> sh -c 'echo ${#VAR}'`, never by reading the file.
+
 ### [ ] 2026-08-28 — UC34/UC35 sit on the 120s reasoning timeout: ~50% failure, measured
 
 **What's wrong.** `ai-spot-unusual-patterns` (UC34) and `ai-explain-last-denial`
