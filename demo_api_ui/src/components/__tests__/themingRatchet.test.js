@@ -42,6 +42,45 @@ function unthemed() {
   });
 }
 
+/**
+ * The 10px floor (REGRESSION_PLAN §0 H2, THEMING.md §8.1).
+ *
+ * `--font-size-3xs` is 10px and is the bottom of the scale, so "never below
+ * 10px" is enforceable as "no font-size literal resolves under 10px". 98 such
+ * declarations were swept to the floor; this pin is 0 and must stay there.
+ *
+ * Unlike MAX_UNTHEMED this is not a ratchet that walks down — it is a hard
+ * zero. A new sub-10px value is always a bug, never a not-yet-migrated file.
+ */
+const SUB_10_PX = /font-size:\s*([0-9]+(?:\.[0-9]+)?)px/g;
+const SUB_10_REM = /font-size:\s*(0\.[0-9]+)rem/g;
+
+function belowFloor() {
+  const hits = [];
+  for (const f of cssFiles(SRC)) {
+    const src = fs.readFileSync(f, 'utf8');
+    for (const m of src.matchAll(SUB_10_PX)) {
+      if (parseFloat(m[1]) < 10) hits.push(`${path.relative(SRC, f)} — ${m[0]}`);
+    }
+    // rem is root-relative and the root is 16px, so 0.625rem is the 10px line.
+    for (const m of src.matchAll(SUB_10_REM)) {
+      if (parseFloat(m[1]) < 0.625) hits.push(`${path.relative(SRC, f)} — ${m[0]}`);
+    }
+  }
+  return hits;
+}
+
+describe('font-size floor', () => {
+  it('no stylesheet sets a font-size below 10px', () => {
+    const hits = belowFloor();
+    expect(
+      hits,
+      `Font sizes below the 10px floor (REGRESSION_PLAN §0 H2). Use ` +
+        `var(--font-size-3xs) or larger:\n  ${hits.slice(0, 8).join('\n  ')}`,
+    ).toEqual([]);
+  });
+});
+
 describe('theming ratchet', () => {
   it(`no more than ${MAX_UNTHEMED} stylesheets are light-only`, () => {
     const files = unthemed();

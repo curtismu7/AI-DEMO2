@@ -114,7 +114,7 @@
 }
 .ac-tab-kbd {
   font-family: inherit;
-  font-size: 9.5px;
+  font-size: var(--font-size-3xs);
   background: var(--ac-bg-3);
   color: var(--ac-muted);
   padding: 1px 4px;
@@ -477,7 +477,7 @@
 }
 .ac-tstep-rfc {
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: var(--font-size-3xs);
   color: var(--ac-muted);
 }
 .ac-tstep-name {

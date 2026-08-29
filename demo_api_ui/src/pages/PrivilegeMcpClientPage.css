@@ -854,7 +854,7 @@ select.cur-input { cursor: pointer; }
 .cur-terminal-ts { color: #555; flex-shrink: 0; }
 
 .cur-terminal-badge {
-  font-size: 9px;
+  font-size: var(--font-size-3xs);
   padding: 1px 5px;
   border-radius: 3px;
   text-transform: uppercase;
@@ -1099,7 +1099,7 @@ select.cur-input { cursor: pointer; }
 }
 
 .cur-flow-label {
-  font-size: 9px;
+  font-size: var(--font-size-3xs);
   text-transform: uppercase;
   letter-spacing: 0.1em;
   font-weight: 700;
@@ -1182,9 +1182,9 @@ select.cur-input { cursor: pointer; }
 }
 
 .cur-flow-line { width: 24px; height: 2px; background: #3d444d; }
-.cur-flow-arrow { color: #3d444d; font-size: 8px; line-height: 1; }
+.cur-flow-arrow { color: #3d444d; font-size: var(--font-size-3xs); line-height: 1; }
 .cur-flow-conn-label {
-  font-size: 8.5px;
+  font-size: var(--font-size-3xs);
   font-family: var(--font-mono);
   color: #6e7681;
   margin-top: 3px;
@@ -1485,7 +1485,7 @@ select.cur-input { cursor: pointer; }
   border-radius: 8px;
   background: #6d9eeb;
   color: #0a0a0a;
-  font-size: 9px;
+  font-size: var(--font-size-3xs);
   font-weight: 700;
   text-align: center;
   line-height: 15px;
