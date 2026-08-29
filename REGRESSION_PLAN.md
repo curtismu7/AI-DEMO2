@@ -122,6 +122,49 @@ read the configured host. A new browser origin must be added to ALL of:
 ## §4 — Bug Fix Log
 Reverse-chronological, newest first.
 
+### 2026-08-28 — Every PingGateway MCP tool call DENYed `mcp-invalid-actor`: the AI Agent Actor's client id was never in `HasValidActorChain`
+
+**Files changed:** `snapshots/gen-authorize-snapshot.js`,
+`snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json`.
+
+**What was broken:** the generator harvested registered actor ids from
+`PINGONE_A2A_*_AGENT_CLIENT_ID` only. `PINGONE_AI_AGENT_ACTOR_CLIENT_ID` — the
+actor the BFF stamps as `X-Act-Client-Id` on *every* agent-mediated tool call —
+was never in the union, so `HasValidActorChain` kept whatever ids happened to be
+in the committed snapshot. When the actor app was recreated on 2026-08-22
+("Demo AI App - AI Agent Actor", migrated to `AI_AGENT` type, new client id
+`0b412e8b-…`), the condition still listed the dead one, and PingOne Authorize
+answered DENY / `mcp-invalid-actor` for the current actor. Live-reproduced on
+UC14b ("PAR + RAR intent verified (PERMIT)"): a within-cap $80 transfer came
+back `403 rar_unexpected_deny` / `access_denied`, statements
+`mcp-authorization-denied` + `mcp-invalid-actor` ("Actor client ID
+'0b412e8b-…' is not a registered actor in the RFC 8693 delegation chain"), and
+the Proof strip read "Run failed before intent-binding-verified". The sim's
+`get_my_accounts` discovery was denied by the same rule, which is why the
+transfer fell back to the `sim-acc-*` placeholder ids.
+
+**What was fixed:** the env harvest now also takes
+`PINGONE_AI_AGENT_ACTOR_CLIENT_ID`. Regenerating with the current `.env` unioned
+in the AI Agent Actor plus the 11 current A2A specialists (13 → 25 registered
+ids). Union-only, so the file stays byte-identical on a machine with no `.env`
+and `snapshot:check` remains deterministic.
+
+**Do not break:** the list is UNION-ONLY — never replace it, or a checkout
+without `.env` silently un-registers every actor. `HasValidActorChain`'s version
+is content-derived; leave it that way or PingOne skips the object and the import
+is a no-op.
+
+**Still stale (not fixed here):** `HasValidA2aGeneralist`
+(`23456789-0012-…`) hardcodes `71e878ea-…` as "the registered AI Agent
+generalist". That application no longer exists in env `01d89b06`, so two-hop A2A
+chains will still DENY "Invalid A2A Generalist" after this import. It is
+hand-authored — the generator does not touch it.
+
+**Verify:** `bash scripts/test-snapshots.sh` (47 passed) and
+`node snapshots/gen-authorize-snapshot.js --check` (up to date) — then the fix
+only reaches the demo after **PingOne console → Authorize → Trust Framework →
+Import** of the regenerated snapshot (`docs/LIVE-PINGONE-RUNBOOK.md` §3).
+
 ### 2026-08-28 — RAR looked enforced but nothing enforced it: `FF_RAR` was unset in every deployment
 
 **Files changed:** `docker-compose.yml` (authz-server `environment`).
