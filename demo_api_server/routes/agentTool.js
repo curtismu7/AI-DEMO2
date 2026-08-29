@@ -119,12 +119,29 @@ router.post('/agent-tool', async (req, res) => {
     // service instead — the specialist chain is where authorization happens.
     // Lazy requires: keep route load free of the agent-service module graph.
     let raw;
-    const a2aVertical = verticalForA2aTool(tool);
+    // `delegate_to_specialist` is the delegation TRIGGER, not an a2aDelegated
+    // tool, so verticalForA2aTool() never matched it: it fell through to
+    // executeBffTool and hit the a2a overlay's fallback executeTool, which
+    // returns "delegate_to_specialist must be handled by the A2A interception"
+    // (config/verticals/a2a/index.js — its own comment calls itself a safety
+    // fallback). On the AG-UI path that meant the model ANNOUNCED a handoff
+    // nobody performed: TOOL_CALL_START/ARGS/END with no result, no nested-act
+    // exchange, no a2a-* token events. Live-reproduced 2026-08-29 on UC2
+    // ("hand off to a specialist"), banking.
+    //
+    // The vertical comes from the session, not the tool name — the trigger
+    // carries no vertical of its own. Same two branches
+    // demoAgentLangGraphService.resolveExecuteTool() runs for the legacy
+    // pipeline, so both entry points now delegate identically.
+    const isDelegationTrigger = tool === 'delegate_to_specialist';
+    const a2aVertical = isDelegationTrigger
+      ? (session.active_vertical || 'banking')
+      : verticalForA2aTool(tool);
     if (a2aVertical) {
       const { executeA2aDelegation } = require('../services/demoAgentLangGraphService');
       raw = await executeA2aDelegation(
         a2aVertical,
-        { tool, args: args || {} },
+        isDelegationTrigger ? (args || {}) : { tool, args: args || {} },
         { req: fakeReq, tokenEvents, sessionId },
       );
     } else {
