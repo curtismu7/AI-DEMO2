@@ -30,19 +30,19 @@ import "./TokenChainTraceRail.css";
 // v2: the persist effect writes on mount, so every browser that has ever
 // opened this surface already has "1" under the old key — keeping it would
 // make the new default a no-op for everyone. A fresh key retires that.
-const ZOOM_KEY = "tctr:zoom:v2";
+export const ZOOM_KEY = "tctr:zoom:v2";
 const VIEW_MODE_KEY = "tctr:view-mode";
-const ZOOM_MIN = 0.8;
-const ZOOM_MAX = 1.6;
-const ZOOM_STEP = 0.1;
+export const ZOOM_MIN = 0.8;
+export const ZOOM_MAX = 1.6;
+export const ZOOM_STEP = 0.1;
 // Opens one notch above 100%. This surface is read off a projector at the
 // back of a room — the claims tables and JSON blobs are the evidence, and at
 // 100% they were being squinted at. On the 0.1 grid so A-/A+ still land on
 // round values, and the % button resets here rather than to 100%.
-const ZOOM_DEFAULT = 1.2;
+export const ZOOM_DEFAULT = 1.2;
 
 /** Restore the presenter's saved rail scale, or 1 when unset/unreadable. */
-function readStoredZoom() {
+export function readStoredZoom() {
   try {
     const v = Number(window.localStorage.getItem(ZOOM_KEY));
     return v >= ZOOM_MIN && v <= ZOOM_MAX ? v : ZOOM_DEFAULT;
@@ -226,13 +226,17 @@ function subscribeTrustFlags(setFlags) {
   };
 }
 
-export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
+export default function TokenChainTraceRail({ mcpRouteOnly = false, zoom: zoomProp, onZoomChange }) {
   const [snap, setSnap] = useState(() => tokenChainTraceStore.getState());
   const [legendOpen, setLegendOpen] = useState(false);
   const [inspectType, setInspectType] = useState(null);
   const [tab, setTab] = useState(mcpRouteOnly ? "mcp" : "chain");
   const [trustFlags, setTrustFlags] = useState({ ffDpop: false, ffRar: false });
-  const [zoom, setZoom] = useState(readStoredZoom);
+  // Zoom is controlled when a host (FloatingTokenChainPanel) surfaces the
+  // A-/A+ control in its own header — one value, pressable from either place.
+  const [zoomLocal, setZoomLocal] = useState(readStoredZoom);
+  const zoom = zoomProp ?? zoomLocal;
+  const setZoom = onZoomChange ?? setZoomLocal;
   const [viewMode, setViewMode] = useState(readStoredViewMode);
   // Chain-map selection. Purely a scroll/highlight aid over the cards below —
   // it never filters or reorders `steps`.
@@ -292,7 +296,7 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
   }, [viewMode]);
   const stepZoom = useCallback((delta) => {
     setZoom((z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round((z + delta) * 10) / 10)));
-  }, []);
+  }, [setZoom]);
 
   useEffect(() => {
     if (!moreOpen) return undefined;

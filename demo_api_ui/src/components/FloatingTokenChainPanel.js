@@ -5,7 +5,7 @@ import { useDraggablePanel } from '../hooks/useDraggablePanel';
 import { useTokenChainOptional } from '../context/TokenChainContext';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
 import { PopOutPortal } from './DraggableModal';
-import TokenChainTraceRail from './TokenChainTraceRail';
+import TokenChainTraceRail, { ZOOM_KEY, ZOOM_MIN, ZOOM_MAX, ZOOM_STEP, ZOOM_DEFAULT, readStoredZoom } from './TokenChainTraceRail';
 import StepsTabContent from './StepsTabContent';
 import DetailedStepsTabContent from './DetailedStepsTabContent';
 import TokenExchangeDiagram from './TokenExchangeDiagram';
@@ -22,6 +22,10 @@ export default function FloatingTokenChainPanel({ isOpen, onClose }) {
   const [minimized, setMinimized] = useState(false);
   const [activeTab, setActiveTab] = useState('chain');
   const [popoutWin, setPopoutWin] = useState(null);
+  // Presenter text size, in the header rather than buried in the rail's More
+  // tray — this panel is what gets driven live in demos. Same value and same
+  // storage key as the rail, so pressing either moves one number.
+  const [zoom, setZoom] = useState(readStoredZoom);
   const tokenChain = useTokenChainOptional();
 
   /** Clear TraceRail + live events so presenters can reset between demo runs. */
@@ -29,6 +33,13 @@ export default function FloatingTokenChainPanel({ isOpen, onClose }) {
     tokenChainTraceStore.reset();
     tokenChain?.clearEvents?.();
   }, [tokenChain]);
+
+  useEffect(() => {
+    try { window.localStorage.setItem(ZOOM_KEY, String(zoom)); } catch { /* private mode */ }
+  }, [zoom]);
+  const stepZoom = useCallback((delta) => {
+    setZoom((z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round((z + delta) * 10) / 10)));
+  }, []);
 
   const { pos, size, handleDragStart, createResizeHandler } = useDraggablePanel(
     () => ({
@@ -98,6 +109,21 @@ html,body{margin:0;padding:0;height:100%}
 
   const controls = (
     <div className="ftcp-controls">
+      <div className="tctr-zoom" role="group" aria-label="Token chain text size"
+        onPointerDown={(e) => e.stopPropagation()}>
+        <button type="button" className="tctr-zoom-btn" onClick={() => stepZoom(-ZOOM_STEP)}
+          disabled={zoom <= ZOOM_MIN} title="Smaller text" aria-label="Decrease token chain text size">
+          A-
+        </button>
+        <button type="button" className="tctr-zoom-pct" onClick={() => setZoom(ZOOM_DEFAULT)}
+          disabled={zoom === ZOOM_DEFAULT} title="Reset text size" aria-label="Reset token chain text size">
+          {Math.round(zoom * 100)}%
+        </button>
+        <button type="button" className="tctr-zoom-btn" onClick={() => stepZoom(ZOOM_STEP)}
+          disabled={zoom >= ZOOM_MAX} title="Larger text" aria-label="Increase token chain text size">
+          A+
+        </button>
+      </div>
       <button
         type="button"
         className="ftcp-btn ftcp-btn--clear"
@@ -177,8 +203,8 @@ html,body{margin:0;padding:0;height:100%}
   );
 
   const bodyContent = (
-    <div className="ftcp-body">
-      {activeTab === 'chain' && <TokenChainTraceRail />}
+    <div className="ftcp-body" style={activeTab === 'chain' ? undefined : { zoom }}>
+      {activeTab === 'chain' && <TokenChainTraceRail zoom={zoom} onZoomChange={setZoom} />}
       {activeTab === 'simple' && <StepsTabContent />}
       {activeTab === 'detailed' && <DetailedStepsTabContent />}
       {activeTab === 'diagram' && <TokenExchangeDiagram />}
