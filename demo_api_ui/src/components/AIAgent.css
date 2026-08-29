@@ -407,11 +407,15 @@ body > .banking-agent-float-root .banking-agent-panel {
   border-color: var(--app-primary-red-border);
 }
 
+/* H1: this block had a tokenized ground under literal ink. The modal surface
+   flips to #131c2e in dark while #172033 stayed put, so the intro copy, the
+   label and — worst — the text you type into the filter measured ~1.06:1.
+   Ink now comes from the same set as the surface behind it. */
 .ba-user-filter {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  color: #172033;
+  color: var(--th-text);
 }
 
 .ba-user-filter p {
@@ -426,20 +430,24 @@ body > .banking-agent-float-root .banking-agent-panel {
 .ba-user-filter input {
   min-height: 42px;
   padding: 0.65rem 0.75rem;
-  border: 1px solid #64748b;
+  border: 1px solid var(--th-border-strong);
   border-radius: 6px;
-  color: #172033;
+  color: var(--th-text);
   background: var(--th-bg-card);
   font: inherit;
 }
 
+.ba-user-filter input::placeholder {
+  color: var(--th-text-faint);
+}
+
 .ba-user-filter input:focus-visible {
-  outline: 3px solid #2563eb;
+  outline: 3px solid var(--th-status-info);
   outline-offset: 2px;
 }
 
 .ba-user-filter-error {
-  color: #7d1b15;
+  color: var(--th-status-error-text);
   font-weight: 700;
 }
 
@@ -5025,6 +5033,10 @@ body > .banking-agent-float-root .banking-agent-panel {
   }
 }
 
+/* H1: the ground was tokenized and the blue ink was not, so on the dark card
+   (#131c2e) this rendered brand blue on near-black at 2.87:1 — the "blue on
+   black" on the agent header. --th-status-info-text is #1e40af in light and
+   #93c5fd in dark, clearing 4.5:1 on both grounds, so no dark block is needed. */
 .ba-actions-trigger {
   display: inline-flex;
   align-items: center;
@@ -5032,9 +5044,9 @@ body > .banking-agent-float-root .banking-agent-panel {
   height: 28px;
   padding: 6px 12px;
   border-radius: 6px;
-  border: 1.5px solid #2563eb;
+  border: 1.5px solid var(--th-status-info);
   background: var(--th-bg-card);
-  color: #2563eb;
+  color: var(--th-status-info-text);
   font-size: var(--font-size-sm);
   font-weight: 600;
   cursor: pointer;
@@ -5042,12 +5054,12 @@ body > .banking-agent-float-root .banking-agent-panel {
   white-space: nowrap;
 }
 .ba-actions-trigger:hover {
-  background: var(--th-bg-card);
-  color: #1d4ed8;
+  background: var(--th-bg-hover);
+  color: var(--th-status-info-text);
 }
 .ba-actions-trigger.active {
-  background: #e0e7ff;
-  color: #1d4ed8;
+  background: var(--th-status-info-bg);
+  color: var(--th-status-info-text);
 }
 /* ─── Header "More" tray ───────────────────────────────────────────────
    Secondary header controls (RFC info, Dark mode, Compliance, Side panel,

@@ -21,6 +21,11 @@
   --dash-ink-2: var(--th-text-body);
   --dash-ink-3: var(--th-text-muted);
   --dash-accent: #1d4ed8;
+  /* Ink for text sitting ON --dash-accent. It cannot be a fixed #fff: in dark
+     --dash-accent becomes a LIGHT blue (#7aa2f7) tuned to be read against the
+     dark ground, and white on it measured 2.52:1 (the .is-on toggle). A token
+     tuned as ink is not automatically usable as a ground — check the pairing. */
+  --dash-accent-ink: #ffffff;
   --dash-accent-soft: #dbeafe;
   --dash-ok: #3d9142;
   --dash-warn: #b26a00;
@@ -39,6 +44,7 @@
   --dash-ground: #0a0f18;
   --dash-line-soft: #1c2634;
   --dash-accent: #7aa2f7;
+  --dash-accent-ink: #0a0f18;
   --dash-accent-soft: #172554;
   --dash-ok: #6cc46c;
   --dash-warn: #e0a145;
@@ -53,7 +59,7 @@
 .dash-seg { display: inline-flex; border: 1px solid var(--dash-line); border-radius: 8px; overflow: hidden; background: var(--dash-surface); }
 .dash-seg button { font: inherit; font-size: 12.5px; font-weight: 600; padding: 6px 13px; border: 0; background: transparent; color: var(--dash-ink-2); cursor: pointer; }
 .dash-seg button + button { border-left: 1px solid var(--dash-line); }
-.dash-seg button.is-on { background: var(--dash-accent); color: #fff; }
+.dash-seg button.is-on { background: var(--dash-accent); color: var(--dash-accent-ink); }
 .dash-seg button:focus-visible { outline: 2px solid var(--dash-accent); outline-offset: -2px; }
 
 .dash-btn { font: inherit; font-size: 12.5px; font-weight: 600; padding: 6px 13px; border-radius: 8px; border: 1px solid var(--dash-line); background: var(--dash-surface); color: var(--dash-ink-2); cursor: pointer; }

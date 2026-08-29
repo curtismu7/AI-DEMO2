@@ -1366,3 +1366,21 @@ body {
   );
   border-color: var(--app-primary-red-border);
 }
+
+/* ── Reduced motion, app-wide ────────────────────────────────────────────────
+   169 stylesheets declare a transition or animation; only 15 guarded it. Rather
+   than add a media query to each of the other 154, this one block honours the
+   OS setting everywhere. Durations are near-zero rather than 0 so that
+   transitionend / animationend still fire and no JS waiting on them stalls.
+   A component needing genuinely different reduced-motion behaviour can still
+   declare its own block — this is a floor, not a ceiling. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
