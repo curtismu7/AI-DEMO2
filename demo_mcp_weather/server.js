@@ -151,7 +151,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     try {
-      console.log(`[mcp-weather] incoming RPC: method=${rpc.method}, tool=${rpc.params?.name || 'N/A'}`);
+      console.log(`[mcp-weather] incoming RPC: method=${rpc.method}, tool=${rpc.params?.name || 'N/A'}, args=${JSON.stringify(rpc.params?.arguments).slice(0, 100)}`);
       // Agent/BFF call get_weather; third-party weather-mcp's default ENABLED_TOOLS
       // has get_current_conditions (not get_weather). Rewrite at the bridge so
       // gateway-scoped PERMIT demos return real weather instead of isError.
