@@ -3,17 +3,15 @@
   "useCaseId": "UC2.6",
   "triggerType": "chip",
   "mode": "unit-prereq",
-  "status": "FAIL",
-  "errorClass": "missing_prereq",
+  "status": "UNPROVEN",
+  "errorClass": null,
   "primaryTool": "sensitive_tax_record",
-  "checkedAt": "2026-08-18",
+  "checkedAt": "2026-08-29",
   "requiredFlags": [
     "ff_mcp_gateway_pinggateway"
   ],
-  "prereqErrors": [
-    "Tax Records Specialist credentials missing (pingone_tax_agent_client_id / pingone_tax_agent_client_secret)"
-  ],
   "flagsAssumedOn": true,
+  "configAssumedPresent": true,
   "provesDeclaredOnly": true,
   "flagsOffDetected": [
     "ff_mcp_gateway_pinggateway"

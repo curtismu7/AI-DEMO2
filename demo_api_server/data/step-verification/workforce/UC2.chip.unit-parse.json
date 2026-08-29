@@ -1,0 +1,10 @@
+{
+  "vertical": "workforce",
+  "useCaseId": "UC2",
+  "triggerType": "chip",
+  "mode": "unit-parse",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "sensitive_payroll_details",
+  "checkedAt": "2026-08-29"
+}

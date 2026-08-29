@@ -1,0 +1,20 @@
+{
+  "vertical": "sporting-goods",
+  "useCaseId": "UC39",
+  "triggerType": "chip",
+  "mode": "unit-prereq",
+  "status": "UNPROVEN",
+  "errorClass": null,
+  "primaryTool": "list_gear",
+  "checkedAt": "2026-08-29",
+  "requiredFlags": [
+    "ff_enterprise_managed_mcp_auth",
+    "ff_mcp_gateway_pinggateway"
+  ],
+  "flagsAssumedOn": true,
+  "provesDeclaredOnly": true,
+  "flagsOffDetected": [
+    "ff_enterprise_managed_mcp_auth",
+    "ff_mcp_gateway_pinggateway"
+  ]
+}

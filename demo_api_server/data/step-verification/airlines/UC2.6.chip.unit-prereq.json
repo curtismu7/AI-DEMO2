@@ -6,11 +6,12 @@
   "status": "UNPROVEN",
   "errorClass": null,
   "primaryTool": "sensitive_passenger_record",
-  "checkedAt": "2026-08-21",
+  "checkedAt": "2026-08-29",
   "requiredFlags": [
     "ff_mcp_gateway_pinggateway"
   ],
   "flagsAssumedOn": true,
+  "configAssumedPresent": true,
   "provesDeclaredOnly": true,
   "flagsOffDetected": [
     "ff_mcp_gateway_pinggateway"
