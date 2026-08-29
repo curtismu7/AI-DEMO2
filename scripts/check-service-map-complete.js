@@ -3,8 +3,9 @@
 'use strict';
 
 /**
- * Static hygiene: every service key resolves in ALL FIVE lookups, and every
- * declared sourceDir is a directory data/serverInventory.js also knows about.
+ * Static hygiene: every service key resolves in ALL FIVE lookups, every
+ * declared sourceDir is a directory data/serverInventory.js also knows about,
+ * and every ghcrImage is one k8s/aws/deploy.sh can actually rewrite.
  *
  * Blind spot by design: ALL_KEYS is this gate's iteration source, so a key
  * deleted from ALL_KEYS entirely is invisible here.
@@ -46,11 +47,39 @@ function readInventory() {
 }
 
 /**
+ * The GHCR image names k8s/aws/deploy.sh knows how to rewrite.
+ *
+ * This is a SIXTH service map, shaped unlike the other five: an indexed array
+ * of "local:ghcr" pairs rather than a keyed lookup, living in a deploy script
+ * instead of se-update-code.sh. It sat outside this gate entirely, which is the
+ * same blind spot the gate exists to close, just one map further out — a
+ * service added to the five and missed here deploys on SE still pointing at a
+ * local image name, after an otherwise-clean CI build.
+ *
+ * Only the map -> IMAGE_MAP direction is asserted. Extra IMAGE_MAP entries are
+ * legitimate: it also carries images this repo does not CI-build.
+ *
+ * @param {string} text contents of k8s/aws/deploy.sh
+ * @returns {Set<string>} the GHCR-side name of every pair
+ */
+function readImageMap(text) {
+  const block = text.match(/IMAGE_MAP=\(([\s\S]*?)\n\)/);
+  if (!block) return new Set();
+  const names = new Set();
+  for (const line of block[1].split('\n')) {
+    const pair = line.trim().match(/^"([^":]+):([^":]+)"$/);
+    if (pair) names.add(pair[2]);
+  }
+  return names;
+}
+
+/**
  * @param {object[]} map entries from `se-update-code.sh --print-map`
  * @param {Record<string,string>} inventory sourceDir -> serverInventory key
+ * @param {Set<string>} imageMap GHCR names from k8s/aws/deploy.sh's IMAGE_MAP
  * @returns {string[]} one message per problem; empty means pass
  */
-function checkMap(map, inventory) {
+function checkMap(map, inventory, imageMap) {
   const errors = [];
   for (const entry of map) {
     for (const field of FIELDS) {
@@ -72,6 +101,13 @@ function checkMap(map, inventory) {
         `service "${entry.key}" declares sourceDir "${entry.sourceDir}", which ` +
         'does not exist on disk — a rename updated neither se-update-code.sh nor ' +
         'data/serverInventory.js, so CI would build nothing for this service',
+      );
+    }
+    if (entry.ghcrImage && !imageMap.has(entry.ghcrImage)) {
+      errors.push(
+        `service "${entry.key}" builds GHCR image "${entry.ghcrImage}", which ` +
+        "k8s/aws/deploy.sh's IMAGE_MAP does not list — its manifests would keep " +
+        'the local image name and the SE deployment would run stale or fail to pull',
       );
     }
   }
@@ -97,12 +133,28 @@ function main() {
     );
     return 1;
   }
-  const errors = checkMap(map, inventory);
+  const imageMap = readImageMap(
+    fs.readFileSync(path.join(ROOT, 'k8s', 'aws', 'deploy.sh'), 'utf8'),
+  );
+  // Guarded like inventoryCount above: an IMAGE_MAP this parser failed to read
+  // would silently pass every service, which is the failure it is here to stop.
+  if (imageMap.size < map.length) {
+    console.error(
+      `[service-map] FAIL — readImageMap parsed ${imageMap.size} IMAGE_MAP pairs from ` +
+      `k8s/aws/deploy.sh, fewer than the ${map.length} services in the build map; ` +
+      'the parser is broken, not the map',
+    );
+    return 1;
+  }
+  const errors = checkMap(map, inventory, imageMap);
   if (errors.length) {
     for (const e of errors) console.error('[service-map] FAIL —', e);
     return 1;
   }
-  console.log(`[service-map] OK — ${map.length} services, all five lookups resolve, sourceDirs match serverInventory`);
+  console.log(
+    `[service-map] OK — ${map.length} services, all five lookups resolve, `
+    + `sourceDirs match serverInventory, ghcrImages all in IMAGE_MAP (${imageMap.size} pairs)`,
+  );
   return 0;
 }
 
@@ -110,4 +162,4 @@ if (require.main === module) {
   process.exit(main());
 }
 
-module.exports = { main, checkMap, readInventory };
+module.exports = { main, checkMap, readInventory, readImageMap };
