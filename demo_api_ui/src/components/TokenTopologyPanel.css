@@ -86,7 +86,7 @@
   transform: translateX(24px);
 }
 .ttp-ctx-lbl {
-  font-size: 9px;
+  font-size: var(--font-size-3xs);
   text-transform: uppercase;
   letter-spacing: .1em;
   font-weight: 700;
@@ -172,7 +172,7 @@
   animation: ttp-pulse 2s ease-in-out infinite;
 }
 .ttp-label {
-  font-size: 9px;
+  font-size: var(--font-size-3xs);
   text-transform: uppercase;
   letter-spacing: .12em;
   font-weight: 700;
@@ -222,7 +222,7 @@
   color: #58a6ff;
 }
 .ttp-callout-what {
-  font-size: 9px;
+  font-size: var(--font-size-3xs);
   line-height: 1.25;
   color: #8b949e;
   margin-top: 1px;
@@ -286,7 +286,7 @@
   padding-top: 8px;
 }
 .ttp-branch-label {
-  font-size: 9px;
+  font-size: var(--font-size-3xs);
   text-transform: uppercase;
   letter-spacing: .12em;
   font-weight: 700;
@@ -346,7 +346,7 @@
 .ttp-status.err  {
   color: #f85149;
   background: rgba(248,81,73,.12);
-  font-size: 8px;
+  font-size: var(--font-size-3xs);
   font-weight: 800;
   letter-spacing: .03em;
   width: auto;
@@ -391,7 +391,7 @@
 
 /* lane badges */
 .ttp-lane {
-  font-size: 9px; font-weight: 700;
+  font-size: var(--font-size-3xs); font-weight: 700;
   font-family: var(--font-mono);
   letter-spacing: .04em;
   padding: 2px 6px;
@@ -432,7 +432,7 @@
 .ttp-nc-v.ok   { color: #3fb950; }
 .ttp-nc-v.aud  { color: #39d353; }
 .ttp-nc-v.warn { color: #f85149; }
-.ttp-nc-more { font-size: 9px; color: #6e7681; font-style: italic; }
+.ttp-nc-more { font-size: var(--font-size-3xs); color: #6e7681; font-style: italic; }
 
 /* ── connector arrows ── */
 .ttp-conn {
@@ -448,7 +448,7 @@
 .ttp-line { width: 30px; height: 2px; background: #3d444d; }
 .ttp-arrowhead { color: #3d444d; font-size: var(--font-size-sm); line-height: 1; }
 .ttp-conn-label {
-  font-size: 9px;
+  font-size: var(--font-size-3xs);
   font-weight: 700;
   letter-spacing: .04em;
   font-family: var(--font-mono);
@@ -622,7 +622,7 @@
   gap: 6px;
 }
 .ttp-detail-label {
-  font-size: 9.5px;
+  font-size: var(--font-size-3xs);
   text-transform: uppercase;
   letter-spacing: .1em;
   font-weight: 700;
@@ -752,7 +752,7 @@
 }
 .ttp-rfc-row { display: flex; gap: 5px; flex-wrap: wrap; }
 .ttp-rfc {
-  font-size: 9.5px;
+  font-size: var(--font-size-3xs);
   font-family: var(--font-mono);
   background: rgba(47,129,247,.1);
   color: #2f81f7;

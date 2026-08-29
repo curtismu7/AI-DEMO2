@@ -130,7 +130,7 @@
 }
 
 .flowAnnotation {
-  font-size: 9px;
+  font-size: var(--font-size-3xs);
   font-weight: 600;
   color: #4b5563;
   text-align: center;

@@ -104,7 +104,7 @@
 .dstc-status--wait { background: #fef9c3; color: #a16207; border: 1px solid #fde68a; }
 
 .dstc-rfc-pill {
-  font-size: 9.5px;
+  font-size: var(--font-size-3xs);
   background: #eff6ff;
   color: #2563eb;
   border: 1px solid #bfdbfe;

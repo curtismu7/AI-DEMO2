@@ -37,7 +37,7 @@
 .tefd-conn-label--user  { fill: #1d4ed8; }
 .tefd-conn-label--agent { fill: #b45309; }
 .tefd-conn-label--mcp   { fill: #15803d; }
-.tefd-conn-rfc          { font-size: 9px; fill: #94a3b8; }
+.tefd-conn-rfc          { font-size: var(--font-size-3xs); fill: #94a3b8; }
 
 /* Hover states */
 .tefd-arrow-group { outline: none; }

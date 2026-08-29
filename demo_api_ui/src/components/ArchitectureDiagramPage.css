@@ -251,7 +251,7 @@
 .arch-aud-trail__icon { font-size: 0.7rem; }
 
 .arch-aud-trail__name {
-  font-size: 0.6rem;
+  font-size: var(--font-size-3xs);
   font-weight: 700;
   color: var(--th-text-faint);
   line-height: 1.2;
@@ -260,7 +260,7 @@
 .arch-aud-trail__hop--past .arch-aud-trail__name { color: #1d4ed8; }
 
 .arch-aud-trail__aud {
-  font-size: 0.57rem;
+  font-size: var(--font-size-3xs);
   font-family: inherit;
   color: #cbd5e1;
   line-height: 1.2;
@@ -270,7 +270,7 @@
 
 .arch-aud-trail__act,
 .arch-aud-trail__mayact {
-  font-size: 0.54rem;
+  font-size: var(--font-size-3xs);
   font-family: inherit;
   color: var(--th-text-faint);
   line-height: 1.2;

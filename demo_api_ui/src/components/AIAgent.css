@@ -2877,7 +2877,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   position: absolute;
   bottom: 2px;
   right: 3px;
-  font-size: 9px;
+  font-size: var(--font-size-3xs);
   color: rgba(65, 105, 225, 0.55);
   line-height: 1;
   pointer-events: none;
@@ -4241,7 +4241,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .ba-session-timer-icon {
-  font-size: 9px;
+  font-size: var(--font-size-3xs);
   opacity: 0.8;
 }
 
@@ -4272,7 +4272,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .ba-header-session-timer {
-  font-size: 9px;
+  font-size: var(--font-size-3xs);
 }
 
 /* Light mode adjustments */
@@ -4324,12 +4324,12 @@ body > .banking-agent-float-root .banking-agent-panel {
   }
 
   .ba-session-timer {
-    font-size: 9px;
+    font-size: var(--font-size-3xs);
     padding: 1px 4px;
   }
 
   .ba-session-timer-icon {
-    font-size: 8px;
+    font-size: var(--font-size-3xs);
   }
 }
 
@@ -6372,7 +6372,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 .ba-rfc-badge {
   display: inline-block;
-  font-size: 9px;
+  font-size: var(--font-size-3xs);
   font-weight: 700;
   letter-spacing: 0.02em;
   color: #1d4ed8;

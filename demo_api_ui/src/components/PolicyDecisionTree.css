@@ -363,13 +363,13 @@
 .p1dt-status--deny { background: #ef4444; color: var(--th-text-invert); }
 .p1dt-status--step_up { background: #f59e0b; color: var(--th-text-invert); }
 .p1dt-status--consent { background: #8b5cf6; color: var(--th-text-invert); }
-.p1dt-status--na { background: var(--th-bg-hover); color: var(--th-text-faint); font-size: 8px; }
+.p1dt-status--na { background: var(--th-bg-hover); color: var(--th-text-faint); font-size: var(--font-size-3xs); }
 .p1dt-status--set { background: #6366f1; color: var(--th-text-invert); }
 
 .p1dt-card-body { flex: 1 1 auto; min-width: 0; }
 
 .p1dt-kind {
-  font-size: 9px;
+  font-size: var(--font-size-3xs);
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -421,7 +421,7 @@
   padding: 4px 0 5px;
 }
 .p1dt-effect {
-  font-size: 9.5px;
+  font-size: var(--font-size-3xs);
   font-weight: 800;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -429,7 +429,7 @@
 .p1dt-effect--permit { color: #166534; }
 .p1dt-effect--deny { color: #991b1b; }
 .p1dt-foot-timing {
-  font-size: 9.5px;
+  font-size: var(--font-size-3xs);
   font-family: var(--font-mono);
   color: #cbd5e1;
   font-style: italic;

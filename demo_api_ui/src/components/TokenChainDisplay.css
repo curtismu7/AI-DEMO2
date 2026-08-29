@@ -671,7 +671,7 @@
 
 .tcd-collapsible-header::before {
   content: "▶";
-  font-size: 9px;
+  font-size: var(--font-size-3xs);
   color: var(--th-text-body);
   transition: transform 0.15s ease;
   flex-shrink: 0;
@@ -2450,7 +2450,7 @@ pre.tcd-jwt-dump.jh-dark {
   margin-top: 10px;
   margin-bottom: 0;
   padding: 3px 10px;
-  font-size: 9px;
+  font-size: var(--font-size-3xs);
   font-weight: 600;
   letter-spacing: 0.06em;
   border-radius: 8px 8px 0 0;
@@ -2500,7 +2500,7 @@ pre.tcd-jwt-dump.jh-dark {
   cursor: default;
 }
 .tcd-specref-link-icon {
-  font-size: 9px;
+  font-size: var(--font-size-3xs);
   opacity: 0.7;
 }
 .tcd-specref-explainer {
@@ -2593,7 +2593,7 @@ pre.tcd-jwt-dump.jh-dark {
 .tcd-tls-card__badge {
   background: #16a34a;
   color: var(--th-text-invert);
-  font-size: 0.62rem;
+  font-size: var(--font-size-3xs);
   font-weight: 700;
   letter-spacing: 0.06em;
   padding: 1px 6px;
@@ -2677,7 +2677,7 @@ pre.tcd-jwt-dump.jh-dark {
 }
 
 .tcd-tls-hop__proto {
-  font-size: 0.62rem;
+  font-size: var(--font-size-3xs);
   font-weight: 700;
   letter-spacing: 0.04em;
   padding: 1px 5px;

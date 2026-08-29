@@ -20,7 +20,7 @@
 .tct-step-ucs { margin-left: auto; font-size: var(--font-size-xs); color: #5f6b76; }
 .tct-slots { padding: 0 10px 8px; }
 .tct-slot-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
-.tct-tag { font-size: 9px; font-weight: 800; width: 42px; text-align: center; border-radius: 4px; padding: 2px 0; }
+.tct-tag { font-size: var(--font-size-3xs); font-weight: 800; width: 42px; text-align: center; border-radius: 4px; padding: 2px 0; }
 .tct-tag--g { background: #ecf7ef; color: #1e7b34; }
 .tct-tag--r { background: #fdeeee; color: #c62828; }
 .tct-slot { font-size: 11.5px; }
@@ -33,7 +33,7 @@
 .tct-tile { font-size: var(--font-size-xs); border: 1px dashed #e3e7eb; border-radius: 5px; padding: 3px 8px; color: #5f6b76; }
 .tct-tile--blocked { border-style: solid; border-color: #1e7b34; color: #1e7b34; font-weight: 600; }
 .tct-proved { border-top: 1px solid #e3e7eb; padding: 8px 10px; }
-.tct-proved h5 { font-size: 9.5px; letter-spacing: 0.1em; color: #16324f; margin: 0 0 5px; }
+.tct-proved h5 { font-size: var(--font-size-3xs); letter-spacing: 0.1em; color: #16324f; margin: 0 0 5px; }
 .tct-proved-line { display: flex; gap: 6px; margin-bottom: 3px; }
 .tct-mark-g { color: #1e7b34; font-weight: 800; }
 .tct-mark-r { color: #c62828; font-weight: 800; }
@@ -44,17 +44,17 @@
 .tct-reason--g { color: #1e7b34; }
 .tct-reason--r { color: #c62828; }
 .tct-reason-code {
-  display: inline-block; font-size: 9.5px; font-weight: 800; letter-spacing: .02em;
+  display: inline-block; font-size: var(--font-size-3xs); font-weight: 800; letter-spacing: .02em;
   background: #fdeeee; color: #c62828; border-radius: 4px; padding: 1px 6px; margin-right: 6px;
 }
 .tct-tile-code {
-  display: inline-block; font-size: 8.5px; font-weight: 800; margin-left: 5px;
+  display: inline-block; font-size: var(--font-size-3xs); font-weight: 800; margin-left: 5px;
   background: rgba(30,123,52,.12); color: #1e7b34; border-radius: 3px; padding: 0 4px;
 }
 /* Mini token-chain strip under a filled slot (mock: demo-track-tokenchain-tab-mock.html) */
 .tct-chain { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 2px 0 6px 50px; }
-.tct-cn { font-size: 9px; letter-spacing: .02em; border: 1px solid #e3e7eb; border-radius: 4px; padding: 2px 6px; color: #5f6b76; }
+.tct-cn { font-size: var(--font-size-3xs); letter-spacing: .02em; border: 1px solid #e3e7eb; border-radius: 4px; padding: 2px 6px; color: #5f6b76; }
 .tct-cn--ok { border-color: #bfe3c8; color: #1e7b34; }
 .tct-cn--deny { border-color: #f2c6c6; color: #c62828; font-weight: 700; }
 .tct-cn--skip { opacity: .45; text-decoration: line-through; }
-.tct-ca { color: #9aa7b4; font-size: 9px; }
+.tct-ca { color: #9aa7b4; font-size: var(--font-size-3xs); }

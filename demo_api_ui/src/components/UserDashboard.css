@@ -3858,7 +3858,7 @@
 }
 
 .tx-row__sep {
-  font-size: 0.6rem;
+  font-size: var(--font-size-3xs);
   color: #d1d5db;
   line-height: 1;
 }
@@ -3897,7 +3897,7 @@
 }
 
 .tx-badge {
-  font-size: 0.6rem;
+  font-size: var(--font-size-3xs);
   font-weight: 700;
   padding: 1px 5px;
   border-radius: 4px;
