@@ -9,7 +9,7 @@ migrated, skip it and move on.** Nothing else is scheduled.
 
 ---
 
-## §1 The four rules
+## §1 The five rules
 
 ### 1. Dark is `:root[data-theme="dark"]`. Never `prefers-color-scheme`.
 
@@ -66,8 +66,12 @@ Reading the file suggested the side nav was fine. It rendered pure white, becaus
 `adminSkinPing2026.css` overrode it and won on every page. That cost a wrong
 diagnosis in PR #2602 and was only caught by asking the live page.
 
+There are two things to check, and they catch different bugs.
+
+**A — surfaces that never flipped.** Paste in the console with the app in dark
+mode:
+
 ```js
-// paste in the console, or via Playwright, with the app in dark mode
 [...document.querySelectorAll('div,section,header,nav,aside')]
   .filter(el => {
     const r = el.getBoundingClientRect();
@@ -80,7 +84,100 @@ diagnosis in PR #2602 and was only caught by asking the live page.
   .map(el => [el.className, getComputedStyle(el).backgroundColor]);
 ```
 
-An empty array means the page is done. That is the acceptance test.
+**B — text you cannot read.** Check A passes while text is still invisible, so
+run this one too, in **both** themes — see §5.
+
+```js
+// scripts/audit-contrast.js — also paste-able into the console
+const parse = (c) => {
+  const m = c.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+  if (!m) return null;
+  const a = m[4] === undefined ? 1 : parseFloat(m[4]);
+  return a < 0.5 ? null : [+m[1], +m[2], +m[3]];
+};
+// A gradient paints the surface while background-color stays transparent.
+// Walking past it is what made the first version of this snippet useless.
+const effBg = (el) => {
+  for (let n = el; n; n = n.parentElement) {
+    const cs = getComputedStyle(n);
+    if (cs.backgroundImage && cs.backgroundImage !== 'none') {
+      const stops = [...cs.backgroundImage.matchAll(/rgba?\(([^)]+)\)/g)]
+        .map(m => m[1].split(',').map(parseFloat).slice(0, 3))
+        .filter(s => s.length === 3 && s.every(Number.isFinite));
+      return stops.length ? stops : 'UNKNOWN';   // real image — cannot judge
+    }
+    const c = parse(cs.backgroundColor);
+    if (c) return [c];
+  }
+  return null;
+};
+const lum = ([r, g, b]) => {
+  const f = (v) => (v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+};
+const ratio = (a, b) => {
+  const x = lum(a), y = lum(b), [hi, lo] = x > y ? [x, y] : [y, x];
+  return (hi + 0.05) / (lo + 0.05);
+};
+const bad = [];
+for (const el of document.querySelectorAll('*')) {
+  if (![...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim().length > 1)) continue;
+  const r = el.getBoundingClientRect();
+  if (r.width < 8 || r.height < 8) continue;
+  const cs = getComputedStyle(el);
+  if (cs.visibility === 'hidden' || cs.opacity === '0') continue;
+  const fg = parse(cs.color), bgs = effBg(el);
+  if (!fg || !bgs || bgs === 'UNKNOWN') continue;
+  const size = parseFloat(cs.fontSize);
+  const need = (size >= 24 || (size >= 18.66 && +cs.fontWeight >= 700)) ? 3 : 4.5;
+  const worst = Math.min(...bgs.map(b => ratio(fg, b)));
+  if (worst < need) bad.push({ el: el.className || el.tagName, text: el.textContent.trim().slice(0, 30), ratio: +worst.toFixed(2), need });
+}
+bad.sort((a, b) => a.ratio - b.ratio);
+```
+
+Empty results from both mean the page is done. That is the acceptance test.
+
+> **Validate an auditor before you trust it.** The first version of snippet B
+> read only `backgroundColor` while walking ancestors. `.topnav` paints its blue
+> with `background-image: linear-gradient(...)` and a *transparent*
+> `background-color`, so the walk stepped straight past it to `.App`'s white and
+> compared white text against white — **33 reported failures on a page with
+> none.** Handling `background-image` took it to 17 real ones.
+>
+> This is `modalDarkSchemeContrast.test.js`'s lesson again, in its own words:
+> *"a guard that cries wolf gets switched off."* Run any new auditor against a
+> page you know is fine, and treat a wall of failures as a bug in the auditor
+> until proven otherwise.
+
+### 5. A rule's ink and its ground come from the same token set.
+
+`var(--th-text)` on a literal `#ffffff`, or a literal `#30313a` on
+`var(--th-bg-card)`, is correct in exactly one theme. One half flips, the other
+does not, and the text disappears into its own background.
+
+**A half-migrated rule is worse than an unmigrated one.** Unmigrated is merely
+light-only. Half-migrated is unreadable — and it is a bug *the migration created*,
+which is why this rule exists.
+
+`Footer.css` is the live example. It sets a tokenized ground and border:
+
+```css
+.footer {
+  background: var(--th-bg-page);        /* flips */
+  border-top: 1px solid var(--th-border);/* flips */
+  /* ...and never sets color, so the ink stays light-mode grey */
+}
+```
+
+Result: fine in light, **1.92:1 in dark** — below the 4.5:1 floor, on the footer
+of every page. Migrate a rule's surface and its ink together, or leave both alone.
+
+That gives a two-line diagnosis whenever snippet B reports a failure:
+
+- **Fails in one theme only** → half-migration. Find the half that didn't move.
+- **Fails in both** → an ordinary contrast bug that predates theming. Fix the
+  colour on its merits; it is not a theming problem.
 
 ---
 
@@ -121,6 +218,10 @@ Measured on `demo_api_ui/src`, 2026-08-29:
 | Have `[data-theme="dark"]` blocks | 19 |
 | **Neither — untouched by theming** | **190** |
 | Carry a real `@media (prefers-color-scheme)` block | 17 |
+
+Readability is measured per page, not per file. `/admin` alone, via §1.4 snippet
+B: **17 contrast failures in light, 23 in dark.** The worst — `emt-rfc`, at ratio
+1.00 in both themes — is text that has never been visible on any theme.
 
 Reproduce any row:
 
@@ -176,17 +277,21 @@ that each change arrives attached to a human who is already looking at that page
 ## §5 The per-page checklist
 
 1. Open the page and switch to dark.
-2. Run the §1.4 snippet. Empty array → **already migrated, skip the rest.**
-3. For each hit, in its stylesheet: replace surface/line/ink literals with §2
-   tokens. Leave brand and accent literals alone.
-4. Delete any `@media (prefers-color-scheme)` block you find.
-5. Re-run the snippet in dark — empty.
-6. Switch to light and re-run — empty, and the page looks as it did.
-7. `npm run test:unit && npm run build`.
+2. Run §1.4 snippets **A and B**. Both clean → **already migrated, skip the rest.**
+3. Switch to light, run **B** again, and note which failures appear in which
+   theme — that is the §1.5 diagnosis: one theme means half-migration, both means
+   an ordinary contrast bug.
+4. For each hit, in its stylesheet: replace surface/line/ink literals with §2
+   tokens, **surface and ink together**. Leave brand and accent literals alone.
+5. Delete any `@media (prefers-color-scheme)` block you find.
+6. Re-run A and B in dark — clean.
+7. Re-run B in light — clean, and the page looks as it did.
+8. `npm run test:unit && npm run build`.
 
-Step 6 is the one people skip. Every conversion touches both themes, and a token
-whose light value differs from the literal it replaced will shift light mode too.
-That is usually fine and sometimes not — you have to look.
+Steps 3 and 7 are the ones people skip, and they are where the damage hides.
+Every conversion touches both themes: a token whose light value differs from the
+literal it replaced shifts light mode too, and a ground migrated without its ink
+reads fine in the theme you happen to be looking at. You have to check both.
 
 ---
 

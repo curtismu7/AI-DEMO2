@@ -652,11 +652,11 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
             <summary><span className="tctr-chev">▶</span> Exchange Mode Details</summary>
             <div className="tctr-acc-body">
               <div className="tctr-kv" style={{ gridTemplateColumns: "70px 1fr" }}>
-                <span className="tctr-kv-k" style={{ color: "#be185d" }}>User</span>
+                <span className="tctr-kv-k tctr-kv-k--user">User</span>
                 <span className="tctr-kv-v">PingOne OIDC login → subject_token (RFC 8693 §1.1)</span>
-                <span className="tctr-kv-k" style={{ color: "#7e22ce" }}>Agent</span>
+                <span className="tctr-kv-k tctr-kv-k--agent">Agent</span>
                 <span className="tctr-kv-v">client credentials → actor_token (RFC 8693 §1.1)</span>
-                <span className="tctr-kv-k" style={{ color: "#047857" }}>MCP</span>
+                <span className="tctr-kv-k tctr-kv-k--mcp">MCP</span>
                 <span className="tctr-kv-v">RFC 8693 exchange → delegated token with nested act claim</span>
               </div>
             </div>
