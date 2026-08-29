@@ -820,7 +820,7 @@ service map (derive it from `--print-map` instead of hand-maintaining it), or
 add a sixth assertion to `check-service-map-complete.js` that every
 `ghcrImage` in the map also appears in `k8s/aws/deploy.sh`'s `IMAGE_MAP`.
 
-### [ ] 2026-08-28 — shared root files never trigger a CI build
+### [x] 2026-08-28 — shared root files never trigger a CI build
 
 Six of the fourteen CI-built services build from `context: .` (the repo root)
 and their Dockerfiles `COPY` root-level inputs that belong to no service's
@@ -863,6 +863,57 @@ inside the affected service's `sourceDir` in the same merge.
 keys it affects) consulted by `ci-build-matrix.js` alongside the sourceDir
 prefix match — accepting the fifteenth-copy cost deliberately, with a comment
 explaining why it's the one hand-maintained exception.
+
+**FIXED 2026-08-29 (PR #2593)** — without the fifteenth copy. The objection
+above applies to a *hand-maintained* table; these dependencies are **derived**
+by reading the Dockerfiles that already declare them, so there is nothing to
+keep in sync. `rootDependencies()` reads each service's COPY sources and keeps
+the ones inside no service's `sourceDir`; `buildMatrix()` matches changed paths
+against those alongside the prefix match.
+
+Build contexts are read from compose rather than assumed, and that distinction
+carries the correctness: a COPY source resolves against the build CONTEXT, so
+`COPY scripts/boot.js` means the service's own `scripts/` under
+`context: ./demo_llm_proxy` and the repo root's under `context: .`. Only
+root-context services can depend on a root file; assuming otherwise would
+rebuild local-context services on every unrelated tooling change.
+
+Derivation reproduces this entry's hand-written list exactly, and found a fifth
+service it missed — `langchain_agent` COPYs `scripts/build-codegraph.py`:
+
+| changed path | now builds |
+|---|---|
+| `scope-topology.json` | bff, gateway, authz |
+| `llm-timeouts.json` | bff, frontend |
+| `mcp-tool-schemas.json` | gateway |
+| `docs/**`, `graphify-out/*.kb.json` | bff |
+| `snapshots/*P1AZ.snapshot.json` | bff, authz |
+| `README.md` | (nothing — no false positives) |
+
+21/21 unit tests, four of them asserting the non-triggers. The promote-side
+guard described above stays as the backstop; it is now the second line of
+defence rather than the only one.
+
+### [ ] 2026-08-29 — three near-identical compose service-block readers
+
+`check-ghcr-source-labels.js` (wants `build:`), `compose-env-diff.js` (wants
+`environment:`/`env_file:`/`build.args`) and `ci-build-matrix.js` (wants
+`build.context`) each carry their own ~20-line text scanner that splits
+`docker-compose.yml` into service blocks. All three parse two-space keys under
+`services:` and all three had to independently learn not to treat a top-level
+`volumes:` entry as a service.
+
+**Why it wasn't fixed now:** the three landed as three separate PRs
+(#2590, #2592, #2593) and lifting a shared module across in-flight branches
+would have produced conflicts for no behavioural gain.
+
+**The risk:** low and slow — a compose-syntax edge case fixed in one and not
+the others. The blast radius is a gate reading the wrong block, not a runtime
+failure.
+
+**What the real fix looks like:** `scripts/lib/composeBlocks.js` exporting the
+service-block split, with each caller keeping only its own key extraction.
+Dependency-free, since all three run where root `node_modules` may be absent.
 
 ### [x] 2026-08-27 — a BroadcastChannel test raced its own subscriber, and a stale branch made it look like a suite-wide problem
 
