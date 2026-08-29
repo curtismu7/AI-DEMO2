@@ -122,6 +122,50 @@ read the configured host. A new browser origin must be added to ALL of:
 ## §4 — Bug Fix Log
 Reverse-chronological, newest first.
 
+### 2026-08-29 — `HITL_INTERNAL_SECRET` split three ways by dotenvx: hitl-service 401'd, then PingGateway did
+
+**Files changed:** `demo_hitl_service/src/dotenvxBootstrap.js` (new),
+`demo_hitl_service/src/index.js`, `demo_hitl_service/package.json`,
+`demo_api_server/scripts/refresh-service-envs.js`, `docker-compose.yml`,
+plus specs in `demo_hitl_service/tests/` and `demo_api_server/tests/`.
+
+**What was broken:** `HITL_INTERNAL_SECRET` is an `encrypted:` dotenvx value.
+Three services must present the SAME string and each resolved it differently:
+the BFF decrypts at boot (`services/dotenvxBootstrap.js`) and sent plaintext;
+**hitl-service** had no decrypt path and compared against ciphertext, so
+`routes/challenges.js` answered `401 unauthorized` to every internal caller. No
+consent receipt could be created, PingOne Authorize PERMITted with a HITL
+obligation, the gateway minted a fresh 428 — UC14b reported "Human approval
+required" forever, and every consent-gated tool was affected, not just UC14b.
+Fixing only hitl-service moved the mismatch rather than closing it: **PingGateway**
+then presented the ciphertext (`ping-gateway/.env` held the only `encrypted:`
+value in the file — 1 of 30) and `p1az-decision.groovy` logged "[P1AZ] HITL
+verify unavailable (http 401) — failing closed", surfacing as `503` /
+"Gateway upstream error".
+
+**What was fixed:** hitl-service gets the same in-place bootstrap
+demo_authz_server uses (first require in `src/index.js`, before
+`routes/challenges.js` reads the secret at module load) and compose gains the
+`./.env.keys` entry that delivers `DOTENV_PRIVATE_KEY`. The PingGateway leg is
+fixed at the source instead: `refresh-service-envs.js` now decrypts on the way
+into a generated `.env`, at the single `writeEnvFile` write point. IG runs
+Groovy — there is no dotenvx there and never will be, so ciphertext must not
+reach it.
+
+**Do not break:** a GENERATED service `.env` must never contain ciphertext — 11
+files come out of `writeEnvFile` and most of their consumers cannot decrypt.
+Only `demo_api_server/.env` is encrypted at rest. Decryption must stay
+fail-safe: an undecryptable value is written through unchanged, never blanked —
+an empty `HITL_INTERNAL_SECRET` turns hitl-service's auth off entirely
+(`routes/challenges.js` treats unset as "no auth configured").
+
+**Verify:** `npm test --prefix demo_hitl_service` (10 suites, 54 passed) and
+`CI=true demo_api_server/node_modules/.bin/jest --rootDir demo_api_server
+tests/refreshServiceEnvs.dotenvxPlain.test.js --forceExit` (5 passed). Live:
+hitl-service logs "[dotenvx] bootstrap: decrypted 1 container-level ciphertext
+value(s)"; ping-gateway needs `refresh-service-envs.js` re-run and a restart
+before its leg clears.
+
 ### 2026-08-28 — Every PingGateway MCP tool call DENYed `mcp-invalid-actor`: the AI Agent Actor's client id was never in `HasValidActorChain`
 
 **Files changed:** `snapshots/gen-authorize-snapshot.js`,
