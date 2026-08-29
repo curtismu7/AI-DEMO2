@@ -1,7 +1,6 @@
 // banking_api_ui/src/components/VerticalSwitcher.jsx
 import { useState, useEffect } from 'react';
 import { useVertical } from '../vertical/useVertical';
-import { getCachedJson } from '../services/cachedStatusService';
 import ThemeZonePanel from './ThemeZonePanel';
 import './VerticalSwitcher.css';
 
@@ -13,43 +12,12 @@ export default function VerticalSwitcher({ variant = 'nav' }) {
   const { activeId, refetch } = useVertical();
   const [verticals, setVerticals] = useState([]);
   const [switching, setSwitching] = useState(false);
-  const [authed, setAuthed] = useState(false);
 
+  // Guests too: GET /verticals/list and POST /verticals/active are both public,
+  // and /active is session-scoped for a guest (only an admin moves the global).
+  // A prior auth gate here hid the picker from exactly the signed-out visitor
+  // the server was built to serve.
   useEffect(() => {
-    const onAuth = () => setAuthed(true);
-    window.addEventListener('userAuthenticated', onAuth);
-    // `userAuthenticated` fires once per session (guarded in useAuth), so a
-    // switcher mounting AFTER it fired (e.g. Config page, Demo Data page) never
-    // hears it and the picker stays hidden. Seed current auth state on mount
-    // from the same status endpoints useAuth checks (cached + deduped, so no
-    // extra round-trips), while keeping the listener for later logins.
-    let cancelled = false;
-    (async () => {
-      const endpoints = [
-        '/api/auth/oauth/status',
-        '/api/auth/oauth/user/status',
-        '/api/auth/session',
-      ];
-      for (const url of endpoints) {
-        try {
-          const { data } = await getCachedJson(url);
-          if (data && data.authenticated) {
-            if (!cancelled) setAuthed(true);
-            return;
-          }
-        } catch {
-          /* not authenticated on this endpoint — try the next */
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-      window.removeEventListener('userAuthenticated', onAuth);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!authed) return;
     const doFetch = () => {
       fetch('/api/verticals/list', { credentials: 'include' })
         .then(r => r.ok ? r.json() : [])
@@ -61,7 +29,7 @@ export default function VerticalSwitcher({ variant = 'nav' }) {
     // in sync without a full reload.
     window.addEventListener('vertical-list-changed', doFetch);
     return () => window.removeEventListener('vertical-list-changed', doFetch);
-  }, [authed]);
+  }, []);
 
   const handleSwitch = async (id) => {
     if (id === activeId || switching) return;
