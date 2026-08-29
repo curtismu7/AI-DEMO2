@@ -34,8 +34,12 @@
  * Reads Dockerfiles as TEXT and shells to se-update-code.sh --print-map, the
  * same source build-images.yml uses to build its matrix, so this cannot drift
  * from what CI actually pushes. No dependencies: root node_modules is not
- * installed in CI's hygiene job (same constraint as
+ * installed in the CI job that runs this (same constraint as
  * check-service-map-complete.js).
+ *
+ * Runs from build-images.yml, on the merges that actually push images — not
+ * from `npm run hygiene:check`, which fired it on every local hygiene pass for
+ * no benefit.
  */
 
 const fs = require('fs');
@@ -45,6 +49,8 @@ const { execFileSync } = require('child_process');
 const ROOT = path.resolve(__dirname, '..');
 const LABEL_KEY = 'org.opencontainers.image.source';
 const EXPECTED_URL = 'https://github.com/curtismu7/AI-DEMO2';
+// LABEL_KEY is interpolated into a RegExp; its dots are wildcards otherwise.
+const ESCAPED_KEY = LABEL_KEY.replace(/\./g, '\\.');
 
 /**
  * True when the label appears in the Dockerfile's LAST stage.
@@ -69,7 +75,12 @@ function inspectDockerfile(text) {
     if (bare.startsWith('#')) return; // a commented-out label is not a label
     if (bare.includes(LABEL_KEY)) {
       labelLine = i;
-      const m = bare.match(new RegExp(`${LABEL_KEY}\\s*=\\s*["']?([^\\s"']+)`));
+      // Tolerate every form Docker accepts, not just the one this repo happens
+      // to use: a quoted key, `=`-separated or the legacy space-separated form.
+      // A value this cannot parse must stay null and FAIL below — silently
+      // skipping the wrong-repo check is how a label pointing at another repo
+      // would sail through.
+      const m = bare.match(new RegExp(`${ESCAPED_KEY}["']?(?:\\s*=\\s*|\\s+)["']?([^\\s"']+)`));
       if (m) url = m[1];
     }
   });
@@ -108,10 +119,104 @@ function checkLabels(map) {
         + 'a LABEL applies only to its own stage, so it is dropped from the pushed image '
         + 'and the push fails exactly as if the label were absent',
       );
-    } else if (url && url !== EXPECTED_URL) {
+    } else if (url !== EXPECTED_URL) {
       errors.push(
-        `${entry.key} (${entry.ghcrImage}): ${rel} labels source as "${url}", expected `
+        `${entry.key} (${entry.ghcrImage}): ${rel} labels source as `
+        + `${url === null ? '(unparseable)' : `"${url}"`}, expected `
         + `"${EXPECTED_URL}" — the package links to the wrong repo`,
+      );
+    }
+  }
+  return errors;
+}
+
+/**
+ * Guard the assumption the gate above is built on.
+ *
+ * `checkLabels` derives the Dockerfile as `<sourceDir>/Dockerfile`, but CI does
+ * not build that path - it builds through docker compose, which owns
+ * `context:`, `dockerfile:` and `target:`. ci-build-matrix.js says so outright:
+ * those "are NOT derivable from sourceDir". Today every service happens to
+ * agree, which is exactly what makes the drift dangerous - the day one adopts
+ * `dockerfile: Dockerfile.tier-manager` or a build `target:`, the gate would
+ * read a different file than CI pushes, print OK, and hand back the ambiguous
+ * "write_package" error it exists to eliminate.
+ *
+ * So rather than reimplement compose resolution, assert the assumption and fail
+ * loudly the moment it stops holding.
+ *
+ * Text-parsed, not YAML-parsed: root node_modules is not installed in CI's
+ * hygiene job, the same constraint the rest of this file works under.
+ *
+ * @param {object[]} map entries from `se-update-code.sh --print-map`
+ * @param {string} composeText contents of docker-compose.yml
+ * @returns {string[]} one message per problem; empty means pass
+ */
+function checkComposeAgreement(map, composeText) {
+  const errors = [];
+  const lines = composeText.split('\n');
+
+  // service name -> its raw block, keyed off two-space indentation
+  const blocks = new Map();
+  let current = null;
+  for (const line of lines) {
+    const svc = line.match(/^ {2}([A-Za-z0-9_.-]+):\s*$/);
+    if (svc) {
+      current = svc[1];
+      blocks.set(current, []);
+      continue;
+    }
+    if (/^\S/.test(line)) current = null; // left the services: mapping
+    if (current) blocks.get(current).push(line);
+  }
+
+  const value = (raw) => raw.replace(/#.*$/, '').trim().replace(/^["']|["']$/g, '');
+
+  for (const entry of map) {
+    if (!entry.sourceDir || !entry.ghcrImage || !entry.composeService) continue;
+    const block = blocks.get(entry.composeService);
+    if (!block) {
+      errors.push(
+        `${entry.key}: docker-compose.yml has no service "${entry.composeService}" - `
+        + 'the build map and compose disagree about what CI builds',
+      );
+      continue;
+    }
+
+    const buildIdx = block.findIndex((l) => /^ {4}build:/.test(l));
+    if (buildIdx === -1) continue; // pulled image, nothing to build
+
+    const inline = value(block[buildIdx].replace(/^ {4}build:/, ''));
+    let context = inline || '.';
+    let dockerfile = 'Dockerfile';
+    let target = null;
+
+    if (!inline) {
+      for (let i = buildIdx + 1; i < block.length && /^ {6}\S/.test(block[i]); i += 1) {
+        const kv = block[i].match(/^ {6}(context|dockerfile|target):(.*)$/);
+        if (!kv) continue;
+        if (kv[1] === 'context') context = value(kv[2]);
+        if (kv[1] === 'dockerfile') dockerfile = value(kv[2]);
+        if (kv[1] === 'target') target = value(kv[2]);
+      }
+    }
+
+    if (target) {
+      errors.push(
+        `${entry.key} (${entry.ghcrImage}): docker-compose.yml builds ${entry.composeService} `
+        + `with target: ${target}. This gate only inspects a Dockerfile's FINAL stage, so it `
+        + 'cannot tell whether the label survives into that target. Teach it about targets '
+        + 'before adding one.',
+      );
+    }
+
+    const actual = path.posix.normalize(path.posix.join(context, dockerfile)).replace(/^\.\//, '');
+    const assumed = path.posix.join(entry.sourceDir, 'Dockerfile');
+    if (actual !== assumed) {
+      errors.push(
+        `${entry.key} (${entry.ghcrImage}): this gate checks ${assumed}, but docker-compose.yml `
+        + `builds ${entry.composeService} from ${actual}. CI pushes what compose builds, so the `
+        + 'gate is inspecting the wrong file and would pass while the push fails.',
       );
     }
   }
@@ -134,7 +239,8 @@ function main() {
     process.exit(1);
   }
 
-  const errors = checkLabels(map);
+  const composeText = fs.readFileSync(path.join(ROOT, 'docker-compose.yml'), 'utf8');
+  const errors = [...checkComposeAgreement(map, composeText), ...checkLabels(map)];
   if (errors.length) {
     console.error('[ghcr-labels] FAILED:');
     for (const e of errors) console.error(`  ${e}`);
@@ -153,4 +259,4 @@ function main() {
 
 if (require.main === module) main();
 
-module.exports = { inspectDockerfile, checkLabels, LABEL_KEY, EXPECTED_URL };
+module.exports = { inspectDockerfile, checkLabels, checkComposeAgreement, LABEL_KEY, EXPECTED_URL };
