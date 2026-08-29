@@ -81,6 +81,51 @@ enduser session cookie, using each chip's `trigger.text` from
 `failurePatternFor()` in `scripts/golden-failure-prose.js`. Three runs each is
 enough to see it.
 
+**PARTLY RESOLVED 2026-08-29 (UC34 only) — branch `fix-uc34-analysis-brevity`.**
+
+Two corrections to the entry above, both found by reading further:
+
+- `unusual_patterns` IS in `CLIENT_DISPATCHED_ACTIONS`, but
+  `capture-goldens.real.spec.js:226-231` deliberately overrides the
+  client-dispatch skip for UC34/UC35 — "reaching the LLM is the intent, the
+  analysis reply IS the artifact". So the capture is not misusing the API; it
+  wants the LLM reply.
+- That override runs with `timeout: 120_000`, which is EXACTLY
+  `REASON_LOOP_TIMEOUT_MS`. There is zero margin: the server gives up at 120s
+  and returns its failure prose, and the client is at its own deadline at the
+  same instant. Whichever wins, the capture records a failure.
+
+**What was fixed.** The UC34 activity pre-fetch appended "Analyse THIS data and
+name anything unusual" with no length bound, so the model reproduced all 25
+injected rows as a markdown table before commenting — the expensive half, and
+the least useful half, since the caller already has the rows. Added a five-bullet
+cap and an explicit "do not reproduce the rows".
+
+Measured before/after on the same stack, same session:
+
+| | before | after |
+|---|---|---|
+| UC34 | 121.0s ✗, 121.2s ✗, 68.9s ✓ — **2/3 failed** | 105.0s ✓, 86.7s ✓, 34.1s ✓, 22.0s ✓ — **0/4 failed** |
+| UC35 | 90.8s ✗, 35.5s ✓, 38.2s ✓ — 1/3 | 120.4s ✗, 122.1s ✗, 45.5s ✓, 120.2s ✗ — 3/4 |
+
+**UC35 IS STILL OPEN and this did not touch it.** `ACTIVITY_ANALYSIS_RE` matches
+UC34's text and not UC35's (verified directly), so the pre-fetch branch the fix
+lives in never runs for UC35. Its 3/4 is the same 120s ceiling, unchanged — if
+anything the sample suggests it is the worse of the two once UC34 is out of the
+way.
+
+**Caveat on the evidence:** 3-4 runs per chip is a small sample against a
+naturally variable generation time. The direction and the mechanism agree
+(fewer output tokens → less time → further from a fixed ceiling), and UC34's
+slowest post-fix run (105s) still sits under the 120s limit its pre-fix runs
+were exceeding — but this is not a statistical claim.
+
+**Still to do for UC35:** options (2) and (3) from the list above are unchanged
+and now apply to UC35 alone. There is no equivalent "stop reproducing the data"
+lever there — UC35 narrates a token chain rather than echoing rows — so the
+honest remedies are to stop capturing a golden for it, or to revisit the
+ceiling.
+
 ### [ ] 2026-08-28 — `llm-proxy` can be deployed by neither deploy path
 
 **What's wrong.** `demo_llm_proxy` is the only service that no sanctioned
