@@ -34,10 +34,28 @@ truth — if the skill and this file disagree, this file wins.
   A glyph someone reached for once is not vocabulary — remove it instead.
 - **No muted modal text:** modals use solid high-contrast colors, never
   low-contrast gray hint text.
+- **H1 — never mix a literal and a token for ink and ground in one rule.** Both
+  sides come from `--th-*`, or both stay literal. A tokenised background with a
+  literal `color` (or the reverse) is correct in exactly one theme: one half
+  flips, the other does not, and the text vanishes into its own background.
+  This is the single most common UI defect in this repo — it produced a filter
+  input at 1.06:1 (typed text invisible), agent buttons at 2.87:1 (brand blue on
+  a dark card), and a footer at 1.92:1. **A half-migrated rule is worse than an
+  unmigrated one.** See `THEMING.md` §1.5.
+- **H2 — `font-size` never below `var(--font-size-3xs)` (10px).** Use the scale
+  in `index.css`; `--font-size-3xs` is its floor. No literal px/rem font sizes.
+  See `THEMING.md` §8.1.
+- **H3 — no inline `style={{ }}` for colour, background or font-size.** Inline
+  styles beat every stylesheet rule including `[data-theme="dark"]` overrides,
+  making the component unthemeable without a JSX edit. Layout properties inline
+  are fine. See `THEMING.md` §8.3.
 - **Minimal diff:** name the component, name the element, change only that. No
   "while I'm here" cleanup of adjacent code.
 - **UI build gate:** after any `demo_api_ui/` change, `cd demo_api_ui && npm run
   build` must exit `0` before the work is complete.
+- **Readability gate:** after a UI change, run the `THEMING.md` §1.4 contrast
+  auditor on the page you touched **in both themes**. A green unit run is not
+  evidence about pixels.
 
 ---
 
