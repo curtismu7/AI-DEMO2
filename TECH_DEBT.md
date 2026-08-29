@@ -16,6 +16,81 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-08-29 — "the vault is authoritative" was wrong on 3 of 3 keys checked
+
+**What's wrong.** `k8s/create-secrets.sh:210` refuses to deploy when a service
+`.env` holds a non-empty value that differs from the vault:
+
+> SECURITY: `$k` is vault-managed and `$env_file` has a DIFFERENT non-empty value
+> for it. The vault is authoritative — update `$k` in `$env_file` to match the
+> vault value (or leave it blank), never leave a stale copy.
+
+The mismatch detection is right and worth keeping. The **premise is not**: every
+vault-managed key we checked against PingOne on 2026-08-29 had the vault wrong
+and the service `.env` right.
+
+| key | vault held | PingOne says | who was right |
+|---|---|---|---|
+| `AGENT_CLIENT_ID` | `4069fee6…` | "Demo AI App - Agent Actor", type WORKER, **0 resource grants** | the service |
+| `GW_INTROSPECTION_CLIENT_ID` | `b773bc8e…` | **not an application at all** — it is a RESOURCE id, and appears as `resources/b773bc8e-…` inside the Token Exchanger's own grants | the service |
+| `GW_INTROSPECTION_CLIENT_SECRET` | fp `5c0b41c04e` | — | the service (see below) |
+
+`langchain_agent/.env` held `0b412e8b…` = "Demo AI App - AI Agent Actor"
+(type AI_AGENT, migrated 2026-08-22, **13 resource grants**). `demo_mcp_gateway`,
+`oauth-mcp` and `demo_authz_server` INDEPENDENTLY all held `f4dd707d…` = "Demo AI
+App - Token Exchanger" (WEB_APP, enabled, 5 grants), with a secret whose
+fingerprint equals the vault's OWN `PINGONE_TOKEN_EXCHANGER_CLIENT_SECRET`
+(`9dd14d04c4`). Three services, one coherent real app — against a vault entry
+naming a resource.
+
+**Why this matters more than a stale value.** Following the guard's own
+instruction — blank the service copy so the vault supplies it — would have
+pointed gateway introspection at a client id that does not exist. That is very
+likely what the guard's own cited incident (`docs/superpowers/specs/
+2026-08-25-vault-in-k8s-design.md`, "broke SE introspection on 2026-08-25")
+actually was: not someone leaving a stale copy, but someone obeying this message.
+The error text is maximally confident and names a real past outage, which makes
+it persuasive in exactly the case where it is wrong.
+
+**Why it wasn't fixed now.** The vault entries were corrected for these keys (see
+the resolution block), but the GUARD still asserts authority it has not earned.
+Changing it means deciding what the real source of truth is, which is a design
+question the 2026-08-25 spec owns — not a drive-by edit to an error string.
+
+**What the real fix looks like.** Verify, do not assume:
+
+- For any `*_CLIENT_ID` the guard is about to enforce, ask PingOne whether that
+  id is an application at all. A `found: false`, or a hit whose `type` is WORKER
+  when the caller needs resource grants, means the VAULT is the stale side.
+- When N independent services agree with each other and disagree with the vault,
+  that is evidence about which side drifted. The guard currently treats a
+  1-vs-3 split identically to a 1-vs-1 split.
+- Keep the refusal — silently deploying a mismatch is worse. Change only which
+  side it tells you to correct, and say "one of these is stale" rather than
+  naming the winner.
+
+**Audit tooling.** A read-only inventory (51 vault keys × 8 service `.env`
+files, secrets fingerprinted not printed) is what surfaced this. Worth promoting
+into `scripts/` so it can run before a deploy instead of discovering drift one
+failed push at a time. Known gap: it cannot decrypt `dotenvx` ciphertext, so 16
+of 18 flagged rows in `demo_api_server/.env` are "unknown", not confirmed drift —
+the guard sees through those and the audit does not.
+
+**RESOLVED 2026-08-29 (the vault entries only, not the guard).** Vault corrected
+to match PingOne and the services, with each write gated on a pre-check of the
+expected prior value:
+
+    AGENT_CLIENT_ID                 4069fee6… -> 0b412e8b…
+    AGENT_CLIENT_SECRET             fp edae3f8657 -> fp cf50907d4238
+    GW_INTROSPECTION_CLIENT_ID      b773bc8e… -> f4dd707d…
+    GW_INTROSPECTION_CLIENT_SECRET  fp 5c0b41c04e -> fp 9dd14d04c4
+
+Changing `AGENT_CLIENT_ID` alone first left the vault holding one app's id with
+another app's secret — caught by fingerprinting the pair, not by any test. The
+old agent secret is not lost: it remains under `PINGONE_AGENT_CLIENT_SECRET`
+(fp `edae3f8657`), which is its correct home. `run-pingaws.sh update config` now
+clears every `SECURITY:` guard.
+
 ### [x] 2026-08-29 — demo passwords rotated in PingOne and `.env` only; vault and SE k8s still hold the old ones
 
 `DEMO_USER_PASSWORD` and `DEMO_ADMIN_PASSWORD` had been world-readable in public
