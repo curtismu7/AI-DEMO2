@@ -26,7 +26,9 @@ body.admin-skin-p1 .admin-side-nav__ping-mark {
 }
 body.admin-skin-p1 .admin-side-nav__ping-wordmark {
   font-size: var(--font-size-lg);
-  color: #23242a;
+  /* The red --ping-mark square above stays literal: it is the brand. Only the
+     wordmark ink follows the theme, or it vanishes on the dark panel. */
+  color: var(--th-text);
   letter-spacing: -0.01em;
 }
 body.admin-skin-p1 .admin-side-nav__ping-wordmark strong {
@@ -34,33 +36,38 @@ body.admin-skin-p1 .admin-side-nav__ping-wordmark strong {
 }
 
 /* ── Sidebar surface ────────────────────────────────────────────────────── */
+/* Surfaces, lines and ink read the semantic --th-* tokens (index.css) rather
+   than literals. This skin had no dark rules at all, so it kept painting a
+   310px white panel down the left of every dark page — the base
+   AdminSideNav.css gradient it overrides is dark, but the skin always won.
+   --th-bg-card is #ffffff in light, so the panel is unchanged there. */
 body.admin-skin-p1 .admin-side-nav {
-  background: #ffffff;
+  background: var(--th-bg-card);
   box-shadow: none;
-  border-right: 1px solid #e4e5e9;
+  border-right: 1px solid var(--th-border);
 }
 
-/* Collapse toggle: subtle gray on white */
+/* Collapse toggle: subtle inset on the panel ground */
 body.admin-skin-p1 .admin-side-nav__toggle {
-  background: #f3f4f6;
-  border: 1px solid #e4e5e9;
-  color: #5d5e66;
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
+  color: var(--th-text-muted);
 }
 body.admin-skin-p1 .admin-side-nav__toggle:hover {
-  background: #e9eaee;
-  border-color: #d6d7dc;
+  background: var(--th-bg-inset);
+  border-color: var(--th-border-strong);
 }
 
 /* ── Quick links (Customer / Admin / Setup) ─────────────────────────────── */
 body.admin-skin-p1 .admin-side-nav__quick-links {
-  border-bottom: 1px solid #e4e5e9;
+  border-bottom: 1px solid var(--th-border);
   padding: 14px 12px 16px;
   gap: 8px;
 }
 body.admin-skin-p1 .admin-side-nav__quick-link {
-  background: #f6f7f9;
-  border: 1px solid #d6d7dc;
-  color: #30313a !important;
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
+  color: var(--th-text) !important;
   box-shadow: 0 1px 2px rgba(20, 21, 26, 0.06);
 }
 body.admin-skin-p1 .admin-side-nav__quick-link:hover {
@@ -82,20 +89,23 @@ body.admin-skin-p1 .admin-side-nav__quick-link--active {
    --sidenav-filter-* theme variables (declared in AdminSideNav.css) with the
    light palette — the base selectors handle every state. */
 body.admin-skin-p1 .admin-side-nav {
-  --sidenav-filter-bg: #f6f7f9;
-  --sidenav-filter-border: #d6d7dc;
-  --sidenav-filter-fg: #30313a;
-  --sidenav-filter-placeholder: #8b8c94;
-  --sidenav-filter-bg-hover: #eef0f3;
-  --sidenav-filter-border-hover: #c3c4cb;
-  --sidenav-filter-bg-focus: #ffffff;
+  /* Aliased onto --th-* alongside the panel itself: left as literals the search
+     box stayed a white card inside a now-dark nav. The two brand-blue focus
+     values are deliberately literal — they are the accent, not a surface. */
+  --sidenav-filter-bg: var(--th-bg-inset);
+  --sidenav-filter-border: var(--th-border);
+  --sidenav-filter-fg: var(--th-text);
+  --sidenav-filter-placeholder: var(--th-text-faint);
+  --sidenav-filter-bg-hover: var(--th-bg-inset);
+  --sidenav-filter-border-hover: var(--th-border-strong);
+  --sidenav-filter-bg-focus: var(--th-bg-card);
   --sidenav-filter-border-focus: #2767d2;
   --sidenav-filter-focus-ring: rgba(39, 103, 210, 0.25);
-  --sidenav-filter-icon: #5d5e66;
-  --sidenav-filter-clear: #8b8c94;
-  --sidenav-filter-clear-hover-bg: #e9eaee;
-  --sidenav-filter-clear-hover-fg: #30313a;
-  --sidenav-filter-empty: #8b8c94;
+  --sidenav-filter-icon: var(--th-text-muted);
+  --sidenav-filter-clear: var(--th-text-faint);
+  --sidenav-filter-clear-hover-bg: var(--th-bg-inset);
+  --sidenav-filter-clear-hover-fg: var(--th-text);
+  --sidenav-filter-empty: var(--th-text-faint);
 }
 
 /* ── Nav items ──────────────────────────────────────────────────────────── */
@@ -104,14 +114,14 @@ body.admin-skin-p1 .admin-side-nav {
    Text colors win on specificity (body.admin-skin-p1 prefix) alone. */
 body.admin-skin-p1 .admin-side-nav__item,
 body.admin-skin-p1 .admin-side-nav__label {
-  color: #30313a;
+  color: var(--th-text);
 }
 body.admin-skin-p1 .admin-side-nav__icon {
-  color: #5d5e66;
+  color: var(--th-text-muted);
 }
 body.admin-skin-p1 .admin-side-nav__item:hover {
-  background: #f3f4f6 !important;
-  color: #23242a;
+  background: var(--th-bg-inset) !important;
+  color: var(--th-text);
   border-left-color: rgba(39, 103, 210, 0.5);
 }
 
@@ -138,27 +148,28 @@ body.admin-skin-p1 .admin-side-nav__chevron {
   color: #8b8c94;
 }
 body.admin-skin-p1 .admin-side-nav__chevron--expanded {
-  color: #5d5e66;
+  color: var(--th-text-muted);
 }
 body.admin-skin-p1 .admin-side-nav__submenu {
-  background: #f9fafb;
+  background: var(--th-bg-inset);
   border-left-color: rgba(39, 103, 210, 0.3);
 }
 body.admin-skin-p1 .admin-side-nav__item--child {
-  color: #4b4c55;
+  color: var(--th-text-body);
 }
 
-/* Agent Onboarding Flow trio (Diagrams group) — white row background
-   regardless of hover/active state, overriding the gray submenu bg. */
+/* Agent Onboarding Flow trio (Diagrams group) — panel-ground row background
+   regardless of hover/active state, overriding the inset submenu bg. Was
+   literal #ffffff, which is what --th-bg-card resolves to in light. */
 body.admin-skin-p1 .admin-side-nav__item--onboarding-white,
 body.admin-skin-p1 .admin-side-nav__item--onboarding-white:hover,
 body.admin-skin-p1 .admin-side-nav__item--onboarding-white.admin-side-nav__item--active {
-  background: #ffffff !important;
+  background: var(--th-bg-card) !important;
 }
 
 /* Group dividers */
 body.admin-skin-p1 .admin-side-nav__divider {
-  background: #e4e5e9;
+  background: var(--th-border);
 }
 
 /* Badges ("admin" chips) */
