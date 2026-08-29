@@ -28,6 +28,11 @@ const crypto = require('crypto');
 const { USE_CASES, VERTICALS, resolveUseCase } = require('../config/useCases');
 const { requiredFlagsForUseCase } = require('../services/demoStepPrerequisites');
 const { LLM_ANALYSIS_UNROUTABLE } = require('./useCaseSweepCauses');
+// The ONE failure-prose list, shared with scripts/check-goldens.js. This file
+// used to keep a private 4-pattern copy while the shared list grew to 9, so the
+// capture path silently accepted everything the gate would later reject — see
+// the comment on the deleted copy below.
+const { failurePatternFor } = require('../../scripts/golden-failure-prose');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const GOLDENS_ROOT = path.join(ROOT, 'demo_api_server', 'data', 'goldens');
@@ -50,12 +55,14 @@ const SKIP = {
  * ("that transfer requires approval") is a legitimate golden — the denial IS the
  * demo — so nothing here may match a refusal-by-policy.
  */
-const AGENT_FAILURE_PROSE = [
-  /unable to retrieve/i,
-  /could ?n[o']t complete that request/i,
-  /please try rephrasing/i,
-  /needs an LLM mode/i,
-];
+// AGENT_FAILURE_PROSE used to be redefined here with four patterns while
+// scripts/golden-failure-prose.js — whose docstring says the list lives there
+// "because BOTH sides need it" — had grown to nine. The capture path therefore
+// accepted five classes of failure the gate rejects, including every one that
+// actually shipped: "could not complete this request", the model's flat refusal
+// ("I'm sorry, but I can't help with that", 7 goldens across 6 verticals,
+// 2026-07-27..2026-08-28) and "insufficient_scope" (4 banking goldens,
+// 2026-08-28). Import it instead; a second copy is the bug.
 
 const A2A_UNROUTABLE = /specialist/i;
 
@@ -132,7 +139,15 @@ async function armFlags(http, verticals, log) {
  * @param {Function} [opts.log]
  * @returns {Promise<{captured:number, skips:Array, perVertical:object}>}
  */
-async function runGoldenCapture({ http, verticals = VERTICALS, log = console.log }) {
+/**
+ * @param {object} o
+ * @param {boolean} [o.dryRun] exercise every chip and report, writing NOTHING.
+ *   captureGoldens.js advertised --dry-run in its usage string while parsing it
+ *   nowhere, so a "dry run" silently overwrote real goldens — including, on
+ *   2026-08-28, poisoned ones. A flag that is documented but inert is worse than
+ *   no flag: it is trusted precisely when someone is being careful.
+ */
+async function runGoldenCapture({ http, verticals = VERTICALS, log = console.log, dryRun = false }) {
   const skips = [];
   const perVertical = {};
   let captured = 0;
@@ -192,10 +207,20 @@ async function runGoldenCapture({ http, verticals = VERTICALS, log = console.log
           log(`  SKIP ${vertical}/${chip.useCaseId}: unhealthy (HTTP ${r.status})`);
           continue;
         }
-        if (AGENT_FAILURE_PROSE.some((re) => re.test(reply))) {
+        // failurePatternFor(), not a bare regex test: it checks only the LEADING
+        // window, because a genuine failure IS the whole reply while a healthy
+        // UC35 answer legitimately DISCUSSES one — its 2296-char explanation
+        // says "could not complete this request" at offset 1595. Testing the
+        // full text would reject that correct golden.
+        if (failurePatternFor(reply)) {
           skips.push({ vertical, useCaseId: chip.useCaseId, ucId: chip.id, reason: SKIP.AGENT_FAILED,
             detail: reply.slice(0, 160) });
           log(`  SKIP ${vertical}/${chip.useCaseId}: agent could not complete`);
+          continue;
+        }
+        if (dryRun) {
+          captured += 1;
+          log(`  WOULD capture ${vertical}/${chip.useCaseId} (dry run — nothing written)`);
           continue;
         }
         fs.writeFileSync(path.join(dir, `${chip.useCaseId}.json`), `${JSON.stringify({
@@ -229,7 +254,9 @@ async function runGoldenCapture({ http, verticals = VERTICALS, log = console.log
       if (!byReason[s.reason]) byReason[s.reason] = [];
       byReason[s.reason].push(`${s.vertical}/${s.useCaseId}`);
     }
-    fs.writeFileSync(REPORT_PATH, `${JSON.stringify({
+    if (dryRun) {
+      log(`  dry run — skip report NOT written to ${path.relative(process.cwd(), REPORT_PATH)}`);
+    } else fs.writeFileSync(REPORT_PATH, `${JSON.stringify({
       capturedAt: new Date().toISOString(),
       captured,
       skipped: skips.length,
@@ -249,7 +276,6 @@ module.exports = {
   chipsFor,
   seedHashFor,
   requiredFlagUnion,
-  AGENT_FAILURE_PROSE,
   SKIP,
   GOLDENS_ROOT,
   REPORT_PATH,

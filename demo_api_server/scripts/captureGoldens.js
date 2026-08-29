@@ -35,6 +35,8 @@ const valOf = (flag, dflt) => {
 };
 const BASE = valOf('--base', process.env.E2E_BASE_URL || 'https://api.ping.demo:3001');
 const only = valOf('--vertical', null);
+// Parsed, not just documented. See runGoldenCapture's dryRun note.
+const dryRun = argv.includes('--dry-run');
 
 /** Session cookie via the headless BFF login (no WebAuthn ceremony). */
 async function resolveCookie() {
@@ -81,7 +83,7 @@ async function main() {
   console.log(`[capture-goldens] base=${BASE} verticals=${verticals.join(',')}`);
 
   const cookie = await resolveCookie();
-  const { captured, skips } = await runGoldenCapture({ http: makeHttp(cookie), verticals });
+  const { captured, skips } = await runGoldenCapture({ http: makeHttp(cookie), verticals, dryRun });
 
   const byReason = {};
   for (const s of skips) byReason[s.reason] = (byReason[s.reason] || 0) + 1;
