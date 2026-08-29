@@ -1,7 +1,3 @@
-/* Import v2 institutional design system — scoped to avoid sidebar interference */
-/* @import './theme/v2-global-theme.css'; */
-/* NOTE: v2 styles are now applied via [data-rd-v2] wrapper in UserDashboard instead of globally */
-
 * {
   margin: 0;
   padding: 0;
@@ -800,38 +796,6 @@ body {
   background: linear-gradient(180deg, #15803d 0%, #166534 100%);
   border-color: #166534;
   color: #fff;
-}
-
-.btn-blue {
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-blue-mid) 0%,
-    var(--app-primary-blue) 100%
-  );
-  color: #fff;
-  border: 1px solid var(--app-primary-blue-border);
-}
-
-.btn-blue:hover {
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-blue) 0%,
-    var(--app-primary-blue-hover) 100%
-  );
-  border-color: var(--app-primary-blue-hover);
-  color: #fff;
-}
-
-.btn-blue:focus-visible {
-  color: #fff;
-  outline: 2px solid var(--app-primary-blue-mid);
-  outline-offset: 2px;
-}
-
-.btn-blue:disabled,
-.btn-blue[disabled] {
-  opacity: 0.45;
-  cursor: not-allowed;
 }
 
 .form-group {

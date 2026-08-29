@@ -253,7 +253,6 @@ describe("CSS/JS monospace regression", () => {
         f.includes("WebMcpPanel.css") ||         // MCP tool code display (intentional)
         f.includes("refinedDashboardV2.css") ||  // v2 dashboard mono token + numeric/badge display (intentional)
         f.includes("refinedSurface.css") ||      // v2 surface mono token def (intentional)
-        f.includes("v2-global-theme.css") ||     // v2 global mono token def (intentional)
         f.includes("clinical.css") ||            // agent-clinical code/data panes (intentional)
         f.includes("LandingPage.css") ||           // landing data figure via --rd2-font-mono (intentional)
         f.includes("JsonField.css") ||           // raw JSON request/response display (intentional)
