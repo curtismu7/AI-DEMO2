@@ -39,6 +39,42 @@ const AGENT_FAILURE_PROSE = [
   /I don'?t recogni[sz]e that action/i,
   // Empty-answer / model-not-loaded reports, whatever prose wraps them.
   /\(empty_answer\)/i,
+  // Token/scope plumbing that broke BEFORE policy ran. Four banking goldens
+  // carried "Transfer failed: local-fallback: insufficient_scope: missing
+  // transfer" on 2026-08-28 — captured while the agent lacked the transfer
+  // scope. check-goldens passed all four (no pattern here matched them) and
+  // only the full CI suite caught it, via stepVerificationExpectations.test.js
+  // asserting banking/UC8 reads like a human-approval gate.
+  //
+  // NOT `/transfer failed:/i`, tempting as it is. banking/authz-denied is a
+  // LEGITIMATE golden whose reply opens "Transfer failed: PingOne Authorize
+  // denied MCP tool access for this session." — expectedOutcome DENY, the
+  // policy working, exactly what that use case demonstrates. Both candidates
+  // were tested against all 131 goldens on disk; the two below match zero of
+  // them, `/transfer failed:/i` matches that one.
+  //
+  // The line is "did policy decide, or did the plumbing fail first": a named
+  // Authorize denial is a demo; a local-fallback scope error is a defect.
+  /insufficient_scope/i,
+  /local-fallback:/i,
+  // The model's flat refusal. Found on 7 goldens on 2026-08-28, ALL of them
+  // UC34/UC35 (ai-spot-unusual-patterns / ai-explain-last-denial) across
+  // government, healthcare, investment, manufacturing x2, sporting-goods and
+  // university — captured 2026-07-27 through 2026-08-28, i.e. this has been
+  // recurring for a month while the gate stayed green.
+  //
+  // Those two use cases are the free-form LLM-analysis chips: no primaryTool,
+  // the model reasons over live data and chooses its own tools. When it declines
+  // the prompt instead, the reply is 38 characters and check-goldens had nothing
+  // to match it with, so a refusal became the canonical answer.
+  //
+  // Straight and curly apostrophes both occur in model output. Tested against
+  // all 131 goldens: matches those 7 and nothing else. It does NOT touch the
+  // short legitimate replies — "PingOne Authorize requires additional
+  // authentication" (x20), "intent_mismatch: tool not permitted" (x11),
+  // "Transaction requires human approval (HITL consent)" (x10) — all of which
+  // are policy working and are correct goldens.
+  /i['\u2019]?m sorry,? but i can['\u2019]?t help with that/i,
 ];
 
 /**

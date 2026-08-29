@@ -1,0 +1,12 @@
+{
+  "vertical": "workforce",
+  "useCaseId": "mortgage-delegated-access",
+  "ucId": "UC33",
+  "trigger": "show my expense report",
+  "expectedOutcome": "PERMIT",
+  "capturedAt": "2026-08-28T20:04:22.258Z",
+  "seedHash": "53b2bac25e5daf21",
+  "reply": "Here’s a list of your recent expense reports:\n\n| ID | Category | Description | Amount | Status | Submitted Date |\n|----|----------|-------------|--------|--------|----------------|\n| 201 | Travel | Q2 Sales Summit | $1,847.50 | Approved | 2026‑05‑02 |\n| 202 | Meals | Client dinner – May board meeting | $214.75 | Reimbursed | 2026‑05‑14 |\n| 203 | Equipment | External monitor for home office | $429.99 | Approved | 2026‑04‑22 |\n| 204 | Training | AWS Certified Solutions Architect course | $349.00 | Pending | 2026‑05‑28 |\n| 205 | Travel | Flight + hotel – Chicago conference | $1,123.40 | Submitted | 2026‑06‑01 |\n| 206 | Meals | Team lunch – sprint retrospective | $187.60 | Pending | 2026‑06‑02 |\n\nLet me know if you’d like to view details for a specific report or take any action on them.",
+  "agentPath": null,
+  "tokenEventCount": 25
+}

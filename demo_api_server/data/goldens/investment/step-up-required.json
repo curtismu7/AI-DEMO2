@@ -4,9 +4,9 @@
   "ucId": "UC7",
   "trigger": "execute a large trade of $600",
   "expectedOutcome": "STEP_UP",
-  "capturedAt": "2026-07-27T00:29:04.273Z",
+  "capturedAt": "2026-08-28T18:06:19.804Z",
   "seedHash": null,
-  "reply": "PingOne Authorize requires additional authentication before MCP tools can run.",
+  "reply": "PingOne Authorize requires additional authentication before this tool can run.",
   "agentPath": null,
-  "tokenEventCount": 13
+  "tokenEventCount": 21
 }

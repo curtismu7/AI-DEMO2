@@ -71,9 +71,9 @@ const Transactions = ({ user, onLogout }) => {
     if (clientType === 'enduser') {
       return { icon: '👤', label: 'End User', color: 'var(--brand-navy)' };
     } else if (clientType === 'ai_agent') {
-      return { icon: '🤖', label: 'AI Agent', color: '#8b5cf6' };
+      return { icon: '', label: 'AI Agent', color: '#8b5cf6' };
     } else {
-      return { icon: '❓', label: 'Unknown', color: '#374151' };
+      return { icon: '', label: 'Unknown', color: '#374151' };
     }
   };
 

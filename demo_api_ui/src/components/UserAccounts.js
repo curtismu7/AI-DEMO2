@@ -104,7 +104,7 @@ export default function UserAccounts({ user }) {
 
       <div className="accounts-summary">
         <div className="summary-card">
-          <div className="summary-icon">💰</div>
+          <div className="summary-icon">💳</div>
           <div className="summary-content">
             <div className="summary-label">Total Balance</div>
             <div className="summary-value">${totalBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
@@ -180,7 +180,7 @@ export default function UserAccounts({ user }) {
             onClick={() => handleAction('Open New Account', {})}
             className="action-card"
           >
-            <span className="action-icon">➕</span>
+            <span className="action-icon">+</span>
             <span className="action-title">Open New Account</span>
             <span className="action-desc">Apply for a new checking or savings account</span>
           </button>

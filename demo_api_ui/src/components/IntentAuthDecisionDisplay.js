@@ -101,7 +101,7 @@ export default function IntentAuthDecisionDisplay({ decision, compact = false })
           )}
           {decision.recommendation === "consent_required" && (
             <span className="iad-recommendation--consent">
-              ☑️ CONSENT REQUIRED
+              ✓ CONSENT REQUIRED
             </span>
           )}
         </div>

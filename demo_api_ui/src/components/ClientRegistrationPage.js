@@ -391,7 +391,7 @@ export default function ClientRegistrationPage({ user, onLogout }) {
                 fontWeight: 700, fontSize: '15px',
               }}
             >
-              {submitting ? '⏳ Registering in PingOne…' : '🚀 Register Client'}
+              {submitting ? '⏳ Registering in PingOne…' : 'Register Client'}
             </button>
           </div>
         </form>

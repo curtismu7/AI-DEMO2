@@ -7,7 +7,7 @@
 :root {
   --lp-bg: #f8fafc;
   --lp-surface: #ffffff;
-  --lp-border: #e2e8f0;
+  --lp-border: var(--th-border);
   --lp-muted: #e8ecf1;
   --lp-text-primary: #020617;
   --lp-text-secondary: #64748b;
@@ -115,7 +115,7 @@
 }
 .landing-header-actions .btn-primary {
   background: var(--lp-accent);
-  color: #ffffff;
+  color: var(--th-text-invert);
   border-color: var(--lp-accent);
 }
 .landing-header-actions .btn-primary:hover {
@@ -134,7 +134,7 @@
 }
 .landing-header-actions .btn-secondary:hover {
   background: var(--lp-muted);
-  border-color: #cbd5e1;
+  border-color: var(--th-border-strong);
 }
 .landing-header-actions .btn-secondary:focus-visible {
   color: var(--lp-navy-2);
@@ -209,7 +209,7 @@
 }
 .hero-cta-primary {
   background: linear-gradient(180deg, #dc2626 0%, #b91c1c 100%);
-  color: #ffffff;
+  color: var(--th-text-invert);
   border-color: #7f1d1d;
   box-shadow: var(--lp-shadow-sm);
 }
@@ -226,7 +226,7 @@
 }
 .hero-cta-secondary:hover {
   background: var(--lp-muted);
-  border-color: #cbd5e1;
+  border-color: var(--th-border-strong);
 }
 .hero-cta-primary:focus-visible,
 .hero-cta-secondary:focus-visible {
@@ -276,7 +276,7 @@
 }
 .landing-feature-card:hover {
   box-shadow: var(--lp-shadow-lg);
-  border-color: #cbd5e1;
+  border-color: var(--th-border-strong);
 }
 .landing-feature-icon {
   display: flex;
@@ -517,7 +517,7 @@
 
 [data-rd-v2] .btn-primary {
   background: var(--rd2-accent, #1b3a6b) !important;
-  color: #ffffff !important;
+  color: var(--th-text-invert) !important;
   border: none !important;
   box-shadow: var(--rd2-shadow-2, 0 2px 6px rgba(0,0,0,.1)) !important;
 }
@@ -560,7 +560,7 @@
 
 [data-rd-v2] .hero-cta-primary {
   background: var(--rd2-accent, #1b3a6b) !important;
-  color: #ffffff !important;
+  color: var(--th-text-invert) !important;
   border: none !important;
   box-shadow: var(--rd2-shadow-2, 0 2px 6px rgba(0,0,0,.1)) !important;
 }
@@ -587,7 +587,7 @@
 .landing-callout {
   padding: 64px 32px;
   background: var(--rd2-accent, #1b3a6b);
-  color: #ffffff;
+  color: var(--th-text-invert);
   text-align: center;
 }
 
@@ -602,7 +602,7 @@
   font-weight: 600;
   line-height: 1.35;
   letter-spacing: -0.02em;
-  color: #ffffff;
+  color: var(--th-text-invert);
   margin: 0 0 24px;
 }
 

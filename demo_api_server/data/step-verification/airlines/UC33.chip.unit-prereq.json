@@ -6,7 +6,7 @@
   "status": "UNPROVEN",
   "errorClass": null,
   "primaryTool": "get_flight_status",
-  "checkedAt": "2026-08-14",
+  "checkedAt": "2026-08-29",
   "requiredFlags": [
     "ff_mcp_gateway_pinggateway"
   ],

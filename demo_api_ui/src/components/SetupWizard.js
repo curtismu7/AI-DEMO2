@@ -445,7 +445,7 @@ export default function SetupWizard({
             onClick={() => setShowSecrets(p => ({ ...p, workerClientSecret: !p.workerClientSecret }))}
             aria-label={showSecrets.workerClientSecret ? 'Hide secret' : 'Show secret'}
           >
-            {showSecrets.workerClientSecret ? '🙈' : '👁️'}
+            {showSecrets.workerClientSecret ? '🔍' : '🔍'}
           </button>
         </div>
         {credErrors.workerClientSecret && <div className="wizard-error">{credErrors.workerClientSecret}</div>}
@@ -541,7 +541,7 @@ export default function SetupWizard({
   const renderCompletionPanel = () => (
     <div>
       <div className="wizard-complete-banner">
-        <div className="wizard-complete-title">🎉 Setup Complete</div>
+        <div className="wizard-complete-title">Setup Complete</div>
         <ul className="wizard-checklist">
           <li>✓ Application created</li>
           <li>✓ Resource server created</li>
@@ -702,7 +702,7 @@ export default function SetupWizard({
             cursor: wipeReady ? 'pointer' : 'not-allowed',
           }}
         >
-          {wipeRunning ? 'Wiping…' : '💣 Wipe environment'}
+          {wipeRunning ? 'Wiping…' : 'Wipe environment'}
         </button>
         {wipeLog.length > 0 && (
           <div style={{ marginTop: 16, maxHeight: 320, overflowY: 'auto', background: '#fff', border: '1px solid #c7c7cc', borderRadius: 6, padding: 12, fontFamily: 'monospace', fontSize: 13 }}>

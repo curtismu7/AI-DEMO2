@@ -25,6 +25,7 @@ const ROOT = path.resolve(__dirname, '..', 'data', 'step-verification');
  * @property {string} [verifiedBy] optional note pointing at the test file that proved this, when no new dispatch was run
  * @property {string[]} [requiredFlags] feature flags the chip needs armed at runtime
  * @property {string[]} [prereqErrors] human-readable missing-prereq details when status is FAIL
+ * @property {boolean} [configAssumedPresent] offline stub supplied declared non-flag config
  */
 
 const REQUIRED_FIELDS = ['vertical', 'useCaseId', 'triggerType', 'mode', 'status', 'checkedAt'];
@@ -75,6 +76,10 @@ function unprovenSignals(entry) {
   const signals = [];
   if (entry.provesDeclaredOnly === true) signals.push('provesDeclaredOnly');
   if (entry.flagsAssumedOn === true) signals.push('flagsAssumedOn');
+  // Declared non-flag config (PAR / A2A credentials) was supplied by the offline
+  // stub rather than read from a real store, so the check proves the catalog
+  // DECLARES those prerequisites, not that any environment has them.
+  if (entry.configAssumedPresent === true) signals.push('configAssumedPresent');
   if (Array.isArray(entry.flagsOffDetected) && entry.flagsOffDetected.length > 0) {
     signals.push('flagsOffDetected');
   }

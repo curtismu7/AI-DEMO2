@@ -4,9 +4,9 @@
   "ucId": "UC22",
   "trigger": "approve a $150 purchase order",
   "expectedOutcome": "PERMIT",
-  "capturedAt": "2026-07-27T00:28:39.311Z",
+  "capturedAt": "2026-08-28T18:07:33.265Z",
   "seedHash": "dcba7c79003a5241",
-  "reply": "PingOne Authorize requires additional authentication before MCP tools can run.",
+  "reply": "PingOne Authorize requires additional authentication before this tool can run.",
   "agentPath": null,
-  "tokenEventCount": 13
+  "tokenEventCount": 21
 }

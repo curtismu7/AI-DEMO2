@@ -23,22 +23,22 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
   {
     id: "getting-started",
     label: "Getting Started",
-    icon: "💡",
+    icon: "📚",
     items: [
       {
         label: "Guided Demo Tour",
         description: "Interactive walkthrough of the platform",
-        icon: "🎯",
+        icon: "",
       },
       {
         label: "Best Practices",
         description: "Learn industry best practices for AI agents",
-        icon: "⭐",
+        icon: "",
       },
       {
         label: "Agentic Maturity Model",
         description: "Understand agent development stages",
-        icon: "📈",
+        icon: "📊",
       },
     ],
   },
@@ -60,7 +60,7 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
       {
         label: "CIBA (OOB)",
         description: "Client Initiated Backchannel Authentication",
-        icon: "📱",
+        icon: "📡",
       },
       {
         label: "Token Exchange (RFC 8693)",
@@ -85,7 +85,7 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
       {
         label: "Introspection (RFC 7662)",
         description: "Validate and inspect token contents",
-        icon: "🔎",
+        icon: "🔍",
       },
       {
         label: "PingOne Authorize",
@@ -95,7 +95,7 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
       {
         label: "PAR (RFC 9126)",
         description: "Pushed Authorization Requests",
-        icon: "📤",
+        icon: "📄",
       },
       {
         label: "RAR (RFC 9396)",
@@ -105,7 +105,7 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
       {
         label: "JWT Client Auth (RFC 7523)",
         description: "Secure client authentication with JWTs",
-        icon: "🎫",
+        icon: "💳",
       },
       {
         label: "OAuth: CIMD",
@@ -137,7 +137,7 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
       {
         label: "MCP Elicitation",
         description: "How agents learn tool capabilities",
-        icon: "🎓",
+        icon: "📚",
       },
       {
         label: "Agent Gateway",
@@ -147,12 +147,12 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
       {
         label: "Computer Use Agent (CUA)",
         description: "Agents that interact with UI/UX",
-        icon: "🖱️",
+        icon: "",
       },
       {
         label: "Human-in-the-loop",
         description: "HITL flows for sensitive operations",
-        icon: "👨‍💼",
+        icon: "👤‍💼",
       },
       {
         label: "Ping Agent Gateway Security",
@@ -162,7 +162,7 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
       {
         label: "Enterprise-Managed Auth (EMA)",
         description: "Zero-touch OAuth for MCP with IdP-driven provisioning",
-        icon: "🏢",
+        icon: "🏦",
       },
       {
         label: "Agent Kill Switch",
@@ -174,7 +174,7 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
   {
     id: "standards-architecture",
     label: "Standards & Architecture",
-    icon: "📐",
+    icon: "🛠",
     items: [
       {
         label: "RFC & Spec Index",
@@ -189,7 +189,7 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
       {
         label: "IETF Standards: Agentic",
         description: "IETF specs for autonomous agents",
-        icon: "📜",
+        icon: "📄",
       },
       {
         label: "SPIFFE / SVID Workload Identity",
@@ -199,17 +199,17 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
       {
         label: "ID-JAG / Cross-App Access",
         description: "Identity across distributed applications",
-        icon: "🌉",
+        icon: "🔗",
       },
       {
         label: "Architecture Diagram",
         description: "System architecture overview",
-        icon: "🏗️",
+        icon: "🛠",
       },
       {
         label: "Token Chain (edu)",
         description: "How tokens flow through the system",
-        icon: "⛓️",
+        icon: "🔗",
       },
       {
         label: "Sensitive Data & Disclosure",
@@ -219,7 +219,7 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
       {
         label: "Gateway vs P1AZ Decision Split",
         description: "Coarse (PEP) vs fine (PDP), and the 5 rules P1AZ can't express",
-        icon: "🧭",
+        icon: "📖",
       },
     ],
   },
@@ -263,7 +263,7 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
       {
         label: "AI Platform Landscape",
         description: "AI platforms and services",
-        icon: "☁️",
+        icon: "🌐",
       },
       {
         label: "AI Primer",
@@ -273,14 +273,14 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
       {
         label: "Vector Search & RAG (Weaviate)",
         description: "How semantic code search stores and finds embeddings",
-        icon: "🧬",
+        icon: "🧠",
       },
     ],
   },
   {
     id: "special",
     label: "Special Topics",
-    icon: "⭐",
+    icon: "",
     items: [
       {
         label: "Glean + PingOne",
@@ -300,7 +300,7 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
       {
         label: "Agentic Trust",
         description: "Building trust in AI agents",
-        icon: "🤝",
+        icon: "👥",
       },
       {
         label: "Agent Guardrails",

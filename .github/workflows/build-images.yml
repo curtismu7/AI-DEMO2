@@ -73,6 +73,22 @@ jobs:
           ./se-update-code.sh --print-map > map.json
           node scripts/ci-build-matrix.js map.json changed.txt >> "$GITHUB_OUTPUT"
 
+      # A GHCR push needs two independent things, and either one missing gives
+      # the IDENTICAL "denied: permission_denied: write_package": the source
+      # LABEL (in-repo, checked here) and the package's "Manage Actions access"
+      # grant (UI-only, uncheckable). Verifying the code half turns that
+      # ambiguous denial into an unambiguous one — if this step passes and the
+      # push still fails, it is always the UI grant.
+      #
+      # It lives here rather than in `npm run hygiene:check` so it runs where it
+      # matters, on the merges that actually push images, instead of on every
+      # local hygiene pass.
+      - name: Verify GHCR source labels
+        if: steps.matrix.outputs.any == 'true'
+        run: |
+          node --test scripts/check-ghcr-source-labels.test.js
+          node scripts/check-ghcr-source-labels.js
+
   push-image:
     name: ${{ matrix.key }}
     needs: build-images

@@ -1,0 +1,12 @@
+{
+  "vertical": "workforce",
+  "useCaseId": "a2a-generalist-mismatch",
+  "ucId": "UC2.6",
+  "trigger": "simulate an agent identity mismatch",
+  "expectedOutcome": "PERMIT_THEN_DENY",
+  "capturedAt": "2026-08-28T20:03:58.481Z",
+  "seedHash": "53b2bac25e5daf21",
+  "reply": "❌ Delegated to Payroll Specialist, but sensitive_payroll_details failed: gateway_policy_denied.",
+  "agentPath": null,
+  "tokenEventCount": 17
+}

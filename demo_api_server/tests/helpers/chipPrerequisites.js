@@ -78,15 +78,55 @@ function chipPrerequisiteCases(vertical) {
  * not all `ff_*`-prefixed (ciba_enabled is the counter-example), and a prefix
  * test silently failed to pin those — making the ON case report them as off.
  */
-function flagStub(pinned, value, realConfigStore) {
+function flagStub(pinned, value, realConfigStore, configKeys = []) {
   const pinnedSet = new Set(pinned);
+  // Declared non-flag config (PAR endpoint/credentials, A2A specialist client
+  // id+secret) is stubbed on the SAME terms as the flags above, and only in the
+  // flags-ON case. Without this, offline Jest deferred those keys to the real
+  // store, which in a test process — and in CI, where demo_api_server/.env is
+  // gitignored and can never exist — reads empty. Every config-dependent use
+  // case therefore recorded status FAIL / errorClass missing_prereq forever:
+  // 45 entries (18 PAR, 27 A2A) that were not defects but "this process cannot
+  // see a secret". Re-running the suites could not clear them; it made it worse.
+  //
+  // Stubbing here restores the mode's stated contract — it proves the catalog
+  // DECLARES the right prerequisites, not that they are configured anywhere.
+  // The entry is stamped configAssumedPresent so it can never be read as
+  // runtime evidence, and writeLedgerEntry downgrades the resulting PASS to
+  // UNPROVEN, which is counted but is not a gate failure.
+  const configSet = new Set(value === true ? configKeys : []);
   return {
     getEffective: (k) => {
       if (pinnedSet.has(k)) return value;
       if (typeof k === 'string' && k.startsWith('ff_')) return value;
+      if (configSet.has(k)) return `stub-${k}`;
       return realConfigStore.getEffective(k);
     },
   };
+}
+
+/**
+ * The non-flag config keys THIS use case declares a need for, sourced from the
+ * prerequisite module itself rather than re-listed here — a second copy of the
+ * key names is exactly the mirror drift this helper exists to avoid.
+ *
+ * @param {object} uc resolved catalog entry
+ * @param {string} vertical
+ * @param {{ getEffective: (k: string) => * }} realConfigStore
+ * @returns {string[]}
+ */
+function declaredConfigKeys(uc, vertical, realConfigStore) {
+  const {
+    needsParConfig, PAR_CONFIG_KEYS, needsA2aCredentials, checkA2aCredentials,
+  } = require('../../services/demoStepPrerequisites');
+  const keys = [];
+  if (needsParConfig(uc)) keys.push(...PAR_CONFIG_KEYS);
+  if (needsA2aCredentials(uc)) {
+    const a2a = checkA2aCredentials(vertical, realConfigStore);
+    if (a2a.clientIdKey) keys.push(a2a.clientIdKey);
+    if (a2a.clientSecretKey) keys.push(a2a.clientSecretKey);
+  }
+  return keys;
 }
 
 /**
@@ -112,8 +152,11 @@ function runChipPrerequisiteCheck(uc, vertical, realConfigStore) {
   } = require('../../services/demoStepPrerequisites');
 
   const requiredFlags = requiredFlagsForUseCase(uc);
+  const configKeys = declaredConfigKeys(uc, vertical, realConfigStore);
   const prereq = checkChipPrerequisites(
-    uc, vertical, flagStub(requiredFlags, true, realConfigStore));
+    uc, vertical, flagStub(requiredFlags, true, realConfigStore, configKeys));
+  // Negative control keeps config UNSTUBBED: the OFF case must still detect a
+  // genuinely absent prerequisite, or stubbing above would make this vacuous.
   const prereqFlagsOff = checkChipPrerequisites(
     uc, vertical, flagStub(requiredFlags, false, realConfigStore));
 
@@ -161,6 +204,9 @@ function runChipPrerequisiteCheck(uc, vertical, realConfigStore) {
     prereqErrors: prereq.errors.length ? prereq.errors : undefined,
     // Truth-in-labelling. Read these before treating a PASS as runtime evidence.
     flagsAssumedOn: true,
+    // Set when this case declares non-flag config (PAR / A2A creds) that the
+    // ON-case stub supplied. Same contract as flagsAssumedOn: declared, not armed.
+    ...(configKeys.length ? { configAssumedPresent: true } : {}),
     provesDeclaredOnly: true,
     flagsOffDetected,
   });

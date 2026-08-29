@@ -30,13 +30,13 @@ const NODE_ICON = {
   'pingone-sso':     '🔑',
   'hitl-service':    '✋',
   'mcp-server':      '🏦',
-  'mcp-resource-server':      '📈',
-  'api-resource-server':'🏠',
+  'mcp-resource-server':      '📊',
+  'api-resource-server':'🌐',
 };
 
 const LAYER_ICON = {
   client: '🌐', gateway: '⚡', agent: '🤖', mcp: '🔀',
-  policy: '🛡️', tool: '✋', backend: '🗄️',
+  policy: '🛡️', tool: '✋', backend: '📋',
 };
 
 // Dash pattern per source layer — makes lines visually distinct beyond color
@@ -557,7 +557,7 @@ export default function ArchitectureCanvasPage() {
               const dotColor = STATUS_COLOR[status];
               const inFlow = flow && flow.steps.some(s => s.from === node.id || s.to === node.id);
               const dimmed = !!flow && !inFlow;
-              const icon = NODE_ICON[node.id] ?? LAYER_ICON[node.layer] ?? '📦';
+              const icon = NODE_ICON[node.id] ?? LAYER_ICON[node.layer] ?? '📄';
 
               return (
                 <Group key={node.id} x={node.x} y={node.y}

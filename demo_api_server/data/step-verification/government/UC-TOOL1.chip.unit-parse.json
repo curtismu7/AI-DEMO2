@@ -1,0 +1,10 @@
+{
+  "vertical": "government",
+  "useCaseId": "UC-TOOL1",
+  "triggerType": "chip",
+  "mode": "unit-parse",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "code_search",
+  "checkedAt": "2026-08-29"
+}

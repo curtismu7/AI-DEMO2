@@ -11,7 +11,7 @@
   display: flex; align-items: center; gap: 0.15rem;
   flex-wrap: wrap;
   padding: 0.2rem 1.1rem; border-bottom: 1px solid var(--brand-medium-gray, #e2e8f0);
-  background: #fff;
+  background: var(--th-bg-card);
 }
 
 /* Host for the agent's hoisted header control row. Takes the full remaining
@@ -26,7 +26,7 @@
 }
 .luw-topbar__agent-tools:empty { display: none; }
 .luw-topbar__title { font-size: 0.95rem; font-weight: 700; margin: 0; }
-.luw-topbar__crumb { font-size: 0.8rem; color: #64748b; }
+.luw-topbar__crumb { font-size: 0.8rem; color: var(--th-text-muted); }
 .luw-topbar__vertical { margin-left: 0.75rem; }
 
 .luw-body {
@@ -80,7 +80,7 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
   inset: 0 auto 0 0;
   width: 336px;
   z-index: 3;
-  border-right: 1px solid #e2e8f0;
+  border-right: 1px solid var(--th-border);
   background: var(--brand-light-gray, #f8fafc);
   display: flex;
   flex-direction: column;
@@ -128,15 +128,15 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--th-border-strong);
   border-radius: 6px;
-  background: #fff;
-  color: #475569;
+  background: var(--th-bg-card);
+  color: var(--th-text-body);
   font-size: 0.85rem;
   line-height: 1;
   cursor: pointer;
 }
-.luw-drawer__toggle:hover { border-color: #94a3b8; color: #0f172a; }
+.luw-drawer__toggle:hover { border-color: var(--th-border-strong); color: var(--th-text); }
 
 @media (prefers-reduced-motion: reduce) {
   .luw-drawer { transition: none; }
@@ -151,21 +151,21 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
   font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: -0.03em;
-  color: #0f172a;
+  color: var(--th-text);
 }
 .luw-drawer__sub {
   margin: 0.35rem 0 0;
   font-size: 0.8rem;
-  color: #64748b;
+  color: var(--th-text-muted);
   line-height: 1.35;
 }
-.luw-drawer__search { padding: 0.5rem 0.85rem 0.6rem; border-bottom: 1px solid #e2e8f0; }
+.luw-drawer__search { padding: 0.5rem 0.85rem 0.6rem; border-bottom: 1px solid var(--th-border); }
 .luw-drawer__search input {
-  width: 100%; padding: 0.45rem 0.6rem; border: 1px solid #cbd5e1; border-radius: 7px;
-  background: #fff; font-size: 0.82rem;
+  width: 100%; padding: 0.45rem 0.6rem; border: 1px solid var(--th-border-strong); border-radius: 7px;
+  background: var(--th-bg-card); font-size: 0.82rem;
 }
 .luw-drawer__scroll { overflow-y: auto; padding: 0.65rem 0.75rem 1rem; flex: 1; min-height: 0; }
-.luw-drawer__empty { padding: 1.2rem 0.75rem; color: #64748b; font-size: 0.8rem; font-style: italic; }
+.luw-drawer__empty { padding: 1.2rem 0.75rem; color: var(--th-text-muted); font-size: 0.8rem; font-style: italic; }
 
 /* Mock A cards */
 .luw-card {
@@ -174,15 +174,15 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
   text-align: left;
   padding: 0.85rem 0.95rem;
   margin-bottom: 0.55rem;
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
   border-radius: 10px;
   cursor: pointer;
   font: inherit;
   -webkit-appearance: none;
   appearance: none;
 }
-.luw-card:hover { border-color: #cbd5e1; }
+.luw-card:hover { border-color: var(--th-border-strong); }
 .luw-card.is-active {
   border-color: #0f766e;
   border-width: 2px;
@@ -192,13 +192,13 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
   margin: 0;
   font-size: 0.92rem;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--th-text);
   line-height: 1.25;
 }
 .luw-card__meta {
   margin: 0.25rem 0 0;
   font-size: 0.78rem;
-  color: #64748b;
+  color: var(--th-text-muted);
   line-height: 1.3;
   display: flex;
   align-items: center;
@@ -229,13 +229,13 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
 .luw-card__what {
   margin: 0.4rem 0 0;
   font-size: 0.78rem;
-  color: #334155;
+  color: var(--th-text-body);
   line-height: 1.35;
 }
 .luw-card__expected {
   margin: 0.35rem 0 0;
   font-size: 0.78rem;
-  color: #0f172a;
+  color: var(--th-text);
   line-height: 1.35;
 }
 .luw-card__expected-label {
@@ -257,7 +257,7 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
   font: inherit;
   font-size: 0.8rem;
   font-weight: 700;
-  color: #fff;
+  color: var(--th-text-invert);
   background: #0f766e;
   cursor: pointer;
 }
@@ -266,18 +266,18 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
 .luw-card__hint {
   margin: 0.55rem 0 0;
   font-size: 0.72rem;
-  color: #64748b;
+  color: var(--th-text-muted);
 }
 
 .luw-track { margin: 0.5rem 0 0.35rem; }
 .luw-track > summary {
   list-style: none; cursor: pointer; display: flex; align-items: center; gap: 0.45rem;
   padding: 0.55rem 0.4rem; font-size: 0.86rem; font-weight: 800; text-transform: uppercase;
-  letter-spacing: 0.05em; color: #334155; border-radius: 6px;
+  letter-spacing: 0.05em; color: var(--th-text-body); border-radius: 6px;
 }
 .luw-track > summary::-webkit-details-marker { display: none; }
-.luw-track > summary:hover { background: #fff; }
-.luw-track__count { margin-left: auto; font-weight: 600; color: #94a3b8; }
+.luw-track > summary:hover { background: var(--th-bg-card); }
+.luw-track__count { margin-left: auto; font-weight: 600; color: var(--th-text-faint); }
 
 /* 15-Min Security Demo: bordered box marks exactly which tiles the 15-minute
    script runs, so the presenter sees the demo scope at a glance. */
@@ -441,10 +441,10 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #64748b;
+  color: var(--th-text-muted);
 }
 .luw-glance__value {
-  color: #1e293b;
+  color: var(--th-text-body);
   font-weight: 700;
   font-size: 1.05rem;
   font-variant-numeric: tabular-nums;
@@ -476,8 +476,8 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
   font-size: 1.05rem;
   font-weight: 900;
   letter-spacing: 0.03em;
-  color: #0f172a;
-  background: #fff;
+  color: var(--th-text);
+  background: var(--th-bg-card);
 }
 
 /* One-shot pulse on the step that decided the outcome. */
@@ -545,7 +545,7 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
   .luw-resize--drawer { display: none; }
   .luw-drawer {
     border-right: 0;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--th-border);
   }
   .luw-drawer,
   .luw-body--drawer-closed .luw-drawer {

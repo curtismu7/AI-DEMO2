@@ -4,9 +4,9 @@
   "ucId": "UC7",
   "trigger": "checkout headphones for $600",
   "expectedOutcome": "STEP_UP",
-  "capturedAt": "2026-07-27T00:27:14.643Z",
+  "capturedAt": "2026-08-28T18:10:33.226Z",
   "seedHash": "6a8345537e56d245",
-  "reply": "PingOne Authorize requires additional authentication before MCP tools can run.",
+  "reply": "PingOne Authorize requires additional authentication before this tool can run.",
   "agentPath": null,
-  "tokenEventCount": 13
+  "tokenEventCount": 21
 }

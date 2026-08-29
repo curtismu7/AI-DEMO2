@@ -4,9 +4,9 @@
   "ucId": "UC6",
   "trigger": "execute a large trade of $2500",
   "expectedOutcome": "DENY",
-  "capturedAt": "2026-07-27T00:29:03.477Z",
+  "capturedAt": "2026-08-28T18:06:17.265Z",
   "seedHash": null,
-  "reply": "❌ PingOne Authorize denied MCP tool access for this session.",
+  "reply": "❌ 2500 exceeds tier ceiling 2000",
   "agentPath": null,
-  "tokenEventCount": 13
+  "tokenEventCount": 22
 }

@@ -213,7 +213,7 @@ export default function UngovernedAgentPage() {
         <p className="ungov-intro">
           Tools like{" "}
           <a href={OPENCLI_URL} target="_blank" rel="noopener noreferrer">OpenCLI</a>{" "}
-          (25.9k★, Apache-2.0) let an AI agent drive your <em>logged-in desktop
+          (25.9k, Apache-2.0) let an AI agent drive your <em>logged-in desktop
           Chrome</em> — "Browser Use on your logged-in Chrome." The agent inherits
           your cookies, so from the application's side it simply <strong>is
           you</strong>. There is no separate agent identity, no delegated token, no

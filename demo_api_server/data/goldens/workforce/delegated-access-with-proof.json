@@ -4,9 +4,9 @@
   "ucId": "UC1",
   "trigger": "my benefits",
   "expectedOutcome": "PERMIT",
-  "capturedAt": "2026-07-27T00:27:52.543Z",
+  "capturedAt": "2026-08-28T20:03:56.436Z",
   "seedHash": "53b2bac25e5daf21",
   "reply": "Here are your benefits (6 total).",
   "agentPath": null,
-  "tokenEventCount": 19
+  "tokenEventCount": 25
 }

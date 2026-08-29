@@ -15,8 +15,23 @@ truth — if the skill and this file disagree, this file wins.
   (check / confirm), `👤` (HITL consent marker), `🔑` (step-up / MFA
   marker), `🪟` (pop out to new window — draggable modals/panels),
   `📚` (knowledge grounding — Knowledge Grounding flag + citation footer),
-  and `🔧` (MCP tool marker — tool-list rows, e.g. `MCPToolsListModal`).
+  `🔧` (MCP tool marker — tool-list rows), and the product icon set:
+  `🤖` (AI agent — agent-authored rows, agent services),
+  `🏦` (banking / transfer), `🛡` (security practice),
+  `📋` (history / claims list), `☐` (unchecked checklist item),
+  `🔍` (inspect / search), `⚙` (settings / configuration),
+  `🔗` (delegation / linked token), `🌐` (public tier), `🧠` (LLM),
+  `⚖` (authorization / policy decision), `🔀` (routing / token exchange),
+  `⚡` (dispatched / live), `💼` (business tier), `🔄` (lifecycle / refresh),
+  `🧑` (person / human actor), `📊` (metrics / summary), `📄` (document),
+  `🛠` (MCP server / tooling), `📖` (reference docs),
+  `💳` (payment instrument), `✋` (human approval required),
+  `📡` (client / transport), `✦` (UI mode marker),
+  `👥` (group / multi-party), `📅` (scheduled), `🎛` (access controls),
+  `💬` (chat).
   Everything else is plain text or CSS icons / semantic HTML.
+  Adding a glyph here is deliberate: it must recur with ONE consistent job.
+  A glyph someone reached for once is not vocabulary — remove it instead.
 - **No muted modal text:** modals use solid high-contrast colors, never
   low-contrast gray hint text.
 - **Minimal diff:** name the component, name the element, change only that. No

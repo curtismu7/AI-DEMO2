@@ -173,9 +173,9 @@ export default function PostmanCollectionsPage({ user, onLogout }) {
   // Get audience icon
   const getAudienceIcon = (audience) => {
     switch (audience) {
-      case 'Learner': return '🎓';
-      case 'Demo Runner': return '🚀';
-      case 'Developer': return '💻';
+      case 'Learner': return '📚';
+      case 'Demo Runner': return '';
+      case 'Developer': return '📡';
       case 'Engineer': return '🔧';
       case 'Security Engineer': return '🔐';
       default: return '📋';
@@ -216,7 +216,7 @@ export default function PostmanCollectionsPage({ user, onLogout }) {
                   <div className="postman-card__features">
                     <span className="postman-card__feature">🔧 Configuration variables</span>
                     <span className="postman-card__feature">🔐 Credential placeholders</span>
-                    <span className="postman-card__feature">🌍 {envFile.variant} settings</span>
+                    <span className="postman-card__feature">{envFile.variant} settings</span>
                   </div>
                 </div>
                 <div className="postman-card__actions">
@@ -224,7 +224,7 @@ export default function PostmanCollectionsPage({ user, onLogout }) {
                     className="postman-btn postman-btn--primary"
                     onClick={() => handleDownload(envFile.filename)}
                   >
-                    📥 Download Environment
+                    📄 Download Environment
                   </button>
                 </div>
               </div>
@@ -269,7 +269,7 @@ export default function PostmanCollectionsPage({ user, onLogout }) {
                     className="postman-btn postman-btn--primary"
                     onClick={() => handleDownload(collection.filename)}
                   >
-                    📥 Download Collection
+                    📄 Download Collection
                   </button>
                   {downloadStats[collection.filename] && (
                     <span className="postman-card__download-count">
@@ -284,7 +284,7 @@ export default function PostmanCollectionsPage({ user, onLogout }) {
 
         {/* Quick Start Guide */}
         <section className="postman-section">
-          <h2>🚀 Quick Start Guide</h2>
+          <h2>Quick Start Guide</h2>
           <div className="postman-guide">
             <div className="postman-guide__steps">
               <div className="postman-guide__step">
@@ -317,7 +317,7 @@ export default function PostmanCollectionsPage({ user, onLogout }) {
               </div>
             </div>
             <div className="postman-guide__tips">
-              <h4>💡 Pro Tips</h4>
+              <h4>Pro Tips</h4>
               <ul>
                 <li>Use the "Step-by-Step" collection first to understand the OAuth flow</li>
                 <li>Set the <code>mayAct</code> attribute on your test user before running token exchanges</li>
