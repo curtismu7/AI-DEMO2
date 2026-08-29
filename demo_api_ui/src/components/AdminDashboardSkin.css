@@ -31,31 +31,30 @@
   --admin-accent: #2563eb;
   --admin-accent2: #1e3a8a;
   --admin-tint: #eef4ff;
-  --admin-surface: #ffffff;
-  --admin-surface-2: #f1f5f9;
-  --admin-line: #eceef5;
-  --admin-ink: #1a2230;
-  --admin-muted: #69748a;
+  /* Surfaces, line and ink read the semantic --th-* tokens (index.css) so
+     /admin flips with the same dark palette as every other page. */
+  --admin-surface: var(--th-bg-card);
+  --admin-surface-2: var(--th-bg-inset);
+  --admin-line: var(--th-border);
+  --admin-ink: var(--th-text);
+  --admin-muted: var(--th-text-muted);
 }
 
-/* Same ramp dashboard/dashboard.css uses for .dash in dark, so /admin and the
-   P1AZ/New Relic dashboards read as one product when the theme flips.
-   The page ground is overridden here too: the shared .app-page-shell is
+/* The page ground is overridden here: the shared .app-page-shell is
    light-only (styles/appShellPages.css has no dark rules at all), and
    restyling that shell would drag every settings-style page along — so the
-   dark ground is scoped to this page. */
+   dark ground is scoped to this page. Surface and ink are restated (still
+   the --th-* tokens) because adminDashboardParity.test pins their presence
+   in this block. */
 :root[data-theme="dark"] .admin-dashboard-page.app-page-shell {
-  background: #0a0f18;
+  background: var(--th-bg-page);
 }
 :root[data-theme="dark"] .admin-dashboard-page {
   --admin-accent: #7aa2f7;
   --admin-accent2: #9ec1ff;
   --admin-tint: #172554;
-  --admin-surface: #111823;
-  --admin-surface-2: #161f2c;
-  --admin-line: #253244;
-  --admin-ink: #e8eef7;
-  --admin-muted: #a5b4c8;
+  --admin-surface: var(--th-bg-card);
+  --admin-ink: var(--th-text);
 }
 
 /* ── Cards ──────────────────────────────────────────────────────────────── */

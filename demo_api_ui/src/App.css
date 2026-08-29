@@ -961,7 +961,7 @@
   top: 0;
   left: 0;
   right: 0;
-  z-index: 10050;
+  z-index: var(--z-shell);
   padding: 0.75rem 1rem;
   background: var(--th-bg-card);
   border-bottom: 1px solid var(--th-border);

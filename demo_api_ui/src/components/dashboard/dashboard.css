@@ -9,14 +9,17 @@
    deliberately ignores. .dash paints its own background: without it, dark-mode
    ink lands on the app shell's light ground (the #1484 bug). */
 .dash {
+  /* Ground stays a literal in both blocks (DashboardShell.test pins it);
+     surfaces, lines and ink read the semantic --th-* tokens so the dashboards
+     and the rest of the app flip to ONE dark palette, not two navies. */
   --dash-ground: #eef2f7;
-  --dash-surface: #ffffff;
-  --dash-surface-2: #f8fafc;
-  --dash-line: #d8e0ea;
+  --dash-surface: var(--th-bg-card);
+  --dash-surface-2: var(--th-bg-inset);
+  --dash-line: var(--th-border);
   --dash-line-soft: #e8edf3;
-  --dash-ink: #0f172a;
-  --dash-ink-2: #475569;
-  --dash-ink-3: #64748b;
+  --dash-ink: var(--th-text);
+  --dash-ink-2: var(--th-text-body);
+  --dash-ink-3: var(--th-text-muted);
   --dash-accent: #1d4ed8;
   --dash-accent-soft: #dbeafe;
   --dash-ok: #3d9142;
@@ -34,13 +37,7 @@
 
 :root[data-theme="dark"] .dash {
   --dash-ground: #0a0f18;
-  --dash-surface: #111823;
-  --dash-surface-2: #161f2c;
-  --dash-line: #253244;
   --dash-line-soft: #1c2634;
-  --dash-ink: #e8eef7;
-  --dash-ink-2: #a5b4c8;
-  --dash-ink-3: #7d8ca1;
   --dash-accent: #7aa2f7;
   --dash-accent-soft: #172554;
   --dash-ok: #6cc46c;

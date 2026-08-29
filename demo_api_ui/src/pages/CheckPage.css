@@ -25,7 +25,7 @@
   --fail: #c5364f; --fail-bg: #fbe2e7; --fail-line: #ecaab6;
   --idle: #7a8199; --idle-bg: #e9ecf4; --idle-line: #c9cfdd;
 
-  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  --mono: var(--font-mono);
   --sans: ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --radius: 12px;
   --shadow: 0 1px 2px rgba(20,28,50,.05), 0 6px 20px rgba(20,28,50,.06);

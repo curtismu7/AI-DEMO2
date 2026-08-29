@@ -86,7 +86,7 @@
   --accent: #007acc;
   --chat: #181818;
   --title: #3c3c3c;
-  --mono: "SF Mono", Menlo, Consolas, monospace;
+  --mono: var(--font-mono);
   --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   display: flex;
   flex-direction: column;
