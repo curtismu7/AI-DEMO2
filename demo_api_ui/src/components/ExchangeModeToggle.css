@@ -48,12 +48,17 @@
   color: #ffffff;
 }
 
+/* This chip sits inside .emt-header, whose ground is var(--brand-navy) — so ink
+   of var(--brand-navy) was the same colour as the surface behind it (ratio
+   1.00, invisible, in BOTH themes). The header is a brand surface and does not
+   flip, so its ink must not flip either: --th-text-invert is #ffffff in light
+   and dark, and the variants below stay literal for the same reason. */
 .emt-rfc {
   font-size: 0.82rem;
   font-weight: 600;
-  color: var(--brand-navy);
+  color: var(--th-text-invert);
   font-family: inherit;
-  background: rgba(37, 99, 235, 0.08);
+  background: rgba(255, 255, 255, 0.16);
   padding: 2px 8px;
   border-radius: 4px;
 }
@@ -203,14 +208,17 @@
 /* ── Dual-Mode Additions (Phase 198) ──────────────────────────── */
 
 /* Transaction mode badge */
+/* Same navy ground as .emt-rfc above — these carried dark amber and mid-grey,
+   which read at roughly 2.5:1 on it. Lightened to keep the semantic hue while
+   clearing the 4.5:1 floor. Literal, because the ground is brand and fixed. */
 .emt-rfc--transaction {
-  color: #b45309;
-  background: rgba(245, 158, 11, 0.12);
+  color: #fde68a;
+  background: rgba(253, 230, 138, 0.16);
 }
 
 .emt-rfc--loading {
-  color: #94a3b8;
-  background: rgba(148, 163, 184, 0.1);
+  color: #cbd5e1;
+  background: rgba(255, 255, 255, 0.12);
   font-style: italic;
 }
 

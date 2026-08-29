@@ -2,6 +2,10 @@
   width: 100%;
   background: var(--th-bg-page);
   border-top: 1px solid var(--th-border);
+  /* Ground and border were tokenized and flip with the theme; the ink was not,
+     so it stayed light-mode grey and dropped to 1.92:1 in dark on every page.
+     Ink comes from the same set as the surface behind it (THEMING.md §1.5). */
+  color: var(--th-text-body);
   padding: 16px 0 8px 0;
   position: relative;
   bottom: 0;
