@@ -208,6 +208,45 @@ hand-authored — the generator does not touch it.
 `node snapshots/gen-authorize-snapshot.js --check` (up to date) — then the fix
 only reaches the demo after **PingOne console → Authorize → Trust Framework →
 Import** of the regenerated snapshot (`docs/LIVE-PINGONE-RUNBOOK.md` §3).
+### 2026-08-28 — CSS consolidation phase 1: dead stylesheets, three more `prefers-color-scheme` leaks, and shadows that never rendered
+
+**Files changed:** deleted `demo_api_ui/src/theme/v2-global-theme.css`,
+`components/agent/{AgentTokens,AgentLayout,ChatInterface}.css`,
+`components/{TokenDisplay,TokenInspector,AdminLayout,BankingAdminOps}.css`;
+trimmed `index.css`, `App.css`, `ElicitationDialog.css`,
+`PostmanCollectionsPage.css`, `SetupWizardTab.css`, `ServerRestartModal.css`,
+`MFALogsModal.css`, `KillSwitchConfirmModal.css`, `UseCaseExplainModal.css`,
+`CodeExplorerPage.css`, `OAuthAcademyPage.css`, `__tests__/uiRegression.test.js`.
+
+**What was broken:** (1) `v2-global-theme.css` had been `@import`-commented-out
+since the `[data-rd-v2]` scoping, so every `--v2-*` token was undefined at
+runtime. The ten `var(--v2-shadow-1|2)` uses with no fallback (Code Explorer
+and OAuth Academy cards + the search-input focus ring) rendered as no shadow
+and no ring — `signinAccentTokens.test.js` did not catch it because the dead
+file still *defined* the names on disk. (2) Three live components carried
+`@media (prefers-color-scheme: dark)` blocks — the incident-#1212 class
+(OS-dark users get a dark component on a light app). (3) Seven stylesheets had
+no importer at all; `.btn-blue` had no consumer; three modals that already
+migrated to DraggableModal still shipped their hand-rolled backdrop rules.
+
+**What was fixed:** dead files and rules deleted; the ten shadow uses now carry
+the theme's literal values inline (same convention the rest of those files
+use); the three media-query blocks removed. The remaining ~290 `--v2-*`
+references all have fallbacks and render exactly as before.
+
+**Do not break:** an "is this CSS dead" scan in `demo_api_ui` must include
+`*.ts *.tsx` — eight live `.tsx` components import sibling stylesheets despite
+the UI `CLAUDE.md` saying there are no TypeScript sources; the first pass of
+this cleanup deleted their CSS and broke the build. Thirteen more
+`prefers-color-scheme` blocks remain (JSONViewer, TokenCardGrid, LoadingOverlay
+×2, MissingCredentialsModal, PolicyConformancePanel, ArchitectureTabsPanel,
+agentStudioPreview ×2, GroupMembershipToggle, UnifiedTokenFlowInspector,
+TransactionTracePage; AgentGuardrailsDiagram / AgentOnboardingFlowDiagram
+declare theirs intentional) — scoped out, not forgotten.
+
+**Verify:** `cd demo_api_ui && npm run test:unit` (449 files, 3580 tests) and
+`npm run build` both exit 0; `grep -c prefers-color-scheme
+src/components/{ElicitationDialog,PostmanCollectionsPage,SetupWizardTab}.css` → 0.
 
 ### 2026-08-28 — RAR looked enforced but nothing enforced it: `FF_RAR` was unset in every deployment
 
