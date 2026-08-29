@@ -813,7 +813,7 @@ door advertised, and the mismatch is silent.
 advertises) or require authentication on `/oauth/register` for anything beyond
 `mcp:invoke`. Not a relaxation of the loopback rule.
 
-### [ ] 2026-08-28 — a sixth service map exists outside the hygiene gate
+### [x] 2026-08-28 — a sixth service map exists outside the hygiene gate
 
 `k8s/aws/deploy.sh:60-77` holds `IMAGE_MAP`, an indexed-array local-name-to-GHCR-name
 mapping used to rewrite image refs in the SE K8s manifests. It is a service map
@@ -836,6 +836,21 @@ pointing at a local (or stale) image name after an otherwise-clean CI build.
 service map (derive it from `--print-map` instead of hand-maintaining it), or
 add a sixth assertion to `check-service-map-complete.js` that every
 `ghcrImage` in the map also appears in `k8s/aws/deploy.sh`'s `IMAGE_MAP`.
+
+**FIXED 2026-08-29 (PR #2592)** — took the second option. `readImageMap()`
+parses the `IMAGE_MAP` array out of `k8s/aws/deploy.sh` as text and
+`checkMap()` now asserts every `ghcrImage` appears there. Only that direction
+is asserted: extra `IMAGE_MAP` entries are legitimate, since it also carries
+images this repo does not CI-build (`tier-manager`, `mcp-code-search`,
+`llamaindex-agent`).
+
+The parser is sanity-guarded the same way `inventoryCount` is — if it reads
+fewer pairs than there are services, it fails as a broken parser rather than
+passing everything vacuously, which is the exact way a text-parsing gate goes
+quietly useless.
+
+Verified by removing `ai-demo-mcp-gateway` from `IMAGE_MAP`: the gate failed
+naming the service, and passed again once restored. 10/10 unit tests.
 
 ### [ ] 2026-08-28 — shared root files never trigger a CI build
 
