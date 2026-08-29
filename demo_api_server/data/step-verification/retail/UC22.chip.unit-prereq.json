@@ -6,7 +6,7 @@
   "status": "UNPROVEN",
   "errorClass": null,
   "primaryTool": "checkout",
-  "checkedAt": "2026-08-14",
+  "checkedAt": "2026-08-29",
   "requiredFlags": [
     "ciba_enabled",
     "ff_mcp_gateway_pinggateway"

@@ -6,12 +6,13 @@
   "status": "UNPROVEN",
   "errorClass": null,
   "primaryTool": "create_transfer",
-  "checkedAt": "2026-08-21",
+  "checkedAt": "2026-08-29",
   "requiredFlags": [
     "ff_rar",
     "ff_mcp_gateway_pinggateway"
   ],
   "flagsAssumedOn": true,
+  "configAssumedPresent": true,
   "provesDeclaredOnly": true,
   "flagsOffDetected": [
     "ff_rar",
