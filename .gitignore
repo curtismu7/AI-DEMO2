@@ -69,6 +69,15 @@ demo_api_server/bin/pingcli
 # commit it", but it was tracked from #370 until 2026-08-03, so anyone who ran
 # either script silently staged live credentials.
 setup-config.md
+# Hand-written credential scratch notes kept at the repo root during demo work.
+# `users.txt` held the live demoUser/demoAdmin passwords in plaintext on
+# 2026-08-29, untracked but unignored — one `git add -A` from repeating exactly
+# the leak this section exists to stop. The glob covers the obvious siblings
+# rather than only the one filename that happened to appear.
+users.txt
+passwords.txt
+credentials.txt
+*-credentials.txt
 # App-generated config/import backups (were committed by accident)
 *.bak
 demo_api_server/.env.pre-import-*
