@@ -700,10 +700,12 @@ describe('UseCaseLauncherPage', () => {
     await waitFor(() => expect(screen.getByText(/Demo — a scripted walkthrough/i)).toBeInTheDocument());
     const demoSection = screen.getByRole('heading', { level: 2, name: /Demo — a scripted walkthrough/i }).closest('section');
     // UC24 opens the script, so UC1, UC2, UC11 are DEMO_USE_CASE_IDS[1], [8],
-    // [14] → Step 2, Step 9, Step 15.
+    // [15] → Step 2, Step 9, Step 16. UC11 shifted by one when UC2.7 (the A2A
+    // walkthrough) joined the script beside UC2/UC2.5; the two before the
+    // insertion point are unchanged.
     expect(within(demoSection).getByText('Step 2')).toBeInTheDocument();
     expect(within(demoSection).getByText('Step 9')).toBeInTheDocument();
-    expect(within(demoSection).getByText('Step 15')).toBeInTheDocument();
+    expect(within(demoSection).getByText('Step 16')).toBeInTheDocument();
   });
 
   it('a use case in both Demo and Happy Path renders once per section, not deduped', async () => {

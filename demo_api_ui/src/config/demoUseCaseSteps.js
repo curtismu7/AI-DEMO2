@@ -18,6 +18,7 @@ export const DEMO_PRIMARY_USE_CASE_IDS = [
   'UC6',   // Authz DENY
   'UC2',   // A2A delegation
   'UC2.5', // A2A orchestrator learning
+  'UC2.7', // A2A end to end — protocol + identity (walkthrough page)
   'UC22',  // CIBA out-of-band
   'UC5',   // Insufficient scope
   'UC10',  // Cross-owner

@@ -12,6 +12,7 @@
 | UC1 | [Delegated access with proof](./delegated-access-with-proof.md) | foundations | ✅ works | 🛡️ T8, T9 |  |
 | UC2 | [A2A delegation](./a2a-delegation.md) | foundations | ✅ works | 🛡️ T9, T13 |  |
 | UC2.5 | [A2A Orchestrator — Interactive Learning](./a2a-orchestrator-learning.md) | foundations | ✅ works | 🛡️ T9, T13 |  |
+| UC2.7 | [A2A end to end — protocol + identity](./a2a-protocol-walkthrough.md) | learn | ✅ works | 🛡️ T9, T13 |  |
 | UC2.6 | [A2A generalist mismatch](./a2a-generalist-mismatch.md) | foundations | ✅ works | 🛡️ T9, T13 |  |
 | UC3 | [act gate](./may-act-gate.md) | foundations | ✅ works | 🛡️ T3, T13 |  |
 | UC19 | [Non-human (agent) identity lifecycle](./agent-identity-lifecycle.md) | foundations | ✅ works | 🛡️ T9, T13 |  |
@@ -81,8 +82,8 @@
 
 | Status | Count |
 |---|---|
-| ✅ Works | 46 |
+| ✅ Works | 47 |
 | 🚩 Flag-gated | 10 |
 | 📥 Needs console import | 0 |
 | 🏗️ Needs build | 1 |
-| **Total** | **57** |
+| **Total** | **58** |
