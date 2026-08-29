@@ -60,7 +60,7 @@
     "userMemberships": {
       "demoUser": ["privileged"],
       "demoAdmin": ["privileged"],
-      "demoDelegate": []
+      "demoDelegate": ["privileged"]
     }
   },
   "agent": {
