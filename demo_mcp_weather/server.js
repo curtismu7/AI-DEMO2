@@ -53,10 +53,6 @@ function startChild() {
     child = null;
   });
 
-  child.stderr.on('data', (chunk) => {
-    console.error(`[mcp-weather] child stderr: ${chunk}`);
-  });
-
   // One-time MCP handshake so the child is always ready for tools/list and
   // tools/call regardless of whether the HTTP caller sends its own initialize.
   sendRaw({
