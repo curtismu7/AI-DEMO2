@@ -239,6 +239,35 @@ while IFS= read -r f; do
   esac
 done <<<"$CHANGED"
 
+# ── compose env: the case the path mapping above structurally cannot see ─────
+# `environment:`, `env_file:` and `build.args` edits change no path under any
+# service sourceDir, so the loop above matches only the generic compose arm and
+# RESTART_SET stays empty. This script then stamped the range as deployed and
+# exited 0 while the running container kept its old values — container env is
+# frozen at create. Observed twice on 2026-08-28 wiring the audit door
+# (GATEWAY_OAUTH_BROKER_PINGONE_CLIENT_ID merged, "deployed", still <unset>),
+# and it reads as a product bug, which is where the time goes.
+#
+# `run-docker.sh restart` recreates, which is exactly what picks new env up — so
+# deploy rather than warn. compose-env-diff.js answers which services changed.
+if grep -qx 'docker-compose.yml' <<<"$CHANGED"; then
+  _old_compose="$(mktemp)"; _new_compose="$(mktemp)"
+  git show "$OLD:docker-compose.yml" > "$_old_compose" 2>/dev/null || : > "$_old_compose"
+  git show "$NEW:docker-compose.yml" > "$_new_compose" 2>/dev/null || : > "$_new_compose"
+  # Never let this fail silently: a swallowed error here restores exactly the
+  # invisible staleness the block exists to end.
+  if _env_svcs="$(node scripts/compose-env-diff.js "$_old_compose" "$_new_compose" 2>&1)"; then
+    for _svc in $_env_svcs; do
+      add_restart "$_svc"
+      note "compose env changed for $_svc — recreating (container env is frozen at create, so a code-only deploy would leave it stale)"
+    done
+  else
+    note "could not compare compose env blocks: $_env_svcs"
+    note "  env-only compose edits will NOT deploy themselves — check by hand: ./run-docker.sh restart <svc>"
+  fi
+  rm -f "$_old_compose" "$_new_compose"
+fi
+
 # Only touch services whose container is actually running.
 running_containers="$(docker ps --format '{{.Names}}' 2>/dev/null || true)"
 container_of() {

@@ -662,7 +662,7 @@ appears to fix it, training the reader to ignore the check.
 **What the real fix looks like:** filter pods to `status.phase == Running` with
 no `deletionTimestamp` before comparing start times, or compare the deployment's
 `observedGeneration`/`updatedReplicas` instead of per-pod timestamps.
-### [ ] 2026-08-28 — deploy-live silently no-ops on a compose `environment:` change
+### [x] 2026-08-28 — deploy-live silently no-ops on a compose `environment:` change
 
 `scripts/deploy-live.sh` maps changed **paths** in the merged diff to compose
 services. A change to `docker-compose.yml` that only adds or edits an
@@ -695,6 +695,23 @@ structurally (not by path) and recreate any service whose `environment:`,
 `docker-compose.yml` is in the diff at all and print a loud "compose changed —
 env-only edits need `run-docker.sh restart <svc>`; deploy-live will not do it"
 rather than silently succeeding.
+
+**FIXED 2026-08-29 (PR #2590)** — took the structural option, not the warning.
+`run-docker.sh restart` already recreates, which is exactly what picks up new
+env, so deploy-live now *deploys* these services instead of telling a human to.
+`scripts/compose-env-diff.js` compares the `environment:`, `env_file:` and
+`build.args` blocks of each service between the two revisions and names the ones
+that changed; deploy-live feeds them into `add_restart`. Structural rather than
+hunk-based because a hunk says which LINES moved, not which SERVICE owns them,
+and `environment:` blocks all look alike at block boundaries.
+
+Verified by replaying the incident: `8f06af5f2~1..8f06af5f2` (the audit-door
+commit, which touched *only* `docker-compose.yml`) now resolves to
+`mcp-gateway` — the exact service that stayed `<unset>`. Comment-only and
+whitespace edits deliberately do not trigger a recreate; a brand-new service is
+skipped, since it is not running to be recreated. If the comparison itself ever
+fails, deploy-live says so loudly rather than swallowing it — a silent failure
+here would restore the very staleness this closes.
 
 ### [ ] 2026-08-28 — gateway tools/list is only governed on the WebSocket transport
 
