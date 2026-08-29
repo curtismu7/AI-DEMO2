@@ -43,6 +43,18 @@ fingerprint equals the vault's OWN `PINGONE_TOKEN_EXCHANGER_CLIENT_SECRET`
 (`9dd14d04c4`). Three services, one coherent real app — against a vault entry
 naming a resource.
 
+**The repo's own provisioner agrees, which settles it.**
+`demo_api_server/services/pingoneProvisionService.js:1929` documents the
+intended mapping in a comment it writes into generated env:
+
+    #   • Gateway exchanged tokens → GW_INTROSPECTION_CLIENT_ID = MCP Exchanger (post)
+
+and line 1939 emits `GW_INTROSPECTION_CLIENT_ID=${provisioned.mcpExchangerApp?.clientId}`.
+So the code that CREATES this key sets it to the Exchanger app — `f4dd707d…` —
+which is what the three services held and what the vault did not. Four
+independent sources (PingOne, three service `.env`s, and the provisioner) against
+one vault entry.
+
 **Why this matters more than a stale value.** Following the guard's own
 instruction — blank the service copy so the vault supplies it — would have
 pointed gateway introspection at a client id that does not exist. That is very
