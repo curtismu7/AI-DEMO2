@@ -2578,9 +2578,17 @@ async function runBackgroundStartupTasks() {
     try {
         const enterpriseIdpClientRegistry = require('./services/enterpriseIdpClientRegistry');
         const inspectorClient = enterpriseIdpClientRegistry.getSeededInspectorClient();
+        // Never print the secret: this line lands in `docker logs` / `kubectl logs`
+        // for every deployment, where it outlives any rotation. Whether the secret
+        // is pinned or regenerated is the part a developer actually needs — a
+        // random one is ephemeral and MCP Inspector must be re-paired each boot.
+        const pinned = Boolean(configStore.getEffective('enterprise_idp_inspector_client_secret'));
         console.log(
             `[enterpriseIdp] Seeded EMA client for MCP Inspector — client_id=${inspectorClient.client_id} ` +
-            `client_secret=${inspectorClient.client_secret} redirect_uri=${inspectorClient.redirect_uris[0]}`,
+            `redirect_uri=${inspectorClient.redirect_uris[0]} client_secret=[REDACTED] ` +
+            `(${pinned
+                ? 'pinned — read enterprise_idp_inspector_client_secret from config'
+                : 'randomly generated this boot; pin enterprise_idp_inspector_client_secret to keep it stable'})`,
         );
     } catch (err) {
         console.warn('[enterpriseIdp] Inspector client seed failed (non-fatal):', err.message);

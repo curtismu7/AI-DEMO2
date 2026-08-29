@@ -304,6 +304,13 @@
 .tctr-claim-diff--after { background: rgba(45, 212, 191, 0.24); }
 .tctr-kv { display: grid; grid-template-columns: 92px 1fr; gap: 3px 8px; font-size: 12.5px; margin: 4px 0; }
 .tctr-kv-k { color: var(--th-text-muted); font-weight: 600; }
+/* Actor inks. These were inline style={{color}} literals in the JSX, which beat
+   every rule below including the dark overrides — so the deep light-mode hues
+   stayed on the dark card and Agent measured 2.44:1. Dark values reuse this
+   file's existing --lane palette so the actors read the same in both themes. */
+.tctr-kv-k--user  { color: #be185d; }
+.tctr-kv-k--agent { color: #7e22ce; }
+.tctr-kv-k--mcp   { color: #047857; }
 .tctr-kv-v { font-family: var(--font-mono); font-size: var(--font-size-2xs); word-break: break-all; }
 .tctr-kv-v--json {
   margin: 0; padding: 8px; overflow-x: auto; border: 1px solid var(--th-border-strong);
@@ -517,6 +524,10 @@
 
 /* Lane badges */
 :root[data-theme="dark"] .tctr .tctr-lane--pingone   { background: rgba(30, 64, 175, 0.4);  color: #93c5fd; }
+
+:root[data-theme="dark"] .tctr .tctr-kv-k--user  { color: #f9a8d4; }
+:root[data-theme="dark"] .tctr .tctr-kv-k--agent { color: #d8b4fe; }
+:root[data-theme="dark"] .tctr .tctr-kv-k--mcp   { color: #6ee7b7; }
 
 :root[data-theme="dark"] .tctr .tctr-lane--chat      { background: rgba(157, 23, 77, 0.35); color: #f9a8d4; }
 

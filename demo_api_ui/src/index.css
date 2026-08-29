@@ -1,7 +1,3 @@
-/* Import v2 institutional design system — scoped to avoid sidebar interference */
-/* @import './theme/v2-global-theme.css'; */
-/* NOTE: v2 styles are now applied via [data-rd-v2] wrapper in UserDashboard instead of globally */
-
 * {
   margin: 0;
   padding: 0;
@@ -14,8 +10,7 @@ code,
 kbd,
 samp,
 tt {
-  font-family:
-    -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Arial, sans-serif;
+  font-family: var(--font-primary);
 }
 
 /* Global reset: form controls do NOT inherit font-family from body — browsers
@@ -30,9 +25,9 @@ textarea {
   font-family: inherit;
 }
 
-/* Toast notifications must sit above all fixed/portal UI (hamburger menu is z-index 10055). */
+/* Toast notifications must sit above all fixed/portal UI (the shell band). */
 .Toastify__toast-container {
-  z-index: 10100 !important;
+  z-index: var(--z-toast) !important;
 }
 .Toastify__toast-container--top-center {
   top: 1rem;
@@ -139,10 +134,23 @@ textarea {
   --brand-medium-gray: #bfdbfe;
   --brand-dark-gray: #333333;
 
-  /* Chase Status Colors */
-  --brand-success: #4caf50;
-  --brand-warning: #ff9800;
-  --brand-error: #f44336;
+  /* Status colours: the Material values these used to carry (#4caf50 /
+     #ff9800 / #f44336) appeared ~25 times while ~2,000 declarations hand-rolled
+     the Tailwind ramp instead. Aliased onto --th-status-* so the 14 consumers
+     join the majority palette; new code should read --th-status-* directly. */
+  --brand-success: var(--th-status-success);
+  --brand-warning: var(--th-status-warning);
+  --brand-error: var(--th-status-error);
+
+  /* Stacking scale. Six bands replace 54 distinct literals; the shell band is
+     the one six unrelated fixed elements already share at 10050 — same value,
+     now one name, so a future reorder is a single edit. */
+  --z-raised: 10;
+  --z-dropdown: 100;
+  --z-overlay: 1000;
+  --z-modal: 1200;
+  --z-shell: 10050;
+  --z-toast: 10100;
 
   /* Button design tokens — shared by all .btn variants and toolbar buttons */
   --btn-radius: 8px;
@@ -210,6 +218,11 @@ textarea {
      drop out of that test's ~45-entry filename allowlist. */
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   --font-family-mono: var(--font-mono);
+  /* Referenced in 14 files, defined nowhere — each carried its own fallback,
+     so nine pages rendered nine slightly different sans stacks. */
+  --font-sans: var(--font-primary);
+  --font-base: var(--font-primary);
+  --app-font-family: var(--font-primary);
   --font-size-h1: 28px;
   --font-size-h2: 22px;
   --font-size-h3: 18px;
@@ -219,19 +232,21 @@ textarea {
   /* Design-token scale (used by dashboard components) */
   /* 12px is the single most-used size in the app (565 declarations) and
      the scale had no token for it, which is why nothing adopted the scale. */
+  --font-size-3xs: 10px;
   --font-size-2xs: 12px;
   --font-size-xs: 11px;
   --font-size-sm: 13px;
   --font-size-base: 15px;
+  --font-size-md: 16px;
   --font-size-lg: 17px;
   --font-size-xl: 20px;
   --font-size-2xl: 24px;
   --font-size-3xl: 30px;
   --font-size-4xl: 36px;
   --font-weight-normal: 400;
-  --font-weight-medium: 600;
-  --font-weight-bold: 700;
+  --font-weight-medium: 500;
   --font-weight-semibold: 600;
+  --font-weight-bold: 700;
   --line-height-tight: 1.2;
   --line-height-normal: 1.5;
   --line-height-relaxed: 1.7;
@@ -296,6 +311,30 @@ textarea {
   --signin-accent-hover: #1d4ed8;
   --signin-accent-bg: #eff6ff;
   --signin-accent-border: #bfdbfe;
+
+  /* ── Status: success / warning / error / info ───────────────────────────
+     Four roles × solid / text / bg / border. Values are the dominant literal
+     already used for each role (Tailwind green-600, amber-500, red-600,
+     blue-600 and their 800 / 100 / 300 steps), so adoption is a no-op in
+     light. NOTE the reds: #dc2626 / #991b1b are also --app-primary-red-*.
+     Read --app-primary-red-* for a primary action, --th-status-error for an
+     error state — same literal today, different job. */
+  --th-status-success: #16a34a;
+  --th-status-success-text: #166534;
+  --th-status-success-bg: #dcfce7;
+  --th-status-success-border: #86efac;
+  --th-status-warning: #f59e0b;
+  --th-status-warning-text: #92400e;
+  --th-status-warning-bg: #fef3c7;
+  --th-status-warning-border: #fcd34d;
+  --th-status-error: #dc2626;
+  --th-status-error-text: #991b1b;
+  --th-status-error-bg: #fee2e2;
+  --th-status-error-border: #fca5a5;
+  --th-status-info: #2563eb;
+  --th-status-info-text: #1e40af;
+  --th-status-info-bg: #eff6ff;
+  --th-status-info-border: #bfdbfe;
 }
 :root[data-theme="dark"] {
   --th-bg-page: #0b1220;
@@ -329,6 +368,24 @@ textarea {
   --modal-footer-bg: #0f1729;
   --modal-footer-border: #26304a;
   --modal-border: 1px solid rgba(255, 255, 255, 0.09);
+
+  /* Status on the dark ground: lighter solid + text, deep tinted bg. */
+  --th-status-success: #22c55e;
+  --th-status-success-text: #86efac;
+  --th-status-success-bg: #0f2e1d;
+  --th-status-success-border: #166534;
+  --th-status-warning: #f59e0b;
+  --th-status-warning-text: #fcd34d;
+  --th-status-warning-bg: #3a2a10;
+  --th-status-warning-border: #92400e;
+  --th-status-error: #ef4444;
+  --th-status-error-text: #fca5a5;
+  --th-status-error-bg: #3a1616;
+  --th-status-error-border: #991b1b;
+  --th-status-info: #3b82f6;
+  --th-status-info-text: #93c5fd;
+  --th-status-info-bg: #16233c;
+  --th-status-info-border: #1e40af;
 }
 
 html {
@@ -800,38 +857,6 @@ body {
   background: linear-gradient(180deg, #15803d 0%, #166534 100%);
   border-color: #166534;
   color: #fff;
-}
-
-.btn-blue {
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-blue-mid) 0%,
-    var(--app-primary-blue) 100%
-  );
-  color: #fff;
-  border: 1px solid var(--app-primary-blue-border);
-}
-
-.btn-blue:hover {
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-blue) 0%,
-    var(--app-primary-blue-hover) 100%
-  );
-  border-color: var(--app-primary-blue-hover);
-  color: #fff;
-}
-
-.btn-blue:focus-visible {
-  color: #fff;
-  outline: 2px solid var(--app-primary-blue-mid);
-  outline-offset: 2px;
-}
-
-.btn-blue:disabled,
-.btn-blue[disabled] {
-  opacity: 0.45;
-  cursor: not-allowed;
 }
 
 .form-group {

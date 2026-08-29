@@ -152,23 +152,6 @@
   outline-offset: 2px;
 }
 
-/* Primary button (blue) */
-.server-restart-content .btn-blue {
-  background-color: var(--app-primary-blue, #0066cc);
-  color: white;
-}
-
-.server-restart-content .btn-blue:hover {
-  background-color: #0052a3;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
-}
-
-.server-restart-content .btn-blue:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 4px rgba(0, 102, 204, 0.2);
-}
-
 /* Secondary button (gray) */
 .server-restart-content .btn-secondary {
   background-color: var(--app-gray-200, #e5e7eb);
@@ -226,10 +209,6 @@
 @media (prefers-contrast: more) {
   .server-restart-content .modal-header h2 {
     font-weight: 700;
-  }
-
-  .server-restart-content .btn-blue {
-    border: 2px solid var(--app-primary-blue, #0066cc);
   }
 
   .server-restart-content .btn-secondary {

@@ -772,13 +772,7 @@
     .btn-outline-primary:focus,
     .btn-outline-primary:focus-visible,
     .btn-outline-primary:active,
-    .btn-outline-primary:visited,
-    .btn-blue,
-    .btn-blue:hover,
-    .btn-blue:focus,
-    .btn-blue:focus-visible,
-    .btn-blue:active,
-    .btn-blue:visited
+    .btn-outline-primary:visited
   ) {
   color: var(--th-text-invert) !important;
   -webkit-text-fill-color: var(--th-text-invert) !important;
@@ -802,8 +796,7 @@
     .btn-secondary,
     .btn-danger,
     .btn-success,
-    .btn-outline-primary,
-    .btn-blue
+    .btn-outline-primary
   ):any-link {
   text-decoration: none !important;
 }
@@ -968,7 +961,7 @@
   top: 0;
   left: 0;
   right: 0;
-  z-index: 10050;
+  z-index: var(--z-shell);
   padding: 0.75rem 1rem;
   background: var(--th-bg-card);
   border-bottom: 1px solid var(--th-border);

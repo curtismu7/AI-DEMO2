@@ -1,23 +1,5 @@
 /* KillSwitchConfirmModal.css */
 
-.ksm-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.75);
-  /* backdrop-filter removed for modal/overlay compliance */
-  z-index: 1200;
-  animation: ksm-fade-in 0.2s ease-out;
-}
-
-@keyframes ksm-fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
 .ksm-panel {
   position: fixed;
   top: 50%;

@@ -94,8 +94,15 @@
   justify-content: flex-end;
   gap: 10px;
   padding: 14px 18px;
-  background: #ffffff;
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  /* Semantic tokens, not literals: this file had no dark rules at all, so the
+     toolbar stayed a white band across every dark page. --th-bg-card is
+     #ffffff in light, so light mode is unchanged. */
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  /* Bare labels in the toolbar (e.g. "What's Happening:") inherited the light
+     page ink and went unreadable once the ground flipped. Buttons set their
+     own colour and are unaffected. */
+  color: var(--th-text);
   border-radius: 10px;
   margin-bottom: 1.25rem;
   box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);

@@ -62,6 +62,75 @@ real gate, one hop downstream, and it answers for real), or at minimum default
 not: delete the route, `a2aOrchestratorService.js` and `config/a2a/tasks.js`
 with it. Do not leave the LLM gate in place as-is; a stage that reliably
 answers "no" is indistinguishable from a broken feature.
+### [x] 2026-08-29 — demo passwords rotated in PingOne and `.env` only; vault and SE k8s still hold the old ones
+
+`DEMO_USER_PASSWORD` and `DEMO_ADMIN_PASSWORD` had been world-readable in public
+git history since 2026-06-29 (see `.claude/SECRET-REMEDIATION-2026-08-28.md`).
+Both were rotated on 2026-08-29: set in PingOne via the Management API,
+propagated to all 11 live per-service `.env` files, and the BFF recreated so the
+container picked them up. PingOne now rejects both leaked values.
+
+**Why it wasn't finished:** the rotation was deliberately scoped to "PingOne +
+`.env` + restart" to keep the blast radius small while other sessions were
+driving the shared stack. Vault and the SE cluster were left for a quieter
+moment rather than reconciled blind.
+
+**The drift:** anything that reads these two values from somewhere other than a
+local `.env` still has the OLD, publicly-known password:
+
+- **Vault** — `demo_api_server/scripts/vault-migrate.js` handles both keys.
+- **SE k8s secrets** — created by `create-secrets.sh`; the cluster was not
+  touched.
+- `demo_api_server/scripts/refresh-service-envs.js` regenerates per-service
+  `.env` files; if it sources from vault rather than the BFF `.env`, running it
+  would *reintroduce* the old values.
+
+**The risk:** the SE demo at `ai-demo.ping-devops.com` may still accept a
+password that is public. That is the same exposure the rotation was meant to
+close, just on the deployment nobody re-checked. Silent, because local sign-in
+works fine.
+
+**What the real fix looks like:** reconcile vault first (it is the upstream for
+`refresh-service-envs.js`), then re-run `create-secrets.sh` for the SE
+namespace, then confirm from the cluster the way it was confirmed locally —
+`kubectl exec` the value out and validate it against PingOne's
+`password.check` endpoint, rather than trusting that the secret was applied.
+
+**One trap worth carrying forward:** the first generated password contained a
+`$`, and Compose interpolated it away — the `.env` held `Harbor7$Falcon29` and
+the container held `Harbor7`. Never put `$` in a secret destined for an `.env`,
+and verify with `docker exec <c> sh -c 'echo ${#VAR}'`, never by reading the file.
+
+**RESOLVED 2026-08-29, same day** — and **this entry's vault claim was wrong.**
+
+- **Vault never held the demo passwords.** `vault:list` shows neither
+  `DEMO_USER_PASSWORD` nor `DEMO_ADMIN_PASSWORD`. The concern that
+  `refresh-service-envs.js` would reintroduce old values via vault does not
+  apply to these two keys. The entry asserted the drift from reading
+  `vault-migrate.js`'s key handling rather than listing the vault.
+- **SE reconciled.** All 12 entries across the 6 secrets (`agent-secrets`,
+  `ai-demo-secrets`, `gateway-secrets`, `hitl-secrets`, `langchain-secrets`,
+  `mcp-secrets`) were patched, and the 7 consuming deployments restarted.
+  `grafana` also mounts `ai-demo-secrets` but never authenticates as these
+  users, so it was left alone rather than bouncing an internet-facing login.
+- **Verified by hash across all three places** — the values PingOne confirmed at
+  set time, the local container, and an SE pod all match.
+
+**The framing in this entry was also backwards.** It called the drift a security
+exposure ("SE may still accept a public password"). It could not: PingOne is the
+single authority and had already rejected the leaked values, so stale copies
+made SE *fail to authenticate*, not accept anything. The drift was a functional
+break, not a hole.
+
+**A second trap, worse than the `$` one.** Verifying with PingOne's
+`password.check` endpoint using deliberately WRONG passwords accumulates failed
+attempts and locks the account out of subsequent checks — including checks of
+the *correct* password, while `status` still reads `OK`. This produced two
+false readings in opposite directions before it was spotted, and was only
+resolved by setting a fresh password (which clears the counter) and checking in
+the same call. **Never probe a live account with a known-wrong password.**
+Compare hashes across sources instead, and spend at most one `password.check`
+per user, with the value you believe is correct.
 
 ### [ ] 2026-08-28 — UC34/UC35 sit on the 120s reasoning timeout: ~50% failure, measured
 
