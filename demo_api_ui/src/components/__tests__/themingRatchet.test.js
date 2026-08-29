@@ -81,6 +81,51 @@ describe('font-size floor', () => {
   });
 });
 
+/**
+ * Radius and elevation ratchets (THEMING.md §9.3).
+ *
+ * --radius-* and --shadow-* were introduced with these pins, deliberately, in
+ * the same PR. The lesson from --z-*: #2585 created that family and adoption
+ * stalled at 3%, because creating a token family is the easy half. A pin makes
+ * the count a one-way door — it can only fall, and it falls as pages get
+ * touched under the standing rule.
+ *
+ * These are NOT a target of zero. Plenty of radii are genuinely local (50% for
+ * a circle, 1px hairlines) and plenty of shadows are deliberate one-offs. The
+ * point is that the number never goes UP.
+ */
+const MAX_RADIUS_LITERALS = 2552;
+const MAX_SHADOW_LITERALS = 480;
+
+function countLiteral(re) {
+  let n = 0;
+  for (const f of cssFiles(SRC)) {
+    n += (fs.readFileSync(f, 'utf8').match(re) || []).length;
+  }
+  return n;
+}
+
+describe('design-token ratchets', () => {
+  it(`border-radius literals stay at or below ${MAX_RADIUS_LITERALS}`, () => {
+    const n = countLiteral(/border-radius:\s*[0-9]/g);
+    expect(
+      n,
+      `border-radius literals rose to ${n} (pin ${MAX_RADIUS_LITERALS}). Use ` +
+        `var(--radius-sm|md|lg|xl|pill) — see THEMING.md §9.3. If you migrated ` +
+        `some, lower the pin in the same commit.`,
+    ).toBeLessThanOrEqual(MAX_RADIUS_LITERALS);
+  });
+
+  it(`box-shadow literals stay at or below ${MAX_SHADOW_LITERALS}`, () => {
+    const n = countLiteral(/box-shadow:\s*[0-9-]/g);
+    expect(
+      n,
+      `box-shadow literals rose to ${n} (pin ${MAX_SHADOW_LITERALS}). Use ` +
+        `var(--shadow-sm|md|lg) — see THEMING.md §9.3.`,
+    ).toBeLessThanOrEqual(MAX_SHADOW_LITERALS);
+  });
+});
+
 describe('theming ratchet', () => {
   it(`no more than ${MAX_UNTHEMED} stylesheets are light-only`, () => {
     const files = unthemed();
