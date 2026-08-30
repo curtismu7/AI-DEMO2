@@ -152,3 +152,75 @@ describe('theming ratchet', () => {
     ).toBeGreaterThanOrEqual(MAX_UNTHEMED);
   });
 });
+
+/**
+ * Ground-without-ink (THEMING.md §1.5, REGRESSION_PLAN §0 H1).
+ *
+ * A rule that sets a --th-* BACKGROUND and no `color` inherits <body>, which
+ * computes to rgb(51,51,51) in BOTH themes — the app-level ink never flips. So
+ * the ground goes dark, the text stays near-black, and the surface reads as
+ * unstyled rather than mis-tinted.
+ *
+ * §1.5 has said "migrate a rule's surface and its ink together" since #2608, and
+ * it kept happening anyway — four times in one day: #2626 fixed three components,
+ * then the P1AZ console and the Agent Gateway Inspector shipped with it again.
+ * The rule was written down and nothing enforced it. This is the enforcement.
+ *
+ * It hides well, which is why review misses it: every CLASSED child sets its own
+ * colour and reads perfectly, so the panel looks right while you test. Only
+ * unclassed text inside the container goes dark-on-dark.
+ *
+ * A ratchet, not a zero. Plenty of the current matches are harmless — a container
+ * whose every child sets a colour, a scrollbar track with no text — and a
+ * per-line rule would cry wolf, which modalDarkSchemeContrast.test.js already
+ * learned the hard way. The point is only that the number never goes UP: a NEW
+ * themed surface must bring its ink.
+ *
+ * Literal grounds are deliberately not counted. They do not flip, so inherited
+ * near-black stays correct against them.
+ */
+const MAX_GROUND_WITHOUT_INK = 482;
+
+const CSS_RULE = /([^{}]+)\{([^{}]*)\}/g;
+const HAS_COLOR = /(?:^|\n)\s*color\s*:/;
+const THEMED_BG = /(?:^|\n)\s*background(?:-color)?\s*:\s*([^;]*--th-[^;]*);/;
+
+function groundWithoutInk() {
+  const hits = [];
+  for (const f of cssFiles(SRC)) {
+    const src = fs.readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    for (const m of src.matchAll(CSS_RULE)) {
+      const sel = m[1].trim();
+      const body = m[2];
+      if (!sel || sel.startsWith('@')) continue;
+      if (!THEMED_BG.test(body)) continue;
+      if (HAS_COLOR.test(body)) continue;
+      hits.push(`${path.relative(SRC, f)} ${sel.split('\n')[0]}`);
+    }
+  }
+  return hits;
+}
+
+describe('ground-without-ink ratchet', () => {
+  it(`no more than ${MAX_GROUND_WITHOUT_INK} rules take a themed ground without ink`, () => {
+    const hits = groundWithoutInk();
+    const hint = hits.slice(0, 5).join('; ');
+    expect(
+      hits.length,
+      `Rules with a --th-* background and no color rose to ${hits.length} ` +
+        `(pin ${MAX_GROUND_WITHOUT_INK}). <body> ink is rgb(51,51,51) in BOTH ` +
+        `themes, so such a rule renders near-black text once the ground flips. ` +
+        `Give it a --th-* color on the next line — THEMING.md §1.5. e.g. ${hint}`,
+    ).toBeLessThanOrEqual(MAX_GROUND_WITHOUT_INK);
+  });
+
+  it('the pin is not stale — lower MAX_GROUND_WITHOUT_INK when it drops', () => {
+    const count = groundWithoutInk().length;
+    expect(
+      count,
+      `Only ${count} ground-without-ink rules remain. Lower ` +
+        `MAX_GROUND_WITHOUT_INK to ${count} in this commit so the floor cannot ` +
+        `drift back up.`,
+    ).toBeGreaterThanOrEqual(MAX_GROUND_WITHOUT_INK);
+  });
+});
