@@ -54,9 +54,20 @@ export default function SignInModal({
       /* Sized for the COLLAPSED state. `detail` renders as a closed <details>,
          so reserving room for its expanded content left a band of empty white
          under two lines of text. The body scrolls, and the panel is resizable,
-         so opening the disclosure costs nothing. */
-      defaultHeight={detail ? 244 : 224}
-      minHeight={200}
+         so opening the disclosure costs nothing.
+
+         The numbers are measured, not guessed — DraggableModal has no
+         auto-height, so a fixed value that is too large shows as dead space and
+         there is nothing in the layout to absorb it. On the live page the parts
+         are: titlebar 48 + content 82 (text 20, hint 19, details 16, margins) +
+         footer 56 = 186. It was 244, so 58px of empty white sat between "What
+         the server said" and the buttons — the whole reason this looked
+         unstyled. Without `detail` the disclosure and its margin come off.
+
+         minHeight has to sit BELOW defaultHeight or it silently clamps the
+         panel back up and the gap returns. */
+      defaultHeight={detail ? 186 : 156}
+      minHeight={150}
       footer={
         <div className="signin-modal__actions">
           {footerExtra}
