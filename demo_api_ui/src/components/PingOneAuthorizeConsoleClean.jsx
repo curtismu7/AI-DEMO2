@@ -106,7 +106,7 @@ export default function PingOneAuthorizeConsoleClean({
             </div>
             <div className="inspector-clean-panel-body">
               {policies.map((p, i) => (
-                <div key={i} className="inspector-clean-item">
+                <div key={p.id || p.name || i} className="inspector-clean-item">
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <input type="checkbox" defaultChecked />
                     <div style={{ flex: 1 }}>
@@ -245,9 +245,12 @@ export default function PingOneAuthorizeConsoleClean({
 
               {/* Decision Tab */}
               {outputTab === 'decision' && result && (
-                <div className="p1az-clean-verdict" style={{ '--verdict-color': decision === 'PERMIT' ? '#059669' : decision === 'DENY' ? '#dc2626' : '#f59e0b' }}>
+                <div className="p1az-clean-verdict">
                   <div className="p1az-clean-verdict-label">Decision</div>
-                  <div className="p1az-clean-verdict-value" style={{ color: decision === 'PERMIT' ? '#059669' : decision === 'DENY' ? '#dc2626' : '#f59e0b' }}>
+                  <div
+                    className="p1az-clean-verdict-value"
+                    data-verdict={decision === 'PERMIT' ? 'permit' : decision === 'DENY' ? 'deny' : 'warn'}
+                  >
                     {decision}
                   </div>
                   <div className="p1az-clean-verdict-detail">
@@ -260,7 +263,7 @@ export default function PingOneAuthorizeConsoleClean({
                 </div>
               )}
               {!result && !err && <div style={{ color: 'var(--th-text-muted)', fontSize: '12px', padding: '20px' }}>Execute policies to see results</div>}
-              {err && <div style={{ color: '#dc2626', fontSize: '12px', padding: '20px' }}>❌ Error: {err}</div>}
+              {err && <div className="p1az-clean-error">❌ Error: {err}</div>}
             </div>
           </div>
         </div>

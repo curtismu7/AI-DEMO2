@@ -210,9 +210,29 @@
 }
 
 .p1az-clean-testbtn--trigger {
-  color: #059669;
+  color: var(--th-status-success);
 }
 
 .p1az-clean-testbtn--avoid {
-  color: #dc2626;
+  color: var(--th-status-error);
+}
+
+/* Verdict ink by decision — data attribute instead of inline colors so the
+   status tokens flip with the theme (THEMING.md H3). */
+.p1az-clean-verdict-value[data-verdict='permit'] {
+  color: var(--th-status-success);
+}
+
+.p1az-clean-verdict-value[data-verdict='deny'] {
+  color: var(--th-status-error);
+}
+
+.p1az-clean-verdict-value[data-verdict='warn'] {
+  color: var(--th-status-warning);
+}
+
+.p1az-clean-error {
+  padding: 20px;
+  font-size: 12px;
+  color: var(--th-status-error-text);
 }
