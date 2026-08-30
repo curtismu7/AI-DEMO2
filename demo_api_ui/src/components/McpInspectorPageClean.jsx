@@ -1,8 +1,9 @@
 // MCP Inspector — Clean Design
 // Modern minimal three-pane layout with movie reel history and expanded tabs
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useInspectorSource } from '../hooks/useInspectorSource';
+import { useInspectorFields } from '../context/InspectorFieldContext';
 import './McpInspectorPage.clean.css';
 
 const SOURCES = [
@@ -27,6 +28,7 @@ function McpInspectorPageClean() {
   const [activeHistoryId, setActiveHistoryId] = useState(null);
   const [outputFontSize, setOutputFontSize] = useState(13);
   const highlightJSON = (json) => json.replace(/"([^"]+)":/g, '<span style="color: #0066cc;">\"$1\"</span>:').replace(/: "([^"]+)"/g, ': <span style="color: #009900;">\"$1\"</span>').replace(/: (\d+)/g, ': <span style="color: #cc6600;">$1</span>').replace(/: (true|false)/g, ': <span style="color: #993399;">$1</span>').replace(/: null/g, ': <span style="color: #666666;">null</span>');
+  const { registerFields, getMatchingFields } = useInspectorFields();
 
   // Use unified hook for current source
   const source = useInspectorSource(activeSource);
@@ -45,6 +47,25 @@ function McpInspectorPageClean() {
       source.setOutputTab('response');
     }
   }, [source]);
+
+  // Register result fields for other inspectors to use
+  useEffect(() => {
+    if (source.result?.data) {
+      registerFields(`mcp-${activeSource}`, source.result.data);
+    }
+  }, [source.result, activeSource, registerFields]);
+
+  // Auto-populate parameters from other inspector results
+  useEffect(() => {
+    if (!source.selectedTool) return;
+    const paramNames = source.selectedTool.parameters ? Object.keys(source.selectedTool.parameters) : [];
+    const matches = getMatchingFields(paramNames);
+    Object.entries(matches).forEach(([key, value]) => {
+      if (!source.parameters[key]) {
+        source.updateParameter(key, String(value));
+      }
+    });
+  }, [source.selectedTool, getMatchingFields, source.parameters, source.updateParameter]);
 
   return (
     <div className="inspector-clean-page">

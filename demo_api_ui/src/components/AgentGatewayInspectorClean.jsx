@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useThemeOptional } from '../context/ThemeContext';
 import { useAgentGatewayInspector } from '../hooks/useAgentGatewayInspector';
+import { useInspectorFields } from '../context/InspectorFieldContext';
 import './AgentGatewayInspectorClean.css';
 
 export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
   const theme = useThemeOptional();
+  const { registerFields, getMatchingFields } = useInspectorFields();
   const {
     selectedGateway,
     setSelectedGateway,
@@ -30,6 +32,25 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
     selectReelEntry,
     run,
   } = useAgentGatewayInspector({ gatewayId });
+
+  // Register result fields for other inspectors to use
+  useEffect(() => {
+    if (result?.data) {
+      registerFields('agent-gateway', result.data);
+    }
+  }, [result, registerFields]);
+
+  // Auto-populate parameters from other inspector results
+  useEffect(() => {
+    if (!selectedTool) return;
+    const paramNames = selectedTool.parameters ? Object.keys(selectedTool.parameters) : [];
+    const matches = getMatchingFields(paramNames);
+    Object.entries(matches).forEach(([key, value]) => {
+      if (!parameters[key]) {
+        updateParameter(key, String(value));
+      }
+    });
+  }, [selectedTool, getMatchingFields, parameters, updateParameter]);
 
   const filteredTools = useMemo(
     () =>

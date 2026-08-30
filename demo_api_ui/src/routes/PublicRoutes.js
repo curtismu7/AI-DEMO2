@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import AppShell from "./AppShell";
+import { InspectorFieldProvider } from "../context/InspectorFieldContext";
 import IntentBindingLearningPage from "../pages/IntentBindingLearningPage";
 import A2AProtocolLearningPage from "../pages/A2AProtocolLearningPage";
 import PrivilegeMcpLearningPage from "../pages/PrivilegeMcpLearningPage";
@@ -334,18 +335,22 @@ export function TokenExchangeTesterPageRoute({ user, logout }) {
 /** MCP Inspector — top-level so guests aren't stuck on the auth catch-all (TopNav only). */
 export function McpInspectorPageRoute({ user, logout }) {
   return (
-    <AppShell user={user} logout={logout}>
-      <McpInspectorPage />
-    </AppShell>
+    <InspectorFieldProvider>
+      <AppShell user={user} logout={logout}>
+        <McpInspectorPageClean />
+      </AppShell>
+    </InspectorFieldProvider>
   );
 }
 
 /** Gateway Inspector — top-level so guests aren't stuck on the auth catch-all (TopNav only). */
 export function McpGatewayConfigRoute({ user, logout }) {
   return (
-    <AppShell user={user} logout={logout}>
-      <AgentGatewayInspectorClean />
-    </AppShell>
+    <InspectorFieldProvider>
+      <AppShell user={user} logout={logout}>
+        <AgentGatewayInspectorClean />
+      </AppShell>
+    </InspectorFieldProvider>
   );
 }
 
