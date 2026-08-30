@@ -1,15 +1,19 @@
-# Theming — the one way to do dark/light
+# The UI standard — theming, type, and the rest of the system
 
-Canonical rules for light/dark in `demo_api_ui`, plus the opportunistic rollout
-that gets us from "19 files know about dark" to "all of them" without a big-bang
-PR. `CLAUDE.md` points here; `REGRESSION_PLAN.md` §0 still wins on hard UI rules.
+Canonical rules for `demo_api_ui`: light/dark (§1–§7), typography and the token
+families that make 274 stylesheets look like one person wrote them (§8–§9).
 
-**The working rule: when you touch a page, migrate that page. If it is already
-migrated, skip it and move on.** Nothing else is scheduled.
+`CLAUDE.md` points here. **`REGRESSION_PLAN.md` §0 carries the three hard rules
+H1–H3 and wins over anything below** — §0 is what `regression-guard` makes you
+read before touching UI; this file is the reasoning behind it.
+
+**The working rule: when you touch a page, bring that page up to this standard.
+If it already meets it, skip it and move on.** Nothing else is scheduled — a
+274-file sweep is explicitly not the plan (§4).
 
 ---
 
-## §1 The five rules
+## §1 The five theming rules
 
 ### 1. Dark is `:root[data-theme="dark"]`. Never `prefers-color-scheme`.
 
@@ -214,14 +218,15 @@ Measured on `demo_api_ui/src`, 2026-08-29:
 | | Files |
 |---|---|
 | Stylesheets total | 274 |
-| Reference `--th-*` | 81 |
+| Reference `--th-*` | 82 |
 | Have `[data-theme="dark"]` blocks | 19 |
-| **Neither — untouched by theming** | **190** |
+| **Neither — untouched by theming** | **189** (ratchet-pinned, §6) |
 | Carry a real `@media (prefers-color-scheme)` block | 17 |
 
-Readability is measured per page, not per file. `/admin` alone, via §1.4 snippet
-B: **17 contrast failures in light, 23 in dark.** The worst — `emt-rfc`, at ratio
-1.00 in both themes — is text that has never been visible on any theme.
+Readability is measured per page, not per file. `/admin` via §1.4 snippet B was
+**17 failures in light and 23 in dark** before #2605; it is **5 in dark** after.
+The worst — `emt-rfc` at ratio 1.00 in *both* themes — was text that had never
+been visible on any theme.
 
 Reproduce any row:
 
@@ -233,7 +238,7 @@ grep -rl 'data-theme="dark"' --include='*.css' . | wc -l
 grep -rlE '@media.*prefers-color-scheme' --include='*.css' . | wc -l
 ```
 
-190 unmigrated files is why this is opportunistic and not a project. At the pace
+189 unmigrated files is why this is opportunistic and not a project. At the pace
 of normal feature work it closes over months, and no single PR is ever large
 enough to be risky.
 
@@ -342,3 +347,111 @@ Prior art worth reading before a large conversion: #2583 (phase 1, dead
 stylesheets and the first three `prefers-color-scheme` removals), #2585 (phase 2,
 the `--th-status-*` / font / z-index token layer and the `--dash-*` / `--admin-*`
 aliases), #2602 (phase 3, the shells above).
+
+---
+
+## §8 Type
+
+### 8.1 Font size comes from the scale, and the scale's floor is 10px
+
+`index.css` already defines the whole scale — 15 sizes, 4 weights. Use
+`var(--font-size-*)`, never a literal.
+
+```text
+--font-size-3xs  10px   ← the floor. Nothing smaller. Ever.
+--font-size-xs   11px      --font-size-base 15px      --font-size-2xl 24px
+--font-size-2xs  12px      --font-size-md   16px      --font-size-3xl 30px
+--font-size-sm   13px      --font-size-lg   17px      --font-size-4xl 36px
+--font-size-body 14px      --font-size-xl   20px
+                           --font-size-h1/h2/h3  28 / 22 / 18px
+```
+
+"Never below 10px" is not a separate rule to remember — it is a *consequence* of
+using the scale, because `--font-size-3xs` is its bottom. Every sub-10px value in
+the codebase is an off-scale literal.
+
+Adoption is 44% (1963 tokenised against 2495 literals). The cost of the other
+56% is measurable: **one page renders 25 distinct font sizes, 15 of them
+off-scale** — 10.4, 10.8896, 11.48, 12.25, 13.125, 13.28, 14.08, 14.72, 23, 25.
+The non-integers come from `rem`/`em` compounding against an inherited size,
+which is exactly why relative units are a trap here. A page built to one scale
+uses six to eight sizes. **That number is the "looks like different developers"
+feeling, quantified.**
+
+### 8.2 One family set
+
+`var(--font-primary)` for text, `var(--font-mono)` for code, tokens and figures.
+
+A display face is a **documented, tokenised exception** — never a per-page
+choice. `--rd2-font-display` ("Fraunces", Georgia, serif) is the one we have; it
+is deliberate, it is consumed through the token, and it should be left alone.
+A raw `font-family: 'Crimson Pro', ...` repeated in a component file is not an
+exception, it is a second design language nobody agreed to.
+
+### 8.3 No inline `style={{ }}` for anything themeable
+
+Colour, background, font-size. Inline styles beat **every** rule in every
+stylesheet, including `[data-theme="dark"]` overrides — so a themed component
+with an inline colour is unfixable without touching the JSX.
+
+This is not theoretical: `TokenChainTraceRail.jsx` set three actor colours
+inline, which silently defeated the dark overrides sitting in its own stylesheet
+and left "Agent" at 2.44:1. There are **366** inline `fontSize` declarations
+still in the tree.
+
+Layout properties inline (`gridTemplateColumns`, `width`) are fine — they are not
+themeable.
+
+---
+
+## §9 The rest of the system
+
+### 9.1 A token tuned as ink is not automatically usable as a ground
+
+`--dash-accent` is `#7aa2f7` in dark — a light blue chosen to be *read* against a
+dark surface. `dashboard.css:56` uses it as a **background** under white text and
+lands at **2.52:1**.
+
+Check the *pairing*, not the token. A colour is legible as ink, or as a ground,
+and often not both.
+
+### 9.2 `components/dashboard/` is the reference — for architecture, not literals
+
+When nothing else decides a visual question, follow `dashboard/`. What to copy:
+
+- a **local token layer** (`--dash-*`) declared once on the root element and
+  aliased onto `--th-*`, with every rule below consuming the local names
+- a **minimal dark block** — only the props that are not aliased
+- a **semantic tone set** (`--dash-ok/warn/bad` with `.tone-*` modifiers)
+- `:focus-visible` on every interactive element, `prefers-reduced-motion` on
+  transitions, `tabular-nums` on figures, `overflow-x: auto` on anything wide
+- a header comment saying *why*, not what
+
+What **not** to copy: its literals. It is 33% tokenised on type and its sizes are
+half-pixel and off-scale (12.5, 11.5, 10.5, 13.5, 21, 25). Round onto the scale
+instead. The reference defines the visual language; §8.1 defines the values.
+
+### 9.3 Measured backlog
+
+Nothing below is scheduled. It is recorded so the next person does not re-measure
+it, and so a new file is not written in the old style.
+
+| Axis | State | Token family |
+| --- | --- | --- |
+| `border-radius` | ~2150 declarations, 12+ values (6px×525, 8px×443, 4px×405, …) | none — wants 4 |
+| `box-shadow` | 365 distinct values | none — wants 3–4 elevations |
+| `z-index` | 179 literals vs 6 tokenised | `--z-*` exists, 3% adopted |
+| spacing | untokenised | none |
+| `!important` | 571 across 37 files | — |
+| `:focus-visible` | 99 rules in 40 of 274 files | — |
+| `outline: none` / `0` | 88 — each a keyboard trap without a replacement | — |
+| `prefers-reduced-motion` | 154 of 169 animating files unguarded | — |
+
+**Shadow is the biggest single contributor to visual incoherence** — 365 bespoke
+elevations means no two surfaces sit at the same height. Radius is the most
+*visible* and the easiest to fix.
+
+**The lesson from `--z-*`:** #2585 created the family and adoption stalled at 3%,
+because creating a token family is the easy half. Any new family must ship with
+its ratchet (§6) in the same PR, or it becomes another six-token layer nobody
+uses.

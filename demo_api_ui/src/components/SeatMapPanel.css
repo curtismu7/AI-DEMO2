@@ -20,7 +20,7 @@
 .smp-band:last-of-type { margin-bottom: 0; }
 .smp-cabin-label {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--font-size-3xs);
   letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--th-text-muted, #5b6178);

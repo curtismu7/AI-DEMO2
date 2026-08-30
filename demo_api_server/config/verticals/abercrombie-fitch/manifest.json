@@ -58,7 +58,7 @@
     "userMemberships": {
       "demoUser": ["privileged"],
       "demoAdmin": ["privileged"],
-      "demoDelegate": []
+      "demoDelegate": ["privileged"]
     }
   },
   "agent": {
@@ -86,7 +86,7 @@
       { "id": "anf5", "label": "My returns", "message": "show my A&F returns", "mode": "both", "tool": "view_returns", "useCaseId": "delegated-access-with-proof" },
       { "id": "anf-checkout", "label": "Buy a $300 wool-blend coat", "message": "checkout wool-blend coat for $300", "mode": "both", "challenge": "consent", "tool": "checkout", "useCaseId": "consent-required" },
       { "id": "anf-mfa", "label": "Buy a $600 leather jacket", "message": "checkout leather jacket for $600", "mode": "both", "challenge": "step_up", "tool": "checkout", "useCaseId": "step-up-required" },
-      { "id": "anf-a2a", "label": "Sensitive purchase history", "message": "show my sensitive A&F order history", "mode": "both", "challenge": "consent", "tool": "sensitive_order_history", "useCaseId": "a2a-delegation", "group": "advanced" }
+      { "id": "anf-a2a", "label": "Sensitive purchase history", "message": "show my sensitive A&F order history", "mode": "both", "challenge": "consent", "tool": "sensitive_order_history", "useCaseId": "a2a-delegation" }
     ],
     "hero": {
       "cards": [

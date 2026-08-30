@@ -60,7 +60,7 @@
     "userMemberships": {
       "demoUser": ["privileged"],
       "demoAdmin": ["privileged"],
-      "demoDelegate": []
+      "demoDelegate": ["privileged"]
     }
   },
   "agent": {
@@ -94,7 +94,7 @@
       { "id": "adm6", "label": "Adjust Balance", "message": "adjust account balance", "mode": "both", "tool": "adjust_balance" },
       { "id": "adm7", "label": "Reset Password", "message": "reset password for this customer", "mode": "both", "tool": "reset_customer_password" },
       { "id": "adm8", "label": "Delete Customer", "message": "delete this customer", "mode": "both", "tool": "delete_customer" },
-      { "id": "adm-a2a", "label": "Identity Verification Record", "message": "show the identity verification record for this customer", "mode": "both", "challenge": "consent", "tool": "sensitive_customer_identity", "useCaseId": "a2a-delegation", "group": "advanced" }
+      { "id": "adm-a2a", "label": "Identity Verification Record", "message": "show the identity verification record for this customer", "mode": "both", "challenge": "consent", "tool": "sensitive_customer_identity", "useCaseId": "a2a-delegation" }
     ]
   },
   "render": {

@@ -369,7 +369,7 @@
   }
 
   .banking-header__session-label {
-    font-size: 0.6rem;
+    font-size: var(--font-size-3xs);
   }
 
   .banking-header__session-time {

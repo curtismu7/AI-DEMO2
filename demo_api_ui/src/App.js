@@ -179,6 +179,7 @@ import PublicRoutes, {
   DavinciExplainerRoute,
   GraphifyPageRoute,
   IntentBindingLearningPageRoute,
+  A2AProtocolLearningPageRoute,
   LiveUseCaseWorkbenchPageRoute,
   MFATestPageRoute,
   OASDemoPageRoute,
@@ -705,6 +706,15 @@ function AppWithAuth() {
                   path="/intent-binding-learning"
                   element={
                     <IntentBindingLearningPageRoute user={user} logout={logout} />
+                  }
+                />
+                {/* Public: the concept, the Agent Card and the no-bearer probe
+                    all render signed out. The delegation run inside is
+                    sign-in gated by the BFF and prompts inline. */}
+                <Route
+                  path="/a2a-protocol-learning"
+                  element={
+                    <A2AProtocolLearningPageRoute user={user} logout={logout} />
                   }
                 />
                 <Route

@@ -12,7 +12,7 @@
 
 /* Method badges in tree items */
 .aep-method-badge {
-  font-size: 9px;
+  font-size: var(--font-size-3xs);
   font-weight: 700;
   padding: 1px 5px;
   border-radius: 3px;
@@ -41,7 +41,7 @@
 
 /* Tree item status badge */
 .aep-tree-status {
-  font-size: 9px;
+  font-size: var(--font-size-3xs);
   font-weight: 700;
   padding: 1px 4px;
   border-radius: 3px;
@@ -52,7 +52,7 @@
 
 /* Tree item duration */
 .aep-tree-dur {
-  font-size: 9px;
+  font-size: var(--font-size-3xs);
   color: #64748b;
   flex-shrink: 0;
   margin-left: auto;
@@ -60,7 +60,7 @@
 
 /* Stats compact in header */
 .aep-stats-compact {
-  font-size: 9px;
+  font-size: var(--font-size-3xs);
   color: #64748b;
   font-weight: 400;
 }

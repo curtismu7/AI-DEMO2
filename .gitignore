@@ -128,6 +128,12 @@ demo_api_server/data/persistent/lmdb/data.mdb
 .cursor/mcp.json
 # Personal Claude Code allowlist/settings — never committed (hygiene check 3).
 .claude/settings.local.json
+# Per-machine Claude Code MCP server config — the sibling of .cursor/mcp.json
+# above, and ignored for the same reason: it carries machine- and tenant-specific
+# server entries. Untracked it also stalls sync-main-checkout.sh, whose
+# DIRTY_OUTSIDE_NOISE check exempts only `.claude/*.md` — so a stray config file
+# silently freezes the main checkout and the launchd sync with it.
+.claude/.mcp.json
 # Written by scripts/sync-main-checkout.sh on every run; read by npm run sync:status.
 .claude/sync-status.json
 # A .claude note kept aside because it diverged from the tracked copy (see

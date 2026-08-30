@@ -1,6 +1,7 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import LearningHub from "../LearningHub";
+import { MemoryRouter } from "react-router-dom";
 
 vi.mock("../../context/EducationUIContext", () => ({
   useEducationUI: () => ({ open: vi.fn() }),
@@ -11,7 +12,7 @@ vi.mock("../../context/DemoTourContext", () => ({
 }));
 
 test("Learning Hub lists the Weaviate vector-search card", () => {
-  render(<LearningHub />);
+  render(<MemoryRouter><LearningHub /></MemoryRouter>);
   expect(
     screen.getByText(/Vector Search & RAG \(Weaviate\)/i)
   ).toBeInTheDocument();

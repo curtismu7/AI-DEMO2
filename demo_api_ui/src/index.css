@@ -153,7 +153,7 @@ textarea {
   --z-toast: 10100;
 
   /* Button design tokens — shared by all .btn variants and toolbar buttons */
-  --btn-radius: 8px;
+  --btn-radius: var(--radius-lg);
   --btn-font-size: 0.875rem;
   --btn-font-size-sm: 0.8125rem;
   --btn-height: 36px;
@@ -167,18 +167,18 @@ textarea {
 
   /* Card Styles */
   --card-padding: 20px;
-  --card-border-radius: 12px;
+  --card-border-radius: var(--radius-xl);
   --card-shadow: 0 4px 16px rgba(37, 99, 235, 0.12);
 
   /* ── Inner card design system (claim rows, event items, list cards) ──── */
-  --inner-card-radius: 8px;
+  --inner-card-radius: var(--radius-lg);
   --inner-card-border: 1px solid #e5e7eb;
   --inner-card-shadow: 0 2px 6px rgba(15, 23, 42, 0.05);
   --inner-card-bg: #ffffff;
   --inner-card-accent: 4px;
 
   /* ── Modal / Panel design system ─────────────────────────────────────── */
-  --modal-radius: 12px;
+  --modal-radius: var(--radius-xl);
   --modal-shadow:
     0 20px 48px rgba(0, 0, 0, 0.22), 0 4px 12px rgba(0, 0, 0, 0.1);
   --modal-border: 1px solid rgba(0, 0, 0, 0.08);
@@ -199,7 +199,7 @@ textarea {
   --modal-btn-size: 30px;
   --modal-btn-bg: rgba(255, 255, 255, 0.22);
   --modal-btn-bg-hover: rgba(255, 255, 255, 0.42);
-  --modal-btn-radius: 6px;
+  --modal-btn-radius: var(--radius-md);
   --modal-overlay-bg: rgba(10, 15, 30, 0.5);
   /* --modal-overlay-blur removed to prevent background blur */
   --modal-footer-bg: #f9fafb;
@@ -278,6 +278,14 @@ textarea {
   --th-border: #dbe2ea;
   --th-border-strong: #c3cdd9;
   --th-bg-hover: #eef2f7;
+  /* Emphasis fill for the one button in a row that leads the group.
+     MUST be declared per theme: a single value cannot work in both. The
+     band navy reads 12.8:1 against white siblings in light but only
+     1.15:1 against the dark surface, and the per-vertical brand accents
+     are worse still (airlines #002244 = 1.06:1 dark, retail #FFE000 =
+     1.32:1 light). Measured 2026-08-29. */
+  --th-bg-emphasis: #16325c;
+  --th-text-on-emphasis: #ffffff;
 
   /* ── The --color-* family, finally defined ────────────────────────────
      24 of these were referenced 225 times across 14 files and declared
@@ -303,6 +311,30 @@ textarea {
   --color-header-bg: var(--th-bg-inset);
   --th-code-bg: #f1f5f9;
   --th-code-text: #0f172a;
+
+  /* ── Corner radius ────────────────────────────────────────────────────────
+     ~2150 border-radius declarations span 12+ values (6px x525, 8px x443,
+     4px x405, 3px x166, 10px x163, 999px x131, 12px x105, 5px x78, ...). Five
+     steps cover ~2100 of them. Pick by role, not by pixel: a chip is sm, a
+     button or input is md, a card or panel is lg, a modal is xl, a pill is
+     pill. Migration is opportunistic (THEMING.md §4) - this defines the
+     vocabulary, it does not restyle anything on its own. */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-pill: 999px;
+
+  /* ── Elevation ────────────────────────────────────────────────────────────
+     365 distinct box-shadow values exist, which is why no two surfaces sit at
+     the same height. Three neutral steps: sm rests on the page, md lifts on
+     hover or for a raised panel, lg is for overlays and popouts.
+     --card-shadow / --inner-card-shadow / --modal-shadow are NOT aliased onto
+     these: they carry a deliberate brand tint and a modal-specific spread, so
+     they stay their own thing. */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 24px -8px rgba(0, 0, 0, 0.18);
 
   /* Sign-in surfaces (card, strip, interrupt) share ONE accent. Deliberately
      identical in both themes: the whole point is that every "sign in" affordance
@@ -350,8 +382,18 @@ textarea {
   --th-border: #26304a;
   --th-border-strong: #34405e;
   --th-bg-hover: #1b2540;
+  --th-bg-emphasis: #93c5fd;
+  --th-text-on-emphasis: #0f172a;
   --th-code-bg: #0b1220;
   --th-code-text: #e2e8f0;
+
+  /* Elevation, dark. A 6%-opacity slate shadow is invisible on a #0b1220
+     ground, so these are near-black and heavier. Radius does not flip - a
+     corner is a corner in both themes, which is why --radius-* has no entry
+     here. */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 24px -8px rgba(0, 0, 0, 0.6);
 
   /* Same accent, darker tint. */
   --signin-accent: #2563eb;
@@ -1365,4 +1407,22 @@ body {
     var(--app-primary-red) 100%
   );
   border-color: var(--app-primary-red-border);
+}
+
+/* ── Reduced motion, app-wide ────────────────────────────────────────────────
+   169 stylesheets declare a transition or animation; only 15 guarded it. Rather
+   than add a media query to each of the other 154, this one block honours the
+   OS setting everywhere. Durations are near-zero rather than 0 so that
+   transitionend / animationend still fire and no JS waiting on them stalls.
+   A component needing genuinely different reduced-motion behaviour can still
+   declare its own block — this is a floor, not a ceiling. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

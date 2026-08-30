@@ -354,6 +354,40 @@ const RAW_USE_CASES = [
     ),
   },
   {
+    id: 'UC2.7',
+    useCaseId: 'a2a-protocol-walkthrough',
+    track: 'learn',
+    title: 'A2A end to end — protocol + identity',
+    buyerStory: 'Show a buyer what "agent-to-agent" actually means on the wire and in the token, with the real artifacts rather than a diagram.',
+    pingOneSolution: 'One page carries both halves: PingOne mints the nested-act RFC 8693 chain, and the Linux Foundation A2A wire protocol discovers the specialist by Agent Card and calls it with its own PingOne bearer.',
+    // Link, not a chip: this is a walkthrough page, not an agent turn. Same
+    // shape UC14b uses for the intent-binding lesson.
+    trigger: { type: 'link', path: '/a2a-protocol-learning' },
+    expectedOutcome: 'PERMIT',
+    evidence: {
+      tokenChain: ['a2a-agent1-actor', 'a2a-exchange1', 'a2a-agent2-actor', 'a2a-exchange2', 'a2a-protocol-bearer', 'a2a-agent-card', 'a2a-protocol-message'],
+      activity: [],
+    },
+    codeRefs: [
+      'demo_api_ui/src/pages/A2AProtocolLearningPage.jsx',
+      'demo_api_ui/src/pages/a2aTeachingPanes.js',
+      'demo_api_server/services/a2aDelegationService.js',
+      'demo_api_server/services/a2aProtocolClient.js',
+    ],
+    maturity: 'works',
+    owasp: { threats: ['T9', 'T13'], sections: ['\u00a74.2.3', '\u00a74.3'] },
+    whatToSay: 'Two things are called A2A. Here they are side by side, with the real Agent Card, a real 401 when the bearer is missing, and a real nested-act chain.',
+    advanced: false,
+    whatLong: 'A walkthrough of A2A using this demo\'s own agent. Signed out it still teaches with live artifacts: the Agent Card is fetched unauthenticated from the browser, and a JSON-RPC call sent with no Authorization header returns the real 401 that proves the wire hop is gated. Signed in, "Run the delegation" executes the real chain and the page renders every hop: two client_credentials tokens, two RFC 8693 exchanges, the scope narrowing, and the act nesting Authorize decides over. Each pane states what its data actually is — a reconstructed parameter summary, decoded claims, or a genuine HTTP request — because the evidence is real but it is not a captured HTTP transcript.',
+    businessValue: 'Removes the most common confusion in agent-to-agent conversations: the wire protocol and the identity chain are different layers with different credentials. Seeing the Agent Card, the refusal, and the nested act claim in one place turns an architecture debate into a five-minute demo.',
+    productRoles: {
+      idp:   'Mints both the nested-act delegated token and the separate client_credentials bearer the wire hop authenticates with.',
+      gw:    'Serves the public Agent Card and enforces the bearer requirement on the JSON-RPC endpoint.',
+      authz: 'Decides over the full act chain — ActChainDepth 2, specialist acting for generalist acting for the user.',
+    },
+    primaryTool: null,
+  },
+  {
     id: 'UC2.6',
     useCaseId: 'a2a-generalist-mismatch',
     track: 'foundations',

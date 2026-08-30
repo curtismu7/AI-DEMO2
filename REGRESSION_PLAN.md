@@ -34,10 +34,28 @@ truth — if the skill and this file disagree, this file wins.
   A glyph someone reached for once is not vocabulary — remove it instead.
 - **No muted modal text:** modals use solid high-contrast colors, never
   low-contrast gray hint text.
+- **H1 — never mix a literal and a token for ink and ground in one rule.** Both
+  sides come from `--th-*`, or both stay literal. A tokenised background with a
+  literal `color` (or the reverse) is correct in exactly one theme: one half
+  flips, the other does not, and the text vanishes into its own background.
+  This is the single most common UI defect in this repo — it produced a filter
+  input at 1.06:1 (typed text invisible), agent buttons at 2.87:1 (brand blue on
+  a dark card), and a footer at 1.92:1. **A half-migrated rule is worse than an
+  unmigrated one.** See `THEMING.md` §1.5.
+- **H2 — `font-size` never below `var(--font-size-3xs)` (10px).** Use the scale
+  in `index.css`; `--font-size-3xs` is its floor. No literal px/rem font sizes.
+  See `THEMING.md` §8.1.
+- **H3 — no inline `style={{ }}` for colour, background or font-size.** Inline
+  styles beat every stylesheet rule including `[data-theme="dark"]` overrides,
+  making the component unthemeable without a JSX edit. Layout properties inline
+  are fine. See `THEMING.md` §8.3.
 - **Minimal diff:** name the component, name the element, change only that. No
   "while I'm here" cleanup of adjacent code.
 - **UI build gate:** after any `demo_api_ui/` change, `cd demo_api_ui && npm run
   build` must exit `0` before the work is complete.
+- **Readability gate:** after a UI change, run the `THEMING.md` §1.4 contrast
+  auditor on the page you touched **in both themes**. A green unit run is not
+  evidence about pixels.
 
 ---
 
@@ -198,11 +216,20 @@ without `.env` silently un-registers every actor. `HasValidActorChain`'s version
 is content-derived; leave it that way or PingOne skips the object and the import
 is a no-op.
 
-**Still stale (not fixed here):** `HasValidA2aGeneralist`
-(`23456789-0012-…`) hardcodes `71e878ea-…` as "the registered AI Agent
-generalist". That application no longer exists in env `01d89b06`, so two-hop A2A
-chains will still DENY "Invalid A2A Generalist" after this import. It is
-hand-authored — the generator does not touch it.
+**`HasValidA2aGeneralist`'s stale id is INERT — do not "fix" it.**
+`23456789-0012-…` names `71e878ea-…`, an app that no longer exists in env
+`01d89b06`, which looks like the same drift. It is not. Rule
+`45678901-0009` fires on `and(RequiresA2aDelegation, not(HasValidA2aGeneralist))`
+and `RequiresA2aDelegation` is itself scoped to `ActChainDepth < 2`, so only
+single-hop calls reach the condition, `NestedActClientId` is always empty, and
+`HasValidA2aGeneralist` can never be true whatever id it names. Measured
+2026-08-29 with `scripts/predict-p1az-denies.mjs` on `get_portfolio_summary`:
+depth=2 PERMITs with the live id AND with the stale one (identical), depth=1
+with no nested actor DENYs. Live traffic agrees — 50 consecutive gateway
+decisions, all `ActChainDepth:1` / `NestedActClientId:""`. The rule's DESCRIPTION
+claimed the opposite ("fires when ActChainDepth >= 2"), which is what made the id
+look load-bearing; that wording is corrected here and its version bumped so the
+correction actually imports. Changing the id would be a no-op import.
 
 **Verify:** `bash scripts/test-snapshots.sh` (47 passed) and
 `node snapshots/gen-authorize-snapshot.js --check` (up to date) — then the fix

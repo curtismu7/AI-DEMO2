@@ -2,7 +2,7 @@
 .verdict { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .verdict__side { display: flex; align-items: baseline; gap: 7px; }
 .verdict__k {
-  font-size: 0.62rem;
+  font-size: var(--font-size-3xs);
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.07em;

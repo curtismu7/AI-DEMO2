@@ -3,11 +3,16 @@
 /**
  * A2A Orchestrator Service — LLM-backed multi-stage delegation decisions.
  *
- * Three sequential LLM calls (local llama.cpp proxy, same forced-JSON pattern
+ * Two sequential LLM calls (local llama.cpp proxy, same forced-JSON pattern
  * geminiNlIntent.js uses) mirror the roles in config/a2a/roles.js:
  * 1. Decision Maker: should this task be delegated at all?
  * 2. Specialist Coordinator: which of the vertical's specialist tools fits the request?
- * 3. Authorization Reviewer: does this look approvable ahead of PingOne Authorize?
+ *
+ * There is deliberately NO third "Authorization Reviewer" stage. It asked the
+ * model whether PingOne Authorize would approve, then blocked the delegation on
+ * that guess — and on the live tier it guessed "no" every time, so this route
+ * never delegated. Authorization belongs to the PDP, which decides for real one
+ * hop later inside a2aDelegationService. Do not reinstate a predictive gate.
  *
  * config/a2aSpecialists.js maps each vertical to exactly ONE specialist, so the
  * real per-request ambiguity is not "which agent" but "which tool" that specialist
@@ -25,12 +30,10 @@
 const {
   DECISION_MAKER_ROLE,
   SPECIALIST_COORDINATOR_ROLE,
-  AUTHORIZATION_REVIEWER_ROLE,
 } = require('../config/a2a/roles');
 const {
   buildDecisionTask,
   buildCoordinatorTask,
-  buildAuthorizationTask,
 } = require('../config/a2a/tasks');
 
 const appEventService = require('./appEventService');
@@ -59,15 +62,6 @@ function coordinatorSchema(tools) {
     },
   };
 }
-
-const AUTHORIZATION_SCHEMA = {
-  type: 'object',
-  required: ['approved', 'blockers'],
-  properties: {
-    approved: { type: 'boolean' },
-    blockers: { type: 'array', items: { type: 'string' } },
-  },
-};
 
 /** Flatten a CrewAI-style role object into a system prompt string. */
 function rolePrompt(role) {
@@ -142,21 +136,23 @@ async function llmOrchestration({ message, vertical }) {
     tool = coordinator.tool;
   }
 
-  const authTask = buildAuthorizationTask(AUTHORIZATION_REVIEWER_ROLE, specialist.specialistName, tool);
-  const authorization = await callStage(
-    AUTHORIZATION_REVIEWER_ROLE,
-    authTask,
-    AUTHORIZATION_SCHEMA,
-    (p) => typeof p.approved === 'boolean',
-  );
-
+  // No LLM "authorization reviewer" stage. It asked the model to predict what
+  // PingOne Authorize would say and then REFUSED to mint a token unless the
+  // guess came back true — a model guessing another system's answer, with no
+  // policy input, standing in front of the PDP that actually decides one hop
+  // later. Measured 2026-08-29 on the live llama.cpp tier: 4 runs of 4 returned
+  // approved:false, so this route never delegated at all, while the heuristic
+  // path (which sets authorized:true unconditionally) would have. The real gate
+  // is the RFC 8693 exchange + PingOne Authorize inside delegateToSpecialist,
+  // and it answers for real — including DENY. Routing is this function's job;
+  // authorization is not.
   return {
     shouldDelegate: true,
-    reason: `Delegation approved to ${specialist.specialistName}`,
+    reason: `Delegating to ${specialist.specialistName} — PingOne Authorize decides at the exchange`,
     specialist: vertical,
     tool,
     scopes: [],
-    authorized: authorization.approved === true,
+    authorized: true,
     sensitivity: decision.sensitivity || 'low',
   };
 }

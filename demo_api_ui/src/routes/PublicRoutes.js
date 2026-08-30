@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import AppShell from "./AppShell";
 import IntentBindingLearningPage from "../pages/IntentBindingLearningPage";
+import A2AProtocolLearningPage from "../pages/A2AProtocolLearningPage";
 import PrivilegeMcpLearningPage from "../pages/PrivilegeMcpLearningPage";
 import AgentGatewayCapabilitiesPage from "../pages/AgentGatewayCapabilitiesPage";
 import LiveUseCaseWorkbenchPage from "../pages/LiveUseCaseWorkbenchPage";
@@ -173,6 +174,14 @@ export function IntentBindingLearningPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <IntentBindingLearningPage />
+    </AppShell>
+  );
+}
+
+export function A2AProtocolLearningPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <A2AProtocolLearningPage />
     </AppShell>
   );
 }

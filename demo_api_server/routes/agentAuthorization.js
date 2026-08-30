@@ -22,13 +22,30 @@ const { revokeToken } = require('../services/tokenRevocation');
 /** Bound on the "revoke remaining records" cleanup loops below. */
 const MAX_REVOKE_ATTEMPTS = 10;
 
-/** Resolve the AI Agent client_id that may_act.sub must equal (same source the exchange uses). */
+/** Resolve the AI Agent client_id that may_act.sub must equal (same source the exchange uses).
+ *
+ * The *_ACTOR_* names are the ones the deployment actually sets — every other
+ * key here was empty in the live container (2026-08-29), so this returned null,
+ * grant/revoke answered 503 agent_not_configured, and nothing could write the
+ * user's mayAct at all. Users therefore kept whatever value was written before
+ * the AI Agent Actor app was recreated on 2026-08-22: demoUser's PingOne record
+ * still carried mayAct.sub = 71e878ea, the deleted app.
+ *
+ * PingOne CONSTRUCTS the act claim from the subject token's may_act, which is
+ * projected from ${user.mayAct} (pingoneProvisionService step 23.5) — so a
+ * stale user attribute silently poisons every exchanged token's act.sub, and
+ * the gateway rejects it: `Unauthorized delegation actor: act.sub "71e878ea…"
+ * is not an authorized actor`. Same missed-variable shape as the snapshot
+ * generator's actor harvest (#2594): a key list that predates the ACTOR rename.
+ */
 function agentMayActSub() {
   return (
     configStore.getEffective('ai_agent_client_id') ||
     configStore.getEffective('pingone_ai_agent_client_id') ||
+    configStore.getEffective('pingone_ai_agent_actor_client_id') ||
     process.env.AI_AGENT_CLIENT_ID ||
     process.env.PINGONE_AI_AGENT_CLIENT_ID ||
+    process.env.PINGONE_AI_AGENT_ACTOR_CLIENT_ID ||
     null
   );
 }
@@ -168,3 +185,6 @@ router.delete('/', async (req, res) => {
 });
 
 module.exports = router;
+
+// Exported for tests only. Router export above is unchanged.
+module.exports.__test = { agentMayActSub };

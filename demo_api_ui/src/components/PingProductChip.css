@@ -34,7 +34,7 @@
 .pp--privilege svg circle { fill: #9f1239; }
 
 /* Size modifiers */
-.pp--xs { font-size: 0.6rem; padding: 0.06rem 0.3rem; }
+.pp--xs { font-size: var(--font-size-3xs); padding: 0.06rem 0.3rem; }
 .pp--xs svg { width: 6px; height: 6px; }
 
 /* Legend */

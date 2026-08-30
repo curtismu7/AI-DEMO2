@@ -101,7 +101,7 @@
   background: var(--dtp-deny-bg); color: var(--dtp-deny); border-radius: 4px; padding: 1px 7px; margin-right: 7px;
 }
 .dtp-g-code {
-  display: inline-block; font-size: 9px; font-weight: 800; margin-left: 6px;
+  display: inline-block; font-size: var(--font-size-3xs); font-weight: 800; margin-left: 6px;
   background: var(--dtp-green-bg); color: var(--dtp-green); border-radius: 3px; padding: 0 5px;
 }
 .dtp-g-reason { font-size: var(--font-size-2xs); line-height: 1.4; color: var(--dtp-muted); margin-top: 6px; }

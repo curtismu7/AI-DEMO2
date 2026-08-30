@@ -46,7 +46,7 @@
   color: #7a6f1f;
   border-radius: 999px;
   padding: 1px 7px;
-  font-size: 9px;
+  font-size: var(--font-size-3xs);
   font-weight: 700;
   cursor: pointer;
   opacity: 0;

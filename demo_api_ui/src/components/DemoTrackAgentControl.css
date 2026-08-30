@@ -6,7 +6,7 @@
 .dta-trigger b { font-weight: 700; }
 .dta-menu { display: flex; flex-direction: column; min-width: 280px; padding: 4px; }
 .dta-act {
-  font-size: 9.5px; font-weight: 800; letter-spacing: .08em; color: #5f6b76;
+  font-size: var(--font-size-3xs); font-weight: 800; letter-spacing: .08em; color: #5f6b76;
   margin: 8px 6px 4px;
 }
 .dta-item {

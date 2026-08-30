@@ -27,6 +27,7 @@ export const NAV_STRUCTURE_CATALOG = [
       "Use Cases (Live)",
       "Guided Demo Track",
       "Delegation Chain Value",
+      "A2A Protocol & Identity",
       "Group Policy Board",
       "Demo Script",
       "Demo Config",

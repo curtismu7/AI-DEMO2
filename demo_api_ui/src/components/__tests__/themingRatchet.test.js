@@ -42,6 +42,90 @@ function unthemed() {
   });
 }
 
+/**
+ * The 10px floor (REGRESSION_PLAN §0 H2, THEMING.md §8.1).
+ *
+ * `--font-size-3xs` is 10px and is the bottom of the scale, so "never below
+ * 10px" is enforceable as "no font-size literal resolves under 10px". 98 such
+ * declarations were swept to the floor; this pin is 0 and must stay there.
+ *
+ * Unlike MAX_UNTHEMED this is not a ratchet that walks down — it is a hard
+ * zero. A new sub-10px value is always a bug, never a not-yet-migrated file.
+ */
+const SUB_10_PX = /font-size:\s*([0-9]+(?:\.[0-9]+)?)px/g;
+const SUB_10_REM = /font-size:\s*(0\.[0-9]+)rem/g;
+
+function belowFloor() {
+  const hits = [];
+  for (const f of cssFiles(SRC)) {
+    const src = fs.readFileSync(f, 'utf8');
+    for (const m of src.matchAll(SUB_10_PX)) {
+      if (parseFloat(m[1]) < 10) hits.push(`${path.relative(SRC, f)} — ${m[0]}`);
+    }
+    // rem is root-relative and the root is 16px, so 0.625rem is the 10px line.
+    for (const m of src.matchAll(SUB_10_REM)) {
+      if (parseFloat(m[1]) < 0.625) hits.push(`${path.relative(SRC, f)} — ${m[0]}`);
+    }
+  }
+  return hits;
+}
+
+describe('font-size floor', () => {
+  it('no stylesheet sets a font-size below 10px', () => {
+    const hits = belowFloor();
+    expect(
+      hits,
+      `Font sizes below the 10px floor (REGRESSION_PLAN §0 H2). Use ` +
+        `var(--font-size-3xs) or larger:\n  ${hits.slice(0, 8).join('\n  ')}`,
+    ).toEqual([]);
+  });
+});
+
+/**
+ * Radius and elevation ratchets (THEMING.md §9.3).
+ *
+ * --radius-* and --shadow-* were introduced with these pins, deliberately, in
+ * the same PR. The lesson from --z-*: #2585 created that family and adoption
+ * stalled at 3%, because creating a token family is the easy half. A pin makes
+ * the count a one-way door — it can only fall, and it falls as pages get
+ * touched under the standing rule.
+ *
+ * These are NOT a target of zero. Plenty of radii are genuinely local (50% for
+ * a circle, 1px hairlines) and plenty of shadows are deliberate one-offs. The
+ * point is that the number never goes UP.
+ */
+const MAX_RADIUS_LITERALS = 2552;
+const MAX_SHADOW_LITERALS = 480;
+
+function countLiteral(re) {
+  let n = 0;
+  for (const f of cssFiles(SRC)) {
+    n += (fs.readFileSync(f, 'utf8').match(re) || []).length;
+  }
+  return n;
+}
+
+describe('design-token ratchets', () => {
+  it(`border-radius literals stay at or below ${MAX_RADIUS_LITERALS}`, () => {
+    const n = countLiteral(/border-radius:\s*[0-9]/g);
+    expect(
+      n,
+      `border-radius literals rose to ${n} (pin ${MAX_RADIUS_LITERALS}). Use ` +
+        `var(--radius-sm|md|lg|xl|pill) — see THEMING.md §9.3. If you migrated ` +
+        `some, lower the pin in the same commit.`,
+    ).toBeLessThanOrEqual(MAX_RADIUS_LITERALS);
+  });
+
+  it(`box-shadow literals stay at or below ${MAX_SHADOW_LITERALS}`, () => {
+    const n = countLiteral(/box-shadow:\s*[0-9-]/g);
+    expect(
+      n,
+      `box-shadow literals rose to ${n} (pin ${MAX_SHADOW_LITERALS}). Use ` +
+        `var(--shadow-sm|md|lg) — see THEMING.md §9.3.`,
+    ).toBeLessThanOrEqual(MAX_SHADOW_LITERALS);
+  });
+});
+
 describe('theming ratchet', () => {
   it(`no more than ${MAX_UNTHEMED} stylesheets are light-only`, () => {
     const files = unthemed();

@@ -103,6 +103,82 @@ old agent secret is not lost: it remains under `PINGONE_AGENT_CLIENT_SECRET`
 (fp `edae3f8657`), which is its correct home. `run-pingaws.sh update config` now
 clears every `SECURITY:` guard.
 
+### [x] 2026-08-29 — `/api/a2a/*` is orphaned, and an LLM guess hard-gates its delegation
+
+**What's wrong.** Three separate smells around the A2A orchestrator route, all
+found while chasing why UC2/UC2.5 did not delegate. The *execution* gap that
+mattered is fixed (see `REGRESSION_PLAN.md` §4, same date — the AG-UI path now
+runs the interception); these three are what is left.
+
+1. **The route has no caller.** `rg "api/a2a/message|api/a2a/init"
+   demo_api_ui/src` returns nothing. `/api/a2a/init` and `/api/a2a/message`
+   (`routes/a2aAgentRoutes.js`, mounted in `server.js`) are reachable, session-
+   guarded and maintained, and no UI code path calls them. UC2/UC2.5 both go
+   through the chat pipeline instead.
+
+2. **An LLM opinion hard-gates the real RFC 8693 chain.** In
+   `services/a2aOrchestratorService.js` the `AUTHORIZATION_REVIEWER_ROLE` stage
+   asks the model *"Determine if this delegation can be approved by PingOne
+   Authorize (RFC 8693 chained token)"* (`config/a2a/tasks.js`
+   `buildAuthorizationTask`) and returns `{approved, blockers}`. Line ~204 then
+   refuses to mint any token unless `authorized === true`. That is a model
+   guessing another system's answer, with no policy input, in front of the PDP
+   that actually decides. Measured 2026-08-29 on the live llama.cpp tier: 4 runs
+   out of 4 returned `authorized: false`, so the route never delegated at all.
+   The heuristic path (`heuristicOrchestration`) sets `authorized: true`
+   unconditionally, but only runs when the LLM *throws* — and it does not throw,
+   it just says no.
+
+3. **The reason string contradicts the outcome.** The final return builds
+   ``reason: `Delegation approved to ${specialist.specialistName}` `` regardless
+   of the authorization result, so a blocked run answers HTTP 200 with
+   `{reason: "Delegation approved to Investment Advisor", authorized: false,
+   success: false, toolsCalled: []}`. It reads as a success. That is what made
+   the first run of this investigation look like it had worked.
+
+**Why it wasn't fixed now.** Deleting the LLM gate changes what an (unused)
+demo endpoint does, and #2 and #3 only bite through a route nothing calls — so
+neither is on any demo path today. Fixing the AG-UI execution gap was the part
+that made UC2/UC2.5 work; this is scope beyond it.
+
+**What the real fix looks like.** Decide whether `/api/a2a/*` is still wanted.
+If it is: drop the LLM authorization stage entirely (PingOne Authorize is the
+real gate, one hop downstream, and it answers for real), or at minimum default
+`approved` to true unless the model returns explicit blockers — and derive
+`reason` from the actual outcome instead of hardcoding "approved". If it is
+not: delete the route, `a2aOrchestratorService.js` and `config/a2a/tasks.js`
+with it. Do not leave the LLM gate in place as-is; a stage that reliably
+answers "no" is indistinguishable from a broken feature.
+
+**RESOLVED 2026-08-29** (`worktree-fix-a2a-gate-and-revoke-tests`). Items 2 and
+3 are fixed; item 1 stands and is deliberately not "fixed".
+
+- **The LLM authorization stage is gone**, not defaulted. Predicting the PDP's
+  answer was never the orchestrator's job: `delegateToSpecialist` runs the real
+  RFC 8693 exchange and PingOne Authorize decides one hop later, for real,
+  including DENY. `llmOrchestration` is now two stages (decision, coordinator)
+  and returns `authorized: true` — which also makes the LLM and heuristic paths
+  agree, where before they disagreed by construction.
+- **`reason` is derived**, no longer hardcoded: "Delegating to X — PingOne
+  Authorize decides at the exchange". A run can no longer answer HTTP 200 with
+  "Delegation approved" while `authorized: false`.
+- `AUTHORIZATION_REVIEWER_ROLE`, `buildAuthorizationTask` and
+  `AUTHORIZATION_SCHEMA` were deleted with it — orphaned by the change, and
+  leaving them invites re-wiring the gate we just removed.
+- **Item 1 (no UI caller) is unchanged and is not a bug.** UC2/UC2.5 reach
+  delegation through the chat pipeline; `/api/a2a/*` is a second, unused door.
+  Whether to delete it is a product call, not a defect — but it is now honest
+  when exercised rather than silently refusing.
+
+**Do not break:** never reinstate a stage that asks a model whether
+authorization will succeed and blocks on the answer. `a2aOrchestratorService`'s
+header says so, and
+`src/__tests__/a2aOrchestratorService.test.js` pins it: the test queues a
+second LLM reply of `approved:false` and asserts it is never consumed
+(`callLlamaCpp` called once) and that delegation proceeds anyway.
+
+**Verify:** `CI=true npx jest src/__tests__/a2aOrchestratorService.test.js
+src/__tests__/a2aTasks.test.js --forceExit` (12 passed).
 ### [x] 2026-08-29 — demo passwords rotated in PingOne and `.env` only; vault and SE k8s still hold the old ones
 
 `DEMO_USER_PASSWORD` and `DEMO_ADMIN_PASSWORD` had been world-readable in public

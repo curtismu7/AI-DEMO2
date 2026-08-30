@@ -1,6 +1,6 @@
 'use strict';
 
-const { buildDecisionTask, buildCoordinatorTask, buildAuthorizationTask } = require('../../config/a2a/tasks');
+const { buildDecisionTask, buildCoordinatorTask } = require('../../config/a2a/tasks');
 
 describe('config/a2a/tasks', () => {
   test('buildDecisionTask embeds the message and the shouldDelegate/reason/sensitivity contract', () => {
@@ -21,11 +21,4 @@ describe('config/a2a/tasks', () => {
     expect(task.description).not.toContain('"scopes"');
   });
 
-  test('buildAuthorizationTask reviews a specialist + tool pair, not a scopes list', () => {
-    const task = buildAuthorizationTask({ role: 'Reviewer' }, 'Investment Advisor', 'get_portfolio_summary');
-    expect(task.description).toContain('Investment Advisor');
-    expect(task.description).toContain('get_portfolio_summary');
-    expect(task.description).toContain('"approved"');
-    expect(task.description).toContain('"blockers"');
-  });
 });

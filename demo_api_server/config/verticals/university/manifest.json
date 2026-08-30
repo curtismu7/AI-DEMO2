@@ -52,7 +52,7 @@
     "userMemberships": {
       "demoUser": ["privileged"],
       "demoAdmin": ["privileged"],
-      "demoDelegate": []
+      "demoDelegate": ["privileged"]
     }
   },
   "agent": {
@@ -105,7 +105,7 @@
       { "id": "un4", "label": "Register a course", "message": "register for a course", "mode": "both", "tool": "register_course", "useCaseId": "delegated-access-with-proof" },
       { "id": "un5", "label": "🔑 Release transcript", "message": "release my official transcript", "mode": "both", "hitlTrigger": true, "challenge": "step_up", "tool": "release_transcript", "useCaseId": "step-up-required" },
       { "id": "un-feature", "label": "Enrollment status", "message": "show enrollment status", "mode": "both", "tool": "show_enrollment", "useCaseId": "delegated-access-with-proof" },
-      { "id": "un-a2a", "label": "Sensitive student finance", "message": "access my sensitive student finance", "mode": "both", "challenge": "consent", "tool": "sensitive_student_finance", "useCaseId": "a2a-delegation", "group": "advanced" },
+      { "id": "un-a2a", "label": "Sensitive student finance", "message": "access my sensitive student finance", "mode": "both", "challenge": "consent", "tool": "sensitive_student_finance", "useCaseId": "a2a-delegation" },
       { "id": "un8", "label": "Am I on track to graduate?", "message": "am I on track to graduate", "mode": "llm", "tool": "view_degree_audit" },
       { "id": "un-direct", "label": "Direct MCP", "message": "get my courses", "mode": "direct", "tool": "view_courses" },
       { "id": "un-dpop", "label": "DPoP / replay defense", "message": "fire a token with the wrong audience at the gateway", "mode": "direct", "tool": "test_wrong_audience", "useCaseId": "token-theft-replay" },
