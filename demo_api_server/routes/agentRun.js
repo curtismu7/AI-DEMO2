@@ -37,9 +37,12 @@ const { nrTransactionMiddleware } = require('../middleware/nrTransactionMiddlewa
 
 // Public catalog actions a signed-out visitor may run. UC24 ("What branches are
 // near me?") is the documented progressive-trust entry point: no Authorize, no
-// Gateway, no token exchange. Keep this list minimal — anything absent is
-// refused, which is what makes the gate in POST /run fail closed.
-const PUBLIC_GUEST_ACTIONS = new Set(['branch_hours']);
+// Gateway, no token exchange. UC30 ("what's the weather in <city>") is public
+// too, but unlike UC24 it does traverse the Gateway — its MCP route dropped the
+// rsFilter auth gate, and the payload is a city lookup carrying no account data.
+// Keep this list minimal — anything absent is refused, which is what makes the
+// gate in POST /run fail closed.
+const PUBLIC_GUEST_ACTIONS = new Set(['branch_hours', 'weather']);
 
 const router = express.Router();
 // Guest-tolerant, matching /api/agent/invoke. The strict middleware returned a
