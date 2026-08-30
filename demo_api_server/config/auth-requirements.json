@@ -8,7 +8,8 @@
   ],
   "defaultLevel": "user",
   "publicAgentActions": [
-    "branch_hours"
+    "branch_hours",
+    "weather"
   ],
   "useCases": {
     "UC1": "user",

@@ -39,7 +39,16 @@ const { nrTransactionMiddleware } = require('../middleware/nrTransactionMiddlewa
 // near me?") is the documented progressive-trust entry point: no Authorize, no
 // Gateway, no token exchange. Keep this list minimal — anything absent is
 // refused, which is what makes the gate in POST /run fail closed.
-const PUBLIC_GUEST_ACTIONS = new Set(['branch_hours']);
+//
+// 'weather' is public because UC30 ("what's the weather in Austin, TX") is
+// declared public in auth-requirements.json: it carries no account data, the
+// same class as branch_hours. This does NOT weaken UC31's DENY — that comes
+// from the gateway's state-scope policy (Texas), which still refuses Miami for
+// signed-in and signed-out callers alike. This list only decides who may ASK.
+//
+// Mirrors publicAgentActions in demo_api_server/config/auth-requirements.json;
+// `npm run authz:verify` fails if the two drift.
+const PUBLIC_GUEST_ACTIONS = new Set(['branch_hours', 'weather']);
 
 const router = express.Router();
 // Guest-tolerant, matching /api/agent/invoke. The strict middleware returned a
