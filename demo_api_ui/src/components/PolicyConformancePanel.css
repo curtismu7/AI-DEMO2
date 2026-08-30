@@ -4,6 +4,10 @@
   border: 1px solid var(--th-border);
   border-radius: 8px;
   background: var(--th-bg-card);
+  /* Ink WITH the ground — see the note in TokenCardGrid.css. <body> ink is
+     rgb(51,51,51) in both themes, so unclassed text inside this panel measured
+     1.35:1 against the dark surface until this line. */
+  color: var(--th-text-body);
   padding: 16px;
   margin: 0 0 16px;
 }

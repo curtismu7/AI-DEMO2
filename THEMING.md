@@ -177,6 +177,20 @@ which is why this rule exists.
 Result: fine in light, **1.92:1 in dark** — below the 4.5:1 floor, on the footer
 of every page. Migrate a rule's surface and its ink together, or leave both alone.
 
+**Why this keeps happening, and it is not carelessness:** `<body>` computes to
+`rgb(51,51,51)` in *both* themes — the app-level ink never flips. So a container
+that takes a `--th-*` ground and sets no `color` does not inherit a themed ink; it
+inherits near-black, and every unclassed descendant goes dark-on-dark the moment
+the surface flips. It looks fine while you are testing, because the *classed*
+text in that container sets its own colour and reads perfectly.
+
+The Priority 0 pass reproduced the Footer bug three times over in one commit
+(`.tcg-card`, `.pcp`, `.architecture-tabs-panel` — measured 1.35, 1.35 and
+**1.20:1** in dark) and needed a follow-up. `TransactionTracePage.css` had already
+been bitten and carries a comment saying so. The cheap habit: **when you give a
+container a `--th-*` background, give it a `--th-*` `color` on the next line**,
+even when every child looks covered.
+
 That gives a two-line diagnosis whenever snippet B reports a failure:
 
 - **Fails in one theme only** → half-migration. Find the half that didn't move.

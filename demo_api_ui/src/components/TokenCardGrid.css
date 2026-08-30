@@ -32,6 +32,11 @@
   display: flex;
   flex-direction: column;
   background: var(--th-bg-card);
+  /* Ink WITH the ground (THEMING.md §1.5 / REGRESSION_PLAN §0 H1). Every classed
+     descendant sets its own colour, but <body> is rgb(51,51,51) in BOTH themes —
+     the app-level ink does not flip — so any unclassed text in a card inherits
+     near-black onto this now-dark surface. Measured at 1.35:1 before this line. */
+  color: var(--th-text-body);
   border-radius: 8px;
   border: 1px solid var(--th-border);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
