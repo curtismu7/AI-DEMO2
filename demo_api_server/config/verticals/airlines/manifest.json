@@ -89,7 +89,6 @@
         "challenge": "step_up",
         "tool": "cancel_airline_reservation",
         "useCaseId": "step-up-required",
-        "group": "advanced"
       },
       {
         "id": "ua6",
@@ -98,7 +97,6 @@
         "mode": "both",
         "tool": "pay_airline_fee",
         "useCaseId": "hitl-consent",
-        "group": "advanced"
       },
       {
         "id": "ua4",
@@ -108,7 +106,6 @@
         "challenge": "consent",
         "tool": "sensitive_airline_bookings",
         "useCaseId": "hitl-consent",
-        "group": "advanced"
       },
       {
         "id": "ua2",
@@ -134,7 +131,6 @@
         "challenge": "consent",
         "tool": "sensitive_passenger_record",
         "useCaseId": "a2a-delegation",
-        "group": "advanced"
       }
     ]
   },
