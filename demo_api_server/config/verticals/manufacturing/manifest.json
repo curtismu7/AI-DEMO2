@@ -88,7 +88,7 @@
       { "id": "mf4", "label": "Schedule a run", "message": "schedule a production run", "mode": "both", "tool": "schedule_run", "useCaseId": "delegated-access-with-proof" },
       { "id": "mf5", "label": "🔑 Release order", "message": "release my work order", "mode": "both", "hitlTrigger": true, "challenge": "step_up", "tool": "release_work_order", "useCaseId": "step-up-required" },
       { "id": "mf-feature", "label": "Work order status", "message": "show work order status", "mode": "both", "tool": "show_work_order", "useCaseId": "delegated-access-with-proof" },
-      { "id": "mf-a2a", "label": "Sensitive supplier contract", "message": "access my sensitive supplier contract", "mode": "both", "challenge": "consent", "tool": "sensitive_supplier_contract", "useCaseId": "a2a-delegation", "group": "advanced" },
+      { "id": "mf-a2a", "label": "Sensitive supplier contract", "message": "access my sensitive supplier contract", "mode": "both", "challenge": "consent", "tool": "sensitive_supplier_contract", "useCaseId": "a2a-delegation" },
       { "id": "mf6", "label": "Overdue orders", "message": "which work orders are overdue", "mode": "llm", "tool": "view_work_orders" },
       { "id": "mf-direct", "label": "Direct MCP", "message": "get my work orders", "mode": "direct", "tool": "view_work_orders" },
       { "id": "mf-dpop", "label": "DPoP / replay defense", "message": "fire a token with the wrong audience at the gateway", "mode": "direct", "tool": "test_wrong_audience", "useCaseId": "token-theft-replay" },
