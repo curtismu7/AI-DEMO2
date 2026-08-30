@@ -1894,13 +1894,13 @@
 
 .signin-prompt__title {
   margin: 0 0 0.5rem;
-  font-size: 1.1rem;
+  font-size: var(--font-size-lg);
   color: var(--th-text);
 }
 
 .signin-prompt__text {
   margin: 0 0 1rem;
-  font-size: 0.95rem;
+  font-size: var(--font-size-body);
   color: var(--th-text);
   line-height: 1.45;
 }
@@ -1914,7 +1914,7 @@
   /* Buttons do NOT inherit font-family from body by default — without this the
      one control on the page renders in the browser's UI font. */
   font-family: inherit;
-  font-size: 0.95rem;
+  font-size: var(--font-size-body);
   font-weight: 600;
   cursor: pointer;
 }
@@ -1926,7 +1926,7 @@
 /* Small CTA — the strip form factor sits inside a 12px bar. */
 .signin-prompt__btn--sm {
   padding: 0.3rem 0.85rem;
-  font-size: 0.8rem;
+  font-size: var(--font-size-2xs);
   flex: none;
 }
 
@@ -1953,7 +1953,7 @@
   padding: 0.5rem 1.25rem;
   background: var(--signin-accent-bg);
   border-bottom: 1px solid var(--signin-accent-border);
-  font-size: 0.8rem;
+  font-size: var(--font-size-2xs);
   color: var(--th-text);
 }
 
@@ -1970,7 +1970,7 @@
 /* Sign-in interrupt (SignInModal). Solid, high-contrast text only. */
 .signin-modal__text {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: var(--font-size-body);
   font-weight: 600;
   color: var(--th-text);
   line-height: 1.45;
@@ -1978,7 +1978,7 @@
 
 .signin-modal__hint {
   margin: 0.75rem 0 0;
-  font-size: 0.9rem;
+  font-size: var(--font-size-sm);
   font-weight: 500;
   color: var(--th-text);
   line-height: 1.45;
@@ -1987,7 +1987,7 @@
 /* Raw provider text ("jwt expired") — available, never the leading sentence. */
 .signin-modal__detail {
   margin-top: 0.9rem;
-  font-size: 0.85rem;
+  font-size: var(--font-size-sm);
   color: var(--th-text);
 }
 
@@ -2003,7 +2003,7 @@
   background: var(--th-code-bg);
   color: var(--th-code-text);
   border-radius: 4px;
-  font-size: 0.8rem;
+  font-size: var(--font-size-2xs);
   overflow-x: auto;
 }
 
