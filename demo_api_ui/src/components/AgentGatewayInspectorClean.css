@@ -343,3 +343,23 @@ textarea {
 .inspector-clean-output-content::-webkit-scrollbar-thumb:hover {
   background: var(--th-text-muted);
 }
+
+.inspector-clean-json-input {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.inspector-clean-json-error {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--th-status-error-text);
+}
+
+.inspector-clean-error-banner {
+  margin-top: 12px;
+  padding: 8px;
+  font-size: 12px;
+  border-radius: var(--radius-sm);
+  color: var(--th-status-error-text);
+  background: var(--th-status-error-bg);
+}

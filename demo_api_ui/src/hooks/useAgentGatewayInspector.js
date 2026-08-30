@@ -138,6 +138,7 @@ export function useAgentGatewayInspector({ gatewayId } = {}) {
     isChainMode,
     setIsChainMode,
     parameters,
+    setParameters,
     updateParameter,
 
     // Execution

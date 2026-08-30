@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useThemeOptional } from '../context/ThemeContext';
 import { useAgentGatewayInspector } from '../hooks/useAgentGatewayInspector';
 import './AgentGatewayInspectorClean.css';
@@ -16,7 +16,7 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
     isChainMode,
     setIsChainMode,
     parameters,
-    updateParameter,
+    setParameters,
     running,
     result,
     error,
@@ -37,6 +37,20 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
       }),
     [availableCapabilities, selectedCapabilities],
   );
+
+  // The textarea holds raw text so invalid intermediate JSON doesn't snap back
+  // to the last valid state mid-keystroke; paramsError surfaces bad syntax
+  // instead of silently discarding the input.
+  const [paramsText, setParamsText] = useState(() => JSON.stringify(parameters, null, 2));
+  const [paramsError, setParamsError] = useState(false);
+
+  // Re-sync the text only when parameters change from outside the textarea
+  // (tool switch, reel restore) — not on every keystroke's parse round-trip.
+  useEffect(() => {
+    setParamsText(JSON.stringify(parameters, null, 2));
+    setParamsError(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTool, activeReelId]);
 
   return (
     <div className="inspector-clean-page">
@@ -155,17 +169,21 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
                       <textarea
                         rows="4"
                         placeholder='{"key": "value"}'
-                        value={JSON.stringify(parameters, null, 2)}
+                        className="inspector-clean-json-input"
+                        value={paramsText}
                         onChange={(e) => {
+                          setParamsText(e.target.value);
                           try {
-                            const parsed = JSON.parse(e.target.value);
-                            setParameters(parsed);
+                            setParameters(JSON.parse(e.target.value));
+                            setParamsError(false);
                           } catch {
-                            // Allow partial edits
+                            setParamsError(true);
                           }
                         }}
-                        style={{ fontFamily: 'monospace', fontSize: '11px' }}
                       />
+                      {paramsError && (
+                        <div className="inspector-clean-json-error">Invalid JSON — fix the syntax to apply changes</div>
+                      )}
                     </div>
 
                     <div className="inspector-clean-field">
@@ -182,7 +200,7 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
                 </button>
               </div>
 
-              {error && <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '12px', padding: '8px', background: '#fee2e2', borderRadius: 'var(--radius-sm)' }}>❌ Error: {error}</div>}
+              {error && <div className="inspector-clean-error-banner">❌ Error: {error}</div>}
             </div>
           </div>
 
