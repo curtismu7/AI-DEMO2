@@ -97,8 +97,6 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
                 >
                   <option value="">Select a gateway...</option>
                   <option value="demo-mcp-gateway">Demo MCP Gateway (01d89b06)</option>
-                  <option value="privilege-gateway">Privilege Gateway</option>
-                  <option value="external-door">External Door</option>
                 </select>
               </div>
 
