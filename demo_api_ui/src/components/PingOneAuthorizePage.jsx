@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import bffAxios from '../services/bffAxios';
 import { consumeReplay } from '../services/inspectorReplay';
+import { useThemeOptional } from '../context/ThemeContext';
 import JsonHighlight from './shared/JsonHighlight';
 import JsonFormView from './shared/JsonFormView';
 import AuthzTestPage from './AuthzTestPage';
@@ -1002,15 +1003,34 @@ export default function PingOneAuthorizePage() {
 
   const notConfigured = !data?.workerConfigured;
 
+  const theme = useThemeOptional();
+
   return (
     <div style={S.root}>
-      <div style={S.tabs}>
-        <span style={S.tab(tab === 'console')} onClick={() => setTab('console')}>Live / Simulated Console</span>
-        <span style={S.tab(tab === 'bulk')} onClick={() => setTab('bulk')}>Bulk Decisions</span>
-        <span style={S.tab(tab === 'guided')} onClick={() => setTab('guided')}>Guided Scenarios &amp; Learn</span>
-        <span style={S.tab(tab === 'mockRules')} onClick={() => setTab('mockRules')}>Mock Authz Rules</span>
-        <span style={S.tab(tab === 'scopes')} onClick={() => setTab('scopes')}>Scopes &amp; Resources</span>
-        <span style={S.tab(tab === 'snapshot')} onClick={() => setTab('snapshot')}>Snapshot Import</span>
+      <div style={{ ...S.tabs, justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+          <span style={S.tab(tab === 'console')} onClick={() => setTab('console')}>Live / Simulated Console</span>
+          <span style={S.tab(tab === 'bulk')} onClick={() => setTab('bulk')}>Bulk Decisions</span>
+          <span style={S.tab(tab === 'guided')} onClick={() => setTab('guided')}>Guided Scenarios &amp; Learn</span>
+          <span style={S.tab(tab === 'mockRules')} onClick={() => setTab('mockRules')}>Mock Authz Rules</span>
+          <span style={S.tab(tab === 'scopes')} onClick={() => setTab('scopes')}>Scopes &amp; Resources</span>
+          <span style={S.tab(tab === 'snapshot')} onClick={() => setTab('snapshot')}>Snapshot Import</span>
+        </div>
+        <button
+          onClick={theme.toggleDarkMode}
+          title="Toggle dark mode"
+          style={{
+            padding: '6px 10px',
+            border: '1px solid #cbd5e1',
+            background: '#fff',
+            borderRadius: '6px',
+            fontSize: '14px',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+          }}
+        >
+          {theme.darkMode ? 'Light' : 'Dark'}
+        </button>
       </div>
 
       {tab === 'bulk' && <BulkDecisionPanel />}
