@@ -6,12 +6,12 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--th-bg);
+  background: var(--th-bg-page);
   color: var(--th-text);
 }
 
 .inspector-clean-header {
-  background: linear-gradient(135deg, var(--th-bg-subtle) 0%, rgba(14, 165, 233, 0.03) 100%);
+  background: linear-gradient(135deg, var(--th-bg-inset) 0%, rgba(14, 165, 233, 0.03) 100%);
   border-bottom: 1px solid var(--th-border);
   padding: 16px 24px;
   display: flex;
@@ -35,8 +35,8 @@
 .inspector-clean-tab {
   padding: 6px 14px;
   border: 1px solid var(--th-border);
-  background: var(--inspector-bg);
-  color: var(--th-text-secondary);
+  background: var(--th-bg-card);
+  color: var(--th-text-body);
   border-radius: 6px;
   font-size: 12px;
   font-weight: 500;
@@ -72,7 +72,7 @@
 }
 
 .inspector-clean-panel {
-  background: var(--inspector-bg);
+  background: var(--th-bg-card);
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -81,7 +81,7 @@
 .inspector-clean-panel-header {
   padding: 12px 16px;
   border-bottom: 1px solid var(--th-border);
-  background: var(--th-bg-subtle);
+  background: var(--th-bg-inset);
   position: sticky;
   top: 0;
 }
@@ -91,7 +91,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: var(--th-text-tertiary);
+  color: var(--th-text-muted);
 }
 
 .inspector-clean-panel-body {
@@ -120,7 +120,7 @@
   background: transparent;
   border-left: 3px solid transparent;
   font-size: 12px;
-  color: var(--th-text-secondary);
+  color: var(--th-text-body);
   cursor: pointer;
   transition: all 0.2s;
   border-radius: 4px;
@@ -155,7 +155,7 @@
 .inspector-clean-section-title {
   font-size: 13px;
   font-weight: 600;
-  color: var(--inspector-text);
+  color: var(--th-text);
 }
 
 .inspector-clean-field {
@@ -167,15 +167,15 @@
 .inspector-clean-field-label {
   font-size: 12px;
   font-weight: 500;
-  color: var(--th-text-secondary);
+  color: var(--th-text-body);
   display: flex;
   justify-content: space-between;
 }
 
 .inspector-clean-field-type {
   font-size: 10px;
-  color: var(--th-text-tertiary);
-  font-family: 'JetBrains Mono', monospace;
+  color: var(--th-text-muted);
+  font-family: var(--font-mono);
 }
 
 .inspector-clean-field input,
@@ -185,9 +185,9 @@
   border: 1px solid var(--th-border);
   border-radius: 6px;
   font-size: 12px;
-  font-family: 'JetBrains Mono', monospace;
-  background: var(--th-bg-subtle);
-  color: var(--inspector-text);
+  font-family: var(--font-mono);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
   transition: all 0.2s;
 }
 
@@ -197,7 +197,7 @@
   outline: none;
   border-color: #0ea5e9;
   box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
-  background: var(--inspector-bg);
+  background: var(--th-bg-card);
 }
 
 .inspector-clean-button {
@@ -237,7 +237,7 @@
   padding: 8px 12px;
   border: none;
   background: transparent;
-  color: var(--th-text-secondary);
+  color: var(--th-text-body);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
@@ -252,14 +252,14 @@
 }
 
 .inspector-clean-code {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   line-height: 1.6;
-  background: var(--th-bg-subtle);
+  background: var(--th-bg-inset);
   border-radius: 6px;
   padding: 12px;
   overflow-x: auto;
-  color: var(--th-text-secondary);
+  color: var(--th-text-body);
   flex: 1;
   border: 1px solid var(--th-border);
 }
@@ -269,7 +269,7 @@
   grid-template-columns: repeat(2, 1fr);
   gap: 12px;
   padding: 12px;
-  background: var(--th-bg-subtle);
+  background: var(--th-bg-inset);
   border-radius: 6px;
   font-size: 11px;
   border: 1px solid var(--th-border);
@@ -282,19 +282,19 @@
 }
 
 .inspector-clean-meta-label {
-  color: var(--th-text-tertiary);
+  color: var(--th-text-muted);
   font-weight: 500;
 }
 
 .inspector-clean-meta-value {
-  color: var(--inspector-text);
-  font-family: 'JetBrains Mono', monospace;
+  color: var(--th-text);
+  font-family: var(--font-mono);
   font-weight: 600;
 }
 
 /* Movie Reel */
 .inspector-clean-reel {
-  background: var(--th-bg-subtle);
+  background: var(--th-bg-inset);
   border-top: 1px solid var(--th-border);
   display: flex;
   align-items: center;
@@ -308,7 +308,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: var(--th-text-tertiary);
+  color: var(--th-text-muted);
   white-space: nowrap;
   padding-right: 8px;
   border-right: 1px solid var(--th-border);
@@ -317,13 +317,13 @@
 .inspector-clean-reel-frame {
   flex-shrink: 0;
   padding: 6px 10px;
-  background: var(--inspector-bg);
+  background: var(--th-bg-card);
   border: 1px solid var(--th-border);
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.2s;
   font-size: 11px;
-  color: var(--th-text-secondary);
+  color: var(--th-text-body);
   white-space: nowrap;
 }
 
@@ -353,5 +353,5 @@
 }
 
 .inspector-clean-panel-body::-webkit-scrollbar-thumb:hover {
-  background: var(--th-text-tertiary);
+  background: var(--th-text-muted);
 }

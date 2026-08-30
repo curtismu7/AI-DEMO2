@@ -84,7 +84,7 @@
 .p1az-clean-verdict-value {
   font-size: 24px;
   font-weight: 700;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   margin-bottom: 12px;
 }
 
@@ -121,12 +121,12 @@
 
 .p1az-clean-diff-value-old {
   color: #dc2626;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 .p1az-clean-diff-value-new {
   color: #059669;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 /* Card container */

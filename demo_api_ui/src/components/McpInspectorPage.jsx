@@ -23,7 +23,6 @@ import JsonFormView from './shared/JsonFormView';
 import InspectorShell from './shared/InspectorShell';
 import InspectorTabs from './shared/InspectorTabs';
 import InspectorListItem from './shared/InspectorListItem';
-import McpInspectorPageClean from './McpInspectorPageClean';
 import './shared/InspectorShell.css';
 import './ApiExplorerPanel.css';
 
@@ -2015,8 +2014,71 @@ function useProtocolSource() {
   };
 }
 
+/**
+ * NOTE: `McpInspectorPageClean` (+ McpInspectorPage.clean.css, useInspectorSource)
+ * is the in-progress redesign from #2627. It is deliberately NOT wired up here.
+ *
+ * #2627 made it the unconditional return value of this component, behind its own
+ * comment: "TODO: integrate clean design with existing data sources (banking,
+ * pingone, api, etc.)". That TODO is the whole feature — the five source hooks
+ * below are what make the Inspector work, and the clean shell reads none of them,
+ * so every source rendered empty and 29 tests in McpInspectorPage.test.jsx failed
+ * for the honest reason that the page no longer did anything.
+ *
+ * The redesign is kept in the tree, unreferenced, so the integration can be
+ * finished. Wire it here once it reads the real sources — and make those 29 tests
+ * pass against it rather than rewriting them to match a stub.
+ */
 export default function McpInspectorPage() {
-  // Temporarily disabled legacy implementation — using clean design
-  // TODO: integrate clean design with existing data sources (banking, pingone, api, etc.)
-  return <McpInspectorPageClean />;
+  const [searchParams] = useSearchParams();
+  const requestedSource = searchParams.get('source');
+  // Vertical IDs from the agent (retail, healthcare, government, …) are not
+  // source keys — map them to banking (AI Demo MCP) since that server handles
+  // all verticals. Only fall back to pingone when no source is given.
+  const initialSource = SOURCES.some((s) => s.key === requestedSource)
+    ? requestedSource
+    : requestedSource
+      ? 'banking'
+      : 'pingone';
+  const [activeSource, setActiveSource] = useState(initialSource);
+  const banking = useBankingSource();
+  const pingone = usePingOneSource();
+  const api = useApiCallsSource();
+  const custom = useCustomServerSource();
+  const protocol = useProtocolSource();
+  const current =
+    activeSource === 'pingone' ? pingone
+      : activeSource === 'api' ? api
+      : activeSource === 'custom' ? custom
+      : activeSource === 'protocol' ? protocol
+      : banking;
+
+  return (
+    <InspectorShell
+      title="MCP Inspector"
+      statusOn={current.statusOn}
+      statusText={current.statusText}
+      actions={current.actions}
+      banner={current.banner}
+      left={
+        <>
+          <div className="source-switcher">
+            {SOURCES.map((s) => (
+              <button
+                key={s.key}
+                type="button"
+                className={`src-pill${activeSource === s.key ? ' src-pill--active' : ''}`}
+                onClick={() => setActiveSource(s.key)}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+          {current.left}
+        </>
+      }
+      middle={current.middle}
+      right={current.right}
+    />
+  );
 }
