@@ -213,15 +213,18 @@ own `.dark` class rather than `[data-theme]`. Do not "fix" it.
 
 ## §3 Where we actually are
 
-Measured on `demo_api_ui/src`, 2026-08-29:
+Measured on `demo_api_ui/src`, 2026-08-30:
 
-| | Files |
-|---|---|
-| Stylesheets total | 274 |
-| Reference `--th-*` | 82 |
-| Have `[data-theme="dark"]` blocks | 19 |
-| **Neither — untouched by theming** | **189** (ratchet-pinned, §6) |
-| Carry a real `@media (prefers-color-scheme)` block | 17 |
+| | Files | Was 2026-08-29 |
+|---|---|---|
+| Stylesheets total | 275 | 274 |
+| Reference `--th-*` | 86 | 82 |
+| Have `[data-theme="dark"]` blocks | 25 | 19 |
+| **Neither — untouched by theming** | **182** (ratchet-pinned, §6) | 189 |
+| Carry a real `@media (prefers-color-scheme)` block | **2** | 17 |
+
+The last row is now just the two diagram components that opt into the OS on
+purpose (§4 Priority 0) — every other OS-keyed dark block is gone.
 
 Readability is measured per page, not per file. `/admin` via §1.4 snippet B was
 **17 failures in light and 23 in dark** before #2605; it is **5 in dark** after.
@@ -235,8 +238,12 @@ cd demo_api_ui/src
 find . -name '*.css' | wc -l
 grep -rl 'var(--th-' --include='*.css' . | wc -l
 grep -rl 'data-theme="dark"' --include='*.css' . | wc -l
-grep -rlE '@media.*prefers-color-scheme' --include='*.css' . | wc -l
+grep -rlE '^@media \(prefers-color-scheme' --include='*.css' . | wc -l
 ```
+
+That last one is anchored to the start of the line on purpose. The unanchored
+form now matches the comments the Priority 0 pass left behind explaining why each
+block went, and reports 15 files that no longer have one.
 
 189 unmigrated files is why this is opportunistic and not a project. At the pace
 of normal feature work it closes over months, and no single PR is ever large
@@ -246,19 +253,36 @@ enough to be risky.
 
 ## §4 The rollout
 
-### Priority 0 — delete the `prefers-color-scheme` blocks (15 files)
+### Priority 0 — delete the `prefers-color-scheme` blocks ✅ **done 2026-08-30**
 
-These are not "not yet migrated", they are **actively wrong**: they fire against
-the app's own theme. Do these on sight, regardless of what else you are touching.
+These were not "not yet migrated", they were **actively wrong**: they fired
+against the app's own theme. All of them are now gone.
 
-`ArchitectureTabsPanel` · `ChainViewMenu` · `DemoTrackBand` · `GroupMembershipToggle`
-· `JSONViewer` · `LoadingOverlay` (×2) · `MissingCredentialsModal` ·
-`PolicyConformancePanel` · `StepDetailPanel` · `TokenCardGrid` ·
-`TokenChainFilmstrip` · `TokenChainNodeRail` · `TransactionTracePage` ·
-`UnifiedTokenFlowInspector` · `agentStudioPreview` (×2)
+Two remain and are exempt, as their own comments say — `AgentGuardrailsDiagram`
+and `AgentOnboardingFlowDiagram` intend to follow the OS. Leave them. **Any
+other `@media (prefers-color-scheme)` is a regression**, so it stays a
+do-on-sight rule rather than a finished list.
 
-Two are exempt and say so in their own comments — `AgentGuardrailsDiagram` and
-`AgentOnboardingFlowDiagram` intend to follow the OS. Leave them.
+How the ten files were resolved, because the right answer was not the same in
+each and the reasoning is reusable:
+
+| Resolution | Files | Why |
+|---|---|---|
+| Literals → `--th-*`, block deleted | `ArchitectureTabsPanel` `PolicyConformancePanel` `TokenCardGrid` `TransactionTracePage` | §1.2. Each block re-stated the same **undefined** `--app-*` var with a dark fallback, so both branches were only ever literals. |
+| Rebound to `:root[data-theme="dark"]` | `agentStudioPreview` (×2) `JSONViewer` `LoadingOverlay` (×2) `GroupMembershipToggle` | Component-local palettes (`--asp-*`) and syntax accents, which §1.3 and §2 keep literal. Only the trigger was wrong. |
+| Deleted outright | `MissingCredentialsModal` `UnifiedTokenFlowInspector` | The modal renders on `DraggableModal`'s `.dm-panel`, which is `#ffffff` in **every** theme by design — dark controls there were islands on white. The inspector's block was already commented out. |
+
+Two traps worth knowing before you rebind one:
+
+- **`:root[data-theme="dark"] .x` outranks a bare `.x`.** Inside `@media` the
+  selector kept its original specificity and won on source order; prefixed, it
+  wins outright. `LoadingOverlay`'s always-dark `.lo-card--dark` depended on
+  exactly that source-order tie, so the rebound rule carries
+  `:not(.lo-card--dark)` to stay out of its way.
+- **Check whether the block is already dead.** Over half of
+  `GroupMembershipToggle`'s was: `--th-*` rules at the foot of the file already
+  re-stated those selectors at equal specificity and later source order, so the
+  media block had not applied for some time.
 
 ### Priority 1 — the page you are already editing
 

@@ -97,26 +97,31 @@
   text-align: center;
 }
 
-/* Dark-mode aware */
-@media (prefers-color-scheme: dark) {
-  .lo-card {
-    background: var(--brand-dark-gray);
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
-  }
-  .lo-message {
-    color: var(--brand-light-gray);
-  }
-  .lo-sub {
-    color: #94a3b8;
-  }
-  .lo-spinner {
-    border-color: var(--brand-dark-gray);
-    border-top-color: var(--brand-navy-light);
-  }
-  .lo-endpoint {
-    background: #1e3a5f;
-    color: #93c5fd;
-  }
+/* Theme-aware. Was @media (prefers-color-scheme: dark), which fired on the OS
+   setting rather than the app's own theme (THEMING.md §4 Priority 0).
+   `.lo-card` carries :not(.lo-card--dark) deliberately — see the always-dark
+   card at the foot of this file, which used to win on "equal specificity, later
+   source order". A :root[data-theme] prefix outranks a bare class, so without
+   the :not() this rule would start overriding .lo-card--dark's background and
+   quietly undo it. The other selectors here need no such guard: .lo-card--dark
+   re-states each of them with identical values. */
+:root[data-theme="dark"] .lo-card:not(.lo-card--dark) {
+  background: var(--brand-dark-gray);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+}
+:root[data-theme="dark"] .lo-message {
+  color: var(--brand-light-gray);
+}
+:root[data-theme="dark"] .lo-sub {
+  color: #94a3b8;
+}
+:root[data-theme="dark"] .lo-spinner {
+  border-color: var(--brand-dark-gray);
+  border-top-color: var(--brand-navy-light);
+}
+:root[data-theme="dark"] .lo-endpoint {
+  background: #1e3a5f;
+  color: #93c5fd;
 }
 
 /* ── Activity feed (Phase 162) ─────────────────────────────────────────── */
@@ -191,28 +196,30 @@
   border-radius: 2px;
 }
 
-/* Dark-mode overrides for activity feed */
-@media (prefers-color-scheme: dark) {
-  .lo-activity-feed {
-    border-top-color: rgba(255, 255, 255, 0.1);
-  }
-  .lo-activity-line {
-    color: rgba(255, 255, 255, 0.85);
-  }
-  .lo-activity-time {
-    color: rgba(255, 255, 255, 0.5);
-  }
-  .lo-activity-feed::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.15);
-  }
+/* Dark-theme overrides for activity feed — same rebind as above. Each value is
+   identical to the .lo-card--dark equivalent at the foot of the file, so the
+   specificity change is inert here. */
+:root[data-theme="dark"] .lo-activity-feed {
+  border-top-color: rgba(255, 255, 255, 0.1);
+}
+:root[data-theme="dark"] .lo-activity-line {
+  color: rgba(255, 255, 255, 0.85);
+}
+:root[data-theme="dark"] .lo-activity-time {
+  color: rgba(255, 255, 255, 0.5);
+}
+:root[data-theme="dark"] .lo-activity-feed::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
 }
 
 /* ── Always-dark card ──────────────────────────────────────────────────── *
  * Applied by SpinnerHost for the BusySpinner dial so the luminous (dark-theme)
  * spinner reads against a dark panel regardless of OS color scheme. A deep
  * slate panel sits above the slate backdrop; the dial's near-black face and
- * navy glow read cleanly on it. Defined last so it wins over the .lo-card and
- * prefers-color-scheme rules above (equal specificity, later source order). */
+ * navy glow read cleanly on it. It no longer relies on source order to win: the
+ * dark rules above are now :root[data-theme="dark"]-prefixed, which outranks a
+ * bare class, so the one rule that would have collided excludes this card by
+ * :not(.lo-card--dark) instead. */
 .lo-card--dark {
   background: #16202e;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);

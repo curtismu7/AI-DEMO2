@@ -252,30 +252,25 @@
   font-size: 0.88rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  .gmt-panel {
-    background: #171b24;
-    border-color: #39404f;
-    color: #f0f2f6;
-  }
-  .gmt-facts dt,
-  .gmt-note,
-  .gmt-error-detail { color: #c3c9d6; }
-  .gmt-facts dd { color: #f0f2f6; }
-  /* .gmt-modal* is deliberately NOT lightened here. DraggableModal paints its
-     body var(--modal-body-bg, #ffffff) and has no dark-scheme rule, so the
-     modal surface is white in every scheme. Lightening the text put near-white
-     on white and made the body unreadable — REGRESSION_PLAN section 0 forbids
-     low-contrast modal text. The state chips below keep their dark variants
-     because each sets a background alongside its colour. */
-  .gmt-state--in { background: #17512f; border-color: #4caf7d; color: #d6f2e1; }
-  .gmt-state--out { background: #5c1611; border-color: #e5716a; color: #ffd9d6; }
-  .gmt-modal-state--in { background: #17512f; border-color: #4caf7d; color: #d6f2e1; }
-  .gmt-modal-state--out { background: #5c1611; border-color: #e5716a; color: #ffd9d6; }
-  .gmt-modal-warn { background: #4a3200; border-color: #d99b2b; color: #ffe6b8; }
-  .gmt-retry { background: #171b24; border-color: #6f9bec; color: #a9c6f7; }
-  .gmt-inline-error { color: #ffb3ae; }
-}
+/* Was @media (prefers-color-scheme: dark), which fired on the OS setting rather
+   than the app's own theme (THEMING.md §4 Priority 0). Most of what it declared
+   was already dead: the --th-* rules at the foot of this file re-state .gmt-panel,
+   .gmt-facts dt/dd, .gmt-note, .gmt-error-detail and .gmt-retry at equal
+   specificity and later source order, so they won regardless of the OS. Only the
+   rules below still contributed anything, and they now key off the attribute
+   ThemeProvider writes.
+
+   .gmt-modal* text stays un-lightened for the same reason as before: DraggableModal
+   paints its body var(--modal-body-bg, #ffffff) with no dark rule, so the modal
+   surface is white in every theme, and lightening the text put near-white on white
+   (REGRESSION_PLAN §0 forbids low-contrast modal text). The state chips keep their
+   dark variants because each sets a background alongside its colour. */
+:root[data-theme="dark"] .gmt-state--in { background: #17512f; border-color: #4caf7d; color: #d6f2e1; }
+:root[data-theme="dark"] .gmt-state--out { background: #5c1611; border-color: #e5716a; color: #ffd9d6; }
+:root[data-theme="dark"] .gmt-modal-state--in { background: #17512f; border-color: #4caf7d; color: #d6f2e1; }
+:root[data-theme="dark"] .gmt-modal-state--out { background: #5c1611; border-color: #e5716a; color: #ffd9d6; }
+:root[data-theme="dark"] .gmt-modal-warn { background: #4a3200; border-color: #d99b2b; color: #ffe6b8; }
+:root[data-theme="dark"] .gmt-inline-error { color: #ffb3ae; }
 
 /* The application theme is controlled by ThemeContext, not the OS preference. */
 .gmt-panel { max-width: 760px; background: var(--th-bg-card); border-color: var(--th-border); color: var(--th-text); box-shadow: 0 4px 18px rgb(15 23 42 / 8%); }

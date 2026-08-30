@@ -30,26 +30,24 @@
   min-height: 100%;
 }
 
-@media (prefers-color-scheme: dark) {
-  .asp-root {
-    --asp-bg: #1a1610;
-    --asp-panel: #231d14;
-    --asp-panel-2: #2b2318;
-    --asp-border: #3a3120;
-    --asp-ink: #f3ead4;
-    --asp-ink-2: #c9bb92;
-    --asp-ink-3: #8d8262;
-    --asp-accent: #e8ae3d;
-    --asp-accent-ink: #241a06;
-    --asp-accent-wash: #332809;
-    --asp-good: #9fd06c;
-    --asp-good-fill: #1f2914;
-    --asp-good-border: #3d4d26;
-    --asp-bad: #f19a70;
-    --asp-bad-fill: #2c1a10;
-    --asp-bad-border: #5a3320;
-    --asp-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 8px 30px rgba(0, 0, 0, 0.32);
-  }
+:root[data-theme="dark"] .asp-root {
+  --asp-bg: #1a1610;
+  --asp-panel: #231d14;
+  --asp-panel-2: #2b2318;
+  --asp-border: #3a3120;
+  --asp-ink: #f3ead4;
+  --asp-ink-2: #c9bb92;
+  --asp-ink-3: #8d8262;
+  --asp-accent: #e8ae3d;
+  --asp-accent-ink: #241a06;
+  --asp-accent-wash: #332809;
+  --asp-good: #9fd06c;
+  --asp-good-fill: #1f2914;
+  --asp-good-border: #3d4d26;
+  --asp-bad: #f19a70;
+  --asp-bad-fill: #2c1a10;
+  --asp-bad-border: #5a3320;
+  --asp-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 8px 30px rgba(0, 0, 0, 0.32);
 }
 
 /* Discovery Preview — cool teal (vs warm amber Agent Studio). Strong
@@ -94,38 +92,36 @@
   border-radius: 6px;
 }
 
-@media (prefers-color-scheme: dark) {
-  .asp-root.asp-root--discovery {
-    --asp-bg: #0c171a;
-    --asp-panel: #142327;
-    --asp-panel-2: #1a3036;
-    --asp-border: #2f4f58;
-    --asp-ink: #e4f0f3;
-    --asp-ink-2: #a8c0c8;
-    --asp-ink-3: #6f8890;
-    --asp-accent: #3ec3d4;
-    --asp-accent-ink: #061316;
-    --asp-accent-wash: #143640;
-    --asp-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 8px 30px rgba(0, 0, 0, 0.32);
-    border-top-color: #3ec3d4;
-    background:
-      linear-gradient(90deg, #3ec3d4 0, #3ec3d4 10px, transparent 10px),
-      var(--asp-bg);
-  }
+:root[data-theme="dark"] .asp-root.asp-root--discovery {
+  --asp-bg: #0c171a;
+  --asp-panel: #142327;
+  --asp-panel-2: #1a3036;
+  --asp-border: #2f4f58;
+  --asp-ink: #e4f0f3;
+  --asp-ink-2: #a8c0c8;
+  --asp-ink-3: #6f8890;
+  --asp-accent: #3ec3d4;
+  --asp-accent-ink: #061316;
+  --asp-accent-wash: #143640;
+  --asp-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 8px 30px rgba(0, 0, 0, 0.32);
+  border-top-color: #3ec3d4;
+  background:
+    linear-gradient(90deg, #3ec3d4 0, #3ec3d4 10px, transparent 10px),
+    var(--asp-bg);
+}
 
-  .asp-root.asp-root--discovery .asp-banner {
-    background: #1a5560;
-    color: #e4f0f3;
-  }
+:root[data-theme="dark"] .asp-root.asp-root--discovery .asp-banner {
+  background: #1a5560;
+  color: #e4f0f3;
+}
 
-  .asp-root.asp-root--discovery .asp-banner a {
-    color: #e4f0f3;
-  }
+:root[data-theme="dark"] .asp-root.asp-root--discovery .asp-banner a {
+  color: #e4f0f3;
+}
 
-  .asp-root.asp-root--discovery .asp-eyebrow {
-    background: #1a5560;
-    color: #e4f0f3;
-  }
+:root[data-theme="dark"] .asp-root.asp-root--discovery .asp-eyebrow {
+  background: #1a5560;
+  color: #e4f0f3;
 }
 
 .asp-page {
