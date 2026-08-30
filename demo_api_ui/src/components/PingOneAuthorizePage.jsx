@@ -900,7 +900,9 @@ export default function PingOneAuthorizePage() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await bffAxios.get('/api/authorize/pingone-policies');
+        // _noAuthBanner: a 401 here is answered inline by the SignInPrompt below
+        // (setNeedsLogin), so the global SignInModal interrupt must stay out of it.
+        const res = await bffAxios.get('/api/authorize/pingone-policies', { _noAuthBanner: true });
         if (!cancelled) setPoliciesState({ policies: res.data?.policies || [], loading: false, error: null, note: res.data?.note || null });
       } catch (e) {
         if (cancelled) return;
@@ -914,7 +916,8 @@ export default function PingOneAuthorizePage() {
   const load = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const res = await bffAxios.get('/api/authorize/pingone-live-policy');
+      // _noAuthBanner: same as above — this 401 renders the inline prompt, not the modal.
+      const res = await bffAxios.get('/api/authorize/pingone-live-policy', { _noAuthBanner: true });
       setData(res.data);
       // Default selection: configured transaction endpoint, else first endpoint.
       const eps = res.data?.endpoints || [];
