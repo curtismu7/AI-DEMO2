@@ -1,0 +1,210 @@
+/* P1AZ-specific clean design styles
+   Uses semantic --th-* tokens from THEMING.md
+   Extends base .inspector-clean-* classes from McpInspectorPage.clean.css */
+
+/* Status bar */
+.p1az-clean-statusbar {
+  background: var(--th-bg-inset);
+  border-bottom: 1px solid var(--th-border);
+  padding: 8px 16px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  font-size: 12px;
+}
+
+.p1az-clean-statusbar-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.p1az-clean-statusbar-badge {
+  background: #10b981;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-weight: 600;
+  font-size: 10px;
+}
+
+.p1az-clean-statusbar-button {
+  padding: 4px 10px;
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  transition: all 0.2s;
+}
+
+.p1az-clean-statusbar-button:hover {
+  border-color: #0ea5e9;
+}
+
+/* Endpoint bar */
+.p1az-clean-endpointbar {
+  background: var(--th-bg-card);
+  border-bottom: 1px solid var(--th-border);
+  padding: 12px 16px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.p1az-clean-recording-status {
+  padding: 6px 12px;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #78350f;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Verdict cards */
+.p1az-clean-verdict {
+  padding: 16px;
+  border-radius: 6px;
+  border: 1px solid var(--th-border);
+  background: var(--th-bg-inset);
+  overflow-y: auto;
+}
+
+.p1az-clean-verdict-label {
+  font-size: 11px;
+  color: var(--th-text-muted);
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.p1az-clean-verdict-value {
+  font-size: 24px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  margin-bottom: 12px;
+}
+
+.p1az-clean-verdict-detail {
+  font-size: 12px;
+  color: var(--th-text-body);
+  line-height: 1.6;
+}
+
+/* Diff table */
+.p1az-clean-diff {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 12px;
+}
+
+.p1az-clean-diff-row {
+  border-bottom: 1px solid var(--th-border);
+}
+
+.p1az-clean-diff-row td {
+  padding: 8px;
+}
+
+.p1az-clean-diff-row--changed {
+  background: rgba(14, 165, 233, 0.05);
+}
+
+.p1az-clean-diff-label {
+  color: var(--th-text-muted);
+  font-weight: 500;
+  width: 120px;
+}
+
+.p1az-clean-diff-value-old {
+  color: #dc2626;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.p1az-clean-diff-value-new {
+  color: #059669;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Card container */
+.p1az-clean-card {
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-radius: 6px;
+  padding: 16px;
+  margin-top: 12px;
+}
+
+.p1az-clean-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: var(--th-text);
+}
+
+.p1az-clean-card-table {
+  width: 100%;
+  font-size: 11px;
+  border-collapse: collapse;
+}
+
+.p1az-clean-card-table th {
+  text-align: left;
+  padding: 8px;
+  border-bottom: 1px solid var(--th-border);
+  color: var(--th-text-muted);
+  font-weight: 600;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.p1az-clean-card-table td {
+  padding: 8px;
+  border-bottom: 1px solid var(--th-border);
+  color: var(--th-text-body);
+}
+
+/* Curl button */
+.p1az-clean-curl-btn {
+  padding: 6px 12px;
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 8px;
+}
+
+.p1az-clean-curl-btn:hover {
+  border-color: #0ea5e9;
+  background: var(--th-bg-hover);
+}
+
+/* Test buttons */
+.p1az-clean-testbtn {
+  display: inline-block;
+  padding: 2px 8px;
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
+  border-radius: 3px;
+  font-size: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 4px;
+}
+
+.p1az-clean-testbtn:hover {
+  border-color: #0ea5e9;
+}
+
+.p1az-clean-testbtn--trigger {
+  color: #059669;
+}
+
+.p1az-clean-testbtn--avoid {
+  color: #dc2626;
+}
