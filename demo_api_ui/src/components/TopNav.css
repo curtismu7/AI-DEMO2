@@ -564,13 +564,19 @@
   white-space: nowrap;
 }
 
+/* blue-300 on the nav's #1d4ed8 measured 3.72:1 — under the 4.5 floor. blue-200
+   is 4.72. Found while fixing the expired label below; same ground, same bug. */
 .topnav-token-pill__view-btn:hover {
-  color: #93c5fd;
+  color: #bfdbfe;
 }
 
+/* Sits on the top nav's fixed blue gradient (#1d4ed8), which does not flip, so
+   the ink stays literal (§1.3) — but it has to be light enough to read there.
+   red-400 measured 2.42:1; red-200 is 4.63. The -200 shades are what clears the
+   floor on this ground, which is why the sibling above moved to blue-200 too. */
 .topnav-token-pill__expired-label {
   font-size: var(--font-size-2xs);
-  color: #f87171;
+  color: #fecaca;
   font-weight: 600;
 }
 
