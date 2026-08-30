@@ -34,6 +34,7 @@ import UnifiedConfigurationPage from "../components/Configuration/UnifiedConfigu
 import UseCaseLauncherPage from "../pages/UseCaseLauncherPage";
 import TokenExchangeTesterPage from "../pages/TokenExchangeTesterPage";
 import McpInspectorPage from "../components/McpInspectorPage";
+import McpGatewayConfig from "../components/McpGatewayConfig";
 import AgentGatewayInspectorClean from "../components/AgentGatewayInspectorClean";
 import SdkLoginPage from "../pages/SdkLoginPage";
 import SdkLoginCallback from "../pages/SdkLoginCallback";

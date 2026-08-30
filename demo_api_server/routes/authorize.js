@@ -691,7 +691,7 @@ router.get('/pingone-live-policy', authenticateToken, async (_req, res) => {
  * policy that decision endpoints enforce — distinct from the endpoints
  * themselves. Read-only; any authenticated user.
  */
-router.get('/pingone-policies', authenticateToken, async (_req, res) => {
+router.get('/pingone-policies', async (_req, res) => {
   const environmentId = configStore.getEffective('pingone_environment_id') || null;
 
   // Prefer the repo snapshot first. PingOne's policy-editor API rejects worker
