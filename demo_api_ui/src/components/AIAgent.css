@@ -56,10 +56,14 @@ body > .banking-agent-float-root .banking-agent-panel {
   height: 52px;
   padding: 0 22px 0 18px;
   border-radius: 26px;
+  /* H1: tokenized ground, literal ink — brand blue on the dark card measured
+     3.29:1. --th-status-info-text is #1e40af light / #93c5fd dark and clears
+     4.5:1 on both, so no dark block is needed. The `color: #fff` that used to
+     sit below was dead: `color: #2563eb !important` in this same block already
+     won, so it never applied in any theme. */
   background: var(--th-bg-card) !important;
-  color: #2563eb !important;
-  border: 1.5px solid #2563eb !important;
-  color: #fff;
+  color: var(--th-status-info-text) !important;
+  border: 1.5px solid var(--th-status-info) !important;
   font-size: var(--font-size-body);
   font-weight: 700;
   letter-spacing: 0.01em;
