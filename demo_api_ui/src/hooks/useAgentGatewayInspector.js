@@ -26,6 +26,10 @@ export function useAgentGatewayInspector({ gatewayId } = {}) {
   const [invocationHistory, setInvocationHistory] = useState([]);
   const [activeReelId, setActiveReelId] = useState(null);
 
+  // Policy selection
+  const [availablePolicies, setAvailablePolicies] = useState([]);
+  const [selectedPolicy, setSelectedPolicy] = useState('');
+
   // Fetch capabilities when gateway changes
   useEffect(() => {
     if (!selectedGateway) {
@@ -44,6 +48,27 @@ export function useAgentGatewayInspector({ gatewayId } = {}) {
       }
     })();
   }, [selectedGateway]);
+
+  // Fetch policies on mount
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await bffAxios.get('/api/authorize/pingone-policies');
+        if (!cancelled) {
+          const policies = data.policies || [];
+          setAvailablePolicies(policies);
+          if (policies.length > 0) {
+            setSelectedPolicy((prev) => prev || (policies[0].id || policies[0].name || ''));
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch policies:', err);
+        setAvailablePolicies([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   // Toggle capability filter
   const toggleCapability = useCallback((toolName) => {
@@ -68,9 +93,10 @@ export function useAgentGatewayInspector({ gatewayId } = {}) {
       tool: selectedTool,
       parameters,
       isChainMode,
+      policyId: selectedPolicy || undefined,
       timestamp: new Date().toISOString(),
     };
-  }, [selectedGateway, selectedTool, parameters, isChainMode]);
+  }, [selectedGateway, selectedTool, parameters, isChainMode, selectedPolicy]);
 
   // Execute tool invocation
   const run = useCallback(async () => {
@@ -140,6 +166,11 @@ export function useAgentGatewayInspector({ gatewayId } = {}) {
     parameters,
     setParameters,
     updateParameter,
+
+    // Policy selection
+    availablePolicies,
+    selectedPolicy,
+    setSelectedPolicy,
 
     // Execution
     running,
