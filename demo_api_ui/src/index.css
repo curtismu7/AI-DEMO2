@@ -278,6 +278,14 @@ textarea {
   --th-border: #dbe2ea;
   --th-border-strong: #c3cdd9;
   --th-bg-hover: #eef2f7;
+  /* Emphasis fill for the one button in a row that leads the group.
+     MUST be declared per theme: a single value cannot work in both. The
+     band navy reads 12.8:1 against white siblings in light but only
+     1.15:1 against the dark surface, and the per-vertical brand accents
+     are worse still (airlines #002244 = 1.06:1 dark, retail #FFE000 =
+     1.32:1 light). Measured 2026-08-29. */
+  --th-bg-emphasis: #16325c;
+  --th-text-on-emphasis: #ffffff;
 
   /* ── The --color-* family, finally defined ────────────────────────────
      24 of these were referenced 225 times across 14 files and declared
@@ -374,6 +382,8 @@ textarea {
   --th-border: #26304a;
   --th-border-strong: #34405e;
   --th-bg-hover: #1b2540;
+  --th-bg-emphasis: #93c5fd;
+  --th-text-on-emphasis: #0f172a;
   --th-code-bg: #0b1220;
   --th-code-text: #e2e8f0;
 

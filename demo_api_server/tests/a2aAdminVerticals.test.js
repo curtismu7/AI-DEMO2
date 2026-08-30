@@ -141,9 +141,17 @@ describe('un-fakeable #2 — an ordinary read cannot answer the chip', () => {
     },
   );
 
+  // demoDelegate USED to be the negative case here. #2616 deliberately added it
+  // to the privileged category so the admin A2A delegation demo can run, which
+  // made the old assertion contradict the manifest. Retargeting the negative at
+  // some unlisted name would be worse than useless: _manifestGroupsForUser
+  // returns [] for ANY username with no membership entry, so that assertion
+  // passes even if group policy were deleted outright. Assert both directions
+  // instead — the mapping resolves for a member, and it still discriminates.
   it.each(cases)('%s: the tool is group-gated on top of that', (vertical, c) => {
     expect(groupPolicy.requiredGroupForTool(c.tool, vertical)).toBe(c.group);
-    expect(groupPolicy.groupsForUserSync('demoDelegate', vertical)).not.toContain(c.group);
+    expect(groupPolicy.groupsForUserSync('demoDelegate', vertical)).toContain(c.group);
+    expect(groupPolicy.groupsForUserSync('notAMember', vertical)).not.toContain(c.group);
   });
 });
 

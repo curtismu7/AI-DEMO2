@@ -27,8 +27,8 @@ describe('groupPolicy', () => {
       // Healthcare_Privileged, … 11 names for one concept). They are now a single
       // generic group so a demo does not have to manage 11 memberships. This is
       // behaviour-preserving: demoUser/demoAdmin were already privileged in every
-      // vertical and demoDelegate in none. The per-vertical part that still
-      // matters is WHICH TOOL is gated, which restrictedTools still declares.
+      // vertical (as, since #2616, is demoDelegate). The per-vertical part that
+      // still matters is WHICH TOOL is gated, which restrictedTools still declares.
       expect(groupPolicy.requiredGroupForTool('sensitive_patient_records', 'healthcare'))
         .toBe('AI_Demo_Privileged');
       expect(groupPolicy.requiredGroupForTool('sensitive_tax_record', 'government'))
@@ -82,8 +82,14 @@ describe('groupPolicy', () => {
       expect(groupPolicy.groupsForUserSync('demoDelegate', 'banking')).toContain('AI_Demo_Delegates');
     });
 
-    it('returns empty for demoDelegate in healthcare (deny demo)', () => {
-      expect(groupPolicy.groupsForUserSync('demoDelegate', 'healthcare')).toEqual([]);
+    // This asserted [] until #2616 ("add demoDelegate to privileged group for A2A
+    // delegation") added the membership to all 11 verticals: a specialist agent
+    // acts under the demoDelegate principal, so it needs the same group as a
+    // regular user to clear the policy check. The deny demo this used to pin now
+    // belongs to a principal that really is unlisted — covered directly below.
+    it('returns the privileged group for demoDelegate in healthcare (#2616)', () => {
+      expect(groupPolicy.groupsForUserSync('demoDelegate', 'healthcare'))
+        .toContain('AI_Demo_Privileged');
     });
 
     it('returns empty for unknown user', () => {
