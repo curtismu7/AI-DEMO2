@@ -74,6 +74,8 @@ export default function PrivilegeMcpClientPage() {
   const [gatewayConfigs, setGatewayConfigs] = useState({ agent: {}, agentless: {} });
   const [presets, setPresets] = useState([]);
   const [gatewayStateLoaded, setGatewayStateLoaded] = useState(false);
+  const [policies, setPolicies] = useState([]);
+  const [selectedPolicy, setSelectedPolicy] = useState('');
   // Gateway switch in flight (agent <-> agentless). The sessionStorage flag lets
   // the overlay survive the OAuth redirect and show again from first paint on
   // the ?auth=success return, until tools are rediscovered from the new gateway.
@@ -269,6 +271,22 @@ export default function PrivilegeMcpClientPage() {
     }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!authenticated || !config?.mcpUrl) return;
+    fetch('https://console.privilege.pingone.com/api/01d89b06-66d5-430e-9f28-65636843788b/v1/pacpolicys', {
+      credentials: 'include',
+    })
+      .then(r => r.json())
+      .then((data) => {
+        const policyList = Array.isArray(data.policies) ? data.policies : [];
+        setPolicies(policyList);
+        if (policyList.length > 0 && !selectedPolicy) {
+          setSelectedPolicy(policyList[0].id);
+        }
+      })
+      .catch(() => {});
+  }, [authenticated, config?.mcpUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const es = new EventSource(`${API_BASE}/events`, { withCredentials: true });
@@ -950,6 +968,20 @@ export default function PrivilegeMcpClientPage() {
             <span className="cur-status-dot" />
             {(authenticated || mainAppAuthenticated) ? 'Connected' : 'Disconnected'}
           </div>
+          {policies.length > 0 && (
+            <label className="cur-policy-selector">
+              <span>Policy</span>
+              <select
+                aria-label="Privilege policy selection"
+                value={selectedPolicy}
+                onChange={(e) => setSelectedPolicy(e.target.value)}
+              >
+                {policies.map(p => (
+                  <option key={p.id} value={p.id}>{p.displayName || p.name || p.id}</option>
+                ))}
+              </select>
+            </label>
+          )}
         </div>
         <div className="cur-titlebar-right">
           <label className="cur-mode-switcher">
