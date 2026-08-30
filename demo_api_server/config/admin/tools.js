@@ -21,10 +21,13 @@ async function buildAdminToolSchemas() {
  * Execute a wrapper tool (list_pingone_tools / call_pingone_tool / demo
  * stubs). Returns a JSON-stringified result string (runReasonLoop contract).
  */
-async function executeAdminTool(name, args) {
+async function executeAdminTool(name, args, ctx) {
   const { execute } = require('../verticals/pingone-admin/tools');
   try {
-    const { result } = await execute(name, args || {}, {});
+    // ctx carries req so the hosted PingOne MCP call can reach the delegated
+    // PKCE token in session. Without it the adapter throws
+    // pingone_mcp_auth_required — there is no worker-token fallback.
+    const { result } = await execute(name, args || {}, ctx || {});
     return JSON.stringify(result);
   } catch (err) {
     console.error('[executeAdminTool] Error calling tool %s: %s', name, err.message);
