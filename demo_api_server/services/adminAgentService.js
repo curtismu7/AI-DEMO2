@@ -162,7 +162,7 @@ async function processAdminMessage({ message, userId, sessionId, tokenEvents = [
           (parsed.action === 'call_pingone_tool' || parsed.action === 'list_pingone_tools')
         ) {
           const startedAt = Date.now();
-          const raw = await executeAdminTool(parsed.action, parsed.params || {});
+          const raw = await executeAdminTool(parsed.action, parsed.params || {}, { req });
           // Same Token Chain step the LLM loop records — a heuristic-routed
           // call must be exactly as visible in the rail as a model-routed one.
           const stepError = recordAdminToolStep(
@@ -249,7 +249,7 @@ async function processAdminMessage({ message, userId, sessionId, tokenEvents = [
       executeTool: async (name, args) => {
         const startedAt = Date.now();
         try {
-          const result = await executeAdminTool(name, args);
+          const result = await executeAdminTool(name, args, { req });
           // Step recording (success or resolved-error failure) is shared with
           // the heuristic-first path — see recordAdminToolStep.
           recordAdminToolStep(tokenEvents, name, args, result, startedAt);

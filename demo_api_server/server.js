@@ -1825,7 +1825,9 @@ const pingoneAdminToolMatcher = {
     has(tool) {
         const live = mcpPingOneHttpAdapter.getCachedToolNames();
         if (live) return live.has(tool);
-        mcpPingOneHttpAdapter.listTools().catch(() => {}); // best-effort background warm
+        // No background warm: listTools() now requires a delegated PKCE token and
+        // this matcher has no session. The cache fills on the first real
+        // signed-in call; until then the fallback set answers.
         return PINGONE_ADMIN_TOOLS_FALLBACK.has(tool);
     },
 };
@@ -2691,13 +2693,12 @@ async function runBackgroundStartupTasks() {
         .catch((err) => console.warn('[authz-warmup] boot warm error (non-fatal):', err.message));
 
     // ── PingOne admin-tool list warmup ────────────────────────────────────────
-    // Populate the hosted PingOne MCP server's tools/list cache now so the dynamic
-    // routing matcher (pingoneAdminToolMatcher) sees the full live tool set on the
-    // very first admin-tool call instead of the cold-start fallback. Fire-and-forget:
-    // on failure the matcher falls back to the stable core set and self-heals later.
-    mcpPingOneHttpAdapter.listTools()
-        .then((t) => console.log('[pingone-admin-tools] warm: %d tools', Array.isArray(t) ? t.length : 0))
-        .catch((err) => console.warn('[pingone-admin-tools] warm error (non-fatal):', err.message));
+    // No startup warm of the hosted PingOne MCP tools/list. That server takes a
+    // DELEGATED PKCE token tied to a signed-in user, and there is no session at
+    // boot — the old warm call sent a worker token and was answered 401 every
+    // time, so the "warm" only ever logged an error. The matcher below uses the
+    // stable fallback set until a signed-in admin makes the first real call,
+    // which fills the cache. See services/mcpPingOneHttpAdapter.js.
 
     // ── Live connectivity probes ──────────────────────────────────────────────
     // MCP Gateway health check + P1AZ decision endpoint existence check.

@@ -77,7 +77,7 @@ test('call_pingone_tool listUsers parses MCP envelope and summarizes live data',
   adapter.callTool.mockResolvedValue(mcpJson({ _embedded: { users: [{ id: 'u1' }, { id: 'u2' }] } }));
   const { result, render } = await plugin.executeTool('call_pingone_tool', { name: 'listUsers' }, {});
   expect(render).toBe('call_pingone_tool');
-  expect(adapter.callTool).toHaveBeenCalledWith('listUsers', {});
+  expect(adapter.callTool).toHaveBeenCalledWith('listUsers', {}, null);
   expect(result.tool).toBe('listUsers');
   expect(result.responseSummary).toBe('2 users found');
   expect(result.source).toBe('live — hosted PingOne MCP');
@@ -121,7 +121,7 @@ test('call_pingone_tool listUsers normalizes prefix filters and uses the Managem
   expect(adapter.callTool).toHaveBeenCalledWith('listUsers', {
     filter: 'username sw "curtis"',
     limit: 25,
-  });
+  }, null);
   expect(pingOneUserService.makeRequest).toHaveBeenCalledWith(
     'GET',
     '/users?filter=username+sw+%22curtis%22&limit=25',
@@ -188,7 +188,7 @@ test('call_pingone_tool renders a JSON-RPC (validation) error as a live response
 test('call_pingone_tool createUser passes through to adapter', async () => {
   adapter.callTool.mockResolvedValue(mcpJson({ id: 'u-9', username: 'demo.user.123456' }));
   const { result } = await plugin.executeTool('call_pingone_tool', { name: 'createUser', arguments: { username: 'test' } }, {});
-  expect(adapter.callTool).toHaveBeenCalledWith('createUser', { username: 'test' });
+  expect(adapter.callTool).toHaveBeenCalledWith('createUser', { username: 'test' }, null);
   expect(result.source).toBe('live — hosted PingOne MCP');
 });
 
