@@ -18,7 +18,10 @@ const path = require('path');
 const crypto = require('crypto');
 const { execFileSync } = require('child_process');
 
-const ROOT = '/Users/cmuir/Development/AI-DEMO2';
+// Resolved from this file's own location (scripts/ lives at the repo root), so
+// the audit runs on any clone. A hardcoded path fails the fresh-clone contract
+// in NEW-MACHINE.md.
+const ROOT = path.resolve(__dirname, '..');
 const BFF = path.join(ROOT, 'demo_api_server');
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
