@@ -185,12 +185,46 @@ derive_ns() {
   [[ -n "${PING_EMAIL:-}" ]] && email="$(sanitize_ping_email "$PING_EMAIL")"
   [[ -z "$email" && -f "$BASEDIR/demo_api_server/.env" ]] && \
     email="$(sanitize_ping_email "$(grep -E '^PING_EMAIL=' "$BASEDIR/demo_api_server/.env" 2>/dev/null | cut -d= -f2- || true)")"
+  # The .env fallback above cannot work from a worktree — .env is gitignored, so
+  # a worktree never has one. Say that, rather than sending the reader off to set
+  # SE_NAMESPACE: that silences this error while leaving the REAL problem in
+  # place, which is that BASEDIR is the worktree and its code is what would ship
+  # to shared SE. See the guard below.
+  if [[ -z "$email" && "$BASEDIR" == *"/.claude/worktrees/"* ]]; then
+    die "Cannot derive namespace, and \$0 is running from a git worktree:
+    $BASEDIR
+  demo_api_server/.env is gitignored, so a worktree never has one and the
+  PING_EMAIL fallback has nothing to read.
+  Setting SE_NAMESPACE would silence this, but this script deploys the code in
+  its OWN directory — you would ship the worktree's code to shared SE.
+  Run it from the main checkout instead:
+    cd \"\$(git -C '$BASEDIR' rev-parse --path-format=absolute --git-common-dir | xargs dirname)\" && $0 $*"
+  fi
   [[ -z "$email" ]] && die "Cannot derive namespace — set SE_NAMESPACE=ping-devops-<you> or PING_EMAIL=you@pingidentity.com (@pingidentity.com only)"
   local slug; slug="$(echo "${email%%@*}" | tr -d '.' | tr '[:upper:]' '[:lower:]')"
   echo "ping-devops-${slug}"
 }
 
 NS="$(derive_ns)"
+
+# Deploying a worktree to SHARED SE is almost always a mistake, and it is a silent
+# one: this script ships whatever is in BASEDIR, so with SE_NAMESPACE set the
+# namespace error disappears and the worktree's code goes to
+# ai-demo.ping-devops.com looking like a normal deploy. Everyone else on the
+# cluster then sees a branch nobody merged.
+#
+# Refused rather than warned, because the warning arrives in the same scroll as
+# the deploy output and is read afterwards. SE_ALLOW_WORKTREE=1 for the genuine
+# case of putting a branch on SE on purpose.
+if [[ "$BASEDIR" == *"/.claude/worktrees/"* && "${SE_ALLOW_WORKTREE:-}" != "1" ]]; then
+  die "Refusing to deploy to SE from a git worktree:
+    $BASEDIR
+  This script deploys the code in its own directory, so this would ship the
+  worktree's code to shared SE ($NS) rather than main's.
+  Run it from the main checkout, or set SE_ALLOW_WORKTREE=1 if a branch on SE is
+  what you actually want."
+fi
+
 SERVICE="${1:-}"
 
 # ── Promote a CI-built SHA to :latest and roll ───────────────────────────────

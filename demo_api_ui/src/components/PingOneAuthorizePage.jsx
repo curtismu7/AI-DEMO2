@@ -1052,7 +1052,9 @@ export default function PingOneAuthorizePage() {
       )}
 
       {tab === 'console' && (needsLogin ? (
-        <SignInPrompt />
+        <div style={{ padding: '40px' }}>
+          <SignInPrompt message="The PingOne Authorize Live Policy Console needs a signed-in session." />
+        </div>
       ) : loading ? (
         <div style={{ padding: '40px', color: '#64748b', fontSize: '14px' }}>Loading PingOne Authorize configuration…</div>
       ) : (

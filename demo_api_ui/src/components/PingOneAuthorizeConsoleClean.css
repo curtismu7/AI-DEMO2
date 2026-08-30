@@ -11,6 +11,7 @@
   gap: 16px;
   align-items: center;
   font-size: 12px;
+  color: var(--th-text-body);
 }
 
 .p1az-clean-statusbar-item {
@@ -36,6 +37,7 @@
   cursor: pointer;
   font-size: 11px;
   transition: all 0.2s;
+  color: var(--th-text-body);
 }
 
 .p1az-clean-statusbar-button:hover {
@@ -50,15 +52,16 @@
   display: flex;
   gap: 12px;
   align-items: center;
+  color: var(--th-text-body);
 }
 
 .p1az-clean-recording-status {
   padding: 6px 12px;
-  background: #fef3c7;
-  border: 1px solid #fcd34d;
+  background: var(--th-status-warning-bg);
+  border: 1px solid var(--th-status-warning-border);
   border-radius: var(--radius-sm);
   font-size: 11px;
-  color: #78350f;
+  color: var(--th-status-warning-text);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -71,6 +74,7 @@
   border: 1px solid var(--th-border);
   background: var(--th-bg-inset);
   overflow-y: auto;
+  color: var(--th-text-body);
 }
 
 .p1az-clean-verdict-label {
@@ -99,10 +103,12 @@
   border-collapse: collapse;
   width: 100%;
   font-size: 12px;
+  color: var(--th-text-body);
 }
 
 .p1az-clean-diff-row {
   border-bottom: 1px solid var(--th-border);
+  color: var(--th-text-body);
 }
 
 .p1az-clean-diff-row td {
@@ -136,6 +142,7 @@
   border-radius: var(--radius-md);
   padding: 16px;
   margin-top: 12px;
+  color: var(--th-text-body);
 }
 
 .p1az-clean-card-title {
@@ -149,6 +156,7 @@
   width: 100%;
   font-size: 11px;
   border-collapse: collapse;
+  color: var(--th-text-body);
 }
 
 .p1az-clean-card-table th {
