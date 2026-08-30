@@ -33,7 +33,8 @@ import SetupWizard from "../components/SetupWizard";
 import UnifiedConfigurationPage from "../components/Configuration/UnifiedConfigurationPage";
 import UseCaseLauncherPage from "../pages/UseCaseLauncherPage";
 import TokenExchangeTesterPage from "../pages/TokenExchangeTesterPage";
-import McpInspectorPage from "../components/McpInspectorPage";
+import McpInspectorPageClean from "../components/McpInspectorPageClean";
+import PingOneMcpInspector from "../components/PingOneMcpInspector";
 import AgentGatewayInspectorClean from "../components/AgentGatewayInspectorClean";
 import SdkLoginPage from "../pages/SdkLoginPage";
 import SdkLoginCallback from "../pages/SdkLoginCallback";
@@ -335,7 +336,7 @@ export function TokenExchangeTesterPageRoute({ user, logout }) {
 export function McpInspectorPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
-      <McpInspectorPage />
+      <McpInspectorPageClean />
     </AppShell>
   );
 }

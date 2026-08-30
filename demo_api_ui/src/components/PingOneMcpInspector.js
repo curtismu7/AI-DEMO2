@@ -5,6 +5,7 @@ import apiClient from '../services/apiClient';
 import { notifyError } from '../utils/appToast';
 import { formatAxiosError } from '../utils/formatAxiosError';
 import JsonHighlight from './shared/JsonHighlight';
+import { useTheme } from '../context/ThemeContext';
 import './PingOneMcpInspector.css';
 
 /**
@@ -33,6 +34,7 @@ const groupKey = (name) => {
 const GROUP_ORDER = ['Environments', 'Users', 'Applications', 'Populations', 'DaVinci', 'Other'];
 
 const PingOneMcpInspector = ({ user, onLogout }) => {
+  const { darkMode, toggleDarkMode } = useTheme();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [toggling, setToggling] = useState(false);
@@ -150,6 +152,9 @@ const PingOneMcpInspector = ({ user, onLogout }) => {
             disabled={toggling}
           >
             {toggling ? 'Switching…' : enabled ? 'Live: ON' : 'Live: OFF'}
+          </button>
+          <button className="p1mcp-topbar__btn" onClick={toggleDarkMode} title="Toggle dark mode">
+            {darkMode ? 'Light' : 'Dark'}
           </button>
         </div>
       </div>
