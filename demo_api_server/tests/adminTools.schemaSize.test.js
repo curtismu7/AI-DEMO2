@@ -69,7 +69,19 @@ describe('executeAdminTool', () => {
     const parsed = JSON.parse(raw);
     expect(parsed.tool).toBe('listUsers');
     expect(parsed.responseSummary).toContain('1 users found');
-    expect(adapter.callTool).toHaveBeenCalledWith('listUsers', {});
+    // Third arg is the delegated PKCE session — null here because this call
+    // supplies no ctx. The hosted server takes that token only; there is no
+    // worker-token fallback (services/mcpPingOneHttpAdapter.js).
+    expect(adapter.callTool).toHaveBeenCalledWith('listUsers', {}, null);
+  });
+
+  test('forwards the session so the adapter can reach the delegated PKCE token', async () => {
+    adapter.callTool.mockResolvedValue({
+      content: [{ type: 'text', text: JSON.stringify({ _embedded: { users: [] } }) }],
+    });
+    const session = { pingoneMcpAdminToken: { accessToken: 'pkce-token' } };
+    await executeAdminTool('call_pingone_tool', { name: 'listUsers', arguments: {} }, { req: { session } });
+    expect(adapter.callTool).toHaveBeenCalledWith('listUsers', {}, session);
   });
 
   test('list_pingone_tools returns the live tool list', async () => {

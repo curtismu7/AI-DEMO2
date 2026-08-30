@@ -279,10 +279,10 @@ function buildDebugSummary({ backend, transport, tool, args = {}, reason = null 
   return parts.join(' · ');
 }
 
-async function listPingOneTools(params) {
+async function listPingOneTools(params, session) {
   const filter = params?.filter ? String(params.filter).toLowerCase() : null;
   try {
-    const live = await adapter.listTools();
+    const live = await adapter.listTools(session);
     let rows = live.map((t) => ({ name: t.name, description: (t.description || '').slice(0, 200) }));
     if (filter) {
       rows = rows.filter((r) =>
@@ -314,7 +314,7 @@ function flippedCaseFilter(filter) {
   return `${field} sw "${flipped}${rest}"`;
 }
 
-async function callPingOneTool(params) {
+async function callPingOneTool(params, session) {
   const name = params?.name;
   if (!name) {
     return { result: { error: 'name is required. Call list_pingone_tools to see valid tool names.' }, render: 'text' };
@@ -337,7 +337,7 @@ async function callPingOneTool(params) {
   const liveArgs = args;
   try {
     console.info('[pingone-admin] call_pingone_tool live request', { name, args });
-    let data = parseMcpResult(await adapter.callTool(name, args));
+    let data = parseMcpResult(await adapter.callTool(name, args, session));
     // Case-tolerant prefix ("so we do not fail on case, for demo"): when the
     // exact-case sw filter finds nothing, retry ONCE with the first letter's
     // case flipped ("demo" ⇄ "Demo") and report which prefix matched. Only on
@@ -347,7 +347,7 @@ async function callPingOneTool(params) {
     if (emptyCollection) {
       const flipped = flippedCaseFilter(args.filter);
       if (flipped) {
-        const retryData = parseMcpResult(await adapter.callTool(name, { ...args, filter: flipped }));
+        const retryData = parseMcpResult(await adapter.callTool(name, { ...args, filter: flipped }, session));
         if ((collectionFor(name, retryData) || []).length > 0) {
           data = retryData;
           effectiveFilter = flipped;
@@ -464,10 +464,15 @@ async function callPingOneTool(params) {
   }
 }
 
-async function execute(name, params, _ctx) {
+async function execute(name, params, ctx) {
+  // The hosted PingOne MCP server takes a DELEGATED PKCE token only (see
+  // services/mcpPingOneHttpAdapter.js). ctx carries req, so hand the session
+  // down rather than letting the adapter reach for a worker token that the
+  // server rejects outright.
+  const session = ctx?.req?.session || null;
   switch (name) {
-    case 'list_pingone_tools': return listPingOneTools(params);
-    case 'call_pingone_tool':  return callPingOneTool(params);
+    case 'list_pingone_tools': return listPingOneTools(params, session);
+    case 'call_pingone_tool':  return callPingOneTool(params, session);
     case 'api_key_demo':
     case 'dual_token_demo':
       return { result: { message: `${name} is not available in this vertical` }, render: 'text' };

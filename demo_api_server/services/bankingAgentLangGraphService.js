@@ -461,12 +461,12 @@ async function buildPingOneAdminToolSchemas() {
  * same wrapper the schemas above come from.
  * @returns {Promise<string>} JSON-stringified result
  */
-async function executePingOneTool(name, args) {
+async function executePingOneTool(name, args, ctx) {
   const { executeAdminTool } = require('../config/admin/tools');
   const { emitHop } = require('./transactionHop');
   const startedAt = Date.now();
   try {
-    const result = await executeAdminTool(name, args || {});
+    const result = await executeAdminTool(name, args || {}, ctx);
     emitHop({ phase: 'mcp.tool', op: name, durationMs: Date.now() - startedAt, status: 'ok' });
     return result;
   } catch (err) {
@@ -749,7 +749,7 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
         helixConfig: extractHelixConfig(langchainConfig),
         anthropicApiKey: process.env.ANTHROPIC_API_KEY,
         maxIterations: MAX_TOOL_ITERATIONS,
-        executeTool: async (name, args) => executePingOneTool(name, args),
+        executeTool: async (name, args) => executePingOneTool(name, args, { req }),
       });
       // A 200-but-empty answer is not a success (see demoAgentLangGraphService)
       // — treat it as reasoning_unavailable so it falls to the honest error
