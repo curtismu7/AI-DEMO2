@@ -16,6 +16,7 @@
   border-bottom: 1px solid var(--th-border);
   padding: 16px 24px;
   gap: 24px;
+  color: var(--th-text-body);
 }
 
 .inspector-clean-title {
@@ -39,11 +40,13 @@
   font-size: 14px;
   cursor: pointer;
   transition: all 0.2s;
+  color: var(--th-text-body);
 }
 
 .inspector-clean-theme-toggle:hover {
   background: var(--th-bg-hover);
   border-color: var(--th-text-muted);
+  color: var(--th-text-body);
 }
 
 .inspector-clean-statusbar {
@@ -94,6 +97,7 @@
   border: 1px solid var(--th-border);
   border-radius: var(--radius-md);
   overflow: hidden;
+  color: var(--th-text-body);
 }
 
 .inspector-clean-panel:nth-child(1) {
@@ -113,6 +117,7 @@
   padding: 12px 16px;
   border-bottom: 1px solid var(--th-border);
   background: var(--th-bg-inset);
+  color: var(--th-text-body);
 }
 
 .inspector-clean-panel-label {
@@ -149,6 +154,7 @@
   margin-left: 4px;
   font-weight: 400;
   text-transform: lowercase;
+  color: var(--th-text-body);
 }
 
 select,
@@ -184,6 +190,7 @@ textarea {
 
 .inspector-clean-toggle-btn:hover {
   background: var(--th-bg-hover);
+  color: var(--th-text-body);
 }
 
 .inspector-clean-toggle-btn.active {
@@ -263,9 +270,10 @@ textarea {
   border-radius: var(--radius-sm);
   overflow-y: auto;
   font-size: 11px;
-  font-family: 'Monaco', monospace;
+  font-family: var(--font-mono);
   white-space: pre-wrap;
   word-break: break-word;
+  color: var(--th-text-body);
 }
 
 .inspector-clean-output-content pre {
@@ -279,6 +287,7 @@ textarea {
   border-radius: 0;
   padding: 12px 24px;
   flex: 0 0 auto;
+  color: var(--th-text-body);
 }
 
 .inspector-clean-reel-label {
@@ -298,6 +307,7 @@ textarea {
   font-size: 10px;
   white-space: nowrap;
   transition: all 0.2s;
+  color: var(--th-text-body);
 }
 
 .inspector-clean-reel-frame:hover {
