@@ -92,7 +92,7 @@ export default function PingOneAuthorizeConsoleClean({
           </select>
         </div>
         <div className="p1az-clean-recording-status">
-          📽️ Recording ({reel.length} decisions)
+          Recording ({reel.length} decisions)
         </div>
       </div>
 
@@ -219,7 +219,7 @@ export default function PingOneAuthorizeConsoleClean({
                 )}
 
                 <button className="inspector-clean-button" onClick={run} disabled={running}>
-                  {running ? '⏳ Executing…' : '▶ Execute Policies'}
+                  {running ? 'Executing…' : 'Execute Policies'}
                 </button>
               </div>
             </div>
