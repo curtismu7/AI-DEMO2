@@ -1051,4 +1051,58 @@ router.post('/pingone-invoke', requireSession, async (req, res) => {
   }
 });
 
+// GET /api/mcp/inspector/api-methods — list available API methods
+// Stub: returns empty for now; real API calls are tracked at /api/api-calls
+router.get('/api-methods', (_req, res) => {
+  res.json({
+    methods: [],
+    _source: 'api_stub',
+  });
+});
+
+// POST /api/mcp/inspector/api-invoke — invoke an API method
+// Stub: not implemented
+router.post('/api-invoke', (_req, res) => {
+  res.json({
+    error: 'API methods not implemented',
+    _source: 'api_stub',
+  });
+});
+
+// GET /api/mcp/inspector/custom-tools — list custom MCP tools
+// Stub: returns empty; use Custom Server source to add profiles
+router.get('/custom-tools', (_req, res) => {
+  res.json({
+    tools: [],
+    _source: 'custom_stub',
+  });
+});
+
+// POST /api/mcp/inspector/custom-invoke — invoke a custom tool
+// Stub: not implemented
+router.post('/custom-invoke', (_req, res) => {
+  res.json({
+    error: 'Custom tools not implemented',
+    _source: 'custom_stub',
+  });
+});
+
+// GET /api/mcp/inspector/protocol-methods — list protocol testing methods
+// Stub: returns empty; use the Protocol Playground page for testing
+router.get('/protocol-methods', (_req, res) => {
+  res.json({
+    methods: [],
+    _source: 'protocol_stub',
+  });
+});
+
+// POST /api/mcp/inspector/protocol-call — call a protocol method
+// Stub: not implemented
+router.post('/protocol-call', (_req, res) => {
+  res.json({
+    error: 'Protocol methods not implemented',
+    _source: 'protocol_stub',
+  });
+});
+
 module.exports = router;
