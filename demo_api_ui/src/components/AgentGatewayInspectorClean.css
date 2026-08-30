@@ -1,0 +1,335 @@
+/* Inspector Clean Layout — shared pattern for 3-pane designs */
+
+.inspector-clean-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--th-bg-page);
+  color: var(--th-text);
+}
+
+.inspector-clean-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--th-bg-card);
+  border-bottom: 1px solid var(--th-border);
+  padding: 16px 24px;
+  gap: 24px;
+}
+
+.inspector-clean-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.inspector-clean-header-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.inspector-clean-theme-toggle {
+  padding: 6px 10px;
+  border: 1px solid var(--th-border);
+  background: var(--th-bg-inset);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.inspector-clean-theme-toggle:hover {
+  background: var(--th-bg-hover);
+  border-color: var(--th-text-muted);
+}
+
+.inspector-clean-statusbar {
+  display: flex;
+  gap: 24px;
+  padding: 12px 24px;
+  background: var(--th-bg-card);
+  border-bottom: 1px solid var(--th-border);
+  font-size: 12px;
+  color: var(--th-text-body);
+}
+
+.inspector-clean-statusbar-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.inspector-clean-statusbar-badge {
+  background: #dcfce7;
+  color: #166534;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 10px;
+}
+
+.inspector-clean-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 12px;
+  padding: 12px;
+  overflow: hidden;
+}
+
+.inspector-clean-main {
+  display: flex;
+  gap: 12px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.inspector-clean-panel {
+  display: flex;
+  flex-direction: column;
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.inspector-clean-panel:nth-child(1) {
+  flex: 0 0 240px;
+}
+
+.inspector-clean-panel:nth-child(2) {
+  flex: 1 1 auto;
+  min-width: 300px;
+}
+
+.inspector-clean-panel:nth-child(3) {
+  flex: 0 0 320px;
+}
+
+.inspector-clean-panel-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--th-border);
+  background: var(--th-bg-inset);
+}
+
+.inspector-clean-panel-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--th-text);
+  margin: 0;
+}
+
+.inspector-clean-panel-body {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.inspector-clean-field {
+  margin-bottom: 12px;
+}
+
+.inspector-clean-field-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--th-text-muted);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.inspector-clean-field-type {
+  font-size: 9px;
+  background: var(--th-bg-inset);
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+  margin-left: 4px;
+  font-weight: 400;
+  text-transform: lowercase;
+}
+
+select,
+input,
+textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  background: var(--th-bg-page);
+  color: var(--th-text);
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+textarea {
+  resize: vertical;
+}
+
+.inspector-clean-toggle-btn {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid var(--th-border);
+  background: var(--th-bg-inset);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: var(--th-text);
+}
+
+.inspector-clean-toggle-btn:hover {
+  background: var(--th-bg-hover);
+}
+
+.inspector-clean-toggle-btn.active {
+  background: #3730a3;
+  color: white;
+  border-color: #3730a3;
+}
+
+.inspector-clean-button {
+  width: 100%;
+  padding: 10px;
+  background: #1e3a5f;
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 12px;
+  transition: all 0.2s;
+}
+
+.inspector-clean-button:hover:not(:disabled) {
+  background: #2d5080;
+}
+
+.inspector-clean-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.inspector-clean-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.inspector-clean-output {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.inspector-clean-output-tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--th-border);
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+
+.inspector-clean-output-tab {
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  color: var(--th-text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.inspector-clean-output-tab:hover {
+  color: var(--th-text);
+}
+
+.inspector-clean-output-tab.active {
+  color: #3730a3;
+  border-bottom-color: #3730a3;
+}
+
+.inspector-clean-output-content {
+  flex: 1;
+  padding: 12px;
+  background: var(--th-bg-inset);
+  border-radius: var(--radius-sm);
+  overflow-y: auto;
+  font-size: 11px;
+  font-family: 'Courier New', monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.inspector-clean-output-content pre {
+  margin: 0;
+  color: var(--th-text-body);
+}
+
+.inspector-clean-reel {
+  background: var(--th-bg-card);
+  border-top: 1px solid var(--th-border);
+  border-radius: 0;
+  padding: 12px 24px;
+  flex: 0 0 auto;
+}
+
+.inspector-clean-reel-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--th-text-muted);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.inspector-clean-reel-frame {
+  flex: 0 0 auto;
+  padding: 8px 10px;
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.inspector-clean-reel-frame:hover {
+  background: #3730a3;
+  color: white;
+  border-color: #3730a3;
+}
+
+.inspector-clean-reel-frame.active {
+  background: #3730a3;
+  color: white;
+  border-color: #3730a3;
+}
+
+/* Scrollbar styling */
+.inspector-clean-panel-body::-webkit-scrollbar,
+.inspector-clean-output-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.inspector-clean-panel-body::-webkit-scrollbar-track,
+.inspector-clean-output-content::-webkit-scrollbar-track {
+  background: var(--th-bg-inset);
+}
+
+.inspector-clean-panel-body::-webkit-scrollbar-thumb,
+.inspector-clean-output-content::-webkit-scrollbar-thumb {
+  background: var(--th-border);
+  border-radius: 4px;
+}
+
+.inspector-clean-panel-body::-webkit-scrollbar-thumb:hover,
+.inspector-clean-output-content::-webkit-scrollbar-thumb:hover {
+  background: var(--th-text-muted);
+}
