@@ -43,7 +43,7 @@ export default defineConfig(({ mode }) => {
   // host/port is visible in `docker logs ai-demo-ui` instead of silently
   // hitting loopback and masquerading as a "servers down" error.
   console.log(
-    `[vite] dev proxy: /api,/health,/pinggateway-test.html → ${httpTarget}  |  /ws → ${wsTarget}`,
+    `[vite] dev proxy: /api,/a2a/,/health,/pinggateway-test.html → ${httpTarget}  |  /ws → ${wsTarget}`,
   )
   if (process.env.HTTPS !== 'false') {
     if (mkcert) {
@@ -167,6 +167,23 @@ export default defineConfig(({ mode }) => {
               }
             })
           },
+        },
+        // A2A wire protocol (Linux Foundation): the Agent Card is served
+        // UNAUTHENTICATED at /a2a/specialists/:vertical/.well-known/agent-card.json
+        // and the JSON-RPC POST beside it is bearer-gated. Proxied so the
+        // walkthrough page can fetch both SAME-ORIGIN from the browser: without
+        // this the card 404s in dev and falls through to the SPA's index.html in
+        // prod, and cross-origin is not an option either — server.js CORS
+        // defaults to https://api.ping.demo, not local.ping-devops.com:4000.
+        // Mirrors nginx.conf's location /a2a/ — keep the two in step.
+        // Trailing slash is load-bearing: vite matches proxy keys as bare
+        // PREFIXES, so '/a2a' would also swallow the SPA route
+        // /a2a-protocol-learning and forward it to the BFF (503). nginx's
+        // `location /a2a/` already has the slash; keep the two identical.
+        '/a2a/': {
+          target: httpTarget,
+          changeOrigin: true,
+          secure: false,
         },
         '/ws': {
           target: wsTarget,

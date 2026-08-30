@@ -59,8 +59,8 @@ describe('auth-requirements SoT', () => {
     expect(missing).toEqual([]);
   });
 
-  test('branch_hours is the declared public agent action', () => {
-    expect(AUTH_REQUIREMENTS.publicAgentActions).toEqual(['branch_hours']);
+  test('branch_hours and weather are the declared public agent actions', () => {
+    expect(AUTH_REQUIREMENTS.publicAgentActions).toEqual(['branch_hours', 'weather']);
   });
 });
 
@@ -68,7 +68,7 @@ describe('GET /api/use-cases carries the level to the UI', () => {
   test('stamps auth on every entry and ships the public action list', async () => {
     const res = await request(makeApp()).get('/api/use-cases?vertical=banking');
     expect(res.status).toBe(200);
-    expect(res.body.publicAgentActions).toEqual(['branch_hours']);
+    expect(res.body.publicAgentActions).toEqual(['branch_hours', 'weather']);
 
     const withoutAuth = res.body.useCases.filter((uc) => !uc.auth);
     expect(withoutAuth).toEqual([]);

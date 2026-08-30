@@ -91,8 +91,9 @@ export function buildA2aChainDetail(tokenEvents) {
   const ex2 = byId(tokenEvents, 'a2a-exchange2');
   const cardEv = byId(tokenEvents, 'a2a-agent-card');
   const protoEv = byId(tokenEvents, 'a2a-protocol-message');
+  const bearerEv = byId(tokenEvents, 'a2a-protocol-bearer');
 
-  const hasAny = !!(a1 || ex1 || a2 || ex2 || cardEv || protoEv);
+  const hasAny = !!(a1 || ex1 || a2 || ex2 || cardEv || protoEv || bearerEv);
   if (!hasAny) {
     return {
       present: false,
@@ -168,16 +169,33 @@ export function buildA2aChainDetail(tokenEvents) {
       }
     : null;
 
-  const protocol = protoEv
+  // The wire bearer is layer 2's load-bearing artifact: it proves the A2A
+  // protocol hop authenticates with its OWN PingOne client_credentials token,
+  // NOT the nested-act token Exchange #2 minted for MCP. Without it the two
+  // layers look like one. Built even when SendMessage never ran — on a fresh
+  // environment the bearer can fail (unprovisioned specialist app) while the
+  // identity chain still completes, and that is a state worth showing.
+  const bearer = bearerEv
     ? {
-        status: protoEv.status || null,
-        agentName: protoEv.agentName || null,
-        mode: protoEv.mode || null,
-        request: protoEv.protocolRequest || null,
-        response: protoEv.protocolResponse || {
-          replyText: protoEv.replyText || null,
-          error: protoEv.error || null,
-        },
+        status: bearerEv.status || null,
+        clientId: bearerEv.clientId || bearerEv.claims?.client_id || null,
+        aud: bearerEv.claims?.aud || null,
+        scope: bearerEv.claims?.scope || null,
+        publicCardUrl: bearerEv.publicCardUrl || null,
+        error: bearerEv.error || null,
+      }
+    : null;
+
+  const protocol = (protoEv || bearerEv)
+    ? {
+        status: protoEv?.status || null,
+        agentName: protoEv?.agentName || null,
+        mode: protoEv?.mode || null,
+        bearer,
+        request: protoEv?.protocolRequest || null,
+        response: protoEv?.protocolResponse || (protoEv
+          ? { replyText: protoEv.replyText || null, error: protoEv.error || null }
+          : null),
       }
     : null;
 

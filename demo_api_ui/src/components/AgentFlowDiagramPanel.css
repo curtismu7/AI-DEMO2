@@ -524,7 +524,7 @@
   flex-shrink: 0;
   padding: 1px 5px;
   border-radius: 4px;
-  font-size: 0.62rem;
+  font-size: var(--font-size-3xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -564,7 +564,7 @@
 
 .afd-tc-chevron {
   flex-shrink: 0;
-  font-size: 0.6rem;
+  font-size: var(--font-size-3xs);
   color: var(--th-text-faint);
 }
 

@@ -53,7 +53,7 @@
     "userMemberships": {
       "demoUser": ["privileged"],
       "demoAdmin": ["privileged"],
-      "demoDelegate": []
+      "demoDelegate": ["privileged"]
     }
   },
   "agent": {
@@ -88,8 +88,7 @@
         "mode": "both",
         "challenge": "step_up",
         "tool": "cancel_airline_reservation",
-        "useCaseId": "step-up-required",
-        "group": "advanced"
+        "useCaseId": "step-up-required"
       },
       {
         "id": "ua6",
@@ -97,8 +96,7 @@
         "message": "pay a $300 change fee",
         "mode": "both",
         "tool": "pay_airline_fee",
-        "useCaseId": "hitl-consent",
-        "group": "advanced"
+        "useCaseId": "hitl-consent"
       },
       {
         "id": "ua4",
@@ -107,8 +105,7 @@
         "mode": "both",
         "challenge": "consent",
         "tool": "sensitive_airline_bookings",
-        "useCaseId": "hitl-consent",
-        "group": "advanced"
+        "useCaseId": "hitl-consent"
       },
       {
         "id": "ua2",
@@ -133,8 +130,7 @@
         "mode": "both",
         "challenge": "consent",
         "tool": "sensitive_passenger_record",
-        "useCaseId": "a2a-delegation",
-        "group": "advanced"
+        "useCaseId": "a2a-delegation"
       }
     ]
   },

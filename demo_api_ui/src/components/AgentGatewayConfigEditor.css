@@ -52,7 +52,7 @@
 .agc-file-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .agc-badge {
-  font-size: 0.62rem;
+  font-size: var(--font-size-3xs);
   font-weight: 700;
   padding: 0.1rem 0.4rem;
   border-radius: 999px;
@@ -130,7 +130,7 @@
   border-bottom: 1px solid #f1f5f9;
 }
 .agc-issue-badge {
-  font-size: 0.62rem;
+  font-size: var(--font-size-3xs);
   font-weight: 800;
   padding: 0.08rem 0.4rem;
   border-radius: 4px;

@@ -15,6 +15,21 @@ const simulatedAuthorize = require('../services/simulatedAuthorizeService');
 
 verticalManifest.init();
 
+/**
+ * A principal with no membership entry in any vertical's groups.userMemberships.
+ *
+ * This used to be `demoDelegate`, until #2616 deliberately added that user to the
+ * privileged category in all 11 verticals so the A2A delegation demo could pass
+ * the policy check. The tests below then asserted the opposite of the manifests.
+ *
+ * The negative half of the pair is weak on its own — _manifestGroupsForUser
+ * returns [] for ANY unlisted name — so it is the PAIR that carries the meaning:
+ * `permits demoUser` proves the category->name mapping resolves, this proves it
+ * discriminates. The un-fakeable proof that the gate actually bites is the
+ * `DENIES user_not_in_group` case below, which drives the real decision engine.
+ */
+const NON_MEMBER = 'notAMember';
+
 /** Keys whose string value names an MCP tool in a vertical manifest. */
 const TOOL_KEYS = new Set(['tool', 'mcpTool', 'toolName']);
 const SENSITIVE_NAME = /sensitive/i;
@@ -119,7 +134,7 @@ describe('sensitive tools are group-gated in every vertical', () => {
     expect(listed).not.toContain('admin');
     expect(groupPolicy.requiredGroupForTool('sensitive_customer_identity', 'admin')).toBe('AI_Demo_Privileged');
     expect(groupPolicy.groupsForUserSync('demoUser', 'admin')).toContain('AI_Demo_Privileged');
-    expect(groupPolicy.groupsForUserSync('demoDelegate', 'admin')).not.toContain('AI_Demo_Privileged');
+    expect(groupPolicy.groupsForUserSync(NON_MEMBER, 'admin')).not.toContain('AI_Demo_Privileged');
   });
 
   it.each(sensitiveTools)(
@@ -133,7 +148,7 @@ describe('sensitive tools are group-gated in every vertical', () => {
     '$verticalId/$tool denies a user with no group membership',
     ({ verticalId, tool }) => {
       const requiredGroup = groupPolicy.requiredGroupForTool(tool, verticalId);
-      const userGroups = groupPolicy.groupsForUserSync('demoDelegate', verticalId);
+      const userGroups = groupPolicy.groupsForUserSync(NON_MEMBER, verticalId);
       expect(userGroups).not.toContain(requiredGroup);
     },
   );

@@ -56,10 +56,14 @@ body > .banking-agent-float-root .banking-agent-panel {
   height: 52px;
   padding: 0 22px 0 18px;
   border-radius: 26px;
+  /* H1: tokenized ground, literal ink — brand blue on the dark card measured
+     3.29:1. --th-status-info-text is #1e40af light / #93c5fd dark and clears
+     4.5:1 on both, so no dark block is needed. The `color: #fff` that used to
+     sit below was dead: `color: #2563eb !important` in this same block already
+     won, so it never applied in any theme. */
   background: var(--th-bg-card) !important;
-  color: #2563eb !important;
-  border: 1.5px solid #2563eb !important;
-  color: #fff;
+  color: var(--th-status-info-text) !important;
+  border: 1.5px solid var(--th-status-info) !important;
   font-size: var(--font-size-body);
   font-weight: 700;
   letter-spacing: 0.01em;
@@ -2877,7 +2881,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   position: absolute;
   bottom: 2px;
   right: 3px;
-  font-size: 9px;
+  font-size: var(--font-size-3xs);
   color: rgba(65, 105, 225, 0.55);
   line-height: 1;
   pointer-events: none;
@@ -4241,7 +4245,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .ba-session-timer-icon {
-  font-size: 9px;
+  font-size: var(--font-size-3xs);
   opacity: 0.8;
 }
 
@@ -4272,7 +4276,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .ba-header-session-timer {
-  font-size: 9px;
+  font-size: var(--font-size-3xs);
 }
 
 /* Light mode adjustments */
@@ -4324,12 +4328,12 @@ body > .banking-agent-float-root .banking-agent-panel {
   }
 
   .ba-session-timer {
-    font-size: 9px;
+    font-size: var(--font-size-3xs);
     padding: 1px 4px;
   }
 
   .ba-session-timer-icon {
-    font-size: 8px;
+    font-size: var(--font-size-3xs);
   }
 }
 
@@ -5115,6 +5119,18 @@ body > .banking-agent-float-root .banking-agent-panel {
 
 /* Demo steps trigger — grey header-strip button, same height as the other
    toggles in .ba-header-tools. */
+/* Demo steps is the button a presenter reaches for most, and it sat on
+   --th-bg-inset — the quietest surface in the row, so it read as less
+   important than the outlined siblings beside it. Filled with the band
+   colour it leads the group without adding a new colour to the palette:
+   --th-bg-emphasis / --th-text-on-emphasis are declared PER THEME: a single
+   value cannot work in both. Navy reads 12.8:1 against the white siblings in
+   light but 1.15:1 against the dark surface, so dark uses a light-blue fill
+   with a dark label (9.4:1). Measured, not guessed.
+   Hover/active use filter, not literals. The previous rules hardcoded
+   #e2e8f0 / #cbd5e1 — light greys that stayed light in dark mode, so the
+   label went near-invisible on hover. brightness() is theme-agnostic and
+   needs no new token. */
 .ba-demo-steps-trigger {
   display: inline-flex;
   align-items: center;
@@ -5122,20 +5138,21 @@ body > .banking-agent-float-root .banking-agent-panel {
   height: 28px;
   padding: 6px 12px;
   border-radius: 6px;
-  border: 1px solid var(--th-border-strong);
-  background: var(--th-bg-inset);
-  color: var(--th-text);
+  border: 1px solid transparent;
+  background: var(--th-bg-emphasis);
+  color: var(--th-text-on-emphasis);
   font-size: var(--font-size-sm);
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: filter 0.15s, box-shadow 0.15s;
   white-space: nowrap;
 }
-.ba-demo-steps-trigger:hover {
-  background: linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%);
+.ba-demo-steps-trigger:hover:not(:disabled) {
+  filter: brightness(1.18);
 }
 .ba-demo-steps-trigger.active {
-  background: #cbd5e1;
+  filter: brightness(0.88);
+  box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.35);
 }
 .ba-demo-steps-trigger:disabled {
   opacity: 0.5;
@@ -6372,7 +6389,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 .ba-rfc-badge {
   display: inline-block;
-  font-size: 9px;
+  font-size: var(--font-size-3xs);
   font-weight: 700;
   letter-spacing: 0.02em;
   color: #1d4ed8;

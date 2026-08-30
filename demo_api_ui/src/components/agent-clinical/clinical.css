@@ -16,6 +16,11 @@
 }
 
 .agent-clinical-host {
+  /* The one display face this vertical uses. It was written out as a raw stack
+     in six places; a second display face app-wide is a documented, tokenised
+     exception (THEMING.md §8.2), never a per-rule literal. */
+  --ac-font-display: "Crimson Pro", "Source Serif Pro", Georgia, serif;
+
   /* ----- palette tokens (teal-led, no indigo) ----- */
   --ac-bg: #ffffff;
   --ac-bg-2: #f4f6f9;
@@ -39,7 +44,7 @@
   --ac-moss: #4a6b3a;
   --ac-moss-soft: #dfeada;
 
-  font-family: 'Inter', -apple-system, system-ui, sans-serif;
+  font-family: var(--font-primary);
   color: var(--ac-ink);
   background: var(--ac-bg);
   min-height: 100vh;
@@ -68,7 +73,7 @@
 }
 
 .ac-brand {
-  font-family: 'Crimson Pro', 'Source Serif Pro', Georgia, serif;
+  font-family: var(--ac-font-display);
   font-weight: 500;
   font-size: 19px;
   letter-spacing: -0.01em;
@@ -114,7 +119,7 @@
 }
 .ac-tab-kbd {
   font-family: inherit;
-  font-size: 9.5px;
+  font-size: var(--font-size-3xs);
   background: var(--ac-bg-3);
   color: var(--ac-muted);
   padding: 1px 4px;
@@ -219,7 +224,7 @@
   font-size: 10.5px;
 }
 .ac-chat-headline {
-  font-family: 'Crimson Pro', 'Source Serif Pro', Georgia, serif;
+  font-family: var(--ac-font-display);
   font-weight: 500;
   font-size: var(--font-size-3xl);
   line-height: 1.05;
@@ -368,7 +373,7 @@
   background: #fff;
 }
 .ac-narrate-h2 {
-  font-family: 'Crimson Pro', 'Source Serif Pro', Georgia, serif;
+  font-family: var(--ac-font-display);
   font-weight: 500;
   font-size: var(--font-size-h3);
   margin: 4px 0 0;
@@ -477,7 +482,7 @@
 }
 .ac-tstep-rfc {
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: var(--font-size-3xs);
   color: var(--ac-muted);
 }
 .ac-tstep-name {
@@ -546,7 +551,7 @@
 }
 .ac-inspect-h1,
 .ac-config-h1 {
-  font-family: 'Crimson Pro', 'Source Serif Pro', Georgia, serif;
+  font-family: var(--ac-font-display);
   font-weight: 500;
   font-size: 26px;
   letter-spacing: -0.015em;
@@ -595,7 +600,7 @@
   padding: 22px 28px 12px;
 }
 .ac-config-h2 {
-  font-family: 'Crimson Pro', 'Source Serif Pro', Georgia, serif;
+  font-family: var(--ac-font-display);
   font-weight: 500;
   font-size: var(--font-size-xl);
   letter-spacing: -0.015em;
@@ -671,7 +676,7 @@
   border-bottom: 1px solid var(--ac-rule);
 }
 .ac-tokens-h1 {
-  font-family: 'Crimson Pro', 'Source Serif Pro', Georgia, serif;
+  font-family: var(--ac-font-display);
   font-weight: 500;
   font-size: 26px;
   letter-spacing: -0.015em;

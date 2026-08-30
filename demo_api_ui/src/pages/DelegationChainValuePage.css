@@ -101,3 +101,35 @@
 .dcv-error {
   font-weight: 600;
 }
+
+.dcv-controls {
+  margin-bottom: 24px;
+}
+
+.dcv-clear-button {
+  appearance: none;
+  border: 1px solid var(--th-border-strong);
+  border-radius: 6px;
+  background: var(--th-primary, #1f5fe5);
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 9px 16px;
+  transition: background 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+}
+
+.dcv-clear-button:hover {
+  background: var(--th-primary-strong, #174bb8);
+  box-shadow: 0 2px 6px rgb(15 45 90 / 20%);
+}
+
+.dcv-clear-button:focus-visible {
+  outline: 3px solid rgb(31 95 229 / 35%);
+  outline-offset: 2px;
+}
+
+.dcv-clear-button:active {
+  transform: translateY(1px);
+}

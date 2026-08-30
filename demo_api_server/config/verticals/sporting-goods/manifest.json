@@ -61,7 +61,7 @@
     "userMemberships": {
       "demoUser": ["privileged"],
       "demoAdmin": ["privileged"],
-      "demoDelegate": []
+      "demoDelegate": ["privileged"]
     }
   },
   "agent": {
@@ -133,7 +133,7 @@
       { "id": "sg-feature", "label": "My gear order", "message": "view my gear order", "mode": "both", "tool": "show_gear_order", "useCaseId": "delegated-access-with-proof" },
       { "id": "sg6", "label": "My gear warranty", "message": "show my gear warranty", "mode": "both", "tool": "show_gear_warranty", "useCaseId": "mortgage-delegated-access" },
       { "id": "sg7", "label": "Price-match my order", "message": "can you price-match my last order?", "mode": "both", "tool": "request_price_match", "useCaseId": "unauthorized-commitment-fee-waiver" },
-      { "id": "sg-a2a", "label": "Sensitive membership details", "message": "access my sensitive membership details", "mode": "both", "challenge": "consent", "tool": "sensitive_membership_details", "useCaseId": "a2a-delegation", "group": "advanced" },
+      { "id": "sg-a2a", "label": "Sensitive membership details", "message": "access my sensitive membership details", "mode": "both", "challenge": "consent", "tool": "sensitive_membership_details", "useCaseId": "a2a-delegation" },
       { "id": "sg-direct", "label": "Direct MCP", "message": "order status", "mode": "direct", "tool": "gear_order_status" },
       { "id": "sg-dpop", "label": "DPoP / replay defense", "message": "fire a token with the wrong audience at the gateway", "mode": "direct", "tool": "test_wrong_audience", "useCaseId": "token-theft-replay" },
       { "id": "sg-deny", "label": "Authz DENY", "message": "show my university enrollment", "mode": "direct", "denyTool": "show_enrollment", "useCaseId": "authz-denied" },

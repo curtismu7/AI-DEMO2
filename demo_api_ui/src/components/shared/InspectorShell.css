@@ -175,7 +175,7 @@
 .inspector-shell-tree-item__dot--sensitive { background: #dc2626; }
 .inspector-shell-tree-item__badge {
   margin-left: auto;
-  font-size: 9px;
+  font-size: var(--font-size-3xs);
   font-weight: 700;
   font-family: -apple-system, sans-serif;
   padding: 1px 5px;

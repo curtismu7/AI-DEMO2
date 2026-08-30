@@ -4,6 +4,7 @@ import LearningHubAgent from "../LearningHubAgent";
 
 vi.mock("../../services/codeSearchAPI", () => ({ askCodeSearch: vi.fn() }));
 import { askCodeSearch } from "../../services/codeSearchAPI";
+import { MemoryRouter } from "react-router-dom";
 
 describe("LearningHubAgent", () => {
   it("offers ten prompts and restores previous prompts with ArrowUp", async () => {

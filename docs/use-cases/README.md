@@ -70,6 +70,7 @@ See also: [Audit Table](./audit-table.md), [Step Verification Report](./step-ver
 
 ## Learn
 
+- [**UC2.7** — A2A end to end — protocol + identity](./a2a-protocol-walkthrough.md) ✅ 🛡️
 - [**UC14b** — PAR + RAR intent verified (PERMIT)](./par-rar-intent-verified.md) 🚩
 - [**UC-LEARN1** — OAuth Academy](./oauth-academy.md) ✅
 - [**UC-LEARN2** — PingOne MCP Inspector](./pingone-mcp-inspector.md) ✅

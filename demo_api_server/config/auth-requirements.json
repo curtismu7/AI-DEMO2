@@ -8,13 +8,15 @@
   ],
   "defaultLevel": "user",
   "publicAgentActions": [
-    "branch_hours"
+    "branch_hours",
+    "weather"
   ],
   "useCases": {
     "UC1": "user",
     "UC2": "user",
     "UC2.5": "user",
     "UC2.6": "user",
+    "UC2.7": "public",
     "UC3": "user",
     "UC4": "user",
     "UC5": "user",
@@ -43,7 +45,7 @@
     "UC27": "user",
     "UC28": "user",
     "UC29": "user",
-    "UC30": "user",
+    "UC30": "public",
     "UC31": "user",
     "UC32": "public",
     "UC33": "user",
@@ -84,6 +86,7 @@
   },
   "routes": {
     "/": "public",
+    "/a2a-protocol-learning": "public",
     "/accounts": "public",
     "/activity": "public",
     "/actor-token-education": "public",

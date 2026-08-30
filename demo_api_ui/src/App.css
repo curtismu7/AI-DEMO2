@@ -1698,7 +1698,7 @@
   border-radius: 4px;
   background: #0ea5e9;
   color: var(--th-text-invert);
-  font-size: 0.62rem;
+  font-size: var(--font-size-3xs);
   font-weight: 800;
   letter-spacing: 0.04em;
 }

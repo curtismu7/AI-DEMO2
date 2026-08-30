@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useEducationUI } from "../context/EducationUIContext";
 import { useDemoTour } from "../context/DemoTourContext";
 import { EDU } from "./education/educationIds";
@@ -123,6 +124,11 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         label: "MCP Protocol",
         description: "Model Context Protocol fundamentals",
         icon: "📡",
+      },
+      {
+        label: "Agent-to-Agent (A2A)",
+        description: "Nested-act delegation and the A2A wire protocol",
+        icon: "🔗",
       },
       {
         label: "MCP Server Discovery",
@@ -323,6 +329,7 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
 
 export default function LearningHub() {
   const { open: openEdu } = useEducationUI();
+  const navigate = useNavigate();
   const tour = useDemoTour();
   const [searchQuery, setSearchQuery] = useState("");
   const categoryActionMap = useMemo(
@@ -356,6 +363,7 @@ export default function LearningHub() {
     },
     "mcp-agents": {
       "MCP Protocol": () => openEdu(EDU.MCP_PROTOCOL, "what"),
+      "Agent-to-Agent (A2A)": () => navigate("/a2a-protocol-learning"),
       "MCP Server Discovery": () => openEdu(EDU.MCP_PROTOCOL, "discovery"),
       "MCP: MFA Gate on Tools": () => openEdu(EDU.MCP_PROTOCOL, "mfa-gate"),
       "MCP Elicitation": () => openEdu(EDU.MCP_ELICITATION, "what"),

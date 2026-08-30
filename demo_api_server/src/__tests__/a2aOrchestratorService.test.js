@@ -19,10 +19,9 @@ describe('a2aOrchestratorService.orchestrateDelegation — LLM path', () => {
     delegateToSpecialist.mockReset();
   });
 
-  test('single-tool vertical (healthcare): decision + authorization only, no coordinator call, tool auto-picked', async () => {
+  test('single-tool vertical (healthcare): decision only, no coordinator call, tool auto-picked', async () => {
     callLlamaCpp
-      .mockResolvedValueOnce(jsonReply({ shouldDelegate: true, reason: 'sensitive record request', sensitivity: 'high' }))
-      .mockResolvedValueOnce(jsonReply({ approved: true, blockers: [] }));
+      .mockResolvedValueOnce(jsonReply({ shouldDelegate: true, reason: 'sensitive record request', sensitivity: 'high' }));
     delegateToSpecialist.mockResolvedValue({
       token: 'tok', tokenEvents: [], claims: { act: { sub: 'agent2' } },
       specialist: 'Records Specialist', scopes: ['read'], actChainDepth: 2,
@@ -32,7 +31,7 @@ describe('a2aOrchestratorService.orchestrateDelegation — LLM path', () => {
       req: reqStub, message: 'please pull the sensitive patient record', vertical: 'healthcare', userId: 'u1',
     });
 
-    expect(callLlamaCpp).toHaveBeenCalledTimes(2); // decision + authorization, coordinator skipped
+    expect(callLlamaCpp).toHaveBeenCalledTimes(1); // decision only — coordinator skipped, no authorization stage exists
     expect(delegateToSpecialist).toHaveBeenCalledWith(reqStub, {
       vertical: 'healthcare',
       tool: 'sensitive_patient_records',
@@ -44,11 +43,10 @@ describe('a2aOrchestratorService.orchestrateDelegation — LLM path', () => {
     expect(result.agentHeader).toContain('LLM (llama.cpp)');
   });
 
-  test('multi-tool vertical (banking): all three stages run, coordinator tool reaches delegateToSpecialist', async () => {
+  test('multi-tool vertical (banking): both stages run, coordinator tool reaches delegateToSpecialist', async () => {
     callLlamaCpp
       .mockResolvedValueOnce(jsonReply({ shouldDelegate: true, reason: 'investment question', sensitivity: 'medium' }))
-      .mockResolvedValueOnce(jsonReply({ tool: 'get_investment_transactions', reasoning: 'user asked about past trades' }))
-      .mockResolvedValueOnce(jsonReply({ approved: true, blockers: [] }));
+      .mockResolvedValueOnce(jsonReply({ tool: 'get_investment_transactions', reasoning: 'user asked about past trades' }));
     delegateToSpecialist.mockResolvedValue({
       token: 'tok', tokenEvents: [], claims: {}, specialist: 'Investment Advisor', scopes: ['invest:read'], actChainDepth: 2,
     });
@@ -57,7 +55,7 @@ describe('a2aOrchestratorService.orchestrateDelegation — LLM path', () => {
       req: reqStub, message: 'show me my recent investment transactions', vertical: 'banking', userId: 'u1',
     });
 
-    expect(callLlamaCpp).toHaveBeenCalledTimes(3);
+    expect(callLlamaCpp).toHaveBeenCalledTimes(2); // decision + coordinator
     expect(delegateToSpecialist).toHaveBeenCalledWith(reqStub, {
       vertical: 'banking',
       tool: 'get_investment_transactions',
@@ -79,17 +77,30 @@ describe('a2aOrchestratorService.orchestrateDelegation — LLM path', () => {
     expect(result.agentHeader).toContain('LLM (llama.cpp)');
   });
 
-  test('authorization stage denies: delegateToSpecialist is never called', async () => {
+  // RED PROOF for 2026-08-29: there is no predictive authorization stage.
+  // It asked the model whether PingOne Authorize would approve and blocked the
+  // delegation on that guess; on the live tier the guess was 'no' 4 times out of
+  // 4, so this route never delegated. Authorization is the PDP's answer, made for
+  // real one hop later inside a2aDelegationService.
+  test('no authorization stage: a third LLM reply is never requested and cannot block delegation', async () => {
     callLlamaCpp
       .mockResolvedValueOnce(jsonReply({ shouldDelegate: true, reason: 'sensitive record request', sensitivity: 'high' }))
+      // If a reviewer stage were reinstated it would consume this reply and refuse.
       .mockResolvedValueOnce(jsonReply({ approved: false, blockers: ['insufficient context'] }));
+    delegateToSpecialist.mockResolvedValue({
+      token: 'tok', tokenEvents: [], claims: {}, specialist: 'Records Specialist', scopes: ['read'], actChainDepth: 2,
+    });
 
     const result = await orchestrateDelegation({
       req: reqStub, message: 'get the sensitive patient record', vertical: 'healthcare', userId: 'u1',
     });
 
-    expect(delegateToSpecialist).not.toHaveBeenCalled();
-    expect(result.authorized).toBe(false);
+    expect(callLlamaCpp).toHaveBeenCalledTimes(1);
+    expect(delegateToSpecialist).toHaveBeenCalled();
+    expect(result.authorized).toBe(true);
+    // and the reason must describe what actually happened, not claim approval
+    expect(result.reason).not.toContain('Delegation approved');
+    expect(result.reason).toContain('PingOne Authorize decides');
   });
 });
 
