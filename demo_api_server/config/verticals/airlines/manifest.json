@@ -88,7 +88,7 @@
         "mode": "both",
         "challenge": "step_up",
         "tool": "cancel_airline_reservation",
-        "useCaseId": "step-up-required",
+        "useCaseId": "step-up-required"
       },
       {
         "id": "ua6",
@@ -96,7 +96,7 @@
         "message": "pay a $300 change fee",
         "mode": "both",
         "tool": "pay_airline_fee",
-        "useCaseId": "hitl-consent",
+        "useCaseId": "hitl-consent"
       },
       {
         "id": "ua4",
@@ -105,7 +105,7 @@
         "mode": "both",
         "challenge": "consent",
         "tool": "sensitive_airline_bookings",
-        "useCaseId": "hitl-consent",
+        "useCaseId": "hitl-consent"
       },
       {
         "id": "ua2",
@@ -130,7 +130,7 @@
         "mode": "both",
         "challenge": "consent",
         "tool": "sensitive_passenger_record",
-        "useCaseId": "a2a-delegation",
+        "useCaseId": "a2a-delegation"
       }
     ]
   },
