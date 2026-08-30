@@ -7,7 +7,18 @@
  * process, it POSTs MCP JSON-RPC (`tools/list` / `tools/call`) to
  *   https://mcp.pingone.{region}/admin/{envId}/mcp
  * authenticated with a worker `client_credentials` token (the same worker app
- * that backs Management API calls — its admin roles determine the tool set).
+ * that backs Management API calls).
+ *
+ * !! BROKEN AS DESIGNED — measured 2026-08-30. The hosted server only accepts a
+ * delegated authorization-code + PKCE token, so every call here returns
+ * `401 Invalid authentication`. The problem is the AUDIENCE, not admin roles:
+ * the worker token is minted for `https://api.pingone.com` (Management API) and
+ * presented to `https://mcp.pingone.com`, a different resource. Granting the
+ * worker more admin roles cannot fix it — an earlier version of this comment
+ * claimed the worker's "admin roles determine the tool set", which is wrong and
+ * sends readers down that path. The PingOne Admin vertical's tools
+ * (config/verticals/pingone-admin/tools.js) sit on this and 401 in normal use.
+ * See TECH_DEBT.md 2026-08-30 for the options and the evidence.
  *
  * The hosted server is stateless: each JSON-RPC POST is self-contained, so there
  * is no `initialize` handshake or `Mcp-Session-Id` to track.
@@ -38,7 +49,10 @@ function _mcpUrl(overrides = {}) {
 }
 
 /**
- * Worker client_credentials token whose admin roles gate the available tools.
+ * Worker client_credentials token. NOTE: this is the wrong credential for the
+ * hosted MCP server (see the file header) — it is audienced for the Management
+ * API, and the MCP server rejects it outright. Kept until the delegated-PKCE
+ * vs retire decision is made, so the failure stays in one place.
  * Reuses pingoneUserService's cached, auth-method-self-healing getter so we
  * don't duplicate token mechanics.
  */

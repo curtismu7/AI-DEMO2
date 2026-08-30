@@ -16,6 +16,66 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-08-30 — `mcpPingOneHttpAdapter` authenticates with a worker token the PingOne MCP server will never accept
+
+**What's wrong.** The hosted PingOne admin MCP server
+(`https://mcp.pingone.com/admin/{envId}/mcp`) **only accepts a delegated
+authorization-code + PKCE token**. `services/mcpPingOneHttpAdapter.js`
+authenticates with a worker `client_credentials` token, so every call fails.
+
+Measured 2026-08-30 from inside the BFF container:
+
+```
+MCP URL      : https://mcp.pingone.com/admin/01d89b06-.../mcp
+worker token : aud ["https://api.pingone.com"]  scope (none)  client 89ad8921-... (Introspection Worker)
+tools/list   : FAILED - PingOne MCP HTTP 401: Invalid authentication
+```
+
+The failure is the **audience**, not admin roles: the token is minted for the
+Management API resource (`api.pingone.com`) and presented to a different
+resource (`mcp.pingone.com`). That is why the server answers "Invalid
+authentication" rather than a permission error, and why granting the worker more
+admin roles cannot help. The file's own header is actively misleading on this —
+it says the worker's "admin roles determine the tool set", which sent this
+investigation looking at roles first.
+
+The server offers nothing to auto-discover the right flow: no
+`WWW-Authenticate` challenge on a bare 401, and
+`/.well-known/oauth-protected-resource` + `/.well-known/oauth-authorization-server`
+both 404. The environment does support the delegated flow
+(`code_challenge_methods_supported: ["plain","S256"]`), which is how an IDE
+client reaches the same server — `~/.claude.json` uses
+`oauth: { clientId: "pingone-mcp-server" }` with a loopback callback.
+
+**Blast radius.** Ten modules import the adapter. The live one that matters is
+the **PingOne Admin vertical**: `config/verticals/pingone-admin/tools.js` calls
+`adapter.listTools()` (:285) and `adapter.callTool()` (:340, :350) on the
+request path, so that vertical's tools 401 in normal use. `adminAgentService`,
+`routes/mcpInspector.js`, `routes/pingoneSetup.js`, `routes/mcpFacade.js` and
+`routes/pingAiTestLab.js` sit on the same adapter.
+
+**Why it wasn't fixed now.** The fix is not a code tweak — it is a design
+decision, and both options have real costs:
+
+1. **Delegated PKCE.** Correct, and the only flow the server accepts. But PKCE
+   needs a human at a browser, so a server-side adapter cannot do it
+   unattended: it means registering an MCP client app in the demo environment,
+   running an authorization-code + PKCE leg, storing the resulting token per
+   user session, and refreshing it. Every consumer above becomes
+   session-scoped and fails when nobody has authorized.
+2. **Retire the adapter.** If PingOne exposes no MCP resource a worker can be
+   granted, machine-to-machine access is simply not on offer, and the honest
+   move is to delete the adapter and the PingOne Admin tool path that depends
+   on it rather than keep a feature that 401s.
+
+**What the real fix looks like.** Confirm against
+<https://docs.pingidentity.com/llms.txt> whether an MCP resource can be granted
+to a worker at all. If yes, mint with that audience and the change is small. If
+no, take option 1 for the interactive surfaces (MCP Inspector, Test Lab) and
+option 2 for anything that must run unattended. Either way, **correct the
+header comment first** — the roles claim is wrong and will cost the next person
+the same afternoon.
+
 ### [x] 2026-08-29 — `/api/a2a/*` is orphaned, and an LLM guess hard-gates its delegation
 
 **What's wrong.** Three separate smells around the A2A orchestrator route, all
