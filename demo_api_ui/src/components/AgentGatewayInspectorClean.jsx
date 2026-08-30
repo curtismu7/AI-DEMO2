@@ -17,6 +17,9 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
     setIsChainMode,
     parameters,
     setParameters,
+    availablePolicies,
+    selectedPolicy,
+    setSelectedPolicy,
     running,
     result,
     error,
@@ -97,6 +100,21 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
                 >
                   <option value="">Select a gateway...</option>
                   <option value="demo-mcp-gateway">Demo MCP Gateway (01d89b06)</option>
+                </select>
+              </div>
+
+              <div className="inspector-clean-field" style={{ marginTop: '16px' }}>
+                <label className="inspector-clean-field-label">Policy</label>
+                <select
+                  value={selectedPolicy}
+                  onChange={(e) => setSelectedPolicy(e.target.value)}
+                >
+                  <option value="">Default policy</option>
+                  {availablePolicies.map((policy) => (
+                    <option key={policy.id || policy.name} value={policy.id || policy.name}>
+                      {policy.name || policy.id}
+                    </option>
+                  ))}
                 </select>
               </div>
 

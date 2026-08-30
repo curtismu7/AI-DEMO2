@@ -516,23 +516,28 @@ export function EvaluatePanel({ endpointId, autoPreset, policiesState, pendingTe
               <span>{policiesLoading ? 'loading…' : `${ruleCount(queryActive ? filteredPolicies : policies)} rule${ruleCount(queryActive ? filteredPolicies : policies) !== 1 ? 's' : ''}`}</span>
             </div>
             {!policiesLoading && !policiesError && policies.length > 0 && (
-              <div style={S.polSearchWrap}>
-                <input
-                  type="search"
-                  style={S.polSearch}
-                  value={policyQuery}
-                  onChange={(e) => setPolicyQuery(e.target.value)}
-                  placeholder="Search policies (name or description)…"
-                  aria-label="Search authorization policies"
-                />
-                {queryActive && (
-                  <div style={S.polSearchMeta}>
-                    {filteredPolicies.length === 0
-                      ? 'No matching policies'
-                      : `Showing matches for “${String(policyQuery).trim()}”`}
-                  </div>
-                )}
-              </div>
+              <>
+                <div style={{ padding: '8px 12px 6px', fontSize: '12px', color: '#64748b', lineHeight: 1.5 }}>
+                  Explore the authorization policy tree below. Click on a rule to see quick test cases you can evaluate (live PingOne decision). Search to filter by name or description.
+                </div>
+                <div style={S.polSearchWrap}>
+                  <input
+                    type=”search”
+                    style={S.polSearch}
+                    value={policyQuery}
+                    onChange={(e) => setPolicyQuery(e.target.value)}
+                    placeholder=”Search policies (name or description)…”
+                    aria-label=”Search authorization policies”
+                  />
+                  {queryActive && (
+                    <div style={S.polSearchMeta}>
+                      {filteredPolicies.length === 0
+                        ? 'No matching policies'
+                        : `Showing matches for “${String(policyQuery).trim()}”`}
+                    </div>
+                  )}
+                </div>
+              </>
             )}
             <div className="inspector-shell-tree-body">
               {policiesLoading ? (
