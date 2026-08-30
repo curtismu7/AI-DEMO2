@@ -14,6 +14,16 @@ const { READ_PRIMARY_TOOL_BY_VERTICAL } = require('../config/useCases');
  */
 const ACTIVITY_ANALYSIS_RE = /\b(unusual|suspicious|anomal\w*|irregular|out of the ordinary)\b[\s\S]{0,60}\b(activity|transactions?|charges?|spending|orders?|claims?|records?)\b/i;
 
+/**
+ * UC35 ("Explain why my last blocked action was denied and walk me through the
+ * token chain") and its siblings. These have primaryTool: null — there is no
+ * tool to pre-fetch, so unlike UC34 the model is not handed data; it narrates
+ * whatever it decides to. Generation time scales with what it chooses to write,
+ * and "walk me through the token chain" invites a step-by-step essay.
+ * That is the same TIMEOUT failure UC34 hit, from the other direction.
+ */
+const EXPLANATION_ANALYSIS_RE = /\b(explain|walk me through)\b[\s\S]{0,80}\b(denied|blocked|token chain|decision)\b/i;
+
 /** Rows to hand the model. Enough to spot an outlier, small enough to reason over. */
 const ACTIVITY_ROWS_FOR_PROMPT = 25;
 
@@ -2092,6 +2102,11 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
     const activityTool = ACTIVITY_ANALYSIS_RE.test(String(message || ''))
       ? readPrimaryToolFor(activeId)
       : null;
+    // Whether the activity clause below actually landed. Selecting a tool is not
+    // enough: an empty or unavailable result skips the clause, and the model is
+    // then as unbounded as the UC35 case — so the fallback must key off this,
+    // not off activityTool.
+    let activityClauseApplied = false;
     if (activityTool) {
       try {
         const activity = await executeTool(activityTool, {});
@@ -2126,6 +2141,7 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
             // already has is the expensive half and the least useful half.
             content: `${last.content}\n\nHere is my recent activity, already retrieved for you via ${activityTool}. Analyse THIS data and name anything unusual. Do not say you cannot retrieve it, and do not ask me to paste it.\n\nAnswer in at most five short bullet points naming only what is unusual and why. Do NOT reproduce the rows as a table or list them back — I already have them.\n\n${compact}`,
           };
+          activityClauseApplied = true;
           preToolsCalled.push(activityTool);
           preToolResults.push({ name: activityTool, result: activity });
         }
@@ -2133,6 +2149,20 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
         // Non-fatal: the model still answers, just without grounded data.
         console.warn('[processAgentMessage] activity pre-fetch failed (non-fatal): %s', e?.message);
       }
+    }
+
+    // UC35 and friends: no tool to pre-fetch, so the clause above never runs and
+    // the model narrates unbounded. Same TIMEOUT fix, minus the data — capping
+    // the ANSWER is the only lever when there is nothing to ground it with.
+    // Guarded on !activityClauseApplied so a prompt matching both regexes (e.g.
+    // "explain the unusual activity") gets one clause, not two contradictory
+    // bullet counts — while a matched-but-empty pre-fetch still gets capped.
+    if (!activityClauseApplied && EXPLANATION_ANALYSIS_RE.test(String(message || ''))) {
+      const last = messages[messages.length - 1];
+      messages[messages.length - 1] = {
+        ...last,
+        content: `${last.content}\n\nAnswer in at most six short bullet points, each one line. Name the decision, the control that fired and the evidence for it. Do NOT reproduce raw event JSON, and do not restate the question back to me.`,
+      };
     }
 
     const loopResult = await runReasonLoop({
