@@ -1029,7 +1029,7 @@ export default function PingOneAuthorizePage() {
             transition: 'all 0.2s',
           }}
         >
-          {theme.darkMode ? '☀️' : '🌙'}
+          {theme.darkMode ? 'Light' : 'Dark'}
         </button>
       </div>
 
