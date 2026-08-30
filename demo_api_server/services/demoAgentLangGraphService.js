@@ -24,6 +24,21 @@ const ACTIVITY_ANALYSIS_RE = /\b(unusual|suspicious|anomal\w*|irregular|out of t
  */
 const EXPLANATION_ANALYSIS_RE = /\b(explain|walk me through)\b[\s\S]{0,80}\b(denied|blocked|token chain|decision)\b/i;
 
+/**
+ * A blocked action is matched by SHAPE, not by category. Measured 2026-08-30
+ * against the live stack: `/api/admin/app-events` reported `authorize: 0` and no
+ * `intent_auth` category at all, while the actual denial sat under
+ * `enterprise_mcp` ("enterprise_mcp.policy_check — DENY"). Enforcement is spread
+ * across the gateway, intent binding, P1AZ and the MCP policy check, and each
+ * logs under its own category — so a category allowlist silently matches nothing
+ * the moment a demo denies down a different path. Severity plus a decision-shaped
+ * message survives that.
+ */
+const DENIAL_MESSAGE_RE = /\b(deny|denied|denies|block(?:ed)?|mismatch|forbidden|refused|step[_\s-]?up|not permitted)\b/i;
+
+/** Decisions to hand the model. Enough to explain the last block, not a log dump. */
+const DENIAL_EVENTS_FOR_PROMPT = 5;
+
 /** Rows to hand the model. Enough to spot an outlier, small enough to reason over. */
 const ACTIVITY_ROWS_FOR_PROMPT = 25;
 
@@ -2158,10 +2173,44 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
     // "explain the unusual activity") gets one clause, not two contradictory
     // bullet counts — while a matched-but-empty pre-fetch still gets capped.
     if (!activityClauseApplied && EXPLANATION_ANALYSIS_RE.test(String(message || ''))) {
+      // Measured 2026-08-30 against the live model, three runs on main: UC35
+      // returned a 38-CHARACTER refusal ("I'm sorry, but I can't help with
+      // that.") — and priming the session with a genuine DENY first changed
+      // nothing. The model was never handed the decision it was asked to
+      // explain, so refusing was CORRECT behaviour, not a bug.
+      //
+      // That also disproves the first theory. Capping the answer length fixes
+      // nothing when there is no long answer: the same three runs took 7.3s,
+      // 96.9s and 120.5s for byte-identical 38-char output, so the timing
+      // spread is backend latency, not generation. Grounding is the fix; the
+      // cap below only bounds the answer once there is one.
+      let denials = [];
+      try {
+        denials = appEventService
+          .getEvents({ limit: 80 })
+          .filter((e) => (e.severity === 'warning' || e.severity === 'error')
+            // Exclude the agent's own prose: an earlier reply that merely
+            // MENTIONS a denial is not evidence of one, and feeding it back
+            // would have the agent explain its own previous answer.
+            && e.category !== 'agent_prompt'
+            && DENIAL_MESSAGE_RE.test(String(e.message || '')))
+          .slice(0, DENIAL_EVENTS_FOR_PROMPT);
+      } catch (e) {
+        // Non-fatal: the model still answers, just without the evidence.
+        console.warn('[processAgentMessage] denial pre-fetch failed (non-fatal): %s', e?.message);
+      }
+      const evidence = denials
+        .map((e) => `- [${e.timestamp}] ${e.category}: ${e.message}`)
+        .join('\n');
       const last = messages[messages.length - 1];
       messages[messages.length - 1] = {
         ...last,
-        content: `${last.content}\n\nAnswer in at most six short bullet points, each one line. Name the decision, the control that fired and the evidence for it. Do NOT reproduce raw event JSON, and do not restate the question back to me.`,
+        // The empty branch matters as much as the populated one: with no
+        // recorded block, "I can't help with that" is a dead end, while naming
+        // what would produce one still teaches the control.
+        content: evidence
+          ? `${last.content}\n\nHere are the most recent blocked or denied decisions from this session, already retrieved for you. Explain THESE — do not say you cannot access them, and do not ask me to paste anything.\n\n${evidence}\n\nAnswer in at most six short bullet points, each one line: name the decision, the control that fired, and the evidence for it. Do NOT reproduce raw event JSON.`
+          : `${last.content}\n\nNo blocked or denied decision is recorded in this session yet. Say that in one sentence, then name in one more sentence what would produce one. Do not apologise and do not refuse.`,
       };
     }
 

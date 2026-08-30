@@ -1,22 +1,28 @@
 /**
- * UC35 ("Explain why my last blocked action was denied and walk me through the
- * token chain") is an LLM-reasoning step with primaryTool: null. There is no
- * tool to pre-fetch, so the UC34 activity clause never fires and the model
- * narrates unbounded — "walk me through the token chain" invites a step-by-step
- * essay, and generation time scales with what it writes.
+ * UC35 — "Explain why my last blocked action was denied and walk me through the
+ * token chain" — has primaryTool: null, so UC34's activity pre-fetch never fires
+ * and nothing grounds the answer.
  *
- * REASON_LOOP_TIMEOUT_MS is a PER-REQUEST axios timeout (agentReasoningClient.js
- * passes it straight to the POST), so one long generation is enough to fail the
- * call — no loop required. UC34 was measured returning at 121.0s and 121.2s
- * against the 120000 ceiling; UC35 has the same shape with less grounding.
+ * MEASURED 2026-08-30 against the live model, three runs on main:
  *
- * This asserts the clause is appended, is NOT appended to ordinary prompts, and
- * that a prompt matching BOTH heuristics gets exactly one clause rather than two
- * contradictory sets of instructions.
+ *   run 1  120.5s  304 chars  OVER CEILING, give-up prose (reasoning_unavailable)
+ *   run 2   96.9s   38 chars  "I'm sorry, but I can't help with that."
+ *   run 3    7.3s   38 chars  identical
+ *
+ * Two conclusions, both of which killed the first theory:
+ *
+ *  1. The model REFUSES — 38 characters, not a long narration. Priming the
+ *     session with a genuine DENY first changed nothing (17.4s, same 38 chars),
+ *     so the decision never reached the model and refusing was CORRECT.
+ *  2. Capping length fixes nothing when there is no long answer. 7.3s and 96.9s
+ *     produced byte-identical output, so the spread is backend latency, not
+ *     generation — the 120s ceiling is a symptom, not the cause.
+ *
+ * So the fix is GROUNDING. These assert the evidence is injected, that the empty
+ * case still answers instead of refusing, and that a prompt matching both
+ * heuristics gets one clause rather than two contradictory ones.
  */
 
-// Rows are per-test: an EMPTY result skips the activity clause, which is its own
-// case below. Defaults to one row so the pre-fetch path behaves normally.
 jest.mock('../../services/bffMcpToolExecutor', () => ({
   executeBffTool: jest.fn(async (a) => JSON.stringify({
     transactions: global.__activityRows ?? [
@@ -43,24 +49,30 @@ const UC35_PROMPT = 'Explain why my last blocked action was denied and walk me t
 const BOTH_PROMPT = 'explain why my blocked transfer was denied, given the unusual activity on my account';
 const BREVITY = 'at most six short bullet points';
 const ACTIVITY_CLAUSE = 'already retrieved for you via';
+const NO_DECISION = 'No blocked or denied decision is recorded';
+// The shape the live stack actually records. Measured 2026-08-30 via
+// /api/admin/app-events: `authorize` had ZERO events and `intent_auth` did not
+// exist as a category, while the real denial sat under `enterprise_mcp`.
+const DENIAL_MSG = 'enterprise_mcp.policy_check — DENY';
+
+beforeEach(() => { global.__activityRows = undefined; global.__denialEvents = undefined; });
 
 // setup.js resets the module registry after every test, so require inside.
 function load() {
   const verticalManifest = require('../../services/verticalManifest').verticalManifest;
   verticalManifest.init();
   const configStore = require('../../services/configStore');
-  // The clause lives on the LLM/reason-loop path; test defaults are heuristics,
-  // which returns the capability catalog long before it.
   const realGet = configStore.getEffective.bind(configStore);
   jest.spyOn(configStore, 'getEffective').mockImplementation((k) => {
     if (k === 'ff_heuristic_enabled') return 'false';
     if (k === 'agent_mode') return 'llamacpp';
     return realGet(k);
   });
+  // Real events would leak between tests; drive the pre-fetch explicitly.
+  const appEventService = require('../../services/appEventService');
+  jest.spyOn(appEventService, 'getEvents').mockImplementation(() => global.__denialEvents ?? []);
   return { service: require('../../services/demoAgentLangGraphService') };
 }
-
-beforeEach(() => { global.__activityRows = undefined; });
 
 function runAgent(service, message, vertical = 'banking') {
   global.__capturedMessages = null;
@@ -81,41 +93,88 @@ const lastContent = () => {
   return String(msgs[msgs.length - 1]?.content || '');
 };
 
-describe('UC35 explanation brevity clause — a timeout fix, not a style preference', () => {
-  it("appends the clause to UC35's chip prompt", async () => {
+describe('UC35 explanation grounding — the model was never given the decision', () => {
+  it('injects the recorded denial so the model has something to explain', async () => {
+    global.__denialEvents = [
+      { timestamp: '2026-08-30T11:41:00Z', category: 'enterprise_mcp', severity: 'warning', message: DENIAL_MSG },
+    ];
     const { service } = load();
     await runAgent(service, UC35_PROMPT);
-    expect(lastContent()).toContain(BREVITY);
+    const content = lastContent();
+    expect(content).toContain(DENIAL_MSG);
+    expect(content).toContain(BREVITY);
+  });
+
+  // The measured failure. With nothing recorded the model refused outright,
+  // which is a dead end for the demo; naming what would produce a block still
+  // teaches the control.
+  it('answers instead of refusing when no decision is recorded', async () => {
+    global.__denialEvents = [];
+    const { service } = load();
+    await runAgent(service, UC35_PROMPT);
+    const content = lastContent();
+    expect(content).toContain(NO_DECISION);
+    expect(content).not.toContain(BREVITY);
+  });
+
+  // The agent's own earlier reply is logged at agent_prompt and can quote the
+  // word "denied". Treating that as evidence would have the agent explain its
+  // own previous answer — a feedback loop, not grounding. Live data contained
+  // exactly this: three agent_prompt rows echoing the empty-branch sentence.
+  it('never treats its own prose as evidence of a denial', async () => {
+    global.__denialEvents = [
+      { timestamp: '2026-08-30T11:50:00Z', category: 'agent_prompt', severity: 'warning', message: 'LLM response: no blocked or denied decision is recorded' },
+    ];
+    const { service } = load();
+    await runAgent(service, UC35_PROMPT);
+    expect(lastContent()).toContain(NO_DECISION);
+  });
+
+  // Only non-PERMIT decisions are evidence. An info-severity PERMIT is not a
+  // block, and a warning with no decision words is not one either.
+  it('ignores PERMIT/info events and non-decision warnings', async () => {
+    global.__denialEvents = [
+      { timestamp: '2026-08-30T11:00:00Z', category: 'authorize', severity: 'info', message: 'PERMIT transfer' },
+      { timestamp: '2026-08-30T11:00:01Z', category: 'agent', severity: 'warning', message: 'unrelated warning' },
+    ];
+    const { service } = load();
+    await runAgent(service, UC35_PROMPT);
+    const content = lastContent();
+    expect(content).toContain(NO_DECISION);
+    expect(content).not.toContain('PERMIT transfer');
+    expect(content).not.toContain('unrelated warning');
   });
 
   it('leaves an ordinary prompt untouched', async () => {
     const { service } = load();
     await runAgent(service, 'show my accounts');
-    expect(lastContent()).not.toContain(BREVITY);
+    const content = lastContent();
+    expect(content).not.toContain(BREVITY);
+    expect(content).not.toContain(NO_DECISION);
   });
 
-  // The guard that matters. BOTH_PROMPT satisfies both heuristics at once. The
-  // activity path already grounds AND caps, so adding this clause on top would
-  // hand the model two different bullet counts in a single turn.
+  // BOTH_PROMPT satisfies both heuristics. The activity path already grounds and
+  // caps, so adding this on top would hand the model two different bullet counts
+  // in a single turn.
   it('a prompt matching both heuristics gets the activity clause only', async () => {
     const { service } = load();
     await runAgent(service, BOTH_PROMPT);
     const content = lastContent();
     expect(content).toContain(ACTIVITY_CLAUSE);
     expect(content).not.toContain(BREVITY);
+    expect(content).not.toContain(NO_DECISION);
   });
 
-  // Selecting a tool is not the same as grounding the answer. With no rows the
-  // activity clause is skipped entirely, and before this the prompt went to the
-  // model uncapped — the same unbounded narration UC35 fails on. Keying the
-  // fallback off "was the clause applied" rather than "was a tool chosen"
-  // closes it.
-  it('still caps the answer when the activity pre-fetch comes back empty', async () => {
+  // Selecting a tool is not grounding an answer: an empty pre-fetch skips the
+  // activity clause, and before this the prompt reached the model with no
+  // handling at all.
+  it('falls through to the explanation path when the activity pre-fetch is empty', async () => {
     global.__activityRows = [];
+    global.__denialEvents = [];
     const { service } = load();
     await runAgent(service, BOTH_PROMPT);
     const content = lastContent();
     expect(content).not.toContain(ACTIVITY_CLAUSE);
-    expect(content).toContain(BREVITY);
+    expect(content).toContain(NO_DECISION);
   });
 });
