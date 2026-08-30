@@ -87,7 +87,7 @@ export default function PingOneAuthorizeConsoleClean({
       <div className="p1az-clean-endpointbar">
         <div className="inspector-clean-field">
           <div className="inspector-clean-field-label">Policy Endpoint</div>
-          <select style={{ padding: '8px 12px', border: '1px solid var(--th-border)', borderRadius: '6px' }}>
+          <select style={{ padding: '8px 12px', border: '1px solid var(--th-border)', borderRadius: 'var(--radius-md)' }}>
             <option>Live Policy Endpoint (01d89b06)</option>
           </select>
         </div>
@@ -210,9 +210,9 @@ export default function PingOneAuthorizeConsoleClean({
                   <div style={{ fontSize: '12px' }}>
                     {customRows.map((row, i) => (
                       <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 30px', gap: '8px', marginBottom: '8px', alignItems: 'end' }}>
-                        <input type="text" placeholder="Key" value={row.key} onChange={e => setRow(i, 'key', e.target.value)} style={{ padding: '8px', border: '1px solid var(--th-border)', borderRadius: '4px' }} />
-                        <input type="text" placeholder="Value" value={row.value} onChange={e => setRow(i, 'value', e.target.value)} style={{ padding: '8px', border: '1px solid var(--th-border)', borderRadius: '4px' }} />
-                        {row.key && <button onClick={() => removeRow(i)} style={{ padding: '4px 8px', background: '#fee2e2', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>✕</button>}
+                        <input type="text" placeholder="Key" value={row.key} onChange={e => setRow(i, 'key', e.target.value)} style={{ padding: '8px', border: '1px solid var(--th-border)', borderRadius: 'var(--radius-sm)' }} />
+                        <input type="text" placeholder="Value" value={row.value} onChange={e => setRow(i, 'value', e.target.value)} style={{ padding: '8px', border: '1px solid var(--th-border)', borderRadius: 'var(--radius-sm)' }} />
+                        {row.key && <button onClick={() => removeRow(i)} style={{ padding: '4px 8px', background: '#fee2e2', border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: '12px' }}>✕</button>}
                       </div>
                     ))}
                   </div>

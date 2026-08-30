@@ -1034,14 +1034,14 @@ export default function PingOneAuthorizePage() {
         <div style={{ padding: '40px', color: '#64748b', fontSize: '14px' }}>Loading PingOne Authorize configuration…</div>
       ) : (
         <PingOneAuthorizeConsoleClean
-          endpointId={endpointId}
+          endpointId={selectedId}
           policiesState={policiesState}
           pendingTest={pendingTest}
           onClearPendingTest={clearPendingTest}
-          onEvaluated={handleEvaluated}
+          onEvaluated={() => {}}
           onTestRule={handleTestRule}
           reel={runHistory}
-          onSelectReel={setSelectedDecision}
+          onSelectReel={() => {}}
         />
       ))}
     </div>

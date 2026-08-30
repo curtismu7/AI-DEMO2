@@ -23,7 +23,7 @@
   background: #10b981;
   color: white;
   padding: 2px 8px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   font-weight: 600;
   font-size: 10px;
 }
@@ -32,7 +32,7 @@
   padding: 4px 10px;
   background: var(--th-bg-card);
   border: 1px solid var(--th-border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 11px;
   transition: all 0.2s;
@@ -56,7 +56,7 @@
   padding: 6px 12px;
   background: #fef3c7;
   border: 1px solid #fcd34d;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 11px;
   color: #78350f;
   display: flex;
@@ -67,7 +67,7 @@
 /* Verdict cards */
 .p1az-clean-verdict {
   padding: 16px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--th-border);
   background: var(--th-bg-inset);
   overflow-y: auto;
@@ -133,7 +133,7 @@
 .p1az-clean-card {
   background: var(--th-bg-card);
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 16px;
   margin-top: 12px;
 }
@@ -172,7 +172,7 @@
   padding: 6px 12px;
   background: var(--th-bg-card);
   border: 1px solid var(--th-border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 11px;
   cursor: pointer;
   transition: all 0.2s;
@@ -190,7 +190,7 @@
   padding: 2px 8px;
   background: var(--th-bg-inset);
   border: 1px solid var(--th-border);
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   font-size: 10px;
   cursor: pointer;
   transition: all 0.2s;
