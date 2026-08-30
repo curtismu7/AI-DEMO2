@@ -16,6 +16,67 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-08-29 — Grafana: internet-facing on a public default password, and SSO-only is blocked by its own role mapping
+
+**What's wrong, today.** `k8s/create-secrets.sh:638-642` falls back to a
+hardcoded `ai-demo-grafana` when `GRAFANA_ADMIN_PASSWORD` is unset, and it is
+unset — every SE deploy prints:
+
+    [WARN]   GRAFANA_ADMIN_PASSWORD unset — using the default.
+             Set it before any long-lived deployment.
+
+`docker-compose.yml:108` carries the same default locally. Grafana is served at
+`/grafana/` on `ai-demo.ping-devops.com`, so the admin credential of an
+internet-facing surface is a constant committed to this repo. That is the part
+worth fixing first, and it is a one-variable change.
+
+**The attractive fix — remove the password form and force PingOne — is
+currently a lockout.** `docker-compose.yml` already ships the switch
+(`GF_AUTH_DISABLE_LOGIN_FORM=false`), so flipping it looks like a one-liner. It
+is not, because of the line 27 above it:
+
+    GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH='Viewer'
+
+Every PingOne SSO user is hardcoded to **Viewer**. The local `admin` account is
+therefore the ONLY route to admin rights — no dashboard edits, no datasource
+changes, no user management without it. `CLAUDE.md` already calls that account
+"the lockout fallback, kept deliberately"; this is why. Disabling the form today
+removes the only admin path permanently.
+
+Compounding it: `GRAFANA_PINGONE_CLIENT_SECRET` is ALSO unset, so the SSO button
+does not currently work at all (`create-secrets.sh:646-648` warns and continues
+by design, degrading to password login). Disabling the password form before
+fixing that locks everyone out immediately rather than eventually.
+
+**Why it wasn't fixed now.** Two of the three prerequisites do not exist yet — a
+PingOne group/claim to map roles from, and the client secret — and the third
+step is the one that removes the way back in. Flipping auth flags on an
+internet-facing surface is not a drive-by.
+
+**What the real fix looks like, strictly in this order:**
+
+1. **Set `GRAFANA_ADMIN_PASSWORD`** and re-run `update config`. Independent of
+   everything below, and it closes the live exposure. NOTE: Grafana seeds the
+   admin password into its own DB on FIRST boot; on an already-initialised
+   instance `GF_SECURITY_ADMIN_PASSWORD` may not overwrite the stored value.
+   Verify by logging in, or use `grafana-cli admin reset-admin-password`. Do not
+   trust the deploy line.
+2. **Set `GRAFANA_PINGONE_CLIENT_SECRET`** for "Demo AI App - Grafana Login", so
+   SSO actually works while the password form is still there as a fallback.
+3. **Map roles from a claim** — replace the literal `'Viewer'` with a JMESPath
+   over a PingOne group, e.g.
+   `contains(groups[*], 'grafana-admins') && 'Admin' || 'Viewer'`, and create
+   that group. Verify an admin-mapped user really gets Admin BEFORE step 4.
+4. **Only then** `GF_AUTH_DISABLE_LOGIN_FORM=true`, optionally with
+   `GF_AUTH_OAUTH_AUTO_LOGIN=true` to skip the page rather than show a
+   single-button form.
+
+**On "identifier-first" (type a username/email, then redirect).** Grafana has no
+such mode; `auto_login` is the supported equivalent and reaches the same place
+with less. The redirect already carries a hint —
+`GF_AUTH_GENERIC_OAUTH_AUTH_URL` pins
+`login_hint=${GRAFANA_LOGIN_HINT:-demoUser}` — so PingOne arrives pre-filled
+without a custom form.
 ### [x] 2026-08-30 — `mcpPingOneHttpAdapter` authenticates with a worker token the PingOne MCP server will never accept
 
 **What's wrong.** The hosted PingOne admin MCP server
