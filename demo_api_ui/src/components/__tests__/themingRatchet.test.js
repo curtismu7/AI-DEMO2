@@ -20,8 +20,10 @@ import path from 'node:path';
 
 // Lower this when you migrate a stylesheet. Never raise it.
 // 190 at the time this guard was written; 189 after ExchangeModeToggle.css
-// picked up its first --th-* token in the same commit.
-const MAX_UNTHEMED = 189;
+// picked up its first --th-* token in the same commit; 182 after the THEMING.md
+// §4 Priority 0 pass cleared the OS-keyed @media (prefers-color-scheme: dark)
+// blocks, which took seven files onto --th-* or [data-theme="dark"] with them.
+const MAX_UNTHEMED = 182;
 
 const SRC = path.join(__dirname, '..', '..');
 

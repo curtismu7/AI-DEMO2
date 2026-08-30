@@ -1,9 +1,9 @@
 /* Policy conformance panel — declared vs actual control, per use case. */
 
 .pcp {
-  border: 1px solid var(--app-border, #d4d7dd);
+  border: 1px solid var(--th-border);
   border-radius: 8px;
-  background: var(--app-surface, #fff);
+  background: var(--th-bg-card);
   padding: 16px;
   margin: 0 0 16px;
 }
@@ -20,7 +20,7 @@
   margin: 0 0 4px;
   font-size: var(--font-size-base);
   font-weight: 700;
-  color: var(--app-text, #1a1d21);
+  color: var(--th-text);
 }
 
 /* Solid body colour, never a low-contrast hint grey (REGRESSION_PLAN §0). */
@@ -29,7 +29,7 @@
   max-width: 62ch;
   font-size: var(--font-size-sm);
   line-height: 1.45;
-  color: var(--app-text, #1a1d21);
+  color: var(--th-text);
 }
 
 .pcp__run {
@@ -53,7 +53,7 @@
   margin: 12px 0 0;
   font-size: var(--font-size-sm);
   line-height: 1.45;
-  color: var(--app-text, #1a1d21);
+  color: var(--th-text);
 }
 
 .pcp__summary { font-weight: 600; }
@@ -77,7 +77,7 @@
 .pcp__table td {
   text-align: left;
   padding: 7px 10px;
-  border-bottom: 1px solid var(--app-border, #e3e5e9);
+  border-bottom: 1px solid var(--th-border);
   vertical-align: top;
 }
 
@@ -85,7 +85,7 @@
   font-size: var(--font-size-xs);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--app-text, #1a1d21);
+  color: var(--th-text);
   border-bottom-width: 2px;
 }
 
@@ -100,17 +100,20 @@
   font-weight: 700;
 }
 
-.pcp__row--bad { background: var(--app-danger-surface, #fdf2f2); }
+.pcp__row--bad { background: var(--th-status-error-bg); }
 
 .pcp__reply {
   max-width: 34ch;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--app-text, #1a1d21);
+  color: var(--th-text);
 }
 
-@media (prefers-color-scheme: dark) {
-  .pcp { background: var(--app-surface, #1b1e23); border-color: var(--app-border, #333941); }
-  .pcp__row--bad { background: rgba(185, 28, 28, 0.18); }
-}
+/* No dark block. This file used to carry @media (prefers-color-scheme: dark),
+   which fired on the OS setting rather than the app's own theme (THEMING.md §4
+   Priority 0). Both of its rules re-stated the same undefined --app-* vars with
+   dark fallbacks — --app-surface / --app-border are defined nowhere, so each
+   branch was really just a literal. The panel's surface, line and ink are --th-*
+   now, and the bad-row tint is --th-status-error-bg, so dark follows the
+   ThemeProvider attribute for free. */

@@ -24,13 +24,13 @@
 }
 
 .ttrace-notice {
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
   border-radius: 6px;
   padding: 12px 14px;
   margin-bottom: 12px;
   font-size: var(--font-size-body);
-  color: #374151;
+  color: var(--th-text-body);
 }
 
 .ttrace-list {
@@ -45,8 +45,8 @@
   gap: 16px;
   width: 100%;
   padding: 10px 14px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
   border-radius: 6px;
   margin-bottom: 6px;
   font-size: var(--font-size-body);
@@ -60,8 +60,8 @@
 .ttrace-count { color: var(--th-text, #111827); }
 
 .ttrace-detail {
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
   border-radius: 6px;
   padding: 14px;
   margin: 0 0 12px;
@@ -237,14 +237,13 @@
   margin: 0 0 10px;
 }
 
-@media (prefers-color-scheme: dark) {
-  .ttrace-page { background: #111827; }
-  .ttrace-header h1 { color: #f9fafb; }
-  .ttrace-notice,
-  .ttrace-row,
-  .ttrace-detail { background: #1f2937; border-color: #374151; color: #e5e7eb; }
-  .ttrace-node { background: #1f2937; }
-}
+/* No dark block. This file used to carry @media (prefers-color-scheme: dark),
+   which fired on the OS setting rather than the app's own theme (THEMING.md §4
+   Priority 0). Three of its five rules were already worse than redundant:
+   .ttrace-page, .ttrace-header h1 and .ttrace-node read --th-* tokens above, so
+   the block was overriding a themed value with a dark literal whenever the OS
+   and the app disagreed. The other three surfaces are --th-* now too, so dark
+   follows the ThemeProvider attribute for free. */
 
 /* PingGateway MCP filter chain — which product filters handled the hop, in
    order. Neutral pills by default: these are informational, not verdicts, and

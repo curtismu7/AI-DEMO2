@@ -787,15 +787,12 @@
   }
 }
 
-/* Dark mode - disabled, using light theme only */
-/*
-@media (prefers-color-scheme: dark) {
-  .utfi-container {
-    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-    color: #e2e8f0;
-  }
-}
-*/
+/* No dark block. One used to sit here commented out ("disabled, using light
+   theme only") — it was an OS-keyed @media (prefers-color-scheme: dark), which
+   THEMING.md §4 Priority 0 removes on sight. Deleted rather than left as dead
+   code: commented-out CSS reads as a pending intention, and reviving that one
+   would have reintroduced the wrong trigger. If this panel ever wants dark, it
+   takes --th-* tokens like everything else. */
 
 /* Print styles */
 @media print {
