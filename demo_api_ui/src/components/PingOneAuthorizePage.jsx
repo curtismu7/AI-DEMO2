@@ -15,25 +15,8 @@ import PacEditorLaunch from './PacEditorLaunch';
 import InspectorTabs from './shared/InspectorTabs';
 import SignInPrompt from './SignInPrompt';
 import { explainAuthorizeResult, displayDecision as explainDisplayDecision } from '../utils/authorizeResultExplain';
-import './McpInspector.css';
-import './PingOneMcpInspector.css';
+import PingOneAuthorizeConsoleClean from './PingOneAuthorizeConsoleClean';
 import './PingOneAuthorizePage.css';
-
-/** Collapsible trace section — same pattern as PingOne MCP Inspector. */
-const Section = ({ title, hint, status, defaultOpen = true, children }) => (
-  <details className="p1mcp-section" open={defaultOpen}>
-    <summary>
-      <span className="p1mcp-section__title">{title}</span>
-      {status && (
-        <span className={`p1mcp-section__status p1mcp-section__status--${status}`}>
-          {status === 'ok' ? '✓ received' : status === 'error' ? '✗ error' : status}
-        </span>
-      )}
-      {hint && <span className="p1mcp-section__hint">{hint}</span>}
-    </summary>
-    <div className="p1mcp-section__body">{children}</div>
-  </details>
-);
 
 // ---------------------------------------------------------------------------
 // PingOne Authorize — Live Policy Console
@@ -1049,159 +1032,20 @@ export default function PingOneAuthorizePage() {
       )}
 
       {tab === 'console' && (needsLogin ? (
-        <div style={{ padding: '40px' }}>
-          <SignInPrompt message="The PingOne Authorize Live Policy Console needs a signed-in session." />
-        </div>
+        <SignInPrompt />
       ) : loading ? (
         <div style={{ padding: '40px', color: '#64748b', fontSize: '14px' }}>Loading PingOne Authorize configuration…</div>
       ) : (
-        <>
-      <div style={S.header}>
-        <div>
-          <h2 style={S.title}>PingOne Authorize — Live Policy Console</h2>
-          <p style={S.subtitle}>Select a decision endpoint, send a real decision request, and inspect the live verdict.</p>
-        </div>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <span style={S.liveBadge}><span style={S.liveDot} /> LIVE · calls real PingOne</span>
-          <button style={S.refreshBtn} onClick={load}>↻ Refresh</button>
-        </div>
-      </div>
-
-      {error && <div style={S.error}>❌ {error}</div>}
-
-      {notConfigured ? (
-        <div style={S.warning}>
-          ⚠️ PingOne Authorize worker credentials are not configured. Set{' '}
-          <code>PINGONE_WORKER_CLIENT_ID</code> + <code>PINGONE_WORKER_CLIENT_SECRET</code> in{' '}
-          <code>.env</code>, or go to <strong>App Configuration → PingOne Setup</strong> and enter{' '}
-          <code>authorize_worker_client_id</code> / <code>authorize_worker_client_secret</code>.
-          {data?.note && <div style={{ marginTop: '6px', fontSize: '12px' }}>{data.note}</div>}
-        </div>
-      ) : (
-        <div style={S.metaStrip}>
-          <div><div style={S.metaK}>Environment</div><div style={S.metaV}>{data?.environmentId || '—'}</div></div>
-          <div><div style={S.metaK}>Region</div><div style={S.metaV}>{data?.region || 'com'}</div></div>
-          <div><div style={S.metaK}>Worker app</div><div style={S.metaV}>configured ✅</div></div>
-          <div style={S.engineNote}>
-            This console always calls PingOne Authorize live. The app-wide enforcement engine is currently
-            <strong> {data?.activeEngine || 'unknown'}</strong> — running tests here does <strong>not</strong> change how real transactions are gated.
-          </div>
-        </div>
-      )}
-
-      {/* Decision endpoint picker */}
-      <div style={S.card}>
-        <div style={S.cardHead}>
-          <span style={S.cardTitle}>Decision Endpoint</span>
-          <span style={S.cardHint}>{endpoints.length} in environment</span>
-        </div>
-        <div style={S.cardBody}>
-          {endpoints.length === 0 ? (
-            <div style={S.empty}>No decision endpoints found in this environment.</div>
-          ) : (
-            <>
-              <label style={S.fld}>Endpoint</label>
-              <select style={{ ...S.select, fontWeight: 600 }} value={selectedId} onChange={e => setSelectedId(e.target.value)}>
-                {endpoints.map(ep => <option key={ep.id} value={ep.id}>{endpointLabel(ep)}</option>)}
-              </select>
-              {selected && (
-                <div style={S.epDetail}>
-                  <div style={S.epItem}>
-                    <div style={S.metaK}>Endpoint ID</div>
-                    <div style={S.epVal}>{selected.id}</div>
-                  </div>
-                  {selected.description && (
-                    <div style={S.epItem}>
-                      <div style={S.metaK}>Description</div>
-                      <div style={{ ...S.epVal, fontFamily: 'inherit', fontWeight: 500, color: '#475569' }}>{selected.description}</div>
-                    </div>
-                  )}
-                  <div style={S.epItem}>
-                    <div style={S.metaK}>Recent-decision recording</div>
-                    <div style={S.epVal}>
-                      {recordingOn
-                        ? <span style={S.recOn}>✅ on</span>
-                        : <>
-                            <span style={S.recOff}>⚠️ off</span>
-                            <button style={S.btnAmber} onClick={enableRecording} disabled={enabling}>
-                              {enabling ? 'Enabling…' : 'Enable recording'}
-                            </button>
-                          </>}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Evaluate — policy tree, form, and result all live inside one InspectorShell */}
-      {selectedId
-        ? <div className="p1az-evaluate-shell"><EvaluatePanel endpointId={selectedId} autoPreset={autoPreset} policiesState={policiesState} pendingTest={pendingTest} onClearPendingTest={clearPendingTest} onEvaluated={pushRunHistory} onTestRule={handleTestRule} /></div>
-        : <div style={S.card}><div style={S.cardBody}><div style={S.empty}>Select a decision endpoint to evaluate.</div></div></div>}
-
-      {/* Recent decisions */}
-      <div style={S.card}>
-        <div style={S.cardHead}>
-          <span style={S.cardTitle}>Recent Decisions</span>
-          <span style={S.cardHint}>{selected?.name ? `${selected.name} · ` : ''}{recent.decisions.length} loaded</span>
-        </div>
-        <div style={S.cardBody}>
-          {!recordingOn ? (
-            <div style={S.empty}>
-              Recording is off for this endpoint. Click <strong>Enable recording</strong> above to start capturing the last 20 decisions (24-hour window).
-            </div>
-          ) : recent.loading ? (
-            <div style={S.empty}>Loading recent decisions…</div>
-          ) : recent.error ? (
-            <div style={{ ...S.empty, color: '#b45309', borderColor: '#fde68a', background: '#fffbeb' }}>⚠️ {recent.error}</div>
-          ) : recent.decisions.length === 0 ? (
-            <div style={S.empty}>No recent decisions yet. Run an evaluation above to populate this list.</div>
-          ) : (
-            <table style={S.table}>
-              <thead><tr>
-                <th style={S.th}>#</th><th style={S.th}>Decision</th><th style={S.th}>Amount</th>
-                <th style={S.th}>Type</th><th style={S.th}>ACR</th><th style={S.th}>Decision ID</th><th style={S.th}>Time</th>
-              </tr></thead>
-              <tbody>{recent.decisions.map((d, i) => <DecisionRow key={i} d={d} idx={i} />)}</tbody>
-            </table>
-          )}
-        </div>
-      </div>
-
-      {/* Run history — this session's ad-hoc Evaluate calls (any endpoint/preset) */}
-      <div style={S.card}>
-        <div style={S.cardHead}>
-          <span style={S.cardTitle}>Run History</span>
-          <span style={S.cardHint}>this session · {runHistory.length} loaded</span>
-        </div>
-        <div style={S.cardBody}>
-          {runHistory.length === 0 ? (
-            <div style={S.empty}>No evaluations run yet this session.</div>
-          ) : (
-            <table style={S.table}>
-              <thead><tr>
-                <th style={S.th}>#</th><th style={S.th}>Preset</th><th style={S.th}>Decision</th>
-                <th style={S.th}>Engine</th><th style={S.th}>Step-up</th><th style={S.th}>Decision ID</th>
-              </tr></thead>
-              <tbody>
-                {runHistory.map((h, i) => (
-                  <tr key={i}>
-                    <td style={S.td}>{i + 1}</td>
-                    <td style={S.td}>{{ transaction: 'Transaction', mcp: 'MCP First Tool', custom: 'Custom' }[h.preset] || h.preset}</td>
-                    <td style={S.td}><span style={S.dBadge(h.decision)}>{h.decision || '?'}</span></td>
-                    <td style={S.td}>{h.engine}</td>
-                    <td style={S.td}>{String(h.stepUpRequired)}</td>
-                    <td style={S.tdMono}>{h.decisionId || '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </div>
-        </>
+        <PingOneAuthorizeConsoleClean
+          endpointId={selectedId}
+          policiesState={policiesState}
+          pendingTest={pendingTest}
+          onClearPendingTest={clearPendingTest}
+          onEvaluated={() => {}}
+          onTestRule={handleTestRule}
+          reel={runHistory}
+          onSelectReel={() => {}}
+        />
       ))}
     </div>
   );
