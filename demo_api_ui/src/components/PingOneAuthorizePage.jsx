@@ -516,7 +516,7 @@ export function EvaluatePanel({ endpointId, autoPreset, policiesState, pendingTe
               <span>{policiesLoading ? 'loading…' : `${ruleCount(queryActive ? filteredPolicies : policies)} rule${ruleCount(queryActive ? filteredPolicies : policies) !== 1 ? 's' : ''}`}</span>
             </div>
             {!policiesLoading && !policiesError && policies.length > 0 && (
-              <>
+              <div>
                 <div style={{ padding: '8px 12px 6px', fontSize: '12px', color: '#64748b', lineHeight: 1.5 }}>
                   Explore the authorization policy tree below. Click on a rule to see quick test cases you can evaluate (live PingOne decision). Search to filter by name or description.
                 </div>
@@ -537,7 +537,7 @@ export function EvaluatePanel({ endpointId, autoPreset, policiesState, pendingTe
                     </div>
                   )}
                 </div>
-              </>
+              </div>
             )}
             <div className="inspector-shell-tree-body">
               {policiesLoading ? (
