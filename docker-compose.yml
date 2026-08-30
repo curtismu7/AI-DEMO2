@@ -515,6 +515,12 @@ services:
       # Same container port means the dev override inherits this mapping and
       # needs no `ports` override (no Compose `!override` tag required).
       - "4000:4000"
+    environment:
+      # Vite dev proxy: use the internal service name and HTTP (container-to-container,
+      # no mkcert needed). Without this, resolveMkcertPaths() sees /certs exists and
+      # defaults to HTTPS + api.ping.demo, causing ECONNREFUSED on the internal hop.
+      REACT_APP_API_HOST: "demo-api-server"
+      REACT_APP_API_HTTPS: "false"
     volumes:
       - ./demo_api_ui/src:/app/src  # Hot reload: Vite watches src changes
       - ./certs:/etc/nginx/certs:ro
