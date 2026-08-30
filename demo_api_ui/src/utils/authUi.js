@@ -22,9 +22,49 @@ const DEFAULT_SESSION_EXPIRED_MESSAGE = USER_SESSION_EXPIRED_MESSAGE;
 export const SESSION_EXPIRED_INTERRUPT_MESSAGE =
   'Your session has expired. Sign in again to continue.';
 
+/**
+ * The same interrupt, for a visitor who never had a session at all.
+ *
+ * AUTH_REQUIRED_CODES covers two different states and the copy above is only
+ * true for one of them: `session_expired` / `expired_token` / `token_inactive`
+ * mean a session existed and lapsed, while `login_required` /
+ * `authentication_required` mean there was never one. Telling a first-time
+ * visitor their session "expired" is simply false, and it was the visible bug
+ * on /pingone-authorize — arrive signed out, get told something ended that
+ * never began. SignInModal's own docstring already allows for both ("the
+ * session is gone (or was never there)"); only the sentence lagged.
+ */
+export const SIGN_IN_REQUIRED_INTERRUPT_MESSAGE = 'Sign in to continue.';
+
+/** Codes that mean "never signed in", as opposed to "signed in, then lapsed". */
+const NEVER_AUTHENTICATED_CODES = new Set([
+  'login_required',
+  'authentication_required',
+]);
+
+/**
+ * Pick the interrupt sentence from what the server actually said.
+ * Defaults to the expiry wording, which is the long-standing behaviour and the
+ * right answer whenever the code is absent or unrecognised.
+ * @param {unknown} body
+ * @returns {string}
+ */
+export function interruptMessageForAuthFailure(body) {
+  const raw = body && typeof body === 'object' ? body : {};
+  // `error` and `code` both carry it depending on the endpoint; normalizeAuthFailure
+  // rewrites them to 'session_expired', so read the ORIGINAL fields first.
+  for (const field of [raw.code, raw.error]) {
+    if (NEVER_AUTHENTICATED_CODES.has(normalizeErrorCode(field))) {
+      return SIGN_IN_REQUIRED_INTERRUPT_MESSAGE;
+    }
+  }
+  return SESSION_EXPIRED_INTERRUPT_MESSAGE;
+}
+
 /** Throttle duplicate banners when several API calls 401 at once. */
 let lastSessionExpiryNotifyAt = 0;
 const SESSION_EXPIRY_NOTIFY_MS = 8000;
+
 
 /** @internal Reset notify throttle between unit tests. */
 export function _resetSessionExpiryNotifyForTests() {
@@ -233,7 +273,7 @@ export function notifySessionExpiredIfNeeded(opts = {}) {
   window.dispatchEvent(
     new CustomEvent(SESSION_REAUTH_EVENT, {
       detail: {
-        message: SESSION_EXPIRED_INTERRUPT_MESSAGE,
+        message: interruptMessageForAuthFailure(body),
         // Raw provider text kept, but demoted: SignInModal shows it behind a
         // disclosure instead of leading with "jwt expired".
         detail: desc || undefined,
