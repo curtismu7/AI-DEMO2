@@ -175,6 +175,7 @@ const mcpTrafficRoutes = require('./routes/mcpTraffic');
 const mcpToolScopesRouter = require('./routes/mcpToolScopes');
 const mcpGatewayConfigRouter = require('./routes/mcpGatewayConfig');
 const agentGatewayConfigRouter = require('./routes/agentGatewayConfig');
+const agentGatewayInspectorRouter = require('./routes/agentGatewayInspector');
 const mcpAuditRouter = require('./routes/mcpAudit');
 const promptFlowRouter = require('./routes/promptFlow');
 const agentIdentityRoutes = require('./routes/agentIdentity');
@@ -1222,6 +1223,8 @@ app.use('/api/admin/mcp-gateway', mcpGatewayConfigRouter);
 app.use('/api/mcp-gateway', mcpGatewayConfigRouter);
 // Agent Gateway JSON config editor — view/validate/edit/reload gateway files
 app.use('/api/admin/agent-gateway', agentGatewayConfigRouter);
+// Agent Gateway Inspector — tool introspection and invocation
+app.use('/api/agent-gateway', agentGatewayInspectorRouter);
 app.use('/api/mcp/traffic', requireSession, mcpTrafficRoutes);
 // MCP Audit: admin-only route — proxies to MCP server /audit internal endpoint (D-11)
 app.use('/api/mcp/audit', (req, res, next) => {
