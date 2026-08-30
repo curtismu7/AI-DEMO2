@@ -183,13 +183,6 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
                         <div className="inspector-clean-json-error">Invalid JSON — fix the syntax to apply changes</div>
                       )}
                     </div>
-
-                    <div className="inspector-clean-field">
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '500' }}>
-                        <input type="checkbox" disabled />
-                        Run in chain (add more tools below)
-                      </label>
-                    </div>
                   </>
                 )}
 
