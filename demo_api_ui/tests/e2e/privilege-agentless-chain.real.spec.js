@@ -25,7 +25,7 @@ const PAGE = '/privilege-mcp-client';
 
 test.describe('Privilege agentless chain (real login)', () => {
   test.skip(!requireRealLoginEnv(), 'Skipped: E2E_CUSTOMER_USERNAME not set');
-  test.setTimeout(360_000);   // three network legs plus two 90s settle windows
+  test.setTimeout(600_000);   // three network legs, two settle windows, a door probe
 
   test('signs in silently, discovers tools, and explains any denial', async ({ page }) => {
     const notes = [];
@@ -188,14 +188,27 @@ test.describe('Privilege agentless chain (real login)', () => {
         .toMatch(/does not disclose which policy denied/);
 
       // The door probe runs automatically on open; give it time to land.
-      await page.locator('.cur-denial-probe, .cur-denial-note', { hasText: /Trying the other doors|No other doors|tools/ })
-        .first().waitFor({ state: 'visible', timeout: 60_000 }).catch(() => {});
+      // Wait for the probe to actually FINISH. Reading while the button still
+      // says "Probing..." returned [] and proved nothing about the feature.
+      await page.locator('.cur-denial-probe-row, .cur-denial-note')
+        .filter({ hasText: /No other doors/ }).or(page.locator('.cur-denial-probe-row'))
+        .first().waitFor({ state: 'visible', timeout: 90_000 }).catch(() => {});
       const probeRows = await page.locator('.cur-denial-probe-row').allInnerTexts().catch(() => []);
       log(`door probe rows: ${JSON.stringify(probeRows)}`);
+      expect(probeRows.length, 'the door probe produced no rows — it never reported on the other doors')
+        .toBeGreaterThan(0);
     } else {
       const n = await toolCount.innerText().catch(() => '0');
       log(`outcome: ${n} tools discovered`);
       expect(Number(n), 'tools panel rendered but reported zero tools').toBeGreaterThan(0);
+    }
+
+    // Dismiss any modal first — its overlay intercepts every later click, and
+    // Playwright waits for "stable and enabled" until the whole test times out.
+    const dismiss = page.locator('.cur-modal button', { hasText: /^Dismiss$/ });
+    if (await dismiss.first().isVisible().catch(() => false)) {
+      await dismiss.first().click();
+      await page.locator('.cur-modal-overlay').first().waitFor({ state: 'hidden', timeout: 15_000 }).catch(() => {});
     }
 
     // The MCP Explorer must be readable in LIGHT mode — this is the tab that

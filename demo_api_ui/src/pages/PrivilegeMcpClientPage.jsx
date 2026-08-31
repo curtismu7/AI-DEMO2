@@ -351,8 +351,15 @@ export default function PrivilegeMcpClientPage() {
           window.dispatchEvent(new CustomEvent('userAuthenticated'));
         }
         if (s.oauth?.scope) setGrantedScopes(s.oauth.scope.split(' ').filter(Boolean));
-      }).catch(() => {});
-      refreshTools().finally(clearSwitching);
+      })
+        // Discover only AFTER /state has landed. These used to run
+        // concurrently, so a 403 arriving first was rendered against an empty
+        // config: the denial modal said Door "(unknown)" and the door probe had
+        // no presets to try — the two facts the modal exists to supply. Caught
+        // by the live drive; unit tests seed state before rendering and cannot
+        // see it. .catch keeps discovery running even if /state fails.
+        .catch(() => {})
+        .then(() => refreshTools().finally(clearSwitching));
     } else {
       // Stale switch flag (auth error, silent_failed, or back-button out of the
       // redirect) — never leave the overlay stuck.
