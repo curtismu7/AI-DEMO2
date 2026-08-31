@@ -62,3 +62,41 @@ describe('showcase chip intents', () => {
       .toEqual(['get_account_balance', 'get_my_accounts']);
   });
 });
+
+/**
+ * The other half of the chain, and the half that was still broken after the
+ * mapping above shipped: /api/agent/invoke and /api/agent/run both mint the
+ * Intent Token from extractIntentAndConfidence(prompt) — NOT from the tool name.
+ * That classifier had no weather or branch-hours branch, so the chip prompts
+ * classified as "unknown" @0.3, permitted_tools fell back to the vertical reads,
+ * and PingGateway denied with (measured live 2026-08-31):
+ *
+ *   intent_mismatch: tool "get_weather" not permitted for intent "unknown"
+ *
+ * So the entries above were correct and unreachable. Assert prompt → intent →
+ * permitted_tools end to end; removing either parser branch fails these.
+ */
+describe('showcase chip prompts reach their own tool end to end', () => {
+  const { extractIntentAndConfidence } = require('../../services/nlIntentParser');
+
+  it.each([
+    ["what's the weather in Austin, TX", 'get_weather'],
+    ["what's the weather in Miami", 'get_weather'],
+    ['what are the branch hours', 'get_branch_hours'],
+    ['branch hours for my local branch', 'get_branch_hours'],
+  ])('%s classifies as %s and permits it', (prompt, tool) => {
+    const { intent } = extractIntentAndConfidence(prompt);
+    expect(intent).toBe(tool);
+    expect(permittedToolsForIntent(intent, 'banking')).toEqual([tool]);
+  });
+
+  // The branch-hours regex sits ABOVE the accounts/transactions reads on
+  // purpose; these must not be stolen by it, nor it by them.
+  it.each([
+    ['show my balance', 'view_balance'],
+    ['show my recent transactions', 'view_transactions'],
+    ['show my accounts', 'view_accounts'],
+  ])('%s still classifies as %s', (prompt, intent) => {
+    expect(extractIntentAndConfidence(prompt).intent).toBe(intent);
+  });
+});
