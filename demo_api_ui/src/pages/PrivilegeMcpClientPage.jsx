@@ -562,12 +562,17 @@ export default function PrivilegeMcpClientPage() {
     }
   };
 
-  // Candidate doors to probe on a denial: everything the console knows about,
-  // falling back to the configured presets when no console token is connected.
-  const knownDoors = () => {
+  // Every agentless door we know of: what the console reports when a token is
+  // connected, falling back to the configured presets when one is not.
+  //
+  // includeCurrent splits the two callers. The denial probe wants "somewhere
+  // ELSE to try", so it excludes the door that just failed. The header picker
+  // has to include it, or the control cannot show what is currently selected.
+  const knownDoors = (includeCurrent = false) => {
     const fromConsole = (consoleData?.applications || []).map((a) => a.mcpUrl).filter(Boolean);
     const fromPresets = presets.filter((p) => p.mode === 'agentless').map((p) => p.url);
-    return [...new Set([...fromConsole, ...fromPresets])].filter((u) => u && u !== config.mcpUrl);
+    const all = [...new Set([...fromConsole, ...fromPresets, ...(includeCurrent ? [config.mcpUrl] : [])])];
+    return all.filter((u) => u && (includeCurrent || u !== config.mcpUrl));
   };
 
   const probeDoors = async () => {
@@ -1139,6 +1144,27 @@ export default function PrivilegeMcpClientPage() {
               <option value="agentless">Agentless</option>
             </select>
           </label>
+          {/* Door picker. Agentless only: an Agent frontend is a single fixed
+              procyon host, so offering a choice there would be a lie. Hidden
+              below two doors — a select with one option is furniture.
+              It picks the DOOR, never a policy: Privilege resolves the policy
+              server-side from (user, door, tool), so a policy control could
+              only mislead about what it does. */}
+          {gatewayMode === 'agentless' && knownDoors(true).length > 1 && (
+            <label className="cur-mode-switcher">
+              <span>Door</span>
+              <select
+                aria-label="Privilege MCP application (door)"
+                value={config.mcpUrl || ''}
+                disabled={switching || toolsLoading}
+                onChange={(event) => switchDoor(event.target.value)}
+              >
+                {knownDoors(true).map((url) => (
+                  <option key={url} value={url}>{doorName(url) || url}</option>
+                ))}
+              </select>
+            </label>
+          )}
           <FootprintSkinPicker className="cur-skin-picker" />
           <button
             type="button"
