@@ -9890,6 +9890,9 @@ export default function BankingAgent({
                   </div>
                 }
               >
+                {/* dm-scroll: `dm-body` is bare by contract — no padding, so the
+                    rounded banner card sat flush against the panel edge. */}
+                <div className="dm-scroll">
                 <div className="ba-consent-denied-banner" role="alert">
                   <div className="ba-consent-denied-banner__text">
                     <strong>Access denied.</strong> You declined a high-value
@@ -9897,6 +9900,7 @@ export default function BankingAgent({
                     assistant is paused while this notice is open — dismiss it to
                     keep using the assistant.
                   </div>
+                </div>
                 </div>
               </DraggableModal>
             )}
@@ -12170,7 +12174,8 @@ export default function BankingAgent({
           </div>
         }
       >
-        <div className="ba-user-filter">
+        {/* dm-scroll: `dm-body` is bare by contract — no padding, no scroll. */}
+        <div className="dm-scroll ba-user-filter">
           <p>{copy.intro}</p>
           <label htmlFor="pingone-user-filter">{copy.label}</label>
           <input
