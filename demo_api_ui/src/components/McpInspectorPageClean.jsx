@@ -26,7 +26,7 @@ function McpInspectorPageClean() {
   const [activeSource, setActiveSource] = useState(searchParams.get('source') || 'banking');
   const [activeHistoryId, setActiveHistoryId] = useState(null);
   const [outputFontSize, setOutputFontSize] = useState(13);
-  const highlightJSON = (json) => json.replace(/"([^"]+)":/g, '<span style="color: #6ba3ff;">\"$1\"</span>:').replace(/: "([^"]+)"/g, ': <span style="color: #51b552;">\"$1\"</span>').replace(/: (\d+)/g, ': <span style="color: #d4a574;">$1</span>').replace(/: (true|false)/g, ': <span style="color: #ce7edb;">$1</span>').replace(/: null/g, ': <span style="color: #888;">null</span>');
+  const highlightJSON = (json) => json.replace(/"([^"]+)":/g, '<span style="color: #0066cc;">\"$1\"</span>:').replace(/: "([^"]+)"/g, ': <span style="color: #009900;">\"$1\"</span>').replace(/: (\d+)/g, ': <span style="color: #cc6600;">$1</span>').replace(/: (true|false)/g, ': <span style="color: #993399;">$1</span>').replace(/: null/g, ': <span style="color: #666666;">null</span>');
 
   // Use unified hook for current source
   const source = useInspectorSource(activeSource);
