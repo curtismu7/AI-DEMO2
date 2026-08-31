@@ -435,6 +435,7 @@ aws_build() {
     "ai-demo-k8-ui:ai-demo-frontend"
     "ai-demo-k8-demo-api-server:ai-demo-demo-api-server"
     "ai-demo-k8-mcp-server:ai-demo-mcp-server"
+    "ai-demo-k8-mcp-weather:ai-demo-mcp-weather"
     "ai-demo-k8-mcp-gateway:ai-demo-mcp-gateway"
     "ai-demo-k8-authz-server:ai-demo-authz-server"
     "ai-demo-k8-agent-service:ai-demo-agent-service"
