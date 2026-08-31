@@ -1035,14 +1035,16 @@ app.use('/api/pingone/setup', pingoneSetupRoutes);
 // more-specific path matches first (Express prefix order) and is NOT subjected
 // to the authenticateToken middleware on /api/admin.
 // UNAUTHENTICATED BY DEFAULT (commit a1047b03): both GET and PATCH are open so
-// flags can be toggled without an admin session — a deliberate demo-ergonomics
-// choice. Trade-off: any caller can flip security-relevant flags
-// (ff_hitl_enabled, step_up_enabled, ff_skip_token_exchange, ff_inject_*).
+// Feature-flag MUTATIONS require an authenticated session; reads (GET/HEAD)
+// stay open so the header Quick Flags pill can always display flag state.
 //
-// OPT-IN HARDENING: set FF_ADMIN_REQUIRE_AUTH=true to require an authenticated
-// session for MUTATIONS (PATCH). Default OFF preserves the any-signed-in-user
-// flow the header pill relies on; reads stay open in both modes so the pill can
-// always display flag state. See REGRESSION_PLAN.md §1 "configStore / Config UI".
+// This comment used to say the opposite — that flags were togglable without a
+// session "by deliberate choice", hardenable via an opt-in FF_ADMIN_REQUIRE_AUTH.
+// That has not been true since 9acedbddf flipped the gate to fail-secure, and
+// neither that variable nor its successor is read any more. The flags in
+// question are not cosmetic (ff_hitl_enabled, step_up_enabled,
+// ff_skip_token_exchange, ff_inject_*, the gateway policy modes), so there is no
+// opt-out to restore. See REGRESSION_PLAN.md §1 "configStore / Config UI".
 const { makeFeatureFlagsAuthGate } = require('./middleware/featureFlagsAuthGate');
 app.use('/api/admin/feature-flags', makeFeatureFlagsAuthGate(authenticateToken), featureFlagsRoutes);
 // Same gate as the flags above, deliberately: this list IS gateway policy, so

@@ -9884,7 +9884,7 @@ backends), `bash ping-gateway/scripts/validate-config.sh` (PASS),
 
 **What was fixed:** fail-closed decision parsing; sim/mock/snapshot parity on no-amount tools; snapshot+generator tracked; opt-in flag-endpoint auth.
 
-**Do not break:** `/api/admin/feature-flags` stays UNAUTHENTICATED BY DEFAULT — the gate only engages when `FF_ADMIN_REQUIRE_AUTH` is truthy, and even then reads (GET/HEAD) stay open for the header pill. Do not flip the default. The simulated engine's amount thresholds ($250/$500/$2000) are unchanged.
+**Do not break:** ~~`/api/admin/feature-flags` stays UNAUTHENTICATED BY DEFAULT — the gate only engages when `FF_ADMIN_REQUIRE_AUTH` is truthy… Do not flip the default.~~ **SUPERSEDED — do NOT act on the struck text.** `9acedbddf` inverted this gate and a later change removed the escape hatch entirely. Current contract: **mutations (PATCH/POST/PUT/DELETE) on `/api/admin/feature-flags` ALWAYS require an authenticated session; reads (GET/HEAD) stay open for the header pill.** There is no env opt-out — `FF_ADMIN_REQUIRE_AUTH` and `FF_ADMIN_ALLOW_ANONYMOUS_MUTATIONS` are both dead and setting either does nothing (`featureFlagsAuthGate.test.js` asserts that). Do not "restore" the open default: the flags reachable there are `ff_hitl_enabled`, `step_up_enabled`, `ff_skip_token_exchange`, `ff_inject_*` and the gateway policy modes, this demo is internet-facing, and there is no sandbox/prod split. The simulated engine's amount thresholds ($250/$500/$2000) are unchanged.
 
 **Verify:** `npm --prefix demo_api_server test -- authorize simulatedAuthorize featureFlagsAuthGate pingOneAuthorizeDecisionNormalize`; `npm --prefix demo_authz_server test`; `npm run topology:verify`.
 
