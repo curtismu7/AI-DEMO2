@@ -69,7 +69,8 @@ export default function UnattendedRunsPanel({ isOpen, onClose }) {
       defaultHeight={460}
       storageKey="unattended-runs-panel"
     >
-      <div className="uarp">
+      {/* dm-scroll: `dm-body` is bare by contract — no padding, no scroll. */}
+      <div className="dm-scroll uarp">
         {disabled ? (
           <p className="uarp-empty">
             Autonomous agents are switched off. Turn on <code>ff_autonomous_agents</code> to

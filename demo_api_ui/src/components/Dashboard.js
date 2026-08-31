@@ -875,7 +875,8 @@ const Dashboard = ({ user, onLogout }) => {
           storageKey="admin-metric-details"
         >
           {metricDetails && (
-            <div className="dash-metric-detail">
+            /* dm-scroll: `dm-body` is bare by contract — no padding, no scroll. */
+            <div className="dm-scroll dash-metric-detail">
               <p className="dash-metric-detail__desc">{metricDetails.description}</p>
               <div className="dash-metric-detail__value-box">
                 <div className="dash-metric-detail__value">{metricDetails.value}</div>
