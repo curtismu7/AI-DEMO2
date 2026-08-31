@@ -187,6 +187,33 @@
 
 /* ── Enum select ─────────────────────────────────────────────────────────── */
 
+/* Flags whose real control lives on another page (managedOn). Themed with
+   --th-* per THEMING.md; the rest of this stylesheet is still light-only
+   literals and is left alone here — converting ~200 unrelated rules does not
+   belong in a change about one link. */
+.ff-managed-link {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.ff-managed-link:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+.ff-managed-link:focus-visible {
+  outline: 2px solid var(--th-border-strong);
+  outline-offset: 2px;
+}
+
 .ff-enum-select {
   appearance: none;
   -webkit-appearance: none;
