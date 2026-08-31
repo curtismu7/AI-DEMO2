@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../services/apiClient';
 import WeatherStateControl from '../components/WeatherStateControl';
+import WeatherBlocklistControl from '../components/WeatherBlocklistControl';
 import { useVertical } from '../vertical/useVertical';
 import './McpShowcasePage.css';
 
@@ -203,7 +204,16 @@ export default function McpShowcasePage({ capability }) {
       <section className="mcpsc__card">
         <h2>{cfg.policyTitle}</h2>
         {cfg.policyKind === 'scope' ? (
-          <WeatherStateControl />
+          <>
+            <WeatherStateControl />
+            <h3 className="mcpsc__subhead">Blocked cities</h3>
+            <p className="mcpsc__note">
+              Used by the <code>Any except blocked cities</code> mode. Each city is
+              geocoded once when you add it, so the gateway denies it whether the
+              agent sends the name or the coordinates it resolved.
+            </p>
+            <WeatherBlocklistControl />
+          </>
         ) : (
           <ul className="mcpsc__terms">
             {cfg.blockedTerms.map((t) => (

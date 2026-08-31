@@ -37,7 +37,11 @@ describe('GET /internal/feature-flags/weather-mcp-showcase', () => {
       .get('/internal/feature-flags/weather-mcp-showcase')
       .set('x-internal-gateway-secret', SECRET);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ enabled: true, allowedState: 'texas' });
+    expect(res.body).toMatchObject({ enabled: true, allowedState: 'texas' });
+    // The gateway needs the list on the SAME response — a second round-trip in
+    // the policy hot path is exactly what this endpoint exists to avoid.
+    expect(Array.isArray(res.body.blockedCities)).toBe(true);
+    expect(typeof res.body.blockRadiusDeg).toBe('number');
   });
 
   test('reflects a stored allowedState value', async () => {
@@ -54,8 +58,22 @@ describe('GET /internal/feature-flags/weather-mcp-showcase', () => {
   // The denylist mode has to survive the allowlist below. Dropping it from the
   // route's `includes` list does NOT error — it silently collapses to 'texas',
   // so the gateway would deny every city while the admin dropdown still read
-  // "Any except Miami, FL". That is the failure this asserts.
-  test('passes the any-except-miami denylist mode through unchanged', async () => {
+  // "Any except blocked cities". That is the failure this asserts.
+  test('passes the any-except-blocked denylist mode through unchanged', async () => {
+    jest.spyOn(configStore, 'getEffective').mockImplementation((key) => {
+      if (key === 'ff_weather_mcp_allowed_state') return 'any-except-blocked';
+      return undefined;
+    });
+    const res = await request(app)
+      .get('/internal/feature-flags/weather-mcp-showcase')
+      .set('x-internal-gateway-secret', SECRET);
+    expect(res.body.allowedState).toBe('any-except-blocked');
+  });
+
+  // any-except-miami shipped first. If the flag is already set to it, dropping
+  // the alias sends the value down the unrecognized path to 'texas' — silently
+  // turning "block one city" into "block every city but Texas" mid-demo.
+  test('folds the legacy any-except-miami value into any-except-blocked', async () => {
     jest.spyOn(configStore, 'getEffective').mockImplementation((key) => {
       if (key === 'ff_weather_mcp_allowed_state') return 'any-except-miami';
       return undefined;
@@ -63,7 +81,7 @@ describe('GET /internal/feature-flags/weather-mcp-showcase', () => {
     const res = await request(app)
       .get('/internal/feature-flags/weather-mcp-showcase')
       .set('x-internal-gateway-secret', SECRET);
-    expect(res.body.allowedState).toBe('any-except-miami');
+    expect(res.body.allowedState).toBe('any-except-blocked');
   });
 
   test('falls back to texas for an unrecognized stored value', async () => {
@@ -86,6 +104,6 @@ describe('GET /internal/feature-flags/weather-mcp-showcase', () => {
     const res = await request(app)
       .get('/internal/feature-flags/weather-mcp-showcase')
       .set('x-internal-gateway-secret', SECRET);
-    expect(res.body).toEqual({ enabled: false, allowedState: 'michigan' });
+    expect(res.body).toMatchObject({ enabled: false, allowedState: 'michigan' });
   });
 });

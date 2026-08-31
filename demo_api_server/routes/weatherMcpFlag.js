@@ -8,8 +8,12 @@
  * x-internal-gateway-secret gate as this directory's other /internal/* routes.
  *
  * Status codes:
- *   200  { enabled: true|false, allowedState: 'texas'|'michigan'|'any'|'any-except-miami' }
+ *   200  { enabled, allowedState: 'texas'|'michigan'|'any'|'any-except-blocked',
+ *            blockedCities: [{label, lat, lon}], blockRadiusDeg }
  *   403  forbidden                — missing or wrong x-internal-gateway-secret
+ *
+ * blockedCities is only meaningful for allowedState 'any-except-blocked'; it is
+ * always sent so the gateway never needs a second round-trip to decide.
  */
 const express = require('express');
 // Resolved per call — routes are required long before the vault opens, so a
@@ -22,6 +26,7 @@ const {
 } = require('../utils/internalSecret');
 const router = express.Router();
 const configStore = require('../services/configStore');
+const { getBlockedCities, BLOCK_RADIUS_DEG } = require('../services/weatherBlocklist');
 
 
 router.get('/feature-flags/weather-mcp-showcase', (req, res) => {
@@ -34,11 +39,21 @@ router.get('/feature-flags/weather-mcp-showcase', (req, res) => {
   const enabled = isUnset ? true : (raw === true || raw === 'true');
 
   const rawState = configStore.getEffective('ff_weather_mcp_allowed_state');
-  const allowedState = ['texas', 'michigan', 'any', 'any-except-miami'].includes(rawState)
-    ? rawState
+  // 'any-except-miami' shipped first and hardcoded one city. The mode is now a
+  // configurable list, so the old value is accepted and folded into the new one
+  // — without this alias a flag already set to it would fall back to 'texas'
+  // SILENTLY and the gateway would start denying every city.
+  const normalizedState = rawState === 'any-except-miami' ? 'any-except-blocked' : rawState;
+  const allowedState = ['texas', 'michigan', 'any', 'any-except-blocked'].includes(normalizedState)
+    ? normalizedState
     : 'texas';
 
-  return res.json({ enabled, allowedState });
+  return res.json({
+    enabled,
+    allowedState,
+    blockedCities: getBlockedCities(),
+    blockRadiusDeg: BLOCK_RADIUS_DEG,
+  });
 });
 
 module.exports = router;
