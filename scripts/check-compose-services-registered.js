@@ -70,8 +70,6 @@ const ALLOWED_UNREGISTERED = {
     'k8s-only tier manager; the Docker stack drives tiers through llm-proxy, so it is never started by the launcher',
   'ungoverned-agent':
     'deliberately-ungoverned demo agent, run ad hoc for the attack narrative rather than as part of any stack',
-  'mcp-brave':
-    'optional third-party Brave MCP server; needs an API key and is started by hand when demoing it',
   mcpgw:
     'PRE-EXISTING ANOMALY, allowlisted rather than silently fixed: unlike its siblings ' +
     '(mcpgw-nginx, ping-mcpgw, opensearch — all profiles:[mcpgw]) this one declares NO profile, ' +

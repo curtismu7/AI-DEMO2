@@ -104,7 +104,7 @@ fi
 
 # Core banking demo — always started by default.
 CORE_SERVICES=(
-  ui mcp-server mcp-resource-server mcp-weather api-resource-server mcp-proxy
+  ui mcp-server mcp-resource-server mcp-weather mcp-brave api-resource-server mcp-proxy
   ping-gateway langchain-agent agent-service hitl-service llm-proxy
   promptfoo-step-narration
 )
@@ -719,6 +719,7 @@ SERVICES=(
   "hitl-service|HITL Service          |3009|http://localhost:3009"
   "mcp-resource-server|MCP Invest            |8081|http://localhost:8081"
   "mcp-weather|MCP Weather           |8896|http://localhost:8896"
+  "mcp-brave|MCP Brave             |8897|http://localhost:8897"
   "mcp-audit|MCP Audit             |8898|http://localhost:8898/health"
   "mcp-jwt-verifier|MCP JWT Verifier     |8083|http://localhost:8083"
   "api-resource-server|Mortgage Service     |8082|http://localhost:8082"
