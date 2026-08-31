@@ -115,9 +115,9 @@ Added OAuth credentials directly to the langchain-agent service environment sect
 environment:
   # ... other vars ...
   PINGONE_USER_CLIENT_ID: "71e878ea-2d79-4760-b570-66f00cbeffe7"
-  PINGONE_USER_CLIENT_SECRET: "Lnpof2gRUH6GBRTv4dn8-.-pgSnk-W.h0HEDhOP7aODfpGZV7fxptO1zE0_4qsCN"
+  PINGONE_USER_CLIENT_SECRET: "<set-via-env-see-.env.example>"
   AGENT_CLIENT_ID: "71e878ea-2d79-4760-b570-66f00cbeffe7"
-  AGENT_CLIENT_SECRET: "Lnpof2gRUH6GBRTv4dn8-.-pgSnk-W.h0HEDhOP7aODfpGZV7fxptO1zE0_4qsCN"
+  AGENT_CLIENT_SECRET: "<set-via-env-see-.env.example>"
 ```
 
 **Why:** Provides a fallback if env_file loading fails or the path is incorrect.
