@@ -489,7 +489,9 @@ select.cur-input { cursor: pointer; }
      so no literal fallback — a fallback here would just hide a renamed token. */
   border: 2px solid var(--th-border);
   border-top-color: var(--th-bg-emphasis);
-  border-radius: 50%;
+  /* --radius-pill (999px) circles a 12px square the same as 50% would, and
+     keeps the border-radius-literal ratchet flat — THEMING.md §9.3. */
+  border-radius: var(--radius-pill);
   animation: cur-spin 0.8s linear infinite;
 }
 
