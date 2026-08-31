@@ -75,7 +75,12 @@ const SERVER_INVENTORY = [
   {
     key: 'ping-gateway', name: 'PingGateway (IG)', container: 'ai-demo-ping-gateway',
     hostPort: 3036, internalPort: 8080, lang: 'Ping Identity IG', category: 'mcp', sourceDir: 'ping-gateway', probe: true,
-    healthPath: '/', acceptAnyStatus: true,
+    // IG routes `/health` (ping-gateway/config/routes/00-health.json — the P1AZ
+    // readiness probe: 200 ready, 503 misconfigured) and routes NOTHING at `/`.
+    // Probing `/` made IG's RouterHandler log
+    // "No handler to dispatch to for request 'http://ping-gateway:8080/'" at ERROR
+    // once per refresh, and acceptAnyStatus turned that 404 into a green "Up".
+    healthPath: '/health',
     candidates: candidates(env('MCP_PINGGATEWAY_URL'), 'http://ping-gateway:8080', 'http://localhost:3036'),
     purpose: 'Alternative MCP gateway using the real PingGateway product (ff_mcp_gateway_pinggateway).',
   },
