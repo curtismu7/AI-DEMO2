@@ -7205,9 +7205,16 @@ export default function BankingAgent({
           // the transcript — resolve it to a plain sentence instead. needsParams
           // is excluded: it is also success:false but its reply is the useful
           // "I need: Order ID" clarification, not a backend error string.
+          // Same specific-before-coarse order as the err path below: a tool call
+          // that fails arrives HERE as a response envelope, not a thrown error, so
+          // patching only that path left every gateway deny on this one showing the
+          // coarse sentence. demoAgentLangGraphService spreads gatewayErrorCode onto
+          // the envelope precisely so the UI can name the rule that fired.
           const failureSentence =
             !isHitlBlock && response.success === false && !response.needsParams
-              ? NL_FAILURE_MESSAGES[response.error] || NL_FAILURE_FALLBACK
+              ? NL_GATEWAY_REASON_MESSAGES[response.gatewayErrorCode] ||
+                NL_FAILURE_MESSAGES[response.error] ||
+                NL_FAILURE_FALLBACK
               : null;
           // The badge must name the agent that actually answered — an admin-
           // routed reply labeled CUSTOMER misreads as the wrong agent running.
