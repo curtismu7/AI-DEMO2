@@ -265,10 +265,25 @@ export default function PrivilegeMcpClientPage() {
         refreshTools(true);
       }
       // Auto-connect Privilege using the active PingOne session when the main app
-      // is already logged in — prompt=none on the BFF means PingOne returns silently.
-       if (s.gatewayMode !== 'agent' && s.mainAppAuthenticated && !s.oauth?.authenticated) {
-         setShowSignInModal(true);
-       }
+      // is already logged in. The gateway is its own Authorization Server, so the
+      // banking token can never be reused directly — but prompt=none on the BFF
+      // (see privilegeMcpClient.js beginOAuthFlow) completes off the existing
+      // PingOne session, so this costs one redirect and no login page.
+      //
+      // NEVER auto-retry once an attempt has already come back: by then the BFF
+      // has set privilegePromptNoneFailed, so a second /auth/start drops the user
+      // on a real PingOne login page they never asked for. Any `auth` param means
+      // we are returning from a round trip — hand back to the modal instead.
+      if (s.gatewayMode !== 'agent' && s.mainAppAuthenticated && !s.oauth?.authenticated) {
+        if (searchParams.get('auth')) {
+          setShowSignInModal(true);
+        } else {
+          setSilentAuthPending(true);
+          api('/auth/start', { method: 'POST' })
+            .then((data) => { window.location.href = data.authUrl; })
+            .catch(() => { setSilentAuthPending(false); setShowSignInModal(true); });
+        }
+      }
 
     }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -659,7 +674,11 @@ export default function PrivilegeMcpClientPage() {
         <div className="cur-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="cur-signin-title">
           <div className="cur-modal">
             <h2 id="cur-signin-title">Sign in to continue</h2>
-            <p>Your app session is not authorized for this gateway yet. Sign in with the app account to continue.</p>
+            <p>
+              This gateway is its own authorization server, so it issues its own token
+              rather than reusing your app session. Silent sign-in did not complete, so
+              this one may ask for your credentials.
+            </p>
             <div className="cur-btn-row">
               <button className="cur-btn cur-btn--primary" onClick={async () => {
                 setShowSignInModal(false);
