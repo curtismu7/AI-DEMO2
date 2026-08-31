@@ -25,7 +25,11 @@ import path from 'node:path';
 // blocks, which took seven files onto --th-* or [data-theme="dark"] with them;
 // 181 after PrivilegeMcpClientPage.css took its first --th-* tokens with the
 // AI Gateway tool-discovery spinner.
-const MAX_UNTHEMED = 181;
+// 181 -> 180: FeatureFlagsPage.css gained its first --th-* rules (.ff-managed-link).
+// Caveat for whoever reads this next — the detector counts a file as themed once
+// it uses ANY --th-* token, so that file now passes while ~200 of its rules are
+// still light-only literals. The count moved honestly; the file is not done.
+const MAX_UNTHEMED = 180;
 
 const SRC = path.join(__dirname, '..', '..');
 

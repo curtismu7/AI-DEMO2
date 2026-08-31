@@ -814,6 +814,11 @@ const FLAG_REGISTRY = [
       'would be bypassed.',
     type:         'enum',
     options:      ['texas', 'michigan', 'any', 'any-except-blocked'],
+    // Owned by the Weather MCP page, not this list. Picking a region here in
+    // isolation is only half the control — 'any-except-blocked' is meaningless
+    // without the deny list that lives beside it on that page, and a bare
+    // dropdown here invites setting a mode whose city list you cannot see.
+    managedOn:    { path: '/weather-mcp', label: 'Weather MCP page' },
     defaultValue: 'texas',
   },
   {
@@ -1017,6 +1022,7 @@ function serializeFlag(flag) {
     defaultValue:   flag.defaultValue,
     value:          resolveFlag(flag),
     ...(flag.options      && { options:      flag.options }),
+    ...(flag.managedOn    && { managedOn:    flag.managedOn }),
     ...(flag.docsUrl      && { docsUrl:      flag.docsUrl }),
     ...(flag.warnIfDisabled && { warnIfDisabled: flag.warnIfDisabled }),
     ...(flag.warnIfEnabled  && { warnIfEnabled:  flag.warnIfEnabled }),
