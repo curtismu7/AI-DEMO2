@@ -90,6 +90,10 @@ export default function PrivilegeMcpClientPage() {
   const [user, setUser] = useState(null);
   const [grantedScopes, setGrantedScopes] = useState([]);
   const [tools, setTools] = useState([]);
+  // Discovery goes out to the AI Gateway, which can take several seconds before
+  // it returns a tool list. Without a visible wait state the sidebar just reads
+  // "No tools discovered yet" the whole time, which looks like a failure.
+  const [toolsLoading, setToolsLoading] = useState(false);
   const [toolPolicy, setToolPolicy] = useState({ total: 0, permitted: 0, filtered: 0, filteredTools: [] });
   const [mcpCatalog, setMcpCatalog] = useState({ prompts: [], resources: [], resourceTemplates: [] });
   const [mcpProtocol, setMcpProtocol] = useState(null);
@@ -405,6 +409,7 @@ export default function PrivilegeMcpClientPage() {
   };
 
   const refreshTools = async (silent = false) => {
+    setToolsLoading(true);
     try {
       const data = await api('/tools/list', { method: 'POST' });
       const nextTools = data.tools || [];
@@ -436,6 +441,9 @@ export default function PrivilegeMcpClientPage() {
         return;
       }
       if (!silent) appendChat('system', `Refresh failed: ${err.message}`);
+    } finally {
+      // finally, not a trailing line — the 403 branch returns early.
+      setToolsLoading(false);
     }
   };
 
@@ -1073,7 +1081,9 @@ export default function PrivilegeMcpClientPage() {
 
             <div className="cur-sidebar-header" style={{ marginTop: 12 }}>
               <span className="cur-sidebar-title">MCP TOOLS</span>
-              <span className="cur-scope-count">{tools.length}</span>
+              {toolsLoading
+                ? <span className="cur-spinner" role="status" aria-label="Discovering tools" />
+                : <span className="cur-scope-count">{tools.length}</span>}
             </div>
             {tools.length > 0 && (
               <input
@@ -1100,10 +1110,21 @@ export default function PrivilegeMcpClientPage() {
                   })}
                 </div>
               ) : <div className="cur-empty-state">No tools match &quot;{toolSearch}&quot;</div>;
-            })() : (
+            })() : toolsLoading ? (
+              <div className="cur-tools-waiting">
+                <span className="cur-spinner" aria-hidden="true" />
+                <span>Waiting for the AI Gateway to return tools...</span>
+              </div>
+            ) : (
               <div className="cur-empty-state">No tools discovered yet</div>
             )}
-            <button className="cur-btn cur-btn--primary cur-btn--refresh" onClick={() => refreshTools(false)}>Refresh Tools</button>
+            <button
+              className="cur-btn cur-btn--primary cur-btn--refresh"
+              onClick={() => refreshTools(false)}
+              disabled={toolsLoading}
+            >
+              {toolsLoading ? 'Discovering...' : 'Refresh Tools'}
+            </button>
           </div>
         </aside>
 
@@ -1192,7 +1213,9 @@ export default function PrivilegeMcpClientPage() {
                     <button className="cur-btn" onClick={toggleSubscriptions}>
                       {subscriptionActive ? 'Stop Subscriptions' : 'Listen for Changes'}
                     </button>
-                    <button className="cur-btn" onClick={() => refreshTools(false)}>Rediscover</button>
+                    <button className="cur-btn" onClick={() => refreshTools(false)} disabled={toolsLoading}>
+                      {toolsLoading ? 'Discovering...' : 'Rediscover'}
+                    </button>
                   </div>
                 </div>
                 <div className="cur-mcp-protocol">
