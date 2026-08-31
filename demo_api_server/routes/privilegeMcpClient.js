@@ -1521,38 +1521,14 @@ router.post('/auth/logout', (req, res) => {
 });
 
 // GET /sessions — list Privilege console applications using the stored PingOne token
-router.get('/sessions', async (req, res) => {
-  const session = getClientSession(req);
-  if (!session.oauth.accessToken) {
-    return res.status(401).json({ error: 'Not authenticated.' });
-  }
-  const envId = process.env.PRIVILEGE_SSO_ENV_ID || process.env.PINGONE_ENVIRONMENT_ID;
-  if (!envId) {
-    return res.status(500).json({ error: 'PRIVILEGE_SSO_ENV_ID not configured.' });
-  }
-  if (accessTokenExpiring(session)) {
-    await refreshAccessToken(session);
-  }
-  try {
-    const url = `https://console.privilege.pingone.com/api/${envId}/v1/applications?ObjectMeta.Namespace=default`;
-    let response = await fetch(url, {
-      headers: { Authorization: `Bearer ${session.oauth.accessToken}` },
-    });
-    if (response.status === 401 && await refreshAccessToken(session)) {
-      response = await fetch(url, {
-        headers: { Authorization: `Bearer ${session.oauth.accessToken}` },
-      });
-    }
-    if (!response.ok) {
-      const text = await response.text();
-      return res.status(response.status).json({ error: `Console API ${response.status}: ${text.slice(0, 300)}` });
-    }
-    const data = await response.json();
-    res.json({ applications: data.Applications || [] });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// GET /sessions removed 2026-08-31. It called the Privilege CONSOLE API
+// (console.privilege.pingone.com/api/<env>/v1/applications) with the MCP
+// gateway's OAuth token. That API authenticates with a console session — an
+// auth_token cookie plus x-procyon-session-id, obtainable only from browser
+// devtools and valid ~60 minutes — so the call could never succeed here:
+// without the header it answered 400 "Procyon required header is missing",
+// and with it, 401 "User is not authorized". The Access tab it fed is gone too.
+
 
 // POST /chat — demo chat with optional LLM routing
 router.post('/chat', express.json(), async (req, res) => {
