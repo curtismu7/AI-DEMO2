@@ -142,6 +142,11 @@ export default function PrivilegeMcpClientPage() {
   // The gateway answers a policy denial with a bare "Forbidden" and writes
   // nothing to its own log, so the modal has to assemble its own evidence:
   // the door and identity we already know, plus a live probe of the other doors.
+  // Only the upstream error is captured here — the door is derived at RENDER
+  // time (deniedDoor, below) because refreshTools closes over `config` from the
+  // render that defined it, which on the auth=success remount is still the
+  // empty default. Storing it here printed Door "(unknown)" in every live
+  // denial; no amount of effect reordering fixes a stale closure.
   const [blockedDetail, setBlockedDetail] = useState(null);
   const [doorProbe, setDoorProbe] = useState({ running: false, results: null });
   // Privilege console inventory — only populated once an auth_token is pasted.
@@ -149,6 +154,10 @@ export default function PrivilegeMcpClientPage() {
   const [consoleData, setConsoleData] = useState(null);
   const [consoleBusy, setConsoleBusy] = useState(false);
   const [consoleError, setConsoleError] = useState(null);
+  // Derived every render, so it reflects the config the page actually holds by
+  // the time the denial modal paints — not whatever was in scope when the 403
+  // arrived. See the blockedDetail comment above.
+  const deniedDoor = doorName(config.mcpUrl);
   const [showSignInModal, setShowSignInModal] = useState(false);
   const [showFlowModal, setShowFlowModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -493,7 +502,7 @@ export default function PrivilegeMcpClientPage() {
         err.message?.toLowerCase().includes("doesn't have access") ||
         err.message?.toLowerCase().includes('does not have access')
       ) {
-        setBlockedDetail({ door: doorName(config.mcpUrl), url: config.mcpUrl, upstream: err.message });
+        setBlockedDetail({ upstream: err.message });
         setShowBlockedModal(true);
         if (!silent) appendChat('system', 'Access blocked by policy.');
         return;
@@ -795,7 +804,7 @@ export default function PrivilegeMcpClientPage() {
           <div className="cur-modal" onClick={(e) => e.stopPropagation()}>
             <h2>Access Denied</h2>
             <dl className="cur-denial-facts">
-              <dt>Door</dt><dd>{blockedDetail?.door || '(unknown)'}</dd>
+              <dt>Door</dt><dd>{deniedDoor || '(unknown)'}</dd>
               <dt>Identity</dt><dd>{user?.email || '(unknown)'}</dd>
               <dt>Gateway said</dt><dd>{blockedDetail?.upstream || '403 Forbidden'}</dd>
             </dl>
@@ -805,13 +814,13 @@ export default function PrivilegeMcpClientPage() {
               one that blocked you.
             </p>
             {consoleData ? (() => {
-              const covering = (consoleData.policies || []).filter((p) => policyMentions(p, blockedDetail?.door));
+              const covering = (consoleData.policies || []).filter((p) => policyMentions(p, deniedDoor));
               const naming = covering.filter((p) => policyMentions(p, user?.email));
               return (
                 <p className="cur-denial-note">
                   {covering.length === 0
-                    ? `No policy mentions "${blockedDetail?.door}". That is the likeliest reason.`
-                    : `Policies mentioning "${blockedDetail?.door}": ${covering.map((p) => p.name).join(', ')}. `
+                    ? `No policy mentions "${deniedDoor}". That is the likeliest reason.`
+                    : `Policies mentioning "${deniedDoor}": ${covering.map((p) => p.name).join(', ')}. `
                       + (naming.length === 0
                         ? `None of them mention ${user?.email || 'this user'}.`
                         : `${naming.map((p) => p.name).join(', ')} also mention this user — check the grant has not expired.`)}
