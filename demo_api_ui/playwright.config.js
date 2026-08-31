@@ -110,9 +110,10 @@ module.exports = defineConfig({
   use: {
     baseURL: UI_BASE,
 
-    // Capture screenshots and traces on failure for debugging
+    // Capture screenshots, traces and video on failure for debugging
     screenshot: 'only-on-failure',
     trace: 'on-first-retry',
+    video: 'retain-on-failure',
 
     // Trust mkcert local certs (api.ping.demo uses self-signed cert for local HTTPS)
     ignoreHTTPSErrors: true,
