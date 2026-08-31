@@ -184,11 +184,16 @@ deploy and its `/health` returns `200 {ok:true, hasApiKey:false}`, so the
 rollout wait passes while every live search fails upstream. Put the key in
 `demo_api_server/.env` and re-run `create-secrets.sh` before demoing Brave.
 
-**Do not break:** the error guard must NOT swallow an expected policy DENY.
-Every `completeTrace` caller passes `!isDeny`, so a deny-like run still ends
-`ok` and keeps its green `denied-as-expected` verdict; only a genuinely failed
-run is demoted. A run still in flight has `outcome === null` and must keep the
-existing `incomplete` / "Waiting on …" wording.
+**Do not break:** the error guard must NOT swallow an expected policy DENY, and
+`trace.outcome === 'error'` is NOT a reliable "the run went wrong" signal —
+callers derive `ok` from the transport, so a satisfied deny ends in error too
+(`demoAgentService.js` passes `!(success === false || error)`; the attack-sim
+path passes `status < 400` — both false on the 403 that IS the demo). The guard
+therefore runs AFTER `state` is computed and skips `denied-as-expected`. A first
+cut keyed on `trace.outcome` alone and turned UC13/UC31 into `mismatch`; CI
+caught it via `simAttackRail.integration.test.js`. A run still in flight has
+`outcome === null` and must keep the existing `incomplete` / "Waiting on …"
+wording.
 
 **Verify:** `demo_api_ui` → `vitest run src/context/__tests__/ProofOfEnforcementContext*.test.js`
 (41 passed) and `npm run build` (exit 0). Reverting only the guard turns the new

@@ -129,24 +129,6 @@ export function computeVerdict(trace, catalogEntry) {
     };
   }
 
-  // A run that ENDED in error proves nothing, however much evidence it logged on
-  // the way down. ingestMcpResult stamps trace.mcpResult for a FAILED tool call
-  // too, so 'tool-dispatched' matched on a gateway 502 and UC30 rendered
-  // "VERIFIED — Completed — get_weather dispatched" while the chat showed the
-  // failure and the Token Chain header read RUN ERROR (2026-08-31: mcp-weather
-  // absent from the SE cluster, PingGateway 502 on UnknownHostException).
-  // A policy DENY is NOT this case: every caller passes completeTrace(!isDeny),
-  // so an expected deny still ends 'ok' and keeps 'denied-as-expected' below.
-  if (trace.outcome === 'error') {
-    return {
-      useCaseId, id: catalogEntry.id, title: catalogEntry.title,
-      expectedOutcome: catalogEntry.expectedOutcome || null,
-      state: 'mismatch', matchedSteps, missingSteps: [], vertical,
-      intent, tool, mechanism,
-      resultText: 'Run failed — the tool call did not complete',
-    };
-  }
-
   const decision = decisionOf(trace);
   const expected = catalogEntry.expectedOutcome;
   // The catalog's expectedOutcome is a narrative label (e.g. RANKED_RESULTS,
@@ -174,6 +156,29 @@ export function computeVerdict(trace, catalogEntry) {
   const state = outcomeMatches
     ? (expectedIsDenyLike ? 'denied-as-expected' : 'verified')
     : 'mismatch';
+  // A run that ENDED in error proves nothing, however much evidence it logged on
+  // the way down. ingestMcpResult stamps trace.mcpResult for a FAILED tool call
+  // too, so 'tool-dispatched' matched on a gateway 502 and UC30 rendered
+  // "VERIFIED — Completed — get_weather dispatched" while the chat showed the
+  // failure and the Token Chain header read RUN ERROR (2026-08-31: mcp-weather
+  // absent from the SE cluster, PingGateway 502 on UnknownHostException).
+  //
+  // This has to sit AFTER `state`, not before it: 'error' does NOT mean "the run
+  // went wrong". A satisfied deny-like expectation ends in error too, because
+  // the callers derive `ok` from the transport — demoAgentService passes
+  // !(success === false || error) and the attack-sim path passes status < 400,
+  // both false on the 403 that IS the demo. Demoting on `outcome` alone turned
+  // UC13/UC31 from 'denied-as-expected' into 'mismatch'. Only a run whose
+  // expectation was NOT met by the block is a real failure.
+  if (trace.outcome === 'error' && state !== 'denied-as-expected') {
+    return {
+      useCaseId, id: catalogEntry.id, title: catalogEntry.title,
+      expectedOutcome: expected || null,
+      state: 'mismatch', matchedSteps, missingSteps: [], vertical,
+      intent, tool, mechanism,
+      resultText: 'Run failed — the tool call did not complete',
+    };
+  }
   // STEP_UP/HITL_REQUIRED are approval gates, not hard denials — the call is
   // paused, not refused, and goes on to PERMIT once the human/MFA step is
   // satisfied. Labeling that "denied" reads as a contradiction next to the
