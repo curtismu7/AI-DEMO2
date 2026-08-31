@@ -1045,6 +1045,13 @@ app.use('/api/pingone/setup', pingoneSetupRoutes);
 // always display flag state. See REGRESSION_PLAN.md §1 "configStore / Config UI".
 const { makeFeatureFlagsAuthGate } = require('./middleware/featureFlagsAuthGate');
 app.use('/api/admin/feature-flags', makeFeatureFlagsAuthGate(authenticateToken), featureFlagsRoutes);
+// Same gate as the flags above, deliberately: this list IS gateway policy, so
+// it must not be a quieter way to change it than the flag that switches it on.
+app.use(
+  '/api/weather-blocklist',
+  makeFeatureFlagsAuthGate(authenticateToken),
+  require('./routes/weatherBlocklist'),
+);
 // requireAdmin, not just authenticateToken: this route dumps every PingOne
 // resource server + its scopes (Management API worker token) and can create
 // new OAuth scopes on any resource, so a signed-in demo customer must not

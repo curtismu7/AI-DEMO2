@@ -806,12 +806,14 @@ const FLAG_REGISTRY = [
       'michigan = only the 20 largest Michigan cities / MI bounding box pass. ' +
       'any = no geographic restriction — every city passes (subject to ff_weather_mcp_showcase ' +
       'still being ON). ' +
-      'any-except-miami = the inverse: every city passes EXCEPT Miami, FL, which is denied on ' +
-      'both the city-name and the resolved-coordinate call (the agent geocodes via ' +
-      "weather-mcp's search_location first, so the coordinate call is the one that carries the " +
-      'location — a name-only block would be bypassed).',
+      'any-except-blocked = the inverse: every city passes EXCEPT the ones on the admin-managed ' +
+      'deny list (GET/POST/DELETE /api/weather-blocklist, edited on the Weather MCP page; ' +
+      'seeded with Miami, FL). Each entry is geocoded once when added, so the gateway denies on ' +
+      "both the city-name and the resolved-coordinate call — the agent geocodes via weather-mcp's " +
+      'search_location before a typed prompt reaches get_current_conditions, so a name-only block ' +
+      'would be bypassed.',
     type:         'enum',
-    options:      ['texas', 'michigan', 'any', 'any-except-miami'],
+    options:      ['texas', 'michigan', 'any', 'any-except-blocked'],
     defaultValue: 'texas',
   },
   {
