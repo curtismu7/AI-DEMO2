@@ -61,6 +61,7 @@ IMAGE_MAP=(
   "ai-demo-k8-ui:ai-demo-frontend"
   "ai-demo-k8-api-server:ai-demo-demo-api-server"
   "ai-demo-k8-mcp-server:ai-demo-mcp-server"
+  "ai-demo-k8-mcp-weather:ai-demo-mcp-weather"
   "ai-demo-k8-mcp-gateway:ai-demo-mcp-gateway"
   "ai-demo-k8-authz-server:ai-demo-authz-server"
   "ai-demo-k8-agent-service:ai-demo-agent-service"
@@ -212,6 +213,7 @@ apply_patched "$K8S_DIR/31-mcp-server-oauth-state-pvc.yaml"
 for manifest in \
   73-jaeger-deployment.yaml \
   30-mcp-server-deployment.yaml \
+  57-mcp-weather-deployment.yaml \
   63-mcp-resource-server-deployment.yaml \
   64-api-resource-server-deployment.yaml \
   62-hitl-service-deployment.yaml \
