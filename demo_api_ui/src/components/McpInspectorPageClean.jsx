@@ -25,6 +25,8 @@ function McpInspectorPageClean() {
   const [searchParams] = useSearchParams();
   const [activeSource, setActiveSource] = useState(searchParams.get('source') || 'banking');
   const [activeHistoryId, setActiveHistoryId] = useState(null);
+  const [outputFontSize, setOutputFontSize] = useState(13);
+  const highlightJSON = (json) => json.replace(/"([^"]+)":/g, '<span style="color: #6ba3ff;">\"$1\"</span>:').replace(/: "([^"]+)"/g, ': <span style="color: #51b552;">\"$1\"</span>').replace(/: (\d+)/g, ': <span style="color: #d4a574;">$1</span>').replace(/: (true|false)/g, ': <span style="color: #ce7edb;">$1</span>').replace(/: null/g, ': <span style="color: #888;">null</span>');
 
   // Use unified hook for current source
   const source = useInspectorSource(activeSource);
@@ -155,20 +157,27 @@ function McpInspectorPageClean() {
             </div>
             <div className="inspector-clean-panel-body">
               <div className="inspector-clean-output">
-                <div className="inspector-clean-output-tabs">
-                  {OUTPUT_TABS.map((t) => (
-                    <button
-                      key={t.key}
-                      className={`inspector-clean-output-tab ${source.outputTab === t.key ? 'active' : ''}`}
-                      onClick={() => source.setOutputTab(t.key)}
-                    >
-                      {t.label}
-                    </button>
-                  ))}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--th-border)' }}>
+                  <div className="inspector-clean-output-tabs">
+                    {OUTPUT_TABS.map((t) => (
+                      <button
+                        key={t.key}
+                        className={`inspector-clean-output-tab ${source.outputTab === t.key ? 'active' : ''}`}
+                        onClick={() => source.setOutputTab(t.key)}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', gap: '6px', padding: '8px 12px' }}>
+                    <button onClick={() => setOutputFontSize(Math.max(10, outputFontSize - 1))} style={{ padding: '4px 8px', fontSize: '12px', cursor: 'pointer', border: '1px solid var(--th-border)', background: 'var(--th-bg-inset)', borderRadius: '4px' }}>−</button>
+                    <span style={{ fontSize: '12px', minWidth: '30px', textAlign: 'center', lineHeight: '1.5' }}>{outputFontSize}px</span>
+                    <button onClick={() => setOutputFontSize(Math.min(20, outputFontSize + 1))} style={{ padding: '4px 8px', fontSize: '12px', cursor: 'pointer', border: '1px solid var(--th-border)', background: 'var(--th-bg-inset)', borderRadius: '4px' }}>+</button>
+                  </div>
                 </div>
                 {source.outputContent ? (
                   <>
-                    <pre className="inspector-clean-code">{source.outputContent}</pre>
+                    <pre className="inspector-clean-code" style={{ fontSize: `${outputFontSize}px` }}>{source.outputContent}</pre>
                     <div className="inspector-clean-meta">
                       <div className="inspector-clean-meta-item">
                         <div className="inspector-clean-meta-label">Status</div>
