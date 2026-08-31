@@ -279,6 +279,20 @@ function extractIntentAndConfidence(message) {
   if (/\bsubmit\b.*\bexpenses?\b/.test(t))
     return { intent: "submit_expense", toolName: "submit_expense", confidence: 0.9 };
 
+  // Showcase chips (UC30/UC31 weather, UC24 branch hours). Same defect class as
+  // the writes above: without these the prompt classifies as "unknown", the
+  // intent token's permitted_tools falls back to the vertical's read-only list,
+  // and PingGateway P1AZ denies with
+  //   intent_mismatch: tool "get_weather" not permitted for intent "unknown"
+  // before the request ever reaches the Texas geofence it is meant to prove.
+  // PR #2440 already grants exactly these tools in INTENT_TO_PERMITTED_TOOLS —
+  // the intent label just never got produced. Must precede the reads: "branch
+  // hours" would otherwise be swallowed by the accounts/transactions branches.
+  if (/\bweather\b/.test(t))
+    return { intent: "get_weather", toolName: "get_weather", confidence: 0.9 };
+  if (/\bbranch\b.*\bhours?\b|\bhours?\b.*\bbranch\b/.test(t))
+    return { intent: "get_branch_hours", toolName: "get_branch_hours", confidence: 0.9 };
+
   // Balance/accounts: "show my X balance" or "check my X"
   const balanceMatch = /\b(balance|how much|what.*balance)\b/.test(t);
   if (balanceMatch)
