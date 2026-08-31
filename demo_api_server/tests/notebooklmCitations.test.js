@@ -76,4 +76,11 @@ describe('notebooklmCitations', () => {
     const cited = 'Completely different content lives in this second bundle file.';
     expect(resolveAgainst(cited, [index, other])).toBe('https://docs.pingidentity.com/other.md');
   });
+
+  it('returns null when two different bundles both match the excerpt', () => {
+    const shared = 'Identical boilerplate paragraph that was copied into two separate bundle files verbatim.';
+    const one = buildIndex(['# source: https://docs.pingidentity.com/one.md', shared].join('\n'));
+    const two = buildIndex(['# source: https://docs.pingidentity.com/two.md', shared].join('\n'));
+    expect(resolveAgainst(shared, [one, two])).toBeNull();
+  });
 });
