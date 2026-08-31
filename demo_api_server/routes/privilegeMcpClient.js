@@ -837,6 +837,25 @@ function toInternalAs(url) {
 }
 
 /**
+ * Is this authorization endpoint served by the demo's OWN Agent Gateway broker?
+ *
+ * AGENT_GATEWAY_BROKER_CLIENT_ID names a client pre-registered on that broker
+ * and nowhere else. Applying it to every self-advertising AS handed the
+ * Privilege agentless gateway a client_id it has never heard of — PingOne
+ * Privilege answered `unknown_client` and agentless sign-in was impossible.
+ * Only the broker's own doors get the pre-registered client; every other
+ * self-advertising gateway keeps the DCR path, which is what Privilege's
+ * mcpgw wants (POST /<app>/register returns a fresh client, verified live).
+ */
+function isAgentGatewayBrokerAs(uri) {
+  const origins = [
+    process.env.MCP_FACADE_AGENT_GATEWAY_AS || 'http://localhost:3005',
+    process.env.MCP_FACADE_AGENT_GATEWAY_AS_INTERNAL,
+  ].filter(Boolean).map((u) => { try { return new URL(u).origin; } catch { return null; } });
+  try { return origins.includes(new URL(uri).origin); } catch { return false; }
+}
+
+/**
  * The inverse of toInternalAs, for the one URL the BROWSER has to follow.
  *
  * The broker builds its RFC 8414 document from the Host it was reached on, so
@@ -1074,7 +1093,7 @@ async function beginOAuthFlow(session, req) {
   // unauthenticated. This relay is server-side with a non-loopback callback and
   // needs the door's own scope, so it cannot be a dynamic client at all.
   const brokerClientId = process.env.AGENT_GATEWAY_BROKER_CLIENT_ID;
-  if (selfAdvertised && brokerClientId) {
+  if (selfAdvertised && brokerClientId && isAgentGatewayBrokerAs(authorizationUri)) {
     clientId = brokerClientId;
     // dcrClientId is "the client this flow actually used" — the token exchange
     // reads it and falls back to session.config.clientId (the PingOne app).
