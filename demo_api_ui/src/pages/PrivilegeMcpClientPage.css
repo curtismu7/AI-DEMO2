@@ -1602,6 +1602,17 @@ select.cur-input { cursor: pointer; }
 .cur-ide[data-cur-theme="light"] .cur-mcp-item:hover { background: #eef2ff; }
 .cur-ide[data-cur-theme="light"] .cur-mcp-empty { color: #666; }
 
+/* Titlebar switchers (Gateway, Door) — the label was #bbb on the light skin's
+   #f3f3f3 titlebar, i.e. barely legible, and the select kept its dark fill so
+   the control read as a stray dark pill. Pre-existing on Gateway; fixed here
+   because the Door picker reuses the same class. */
+.cur-ide[data-cur-theme="light"] .cur-mode-switcher { color: #555; }
+.cur-ide[data-cur-theme="light"] .cur-mode-switcher select {
+  background: #ffffff;
+  border-color: #d0d0d0;
+  color: #1e1e1e;
+}
+
 /* Denial evidence + console inventory — light skin */
 .cur-ide[data-cur-theme="light"] .cur-denial-facts dt,
 .cur-ide[data-cur-theme="light"] .cur-denial-note,
