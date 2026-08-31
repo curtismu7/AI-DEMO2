@@ -346,6 +346,43 @@ describe('a failed run is not reported as still waiting', () => {
     expect(v.resultText).toBe('Run failed before authorize-decision, tool-dispatched');
     expect(v.missingSteps).toEqual(['authorize-decision', 'tool-dispatched']);
   });
+
+  // 2026-08-31: mcp-weather was absent from the SE cluster, so PingGateway 502'd
+  // on UnknownHostException. ingestMcpResult still stamps trace.mcpResult for a
+  // failed call, so EVERY evidence step matched and UC30 rendered
+  // "VERIFIED — Completed — get_weather dispatched" over a chat that said the
+  // step could not be completed.
+  test('a complete-looking run that ended in error is not verified', () => {
+    const v = computeVerdict({
+      tokenEvents: [{ id: 'user-token' }],
+      authorize: { decision: 'PERMIT' },
+      mcpResult: { tool: 'get_weather' },
+      outcome: 'error',
+    }, ENTRY);
+    expect(v.state).toBe('mismatch');
+    expect(v.resultText).toBe('Run failed — the tool call did not complete');
+  });
+
+  // The guard above must NOT fire on an expected deny. `outcome` is derived from
+  // the transport by every caller — demoAgentService passes
+  // !(success === false || error), the attack-sim path passes status < 400 —
+  // so UC13/UC31 end in 'error' on the very 403 that IS the demo. A first cut of
+  // this guard keyed on trace.outcome alone and turned them into 'mismatch'.
+  test('an expected DENY that ended in error stays denied-as-expected', () => {
+    const v = computeVerdict({
+      tokenEvents: [{ id: 'user-token' }],
+      authorize: { decision: 'DENY', outcome: 'DENY' },
+      mcpResult: null,
+      outcome: 'error',
+    }, {
+      useCaseId: 'authz-denied',
+      title: 'Authz denied',
+      expectedOutcome: 'DENY',
+      evidence: { tokenChain: ['authorize-decision'], activity: ['authorize'] },
+    });
+    expect(v.state).toBe('denied-as-expected');
+    expect(v.resultText).toBe('Denied as expected by policy');
+  });
 });
 
 // Regression: gateway-authoritative runs (useGateway: true) never populate
