@@ -273,9 +273,67 @@ curl -i -X POST \
 ```
 
 Expected tokenless result: HTTP `401` advertising protected-resource metadata and
-`/cmuir/authorize`. A plain `404` means the application path is wrong. After OAuth,
-the client must perform `initialize`, `notifications/initialized`, `tools/list`, and
-`tools/call`, preserving `MCP-Session-Id` and negotiated protocol headers.
+`/cmuir/authorize`. After OAuth, the client must perform `initialize`,
+`notifications/initialized`, `tools/list`, and `tools/call`, preserving
+`MCP-Session-Id` and negotiated protocol headers.
+
+⚠️ **A tokenless `401` does NOT prove the application path is right.** An earlier
+revision of this section said "a plain `404` means the application path is wrong";
+that is false on this binary. Measured 2026-08-31 — invented app names answer
+identically to real ones:
+
+```text
+/cmuir/mcp     401      /opensearch/mcp  401
+/external/mcp  401      /mcp/mcp         401   <- no such application
+/banking/mcp   401      /admin/mcp       401   <- no such application
+```
+
+The bearer check runs *before* application resolution, so the challenge is emitted
+for any path. This is the same trap the `privilege-cloud-mcp` skill records for
+`cyonproxy` ("tokenless 401 proves nothing"), and it means **the doors cannot be
+enumerated by probing** — only a request carrying a token exercises routing. To
+list the real applications, read the console API (below).
+
+## Listing applications and policies (console API)
+
+The BFF exposes this at `/api/privilege-mcp/console/*`, behind the Policies tab of
+`/privilege-mcp-client`. Two facts settle how it authenticates, both probed live
+2026-08-31:
+
+```text
+GET  https://console.privilege.pingone.com/session-token      (no cookie)  -> 200 {"session_id":"<uuid>"}
+GET  .../api/<envId>/v1/pacpolicys       (junk auth_token, valid session id) -> 401 "User is not authorized"
+```
+
+So `x-procyon-session-id` is a **correlation id, not a credential** — anyone can
+mint one, and the BFF does. Its *absence* is what produces the misleading
+`400 Procyon required header is missing`, which is raised before the token is
+examined at all. The only real credential is the `auth_token` cookie from a console
+browser session (~60 min), which has to be pasted; there is no programmatic way to
+obtain it.
+
+| Endpoint | Returns |
+|---|---|
+| `/api/<envId>/v1/applications?ObjectMeta.Namespace=default` | the doors — `ObjectMeta.Name` is the `/<name>/mcp` route; `Spec.McpAppConfig` (**not** `MCPAppConfig`) carries `Backends`, `FrontEndName`, `EntryPath` |
+| `/api/<envId>/v1/pacpolicys` | the grants — `PacPolicys` \| `Items` \| `items`; each has `ObjectMeta.Name` and an **undocumented** `Spec` |
+
+Because `Spec` is undocumented, do not parse it. Compare against whole string
+values inside it, never substrings: the door `cmuir` is a substring of the
+principal `cmuir+demo@pingone.com`, so a naive `includes()` reports every policy as
+covering every door.
+
+## A policy denial is silent
+
+The gateway answers a denied `tools/list` with a bare `403 Forbidden` — no JSON, no
+policy name, no user id, `www-authenticate: null` — and writes **nothing** to
+`/var/log/procyon/cyonproxy.log`. Verified 2026-08-31: zero log lines in the window
+of a reproduced denial. Contrast Agent mode, which returns
+`403 User <id> doesn't have access to MCP app <name>`.
+
+So nothing can name the denying policy on this path. The client page instead shows
+the door, the identity, the verbatim upstream error, any policies that *mention*
+that door, and a live probe of the other doors with the same token — which is how
+you tell a missing grant from a request aimed at the wrong door.
 
 ## Known cleanup
 
