@@ -68,7 +68,6 @@ IMAGE_MAP=(
   "ai-demo-k8-hitl-service:ai-demo-hitl-service"
   "ai-demo-k8-mcp-resource-server:ai-demo-mcp-resource-server"
   "ai-demo-k8-api-resource-server:ai-demo-api-resource-server"
-  "ai-demo-k8-mcp-weather:ai-demo-mcp-weather"
   "ai-demo-k8-mcp-brave:ai-demo-mcp-brave"
   "ai-demo-k8-langchain-agent:ai-demo-langchain-agent"
   "ai-demo-k8-openai-agent:ai-demo-openai-agent"
@@ -219,7 +218,6 @@ for manifest in \
   63-mcp-resource-server-deployment.yaml \
   64-api-resource-server-deployment.yaml \
   62-hitl-service-deployment.yaml \
-  57-mcp-weather-deployment.yaml \
   58-mcp-brave-deployment.yaml \
   56-llm-stack.yaml \
   72-rag-stack.yaml \
