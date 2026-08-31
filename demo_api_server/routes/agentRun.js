@@ -42,7 +42,7 @@ const { nrTransactionMiddleware } = require('../middleware/nrTransactionMiddlewa
 // rsFilter auth gate, and the payload is a city lookup carrying no account data.
 // Keep this list minimal — anything absent is refused, which is what makes the
 // gate in POST /run fail closed.
-const PUBLIC_GUEST_ACTIONS = new Set(['branch_hours', 'weather']);
+const PUBLIC_GUEST_ACTIONS = new Set(['branch_hours', 'weather', 'brave_search']);
 
 const router = express.Router();
 // Guest-tolerant, matching /api/agent/invoke. The strict middleware returned a

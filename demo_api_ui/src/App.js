@@ -33,6 +33,7 @@ import ResourceServerPlacementPage from "./components/ResourceServerPlacementPag
 import ResourceServerCheckpointPage from "./components/ResourceServerCheckpointPage";
 import DemoTrackPage from "./pages/DemoTrackPage";
 import DelegationChainValuePage from "./pages/DelegationChainValuePage";
+import McpShowcasePage from "./pages/McpShowcasePage";
 import DiscoveryPreviewPage from "./components/agentStudioPreview/DiscoveryPreviewPage";
 import IgaForAiPage from "./components/agentStudioPreview/IgaForAiPage";
 import PrivilegesGatewayPreviewPage from "./components/agentStudioPreview/PrivilegesGatewayPreviewPage";
@@ -1629,6 +1630,17 @@ function AppWithAuth() {
                             <Route
                               path="/delegation-chain-value"
                               element={<DelegationChainValuePage />}
+                            />
+                            {/* Gateway capability showcases. One component, two
+                                configs — the pages differ only in which policy
+                                the gateway enforces. */}
+                            <Route
+                              path="/weather-mcp"
+                              element={<McpShowcasePage capability="weather" />}
+                            />
+                            <Route
+                              path="/brave-mcp"
+                              element={<McpShowcasePage capability="brave" />}
                             />
                             <Route
                               path="/invest-dual-auth"

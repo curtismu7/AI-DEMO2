@@ -644,6 +644,26 @@ function createMcpToolRegistry() {
       }
     ),
 
+    // brave-mcp showcase, the sibling of get_weather above: a real third-party
+    // MCP server fronted by the Agent Gateway, which applies a content
+    // blocklist at the edge. Same "always attempt the call" instruction — the
+    // whole point of the demo is that the GATEWAY refuses, visibly, rather than
+    // the model quietly declining to try.
+    tool(
+      async (input, config) => {
+        const { agentToken, userId, tokenEvents = [], sessionId = null } = getAgentContext(config);
+        const result = await callMcpToolInternal('brave_news_search', input, agentToken, userId, tokenEvents, sessionId);
+        return JSON.stringify(result);
+      },
+      {
+        name: 'brave_news_search',
+        description: 'Search recent news via the Brave Search API. Call when the user asks to search the news or web for a topic — always attempt the call and let the result speak for itself, do not pre-judge whether a query is allowed.',
+        schema: z.object({
+          query: z.string().min(1).describe('Search query, e.g. "PingOne DaVinci"'),
+        }),
+      }
+    ),
+
     tool(
       async (input, config) => {
         const { agentToken, userId, tokenEvents = [], sessionId = null } = getAgentContext(config);

@@ -160,15 +160,31 @@ describe("AdminSideNav — best-of-breed pass", () => {
     expect(flows.children).toContain("Delegated Commerce (guided demo)");
   });
 
-  it("Weather MCP runs UC30 (weather-mcp-texas-permit) via demo/run", async () => {
+  // Both showcases are PAGES now, not kickoff actions. The nav used to POST the
+  // use case straight from the click and bounce to /dashboard, which showed the
+  // outcome without ever showing the policy that produced it; the page runs the
+  // same use case from a button that says which outcome to expect. Asserting the
+  // link (not a POST) is what keeps the nav from silently reverting to a
+  // fire-and-forget action.
+  it("Weather MCP and Brave Search MCP link to their showcase pages, not a demo/run POST", async () => {
     const apiClient = (await import("../../services/apiClient")).default;
     renderNav();
     fireEvent.click(screen.getByRole("button", { name: /^Demos/ }));
+
+    expect(screen.getByText("Weather MCP").closest("a")).toHaveAttribute(
+      "href",
+      "/weather-mcp",
+    );
+    expect(screen.getByText("Brave Search MCP").closest("a")).toHaveAttribute(
+      "href",
+      "/brave-mcp",
+    );
+
     fireEvent.click(screen.getByText("Weather MCP"));
-    expect(apiClient.post).toHaveBeenCalledWith("/api/use-cases/demo/run", {
-      useCaseId: "weather-mcp-texas-permit",
-      vertical: "banking",
-    });
+    expect(apiClient.post).not.toHaveBeenCalledWith(
+      "/api/use-cases/demo/run",
+      expect.anything(),
+    );
   });
 
   it("hides a nav item the user marked hidden via Demo Config, once loaded", async () => {

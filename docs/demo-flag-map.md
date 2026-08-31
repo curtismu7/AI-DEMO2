@@ -11,7 +11,10 @@ step POSTs `/api/use-cases/demo/run`, which arms every flag that step declares
 (`routes/useCases.js`). A flag reading `off` beforehand is normal. What matters
 is the ambient list further down — those are *not* armed for you.
 
-Beat order and `SECURITY_DEMO_USE_CASE_IDS` agree (10 steps).
+> **WARNING — the teleprompter beats and the workbench group disagree.**
+> `demoScript.js` beat order: `UC1, UC2, UC24, UC6, UC8, UC14b, UC14, UC31, UC42, UC12, UC5`
+> `SECURITY_DEMO_USE_CASE_IDS`: `UC1, UC2, UC24, UC6, UC8, UC14b, UC14, UC31, UC12, UC5`
+> They are meant to be 1:1. Fix one of them before presenting.
 
 ## Steps
 
@@ -25,8 +28,9 @@ Beat order and `SECURITY_DEMO_USE_CASE_IDS` agree (10 steps).
 | 6 | `UC14b` — PAR + RAR intent verified (PERMIT) | Agent pushes its intent (amount, payee) to PingOne as a PAR, then transfers within that  | `ff_rar` | yes |
 | 7 | `UC14` — PAR + RAR intent violation (pushed intent exceeded) | Same PAR grant, but the agent now asks for more than it pushed — intent is a contract. | `ff_rar` | — |
 | 8 | `UC31` — Third-party MCP server — out-of-scope call denied | Agent calls a third-party weather MCP for an out-of-policy location — egress control on  | — | yes |
-| 9 | `UC12` — Token theft / replay defense | Attacker steals the user's token and replays it straight at the backend, skipping the ga | `ff_dpop` | — |
-| 10 | `UC5` — Wrong / insufficient scope | An MCP server reaches for a tool it was never scoped for — scope is a hard ceiling. | — | — |
+| 9 | `UC42` — Third-party search server — blocked query denied | Same egress control, different policy shape — a content blocklist on a third-party searc | — | yes |
+| 10 | `UC12` — Token theft / replay defense | Attacker steals the user's token and replays it straight at the backend, skipping the ga | `ff_dpop` | — |
+| 11 | `UC5` — Wrong / insufficient scope | An MCP server reaches for a tool it was never scoped for — scope is a hard ceiling. | — | — |
 
 **Gateway floor** = `ff_mcp_gateway_pinggateway`.
 Every step that dispatches an MCP tool needs it. Armed on run like the rest —

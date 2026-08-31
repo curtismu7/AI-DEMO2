@@ -1,0 +1,249 @@
+/* McpShowcasePage — the weather and Brave gateway-capability pages.
+   Themed entirely with --th-* per THEMING.md: no literals, no
+   prefers-color-scheme block. Dark comes from :root[data-theme="dark"]
+   redefining the tokens, so there is nothing to duplicate here. */
+
+.mcpsc {
+  min-height: 100%;
+  padding: 28px 24px 80px;
+  background: var(--th-bg-page);
+  color: var(--th-text);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.mcpsc__head,
+.mcpsc__card {
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-lg);
+  padding: 22px 24px;
+}
+
+.mcpsc__eyebrow {
+  margin: 0 0 6px;
+  font-size: var(--font-size-2xs);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--th-text-muted);
+}
+
+.mcpsc__title {
+  margin: 0;
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  color: var(--th-text);
+}
+
+.mcpsc__subtitle {
+  margin: 4px 0 0;
+  font-size: var(--font-size-base);
+  color: var(--th-text-muted);
+}
+
+.mcpsc__lede {
+  margin: 14px 0 0;
+  max-width: 62ch;
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+  color: var(--th-text);
+}
+
+.mcpsc__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 32px;
+  margin: 18px 0 0;
+}
+
+.mcpsc__fact dt {
+  font-size: var(--font-size-3xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--th-text-muted);
+}
+
+.mcpsc__fact dd {
+  margin: 4px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-size-sm);
+}
+
+.mcpsc__pill {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--th-border-strong);
+  font-size: var(--font-size-3xs);
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.mcpsc__pill--on {
+  background: var(--th-status-success-bg);
+  border-color: var(--th-status-success-border);
+  color: var(--th-status-success-text);
+}
+
+.mcpsc__pill--off {
+  background: var(--th-status-error-bg);
+  border-color: var(--th-status-error-border);
+  color: var(--th-status-error-text);
+}
+
+.mcpsc__pill--unknown {
+  background: var(--th-bg-inset);
+  color: var(--th-text-muted);
+}
+
+.mcpsc__flagid,
+.mcpsc__prompt,
+.mcpsc__refs code,
+.mcpsc__terms code,
+.mcpsc__fact code {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  background: var(--th-code-bg);
+  color: var(--th-code-text);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.mcpsc__warn {
+  margin: 16px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--th-status-warning-border);
+  background: var(--th-status-warning-bg);
+  color: var(--th-status-warning-text);
+  font-size: var(--font-size-sm);
+}
+
+.mcpsc__card h2 {
+  margin: 0 0 12px;
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--th-text);
+}
+
+.mcpsc__note {
+  margin: 12px 0 0;
+  max-width: 62ch;
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+  color: var(--th-text-muted);
+}
+
+.mcpsc__terms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mcpsc__runs {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mcpsc__run {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+
+.mcpsc__runtext {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+}
+
+.mcpsc__runnote {
+  font-size: var(--font-size-2xs);
+  color: var(--th-text-muted);
+}
+
+.mcpsc__outcome {
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-3xs);
+  font-weight: 700;
+  letter-spacing: 0.07em;
+}
+
+.mcpsc__outcome--permit {
+  background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
+  border: 1px solid var(--th-status-success-border);
+}
+
+.mcpsc__outcome--deny {
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
+  border: 1px solid var(--th-status-error-border);
+}
+
+.mcpsc__btn {
+  flex: none;
+  padding: 7px 18px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mcpsc__btn:hover:not(:disabled) {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+.mcpsc__btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.mcpsc__error {
+  margin: 14px 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--th-status-error-text);
+}
+
+.mcpsc__refs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (max-width: 640px) {
+  .mcpsc { padding: 18px 14px 60px; }
+  .mcpsc__head,
+  .mcpsc__card { padding: 16px 16px; }
+}

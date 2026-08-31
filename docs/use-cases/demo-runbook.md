@@ -28,6 +28,8 @@
 | UC24 | `What branches are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
 | UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
 | UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
+| UC41 | `search the news for PingOne DaVinci` | `PERMIT` | An ordinary business search — no blocked term, so the gateway forwards it to the real Brave API. |
+| UC42 | `search the news for bitcoin price today` | `DENY` | Demo bank policy says no crypto research through the agent gateway. The gateway kills the query before Brave ever sees it. |
 | UC-TOOL1 | `find where the BFF performs MCP token exchange` | `PERMIT` | The answer is grounded in indexed code, but retrieval happens only after RFC 8693 delegation, code:search scope enforcement, and a PingOne Authorize PERMIT. |
 | UC28 | `Can you waive the fee on my checking account?` | `PERMIT` | The agent can only submit a request for human review — it has no tool that actually grants a waiver, so it cannot hallucinate one into existence. |
 
@@ -48,6 +50,8 @@
 | UC24 | `What clinics are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
 | UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
 | UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
+| UC41 | `search the news for PingOne DaVinci` | `PERMIT` | An ordinary business search — no blocked term, so the gateway forwards it to the real Brave API. |
+| UC42 | `search the news for bitcoin price today` | `DENY` | Demo bank policy says no crypto research through the agent gateway. The gateway kills the query before Brave ever sees it. |
 | UC-TOOL1 | `find where the BFF performs MCP token exchange` | `PERMIT` | The answer is grounded in indexed code, but retrieval happens only after RFC 8693 delegation, code:search scope enforcement, and a PingOne Authorize PERMIT. |
 | UC28 | `can you request a copy of my records?` | `PERMIT` | The agent can only submit a request for human review — it has no tool that actually grants a waiver, so it cannot hallucinate one into existence. |
 
@@ -68,6 +72,8 @@
 | UC24 | `What stores are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
 | UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
 | UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
+| UC41 | `search the news for PingOne DaVinci` | `PERMIT` | An ordinary business search — no blocked term, so the gateway forwards it to the real Brave API. |
+| UC42 | `search the news for bitcoin price today` | `DENY` | Demo bank policy says no crypto research through the agent gateway. The gateway kills the query before Brave ever sees it. |
 | UC-TOOL1 | `find where the BFF performs MCP token exchange` | `PERMIT` | The answer is grounded in indexed code, but retrieval happens only after RFC 8693 delegation, code:search scope enforcement, and a PingOne Authorize PERMIT. |
 | UC28 | `can you request a price adjustment on my order?` | `PERMIT` | The agent can only submit a request for human review — it has no tool that actually grants a waiver, so it cannot hallucinate one into existence. |
 
@@ -88,6 +94,8 @@
 | UC24 | `What A&F stores are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
 | UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
 | UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
+| UC41 | `search the news for PingOne DaVinci` | `PERMIT` | An ordinary business search — no blocked term, so the gateway forwards it to the real Brave API. |
+| UC42 | `search the news for bitcoin price today` | `DENY` | Demo bank policy says no crypto research through the agent gateway. The gateway kills the query before Brave ever sees it. |
 | UC-TOOL1 | `find where the BFF performs MCP token exchange` | `PERMIT` | The answer is grounded in indexed code, but retrieval happens only after RFC 8693 delegation, code:search scope enforcement, and a PingOne Authorize PERMIT. |
 | UC28 | `can you request a price adjustment on my A&F order?` | `PERMIT` | The agent can only submit a request for human review — it has no tool that actually grants a waiver, so it cannot hallucinate one into existence. |
 
@@ -108,6 +116,8 @@
 | UC24 | `What city offices are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
 | UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
 | UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
+| UC41 | `search the news for PingOne DaVinci` | `PERMIT` | An ordinary business search — no blocked term, so the gateway forwards it to the real Brave API. |
+| UC42 | `search the news for bitcoin price today` | `DENY` | Demo bank policy says no crypto research through the agent gateway. The gateway kills the query before Brave ever sees it. |
 | UC-TOOL1 | `find where the BFF performs MCP token exchange` | `PERMIT` | The answer is grounded in indexed code, but retrieval happens only after RFC 8693 delegation, code:search scope enforcement, and a PingOne Authorize PERMIT. |
 | UC28 | `can you submit my permit filing?` | `PERMIT` | The agent can only submit a request for human review — it has no tool that actually grants a waiver, so it cannot hallucinate one into existence. |
 
@@ -128,6 +138,8 @@
 | UC24 | `What campus locations are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
 | UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
 | UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
+| UC41 | `search the news for PingOne DaVinci` | `PERMIT` | An ordinary business search — no blocked term, so the gateway forwards it to the real Brave API. |
+| UC42 | `search the news for bitcoin price today` | `DENY` | Demo bank policy says no crypto research through the agent gateway. The gateway kills the query before Brave ever sees it. |
 | UC-TOOL1 | `find where the BFF performs MCP token exchange` | `PERMIT` | The answer is grounded in indexed code, but retrieval happens only after RFC 8693 delegation, code:search scope enforcement, and a PingOne Authorize PERMIT. |
 | UC28 | `can you request campus housing for me?` | `PERMIT` | The agent can only submit a request for human review — it has no tool that actually grants a waiver, so it cannot hallucinate one into existence. |
 
@@ -148,6 +160,8 @@
 | UC24 | `What office locations are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
 | UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
 | UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
+| UC41 | `search the news for PingOne DaVinci` | `PERMIT` | An ordinary business search — no blocked term, so the gateway forwards it to the real Brave API. |
+| UC42 | `search the news for bitcoin price today` | `DENY` | Demo bank policy says no crypto research through the agent gateway. The gateway kills the query before Brave ever sees it. |
 | UC-TOOL1 | `find where the BFF performs MCP token exchange` | `PERMIT` | The answer is grounded in indexed code, but retrieval happens only after RFC 8693 delegation, code:search scope enforcement, and a PingOne Authorize PERMIT. |
 | UC28 | `can you request a schedule change for me?` | `PERMIT` | The agent can only submit a request for human review — it has no tool that actually grants a waiver, so it cannot hallucinate one into existence. |
 
@@ -168,6 +182,8 @@
 | UC24 | `What stores are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
 | UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
 | UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
+| UC41 | `search the news for PingOne DaVinci` | `PERMIT` | An ordinary business search — no blocked term, so the gateway forwards it to the real Brave API. |
+| UC42 | `search the news for bitcoin price today` | `DENY` | Demo bank policy says no crypto research through the agent gateway. The gateway kills the query before Brave ever sees it. |
 | UC-TOOL1 | `find where the BFF performs MCP token exchange` | `PERMIT` | The answer is grounded in indexed code, but retrieval happens only after RFC 8693 delegation, code:search scope enforcement, and a PingOne Authorize PERMIT. |
 | UC28 | `can you price-match my last order?` | `PERMIT` | The agent can only submit a price-match request for human review — it has no tool that actually approves one, so it cannot hallucinate a discount into existence. |
 
@@ -188,6 +204,8 @@
 | UC24 | `What plant locations are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
 | UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
 | UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
+| UC41 | `search the news for PingOne DaVinci` | `PERMIT` | An ordinary business search — no blocked term, so the gateway forwards it to the real Brave API. |
+| UC42 | `search the news for bitcoin price today` | `DENY` | Demo bank policy says no crypto research through the agent gateway. The gateway kills the query before Brave ever sees it. |
 | UC-TOOL1 | `find where the BFF performs MCP token exchange` | `PERMIT` | The answer is grounded in indexed code, but retrieval happens only after RFC 8693 delegation, code:search scope enforcement, and a PingOne Authorize PERMIT. |
 | UC28 | `can you request a spec exception?` | `PERMIT` | The agent can only submit a request for human review — it has no tool that actually grants a waiver, so it cannot hallucinate one into existence. |
 
@@ -208,6 +226,8 @@
 | UC24 | `What branches are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
 | UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
 | UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
+| UC41 | `search the news for PingOne DaVinci` | `PERMIT` | An ordinary business search — no blocked term, so the gateway forwards it to the real Brave API. |
+| UC42 | `search the news for bitcoin price today` | `DENY` | Demo bank policy says no crypto research through the agent gateway. The gateway kills the query before Brave ever sees it. |
 | UC-TOOL1 | `find where the BFF performs MCP token exchange` | `PERMIT` | The answer is grounded in indexed code, but retrieval happens only after RFC 8693 delegation, code:search scope enforcement, and a PingOne Authorize PERMIT. |
 | UC28 | `can you request a fee tier review?` | `PERMIT` | The agent can only submit a request for human review — it has no tool that actually grants a waiver, so it cannot hallucinate one into existence. |
 
@@ -228,6 +248,8 @@
 | UC24 | `What airports are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
 | UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
 | UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
+| UC41 | `search the news for PingOne DaVinci` | `PERMIT` | An ordinary business search — no blocked term, so the gateway forwards it to the real Brave API. |
+| UC42 | `search the news for bitcoin price today` | `DENY` | Demo bank policy says no crypto research through the agent gateway. The gateway kills the query before Brave ever sees it. |
 | UC-TOOL1 | `find where the BFF performs MCP token exchange` | `PERMIT` | The answer is grounded in indexed code, but retrieval happens only after RFC 8693 delegation, code:search scope enforcement, and a PingOne Authorize PERMIT. |
 | UC38 | `have my agent use my miles for an upgrade` | `PERMIT` | MFA proved, personal agent verified, miles redeemed — cabin upgraded. |
 

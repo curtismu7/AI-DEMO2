@@ -37,6 +37,8 @@ See also: [Audit Table](./audit-table.md), [Step Verification Report](./step-ver
 - [**UC30** — Third-party MCP server, scoped at the gateway](./weather-mcp-texas-permit.md) ✅ 🛡️
 - [**UC31** — Third-party MCP server — out-of-scope call denied](./weather-mcp-texas-deny.md) ✅ 🛡️
 - [**UC32** — Live-reconfigure the gateway's scope policy](./weather-mcp-live-reconfigure.md) ✅ 🛡️
+- [**UC41** — Third-party search server, filtered at the gateway](./brave-mcp-search-permit.md) ✅ 🛡️
+- [**UC42** — Third-party search server — blocked query denied](./brave-mcp-crypto-deny.md) ✅ 🛡️
 - [**UC25** — Enterprise-managed MCP access](./enterprise-managed-mcp-access.md) 🚩 🛡️
 - [**UC39** — Centralized MCP revocation](./enterprise-mcp-revocation.md) 🚩 🛡️
 - [**UC40** — Enterprise-Managed MCP Authorization (native ID-JAG)](./enterprise-managed-mcp-authorization.md) 🚩 🛡️
