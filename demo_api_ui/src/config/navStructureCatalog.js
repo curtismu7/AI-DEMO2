@@ -23,6 +23,7 @@ export const NAV_STRUCTURE_CATALOG = [
     label: "Demos",
     children: [
       "Weather MCP",
+      "Brave Search MCP",
       "Use Cases",
       "Use Cases (Live)",
       "Guided Demo Track",

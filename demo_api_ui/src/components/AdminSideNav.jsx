@@ -485,37 +485,13 @@ export default function AdminSideNav({
       label: "Demos",
       icon: "demo",
       children: [
-        {
-          label: "Weather MCP",
-          icon: "mcp",
-          // UC30 — Texas permit kickoff (same as Use Cases → Run).
-          action: () => {
-            const vertical = activeVerticalId || "banking";
-            apiClient
-              .post("/api/use-cases/demo/run", {
-                useCaseId: "weather-mcp-texas-permit",
-                vertical,
-              })
-              .then(({ data }) =>
-                apiClient
-                  .post("/api/verticals/active", { id: vertical })
-                  .then(() => data),
-              )
-              .then((data) => {
-                navigate("/dashboard", {
-                  state: {
-                    useCaseId: data.useCaseId,
-                    triggerText: data.triggerText,
-                    type: data.type,
-                    vertical,
-                  },
-                });
-              })
-              .catch((err) => {
-                console.error("Weather MCP nav: failed to run use case", err);
-              });
-          },
-        },
+        // Both were bare kickoff ACTIONS (or, for Brave, nothing at all): a click
+        // that POSTed a use case and bounced to /dashboard without ever showing
+        // the policy it was about to demonstrate. They are pages now — the page
+        // still runs the same use case, from a button that says which outcome to
+        // expect. `apiClient` / `activeVerticalId` moved with the dispatch.
+        { label: "Weather MCP", path: "/weather-mcp", icon: "mcp" },
+        { label: "Brave Search MCP", path: "/brave-mcp", icon: "mcp" },
         { label: "Use Cases", path: "/use-cases", icon: "demo" },
         { label: "Use Cases (Live)", path: "/use-cases/live", icon: "demo" },
         { label: "Guided Demo Track", path: "/demo-track", icon: "demo" },

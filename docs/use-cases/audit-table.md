@@ -39,6 +39,8 @@
 | UC30 | [Third-party MCP server, scoped at the gateway](./weather-mcp-texas-permit.md) | controls | ✅ works | 🛡️ T6 |  |
 | UC31 | [Third-party MCP server — out-of-scope call denied](./weather-mcp-texas-deny.md) | controls | ✅ works | 🛡️ T6 |  |
 | UC32 | [Live-reconfigure the gateway's scope policy](./weather-mcp-live-reconfigure.md) | controls | ✅ works | 🛡️ T6 |  |
+| UC41 | [Third-party search server, filtered at the gateway](./brave-mcp-search-permit.md) | controls | ✅ works | 🛡️ T6 |  |
+| UC42 | [Third-party search server — blocked query denied](./brave-mcp-crypto-deny.md) | controls | ✅ works | 🛡️ T6 |  |
 | UC-TOOL1 | [Protected RAG](./code-search.md) | tools | ✅ works | 🛡️ T2, T6 |  |
 | UC-TOOL2 | [Code Explorer](./code-explorer.md) | tools | ✅ works |  |  |
 | UC-NHI1 | [Multi-source NHI inventory](./nhi-inventory.md) | nhi | ✅ works |  |  |
@@ -82,8 +84,8 @@
 
 | Status | Count |
 |---|---|
-| ✅ Works | 47 |
+| ✅ Works | 49 |
 | 🚩 Flag-gated | 10 |
 | 📥 Needs console import | 0 |
 | 🏗️ Needs build | 1 |
-| **Total** | **58** |
+| **Total** | **60** |

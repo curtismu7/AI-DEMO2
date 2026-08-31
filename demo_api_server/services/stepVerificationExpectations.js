@@ -38,6 +38,7 @@ const ACTION_TO_TOOL = {
   sensitive_account_details: 'get_sensitive_account_details',
   branch_hours: 'get_branch_hours',
   weather: 'get_weather',
+  brave_search: 'brave_news_search',
   mortgage_demo: 'show_mortgage',
   gear_warranty_demo: 'show_gear_warranty',
   // Cross-vertical portfolio chip — always dispatches show_investment whatever the

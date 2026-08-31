@@ -482,8 +482,20 @@ async function dispatchBankingAction(action, params, userId, ctx) {
     // Gateway (Texas-only, ping-gateway/scripts/groovy/tx-weather-scope.groovy).
     // executeBffTool unwraps MCP {content:[{text}]} to the inner string. Weather
     // returns markdown prose (not banking JSON), so do not force parseToolResult.
-    if (action === 'weather') {
-      const toolName = 'get_weather';
+    // Gateway showcase tools. weather (get_weather) and brave_search
+    // (brave_news_search) are both real, unmodified third-party MCP servers
+    // fronted by the Agent Gateway, which enforces a policy the backend never
+    // sees — Texas-scope in tx-weather-scope.groovy, a crypto-term content
+    // blocklist in tx-brave-scope.groovy. They differ ONLY in the tool, the
+    // argument key and the failure sentence; the deny-envelope handling that
+    // frames an expected DENY as the control working is identical, so this is
+    // one branch rather than a second 40-line copy of it.
+    const SHOWCASE_TOOLS = {
+      weather: { toolName: 'get_weather', argKey: 'city_name', fallback: 'Could not get the weather.' },
+      brave_search: { toolName: 'brave_news_search', argKey: 'query', fallback: 'Could not run the search.' },
+    };
+    if (SHOWCASE_TOOLS[action]) {
+      const { toolName, argKey, fallback: showcaseFallback } = SHOWCASE_TOOLS[action];
       const tokenEvents = [];
       const sessionId = req?.sessionID || '';
       // When this run is a catalog use case whose expected outcome is DENY (e.g.
@@ -493,7 +505,7 @@ async function dispatchBankingAction(action, params, userId, ctx) {
       const _expectedDeny = !!_ucId && require('../config/useCases').USE_CASES.some(
         (u) => (u.id === _ucId || u.useCaseId === _ucId) && u.expectedOutcome === 'DENY',
       );
-      const rawResult = await executeBffTool({ name: toolName, args: { city_name: params.city_name || '' }, userId, userToken, req, tokenEvents, sessionId });
+      const rawResult = await executeBffTool({ name: toolName, args: { [argKey]: params[argKey] || '' }, userId, userToken, req, tokenEvents, sessionId });
       if (typeof rawResult === 'string' && rawResult.trim()) {
         const trimmed = rawResult.trim();
         // unwrapMcpResultEnvelope wraps non-JSON isError text as {"error":"…"}.
@@ -504,7 +516,7 @@ async function dispatchBankingAction(action, params, userId, ctx) {
             // to Texas — city not recognized") over the bare code, and carry the
             // specific gatewayErrorCode + message so the UI surfaces the real reason
             // instead of degrading to a generic tool_failed.
-            const msg = parsedErr?.message || parsedErr?.error_description || parsedErr?.content?.[0]?.text || parsedErr?.error || 'Could not get the weather.';
+            const msg = parsedErr?.message || parsedErr?.error_description || parsedErr?.content?.[0]?.text || parsedErr?.error || showcaseFallback;
             return {
               reply: `❌ ${msg}`, success: false, toolsCalled: [toolName], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents,
               ...(parsedErr?.error ? { error: parsedErr.error } : {}),
@@ -519,7 +531,7 @@ async function dispatchBankingAction(action, params, userId, ctx) {
       const { result: parsed2 } = parseToolResult(rawResult, { site: `banking_read:${toolName}` });
       const text = parsed2?.content?.[0]?.text;
       if (!text || parsed2?.isError || parsed2?.error) {
-        const _msg2 = text || parsed2?.message || parsed2?.error_description || parsed2?.error || 'Could not get the weather.';
+        const _msg2 = text || parsed2?.message || parsed2?.error_description || parsed2?.error || showcaseFallback;
         return {
           reply: `❌ ${_msg2}`, success: false, toolsCalled: [toolName], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents,
           ...(parsed2?.error ? { error: parsed2.error } : {}),

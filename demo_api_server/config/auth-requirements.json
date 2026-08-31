@@ -9,7 +9,8 @@
   "defaultLevel": "user",
   "publicAgentActions": [
     "branch_hours",
-    "weather"
+    "weather",
+    "brave_search"
   ],
   "useCases": {
     "UC1": "user",
@@ -55,6 +56,8 @@
     "UC38": "user",
     "UC39": "user",
     "UC40": "public",
+    "UC41": "public",
+    "UC42": "public",
     "UC-TOOL1": "user",
     "UC-TOOL2": "public",
     "UC-NHI1": "user",
@@ -130,6 +133,7 @@
     "/authorize-config": "public",
     "/authz-server-rules": "public",
     "/authz-test": "public",
+    "/brave-mcp": "public",
     "/check": "user",
     "/ciba-approve": "public",
     "/client-registration": "admin",
@@ -254,6 +258,7 @@
     "/use-cases/live": "user",
     "/user-accounts": "public",
     "/users": "admin",
+    "/weather-mcp": "public",
     "/webmcp": "public"
   },
   "softAuthRoutes": [
