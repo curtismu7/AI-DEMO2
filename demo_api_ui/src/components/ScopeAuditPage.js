@@ -3,6 +3,7 @@ import { notifySuccess, notifyError } from '../utils/appToast';
 import '../styles/appShellPages.css';
 import './ScopeAuditPage.css';
 import CapabilityCallout from './CapabilityCallout';
+import SignInPrompt from './SignInPrompt';
 import { AGENT_GATEWAY_CAPABILITIES } from '../config/capabilityLedgers/agentGatewayCapabilities';
 
 /**
@@ -15,6 +16,7 @@ export default function ScopeAuditPage() {
   const [resources, setResources] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [needsSignIn, setNeedsSignIn] = useState(false);
   const [hasRun, setHasRun] = useState(false);
   const [envInfo, setEnvInfo] = useState({ environment: '', region: '' });
   const [expandedIds, setExpandedIds] = useState(new Set());
@@ -24,9 +26,14 @@ export default function ScopeAuditPage() {
   const loadResources = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setNeedsSignIn(false);
     try {
       const res = await fetch('/api/admin/scope-audit/resources', { credentials: 'include' });
       const data = await res.json();
+      if (res.status === 401 || res.status === 403) {
+        setNeedsSignIn(true);
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
       setResources(data.resources || []);
       setEnvInfo({ environment: data.environment, region: data.region });
@@ -135,6 +142,15 @@ export default function ScopeAuditPage() {
         <div className="scope-audit-page__loading">
           Connecting to PingOne Management API...
         </div>
+      </div>
+    );
+  }
+
+  if (error && needsSignIn) {
+    return (
+      <div className="scope-audit-page">
+        <h1>PingOne Scope Audit</h1>
+        <SignInPrompt admin message="The scope audit reads live scope data from the admin Management API." />
       </div>
     );
   }
