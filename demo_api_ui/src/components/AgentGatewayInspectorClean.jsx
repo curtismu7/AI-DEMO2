@@ -46,6 +46,7 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
   // instead of silently discarding the input.
   const [paramsText, setParamsText] = useState(() => JSON.stringify(parameters, null, 2));
   const [paramsError, setParamsError] = useState(false);
+  const [outputFontSize, setOutputFontSize] = useState(13);
 
   // Re-sync the text only when parameters change from outside the textarea
   // (tool switch, reel restore) — not on every keystroke's parse round-trip.
@@ -54,6 +55,8 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
     setParamsError(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTool, activeReelId]);
+
+  const highlightJSON = (json) => json.replace(/"([^"]+)":/g, '<span style="color: #6ba3ff;">\"$1\"</span>:').replace(/: "([^"]+)"/g, ': <span style="color: #51b552;">\"$1\"</span>').replace(/: (\d+)/g, ': <span style="color: #d4a574;">$1</span>').replace(/: (true|false)/g, ': <span style="color: #ce7edb;">$1</span>').replace(/: null/g, ': <span style="color: #888;">null</span>');
 
   return (
     <div className="inspector-clean-page">
@@ -204,37 +207,38 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
               <div className="inspector-clean-panel-label">Output</div>
             </div>
             <div className="inspector-clean-output">
-              <div className="inspector-clean-output-tabs">
-                {['Response', 'Request', 'Trace', 'Logs', 'Performance', 'Diff'].map((tab) => (
-                  <div
-                    key={tab}
-                    className={`inspector-clean-output-tab ${outputTab === tab.toLowerCase() ? 'active' : ''}`}
-                    onClick={() => setOutputTab(tab.toLowerCase())}
-                  >
-                    {tab}
-                  </div>
-                ))}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--th-border)' }}>
+                <div className="inspector-clean-output-tabs">
+                  {['Response', 'Request', 'Trace', 'Logs', 'Performance', 'Diff'].map((tab) => (
+                    <div
+                      key={tab}
+                      className={`inspector-clean-output-tab ${outputTab === tab.toLowerCase() ? 'active' : ''}`}
+                      onClick={() => setOutputTab(tab.toLowerCase())}
+                    >
+                      {tab}
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: '6px', padding: '8px 12px' }}>
+                  <button onClick={() => setOutputFontSize(Math.max(10, outputFontSize - 1))} style={{ padding: '4px 8px', fontSize: '12px', cursor: 'pointer', border: '1px solid var(--th-border)', background: 'var(--th-bg-inset)', borderRadius: '4px' }}>−</button>
+                  <span style={{ fontSize: '12px', minWidth: '30px', textAlign: 'center', lineHeight: '1.5' }}>{outputFontSize}px</span>
+                  <button onClick={() => setOutputFontSize(Math.min(20, outputFontSize + 1))} style={{ padding: '4px 8px', fontSize: '12px', cursor: 'pointer', border: '1px solid var(--th-border)', background: 'var(--th-bg-inset)', borderRadius: '4px' }}>+</button>
+                </div>
               </div>
 
-              <div className="inspector-clean-output-content">
+              <div className="inspector-clean-output-content" style={{ fontSize: `${outputFontSize}px` }}>
                 {!result && !error && <div style={{ color: 'var(--th-text-muted)', fontSize: '12px' }}>Execute a tool to see results</div>}
 
                 {result && outputTab === 'response' && (
-                  <pre>{JSON.stringify(result.response || result, null, 2)}</pre>
+                  <pre dangerouslySetInnerHTML={{ __html: highlightJSON(JSON.stringify(result.response || result, null, 2)) }} />
                 )}
 
                 {result && outputTab === 'request' && (
-                  <pre>
-                    {JSON.stringify(
-                      {
+                  <pre dangerouslySetInnerHTML={{ __html: highlightJSON(JSON.stringify({
                         method: 'POST',
                         url: '/api/agent-gateway/invoke',
                         body: result.request || { tool: selectedTool, parameters },
-                      },
-                      null,
-                      2,
-                    )}
-                  </pre>
+                      }, null, 2)) }} />
                 )}
 
                 {result && outputTab === 'trace' && (
