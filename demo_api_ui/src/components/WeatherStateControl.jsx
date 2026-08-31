@@ -5,6 +5,7 @@ const OPTIONS = [
   { value: 'texas', label: 'Texas' },
   { value: 'michigan', label: 'Michigan' },
   { value: 'any', label: 'Any (no restriction)' },
+  { value: 'any-except-miami', label: 'Any except Miami, FL' },
 ];
 
 /**

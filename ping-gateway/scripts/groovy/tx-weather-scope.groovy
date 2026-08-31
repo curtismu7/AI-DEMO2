@@ -1,8 +1,9 @@
 // ping-gateway/scripts/groovy/tx-weather-scope.groovy
 //
 // Agent Gateway (IG) demo policy: the weather-mcp passthrough is scoped to
-// ONE configurable US state at a time (default: Texas), or left wide open
-// ("any"). Runs after McpValidationFilter has buffered the body. A
+// ONE configurable US state at a time (default: Texas), left wide open
+// ("any"), or open everywhere EXCEPT one blocked city
+// ("any-except-miami"). Runs after McpValidationFilter has buffered the body. A
 // tools/call whose location argument cannot be verified against the
 // currently-selected state is denied here, not by the upstream weather-mcp
 // server. The selected state is admin-configurable live, via
@@ -44,6 +45,20 @@ def STATES = [
 ]
 def STATE_LABELS = [texas: 'Texas', michigan: 'Michigan']
 
+// Denylist mode ('any-except-miami'): everywhere passes except this one city.
+// The box has to be checked as well as the name, because the agent does NOT
+// call get_weather with a city string — weather-mcp's own tool descriptions
+// steer it to `search_location` (Nominatim) first and then to
+// get_current_conditions with the resolved lat/lon, so the COORDINATE branch is
+// the one that actually carries the location. A name-only block is bypassed by
+// the ordinary two-step call and would fail live, mid-demo.
+// Box is Miami proper plus inner suburbs; Fort Lauderdale (26.12 N) sits
+// outside it deliberately.
+def MIAMI_BOX    = [latMin: 25.60, latMax: 25.95, lonMin: -80.50, lonMax: -80.10]
+def MIAMI_CITY   = 'miami'
+def MIAMI_STATES = ['fl', 'florida'] as Set
+def MIAMI_DENIAL = 'Agent Gateway: Miami, FL is blocked by demo policy'
+
 // Live flag check against the BFF: ff_weather_mcp_showcase (on/off) and
 // ff_weather_mcp_allowed_state (texas | michigan | any). Fails OPEN on
 // `enabled` (a demo toggle, not a security control) but defaults
@@ -70,7 +85,9 @@ def weatherFlags = {
         result.enabled = parsed.enabled != false
         // 'any' is a valid allowedState but deliberately has no STATES entry
         // (no bbox/cities — it means "skip the scope check entirely").
-        if (parsed.allowedState == 'any' || STATES.containsKey(parsed.allowedState)) {
+        if (parsed.allowedState == 'any'
+                || parsed.allowedState == 'any-except-miami'
+                || STATES.containsKey(parsed.allowedState)) {
             result.allowedState = parsed.allowedState
         }
         return result
@@ -125,6 +142,38 @@ if (!(args instanceof Map)) {
 
 // Wide open — no restriction at all, every location argument shape passes.
 if (flags.allowedState == 'any') {
+    return next.handle(context, request)
+}
+
+// Denylist mode — the inverse of the state allowlist below: everywhere is
+// allowed, one city is not. Both argument shapes are checked; see MIAMI_BOX.
+if (flags.allowedState == 'any-except-miami') {
+    if (args.containsKey('latitude') || args.containsKey('longitude')) {
+        def dLat = toNum(args.latitude)
+        def dLon = toNum(args.longitude)
+        // Unparseable coordinates are NOT the blocked city — fall through and
+        // let the upstream server reject them. Denying here would turn a
+        // malformed call into a policy story it isn't.
+        if (dLat != null && dLon != null && Double.isFinite(dLat) && Double.isFinite(dLon)
+                && dLat >= MIAMI_BOX.latMin && dLat <= MIAMI_BOX.latMax
+                && dLon >= MIAMI_BOX.lonMin && dLon <= MIAMI_BOX.lonMax) {
+            return denied(id, MIAMI_DENIAL)
+        }
+        return next.handle(context, request)
+    }
+    def denyCity = args.city_name ?: args.location
+    if (denyCity instanceof String) {
+        // Same first-comma split as the allowlist branch below. A bare "Miami"
+        // is blocked; "Miami, OH" is not — that is a different real city, and
+        // the demo's story is specifically Miami, Florida.
+        def dNorm = denyCity.toLowerCase().trim()
+        def dComma = dNorm.indexOf(',')
+        def cityPart = dComma >= 0 ? dNorm.substring(0, dComma).trim() : dNorm
+        def statePart = dComma >= 0 ? dNorm.substring(dComma + 1).trim() : ''
+        if (cityPart == MIAMI_CITY && (statePart == '' || MIAMI_STATES.contains(statePart))) {
+            return denied(id, MIAMI_DENIAL)
+        }
+    }
     return next.handle(context, request)
 }
 

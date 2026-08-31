@@ -51,6 +51,21 @@ describe('GET /internal/feature-flags/weather-mcp-showcase', () => {
     expect(res.body.allowedState).toBe('michigan');
   });
 
+  // The denylist mode has to survive the allowlist below. Dropping it from the
+  // route's `includes` list does NOT error — it silently collapses to 'texas',
+  // so the gateway would deny every city while the admin dropdown still read
+  // "Any except Miami, FL". That is the failure this asserts.
+  test('passes the any-except-miami denylist mode through unchanged', async () => {
+    jest.spyOn(configStore, 'getEffective').mockImplementation((key) => {
+      if (key === 'ff_weather_mcp_allowed_state') return 'any-except-miami';
+      return undefined;
+    });
+    const res = await request(app)
+      .get('/internal/feature-flags/weather-mcp-showcase')
+      .set('x-internal-gateway-secret', SECRET);
+    expect(res.body.allowedState).toBe('any-except-miami');
+  });
+
   test('falls back to texas for an unrecognized stored value', async () => {
     jest.spyOn(configStore, 'getEffective').mockImplementation((key) => {
       if (key === 'ff_weather_mcp_allowed_state') return 'not-a-real-state';
