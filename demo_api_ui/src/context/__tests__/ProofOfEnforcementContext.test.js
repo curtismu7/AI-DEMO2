@@ -346,6 +346,22 @@ describe('a failed run is not reported as still waiting', () => {
     expect(v.resultText).toBe('Run failed before authorize-decision, tool-dispatched');
     expect(v.missingSteps).toEqual(['authorize-decision', 'tool-dispatched']);
   });
+
+  // 2026-08-31: mcp-weather was absent from the SE cluster, so PingGateway 502'd
+  // on UnknownHostException. ingestMcpResult still stamps trace.mcpResult for a
+  // failed call, so EVERY evidence step matched and UC30 rendered
+  // "VERIFIED — Completed — get_weather dispatched" over a chat that said the
+  // step could not be completed.
+  test('a complete-looking run that ended in error is not verified', () => {
+    const v = computeVerdict({
+      tokenEvents: [{ id: 'user-token' }],
+      authorize: { decision: 'PERMIT' },
+      mcpResult: { tool: 'get_weather' },
+      outcome: 'error',
+    }, ENTRY);
+    expect(v.state).toBe('mismatch');
+    expect(v.resultText).toBe('Run failed — the tool call did not complete');
+  });
 });
 
 // Regression: gateway-authoritative runs (useGateway: true) never populate

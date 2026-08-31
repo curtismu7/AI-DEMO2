@@ -129,6 +129,24 @@ export function computeVerdict(trace, catalogEntry) {
     };
   }
 
+  // A run that ENDED in error proves nothing, however much evidence it logged on
+  // the way down. ingestMcpResult stamps trace.mcpResult for a FAILED tool call
+  // too, so 'tool-dispatched' matched on a gateway 502 and UC30 rendered
+  // "VERIFIED — Completed — get_weather dispatched" while the chat showed the
+  // failure and the Token Chain header read RUN ERROR (2026-08-31: mcp-weather
+  // absent from the SE cluster, PingGateway 502 on UnknownHostException).
+  // A policy DENY is NOT this case: every caller passes completeTrace(!isDeny),
+  // so an expected deny still ends 'ok' and keeps 'denied-as-expected' below.
+  if (trace.outcome === 'error') {
+    return {
+      useCaseId, id: catalogEntry.id, title: catalogEntry.title,
+      expectedOutcome: catalogEntry.expectedOutcome || null,
+      state: 'mismatch', matchedSteps, missingSteps: [], vertical,
+      intent, tool, mechanism,
+      resultText: 'Run failed — the tool call did not complete',
+    };
+  }
+
   const decision = decisionOf(trace);
   const expected = catalogEntry.expectedOutcome;
   // The catalog's expectedOutcome is a narrative label (e.g. RANKED_RESULTS,

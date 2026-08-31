@@ -140,6 +140,50 @@ read the configured host. A new browser origin must be added to ALL of:
 ## §4 — Bug Fix Log
 Reverse-chronological, newest first.
 
+### 2026-08-31 — UC30 weather read `VERIFIED` on the SE cluster while every `get_weather` call 502'd
+
+**Files changed:** `demo_api_ui/src/context/ProofOfEnforcementContext.js`,
+`demo_api_ui/src/context/__tests__/ProofOfEnforcementContext.test.js`,
+`k8s/aws/deploy.sh`, `run-k8.sh`.
+
+**What was broken:** two independent faults that combined into a demo that
+looked green while failing.
+
+1. `mcp-weather` was never deployed to the SE cluster. `k8s/deploy.sh` applies
+   `57-mcp-weather-deployment.yaml`, but the AWS/SE path
+   (`k8s/aws/deploy.sh`) omitted the manifest, the GHCR image map entry, and
+   the rollout wait — and `run-k8.sh`'s push list omitted the image, so the
+   GHCR tag did not exist either. PingGateway's `00-mcp-weather` route passed
+   the Texas scope check (`city=Austin, Tx allowedState=texas`) and then died
+   with `java.net.UnknownHostException: Failed to resolve 'mcp-weather'` →
+   `BadGatewayFilter` → the BFF logged
+   `[MCP Proxy] Error calling get_weather: Gateway upstream error (HTTP 502)`.
+2. The Proof-of-Enforcement verdict called that run `verified`.
+   `ingestMcpResult` stamps `trace.mcpResult` for a FAILED tool call too, so
+   `computeVerdict`'s `tool-dispatched` step matched on a 502 and, with every
+   evidence step matched, the function never consulted `trace.outcome`. The
+   banner read `UC30 — Third-party MCP server, scoped at the gateway —
+   VERIFIED` and the strip read `Completed — get_weather dispatched`, directly
+   contradicting the chat's "That step couldn't be completed" and the Token
+   Chain header's own `RUN ERROR`.
+
+**What was fixed:** `computeVerdict` returns `mismatch` /
+`Run failed — the tool call did not complete` when `trace.outcome === 'error'`,
+checked after evidence matching and before the decision comparison. The SE
+deploy path gains `mcp-weather` in all four places it was missing.
+
+**Do not break:** the error guard must NOT swallow an expected policy DENY.
+Every `completeTrace` caller passes `!isDeny`, so a deny-like run still ends
+`ok` and keeps its green `denied-as-expected` verdict; only a genuinely failed
+run is demoted. A run still in flight has `outcome === null` and must keep the
+existing `incomplete` / "Waiting on …" wording.
+
+**Verify:** `demo_api_ui` → `vitest run src/context/__tests__/ProofOfEnforcementContext*.test.js`
+(41 passed) and `npm run build` (exit 0). Reverting only the guard turns the new
+case red with `expected 'verified' to be 'mismatch'`. Live: after an SE deploy,
+`kubectl get svc mcp-weather -n <ns>` resolves and a UC30 run returns prose
+instead of 502.
+
 ### 2026-08-29 — `HITL_INTERNAL_SECRET` split three ways by dotenvx: hitl-service 401'd, then PingGateway did
 
 **Files changed:** `demo_hitl_service/src/dotenvxBootstrap.js` (new),
