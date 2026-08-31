@@ -233,6 +233,22 @@ const RESUME_VERTICAL_WAIT_MS = 8000;
 const AGENT_UNAVAILABLE_MESSAGE =
   "The assistant didn't return a response — the agent service may be unavailable. Check that the agent runtime is running.";
 
+// One plain sentence per SPECIFIC gateway policy reason, keyed by the BFF's
+// `gatewayErrorCode`. Checked BEFORE NL_FAILURE_MESSAGES, because the coarse
+// `error` code is the same (gateway_policy_denied) for every policy deny — so
+// without this the transcript said only "declined by the gateway's
+// authorization policy" and dropped the reason the demo exists to show.
+// Measured live 2026-08-31 (UC31, "what is the weather in Miami, FL"): the BFF
+// returned gatewayErrorCode "weather_scope_denied" and a reply naming the Texas
+// geofence, and the user saw neither.
+//
+// Curated sentences, NOT the backend's own string — the guard below still holds:
+// an unmapped gatewayErrorCode falls through to the coarse map exactly as before.
+const NL_GATEWAY_REASON_MESSAGES = {
+  weather_scope_denied:
+    "The Agent Gateway's demo policy only allows weather lookups inside Texas, so that city was blocked before the tool ran — this is the policy working, not a failure.",
+};
+
 // One plain sentence per BFF failure class, keyed by the code the BFF returns.
 // The agent transcript must never show a raw backend error string, so
 // reportNlFailure resolves through here and falls back to NL_FAILURE_FALLBACK
@@ -7597,7 +7613,11 @@ export default function BankingAgent({
     // missing code) falls back to the generic one rather than echoing
     // err.message, which is how "Could not parse: ❌ Gateway policy denied the
     // tool call" reached the transcript.
+    // gatewayErrorCode names WHICH policy rule fired; err.code/err.error only say
+    // that one did. Specific first, so a policy demo shows the reason it is
+    // demonstrating; unmapped codes still land on the coarse sentence.
     const friendly =
+      NL_GATEWAY_REASON_MESSAGES[err?.gatewayErrorCode] ||
       NL_FAILURE_MESSAGES[err?.code] ||
       NL_FAILURE_MESSAGES[err?.error] ||
       NL_FAILURE_FALLBACK;

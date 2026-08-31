@@ -1072,6 +1072,53 @@ describe("agent failure envelopes render a plain sentence, not the raw error", (
     ).not.toBeInTheDocument();
   });
 
+  // UC31 ("what is the weather in Miami, FL") is an EXPECTED-deny showcase: the
+  // Agent Gateway's geofence is the thing being demonstrated. The coarse `error`
+  // is gateway_policy_denied for EVERY policy deny, so mapping on it alone told
+  // the user only "declined by the gateway's authorization policy" and dropped
+  // the reason. Measured live on SE 2026-08-31: the BFF sent gatewayErrorCode
+  // "weather_scope_denied" plus a reply naming Texas, and the chat showed neither.
+  it("prefers the specific gateway reason over the coarse policy sentence", async () => {
+    await mockAgentFailure({
+      success: false,
+      error: "gateway_policy_denied",
+      gatewayErrorCode: "weather_scope_denied",
+      reply: "❌ Agent Gateway: weather scope restricted to Texas (demo policy) — city not recognized as Texas",
+    });
+    renderAgent({ user: customerUser, mode: "inline" });
+    const input = screen.getByPlaceholderText(/^Message |^Ask about/);
+    fireEvent.change(input, { target: { value: "what is the weather in Miami, FL" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() => {
+      expect(screen.getByText(/only allows weather lookups inside Texas/i)).toBeInTheDocument();
+    });
+    // The generic sentence must be gone, not merely accompanied.
+    expect(
+      screen.queryByText(/^That step was declined by the gateway's authorization policy/i),
+    ).not.toBeInTheDocument();
+    // The guard still holds: the backend's own string is never echoed verbatim.
+    expect(screen.queryByText(/city not recognized as Texas/i)).not.toBeInTheDocument();
+  });
+
+  // An unmapped gatewayErrorCode must not regress the coarse behaviour.
+  it("still uses the coarse sentence for a gateway code with no specific entry", async () => {
+    await mockAgentFailure({
+      success: false,
+      error: "gateway_policy_denied",
+      gatewayErrorCode: "some_unmapped_policy_rule",
+      reply: "❌ nope",
+    });
+    renderAgent({ user: customerUser, mode: "inline" });
+    const input = screen.getByPlaceholderText(/^Message |^Ask about/);
+    fireEvent.change(input, { target: { value: "my gear" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() => {
+      expect(
+        screen.getByText(/declined by the gateway's authorization policy/i),
+      ).toBeInTheDocument();
+    });
+  });
+
   // needsParams is also success:false, but its reply is the useful clarification
   // question — it must NOT be swallowed by the failure-sentence mapping.
   it("keeps the needsParams clarification reply intact", async () => {
