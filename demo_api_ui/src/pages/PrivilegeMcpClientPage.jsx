@@ -15,6 +15,30 @@ const API_BASE = '/api/privilege-mcp';
 // capability in its initialize response, so an empty panel most often means the
 // server has none to give. Say which of the two it is.
 // The banking backend, for example, advertises only {tools, logging}.
+// The agentless gateway routes on the application name: /<door>/mcp.
+function doorName(mcpUrl) {
+  try { return new URL(mcpUrl).pathname.split('/').filter(Boolean)[0] || null; } catch { return null; }
+}
+
+// Every string value anywhere in an undocumented object.
+function specStrings(value, out = []) {
+  if (typeof value === 'string') out.push(value.toLowerCase());
+  else if (Array.isArray(value)) value.forEach((v) => specStrings(v, out));
+  else if (value && typeof value === 'object') Object.values(value).forEach((v) => specStrings(v, out));
+  return out;
+}
+
+// The pacpolicy Spec schema is undocumented, so we do NOT parse it — we compare
+// against whole string values inside it. Whole values, not substrings: the door
+// "cmuir" is a substring of the principal "cmuir+demo@pingone.com", so
+// JSON.stringify(...).includes() marked every policy as mentioning every door.
+// This says a policy MENTIONS a name, never that it grants access — the UI
+// wording has to stay that careful or it states something it cannot know.
+function policyMentions(policy, needle) {
+  if (!needle) return false;
+  return specStrings(policy.spec || {}).includes(String(needle).toLowerCase());
+}
+
 function capabilityNote(declared, kind) {
   return declared
     ? `Server advertises ${kind} but returned none.`
@@ -115,6 +139,16 @@ export default function PrivilegeMcpClientPage() {
   const [rawRpc, setRawRpc] = useState('{\n  "jsonrpc": "2.0",\n  "id": 1,\n  "method": "tools/list",\n  "params": {}\n}');
   const [rawRpcResult, setRawRpcResult] = useState('');
   const [showBlockedModal, setShowBlockedModal] = useState(false);
+  // The gateway answers a policy denial with a bare "Forbidden" and writes
+  // nothing to its own log, so the modal has to assemble its own evidence:
+  // the door and identity we already know, plus a live probe of the other doors.
+  const [blockedDetail, setBlockedDetail] = useState(null);
+  const [doorProbe, setDoorProbe] = useState({ running: false, results: null });
+  // Privilege console inventory — only populated once an auth_token is pasted.
+  const [consoleToken, setConsoleToken] = useState('');
+  const [consoleData, setConsoleData] = useState(null);
+  const [consoleBusy, setConsoleBusy] = useState(false);
+  const [consoleError, setConsoleError] = useState(null);
   const [showSignInModal, setShowSignInModal] = useState(false);
   const [showFlowModal, setShowFlowModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -452,6 +486,7 @@ export default function PrivilegeMcpClientPage() {
         err.message?.toLowerCase().includes("doesn't have access") ||
         err.message?.toLowerCase().includes('does not have access')
       ) {
+        setBlockedDetail({ door: doorName(config.mcpUrl), url: config.mcpUrl, upstream: err.message });
         setShowBlockedModal(true);
         if (!silent) appendChat('system', 'Access blocked by policy.');
         return;
@@ -462,6 +497,84 @@ export default function PrivilegeMcpClientPage() {
       setToolsLoading(false);
     }
   };
+
+  const connectConsole = async () => {
+    const authToken = consoleToken.trim();
+    if (!authToken) return;
+    setConsoleBusy(true);
+    setConsoleError(null);
+    try {
+      const data = await api('/console/connect', { method: 'POST', body: { authToken } });
+      setConsoleData(data);
+      setConsoleToken('');   // the BFF holds it now; don't keep a copy in the DOM
+    } catch (err) {
+      setConsoleError(err.message);
+      setConsoleData(null);
+    } finally {
+      setConsoleBusy(false);
+    }
+  };
+
+  const refreshConsole = async () => {
+    setConsoleBusy(true);
+    setConsoleError(null);
+    try {
+      setConsoleData(await api('/console/inventory'));
+    } catch (err) {
+      setConsoleError(err.message);
+    } finally {
+      setConsoleBusy(false);
+    }
+  };
+
+  const disconnectConsole = async () => {
+    await api('/console/disconnect', { method: 'POST' }).catch(() => {});
+    setConsoleData(null);
+    setConsoleError(null);
+  };
+
+  const switchDoor = async (mcpUrl) => {
+    const next = { ...config, mcpUrl };
+    try {
+      await api('/config', { method: 'POST', body: next });
+      setConfig(next);
+      setShowBlockedModal(false);
+      appendChat('system', `Switched to door: ${doorName(mcpUrl) || mcpUrl}`);
+      refreshTools(true);
+    } catch (err) {
+      appendChat('system', `Failed to switch door: ${err.message}`);
+    }
+  };
+
+  // Candidate doors to probe on a denial: everything the console knows about,
+  // falling back to the configured presets when no console token is connected.
+  const knownDoors = () => {
+    const fromConsole = (consoleData?.applications || []).map((a) => a.mcpUrl).filter(Boolean);
+    const fromPresets = presets.filter((p) => p.mode === 'agentless').map((p) => p.url);
+    return [...new Set([...fromConsole, ...fromPresets])].filter((u) => u && u !== config.mcpUrl);
+  };
+
+  const probeDoors = async () => {
+    const urls = knownDoors();
+    if (urls.length === 0) { setDoorProbe({ running: false, results: [] }); return; }
+    setDoorProbe({ running: true, results: null });
+    try {
+      const data = await api('/doors/probe', { method: 'POST', body: { urls } });
+      setDoorProbe({ running: false, results: data.results || [] });
+    } catch (err) {
+      setDoorProbe({ running: false, results: [], error: err.message });
+    }
+  };
+
+  // Probe as soon as the denial modal opens: the answer to "is my grant missing
+  // or am I on the wrong door?" is the first thing anyone wants, and the gateway
+  // will not say. Reset on close so a later denial re-probes rather than showing
+  // a stale verdict.
+  useEffect(() => {
+    if (showBlockedModal) probeDoors();
+    else setDoorProbe({ running: false, results: null });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showBlockedModal]);
 
   const sendChat = async () => {
     const prompt = chatInput.trim();
@@ -674,12 +787,57 @@ export default function PrivilegeMcpClientPage() {
         <div className="cur-modal-overlay" onClick={() => setShowBlockedModal(false)}>
           <div className="cur-modal" onClick={(e) => e.stopPropagation()}>
             <h2>Access Denied</h2>
-            <p>You are blocked per policy — please login to{' '}
-              <a href="https://console.login.privilege.pingone.com/?env=01d89b06-66d5-430e-9f28-65636843788b" target="_blank" rel="noreferrer">Ping Identity AI Gateway</a>
-              {' '}to request access.
+            <dl className="cur-denial-facts">
+              <dt>Door</dt><dd>{blockedDetail?.door || '(unknown)'}</dd>
+              <dt>Identity</dt><dd>{user?.email || '(unknown)'}</dd>
+              <dt>Gateway said</dt><dd>{blockedDetail?.upstream || '403 Forbidden'}</dd>
+            </dl>
+            <p className="cur-denial-note">
+              The gateway does not disclose which policy denied this — it returns a bare
+              403 and logs nothing — so the policy name below cannot be confirmed as the
+              one that blocked you.
+            </p>
+            {consoleData ? (() => {
+              const covering = (consoleData.policies || []).filter((p) => policyMentions(p, blockedDetail?.door));
+              const naming = covering.filter((p) => policyMentions(p, user?.email));
+              return (
+                <p className="cur-denial-note">
+                  {covering.length === 0
+                    ? `No policy mentions "${blockedDetail?.door}". That is the likeliest reason.`
+                    : `Policies mentioning "${blockedDetail?.door}": ${covering.map((p) => p.name).join(', ')}. `
+                      + (naming.length === 0
+                        ? `None of them mention ${user?.email || 'this user'}.`
+                        : `${naming.map((p) => p.name).join(', ')} also mention this user — check the grant has not expired.`)}
+                </p>
+              );
+            })() : (
+              <p className="cur-denial-note">
+                Connect a console token in the Policies tab to see which policies cover this door.
+              </p>
+            )}
+            {doorProbe.running && <p className="cur-denial-note">Trying the other doors with this identity...</p>}
+            {doorProbe.results && (
+              <div className="cur-denial-probe">
+                {doorProbe.results.length === 0 && <p className="cur-denial-note">No other doors to try.</p>}
+                {doorProbe.results.map((r) => (
+                  <div key={r.url} className="cur-denial-probe-row">
+                    <span className={r.ok ? 'cur-denial-ok' : 'cur-denial-bad'}>{r.ok ? `${r.tools} tools` : (r.status || 'failed')}</span>
+                    <span className="cur-denial-door">{doorName(r.url) || r.url}</span>
+                    {r.ok && <button className="cur-btn" onClick={() => switchDoor(r.url)}>Switch</button>}
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="cur-denial-note">
+              Grant access in the{' '}
+              <a href="https://console.login.privilege.pingone.com/?env=01d89b06-66d5-430e-9f28-65636843788b" target="_blank" rel="noreferrer">Privilege console</a>.
+              Policies are time-boxed — an expired one fails exactly like a missing one.
             </p>
             <div className="cur-btn-row">
               <button className="cur-btn" onClick={() => { setShowBlockedModal(false); refreshTools(); }}>Retry</button>
+              <button className="cur-btn" onClick={probeDoors} disabled={doorProbe.running}>
+                {doorProbe.running ? 'Probing...' : 'Try other doors'}
+              </button>
               <button className="cur-btn cur-btn--primary" onClick={() => setShowBlockedModal(false)}>Dismiss</button>
             </div>
           </div>
@@ -1130,6 +1288,7 @@ export default function PrivilegeMcpClientPage() {
             <button className={`cur-tab ${activeTab === 'tools' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('tools')}>Tools</button>
             <button className={`cur-tab ${activeTab === 'mcp' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('mcp')}>MCP Explorer</button>
             <button className={`cur-tab ${activeTab === 'rpc' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('rpc')}>Raw RPC</button>
+            <button className={`cur-tab ${activeTab === 'policies' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('policies')}>Policies</button>
           </div>
 
           <div className="cur-editor-area">
@@ -1290,6 +1449,93 @@ export default function PrivilegeMcpClientPage() {
                     <span className="cur-result-label">Response</span>
                     <pre className="cur-code-output jh-dark"><JsonHighlight value={rawRpcResult} deep /></pre>
                   </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'policies' && (
+              <div className="cur-rpc-panel">
+                <div className="cur-tools-header">
+                  <h3>Privilege Console — doors and policies</h3>
+                  {consoleData && (
+                    <div className="cur-btn-row">
+                      <button className="cur-btn" onClick={refreshConsole} disabled={consoleBusy}>
+                        {consoleBusy ? 'Reading...' : 'Refresh'}
+                      </button>
+                      <button className="cur-btn" onClick={disconnectConsole}>Disconnect</button>
+                    </div>
+                  )}
+                </div>
+
+                {!consoleData && (
+                  <>
+                    <p className="cur-denial-note">
+                      The console API lists the MCP applications (the doors this gateway routes
+                      to) and the policies that grant access to them. It authenticates with a
+                      console browser session, not with the gateway token this page already
+                      holds, so it needs one value pasted from the console: the
+                      <code> auth_token </code> cookie. It is held in this session only, is
+                      never written to disk, and expires on its own in about an hour.
+                    </p>
+                    <p className="cur-denial-note">
+                      Privilege console &rarr; DevTools &rarr; Application &rarr; Cookies &rarr;
+                      copy the value of <code>auth_token</code>.
+                    </p>
+                    <label className="cur-field">
+                      <span className="cur-field-label">Console auth_token</span>
+                      <input
+                        className="cur-input"
+                        type="password"
+                        value={consoleToken}
+                        onChange={(e) => setConsoleToken(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') connectConsole(); }}
+                        placeholder="paste the auth_token cookie value"
+                      />
+                    </label>
+                    <button className="cur-btn cur-btn--primary" onClick={connectConsole} disabled={consoleBusy || !consoleToken.trim()}>
+                      {consoleBusy ? 'Connecting...' : 'Connect'}
+                    </button>
+                  </>
+                )}
+
+                {consoleError && <p className="cur-denial-note cur-denial-bad">{consoleError}</p>}
+
+                {consoleData && (
+                  <>
+                    <h4 className="cur-console-heading">Doors ({consoleData.applications.length})</h4>
+                    <div className="cur-console-list">
+                      {consoleData.applications.map((app) => (
+                        <div key={app.name} className={`cur-console-row${app.mcpUrl === config.mcpUrl ? ' cur-console-row--active' : ''}`}>
+                          <span className="cur-console-name">{app.name}</span>
+                          <span className="cur-console-meta">
+                            {app.backends.join(', ') || 'no backend'}{app.status ? ` · ${app.status}` : ''}
+                          </span>
+                          {app.mcpUrl === config.mcpUrl
+                            ? <span className="cur-console-current">current</span>
+                            : <button className="cur-btn" onClick={() => switchDoor(app.mcpUrl)}>Use</button>}
+                        </div>
+                      ))}
+                    </div>
+
+                    <h4 className="cur-console-heading">Policies ({consoleData.policies.length})</h4>
+                    <p className="cur-denial-note">
+                      The policy Spec schema is undocumented, so these are matched by text
+                      search: &quot;mentions&quot; is not the same as &quot;grants&quot;. Expand a
+                      policy to read what it actually contains.
+                    </p>
+                    <div className="cur-console-list">
+                      {consoleData.policies.map((p) => (
+                        <details key={p.name} className="cur-console-policy">
+                          <summary>
+                            <span className="cur-console-name">{p.name}</span>
+                            {policyMentions(p, doorName(config.mcpUrl)) && <span className="cur-console-tag">mentions this door</span>}
+                            {policyMentions(p, user?.email) && <span className="cur-console-tag">mentions you</span>}
+                          </summary>
+                          <pre className="cur-code-output jh-dark"><JsonHighlight value={p.spec} deep /></pre>
+                        </details>
+                      ))}
+                    </div>
+                  </>
                 )}
               </div>
             )}

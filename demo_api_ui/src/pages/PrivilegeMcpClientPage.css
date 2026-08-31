@@ -280,6 +280,74 @@ select.cur-input { cursor: pointer; }
   line-height: 1.45;
 }
 
+/* Denial evidence + console inventory (Policies tab) */
+.cur-denial-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 12px;
+  margin: 0 0 10px;
+  font-size: var(--font-size-2xs);
+}
+.cur-denial-facts dt { color: #8b949e; }
+.cur-denial-facts dd { margin: 0; color: #ddd; overflow-wrap: anywhere; }
+
+.cur-denial-note {
+  margin: 0 0 10px;
+  font-size: var(--font-size-2xs);
+  color: #8b949e;
+  line-height: 1.5;
+}
+.cur-denial-ok { color: #86efac; }
+.cur-denial-bad { color: #fca5a5; }
+
+.cur-denial-probe { margin-bottom: 10px; }
+.cur-denial-probe-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: var(--font-size-2xs);
+}
+.cur-denial-door { color: #ddd; font-family: var(--font-mono); }
+
+.cur-console-heading {
+  margin: 16px 0 6px;
+  font-size: var(--font-size-body);
+  color: #ddd;
+}
+.cur-console-list { display: flex; flex-direction: column; gap: 4px; }
+.cur-console-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  background: #2a2a2a;
+  border: 1px solid #3c3c3c;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-2xs);
+}
+.cur-console-row--active { border-color: #007acc; }
+.cur-console-name { color: #ddd; font-weight: 600; }
+.cur-console-meta { color: #8b949e; margin-left: auto; overflow-wrap: anywhere; }
+.cur-console-current { color: #86efac; }
+.cur-console-tag {
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: #26384d;
+  color: #9ecbff;
+  font-size: var(--font-size-3xs);
+}
+.cur-console-policy {
+  padding: 6px 8px;
+  background: #2a2a2a;
+  border: 1px solid #3c3c3c;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-2xs);
+  color: #ddd;
+}
+.cur-console-policy summary { cursor: pointer; }
+
 /* Buttons */
 .cur-btn-row {
   display: flex;
@@ -1533,6 +1601,25 @@ select.cur-input { cursor: pointer; }
 }
 .cur-ide[data-cur-theme="light"] .cur-mcp-item:hover { background: #eef2ff; }
 .cur-ide[data-cur-theme="light"] .cur-mcp-empty { color: #666; }
+
+/* Denial evidence + console inventory — light skin */
+.cur-ide[data-cur-theme="light"] .cur-denial-facts dt,
+.cur-ide[data-cur-theme="light"] .cur-denial-note,
+.cur-ide[data-cur-theme="light"] .cur-console-meta { color: #555; }
+.cur-ide[data-cur-theme="light"] .cur-denial-facts dd,
+.cur-ide[data-cur-theme="light"] .cur-denial-door,
+.cur-ide[data-cur-theme="light"] .cur-console-heading,
+.cur-ide[data-cur-theme="light"] .cur-console-name { color: #1e1e1e; }
+.cur-ide[data-cur-theme="light"] .cur-denial-ok,
+.cur-ide[data-cur-theme="light"] .cur-console-current { color: #0a7d6b; }
+.cur-ide[data-cur-theme="light"] .cur-denial-bad { color: #b91c1c; }
+.cur-ide[data-cur-theme="light"] .cur-console-row,
+.cur-ide[data-cur-theme="light"] .cur-console-policy {
+  background: #f7f7f7;
+  border-color: #e0e0e0;
+  color: #1e1e1e;
+}
+.cur-ide[data-cur-theme="light"] .cur-console-tag { background: #eef2ff; color: #2563eb; }
 
 /* ─────────────────────────────────────────────────────────────────────────
    Responsive — on smaller displays the fixed IDE layout crushed the main pane
