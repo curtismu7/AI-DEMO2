@@ -805,9 +805,13 @@ const FLAG_REGISTRY = [
       'texas (default) = only the 20 largest Texas cities / TX bounding box pass. ' +
       'michigan = only the 20 largest Michigan cities / MI bounding box pass. ' +
       'any = no geographic restriction — every city passes (subject to ff_weather_mcp_showcase ' +
-      'still being ON).',
+      'still being ON). ' +
+      'any-except-miami = the inverse: every city passes EXCEPT Miami, FL, which is denied on ' +
+      'both the city-name and the resolved-coordinate call (the agent geocodes via ' +
+      "weather-mcp's search_location first, so the coordinate call is the one that carries the " +
+      'location — a name-only block would be bypassed).',
     type:         'enum',
-    options:      ['texas', 'michigan', 'any'],
+    options:      ['texas', 'michigan', 'any', 'any-except-miami'],
     defaultValue: 'texas',
   },
   {
