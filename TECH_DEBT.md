@@ -16,6 +16,67 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-08-31 — Brandfetch MCP cannot replace `BRANDFETCH_API_KEY`: the AS offers no machine grant
+
+**What's wrong.** `demo_api_server/services/brandfetch.js` holds an 86-char
+static `BRANDFETCH_API_KEY` and sends it as `Authorization: Bearer` to
+`https://api.brandfetch.io/v2/brands/domain/{domain}`. That key leaked into
+public git history (found in the 2026-08-31 secret audit, in
+`docs/superpowers/specs/2026-07-13-airlines-vertical-design.md`; removed from
+HEAD, still readable in history). The obvious fix — move to Brandfetch's MCP
+door, which needs no static key — **does not work for this call site**, and the
+reason is worth recording so nobody re-derives it.
+
+Brandfetch MCP does textbook RFC 9728 discovery. Unauthenticated `POST
+https://mcp.brandfetch.io/mcp` returns:
+
+    HTTP/2 401
+    www-authenticate: Bearer realm="https://mcp.brandfetch.io",
+      resource_metadata="https://mcp.brandfetch.io/.well-known/oauth-protected-resource"
+
+which points at authorization server `https://developers.brandfetch.com`. Its
+metadata is the blocker:
+
+| field | value | consequence |
+|---|---|---|
+| `grant_types_supported` | `['authorization_code']` | **no `client_credentials`** — no machine-to-machine path |
+| `token_endpoint_auth_methods_supported` | `['none']` | public PKCE client, not a confidential server client |
+| `code_challenge_methods_supported` | `['S256']` | PKCE mandatory |
+| `scopes_supported` | `['read']` | — |
+| `registration_endpoint` | present | RFC 7591 DCR *is* available |
+
+`refresh_token` is not advertised either. So a valid token requires a human
+completing a browser consent, and there is no documented way to renew it.
+
+**Why it wasn't fixed now.** The consumer is
+`routes/verticalManifest.js:456` — `POST /:id/brandfetch`, `requireAdmin`,
+which calls `fetchBrand(domain)` server-side and unattended and returns
+`{ logoPath, primary, accent, fontName }` as an editor patch. Put that on MCP as
+the AS stands and the route works until the access token expires, then fails
+until a human re-authorizes in a browser. For an unattended route that is
+operationally *worse* than the static key, so the audit rotated the key instead
+and left the 60 lines alone. Note `brandfetch.js:8` already drew this
+distinction ("separate from the MCP OAuth token") — this entry is the evidence
+behind that comment.
+
+**What the real fix looks like.** Two separate things, neither of them "swap the
+transport":
+
+1. **Interactive clients should use the MCP door today.** It is already
+   configured for Claude Code (`brandfetch`, `type: http`,
+   `https://mcp.brandfetch.io/mcp`, no headers/env). Authorization code + PKCE +
+   DCR is exactly what an interactive MCP client does; it needs only `/mcp`
+   authorization in an interactive session and carries no key.
+2. **If the rebrand tool should reach MCP, the honest design is delegated, not
+   machine, auth** — DCR against `/api/oauth/register`, an authorize/callback
+   leg, per-admin token storage, and graceful degradation to "re-authorize" on
+   expiry. That suits this repo's identity thesis better than a service account
+   would, but it is a demo feature sized like the Privilege MCP client, not
+   security remediation: the key rotation already closed the exposure.
+
+Revisit if Brandfetch adds `client_credentials` or advertises `refresh_token` —
+at that point item 2 collapses into a genuine drop-in and the static key can go.
+
 ### [ ] 2026-08-29 — "the vault is authoritative" was wrong on 3 of 3 keys checked
 
 **What's wrong.** `k8s/create-secrets.sh:210` refuses to deploy when a service
