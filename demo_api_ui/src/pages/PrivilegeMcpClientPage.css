@@ -270,6 +270,16 @@ select.cur-input { cursor: pointer; }
 
 .cur-mcp-item--static { cursor: default; }
 
+/* Why a panel is empty. A server that never advertises prompts/resources in its
+   initialize response renders three blank boxes that read as a broken fetch —
+   this says the gateway asked and the server has none. */
+.cur-mcp-empty {
+  margin: 0;
+  font-size: var(--font-size-2xs);
+  color: #8b949e;
+  line-height: 1.45;
+}
+
 /* Buttons */
 .cur-btn-row {
   display: flex;
@@ -702,78 +712,6 @@ select.cur-input { cursor: pointer; }
 
 .cur-result-block {
   margin-top: 16px;
-}
-
-.cur-sessions-panel {
-  padding: 20px;
-  overflow-y: auto;
-  flex: 1;
-}
-
-.cur-sessions-error,
-.cur-sessions-empty {
-  margin-top: 12px;
-  font-size: var(--font-size-sm);
-  color: #888;
-}
-
-.cur-sessions-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 12px;
-  margin-top: 16px;
-}
-
-.cur-session-card {
-  background: #252526;
-  border: 1px solid #2b2b2b;
-  border-radius: 6px;
-  padding: 14px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.cur-session-name {
-  font-size: var(--font-size-body);
-  font-weight: 600;
-  color: #e0e0e0;
-}
-
-.cur-session-ttl,
-.cur-session-status {
-  font-size: var(--font-size-2xs);
-  color: #888;
-}
-
-.cur-session-meta {
-  display: flex;
-  gap: 12px;
-  margin-top: 4px;
-  font-size: var(--font-size-sm);
-  color: #aaa;
-}
-
-.cur-session-card--selectable {
-  cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
-}
-
-.cur-session-card--selectable:hover {
-  border-color: #007acc;
-  background: #2a2d2e;
-}
-
-.cur-session-card--active {
-  border-color: #007acc;
-  background: #1c3040;
-}
-
-.cur-session-active-badge {
-  font-size: var(--font-size-xs);
-  font-weight: 600;
-  color: #007acc;
-  margin-left: 6px;
 }
 
 .cur-tool-detail {
@@ -1579,6 +1517,22 @@ select.cur-input { cursor: pointer; }
 .cur-ide[data-cur-theme="light"] .cur-result-item-tool { color: #0369a1; }
 .cur-ide[data-cur-theme="light"] .cur-result-item-body { color: #1e1e1e; }
 .cur-ide[data-cur-theme="light"] .cur-terminal-tab-badge { background: #2563eb; color: #ffffff; }
+
+/* MCP Explorer — the whole cur-mcp-* family shipped with no light override, so
+   its #ddd/#ccc ink (correct on the dark base) rendered near-white on the light
+   skin's #ffffff ground. .cur-mcp-item is deliberately absent: it carries its
+   own #2a2a2a fill, so it gets a light fill here rather than only new ink. */
+.cur-ide[data-cur-theme="light"] .cur-mcp-protocol { color: #1e1e1e; border-color: #e0e0e0; }
+.cur-ide[data-cur-theme="light"] .cur-mcp-instructions { color: #444; }
+.cur-ide[data-cur-theme="light"] .cur-mcp-catalog-grid section { border-color: #e0e0e0; }
+.cur-ide[data-cur-theme="light"] .cur-mcp-catalog-grid h4 { color: #1e1e1e; }
+.cur-ide[data-cur-theme="light"] .cur-mcp-item {
+  background: #f7f7f7;
+  border-color: #e0e0e0;
+  color: #1e1e1e;
+}
+.cur-ide[data-cur-theme="light"] .cur-mcp-item:hover { background: #eef2ff; }
+.cur-ide[data-cur-theme="light"] .cur-mcp-empty { color: #666; }
 
 /* ─────────────────────────────────────────────────────────────────────────
    Responsive — on smaller displays the fixed IDE layout crushed the main pane

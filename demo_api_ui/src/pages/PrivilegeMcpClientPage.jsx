@@ -10,6 +10,17 @@ import PrivilegeMcpLearningPage from './PrivilegeMcpLearningPage';
 import './PrivilegeMcpClientPage.css';
 
 const API_BASE = '/api/privilege-mcp';
+// An empty Explorer panel reads as a failed fetch. Usually it is not: the BFF
+// only issues prompts/list or resources/list when the server advertised that
+// capability in its initialize response, so an empty panel most often means the
+// server has none to give. Say which of the two it is.
+// The banking backend, for example, advertises only {tools, logging}.
+function capabilityNote(declared, kind) {
+  return declared
+    ? `Server advertises ${kind} but returned none.`
+    : `Server does not advertise ${kind}.`;
+}
+
 const MCP_METHOD_TEMPLATES = {
   'resources/read': { uri: '' },
   'prompts/get': { name: '', arguments: {} },
@@ -33,12 +44,6 @@ function api(path, options = {}) {
   });
 }
 
-
-// FrontEndName may already carry its registered port (e.g. "host:8643") —
-// appending a fixed :8643 again produces a malformed "host:8643:8643" URL.
-function frontEndMcpUrl(frontEnd) {
-  return /:\d+$/.test(frontEnd) ? `https://${frontEnd}/mcp` : `https://${frontEnd}:8643/mcp`;
-}
 
 function scopeColor(scope) {
   if (scope.startsWith('mcp:')) return 'scope-mcp';
@@ -117,9 +122,6 @@ export default function PrivilegeMcpClientPage() {
   const [toolSearch, setToolSearch] = useState('');
   const [activeTab, setActiveTab] = useState('chat');
   const [showPresent, setShowPresent] = useState(false);
-  const [sessions, setSessions] = useState([]);
-  const [sessionsLoading, setSessionsLoading] = useState(false);
-  const [sessionsError, setSessionsError] = useState(null);
   const jumpedToToolsRef = useRef(false);
   const silentAuthAttempted = useRef(false);
   const [silentAuthPending, setSilentAuthPending] = useState(false);
@@ -225,7 +227,6 @@ export default function PrivilegeMcpClientPage() {
   useEffect(() => () => { dragCleanupRef.current?.(); }, []);
 
   useEffect(() => {
-    if (activeTab === 'sessions' && authenticated) loadSessions();
   }, [activeTab, authenticated]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Scroll the message list itself, never the window: scrollIntoView() walked up
@@ -459,33 +460,6 @@ export default function PrivilegeMcpClientPage() {
     } finally {
       // finally, not a trailing line — the 403 branch returns early.
       setToolsLoading(false);
-    }
-  };
-
-  const loadSessions = async () => {
-    setSessionsLoading(true);
-    setSessionsError(null);
-    try {
-      const data = await api('/sessions');
-      setSessions(data.applications || []);
-    } catch (err) {
-      setSessionsError(err.message);
-    } finally {
-      setSessionsLoading(false);
-    }
-  };
-
-  const selectSession = async (app) => {
-    const frontEnd = app.Spec?.McpAppConfig?.FrontEndName?.Elems?.[0];
-    if (!frontEnd) return;
-    const mcpUrl = frontEndMcpUrl(frontEnd);
-    const next = { ...config, mcpUrl };
-    try {
-      await api('/config', { method: 'POST', body: next });
-      setConfig(next);
-      appendChat('system', `Switched to policy: ${app.ObjectMeta?.Name || frontEnd}`);
-    } catch (err) {
-      appendChat('system', `Failed to switch policy: ${err.message}`);
     }
   };
 
@@ -1156,7 +1130,6 @@ export default function PrivilegeMcpClientPage() {
             <button className={`cur-tab ${activeTab === 'tools' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('tools')}>Tools</button>
             <button className={`cur-tab ${activeTab === 'mcp' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('mcp')}>MCP Explorer</button>
             <button className={`cur-tab ${activeTab === 'rpc' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('rpc')}>Raw RPC</button>
-            <button className={`cur-tab ${activeTab === 'sessions' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('sessions')}>Access</button>
           </div>
 
           <div className="cur-editor-area">
@@ -1245,7 +1218,9 @@ export default function PrivilegeMcpClientPage() {
                 <div className="cur-mcp-catalog-grid">
                   <section>
                     <h4>Prompts ({mcpCatalog.prompts.length})</h4>
-                    {mcpCatalog.prompts.map((prompt) => (
+                    {mcpCatalog.prompts.length === 0 ? (
+                      <p className="cur-mcp-empty">{capabilityNote(mcpProtocol?.capabilities?.prompts, 'prompts')}</p>
+                    ) : mcpCatalog.prompts.map((prompt) => (
                       <button key={prompt.name} className="cur-mcp-item" onClick={() => {
                         chooseMcpMethod('prompts/get');
                         setMcpParams(JSON.stringify({ name: prompt.name, arguments: {} }, null, 2));
@@ -1254,7 +1229,9 @@ export default function PrivilegeMcpClientPage() {
                   </section>
                   <section>
                     <h4>Resources ({mcpCatalog.resources.length})</h4>
-                    {mcpCatalog.resources.map((resource) => (
+                    {mcpCatalog.resources.length === 0 ? (
+                      <p className="cur-mcp-empty">{capabilityNote(mcpProtocol?.capabilities?.resources, 'resources')}</p>
+                    ) : mcpCatalog.resources.map((resource) => (
                       <button key={resource.uri} className="cur-mcp-item" onClick={() => {
                         chooseMcpMethod('resources/read');
                         setMcpParams(JSON.stringify({ uri: resource.uri }, null, 2));
@@ -1263,7 +1240,9 @@ export default function PrivilegeMcpClientPage() {
                   </section>
                   <section>
                     <h4>Templates ({mcpCatalog.resourceTemplates.length})</h4>
-                    {mcpCatalog.resourceTemplates.map((template) => (
+                    {mcpCatalog.resourceTemplates.length === 0 ? (
+                      <p className="cur-mcp-empty">{capabilityNote(mcpProtocol?.capabilities?.resources, 'resource templates')}</p>
+                    ) : mcpCatalog.resourceTemplates.map((template) => (
                       <div key={template.uriTemplate} className="cur-mcp-item cur-mcp-item--static">
                         {template.name || template.uriTemplate}
                       </div>
@@ -1315,56 +1294,6 @@ export default function PrivilegeMcpClientPage() {
               </div>
             )}
 
-            {activeTab === 'sessions' && (
-              <div className="cur-sessions-panel">
-                <div className="cur-tools-header">
-                  <h3>Access Sessions</h3>
-                  <button className="cur-btn" onClick={loadSessions} disabled={sessionsLoading}>
-                    {sessionsLoading ? 'Loading…' : 'Refresh'}
-                  </button>
-                </div>
-                {sessionsError && (
-                  <div className="cur-sessions-error">
-                    <span style={{color:'#ff6b6b'}}>{sessionsError}</span>
-                  </div>
-                )}
-                {!sessionsLoading && !sessionsError && sessions.length === 0 && (
-                  <div className="cur-sessions-empty">No access sessions found.</div>
-                )}
-                <div className="cur-sessions-grid">
-                  {sessions.map((app) => {
-                    const name = app.ObjectMeta?.Name || '—';
-                    const cfg = app.Spec?.McpAppConfig || {};
-                    const backendCount = cfg.Backends?.Elems?.length ?? 0;
-                    const principalCount = cfg.Policies?.Elems?.length ?? cfg.Principals?.Elems?.length ?? '?';
-                    const endsAt = app.Spec?.TTL || app.Metadata?.ExpiresAt || null;
-                    const status = app.Status?.McpServerStatus?.Status || '';
-                    const frontEnd = cfg.FrontEndName?.Elems?.[0];
-                    const appMcpUrl = frontEnd ? frontEndMcpUrl(frontEnd) : null;
-                    const isActive = appMcpUrl && config.mcpUrl === appMcpUrl;
-                    return (
-                      <div
-                        key={name}
-                        className={`cur-session-card${isActive ? ' cur-session-card--active' : ''}${appMcpUrl ? ' cur-session-card--selectable' : ''}`}
-                        onClick={appMcpUrl ? () => selectSession(app) : undefined}
-                        title={appMcpUrl ? `Use policy: ${name}` : 'No frontend URL available'}
-                      >
-                        <div className="cur-session-name">
-                          {name}
-                          {isActive && <span className="cur-session-active-badge"> ✓ Active</span>}
-                        </div>
-                        {endsAt && <div className="cur-session-ttl">Ends {endsAt}</div>}
-                        {status && <div className="cur-session-status">{status}</div>}
-                        <div className="cur-session-meta">
-                          <span title="Backends">Backends: {backendCount}</span>
-                          <span title="Principals">Principals: {principalCount}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Terminal panel */}
