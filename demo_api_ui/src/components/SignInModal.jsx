@@ -59,14 +59,13 @@ export default function SignInModal({
          The numbers are measured, not guessed — DraggableModal has no
          auto-height, so a fixed value that is too large shows as dead space and
          there is nothing in the layout to absorb it. On the live page the parts
-         are: titlebar 48 + content 82 (text 20, hint 19, details 16, margins) +
-         footer 56 = 186. It was 244, so 58px of empty white sat between "What
-         the server said" and the buttons — the whole reason this looked
-         unstyled. Without `detail` the disclosure and its margin come off.
+         are: titlebar 48 + dm-scroll 114 (text 20, hint 19, details 16, margins,
+         plus the wrapper's own 16px top and bottom padding) + footer 56 = 218.
+         Without `detail` the disclosure and its margin come off.
 
          minHeight has to sit BELOW defaultHeight or it silently clamps the
-         panel back up and the gap returns. */
-      defaultHeight={detail ? 186 : 156}
+         panel back up and dead space returns. */
+      defaultHeight={detail ? 218 : 188}
       minHeight={150}
       footer={
         <div className="signin-modal__actions">
@@ -88,18 +87,23 @@ export default function SignInModal({
         </div>
       }
     >
-      <p className="signin-modal__text" role="alert" aria-live="assertive">
-        {message}
-      </p>
-      <p className="signin-modal__hint">
-        You&apos;ll come back to this page after signing in.
-      </p>
-      {detail ? (
-        <details className="signin-modal__detail">
-          <summary>What the server said</summary>
-          <code>{detail}</code>
-        </details>
-      ) : null}
+      {/* `dm-body` is bare by contract — no padding, no scroll. Text modals wrap
+          in `dm-scroll` for both; without it the copy sits flush against the
+          panel edge and reads as unstyled. */}
+      <div className="dm-scroll">
+        <p className="signin-modal__text" role="alert" aria-live="assertive">
+          {message}
+        </p>
+        <p className="signin-modal__hint">
+          You&apos;ll come back to this page after signing in.
+        </p>
+        {detail ? (
+          <details className="signin-modal__detail">
+            <summary>What the server said</summary>
+            <code>{detail}</code>
+          </details>
+        ) : null}
+      </div>
     </DraggableModal>
   );
 }
