@@ -87,6 +87,17 @@ describe("Clear and Guide buttons", () => {
   it("replaces the previous result when another tool runs", async () => {
     const { container } = renderPage();
 
+    // The Run buttons live in ToolsTable, which mounts only while activeTab is
+    // 'tools'. The page starts on 'chat' and auto-lands on Tools via an effect
+    // that fires AFTER the discovered tools paint. Waiting on "Run" alone races
+    // that extra render against findAllByRole's 1s default: it won scoped and
+    // lost under full-suite load, so this test failed ONLY in full runs — the
+    // sidebar showed both tools while the Agent Chat tab was still active.
+    // Wait for discovery, then switch tabs explicitly so the query below has no
+    // timing dependency at all.
+    await screen.findByText("first_tool");
+    fireEvent.click(screen.getByTitle("MCP Tools"));
+
     const runButtons = await screen.findAllByRole("button", { name: "Run" });
     fireEvent.click(runButtons[0]);
     await waitFor(() => expect(container.querySelector(".cur-terminal-results")).toHaveTextContent("first_tool output"));
