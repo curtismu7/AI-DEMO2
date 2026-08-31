@@ -158,6 +158,10 @@ looked green while failing.
    with `java.net.UnknownHostException: Failed to resolve 'mcp-weather'` →
    `BadGatewayFilter` → the BFF logged
    `[MCP Proxy] Error calling get_weather: Gateway upstream error (HTTP 502)`.
+   `mcp-brave` (`58-mcp-brave-deployment.yaml`, port 8897) had the identical
+   gap in all four places and is fixed alongside it — `02-configmap.yaml` and
+   both gateway manifests already point at `http://mcp-brave:8897`, so the
+   deploy path was the only thing missing.
 2. The Proof-of-Enforcement verdict called that run `verified`.
    `ingestMcpResult` stamps `trace.mcpResult` for a FAILED tool call too, so
    `computeVerdict`'s `tool-dispatched` step matched on a 502 and, with every
@@ -170,7 +174,15 @@ looked green while failing.
 **What was fixed:** `computeVerdict` returns `mismatch` /
 `Run failed — the tool call did not complete` when `trace.outcome === 'error'`,
 checked after evidence matching and before the decision comparison. The SE
-deploy path gains `mcp-weather` in all four places it was missing.
+deploy path gains `mcp-weather` and `mcp-brave` in all four places each was
+missing.
+
+**Still open (not this fix):** `BRAVE_SEARCH_API_KEY` is absent from
+`demo_api_server/.env`, and `create-secrets.sh` derives `ai-demo-secrets` from
+that file's keys — so the SE secret has no Brave key. `mcp-brave` will now
+deploy and its `/health` returns `200 {ok:true, hasApiKey:false}`, so the
+rollout wait passes while every live search fails upstream. Put the key in
+`demo_api_server/.env` and re-run `create-secrets.sh` before demoing Brave.
 
 **Do not break:** the error guard must NOT swallow an expected policy DENY.
 Every `completeTrace` caller passes `!isDeny`, so a deny-like run still ends
@@ -181,8 +193,8 @@ existing `incomplete` / "Waiting on …" wording.
 **Verify:** `demo_api_ui` → `vitest run src/context/__tests__/ProofOfEnforcementContext*.test.js`
 (41 passed) and `npm run build` (exit 0). Reverting only the guard turns the new
 case red with `expected 'verified' to be 'mismatch'`. Live: after an SE deploy,
-`kubectl get svc mcp-weather -n <ns>` resolves and a UC30 run returns prose
-instead of 502.
+`kubectl get svc mcp-weather mcp-brave -n <ns>` resolves and a UC30 run returns
+prose instead of 502.
 
 ### 2026-08-29 — `HITL_INTERNAL_SECRET` split three ways by dotenvx: hitl-service 401'd, then PingGateway did
 

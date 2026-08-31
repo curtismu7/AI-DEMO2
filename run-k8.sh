@@ -442,6 +442,7 @@ aws_build() {
     "ai-demo-k8-mcp-resource-server:ai-demo-mcp-resource-server"
     "ai-demo-k8-api-resource-server:ai-demo-api-resource-server"
     "ai-demo-k8-mcp-weather:ai-demo-mcp-weather"
+    "ai-demo-k8-mcp-brave:ai-demo-mcp-brave"
     "ai-demo-k8-mcp-code-search:ai-demo-mcp-code-search"
     "ai-demo-k8-llamaindex-agent:ai-demo-llamaindex-agent"
     "ai-demo-k8-langchain-agent:ai-demo-langchain-agent"
