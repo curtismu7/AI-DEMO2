@@ -118,27 +118,6 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
                 </select>
               </div>
 
-              <div style={{ marginTop: '16px' }}>
-                <div className="inspector-clean-field-label" style={{ marginBottom: '8px' }}>
-                  Capabilities
-                </div>
-                <div style={{ fontSize: '12px', maxHeight: '200px', overflowY: 'auto' }}>
-                  {availableCapabilities.length === 0 ? (
-                    <div style={{ color: 'var(--th-text-muted)', padding: '8px' }}>Select a gateway first</div>
-                  ) : (
-                    availableCapabilities.map((cap) => (
-                      <div key={cap.name} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px', cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={selectedCapabilities[cap.name] || false}
-                          onChange={() => toggleCapability(cap.name)}
-                        />
-                        <label style={{ flex: 1, cursor: 'pointer' }}>{cap.name}</label>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
             </div>
           </div>
 
@@ -176,6 +155,12 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
                   ))}
                 </select>
               </div>
+
+              {selectedTool && (
+                <div style={{ padding: '8px 10px', background: 'var(--th-bg-inset)', borderRadius: '6px', fontSize: '12px', color: 'var(--th-text-muted)', lineHeight: 1.4 }}>
+                  {filteredTools.find((t) => t.name === selectedTool)?.description || 'No description available'}
+                </div>
+              )}
 
               <div className="inspector-clean-form">
                 {selectedTool && (
