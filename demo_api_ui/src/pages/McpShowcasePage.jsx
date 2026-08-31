@@ -55,6 +55,13 @@ const SHOWCASES = {
         note: 'Out of policy — killed before the third party ever sees it.',
       },
     ],
+    freeForm: {
+      heading: 'Check any location',
+      placeholder: 'Denver, CO',
+      button: 'Check weather',
+      prompt: (q) => `what's the weather in ${q}`,
+      hint: 'Whatever the room shouts out. The policy decides, not the tool.',
+    },
     // Worth stating on the page: it is the reason a location question can come
     // back as a list of places and no weather at all.
     twoStep:
@@ -101,6 +108,13 @@ const SHOWCASES = {
         note: 'Bank policy: no crypto research through the agent gateway.',
       },
     ],
+    freeForm: {
+      heading: 'Search anything',
+      placeholder: 'quantum computing',
+      button: 'Search news',
+      prompt: (q) => `search the news for ${q}`,
+      hint: 'Any query. Include a blocked term to watch the gateway refuse it.',
+    },
   },
 };
 
@@ -111,6 +125,7 @@ export default function McpShowcasePage({ capability }) {
   const [enabled, setEnabled] = useState(null);
   const [running, setRunning] = useState(null);
   const [error, setError] = useState(null);
+  const [freeText, setFreeText] = useState('');
 
   // GET on the flags endpoint is open to everyone (the pill needs it), so this
   // works signed out — the page must render the real policy for a guest.
@@ -164,6 +179,34 @@ export default function McpShowcasePage({ capability }) {
       }
     },
     [activeVerticalId, navigate],
+  );
+
+  // Free-form ask. The canned Run buttons only cover the two scripted outcomes;
+  // this sends an arbitrary prompt down the SAME path, so it produces the same
+  // token chain and Proof strip rather than a side channel that proves nothing.
+  // `useCaseId` is deliberately absent — AIAgent treats it as optional and this
+  // run is not a catalog case, so it must not claim to be one.
+  const askFreeForm = useCallback(
+    async (e) => {
+      e.preventDefault();
+      const q = freeText.trim();
+      if (!q || running) return;
+      const vertical = activeVerticalId || 'banking';
+      setRunning('free');
+      setError(null);
+      try {
+        await apiClient.post('/api/verticals/active', { id: vertical });
+        navigate('/dashboard', {
+          state: { triggerText: cfg.freeForm.prompt(q), vertical },
+        });
+      } catch (err) {
+        setRunning(null);
+        setError(
+          err?.response?.data?.error || 'Could not start that run.',
+        );
+      }
+    },
+    [freeText, running, activeVerticalId, navigate, cfg],
   );
 
   return (
@@ -254,6 +297,34 @@ export default function McpShowcasePage({ capability }) {
             </li>
           ))}
         </ul>
+        {cfg.freeForm ? (
+          <>
+            <h3 className="mcpsc__subhead">{cfg.freeForm.heading}</h3>
+            <p className="mcpsc__note">{cfg.freeForm.hint}</p>
+            <form className="mcpsc__free" onSubmit={askFreeForm}>
+              <label className="mcpsc__srlabel" htmlFor="mcpsc-free">
+                {cfg.freeForm.heading}
+              </label>
+              <input
+                id="mcpsc-free"
+                type="text"
+                className="mcpsc__freeinput"
+                placeholder={cfg.freeForm.placeholder}
+                value={freeText}
+                onChange={(e) => setFreeText(e.target.value)}
+                disabled={running !== null}
+              />
+              <button
+                type="submit"
+                className="mcpsc__btn"
+                disabled={running !== null || !freeText.trim()}
+              >
+                {running === 'free' ? 'Starting…' : cfg.freeForm.button}
+              </button>
+            </form>
+          </>
+        ) : null}
+
         {error ? <p className="mcpsc__error" role="alert">{error}</p> : null}
       </section>
 

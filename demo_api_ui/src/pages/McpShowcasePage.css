@@ -133,6 +133,35 @@
   color: var(--th-text);
 }
 
+.mcpsc__free {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.mcpsc__freeinput {
+  flex: 1 1 220px;
+  min-width: 0;
+  padding: 7px 10px;
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+}
+
+/* Visually hidden, still announced — the input needs a real label. */
+.mcpsc__srlabel {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
 .mcpsc__subhead {
   margin: 20px 0 0;
   font-size: var(--font-size-base);

@@ -84,6 +84,60 @@ const CLIENT_DISPATCHED_ACTIONS = [
  * @param {string} activeId resolved active vertical id
  * @returns {string|null} tool name, or null when the vertical declares none
  */
+/**
+ * Render Brave's news-search envelope as readable markdown.
+ *
+ * The third-party server hands back the raw Brave API response. Passing that
+ * straight into the transcript put a wall of JSON on the demo screen — every
+ * field Brave returns, including base64 thumbnails and meta_url internals.
+ *
+ * Returns null when the payload is not a Brave envelope, so the caller falls
+ * back to the raw string rather than inventing an empty result: a search that
+ * genuinely returned nothing and a shape we failed to parse must not look the
+ * same.
+ */
+function formatBraveResults(raw) {
+  let parsed;
+  try {
+    parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+  } catch (_) {
+    return null;
+  }
+  if (!parsed || !Array.isArray(parsed.results)) return null;
+
+  const query = parsed?.query?.original;
+  const header = query ? `**News results for “${query}”**` : '**News results**';
+  if (parsed.results.length === 0) {
+    return `${header}\n\nNo results came back for that search.`;
+  }
+
+  // Brave marks matched terms with <strong> in BOTH the title and the
+  // description. Missing the title leaves literal tags in a markdown link.
+  const stripTags = (s) => String(s || '').replace(/<[^>]+>/g, '').trim();
+
+  const lines = parsed.results.slice(0, 8).map((r, i) => {
+    const title = stripTags(r?.title) || 'Untitled';
+    const url = typeof r?.url === 'string' ? r.url : '';
+    const source = r?.meta_url?.hostname || r?.profile?.name || '';
+    const description = stripTags(r?.description);
+    const meta = [source, r?.age].filter(Boolean).join(' · ');
+    return [
+      `${i + 1}. ${url ? `[${title}](${url})` : title}`,
+      meta ? `   ${meta}` : '',
+      description ? `   ${description}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n');
+  });
+
+  const shown = Math.min(parsed.results.length, 8);
+  const more =
+    parsed.results.length > shown
+      ? `\n\n_${parsed.results.length - shown} more result(s) not shown._`
+      : '';
+  return `${header}\n\n${lines.join('\n\n')}${more}`;
+}
+
 function readPrimaryToolFor(activeId) {
   // hasOwnProperty: activeId is request-supplied and VALID_VERTICAL_RE accepts
   // `constructor`, so a bare lookup resolved the INHERITED Object constructor —
@@ -491,11 +545,26 @@ async function dispatchBankingAction(action, params, userId, ctx) {
     // frames an expected DENY as the control working is identical, so this is
     // one branch rather than a second 40-line copy of it.
     const SHOWCASE_TOOLS = {
+      // weather-mcp returns markdown prose, so it is passed through untouched.
       weather: { toolName: 'get_weather', argKey: 'city_name', fallback: 'Could not get the weather.' },
-      brave_search: { toolName: 'brave_news_search', argKey: 'query', fallback: 'Could not run the search.' },
+      // Brave returns the raw search API envelope. Dumping that JSON into the
+      // transcript is what shipped first and it is unreadable on a demo screen,
+      // so it is rendered here. `format` is deliberately per-tool rather than a
+      // blanket "JSON gets formatted" rule — the shapes have nothing in common.
+      brave_search: {
+        toolName: 'brave_news_search',
+        argKey: 'query',
+        fallback: 'Could not run the search.',
+        format: formatBraveResults,
+      },
     };
     if (SHOWCASE_TOOLS[action]) {
-      const { toolName, argKey, fallback: showcaseFallback } = SHOWCASE_TOOLS[action];
+      const {
+        toolName,
+        argKey,
+        fallback: showcaseFallback,
+        format: showcaseFormat,
+      } = SHOWCASE_TOOLS[action];
       const tokenEvents = [];
       const sessionId = req?.sessionID || '';
       // When this run is a catalog use case whose expected outcome is DENY (e.g.
@@ -526,7 +595,10 @@ async function dispatchBankingAction(action, params, userId, ctx) {
             };
           }
         }
-        return { reply: rawResult, success: true, toolsCalled: [toolName], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
+        // Fall back to the raw string when the formatter does not recognise the
+        // shape — an unreadable answer beats a confidently empty one.
+        const shaped = showcaseFormat ? showcaseFormat(rawResult) : null;
+        return { reply: shaped || rawResult, success: true, toolsCalled: [toolName], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
       }
       const { result: parsed2 } = parseToolResult(rawResult, { site: `banking_read:${toolName}` });
       const text = parsed2?.content?.[0]?.text;
@@ -540,7 +612,8 @@ async function dispatchBankingAction(action, params, userId, ctx) {
           ...(_expectedDeny ? { expected: true } : {}),
         };
       }
-      return { reply: text, success: true, toolsCalled: [toolName], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
+      const shapedText = showcaseFormat ? showcaseFormat(text) : null;
+      return { reply: shapedText || text, success: true, toolsCalled: [toolName], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
     }
 
     if (action === 'transfer') {
@@ -2440,5 +2513,5 @@ module.exports = {
   // the same A2A fast-path as dispatchVerticalIntent for a2aDelegated tools.
   executeA2aDelegation,
   executeA2aGeneralistMismatch,
-  __test: { resolveToolSchemas, resolveExecuteTool, dispatchVerticalIntent, buildVerticalReply, executeA2aDelegation, executeA2aGeneralistMismatch, normalizeVerticalToolArgs, applyAdminCustomerContext, readPrimaryToolFor },
+  __test: { resolveToolSchemas, resolveExecuteTool, dispatchVerticalIntent, buildVerticalReply, executeA2aDelegation, executeA2aGeneralistMismatch, normalizeVerticalToolArgs, applyAdminCustomerContext, readPrimaryToolFor, formatBraveResults },
 };
