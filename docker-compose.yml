@@ -460,6 +460,9 @@ services:
       # recreate. Without this, `docker compose up --force-recreate` rebuilds
       # the writable layer and wipes runtime config (e.g. authorize_mode).
       - ai-demo-bff-data:/app/data/persistent
+      # Ping docs bundle text (read-only) — resolves NotebookLM citations back
+      # to doc URLs. Same host path the notebooklm sidecar mounts read-write.
+      - ${HOME:-/root}/.cache/ping-docs:/bundles:ro
     # Join the docker.sock's group so the non-root BFF (appuser) can call the
     # Docker Engine API for the /agent-gateway one-click restart. OrbStack/Docker
     # Desktop expose the socket as root:root (mode 660), so group 0 is required.
@@ -495,6 +498,28 @@ services:
       timeout: 10s
       retries: 3
       start_period: 20s
+    restart: unless-stopped
+
+  # ── NotebookLM sidecar (internal-only) ───────────────────────────────────────
+  notebooklm:
+    build:
+      context: .
+      dockerfile: docker/notebooklm/Dockerfile
+    container_name: ai-demo-notebooklm
+    # NO ports: stanza. This container holds live Google session cookies and is
+    # reachable only on the internal compose network.
+    volumes:
+      # rw — the keepalive rotates __Secure-1PSIDTS and must persist the jar.
+      - ${HOME:-/root}/.notebooklm:/root/.notebooklm
+      # ro — bundle text, needed only to resolve citations back to doc URLs.
+      - ${HOME:-/root}/.cache/ping-docs:/bundles:ro
+    env_file:
+      # NOTEBOOKLM_SERVER_TOKEN lives here, never in an `environment:` entry —
+      # `environment:` overrides env_file for the same key even when absent.
+      - path: ./demo_api_server/.env
+        required: true
+    networks:
+      - ai-demo
     restart: unless-stopped
 
   # ── UI (Vite build → nginx HTTPS) ──────────────────────────────────────────
