@@ -22,8 +22,10 @@ import path from 'node:path';
 // 190 at the time this guard was written; 189 after ExchangeModeToggle.css
 // picked up its first --th-* token in the same commit; 182 after the THEMING.md
 // §4 Priority 0 pass cleared the OS-keyed @media (prefers-color-scheme: dark)
-// blocks, which took seven files onto --th-* or [data-theme="dark"] with them.
-const MAX_UNTHEMED = 182;
+// blocks, which took seven files onto --th-* or [data-theme="dark"] with them;
+// 181 after PrivilegeMcpClientPage.css took its first --th-* tokens with the
+// AI Gateway tool-discovery spinner.
+const MAX_UNTHEMED = 181;
 
 const SRC = path.join(__dirname, '..', '..');
 

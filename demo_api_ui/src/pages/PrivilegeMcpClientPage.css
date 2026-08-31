@@ -289,6 +289,10 @@ select.cur-input { cursor: pointer; }
   transition: background 0.15s, border-color 0.15s;
 }
 .cur-btn:hover { background: #333; border-color: #555; }
+/* Discovery buttons disable while a tools/list is in flight — without this they
+   look clickable and a second click just queues another gateway round trip. */
+.cur-btn:disabled { opacity: 0.6; cursor: progress; }
+.cur-btn:disabled:hover { background: #2a2a2a; border-color: #3c3c3c; }
 
 .cur-btn--primary {
   background: #007acc;
@@ -460,9 +464,43 @@ select.cur-input { cursor: pointer; }
 
 .cur-empty-state {
   font-size: var(--font-size-2xs);
-  color: #555;
+  color: var(--th-text-muted);
   padding: 8px 0;
   font-style: italic;
+}
+
+/* Tool discovery goes out to the AI Gateway — show the wait, don't leave the
+   sidebar reading "No tools discovered yet" as if it had failed. */
+.cur-tools-waiting {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-size-2xs);
+  color: var(--th-text-muted);
+  padding: 8px 0;
+}
+
+.cur-spinner {
+  display: inline-block;
+  flex: none;
+  width: 12px;
+  height: 12px;
+  /* --th-border and --th-bg-emphasis are both declared per theme in index.css,
+     so no literal fallback — a fallback here would just hide a renamed token. */
+  border: 2px solid var(--th-border);
+  border-top-color: var(--th-bg-emphasis);
+  /* --radius-pill (999px) circles a 12px square the same as 50% would, and
+     keeps the border-radius-literal ratchet flat — THEMING.md §9.3. */
+  border-radius: var(--radius-pill);
+  animation: cur-spin 0.8s linear infinite;
+}
+
+@keyframes cur-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cur-spinner { animation-duration: 2.4s; }
 }
 
 /* Main area */
