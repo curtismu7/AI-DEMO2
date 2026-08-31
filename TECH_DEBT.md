@@ -16,7 +16,7 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
-### [ ] 2026-08-31 — Brandfetch MCP cannot replace `BRANDFETCH_API_KEY`: the AS offers no machine grant
+### [x] 2026-08-31 — Brandfetch MCP cannot replace `BRANDFETCH_API_KEY`: the AS offers no machine grant
 
 **What's wrong.** `demo_api_server/services/brandfetch.js` holds an 86-char
 static `BRANDFETCH_API_KEY` and sends it as `Authorization: Bearer` to
@@ -76,6 +76,36 @@ transport":
 
 Revisit if Brandfetch adds `client_credentials` or advertises `refresh_token` —
 at that point item 2 collapses into a genuine drop-in and the static key can go.
+
+**RESOLVED** — branch `worktree-brandfetch-mcp`, 2026-08-31. Two of this entry's
+premises were wrong, and the wrong halves are the useful record:
+
+1. **"the key rotation already closed the exposure" is false — the key was never
+   rotated, because Brandfetch does not support rotating it.** The entry was
+   written believing rotation had happened. It had not: a live call with the key
+   still in `.env` returned HTTP 200, i.e. the publicly-leaked credential was
+   still valid. Creating a replacement key does not revoke the original, and the
+   dashboard offers no revoke. **The leaked key is still valid today** and its
+   only real controls are Usage History monitoring and a support request.
+2. **The dead end was real but escapable.** The AS metadata above is accurate —
+   `authorization_code` only, no machine grant — but it describes the *interactive
+   DCR* path. Brandfetch also issues a **long-lived MCP token** (`bf1_…`) from the
+   dashboard, which needs no authorize leg. That is what made the migration
+   possible without any of the delegated-auth machinery item 2 describes.
+
+What the fix actually was: `services/brandfetch.js` now calls the MCP door's
+`get_brand` with `BRANDFETCH_MCP_TOKEN`, and there is deliberately no fallback to
+`BRANDFETCH_API_KEY` (a test asserts `fetch` is never called without the token —
+a fallback would put the compromised key back on the wire). The MCP payload is
+field-for-field the REST v2 shape, so all colour/logo/font parsing was untouched;
+the diff is transport only. Three non-obvious details: SSE framing rather than a
+JSON body, the brand payload double-encoded inside `result.content[0].text`, and
+`isError` arriving on a **200** so it cannot be inferred from HTTP status.
+
+**Still open, deliberately:** this swapped an unrotatable leaked key for a static
+MCP token — it did not achieve keyless. And the leaked REST key remains valid
+upstream forever. Blast radius is read-only public brand data plus quota, which
+is why that was accepted rather than escalated.
 
 ### [ ] 2026-08-29 — "the vault is authoritative" was wrong on 3 of 3 keys checked
 
