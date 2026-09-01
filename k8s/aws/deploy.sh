@@ -238,148 +238,16 @@ for manifest in \
   apply_patched "$K8S_DIR/$manifest"
 done
 
-# MCPGW chart (k8s/helm/mcpgw): installs the OpenSearch backend only. The
-# agent-based Privilege GATEWAY pod is disabled by default as of 2026-08-26 —
-# it runs only in ping-devops-curtismuir (release cm-mcpgw); see
-# k8s/helm/mcpgw/values.yaml mcpgw.enabled for the full reasoning.
-#
-# This block no longer reads ENV_PROXY_TOKEN. It used to pass the token via
-# --set-file (never --set-string, which corrupts long JWTs during Helm's own
-# CLI arg parsing) — that is gone with the gateway pod, so an expired token is
-# no longer a deploy failure. Re-enabling the gateway means restoring both.
-#
-# Still installed on every SE deploy by default, because the OpenSearch backend
-# is real and other things point at it. Opt out with SKIP_MCPGW=1.
-MCPGW_DEPLOY_FAILED=0
-MCPGW_FAILURE_REASON=""
-if [[ -n "${PUBLIC_APP_URL:-}" && "${SKIP_MCPGW:-0}" != "1" ]]; then
-  if ! command -v helm >/dev/null 2>&1; then
-    warn "  helm not installed — MCPGW OpenSearch backend cannot be deployed"
-    MCPGW_DEPLOY_FAILED=1
-    MCPGW_FAILURE_REASON="helm is not installed (brew install helm)"
-  else
-    # The gateway pod itself is OFF (chart default mcpgw.enabled=false, 2026-08-26):
-    # the agent-based Privilege gateway lives ONLY in ping-devops-curtismuir
-    # (release cm-mcpgw). The copy installed here was a redundant duplicate whose
-    # ENV_PROXY_TOKEN is single-use and ~2h-lived, so every deploy reinstalled a
-    # pod that could never start and left smoke.sh reporting the demo "degraded".
-    #
-    # No token is read any more, and a missing/expired one is no longer a deploy
-    # failure — there is nothing here for it to authenticate. Deleting the pod by
-    # hand never held, because THIS block recreated it on the next deploy of any
-    # service; disabling it in the chart is what makes that stick.
-    #
-    # The OpenSearch pieces are NOT the gateway and stay deployed — they are a
-    # real backend other things point at, so the release is still installed.
-    mcpgw_host="${PUBLIC_APP_URL#https://}"
-    mcpgw_host="${mcpgw_host#http://}"
-    info "Deploying MCPGW OpenSearch backend (Helm) — gateway pod disabled, see k8s/helm/mcpgw/values.yaml"
-    helm upgrade --install ping-mcpgw "$K8S_DIR/helm/mcpgw" \
-      --namespace "$NS" \
-      --set mcpgw.hostname="$mcpgw_host" \
-      --set mcpgw.serverUrl="${PUBLIC_APP_URL}/mcpgw" \
-      --set opensearch.enabled=true \
-      --set opensearchMcpServer.enabled=true
-  fi
-
-  # ── Agentless Privilege gateway ──────────────────────────────────────────
-  # Its own Helm release, from a chart outside k8s/ entirely
-  # (pingone-privgateway-helm-main/agentless/agentless-mcpgw).
-  #
-  # Deliberately NOT a plain `helm upgrade --install`: the gateway's proxy token
-  # is single-use and valid ~2h, so reinstalling on every deploy would recreate
-  # a pod with a dead token and CrashLoopBackOff — exactly the failure that made
-  # mcpgw.enabled false above. Three cases:
-  #
-  #   release already present   -> left strictly alone (never disturb a running
-  #                                gateway; upgrades are a deliberate manual act)
-  #   absent + token supplied   -> installed
-  #   absent + no token         -> LOUD warning, never silence
-  #
-  # That last case is why this block exists. On 2026-08-27 `se-undeploy` deleted
-  # this release and the next `se-deploy` said nothing about it, so the agentless
-  # demo was simply missing until a console screenshot showed one gateway where
-  # there should have been two.
-  agentless_chart="$K8S_DIR/../pingone-privgateway-helm-main/agentless/agentless-mcpgw"
-  if [[ -d "$agentless_chart" ]]; then
-    if helm status agentless-mcpgw --namespace "$NS" &>/dev/null; then
-      info "Agentless gateway: release present — left untouched (upgrade it deliberately, not via deploy)"
-    else
-      # Token from AGENTLESS_PROXY_TOKEN, or a file named by
-      # AGENTLESS_PROXY_TOKEN_FILE. Generate one in the Privilege console:
-      # Gateways -> Add New -> Add via Docker, and copy the ENV_PROXY_TOKEN value.
-      agentless_token="${AGENTLESS_PROXY_TOKEN:-}"
-      if [[ -z "$agentless_token" && -n "${AGENTLESS_PROXY_TOKEN_FILE:-}" && -r "${AGENTLESS_PROXY_TOKEN_FILE}" ]]; then
-        agentless_token="$(tr -d '[:space:]' < "${AGENTLESS_PROXY_TOKEN_FILE}")"
-      fi
-
-      if [[ -z "$agentless_token" ]]; then
-        warn "Agentless gateway MISSING and no token supplied — the Privilege agentless demo will not work."
-        warn "  Its release was not found in $NS, and this deploy cannot recreate it without a registration token."
-        warn "  Fix: Privilege console -> Gateways -> Add New -> Add via Docker, copy ENV_PROXY_TOKEN, then:"
-        warn "    AGENTLESS_PROXY_TOKEN=<token> ./run-k8.sh se-deploy    (or install the chart directly)"
-      else
-        # OIDC settings come from the secret create-secrets.sh wrote earlier in
-        # this same run, so there is exactly one source for them.
-        _agl() { kubectl get secret ai-demo-secrets -n "$NS" -o jsonpath="{.data.$1}" 2>/dev/null | base64 -d; }
-        agentless_host="${AGENTLESS_HOSTNAME:-}"
-        if [[ -z "$agentless_host" ]]; then
-          agentless_host="$(_agl PRIVILEGE_AGENTLESS_MCPGW_URL)"
-          agentless_host="${agentless_host#https://}"
-          agentless_host="${agentless_host%%/*}"
-        fi
-        agentless_env="$(_agl PRIVILEGE_SSO_ENV_ID)"
-        agentless_cid="$(_agl PRIVILEGE_SSO_CLIENT_ID)"
-        agentless_sec="$(_agl PRIVILEGE_SSO_CLIENT_SECRET)"
-
-        if [[ -z "$agentless_host" || -z "$agentless_env" || -z "$agentless_cid" ]]; then
-          warn "Agentless gateway: token supplied but PRIVILEGE_* values are missing from ai-demo-secrets — skipping rather than installing a gateway that cannot authenticate."
-        else
-          info "Agentless gateway: absent and token supplied — installing at $agentless_host"
-          helm install agentless-mcpgw "$agentless_chart" \
-            --namespace "$NS" \
-            --set hostname="$agentless_host" \
-            --set namespace="$NS" \
-            --set proxyToken="$agentless_token" \
-            --set opensearch.enabled=false \
-            --set opensearchMcpServer.enabled=false \
-            --set oidc.serverUrl="https://$agentless_host" \
-            --set oidc.clientId="$agentless_cid" \
-            --set oidc.clientSecret="$agentless_sec" \
-            --set oidc.authUrl="https://auth.pingone.com/$agentless_env/as/authorize" \
-            --set oidc.tokenUrl="https://auth.pingone.com/$agentless_env/as/token" \
-            --set oidc.userUrl="https://auth.pingone.com/$agentless_env/as/userinfo" \
-            || warn "Agentless gateway install failed — the rest of the stack is unaffected"
-        fi
-      fi
-    fi
-  fi
-fi
+# Privilege gateway: removed from this deploy entirely (2026-09-01). The AI
+# Gateway (formerly agentless) is a deliberate MANUAL Helm install in
+# ping-devops-curtismuir from pingone-privgateway-helm-main/agentless — its
+# ENV_PROXY_TOKEN is single-use and ~2h-lived, so it must never ride along
+# with a routine deploy. Nothing Privilege-related installs into $NS any more
+# (the ping-mcpgw release and its OpenSearch backend are gone with it).
 
 if [[ -n "$K8S_NAMESPACE" ]]; then
   info "Applying SE cluster ingress..."
   sed "s|<<NAMESPACE>>|$NS|g" "$SCRIPT_DIR/se-ingress.yaml" | kubectl apply -f -
-
-  # SSL-passthrough ingress for the Privilege gateway, on its own dedicated
-  # hostname (see mcpgw-passthrough-ingress.yaml's header comment for why it
-  # can't share the app's host/path). Requires DNS already pointed at the
-  # nginx-public-passthrough LoadBalancer — set MCPGW_HOSTNAME once that's
-  # done; skipped with a warning otherwise, rest of the stack still deploys.
-  if [[ -n "${MCPGW_HOSTNAME:-}" ]]; then
-    info "Applying Privilege gateway passthrough ingress: $MCPGW_HOSTNAME"
-    sed -e "s|<<NAMESPACE>>|$NS|g" -e "s|<<MCPGW_HOSTNAME>>|$MCPGW_HOSTNAME|g" \
-      "$SCRIPT_DIR/mcpgw-passthrough-ingress.yaml" | kubectl apply -f -
-  else
-    info "MCPGW_HOSTNAME not set — skipping Privilege gateway ingress (gateway itself still deploys)"
-  fi
-
-  # mcpgw-agentless-ingress.yaml + mcpgw-wildcard-certificate.yaml route via the
-  # mcpgw binary's agentless-mode upstream-vhost/Frontend-Name mechanism, which
-  # only exists on the untested privilege-mcpgw binary — cyonproxy (what's
-  # actually deployed, via Helm above) has no equivalent and would just 502
-  # forever behind a real-looking Ingress + cert-manager Certificate. Skipped
-  # until agentless mode is verified against the mcpgw binary; see
-  # k8s/helm/mcpgw and 75-ping-mcpgw-deployment.yaml's header comment.
 else
   info "Applying ALB ingress..."
   # ingress.yaml ships with a placeholder ACM cert ARN — substitute the real one
@@ -450,20 +318,3 @@ else
     echo "ALB hostname shown above under ADDRESS. May take 2-3 minutes to provision." || true
 fi
 
-if [[ "$MCPGW_DEPLOY_FAILED" == "1" ]]; then
-  echo
-  echo -e "${RED}════════════════════════════════════════════════════════════════${NC}"
-  echo -e "${RED}  MCPGW OpenSearch backend was NOT deployed: $MCPGW_FAILURE_REASON${NC}"
-  echo -e "${RED}  The rest of the stack above deployed fine.${NC}"
-  echo -e "${RED}${NC}"
-  echo -e "${RED}  Fix: brew install helm, then: ./run-pingaws.sh deploy${NC}"
-  echo -e "${RED}${NC}"
-  echo -e "${RED}  NB: this no longer means a missing or expired proxy token. The${NC}"
-  echo -e "${RED}  agent-based Privilege gateway is not installed in this namespace${NC}"
-  echo -e "${RED}  at all (it runs only in ping-devops-curtismuir) — see${NC}"
-  echo -e "${RED}  k8s/helm/mcpgw/values.yaml mcpgw.enabled.${NC}"
-  echo -e "${RED}${NC}"
-  echo -e "${RED}  To deploy without it on purpose: SKIP_MCPGW=1 ./run-pingaws.sh deploy${NC}"
-  echo -e "${RED}════════════════════════════════════════════════════════════════${NC}"
-  exit 1
-fi
