@@ -49,6 +49,18 @@ const SOURCE_CONFIG = {
     toolKey: 'name',
     paramsKey: 'tool',
   },
+  // Gateway Showcase — the two third-party servers PingGateway scopes at the
+  // edge, as one source. `serverKey` is what makes it different from the others:
+  // each tool carries the server it came from, and invoke must send it back so
+  // the BFF knows which door to knock on.
+  gateway: {
+    endpoint: '/api/mcp/inspector/gateway-tools',
+    invokeEndpoint: '/api/mcp/inspector/gateway-invoke',
+    toolKey: 'name',
+    paramsKey: 'tool',
+    serverKey: 'server',
+    groupBy: 'serverLabel',
+  },
   protocol: {
     endpoint: '/api/mcp/inspector/protocol-methods',
     invokeEndpoint: '/api/mcp/inspector/protocol-call',
@@ -126,6 +138,11 @@ export function useInspectorSource(sourceKey) {
       const payload = {
         [config.paramsKey]: toolName,
         params,
+        // Multi-server sources (Gateway Showcase) must say WHICH server the
+        // selected tool belongs to — the same tool name could exist on both.
+        ...(config.serverKey && selectedTool[config.serverKey]
+          ? { [config.serverKey]: selectedTool[config.serverKey] }
+          : {}),
       };
 
       const { data } = await apiClient.post(config.invokeEndpoint, payload);
