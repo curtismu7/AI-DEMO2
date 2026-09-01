@@ -32,6 +32,7 @@ export default function NotebookLmPage() {
   const [tab, setTab] = useState('answer');
   const [unavailable, setUnavailable] = useState(null);
   const [asking, setAsking] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -67,6 +68,7 @@ export default function NotebookLmPage() {
       event.preventDefault();
       if (!selected || !question.trim()) return;
       setAsking(true);
+      setElapsed(0);
       setAnswer(null);
       apiClient
         .post('/api/notebooklm/ask', { notebookId: selected.id, question })
@@ -80,6 +82,16 @@ export default function NotebookLmPage() {
     },
     [selected, question],
   );
+
+  // Measured 15-45s per ask against the live service. Without a running counter a
+  // slow success is indistinguishable from a hung page, which is how the first
+  // demo of this page got read as broken.
+  useEffect(() => {
+    if (!asking) return undefined;
+    const started = Date.now();
+    const id = setInterval(() => setElapsed(Math.round((Date.now() - started) / 1000)), 1000);
+    return () => clearInterval(id);
+  }, [asking]);
 
   const left = (
     <nav className="nlm-tree" aria-label="Notebooks">
@@ -119,6 +131,15 @@ export default function NotebookLmPage() {
       <button type="submit" className="nlm-submit" disabled={!selected || asking}>
         {asking ? 'Asking…' : 'Ask'}
       </button>
+      {asking && (
+        <div className="nlm-progress" role="status" aria-live="polite">
+          <span className="nlm-spinner" aria-hidden="true" />
+          <span>
+            Searching the sources… {elapsed}s
+            {elapsed >= 20 ? ' — long answers can take up to a minute' : ''}
+          </span>
+        </div>
+      )}
     </form>
   );
 

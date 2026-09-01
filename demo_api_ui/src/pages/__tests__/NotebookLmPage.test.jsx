@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import NotebookLmPage from '../NotebookLmPage';
 
 vi.mock('../../services/apiClient', () => ({
@@ -24,6 +24,23 @@ describe('NotebookLmPage', () => {
     });
     render(<NotebookLmPage />);
     await waitFor(() => expect(screen.getByText(/sidecar is not running/i)).toBeInTheDocument());
+  });
+
+  it('shows a live progress indicator while an ask is in flight', async () => {
+    apiClient.get.mockResolvedValue({ data: { notebooks: [{ id: 'nb1', title: 'Ping Docs' }] } });
+    apiClient.get.mockResolvedValueOnce({ data: { notebooks: [{ id: 'nb1', title: 'Ping Docs' }] } });
+    // never resolves — the ask stays in flight so the indicator must stay visible
+    apiClient.post.mockReturnValue(new Promise(() => {}));
+
+    render(<NotebookLmPage />);
+    await waitFor(() => expect(screen.getByText('Ping Docs')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('Ping Docs'));
+    fireEvent.change(screen.getByLabelText(/Question/i), { target: { value: 'what is mfa?' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Ask$/ }));
+
+    // role=status so a screen reader announces it, not just sighted users
+    await waitFor(() => expect(screen.getByRole('status')).toBeInTheDocument());
+    expect(screen.getByRole('status')).toHaveTextContent(/Searching the sources/i);
   });
 
   it('tells the user to sign in again when host auth expired', async () => {

@@ -71,6 +71,39 @@
   font-size: var(--font-size-xs);
 }
 
+/* Ask progress. Asks measure 15-45s against the live service, so a slow success
+   must not look like a hung page. Tokens only — no literals. */
+.nlm-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.nlm-spinner {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  border: 2px solid var(--th-border);
+  border-top-color: var(--th-status-info);
+  border-radius: var(--radius-pill);
+  animation: nlm-spin 0.8s linear infinite;
+}
+
+@keyframes nlm-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Motion is decoration here; the elapsed counter carries the meaning. */
+@media (prefers-reduced-motion: reduce) {
+  .nlm-spinner {
+    animation: none;
+  }
+}
+
 .nlm-unavailable {
   padding: 8px 12px;
   border: 1px solid var(--th-status-warning-border);
