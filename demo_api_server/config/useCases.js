@@ -1325,7 +1325,15 @@ const RAW_USE_CASES = [
     owasp: { threats: ['T6'], sections: ['§4.2.2'] },
     whatToSay: 'Demo bank policy says no crypto research through the agent gateway. The gateway kills the query before Brave ever sees it.',
     advanced: false,
-    match: { tool: 'brave_news_search' },
+    // No `match` on purpose — do not add one back. deriveUseCaseId() reverse-maps
+    // on tool name plus an amount band and returns the FIRST hit, so an entry
+    // declaring { tool: 'brave_news_search' } here could never be reached:
+    // brave-mcp-search-permit declares exactly the same match and comes first.
+    // It read as live routing and was dead code. Discriminating permit from deny
+    // would mean matching on the query text, which would put a fourth copy of the
+    // gateway's blocked-term list in this file — the duplication
+    // scopePolicies.mirror.test.ts exists to stop. weather-mcp-texas-deny has no
+    // match for the same reason.
     whatLong: 'The agent is asked to search for a term on the demo bank\'s content blocklist (bitcoin / cryptocurrency / crypto). The Agent Gateway matches the term in the query argument and returns DENY before the call is forwarded — the third-party Brave server never runs the search and never sees the query.',
     businessValue: 'Data-egress control sits in one place at the gateway instead of being re-implemented, or forgotten, in every tool integration.',
     productRoles: {
