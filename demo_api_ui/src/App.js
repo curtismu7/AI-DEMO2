@@ -155,6 +155,7 @@ import PersonalAgentClientWindow from "./pages/PersonalAgentClientWindow";
 import TransactionTraceEmbedPage from "./pages/TransactionTraceEmbedPage";
 import PingCliPage from "./components/PingCliPage";
 import LlamaVscodeGuidePage from "./components/LlamaVscodeGuidePage";
+import NotebookLmPage from "./pages/NotebookLmPage";
 import AdminRoute from "./routes/AdminRoute";
 import { DashboardContent } from "./routes/CustomerRoutes";
 import EducationRoutes from "./routes/EducationRoutes";
@@ -1421,6 +1422,15 @@ function AppWithAuth() {
                               element={
                                 <RequireAdminLogin user={user}>
                                   <DemoConfigPage />
+                                </RequireAdminLogin>
+                              }
+                            />
+                            {/* NotebookLM Docs Oracle — admin only; backed by a host-local sidecar. */}
+                            <Route
+                              path="/notebooklm"
+                              element={
+                                <RequireAdminLogin user={user}>
+                                  <NotebookLmPage />
                                 </RequireAdminLogin>
                               }
                             />

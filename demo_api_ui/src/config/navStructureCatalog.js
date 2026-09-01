@@ -49,6 +49,7 @@ export const NAV_STRUCTURE_CATALOG = [
       "Family Delegation",
       "LangChain Agent",
       "Ungoverned Agent",
+      "NotebookLM Docs Oracle",
     ],
   },
   {

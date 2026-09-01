@@ -1067,6 +1067,11 @@ app.use('/api/admin/lighthouse', authenticateToken, require('./routes/lighthouse
 // clients, so this is the only BFF path that sees the gateway's aam audit trail
 // and can feed a gw-aam event into the token chain.
 app.use('/api/aam', authenticateToken, require('./routes/aamProbe'));
+// NotebookLM sidecar proxy — read-only Ping docs Q&A for the admin page.
+// requireAdmin, not just authenticateToken: the sidecar drives the developer's
+// live Google account, and auth-requirements.json declares the /notebooklm UI
+// route "admin" — the API must not be a tier weaker than the page it serves.
+app.use('/api/notebooklm', authenticateToken, requireAdmin, require('./routes/notebooklmRoutes'));
 
 // Knowledge Assertions API — citation resolution for the chat UI + admin reload.
 // Public read (assertions/domains/status); admin-only write (reload).

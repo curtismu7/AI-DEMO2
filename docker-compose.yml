@@ -460,6 +460,9 @@ services:
       # recreate. Without this, `docker compose up --force-recreate` rebuilds
       # the writable layer and wipes runtime config (e.g. authorize_mode).
       - ai-demo-bff-data:/app/data/persistent
+      # Ping docs bundle text (read-only) — resolves NotebookLM citations back
+      # to doc URLs. Same host path the notebooklm sidecar mounts read-write.
+      - ${HOME:-/root}/.cache/ping-docs:/bundles:ro
     # Join the docker.sock's group so the non-root BFF (appuser) can call the
     # Docker Engine API for the /agent-gateway one-click restart. OrbStack/Docker
     # Desktop expose the socket as root:root (mode 660), so group 0 is required.
@@ -482,6 +485,8 @@ services:
         # the internal tool callback (BFF_INTERNAL_TOOL_URL above).
         aliases:
           - api.ping.demo
+      # Sole peer of the notebooklm sidecar — see that service for why.
+      notebooklm-net:
     depends_on:
       jaeger:
         condition: service_started
@@ -495,6 +500,38 @@ services:
       timeout: 10s
       retries: 3
       start_period: 20s
+    restart: unless-stopped
+
+  # ── NotebookLM sidecar (internal-only) ───────────────────────────────────────
+  notebooklm:
+    build:
+      context: .
+      dockerfile: docker/notebooklm/Dockerfile
+    container_name: ai-demo-notebooklm
+    # NO ports: stanza. This container holds live Google session cookies and is
+    # reachable only on the internal compose network.
+    volumes:
+      # rw — the keepalive rotates __Secure-1PSIDTS and must persist the jar.
+      - ${HOME:-/root}/.notebooklm:/root/.notebooklm
+      # ro — bundle text, needed only to resolve citations back to doc URLs.
+      - ${HOME:-/root}/.cache/ping-docs:/bundles:ro
+    env_file:
+      # NOTEBOOKLM_SERVER_TOKEN lives here, never in an `environment:` entry —
+      # `environment:` overrides env_file for the same key even when absent.
+      - path: ./demo_api_server/.env
+        required: true
+    # Opt-in, so a bare `up -d` (./run-docker.sh start full) leaves it down: it
+    # needs a host ~/.notebooklm cookie jar, and without one Docker creates an
+    # empty root-owned dir and the container restart-loops. Start it
+    # deliberately with `./run-docker.sh build notebooklm` — naming a service
+    # enables its profile.
+    profiles: ["notebooklm"]
+    # NOT on ai-demo. The bearer token is the only guard (ALLOW_EXTERNAL_BIND=1
+    # turns off the peer-loopback and Host-rebinding checks), so anything on the
+    # flat network holding it could drive the live Google account. Only the BFF
+    # joins this network.
+    networks:
+      - notebooklm-net
     restart: unless-stopped
 
   # ── UI (Vite build → nginx HTTPS) ──────────────────────────────────────────
@@ -2037,6 +2074,10 @@ services:
 
 networks:
   ai-demo:
+    driver: bridge
+  # Two members only: demo-api-server and notebooklm. Keeps the sidecar off the
+  # flat network the third-party images (grafana, jaeger, weaviate, …) share.
+  notebooklm-net:
     driver: bridge
 
 volumes:
