@@ -77,6 +77,7 @@ IMAGE_MAP=(
   "ai-demo-k8-tier-manager:ai-demo-tier-manager"
   "ai-demo-k8-mcp-code-search:ai-demo-mcp-code-search"
   "ai-demo-k8-llamaindex-agent:ai-demo-llamaindex-agent"
+  "ai-demo-k8-notebooklm:ai-demo-notebooklm"
 )
 
 # Rewrite image refs in a YAML: local name → GHCR URI
@@ -231,6 +232,7 @@ for manifest in \
   67-pydantic-agent-deployment.yaml \
   76-prometheus-deployment.yaml \
   77-grafana-deployment.yaml \
+  78-notebooklm-deployment.yaml \
   10-frontend-deployment.yaml; do
   info "Applying $manifest..."
   apply_patched "$K8S_DIR/$manifest"

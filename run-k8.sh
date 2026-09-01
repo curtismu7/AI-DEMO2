@@ -240,6 +240,7 @@ tag_k8_images() {
     "${K8_COMPOSE_PROJECT}-mcp-weather:ai-demo-k8-mcp-weather"
     "${K8_COMPOSE_PROJECT}-mcp-brave:ai-demo-k8-mcp-brave"
     "${K8_COMPOSE_PROJECT}-mcp-jwt-verifier:ai-demo-k8-mcp-jwt-verifier"
+    "${K8_COMPOSE_PROJECT}-notebooklm:ai-demo-k8-notebooklm"
   )
   for entry in "${pairs[@]}"; do
     local src="${entry%%:*}" dst="${entry##*:}"
