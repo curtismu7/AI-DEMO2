@@ -32,6 +32,14 @@ const GROOVY = fs.readFileSync(
   'utf8',
 );
 const TS = fs.readFileSync(path.join(REPO, 'demo_mcp_gateway/src/scopePolicies.ts'), 'utf8');
+const BRAVE_GROOVY = fs.readFileSync(
+  path.join(REPO, 'ping-gateway/scripts/groovy/tx-brave-scope.groovy'),
+  'utf8',
+);
+const SHOWCASE_PAGE = fs.readFileSync(
+  path.join(REPO, 'demo_api_ui/src/pages/McpShowcasePage.jsx'),
+  'utf8',
+);
 
 const uniq = (xs: string[]): string[] => [...new Set(xs)].sort();
 
@@ -103,6 +111,16 @@ function list(slice: string, key: string): string[] {
   return [...slice.slice(open, close).matchAll(/'([^']+)'/g)].map((m) => m[1]).sort();
 }
 
+/** Quoted entries of the first `[...]` literal following a marker. */
+function termsAfter(src: string, marker: string): string[] {
+  const at = src.indexOf(marker);
+  if (at < 0) throw new Error(`marker not found: ${marker}`);
+  const open = src.indexOf('[', at);
+  const close = src.indexOf(']', open);
+  if (open < 0 || close < 0) throw new Error(`no list literal after ${marker}`);
+  return [...src.slice(open, close).matchAll(/'([^']+)'/g)].map((m) => m[1]).sort();
+}
+
 const groovyStates = stateSlices(statesBlock(GROOVY, 'def STATES = [', '\n]'));
 const tsStates = stateSlices(statesBlock(TS, 'const STATES: Record<string, StateDef> = {', '\n};'));
 
@@ -149,5 +167,40 @@ describe('scopePolicies.ts mirrors tx-weather-scope.groovy', () => {
 
   test.each(Object.keys(groovyStates))('%s has an identical city allowlist', (name) => {
     expect(list(tsStates[name], 'cities')).toEqual(list(groovyStates[name], 'cities'));
+  });
+});
+
+/**
+ * The Brave blocklist is the SAME duplication, one copy worse: three hand-kept
+ * lists, not two.
+ *
+ *   tx-brave-scope.groovy   BLOCKED_TERMS        — the IG filter
+ *   scopePolicies.ts        BRAVE_BLOCKED_TERMS  — the Node gateway mirror
+ *   McpShowcasePage.jsx     blockedTerms         — what the page TELLS the room
+ *
+ * The third copy is why this is worth a guard rather than a comment. The other
+ * two disagreeing means the policy differs by which gateway is in the path —
+ * bad, and invisible. The page disagreeing means the demo stands in front of an
+ * audience listing terms the gateway does not actually block, which is the kind
+ * of thing that gets noticed live.
+ *
+ * Unlike the weather blocklist there is no flag to change these at runtime, so
+ * comparing the literals is the whole contract.
+ */
+describe('the Brave blocked-term list is identical in all three copies', () => {
+  const fromGroovy = (): string[] => termsAfter(BRAVE_GROOVY, 'def BLOCKED_TERMS');
+  const fromGateway = (): string[] => termsAfter(TS, 'const BRAVE_BLOCKED_TERMS');
+  const fromPage = (): string[] => termsAfter(SHOWCASE_PAGE, 'blockedTerms:');
+
+  test('the parsers found terms to compare (guards a silently-empty pass)', () => {
+    expect(fromGroovy().length).toBeGreaterThan(0);
+  });
+
+  test('the Node gateway mirror matches the Groovy filter', () => {
+    expect(fromGateway()).toEqual(fromGroovy());
+  });
+
+  test('the showcase page advertises exactly what the gateway blocks', () => {
+    expect(fromPage()).toEqual(fromGroovy());
   });
 });
