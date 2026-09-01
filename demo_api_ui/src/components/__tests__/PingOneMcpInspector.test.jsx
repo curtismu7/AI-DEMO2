@@ -5,7 +5,18 @@ import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import apiClient from '../../services/apiClient';
+import { ThemeProvider } from '../../context/ThemeContext';
 import PingOneMcpInspector from '../PingOneMcpInspector';
+
+// The component reads ThemeContext for its dark-mode toggle, and useTheme()
+// throws outside a provider by design — so every render needs one, exactly as
+// P1AzDashboard/TokenExchangeDashboard/NewRelicDashboard tests already do.
+const renderInspector = () =>
+  render(
+    <ThemeProvider>
+      <PingOneMcpInspector />
+    </ThemeProvider>,
+  );
 
 vi.mock('../../services/apiClient', () => ({
   default: { get: vi.fn(), post: vi.fn(), patch: vi.fn() },
@@ -53,20 +64,20 @@ beforeEach(() => vi.clearAllMocks());
 describe('PingOneMcpInspector — status display', () => {
   it('shows "Disconnected" when enabled is false', async () => {
     mockDisconnected();
-    render(<PingOneMcpInspector />);
+    renderInspector();
     await waitFor(() => expect(screen.getByText('Disconnected')).toBeInTheDocument());
   });
 
   it('shows "Connected — N tools" and Live:ON button when enabled', async () => {
     mockConnected([USER_TOOL, APP_TOOL]);
-    render(<PingOneMcpInspector />);
+    renderInspector();
     await waitFor(() => expect(screen.getByText('Connected — 2 tools')).toBeInTheDocument());
     expect(screen.getByRole('button', { name: 'Live: ON' })).toBeInTheDocument();
   });
 
   it('Refresh button re-fetches tools', async () => {
     mockConnected();
-    render(<PingOneMcpInspector />);
+    renderInspector();
     await waitFor(() => screen.getByText('Connected — 2 tools'));
     fireEvent.click(screen.getByRole('button', { name: /Refresh/ }));
     await waitFor(() => expect(apiClient.get).toHaveBeenCalledTimes(2));
@@ -76,7 +87,7 @@ describe('PingOneMcpInspector — status display', () => {
 describe('PingOneMcpInspector — tool tree grouping', () => {
   it('groups tools into correct buckets (Users, Applications)', async () => {
     mockConnected([USER_TOOL, APP_TOOL]);
-    render(<PingOneMcpInspector />);
+    renderInspector();
     await waitFor(() => screen.getByText('GetUserById'));
     expect(screen.getByText(/^Users \(\d+\)$/)).toBeInTheDocument();
     expect(screen.getByText(/^Applications \(\d+\)$/)).toBeInTheDocument();
@@ -84,21 +95,21 @@ describe('PingOneMcpInspector — tool tree grouping', () => {
 
   it('shows write badge "W" on create/update/delete tools', async () => {
     mockConnected([WRITE_TOOL]);
-    render(<PingOneMcpInspector />);
+    renderInspector();
     await waitFor(() => screen.getByText('CreateUser'));
     expect(screen.getByText('W')).toBeInTheDocument();
   });
 
   it('groups DaVinci tools into the DaVinci bucket', async () => {
     mockConnected([DAVINCI_TOOL]);
-    render(<PingOneMcpInspector />);
+    renderInspector();
     await waitFor(() => screen.getByText('TriggerDavinciFlow'));
     expect(screen.getByText(/^DaVinci \(\d+\)$/)).toBeInTheDocument();
   });
 
   it('search filter hides non-matching tools', async () => {
     mockConnected([USER_TOOL, APP_TOOL]);
-    render(<PingOneMcpInspector />);
+    renderInspector();
     await waitFor(() => screen.getByText('GetUserById'));
     fireEvent.change(screen.getByPlaceholderText('Filter tools…'), { target: { value: 'User' } });
     expect(screen.getByText('GetUserById')).toBeInTheDocument();
@@ -107,7 +118,7 @@ describe('PingOneMcpInspector — tool tree grouping', () => {
 
   it('shows no-match message when search matches nothing', async () => {
     mockConnected([USER_TOOL]);
-    render(<PingOneMcpInspector />);
+    renderInspector();
     await waitFor(() => screen.getByText('GetUserById'));
     fireEvent.change(screen.getByPlaceholderText('Filter tools…'), { target: { value: 'xyzzy' } });
     expect(screen.getByText(/No tools match "xyzzy"/)).toBeInTheDocument();
@@ -117,7 +128,7 @@ describe('PingOneMcpInspector — tool tree grouping', () => {
 describe('PingOneMcpInspector — form and invoke', () => {
   it('selecting a tool shows its param input fields', async () => {
     mockConnected([USER_TOOL]);
-    render(<PingOneMcpInspector />);
+    renderInspector();
     await waitFor(() => screen.getByText('GetUserById'));
     fireEvent.click(screen.getByText('GetUserById'));
     // placeholder = schema.description || schema.type || 'value' → 'string' for {type:'string'}
@@ -126,7 +137,7 @@ describe('PingOneMcpInspector — form and invoke', () => {
 
   it('shows validation error when a required param is blank', async () => {
     mockConnected([USER_TOOL]);
-    render(<PingOneMcpInspector />);
+    renderInspector();
     await waitFor(() => screen.getByText('GetUserById'));
     fireEvent.click(screen.getByText('GetUserById'));
     // Two Execute buttons (top + bottom of form)
@@ -140,7 +151,7 @@ describe('PingOneMcpInspector — form and invoke', () => {
     apiClient.post.mockResolvedValue({
       data: { response: { id: 'u1', username: 'alice' }, request: {}, timingsMs: { roundTrip: 8 } },
     });
-    render(<PingOneMcpInspector />);
+    renderInspector();
     await waitFor(() => screen.getByText('GetUserById'));
     fireEvent.click(screen.getByText('GetUserById'));
     fireEvent.change(screen.getByPlaceholderText('string'), { target: { value: 'u1' } });
@@ -158,7 +169,7 @@ describe('PingOneMcpInspector — form and invoke', () => {
     apiClient.post.mockResolvedValue({
       data: { response: { count: 3 }, request: {}, timingsMs: { roundTrip: 5 } },
     });
-    render(<PingOneMcpInspector />);
+    renderInspector();
     await waitFor(() => screen.getByText('ListApplications'));
     fireEvent.click(screen.getByText('ListApplications'));
     fireEvent.click(screen.getAllByRole('button', { name: /Execute/ })[0]);
@@ -168,7 +179,7 @@ describe('PingOneMcpInspector — form and invoke', () => {
   it('toggles Live: ON → OFF by PATCHing the feature flag', async () => {
     mockConnected();
     apiClient.patch.mockResolvedValue({ data: {} });
-    render(<PingOneMcpInspector />);
+    renderInspector();
     await waitFor(() => screen.getByRole('button', { name: 'Live: ON' }));
     fireEvent.click(screen.getByRole('button', { name: 'Live: ON' }));
     await waitFor(() =>
