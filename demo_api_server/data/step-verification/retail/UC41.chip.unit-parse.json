@@ -1,0 +1,10 @@
+{
+  "vertical": "retail",
+  "useCaseId": "UC41",
+  "triggerType": "chip",
+  "mode": "unit-parse",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "brave_news_search",
+  "checkedAt": "2026-08-31"
+}
