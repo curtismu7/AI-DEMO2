@@ -2189,7 +2189,18 @@ key-parity check is still worth adding. And `SESSION_SECRET` in
 consistent key is a valid key) but the same trap for any future consumer that reads
 it from `process.env`.
 
-### [ ] 2026-08-26 — `ping-mcpgw` Helm release's only remaining purpose is a backend it doesn't gate
+### [x] 2026-08-26 — `ping-mcpgw` Helm release's only remaining purpose is a backend it doesn't gate
+
+**Resolved 2026-09-01:** the "real fix" landed as the second option — the
+`ping-mcpgw` release was `helm uninstall`ed from `ping-devops-cmuir` and its
+install block removed from `k8s/aws/deploy.sh`, together with the
+`agentless-mcpgw` install/warn block and the `MCPGW_HOSTNAME` passthrough
+ingress (the whole Privilege gateway estate was rebuilt as a manual AI Gateway
+install in `ping-devops-curtismuir`, per the SE1 instructional demo setup).
+Still on disk but no longer installed by any deploy: `k8s/helm/mcpgw`,
+`k8s/75-ping-mcpgw-deployment.yaml`, and the `mcpgw-*-ingress/certificate`
+yamls under `k8s/aws/` — deletable once the local (OrbStack) k8s path's
+`mode mcpgw` is retired too.
 
 **Where:** `k8s/helm/mcpgw` release `ping-mcpgw` in `ping-devops-cmuir`.
 

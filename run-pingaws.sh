@@ -27,9 +27,8 @@
 #
 # App: https://ai-demo.ping-devops.com
 #
-# Also deploys the Privilege MCPGW gateway (Helm, k8s/helm/mcpgw) alongside the
-# app — required by default, see privilege/deploy-whole-stack.prompt.md.
-# Opt out with SKIP_MCPGW=1.
+# The Privilege AI Gateway is NOT deployed here — it is a manual Helm install
+# in ping-devops-curtismuir (pingone-privgateway-helm-main/agentless).
 #
 # Equivalent low-level commands (still work):
 #   ./run-k8.sh se-all | se-build | se-deploy | se-status | se-undeploy
@@ -69,13 +68,9 @@ Usage:
 
 Prerequisites: Docker Desktop, kubectl context `us`, gh auth, SE namespace.
 
-Includes the Privilege MCPGW gateway: `deploy`/`start` always runs `helm
-upgrade --install ping-mcpgw k8s/helm/mcpgw`, using Secret ping-mcpgw-secrets
-(created by create-secrets.sh from ping-mcpgw/procyon/config/proxy-token.env —
-see privilege/deploy-whole-stack.prompt.md). Required by default: if that
-file/secret is missing, the rest of the stack still deploys but the command
-exits non-zero with remediation instructions. Deliberately skip it with:
-  SKIP_MCPGW=1 ./run-pingaws.sh start
+The Privilege AI Gateway does not deploy from here: it is a deliberate manual
+Helm install in ping-devops-curtismuir (pingone-privgateway-helm-main/agentless),
+because its ENV_PROXY_TOKEN is single-use and ~2h-lived.
 
 Namespace is pinned once per checkout (written to demo_api_server/.env as
 SE_NAMESPACE=...) so every later run targets the same namespace by default —
