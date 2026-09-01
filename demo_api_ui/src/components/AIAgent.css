@@ -5093,6 +5093,23 @@ body > .banking-agent-float-root .banking-agent-panel {
   background: var(--ba-surface, var(--th-bg-inset));
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
 }
+/* Divider fencing off the server feature-flag rows. The switches above it are
+   this browser's own preferences; the ones inside it change the demo for every
+   session, and the tray gives no other cue that they are different. */
+.ba-header-more-sep {
+  width: 100%;
+  height: 0;
+  margin: 4px 0;
+  border-top: 1px solid var(--ba-border, var(--th-border));
+}
+:root[data-theme="dark"] .ba-header-more-sep {
+  border-top-color: var(--th-border);
+}
+/* A locked (env-pinned) flag row still reads, it just cannot be moved. */
+.ba-header-more-pop .ctl-check.is-disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
+}
 /* Full-width so the tray reads as a menu, not a row of pills. */
 .ba-header-more-pop .ba-actions-trigger {
   width: 100%;

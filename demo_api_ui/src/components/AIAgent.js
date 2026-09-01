@@ -111,6 +111,18 @@ import APP_CONFIG from "../services/appConfig";
 import { useCustomChips } from "../hooks/useCustomChips";
 import AgentModeSelector from "./AgentModeSelector";
 import Check from "./common/Check";
+import useQuickFlags from "../hooks/useQuickFlags";
+import { QUICK_FLAGS } from "./QuickFlagsPill";
+
+// The demo switches worth reaching without leaving the agent header. Kept
+// short on purpose — the full curated lineup stays in the header pill.
+export const MORE_MENU_FLAG_IDS = [
+  "ff_enterprise_managed_mcp_auth",
+  "ff_authorize_fail_open",
+  "ff_require_act_for_agent_tools",
+  "ff_dpop",
+  "ff_rar",
+];
 import useLangchainProvider from "../hooks/useLangchainProvider";
 import { claimPendingNl, clampPanelPosition, makeReentrancyGuard, isAbortError, anySignal, isLocalModelTimeout, prewarmTierAndRetry, opportunisticPrewarm } from "./demoAgentSafety";
 import { BX_AGENT_PENDING_NL_KEY, BX_AGENT_PENDING_UC_ID_KEY, BX_AGENT_PENDING_FLAGS_KEY, BX_AGENT_PENDING_AUTH_KEY } from "../constants/agentPendingKeys";
@@ -2000,9 +2012,18 @@ export default function BankingAgent({
     });
   }, [user, embeddedFocus, brandShortName, industryPreset.id, themeAgent]);
 
+  // Server-side demo switches surfaced inline in the More menu. Ids only: the
+  // labels come from QUICK_FLAGS (QuickFlagsPill) so this menu and the header
+  // pill can never disagree about what a switch means. Unlike every other More
+  // item — all localStorage preferences — these are GLOBAL: flipping one
+  // changes the demo for every session, which is why each row says so on hover.
   // Effective user: prefer prop (App.js state), fall back to self-detected session
   const effectiveUser = user || sessionUser;
   const isLoggedIn = !!effectiveUser;
+
+  // Fetch only while the menu is open — a closed menu costs nothing, and
+  // reopening re-reads so a flag another session flipped shows up honestly.
+  const moreFlags = useQuickFlags({ user: effectiveUser, enabled: headerMoreOpen });
 
   // ── Authorize-driven dynamic chips ──────────────────────────────────────────
   // availableTools is the live, Authorize-filtered tool list for the active
@@ -9635,6 +9656,37 @@ export default function BankingAgent({
                       >
                         DaVinci Mode
                       </Check>
+                      {/* Server feature flags — global, unlike the local
+                          preferences above. Pinned flags render locked because
+                          getEffective() is env-first and the write would be
+                          silently inert. */}
+                      <div className="ba-header-more-sep" role="separator" />
+                      {MORE_MENU_FLAG_IDS.map((id) => {
+                        const def = QUICK_FLAGS.find((d) => d.id === id);
+                        const f = moreFlags.flagsById?.[id];
+                        if (!def) return null;
+                        const locked = !!f?.pinned;
+                        return (
+                          <Check
+                            key={id}
+                            variant="switch"
+                            className="ba-header-toggle-label"
+                            checked={!!f?.value}
+                            disabled={!f || locked || !moreFlags.canEdit || moreFlags.savingId === id}
+                            onChange={(e) => moreFlags.save(id, e.target.checked)}
+                            title={
+                              !f
+                                ? "Flag unavailable — could not read /api/admin/feature-flags"
+                                : locked
+                                  ? `Pinned by ${f.pinnedBy} in docker-compose — change the env to flip`
+                                  : `${f.description || def.label} — applies to every session, not just yours`
+                            }
+                          >
+                            {locked ? `${def.label} 🔐` : def.label}
+                          </Check>
+                        );
+                      })}
+                      <div className="ba-header-more-sep" role="separator" />
                       <button
                         type="button"
                         className={`ba-actions-trigger${showTokenTopology ? " active" : ""}`}
