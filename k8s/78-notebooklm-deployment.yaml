@@ -1,0 +1,124 @@
+# NotebookLM sidecar — backs the public /notebooklm docs-oracle page.
+#
+# SECURITY, stated plainly because this cluster is internet-facing and shared:
+# this pod holds a live Google session belonging to a real person. The
+# /notebooklm UI route is declared "public" in auth-requirements.json, so anyone
+# who reaches ai-demo.ping-devops.com can drive that account through the BFF.
+# The exposure is bounded to reads and quota — the BFF proxies no create,
+# delete, or source-mutation endpoint — but it is not zero.
+#
+# The Service is ClusterIP and there is no Ingress: the sidecar is reachable
+# only from inside the namespace, and its bearer token is required even there.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notebooklm
+  labels:
+    app: notebooklm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notebooklm
+  template:
+    metadata:
+      labels:
+        app: notebooklm
+    spec:
+      # The cookie jar must be WRITABLE: notebooklm-server rotates
+      # __Secure-1PSIDTS and persists the rotated jar. A Secret volume is
+      # read-only, so the seed is copied into an emptyDir the server can write.
+      # Consequence: rotations are lost on pod restart and the pod falls back to
+      # the seeded cookies, which go stale after ~15-20 minutes of idleness.
+      # Refreshing the Secret is currently a manual step — see 61-notebooklm-secret.yaml.template.
+      initContainers:
+      - name: seed-cookie-jar
+        image: busybox:1.36
+        command:
+        - sh
+        - -c
+        - |
+          set -e
+          mkdir -p /jar/profiles/default
+          cp /seed/storage_state.json /jar/profiles/default/storage_state.json
+          chmod 600 /jar/profiles/default/storage_state.json
+        volumeMounts:
+        - name: cookie-seed
+          mountPath: /seed
+          readOnly: true
+        - name: cookie-jar
+          mountPath: /jar
+      containers:
+      - name: notebooklm
+        image: ai-demo-k8-notebooklm:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        # The server refuses to leave loopback without this explicit opt-in, and
+        # refuses to start at all without a bearer token.
+        - name: NOTEBOOKLM_SERVER_HOST
+          value: "0.0.0.0"
+        - name: NOTEBOOKLM_SERVER_PORT
+          value: "8000"
+        - name: NOTEBOOKLM_SERVER_ALLOW_EXTERNAL_BIND
+          value: "1"
+        - name: HOME
+          value: "/jar-home"
+        - name: NOTEBOOKLM_SERVER_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: ai-demo-notebooklm
+              key: server-token
+        ports:
+        - name: http
+          containerPort: 8000
+        volumeMounts:
+        - name: cookie-jar
+          mountPath: /jar-home/.notebooklm
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "768Mi"
+            cpu: "500m"
+        # /healthz is unauthenticated; the /v1 surface requires the bearer.
+        startupProbe:
+          httpGet:
+            path: /healthz
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 12
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8000
+          periodSeconds: 30
+          failureThreshold: 3
+      volumes:
+      - name: cookie-seed
+        secret:
+          secretName: ai-demo-notebooklm
+          items:
+          - key: storage-state.json
+            path: storage_state.json
+      - name: cookie-jar
+        emptyDir: {}
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notebooklm
+  labels:
+    app: notebooklm
+spec:
+  # ClusterIP with no Ingress — deliberately unreachable from outside the
+  # namespace, mirroring the compose service's absent `ports:` stanza.
+  type: ClusterIP
+  selector:
+    app: notebooklm
+  ports:
+  - name: http
+    port: 8000
+    targetPort: 8000

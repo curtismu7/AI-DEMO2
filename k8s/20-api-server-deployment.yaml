@@ -95,6 +95,24 @@ spec:
         # Compose overrides this with a host bind-mount of the same path.
         - name: CODE_SEARCH_REPO_ROOT
           value: "/repo"
+        # NotebookLM sidecar. Not in service-topology.json because it is not part
+        # of the demo's inter-service chain — it is a docs-lookup side channel
+        # that is absent entirely when the sidecar is not deployed. The /v1 suffix
+        # matters: notebooklm-server mounts its routes under /v1 and has no
+        # unprefixed surface, so dropping it silently 404s every call.
+        - name: NOTEBOOKLM_URL
+          value: "http://notebooklm:8000/v1"
+        # PING_DOCS_BUNDLE_DIR is deliberately unset here. The 6.77MB of doc
+        # bundles are not shipped to the cluster (too large for a ConfigMap, and
+        # the only storage classes are ReadWriteOnce EBS). loadIndexes() returns
+        # [] for a missing directory, so citations render as unlinked excerpts
+        # rather than failing — degraded, not broken. See k8s/79-*.template.
+        - name: NOTEBOOKLM_SERVER_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: ai-demo-notebooklm
+              key: server-token
+              optional: true
         # secret first, configmap last → cluster URLs in the configmap win
         envFrom:
         - secretRef:

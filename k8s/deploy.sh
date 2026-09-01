@@ -110,6 +110,14 @@ deploy() {
   kubectl apply -f "$SCRIPT_DIR/71-ping-gateway-deployment.yaml"   # real PingGateway (IG)
   kubectl apply -f "$SCRIPT_DIR/75-ping-mcpgw-deployment.yaml"     # PingOne Privilege MCPGW
   kubectl apply -f "$SCRIPT_DIR/68-mcp-proxy-deployment.yaml"      # scaled by demo-sync
+  # NotebookLM docs-oracle sidecar. Skipped unless its Secret exists — the
+  # server refuses to start without a bearer token, so applying it without the
+  # Secret buys a CrashLoopBackOff and nothing else. See 79-*.template to create it.
+  if kubectl get secret ai-demo-notebooklm -n "$NS" &>/dev/null; then
+    kubectl apply -f "$SCRIPT_DIR/78-notebooklm-deployment.yaml"
+  else
+    echo "  [skip] notebooklm — secret 'ai-demo-notebooklm' not found (see k8s/79-notebooklm-secret.yaml.template)"
+  fi
   kubectl apply -f "$SCRIPT_DIR/61-agent-service-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/40-agent-service-deployment.yaml"   # langchain agent
   kubectl apply -f "$SCRIPT_DIR/65-mastra-agent-deployment.yaml"
