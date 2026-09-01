@@ -33,6 +33,17 @@ CI=true npm test -- --forceExit          # full suite
 CI=true npm run test:unit                # core regression, fastest
 ```
 
+**Add `--runInBand` when the Docker stack is up.** Measured 2026-08-31 on this
+16-core host with 25 containers running (load avg 52, 2.5k sockets in
+TIME_WAIT): `--maxWorkers=4` failed ~2 of 11,000 tests on roughly half of all
+runs, `--maxWorkers=2` still failed, and `--runInBand` passed 929/929 clean.
+The failures land in a DIFFERENT random suite each time and are connection-level
+(`ECONNRESET`, `connect ETIMEDOUT`, socket hang up) or a stray `401` — never the
+same test twice, always green in isolation. They are host contention between
+parallel worker processes, not defects, and chasing one wastes an hour. In-band
+costs ~3 extra minutes (454s vs 259s). CI runs on a clean runner with no stack,
+so `jest.config.js` keeps 4 workers there deliberately — do not lower it.
+
 **`CI=true` is mandatory.** Without it supertest suites flake and a green run
 proves nothing. Running jest from a worktree needs **no** flags — `jest.config.js`
 detects a worktree and drops its own excludes (PR #950). Do **not** pass
