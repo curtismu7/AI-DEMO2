@@ -46,7 +46,7 @@
 
 .mcpsc__lede {
   margin: 14px 0 0;
-  max-width: 62ch;
+  max-width: 90ch;
   font-size: var(--font-size-base);
   line-height: 1.6;
   color: var(--th-text);
@@ -328,7 +328,7 @@
 
 .mcpsc__note {
   margin: 12px 0 0;
-  max-width: 62ch;
+  max-width: 90ch;
   font-size: var(--font-size-base);
   line-height: 1.6;
   color: var(--th-text-muted);
