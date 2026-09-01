@@ -57,6 +57,9 @@ function ClaimDetailsModal({ isOpen, tokenType, liveClaims, onClose }) {
 
   return (
     <DraggableModal isOpen={isOpen} onClose={onClose} title={title} storageKey="claim-details-modal">
+      {/* dm-scroll: `dm-body` is bare by contract — no padding, and no scroll,
+          so a long claim list clipped instead of scrolling. */}
+      <div className="dm-scroll">
       {isLive && <span className="utfi-modal-live-badge">Live — this run</span>}
       {hasObjectClaim && (
         <InspectorTabs tabs={JSON_VIEW_TABS} activeKey={jsonMode} onChange={setJsonMode} />
@@ -71,6 +74,7 @@ function ClaimDetailsModal({ isOpen, tokenType, liveClaims, onClose }) {
             <div className="utfi-claim-description">{claim.description}</div>
           </div>
         ))}
+      </div>
       </div>
     </DraggableModal>
   );

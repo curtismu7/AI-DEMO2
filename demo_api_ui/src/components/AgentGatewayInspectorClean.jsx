@@ -1,10 +1,12 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useThemeOptional } from '../context/ThemeContext';
 import { useAgentGatewayInspector } from '../hooks/useAgentGatewayInspector';
+import { useInspectorFields } from '../context/InspectorFieldContext';
 import './AgentGatewayInspectorClean.css';
 
 export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
   const theme = useThemeOptional();
+  const { registerFields, getMatchingFields } = useInspectorFields();
   const {
     selectedGateway,
     setSelectedGateway,
@@ -16,7 +18,10 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
     isChainMode,
     setIsChainMode,
     parameters,
-    updateParameter,
+    setParameters,
+    availablePolicies,
+    selectedPolicy,
+    setSelectedPolicy,
     running,
     result,
     error,
@@ -28,6 +33,25 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
     run,
   } = useAgentGatewayInspector({ gatewayId });
 
+  // Register result fields for other inspectors to use
+  useEffect(() => {
+    if (result?.data) {
+      registerFields('agent-gateway', result.data);
+    }
+  }, [result, registerFields]);
+
+  // Auto-populate parameters from other inspector results
+  useEffect(() => {
+    if (!selectedTool) return;
+    const paramNames = selectedTool.parameters ? Object.keys(selectedTool.parameters) : [];
+    const matches = getMatchingFields(paramNames);
+    Object.entries(matches).forEach(([key, value]) => {
+      if (!parameters[key]) {
+        updateParameter(key, String(value));
+      }
+    });
+  }, [selectedTool, getMatchingFields, parameters, updateParameter]);
+
   const filteredTools = useMemo(
     () =>
       availableCapabilities.filter((cap) => {
@@ -37,6 +61,23 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
       }),
     [availableCapabilities, selectedCapabilities],
   );
+
+  // The textarea holds raw text so invalid intermediate JSON doesn't snap back
+  // to the last valid state mid-keystroke; paramsError surfaces bad syntax
+  // instead of silently discarding the input.
+  const [paramsText, setParamsText] = useState(() => JSON.stringify(parameters, null, 2));
+  const [paramsError, setParamsError] = useState(false);
+  const [outputFontSize, setOutputFontSize] = useState(13);
+
+  // Re-sync the text only when parameters change from outside the textarea
+  // (tool switch, reel restore) — not on every keystroke's parse round-trip.
+  useEffect(() => {
+    setParamsText(JSON.stringify(parameters, null, 2));
+    setParamsError(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTool, activeReelId]);
+
+  const highlightJSON = (json) => json.replace(/"([^"]+)":/g, '<span style="color: #0066cc;">\"$1\"</span>:').replace(/: "([^"]+)"/g, ': <span style="color: #009900;">\"$1\"</span>').replace(/: (\d+)/g, ': <span style="color: #cc6600;">$1</span>').replace(/: (true|false)/g, ': <span style="color: #993399;">$1</span>').replace(/: null/g, ': <span style="color: #666666;">null</span>');
 
   return (
     <div className="inspector-clean-page">
@@ -83,32 +124,24 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
                 >
                   <option value="">Select a gateway...</option>
                   <option value="demo-mcp-gateway">Demo MCP Gateway (01d89b06)</option>
-                  <option value="privilege-gateway">Privilege Gateway</option>
-                  <option value="external-door">External Door</option>
                 </select>
               </div>
 
-              <div style={{ marginTop: '16px' }}>
-                <div className="inspector-clean-field-label" style={{ marginBottom: '8px' }}>
-                  Capabilities
-                </div>
-                <div style={{ fontSize: '12px', maxHeight: '200px', overflowY: 'auto' }}>
-                  {availableCapabilities.length === 0 ? (
-                    <div style={{ color: 'var(--th-text-muted)', padding: '8px' }}>Select a gateway first</div>
-                  ) : (
-                    availableCapabilities.map((cap) => (
-                      <div key={cap.name} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px', cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={selectedCapabilities[cap.name] || false}
-                          onChange={() => toggleCapability(cap.name)}
-                        />
-                        <label style={{ flex: 1, cursor: 'pointer' }}>{cap.name}</label>
-                      </div>
-                    ))
-                  )}
-                </div>
+              <div className="inspector-clean-field" style={{ marginTop: '16px' }}>
+                <label className="inspector-clean-field-label">Policy</label>
+                <select
+                  value={selectedPolicy}
+                  onChange={(e) => setSelectedPolicy(e.target.value)}
+                >
+                  <option value="">Default policy</option>
+                  {availablePolicies.map((policy) => (
+                    <option key={policy.id || policy.name} value={policy.id || policy.name}>
+                      {policy.name || policy.id}
+                    </option>
+                  ))}
+                </select>
               </div>
+
             </div>
           </div>
 
@@ -147,6 +180,12 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
                 </select>
               </div>
 
+              {selectedTool && (
+                <div style={{ padding: '8px 10px', background: 'var(--th-bg-inset)', borderRadius: '6px', fontSize: '12px', color: 'var(--th-text-muted)', lineHeight: 1.4 }}>
+                  {filteredTools.find((t) => t.name === selectedTool)?.description || 'No description available'}
+                </div>
+              )}
+
               <div className="inspector-clean-form">
                 {selectedTool && (
                   <>
@@ -155,24 +194,21 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
                       <textarea
                         rows="4"
                         placeholder='{"key": "value"}'
-                        value={JSON.stringify(parameters, null, 2)}
+                        className="inspector-clean-json-input"
+                        value={paramsText}
                         onChange={(e) => {
+                          setParamsText(e.target.value);
                           try {
-                            const parsed = JSON.parse(e.target.value);
-                            setParameters(parsed);
+                            setParameters(JSON.parse(e.target.value));
+                            setParamsError(false);
                           } catch {
-                            // Allow partial edits
+                            setParamsError(true);
                           }
                         }}
-                        style={{ fontFamily: 'monospace', fontSize: '11px' }}
                       />
-                    </div>
-
-                    <div className="inspector-clean-field">
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '500' }}>
-                        <input type="checkbox" disabled />
-                        Run in chain (add more tools below)
-                      </label>
+                      {paramsError && (
+                        <div className="inspector-clean-json-error">Invalid JSON — fix the syntax to apply changes</div>
+                      )}
                     </div>
                   </>
                 )}
@@ -182,7 +218,7 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
                 </button>
               </div>
 
-              {error && <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '12px', padding: '8px', background: '#fee2e2', borderRadius: 'var(--radius-sm)' }}>❌ Error: {error}</div>}
+              {error && <div className="inspector-clean-error-banner">❌ Error: {error}</div>}
             </div>
           </div>
 
@@ -192,37 +228,38 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
               <div className="inspector-clean-panel-label">Output</div>
             </div>
             <div className="inspector-clean-output">
-              <div className="inspector-clean-output-tabs">
-                {['Response', 'Request', 'Trace', 'Logs', 'Performance', 'Diff'].map((tab) => (
-                  <div
-                    key={tab}
-                    className={`inspector-clean-output-tab ${outputTab === tab.toLowerCase() ? 'active' : ''}`}
-                    onClick={() => setOutputTab(tab.toLowerCase())}
-                  >
-                    {tab}
-                  </div>
-                ))}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--th-border)' }}>
+                <div className="inspector-clean-output-tabs">
+                  {['Response', 'Request', 'Trace', 'Logs', 'Performance', 'Diff'].map((tab) => (
+                    <div
+                      key={tab}
+                      className={`inspector-clean-output-tab ${outputTab === tab.toLowerCase() ? 'active' : ''}`}
+                      onClick={() => setOutputTab(tab.toLowerCase())}
+                    >
+                      {tab}
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: '6px', padding: '8px 12px' }}>
+                  <button onClick={() => setOutputFontSize(Math.max(10, outputFontSize - 1))} style={{ padding: '4px 8px', fontSize: '12px', cursor: 'pointer', border: '1px solid var(--th-border)', background: 'var(--th-bg-inset)', borderRadius: '4px' }}>−</button>
+                  <span style={{ fontSize: '12px', minWidth: '30px', textAlign: 'center', lineHeight: '1.5' }}>{outputFontSize}px</span>
+                  <button onClick={() => setOutputFontSize(Math.min(20, outputFontSize + 1))} style={{ padding: '4px 8px', fontSize: '12px', cursor: 'pointer', border: '1px solid var(--th-border)', background: 'var(--th-bg-inset)', borderRadius: '4px' }}>+</button>
+                </div>
               </div>
 
-              <div className="inspector-clean-output-content">
+              <div className="inspector-clean-output-content" style={{ fontSize: `${outputFontSize}px` }}>
                 {!result && !error && <div style={{ color: 'var(--th-text-muted)', fontSize: '12px' }}>Execute a tool to see results</div>}
 
                 {result && outputTab === 'response' && (
-                  <pre>{JSON.stringify(result.response || result, null, 2)}</pre>
+                  <pre dangerouslySetInnerHTML={{ __html: highlightJSON(JSON.stringify(result.response || result, null, 2)) }} />
                 )}
 
                 {result && outputTab === 'request' && (
-                  <pre>
-                    {JSON.stringify(
-                      {
+                  <pre dangerouslySetInnerHTML={{ __html: highlightJSON(JSON.stringify({
                         method: 'POST',
                         url: '/api/agent-gateway/invoke',
                         body: result.request || { tool: selectedTool, parameters },
-                      },
-                      null,
-                      2,
-                    )}
-                  </pre>
+                      }, null, 2)) }} />
                 )}
 
                 {result && outputTab === 'trace' && (

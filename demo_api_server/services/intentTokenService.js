@@ -91,6 +91,7 @@ const INTENT_TO_PERMITTED_TOOLS = {
   // PERMIT) and UC31 (Miami, should be geofenced) were BOTH failing here, so UC31
   // looked correct while denying for the wrong reason.
   get_weather:              ['get_weather'],
+  brave_news_search:        ['brave_news_search'],
   get_branch_hours:         ['get_branch_hours'],
 
   // Chip-driven tools that no intent permitted, so the gateway denied them with

@@ -84,6 +84,60 @@ const CLIENT_DISPATCHED_ACTIONS = [
  * @param {string} activeId resolved active vertical id
  * @returns {string|null} tool name, or null when the vertical declares none
  */
+/**
+ * Render Brave's news-search envelope as readable markdown.
+ *
+ * The third-party server hands back the raw Brave API response. Passing that
+ * straight into the transcript put a wall of JSON on the demo screen — every
+ * field Brave returns, including base64 thumbnails and meta_url internals.
+ *
+ * Returns null when the payload is not a Brave envelope, so the caller falls
+ * back to the raw string rather than inventing an empty result: a search that
+ * genuinely returned nothing and a shape we failed to parse must not look the
+ * same.
+ */
+function formatBraveResults(raw) {
+  let parsed;
+  try {
+    parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+  } catch (_) {
+    return null;
+  }
+  if (!parsed || !Array.isArray(parsed.results)) return null;
+
+  const query = parsed?.query?.original;
+  const header = query ? `**News results for “${query}”**` : '**News results**';
+  if (parsed.results.length === 0) {
+    return `${header}\n\nNo results came back for that search.`;
+  }
+
+  // Brave marks matched terms with <strong> in BOTH the title and the
+  // description. Missing the title leaves literal tags in a markdown link.
+  const stripTags = (s) => String(s || '').replace(/<[^>]+>/g, '').trim();
+
+  const lines = parsed.results.slice(0, 8).map((r, i) => {
+    const title = stripTags(r?.title) || 'Untitled';
+    const url = typeof r?.url === 'string' ? r.url : '';
+    const source = r?.meta_url?.hostname || r?.profile?.name || '';
+    const description = stripTags(r?.description);
+    const meta = [source, r?.age].filter(Boolean).join(' · ');
+    return [
+      `${i + 1}. ${url ? `[${title}](${url})` : title}`,
+      meta ? `   ${meta}` : '',
+      description ? `   ${description}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n');
+  });
+
+  const shown = Math.min(parsed.results.length, 8);
+  const more =
+    parsed.results.length > shown
+      ? `\n\n_${parsed.results.length - shown} more result(s) not shown._`
+      : '';
+  return `${header}\n\n${lines.join('\n\n')}${more}`;
+}
+
 function readPrimaryToolFor(activeId) {
   // hasOwnProperty: activeId is request-supplied and VALID_VERTICAL_RE accepts
   // `constructor`, so a bare lookup resolved the INHERITED Object constructor —
@@ -482,8 +536,35 @@ async function dispatchBankingAction(action, params, userId, ctx) {
     // Gateway (Texas-only, ping-gateway/scripts/groovy/tx-weather-scope.groovy).
     // executeBffTool unwraps MCP {content:[{text}]} to the inner string. Weather
     // returns markdown prose (not banking JSON), so do not force parseToolResult.
-    if (action === 'weather') {
-      const toolName = 'get_weather';
+    // Gateway showcase tools. weather (get_weather) and brave_search
+    // (brave_news_search) are both real, unmodified third-party MCP servers
+    // fronted by the Agent Gateway, which enforces a policy the backend never
+    // sees — Texas-scope in tx-weather-scope.groovy, a crypto-term content
+    // blocklist in tx-brave-scope.groovy. They differ ONLY in the tool, the
+    // argument key and the failure sentence; the deny-envelope handling that
+    // frames an expected DENY as the control working is identical, so this is
+    // one branch rather than a second 40-line copy of it.
+    const SHOWCASE_TOOLS = {
+      // weather-mcp returns markdown prose, so it is passed through untouched.
+      weather: { toolName: 'get_weather', argKey: 'city_name', fallback: 'Could not get the weather.' },
+      // Brave returns the raw search API envelope. Dumping that JSON into the
+      // transcript is what shipped first and it is unreadable on a demo screen,
+      // so it is rendered here. `format` is deliberately per-tool rather than a
+      // blanket "JSON gets formatted" rule — the shapes have nothing in common.
+      brave_search: {
+        toolName: 'brave_news_search',
+        argKey: 'query',
+        fallback: 'Could not run the search.',
+        format: formatBraveResults,
+      },
+    };
+    if (SHOWCASE_TOOLS[action]) {
+      const {
+        toolName,
+        argKey,
+        fallback: showcaseFallback,
+        format: showcaseFormat,
+      } = SHOWCASE_TOOLS[action];
       const tokenEvents = [];
       const sessionId = req?.sessionID || '';
       // When this run is a catalog use case whose expected outcome is DENY (e.g.
@@ -493,7 +574,7 @@ async function dispatchBankingAction(action, params, userId, ctx) {
       const _expectedDeny = !!_ucId && require('../config/useCases').USE_CASES.some(
         (u) => (u.id === _ucId || u.useCaseId === _ucId) && u.expectedOutcome === 'DENY',
       );
-      const rawResult = await executeBffTool({ name: toolName, args: { city_name: params.city_name || '' }, userId, userToken, req, tokenEvents, sessionId });
+      const rawResult = await executeBffTool({ name: toolName, args: { [argKey]: params[argKey] || '' }, userId, userToken, req, tokenEvents, sessionId });
       if (typeof rawResult === 'string' && rawResult.trim()) {
         const trimmed = rawResult.trim();
         // unwrapMcpResultEnvelope wraps non-JSON isError text as {"error":"…"}.
@@ -504,7 +585,7 @@ async function dispatchBankingAction(action, params, userId, ctx) {
             // to Texas — city not recognized") over the bare code, and carry the
             // specific gatewayErrorCode + message so the UI surfaces the real reason
             // instead of degrading to a generic tool_failed.
-            const msg = parsedErr?.message || parsedErr?.error_description || parsedErr?.content?.[0]?.text || parsedErr?.error || 'Could not get the weather.';
+            const msg = parsedErr?.message || parsedErr?.error_description || parsedErr?.content?.[0]?.text || parsedErr?.error || showcaseFallback;
             return {
               reply: `❌ ${msg}`, success: false, toolsCalled: [toolName], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents,
               ...(parsedErr?.error ? { error: parsedErr.error } : {}),
@@ -514,12 +595,15 @@ async function dispatchBankingAction(action, params, userId, ctx) {
             };
           }
         }
-        return { reply: rawResult, success: true, toolsCalled: [toolName], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
+        // Fall back to the raw string when the formatter does not recognise the
+        // shape — an unreadable answer beats a confidently empty one.
+        const shaped = showcaseFormat ? showcaseFormat(rawResult) : null;
+        return { reply: shaped || rawResult, success: true, toolsCalled: [toolName], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
       }
       const { result: parsed2 } = parseToolResult(rawResult, { site: `banking_read:${toolName}` });
       const text = parsed2?.content?.[0]?.text;
       if (!text || parsed2?.isError || parsed2?.error) {
-        const _msg2 = text || parsed2?.message || parsed2?.error_description || parsed2?.error || 'Could not get the weather.';
+        const _msg2 = text || parsed2?.message || parsed2?.error_description || parsed2?.error || showcaseFallback;
         return {
           reply: `❌ ${_msg2}`, success: false, toolsCalled: [toolName], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents,
           ...(parsed2?.error ? { error: parsed2.error } : {}),
@@ -528,7 +612,8 @@ async function dispatchBankingAction(action, params, userId, ctx) {
           ...(_expectedDeny ? { expected: true } : {}),
         };
       }
-      return { reply: text, success: true, toolsCalled: [toolName], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
+      const shapedText = showcaseFormat ? showcaseFormat(text) : null;
+      return { reply: shapedText || text, success: true, toolsCalled: [toolName], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
     }
 
     if (action === 'transfer') {
@@ -2428,5 +2513,5 @@ module.exports = {
   // the same A2A fast-path as dispatchVerticalIntent for a2aDelegated tools.
   executeA2aDelegation,
   executeA2aGeneralistMismatch,
-  __test: { resolveToolSchemas, resolveExecuteTool, dispatchVerticalIntent, buildVerticalReply, executeA2aDelegation, executeA2aGeneralistMismatch, normalizeVerticalToolArgs, applyAdminCustomerContext, readPrimaryToolFor },
+  __test: { resolveToolSchemas, resolveExecuteTool, dispatchVerticalIntent, buildVerticalReply, executeA2aDelegation, executeA2aGeneralistMismatch, normalizeVerticalToolArgs, applyAdminCustomerContext, readPrimaryToolFor, formatBraveResults },
 };

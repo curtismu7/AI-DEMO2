@@ -105,12 +105,12 @@
 }
 
 .inspector-clean-panel:nth-child(2) {
-  flex: 1 1 auto;
-  min-width: 300px;
+  flex: 0 0 320px;
 }
 
 .inspector-clean-panel:nth-child(3) {
-  flex: 0 0 320px;
+  flex: 1 1 auto;
+  min-width: 300px;
 }
 
 .inspector-clean-panel-header {
@@ -269,7 +269,7 @@ textarea {
   background: var(--th-bg-inset);
   border-radius: var(--radius-sm);
   overflow-y: auto;
-  font-size: 11px;
+  font-size: 13px;
   font-family: var(--font-mono);
   white-space: pre-wrap;
   word-break: break-word;
@@ -342,4 +342,24 @@ textarea {
 .inspector-clean-panel-body::-webkit-scrollbar-thumb:hover,
 .inspector-clean-output-content::-webkit-scrollbar-thumb:hover {
   background: var(--th-text-muted);
+}
+
+.inspector-clean-json-input {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.inspector-clean-json-error {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--th-status-error-text);
+}
+
+.inspector-clean-error-banner {
+  margin-top: 12px;
+  padding: 8px;
+  font-size: 12px;
+  border-radius: var(--radius-sm);
+  color: var(--th-status-error-text);
+  background: var(--th-status-error-bg);
 }

@@ -61,12 +61,14 @@ IMAGE_MAP=(
   "ai-demo-k8-ui:ai-demo-frontend"
   "ai-demo-k8-api-server:ai-demo-demo-api-server"
   "ai-demo-k8-mcp-server:ai-demo-mcp-server"
+  "ai-demo-k8-mcp-weather:ai-demo-mcp-weather"
   "ai-demo-k8-mcp-gateway:ai-demo-mcp-gateway"
   "ai-demo-k8-authz-server:ai-demo-authz-server"
   "ai-demo-k8-agent-service:ai-demo-agent-service"
   "ai-demo-k8-hitl-service:ai-demo-hitl-service"
   "ai-demo-k8-mcp-resource-server:ai-demo-mcp-resource-server"
   "ai-demo-k8-api-resource-server:ai-demo-api-resource-server"
+  "ai-demo-k8-mcp-brave:ai-demo-mcp-brave"
   "ai-demo-k8-langchain-agent:ai-demo-langchain-agent"
   "ai-demo-k8-openai-agent:ai-demo-openai-agent"
   "ai-demo-k8-mastra-agent:ai-demo-mastra-agent"
@@ -212,9 +214,11 @@ apply_patched "$K8S_DIR/31-mcp-server-oauth-state-pvc.yaml"
 for manifest in \
   73-jaeger-deployment.yaml \
   30-mcp-server-deployment.yaml \
+  57-mcp-weather-deployment.yaml \
   63-mcp-resource-server-deployment.yaml \
   64-api-resource-server-deployment.yaml \
   62-hitl-service-deployment.yaml \
+  58-mcp-brave-deployment.yaml \
   56-llm-stack.yaml \
   72-rag-stack.yaml \
   20-api-server-deployment.yaml \
@@ -393,7 +397,7 @@ kubectl scale deployment/weaviate deployment/embeddings deployment/mcp-code-sear
   -n "$NS" --replicas=1
 
 info "Waiting for rollouts (timeout 3m each)..."
-for dep in jaeger mcp-server mcp-resource-server api-resource-server hitl-service \
+for dep in jaeger mcp-server mcp-resource-server api-resource-server mcp-weather mcp-brave hitl-service \
            llm-proxy tier-manager demo-api-server mcp-gateway agent-service langchain-agent \
            mastra-agent openai-agent pydantic-agent frontend weaviate embeddings \
            mcp-code-search llamaindex-agent; do

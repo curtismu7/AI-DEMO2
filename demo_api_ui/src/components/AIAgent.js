@@ -233,6 +233,22 @@ const RESUME_VERTICAL_WAIT_MS = 8000;
 const AGENT_UNAVAILABLE_MESSAGE =
   "The assistant didn't return a response — the agent service may be unavailable. Check that the agent runtime is running.";
 
+// One plain sentence per SPECIFIC gateway policy reason, keyed by the BFF's
+// `gatewayErrorCode`. Checked BEFORE NL_FAILURE_MESSAGES, because the coarse
+// `error` code is the same (gateway_policy_denied) for every policy deny — so
+// without this the transcript said only "declined by the gateway's
+// authorization policy" and dropped the reason the demo exists to show.
+// Measured live 2026-08-31 (UC31, "what is the weather in Miami, FL"): the BFF
+// returned gatewayErrorCode "weather_scope_denied" and a reply naming the Texas
+// geofence, and the user saw neither.
+//
+// Curated sentences, NOT the backend's own string — the guard below still holds:
+// an unmapped gatewayErrorCode falls through to the coarse map exactly as before.
+const NL_GATEWAY_REASON_MESSAGES = {
+  weather_scope_denied:
+    "The Agent Gateway's demo policy only allows weather lookups inside Texas, so that city was blocked before the tool ran — this is the policy working, not a failure.",
+};
+
 // One plain sentence per BFF failure class, keyed by the code the BFF returns.
 // The agent transcript must never show a raw backend error string, so
 // reportNlFailure resolves through here and falls back to NL_FAILURE_FALLBACK
@@ -7189,9 +7205,16 @@ export default function BankingAgent({
           // the transcript — resolve it to a plain sentence instead. needsParams
           // is excluded: it is also success:false but its reply is the useful
           // "I need: Order ID" clarification, not a backend error string.
+          // Same specific-before-coarse order as the err path below: a tool call
+          // that fails arrives HERE as a response envelope, not a thrown error, so
+          // patching only that path left every gateway deny on this one showing the
+          // coarse sentence. demoAgentLangGraphService spreads gatewayErrorCode onto
+          // the envelope precisely so the UI can name the rule that fired.
           const failureSentence =
             !isHitlBlock && response.success === false && !response.needsParams
-              ? NL_FAILURE_MESSAGES[response.error] || NL_FAILURE_FALLBACK
+              ? NL_GATEWAY_REASON_MESSAGES[response.gatewayErrorCode] ||
+                NL_FAILURE_MESSAGES[response.error] ||
+                NL_FAILURE_FALLBACK
               : null;
           // The badge must name the agent that actually answered — an admin-
           // routed reply labeled CUSTOMER misreads as the wrong agent running.
@@ -7597,7 +7620,11 @@ export default function BankingAgent({
     // missing code) falls back to the generic one rather than echoing
     // err.message, which is how "Could not parse: ❌ Gateway policy denied the
     // tool call" reached the transcript.
+    // gatewayErrorCode names WHICH policy rule fired; err.code/err.error only say
+    // that one did. Specific first, so a policy demo shows the reason it is
+    // demonstrating; unmapped codes still land on the coarse sentence.
     const friendly =
+      NL_GATEWAY_REASON_MESSAGES[err?.gatewayErrorCode] ||
       NL_FAILURE_MESSAGES[err?.code] ||
       NL_FAILURE_MESSAGES[err?.error] ||
       NL_FAILURE_FALLBACK;
@@ -9890,6 +9917,9 @@ export default function BankingAgent({
                   </div>
                 }
               >
+                {/* dm-scroll: `dm-body` is bare by contract — no padding, so the
+                    rounded banner card sat flush against the panel edge. */}
+                <div className="dm-scroll">
                 <div className="ba-consent-denied-banner" role="alert">
                   <div className="ba-consent-denied-banner__text">
                     <strong>Access denied.</strong> You declined a high-value
@@ -9897,6 +9927,7 @@ export default function BankingAgent({
                     assistant is paused while this notice is open — dismiss it to
                     keep using the assistant.
                   </div>
+                </div>
                 </div>
               </DraggableModal>
             )}
@@ -12170,7 +12201,8 @@ export default function BankingAgent({
           </div>
         }
       >
-        <div className="ba-user-filter">
+        {/* dm-scroll: `dm-body` is bare by contract — no padding, no scroll. */}
+        <div className="dm-scroll ba-user-filter">
           <p>{copy.intro}</p>
           <label htmlFor="pingone-user-filter">{copy.label}</label>
           <input

@@ -92,6 +92,9 @@ function getClientSession(req) {
       // file used exclusively before tonight.
       eventStream: { controller: null, active: false, disabled: false },
       pendingAuth: null,
+      // Privilege console credentials, pasted by the operator. In-memory for the
+      // life of this session only — never persisted and never sent to the client.
+      console: null,
     });
   }
   const session = clientSessions.get(sid);
@@ -837,6 +840,25 @@ function toInternalAs(url) {
 }
 
 /**
+ * Is this authorization endpoint served by the demo's OWN Agent Gateway broker?
+ *
+ * AGENT_GATEWAY_BROKER_CLIENT_ID names a client pre-registered on that broker
+ * and nowhere else. Applying it to every self-advertising AS handed the
+ * Privilege agentless gateway a client_id it has never heard of — PingOne
+ * Privilege answered `unknown_client` and agentless sign-in was impossible.
+ * Only the broker's own doors get the pre-registered client; every other
+ * self-advertising gateway keeps the DCR path, which is what Privilege's
+ * mcpgw wants (POST /<app>/register returns a fresh client, verified live).
+ */
+function isAgentGatewayBrokerAs(uri) {
+  const origins = [
+    process.env.MCP_FACADE_AGENT_GATEWAY_AS || 'http://localhost:3005',
+    process.env.MCP_FACADE_AGENT_GATEWAY_AS_INTERNAL,
+  ].filter(Boolean).map((u) => { try { return new URL(u).origin; } catch { return null; } });
+  try { return origins.includes(new URL(uri).origin); } catch { return false; }
+}
+
+/**
  * The inverse of toInternalAs, for the one URL the BROWSER has to follow.
  *
  * The broker builds its RFC 8414 document from the Host it was reached on, so
@@ -1074,7 +1096,7 @@ async function beginOAuthFlow(session, req) {
   // unauthenticated. This relay is server-side with a non-loopback callback and
   // needs the door's own scope, so it cannot be a dynamic client at all.
   const brokerClientId = process.env.AGENT_GATEWAY_BROKER_CLIENT_ID;
-  if (selfAdvertised && brokerClientId) {
+  if (selfAdvertised && brokerClientId && isAgentGatewayBrokerAs(authorizationUri)) {
     clientId = brokerClientId;
     // dcrClientId is "the client this flow actually used" — the token exchange
     // reads it and falls back to session.config.clientId (the PingOne app).
@@ -1502,38 +1524,171 @@ router.post('/auth/logout', (req, res) => {
 });
 
 // GET /sessions — list Privilege console applications using the stored PingOne token
-router.get('/sessions', async (req, res) => {
+// ---------------------------------------------------------------------------
+// Privilege console API — applications (the doors) and pacpolicys (the grants)
+//
+// The old GET /sessions sent the MCP gateway's OAuth token here and could never
+// work. Two facts, both probed live 2026-08-31, explain what it needed instead:
+//
+//   GET /session-token       no cookie at all -> 200 {"session_id":"<uuid>"}
+//   GET /v1/pacpolicys       junk auth_token  -> 401 "User is not authorized"
+//
+// So `x-procyon-session-id` is a correlation id, not a credential — it is
+// mintable by anyone, and its absence is what produced the misleading
+// 400 "Procyon required header is missing". The ONLY credential is the
+// auth_token cookie from a console browser session (~60 min), which the
+// operator pastes. It lives in this in-memory session and is never logged,
+// echoed back, or persisted.
+// ---------------------------------------------------------------------------
+const CONSOLE_BASE = 'https://console.privilege.pingone.com';
+
+function consoleEnvId() {
+  return process.env.PRIVILEGE_SSO_ENV_ID || process.env.PINGONE_ENVIRONMENT_ID || '';
+}
+
+async function consoleGet(session, path) {
+  const res = await fetch(`${CONSOLE_BASE}${path}`, {
+    headers: {
+      Cookie: `auth_token=${session.console.authToken}`,
+      'x-procyon-session-id': session.console.sessionId,
+      accept: 'application/json',
+    },
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    // Never include the request headers here — they carry the console token.
+    throw Object.assign(new Error(`Console API ${res.status}: ${text.slice(0, 200)}`), { status: res.status });
+  }
+  try { return JSON.parse(text); } catch { throw new Error(`Console API non-JSON from ${path}`); }
+}
+
+// The gateway derives a client route from the APPLICATION NAME — /<name>/mcp
+// (privilege/AGENTLESS-CONFIGURATION.md). FrontEndName is the agent-mode
+// procyon host and is deliberately not used here.
+function doorUrl(gatewayUrl, appName) {
+  try { return `${new URL(gatewayUrl).origin}/${appName}/mcp`; } catch { return null; }
+}
+
+async function consoleInventory(session) {
+  const envId = consoleEnvId();
+  if (!envId) throw new Error('PRIVILEGE_SSO_ENV_ID not configured.');
+  const [appsBody, polBody] = await Promise.all([
+    consoleGet(session, `/api/${envId}/v1/applications?ObjectMeta.Namespace=default`),
+    consoleGet(session, `/api/${envId}/v1/pacpolicys`),
+  ]);
+  const applications = (appsBody.Applications || []).map((app) => {
+    const cfg = app.Spec?.McpAppConfig || {};    // McpAppConfig, NOT MCPAppConfig
+    const name = app.ObjectMeta?.Name || '';
+    return {
+      name,
+      mcpUrl: doorUrl(session.config.mcpUrl, name),
+      frontEndName: cfg.FrontEndName?.Elems?.[0] || null,
+      backends: cfg.Backends?.Elems || [],
+      entryPath: cfg.EntryPath || null,
+      status: app.Status?.McpServerStatus?.Status || '',
+    };
+  });
+  // The pacpolicy Spec schema is undocumented — the Postman collection that
+  // records this endpoint only stringifies it. So rather than guess at field
+  // names, each policy carries its raw Spec and the UI matches on the text.
+  // That is a HEURISTIC ("mentions"), never a claim that a policy grants.
+  const policies = (polBody.PacPolicys || polBody.Items || polBody.items || []).map((p) => ({
+    name: p.ObjectMeta?.Name || '(unnamed)',
+    spec: p.Spec || {},
+  }));
+  return { applications, policies, envId };
+}
+
+// POST /console/connect — { authToken } from the console's auth_token cookie
+router.post('/console/connect', express.json(), async (req, res) => {
   const session = getClientSession(req);
-  if (!session.oauth.accessToken) {
-    return res.status(401).json({ error: 'Not authenticated.' });
-  }
-  const envId = process.env.PRIVILEGE_SSO_ENV_ID || process.env.PINGONE_ENVIRONMENT_ID;
-  if (!envId) {
-    return res.status(500).json({ error: 'PRIVILEGE_SSO_ENV_ID not configured.' });
-  }
-  if (accessTokenExpiring(session)) {
-    await refreshAccessToken(session);
-  }
+  const authToken = String(req.body?.authToken || '').trim();
+  if (!authToken) return res.status(400).json({ error: 'authToken is required.' });
   try {
-    const url = `https://console.privilege.pingone.com/api/${envId}/v1/applications?ObjectMeta.Namespace=default`;
-    let response = await fetch(url, {
-      headers: { Authorization: `Bearer ${session.oauth.accessToken}` },
+    // Mint the correlation id ourselves rather than asking the operator for a
+    // second value — this endpoint needs no authentication.
+    const idRes = await fetch(`${CONSOLE_BASE}/session-token`, {
+      headers: { Cookie: `auth_token=${authToken}` },
     });
-    if (response.status === 401 && await refreshAccessToken(session)) {
-      response = await fetch(url, {
-        headers: { Authorization: `Bearer ${session.oauth.accessToken}` },
-      });
-    }
-    if (!response.ok) {
-      const text = await response.text();
-      return res.status(response.status).json({ error: `Console API ${response.status}: ${text.slice(0, 300)}` });
-    }
-    const data = await response.json();
-    res.json({ applications: data.Applications || [] });
+    const idBody = await idRes.json().catch(() => ({}));
+    const sessionId = idBody.session_id;
+    if (!sessionId) return res.status(502).json({ error: 'Console did not return a session_id.' });
+    session.console = { authToken, sessionId };
+    const inventory = await consoleInventory(session);
+    emitEvent(session, 'relay', { scope: 'console', message: `connected — ${inventory.applications.length} apps, ${inventory.policies.length} policies` });
+    res.json(inventory);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    session.console = null;
+    res.status(err.status === 401 ? 401 : 502).json({ error: err.message });
   }
 });
+
+// GET /console/inventory — re-read with the stored token
+router.get('/console/inventory', async (req, res) => {
+  const session = getClientSession(req);
+  if (!session.console?.authToken) return res.status(401).json({ error: 'No console token. Connect first.' });
+  try {
+    res.json(await consoleInventory(session));
+  } catch (err) {
+    res.status(err.status === 401 ? 401 : 502).json({ error: err.message });
+  }
+});
+
+router.post('/console/disconnect', (req, res) => {
+  getClientSession(req).console = null;
+  res.json({ ok: true });
+});
+
+// A throwaway session that borrows the caller's identity but keeps its own MCP
+// state, so probing another door cannot clobber the live negotiated session
+// (protocol version, mcp-session-id, discovered tools). `_sid` is deliberately
+// shared: probe traffic then shows up in the operator's RELAY LOG, which is the
+// whole point of a diagnostic. eventStream is disabled — a probe must never
+// open a long-lived GET.
+function probeSessionFor(session, mcpUrl) {
+  return {
+    _sid: session._sid,
+    config: { ...session.config, mcpUrl },
+    oauth: session.oauth,
+    gatewayMode: session.gatewayMode,
+    tools: [],
+    toolPolicy: { permitted: [], filtered: [], total: 0 },
+    mcpSession: {
+      era: null, initialized: false, protocolVersion: null, sessionId: null,
+      nextRequestId: 1, capabilities: {}, serverInfo: null, instructions: '',
+    },
+    subscription: { controller: null, active: false },
+    eventStream: { controller: null, active: false, disabled: true },
+    pendingAuth: null,
+    console: null,
+  };
+}
+
+// POST /doors/probe — "denied here; does this identity work anywhere else?"
+// The agentless gateway answers a policy denial with a bare `Forbidden` and
+// logs nothing at all (verified against the pod log), so the only way to tell a
+// missing grant from a wrong door is to try the other doors with the same token.
+router.post('/doors/probe', express.json(), async (req, res) => {
+  const session = getClientSession(req);
+  if (!session.oauth.accessToken) return res.status(401).json({ error: 'Not authenticated.' });
+  const urls = [...new Set((Array.isArray(req.body?.urls) ? req.body.urls : [])
+    .filter((u) => typeof u === 'string' && u))]
+    .filter((u) => u !== session.config.mcpUrl)
+    .slice(0, 12); // bound the fan-out: one gateway round trip each
+  if (urls.length === 0) return res.json({ results: [] });
+  const results = await Promise.all(urls.map(async (url) => {
+    const probe = probeSessionFor(session, url);
+    try {
+      await ensureMcpSessionInitialized(probe);
+      const tools = await listAllMcpPages(probe, 'tools/list', 'tools');
+      return { url, ok: true, tools: tools.length };
+    } catch (err) {
+      return { url, ok: false, status: relayFailureStatus(err), error: String(err.message).slice(0, 200) };
+    }
+  }));
+  res.json({ results });
+});
+
 
 // POST /chat — demo chat with optional LLM routing
 router.post('/chat', express.json(), async (req, res) => {

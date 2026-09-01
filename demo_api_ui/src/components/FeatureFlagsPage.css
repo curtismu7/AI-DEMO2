@@ -1,5 +1,25 @@
 /* banking_api_ui/src/components/FeatureFlagsPage.css */
 
+/* Themed per THEMING.md: colours come from --th-* tokens, so dark mode is
+   inherited from :root[data-theme="dark"] redefining them and there is no
+   prefers-color-scheme block here.
+
+   --ff-accent is page-scoped on purpose. The purple focus/hover accent has no
+   --th-* equivalent, and inventing a global token for one page's chrome would
+   be worse than declaring it here — but it still has to be declared PER THEME,
+   because a single value cannot carry a focus ring on both grounds. */
+:root {
+  --ff-accent: #7c3aed;
+  --ff-accent-soft: #f1ebfd;
+  --ff-accent-ring: rgba(124, 58, 237, 0.28);
+}
+
+:root[data-theme="dark"] {
+  --ff-accent: #a78bfa;
+  --ff-accent-soft: #2a2143;
+  --ff-accent-ring: rgba(167, 139, 250, 0.35);
+}
+
 /* ── Page header extras ──────────────────────────────────────────────────── */
 
 .ff-page-stats {
@@ -18,14 +38,14 @@
 }
 
 .ff-stat--on {
-  background: rgba(34, 197, 94, 0.15);
-  color: #16a34a;
-  border: 1px solid rgba(34, 197, 94, 0.3);
+  background: var(--th-status-success-bg);
+  color: var(--th-status-success);
+  border: 1px solid var(--th-status-success-border);
 }
 .ff-stat--off {
-  background: rgba(100, 116, 139, 0.1);
-  color: #999999;
-  border: 1px solid rgba(100, 116, 139, 0.25);
+  background: var(--th-bg-inset);
+  color: var(--th-text-faint);
+  border: 1px solid var(--th-border-strong);
 }
 
 /* ── Alerts ──────────────────────────────────────────────────────────────── */
@@ -35,19 +55,19 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
+  background: var(--th-status-error-bg);
+  border: 1px solid var(--th-status-error-border);
   border-radius: 10px;
   padding: 12px 16px;
   font-size: 0.88rem;
-  color: #dc2626;
+  color: var(--th-status-error);
   margin-bottom: 20px;
 }
 
 .ff-error__dismiss {
   background: none;
   border: none;
-  color: #dc2626;
+  color: var(--th-status-error);
   cursor: pointer;
   font-size: 1rem;
   padding: 0;
@@ -55,12 +75,12 @@
 }
 
 .ff-saved-toast {
-  background: rgba(34, 197, 94, 0.1);
-  border: 1px solid rgba(34, 197, 94, 0.3);
+  background: var(--th-status-success-bg);
+  border: 1px solid var(--th-status-success-border);
   border-radius: 8px;
   padding: 8px 14px;
   font-size: 0.85rem;
-  color: #15803d;
+  color: var(--th-status-success-text);
   margin-bottom: 16px;
   animation: ff-fade-in 0.2s ease;
 }
@@ -79,7 +99,7 @@
 .ff-loading {
   text-align: center;
   padding: 60px 20px;
-  color: #374151;
+  color: var(--th-text-body);
   font-size: 1rem;
 }
 
@@ -103,20 +123,20 @@
   justify-content: space-between;
   margin-bottom: 14px;
   padding-bottom: 10px;
-  border-bottom: 2px solid #dddddd;
+  border-bottom: 2px solid var(--th-border);
 }
 
 .ff-group__title {
   margin: 0;
   font-size: 1rem;
   font-weight: 800;
-  color: #0f172a;
+  color: var(--th-text);
   letter-spacing: 0.01em;
 }
 
 .ff-group__count {
   font-size: 0.78rem;
-  color: #374151;
+  color: var(--th-text-body);
   font-weight: 500;
 }
 
@@ -129,8 +149,9 @@
 /* ── Flag card ───────────────────────────────────────────────────────────── */
 
 .ff-card {
-  background: #fff;
-  border: 1.5px solid #dddddd;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border: 1.5px solid var(--th-border);
   border-radius: 14px;
   padding: 20px;
   display: flex;
@@ -143,9 +164,10 @@
 }
 
 .ff-card--on {
-  border-color: rgba(37, 99, 235, 0.35);
-  background: linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%);
-  box-shadow: 0 2px 12px rgba(37, 99, 235, 0.08);
+  border-color: var(--th-status-info-border);
+  color: var(--th-text);
+  background: linear-gradient(135deg, var(--th-bg-inset) 0%, var(--th-status-info-bg) 100%);
+  box-shadow: 0 2px 12px var(--th-status-info-bg);
 }
 
 .ff-card__header {
@@ -173,44 +195,68 @@
 }
 
 .ff-badge--on {
-  background: rgba(37, 99, 235, 0.12);
-  color: #2563eb;
+  background: var(--th-status-info-bg);
+  color: var(--th-status-info);
 }
 .ff-badge--off {
-  background: rgba(100, 116, 139, 0.1);
-  color: #999999;
+  background: var(--th-bg-inset);
+  color: var(--th-text-faint);
 }
 .ff-badge--enum {
-  background: rgba(124, 58, 237, 0.1);
-  color: #7c3aed;
+  background: var(--ff-accent-soft);
+  color: var(--ff-accent);
 }
 
 /* ── Enum select ─────────────────────────────────────────────────────────── */
+
+/* Flags whose real control lives on another page (managedOn). */
+.ff-managed-link {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.ff-managed-link:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+.ff-managed-link:focus-visible {
+  outline: 2px solid var(--th-border-strong);
+  outline-offset: 2px;
+}
 
 .ff-enum-select {
   appearance: none;
   -webkit-appearance: none;
   padding: 6px 28px 6px 10px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--th-border-strong);
   border-radius: 6px;
-  background-color: #ffffff;
+  background-color: var(--th-bg-card);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 10px center;
   font-size: 0.85rem;
   font-weight: 600;
-  color: #374151;
+  color: var(--th-text-body);
   cursor: pointer;
   flex-shrink: 0;
   transition: border-color 0.15s;
 }
 .ff-enum-select:hover {
-  border-color: #7c3aed;
+  border-color: var(--ff-accent);
 }
 .ff-enum-select:focus {
   outline: none;
-  border-color: #7c3aed;
-  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
+  border-color: var(--ff-accent);
+  box-shadow: 0 0 0 2px var(--ff-accent-ring);
 }
 .ff-enum-select--saving {
   opacity: 0.6;
@@ -221,13 +267,13 @@
   margin: 0;
   font-size: 1rem;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--th-text);
   line-height: 1.3;
 }
 
 .ff-card__id {
   font-size: 0.72rem;
-  color: #374151;
+  color: var(--th-text-body);
   background: var(--brand-light-gray);
   padding: 2px 6px;
   border-radius: 4px;
@@ -237,10 +283,11 @@
 /* ── Toggle switch ───────────────────────────────────────────────────────── */
 
 .ff-toggle {
+  color: var(--th-text);
   width: 52px;
   height: 28px;
   border-radius: 14px;
-  background: #cccccc;
+  background: var(--th-border-strong);
   border: none;
   cursor: pointer;
   position: relative;
@@ -250,7 +297,8 @@
 }
 
 .ff-toggle--on {
-  background: #2563eb;
+  background: var(--th-status-info);
+  color: var(--th-text-invert);
 }
 
 .ff-toggle:disabled {
@@ -265,7 +313,8 @@
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--th-bg-card);
+  color: var(--th-text);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
   transition: transform 0.2s;
   display: block;
@@ -280,7 +329,7 @@
 .ff-card__desc {
   margin: 0;
   font-size: 0.87rem;
-  color: #666666;
+  color: var(--th-text-muted);
   line-height: 1.55;
 }
 
@@ -289,7 +338,7 @@
   flex-direction: column;
   gap: 4px;
   background: var(--brand-light-gray);
-  border: 1px solid #dddddd;
+  border: 1px solid var(--th-border);
   border-radius: 8px;
   padding: 10px 12px;
 }
@@ -298,7 +347,7 @@
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.06em;
-  color: #374151;
+  color: var(--th-text-body);
   text-transform: uppercase;
 }
 
@@ -310,9 +359,9 @@
 
 .ff-card__warn {
   font-size: 0.8rem;
-  color: #b45309;
-  background: rgba(251, 191, 36, 0.12);
-  border: 1px solid rgba(251, 191, 36, 0.4);
+  color: var(--th-status-warning-text);
+  background: var(--th-status-warning-bg);
+  border: 1px solid var(--th-status-warning-border);
   border-radius: 8px;
   padding: 8px 12px;
   line-height: 1.4;
@@ -320,7 +369,7 @@
 
 .ff-card__docs-link {
   font-size: 0.78rem;
-  color: #2563eb;
+  color: var(--th-status-info);
   text-decoration: none;
   align-self: flex-start;
 }
@@ -345,13 +394,13 @@
 .ff-card__impact-inline {
   margin: 0;
   font-size: 0.8rem;
-  color: #374151;
+  color: var(--th-text-body);
   line-height: 1.4;
 }
 
 .ff-card__saving {
   font-size: 0.75rem;
-  color: #2563eb;
+  color: var(--th-status-info);
   animation: ff-pulse 0.8s ease infinite alternate;
   flex-shrink: 0;
 }
@@ -370,7 +419,7 @@
 .rc-section {
   margin-top: 40px;
   padding-top: 32px;
-  border-top: 2px solid #dddddd;
+  border-top: 2px solid var(--th-border);
 }
 
 .rc-section__header {
@@ -381,27 +430,29 @@
   margin: 0 0 6px;
   font-size: 1rem;
   font-weight: 800;
-  color: #0f172a;
+  color: var(--th-text);
   letter-spacing: 0.01em;
 }
 
 .rc-section__subtitle {
   margin: 0;
   font-size: 0.85rem;
-  color: #374151;
+  color: var(--th-text-body);
   line-height: 1.55;
 }
 
 .rc-section__subtitle code {
-  background: var(--brand-light-gray, #f1f5f9);
+  background: var(--brand-light-gray, var(--th-bg-inset));
+  color: var(--th-text);
   padding: 1px 5px;
   border-radius: 4px;
   font-size: 0.82em;
 }
 
 .rc-card {
-  background: #fff;
-  border: 1.5px solid #dddddd;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border: 1.5px solid var(--th-border);
   border-radius: 14px;
   padding: 20px 24px;
   max-width: 560px;
@@ -419,7 +470,7 @@
 
 .rc-label {
   font-weight: 700;
-  color: #374151;
+  color: var(--th-text-body);
   min-width: 120px;
   flex-shrink: 0;
 }
@@ -432,15 +483,15 @@
 }
 
 .rc-status--set {
-  background: rgba(34, 197, 94, 0.1);
-  color: #15803d;
-  border: 1px solid rgba(34, 197, 94, 0.25);
+  background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
+  border: 1px solid var(--th-status-success-border);
 }
 
 .rc-status--unset {
-  background: rgba(100, 116, 139, 0.1);
-  color: #374151;
-  border: 1px solid rgba(100, 116, 139, 0.2);
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
+  border: 1px solid var(--th-border-strong);
 }
 
 .rc-form {
@@ -448,7 +499,7 @@
   flex-direction: column;
   gap: 12px;
   padding-top: 4px;
-  border-top: 1px solid #eeeeee;
+  border-top: 1px solid var(--th-border);
 }
 
 .rc-field {
@@ -460,17 +511,17 @@
 .rc-field__label {
   font-size: 0.78rem;
   font-weight: 700;
-  color: #374151;
+  color: var(--th-text-body);
   letter-spacing: 0.02em;
 }
 
 .rc-field__input {
   padding: 8px 12px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--th-border-strong);
   border-radius: 6px;
   font-size: 0.87rem;
-  color: #0f172a;
-  background: #fff;
+  color: var(--th-text);
+  background: var(--th-bg-card);
   transition: border-color 0.15s;
   width: 100%;
   box-sizing: border-box;
@@ -478,8 +529,8 @@
 
 .rc-field__input:focus {
   outline: none;
-  border-color: #7c3aed;
-  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.15);
+  border-color: var(--ff-accent);
+  box-shadow: 0 0 0 2px var(--ff-accent-soft);
 }
 
 .rc-form__footer {
@@ -491,8 +542,8 @@
 
 .rc-save-btn {
   padding: 8px 22px;
-  background: #2563eb;
-  color: #fff;
+  background: var(--th-status-info);
+  color: var(--th-bg-card);
   border: none;
   border-radius: 6px;
   font-size: 0.87rem;
@@ -503,7 +554,8 @@
 }
 
 .rc-save-btn:hover:not(:disabled) {
-  background: #1d4ed8;
+  background: var(--th-status-info-text);
+  color: var(--th-text-invert);
 }
 
 .rc-save-btn:disabled {
@@ -517,11 +569,11 @@
 }
 
 .rc-result--ok {
-  color: #15803d;
+  color: var(--th-status-success-text);
 }
 
 .rc-result--err {
-  color: #dc2626;
+  color: var(--th-status-error);
 }
 
 /* ── Footer ──────────────────────────────────────────────────────────────── */
@@ -529,14 +581,14 @@
 .ff-footer {
   margin-top: 32px;
   padding-top: 20px;
-  border-top: 1px solid #dddddd;
+  border-top: 1px solid var(--th-border);
   font-size: 0.82rem;
-  color: #374151;
+  color: var(--th-text-body);
   line-height: 1.6;
 }
 
 .ff-footer a {
-  color: #2563eb;
+  color: var(--th-status-info);
   text-decoration: none;
 }
 

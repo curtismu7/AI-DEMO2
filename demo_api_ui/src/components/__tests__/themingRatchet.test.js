@@ -22,8 +22,16 @@ import path from 'node:path';
 // 190 at the time this guard was written; 189 after ExchangeModeToggle.css
 // picked up its first --th-* token in the same commit; 182 after the THEMING.md
 // §4 Priority 0 pass cleared the OS-keyed @media (prefers-color-scheme: dark)
-// blocks, which took seven files onto --th-* or [data-theme="dark"] with them.
-const MAX_UNTHEMED = 182;
+// blocks, which took seven files onto --th-* or [data-theme="dark"] with them;
+// 181 after PrivilegeMcpClientPage.css took its first --th-* tokens with the
+// AI Gateway tool-discovery spinner.
+// 181 -> 180: FeatureFlagsPage.css. It first crossed this line on one rule
+// (.ff-managed-link) — which is worth knowing, because the detector counts a
+// file as themed once it uses ANY --th-* token, so a single converted rule can
+// move the count while the file is still almost entirely literals. That was
+// true here for exactly one commit; the file is now fully converted, so the
+// count and the reality agree again. Treat a one-rule drop with suspicion.
+const MAX_UNTHEMED = 180;
 
 const SRC = path.join(__dirname, '..', '..');
 

@@ -66,6 +66,14 @@ describe("SessionReauthBanner", () => {
     expect(screen.getByText(/come back to this page/i)).toBeInTheDocument();
   });
 
+  // Goes RED if the `dm-scroll` wrapper is dropped again. `dm-body` carries no
+  // padding and no scroll by contract, so bare children sit flush against the
+  // panel edge and the modal reads as unstyled.
+  it("puts the body in dm-scroll so it gets the modal's padding", () => {
+    render(<SessionReauthBanner message="expired" role="customer" onDismiss={() => {}} />);
+    expect(screen.getByText("expired").closest(".dm-scroll")).not.toBeNull();
+  });
+
   it("passes the current path as returnTo when signing in", () => {
     window.history.pushState({}, "", "/agent-gateway-inspector");
     render(<SessionReauthBanner message="expired" role="customer" onDismiss={() => {}} />);

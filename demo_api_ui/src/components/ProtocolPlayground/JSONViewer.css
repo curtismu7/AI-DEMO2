@@ -28,19 +28,19 @@
 }
 
 .protocol-playground.dark .json-string {
-  color: #86efac;
+  color: #009900;
 }
 
 .json-number {
-  color: #fbbf24;
+  color: #cc6600;
 }
 
 .json-boolean {
-  color: #60a5fa;
+  color: #993399;
 }
 
 .json-null {
-  color: #a78bfa;
+  color: #666666;
 }
 
 .json-brace,
@@ -62,13 +62,13 @@
    not to "fix" the --pp-* family this file reads elsewhere. Each value is just
    the lighter twin of the rule above it, for a dark ground. */
 :root[data-theme="dark"] .json-number {
-  color: #fcd34d;
+  color: #cc6600;
 }
 
 :root[data-theme="dark"] .json-boolean {
-  color: #93c5fd;
+  color: #993399;
 }
 
 :root[data-theme="dark"] .json-null {
-  color: #c4b5fd;
+  color: #666666;
 }

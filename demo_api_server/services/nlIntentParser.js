@@ -279,6 +279,25 @@ function extractIntentAndConfidence(message) {
   if (/\bsubmit\b.*\bexpenses?\b/.test(t))
     return { intent: "submit_expense", toolName: "submit_expense", confidence: 0.9 };
 
+  // Showcase chips (UC30/UC31 weather, UC24 branch hours). Same defect class as
+  // the writes above: without these the prompt classifies as "unknown", the
+  // intent token's permitted_tools falls back to the vertical's read-only list,
+  // and PingGateway P1AZ denies with
+  //   intent_mismatch: tool "get_weather" not permitted for intent "unknown"
+  // before the request ever reaches the Texas geofence it is meant to prove.
+  // PR #2440 already grants exactly these tools in INTENT_TO_PERMITTED_TOOLS —
+  // the intent label just never got produced. Must precede the reads: "branch
+  // hours" would otherwise be swallowed by the accounts/transactions branches.
+  if (/\bweather\b/.test(t))
+    return { intent: "get_weather", toolName: "get_weather", confidence: 0.9 };
+  // UC41/UC42 brave-mcp, same defect class: without this the prompt classifies
+  // as "unknown" and P1AZ denies with intent_mismatch before the request ever
+  // reaches the content blocklist it exists to prove.
+  if (/\bsearch\b(?:\s+the\s+(?:news|web))?\s+for\b/.test(t))
+    return { intent: "brave_news_search", toolName: "brave_news_search", confidence: 0.9 };
+  if (/\bbranch\b.*\bhours?\b|\bhours?\b.*\bbranch\b/.test(t))
+    return { intent: "get_branch_hours", toolName: "get_branch_hours", confidence: 0.9 };
+
   // Balance/accounts: "show my X balance" or "check my X"
   const balanceMatch = /\b(balance|how much|what.*balance)\b/.test(t);
   if (balanceMatch)
@@ -1053,6 +1072,30 @@ function parseHeuristic(
       banking: {
         action: "weather",
         params: { city_name: weatherCityMatch[1].trim() },
+      },
+    };
+  }
+
+  // brave-mcp showcase (cross-vertical), same shape as weather above: a real
+  // third-party MCP server fronted by the Agent Gateway, which applies a
+  // crypto-term content blocklist at the edge (tx-brave-scope.groovy). Without
+  // a branch HERE the chip is dead on arrival — the intent resolves to
+  // "unknown" and the gateway denies with intent_mismatch no matter what
+  // INTENT_TO_PERMITTED_TOOLS says, which is what authz:verify reports as
+  // action "<none>".
+  //
+  // Requires an explicit "search ... for <query>" clause and reads the query
+  // from the ORIGINAL message, not norm(): the blocklist is a substring match
+  // on the query the gateway receives, so normalisation must not reshape it.
+  const braveQueryMatch = String(message || "").match(
+    /\bsearch\b(?:\s+the\s+(?:news|web))?\s+for\s+(.+)$/i,
+  );
+  if (braveQueryMatch?.[1]) {
+    return {
+      kind: "banking",
+      banking: {
+        action: "brave_search",
+        params: { query: braveQueryMatch[1].trim() },
       },
     };
   }

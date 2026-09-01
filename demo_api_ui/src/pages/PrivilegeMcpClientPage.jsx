@@ -10,6 +10,41 @@ import PrivilegeMcpLearningPage from './PrivilegeMcpLearningPage';
 import './PrivilegeMcpClientPage.css';
 
 const API_BASE = '/api/privilege-mcp';
+// An empty Explorer panel reads as a failed fetch. Usually it is not: the BFF
+// only issues prompts/list or resources/list when the server advertised that
+// capability in its initialize response, so an empty panel most often means the
+// server has none to give. Say which of the two it is.
+// The banking backend, for example, advertises only {tools, logging}.
+// The agentless gateway routes on the application name: /<door>/mcp.
+function doorName(mcpUrl) {
+  try { return new URL(mcpUrl).pathname.split('/').filter(Boolean)[0] || null; } catch { return null; }
+}
+
+// Every string value anywhere in an undocumented object.
+function specStrings(value, out = []) {
+  if (typeof value === 'string') out.push(value.toLowerCase());
+  else if (Array.isArray(value)) value.forEach((v) => specStrings(v, out));
+  else if (value && typeof value === 'object') Object.values(value).forEach((v) => specStrings(v, out));
+  return out;
+}
+
+// The pacpolicy Spec schema is undocumented, so we do NOT parse it — we compare
+// against whole string values inside it. Whole values, not substrings: the door
+// "cmuir" is a substring of the principal "cmuir+demo@pingone.com", so
+// JSON.stringify(...).includes() marked every policy as mentioning every door.
+// This says a policy MENTIONS a name, never that it grants access — the UI
+// wording has to stay that careful or it states something it cannot know.
+function policyMentions(policy, needle) {
+  if (!needle) return false;
+  return specStrings(policy.spec || {}).includes(String(needle).toLowerCase());
+}
+
+function capabilityNote(declared, kind) {
+  return declared
+    ? `Server advertises ${kind} but returned none.`
+    : `Server does not advertise ${kind}.`;
+}
+
 const MCP_METHOD_TEMPLATES = {
   'resources/read': { uri: '' },
   'prompts/get': { name: '', arguments: {} },
@@ -33,12 +68,6 @@ function api(path, options = {}) {
   });
 }
 
-
-// FrontEndName may already carry its registered port (e.g. "host:8643") —
-// appending a fixed :8643 again produces a malformed "host:8643:8643" URL.
-function frontEndMcpUrl(frontEnd) {
-  return /:\d+$/.test(frontEnd) ? `https://${frontEnd}/mcp` : `https://${frontEnd}:8643/mcp`;
-}
 
 function scopeColor(scope) {
   if (scope.startsWith('mcp:')) return 'scope-mcp';
@@ -90,6 +119,10 @@ export default function PrivilegeMcpClientPage() {
   const [user, setUser] = useState(null);
   const [grantedScopes, setGrantedScopes] = useState([]);
   const [tools, setTools] = useState([]);
+  // Discovery goes out to the AI Gateway, which can take several seconds before
+  // it returns a tool list. Without a visible wait state the sidebar just reads
+  // "No tools discovered yet" the whole time, which looks like a failure.
+  const [toolsLoading, setToolsLoading] = useState(false);
   const [toolPolicy, setToolPolicy] = useState({ total: 0, permitted: 0, filtered: 0, filteredTools: [] });
   const [mcpCatalog, setMcpCatalog] = useState({ prompts: [], resources: [], resourceTemplates: [] });
   const [mcpProtocol, setMcpProtocol] = useState(null);
@@ -106,6 +139,25 @@ export default function PrivilegeMcpClientPage() {
   const [rawRpc, setRawRpc] = useState('{\n  "jsonrpc": "2.0",\n  "id": 1,\n  "method": "tools/list",\n  "params": {}\n}');
   const [rawRpcResult, setRawRpcResult] = useState('');
   const [showBlockedModal, setShowBlockedModal] = useState(false);
+  // The gateway answers a policy denial with a bare "Forbidden" and writes
+  // nothing to its own log, so the modal has to assemble its own evidence:
+  // the door and identity we already know, plus a live probe of the other doors.
+  // Only the upstream error is captured here — the door is derived at RENDER
+  // time (deniedDoor, below) because refreshTools closes over `config` from the
+  // render that defined it, which on the auth=success remount is still the
+  // empty default. Storing it here printed Door "(unknown)" in every live
+  // denial; no amount of effect reordering fixes a stale closure.
+  const [blockedDetail, setBlockedDetail] = useState(null);
+  const [doorProbe, setDoorProbe] = useState({ running: false, results: null });
+  // Privilege console inventory — only populated once an auth_token is pasted.
+  const [consoleToken, setConsoleToken] = useState('');
+  const [consoleData, setConsoleData] = useState(null);
+  const [consoleBusy, setConsoleBusy] = useState(false);
+  const [consoleError, setConsoleError] = useState(null);
+  // Derived every render, so it reflects the config the page actually holds by
+  // the time the denial modal paints — not whatever was in scope when the 403
+  // arrived. See the blockedDetail comment above.
+  const deniedDoor = doorName(config.mcpUrl);
   const [showSignInModal, setShowSignInModal] = useState(false);
   const [showFlowModal, setShowFlowModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -113,9 +165,6 @@ export default function PrivilegeMcpClientPage() {
   const [toolSearch, setToolSearch] = useState('');
   const [activeTab, setActiveTab] = useState('chat');
   const [showPresent, setShowPresent] = useState(false);
-  const [sessions, setSessions] = useState([]);
-  const [sessionsLoading, setSessionsLoading] = useState(false);
-  const [sessionsError, setSessionsError] = useState(null);
   const jumpedToToolsRef = useRef(false);
   const silentAuthAttempted = useRef(false);
   const [silentAuthPending, setSilentAuthPending] = useState(false);
@@ -221,7 +270,6 @@ export default function PrivilegeMcpClientPage() {
   useEffect(() => () => { dragCleanupRef.current?.(); }, []);
 
   useEffect(() => {
-    if (activeTab === 'sessions' && authenticated) loadSessions();
   }, [activeTab, authenticated]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Scroll the message list itself, never the window: scrollIntoView() walked up
@@ -261,10 +309,25 @@ export default function PrivilegeMcpClientPage() {
         refreshTools(true);
       }
       // Auto-connect Privilege using the active PingOne session when the main app
-      // is already logged in — prompt=none on the BFF means PingOne returns silently.
-       if (s.gatewayMode !== 'agent' && s.mainAppAuthenticated && !s.oauth?.authenticated) {
-         setShowSignInModal(true);
-       }
+      // is already logged in. The gateway is its own Authorization Server, so the
+      // banking token can never be reused directly — but prompt=none on the BFF
+      // (see privilegeMcpClient.js beginOAuthFlow) completes off the existing
+      // PingOne session, so this costs one redirect and no login page.
+      //
+      // NEVER auto-retry once an attempt has already come back: by then the BFF
+      // has set privilegePromptNoneFailed, so a second /auth/start drops the user
+      // on a real PingOne login page they never asked for. Any `auth` param means
+      // we are returning from a round trip — hand back to the modal instead.
+      if (s.gatewayMode !== 'agent' && s.mainAppAuthenticated && !s.oauth?.authenticated) {
+        if (searchParams.get('auth')) {
+          setShowSignInModal(true);
+        } else {
+          setSilentAuthPending(true);
+          api('/auth/start', { method: 'POST' })
+            .then((data) => { window.location.href = data.authUrl; })
+            .catch(() => { setSilentAuthPending(false); setShowSignInModal(true); });
+        }
+      }
 
     }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -297,8 +360,15 @@ export default function PrivilegeMcpClientPage() {
           window.dispatchEvent(new CustomEvent('userAuthenticated'));
         }
         if (s.oauth?.scope) setGrantedScopes(s.oauth.scope.split(' ').filter(Boolean));
-      }).catch(() => {});
-      refreshTools().finally(clearSwitching);
+      })
+        // Discover only AFTER /state has landed. These used to run
+        // concurrently, so a 403 arriving first was rendered against an empty
+        // config: the denial modal said Door "(unknown)" and the door probe had
+        // no presets to try — the two facts the modal exists to supply. Caught
+        // by the live drive; unit tests seed state before rendering and cannot
+        // see it. .catch keeps discovery running even if /state fails.
+        .catch(() => {})
+        .then(() => refreshTools().finally(clearSwitching));
     } else {
       // Stale switch flag (auth error, silent_failed, or back-button out of the
       // redirect) — never leave the overlay stuck.
@@ -405,6 +475,7 @@ export default function PrivilegeMcpClientPage() {
   };
 
   const refreshTools = async (silent = false) => {
+    setToolsLoading(true);
     try {
       const data = await api('/tools/list', { method: 'POST' });
       const nextTools = data.tools || [];
@@ -431,40 +502,116 @@ export default function PrivilegeMcpClientPage() {
         err.message?.toLowerCase().includes("doesn't have access") ||
         err.message?.toLowerCase().includes('does not have access')
       ) {
+        setBlockedDetail({ upstream: err.message });
         setShowBlockedModal(true);
         if (!silent) appendChat('system', 'Access blocked by policy.');
         return;
       }
       if (!silent) appendChat('system', `Refresh failed: ${err.message}`);
-    }
-  };
-
-  const loadSessions = async () => {
-    setSessionsLoading(true);
-    setSessionsError(null);
-    try {
-      const data = await api('/sessions');
-      setSessions(data.applications || []);
-    } catch (err) {
-      setSessionsError(err.message);
     } finally {
-      setSessionsLoading(false);
+      // finally, not a trailing line — the 403 branch returns early.
+      setToolsLoading(false);
     }
   };
 
-  const selectSession = async (app) => {
-    const frontEnd = app.Spec?.McpAppConfig?.FrontEndName?.Elems?.[0];
-    if (!frontEnd) return;
-    const mcpUrl = frontEndMcpUrl(frontEnd);
+  const connectConsole = async () => {
+    const authToken = consoleToken.trim();
+    if (!authToken) return;
+    setConsoleBusy(true);
+    setConsoleError(null);
+    try {
+      const data = await api('/console/connect', { method: 'POST', body: { authToken } });
+      setConsoleData(data);
+      setConsoleToken('');   // the BFF holds it now; don't keep a copy in the DOM
+    } catch (err) {
+      setConsoleError(err.message);
+      setConsoleData(null);
+    } finally {
+      setConsoleBusy(false);
+    }
+  };
+
+  const refreshConsole = async () => {
+    setConsoleBusy(true);
+    setConsoleError(null);
+    try {
+      setConsoleData(await api('/console/inventory'));
+    } catch (err) {
+      setConsoleError(err.message);
+    } finally {
+      setConsoleBusy(false);
+    }
+  };
+
+  const disconnectConsole = async () => {
+    await api('/console/disconnect', { method: 'POST' }).catch(() => {});
+    setConsoleData(null);
+    setConsoleError(null);
+  };
+
+  const switchDoor = async (mcpUrl) => {
     const next = { ...config, mcpUrl };
     try {
       await api('/config', { method: 'POST', body: next });
       setConfig(next);
-      appendChat('system', `Switched to policy: ${app.ObjectMeta?.Name || frontEnd}`);
+      setShowBlockedModal(false);
+      appendChat('system', `Switched to door: ${doorName(mcpUrl) || mcpUrl}`);
+      refreshTools(true);
     } catch (err) {
-      appendChat('system', `Failed to switch policy: ${err.message}`);
+      appendChat('system', `Failed to switch door: ${err.message}`);
     }
   };
+
+  // Every agentless door we know of: what the console reports when a token is
+  // connected, falling back to the configured presets when one is not.
+  //
+  // includeCurrent splits the two callers. The denial probe wants "somewhere
+  // ELSE to try", so it excludes the door that just failed. The header picker
+  // has to include it, or the control cannot show what is currently selected.
+  const knownDoors = (includeCurrent = false) => {
+    const fromConsole = (consoleData?.applications || []).map((a) => a.mcpUrl).filter(Boolean);
+    const fromPresets = presets.filter((p) => p.mode === 'agentless').map((p) => p.url);
+    const all = [...new Set([...fromConsole, ...fromPresets, ...(includeCurrent ? [config.mcpUrl] : [])])];
+    return all.filter((u) => u && (includeCurrent || u !== config.mcpUrl));
+  };
+
+  // Doors on the CURRENT gateway only — what /<door>/mcp actually means.
+  //
+  // The agentless preset list also carries the audit facade
+  // (http://localhost:3002/mcp-facade/audit/mcp), which is this demo's own
+  // door, not a Privilege application: different host, and doorName() renders
+  // it as the meaningless "mcp-facade". Offering it in a Privilege door picker
+  // would misdescribe what switching does. The denial probe still tries it —
+  // there "is there anywhere else this identity works" is a fair question.
+  const sameGatewayDoors = () => {
+    let origin;
+    try { origin = new URL(config.mcpUrl).origin; } catch { return []; }
+    return knownDoors(true).filter((u) => {
+      try { return new URL(u).origin === origin; } catch { return false; }
+    });
+  };
+
+  const probeDoors = async () => {
+    const urls = knownDoors();
+    if (urls.length === 0) { setDoorProbe({ running: false, results: [] }); return; }
+    setDoorProbe({ running: true, results: null });
+    try {
+      const data = await api('/doors/probe', { method: 'POST', body: { urls } });
+      setDoorProbe({ running: false, results: data.results || [] });
+    } catch (err) {
+      setDoorProbe({ running: false, results: [], error: err.message });
+    }
+  };
+
+  // Probe as soon as the denial modal opens: the answer to "is my grant missing
+  // or am I on the wrong door?" is the first thing anyone wants, and the gateway
+  // will not say. Reset on close so a later denial re-probes rather than showing
+  // a stale verdict.
+  useEffect(() => {
+    if (showBlockedModal) probeDoors();
+    else setDoorProbe({ running: false, results: null });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showBlockedModal]);
 
   const sendChat = async () => {
     const prompt = chatInput.trim();
@@ -651,7 +798,11 @@ export default function PrivilegeMcpClientPage() {
         <div className="cur-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="cur-signin-title">
           <div className="cur-modal">
             <h2 id="cur-signin-title">Sign in to continue</h2>
-            <p>Your app session is not authorized for this gateway yet. Sign in with the app account to continue.</p>
+            <p>
+              This gateway is its own authorization server, so it issues its own token
+              rather than reusing your app session. Silent sign-in did not complete, so
+              this one may ask for your credentials.
+            </p>
             <div className="cur-btn-row">
               <button className="cur-btn cur-btn--primary" onClick={async () => {
                 setShowSignInModal(false);
@@ -673,12 +824,57 @@ export default function PrivilegeMcpClientPage() {
         <div className="cur-modal-overlay" onClick={() => setShowBlockedModal(false)}>
           <div className="cur-modal" onClick={(e) => e.stopPropagation()}>
             <h2>Access Denied</h2>
-            <p>You are blocked per policy — please login to{' '}
-              <a href="https://console.login.privilege.pingone.com/?env=01d89b06-66d5-430e-9f28-65636843788b" target="_blank" rel="noreferrer">Ping Identity AI Gateway</a>
-              {' '}to request access.
+            <dl className="cur-denial-facts">
+              <dt>Door</dt><dd>{deniedDoor || '(unknown)'}</dd>
+              <dt>Identity</dt><dd>{user?.email || '(unknown)'}</dd>
+              <dt>Gateway said</dt><dd>{blockedDetail?.upstream || '403 Forbidden'}</dd>
+            </dl>
+            <p className="cur-denial-note">
+              The gateway does not disclose which policy denied this — it returns a bare
+              403 and logs nothing — so the policy name below cannot be confirmed as the
+              one that blocked you.
+            </p>
+            {consoleData ? (() => {
+              const covering = (consoleData.policies || []).filter((p) => policyMentions(p, deniedDoor));
+              const naming = covering.filter((p) => policyMentions(p, user?.email));
+              return (
+                <p className="cur-denial-note">
+                  {covering.length === 0
+                    ? `No policy mentions "${deniedDoor}". That is the likeliest reason.`
+                    : `Policies mentioning "${deniedDoor}": ${covering.map((p) => p.name).join(', ')}. `
+                      + (naming.length === 0
+                        ? `None of them mention ${user?.email || 'this user'}.`
+                        : `${naming.map((p) => p.name).join(', ')} also mention this user — check the grant has not expired.`)}
+                </p>
+              );
+            })() : (
+              <p className="cur-denial-note">
+                Connect a console token in the Policies tab to see which policies cover this door.
+              </p>
+            )}
+            {doorProbe.running && <p className="cur-denial-note">Trying the other doors with this identity...</p>}
+            {doorProbe.results && (
+              <div className="cur-denial-probe">
+                {doorProbe.results.length === 0 && <p className="cur-denial-note">No other doors to try.</p>}
+                {doorProbe.results.map((r) => (
+                  <div key={r.url} className="cur-denial-probe-row">
+                    <span className={r.ok ? 'cur-denial-ok' : 'cur-denial-bad'}>{r.ok ? `${r.tools} tools` : (r.status || 'failed')}</span>
+                    <span className="cur-denial-door">{doorName(r.url) || r.url}</span>
+                    {r.ok && <button className="cur-btn" onClick={() => switchDoor(r.url)}>Switch</button>}
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="cur-denial-note">
+              Grant access in the{' '}
+              <a href="https://console.login.privilege.pingone.com/?env=01d89b06-66d5-430e-9f28-65636843788b" target="_blank" rel="noreferrer">Privilege console</a>.
+              Policies are time-boxed — an expired one fails exactly like a missing one.
             </p>
             <div className="cur-btn-row">
               <button className="cur-btn" onClick={() => { setShowBlockedModal(false); refreshTools(); }}>Retry</button>
+              <button className="cur-btn" onClick={probeDoors} disabled={doorProbe.running}>
+                {doorProbe.running ? 'Probing...' : 'Try other doors'}
+              </button>
               <button className="cur-btn cur-btn--primary" onClick={() => setShowBlockedModal(false)}>Dismiss</button>
             </div>
           </div>
@@ -964,6 +1160,27 @@ export default function PrivilegeMcpClientPage() {
               <option value="agentless">Agentless</option>
             </select>
           </label>
+          {/* Door picker. Agentless only: an Agent frontend is a single fixed
+              procyon host, so offering a choice there would be a lie. Hidden
+              below two doors — a select with one option is furniture.
+              It picks the DOOR, never a policy: Privilege resolves the policy
+              server-side from (user, door, tool), so a policy control could
+              only mislead about what it does. */}
+          {gatewayMode === 'agentless' && sameGatewayDoors().length > 1 && (
+            <label className="cur-mode-switcher">
+              <span>Door</span>
+              <select
+                aria-label="Privilege MCP application (door)"
+                value={config.mcpUrl || ''}
+                disabled={switching || toolsLoading}
+                onChange={(event) => switchDoor(event.target.value)}
+              >
+                {sameGatewayDoors().map((url) => (
+                  <option key={url} value={url}>{doorName(url) || url}</option>
+                ))}
+              </select>
+            </label>
+          )}
           <FootprintSkinPicker className="cur-skin-picker" />
           <button
             type="button"
@@ -1073,7 +1290,9 @@ export default function PrivilegeMcpClientPage() {
 
             <div className="cur-sidebar-header" style={{ marginTop: 12 }}>
               <span className="cur-sidebar-title">MCP TOOLS</span>
-              <span className="cur-scope-count">{tools.length}</span>
+              {toolsLoading
+                ? <span className="cur-spinner" role="status" aria-label="Discovering tools" />
+                : <span className="cur-scope-count">{tools.length}</span>}
             </div>
             {tools.length > 0 && (
               <input
@@ -1100,10 +1319,21 @@ export default function PrivilegeMcpClientPage() {
                   })}
                 </div>
               ) : <div className="cur-empty-state">No tools match &quot;{toolSearch}&quot;</div>;
-            })() : (
+            })() : toolsLoading ? (
+              <div className="cur-tools-waiting">
+                <span className="cur-spinner" aria-hidden="true" />
+                <span>Waiting for the AI Gateway to return tools...</span>
+              </div>
+            ) : (
               <div className="cur-empty-state">No tools discovered yet</div>
             )}
-            <button className="cur-btn cur-btn--primary cur-btn--refresh" onClick={() => refreshTools(false)}>Refresh Tools</button>
+            <button
+              className="cur-btn cur-btn--primary cur-btn--refresh"
+              onClick={() => refreshTools(false)}
+              disabled={toolsLoading}
+            >
+              {toolsLoading ? 'Discovering...' : 'Refresh Tools'}
+            </button>
           </div>
         </aside>
 
@@ -1116,7 +1346,7 @@ export default function PrivilegeMcpClientPage() {
             <button className={`cur-tab ${activeTab === 'tools' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('tools')}>Tools</button>
             <button className={`cur-tab ${activeTab === 'mcp' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('mcp')}>MCP Explorer</button>
             <button className={`cur-tab ${activeTab === 'rpc' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('rpc')}>Raw RPC</button>
-            <button className={`cur-tab ${activeTab === 'sessions' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('sessions')}>Access</button>
+            <button className={`cur-tab ${activeTab === 'policies' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('policies')}>Policies</button>
           </div>
 
           <div className="cur-editor-area">
@@ -1192,7 +1422,9 @@ export default function PrivilegeMcpClientPage() {
                     <button className="cur-btn" onClick={toggleSubscriptions}>
                       {subscriptionActive ? 'Stop Subscriptions' : 'Listen for Changes'}
                     </button>
-                    <button className="cur-btn" onClick={() => refreshTools(false)}>Rediscover</button>
+                    <button className="cur-btn" onClick={() => refreshTools(false)} disabled={toolsLoading}>
+                      {toolsLoading ? 'Discovering...' : 'Rediscover'}
+                    </button>
                   </div>
                 </div>
                 <div className="cur-mcp-protocol">
@@ -1203,7 +1435,9 @@ export default function PrivilegeMcpClientPage() {
                 <div className="cur-mcp-catalog-grid">
                   <section>
                     <h4>Prompts ({mcpCatalog.prompts.length})</h4>
-                    {mcpCatalog.prompts.map((prompt) => (
+                    {mcpCatalog.prompts.length === 0 ? (
+                      <p className="cur-mcp-empty">{capabilityNote(mcpProtocol?.capabilities?.prompts, 'prompts')}</p>
+                    ) : mcpCatalog.prompts.map((prompt) => (
                       <button key={prompt.name} className="cur-mcp-item" onClick={() => {
                         chooseMcpMethod('prompts/get');
                         setMcpParams(JSON.stringify({ name: prompt.name, arguments: {} }, null, 2));
@@ -1212,7 +1446,9 @@ export default function PrivilegeMcpClientPage() {
                   </section>
                   <section>
                     <h4>Resources ({mcpCatalog.resources.length})</h4>
-                    {mcpCatalog.resources.map((resource) => (
+                    {mcpCatalog.resources.length === 0 ? (
+                      <p className="cur-mcp-empty">{capabilityNote(mcpProtocol?.capabilities?.resources, 'resources')}</p>
+                    ) : mcpCatalog.resources.map((resource) => (
                       <button key={resource.uri} className="cur-mcp-item" onClick={() => {
                         chooseMcpMethod('resources/read');
                         setMcpParams(JSON.stringify({ uri: resource.uri }, null, 2));
@@ -1221,7 +1457,9 @@ export default function PrivilegeMcpClientPage() {
                   </section>
                   <section>
                     <h4>Templates ({mcpCatalog.resourceTemplates.length})</h4>
-                    {mcpCatalog.resourceTemplates.map((template) => (
+                    {mcpCatalog.resourceTemplates.length === 0 ? (
+                      <p className="cur-mcp-empty">{capabilityNote(mcpProtocol?.capabilities?.resources, 'resource templates')}</p>
+                    ) : mcpCatalog.resourceTemplates.map((template) => (
                       <div key={template.uriTemplate} className="cur-mcp-item cur-mcp-item--static">
                         {template.name || template.uriTemplate}
                       </div>
@@ -1273,56 +1511,93 @@ export default function PrivilegeMcpClientPage() {
               </div>
             )}
 
-            {activeTab === 'sessions' && (
-              <div className="cur-sessions-panel">
+            {activeTab === 'policies' && (
+              <div className="cur-rpc-panel">
                 <div className="cur-tools-header">
-                  <h3>Access Sessions</h3>
-                  <button className="cur-btn" onClick={loadSessions} disabled={sessionsLoading}>
-                    {sessionsLoading ? 'Loading…' : 'Refresh'}
-                  </button>
+                  <h3>Privilege Console — doors and policies</h3>
+                  {consoleData && (
+                    <div className="cur-btn-row">
+                      <button className="cur-btn" onClick={refreshConsole} disabled={consoleBusy}>
+                        {consoleBusy ? 'Reading...' : 'Refresh'}
+                      </button>
+                      <button className="cur-btn" onClick={disconnectConsole}>Disconnect</button>
+                    </div>
+                  )}
                 </div>
-                {sessionsError && (
-                  <div className="cur-sessions-error">
-                    <span style={{color:'#ff6b6b'}}>{sessionsError}</span>
-                  </div>
+
+                {!consoleData && (
+                  <>
+                    <p className="cur-denial-note">
+                      The console API lists the MCP applications (the doors this gateway routes
+                      to) and the policies that grant access to them. It authenticates with a
+                      console browser session, not with the gateway token this page already
+                      holds, so it needs one value pasted from the console: the
+                      <code> auth_token </code> cookie. It is held in this session only, is
+                      never written to disk, and expires on its own in about an hour.
+                    </p>
+                    <p className="cur-denial-note">
+                      Privilege console &rarr; DevTools &rarr; Application &rarr; Cookies &rarr;
+                      copy the value of <code>auth_token</code>.
+                    </p>
+                    <label className="cur-field">
+                      <span className="cur-field-label">Console auth_token</span>
+                      <input
+                        className="cur-input"
+                        type="password"
+                        value={consoleToken}
+                        onChange={(e) => setConsoleToken(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') connectConsole(); }}
+                        placeholder="paste the auth_token cookie value"
+                      />
+                    </label>
+                    <button className="cur-btn cur-btn--primary" onClick={connectConsole} disabled={consoleBusy || !consoleToken.trim()}>
+                      {consoleBusy ? 'Connecting...' : 'Connect'}
+                    </button>
+                  </>
                 )}
-                {!sessionsLoading && !sessionsError && sessions.length === 0 && (
-                  <div className="cur-sessions-empty">No access sessions found.</div>
+
+                {consoleError && <p className="cur-denial-note cur-denial-bad">{consoleError}</p>}
+
+                {consoleData && (
+                  <>
+                    <h4 className="cur-console-heading">Doors ({consoleData.applications.length})</h4>
+                    <div className="cur-console-list">
+                      {consoleData.applications.map((app) => (
+                        <div key={app.name} className={`cur-console-row${app.mcpUrl === config.mcpUrl ? ' cur-console-row--active' : ''}`}>
+                          <span className="cur-console-name">{app.name}</span>
+                          <span className="cur-console-meta">
+                            {app.backends.join(', ') || 'no backend'}{app.status ? ` · ${app.status}` : ''}
+                          </span>
+                          {app.mcpUrl === config.mcpUrl
+                            ? <span className="cur-console-current">current</span>
+                            : <button className="cur-btn" onClick={() => switchDoor(app.mcpUrl)}>Use</button>}
+                        </div>
+                      ))}
+                    </div>
+
+                    <h4 className="cur-console-heading">Policies ({consoleData.policies.length})</h4>
+                    <p className="cur-denial-note">
+                      The policy Spec schema is undocumented, so these are matched by text
+                      search: &quot;mentions&quot; is not the same as &quot;grants&quot;. Expand a
+                      policy to read what it actually contains.
+                    </p>
+                    <div className="cur-console-list">
+                      {consoleData.policies.map((p) => (
+                        <details key={p.name} className="cur-console-policy">
+                          <summary>
+                            <span className="cur-console-name">{p.name}</span>
+                            {policyMentions(p, doorName(config.mcpUrl)) && <span className="cur-console-tag">mentions this door</span>}
+                            {policyMentions(p, user?.email) && <span className="cur-console-tag">mentions you</span>}
+                          </summary>
+                          <pre className="cur-code-output jh-dark"><JsonHighlight value={p.spec} deep /></pre>
+                        </details>
+                      ))}
+                    </div>
+                  </>
                 )}
-                <div className="cur-sessions-grid">
-                  {sessions.map((app) => {
-                    const name = app.ObjectMeta?.Name || '—';
-                    const cfg = app.Spec?.McpAppConfig || {};
-                    const backendCount = cfg.Backends?.Elems?.length ?? 0;
-                    const principalCount = cfg.Policies?.Elems?.length ?? cfg.Principals?.Elems?.length ?? '?';
-                    const endsAt = app.Spec?.TTL || app.Metadata?.ExpiresAt || null;
-                    const status = app.Status?.McpServerStatus?.Status || '';
-                    const frontEnd = cfg.FrontEndName?.Elems?.[0];
-                    const appMcpUrl = frontEnd ? frontEndMcpUrl(frontEnd) : null;
-                    const isActive = appMcpUrl && config.mcpUrl === appMcpUrl;
-                    return (
-                      <div
-                        key={name}
-                        className={`cur-session-card${isActive ? ' cur-session-card--active' : ''}${appMcpUrl ? ' cur-session-card--selectable' : ''}`}
-                        onClick={appMcpUrl ? () => selectSession(app) : undefined}
-                        title={appMcpUrl ? `Use policy: ${name}` : 'No frontend URL available'}
-                      >
-                        <div className="cur-session-name">
-                          {name}
-                          {isActive && <span className="cur-session-active-badge"> ✓ Active</span>}
-                        </div>
-                        {endsAt && <div className="cur-session-ttl">Ends {endsAt}</div>}
-                        {status && <div className="cur-session-status">{status}</div>}
-                        <div className="cur-session-meta">
-                          <span title="Backends">Backends: {backendCount}</span>
-                          <span title="Principals">Principals: {principalCount}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
               </div>
             )}
+
           </div>
 
           {/* Terminal panel */}

@@ -33,6 +33,26 @@ CI=true npm test -- --forceExit          # full suite
 CI=true npm run test:unit                # core regression, fastest
 ```
 
+**Add `--runInBand` for a full local run.** Measured 2026-08-31 on this 16-core
+host: `--maxWorkers=4` failed ~2 of 11,000 tests on roughly half of all runs,
+`--maxWorkers=2` still failed, and `--runInBand` passed 929/929 clean. The
+failures land in a DIFFERENT random suite each time and are connection-level
+(`ECONNRESET`, `connect ETIMEDOUT`, socket hang up) or a stray `401` — never the
+same test twice, always green in isolation. They are host contention between
+parallel worker processes, not defects, and chasing one wastes an hour. In-band
+costs ~3 extra minutes (454s vs 259s). CI runs on a clean runner, so
+`jest.config.js` keeps 4 workers there deliberately — do not lower it.
+
+**It is NOT the Docker stack** — measured 2026-09-01, correcting the first
+version of this note. All 25 containers together draw **0.13 of 16 cores**
+(busiest: `ai-demo-api-server`, 2.76% of one core). Stopping the demo to get a
+clean test run buys nothing. The real floor is I/O, not CPU: the idle host sits
+at load ~12 with only ~17% CPU and 1,200–3,500 disk transactions/sec, because
+Code42 backup, Jamf/JamfProtect/ManagedClient and Spotlight (`mds`) scan the
+filesystem continuously. Load average counts those blocked threads, which is why
+a machine that looks busy is mostly waiting. Disk and memory are fine (71% used,
+59% free) — this is not the 2026-07 disk-full problem.
+
 **`CI=true` is mandatory.** Without it supertest suites flake and a green run
 proves nothing. Running jest from a worktree needs **no** flags — `jest.config.js`
 detects a worktree and drops its own excludes (PR #950). Do **not** pass

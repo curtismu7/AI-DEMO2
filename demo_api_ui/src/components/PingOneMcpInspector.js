@@ -45,6 +45,7 @@ const PingOneMcpInspector = ({ user, onLogout }) => {
   const [lastCall, setLastCall] = useState(null);
   const [formError, setFormError] = useState(null);
   const [outputTab, setOutputTab] = useState('response');
+  const [outputFontSize, setOutputFontSize] = useState(13);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -255,19 +256,26 @@ const PingOneMcpInspector = ({ user, onLogout }) => {
 
         {/* Column 3: Output */}
         <div className="p1mcp-col-output">
-          <div className="p1mcp-output-tabs">
-            <button
-              className={`p1mcp-output-tab ${outputTab === 'response' ? 'p1mcp-output-tab--active' : ''}`}
-              onClick={() => setOutputTab('response')}
-            >Response</button>
-            <button
-              className={`p1mcp-output-tab ${outputTab === 'request' ? 'p1mcp-output-tab--active' : ''}`}
-              onClick={() => setOutputTab('request')}
-            >Request</button>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333' }}>
+            <div className="p1mcp-output-tabs">
+              <button
+                className={`p1mcp-output-tab ${outputTab === 'response' ? 'p1mcp-output-tab--active' : ''}`}
+                onClick={() => setOutputTab('response')}
+              >Response</button>
+              <button
+                className={`p1mcp-output-tab ${outputTab === 'request' ? 'p1mcp-output-tab--active' : ''}`}
+                onClick={() => setOutputTab('request')}
+              >Request</button>
+            </div>
+            <div style={{ display: 'flex', gap: '6px', padding: '8px 12px' }}>
+              <button onClick={() => setOutputFontSize(Math.max(10, outputFontSize - 1))} style={{ padding: '4px 8px', fontSize: '12px', cursor: 'pointer', border: '1px solid #555', background: '#222', borderRadius: '4px', color: '#ccc' }}>−</button>
+              <span style={{ fontSize: '12px', minWidth: '30px', textAlign: 'center', lineHeight: '1.5', color: '#ccc' }}>{outputFontSize}px</span>
+              <button onClick={() => setOutputFontSize(Math.min(20, outputFontSize + 1))} style={{ padding: '4px 8px', fontSize: '12px', cursor: 'pointer', border: '1px solid #555', background: '#222', borderRadius: '4px', color: '#ccc' }}>+</button>
+            </div>
           </div>
           {lastCall ? (
             <>
-              <div className="p1mcp-output-body">
+              <div className="p1mcp-output-body" style={{ fontSize: `${outputFontSize}px` }}>
                 <pre className="p1mcp-output-code">
                   <JsonHighlight
                     value={outputTab === 'response' ? lastCall.response : lastCall.request}

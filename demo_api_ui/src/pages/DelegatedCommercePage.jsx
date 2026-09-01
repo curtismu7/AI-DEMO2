@@ -64,6 +64,8 @@ function ConsentModal({ open, scopes, onScopesChange, onClose, onConfirm, busy }
         </div>
       }
     >
+      {/* dm-scroll: `dm-body` is bare by contract — no padding, no scroll. */}
+      <div className="dm-scroll">
       <p className="dc-modal-copy">
         This agent can act only within the permissions selected below. Sensitive
         purchases still require human approval.
@@ -84,6 +86,7 @@ function ConsentModal({ open, scopes, onScopesChange, onClose, onConfirm, busy }
         />
         <span><strong>Place purchases</strong><small>Allows checkout using the write scope; policy approval still applies.</small></span>
       </label>
+      </div>
     </DraggableModal>
   );
 }

@@ -805,9 +805,20 @@ const FLAG_REGISTRY = [
       'texas (default) = only the 20 largest Texas cities / TX bounding box pass. ' +
       'michigan = only the 20 largest Michigan cities / MI bounding box pass. ' +
       'any = no geographic restriction — every city passes (subject to ff_weather_mcp_showcase ' +
-      'still being ON).',
+      'still being ON). ' +
+      'any-except-blocked = the inverse: every city passes EXCEPT the ones on the admin-managed ' +
+      'deny list (GET/POST/DELETE /api/weather-blocklist, edited on the Weather MCP page; ' +
+      'seeded with Miami, FL). Each entry is geocoded once when added, so the gateway denies on ' +
+      "both the city-name and the resolved-coordinate call — the agent geocodes via weather-mcp's " +
+      'search_location before a typed prompt reaches get_current_conditions, so a name-only block ' +
+      'would be bypassed.',
     type:         'enum',
-    options:      ['texas', 'michigan', 'any'],
+    options:      ['texas', 'michigan', 'any', 'any-except-blocked'],
+    // Owned by the Weather MCP page, not this list. Picking a region here in
+    // isolation is only half the control — 'any-except-blocked' is meaningless
+    // without the deny list that lives beside it on that page, and a bare
+    // dropdown here invites setting a mode whose city list you cannot see.
+    managedOn:    { path: '/weather-mcp', label: 'Weather MCP page' },
     defaultValue: 'texas',
   },
   {
@@ -1011,6 +1022,7 @@ function serializeFlag(flag) {
     defaultValue:   flag.defaultValue,
     value:          resolveFlag(flag),
     ...(flag.options      && { options:      flag.options }),
+    ...(flag.managedOn    && { managedOn:    flag.managedOn }),
     ...(flag.docsUrl      && { docsUrl:      flag.docsUrl }),
     ...(flag.warnIfDisabled && { warnIfDisabled: flag.warnIfDisabled }),
     ...(flag.warnIfEnabled  && { warnIfEnabled:  flag.warnIfEnabled }),

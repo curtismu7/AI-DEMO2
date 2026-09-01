@@ -34,7 +34,7 @@
 ```bash
 # Super Banking User App (end-user login)
 PINGONE_USER_CLIENT_ID=b2752071-2d03-4927-b865-089dc40b9c85
-PINGONE_USER_CLIENT_SECRET=3NX~XdVZ1PxjQjz3z_f8rCoe-8hK1_vzUmo.9LYqiQ7h7y19L~IKCP0AL5ydVhDR
+PINGONE_USER_CLIENT_SECRET=<set-via-env-see-.env.example>
 
 # Super Banking Admin App (BFF/token exchange)
 PINGONE_ADMIN_CLIENT_ID=14cefa5b-d9d6-4e51-8749-e938d4edd1c0

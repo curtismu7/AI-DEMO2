@@ -1,8 +1,9 @@
 // ping-gateway/scripts/groovy/tx-weather-scope.groovy
 //
 // Agent Gateway (IG) demo policy: the weather-mcp passthrough is scoped to
-// ONE configurable US state at a time (default: Texas), or left wide open
-// ("any"). Runs after McpValidationFilter has buffered the body. A
+// ONE configurable US state at a time (default: Texas), left wide open
+// ("any"), or open everywhere EXCEPT one blocked city
+// ("any-except-blocked"). Runs after McpValidationFilter has buffered the body. A
 // tools/call whose location argument cannot be verified against the
 // currently-selected state is denied here, not by the upstream weather-mcp
 // server. The selected state is admin-configurable live, via
@@ -44,6 +45,22 @@ def STATES = [
 ]
 def STATE_LABELS = [texas: 'Texas', michigan: 'Michigan']
 
+// Denylist mode ('any-except-blocked'): everywhere passes except the cities on
+// an admin-managed list, served with this request's flag check as
+// blockedCities: [{label, lat, lon}] plus blockRadiusDeg.
+//
+// Coordinates are checked as well as the name, because the agent does NOT
+// always call get_weather with a city string — weather-mcp's own tool
+// descriptions steer a typed prompt to `search_location` (Nominatim) first and
+// then to get_current_conditions with the resolved lat/lon, so the COORDINATE
+// branch is the one that carries the location there. A name-only block passes
+// every scripted chip and then fails the moment somebody types a city.
+//
+// The BFF geocodes each city ONCE, when it is added, using the same Nominatim
+// service — so the coordinates we compare against are the coordinates the agent
+// will send. No lookup happens in this hot path.
+def DEFAULT_BLOCK_RADIUS_DEG = 0.2
+
 // Live flag check against the BFF: ff_weather_mcp_showcase (on/off) and
 // ff_weather_mcp_allowed_state (texas | michigan | any). Fails OPEN on
 // `enabled` (a demo toggle, not a security control) but defaults
@@ -52,7 +69,7 @@ def STATE_LABELS = [texas: 'Texas', michigan: 'Michigan']
 // accidentally widen the policy. The city/bbox scope check below remains
 // fail-closed regardless of this call's outcome.
 def weatherFlags = {
-    def result = [enabled: true, allowedState: 'texas']
+    def result = [enabled: true, allowedState: 'texas', blockedCities: [], blockRadiusDeg: DEFAULT_BLOCK_RADIUS_DEG]
     if (!flagUrl) return result
     try {
         def conn = new URL(flagUrl).openConnection() as java.net.HttpURLConnection
@@ -70,8 +87,21 @@ def weatherFlags = {
         result.enabled = parsed.enabled != false
         // 'any' is a valid allowedState but deliberately has no STATES entry
         // (no bbox/cities — it means "skip the scope check entirely").
-        if (parsed.allowedState == 'any' || STATES.containsKey(parsed.allowedState)) {
+        if (parsed.allowedState == 'any'
+                || parsed.allowedState == 'any-except-blocked'
+                || STATES.containsKey(parsed.allowedState)) {
             result.allowedState = parsed.allowedState
+        }
+        // Only entries with BOTH coordinates are usable. A half-populated entry
+        // would silently degrade the deny to name-only, which is the exact
+        // failure this design exists to avoid — drop it instead.
+        if (parsed.blockedCities instanceof List) {
+            result.blockedCities = parsed.blockedCities.findAll {
+                it?.label && it?.lat != null && it?.lon != null
+            }
+        }
+        if (parsed.blockRadiusDeg instanceof Number) {
+            result.blockRadiusDeg = parsed.blockRadiusDeg.doubleValue()
         }
         return result
     } catch (Exception e) {
@@ -125,6 +155,54 @@ if (!(args instanceof Map)) {
 
 // Wide open — no restriction at all, every location argument shape passes.
 if (flags.allowedState == 'any') {
+    return next.handle(context, request)
+}
+
+// Denylist mode — the inverse of the state allowlist below: everywhere is
+// allowed, one city is not. Both argument shapes are checked; see MIAMI_BOX.
+if (flags.allowedState == 'any-except-blocked') {
+    def radius = flags.blockRadiusDeg ?: DEFAULT_BLOCK_RADIUS_DEG
+    def denyFor = { String label ->
+        denied(id, "Agent Gateway: ${label} is blocked by demo policy")
+    }
+
+    if (args.containsKey('latitude') || args.containsKey('longitude')) {
+        def dLat = toNum(args.latitude)
+        def dLon = toNum(args.longitude)
+        // Unparseable coordinates are NOT a blocked city — fall through and let
+        // the upstream server reject them. Denying here would turn a malformed
+        // call into a policy story it isn't.
+        if (dLat != null && dLon != null && Double.isFinite(dLat) && Double.isFinite(dLon)) {
+            def hit = flags.blockedCities.find { c ->
+                def cLat = toNum(c.lat)
+                def cLon = toNum(c.lon)
+                cLat != null && cLon != null &&
+                    Math.abs(dLat - cLat) <= radius && Math.abs(dLon - cLon) <= radius
+            }
+            if (hit) return denyFor(String.valueOf(hit.label))
+        }
+        return next.handle(context, request)
+    }
+
+    def denyCity = args.city_name ?: args.location
+    if (denyCity instanceof String) {
+        // Match the typed name against each label on its own terms. An entry
+        // qualified with a state ("Miami, FL") blocks the bare city too, but a
+        // DIFFERENTLY qualified name does not: "Miami, OH" is a real, different
+        // city and must still be allowed.
+        def dNorm = denyCity.toLowerCase().trim()
+        def dComma = dNorm.indexOf(',')
+        def cityPart = dComma >= 0 ? dNorm.substring(0, dComma).trim() : dNorm
+        def statePart = dComma >= 0 ? dNorm.substring(dComma + 1).trim() : ''
+        def hit = flags.blockedCities.find { c ->
+            def lNorm = String.valueOf(c.label).toLowerCase().trim()
+            def lComma = lNorm.indexOf(',')
+            def lCity = lComma >= 0 ? lNorm.substring(0, lComma).trim() : lNorm
+            def lState = lComma >= 0 ? lNorm.substring(lComma + 1).trim() : ''
+            cityPart == lCity && (statePart == '' || lState == '' || statePart == lState)
+        }
+        if (hit) return denyFor(String.valueOf(hit.label))
+    }
     return next.handle(context, request)
 }
 

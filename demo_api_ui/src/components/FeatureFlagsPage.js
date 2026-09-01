@@ -5,8 +5,13 @@ import './FeatureFlagsPage.css';
 
 // ─── Flag toggle card ─────────────────────────────────────────────────────────
 
-function FlagCard({ flag, onToggle, saving }) {
+export function FlagCard({ flag, onToggle, saving }) {
   const isEnum   = flag.type === 'enum';
+  // Some flags are only half a control on their own — ff_weather_mcp_allowed_state
+  // selects a mode whose meaning depends on the deny list edited beside it. Those
+  // declare managedOn and show their current value plus a link, so this page stays
+  // the place you SEE every flag without becoming a second place to set them.
+  const managedOn = flag.managedOn;
   const isOn     = !isEnum && flag.value === true;
   const isSaving = saving === flag.id;
   const showWarn = !isEnum && ((!isOn && flag.warnIfDisabled) || (isOn && flag.warnIfEnabled));
@@ -29,7 +34,11 @@ function FlagCard({ flag, onToggle, saving }) {
           <code className="ff-card__id">{flag.id}</code>
         </div>
 
-        {isEnum ? (
+        {managedOn ? (
+          <a className="ff-managed-link" href={managedOn.path}>
+            Set on the {managedOn.label} →
+          </a>
+        ) : isEnum ? (
           <select
             className={`ff-enum-select${isSaving ? ' ff-enum-select--saving' : ''}`}
             value={flag.value}

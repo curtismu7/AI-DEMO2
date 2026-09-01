@@ -100,6 +100,14 @@ export const DEMO_SCRIPT = {
           expected: "Gateway DENY",
           say: "Different control. The agent calls a third-party weather MCP. Miami is out of policy - the gateway kills the call before the third party ever sees it. Egress control on tool calls.",
         },
+        {
+          ucId: "UC42",
+          action: "Step 8b · `search the news for bitcoin price today` (UC42)",
+          what:
+            "Same egress control, different policy shape — a content blocklist on a third-party search server.",
+          expected: "Gateway DENY",
+          say: "Same control, a different policy. This time it is a third-party search server, and the rule is about content, not geography. Bank policy says no crypto research through the agent gateway - so the query never leaves the perimeter. Brave is never called, never logs it, never bills it.",
+        },
       ],
     },
     {

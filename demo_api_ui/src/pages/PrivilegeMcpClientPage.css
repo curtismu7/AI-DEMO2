@@ -270,6 +270,84 @@ select.cur-input { cursor: pointer; }
 
 .cur-mcp-item--static { cursor: default; }
 
+/* Why a panel is empty. A server that never advertises prompts/resources in its
+   initialize response renders three blank boxes that read as a broken fetch —
+   this says the gateway asked and the server has none. */
+.cur-mcp-empty {
+  margin: 0;
+  font-size: var(--font-size-2xs);
+  color: #8b949e;
+  line-height: 1.45;
+}
+
+/* Denial evidence + console inventory (Policies tab) */
+.cur-denial-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 12px;
+  margin: 0 0 10px;
+  font-size: var(--font-size-2xs);
+}
+.cur-denial-facts dt { color: #8b949e; }
+.cur-denial-facts dd { margin: 0; color: #ddd; overflow-wrap: anywhere; }
+
+.cur-denial-note {
+  margin: 0 0 10px;
+  font-size: var(--font-size-2xs);
+  color: #8b949e;
+  line-height: 1.5;
+}
+.cur-denial-ok { color: #86efac; }
+.cur-denial-bad { color: #fca5a5; }
+
+.cur-denial-probe { margin-bottom: 10px; }
+.cur-denial-probe-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: var(--font-size-2xs);
+}
+.cur-denial-door { color: #ddd; font-family: var(--font-mono); }
+
+.cur-console-heading {
+  margin: 16px 0 6px;
+  font-size: var(--font-size-body);
+  color: #ddd;
+}
+.cur-console-list { display: flex; flex-direction: column; gap: 4px; }
+.cur-console-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  background: #2a2a2a;
+  border: 1px solid #3c3c3c;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-2xs);
+}
+.cur-console-row--active { border-color: #007acc; }
+.cur-console-name { color: #ddd; font-weight: 600; }
+.cur-console-meta { color: #8b949e; margin-left: auto; overflow-wrap: anywhere; }
+.cur-console-current { color: #86efac; }
+.cur-console-tag {
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: #26384d;
+  color: #9ecbff;
+  font-size: var(--font-size-3xs);
+}
+.cur-console-policy {
+  padding: 6px 8px;
+  background: #2a2a2a;
+  border: 1px solid #3c3c3c;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-2xs);
+  color: #ddd;
+}
+.cur-console-policy summary { cursor: pointer; }
+
 /* Buttons */
 .cur-btn-row {
   display: flex;
@@ -289,6 +367,10 @@ select.cur-input { cursor: pointer; }
   transition: background 0.15s, border-color 0.15s;
 }
 .cur-btn:hover { background: #333; border-color: #555; }
+/* Discovery buttons disable while a tools/list is in flight — without this they
+   look clickable and a second click just queues another gateway round trip. */
+.cur-btn:disabled { opacity: 0.6; cursor: progress; }
+.cur-btn:disabled:hover { background: #2a2a2a; border-color: #3c3c3c; }
 
 .cur-btn--primary {
   background: #007acc;
@@ -460,9 +542,43 @@ select.cur-input { cursor: pointer; }
 
 .cur-empty-state {
   font-size: var(--font-size-2xs);
-  color: #555;
+  color: var(--th-text-muted);
   padding: 8px 0;
   font-style: italic;
+}
+
+/* Tool discovery goes out to the AI Gateway — show the wait, don't leave the
+   sidebar reading "No tools discovered yet" as if it had failed. */
+.cur-tools-waiting {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-size-2xs);
+  color: var(--th-text-muted);
+  padding: 8px 0;
+}
+
+.cur-spinner {
+  display: inline-block;
+  flex: none;
+  width: 12px;
+  height: 12px;
+  /* --th-border and --th-bg-emphasis are both declared per theme in index.css,
+     so no literal fallback — a fallback here would just hide a renamed token. */
+  border: 2px solid var(--th-border);
+  border-top-color: var(--th-bg-emphasis);
+  /* --radius-pill (999px) circles a 12px square the same as 50% would, and
+     keeps the border-radius-literal ratchet flat — THEMING.md §9.3. */
+  border-radius: var(--radius-pill);
+  animation: cur-spin 0.8s linear infinite;
+}
+
+@keyframes cur-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cur-spinner { animation-duration: 2.4s; }
 }
 
 /* Main area */
@@ -664,78 +780,6 @@ select.cur-input { cursor: pointer; }
 
 .cur-result-block {
   margin-top: 16px;
-}
-
-.cur-sessions-panel {
-  padding: 20px;
-  overflow-y: auto;
-  flex: 1;
-}
-
-.cur-sessions-error,
-.cur-sessions-empty {
-  margin-top: 12px;
-  font-size: var(--font-size-sm);
-  color: #888;
-}
-
-.cur-sessions-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 12px;
-  margin-top: 16px;
-}
-
-.cur-session-card {
-  background: #252526;
-  border: 1px solid #2b2b2b;
-  border-radius: 6px;
-  padding: 14px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.cur-session-name {
-  font-size: var(--font-size-body);
-  font-weight: 600;
-  color: #e0e0e0;
-}
-
-.cur-session-ttl,
-.cur-session-status {
-  font-size: var(--font-size-2xs);
-  color: #888;
-}
-
-.cur-session-meta {
-  display: flex;
-  gap: 12px;
-  margin-top: 4px;
-  font-size: var(--font-size-sm);
-  color: #aaa;
-}
-
-.cur-session-card--selectable {
-  cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
-}
-
-.cur-session-card--selectable:hover {
-  border-color: #007acc;
-  background: #2a2d2e;
-}
-
-.cur-session-card--active {
-  border-color: #007acc;
-  background: #1c3040;
-}
-
-.cur-session-active-badge {
-  font-size: var(--font-size-xs);
-  font-weight: 600;
-  color: #007acc;
-  margin-left: 6px;
 }
 
 .cur-tool-detail {
@@ -1541,6 +1585,52 @@ select.cur-input { cursor: pointer; }
 .cur-ide[data-cur-theme="light"] .cur-result-item-tool { color: #0369a1; }
 .cur-ide[data-cur-theme="light"] .cur-result-item-body { color: #1e1e1e; }
 .cur-ide[data-cur-theme="light"] .cur-terminal-tab-badge { background: #2563eb; color: #ffffff; }
+
+/* MCP Explorer — the whole cur-mcp-* family shipped with no light override, so
+   its #ddd/#ccc ink (correct on the dark base) rendered near-white on the light
+   skin's #ffffff ground. .cur-mcp-item is deliberately absent: it carries its
+   own #2a2a2a fill, so it gets a light fill here rather than only new ink. */
+.cur-ide[data-cur-theme="light"] .cur-mcp-protocol { color: #1e1e1e; border-color: #e0e0e0; }
+.cur-ide[data-cur-theme="light"] .cur-mcp-instructions { color: #444; }
+.cur-ide[data-cur-theme="light"] .cur-mcp-catalog-grid section { border-color: #e0e0e0; }
+.cur-ide[data-cur-theme="light"] .cur-mcp-catalog-grid h4 { color: #1e1e1e; }
+.cur-ide[data-cur-theme="light"] .cur-mcp-item {
+  background: #f7f7f7;
+  border-color: #e0e0e0;
+  color: #1e1e1e;
+}
+.cur-ide[data-cur-theme="light"] .cur-mcp-item:hover { background: #eef2ff; }
+.cur-ide[data-cur-theme="light"] .cur-mcp-empty { color: #666; }
+
+/* Titlebar switchers (Gateway, Door) — the label was #bbb on the light skin's
+   #f3f3f3 titlebar, i.e. barely legible, and the select kept its dark fill so
+   the control read as a stray dark pill. Pre-existing on Gateway; fixed here
+   because the Door picker reuses the same class. */
+.cur-ide[data-cur-theme="light"] .cur-mode-switcher { color: #555; }
+.cur-ide[data-cur-theme="light"] .cur-mode-switcher select {
+  background: #ffffff;
+  border-color: #d0d0d0;
+  color: #1e1e1e;
+}
+
+/* Denial evidence + console inventory — light skin */
+.cur-ide[data-cur-theme="light"] .cur-denial-facts dt,
+.cur-ide[data-cur-theme="light"] .cur-denial-note,
+.cur-ide[data-cur-theme="light"] .cur-console-meta { color: #555; }
+.cur-ide[data-cur-theme="light"] .cur-denial-facts dd,
+.cur-ide[data-cur-theme="light"] .cur-denial-door,
+.cur-ide[data-cur-theme="light"] .cur-console-heading,
+.cur-ide[data-cur-theme="light"] .cur-console-name { color: #1e1e1e; }
+.cur-ide[data-cur-theme="light"] .cur-denial-ok,
+.cur-ide[data-cur-theme="light"] .cur-console-current { color: #0a7d6b; }
+.cur-ide[data-cur-theme="light"] .cur-denial-bad { color: #b91c1c; }
+.cur-ide[data-cur-theme="light"] .cur-console-row,
+.cur-ide[data-cur-theme="light"] .cur-console-policy {
+  background: #f7f7f7;
+  border-color: #e0e0e0;
+  color: #1e1e1e;
+}
+.cur-ide[data-cur-theme="light"] .cur-console-tag { background: #eef2ff; color: #2563eb; }
 
 /* ─────────────────────────────────────────────────────────────────────────
    Responsive — on smaller displays the fixed IDE layout crushed the main pane

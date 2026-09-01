@@ -185,7 +185,8 @@ export default function GroupMembershipToggle({ onChange = null, verticalId = nu
         storageKey="group-membership-toggle"
       >
         {modal ? (
-          <div className="gmt-modal">
+          /* dm-scroll: `dm-body` is bare by contract — no padding, no scroll. */
+          <div className="dm-scroll gmt-modal">
             <div className={`gmt-modal-state ${modal.inGroup ? "gmt-modal-state--in" : "gmt-modal-state--out"}`}>
               {modal.inGroup ? "✅" : "❌"}
               <span>
