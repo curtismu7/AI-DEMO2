@@ -17,11 +17,16 @@ const BASE = "https://cmuir-agentless-mcpgw.ping-devops.com";
 const CMUIR = `${BASE}/cmuir/mcp`;
 const EXTERNAL = `${BASE}/external/mcp`;
 const AGENT = "https://opensearch.default.applications.procyon.ai:8643/mcp";
+// This demo's OWN facade door. Agentless mode, but a DIFFERENT host — so not a
+// Privilege application on this gateway, and doorName() renders it as the
+// meaningless "mcp-facade".
+const AUDIT = "http://localhost:3002/mcp-facade/audit/mcp";
 
 const PRESETS = [
   { label: "Agentless gateway (nginx)", mode: "agentless", url: CMUIR },
   { label: "Agentless gateway — banking (external)", mode: "agentless", url: EXTERNAL },
   { label: "AI Gateway via Priv Agent", mode: "agent", url: AGENT },
+  { label: "Agent Gateway — PingOne audit (scope-narrowed)", mode: "agentless", url: AUDIT },
 ];
 
 function jsonResponse(body, { status = 200 } = {}) {
@@ -85,6 +90,9 @@ describe("titlebar door picker", () => {
     expect(picker().value).toBe(CMUIR);
     // The agent preset is not a door — it is a single fixed procyon frontend.
     expect(options).not.toContain("opensearch");
+    // Nor is the audit facade a door on THIS gateway — different host. Listing
+    // it would misdescribe what switching does.
+    expect(options).not.toContain("mcp-facade");
   });
 
   it("switching repoints the gateway URL via /config", async () => {
@@ -105,8 +113,10 @@ describe("titlebar door picker", () => {
     expect(picker()).toBeNull();
   });
 
-  it("is absent when only one door is configured — a one-option select is furniture", async () => {
-    mockApi({ presets: [PRESETS[0], PRESETS[2]] });
+  it("is absent when this gateway has only one door — a one-option select is furniture", async () => {
+    // cmuir + the agent frontend + the audit facade: only ONE of these is a
+    // door on the current gateway, so the picker must not appear.
+    mockApi({ presets: [PRESETS[0], PRESETS[2], PRESETS[3]] });
     renderPage();
     await waitFor(() => expect(screen.getByLabelText("Gateway connection mode")).toBeTruthy());
     expect(picker()).toBeNull();

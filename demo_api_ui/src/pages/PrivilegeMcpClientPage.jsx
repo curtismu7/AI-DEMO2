@@ -575,6 +575,22 @@ export default function PrivilegeMcpClientPage() {
     return all.filter((u) => u && (includeCurrent || u !== config.mcpUrl));
   };
 
+  // Doors on the CURRENT gateway only — what /<door>/mcp actually means.
+  //
+  // The agentless preset list also carries the audit facade
+  // (http://localhost:3002/mcp-facade/audit/mcp), which is this demo's own
+  // door, not a Privilege application: different host, and doorName() renders
+  // it as the meaningless "mcp-facade". Offering it in a Privilege door picker
+  // would misdescribe what switching does. The denial probe still tries it —
+  // there "is there anywhere else this identity works" is a fair question.
+  const sameGatewayDoors = () => {
+    let origin;
+    try { origin = new URL(config.mcpUrl).origin; } catch { return []; }
+    return knownDoors(true).filter((u) => {
+      try { return new URL(u).origin === origin; } catch { return false; }
+    });
+  };
+
   const probeDoors = async () => {
     const urls = knownDoors();
     if (urls.length === 0) { setDoorProbe({ running: false, results: [] }); return; }
@@ -1150,7 +1166,7 @@ export default function PrivilegeMcpClientPage() {
               It picks the DOOR, never a policy: Privilege resolves the policy
               server-side from (user, door, tool), so a policy control could
               only mislead about what it does. */}
-          {gatewayMode === 'agentless' && knownDoors(true).length > 1 && (
+          {gatewayMode === 'agentless' && sameGatewayDoors().length > 1 && (
             <label className="cur-mode-switcher">
               <span>Door</span>
               <select
@@ -1159,7 +1175,7 @@ export default function PrivilegeMcpClientPage() {
                 disabled={switching || toolsLoading}
                 onChange={(event) => switchDoor(event.target.value)}
               >
-                {knownDoors(true).map((url) => (
+                {sameGatewayDoors().map((url) => (
                   <option key={url} value={url}>{doorName(url) || url}</option>
                 ))}
               </select>
