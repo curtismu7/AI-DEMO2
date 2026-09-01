@@ -10,7 +10,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import './QuickFlagsPill.css';
 
-// The curated lineup. Adding switch #11 = one new entry here.
+// The curated lineup. Adding a switch = one new entry here.
 // control: 'segmented' renders all modes as A/B buttons; 'toggle' renders an
 // on/off switch. For segmented booleans, modes map labels onto true/false.
 const QUICK_FLAGS = [
@@ -18,8 +18,12 @@ const QUICK_FLAGS = [
   { id: 'ff_mcp_gateway_pinggateway',   group: 'Token & Gateway', control: 'segmented', label: 'Agent Gateway',                   modes: [{ value: true, label: 'Real Agent GW' }, { value: false, label: 'Mock Agent GW (outage)' }] },
   { id: 'introspectionProvider',        group: 'Token & Gateway', control: 'segmented', label: 'Introspection Provider',          modes: [{ value: 'pinggateway', label: 'PingOne Agent Gateway' }, { value: 'p1az', label: 'P1AZ' }] },
   { id: 'ff_skip_token_exchange',       group: 'Token & Gateway', control: 'toggle',    label: 'Skip Token Exchange' },
-  { id: 'ff_enterprise_managed_mcp_auth', group: 'AuthN / AuthZ', control: 'toggle',    label: 'Enterprise-Managed MCP Auth' },
+  { id: 'ff_dpop',                      group: 'Token & Gateway', control: 'toggle',    label: 'DPoP — Sender-Constrained (RFC 9449)' },
+  { id: 'ff_rar',                       group: 'Token & Gateway', control: 'toggle',    label: 'RAR — Intent-Bound (RFC 9396)' },
+  { id: 'ff_enterprise_managed_mcp_auth', group: 'AuthN / AuthZ', control: 'toggle',    label: 'ID-JAG — Enterprise-Managed MCP Auth' },
   { id: 'ff_authorize_real',       group: 'AuthN / AuthZ',   control: 'segmented', label: 'Authorize Engine',                modes: [{ value: true, label: 'Real P1AZ' }, { value: false, label: 'Mock (outage)' }] },
+  { id: 'ff_authorize_fail_open',        group: 'AuthN / AuthZ',   control: 'toggle',    label: 'Authorize — Fail Open' },
+  { id: 'ff_require_act_for_agent_tools', group: 'AuthN / AuthZ',  control: 'toggle',    label: 'Require act claim (UC16)' },
   { id: 'ff_id_token_exchange',         group: 'AuthN / AuthZ',   control: 'toggle',    label: 'ID Token Exchange Mode' },
   { id: 'ff_token_auth_private_key_jwt', group: 'AuthN / AuthZ',  control: 'toggle',    label: 'Client Auth — Private Key JWT' },
   { id: 'ciba_enabled',                 group: 'AuthN / AuthZ',   control: 'toggle',    label: 'CIBA — Out-of-Band Approval' },
