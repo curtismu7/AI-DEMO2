@@ -44,24 +44,27 @@ afterEach(() => {
 });
 
 describe('QuickFlagsPill', () => {
-  it('pill shows JWKS mode from the loaded flag value', async () => {
+  it('pill reads Configuration whatever the validation mode is', async () => {
     render(<QuickFlagsPill user={ADMIN} />);
-    await waitFor(() => expect(screen.getByRole('button', { name: /JWKS/ })).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole('button', { name: /Configuration/ })).toBeTruthy());
+    // The mode it used to announce now lives one row inside the panel; the
+    // label must NOT drift back to reporting state.
+    expect(screen.queryByRole('button', { name: /Configuration:/ })).toBeNull();
   });
 
-  it('pill shows Introspect when ff_mcp_gateway_jwks is false', async () => {
+  it('pill still reads Configuration when the flag is off', async () => {
     fetchMock.mockImplementation(async () => ({
       ok: true, status: 200,
       json: async () => flagsResponse({ ff_mcp_gateway_jwks: flag('ff_mcp_gateway_jwks', false) }),
     }));
     render(<QuickFlagsPill user={ADMIN} />);
-    await waitFor(() => expect(screen.getByRole('button', { name: /Introspect/ })).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole('button', { name: /Configuration/ })).toBeTruthy());
   });
 
   it('clicking the pill opens the dropdown with the three groups', async () => {
     render(<QuickFlagsPill user={ADMIN} />);
-    await waitFor(() => screen.getByRole('button', { name: /JWKS/ }));
-    fireEvent.click(screen.getByRole('button', { name: /JWKS/ }));
+    await waitFor(() => screen.getByRole('button', { name: /Configuration/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Configuration/ }));
     await waitFor(() => expect(screen.getByText('Token & Gateway')).toBeTruthy());
     expect(screen.getByText('AuthN / AuthZ')).toBeTruthy();
     expect(screen.getByText('Agent')).toBeTruthy();
@@ -69,8 +72,8 @@ describe('QuickFlagsPill', () => {
 
   it('flipping the validation segmented control PATCHes the boolean', async () => {
     render(<QuickFlagsPill user={ADMIN} />);
-    await waitFor(() => screen.getByRole('button', { name: /JWKS/ }));
-    fireEvent.click(screen.getByRole('button', { name: /JWKS/ }));
+    await waitFor(() => screen.getByRole('button', { name: /Configuration/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Configuration/ }));
     await waitFor(() => screen.getByText('Token & Gateway'));
     fireEvent.click(screen.getByRole('button', { name: /Introspect/ }));
     await waitFor(() => {
@@ -82,8 +85,8 @@ describe('QuickFlagsPill', () => {
 
   it('enum segmented control PATCHes the string value', async () => {
     render(<QuickFlagsPill user={ADMIN} />);
-    await waitFor(() => screen.getByRole('button', { name: /JWKS/ }));
-    fireEvent.click(screen.getByRole('button', { name: /JWKS/ }));
+    await waitFor(() => screen.getByRole('button', { name: /Configuration/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Configuration/ }));
     await waitFor(() => screen.getByText('Token & Gateway'));
     fireEvent.click(screen.getByRole('button', { name: 'P1AZ' }));
     await waitFor(() => {
@@ -105,8 +108,8 @@ describe('QuickFlagsPill', () => {
       return { ok: true, status: 200, json: async () => ({ updated: true, flags: [] }) };
     });
     render(<QuickFlagsPill user={ADMIN} />);
-    await waitFor(() => screen.getByRole('button', { name: /JWKS/ }));
-    fireEvent.click(screen.getByRole('button', { name: /JWKS/ }));
+    await waitFor(() => screen.getByRole('button', { name: /Configuration/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Configuration/ }));
     await waitFor(() => screen.getByText('Token & Gateway'));
     const mockGw = screen.getByRole('button', { name: 'Mock Agent GW (outage)' });
     expect(mockGw.disabled).toBe(true);
@@ -119,8 +122,8 @@ describe('QuickFlagsPill', () => {
   // relaxation (canEdit = !!user && !adminDenied) — the gated state is signed-OUT.
   it('signed-out user sees disabled controls and the sign-in hint', async () => {
     render(<QuickFlagsPill user={null} />);
-    await waitFor(() => screen.getByRole('button', { name: /JWKS/ }));
-    fireEvent.click(screen.getByRole('button', { name: /JWKS/ }));
+    await waitFor(() => screen.getByRole('button', { name: /Configuration/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Configuration/ }));
     await waitFor(() => screen.getByText('Token & Gateway'));
     expect(screen.getByText('Sign in to change flags')).toBeTruthy();
     expect(screen.getByRole('button', { name: /Introspect/ }).disabled).toBe(true);
@@ -134,8 +137,8 @@ describe('QuickFlagsPill', () => {
       return { ok: false, status: 403, json: async () => ({ error: 'admin required' }) };
     });
     render(<QuickFlagsPill user={ADMIN} />);
-    await waitFor(() => screen.getByRole('button', { name: /JWKS/ }));
-    fireEvent.click(screen.getByRole('button', { name: /JWKS/ }));
+    await waitFor(() => screen.getByRole('button', { name: /Configuration/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Configuration/ }));
     await waitFor(() => screen.getByText('Token & Gateway'));
     fireEvent.click(screen.getByRole('button', { name: /Introspect/ }));
     await waitFor(() => expect(screen.getByText('Sign in to change flags')).toBeTruthy());
@@ -149,13 +152,13 @@ describe('QuickFlagsPill', () => {
   it('GET failure renders the muted pill', async () => {
     fetchMock.mockImplementation(async () => ({ ok: false, status: 500, json: async () => ({}) }));
     render(<QuickFlagsPill user={ADMIN} />);
-    await waitFor(() => expect(screen.getByRole('button', { name: /Flags/ })).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole('button', { name: /Configuration/ })).toBeTruthy());
   });
 
   it('toggle control PATCHes the negated boolean', async () => {
     render(<QuickFlagsPill user={ADMIN} />);
-    await waitFor(() => screen.getByRole('button', { name: /JWKS/ }));
-    fireEvent.click(screen.getByRole('button', { name: /JWKS/ }));
+    await waitFor(() => screen.getByRole('button', { name: /Configuration/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Configuration/ }));
     await waitFor(() => screen.getByText('Token & Gateway'));
     fireEvent.click(screen.getByRole('switch', { name: 'Skip Token Exchange' }));
     await waitFor(() => {

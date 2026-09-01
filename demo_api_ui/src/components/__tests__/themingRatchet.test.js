@@ -31,7 +31,7 @@ import path from 'node:path';
 // move the count while the file is still almost entirely literals. That was
 // true here for exactly one commit; the file is now fully converted, so the
 // count and the reality agree again. Treat a one-rule drop with suspicion.
-const MAX_UNTHEMED = 180;
+const MAX_UNTHEMED = 179;
 
 const SRC = path.join(__dirname, '..', '..');
 
