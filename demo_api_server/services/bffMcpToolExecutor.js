@@ -12,7 +12,7 @@ const { resolveMcpAccessTokenWithEvents } = require('./agentMcpTokenService');
 const { runMcpToolPipeline } = require('./mcpToolPipeline');
 const verticalDispatch = require('./verticalDispatch');
 const { isAdminClientToken, isCustomerBankingTool, ADMIN_TOKEN_ON_CUSTOMER } = require('./customerTokenGuard');
-const { deriveUseCaseId, isValidUseCaseId } = require('../config/useCases');
+const { resolveChipUseCaseId } = require('../config/useCases');
 const { stampUseCaseId, stampVertical } = require('./useCaseTagging');
 const { deriveAgentKey } = require('./sessionKeyService');
 const agentRunRegistry = require('./agentRunRegistry');
@@ -216,10 +216,10 @@ async function executeBffTool({ name, args, userId, userToken, req = null, token
   // Resolve useCaseId before the pipeline runs so ctx.useCaseId is available for
   // authorize tagging: launcher-supplied wins (if it is a known catalog slug —
   // arbitrary client strings are rejected), else derive organically from (tool, args).
-  const clientId = req?.body?.useCaseId;
-  const useCaseId = (clientId && isValidUseCaseId(clientId))
-    ? clientId
-    : deriveUseCaseId(name, args);
+  // Via resolveChipUseCaseId, which is the shared resolver server.js already uses:
+  // this rule was hand-inlined here and in runPipelineForSim below, so the three
+  // copies could drift apart on exactly the input that matters, an untrusted slug.
+  const useCaseId = resolveChipUseCaseId(req?.body?.useCaseId, name, args, req?.body?.vertical);
 
   // useCaseId slugs are shared across verticals by design (same narrative can play
   // out in banking, healthcare, retail, etc.), so vertical is a parallel tag needed
@@ -372,9 +372,8 @@ async function executeBffToolWithToken({ name, args, req = null, tokenEvents = [
   // event in the whole A2A delegation flow ever carries useCaseId, so the
   // UI's ProofStrip (firstUseCaseId) can never find UC2's catalog entry and
   // the Intent/Result/Used box never renders for a delegated specialist call.
-  const clientId = req?.body?.useCaseId;
-  const useCaseId = (clientId && isValidUseCaseId(clientId)) ? clientId : deriveUseCaseId(name, args);
   const vertical = req?.body?.vertical;
+  const useCaseId = resolveChipUseCaseId(req?.body?.useCaseId, name, args, vertical);
 
   const ctx = {
     tool: name,
