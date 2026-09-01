@@ -62,10 +62,22 @@ const STATES: Record<string, StateDef> = {
 };
 const STATE_LABELS: Record<string, string> = { texas: 'Texas', michigan: 'Michigan' };
 
+interface BlockedCity {
+  label: string;
+  lat: number;
+  lon: number;
+}
+
 interface WeatherFlags {
   enabled: boolean;
   allowedState: string;
+  blockedCities: BlockedCity[];
+  blockRadiusDeg: number;
 }
+
+// Denylist mode ('any-except-blocked'): everywhere passes except the cities on
+// an admin-managed list, which the BFF serves alongside the flags themselves.
+const DEFAULT_BLOCK_RADIUS_DEG = 0.2;
 
 interface BraveFlags {
   enabled: boolean;
@@ -101,14 +113,32 @@ async function weatherFlags(flagUrl: string, internalSecret: string): Promise<We
   return fetchFlag<WeatherFlags>(
     flagUrl,
     internalSecret,
-    { enabled: true, allowedState: 'texas' },
+    { enabled: true, allowedState: 'texas', blockedCities: [], blockRadiusDeg: DEFAULT_BLOCK_RADIUS_DEG },
     (body, defaults) => {
       const result = { ...defaults, enabled: body.enabled !== false };
-      // 'any' is a valid allowedState but deliberately has no STATES entry
-      // (no bbox/cities — it means "skip the scope check entirely").
+      // 'any' and 'any-except-blocked' are valid allowedStates but deliberately
+      // have no STATES entry — the first skips the scope check entirely, the
+      // second replaces it with the denylist below. Omitting either here does
+      // NOT fail safe: an unrecognized value falls back to 'texas', so the
+      // gateway would quietly enforce Texas while the UI showed another mode.
       const allowedState = body.allowedState;
-      if (allowedState === 'any' || (typeof allowedState === 'string' && STATES[allowedState])) {
+      if (
+        allowedState === 'any'
+        || allowedState === 'any-except-blocked'
+        || (typeof allowedState === 'string' && STATES[allowedState])
+      ) {
         result.allowedState = allowedState as string;
+      }
+      // Only entries with BOTH coordinates are usable. A half-populated entry
+      // would silently degrade the deny to name-only, which is the exact
+      // failure the coordinate branch exists to avoid — drop it instead.
+      if (Array.isArray(body.blockedCities)) {
+        result.blockedCities = (body.blockedCities as Record<string, unknown>[])
+          .filter((c) => c && c.label && toNum(c.lat) != null && toNum(c.lon) != null)
+          .map((c) => ({ label: String(c.label), lat: toNum(c.lat) as number, lon: toNum(c.lon) as number }));
+      }
+      if (typeof body.blockRadiusDeg === 'number') {
+        result.blockRadiusDeg = body.blockRadiusDeg;
       }
       return result;
     },
@@ -154,6 +184,56 @@ export async function checkWeatherScope(
 
   // Wide open — no restriction at all, every location argument shape passes.
   if (flags.allowedState === 'any') return { denied: false };
+
+  // Denylist mode — the inverse of the state allowlist below: everywhere is
+  // allowed, the listed cities are not. Both argument shapes are checked,
+  // because the agent does not always send a city string: weather-mcp's own
+  // tool descriptions steer a typed prompt to search_location first and then
+  // to the conditions call with the resolved lat/lon, so a name-only block
+  // passes every scripted chip and then fails the moment somebody types a city.
+  if (flags.allowedState === 'any-except-blocked') {
+    const radius = flags.blockRadiusDeg || DEFAULT_BLOCK_RADIUS_DEG;
+    const denyFor = (label: string): ScopeCheckResult => ({
+      denied: true,
+      message: `Agent Gateway: ${label} is blocked by demo policy`,
+    });
+
+    if ('latitude' in args || 'longitude' in args) {
+      const dLat = toNum(args.latitude);
+      const dLon = toNum(args.longitude);
+      // Unparseable coordinates are NOT a blocked city — fall through and let
+      // the upstream server reject them. Denying here would turn a malformed
+      // call into a policy story it isn't.
+      if (dLat != null && dLon != null) {
+        const hit = flags.blockedCities.find(
+          (c) => Math.abs(dLat - c.lat) <= radius && Math.abs(dLon - c.lon) <= radius,
+        );
+        if (hit) return denyFor(hit.label);
+      }
+      return { denied: false };
+    }
+
+    const denyCity = args.city_name ?? args.location;
+    if (typeof denyCity === 'string') {
+      // Match the typed name against each label on its own terms. An entry
+      // qualified with a state ("Miami, FL") blocks the bare city too, but a
+      // DIFFERENTLY qualified name does not: "Miami, OH" is a real, different
+      // city and must still be allowed.
+      const dNorm = denyCity.toLowerCase().trim();
+      const dComma = dNorm.indexOf(',');
+      const cityPart = dComma >= 0 ? dNorm.slice(0, dComma).trim() : dNorm;
+      const statePart = dComma >= 0 ? dNorm.slice(dComma + 1).trim() : '';
+      const hit = flags.blockedCities.find((c) => {
+        const lNorm = String(c.label).toLowerCase().trim();
+        const lComma = lNorm.indexOf(',');
+        const lCity = lComma >= 0 ? lNorm.slice(0, lComma).trim() : lNorm;
+        const lState = lComma >= 0 ? lNorm.slice(lComma + 1).trim() : '';
+        return cityPart === lCity && (statePart === '' || lState === '' || statePart === lState);
+      });
+      if (hit) return denyFor(hit.label);
+    }
+    return { denied: false };
+  }
 
   const state = STATES[flags.allowedState];
   const stateLabel = STATE_LABELS[flags.allowedState];
