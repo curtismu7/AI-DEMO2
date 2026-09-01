@@ -70,4 +70,20 @@ describe('catalog match blocks are reachable', () => {
     expect(deny).toBeDefined();
     expect(deny.match).toBeUndefined();
   });
+
+  /**
+   * The showcase pairs are one tool with one argument shape, told apart only by
+   * a gateway decision that has not happened when derivation runs. Deriving
+   * anything here is a guess, and the guess was always the permit entry — so a
+   * DENIED run, and every free-form "Check any location" query, reported as the
+   * scripted permit case in X-Use-Case-Id, the token-chain events and PingOne
+   * Authorize's UseCaseId. Returning nothing is the honest answer; the chips
+   * send their own useCaseId and are unaffected.
+   */
+  test.each(['get_weather', 'brave_news_search'])(
+    '%s derives no use case — outcome is not knowable up front',
+    (tool) => {
+      expect(deriveUseCaseId(tool, {})).toBeUndefined();
+    },
+  );
 });
