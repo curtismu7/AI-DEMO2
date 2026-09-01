@@ -26,6 +26,38 @@ describe('NotebookLmPage', () => {
     await waitFor(() => expect(screen.getByText(/sidecar is not running/i)).toBeInTheDocument());
   });
 
+  it('offers starter questions matched to the selected notebook, and clicking one fills the box', async () => {
+    apiClient.get.mockResolvedValueOnce({
+      data: { notebooks: [{ id: 'nb1', title: 'Ping Docs — privilege' }] },
+    });
+    apiClient.get.mockResolvedValue({ data: { sources: [] } });
+
+    render(<NotebookLmPage />);
+    await waitFor(() => expect(screen.getByText('Ping Docs — privilege')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('Ping Docs — privilege'));
+
+    const example = await screen.findByRole('button', { name: /agent-based and agentless/i });
+    fireEvent.click(example);
+    expect(screen.getByLabelText(/Question/i)).toHaveValue(
+      'What is the difference between agent-based and agentless deployment?',
+    );
+    // a privilege notebook must not offer PingOne questions it cannot ground
+    expect(screen.queryByRole('button', { name: /MFA methods/i })).not.toBeInTheDocument();
+  });
+
+  it('warns instead of guessing when a notebook has no starter questions', async () => {
+    apiClient.get.mockResolvedValueOnce({
+      data: { notebooks: [{ id: 'nb9', title: 'Untitled notebook' }] },
+    });
+    apiClient.get.mockResolvedValue({ data: { sources: [] } });
+
+    render(<NotebookLmPage />);
+    await waitFor(() => expect(screen.getByText('Untitled notebook')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('Untitled notebook'));
+
+    expect(await screen.findByText(/uncited web research/i)).toBeInTheDocument();
+  });
+
   it('shows a live progress indicator while an ask is in flight', async () => {
     apiClient.get.mockResolvedValue({ data: { notebooks: [{ id: 'nb1', title: 'Ping Docs' }] } });
     apiClient.get.mockResolvedValueOnce({ data: { notebooks: [{ id: 'nb1', title: 'Ping Docs' }] } });

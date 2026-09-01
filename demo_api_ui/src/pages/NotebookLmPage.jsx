@@ -23,6 +23,44 @@ function reasonFor(err) {
   return REASON_TEXT[reason] || 'NotebookLM is unavailable.';
 }
 
+/**
+ * Starter questions, matched to a notebook by a substring of its title.
+ *
+ * These are per-notebook rather than global on purpose. A notebook only answers
+ * from its own sources, and when a question has no grounding NotebookLM does not
+ * say so — it silently falls back to web research and returns a confident answer
+ * with an EMPTY references array. Asking a PingOne question against the privilege
+ * notebook therefore looks like it worked. Offering only questions the selected
+ * notebook can actually ground makes that failure mode hard to trigger by accident.
+ */
+const EXAMPLES = [
+  {
+    match: 'pingone',
+    questions: [
+      'What MFA methods does PingOne support?',
+      'How do I configure FIDO2 passkeys in PingOne?',
+      'What is the difference between PingID and PingOne MFA?',
+      'How do I create a worker application for the Management API?',
+      'How does PingOne Protect risk scoring work?',
+    ],
+  },
+  {
+    match: 'privilege',
+    questions: [
+      'What is the difference between agent-based and agentless deployment?',
+      'How do I register an MCP server with the Privilege gateway?',
+      'What is PCLI and when do I use it?',
+    ],
+  },
+];
+
+function examplesFor(notebook) {
+  if (!notebook) return [];
+  const title = String(notebook.title || '').toLowerCase();
+  const hit = EXAMPLES.find((e) => title.includes(e.match));
+  return hit ? hit.questions : [];
+}
+
 export default function NotebookLmPage() {
   const [notebooks, setNotebooks] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -115,6 +153,8 @@ export default function NotebookLmPage() {
     </nav>
   );
 
+  const exampleQuestions = examplesFor(selected);
+
   const middle = (
     <form className="nlm-ask" onSubmit={ask}>
       <label className="nlm-label" htmlFor="nlm-question">
@@ -128,6 +168,28 @@ export default function NotebookLmPage() {
         onChange={(e) => setQuestion(e.target.value)}
         placeholder="What is the agentless MCP gateway?"
       />
+      {selected && exampleQuestions.length > 0 && (
+        <div className="nlm-examples">
+          <span className="nlm-label">Try one</span>
+          {exampleQuestions.map((q) => (
+            <button
+              key={q}
+              type="button"
+              className="nlm-example"
+              disabled={asking}
+              onClick={() => setQuestion(q)}
+            >
+              {q}
+            </button>
+          ))}
+        </div>
+      )}
+      {selected && exampleQuestions.length === 0 && (
+        <p className="nlm-no-examples">
+          No starter questions for this notebook — it answers only from its own sources, and
+          anything they do not cover comes back as uncited web research.
+        </p>
+      )}
       <button type="submit" className="nlm-submit" disabled={!selected || asking}>
         {asking ? 'Asking…' : 'Ask'}
       </button>
