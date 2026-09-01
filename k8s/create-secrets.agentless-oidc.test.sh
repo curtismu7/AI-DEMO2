@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# create-secrets.agentless-oidc.test.sh — self-check for align_agentless_gateway_oidc.
+# create-secrets.agentless-oidc.test.sh — self-check for align_gateway_oidc_secret.
 #
 # That function rewrites a LIVE gateway's pingone.env and restarts it, so the two
 # things worth proving without a cluster are: it changes only the OIDC fields
@@ -36,6 +36,7 @@ setup() {
   : > "$ROOT/patched"      # what got written to the secret
   : > "$ROOT/restarted"    # whether the deployment was restarted
   export SECRET_PRESENT="${1:-yes}"
+  export TARGET_SECRET="${TARGET_SECRET:-agentless-mcpgw-oidc-config}"
   export CID="${2:-a6219652-47af-4ed2-8dea-20e9940b3377}"
   export SEC="${3:-NEW-secret-after-the-rotation}"
   export ENVID="${4:-01d89b06-66d5-430e-9f28-65636843788b}"
@@ -53,14 +54,14 @@ setup() {
 #!/usr/bin/env bash
 args="$*"
 case "$args" in
-  *"get secret agentless-mcpgw-oidc-config"*"pingone"*)
+  *"get secret $TARGET_SECRET"*"pingone"*)
       printf '%s' "$PINGONE_ENV" | base64 ;;
-  *"get secret agentless-mcpgw-oidc-config"*)
+  *"get secret $TARGET_SECRET"*)
       [ "$SECRET_PRESENT" = "yes" ] || exit 1 ;;
   *PRIVILEGE_SSO_CLIENT_ID*)     printf '%s' "$CID"   | base64 ;;
   *PRIVILEGE_SSO_CLIENT_SECRET*) printf '%s' "$SEC"   | base64 ;;
   *PRIVILEGE_SSO_ENV_ID*)        printf '%s' "$ENVID" | base64 ;;
-  *"patch secret agentless-mcpgw-oidc-config"*) cat > "$ROOT/patched" ;;
+  *"patch secret $TARGET_SECRET"*) cat > "$ROOT/patched" ;;
   *"rollout restart"*) echo yes > "$ROOT/restarted" ;;
 esac
 exit 0
@@ -74,7 +75,7 @@ STUB
   : > "$ROOT/warnings"
 
   # Source ONLY the function under test.
-  eval "$(awk '/^align_agentless_gateway_oidc\(\) \{/,/^\}/' "$SCRIPT")"
+  eval "$(awk '/^align_gateway_oidc_secret\(\) \{/,/^\}/' "$SCRIPT")"
 }
 
 # The patched secret arrives as {"stringData":{"pingone.env":"<json string>"}}.
@@ -84,11 +85,11 @@ raw = open(sys.argv[1]).read()
 print(json.loads(raw)["stringData"]["pingone.env"] if raw.strip() else "")' "$ROOT/patched"
 }
 
-echo "align_agentless_gateway_oidc"
+echo "align_gateway_oidc_secret"
 
 # ── 1. rotation reaches the gateway, and touches nothing it should not ────────
 setup yes
-align_agentless_gateway_oidc
+align_gateway_oidc_secret agentless-mcpgw-oidc-config agentless-mcpgw
 OUT="$(patched_env)"
 contains "rotated secret is written"        "$OUT" "OIDC_CLIENT_SECRET=NEW-secret-after-the-rotation"
 absent   "stale secret is gone"             "$OUT" "STALE-secret-from-before-the-rotation"
@@ -107,21 +108,33 @@ ALREADY="$(printf '%s\n' "$CURRENT_ENV" | sed -E \
   -e "s#^OIDC_TOKEN_URL=.*#OIDC_TOKEN_URL=https://auth.pingone.com/01d89b06-66d5-430e-9f28-65636843788b/as/token#" \
   -e "s#^OIDC_USER_URL=.*#OIDC_USER_URL=https://auth.pingone.com/01d89b06-66d5-430e-9f28-65636843788b/as/userinfo#")"
 setup yes "a6219652-47af-4ed2-8dea-20e9940b3377" "NEW-secret-after-the-rotation" "01d89b06-66d5-430e-9f28-65636843788b" "$ALREADY"
-align_agentless_gateway_oidc
+align_gateway_oidc_secret agentless-mcpgw-oidc-config agentless-mcpgw
 check "no patch when already in sync"   "$(cat "$ROOT/patched")"    ""
 check "no restart when already in sync" "$(cat "$ROOT/restarted" 2>/dev/null)" ""
 
 # ── 3. missing credentials: warn, never write a gateway that cannot auth ──────
 setup yes none none none
-align_agentless_gateway_oidc
+align_gateway_oidc_secret agentless-mcpgw-oidc-config agentless-mcpgw
 check    "no patch when PRIVILEGE_SSO_* missing" "$(cat "$ROOT/patched")" ""
 contains "warns when PRIVILEGE_SSO_* missing"    "$(cat "$ROOT/warnings")" "left alone"
 
 # ── 4. gateway not installed: silent no-op, the chart owns first install ──────
 setup no
-align_agentless_gateway_oidc
+align_gateway_oidc_secret agentless-mcpgw-oidc-config agentless-mcpgw
 check "no patch when the gateway is absent"    "$(cat "$ROOT/patched")" ""
 check "no warning when the gateway is absent"  "$(cat "$ROOT/warnings")" ""
+
+# ── 5. the SECOND holder: ping-mcpgw-secrets, which no workload mounts ───────
+# Its pingone.env is rebuilt verbatim from a gitignored asset file every run, so
+# it drifts silently on a rotation (2026-09-01). Same alignment, but there is no
+# deployment to bounce — a restart attempt here would only emit a false warning.
+TARGET_SECRET=ping-mcpgw-secrets setup yes
+align_gateway_oidc_secret ping-mcpgw-secrets
+OUT="$(patched_env)"
+contains "second holder is re-synced too" "$OUT" "OIDC_CLIENT_SECRET=NEW-secret-after-the-rotation"
+absent   "second holder loses the stale secret" "$OUT" "STALE-secret-from-before-the-rotation"
+check    "no restart when nothing mounts it" "$(cat "$ROOT/restarted" 2>/dev/null)" ""
+check    "no warning when nothing mounts it" "$(cat "$ROOT/warnings")" ""
 
 echo
 echo "  $PASS passed, $FAIL failed"
