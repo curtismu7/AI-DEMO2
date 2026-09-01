@@ -1068,10 +1068,15 @@ app.use('/api/admin/lighthouse', authenticateToken, require('./routes/lighthouse
 // and can feed a gw-aam event into the token chain.
 app.use('/api/aam', authenticateToken, require('./routes/aamProbe'));
 // NotebookLM sidecar proxy — read-only Ping docs Q&A for the admin page.
-// requireAdmin, not just authenticateToken: the sidecar drives the developer's
-// live Google account, and auth-requirements.json declares the /notebooklm UI
-// route "admin" — the API must not be a tier weaker than the page it serves.
-app.use('/api/notebooklm', authenticateToken, requireAdmin, require('./routes/notebooklmRoutes'));
+// Deliberately UNGATED: auth-requirements.json declares the /notebooklm UI route
+// "public", and the API must not be a tier stronger than the page it serves or the
+// page would render an empty state for the anonymous visitors it is meant to serve.
+// Consequence, stated plainly: anyone who can reach this demo can drive the
+// developer's live Google account through the sidecar. The sidecar's own bearer
+// (NOTEBOOKLM_SERVER_TOKEN, never exposed to the browser) is the only credential
+// in the chain, and the proxied surface is read-only by construction — no create,
+// delete, or source-mutation endpoint is reachable from here.
+app.use('/api/notebooklm', require('./routes/notebooklmRoutes'));
 
 // Knowledge Assertions API — citation resolution for the chat UI + admin reload.
 // Public read (assertions/domains/status); admin-only write (reload).

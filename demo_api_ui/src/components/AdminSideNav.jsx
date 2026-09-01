@@ -585,7 +585,6 @@ export default function AdminSideNav({
           label: "NotebookLM Docs Oracle",
           path: "/notebooklm",
           icon: "agt",
-          adminOnly: true,
         },
       ],
     },

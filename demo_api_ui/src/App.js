@@ -1425,15 +1425,13 @@ function AppWithAuth() {
                                 </RequireAdminLogin>
                               }
                             />
-                            {/* NotebookLM Docs Oracle — admin only; backed by a host-local sidecar. */}
-                            <Route
-                              path="/notebooklm"
-                              element={
-                                <RequireAdminLogin user={user}>
-                                  <NotebookLmPage />
-                                </RequireAdminLogin>
-                              }
-                            />
+                            {/* NotebookLM Docs Oracle — PUBLIC, no sign-in required.
+                                The parent path="*" element contributes no guard, so an
+                                unwrapped route here audits as public. Backed by a
+                                host-local sidecar holding a personal Google session;
+                                the sidecar's bearer is the only credential between
+                                callers and that account. */}
+                            <Route path="/notebooklm" element={<NotebookLmPage />} />
                             <Route
                               path="/feature-flags"
                               element={

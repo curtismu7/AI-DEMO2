@@ -186,7 +186,7 @@
     "/monitoring/p1az": "public",
     "/monitoring/pingone-events": "public",
     "/monitoring/token-exchange": "public",
-    "/notebooklm": "admin",
+    "/notebooklm": "public",
     "/oas-demo": "public",
     "/oauth-academy": "public",
     "/oauth-debug-logs": "admin",
