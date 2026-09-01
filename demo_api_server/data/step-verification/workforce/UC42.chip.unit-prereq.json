@@ -1,0 +1,18 @@
+{
+  "vertical": "workforce",
+  "useCaseId": "UC42",
+  "triggerType": "chip",
+  "mode": "unit-prereq",
+  "status": "UNPROVEN",
+  "errorClass": null,
+  "primaryTool": "brave_news_search",
+  "checkedAt": "2026-08-31",
+  "requiredFlags": [
+    "ff_mcp_gateway_pinggateway"
+  ],
+  "flagsAssumedOn": true,
+  "provesDeclaredOnly": true,
+  "flagsOffDetected": [
+    "ff_mcp_gateway_pinggateway"
+  ]
+}
