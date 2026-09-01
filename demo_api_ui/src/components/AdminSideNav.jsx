@@ -581,6 +581,12 @@ export default function AdminSideNav({
           path: "/ungoverned-agent",
           icon: "dbg",
         },
+        {
+          label: "NotebookLM Docs Oracle",
+          path: "/notebooklm",
+          icon: "agt",
+          adminOnly: true,
+        },
       ],
     },
     {
