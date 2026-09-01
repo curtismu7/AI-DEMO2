@@ -95,6 +95,67 @@ describe('checkWeatherScope', () => {
   });
 });
 
+/**
+ * allowedState='any-except-blocked' — the denylist mode. This port predates
+ * that mode: it accepted only 'any' or a key in STATES, so the real value fell
+ * through to the 'texas' DEFAULT and the gateway silently enforced Texas while
+ * the UI said "Any except blocked cities". A blocked Texas city (Dallas) was
+ * therefore permitted no matter what the admin put on the list.
+ *
+ * Semantics mirror tx-weather-scope.groovy: everywhere allowed EXCEPT the
+ * listed cities, matched on BOTH argument shapes — the coordinate branch is not
+ * optional, because weather-mcp's own tool descriptions steer a typed prompt
+ * through search_location first and the tool call then carries lat/lon.
+ */
+describe('checkWeatherScope — any-except-blocked', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  const BLOCKED = {
+    enabled: true,
+    allowedState: 'any-except-blocked',
+    blockedCities: [
+      { label: 'Miami, FL', lat: 25.7743, lon: -80.1937 },
+      { label: 'Dallas, TX', lat: 32.7762719, lon: -96.7968559 },
+    ],
+    blockRadiusDeg: 0.2,
+  };
+
+  test('denies a blocked city by name even though it is inside Texas', async () => {
+    mockedAxios.get.mockResolvedValue({ status: 200, data: BLOCKED });
+    const out = await checkWeatherScope({ city_name: 'Dallas, TX' }, 'http://bff/flag', 'secret');
+    expect(out.denied).toBe(true);
+    expect(out.message).toMatch(/Dallas, TX/);
+  });
+
+  test('denies a blocked city by the coordinates the agent resolved', async () => {
+    mockedAxios.get.mockResolvedValue({ status: 200, data: BLOCKED });
+    const out = await checkWeatherScope({ latitude: 32.7763, longitude: -96.7969 }, 'http://bff/flag', 'secret');
+    expect(out.denied).toBe(true);
+    expect(out.message).toMatch(/Dallas, TX/);
+  });
+
+  test('permits a city that is on nobody list — this mode is not a Texas allowlist', async () => {
+    mockedAxios.get.mockResolvedValue({ status: 200, data: BLOCKED });
+    const out = await checkWeatherScope({ city_name: 'Chicago, IL' }, 'http://bff/flag', 'secret');
+    expect(out.denied).toBe(false);
+  });
+
+  test('a differently-qualified same-name city is still permitted', async () => {
+    mockedAxios.get.mockResolvedValue({ status: 200, data: BLOCKED });
+    const out = await checkWeatherScope({ city_name: 'Miami, OH' }, 'http://bff/flag', 'secret');
+    expect(out.denied).toBe(false);
+  });
+
+  test('drops a half-populated entry rather than degrading the deny to name-only', async () => {
+    mockedAxios.get.mockResolvedValue({
+      status: 200,
+      data: { ...BLOCKED, blockedCities: [{ label: 'Dallas, TX', lat: null, lon: null }] },
+    });
+    const out = await checkWeatherScope({ city_name: 'Dallas, TX' }, 'http://bff/flag', 'secret');
+    expect(out.denied).toBe(false);
+  });
+});
+
 describe('checkBraveScope', () => {
   beforeEach(() => jest.clearAllMocks());
 
