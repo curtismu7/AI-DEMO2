@@ -7,6 +7,7 @@
 // Env-pinned flags (pinned/pinnedBy from the API) render locked: getEffective()
 // is env-first, so their toggles would be silently inert.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import useQuickFlags from '../hooks/useQuickFlags';
 import { createPortal } from 'react-dom';
 import './QuickFlagsPill.css';
 
@@ -67,47 +68,17 @@ function pinnedIdaiTargets(flagsById) {
     .map((t) => ({ id: t.id, pinnedBy: flagsById[t.id]?.pinnedBy }));
 }
 
-export { IDAI_FAITHFUL_PRESET, isIdaiFaithful, pinnedIdaiTargets };
+export { QUICK_FLAGS, IDAI_FAITHFUL_PRESET, isIdaiFaithful, pinnedIdaiTargets };
 
 export default function QuickFlagsPill({ user }) {
-  const [flagsById, setFlagsById] = useState(null); // null = not loaded
-  const [loadFailed, setLoadFailed] = useState(false);
   const [open, setOpen] = useState(false);
-  const [savingId, setSavingId] = useState(null);
-  const [error, setError] = useState(null);
-  const [adminDenied, setAdminDenied] = useState(false);
   const [presetNotice, setPresetNotice] = useState(null);
   const btnRef = useRef(null);
   const panelRef = useRef(null);
-  const aliveRef = useRef(true);
-
-  useEffect(() => {
-    aliveRef.current = true;
-    return () => { aliveRef.current = false; };
-  }, []);
-
-  // Any signed-in user may flip the demo flags; a server 403 (adminDenied)
-  // disables the controls as a defensive fallback for a future server gate.
-  const canEdit = !!user && !adminDenied;
-
-  const load = useCallback(async () => {
-    try {
-      const res = await fetch('/api/admin/feature-flags', { credentials: 'include' });
-      if (!aliveRef.current) return;
-      if (!res.ok) { setLoadFailed(true); return; }
-      const data = await res.json();
-      if (!aliveRef.current) return;
-      const byId = {};
-      for (const f of data.flags || []) byId[f.id] = f;
-      setFlagsById(byId);
-      setLoadFailed(false);
-    } catch (_) {
-      if (!aliveRef.current) return;
-      setLoadFailed(true);
-    }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
+  const {
+    flagsById, setFlagsById, loadFailed, savingId, setSavingId,
+    error, setError, setAdminDenied, canEdit, load, save, aliveRef,
+  } = useQuickFlags({ user });
 
   // Re-fetch on open so states stay honest across sessions/tabs.
   useEffect(() => { if (open) load(); }, [open, load]);
@@ -127,46 +98,6 @@ export default function QuickFlagsPill({ user }) {
       document.removeEventListener('keydown', onKey);
     };
   }, [open]);
-
-  const save = useCallback(async (id, value) => {
-    if (!flagsById) return;
-    const prev = flagsById[id];
-    if (!prev || prev.pinned) return;
-    setSavingId(id);
-    setError(null);
-    // Optimistic update + rollback (FeatureFlagsPage pattern).
-    setFlagsById((cur) => ({ ...cur, [id]: { ...cur[id], value } }));
-    try {
-      const res = await fetch('/api/admin/feature-flags', {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ updates: { [id]: value } }),
-      });
-      if (!aliveRef.current) return;
-      if (res.status === 403) {
-        setAdminDenied(true);
-        setFlagsById((cur) => ({ ...cur, [id]: prev }));
-        return;
-      }
-      if (!res.ok) throw new Error(`save failed (${res.status})`);
-      const data = await res.json();
-      if (!aliveRef.current) return;
-      if (Array.isArray(data.flags) && data.flags.length) {
-        setFlagsById((cur) => {
-          const next = { ...cur };
-          for (const f of data.flags) next[f.id] = f;
-          return next;
-        });
-      }
-    } catch (e) {
-      if (!aliveRef.current) return;
-      setFlagsById((cur) => ({ ...cur, [id]: prev }));
-      setError(e.message || 'save failed');
-    } finally {
-      if (aliveRef.current) setSavingId(null);
-    }
-  }, [flagsById]);
 
   /**
    * Apply Ping IDAI–shaped flags in one PATCH (skips env-pinned targets).
