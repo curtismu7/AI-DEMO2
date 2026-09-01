@@ -1231,7 +1231,14 @@ const RAW_USE_CASES = [
     owasp: { threats: ['T6'], sections: ['§4.2.2'] },
     whatToSay: 'Austin is in Texas — the gateway lets the call through to the real weather server.',
     advanced: false,
-    match: { tool: 'get_weather' },
+    // No `match` — permit and deny are the SAME tool with the same argument
+    // shape, told apart only by a gateway decision that has not happened yet
+    // when deriveUseCaseId() runs. A match here made every get_weather call
+    // without a client-supplied id — including denied ones, including free-form
+    // "Check any location" queries — report as this scripted permit case in
+    // X-Use-Case-Id, the token-chain events and PingOne Authorize's UseCaseId.
+    // The chips send their own useCaseId (demoAgentService.js), so they stay
+    // labelled; ad-hoc runs now correctly carry none.
     whatLong: 'The agent calls a real, unmodified third-party weather MCP server through the Agent Gateway. A city in the gateway\'s currently-configured state (Texas by default) is in scope for this demo policy, so the gateway forwards the call and the backend responds normally — the third-party server itself has no concept of the restriction.',
     businessValue: 'Any third-party or unmanaged MCP server can be brought into a governed environment without modifying it — the gateway enforces the business boundary, not the tool.',
     productRoles: {
@@ -1302,7 +1309,9 @@ const RAW_USE_CASES = [
     owasp: { threats: ['T6'], sections: ['§4.2.2'] },
     whatToSay: 'An ordinary business search — no blocked term, so the gateway forwards it to the real Brave API.',
     advanced: false,
-    match: { tool: 'brave_news_search' },
+    // No `match` — same reason as weather-mcp-texas-permit above. Whether a
+    // query is permitted depends on the gateway's blocked-term check, which
+    // deriveUseCaseId() cannot run and must not guess at.
     whatLong: 'The agent calls a real, unmodified third-party MCP server fronting the Brave Search API. The query carries no blocked term, so the Agent Gateway forwards it and the live search result comes back — the third-party server itself has no concept of the bank\'s content policy.',
     businessValue: 'Egress control on tool calls: an unmanaged third-party search server can be brought inside a governed perimeter without modifying it or trusting it.',
     productRoles: {
@@ -1325,15 +1334,14 @@ const RAW_USE_CASES = [
     owasp: { threats: ['T6'], sections: ['§4.2.2'] },
     whatToSay: 'Demo bank policy says no crypto research through the agent gateway. The gateway kills the query before Brave ever sees it.',
     advanced: false,
-    // No `match` on purpose — do not add one back. deriveUseCaseId() reverse-maps
-    // on tool name plus an amount band and returns the FIRST hit, so an entry
-    // declaring { tool: 'brave_news_search' } here could never be reached:
-    // brave-mcp-search-permit declares exactly the same match and comes first.
-    // It read as live routing and was dead code. Discriminating permit from deny
-    // would mean matching on the query text, which would put a fourth copy of the
-    // gateway's blocked-term list in this file — the duplication
-    // scopePolicies.mirror.test.ts exists to stop. weather-mcp-texas-deny has no
-    // match for the same reason.
+    // No `match` on purpose — do not add one back. It used to declare
+    // { tool: 'brave_news_search' }, which was unreachable dead code:
+    // brave-mcp-search-permit declared the identical match and came first.
+    // Neither carries one now, because deriveUseCaseId() reverse-maps on tool
+    // name plus an amount band and cannot tell a permitted query from a blocked
+    // one. Discriminating them would mean matching on the query text, which
+    // would put a fourth copy of the gateway's blocked-term list in this file —
+    // the duplication scopePolicies.mirror.test.ts exists to stop.
     whatLong: 'The agent is asked to search for a term on the demo bank\'s content blocklist (bitcoin / cryptocurrency / crypto). The Agent Gateway matches the term in the query argument and returns DENY before the call is forwarded — the third-party Brave server never runs the search and never sees the query.',
     businessValue: 'Data-egress control sits in one place at the gateway instead of being re-implemented, or forgotten, in every tool integration.',
     productRoles: {
