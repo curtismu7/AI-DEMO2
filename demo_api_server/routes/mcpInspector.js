@@ -24,6 +24,7 @@ const mcpProfileStore = require('../services/mcpProfileStore');
 const mcpHttpTransport = require('../services/mcpTransports/http');
 const mcpStdioTransport = require('../services/mcpTransports/stdio');
 const mcpPingOneHttpAdapter = require('../services/mcpPingOneHttpAdapter');
+const { listGatewayTools, invokeGatewayTool } = require('../services/mcpInspectorGateway');
 const archEmit = require('../services/archEventEmitter');
 const mcpFlowSseHub = require('../services/mcpFlowSseHub');
 const { buildSsePayload } = require('../services/sseCorrelation');
@@ -1085,6 +1086,55 @@ router.post('/custom-invoke', (_req, res) => {
     error: 'Custom tools not implemented',
     _source: 'custom_stub',
   });
+});
+
+/**
+ * Bearer for the gateway doors that sit behind an rsFilter (Brave). Deliberately
+ * NOT forceDirectMcpAudience — unlike this file's other callers, these requests
+ * go THROUGH PingGateway, so they need the gateway audience, not the raw MCP one.
+ * Returns null rather than throwing: a token failure should show as that one
+ * server's 401, not blank the whole tab.
+ */
+async function gatewayBearer(req) {
+  try {
+    const { token } = await resolveMcpAccessTokenWithEvents(req, 'brave_news_search', {});
+    return token || null;
+  } catch (err) {
+    console.warn('[mcpInspector] gateway bearer unavailable:', err.message);
+    return null;
+  }
+}
+
+// GET /api/mcp/inspector/gateway-tools — Gateway Showcase source
+// Lists tools from BOTH gateway-fronted third-party servers (weather + Brave),
+// each tagged with its server so the tree can group them. See
+// services/mcpInspectorGateway.js for why this is not the Custom Server source.
+router.get('/gateway-tools', async (req, res) => {
+  try {
+    const out = await listGatewayTools({ getToken: () => gatewayBearer(req) });
+    res.json({ ...out, _source: 'gateway_showcase' });
+  } catch (err) {
+    res.status(500).json({ error: err.message, tools: [], servers: [] });
+  }
+});
+
+// POST /api/mcp/inspector/gateway-invoke — invoke one tool on its own server
+// Body: { tool, server, params } — the shape useInspectorSource already sends.
+// A gateway DENY comes back 200 with
+// denied:true — it is the demo, not a failure.
+router.post('/gateway-invoke', async (req, res) => {
+  const { tool, server, params } = req.body || {};
+  if (!tool || !server) {
+    return res.status(400).json({ error: 'Body must be { tool, server, params }' });
+  }
+  try {
+    const out = await invokeGatewayTool({
+      server, tool, params, getToken: () => gatewayBearer(req),
+    });
+    res.json({ ...out, _source: 'gateway_showcase' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // GET /api/mcp/inspector/protocol-methods — list protocol testing methods

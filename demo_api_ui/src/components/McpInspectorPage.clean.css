@@ -355,3 +355,22 @@
 .inspector-clean-panel-body::-webkit-scrollbar-thumb:hover {
   background: var(--th-text-muted);
 }
+
+/* Server heading in a grouped tool tree (Gateway Showcase). Themed with --th-*
+   so it follows the page in both modes; ground and ink set together per
+   THEMING.md 1.5. */
+.inspector-clean-group-label {
+  padding: 6px 9px 4px;
+  margin-top: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--th-text-faint);
+  background: var(--th-bg-inset);
+  border-radius: 4px;
+}
+
+.inspector-clean-group-label:first-child {
+  margin-top: 0;
+}

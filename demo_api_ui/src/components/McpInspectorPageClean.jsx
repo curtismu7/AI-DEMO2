@@ -12,6 +12,10 @@ const SOURCES = [
   { key: 'api', label: 'API Calls' },
   { key: 'custom', label: 'Custom Server' },
   { key: 'protocol', label: 'Protocol' },
+  // One tab for BOTH gateway-fronted third-party servers. They are the same
+  // story told twice — PingGateway scoping a server it does not own — and
+  // Brave exposes a single tool, which is a thin thing to give a tab of its own.
+  { key: 'gateway', label: 'Gateway Showcase' },
 ];
 
 const OUTPUT_TABS = [
@@ -21,6 +25,27 @@ const OUTPUT_TABS = [
   { key: 'timing', label: 'Timing' },
   { key: 'headers', label: 'Headers' },
 ];
+
+/**
+ * Tools bucketed by `config.groupBy`, preserving first-seen order so the tree
+ * matches the order the BFF returned the servers in. A source without groupBy
+ * gets one unlabelled group, which renders identically to the old flat list.
+ */
+function groupsFor(source) {
+  const key = source.config.groupBy;
+  if (!key) return [{ label: null, tools: source.tools }];
+  const order = [];
+  const byLabel = new Map();
+  for (const t of source.tools) {
+    const label = t[key] || 'Other';
+    if (!byLabel.has(label)) {
+      byLabel.set(label, []);
+      order.push(label);
+    }
+    byLabel.get(label).push(t);
+  }
+  return order.map((label) => ({ label, tools: byLabel.get(label) }));
+}
 
 function McpInspectorPageClean() {
   const [searchParams] = useSearchParams();
@@ -101,16 +126,24 @@ function McpInspectorPageClean() {
                   No tools available
                 </div>
               ) : (
-                source.tools.map((tool) => (
-                  <div
-                    key={tool[source.config.toolKey]}
-                    className={`inspector-clean-item ${source.selectedTool?.[source.config.toolKey] === tool[source.config.toolKey] ? 'active' : ''}`}
-                    onClick={() => {
-                      source.setSelectedTool(tool);
-                      source.setParamValues({});
-                    }}
-                  >
-                    {tool[source.config.toolKey]}
+                // A source may declare groupBy (Gateway Showcase groups by
+                // server). Without it the list renders flat exactly as before —
+                // groupsFor() returns a single unlabelled group.
+                groupsFor(source).map(({ label, tools }) => (
+                  <div key={label || '_flat'}>
+                    {label && <div className="inspector-clean-group-label">{label}</div>}
+                    {tools.map((tool) => (
+                      <div
+                        key={`${label || ''}:${tool[source.config.toolKey]}`}
+                        className={`inspector-clean-item ${source.selectedTool?.[source.config.toolKey] === tool[source.config.toolKey] ? 'active' : ''}`}
+                        onClick={() => {
+                          source.setSelectedTool(tool);
+                          source.setParamValues({});
+                        }}
+                      >
+                        {tool[source.config.toolKey]}
+                      </div>
+                    ))}
                   </div>
                 ))
               )}
