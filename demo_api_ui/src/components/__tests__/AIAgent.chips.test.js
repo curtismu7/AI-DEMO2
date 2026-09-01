@@ -457,10 +457,10 @@ describe("Header controls after the Actions dropdown removal", () => {
     expect(screen.getByTestId("header-clear-progress")).toBeInTheDocument();
   });
 
-  // The secondary controls moved into a "More" tray. Guide, Demo steps, the
+  // The secondary controls moved into a "Quick Config" tray. Guide, Demo steps, the
   // scope picker and Clear progress deliberately did NOT move — the test above
   // is the 2026-07-24 Actions-dropdown-removal contract and still holds.
-  it("float mode: Topology and Script are in the More tray, not the header", async () => {
+  it("float mode: Topology and Script are in the Quick Config tray, not the header", async () => {
     renderAgent({ user: customerUser, mode: "float" });
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
@@ -470,7 +470,7 @@ describe("Header controls after the Actions dropdown removal", () => {
     expect(screen.queryByRole("button", { name: /^Topology$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Script$/i })).not.toBeInTheDocument();
 
-    const more = screen.getByRole("button", { name: /^More$/i });
+    const more = screen.getByRole("button", { name: /^Quick Config$/i });
     expect(more).toHaveAttribute("aria-expanded", "false");
     await act(async () => {
       fireEvent.click(more);

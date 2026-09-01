@@ -1,15 +1,17 @@
-/* QuickFlagsPill — header pill + portal dropdown (prefix: qfp-) */
+/* QuickFlagsPill — header pill + portal dropdown (prefix: qfp-)
+   Themed per THEMING.md: literals replaced with --th-* so the portal card stops
+   being a white slab in dark mode. Dark is :root[data-theme="dark"] only. */
 
 .qfp-pill {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 10px;
+  padding: 4px 12px;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.35);
   background: rgba(255, 255, 255, 0.08);
   color: var(--brand-topnav-text, #ffffff); /* pill lives on the topnav; inherit picks up dark body text */
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-sm);
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
@@ -21,47 +23,58 @@
 .qfp-dropdown {
   position: fixed;
   z-index: var(--z-shell);
-  min-width: 320px;
-  max-width: 380px;
+  min-width: 340px;
+  max-width: 420px;
   max-height: 70vh;
   overflow-y: auto;
-  background: #fff;
-  color: #1a2233;
-  border: 1px solid #d5dbe7;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border: 1px solid var(--th-border);
   border-radius: 10px;
   box-shadow: 0 10px 32px rgba(16, 24, 40, 0.18);
   padding: 10px 12px;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-base);
+}
+:root[data-theme="dark"] .qfp-dropdown {
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.5);
 }
 
 .qfp-hint,
 .qfp-error {
-  padding: 4px 8px;
+  padding: 5px 8px;
   border-radius: 6px;
   margin-bottom: 6px;
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-sm);
 }
-.qfp-hint { background: #fef6e7; color: #8a6116; }
-.qfp-error { background: #fdecec; color: #a12622; }
+.qfp-hint {
+  background: var(--th-status-warning-bg);
+  color: var(--th-status-warning-text);
+}
+.qfp-error {
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
+}
 
 .qfp-retry {
   margin-bottom: 6px;
-  padding: 3px 8px;
+  padding: 4px 8px;
   border-radius: 6px;
-  border: 1px solid #d5dbe7;
-  background: #f6f8fc;
+  border: 1px solid var(--th-border);
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
+  font-size: var(--font-size-sm);
   cursor: pointer;
 }
 
-.qfp-group { padding: 6px 0; border-top: 1px solid #eef1f7; }
+.qfp-group { padding: 6px 0; border-top: 1px solid var(--th-border); }
 .qfp-group:first-of-type { border-top: none; }
 .qfp-group-title {
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-2xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #66708a;
-  margin-bottom: 4px;
+  color: var(--th-text-muted);
+  margin-bottom: 5px;
 }
 
 .qfp-row {
@@ -69,18 +82,18 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 3px 0;
+  padding: 4px 0;
 }
 .qfp-row-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.qfp-missing { color: #98a1b8; font-size: var(--font-size-2xs); }
+.qfp-missing { color: var(--th-text-faint); font-size: var(--font-size-sm); }
 
 .qfp-segmented { display: inline-flex; align-items: center; gap: 0; }
 .qfp-seg-btn {
-  padding: 2px 8px;
-  font-size: var(--font-size-2xs);
-  border: 1px solid #cdd5e4;
-  background: #f6f8fc;
-  color: #3c4763;
+  padding: 3px 9px;
+  font-size: var(--font-size-sm);
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
   cursor: pointer;
 }
 .qfp-seg-btn:first-child { border-radius: 6px 0 0 6px; }
@@ -90,11 +103,12 @@
 
 .qfp-toggle-wrap { display: inline-flex; align-items: center; gap: 6px; }
 .qfp-toggle {
-  width: 34px;
-  height: 18px;
+  width: 38px;
+  height: 20px;
   border-radius: 999px;
-  border: 1px solid #cdd5e4;
-  background: #dfe5f0;
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg-hover);
+  color: var(--th-text-body);
   position: relative;
   cursor: pointer;
   padding: 0;
@@ -105,43 +119,49 @@
   position: absolute;
   top: 1px;
   left: 2px;
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: #fff;
   transition: left 0.15s ease;
 }
-.qfp-toggle--on .qfp-toggle-knob { left: 16px; }
+.qfp-toggle--on .qfp-toggle-knob { left: 18px; }
 
-.qfp-lock { font-size: var(--font-size-2xs); }
+.qfp-lock { font-size: var(--font-size-sm); }
 
 .qfp-preset {
   padding: 6px 0 8px;
-  border-bottom: 1px solid #eef1f7;
+  border-bottom: 1px solid var(--th-border);
   margin-bottom: 2px;
 }
 .qfp-preset-status {
-  padding: 4px 8px;
+  padding: 5px 8px;
   border-radius: 6px;
   margin: 4px 0 6px;
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-sm);
   font-weight: 600;
 }
-.qfp-preset-status--ok { background: #e8f6ee; color: #1b6b3a; }
-.qfp-preset-status--warn { background: #fef6e7; color: #8a6116; }
+.qfp-preset-status--ok {
+  background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
+}
+.qfp-preset-status--warn {
+  background: var(--th-status-warning-bg);
+  color: var(--th-status-warning-text);
+}
 .qfp-preset-notice {
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-sm);
   margin-bottom: 6px;
-  color: #3c4763;
+  color: var(--th-text-body);
 }
 .qfp-preset-btn {
   width: 100%;
-  padding: 6px 10px;
+  padding: 7px 10px;
   border-radius: 6px;
   border: 1px solid #1b62d6;
   background: #1b62d6;
   color: #fff;
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-sm);
   font-weight: 600;
   cursor: pointer;
 }

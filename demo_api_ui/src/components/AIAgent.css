@@ -5110,10 +5110,20 @@ body > .banking-agent-float-root .banking-agent-panel {
   opacity: 0.62;
   cursor: not-allowed;
 }
-/* Full-width so the tray reads as a menu, not a row of pills. */
+/* Full-width so the tray reads as a menu, not a row of pills. Type steps up to
+   --font-size-base INSIDE the tray only: 13px was hard to read at presenting
+   distance, but the header row buttons it shares a class with must not grow. */
 .ba-header-more-pop .ba-actions-trigger {
   width: 100%;
   justify-content: flex-start;
+  height: auto;
+  padding: 7px 12px;
+  font-size: var(--font-size-base);
+}
+.ba-header-more-pop .ba-header-toggle-label {
+  height: auto;
+  min-height: 32px;
+  font-size: var(--font-size-base);
 }
 :root[data-theme="dark"] .ba-header-more-pop {
   border-color: var(--th-border);

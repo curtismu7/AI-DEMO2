@@ -37,7 +37,6 @@ const QUICK_FLAGS = [
   { id: 'ff_transaction_ledger',        group: 'Observability',   control: 'toggle',    label: 'Transaction Chain of Custody' },
 ];
 const GROUPS = ['Token & Gateway', 'AuthN / AuthZ', 'Agent', 'Observability'];
-const PILL_FLAG = 'ff_mcp_gateway_jwks';
 
 /** Ping IDAI–shaped demo: Agent Gateway + live P1AZ + introspect (not JWKS). */
 const IDAI_FAITHFUL_PRESET = [
@@ -177,14 +176,12 @@ export default function QuickFlagsPill({ user }) {
     }
   }, [flagsById, canEdit]);
 
-  const pillFlag = flagsById?.[PILL_FLAG];
-  const pillLabel = !flagsById
-    ? (loadFailed ? 'Flags –' : '…')
-    : pillFlag?.value
-      ? 'Configuration: JWKS'
-      : 'Configuration: Introspect';
+  // Label is just "Configuration" — the JWKS/Introspect mode it used to carry
+  // is one row down inside the panel, and the pill was the widest thing in the
+  // topnav for a distinction most viewers never read.
+  const pillLabel = !flagsById ? (loadFailed ? 'Configuration' : '…') : 'Configuration';
 
-  const pillTitle = 'Quick feature flags — token validation mode and demo switches';
+  const pillTitle = 'Configuration — curated demo switches and token validation mode';
 
   const rect = open ? btnRef.current?.getBoundingClientRect() : null;
 

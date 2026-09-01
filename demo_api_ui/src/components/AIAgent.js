@@ -370,7 +370,7 @@ export default function BankingAgent({
   const { addEvent } = useEventStream();
   const { pageManifest, agentManifest, activeId: activeVerticalId, verticalStatus } = useVertical();
   const effectiveVerticalId = forceVertical || activeVerticalId;
-  // Secondary header controls live in a "More" popout. The header had ~16
+  // Secondary header controls live in a "Quick Config" popout. The header had ~16
   // controls across five rows, which buries the ones actually used to drive a
   // demo. Kept inline: Demo Track, Routing + Wiring, Flow Detail, Guide, Demo
   // steps, agent scope, close. A popout rather than an inline expansion so the
@@ -9538,10 +9538,10 @@ export default function BankingAgent({
                     className={`ba-actions-trigger${headerMoreOpen ? " active" : ""}`}
                     aria-haspopup="true"
                     aria-expanded={headerMoreOpen}
-                    title="Secondary header controls"
+                    title="Quick Config — display preferences and the demo feature flags"
                     onClick={() => setHeaderMoreOpen((v) => !v)}
                   >
-                    More
+                    Quick Config
                   </button>
                   {headerMoreOpen && (
                     <div className="ba-header-more-pop">
