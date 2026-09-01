@@ -522,6 +522,62 @@ align_internal_secret() {
   info "  BFF_INTERNAL_SECRET aligned across BFF + gateway + agent + langchain + ping-gateway + mcp-resource-server"
 }
 
+# ── Agentless gateway OIDC: a rotation must reach an ALREADY-INSTALLED gateway ─
+# The agentless chart writes secret/agentless-mcpgw-oidc-config (its pingone.env)
+# ONCE, at `helm install`, from the PRIVILEGE_SSO_* values in ai-demo-secrets.
+# k8s/aws/deploy.sh deliberately never upgrades an existing release — the proxy
+# token is single-use and ~2h, so reinstalling would CrashLoopBackOff a running
+# gateway — and nothing else re-syncs that secret. So when the PingOne app secret
+# is rotated, ai-demo-secrets picks the new value up on the next run of this
+# script while the gateway keeps the old one indefinitely.
+#
+# Not hypothetical: on 2026-08-31 the rotated secret reached the BFF and not the
+# gateway, and the gateway's own OIDC leg failed with "Token exchange failed with
+# status: 401" at its /callback — agentless sign-in dead for every fresh session,
+# with the gateway logging nothing at all about it.
+#
+# Re-sync only the fields derived from ai-demo-secrets; SERVER_URL and
+# OIDC_SCOPES are the gateway's own and must survive. The restart is required
+# because the binary reads pingone.env eagerly at startup, and is skipped when
+# nothing changed so a routine deploy never bounces a healthy gateway.
+align_agentless_gateway_oidc() {
+  kubectl get secret agentless-mcpgw-oidc-config --namespace="$NS" >/dev/null 2>&1 || return 0
+
+  local cid sec env_id current desired
+  cid="$(kubectl get secret ai-demo-secrets --namespace="$NS" -o jsonpath='{.data.PRIVILEGE_SSO_CLIENT_ID}' 2>/dev/null | base64 -d)"
+  sec="$(kubectl get secret ai-demo-secrets --namespace="$NS" -o jsonpath='{.data.PRIVILEGE_SSO_CLIENT_SECRET}' 2>/dev/null | base64 -d)"
+  env_id="$(kubectl get secret ai-demo-secrets --namespace="$NS" -o jsonpath='{.data.PRIVILEGE_SSO_ENV_ID}' 2>/dev/null | base64 -d)"
+  if [ -z "$cid" ] || [ -z "$sec" ] || [ -z "$env_id" ]; then
+    warn "  agentless-mcpgw-oidc-config left alone — PRIVILEGE_SSO_* missing from ai-demo-secrets"
+    return
+  fi
+
+  current="$(kubectl get secret agentless-mcpgw-oidc-config --namespace="$NS" -o jsonpath='{.data.pingone\.env}' 2>/dev/null | base64 -d)"
+  if [ -z "$current" ]; then
+    warn "  agentless-mcpgw-oidc-config has no pingone.env — leaving it to the chart"
+    return
+  fi
+
+  desired="$(printf '%s\n' "$current" | sed -E \
+    -e "s#^OIDC_CLIENT_ID=.*#OIDC_CLIENT_ID=${cid}#" \
+    -e "s#^OIDC_CLIENT_SECRET=.*#OIDC_CLIENT_SECRET=${sec}#" \
+    -e "s#^OIDC_AUTH_URL=.*#OIDC_AUTH_URL=https://auth.pingone.com/${env_id}/as/authorize#" \
+    -e "s#^OIDC_TOKEN_URL=.*#OIDC_TOKEN_URL=https://auth.pingone.com/${env_id}/as/token#" \
+    -e "s#^OIDC_USER_URL=.*#OIDC_USER_URL=https://auth.pingone.com/${env_id}/as/userinfo#")"
+
+  if [ "$desired" = "$current" ]; then
+    info "  agentless-mcpgw-oidc-config already matches ai-demo-secrets — no restart"
+    return
+  fi
+
+  printf '{"stringData":{"pingone.env":%s}}' \
+    "$(printf '%s' "$desired" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')" \
+    | kubectl patch secret agentless-mcpgw-oidc-config --namespace="$NS" --type merge --patch-file /dev/stdin >/dev/null
+  kubectl rollout restart deployment/agentless-mcpgw --namespace="$NS" >/dev/null 2>&1 \
+    || warn "  agentless-mcpgw-oidc-config updated but the restart failed — restart it by hand or the gateway keeps the old secret"
+  info "  agentless-mcpgw-oidc-config re-synced from ai-demo-secrets + gateway restarted"
+}
+
 # ── Per-service secrets (one per .env, mirroring docker-compose env_file) ─────
 info "Creating per-service secrets from each service's .env..."
 secret_from_envfile ai-demo-secrets   "$ASSET_ROOT/demo_api_server/.env"    # BFF (master)
@@ -538,6 +594,7 @@ secret_from_envfile gateway-secrets   "$ASSET_ROOT/demo_mcp_gateway/.env"   # MC
 secret_from_envfile agent-secrets        "$ASSET_ROOT/demo_agent_service/.env" # Agent service
 secret_from_envfile ping-gateway-secrets "$ASSET_ROOT/ping-gateway/.env"        # PingGateway (IG)
 align_internal_secret                                                       # one internal secret across every consumer (must run after all four exist)
+align_agentless_gateway_oidc                                                # rotation reaches an already-installed gateway (deploy.sh only ever installs)
 
 # Privilege proxy: ENV_PROXY_TOKEN from the gateway wizard, stored in
 # ping-mcpgw/procyon/config/proxy-token.env — an ENV FILE (`ENV_PROXY_TOKEN=eyJ...`),
