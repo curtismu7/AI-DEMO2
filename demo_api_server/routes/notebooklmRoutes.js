@@ -17,7 +17,9 @@ const { loadIndexes, resolveAgainst } = require('../services/notebooklmCitations
 
 const router = express.Router();
 
-const BASE_URL = process.env.NOTEBOOKLM_URL || 'http://notebooklm:8000';
+// notebooklm-py 0.8.1 mounts /healthz plus a /v1 router — every proxied path
+// below lives under /v1, so the version prefix belongs in the base URL.
+const BASE_URL = process.env.NOTEBOOKLM_URL || 'http://notebooklm:8000/v1';
 const BUNDLE_DIR = process.env.PING_DOCS_BUNDLE_DIR || '/bundles';
 const TIMEOUT_MS = 60_000;
 
@@ -82,9 +84,10 @@ router.post('/ask', async (req, res) => {
   }
 
   try {
-    const upstream = await callSidecar('/ask', {
+    // The notebook is a PATH param upstream; there is no /ask route.
+    const upstream = await callSidecar(`/notebooks/${encodeURIComponent(notebookId)}/chat`, {
       method: 'POST',
-      data: { notebook_id: notebookId, question },
+      data: { question },
     });
     const body = upstream.data || {};
     const refs = Array.isArray(body.references) ? body.references : [];

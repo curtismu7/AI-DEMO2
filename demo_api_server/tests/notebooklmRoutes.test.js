@@ -22,6 +22,12 @@ const citations = require('../services/notebooklmCitations');
 
 const notebooklmRoutes = require('../routes/notebooklmRoutes');
 
+/** The single axios config the route passed upstream. */
+function upstreamCall() {
+  expect(axios).toHaveBeenCalledTimes(1);
+  return axios.mock.calls[0][0];
+}
+
 function buildApp() {
   const app = express();
   app.use(express.json());
@@ -48,6 +54,17 @@ describe('GET /api/notebooklm/notebooks', () => {
     const res = await request(buildApp()).get('/api/notebooklm/notebooks');
     expect(res.status).toBe(200);
     expect(res.body.notebooks).toEqual([{ id: 'nb1', title: 'Ping Docs' }]);
+    // The server mounts its routes under /v1; a bare /notebooks is a 404 that
+    // the page would render as a generic "unavailable".
+    expect(upstreamCall().url).toBe('http://notebooklm:8000/v1/notebooks');
+  });
+
+  it('calls the /v1 sources path for the selected notebook', async () => {
+    axios.mockResolvedValue({ data: { sources: [{ id: 's1', title: 'PCLI guide' }] } });
+    const res = await request(buildApp()).get('/api/notebooklm/notebooks/nb%201/sources');
+    expect(res.status).toBe(200);
+    expect(res.body.sources).toEqual([{ id: 's1', title: 'PCLI guide' }]);
+    expect(upstreamCall().url).toBe('http://notebooklm:8000/v1/notebooks/nb%201/sources');
   });
 
   it('reports sidecar_unreachable when the container is down', async () => {
@@ -103,6 +120,24 @@ describe('POST /api/notebooklm/ask', () => {
         url: 'https://docs.pingidentity.com/privilege/x.md',
       },
     ]);
+  });
+
+  // Regression: the BFF once POSTed /ask with { notebook_id, question }. No such
+  // route exists on notebooklm-py 0.8.1 — the notebook is a PATH param on
+  // /v1/notebooks/{id}/chat, and the browser-facing shape stays { notebookId }.
+  it('POSTs the question to the notebook chat path, notebook id in the path only', async () => {
+    axios.mockResolvedValue({ data: { answer: 'a', references: [] } });
+    const res = await request(buildApp())
+      .post('/api/notebooklm/ask')
+      .send({ notebookId: 'nb1', question: 'what is pcli?' });
+
+    expect(res.status).toBe(200);
+    const call = upstreamCall();
+    expect(call.method).toBe('POST');
+    expect(call.url).toBe('http://notebooklm:8000/v1/notebooks/nb1/chat');
+    expect(call.url).not.toContain('/ask');
+    expect(call.data).toEqual({ question: 'what is pcli?' });
+    expect(call.data).not.toHaveProperty('notebook_id');
   });
 
   it('returns url null when the citation cannot be attributed', async () => {

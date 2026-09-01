@@ -119,6 +119,13 @@ DEFAULT_OPTIONAL_GROUPS=(rag)
 # Compose profiles matching OPTIONAL_GROUP_NAMES (also used for `start full`).
 FULL_STACK_PROFILE_ARGS=(--profile rag --profile agents --profile tracing --profile demo-auth --profile mcpgw)
 
+# Teardown only. `notebooklm` is deliberately absent from FULL_STACK_PROFILE_ARGS
+# (it restart-loops without a host ~/.notebooklm cookie jar, so it is never
+# started implicitly), but `down` must still reach its container — otherwise it
+# lingers holding its network. Start it deliberately with
+# `./run-docker.sh build notebooklm`: naming a service enables its profile.
+TEARDOWN_PROFILE_ARGS=("${FULL_STACK_PROFILE_ARGS[@]}" --profile notebooklm)
+
 # Return compose profile name(s) for an optional group (or `all`).
 _optional_group_profiles() {
   case "$1" in
@@ -728,7 +735,7 @@ SERVICES=(
   "pydantic-agent|Pydantic AI Agent    |8893|http://localhost:8893"
   "authz-server|Authz Server          |9001|http://localhost:9001"
   "promptfoo-step-narration|promptfoo (eval)      |-|./run-docker.sh promptfoo"
-  "notebooklm|NotebookLM Sidecar   |-|internal-only, no published port"
+  "notebooklm|NotebookLM Sidecar   |-|opt-in profile, no published port"
 )
 
 # True if $1 is one of the compose service names in SERVICES, OR a member of
@@ -983,17 +990,17 @@ _compose_down() {
   echo "Stopping containers (all profiles)..."
   local down_rc=0
   # Pass every compose profile so optional-group containers (rag, tracing,
-  # agents, demo-auth) stop too — otherwise the shared network stays in use
-  # and `down` blocks at "Network ai-demo_ai-demo Removing".
+  # agents, demo-auth, notebooklm) stop too — otherwise the shared network
+  # stays in use and `down` blocks at "Network ai-demo_ai-demo Removing".
   if [[ $# -gt 0 ]]; then
-    _compose_with_timeout 90 "${FULL_STACK_PROFILE_ARGS[@]}" down --timeout 5 "$@" --remove-orphans || down_rc=$?
+    _compose_with_timeout 90 "${TEARDOWN_PROFILE_ARGS[@]}" down --timeout 5 "$@" --remove-orphans || down_rc=$?
   else
-    _compose_with_timeout 90 "${FULL_STACK_PROFILE_ARGS[@]}" down --timeout 5 --remove-orphans || down_rc=$?
+    _compose_with_timeout 90 "${TEARDOWN_PROFILE_ARGS[@]}" down --timeout 5 --remove-orphans || down_rc=$?
   fi
   if [[ "${down_rc}" -ne 0 ]]; then
     warn "compose down timed out — forcing stop"
-    _compose_with_timeout 30 "${FULL_STACK_PROFILE_ARGS[@]}" kill 2>/dev/null || true
-    _compose_with_timeout 30 "${FULL_STACK_PROFILE_ARGS[@]}" rm -f 2>/dev/null || true
+    _compose_with_timeout 30 "${TEARDOWN_PROFILE_ARGS[@]}" kill 2>/dev/null || true
+    _compose_with_timeout 30 "${TEARDOWN_PROFILE_ARGS[@]}" rm -f 2>/dev/null || true
   fi
   _purge_leftover_stack
 }

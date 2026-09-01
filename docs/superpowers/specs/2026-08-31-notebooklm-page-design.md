@@ -50,7 +50,7 @@ through this page.
 
 ```text
 browser ──► BFF (ai-demo-api-server) ──► notebooklm sidecar ──► Google
-            /api/notebooklm/*            :8099, bearer         (host cookies
+            /api/notebooklm/*            :8000, bearer         (host cookies
             admin-gated                  internal network       via bind mount)
 ```
 
@@ -86,7 +86,7 @@ Follows the existing flat `routes/*.js` convention.
 | GET | `/api/notebooklm/notebooks/:id/sources` | list that notebook's sources |
 | POST | `/api/notebooklm/ask` | `{ notebookId, question }` → cited answer |
 
-The route proxies to `http://notebooklm:8099` with the bearer and returns a
+The route proxies to `http://notebooklm:8000/v1` (the server mounts its routes under `/v1`) with the bearer and returns a
 normalised shape. It maps upstream failures to a 503 carrying a machine-readable
 `reason` (`sidecar_unreachable`, `auth_expired`, `upstream_error`) so the page can
 say which one happened instead of showing a generic failure.

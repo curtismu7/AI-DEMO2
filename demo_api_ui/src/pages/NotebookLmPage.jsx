@@ -55,7 +55,10 @@ export default function NotebookLmPage() {
     setSources([]);
     apiClient
       .get(`/api/notebooklm/notebooks/${encodeURIComponent(nb.id)}/sources`)
-      .then((res) => setSources((res.data && res.data.sources) || []))
+      .then((res) => {
+        setSources((res.data && res.data.sources) || []);
+        setUnavailable(null);
+      })
       .catch((err) => setUnavailable(reasonFor(err)));
   }, []);
 

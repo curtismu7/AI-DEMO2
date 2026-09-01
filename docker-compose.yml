@@ -485,6 +485,8 @@ services:
         # the internal tool callback (BFF_INTERNAL_TOOL_URL above).
         aliases:
           - api.ping.demo
+      # Sole peer of the notebooklm sidecar — see that service for why.
+      notebooklm-net:
     depends_on:
       jaeger:
         condition: service_started
@@ -518,8 +520,18 @@ services:
       # `environment:` overrides env_file for the same key even when absent.
       - path: ./demo_api_server/.env
         required: true
+    # Opt-in, so a bare `up -d` (./run-docker.sh start full) leaves it down: it
+    # needs a host ~/.notebooklm cookie jar, and without one Docker creates an
+    # empty root-owned dir and the container restart-loops. Start it
+    # deliberately with `./run-docker.sh build notebooklm` — naming a service
+    # enables its profile.
+    profiles: ["notebooklm"]
+    # NOT on ai-demo. The bearer token is the only guard (ALLOW_EXTERNAL_BIND=1
+    # turns off the peer-loopback and Host-rebinding checks), so anything on the
+    # flat network holding it could drive the live Google account. Only the BFF
+    # joins this network.
     networks:
-      - ai-demo
+      - notebooklm-net
     restart: unless-stopped
 
   # ── UI (Vite build → nginx HTTPS) ──────────────────────────────────────────
@@ -2062,6 +2074,10 @@ services:
 
 networks:
   ai-demo:
+    driver: bridge
+  # Two members only: demo-api-server and notebooklm. Keeps the sidecar off the
+  # flat network the third-party images (grafana, jaeger, weaviate, …) share.
+  notebooklm-net:
     driver: bridge
 
 volumes:
