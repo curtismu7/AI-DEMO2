@@ -4,6 +4,7 @@
 
 const express = require('express');
 const crypto = require('crypto');
+const privilegeGatewaySession = require('../services/privilegeGatewaySession');
 const router = express.Router();
 
 const DEFAULT_AGENTLESS_MCP_URL =
@@ -1410,6 +1411,18 @@ router.get('/auth/callback', async (req, res) => {
     session.pendingAuth = null;
     resetMcpState(session);
     if (req.session) req.session.privilegePromptNoneFailed = false;
+
+    // Hand the gateway leg to the façade's privilege-gateway door, so standalone
+    // MCP clients never have to register with the gateway themselves — see
+    // services/privilegeGatewaySession.js for why that matters.
+    privilegeGatewaySession.remember({
+      accessToken: session.oauth.accessToken,
+      refreshToken: session.oauth.refreshToken,
+      expiresIn: tokenData.expires_in,
+      tokenUri: session.oauth.tokenUri,
+      clientId: session.oauth.dcrClientId || session.config.clientId,
+      clientSecret: session.oauth.dcrClientSecret,
+    });
 
     emitEvent(session, 'oauth', { phase: 'token_success', expiresIn: tokenData.expires_in || null });
     res.redirect(`${returnBase}?auth=success`);
