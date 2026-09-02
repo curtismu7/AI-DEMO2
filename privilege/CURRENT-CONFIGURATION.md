@@ -1,35 +1,52 @@
 # PingOne Privilege MCP: current configuration index
 
-Verified 2026-08-20. Agentless and Agent are independent deployments with different
-authentication, applications, clusters, images, and operating procedures. Use the
-mode-specific guide as the operational source of truth.
+Verified 2026-09-02. **There is now exactly one gateway.** The Agentless/Agent
+split below the fold is history: the per-owner gateways were torn down on
+2026-09-01 and replaced by a single AI Gateway (the product's own new name for
+what this repo called "agentless").
 
-## Choose the deployment mode
+## The current deployment
 
-| | Agentless | Agent |
-|---|---|---|
-| Detailed guide | [`AGENTLESS-CONFIGURATION.md`](AGENTLESS-CONFIGURATION.md) | [`AGENT-CONFIGURATION.md`](AGENT-CONFIGURATION.md) |
-| Namespace | `ping-devops-cmuir` | `ping-devops-curtismuir` |
-| Helm release | `agentless-mcpgw` | `cm-mcpgw` |
-| Mesh cluster | `ai-demo-cmuir` | `ai-demo-agent` |
-| Privilege application | `cmuir` | `cmuir2` / OpenSearch |
-| MCP client URL | `https://cmuir-agentless-mcpgw.ping-devops.com/cmuir/mcp` | `https://opensearch.default.applications.procyon.ai:8643/mcp` |
-| Authentication | Gateway-managed OAuth/PKCE | Installed PingOne Privilege Agent |
-| Gateway implementation | `privilege-mcpgw` `v1.260729` | Working legacy `privilege-proxy` `v1.260813` |
+| | |
+|---|---|
+| Operational guide | `.claude/skills/privilege-mcpgw-agent-k8s/SKILL.md` (source of truth) |
+| Namespace | `ping-devops-curtismuir` |
+| Helm release | `agentless-mcpgw` (chart `pingone-privgateway-helm-main/agentless`) |
+| Mesh cluster | `ai-demo-cmuir` |
+| PingOne tenant | `0428ba4f-169c-436b-aff9-b230496e0e3b` ("AI Agent") |
+| Agentic App | `opensearch22` |
+| MCP client URL | `https://mcpgw.ai-demo.ping-devops.com/opensearch22/mcp` |
+| Backend registered as | `http://opensearch-mcp-server.ping-devops-curtismuir.svc.cluster.local/sse` |
+| Authentication | Gateway-managed OAuth: RFC 7591 dynamic registration + PKCE, no client id configured on the client |
 
-## Separation rules
+## Rules that still bite
 
-- Agentless requires its OIDC client ID, scopes, callback, and gateway OAuth
-  configuration. Its settings are stored in `gatewayConfigs.agentless`.
-- Agent uses no client ID, scopes, `pingone.env`, Privilege sign-in button, or BFF
-  bearer token. Its settings are stored in `gatewayConfigs.agent`.
-- OpenSearch belongs to the working Agent application `cmuir2`; the Agentless
-  application `cmuir` has a different backend.
-- Use `/mcp` in Postman and the demo client. A configured backend may use `/sse`,
-  but that is not the Streamable HTTP client URL.
-- Do not change the working Agent deployment while repairing or upgrading
-  Agentless. An Agent image migration requires its own plan, rollback, and proof.
+- **Register the backend with `/sse`, never `/mcp`.** The gateway's discovery
+  client speaks the SSE transport — it issues a `GET` and waits for the SSE
+  `endpoint` event, and never POSTs `initialize`. `/mcp` answers 200 and the
+  handshake then dies, which the console reports as
+  `Error discovering MCP server: calling "initialize": Unauthorized`. This
+  corrects the previous version of this file, which said to use `/mcp`.
+- **`svc.cluster.local` is the backend, not a client URL.** It resolves only
+  inside the cluster; a client pointed there hangs. Clients use the client URL
+  above.
+- **The chart adds no release prefix.** Objects are `opensearch-mcp-server`,
+  `opensearch`, `agentless-mcpgw`. Any `cm-mcpgw-*` or `ping-mcpgw-*` name is
+  from a deleted release.
+- **The gateway's DCR registry is in memory** — restarting it invalidates every
+  registered client. The BFF re-registers automatically; standalone MCP clients
+  must be removed and re-added.
+- **Policies are per Agentic App and time-boxed.** A new app starts with none.
+  Read `deployment/agentless-mcpgw -c log-tailer` for the real denial reason;
+  the empty `Email=` in `User identity resolved` is cosmetic and never the cause.
+
+## Doors that are deliberately dark
+
+`mcpFacade.js`'s `agentless` (banking), `agent` and `agent-cmuir` doors point at
+torn-down infrastructure and are left that way on purpose — see the 2026-09-01
+entry in [`../TECH_DEBT.md`](../TECH_DEBT.md) for what each would need.
 
 Historical investigation and product reference material remains indexed in
-[`PRIVILEGE-MCP.md`](PRIVILEGE-MCP.md). Dated files do not override either current
-mode-specific guide.
+[`PRIVILEGE-MCP.md`](PRIVILEGE-MCP.md); `AGENTLESS-CONFIGURATION.md` and
+`AGENT-CONFIGURATION.md` describe the retired two-gateway split and are kept for
+history only. Dated files do not override this index or the skill.

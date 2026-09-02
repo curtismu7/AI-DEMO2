@@ -48,7 +48,11 @@ function textResponse(text, { status = 200 } = {}) {
 
 // `known` decides how the gateway answers the liveness probe on /token:
 // a forgotten client is rejected 401, a live one only fails on the bad code.
-function gatewayFetch({ calls, issuedClientIds, known }) {
+//
+// `secret` makes /register issue a confidential client. Such a client answers an
+// UNAUTHENTICATED probe with 401 too — indistinguishable from being forgotten —
+// so the probe has to present the secret it holds.
+function gatewayFetch({ calls, issuedClientIds, known, secret = null }) {
   return jest.fn(async (url, options = {}) => {
     const target = String(url);
     calls.push(target);
@@ -59,14 +63,16 @@ function gatewayFetch({ calls, issuedClientIds, known }) {
     if (target === REGISTER_URI) {
       const clientId = `dcr-client-${issuedClientIds.length + 1}`;
       issuedClientIds.push(clientId);
-      return jsonResponse({ client_id: clientId });
+      return jsonResponse(secret ? { client_id: clientId, client_secret: secret } : { client_id: clientId });
     }
     if (target === TOKEN_URI) {
       const body = String(options.body || '');
       if (body.includes('dcr-liveness-probe')) {
-        return known()
-          ? textResponse('Invalid or expired authorization code', { status: 400 })
-          : textResponse('Invalid client credentials', { status: 401 });
+        if (!known()) return textResponse('Invalid client credentials', { status: 401 });
+        if (secret && !body.includes(`client_secret=${secret}`)) {
+          return textResponse('Invalid client credentials', { status: 401 });
+        }
+        return textResponse('Invalid or expired authorization code', { status: 400 });
       }
       return jsonResponse({ access_token: 'access-1', expires_in: 3600 });
     }
@@ -104,6 +110,25 @@ describe('privilege MCP client DCR re-registration', () => {
 
     expect(second).toBe(first);
     expect(issuedClientIds).toHaveLength(1);
+    expect(calls.filter((c) => c === REGISTER_URI)).toHaveLength(1);
+  });
+
+  test('keeps a confidential client instead of re-registering on every sign-in', async () => {
+    const app = buildApp();
+    const calls = [];
+    const issuedClientIds = [];
+    global.fetch = gatewayFetch({ calls, issuedClientIds, known: () => true, secret: 'sh-secret' });
+
+    await request(app).post('/api/privilege-mcp/config')
+      .send({ mcpUrl: MCP_URL, clientId: 'configured-pingone-client' })
+      .expect(200);
+
+    const first = await startAuth(app);
+    const second = await startAuth(app);
+
+    // Probing without the secret would read as 401 -> "forgotten" -> a fresh
+    // registration on every login, leaking a client per sign-in.
+    expect(second).toBe(first);
     expect(calls.filter((c) => c === REGISTER_URI)).toHaveLength(1);
   });
 

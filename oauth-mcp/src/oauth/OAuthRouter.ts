@@ -14,6 +14,40 @@ import { resolveAudience } from './TokenIssuer';
 import { AUTHORIZATION_SERVER_SCOPES } from './scopes';
 
 /**
+ * RFC 8252 §7.3: for a loopback redirect URI the port is chosen at request time
+ * and MUST NOT take part in the comparison — a native app cannot reserve a port
+ * in advance, so it registers one and then listens on whatever is free.
+ *
+ * We compared the whole string, so LM Studio (which picks a fresh loopback port
+ * every launch) got `400 redirect_uri not registered` on its second run and
+ * stayed broken until the integration was deleted and re-added. Observed
+ * 2026-09-02 against the live server.
+ *
+ * Everything that is not http loopback still has to match exactly: this
+ * loosening is scoped to 127.0.0.1 / [::1], where the port carries no security
+ * meaning, and never to a remote redirect.
+ */
+export function redirectUriIsRegistered(registered: string[], requested: string): boolean {
+  if (registered.includes(requested)) return true;
+
+  const parse = (value: string): URL | null => {
+    try { return new URL(value); } catch { return null; }
+  };
+  const isHttpLoopback = (u: URL | null): u is URL =>
+    !!u && u.protocol === 'http:' && (u.hostname === '127.0.0.1' || u.hostname === '::1' || u.hostname === '[::1]');
+
+  const want = parse(requested);
+  if (!isHttpLoopback(want)) return false;
+
+  return registered.some((candidate) => {
+    const have = parse(candidate);
+    return isHttpLoopback(have)
+      && have.hostname === want.hostname
+      && have.pathname === want.pathname;
+  });
+}
+
+/**
  * Native ID-JAG (MCP Enterprise-Managed Authorization) engages only when BOTH
  * the enterprise IdP's issuer and its JWKS endpoint are configured. Both are
  * unset by default, so the demo's RFC 8693 stand-in path is unaffected.
@@ -132,7 +166,7 @@ export class OAuthRouter {
       return true;
     }
 
-    if (!client.redirect_uris.includes(redirectUri)) {
+    if (!redirectUriIsRegistered(client.redirect_uris, redirectUri)) {
       this.json(res, 400, { error: 'invalid_request', error_description: 'redirect_uri not registered' });
       return true;
     }
