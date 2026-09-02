@@ -96,6 +96,7 @@ const stubConfig: GatewayConfig = {
   rateLimitMaxRequests: 20,
   rateLimitWindowMs: 60000,
   introspectionSimDown: false,
+  enterpriseManagedMcpAuth: false,
 };
 
 const stubConfigNoAuthz: GatewayConfig = {

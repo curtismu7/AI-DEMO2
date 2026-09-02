@@ -29,6 +29,7 @@ import { buildBankingDataToolResult } from './bankingDataDispatch';
 import { McpTokenExchangeClient, scopeMismatchReasonFromExchangeError } from './auth/McpTokenExchangeClient';
 import { proxyJsonRpc, proxyJsonRpcHttp, JsonRpcRequest, JsonRpcResponse, MCP_PROTOCOL_VERSION } from './proxy';
 import { guardToolsList, guardToolCall, warmupAuthz } from './pingAuthorizeGuard';
+import { syncEnterpriseMcpAuthFromBff } from './enterpriseMcpAuthSync';
 import { classifyWsDeny } from './wsDenyClassifier';
 import { createHitlChallenge, verifyAndConsumeHitlReceipt, ReceiptVerification } from './hitlClient';
 import { GatewayServer } from './server/GatewayServer';
@@ -1274,6 +1275,11 @@ httpServer.listen(config.port, config.host, () => {
   // Best-effort: warm the Authorization Server connection so the first
   // tools/list decision after this (re)start doesn't pay the cold connect.
   void warmupAuthz(config);
+  // Best-effort: ID-JAG is owned by the BFF's UI toggle, and the value the BFF
+  // pushed to /admin/config does not survive a gateway restart (dynamic config
+  // is in-memory). Re-ask so the RFC 9728 metadata and the 401 challenge agree
+  // with the UI instead of falling back to this process's env seed.
+  void syncEnterpriseMcpAuthFromBff(config);
 });
 
 // WR-05: graceful drain. httpServer.close() is async — exiting on the next

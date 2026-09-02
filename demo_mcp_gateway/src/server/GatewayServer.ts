@@ -465,7 +465,7 @@ export class GatewayServer {
       metadata.authorization_servers = [selfBaseUrl(req, this.config.port)];
     }
 
-    if (isEnterpriseManagedMcpAuthEnabled()) {
+    if (isEnterpriseManagedMcpAuthEnabled(this.config)) {
       metadata.extensions = buildEnterpriseExtensionBlock();
     }
 
@@ -1135,7 +1135,7 @@ export class GatewayServer {
         `resource_metadata="${metadataUrl}"`,
         `error="${errorCode}"`,
         `error_description="${safeDesc}"`,
-      ].join(', ')),
+      ].join(', '), this.config),
     });
     res.end(JSON.stringify({ error: errorCode, message: description }));
   }

@@ -1430,6 +1430,7 @@ app.use('/mcp-facade', require('./routes/mcpFacade'));
 // from here at request time. Secret-guarded + allow-listed; NOT browser-facing.
 app.use('/internal', require('./routes/vaultServiceKey'));
 app.use('/internal', require('./routes/weatherMcpFlag'));
+app.use('/internal', require('./routes/enterpriseMcpAuthFlag'));
 app.use('/internal', require('./routes/braveMcpFlag'));
 
 // Phase 266 R2 — Path A info marker (session-cookie auth; no Bearer needed from SPA)

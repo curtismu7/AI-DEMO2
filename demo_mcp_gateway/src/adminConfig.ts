@@ -43,6 +43,7 @@ export const ADMIN_CONFIG_ALLOWED_KEYS: Array<keyof GatewayConfig> = [
   'rateLimitMaxRequests',
   'rateLimitWindowMs',
   'introspectionSimDown',
+  'enterpriseManagedMcpAuth',
 ];
 
 export interface AdminConfigResult {
@@ -71,6 +72,7 @@ function safeView(config: GatewayConfig): Record<string, unknown> {
     rateLimitMaxRequests:  config.rateLimitMaxRequests,
     rateLimitWindowMs:     config.rateLimitWindowMs,
     introspectionSimDown:  config.introspectionSimDown,
+    enterpriseManagedMcpAuth: config.enterpriseManagedMcpAuth,
     mcpServerPassthrough:  config.mcpServerPassthrough,
     // Phase 266/267 HTTP backend routes — non-secret addresses + logical
     // audiences only (the X-API-Key for the apikey path is NEVER exposed).
@@ -176,7 +178,7 @@ export function applyAdminConfigUpdate(
       } else if (key === 'rateLimitEnabled') {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (config as any).rateLimitEnabled = updates.rateLimitEnabled === true;
-      } else if (key === 'requireActForAgentTools' || key === 'intentTokenRequired' || key === 'requireRarIntent' || key === 'introspectionSimDown' || key === 'p1azEnabled') {
+      } else if (key === 'requireActForAgentTools' || key === 'intentTokenRequired' || key === 'requireRarIntent' || key === 'introspectionSimDown' || key === 'p1azEnabled' || key === 'enterpriseManagedMcpAuth') {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (config as any)[key] = updates[key] === true;
       } else {
