@@ -159,8 +159,13 @@ const DOORS = {
     // The gateway still enforces its own per-user policy: what goes upstream is
     // the token minted for the human who signed in at /privilege-mcp-client,
     // not a service identity.
+    // One door, every registered Agentic App: /privilege-gateway/<app>/mcp
+    // resolves to <gateway>/<app>/mcp. Without the segment the door falls back
+    // to the default app, so the shorter URL keeps working.
+    multiApp: true,
     upstream: () => process.env.MCP_FACADE_PRIVILEGE_GATEWAY_URL
-      || 'https://mcpgw.ai-demo.ping-devops.com/opensearch22/mcp',
+      || `${privilegeGatewayBase()}/${process.env.MCP_FACADE_PRIVILEGE_GATEWAY_APP || 'opensearch22'}/mcp`,
+    upstreamFor: (app) => `${privilegeGatewayBase()}/${app}/mcp`,
     authorizationServer: () => process.env.MCP_FACADE_AGENT_GATEWAY_AS || 'http://localhost:3005',
     scopes: [],
     forwardCorrelation: false,
@@ -313,7 +318,18 @@ function hop(correlationId, h) {
 }
 
 function facadeBase(req) {
-  return `${req.protocol}://${req.get('host')}/mcp-facade/${req.params.door}`;
+  // The app segment belongs in the base: RFC 9728 discovery and the 401
+  // challenge must name the URL the client actually called, or a multi-app
+  // client authenticates for one app and then calls another.
+  const app = req.params.app ? `/${req.params.app}` : '';
+  return `${req.protocol}://${req.get('host')}/mcp-facade/${req.params.door}${app}`;
+}
+
+// Origin of the Privilege AI Gateway, without a trailing slash so the app
+// segment can be appended cleanly.
+function privilegeGatewayBase() {
+  return String(process.env.MCP_FACADE_PRIVILEGE_GATEWAY_BASE || 'https://mcpgw.ai-demo.ping-devops.com')
+    .replace(/\/+$/, '');
 }
 
 // Where the reel_url points. Deliberately NOT PUBLIC_APP_URL: the embed page is
@@ -348,8 +364,28 @@ router.param('door', (req, res, next, name) => {
   return next();
 });
 
+// The app segment is interpolated into the upstream URL, so it is validated as
+// a NAME and never as a path: no slashes, no colon, no percent-escapes. Without
+// this an app of `..%2F..%2Fadmin` — or an absolute URL — would steer the
+// façade's authenticated upstream hop somewhere it was never meant to reach.
+// Express decodes the segment before this runs, so the check sees the real value.
+const APP_SEGMENT = /^[A-Za-z0-9._-]{1,64}$/;
+
+router.param('app', (req, res, next, name) => {
+  if (!req.door?.multiApp) {
+    return res.status(404).json({ error: 'door_takes_no_app', door: req.params.door });
+  }
+  if (!APP_SEGMENT.test(name)) {
+    return res.status(400).json({ error: 'invalid_app', message: 'App name may contain letters, digits, dot, underscore and dash only.' });
+  }
+  return next();
+});
+
 // RFC 9728 — this façade is the protected resource; the AS is the real one.
-router.get('/:door/.well-known/oauth-protected-resource', (req, res) => {
+// Both shapes share every handler: the bare door, and the door plus an Agentic
+// App segment for multiApp doors. facadeBase() folds the segment into the
+// advertised resource URL, so discovery answers for the exact URL called.
+router.get(['/:door/.well-known/oauth-protected-resource', '/:door/:app/.well-known/oauth-protected-resource'], (req, res) => {
   const base = facadeBase(req);
   const body = {
     resource: `${base}/mcp`,
@@ -514,7 +550,7 @@ function respondDeniedSession(req, res, { rpc, method, isCall, toolName, correla
   return res.status(200).send(JSON.stringify({ jsonrpc: '2.0', id: rpc.id ?? null, result: {} }));
 }
 
-router.post('/:door/mcp', express.json({ limit: '1mb', type: () => true }), async (req, res) => {
+router.post(['/:door/mcp', '/:door/:app/mcp'], express.json({ limit: '1mb', type: () => true }), async (req, res) => {
   const door = req.door;
   const rpc = req.body && typeof req.body === 'object' ? req.body : {};
   const method = typeof rpc.method === 'string' ? rpc.method : '';
@@ -527,7 +563,9 @@ router.post('/:door/mcp', express.json({ limit: '1mb', type: () => true }), asyn
   // whole lifecycle (initialize → tools/list → tools/call…) and the gateway's
   // own decisions for each step land on the same record.
   const correlationId = inbound?.cid || crypto.randomUUID();
-  const upstreamUrl = door.upstream();
+  const upstreamUrl = req.params.app && door.upstreamFor
+    ? door.upstreamFor(req.params.app)
+    : door.upstream();
 
   // Doors whose upstream has no auth of its own are gated HERE, before the
   // relay — otherwise anonymous traffic reaches it. Answering with the same
@@ -760,7 +798,7 @@ router.get('/reel/:correlationId.svg', async (req, res) => {
 
 // No server-initiated stream through the façade; spec-compliant clients treat
 // 405 as "not offered".
-router.get('/:door/mcp', (req, res) => res.status(405).end());
+router.get(['/:door/mcp', '/:door/:app/mcp'], (req, res) => res.status(405).end());
 
 router.delete('/:door/mcp', async (req, res) => {
   if (req.door.localHandler) {
