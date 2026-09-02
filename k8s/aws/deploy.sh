@@ -77,6 +77,8 @@ IMAGE_MAP=(
   "ai-demo-k8-tier-manager:ai-demo-tier-manager"
   "ai-demo-k8-mcp-code-search:ai-demo-mcp-code-search"
   "ai-demo-k8-llamaindex-agent:ai-demo-llamaindex-agent"
+  # notebooklm is mapped but NOT deployed on SE — see the manifest list below.
+  # Kept so the mapping is already correct if a build path is ever added.
   "ai-demo-k8-notebooklm:ai-demo-notebooklm"
 )
 
@@ -232,8 +234,15 @@ for manifest in \
   67-pydantic-agent-deployment.yaml \
   76-prometheus-deployment.yaml \
   77-grafana-deployment.yaml \
-  78-notebooklm-deployment.yaml \
   10-frontend-deployment.yaml; do
+  # NOT in this list: 78-notebooklm-deployment.yaml. Nothing builds or pushes
+  # ai-demo-notebooklm to GHCR — se-update-code.sh has no entry for it and the
+  # compose service sits behind `profiles: ["notebooklm"]` — so apply_patched
+  # rewrote the image to a GHCR ref that does not exist and the pod sat in
+  # ImagePullBackOff, failing every post-deploy smoke check. The sidecar also
+  # carries a real person's live Google session, which does not belong on this
+  # shared internet-facing cluster. Local k8s still deploys it: k8s/deploy.sh
+  # applies it guarded on the ai-demo-notebooklm Secret existing.
   info "Applying $manifest..."
   apply_patched "$K8S_DIR/$manifest"
 done

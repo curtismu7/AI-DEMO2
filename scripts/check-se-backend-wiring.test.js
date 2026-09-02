@@ -34,10 +34,16 @@ const runK8 = read('run-k8.sh');
  * Upstreams that are referenced but deliberately NOT deployed on SE.
  * ponytail: pre-existing holes, left as-is — mcp-brave needs a Brave API key and
  * mcp-jwt-verifier is a demo-auth-profile extra; neither is wired into a chip
- * that the SE demo runs. Delete an entry here the moment its Deployment joins
+ * that the SE demo runs. notebooklm has no GHCR build path at all
+ * (se-update-code.sh has no entry, compose keeps it behind
+ * `profiles: ["notebooklm"]`), so the SE deploy rewrote its image to a ref that
+ * was never pushed and the pod sat in ImagePullBackOff; it also carries a real
+ * person's live Google session, which does not belong on a shared
+ * internet-facing cluster. Local k8s still deploys it via k8s/deploy.sh.
+ * Delete an entry here the moment its Deployment joins
  * the SE list, and this guard starts holding it to the same standard.
  */
-const NOT_DEPLOYED_ON_SE = new Set(['mcp-brave', 'mcp-jwt-verifier']);
+const NOT_DEPLOYED_ON_SE = new Set(['mcp-brave', 'mcp-jwt-verifier', 'notebooklm']);
 
 /** The manifest filenames from the `for manifest in \ ... ; do` block. */
 function appliedManifests(script) {
