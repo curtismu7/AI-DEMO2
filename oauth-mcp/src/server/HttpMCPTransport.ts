@@ -38,6 +38,7 @@ import { verifyActorChain, parseAllowedActors } from '../auth/actorChain';
 import { enforceUpstreamContract, resolveUpstreamAudiences } from '../auth/lastHopAuthorization';
 import { resolveEmbeddedIssuer } from '../oauth/embeddedIssuer';
 import { openClientRegistrationEnabled } from '../oauth/ClientRegistry';
+import { BANKING_SCOPES as SHARED_BANKING_SCOPES } from '../oauth/scopes';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -52,12 +53,9 @@ const MCP_NAME_HEADER = 'mcp-name';           // 2026-07-28: routing header (e.g
 // and swept on each initialize) so the in-memory map can't grow unbounded.
 const DEFAULT_HTTP_SESSION_TTL_MS = 60 * 60 * 1000; // 1 hour
 
-const BANKING_SCOPES = [
-  'accounts:read',
-  'transactions:read',
-  'transactions:write',
-  'sensitive:read',
-];
+// Shared with the authorization-server metadata in OAuthRouter — see oauth/scopes.ts
+// for why these must not be declared in two places.
+const BANKING_SCOPES = [...SHARED_BANKING_SCOPES];
 
 // ---------------------------------------------------------------------------
 // Types

@@ -2189,6 +2189,33 @@ key-parity check is still worth adding. And `SESSION_SECRET` in
 consistent key is a valid key) but the same trap for any future consumer that reads
 it from `process.env`.
 
+### [ ] 2026-09-01 — the facade's `agentless` (banking) door is dark, and two agent doors have no gateway
+
+**Where:** `demo_api_server/routes/mcpFacade.js` doors `agentless`, `agent`,
+`agent-cmuir`; env `PRIVILEGE_AGENTLESS_MCPGW_URL_BANKING`.
+
+**What's wrong:** the Privilege estate was rebuilt as one AI Gateway
+(`mcpgw.ai-demo.ping-devops.com`, release `agentless-mcpgw` in
+`ping-devops-curtismuir`). Three doors still name torn-down infrastructure:
+`agentless` points at `cmuir-agentless-mcpgw.ping-devops.com/external/mcp`
+(host no longer resolves — this is the BANKING door), and `agent`/`agent-cmuir`
+point at `*.applications.procyon.ai:8643` frontends whose gateway is gone. The
+agent ones *hang* rather than fail fast, because the frontend names still
+resolve through the Priv Agent's DNS proxy while nothing serves the mesh port.
+
+**Why it wasn't fixed now:** deliberate, and confirmed with the user. Repointing
+the banking door needs a banking MCP server registered on the new gateway as its
+own Agentic App; only `opensearch22` exists there today, and aiming a banking
+door at an OpenSearch app would silently serve the wrong tools — worse than a
+dark door. The agent-mode path additionally needs inbound mesh exposure that the
+AI Gateway chart does not ship (the old agent chart had an SSL-passthrough
+ingress); the SE1 guide's client path does not use it.
+
+**Real fix:** register a banking Agentic App on the new gateway, then set
+`MCP_FACADE_AGENTLESS_URL`/`_AS` (and `PRIVILEGE_AGENTLESS_MCPGW_URL_BANKING`)
+to `https://mcpgw.ai-demo.ping-devops.com/<that-app>/mcp`. For the agent doors,
+either add a passthrough ingress for the mesh port or delete the doors.
+
 ### [x] 2026-08-26 — `ping-mcpgw` Helm release's only remaining purpose is a backend it doesn't gate
 
 **Resolved 2026-09-01:** the "real fix" landed as the second option — the

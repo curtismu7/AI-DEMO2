@@ -10,6 +10,14 @@ import PrivilegeMcpLearningPage from './PrivilegeMcpLearningPage';
 import './PrivilegeMcpClientPage.css';
 
 const API_BASE = '/api/privilege-mcp';
+// Deep link for the "grant access" hint on a policy denial. The env must be the
+// PingOne tenant that OWNS the gateway the door points at, or the link opens a
+// console with no such Agentic App in it. Kept in step with PRIVILEGE_SSO_ENV_ID
+// / the gateway's ENV_PROXY_TOKEN tenant — 0428ba4f ("AI Agent") since the
+// 2026-09-01 rebuild onto mcpgw.ai-demo.ping-devops.com. It pointed at the
+// retired 01d89b06 tenant until then, which sent people to the wrong console.
+const PRIVILEGE_CONSOLE_URL =
+  'https://console.login.privilege.pingone.com/?env=0428ba4f-169c-436b-aff9-b230496e0e3b';
 // An empty Explorer panel reads as a failed fetch. Usually it is not: the BFF
 // only issues prompts/list or resources/list when the server advertised that
 // capability in its initialize response, so an empty panel most often means the
@@ -867,7 +875,7 @@ export default function PrivilegeMcpClientPage() {
             )}
             <p className="cur-denial-note">
               Grant access in the{' '}
-              <a href="https://console.login.privilege.pingone.com/?env=01d89b06-66d5-430e-9f28-65636843788b" target="_blank" rel="noreferrer">Privilege console</a>.
+              <a href={PRIVILEGE_CONSOLE_URL} target="_blank" rel="noreferrer">Privilege console</a>.
               Policies are time-boxed — an expired one fails exactly like a missing one.
             </p>
             <div className="cur-btn-row">

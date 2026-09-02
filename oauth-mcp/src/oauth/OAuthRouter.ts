@@ -11,6 +11,7 @@ import {
   verifyIdJag, IdJagError, JWT_BEARER_GRANT, ID_JAG_GRANT_PROFILE, VerifyOpts,
 } from './IdJagGrantHandler';
 import { resolveAudience } from './TokenIssuer';
+import { AUTHORIZATION_SERVER_SCOPES } from './scopes';
 
 /**
  * Native ID-JAG (MCP Enterprise-Managed Authorization) engages only when BOTH
@@ -75,7 +76,8 @@ export class OAuthRouter {
       introspection_endpoint: `${this.issuer}/introspect`,
       revocation_endpoint: `${this.issuer}/revoke`,
       registration_endpoint: `${this.issuer}/register`,
-      scopes_supported: ['mcp:invoke', 'read', 'write'],
+      // Superset of the protected-resource document's scopes — see ./scopes.ts.
+      scopes_supported: AUTHORIZATION_SERVER_SCOPES,
       response_types_supported: ['code'],
       // jwt-bearer is advertised only when we would actually honour it — a
       // client that sees it here will present an ID-JAG instead of redirecting.
