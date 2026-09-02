@@ -8,25 +8,88 @@
 'use strict';
 const crypto = require('crypto');
 const express = require('express');
+const axios = require('axios');
+const davinciConfig = require('../config/davinci');
+const configStore = require('../services/configStore');
+const { getDiscoveryEndpoint } = require('../services/oauthEndpointResolver');
 const oauthService = require('../services/oauthService');
 const dataStore = require('../data/store');
 const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 
 const router = express.Router();
 
+const ORCHESTRATE_BASE = 'https://orchestrate-api.pingone.com/v1';
+
+// Mints a single-use nonce and binds it to the session. Both entry points below
+// use this, so there is exactly one place that decides what a nonce is and when
+// it is persisted — /callback consumes whatever this wrote.
+function bindNonce(req, cb) {
+  const nonce = crypto.randomBytes(16).toString('hex');
+  req.session.davinciLoginNonce = nonce;
+  req.session.save((err) => cb(err, nonce));
+}
+
 // Issues the OIDC nonce for one widget flow run. The UI passes it into
 // client.start({ query: { nonce } }) — @forgerock/davinci-client merges
 // StartOptions.query into the /authorize URL, so PingOne echoes it in the ID
 // token — and /callback below verifies the echo against this session.
 router.post('/nonce', (req, res) => {
-  const nonce = crypto.randomBytes(16).toString('hex');
-  req.session.davinciLoginNonce = nonce;
-  req.session.save((err) => {
+  bindNonce(req, (err, nonce) => {
     if (err) {
       console.error('[davinci-login/nonce] Session save FAILED:', err.message);
       return res.status(500).json({ error: 'session_save_failed', message: 'Could not persist nonce.' });
     }
     return res.json({ nonce });
+  });
+});
+
+// Mints a DaVinci SDK token for one widget run (davinci.skRenderScreen's
+// config.accessToken). The DaVinci API key is a secret and MUST stay
+// server-side, so the widget config is assembled here rather than in the
+// bundle. The nonce goes into `parameters` — the flow declares it in its Input
+// Schema and hands it to the terminal PingOne Authentication node, so it
+// round-trips into the ID token that /callback verifies. It is deliberately
+// NOT returned to the caller: the browser never needs it and cannot tamper
+// with what it never sees.
+router.post('/sdk-token', async (req, res) => {
+  const { companyId, apiKey, policyIdV1, policyIdV2 } = davinciConfig.login;
+  const version = configStore.getEffective('davinci_login_flow_version') || 'v1';
+  const policyId = version === 'v2' ? policyIdV2 : policyIdV1;
+
+  if (!companyId || !apiKey || !policyId) {
+    return res.status(503).json({
+      error: 'davinci_not_configured',
+      message: 'Set PINGONE_DAVINCI_LOGIN_COMPANY_ID, PINGONE_DAVINCI_LOGIN_POLICY_ID_V1/V2 and PINGONE_DAVINCI_API_KEY.',
+    });
+  }
+
+  bindNonce(req, async (err, nonce) => {
+    if (err) {
+      console.error('[davinci-login/sdk-token] Session save FAILED:', err.message);
+      return res.status(500).json({ error: 'session_save_failed', message: 'Could not persist nonce.' });
+    }
+    try {
+      const { data } = await axios.post(
+        `${ORCHESTRATE_BASE}/company/${companyId}/sdktoken`,
+        { policyId, parameters: { nonce } },
+        { headers: { 'X-SK-API-KEY': apiKey, 'Content-Type': 'application/json' }, timeout: 10_000 }
+      );
+      if (!data || !data.access_token) {
+        console.error('[davinci-login/sdk-token] DaVinci returned no access_token');
+        return res.status(502).json({ error: 'davinci_sdk_token_failed', message: 'DaVinci did not return an SDK token.' });
+      }
+      // Everything here is non-secret widget config; the API key is not among it.
+      return res.json({
+        accessToken: data.access_token,
+        companyId,
+        policyId,
+        flowVersion: version,
+        apiRoot: `${new URL(getDiscoveryEndpoint()).origin}/`,
+      });
+    } catch (e) {
+      const normalized = normalizeAxiosError(e, { label: 'DaVinci SDK token', timeoutMs: 10_000 });
+      return res.status(normalized.httpStatus).json({ error: 'davinci_sdk_token_failed', message: normalized.message });
+    }
   });
 });
 
