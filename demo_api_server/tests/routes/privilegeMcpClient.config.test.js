@@ -37,32 +37,47 @@ describe('POST /api/privilege-mcp/config — blank values do not overwrite', () 
     expect(res.body.config.clientId).toBe('operator-supplied-id');
   });
 
-  it('stores agent and agentless settings independently', async () => {
+  it('stores each path\'s settings independently', async () => {
+    // Switching path must not drag the previous path's URL or client id along:
+    // the three are different front doors and a crossed credential fails in a
+    // way that reads like a broken gateway.
     const browser = request.agent(app);
-    const agentUrl = 'https://search.default.applications.procyon.ai:8643/mcp';
-    const agent = await browser
+    const directUrl = 'https://ai-demo.example/mcp-facade/opensearch/mcp';
+    const direct = await browser
       .post('/api/privilege-mcp/config')
-      .send({ gatewayMode: 'agent', mcpUrl: agentUrl, clientId: 'must-not-cross-modes' })
+      .send({ gatewayMode: 'direct', mcpUrl: directUrl, clientId: 'direct-client' })
       .expect(200);
 
-    expect(agent.body.gatewayMode).toBe('agent');
-    expect(agent.body.config).toMatchObject({ mcpUrl: agentUrl, clientId: '', scopes: '' });
-    expect(agent.body.gatewayConfigs.agent).toEqual({ mcpUrl: agentUrl });
+    expect(direct.body.gatewayMode).toBe('direct');
+    expect(direct.body.config).toMatchObject({ mcpUrl: directUrl, clientId: 'direct-client' });
 
-    const agentless = await browser
+    const facade = await browser
       .post('/api/privilege-mcp/config')
-      .send({ gatewayMode: 'agentless', mcpUrl: 'https://agentless.example/mcp', clientId: 'agentless-client' })
+      .send({ gatewayMode: 'facade', mcpUrl: 'https://ai-demo.example/mcp-facade/privilege-gateway/app/mcp', clientId: 'facade-client' })
       .expect(200);
 
-    expect(agentless.body.gatewayMode).toBe('agentless');
-    expect(agentless.body.config).toMatchObject({
-      mcpUrl: 'https://agentless.example/mcp',
-      clientId: 'agentless-client',
+    expect(facade.body.gatewayMode).toBe('facade');
+    expect(facade.body.config).toMatchObject({
+      mcpUrl: 'https://ai-demo.example/mcp-facade/privilege-gateway/app/mcp',
+      clientId: 'facade-client',
     });
-    expect(agentless.body.gatewayConfigs.agent).toEqual({ mcpUrl: agentUrl });
-    expect(agentless.body.gatewayConfigs.agentless).toMatchObject({
-      mcpUrl: 'https://agentless.example/mcp',
-      clientId: 'agentless-client',
+    expect(facade.body.gatewayConfigs.direct).toMatchObject({ mcpUrl: directUrl, clientId: 'direct-client' });
+    expect(facade.body.gatewayConfigs.facade).toMatchObject({
+      mcpUrl: 'https://ai-demo.example/mcp-facade/privilege-gateway/app/mcp',
+      clientId: 'facade-client',
     });
+  });
+
+  it('falls back to the current path when handed an unknown mode', async () => {
+    const browser = request.agent(app);
+    const res = await browser
+      .post('/api/privilege-mcp/config')
+      .send({ gatewayMode: 'agent', mcpUrl: 'https://example/mcp' })
+      .expect(200);
+
+    // 'agent' was retired; silently accepting it would put the page on a path
+    // that no longer exists.
+    expect(['direct', 'privilege', 'facade']).toContain(res.body.gatewayMode);
+    expect(res.body.gatewayMode).not.toBe('agent');
   });
 });
