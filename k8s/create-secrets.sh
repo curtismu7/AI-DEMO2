@@ -699,17 +699,28 @@ if [ -f "$ASSET_ROOT/monitoring/prometheus.yml" ]; then
   # Grafana is internet-facing via /grafana/, so change this for any deployment
   # that outlives a demo.
   grafana_user="${GRAFANA_ADMIN_USER:-admin}"
+  # Env first, then the vault — the same precedence secret_from_envfile() uses.
+  # Without the vault leg these two were the only secrets in this script with no
+  # durable store at all: unset in the environment meant the internet-facing
+  # Grafana silently came up on the built-in default password.
   grafana_pass="${GRAFANA_ADMIN_PASSWORD:-}"
+  if [ -z "$grafana_pass" ] && vault_has_key GRAFANA_ADMIN_PASSWORD; then
+    grafana_pass="$(vault_get GRAFANA_ADMIN_PASSWORD)"
+  fi
   if [ -z "$grafana_pass" ]; then
     grafana_pass="ai-demo-grafana"
-    warn "  GRAFANA_ADMIN_PASSWORD unset — using the default. Set it before any long-lived deployment."
+    warn "  GRAFANA_ADMIN_PASSWORD unset and not in the vault — using the default. Set it before any long-lived deployment:"
+    warn "    printf %s '<password>' | node demo_api_server/scripts/vault.js set GRAFANA_ADMIN_PASSWORD"
   fi
   # PingOne SSO client secret for "Demo AI App - Grafana Login". Empty is fine:
   # Grafana still starts and the local admin form still works, so a stack
   # without it degrades to password login rather than breaking.
   grafana_oauth_secret="${GRAFANA_PINGONE_CLIENT_SECRET:-}"
+  if [ -z "$grafana_oauth_secret" ] && vault_has_key GRAFANA_PINGONE_CLIENT_SECRET; then
+    grafana_oauth_secret="$(vault_get GRAFANA_PINGONE_CLIENT_SECRET)"
+  fi
   [ -n "$grafana_oauth_secret" ] \
-    || warn "  GRAFANA_PINGONE_CLIENT_SECRET unset — PingOne SSO button will not work; local admin login still will."
+    || warn "  GRAFANA_PINGONE_CLIENT_SECRET unset and not in the vault — PingOne SSO button will not work; local admin login still will."
   kubectl create secret generic grafana-secrets \
     --namespace="$NS" \
     --from-literal=GF_SECURITY_ADMIN_USER="$grafana_user" \
