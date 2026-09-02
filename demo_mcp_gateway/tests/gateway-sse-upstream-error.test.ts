@@ -77,6 +77,7 @@ const baseConfig: GatewayConfig = {
   rateLimitMaxRequests: 20,
   rateLimitWindowMs: 60000,
   introspectionSimDown: false,
+  enterpriseManagedMcpAuth: false,
 };
 
 const passthrough: McpRequestMiddleware = async (bearer, body, _req, _res, forward) => {

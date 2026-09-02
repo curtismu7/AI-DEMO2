@@ -205,6 +205,17 @@ export interface GatewayConfig {
   /** UC14 — enforce RAR authorization_details subset at the gateway (default OFF). */
   requireRarIntent: boolean;
   /**
+   * ID-JAG / enterprise-managed MCP authorization. Advertised on the RFC 9728
+   * metadata document and the 401 WWW-Authenticate challenge.
+   *
+   * Seeded from FF_ENTERPRISE_MANAGED_MCP_AUTH but NOT owned by it: the BFF
+   * pushes the UI toggle's value here via POST /admin/config, and the gateway
+   * re-asks the BFF at startup. The env var is only the value used before the
+   * first sync — previously it was the sole source, so the gateway silently
+   * disagreed with the UI (BFF on, gateway off) with nothing surfacing it.
+   */
+  enterpriseManagedMcpAuth: boolean;
+  /**
    * UC18 rate-limiting. When true, the gateway enforces per-agent/per-tool
    * sliding-window limits and returns 429 on burst exceedance.
    * Controlled by GATEWAY_RATE_LIMIT_ENABLED env var (default false).
@@ -434,6 +445,12 @@ export function loadConfig(): GatewayConfig {
     requireActForAgentTools: process.env.REQUIRE_ACT_FOR_AGENT_TOOLS === 'true',
     intentTokenRequired: process.env.INTENT_TOKEN_REQUIRED === 'true',
     requireRarIntent: process.env.REQUIRE_RAR_INTENT === 'true',
+    // Seed only — the BFF's UI toggle overrides this via /admin/config.
+    enterpriseManagedMcpAuth:
+      process.env.FF_ENTERPRISE_MANAGED_MCP_AUTH === 'true'
+      || process.env.FF_ENTERPRISE_MANAGED_MCP_AUTH === '1'
+      || process.env.ff_enterprise_managed_mcp_auth === 'true'
+      || process.env.ff_enterprise_managed_mcp_auth === '1',
     // UC18 rate-limiting (default OFF — must also set GATEWAY_RATE_LIMIT_ENABLED=true)
     rateLimitEnabled: process.env.GATEWAY_RATE_LIMIT_ENABLED === 'true',
     // Web Bot Auth mode (default 'monitor' — verify + audit, never block)

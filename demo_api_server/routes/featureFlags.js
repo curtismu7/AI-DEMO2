@@ -1100,6 +1100,16 @@ router.patch('/', async (req, res) => {
     if (Object.keys(runtimeUpdates).length > 0) {
       runtimeSettings.update(runtimeUpdates, 'feature-flags-api');
     }
+    // ID-JAG lives in TWO processes: the BFF answers /api/admin/feature-flags
+    // from configStore, while mcp-gateway advertises it on its RFC 9728
+    // metadata and 401 challenge — surfaces no BFF request ever touches. The
+    // gateway used to read only its own env var, so the UI toggle moved the BFF
+    // and left the gateway behind (observed on SE: BFF true, gateway unset).
+    // Push it so the UI stays the single answer. Fire-and-forget: the gateway
+    // being down must not fail a flag save, and the gateway re-asks us on boot.
+    if ('ff_enterprise_managed_mcp_auth' in toSave) {
+      pushEnterpriseMcpAuthToGateway(toSave.ff_enterprise_managed_mcp_auth === 'true');
+    }
     const updatedFlags = FLAG_REGISTRY.filter(f => f.id in toSave).map(serializeFlag);
     res.json({ updated: true, flags: updatedFlags });
   } catch (err) {
@@ -1108,4 +1118,28 @@ router.patch('/', async (req, res) => {
   }
 });
 
-module.exports = { router, FLAG_REGISTRY, serializeFlag };
+/**
+ * Mirror ff_enterprise_managed_mcp_auth into the Demo Agent Gateway's live
+ * config. Never throws and never awaits into the response path — a gateway
+ * outage degrades to "gateway re-syncs at its next boot", not a failed save.
+ */
+function pushEnterpriseMcpAuthToGateway(enabled) {
+  let gatewayUrl;
+  try {
+    const { getMcpGatewayHttpUrl } = require('../services/mcpGatewayClient');
+    gatewayUrl = getMcpGatewayHttpUrl();
+  } catch (err) {
+    console.warn('[featureFlags] ID-JAG gateway push skipped:', err.message);
+    return;
+  }
+  const { pushGatewayAdminConfig } = require('./mcpGatewayConfig');
+  Promise.resolve(pushGatewayAdminConfig(gatewayUrl, { enterpriseManagedMcpAuth: enabled }))
+    .then((r) => {
+      if (!r || !r.ok) {
+        console.warn('[featureFlags] ID-JAG gateway push failed:', (r && r.error) || 'unknown');
+      }
+    })
+    .catch((err) => console.warn('[featureFlags] ID-JAG gateway push threw:', err.message));
+}
+
+module.exports = { router, FLAG_REGISTRY, serializeFlag, pushEnterpriseMcpAuthToGateway };
