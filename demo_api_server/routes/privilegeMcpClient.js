@@ -1055,16 +1055,23 @@ const dcrClientCache = new Map();
 //   400 invalid_grant    -> the client is fine, only the code was bad
 // Anything else (network error, unexpected shape) is treated as "still known":
 // a probe failure must not throw away a working registration.
-async function isDcrClientStillKnown(tokenUri, clientId) {
+//
+// The secret MUST be sent when we hold one. A confidential client (registered
+// client_secret_post) answers an unauthenticated probe with the same 401 as a
+// client that no longer exists, so omitting it made every cached confidential
+// client look forgotten and re-register on every single sign-in.
+async function isDcrClientStillKnown(tokenUri, client) {
   try {
+    const form = new URLSearchParams({
+      grant_type: 'authorization_code',
+      code: 'dcr-liveness-probe',
+      client_id: client.clientId,
+    });
+    if (client.clientSecret) form.set('client_secret', client.clientSecret);
     const response = await fetch(tokenUri, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'authorization_code',
-        code: 'dcr-liveness-probe',
-        client_id: clientId,
-      }).toString(),
+      body: form.toString(),
     });
     if (response.status === 401) return false;
     const text = await response.text();
@@ -1084,7 +1091,7 @@ async function getOrRegisterDcrClient(authorizationUri, redirectUri, tokenEndpoi
   if (dcrClientCache.has(cacheKey)) {
     const cached = dcrClientCache.get(cacheKey);
     const tokenUri = cacheKey.replace(/\/register$/, '/token');
-    if (await isDcrClientStillKnown(tokenUri, cached.clientId)) return cached;
+    if (await isDcrClientStillKnown(tokenUri, cached)) return cached;
     // The gateway restarted and forgot us. Drop it and register again below,
     // rather than handing the browser a client_id that can only 400.
     dcrClientCache.delete(cacheKey);

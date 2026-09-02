@@ -1,238 +1,178 @@
 ---
 name: privilege-mcpgw-agent-k8s
-description: Deploy and verify the agent-based PingOne Privilege MCP Gateway (now called AI Gateway) on the SE DevOps Kubernetes cluster using the privgateway Helm chart, then register the MCP server, author policy, and prove the chain from an MCP client. Use this whenever the task touches the privgateway/agentless-mcpgw Helm packages, ENV_PROXY_TOKEN or the Privilege console Gateways wizard, Agentic Apps registration, a Frontend Name like *.applications.procyon.ai:8643, or symptoms such as an MCP client hanging on a svc.cluster.local URL, "The MCP server denied this operation", "User <id> doesn't have access to MCP app <name>", or "has same NodeURL". Also use it before choosing between the agent-based and agentless variants, since the two need different console objects and must not be mixed in one release.
+description: Deploy, repair and verify the PingOne Privilege AI Gateway (formerly "agentless MCP gateway") on the SE DevOps Kubernetes cluster from the pingone-privgateway-helm package, register an MCP server as an Agentic App, author policy, and prove the chain from an MCP client. Use whenever the task touches the agentless-mcpgw/privgateway Helm charts, ENV_PROXY_TOKEN or the Privilege console Gateways wizard, Agentic Apps registration, a Frontend Name like *.applications.procyon.ai:8643, or symptoms such as "Unknown client", "Gateway Unreachable — Error discovering MCP server: calling initialize: Unauthorized", "Access Denied for", "user not found in system", an MCP client hanging on a svc.cluster.local URL, or "has same NodeURL".
 ---
 
-# Privilege MCP Gateway (AI Gateway) — agent-based on K8s
+# Privilege AI Gateway on K8s
 
-Proven end to end 2026-08-17 against PingOne env `0428ba4f-169c-436b-aff9-b230496e0e3b` ("Privilege Agent"), namespace `ping-devops-curtismuir`, release `cm-mcpgw`. Every command and error string here was observed, not inferred.
+Rebuilt end to end 2026-09-01/02 and proven from Postman, LM Studio and the demo's
+own client. Every command and error string here was observed, not inferred.
 
-Scope: the SE Helm path where the gateway runs in Kubernetes and the MCP client reaches it through the Priv Agent on a Mac. For the local Docker gateway, the BFF MCP client relay, and the PingOne-token wall, read `privilege-cloud-mcp` instead — different deployment, different failure modes.
+## The one gateway
 
-## Source of truth: agent → curtismuir only, agentless → cmuir (verified 2026-08-26)
+| | |
+|---|---|
+| Helm release | `agentless-mcpgw` in `ping-devops-curtismuir` |
+| Chart | `pingone-privgateway-helm-main/agentless/agentless-mcpgw-0.1.0.tgz` |
+| Host | `mcpgw.ai-demo.ping-devops.com` (external-dns publishes it from the ingress) |
+| Cluster ID | `ai-demo-cmuir` (the `clusterID` in the enrollment token) |
+| PingOne tenant | `0428ba4f-169c-436b-aff9-b230496e0e3b` — "AI Agent" |
+| Client URL | `https://mcpgw.ai-demo.ping-devops.com/<AgenticAppName>/mcp` |
 
-This rule broke twice in one day (`ping-mcpgw-mcpgw` kept getting
-reinstalled) before the root cause was found and fixed — read this section
-before creating or repointing anything agent- or agentless-related.
+**This chart prefixes nothing.** Its objects are `opensearch-mcp-server`,
+`opensearch`, `agentless-mcpgw` — no release prefix. The older `privgateway`
+chart did prefix (`cm-mcpgw-…`), and that release is gone; a `cm-mcpgw-*` or
+`ping-mcpgw-*` name anywhere is stale.
 
-**The one gateway pod:** the only agent-based gateway pod that should ever
-run is `cm-mcpgw-mcpgw` in `ping-devops-curtismuir` (Helm release `cm-mcpgw`,
-Mesh Cluster `ai-demo-agent`, PingOne env `0428ba4f-169c-436b-aff9-b230496e0e3b`
-"Privilege Agent" — healthy, stable since 2026-08-21). **Never install a
-second agent-based gateway pod in `ping-devops-cmuir`.** `ping-mcpgw-mcpgw`
-(Helm release `ping-mcpgw`, chart `k8s/helm/mcpgw`) was exactly that — a
-redundant duplicate, unfixably crash-looping on a stale `ENV_PROXY_TOKEN`
-(only ~2h validity, can't survive being reinstalled by every SE deploy). It
-was deleted for good in PR #2391: `k8s/helm/mcpgw`'s `mcpgw.enabled` now
-defaults `false`, and `k8s/aws/deploy.sh` only installs the gateway piece
-when `DEPLOY_MCPGW_GATEWAY=1` is explicitly set with a fresh token — every
-plain `./run-pingaws.sh deploy` now leaves it off. The `ping-mcpgw` release
-still exists (chart still installed on every SE deploy) solely to host
-`ping-mcpgw-opensearch(-mcp-server)` — see the TECH_DEBT.md entry for why
-that's a known, accepted oddity rather than something to "fix" by deleting
-the release.
+Nothing Privilege-related installs into `ping-devops-cmuir` any more, and
+`k8s/aws/deploy.sh` no longer tries — the gateway is a deliberate manual install,
+because `ENV_PROXY_TOKEN` is single-use and ~2h-lived.
 
-**Agentic Apps under the one gateway's Mesh Cluster (`ai-demo-agent`)** — both
-point at the SAME curtismuir OpenSearch backend, deliberately, so neither one
-depends on the `ping-mcpgw` release:
+## Register the MCP server with `/sse`, not `/mcp`
 
-| App | Backend Name | Frontend Name (client URL) |
-|---|---|---|
-| `opensearch` | `http://cm-mcpgw-opensearch-mcp-server.ping-devops-curtismuir.svc.cluster.local/sse` | `opensearch.default.applications.procyon.ai:8643/mcp` |
-| `opensearch-cmuir` | same as above (repointed 2026-08-26 — originally pointed at `ping-mcpgw-opensearch-mcp-server.ping-devops-cmuir`, the doomed release's own backend) | `opensearch-cmuir.default.applications.procyon.ai:8643/mcp` |
+This is the trap that cost the most time. In the console (Agentic Apps → Add
+Application → MCP Server):
 
-`demo_api_server/routes/mcpFacade.js` doors `agent` and `agent-cmuir` proxy
-to those two Frontend Names respectively (`agent-cmuir` added in PR #2390 for
-the `MCP Agent-OpenSearch-CMUIR` LM Studio entry) — a console-side Backend
-Name repoint is transparent to both, no code change needed.
+```
+Application Name  opensearch22
+MCP Server URL    http://opensearch-mcp-server.ping-devops-curtismuir.svc.cluster.local/sse
+Mesh Cluster      ai-demo-cmuir
+Auth Mode         None
+```
 
-**Agentless: namespace `ping-devops-cmuir`, release `agentless-mcpgw`**,
-cluster `ai-demo-cmuir`, app `cmuir`, client URL
-`https://cmuir-agentless-mcpgw.ping-devops.com/cmuir/mcp`. Read
-`privilege/AGENTLESS-CONFIGURATION.md` before Agentless work and
-`privilege/AGENT-CONFIGURATION.md` before Agent work. Current Agentless
-gateway digest: `sha256:0faad5903a5bd72539b1df525e3c7bc5d458a5bd324aac9755b8af99dfa6647d`.
-The Agent owns authentication; do not configure a client ID or gateway OAuth
-in the demo client.
+**The gateway speaks the SSE transport.** Its discovery client issues a bare
+`GET` and waits for the SSE `endpoint` event; it never POSTs `initialize`.
+FastMCP serves both transports, so `/mcp` *is* reachable and answers `GET` with
+200 — the handshake simply never completes. The console then reports:
 
-Before creating a new Agentic App or repointing a Backend Name: agent-mode
-things point at curtismuir's stable resources (`cm-mcpgw-*`); agentless-mode
-things point at cmuir's `agentless-mcpgw`. A `ping-mcpgw-*` or other
-cmuir-namespaced backend behind an *agent*-mode app/door is a smell — check
-whether curtismuir already has the equivalent before wiring a new one up.
+```
+Gateway Unreachable — Error discovering MCP server:
+calling "initialize": sending "initialize": Unauthorized
+```
 
-## Pick the variant before touching anything
+which reads like an auth fault and is not one. Proof, from inside the cluster:
 
-The two variants need different console objects. Mixing their values in one Helm release produces a gateway that enrolls and then serves nothing.
+```bash
+# /sse announces the endpoint event the gateway needs
+curl -sN http://opensearch-mcp-server/sse       # event: endpoint  data: /messages/?session_id=…
+# /mcp is streamable-HTTP: 200, but no endpoint event
+```
 
-| | Agent-based | Agentless |
-|---|---|---|
-| Client reaches gateway via | Priv Agent on the workstation (device-bound, Secure Enclave) | Browser / MCP client straight to your own DNS + TLS |
-| Gateway OIDC client | **not used** — leave `mcpgw.oidc.enabled=false` | required: OIDC Web App, Client Secret Basic, redirect `https://<host>/callback` |
-| Console entry point | agent menu-bar icon > **Open Console** | PingOne env properties > **PingOne Privilege Console Url** |
-| Chart | `privgateway-0.1.0.tgz` | `agentless-mcpgw-0.1.0.tgz` |
+Tools stay empty and **policy creation is disabled** until discovery succeeds.
+After changing the backend, restart the gateway so discovery re-runs:
 
-A client id and secret handed to you are an *agentless* artifact. If someone asks for an agent-based deploy and also supplies OIDC credentials, surface the contradiction rather than wiring both.
+```bash
+kubectl rollout restart deployment/agentless-mcpgw -n ping-devops-curtismuir
+```
 
-## The enrollment token is the only blocking input
+**Backend vs client URL are different ends of the hop.** `svc.cluster.local`
+resolves only inside the cluster — Postman/LM Studio failing on it is correct,
+not a symptom. Clients use the Frontend/client URL above. To reach the backend
+from a laptop: `kubectl port-forward -n ping-devops-curtismuir svc/opensearch-mcp-server 9900:80`.
 
-`mcpgw.proxyToken` is `required` in the chart. Nobody but a console operator can produce it: Privilege console > **Gateways** > **Add New** > **Add via Docker**, Cluster ID of your choice, Host IP = `https://<your-gateway-hostname>`, then lift `ENV_PROXY_TOKEN` out of the docker command.
+## Deploy
 
-Decode it before use — the claims tell you which tenant and cluster you are actually enrolling into, which is the single most common way this goes wrong:
+```bash
+kubectl config current-context                 # expect: us
+kubectl get clusterissuer letsencrypt-pdo
+kubectl get ingressclass nginx-public
+
+cat > /tmp/secrets.yaml <<'YAML'
+proxyToken: "eyJ..."          # console > Gateways > Add New > Add via Docker
+oidc:
+  clientId: "…"
+  clientSecret: "…"
+  authUrl:  "https://auth.pingone.com/<envId>/as/authorize"
+  tokenUrl: "https://auth.pingone.com/<envId>/as/token"
+  userUrl:  "https://auth.pingone.com/<envId>/as/userinfo"
+YAML
+chmod 600 /tmp/secrets.yaml
+
+helm upgrade --install agentless-mcpgw <chart>.tgz \
+  --namespace ping-devops-curtismuir \
+  --set hostname=mcpgw.ai-demo.ping-devops.com \
+  --set namespace=ping-devops-curtismuir \
+  --set oidc.serverUrl=https://mcpgw.ai-demo.ping-devops.com \
+  --values /tmp/secrets.yaml
+```
+
+Decode the token before using it — `tenantName` is the **environment id**, and
+`clusterID` is what the Agentic App's Mesh Cluster field must say:
 
 ```bash
 python3 -c "
 import base64,json,sys,datetime
 p=sys.argv[1].split('.')[1]; p+='='*(-len(p)%4)
 c=json.loads(base64.urlsafe_b64decode(p))
-print({k:c.get(k) for k in ('clusterID','nodeId','nodeType','tenantName','tenantID')})
+print({k:c.get(k) for k in ('clusterID','nodeId','tenantName')})
 print('exp',datetime.datetime.fromtimestamp(c['exp'],datetime.timezone.utc))" 'eyJ...'
 ```
 
-`tenantName` holds the **environment id**, not a friendly name. `clusterID` is what you must later type into the MCP app's Mesh Cluster field. Expiry runs ~2h and only has to survive until first boot; after that the mTLS pair in the `-mcpgw-ssl` PVC is the durable credential and restarts need no token.
+Enrollment lives in the `agentless-mcpgw-ssl` PVC afterwards, so restarts need
+no token. Success in the log is `LinkStatus:Active`; `has same NodeURL` and
+mesh-controller `not found` are cosmetic — do not chase them.
 
-## Deploy
+**Changing OIDC values requires a restart.** `helm upgrade` rewrites the secret
+but the running pod keeps the old config, which shows up as an authorize
+redirect carrying an empty `client_id`.
+
+## The PingOne OIDC app
+
+Web app, **Client Secret Basic**, grant types Authorization Code **+ Token
+Exchange**, redirect `https://mcpgw.ai-demo.ping-devops.com/callback`, and on
+Resources grant `openid`, `profile`, `email`.
+
+`p1:read:env` and `p1:read:application` **do not exist as user-context scopes**
+in PingOne — the chart's default scope string asks for them, PingOne silently
+drops them, and that is harmless. Only `p1:read:user` is real, and the flow works
+without it. (Verified by enumerating all 23 scopes on the PingOne API resource.)
+
+## Clients
+
+Everything discovers and registers dynamically — **no client id or secret is
+configured anywhere on the client side**:
+
+```
+https://mcpgw.ai-demo.ping-devops.com/<AppName>/mcp
+```
+
+- **Postman:** MCP request, transport HTTP, Auth **None**. It DCRs and opens a browser.
+- **LM Studio:** just the `url` in `mcp.json`. Needs ≥ 0.4.10 for MCP OAuth.
+- **The demo's own client:** `/privilege-mcp-client` — see below.
+
+**The gateway's DCR registry is in memory.** Every gateway restart forgets every
+registered client, and the next authorize shows a bare `Unknown client` page. The
+BFF now detects this and re-registers (`isDcrClientStillKnown` in
+`demo_api_server/routes/privilegeMcpClient.js`); an MCP client that caches its
+registration must be deleted and re-added by hand instead.
+
+## Policy denials
+
+Policies are **per Agentic App**, time-boxed, and name users — a new app has no
+policy even if a sibling app does. Read the gateway log, not the client:
 
 ```bash
-# 1. prerequisites — all three must exist or the ingress and cert silently never resolve
-kubectl config current-context                      # expect: us
-kubectl get clusterissuer letsencrypt-pdo
-kubectl get ingressclass nginx-public
-
-# 2. token to a file, never to a flag (flags land in shell history and ps output)
-cat > /tmp/secrets.yaml <<'YAML'
-mcpgw:
-  proxyToken: "eyJ..."
-YAML
-chmod 600 /tmp/secrets.yaml
-
-# 3. dry run, then install
-helm upgrade --install <RELEASE> privgateway-0.1.0.tgz \
-  --namespace <NAMESPACE> --create-namespace \
-  --set mcpgw.hostname=<HOST> \
-  --set mcpgw.serverUrl=https://<HOST> \
-  --values /tmp/secrets.yaml --dry-run
+kubectl logs -n ping-devops-curtismuir deployment/agentless-mcpgw -c log-tailer --tail=200 \
+  | grep -E 'identity resolved|policy denied'
 ```
 
-Then the same command without `--dry-run`. Three pods appear: `-mcpgw` (2/2 with its log-tailer sidecar), `-opensearch`, `-opensearch-mcp-server`.
-
-OpenSearch reports `ready=false` for roughly the first minute. That is startup, not failure — re-check before diagnosing.
-
-## Verify enrollment from the log, not the HTTP surface
-
-```bash
-kubectl logs -n <NAMESPACE> deployment/<RELEASE>-mcpgw -c log-tailer --tail=30
-```
-
-The line that proves success:
-
-```
-MedusaLink … OriginCluster:ai-demo-agent TargetCluster:privilege-cluster-proxy LinkStatus:Active
-```
-
-Two errors in that same log are cosmetic and cost hours if chased:
-
-| Log line | Reality |
+| Log line | Meaning |
 |---|---|
-| `has same NodeURL - this happens because of misconfigured Node` | The node linking against its own registration row. Command streams stay up, discovery still dispatches |
-| `Error sending update to mesh controller: … not found` | Same symptom, different call site |
+| `policy denied … : user not found in system` | the user is not synced into Privilege — fix the PingOne Privilege app's Group Membership Policy and the user's group |
+| `policy denied … : Access Denied for` | user is synced; **no policy on this app covers them** |
+| `✅ User identity resolved: … Email=` (empty) | cosmetic. Email is empty for every user, including ones whose policy works. Do NOT chase it — it is not why a call is denied |
 
-Confirm the backend independently, since a healthy gateway in front of a dead MCP server looks identical to a routing fault:
-
-```bash
-kubectl exec -n <NS> deploy/<RELEASE>-opensearch-mcp-server -c opensearch-mcp-server -- python -c "
-import urllib.request as u
-for p in ['/sse','/mcp','/']:
-    try: print(p, u.urlopen('http://localhost:9900'+p, timeout=3).status)
-    except Exception as e: print(p, getattr(e,'code',type(e).__name__))"
-```
-
-Expect `/sse 200 /mcp 200 / 404` — FastMCP serves both transports even when it only logs the StreamableHTTP manager.
-
-## Register the MCP server (console Step 6)
-
-Agentic Apps > Add Application > **MCP Server** tile > Integrate.
-
-```
-Application Name  opensearch
-MCP Server URL    http://<RELEASE>-opensearch-mcp-server.<NAMESPACE>.svc.cluster.local/sse
-Mesh Cluster      <clusterID from the token>
-```
-
-**The `/sse` here is not the same field as the client URL.** This is the BACKEND
-the gateway proxies to, and `/sse` is what this deployment was registered with and
-works. An MCP client (Postman, Claude, Cursor) connects to the FRONTEND at
-`https://<FRONTEND_NAME>/mcp` — see the Postman note below. Do not "fix" one to
-match the other; they are different ends of the hop, and the server answers on
-both paths, so a mismatch fails during the handshake rather than at connect.
-
-Two field-level traps:
-
-- **The release prefix is part of the service name.** Vendor material shows the URL both with and without it. The chart prefixes every object with the release, so `opensearch-mcp-server.<ns>.svc…` does not resolve and discovery fails in a way that reads like a broken backend.
-- **That URL is for the gateway, never for a client.** `svc.cluster.local` only resolves inside the cluster. An MCP client pointed there hangs on connect with no error — the single most confusing symptom in this whole flow.
-
-After saving, the app shows a read-only **Frontend Name** like `opensearch.default.applications.procyon.ai:8643`. That is the client address. If the console displays a `…applications.privilege.pingone.com` name instead, the object may hold a different `…procyon.ai` value, and only the latter routes.
-
-## Client verification
-
-The Priv Agent runs a partial DNS proxy, so the frontend name resolves locally once the app exists:
-
-```bash
-dscacheutil -q host -a name opensearch.default.applications.procyon.ai
-# ip_address: 127.0.0.1   <- the agent's listener; no record means the app is not registered
-```
-
-Then probe. Read the 403 as progress:
-
-```bash
-curl -sk -m 8 -H 'Accept: text/event-stream' https://<FRONTEND_NAME>/sse
-# 403  User <uuid> doesn't have access to MCP app <name>   -> auth + routing + registration all working, policy missing
-```
-
-Author the policy (console Step 7): Agentic Apps > the app > **Policy** > select tools > **Update Configuration** > add the **user id the 403 names** > name it, set an end date/time > Submit. Policies are time-boxed; a call that worked and now 403s again means the policy lapsed, not that the gateway broke.
-
-Re-probe. Success looks like a hang:
-
-```bash
-curl -sk -o /dev/null -w 'http=%{http_code}\n' -m 8 -H 'Accept: text/event-stream' https://<FRONTEND_NAME>/sse
-# http=200 with curl exiting 28 — the SSE stream stays open until the client timeout
-```
-
-In Postman: **MCP** request, transport **HTTP** (not STDIO — that is for servers Postman launches as a subprocess), URL `https://<FRONTEND_NAME>/mcp`, **no auth**. The agent supplies identity. Postman renders the same 403 as "Couldn't run the request: The MCP server denied this operation" — check with curl before believing it is a Postman problem.
-
-**It is `/mcp`, not `/sse`.** This said `/sse` and was wrong. Postman's transport
-**HTTP** is MCP Streamable HTTP, which the server exposes at `/mcp`; `/sse` is the
-separate, older SSE transport. The mistake survives review because the probe above
-returns `/sse 200 /mcp 200` — FastMCP serves both, so the wrong URL is reachable
-and only fails later, during the MCP handshake, in a way that reads as a gateway
-or policy fault rather than a wrong path.
-
-The curl probes above deliberately still use `/sse` with
-`Accept: text/event-stream`: they are testing reachability, auth and policy, and a
-long-lived SSE stream is the easiest thing to eyeball (`http=200` with curl exiting
-28). Use `/sse` to probe, `/mcp` in an MCP client.
-
-## The Mac agent
-
-One agent holds several tenants at once and pins one. The onboarded set and the active choice are visible in its log, which is the only place either is legible — `config.json` carries just `controllerURL`, and the pairing key lives in the Secure Enclave where no keychain dump reaches it:
-
-```bash
-grep -a -A4 'OnboardedTenants' ~/Library/Logs/PingOne\ Privilege/main.log | tail -8
-grep -a 'Updating preferred tenant' ~/Library/Logs/PingOne\ Privilege/main.log | tail -1
-```
-
-The gateway's tenant and the agent's **Preferred Tenant** must match, or the client has no route to the gateway and every request hangs. Settings > Preferred Tenant switches between onboarded tenants without re-onboarding.
+The client renders both as a bare `403 Forbidden` / "The MCP server denied this
+operation", so always go to the log for the real reason.
 
 ## Symptom index
 
-| Symptom | Cause | Fix |
-|---|---|---|
-| MCP client hangs, no error | Pointed at `…svc.cluster.local` | Use the Frontend Name |
-| `The MCP server denied this operation` (Postman) | The 403 below, reworded | curl the endpoint to see the real message |
-| `User <id> doesn't have access to MCP app <name>` | No policy, or policy expired, or policy names a different user | Author policy for that exact user id, with an end time in the future |
-| Client hangs even with the Frontend Name | Agent's Preferred Tenant differs from the gateway's tenant | Repoint Preferred Tenant, or redeploy with a token from the agent's tenant |
-| Frontend name gives `(no record)` | MCP app not registered yet | Complete Step 6 |
-| Discovery fails, backend looks dead | MCP Server URL missing the release prefix | Use `<RELEASE>-opensearch-mcp-server.<NS>.svc.cluster.local/sse` |
-| `has same NodeURL` / mesh controller `not found` | Cosmetic | Ignore; check `LinkStatus:Active` instead |
-| Helm fails on a required value | `mcpgw.proxyToken` absent | Only a console operator can produce it |
-| Gateway enrolled into the wrong tenant | Token came from a different environment | Decode the token first; `tenantName` is the env id |
+| Symptom | Cause |
+|---|---|
+| Console "Gateway Unreachable … initialize: Unauthorized", Tools empty, policy disabled | backend registered with `/mcp`; use `/sse` |
+| `Unknown client` page at `/authorize` | gateway restarted and forgot the DCR client; re-register |
+| `Error finding next hop to <cluster>. Cluster not found` | app's Mesh Cluster names a torn-down gateway; set it to `ai-demo-cmuir` |
+| MCP client hangs forever | pointed at `svc.cluster.local`, or at a `*.applications.procyon.ai:8643` agent frontend (this chart exposes no inbound mesh port) |
+| Authorize redirects with empty `client_id` | pod still running pre-`helm upgrade` OIDC config; restart |
+| Console shows apps you did not create / your edits do not appear | wrong tenant. The gateway's tenant is `0428ba4f`; open the console from the agent menu bar and check the tenant name |
+| `404 NOT_FOUND` opening the app from the PingOne portal | expected — the gateway's OIDC client has no initiate-login URI; start from the client instead |
