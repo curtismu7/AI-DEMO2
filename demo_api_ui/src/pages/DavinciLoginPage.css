@@ -1,0 +1,76 @@
+/* DaVinci Widget login sandbox (/davinci-login) and its OIDC callback.
+   Themeable values come from --th-* so both modes work without a
+   prefers-color-scheme block (THEMING.md). Every rule that sets a themed
+   ground also sets its ink (§1.5), and radii come from the scale (§9.3). */
+
+.dvl-page {
+  max-width: 480px;
+  margin: 48px auto;
+  padding: 0 20px;
+  color: var(--th-text);
+}
+
+.dvl-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0 0 4px;
+  color: var(--th-text);
+}
+
+.dvl-version {
+  font-size: var(--font-size-xs);
+  color: var(--th-text-muted);
+  margin: 0 0 16px;
+}
+
+.dvl-status {
+  color: var(--th-text-muted);
+}
+
+.dvl-error {
+  color: var(--th-status-error-text);
+  background: var(--th-status-error-bg);
+  border: 1px solid var(--th-status-error-border);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+
+/* The widget injects its own markup here; give it room without styling into it. */
+.dvl-widget {
+  min-height: 1px;
+}
+
+.dvl-retry {
+  font: inherit;
+  font-weight: 600;
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  padding: 10px 18px;
+  margin-top: 12px;
+  cursor: pointer;
+}
+
+.dvl-retry:hover {
+  color: var(--th-text);
+  background: var(--th-bg-hover);
+}
+
+/* Callback page: centred while the code is exchanged. */
+.dvl-callback {
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 2rem;
+  color: var(--th-text-muted);
+}
+
+.dvl-callback-failed {
+  font-weight: 600;
+  color: var(--th-status-error-text);
+}

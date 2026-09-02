@@ -1,46 +1,47 @@
-import { davinci } from "@forgerock/davinci-client";
+// DaVinci Widget login (/davinci-login).
+//
+// The widget script is hosted by Ping and pulled in on demand rather than
+// bundled, so it is only fetched on the one page that uses it. Every secret
+// stays on the BFF: POST /api/davinci-login/sdk-token mints the SDK token from
+// the DaVinci API key, arms the OIDC nonce, and keeps the PKCE verifier, then
+// returns only what davinci.skRenderScreen needs plus the authorize URL the
+// page visits once the flow succeeds. Nothing here is hardcoded in the bundle.
 
-// Widget-invoked DaVinci login demo (/davinci-login). Config comes from the
-// BFF's public GET /api/davinci-demo/config, same pattern as oidcSdkClient.js's
-// GET /api/sdk-demo/config — nothing hardcoded in the bundle.
+const WIDGET_SRC = "https://assets.pingone.com/davinci/latest/davinci.js";
 
-let clientPromise = null;
+let scriptPromise = null;
 
-async function build() {
-  const res = await fetch("/api/davinci-demo/config", {
+export function loadWidget() {
+  if (window.davinci) return Promise.resolve(window.davinci);
+  if (!scriptPromise) {
+    scriptPromise = new Promise((resolve, reject) => {
+      const el = document.createElement("script");
+      el.src = WIDGET_SRC;
+      el.async = true;
+      el.onload = () =>
+        window.davinci
+          ? resolve(window.davinci)
+          : reject(new Error("The DaVinci widget script loaded but exposed no global."));
+      el.onerror = () => {
+        // Clear the cache so a retry re-attempts the network fetch instead of
+        // resolving the same rejected promise forever.
+        scriptPromise = null;
+        reject(new Error("Could not load the DaVinci widget script."));
+      };
+      document.head.appendChild(el);
+    });
+  }
+  return scriptPromise;
+}
+
+export async function fetchWidgetConfig() {
+  const res = await fetch("/api/davinci-login/sdk-token", {
+    method: "POST",
     headers: { Accept: "application/json" },
   });
   if (!res.ok) {
-    throw new Error(`Could not load DaVinci demo config (HTTP ${res.status})`);
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.message || `Could not start a DaVinci login flow (HTTP ${res.status}).`);
   }
-  const cfg = await res.json();
-  if (!cfg.clientId || !cfg.wellknown) {
-    throw new Error(
-      "DaVinci demo is not configured. Set the PINGONE_DAVINCI_LOGIN_* env vars " +
-        "(see docs/superpowers/specs/2026-08-17-davinci-orchestration-showcase-design.md) and restart the server."
-    );
-  }
-
-  const client = davinci({
-    config: {
-      clientId: cfg.clientId,
-      redirectUri: cfg.redirectUri,
-      serverConfig: { wellknown: cfg.wellknown },
-    },
-  });
-  return client;
-}
-
-export function getDavinciClient() {
-  if (!clientPromise) {
-    clientPromise = build().catch((err) => {
-      clientPromise = null;
-      throw err;
-    });
-  }
-  return clientPromise;
-}
-
-export function isSdkError(result) {
-  return !result || (typeof result === "object" && Boolean(result.error));
+  return res.json();
 }

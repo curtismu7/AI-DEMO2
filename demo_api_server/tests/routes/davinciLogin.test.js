@@ -8,6 +8,12 @@ jest.mock('../../services/oauthService', () => ({
   exchangeCodeForToken: jest.fn(),
   getUserInfo: jest.fn(),
   createUserFromOAuth: jest.fn(),
+  generateState: jest.fn(() => 'state-1'),
+  generateCodeVerifier: jest.fn(() => 'verifier-1'),
+  generateAuthorizationUrl: jest.fn(
+    (state, _cv, redirectUri, nonce) =>
+      `https://auth.pingone.com/env-1/as/authorize?state=${state}&nonce=${nonce}&redirect_uri=${encodeURIComponent(redirectUri)}`
+  ),
 }));
 
 jest.mock('../../data/store', () => ({
@@ -201,13 +207,19 @@ describe('POST /api/davinci-login/sdk-token', () => {
     const res = await request(buildApp(sess)).post('/api/davinci-login/sdk-token');
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({
+    expect(res.body).toMatchObject({
       accessToken: 'sdk-tok-1',
       companyId: 'co-1',
       policyId: 'pol-v1',
       flowVersion: 'v1',
       apiRoot: 'https://auth.pingone.com/',
     });
+
+    // The authorize hop must carry the SAME nonce that was armed on the
+    // session, or /callback rejects every legitimate login.
+    const authorizeUrl = new URL(res.body.authorizeUrl);
+    expect(authorizeUrl.searchParams.get('nonce')).toBe(sess.davinciLoginNonce);
+    expect(authorizeUrl.searchParams.get('redirect_uri')).toBe(sess.davinciLoginRedirectUri);
 
     // The nonce the flow was handed is the one now armed on the session — if
     // these ever diverge, /callback rejects every legitimate login.
@@ -226,7 +238,10 @@ describe('POST /api/davinci-login/sdk-token', () => {
 
     const serialized = JSON.stringify(res.body);
     expect(serialized).not.toContain('sk-secret-key');
-    expect(serialized).not.toContain(sess.davinciLoginNonce);
+    // The PKCE verifier stays server-side: the BFF built the authorize URL, so
+    // only it needs the verifier, and /callback reads it back off the session.
+    expect(serialized).not.toContain('verifier-1');
+    expect(sess.davinciLoginCodeVerifier).toBe('verifier-1');
   });
 
   test('davinci_login_flow_version=v2 selects the v2 flow policy', async () => {
@@ -277,5 +292,51 @@ describe('POST /api/davinci-login/sdk-token', () => {
     expect(res.status).toBe(401);
     expect(res.body.error).toBe('davinci_sdk_token_failed');
     expect(JSON.stringify(res.body)).not.toContain('sk-secret-key');
+  });
+});
+
+
+// The widget page posts only the code — the PKCE verifier and redirect URI live
+// on the session because /sdk-token, not the browser, built the authorize URL.
+describe('POST /api/davinci-login/callback session-held PKCE', () => {
+  test('exchanges using the session verifier when the body omits it', async () => {
+    const sess = {
+      davinciLoginNonce: 'nonce-9',
+      davinciLoginCodeVerifier: 'verifier-9',
+      davinciLoginRedirectUri: 'https://ai-demo.ping-devops.com/davinci-login/callback',
+    };
+    oauthService.exchangeCodeForToken.mockResolvedValue({
+      access_token: 'at-9',
+      id_token: idTokenWithNonce('nonce-9'),
+      refresh_token: 'rt-9',
+      expires_in: 3600,
+    });
+    oauthService.getUserInfo.mockResolvedValue({ preferred_username: 'demouser' });
+    oauthService.createUserFromOAuth.mockReturnValue({ username: 'demouser' });
+    dataStore.getUserByUsername.mockReturnValue({ id: 'u-9', username: 'demouser', role: 'customer' });
+
+    const res = await request(buildApp(sess))
+      .post('/api/davinci-login/callback')
+      .send({ code: 'c-9' });
+
+    expect(res.status).toBe(200);
+    expect(oauthService.exchangeCodeForToken).toHaveBeenCalledWith(
+      'c-9',
+      'verifier-9',
+      'https://ai-demo.ping-devops.com/davinci-login/callback'
+    );
+    // Single-use: the verifier and redirect URI are consumed with the nonce.
+    expect(sess.davinciLoginCodeVerifier).toBeUndefined();
+    expect(sess.davinciLoginRedirectUri).toBeUndefined();
+  });
+
+  test('400 when neither the body nor the session carries a verifier', async () => {
+    const res = await request(buildApp({ davinciLoginNonce: 'n' }))
+      .post('/api/davinci-login/callback')
+      .send({ code: 'c-1' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('invalid_request');
+    expect(oauthService.exchangeCodeForToken).not.toHaveBeenCalled();
   });
 });

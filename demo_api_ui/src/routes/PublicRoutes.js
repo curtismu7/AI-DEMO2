@@ -40,6 +40,7 @@ import AgentGatewayInspectorClean from "../components/AgentGatewayInspectorClean
 import SdkLoginPage from "../pages/SdkLoginPage";
 import SdkLoginCallback from "../pages/SdkLoginCallback";
 import DavinciLoginPage from "../pages/DavinciLoginPage";
+import DavinciLoginCallback from "../pages/DavinciLoginCallback";
 import DavinciExplainerPage from "../pages/DavinciExplainerPage";
 import CibaApprovalPage from "../pages/CibaApprovalPage";
 import PrivilegeDemoPage from "../pages/PrivilegeDemoPage";
@@ -365,6 +366,12 @@ export function SdkLoginPageRoute() {
 // DaVinci widget login sandbox (public) — drives its own browser-side flow.
 export function DavinciLoginPageRoute() {
   return <DavinciLoginPage />;
+}
+
+// OIDC redirect callback for the widget login (bare — it exchanges the code
+// and redirects). Public: the user is not signed in until this route finishes.
+export function DavinciLoginCallbackRoute() {
+  return <DavinciLoginCallback />;
 }
 
 // DaVinci Orchestration explainer — signed-in, AppShell-wrapped (reached from

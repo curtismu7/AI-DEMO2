@@ -1,48 +1,61 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
+import { fetchWidgetConfig, loadWidget } from "../davinciWidgetClient";
 
-vi.mock("@forgerock/davinci-client", () => ({
-  davinci: vi.fn(),
-}));
+// The widget config comes from the BFF, never from the bundle: the DaVinci API
+// key that mints the SDK token is a secret, so POST /api/davinci-login/sdk-token
+// is the only way to obtain one.
 
 const originalFetch = global.fetch;
 
-describe("davinciWidgetClient.getDavinciClient", () => {
-  beforeEach(async () => {
-    vi.resetModules();
-    global.fetch = vi.fn();
-    const { davinci } = await import("@forgerock/davinci-client");
-    davinci.mockReset();
-  });
-  afterEach(() => { global.fetch = originalFetch; });
+beforeEach(() => {
+  delete window.davinci;
+});
 
-  test("fetches config and builds a davinci client", async () => {
-    global.fetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        wellknown: "https://auth.pingone.com/env-1/as/.well-known/openid-configuration",
-        clientId: "widget-client-id",
-        redirectUri: "https://local.ping-devops.com:4000/davinci-login/callback",
-        flowVersion: "v1",
-      }),
-    });
-    const { davinci } = await import("@forgerock/davinci-client");
-    davinci.mockReturnValue({ some: "client" });
+afterEach(() => {
+  global.fetch = originalFetch;
+  vi.restoreAllMocks();
+});
 
-    const { getDavinciClient } = await import("../davinciWidgetClient");
-    const client = await getDavinciClient();
+describe("fetchWidgetConfig", () => {
+  test("POSTs to the BFF sdk-token endpoint and returns its config", async () => {
+    const cfg = { accessToken: "t", companyId: "c", policyId: "p", authorizeUrl: "https://x/authorize" };
+    global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: async () => cfg }));
 
-    expect(client).toEqual({ some: "client" });
-    expect(davinci).toHaveBeenCalledWith(expect.objectContaining({
-      config: expect.objectContaining({
-        clientId: "widget-client-id",
-        redirectUri: "https://local.ping-devops.com:4000/davinci-login/callback",
-      }),
-    }));
+    await expect(fetchWidgetConfig()).resolves.toEqual(cfg);
+
+    const [url, opts] = global.fetch.mock.calls[0];
+    expect(url).toBe("/api/davinci-login/sdk-token");
+    expect(opts.method).toBe("POST");
   });
 
-  test("throws when the config endpoint is not configured", async () => {
-    global.fetch.mockResolvedValue({ ok: true, json: async () => ({}) });
-    const { getDavinciClient } = await import("../davinciWidgetClient");
-    await expect(getDavinciClient()).rejects.toThrow(/not configured/i);
+  test("surfaces the BFF's message when DaVinci is not configured", async () => {
+    global.fetch = vi.fn(() =>
+      Promise.resolve({
+        ok: false,
+        status: 503,
+        json: async () => ({ error: "davinci_not_configured", message: "Set PINGONE_DAVINCI_..." }),
+      })
+    );
+
+    await expect(fetchWidgetConfig()).rejects.toThrow(/Set PINGONE_DAVINCI_/);
+  });
+
+  test("falls back to the status code when the error body is unreadable", async () => {
+    global.fetch = vi.fn(() =>
+      Promise.resolve({ ok: false, status: 502, json: async () => { throw new Error("not json"); } })
+    );
+
+    await expect(fetchWidgetConfig()).rejects.toThrow(/HTTP 502/);
+  });
+});
+
+describe("loadWidget", () => {
+  test("resolves immediately when the widget global is already present", async () => {
+    const stub = { skRenderScreen: () => {} };
+    window.davinci = stub;
+    const appendChild = vi.spyOn(document.head, "appendChild");
+
+    await expect(loadWidget()).resolves.toBe(stub);
+    expect(appendChild).not.toHaveBeenCalled();
   });
 });
