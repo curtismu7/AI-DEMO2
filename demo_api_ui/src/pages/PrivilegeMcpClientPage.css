@@ -1723,7 +1723,7 @@ select.cur-input { cursor: pointer; }
   color: #fecaca;
   background: rgba(190, 24, 43, 0.55);
   padding: 1px 8px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
 }
 
 /* Light skin: the same band on a pale ground needs darker ink, not the same
