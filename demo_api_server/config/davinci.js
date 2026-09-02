@@ -16,11 +16,19 @@ const config = {
     };
   },
 
+  // Widget invocation (skRenderScreen) needs companyId + a per-version Flow
+  // Policy id; apiKey is the DaVinci API key sent as X-SK-API-KEY when minting
+  // an SDK token server-side. appId/flowId* stay for the OIDC app backing the
+  // flow's terminal PingOne Authentication node (the code /callback exchanges).
   get login() {
     return {
-      appId:     process.env.PINGONE_DAVINCI_LOGIN_APP_ID,
-      flowIdV1:  process.env.PINGONE_DAVINCI_LOGIN_FLOW_ID_V1,
-      flowIdV2:  process.env.PINGONE_DAVINCI_LOGIN_FLOW_ID_V2,
+      appId:      process.env.PINGONE_DAVINCI_LOGIN_APP_ID,
+      flowIdV1:   process.env.PINGONE_DAVINCI_LOGIN_FLOW_ID_V1,
+      flowIdV2:   process.env.PINGONE_DAVINCI_LOGIN_FLOW_ID_V2,
+      companyId:  process.env.PINGONE_DAVINCI_LOGIN_COMPANY_ID,
+      policyIdV1: process.env.PINGONE_DAVINCI_LOGIN_POLICY_ID_V1,
+      policyIdV2: process.env.PINGONE_DAVINCI_LOGIN_POLICY_ID_V2,
+      apiKey:     process.env.PINGONE_DAVINCI_API_KEY,
     };
   },
 

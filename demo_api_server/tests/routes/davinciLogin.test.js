@@ -14,6 +14,18 @@ jest.mock('../../data/store', () => ({
   getUserByUsername: jest.fn(),
 }));
 
+jest.mock('axios');
+jest.mock('../../services/configStore', () => ({
+  getEffective: jest.fn(() => ''),
+}));
+jest.mock('../../services/oauthEndpointResolver', () => ({
+  getDiscoveryEndpoint: jest.fn(
+    () => 'https://auth.pingone.com/env-1/as/.well-known/openid-configuration'
+  ),
+}));
+
+const axios = require('axios');
+const configStore = require('../../services/configStore');
 const oauthService = require('../../services/oauthService');
 const dataStore = require('../../data/store');
 const davinciLoginRoutes = require('../../routes/davinciLogin');
@@ -153,5 +165,117 @@ describe('POST /api/davinci-login/callback', () => {
     expect(res.body).toEqual({ error: 'session_regenerate_failed', message: 'Could not establish a session.' });
     expect(session.oauthTokens).toBeUndefined();
     expect(session.user).toBeUndefined();
+  });
+});
+
+
+// POST /sdk-token mints the DaVinci SDK token that davinci.skRenderScreen needs.
+// The DaVinci API key is a secret: it is sent upstream as X-SK-API-KEY and must
+// never appear in the response. The nonce is bound to the session and passed to
+// the flow as an input parameter (NOT returned), so the ID token /callback
+// verifies is the one this request armed.
+describe('POST /api/davinci-login/sdk-token', () => {
+  const ENV = {
+    PINGONE_DAVINCI_LOGIN_COMPANY_ID: 'co-1',
+    PINGONE_DAVINCI_LOGIN_POLICY_ID_V1: 'pol-v1',
+    PINGONE_DAVINCI_LOGIN_POLICY_ID_V2: 'pol-v2',
+    PINGONE_DAVINCI_API_KEY: 'sk-secret-key',
+  };
+  const saved = {};
+
+  beforeEach(() => {
+    axios.post.mockReset();
+    configStore.getEffective.mockReset().mockReturnValue('');
+    Object.keys(ENV).forEach((k) => { saved[k] = process.env[k]; process.env[k] = ENV[k]; });
+  });
+  afterEach(() => {
+    Object.keys(ENV).forEach((k) => {
+      if (saved[k] === undefined) delete process.env[k]; else process.env[k] = saved[k];
+    });
+  });
+
+  test('mints a token, binds the nonce to the session, and passes it to the flow', async () => {
+    axios.post.mockResolvedValue({ data: { success: true, access_token: 'sdk-tok-1' } });
+    const sess = {};
+
+    const res = await request(buildApp(sess)).post('/api/davinci-login/sdk-token');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      accessToken: 'sdk-tok-1',
+      companyId: 'co-1',
+      policyId: 'pol-v1',
+      flowVersion: 'v1',
+      apiRoot: 'https://auth.pingone.com/',
+    });
+
+    // The nonce the flow was handed is the one now armed on the session — if
+    // these ever diverge, /callback rejects every legitimate login.
+    expect(sess.davinciLoginNonce).toMatch(/^[0-9a-f]{32}$/);
+    const [url, body, opts] = axios.post.mock.calls[0];
+    expect(url).toBe('https://orchestrate-api.pingone.com/v1/company/co-1/sdktoken');
+    expect(body).toEqual({ policyId: 'pol-v1', parameters: { nonce: sess.davinciLoginNonce } });
+    expect(opts.headers['X-SK-API-KEY']).toBe('sk-secret-key');
+  });
+
+  test('never returns the DaVinci API key or the nonce to the browser', async () => {
+    axios.post.mockResolvedValue({ data: { access_token: 'sdk-tok-1' } });
+    const sess = {};
+
+    const res = await request(buildApp(sess)).post('/api/davinci-login/sdk-token');
+
+    const serialized = JSON.stringify(res.body);
+    expect(serialized).not.toContain('sk-secret-key');
+    expect(serialized).not.toContain(sess.davinciLoginNonce);
+  });
+
+  test('davinci_login_flow_version=v2 selects the v2 flow policy', async () => {
+    configStore.getEffective.mockImplementation((k) =>
+      k === 'davinci_login_flow_version' ? 'v2' : ''
+    );
+    axios.post.mockResolvedValue({ data: { access_token: 'sdk-tok-2' } });
+
+    const res = await request(buildApp({})).post('/api/davinci-login/sdk-token');
+
+    expect(res.body.policyId).toBe('pol-v2');
+    expect(res.body.flowVersion).toBe('v2');
+    expect(axios.post.mock.calls[0][1].policyId).toBe('pol-v2');
+  });
+
+  test('503 with no upstream call when DaVinci is not configured', async () => {
+    delete process.env.PINGONE_DAVINCI_API_KEY;
+    const sess = {};
+
+    const res = await request(buildApp(sess)).post('/api/davinci-login/sdk-token');
+
+    expect(res.status).toBe(503);
+    expect(res.body.error).toBe('davinci_not_configured');
+    expect(axios.post).not.toHaveBeenCalled();
+    // Nothing armed, so a stray /callback still fails closed on nonce_missing.
+    expect(sess.davinciLoginNonce).toBeUndefined();
+  });
+
+  test('502 when DaVinci responds without an access_token', async () => {
+    axios.post.mockResolvedValue({ data: { success: false, httpResponseCode: 400 } });
+
+    const res = await request(buildApp({})).post('/api/davinci-login/sdk-token');
+
+    expect(res.status).toBe(502);
+    expect(res.body.error).toBe('davinci_sdk_token_failed');
+  });
+
+  test('surfaces an upstream failure without leaking the API key', async () => {
+    axios.post.mockRejectedValue(
+      Object.assign(new Error('Request failed'), {
+        isAxiosError: true,
+        response: { status: 401, data: { message: 'bad key' } },
+      })
+    );
+
+    const res = await request(buildApp({})).post('/api/davinci-login/sdk-token');
+
+    expect(res.status).toBe(401);
+    expect(res.body.error).toBe('davinci_sdk_token_failed');
+    expect(JSON.stringify(res.body)).not.toContain('sk-secret-key');
   });
 });
