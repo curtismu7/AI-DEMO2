@@ -191,7 +191,7 @@ export default function QuickFlagsPill({ user }) {
     const locked = !!f.pinned;
     const disabled = locked || !canEdit || savingId === def.id;
     const lockTitle = locked
-      ? `Pinned by ${f.pinnedBy} in docker-compose — change the env to flip`
+      ? `Pinned by ${f.pinnedBy} in the server environment — change that env var to flip`
       : undefined;
     if (def.control === 'segmented') {
       return (
