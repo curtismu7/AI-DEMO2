@@ -1037,7 +1037,42 @@ async function discoverAuth(session) {
 // One registration per gateway origin for the life of the process — MCPGW
 // mints a fresh client_id on every POST /register, so re-registering per
 // login would leak a new client on the gateway each time.
+//
+// The cache outlives the GATEWAY, though: mcpgw keeps its client registry in
+// memory, so every gateway restart forgets every client we registered. The
+// cached id then survives as a permanent poison pill — /authorize answers
+// "Unknown client" for the rest of the BFF's life, and no amount of signing out
+// helps, because Sign Out clears the session and not this process-wide Map.
+// Observed 2026-09-02 after a gateway restart. isDcrClientStillKnown() below is
+// what lets the cache recover on its own.
 const dcrClientCache = new Map();
+
+// Ask the gateway whether it still knows a client, without a user present.
+//
+// There is no "is my registration alive" endpoint, so this posts a deliberately
+// invalid authorization code and reads which way it is rejected:
+//   401 / invalid_client -> the client is gone; re-register    (verified live)
+//   400 invalid_grant    -> the client is fine, only the code was bad
+// Anything else (network error, unexpected shape) is treated as "still known":
+// a probe failure must not throw away a working registration.
+async function isDcrClientStillKnown(tokenUri, clientId) {
+  try {
+    const response = await fetch(tokenUri, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        code: 'dcr-liveness-probe',
+        client_id: clientId,
+      }).toString(),
+    });
+    if (response.status === 401) return false;
+    const text = await response.text();
+    return !/invalid[_ ]client|unknown client/i.test(text);
+  } catch {
+    return true;
+  }
+}
 
 // Dynamic Client Registration (RFC 7591) against a self-advertising gateway.
 // MCPGW's own /authorize and /token don't recognize PingOne app ids — this is
@@ -1046,7 +1081,14 @@ async function getOrRegisterDcrClient(authorizationUri, redirectUri, tokenEndpoi
   const registerUri = new URL(authorizationUri);
   registerUri.pathname = registerUri.pathname.replace(/\/authorize$/, '/register');
   const cacheKey = registerUri.toString();
-  if (dcrClientCache.has(cacheKey)) return dcrClientCache.get(cacheKey);
+  if (dcrClientCache.has(cacheKey)) {
+    const cached = dcrClientCache.get(cacheKey);
+    const tokenUri = cacheKey.replace(/\/register$/, '/token');
+    if (await isDcrClientStillKnown(tokenUri, cached.clientId)) return cached;
+    // The gateway restarted and forgot us. Drop it and register again below,
+    // rather than handing the browser a client_id that can only 400.
+    dcrClientCache.delete(cacheKey);
+  }
 
   const response = await fetch(cacheKey, {
     method: 'POST',
