@@ -35,6 +35,7 @@ const { assemble } = require('../services/transactionAssembler');
 const configStore = require('../services/configStore');
 const { renderReelSvg } = require('../services/reelSvg');
 const jwksService = require('../services/jwksService');
+const privilegeGatewaySession = require('../services/privilegeGatewaySession');
 
 const router = express.Router();
 const SERVICE = 'mcp-facade';
@@ -144,6 +145,34 @@ const DOORS = {
     expectedAudience: () => process.env.MCP_FACADE_OPENSEARCH_AUD
       || process.env.MCP_GW_RESOURCE_URI
       || 'mcpgateway.ping.demo',
+  },
+  'privilege-gateway': {
+    label: 'Privilege AI Gateway',
+    // The door that survives a gateway restart. Everything else that talks to
+    // the AI Gateway registers with the GATEWAY's authorization server, whose
+    // client registry is in memory — so a restart forgets the client and the
+    // MCP client dead-ends on "Unknown client" until someone re-adds it by
+    // hand. Here the client registers with OUR broker (durable) and the gateway
+    // leg is held server-side by services/privilegeGatewaySession.js, which the
+    // BFF re-establishes on its own. The client's config never breaks.
+    //
+    // The gateway still enforces its own per-user policy: what goes upstream is
+    // the token minted for the human who signed in at /privilege-mcp-client,
+    // not a service identity.
+    upstream: () => process.env.MCP_FACADE_PRIVILEGE_GATEWAY_URL
+      || 'https://mcpgw.ai-demo.ping-devops.com/opensearch22/mcp',
+    authorizationServer: () => process.env.MCP_FACADE_AGENT_GATEWAY_AS || 'http://localhost:3005',
+    scopes: [],
+    forwardCorrelation: false,
+    // Same reasoning as the opensearch door: this door does not let the
+    // upstream issue the 401, because it attaches its own upstream credential —
+    // anonymous traffic would otherwise ride the operator's gateway session.
+    requireBearer: true,
+    expectedAudience: () => process.env.MCP_FACADE_OPENSEARCH_AUD
+      || process.env.MCP_GW_RESOURCE_URI
+      || 'mcpgateway.ping.demo',
+    // Replaces the caller's bearer on the upstream hop instead of forwarding it.
+    ownsUpstreamAuth: true,
   },
   'pingone-admin': {
     label: 'PingOne Admin',
@@ -541,6 +570,30 @@ router.post('/:door/mcp', express.json({ limit: '1mb', type: () => true }), asyn
     return respondDeniedSession(req, res, { rpc, method, isCall, toolName, correlationId, session: inbound, door });
   }
 
+  // A door that owns its upstream auth swaps the caller's bearer for the
+  // server-side gateway session. Without one the honest answer is "a human has
+  // to sign in", not a confusing 401 that sends the client back to OUR broker
+  // it already satisfied.
+  let upstreamHeaders = forwardHeaders(req, correlationId);
+  if (door.ownsUpstreamAuth) {
+    const upstreamToken = await privilegeGatewaySession.getAccessToken();
+    if (!upstreamToken) {
+      return res.status(503).json({
+        jsonrpc: '2.0',
+        id: rpc.id ?? null,
+        error: {
+          code: -32002,
+          message: 'Gateway session unavailable',
+          data: {
+            reason: privilegeGatewaySession.status().reason,
+            remedy: 'Sign in once at /privilege-mcp-client — the gateway forgets its clients on restart.',
+          },
+        },
+      });
+    }
+    upstreamHeaders = { ...upstreamHeaders, authorization: `Bearer ${upstreamToken}` };
+  }
+
   const t0 = Date.now();
   let upstream;
   try {
@@ -548,7 +601,7 @@ router.post('/:door/mcp', express.json({ limit: '1mb', type: () => true }), asyn
       ? await door.localHandler({ rpc, method, sessionIdIn: req.get('mcp-session-id') })
       : await fetch(upstreamUrl, {
         method: 'POST',
-        headers: forwardHeaders(req, correlationId),
+        headers: upstreamHeaders,
         body: JSON.stringify(rpc),
         ...fetchOpts(upstreamUrl),
       });
