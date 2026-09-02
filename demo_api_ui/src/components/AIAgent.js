@@ -9678,7 +9678,7 @@ export default function BankingAgent({
                               !f
                                 ? "Flag unavailable — could not read /api/admin/feature-flags"
                                 : locked
-                                  ? `Pinned by ${f.pinnedBy} in docker-compose — change the env to flip`
+                                  ? `Pinned by ${f.pinnedBy} in the server environment — change that env var to flip`
                                   : `${f.description || def.label} — applies to every session, not just yours`
                             }
                           >
