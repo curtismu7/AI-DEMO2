@@ -43,7 +43,7 @@ describe('privilege-mcp /state — audit gateway preset', () => {
     // The audit FAÇADE DOOR, not Privilege and not the gateway directly — the
     // door is what advertises scopes_supported: ['audit:read'], which is the
     // only reason the gateway narrows tools/list for this page.
-    expect(preset.mode).toBe('agentless');
+    expect(preset.mode).toBe('privilege');
     expect(preset.url).toMatch(/\/mcp-facade\/audit\/mcp$/);
     expect(preset.url).not.toMatch(/procyon\.ai|ping-devops\.com/);
   });

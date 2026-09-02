@@ -7,10 +7,32 @@ const crypto = require('crypto');
 const privilegeGatewaySession = require('../services/privilegeGatewaySession');
 const router = express.Router();
 
-const DEFAULT_AGENTLESS_MCP_URL =
-  'https://cmuir-agentless-mcpgw.ping-devops.com/cmuir/mcp';
-const DEFAULT_AGENT_MCP_URL =
-  'https://opensearch.default.applications.procyon.ai:8643/mcp';
+// The three ways to reach the same MCP server, which is the whole point of this
+// page: the audience sees what Privilege adds by watching the same tool call
+// succeed, be refused, and be recorded, depending only on the path.
+//
+// This replaced an Agent/Agentless pair on 2026-09-02. That distinction died
+// with the per-owner gateways: there is one AI Gateway now, and the agent-mode
+// frontend it named (`*.applications.procyon.ai:8643`) has nothing behind it —
+// the page sat on "authenticated, 0 tools" forever.
+const PUBLIC_APP_ORIGIN = () => (process.env.PUBLIC_APP_URL || 'https://ai-demo.ping-devops.com').replace(/\/+$/, '');
+const PRIVILEGE_APP = () => process.env.MCP_FACADE_PRIVILEGE_GATEWAY_APP || 'opensearch22';
+
+// No Privilege in the path at all — the façade's opensearch door talks straight
+// to the MCP server. This is the "before" picture.
+const DEFAULT_DIRECT_MCP_URL = () =>
+  process.env.PRIVILEGE_DIRECT_MCP_URL || `${PUBLIC_APP_ORIGIN()}/mcp-facade/opensearch/mcp`;
+// Straight at the AI Gateway: policy enforced, but the client registers with the
+// gateway, whose registry is in memory — a restart breaks it.
+const DEFAULT_PRIVILEGE_MCP_URL = () =>
+  process.env.PRIVILEGE_MCPGW_URL || `https://mcpgw.ai-demo.ping-devops.com/${PRIVILEGE_APP()}/mcp`;
+// Through our façade: same policy, but the client registers with our own durable
+// AS, so it survives a gateway restart.
+const DEFAULT_FACADE_MCP_URL = () =>
+  process.env.PRIVILEGE_FACADE_MCP_URL || `${PUBLIC_APP_ORIGIN()}/mcp-facade/privilege-gateway/${PRIVILEGE_APP()}/mcp`;
+
+const GATEWAY_MODES = ['direct', 'privilege', 'facade'];
+const DEFAULT_GATEWAY_MODE = 'privilege';
 // The `audit` façade door, NOT Privilege — that route was abandoned once the
 // hosted PingOne MCP stopped accepting worker client_credentials (401 "Invalid
 // authentication", 2026-08-27).
@@ -48,26 +70,27 @@ const clientSessions = new Map();
 function getClientSession(req) {
   const sid = req.sessionID || req.session?.id || 'default';
   if (!clientSessions.has(sid)) {
-    const agentlessConfig = {
-      mcpUrl: process.env.PRIVILEGE_AGENTLESS_MCPGW_URL
-        || process.env.PRIVILEGE_MCPGW_URL
-        || DEFAULT_AGENTLESS_MCP_URL,
+    // Every mode authenticates the same way (OAuth + PKCE, dynamic client
+    // registration); only the destination differs. clientId is a fallback for a
+    // gateway that does not advertise its own AS — DCR replaces it when one does.
+    const oauthDefaults = {
       clientId: process.env.PRIVILEGE_SSO_CLIENT_ID || process.env.PINGONE_MCP_GATEWAY_CLIENT_ID || '',
       scopes: 'openid profile email',
     };
-    const agentConfig = {
-      mcpUrl: process.env.PRIVILEGE_AGENT_MCPGW_URL
-        || DEFAULT_AGENT_MCP_URL,
+    const modeConfigs = {
+      direct: { ...oauthDefaults, mcpUrl: DEFAULT_DIRECT_MCP_URL() },
+      privilege: { ...oauthDefaults, mcpUrl: DEFAULT_PRIVILEGE_MCP_URL() },
+      facade: { ...oauthDefaults, mcpUrl: DEFAULT_FACADE_MCP_URL() },
     };
     clientSessions.set(sid, {
       _sid: sid,
       config: {
-        ...agentlessConfig,
+        ...modeConfigs[DEFAULT_GATEWAY_MODE],
         llmUrl: 'http://127.0.0.1:11434',
         llmModel: 'llama3.2:1b',
       },
-      gatewayMode: 'agentless',
-      gatewayConfigs: { agent: agentConfig, agentless: agentlessConfig },
+      gatewayMode: DEFAULT_GATEWAY_MODE,
+      gatewayConfigs: modeConfigs,
       oauth: {
          accessToken: null, refreshToken: null, expiresAt: null, tokenUri: null, source: null,
 
@@ -1228,34 +1251,38 @@ router.get('/state', (req, res) => {
     (mainAppToken && mainAppToken !== '_cookie_session')
     || (req.session?.user && (!mainAppToken || req.session?._restoredFromCookie)),
   );
-  // Known gateway frontends the UI offers as presets. The agent URL defaults to
-  // the registered opensearch app; override with PRIVILEGE_AGENT_MCPGW_URL when
-  // a different app is registered in the Privilege console.
+  // Presets the UI offers. The first three are the three paths in order, so the
+  // preset list reads as the demo itself; the audit door is a scope-narrowing
+  // extra that belongs to none of them.
   const presets = [
     {
-      label: 'Agentless gateway (nginx)',
-      mode: 'agentless',
-      url: process.env.PRIVILEGE_AGENTLESS_MCPGW_URL
-        || process.env.PRIVILEGE_MCPGW_URL
-        || DEFAULT_AGENTLESS_MCP_URL,
+      label: '1 · Direct — no Privilege in the path',
+      mode: 'direct',
+      url: DEFAULT_DIRECT_MCP_URL(),
     },
     {
-      label: 'AI Gateway via Priv Agent',
-      mode: 'agent',
-      url: process.env.PRIVILEGE_AGENT_MCPGW_URL
-        || DEFAULT_AGENT_MCP_URL,
+      label: '2 · Privilege — direct to the AI Gateway',
+      mode: 'privilege',
+      url: DEFAULT_PRIVILEGE_MCP_URL(),
     },
     {
-      label: 'Agentless gateway — banking (external)',
-      mode: 'agentless',
+      label: '3 · Privilege — through the façade',
+      mode: 'facade',
+      url: DEFAULT_FACADE_MCP_URL(),
+    },
+    {
+      // Kept through the mode rename: the banking door is deliberately dark
+      // (see TECH_DEBT 2026-09-01), and this preset is env-gated, so it simply
+      // does not appear unless someone points it at a live banking app.
+      label: 'Privilege — banking (external)',
+      mode: 'privilege',
       url: process.env.PRIVILEGE_AGENTLESS_MCPGW_URL_BANKING || '',
     },
     {
       label: 'Agent Gateway — PingOne audit (scope-narrowed)',
-      // mode 'agentless' selects the OAuth-capable config slot, which is what
-      // this door needs (it issues a 401 challenge and an AS to discover).
-      // It does NOT mean Privilege agentless — that route is gone.
-      mode: 'agentless',
+      // Not one of the three paths: this door narrows by advertised scope, and
+      // it needs an OAuth-capable slot, which every mode now is.
+      mode: 'privilege',
       url: process.env.AUDIT_MCP_URL || DEFAULT_AUDIT_MCP_URL,
     },
   ].filter((p) => p.url);
@@ -1288,15 +1315,18 @@ router.post('/config', express.json(), (req, res) => {
   // made before the page's /state fetch resolved left "Client ID is required
   // before auth start." stuck on every later attempt. Blank means "unchanged".
   const body = req.body || {};
-  const requestedMode = body.gatewayMode
-    || (body.mcpUrl && isProcyonAgentUrl(body.mcpUrl) ? 'agent' : session.gatewayMode);
-  const gatewayMode = requestedMode === 'agent' ? 'agent' : 'agentless';
+  // An unknown mode falls back to the current one rather than silently picking a
+  // path the operator did not ask for.
+  const requestedMode = body.gatewayMode || session.gatewayMode;
+  const gatewayMode = GATEWAY_MODES.includes(requestedMode) ? requestedMode : DEFAULT_GATEWAY_MODE;
   const patch = Object.fromEntries(
     Object.entries(body).filter(([key, v]) => key !== 'gatewayMode' && v !== undefined && v !== null && v !== ''),
   );
-  const gatewayPatch = gatewayMode === 'agent'
-    ? { ...(patch.mcpUrl ? { mcpUrl: patch.mcpUrl } : {}) }
-    : Object.fromEntries(Object.entries(patch).filter(([key]) => ['mcpUrl', 'clientId', 'scopes'].includes(key)));
+  // All three paths speak OAuth, so they all keep the same fields — the old
+  // agent mode was the only one that carried a bare URL and no credentials.
+  const gatewayPatch = Object.fromEntries(
+    Object.entries(patch).filter(([key]) => ['mcpUrl', 'clientId', 'scopes'].includes(key)),
+  );
   session.gatewayConfigs[gatewayMode] = {
     ...session.gatewayConfigs[gatewayMode],
     ...gatewayPatch,
@@ -1306,9 +1336,7 @@ router.post('/config', express.json(), (req, res) => {
     llmModel: patch.llmModel || session.config.llmModel,
   };
   session.gatewayMode = gatewayMode;
-  session.config = gatewayMode === 'agent'
-    ? { ...session.gatewayConfigs.agent, clientId: '', scopes: '', ...sharedConfig }
-    : { ...session.gatewayConfigs.agentless, ...sharedConfig };
+  session.config = { ...session.gatewayConfigs[gatewayMode], ...sharedConfig };
   resetMcpState(session);
   // Force express-session to issue the cookie (saveUninitialized: false) so the
   // saved config survives to the next request. Without this a client with no

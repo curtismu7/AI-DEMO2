@@ -14,8 +14,8 @@ vi.mock("../../services/apiClient", () => ({
 }));
 
 const PRESETS = [
-  { label: "Agentless gateway (nginx)", mode: "agentless", url: "https://aidemo.mcpgw.local.ping-devops.com/mcp" },
-  { label: "AI Gateway via Priv Agent", mode: "agent", url: "https://opensearch.default.applications.procyon.ai:8643/mcp" },
+  { label: "Agentless gateway (nginx)", mode: "privilege", url: "https://aidemo.mcpgw.local.ping-devops.com/mcp" },
+  { label: "AI Gateway via Priv Agent", mode: "direct", url: "https://opensearch.default.applications.procyon.ai:8643/mcp" },
 ];
 
 beforeEach(() => {
@@ -31,7 +31,7 @@ beforeEach(() => {
         text: async () =>
           JSON.stringify({
             config: { mcpUrl: "", clientId: "", scopes: "openid profile email" },
-            gatewayMode: "agentless",
+            gatewayMode: "privilege",
             gatewayConfigs: {
               agent: { mcpUrl: PRESETS[1].url },
               agentless: { mcpUrl: "", clientId: "", scopes: "openid profile email" },
@@ -61,15 +61,16 @@ describe("gateway presets in the Settings modal", () => {
     fireEvent.click(await screen.findByTitle("Settings"));
 
     const select = await screen.findByLabelText(/gateway preset/i);
-    expect(screen.getByRole("option", { name: "AI Gateway via Priv Agent" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Sign In with Privilege/i })).toBeInTheDocument();
 
     fireEvent.change(select, { target: { value: PRESETS[1].url } });
 
-    expect(screen.getByLabelText(/Priv Agent URL/i)).toHaveValue(PRESETS[1].url);
-    expect(screen.queryByLabelText(/OAuth Client ID/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Load pingone.env/i)).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Sign In with Privilege/i })).not.toBeInTheDocument();
+    // Choosing a preset fills the one URL field every path shares. The fields
+    // no longer come and go with the mode: all three paths authenticate the
+    // same way, which is why the retired agent mode's bare-URL form is gone.
+    expect(screen.getByLabelText(/MCP URL/i)).toHaveValue(PRESETS[1].url);
+    expect(screen.getByLabelText(/OAuth Client ID/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Sign In with Privilege/i })).toBeInTheDocument();
   });
 
   it("keeps a hand-typed URL selectable as Custom", async () => {
@@ -79,7 +80,7 @@ describe("gateway presets in the Settings modal", () => {
     const select = await screen.findByLabelText(/gateway preset/i);
     expect(select).toHaveValue("");
 
-    const urlInput = screen.getByLabelText(/Agentless Gateway URL/i);
+    const urlInput = screen.getByLabelText(/MCP URL/i);
     fireEvent.change(urlInput, { target: { value: "https://somewhere.else/mcp" } });
 
     expect(select).toHaveValue("");

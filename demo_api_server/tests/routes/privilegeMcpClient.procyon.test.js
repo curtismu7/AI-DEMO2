@@ -158,15 +158,19 @@ describe('procyon agent-gateway frontends relay without Privilege SSO', () => {
     expect(global.fetch.mock.calls.map(([, opts]) => JSON.parse(opts.body || '{}').method)).not.toContain('tools/call');
   });
 
-  test('/state lists gateway presets including the agent frontend', async () => {
+  test('/state lists a preset per path, and the Privilege one honours the URL override', async () => {
+    // The agent frontend is no longer a preset: its gateway was torn down, so
+    // offering it only produced "authenticated, 0 tools".
     process.env.PRIVILEGE_MCPGW_URL = 'https://aidemo.mcpgw.local.ping-devops.com/mcp';
     const app = buildApp();
 
     const res = await request(app).get('/api/privilege-mcp/state').expect(200);
 
-    const urls = (res.body.presets || []).map((p) => p.url);
+    const presets = res.body.presets || [];
+    const urls = presets.map((p) => p.url);
     expect(urls).toContain('https://aidemo.mcpgw.local.ping-devops.com/mcp');
-    expect(urls).toContain(PROCYON_URL);
+    expect(urls).not.toContain(PROCYON_URL);
+    expect(presets.map((p) => p.mode)).toEqual(expect.arrayContaining(['direct', 'privilege', 'facade']));
     delete process.env.PRIVILEGE_MCPGW_URL;
   });
 });

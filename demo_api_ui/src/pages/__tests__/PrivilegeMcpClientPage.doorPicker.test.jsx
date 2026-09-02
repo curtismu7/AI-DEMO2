@@ -23,10 +23,10 @@ const AGENT = "https://opensearch.default.applications.procyon.ai:8643/mcp";
 const AUDIT = "http://localhost:3002/mcp-facade/audit/mcp";
 
 const PRESETS = [
-  { label: "Agentless gateway (nginx)", mode: "agentless", url: CMUIR },
-  { label: "Agentless gateway — banking (external)", mode: "agentless", url: EXTERNAL },
-  { label: "AI Gateway via Priv Agent", mode: "agent", url: AGENT },
-  { label: "Agent Gateway — PingOne audit (scope-narrowed)", mode: "agentless", url: AUDIT },
+  { label: "2 · Privilege — direct to the AI Gateway", mode: "privilege", url: CMUIR },
+  { label: "3 · Privilege — through the façade", mode: "facade", url: EXTERNAL },
+  { label: "1 · Direct — no Privilege in the path", mode: "direct", url: AGENT },
+  { label: "Agent Gateway — PingOne audit (scope-narrowed)", mode: "privilege", url: AUDIT },
 ];
 
 function jsonResponse(body, { status = 200 } = {}) {
@@ -38,7 +38,7 @@ function jsonResponse(body, { status = 200 } = {}) {
   };
 }
 
-function mockApi({ gatewayMode = "agentless", mcpUrl = CMUIR, presets = PRESETS } = {}) {
+function mockApi({ gatewayMode = "privilege", mcpUrl = CMUIR, presets = PRESETS } = {}) {
   const posted = [];
   global.fetch = vi.fn(async (url, opts) => {
     const u = String(url);
@@ -46,7 +46,7 @@ function mockApi({ gatewayMode = "agentless", mcpUrl = CMUIR, presets = PRESETS 
       return jsonResponse({
         config: { mcpUrl, clientId: "a6219652", scopes: "openid profile email" },
         gatewayMode,
-        gatewayConfigs: { agent: {}, agentless: {} },
+        gatewayConfigs: { direct: {}, privilege: {}, facade: {} },
         oauth: { authenticated: true },
         mainAppAuthenticated: true,
         user: { email: "cmuir+demo@pingone.com" },
@@ -78,7 +78,7 @@ beforeEach(() => {
 });
 
 describe("titlebar door picker", () => {
-  it("lists every agentless door, including the one in use", async () => {
+  it("lists every Privilege door, including the one in use", async () => {
     mockApi();
     renderPage();
     await waitFor(() => expect(picker()).toBeTruthy());
@@ -88,7 +88,7 @@ describe("titlebar door picker", () => {
     expect(options).toEqual(["cmuir", "external"]);
     // The current door must be present or the select cannot show a selection.
     expect(picker().value).toBe(CMUIR);
-    // The agent preset is not a door — it is a single fixed procyon frontend.
+    // The Direct preset is not a door — no Privilege app sits in that path.
     expect(options).not.toContain("opensearch");
     // Nor is the audit facade a door on THIS gateway — different host. Listing
     // it would misdescribe what switching does.
@@ -106,19 +106,19 @@ describe("titlebar door picker", () => {
     expect(posted[0].mcpUrl).toBe(EXTERNAL);
   });
 
-  it("is absent in agent mode — there is nothing to pick between", async () => {
-    mockApi({ gatewayMode: "agent", mcpUrl: AGENT });
+  it("is absent in Direct mode — no Privilege app is in that path", async () => {
+    mockApi({ gatewayMode: "direct", mcpUrl: AGENT });
     renderPage();
-    await waitFor(() => expect(screen.getByLabelText("Gateway connection mode")).toBeTruthy());
+    await waitFor(() => expect(screen.getByLabelText("Connection path")).toBeTruthy());
     expect(picker()).toBeNull();
   });
 
   it("is absent when this gateway has only one door — a one-option select is furniture", async () => {
-    // cmuir + the agent frontend + the audit facade: only ONE of these is a
+    // one Privilege door + the Direct target + the audit facade: only ONE is a
     // door on the current gateway, so the picker must not appear.
     mockApi({ presets: [PRESETS[0], PRESETS[2], PRESETS[3]] });
     renderPage();
-    await waitFor(() => expect(screen.getByLabelText("Gateway connection mode")).toBeTruthy());
+    await waitFor(() => expect(screen.getByLabelText("Connection path")).toBeTruthy());
     expect(picker()).toBeNull();
   });
 });

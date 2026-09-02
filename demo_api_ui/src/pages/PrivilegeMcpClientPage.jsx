@@ -23,7 +23,7 @@ const PRIVILEGE_CONSOLE_URL =
 // capability in its initialize response, so an empty panel most often means the
 // server has none to give. Say which of the two it is.
 // The banking backend, for example, advertises only {tools, logging}.
-// The agentless gateway routes on the application name: /<door>/mcp.
+// The AI Gateway routes on the application name: /<door>/mcp.
 function doorName(mcpUrl) {
   try { return new URL(mcpUrl).pathname.split('/').filter(Boolean)[0] || null; } catch { return null; }
 }
@@ -91,27 +91,46 @@ function isGatewayAuthChallenge(error) {
   return message.includes('401') || message.includes('bearer token required') || message.includes('authorization_uri');
 }
 
-function gatewayModeDetails(mcpUrl) {
-  const host = String(mcpUrl || '').toLowerCase();
-  if (!host) return { key: 'unknown', title: 'Gateway mode not selected', detail: 'Choose an Agent or Agentless Gateway in Settings.' };
-  if (host.includes('.applications.procyon.ai')) {
-    return { key: 'agent', title: 'Agent-based AI Gateway', detail: 'The Priv Agent supplies device-bound identity; this MCP client sends no OAuth bearer.' };
-  }
-  const agentless = host.includes('agentless') || host.includes('opensearch');
-  return agentless
-    ? { key: 'agentless', title: 'Agentless Gateway', detail: 'AI Gateway → MCP services. No desktop agent is in this path.', url: mcpUrl }
-    : { key: 'agent', title: 'Agent Gateway', detail: 'Desktop Agent → AI Gateway → MCP services.', url: mcpUrl };
+// The three ways to reach the same MCP server. Each says what the audience is
+// meant to notice, because the whole page is a comparison.
+//
+// This replaced an Agent/Agentless pair on 2026-09-02: there is one AI Gateway
+// now, and the agent-mode frontend the old option named has nothing behind it.
+// The mode is authoritative — it used to be sniffed from the URL, which guessed
+// wrong the moment two paths shared a hostname, as the façade and direct doors do.
+const GATEWAY_MODES = {
+  direct: {
+    key: 'direct',
+    title: 'Direct to MCP',
+    detail: 'No Privilege in this path. Every tool answers, nobody checks who asked, and nothing is recorded.',
+  },
+  privilege: {
+    key: 'privilege',
+    title: 'Privilege AI Gateway',
+    detail: 'The gateway authenticates the user and applies per-tool policy. The client registers with the gateway, so a gateway restart breaks it.',
+  },
+  facade: {
+    key: 'facade',
+    title: 'Privilege — through the façade',
+    detail: 'Same policy, same user token upstream, but the client registers with our own authorization server and survives a gateway restart.',
+  },
+};
+
+function gatewayModeDetails(mode, mcpUrl) {
+  const known = GATEWAY_MODES[mode];
+  if (!known) return { key: 'unknown', title: 'Connection not selected', detail: 'Pick a path in Settings.' };
+  return { ...known, url: mcpUrl };
 }
 
 export default function PrivilegeMcpClientPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [config, setConfig] = useState({ mcpUrl: '', clientId: '', scopes: 'openid profile email', llmUrl: 'http://127.0.0.1:11434', llmModel: 'llama3.2:1b' });
-  const [gatewayMode, setGatewayMode] = useState('agentless');
-  const [gatewayConfigs, setGatewayConfigs] = useState({ agent: {}, agentless: {} });
+  const [gatewayMode, setGatewayMode] = useState('privilege');
+  const [gatewayConfigs, setGatewayConfigs] = useState({ direct: {}, privilege: {}, facade: {} });
   const [presets, setPresets] = useState([]);
   const [gatewayStateLoaded, setGatewayStateLoaded] = useState(false);
-  // Gateway switch in flight (agent <-> agentless). The sessionStorage flag lets
+  // Path switch in flight. The sessionStorage flag lets
   // the overlay survive the OAuth redirect and show again from first paint on
   // the ?auth=success return, until tools are rediscovered from the new gateway.
   const savedMcpUrlRef = useRef('');
@@ -185,7 +204,7 @@ export default function PrivilegeMcpClientPage() {
     try { localStorage.setItem('cur_priv_theme', pageTheme); } catch { /* storage disabled */ }
   }, [pageTheme]);
   const [terminalTab, setTerminalTab] = useState('events');
-  const mode = gatewayModeDetails(config.mcpUrl);
+  const mode = gatewayModeDetails(gatewayMode, config.mcpUrl);
   // The latest tool-call result shown in the RESULTS terminal tab. resultNonce
   // bumps on each new result to flash the tab so the user notices output arrived.
   const [toolResults, setToolResults] = useState([]);
@@ -299,8 +318,8 @@ export default function PrivilegeMcpClientPage() {
   useEffect(() => {
     api('/state').then((s) => {
       setConfig(s.config || config);
-      setGatewayMode(s.gatewayMode || 'agentless');
-      setGatewayConfigs(s.gatewayConfigs || { agent: {}, agentless: {} });
+      setGatewayMode(s.gatewayMode || 'privilege');
+      setGatewayConfigs(s.gatewayConfigs || { direct: {}, privilege: {}, facade: {} });
       savedMcpUrlRef.current = s.config?.mcpUrl || '';
       setPresets(Array.isArray(s.presets) ? s.presets : []);
       setAuthenticated(Boolean(s.oauth?.authenticated));
@@ -313,7 +332,7 @@ export default function PrivilegeMcpClientPage() {
       setSubscriptionActive(Boolean(s.mcp?.subscriptionActive));
       setGatewayStateLoaded(true);
       // Auto-discover tools only after Privilege auth completes
-      if (s.gatewayMode !== 'agent' && s.oauth?.authenticated && (!s.tools || s.tools.length === 0)) {
+      if (s.oauth?.authenticated && (!s.tools || s.tools.length === 0)) {
         refreshTools(true);
       }
       // Auto-connect Privilege using the active PingOne session when the main app
@@ -326,7 +345,7 @@ export default function PrivilegeMcpClientPage() {
       // has set privilegePromptNoneFailed, so a second /auth/start drops the user
       // on a real PingOne login page they never asked for. Any `auth` param means
       // we are returning from a round trip — hand back to the modal instead.
-      if (s.gatewayMode !== 'agent' && s.mainAppAuthenticated && !s.oauth?.authenticated) {
+      if (s.mainAppAuthenticated && !s.oauth?.authenticated) {
         if (searchParams.get('auth')) {
           setShowSignInModal(true);
         } else {
@@ -401,15 +420,10 @@ export default function PrivilegeMcpClientPage() {
         appendChat('system', 'Configuration saved.');
         return;
       }
-      if (gatewayMode === 'agent') {
-        setTools([]);
-        setSelectedTool(null);
-        await refreshTools();
-        return;
-      }
-      // Gateway changed (agent <-> agentless): the two frontends have different
-      // OAuth front doors, so re-auth against the new one. The redirect lands
-      // back on ?auth=success, which rediscovers tools and clears the overlay.
+      // The path changed, and the three paths have different OAuth front doors —
+      // Direct and Façade authenticate against our broker, Privilege against the
+      // gateway itself — so re-auth against the new one. The redirect lands back
+      // on ?auth=success, which rediscovers tools and clears the overlay.
       setSwitching(true);
       setTools([]);
       setSelectedTool(null);
@@ -425,9 +439,7 @@ export default function PrivilegeMcpClientPage() {
   const switchGatewayMode = async (nextMode) => {
     if (nextMode === gatewayMode) return;
     const savedConfig = gatewayConfigs[nextMode] || {};
-    const nextConfig = nextMode === 'agent'
-      ? { ...config, ...savedConfig, clientId: '', scopes: '' }
-      : { ...config, ...savedConfig };
+    const nextConfig = { ...config, ...savedConfig };
 
     setGatewayMode(nextMode);
     setConfig(nextConfig);
@@ -440,10 +452,6 @@ export default function PrivilegeMcpClientPage() {
       });
       savedMcpUrlRef.current = nextConfig.mcpUrl;
       setGatewayConfigs(saved.gatewayConfigs || gatewayConfigs);
-      if (nextMode === 'agent') {
-        await refreshTools();
-        return;
-      }
       setSwitching(true);
       try { sessionStorage.setItem('cur_priv_switching', '1'); } catch { /* storage disabled */ }
       const data = await api('/auth/start', { method: 'POST' });
@@ -570,7 +578,7 @@ export default function PrivilegeMcpClientPage() {
     }
   };
 
-  // Every agentless door we know of: what the console reports when a token is
+  // Every Privilege door we know of: what the console reports when a token is
   // connected, falling back to the configured presets when one is not.
   //
   // includeCurrent splits the two callers. The denial probe wants "somewhere
@@ -578,14 +586,14 @@ export default function PrivilegeMcpClientPage() {
   // has to include it, or the control cannot show what is currently selected.
   const knownDoors = (includeCurrent = false) => {
     const fromConsole = (consoleData?.applications || []).map((a) => a.mcpUrl).filter(Boolean);
-    const fromPresets = presets.filter((p) => p.mode === 'agentless').map((p) => p.url);
+    const fromPresets = presets.filter((p) => p.mode !== 'direct').map((p) => p.url);
     const all = [...new Set([...fromConsole, ...fromPresets, ...(includeCurrent ? [config.mcpUrl] : [])])];
     return all.filter((u) => u && (includeCurrent || u !== config.mcpUrl));
   };
 
   // Doors on the CURRENT gateway only — what /<door>/mcp actually means.
   //
-  // The agentless preset list also carries the audit facade
+  // The Privilege preset list also carries the audit facade
   // (http://localhost:3002/mcp-facade/audit/mcp), which is this demo's own
   // door, not a Privilege application: different host, and doorName() renders
   // it as the meaningless "mcp-facade". Offering it in a Privilege door picker
@@ -1064,7 +1072,7 @@ export default function PrivilegeMcpClientPage() {
                       onChange={(e) => {
                         const preset = presets.find((p) => p.url === e.target.value);
                         if (!preset) return;
-                        const nextMode = preset.mode || (preset.url.includes('.applications.procyon.ai') ? 'agent' : 'agentless');
+                        const nextMode = preset.mode || gatewayMode;
                         const savedConfig = gatewayConfigs[nextMode] || {};
                         setGatewayMode(nextMode);
                         setConfig({ ...config, ...savedConfig, mcpUrl: preset.url });
@@ -1078,25 +1086,19 @@ export default function PrivilegeMcpClientPage() {
                   </label>
                 )}
                 <label className="cur-field">
-                  <span className="cur-field-label">{gatewayMode === 'agent' ? 'Priv Agent URL' : 'Agentless Gateway URL'}</span>
+                  <span className="cur-field-label">MCP URL</span>
                   <input className="cur-input" value={config.mcpUrl} onChange={(e) => setConfig({ ...config, mcpUrl: e.target.value })} placeholder="https://mcpgw.example.com/mcp" />
                 </label>
-                {gatewayMode === 'agent' ? (
-                  <p className="cur-settings-note">Authentication is managed by the Priv Agent. Save redirects this browser directly to the configured URL.</p>
-                ) : (
-                  <>
-                    <label className="cur-field">
-                      <span className="cur-field-label">OAuth Client ID</span>
-                      <input className="cur-input" value={config.clientId} onChange={(e) => setConfig({ ...config, clientId: e.target.value })} />
-                    </label>
-                    <label className="cur-field">
-                      <span className="cur-field-label">Requested Scopes</span>
-                      <input className="cur-input" value={config.scopes} onChange={(e) => setConfig({ ...config, scopes: e.target.value })} />
-                    </label>
-                  </>
-                )}
+                <label className="cur-field">
+                  <span className="cur-field-label">OAuth Client ID</span>
+                  <input className="cur-input" value={config.clientId} onChange={(e) => setConfig({ ...config, clientId: e.target.value })} />
+                </label>
+                <label className="cur-field">
+                  <span className="cur-field-label">Requested Scopes</span>
+                  <input className="cur-input" value={config.scopes} onChange={(e) => setConfig({ ...config, scopes: e.target.value })} />
+                </label>
               </div>
-              {gatewayMode === 'agentless' && (
+              {gatewayMode !== 'direct' && (
                 <>
               <div className="cur-settings-section">
                 <h4 className="cur-settings-section-title">Local LLM</h4>
@@ -1157,15 +1159,16 @@ export default function PrivilegeMcpClientPage() {
         </div>
         <div className="cur-titlebar-right">
           <label className="cur-mode-switcher">
-            <span>Gateway</span>
+            <span>Path</span>
             <select
-              aria-label="Gateway connection mode"
+              aria-label="Connection path"
               value={gatewayMode}
               disabled={!gatewayStateLoaded || switching}
               onChange={(event) => switchGatewayMode(event.target.value)}
             >
-              <option value="agent">Agent</option>
-              <option value="agentless">Agentless</option>
+              <option value="direct">Direct</option>
+              <option value="privilege">Privilege</option>
+              <option value="facade">Façade</option>
             </select>
           </label>
           {/* Door picker. Agentless only: an Agent frontend is a single fixed
@@ -1174,7 +1177,7 @@ export default function PrivilegeMcpClientPage() {
               It picks the DOOR, never a policy: Privilege resolves the policy
               server-side from (user, door, tool), so a policy control could
               only mislead about what it does. */}
-          {gatewayMode === 'agentless' && sameGatewayDoors().length > 1 && (
+          {gatewayMode !== 'direct' && sameGatewayDoors().length > 1 && (
             <label className="cur-mode-switcher">
               <span>Door</span>
               <select
@@ -1246,7 +1249,7 @@ export default function PrivilegeMcpClientPage() {
             <div><span className="cur-cd-k">authStatus: </span><span className={`cur-cd-v ${authenticated ? 'cur-cd-v--ok' : 'cur-cd-v--bad'}`}>{authenticated ? 'authenticated' : 'unauthenticated'}</span></div>
           </div>
           <div className="cur-sidebar-content">
-            {gatewayMode !== 'agent' && (authenticated ? (
+            {(authenticated ? (
               <div className="cur-auth-status">
                 <span className="cur-auth-badge cur-auth-badge--ok">Authenticated</span>
                 {user?.email && <span className="cur-auth-user">{user.email}</span>}
