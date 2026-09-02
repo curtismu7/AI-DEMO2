@@ -43,7 +43,21 @@ K8S_NAMESPACE="${K8S_NAMESPACE:-}"
 NS="${K8S_NAMESPACE:-ai-demo}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 
-GITHUB_OWNER="${GITHUB_OWNER:?Set GITHUB_OWNER (your GitHub username or org)}"
+# Environment first, then the git remote — the same fallback se-update-code.sh
+# already applies before it calls this script. Without it, se-update-config.sh
+# (which never sets the variable) aborted here with
+# "GITHUB_OWNER: Set GITHUB_OWNER ...", but only AFTER create-secrets.sh had
+# applied every secret and restarted nine deployments: a config deploy that
+# looked half-done and left the manifests unapplied.
+GITHUB_OWNER="${GITHUB_OWNER:-}"
+if [ -z "$GITHUB_OWNER" ]; then
+  GITHUB_OWNER="$(git -C "$K8S_DIR" remote get-url origin 2>/dev/null \
+    | sed 's|.*github.com[:/]\([^/]*\)/.*|\1|' || true)"
+fi
+[ -n "$GITHUB_OWNER" ] || {
+  echo "Set GITHUB_OWNER (your GitHub username or org) — could not auto-detect from the git remote" >&2
+  exit 1
+}
 GHCR_REGISTRY="ghcr.io/$(echo "$GITHUB_OWNER" | tr '[:upper:]' '[:lower:]')"
 
 # EKS_CLUSTER_NAME is optional — omit to target current kubectl context (local sim)
