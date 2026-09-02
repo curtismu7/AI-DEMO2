@@ -50,6 +50,13 @@ const DOORS = {
   },
   agentless: {
     label: 'Privilege agentless',
+    // DARK since 2026-09-01, deliberately. This is the BANKING door (`/external`),
+    // and cmuir-agentless-mcpgw.ping-devops.com no longer resolves — that gateway
+    // was torn down when the estate moved to the one AI Gateway at
+    // mcpgw.ai-demo.ping-devops.com. Repointing needs a banking MCP server
+    // registered there as its own Agentic App; only `opensearch22` exists today,
+    // and pointing this door at an OpenSearch app would silently serve the wrong
+    // tools. Leave it dark until that app exists, then set MCP_FACADE_AGENTLESS_URL.
     upstream: () => process.env.MCP_FACADE_AGENTLESS_URL
       || 'https://cmuir-agentless-mcpgw.ping-devops.com/external/mcp',
     authorizationServer: () => process.env.MCP_FACADE_AGENTLESS_AS
@@ -78,6 +85,11 @@ const DOORS = {
   },
   agent: {
     label: 'Privilege agent',
+    // DARK since 2026-09-01: the agent-mode frontends below resolve through the
+    // Priv Agent's DNS proxy but have no gateway behind them — the agent-based
+    // release (cm-mcpgw) was uninstalled, and the AI Gateway chart exposes no
+    // inbound mesh port, so these hang rather than fail fast. The live client
+    // path is now https://mcpgw.ai-demo.ping-devops.com/<app>/mcp.
     upstream: () => process.env.PRIVILEGE_AGENT_MCPGW_URL
       || 'https://opensearch.default.applications.procyon.ai:8643/mcp',
     authorizationServer: null,
@@ -103,8 +115,12 @@ const DOORS = {
     // a release whose gateway crash-looped on an expired ENV_PROXY_TOKEN. The
     // duplicate was uninstalled 2026-08-26, so the surviving server does NOT
     // live beside the BFF and a short name would not resolve.
+    //
+    // Renamed 2026-09-01: the cm-mcpgw release is gone too. The AI Gateway chart
+    // (release agentless-mcpgw) names its objects WITHOUT a release prefix, so
+    // the live service is `opensearch-mcp-server` in the same namespace.
     upstream: () => process.env.MCP_FACADE_OPENSEARCH_URL
-      || 'http://cm-mcpgw-opensearch-mcp-server.ping-devops-curtismuir.svc.cluster.local:80/mcp',
+      || 'http://opensearch-mcp-server.ping-devops-curtismuir.svc.cluster.local:80/mcp',
     // Reuses the Agent Gateway's OAuth broker: the client runs the same
     // RFC 9728 -> 8414 -> 7591 -> PKCE dance it already does for that door.
     authorizationServer: () => process.env.MCP_FACADE_AGENT_GATEWAY_AS || 'http://localhost:3005',

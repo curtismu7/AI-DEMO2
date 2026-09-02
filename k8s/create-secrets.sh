@@ -427,7 +427,14 @@ override_privilege_urls_for_public_origin() {
   local mcpgw_base="${origin}/mcpgw"
   local app_name="${NS#ping-devops-}"
   local mcpgw_application="${MCPGW_APP_NAME:-$app_name}"
-  local mcpgw_client_url="${PRIVILEGE_AGENTLESS_MCPGW_URL:-https://${app_name}-agentless-mcpgw.ping-devops.com/${mcpgw_application}/mcp}"
+  # Fallback host updated 2026-09-01: the per-owner <name>-agentless-mcpgw
+  # gateways were torn down and replaced by ONE AI Gateway at
+  # mcpgw.ai-demo.ping-devops.com (Helm release agentless-mcpgw in
+  # ping-devops-curtismuir). The path segment is the Agentic App name from the
+  # Privilege console — set MCPGW_APP_NAME to it (e.g. opensearch22); the
+  # namespace-owner default below is only a last resort and will 404 unless an
+  # app of that name happens to exist.
+  local mcpgw_client_url="${PRIVILEGE_AGENTLESS_MCPGW_URL:-https://mcpgw.ai-demo.ping-devops.com/${mcpgw_application}/mcp}"
 
   # mcpgw binary routes by path prefix: /<app-name>/mcp (not just /mcp).
   # Set MCPGW_APP_NAME env var to the name registered in the Privilege console
