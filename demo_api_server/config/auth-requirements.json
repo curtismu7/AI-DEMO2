@@ -145,6 +145,7 @@
     "/copilot": "public",
     "/dashboard": "public",
     "/davinci-login": "public",
+    "/davinci-login/callback": "public",
     "/davinci-orchestration": "public",
     "/delegated-commerce": "admin",
     "/delegation": "admin",

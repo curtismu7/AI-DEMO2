@@ -1,6 +1,14 @@
-// Backend half of the DaVinci widget login demo (/davinci-login). The widget
-// completes the flow entirely client-side down to a standard OIDC code; this
-// route exchanges it the way routes/oauthUser.js's end-user callback does
+// Backend half of the DaVinci widget login demo (/davinci-login).
+//
+// The DaVinci widget renders the flow's own screens in-page but ends at a
+// DaVinci sessionToken, NOT an OIDC code — per Ping's docs, OIDC issuance
+// belongs to the redirect integration, and the two are mutually exclusive on
+// the flow's "PingOne Flow" toggle. So the page runs the widget for the
+// screens and then makes one /authorize hop for the token: PingOne sees the
+// DaVinci session, does not re-challenge, and returns a code plus an ID token
+// echoing the nonce armed here. That keeps the replay check below intact.
+//
+// This route exchanges the code the way routes/oauthUser.js's end-user callback does
 // (NOT routes/oauth.js — that flow auto-creates admin accounts, which is
 // wrong for this sandbox), reusing oauthService so the resulting session is
 // indistinguishable from a normal login. Does not touch routes/oauth.js or
@@ -20,28 +28,31 @@ const router = express.Router();
 
 const ORCHESTRATE_BASE = 'https://orchestrate-api.pingone.com/v1';
 
-// Mints a single-use nonce and binds it to the session. Both entry points below
-// use this, so there is exactly one place that decides what a nonce is and when
-// it is persisted — /callback consumes whatever this wrote.
-function bindNonce(req, cb) {
-  const nonce = crypto.randomBytes(16).toString('hex');
-  req.session.davinciLoginNonce = nonce;
-  req.session.save((err) => cb(err, nonce));
+function davinciRedirectUri(req) {
+  const explicit = configStore.getEffective('pingone_davinci_login_redirect_uri');
+  if (explicit) return explicit;
+  const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0].trim();
+  const host = (req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim();
+  return `${proto}://${host}/davinci-login/callback`;
 }
 
-// Issues the OIDC nonce for one widget flow run. The UI passes it into
-// client.start({ query: { nonce } }) — @forgerock/davinci-client merges
-// StartOptions.query into the /authorize URL, so PingOne echoes it in the ID
-// token — and /callback below verifies the echo against this session.
-router.post('/nonce', (req, res) => {
-  bindNonce(req, (err, nonce) => {
-    if (err) {
-      console.error('[davinci-login/nonce] Session save FAILED:', err.message);
-      return res.status(500).json({ error: 'session_save_failed', message: 'Could not persist nonce.' });
-    }
-    return res.json({ nonce });
-  });
-});
+// Arms one login run and binds every per-run secret to the session: the
+// single-use nonce /callback verifies, plus the PKCE material for the
+// /authorize hop the page makes once the widget flow completes. None of the
+// verifier ever reaches the browser — the BFF builds the authorize URL, so it
+// keeps the verifier and /callback reads it back from here.
+function armLoginFlow(req, cb) {
+  const nonce = crypto.randomBytes(16).toString('hex');
+  const state = oauthService.generateState();
+  const codeVerifier = oauthService.generateCodeVerifier();
+  const redirectUri = davinciRedirectUri(req);
+
+  req.session.davinciLoginNonce = nonce;
+  req.session.davinciLoginState = state;
+  req.session.davinciLoginCodeVerifier = codeVerifier;
+  req.session.davinciLoginRedirectUri = redirectUri;
+  req.session.save((err) => cb(err, { nonce, state, codeVerifier, redirectUri }));
+}
 
 // Mints a DaVinci SDK token for one widget run (davinci.skRenderScreen's
 // config.accessToken). The DaVinci API key is a secret and MUST stay
@@ -63,11 +74,12 @@ router.post('/sdk-token', async (req, res) => {
     });
   }
 
-  bindNonce(req, async (err, nonce) => {
+  armLoginFlow(req, async (err, armed) => {
     if (err) {
       console.error('[davinci-login/sdk-token] Session save FAILED:', err.message);
       return res.status(500).json({ error: 'session_save_failed', message: 'Could not persist nonce.' });
     }
+    const { nonce, state, codeVerifier, redirectUri } = armed;
     try {
       const { data } = await axios.post(
         `${ORCHESTRATE_BASE}/company/${companyId}/sdktoken`,
@@ -78,13 +90,18 @@ router.post('/sdk-token', async (req, res) => {
         console.error('[davinci-login/sdk-token] DaVinci returned no access_token');
         return res.status(502).json({ error: 'davinci_sdk_token_failed', message: 'DaVinci did not return an SDK token.' });
       }
-      // Everything here is non-secret widget config; the API key is not among it.
+      // Everything here is non-secret widget config; neither the API key, the
+      // nonce nor the PKCE verifier is among it. authorizeUrl is where the page
+      // sends the browser once the widget flow succeeds: PingOne recognises the
+      // DaVinci session, skips re-authentication, and redirects back with a code
+      // and an ID token carrying the nonce armed above.
       return res.json({
         accessToken: data.access_token,
         companyId,
         policyId,
         flowVersion: version,
         apiRoot: `${new URL(getDiscoveryEndpoint()).origin}/`,
+        authorizeUrl: oauthService.generateAuthorizationUrl(state, codeVerifier, redirectUri, nonce),
       });
     } catch (e) {
       const normalized = normalizeAxiosError(e, { label: 'DaVinci SDK token', timeoutMs: 10_000 });
@@ -94,7 +111,12 @@ router.post('/sdk-token', async (req, res) => {
 });
 
 router.post('/callback', async (req, res) => {
-  const { code, codeVerifier, redirectUri } = req.body || {};
+  const { code } = req.body || {};
+  // The widget path never sees the PKCE verifier — /sdk-token built the
+  // authorize URL server-side and kept it on the session. Body values still
+  // win so a client that owns its own PKCE can post them directly.
+  const codeVerifier = (req.body || {}).codeVerifier || req.session.davinciLoginCodeVerifier;
+  const redirectUri  = (req.body || {}).redirectUri  || req.session.davinciLoginRedirectUri;
   if (!code || !codeVerifier || !redirectUri) {
     return res.status(400).json({ error: 'invalid_request', message: 'code, codeVerifier, and redirectUri are required.' });
   }
@@ -103,6 +125,9 @@ router.post('/callback', async (req, res) => {
   // attempt can't retry against the same value (mirrors routes/oauth.js).
   const expectedNonce = req.session.davinciLoginNonce;
   delete req.session.davinciLoginNonce;
+  delete req.session.davinciLoginState;
+  delete req.session.davinciLoginCodeVerifier;
+  delete req.session.davinciLoginRedirectUri;
   if (!expectedNonce) {
     return res.status(401).json({ error: 'nonce_missing', message: 'No login flow was started in this session. Restart the sign-in.' });
   }

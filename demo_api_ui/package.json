@@ -4,7 +4,6 @@
   "private": true,
   "dependencies": {
     "@azure/msal-browser": "^5.14.0",
-    "@forgerock/davinci-client": "^2.1.1",
     "@forgerock/oidc-client": "^2.0.0",
     "@microsoft/agents-copilotstudio-client": "^1.6.1",
     "@monaco-editor/react": "^4.7.0",

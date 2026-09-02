@@ -138,6 +138,49 @@ read the configured host. A new browser origin must be added to ALL of:
 ---
 
 ## §4 — Bug Fix Log
+
+### 2026-09-02 — DaVinci widget login could not have produced a session at all
+
+**Files changed:** `demo_api_server/routes/davinciLogin.js`,
+`demo_api_ui/src/pages/DavinciLoginPage.jsx`,
+`demo_api_ui/src/lib/davinciWidgetClient.js`, new
+`demo_api_ui/src/pages/DavinciLoginCallback.jsx` + `DavinciLoginPage.css`,
+route wiring in `demo_api_ui/src/App.js`, `src/routes/PublicRoutes.js`,
+`demo_api_server/config/auth-requirements.json`, plus the two existing suites.
+
+**What was broken:** `/davinci-login` never completed a login. The page set
+`status: "done"` on the SDK's success and stopped — it never posted the code to
+`POST /api/davinci-login/callback`, so that whole route was unreachable, and no
+`/davinci-login/callback` route existed despite `redirectUri` pointing at one.
+Separately the SE deployment had no `PINGONE_DAVINCI_*` env at all, so
+`/api/davinci-demo/config` served no `clientId` and the page died on load.
+
+**What was fixed:** the page now runs the hosted DaVinci widget
+(`davinci.skRenderScreen`) for the flow's own screens, then follows the
+authorize URL the BFF built. Ping's docs tie OIDC issuance to the redirect
+integration, not the widget — the two are mutually exclusive on the flow's
+"PingOne Flow" toggle — so the widget's `sessionToken` is handed to PingOne as
+the `DV-ST` cookie and one `/authorize` hop converts the DaVinci session into a
+code plus a nonce-bearing ID token. `POST /sdk-token` arms the nonce and the
+PKCE verifier server-side; `POST /nonce` is deleted with its only caller.
+
+**Do not break:** the nonce replay check from 2026-08-18 is unchanged and still
+the reason this design works — the nonce goes to DaVinci as a flow *parameter*
+and onto the `/authorize` URL, never to the browser, and `/callback` still
+read-and-deletes it before spending the code. The PKCE verifier is now
+session-held for the same reason and is consumed with the nonce; body-supplied
+`codeVerifier`/`redirectUri` still win so a client owning its own PKCE keeps
+working. The authorize URL MUST be built with the same `oauthService` that signs
+the exchange, or `client_id` will not match. `/callback` keeps its
+existing-user-only lookup — no auto-create, no auto-admin. `routes/oauth.js`,
+`routes/oauthUser.js` and `oauthService` untouched.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/davinciLoginNonce.test.js tests/routes/davinciLogin.test.js --forceExit`
+(17/17); `cd demo_api_ui && npm run test:unit -- src/pages/__tests__/DavinciLoginPage.test.jsx src/lib/__tests__/davinciWidgetClient.test.js`
+(8/8) and `npm run build` (exit 0); `npm run authz:verify` (OK, 174 routes).
+End-to-end still needs the DaVinci app, Flow Policy and CORS origin from the
+console setup.
+
 Reverse-chronological, newest first.
 
 ### 2026-08-31 — UC30 weather read `VERIFIED` on the SE cluster while every `get_weather` call 502'd
