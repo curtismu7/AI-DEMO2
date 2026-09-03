@@ -34,6 +34,40 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 NS="${K8S_NAMESPACE:-ai-demo}"
 
+# ── Restart only what actually changed ──────────────────────────────────────
+# This script used to `rollout restart` nine deployments on every run, changed
+# or not. That is ~10-40s of downtime per service per run for nothing, and for
+# grafana it is destructive: its `data` volume is an emptyDir, so every restart
+# wipes the Grafana DB (provisioned dashboards return from configmaps, but
+# UI-created dashboards, annotations, API keys and preferences do not).
+#
+# The signal is resourceVersion. The API server bumps it only when a write
+# actually changes the stored object, so a no-op `kubectl apply` leaves it
+# alone. We snapshot every secret/configmap before the applies and again after,
+# and treat "resourceVersion moved, or the object is new" as changed.
+#
+# We deliberately do NOT read `kubectl apply`'s own output: every secret here is
+# rebuilt via `kubectl create --dry-run=client -o yaml | kubectl apply -f -`,
+# which reports "configured" unconditionally and can never say "unchanged".
+#
+# FAIL-SAFE: every uncertainty (snapshot failed, deployment unreadable, jq
+# missing) restarts the deployment, which is exactly the old behaviour. A
+# skipped restart is the only outcome that could ship stale config, so nothing
+# skips unless we positively established that none of its inputs moved.
+OBJ_SNAPSHOT_BEFORE="$(mktemp)"
+OBJ_SNAPSHOT_AFTER="$(mktemp)"
+trap 'rm -f "$OBJ_SNAPSHOT_BEFORE" "$OBJ_SNAPSHOT_AFTER"' EXIT
+
+snapshot_objects() {
+  # "<kind>/<name> <resourceVersion>" per line. Failure writes nothing, which
+  # makes every object look new downstream and restarts everything.
+  kubectl get secrets,configmaps --namespace="$NS" \
+    -o go-template='{{range .items}}{{.kind}}/{{.metadata.name}} {{.metadata.resourceVersion}}{{"\n"}}{{end}}' \
+    2>/dev/null || true
+}
+
+snapshot_objects > "$OBJ_SNAPSHOT_BEFORE"
+
 # Snapshot the caller's PUBLIC_APP_URL before any secret_from_envfile call can
 # clobber it: secret_from_envfile does `set -o allexport; source $env_file`,
 # which pollutes THIS script's own variable namespace with every key in each
@@ -740,13 +774,75 @@ fi
 # denying every request while reporting healthy. Restart every deployment that
 # consumes a secret/configmap this script manages, so "rotate" always means
 # rotate for the running pod too, not just for the next full deploy.
-info "Restarting deployments to pick up refreshed secrets/configmaps..."
+snapshot_objects > "$OBJ_SNAPSHOT_AFTER"
+
+# Names whose resourceVersion moved, plus anything that did not exist before.
+# Printed as a newline-separated list of "<kind>/<name>".
+changed_objects() {
+  # Either snapshot missing means we cannot reason about what moved. Both must
+  # escalate, and the BEFORE case is not optional: awk's NR==FNR idiom silently
+  # mis-parses when the first file is empty (the after-file's first record also
+  # satisfies NR==FNR and is swallowed as a "before" entry), which under-reports
+  # changes — the one direction that ships stale config.
+  if [ ! -s "$OBJ_SNAPSHOT_BEFORE" ] || [ ! -s "$OBJ_SNAPSHOT_AFTER" ]; then
+    echo "__ALL__"
+    return
+  fi
+  awk 'NR==FNR { before[$1] = $2; next }
+       !($1 in before) || before[$1] != $2 { print $1 }' \
+    "$OBJ_SNAPSHOT_BEFORE" "$OBJ_SNAPSHOT_AFTER"
+}
+
+# Every secret/configmap a deployment consumes — envFrom, individual env
+# valueFrom, and mounted volumes. Derived from the live spec on purpose: a
+# hand-written deployment->secret map would be a fourth list to keep in sync,
+# and this repo has already been bitten by lists that never referenced each
+# other. Empty output (jq missing, kubectl failed) means "unknown", which the
+# caller treats as "restart".
+deployment_inputs() {
+  kubectl get deployment "$1" --namespace="$NS" -o json 2>/dev/null | jq -r '
+    [ .spec.template.spec.containers[]?, .spec.template.spec.initContainers[]? ] as $c
+    | ( $c[]?.envFrom[]?.secretRef.name      | select(.) | "Secret/" + . ),
+      ( $c[]?.envFrom[]?.configMapRef.name   | select(.) | "ConfigMap/" + . ),
+      ( $c[]?.env[]?.valueFrom.secretKeyRef.name    | select(.) | "Secret/" + . ),
+      ( $c[]?.env[]?.valueFrom.configMapKeyRef.name | select(.) | "ConfigMap/" + . ),
+      ( .spec.template.spec.volumes[]?.secret.secretName | select(.) | "Secret/" + . ),
+      ( .spec.template.spec.volumes[]?.configMap.name    | select(.) | "ConfigMap/" + . )
+  ' 2>/dev/null | sort -u
+}
+
+CHANGED="$(changed_objects)"
+if [ -z "$CHANGED" ]; then
+  info "No secret/configmap content changed — skipping all deployment restarts."
+else
+  info "Restarting deployments whose secrets/configmaps changed..."
+fi
+
 for dep in demo-api-server mcp-gateway mcp-server langchain-agent agent-service api-resource-server ping-gateway prometheus grafana; do
-  if kubectl get deployment "$dep" --namespace="$NS" &>/dev/null; then
-    kubectl rollout restart deployment "$dep" --namespace="$NS" >/dev/null
-    info "  restarted $dep"
-  else
+  if ! kubectl get deployment "$dep" --namespace="$NS" &>/dev/null; then
     warn "  $dep not found in $NS — skipping restart (first-time bootstrap?)"
+    continue
+  fi
+
+  reason=""
+  if [ "$CHANGED" = "__ALL__" ]; then
+    reason="could not compare object versions"
+  else
+    inputs="$(deployment_inputs "$dep")"
+    if [ -z "$inputs" ]; then
+      # Unknown inputs — never assume "nothing changed" from a failed read.
+      reason="could not read its secret/configmap references"
+    else
+      hit="$(comm -12 <(echo "$CHANGED" | sort -u) <(echo "$inputs") | head -3 | tr '\n' ' ')"
+      [ -n "$hit" ] && reason="changed: ${hit%% }"
+    fi
+  fi
+
+  if [ -n "$reason" ]; then
+    kubectl rollout restart deployment "$dep" --namespace="$NS" >/dev/null
+    info "  restarted $dep ($reason)"
+  else
+    info "  $dep unchanged — not restarted"
   fi
 done
 
