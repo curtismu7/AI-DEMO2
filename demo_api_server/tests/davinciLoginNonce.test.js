@@ -45,7 +45,11 @@ jest.mock('../data/store', () => mockDataStore);
 // so an automock would hand the route a FRESH axios while this file kept the
 // old handle — every mockResolvedValue set here would miss.
 const mockAxios = { post: jest.fn() };
-const mockConfigStore = { getEffective: jest.fn(() => '') };
+const mockConfigStore = {
+  // The DaVinci API key is a vault secret, cached into configStore under the
+  // lowercased name by services/vaultLoader.js — never into process.env.
+  getEffective: jest.fn((k) => (k === 'pingone_davinci_api_key' ? 'sk-secret-key' : '')),
+};
 const mockResolver = {
   getDiscoveryEndpoint: jest.fn(
     () => 'https://auth.pingone.com/env-1/as/.well-known/openid-configuration'
@@ -58,7 +62,6 @@ jest.mock('../services/oauthEndpointResolver', () => mockResolver);
 const DAVINCI_ENV = {
   PINGONE_DAVINCI_LOGIN_COMPANY_ID: 'co-1',
   PINGONE_DAVINCI_LOGIN_POLICY_ID_V1: 'pol-v1',
-  PINGONE_DAVINCI_API_KEY: 'sk-secret-key',
 };
 
 /** Arms a nonce the way production does, and returns it. */
