@@ -1658,3 +1658,84 @@ select.cur-input { cursor: pointer; }
   .cur-main { min-height: 78vh; overflow: visible; }
   .cur-terminal { height: 240px !important; }
 }
+
+/* ── Blocked by policy ─────────────────────────────────────────────────────
+   The denial is the demo's punchline, so it gets a band the presenter cannot
+   miss and an audience can read from the back of a room. It previously lived
+   only in a dismissible modal plus a grey chat line: dismiss the modal and the
+   page just looked empty, which reads as "broken" rather than "refused".
+   Stays until a tools/list actually succeeds. */
+.cur-blocked-band {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 20px;
+  background: linear-gradient(90deg, rgba(190, 24, 43, 0.22), rgba(190, 24, 43, 0.06));
+  border-top: 1px solid rgba(248, 113, 113, 0.5);
+  border-bottom: 2px solid #dc2626;
+  color: #fee2e2;
+}
+
+.cur-blocked-band__mark {
+  font-size: var(--font-size-lg);
+  line-height: 1;
+  flex: none;
+}
+
+.cur-blocked-band__text { flex: 1 1 auto; min-width: 0; }
+
+.cur-blocked-band__title {
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #fecaca;
+}
+
+.cur-blocked-band__detail {
+  font-size: var(--font-size-xs);
+  color: #fee2e2;
+  opacity: 0.92;
+}
+
+.cur-blocked-band__detail strong { color: #fff; }
+
+.cur-blocked-band__btn {
+  flex: none;
+  border-color: rgba(248, 113, 113, 0.6);
+  color: #fee2e2;
+}
+
+/* An empty tool list after a denial must say WHY — "No tools discovered yet"
+   is the most misleading state on this page. */
+.cur-empty-state--blocked {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-style: normal;
+  color: #fca5a5;
+}
+
+.cur-empty-state--blocked strong { color: #fecaca; }
+
+.cur-statusbar-item--blocked {
+  font-weight: 700;
+  color: #fecaca;
+  background: rgba(190, 24, 43, 0.55);
+  padding: 1px 8px;
+  border-radius: var(--radius-sm);
+}
+
+/* Light skin: the same band on a pale ground needs darker ink, not the same
+   pale ink on a washed-out fill. */
+.cur-ide[data-cur-theme="light"] .cur-blocked-band {
+  background: linear-gradient(90deg, rgba(220, 38, 38, 0.14), rgba(220, 38, 38, 0.04));
+  color: #7f1d1d;
+}
+
+.cur-ide[data-cur-theme="light"] .cur-blocked-band__title { color: #991b1b; }
+.cur-ide[data-cur-theme="light"] .cur-blocked-band__detail { color: #7f1d1d; }
+.cur-ide[data-cur-theme="light"] .cur-blocked-band__detail strong { color: #450a0a; }
+.cur-ide[data-cur-theme="light"] .cur-blocked-band__btn { color: #7f1d1d; }
+.cur-ide[data-cur-theme="light"] .cur-empty-state--blocked { color: #b91c1c; }
+.cur-ide[data-cur-theme="light"] .cur-empty-state--blocked strong { color: #7f1d1d; }

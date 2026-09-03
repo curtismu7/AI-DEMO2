@@ -495,6 +495,9 @@ export default function PrivilegeMcpClientPage() {
     try {
       const data = await api('/tools/list', { method: 'POST' });
       const nextTools = data.tools || [];
+      // A successful list is the only thing that clears a denial — the band has
+      // to outlive a dismissed modal, but must not outlive the grant that fixes it.
+      setBlockedDetail(null);
       setTools(nextTools);
       setToolPolicy(data.policy || { total: nextTools.length, permitted: nextTools.length, filtered: 0, filteredTools: [] });
       api('/catalog').then((catalog) => {
@@ -1209,6 +1212,29 @@ export default function PrivilegeMcpClientPage() {
         </div>
       </header>
 
+      {/* A policy denial is the point of this demo, so it does not live only in
+          a dismissible modal and a grey chat line — dismiss the modal and the
+          page just looks empty, which reads as "broken", not "refused". This
+          band stays up until a call actually succeeds. */}
+      {blockedDetail && (
+        <section className="cur-blocked-band" role="alert" aria-label="Blocked by policy">
+          <span className="cur-blocked-band__mark" aria-hidden="true">⚠️</span>
+          <div className="cur-blocked-band__text">
+            <div className="cur-blocked-band__title">Blocked by policy</div>
+            <div className="cur-blocked-band__detail">
+              PingOne Privilege refused this call
+              {doorName(config.mcpUrl) ? <> on <strong>{doorName(config.mcpUrl)}</strong></> : null}
+              {user?.email ? <> for <strong>{user.email}</strong></> : null}
+              {'. '}
+              The tools exist — this identity is not permitted to use them.
+            </div>
+          </div>
+          <button className="cur-btn cur-blocked-band__btn" onClick={() => setShowBlockedModal(true)}>
+            Why?
+          </button>
+        </section>
+      )}
+
       <section className={`cur-gateway-banner cur-gateway-banner--${mode.key}`} aria-label="Gateway mode">
         <div className="cur-gateway-banner__eyebrow">ACTIVE USE CASE</div>
         <div className="cur-gateway-banner__title">{mode.title}</div>
@@ -1334,6 +1360,13 @@ export default function PrivilegeMcpClientPage() {
               <div className="cur-tools-waiting">
                 <span className="cur-spinner" aria-hidden="true" />
                 <span>Waiting for the AI Gateway to return tools...</span>
+              </div>
+            ) : blockedDetail ? (
+              // Say WHY the list is empty. "No tools discovered yet" for a
+              // policy denial is the single most misleading state on this page.
+              <div className="cur-empty-state cur-empty-state--blocked">
+                <strong>No tools — blocked by policy.</strong>
+                <span>Privilege returned 403 before any tool was listed.</span>
               </div>
             ) : (
               <div className="cur-empty-state">No tools discovered yet</div>
@@ -1729,6 +1762,7 @@ export default function PrivilegeMcpClientPage() {
         <div className="cur-statusbar-left">
           <span className="cur-statusbar-item">MCP Protocol {mcpProtocol?.version || 'not negotiated'}</span>
           <span className="cur-statusbar-item">{tools.length} tools</span>
+          {blockedDetail && <span className="cur-statusbar-item cur-statusbar-item--blocked">Blocked by policy</span>}
         </div>
         <div className="cur-statusbar-right">
           <span className="cur-statusbar-item">{config.llmModel || 'No LLM'}</span>
