@@ -197,7 +197,13 @@ class OAuthService {
    * Build PingOne /authorize URL: default response_type=code + PKCE; if authorizeUsesPiFlow,
    * uses response_type=pi.flow and response_mode=pi.flow (PingOne apps that support it).
    */
-  generateAuthorizationUrl(state, codeVerifier, redirectUri, nonce = null) {
+  // loginHint defaults to 'demoAdmin' so every existing positional call site
+  // (routes/oauth.js's admin login) is unaffected. routes/davinciLogin.js
+  // passes null to omit it: that route signs in an ARBITRARY demo user, and
+  // hardcoding a hint there pre-fills PingOne's login screen with the wrong
+  // username, producing a genuine "incorrect username and password" once the
+  // user submits credentials for whoever they actually are.
+  generateAuthorizationUrl(state, codeVerifier, redirectUri, nonce = null, loginHint = 'demoAdmin') {
     const usePiFlow = !!this.config.authorizeUsesPiFlow;
     const codeChallenge = this.generateCodeChallenge(codeVerifier);
     const responseType = usePiFlow ? 'pi.flow' : 'code';
@@ -209,8 +215,10 @@ class OAuthService {
       state: state,
       code_challenge: codeChallenge,
       code_challenge_method: 'S256',
-      login_hint: 'demoAdmin'
     });
+    if (loginHint) {
+      params.set('login_hint', loginHint);
+    }
 
     if (usePiFlow) {
       params.set('response_mode', 'pi.flow');

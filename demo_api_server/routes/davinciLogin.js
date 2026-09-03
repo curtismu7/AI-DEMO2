@@ -133,13 +133,19 @@ router.post('/sdk-token', async (req, res) => {
       // sends the browser once the widget flow succeeds: PingOne recognises the
       // DaVinci session, skips re-authentication, and redirects back with a code
       // and an ID token carrying the nonce armed above.
+      //
+      // loginHint is explicitly null: generateAuthorizationUrl's default
+      // ('demoAdmin') is correct for routes/oauth.js's admin login, but this
+      // route signs in WHOEVER the widget just authenticated — hardcoding a
+      // hint here would pre-fill PingOne's re-auth screen with the wrong
+      // username.
       return res.json({
         accessToken: data.access_token,
         companyId,
         policyId,
         flowVersion: version,
         apiRoot: `${new URL(getDiscoveryEndpoint()).origin}/`,
-        authorizeUrl: oauthService.generateAuthorizationUrl(state, codeVerifier, redirectUri, nonce),
+        authorizeUrl: oauthService.generateAuthorizationUrl(state, codeVerifier, redirectUri, nonce, null),
       });
     } catch (e) {
       const normalized = normalizeAxiosError(e, { label: 'DaVinci SDK token', timeoutMs: 10_000 });
