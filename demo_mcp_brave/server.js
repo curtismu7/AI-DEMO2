@@ -9,6 +9,7 @@
 const http = require('node:http');
 const https = require('node:https');
 const zlib = require('node:zlib');
+const crypto = require('node:crypto');
 
 const PORT = parseInt(process.env.PORT || '8897', 10);
 const BRAVE_API_KEY = process.env.BRAVE_SEARCH_API_KEY || '';
@@ -111,11 +112,89 @@ async function handleToolsCall(rpc) {
   }
 }
 
+// One implementation of the protocol, two transports on top of it. Returns the
+// JSON-RPC response, or null for a notification (which gets no response at all).
+async function dispatch(rpc) {
+  if (rpc.method === 'initialize') {
+    return {
+      jsonrpc: '2.0',
+      id: rpc.id,
+      result: {
+        protocolVersion: (rpc.params && rpc.params.protocolVersion) || '2025-03-26',
+        capabilities: { tools: {} },
+        serverInfo: { name: 'demo-mcp-brave', version: '1.0.0' },
+      },
+    };
+  }
+  if (rpc.method === 'notifications/initialized') return null;
+  if (rpc.method === 'tools/list') {
+    return { jsonrpc: '2.0', id: rpc.id, result: { tools: TOOLS } };
+  }
+  if (rpc.method === 'tools/call') return handleToolsCall(rpc);
+  return { jsonrpc: '2.0', id: rpc.id, error: { code: -32601, message: `Unknown method: ${rpc.method}` } };
+}
+
+// SSE transport sessions: id -> the open response stream we write replies to.
+const sseSessions = new Map();
+const SSE_KEEPALIVE_MS = 25_000;
+
 const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && req.url === '/health') {
     return send(res, 200, { ok: true, hasApiKey: !!BRAVE_API_KEY });
   }
 
+  // --- SSE transport -------------------------------------------------------
+  // PingOne Privilege's AI Gateway discovers a backend by issuing a GET and
+  // waiting for the SSE `endpoint` event; it never POSTs initialize. Serving
+  // only POST /mcp is why this server could not be registered as an Agentic App
+  // — the console reported `calling "initialize": Unauthorized` and the app's
+  // tool list stayed empty. Streamable HTTP below is unchanged for clients that
+  // speak it.
+  if (req.method === 'GET' && req.url === '/sse') {
+    const sessionId = crypto.randomUUID();
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+    });
+    sseSessions.set(sessionId, res);
+    // The endpoint event is the handshake: it tells the client where to POST.
+    res.write(`event: endpoint\ndata: /messages?sessionId=${sessionId}\n\n`);
+    const keepAlive = setInterval(() => {
+      // A comment frame — proxies drop an idle stream, and the gateway holds
+      // this one open for the life of the session.
+      res.write(': keep-alive\n\n');
+    }, SSE_KEEPALIVE_MS);
+    req.on('close', () => {
+      clearInterval(keepAlive);
+      sseSessions.delete(sessionId);
+    });
+    return undefined;
+  }
+
+  if (req.method === 'POST' && req.url.startsWith('/messages')) {
+    const sessionId = new URL(req.url, 'http://localhost').searchParams.get('sessionId');
+    const stream = sseSessions.get(sessionId);
+    if (!stream) {
+      // Say which part is wrong: a stale session id looks exactly like a broken
+      // server otherwise.
+      return send(res, 404, { error: 'Unknown or closed SSE session', sessionId });
+    }
+    let rpc;
+    try {
+      rpc = await readBody(req);
+    } catch (e) {
+      return send(res, 400, { jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } });
+    }
+    const response = await dispatch(rpc);
+    // In this transport the POST is only an ACK; the reply travels on the stream.
+    res.writeHead(202);
+    res.end();
+    if (response) stream.write(`event: message\ndata: ${JSON.stringify(response)}\n\n`);
+    return undefined;
+  }
+
+  // --- Streamable HTTP transport -------------------------------------------
   if (req.method === 'POST' && req.url === '/mcp') {
     let rpc;
     try {
@@ -123,34 +202,15 @@ const server = http.createServer(async (req, res) => {
     } catch (e) {
       return send(res, 400, { jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } });
     }
-
-    if (rpc.method === 'initialize') {
-      return send(res, 200, {
-        jsonrpc: '2.0',
-        id: rpc.id,
-        result: {
-          protocolVersion: (rpc.params && rpc.params.protocolVersion) || '2025-03-26',
-          capabilities: { tools: {} },
-          serverInfo: { name: 'demo-mcp-brave', version: '1.0.0' },
-        },
-      });
-    }
-    if (rpc.method === 'notifications/initialized') {
+    const response = await dispatch(rpc);
+    if (!response) {
       res.writeHead(202);
       return res.end();
     }
-    if (rpc.method === 'tools/list') {
-      return send(res, 200, { jsonrpc: '2.0', id: rpc.id, result: { tools: TOOLS } });
-    }
-    if (rpc.method === 'tools/call') {
-      const result = await handleToolsCall(rpc);
-      return send(res, 200, result);
-    }
-
-    return send(res, 200, { jsonrpc: '2.0', id: rpc.id, error: { code: -32601, message: `Unknown method: ${rpc.method}` } });
+    return send(res, 200, response);
   }
 
-  send(res, 404, { error: 'Not found' });
+  return send(res, 404, { error: 'Not found' });
 });
 
 server.listen(PORT, () => {
