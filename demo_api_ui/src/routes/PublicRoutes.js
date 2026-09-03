@@ -358,10 +358,16 @@ export function McpGatewayConfigRoute({ user, logout }) {
 }
 
 // OIDC SDK centralized-login sandbox (public) — drives its own browser-side login.
-export function SdkLoginPageRoute() {
-  // Bare (no AppShell): the SDK sandbox is a self-contained page — no banking app
-  // chrome, sidebar, or global education modals.
-  return <SdkLoginPage />;
+export function SdkLoginPageRoute({ user, logout }) {
+  // AppShell for the side nav + top nav (back to the app) only — /sdk-login stays
+  // in sideNavOwner's no-chrome list, so App.js still suppresses the education
+  // panels, footer, and agent FAB here; this remains a self-contained sandbox for
+  // everything except navigation back into the app.
+  return (
+    <AppShell user={user} logout={logout}>
+      <SdkLoginPage />
+    </AppShell>
+  );
 }
 
 // DaVinci widget login sandbox (public) — drives its own browser-side flow.
