@@ -57,6 +57,10 @@ services:
     container_name: ai-demo-jaeger
     mem_limit: 512m
     restart: unless-stopped
+    # --log-level=warn: stray non-gRPC probes hitting the OTLP port (4317)
+    # otherwise log an info-level "bogus greeting" line per rejected
+    # connection — noise, not a real transport fault.
+    command: ["--log-level=warn"]
     ports:
       - "16686:16686"   # Jaeger UI
       - "4317:4317"     # OTLP gRPC

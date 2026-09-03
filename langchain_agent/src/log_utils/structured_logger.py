@@ -371,3 +371,13 @@ def setup_logging(level: str = "INFO", format_type: str = "structured") -> None:
     logging.getLogger("websockets").setLevel(logging.WARNING)
     logging.getLogger("aiohttp").setLevel(logging.WARNING)
     logging.getLogger("urllib3").setLevel(logging.WARNING)
+
+    # Malformed non-WS traffic (stray HTTP/TLS probes hitting the raw WS chat
+    # port) logs as ERROR on every rejected handshake — noise, not a real WS
+    # server fault. Drop only that exact message; other websockets.server
+    # errors still surface normally.
+    class _DropHandshakeFailedFilter(logging.Filter):
+        def filter(self, record: logging.LogRecord) -> bool:
+            return record.getMessage() != "opening handshake failed"
+
+    logging.getLogger("websockets.server").addFilter(_DropHandshakeFailedFilter())
