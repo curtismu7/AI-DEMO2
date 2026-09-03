@@ -67,10 +67,18 @@ router.post('/sdk-token', async (req, res) => {
   const version = configStore.getEffective('davinci_login_flow_version') || 'v1';
   const policyId = version === 'v2' ? policyIdV2 : policyIdV1;
 
-  if (!companyId || !apiKey || !policyId) {
+  // Name the specific gap: a blanket "set these three" cannot distinguish a
+  // missing .env entry from a vaulted secret that never reached configStore,
+  // and the two have completely different fixes.
+  const missing = [
+    !companyId && 'PINGONE_DAVINCI_LOGIN_COMPANY_ID (.env)',
+    !policyId && `PINGONE_DAVINCI_LOGIN_POLICY_ID_${version.toUpperCase()} (.env)`,
+    !apiKey && 'PINGONE_DAVINCI_API_KEY (vault)',
+  ].filter(Boolean);
+  if (missing.length) {
     return res.status(503).json({
       error: 'davinci_not_configured',
-      message: 'Set PINGONE_DAVINCI_LOGIN_COMPANY_ID, PINGONE_DAVINCI_LOGIN_POLICY_ID_V1/V2 and PINGONE_DAVINCI_API_KEY.',
+      message: `DaVinci login is not configured — missing: ${missing.join(', ')}.`,
     });
   }
 

@@ -185,13 +185,16 @@ describe('POST /api/davinci-login/sdk-token', () => {
     PINGONE_DAVINCI_LOGIN_COMPANY_ID: 'co-1',
     PINGONE_DAVINCI_LOGIN_POLICY_ID_V1: 'pol-v1',
     PINGONE_DAVINCI_LOGIN_POLICY_ID_V2: 'pol-v2',
-    PINGONE_DAVINCI_API_KEY: 'sk-secret-key',
   };
   const saved = {};
 
   beforeEach(() => {
     axios.post.mockReset();
-    configStore.getEffective.mockReset().mockReturnValue('');
+    // The API key is a vault secret: vaultLoader caches it into configStore
+    // under the lowercased name, never into process.env.
+    configStore.getEffective.mockReset().mockImplementation((k) =>
+      k === 'pingone_davinci_api_key' ? 'sk-secret-key' : ''
+    );
     Object.keys(ENV).forEach((k) => { saved[k] = process.env[k]; process.env[k] = ENV[k]; });
   });
   afterEach(() => {
@@ -245,9 +248,11 @@ describe('POST /api/davinci-login/sdk-token', () => {
   });
 
   test('davinci_login_flow_version=v2 selects the v2 flow policy', async () => {
-    configStore.getEffective.mockImplementation((k) =>
-      k === 'davinci_login_flow_version' ? 'v2' : ''
-    );
+    configStore.getEffective.mockImplementation((k) => {
+      if (k === 'davinci_login_flow_version') return 'v2';
+      if (k === 'pingone_davinci_api_key') return 'sk-secret-key';
+      return '';
+    });
     axios.post.mockResolvedValue({ data: { access_token: 'sdk-tok-2' } });
 
     const res = await request(buildApp({})).post('/api/davinci-login/sdk-token');
@@ -257,14 +262,18 @@ describe('POST /api/davinci-login/sdk-token', () => {
     expect(axios.post.mock.calls[0][1].policyId).toBe('pol-v2');
   });
 
-  test('503 with no upstream call when DaVinci is not configured', async () => {
-    delete process.env.PINGONE_DAVINCI_API_KEY;
+  test('503 with no upstream call when the vaulted API key never reached configStore', async () => {
+    configStore.getEffective.mockReturnValue('');
     const sess = {};
 
     const res = await request(buildApp(sess)).post('/api/davinci-login/sdk-token');
 
     expect(res.status).toBe(503);
     expect(res.body.error).toBe('davinci_not_configured');
+    // The message must name WHICH value is missing and where it lives — a
+    // blanket "set these three" sent a real debugging session to the wrong file.
+    expect(res.body.message).toContain('PINGONE_DAVINCI_API_KEY (vault)');
+    expect(res.body.message).not.toContain('COMPANY_ID');
     expect(axios.post).not.toHaveBeenCalled();
     // Nothing armed, so a stray /callback still fails closed on nonce_missing.
     expect(sess.davinciLoginNonce).toBeUndefined();
@@ -299,6 +308,16 @@ describe('POST /api/davinci-login/sdk-token', () => {
 // The widget page posts only the code — the PKCE verifier and redirect URI live
 // on the session because /sdk-token, not the browser, built the authorize URL.
 describe('POST /api/davinci-login/callback session-held PKCE', () => {
+  // Explicit resets, as in the describe above: setup.js calls resetModules(),
+  // so clearMocks clears the CURRENT registry while this file and the route
+  // both still hold the first instance — its call history would accumulate.
+  beforeEach(() => {
+    oauthService.exchangeCodeForToken.mockReset();
+    oauthService.getUserInfo.mockReset();
+    oauthService.createUserFromOAuth.mockReset();
+    dataStore.getUserByUsername.mockReset();
+  });
+
   test('exchanges using the session verifier when the body omits it', async () => {
     const sess = {
       davinciLoginNonce: 'nonce-9',

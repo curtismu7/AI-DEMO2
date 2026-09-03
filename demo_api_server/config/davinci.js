@@ -28,7 +28,14 @@ const config = {
       companyId:  process.env.PINGONE_DAVINCI_LOGIN_COMPANY_ID,
       policyIdV1: process.env.PINGONE_DAVINCI_LOGIN_POLICY_ID_V1,
       policyIdV2: process.env.PINGONE_DAVINCI_LOGIN_POLICY_ID_V2,
-      apiKey:     process.env.PINGONE_DAVINCI_API_KEY,
+      // Via configStore, not process.env: the API key is a secret, so it lives
+      // in the vault, and services/vaultLoader.js caches vault entries into
+      // configStore under the LOWERCASED name — it mirrors only
+      // BFF_INTERNAL_SECRET and INTENT_TOKEN_SECRET into process.env. Reading
+      // process.env here made a correctly-vaulted key invisible and the route
+      // answered davinci_not_configured forever. getEffective is env-first, so
+      // a plain .env value still wins for local runs.
+      apiKey:     configStore.getEffective('pingone_davinci_api_key'),
     };
   },
 
