@@ -28,6 +28,8 @@ const AGENT_MODES = [
   { id: 'llamacpp',     label: 'llama.cpp',       provider: 'llamacpp',  heuristicRouting: false, external: true  },
   { id: 'mlx',          label: 'MLX',             provider: 'mlx',       heuristicRouting: false, external: true  },
   { id: 'claude',       label: 'Anthropic',       provider: 'anthropic', heuristicRouting: false, external: true  },
+  // Same backend as 'claude', proxied through a Privilege virtual key — Anthropic sibling of 'privilege_llm'.
+  { id: 'privilege_claude', label: 'Claude via Privilege', provider: 'privilege_claude', heuristicRouting: false, external: true },
   { id: 'helix_google', label: 'Helix',           provider: 'helix',     heuristicRouting: false, external: true  },
   { id: 'groq',         label: 'Groq',            provider: 'groq',      heuristicRouting: false, external: true  },
 ];
