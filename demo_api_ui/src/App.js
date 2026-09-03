@@ -774,7 +774,7 @@ function AppWithAuth() {
                 />
                 <Route
                   path="/sdk-login"
-                  element={<SdkLoginPageRoute />}
+                  element={<SdkLoginPageRoute user={user} logout={logout} />}
                 />
                 <Route path="/sdk-login/callback" element={<SdkLoginCallbackRoute />} />
                 <Route path="/davinci-login" element={<DavinciLoginPageRoute />} />
