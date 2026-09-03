@@ -28,9 +28,21 @@ const router = express.Router();
 
 const ORCHESTRATE_BASE = 'https://orchestrate-api.pingone.com/v1';
 
+// Prefers configured origins over request headers. Header derivation put the
+// INTERNAL upstream name into redirect_uri on the live stack
+// (https://demo-api-server:3001/...) — PingOne would reject it and a browser
+// could not reach it. The `ui` container serves an nginx.conf baked into its
+// image, so whether X-Forwarded-Host arrives is not something this route can
+// rely on. pingone_public_app_url is the same source config/davinci.js already
+// uses for webhookUrl. Headers stay as a last resort for native/dev runs with
+// no configured origin.
 function davinciRedirectUri(req) {
   const explicit = configStore.getEffective('pingone_davinci_login_redirect_uri');
   if (explicit) return explicit;
+
+  const publicBase = configStore.getEffective('pingone_public_app_url');
+  if (publicBase) return `${String(publicBase).replace(/\/+$/, '')}/davinci-login/callback`;
+
   const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0].trim();
   const host = (req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim();
   return `${proto}://${host}/davinci-login/callback`;

@@ -396,3 +396,76 @@ describe('POST /api/davinci-login/sdk-token username validation', () => {
     expect(axios.post).not.toHaveBeenCalled();
   });
 });
+
+// redirect_uri must never be derived from request headers when a public origin
+// is configured: on the live stack the headers yielded the internal upstream
+// name (https://demo-api-server:3001/...), which PingOne rejects and a browser
+// cannot reach.
+describe('POST /api/davinci-login/sdk-token redirect_uri origin', () => {
+  const ENV3 = {
+    PINGONE_DAVINCI_LOGIN_COMPANY_ID: 'co-1',
+    PINGONE_DAVINCI_LOGIN_POLICY_ID_V1: 'pol-v1',
+  };
+  const saved3 = {};
+  beforeEach(() => {
+    axios.post.mockReset();
+    axios.post.mockResolvedValue({ data: { access_token: 'sdk-tok' } });
+    Object.keys(ENV3).forEach((k) => { saved3[k] = process.env[k]; process.env[k] = ENV3[k]; });
+  });
+  afterEach(() => {
+    Object.keys(ENV3).forEach((k) => {
+      if (saved3[k] === undefined) delete process.env[k]; else process.env[k] = saved3[k];
+    });
+  });
+
+  test('uses the configured public app URL, not the proxied Host header', async () => {
+    configStore.getEffective.mockImplementation((k) => {
+      if (k === 'pingone_davinci_api_key') return 'sk-secret-key';
+      if (k === 'pingone_public_app_url') return 'https://local.ping-devops.com:4000';
+      return '';
+    });
+    const sess = {};
+
+    await request(buildApp(sess))
+      .post('/api/davinci-login/sdk-token')
+      .set('Host', 'demo-api-server:3001')
+      .send({ username: 'demouser' });
+
+    expect(sess.davinciLoginRedirectUri).toBe(
+      'https://local.ping-devops.com:4000/davinci-login/callback'
+    );
+  });
+
+  test('an explicit redirect URI still wins over the public app URL', async () => {
+    configStore.getEffective.mockImplementation((k) => {
+      if (k === 'pingone_davinci_api_key') return 'sk-secret-key';
+      if (k === 'pingone_davinci_login_redirect_uri') return 'https://explicit.example/cb';
+      if (k === 'pingone_public_app_url') return 'https://local.ping-devops.com:4000';
+      return '';
+    });
+    const sess = {};
+
+    await request(buildApp(sess))
+      .post('/api/davinci-login/sdk-token')
+      .send({ username: 'demouser' });
+
+    expect(sess.davinciLoginRedirectUri).toBe('https://explicit.example/cb');
+  });
+
+  test('a trailing slash on the public app URL does not double up', async () => {
+    configStore.getEffective.mockImplementation((k) => {
+      if (k === 'pingone_davinci_api_key') return 'sk-secret-key';
+      if (k === 'pingone_public_app_url') return 'https://local.ping-devops.com:4000/';
+      return '';
+    });
+    const sess = {};
+
+    await request(buildApp(sess))
+      .post('/api/davinci-login/sdk-token')
+      .send({ username: 'demouser' });
+
+    expect(sess.davinciLoginRedirectUri).toBe(
+      'https://local.ping-devops.com:4000/davinci-login/callback'
+    );
+  });
+});
