@@ -22,6 +22,11 @@ describe('resolveAgentMode (five single-brain modes)', () => {
       mode: 'gemini', provider: 'google', heuristicRouting: false, externalWiring: 'bff',
     });
   });
+  test('privilege_llm: privilege_llm provider, routing off, defaults to bff wiring', () => {
+    expect(resolveAgentMode('privilege_llm')).toEqual({
+      mode: 'privilege_llm', provider: 'privilege_llm', heuristicRouting: false, externalWiring: 'bff',
+    });
+  });
 
   test('helix_google: helix provider, routing off, defaults to bff wiring', () => {
     expect(resolveAgentMode('helix_google')).toEqual({
@@ -38,8 +43,10 @@ describe('resolveAgentMode (five single-brain modes)', () => {
   test('AGENT_MODES lists exactly the single-brain modes, Gemini first among LLMs', () => {
     // Gemini leads the LLM modes (picker order mirrors the UI table in
     // demo_api_ui/src/config/agentModes.js — fastest live-demo provider).
+    // privilege_llm follows immediately after: same backend, proxied through
+    // a Privilege virtual key so the call can be denied by policy.
     expect(AGENT_MODES.map((m) => m.id)).toEqual([
-      'heuristics', 'gemini', 'llamacpp', 'mlx', 'claude', 'helix_google', 'groq',
+      'heuristics', 'gemini', 'privilege_llm', 'llamacpp', 'mlx', 'claude', 'helix_google', 'groq',
     ]);
   });
 

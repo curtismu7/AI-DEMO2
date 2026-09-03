@@ -239,6 +239,14 @@ describe('POST /api/davinci-login/sdk-token', () => {
       parameters: { nonce: sess.davinciLoginNonce },
     });
     expect(opts.headers['X-SK-API-KEY']).toBe('sk-secret-key');
+
+    // loginHint must be explicitly null: this route signs in whoever the
+    // widget just authenticated, and generateAuthorizationUrl's own default
+    // ('demoAdmin', for routes/oauth.js) would pre-fill PingOne's re-auth
+    // screen with the wrong username.
+    expect(oauthService.generateAuthorizationUrl).toHaveBeenCalledWith(
+      'state-1', 'verifier-1', sess.davinciLoginRedirectUri, sess.davinciLoginNonce, null
+    );
   });
 
   test('includes username in parameters when the caller supplies one', async () => {

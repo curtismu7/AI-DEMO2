@@ -146,6 +146,7 @@
     "/dashboard": "public",
     "/davinci-login": "public",
     "/davinci-login/callback": "public",
+    "/davinci-login/confirmed": "public",
     "/davinci-orchestration": "public",
     "/delegated-commerce": "admin",
     "/delegation": "admin",

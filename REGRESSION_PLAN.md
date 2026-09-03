@@ -139,6 +139,99 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-03 — Privilege client stuck in a sign-in loop on both the façade and no-auth "Direct" modes
+
+**Files changed:** `demo_api_server/routes/mcpFacade.js`,
+`demo_api_server/tests/routes/mcpFacade.multiApp.test.js`,
+`demo_api_server/tests/routes/mcpFacadeDirectSiblingDoors.test.js`,
+`demo_api_server/tests/routes/mcpFacade.privilegeGatewayDoor.test.js`,
+`demo_api_server/tests/routes/mcpFacadeOpensearchDoor.test.js`,
+`demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`.
+
+**What was broken:** two independent bugs surfaced as the same symptom
+(`/privilege-mcp-client`, "Sign in to continue" looping forever).
+
+1. Every façade door has `requireBearer: true`, so `mcpFacade.js`'s
+   `verifyDoorBearer` runs RS256 verification in-process against PingOne's
+   JWKS. It passed the whole object `jwksService.getPublicKey()` resolves
+   (`{keyObject, alg, use}`) straight to `crypto.createVerify().verify()`
+   instead of `key.keyObject` — the wrong shape always throws, so every
+   token, valid or not, was denied with `reason: verify_error`. The
+   function's own doc comment predicted this exact failure mode ("a raw,
+   unconverted JWK... crypto.Verify rejects outright") without the code
+   actually avoiding it. The four affected tests' mocks matched the bug
+   (`mockResolvedValue(publicKey)` / a PEM string) rather than jwksService's
+   real contract, so they gave false confidence.
+2. `GATEWAY_MODES.direct` ("Direct to MCP") is documented in its own `detail`
+   string as having no auth at all — but the page's silent-auto-connect
+   `useEffect` and every `isGatewayAuthChallenge` catch handler called
+   `setShowSignInModal(true)` unconditionally, with no `gatewayMode` check.
+   This is a regression from the 2026-08-20 entry below ("Agent mode no
+   longer renders page-managed authentication controls") — that guard did
+   not survive the 2026-09-02 Agent/Agentless → direct/privilege/facade
+   `GATEWAY_MODES` rename.
+
+**What was fixed:** `verifyDoorBearer` now verifies against `key.keyObject`
+(matching the two other real callers of `jwksService.getPublicKey`,
+`tokenVerificationService.js` and `resourceServerTesterService.js`); the four
+test mocks now resolve `{ keyObject: publicKey, alg: 'RS256' }` instead of a
+bare key or PEM string. `PrivilegeMcpClientPage.jsx` adds one `requestSignIn()`
+helper that no-ops when `gatewayMode === 'direct'`; all seven
+`setShowSignInModal(true)` call sites now route through it.
+
+**Do not break:** `verifyDoorBearer` must keep failing closed on a genuinely
+malformed key (`mcpFacadeOpensearchDoor.test.js`'s `{ not: 'a usable key' }`
+cases still expect `verify_error`) — only the real-key path changed.
+`privilege` and `facade` modes must keep showing the sign-in modal on a 401;
+only `direct` mode is exempt.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/routes/mcpFacade.multiApp.test.js tests/routes/mcpFacadeDirectSiblingDoors.test.js tests/routes/mcpFacadeModernHeaders.test.js tests/routes/mcpFacade.test.js tests/routes/mcpFacadeOpensearchDoor.test.js tests/routes/mcpFacade.privilegeGatewayDoor.test.js tests/routes/mcpFacadeAuditDoor.test.js --forceExit --runInBand`
+(70/70); `cd demo_api_ui && npx vitest run src/pages/__tests__/PrivilegeMcpClientPage.blockedBand.test.jsx src/pages/__tests__/PrivilegeMcpClientPage.gatewaySwitch.test.jsx src/pages/__tests__/PrivilegeMcpClientPage.doorPicker.test.jsx src/pages/__tests__/PrivilegeMcpClientPage.gatewayPresets.test.jsx src/pages/__tests__/PrivilegeMcpClientPage.silentAutoConnect.test.jsx src/pages/__tests__/PrivilegeMcpClientPage.policyPicker.test.jsx`
+(27/27); `npm run build` (exit 0). Not yet verified live against the deployed
+SE cluster (`ai-demo.ping-devops.com`) — only unit-level.
+
+### 2026-09-03 — DaVinci login's re-auth screen was pre-filled with the admin username
+
+**Files changed:** `demo_api_server/services/oauthService.js`,
+`demo_api_server/routes/davinciLogin.js`, new
+`demo_api_server/tests/services/oauthService.generateAuthorizationUrl.test.js`,
+plus a new assertion in `tests/routes/davinciLogin.test.js`. Also adds
+`demo_api_ui/src/pages/DavinciLoginConfirmedPage.jsx` (new post-login landing
+page, not a regression fix) and its route wiring.
+
+**What was broken:** `oauthService.generateAuthorizationUrl` hardcodes
+`login_hint: 'demoAdmin'` — correct for `routes/oauth.js`'s admin login, the
+only caller until now. `routes/davinciLogin.js` (added 2026-09-02, PR #2723)
+reuses the same function so its authorize URL's `client_id` matches the
+service that signs the exchange, but that reuse also inherited the hardcoded
+hint. Live symptom: after a successful DaVinci widget sign-on, PingOne's
+`/authorize` re-auth screen appeared pre-filled with "demoAdmin" — a real user
+(e.g. `demoUser`) submitting their own correct password against that
+pre-filled username got a genuine "Invalid username and/or password" from
+PingOne, indistinguishable from a real credential failure.
+
+**What was fixed:** `generateAuthorizationUrl` takes an optional 5th param,
+`loginHint = 'demoAdmin'` — every existing 4-arg positional call
+(`routes/oauth.js`) is unaffected. `routes/davinciLogin.js` now passes `null`
+explicitly, which omits `login_hint` from the URL entirely rather than sending
+an empty value.
+
+**Do not break:** `routes/oauth.js`'s admin authorize URL must keep
+`login_hint=demoAdmin` with no fifth argument at its call site — verified by
+`oauthService.generateAuthorizationUrl.test.js`'s default-value test.
+`routes/oauthUser.js` is untouched — it calls a different service
+(`oauthUserService`, imported under the same local name, easy to confuse) with
+object-style args and its own `login_hint: 'demoUser'` default; this fix does
+not touch that file or that service.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/services/oauthService.generateAuthorizationUrl.test.js tests/routes/davinciLogin.test.js tests/davinciLoginNonce.test.js --forceExit`
+(28/28); `cd demo_api_ui && npm run test:unit -- DavinciLoginPage DavinciLoginCallback DavinciLoginConfirmedPage davinciWidgetClient && npm run build`
+(exit 0); `npm run authz:verify` (175 routes). Still open: whether the DaVinci
+flow's terminal PingOne Authentication node establishes a genuine PingOne
+browser SSO session — if it does not, `/authorize` will keep showing this
+re-auth screen (now correctly blank/unprefilled) as a second, real login step;
+that is a DaVinci Studio console question, not fixable from this repo.
+
 ### 2026-09-02 — DaVinci widget login could not have produced a session at all
 
 **Files changed:** `demo_api_server/routes/davinciLogin.js`,

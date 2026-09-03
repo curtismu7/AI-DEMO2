@@ -65,7 +65,7 @@ afterAll((done) => {
 beforeEach(() => {
   upstreamHits = 0;
   jwksService.getPublicKey.mockReset();
-  jwksService.getPublicKey.mockResolvedValue(publicKey);
+  jwksService.getPublicKey.mockResolvedValue({ keyObject: publicKey, alg: 'RS256' });
 });
 
 function app() {
@@ -138,8 +138,33 @@ describe('opensearch door — façade-enforced bearer', () => {
     expect(res).toEqual({ ok: false, reason: 'unknown_kid' });
   });
 
+  // Regression: jwksService can hand back a key shape crypto.Verify rejects
+  // outright (a raw JWK, say) rather than a usable PEM/KeyObject — truthy, so
+  // it passes the unknown_kid check, but createVerify().verify() throws. That
+  // threw out of verifyDoorBearer as an unhandled rejection: no response was
+  // ever sent, and the request hung until nginx's own 60s upstream timeout —
+  // exactly the "fails closed" this function's own docstring promises NOT to
+  // do. Live 2026-09-03 against the opensearch door; the same crash-then-hang
+  // would just as well have hit the newer, identically-gated brave door.
+  it('fails closed instead of hanging when the resolved key is unusable', async () => {
+    jwksService.getPublicKey.mockResolvedValue({ not: 'a usable key' });
+    const res = await verifyDoorBearer(
+      { get: () => `Bearer ${makeToken()}` },
+      DOORS.opensearch,
+    );
+    expect(res).toEqual({ ok: false, reason: 'verify_error' });
+  });
+
+  it('responds instead of hanging over HTTP when the resolved key is unusable', async () => {
+    jwksService.getPublicKey.mockResolvedValue({ not: 'a usable key' });
+    const res = await post(makeToken());
+    expect(res.status).toBe(401);
+    expect(res.body.error.data.reason).toBe('verify_error');
+    expect(upstreamHits).toBe(0);
+  });
+
   it('leaves the other doors ungated (their upstreams issue their own 401)', () => {
-    for (const name of ['agent-gateway', 'agentless', 'agent', 'pingone-admin']) {
+    for (const name of ['agent-gateway', 'agentless', 'agent', 'banking', 'pingone-admin']) {
       expect(DOORS[name].requireBearer).toBeUndefined();
     }
   });

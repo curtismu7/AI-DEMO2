@@ -23,9 +23,15 @@ const PRIVILEGE_CONSOLE_URL =
 // capability in its initialize response, so an empty panel most often means the
 // server has none to give. Say which of the two it is.
 // The banking backend, for example, advertises only {tools, logging}.
-// The AI Gateway routes on the application name: /<door>/mcp.
+// The AI Gateway routes on the application name: /<door>/mcp. Our own façade
+// routes are nested one level deeper (/mcp-facade/<door>/mcp), so the first
+// segment there is always the meaningless "mcp-facade" — skip it.
 function doorName(mcpUrl) {
-  try { return new URL(mcpUrl).pathname.split('/').filter(Boolean)[0] || null; } catch { return null; }
+  try {
+    const segments = new URL(mcpUrl).pathname.split('/').filter(Boolean);
+    if (segments[0] === 'mcp-facade') return segments[1] || null;
+    return segments[0] || null;
+  } catch { return null; }
 }
 
 // Every string value anywhere in an undocumented object.
@@ -191,6 +197,14 @@ export default function PrivilegeMcpClientPage() {
   // arrived. See the blockedDetail comment above.
   const deniedDoor = doorName(config.mcpUrl);
   const [showSignInModal, setShowSignInModal] = useState(false);
+  // direct mode has no auth at all ("nobody checks who asked" — see GATEWAY_MODES
+  // above), so a 401-shaped error there is never a real sign-in prompt. Every
+  // isGatewayAuthChallenge() call site routes through here instead of the raw
+  // setter so that guard lives in one place, not seven.
+  const requestSignIn = () => {
+    if (gatewayMode === 'direct') return;
+    setShowSignInModal(true);
+  };
   const [showFlowModal, setShowFlowModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
@@ -352,12 +366,12 @@ export default function PrivilegeMcpClientPage() {
       // we are returning from a round trip — hand back to the modal instead.
       if (s.mainAppAuthenticated && !s.oauth?.authenticated) {
         if (searchParams.get('auth')) {
-          setShowSignInModal(true);
+          requestSignIn();
         } else {
           setSilentAuthPending(true);
           api('/auth/start', { method: 'POST' })
             .then((data) => { window.location.href = data.authUrl; })
-            .catch(() => { setSilentAuthPending(false); setShowSignInModal(true); });
+            .catch(() => { setSilentAuthPending(false); requestSignIn(); });
         }
       }
 
@@ -519,7 +533,7 @@ export default function PrivilegeMcpClientPage() {
       setTools([]);
       if (err.message?.toLowerCase().includes('not authenticated') || err.message?.includes('401')) {
         setAuthenticated(false);
-        setShowSignInModal(true);
+        requestSignIn();
       } else if (
         err.message?.toLowerCase().includes('not authorized') ||
         err.message?.includes('403') ||
@@ -605,7 +619,15 @@ export default function PrivilegeMcpClientPage() {
   // has to include it, or the control cannot show what is currently selected.
   const knownDoors = (includeCurrent = false) => {
     const fromConsole = (consoleData?.applications || []).map((a) => a.mcpUrl).filter(Boolean);
-    const fromPresets = presets.filter((p) => p.mode !== 'direct').map((p) => p.url);
+    // The direct-mode presets are excluded UNLESS direct mode is the one
+    // active: sameGatewayDoors() below already groups by origin regardless of
+    // mode (an agentless gateway's privilege door and its façade door share a
+    // host, and are meant to appear together), but the direct presets share
+    // that same PUBLIC_APP_ORIGIN too and aren't a door on any OTHER gateway —
+    // they would leak into every non-direct door picker without this.
+    const fromPresets = presets
+      .filter((p) => p.mode !== 'direct' || gatewayMode === 'direct')
+      .map((p) => p.url);
     const all = [...new Set([...fromConsole, ...fromPresets, ...(includeCurrent ? [config.mcpUrl] : [])])];
     return all.filter((u) => u && (includeCurrent || u !== config.mcpUrl));
   };
@@ -680,7 +702,7 @@ export default function PrivilegeMcpClientPage() {
       }
     } catch (err) {
       if (isGatewayAuthChallenge(err)) {
-        setShowSignInModal(true);
+        requestSignIn();
         appendChat('system', 'Sign in is required to access the gateway.');
       } else {
         appendChat('assistant', `Error: ${err.message}`);
@@ -708,7 +730,7 @@ export default function PrivilegeMcpClientPage() {
       out = JSON.stringify(data, null, 2);
       ok = !data?.error && !data?.result?.isError;
     } catch (err) {
-      if (isGatewayAuthChallenge(err)) setShowSignInModal(true);
+      if (isGatewayAuthChallenge(err)) requestSignIn();
       out = JSON.stringify({ error: isGatewayAuthChallenge(err) ? 'Sign in is required to access the gateway.' : err.message }, null, 2);
       ok = false;
     }
@@ -774,7 +796,7 @@ export default function PrivilegeMcpClientPage() {
         setMcpInputRequired(null);
       }
     } catch (err) {
-      if (isGatewayAuthChallenge(err)) setShowSignInModal(true);
+      if (isGatewayAuthChallenge(err)) requestSignIn();
       setMcpResult(JSON.stringify({ error: isGatewayAuthChallenge(err) ? 'Sign in is required to access the gateway.' : err.message }, null, 2));
     }
   };
@@ -794,7 +816,7 @@ export default function PrivilegeMcpClientPage() {
       setMcpResult(JSON.stringify(data, null, 2));
       if (data?.result?.resultType !== 'input_required') setMcpInputRequired(null);
     } catch (err) {
-      if (isGatewayAuthChallenge(err)) setShowSignInModal(true);
+      if (isGatewayAuthChallenge(err)) requestSignIn();
       setMcpResult(JSON.stringify({ error: isGatewayAuthChallenge(err) ? 'Sign in is required to access the gateway.' : err.message }, null, 2));
     }
   };
@@ -1190,17 +1212,17 @@ export default function PrivilegeMcpClientPage() {
               <option value="facade">Façade</option>
             </select>
           </label>
-          {/* Door picker. Agentless only: an Agent frontend is a single fixed
-              procyon host, so offering a choice there would be a lie. Hidden
-              below two doors — a select with one option is furniture.
-              It picks the DOOR, never a policy: Privilege resolves the policy
-              server-side from (user, door, tool), so a policy control could
-              only mislead about what it does. */}
-          {gatewayMode !== 'direct' && sameGatewayDoors().length > 1 && (
+          {/* Door picker. Shown whenever the current mode has more than one
+              known backend at the same origin (see sameGatewayDoors()) — hidden
+              below two doors, since a select with one option is furniture.
+              For Privilege it picks the DOOR, never a policy: Privilege
+              resolves the policy server-side from (user, door, tool), so a
+              policy control could only mislead about what it does. */}
+          {sameGatewayDoors().length > 1 && (
             <label className="cur-mode-switcher">
               <span>Door</span>
               <select
-                aria-label="Privilege MCP application (door)"
+                aria-label="MCP backend (door)"
                 value={config.mcpUrl || ''}
                 disabled={switching || toolsLoading}
                 onChange={(event) => switchDoor(event.target.value)}

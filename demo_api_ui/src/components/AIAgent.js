@@ -268,6 +268,8 @@ const NL_GATEWAY_REASON_MESSAGES = {
 const NL_FAILURE_MESSAGES = {
   gateway_policy_denied:
     "That step was declined by the gateway's authorization policy — no changes were made.",
+  llm_policy_denied:
+    "PingOne Privilege blocked this request before it reached Google — the virtual key's policy layer denied it based on the prompt content.",
   mcp_authorization_denied:
     "That step was declined by the authorization policy — no changes were made.",
   mcp_authorize_unavailable:
@@ -8258,7 +8260,7 @@ export default function BankingAgent({
         body: JSON.stringify({ message: text, provider: activeLlmProvider || "heuristic", vertical: effectiveVerticalId }),
         signal: anySignal([AbortSignal.timeout(activeLlmProvider === "anthropic-lmstudio" || activeLlmProvider === "llamacpp" || activeLlmProvider === "mlx" || activeLlmProvider === "helix" ? 60000 : 15000), signal]),
       });
-      const { result: _nlResult, source: _nlSource, llm_attempted: _nlAttempted, llm_not_configured: _nlNotConfigured } = await _nlRes
+      const _nlBody = await _nlRes
         .json()
         .catch(() => ({
           result: {
@@ -8271,6 +8273,15 @@ export default function BankingAgent({
           // floor — keep offering the Heuristics fallback.
           llm_attempted: false,
         }));
+      // fetch() only rejects on transport failure, never on a 4xx/5xx status —
+      // an llm_policy_denied 403 body would otherwise be silently destructured
+      // into undefined result/source fields instead of showing the block.
+      if (!_nlRes.ok && _nlBody?.error === "llm_policy_denied") {
+        throw Object.assign(new Error(_nlBody.message || "Blocked by Privilege policy"), {
+          code: "llm_policy_denied",
+        });
+      }
+      const { result: _nlResult, source: _nlSource, llm_attempted: _nlAttempted, llm_not_configured: _nlNotConfigured } = _nlBody;
       // Record NL routing as step 0 in Token Chain before token events arrive
       tokenChain?.setNlRoutingEvent({
         prompt: text,
