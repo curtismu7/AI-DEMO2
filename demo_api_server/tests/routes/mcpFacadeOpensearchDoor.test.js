@@ -139,7 +139,7 @@ describe('opensearch door — façade-enforced bearer', () => {
   });
 
   it('leaves the other doors ungated (their upstreams issue their own 401)', () => {
-    for (const name of ['agent-gateway', 'agentless', 'agent', 'pingone-admin']) {
+    for (const name of ['agent-gateway', 'agentless', 'agent', 'banking', 'pingone-admin']) {
       expect(DOORS[name].requireBearer).toBeUndefined();
     }
   });

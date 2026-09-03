@@ -146,6 +146,30 @@ const DOORS = {
       || process.env.MCP_GW_RESOURCE_URI
       || 'mcpgateway.ping.demo',
   },
+  banking: {
+    label: 'Banking (oauth-mcp)',
+    // oauth-mcp already advertises its own OAuth (RFC 9728 -> 8414 -> PKCE), so
+    // this door is a pure proxy, same shape as the agent-gateway door: no
+    // façade-level challenge, the upstream's own 401 is what the client sees.
+    upstream: () => process.env.MCP_FACADE_BANKING_URL || 'http://mcp-server:8080/mcp',
+    authorizationServer: null,
+    scopes: [],
+    forwardCorrelation: false,
+  },
+  brave: {
+    label: 'Brave Search',
+    // mcp-brave has no auth of its own -- same reasoning as the opensearch
+    // door above: requireBearer makes the FAÇADE challenge and verify instead
+    // of relaying anonymous traffic straight to the tool.
+    upstream: () => process.env.MCP_FACADE_BRAVE_URL || 'http://mcp-brave:8897/mcp',
+    authorizationServer: () => process.env.MCP_FACADE_AGENT_GATEWAY_AS || 'http://localhost:3005',
+    scopes: ['mcp:invoke'],
+    forwardCorrelation: false,
+    requireBearer: true,
+    expectedAudience: () => process.env.MCP_FACADE_OPENSEARCH_AUD
+      || process.env.MCP_GW_RESOURCE_URI
+      || 'mcpgateway.ping.demo',
+  },
   'privilege-gateway': {
     label: 'Privilege AI Gateway',
     // The door that survives a gateway restart. Everything else that talks to
