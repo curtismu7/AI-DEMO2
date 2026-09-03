@@ -197,6 +197,14 @@ export default function PrivilegeMcpClientPage() {
   // arrived. See the blockedDetail comment above.
   const deniedDoor = doorName(config.mcpUrl);
   const [showSignInModal, setShowSignInModal] = useState(false);
+  // direct mode has no auth at all ("nobody checks who asked" — see GATEWAY_MODES
+  // above), so a 401-shaped error there is never a real sign-in prompt. Every
+  // isGatewayAuthChallenge() call site routes through here instead of the raw
+  // setter so that guard lives in one place, not seven.
+  const requestSignIn = () => {
+    if (gatewayMode === 'direct') return;
+    setShowSignInModal(true);
+  };
   const [showFlowModal, setShowFlowModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
@@ -358,12 +366,12 @@ export default function PrivilegeMcpClientPage() {
       // we are returning from a round trip — hand back to the modal instead.
       if (s.mainAppAuthenticated && !s.oauth?.authenticated) {
         if (searchParams.get('auth')) {
-          setShowSignInModal(true);
+          requestSignIn();
         } else {
           setSilentAuthPending(true);
           api('/auth/start', { method: 'POST' })
             .then((data) => { window.location.href = data.authUrl; })
-            .catch(() => { setSilentAuthPending(false); setShowSignInModal(true); });
+            .catch(() => { setSilentAuthPending(false); requestSignIn(); });
         }
       }
 
@@ -525,7 +533,7 @@ export default function PrivilegeMcpClientPage() {
       setTools([]);
       if (err.message?.toLowerCase().includes('not authenticated') || err.message?.includes('401')) {
         setAuthenticated(false);
-        setShowSignInModal(true);
+        requestSignIn();
       } else if (
         err.message?.toLowerCase().includes('not authorized') ||
         err.message?.includes('403') ||
@@ -694,7 +702,7 @@ export default function PrivilegeMcpClientPage() {
       }
     } catch (err) {
       if (isGatewayAuthChallenge(err)) {
-        setShowSignInModal(true);
+        requestSignIn();
         appendChat('system', 'Sign in is required to access the gateway.');
       } else {
         appendChat('assistant', `Error: ${err.message}`);
@@ -722,7 +730,7 @@ export default function PrivilegeMcpClientPage() {
       out = JSON.stringify(data, null, 2);
       ok = !data?.error && !data?.result?.isError;
     } catch (err) {
-      if (isGatewayAuthChallenge(err)) setShowSignInModal(true);
+      if (isGatewayAuthChallenge(err)) requestSignIn();
       out = JSON.stringify({ error: isGatewayAuthChallenge(err) ? 'Sign in is required to access the gateway.' : err.message }, null, 2);
       ok = false;
     }
@@ -788,7 +796,7 @@ export default function PrivilegeMcpClientPage() {
         setMcpInputRequired(null);
       }
     } catch (err) {
-      if (isGatewayAuthChallenge(err)) setShowSignInModal(true);
+      if (isGatewayAuthChallenge(err)) requestSignIn();
       setMcpResult(JSON.stringify({ error: isGatewayAuthChallenge(err) ? 'Sign in is required to access the gateway.' : err.message }, null, 2));
     }
   };
@@ -808,7 +816,7 @@ export default function PrivilegeMcpClientPage() {
       setMcpResult(JSON.stringify(data, null, 2));
       if (data?.result?.resultType !== 'input_required') setMcpInputRequired(null);
     } catch (err) {
-      if (isGatewayAuthChallenge(err)) setShowSignInModal(true);
+      if (isGatewayAuthChallenge(err)) requestSignIn();
       setMcpResult(JSON.stringify({ error: isGatewayAuthChallenge(err) ? 'Sign in is required to access the gateway.' : err.message }, null, 2));
     }
   };

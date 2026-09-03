@@ -57,7 +57,7 @@ const RPC = { jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} };
 describe('mcp-facade multi-app door', () => {
   beforeEach(() => {
     seenPath = undefined;
-    jwksService.getPublicKey.mockResolvedValue(publicKey.export({ type: 'spki', format: 'pem' }));
+    jwksService.getPublicKey.mockResolvedValue({ keyObject: publicKey, alg: 'RS256' });
     gatewaySession.remember({
       accessToken: 'gateway-token',
       expiresIn: 3600,
