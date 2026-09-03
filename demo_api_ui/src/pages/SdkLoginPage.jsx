@@ -362,13 +362,6 @@ export default function SdkLoginPage() {
           </div>
         </section>
 
-        {error && (
-          <div style={styles.banner(false)}>
-            <b>Error:</b> {error}
-          </div>
-        )}
-        {notice && <div style={styles.banner(notice.ok)}>{notice.text}</div>}
-
         {status === "loading" && (
           <div style={styles.card}>
             <div style={styles.cardH}>SDK session</div>
@@ -503,6 +496,13 @@ export default function SdkLoginPage() {
           <p style={{ color: C.muted, marginTop: 0 }}>MFA is a checkpoint on an existing session, not a second login. This page does not redirect: trigger the protected action, let PingOne policy challenge the current subject, then verify the returned <code>acr</code>/<code>amr</code> claims.</p>
           <div style={{ ...styles.row, marginTop: 10 }}><button type="button" style={{ ...styles.btn, ...styles.btnPrimary }} onClick={startMfaCheckpoint} disabled={busy}>Run MFA checkpoint</button><span style={{ ...styles.note, marginTop: 0 }}>No login redirect; no MFA secret is stored in this browser.</span></div>
         </section>
+
+        {error && (
+          <div style={styles.banner(false)}>
+            <b>Error:</b> {error}
+          </div>
+        )}
+        {notice && <div style={styles.banner(notice.ok)}>{notice.text}</div>}
       </div>
     </div>
   );

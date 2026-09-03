@@ -22,6 +22,9 @@ const AGENT_MODES = [
   // demo_api_ui/src/config/agentModes.js (fastest live-demo LLM on the
   // CPU-only SE cluster). Resolution is by id; order is cosmetic here.
   { id: 'gemini',       label: 'Google Gemini',   provider: 'google',    heuristicRouting: false, external: true  },
+  // Same backend as 'gemini', proxied through a Privilege virtual key so the
+  // call can be denied by Privilege policy — mirrors demo_api_ui/src/config/agentModes.js.
+  { id: 'privilege_llm', label: 'Gemini via Privilege', provider: 'privilege_llm', heuristicRouting: false, external: true },
   { id: 'llamacpp',     label: 'llama.cpp',       provider: 'llamacpp',  heuristicRouting: false, external: true  },
   { id: 'mlx',          label: 'MLX',             provider: 'mlx',       heuristicRouting: false, external: true  },
   { id: 'claude',       label: 'Anthropic',       provider: 'anthropic', heuristicRouting: false, external: true  },
