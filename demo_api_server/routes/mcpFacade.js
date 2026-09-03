@@ -461,9 +461,20 @@ async function verifyDoorBearer(req, door) {
   }
   if (!key) return { ok: false, reason: 'unknown_kid' };
 
-  const verified = crypto.createVerify('RSA-SHA256')
-    .update(`${parts[0]}.${parts[1]}`)
-    .verify(key, Buffer.from(parts[2], 'base64url'));
+  // jwksService can hand back a key shape crypto.Verify rejects outright (a
+  // raw, unconverted JWK, say) rather than a usable PEM/KeyObject. That threw
+  // out of this async function as an unhandled rejection — no response ever
+  // sent, so the caller hung until nginx's own 60s upstream timeout, not the
+  // "fails closed" this function promises. Same failure shape as a bad
+  // signature: deny and let the caller re-challenge.
+  let verified;
+  try {
+    verified = crypto.createVerify('RSA-SHA256')
+      .update(`${parts[0]}.${parts[1]}`)
+      .verify(key, Buffer.from(parts[2], 'base64url'));
+  } catch {
+    return { ok: false, reason: 'verify_error' };
+  }
   if (!verified) return { ok: false, reason: 'bad_signature' };
 
   // exp is seconds since epoch; treat a token with no exp as invalid rather
