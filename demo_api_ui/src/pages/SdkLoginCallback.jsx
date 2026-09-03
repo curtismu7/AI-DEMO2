@@ -26,6 +26,14 @@ const WRAP_STYLE = {
 // Cleared after each exchange settles so the Set does not grow unbounded.
 const exchangedCodes = new Set();
 
+// Reloading this page (same ?code&state still in the URL bar) survives past the
+// in-memory Set above — the JS context restarts, and the SDK has already deleted
+// its sessionStorage state/PKCE entry on the first read. That reload then throws
+// the SDK's raw "State mismatch" error, which reads as a bug rather than "this
+// link was already used." Persist the attempted code in sessionStorage (which
+// does survive a reload) so a repeat visit gets a clear explanation instead.
+const ATTEMPTED_CODE_KEY = "sdk-login-attempted-code";
+
 export default function SdkLoginCallback() {
   const navigate = useNavigate();
   const [error, setError] = useState(null);
@@ -53,6 +61,16 @@ export default function SdkLoginCallback() {
         // StrictMode double-invoke: skip if this code is already being exchanged.
         if (exchangedCodes.has(code)) return;
         exchangedCodes.add(code);
+
+        // A reload of this exact callback URL means the code/state were already
+        // consumed on the first pass. Report that plainly instead of letting the
+        // SDK's exchange call fail with a raw "State mismatch".
+        if (sessionStorage.getItem(ATTEMPTED_CODE_KEY) === code) {
+          throw new Error(
+            "This sign-in link has already been used. Go back and sign in again."
+          );
+        }
+        sessionStorage.setItem(ATTEMPTED_CODE_KEY, code);
 
         try {
           const client = await getSdkClient();
