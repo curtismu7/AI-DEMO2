@@ -364,7 +364,10 @@ export default function PrivilegeMcpClientPage() {
       // has set privilegePromptNoneFailed, so a second /auth/start drops the user
       // on a real PingOne login page they never asked for. Any `auth` param means
       // we are returning from a round trip — hand back to the modal instead.
-      if (s.mainAppAuthenticated && !s.oauth?.authenticated) {
+      // Use s.gatewayMode (this response), not the gatewayMode state variable —
+      // this effect has an empty dep array, so that closure only ever sees the
+      // mount-time value, never a fresh one.
+      if (s.mainAppAuthenticated && !s.oauth?.authenticated && s.gatewayMode !== 'direct') {
         if (searchParams.get('auth')) {
           requestSignIn();
         } else {
@@ -435,7 +438,10 @@ export default function PrivilegeMcpClientPage() {
       const saved = await api('/config', { method: 'POST', body: { ...config, gatewayMode } });
       savedMcpUrlRef.current = config.mcpUrl;
       setGatewayConfigs(saved.gatewayConfigs || gatewayConfigs);
-      if (!urlChanged) {
+      // Direct has no auth front door at all — re-auth is meaningless there,
+      // and would send the browser to /auth/start with nothing configured to
+      // authenticate against.
+      if (!urlChanged || gatewayMode === 'direct') {
         appendChat('system', 'Configuration saved.');
         return;
       }
@@ -471,6 +477,12 @@ export default function PrivilegeMcpClientPage() {
       });
       savedMcpUrlRef.current = nextConfig.mcpUrl;
       setGatewayConfigs(saved.gatewayConfigs || gatewayConfigs);
+      // Direct has no auth front door — nothing to redirect to /auth/start for.
+      // Tools are reachable immediately.
+      if (nextMode === 'direct') {
+        refreshTools(true);
+        return;
+      }
       setSwitching(true);
       try { sessionStorage.setItem('cur_priv_switching', '1'); } catch { /* storage disabled */ }
       const data = await api('/auth/start', { method: 'POST' });
@@ -1333,7 +1345,9 @@ export default function PrivilegeMcpClientPage() {
               </div>
             ) : (
               <div className="cur-btn-row">
-                {mainAppAuthenticated ? (
+                {gatewayMode === 'direct' ? (
+                  <span className="cur-auth-badge cur-auth-badge--ok">No sign-in required</span>
+                ) : mainAppAuthenticated ? (
                   <span className="cur-auth-badge cur-auth-badge--ok">Authenticated</span>
                 ) : (
                   <button className="cur-btn cur-btn--primary" onClick={startAuth}>Sign In with Privilege</button>

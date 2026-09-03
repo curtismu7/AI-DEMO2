@@ -66,11 +66,14 @@ describe("gateway presets in the Settings modal", () => {
     fireEvent.change(select, { target: { value: PRESETS[1].url } });
 
     // Choosing a preset fills the one URL field every path shares. The fields
-    // no longer come and go with the mode: all three paths authenticate the
-    // same way, which is why the retired agent mode's bare-URL form is gone.
+    // no longer come and go with the mode: privilege and façade authenticate
+    // the same way, which is why the retired agent mode's bare-URL form is
+    // gone. Direct is the exception — PRESETS[1] is mode: 'direct', which has
+    // no auth front door at all, so "Sign In with Privilege" is correctly
+    // replaced rather than staying present.
     expect(screen.getByLabelText(/MCP URL/i)).toHaveValue(PRESETS[1].url);
     expect(screen.getByLabelText(/OAuth Client ID/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Sign In with Privilege/i })).toBeInTheDocument();
+    expect(screen.getByText(/no sign-in required/i)).toBeInTheDocument();
   });
 
   it("keeps a hand-typed URL selectable as Custom", async () => {
