@@ -471,7 +471,7 @@ async function verifyDoorBearer(req, door) {
   try {
     verified = crypto.createVerify('RSA-SHA256')
       .update(`${parts[0]}.${parts[1]}`)
-      .verify(key, Buffer.from(parts[2], 'base64url'));
+      .verify(key.keyObject, Buffer.from(parts[2], 'base64url'));
   } catch {
     return { ok: false, reason: 'verify_error' };
   }

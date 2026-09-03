@@ -64,7 +64,7 @@ beforeEach(() => {
   upstreamHits = 0;
   lastUpstreamAuthHeader = null;
   jwksService.getPublicKey.mockReset();
-  jwksService.getPublicKey.mockResolvedValue(publicKey);
+  jwksService.getPublicKey.mockResolvedValue({ keyObject: publicKey, alg: 'RS256' });
 });
 
 function app() {

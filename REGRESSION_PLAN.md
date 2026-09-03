@@ -139,6 +139,57 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-03 — Privilege client stuck in a sign-in loop on both the façade and no-auth "Direct" modes
+
+**Files changed:** `demo_api_server/routes/mcpFacade.js`,
+`demo_api_server/tests/routes/mcpFacade.multiApp.test.js`,
+`demo_api_server/tests/routes/mcpFacadeDirectSiblingDoors.test.js`,
+`demo_api_server/tests/routes/mcpFacade.privilegeGatewayDoor.test.js`,
+`demo_api_server/tests/routes/mcpFacadeOpensearchDoor.test.js`,
+`demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`.
+
+**What was broken:** two independent bugs surfaced as the same symptom
+(`/privilege-mcp-client`, "Sign in to continue" looping forever).
+
+1. Every façade door has `requireBearer: true`, so `mcpFacade.js`'s
+   `verifyDoorBearer` runs RS256 verification in-process against PingOne's
+   JWKS. It passed the whole object `jwksService.getPublicKey()` resolves
+   (`{keyObject, alg, use}`) straight to `crypto.createVerify().verify()`
+   instead of `key.keyObject` — the wrong shape always throws, so every
+   token, valid or not, was denied with `reason: verify_error`. The
+   function's own doc comment predicted this exact failure mode ("a raw,
+   unconverted JWK... crypto.Verify rejects outright") without the code
+   actually avoiding it. The four affected tests' mocks matched the bug
+   (`mockResolvedValue(publicKey)` / a PEM string) rather than jwksService's
+   real contract, so they gave false confidence.
+2. `GATEWAY_MODES.direct` ("Direct to MCP") is documented in its own `detail`
+   string as having no auth at all — but the page's silent-auto-connect
+   `useEffect` and every `isGatewayAuthChallenge` catch handler called
+   `setShowSignInModal(true)` unconditionally, with no `gatewayMode` check.
+   This is a regression from the 2026-08-20 entry below ("Agent mode no
+   longer renders page-managed authentication controls") — that guard did
+   not survive the 2026-09-02 Agent/Agentless → direct/privilege/facade
+   `GATEWAY_MODES` rename.
+
+**What was fixed:** `verifyDoorBearer` now verifies against `key.keyObject`
+(matching the two other real callers of `jwksService.getPublicKey`,
+`tokenVerificationService.js` and `resourceServerTesterService.js`); the four
+test mocks now resolve `{ keyObject: publicKey, alg: 'RS256' }` instead of a
+bare key or PEM string. `PrivilegeMcpClientPage.jsx` adds one `requestSignIn()`
+helper that no-ops when `gatewayMode === 'direct'`; all seven
+`setShowSignInModal(true)` call sites now route through it.
+
+**Do not break:** `verifyDoorBearer` must keep failing closed on a genuinely
+malformed key (`mcpFacadeOpensearchDoor.test.js`'s `{ not: 'a usable key' }`
+cases still expect `verify_error`) — only the real-key path changed.
+`privilege` and `facade` modes must keep showing the sign-in modal on a 401;
+only `direct` mode is exempt.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/routes/mcpFacade.multiApp.test.js tests/routes/mcpFacadeDirectSiblingDoors.test.js tests/routes/mcpFacadeModernHeaders.test.js tests/routes/mcpFacade.test.js tests/routes/mcpFacadeOpensearchDoor.test.js tests/routes/mcpFacade.privilegeGatewayDoor.test.js tests/routes/mcpFacadeAuditDoor.test.js --forceExit --runInBand`
+(70/70); `cd demo_api_ui && npx vitest run src/pages/__tests__/PrivilegeMcpClientPage.blockedBand.test.jsx src/pages/__tests__/PrivilegeMcpClientPage.gatewaySwitch.test.jsx src/pages/__tests__/PrivilegeMcpClientPage.doorPicker.test.jsx src/pages/__tests__/PrivilegeMcpClientPage.gatewayPresets.test.jsx src/pages/__tests__/PrivilegeMcpClientPage.silentAutoConnect.test.jsx src/pages/__tests__/PrivilegeMcpClientPage.policyPicker.test.jsx`
+(27/27); `npm run build` (exit 0). Not yet verified live against the deployed
+SE cluster (`ai-demo.ping-devops.com`) — only unit-level.
+
 ### 2026-09-03 — DaVinci login's re-auth screen was pre-filled with the admin username
 
 **Files changed:** `demo_api_server/services/oauthService.js`,
