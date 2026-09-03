@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import JsonHighlight from "../components/shared/JsonHighlight";
 import { getSdkClient, isSdkError } from "../lib/oidcSdkClient";
+import { decodeJWT } from "../services/tokenInspector";
+
+// tokens.<field> -> tab label, in display order.
+const TOKEN_TABS = [
+  ["accessToken", "Access Token"],
+  ["idToken", "ID Token"],
+  ["refreshToken", "Refresh Token"],
+];
 
 // OIDC Centralized Login sandbox (/sdk-login).
 //
@@ -192,6 +200,7 @@ export default function SdkLoginPage() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState(null); // { ok, text } after revoke/logout
   const [exercise, setExercise] = useState('');
+  const [inspectTokenType, setInspectTokenType] = useState('accessToken');
 
   const toggleTheme = useCallback(() => {
     setTheme((t) => {
@@ -479,9 +488,57 @@ export default function SdkLoginPage() {
             <div id="sdk-lifecycle" style={{ marginTop: 18, borderTop: `1px solid ${C.border}`, paddingTop: 14 }}>
               <div style={styles.cardH}>Token lifecycle exercises</div>
               <div style={styles.row}>
-                {['Inspect token', 'Refresh session', 'Revoke token'].map((label) => <button key={label} type="button" style={{ ...styles.btn, ...styles.btnGhost }} onClick={() => lifecycleExercise(label)}>{label}</button>)}
+                {['Inspect token', 'Refresh session', 'Revoke token'].map((label) => {
+                  const active = exercise === label;
+                  return (
+                    <button
+                      key={label}
+                      type="button"
+                      // Full `border` (not `styles.btnGhost`'s `borderColor`) on both
+                      // branches — mixing shorthand/longhand across a toggled style
+                      // triggers React's "removing a style property" DOM warning.
+                      style={{ ...styles.btn, background: active ? C.blue : "transparent", color: active ? "#fff" : C.text, border: active ? "1px solid transparent" : `1px solid ${C.border}` }}
+                      onClick={() => lifecycleExercise(label)}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
               </div>
-              {exercise && <p style={styles.note}>Selected: <b>{exercise}</b>. Observe <code>client.token.get()</code>, expiry, storage, and revocation behavior in this panel.</p>}
+              {exercise && exercise !== 'Inspect token' && <p style={styles.note}>Selected: <b>{exercise}</b>. Observe <code>client.token.get()</code>, expiry, storage, and revocation behavior in this panel.</p>}
+              {exercise === 'Inspect token' && tokens && (() => {
+                const available = TOKEN_TABS.filter(([key]) => tokens[key]);
+                const activeKey = available.some(([key]) => key === inspectTokenType) ? inspectTokenType : available[0]?.[0];
+                const raw = tokens[activeKey];
+                const decoded = decodeJWT(raw);
+                return (
+                  <div style={{ marginTop: 10 }}>
+                    <div style={styles.row}>
+                      {available.map(([key, label]) => {
+                        const active = activeKey === key;
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            style={{ ...styles.btn, padding: '6px 12px', fontSize: 12.5, background: active ? C.blue : "transparent", color: active ? "#fff" : C.text, border: active ? "1px solid transparent" : `1px solid ${C.border}` }}
+                            onClick={() => setInspectTokenType(key)}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div style={styles.label}>Encoded</div>
+                    <pre className={preClass} style={{ ...styles.pre, wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{raw || '(none)'}</pre>
+                    <div style={styles.label}>Decoded</div>
+                    <pre className={preClass} style={styles.pre}>
+                      {decoded.isValid
+                        ? <JsonHighlight value={{ header: decoded.header, payload: decoded.payload }} />
+                        : (decoded.error || 'Unable to decode')}
+                    </pre>
+                  </div>
+                );
+              })()}
             </div>
             <p style={styles.note}>
               <b>Revoke token</b> → <code>client.token.revoke()</code> (revokes the access token,
