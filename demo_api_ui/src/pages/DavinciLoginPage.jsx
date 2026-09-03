@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchWidgetConfig, loadWidget } from "../lib/davinciWidgetClient";
 import "./DavinciLoginPage.css";
 
@@ -7,9 +7,9 @@ import "./DavinciLoginPage.css";
 // protected BFF redirect login (routes/oauth.js). See
 // docs/superpowers/specs/2026-08-17-davinci-orchestration-showcase-design.md.
 //
-// Identifier-first: the flow declares `username` in its Input Schema, so the BFF
-// cannot mint an SDK token until we have one. The page collects it, then the
-// widget renders the rest of the flow (password, Protect branch, MFA).
+// username is optional in the flow's Input Schema, so the flow's own Sign On
+// screen collects it — this page starts the flow immediately with no
+// identifier field of its own.
 //
 // The widget ends at a DaVinci sessionToken, not an OIDC code — Ping's docs tie
 // OIDC issuance to the redirect integration, and the two are mutually exclusive
@@ -19,17 +19,19 @@ import "./DavinciLoginPage.css";
 // /davinci-login/callback with a code plus an ID token echoing the BFF's nonce.
 
 export default function DavinciLoginPage() {
-  const [status, setStatus] = useState("identify"); // identify | loading | flow | error
-  const [username, setUsername] = useState("");
+  const [status, setStatus] = useState("loading"); // loading | flow | error
   const [error, setError] = useState(null);
   const [flowVersion, setFlowVersion] = useState(null);
   const containerRef = useRef(null);
+  // skRenderScreen mutates the container directly. StrictMode double-invokes
+  // effects, so without this the flow renders twice into the same node.
+  const renderedRef = useRef(false);
 
-  const start = useCallback(async (name) => {
+  const start = useCallback(async () => {
     setStatus("loading");
     setError(null);
     try {
-      const cfg = await fetchWidgetConfig(name);
+      const cfg = await fetchWidgetConfig();
       setFlowVersion(cfg.flowVersion || null);
       const davinci = await loadWidget();
       setStatus("flow");
@@ -61,9 +63,15 @@ export default function DavinciLoginPage() {
     }
   }, []);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (username.trim()) start(username.trim());
+  useEffect(() => {
+    if (renderedRef.current) return;
+    renderedRef.current = true;
+    start();
+  }, [start]);
+
+  const retry = () => {
+    renderedRef.current = true;
+    start();
   };
 
   return (
@@ -72,34 +80,14 @@ export default function DavinciLoginPage() {
       {flowVersion && <p className="dvl-version">Flow version: {flowVersion}</p>}
 
       {error && <div className="dvl-error">{error}</div>}
-
-      {status === "identify" && (
-        <form onSubmit={handleSubmit}>
-          <label className="dvl-label" htmlFor="dvl-username">
-            Username
-          </label>
-          <input
-            id="dvl-username"
-            className="dvl-input"
-            type="text"
-            autoComplete="username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-          />
-          <button type="submit" className="dvl-retry" disabled={!username.trim()}>
-            Continue
-          </button>
-        </form>
-      )}
-
       {status === "loading" && <p className="dvl-status">Starting the DaVinci flow...</p>}
 
       {/* Always mounted: skRenderScreen needs the node to exist before it runs. */}
       <div ref={containerRef} className="dvWidget dvl-widget" />
 
       {status === "error" && (
-        <button type="button" className="dvl-retry" onClick={() => setStatus("identify")}>
-          Try again
+        <button type="button" className="dvl-retry" onClick={retry}>
+          Retry
         </button>
       )}
     </div>

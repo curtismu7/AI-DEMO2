@@ -34,13 +34,12 @@ export function loadWidget() {
   return scriptPromise;
 }
 
-// The flow declares `username` in its Input Schema, so the BFF needs it before
-// it can mint an SDK token — hence the identifier-first field on the page.
-export async function fetchWidgetConfig(username) {
+// username is optional in the flow's Input Schema — the flow's own Sign On
+// screen collects it, so this page does not.
+export async function fetchWidgetConfig() {
   const res = await fetch("/api/davinci-login/sdk-token", {
     method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({ username }),
+    headers: { Accept: "application/json" },
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
