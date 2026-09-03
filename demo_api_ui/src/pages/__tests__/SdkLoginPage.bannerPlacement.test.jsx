@@ -8,27 +8,24 @@ vi.mock("../../lib/oidcSdkClient", () => ({
   isSdkError: vi.fn((result) => !result || Boolean(result?.error)),
 }));
 
-describe("SdkLoginPage — banner scroll", () => {
+describe("SdkLoginPage — feedback placement", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     isSdkError.mockImplementation((result) => !result || Boolean(result?.error));
     getSdkClient.mockResolvedValue({
       token: { get: vi.fn().mockResolvedValue({ error: "no_tokens" }) },
     });
-    // jsdom's own scrollIntoView stub lives on HTMLElement.prototype, which
-    // shadows an override on Element.prototype.
-    HTMLElement.prototype.scrollIntoView = vi.fn();
   });
 
-  it("scrolls the notice banner into view when a button sets it", async () => {
+  it("renders the notice banner below the button that set it, not above", async () => {
     const user = userEvent.setup();
     render(<SdkLoginPage />);
 
-    await user.click(await screen.findByRole("button", { name: /run mfa checkpoint/i }));
+    const button = await screen.findByRole("button", { name: /run mfa checkpoint/i });
+    await user.click(button);
 
-    expect(await screen.findByText(/in-page teaching state/i)).toBeInTheDocument();
-    expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith(
-      expect.objectContaining({ block: "center" }),
-    );
+    const notice = await screen.findByText(/in-page teaching state/i);
+    // DOCUMENT_POSITION_FOLLOWING = 4: notice comes after the button in the DOM.
+    expect(button.compareDocumentPosition(notice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });

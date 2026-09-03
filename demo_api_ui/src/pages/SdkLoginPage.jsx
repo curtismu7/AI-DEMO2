@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import JsonHighlight from "../components/shared/JsonHighlight";
 import { getSdkClient, isSdkError } from "../lib/oidcSdkClient";
 
@@ -192,16 +192,6 @@ export default function SdkLoginPage() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState(null); // { ok, text } after revoke/logout
   const [exercise, setExercise] = useState('');
-  // The error/notice banner renders once, near the top of the page, while the
-  // buttons that set it (revoke, logout, lifecycle exercises, MFA checkpoint)
-  // live further down a page long enough to scroll. Without this, clicking any
-  // of them updates the banner off-screen and looks like the click did nothing.
-  const bannerRef = useRef(null);
-  useEffect(() => {
-    if (error || notice) {
-      bannerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-  }, [error, notice]);
 
   const toggleTheme = useCallback(() => {
     setTheme((t) => {
@@ -372,17 +362,6 @@ export default function SdkLoginPage() {
           </div>
         </section>
 
-        {(error || notice) && (
-          <div ref={bannerRef}>
-            {error && (
-              <div style={styles.banner(false)}>
-                <b>Error:</b> {error}
-              </div>
-            )}
-            {notice && <div style={styles.banner(notice.ok)}>{notice.text}</div>}
-          </div>
-        )}
-
         {status === "loading" && (
           <div style={styles.card}>
             <div style={styles.cardH}>SDK session</div>
@@ -517,6 +496,13 @@ export default function SdkLoginPage() {
           <p style={{ color: C.muted, marginTop: 0 }}>MFA is a checkpoint on an existing session, not a second login. This page does not redirect: trigger the protected action, let PingOne policy challenge the current subject, then verify the returned <code>acr</code>/<code>amr</code> claims.</p>
           <div style={{ ...styles.row, marginTop: 10 }}><button type="button" style={{ ...styles.btn, ...styles.btnPrimary }} onClick={startMfaCheckpoint} disabled={busy}>Run MFA checkpoint</button><span style={{ ...styles.note, marginTop: 0 }}>No login redirect; no MFA secret is stored in this browser.</span></div>
         </section>
+
+        {error && (
+          <div style={styles.banner(false)}>
+            <b>Error:</b> {error}
+          </div>
+        )}
+        {notice && <div style={styles.banner(notice.ok)}>{notice.text}</div>}
       </div>
     </div>
   );
