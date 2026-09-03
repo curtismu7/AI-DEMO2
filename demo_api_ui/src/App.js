@@ -778,9 +778,9 @@ function AppWithAuth() {
                   element={<SdkLoginPageRoute />}
                 />
                 <Route path="/sdk-login/callback" element={<SdkLoginCallbackRoute />} />
-                <Route path="/davinci-login" element={<DavinciLoginPageRoute />} />
-                <Route path="/davinci-login/callback" element={<DavinciLoginCallbackRoute />} />
-                <Route path="/davinci-login/confirmed" element={<DavinciLoginConfirmedRoute />} />
+                <Route path="/davinci-login" element={<DavinciLoginPageRoute user={user} logout={logout} />} />
+                <Route path="/davinci-login/callback" element={<DavinciLoginCallbackRoute user={user} logout={logout} />} />
+                <Route path="/davinci-login/confirmed" element={<DavinciLoginConfirmedRoute user={user} logout={logout} />} />
                 <Route path="/davinci-orchestration" element={<DavinciExplainerRoute user={user} logout={logout} />} />
                 <Route path="/ciba-approve" element={<CibaApprovalPageRoute />} />
                 <Route

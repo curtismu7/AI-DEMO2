@@ -365,21 +365,36 @@ export function SdkLoginPageRoute() {
 }
 
 // DaVinci widget login sandbox (public) — drives its own browser-side flow.
-export function DavinciLoginPageRoute() {
-  return <DavinciLoginPage />;
+// AppShell-wrapped like /dashboard: TopNav and the side nav render fine with
+// user=null (both are optional-chained), and it's what gives the page the
+// main-content flex layout that keeps the footer pinned to the bottom.
+export function DavinciLoginPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <DavinciLoginPage />
+    </AppShell>
+  );
 }
 
-// OIDC redirect callback for the widget login (bare — it exchanges the code
-// and redirects). Public: the user is not signed in until this route finishes.
-export function DavinciLoginCallbackRoute() {
-  return <DavinciLoginCallback />;
+// OIDC redirect callback for the widget login — it exchanges the code and
+// redirects. Public: the user is not signed in until this route finishes.
+export function DavinciLoginCallbackRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <DavinciLoginCallback />
+    </AppShell>
+  );
 }
 
 // Post-login landing page — confirms who the widget flow signed in as, the
 // way a resource-server checkpoint confirms what just happened before
 // dropping the user back into the app.
-export function DavinciLoginConfirmedRoute() {
-  return <DavinciLoginConfirmedPage />;
+export function DavinciLoginConfirmedRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <DavinciLoginConfirmedPage />
+    </AppShell>
+  );
 }
 
 // DaVinci Orchestration explainer — signed-in, AppShell-wrapped (reached from
