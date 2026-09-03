@@ -130,6 +130,7 @@ const LMSTUDIO_PROVIDERS = new Set(['anthropic-lmstudio', 'lmstudio']);
 const CLAUDE_PROVIDERS = new Set(['anthropic']);
 const GOOGLE_PROVIDERS = new Set(['google']);
 const PRIVILEGE_LLM_PROVIDERS = new Set(['privilege_llm']);
+const PRIVILEGE_CLAUDE_PROVIDERS = new Set(['privilege_claude']);
 const LLAMACPP_PROVIDERS = new Set(['llamacpp']);
 const MLX_PROVIDERS = new Set(['mlx']);
 
@@ -704,6 +705,32 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
       if (err.code === 'llm_policy_denied') throw err;
       llmBreaker.recordFailure('privilege_llm');
       console.warn('[nlIntent] Privilege LLM intent error:', err.message);
+      return { source: 'heuristic', result: heuristicResult, llm_attempted: true };
+    }
+  }
+
+  // Claude via the PingOne Privilege virtual key — Anthropic sibling of the
+  // privilege_llm branch above; same denial-propagation contract.
+  if (PRIVILEGE_CLAUDE_PROVIDERS.has(selectedProvider)) {
+    if (llmBreaker.isOpen('privilege_claude')) {
+      console.warn('[nlIntent] privilege_claude breaker open — skipping provider, using deterministic ladder');
+      return { source: 'heuristic', result: heuristicResult, llm_attempted: false, breaker_open: true };
+    }
+    const systemWithCtx = buildSystemWithCtx(activeVertical, context);
+    try {
+      const { callPrivilegeClaude } = require('./privilegeLlmProxyService');
+      const rawText = await callPrivilegeClaude([
+        { role: 'system', content: systemWithCtx },
+        { role: 'user', content: message },
+      ], langchainConfig);
+      llmBreaker.recordSuccess('privilege_claude');
+      const parsed = tryParseIntentJson(rawText);
+      if (parsed) return logAndReturn({ source: 'privilege_claude', result: parsed });
+      llmAttempted = true;
+    } catch (err) {
+      if (err.code === 'llm_policy_denied') throw err;
+      llmBreaker.recordFailure('privilege_claude');
+      console.warn('[nlIntent] Privilege Claude intent error:', err.message);
       return { source: 'heuristic', result: heuristicResult, llm_attempted: true };
     }
   }

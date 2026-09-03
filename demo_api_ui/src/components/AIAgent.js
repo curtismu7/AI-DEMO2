@@ -269,7 +269,7 @@ const NL_FAILURE_MESSAGES = {
   gateway_policy_denied:
     "That step was declined by the gateway's authorization policy — no changes were made.",
   llm_policy_denied:
-    "PingOne Privilege blocked this request before it reached Google — the virtual key's policy layer denied it based on the prompt content.",
+    "PingOne Privilege blocked this request before it reached the LLM provider — the virtual key's policy layer denied it based on the prompt content.",
   mcp_authorization_denied:
     "That step was declined by the authorization policy — no changes were made.",
   mcp_authorize_unavailable:

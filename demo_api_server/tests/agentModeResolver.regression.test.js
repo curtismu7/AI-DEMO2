@@ -17,6 +17,11 @@ describe('resolveAgentMode (five single-brain modes)', () => {
       mode: 'claude', provider: 'anthropic', heuristicRouting: false, externalWiring: 'platform',
     });
   });
+  test('privilege_claude: privilege_claude provider, routing off, defaults to bff wiring', () => {
+    expect(resolveAgentMode('privilege_claude')).toEqual({
+      mode: 'privilege_claude', provider: 'privilege_claude', heuristicRouting: false, externalWiring: 'bff',
+    });
+  });
   test('gemini: google provider, routing off, defaults to bff wiring', () => {
     expect(resolveAgentMode('gemini')).toEqual({
       mode: 'gemini', provider: 'google', heuristicRouting: false, externalWiring: 'bff',
@@ -46,7 +51,7 @@ describe('resolveAgentMode (five single-brain modes)', () => {
     // privilege_llm follows immediately after: same backend, proxied through
     // a Privilege virtual key so the call can be denied by policy.
     expect(AGENT_MODES.map((m) => m.id)).toEqual([
-      'heuristics', 'gemini', 'privilege_llm', 'llamacpp', 'mlx', 'claude', 'helix_google', 'groq',
+      'heuristics', 'gemini', 'privilege_llm', 'llamacpp', 'mlx', 'claude', 'privilege_claude', 'helix_google', 'groq',
     ]);
   });
 

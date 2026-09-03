@@ -34,6 +34,8 @@ export const AGENT_MODES = [
   { id: "llamacpp",     label: "llama.cpp",     provider: "llamacpp",  pure: true  },
   { id: "mlx",          label: "MLX",           provider: "mlx",       pure: true  },
   { id: "claude",       label: "Anthropic",     provider: "anthropic", pure: true  },
+  // Same idea as privilege_llm, proxied Anthropic instead of Google.
+  { id: "privilege_claude", label: "Claude via Privilege", provider: "privilege_claude", pure: true },
   { id: "helix_google", label: "Helix",         provider: "helix",     pure: true  },
   { id: "groq",         label: "Groq",          provider: "groq",      pure: true  },
 ];
@@ -49,6 +51,7 @@ const SOURCE_LABELS = {
   mlx: "MLX",
   claude: "Anthropic",
   anthropic: "Anthropic",
+  privilege_claude: "Claude via Privilege",
   groq: "Groq",
   lmstudio: "LM Studio",
   "anthropic-lmstudio": "LM Studio",
