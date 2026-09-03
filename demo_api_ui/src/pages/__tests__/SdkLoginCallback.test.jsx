@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import SdkLoginCallback from "../SdkLoginCallback";
 import { getSdkClient, isSdkError } from "../../lib/oidcSdkClient";
 
@@ -17,24 +17,41 @@ describe("SdkLoginCallback", () => {
 
   function renderAt(search) {
     // The component reads window.location.search directly (not react-router's
-    // location), so the URL has to be set on the jsdom window itself.
+    // location), so the URL has to be set on the jsdom window itself. A real
+    // /sdk-login route is included so navigate("/sdk-login") is observable.
     window.history.pushState({}, "", `/sdk-login/callback${search}`);
     return render(
-      <MemoryRouter>
-        <SdkLoginCallback />
+      <MemoryRouter initialEntries={[`/sdk-login/callback${search}`]}>
+        <Routes>
+          <Route path="/sdk-login/callback" element={<SdkLoginCallback />} />
+          <Route path="/sdk-login" element={<div>SIGN IN PAGE</div>} />
+        </Routes>
       </MemoryRouter>,
     );
   }
 
-  it("shows a clear message on a reload of an already-attempted code, without re-exchanging", async () => {
+  it("on a reload of an already-attempted code, auto-recovers to the sign-in page without an error screen", async () => {
     sessionStorage.setItem("sdk-login-attempted-code", "usedcode");
+    const revoke = vi.fn().mockResolvedValue({});
+    getSdkClient.mockResolvedValue({ token: { revoke } });
 
     renderAt("?code=usedcode&state=somestate");
 
-    expect(
-      await screen.findByText(/already been used/i),
-    ).toBeInTheDocument();
-    expect(getSdkClient).not.toHaveBeenCalled();
+    expect(await screen.findByText("SIGN IN PAGE")).toBeInTheDocument();
+    expect(revoke).toHaveBeenCalled();
+    expect(screen.queryByText(/already been used/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/state mismatch/i)).not.toBeInTheDocument();
+  });
+
+  it("on a failed exchange, auto-recovers to the sign-in page without an error screen", async () => {
+    const exchange = vi.fn().mockResolvedValue({ error: "state_error" });
+    const revoke = vi.fn().mockResolvedValue({});
+    getSdkClient.mockResolvedValue({ token: { exchange, revoke } });
+
+    renderAt("?code=badcode&state=somestate");
+
+    expect(await screen.findByText("SIGN IN PAGE")).toBeInTheDocument();
+    expect(revoke).toHaveBeenCalled();
   });
 
   it("exchanges a fresh code normally and records it as attempted", async () => {
@@ -43,7 +60,7 @@ describe("SdkLoginCallback", () => {
 
     renderAt("?code=freshcode&state=somestate");
 
-    await screen.findByText(/Completing sign-in/i);
+    expect(await screen.findByText("SIGN IN PAGE")).toBeInTheDocument();
     expect(exchange).toHaveBeenCalledWith("freshcode", "somestate");
     expect(sessionStorage.getItem("sdk-login-attempted-code")).toBe("freshcode");
   });
