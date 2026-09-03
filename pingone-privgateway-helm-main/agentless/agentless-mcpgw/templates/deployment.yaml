@@ -17,6 +17,17 @@ spec:
       labels:
         app: {{ include "agentless-mcpgw.name" . }}
     spec:
+      {{- /*
+        The pod had no imagePullSecrets at all, which is fine for the gateway's
+        own public image but means any private sidecar added via extraContainers
+        dies in ImagePullBackOff with a GHCR 401 — the namespace can hold a
+        perfectly good pull secret and the pod will never reference it.
+        Local addition to the vendored chart, like extraContainers below.
+      */}}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       initContainers:
         # Copy TLS cert into the SSL PVC so the gateway can start in TLS mode
         - name: copy-mcpgw-cert
