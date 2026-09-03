@@ -63,6 +63,18 @@ function armLoginFlow(req, cb) {
 // NOT returned to the caller: the browser never needs it and cannot tamper
 // with what it never sees.
 router.post('/sdk-token', async (req, res) => {
+  // The flow declares `username` in its Input Schema, so DaVinci rejects the
+  // whole request without it. Validated here rather than passed through: this
+  // is the trust boundary, and an object or a huge string would go straight
+  // into the upstream call.
+  const username = typeof (req.body || {}).username === 'string' ? req.body.username.trim() : '';
+  if (!username || username.length > 320) {
+    return res.status(400).json({
+      error: 'invalid_request',
+      message: 'A username is required to start the DaVinci flow.',
+    });
+  }
+
   const { companyId, apiKey, policyIdV1, policyIdV2 } = davinciConfig.login;
   const version = configStore.getEffective('davinci_login_flow_version') || 'v1';
   const policyId = version === 'v2' ? policyIdV2 : policyIdV1;
@@ -91,7 +103,9 @@ router.post('/sdk-token', async (req, res) => {
     try {
       const { data } = await axios.post(
         `${ORCHESTRATE_BASE}/company/${companyId}/sdktoken`,
-        { policyId, parameters: { nonce } },
+        // Both are declared in the flow's Input Schema; DaVinci rejects any
+        // undeclared property with "data has additional properties".
+        { policyId, parameters: { nonce, username } },
         { headers: { 'X-SK-API-KEY': apiKey, 'Content-Type': 'application/json' }, timeout: 10_000 }
       );
       if (!data || !data.access_token) {

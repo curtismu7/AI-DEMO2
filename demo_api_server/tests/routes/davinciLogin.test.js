@@ -207,7 +207,7 @@ describe('POST /api/davinci-login/sdk-token', () => {
     axios.post.mockResolvedValue({ data: { success: true, access_token: 'sdk-tok-1' } });
     const sess = {};
 
-    const res = await request(buildApp(sess)).post('/api/davinci-login/sdk-token');
+    const res = await request(buildApp(sess)).post('/api/davinci-login/sdk-token').send({ username: 'demouser' });
 
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({
@@ -229,7 +229,12 @@ describe('POST /api/davinci-login/sdk-token', () => {
     expect(sess.davinciLoginNonce).toMatch(/^[0-9a-f]{32}$/);
     const [url, body, opts] = axios.post.mock.calls[0];
     expect(url).toBe('https://orchestrate-api.pingone.com/v1/company/co-1/sdktoken');
-    expect(body).toEqual({ policyId: 'pol-v1', parameters: { nonce: sess.davinciLoginNonce } });
+    // Both parameters are declared in the flow's Input Schema; DaVinci rejects
+    // any undeclared property with "data has additional properties".
+    expect(body).toEqual({
+      policyId: 'pol-v1',
+      parameters: { nonce: sess.davinciLoginNonce, username: 'demouser' },
+    });
     expect(opts.headers['X-SK-API-KEY']).toBe('sk-secret-key');
   });
 
@@ -237,7 +242,7 @@ describe('POST /api/davinci-login/sdk-token', () => {
     axios.post.mockResolvedValue({ data: { access_token: 'sdk-tok-1' } });
     const sess = {};
 
-    const res = await request(buildApp(sess)).post('/api/davinci-login/sdk-token');
+    const res = await request(buildApp(sess)).post('/api/davinci-login/sdk-token').send({ username: 'demouser' });
 
     const serialized = JSON.stringify(res.body);
     expect(serialized).not.toContain('sk-secret-key');
@@ -255,7 +260,7 @@ describe('POST /api/davinci-login/sdk-token', () => {
     });
     axios.post.mockResolvedValue({ data: { access_token: 'sdk-tok-2' } });
 
-    const res = await request(buildApp({})).post('/api/davinci-login/sdk-token');
+    const res = await request(buildApp({})).post('/api/davinci-login/sdk-token').send({ username: 'demouser' });
 
     expect(res.body.policyId).toBe('pol-v2');
     expect(res.body.flowVersion).toBe('v2');
@@ -266,7 +271,7 @@ describe('POST /api/davinci-login/sdk-token', () => {
     configStore.getEffective.mockReturnValue('');
     const sess = {};
 
-    const res = await request(buildApp(sess)).post('/api/davinci-login/sdk-token');
+    const res = await request(buildApp(sess)).post('/api/davinci-login/sdk-token').send({ username: 'demouser' });
 
     expect(res.status).toBe(503);
     expect(res.body.error).toBe('davinci_not_configured');
@@ -282,7 +287,7 @@ describe('POST /api/davinci-login/sdk-token', () => {
   test('502 when DaVinci responds without an access_token', async () => {
     axios.post.mockResolvedValue({ data: { success: false, httpResponseCode: 400 } });
 
-    const res = await request(buildApp({})).post('/api/davinci-login/sdk-token');
+    const res = await request(buildApp({})).post('/api/davinci-login/sdk-token').send({ username: 'demouser' });
 
     expect(res.status).toBe(502);
     expect(res.body.error).toBe('davinci_sdk_token_failed');
@@ -296,7 +301,7 @@ describe('POST /api/davinci-login/sdk-token', () => {
       })
     );
 
-    const res = await request(buildApp({})).post('/api/davinci-login/sdk-token');
+    const res = await request(buildApp({})).post('/api/davinci-login/sdk-token').send({ username: 'demouser' });
 
     expect(res.status).toBe(401);
     expect(res.body.error).toBe('davinci_sdk_token_failed');
@@ -357,5 +362,37 @@ describe('POST /api/davinci-login/callback session-held PKCE', () => {
     expect(res.status).toBe(400);
     expect(res.body.error).toBe('invalid_request');
     expect(oauthService.exchangeCodeForToken).not.toHaveBeenCalled();
+  });
+});
+
+describe('POST /api/davinci-login/sdk-token username validation', () => {
+  const ENV2 = {
+    PINGONE_DAVINCI_LOGIN_COMPANY_ID: 'co-1',
+    PINGONE_DAVINCI_LOGIN_POLICY_ID_V1: 'pol-v1',
+  };
+  const saved2 = {};
+  beforeEach(() => {
+    axios.post.mockReset();
+    configStore.getEffective.mockReset().mockImplementation((k) =>
+      k === 'pingone_davinci_api_key' ? 'sk-secret-key' : ''
+    );
+    Object.keys(ENV2).forEach((k) => { saved2[k] = process.env[k]; process.env[k] = ENV2[k]; });
+  });
+  afterEach(() => {
+    Object.keys(ENV2).forEach((k) => {
+      if (saved2[k] === undefined) delete process.env[k]; else process.env[k] = saved2[k];
+    });
+  });
+
+  test('400 with no upstream call when the username is missing or not a string', async () => {
+    for (const body of [{}, { username: '   ' }, { username: { evil: 1 } }]) {
+      const res = await request(buildApp({}))
+        .post('/api/davinci-login/sdk-token')
+        .send(body);
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('invalid_request');
+    }
+    expect(axios.post).not.toHaveBeenCalled();
   });
 });

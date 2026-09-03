@@ -67,7 +67,7 @@ const DAVINCI_ENV = {
 /** Arms a nonce the way production does, and returns it. */
 async function arm(agent) {
   mockAxios.post.mockResolvedValue({ data: { access_token: 'sdk-tok' } });
-  const res = await agent.post('/api/davinci-login/sdk-token');
+  const res = await agent.post('/api/davinci-login/sdk-token').send({ username: 'demouser' });
   // The nonce never comes back over the wire — read it off the authorize URL
   // the route built, which is the same value it bound to the session.
   return new URL(res.body.authorizeUrl).searchParams.get('nonce');
@@ -121,7 +121,7 @@ test('POST /sdk-token arms a fresh nonce and never returns it', async () => {
   const agent = request.agent(makeApp());
   mockAxios.post.mockResolvedValue({ data: { access_token: 'sdk-tok' } });
 
-  const res = await agent.post('/api/davinci-login/sdk-token');
+  const res = await agent.post('/api/davinci-login/sdk-token').send({ username: 'demouser' });
 
   expect(res.status).toBe(200);
   const nonce = new URL(res.body.authorizeUrl).searchParams.get('nonce');
