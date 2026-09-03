@@ -75,16 +75,17 @@ function armLoginFlow(req, cb) {
 // NOT returned to the caller: the browser never needs it and cannot tamper
 // with what it never sees.
 router.post('/sdk-token', async (req, res) => {
-  // The flow declares `username` in its Input Schema, so DaVinci rejects the
-  // whole request without it. Validated here rather than passed through: this
-  // is the trust boundary, and an object or a huge string would go straight
-  // into the upstream call.
-  const username = typeof (req.body || {}).username === 'string' ? req.body.username.trim() : '';
-  if (!username || username.length > 320) {
-    return res.status(400).json({
-      error: 'invalid_request',
-      message: 'A username is required to start the DaVinci flow.',
-    });
+  // Optional in the flow's Input Schema: the flow's own Sign On screen collects
+  // it, so the widget page no longer does. Validated here rather than passed
+  // through: this is the trust boundary, and an object or a huge string would
+  // go straight into the upstream call.
+  const rawUsername = (req.body || {}).username;
+  if (rawUsername !== undefined && typeof rawUsername !== 'string') {
+    return res.status(400).json({ error: 'invalid_request', message: 'username must be a string.' });
+  }
+  const username = typeof rawUsername === 'string' ? rawUsername.trim() : '';
+  if (username.length > 320) {
+    return res.status(400).json({ error: 'invalid_request', message: 'username is too long.' });
   }
 
   const { companyId, apiKey, policyIdV1, policyIdV2 } = davinciConfig.login;
@@ -113,11 +114,14 @@ router.post('/sdk-token', async (req, res) => {
     }
     const { nonce, state, codeVerifier, redirectUri } = armed;
     try {
+      // `username` is optional in the flow's Input Schema — only send it when
+      // supplied, since DaVinci rejects any undeclared property with "data has
+      // additional properties" for anything NOT declared, but an empty string
+      // for an optional field is a value, not an omission.
+      const parameters = username ? { nonce, username } : { nonce };
       const { data } = await axios.post(
         `${ORCHESTRATE_BASE}/company/${companyId}/sdktoken`,
-        // Both are declared in the flow's Input Schema; DaVinci rejects any
-        // undeclared property with "data has additional properties".
-        { policyId, parameters: { nonce, username } },
+        { policyId, parameters },
         { headers: { 'X-SK-API-KEY': apiKey, 'Content-Type': 'application/json' }, timeout: 10_000 }
       );
       if (!data || !data.access_token) {

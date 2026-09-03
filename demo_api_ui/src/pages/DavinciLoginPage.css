@@ -36,24 +36,6 @@
   margin-bottom: 12px;
 }
 
-.dvl-label {
-  display: block;
-  margin-bottom: 4px;
-  color: var(--th-text);
-}
-
-.dvl-input {
-  display: block;
-  width: 100%;
-  font: inherit;
-  color: var(--th-text);
-  background: var(--th-bg-card);
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-md);
-  padding: 8px 10px;
-  margin-bottom: 12px;
-}
-
 /* The widget injects its own markup here; give it room without styling into it. */
 .dvl-widget {
   min-height: 1px;

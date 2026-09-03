@@ -203,11 +203,13 @@ describe('POST /api/davinci-login/sdk-token', () => {
     });
   });
 
-  test('mints a token, binds the nonce to the session, and passes it to the flow', async () => {
+  test('mints a token with no username, binds the nonce to the session, and passes it to the flow', async () => {
     axios.post.mockResolvedValue({ data: { success: true, access_token: 'sdk-tok-1' } });
     const sess = {};
 
-    const res = await request(buildApp(sess)).post('/api/davinci-login/sdk-token').send({ username: 'demouser' });
+    // username is optional in the flow's Input Schema — the widget page sends
+    // none, since the flow's own Sign On screen collects it.
+    const res = await request(buildApp(sess)).post('/api/davinci-login/sdk-token');
 
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({
@@ -229,20 +231,30 @@ describe('POST /api/davinci-login/sdk-token', () => {
     expect(sess.davinciLoginNonce).toMatch(/^[0-9a-f]{32}$/);
     const [url, body, opts] = axios.post.mock.calls[0];
     expect(url).toBe('https://orchestrate-api.pingone.com/v1/company/co-1/sdktoken');
-    // Both parameters are declared in the flow's Input Schema; DaVinci rejects
-    // any undeclared property with "data has additional properties".
+    // username is declared optional in the flow's Input Schema — omitted
+    // entirely rather than sent as an empty string, since DaVinci treats an
+    // empty string as a value for the field, not as "not supplied".
     expect(body).toEqual({
       policyId: 'pol-v1',
-      parameters: { nonce: sess.davinciLoginNonce, username: 'demouser' },
+      parameters: { nonce: sess.davinciLoginNonce },
     });
     expect(opts.headers['X-SK-API-KEY']).toBe('sk-secret-key');
+  });
+
+  test('includes username in parameters when the caller supplies one', async () => {
+    axios.post.mockResolvedValue({ data: { access_token: 'sdk-tok-1' } });
+
+    const res = await request(buildApp({})).post('/api/davinci-login/sdk-token').send({ username: 'demouser' });
+
+    expect(res.status).toBe(200);
+    expect(axios.post.mock.calls[0][1].parameters).toMatchObject({ username: 'demouser' });
   });
 
   test('never returns the DaVinci API key or the nonce to the browser', async () => {
     axios.post.mockResolvedValue({ data: { access_token: 'sdk-tok-1' } });
     const sess = {};
 
-    const res = await request(buildApp(sess)).post('/api/davinci-login/sdk-token').send({ username: 'demouser' });
+    const res = await request(buildApp(sess)).post('/api/davinci-login/sdk-token');
 
     const serialized = JSON.stringify(res.body);
     expect(serialized).not.toContain('sk-secret-key');
@@ -260,7 +272,7 @@ describe('POST /api/davinci-login/sdk-token', () => {
     });
     axios.post.mockResolvedValue({ data: { access_token: 'sdk-tok-2' } });
 
-    const res = await request(buildApp({})).post('/api/davinci-login/sdk-token').send({ username: 'demouser' });
+    const res = await request(buildApp({})).post('/api/davinci-login/sdk-token');
 
     expect(res.body.policyId).toBe('pol-v2');
     expect(res.body.flowVersion).toBe('v2');
@@ -271,7 +283,7 @@ describe('POST /api/davinci-login/sdk-token', () => {
     configStore.getEffective.mockReturnValue('');
     const sess = {};
 
-    const res = await request(buildApp(sess)).post('/api/davinci-login/sdk-token').send({ username: 'demouser' });
+    const res = await request(buildApp(sess)).post('/api/davinci-login/sdk-token');
 
     expect(res.status).toBe(503);
     expect(res.body.error).toBe('davinci_not_configured');
@@ -287,7 +299,7 @@ describe('POST /api/davinci-login/sdk-token', () => {
   test('502 when DaVinci responds without an access_token', async () => {
     axios.post.mockResolvedValue({ data: { success: false, httpResponseCode: 400 } });
 
-    const res = await request(buildApp({})).post('/api/davinci-login/sdk-token').send({ username: 'demouser' });
+    const res = await request(buildApp({})).post('/api/davinci-login/sdk-token');
 
     expect(res.status).toBe(502);
     expect(res.body.error).toBe('davinci_sdk_token_failed');
@@ -301,7 +313,7 @@ describe('POST /api/davinci-login/sdk-token', () => {
       })
     );
 
-    const res = await request(buildApp({})).post('/api/davinci-login/sdk-token').send({ username: 'demouser' });
+    const res = await request(buildApp({})).post('/api/davinci-login/sdk-token');
 
     expect(res.status).toBe(401);
     expect(res.body.error).toBe('davinci_sdk_token_failed');
@@ -384,15 +396,32 @@ describe('POST /api/davinci-login/sdk-token username validation', () => {
     });
   });
 
-  test('400 with no upstream call when the username is missing or not a string', async () => {
-    for (const body of [{}, { username: '   ' }, { username: { evil: 1 } }]) {
-      const res = await request(buildApp({}))
-        .post('/api/davinci-login/sdk-token')
-        .send(body);
+  test('a missing or blank username is fine — it is optional in the flow', async () => {
+    axios.post.mockResolvedValue({ data: { access_token: 'sdk-tok' } });
 
-      expect(res.status).toBe(400);
-      expect(res.body.error).toBe('invalid_request');
+    for (const body of [{}, { username: '   ' }]) {
+      const res = await request(buildApp({})).post('/api/davinci-login/sdk-token').send(body);
+      expect(res.status).toBe(200);
     }
+  });
+
+  test('400 with no upstream call when username is supplied but not a string', async () => {
+    const res = await request(buildApp({}))
+      .post('/api/davinci-login/sdk-token')
+      .send({ username: { evil: 1 } });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('invalid_request');
+    expect(axios.post).not.toHaveBeenCalled();
+  });
+
+  test('400 with no upstream call when username exceeds the length cap', async () => {
+    const res = await request(buildApp({}))
+      .post('/api/davinci-login/sdk-token')
+      .send({ username: 'x'.repeat(321) });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('invalid_request');
     expect(axios.post).not.toHaveBeenCalled();
   });
 });

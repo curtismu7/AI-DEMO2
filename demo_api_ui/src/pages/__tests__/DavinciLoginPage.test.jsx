@@ -1,14 +1,16 @@
-import { render, waitFor, screen, fireEvent } from "@testing-library/react";
+import { render, waitFor } from "@testing-library/react";
 import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
 import DavinciLoginPage from "../DavinciLoginPage";
 
-// Identifier-first: the flow declares `username` in its Input Schema, so the
-// page collects one before the BFF can mint an SDK token. The page must then
-// render the DaVinci flow with that config, and on success follow the BFF's
-// authorize URL — that hop is what turns the widget's
+// The page must render the DaVinci flow with the config the BFF minted, and on
+// success follow the BFF's authorize URL — that hop is what turns the widget's
 // sessionToken into an OIDC code carrying the nonce /api/davinci-login/callback
 // verifies. Dropping it leaves the user authenticated to DaVinci but never
 // signed in to the demo, so these tests pin the wiring.
+//
+// username is optional in the flow's Input Schema (the flow's own Sign On
+// screen collects it), so the page starts the flow immediately with no
+// identifier field of its own.
 
 vi.mock("../../lib/davinciWidgetClient", () => ({
   loadWidget: vi.fn(),
@@ -48,22 +50,15 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-function submitUsername(name) {
-  fireEvent.change(screen.getByLabelText(/username/i), { target: { value: name } });
-  fireEvent.click(screen.getByRole("button", { name: /continue/i }));
-}
-
 describe("DavinciLoginPage widget rendering", () => {
-  test("does not start the flow until a username is supplied", async () => {
+  test("starts the flow immediately, with no username field of its own", async () => {
     const skRenderScreen = vi.fn();
     loadWidget.mockResolvedValue({ skRenderScreen });
 
     render(<DavinciLoginPage />);
 
-    // The BFF rejects a tokenless-username request with 400, so starting the
-    // widget before the field is filled would just burn a round trip.
-    expect(fetchWidgetConfig).not.toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: /continue/i })).toBeDisabled();
+    await waitFor(() => expect(fetchWidgetConfig).toHaveBeenCalledTimes(1));
+    expect(fetchWidgetConfig).toHaveBeenCalledWith();
   });
 
   test("renders the flow with the BFF-minted SDK token and policy", async () => {
@@ -71,10 +66,8 @@ describe("DavinciLoginPage widget rendering", () => {
     loadWidget.mockResolvedValue({ skRenderScreen });
 
     render(<DavinciLoginPage />);
-    submitUsername("demouser");
 
     await waitFor(() => expect(skRenderScreen).toHaveBeenCalledTimes(1));
-    expect(fetchWidgetConfig).toHaveBeenCalledWith("demouser");
     const [node, props] = skRenderScreen.mock.calls[0];
     expect(node).toBeInstanceOf(HTMLElement);
     expect(props.config).toMatchObject({
@@ -92,7 +85,6 @@ describe("DavinciLoginPage widget rendering", () => {
     loadWidget.mockResolvedValue({ skRenderScreen });
 
     render(<DavinciLoginPage />);
-    submitUsername("demouser");
     await waitFor(() => expect(skRenderScreen).toHaveBeenCalledTimes(1));
 
     skRenderScreen.mock.calls[0][1].successCallback({ sessionToken: "dv-session-1" });
@@ -111,7 +103,6 @@ describe("DavinciLoginPage widget rendering", () => {
     fetchWidgetConfig.mockRejectedValue(new Error("DaVinci demo is not configured."));
 
     const { findByText } = render(<DavinciLoginPage />);
-    submitUsername("demouser");
 
     await findByText(/not configured/i);
     expect(skRenderScreen).not.toHaveBeenCalled();
@@ -122,7 +113,6 @@ describe("DavinciLoginPage widget rendering", () => {
     loadWidget.mockResolvedValue({ skRenderScreen });
 
     const { findByText } = render(<DavinciLoginPage />);
-    submitUsername("demouser");
     await waitFor(() => expect(skRenderScreen).toHaveBeenCalledTimes(1));
 
     skRenderScreen.mock.calls[0][1].errorCallback({ message: "Flow policy not found" });
