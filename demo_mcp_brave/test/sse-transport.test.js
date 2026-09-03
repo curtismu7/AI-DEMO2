@@ -132,6 +132,20 @@ test('POST /messages with an unknown session says so instead of hanging', async 
   });
 });
 
+test('GET /mcp answers the same handshake, for catalog apps that pin that path', async () => {
+  await withServer(async (base) => {
+    // A Privilege MCP catalog app's backend is fixed at .../mcp and cannot be
+    // edited, so discovery — which is a GET — has to succeed on this path or
+    // the app can never be used.
+    const res = await fetch(`${base}/mcp`, { headers: { Accept: 'text/event-stream' } });
+    assert.strictEqual(res.status, 200);
+    assert.match(res.headers.get('content-type'), /text\/event-stream/);
+
+    const match = await readUntil(res.body, (buf) => buf.match(/event: endpoint\r?\ndata: (\S+)/));
+    assert.ok(match[1].startsWith('/messages?sessionId='), `endpoint was ${match[1]}`);
+  });
+});
+
 test('POST /mcp still answers directly — the existing transport is untouched', async () => {
   await withServer(async (base) => {
     const res = await fetch(`${base}/mcp`, {

@@ -150,7 +150,13 @@ const server = http.createServer(async (req, res) => {
   // — the console reported `calling "initialize": Unauthorized` and the app's
   // tool list stayed empty. Streamable HTTP below is unchanged for clients that
   // speak it.
-  if (req.method === 'GET' && req.url === '/sse') {
+  // /mcp answers the handshake on GET too. Apps added from the Privilege MCP
+  // catalog pin their backend to http://localhost:8080/mcp and the field cannot
+  // be edited, so a server that only speaks SSE on /sse can never be discovered
+  // through one. Streamable HTTP uses GET on the same path to open a
+  // server->client stream, so both transports can share it: POST /mcp still
+  // returns JSON-RPC directly (below), and only GET behaves as SSE.
+  if (req.method === 'GET' && (req.url === '/sse' || req.url === '/mcp')) {
     const sessionId = crypto.randomUUID();
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
