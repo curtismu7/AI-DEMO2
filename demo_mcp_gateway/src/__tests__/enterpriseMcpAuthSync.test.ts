@@ -8,7 +8,7 @@
  */
 import axios from 'axios';
 import type { GatewayConfig } from '../config';
-import { bffEnterpriseMcpAuthUrl, syncEnterpriseMcpAuthFromBff } from '../enterpriseMcpAuthSync';
+import { bffEnterpriseMcpAuthUrl, syncEnterpriseMcpAuthFromBff, SYNC_RETRY_DELAYS_MS } from '../enterpriseMcpAuthSync';
 import { isEnterpriseManagedMcpAuthEnabled, appendEnterpriseWwwAuthHint } from '../enterpriseMcpAuth';
 
 jest.mock('axios');
@@ -25,6 +25,12 @@ function cfg(over: Partial<GatewayConfig> = {}): GatewayConfig {
 
 afterEach(() => jest.resetAllMocks());
 
+describe('SYNC_RETRY_DELAYS_MS', () => {
+  it('sums to the ~31s documented in the module header', () => {
+    expect(SYNC_RETRY_DELAYS_MS.reduce((a, b) => a + b, 0)).toBe(31000);
+  });
+});
+
 describe('bffEnterpriseMcpAuthUrl', () => {
   it('derives the flag URL from the id-token URL, so no new env var is needed', () => {
     expect(bffEnterpriseMcpAuthUrl(cfg())).toBe(
@@ -38,12 +44,16 @@ describe('bffEnterpriseMcpAuthUrl', () => {
   });
 });
 
+// Every test drives the retry loop through a no-op sleep so none of them
+// actually wait out the backoff — the schedule itself is asserted separately.
+const NO_WAIT = { sleep: async () => {} };
+
 describe('syncEnterpriseMcpAuthFromBff', () => {
   it('adopts the BFF value, overriding the env seed — the actual fix', async () => {
     mockedGet.mockResolvedValue({ status: 200, data: { enabled: true } } as never);
     const config = cfg({ enterpriseManagedMcpAuth: false });
 
-    await expect(syncEnterpriseMcpAuthFromBff(config)).resolves.toBe(true);
+    await expect(syncEnterpriseMcpAuthFromBff(config, NO_WAIT)).resolves.toBe(true);
     expect(config.enterpriseManagedMcpAuth).toBe(true);
   });
 
@@ -51,12 +61,12 @@ describe('syncEnterpriseMcpAuthFromBff', () => {
     mockedGet.mockResolvedValue({ status: 200, data: { enabled: false } } as never);
     const config = cfg({ enterpriseManagedMcpAuth: true });
 
-    await expect(syncEnterpriseMcpAuthFromBff(config)).resolves.toBe(false);
+    await expect(syncEnterpriseMcpAuthFromBff(config, NO_WAIT)).resolves.toBe(false);
   });
 
   it('sends the internal secret — the BFF route 403s without it', async () => {
     mockedGet.mockResolvedValue({ status: 200, data: { enabled: true } } as never);
-    await syncEnterpriseMcpAuthFromBff(cfg());
+    await syncEnterpriseMcpAuthFromBff(cfg(), NO_WAIT);
 
     expect(mockedGet).toHaveBeenCalledWith(
       expect.stringContaining('/internal/feature-flags/enterprise-managed-mcp-auth'),
@@ -64,29 +74,76 @@ describe('syncEnterpriseMcpAuthFromBff', () => {
     );
   });
 
-  // The regression that matters most: a 403/404/500 body has no `enabled`, and
-  // coercing it would read as "disabled" and silently switch ID-JAG off across
-  // the whole gateway on any BFF hiccup.
-  it.each([403, 404, 500])('keeps the seed when the BFF returns HTTP %i', async (status) => {
+  // 403/404 are settled answers — a wrong secret or an old BFF does not
+  // improve by asking again — and must not retry. The regression that matters
+  // most: neither body has an `enabled` field, and coercing one would read as
+  // "disabled" and silently switch ID-JAG off across the whole gateway.
+  it.each([403, 404])('gives up immediately (no retry) on HTTP %i and keeps the seed', async (status) => {
     mockedGet.mockResolvedValue({ status, data: { error: 'forbidden' } } as never);
     const config = cfg({ enterpriseManagedMcpAuth: true });
 
-    await expect(syncEnterpriseMcpAuthFromBff(config)).resolves.toBe(true);
-    expect(config.enterpriseManagedMcpAuth).toBe(true);
+    await expect(syncEnterpriseMcpAuthFromBff(config, NO_WAIT)).resolves.toBe(true);
+    expect(mockedGet).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps the seed when the BFF is unreachable', async () => {
-    mockedGet.mockRejectedValue(new Error('ECONNREFUSED'));
-    const config = cfg({ enterpriseManagedMcpAuth: true });
-
-    await expect(syncEnterpriseMcpAuthFromBff(config)).resolves.toBe(true);
-  });
-
-  it('ignores a 200 whose enabled field is not a boolean', async () => {
+  it('ignores a 200 whose enabled field is not a boolean, and does not retry it', async () => {
     mockedGet.mockResolvedValue({ status: 200, data: { enabled: 'true' } } as never);
     const config = cfg({ enterpriseManagedMcpAuth: false });
 
-    await expect(syncEnterpriseMcpAuthFromBff(config)).resolves.toBe(false);
+    await expect(syncEnterpriseMcpAuthFromBff(config, NO_WAIT)).resolves.toBe(false);
+    expect(mockedGet).toHaveBeenCalledTimes(1);
+  });
+
+  // The gap this retry logic exists to close: observed live on SE 2026-09-03 —
+  // a co-restart brings the gateway up before the BFF, the first attempt hits
+  // ECONNREFUSED, and a single-attempt sync would keep the wrong seed until
+  // the next flag save.
+  it('retries a connection failure and adopts the value once the BFF answers', async () => {
+    mockedGet
+      .mockRejectedValueOnce(new Error('ECONNREFUSED'))
+      .mockRejectedValueOnce(new Error('ECONNREFUSED'))
+      .mockResolvedValueOnce({ status: 200, data: { enabled: true } } as never);
+    const config = cfg({ enterpriseManagedMcpAuth: false });
+
+    await expect(syncEnterpriseMcpAuthFromBff(config, NO_WAIT)).resolves.toBe(true);
+    expect(mockedGet).toHaveBeenCalledTimes(3);
+  });
+
+  it('retries a 5xx (BFF unhealthy, not a settled answer) and then succeeds', async () => {
+    mockedGet
+      .mockResolvedValueOnce({ status: 503, data: {} } as never)
+      .mockResolvedValueOnce({ status: 200, data: { enabled: true } } as never);
+    const config = cfg({ enterpriseManagedMcpAuth: false });
+
+    await expect(syncEnterpriseMcpAuthFromBff(config, NO_WAIT)).resolves.toBe(true);
+    expect(mockedGet).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps the seed after exhausting all retries against a BFF that never answers', async () => {
+    mockedGet.mockRejectedValue(new Error('ECONNREFUSED'));
+    const config = cfg({ enterpriseManagedMcpAuth: true });
+    const delays = [1, 1, 1];
+
+    await expect(
+      syncEnterpriseMcpAuthFromBff(config, { retryDelaysMs: delays, sleep: async () => {} }),
+    ).resolves.toBe(true);
+    // Initial attempt + one retry per configured delay.
+    expect(mockedGet).toHaveBeenCalledTimes(delays.length + 1);
+  });
+
+  it('waits between attempts using the configured backoff schedule', async () => {
+    mockedGet
+      .mockRejectedValueOnce(new Error('ECONNREFUSED'))
+      .mockResolvedValueOnce({ status: 200, data: { enabled: true } } as never);
+    const waited: number[] = [];
+    const config = cfg();
+
+    await syncEnterpriseMcpAuthFromBff(config, {
+      retryDelaysMs: [42],
+      sleep: async (ms) => { waited.push(ms); },
+    });
+
+    expect(waited).toEqual([42]);
   });
 });
 
