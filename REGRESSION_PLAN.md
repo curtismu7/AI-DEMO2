@@ -139,6 +139,44 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-03 — Direct-to-MCP mode still redirected to PingOne OAuth (follow-up to the sign-in-loop fix below)
+
+**Files changed:** `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`,
+`demo_api_ui/src/pages/__tests__/PrivilegeMcpClientPage.gatewayPresets.test.jsx`.
+
+**What was broken:** the same-day `requestSignIn()` fix (entry below) only
+covered the 7 `setShowSignInModal(true)` call sites. Three separate paths
+still unconditionally called `/auth/start` and did `window.location.href =
+data.authUrl` — bypassing the modal, and my guard, entirely — whenever
+landing on Direct mode: (1) the silent-auto-connect effect on page load
+(worse: it read the closure's `gatewayMode`, which is stale forever since
+that `useEffect` has an empty dep array — it needed `s.gatewayMode`, the
+freshly-fetched value, not the outer state variable); (2) `saveConfig`,
+whenever the Settings modal's URL field changed; (3) `switchGatewayMode`,
+whenever the Path selector (or a preset naming `mode: 'direct'`) switched to
+Direct. Live symptom: selecting Direct still bounced the browser to PingOne's
+hosted sign-on, which 404'd (`NOT_FOUND`) because Direct's OAuth client
+isn't meant to exist. The sidebar's "Sign In with Privilege" button was also
+unconditionally rendered regardless of mode.
+
+**What was fixed:** all three call sites now skip the `/auth/start` redirect
+when landing on `direct` — (1) checks `s.gatewayMode !== 'direct'` from the
+response, not the stale `gatewayMode` closure variable; (2) and (3) check the
+mode being switched to/saved. The sidebar auth control now renders a "No
+sign-in required" badge instead of the Sign In button when `gatewayMode ===
+'direct'`.
+
+**Do not break:** `privilege` and `facade` modes must keep their existing
+re-auth-on-URL-change and re-auth-on-mode-switch behavior — only `direct` is
+exempt. The silent-auto-connect effect must still fire correctly for
+`privilege`/`facade` when the main app is authenticated but Privilege OAuth
+is not.
+
+**Verify:** `cd demo_api_ui && npx vitest run src/pages/__tests__/PrivilegeMcpClientPage.blockedBand.test.jsx src/pages/__tests__/PrivilegeMcpClientPage.gatewaySwitch.test.jsx src/pages/__tests__/PrivilegeMcpClientPage.doorPicker.test.jsx src/pages/__tests__/PrivilegeMcpClientPage.gatewayPresets.test.jsx src/pages/__tests__/PrivilegeMcpClientPage.silentAutoConnect.test.jsx src/pages/__tests__/PrivilegeMcpClientPage.policyPicker.test.jsx`
+(27/27); `npm run build` (exit 0). Reported live by the user reproducing the
+Direct-mode redirect on `ai-demo.ping-devops.com`; not yet re-verified live
+after this fix.
+
 ### 2026-09-03 — Privilege client stuck in a sign-in loop on both the façade and no-auth "Direct" modes
 
 **Files changed:** `demo_api_server/routes/mcpFacade.js`,
