@@ -193,11 +193,25 @@ another app's secret — caught by fingerprinting the pair, not by any test. The
 old agent secret is not lost: it remains under `PINGONE_AGENT_CLIENT_SECRET`
 (fp `edae3f8657`), which is its correct home. `run-pingaws.sh update config` now
 clears every `SECURITY:` guard.
-### [ ] 2026-08-29 — Grafana: internet-facing on a public default password, and SSO-only is blocked by its own role mapping
+### [ ] 2026-08-29 — Grafana: SSO-only is blocked by its own role mapping (default-password half FIXED 2026-09-02)
 
-**What's wrong, today.** `k8s/create-secrets.sh:638-642` falls back to a
-hardcoded `ai-demo-grafana` when `GRAFANA_ADMIN_PASSWORD` is unset, and it is
-unset — every SE deploy prints:
+**FIXED 2026-09-02 (PR #2709) — steps 1 and 2 below are done.**
+`create-secrets.sh` now reads both Grafana secrets from `secrets.vault` when the
+env var is empty, the same env-then-vault precedence `secret_from_envfile()`
+uses. A random admin password and the PingOne client secret are both stored
+there; a clean `se-update-config.sh` run prints neither warning, and both values
+hash-match the live `grafana-secrets`. **The live default-password exposure is
+closed.** What remains open is the role-mapping lockout, steps 3-4.
+
+On the "may not overwrite an already-initialised instance" caveat below: on SE
+it does overwrite, because Grafana's `data` volume is an `emptyDir`, so each
+pod restart starts a fresh DB that re-seeds from `GF_SECURITY_ADMIN_PASSWORD`.
+Verified: Secret written `13:52:06Z`, pod started `13:52:12Z`. That reasoning
+does NOT carry to any deployment that gives Grafana a PVC — re-check there.
+
+**What was wrong.** `k8s/create-secrets.sh:638-642` fell back to a
+hardcoded `ai-demo-grafana` when `GRAFANA_ADMIN_PASSWORD` was unset, and it was
+unset — every SE deploy printed:
 
     [WARN]   GRAFANA_ADMIN_PASSWORD unset — using the default.
              Set it before any long-lived deployment.
@@ -232,13 +246,17 @@ internet-facing surface is not a drive-by.
 
 **What the real fix looks like, strictly in this order:**
 
-1. **Set `GRAFANA_ADMIN_PASSWORD`** and re-run `update config`. Independent of
+1. ~~**Set `GRAFANA_ADMIN_PASSWORD`**~~ — DONE 2026-09-02, stored in
+   `secrets.vault`; retrieve with
+   `node demo_api_server/scripts/vault.js get GRAFANA_ADMIN_PASSWORD`.
+   Re-run `update config`. Independent of
    everything below, and it closes the live exposure. NOTE: Grafana seeds the
    admin password into its own DB on FIRST boot; on an already-initialised
    instance `GF_SECURITY_ADMIN_PASSWORD` may not overwrite the stored value.
    Verify by logging in, or use `grafana-cli admin reset-admin-password`. Do not
    trust the deploy line.
-2. **Set `GRAFANA_PINGONE_CLIENT_SECRET`** for "Demo AI App - Grafana Login", so
+2. ~~**Set `GRAFANA_PINGONE_CLIENT_SECRET`**~~ — DONE 2026-09-02, in
+   `secrets.vault` for "Demo AI App - Grafana Login", so
    SSO actually works while the password form is still there as a fallback.
 3. **Map roles from a claim** — replace the literal `'Viewer'` with a JMESPath
    over a PingOne group, e.g.
