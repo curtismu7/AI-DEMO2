@@ -96,8 +96,12 @@ describe("Policies tab", () => {
     const optionText = Array.from(picker.querySelectorAll("option")).map((o) => o.textContent).join("|");
     expect(optionText).toContain("cmuir-tools");
     expect(optionText).toContain("banking-tools");
-    // The door currently in use is marked, not offered as a switch.
-    expect(screen.getByText("current")).toBeTruthy();
+    // The door currently in use is marked, not offered as a switch. Scoped to
+    // the Doors row: the policy detail pane marks the covered door "current"
+    // too, so an unscoped query now matches twice.
+    const activeDoorRow = document.querySelector(".cur-console-row--active");
+    expect(activeDoorRow).toBeTruthy();
+    expect(activeDoorRow.textContent).toContain("current");
   });
 
   it("does not keep the token in the DOM after connecting", async () => {

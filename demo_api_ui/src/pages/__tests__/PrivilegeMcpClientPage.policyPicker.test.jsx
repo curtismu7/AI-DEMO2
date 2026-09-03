@@ -14,11 +14,15 @@ const GATEWAY = "https://mcpgw.example.com/opensearch22/mcp";
 
 const INVENTORY = {
   envId: "env-1",
-  applications: [],
+  applications: [
+    { name: "opensearch22", mcpUrl: GATEWAY, backends: [], status: "" },
+    { name: "banking", mcpUrl: "https://mcpgw.example.com/banking/mcp", backends: [], status: "" },
+  ],
   policies: [
     { name: "read-only-everyone", spec: { Tools: ["ListIndexTool"] } },
     { name: "opensearch22-grant", spec: { Apps: ["opensearch22"], Users: ["someone-else@pingone.com"] } },
     { name: "demo-user-grant", spec: { Users: ["demo-user@pingone.com"] } },
+    { name: "banking-grant", spec: { Apps: ["banking"], Users: ["demo-user@pingone.com"] } },
   ],
 };
 
@@ -96,10 +100,39 @@ describe("policy picker", () => {
     });
   });
 
-  it("says plainly that picking a policy changes nothing", async () => {
+  it("says plainly that picking a policy does not change the decision", async () => {
     await openPoliciesTabConnected();
 
-    // The guard against the picker reading as a control: Privilege decides.
-    expect(screen.getByText(/cannot choose which policy applies/i)).toBeInTheDocument();
+    // The guard against the picker reading as a control: Privilege decides from
+    // (user, door, tool), and more than one policy can cover a door.
+    expect(screen.getByText(/does not change the decision/i)).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/\bgrants you\b/i);
+  });
+  it("offers the door a policy covers, because each app has its own URL", async () => {
+    const picker = await openPoliciesTabConnected();
+    fireEvent.change(picker, { target: { value: "banking-grant" } });
+
+    // The one genuinely actionable thing a policy tells us: where to exercise it.
+    const detail = await screen.findByText("banking-grant");
+    const pane = detail.closest(".cur-console-policy-detail");
+    expect(within(pane).getByText("https://mcpgw.example.com/banking/mcp")).toBeInTheDocument();
+    expect(within(pane).getByRole("button", { name: /Use this door/i })).toBeInTheDocument();
+  });
+
+  it("marks the covered door as current instead of offering a pointless switch", async () => {
+    const picker = await openPoliciesTabConnected();
+    fireEvent.change(picker, { target: { value: "opensearch22-grant" } });
+
+    const pane = (await screen.findByText("opensearch22-grant")).closest(".cur-console-policy-detail");
+    expect(within(pane).getByText("current")).toBeInTheDocument();
+    expect(within(pane).queryByRole("button", { name: /Use this door/i })).toBeNull();
+  });
+
+  it("says so when a policy names no registered app", async () => {
+    const picker = await openPoliciesTabConnected();
+    fireEvent.change(picker, { target: { value: "read-only-everyone" } });
+
+    // Better than rendering an empty area that looks like a loading failure.
+    expect(await screen.findByText(/names no registered app/i)).toBeInTheDocument();
   });
 });

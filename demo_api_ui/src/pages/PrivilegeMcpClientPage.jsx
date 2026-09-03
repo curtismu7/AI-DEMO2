@@ -1637,10 +1637,11 @@ export default function PrivilegeMcpClientPage() {
 
                     <h4 className="cur-console-heading">Policies ({consoleData.policies.length})</h4>
                     <p className="cur-denial-note">
-                      Read-only. You cannot choose which policy applies — Privilege resolves
-                      that server-side from (user, door, tool). The Spec schema is
-                      undocumented, so the tags below are a text match:
-                      &quot;mentions&quot; is not the same as &quot;grants&quot;.
+                      Selecting a policy does not change the decision — Privilege resolves that
+                      server-side from (user, door, tool), and more than one policy can cover a
+                      door. But each app has its own URL, so you can jump to the door a policy
+                      covers. The Spec schema is undocumented, so the matches below are on whole
+                      string values: &quot;mentions&quot; is not the same as &quot;grants&quot;.
                     </p>
                     <label className="cur-field">
                       <span className="cur-field-label">Inspect a policy</span>
@@ -1672,6 +1673,11 @@ export default function PrivilegeMcpClientPage() {
                       if (!picked) {
                         return <p className="cur-denial-note">Pick a policy to read what it actually contains.</p>;
                       }
+                      // Which registered apps this policy names. Each app is its own
+                      // door with its own URL, so this is the one genuinely actionable
+                      // thing a policy tells us: where to go to exercise it.
+                      const coveredApps = (consoleData.applications || [])
+                        .filter((app) => policyMentions(picked, app.name));
                       return (
                         <div className="cur-console-policy-detail">
                           <div className="cur-console-policy-tags">
@@ -1679,6 +1685,23 @@ export default function PrivilegeMcpClientPage() {
                             {policyMentions(picked, doorName(config.mcpUrl)) && <span className="cur-console-tag">mentions this door</span>}
                             {policyMentions(picked, user?.email) && <span className="cur-console-tag">mentions you</span>}
                           </div>
+                          {coveredApps.length > 0 ? (
+                            <div className="cur-console-list">
+                              {coveredApps.map((app) => (
+                                <div key={app.name} className="cur-console-row">
+                                  <span className="cur-console-name">{app.name}</span>
+                                  <span className="cur-console-meta">{app.mcpUrl || 'no client URL'}</span>
+                                  {app.mcpUrl === config.mcpUrl
+                                    ? <span className="cur-console-current">current</span>
+                                    : app.mcpUrl && <button className="cur-btn" onClick={() => switchDoor(app.mcpUrl)}>Use this door</button>}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="cur-denial-note">
+                              This policy names no registered app, so there is no door to jump to.
+                            </p>
+                          )}
                           <pre className="cur-code-output jh-dark"><JsonHighlight value={picked.spec} deep /></pre>
                         </div>
                       );
