@@ -179,6 +179,11 @@ export default function PrivilegeMcpClientPage() {
   // Privilege console inventory — only populated once an auth_token is pasted.
   const [consoleToken, setConsoleToken] = useState('');
   const [consoleData, setConsoleData] = useState(null);
+  // Which policy the operator is reading. Purely a viewer: selecting one cannot
+  // change which policy Privilege applies — that is resolved server-side from
+  // (user, door, tool), which is why this is not offered as a control anywhere
+  // near the connection settings.
+  const [selectedPolicy, setSelectedPolicy] = useState('');
   const [consoleBusy, setConsoleBusy] = useState(false);
   const [consoleError, setConsoleError] = useState(null);
   // Derived every render, so it reflects the config the page actually holds by
@@ -540,7 +545,7 @@ export default function PrivilegeMcpClientPage() {
     setConsoleError(null);
     try {
       const data = await api('/console/connect', { method: 'POST', body: { authToken } });
-      setConsoleData(data);
+      adoptConsoleData(data);
       setConsoleToken('');   // the BFF holds it now; don't keep a copy in the DOM
     } catch (err) {
       setConsoleError(err.message);
@@ -550,11 +555,21 @@ export default function PrivilegeMcpClientPage() {
     }
   };
 
+  // Open on the policy that mentions the current door: during a denial that is
+  // the one the room is asking about, and hunting a long list on stage is the
+  // failure mode this avoids. Falls back to no selection rather than guessing.
+  const adoptConsoleData = (data) => {
+    setConsoleData(data);
+    const door = doorName(config.mcpUrl);
+    const match = door && (data?.policies || []).find((p) => policyMentions(p, door));
+    setSelectedPolicy(match ? match.name : '');
+  };
+
   const refreshConsole = async () => {
     setConsoleBusy(true);
     setConsoleError(null);
     try {
-      setConsoleData(await api('/console/inventory'));
+      adoptConsoleData(await api('/console/inventory'));
     } catch (err) {
       setConsoleError(err.message);
     } finally {
@@ -565,6 +580,7 @@ export default function PrivilegeMcpClientPage() {
   const disconnectConsole = async () => {
     await api('/console/disconnect', { method: 'POST' }).catch(() => {});
     setConsoleData(null);
+    setSelectedPolicy('');
     setConsoleError(null);
   };
 
@@ -1621,22 +1637,75 @@ export default function PrivilegeMcpClientPage() {
 
                     <h4 className="cur-console-heading">Policies ({consoleData.policies.length})</h4>
                     <p className="cur-denial-note">
-                      The policy Spec schema is undocumented, so these are matched by text
-                      search: &quot;mentions&quot; is not the same as &quot;grants&quot;. Expand a
-                      policy to read what it actually contains.
+                      Selecting a policy does not change the decision — Privilege resolves that
+                      server-side from (user, door, tool), and more than one policy can cover a
+                      door. But each app has its own URL, so you can jump to the door a policy
+                      covers. The Spec schema is undocumented, so the matches below are on whole
+                      string values: &quot;mentions&quot; is not the same as &quot;grants&quot;.
                     </p>
-                    <div className="cur-console-list">
-                      {consoleData.policies.map((p) => (
-                        <details key={p.name} className="cur-console-policy">
-                          <summary>
-                            <span className="cur-console-name">{p.name}</span>
-                            {policyMentions(p, doorName(config.mcpUrl)) && <span className="cur-console-tag">mentions this door</span>}
-                            {policyMentions(p, user?.email) && <span className="cur-console-tag">mentions you</span>}
-                          </summary>
-                          <pre className="cur-code-output jh-dark"><JsonHighlight value={p.spec} deep /></pre>
-                        </details>
-                      ))}
-                    </div>
+                    <label className="cur-field">
+                      <span className="cur-field-label">Inspect a policy</span>
+                      <select
+                        className="cur-input"
+                        aria-label="Inspect a policy"
+                        value={selectedPolicy}
+                        onChange={(e) => setSelectedPolicy(e.target.value)}
+                      >
+                        <option value="">Select a policy…</option>
+                        {consoleData.policies.map((p) => {
+                          // Surface the two facts a presenter is asked about, in the
+                          // option itself — otherwise finding the relevant policy in a
+                          // long list means opening them one at a time.
+                          const tags = [
+                            policyMentions(p, doorName(config.mcpUrl)) ? 'this door' : null,
+                            policyMentions(p, user?.email) ? 'you' : null,
+                          ].filter(Boolean);
+                          return (
+                            <option key={p.name} value={p.name}>
+                              {p.name}{tags.length ? ` — mentions ${tags.join(' + ')}` : ''}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </label>
+                    {(() => {
+                      const picked = consoleData.policies.find((p) => p.name === selectedPolicy);
+                      if (!picked) {
+                        return <p className="cur-denial-note">Pick a policy to read what it actually contains.</p>;
+                      }
+                      // Which registered apps this policy names. Each app is its own
+                      // door with its own URL, so this is the one genuinely actionable
+                      // thing a policy tells us: where to go to exercise it.
+                      const coveredApps = (consoleData.applications || [])
+                        .filter((app) => policyMentions(picked, app.name));
+                      return (
+                        <div className="cur-console-policy-detail">
+                          <div className="cur-console-policy-tags">
+                            <span className="cur-console-name">{picked.name}</span>
+                            {policyMentions(picked, doorName(config.mcpUrl)) && <span className="cur-console-tag">mentions this door</span>}
+                            {policyMentions(picked, user?.email) && <span className="cur-console-tag">mentions you</span>}
+                          </div>
+                          {coveredApps.length > 0 ? (
+                            <div className="cur-console-list">
+                              {coveredApps.map((app) => (
+                                <div key={app.name} className="cur-console-row">
+                                  <span className="cur-console-name">{app.name}</span>
+                                  <span className="cur-console-meta">{app.mcpUrl || 'no client URL'}</span>
+                                  {app.mcpUrl === config.mcpUrl
+                                    ? <span className="cur-console-current">current</span>
+                                    : app.mcpUrl && <button className="cur-btn" onClick={() => switchDoor(app.mcpUrl)}>Use this door</button>}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="cur-denial-note">
+                              This policy names no registered app, so there is no door to jump to.
+                            </p>
+                          )}
+                          <pre className="cur-code-output jh-dark"><JsonHighlight value={picked.spec} deep /></pre>
+                        </div>
+                      );
+                    })()}
                   </>
                 )}
               </div>

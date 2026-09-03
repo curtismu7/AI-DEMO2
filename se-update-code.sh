@@ -10,6 +10,7 @@
 #   ./se-update-code.sh mcp           # rebuild only mcp-server + redeploy
 #   ./se-update-code.sh gateway       # rebuild only mcp-gateway + redeploy
 #   ./se-update-code.sh agent         # rebuild only langchain-agent + redeploy
+#   ./se-update-code.sh brave         # rebuild only mcp-brave + redeploy
 #
 # SERVICE shortcuts → docker-compose service → GHCR image → k8s deployment:
 #   bff       demo_api_server     → ai-demo-demo-api-server → demo-api-server
@@ -55,6 +56,7 @@ compose_svc() {
     invest)   echo "mcp-resource-server" ;;
     mortgage) echo "api-resource-server" ;;
     llm)      echo "llm-proxy" ;;
+    brave)    echo "mcp-brave" ;;
     *)        echo "" ;;
   esac
 }
@@ -75,6 +77,7 @@ ghcr_img() {
     invest)   echo "ai-demo-mcp-resource-server" ;;
     mortgage) echo "ai-demo-api-resource-server" ;;
     llm)      echo "ai-demo-llm-proxy" ;;
+    brave)    echo "ai-demo-mcp-brave" ;;
     *)        echo "" ;;
   esac
 }
@@ -117,6 +120,7 @@ k8s_dep() {
     invest)   echo "mcp-resource-server" ;;
     mortgage) echo "api-resource-server" ;;
     llm)      echo "llm-proxy" ;;
+    brave)    echo "mcp-brave" ;;
     *)        echo "" ;;
   esac
 }
@@ -143,6 +147,7 @@ source_dir() {
     invest)   echo "demo_mcp_resource_server" ;;
     mortgage) echo "demo_api_resource_server" ;;
     llm)      echo "demo_llm_proxy" ;;
+    brave)    echo "demo_mcp_brave" ;;
     *)        echo "" ;;
   esac
 }
@@ -151,7 +156,7 @@ source_dir() {
 # and push ALL" loop and the "roll every deployment" loop both iterate this list,
 # so a key missing here is silently skipped by a full deploy while still working
 # when named explicitly. agent-service was in all four maps but not this list.
-ALL_KEYS="bff frontend mcp gateway agent agentsvc authz mastra openai pydantic hitl invest mortgage llm"
+ALL_KEYS="bff frontend mcp gateway agent agentsvc authz mastra openai pydantic hitl invest mortgage llm brave"
 
 # --print-map: emit the service map as JSON and exit. Must run BEFORE the
 # GITHUB_OWNER and derive_ns() blocks below — CI has no .env, and derive_ns

@@ -126,10 +126,16 @@ function main() {
   }
   const inventory = readInventory();
   const inventoryCount = Object.keys(inventory).length;
-  if (inventoryCount !== 18) {
+  // Sanity pin on the PARSER, not the inventory: it reads serverInventory.js as
+  // text, so a formatting change could silently make it match nothing and turn
+  // every cross-check into a vacuous pass. Raise this when a service is added
+  // on purpose — 19 since mcp-brave (2026-09-03).
+  const EXPECTED_INVENTORY_ENTRIES = 19;
+  if (inventoryCount !== EXPECTED_INVENTORY_ENTRIES) {
     console.error(
       `[service-map] FAIL — readInventory parsed ${inventoryCount} sourceDir entries, ` +
-      'expected 18; the parser is broken, not the map',
+      `expected ${EXPECTED_INVENTORY_ENTRIES}; if you added a service on purpose, raise the pin ` +
+      'in the same commit — otherwise the parser is broken, not the map',
     );
     return 1;
   }

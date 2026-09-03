@@ -90,10 +90,18 @@ describe("Policies tab", () => {
     await waitFor(() => expect(screen.getByText("Doors (2)")).toBeTruthy());
     expect(posted).toEqual([{ authToken: "console-cookie" }]);
     expect(screen.getByText("Policies (2)")).toBeTruthy();
-    expect(screen.getByText("cmuir-tools")).toBeTruthy();
-    expect(screen.getByText("banking-tools")).toBeTruthy();
-    // The door currently in use is marked, not offered as a switch.
-    expect(screen.getByText("current")).toBeTruthy();
+    // Policies moved from a stack of accordions to a picker, so the names live
+    // in its options rather than as standalone text.
+    const picker = screen.getByLabelText("Inspect a policy");
+    const optionText = Array.from(picker.querySelectorAll("option")).map((o) => o.textContent).join("|");
+    expect(optionText).toContain("cmuir-tools");
+    expect(optionText).toContain("banking-tools");
+    // The door currently in use is marked, not offered as a switch. Scoped to
+    // the Doors row: the policy detail pane marks the covered door "current"
+    // too, so an unscoped query now matches twice.
+    const activeDoorRow = document.querySelector(".cur-console-row--active");
+    expect(activeDoorRow).toBeTruthy();
+    expect(activeDoorRow.textContent).toContain("current");
   });
 
   it("does not keep the token in the DOM after connecting", async () => {
@@ -109,13 +117,15 @@ describe("Policies tab", () => {
     await waitFor(() => expect(screen.getByText("Policies (2)")).toBeTruthy());
 
     // cmuir-tools mentions the current door; banking-tools mentions the user.
-    expect(screen.getByText("mentions this door")).toBeTruthy();
-    expect(screen.getByText("mentions you")).toBeTruthy();
+    // The tags now ride on the picker's options, which is where both are visible
+    // at once — the detail pane only ever shows the selected policy.
+    const picker = screen.getByLabelText("Inspect a policy");
+    const labels = Array.from(picker.querySelectorAll("option")).map((o) => o.textContent);
     // Exactly one of each: the door "cmuir" is a SUBSTRING of the principal
     // "cmuir+demo@pingone.com" on the other policy, so a substring match would
     // tag both and quietly tell the operator something false.
-    expect(screen.getAllByText("mentions this door")).toHaveLength(1);
-    expect(screen.getAllByText("mentions you")).toHaveLength(1);
+    expect(labels.filter((l) => l.includes("mentions this door"))).toHaveLength(1);
+    expect(labels.filter((l) => l.includes("mentions you"))).toHaveLength(1);
     expect(document.body.textContent).not.toMatch(/\bgrants you\b/i);
   });
 

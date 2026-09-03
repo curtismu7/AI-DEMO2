@@ -66,6 +66,17 @@ spec:
           volumeMounts:
             - name: logs
               mountPath: /var/log/procyon
+        {{- /*
+          Sidecars for MCP servers that must answer on the GATEWAY'S OWN
+          localhost. Apps added from the Privilege MCP catalog carry a fixed
+          backend of http://localhost:8080/mcp and the field cannot be edited,
+          so the only way to satisfy one is to run its server inside this pod.
+          Upstream's chart has no hook for that — this block is a local addition
+          to the vendored copy, so re-vendoring the chart drops it.
+        */}}
+        {{- with .Values.extraContainers }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       volumes:
         - name: logs
           hostPath:
