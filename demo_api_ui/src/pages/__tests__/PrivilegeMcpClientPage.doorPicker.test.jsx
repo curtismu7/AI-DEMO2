@@ -71,7 +71,7 @@ function renderPage() {
   );
 }
 
-const picker = () => screen.queryByLabelText("Privilege MCP application (door)");
+const picker = () => screen.queryByLabelText("MCP backend (door)");
 
 beforeEach(() => {
   global.EventSource = class { addEventListener() {} close() {} };
@@ -106,11 +106,38 @@ describe("titlebar door picker", () => {
     expect(posted[0].mcpUrl).toBe(EXTERNAL);
   });
 
-  it("is absent in Direct mode — no Privilege app is in that path", async () => {
+  it("is absent in Direct mode when only one direct door is known", async () => {
     mockApi({ gatewayMode: "direct", mcpUrl: AGENT });
     renderPage();
     await waitFor(() => expect(screen.getByLabelText("Connection path")).toBeTruthy());
     expect(picker()).toBeNull();
+  });
+
+  it("appears in Direct mode once a sibling direct door exists, and switching still works", async () => {
+    // Real Direct-mode URLs are façade URLs (/mcp-facade/<door>/mcp), unlike
+    // AGENT above (a legacy procyon-subdomain fixture with no door segment in
+    // its path at all) — doorName() reads the path, so this test needs the
+    // shape it actually names doors from.
+    const FACADE_ORIGIN = "https://ai-demo.example.com";
+    const OPENSEARCH = `${FACADE_ORIGIN}/mcp-facade/opensearch/mcp`;
+    const BRAVE = `${FACADE_ORIGIN}/mcp-facade/brave/mcp`;
+    const posted = mockApi({
+      gatewayMode: "direct",
+      mcpUrl: OPENSEARCH,
+      presets: [
+        { label: "1 · Direct — no Privilege in the path", mode: "direct", url: OPENSEARCH },
+        { label: "Direct — Brave Search", mode: "direct", url: BRAVE },
+      ],
+    });
+    renderPage();
+    await waitFor(() => expect(picker()).toBeTruthy());
+
+    const options = [...picker().options].map((o) => o.textContent);
+    expect(options).toEqual(["opensearch", "brave"]);
+
+    fireEvent.change(picker(), { target: { value: BRAVE } });
+    await waitFor(() => expect(posted.length).toBeGreaterThan(0));
+    expect(posted[0].mcpUrl).toBe(BRAVE);
   });
 
   it("is absent when this gateway has only one door — a one-option select is furniture", async () => {

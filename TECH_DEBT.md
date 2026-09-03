@@ -16,6 +16,30 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-09-03 — jwksService can hand back a key `crypto.Verify` rejects outright
+
+**What's wrong.** `verifyDoorBearer` (`demo_api_server/routes/mcpFacade.js`)
+fixed a hang where a bad key from `jwksService.getPublicKey(kid)` threw out of
+an async function as an unhandled rejection — no response sent, request hung
+until nginx's own 60s upstream timeout. That fix makes the door fail closed
+and fast (`verify_error`) instead of hanging, which is the actionable half.
+The other half — **why** `getPublicKey` ever resolves something truthy but
+unusable (a raw, unconverted JWK object rather than a PEM/KeyObject, going by
+the `TypeError: key.key must be ... Received undefined` seen live) — is still
+open. Observed once, live, against the `opensearch` door on 2026-09-03; not
+reproduced on demand, so the trigger (a specific rotated `kid`? a cache miss
+racing a fetch?) is still a guess.
+
+**Why not fixed now.** The crash-then-hang was the actual user-facing bug and
+is now closed; chasing jwksService's own key-conversion path is a second,
+separable investigation with only one live data point so far.
+
+**Real fix.** Next time this reason surfaces in `mcp-facade` logs, capture
+what `jwksService.getPublicKey` actually returned for that `kid` (shape, not
+value — it is a public key) before it reaches `crypto.createVerify`, and check
+whether `jwksService.js` has a code path that returns a raw JWK instead of
+converting it.
+
 ### [x] 2026-08-31 — Brandfetch MCP cannot replace `BRANDFETCH_API_KEY`: the AS offers no machine grant
 
 **What's wrong.** `demo_api_server/services/brandfetch.js` holds an 86-char

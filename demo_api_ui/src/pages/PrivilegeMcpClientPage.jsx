@@ -23,9 +23,15 @@ const PRIVILEGE_CONSOLE_URL =
 // capability in its initialize response, so an empty panel most often means the
 // server has none to give. Say which of the two it is.
 // The banking backend, for example, advertises only {tools, logging}.
-// The AI Gateway routes on the application name: /<door>/mcp.
+// The AI Gateway routes on the application name: /<door>/mcp. Our own façade
+// routes are nested one level deeper (/mcp-facade/<door>/mcp), so the first
+// segment there is always the meaningless "mcp-facade" — skip it.
 function doorName(mcpUrl) {
-  try { return new URL(mcpUrl).pathname.split('/').filter(Boolean)[0] || null; } catch { return null; }
+  try {
+    const segments = new URL(mcpUrl).pathname.split('/').filter(Boolean);
+    if (segments[0] === 'mcp-facade') return segments[1] || null;
+    return segments[0] || null;
+  } catch { return null; }
 }
 
 // Every string value anywhere in an undocumented object.
@@ -605,7 +611,15 @@ export default function PrivilegeMcpClientPage() {
   // has to include it, or the control cannot show what is currently selected.
   const knownDoors = (includeCurrent = false) => {
     const fromConsole = (consoleData?.applications || []).map((a) => a.mcpUrl).filter(Boolean);
-    const fromPresets = presets.filter((p) => p.mode !== 'direct').map((p) => p.url);
+    // The direct-mode presets are excluded UNLESS direct mode is the one
+    // active: sameGatewayDoors() below already groups by origin regardless of
+    // mode (an agentless gateway's privilege door and its façade door share a
+    // host, and are meant to appear together), but the direct presets share
+    // that same PUBLIC_APP_ORIGIN too and aren't a door on any OTHER gateway —
+    // they would leak into every non-direct door picker without this.
+    const fromPresets = presets
+      .filter((p) => p.mode !== 'direct' || gatewayMode === 'direct')
+      .map((p) => p.url);
     const all = [...new Set([...fromConsole, ...fromPresets, ...(includeCurrent ? [config.mcpUrl] : [])])];
     return all.filter((u) => u && (includeCurrent || u !== config.mcpUrl));
   };
@@ -1190,17 +1204,17 @@ export default function PrivilegeMcpClientPage() {
               <option value="facade">Façade</option>
             </select>
           </label>
-          {/* Door picker. Agentless only: an Agent frontend is a single fixed
-              procyon host, so offering a choice there would be a lie. Hidden
-              below two doors — a select with one option is furniture.
-              It picks the DOOR, never a policy: Privilege resolves the policy
-              server-side from (user, door, tool), so a policy control could
-              only mislead about what it does. */}
-          {gatewayMode !== 'direct' && sameGatewayDoors().length > 1 && (
+          {/* Door picker. Shown whenever the current mode has more than one
+              known backend at the same origin (see sameGatewayDoors()) — hidden
+              below two doors, since a select with one option is furniture.
+              For Privilege it picks the DOOR, never a policy: Privilege
+              resolves the policy server-side from (user, door, tool), so a
+              policy control could only mislead about what it does. */}
+          {sameGatewayDoors().length > 1 && (
             <label className="cur-mode-switcher">
               <span>Door</span>
               <select
-                aria-label="Privilege MCP application (door)"
+                aria-label="MCP backend (door)"
                 value={config.mcpUrl || ''}
                 disabled={switching || toolsLoading}
                 onChange={(event) => switchDoor(event.target.value)}

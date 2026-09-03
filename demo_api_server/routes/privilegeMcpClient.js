@@ -22,6 +22,14 @@ const PRIVILEGE_APP = () => process.env.MCP_FACADE_PRIVILEGE_GATEWAY_APP || 'ope
 // to the MCP server. This is the "before" picture.
 const DEFAULT_DIRECT_MCP_URL = () =>
   process.env.PRIVILEGE_DIRECT_MCP_URL || `${PUBLIC_APP_ORIGIN()}/mcp-facade/opensearch/mcp`;
+// Sibling direct doors — same "no Privilege in the path" shape, different
+// backend. Presented as a Door picker once Direct mode is active (see /state).
+const DEFAULT_DIRECT_BRAVE_MCP_URL = () =>
+  process.env.PRIVILEGE_DIRECT_BRAVE_MCP_URL || `${PUBLIC_APP_ORIGIN()}/mcp-facade/brave/mcp`;
+const DEFAULT_DIRECT_BANKING_MCP_URL = () =>
+  process.env.PRIVILEGE_DIRECT_BANKING_MCP_URL || `${PUBLIC_APP_ORIGIN()}/mcp-facade/banking/mcp`;
+const DEFAULT_DIRECT_PINGONE_MCP_URL = () =>
+  process.env.PRIVILEGE_DIRECT_PINGONE_MCP_URL || `${PUBLIC_APP_ORIGIN()}/mcp-facade/pingone-admin/mcp`;
 // Straight at the AI Gateway: policy enforced, but the client registers with the
 // gateway, whose registry is in memory — a restart breaks it.
 const DEFAULT_PRIVILEGE_MCP_URL = () =>
@@ -1259,6 +1267,24 @@ router.get('/state', (req, res) => {
       label: '1 · Direct — no Privilege in the path',
       mode: 'direct',
       url: DEFAULT_DIRECT_MCP_URL(),
+    },
+    // Sibling direct doors, same "no Privilege in the path" shape — offered
+    // through the header Door picker once Direct mode is selected (see
+    // knownDoors() in PrivilegeMcpClientPage.jsx).
+    {
+      label: 'Direct — Brave Search',
+      mode: 'direct',
+      url: DEFAULT_DIRECT_BRAVE_MCP_URL(),
+    },
+    {
+      label: 'Direct — Banking (oauth-mcp)',
+      mode: 'direct',
+      url: DEFAULT_DIRECT_BANKING_MCP_URL(),
+    },
+    {
+      label: 'Direct — PingOne Admin',
+      mode: 'direct',
+      url: DEFAULT_DIRECT_PINGONE_MCP_URL(),
     },
     {
       label: '2 · Privilege — direct to the AI Gateway',
