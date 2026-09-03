@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import JsonHighlight from "../components/shared/JsonHighlight";
 import { getSdkClient, isSdkError } from "../lib/oidcSdkClient";
 
@@ -192,6 +192,16 @@ export default function SdkLoginPage() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState(null); // { ok, text } after revoke/logout
   const [exercise, setExercise] = useState('');
+  // The error/notice banner renders once, near the top of the page, while the
+  // buttons that set it (revoke, logout, lifecycle exercises, MFA checkpoint)
+  // live further down a page long enough to scroll. Without this, clicking any
+  // of them updates the banner off-screen and looks like the click did nothing.
+  const bannerRef = useRef(null);
+  useEffect(() => {
+    if (error || notice) {
+      bannerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [error, notice]);
 
   const toggleTheme = useCallback(() => {
     setTheme((t) => {
@@ -362,12 +372,16 @@ export default function SdkLoginPage() {
           </div>
         </section>
 
-        {error && (
-          <div style={styles.banner(false)}>
-            <b>Error:</b> {error}
+        {(error || notice) && (
+          <div ref={bannerRef}>
+            {error && (
+              <div style={styles.banner(false)}>
+                <b>Error:</b> {error}
+              </div>
+            )}
+            {notice && <div style={styles.banner(notice.ok)}>{notice.text}</div>}
           </div>
         )}
-        {notice && <div style={styles.banner(notice.ok)}>{notice.text}</div>}
 
         {status === "loading" && (
           <div style={styles.card}>
