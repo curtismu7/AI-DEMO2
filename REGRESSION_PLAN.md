@@ -139,6 +139,48 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-03 — DaVinci login's re-auth screen was pre-filled with the admin username
+
+**Files changed:** `demo_api_server/services/oauthService.js`,
+`demo_api_server/routes/davinciLogin.js`, new
+`demo_api_server/tests/services/oauthService.generateAuthorizationUrl.test.js`,
+plus a new assertion in `tests/routes/davinciLogin.test.js`. Also adds
+`demo_api_ui/src/pages/DavinciLoginConfirmedPage.jsx` (new post-login landing
+page, not a regression fix) and its route wiring.
+
+**What was broken:** `oauthService.generateAuthorizationUrl` hardcodes
+`login_hint: 'demoAdmin'` — correct for `routes/oauth.js`'s admin login, the
+only caller until now. `routes/davinciLogin.js` (added 2026-09-02, PR #2723)
+reuses the same function so its authorize URL's `client_id` matches the
+service that signs the exchange, but that reuse also inherited the hardcoded
+hint. Live symptom: after a successful DaVinci widget sign-on, PingOne's
+`/authorize` re-auth screen appeared pre-filled with "demoAdmin" — a real user
+(e.g. `demoUser`) submitting their own correct password against that
+pre-filled username got a genuine "Invalid username and/or password" from
+PingOne, indistinguishable from a real credential failure.
+
+**What was fixed:** `generateAuthorizationUrl` takes an optional 5th param,
+`loginHint = 'demoAdmin'` — every existing 4-arg positional call
+(`routes/oauth.js`) is unaffected. `routes/davinciLogin.js` now passes `null`
+explicitly, which omits `login_hint` from the URL entirely rather than sending
+an empty value.
+
+**Do not break:** `routes/oauth.js`'s admin authorize URL must keep
+`login_hint=demoAdmin` with no fifth argument at its call site — verified by
+`oauthService.generateAuthorizationUrl.test.js`'s default-value test.
+`routes/oauthUser.js` is untouched — it calls a different service
+(`oauthUserService`, imported under the same local name, easy to confuse) with
+object-style args and its own `login_hint: 'demoUser'` default; this fix does
+not touch that file or that service.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/services/oauthService.generateAuthorizationUrl.test.js tests/routes/davinciLogin.test.js tests/davinciLoginNonce.test.js --forceExit`
+(28/28); `cd demo_api_ui && npm run test:unit -- DavinciLoginPage DavinciLoginCallback DavinciLoginConfirmedPage davinciWidgetClient && npm run build`
+(exit 0); `npm run authz:verify` (175 routes). Still open: whether the DaVinci
+flow's terminal PingOne Authentication node establishes a genuine PingOne
+browser SSO session — if it does not, `/authorize` will keep showing this
+re-auth screen (now correctly blank/unprefilled) as a second, real login step;
+that is a DaVinci Studio console question, not fixable from this repo.
+
 ### 2026-09-02 — DaVinci widget login could not have produced a session at all
 
 **Files changed:** `demo_api_server/routes/davinciLogin.js`,

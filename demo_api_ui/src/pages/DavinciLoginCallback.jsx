@@ -42,7 +42,7 @@ export default function DavinciLoginCallback() {
           });
           const body = await res.json().catch(() => ({}));
           if (!res.ok) throw new Error(body.message || `Sign-in failed (HTTP ${res.status}).`);
-          navigate("/", { replace: true });
+          navigate("/davinci-login/confirmed", { replace: true });
         } finally {
           exchangedCodes.delete(code);
         }

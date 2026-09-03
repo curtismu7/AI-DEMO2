@@ -41,6 +41,7 @@ import SdkLoginPage from "../pages/SdkLoginPage";
 import SdkLoginCallback from "../pages/SdkLoginCallback";
 import DavinciLoginPage from "../pages/DavinciLoginPage";
 import DavinciLoginCallback from "../pages/DavinciLoginCallback";
+import DavinciLoginConfirmedPage from "../pages/DavinciLoginConfirmedPage";
 import DavinciExplainerPage from "../pages/DavinciExplainerPage";
 import CibaApprovalPage from "../pages/CibaApprovalPage";
 import PrivilegeDemoPage from "../pages/PrivilegeDemoPage";
@@ -372,6 +373,13 @@ export function DavinciLoginPageRoute() {
 // and redirects). Public: the user is not signed in until this route finishes.
 export function DavinciLoginCallbackRoute() {
   return <DavinciLoginCallback />;
+}
+
+// Post-login landing page — confirms who the widget flow signed in as, the
+// way a resource-server checkpoint confirms what just happened before
+// dropping the user back into the app.
+export function DavinciLoginConfirmedRoute() {
+  return <DavinciLoginConfirmedPage />;
 }
 
 // DaVinci Orchestration explainer — signed-in, AppShell-wrapped (reached from
