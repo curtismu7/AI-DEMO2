@@ -92,3 +92,12 @@ opensearchMcpServer:
 #     ports:
 #       - containerPort: 8080
 extraContainers: []
+
+# Pull secrets for the gateway pod. Needed by any private image added through
+# extraContainers — without this the pod references no secret at all and a
+# private sidecar fails with a GHCR 401, even when the namespace already holds
+# a working pull secret. Local addition to the vendored chart.
+#
+# imagePullSecrets:
+#   - name: ghcr-pull
+imagePullSecrets: []
