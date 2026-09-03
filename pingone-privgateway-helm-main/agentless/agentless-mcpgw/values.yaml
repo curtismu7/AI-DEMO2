@@ -67,3 +67,28 @@ opensearchMcpServer:
     limits:
       cpu: "500m"
       memory: "512Mi"
+
+# Extra containers to run INSIDE the gateway pod, verbatim.
+#
+# Apps added from the Privilege MCP catalog pin their backend to
+# http://localhost:8080/mcp and the field is not editable, so the server has to
+# live on the gateway's own localhost. That is what this is for — an ordinary
+# in-cluster Service cannot satisfy such an app.
+#
+# Local addition to the vendored chart; upstream has no equivalent, so
+# re-vendoring drops it. Example (Brave, the catalog's mcp-brave-search):
+#
+# extraContainers:
+#   - name: mcp-brave
+#     image: ghcr.io/curtismu7/ai-demo-mcp-brave:latest
+#     env:
+#       - name: PORT
+#         value: "8080"
+#       - name: BRAVE_SEARCH_API_KEY
+#         valueFrom:
+#           secretKeyRef:
+#             name: brave-secrets       # must exist in the GATEWAY's namespace
+#             key: BRAVE_SEARCH_API_KEY
+#     ports:
+#       - containerPort: 8080
+extraContainers: []

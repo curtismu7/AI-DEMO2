@@ -92,6 +92,12 @@ const SERVER_INVENTORY = [
     purpose: 'HTTP-to-MCP sidecar — exposes MCP tools as plain REST.',
   },
   {
+    key: 'mcp-brave', name: 'MCP Brave Search', container: 'ai-demo-mcp-brave',
+    hostPort: 8897, internalPort: 8897, lang: 'Node', category: 'mcp', sourceDir: 'demo_mcp_brave', probe: true,
+    candidates: candidates(env('MCP_BRAVE_BACKEND_URL'), 'http://mcp-brave:8897', 'http://localhost:8897'),
+    purpose: 'Brave News Search as MCP tools. Serves both transports: POST /mcp for Streamable HTTP clients, and GET /sse for the Privilege AI Gateway, whose discovery only speaks SSE.',
+  },
+  {
     key: 'agent-service', name: 'Agent Service', container: 'ai-demo-agent-service',
     hostPort: 3016, internalPort: 3006, lang: 'Node/TS (LangGraph)', category: 'agents', sourceDir: 'demo_agent_service', probe: true,
     candidates: candidates(env('AGENT_SERVICE_URL'), 'http://agent-service:3006', 'http://localhost:3016', 'http://localhost:3006'),
