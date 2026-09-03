@@ -1739,3 +1739,20 @@ select.cur-input { cursor: pointer; }
 .cur-ide[data-cur-theme="light"] .cur-blocked-band__btn { color: #7f1d1d; }
 .cur-ide[data-cur-theme="light"] .cur-empty-state--blocked { color: #b91c1c; }
 .cur-ide[data-cur-theme="light"] .cur-empty-state--blocked strong { color: #7f1d1d; }
+
+/* Policy viewer: a picker plus one detail pane, rather than a stack of
+   accordions. The list runs long enough that finding the policy behind a
+   denial meant opening them one at a time. */
+.cur-console-policy-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.cur-console-policy-tags {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
