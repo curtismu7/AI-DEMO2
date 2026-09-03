@@ -22,11 +22,11 @@ function buildApp() {
 describe('GET /api/health/inventory', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  test('returns 200 with all 22 services even when every probe fails', async () => {
+  test('returns 200 with all 23 services even when every probe fails', async () => {
     axios.get.mockRejectedValue(Object.assign(new Error('conn refused'), { code: 'ECONNREFUSED' }));
     const res = await request(buildApp()).get('/api/health/inventory');
     expect(res.status).toBe(200);
-    expect(res.body.services).toHaveLength(22);
+    expect(res.body.services).toHaveLength(23);
     const bff = res.body.services.find((s) => s.key === 'api-server');
     expect(bff.up).toBe(true); // self — this endpoint responding proves it
     const unprobed = res.body.services.find((s) => s.key === 'ungoverned-agent');
