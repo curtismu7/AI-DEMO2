@@ -96,6 +96,7 @@ export const NAV_STRUCTURE_CATALOG = [
       "OAS Demo",
       "Privilege Demo",
       "SDK Login",
+      "DaVinci Login",
     ],
   },
   {
