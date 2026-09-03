@@ -1118,6 +1118,10 @@ app.get('/api/sdk-demo/config', (req, res) => {
             clientId:    configStore.getEffective('pingone_sdk_demo_client_id'),
             redirectUri,
             scope:       configStore.getEffective('pingone_sdk_demo_scope'),
+            // Same setting the BFF's own step-up route (routes/oauthUser.js
+            // GET /stepup) sends as acr_values — keeps the SDK demo's MFA
+            // checkpoint honest to whatever an admin has actually configured.
+            stepUpAcrValue: configStore.getEffective('step_up_acr_value') || 'Multi_Factor',
         });
     } catch (err) {
         res.status(500).json({

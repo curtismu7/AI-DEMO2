@@ -316,15 +316,29 @@ export default function SdkLoginPage() {
     setExercise(label);
     setNotice({ ok: true, text: `${label} exercise selected — use the controls below to observe the SDK call and resulting token state.` });
   };
-  const startMfaCheckpoint = () => {
-    setExercise('MFA checkpoint');
-    setNotice({
-      ok: true,
-      text: status === 'signed-in'
-        ? 'MFA checkpoint ready. This page does not redirect or start a second login. The existing SDK session is the subject; verify PingOne MFA policy and inspect acr/amr after the protected action.'
-        : 'MFA checkpoint is an in-page teaching state. Sign-in is not started here; configure MFA on the PingOne policy, then exercise it from a protected action.',
-    });
-  };
+  const handleStepUp = useCallback(async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const cfgRes = await fetch("/api/sdk-demo/config", { headers: { Accept: "application/json" } });
+      const cfg = await cfgRes.json();
+      const client = await getSdkClient();
+      // Same acr_values + max_age=0 the BFF's own step-up route sends
+      // (routes/oauthUser.js GET /api/auth/oauth/user/stepup) — forces
+      // PingOne to re-challenge the current subject against whatever
+      // sign-on policy is attached to this PKCE app.
+      const url = await client.authorize.url({
+        query: { acr_values: cfg.stepUpAcrValue || "Multi_Factor", max_age: "0" },
+      });
+      if (typeof url !== "string") {
+        throw new Error(url?.error || "Could not build the step-up authorization URL");
+      }
+      window.location.href = url;
+    } catch (err) {
+      setError(err.message);
+      setBusy(false);
+    }
+  }, []);
 
   return (
     <div style={styles.page}>
@@ -550,8 +564,26 @@ export default function SdkLoginPage() {
 
         <section id="sdk-mfa" style={styles.card}>
           <div style={styles.cardH}>MFA journey integration <span style={styles.tag('out')}>PingOne MFA</span></div>
-          <p style={{ color: C.muted, marginTop: 0 }}>MFA is a checkpoint on an existing session, not a second login. This page does not redirect: trigger the protected action, let PingOne policy challenge the current subject, then verify the returned <code>acr</code>/<code>amr</code> claims.</p>
-          <div style={{ ...styles.row, marginTop: 10 }}><button type="button" style={{ ...styles.btn, ...styles.btnPrimary }} onClick={startMfaCheckpoint} disabled={busy}>Run MFA checkpoint</button><span style={{ ...styles.note, marginTop: 0 }}>No login redirect; no MFA secret is stored in this browser.</span></div>
+          <p style={{ color: C.muted, marginTop: 0 }}>MFA is a checkpoint on the current session, not a separate login. This button calls <code>client.authorize.url()</code> again with <code>acr_values</code> + <code>max_age=0</code> — the same parameters the BFF's own step-up route sends — and redirects to PingOne to re-challenge the current subject. Whether that actually prompts for MFA depends on the sign-on policy attached to this PKCE app.</p>
+          <div style={styles.row}>
+            <button type="button" style={{ ...styles.btn, ...styles.btnPrimary, opacity: busy ? 0.6 : 1 }} disabled={busy} onClick={handleStepUp}>
+              Run MFA checkpoint →
+            </button>
+            <span style={{ ...styles.note, marginTop: 0 }}>redirects to PingOne with a step-up ACR, returns here</span>
+          </div>
+          {status === "signed-in" && (() => {
+            const idClaims = decodeJWT(tokens?.idToken);
+            return (
+              <div style={{ marginTop: 14 }}>
+                <div style={styles.label}>Current session — id_token acr / amr</div>
+                <pre className={preClass} style={styles.pre}>
+                  {idClaims.isValid
+                    ? <JsonHighlight value={{ acr: idClaims.payload.acr ?? null, amr: idClaims.payload.amr ?? null }} />
+                    : "No ID token to inspect."}
+                </pre>
+              </div>
+            );
+          })()}
         </section>
 
         {error && (
