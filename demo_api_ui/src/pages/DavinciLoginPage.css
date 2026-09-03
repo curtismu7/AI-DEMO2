@@ -36,9 +36,15 @@
   margin-bottom: 12px;
 }
 
-/* The widget injects its own markup here; give it room without styling into it. */
+/* The widget injects its own markup here; give it room without styling into it.
+   The DaVinci widget's root wrapper is `position: absolute; inset: 0`, meant to
+   fill its containing block. Without `position: relative` here, that containing
+   block is the viewport (this element's only ancestors are all `position:
+   static`), so the widget's own background painted over the ENTIRE page —
+   hiding the title/subtitle above it and leaving a full-height gray plate. */
 .dvl-widget {
-  min-height: 1px;
+  position: relative;
+  min-height: 600px;
 }
 
 .dvl-retry {
