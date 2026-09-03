@@ -160,6 +160,9 @@ router.post('/nl', async (req, res) => {
     recordRunFromNl(req, message.trim(), result, vertical);
     return res.json({ source, result, llm_attempted, llm_not_configured });
   } catch (e) {
+    if (e.code === 'llm_policy_denied') {
+      return res.status(403).json({ error: 'llm_policy_denied', message: e.reason || e.message, provider: 'privilege_llm' });
+    }
     console.error('[bankingAgentNl]', e);
     return res.status(500).json({ error: 'nl_parse_failed', message: e.message || 'Failed to parse message' });
   }

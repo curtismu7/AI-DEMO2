@@ -26,6 +26,11 @@ export const AGENT_MODES = [
   // seconds while llama.cpp (gpt-oss-20b) takes minutes — lead live demos
   // with the fast provider. Order here IS the picker order (CORE_MODE_IDS).
   { id: "gemini",       label: "Google Gemini", provider: "google",   pure: true  },
+  // Same Gemini backend, but the call is proxied through a PingOne Privilege
+  // virtual key (Privilege injects the real Google key and can deny the call
+  // by policy) instead of the demo's raw GOOGLE_API_KEY — shows Privilege
+  // gating a direct LLM call, not just an MCP tool call.
+  { id: "privilege_llm", label: "Gemini via Privilege", provider: "privilege_llm", pure: true },
   { id: "llamacpp",     label: "llama.cpp",     provider: "llamacpp",  pure: true  },
   { id: "mlx",          label: "MLX",           provider: "mlx",       pure: true  },
   { id: "claude",       label: "Anthropic",     provider: "anthropic", pure: true  },
@@ -39,6 +44,7 @@ const SOURCE_LABELS = {
   helix: "Helix",
   helix_fallback: "Helix",
   google: "Google Gemini",
+  privilege_llm: "Gemini via Privilege",
   llamacpp: "llama.cpp",
   mlx: "MLX",
   claude: "Anthropic",
