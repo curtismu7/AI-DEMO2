@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import JsonHighlight from "../components/shared/JsonHighlight";
 import { getSdkClient, isSdkError } from "../lib/oidcSdkClient";
+import { decodeJWT } from "../services/tokenInspector";
+
+// tokens.<field> -> tab label, in display order.
+const TOKEN_TABS = [
+  ["accessToken", "Access Token"],
+  ["idToken", "ID Token"],
+  ["refreshToken", "Refresh Token"],
+];
 
 // OIDC Centralized Login sandbox (/sdk-login).
 //
@@ -192,6 +200,7 @@ export default function SdkLoginPage() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState(null); // { ok, text } after revoke/logout
   const [exercise, setExercise] = useState('');
+  const [inspectTokenType, setInspectTokenType] = useState('accessToken');
 
   const toggleTheme = useCallback(() => {
     setTheme((t) => {
@@ -307,15 +316,29 @@ export default function SdkLoginPage() {
     setExercise(label);
     setNotice({ ok: true, text: `${label} exercise selected — use the controls below to observe the SDK call and resulting token state.` });
   };
-  const startMfaCheckpoint = () => {
-    setExercise('MFA checkpoint');
-    setNotice({
-      ok: true,
-      text: status === 'signed-in'
-        ? 'MFA checkpoint ready. This page does not redirect or start a second login. The existing SDK session is the subject; verify PingOne MFA policy and inspect acr/amr after the protected action.'
-        : 'MFA checkpoint is an in-page teaching state. Sign-in is not started here; configure MFA on the PingOne policy, then exercise it from a protected action.',
-    });
-  };
+  const handleStepUp = useCallback(async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const cfgRes = await fetch("/api/sdk-demo/config", { headers: { Accept: "application/json" } });
+      const cfg = await cfgRes.json();
+      const client = await getSdkClient();
+      // Same acr_values + max_age=0 the BFF's own step-up route sends
+      // (routes/oauthUser.js GET /api/auth/oauth/user/stepup) — forces
+      // PingOne to re-challenge the current subject against whatever
+      // sign-on policy is attached to this PKCE app.
+      const url = await client.authorize.url({
+        query: { acr_values: cfg.stepUpAcrValue || "Multi_Factor", max_age: "0" },
+      });
+      if (typeof url !== "string") {
+        throw new Error(url?.error || "Could not build the step-up authorization URL");
+      }
+      window.location.href = url;
+    } catch (err) {
+      setError(err.message);
+      setBusy(false);
+    }
+  }, []);
 
   return (
     <div style={styles.page}>
@@ -479,9 +502,57 @@ export default function SdkLoginPage() {
             <div id="sdk-lifecycle" style={{ marginTop: 18, borderTop: `1px solid ${C.border}`, paddingTop: 14 }}>
               <div style={styles.cardH}>Token lifecycle exercises</div>
               <div style={styles.row}>
-                {['Inspect token', 'Refresh session', 'Revoke token'].map((label) => <button key={label} type="button" style={{ ...styles.btn, ...styles.btnGhost }} onClick={() => lifecycleExercise(label)}>{label}</button>)}
+                {['Inspect token', 'Refresh session', 'Revoke token'].map((label) => {
+                  const active = exercise === label;
+                  return (
+                    <button
+                      key={label}
+                      type="button"
+                      // Full `border` (not `styles.btnGhost`'s `borderColor`) on both
+                      // branches — mixing shorthand/longhand across a toggled style
+                      // triggers React's "removing a style property" DOM warning.
+                      style={{ ...styles.btn, background: active ? C.blue : "transparent", color: active ? "#fff" : C.text, border: active ? "1px solid transparent" : `1px solid ${C.border}` }}
+                      onClick={() => lifecycleExercise(label)}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
               </div>
-              {exercise && <p style={styles.note}>Selected: <b>{exercise}</b>. Observe <code>client.token.get()</code>, expiry, storage, and revocation behavior in this panel.</p>}
+              {exercise && exercise !== 'Inspect token' && <p style={styles.note}>Selected: <b>{exercise}</b>. Observe <code>client.token.get()</code>, expiry, storage, and revocation behavior in this panel.</p>}
+              {exercise === 'Inspect token' && tokens && (() => {
+                const available = TOKEN_TABS.filter(([key]) => tokens[key]);
+                const activeKey = available.some(([key]) => key === inspectTokenType) ? inspectTokenType : available[0]?.[0];
+                const raw = tokens[activeKey];
+                const decoded = decodeJWT(raw);
+                return (
+                  <div style={{ marginTop: 10 }}>
+                    <div style={styles.row}>
+                      {available.map(([key, label]) => {
+                        const active = activeKey === key;
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            style={{ ...styles.btn, padding: '6px 12px', fontSize: 12.5, background: active ? C.blue : "transparent", color: active ? "#fff" : C.text, border: active ? "1px solid transparent" : `1px solid ${C.border}` }}
+                            onClick={() => setInspectTokenType(key)}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div style={styles.label}>Encoded</div>
+                    <pre className={preClass} style={{ ...styles.pre, wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{raw || '(none)'}</pre>
+                    <div style={styles.label}>Decoded</div>
+                    <pre className={preClass} style={styles.pre}>
+                      {decoded.isValid
+                        ? <JsonHighlight value={{ header: decoded.header, payload: decoded.payload }} />
+                        : (decoded.error || 'Unable to decode')}
+                    </pre>
+                  </div>
+                );
+              })()}
             </div>
             <p style={styles.note}>
               <b>Revoke token</b> → <code>client.token.revoke()</code> (revokes the access token,
@@ -493,8 +564,26 @@ export default function SdkLoginPage() {
 
         <section id="sdk-mfa" style={styles.card}>
           <div style={styles.cardH}>MFA journey integration <span style={styles.tag('out')}>PingOne MFA</span></div>
-          <p style={{ color: C.muted, marginTop: 0 }}>MFA is a checkpoint on an existing session, not a second login. This page does not redirect: trigger the protected action, let PingOne policy challenge the current subject, then verify the returned <code>acr</code>/<code>amr</code> claims.</p>
-          <div style={{ ...styles.row, marginTop: 10 }}><button type="button" style={{ ...styles.btn, ...styles.btnPrimary }} onClick={startMfaCheckpoint} disabled={busy}>Run MFA checkpoint</button><span style={{ ...styles.note, marginTop: 0 }}>No login redirect; no MFA secret is stored in this browser.</span></div>
+          <p style={{ color: C.muted, marginTop: 0 }}>MFA is a checkpoint on the current session, not a separate login. This button calls <code>client.authorize.url()</code> again with <code>acr_values</code> + <code>max_age=0</code> — the same parameters the BFF's own step-up route sends — and redirects to PingOne to re-challenge the current subject. Whether that actually prompts for MFA depends on the sign-on policy attached to this PKCE app.</p>
+          <div style={styles.row}>
+            <button type="button" style={{ ...styles.btn, ...styles.btnPrimary, opacity: busy ? 0.6 : 1 }} disabled={busy} onClick={handleStepUp}>
+              Run MFA checkpoint →
+            </button>
+            <span style={{ ...styles.note, marginTop: 0 }}>redirects to PingOne with a step-up ACR, returns here</span>
+          </div>
+          {status === "signed-in" && (() => {
+            const idClaims = decodeJWT(tokens?.idToken);
+            return (
+              <div style={{ marginTop: 14 }}>
+                <div style={styles.label}>Current session — id_token acr / amr</div>
+                <pre className={preClass} style={styles.pre}>
+                  {idClaims.isValid
+                    ? <JsonHighlight value={{ acr: idClaims.payload.acr ?? null, amr: idClaims.payload.amr ?? null }} />
+                    : "No ID token to inspect."}
+                </pre>
+              </div>
+            );
+          })()}
         </section>
 
         {error && (
