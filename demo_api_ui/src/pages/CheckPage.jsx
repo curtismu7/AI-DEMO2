@@ -10,6 +10,7 @@ import ChecklistView from './check/ChecklistView';
 import RailDetailView from './check/RailDetailView';
 import ServersPage from './ServersPage';
 import PreflightModal from '../components/PreflightModal';
+import { useThemeOptional } from '../context/ThemeContext';
 
 // Mirrors demo_api_server/config/useCases.js VERTICALS — keep in sync.
 const VERTICALS = ['banking', 'healthcare', 'retail', 'government', 'university', 'workforce', 'sporting-goods', 'manufacturing', 'investment'];
@@ -26,6 +27,7 @@ function initialVertical(activeId) {
 }
 
 export default function CheckPage() {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const { catalog, results, verdict, running, loadCatalog, runAll, setResult } = useCheckRun();
   const [view, setView] = useState('cards');
   // ff_preflight_modal (default OFF) — a one-verdict demo-prep summary over the
@@ -54,7 +56,18 @@ export default function CheckPage() {
   return (
     <div className="check-wrap">
       <header className="check-page-head">
-        <h1>Demo check</h1>
+        <div className="check-page-head-row">
+          <h1>Demo check</h1>
+          <button
+            type="button"
+            onClick={toggleDarkMode}
+            className="chk-theme-toggle"
+            title="Switch this page between light and dark"
+            aria-pressed={darkMode}
+          >
+            {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
+          </button>
+        </div>
         <p className="check-page-sub">
           Pre-demo readiness — stack health, a real PERMIT path, and a DENY proof.
           Sign in, then run before your talk.

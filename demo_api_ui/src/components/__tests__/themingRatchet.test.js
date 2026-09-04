@@ -35,7 +35,9 @@ import path from 'node:path';
 // 177 -> 176: ControlPlaneRoster.css (the /ai-control-plane page).
 // 176 -> 174: AgentFlowHistoryPage.css and TokenChainEventCard.css (the
 // /agent-flow-inspector page and the fictional --color-code-bg it exposed).
-const MAX_UNTHEMED = 174;
+// 174 -> 172: CheckPage.css (aliased its local token layer onto --th-*, see
+// THEMING.md 9.2) and ServersPage.css (the /check page).
+const MAX_UNTHEMED = 172;
 
 const SRC = path.join(__dirname, '..', '..');
 

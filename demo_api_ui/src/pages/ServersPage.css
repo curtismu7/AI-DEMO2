@@ -1,6 +1,7 @@
 .servers-page {
   padding: 20px;
-  background: #f9fafb;
+  background: var(--th-bg-page);
+  color: var(--th-text);
   max-width: 1400px;
   margin: 0 auto;
 }
@@ -17,13 +18,13 @@
   margin: 0;
   font-size: var(--font-size-2xl);
   font-weight: 700;
-  color: #111827;
+  color: var(--th-text);
 }
 
 .servers-subtitle {
   margin: 4px 0 0 0;
   font-size: var(--font-size-body);
-  color: #4b5563;
+  color: var(--th-text-muted);
 }
 
 .servers-header-right {
@@ -34,23 +35,24 @@
 
 .servers-meta {
   font-size: var(--font-size-sm);
-  color: #374151;
+  color: var(--th-text-body);
   white-space: nowrap;
 }
 
 .servers-refresh {
   padding: 6px 14px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--th-border-strong);
   border-radius: 6px;
-  background: #ffffff;
-  color: #111827;
+  background: var(--th-bg-card);
+  color: var(--th-text);
   font-size: var(--font-size-sm);
   font-weight: 600;
   cursor: pointer;
 }
 
 .servers-refresh:hover:not(:disabled) {
-  background: #f3f4f6;
+  background: var(--th-bg-hover);
+  color: var(--th-text);
 }
 
 .servers-refresh:disabled {
@@ -61,17 +63,17 @@
 .servers-error {
   margin-bottom: 16px;
   padding: 10px 14px;
-  border: 1px solid #fca5a5;
+  border: 1px solid var(--th-status-error-border);
   border-radius: 6px;
-  background: #fef2f2;
-  color: #991b1b;
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
   font-size: var(--font-size-body);
 }
 
 .servers-loading {
   padding: 40px 0;
   text-align: center;
-  color: #374151;
+  color: var(--th-text-body);
   font-size: var(--font-size-base);
 }
 
@@ -83,14 +85,15 @@
   margin: 0 0 8px 0;
   font-size: 16px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--th-text);
 }
 
 .servers-table-wrap {
   overflow-x: auto;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--th-border);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--th-bg-card);
+  color: var(--th-text);
 }
 
 .servers-table {
@@ -102,17 +105,17 @@
 .servers-table th {
   text-align: left;
   padding: 8px 12px;
-  border-bottom: 1px solid #e5e7eb;
-  background: #f9fafb;
-  color: #374151;
+  border-bottom: 1px solid var(--th-border);
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
   font-weight: 600;
   white-space: nowrap;
 }
 
 .servers-table td {
   padding: 8px 12px;
-  border-bottom: 1px solid #f3f4f6;
-  color: #1f2937;
+  border-bottom: 1px solid var(--th-border);
+  color: var(--th-text);
   vertical-align: top;
 }
 
@@ -121,7 +124,8 @@
 }
 
 .servers-table .row-down td {
-  background: #fffbeb;
+  background: var(--th-status-warning-bg);
+  color: var(--th-text);
 }
 
 .col-status {
@@ -141,7 +145,7 @@
   white-space: nowrap;
   font-family: var(--font-mono);
   font-size: var(--font-size-2xs);
-  color: #374151;
+  color: var(--th-text-body);
 }
 
 .col-size {
@@ -150,7 +154,7 @@
 
 .col-purpose {
   min-width: 260px;
-  color: #4b5563;
+  color: var(--th-text-muted);
 }
 
 .servers-dot {
@@ -161,22 +165,24 @@
 }
 
 .servers-dot.up {
-  background: #16a34a;
+  background: var(--th-status-success);
+  color: var(--th-status-success-text);
   box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15);
 }
 
 .servers-dot.down {
-  background: #dc2626;
+  background: var(--th-status-error);
+  color: var(--th-status-error-text);
   box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
 }
 
 .servers-badge {
   display: inline-block;
   padding: 2px 8px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--th-border-strong);
   border-radius: 999px;
-  background: #f3f4f6;
-  color: #374151;
+  background: var(--th-bg-hover);
+  color: var(--th-text-body);
   font-size: var(--font-size-xs);
   font-weight: 600;
   white-space: nowrap;
