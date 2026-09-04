@@ -5,7 +5,7 @@
 // A tools/list 401 carrying { loginUrl } should navigate the browser there
 // once, not fall into the generic "Sign in to continue" modal — and a return
 // trip (?pingone_admin_login=success) should refresh tools automatically.
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import PrivilegeMcpClientPage from "../PrivilegeMcpClientPage";
 
@@ -70,9 +70,14 @@ beforeEach(() => {
 });
 
 describe("pingone-admin door's delegated-PKCE login", () => {
-  it("navigates to loginUrl on a fresh visit, without opening the generic Sign In modal", async () => {
+  it("navigates to loginUrl once tools are requested, without opening the generic Sign In modal", async () => {
     mockState();
     renderAt("/privilege-mcp-client");
+
+    // Tools no longer auto-discover on mount (a failed pingone-admin round
+    // trip used to strand the browser on a dead PingOne error page with no
+    // way back) — the user drives discovery via the "Get MCP Tools" button.
+    fireEvent.click(await screen.findByRole("button", { name: /Get MCP Tools/i }));
 
     await waitFor(() => expect(window.location.href).toBe(LOGIN_URL));
     expect(screen.queryByText("Sign in to continue")).toBeNull();
