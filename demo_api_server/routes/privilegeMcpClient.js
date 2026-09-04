@@ -37,8 +37,6 @@ const DEFAULT_DIRECT_BANKING_MCP_URL = () =>
   process.env.PRIVILEGE_DIRECT_BANKING_MCP_URL || `${PUBLIC_APP_ORIGIN()}/mcp-facade/banking/mcp`;
 const DEFAULT_DIRECT_PINGONE_MCP_URL = () =>
   process.env.PRIVILEGE_DIRECT_PINGONE_MCP_URL || `${PUBLIC_APP_ORIGIN()}/mcp-facade/pingone-admin/mcp`;
-const DEFAULT_DIRECT_AGENT_GATEWAY_MCP_URL = () =>
-  process.env.PRIVILEGE_DIRECT_AGENT_GATEWAY_MCP_URL || `${PUBLIC_APP_ORIGIN()}/mcp-facade/agent-gateway/mcp`;
 // Straight at the AI Gateway: policy enforced, but the client registers with the
 // gateway, whose registry is in memory — a restart breaks it.
 const DEFAULT_PRIVILEGE_MCP_URL = () =>
@@ -1305,11 +1303,6 @@ router.get('/state', (req, res) => {
       label: 'Direct — PingOne Admin',
       mode: 'direct',
       url: DEFAULT_DIRECT_PINGONE_MCP_URL(),
-    },
-    {
-      label: 'Direct — Agent Gateway',
-      mode: 'direct',
-      url: DEFAULT_DIRECT_AGENT_GATEWAY_MCP_URL(),
     },
     {
       label: '2 · Privilege — direct to the AI Gateway',

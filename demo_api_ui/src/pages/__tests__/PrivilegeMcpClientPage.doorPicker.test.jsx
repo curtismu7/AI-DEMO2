@@ -142,23 +142,55 @@ describe("titlebar door picker", () => {
     expect(posted[0].mcpUrl).toBe(BRAVE);
   });
 
-  it("lists the agent-gateway preset alongside its Direct-mode siblings", async () => {
+  it("Facade mode gets the same plain doors as Direct, alongside its own Privilege-gated apps", async () => {
     const FACADE_ORIGIN = "https://ai-demo.example.com";
-    const OPENSEARCH = `${FACADE_ORIGIN}/mcp-facade/opensearch/mcp`;
-    const AGENT_GATEWAY = `${FACADE_ORIGIN}/mcp-facade/agent-gateway/mcp`;
-    mockApi({
-      gatewayMode: "direct",
-      mcpUrl: OPENSEARCH,
+    const OPENSEARCH_DIRECT = `${FACADE_ORIGIN}/mcp-facade/opensearch/mcp`;
+    const BRAVE_DIRECT = `${FACADE_ORIGIN}/mcp-facade/brave/mcp`;
+    const OPENSEARCH22_PRIVILEGE = `${FACADE_ORIGIN}/mcp-facade/privilege-gateway/opensearch22/mcp`;
+    const posted = mockApi({
+      gatewayMode: "facade",
+      mcpUrl: OPENSEARCH22_PRIVILEGE,
       presets: [
-        { label: "1 · Direct — no Privilege in the path", mode: "direct", url: OPENSEARCH },
-        { label: "Direct — Agent Gateway", mode: "direct", url: AGENT_GATEWAY },
+        { label: "1 · Direct — no Privilege in the path", mode: "direct", url: OPENSEARCH_DIRECT },
+        { label: "Direct — Brave Search", mode: "direct", url: BRAVE_DIRECT },
+        { label: "3 · Privilege — through the façade", mode: "facade", url: OPENSEARCH22_PRIVILEGE },
       ],
     });
     renderPage();
     await waitFor(() => expect(picker()).toBeTruthy());
 
     const options = [...picker().options].map((o) => o.textContent);
-    expect(options).toEqual(["opensearch", "agent-gateway"]);
+    expect(options).toEqual(["opensearch", "brave", "opensearch22"]);
+
+    fireEvent.change(picker(), { target: { value: OPENSEARCH_DIRECT } });
+    await waitFor(() => expect(posted.length).toBeGreaterThan(0));
+    // Reuses the exact same façade-hosted URL Direct mode uses for this door —
+    // it is already a /mcp-facade/... route, so nothing extra is needed to
+    // keep it "wired to the façade" while Facade mode is active.
+    expect(posted[0].mcpUrl).toBe(OPENSEARCH_DIRECT);
+  });
+
+  it("Privilege mode (raw AI Gateway, different origin) does NOT gain Direct's plain doors", async () => {
+    const RAW_GATEWAY = "https://mcpgw.example.com";
+    const FACADE_ORIGIN = "https://ai-demo.example.com";
+    const OPENSEARCH22 = `${RAW_GATEWAY}/opensearch22/mcp`;
+    const OPENSEARCH_DIRECT = `${FACADE_ORIGIN}/mcp-facade/opensearch/mcp`;
+    mockApi({
+      gatewayMode: "privilege",
+      mcpUrl: OPENSEARCH22,
+      presets: [
+        { label: "2 · Privilege — direct to the AI Gateway", mode: "privilege", url: OPENSEARCH22 },
+        { label: "1 · Direct — no Privilege in the path", mode: "direct", url: OPENSEARCH_DIRECT },
+      ],
+    });
+    renderPage();
+    await waitFor(() => expect(screen.getByLabelText("Connection path")).toBeTruthy());
+
+    // Only one Privilege door on this origin and no direct-mode leak — a
+    // single-target readout, not a picker offering an unreachable door.
+    await waitFor(() => expect(picker()).toBeTruthy());
+    const options = [...picker().options].map((o) => o.textContent);
+    expect(options).toEqual(["opensearch22"]);
   });
 
   it("names each privilege-gateway/<app> sibling by its app, not the door", async () => {
