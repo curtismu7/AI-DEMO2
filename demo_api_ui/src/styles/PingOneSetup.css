@@ -1,6 +1,14 @@
+/* styles/PingOneSetup.css
+   Was written against --bg-primary/--bg-secondary/--text-primary/
+   --text-secondary/--border-color/--input-bg/--bg-disabled/--text-disabled —
+   none of them defined anywhere, so every var() always fell through to its
+   light literal fallback in both themes. Rewritten onto the real --th-*
+   semantic set (src/index.css). */
+
 .pingone-setup-page {
+  color: var(--th-text);
   width: 100%;
-  background: var(--bg-primary, #fff);
+  background: var(--th-bg-page);
   min-height: 100vh;
   padding: 40px 20px;
 }
@@ -8,23 +16,43 @@
 .setup-container {
   max-width: 640px;
   margin: 0 auto;
+  position: relative;
+}
+
+.setup-theme-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 6px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.setup-theme-toggle:hover {
+  color: var(--th-text);
+  background: var(--th-bg-hover);
 }
 
 .setup-container h1 {
   font-size: 2.5em;
   margin-bottom: 10px;
-  color: var(--text-primary, #000);
+  color: var(--th-text);
 }
 
 .setup-container .subtitle {
   font-size: 1.1em;
-  color: var(--text-secondary, #666);
+  color: var(--th-text-muted);
   margin-bottom: 40px;
 }
 
 .prefill-note {
+  color: var(--th-status-success);
   font-size: 0.9em;
-  color: #28a745;
   margin: -8px 0 16px;
 }
 
@@ -37,16 +65,17 @@
 
 /* Form Section */
 .setup-form-section {
-  background: var(--bg-secondary, #f5f5f5);
+  color: var(--th-text);
+  background: var(--th-bg-inset);
   border-radius: 8px;
   padding: 30px;
-  border: 1px solid var(--border-color, #e0e0e0);
+  border: 1px solid var(--th-border);
 }
 
 .setup-form-section h2 {
   font-size: 1.5em;
   margin-bottom: 25px;
-  color: var(--text-primary, #000);
+  color: var(--th-text);
 }
 
 .setup-form {
@@ -63,29 +92,29 @@
 
 .form-group label {
   font-weight: 600;
-  color: var(--text-primary, #000);
+  color: var(--th-text);
   font-size: 0.95em;
 }
 
 .form-group input {
+  color: var(--th-text);
   padding: 12px;
-  border: 1px solid var(--border-color, #ddd);
+  border: 1px solid var(--th-border-strong);
   border-radius: 4px;
   font-size: 1em;
-  background: var(--input-bg, #fff);
-  color: var(--text-primary, #000);
+  background: var(--th-bg-card);
   transition: border-color 0.2s;
 }
 
 .form-group input:focus {
   outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+  border-color: var(--th-status-info);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
 .form-group input:disabled {
-  background: var(--bg-disabled, #f0f0f0);
-  color: var(--text-disabled, #999);
+  color: var(--th-text-muted);
+  background: var(--th-bg-inset);
   cursor: not-allowed;
 }
 
@@ -101,44 +130,49 @@
 }
 
 .btn-primary {
-  background: #007bff;
-  color: white;
+  color: var(--th-text-on-emphasis);
+  background: var(--th-bg-emphasis);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #0056b3;
+  color: var(--th-text-on-emphasis);
+  background: color-mix(in srgb, var(--th-bg-emphasis) 85%, black);
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 86, 179, 0.3);
 }
 
 .btn-primary:disabled {
-  background: #ccc;
+  color: var(--th-text-muted);
+  background: var(--th-bg-inset);
   cursor: not-allowed;
   opacity: 0.6;
 }
 
 /* Results Section */
 .results-section {
-  background: var(--bg-secondary, #f5f5f5);
+  color: var(--th-text);
+  background: var(--th-bg-inset);
   border-radius: 8px;
   padding: 30px;
-  border: 2px solid #ccc;
+  border: 2px solid var(--th-border-strong);
 }
 
 .results-section.success {
-  border-color: #28a745;
-  background: rgba(40, 167, 69, 0.05);
+  color: var(--th-status-success-text);
+  border-color: var(--th-status-success-border);
+  background: var(--th-status-success-bg);
 }
 
 .results-section.partial {
-  border-color: #ffc107;
-  background: rgba(255, 193, 7, 0.05);
+  color: var(--th-status-warning-text);
+  border-color: var(--th-status-warning-border);
+  background: var(--th-status-warning-bg);
 }
 
 .results-section h2 {
+  color: var(--th-text);
   font-size: 1.5em;
   margin-bottom: 25px;
-  color: var(--text-primary, #000);
 }
 
 .steps-breakdown {
@@ -149,44 +183,47 @@
 }
 
 .step {
+  color: var(--th-text);
   padding: 15px;
   border-radius: 4px;
-  border-left: 4px solid #ddd;
-  background: var(--bg-primary, #fff);
+  border-left: 4px solid var(--th-border-strong);
+  background: var(--th-bg-card);
 }
 
 .step.passed {
-  border-left-color: #28a745;
-  background: rgba(40, 167, 69, 0.05);
+  color: var(--th-status-success-text);
+  border-left-color: var(--th-status-success-border);
+  background: var(--th-status-success-bg);
 }
 
 .step.failed {
-  border-left-color: #dc3545;
-  background: rgba(220, 53, 69, 0.05);
+  color: var(--th-status-error-text);
+  border-left-color: var(--th-status-error-border);
+  background: var(--th-status-error-bg);
 }
 
 .step-title {
   font-weight: 600;
-  color: var(--text-primary, #000);
+  color: var(--th-text);
   margin-bottom: 5px;
   font-size: 1.05em;
 }
 
 .step-detail {
-  color: var(--text-secondary, #666);
+  color: var(--th-text-muted);
   font-size: 0.95em;
 }
 
 .tools-list {
   margin-top: 10px;
   padding-top: 10px;
-  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  border-top: 1px solid var(--th-border);
 }
 
 .tools-list strong {
+  color: var(--th-text);
   display: block;
   margin-bottom: 8px;
-  color: var(--text-primary, #000);
 }
 
 .tools-list ul {
@@ -196,9 +233,9 @@
 }
 
 .tools-list li {
+  color: var(--th-text-muted);
   padding: 5px 0;
   padding-left: 20px;
-  color: var(--text-secondary, #666);
   font-size: 0.9em;
   position: relative;
 }
@@ -210,23 +247,24 @@
 }
 
 .next-steps {
-  background: var(--bg-primary, #fff);
+  color: var(--th-text);
+  background: var(--th-bg-card);
   padding: 20px;
   border-radius: 4px;
   margin-top: 20px;
-  border: 1px solid var(--border-color, #e0e0e0);
+  border: 1px solid var(--th-border);
 }
 
 .next-steps h3 {
-  color: var(--text-primary, #000);
+  color: var(--th-text);
   margin-bottom: 12px;
   font-size: 1.1em;
 }
 
 .next-steps ol {
+  color: var(--th-text-muted);
   margin: 0;
   padding-left: 20px;
-  color: var(--text-secondary, #666);
 }
 
 .next-steps li {
@@ -236,41 +274,43 @@
 
 /* Error Section */
 .error-section {
-  background: rgba(220, 53, 69, 0.05);
-  border: 2px solid #dc3545;
+  color: var(--th-status-error-text);
+  background: var(--th-status-error-bg);
+  border: 2px solid var(--th-status-error-border);
   border-radius: 8px;
   padding: 30px;
   grid-column: 1 / -1;
 }
 
 .error-section h3 {
-  color: #dc3545;
+  color: var(--th-status-error-text);
   margin-bottom: 12px;
   font-size: 1.2em;
 }
 
 .error-section p {
-  color: var(--text-primary, #000);
+  color: var(--th-text);
   margin: 8px 0;
 }
 
 .error-hint {
-  color: var(--text-secondary, #666);
+  color: var(--th-text-muted);
   font-size: 0.95em;
   font-style: italic;
 }
 
 /* Help Section */
 .help-section {
+  color: var(--th-text);
   grid-column: 1 / -1;
-  background: var(--bg-secondary, #f5f5f5);
+  background: var(--th-bg-inset);
   border-radius: 8px;
   padding: 25px;
-  border: 1px solid var(--border-color, #e0e0e0);
+  border: 1px solid var(--th-border);
 }
 
 .help-section h3 {
-  color: var(--text-primary, #000);
+  color: var(--th-text);
   margin-bottom: 15px;
   font-size: 1.1em;
 }
@@ -282,10 +322,10 @@
 }
 
 .help-section li {
+  color: var(--th-text);
   padding: 10px 0;
-  color: var(--text-primary, #000);
   line-height: 1.6;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  border-bottom: 1px solid var(--th-border);
 }
 
 .help-section li:last-child {
@@ -293,18 +333,26 @@
 }
 
 .help-section strong {
-  color: #007bff;
+  color: var(--th-status-info);
 }
 
 .mcp-url {
+  color: var(--th-code-text);
   display: block;
   margin-top: 10px;
   padding: 12px;
-  background: var(--bg-primary, #fff);
-  border: 1px solid var(--border-color, #e0e0e0);
+  background: var(--th-code-bg);
+  border: 1px solid var(--th-border);
   border-radius: 4px;
-  color: var(--text-primary, #000);
   font-family: var(--font-family-mono);
   font-size: 0.9em;
   word-break: break-all;
+}
+
+@media (max-width: 640px) {
+  .setup-theme-toggle {
+    position: static;
+    display: inline-block;
+    margin-bottom: 12px;
+  }
 }
