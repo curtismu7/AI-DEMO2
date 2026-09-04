@@ -140,6 +140,37 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-04 — Expanded side-nav icons unreadable in dark mode; Home/Dashboard/Canvas Diagram icons missing entirely
+
+**Files changed:** `demo_api_ui/src/components/adminSkinPing2026.css`,
+`demo_api_ui/src/components/AdminSideNav.jsx`.
+
+**What was broken:** two separate bugs, both reported live on
+`ai-demo.ping-devops.com`. (1) `body.admin-skin-p1 .admin-side-nav__icon`
+colored every expanded-rail nav icon with `--th-text-muted` (`#94a3b8` on the
+`#131c2e` dark card) — the same tone PR #2778 had already judged too weak for
+a 16px icon glyph and fixed, but only for `.admin-side-nav--collapsed`; the
+expanded rail (now the only rail rendered, since `useAdminSkin.js` applies
+`admin-skin-p1` unconditionally) was left on the weak token. (2) Three nav
+entries — Home, Dashboard, Canvas Diagram (Node) — used icon keys `"~"`,
+`"≡"`, `"⬡"` that don't exist in `ICON_MAP`; `NavIcon` returns `null` for an
+unmapped key, so those three rendered no icon at all.
+
+**What was fixed:** changed the base `.admin-side-nav__icon` rule to
+`--th-text` (matching the collapsed-rail override, now redundant but left in
+place) so every expanded-rail icon gets full-contrast color. Corrected Home →
+`"home"` (`MdHome`), Dashboard → `"dashboard"` (`MdDashboard`) — both already
+had valid `ICON_MAP` entries under the right key — and Canvas Diagram →
+`"arc"` (`MdArchitecture`), matching the icon used by sibling diagram-type
+entries in the same list.
+
+**Do not break:** the collapsed-rail icon color (already full `--th-text`) is
+untouched; no `--th-*` token values were redefined; no other nav item's icon
+key was changed — a script diffing every `icon: "..."` usage against
+`ICON_MAP`'s keys confirmed zero remaining mismatches after the fix.
+
+**Verify:** `cd demo_api_ui && npm run build` (exit 0, 2026-09-04).
+
 ### 2026-09-04 — Token Chain pipeline-step rows unreadable in dark mode (light-blue text on white)
 
 **Files changed:** `demo_api_ui/src/components/supportConsole/SupportConsole.css`.

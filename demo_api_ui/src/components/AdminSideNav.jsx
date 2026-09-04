@@ -466,8 +466,8 @@ export default function AdminSideNav({
   // Items with adminOnly: true stay visible to everyone but carry an "admin"
   // badge; non-admin clicks prompt an admin re-login (see adminPromptPath)
   const allNavItems = [
-    { label: "Home", path: "/", icon: "~" },
-    { label: "Dashboard", path: "/dashboard", icon: "≡" },
+    { label: "Home", path: "/", icon: "home" },
+    { label: "Dashboard", path: "/dashboard", icon: "dashboard" },
     {
       label: "AI Agent Gateway",
       icon: "shld",
@@ -987,7 +987,7 @@ export default function AdminSideNav({
           icon: "rte",
         },
         { label: "Sequence Diagram (Node)", path: "/sequence-diagram", icon: "log" },
-        { label: "Canvas Diagram (Node)", path: "/architecture/canvas", icon: "⬡" },
+        { label: "Canvas Diagram (Node)", path: "/architecture/canvas", icon: "arc" },
         { label: "Agent Onboarding Flow (Node)", path: "/agent-onboarding-flow", icon: "arc", className: "admin-side-nav__item--onboarding-white" },
         { label: "Agent Onboarding Flow Subway (Node)", path: "/agent-onboarding-flow-subway", icon: "arc", className: "admin-side-nav__item--onboarding-white" },
         { label: "Agent Onboarding Flow (MM)", path: "/agent-onboarding-flow-mermaid", icon: "arc", className: "admin-side-nav__item--onboarding-white" },
