@@ -117,4 +117,40 @@ describe('ToolsTable', () => {
     });
     expect(screen.queryByText(/Missing required/)).not.toBeInTheDocument();
   });
+
+  test('renders no dropdown for a string param with neither an enum nor a curated example', () => {
+    const profileTool = {
+      name: 'get_customer_profile',
+      description: 'Retrieve the full profile for a customer by userId.',
+      inputSchema: {
+        type: 'object',
+        properties: { userId: { type: 'string' } },
+        required: ['userId'],
+      },
+    };
+    render(<ToolsTable tools={[profileTool]} onExecute={vi.fn()} />);
+
+    fireEvent.click(screen.getByText('get_customer_profile'));
+
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+  });
+
+  test('renders a quick-fill dropdown for a second curated tool (get_weather.city_name)', () => {
+    const weatherTool = {
+      name: 'get_weather',
+      description: 'Current conditions for a location.',
+      inputSchema: {
+        type: 'object',
+        properties: { city_name: { type: 'string' } },
+      },
+    };
+    render(<ToolsTable tools={[weatherTool]} onExecute={vi.fn()} />);
+
+    fireEvent.click(screen.getByText('get_weather'));
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'Austin, TX' } });
+
+    expect(screen.getByRole('textbox', { name: 'Arguments (JSON)' })).toHaveValue(
+      JSON.stringify({ city_name: 'Austin, TX' }, null, 2),
+    );
+  });
 });

@@ -14,6 +14,34 @@ const PARAM_EXAMPLES = {
   brave_news_search: {
     query: ['PingOne security', 'Yankees trade news', 'identity and access management'],
   },
+  // Gateway enforces a Texas-only geofence on this door (demo policy) — every
+  // example must be a Texas city or the call is denied, not just empty.
+  get_weather: {
+    city_name: ['Austin, TX', 'Dallas, TX', 'Houston, TX'],
+  },
+  get_branch_hours: {
+    city: ['Austin', 'Dallas', 'Houston'],
+    vertical: ['banking', 'healthcare', 'government'],
+  },
+  sequential_think: {
+    query: ['Should I transfer $500 from savings to checking?', 'Is this account eligible for a fee waiver?'],
+    context: ['Checking balance $1,200, savings balance $8,400', 'Account opened 2019, no prior overdrafts'],
+  },
+  code_search: {
+    query: ['transfer money between accounts', 'RFC 8693 token exchange', 'admin role check'],
+  },
+  lookup_customer: {
+    query: ['demo', 'smith', 'cmuir'],
+  },
+  request_fee_waiver: {
+    reason: ['Overdraft fee due to bank error', 'First-time customer courtesy request'],
+  },
+  list_pingone_tools: {
+    filter: ['user', 'application', 'population'],
+  },
+  call_pingone_tool: {
+    name: ['listUsers', 'listApplications', 'listPopulations', 'getEnvironment'],
+  },
 };
 
 function paramsOf(tool) {
