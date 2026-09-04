@@ -364,7 +364,7 @@
   border-radius: 6px;
   padding: 0.5rem 0.75rem;
   font-size: 0.82rem;
-  color: #1f2937;
+  color: var(--th-text);
   user-select: all;
   margin: 0;
 }

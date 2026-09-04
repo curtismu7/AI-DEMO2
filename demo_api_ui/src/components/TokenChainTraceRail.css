@@ -60,7 +60,7 @@
   color: #cbd5e1; font: inherit; font-size: var(--font-size-xs); font-weight: 700; cursor: pointer;
 }
 .tctr-view-mode button.active {
-  color: #16325c; background: var(--th-bg-card);
+  color: var(--tctr-text); background: var(--th-bg-card);
 }
 /* ── Chain-view tabs — one rendering at a time (Step Detail default).
    Replaced the stacked map+list, which doubled the column height. ── */

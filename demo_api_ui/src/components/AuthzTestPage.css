@@ -20,7 +20,7 @@
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 600;
-  color: var(--color-text, #1a1a2e);
+  color: var(--th-text);
   text-align: left;
   transition: background 0.15s;
 }
@@ -672,7 +672,7 @@
   border-radius: 6px;
   font-size: 0.88rem;
   background: var(--th-bg-card);
-  color: var(--color-text, #1a1a2e);
+  color: var(--th-text);
   transition: border-color 0.15s;
   width: 100%;
   box-sizing: border-box;
@@ -744,7 +744,7 @@
 
 .authz-history-table th {
   background: var(--th-bg-inset);
-  color: var(--color-text-muted, #374151);
+  color: var(--th-text-muted);
   font-weight: 600;
   font-size: 0.8rem;
   text-align: left;

@@ -1300,7 +1300,7 @@ a.pingone-test-button--primary:visited {
 }
 
 .tld-kind--changed {
-  background: var(--th-status-warning);
+  background: var(--th-status-warning-bg);
   color: var(--th-status-warning-text);
 }
 .tld-kind--added {
@@ -1455,7 +1455,7 @@ a.pingone-test-button--primary:visited {
   font-size: 0.82rem;
 }
 .tld-badge--unexpected {
-  background: var(--th-status-warning);
+  background: var(--th-status-warning-bg);
   color: var(--th-status-warning-text);
 }
 .tld-badge--expected {

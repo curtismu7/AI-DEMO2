@@ -680,7 +680,7 @@ body.admin-skin-p1 .audit-filter-select {
   background: var(--th-bg-card);
   border: 1px solid #e4e5e9;
   border-radius: 6px;
-  color: #23242a;
+  color: var(--th-text);
 }
 body.admin-skin-p1 .audit-filter-select:focus {
   outline-color: #2767d2;
@@ -738,7 +738,7 @@ body.admin-skin-p1 .audit-details-toggle {
   background: var(--th-bg-card);
   border: 1px solid #e4e5e9;
   border-radius: 6px;
-  color: #23242a;
+  color: var(--th-text);
 }
 body.admin-skin-p1 .audit-details-toggle:hover {
   background: var(--th-bg-inset);

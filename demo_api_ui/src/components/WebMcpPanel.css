@@ -231,7 +231,7 @@
 .webmcp-stream-event {
   font-family: inherit;
   font-size: var(--font-size-sm);
-  color: #0f2044;
+  color: var(--th-text);
   white-space: pre-wrap;
   word-break: break-all;
   margin-bottom: 4px;
@@ -360,7 +360,7 @@
   border: 1px solid var(--th-border);
   border-radius: 4px;
   font-size: var(--font-size-sm);
-  color: #0f2044;
+  color: var(--th-text);
   white-space: pre-wrap;
   word-break: break-all;
 }

@@ -1415,8 +1415,8 @@ select.cur-input { cursor: pointer; }
 .cur-ide[data-cur-theme="light"] .cur-flow-cv--hi { color: #7c3aed; }
 .cur-ide[data-cur-theme="light"] .cur-flow-cv--ok,
 .cur-ide[data-cur-theme="light"] .cur-flow-cv--aud { color: #15803d; }
-.cur-ide[data-cur-theme="light"] .cur-flow-line,
-.cur-ide[data-cur-theme="light"] .cur-flow-arrow { background: #ccc; color: #ccc; }
+.cur-ide[data-cur-theme="light"] .cur-flow-line { background: #ccc; }
+.cur-ide[data-cur-theme="light"] .cur-flow-arrow { color: #6e7681; }
 .cur-ide[data-cur-theme="light"] .cur-auth-badge--ok { background: rgba(56, 139, 253, 0.12); color: #1d4ed8; }
 
 /* ─────────────────────────────────────────────────────────────────────────

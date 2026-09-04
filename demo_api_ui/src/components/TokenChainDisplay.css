@@ -866,7 +866,7 @@
 
 .tcd-edu-code {
   background: var(--th-bg-card);
-  color: #1f2937;
+  color: var(--th-text);
   font-size: var(--font-size-2xs);
   font-family: inherit;
   padding: 8px 10px;
@@ -1169,7 +1169,7 @@ pre.tcd-jwt-dump.jh-dark {
 .tcd-claims-alg {
   font-size: var(--tcd-size-body);
   font-weight: 600;
-  color: #1f2937;
+  color: var(--th-text-body);
   padding: 6px 12px;
   background: var(--th-bg-inset);
   border-bottom: 1px solid rgba(148, 163, 184, 0.2);
