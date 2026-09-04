@@ -3,6 +3,12 @@
 // Façade — and switching between them re-authenticates, because each has a
 // different OAuth front door. (Agent/Agentless was retired 2026-09-02: there is
 // one AI Gateway now, and agent mode's frontend had nothing behind it.)
+//
+// Exception: session.oauth on the BFF is a single slot shared across modes
+// (routes/privilegeMcpClient.js POST /config), so switching back to a mode you
+// were already signed into restores its stashed token server-side and reports
+// oauth.authenticated on the /config response — the page must skip /auth/start
+// in that case instead of forcing a redundant sign-in every switch.
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import PrivilegeMcpClientPage from "../PrivilegeMcpClientPage";
@@ -25,14 +31,18 @@ const jsonResponse = (body) => ({
   text: async () => JSON.stringify(body),
 });
 
-function mockFetch({ state, toolsList } = {}) {
+function mockFetch({ state, toolsList, configOauth } = {}) {
   return vi.fn((url, opts = {}) => {
     const u = String(url);
     if (u.endsWith("/api/privilege-mcp/state")) {
       return Promise.resolve(jsonResponse(state));
     }
     if (u.endsWith("/api/privilege-mcp/config")) {
-      return Promise.resolve(jsonResponse({ ok: true, config: JSON.parse(opts.body || "{}") }));
+      return Promise.resolve(jsonResponse({
+        ok: true,
+        config: JSON.parse(opts.body || "{}"),
+        ...(configOauth ? { oauth: configOauth } : {}),
+      }));
     }
     if (u.endsWith("/api/privilege-mcp/auth/start")) {
       return Promise.resolve(jsonResponse({ authUrl: "https://auth.pingone.example/authorize" }));
@@ -95,6 +105,26 @@ describe("gateway switch on Settings save", () => {
     await waitFor(() => {
       expect(global.fetch.mock.calls.filter(([u]) => String(u).includes("/auth/start"))).toHaveLength(1);
     });
+  });
+
+  it("skips re-auth when the BFF reports the destination mode already has a restored token", async () => {
+    global.fetch = mockFetch({ state: baseState, configOauth: { authenticated: true } });
+    renderPage();
+
+    const modeSelect = await screen.findByLabelText("Connection path");
+    await waitFor(() => expect(modeSelect).toBeEnabled());
+    fireEvent.change(modeSelect, { target: { value: "facade" } });
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/privilege-mcp/config"),
+        expect.objectContaining({ method: "POST", body: expect.stringContaining('\"gatewayMode\":\"facade\"') }),
+      );
+    });
+    // Give the async chain a tick, then confirm no redirect was ever started.
+    await new Promise((r) => setTimeout(r, 10));
+    expect(global.fetch.mock.calls.filter(([u]) => String(u).includes("/auth/start"))).toHaveLength(0);
+    expect(screen.queryByText("Switching gateway...")).not.toBeInTheDocument();
   });
 
   it("offers all three paths and no retired Agent option", async () => {

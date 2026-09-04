@@ -506,6 +506,16 @@ export default function PrivilegeMcpClientPage() {
         refreshTools(true);
         return;
       }
+      // The BFF restores this mode's own token if it was signed in before
+      // (session.oauth is a single slot shared across modes — see POST
+      // /config) — skip the full re-auth redirect instead of always forcing
+      // one, which used to show the sign-in modal on every switch back to a
+      // mode you were already authenticated in.
+      if (saved.oauth?.authenticated) {
+        setAuthenticated(true);
+        refreshTools(true);
+        return;
+      }
       setSwitching(true);
       try { sessionStorage.setItem('cur_priv_switching', '1'); } catch { /* storage disabled */ }
       const data = await api('/auth/start', { method: 'POST' });

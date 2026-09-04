@@ -68,6 +68,40 @@ describe('POST /api/privilege-mcp/config — blank values do not overwrite', () 
     });
   });
 
+  it('restores a mode\'s own token on switch-back instead of forcing a redundant re-auth', async () => {
+    // session.oauth is a single slot shared across all three modes — switching
+    // away used to leave the outgoing mode's token in place (falsely reporting
+    // "authenticated" for a mode that never issued it) or silently drop it
+    // (forcing the sign-in modal every time you returned to a mode you were
+    // already signed into). Both are covered here.
+    const browser = request.agent(app);
+
+    // Bearer header seeds session.oauth.accessToken directly (see
+    // getClientSession) — a fast stand-in for completing the real OAuth dance.
+    const privilege = await browser
+      .post('/api/privilege-mcp/config')
+      .set('Authorization', 'Bearer privilege-token')
+      .send({ gatewayMode: 'privilege', mcpUrl: 'https://gw.example/mcp' })
+      .expect(200);
+    expect(privilege.body.oauth.authenticated).toBe(true);
+
+    // Switch to façade, never signed in there — must NOT inherit privilege's
+    // token (the real gateway rejects a foreign-audience token outright).
+    const facade = await browser
+      .post('/api/privilege-mcp/config')
+      .send({ gatewayMode: 'facade', mcpUrl: 'https://ai-demo.example/mcp-facade/privilege-gateway/app/mcp' })
+      .expect(200);
+    expect(facade.body.oauth.authenticated).toBe(false);
+
+    // Switch back to privilege — its earlier token must come back on its own,
+    // with no fresh Authorization header on this request.
+    const backToPrivilege = await browser
+      .post('/api/privilege-mcp/config')
+      .send({ gatewayMode: 'privilege' })
+      .expect(200);
+    expect(backToPrivilege.body.oauth.authenticated).toBe(true);
+  });
+
   it('falls back to the current path when handed an unknown mode', async () => {
     const browser = request.agent(app);
     const res = await browser
