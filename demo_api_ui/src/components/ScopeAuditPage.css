@@ -9,14 +9,14 @@
 }
 
 .scope-audit-page h1 {
-  font-size: 1.5rem;
+  font-size: var(--font-size-2xl, 24px);
   font-weight: 700;
   margin: 0 0 0.25rem;
   color: var(--text-primary, #0f172a);
 }
 
 .scope-audit-page__subtitle {
-  font-size: 0.85rem;
+  font-size: var(--font-size-base, 15px);
   color: var(--text-muted, #374151);
   margin: 0 0 1.5rem;
 }
@@ -35,7 +35,7 @@
   gap: 0.4rem;
   padding: 0.5rem 1rem;
   border-radius: 8px;
-  font-size: 0.82rem;
+  font-size: var(--font-size-base, 15px);
   font-weight: 600;
   background: var(--surface-elevated, #f8fafc);
   border: 1px solid var(--border-light, #e2e8f0);
@@ -114,13 +114,18 @@
 }
 
 .scope-resource-card__name {
-  font-size: 0.95rem;
+  font-size: var(--font-size-md, 16px);
   font-weight: 600;
   color: var(--text-primary, #0f172a);
 }
 
+.scope-resource-card__scope-count {
+  font-size: var(--font-size-sm, 13px);
+  color: var(--text-muted, #374151);
+}
+
 .scope-resource-card__badge {
-  font-size: 0.68rem;
+  font-size: var(--font-size-2xs, 12px);
   font-weight: 600;
   padding: 0.15rem 0.5rem;
   border-radius: 999px;
@@ -134,7 +139,7 @@
 .scope-resource-card__badge--neutral { background: #e2e8f0; color: #475569; }
 
 .scope-resource-card__chevron {
-  font-size: 1rem;
+  font-size: var(--font-size-md, 16px);
   color: var(--text-muted, #374151);
   transition: transform 0.15s;
 }
@@ -153,13 +158,13 @@
   flex-wrap: wrap;
   gap: 0.5rem 1.5rem;
   padding: 0.5rem 0;
-  font-size: 0.78rem;
+  font-size: var(--font-size-sm, 13px);
   color: var(--text-muted, #374151);
 }
 
 .scope-resource-card__meta code {
   font-family: inherit;
-  font-size: 0.72rem;
+  font-size: var(--font-size-xs, 11px);
   background: var(--surface-elevated, #f1f5f9);
   padding: 0.1rem 0.35rem;
   border-radius: 4px;
@@ -169,7 +174,7 @@
 .scope-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.82rem;
+  font-size: var(--font-size-base, 15px);
   margin-top: 0.5rem;
 }
 
@@ -179,7 +184,7 @@
   color: var(--text-muted, #374151);
   padding: 0.4rem 0.6rem;
   border-bottom: 1px solid var(--border-light, #e2e8f0);
-  font-size: 0.72rem;
+  font-size: var(--font-size-2xs, 12px);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -196,12 +201,12 @@
 
 .scope-table__name {
   font-family: inherit;
-  font-size: 0.78rem;
+  font-size: var(--font-size-sm, 13px);
   font-weight: 500;
 }
 
 .scope-table__resource {
-  font-size: 0.75rem;
+  font-size: var(--font-size-sm, 13px);
   color: var(--text-muted, #64748b);
 }
 
@@ -209,7 +214,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  font-size: 0.75rem;
+  font-size: var(--font-size-sm, 13px);
   font-weight: 500;
 }
 
@@ -218,7 +223,7 @@
 .scope-table__status--optional { color: #d97706; }
 
 .scope-table__status-icon {
-  font-size: 0.85rem;
+  font-size: var(--font-size-base, 15px);
 }
 
 /* ── Action buttons ── */
@@ -227,7 +232,7 @@
   align-items: center;
   gap: 0.3rem;
   padding: 0.35rem 0.75rem;
-  font-size: 0.78rem;
+  font-size: var(--font-size-sm, 13px);
   font-weight: 600;
   border: 1px solid var(--border-light, #e2e8f0);
   border-radius: 6px;
@@ -255,12 +260,12 @@
 
 .scope-audit-btn--sm {
   padding: 0.2rem 0.5rem;
-  font-size: 0.72rem;
+  font-size: var(--font-size-xs, 11px);
 }
 
 .scope-audit-btn--lg {
   padding: 0.75rem 2rem;
-  font-size: 1.1rem;
+  font-size: var(--font-size-lg, 17px);
 }
 
 .scope-audit-page__start {
@@ -279,7 +284,7 @@
 .scope-audit-page__error {
   text-align: center;
   padding: 3rem 1rem;
-  font-size: 0.9rem;
+  font-size: var(--font-size-body, 14px);
   color: var(--text-muted, #374151);
 }
 
@@ -288,7 +293,7 @@
 }
 
 .scope-audit-page__error-detail {
-  font-size: 0.78rem;
+  font-size: var(--font-size-sm, 13px);
   font-family: inherit;
   background: #fef2f2;
   padding: 0.75rem;
