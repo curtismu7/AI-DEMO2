@@ -45,7 +45,12 @@ import path from 'node:path';
 // /agent-flow-inspector page and the fictional --color-code-bg it exposed).
 // 171 -> 169: CheckPage.css (aliased its local token layer onto --th-*, see
 // THEMING.md 9.2) and ServersPage.css (the /check page).
-const MAX_UNTHEMED = 169;
+// 169 -> 165: SupportConsole.css, SupportQueueRail.css, CaseNotes.css, and
+// IdentityGate.css (the shared /admin/{banking,healthcare,retail,
+// sporting-goods,workforce} ops console) — aliased --tint onto
+// color-mix(var(--accent), --th-bg-card) rather than a per-vertical dark
+// literal.
+const MAX_UNTHEMED = 165;
 
 const SRC = path.join(__dirname, '..', '..');
 

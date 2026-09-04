@@ -5,15 +5,15 @@
   padding: 0.65rem 1rem;
   margin: 0 0 1rem;
   border-radius: 10px;
-  border: 1px solid #fcd34d;
-  background: #fef3c7;
-  color: #78350f;
+  border: 1px solid var(--th-status-warning-border);
+  background: var(--th-status-warning-bg);
+  color: var(--th-status-warning-text);
   font-size: 0.875rem;
 }
 .idgate[data-verified='true'] {
-  border-color: #86efac;
-  background: #dcfce7;
-  color: #14532d;
+  border-color: var(--th-status-success-border);
+  background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
 }
 .idgate__badge {
   flex: none;
@@ -23,7 +23,8 @@
   text-transform: uppercase;
   padding: 0.15rem 0.55rem;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.6);
+  background: var(--th-bg-card);
+  color: inherit;
 }
 .idgate__text { flex: 1; }
 .idgate__btn {
@@ -31,7 +32,7 @@
   padding: 0.35rem 0.8rem;
   border-radius: 8px;
   border: 1px solid currentColor;
-  background: #fff;
+  background: var(--th-bg-card);
   color: inherit;
   font: inherit;
   font-weight: 600;
