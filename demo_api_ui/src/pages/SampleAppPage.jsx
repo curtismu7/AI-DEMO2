@@ -12,6 +12,7 @@ import { Link } from "react-router-dom";
 import { STACKS, getSampleApp } from "../data/sampleApps";
 import sampleCode from "../data/sampleCode.json";
 import SampleRunner from "./SampleRunner";
+import { useThemeOptional } from "../context/ThemeContext";
 import "./SampleAppPage.css";
 
 const STACK_STORAGE_KEY = "sample_app_stack";
@@ -46,6 +47,7 @@ function Annotated({ text }) {
 // standalone routes pass their own so the one link on this page does not drop
 // the reader back into the demo they are being shown without.
 export default function SampleAppPage({ sampleId, runnerHref }) {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const app = getSampleApp(sampleId);
   const [stack, setStack] = useState(readStoredStack);
 
@@ -75,7 +77,18 @@ export default function SampleAppPage({ sampleId, runnerHref }) {
   return (
     <div className="sa-page">
       <header className="sa-head">
-        <div className="sa-eyebrow">PingOne sample app</div>
+        <div className="sa-head-row">
+          <div className="sa-eyebrow">PingOne sample app</div>
+          <button
+            type="button"
+            onClick={toggleDarkMode}
+            className="sa-theme-toggle"
+            title="Switch this page between light and dark"
+            aria-pressed={darkMode}
+          >
+            {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
+          </button>
+        </div>
         <h1>{app.label}</h1>
         <p className="sa-tagline">{app.tagline}</p>
         <p className="sa-summary">{app.summary}</p>
