@@ -32,7 +32,8 @@ import path from 'node:path';
 // true here for exactly one commit; the file is now fully converted, so the
 // count and the reality agree again. Treat a one-rule drop with suspicion.
 // 179 -> 177: AdminThemesPage.css and ThemeZonePanel.css (the /themes page).
-const MAX_UNTHEMED = 177;
+// 177 -> 176: ControlPlaneRoster.css (the /ai-control-plane page).
+const MAX_UNTHEMED = 176;
 
 const SRC = path.join(__dirname, '..', '..');
 
