@@ -823,7 +823,7 @@ git commit -m "feat(preflight): pure classification for MCP door probes"
 - Consumes: `classifyProbe`, `renderTable`, `exitCodeFor` from `scripts/lib/preflightRows.js` (Task 4).
 - Produces: `npm run demo:preflight -- --target local|se`, exit 0 when every row is `ok` or `auth`.
 
-- [ ] **Step 1: Write the CLI**
+- [x] **Step 1: Write the CLI** — DONE
 
 Create `scripts/check-mcp-preflight.js`:
 
@@ -972,7 +972,7 @@ async function main() {
 main();
 ```
 
-- [ ] **Step 2: Add the npm script**
+- [x] **Step 2: Add the npm script** — DONE
 
 In root `package.json`, add to `"scripts"`:
 
@@ -980,7 +980,7 @@ In root `package.json`, add to `"scripts"`:
     "demo:preflight": "node scripts/check-mcp-preflight.js",
 ```
 
-- [ ] **Step 3: Run it against SE**
+- [x] **Step 3: Run it against SE** — DONE
 
 ```bash
 npm run demo:preflight -- --target se
@@ -995,7 +995,30 @@ Expected: a table of ten rows — five façade doors `ok` (their metadata endpoi
 
 **Do not pipe this command.** `cmd | tail` exits with `tail`'s status, so a failing preflight would read as exit 0. If you need to capture output, redirect to a file and read the file.
 
-- [ ] **Step 4: Record the real result**
+- [x] **Step 4: Record the real result** — DONE
+
+SE (`npm run demo:preflight -- --target se`), exit 1:
+
+```
+✅ Façade — agent-gateway      ok
+✅ Façade — opensearch         ok
+✅ Façade — brave              ok
+✅ Façade — banking            ok
+✅ Façade — privilege-gateway  ok
+✅ Privilege — opensearch22    auth         reachable; wants a token
+✅ Privilege — opensearch      auth         reachable; wants a token
+✅ Privilege — brave           auth         reachable; wants a token
+✅ Broker AS metadata          ok
+❌ Façade gateway session      down         /state has no gatewaySession — is Plan A Task 1 deployed?
+```
+
+The red row is **correct and expected**, not a defect and not a rollout: Task 1's
+`/state` key is on this unmerged branch. Verified rather than assumed —
+`git branch --contains 5dcd4144d` names only `worktree-mcp-lanes-privilege-llm-spec`,
+and the live local `/state` returns `[config, gatewayConfigs, gatewayMode,
+mainAppAuthenticated, mcp, oauth, policy, presets, tools, user]` with no
+`gatewaySession`. It goes green once this branch merges and deploys. No kubectl
+check was needed — nine rows answering rules out a rollout in flight.
 
 Paste the actual table into the commit message or the PR. If a row is red, confirm whether a rollout is in flight before treating it as a defect:
 
@@ -1005,7 +1028,12 @@ kubectl --context us -n ping-devops-cmuir get pods --sort-by=.status.startTime |
 
 Note: `kubectl get pods -l app=demo-api-server` returns nothing — that label does not exist on this deployment. Use the unfiltered listing.
 
-- [ ] **Step 5: Run it against local**
+- [x] **Step 5: Run it against local** — DONE, identical shape, exit 1
+
+The plan's warning was right and I initially got this wrong: the first version of the
+CLI set `NODE_TLS_REJECT_UNAUTHORIZED=0` for the local target. Replaced with the
+`NODE_EXTRA_CA_CERTS` form before commit, and the local table is unchanged under real
+certificate verification — so the green rows are green on their merits.
 
 The local stack serves mkcert certificates. Node does **not** use the macOS system trust store — it ships its own CA bundle — so `fetch` rejects mkcert with `unable to verify the first certificate` even though a browser and `curl` both accept it. Point Node at the mkcert root:
 
@@ -1017,7 +1045,10 @@ Expected: the same shape as the SE run. If the local Docker stack is not running
 
 Do **not** work around this with `NODE_TLS_REJECT_UNAUTHORIZED=0`. It disables verification for every request the process makes, which would turn a real TLS failure into a silent pass — the exact class of false green this whole preflight exists to prevent.
 
-- [ ] **Step 5b: Document the local invocation**
+- [x] **Step 5b: Document the local invocation** — DONE, and enforced rather than only
+documented: the `local` target exits 2 with the correct command line when
+`NODE_EXTRA_CA_CERTS` is unset, instead of printing ten `unreachable` rows that look
+like a dead stack. An unknown `--target` also exits 2.
 
 Add the `NODE_EXTRA_CA_CERTS` form to the CLI's header comment so the next person does not rediscover it:
 
@@ -1026,7 +1057,7 @@ Add the `NODE_EXTRA_CA_CERTS` form to the CLI's header comment so the next perso
  *   NODE_EXTRA_CA_CERTS="$(mkcert -CAROOT)/rootCA.pem" npm run demo:preflight -- --target local
 ```
 
-- [ ] **Step 6: Re-run the unit tests**
+- [x] **Step 6: Re-run the unit tests** — DONE, 14 pass / 0 fail
 
 ```bash
 node --test scripts/check-mcp-preflight.test.js
@@ -1034,7 +1065,19 @@ node --test scripts/check-mcp-preflight.test.js
 
 Expected: PASS, 13 tests.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit** — DONE
+
+Deviations, all closing silent-failure paths:
+
+- `main()` gets a `.catch` that exits 2. An unhandled rejection can exit 0 under some
+  Node configurations — the same false green the classification guards close.
+- Argument parsing is strict. `--targt se` used to fall through to the default and
+  probe SE while the operator believed they had asked for something else; unknown or
+  extra arguments now exit 2 naming the offender. Verified: `--targt se` → 2,
+  `--target` with no value → 2, `--target se extra` → 2 naming only `extra`.
+- The `/state` reader takes its note from `err.message || err.cause?.message`, never
+  `String(err.message)`, which renders the literal note `undefined` for an error that
+  carries none.
 
 ```bash
 git add scripts/check-mcp-preflight.js package.json
