@@ -639,14 +639,16 @@ export default function PrivilegeMcpClientPage() {
   // has to include it, or the control cannot show what is currently selected.
   const knownDoors = (includeCurrent = false) => {
     const fromConsole = (consoleData?.applications || []).map((a) => a.mcpUrl).filter(Boolean);
-    // The direct-mode presets are excluded UNLESS direct mode is the one
-    // active: sameGatewayDoors() below already groups by origin regardless of
-    // mode (an agentless gateway's privilege door and its façade door share a
-    // host, and are meant to appear together), but the direct presets share
-    // that same PUBLIC_APP_ORIGIN too and aren't a door on any OTHER gateway —
-    // they would leak into every non-direct door picker without this.
+    // The direct-mode presets are excluded UNLESS the active mode can actually
+    // reach them: sameGatewayDoors() below groups by origin, and Direct's
+    // presets (banking/brave/opensearch/pingone-admin — plain façade doors,
+    // no Privilege in the path) share PUBLIC_APP_ORIGIN with Façade's own
+    // presets, so Façade mode gets the same base door set as Direct — plus
+    // whatever Privilege-gated multiApp targets it has of its own. Privilege
+    // mode (the raw AI Gateway, a different host entirely) does not: without
+    // this check they would leak into every non-direct door picker.
     const fromPresets = presets
-      .filter((p) => p.mode !== 'direct' || gatewayMode === 'direct')
+      .filter((p) => p.mode !== 'direct' || gatewayMode === 'direct' || gatewayMode === 'facade')
       .map((p) => p.url);
     const all = [...new Set([...fromConsole, ...fromPresets, ...(includeCurrent ? [config.mcpUrl] : [])])];
     return all.filter((u) => u && (includeCurrent || u !== config.mcpUrl));
