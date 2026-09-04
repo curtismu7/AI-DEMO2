@@ -1,6 +1,7 @@
 // demo_api_ui/src/components/shared/InspectorShell.jsx
 import React, { useCallback, useState } from 'react';
 import useDividerDrag from '../../hooks/useDividerDrag';
+import { useThemeOptional } from '../../context/ThemeContext';
 import './InspectorShell.css';
 
 const LEFT_COLLAPSED_KEY = 'inspector-shell-left-collapsed';
@@ -20,6 +21,11 @@ function loadLeftCollapsed() {
  * localStorage) — everything else is presentational. Callers supply
  * left/middle/right column content and manage their own selection,
  * form, and tab state.
+ *
+ * Renders a light/dark toggle in the topbar by default. Pass
+ * `hideThemeToggle` when the page already has its own page-level toggle
+ * covering this shell too (e.g. a tabbed page where this shell renders
+ * inside only one tab) — otherwise that tab would show two.
  */
 export default function InspectorShell({
   title,
@@ -31,6 +37,7 @@ export default function InspectorShell({
   left,
   middle,
   right,
+  hideThemeToggle = false,
 }) {
   // Widths moved from one combined JSON key to per-column keys when the drag
   // logic converged on useDividerDrag — a stored pre-migration width resets
@@ -48,6 +55,7 @@ export default function InspectorShell({
     storageKey: 'inspector-shell-middle-width',
   });
   const [leftCollapsed, setLeftCollapsed] = useState(loadLeftCollapsed);
+  const { darkMode, toggleDarkMode } = useThemeOptional();
 
   const toggleLeftCollapsed = useCallback(() => {
     setLeftCollapsed((prev) => {
@@ -84,7 +92,20 @@ export default function InspectorShell({
           </button>
         )}
         {statusText && <span className="inspector-shell-topbar__status">{statusText}</span>}
-        {actions && <div className="inspector-shell-topbar__right">{actions}</div>}
+        <div className="inspector-shell-topbar__right">
+          {actions}
+          {!hideThemeToggle && (
+            <button
+              type="button"
+              onClick={toggleDarkMode}
+              className="inspector-shell-topbar__theme-toggle"
+              title="Switch this page between light and dark"
+              aria-pressed={darkMode}
+            >
+              {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
+            </button>
+          )}
+        </div>
       </div>
       {banner}
       <div
