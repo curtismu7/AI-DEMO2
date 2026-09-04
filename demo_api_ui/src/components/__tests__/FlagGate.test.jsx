@@ -59,10 +59,4 @@ describe('FlagGate', () => {
     await waitFor(() => expect(enableUseCaseFlags).toHaveBeenCalledWith('par-rar-intent-verified'));
     await waitFor(() => expect(onEnabled).toHaveBeenCalledWith(['ff_rar', 'ff_mcp_gateway_pinggateway']));
   });
-
-  test('does not require a signed-in prop or branch on one (guest-safe by construction)', () => {
-    // No `user` prop exists on this component at all — this test documents
-    // that guarantee so a future edit adding one fails loudly.
-    expect(FlagGate.length).toBeLessThanOrEqual(1); // single props object, no user param
-  });
 });

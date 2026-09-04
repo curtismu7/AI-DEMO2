@@ -179,9 +179,18 @@ use-case table above), `Dashboard.js` shows a debug notice on
 use-case set** — `pageFlagRequirements.js` is not created (YAGNI, per the
 design's own non-goal).
 
-**Nav-hidden pages:** none found — the audit found no nav item whose
-visibility itself is flag-gated, so the "banner is unreachable" edge case
-does not currently apply anywhere.
+**Nav-hidden pages:** the audit's grep-based methodology (searching `pages/**`/
+`components/**` for direct flag reads) could not see route-level guards in
+`App.js`. Corrected 2026-09-04: `/use-cases` itself is route-gated on
+`appFlags.showUseCaseLauncher` (`App.js:993,1010`, sourced from
+`ff_use_cases_launcher` in `hooks/useAppFlags.js:32-34`, default ON). If that
+flag is set to `false`, the whole page — and this banner — becomes
+unreachable. Low practical impact today (default ON, no known deployment
+sets it off), but this is exactly the edge case the audit was chartered to
+find, so the earlier "none found" claim was wrong, not merely incomplete.
+No code fix — this is a documentation correction; a future audit pass
+should also grep `App.js` route guards and `useAppFlags.js`, not just
+component-level flag reads.
 
 **Rollout scope:** `UseCaseLauncherPage.js` only (Tasks 1-6 of the
 implementation plan). `LiveUseCaseWorkbenchPage.js` is deliberately excluded

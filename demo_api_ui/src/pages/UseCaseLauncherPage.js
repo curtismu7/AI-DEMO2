@@ -5,7 +5,8 @@
  * attack-type triggers: POST /api/demo/attack-sim/run when sim is in RUNNABLE_SIMS.
  * A6: runnable attack sims wired to POST /api/demo/attack-sim/run.
  * A5.2 (slim launch drawer on /agent) — NOT included here; deferred.
- * A5.3 — FF-aware notice + inline toggle; Run auto-enables required flags.
+ * A5.3 — FlagGate banner + guest-safe Enable button per card when a required
+ * flag is off; Run auto-enables required flags for signed-in launches.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
