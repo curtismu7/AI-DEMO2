@@ -428,14 +428,32 @@ git commit -m "feat(privilege-mcp): warn and offer re-arm when the gateway sessi
 Append to `demo_api_server/tests/routes/mcpFacade.multiApp.test.js`:
 
 ```js
+const privilegeGatewaySession = require('../../services/privilegeGatewaySession');
+
 describe('DELETE on a multiApp door', () => {
   const realFetch = global.fetch;
-  afterEach(() => { global.fetch = realFetch; });
+
+  afterEach(() => {
+    global.fetch = realFetch;
+    privilegeGatewaySession.clear();
+  });
+
+  // privilege-gateway is the only multiApp door and it sets ownsUpstreamAuth,
+  // so the handler needs a gateway token before it will call upstream at all.
+  function armGatewaySession() {
+    privilegeGatewaySession.remember({
+      accessToken: 'gw-token',
+      refreshToken: 'gw-refresh',
+      expiresIn: 3600,
+      tokenUri: 'https://mcpgw.ai-demo.ping-devops.com/oauth/token',
+    });
+  }
 
   it('routes the app segment to the matching upstream instead of 404ing', async () => {
+    armGatewaySession();
     const seen = [];
     global.fetch = jest.fn(async (url, init) => {
-      seen.push({ url: String(url), method: init?.method });
+      seen.push({ url: String(url), method: init?.method, auth: init?.headers?.authorization });
       return { status: 200, headers: new Map(), text: async () => '' };
     });
 
@@ -447,6 +465,22 @@ describe('DELETE on a multiApp door', () => {
     expect(seen).toHaveLength(1);
     expect(seen[0].method).toBe('DELETE');
     expect(seen[0].url).toContain('/opensearch/mcp');
+    // The door owns its upstream auth: the gateway token, not the caller's.
+    expect(seen[0].auth).toBe('Bearer gw-token');
+  });
+
+  it('tears down locally and does not call upstream when no gateway session exists', async () => {
+    privilegeGatewaySession.clear();
+    global.fetch = jest.fn();
+
+    await request(app)
+      .delete('/mcp-facade/privilege-gateway/opensearch/mcp')
+      .set('mcp-session-id', 'sess-2')
+      .expect(200);
+
+    // A missing gateway session is not a reason to fail a teardown — the local
+    // entry is dropped and the upstream session lapses on its own.
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 
   it('rejects an app segment on a door that takes none', async () => {
@@ -756,7 +790,11 @@ const { classifyProbe, renderTable, exitCodeFor } = require('./lib/preflightRows
 
 const TARGETS = {
   local: {
-    facadeBase: 'https://localhost:4000',
+    // The BFF, not the UI. Both /mcp-facade (server.js:1433) and
+    // /api/privilege-mcp (server.js:1240) are mounted on the BFF, which serves
+    // :3001; nothing proxies /mcp-facade on :4000. The mkcert cert covers
+    // `localhost`, so this needs no /etc/hosts entry.
+    facadeBase: 'https://localhost:3001',
     gatewayBase: 'https://mcpgw.ai-demo.ping-devops.com',
   },
   se: {
@@ -908,11 +946,24 @@ Note: `kubectl get pods -l app=demo-api-server` returns nothing — that label d
 
 - [ ] **Step 5: Run it against local**
 
+The local stack serves mkcert certificates. Node does **not** use the macOS system trust store — it ships its own CA bundle — so `fetch` rejects mkcert with `unable to verify the first certificate` even though a browser and `curl` both accept it. Point Node at the mkcert root:
+
 ```bash
-npm run demo:preflight -- --target local
+NODE_EXTRA_CA_CERTS="$(mkcert -CAROOT)/rootCA.pem" npm run demo:preflight -- --target local
 ```
 
-Expected: the same shape. If the local Docker stack is not running, every façade row is `unreachable` — that is correct behaviour, not a bug in the script.
+Expected: the same shape as the SE run. If the local Docker stack is not running, every façade row is `unreachable` — that is correct behaviour, not a bug in the script.
+
+Do **not** work around this with `NODE_TLS_REJECT_UNAUTHORIZED=0`. It disables verification for every request the process makes, which would turn a real TLS failure into a silent pass — the exact class of false green this whole preflight exists to prevent.
+
+- [ ] **Step 5b: Document the local invocation**
+
+Add the `NODE_EXTRA_CA_CERTS` form to the CLI's header comment so the next person does not rediscover it:
+
+```js
+ *   npm run demo:preflight -- --target se
+ *   NODE_EXTRA_CA_CERTS="$(mkcert -CAROOT)/rootCA.pem" npm run demo:preflight -- --target local
+```
 
 - [ ] **Step 6: Re-run the unit tests**
 
