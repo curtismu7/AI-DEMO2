@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import JsonHighlight from './shared/JsonHighlight';
+import { useThemeOptional } from '../context/ThemeContext';
 import './AuditPage.css';
 
 const EVENT_TYPES = ['', 'tool_call', 'banking_operation', 'authentication', 'authorization', 'session_management', 'token_chain'];
@@ -107,6 +108,7 @@ function mergeSorted(prev, incoming) {
 
 export default function AuditPage({ onClose } = {}) {
   const navigate = useNavigate();
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const [searchParams] = useSearchParams();
   const isPopout = searchParams.get('popout') === '1';
 
@@ -539,6 +541,18 @@ export default function AuditPage({ onClose } = {}) {
       {new Date(lastUpdated).toLocaleTimeString()}
     </span>
   ) : null;
+  const themeToggleButton = (
+    <button
+      type="button"
+      className="audit-float-btn"
+      onClick={toggleDarkMode}
+      title="Switch this window between light and dark"
+      aria-label="Toggle dark mode"
+      aria-pressed={darkMode}
+    >
+      {darkMode ? '☀️' : '🌙'}
+    </button>
+  );
 
   // ── Popout mode: plain page layout (OS window handles positioning/sizing) ──
   if (isPopout) {
@@ -549,6 +563,7 @@ export default function AuditPage({ onClose } = {}) {
           <div className="audit-float-titlebar-actions">
             {lastUpdatedLabel}
             {refreshControl}
+            {themeToggleButton}
             <button type="button" className="audit-float-btn" onClick={() => fetchEvents()} disabled={loading} title="Refresh now" aria-label="Refresh now">
               {loading ? '…' : '↻'}
             </button>
@@ -576,6 +591,7 @@ export default function AuditPage({ onClose } = {}) {
         <div className="audit-float-titlebar-actions">
           {lastUpdatedLabel}
           {refreshControl}
+          {themeToggleButton}
           <button type="button" className="audit-float-btn" onClick={() => fetchEvents()} disabled={loading} title="Refresh now" aria-label="Refresh audit log now">
             {loading ? '…' : '↻'}
           </button>
