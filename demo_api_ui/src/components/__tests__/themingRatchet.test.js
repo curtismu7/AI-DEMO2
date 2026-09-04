@@ -33,7 +33,9 @@ import path from 'node:path';
 // count and the reality agree again. Treat a one-rule drop with suspicion.
 // 179 -> 177: AdminThemesPage.css and ThemeZonePanel.css (the /themes page).
 // 177 -> 176: ControlPlaneRoster.css (the /ai-control-plane page).
-const MAX_UNTHEMED = 176;
+// 176 -> 174: AgentFlowHistoryPage.css and TokenChainEventCard.css (the
+// /agent-flow-inspector page and the fictional --color-code-bg it exposed).
+const MAX_UNTHEMED = 174;
 
 const SRC = path.join(__dirname, '..', '..');
 
