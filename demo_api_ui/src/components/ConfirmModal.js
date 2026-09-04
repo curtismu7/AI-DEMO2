@@ -48,7 +48,7 @@ export default function ConfirmModal({
       backdropClose
       storageKey={null}
     >
-      <div className="dm-scroll" style={{ fontSize: '0.9rem', color: '#374151', lineHeight: 1.6 }}>
+      <div className="dm-scroll confirm-modal-message">
         {message}
       </div>
     </DraggableModal>
