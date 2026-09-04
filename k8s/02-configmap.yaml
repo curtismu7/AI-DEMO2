@@ -208,6 +208,26 @@ data:
             proxy_ssl_server_name         on;
         }
 
+        # PingOne webhook to the BFF. Without this, POSTs to /webhook/pingone fall
+        # through to `location /` and are answered with the SPA's index.html — a
+        # 200 with an HTML body, so PingOne records the delivery as successful and
+        # the events are silently discarded. Keep in sync with demo_api_ui/nginx.conf
+        # and k8s/aws/nginx-http-configmap.yaml.
+        location /webhook/ {
+            proxy_pass https://demo-api-server:3001/webhook/;
+            proxy_ssl_trusted_certificate /etc/nginx/certs/rootCA.pem;
+            proxy_ssl_verify              on;
+            proxy_ssl_name                api.ping.demo;
+            proxy_ssl_server_name         on;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            # PingOne batches up to 500 events; the nginx default of 1m is tight.
+            client_max_body_size 5m;
+        }
+
         # Code Explorer SSE — must stream immediately (no proxy buffering).
         location /api/codegraph/ {
             proxy_pass https://demo-api-server:3001/api/codegraph/;
