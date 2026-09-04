@@ -86,7 +86,7 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
         <div className="inspector-clean-title">Agent Gateway Inspector</div>
         <div className="inspector-clean-header-controls">
           <button className="inspector-clean-theme-toggle" onClick={theme.toggleDarkMode} title="Toggle dark mode">
-            {theme.darkMode ? 'Light' : 'Dark'}
+            {theme.darkMode ? '☀️ Light' : '🌙 Dark'}
           </button>
         </div>
       </div>

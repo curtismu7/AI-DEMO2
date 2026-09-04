@@ -253,7 +253,7 @@ function McpGatewayConfigInner() {
 						title="Switch this page between light and dark"
 						aria-pressed={darkMode}
 					>
-						{darkMode ? "Light mode" : "Dark mode"}
+						{darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
 					</button>
 					<button type="button" className="mgc-refresh-btn" onClick={fetchConfig}>Refresh</button>
 				</div>

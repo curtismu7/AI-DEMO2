@@ -28,7 +28,8 @@ truth — if the skill and this file disagree, this file wins.
   `💳` (payment instrument), `✋` (human approval required),
   `📡` (client / transport), `✦` (UI mode marker),
   `👥` (group / multi-party), `📅` (scheduled), `🎛` (access controls),
-  `💬` (chat).
+  `💬` (chat), `☀️` / `🌙` (light/dark mode toggle button — every
+  dark-mode-toggle control in the app, added 2026-09-04).
   Everything else is plain text or CSS icons / semantic HTML.
   Adding a glyph here is deliberate: it must recur with ONE consistent job.
   A glyph someone reached for once is not vocabulary — remove it instead.
