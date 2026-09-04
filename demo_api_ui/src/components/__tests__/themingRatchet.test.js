@@ -53,7 +53,9 @@ import path from 'node:path';
 // 165 -> 164: MortgagePathPage.css, fully converted. The amber brand accent
 // (#ca8a04) stays literal per THEMING.md §1.3 — it's this page's identity,
 // distinguishing Path A from Path B/C.
-const MAX_UNTHEMED = 164;
+// 164 -> 163: VerticalEditorPage.css (the /admin vertical manifest editor),
+// which had no stylesheet at all before this pass.
+const MAX_UNTHEMED = 163;
 
 const SRC = path.join(__dirname, '..', '..');
 
