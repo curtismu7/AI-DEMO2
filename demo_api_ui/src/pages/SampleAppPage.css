@@ -19,6 +19,30 @@
   margin-bottom: 22px;
 }
 
+.sa-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sa-theme-toggle {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sa-theme-toggle:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
 .sa-eyebrow {
   font-size: var(--font-size-xs);
   font-weight: 700;
@@ -295,8 +319,10 @@
   border-radius: 6px; padding: 12px 14px; margin-top: 10px;
 }
 .sr-card h4 { margin: 0 0 6px; font-size: 14.5px; font-weight: 700; }
-.sr-ok { color: #0a7a0a; }
-.sr-err { color: #b00020; }
+/* Literal green/red on --th-bg-inset failed contrast in dark mode
+   (~1.9:1) -- the real status tokens are tuned per-theme for this. */
+.sr-ok { color: var(--th-status-success-text); }
+.sr-err { color: var(--th-status-error-text); }
 .sr-url {
   font-family: var(--font-mono); font-size: var(--font-size-2xs);
   color: var(--th-text-muted); background: var(--th-bg-card);

@@ -3,6 +3,7 @@ import apiClient from "../services/apiClient";
 import { getAgents, stopAgent, resetRoster } from "../services/controlPlaneApi";
 import { useAppEventsSSE } from "../hooks/useAppEventsSSE";
 import { useAuth } from "../hooks/useAuth";
+import { useThemeOptional } from "../context/ThemeContext";
 import ControlPlaneDemoGuideModal from "./ControlPlaneDemoGuideModal";
 import "./ControlPlaneRoster.css";
 
@@ -16,6 +17,7 @@ const nowStamp = () => new Date().toLocaleTimeString();
 // rows are Ping-governed demo identities stopped via the control-plane API.
 export default function ControlPlaneRoster({ openKillSwitchModal }) {
   const { user } = useAuth();
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const [showGuide, setShowGuide] = useState(false);
   const [live, setLive] = useState(null);
   const [demo, setDemo] = useState([]);
@@ -184,6 +186,16 @@ export default function ControlPlaneRoster({ openKillSwitchModal }) {
   return (
     <div className="cp-wrap">
       <div key={`flash-${flashKey}`} className={`cp-flash${flashKey ? " go" : ""}`} />
+
+      <button
+        type="button"
+        onClick={toggleDarkMode}
+        className="cp-theme-toggle"
+        title="Switch this page between light and dark"
+        aria-pressed={darkMode}
+      >
+        {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
+      </button>
 
       <div className="cp-head">
         <div className="cp-title">

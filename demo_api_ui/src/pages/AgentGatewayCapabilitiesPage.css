@@ -1,0 +1,15 @@
+.agc-theme-toggle {
+  padding: 6px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.agc-theme-toggle:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
