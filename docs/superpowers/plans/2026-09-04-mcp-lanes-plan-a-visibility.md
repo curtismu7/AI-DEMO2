@@ -239,11 +239,26 @@ describe("gateway session banner", () => {
     expect(screen.queryByRole("button", { name: /re-arm gateway session/i })).not.toBeInTheDocument();
   });
 
-  it("re-arm posts to /auth/start and follows the returned authUrl", async () => {
+  // The load-bearing behaviour: re-arm must go through PRIVILEGE mode.
+  // privilegeMcpClient.js only remembers the gateway session when the token
+  // exchange hit the real gateway's token endpoint. A Façade-mode sign-in mints
+  // a broker token that is deliberately not remembered, so re-arming without
+  // the mode switch would authenticate and arm nothing — a dead-end button.
+  it("re-arm switches to privilege mode before authenticating", async () => {
     mockState({ gatewayMode: "facade", gatewaySession: { ready: false, reason: "expired" } });
     const base = global.fetch;
+    const posted = [];
     global.fetch = vi.fn((url, init) => {
-      if (String(url).endsWith("/api/privilege-mcp/auth/start")) {
+      const u = String(url);
+      if (u.endsWith("/api/privilege-mcp/config")) {
+        posted.push(JSON.parse(init.body));
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          text: async () => JSON.stringify({ oauth: { authenticated: false } }),
+        });
+      }
+      if (u.endsWith("/api/privilege-mcp/auth/start")) {
         return Promise.resolve({
           ok: true,
           status: 200,
@@ -252,18 +267,12 @@ describe("gateway session banner", () => {
       }
       return base(url, init);
     });
-    const assign = vi.fn();
-    delete window.location;
-    window.location = { href: "", assign };
 
     renderPage();
     fireEvent.click(await screen.findByRole("button", { name: /re-arm gateway session/i }));
 
     await vi.waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining("/api/privilege-mcp/auth/start"),
-        expect.objectContaining({ method: "POST" }),
-      );
+      expect(posted.some((b) => b.gatewayMode === "privilege")).toBe(true);
     });
   });
 });
@@ -305,19 +314,19 @@ Add the re-arm handler next to the existing `switchGatewayMode`:
 
 ```jsx
   // The façade's gateway leg is a server-side token that dies with the BFF
-  // process. The gateway offers no client_credentials grant, so only a human
-  // browser sign-in can mint a new one — this is that sign-in, one click.
-  const rearmGatewaySession = useCallback(async () => {
-    const res = await fetch(`${API_BASE}/auth/start`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
-    });
-    const data = JSON.parse(await res.text());
-    if (data.authUrl) window.location.href = data.authUrl;
-  }, []);
+  // process, and the gateway offers no client_credentials grant — only a human
+  // browser sign-in can mint a new one.
+  //
+  // It MUST be a Privilege-mode sign-in. privilegeMcpClient.js only remembers
+  // the gateway session when the token exchange hit the real gateway's own
+  // token endpoint (tokenOrigin === gatewayOrigin). A Façade-mode sign-in mints
+  // a token from OUR broker, whose resource identifier collides by name with
+  // the real gateway's, and is deliberately NOT remembered — so re-arming from
+  // Façade mode would authenticate successfully and arm nothing.
+  const rearmGatewaySession = useCallback(() => switchGatewayMode("privilege"), [switchGatewayMode]);
 ```
+
+`switchGatewayMode` already posts `/config` with the new mode and then redirects to `/auth/start`'s `authUrl`, which is exactly the flow needed. Do not call `/auth/start` directly.
 
 Render the banner just above the tools panel, gated on façade mode:
 
