@@ -51,7 +51,7 @@ If your change is nowhere near these, you don't need this skill — proceed norm
    unrelated regressions sneak in.
 4. **Follow the hard UI rules** (`§0`) for any UI/text change:
    - Emoji allowlist — the ONLY emojis permitted in skills, commands, code,
-     and UI text are `⚠` `✅` `❌` `🔐` `✕` `✓` `👤` `🔑` `🪟` `📚` `🔧` `🤖` `🏦` `🛡` `📋` `☐` `🔍` `⚙` `🔗` `🌐` `🧠` `⚖` `🔀` `⚡` `💼` `🔄` `🧑` `📊` `📄` `🛠` `📖` `💳` `✋` `📡` `✦` `👥` `📅` `🎛` `💬`.
+     and UI text are `⚠` `✅` `❌` `🔐` `✕` `✓` `👤` `🔑` `🪟` `📚` `🔧` `☀️` `🌙` `🤖` `🏦` `🛡` `📋` `☐` `🔍` `⚙` `🔗` `🌐` `🧠` `⚖` `🔀` `⚡` `💼` `🔄` `🧑` `📊` `📄` `🛠` `📖` `💳` `✋` `📡` `✦` `👥` `📅` `🎛` `💬`.
      Everything else is plain text or CSS / semantic icons.
      `REGRESSION_PLAN.md` §0 is the source of truth and carries each glyph's
      declared job; keep this list equal to it. It drifted to six entries once

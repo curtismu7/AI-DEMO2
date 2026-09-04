@@ -669,7 +669,7 @@ export default function TokenTopologyPanel({ isOpen, onClose }) {
           </div>
           <div className="ttp-toolbar-actions">
             <div className="ttp-theme-control" aria-label="Token topology color theme">
-              <span className={!darkMode ? 'active' : ''}>Light</span>
+              <span className={!darkMode ? 'active' : ''}>☀️ Light</span>
               <button
                 type="button"
                 className="ttp-theme-switch"
@@ -681,7 +681,7 @@ export default function TokenTopologyPanel({ isOpen, onClose }) {
               >
                 <span className="ttp-theme-switch-thumb" />
               </button>
-              <span className={darkMode ? 'active' : ''}>Dark</span>
+              <span className={darkMode ? 'active' : ''}>🌙 Dark</span>
             </div>
             <button className="ttp-clear-btn" onClick={handleClear} title="Clear and restart">
               <span className="ttp-clear-icon">↺</span> Clear

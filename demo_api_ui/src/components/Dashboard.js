@@ -492,7 +492,7 @@ const Dashboard = ({ user, onLogout }) => {
                 title="Switch the dashboard between light and dark"
                 aria-pressed={darkMode}
               >
-                {darkMode ? "Light mode" : "Dark mode"}
+                {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
               </button>
               <button
                 type="button"

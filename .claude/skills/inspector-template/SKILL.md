@@ -137,7 +137,7 @@ if something the shell doesn't cover comes up, extend `InspectorShell.css`
    edit; state what you will not break.
 2. **Worktree required** — edit/test/commit only in an isolated git worktree
    per this repo's working practice, never the shared main checkout.
-3. **Emoji allowlist** — `⚠` `✅` `❌` `🔐` `✕` `✓` `👤` `🔑` `🪟` `📚` `🔧` `🤖` `🏦` `🛡` `📋` `☐` `🔍` `⚙` `🔗` `🌐` `🧠` `⚖` `🔀` `⚡` `💼` `🔄` `🧑` `📊` `📄` `🛠` `📖` `💳` `✋` `📡` `✦` `👥` `📅` `🎛` `💬` only,
+3. **Emoji allowlist** — `⚠` `✅` `❌` `🔐` `✕` `✓` `👤` `🔑` `🪟` `📚` `🔧` `☀️` `🌙` `🤖` `🏦` `🛡` `📋` `☐` `🔍` `⚙` `🔗` `🌐` `🧠` `⚖` `🔀` `⚡` `💼` `🔄` `🧑` `📊` `📄` `🛠` `📖` `💳` `✋` `📡` `✦` `👥` `📅` `🎛` `💬` only,
    anywhere in the page's copy or code. `REGRESSION_PLAN.md` §0 is the
    source of truth.
 4. **UI build gate** — `cd demo_api_ui && npm run build` must exit `0` before
