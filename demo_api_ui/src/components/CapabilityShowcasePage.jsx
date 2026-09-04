@@ -1,4 +1,5 @@
 import React from 'react';
+import { useThemeOptional } from '../context/ThemeContext';
 import './CapabilityShowcasePage.css';
 
 /**
@@ -14,9 +15,19 @@ import './CapabilityShowcasePage.css';
  * @param {function(cap)=} props.renderCardExtra - optional function called once per card, after evidence element
  */
 export default function CapabilityShowcasePage({ title, intro, ledger, groups, renderCardExtra }) {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   return (
     <div className="cap-showcase">
       <header className="cap-showcase__header">
+        <button
+          type="button"
+          onClick={toggleDarkMode}
+          className="cap-showcase__theme-toggle"
+          title="Switch this page between light and dark"
+          aria-pressed={darkMode}
+        >
+          {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
+        </button>
         <h1>{title}</h1>
         <p className="cap-showcase__intro">{intro}</p>
       </header>
