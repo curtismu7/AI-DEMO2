@@ -9,9 +9,11 @@
 .ll-learn-search {
   min-width: 160px;
   padding: 4px 8px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--th-border);
   border-radius: 6px;
   font-size: var(--font-size-2xs);
+  background: var(--th-bg-card);
+  color: var(--th-text);
 }
 
 .ll-learn-list {
@@ -26,16 +28,16 @@
 
 .ll-learn-empty {
   margin: 24px 12px;
-  color: #64748b;
+  color: var(--th-text-muted);
   font-size: var(--font-size-sm);
   line-height: 1.45;
 }
 
 .ll-learn-row {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--th-border);
   border-left-width: 4px;
   border-radius: 8px;
-  background: #fff;
+  background: var(--th-bg-card);
 }
 
 .ll-learn-row__header {
@@ -59,7 +61,7 @@
 
 .ll-learn-row__time {
   font-variant-numeric: tabular-nums;
-  color: #64748b;
+  color: var(--th-text-muted);
   font-size: var(--font-size-2xs);
 }
 
@@ -81,35 +83,36 @@
   border: 1px solid;
   border-radius: 99px;
   padding: 1px 8px;
-  background: #fff;
+  background: var(--th-bg-card);
 }
 
 .ll-learn-row__msg {
   flex: 1 1 180px;
   font-size: var(--font-size-sm);
-  color: #0f172a;
+  color: var(--th-text);
 }
 
 .ll-learn-row__corr {
   font-size: var(--font-size-xs);
   font-family: var(--font-mono);
-  border: 1px dashed #cbd5e1;
+  border: 1px dashed var(--th-border-strong);
   border-radius: 4px;
   padding: 2px 6px;
-  background: #f8fafc;
-  color: #475569;
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
   cursor: pointer;
 }
 
 .ll-learn-row__corr:hover {
-  background: #e2e8f0;
+  background: var(--th-bg-hover);
 }
 
 .ll-learn-row__detail {
   margin: 0;
   padding: 8px 10px 10px;
-  border-top: 1px solid #e2e8f0;
-  background: #f8fafc;
+  border-top: 1px solid var(--th-border);
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
   font-size: var(--font-size-xs);
   overflow: auto;
   max-height: 200px;
@@ -117,7 +120,7 @@
 
 .log-viewer-mode-toggle {
   display: inline-flex;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--th-border-strong);
   border-radius: 8px;
   overflow: hidden;
   margin-right: 8px;
@@ -125,8 +128,8 @@
 
 .log-viewer-mode-toggle button {
   border: 0;
-  background: #f1f5f9;
-  color: #475569;
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
   padding: 4px 12px;
   font-size: var(--font-size-2xs);
   font-weight: 600;
@@ -134,8 +137,8 @@
 }
 
 .log-viewer-mode-toggle button.active {
-  background: #0f172a;
-  color: #fff;
+  background: var(--th-bg-emphasis);
+  color: var(--th-text-on-emphasis);
 }
 
 .log-viewer-float__body.is-learn-mode .log-viewer-controls,

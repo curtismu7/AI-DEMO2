@@ -8,8 +8,8 @@
   min-width: 640px;
   display: flex;
   flex-direction: column;
-  background: #ffffff;
-  border: 1px solid #DDDDDD;
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
   border-radius: 8px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
   z-index: 9999;
@@ -27,8 +27,8 @@
   justify-content: space-between;
   align-items: center;
   padding: 12px 16px;
-  border-bottom: 1px solid #DDDDDD;
-  background: var(--brand-light-gray);
+  border-bottom: 1px solid var(--th-border);
+  background: var(--th-bg-inset);
   border-radius: 8px 8px 0 0;
   cursor: grab;
   user-select: none;
@@ -38,7 +38,7 @@
 
 .log-viewer-header h2 {
   margin: 0;
-  color: #0f172a;
+  color: var(--th-text);
   font-size: 16px;
   font-weight: 600;
 }
@@ -51,8 +51,8 @@
 
 .log-action-btn {
   background: transparent;
-  border: 1px solid #CCCCCC;
-  color: #999999;
+  border: 1px solid var(--th-border-strong);
+  color: var(--th-text-muted);
   font-size: 16px;
   width: 28px;
   height: 28px;
@@ -73,7 +73,7 @@
 .close-button {
   background: transparent;
   border: none;
-  color: #999999;
+  color: var(--th-text-muted);
   font-size: var(--font-size-2xl);
   cursor: pointer;
   padding: 4px 12px;
@@ -82,8 +82,8 @@
 }
 
 .close-button:hover {
-  background: var(--brand-light-gray);
-  color: #0f172a;
+  background: var(--th-bg-hover);
+  color: var(--th-text);
 }
 
 .log-viewer-controls {
@@ -475,13 +475,13 @@
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #ffffff;
+  background: var(--th-bg-card);
   border-radius: 0;
 }
 
 .log-page-shell {
   min-height: 100vh;
-  background: var(--brand-light-gray);
+  background: var(--th-bg-page);
 }
 
 /* Responsive */

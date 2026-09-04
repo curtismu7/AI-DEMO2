@@ -9,6 +9,7 @@ import { toastLogStore } from '../services/toastLogStore';
 import { notifyError } from '../utils/appToast';
 import { createPortal } from 'react-dom';
 import { useDraggablePanel } from '../hooks/useDraggablePanel';
+import { useThemeOptional } from '../context/ThemeContext';
 import LearningLogLearnPane from './LearningLogLearnPane';
 import {
   correlationTint,
@@ -52,6 +53,7 @@ function mergeLogHistory(prev, incoming, maxRows = 2500) {
 }
 
 const LogViewer = ({ isOpen, onClose, standalone = false, categoryFilter = '', initialMode = 'debug' }) => {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const [mode, setMode] = useState(initialMode === 'learn' ? 'learn' : 'debug');
   const [logs, setLogs] = useState([]);
   const [toastLogs, setToastLogs] = useState(() => toastLogStore.getAll() || []);
@@ -352,6 +354,15 @@ const LogViewer = ({ isOpen, onClose, standalone = false, categoryFilter = '', i
                 Debug
               </button>
             </div>
+            <button
+              type="button"
+              className="close-button"
+              onClick={toggleDarkMode}
+              title="Switch this page between light and dark"
+              aria-pressed={darkMode}
+            >
+              {darkMode ? '☀️' : '🌙'}
+            </button>
             {!standalone && (
               <button
                 className="close-button"
