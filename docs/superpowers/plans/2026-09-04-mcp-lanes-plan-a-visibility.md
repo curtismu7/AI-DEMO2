@@ -635,7 +635,7 @@ The network part of a preflight cannot be unit-tested. The decision part can, an
 - network error → `unreachable`, carrying the error text.
 - **`auth` counts as pass** for the exit code. An unauthenticated preflight can prove reachability, DNS and TLS; it cannot prove authorization. Claiming otherwise would be the "green probe is not a correct probe" failure.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test** — DONE
 
 Create `scripts/check-mcp-preflight.test.js`:
 
@@ -720,7 +720,7 @@ describe('renderTable', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails** — DONE, module not found
 
 ```bash
 node --test scripts/check-mcp-preflight.test.js
@@ -728,7 +728,7 @@ node --test scripts/check-mcp-preflight.test.js
 
 Expected: FAIL — `Cannot find module './lib/preflightRows'`.
 
-- [ ] **Step 3: Write the library**
+- [x] **Step 3: Write the library** — DONE
 
 Create `scripts/lib/preflightRows.js`:
 
@@ -782,7 +782,7 @@ function exitCodeFor(rows) {
 module.exports = { classifyProbe, renderTable, exitCodeFor };
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes** — DONE, 14 tests / 3 suites, 0 fail
 
 ```bash
 node --test scripts/check-mcp-preflight.test.js
@@ -790,7 +790,21 @@ node --test scripts/check-mcp-preflight.test.js
 
 Expected: PASS, 13 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit** — DONE
+
+**Three cases added beyond the plan, all of them false-green guards** — the same
+"a green probe is not a correct probe" failure this plan exists to prevent:
+
+- `exitCodeFor([])` returned **0**, because `[].every()` is true. A door config that
+  resolved to zero rows would have reported a clean preflight. It now returns 1, and
+  `renderTable([])` says `no doors probed` instead of printing an empty string that
+  reads like a clean run.
+- `classifyProbe()` / `classifyProbe({})` — a probe that produced no status at all is
+  classified `down`, not silently anything else.
+- `classifyProbe({ error })` handles an `Error` as well as a string. A rejected `fetch`
+  carries an Error, and `String(err)` would have prefixed every note with `Error: `;
+  the message is now taken from `.message`. **Task 5 must pass the error through as it
+  comes** — no pre-stringifying.
 
 ```bash
 git add scripts/lib/preflightRows.js scripts/check-mcp-preflight.test.js
