@@ -131,39 +131,50 @@ async function ensureApp(req) {
 }
 
 /**
- * Session-cookie admin gate. This router is mounted under /api/mcp/inspector
+ * Session-cookie gate. This router is mounted under /api/mcp/inspector
  * WITHOUT authenticateToken, so middleware/auth.requireAdmin (which reads
  * req.user) would 401 every browser redirect that arrives with only a session
- * cookie. Match /api/mcp/audit and mcpInspector.js: check session.user.role.
+ * cookie — check session.user directly instead, like /api/mcp/audit does.
+ *
+ * Any signed-in user, not just admin: the resulting token just carries
+ * whatever PingOne roles that user has (an admin gets ~73 tools, a plain
+ * user ~6 per pingoneProvisionService.js's "Step 32b" comment) — there is no
+ * privilege being handed out here beyond what the user's own PingOne account
+ * already grants, so gating the LOGIN route to admin-only was narrower than
+ * the token itself requires.
  */
-function requireAdminSession(req, res, next) {
+function requireSignedInSession(req, res, next) {
   if (!req.session?.user) {
     return res.status(401).json({
       error: 'unauthenticated',
       message: 'A valid session is required. Please sign in.',
     });
   }
-  if (req.session.user.role !== 'admin') {
-    return res.status(403).json({
-      error: 'admin_required',
-      message: 'Admin session required for PingOne MCP admin login.',
-    });
-  }
   return next();
 }
 
-// GET /api/mcp/inspector/pingone-admin/login — admin only (this mints a
-// token carrying the signed-in user's PingOne admin roles; only meaningful
-// for our own demo admin, same guard as other admin-only routes).
-router.get('/login', requireAdminSession, async (req, res) => {
+/** Only a site-relative path, mirroring routes/privilegeMcpClient.js's sanitizeReturnTo. */
+function sanitizeReturnTo(value) {
+  if (typeof value !== 'string' || value.length > 200) return null;
+  if (!value.startsWith('/') || value.startsWith('//')) return null;
+  if (value.includes('\\') || value.includes('?') || value.includes('#')) return null;
+  return value;
+}
+
+// GET /api/mcp/inspector/pingone-admin/login — any signed-in user (see
+// requireSignedInSession above). ?returnTo=/some/path sends the browser back
+// there instead of the inspector page once the token is minted, so another
+// page (e.g. /privilege-mcp-client's pingone-admin door) can drive this flow.
+router.get('/login', requireSignedInSession, async (req, res) => {
   try {
     const app = await ensureApp(req);
     const state = crypto.randomBytes(16).toString('hex');
     const codeVerifier = base64url(crypto.randomBytes(32));
     const codeChallenge = base64url(crypto.createHash('sha256').update(codeVerifier).digest());
     const redirectUri = callbackUrl(req);
+    const returnTo = sanitizeReturnTo(req.query.returnTo);
 
-    req.session.pingoneMcpAdminOAuth = { state, codeVerifier, redirectUri };
+    req.session.pingoneMcpAdminOAuth = { state, codeVerifier, redirectUri, returnTo };
 
     const params = new URLSearchParams({
       response_type: 'code',
@@ -173,7 +184,10 @@ router.get('/login', requireAdminSession, async (req, res) => {
       state,
       code_challenge: codeChallenge,
       code_challenge_method: 'S256',
-      login_hint: 'demoAdmin',
+      // The signed-in user's own username, not a hardcoded admin — the token
+      // must authenticate as whoever is actually signed in, now that this
+      // isn't admin-only.
+      login_hint: req.session.user.username || 'demoAdmin',
     });
 
     req.session.save((err) => {
@@ -195,7 +209,11 @@ router.get('/callback', async (req, res) => {
   const pending = req.session?.pingoneMcpAdminOAuth;
 
   const failAndRedirect = (message) => {
+    const returnTo = pending?.returnTo;
     delete req.session.pingoneMcpAdminOAuth;
+    if (returnTo) {
+      return res.redirect(`${returnTo}?pingone_admin_login=error&reason=${encodeURIComponent(message)}`);
+    }
     res.redirect(`/pingone-mcp-inspector?source=custom&pingone_admin_error=${encodeURIComponent(message)}`);
   };
 
@@ -221,10 +239,11 @@ router.get('/callback', async (req, res) => {
       accessToken: resp.data.access_token,
       expiresAt: Date.now() + expiresInMs,
     };
+    const returnTo = pending.returnTo;
     delete req.session.pingoneMcpAdminOAuth;
     req.session.save((err) => {
       if (err) console.error('[mcpPingOneAdminAuth] session save error (post-token):', err.message);
-      res.redirect('/pingone-mcp-inspector?source=custom');
+      res.redirect(returnTo ? `${returnTo}?pingone_admin_login=success` : '/pingone-mcp-inspector?source=custom');
     });
   } catch (err) {
     const n = normalizeAxiosError(err, { label: 'PingOne token request' });

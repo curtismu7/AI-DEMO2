@@ -1564,7 +1564,14 @@ router.post('/tools/list', express.json(), async (req, res) => {
   } catch (err) {
     resetMcpState(session);
     emitEvent(session, 'error', { scope: 'tools_list', message: err.message });
-    res.status(relayFailureStatus(err)).json({ error: err.message });
+    // pingoneAdminLocalHandler's own auth requirement — a separate, delegated-
+    // PKCE login (routes/mcpPingOneAdminAuth.js), not this page's own OAuth
+    // flow. Surface the loginUrl alongside the standard `error` string (never
+    // instead of it) so the client can drive the right flow instead of the
+    // generic Sign In modal.
+    const loginUrl = err.rpcError?.data?.reason === 'pingone_admin_login_required'
+      ? err.rpcError.data.loginUrl : null;
+    res.status(relayFailureStatus(err)).json({ error: err.message, ...(loginUrl ? { loginUrl } : {}) });
   }
 });
 
@@ -1579,7 +1586,9 @@ router.post('/tools/call', express.json(), async (req, res) => {
     res.json(data);
   } catch (err) {
     emitEvent(session, 'error', { scope: 'tools_call', message: err.message });
-    res.status(relayFailureStatus(err)).json({ error: err.message });
+    const loginUrl = err.rpcError?.data?.reason === 'pingone_admin_login_required'
+      ? err.rpcError.data.loginUrl : null;
+    res.status(relayFailureStatus(err)).json({ error: err.message, ...(loginUrl ? { loginUrl } : {}) });
   }
 });
 
