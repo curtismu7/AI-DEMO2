@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from "react";
 import apiClient from "../services/apiClient";
 import { requiredFlagsForUseCase } from "../utils/requiredDemoFlags";
+import ThemeToggle from "../components/common/ThemeToggle";
 import "./DelegationChainValuePage.css";
 
 const VERTICAL = "sporting-goods";
@@ -82,7 +83,10 @@ export default function DelegationChainValuePage() {
 
   return (
     <div className="dcv-page">
-      <p className="dcv-eyebrow">WHY THIS DEMO EXISTS</p>
+      <div className="dcv-header-row">
+        <p className="dcv-eyebrow">WHY THIS DEMO EXISTS</p>
+        <ThemeToggle />
+      </div>
       <h1>Prove who acted, and who authorized it</h1>
       <p className="dcv-intro">
         Delegated agents create a trust gap: a user may authorize one agent, while a different

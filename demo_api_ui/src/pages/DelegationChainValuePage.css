@@ -26,8 +26,19 @@
   line-height: 1.2;
 }
 
+.dcv-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .dcv-eyebrow {
-  color: var(--th-primary, #1f5fe5);
+  /* --th-primary is undefined anywhere in index.css, so this always fell back
+     to the literal — which failed contrast (~3.4:1) against the dark-mode page
+     ground. --th-status-info-text is a real token pair already tuned per-theme
+     for exactly this "coloured label text on page ground" case. */
+  color: var(--th-status-info-text);
   font-size: 0.76rem;
   font-weight: 700;
   letter-spacing: 0.12em;
