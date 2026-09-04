@@ -79,7 +79,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   color: #888;
   padding: 3px 10px;
   border-radius: 12px;
@@ -95,7 +95,7 @@
 .cur-status--ok { color: #a3e635; }
 
 .cur-model-badge {
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   color: #a78bfa;
   background: #2d2640;
   padding: 2px 8px;
@@ -1028,12 +1028,12 @@ select.cur-input { cursor: pointer; }
 }
 
 .cur-skin-picker > span {
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   color: #888;
 }
 
 .cur-skin-picker select {
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   padding: 3px 6px;
   border-radius: 4px;
   border: 1px solid #3c3c3c;
@@ -1051,7 +1051,7 @@ select.cur-input { cursor: pointer; }
 /* ── Flow Topology Modal ────────────────────────────────────────────────── */
 
 .cur-flow-trigger {
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   padding: 3px 10px;
   border-radius: 4px;
   border: 1px solid #3c3c3c;
@@ -1080,7 +1080,7 @@ select.cur-input { cursor: pointer; }
   align-items: center;
   gap: 6px;
   color: #bbb;
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   -webkit-app-region: no-drag;
 }
 

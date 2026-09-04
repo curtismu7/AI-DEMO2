@@ -1224,13 +1224,14 @@ export default function PrivilegeMcpClientPage() {
               <option value="facade">Façade</option>
             </select>
           </label>
-          {/* Door picker. Shown whenever the current mode has more than one
-              known backend at the same origin (see sameGatewayDoors()) — hidden
-              below two doors, since a select with one option is furniture.
+          {/* Door picker. Always shown once state has loaded — even with a
+              single known backend at the current origin (see
+              sameGatewayDoors()), it doubles as a live readout of what
+              target the client is actually pointed at, not just a switcher.
               For Privilege it picks the DOOR, never a policy: Privilege
               resolves the policy server-side from (user, door, tool), so a
               policy control could only mislead about what it does. */}
-          {sameGatewayDoors().length > 1 && (
+          {sameGatewayDoors().length > 0 && (
             <label className="cur-mode-switcher">
               <span>Door</span>
               <select
