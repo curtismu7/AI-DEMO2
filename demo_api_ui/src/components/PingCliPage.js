@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import SignInPrompt from './SignInPrompt';
+import { useThemeOptional } from '../context/ThemeContext';
 import './PingCliPage.css';
 
 // Fallback runnable set when GET /commands hasn't loaded yet. Server catalog is
@@ -495,6 +496,7 @@ function InstallSection() {
 }
 
 export default function PingCliPage() {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const [running, setRunning]     = useState(null);
   const [activeKey, setActiveKey] = useState(null);
   const [cmdLabel, setCmdLabel]   = useState('');
@@ -731,15 +733,24 @@ export default function PingCliPage() {
 
   return (
     <div className="pingcli-page">
-      <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', margin: '0 0 6px' }}>
+      <button
+        type="button"
+        onClick={toggleDarkMode}
+        className="pingcli-theme-toggle"
+        title="Switch this page between light and dark"
+        aria-pressed={darkMode}
+      >
+        {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
+      </button>
+      <h1 className="pingcli-page__title">
         PingCLI
       </h1>
       {installedVersion && (
-        <p style={{ fontSize: 13, fontWeight: 600, color: '#475569', margin: '0 0 6px' }}>
+        <p className="pingcli-page__version">
           Installed: v{installedVersion}
         </p>
       )}
-      <p style={{ fontSize: 14, color: '#64748b', margin: '0 0 28px' }}>
+      <p className="pingcli-page__intro">
         The official CLI for PingOne administration. Click any command to run it live against
         your configured environment.
       </p>

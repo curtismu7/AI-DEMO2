@@ -6,6 +6,7 @@
 // demo_authz_server/routes/sideband.js; not wired to the live stack.
 import React, { useState } from "react";
 import useDividerDrag from "../hooks/useDividerDrag";
+import { useThemeOptional } from "../context/ThemeContext";
 import "./ResourceServerCheckpointPage.css";
 
 const FLOW_STEPS = [
@@ -192,6 +193,7 @@ const TEACH = [
 ];
 
 export default function ResourceServerCheckpointPage() {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const [active, setActive] = useState("balance");
   const s = SCENARIOS[active];
   const { size: scenarioWidth, handleProps: scenarioHandleProps } = useDividerDrag({
@@ -204,6 +206,15 @@ export default function ResourceServerCheckpointPage() {
   return (
     <div className="rsc-page">
       <div className="rsc-hero">
+        <button
+          type="button"
+          onClick={toggleDarkMode}
+          className="rsc-theme-toggle"
+          title="Switch this page between light and dark"
+          aria-pressed={darkMode}
+        >
+          {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
+        </button>
         <span className="rsc-eyebrow">Last hop · Kong pattern · PingOne Authorize AAM</span>
         <h1>The final check before your data</h1>
         <p className="rsc-sub">

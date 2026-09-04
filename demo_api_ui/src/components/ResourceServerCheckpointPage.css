@@ -1,21 +1,14 @@
-/* ResourceServerCheckpointPage.css — single dark theme, same structure as the
-   MM diagram pages (McpGatewayOauthFlowPage.css). rsc- prefix. */
+/* ResourceServerCheckpointPage.css — same structure as the MM diagram pages
+   (McpGatewayOauthFlowPage.css). rsc- prefix. Themed via --th- tokens; the
+   page's single red accent maps onto --th-status-error (this page's whole
+   subject is the deny/checkpoint path), except the two spots with a more
+   specific documented token: the active scenario button (the one primary
+   filled control in its row) uses --th-bg-emphasis/--th-text-on-emphasis,
+   and the focus ring uses --th-status-info per the standard convention. */
 
 .rsc-page {
-  --rsc-bg: #0f1115;
-  --rsc-panel: #161a21;
-  --rsc-panel-2: #1c212b;
-  --rsc-ink: #e9ecf3;
-  --rsc-ink-2: #9aa2b4;
-  --rsc-border: #2a313c;
-  --rsc-accent: #e0575c;
-  --rsc-accent-soft: rgba(224, 87, 92, 0.12);
-  --rsc-ok: #4cbb7a;
-  --rsc-ok-soft: rgba(76, 187, 122, 0.12);
-  --rsc-code-bg: #0b0e13;
-
-  background: var(--rsc-bg);
-  color: var(--rsc-ink);
+  background: var(--th-bg-page);
+  color: var(--th-text);
   min-height: 100%;
   max-width: 1100px;
   margin: 0 auto;
@@ -23,6 +16,7 @@
 }
 
 .rsc-hero {
+  position: relative;
   margin-bottom: 16px;
 }
 .rsc-eyebrow {
@@ -31,7 +25,7 @@
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--rsc-accent);
+  color: var(--th-status-error);
   margin-bottom: 8px;
 }
 .rsc-hero h1 {
@@ -40,11 +34,36 @@
   letter-spacing: -0.01em;
 }
 .rsc-sub {
-  color: var(--rsc-ink-2);
+  color: var(--th-text-muted);
   font-size: var(--font-size-sm);
   margin: 0;
   max-width: 80ch;
   line-height: 1.5;
+}
+
+.rsc-theme-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  color: var(--th-text);
+  padding: 6px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg-inset);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.rsc-theme-toggle:hover {
+  color: var(--th-text);
+  background: var(--th-bg-hover);
+}
+@media (max-width: 480px) {
+  .rsc-theme-toggle {
+    position: static;
+    display: inline-block;
+    margin-bottom: 12px;
+  }
 }
 
 .rsc-page h2 {
@@ -58,8 +77,9 @@
   gap: 12px;
 }
 .rsc-why {
-  background: var(--rsc-panel);
-  border: 1px solid var(--rsc-border);
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
   border-radius: 10px;
   padding: 14px 16px;
 }
@@ -70,14 +90,15 @@
 .rsc-why p {
   margin: 0;
   font-size: 12.5px;
-  color: var(--rsc-ink-2);
+  color: var(--th-text-muted);
   line-height: 1.5;
 }
 
 .rsc-lab {
-  background: var(--rsc-panel);
-  border: 1px solid var(--rsc-border);
-  border-radius: 12px;
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-xl);
   padding: 16px;
   display: grid;
   grid-template-columns: var(--rsc-scenarios-w, 230px) 6px 1fr;
@@ -101,13 +122,13 @@
   font-size: 10.5px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: var(--rsc-ink-2);
+  color: var(--th-text-muted);
 }
 .rsc-sc {
+  color: var(--th-text);
   text-align: left;
-  background: var(--rsc-panel-2);
-  color: var(--rsc-ink);
-  border: 1px solid var(--rsc-border);
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
   border-radius: 9px;
   padding: 9px 11px;
   font-size: 12.5px;
@@ -118,24 +139,24 @@
 .rsc-sc small {
   display: block;
   font-weight: 400;
-  color: var(--rsc-ink-2);
+  color: var(--th-text-muted);
   margin-top: 2px;
   font-size: var(--font-size-xs);
 }
 .rsc-sc:hover {
-  border-color: var(--rsc-accent);
+  border-color: var(--th-status-error);
 }
 .rsc-sc:focus-visible {
-  outline: 2px solid var(--rsc-accent);
+  outline: 2px solid var(--th-status-info);
   outline-offset: 2px;
 }
 .rsc-sc--active {
-  background: var(--rsc-accent);
-  color: #14181c;
-  border-color: var(--rsc-accent);
+  background: var(--th-bg-emphasis);
+  color: var(--th-text-on-emphasis);
+  border-color: var(--th-bg-emphasis);
 }
 .rsc-sc--active small {
-  color: #14181c;
+  color: var(--th-text-on-emphasis);
   opacity: 0.85;
 }
 
@@ -150,30 +171,30 @@
   margin-bottom: 14px;
 }
 .rsc-pill {
+  color: var(--th-text-muted);
   font-size: 10.5px;
-  border: 1px solid var(--rsc-border);
-  border-radius: 999px;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-pill);
   padding: 3px 9px;
-  color: var(--rsc-ink-2);
-  background: var(--rsc-panel-2);
+  background: var(--th-bg-inset);
   white-space: nowrap;
 }
 .rsc-pill--on {
-  border-color: var(--rsc-accent);
-  color: var(--rsc-accent);
-  background: var(--rsc-accent-soft);
+  border-color: var(--th-status-error);
+  color: var(--th-status-error);
+  background: var(--th-status-error-bg);
 }
 .rsc-pill--ok {
-  border-color: var(--rsc-ok);
-  color: var(--rsc-ok);
-  background: var(--rsc-ok-soft);
+  border-color: var(--th-status-success);
+  color: var(--th-status-success);
+  background: var(--th-status-success-bg);
 }
 .rsc-pill--dead {
   opacity: 0.38;
   text-decoration: line-through;
 }
 .rsc-pill-sep {
-  color: var(--rsc-ink-2);
+  color: var(--th-text-muted);
   font-size: var(--font-size-xs);
 }
 
@@ -184,29 +205,35 @@
   border-radius: 10px;
   padding: 11px 14px;
   margin-bottom: 14px;
-  border: 1px solid var(--rsc-border);
+  border: 1px solid var(--th-border);
 }
 .rsc-verdict--permit {
-  background: var(--rsc-ok-soft);
-  border-color: var(--rsc-ok);
+  color: var(--th-status-success-text);
+  background: var(--th-status-success-bg);
+  border-color: var(--th-status-success);
 }
 .rsc-verdict--deny {
-  background: var(--rsc-accent-soft);
-  border-color: var(--rsc-accent);
+  color: var(--th-status-error-text);
+  background: var(--th-status-error-bg);
+  border-color: var(--th-status-error);
 }
 .rsc-badge {
+  /* Solid verdict pill: always white-on-saturated-color by design, in both
+     themes, so PERMIT/DENY reads instantly — deliberately not themed. */
+  color: #fff;
   font-size: var(--font-size-xs);
   font-weight: 700;
   letter-spacing: 0.1em;
   padding: 4px 10px;
-  border-radius: 6px;
-  color: #fff;
+  border-radius: var(--radius-md);
 }
 .rsc-verdict--permit .rsc-badge {
-  background: var(--rsc-ok);
+  color: #fff;
+  background: var(--th-status-success);
 }
 .rsc-verdict--deny .rsc-badge {
-  background: var(--rsc-accent);
+  color: #fff;
+  background: var(--th-status-error);
 }
 .rsc-vtext {
   font-size: 12.5px;
@@ -216,7 +243,7 @@
   font-size: var(--font-size-sm);
 }
 .rsc-vtext span {
-  color: var(--rsc-ink-2);
+  color: var(--th-text-muted);
 }
 
 .rsc-panes {
@@ -240,18 +267,18 @@
   font-size: 10.5px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: var(--rsc-ink-2);
+  color: var(--th-text-muted);
   font-weight: 600;
 }
 .rsc-pane h4 em {
-  color: var(--rsc-accent);
+  color: var(--th-status-error);
   font-style: normal;
 }
 .rsc-pane pre {
   margin: 0;
-  background: var(--rsc-code-bg);
-  color: var(--rsc-ink);
-  border: 1px solid var(--rsc-border);
+  background: var(--th-code-bg);
+  color: var(--th-code-text);
+  border: 1px solid var(--th-border);
   border-radius: 9px;
   padding: 12px 14px;
   font-size: 11.5px;
@@ -260,7 +287,7 @@
 }
 .rsc-contract-note {
   font-size: 11.5px;
-  color: var(--rsc-ink-2);
+  color: var(--th-text-muted);
   margin: 6px 0 0;
 }
 
@@ -275,9 +302,10 @@
   }
 }
 .rsc-phase {
-  background: var(--rsc-panel);
-  border: 1px solid var(--rsc-border);
-  border-left: 3px solid var(--rsc-accent);
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-left: 3px solid var(--th-status-error);
   border-radius: 10px;
   padding: 13px 16px;
 }
@@ -287,12 +315,12 @@
 }
 .rsc-phase h3 code {
   font-size: var(--font-size-2xs);
-  color: var(--rsc-accent);
+  color: var(--th-status-error);
 }
 .rsc-phase p {
   margin: 0;
   font-size: 12.5px;
-  color: var(--rsc-ink-2);
+  color: var(--th-text-muted);
   line-height: 1.5;
 }
 
@@ -306,13 +334,13 @@
   margin-bottom: 8px;
 }
 .rsc-check {
-  color: var(--rsc-ok);
+  color: var(--th-status-success);
   font-weight: 700;
   margin-right: 5px;
 }
 
 .rsc-footer {
-  color: var(--rsc-ink-2);
+  color: var(--th-text-muted);
   font-size: var(--font-size-2xs);
   margin-top: 24px;
   max-width: 80ch;

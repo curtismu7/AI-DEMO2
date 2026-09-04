@@ -49,7 +49,9 @@ import path from 'node:path';
 // THEMING.md 9.2) and ServersPage.css (the /check page).
 // 169 -> 165: CodeExplorerPage.css, ResourceServerPage.css, CodeSearchPage.css
 // and GraphifyPage.css, fully converted from fictional --v2-* tokens.
-const MAX_UNTHEMED = 165;
+// 165 -> 162: SnapshotImport.css, ResourceServerCheckpointPage.css and
+// ScopeReferencePage.css, fully converted.
+const MAX_UNTHEMED = 162;
 
 const SRC = path.join(__dirname, '..', '..');
 
@@ -205,7 +207,7 @@ describe('theming ratchet', () => {
  * Literal grounds are deliberately not counted. They do not flip, so inherited
  * near-black stays correct against them.
  */
-const MAX_GROUND_WITHOUT_INK = 461;
+const MAX_GROUND_WITHOUT_INK = 452;
 
 const CSS_RULE = /([^{}]+)\{([^{}]*)\}/g;
 const HAS_COLOR = /(?:^|\n)\s*color\s*:/;

@@ -3,36 +3,37 @@
 
 /* ── Loading / error states ── */
 .scope-ref__state {
-  background: #ffffff;
-  border: 1px solid #e0e0e0;
-  border-radius: 12px;
+  color: var(--th-text-body);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-xl);
   padding: 1.5rem;
   margin-top: 1rem;
   font-size: 0.95rem;
-  color: #333333;
 }
 
 .scope-ref__state--error {
-  border-left: 4px solid #b91c1c;
+  border-left: 4px solid var(--th-status-error);
 }
 
 .scope-ref__state-detail {
   margin: 0.5rem 0 1rem;
   font-family: var(--font-mono);
   font-size: 0.82rem;
-  color: #7f1d1d;
+  color: var(--th-status-error-text);
   word-break: break-word;
 }
 
 /* ── Summary strip ── */
 .scope-ref__summary {
+  color: var(--th-text);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 1rem;
-  background: #ffffff;
-  border: 1px solid #e0e0e0;
-  border-radius: 12px;
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-xl);
   padding: 0.9rem 1.25rem;
   margin-top: 1rem;
 }
@@ -42,7 +43,7 @@
   align-items: baseline;
   gap: 0.4rem;
   padding-right: 1rem;
-  border-right: 1px solid #e0e0e0;
+  border-right: 1px solid var(--th-border);
 }
 
 .scope-ref__stat:last-of-type {
@@ -52,7 +53,7 @@
 .scope-ref__stat-value {
   font-size: 1.35rem;
   font-weight: 700;
-  color: #1d4ed8;
+  color: var(--th-status-info);
 }
 
 .scope-ref__stat-label {
@@ -60,7 +61,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #374151;
+  color: var(--th-text-muted);
 }
 
 .scope-ref__summary-actions {
@@ -72,14 +73,15 @@
   margin: 1.75rem 0 0.75rem;
   font-size: 1.05rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--th-text);
 }
 
 /* ── Resource card ── */
 .scope-ref-card {
-  background: #ffffff;
-  border: 1px solid #e0e0e0;
-  border-radius: 12px;
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-xl);
   margin-bottom: 1rem;
   overflow: hidden;
 }
@@ -95,7 +97,7 @@
 }
 .scope-ref-card__header::-webkit-details-marker { display: none; }
 .scope-ref-card details[open] > .scope-ref-card__header {
-  border-bottom-color: #e5e7eb;
+  border-bottom-color: var(--th-border);
 }
 
 .scope-ref-card__title-row {
@@ -111,7 +113,7 @@
   height: 18px;
   flex-shrink: 0;
   margin-left: auto;
-  color: #9ca3af;
+  color: var(--th-text-faint);
   transition: transform 0.18s ease;
 }
 .scope-ref-card details[open] .scope-ref-card__chevron {
@@ -122,30 +124,30 @@
   margin: 0;
   font-size: 1.05rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--th-text);
 }
 
 .scope-ref-card__badge {
+  color: var(--th-text-muted);
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.05em;
   padding: 0.2rem 0.55rem;
-  border-radius: 999px;
-  background: #f3f4f6;
-  color: #374151;
-  border: 1px solid #d1d5db;
+  border-radius: var(--radius-pill);
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border-strong);
 }
 
 .scope-ref-card__badge--custom {
-  background: #eff6ff;
-  color: #1d4ed8;
-  border-color: #bfdbfe;
+  background: var(--th-status-info-bg);
+  color: var(--th-status-info);
+  border-color: var(--th-status-info-border);
 }
 
 .scope-ref-card__count {
   font-size: 0.78rem;
   font-weight: 600;
-  color: #374151;
+  color: var(--th-text-muted);
 }
 
 .scope-ref-card__meta {
@@ -166,7 +168,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #374151;
+  color: var(--th-text-muted);
 }
 
 .scope-ref-card__meta dd {
@@ -175,19 +177,19 @@
 }
 
 .scope-ref-card__meta code {
-  background: #f3f4f6;
-  border: 1px solid #e5e7eb;
-  border-radius: 4px;
+  color: var(--th-text);
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm);
   padding: 0.05rem 0.4rem;
   font-size: 0.78rem;
-  color: #111827;
   word-break: break-all;
 }
 
 .scope-ref-card__empty {
   padding: 1rem 1.25rem;
   font-size: 0.88rem;
-  color: #374151;
+  color: var(--th-text-muted);
 }
 
 /* ── Scope table ── */
@@ -198,15 +200,15 @@
 }
 
 .scope-ref-table th {
+  color: var(--th-text-muted);
   text-align: left;
   padding: 0.55rem 1.25rem;
-  background: #f9fafb;
-  border-bottom: 2px solid #e5e7eb;
+  background: var(--th-bg-inset);
+  border-bottom: 2px solid var(--th-border);
   font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #374151;
 }
 
 .scope-ref-table__col-name {
@@ -215,7 +217,7 @@
 
 .scope-ref-table td {
   padding: 0.55rem 1.25rem;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--th-border);
   vertical-align: top;
 }
 
@@ -224,25 +226,26 @@
 }
 
 .scope-ref-table__scope {
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  border-radius: 4px;
+  color: var(--th-status-info);
+  background: var(--th-status-info-bg);
+  border: 1px solid var(--th-status-info-border);
+  border-radius: var(--radius-sm);
   padding: 0.1rem 0.45rem;
   font-size: 0.82rem;
   font-weight: 600;
-  color: #1d4ed8;
 }
 
 .scope-ref-table__desc {
-  color: #333333;
+  color: var(--th-text-body);
   line-height: 1.5;
 }
 
 /* ── Collapsible vocabulary document ── */
 .scope-ref__vocab {
-  background: #ffffff;
-  border: 1px solid #e0e0e0;
-  border-radius: 12px;
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-xl);
   margin-top: 1.5rem;
   padding: 0.9rem 1.25rem;
 }
@@ -251,20 +254,20 @@
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 600;
-  color: #111827;
+  color: var(--th-text);
 }
 
 .scope-ref__vocab-doc {
+  color: var(--th-text);
   white-space: pre-wrap;
   word-break: break-word;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-lg);
   padding: 1rem;
   margin: 0.85rem 0 0;
   font-size: 0.82rem;
   line-height: 1.55;
   max-height: 60vh;
   overflow: auto;
-  color: #111827;
 }
