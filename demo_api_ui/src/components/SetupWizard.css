@@ -51,7 +51,7 @@
 }
 .step-circle.incomplete {
   background: #d1d5db;
-  color: #fff;
+  color: #4b5563;
 }
 .step-circle.active {
   background: #004687;

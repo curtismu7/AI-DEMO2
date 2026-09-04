@@ -285,7 +285,7 @@
   text-align: left;
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: #1e3a5f;
+  color: var(--th-text);
   transition: background 0.12s;
 }
 .api-turn-group-header:hover {

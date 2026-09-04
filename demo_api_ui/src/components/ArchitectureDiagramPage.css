@@ -547,7 +547,7 @@
 
 .arch-chain-close:hover {
   background: var(--th-bg-hover);
-  color: #1f2937;
+  color: var(--th-text);
 }
 
 .arch-chain-content {
