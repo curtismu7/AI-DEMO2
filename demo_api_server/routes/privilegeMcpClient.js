@@ -1521,14 +1521,30 @@ router.get('/auth/callback', async (req, res) => {
     // Hand the gateway leg to the façade's privilege-gateway door, so standalone
     // MCP clients never have to register with the gateway themselves — see
     // services/privilegeGatewaySession.js for why that matters.
-    privilegeGatewaySession.remember({
-      accessToken: session.oauth.accessToken,
-      refreshToken: session.oauth.refreshToken,
-      expiresIn: tokenData.expires_in,
-      tokenUri: session.oauth.tokenUri,
-      clientId: session.oauth.dcrClientId || session.config.clientId,
-      clientSecret: session.oauth.dcrClientSecret,
-    });
+    //
+    // ONLY when this exchange actually happened against the real gateway's own
+    // token endpoint (Privilege mode's DCR/federated flow to mcpgw). Every
+    // other mode (Direct's opensearch/brave, Façade's own base doors) mints a
+    // token from OUR broker instead — its resource happens to be named
+    // `mcpgateway.ping.demo` too (demo_mcp_gateway's own identifier), a name
+    // collision with the real gateway's identifier, not the real gateway's
+    // token. Remembering that here overwrote a working gateway session with a
+    // token the real gateway rejects as "Bearer token required" the next time
+    // the façade's privilege-gateway/<app> door used it — verified live with a
+    // temporary diagnostic log, 2026-09-04.
+    let tokenOrigin = null;
+    try { tokenOrigin = new URL(session.oauth.tokenUri).origin; } catch { /* leave null, treated as not-the-gateway below */ }
+    const gatewayOrigin = new URL(DEFAULT_PRIVILEGE_MCP_URL()).origin;
+    if (tokenOrigin === gatewayOrigin) {
+      privilegeGatewaySession.remember({
+        accessToken: session.oauth.accessToken,
+        refreshToken: session.oauth.refreshToken,
+        expiresIn: tokenData.expires_in,
+        tokenUri: session.oauth.tokenUri,
+        clientId: session.oauth.dcrClientId || session.config.clientId,
+        clientSecret: session.oauth.dcrClientSecret,
+      });
+    }
 
     emitEvent(session, 'oauth', { phase: 'token_success', expiresIn: tokenData.expires_in || null });
     res.redirect(`${returnBase}?auth=success`);
