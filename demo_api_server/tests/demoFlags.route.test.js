@@ -5,6 +5,10 @@ jest.mock('../services/configStore', () => ({
   setRaw: jest.fn(async () => {}),
 }));
 
+jest.mock('../routes/featureFlags', () => ({
+  pushEnterpriseMcpAuthToGateway: jest.fn(),
+}));
+
 const request = require('supertest');
 const express = require('express');
 
@@ -78,5 +82,25 @@ describe('POST /api/demo-flags/enable', () => {
       .send({ useCaseId: 'ciba-out-of-band-approval' });
     expect(res.status).not.toBe(401);
     expect(res.status).not.toBe(403);
+  });
+
+  test('a configStore.setRaw rejection returns 500 with an error field, not a hang', async () => {
+    const { app, configStore } = buildApp();
+    configStore.setRaw.mockRejectedValueOnce(new Error('store unavailable'));
+    const res = await request(app)
+      .post('/api/demo-flags/enable')
+      .send({ useCaseId: 'par-rar-intent-verified' });
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBeTruthy();
+  });
+
+  test('enabling enterprise-managed-mcp-access pushes the flag to the gateway', async () => {
+    const { app } = buildApp();
+    const { pushEnterpriseMcpAuthToGateway } = require('../routes/featureFlags');
+    const res = await request(app)
+      .post('/api/demo-flags/enable')
+      .send({ useCaseId: 'enterprise-managed-mcp-access' });
+    expect(res.status).toBe(200);
+    expect(pushEnterpriseMcpAuthToGateway).toHaveBeenCalledWith(true);
   });
 });

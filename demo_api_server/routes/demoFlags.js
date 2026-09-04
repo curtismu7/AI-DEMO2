@@ -6,6 +6,7 @@ const router = express.Router();
 const { USE_CASES } = require('../config/useCases');
 const { requiredFlagsForUseCaseId, isFlagOn } = require('../services/demoStepPrerequisites');
 const configStore = require('../services/configStore');
+const { pushEnterpriseMcpAuthToGateway } = require('./featureFlags');
 
 /**
  * Guest-safe flag enable. The client names a use case, never a flag — the
@@ -27,8 +28,15 @@ router.post('/enable', async (req, res) => {
   }
 
   for (const flag of flags) {
-    if (!isFlagOn(configStore.getEffective(flag))) {
-      await configStore.setRaw({ [flag]: 'true' });
+    try {
+      if (!isFlagOn(configStore.getEffective(flag))) {
+        await configStore.setRaw({ [flag]: 'true' });
+        if (flag === 'ff_enterprise_managed_mcp_auth') {
+          pushEnterpriseMcpAuthToGateway(true);
+        }
+      }
+    } catch (err) {
+      return res.status(500).json({ error: `failed to enable ${flag}: ${err.message}` });
     }
   }
 
