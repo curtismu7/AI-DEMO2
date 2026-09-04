@@ -3,15 +3,16 @@
  * UseCaseLauncherPage used to be plain `const` assignments in the render
  * body — recomputed (re-scanning the full use-case catalog, rebuilding
  * Sets) on every render, including renders triggered by state that has
- * nothing to do with `useCases` or `query` (e.g. a feature-flag toggle).
+ * nothing to do with `useCases` or `query` (e.g. enabling a feature flag).
  *
  * Proof: `allPingOneAuthorizeUCIds`/`allAgentGatewayUCIds` are called
  * exactly once inside the now-memoized `authorizeIds`/`agentGatewayIds`
  * (both depend on `[]`, since the capability ledgers are static config).
  * Pre-fix, they were called fresh on every render. Triggering a re-render
- * that changes neither `useCases` nor `query` — toggling a feature flag,
- * exactly like T6d in UseCaseLauncherPage.test.js — must not increase the
- * call count once memoized.
+ * that changes neither `useCases` nor `query` — enabling a flag-gated UC's
+ * required flag via its FlagGate banner, exactly like the "clicking Enable"
+ * case in UseCaseLauncherPage.test.js — must not increase the call count
+ * once memoized.
  */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -105,7 +106,7 @@ describe('UseCaseLauncherPage — memoized derivations (finding #66)', () => {
       }
       return Promise.resolve({ data: { vertical: 'banking', useCases: [UC_FLAG_GATED] } });
     });
-    apiClient.patch = vi.fn().mockResolvedValue({ data: { updated: true } });
+    apiClient.post.mockResolvedValue({ data: { flags: ['ff_fixture_gate'] } });
   });
 
   it('does not recompute authorize/agent-gateway id sets on an unrelated re-render', async () => {
@@ -116,11 +117,12 @@ describe('UseCaseLauncherPage — memoized derivations (finding #66)', () => {
     const agwCallsAfterMount = agentGatewayCallCount.mock.calls.length;
     expect(callsAfterMount).toBeGreaterThan(0);
 
-    // Toggling the flag re-renders the page (flags state changes) without
-    // touching `useCases` or `query` — the exact case the fix targets.
-    const toggle = screen.getAllByRole('switch', { name: /Enable ff_fixture_gate/i })[0];
-    fireEvent.click(toggle);
-    await waitFor(() => expect(apiClient.patch).toHaveBeenCalled());
+    // Clicking a FlagGate banner's Enable button re-renders the page (the
+    // local flag-map overlay changes) without touching `useCases` or
+    // `query` — the exact case the fix targets.
+    const enableBtn = screen.getAllByRole('button', { name: /Enable/i })[0];
+    fireEvent.click(enableBtn);
+    await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith('/api/demo-flags/enable', { useCaseId: 'a2a-delegation' }));
 
     expect(authorizeCallCount.mock.calls.length).toBe(callsAfterMount);
     expect(agentGatewayCallCount.mock.calls.length).toBe(agwCallsAfterMount);

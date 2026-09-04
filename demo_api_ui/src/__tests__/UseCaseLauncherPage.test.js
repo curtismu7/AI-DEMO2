@@ -16,7 +16,8 @@
  *   A5.3 additions:
  *   T6b. Gate notice + enabled Run (auto-enables flag) for flag-gated UC when flag is OFF.
  *   T6c. Non-flag UC still has an enabled Run button.
- *   T6d. Clicking the toggle PATCHes the flag and enables Run.
+ *   T6d. Clicking a FlagGate's Enable button calls the guest-safe endpoint
+ *        and clears the gate for every copy of the card.
  *   T6e. Flag-gated Run stays enabled while flags are loading (auto-enable on Run).
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -473,23 +474,23 @@ describe('UseCaseLauncherPage', () => {
     expect(enabledRuns.length).toBeGreaterThan(0);
   });
 
-  // T6d — toggling ON PATCHes the flag
-  it('clicking the toggle PATCHes the flag and enables Run', async () => {
+  // T6d — clicking a FlagGate's Enable button calls the guest-safe endpoint
+  it("clicking a FlagGate's Enable button arms the flag via the guest-safe endpoint", async () => {
+    apiClient.post.mockResolvedValue({ data: { flags: ['ff_fixture_gate'] } });
     renderPage();
     // UC2 now renders in both the Demo section and Foundations (no cross-section
-    // dedup), so two identical flag toggles exist — clicking either produces
-    // the same PATCH, since flag state is global, not per-card. Click the first.
+    // dedup), so two identical flag-gate banners exist — clicking either Enable
+    // button produces the same POST, since flag state is lifted to the page,
+    // not held per-card. Click the first.
     await waitFor(() => expect(screen.getAllByText('A2A delegation').length).toBeGreaterThan(0));
-    const toggles = screen.getAllByRole('switch', { name: /Enable ff_fixture_gate/i });
-    fireEvent.click(toggles[0]);
-    expect(apiClient.patch).toHaveBeenCalledWith(
-      '/api/admin/feature-flags',
-      { updates: { ff_fixture_gate: true } }
+    const enableBtns = screen.getAllByRole('button', { name: /Enable/i });
+    fireEvent.click(enableBtns[0]);
+    await waitFor(() =>
+      expect(apiClient.post).toHaveBeenCalledWith('/api/demo-flags/enable', { useCaseId: 'a2a-delegation' }),
     );
     await waitFor(() => {
-      const allBtns = screen.getAllByRole('button', { name: /^run$/i });
-      const runForUC2 = allBtns.find((b) => !b.disabled && !b.title?.includes('A6'));
-      expect(runForUC2).toBeDefined();
+      // Once enabled, the gate banner disappears from every copy of the card.
+      expect(screen.queryByText('ff_fixture_gate')).not.toBeInTheDocument();
     });
   });
 
