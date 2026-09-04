@@ -26,7 +26,7 @@ const crypto = require('crypto');
 const axios = require('axios');
 const router = express.Router();
 const configStore = require('../services/configStore');
-const { getAuthorizationEndpoint, getTokenEndpoint } = require('../services/oauthEndpointResolver');
+const { getAuthorizationEndpoint, getTokenEndpoint, getParEndpoint } = require('../services/oauthEndpointResolver');
 const { PingOneProvisionService } = require('../services/pingoneProvisionService');
 const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 
@@ -176,7 +176,8 @@ router.get('/login', requireSignedInSession, async (req, res) => {
 
     req.session.pingoneMcpAdminOAuth = { state, codeVerifier, redirectUri, returnTo };
 
-    const params = new URLSearchParams({
+    const resource = `https://mcp.pingone.${app.region}/admin/${app.environmentId}/mcp`;
+    const authParams = {
       response_type: 'code',
       client_id: app.clientId,
       redirect_uri: redirectUri,
@@ -195,15 +196,40 @@ router.get('/login', requireSignedInSession, async (req, res) => {
       // header). Verified directly against the server's own RFC 9728 metadata
       // (GET https://mcp.pingone.com/.well-known/oauth-protected-resource/admin/{envId}/mcp)
       // — its `resource` field is exactly this URL, not a bare origin.
-      resource: `https://mcp.pingone.${app.region}/admin/${app.environmentId}/mcp`,
-    });
+      resource,
+    };
+
+    // Pushed straight to /as/par (RFC 9126) rather than passed inline on the
+    // /authorize redirect: this app has parRequirement OPTIONAL, but the
+    // hosted MCP server still answered "401 Invalid authentication" with an
+    // inline resource param — PAR is this project's own established working
+    // pattern for resource-bound PingOne authorization (services/parService.js).
+    // Public client (tokenEndpointAuthMethod NONE, PKCE-enforced) — no
+    // client_secret in the push, same as this app's other two legs.
+    let requestUri;
+    try {
+      const parResp = await axios.post(
+        getParEndpoint(),
+        new URLSearchParams(authParams).toString(),
+        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 15000 },
+      );
+      requestUri = parResp.data.request_uri;
+      if (!requestUri) throw new Error('PAR endpoint did not return request_uri');
+    } catch (err) {
+      const n = normalizeAxiosError(err, { label: 'PingOne PAR push' });
+      console.error('[mcpPingOneAdminAuth] PAR push failed:', n.message);
+      return res.redirect(`/pingone-mcp-inspector?source=custom&pingone_admin_error=${encodeURIComponent(n.message)}`);
+    }
 
     req.session.save((err) => {
       if (err) {
         console.error('[mcpPingOneAdminAuth] session save error:', err.message);
         return res.status(500).json({ error: 'login_init_failed', message: err.message });
       }
-      res.redirect(`${getAuthorizationEndpoint()}?${params.toString()}`);
+      // Per RFC 9126: only client_id + request_uri on the authorize leg —
+      // every other param already travelled in the pushed request above.
+      const authorizeParams = new URLSearchParams({ client_id: app.clientId, request_uri: requestUri });
+      res.redirect(`${getAuthorizationEndpoint()}?${authorizeParams.toString()}`);
     });
   } catch (err) {
     console.error('[mcpPingOneAdminAuth] /login error:', err.message);
