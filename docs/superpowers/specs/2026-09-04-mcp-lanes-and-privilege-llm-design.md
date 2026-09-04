@@ -79,19 +79,50 @@ not overturn it. The fix is visibility and one-click recovery, not persistence.
 
 ### 2.3 Finding 2 — the three lanes do not serve the same tools
 
-The Privilege estate was rebuilt on 2026-09-01 into a single AI Gateway with a
-single Agentic App, `opensearch22` (OpenSearch tools). Banking is not behind
-Privilege at all.
+**The current Privilege deployment is agent-based, and it works. Do not change
+it.** Confirmed with the user 2026-09-04. Two naming traps to record, because
+both cost time in this analysis:
+
+- The Helm release in `ping-devops-curtismuir` is still called
+  **`agentless-mcpgw`** (chart-legacy naming, revision 5, 2026-09-03). That
+  name does not describe the mode. The deployment is the agent one.
+- **Agent mode here still uses OAuth.** The "agent mode carries no
+  `Authorization` header" behaviour described for the retired
+  `*.applications.procyon.ai:8643` frontends does **not** apply to this
+  deployment. Clients reach it at `https://mcpgw.ai-demo.ping-devops.com/<app>/mcp`
+  and complete the normal OAuth dance. Finding 1 (§2.2) therefore stands in
+  full.
+
+It serves **three** Agentic Apps — two OpenSearch and one Brave — named in
+`privilegeMcpClient.js:20-26` as `opensearch22`, `opensearch` and `brave`, each
+with its own Privilege policy. (An earlier version of this spec said one;
+`privilege/CURRENT-CONFIGURATION.md` is stale on this point.) Banking is not
+behind Privilege at all.
+
+Two caveats on that inventory, both unresolved and both for W4/W8 rather than
+assumption:
+
+- The user's live `~/.lmstudio/mcp.json` calls the Brave app
+  **`mcp-brave-search`**, which matches no constant in the code. One of the two
+  is wrong; which is unknown.
+- **An unauthenticated probe cannot settle it.** The gateway returns 401 before
+  routing, so a nonexistent app name (`bogus-app`) answers 401 exactly like a
+  real one. App existence can only be confirmed through the console inventory
+  (§5, W8) or an authenticated call.
+
+**The user will add more Agentic Apps over time.** Any design that hardcodes the
+app list is wrong by construction — see W8.
 
 | Lane | Banking | OpenSearch | Brave | PingOne admin |
 |---|---|---|---|---|
-| Direct | yes (`mcp-server:8080`) | yes | yes | yes (local handler) |
-| Privilege | **no** | yes (`opensearch22`) | via gateway app only | no |
+| Direct | yes (`mcp-server:8080`) | yes | yes (`mcp-brave:8897`) | yes (local handler) |
+| Privilege | **no** | yes (`opensearch22`) | yes (`mcp-brave-search`) | no |
 | Façade | yes (`agent-gateway` door) | yes | yes | yes |
 
 So "the same call down three different paths" — the comparison the demo exists
-to make — is not currently possible. Three façade doors (`agentless`, `agent`,
-`agent-cmuir`) point at torn-down infrastructure and are dark on purpose
+to make — is possible for OpenSearch and Brave, but not for banking. Three
+façade doors (`agentless`, `agent`, `agent-cmuir`) point at torn-down
+infrastructure and are dark on purpose
 ([`TECH_DEBT.md:2273`](../../../TECH_DEBT.md)).
 
 ### 2.4 Finding 3 — the LM Studio config is stale and diverged
@@ -142,7 +173,10 @@ The deliverable is this table, all green, on demand.
 | Direct — banking | required | required | required | required |
 | Direct — OpenSearch | required | required | required | required |
 | Privilege — OpenSearch (`opensearch22`) | required | required | required | required |
+| Privilege — OpenSearch (`opensearch`) | required | required | required | required |
+| Privilege — Brave (`brave`) | required | required | required | required |
 | Privilege — banking (new app, W3) | required | required | required | required |
+| Privilege — any app added later (W8) | required | required | required | required |
 | Façade — Privilege gateway | required | required | required | required |
 | Façade — agent-gateway (banking) | required | required | required | required |
 | Privilege LLM — Anthropic | required | n/a | required | required |
@@ -232,8 +266,13 @@ silently kills that door. The preflight (W1) must probe it rather than assume.
 
 ## 5. Design
 
-Seven workstreams. W1 is the measuring instrument and comes first; W4 is the
+Eight workstreams. W1 is the measuring instrument and comes first; W4 is the
 acceptance gate and comes last.
+
+**Standing constraint:** the Privilege transport works and is not to be changed
+(user, 2026-09-04). Agent-based deployment, OAuth retained, reached at
+`https://mcpgw.ai-demo.ping-devops.com/<app>/mcp`. Nothing below alters that
+path; the work is visibility, coverage, discovery and reproducibility around it.
 
 ### W1 — Preflight: one command that tells the truth
 
@@ -336,6 +375,45 @@ existing agent modes (`privilege_llm`, `privilege_claude`) are untouched.
 Virtual keys are credentials: they go through the secrets path, never a
 configmap.
 
+### W8 — Refresh the door list from Privilege, instead of hardcoding it
+
+**Requirement:** the user will keep adding Agentic Apps. Today the Door picker
+is built from three hardcoded constants in `privilegeMcpClient.js:20-26`
+(`opensearch22`, `opensearch`, `brave`) with env-var overrides, so a new app
+needs a code change or a redeploy. That is wrong by construction.
+
+**Most of this already exists.** `consoleInventory()`
+(`privilegeMcpClient.js:1808-1836`) already reads
+`GET /api/{envId}/v1/applications` from the Privilege console API and returns,
+per app: `name`, a derived `mcpUrl` (`<gateway-origin>/<name>/mcp`),
+`frontEndName`, `backends`, `entryPath` and `status`. It is already exposed as
+`POST /console/connect` and `GET /console/inventory`, and the page already calls
+both. The inventory is simply **not wired to the Door picker**.
+
+**The work:**
+
+1. Populate the Privilege- and Façade-mode Door pickers from
+   `consoleInventory().applications`, falling back to today's constants when no
+   inventory is available. The façade's `privilege-gateway` door is already
+   `multiApp`, so `/mcp-facade/privilege-gateway/<app>/mcp` needs no change —
+   only the list of `<app>` values does.
+2. A visible **Refresh from Privilege** control on the page, reporting how many
+   apps and policies came back.
+3. **Persist the discovered list** (configStore), because the console credential
+   is an operator-pasted `auth_token` cookie valid roughly 60 minutes. The doors
+   must outlive it; only re-discovery needs the token.
+4. Surface each app's `status` and whether a policy mentions it — the inventory
+   already returns both, and a lapsed policy is the most common cause of a 403
+   that looks like misconfiguration.
+
+**Known ceiling, stated rather than designed around:** discovery cannot be fully
+automatic. The console API takes a pasted browser cookie, not a service
+credential, so "refresh" is an operator action. That is acceptable for adding an
+app; it must not be on the path of serving one — hence persistence in step 3.
+
+**Also resolves** the `mcp-brave-search`-vs-`brave` discrepancy in §2.3: the
+inventory is authoritative, and the probe is not.
+
 ### W7 — The `DELETE` bug (§2.6)
 
 Register the route for the multi-app path, honour `req.params.app`, and use the
@@ -348,15 +426,18 @@ W2 and W3 already touch.
 
 ```
 W1 (preflight)
-  └─> W2 (session visibility)  ─┐
-  └─> W6 (config) ─> W5 (LLM panel + OpenAI)  ─┤
-  └─> W3 (banking Agentic App) ─┤
-                                └─> W4 (LM Studio GUI proof = acceptance gate)
-W7 folds into whichever of W2/W3 lands first.
+  ├─> W8 (door discovery from Privilege)  ─┐
+  ├─> W2 (session visibility)             ─┤
+  ├─> W6 (config) ─> W5 (LLM panel + OpenAI) ─┤
+  └─> W3 (banking Agentic App)            ─┤
+                                           └─> W4 (LM Studio GUI proof = gate)
+W7 folds into whichever of W2/W3/W8 lands first.
 ```
 
-W3 and W5 are independent and can run in parallel. W4 is last because it proves
-the whole matrix in §3.
+W8 should land **before** W3: once the door list comes from the console
+inventory, registering the banking app makes it appear with no further code
+change — which is also the proof that W8 works. W5 is independent of all of
+them. W4 is last because it proves the whole matrix in §3.
 
 ---
 
@@ -375,6 +456,10 @@ The work is done when, on both targets:
    without hand-patching a secret.
 6. The banking tools are reachable identically through Direct, Privilege and
    Façade.
+7. **Adding a new Agentic App in the Privilege console makes it appear as a
+   selectable door after one "Refresh from Privilege" click, with no code
+   change, no env var and no redeploy** — and the door survives the console
+   token expiring. Registering the banking app (W3) is the live test of this.
 
 Non-negotiable evidence rule: each criterion is met by a pasted command result,
 not an assertion. Piped commands do not prove exit status — redirect to a file
@@ -415,6 +500,10 @@ and read it, or check `${PIPESTATUS[0]}`.
 ---
 
 ## 9. Out of scope
+
+- **The Privilege transport itself.** The agent-based deployment with OAuth
+  retained works; the user has said explicitly not to change it. No workstream
+  here touches the gateway, its chart, its mode, or the OAuth dance.
 
 - Changing any frozen LLM setting (resident tiers, `LLAMACPP_MAX_TOKENS`,
   `REASON_LOOP_TIMEOUT_MS`, `reasoning_effort`). None of this work requires it.
