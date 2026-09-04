@@ -94,7 +94,7 @@ export default function OAuthDebugLogViewer({ user, onLogout }) {
         <Link to={dashboardPath} className="app-page-toolbar-btn app-page-toolbar-btn--accent">
           ← Dashboard
         </Link>
-        <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.85rem', color: '#475569', fontWeight: 600 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.85rem', fontWeight: 600 }}>
           <input
             type="checkbox"
             checked={verbose === true}
@@ -103,7 +103,7 @@ export default function OAuthDebugLogViewer({ user, onLogout }) {
           />
           Debug OAuth logging {verbose === null ? '(…)' : verbose ? 'ON' : 'OFF'}
         </label>
-        <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.85rem', color: '#475569' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.85rem' }}>
           <input
             type="checkbox"
             checked={autoRefresh}

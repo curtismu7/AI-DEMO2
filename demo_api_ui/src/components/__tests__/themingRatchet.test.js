@@ -67,8 +67,12 @@ import path from 'node:path';
 // distinguishing Path A from Path B/C.
 // 156 -> 155: VerticalEditorPage.css (the /admin vertical manifest editor),
 // which had no stylesheet at all before this pass.
-// 155 -> 154: ActivityLogPage.css (the /monitoring/activity-log page shell).
-const MAX_UNTHEMED = 154;
+// 155 -> 153: LearningLogLearnPane.css and LogViewer.css (the Learning Log
+// page), fully converted — the JSON detail block had no color of its own,
+// so it inherited --th-text from .alp-root while sitting on a background
+// that never flipped with the theme.
+// 153 -> 152: ActivityLogPage.css (the /monitoring/activity-log page shell).
+const MAX_UNTHEMED = 152;
 
 const SRC = path.join(__dirname, '..', '..');
 
