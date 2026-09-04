@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import apiClient from '../services/apiClient';
 import WeatherStateControl from '../components/WeatherStateControl';
 import WeatherBlocklistControl from '../components/WeatherBlocklistControl';
+import ThemeToggle from '../components/common/ThemeToggle';
 import { useVertical } from '../vertical/useVertical';
 import './McpShowcasePage.css';
 
@@ -212,7 +213,10 @@ export default function McpShowcasePage({ capability }) {
   return (
     <div className={`mcpsc mcpsc--${cfg.slug}`}>
       <header className="mcpsc__head">
-        <p className="mcpsc__eyebrow">Agent Gateway capability</p>
+        <div className="mcpsc__head-top">
+          <p className="mcpsc__eyebrow">Agent Gateway capability</p>
+          <ThemeToggle />
+        </div>
         <h1 className="mcpsc__title">{cfg.title}</h1>
         <p className="mcpsc__subtitle">{cfg.subtitle}</p>
         <p className="mcpsc__lede">{cfg.lede}</p>

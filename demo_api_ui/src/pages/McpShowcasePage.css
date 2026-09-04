@@ -22,6 +22,13 @@
   padding: 22px 24px;
 }
 
+.mcpsc__head-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .mcpsc__eyebrow {
   margin: 0 0 6px;
   font-size: var(--font-size-sm);

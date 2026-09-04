@@ -5,6 +5,7 @@
 // "Reset all". See skill: vertical-theme-zones.
 import React, { useEffect, useState, useCallback } from 'react';
 import ThemeZonePanel from '../components/ThemeZonePanel';
+import ThemeToggle from '../components/common/ThemeToggle';
 import { useVertical } from '../vertical/useVertical';
 import { cssVarsFromBrand } from '../config/themeZones';
 import './AdminThemesPage.css';
@@ -75,7 +76,10 @@ export default function AdminThemesPage() {
 
   return (
     <div className="admin-themes-page">
-      <h1 className="atp-title">Vertical Themes</h1>
+      <div className="atp-header-row">
+        <h1 className="atp-title">Vertical Themes</h1>
+        <ThemeToggle />
+      </div>
       <p className="atp-sub">
         Pick a palette per zone for each vertical. Changes apply live for the active
         vertical and persist per-vertical. Unset zones use the vertical&rsquo;s default.

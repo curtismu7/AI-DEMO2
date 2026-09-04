@@ -5,26 +5,34 @@
   padding: 24px;
 }
 
+.atp-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .atp-title {
   font-size: 1.5rem;
   font-weight: 800;
-  color: #1e293b;
+  color: var(--th-text);
   margin: 0 0 4px;
 }
 
 .atp-sub {
   font-size: 0.85rem;
-  color: #64748b;
+  color: var(--th-text-muted);
   margin: 0 0 20px;
   max-width: 620px;
 }
 
 .atp-vertical {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--th-border);
   border-radius: 10px;
   margin-bottom: 10px;
   overflow: hidden;
-  background: #fff;
+  background: var(--th-bg-card);
+  color: var(--th-text);
 }
 
 .atp-vertical-head {
@@ -32,7 +40,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 10px 14px;
-  background: #f8fafc;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
 }
 
 .atp-vertical-toggle {
@@ -44,27 +53,28 @@
   cursor: pointer;
   font-size: 0.95rem;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--th-text);
 }
 
 .atp-caret {
   font-size: 0.8rem;
-  color: #94a3b8;
+  color: var(--th-text-faint);
 }
 
 .atp-reset-all {
   font-size: 0.75rem;
-  color: #475569;
-  background: #fff;
-  border: 1px solid #cbd5e1;
+  color: var(--th-text-muted);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border-strong);
   border-radius: 6px;
   padding: 4px 10px;
   cursor: pointer;
 }
 
 .atp-reset-all:hover {
-  border-color: #94a3b8;
-  background: #f1f5f9;
+  border-color: var(--th-text-faint);
+  background: var(--th-bg-inset);
+  color: var(--th-text-muted);
 }
 
 .atp-brandfetch-controls {
@@ -77,26 +87,27 @@
   width: 150px;
   font-size: 0.75rem;
   padding: 4px 8px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--th-border-strong);
   border-radius: 6px;
 }
 
 .atp-brandfetch-status {
   font-size: 0.75rem;
-  color: #64748b;
+  color: var(--th-text-muted);
   max-width: 220px;
 }
 
 .atp-vertical-body {
   padding: 14px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--th-border);
 }
 
 /* Loading skeleton */
 .atp-skeleton-row {
   height: 56px;
   border-radius: 10px;
-  background: #f1f5f9;
+  background: var(--th-bg-inset);
+  color: var(--th-text-faint);
   margin-bottom: 10px;
   animation: atp-shimmer 1.5s ease-in-out infinite;
 }
@@ -109,7 +120,7 @@
 .atp-empty {
   padding: 24px;
   text-align: center;
-  color: #94a3b8;
-  border: 1px dashed #e2e8f0;
+  color: var(--th-text-faint);
+  border: 1px dashed var(--th-border);
   border-radius: 10px;
 }
