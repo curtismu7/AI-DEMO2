@@ -102,6 +102,35 @@ describe('POST /api/privilege-mcp/config — blank values do not overwrite', () 
     expect(backToPrivilege.body.oauth.authenticated).toBe(true);
   });
 
+  it('does not restore an expired stash as authenticated', async () => {
+    // A token stashed hours ago (this demo runs for hours with lots of mode
+    // switching) can easily have expired by the time you switch back to that
+    // mode. Reporting authenticated: true anyway hands tools/list a dead
+    // token instead of the frontend getting a fresh one via /auth/start.
+    const MCP_URL = 'https://gw.example/mcp';
+    const originalFetch = global.fetch;
+    global.fetch = jest.fn(async (url) => {
+      if (String(url) === MCP_URL) {
+        return { ok: true, status: 200, headers: { get: () => null }, text: async () => JSON.stringify({ authorization_uri: 'https://auth.example/authorize', token_uri: 'https://auth.example/token' }) };
+      }
+      return { ok: true, status: 200, headers: { get: () => null }, text: async () => JSON.stringify({ access_token: 'access-1', expires_in: -100 }) };
+    });
+
+    try {
+      const browser = request.agent(app);
+      await browser.post('/api/privilege-mcp/config').send({ gatewayMode: 'privilege', mcpUrl: MCP_URL, clientId: 'client-abc' }).expect(200);
+      const start = await browser.post('/api/privilege-mcp/auth/start').send({}).expect(200);
+      const state = new URL(start.body.authUrl).searchParams.get('state');
+      await browser.get(`/api/privilege-mcp/auth/callback?code=code-1&state=${encodeURIComponent(state)}`).expect(302);
+
+      await browser.post('/api/privilege-mcp/config').send({ gatewayMode: 'facade' }).expect(200);
+      const backToPrivilege = await browser.post('/api/privilege-mcp/config').send({ gatewayMode: 'privilege' }).expect(200);
+      expect(backToPrivilege.body.oauth.authenticated).toBe(false);
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
   it('falls back to the current path when handed an unknown mode', async () => {
     const browser = request.agent(app);
     const res = await browser

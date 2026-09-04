@@ -1446,7 +1446,11 @@ router.post('/config', express.json(), (req, res) => {
       session.savedOauthByMode[session.gatewayMode] = { ...session.oauth };
     }
     const restored = session.savedOauthByMode[gatewayMode];
-    session.oauth = restored
+    // An expired stash must not report authenticated: true — the frontend
+    // would skip /auth/start on the strength of it and hand a dead token
+    // straight to tools/list instead of getting a fresh one.
+    const restoredIsLive = restored && (!restored.expiresAt || restored.expiresAt > Date.now());
+    session.oauth = restoredIsLive
       ? { ...restored }
       : { accessToken: null, refreshToken: null, expiresAt: null, tokenUri: null, source: null, dcrClientId: null, dcrClientSecret: null };
   }
