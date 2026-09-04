@@ -143,6 +143,15 @@
   padding: 16px 20px 20px;
 }
 
+/* ConfirmModal's message body. Was a literal #374151 in an inline style —
+   correct against the modal's original always-light surface, invisible once
+   --modal-body-bg gained a dark value and the literal didn't follow. */
+.confirm-modal-message {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--modal-body-text-secondary, #374151);
+}
+
 .dm-scroll::-webkit-scrollbar {
   width: 4px;
 }
