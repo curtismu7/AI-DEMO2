@@ -51,7 +51,10 @@ import path from 'node:path';
 // and GraphifyPage.css, fully converted from fictional --v2-* tokens.
 // 165 -> 162: SnapshotImport.css, ResourceServerCheckpointPage.css and
 // ScopeReferencePage.css, fully converted.
-const MAX_UNTHEMED = 162;
+// 162 -> 161: ScopeAuditPage.css (the /scope-audit page), fully converted
+// from fictional --text-primary/--text-muted/--surface-*/--border-* tokens
+// that were never defined anywhere the page could see them.
+const MAX_UNTHEMED = 161;
 
 const SRC = path.join(__dirname, '..', '..');
 
