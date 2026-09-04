@@ -5,11 +5,13 @@
  * attack-type triggers: POST /api/demo/attack-sim/run when sim is in RUNNABLE_SIMS.
  * A6: runnable attack sims wired to POST /api/demo/attack-sim/run.
  * A5.2 (slim launch drawer on /agent) — NOT included here; deferred.
- * A5.3 — FF-aware notice + inline toggle; Run auto-enables required flags.
+ * A5.3 — FlagGate banner + guest-safe Enable button per card when a required
+ * flag is off; Run auto-enables required flags for signed-in launches.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AttackAnatomyExplainer from '../components/AttackAnatomyExplainer';
+import FlagGate from '../components/FlagGate';
 import GroupMembershipToggle from '../components/GroupMembershipToggle';
 import OWASPBadge from '../components/OWASPBadge';
 import UseCaseExplainModal from '../components/UseCaseExplainModal';
@@ -17,7 +19,9 @@ import apiClient from '../services/apiClient';
 import { formatAxiosError } from '../utils/formatAxiosError';
 import { useVertical } from '../vertical/useVertical';
 import useLangchainProvider from '../hooks/useLangchainProvider';
+import useLiveFlags from '../hooks/useLiveFlags';
 import { useEducationUI } from '../context/EducationUIContext';
+import { useThemeOptional } from '../context/ThemeContext';
 import { MODE_PROVIDER } from '../config/agentModes';
 import VerticalSwitcher from '../components/VerticalSwitcher';
 import './UseCaseLauncherPage.css';
@@ -79,10 +83,6 @@ function normalizeSim(s) {
   if (s === 'wrong-aud-token') return 'wrong-aud';
   return s;
 }
-
-// Maps maturity "flag:<id>" → the FLAG_REGISTRY id the PATCH must write.
-// ff_ciba in the catalog is a legacy alias; the real key is ciba_enabled.
-const FLAG_ID_ALIASES = { ff_ciba: 'ciba_enabled' };
 
 /** Hide Act 1 from demo grid — shown only in the presenter strip. */
 const PROGRESSIVE_TRUST_STRIP_IDS = new Set(['UC24']);
@@ -164,60 +164,6 @@ const PROGRESSIVE_TRUST_LLM_SHOWCASE = [
     rerunHint: 'Rerun Act 3 or the full script.',
   },
 ];
-
-/**
- * Returns the FLAG_REGISTRY id for a flag-gated UC maturity string,
- * or null if maturity is not flag-gated.
- */
-function parseFlagId(maturity) {
-  if (!maturity?.startsWith('flag:')) return null;
-  const raw = maturity.slice(5);
-  return FLAG_ID_ALIASES[raw] ?? raw;
-}
-
-/**
- * Fetches live feature-flag values from GET /api/admin/feature-flags.
- * Returns { flagMap, flagsLoading, setFlag }.
- */
-function useLiveFlags() {
-  const [flagMap, setFlagMap] = useState(null); // null = loading
-  const [flagsLoading, setFlagsLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    apiClient
-      .get('/api/admin/feature-flags', { _silent: true })
-      .then(({ data }) => {
-        if (cancelled) return;
-        const map = {};
-        for (const f of data.flags || []) {
-          map[f.id] = f.value;
-        }
-        setFlagMap(map);
-        setFlagsLoading(false);
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setFlagMap({});   // empty = all flags default-off (safe: gates remain closed)
-          setFlagsLoading(false);
-        }
-      });
-    return () => { cancelled = true; };
-  }, []);
-
-  const setFlag = useCallback((id, value) => {
-    // Optimistic update — apply immediately so toggle feels instant.
-    setFlagMap((prev) => ({ ...(prev || {}), [id]: value }));
-    apiClient
-      .patch('/api/admin/feature-flags', { updates: { [id]: value } })
-      .catch(() => {
-        // Roll back on failure
-        setFlagMap((prev) => ({ ...(prev || {}), [id]: !value }));
-      });
-  }, []);
-
-  return { flagMap, flagsLoading, setFlag };
-}
 
 function maturityLabel(maturity) {
   if (!maturity) return null;
@@ -329,41 +275,7 @@ export function PromptSection({ prompt }) {
   );
 }
 
-/**
- * Gate notice + Ping2026 toggle for a flag-gated use case.
- */
-function FlagGate({ flagId, isOn, loading, onToggle }) {
-  const switchClass = `ctl-switch${isOn ? ' is-on' : ''}`;
-  const gateClass = `uc-ff-gate${isOn ? ' uc-ff-gate--on' : ' uc-ff-gate--off'}`;
-
-  function handleToggle() {
-    if (loading) return;
-    onToggle(flagId, !isOn);
-  }
-
-  return (
-    <div className={gateClass}>
-      <span className="uc-ff-gate__text">
-        <span className="uc-ff-gate__flag">{flagId}</span>{' '}
-        {isOn ? 'is enabled — ready to run.' : 'is OFF — turn on to run.'}
-      </span>
-      <div
-        className={switchClass}
-        role="switch"
-        tabIndex={0}
-        aria-checked={isOn}
-        aria-label={`Enable ${flagId}`}
-        title={isOn ? `Disable ${flagId}` : `Enable ${flagId}`}
-        onClick={handleToggle}
-        onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); handleToggle(); } }}
-      >
-        <span className="ctl-switch__knob" />
-      </div>
-    </div>
-  );
-}
-
-function UseCaseCard({ uc, stepNumber, completed, onRun, onRunAttack, onExplain, onOpen, attackState, chipRunning, chipRunError, chipNeedsLogin, flagMap, flagsLoading, setFlag }) {
+function UseCaseCard({ uc, stepNumber, completed, onRun, onRunAttack, onExplain, onOpen, attackState, chipRunning, chipRunError, chipNeedsLogin, flagMap, flagsLoading, onFlagsEnabled }) {
   const isChip   = uc.trigger?.type === 'chip';
   const isAttack = uc.trigger?.type === 'attack';
   const isLink   = uc.trigger?.type === 'link';
@@ -376,12 +288,11 @@ function UseCaseCard({ uc, stepNumber, completed, onRun, onRunAttack, onExplain,
 
   const { running, result, error } = attackState || {};
 
-  // Flag-gating: parse flagId from maturity; gate Run if flag is not ON.
-  const flagId   = parseFlagId(uc.maturity);
-  const flagIsOn = flagId != null
-    ? (flagMap != null ? Boolean(flagMap[flagId]) : false)
-    : true; // non-flag-gated UCs are always runnable
-  const flagGated = flagId != null && !flagIsOn;
+  // Flag-gating: the FULL required set (maturity flag + any runtime flags
+  // like ff_mcp_gateway_pinggateway), not just the maturity flag.
+  const requiredFlags = requiredFlagsForUseCase(uc);
+  const flagIsOn = requiredFlags.every((id) => flagMap != null && flagMap[id] === 'true');
+  const flagGated = requiredFlags.length > 0 && !flagIsOn;
 
   return (
     <div id={uc.id} className={`uc-card${uc.advanced ? ' uc-card--advanced' : ''}${completed ? ' uc-card--completed' : ''}`}>
@@ -419,14 +330,13 @@ function UseCaseCard({ uc, stepNumber, completed, onRun, onRunAttack, onExplain,
         <span className={`uc-maturity ${mat.cls}`}>{mat.text}</span>
       )}
 
-      {flagId != null && (
-        <FlagGate
-          flagId={flagId}
-          isOn={flagIsOn}
-          loading={flagsLoading}
-          onToggle={setFlag}
-        />
-      )}
+      <FlagGate
+        useCaseId={uc.useCaseId}
+        flagIds={requiredFlags}
+        flagMap={flagMap}
+        loading={flagsLoading}
+        onEnabled={onFlagsEnabled}
+      />
 
       {/* UC9 is the one use case whose outcome is decided by DIRECTORY state
           rather than by the prompt, so it gets a control for that state. The
@@ -451,7 +361,7 @@ function UseCaseCard({ uc, stepNumber, completed, onRun, onRunAttack, onExplain,
             type="button"
             className={`uc-run-btn${chipRunning ? ' uc-run-btn--disabled' : ''}`}
             disabled={chipRunning}
-            title={flagGated ? `Will auto-enable ${flagId} on Run` : undefined}
+            title={flagGated ? `Will auto-enable ${requiredFlags.join(', ')} on Run` : undefined}
             onClick={() => onRun(uc)}
           >
             {chipRunning ? 'Launching…' : completed ? 'Run again' : 'Run'}
@@ -570,7 +480,7 @@ function ProgressiveTrustDemoStrip({
   chipRun,
   flagMap,
   flagsLoading,
-  setFlag,
+  onFlagsEnabled,
 }) {
   const acts = resolveProgressiveTrustActs(useCases);
 
@@ -586,11 +496,9 @@ function ProgressiveTrustDemoStrip({
         {acts.map((act) => {
           const { uc } = act;
           const completed = completedIds?.has(uc.id);
-          const flagId = parseFlagId(uc.maturity);
-          const flagIsOn = flagId != null
-            ? (flagMap != null ? Boolean(flagMap[flagId]) : false)
-            : true;
-          const flagGated = flagId != null && !flagIsOn;
+          const requiredFlags = requiredFlagsForUseCase(uc);
+          const flagIsOn = requiredFlags.every((id) => flagMap != null && flagMap[id] === 'true');
+          const flagGated = requiredFlags.length > 0 && !flagIsOn;
           const chipRunning = chipRun?.id === uc.id && chipRun.state === 'running';
           const chipRunError = chipRun?.id === uc.id && chipRun.state === 'error' ? chipRun.msg : null;
           const chipNeedsLogin = chipRun?.id === uc.id && chipRun.state === 'needs-login' ? chipRun : null;
@@ -627,14 +535,13 @@ function ProgressiveTrustDemoStrip({
                 </p>
               )}
               <p className="pt-demo-strip__say">{act.presenterLine}</p>
-              {flagId != null && (
-                <FlagGate
-                  flagId={flagId}
-                  isOn={flagIsOn}
-                  loading={flagsLoading}
-                  onToggle={setFlag}
-                />
-              )}
+              <FlagGate
+                useCaseId={uc.useCaseId}
+                flagIds={requiredFlags}
+                flagMap={flagMap}
+                loading={flagsLoading}
+                onEnabled={onFlagsEnabled}
+              />
               <div className="pt-demo-strip__actions">
                 <button
                   type="button"
@@ -648,7 +555,7 @@ function ProgressiveTrustDemoStrip({
                   type="button"
                   className={`uc-run-btn${chipRunning ? ' uc-run-btn--disabled' : ''}`}
                   disabled={chipRunning}
-                  title={flagGated ? `Will auto-enable ${flagId} on Run` : undefined}
+                  title={flagGated ? `Will auto-enable ${requiredFlags.join(', ')} on Run` : undefined}
                   onClick={() => onRun(uc)}
                 >
                   {chipRunning ? 'Launching…' : completed ? 'Run act again' : 'Run act'}
@@ -743,6 +650,7 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
   const navigate    = useNavigate();
   const { activeId: verticalId } = useVertical();
   const { open: openEdu } = useEducationUI();
+  const { darkMode, toggleDarkMode } = useThemeOptional();
 
   const [useCases, setUseCases] = useState([]);
   const [loading,  setLoading]  = useState(true);
@@ -772,7 +680,19 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
   // Catalog ids (UC1, UC2, …) marked complete this presenter session.
   const [completedIds, setCompletedIds] = useState(() => getCompletedUseCaseIds());
 
-  const { flagMap, flagsLoading, setFlag } = useLiveFlags();
+  const { flagMap, flagsLoading, refreshFlags } = useLiveFlags();
+  // Optimistic overlay so a FlagGate's Enable click flips the banner off
+  // immediately, without waiting on a refetch of every flag.
+  const [localFlagMap, setLocalFlagMap] = useState(null);
+  const effectiveFlagMap = localFlagMap || flagMap;
+  const handleFlagsEnabled = useCallback((enabledFlags) => {
+    setLocalFlagMap((prev) => {
+      const base = prev || flagMap || {};
+      const next = { ...base };
+      for (const id of enabledFlags) next[id] = 'true';
+      return next;
+    });
+  }, [flagMap]);
 
   const vertical = verticalId || 'banking';
 
@@ -1058,6 +978,16 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
           <span className="uc-launcher__vertical-label">Vertical</span>
           <VerticalSwitcher variant="pills" />
         </div>
+        {/* ☀️/🌙 reserved in REGRESSION_PLAN.md §0 specifically for this control. */}
+        <button
+          type="button"
+          onClick={toggleDarkMode}
+          className="ulp__theme-toggle"
+          title="Switch this page between light and dark"
+          aria-pressed={darkMode}
+        >
+          {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
+        </button>
       </header>
 
       {isSearching && !hasAnyResults && (
@@ -1081,9 +1011,9 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
                 chipRunning={chipRun?.id === uc.id && chipRun.state === 'running'}
                 chipRunError={chipRun?.id === uc.id && chipRun.state === 'error' ? chipRun.msg : null}
                 chipNeedsLogin={chipRun?.id === uc.id && chipRun.state === 'needs-login' ? chipRun : null}
-                flagMap={flagMap}
+                flagMap={effectiveFlagMap}
                 flagsLoading={flagsLoading}
-                setFlag={setFlag}
+                onFlagsEnabled={handleFlagsEnabled}
               />
             ))}
           </div>
@@ -1108,9 +1038,9 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
                 chipRunning={chipRun?.id === uc.id && chipRun.state === 'running'}
                 chipRunError={chipRun?.id === uc.id && chipRun.state === 'error' ? chipRun.msg : null}
                 chipNeedsLogin={chipRun?.id === uc.id && chipRun.state === 'needs-login' ? chipRun : null}
-                flagMap={flagMap}
+                flagMap={effectiveFlagMap}
                 flagsLoading={flagsLoading}
-                setFlag={setFlag}
+                onFlagsEnabled={handleFlagsEnabled}
               />
             ))}
           </div>
@@ -1134,9 +1064,9 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
                 chipRunning={chipRun?.id === uc.id && chipRun.state === 'running'}
                 chipRunError={chipRun?.id === uc.id && chipRun.state === 'error' ? chipRun.msg : null}
                 chipNeedsLogin={chipRun?.id === uc.id && chipRun.state === 'needs-login' ? chipRun : null}
-                flagMap={flagMap}
+                flagMap={effectiveFlagMap}
                 flagsLoading={flagsLoading}
-                setFlag={setFlag}
+                onFlagsEnabled={handleFlagsEnabled}
               />
             ))}
           </div>
@@ -1160,9 +1090,9 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
                 chipRunning={chipRun?.id === uc.id && chipRun.state === 'running'}
                 chipRunError={chipRun?.id === uc.id && chipRun.state === 'error' ? chipRun.msg : null}
                 chipNeedsLogin={chipRun?.id === uc.id && chipRun.state === 'needs-login' ? chipRun : null}
-                flagMap={flagMap}
+                flagMap={effectiveFlagMap}
                 flagsLoading={flagsLoading}
-                setFlag={setFlag}
+                onFlagsEnabled={handleFlagsEnabled}
               />
             ))}
           </div>
@@ -1182,9 +1112,9 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
                 onRun={handleRun}
                 onExplain={setExplainUc}
                 chipRun={chipRun}
-                flagMap={flagMap}
+                flagMap={effectiveFlagMap}
                 flagsLoading={flagsLoading}
-                setFlag={setFlag}
+                onFlagsEnabled={handleFlagsEnabled}
               />
             )}
             <div className="uc-track__grid">
@@ -1201,9 +1131,9 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
                   chipRunning={chipRun?.id === uc.id && chipRun.state === 'running'}
                   chipRunError={chipRun?.id === uc.id && chipRun.state === 'error' ? chipRun.msg : null}
                   chipNeedsLogin={chipRun?.id === uc.id && chipRun.state === 'needs-login' ? chipRun : null}
-                  flagMap={flagMap}
+                  flagMap={effectiveFlagMap}
                   flagsLoading={flagsLoading}
-                  setFlag={setFlag}
+                  onFlagsEnabled={handleFlagsEnabled}
                 />
               ))}
             </div>

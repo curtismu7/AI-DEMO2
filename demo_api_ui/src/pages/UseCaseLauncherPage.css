@@ -579,64 +579,6 @@
   align-items: center;
 }
 
-/* ── FF gate notice ─────────────────────────────────────────────────────── */
-.uc-ff-gate {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.55rem 0.7rem;
-  border-radius: 6px;
-  font-size: 0.78rem;
-}
-.uc-ff-gate--off {
-  background: #fff7ed;
-  border: 1px solid #fed7aa;
-  color: #9a3412;
-}
-.uc-ff-gate--on {
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
-  color: #065f46;
-}
-.uc-ff-gate__text {
-  flex: 1;
-  line-height: 1.3;
-}
-.uc-ff-gate__flag {
-  font-family: var(--font-mono);
-  font-weight: 600;
-}
-
-/* Ping2026 toggle switch — PingOne-blue, state via .is-on (not :checked) */
-.ctl-switch {
-  position: relative;
-  width: 38px;
-  height: 21px;
-  border-radius: 11px;
-  background: #cbd5e1;
-  cursor: pointer;
-  transition: background 0.15s;
-  flex: none;
-  user-select: none;
-}
-.ctl-switch__knob {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 17px;
-  height: 17px;
-  border-radius: 50%;
-  background: var(--th-bg-card);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
-  transition: left 0.15s;
-}
-.ctl-switch.is-on {
-  background: #1a56db;
-}
-.ctl-switch.is-on .ctl-switch__knob {
-  left: 19px;
-}
-
 /* A8 -- Ping product attribution row */
 .uc-card__products {
   display: flex;
@@ -869,4 +811,20 @@
   padding: 0.08rem 0.3rem;
   border-radius: 4px;
   background: var(--th-bg-inset);
+}
+
+.ulp__theme-toggle {
+  padding: 6px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ulp__theme-toggle:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
 }

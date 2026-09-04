@@ -46,6 +46,18 @@ describe('GET /api/mcp/inspector/pingone-admin/login — signed-in gate + return
     expect(res.headers.location).toMatch(/login_hint=plainUser/);
   });
 
+  // Without this, PingOne mints a token for its default resource (Management
+  // API) and the hosted MCP server rejects it as "401 Invalid authentication"
+  // — verified live against the server's own RFC 9728 metadata, whose
+  // `resource` field is exactly this URL, not a bare origin.
+  test('the authorize redirect carries the hosted MCP server as the resource', async () => {
+    const session = { user: { username: 'plainUser', role: 'customer' }, save: (cb) => cb() };
+    const app = buildApp(session);
+    const res = await request(app).get('/api/mcp/inspector/pingone-admin/login');
+    const location = new URL(res.headers.location, 'https://example.com');
+    expect(location.searchParams.get('resource')).toBe('https://mcp.pingone.com/admin/env-1/mcp');
+  });
+
   test('?returnTo= is stashed on the pending OAuth state for the callback to use', async () => {
     const session = { user: { username: 'plainUser', role: 'customer' }, save: (cb) => cb() };
     const app = buildApp(session);
@@ -75,6 +87,9 @@ describe('GET /api/mcp/inspector/pingone-admin/callback — returnTo redirects',
     expect(res.status).toBe(302);
     expect(res.headers.location).toBe('/privilege-mcp-client?pingone_admin_login=success');
     expect(session.pingoneMcpAdminToken.accessToken).toBe('tok-1');
+    // Same resource as the /login authorize call, on the token exchange too.
+    const [, sentBody] = axios.post.mock.calls[0];
+    expect(new URLSearchParams(sentBody).get('resource')).toBe('https://mcp.pingone.com/admin/env-1/mcp');
     axios.post.mockRestore();
   });
 

@@ -242,13 +242,16 @@ const DOORS = {
  * Returns a fetch Response-shaped object ({status, headers, text()}) so the
  * caller (POST /:door/mcp) doesn't need a separate code path for this door.
  *
- * `session` is the caller's Express req.session — routes/mcpPingOneAdminAuth.js
- * stores the delegated token there (session.pingoneMcpAdminToken) after its
- * own separate PKCE login. Without one, listTools/callTool throw
- * pingone_mcp_auth_required; that's surfaced as a 401 carrying a loginUrl so
- * the client can drive that flow (see requestSignIn in PrivilegeMcpClientPage.jsx).
+ * `delegatedToken` is the caller's x-pingone-admin-token header — the access
+ * token routes/mcpPingOneAdminAuth.js stored on the browser's real session
+ * (session.pingoneMcpAdminToken) after its own separate PKCE login, forwarded
+ * this way because this route is reached server-to-server (see the call site
+ * comment in POST /:door/mcp) and never sees that session's cookie directly.
+ * Without one, listTools/callTool throw pingone_mcp_auth_required; that's
+ * surfaced as a 401 carrying a loginUrl so the client can drive that flow
+ * (see requestSignIn in PrivilegeMcpClientPage.jsx).
  */
-async function pingoneAdminLocalHandler({ rpc, method, sessionIdIn, session, returnTo }) {
+async function pingoneAdminLocalHandler({ rpc, method, sessionIdIn, delegatedToken, returnTo }) {
   const { listTools, callTool } = require('../services/mcpPingOneHttpAdapter');
   const headers = new Map();
   const respond = (status, body) => ({ status, headers, text: async () => JSON.stringify(body) });
@@ -284,7 +287,7 @@ async function pingoneAdminLocalHandler({ rpc, method, sessionIdIn, session, ret
   if (method === 'tools/list') {
     let tools;
     try {
-      tools = await listTools(session);
+      tools = await listTools(delegatedToken);
     } catch (err) {
       if (err.code === 'pingone_mcp_auth_required') return authRequiredResponse(err);
       return respond(200, { jsonrpc: '2.0', id: rpc.id ?? null, error: { code: -32000, message: `pingone_mcp_unavailable: ${err.message}` } });
@@ -296,7 +299,7 @@ async function pingoneAdminLocalHandler({ rpc, method, sessionIdIn, session, ret
     const args = rpc.params?.arguments || {};
     let result;
     try {
-      result = await callTool(name, args, session);
+      result = await callTool(name, args, delegatedToken);
     } catch (err) {
       if (err.code === 'pingone_mcp_auth_required') return authRequiredResponse(err);
       return respond(200, { jsonrpc: '2.0', id: rpc.id ?? null, result: { isError: true, content: [{ type: 'text', text: `pingone_mcp_unavailable: ${err.message}` }] } });
@@ -697,8 +700,12 @@ router.post(['/:door/mcp', '/:door/:app/mcp'], express.json({ limit: '1mb', type
     upstream = door.localHandler
       // /privilege-mcp-client is this door's only browser consumer today —
       // where a delegated-PKCE login (pingoneAdminLocalHandler's auth-required
-      // response) should send the browser back to.
-      ? await door.localHandler({ rpc, method, sessionIdIn: req.get('mcp-session-id'), session: req.session, returnTo: '/privilege-mcp-client' })
+      // response) should send the browser back to. token comes from a header,
+      // not req.session: this route is reached by privilegeMcpClient.js's
+      // fetchMcp() as a server-to-server call, which never carries the
+      // browser's own session cookie (verified live with a temporary
+      // diagnostic — every such call got a fresh, empty req.session).
+      ? await door.localHandler({ rpc, method, sessionIdIn: req.get('mcp-session-id'), delegatedToken: req.get('x-pingone-admin-token'), returnTo: '/privilege-mcp-client' })
       : await fetch(upstreamUrl, {
         method: 'POST',
         headers: upstreamHeaders,

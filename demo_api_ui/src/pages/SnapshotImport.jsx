@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import './SnapshotImport.css';
+import { useThemeOptional } from '../context/ThemeContext';
 
 // Same pattern as the sibling admin pages (AuthorizeConfigPage, McpGatewayConfig):
 // env-configured base, empty default so requests stay same-origin and resolve
@@ -52,6 +53,7 @@ function ConflictDiff({ conflict }) {
 }
 
 export default function SnapshotImport() {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
@@ -88,6 +90,15 @@ export default function SnapshotImport() {
 
   return (
     <div className="snapshot-import">
+      <button
+        type="button"
+        onClick={toggleDarkMode}
+        className="snapshot-import-theme-toggle"
+        title="Switch this page between light and dark"
+        aria-pressed={darkMode}
+      >
+        {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
+      </button>
       <h2>P1AZ Snapshot Import & Validation</h2>
       <p className="description">
         Validate that a PingOne Authorize snapshot matches the mock authz server policies.

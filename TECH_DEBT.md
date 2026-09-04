@@ -16,6 +16,22 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-09-04 — UseCaseLauncherPage.css — literal colors outside the FlagGate/theme-toggle work
+
+**What's wrong.** `--color-accent` and `--color-ping-blue` are referenced only
+as `var(--color-accent, #2563eb)`-style fallbacks and are never actually
+defined anywhere (unlike `--color-surface`/`--color-border` in the same
+file, which resolve via `index.css:308-309`'s alias to `--th-bg-card`/
+`--th-border`) — so they always render their light-mode literal in both
+themes. The `.uc-sim-result__*` attack-simulation result block is fully
+hardcoded (`#fee2e2`, `#991b1b`, `#dcfce7`, `#166534`, etc.), no `var()` at
+all. Found 2026-09-04 while adding the FlagGate banner + theme toggle to
+this page; left alone because it's a separate, unrelated feature area.
+The real fix: alias `--color-accent`/`--color-ping-blue` to `--signin-accent`
+(same `#2563eb` value) either locally in this file or in `index.css`'s
+existing alias block, and convert `.uc-sim-result__*` to the
+`--th-status-success`/`--th-status-error` families.
+
 ### [ ] 2026-09-03 — jwksService can hand back a key `crypto.Verify` rejects outright
 
 **What's wrong.** `verifyDoorBearer` (`demo_api_server/routes/mcpFacade.js`)

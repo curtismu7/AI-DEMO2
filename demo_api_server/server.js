@@ -1047,6 +1047,7 @@ app.use('/api/pingone/setup', pingoneSetupRoutes);
 // opt-out to restore. See REGRESSION_PLAN.md §1 "configStore / Config UI".
 const { makeFeatureFlagsAuthGate } = require('./middleware/featureFlagsAuthGate');
 app.use('/api/admin/feature-flags', makeFeatureFlagsAuthGate(authenticateToken), featureFlagsRoutes);
+app.use('/api/demo-flags', require('./routes/demoFlags'));
 // Same gate as the flags above, deliberately: this list IS gateway policy, so
 // it must not be a quieter way to change it than the flag that switches it on.
 app.use(

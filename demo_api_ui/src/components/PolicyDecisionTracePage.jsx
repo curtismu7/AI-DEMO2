@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import DraggableModal from './DraggableModal';
 import PolicyDecisionTree from './PolicyDecisionTree';
+import { useThemeOptional } from '../context/ThemeContext';
 import './KillSwitchConfirmModal.css';
 import './PingOneMcpInspector.css';
 
@@ -62,6 +63,7 @@ function markModalSeen() {
 }
 
 export default function PolicyDecisionTracePage() {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const location = useLocation();
   const navigate = useNavigate();
   const stateFromNav = location.state || {};
@@ -120,6 +122,15 @@ export default function PolicyDecisionTracePage() {
             onClick={() => navigate('/pingone-authorize?tab=guided')}
           >
             Back to PingOne Authorize
+          </button>
+          <button
+            type="button"
+            className="p1mcp-topbar__btn"
+            onClick={toggleDarkMode}
+            title="Switch this page between light and dark"
+            aria-pressed={darkMode}
+          >
+            {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
           </button>
         </div>
       </div>

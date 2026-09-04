@@ -50,17 +50,24 @@ import path from 'node:path';
 // 169 -> 165: CodeExplorerPage.css, ResourceServerPage.css, CodeSearchPage.css
 // and GraphifyPage.css, fully converted from fictional --v2-* tokens (merged
 // in from a parallel session's toggle rollout, PR #2758).
-// 165 -> 161: SupportConsole.css, SupportQueueRail.css, CaseNotes.css, and
+// 165 -> 162: SnapshotImport.css, ResourceServerCheckpointPage.css and
+// ScopeReferencePage.css, fully converted (merged in from a parallel
+// session's toggle rollout).
+// 162 -> 161: ScopeAuditPage.css (the /scope-audit page), fully converted
+// from fictional --text-primary/--text-muted/--surface-*/--border-* tokens
+// that were never defined anywhere the page could see them (merged in from
+// a parallel session's toggle rollout, PR #2767).
+// 161 -> 157: SupportConsole.css, SupportQueueRail.css, CaseNotes.css, and
 // IdentityGate.css (the shared /admin/{banking,healthcare,retail,
 // sporting-goods,workforce} ops console) — aliased --tint onto
 // color-mix(var(--accent), --th-bg-card) rather than a per-vertical dark
 // literal.
-// 161 -> 160: MortgagePathPage.css, fully converted. The amber brand accent
+// 157 -> 156: MortgagePathPage.css, fully converted. The amber brand accent
 // (#ca8a04) stays literal per THEMING.md §1.3 — it's this page's identity,
 // distinguishing Path A from Path B/C.
-// 160 -> 159: VerticalEditorPage.css (the /admin vertical manifest editor),
+// 156 -> 155: VerticalEditorPage.css (the /admin vertical manifest editor),
 // which had no stylesheet at all before this pass.
-const MAX_UNTHEMED = 159;
+const MAX_UNTHEMED = 155;
 
 const SRC = path.join(__dirname, '..', '..');
 
@@ -216,7 +223,7 @@ describe('theming ratchet', () => {
  * Literal grounds are deliberately not counted. They do not flip, so inherited
  * near-black stays correct against them.
  */
-const MAX_GROUND_WITHOUT_INK = 461;
+const MAX_GROUND_WITHOUT_INK = 452;
 
 const CSS_RULE = /([^{}]+)\{([^{}]*)\}/g;
 const HAS_COLOR = /(?:^|\n)\s*color\s*:/;

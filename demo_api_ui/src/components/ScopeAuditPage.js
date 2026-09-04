@@ -5,6 +5,22 @@ import './ScopeAuditPage.css';
 import CapabilityCallout from './CapabilityCallout';
 import SignInPrompt from './SignInPrompt';
 import { AGENT_GATEWAY_CAPABILITIES } from '../config/capabilityLedgers/agentGatewayCapabilities';
+import { useThemeOptional } from '../context/ThemeContext';
+
+function ThemeToggleButton() {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
+  return (
+    <button
+      type="button"
+      onClick={toggleDarkMode}
+      className="scope-audit-page__theme-toggle"
+      title="Switch this page between light and dark"
+      aria-pressed={darkMode}
+    >
+      {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
+    </button>
+  );
+}
 
 /**
  * ScopeAuditPage — PingOne resource & scope verification UI.
@@ -122,6 +138,7 @@ export default function ScopeAuditPage() {
   if (!hasRun && !loading) {
     return (
       <div className="scope-audit-page">
+        <ThemeToggleButton />
         <h1>PingOne Scope Audit</h1>
         <p className="scope-audit-page__subtitle">
           Verify that PingOne resources have the scopes your code expects.
@@ -138,6 +155,7 @@ export default function ScopeAuditPage() {
   if (loading) {
     return (
       <div className="scope-audit-page">
+        <ThemeToggleButton />
         <h1>PingOne Scope Audit</h1>
         <div className="scope-audit-page__loading">
           Connecting to PingOne Management API...
@@ -149,6 +167,7 @@ export default function ScopeAuditPage() {
   if (error && needsSignIn) {
     return (
       <div className="scope-audit-page">
+        <ThemeToggleButton />
         <h1>PingOne Scope Audit</h1>
         <SignInPrompt admin message="The scope audit reads live scope data from the admin Management API." />
       </div>
@@ -158,9 +177,10 @@ export default function ScopeAuditPage() {
   if (error) {
     return (
       <div className="scope-audit-page">
+        <ThemeToggleButton />
         <h1>PingOne Scope Audit</h1>
         <div className="scope-audit-page__error">
-          <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>❌</div>
+          <div className="scope-audit-page__error-icon">❌</div>
           Failed to connect to PingOne
           <div className="scope-audit-page__error-detail">{error}</div>
           <button className="scope-audit-btn" style={{ marginTop: '1rem' }} onClick={loadResources}>
@@ -173,6 +193,7 @@ export default function ScopeAuditPage() {
 
   return (
     <div className="scope-audit-page">
+      <ThemeToggleButton />
       <h1>PingOne Scope Audit</h1>
       <p className="scope-audit-page__subtitle">
         Environment: <code>{envInfo.environment}</code> · Region: <code>{envInfo.region}</code>
@@ -292,7 +313,7 @@ function ResourceCard({ resource, expanded, onToggle, onAddScope, onFixAll, addi
             {badgeText}
           </span>
           {scopes.length > 0 && (
-            <span style={{ fontSize: '0.72rem', color: '#374151' }}>
+            <span className="scope-resource-card__scope-count">
               {scopes.length} scope{scopes.length !== 1 ? 's' : ''}
             </span>
           )}
@@ -368,7 +389,7 @@ function ResourceCard({ resource, expanded, onToggle, onAddScope, onFixAll, addi
               ))}
               {scopeRows.length === 0 && (
                 <tr>
-                  <td colSpan="5" style={{ textAlign: 'center', color: '#374151', padding: '1rem' }}>
+                  <td colSpan="5" className="scope-table__empty">
                     No scopes configured
                   </td>
                 </tr>

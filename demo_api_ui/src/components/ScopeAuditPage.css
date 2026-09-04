@@ -1,23 +1,46 @@
 /* banking_api_ui/src/components/ScopeAuditPage.css
- * PingOne Scope Audit page — aligned with FeatureFlagsPage / DemoDataPage 2026 */
+ * PingOne Scope Audit page — aligned with FeatureFlagsPage / DemoDataPage 2026.
+ * Themed with --th-* per THEMING.md. The var(--text-primary, #0f172a) style
+ * fallbacks below were fictional: --text-primary, --text-muted, the
+ * --surface- and --border- families were never defined at any scope this
+ * page inherits, so every one of them always fell through to its light
+ * literal fallback in both themes. */
 
 .scope-audit-page {
   max-width: min(1400px, 100%);
   margin: 0 auto;
   padding: 1.5rem 2rem 3rem;
   box-sizing: border-box;
+  color: var(--th-text);
+}
+
+.scope-audit-page__theme-toggle {
+  float: right;
+  padding: 5px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-size: var(--font-size-sm, 13px);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.scope-audit-page__theme-toggle:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
 }
 
 .scope-audit-page h1 {
-  font-size: 1.5rem;
+  font-size: var(--font-size-2xl, 24px);
   font-weight: 700;
   margin: 0 0 0.25rem;
-  color: var(--text-primary, #0f172a);
+  color: var(--th-text);
 }
 
 .scope-audit-page__subtitle {
-  font-size: 0.85rem;
-  color: var(--text-muted, #374151);
+  font-size: var(--font-size-base, 15px);
+  color: var(--th-text-muted);
   margin: 0 0 1.5rem;
 }
 
@@ -35,16 +58,36 @@
   gap: 0.4rem;
   padding: 0.5rem 1rem;
   border-radius: 8px;
-  font-size: 0.82rem;
+  font-size: var(--font-size-base, 15px);
   font-weight: 600;
-  background: var(--surface-elevated, #f8fafc);
-  border: 1px solid var(--border-light, #e2e8f0);
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
+  color: var(--th-text);
 }
 
-.scope-audit-page__stat--ok     { border-color: #22c55e; background: #f0fdf4; color: #166534; }
-.scope-audit-page__stat--warn   { border-color: #f59e0b; background: #fffbeb; color: #92400e; }
-.scope-audit-page__stat--error  { border-color: #ef4444; background: #fef2f2; color: #991b1b; }
-.scope-audit-page__stat--info   { border-color: #3b82f6; background: #eff6ff; color: #1e40af; }
+.scope-audit-page__stat--ok {
+  border-color: var(--th-status-success-border);
+  background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
+}
+
+.scope-audit-page__stat--warn {
+  border-color: var(--th-status-warning-border);
+  background: var(--th-status-warning-bg);
+  color: var(--th-status-warning-text);
+}
+
+.scope-audit-page__stat--error {
+  border-color: var(--th-status-error-border);
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
+}
+
+.scope-audit-page__stat--info {
+  border-color: var(--th-status-info-border);
+  background: var(--th-status-info-bg);
+  color: var(--th-status-info-text);
+}
 
 /* ── Toolbar ── */
 .scope-audit-page__toolbar {
@@ -67,9 +110,10 @@
 }
 
 .scope-resource-card {
-  border: 1px solid var(--border-light, #e2e8f0);
+  border: 1px solid var(--th-border);
   border-radius: 10px;
-  background: var(--surface-card, #fff);
+  background: var(--th-bg-card);
+  color: var(--th-text);
   overflow: hidden;
   transition: box-shadow 0.15s;
 }
@@ -79,19 +123,19 @@
 }
 
 .scope-resource-card--ok {
-  border-left: 4px solid #22c55e;
+  border-left: 4px solid var(--th-status-success);
 }
 
 .scope-resource-card--warn {
-  border-left: 4px solid #f59e0b;
+  border-left: 4px solid var(--th-status-warning);
 }
 
 .scope-resource-card--error {
-  border-left: 4px solid #ef4444;
+  border-left: 4px solid var(--th-status-error);
 }
 
 .scope-resource-card--neutral {
-  border-left: 4px solid #94a3b8;
+  border-left: 4px solid var(--th-border-strong);
 }
 
 .scope-resource-card__header {
@@ -104,7 +148,8 @@
 }
 
 .scope-resource-card__header:hover {
-  background: var(--surface-hover, #f8fafc);
+  background: var(--th-bg-hover);
+  color: var(--th-text);
 }
 
 .scope-resource-card__title-group {
@@ -114,13 +159,18 @@
 }
 
 .scope-resource-card__name {
-  font-size: 0.95rem;
+  font-size: var(--font-size-md, 16px);
   font-weight: 600;
-  color: var(--text-primary, #0f172a);
+  color: var(--th-text);
+}
+
+.scope-resource-card__scope-count {
+  font-size: var(--font-size-sm, 13px);
+  color: var(--th-text-muted);
 }
 
 .scope-resource-card__badge {
-  font-size: 0.68rem;
+  font-size: var(--font-size-2xs, 12px);
   font-weight: 600;
   padding: 0.15rem 0.5rem;
   border-radius: 999px;
@@ -128,14 +178,29 @@
   letter-spacing: 0.03em;
 }
 
-.scope-resource-card__badge--ok     { background: #dcfce7; color: #166534; }
-.scope-resource-card__badge--warn   { background: #fef3c7; color: #92400e; }
-.scope-resource-card__badge--error  { background: #fecaca; color: #991b1b; }
-.scope-resource-card__badge--neutral { background: #e2e8f0; color: #475569; }
+.scope-resource-card__badge--ok {
+  background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
+}
+
+.scope-resource-card__badge--warn {
+  background: var(--th-status-warning-bg);
+  color: var(--th-status-warning-text);
+}
+
+.scope-resource-card__badge--error {
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
+}
+
+.scope-resource-card__badge--neutral {
+  background: var(--th-bg-inset);
+  color: var(--th-text-muted);
+}
 
 .scope-resource-card__chevron {
-  font-size: 1rem;
-  color: var(--text-muted, #374151);
+  font-size: var(--font-size-md, 16px);
+  color: var(--th-text-muted);
   transition: transform 0.15s;
 }
 
@@ -145,7 +210,7 @@
 
 .scope-resource-card__body {
   padding: 0 1rem 1rem;
-  border-top: 1px solid var(--border-light, #f1f5f9);
+  border-top: 1px solid var(--th-border);
 }
 
 .scope-resource-card__meta {
@@ -153,14 +218,15 @@
   flex-wrap: wrap;
   gap: 0.5rem 1.5rem;
   padding: 0.5rem 0;
-  font-size: 0.78rem;
-  color: var(--text-muted, #374151);
+  font-size: var(--font-size-sm, 13px);
+  color: var(--th-text-muted);
 }
 
 .scope-resource-card__meta code {
   font-family: inherit;
-  font-size: 0.72rem;
-  background: var(--surface-elevated, #f1f5f9);
+  font-size: var(--font-size-xs, 11px);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
   padding: 0.1rem 0.35rem;
   border-radius: 4px;
 }
@@ -169,25 +235,26 @@
 .scope-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.82rem;
+  font-size: var(--font-size-base, 15px);
   margin-top: 0.5rem;
 }
 
 .scope-table th {
   text-align: left;
   font-weight: 600;
-  color: var(--text-muted, #374151);
+  color: var(--th-text-muted);
   padding: 0.4rem 0.6rem;
-  border-bottom: 1px solid var(--border-light, #e2e8f0);
-  font-size: 0.72rem;
+  border-bottom: 1px solid var(--th-border);
+  font-size: var(--font-size-2xs, 12px);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
 .scope-table td {
   padding: 0.4rem 0.6rem;
-  border-bottom: 1px solid var(--border-light, #f1f5f9);
+  border-bottom: 1px solid var(--th-border);
   vertical-align: middle;
+  color: var(--th-text);
 }
 
 .scope-table tr:last-child td {
@@ -196,29 +263,43 @@
 
 .scope-table__name {
   font-family: inherit;
-  font-size: 0.78rem;
+  font-size: var(--font-size-sm, 13px);
   font-weight: 500;
 }
 
 .scope-table__resource {
-  font-size: 0.75rem;
-  color: var(--text-muted, #64748b);
+  font-size: var(--font-size-sm, 13px);
+  color: var(--th-text-muted);
 }
 
 .scope-table__status {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  font-size: 0.75rem;
+  font-size: var(--font-size-sm, 13px);
   font-weight: 500;
 }
 
-.scope-table__status--present  { color: #16a34a; }
-.scope-table__status--missing  { color: #dc2626; }
-.scope-table__status--optional { color: #d97706; }
+.scope-table__status--present {
+  color: var(--th-status-success-text);
+}
+
+.scope-table__status--missing {
+  color: var(--th-status-error-text);
+}
+
+.scope-table__status--optional {
+  color: var(--th-status-warning-text);
+}
 
 .scope-table__status-icon {
-  font-size: 0.85rem;
+  font-size: var(--font-size-base, 15px);
+}
+
+.scope-table__empty {
+  text-align: center;
+  color: var(--th-text-muted);
+  padding: 1rem;
 }
 
 /* ── Action buttons ── */
@@ -227,19 +308,20 @@
   align-items: center;
   gap: 0.3rem;
   padding: 0.35rem 0.75rem;
-  font-size: 0.78rem;
+  font-size: var(--font-size-sm, 13px);
   font-weight: 600;
-  border: 1px solid var(--border-light, #e2e8f0);
+  border: 1px solid var(--th-border);
   border-radius: 6px;
-  background: var(--surface-card, #fff);
-  color: var(--text-primary, #0f172a);
+  background: var(--th-bg-card);
+  color: var(--th-text);
   cursor: pointer;
   transition: background 0.12s, border-color 0.12s;
 }
 
 .scope-audit-btn:hover {
-  background: var(--surface-hover, #f1f5f9);
-  border-color: var(--border-medium, #cbd5e1);
+  background: var(--th-bg-hover);
+  border-color: var(--th-border-strong);
+  color: var(--th-text);
 }
 
 .scope-audit-btn--primary {
@@ -255,12 +337,12 @@
 
 .scope-audit-btn--sm {
   padding: 0.2rem 0.5rem;
-  font-size: 0.72rem;
+  font-size: var(--font-size-xs, 11px);
 }
 
 .scope-audit-btn--lg {
   padding: 0.75rem 2rem;
-  font-size: 1.1rem;
+  font-size: var(--font-size-lg, 17px);
 }
 
 .scope-audit-page__start {
@@ -279,18 +361,24 @@
 .scope-audit-page__error {
   text-align: center;
   padding: 3rem 1rem;
-  font-size: 0.9rem;
-  color: var(--text-muted, #374151);
+  font-size: var(--font-size-body, 14px);
+  color: var(--th-text-muted);
 }
 
 .scope-audit-page__error {
-  color: #dc2626;
+  color: var(--th-status-error-text);
+}
+
+.scope-audit-page__error-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
 }
 
 .scope-audit-page__error-detail {
-  font-size: 0.78rem;
+  font-size: var(--font-size-sm, 13px);
   font-family: inherit;
-  background: #fef2f2;
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
   padding: 0.75rem;
   border-radius: 6px;
   margin-top: 0.75rem;
