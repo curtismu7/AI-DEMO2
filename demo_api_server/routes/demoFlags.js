@@ -43,4 +43,35 @@ router.post('/enable', async (req, res) => {
   res.json({ success: true, flags });
 });
 
+/**
+ * Guest-safe flag disable — mirrors /enable exactly, writing 'false' instead
+ * of 'true'. Same bounding: the client names a use case, never a flag.
+ */
+router.post('/disable', async (req, res) => {
+  const { useCaseId } = req.body || {};
+  if (!useCaseId || typeof useCaseId !== 'string') {
+    return res.status(400).json({ error: 'useCaseId is required' });
+  }
+
+  const flags = requiredFlagsForUseCaseId(useCaseId, USE_CASES);
+  if (flags.length === 0) {
+    return res.status(404).json({ error: 'Unknown use case, or it needs no flags' });
+  }
+
+  for (const flag of flags) {
+    try {
+      if (isFlagOn(configStore.getEffective(flag))) {
+        await configStore.setRaw({ [flag]: 'false' });
+        if (flag === 'ff_enterprise_managed_mcp_auth') {
+          pushEnterpriseMcpAuthToGateway(false);
+        }
+      }
+    } catch (err) {
+      return res.status(500).json({ error: `failed to disable ${flag}: ${err.message}` });
+    }
+  }
+
+  res.json({ success: true, flags });
+});
+
 module.exports = router;
