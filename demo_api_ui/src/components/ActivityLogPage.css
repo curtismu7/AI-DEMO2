@@ -2,7 +2,8 @@
 .alp-page-shell {
   flex: 1;
   min-height: calc(100vh - 56px);
-  background: #f1f5f9;
+  background: var(--th-bg-page);
+  color: var(--th-text);
 }
 
 /* ActivityLogPanel fills the modal body */

@@ -67,7 +67,8 @@ import path from 'node:path';
 // distinguishing Path A from Path B/C.
 // 156 -> 155: VerticalEditorPage.css (the /admin vertical manifest editor),
 // which had no stylesheet at all before this pass.
-const MAX_UNTHEMED = 155;
+// 155 -> 154: ActivityLogPage.css (the /monitoring/activity-log page shell).
+const MAX_UNTHEMED = 154;
 
 const SRC = path.join(__dirname, '..', '..');
 
