@@ -452,7 +452,7 @@ git commit -m "feat(privilege-mcp): warn and offer re-arm when the gateway sessi
 
 **The bug:** `DELETE` is registered only for `/:door/mcp`, so a client tearing down a session on `/mcp-facade/privilege-gateway/opensearch/mcp` gets a 404. When it does match the bare path it calls `req.door.upstream()`, ignoring `req.params.app`, and forwards the caller's bearer rather than the gateway token — so a door with `ownsUpstreamAuth` tears down the *default* app using the *wrong* credential.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test** — DONE
 
 Append to `demo_api_server/tests/routes/mcpFacade.multiApp.test.js`:
 
@@ -520,7 +520,7 @@ describe('DELETE on a multiApp door', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails** — DONE, 5 of 6 new tests red
 
 ```bash
 cd demo_api_server && CI=true npx jest tests/routes/mcpFacade.multiApp.test.js --forceExit
@@ -528,7 +528,7 @@ cd demo_api_server && CI=true npx jest tests/routes/mcpFacade.multiApp.test.js -
 
 Expected: FAIL — the first new test gets 404 because the route is not registered for the app path.
 
-- [ ] **Step 3: Fix the handler**
+- [x] **Step 3: Fix the handler** — DONE
 
 Replace the `router.delete('/:door/mcp', ...)` handler in `demo_api_server/routes/mcpFacade.js` with:
 
@@ -569,7 +569,7 @@ router.delete(['/:door/mcp', '/:door/:app/mcp'], async (req, res) => {
 });
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes** — DONE, 14/14
 
 ```bash
 cd demo_api_server && CI=true npx jest tests/routes/mcpFacade.multiApp.test.js --forceExit
@@ -577,7 +577,7 @@ cd demo_api_server && CI=true npx jest tests/routes/mcpFacade.multiApp.test.js -
 
 Expected: PASS.
 
-- [ ] **Step 5: Run the whole façade suite — this handler is shared by every door**
+- [x] **Step 5: Run the whole façade suite — this handler is shared by every door** — DONE, 7 suites / 79 tests
 
 ```bash
 cd demo_api_server && CI=true npx jest tests/routes/mcpFacade --forceExit
@@ -585,7 +585,25 @@ cd demo_api_server && CI=true npx jest tests/routes/mcpFacade --forceExit
 
 Expected: PASS across `mcpFacade.test.js`, `mcpFacade.multiApp.test.js`, `mcpFacade.privilegeGatewayDoor.test.js`, `mcpFacadeAuditDoor.test.js`, `mcpFacadeDirectSiblingDoors.test.js`, `mcpFacadeModernHeaders.test.js`, `mcpFacadeOpensearchDoor.test.js`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit** — DONE
+
+**Two deviations from the plan as written.**
+
+1. *Test style.* The plan mocked `global.fetch`. `mcpFacade.multiApp.test.js` does not
+   work that way — it stands up a real `http` server and asserts on `seenPath`. The new
+   tests follow the file's convention (extended with `seenMethod`/`seenAuth`), so they
+   exercise the real `fetch` + `fetchOpts` path rather than a stub of it. The plan's
+   `armGatewaySession()` helper was unnecessary: the file's `beforeEach` already arms
+   the session, and `remember()` takes no `refreshToken` for this purpose.
+2. *`sessions.delete` moved to a `finally`.* The original deleted the local entry only
+   after a resolved `fetch`, so a 502 left the entry behind — the client has torn down
+   its side and will never retry, leaking a slot out of the bounded session map for the
+   life of the process. Covered by the sixth test, which points the gateway base at a
+   dead port.
+
+Also added beyond the plan's three cases: an invalid-app-name DELETE (proving
+`router.param('app')`'s traversal guard covers the new route shape, not just POST) and
+a bare-door teardown that was already green and stays as the regression guard.
 
 ```bash
 git add demo_api_server/routes/mcpFacade.js demo_api_server/tests/routes/mcpFacade.multiApp.test.js
