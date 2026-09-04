@@ -812,3 +812,18 @@
   border-radius: 4px;
   background: var(--th-bg-inset);
 }
+
+.ulp__theme-toggle {
+  padding: 6px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ulp__theme-toggle:hover {
+  background: var(--th-bg-hover);
+}

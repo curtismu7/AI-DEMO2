@@ -20,6 +20,7 @@ import { useVertical } from '../vertical/useVertical';
 import useLangchainProvider from '../hooks/useLangchainProvider';
 import useLiveFlags from '../hooks/useLiveFlags';
 import { useEducationUI } from '../context/EducationUIContext';
+import { useThemeOptional } from '../context/ThemeContext';
 import { MODE_PROVIDER } from '../config/agentModes';
 import VerticalSwitcher from '../components/VerticalSwitcher';
 import './UseCaseLauncherPage.css';
@@ -648,6 +649,7 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
   const navigate    = useNavigate();
   const { activeId: verticalId } = useVertical();
   const { open: openEdu } = useEducationUI();
+  const { darkMode, toggleDarkMode } = useThemeOptional();
 
   const [useCases, setUseCases] = useState([]);
   const [loading,  setLoading]  = useState(true);
@@ -975,6 +977,16 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
           <span className="uc-launcher__vertical-label">Vertical</span>
           <VerticalSwitcher variant="pills" />
         </div>
+        {/* ☀️/🌙 reserved in REGRESSION_PLAN.md §0 specifically for this control. */}
+        <button
+          type="button"
+          onClick={toggleDarkMode}
+          className="ulp__theme-toggle"
+          title="Switch this page between light and dark"
+          aria-pressed={darkMode}
+        >
+          {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
+        </button>
       </header>
 
       {isSearching && !hasAnyResults && (
