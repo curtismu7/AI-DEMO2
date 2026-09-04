@@ -35,7 +35,10 @@ import path from 'node:path';
 // button needed real theming to be visible on this page at all).
 // 178 -> 176: AdminThemesPage.css and ThemeZonePanel.css (the /themes page),
 // merged in from a parallel session's toggle rollout (PR #2744).
-const MAX_UNTHEMED = 176;
+// 176 -> 175: common/Check.css — its checkbox/pill/switch surfaces were
+// hardcoded white, so a themed --ctl-ink (var(--th-text)) went pale-on-white
+// in dark mode. Shared by AgentBuilderPage and AIAgent.
+const MAX_UNTHEMED = 175;
 
 const SRC = path.join(__dirname, '..', '..');
 
