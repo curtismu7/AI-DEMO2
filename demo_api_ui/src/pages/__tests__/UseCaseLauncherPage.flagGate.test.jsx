@@ -63,4 +63,37 @@ describe('UseCaseLauncherPage — flag gating covers the full required set', () 
     await waitFor(() => expect(screen.getAllByText('ff_rar').length).toBeGreaterThan(0));
     expect(screen.getAllByText('ff_mcp_gateway_pinggateway').length).toBeGreaterThan(0);
   });
+
+  test('does not show the flag-gate banner when the server reports the flag ON as a real boolean', async () => {
+    // Regression: GET /api/admin/feature-flags returns booleans (resolveFlag()
+    // in featureFlags.js), not strings. A use case whose only requirement is
+    // ff_mcp_gateway_pinggateway (no maturity: flag:*, just a primaryTool) must
+    // not show its banner once useLiveFlags normalizes that boolean to 'true'.
+    apiClient.get.mockImplementation((url) => {
+      if (url === '/api/use-cases') {
+        return Promise.resolve({
+          data: {
+            useCases: [{
+              id: 'UC-gateway-on',
+              useCaseId: 'gateway-on-check',
+              title: 'Gateway-gated use case',
+              track: 'controls',
+              primaryTool: 'create_transfer',
+              trigger: { type: 'chip', text: 'run it' },
+            }],
+          },
+        });
+      }
+      if (url === '/api/admin/feature-flags') {
+        return Promise.resolve({
+          data: { flags: [{ id: 'ff_mcp_gateway_pinggateway', value: true }] },
+        });
+      }
+      return Promise.resolve({ data: {} });
+    });
+    render(<MemoryRouter><UseCaseLauncherPage /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByText('Gateway-gated use case')).toBeTruthy());
+    expect(screen.queryByText('ff_mcp_gateway_pinggateway')).toBeNull();
+    expect(screen.queryByText(/feature flag/i)).toBeNull();
+  });
 });

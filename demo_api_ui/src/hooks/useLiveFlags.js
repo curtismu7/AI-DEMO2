@@ -18,7 +18,9 @@ export default function useLiveFlags() {
       .get('/api/admin/feature-flags', { _silent: true })
       .then(({ data }) => {
         const map = {};
-        for (const f of data.flags || []) map[f.id] = f.value;
+        for (const f of data.flags || []) {
+          map[f.id] = (f.value === true || f.value === 'true') ? 'true' : 'false';
+        }
         setFlagMap(map);
         setFlagsLoading(false);
       })
