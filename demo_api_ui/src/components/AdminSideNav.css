@@ -593,18 +593,6 @@
   .admin-side-nav__divider {
     display: none;
   }
-
-  .admin-side-nav__label {
-    display: none;
-  }
-
-  .admin-side-nav__chevron {
-    display: none;
-  }
-
-  .admin-side-nav__submenu {
-    display: none;
-  }
 }
 
 /* Scrollbar styling */
