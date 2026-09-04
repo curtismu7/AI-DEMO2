@@ -372,7 +372,7 @@ const SecuritySettings = ({ user, onLogout }) => {
                         value={form[key]}
                         disabled={meta.disabled}
                         onChange={(e) => set(key, e.target.value)}
-                        style={{ width: '160px', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '0.95rem', color: '#111827' }}
+                        style={{ width: '160px', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '0.95rem', color: '#111827', colorScheme: 'light' }}
                       />
                     </div>
                   )}
@@ -383,7 +383,7 @@ const SecuritySettings = ({ user, onLogout }) => {
                       value={form[key]}
                       disabled={meta.disabled}
                       onChange={(e) => set(key, e.target.value)}
-                      style={{ width: '100%', maxWidth: '400px', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '0.875rem', color: '#111827', opacity: meta.disabled ? 0.5 : 1 }}
+                      style={{ width: '100%', maxWidth: '400px', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '0.875rem', color: '#111827', colorScheme: 'light', opacity: meta.disabled ? 0.5 : 1 }}
                     />
                   )}
 
@@ -401,7 +401,7 @@ const SecuritySettings = ({ user, onLogout }) => {
                       value={form[key] || ''}
                       disabled={meta.disabled}
                       onChange={(e) => set(key, e.target.value)}
-                      style={{ width: '100%', maxWidth: '400px', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '0.875rem', color: '#111827', background: 'white', opacity: meta.disabled ? 0.5 : 1 }}
+                      style={{ width: '100%', maxWidth: '400px', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '0.875rem', color: '#111827', background: 'white', colorScheme: 'light', opacity: meta.disabled ? 0.5 : 1 }}
                     >
                       {(meta.options || []).map((opt) => (
                         <option key={opt.value} value={opt.value}>{opt.label}</option>
