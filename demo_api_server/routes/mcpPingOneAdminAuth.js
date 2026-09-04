@@ -188,6 +188,14 @@ router.get('/login', requireSignedInSession, async (req, res) => {
       // must authenticate as whoever is actually signed in, now that this
       // isn't admin-only.
       login_hint: req.session.user.username || 'demoAdmin',
+      // Without this, PingOne mints a token for its default resource
+      // (Management API, api.pingone.com) — the hosted MCP server is a
+      // DIFFERENT resource and rejects that token outright with a generic
+      // "401 Invalid authentication" (see mcpPingOneHttpAdapter.js's own file
+      // header). Verified directly against the server's own RFC 9728 metadata
+      // (GET https://mcp.pingone.com/.well-known/oauth-protected-resource/admin/{envId}/mcp)
+      // — its `resource` field is exactly this URL, not a bare origin.
+      resource: `https://mcp.pingone.${app.region}/admin/${app.environmentId}/mcp`,
     });
 
     req.session.save((err) => {
@@ -229,6 +237,10 @@ router.get('/callback', async (req, res) => {
       redirect_uri: pending.redirectUri,
       client_id: app.clientId,
       code_verifier: pending.codeVerifier,
+      // Same resource as the /login authorize call — mirrors the working
+      // reference (demo_mcp_gateway's OAuthBrokerRouter), which sets it on
+      // both legs, not just authorize.
+      resource: `https://mcp.pingone.${app.region}/admin/${app.environmentId}/mcp`,
     });
     const resp = await axios.post(getTokenEndpoint(), body.toString(), {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
