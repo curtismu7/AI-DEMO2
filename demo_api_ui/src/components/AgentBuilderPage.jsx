@@ -5,6 +5,7 @@ import {
   createResource, deleteResource, listAgents, agentSetup, errorMessage,
 } from '../services/agentBuilderService';
 import Check from './common/Check';
+import { useThemeOptional } from '../context/ThemeContext';
 import './AgentBuilderPage.css';
 
 /**
@@ -13,6 +14,7 @@ import './AgentBuilderPage.css';
  * Creates real objects in PingOne via the BFF (worker token stays server-side).
  */
 export default function AgentBuilderPage() {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const [state, setState] = useState(null);        // { user, agent, resources }
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(null);          // 'agent' | 'grants' | 'resource' | resourceId
@@ -137,6 +139,15 @@ export default function AgentBuilderPage() {
 
   return (
     <div className="ab-page">
+      <button
+        type="button"
+        onClick={toggleDarkMode}
+        className="ab-theme-toggle"
+        title="Switch this page between light and dark"
+        aria-pressed={darkMode}
+      >
+        {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
+      </button>
       <h1>PingOne Agent Builder</h1>
       <p className="ab-intro">
         Build your own AI agent identity in PingOne, then decide exactly which resources and

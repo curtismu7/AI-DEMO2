@@ -1,12 +1,16 @@
 /* EnterpriseMcpDemoPage — presenter surface for MCP Enterprise-Managed Auth.
-   Uses --th-* semantic tokens with --ba fallbacks so it reads correctly in
-   both light and dark; see docs on the dark-mode token trap. */
+   Uses the real --th-* semantic set (src/index.css). Previously referenced a
+   fictional token family (th-surface, th-surface-2, th-primary-border,
+   th-primary-bg, th-warn-border, th-warn-bg, th-warn-text, th-accent-border,
+   th-accent-bg, th-accent-text) — none of them defined anywhere, so every
+   var() always fell through to its light literal fallback in both themes
+   (same fictional-token drift found elsewhere this session). */
 
 .emd-page {
   max-width: 1100px;
   margin: 0 auto;
   padding: 1.25rem 1.25rem 3rem;
-  color: var(--th-text, var(--ba-text, #1f2937));
+  color: var(--th-text);
 }
 
 .emd-armed-banner {
@@ -21,12 +25,35 @@
   margin-bottom: 1rem;
   padding: 0.6rem 0.9rem;
   border-radius: 8px;
-  border: 1px solid var(--th-warn-border, #f59e0b);
-  border-left: 4px solid var(--th-warn-border, #f59e0b);
-  background: var(--th-warn-bg, #fffbeb);
-  color: var(--th-warn-text, #78350f);
+  border: 1px solid var(--th-status-warning-border);
+  border-left: 4px solid var(--th-status-warning-border);
+  background: var(--th-status-warning-bg);
+  color: var(--th-status-warning-text);
   font-size: 0.88rem;
   font-weight: 600;
+}
+
+.emd-header {
+  position: relative;
+}
+
+.emd-theme-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 6px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.emd-theme-toggle:hover {
+  color: var(--th-text);
+  background: var(--th-bg-hover);
 }
 
 .emd-header h1 {
@@ -40,15 +67,16 @@
   max-width: 72ch;
   font-size: 0.95rem;
   line-height: 1.6;
-  color: var(--th-text-muted, var(--ba-text-muted, #4b5563));
+  color: var(--th-text-muted);
 }
 
 .emd-card {
+  color: var(--th-text);
   margin-bottom: 1.25rem;
   padding: 1rem 1.1rem;
   border-radius: 10px;
-  border: 1px solid var(--th-border, var(--ba-border, #e5e7eb));
-  background: var(--th-surface, var(--ba-surface, #ffffff));
+  border: 1px solid var(--th-border);
+  background: var(--th-bg-card);
 }
 
 .emd-card h2 {
@@ -73,13 +101,13 @@
 }
 
 .emd-link {
+  color: var(--th-status-info-text);
   padding: 0.4rem 0.7rem;
   font-size: 0.82rem;
   border-radius: 6px;
   cursor: pointer;
-  border: 1px solid var(--th-accent-border, rgba(99, 102, 241, 0.35));
-  background: var(--th-accent-bg, rgba(99, 102, 241, 0.08));
-  color: var(--th-accent-text, #4338ca);
+  border: 1px solid var(--th-status-info-border);
+  background: var(--th-status-info-bg);
 }
 
 .emd-link:hover { filter: brightness(0.97); }
@@ -92,29 +120,29 @@
 }
 
 .emd-btn {
+  color: var(--th-text);
   padding: 0.55rem 0.95rem;
   font-size: 0.88rem;
   font-weight: 600;
   border-radius: 7px;
   cursor: pointer;
-  border: 1px solid var(--th-border, var(--ba-border, #d1d5db));
-  background: var(--th-surface-2, var(--ba-surface-2, #f9fafb));
-  color: var(--th-text, var(--ba-text, #1f2937));
+  border: 1px solid var(--th-border);
+  background: var(--th-bg-inset);
 }
 
 .emd-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .emd-btn:not(:disabled):hover { filter: brightness(0.97); }
 
 .emd-btn--primary {
-  border-color: var(--th-primary-border, #4338ca);
-  background: var(--th-primary-bg, #4f46e5);
-  color: #ffffff;
+  color: var(--th-text-on-emphasis);
+  border-color: var(--th-bg-emphasis);
+  background: var(--th-bg-emphasis);
 }
 
 .emd-btn--reset {
-  border-color: var(--th-warn-border, #f59e0b);
+  color: var(--th-status-warning-text);
+  border-color: var(--th-status-warning-border);
   background: transparent;
-  color: var(--th-warn-text, #92400e);
 }
 
 .emd-note {
@@ -122,15 +150,15 @@
   max-width: 78ch;
   font-size: 0.82rem;
   line-height: 1.6;
-  color: var(--th-text-muted, var(--ba-text-muted, #6b7280));
+  color: var(--th-text-muted);
 }
 
 .emd-note code {
+  color: var(--th-code-text);
   padding: 1px 4px;
   border-radius: 3px;
   font-size: 0.8rem;
-  background: var(--th-code-bg, #f1f5f9);
-  color: var(--th-code-text, inherit);
+  background: var(--th-code-bg);
 }
 
 /* The filmstrip manages its own internal scrolling; keep the card from
@@ -140,4 +168,9 @@
 @media (max-width: 640px) {
   .emd-actions { flex-direction: column; align-items: stretch; }
   .emd-btn { width: 100%; }
+  .emd-theme-toggle {
+    position: static;
+    display: inline-block;
+    margin-bottom: 0.75rem;
+  }
 }

@@ -556,7 +556,14 @@ async function fetchMcp(session, pathname, body, withAuth = true, allowRefreshRe
     throw err;
   }
   if (parsed?.error) {
-    throw new Error(`MCP RPC error: ${parsed.error.message || JSON.stringify(parsed.error)}`);
+    // A door can legitimately answer 200 with a JSON-RPC-level error (the
+    // pingone-admin local handler does, for any method it doesn't implement)
+    // — carry the code the same way the !response.ok branch above does, so
+    // ensureMcpSessionInitialized's era-fallback can see it.
+    const err = new Error(`MCP RPC error: ${parsed.error.message || JSON.stringify(parsed.error)}`);
+    err.rpcError = parsed.error;
+    err.upstreamStatus = response.status;
+    throw err;
   }
   if (requestBody?.id !== undefined && parsed?.id !== requestBody.id) {
     throw new Error(`MCP response id mismatch: expected ${requestBody.id}, received ${parsed?.id ?? 'none'}`);
@@ -590,7 +597,12 @@ async function ensureMcpSessionInitialized(session) {
       const modernError = [-32020, -32021, -32022].includes(err.rpcError?.code)
         || (err.upstreamStatus === 404 && err.rpcError?.code === -32601);
       if (modernError) throw err;
-      if (![400, 404, 405].includes(err.upstreamStatus)) throw err;
+      // "Method not found" for server/discover means this door doesn't speak
+      // the modern handshake at all — a door that answers it with a plain
+      // JSON-RPC error over HTTP 200 (pingone-admin's local handler) is just
+      // as clear a signal to fall back as an HTTP 404 would be.
+      const methodNotFound = err.rpcError?.code === -32601;
+      if (!methodNotFound && ![400, 404, 405].includes(err.upstreamStatus)) throw err;
       session.mcpSession.era = 'legacy';
       session.mcpSession.protocolVersion = null;
       session.mcpSession.nextRequestId = 1;
@@ -1509,14 +1521,30 @@ router.get('/auth/callback', async (req, res) => {
     // Hand the gateway leg to the façade's privilege-gateway door, so standalone
     // MCP clients never have to register with the gateway themselves — see
     // services/privilegeGatewaySession.js for why that matters.
-    privilegeGatewaySession.remember({
-      accessToken: session.oauth.accessToken,
-      refreshToken: session.oauth.refreshToken,
-      expiresIn: tokenData.expires_in,
-      tokenUri: session.oauth.tokenUri,
-      clientId: session.oauth.dcrClientId || session.config.clientId,
-      clientSecret: session.oauth.dcrClientSecret,
-    });
+    //
+    // ONLY when this exchange actually happened against the real gateway's own
+    // token endpoint (Privilege mode's DCR/federated flow to mcpgw). Every
+    // other mode (Direct's opensearch/brave, Façade's own base doors) mints a
+    // token from OUR broker instead — its resource happens to be named
+    // `mcpgateway.ping.demo` too (demo_mcp_gateway's own identifier), a name
+    // collision with the real gateway's identifier, not the real gateway's
+    // token. Remembering that here overwrote a working gateway session with a
+    // token the real gateway rejects as "Bearer token required" the next time
+    // the façade's privilege-gateway/<app> door used it — verified live with a
+    // temporary diagnostic log, 2026-09-04.
+    let tokenOrigin = null;
+    try { tokenOrigin = new URL(session.oauth.tokenUri).origin; } catch { /* leave null, treated as not-the-gateway below */ }
+    const gatewayOrigin = new URL(DEFAULT_PRIVILEGE_MCP_URL()).origin;
+    if (tokenOrigin === gatewayOrigin) {
+      privilegeGatewaySession.remember({
+        accessToken: session.oauth.accessToken,
+        refreshToken: session.oauth.refreshToken,
+        expiresIn: tokenData.expires_in,
+        tokenUri: session.oauth.tokenUri,
+        clientId: session.oauth.dcrClientId || session.config.clientId,
+        clientSecret: session.oauth.dcrClientSecret,
+      });
+    }
 
     emitEvent(session, 'oauth', { phase: 'token_success', expiresIn: tokenData.expires_in || null });
     res.redirect(`${returnBase}?auth=success`);

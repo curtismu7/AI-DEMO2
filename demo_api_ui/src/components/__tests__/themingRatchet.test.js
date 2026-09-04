@@ -31,13 +31,21 @@ import path from 'node:path';
 // move the count while the file is still almost entirely literals. That was
 // true here for exactly one commit; the file is now fully converted, so the
 // count and the reality agree again. Treat a one-rule drop with suspicion.
-// 179 -> 177: AdminThemesPage.css and ThemeZonePanel.css (the /themes page).
-// 177 -> 176: ControlPlaneRoster.css (the /ai-control-plane page).
-// 176 -> 174: AgentFlowHistoryPage.css and TokenChainEventCard.css (the
+// 179 -> 178: AgentBuilderPage.css, fully converted (a dark/light toggle
+// button needed real theming to be visible on this page at all).
+// 178 -> 176: AdminThemesPage.css and ThemeZonePanel.css (the /themes page),
+// merged in from a parallel session's toggle rollout (PR #2744).
+// 176 -> 175: common/Check.css — its checkbox/pill/switch surfaces were
+// hardcoded white, so a themed --ctl-ink (var(--th-text)) went pale-on-white
+// in dark mode. Shared by AgentBuilderPage and AIAgent.
+// 175 -> 174: PingOneSetup.css, fully converted from a fictional
+// --bg-*/--text-* token family that was never defined anywhere.
+// 174 -> 173: ControlPlaneRoster.css (the /ai-control-plane page).
+// 173 -> 171: AgentFlowHistoryPage.css and TokenChainEventCard.css (the
 // /agent-flow-inspector page and the fictional --color-code-bg it exposed).
-// 174 -> 172: CheckPage.css (aliased its local token layer onto --th-*, see
+// 171 -> 169: CheckPage.css (aliased its local token layer onto --th-*, see
 // THEMING.md 9.2) and ServersPage.css (the /check page).
-const MAX_UNTHEMED = 172;
+const MAX_UNTHEMED = 169;
 
 const SRC = path.join(__dirname, '..', '..');
 
@@ -193,7 +201,7 @@ describe('theming ratchet', () => {
  * Literal grounds are deliberately not counted. They do not flip, so inherited
  * near-black stays correct against them.
  */
-const MAX_GROUND_WITHOUT_INK = 482;
+const MAX_GROUND_WITHOUT_INK = 481;
 
 const CSS_RULE = /([^{}]+)\{([^{}]*)\}/g;
 const HAS_COLOR = /(?:^|\n)\s*color\s*:/;
