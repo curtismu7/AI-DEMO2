@@ -260,11 +260,15 @@
    rules below still contributed anything, and they now key off the attribute
    ThemeProvider writes.
 
-   .gmt-modal* text stays un-lightened for the same reason as before: DraggableModal
-   paints its body var(--modal-body-bg, #ffffff) with no dark rule, so the modal
-   surface is white in every theme, and lightening the text put near-white on white
-   (REGRESSION_PLAN §0 forbids low-contrast modal text). The state chips keep their
-   dark variants because each sets a background alongside its colour. */
+   .gmt-modal-body legitimately tracks --th-text: DraggableModal's
+   --modal-body-bg now has a dark value (index.css), so the modal surface flips
+   with the theme and the body text must follow it. .gmt-modal-tier is
+   different — its OWN background/border stay literal light (a neutral badge,
+   not the modal ground), so it keeps its own literal ink below rather than
+   picking up --th-text, which would put light text on that still-light pill in
+   dark mode (REGRESSION_PLAN §0 forbids low-contrast modal text — found
+   2026-09-04, the tier pill was unreadable in dark mode). The state chips
+   avoid this because each sets a background alongside its colour. */
 :root[data-theme="dark"] .gmt-state--in { background: #17512f; border-color: #4caf7d; color: #d6f2e1; }
 :root[data-theme="dark"] .gmt-state--out { background: #5c1611; border-color: #e5716a; color: #ffd9d6; }
 :root[data-theme="dark"] .gmt-modal-state--in { background: #17512f; border-color: #4caf7d; color: #d6f2e1; }
@@ -274,8 +278,8 @@
 
 /* The application theme is controlled by ThemeContext, not the OS preference. */
 .gmt-panel { max-width: 760px; background: var(--th-bg-card); border-color: var(--th-border); color: var(--th-text); box-shadow: 0 4px 18px rgb(15 23 42 / 8%); }
-.gmt-story { background: var(--th-bg-inset); border-color: var(--th-border); border-left-color: var(--th-primary, #1f5fe5); }
-.gmt-story-title, .gmt-story-beats, .gmt-facts dd, .gmt-modal-body, .gmt-modal-tier { color: var(--th-text); }
+.gmt-story { background: var(--th-bg-inset); border-color: var(--th-border); border-left-color: var(--th-status-info); }
+.gmt-story-title, .gmt-story-beats, .gmt-facts dd, .gmt-modal-body { color: var(--th-text); }
 .gmt-facts dt, .gmt-note, .gmt-error-detail { color: var(--th-text-muted); }
-.gmt-loading-spinner { flex: 0 0 auto; border-color: color-mix(in srgb, var(--th-primary, #1f5fe5) 22%, transparent); border-top-color: var(--th-primary, #1f5fe5); animation: gmt-spin .7s linear infinite; }
-.gmt-retry { background: var(--th-bg-card); border-color: var(--th-primary, #1f5fe5); color: var(--th-primary, #1f5fe5); }
+.gmt-loading-spinner { flex: 0 0 auto; border-color: color-mix(in srgb, var(--th-status-info) 22%, transparent); border-top-color: var(--th-status-info); animation: gmt-spin .7s linear infinite; }
+.gmt-retry { background: var(--th-bg-card); border-color: var(--th-status-info); color: var(--th-status-info); }
