@@ -1,0 +1,380 @@
+<!-- Design plan
+Color (lifted verbatim from demo_api_ui/src/index.css --th-* tokens, not invented):
+  --th-bg-page #f6f7f9 / dark #0b1220 · --th-bg-card #ffffff / #131c2e
+  --th-bg-band #16325c / #102847 (the app's navy header band)
+  --th-text #0f172a / #e2e8f0 · --th-text-muted #556070 / #94a3b8
+  --th-border #dbe2ea / #26304a
+  warning: #f59e0b / bg #fef3c7 border #fcd34d  (dark: text #fcd34d bg #3a2a10 border #92400e)
+  success: #16a34a / bg #dcfce7 border #86efac  (dark: #22c55e / #0f2e1d / #166534)
+  accent (primary action): --signin-accent #2563eb both themes
+Type: --font-primary system-ui stack, exactly as shipped — this mock represents a real
+  in-app component, so fidelity to the actual product's (deliberately un-fancy) type beats
+  introducing a display face.
+Layout: a miniature app shell (navy top band + role toggle) over a page canvas holding two
+  real example cards from the audit (a 2-flag case and a 1-flag case) so the multi-flag shape
+  is visible, not just the single-flag common case. Each card's banner collapses into a
+  success strip on Enable, revealing the page content beneath — the actual before/after this
+  feature buys.
+-->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Flag Gate Banner</title>
+<style>
+  :root {
+    --th-bg-page: #f6f7f9;
+    --th-bg-card: #ffffff;
+    --th-bg-inset: #f1f5f9;
+    --th-bg-band: #16325c;
+    --th-text: #0f172a;
+    --th-text-body: #374151;
+    --th-text-muted: #556070;
+    --th-text-faint: #94a3b8;
+    --th-text-invert: #ffffff;
+    --th-border: #dbe2ea;
+    --th-border-strong: #c3cdd9;
+
+    --th-status-success: #16a34a;
+    --th-status-success-text: #166534;
+    --th-status-success-bg: #dcfce7;
+    --th-status-success-border: #86efac;
+    --th-status-warning: #f59e0b;
+    --th-status-warning-text: #92400e;
+    --th-status-warning-bg: #fef3c7;
+    --th-status-warning-border: #fcd34d;
+
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+
+    --font-primary: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
+      "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+    --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+    --shadow-md: 0 4px 14px -4px rgba(15, 23, 42, 0.14);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --th-bg-page: #0b1220;
+      --th-bg-card: #131c2e;
+      --th-bg-inset: #1b2540;
+      --th-bg-band: #102847;
+      --th-text: #e2e8f0;
+      --th-text-body: #c7d2e0;
+      --th-text-muted: #94a3b8;
+      --th-text-faint: #6b7a90;
+      --th-text-invert: #ffffff;
+      --th-border: #26304a;
+      --th-border-strong: #34405e;
+
+      --th-status-success: #22c55e;
+      --th-status-success-text: #86efac;
+      --th-status-success-bg: #0f2e1d;
+      --th-status-success-border: #166534;
+      --th-status-warning: #f59e0b;
+      --th-status-warning-text: #fcd34d;
+      --th-status-warning-bg: #3a2a10;
+      --th-status-warning-border: #92400e;
+
+      --accent: #3b82f6;
+      --accent-hover: #60a5fa;
+
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+      --shadow-md: 0 4px 14px -4px rgba(0, 0, 0, 0.55);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --th-bg-page: #0b1220;
+    --th-bg-card: #131c2e;
+    --th-bg-inset: #1b2540;
+    --th-bg-band: #102847;
+    --th-text: #e2e8f0;
+    --th-text-body: #c7d2e0;
+    --th-text-muted: #94a3b8;
+    --th-text-faint: #6b7a90;
+    --th-text-invert: #ffffff;
+    --th-border: #26304a;
+    --th-border-strong: #34405e;
+
+    --th-status-success: #22c55e;
+    --th-status-success-text: #86efac;
+    --th-status-success-bg: #0f2e1d;
+    --th-status-success-border: #166534;
+    --th-status-warning: #f59e0b;
+    --th-status-warning-text: #fcd34d;
+    --th-status-warning-bg: #3a2a10;
+    --th-status-warning-border: #92400e;
+
+    --accent: #3b82f6;
+    --accent-hover: #60a5fa;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 14px -4px rgba(0, 0, 0, 0.55);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--th-bg-page);
+    color: var(--th-text);
+    font-family: var(--font-primary);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+
+  .shell { max-width: 760px; margin: 0 auto; padding-bottom: 64px; }
+
+  .topbar {
+    background: var(--th-bg-band);
+    color: var(--th-text-invert);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+  }
+  .brand { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 15px; letter-spacing: 0.01em; }
+  .brand .mark {
+    width: 22px; height: 22px; border-radius: 6px;
+    background: var(--accent);
+    display: grid; place-items: center; font-size: 12px; font-weight: 700;
+  }
+  .role-toggle {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 999px;
+    padding: 4px;
+    font-size: 12px;
+  }
+  .role-toggle button {
+    all: unset;
+    cursor: pointer;
+    padding: 5px 11px;
+    border-radius: 999px;
+    color: rgba(255,255,255,0.72);
+    display: flex; align-items: center; gap: 5px;
+  }
+  .role-toggle button.active {
+    background: rgba(255,255,255,0.16);
+    color: #fff;
+  }
+  .role-toggle button:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+
+  .intro { padding: 22px 20px 4px; }
+  .intro .eyebrow {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--th-text-faint); font-weight: 600; margin: 0 0 6px;
+  }
+  .intro p { margin: 0; color: var(--th-text-muted); font-size: 13px; line-height: 1.55; max-width: 62ch; }
+  .intro .note {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-top: 10px; font-size: 12px; color: var(--th-text-muted);
+    background: var(--th-bg-inset); border: 1px solid var(--th-border);
+    border-radius: 7px; padding: 5px 10px;
+  }
+
+  .canvas { padding: 14px 20px 0; display: flex; flex-direction: column; gap: 20px; }
+
+  .card {
+    background: var(--th-bg-card);
+    border: 1px solid var(--th-border);
+    border-radius: 12px;
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+  .card-head { padding: 16px 18px 4px; }
+  .card-head .eyebrow {
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.07em;
+    color: var(--th-text-faint); font-weight: 700; margin: 0 0 4px;
+  }
+  .card-head h2 { margin: 0; font-size: 17px; font-weight: 600; }
+
+  .banner {
+    margin: 14px 18px 0;
+    border-radius: 10px;
+    border: 1px solid var(--th-status-warning-border);
+    background: var(--th-status-warning-bg);
+    padding: 13px 14px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: start;
+    gap: 12px;
+    transition: opacity 0.28s ease, transform 0.28s ease, max-height 0.32s ease, margin 0.32s ease, padding 0.32s ease;
+    max-height: 200px;
+  }
+  .banner-icon { font-size: 16px; line-height: 1.4; }
+  .banner-title { font-weight: 600; font-size: 13.5px; color: var(--th-status-warning-text); margin-bottom: 5px; }
+  .flag-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 7px; }
+  .chip {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    background: rgba(0,0,0,0.05);
+    border: 1px solid var(--th-status-warning-border);
+    color: var(--th-status-warning-text);
+    padding: 2px 7px;
+    border-radius: 5px;
+  }
+  .banner-copy { margin: 0; font-size: 12.5px; color: var(--th-text-muted); line-height: 1.5; }
+
+  .enable-btn {
+    all: unset;
+    cursor: pointer;
+    background: var(--accent);
+    color: #fff;
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 8px 14px;
+    border-radius: 7px;
+    display: flex; align-items: center; gap: 6px;
+    white-space: nowrap;
+    transition: background 0.15s ease;
+  }
+  .enable-btn:hover { background: var(--accent-hover); }
+  .enable-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .enable-btn[disabled] { cursor: default; opacity: 0.7; }
+
+  .banner.is-done {
+    grid-template-columns: auto 1fr;
+    background: var(--th-status-success-bg);
+    border-color: var(--th-status-success-border);
+    padding: 9px 14px;
+    max-height: 46px;
+  }
+  .banner.is-done .banner-title { color: var(--th-status-success-text); margin-bottom: 0; }
+  .banner.is-done .flag-chips,
+  .banner.is-done .banner-copy,
+  .banner.is-done .enable-btn { display: none; }
+
+  .page-preview {
+    margin: 14px 18px 18px;
+    border-radius: 9px;
+    padding: 16px;
+    background: var(--th-bg-inset);
+    border: 1px dashed var(--th-border-strong);
+    display: flex; flex-direction: column; gap: 8px;
+    transition: opacity 0.3s ease, filter 0.3s ease;
+  }
+  .page-preview .pv-line { height: 9px; border-radius: 5px; background: var(--th-border-strong); }
+  .page-preview .pv-line.w60 { width: 60%; }
+  .page-preview .pv-line.w80 { width: 80%; }
+  .page-preview .pv-line.w40 { width: 40%; }
+  .page-preview.locked { filter: grayscale(0.6); opacity: 0.55; }
+  .page-preview.locked::after {
+    content: "Page content — becomes usable once flags above are on";
+    font-size: 11.5px; color: var(--th-text-faint); font-style: italic;
+  }
+  .page-preview:not(.locked) .pv-line { background: var(--accent); opacity: 0.22; }
+  .page-preview:not(.locked)::after {
+    content: "Live — required flags are on";
+    font-size: 11.5px; color: var(--th-status-success-text); font-weight: 600; font-style: normal;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .banner, .page-preview { transition: none; }
+  }
+</style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand"><span class="mark">S</span> Super Sports Bank</div>
+      <div class="role-toggle" role="group" aria-label="Viewing as">
+        <button type="button" class="active" data-role="guest">👤 Guest</button>
+        <button type="button" data-role="signed-in">Signed in</button>
+      </div>
+    </header>
+
+    <div class="intro">
+      <p class="eyebrow">Flag Gate Banner — mock</p>
+      <p>Same banner, same Enable button, in both roles below — that's the point: no
+        separate guest path, no trip to the Feature Flags setup page.</p>
+      <span class="note" id="role-note">👤 Viewing as a guest — no session, Enable still works</span>
+    </div>
+
+    <div class="canvas">
+
+      <section class="card">
+        <div class="card-head">
+          <p class="eyebrow">Attack Simulation · Use Case</p>
+          <h2>PAR + RAR — Intent Verified</h2>
+        </div>
+        <div class="banner" data-flags="ff_rar,ff_mcp_gateway_pinggateway">
+          <div class="banner-icon">⚠️</div>
+          <div>
+            <div class="banner-title">2 feature flags are off</div>
+            <div class="flag-chips">
+              <span class="chip">ff_rar</span>
+              <span class="chip">ff_mcp_gateway_pinggateway</span>
+            </div>
+            <p class="banner-copy">This demo needs both to run — one for RAR-scoped intent, one for the PingOne gateway hop.</p>
+          </div>
+          <button type="button" class="enable-btn">🔑 Enable</button>
+        </div>
+        <div class="page-preview locked">
+          <div class="pv-line w80"></div>
+          <div class="pv-line w60"></div>
+          <div class="pv-line w40"></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <p class="eyebrow">Use Case · UC22</p>
+          <h2>CIBA Out-of-Band Approval</h2>
+        </div>
+        <div class="banner" data-flags="ciba_enabled">
+          <div class="banner-icon">⚠️</div>
+          <div>
+            <div class="banner-title">1 feature flag is off</div>
+            <div class="flag-chips">
+              <span class="chip">ciba_enabled</span>
+            </div>
+            <p class="banner-copy">Needed to dispatch the out-of-band approval request.</p>
+          </div>
+          <button type="button" class="enable-btn">🔑 Enable</button>
+        </div>
+        <div class="page-preview locked">
+          <div class="pv-line w60"></div>
+          <div class="pv-line w80"></div>
+          <div class="pv-line w40"></div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <script>
+    document.querySelectorAll('.enable-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var banner = btn.closest('.banner');
+        var chips = banner.querySelectorAll('.chip').length;
+        btn.setAttribute('disabled', 'true');
+        btn.textContent = 'Enabling…';
+        setTimeout(function () {
+          banner.classList.add('is-done');
+          banner.querySelector('.banner-title').textContent =
+            (chips > 1 ? chips + ' flags enabled' : 'Flag enabled') + ' — ✅';
+          banner.parentElement.querySelector('.page-preview').classList.remove('locked');
+        }, 420);
+      });
+    });
+
+    document.querySelectorAll('.role-toggle button').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        document.querySelectorAll('.role-toggle button').forEach(function (b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        var note = document.getElementById('role-note');
+        if (btn.dataset.role === 'guest') {
+          note.textContent = '👤 Viewing as a guest — no session, Enable still works';
+        } else {
+          note.textContent = '🔑 Viewing signed in — same banner, same Enable button';
+        }
+      });
+    });
+  </script>
+</body>
+</html>
