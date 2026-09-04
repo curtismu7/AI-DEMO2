@@ -11,6 +11,7 @@ import {
 import TraceGraphView from "../components/TraceGraphView";
 import ProjectedTimeline from "../components/ProjectedTimeline";
 import GatewayMcpMetrics from "../components/GatewayMcpMetrics";
+import { useThemeOptional } from "../context/ThemeContext";
 
 const REFRESH_MS = 15000;
 const LOOKBACK_OPTIONS = [
@@ -66,6 +67,7 @@ async function resolveInitialService(services, lookback) {
  * Data is proxied via GET /api/health/tracing/*; full flame graphs open in Jaeger UI.
  */
 export default function TracingPage() {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const [status, setStatus] = useState(null);
   const [services, setServices] = useState([]);
   const [service, setService] = useState("");
@@ -297,6 +299,15 @@ export default function TracingPage() {
           </a>
           <button type="button" className="tracing-btn" onClick={handleRetry} disabled={loading}>
             Refresh
+          </button>
+          <button
+            type="button"
+            className="tracing-btn"
+            onClick={toggleDarkMode}
+            title="Switch this page between light and dark"
+            aria-pressed={darkMode}
+          >
+            {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
           </button>
         </div>
       </header>

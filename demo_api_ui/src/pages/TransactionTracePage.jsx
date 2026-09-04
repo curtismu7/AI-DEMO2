@@ -5,6 +5,7 @@ import "./TransactionTracePage.css";
 // with the Token Chain rail so the two surfaces cannot describe them differently.
 import { GW_STAGE_META } from "../services/tokenChainTrace/buildTraceSteps";
 import ReelDock from "../components/ReelDock";
+import { useThemeOptional } from "../context/ThemeContext";
 
 const REFRESH_MS = 15000;
 const LIST_LIMIT = 50;
@@ -217,6 +218,7 @@ function TraceDetail({ detail }) {
 }
 
 export default function TransactionTracePage() {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const [transactions, setTransactions] = useState([]);
   const [expanded, setExpanded] = useState(null);
   const [detail, setDetail] = useState(null);
@@ -279,7 +281,18 @@ export default function TransactionTracePage() {
   return (
     <div className="ttrace-page">
       <header className="ttrace-header">
-        <h1>Transaction Trace</h1>
+        <div className="ttrace-header-top">
+          <h1>Transaction Trace</h1>
+          <button
+            type="button"
+            className="ttrace-theme-toggle"
+            onClick={toggleDarkMode}
+            title="Switch this page between light and dark"
+            aria-pressed={darkMode}
+          >
+            {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
+          </button>
+        </div>
         <p className="ttrace-sub">
           One agent turn, hop by hop — who acted, under whose delegation, with what authorization.
         </p>
