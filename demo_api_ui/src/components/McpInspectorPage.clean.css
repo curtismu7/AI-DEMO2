@@ -32,6 +32,23 @@
   gap: 8px;
 }
 
+.inspector-clean-theme-toggle {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.inspector-clean-theme-toggle:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
 .inspector-clean-tab {
   padding: 6px 14px;
   border: 1px solid var(--th-border);
@@ -109,7 +126,9 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #0ea5e9;
+  /* #0ea5e9 as ink directly on --th-bg-card fails contrast in light mode
+     (~2.8:1) — --th-status-info-text is tuned per-theme for exactly this. */
+  color: var(--th-status-info-text);
   padding: 8px 0 4px 0;
   margin-left: 4px;
 }
@@ -133,9 +152,12 @@
 }
 
 .inspector-clean-item.active {
-  background: rgba(14, 165, 233, 0.1);
-  color: #0ea5e9;
-  border-left-color: #0ea5e9;
+  /* Same fix as .inspector-clean-tree-group-label: a low-opacity tint of
+     #0ea5e9 barely shifts the panel's --th-bg-card, so the paired literal
+     ink failed contrast in light mode (~2.8:1). */
+  background: var(--th-status-info-bg);
+  color: var(--th-status-info-text);
+  border-left-color: var(--th-status-info);
   font-weight: 600;
 }
 
@@ -247,8 +269,10 @@
 }
 
 .inspector-clean-output-tab.active {
-  color: #0ea5e9;
-  border-bottom-color: #0ea5e9;
+  /* Ink directly on --th-bg-page, same contrast issue as the other #0ea5e9
+     text uses above. */
+  color: var(--th-status-info-text);
+  border-bottom-color: var(--th-status-info);
 }
 
 .inspector-clean-code {
@@ -358,7 +382,9 @@
 
 /* Server heading in a grouped tool tree (Gateway Showcase). Themed with --th-*
    so it follows the page in both modes; ground and ink set together per
-   THEMING.md 1.5. */
+   THEMING.md 1.5. --th-text-faint fails AA at this size (2.3:1 light /
+   3.5:1 dark against --th-bg-inset) — --th-text-muted is the tier that
+   actually clears 4.5:1, the same fix applied on several other pages. */
 .inspector-clean-group-label {
   padding: 6px 9px 4px;
   margin-top: 4px;
@@ -366,7 +392,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--th-text-faint);
+  color: var(--th-text-muted);
   background: var(--th-bg-inset);
   border-radius: 4px;
 }

@@ -4,6 +4,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useInspectorSource } from '../hooks/useInspectorSource';
 import { useInspectorFields } from '../context/InspectorFieldContext';
+import { useThemeOptional } from '../context/ThemeContext';
 import './McpInspectorPage.clean.css';
 
 const SOURCES = [
@@ -48,6 +49,7 @@ function groupsFor(source) {
 }
 
 function McpInspectorPageClean() {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const [searchParams] = useSearchParams();
   const [activeSource, setActiveSource] = useState(searchParams.get('source') || 'banking');
   const [activeHistoryId, setActiveHistoryId] = useState(null);
@@ -107,6 +109,15 @@ function McpInspectorPageClean() {
             </button>
           ))}
         </div>
+        <button
+          type="button"
+          onClick={toggleDarkMode}
+          className="inspector-clean-theme-toggle"
+          title="Switch this page between light and dark"
+          aria-pressed={darkMode}
+        >
+          {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
+        </button>
       </div>
 
       <div className="inspector-clean-content">
