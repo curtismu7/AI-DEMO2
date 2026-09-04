@@ -48,13 +48,26 @@ import path from 'node:path';
 // 171 -> 169: CheckPage.css (aliased its local token layer onto --th-*, see
 // THEMING.md 9.2) and ServersPage.css (the /check page).
 // 169 -> 165: CodeExplorerPage.css, ResourceServerPage.css, CodeSearchPage.css
-// and GraphifyPage.css, fully converted from fictional --v2-* tokens.
+// and GraphifyPage.css, fully converted from fictional --v2-* tokens (merged
+// in from a parallel session's toggle rollout, PR #2758).
 // 165 -> 162: SnapshotImport.css, ResourceServerCheckpointPage.css and
-// ScopeReferencePage.css, fully converted.
+// ScopeReferencePage.css, fully converted (merged in from a parallel
+// session's toggle rollout).
 // 162 -> 161: ScopeAuditPage.css (the /scope-audit page), fully converted
 // from fictional --text-primary/--text-muted/--surface-*/--border-* tokens
-// that were never defined anywhere the page could see them.
-const MAX_UNTHEMED = 161;
+// that were never defined anywhere the page could see them (merged in from
+// a parallel session's toggle rollout, PR #2767).
+// 161 -> 157: SupportConsole.css, SupportQueueRail.css, CaseNotes.css, and
+// IdentityGate.css (the shared /admin/{banking,healthcare,retail,
+// sporting-goods,workforce} ops console) — aliased --tint onto
+// color-mix(var(--accent), --th-bg-card) rather than a per-vertical dark
+// literal.
+// 157 -> 156: MortgagePathPage.css, fully converted. The amber brand accent
+// (#ca8a04) stays literal per THEMING.md §1.3 — it's this page's identity,
+// distinguishing Path A from Path B/C.
+// 156 -> 155: VerticalEditorPage.css (the /admin vertical manifest editor),
+// which had no stylesheet at all before this pass.
+const MAX_UNTHEMED = 155;
 
 const SRC = path.join(__dirname, '..', '..');
 

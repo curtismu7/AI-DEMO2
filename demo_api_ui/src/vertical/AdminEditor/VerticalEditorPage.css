@@ -7,4 +7,8 @@
 .vertical-editor__main { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
 .vertical-editor__main > div:first-child { flex: 1; min-height: 0; }
 .vertical-editor__actions { flex-shrink: 0; }
-.vertical-editor__success { margin: 12px 20px; padding: 10px 14px; border: 1px solid #86c7a2; border-radius: 6px; background: #eaf8ef; color: #1d6b3d; font-weight: 600; }
+.vertical-editor__success { margin: 12px 20px; padding: 10px 14px; border: 1px solid var(--th-status-success-border); border-radius: 6px; background: var(--th-status-success-bg); color: var(--th-status-success-text); font-weight: 600; }
+
+.vertical-editor__theme-toggle { padding: 5px 12px; border-radius: var(--radius-md); border: 1px solid var(--th-border-strong); background: var(--th-bg-inset); color: var(--th-text); font-size: 13px; font-weight: 600; cursor: pointer; }
+.vertical-editor__theme-toggle:hover { background: var(--th-bg-hover);
+  color: var(--th-text); }

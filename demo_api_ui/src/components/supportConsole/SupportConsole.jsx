@@ -9,9 +9,11 @@ import CaseNotes from './CaseNotes';
 import SupportQueueRail from './SupportQueueRail';
 import { resolvePermission, PERMISSION_LABEL } from './resolvePermission';
 import TokenChainTraceRail from '../TokenChainTraceRail';
+import { useThemeOptional } from '../../context/ThemeContext';
 import './SupportConsole.css';
 
 export default function SupportConsole({ vertical }) {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const cfg = getVerticalConfig(vertical);
   const [q, setQ] = useState('');
   const [result, setResult] = useState(null); // { customer, categories }
@@ -138,7 +140,10 @@ export default function SupportConsole({ vertical }) {
     setVerifiedUntil(expiresAt);
   }, [result]);
 
-  const theme = { '--accent': cfg.theme.accent, '--accent2': cfg.theme.accent2, '--tint': cfg.theme.tint };
+  // --tint is derived from --accent in SupportConsole.css via color-mix()
+  // rather than passed in literal — a hardcoded light pastel here would not
+  // adapt to dark mode the way a mix against --th-bg-card does.
+  const theme = { '--accent': cfg.theme.accent, '--accent2': cfg.theme.accent2 };
 
   return (
     <div className="vops" style={theme}>
@@ -150,6 +155,15 @@ export default function SupportConsole({ vertical }) {
         </form>
         <button type="button" className="vops__jumpbtn" onClick={jumpToTrace}>
           Jump to token chain ↓
+        </button>
+        <button
+          type="button"
+          onClick={toggleDarkMode}
+          className="vops__theme-toggle"
+          title="Switch this page between light and dark"
+          aria-pressed={darkMode}
+        >
+          {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
         </button>
       </header>
 

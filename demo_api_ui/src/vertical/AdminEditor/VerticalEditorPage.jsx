@@ -5,6 +5,7 @@ import { OverlayBadge } from './OverlayBadge';
 import { CloneModal } from './CloneModal';
 import { VerticalPipelineMap } from './VerticalPipelineMap';
 import { cssVarsFromBrand } from '../../config/themeZones';
+import { useThemeOptional } from '../../context/ThemeContext';
 import './VerticalEditorPage.css';
 
 const PROTECTED = new Set(['banking', 'admin-console']);
@@ -61,6 +62,7 @@ function diff(seed, edited, prefix = '') {
 }
 
 export function VerticalEditorPage() {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const { pageManifest } = useVertical();
   const [editorValue, setEditorValue] = useState('');
   const [seedValue, setSeedValue] = useState('');
@@ -286,6 +288,15 @@ export function VerticalEditorPage() {
         >
           {brandLoading ? 'Fetching…' : 'Fetch from Brandfetch'}
         </button>
+        <button
+          type="button"
+          onClick={toggleDarkMode}
+          className="vertical-editor__theme-toggle"
+          title="Switch this page between light and dark"
+          aria-pressed={darkMode}
+        >
+          {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
+        </button>
       </header>
 
       {error && <div className="vertical-editor__error">{error}</div>}
@@ -326,6 +337,7 @@ export function VerticalEditorPage() {
               language="json"
               value={editorValue}
               onChange={(v) => setEditorValue(v || '')}
+              theme={darkMode ? 'vs-dark' : 'light'}
               options={{ formatOnPaste: true, formatOnType: true, minimap: { enabled: false } }}
             />
             <div className="vertical-editor__actions">
