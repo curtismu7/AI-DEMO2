@@ -242,7 +242,7 @@ export default function ClientCredentialsResourcePage() {
                   <ClaimRow label="Issuer (iss)" value={ccTokenClaims?.iss} glossary={CLAIM_GLOSSARY.iss} />
                   {ccTokenClaims?.aud && (
                     <div className="ccrsp-claim-row">
-                      <span className="ccrsp-claim-key" title={CLAIM_GLOSSARY.aud} style={{ cursor: 'help', borderBottom: '1px dotted #b6c2cf' }}>
+                      <span className="ccrsp-claim-key ccrsp-claim-key--glossary" title={CLAIM_GLOSSARY.aud}>
                         Audience (aud)
                       </span>
                       <span className="ccrsp-claim-value">
@@ -252,7 +252,7 @@ export default function ClientCredentialsResourcePage() {
                   )}
                   {tokenMetadata?.scopes && tokenMetadata.scopes.length > 0 && (
                     <div className="ccrsp-claim-row">
-                      <span className="ccrsp-claim-key" title={CLAIM_GLOSSARY.scope} style={{ cursor: 'help', borderBottom: '1px dotted #b6c2cf' }}>
+                      <span className="ccrsp-claim-key ccrsp-claim-key--glossary" title={CLAIM_GLOSSARY.scope}>
                         Scopes
                       </span>
                       <ScopesBadges scopes={tokenMetadata.scopes} />

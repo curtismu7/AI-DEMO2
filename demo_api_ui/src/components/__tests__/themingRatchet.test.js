@@ -244,8 +244,14 @@ describe('theming ratchet', () => {
  *
  * Literal grounds are deliberately not counted. They do not flip, so inherited
  * near-black stays correct against them.
+ *
+ * 452 -> 453: ClientCredentialsResourcePage.css's `.ccrsp-page .app-page-card`
+ * scopes a fix for the shared app-page-card background (appShellPages.css,
+ * no dark override) to this one page rather than that shared file. Every
+ * child inside those cards already has its own ccrsp-* color class — a
+ * textbook "container whose every child sets a colour" harmless match.
  */
-const MAX_GROUND_WITHOUT_INK = 452;
+const MAX_GROUND_WITHOUT_INK = 453;
 
 const CSS_RULE = /([^{}]+)\{([^{}]*)\}/g;
 const HAS_COLOR = /(?:^|\n)\s*color\s*:/;

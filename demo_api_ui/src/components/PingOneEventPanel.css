@@ -4,8 +4,16 @@
  * DashboardShell; this panel is mounted directly under AppShell so it
  * carries its own toggle. Every color here used to be a var(--x, #fallback)
  * where --x was never defined anywhere, so it always silently rendered the
- * light-mode fallback — none of these names are real tokens. */
-.pingone-event-panel { padding: 16px; }
+ * light-mode fallback — none of these names are real tokens. AppShell's
+ * .main-content is transparent and <body> never flips with the theme (the
+ * same #1484 bug DashboardShell's .dash works around), so this panel paints
+ * its own ground rather than let the light body bleed through in dark mode. */
+.pingone-event-panel {
+  padding: 16px;
+  background: var(--th-bg-page);
+  color: var(--th-text);
+  min-height: 100%;
+}
 
 .pingone-event-panel__header {
   display: flex;
