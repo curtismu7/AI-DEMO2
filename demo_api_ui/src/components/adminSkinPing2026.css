@@ -119,6 +119,12 @@ body.admin-skin-p1 .admin-side-nav__label {
 body.admin-skin-p1 .admin-side-nav__icon {
   color: var(--th-text-muted);
 }
+/* Collapsed rail: the icon IS the label — no text sits beside it to carry
+   legibility, so the muted tone that's fine next to a label reads as
+   barely-visible on its own at 16px against the dark panel. */
+body.admin-skin-p1 .admin-side-nav--collapsed .admin-side-nav__icon {
+  color: var(--th-text);
+}
 body.admin-skin-p1 .admin-side-nav__item:hover {
   background: var(--th-bg-inset) !important;
   color: var(--th-text);
