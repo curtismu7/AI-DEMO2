@@ -197,12 +197,13 @@ export default function PrivilegeMcpClientPage() {
   // arrived. See the blockedDetail comment above.
   const deniedDoor = doorName(config.mcpUrl);
   const [showSignInModal, setShowSignInModal] = useState(false);
-  // direct mode has no auth at all ("nobody checks who asked" — see GATEWAY_MODES
-  // above), so a 401-shaped error there is never a real sign-in prompt. Every
-  // isGatewayAuthChallenge() call site routes through here instead of the raw
-  // setter so that guard lives in one place, not seven.
+  // "No Privilege in the path" (GATEWAY_MODES above) describes what Direct
+  // mode adds on top of a door, not whether the door itself needs a bearer —
+  // opensearch and brave still façade-challenge (requireBearer, see
+  // mcpFacade.js's DOORS), so a 401 there is exactly as real as it is under
+  // Façade/Privilege. Every isGatewayAuthChallenge() call site routes through
+  // here instead of the raw setter so this stays in one place, not seven.
   const requestSignIn = () => {
-    if (gatewayMode === 'direct') return;
     setShowSignInModal(true);
   };
   const [showFlowModal, setShowFlowModal] = useState(false);

@@ -540,7 +540,14 @@ async function fetchMcp(session, pathname, body, withAuth = true, allowRefreshRe
     throw err;
   }
   if (parsed?.error) {
-    throw new Error(`MCP RPC error: ${parsed.error.message || JSON.stringify(parsed.error)}`);
+    // A door can legitimately answer 200 with a JSON-RPC-level error (the
+    // pingone-admin local handler does, for any method it doesn't implement)
+    // — carry the code the same way the !response.ok branch above does, so
+    // ensureMcpSessionInitialized's era-fallback can see it.
+    const err = new Error(`MCP RPC error: ${parsed.error.message || JSON.stringify(parsed.error)}`);
+    err.rpcError = parsed.error;
+    err.upstreamStatus = response.status;
+    throw err;
   }
   if (requestBody?.id !== undefined && parsed?.id !== requestBody.id) {
     throw new Error(`MCP response id mismatch: expected ${requestBody.id}, received ${parsed?.id ?? 'none'}`);
@@ -574,7 +581,12 @@ async function ensureMcpSessionInitialized(session) {
       const modernError = [-32020, -32021, -32022].includes(err.rpcError?.code)
         || (err.upstreamStatus === 404 && err.rpcError?.code === -32601);
       if (modernError) throw err;
-      if (![400, 404, 405].includes(err.upstreamStatus)) throw err;
+      // "Method not found" for server/discover means this door doesn't speak
+      // the modern handshake at all — a door that answers it with a plain
+      // JSON-RPC error over HTTP 200 (pingone-admin's local handler) is just
+      // as clear a signal to fall back as an HTTP 404 would be.
+      const methodNotFound = err.rpcError?.code === -32601;
+      if (!methodNotFound && ![400, 404, 405].includes(err.upstreamStatus)) throw err;
       session.mcpSession.era = 'legacy';
       session.mcpSession.protocolVersion = null;
       session.mcpSession.nextRequestId = 1;
