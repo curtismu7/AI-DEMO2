@@ -47,7 +47,9 @@ import path from 'node:path';
 // /agent-flow-inspector page and the fictional --color-code-bg it exposed).
 // 171 -> 169: CheckPage.css (aliased its local token layer onto --th-*, see
 // THEMING.md 9.2) and ServersPage.css (the /check page).
-const MAX_UNTHEMED = 169;
+// 169 -> 165: CodeExplorerPage.css, ResourceServerPage.css, CodeSearchPage.css
+// and GraphifyPage.css, fully converted from fictional --v2-* tokens.
+const MAX_UNTHEMED = 165;
 
 const SRC = path.join(__dirname, '..', '..');
 
@@ -203,7 +205,7 @@ describe('theming ratchet', () => {
  * Literal grounds are deliberately not counted. They do not flip, so inherited
  * near-black stays correct against them.
  */
-const MAX_GROUND_WITHOUT_INK = 466;
+const MAX_GROUND_WITHOUT_INK = 461;
 
 const CSS_RULE = /([^{}]+)\{([^{}]*)\}/g;
 const HAS_COLOR = /(?:^|\n)\s*color\s*:/;
