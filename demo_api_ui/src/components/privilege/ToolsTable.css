@@ -106,7 +106,7 @@
 .ptt-params { display: flex; flex-wrap: wrap; gap: 5px; }
 .ptt-param {
   font-family: var(--font-mono);
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-sm);
   color: #9cdcfe;
   background: #1a2733;
   border: 1px solid #274156;
@@ -133,12 +133,12 @@
 /* Expanded detail row */
 .ptt-detail-row td { padding: 0 14px 14px; background: #232629; border-bottom: 1px solid #262626; }
 .ptt-detail { display: flex; flex-direction: column; gap: 8px; padding: 4px 0 2px; }
-.ptt-detail-res { display: flex; flex-wrap: wrap; gap: 12px; font-size: var(--font-size-sm); color: #ffffff; }
+.ptt-detail-res { display: flex; flex-wrap: wrap; gap: 12px; font-size: var(--font-size-body); color: #ffffff; }
 .ptt-detail-param code { color: #9cdcfe; font-family: var(--font-mono); }
-.ptt-args-label, .ptt-result-label { font-size: var(--font-size-2xs); font-weight: 700; color: #ffffff; text-transform: uppercase; letter-spacing: 0.4px; }
+.ptt-args-label, .ptt-result-label { font-size: var(--font-size-sm); font-weight: 700; color: #ffffff; text-transform: uppercase; letter-spacing: 0.4px; }
 .ptt-args {
   font-family: var(--font-mono);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-body);
   color: #ffffff;
   background: #010409;
   border: 1px solid #30363d;
@@ -162,9 +162,9 @@
 .ptt-execute:hover { background: #1a8cd8; }
 .ptt-execute:disabled { opacity: 0.5; cursor: default; }
 .ptt-enum-fields { display: flex; flex-wrap: wrap; gap: 12px; }
-.ptt-enum-field { display: flex; flex-direction: column; gap: 3px; font-size: var(--font-size-2xs); color: #ffffff; }
+.ptt-enum-field { display: flex; flex-direction: column; gap: 3px; font-size: var(--font-size-sm); color: #ffffff; }
 .ptt-enum-field select {
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-body);
   color: #ffffff;
   background: #010409;
   border: 1px solid #30363d;
@@ -172,7 +172,7 @@
   padding: 5px 6px;
 }
 .ptt-missing-required {
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-sm);
   color: #f0b429;
   background: #3a2e10;
   border: 1px solid #6b5417;
