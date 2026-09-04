@@ -26,11 +26,19 @@ const PRIVILEGE_CONSOLE_URL =
 // The AI Gateway routes on the application name: /<door>/mcp. Our own façade
 // routes are nested one level deeper (/mcp-facade/<door>/mcp), so the first
 // segment there is always the meaningless "mcp-facade" — skip it.
+//
+// privilege-gateway is itself a multiApp door: /mcp-facade/privilege-gateway/
+// <app>/mcp resolves to <gateway>/<app>/mcp (mcpFacade.js DOORS.privilege-gateway).
+// Naming by the door here would collapse every registered Agentic App
+// (opensearch22, opensearch, brave, ...) to the same "privilege-gateway"
+// label — name by the APP segment instead when one is present.
 function doorName(mcpUrl) {
   try {
     const segments = new URL(mcpUrl).pathname.split('/').filter(Boolean);
-    if (segments[0] === 'mcp-facade') return segments[1] || null;
-    return segments[0] || null;
+    let idx = 0;
+    if (segments[idx] === 'mcp-facade') idx += 1;
+    if (segments[idx] === 'privilege-gateway' && segments.length > idx + 2) idx += 1;
+    return segments[idx] || null;
   } catch { return null; }
 }
 
