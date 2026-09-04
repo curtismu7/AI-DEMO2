@@ -82,7 +82,14 @@ import path from 'node:path';
 // — the ratchet's --th-*/data-theme substring check just doesn't see those;
 // they only needed a reachable toggle, not a stylesheet fix, so they don't
 // move this count.)
-const MAX_UNTHEMED = 147;
+// 147 -> 138: ClientCredentialsResourcePage.css, PostmanCollectionsPage.css,
+// Profile.css, SecurityCenter.css, AgentLifecyclePage.css,
+// DelegatedCommercePage.css, OwaspLearnerPage.css, DemoTrackPage.css and
+// PingOneEventPanel.css, fully converted — the last of the remaining
+// nav-reachable pages from the full audit. Each page's own brand/legend
+// accent (the CC orange, --dtp-red/--dc-navy/--dc-blue, the #0a66c2 OWASP
+// blue, the SecurityCenter navy header) stays literal per THEMING.md §1.3.
+const MAX_UNTHEMED = 138;
 
 const SRC = path.join(__dirname, '..', '..');
 

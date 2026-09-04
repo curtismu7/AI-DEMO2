@@ -1,11 +1,37 @@
-/* Profile — User Portal styles */
+/* Profile — User Portal styles. Themed with --th-* per THEMING.md. The
+ * maroon accent (#c0392b family) is this page's own brand identity —
+ * card left-border, edit/focus accents — and stays literal (THEMING.md
+ * §1.3), consistent everywhere it appears in this file. */
 
 .up-page {
   max-width: 960px;
   margin: 0 auto;
   padding: 2.5rem 1.5rem;
-  background: #fff;
+  background: var(--th-bg-page);
+  color: var(--th-text);
   min-height: 100vh;
+}
+
+.up-theme-toggle {
+  display: block;
+  margin: 0 0 1rem auto;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--th-border);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.up-theme-toggle:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+.up-icon-success {
+  color: var(--th-status-success);
 }
 
 /* ── Page heading ─────────────────────────────────────────── */
@@ -17,12 +43,12 @@
 .up-heading h1 {
   font-size: 2rem;
   font-weight: 700;
-  color: #1a1a1a;
+  color: var(--th-text);
   margin: 0 0 0.4rem;
 }
 
 .up-heading p {
-  color: #555;
+  color: var(--th-text-muted);
   margin: 0;
   font-size: 0.95rem;
 }
@@ -30,7 +56,8 @@
 /* ── Card ─────────────────────────────────────────────────── */
 .up-card {
   border-left: 4px solid #c0392b;
-  background: #fff;
+  background: var(--th-bg-card);
+  color: var(--th-text);
   border-radius: 0 6px 6px 0;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
   margin-bottom: 1.75rem;
@@ -47,7 +74,7 @@
 .up-card__title {
   font-size: 1.1rem;
   font-weight: 700;
-  color: #1a1a1a;
+  color: var(--th-text);
 }
 
 /* ── Field grid ───────────────────────────────────────────── */
@@ -71,29 +98,29 @@
   font-size: 0.7rem;
   font-weight: 600;
   letter-spacing: 0.06em;
-  color: #888;
+  color: var(--th-text-muted);
   text-transform: uppercase;
 }
 
 .up-field__value {
   font-size: 0.95rem;
-  color: #1a1a1a;
+  color: var(--th-text);
 }
 
 .up-field__value--status.ok {
-  color: #27ae60;
+  color: var(--th-status-success-text);
   font-weight: 600;
 }
 
 .up-field__value--status.disabled {
-  color: #c0392b;
+  color: var(--th-status-error-text);
   font-weight: 600;
 }
 
 .up-field__value--mono {
   font-family: var(--font-mono);
   font-size: 0.85rem;
-  color: #444;
+  color: var(--th-text-body);
   word-break: break-all;
 }
 
@@ -114,7 +141,7 @@
 
 .up-field__desc {
   font-size: 0.85rem;
-  color: #666;
+  color: var(--th-text-muted);
   font-weight: normal;
 }
 
@@ -124,7 +151,8 @@
   height: 26px;
   border: none;
   border-radius: 13px;
-  background: #d1d5db;
+  background: var(--th-border-strong);
+  color: transparent;
   cursor: pointer;
   transition: background 0.2s, opacity 0.15s;
   flex-shrink: 0;
@@ -137,7 +165,8 @@
 }
 
 .up-toggle--on {
-  background: #27ae60;
+  background: var(--th-status-success);
+  color: transparent;
 }
 
 .up-toggle__knob {
@@ -174,16 +203,17 @@
   font-size: 0.7rem;
   font-weight: 600;
   letter-spacing: 0.06em;
-  color: #888;
+  color: var(--th-text-muted);
   text-transform: uppercase;
 }
 
 .up-form__field input {
   padding: 0.55rem 0.75rem;
-  border: 1px solid #d0d0d0;
+  border: 1px solid var(--th-border);
   border-radius: 4px;
   font-size: 0.95rem;
-  color: #1a1a1a;
+  color: var(--th-text);
+  background: var(--th-bg-card);
   outline: none;
 }
 
@@ -224,12 +254,13 @@
 }
 
 .up-btn--secondary {
-  background: #eee;
-  color: #333;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
 }
 
 .up-btn--secondary:hover:not(:disabled) {
-  background: #ddd;
+  background: var(--th-bg-hover);
+  color: var(--th-text);
 }
 
 .up-btn--remove {
@@ -259,15 +290,16 @@
 
 .up-btn--refresh {
   width: 100%;
-  background: #f4f4f4;
-  color: #444;
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
   padding: 0.5rem 1rem;
   text-align: center;
-  border: 1px solid #ddd;
+  border: 1px solid var(--th-border);
 }
 
 .up-btn--refresh:hover:not(:disabled) {
-  background: #e8e8e8;
+  background: var(--th-bg-hover);
+  color: var(--th-text-body);
 }
 
 /* ── MFA layout ───────────────────────────────────────────── */
@@ -288,12 +320,12 @@
 .up-device-list__label {
   font-size: 0.8rem;
   font-weight: 600;
-  color: #555;
+  color: var(--th-text-muted);
   margin-bottom: 0.25rem;
 }
 
 .up-device-empty {
-  color: #888;
+  color: var(--th-text-muted);
   font-size: 0.9rem;
   padding: 0.5rem 0;
 }
@@ -302,14 +334,15 @@
   display: flex;
   align-items: center;
   gap: 0.85rem;
-  border: 1px solid #e8e8e8;
+  border: 1px solid var(--th-border);
   border-radius: 6px;
   padding: 0.75rem 1rem;
-  background: #fafafa;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
 }
 
 .up-device__icon {
-  color: #555;
+  color: var(--th-text-muted);
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -325,18 +358,18 @@
 .up-device__name {
   font-size: 0.9rem;
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--th-text);
 }
 
 .up-device__sub {
   font-size: 0.78rem;
-  color: #777;
+  color: var(--th-text-muted);
 }
 
 .up-device__badge {
   font-size: 0.75rem;
   font-weight: 600;
-  color: #27ae60;
+  color: var(--th-status-success-text);
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -345,10 +378,11 @@
 .up-manage-panel {
   width: 220px;
   flex-shrink: 0;
-  border: 1px solid #e8e8e8;
+  border: 1px solid var(--th-border);
   border-radius: 6px;
   padding: 1rem;
-  background: #fafafa;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
   display: flex;
   flex-direction: column;
 }
@@ -356,13 +390,13 @@
 .up-manage-panel__label {
   font-size: 0.8rem;
   font-weight: 600;
-  color: #555;
+  color: var(--th-text-muted);
   margin-bottom: 0.4rem;
 }
 
 .up-manage-panel__desc {
   font-size: 0.82rem;
-  color: #777;
+  color: var(--th-text-muted);
   margin: 0 0 0.75rem;
 }
 
@@ -403,7 +437,8 @@
 }
 
 .up-modal {
-  background: #fff;
+  background: var(--th-bg-card);
+  color: var(--th-text);
   border-radius: 8px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
   width: 100%;
@@ -421,7 +456,7 @@
 .up-modal__title {
   font-size: 1.05rem;
   font-weight: 700;
-  color: #1a1a1a;
+  color: var(--th-text);
 }
 
 .up-modal__close {
@@ -429,13 +464,13 @@
   border: none;
   font-size: 1rem;
   cursor: pointer;
-  color: #666;
+  color: var(--th-text-muted);
   padding: 0.25rem;
   line-height: 1;
 }
 
 .up-modal__close:hover {
-  color: #1a1a1a;
+  color: var(--th-text);
 }
 
 .up-modal__body {
@@ -447,7 +482,7 @@
 
 .up-modal__desc {
   margin: 0;
-  color: #555;
+  color: var(--th-text-muted);
   font-size: 0.9rem;
   line-height: 1.5;
 }

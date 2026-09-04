@@ -1,14 +1,18 @@
-/* SecurityCenter.css — Chase-branded security center styles */
+/* SecurityCenter.css — Chase-branded security center styles. Themed with
+ * --th-* per THEMING.md. The navy card header stays literal — this page's
+ * own brand identity (THEMING.md §1.3). */
 
 .security-center-page,
 .security-overview {
-  background: var(--brand-light-gray, #F5F5F5);
+  background: var(--th-bg-page);
+  color: var(--th-text);
   min-height: 100vh;
   padding: 1.5rem;
 }
 
 .security-card {
-  background: var(--brand-white, #FFFFFF);
+  background: var(--th-bg-card);
+  color: var(--th-text);
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   margin-bottom: 1.5rem;
@@ -38,7 +42,8 @@
 
 /* Security status grid */
 .security-status {
-  background: var(--brand-white, #FFFFFF);
+  background: var(--th-bg-card);
+  color: var(--th-text);
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   padding: 1.5rem;
@@ -56,9 +61,10 @@
   align-items: flex-start;
   gap: 0.75rem;
   padding: 0.75rem;
-  border: 1px solid var(--brand-medium-gray, #E0E0E0);
+  border: 1px solid var(--th-border);
   border-radius: 6px;
-  background: var(--brand-light-gray, #F5F5F5);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
 }
 
 .status-icon {
@@ -70,12 +76,12 @@
 .status-title {
   font-weight: 600;
   font-size: 0.875rem;
-  color: var(--brand-dark-gray, #333333);
+  color: var(--th-text);
 }
 
 .status-desc {
   font-size: 0.8rem;
-  color: #666666;
+  color: var(--th-text-muted);
   margin-top: 0.125rem;
 }
 
@@ -99,7 +105,7 @@
   border: none;
   background: none;
   padding: 0;
-  color: #2563eb;
+  color: var(--signin-accent);
   font-weight: 600;
   cursor: pointer;
   text-decoration: underline;

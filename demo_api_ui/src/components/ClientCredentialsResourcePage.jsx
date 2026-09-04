@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { notifySessionExpiredIfNeeded } from '../utils/authUi';
+import { useThemeOptional } from '../context/ThemeContext';
 import SignInPrompt from './SignInPrompt';
 import ResourceServerTester, { CLIENT_CREDENTIALS_SOURCES } from './ResourceServerTester';
 import '../styles/appShellPages.css';
@@ -49,9 +50,8 @@ function ClaimRow({ label, value, glossary }) {
   return (
     <div className="ccrsp-claim-row">
       <span
-        className="ccrsp-claim-key"
+        className={glossary ? 'ccrsp-claim-key ccrsp-claim-key--glossary' : 'ccrsp-claim-key'}
         title={glossary || ''}
-        style={{ cursor: glossary ? 'help' : 'default', borderBottom: glossary ? '1px dotted #b6c2cf' : 'none' }}
       >
         {label}
       </span>
@@ -72,6 +72,7 @@ function ScopesBadges({ scopes }) {
 }
 
 export default function ClientCredentialsResourcePage() {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -149,6 +150,15 @@ export default function ClientCredentialsResourcePage() {
             <Link to="/resource-server" className="app-page-shell__btn app-page-shell__btn--solid">
               OIDC version →
             </Link>
+            <button
+              type="button"
+              onClick={toggleDarkMode}
+              className="app-page-toolbar-btn app-page-toolbar-btn--theme"
+              title="Switch this page between light and dark"
+              aria-pressed={darkMode}
+            >
+              {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
+            </button>
           </div>
         </div>
       </header>

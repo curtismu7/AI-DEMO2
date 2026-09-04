@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import bffAxios from '../services/bffAxios';
 import AgentAccessCard from './AgentAccessCard';
 import SignInPrompt from './SignInPrompt';
+import { useThemeOptional } from '../context/ThemeContext';
 import './Profile.css';
 
 function DeviceIcon({ type }) {
@@ -45,6 +46,7 @@ function DeviceIcon({ type }) {
 }
 
 export default function Profile({ user }) {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
@@ -204,6 +206,15 @@ export default function Profile({ user }) {
   if (!user) {
     return (
       <div className="up-page">
+        <button
+          type="button"
+          onClick={toggleDarkMode}
+          className="up-theme-toggle"
+          title="Switch this page between light and dark"
+          aria-pressed={darkMode}
+        >
+          {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
+        </button>
         <div className="up-heading">
           <h1>User Portal</h1>
           <p>Manage your profile and multi-factor authentication devices.</p>
@@ -215,6 +226,15 @@ export default function Profile({ user }) {
 
   return (
     <div className="up-page">
+      <button
+        type="button"
+        onClick={toggleDarkMode}
+        className="up-theme-toggle"
+        title="Switch this page between light and dark"
+        aria-pressed={darkMode}
+      >
+        {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
+      </button>
       <div className="up-heading">
         <h1>User Portal</h1>
         <p>Manage your profile and multi-factor authentication devices.</p>
@@ -330,7 +350,7 @@ export default function Profile({ user }) {
                   </span>
                 </div>
                 <span className="up-device__badge">
-                  <MdCheckCircle aria-hidden style={{ verticalAlign: 'middle', marginRight: 4, color: '#2e7d32' }} /> Verified
+                  <MdCheckCircle aria-hidden className="up-icon-success" style={{ verticalAlign: 'middle', marginRight: 4 }} /> Verified
                 </span>
                 <button
                   type="button"
@@ -432,7 +452,7 @@ export default function Profile({ user }) {
                   <span className="up-modal__title">Device Added</span>
                 </div>
                 <div className="up-modal__body">
-                  <p className="up-modal__desc"><MdCheckCircle aria-hidden style={{ verticalAlign: 'middle', marginRight: 6, color: '#2e7d32' }} /> Email OTP device enrolled successfully.</p>
+                  <p className="up-modal__desc"><MdCheckCircle aria-hidden className="up-icon-success" style={{ verticalAlign: 'middle', marginRight: 6 }} /> Email OTP device enrolled successfully.</p>
                   <div className="up-modal__actions">
                     <button type="button" className="up-btn up-btn--edit" onClick={() => setEnrollStep(null)}>Done</button>
                   </div>

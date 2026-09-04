@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import PageNav from './PageNav';
 import './PostmanCollectionsPage.css';
 import { notifyError } from '../utils/appToast';
+import { useThemeOptional } from '../context/ThemeContext';
 
 // Collection metadata with descriptions and audience
 const POSTMAN_COLLECTIONS = [
@@ -129,6 +130,7 @@ const ENVIRONMENT_FILES = [
 ];
 
 export default function PostmanCollectionsPage({ user, onLogout }) {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const [downloadStats, setDownloadStats] = useState({});
 
   // Handle file download
@@ -160,13 +162,13 @@ export default function PostmanCollectionsPage({ user, onLogout }) {
     }
   };
 
-  // Get difficulty color
-  const getDifficultyColor = (difficulty) => {
+  // Get difficulty modifier class
+  const getDifficultyClass = (difficulty) => {
     switch (difficulty) {
-      case 'Beginner': return '#22c55e';
-      case 'Intermediate': return '#f59e0b';
-      case 'Advanced': return '#ef4444';
-      default: return '#6b7280';
+      case 'Beginner': return 'postman-card__difficulty--beginner';
+      case 'Intermediate': return 'postman-card__difficulty--intermediate';
+      case 'Advanced': return 'postman-card__difficulty--advanced';
+      default: return 'postman-card__difficulty--default';
     }
   };
 
@@ -187,6 +189,17 @@ export default function PostmanCollectionsPage({ user, onLogout }) {
       <PageNav user={user} onLogout={onLogout} title="Postman Collections" />
       
       <main className="postman-page__main">
+        <div className="postman-page__toolbar">
+          <button
+            type="button"
+            onClick={toggleDarkMode}
+            className="postman-theme-toggle"
+            title="Switch this page between light and dark"
+            aria-pressed={darkMode}
+          >
+            {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
+          </button>
+        </div>
         <div className="postman-page__header">
           <h1>Postman Collections</h1>
           <p className="postman-page__subtitle">
@@ -242,9 +255,8 @@ export default function PostmanCollectionsPage({ user, onLogout }) {
                   <div className="postman-card__header">
                     <h3>{collection.title}</h3>
                     <div className="postman-card__meta">
-                      <span 
-                        className="postman-card__difficulty"
-                        style={{ color: getDifficultyColor(collection.difficulty) }}
+                      <span
+                        className={`postman-card__difficulty ${getDifficultyClass(collection.difficulty)}`}
                       >
                         {collection.difficulty}
                       </span>

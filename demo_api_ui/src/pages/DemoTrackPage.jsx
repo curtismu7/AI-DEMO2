@@ -4,6 +4,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import apiClient from "../services/apiClient";
 import { requiredFlagsForUseCase } from "../utils/requiredDemoFlags";
+import { useThemeOptional } from "../context/ThemeContext";
 import "./DemoTrackPage.css";
 
 const POLL_MS = 5000;
@@ -94,6 +95,7 @@ function SlotRow({ tag, slot, stamp, prompt, onRun, runStatus, canRun }) {
 }
 
 export default function DemoTrackPage() {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const [state, setState] = useState(null); // { track, run } (live)
   const [history, setHistory] = useState([]);
   const [viewRunId, setViewRunId] = useState("live");
@@ -410,6 +412,15 @@ export default function DemoTrackPage() {
           })}
         </div>
         <div className="dtp-controls">
+          <button
+            type="button"
+            onClick={toggleDarkMode}
+            className="dtp-theme-toggle"
+            title="Switch this page between light and dark"
+            aria-pressed={darkMode}
+          >
+            {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
+          </button>
           <label className="dtp-run-picker">
             Run
             <select aria-label="Run" value={viewRunId} onChange={(e) => setViewRunId(e.target.value)}>
