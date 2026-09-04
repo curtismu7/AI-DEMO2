@@ -16,6 +16,29 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-09-04 — /architecture/token-chain renders the raw mermaid source, not the diagram
+
+`TokenChainArchitecturePage.js` puts its flowchart in a plain
+`<pre className="mermaid">{MERMAID_DIAGRAM}</pre>` and never calls
+`mermaid.initialize()`/`mermaid.run()` itself. Confirmed live: the page shows
+the literal mermaid source text, not a rendered SVG flowchart. Found while
+adding dark/light mode to the page (unrelated — the wrapper/chrome theming
+lands regardless of whether the diagram renders).
+
+Other pages in the same Diagrams nav section (e.g.
+`PrivilegeGatewayTopologyPage.jsx`) import `mermaid` directly and call
+`mermaid.render()` themselves after mount; this page has no such import at
+all, so nothing ever tells mermaid.js this element exists. Whatever earlier
+global initialization this page originally relied on (a `startOnLoad` scan
+tied to the initial page load) doesn't re-run on SPA route navigation, so a
+user landing here via in-app navigation — the only way to reach it — never
+sees it fire.
+
+**Why not fixed now:** unrelated to the dark-mode task that found it, and
+the real fix (wiring this page onto the same explicit mermaid.render()
+pattern the other MM pages use) touches rendering logic, not styling —
+better scoped as its own change.
+
 ### [ ] 2026-09-04 — UseCaseLauncherPage.css — literal colors outside the FlagGate/theme-toggle work
 
 **What's wrong.** `--color-accent` and `--color-ping-blue` are referenced only

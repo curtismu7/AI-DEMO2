@@ -1,0 +1,103 @@
+/* ArchitectureOverviewPage.css
+ * The page previously had no stylesheet -- everything was inline style={{}},
+ * including literal colors (REGRESSION_PLAN §0 H3 forbids that; it also
+ * can't track the theme). Only the page chrome gets a real stylesheet here;
+ * the simulation's own node/edge state colors (idle/active/completed/
+ * blocked, in the legend and ArchitectureSimSvg) stay their own literal
+ * palette on purpose -- a state-diagram legend needs fixed, recognizable
+ * colors matching the diagram itself, the same reasoning as the D3 trace
+ * graph canvas elsewhere in this app. */
+
+.aov-page {
+  padding: 1.5rem;
+  background: var(--th-bg-page);
+  color: var(--th-text);
+  min-height: calc(100vh - 64px);
+}
+
+.aov-inner {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.aov-header-row {
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.aov-header-row h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--th-text);
+  margin: 0 0 0.25rem 0;
+}
+
+.aov-subtitle {
+  font-size: 0.9rem;
+  color: var(--th-text-muted);
+  margin: 0;
+}
+
+.aov-subtitle a {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
+.aov-theme-toggle {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--th-border);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.aov-theme-toggle:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+.aov-diagram-wrap {
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-radius: 6px 6px 0 0;
+  overflow: auto;
+  margin-top: 0.5rem;
+  color: var(--th-text);
+}
+
+.aov-legend {
+  display: flex;
+  gap: 1.25rem;
+  padding: 0.3rem 0.8rem;
+  background: var(--th-bg-page);
+  border: 1px solid var(--th-border);
+  border-top: none;
+  font-size: 0.75rem;
+  color: var(--th-text-muted);
+  flex-wrap: wrap;
+}
+
+.aov-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.aov-legend-swatch {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.aov-legend-hint {
+  margin-left: auto;
+  font-style: italic;
+}
