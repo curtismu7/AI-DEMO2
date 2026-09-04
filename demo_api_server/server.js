@@ -676,7 +676,7 @@ const TRACKING_SKIP_PREFIXES = [
     '/healthz', '/health', '/mcp/traffic', '/oauth/monitor',
     // Swagger UI: one page load pulls a dozen static assets plus the spec, which
     // would bury real traffic in the API Explorer.
-    '/docs', '/openapi.json',
+    '/docs', '/openapi.json', '/reference',
 ];
 
 // Auto-track all /api/* calls into the API Explorer (skips polling endpoints to avoid noise)
@@ -1042,7 +1042,7 @@ const swaggerUi = require('swagger-ui-express');
 const { buildSpec: buildOpenApiSpec } = require('./lib/openapiFromRoutes');
 const openApiOverlay = require('./config/openapi-overlay.json');
 let openApiSpecCache = null;
-app.get('/api/openapi.json', authenticateToken, requireAdmin, (req, res) => {
+function openApiSpec() {
     if (!openApiSpecCache) {
         const { spec, unmatchedOverlayKeys } = buildOpenApiSpec(app, { overlay: openApiOverlay });
         if (unmatchedOverlayKeys.length) {
@@ -1050,7 +1050,10 @@ app.get('/api/openapi.json', authenticateToken, requireAdmin, (req, res) => {
         }
         openApiSpecCache = spec;
     }
-    res.json(openApiSpecCache);
+    return openApiSpecCache;
+}
+app.get('/api/openapi.json', authenticateToken, requireAdmin, (req, res) => {
+    res.json(openApiSpec());
 });
 app.use(
     '/api/docs',
@@ -1065,6 +1068,34 @@ app.use(
         customSiteTitle: 'Banking Demo BFF API',
     }),
 );
+
+// Second renderer over the SAME document — Scalar. Two views, one spec: it is
+// handed the built object, so there is no second build and no second fetch.
+// The package is ESM-only and this file is CommonJS, hence the cached dynamic
+// import. A GET route rather than app.use() because Scalar serves one HTML page
+// (its bundle comes from a CDN) — and a route is what makes /api/reference
+// visible to the router introspection, so it documents itself.
+// Theme: `darkMode: false` only seeds the initial state. The app's dark mode is
+// `:root[data-theme="dark"]` set by ThemeContext from localStorage, and this is
+// a separate top-level document, so that attribute cannot reach it. Seeding
+// light matches the app's own default and stops Scalar falling back to
+// prefers-color-scheme, which THEMING.md forbids; Scalar's own toggle still works.
+let scalarHandler = null;
+app.get('/api/reference', authenticateToken, requireAdmin, async (req, res, next) => {
+    try {
+        if (!scalarHandler) {
+            const { apiReference } = await import('@scalar/express-api-reference');
+            scalarHandler = apiReference({
+                content: openApiSpec(),
+                pageTitle: 'Banking Demo BFF API',
+                darkMode: false,
+            });
+        }
+        scalarHandler(req, res, next);
+    } catch (err) {
+        next(err);
+    }
+});
 
 // PingOne MCP setup — isolated endpoint with its own authenticateToken guard
 // (not part of the /api/admin/* prefix pattern; auth is enforced at the route level)

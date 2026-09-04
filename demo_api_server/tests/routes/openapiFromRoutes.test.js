@@ -72,6 +72,15 @@ describe('auth inference', () => {
     }
   });
 
+  test('both doc renderers and the spec itself are admin-gated', () => {
+    // The spec enumerates every endpoint the BFF exposes, and both renderers
+    // offer "Try it out" against a live session — so all three are admin-only.
+    // /api/docs is app.use()-mounted (swagger-ui serves static assets) and so is
+    // not a router route; the two that ARE routes must both report admin.
+    expect(spec.paths['/api/openapi.json'].get.security).toEqual([{ admin: [] }]);
+    expect(spec.paths['/api/reference'].get.security).toEqual([{ admin: [] }]);
+  });
+
   test('a public route carries no security', () => {
     expect(spec.paths['/api/use-cases'].get.security).toBeUndefined();
   });
