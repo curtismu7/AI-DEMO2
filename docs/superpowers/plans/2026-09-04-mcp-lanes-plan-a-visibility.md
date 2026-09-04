@@ -157,7 +157,7 @@ git commit -m "feat(privilege-mcp): report gateway session state from /state"
 
 **Design note:** the banner shows only when the session is **not** ready, and only in `facade` mode — that is the only mode whose door uses the server-side token. Showing it in `direct` or `privilege` mode would be noise, because those modes carry the caller's own bearer.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test** — DONE
 
 Create `demo_api_ui/src/pages/__tests__/PrivilegeMcpClientPage.gatewaySession.test.jsx`:
 
@@ -219,7 +219,8 @@ describe("gateway session banner", () => {
     mockState({ gatewayMode: "facade", gatewaySession: { ready: false, reason: "no_session" } });
     renderPage();
 
-    expect(await screen.findByText(/gateway session/i)).toBeInTheDocument();
+    // Specific wording, not /gateway session/i — that also matches the button.
+    expect(await screen.findByText(/gateway session not established/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /re-arm gateway session/i })).toBeInTheDocument();
   });
 
@@ -278,7 +279,7 @@ describe("gateway session banner", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails** — DONE (reverting only the JSX fails the 2 positive tests; the 2 negative ones pass vacuously by design)
 
 ```bash
 cd demo_api_ui && npx vitest run src/pages/__tests__/PrivilegeMcpClientPage.gatewaySession.test.jsx
@@ -288,7 +289,7 @@ Expected: FAIL — no element matching `/re-arm gateway session/i`.
 
 Note: if `npx vitest` reports `PASS (0)` or pulls a different vitest, run `npm run test:unit -- src/pages/__tests__/PrivilegeMcpClientPage.gatewaySession.test.jsx` instead. In a worktree `npx` can fetch the wrong binary and report zero tests as green.
 
-- [ ] **Step 3: Render the banner**
+- [x] **Step 3: Render the banner** — DONE
 
 First confirm `useCallback` and `useState` are already imported at the top of the file — this page is large and already uses both, but check rather than assume:
 
@@ -345,7 +346,7 @@ Render the banner just above the tools panel, gated on façade mode:
       )}
 ```
 
-- [ ] **Step 4: Style it with theme tokens**
+- [x] **Step 4: Style it with theme tokens** — DONE
 
 Append to `demo_api_ui/src/pages/PrivilegeMcpClientPage.css`:
 
@@ -358,10 +359,10 @@ Append to `demo_api_ui/src/pages/PrivilegeMcpClientPage.css`:
   gap: 0.5rem;
   padding: 0.5rem 0.75rem;
   margin: 0 0 0.75rem;
-  border: 1px solid var(--th-warn-border, var(--th-border));
+  border: 1px solid var(--th-status-warning-border);
   border-radius: 6px;
-  background: var(--th-warn-bg, var(--th-surface-2));
-  color: var(--th-text);
+  background: var(--th-status-warning-bg);
+  color: var(--th-status-warning-text);
   font-size: var(--font-size-xs);
 }
 
@@ -375,17 +376,17 @@ Append to `demo_api_ui/src/pages/PrivilegeMcpClientPage.css`:
   padding: 0.25rem 0.6rem;
   border: 1px solid var(--th-border);
   border-radius: 4px;
-  background: var(--th-surface);
+  background: var(--th-bg-card);
   color: var(--th-text);
   cursor: pointer;
 }
 
 .cur-gw-session-warn__btn:hover {
-  background: var(--th-surface-2);
+  background: var(--th-bg-hover);
 }
 ```
 
-- [ ] **Step 5: Run the test to verify it passes**
+- [x] **Step 5: Run the test to verify it passes** — DONE, 7 tests (4 planned + 3 error-path)
 
 ```bash
 cd demo_api_ui && npm run test:unit -- src/pages/__tests__/PrivilegeMcpClientPage.gatewaySession.test.jsx
@@ -393,17 +394,18 @@ cd demo_api_ui && npm run test:unit -- src/pages/__tests__/PrivilegeMcpClientPag
 
 Expected: PASS, 4 tests.
 
-- [ ] **Step 6: Verify the theme tokens actually resolve**
+- [x] **Step 6: Verify the theme tokens actually resolve** — DONE, and they did not
 
-The `--th-warn-*` tokens may not exist. Confirm before committing:
+`--th-warn-bg`/`--th-warn-border` do not exist; nor do `--th-surface`/`--th-surface-2`.
+The only grep hit was a stale comment in `EnterpriseMcpDemoPage.css` listing invented
+names. The real tokens, defined in **both** the light and dark blocks of `src/index.css`,
+are `--th-status-warning-{bg,border,text}`, `--th-bg-card`, `--th-bg-hover`,
+`--th-status-error`, `--font-size-2xs`. Step 4 above is corrected to use them with no
+fallbacks. **Any later task styling this page must grep `src/index.css` for the
+definition before using a `--th-*` name** — never trust a name quoted in another page's
+comment.
 
-```bash
-cd demo_api_ui && grep -rn "th-warn-bg\|th-warn-border" src/styles src/theme | head
-```
-
-If they do not exist, the `var(--th-…, fallback)` second argument already covers it — leave as written. If they do exist, drop the fallbacks.
-
-- [ ] **Step 7: Build gate**
+- [x] **Step 7: Build gate** — DONE, `npm run build` exit 0
 
 ```bash
 cd demo_api_ui && npm run build
@@ -411,7 +413,25 @@ cd demo_api_ui && npm run build
 
 Expected: build succeeds. A green test run is not the gate; the build is.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit** — DONE
+
+**Hardening added beyond the plan (error handling).** Three defects the plan's happy
+path did not cover, all fixed at the shared function rather than at the banner:
+
+1. `window.location.href = data.authUrl` appeared at **five** call sites with no guard.
+   A 200 with no `authUrl` navigated the browser to the literal string `"undefined"` —
+   blank page, nothing logged. All five now go through `startAuthRedirect()`, which
+   throws instead.
+2. `switchGatewayMode` returned early when `saved.oauth?.authenticated` — so re-arm
+   would switch mode, arm nothing, and say nothing whenever a restored token slot
+   outlived the gateway-session singleton. Re-arm now passes `{ forceReauth: true }`,
+   which skips that shortcut. This is Ruling 5's dead-end button by a second route.
+3. The mode was set optimistically and never reverted on failure, so a failed switch
+   left the UI claiming a mode the BFF rejected — and unmounted the façade-only banner,
+   taking the error with it. The catch now restores the previous mode and config, and
+   returns the message so the banner renders it inline (`role="alert"`).
+
+The button is `disabled` while a switch is in flight.
 
 ```bash
 git add demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx demo_api_ui/src/pages/PrivilegeMcpClientPage.css demo_api_ui/src/pages/__tests__/PrivilegeMcpClientPage.gatewaySession.test.jsx

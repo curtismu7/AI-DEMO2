@@ -1756,3 +1756,50 @@ select.cur-input { cursor: pointer; }
   flex-wrap: wrap;
   gap: 8px;
 }
+
+/* Gateway session warning — facade mode only. Real status tokens, not literals:
+   this page is themed and a hard-coded amber goes muddy in dark mode. */
+.cur-gw-session-warn {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  margin: 0 0 0.75rem;
+  border: 1px solid var(--th-status-warning-border);
+  border-radius: 6px;
+  background: var(--th-status-warning-bg);
+  color: var(--th-status-warning-text);
+  font-size: var(--font-size-xs);
+}
+
+.cur-gw-session-warn__icon {
+  flex: 0 0 auto;
+}
+
+.cur-gw-session-warn__btn {
+  margin-left: auto;
+  flex: 0 0 auto;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--th-border);
+  border-radius: 4px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  cursor: pointer;
+}
+
+.cur-gw-session-warn__btn:hover:not(:disabled) {
+  background: var(--th-bg-hover);
+}
+
+.cur-gw-session-warn__btn:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+/* Re-arm failure lands on its own row — the button holds margin-left:auto. */
+.cur-gw-session-warn__err {
+  flex: 1 0 100%;
+  color: var(--th-status-error);
+  font-size: var(--font-size-2xs);
+}
