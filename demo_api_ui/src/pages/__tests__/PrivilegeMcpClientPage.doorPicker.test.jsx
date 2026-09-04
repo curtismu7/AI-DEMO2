@@ -106,11 +106,13 @@ describe("titlebar door picker", () => {
     expect(posted[0].mcpUrl).toBe(EXTERNAL);
   });
 
-  it("is absent in Direct mode when only one direct door is known", async () => {
+  it("still appears in Direct mode with only one direct door known — a live readout, not just a switcher", async () => {
     mockApi({ gatewayMode: "direct", mcpUrl: AGENT });
     renderPage();
     await waitFor(() => expect(screen.getByLabelText("Connection path")).toBeTruthy());
-    expect(picker()).toBeNull();
+    await waitFor(() => expect(picker()).toBeTruthy());
+    const options = [...picker().options].map((o) => o.textContent);
+    expect(options).toHaveLength(1);
   });
 
   it("appears in Direct mode once a sibling direct door exists, and switching still works", async () => {
@@ -140,12 +142,32 @@ describe("titlebar door picker", () => {
     expect(posted[0].mcpUrl).toBe(BRAVE);
   });
 
-  it("is absent when this gateway has only one door — a one-option select is furniture", async () => {
+  it("lists the agent-gateway preset alongside its Direct-mode siblings", async () => {
+    const FACADE_ORIGIN = "https://ai-demo.example.com";
+    const OPENSEARCH = `${FACADE_ORIGIN}/mcp-facade/opensearch/mcp`;
+    const AGENT_GATEWAY = `${FACADE_ORIGIN}/mcp-facade/agent-gateway/mcp`;
+    mockApi({
+      gatewayMode: "direct",
+      mcpUrl: OPENSEARCH,
+      presets: [
+        { label: "1 · Direct — no Privilege in the path", mode: "direct", url: OPENSEARCH },
+        { label: "Direct — Agent Gateway", mode: "direct", url: AGENT_GATEWAY },
+      ],
+    });
+    renderPage();
+    await waitFor(() => expect(picker()).toBeTruthy());
+
+    const options = [...picker().options].map((o) => o.textContent);
+    expect(options).toEqual(["opensearch", "agent-gateway"]);
+  });
+
+  it("still appears with only one door on the current gateway — a single-target readout", async () => {
     // one Privilege door + the Direct target + the audit facade: only ONE is a
-    // door on the current gateway, so the picker must not appear.
+    // door on the current gateway, but the picker still shows it.
     mockApi({ presets: [PRESETS[0], PRESETS[2], PRESETS[3]] });
     renderPage();
-    await waitFor(() => expect(screen.getByLabelText("Connection path")).toBeTruthy());
-    expect(picker()).toBeNull();
+    await waitFor(() => expect(picker()).toBeTruthy());
+    const options = [...picker().options].map((o) => o.textContent);
+    expect(options).toHaveLength(1);
   });
 });
