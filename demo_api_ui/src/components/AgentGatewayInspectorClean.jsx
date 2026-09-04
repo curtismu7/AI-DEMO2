@@ -19,6 +19,7 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
     setIsChainMode,
     parameters,
     setParameters,
+    updateParameter,
     availablePolicies,
     selectedPolicy,
     setSelectedPolicy,
