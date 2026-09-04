@@ -222,7 +222,7 @@
 }
 
 .arch-aud-trail__arrow {
-  color: #cbd5e1;
+  color: var(--th-text-faint);
   font-size: 0.8rem;
   font-weight: 700;
 }
@@ -262,7 +262,7 @@
 .arch-aud-trail__aud {
   font-size: var(--font-size-3xs);
   font-family: inherit;
-  color: #cbd5e1;
+  color: var(--th-text-faint);
   line-height: 1.2;
 }
 .arch-aud-trail__hop--on  .arch-aud-trail__aud { color: #bfdbfe; }
@@ -336,10 +336,10 @@
   color: var(--th-text-muted);
   margin: 8px 0 5px;
   padding-bottom: 4px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--th-border);
 }
 .arch-token-card__section-label--issued {
-  color: #16a34a;
+  color: var(--th-status-success-text);
 }
 
 .arch-token-card__note {
@@ -526,7 +526,7 @@
   margin: 0;
   font-size: var(--font-size-body);
   font-weight: 600;
-  color: #1f2937;
+  color: var(--th-text);
 }
 
 .arch-chain-close {

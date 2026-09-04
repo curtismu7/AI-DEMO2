@@ -5,7 +5,8 @@
  * authorization, token exchange, and MCP gateway flow.
  */
 import React from 'react';
-import ArchitectureDiagramPage from './ArchitectureDiagramPage';
+import { useThemeOptional } from '../context/ThemeContext';
+import './TokenChainArchitecturePage.css';
 
 const MERMAID_DIAGRAM = `
 %%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#2E5090', 'primaryTextColor': '#fff', 'primaryBorderColor': '#1a3a5c', 'lineColor': '#4a7bb8', 'secondaryColor': '#28a745', 'tertiaryColor': '#f57c00', 'fontFamily': 'sans-serif'}, 'flowchart': {'useMaxWidth': true}}}%%
@@ -131,84 +132,62 @@ graph LR
     style Metadata fill:#d9a308,stroke:#e0e0e0,stroke-width:1px,color:#000
 `;
 
+const CARDS = [
+  { color: '#2E5090', title: '🔐 Authentication', body: <>PingOne issues human token with <code>may_act: agent1</code> delegation claim</> },
+  { color: '#3b5998', title: 'Agent', body: 'Gets own token (client creds), routes to LLM for tool selection' },
+  { color: '#28a745', title: 'Token Exchange', body: 'Combines human + agent tokens into single TX token for MCP calls' },
+  { color: '#f57c00', title: 'Gateway', body: 'Routes tool calls, enforces authorization checks, handles introspection' },
+  { color: '#dc3545', title: '✅ Authorization', body: 'PingAuthorize evaluates policies based on scopes, audience, ACR, transaction details' },
+  { color: '#6f42c1', title: 'MCP Servers', body: 'Tool providers, validate tokens, forward to resources with optional exchange' },
+  { color: '#17a2b8', title: 'Resources', body: 'Backend APIs behind MCP servers, may do token exchange for API keys' },
+  // Yellow (#ffc107) is too light for title text on either page background,
+  // so unlike the others this card's heading tracks the theme instead of
+  // its own accent -- the border still matches the diagram's Safety subgraph.
+  { color: '#ffc107', titleColor: 'themed', title: 'HITL/CIBA', body: 'Step-up flow for high-risk actions (transfers), requires Multi-Factor ACR' },
+];
+
 export default function TokenChainArchitecturePage({ user }) {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   return (
-    <div style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-      <div>
-        <h1>Token Chain Architecture</h1>
-        <p style={{ fontSize: '0.95rem', color: '#666', marginTop: '0.5rem' }}>
-          Complete flow: PingOne auth → Agent → Token Exchange → Agent Gateway → Authorization → Resource Servers
-        </p>
+    <div className="tca-page">
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem' }}>
+        <div>
+          <h1>Token Chain Architecture</h1>
+          <p className="tca-subtitle">
+            Complete flow: PingOne auth → Agent → Token Exchange → Agent Gateway → Authorization → Resource Servers
+          </p>
+        </div>
+        <button
+          type="button"
+          className="tca-theme-toggle"
+          onClick={toggleDarkMode}
+          title="Switch this page between light and dark"
+          aria-pressed={darkMode}
+        >
+          {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
+        </button>
       </div>
 
-      <div style={{
-        background: '#fafafa',
-        padding: '2rem',
-        borderRadius: '8px',
-        border: '1px solid #e0e0e0',
-        overflowX: 'auto'
-      }}>
+      <div className="tca-diagram-frame">
         <pre className="mermaid">
           {MERMAID_DIAGRAM}
         </pre>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem' }}>
-        <div style={{ padding: '1.5rem', background: '#f5f5f5', borderRadius: '6px', borderLeft: '4px solid #2E5090' }}>
-          <div style={{ fontWeight: '600', marginBottom: '0.5rem', color: '#2E5090' }}>🔐 Authentication</div>
-          <div style={{ fontSize: '0.9rem', color: '#555' }}>
-            PingOne issues human token with <code>may_act: agent1</code> delegation claim
+      {/* Card accents match the mermaid subgraph colors above by design —
+          a matched legend, so they stay literal regardless of theme. */}
+      <div className="tca-cards">
+        {CARDS.map(({ color, titleColor, title, body }) => (
+          <div key={title} className="tca-card" style={{ borderLeft: `4px solid ${color}` }}>
+            <div
+              className="tca-card-title"
+              style={titleColor === 'themed' ? undefined : { color }}
+            >
+              {title}
+            </div>
+            <div>{body}</div>
           </div>
-        </div>
-
-        <div style={{ padding: '1.5rem', background: '#f5f5f5', borderRadius: '6px', borderLeft: '4px solid #3b5998' }}>
-          <div style={{ fontWeight: '600', marginBottom: '0.5rem', color: '#3b5998' }}>Agent</div>
-          <div style={{ fontSize: '0.9rem', color: '#555' }}>
-            Gets own token (client creds), routes to LLM for tool selection
-          </div>
-        </div>
-
-        <div style={{ padding: '1.5rem', background: '#f5f5f5', borderRadius: '6px', borderLeft: '4px solid #28a745' }}>
-          <div style={{ fontWeight: '600', marginBottom: '0.5rem', color: '#28a745' }}>Token Exchange</div>
-          <div style={{ fontSize: '0.9rem', color: '#555' }}>
-            Combines human + agent tokens into single TX token for MCP calls
-          </div>
-        </div>
-
-        <div style={{ padding: '1.5rem', background: '#f5f5f5', borderRadius: '6px', borderLeft: '4px solid #f57c00' }}>
-          <div style={{ fontWeight: '600', marginBottom: '0.5rem', color: '#f57c00' }}>Gateway</div>
-          <div style={{ fontSize: '0.9rem', color: '#555' }}>
-            Routes tool calls, enforces authorization checks, handles introspection
-          </div>
-        </div>
-
-        <div style={{ padding: '1.5rem', background: '#f5f5f5', borderRadius: '6px', borderLeft: '4px solid #dc3545' }}>
-          <div style={{ fontWeight: '600', marginBottom: '0.5rem', color: '#dc3545' }}>✅ Authorization</div>
-          <div style={{ fontSize: '0.9rem', color: '#555' }}>
-            PingAuthorize evaluates policies based on scopes, audience, ACR, transaction details
-          </div>
-        </div>
-
-        <div style={{ padding: '1.5rem', background: '#f5f5f5', borderRadius: '6px', borderLeft: '4px solid #6f42c1' }}>
-          <div style={{ fontWeight: '600', marginBottom: '0.5rem', color: '#6f42c1' }}>MCP Servers</div>
-          <div style={{ fontSize: '0.9rem', color: '#555' }}>
-            Tool providers, validate tokens, forward to resources with optional exchange
-          </div>
-        </div>
-
-        <div style={{ padding: '1.5rem', background: '#f5f5f5', borderRadius: '6px', borderLeft: '4px solid #17a2b8' }}>
-          <div style={{ fontWeight: '600', marginBottom: '0.5rem', color: '#17a2b8' }}>Resources</div>
-          <div style={{ fontSize: '0.9rem', color: '#555' }}>
-            Backend APIs behind MCP servers, may do token exchange for API keys
-          </div>
-        </div>
-
-        <div style={{ padding: '1.5rem', background: '#f5f5f5', borderRadius: '6px', borderLeft: '4px solid #ffc107' }}>
-          <div style={{ fontWeight: '600', marginBottom: '0.5rem', color: '#000' }}>HITL/CIBA</div>
-          <div style={{ fontSize: '0.9rem', color: '#555' }}>
-            Step-up flow for high-risk actions (transfers), requires Multi-Factor ACR
-          </div>
-        </div>
+        ))}
       </div>
     </div>
   );

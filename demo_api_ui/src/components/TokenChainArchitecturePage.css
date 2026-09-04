@@ -1,0 +1,70 @@
+/* TokenChainArchitecturePage.css
+ * The page previously had no stylesheet -- everything was inline style={{}}
+ * with literal colors (REGRESSION_PLAN §0 H3). The mermaid diagram's own
+ * subgraph color scheme (init theme + per-node style directives) stays
+ * literal on purpose -- each summary card's colored heading/border below
+ * matches one of those subgraph colors by design, so the two act as a
+ * matched legend and must not drift apart. Only the page chrome (header,
+ * diagram frame, card background/body text) is themed. */
+
+.tca-page {
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.tca-page h1 {
+  color: var(--th-text);
+}
+
+.tca-subtitle {
+  font-size: 0.95rem;
+  color: var(--th-text-muted);
+  margin-top: 0.5rem;
+}
+
+.tca-theme-toggle {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--th-border);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.tca-theme-toggle:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+.tca-diagram-frame {
+  background: var(--th-bg-inset);
+  padding: 2rem;
+  border-radius: 8px;
+  border: 1px solid var(--th-border);
+  overflow-x: auto;
+  color: var(--th-text);
+}
+
+.tca-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+}
+
+.tca-card {
+  padding: 1.5rem;
+  background: var(--th-bg-inset);
+  border-radius: 6px;
+  color: var(--th-text-muted);
+  font-size: 0.9rem;
+}
+
+.tca-card-title {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+  color: var(--th-text);
+}

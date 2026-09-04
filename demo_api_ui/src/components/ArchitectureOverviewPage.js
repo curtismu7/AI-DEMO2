@@ -7,6 +7,8 @@ import ArchitectureSimControls from './ArchitectureSimControls';
 import ArchitectureSimStepDesc from './ArchitectureSimStepDesc';
 import ArchitectureSimSvg from './ArchitectureSimSvg';
 import DiagramExportBar from './DiagramExportBar';
+import { useThemeOptional } from '../context/ThemeContext';
+import './ArchitectureOverviewPage.css';
 
 // ─── State machine ───────────────────────────────────────────────────────────
 
@@ -117,6 +119,7 @@ function simReducer(state, action) {
 // ─── Page component ──────────────────────────────────────────────────────────
 
 export default function ArchitectureOverviewPage() {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const [sim, dispatch] = useReducer(simReducer, INITIAL_STATE);
   const playTimerRef = useRef(null);
   const sseRef = useRef(null);
@@ -179,19 +182,28 @@ export default function ArchitectureOverviewPage() {
   };
 
   return (
-    <div style={{ padding: '1.5rem', background: '#f8fafc', minHeight: 'calc(100vh - 64px)' }}>
-      <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
-        <div style={{ marginBottom: '0.5rem' }}>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', margin: '0 0 0.25rem 0' }}>
-            Architecture Overview
-          </h1>
-          <p style={{ fontSize: '0.9rem', color: '#475569', margin: 0 }}>
-            Interactive simulation of request flows through the banking demo system. For the step-by-step
-            token-exchange walkthrough, see{' '}
-            <a href="/sequence-diagram" style={{ color: '#1d4ed8', textDecoration: 'underline' }}>
-              /sequence-diagram
-            </a>.
-          </p>
+    <div className="aov-page">
+      <div className="aov-inner">
+        <div className="aov-header-row">
+          <div>
+            <h1>Architecture Overview</h1>
+            <p className="aov-subtitle">
+              Interactive simulation of request flows through the banking demo system. For the step-by-step
+              token-exchange walkthrough, see{' '}
+              <a href="/sequence-diagram">
+                /sequence-diagram
+              </a>.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="aov-theme-toggle"
+            onClick={toggleDarkMode}
+            title="Switch this page between light and dark"
+            aria-pressed={darkMode}
+          >
+            {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
+          </button>
         </div>
 
         <ArchitectureSimControls
@@ -206,50 +218,31 @@ export default function ArchitectureOverviewPage() {
           {...handlers}
         />
 
-        <div style={{
-          background: '#ffffff',
-          border: '1px solid #e2e8f0',
-          borderRadius: '6px 6px 0 0',
-          overflow: 'auto',
-          marginTop: '0.5rem',
-        }}>
+        <div className="aov-diagram-wrap">
           <ArchitectureSimSvg
             nodeStates={sim.nodeStates}
             edgeStates={sim.edgeStates}
           />
         </div>
 
-        {/* Colour legend */}
-        <div style={{
-          display: 'flex',
-          gap: '1.25rem',
-          padding: '0.3rem 0.8rem',
-          background: '#f8fafc',
-          border: '1px solid #e2e8f0',
-          borderTop: 'none',
-          fontSize: '0.75rem',
-          color: '#64748b',
-          flexWrap: 'wrap',
-        }}>
+        {/* Colour legend — matches ArchitectureSimSvg's own node-state
+            palette, so it stays its own fixed colors regardless of theme. */}
+        <div className="aov-legend">
           {[
             { bg: '#f1f5f9', border: '#cbd5e1', label: 'Idle' },
             { bg: '#fffbeb', border: '#f59e0b', label: 'Active request' },
             { bg: '#f0fdf4', border: '#22c55e', label: 'Completed' },
             { bg: '#fef2f2', border: '#ef4444', label: 'Blocked / Denied' },
           ].map(({ bg, border, label }) => (
-            <span key={label} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-              <span style={{
-                display: 'inline-block',
-                width: 11, height: 11,
-                borderRadius: 2,
-                background: bg,
-                border: `2px solid ${border}`,
-                flexShrink: 0,
-              }} />
+            <span key={label} className="aov-legend-item">
+              <span
+                className="aov-legend-swatch"
+                style={{ background: bg, border: `2px solid ${border}` }}
+              />
               {label}
             </span>
           ))}
-          <span style={{ marginLeft: 'auto', fontStyle: 'italic' }}>Hover any node for details</span>
+          <span className="aov-legend-hint">Hover any node for details</span>
         </div>
 
         <ArchitectureSimStepDesc
