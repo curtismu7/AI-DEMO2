@@ -33,7 +33,7 @@
 .flag-gate__chip {
   font-family: var(--font-mono);
   font-size: 0.68rem;
-  background: rgba(0, 0, 0, 0.05);
+  background: var(--th-bg-card);
   border: 1px solid var(--th-status-warning-border);
   color: var(--th-status-warning-text);
   padding: 0.1rem 0.4rem;
@@ -50,7 +50,7 @@
   all: unset;
   cursor: pointer;
   background: var(--signin-accent);
-  color: #fff;
+  color: var(--th-text-invert);
   font-size: 0.75rem;
   font-weight: 600;
   padding: 0.4rem 0.7rem;
