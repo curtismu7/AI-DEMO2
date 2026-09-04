@@ -5,10 +5,11 @@
 
 .error-audit-log {
   padding: 24px;
-  background: white;
-  border: 1px solid #e2e8f0;
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
   border-radius: 10px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  color: var(--th-text);
 }
 
 .audit-header {
@@ -23,7 +24,7 @@
   margin: 0;
   font-size: var(--font-size-2xl);
   font-weight: 700;
-  color: #1f2937;
+  color: var(--th-text);
   flex: 1;
 }
 
@@ -39,13 +40,18 @@
   align-items: center;
   gap: 8px;
   font-size: var(--font-size-sm);
-  color: #374151;
+  color: var(--th-text-body);
   cursor: pointer;
 }
 
 .audit-auto-refresh input[type="checkbox"] {
   cursor: pointer;
   accent-color: #3b82f6;
+}
+
+.audit-fetch-error {
+  color: var(--th-status-error-text);
+  padding: 8px 16px;
 }
 
 .audit-filters {
@@ -58,8 +64,9 @@
 .btn {
   padding: 8px 16px;
   border-radius: 6px;
-  border: 1px solid #d1d5db;
-  background: white;
+  border: 1px solid var(--th-border);
+  background: var(--th-bg-card);
+  color: var(--th-text);
   font-size: var(--font-size-sm);
   font-weight: 600;
   cursor: pointer;
@@ -70,18 +77,20 @@
 }
 
 .btn:hover {
-  background: #f3f4f6;
-  border-color: #9ca3af;
+  background: var(--th-bg-hover);
+  border-color: var(--th-border-strong);
+  color: var(--th-text);
 }
 
 .btn-secondary {
-  background: white;
-  color: #374151;
-  border: 1px solid #d1d5db;
+  background: var(--th-bg-card);
+  color: var(--th-text-body);
+  border: 1px solid var(--th-border);
 }
 
 .btn-secondary:hover {
-  background: #f3f4f6;
+  background: var(--th-bg-hover);
+  color: var(--th-text-body);
 }
 
 .btn-primary {
@@ -121,7 +130,7 @@
 
 .audit-entries {
   margin-bottom: 20px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--th-border);
   border-radius: 4px;
   overflow: hidden;
 }
@@ -129,7 +138,7 @@
 .audit-empty {
   padding: 40px;
   text-align: center;
-  color: #9ca3af;
+  color: var(--th-text-faint);
 }
 
 .audit-empty p {
@@ -138,7 +147,7 @@
 }
 
 .audit-entry {
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--th-border);
 }
 
 .audit-entry:last-child {
@@ -150,7 +159,8 @@
   grid-template-columns: 120px 150px 1fr auto;
   gap: 12px;
   padding: 12px 16px;
-  background: #f9fafb;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
   cursor: pointer;
   align-items: center;
   transition: background-color 0.2s;
@@ -158,7 +168,8 @@
 }
 
 .audit-entry__header:hover {
-  background: #f3f4f6;
+  background: var(--th-bg-hover);
+  color: var(--th-text);
 }
 
 .audit-entry__header:focus-within {
@@ -168,7 +179,7 @@
 
 .audit-entry__timestamp {
   font-size: var(--font-size-2xs);
-  color: #6b7280;
+  color: var(--th-text-muted);
   font-family: inherit;
 }
 
@@ -183,23 +194,23 @@
 }
 
 .audit-entry__code--critical {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
 }
 
 .audit-entry__code--warning {
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--th-status-warning-bg);
+  color: var(--th-status-warning-text);
 }
 
 .audit-entry__code--info {
-  background: #dbeafe;
-  color: #1e40af;
+  background: var(--th-status-info-bg);
+  color: var(--th-status-info-text);
 }
 
 .audit-entry__message {
   font-size: var(--font-size-sm);
-  color: #374151;
+  color: var(--th-text-body);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -207,7 +218,7 @@
 }
 
 .audit-entry__toggle {
-  color: #6b7280;
+  color: var(--th-text-muted);
   font-size: var(--font-size-2xs);
   text-align: center;
   width: 24px;
@@ -216,8 +227,9 @@
 
 .audit-entry__details {
   padding: 16px;
-  background: white;
-  border-top: 1px solid #e5e7eb;
+  background: var(--th-bg-card);
+  border-top: 1px solid var(--th-border);
+  color: var(--th-text);
 }
 
 .detail-row {
@@ -232,7 +244,7 @@
   display: block;
   font-size: var(--font-size-2xs);
   font-weight: 600;
-  color: #1f2937;
+  color: var(--th-text);
   margin-bottom: 4px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -241,7 +253,7 @@
 .detail-row p {
   margin: 0;
   font-size: var(--font-size-sm);
-  color: #374151;
+  color: var(--th-text-body);
   line-height: 1.6;
   word-wrap: break-word;
   white-space: pre-wrap;
@@ -250,7 +262,7 @@
 .audit-footer {
   padding: 12px 0;
   text-align: right;
-  color: #9ca3af;
+  color: var(--th-text-faint);
   font-size: var(--font-size-2xs);
 }
 

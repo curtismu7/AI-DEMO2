@@ -5,6 +5,7 @@ import { useDemoTour } from "../context/DemoTourContext";
 import { EDU } from "./education/educationIds";
 import TokenChainTraceRail from "./TokenChainTraceRail";
 import LearningHubAgent from "./LearningHubAgent";
+import { useThemeOptional } from "../context/ThemeContext";
 import "./LearningHub.css";
 
 interface LearningCategory {
@@ -328,6 +329,7 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
 ];
 
 export default function LearningHub() {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const { open: openEdu } = useEducationUI();
   const navigate = useNavigate();
   const tour = useDemoTour();
@@ -460,7 +462,18 @@ export default function LearningHub() {
   return (
     <div className="learning-hub">
       <header className="learning-hub__header">
-        <h1 className="learning-hub__title">Learning Hub</h1>
+        <div className="learning-hub__header-top">
+          <h1 className="learning-hub__title">Learning Hub</h1>
+          <button
+            type="button"
+            className="learning-hub__theme-toggle"
+            onClick={toggleDarkMode}
+            title="Switch this page between light and dark"
+            aria-pressed={darkMode}
+          >
+            {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
+          </button>
+        </div>
         <p className="learning-hub__subtitle">
           Explore {totalItems} topics about OAuth, agents, MCP, and more
         </p>

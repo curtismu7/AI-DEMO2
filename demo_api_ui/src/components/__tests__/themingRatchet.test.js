@@ -75,7 +75,14 @@ import path from 'node:path';
 // 152 -> 151: TelemetryPage.css, fully converted (the D3 service-graph
 // canvas/tooltip/panel stays its own literal dark palette on purpose — a
 // fixed dark stage for colored nodes/edges, not a light/dark surface).
-const MAX_UNTHEMED = 151;
+// 151 -> 147: OAuthAcademyPage.css, LearningHub.css, PrivilegeDemoPage.css
+// and AdminErrorAuditLog.css, fully converted. (The 4 Agent Studio Preview
+// pages and ProtocolPlayground.css already had complete dark-mode CSS via
+// their own local token systems — --asp-*/--pp-* with a real dark override
+// — the ratchet's --th-*/data-theme substring check just doesn't see those;
+// they only needed a reachable toggle, not a stylesheet fix, so they don't
+// move this count.)
+const MAX_UNTHEMED = 147;
 
 const SRC = path.join(__dirname, '..', '..');
 

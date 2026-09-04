@@ -4,6 +4,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import PrivilegeSetupChecklist from '../components/privilege/PrivilegeSetupChecklist';
 import PrivilegeScriptGuide from '../components/privilege/PrivilegeScriptGuide';
 import { PingProductChip } from '../components/PingProductChip';
+import { useThemeOptional } from '../context/ThemeContext';
 import {
   PRIVILEGE_DEMO,
   personaConsoleUrl,
@@ -19,6 +20,7 @@ const TABS = [
  * Public SE presenter hub for the shared PingOne Privilege demo.
  */
 export default function PrivilegeDemoPage() {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = searchParams.get('tab') === 'script' ? 'script' : 'setup';
   const initialAct = Number.parseInt(searchParams.get('act') || '1', 10);
@@ -50,6 +52,15 @@ export default function PrivilegeDemoPage() {
           <div className="pd-page__header-links">
             <Link to="/setup">Banking demo setup</Link>
             <a href="/api/auth/oauth/user/login?return_to=%2Fprivilege-demo">Sign in</a>
+            <button
+              type="button"
+              className="pd-page__theme-toggle"
+              onClick={toggleDarkMode}
+              title="Switch this page between light and dark"
+              aria-pressed={darkMode}
+            >
+              {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
+            </button>
           </div>
         </div>
       </header>
