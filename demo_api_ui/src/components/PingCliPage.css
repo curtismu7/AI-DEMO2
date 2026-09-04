@@ -1,12 +1,37 @@
 .pingcli-page {
+  position: relative;
   max-width: 900px;
   margin: 24px auto;
   padding: 0 24px 40px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
+.pingcli-page__title { color: var(--th-text); font-size: 22px; font-weight: 800; margin: 0 0 6px; }
+.pingcli-page__version { color: var(--th-text-muted); font-size: 13px; font-weight: 600; margin: 0 0 6px; }
+.pingcli-page__intro { color: var(--th-text-muted); font-size: 14px; margin: 0 0 28px; }
+
+.pingcli-theme-toggle {
+  position: absolute;
+  top: 0;
+  right: 24px;
+  padding: 6px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pingcli-theme-toggle:hover { color: var(--th-text); background: var(--th-bg-hover); }
+
+@media (max-width: 640px) {
+  .pingcli-theme-toggle { position: static; display: inline-block; margin-bottom: 12px; }
+}
+
 /* ── Install / howto / collapsible sections ──────────── */
 .pingcli-install {
+  color: var(--th-text);
   background: var(--th-bg-inset);
   border: 1px solid var(--th-border);
   border-radius: 8px;
@@ -54,6 +79,7 @@
 
 /* Nested sections inside install / live-commands cards */
 .pingcli-collapse-nested {
+  color: var(--th-text);
   background: var(--th-bg-card);
   border: 1px solid var(--th-border);
   border-radius: 8px;
@@ -204,8 +230,9 @@
 }
 
 .pingcli-cmd-btn {
+  color: var(--th-text);
   background: var(--th-bg-card);
-  border: 2px solid #3b82f6;
+  border: 2px solid var(--th-status-info);
   border-radius: 8px;
   padding: 12px 14px;
   text-align: left;
@@ -216,14 +243,15 @@
 }
 
 .pingcli-cmd-btn:hover {
-  border-color: #1d4ed8;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+  border-color: color-mix(in srgb, var(--th-status-info) 80%, black);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--th-status-info) 15%, transparent);
 }
 
 .pingcli-cmd-btn.active,
 .pingcli-cmd-btn.running {
-  border-color: #1d4ed8;
-  background: #eff6ff;
+  color: var(--th-status-info-text);
+  border-color: color-mix(in srgb, var(--th-status-info) 80%, black);
+  background: var(--th-status-info-bg);
 }
 
 .pingcli-cmd-top {
@@ -275,8 +303,8 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  background: #3b82f6;
   color: var(--th-text-invert);
+  background: var(--th-status-info);
   border: none;
   border-radius: 5px;
   padding: 5px 14px;
@@ -286,7 +314,8 @@
 }
 
 .pingcli-cmd-run:hover:not(:disabled) {
-  background: #1d4ed8;
+  color: var(--th-text-invert);
+  background: color-mix(in srgb, var(--th-status-info) 80%, black);
 }
 
 /* Soften the “all buttons grey out” flash while one command runs. */
@@ -301,13 +330,15 @@
 }
 
 .pingcli-cmd-run--busy {
+  color: var(--th-text-invert);
   opacity: 1;
-  background: #1d4ed8;
+  background: color-mix(in srgb, var(--th-status-info) 80%, black);
   cursor: wait;
 }
 
 .pingcli-cmd-run--done {
-  background: #15803d;
+  color: var(--th-text-invert);
+  background: var(--th-status-success);
 }
 
 .pingcli-cmd-run--done:disabled {
@@ -316,7 +347,7 @@
 }
 
 .pingcli-cmd-btn.done {
-  border-color: #86efac;
+  border-color: var(--th-status-success-border);
 }
 
 /* Sticky run progress strip (spinner → Done / Failed) */
@@ -335,21 +366,21 @@
 }
 
 .pingcli-run-status.busy {
-  border-color: #93c5fd;
-  background: #eff6ff;
-  color: #1e3a8a;
+  border-color: var(--th-status-info-border);
+  background: var(--th-status-info-bg);
+  color: var(--th-status-info-text);
 }
 
 .pingcli-run-status.ok {
-  border-color: #86efac;
-  background: #f0fdf4;
-  color: #14532d;
+  border-color: var(--th-status-success-border);
+  background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
 }
 
 .pingcli-run-status.err {
-  border-color: #fca5a5;
-  background: #fef2f2;
-  color: #7f1d1d;
+  border-color: var(--th-status-error-border);
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
 }
 
 .pingcli-run-status-mark {
@@ -361,8 +392,8 @@
 .pingcli-spinner {
   width: 11px;
   height: 11px;
-  border: 2px solid rgba(59, 130, 246, 0.3);
-  border-top-color: #3b82f6;
+  border: 2px solid color-mix(in srgb, var(--th-status-info) 30%, transparent);
+  border-top-color: var(--th-status-info);
   border-radius: 50%;
   animation: pingcli-spin 0.7s linear infinite;
   flex-shrink: 0;
@@ -371,8 +402,8 @@
 .pingcli-spinner-on-light {
   width: 14px;
   height: 14px;
-  border-color: rgba(37, 99, 235, 0.25);
-  border-top-color: #2563eb;
+  border-color: color-mix(in srgb, var(--th-status-info) 25%, transparent);
+  border-top-color: var(--th-status-info);
 }
 
 .pingcli-spinner-on-dark {
@@ -386,6 +417,7 @@
 
 /* ── Prerequisite steps (above response) ─────────────── */
 .pingcli-prereqs {
+  color: var(--th-text);
   margin-top: 24px;
   border: 1px solid var(--th-border);
   border-radius: 8px;
@@ -394,6 +426,7 @@
 }
 
 .pingcli-prereqs-header {
+  color: var(--th-text);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -455,8 +488,8 @@
   width: 20px;
   height: 20px;
   border-radius: 999px;
-  background: #3b82f6;
   color: var(--th-text-invert);
+  background: var(--th-status-info);
   font-size: var(--font-size-xs);
   font-weight: 800;
   flex-shrink: 0;
@@ -508,21 +541,22 @@
 }
 
 .pingcli-view-bar {
+  color: var(--th-status-info-text);
   margin: 24px 0 10px;
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
   padding: 10px 12px;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
+  background: var(--th-status-info-bg);
+  border: 1px solid var(--th-status-info-border);
   border-radius: 8px;
 }
 
 .pingcli-view-bar-label {
   font-size: var(--font-size-2xs);
   font-weight: 800;
-  color: #1e40af;
+  color: var(--th-status-info-text);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   margin-right: 4px;
@@ -530,8 +564,8 @@
 
 .pingcli-view-bar .pingcli-view-btn {
   background: var(--th-bg-card);
-  color: #1e3a8a;
-  border: 1px solid #93c5fd;
+  color: var(--th-status-info-text);
+  border: 1px solid var(--th-status-info-border);
   border-radius: 6px;
   padding: 6px 14px;
   font-size: var(--font-size-sm);
@@ -540,12 +574,13 @@
 }
 
 .pingcli-view-bar .pingcli-view-btn:hover {
-  background: #dbeafe;
+  color: var(--th-status-info-text);
+  background: color-mix(in srgb, var(--th-status-info-bg) 70%, var(--th-status-info) 30%);
 }
 
 .pingcli-view-bar .pingcli-view-btn.active {
-  background: #2563eb;
-  border-color: #2563eb;
+  background: var(--th-status-info);
+  border-color: var(--th-status-info);
   color: var(--th-text-invert);
 }
 
@@ -567,6 +602,7 @@
 }
 
 .pingcli-form-view {
+  color: var(--th-text);
   background: var(--th-bg-card);
   border-top: 1px solid var(--th-border);
 }
@@ -581,7 +617,7 @@
   grid-template-columns: minmax(120px, 200px) 1fr;
   gap: 8px 16px;
   padding: 8px 16px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--th-border);
 }
 
 .pingcli-form-row dt {
@@ -656,6 +692,7 @@
 
 /* ── Friendly results table (rendered above the terminal) ────────────── */
 .pingcli-results {
+  color: var(--th-text);
   margin-top: 24px;
   border: 1px solid var(--th-border);
   border-radius: 8px;
@@ -664,6 +701,7 @@
 }
 
 .pingcli-results-header {
+  color: var(--th-text);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -709,7 +747,7 @@
 .pingcli-results-table td {
   padding: 8px 16px;
   color: var(--th-text);
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--th-border);
   white-space: nowrap;
   max-width: 360px;
   overflow: hidden;
@@ -717,6 +755,7 @@
 }
 
 .pingcli-results-table tbody tr:nth-child(even) {
+  color: var(--th-text);
   background: var(--th-bg-inset);
 }
 
