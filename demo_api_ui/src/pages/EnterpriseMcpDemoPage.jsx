@@ -11,6 +11,7 @@ import { useCallback, useEffect, useState } from "react";
 import TokenChainFilmstrip from "../components/TokenChainFilmstrip";
 import { EDU } from "../components/education/educationIds";
 import { useEducationUIOptional } from "../context/EducationUIContext";
+import { useThemeOptional } from "../context/ThemeContext";
 import {
   armEnterpriseMcpDemo,
   resetEnterpriseMcpDemo,
@@ -29,6 +30,7 @@ export default function EnterpriseMcpDemoPage() {
   // which would take the whole page down anywhere the provider is absent. Null
   // here simply hides the explainer buttons rather than shipping dead controls.
   const edu = useEducationUIOptional();
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   useEffect(() => {
     let alive = true;
     readEnterpriseMcpDemoState().then((on) => { if (alive) setArmed(on); });
@@ -85,6 +87,15 @@ export default function EnterpriseMcpDemoPage() {
       )}
 
       <header className="emd-header">
+        <button
+          type="button"
+          onClick={toggleDarkMode}
+          className="emd-theme-toggle"
+          title="Switch this page between light and dark"
+          aria-pressed={darkMode}
+        >
+          {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
+        </button>
         <h1>Enterprise-Managed MCP Authorization</h1>
         <p className="emd-sub">
           IT decides centrally which employees reach which MCP servers. The identity provider

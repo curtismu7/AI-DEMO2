@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
+import { useThemeOptional } from '../context/ThemeContext';
 import '../styles/PingOneSetup.css';
 
 export default function PingOneSetup() {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const [credentials, setCredentials] = useState({
     environmentId: '',
     clientId: '',
@@ -77,6 +79,15 @@ export default function PingOneSetup() {
   return (
     <div className="pingone-setup-page">
       <div className="setup-container">
+        <button
+          type="button"
+          onClick={toggleDarkMode}
+          className="setup-theme-toggle"
+          title="Switch this page between light and dark"
+          aria-pressed={darkMode}
+        >
+          {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
+        </button>
         <h1>🔧 PingOne MCP Setup</h1>
         <p className="subtitle">Provision PingOne worker credentials for MCP connectivity</p>
 

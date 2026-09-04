@@ -35,7 +35,12 @@ import path from 'node:path';
 // button needed real theming to be visible on this page at all).
 // 178 -> 176: AdminThemesPage.css and ThemeZonePanel.css (the /themes page),
 // merged in from a parallel session's toggle rollout (PR #2744).
-const MAX_UNTHEMED = 176;
+// 176 -> 175: common/Check.css — its checkbox/pill/switch surfaces were
+// hardcoded white, so a themed --ctl-ink (var(--th-text)) went pale-on-white
+// in dark mode. Shared by AgentBuilderPage and AIAgent.
+// 175 -> 174: PingOneSetup.css, fully converted from a fictional
+// --bg-*/--text-* token family that was never defined anywhere.
+const MAX_UNTHEMED = 174;
 
 const SRC = path.join(__dirname, '..', '..');
 
@@ -191,7 +196,7 @@ describe('theming ratchet', () => {
  * Literal grounds are deliberately not counted. They do not flip, so inherited
  * near-black stays correct against them.
  */
-const MAX_GROUND_WITHOUT_INK = 482;
+const MAX_GROUND_WITHOUT_INK = 481;
 
 const CSS_RULE = /([^{}]+)\{([^{}]*)\}/g;
 const HAS_COLOR = /(?:^|\n)\s*color\s*:/;
