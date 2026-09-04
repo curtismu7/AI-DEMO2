@@ -1,24 +1,47 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import FlagGate from '../FlagGate';
-import { enableUseCaseFlags } from '../../services/demoFlagsClient';
+import { enableUseCaseFlags, disableUseCaseFlags } from '../../services/demoFlagsClient';
 
-vi.mock('../../services/demoFlagsClient', () => ({ enableUseCaseFlags: vi.fn() }));
+vi.mock('../../services/demoFlagsClient', () => ({
+  enableUseCaseFlags: vi.fn(),
+  disableUseCaseFlags: vi.fn(),
+}));
 
 describe('FlagGate', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  test('renders nothing when all required flags are already on', () => {
-    const { container } = render(
+  test('shows a Disable control when all required flags are already on', () => {
+    render(
       <FlagGate
         useCaseId="ciba-out-of-band-approval"
         flagIds={['ciba_enabled']}
         flagMap={{ ciba_enabled: 'true' }}
         loading={false}
         onEnabled={() => {}}
+        onDisabled={() => {}}
       />,
     );
-    expect(container).toBeEmptyDOMElement();
+    expect(screen.getByRole('button', { name: /disable/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /enable/i })).not.toBeInTheDocument();
+  });
+
+  test('clicking Disable calls disableUseCaseFlags and reports the resolved flags', async () => {
+    disableUseCaseFlags.mockResolvedValue({ success: true, flags: ['ciba_enabled'] });
+    const onDisabled = vi.fn();
+    render(
+      <FlagGate
+        useCaseId="ciba-out-of-band-approval"
+        flagIds={['ciba_enabled']}
+        flagMap={{ ciba_enabled: 'true' }}
+        loading={false}
+        onEnabled={() => {}}
+        onDisabled={onDisabled}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /disable/i }));
+    await waitFor(() => expect(disableUseCaseFlags).toHaveBeenCalledWith('ciba-out-of-band-approval'));
+    await waitFor(() => expect(onDisabled).toHaveBeenCalledWith(['ciba_enabled']));
   });
 
   test('renders nothing when there are no required flags', () => {

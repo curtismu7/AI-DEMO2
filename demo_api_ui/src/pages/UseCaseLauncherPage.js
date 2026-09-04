@@ -275,7 +275,7 @@ export function PromptSection({ prompt }) {
   );
 }
 
-function UseCaseCard({ uc, stepNumber, completed, onRun, onRunAttack, onExplain, onOpen, attackState, chipRunning, chipRunError, chipNeedsLogin, flagMap, flagsLoading, onFlagsEnabled }) {
+function UseCaseCard({ uc, stepNumber, completed, onRun, onRunAttack, onExplain, onOpen, attackState, chipRunning, chipRunError, chipNeedsLogin, flagMap, flagsLoading, onFlagsEnabled, onFlagsDisabled }) {
   const isChip   = uc.trigger?.type === 'chip';
   const isAttack = uc.trigger?.type === 'attack';
   const isLink   = uc.trigger?.type === 'link';
@@ -336,6 +336,7 @@ function UseCaseCard({ uc, stepNumber, completed, onRun, onRunAttack, onExplain,
         flagMap={flagMap}
         loading={flagsLoading}
         onEnabled={onFlagsEnabled}
+        onDisabled={onFlagsDisabled}
       />
 
       {/* UC9 is the one use case whose outcome is decided by DIRECTORY state
@@ -481,6 +482,7 @@ function ProgressiveTrustDemoStrip({
   flagMap,
   flagsLoading,
   onFlagsEnabled,
+  onFlagsDisabled,
 }) {
   const acts = resolveProgressiveTrustActs(useCases);
 
@@ -541,6 +543,7 @@ function ProgressiveTrustDemoStrip({
                 flagMap={flagMap}
                 loading={flagsLoading}
                 onEnabled={onFlagsEnabled}
+                onDisabled={onFlagsDisabled}
               />
               <div className="pt-demo-strip__actions">
                 <button
@@ -681,7 +684,7 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
   const [completedIds, setCompletedIds] = useState(() => getCompletedUseCaseIds());
 
   const { flagMap, flagsLoading, refreshFlags } = useLiveFlags();
-  // Optimistic overlay so a FlagGate's Enable click flips the banner off
+  // Optimistic overlay so a FlagGate's Enable/Disable click flips its state
   // immediately, without waiting on a refetch of every flag.
   const [localFlagMap, setLocalFlagMap] = useState(null);
   const effectiveFlagMap = localFlagMap || flagMap;
@@ -690,6 +693,14 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
       const base = prev || flagMap || {};
       const next = { ...base };
       for (const id of enabledFlags) next[id] = 'true';
+      return next;
+    });
+  }, [flagMap]);
+  const handleFlagsDisabled = useCallback((disabledFlags) => {
+    setLocalFlagMap((prev) => {
+      const base = prev || flagMap || {};
+      const next = { ...base };
+      for (const id of disabledFlags) next[id] = 'false';
       return next;
     });
   }, [flagMap]);
@@ -1014,6 +1025,7 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
                 flagMap={effectiveFlagMap}
                 flagsLoading={flagsLoading}
                 onFlagsEnabled={handleFlagsEnabled}
+                onFlagsDisabled={handleFlagsDisabled}
               />
             ))}
           </div>
@@ -1041,6 +1053,7 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
                 flagMap={effectiveFlagMap}
                 flagsLoading={flagsLoading}
                 onFlagsEnabled={handleFlagsEnabled}
+                onFlagsDisabled={handleFlagsDisabled}
               />
             ))}
           </div>
@@ -1067,6 +1080,7 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
                 flagMap={effectiveFlagMap}
                 flagsLoading={flagsLoading}
                 onFlagsEnabled={handleFlagsEnabled}
+                onFlagsDisabled={handleFlagsDisabled}
               />
             ))}
           </div>
@@ -1093,6 +1107,7 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
                 flagMap={effectiveFlagMap}
                 flagsLoading={flagsLoading}
                 onFlagsEnabled={handleFlagsEnabled}
+                onFlagsDisabled={handleFlagsDisabled}
               />
             ))}
           </div>
@@ -1115,6 +1130,7 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
                 flagMap={effectiveFlagMap}
                 flagsLoading={flagsLoading}
                 onFlagsEnabled={handleFlagsEnabled}
+                onFlagsDisabled={handleFlagsDisabled}
               />
             )}
             <div className="uc-track__grid">
@@ -1134,6 +1150,7 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
                   flagMap={effectiveFlagMap}
                   flagsLoading={flagsLoading}
                   onFlagsEnabled={handleFlagsEnabled}
+                  onFlagsDisabled={handleFlagsDisabled}
                 />
               ))}
             </div>
