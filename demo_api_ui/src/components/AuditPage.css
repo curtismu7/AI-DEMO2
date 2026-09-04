@@ -1,5 +1,16 @@
 /* ============================================================
    AuditPage.css — MCP Audit Trail floating window
+
+   The --color-* family used throughout (--color-surface, --color-border,
+   --color-header-bg, --color-text-primary/-secondary) are real aliases onto
+   --th-* (see index.css) and already track the theme correctly. The bug was
+   everywhere ELSE: status badges, the error banner, group-check text, and
+   the token-chain row/detail highlight were all literal hex (#dcfce7,
+   #fef2f2, #0066cc, ...) that never varied with the toggle. Converted those
+   to --th-status-*; .audit-json (the JSON preview) stays deliberately
+   always-dark, matching the JsonHighlight component's dark-only syntax
+   theme elsewhere in the app. This page had no dark/light toggle at all —
+   added one to both the floating and popout title bars.
    ============================================================ */
 
 /* ── Floating window shell ── */
@@ -277,11 +288,11 @@ body.admin-skin-p1 .audit-refresh-select {
 
 /* ── Error ── */
 .audit-page__error {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
+  background: var(--th-status-error-bg);
+  border: 1px solid var(--th-status-error-border);
   border-radius: 8px;
   padding: 12px 16px;
-  color: #b91c1c;
+  color: var(--th-status-error-text);
   margin-bottom: 14px;
   font-size: 0.875rem;
 }
@@ -374,16 +385,16 @@ body.admin-skin-p1 .audit-refresh-select {
 }
 
 .audit-badge--outcome--success {
-  background: #dcfce7;
-  color: #15803d;
+  background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
 }
 .audit-badge--outcome--failure {
-  background: #fee2e2;
-  color: #b91c1c;
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
 }
 .audit-badge--outcome--partial {
-  background: #fef9c3;
-  color: #92400e;
+  background: var(--th-status-warning-bg);
+  color: var(--th-status-warning-text);
 }
 
 /* Scenario 4 — unauthorized-tool (insufficient scope) alert */
@@ -429,16 +440,29 @@ body.admin-skin-p1 .audit-refresh-select {
   cursor: pointer;
 }
 .audit-export-btn:hover { background: #1a5fd0; }
-.audit-badge--status--permit { background: #dcfce7; color: #15803d; border-radius: 999px; padding: 2px 9px; font-size: 0.72rem; font-weight: 700; }
-.audit-badge--status--deny { background: #fee2e2; color: #b91c1c; border-radius: 999px; padding: 2px 9px; font-size: 0.72rem; font-weight: 700; }
-.audit-badge--status--stepup { background: #fef9c3; color: #92400e; border-radius: 999px; padding: 2px 9px; font-size: 0.72rem; font-weight: 700; }
-.audit-group--pass { color: #15803d; font-weight: 700; }
-.audit-group--fail { color: #b91c1c; font-weight: 700; }
+.audit-badge--status--permit {
+  background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
+  border-radius: 999px; padding: 2px 9px; font-size: 0.72rem; font-weight: 700;
+}
+.audit-badge--status--deny {
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
+  border-radius: 999px; padding: 2px 9px; font-size: 0.72rem; font-weight: 700;
+}
+.audit-badge--status--stepup {
+  background: var(--th-status-warning-bg);
+  color: var(--th-status-warning-text);
+  border-radius: 999px; padding: 2px 9px; font-size: 0.72rem; font-weight: 700;
+}
+.audit-group--pass { color: var(--th-status-success-text); font-weight: 700; }
+.audit-group--fail { color: var(--th-status-error-text); font-weight: 700; }
 .audit-row--alert td:first-child {
-  border-left: 3px solid #b91c1c;
+  border-left: 3px solid var(--th-status-error);
 }
 .audit-row--alert td {
-  background: #fef2f2;
+  background: var(--th-status-error-bg);
+  color: var(--th-text);
 }
 
 /* ── Details pre ── */
@@ -525,17 +549,19 @@ tr.audit-detail-row > td {
 
 /* ── Token chain row styles ── */
 tr.token-chain-row {
-  background-color: #f0f7ff;
-  border-left: 4px solid #0066cc;
+  background-color: var(--th-status-info-bg);
+  border-left: 4px solid var(--th-status-info);
+  color: var(--th-text);
 }
 
 tr.token-chain-row:hover {
-  background-color: #e0f0ff;
+  background-color: color-mix(in srgb, var(--th-status-info-bg) 80%, var(--th-status-info) 20%);
+  color: var(--th-text);
 }
 
 .token-chain-row .tool-name {
   font-weight: 600;
-  color: #0066cc;
+  color: var(--th-status-info-text);
 }
 
 .token-chain-row .scopes {
@@ -559,7 +585,8 @@ tr.token-chain-row:hover {
 
 tr.token-chain-detail-row td {
   padding: 12px;
-  background-color: #f9f9f9;
+  background-color: var(--th-bg-inset);
+  color: var(--th-text);
   border: none;
 }
 
@@ -576,7 +603,7 @@ tr.token-chain-detail-row td {
 .token-detail .token-section h4 {
   margin: 0 0 8px 0;
   font-size: 0.9em;
-  color: #0066cc;
+  color: var(--th-status-info-text);
   text-transform: uppercase;
   border-bottom: 1px solid var(--th-border);
   padding-bottom: 4px;
