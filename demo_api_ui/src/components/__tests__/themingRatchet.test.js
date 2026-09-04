@@ -31,8 +31,11 @@ import path from 'node:path';
 // move the count while the file is still almost entirely literals. That was
 // true here for exactly one commit; the file is now fully converted, so the
 // count and the reality agree again. Treat a one-rule drop with suspicion.
-// 179 -> 177: AdminThemesPage.css and ThemeZonePanel.css (the /themes page).
-const MAX_UNTHEMED = 177;
+// 179 -> 178: AgentBuilderPage.css, fully converted (a dark/light toggle
+// button needed real theming to be visible on this page at all).
+// 178 -> 176: AdminThemesPage.css and ThemeZonePanel.css (the /themes page),
+// merged in from a parallel session's toggle rollout (PR #2744).
+const MAX_UNTHEMED = 176;
 
 const SRC = path.join(__dirname, '..', '..');
 
