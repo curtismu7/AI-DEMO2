@@ -88,4 +88,33 @@ describe('ToolsTable', () => {
     expect(screen.queryByText(/Missing required/)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Execute' })).toBeEnabled();
   });
+
+  test('renders a quick-fill dropdown for a curated example param and still allows a custom value via the textarea', () => {
+    const braveTool = {
+      name: 'brave_news_search',
+      description: 'Search recent news via the Brave Search API.',
+      inputSchema: {
+        type: 'object',
+        properties: { query: { type: 'string' }, count: { type: 'number' } },
+        required: ['query'],
+      },
+    };
+    render(<ToolsTable tools={[braveTool]} onExecute={vi.fn()} />);
+
+    fireEvent.click(screen.getByText('brave_news_search'));
+    const select = screen.getByRole('combobox');
+    expect(select).toHaveDisplayValue('— pick an example, or type below —');
+
+    fireEvent.change(select, { target: { value: 'PingOne security' } });
+    expect(screen.getByRole('textbox', { name: 'Arguments (JSON)' })).toHaveValue(
+      JSON.stringify({ query: 'PingOne security', count: '' }, null, 2),
+    );
+
+    // The example list is a shortcut, not a restriction — the textarea still
+    // accepts a value that was never in the dropdown.
+    fireEvent.change(screen.getByRole('textbox', { name: 'Arguments (JSON)' }), {
+      target: { value: JSON.stringify({ query: 'a totally custom query', count: '' }, null, 2) },
+    });
+    expect(screen.queryByText(/Missing required/)).not.toBeInTheDocument();
+  });
 });
