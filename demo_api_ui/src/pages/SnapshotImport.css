@@ -1,7 +1,35 @@
 .snapshot-import {
+  position: relative;
   max-width: 600px;
   margin: 20px auto;
   padding: 20px;
+}
+
+.snapshot-import-theme-toggle {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  color: var(--th-text);
+  padding: 6px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg-inset);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.snapshot-import-theme-toggle:hover {
+  color: var(--th-text);
+  background: var(--th-bg-hover);
+}
+
+@media (max-width: 480px) {
+  .snapshot-import-theme-toggle {
+    position: static;
+    display: inline-block;
+    margin-bottom: 12px;
+  }
 }
 
 .snapshot-import h2 {
@@ -10,7 +38,7 @@
 }
 
 .snapshot-import .description {
-  color: #666;
+  color: var(--th-text-muted);
   margin-bottom: 20px;
   line-height: 1.5;
 }
@@ -22,62 +50,67 @@
 }
 
 .upload-section input {
+  color: var(--th-text);
   flex: 1;
   padding: 8px 12px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-sm);
   font-size: var(--font-size-body);
 }
 
 .upload-section button {
+  color: var(--th-text-on-emphasis);
+  background-color: var(--th-bg-emphasis);
   padding: 8px 16px;
-  background-color: #007bff;
-  color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: var(--font-size-body);
   font-weight: 500;
 }
 
 .upload-section button:hover:not(:disabled) {
-  background-color: #0056b3;
+  color: var(--th-text-on-emphasis);
+  background-color: color-mix(in srgb, var(--th-bg-emphasis) 85%, black);
 }
 
 .error {
+  color: var(--th-status-error-text);
   padding: 12px;
-  background-color: #fee;
-  border: 1px solid #f99;
-  border-radius: 4px;
-  color: #c00;
+  background-color: var(--th-status-error-bg);
+  border: 1px solid var(--th-status-error-border);
+  border-radius: var(--radius-sm);
   margin-bottom: 20px;
 }
 
 .apply-note {
+  color: var(--th-status-info-text);
   padding: 10px 14px;
-  background: #eef2ff;
-  border: 1px solid #c7d2fe;
-  border-radius: 4px;
-  color: #3730a3;
+  background: var(--th-status-info-bg);
+  border: 1px solid var(--th-status-info-border);
+  border-radius: var(--radius-sm);
   font-size: var(--font-size-sm);
   line-height: 1.5;
   margin-bottom: 20px;
 }
 
 .result {
+  color: var(--th-text);
   padding: 16px;
-  border-radius: 4px;
-  border-left: 4px solid #ccc;
+  border-radius: var(--radius-sm);
+  border-left: 4px solid var(--th-border-strong);
 }
 
 .result.valid {
-  background-color: #f0f9f0;
-  border-left-color: #4caf50;
+  color: var(--th-status-success-text);
+  background-color: var(--th-status-success-bg);
+  border-left-color: var(--th-status-success);
 }
 
 .result.invalid {
-  background-color: #fef0f0;
-  border-left-color: #f44336;
+  color: var(--th-status-error-text);
+  background-color: var(--th-status-error-bg);
+  border-left-color: var(--th-status-error);
 }
 
 .result h3 {
@@ -109,7 +142,7 @@
 
 .conflict-detail {
   font-size: var(--font-size-2xs);
-  color: #666;
+  color: var(--th-text-muted);
   margin-top: 4px;
   padding-left: 16px;
   word-break: break-word;
@@ -117,33 +150,34 @@
 
 .success-msg {
   margin: 0;
-  color: #4caf50;
+  color: var(--th-status-success);
   font-weight: 500;
   font-size: var(--font-size-body);
 }
 
 .download-section {
+  color: var(--th-text);
   display: flex;
   align-items: center;
   gap: 12px;
   margin-bottom: 20px;
   padding: 10px 14px;
-  background: #f8f9fa;
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm);
   font-size: var(--font-size-sm);
 }
 
 .download-label {
-  color: #555;
+  color: var(--th-text-muted);
   flex: 1;
 }
 
 .download-btn {
+  color: var(--th-text-on-emphasis);
   padding: 6px 14px;
-  background-color: #0069d9;
-  color: white;
-  border-radius: 4px;
+  background-color: var(--th-bg-emphasis);
+  border-radius: var(--radius-sm);
   text-decoration: none;
   font-size: var(--font-size-sm);
   font-weight: 500;
@@ -151,7 +185,8 @@
 }
 
 .download-btn:hover {
-  background-color: #0056b3;
+  color: var(--th-text-on-emphasis);
+  background-color: color-mix(in srgb, var(--th-bg-emphasis) 85%, black);
 }
 
 .conflict-item {
@@ -167,7 +202,7 @@
 .conflict-type {
   font-family: var(--font-mono);
   font-size: var(--font-size-sm);
-  color: #c0392b;
+  color: var(--th-status-error);
 }
 
 .conflict-diff {
@@ -187,42 +222,42 @@
 
 .diff-label {
   font-weight: 600;
-  color: #555;
+  color: var(--th-text-muted);
   white-space: nowrap;
   margin-right: 4px;
 }
 
 .diff-tag {
   padding: 2px 7px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   font-family: var(--font-mono);
   font-size: var(--font-size-xs);
 }
 
 .diff-tag-missing {
-  background: #fde8e8;
-  color: #c0392b;
-  border: 1px solid #f5c6cb;
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
+  border: 1px solid var(--th-status-error-border);
 }
 
 .diff-tag-extra {
-  background: #fff3cd;
-  color: #856404;
-  border: 1px solid #ffc107;
+  background: var(--th-status-warning-bg);
+  color: var(--th-status-warning-text);
+  border: 1px solid var(--th-status-warning-border);
 }
 
 .diff-expected .diff-tools {
-  color: #666;
+  color: var(--th-text-muted);
   word-break: break-word;
 }
 
 .conflict-fix {
   margin-top: 6px;
   font-size: var(--font-size-2xs);
-  color: #856404;
-  background: #fff3cd;
-  border: 1px solid #ffc107;
-  border-radius: 3px;
+  color: var(--th-status-warning-text);
+  background: var(--th-status-warning-bg);
+  border: 1px solid var(--th-status-warning-border);
+  border-radius: var(--radius-sm);
   padding: 4px 10px;
   display: inline-block;
 }
@@ -230,9 +265,9 @@
 .fix-callout {
   margin-top: 12px;
   padding: 10px 14px;
-  background: #fff3cd;
-  border: 1px solid #ffc107;
-  border-radius: 4px;
+  background: var(--th-status-warning-bg);
+  border: 1px solid var(--th-status-warning-border);
+  border-radius: var(--radius-sm);
   font-size: var(--font-size-sm);
-  color: #856404;
+  color: var(--th-status-warning-text);
 }
