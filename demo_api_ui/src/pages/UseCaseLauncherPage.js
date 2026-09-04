@@ -17,6 +17,7 @@ import apiClient from '../services/apiClient';
 import { formatAxiosError } from '../utils/formatAxiosError';
 import { useVertical } from '../vertical/useVertical';
 import useLangchainProvider from '../hooks/useLangchainProvider';
+import useLiveFlags from '../hooks/useLiveFlags';
 import { useEducationUI } from '../context/EducationUIContext';
 import { MODE_PROVIDER } from '../config/agentModes';
 import VerticalSwitcher from '../components/VerticalSwitcher';
@@ -173,50 +174,6 @@ function parseFlagId(maturity) {
   if (!maturity?.startsWith('flag:')) return null;
   const raw = maturity.slice(5);
   return FLAG_ID_ALIASES[raw] ?? raw;
-}
-
-/**
- * Fetches live feature-flag values from GET /api/admin/feature-flags.
- * Returns { flagMap, flagsLoading, setFlag }.
- */
-function useLiveFlags() {
-  const [flagMap, setFlagMap] = useState(null); // null = loading
-  const [flagsLoading, setFlagsLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    apiClient
-      .get('/api/admin/feature-flags', { _silent: true })
-      .then(({ data }) => {
-        if (cancelled) return;
-        const map = {};
-        for (const f of data.flags || []) {
-          map[f.id] = f.value;
-        }
-        setFlagMap(map);
-        setFlagsLoading(false);
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setFlagMap({});   // empty = all flags default-off (safe: gates remain closed)
-          setFlagsLoading(false);
-        }
-      });
-    return () => { cancelled = true; };
-  }, []);
-
-  const setFlag = useCallback((id, value) => {
-    // Optimistic update — apply immediately so toggle feels instant.
-    setFlagMap((prev) => ({ ...(prev || {}), [id]: value }));
-    apiClient
-      .patch('/api/admin/feature-flags', { updates: { [id]: value } })
-      .catch(() => {
-        // Roll back on failure
-        setFlagMap((prev) => ({ ...(prev || {}), [id]: !value }));
-      });
-  }, []);
-
-  return { flagMap, flagsLoading, setFlag };
 }
 
 function maturityLabel(maturity) {
