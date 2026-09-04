@@ -85,7 +85,14 @@ function api(path, options = {}) {
     const text = await r.text();
     let data;
     try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
-    if (!r.ok) throw new Error(data.error || text || `HTTP ${r.status}`);
+    if (!r.ok) {
+      const err = new Error(data.error || text || `HTTP ${r.status}`);
+      // Extra flags alongside the error string (never instead of it) — e.g.
+      // pingoneAdminLocalHandler's delegated-PKCE login requirement carries a
+      // loginUrl a caller can act on instead of just showing the message.
+      if (data.loginUrl) err.loginUrl = data.loginUrl;
+      throw err;
+    }
     return data;
   });
 }
@@ -438,6 +445,17 @@ export default function PrivilegeMcpClientPage() {
     // silent_failed: prompt=none couldn't reuse a PingOne session — show the
     // manual Sign In button without an error message.
     // (no-op here; the /state effect already guards on authParam !== 'silent_failed')
+
+    // Return trip from the pingone-admin door's separate delegated-PKCE login
+    // (routes/mcpPingOneAdminAuth.js) — refresh so the newly-usable token gets
+    // exercised right away instead of waiting for another manual click.
+    const pingoneAdminLogin = searchParams.get('pingone_admin_login');
+    if (pingoneAdminLogin === 'success') {
+      appendChat('system', 'Signed in for PingOne Admin access. Refreshing tools...');
+      refreshTools();
+    } else if (pingoneAdminLogin === 'error') {
+      appendChat('system', `PingOne Admin sign-in failed: ${reason ? decodeURIComponent(reason) : 'Unknown'}`);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -552,6 +570,17 @@ export default function PrivilegeMcpClientPage() {
       if (!silent) appendChat('system', `Discovered ${nextTools.length} tools from MCP server.`);
     } catch (err) {
       setTools([]);
+      // pingoneAdminLocalHandler's own auth requirement — a separate,
+      // delegated-PKCE login (routes/mcpPingOneAdminAuth.js), not this page's
+      // OAuth. Auto-navigate there once; if searchParams already carries
+      // pingone_admin_login=success we just came back from exactly that round
+      // trip and it still didn't work, so fall through to the plain error
+      // instead of bouncing the browser in a loop.
+      if (err.loginUrl && searchParams.get('pingone_admin_login') !== 'success') {
+        if (!silent) appendChat('system', 'Signing in for PingOne Admin access...');
+        window.location.href = err.loginUrl;
+        return;
+      }
       if (err.message?.toLowerCase().includes('not authenticated') || err.message?.includes('401')) {
         setAuthenticated(false);
         requestSignIn();

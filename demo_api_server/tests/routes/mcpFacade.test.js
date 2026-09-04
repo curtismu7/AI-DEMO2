@@ -166,7 +166,7 @@ describe('/mcp-facade/pingone-admin — local handler, no upstream fetch', () =>
     ({ listTools, callTool } = require('../../services/mcpPingOneHttpAdapter'));
   });
 
-  test('advertises no authorization server — worker creds are baked in, not per-caller', async () => {
+  test('advertises no authorization server — auth is session-based (delegated PKCE), not an RFC 9728 challenge', async () => {
     const res = await request(app()).get('/mcp-facade/pingone-admin/.well-known/oauth-protected-resource');
     expect(res.status).toBe(200);
     expect(res.body.authorization_servers).toBeUndefined();
@@ -192,6 +192,16 @@ describe('/mcp-facade/pingone-admin — local handler, no upstream fetch', () =>
     expect(seen).toEqual([]); // never hit the stub upstream server
   });
 
+  test('an x-pingone-admin-token header is forwarded to listTools as the delegated token', async () => {
+    const init = await request(app()).post('/mcp-facade/pingone-admin/mcp')
+      .send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} });
+    const sid = init.headers['mcp-session-id'];
+    await request(app()).post('/mcp-facade/pingone-admin/mcp').set('mcp-session-id', sid)
+      .set('x-pingone-admin-token', 'delegated-token-1')
+      .send({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
+    expect(listTools).toHaveBeenCalledWith('delegated-token-1');
+  });
+
   test('tools/call dispatches through the raw adapter by hosted tool name and relays its result verbatim', async () => {
     const init = await request(app()).post('/mcp-facade/pingone-admin/mcp')
       .send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} });
@@ -199,7 +209,12 @@ describe('/mcp-facade/pingone-admin — local handler, no upstream fetch', () =>
     const res = await request(app()).post('/mcp-facade/pingone-admin/mcp').set('mcp-session-id', sid)
       .send({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'listUsers', arguments: { filter: 'username sw "curt"' } } });
     expect(res.status).toBe(200);
-    expect(callTool).toHaveBeenCalledWith('listUsers', { filter: 'username sw "curt"' });
+    // Third arg is the x-pingone-admin-token header — the delegated PKCE
+    // token routes/mcpPingOneAdminAuth.js stores on the browser's real
+    // session, forwarded this way because this route is reached
+    // server-to-server and never sees that session's cookie (see the call
+    // site comment in POST /:door/mcp). No such header was sent here.
+    expect(callTool).toHaveBeenCalledWith('listUsers', { filter: 'username sw "curt"' }, undefined);
     expect(JSON.parse(res.body.result.content[0].text)).toEqual({ tool: 'listUsers', ok: true });
   });
 
@@ -210,6 +225,24 @@ describe('/mcp-facade/pingone-admin — local handler, no upstream fetch', () =>
     const res = await request(app()).delete('/mcp-facade/pingone-admin/mcp').set('mcp-session-id', sid);
     expect(res.status).toBe(200);
     expect(seen).toEqual([]);
+  });
+
+  test('tools/list with no delegated token answers 401 with a loginUrl the client can drive', async () => {
+    const authRequired = new Error('PingOne MCP requires a delegated PKCE token.');
+    authRequired.code = 'pingone_mcp_auth_required';
+    listTools.mockRejectedValueOnce(authRequired);
+
+    const init = await request(app()).post('/mcp-facade/pingone-admin/mcp')
+      .send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} });
+    const sid = init.headers['mcp-session-id'];
+    const res = await request(app()).post('/mcp-facade/pingone-admin/mcp').set('mcp-session-id', sid)
+      .send({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
+
+    expect(res.status).toBe(401);
+    expect(res.body.error.data.reason).toBe('pingone_admin_login_required');
+    expect(res.body.error.data.loginUrl).toBe(
+      '/api/mcp/inspector/pingone-admin/login?returnTo=%2Fprivilege-mcp-client',
+    );
   });
 });
 
