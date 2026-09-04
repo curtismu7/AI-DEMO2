@@ -155,7 +155,7 @@ const PingOneMcpInspector = ({ user, onLogout }) => {
             {toggling ? 'Switching…' : enabled ? 'Live: ON' : 'Live: OFF'}
           </button>
           <button className="p1mcp-topbar__btn" onClick={toggleDarkMode} title="Toggle dark mode">
-            {darkMode ? 'Light' : 'Dark'}
+            {darkMode ? '☀️ Light' : '🌙 Dark'}
           </button>
         </div>
       </div>

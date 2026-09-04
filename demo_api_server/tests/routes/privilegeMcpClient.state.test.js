@@ -85,4 +85,18 @@ describe('GET /api/privilege-mcp/state — mcpUrl default', () => {
       ]),
     );
   });
+
+  it('offers the sibling opensearch/brave Agentic Apps for both Privilege and Façade mode', async () => {
+    const res = await request(app).get('/api/privilege-mcp/state').expect(200);
+
+    const privilegeLabels = res.body.presets.filter((p) => p.mode === 'privilege').map((p) => p.label);
+    expect(privilegeLabels).toEqual(expect.arrayContaining(['Privilege — opensearch', 'Privilege — brave']));
+
+    const facadeLabels = res.body.presets.filter((p) => p.mode === 'facade').map((p) => p.label);
+    expect(facadeLabels).toEqual(expect.arrayContaining(['Façade — opensearch', 'Façade — brave']));
+
+    // Each app is a distinct URL, not three copies of the same default app.
+    const privilegeUrls = res.body.presets.filter((p) => p.mode === 'privilege').map((p) => p.url);
+    expect(new Set(privilegeUrls).size).toBe(privilegeUrls.length);
+  });
 });

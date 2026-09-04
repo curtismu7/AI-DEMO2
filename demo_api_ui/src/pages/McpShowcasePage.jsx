@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import apiClient from '../services/apiClient';
 import WeatherStateControl from '../components/WeatherStateControl';
 import WeatherBlocklistControl from '../components/WeatherBlocklistControl';
-import ThemeToggle from '../components/common/ThemeToggle';
 import { useVertical } from '../vertical/useVertical';
+import { useThemeOptional } from '../context/ThemeContext';
 import './McpShowcasePage.css';
 
 /**
@@ -123,6 +123,7 @@ export default function McpShowcasePage({ capability }) {
   const cfg = SHOWCASES[capability];
   const navigate = useNavigate();
   const { activeId: activeVerticalId } = useVertical() || {};
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const [enabled, setEnabled] = useState(null);
   const [running, setRunning] = useState(null);
   const [error, setError] = useState(null);
@@ -213,10 +214,20 @@ export default function McpShowcasePage({ capability }) {
   return (
     <div className={`mcpsc mcpsc--${cfg.slug}`}>
       <header className="mcpsc__head">
-        <div className="mcpsc__head-top">
-          <p className="mcpsc__eyebrow">Agent Gateway capability</p>
-          <ThemeToggle />
-        </div>
+        {/* User-requested exception to the emoji allowlist (REGRESSION_PLAN
+            §0): sun/moon aren't in the approved set, but every other toggle
+            in the app uses a plain "Light mode"/"Dark mode" text label for
+            exactly that reason. Approved deliberately for this button. */}
+        <button
+          type="button"
+          onClick={toggleDarkMode}
+          className="mcpsc__theme-toggle"
+          title="Switch this page between light and dark"
+          aria-pressed={darkMode}
+        >
+          {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
+        </button>
+        <p className="mcpsc__eyebrow">Agent Gateway capability</p>
         <h1 className="mcpsc__title">{cfg.title}</h1>
         <p className="mcpsc__subtitle">{cfg.subtitle}</p>
         <p className="mcpsc__lede">{cfg.lede}</p>

@@ -77,7 +77,7 @@ function StandaloneShell({ children, current }) {
           aria-pressed={darkMode}
           title="Switch this page between light and dark"
         >
-          {darkMode ? "Light mode" : "Dark mode"}
+          {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
         </button>
       </header>
       <main className="st-main">{children}</main>

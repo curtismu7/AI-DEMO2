@@ -161,6 +161,34 @@ describe("titlebar door picker", () => {
     expect(options).toEqual(["opensearch", "agent-gateway"]);
   });
 
+  it("names each privilege-gateway/<app> sibling by its app, not the door", async () => {
+    // Regression guard: doorName() used to return "privilege-gateway" for
+    // every app behind this multiApp door, making opensearch22/opensearch/
+    // brave indistinguishable in the picker.
+    const FACADE_ORIGIN = "https://ai-demo.example.com";
+    const OPENSEARCH22 = `${FACADE_ORIGIN}/mcp-facade/privilege-gateway/opensearch22/mcp`;
+    const OPENSEARCH = `${FACADE_ORIGIN}/mcp-facade/privilege-gateway/opensearch/mcp`;
+    const BRAVE = `${FACADE_ORIGIN}/mcp-facade/privilege-gateway/brave/mcp`;
+    const posted = mockApi({
+      gatewayMode: "facade",
+      mcpUrl: OPENSEARCH22,
+      presets: [
+        { label: "3 · Privilege — through the façade", mode: "facade", url: OPENSEARCH22 },
+        { label: "Façade — opensearch", mode: "facade", url: OPENSEARCH },
+        { label: "Façade — brave", mode: "facade", url: BRAVE },
+      ],
+    });
+    renderPage();
+    await waitFor(() => expect(picker()).toBeTruthy());
+
+    const options = [...picker().options].map((o) => o.textContent);
+    expect(options).toEqual(["opensearch22", "opensearch", "brave"]);
+
+    fireEvent.change(picker(), { target: { value: BRAVE } });
+    await waitFor(() => expect(posted.length).toBeGreaterThan(0));
+    expect(posted[0].mcpUrl).toBe(BRAVE);
+  });
+
   it("still appears with only one door on the current gateway — a single-target readout", async () => {
     // one Privilege door + the Direct target + the audit facade: only ONE is a
     // door on the current gateway, but the picker still shows it.

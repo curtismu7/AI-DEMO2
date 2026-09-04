@@ -22,11 +22,27 @@
   padding: 22px 24px;
 }
 
-.mcpsc__head-top {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
+.mcpsc__head {
+  position: relative;
+}
+
+.mcpsc__theme-toggle {
+  position: absolute;
+  top: 22px;
+  right: 24px;
+  padding: 6px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mcpsc__theme-toggle:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
 }
 
 .mcpsc__eyebrow {
@@ -446,4 +462,9 @@
   .mcpsc { padding: 18px 14px 60px; }
   .mcpsc__head,
   .mcpsc__card { padding: 16px 16px; }
+  .mcpsc__theme-toggle {
+    position: static;
+    display: inline-block;
+    margin-bottom: 12px;
+  }
 }
