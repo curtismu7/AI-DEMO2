@@ -117,6 +117,13 @@ function getClientSession(req) {
       },
       gatewayMode: DEFAULT_GATEWAY_MODE,
       gatewayConfigs: modeConfigs,
+      // Per-mode oauth, kept OUT of gatewayConfigs (which is echoed back to the
+      // client verbatim in /state and /config responses) so a token is never
+      // serialized into a JSON body. session.oauth below is a single slot
+      // shared across modes — switching modes stashes the outgoing token here
+      // and restores the destination mode's, so revisiting an already-signed-in
+      // mode does not force a redundant /auth/start. See POST /config.
+      savedOauthByMode: {},
       oauth: {
          accessToken: null, refreshToken: null, expiresAt: null, tokenUri: null, source: null,
 
@@ -1427,6 +1434,22 @@ router.post('/config', express.json(), (req, res) => {
     llmUrl: patch.llmUrl || session.config.llmUrl,
     llmModel: patch.llmModel || session.config.llmModel,
   };
+  // Actually switching modes (not just re-saving the current mode's door) —
+  // stash the outgoing mode's live token so returning to it later can reuse
+  // it, then restore whatever the destination mode last had instead of
+  // leaving the outgoing token in place: session.oauth is a single slot, and
+  // a stale cross-mode token reporting `authenticated: true` here is exactly
+  // what the /auth/callback tokenOrigin guard above protects against — the
+  // real gateway rejects a Façade-broker token as "Bearer token required".
+  if (gatewayMode !== session.gatewayMode) {
+    if (session.oauth.accessToken) {
+      session.savedOauthByMode[session.gatewayMode] = { ...session.oauth };
+    }
+    const restored = session.savedOauthByMode[gatewayMode];
+    session.oauth = restored
+      ? { ...restored }
+      : { accessToken: null, refreshToken: null, expiresAt: null, tokenUri: null, source: null, dcrClientId: null, dcrClientSecret: null };
+  }
   session.gatewayMode = gatewayMode;
   session.config = { ...session.gatewayConfigs[gatewayMode], ...sharedConfig };
   resetMcpState(session);
@@ -1441,6 +1464,7 @@ router.post('/config', express.json(), (req, res) => {
     config: session.config,
     gatewayMode: session.gatewayMode,
     gatewayConfigs: session.gatewayConfigs,
+    oauth: { authenticated: Boolean(session.oauth.accessToken) },
   });
 });
 
