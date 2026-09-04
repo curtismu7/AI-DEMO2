@@ -3,6 +3,7 @@ import useDividerDrag from '../hooks/useDividerDrag';
 import './TokenExchangeTesterPage.css';
 import JsonHighlight from '../components/shared/JsonHighlight';
 import InlineSpinner from '../components/shared/InlineSpinner';
+import { useThemeOptional } from '../context/ThemeContext';
 
 const LOGIN_URL = '/api/auth/oauth/user/login?return_to=/token-exchange-tester';
 
@@ -25,6 +26,7 @@ function claimSummary(claims) {
  * RFC 8693 Token Exchange Tester — single (subject-only) or double (subject + agent → MCP).
  */
 export default function TokenExchangeTesterPage() {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const { size: leftWidth, handleProps: leftHandleProps } = useDividerDrag({
     min: 300,
     max: 640,
@@ -238,6 +240,15 @@ export default function TokenExchangeTesterPage() {
         <span className="tet-topbar__status">
           Exchange your session subject token (and agent actor token in 2-exchange mode) for a scoped MCP token using real PingOne credentials.
         </span>
+        <button
+          type="button"
+          onClick={toggleDarkMode}
+          className="tet-theme-toggle"
+          title="Switch this page between light and dark"
+          aria-pressed={darkMode}
+        >
+          {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
+        </button>
       </div>
 
       <div className="tet-readiness">

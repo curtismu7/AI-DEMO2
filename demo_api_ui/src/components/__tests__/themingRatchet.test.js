@@ -40,7 +40,8 @@ import path from 'node:path';
 // in dark mode. Shared by AgentBuilderPage and AIAgent.
 // 175 -> 174: PingOneSetup.css, fully converted from a fictional
 // --bg-*/--text-* token family that was never defined anywhere.
-const MAX_UNTHEMED = 174;
+// 174 -> 173: TokenExchangeTesterPage.css, fully converted.
+const MAX_UNTHEMED = 173;
 
 const SRC = path.join(__dirname, '..', '..');
 
