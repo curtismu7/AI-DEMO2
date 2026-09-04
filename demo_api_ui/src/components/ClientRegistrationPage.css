@@ -1,0 +1,257 @@
+/* ClientRegistrationPage.css
+ * Every element here used to be styled via inline style={{ color, background }}
+ * literals (var(--text, #1e293b), var(--border, #e2e8f0), var(--muted, #64748b) —
+ * none of those custom properties are defined anywhere, so they always fell
+ * through to the light literal fallback). AdminSubPageShell already supplies a
+ * dark-mode toggle, but this page's own content never tracked it: the shell
+ * went dark, the form and result card stayed a light rectangle inside it.
+ * Converted to --th-* per THEMING.md so the content actually themes. */
+
+.crp-body {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.crp-info-box {
+  margin-bottom: 32px;
+  padding: 14px 16px;
+  background: var(--th-status-info-bg);
+  border-left: 4px solid var(--brand-navy);
+  border-radius: 0 6px 6px 0;
+  font-size: 13px;
+  color: var(--th-status-info-text);
+}
+
+.crp-section {
+  margin-bottom: 32px;
+}
+
+.crp-section-heading {
+  margin: 0 0 16px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--th-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--th-border);
+  padding-bottom: 8px;
+}
+
+.crp-field {
+  margin-bottom: 20px;
+}
+
+.crp-field-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--th-text);
+  font-size: 14px;
+}
+
+.crp-field-hint {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--th-text-muted);
+}
+
+.crp-input,
+.crp-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  border: 1px solid var(--th-border);
+  border-radius: 6px;
+  font-family: inherit;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  outline: none;
+}
+
+.crp-input {
+  font-size: 14px;
+}
+
+.crp-textarea {
+  font-size: 13px;
+  resize: vertical;
+}
+
+.crp-input:disabled,
+.crp-textarea:disabled {
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+
+.crp-select {
+  padding: 8px 12px;
+  border: 1px solid var(--th-border);
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
+
+.crp-checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.crp-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--th-text);
+}
+
+.crp-checkbox-code {
+  font-size: 13px;
+}
+
+/* ── Submit ── */
+.crp-submit-box {
+  padding: 20px;
+  background: var(--th-bg-inset);
+  border-radius: 8px;
+  border: 1px solid var(--th-border);
+  color: var(--th-text);
+}
+
+.crp-submit-hint {
+  font-size: 13px;
+  color: var(--th-text-muted);
+  margin-bottom: 14px;
+}
+
+.crp-submit-btn {
+  padding: 12px 28px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 15px;
+  background: var(--brand-navy);
+  color: #fff;
+  cursor: pointer;
+}
+
+.crp-submit-btn:disabled {
+  background: var(--th-bg-inset);
+  color: var(--th-text-faint);
+  border: 1px solid var(--th-border);
+  cursor: not-allowed;
+}
+
+/* ── Result card ── */
+.crp-result {
+  background: var(--th-status-success-bg);
+  border: 1px solid var(--th-status-success-border);
+  border-radius: 8px;
+  padding: 20px;
+  color: var(--th-status-success-text);
+}
+
+.crp-result-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.crp-result-icon {
+  font-size: 20px;
+}
+
+.crp-result-header h3 {
+  margin: 0;
+  color: var(--th-status-success-text);
+}
+
+.crp-result-field {
+  margin-bottom: 14px;
+}
+
+.crp-result-field-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--th-status-success-text);
+  margin-bottom: 4px;
+}
+
+.crp-result-value-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--th-bg-card);
+  border-radius: 6px;
+  padding: 8px 12px;
+  border: 1px solid var(--th-status-success-border);
+  color: var(--th-text);
+}
+
+.crp-result-value-row code {
+  flex: 1;
+  font-size: 13px;
+  word-break: break-all;
+  color: var(--th-text);
+}
+
+.crp-copy-btn {
+  padding: 4px 8px;
+  font-size: 12px;
+  border: 1px solid var(--th-status-success-border);
+  border-radius: 4px;
+  cursor: pointer;
+  background: var(--th-bg-card);
+  color: var(--th-status-success-text);
+}
+
+.crp-copy-btn--copied {
+  background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
+}
+
+.crp-cimd-details {
+  margin-top: 16px;
+}
+
+.crp-cimd-summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--th-status-success-text);
+}
+
+.crp-cimd-pre {
+  margin-top: 8px;
+  padding: 12px;
+  background: var(--th-code-bg);
+  color: var(--th-code-text);
+  border-radius: 6px;
+  font-size: 12px;
+  overflow: auto;
+  max-height: 300px;
+}
+
+.crp-warning-box {
+  margin-top: 20px;
+  padding: 12px;
+  background: var(--th-status-warning-bg);
+  border: 1px solid var(--th-status-warning-border);
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--th-status-warning-text);
+}
+
+.crp-reset-btn {
+  margin-top: 16px;
+  padding: 10px 20px;
+  background: var(--brand-navy);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}

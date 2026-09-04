@@ -12,6 +12,7 @@ import { useEducationUI } from '../context/EducationUIContext';
 import { EDU } from './education/educationIds';
 import AdminSubPageShell from './AdminSubPageShell';
 import PageNav from './PageNav';
+import './ClientRegistrationPage.css';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -23,12 +24,10 @@ function parseLines(str) {
 
 function Field({ label, hint, children }) {
   return (
-    <div style={{ marginBottom: '20px' }}>
-      <label style={{ display: 'block', fontWeight: 600, marginBottom: '4px', color: 'var(--text, #1e293b)', fontSize: '14px' }}>
-        {label}
-      </label>
+    <div className="crp-field">
+      <label className="crp-field-label">{label}</label>
       {children}
-      {hint && <p style={{ margin: '4px 0 0', fontSize: '12px', color: 'var(--muted, #64748b)' }}>{hint}</p>}
+      {hint && <p className="crp-field-hint">{hint}</p>}
     </div>
   );
 }
@@ -37,16 +36,11 @@ function Input({ value, onChange, placeholder, disabled }) {
   return (
     <input
       type="text"
+      className="crp-input"
       value={value}
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
       disabled={disabled}
-      style={{
-        width: '100%', boxSizing: 'border-box', padding: '8px 12px',
-        border: '1px solid var(--border, #e2e8f0)', borderRadius: '6px',
-        fontSize: '14px', background: disabled ? '#f8fafc' : 'white',
-        color: '#1e293b', outline: 'none', fontFamily: 'inherit',
-      }}
     />
   );
 }
@@ -54,33 +48,19 @@ function Input({ value, onChange, placeholder, disabled }) {
 function Textarea({ value, onChange, placeholder, disabled, rows = 3 }) {
   return (
     <textarea
+      className="crp-textarea"
       value={value}
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
       disabled={disabled}
       rows={rows}
-      style={{
-        width: '100%', boxSizing: 'border-box', padding: '8px 12px',
-        border: '1px solid var(--border, #e2e8f0)', borderRadius: '6px',
-        fontSize: '13px', fontFamily: 'inherit', resize: 'vertical',
-        background: disabled ? '#f8fafc' : 'white', color: '#1e293b',
-      }}
     />
   );
 }
 
 function Select({ value, onChange, options, disabled }) {
   return (
-    <select
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      disabled={disabled}
-      style={{
-        padding: '8px 12px', border: '1px solid var(--border, #e2e8f0)',
-        borderRadius: '6px', fontSize: '14px', background: 'white',
-        color: '#1e293b', fontFamily: 'inherit',
-      }}
-    >
+    <select className="crp-select" value={value} onChange={e => onChange(e.target.value)} disabled={disabled}>
       {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
     </select>
   );
@@ -91,16 +71,16 @@ function CheckboxGroup({ options, selected, onChange, disabled }) {
     onChange(selected.includes(val) ? selected.filter(v => v !== val) : [...selected, val]);
   };
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+    <div className="crp-checkbox-group">
       {options.map(o => (
-        <label key={o} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', cursor: disabled ? 'default' : 'pointer' }}>
+        <label key={o} className="crp-checkbox-label" style={{ cursor: disabled ? 'default' : 'pointer' }}>
           <input
             type="checkbox"
             checked={selected.includes(o)}
             onChange={() => toggle(o)}
             disabled={disabled}
           />
-          <code style={{ fontSize: '13px' }}>{o}</code>
+          <code className="crp-checkbox-code">{o}</code>
         </label>
       ))}
     </div>
@@ -120,12 +100,10 @@ function ResultCard({ result, onReset }) {
   }, []);
 
   return (
-    <div style={{
-      background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '8px', padding: '20px',
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-        <span style={{ fontSize: '20px' }}>✅</span>
-        <h3 style={{ margin: 0, color: '#166534' }}>Client registered in PingOne</h3>
+    <div className="crp-result">
+      <div className="crp-result-header">
+        <span className="crp-result-icon">✅</span>
+        <h3>Client registered in PingOne</h3>
       </div>
 
       {[
@@ -133,14 +111,14 @@ function ResultCard({ result, onReset }) {
         { key: 'secret',     label: 'Client Secret (shown once)', value: result.client_secret || '(not available — check PingOne console)' },
         { key: 'cimd_url',   label: 'CIMD Document URL', value: result.cimd_url },
       ].map(({ key, label, value }) => (
-        <div key={key} style={{ marginBottom: '14px' }}>
-          <div style={{ fontSize: '12px', fontWeight: 600, color: '#166534', marginBottom: '4px' }}>{label}</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'white', borderRadius: '6px', padding: '8px 12px', border: '1px solid #bbf7d0' }}>
-            <code style={{ flex: 1, fontSize: '13px', wordBreak: 'break-all', color: '#1e293b' }}>{value}</code>
+        <div key={key} className="crp-result-field">
+          <div className="crp-result-field-label">{label}</div>
+          <div className="crp-result-value-row">
+            <code>{value}</code>
             <button
               onClick={() => copy(value, key)}
               title="Copy"
-              style={{ padding: '4px 8px', fontSize: '12px', border: '1px solid #86efac', borderRadius: '4px', cursor: 'pointer', background: copied === key ? '#dcfce7' : 'white', color: '#166534' }}
+              className={`crp-copy-btn${copied === key ? ' crp-copy-btn--copied' : ''}`}
             >
               {copied === key ? '✓ Copied' : 'Copy'}
             </button>
@@ -148,24 +126,18 @@ function ResultCard({ result, onReset }) {
         </div>
       ))}
 
-      <details style={{ marginTop: '16px' }}>
-        <summary style={{ cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: '#166534' }}>View CIMD document JSON</summary>
-        <pre style={{
-          marginTop: '8px', padding: '12px', background: '#0f172a', color: '#e2e8f0',
-          borderRadius: '6px', fontSize: '12px', overflow: 'auto', maxHeight: '300px',
-        }}>
+      <details className="crp-cimd-details">
+        <summary className="crp-cimd-summary">View CIMD document JSON</summary>
+        <pre className="crp-cimd-pre">
           {JSON.stringify(result.cimd_document, null, 2)}
         </pre>
       </details>
 
-      <div style={{ marginTop: '20px', padding: '12px', background: '#fefce8', border: '1px solid #fde047', borderRadius: '6px', fontSize: '13px', color: '#713f12' }}>
+      <div className="crp-warning-box">
         ⚠️ <strong>Save the client secret now</strong> — it will not be shown again.
       </div>
 
-      <button
-        onClick={onReset}
-        style={{ marginTop: '16px', padding: '10px 20px', background: 'var(--brand-navy)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}
-      >
+      <button onClick={onReset} className="crp-reset-btn">
         Register another client
       </button>
     </div>
@@ -280,11 +252,8 @@ export default function ClientRegistrationPage({ user, onLogout }) {
         </button>
       </div>
 
-      <div style={{ maxWidth: '760px', margin: '0 auto' }}>
-        <div style={{
-          marginBottom: '32px', padding: '14px 16px', background: '#eef2ff',
-          borderLeft: '4px solid var(--brand-navy)', borderRadius: '0 6px 6px 0', fontSize: '13px', color: 'var(--brand-navy)',
-        }}>
+      <div className="crp-body">
+        <div className="crp-info-box">
           <strong>How this works:</strong> You define the metadata below (CIMD format). The server
           calls the PingOne Management API to create the OAuth application, then hosts the
           CIMD document at <code>/.well-known/oauth-client/&#123;app-id&#125;</code>.
@@ -297,10 +266,8 @@ export default function ClientRegistrationPage({ user, onLogout }) {
       ) : (
         <form onSubmit={handleSubmit}>
           {/* ── Section: Identity ───────────────────────────────────── */}
-          <section style={{ marginBottom: '32px' }}>
-            <h2 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>
-              Client Identity
-            </h2>
+          <section className="crp-section">
+            <h2 className="crp-section-heading">Client Identity</h2>
             <Field label="Client Name *" hint="Human-readable name shown on consent screens.">
               <Input value={clientName} onChange={setClientName} placeholder="My Integration" disabled={submitting} />
             </Field>
@@ -319,10 +286,8 @@ export default function ClientRegistrationPage({ user, onLogout }) {
           </section>
 
           {/* ── Section: OAuth Flow ─────────────────────────────────── */}
-          <section style={{ marginBottom: '32px' }}>
-            <h2 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>
-              OAuth Flow
-            </h2>
+          <section className="crp-section">
+            <h2 className="crp-section-heading">OAuth Flow</h2>
             <Field label="Grant Types *" hint="Select all flows this client will use.">
               <CheckboxGroup options={GRANT_TYPE_OPTIONS} selected={grantTypes} onChange={setGrantTypes} disabled={submitting} />
             </Field>
@@ -335,10 +300,8 @@ export default function ClientRegistrationPage({ user, onLogout }) {
           </section>
 
           {/* ── Section: Redirect URIs ──────────────────────────────── */}
-          <section style={{ marginBottom: '32px' }}>
-            <h2 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>
-              Redirect URIs
-            </h2>
+          <section className="crp-section">
+            <h2 className="crp-section-heading">Redirect URIs</h2>
             <Field label="Redirect URIs" hint="One URI per line. Must be HTTPS (localhost allowed for dev).">
               <Textarea
                 value={redirectUris}
@@ -360,10 +323,8 @@ export default function ClientRegistrationPage({ user, onLogout }) {
           </section>
 
           {/* ── Section: Contact ────────────────────────────────────── */}
-          <section style={{ marginBottom: '32px' }}>
-            <h2 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>
-              Contact (optional)
-            </h2>
+          <section className="crp-section">
+            <h2 className="crp-section-heading">Contact (optional)</h2>
             <Field label="Contact Emails" hint="One email per line. Included in the CIMD document.">
               <Textarea
                 value={contacts}
@@ -376,20 +337,15 @@ export default function ClientRegistrationPage({ user, onLogout }) {
           </section>
 
           {/* ── Submit ──────────────────────────────────────────────── */}
-          <div style={{ padding: '20px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-            <div style={{ fontSize: '13px', color: '#374151', marginBottom: '14px' }}>
+          <div className="crp-submit-box">
+            <div className="crp-submit-hint">
               Submitting will call the PingOne Management API to create this application
               and host the CIMD document at <code>/.well-known/oauth-client/&#123;id&#125;</code>.
             </div>
             <button
               type="submit"
               disabled={submitting || !clientName.trim()}
-              style={{
-                padding: '12px 28px', background: submitting || !clientName.trim() ? '#e2e8f0' : 'var(--brand-navy)',
-                color: submitting || !clientName.trim() ? '#94a3b8' : 'white',
-                border: 'none', borderRadius: '6px', cursor: submitting || !clientName.trim() ? 'not-allowed' : 'pointer',
-                fontWeight: 700, fontSize: '15px',
-              }}
+              className="crp-submit-btn"
             >
               {submitting ? '⏳ Registering in PingOne…' : 'Register Client'}
             </button>
