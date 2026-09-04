@@ -40,22 +40,27 @@ import path from 'node:path';
 // in dark mode. Shared by AgentBuilderPage and AIAgent.
 // 175 -> 174: PingOneSetup.css, fully converted from a fictional
 // --bg-*/--text-* token family that was never defined anywhere.
-// 174 -> 173: ControlPlaneRoster.css (the /ai-control-plane page).
+// 174 -> 173: TokenExchangeTesterPage.css, fully converted.
+// 174 -> 173: ControlPlaneRoster.css (the /ai-control-plane page), merged in
+// from a parallel session's toggle rollout.
 // 173 -> 171: AgentFlowHistoryPage.css and TokenChainEventCard.css (the
 // /agent-flow-inspector page and the fictional --color-code-bg it exposed).
 // 171 -> 169: CheckPage.css (aliased its local token layer onto --th-*, see
 // THEMING.md 9.2) and ServersPage.css (the /check page).
-// 169 -> 165: SupportConsole.css, SupportQueueRail.css, CaseNotes.css, and
+// 169 -> 165: CodeExplorerPage.css, ResourceServerPage.css, CodeSearchPage.css
+// and GraphifyPage.css, fully converted from fictional --v2-* tokens (merged
+// in from a parallel session's toggle rollout, PR #2758).
+// 165 -> 161: SupportConsole.css, SupportQueueRail.css, CaseNotes.css, and
 // IdentityGate.css (the shared /admin/{banking,healthcare,retail,
 // sporting-goods,workforce} ops console) — aliased --tint onto
 // color-mix(var(--accent), --th-bg-card) rather than a per-vertical dark
 // literal.
-// 165 -> 164: MortgagePathPage.css, fully converted. The amber brand accent
+// 161 -> 160: MortgagePathPage.css, fully converted. The amber brand accent
 // (#ca8a04) stays literal per THEMING.md §1.3 — it's this page's identity,
 // distinguishing Path A from Path B/C.
-// 164 -> 163: VerticalEditorPage.css (the /admin vertical manifest editor),
+// 160 -> 159: VerticalEditorPage.css (the /admin vertical manifest editor),
 // which had no stylesheet at all before this pass.
-const MAX_UNTHEMED = 163;
+const MAX_UNTHEMED = 159;
 
 const SRC = path.join(__dirname, '..', '..');
 
@@ -211,7 +216,7 @@ describe('theming ratchet', () => {
  * Literal grounds are deliberately not counted. They do not flip, so inherited
  * near-black stays correct against them.
  */
-const MAX_GROUND_WITHOUT_INK = 481;
+const MAX_GROUND_WITHOUT_INK = 461;
 
 const CSS_RULE = /([^{}]+)\{([^{}]*)\}/g;
 const HAS_COLOR = /(?:^|\n)\s*color\s*:/;

@@ -23,10 +23,40 @@
 
 /* Header */
 .ssp-header {
+  position: relative;
   background: linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy) 100%);
   color: white;
   padding: 2rem;
   text-align: center;
+}
+
+/* This page keeps its own branded gradient/card look in every theme (like a
+   sign-in surface), so the toggle is styled to read against the always-dark
+   header rather than following --th-* — the rest of the page does not flip. */
+.ssp-theme-toggle {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  padding: 6px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ssp-theme-toggle:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+@media (max-width: 640px) {
+  .ssp-theme-toggle {
+    position: static;
+    display: inline-block;
+    margin-bottom: 0.75rem;
+  }
 }
 
 .ssp-header h1 {

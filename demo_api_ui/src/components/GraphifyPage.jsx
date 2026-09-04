@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { HeroSection } from './HeroSection';
 import { HERO_VARIANTS } from '../config/heroVariants';
 import { GRAPHIFY_DEMOS, GRAPHIFY_STATS } from './graphifyDemos';
+import { useThemeOptional } from '../context/ThemeContext';
 import './GraphifyPage.css';
 
 /**
@@ -11,6 +12,7 @@ import './GraphifyPage.css';
  * No live CLI; outputs are snapshots from graphify-out/.
  */
 export default function GraphifyPage() {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const [activeId, setActiveId] = useState(GRAPHIFY_DEMOS[0].id);
   const [copied, setCopied] = useState(false);
   const demo = GRAPHIFY_DEMOS.find((d) => d.id === activeId) || GRAPHIFY_DEMOS[0];
@@ -40,6 +42,15 @@ export default function GraphifyPage() {
       />
 
       <div className="graphify-page__body">
+        <button
+          type="button"
+          onClick={toggleDarkMode}
+          className="graphify-theme-toggle"
+          title="Switch this page between light and dark"
+          aria-pressed={darkMode}
+        >
+          {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
+        </button>
         <p className="graphify-page__thesis">
           <strong>Agents don’t grep blindly</strong> — they traverse a graph,
           then open only the files the graph pointed at.

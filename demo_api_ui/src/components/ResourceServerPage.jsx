@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import bffAxios from '../services/bffAxios';
 import ResourceServerTester, { INFLOW_PROBE_TARGETS, INFLOW_SOURCES } from './ResourceServerTester';
 import { formatCurrency, formatDateTime } from '../utils/formatters';
+import { useThemeOptional } from '../context/ThemeContext';
 import './ResourceServerPage.css';
 import SignInPrompt from './SignInPrompt';
 
@@ -141,6 +142,7 @@ function AccessTokenPanel({ accessTokenClaims, tokenMetadata, resourceServerInfo
 }
 
 export default function ResourceServerPage() {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const [view, setView] = useState('login');
   const [loginData, setLoginData] = useState(null);
   const [inflowData, setInflowData] = useState(null);
@@ -243,6 +245,15 @@ export default function ResourceServerPage() {
               : 'Login hop — enduser audience on the session access token (not the MCP exchange target)'}
           </p>
         </div>
+        <button
+          type="button"
+          onClick={toggleDarkMode}
+          className="rsp-theme-toggle"
+          title="Switch this page between light and dark"
+          aria-pressed={darkMode}
+        >
+          {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
+        </button>
       </div>
 
       <div className="rsp-view-tabs" role="tablist" aria-label="Resource server view">

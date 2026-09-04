@@ -5,11 +5,12 @@
   display: flex;
   flex-direction: column;
   min-height: 100%;
-  background: var(--v2-bg, #f7f7f5);
-  color: #111110;
+  background: var(--th-bg-page);
+  color: var(--th-text);
 }
 
 .graphify-page__body {
+  position: relative;
   max-width: min(1400px, 100%);
   width: 100%;
   margin: 0 auto;
@@ -20,17 +21,36 @@
   gap: 1.75rem;
 }
 
+.graphify-theme-toggle {
+  position: absolute;
+  top: 1.5rem;
+  right: 1.5rem;
+  padding: 6px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.graphify-theme-toggle:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
 .graphify-page__thesis {
   margin: 0;
   font-size: 1.15rem;
   line-height: 1.55;
-  color: var(--v2-ink-2, #4c4c48);
-  border-left: 3px solid var(--v2-accent, #1b3a6b);
+  color: var(--th-text-muted);
+  border-left: 3px solid var(--th-bg-emphasis);
   padding: 0.35rem 0 0.35rem 1rem;
 }
 
 .graphify-page__thesis strong {
-  color: #111110;
+  color: var(--th-text);
 }
 
 .graphify-stats {
@@ -40,10 +60,11 @@
 }
 
 .graphify-stat {
+  color: var(--th-text);
   flex: 1 1 120px;
   min-width: 110px;
-  background: #fff;
-  border: 1px solid var(--v2-line-1, #e4e4e0);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
   border-radius: var(--v2-r-md, 8px);
   padding: 0.75rem 1rem;
   box-shadow: var(--v2-shadow-1, 0 1px 2px rgba(0, 0, 0, 0.04));
@@ -54,7 +75,7 @@
   font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: #111110;
+  color: var(--th-text);
 }
 
 .graphify-stat__label {
@@ -63,7 +84,7 @@
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--v2-ink-3, #6b6b66);
+  color: var(--th-text-faint);
 }
 
 .graphify-section h2 {
@@ -75,16 +96,17 @@
 .graphify-section p {
   margin: 0 0 0.75rem;
   line-height: 1.6;
-  color: var(--v2-ink-2, #4c4c48);
+  color: var(--th-text-muted);
   font-size: 0.95rem;
 }
 
 .graphify-compare {
+  color: var(--th-text);
   width: 100%;
   border-collapse: collapse;
   font-size: 0.875rem;
-  background: #fff;
-  border: 1px solid var(--v2-line-1, #e4e4e0);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
   border-radius: var(--v2-r-md, 8px);
   overflow: hidden;
 }
@@ -93,17 +115,17 @@
 .graphify-compare td {
   text-align: left;
   padding: 0.7rem 0.85rem;
-  border-bottom: 1px solid var(--v2-line-1, #e4e4e0);
+  border-bottom: 1px solid var(--th-border);
   vertical-align: top;
 }
 
 .graphify-compare th {
-  background: var(--v2-surface-2, #f0f0ec);
+  background: var(--th-bg-inset);
   font-weight: 600;
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  color: var(--v2-ink-3, #6b6b66);
+  color: var(--th-text-faint);
 }
 
 .graphify-compare tr:last-child td {
@@ -123,9 +145,9 @@
 
 .graphify-demo-btn {
   appearance: none;
-  border: 1px solid var(--v2-line-2, #d5d5d0);
-  background: #fff;
-  color: #111110;
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg-card);
+  color: var(--th-text);
   border-radius: 999px;
   padding: 0.45rem 0.95rem;
   font-size: 0.85rem;
@@ -135,18 +157,20 @@
 }
 
 .graphify-demo-btn:hover {
-  background: var(--v2-surface-2, #f0f0ec);
+  color: var(--th-text);
+  background: var(--th-bg-hover);
 }
 
 .graphify-demo-btn--active {
-  background: #0f766e;
-  border-color: #0f766e;
-  color: #fff;
+  background: var(--th-bg-emphasis);
+  border-color: var(--th-bg-emphasis);
+  color: var(--th-text-on-emphasis);
 }
 
 .graphify-demo-card {
-  background: #fff;
-  border: 1px solid var(--v2-line-1, #e4e4e0);
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
   border-radius: var(--v2-r-lg, 12px);
   padding: 1rem 1.15rem 1.15rem;
   box-shadow: var(--v2-shadow-1, 0 1px 2px rgba(0, 0, 0, 0.04));
@@ -162,7 +186,7 @@
   margin: 0 0 0.85rem;
   font-size: 0.9rem;
   line-height: 1.55;
-  color: var(--v2-ink-2, #4c4c48);
+  color: var(--th-text-muted);
 }
 
 .graphify-cmd-row {
@@ -176,8 +200,8 @@
   flex: 1;
   margin: 0;
   padding: 0.65rem 0.85rem;
-  background: #111110;
-  color: #e8e8e4;
+  background: var(--th-code-bg);
+  color: var(--th-code-text);
   border-radius: var(--v2-r-md, 8px);
   font-size: 0.8rem;
   line-height: 1.45;
@@ -187,9 +211,10 @@
 }
 
 .graphify-copy {
+  color: var(--th-text);
   appearance: none;
-  border: 1px solid var(--v2-line-2, #d5d5d0);
-  background: var(--v2-surface-2, #f0f0ec);
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg-inset);
   border-radius: var(--v2-r-md, 8px);
   padding: 0 0.85rem;
   font-size: 0.8rem;
@@ -199,14 +224,15 @@
 }
 
 .graphify-copy:hover {
-  background: var(--v2-line-1, #e4e4e0);
+  color: var(--th-text);
+  background: var(--th-bg-hover);
 }
 
 .graphify-output {
   margin: 0;
   padding: 0.85rem 1rem;
-  background: #0f172a;
-  color: #cbd5e1;
+  background: var(--th-code-bg);
+  color: var(--th-code-text);
   border-radius: var(--v2-r-md, 8px);
   font-size: 0.78rem;
   line-height: 1.55;
@@ -220,12 +246,12 @@
 .graphify-flow {
   margin: 0;
   padding: 0.85rem 1rem;
-  background: #fff;
-  border: 1px dashed var(--v2-line-2, #d5d5d0);
+  background: var(--th-code-bg);
+  border: 1px dashed var(--th-border-strong);
   border-radius: var(--v2-r-md, 8px);
   font-size: 0.8rem;
   line-height: 1.5;
-  color: var(--v2-ink-2, #4c4c48);
+  color: var(--th-code-text);
   overflow-x: auto;
 }
 
@@ -240,28 +266,28 @@
   align-items: center;
   gap: 0.35rem;
   padding: 0.55rem 0.95rem;
-  background: #fff;
-  border: 1px solid var(--v2-line-2, #d5d5d0);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border-strong);
   border-radius: var(--v2-r-md, 8px);
-  color: #111110;
+  color: var(--th-text);
   text-decoration: none;
   font-size: 0.875rem;
   font-weight: 550;
 }
 
 .graphify-link:hover {
-  border-color: #0f766e;
-  color: #0f766e;
+  border-color: var(--th-status-info);
+  color: var(--th-status-info);
 }
 
 .graphify-mode-banner {
-  background: #e3f2fd;
-  border: 1px solid #90caf9;
-  border-left: 4px solid #1976d2;
+  color: var(--th-status-info-text);
+  background: var(--th-status-info-bg);
+  border: 1px solid var(--th-status-info-border);
+  border-left: 4px solid var(--th-status-info);
   border-radius: 6px;
   padding: 1rem 1.25rem;
   margin: 1rem 0;
-  color: #0d47a1;
 }
 .graphify-mode-banner strong {
   display: block;
@@ -274,7 +300,8 @@
   line-height: 1.5;
 }
 .graphify-mode-banner code {
-  background: rgba(0, 0, 0, 0.07);
+  color: var(--th-code-text);
+  background: var(--th-code-bg);
   padding: 1px 4px;
   border-radius: 3px;
   font-size: 0.8rem;
@@ -283,6 +310,14 @@
 .graphify-note {
   margin: 0;
   font-size: 0.8rem;
-  color: var(--v2-ink-3, #6b6b66);
+  color: var(--th-text-faint);
   line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  .graphify-theme-toggle {
+    position: static;
+    display: inline-block;
+    margin-bottom: 12px;
+  }
 }

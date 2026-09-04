@@ -1,26 +1,46 @@
-/* TokenExchangeTesterPage — plain inspector-style layout: tokens left, results right */
+/* TokenExchangeTesterPage — plain inspector-style layout: tokens left, results right.
+   Themed with --th-* per THEMING.md. */
 
 .tet-page {
-  background: #f8fafc;
+  background: var(--th-bg-page);
+  color: var(--th-text);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 /* Top bar */
 .tet-topbar {
-  background: #f1f5f9;
-  border-bottom: 1px solid #cbd5e1;
+  color: var(--th-text);
+  background: var(--th-bg-inset);
+  border-bottom: 1px solid var(--th-border);
   padding: 12px 20px;
   display: flex;
   align-items: baseline;
   gap: 14px;
 }
-.tet-topbar h1 { font-size: 16px; font-weight: 600; color: #1e293b; margin: 0; }
-.tet-topbar__status { font-size: var(--font-size-2xs); color: #64748b; }
+.tet-topbar h1 { font-size: 16px; font-weight: 600; color: var(--th-text); margin: 0; }
+.tet-topbar__status { font-size: var(--font-size-2xs); color: var(--th-text-muted); }
+
+.tet-theme-toggle {
+  margin-left: auto;
+  align-self: center;
+  padding: 6px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.tet-theme-toggle:hover {
+  color: var(--th-text);
+  background: var(--th-bg-hover);
+}
 
 /* No session */
 .tet-no-session {
   padding: 16px 20px;
-  color: #991b1b;
+  color: var(--th-status-error-text);
   font-size: var(--font-size-sm);
 }
 
@@ -32,10 +52,12 @@
 @media (max-width: 900px) {
   .tet-grid { grid-template-columns: 1fr; }
   .tet-grid > .divider-drag-handle { display: none; }
+  .tet-topbar { flex-wrap: wrap; }
+  .tet-theme-toggle { margin-left: 0; }
 }
 
 .tet-col-left {
-  border-right: 1px solid #cbd5e1;
+  border-right: 1px solid var(--th-border);
   padding: 16px 20px;
 }
 .tet-col-right {
@@ -47,7 +69,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #64748b;
+  color: var(--th-text-muted);
   margin: 16px 0 8px;
 }
 .tet-section-label:first-child { margin-top: 0; }
@@ -58,7 +80,7 @@
   display: block;
   font-size: var(--font-size-2xs);
   font-weight: 600;
-  color: #475569;
+  color: var(--th-text-muted);
   margin-bottom: 4px;
   font-family: var(--font-mono);
 }
@@ -68,26 +90,29 @@
   padding: 7px 9px;
   font-size: var(--font-size-sm);
   font-family: var(--font-mono);
-  background: #ffffff;
-  border: 1px solid #94a3b8;
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border-strong);
   border-radius: 4px;
-  color: #1e293b;
+  color: var(--th-text);
   box-sizing: border-box;
   margin-bottom: 6px;
 }
-.tet-field select:focus, .tet-field input:focus { outline: none; border-color: #3b82f6; }
+.tet-field select:focus, .tet-field input:focus { outline: none; border-color: var(--th-status-info); }
 
 .tet-btn {
+  color: var(--th-text-on-emphasis);
   padding: 9px 16px;
   font-size: var(--font-size-sm);
   font-weight: 600;
-  background: #2563eb;
-  color: #fff;
+  background: var(--th-bg-emphasis);
   border: none;
   border-radius: 6px;
   cursor: pointer;
 }
-.tet-btn:hover:not(:disabled) { background: #1d4ed8; }
+.tet-btn:hover:not(:disabled) {
+  color: var(--th-text-on-emphasis);
+  background: color-mix(in srgb, var(--th-bg-emphasis) 85%, black);
+}
 .tet-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* Token claims */
@@ -96,80 +121,83 @@
   font-size: var(--font-size-2xs);
   font-family: var(--font-mono);
 }
-.tet-claims dt { color: #475569; font-weight: 700; margin-top: 4px; }
-.tet-claims dd { margin: 0 0 0 0; color: #1e293b; word-break: break-all; }
+.tet-claims dt { color: var(--th-text-muted); font-weight: 700; margin-top: 4px; }
+.tet-claims dd { margin: 0 0 0 0; color: var(--th-text); word-break: break-all; }
 
 /* Results column */
 .tet-error {
   padding: 10px 12px;
-  color: #991b1b;
+  color: var(--th-status-error-text);
   font-size: var(--font-size-sm);
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--th-border);
 }
 .tet-json {
   font-family: var(--font-mono);
   font-size: var(--font-size-2xs);
   line-height: 1.7;
-  color: #1e293b;
+  color: var(--th-code-text);
   white-space: pre-wrap;
   word-break: break-word;
   margin: 0;
-  background: #f1f5f9;
+  background: var(--th-code-bg);
   padding: 12px 14px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--th-border);
   max-height: 320px;
   overflow: auto;
 }
 .tet-empty {
-  color: #64748b;
+  color: var(--th-text-muted);
   font-size: var(--font-size-sm);
 }
 
 .tet-muted {
-  color: #475569;
+  color: var(--th-text-muted);
   font-size: var(--font-size-2xs);
   margin: 0;
 }
 
 /* Token readiness (subject + agent) */
 .tet-readiness {
+  color: var(--th-text);
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
   padding: 12px 20px;
-  border-bottom: 1px solid #cbd5e1;
-  background: #fff;
+  border-bottom: 1px solid var(--th-border);
+  background: var(--th-bg-card);
 }
 @media (max-width: 900px) {
   .tet-readiness { grid-template-columns: 1fr; }
 }
 .tet-ready-card {
-  border: 1px solid #cbd5e1;
+  color: var(--th-text);
+  border: 1px solid var(--th-border);
   border-radius: 6px;
   padding: 12px 14px;
-  background: #f8fafc;
+  background: var(--th-bg-inset);
 }
-.tet-ready-card--ok { border-color: #86efac; background: #f0fdf4; }
-.tet-ready-card--bad { border-color: #fca5a5; background: #fef2f2; }
-.tet-ready-card--checking { border-color: #d1d5db; background: #f9fafb; }
+.tet-ready-card--ok { border-color: var(--th-status-success-border); background: var(--th-status-success-bg); }
+.tet-ready-card--bad { border-color: var(--th-status-error-border); background: var(--th-status-error-bg); }
+.tet-ready-card--checking { border-color: var(--th-border-strong); background: var(--th-bg-inset); }
 .tet-ready-card__title {
   font-size: var(--font-size-sm);
   font-weight: 700;
-  color: #1e293b;
+  color: var(--th-text);
   margin-bottom: 4px;
 }
 .tet-ready-card__meta {
   font-size: var(--font-size-2xs);
-  color: #334155;
+  color: var(--th-text-muted);
   margin-bottom: 8px;
   word-break: break-word;
 }
 .tet-ready-card__hint {
   font-size: var(--font-size-2xs);
-  color: #7f1d1d;
+  color: var(--th-status-error-text);
   margin: 8px 0 0;
 }
 .tet-btn--secondary {
+  color: #fff;
   display: inline-block;
   margin-top: 8px;
   background: #1e293b;
@@ -179,7 +207,7 @@
 .tet-btn--secondary:hover { background: #0f172a; }
 
 .tet-no-session a {
-  color: #1d4ed8;
+  color: var(--th-status-info);
   font-weight: 600;
 }
 
@@ -187,7 +215,7 @@
 .tet-mode-toggle {
   display: flex;
   gap: 0;
-  border: 1px solid #94a3b8;
+  border: 1px solid var(--th-border-strong);
   border-radius: 6px;
   overflow: hidden;
   width: fit-content;
@@ -197,19 +225,19 @@
   padding: 7px 14px;
   font-size: var(--font-size-sm);
   font-weight: 600;
-  background: #fff;
-  color: #334155;
+  background: var(--th-bg-card);
+  color: var(--th-text);
   border: none;
   cursor: pointer;
 }
-.tet-mode-btn + .tet-mode-btn { border-left: 1px solid #94a3b8; }
+.tet-mode-btn + .tet-mode-btn { border-left: 1px solid var(--th-border-strong); }
 .tet-mode-btn--active {
-  background: #2563eb;
-  color: #fff;
+  color: var(--th-text-on-emphasis);
+  background: var(--th-bg-emphasis);
 }
 .tet-field-hint {
   font-size: var(--font-size-2xs);
-  color: #475569;
+  color: var(--th-text-muted);
   margin: 0;
 }
 
@@ -220,14 +248,15 @@
   gap: 10px;
 }
 .tet-step {
-  border: 1px solid #cbd5e1;
+  color: var(--th-text);
+  border: 1px solid var(--th-border);
   border-radius: 6px;
   padding: 10px 12px;
-  background: #fff;
+  background: var(--th-bg-card);
 }
-.tet-step--ok { border-color: #86efac; }
-.tet-step--failed { border-color: #fca5a5; background: #fef2f2; }
-.tet-step--pending { border-color: #cbd5e1; }
+.tet-step--ok { border-color: var(--th-status-success-border); }
+.tet-step--failed { border-color: var(--th-status-error-border); background: var(--th-status-error-bg); }
+.tet-step--pending { border-color: var(--th-border); }
 .tet-step__head {
   display: flex;
   justify-content: space-between;
@@ -238,17 +267,17 @@
 .tet-step__label {
   font-size: var(--font-size-2xs);
   font-weight: 700;
-  color: #1e293b;
+  color: var(--th-text);
 }
 .tet-step__status {
   font-size: var(--font-size-xs);
   font-family: var(--font-mono);
   text-transform: uppercase;
-  color: #475569;
+  color: var(--th-text-muted);
 }
 .tet-step__why {
   font-size: var(--font-size-2xs);
-  color: #334155;
+  color: var(--th-text-muted);
   margin: 0 0 8px;
 }
 .tet-json--compact {
