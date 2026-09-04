@@ -1,13 +1,12 @@
 /* demo_api_ui/src/pages/AuditAgentPage.css
-   Tokens follow the --th-* semantic set with --ba-* fallbacks, same as
-   EnterpriseMcpDemoPage.css, so the page tracks light and dark without a
-   second palette. */
+   Tokens follow the --th-* semantic set defined in src/index.css, so the
+   page tracks the app's light/dark toggle without a second palette. */
 
 .audit-agent-page {
   max-width: 68rem;
   margin: 0 auto;
   padding: 1.5rem 1.25rem 3rem;
-  color: var(--th-text, var(--ba-text, #1a1a1a));
+  color: var(--th-text);
 }
 
 .aap-head h1 {
@@ -17,21 +16,21 @@
 
 .aap-sub {
   margin: 0 0 1.25rem;
-  color: var(--th-text-muted, var(--ba-text-muted, #666));
+  color: var(--th-text-muted);
 }
 
 .aap-notice {
   margin-bottom: 1rem;
   padding: 0.65rem 0.85rem;
-  border: 1px solid var(--th-warn-border, #e0b400);
-  background: var(--th-warn-bg, #fff8e1);
-  color: var(--th-warn-text, #5c4400);
+  border: 1px solid var(--th-status-warning-border);
+  background: var(--th-status-warning-bg);
+  color: var(--th-status-warning-text);
   border-radius: 6px;
 }
 
 .aap-scope {
-  border: 1px solid var(--th-border, var(--ba-border, #ddd));
-  background: var(--th-surface-2, var(--ba-surface-2, #fafafa));
+  border: 1px solid var(--th-border);
+  background: var(--th-bg-inset);
   border-radius: 8px;
   padding: 0.85rem 1rem;
   margin-bottom: 1.25rem;
@@ -47,12 +46,12 @@
 
 .aap-label {
   min-width: 8rem;
-  color: var(--th-text-muted, var(--ba-text-muted, #666));
+  color: var(--th-text-muted);
 }
 
 .aap-scope-row code {
-  background: var(--th-code-bg, #f2f2f2);
-  color: var(--th-code-text, #1a1a1a);
+  background: var(--th-code-bg);
+  color: var(--th-code-text);
   padding: 0.1rem 0.4rem;
   border-radius: 4px;
   /* Gateway URLs are long; let the row scroll rather than the page. */
@@ -61,15 +60,15 @@
 }
 
 .aap-hint {
-  color: var(--th-text-muted, var(--ba-text-muted, #666));
+  color: var(--th-text-muted);
   font-size: 0.9rem;
 }
 
 .aap-connect,
 .aap-ask,
 .aap-tools {
-  border: 1px solid var(--th-border, var(--ba-border, #ddd));
-  background: var(--th-surface, var(--ba-surface, #fff));
+  border: 1px solid var(--th-border);
+  background: var(--th-bg-card);
   border-radius: 8px;
   padding: 1rem;
   margin-bottom: 1.25rem;
@@ -96,17 +95,17 @@
   flex: 1 1 22rem;
   min-width: 0;
   padding: 0.5rem 0.6rem;
-  border: 1px solid var(--th-border, var(--ba-border, #ccc));
+  border: 1px solid var(--th-border);
   border-radius: 6px;
-  background: var(--th-surface-2, var(--ba-surface-2, #fff));
+  background: var(--th-bg-inset);
   color: inherit;
 }
 
 .audit-agent-page button {
   padding: 0.5rem 0.9rem;
-  border: 1px solid var(--th-primary-border, #2b6cb0);
-  background: var(--th-primary-bg, #2b6cb0);
-  color: #fff;
+  border: 1px solid var(--th-bg-emphasis);
+  background: var(--th-bg-emphasis);
+  color: var(--th-text-on-emphasis);
   border-radius: 6px;
   cursor: pointer;
 }
@@ -119,8 +118,8 @@
 .aap-answer {
   margin-top: 0.85rem;
   padding: 0.75rem;
-  background: var(--th-code-bg, #f2f2f2);
-  color: var(--th-code-text, #1a1a1a);
+  background: var(--th-code-bg);
+  color: var(--th-code-text);
   border-radius: 6px;
   /* Agent output is arbitrarily wide; scroll it, never the body. */
   overflow-x: auto;
