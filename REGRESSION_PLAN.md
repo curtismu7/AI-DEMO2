@@ -140,6 +140,32 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-04 — Token Chain pipeline-step rows unreadable in dark mode (light-blue text on white)
+
+**Files changed:** `demo_api_ui/src/components/supportConsole/SupportConsole.css`.
+
+**What was broken:** `.vops__trace summary` (the "Token Chain — MCP Route"
+collapsible header on the Ops pages) used a descendant combinator, so it also
+matched every nested `<summary>` inside the embedded `TokenChainTraceRail` —
+each numbered pipeline step (`.tctr-step > summary`) is a `<details>/<summary>`
+several levels deeper inside `.vops__tracebody`. That gave every step row a
+hardcoded `background:#fff` at the same specificity as (and later in source
+order than) `.tctr-step > summary`, while a more specific dark-mode rule
+(`:root[data-theme="dark"] .tctr .tctr-step > summary { color: #dbeafe }`)
+correctly recolored only the text. Net result in dark mode: light-blue text on
+a pure white row — reported live by the user on `ai-demo.ping-devops.com`
+Sporting Goods Ops → Token Chain → MCP pipeline steps.
+
+**What was fixed:** narrowed the five `.vops__trace summary...` selectors to
+`.vops__trace > summary...` (direct-child combinator) so they only match the
+outer accordion's own summary, not descendants inside `.vops__tracebody`.
+
+**Do not break:** the outer "Token Chain — MCP Route" header's own look
+(white background, `#1a2230` text, rotating `▶` marker) is unchanged — verified
+via a computed-style check against the built CSS before/after.
+
+**Verify:** `cd demo_api_ui && npx vitest run src/components/supportConsole/__tests__/SupportConsole.test.jsx` (11/11); `npm run build` (exit 0). Reproduced live (real trace data, real dark-mode toggle) on `ai-demo.ping-devops.com` before the fix and confirmed via a computed-style check against the rebuilt CSS after.
+
 ### 2026-09-03 — Direct-to-MCP mode still redirected to PingOne OAuth (follow-up to the sign-in-loop fix below)
 
 **Files changed:** `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`,
