@@ -227,23 +227,40 @@ const DOORS = {
  * correlation, tool/capability caching) works unchanged for this door too.
  *
  * Exposes the hosted catalog RAW (mcpPingOneHttpAdapter's own listTools/
- * callTool) — every tool the worker token's admin roles unlock, full JSON
- * schemas, no cap. Measured live 2026-08-25: 85 tools, ~373KB of schema —
- * this count moves with PingOne's own management-API coverage and the
- * worker's roles, so treat any specific number here as a snapshot, not a
- * guarantee. A client that auto-attaches every tool from this door (a bare
- * chat picker, not an Agent builder's per-tool selection) will blow past a
- * small model's context window the same way the raw catalog already did for
+ * callTool) — every tool the SIGNED-IN USER's own PingOne roles unlock (the
+ * adapter requires a delegated PKCE token, not a worker credential — see its
+ * own file header), full JSON schemas, no cap. Measured live 2026-08-25 with
+ * an admin token: 85 tools, ~373KB of schema — this count moves with the
+ * user's roles and PingOne's own management-API coverage, so treat any
+ * specific number here as a snapshot, not a guarantee. A client that
+ * auto-attaches every tool from this door (a bare chat picker, not an Agent
+ * builder's per-tool selection) will blow past a small model's context
+ * window the same way the raw catalog already did for
  * bankingAgentLangGraphService.js's own pingone-admin path before that fix —
  * this door deliberately does NOT carry that fix, by request.
  *
  * Returns a fetch Response-shaped object ({status, headers, text()}) so the
  * caller (POST /:door/mcp) doesn't need a separate code path for this door.
+ *
+ * `session` is the caller's Express req.session — routes/mcpPingOneAdminAuth.js
+ * stores the delegated token there (session.pingoneMcpAdminToken) after its
+ * own separate PKCE login. Without one, listTools/callTool throw
+ * pingone_mcp_auth_required; that's surfaced as a 401 carrying a loginUrl so
+ * the client can drive that flow (see requestSignIn in PrivilegeMcpClientPage.jsx).
  */
-async function pingoneAdminLocalHandler({ rpc, method, sessionIdIn }) {
+async function pingoneAdminLocalHandler({ rpc, method, sessionIdIn, session, returnTo }) {
   const { listTools, callTool } = require('../services/mcpPingOneHttpAdapter');
   const headers = new Map();
   const respond = (status, body) => ({ status, headers, text: async () => JSON.stringify(body) });
+  const authRequiredResponse = (err) => {
+    if (err.code !== 'pingone_mcp_auth_required') throw err;
+    const loginUrl = `/api/mcp/inspector/pingone-admin/login?returnTo=${encodeURIComponent(returnTo || '')}`;
+    return respond(401, {
+      jsonrpc: '2.0',
+      id: rpc.id ?? null,
+      error: { code: -32001, message: 'Unauthorized', data: { reason: 'pingone_admin_login_required', loginUrl } },
+    });
+  };
 
   if (method === 'notifications/initialized' || String(method).startsWith('notifications/')) {
     if (sessionIdIn) headers.set('mcp-session-id', sessionIdIn);
@@ -267,8 +284,9 @@ async function pingoneAdminLocalHandler({ rpc, method, sessionIdIn }) {
   if (method === 'tools/list') {
     let tools;
     try {
-      tools = await listTools();
+      tools = await listTools(session);
     } catch (err) {
+      if (err.code === 'pingone_mcp_auth_required') return authRequiredResponse(err);
       return respond(200, { jsonrpc: '2.0', id: rpc.id ?? null, error: { code: -32000, message: `pingone_mcp_unavailable: ${err.message}` } });
     }
     return respond(200, { jsonrpc: '2.0', id: rpc.id ?? null, result: { tools } });
@@ -278,8 +296,9 @@ async function pingoneAdminLocalHandler({ rpc, method, sessionIdIn }) {
     const args = rpc.params?.arguments || {};
     let result;
     try {
-      result = await callTool(name, args);
+      result = await callTool(name, args, session);
     } catch (err) {
+      if (err.code === 'pingone_mcp_auth_required') return authRequiredResponse(err);
       return respond(200, { jsonrpc: '2.0', id: rpc.id ?? null, result: { isError: true, content: [{ type: 'text', text: `pingone_mcp_unavailable: ${err.message}` }] } });
     }
     return respond(200, { jsonrpc: '2.0', id: rpc.id ?? null, result });
@@ -676,7 +695,10 @@ router.post(['/:door/mcp', '/:door/:app/mcp'], express.json({ limit: '1mb', type
   let upstream;
   try {
     upstream = door.localHandler
-      ? await door.localHandler({ rpc, method, sessionIdIn: req.get('mcp-session-id') })
+      // /privilege-mcp-client is this door's only browser consumer today —
+      // where a delegated-PKCE login (pingoneAdminLocalHandler's auth-required
+      // response) should send the browser back to.
+      ? await door.localHandler({ rpc, method, sessionIdIn: req.get('mcp-session-id'), session: req.session, returnTo: '/privilege-mcp-client' })
       : await fetch(upstreamUrl, {
         method: 'POST',
         headers: upstreamHeaders,
