@@ -19,11 +19,16 @@
   color: var(--th-text);
 }
 
+.a2l-header-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
 .a2l-h1 { font-size: 1.7rem; margin: 0 0 8px; color: var(--th-text); }
 .a2l-sub { margin: 0 0 16px; max-width: 70ch; color: var(--th-text-body); }
 .a2l-h2 { font-size: 1.15rem; margin: 0 0 6px; display: flex; align-items: center; gap: 10px; }
 .a2l-lead { margin: 0 0 14px; max-width: 78ch; color: var(--th-text-muted); }
-.a2l-meta { color: var(--th-text-faint); font-size: 0.85rem; }
+/* --th-text-faint fails AA here (2.56:1 light / 4.29:1 dark against the card
+   surface) — --th-text-muted is the tier that actually clears 4.5:1 for
+   caption-sized text. */
+.a2l-meta { color: var(--th-text-muted); font-size: 0.85rem; }
 
 .a2l-num {
   display: inline-grid;
@@ -111,7 +116,7 @@
   border-left: 3px solid var(--th-border-strong);
   padding-left: 10px;
 }
-.a2l-pane-url { margin: 0 0 8px; font-size: 0.8rem; color: var(--th-text-faint); word-break: break-all; }
+.a2l-pane-url { margin: 0 0 8px; font-size: 0.8rem; color: var(--th-text-muted); word-break: break-all; }
 /* Monospace comes from the <code> element, never a font-family declaration —
  * src/__tests__/uiRegression.test.js forbids monospace in CSS project-wide. */
 
@@ -146,7 +151,7 @@
 .a2l-status { font-size: 0.88rem; color: var(--th-text-muted); margin: 0 0 10px; }
 .a2l-status code { color: var(--th-text-body); }
 .a2l-err { color: var(--th-status-error-text); font-size: 0.88rem; }
-.a2l-empty { color: var(--th-text-faint); font-style: italic; }
+.a2l-empty { color: var(--th-text-muted); font-style: italic; }
 
 .a2l-caveats { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
 .a2l-caveats li { color: var(--th-text-body); max-width: 82ch; }
