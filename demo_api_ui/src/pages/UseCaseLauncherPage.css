@@ -826,4 +826,5 @@
 
 .ulp__theme-toggle:hover {
   background: var(--th-bg-hover);
+  color: var(--th-text);
 }
