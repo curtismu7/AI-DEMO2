@@ -1016,7 +1016,7 @@ export default function BankingAgent({
       persistence and the data-theme attribute now live in ThemeProvider so the
       choice holds on pages where this agent is not mounted — the rail renders on
       ~28 of them. This switch is one control over that shared state, not its owner. */
-  const { darkMode, setDarkMode } = useThemeOptional();
+  const { darkMode, setDarkMode, toggleDarkMode } = useThemeOptional();
 
   /** Whether the heuristic fast-path is enabled (ff_heuristic_enabled). false = LLM-only mode. */
   const [heuristicEnabled, setHeuristicEnabled] = useState(true);
@@ -9864,6 +9864,20 @@ export default function BankingAgent({
                   Clear progress
                 </button>
                 </div>
+                {/* Dark/light toggle — shared app theme (ThemeProvider), same
+                    control the "Dark mode" switch in the "..." menu drives;
+                    a visible icon button here so it doesn't require opening
+                    that menu to find. */}
+                <button
+                  type="button"
+                  className="ba-icon-btn"
+                  onClick={toggleDarkMode}
+                  aria-label="Toggle dark mode"
+                  aria-pressed={darkMode}
+                  title="Switch this agent between light and dark"
+                >
+                  {darkMode ? "☀️" : "🌙"}
+                </button>
                 {/* Expand/restore — float mode only, hidden when popped out
                     (the OS window controls size there instead) */}
                 {!isInline && !poppedOutWin && (
