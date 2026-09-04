@@ -1101,7 +1101,7 @@ The CLI proves reachability. This panel proves the authenticated half, using the
 
 **Note on the existing endpoint:** `/doors/probe` caps the fan-out at 12 URLs and skips the currently-selected door (`u !== session.config.mcpUrl`). Both are fine here — the current door's state is already visible on the page.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test** — DONE
 
 Create `demo_api_ui/src/pages/__tests__/PrivilegeMcpClientPage.preflight.test.jsx`:
 
@@ -1183,7 +1183,7 @@ describe("preflight panel", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails** — DONE, 3 red
 
 ```bash
 cd demo_api_ui && npm run test:unit -- src/pages/__tests__/PrivilegeMcpClientPage.preflight.test.jsx
@@ -1191,7 +1191,7 @@ cd demo_api_ui && npm run test:unit -- src/pages/__tests__/PrivilegeMcpClientPag
 
 Expected: FAIL — no "Run preflight" button.
 
-- [ ] **Step 3: Implement the panel**
+- [x] **Step 3: Implement the panel** — DONE
 
 Add state near the other page state in `PrivilegeMcpClientPage.jsx`:
 
@@ -1245,7 +1245,7 @@ Render it (place it above the tools panel, below the gateway session banner from
       </div>
 ```
 
-- [ ] **Step 4: Style it**
+- [x] **Step 4: Style it** — DONE
 
 Append to `PrivilegeMcpClientPage.css`:
 
@@ -1294,7 +1294,7 @@ Append to `PrivilegeMcpClientPage.css`:
 }
 ```
 
-- [ ] **Step 5: Run the test to verify it passes**
+- [x] **Step 5: Run the test to verify it passes** — DONE, 3 pass
 
 ```bash
 cd demo_api_ui && npm run test:unit -- src/pages/__tests__/PrivilegeMcpClientPage.preflight.test.jsx
@@ -1302,7 +1302,7 @@ cd demo_api_ui && npm run test:unit -- src/pages/__tests__/PrivilegeMcpClientPag
 
 Expected: PASS.
 
-- [ ] **Step 6: Run the whole page suite — this file has 14 existing specs**
+- [x] **Step 6: Run the whole page suite** — DONE, 16 files / 59 tests (the file had 15 specs, not 14)
 
 ```bash
 cd demo_api_ui && npm run test:unit -- src/pages/__tests__/PrivilegeMcpClientPage
@@ -1310,7 +1310,7 @@ cd demo_api_ui && npm run test:unit -- src/pages/__tests__/PrivilegeMcpClientPag
 
 Expected: PASS across all of them.
 
-- [ ] **Step 7: Build gate**
+- [x] **Step 7: Build gate** — DONE, exit 0
 
 ```bash
 cd demo_api_ui && npm run build
@@ -1318,7 +1318,23 @@ cd demo_api_ui && npm run build
 
 Expected: build succeeds.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit** — DONE
+
+**Three corrections to this task as written.**
+
+1. *Silent failure.* The plan's handler is `try { … } finally { setPreflightBusy(false) }`
+   with no `catch` and no `res.ok` check. `/doors/probe` answers **401** when the
+   session has no access token, so `data.results` would be `undefined` → `[]` → an
+   empty list that looks exactly like a clean preflight. It now goes through the page's
+   own `api()` helper, which checks `r.ok` and throws an Error carrying the server's
+   message; the panel shows it as `role="alert"`.
+2. *Empty results are a real outcome*, not silence: `/doors/probe` skips the currently
+   selected door and caps the fan-out at 12, so zero rows is reportable and is now
+   reported. Same lesson as `exitCodeFor([])` in Task 4.
+3. *Fictional tokens again* — the CSS used `var(--th-surface)` and
+   `var(--th-danger, …)`, neither of which exists. Replaced with `--th-bg-card`,
+   `--th-status-error` and `--th-text-muted`, all confirmed present in both the light
+   and dark blocks of `src/index.css`.
 
 ```bash
 git add demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx demo_api_ui/src/pages/PrivilegeMcpClientPage.css demo_api_ui/src/pages/__tests__/PrivilegeMcpClientPage.preflight.test.jsx

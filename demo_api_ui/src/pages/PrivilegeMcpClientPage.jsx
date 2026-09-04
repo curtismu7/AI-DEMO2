@@ -150,6 +150,9 @@ export default function PrivilegeMcpClientPage() {
   const [gatewayMode, setGatewayMode] = useState('privilege');
   const [gatewaySession, setGatewaySession] = useState(null);
   const [rearmError, setRearmError] = useState('');
+  const [preflight, setPreflight] = useState(null);
+  const [preflightError, setPreflightError] = useState('');
+  const [preflightBusy, setPreflightBusy] = useState(false);
   const [gatewayConfigs, setGatewayConfigs] = useState({ direct: {}, privilege: {}, facade: {} });
   const [presets, setPresets] = useState([]);
   const [gatewayStateLoaded, setGatewayStateLoaded] = useState(false);
@@ -566,6 +569,27 @@ export default function PrivilegeMcpClientPage() {
     setRearmError((await switchGatewayMode('privilege', { forceReauth: true })) || '');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [switchGatewayMode]);
+
+  // Reuses /doors/probe — it already initializes an MCP session per URL with
+  // the operator's token and returns a tool count, which is the only honest
+  // proof a door works for a real caller. Goes through api() rather than a raw
+  // fetch so a 401 ("Not authenticated.") arrives as an Error carrying the
+  // server's message, instead of a body with no `results` that would render as
+  // an empty list — a failed preflight that looks exactly like a clean one.
+  const runPreflight = useCallback(async () => {
+    setPreflightBusy(true);
+    setPreflightError('');
+    setPreflight(null);
+    try {
+      const urls = presets.map((p) => p.url).filter(Boolean);
+      const data = await api('/doors/probe', { method: 'POST', body: { urls } });
+      setPreflight(Array.isArray(data.results) ? data.results : []);
+    } catch (err) {
+      setPreflightError(err.message || 'Preflight failed');
+    } finally {
+      setPreflightBusy(false);
+    }
+  }, [presets]);
 
   const loadEnv = async () => {
     try {
@@ -1405,6 +1429,39 @@ export default function PrivilegeMcpClientPage() {
           )}
         </div>
       )}
+
+      <div className="cur-preflight">
+        <button
+          type="button"
+          className="cur-preflight__run"
+          onClick={runPreflight}
+          disabled={preflightBusy}
+        >
+          {preflightBusy ? 'Probing…' : 'Run preflight'}
+        </button>
+        {preflightError && (
+          <p className="cur-preflight__error" role="alert">{preflightError}</p>
+        )}
+        {/* An empty result set is a real outcome — /doors/probe skips the
+            currently-selected door and caps the fan-out at 12 — so it is
+            reported rather than rendered as an empty list that reads clean. */}
+        {preflight && preflight.length === 0 && (
+          <p className="cur-preflight__empty">
+            No doors were probed. The selected door is skipped; add a preset for another one.
+          </p>
+        )}
+        {preflight && preflight.length > 0 && (
+          <ul className="cur-preflight__list">
+            {preflight.map((r) => (
+              <li key={r.url} className={r.ok ? 'cur-preflight__row--ok' : 'cur-preflight__row--bad'}>
+                <span aria-hidden="true">{r.ok ? '✅' : '❌'}</span>
+                <span className="cur-preflight__url">{r.url}</span>
+                <span>{r.ok ? `${r.tools} tools` : `${r.status || ''} ${r.error || ''}`.trim() || 'failed'}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       <div className="cur-body" ref={bodyRef}>
         {/* Activity bar */}
