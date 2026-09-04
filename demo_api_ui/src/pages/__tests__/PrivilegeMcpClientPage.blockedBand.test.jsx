@@ -58,7 +58,7 @@ describe("blocked-by-policy visibility", () => {
     global.fetch = mockFetch();
     renderPage();
 
-    fireEvent.click(await screen.findByRole("button", { name: /Refresh Tools|Retry Tools/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /Get MCP Tools|Retry Tools/i }));
 
     const band = await screen.findByRole("alert", { name: /blocked by policy/i });
     expect(band).toBeInTheDocument();
@@ -70,7 +70,7 @@ describe("blocked-by-policy visibility", () => {
   it("keeps the band after the details modal is dismissed", async () => {
     global.fetch = mockFetch();
     renderPage();
-    fireEvent.click(await screen.findByRole("button", { name: /Refresh Tools|Retry Tools/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /Get MCP Tools|Retry Tools/i }));
     await screen.findByRole("alert", { name: /blocked by policy/i });
 
     const dismiss = screen.queryByRole("button", { name: /^Dismiss$/i });
@@ -84,7 +84,7 @@ describe("blocked-by-policy visibility", () => {
   it("explains the empty tool list instead of saying nothing was discovered", async () => {
     global.fetch = mockFetch();
     renderPage();
-    fireEvent.click(await screen.findByRole("button", { name: /Refresh Tools|Retry Tools/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /Get MCP Tools|Retry Tools/i }));
 
     await waitFor(() => expect(screen.getByText(/No tools — blocked by policy/i)).toBeInTheDocument());
     expect(screen.queryByText("No tools discovered yet")).not.toBeInTheDocument();
@@ -93,13 +93,13 @@ describe("blocked-by-policy visibility", () => {
   it("clears once a tool list succeeds", async () => {
     global.fetch = mockFetch();
     renderPage();
-    fireEvent.click(await screen.findByRole("button", { name: /Refresh Tools|Retry Tools/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /Get MCP Tools|Retry Tools/i }));
     await screen.findByRole("alert", { name: /blocked by policy/i });
 
     // Access granted: the band must not outlive the grant that fixed it.
     global.fetch = mockFetch({ toolsStatus: 200, toolsBody: { tools: [{ name: "ListIndexTool", description: "d" }] } });
     // A denial adds a second retry control, so there are now two matches.
-    fireEvent.click(screen.getAllByRole("button", { name: /Refresh Tools|Retry Tools/i })[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: /Get MCP Tools|Retry Tools/i })[0]);
 
     await waitFor(() => {
       expect(screen.queryByRole("alert", { name: /blocked by policy/i })).not.toBeInTheDocument();

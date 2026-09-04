@@ -366,10 +366,6 @@ export default function PrivilegeMcpClientPage() {
       setMcpProtocol(s.mcp || null);
       setSubscriptionActive(Boolean(s.mcp?.subscriptionActive));
       setGatewayStateLoaded(true);
-      // Auto-discover tools only after Privilege auth completes
-      if (s.oauth?.authenticated && (!s.tools || s.tools.length === 0)) {
-        refreshTools(true);
-      }
       // Auto-connect Privilege using the active PingOne session when the main app
       // is already logged in. The gateway is its own Authorization Server, so the
       // banking token can never be reused directly — but prompt=none on the BFF
@@ -1469,7 +1465,7 @@ export default function PrivilegeMcpClientPage() {
               onClick={() => refreshTools(false)}
               disabled={toolsLoading}
             >
-              {toolsLoading ? 'Discovering...' : 'Refresh Tools'}
+              {toolsLoading ? 'Discovering...' : 'Get MCP Tools'}
             </button>
           </div>
         </aside>

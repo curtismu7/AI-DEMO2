@@ -6,7 +6,7 @@
 // requestSignIn() used to hard-return for gatewayMode==='direct', so a real
 // 401 from one of those doors was swallowed: 0 tools, no path to fix it, and
 // a misleading "No sign-in required" label sitting right next to the failure.
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import PrivilegeMcpClientPage from "../PrivilegeMcpClientPage";
 
@@ -71,6 +71,9 @@ describe("Direct mode sign-in on a real door challenge", () => {
   it("shows Sign in to continue when a Direct door's tools/list 401s", async () => {
     mockState();
     renderAt("/privilege-mcp-client");
+
+    // Tools no longer auto-discover on mount — drive it via the button.
+    fireEvent.click(await screen.findByRole("button", { name: /Get MCP Tools/i }));
 
     await waitFor(() => expect(screen.getByText("Sign in to continue")).toBeTruthy());
   });
