@@ -71,7 +71,8 @@ import path from 'node:path';
 // page), fully converted — the JSON detail block had no color of its own,
 // so it inherited --th-text from .alp-root while sitting on a background
 // that never flipped with the theme.
-const MAX_UNTHEMED = 153;
+// 153 -> 152: ActivityLogPage.css (the /monitoring/activity-log page shell).
+const MAX_UNTHEMED = 152;
 
 const SRC = path.join(__dirname, '..', '..');
 

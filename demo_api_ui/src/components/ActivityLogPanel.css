@@ -318,16 +318,16 @@
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
-  color: var(--text-secondary, #64748b);
+  color: var(--th-text-muted);
   cursor: pointer;
   margin-bottom: -1px;
 }
 
 .tab-btn:hover {
-  color: var(--text-primary, #1e293b);
+  color: var(--th-text);
 }
 
 .tab-btn--active {
-  color: var(--accent-text, #1a56db);
-  border-bottom-color: var(--accent-text, #1a56db);
+  color: var(--th-status-info-text);
+  border-bottom-color: var(--th-status-info-text);
 }
