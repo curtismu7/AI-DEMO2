@@ -10,6 +10,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import apiClient from '../services/apiClient';
 import AgentRunTimeline from '../components/AgentRunTimeline';
 import useDividerDrag from '../hooks/useDividerDrag';
+import { useThemeOptional } from '../context/ThemeContext';
 import './AgentFlowHistoryPage.css';
 
 const PAGE_TITLE = 'Agent & Token Flow History';
@@ -36,6 +37,7 @@ function truncatePrompt(prompt) {
 }
 
 export default function AgentFlowHistoryPage() {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const { size: sidebarWidth, handleProps: sidebarHandleProps } = useDividerDrag({
     min: 260,
     max: 520,
@@ -87,6 +89,15 @@ export default function AgentFlowHistoryPage() {
   return (
     <div className="agent-flow-history-page">
       <div className="afh-header">
+        <button
+          type="button"
+          onClick={toggleDarkMode}
+          className="afh-theme-toggle"
+          title="Switch this page between light and dark"
+          aria-pressed={darkMode}
+        >
+          {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
+        </button>
         <h1 className="afh-title">{PAGE_TITLE}</h1>
         <p className="afh-subtitle">
           Inspect past agent runs from anywhere in the app — chat, chip clicks, demo

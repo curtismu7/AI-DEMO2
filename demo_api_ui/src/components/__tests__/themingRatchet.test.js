@@ -41,7 +41,13 @@ import path from 'node:path';
 // 175 -> 174: PingOneSetup.css, fully converted from a fictional
 // --bg-*/--text-* token family that was never defined anywhere.
 // 174 -> 173: TokenExchangeTesterPage.css, fully converted.
-const MAX_UNTHEMED = 173;
+// 174 -> 173: ControlPlaneRoster.css (the /ai-control-plane page), merged in
+// from a parallel session's toggle rollout.
+// 173 -> 171: AgentFlowHistoryPage.css and TokenChainEventCard.css (the
+// /agent-flow-inspector page and the fictional --color-code-bg it exposed).
+// 171 -> 169: CheckPage.css (aliased its local token layer onto --th-*, see
+// THEMING.md 9.2) and ServersPage.css (the /check page).
+const MAX_UNTHEMED = 169;
 
 const SRC = path.join(__dirname, '..', '..');
 

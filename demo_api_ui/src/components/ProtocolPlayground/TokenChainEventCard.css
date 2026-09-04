@@ -73,7 +73,11 @@
   font-family: var(--font-mono);
   font-size: var(--font-size-2xs);
   padding: 8px;
-  background: var(--color-code-bg, #f5f5f5);
+  /* --color-code-bg was never defined anywhere (unlike its four siblings
+     above, which alias onto --th-* in index.css), so this always fell
+     through to the light literal fallback in both themes. */
+  background: var(--th-code-bg);
+  color: var(--th-code-text);
   border-radius: 4px;
   max-height: 200px;
   overflow-y: auto;

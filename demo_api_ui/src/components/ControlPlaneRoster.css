@@ -1,36 +1,53 @@
-/* AI Control Plane roster — ported from the validated brainstorm mockup. */
-.cp-wrap{position:relative;overflow:hidden;--ok:#16a34a;--danger:#dc2626;
-  background:linear-gradient(180deg,#0b1f3a,#13294b);border-radius:14px;padding:18px 18px 22px;color:#e8eef7;
+/* AI Control Plane roster — ported from the validated brainstorm mockup.
+   Themed with --th-* per THEMING.md: surfaces/borders/ink flip with
+   :root[data-theme="dark"]; status colours (--ok/--danger and the semantic
+   pill/chip families) map onto the real --th-status-* tokens so they stay
+   correctly paired with whatever surface they sit on in each theme. Purely
+   decorative flourishes (glows, the flash/wave ripples, the always-dark
+   .cp-end "mission accomplished" overlay) stay literal — see THEMING.md §1.3. */
+.cp-wrap{position:relative;overflow:hidden;--ok:var(--th-status-success);--danger:var(--th-status-error);
+  background:var(--th-bg-card);border-radius:14px;padding:18px 18px 22px;
+  color:var(--th-text);
   font-family:-apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 10px 40px rgba(0,0,0,.35)}
+:root[data-theme="dark"] .cp-wrap{background:linear-gradient(180deg,#0b1f3a,#13294b)}
 .cp-flash{position:absolute;inset:0;background:radial-gradient(circle,rgba(220,38,38,.5),transparent 60%);
   opacity:0;pointer-events:none;z-index:6}
 .cp-flash.go{animation:cpflash .5s ease}
 @keyframes cpflash{0%{opacity:0}25%{opacity:1}100%{opacity:0}}
+.cp-theme-toggle{position:absolute;top:18px;right:18px;z-index:8;padding:6px 14px;border-radius:var(--radius-md);
+  border:1px solid var(--th-border-strong);background:var(--th-bg-inset);color:var(--th-text);
+  font-size:var(--font-size-sm);font-weight:600;cursor:pointer}
+.cp-theme-toggle:hover{background:var(--th-bg-hover);
+  color:var(--th-text)}
 .cp-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;position:relative;z-index:2}
 .cp-title{font-weight:800;letter-spacing:.3px;font-size:var(--font-size-h3)}
 .cp-title small{display:block;font-weight:500;opacity:.7;font-size:var(--font-size-2xs);letter-spacing:.5px}
 .cp-verbs{display:flex;gap:8px;flex-wrap:wrap}
 .cp-verb{font-size:var(--font-size-xs);text-transform:uppercase;letter-spacing:1px;padding:5px 10px;border-radius:999px;
-  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14)}
-.cp-verb.audit b{color:#7dd3fc}
+  background:var(--th-bg-hover);border:1px solid var(--th-border);
+  color:var(--th-text)}
+.cp-verb.audit b{color:var(--th-status-info-text)}
 .cp-demo-guide-btn{font-size:var(--font-size-2xs);font-weight:700;letter-spacing:.2px;padding:7px 14px;border-radius:8px;
-  background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.28);color:#e8eef7;cursor:pointer;
+  background:var(--th-bg-inset);border:1px solid var(--th-border-strong);cursor:pointer;
+  color:var(--th-text);
   white-space:nowrap;transition:background .15s,border-color .15s}
-.cp-demo-guide-btn:hover{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.4)}
+.cp-demo-guide-btn:hover{background:var(--th-bg-hover);border-color:var(--th-border-strong);
+  color:var(--th-text)}
 /* intro + explainer */
 .cp-intro{position:relative;z-index:2;font-size:12.5px;line-height:1.5;opacity:.92;
   border-left:3px solid #2563eb;padding:2px 0 2px 12px;margin:4px 0 12px}
-.cp-intro b{color:#bfdbfe}
+.cp-intro b{color:var(--th-status-info-text)}
 .cp-how{position:relative;z-index:2;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
-.cp-step{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:10px 12px}
+.cp-step{background:var(--th-bg-inset);border:1px solid var(--th-border);border-radius:10px;padding:10px 12px;
+  color:var(--th-text)}
 .cp-step .n{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;
-  background:#2563eb;font-size:var(--font-size-xs);font-weight:800;margin-bottom:6px}
+  background:#2563eb;color:#fff;font-size:var(--font-size-xs);font-weight:800;margin-bottom:6px}
 .cp-step h4{margin:0 0 3px;font-size:var(--font-size-2xs);font-weight:700}
 .cp-step p{margin:0;font-size:var(--font-size-xs);opacity:.78;line-height:1.45}
 .cp-step .tag{display:inline-block;margin-top:6px;font-size: var(--font-size-3xs);letter-spacing:.5px;text-transform:uppercase;
-  color:#7dd3fc;background:rgba(37,99,235,.16);border:1px solid rgba(125,211,252,.3);border-radius:6px;padding:1px 6px}
+  color:var(--th-status-info-text);background:var(--th-status-info-bg);border:1px solid var(--th-status-info-border);border-radius:6px;padding:1px 6px}
 /* trust constellation */
-.cp-trust{position:relative;height:200px;margin:4px 0 6px;border:1px solid rgba(255,255,255,.08);
+.cp-trust{position:relative;height:200px;margin:4px 0 6px;border:1px solid var(--th-border);
   border-radius:12px;background:radial-gradient(circle at 50% 18%,rgba(37,99,235,.18),transparent 60%)}
 .cp-caption{position:absolute;left:50%;top:108px;transform:translateX(-50%);z-index:4;font-size:var(--font-size-xs);
   color:#fca5a5;background:rgba(8,18,38,.7);padding:3px 9px;border-radius:6px;
@@ -40,13 +57,13 @@ svg.cp-links{position:absolute;inset:0;width:100%;height:100%;z-index:1}
 svg.cp-links line{stroke:#3b82f6;stroke-width:2.5;opacity:.55;transition:stroke .3s,opacity .3s,stroke-dasharray .3s}
 svg.cp-links line.dead{stroke:#dc2626;opacity:.22;stroke-dasharray:4 7}
 .cp-anchor{position:absolute;left:50%;top:14px;transform:translateX(-50%);text-align:center;z-index:4}
-.cp-anchor .dot{width:58px;height:58px;border-radius:50%;margin:0 auto;
+.cp-anchor .dot{width:58px;height:58px;border-radius:50%;margin:0 auto;color:#fff;
   background:radial-gradient(circle at 30% 30%,#5b8def,#1d4ed8);box-shadow:0 0 24px rgba(59,130,246,.85);
   display:flex;align-items:center;justify-content:center;font-weight:800}
 .cp-anchor.armed .dot{animation:cpcore .5s infinite}
 @keyframes cpcore{0%,100%{box-shadow:0 0 24px rgba(59,130,246,.85)}50%{box-shadow:0 0 52px rgba(239,68,68,1)}}
 .cp-anchor .lbl{font-size:10px;opacity:.85;margin-top:4px;letter-spacing:1px}
-.cp-anchor .lbl b{color:#bfdbfe}
+.cp-anchor .lbl b{color:var(--th-status-info-text)}
 .cp-wave{position:absolute;left:50%;top:43px;width:14px;height:14px;border-radius:50%;border:3px solid #ef4444;
   transform:translate(-50%,-50%) scale(0);opacity:0;z-index:2}
 .cp-wave.go{animation:cpwave .7s ease-out}
@@ -68,28 +85,34 @@ svg.cp-links line.dead{stroke:#dc2626;opacity:.22;stroke-dasharray:4 7}
 /* source filter chips */
 .cp-source-filters{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;position:relative;z-index:2}
 .cp-source-chip{font-size:var(--font-size-xs);letter-spacing:.3px;padding:4px 10px;border-radius:999px;cursor:pointer;
-  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:#e8eef7;opacity:.75;
+  background:var(--th-bg-inset);border:1px solid var(--th-border);opacity:.75;
+  color:var(--th-text);
   transition:background .15s,border-color .15s,opacity .15s}
 .cp-source-chip:hover{opacity:1}
-.cp-source-chip.active{background:rgba(37,99,235,.22);border-color:#2563eb;color:#bfdbfe;opacity:1}
+.cp-source-chip.active{background:var(--th-status-info-bg);border-color:var(--th-status-info);opacity:1;
+  color:var(--th-status-info-text)}
 .cp-source-count{opacity:.65;font-variant-numeric:tabular-nums}
 /* roster */
 .cp-rows{margin-top:8px;display:flex;flex-direction:column;gap:6px;position:relative;z-index:2}
 .cp-row{display:grid;grid-template-columns:18px 1fr auto auto;align-items:center;gap:10px;
-  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:8px 12px}
+  background:var(--th-bg-inset);border:1px solid var(--th-border);border-radius:10px;padding:8px 12px;
+  color:var(--th-text)}
 .cp-row .rdot{width:11px;height:11px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px rgba(22,163,74,.7)}
 .cp-row.dead .rdot{background:var(--danger);box-shadow:none}
-.cp-row.live .rdot{background:#f59e0b}
+.cp-row.live .rdot{background:var(--th-status-warning)}
 .cp-name{font-weight:600;font-size:var(--font-size-sm)}
 .cp-name span{display:block;font-weight:400;font-size:10px;opacity:.6}
-.cp-pill{font-size:10px;letter-spacing:.5px;padding:3px 9px;border-radius:999px;background:rgba(22,163,74,.18);
-  color:#86efac;border:1px solid rgba(22,163,74,.35);white-space:nowrap}
-.cp-row.dead .cp-pill{background:rgba(220,38,38,.16);color:#fca5a5;border-color:rgba(220,38,38,.4)}
-.cp-row.live .cp-pill{background:rgba(245,158,11,.16);color:#fcd34d;border-color:rgba(245,158,11,.4)}
+.cp-pill{font-size:10px;letter-spacing:.5px;padding:3px 9px;border-radius:999px;background:var(--th-status-success-bg);
+  color:var(--th-status-success-text);border:1px solid var(--th-status-success-border);white-space:nowrap}
+.cp-row.dead .cp-pill{background:var(--th-status-error-bg);border-color:var(--th-status-error-border);
+  color:var(--th-status-error-text)}
+.cp-row.live .cp-pill{background:var(--th-status-warning-bg);border-color:var(--th-status-warning-border);
+  color:var(--th-status-warning-text)}
 .cp-row.flashrow{animation:cprowflash .5s ease}
-@keyframes cprowflash{0%{background:rgba(220,38,38,.35)}100%{background:rgba(255,255,255,.05)}}
-.cp-stop{font-size:var(--font-size-xs);padding:4px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.2);
-  background:rgba(255,255,255,.06);color:#e8eef7;cursor:pointer}
+@keyframes cprowflash{0%{background:rgba(220,38,38,.35)}100%{background:var(--th-bg-inset)}}
+.cp-stop{font-size:var(--font-size-xs);padding:4px 12px;border-radius:8px;border:1px solid var(--th-border-strong);
+  background:var(--th-bg-inset);cursor:pointer;
+  color:var(--th-text)}
 .cp-stop:disabled{opacity:.4;cursor:default}
 /* The live agent's stop is the prominent kill control (replaces the old
    standalone red STOP AGENT button) — bold red, opens the reason-logging modal. */
@@ -99,21 +122,27 @@ svg.cp-links line.dead{stroke:#dc2626;opacity:.22;stroke-dasharray:4 7}
 .cp-stop--revive:hover{background:#15803d;border-color:#15803d}
 /* Full-scope kill (disables the shared PingOne app for every user) — visually
    distinct from the instance-only stop so it doesn't read as the default. */
-.cp-stop--live-full{background:transparent;border:1px dashed #f87171;color:#fca5a5;font-weight:700;letter-spacing:.3px;padding:5px 14px;margin-left:8px}
-.cp-stop--live-full:hover{background:rgba(248,113,113,.12);border-color:#ef4444;color:#fecaca}
+.cp-stop--live-full{background:transparent;border:1px dashed var(--th-status-error-border);color:var(--th-status-error-text);font-weight:700;letter-spacing:.3px;padding:5px 14px;margin-left:8px}
+.cp-stop--live-full:hover{background:var(--th-status-error-bg);border-color:var(--th-status-error);
+  color:var(--th-status-error-text)}
 .cp-pulse .rdot{animation:cppulse .6s infinite}
 @keyframes cppulse{0%,100%{transform:scale(1)}50%{transform:scale(1.5)}}
 .cp-actions{display:flex;gap:10px;margin-top:14px;align-items:center;position:relative;z-index:2}
 .cp-btn{font-weight:700;border:none;border-radius:10px;padding:11px 16px;cursor:pointer;font-size:var(--font-size-sm)}
 .cp-btn:disabled{opacity:.5;cursor:default}
 .cp-btn.stopall{background:linear-gradient(180deg,#ef4444,#b91c1c);color:#fff;box-shadow:0 6px 18px rgba(220,38,38,.4)}
-.cp-btn.reset{background:rgba(255,255,255,.1);color:#e8eef7;border:1px solid rgba(255,255,255,.18)}
+.cp-btn.reset{background:var(--th-bg-inset);border:1px solid var(--th-border-strong);
+  color:var(--th-text)}
 .cp-progress{font-size:var(--font-size-xs);opacity:.85;min-height:16px}
-.cp-summary{margin-top:12px;border:1px solid rgba(125,211,252,.3);background:rgba(37,99,235,.12);
-  border-radius:10px;padding:10px 12px;font-size:var(--font-size-2xs);position:relative;z-index:2;animation:cpfade .5s ease}
-.cp-summary b{color:#7dd3fc}
+.cp-summary{margin-top:12px;border:1px solid var(--th-status-info-border);background:var(--th-status-info-bg);
+  border-radius:10px;padding:10px 12px;font-size:var(--font-size-2xs);position:relative;z-index:2;animation:cpfade .5s ease;
+  color:var(--th-text)}
+.cp-summary b{color:var(--th-status-info-text)}
 @keyframes cpfade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-.cp-end{position:absolute;inset:0;background:rgba(8,18,38,.93);backdrop-filter:blur(3px);z-index:7;
+/* Deliberately theme-invariant: a full-bleed "mission accomplished" overlay,
+   always dark for dramatic effect — so its own ink is pinned literal too
+   (THEMING.md §1.5: pin ground and ink together, never one alone). */
+.cp-end{position:absolute;inset:0;background:rgba(8,18,38,.93);backdrop-filter:blur(3px);z-index:7;color:#e8eef7;
   display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
   opacity:1;padding:20px;animation:cpfade .5s ease}
 .cp-end .big{font-size:var(--font-size-h1);font-weight:900;letter-spacing:1px;
@@ -129,13 +158,15 @@ svg.cp-links line.dead{stroke:#dc2626;opacity:.22;stroke-dasharray:4 7}
   font-size:var(--font-size-xs);opacity:.8}
 .cp-access .ico{width:16px;height:16px;border-radius:50%;background:rgba(22,163,74,.25);
   border:1px solid rgba(22,163,74,.5);display:inline-flex;align-items:center;justify-content:center;font-size: var(--font-size-3xs)}
-.cp-why{position:relative;z-index:2;margin-top:16px;border-top:1px solid rgba(255,255,255,.12);padding-top:14px}
+.cp-why{position:relative;z-index:2;margin-top:16px;border-top:1px solid var(--th-border);padding-top:14px}
 .cp-why .wt{font-size:var(--font-size-xs);letter-spacing:1.5px;text-transform:uppercase;opacity:.7;margin-bottom:10px}
 .cp-why .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-.cp-val{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:11px 12px}
+.cp-val{background:var(--th-bg-inset);border:1px solid var(--th-border);border-radius:10px;padding:11px 12px;
+  color:var(--th-text)}
 .cp-val .vi{font-size:16px;margin-bottom:5px}
 .cp-val h4{margin:0 0 4px;font-size:var(--font-size-2xs);font-weight:700}
 .cp-val p{margin:0;font-size:var(--font-size-xs);opacity:.78;line-height:1.45}
 .cp-val .who{display:inline-block;margin-top:7px;font-size: var(--font-size-3xs);letter-spacing:.5px;text-transform:uppercase;
-  color:#86efac;background:rgba(22,163,74,.14);border:1px solid rgba(22,163,74,.3);border-radius:6px;padding:1px 6px}
-@media(max-width:720px){.cp-why .grid{grid-template-columns:repeat(2,1fr)}.cp-how{grid-template-columns:1fr}}
+  color:var(--th-status-success-text);background:var(--th-status-success-bg);border:1px solid var(--th-status-success-border);border-radius:6px;padding:1px 6px}
+@media(max-width:720px){.cp-why .grid{grid-template-columns:repeat(2,1fr)}.cp-how{grid-template-columns:1fr}
+  .cp-theme-toggle{position:static;display:inline-block;margin-bottom:12px}}
