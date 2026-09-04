@@ -1,0 +1,70 @@
+{
+  "_comment": [
+    "Hand-written enrichment merged on top of the spec introspected from the live",
+    "Express router (lib/openapiFromRoutes.js). Keys of the form 'METHOD /express/path'",
+    "target one operation; every other top-level key is merged into the document root.",
+    "Use the Express path exactly as registered (':id', not '{id}').",
+    "Overlay values win over generated ones. A key that matches no route fails the",
+    "openapiFromRoutes test — that is the guard against this file rotting."
+  ],
+
+  "info": {
+    "contact": {
+      "name": "Banking Demo — PingOne Edition",
+      "url": "https://local.ping-devops.com:4000"
+    }
+  },
+
+  "GET /api/accounts": {
+    "summary": "List all accounts (admin only)",
+    "description": "Returns every account in the demo data store, enriched with owner username, email and display name. Requires the admin role — a signed-in non-admin gets 403. Paginate with `limit` and `offset`; omitting both returns the full set.",
+    "parameters": [
+      { "name": "limit", "in": "query", "required": false, "schema": { "type": "integer", "minimum": 1, "maximum": 500 } },
+      { "name": "offset", "in": "query", "required": false, "schema": { "type": "integer", "minimum": 0 } }
+    ],
+    "responses": {
+      "200": {
+        "description": "Accounts with owner details.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "accounts": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": { "type": "string" },
+                      "userId": { "type": "string" },
+                      "ownerUsername": { "type": "string" },
+                      "ownerEmail": { "type": ["string", "null"] },
+                      "ownerName": { "type": ["string", "null"] }
+                    }
+                  }
+                },
+                "total": { "type": "integer" }
+              }
+            }
+          }
+        }
+      },
+      "403": { "description": "Signed in, but not an admin." }
+    }
+  },
+
+  "GET /api/accounts/my": {
+    "summary": "List the signed-in customer's own accounts",
+    "description": "The customer-facing counterpart to `GET /api/accounts`. Rejected for admin sessions."
+  },
+
+  "GET /api/accounts/:id/balance": {
+    "summary": "Read one account's balance",
+    "description": "Requires the `read` scope on the presented token in addition to a session."
+  },
+
+  "GET /api/use-cases": {
+    "summary": "Demo use-case catalog",
+    "description": "Public, read-only. Each entry carries an `auth` level (`public` | `user` | `admin`) sourced from config/auth-requirements.json — the UI gates tiles and routes on that field rather than on a fresh sign-in check."
+  }
+}
