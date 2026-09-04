@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { spinner } from '../services/spinnerService';
 import { HeroSection } from './HeroSection';
 import { HERO_VARIANTS } from '../config/heroVariants';
+import { useThemeOptional } from '../context/ThemeContext';
 import './CodeExplorerPage.css';
 
 const STARTER_CHIPS = [
@@ -15,6 +16,7 @@ const STARTER_CHIPS = [
 ];
 
 const CodeExplorerPage = () => {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
@@ -290,6 +292,15 @@ const CodeExplorerPage = () => {
             <path d="M13.5 8a5.5 5.5 0 0 1-9.4 3.9L2.5 9.5" />
           </svg>
           {isReindexing ? 'Refreshing…' : 'Refresh index'}
+        </button>
+        <button
+          type="button"
+          onClick={toggleDarkMode}
+          className="code-explorer-theme-toggle"
+          title="Switch this page between light and dark"
+          aria-pressed={darkMode}
+        >
+          {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
         </button>
       </div>
 

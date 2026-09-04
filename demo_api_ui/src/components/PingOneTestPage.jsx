@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useTokenChainOptional } from "../context/TokenChainContext";
+import { useThemeOptional } from "../context/ThemeContext";
 import apiClient from "../services/apiClient";
 import { resolveApiBaseUrl } from "../utils/resolveApiBaseUrl";
 import { pingOneConsoleUrl } from "../utils/pingOneConsoleUrl";
@@ -207,6 +208,7 @@ function CollapsibleSection({ title, defaultOpen = false, children }) {
  */
 export default function PingOneTestPage() {
 	const tokenChainCtx = useTokenChainOptional();
+	const { darkMode, toggleDarkMode } = useThemeOptional();
 	// Ref holding the active EventSource so it can be closed and replaced per run.
 	const esRef = useRef(null);
 	const [workerToken, setWorkerToken] = useState(null);
@@ -1195,6 +1197,15 @@ export default function PingOneTestPage() {
 	return (
 		<div className="pingone-test-page">
 			<div className="pingone-test-header">
+				<button
+					type="button"
+					onClick={toggleDarkMode}
+					className="pingone-test-theme-toggle"
+					title="Switch this page between light and dark"
+					aria-pressed={darkMode}
+				>
+					{darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
+				</button>
 				<h1 className="pingone-test-title">PingOne Integration Test Page</h1>
 				<div className="pingone-test-identity">
 					<span className="pingone-test-identity__label">Logged in as:</span>

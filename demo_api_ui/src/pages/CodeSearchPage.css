@@ -6,12 +6,14 @@
   --cs-accent-hover: #047857;
   --cs-accent-muted: rgba(5, 150, 105, 0.1);
   padding: 20px;
-  background: var(--v2-bg, #f7f7f5);
+  color: var(--th-text);
+  background: var(--th-bg-page);
   font-family: var(--v2-font-body, sans-serif);
   min-height: 100vh;
 }
 
 .protected-rag-banner {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.8fr);
   gap: 28px;
@@ -23,6 +25,25 @@
   color: #ecfdf5;
   background: linear-gradient(120deg, #052e2b 0%, #064e3b 58%, #0f766e 100%);
   box-shadow: 0 18px 42px rgba(6, 78, 59, 0.18);
+}
+
+.code-search-theme-toggle {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  padding: 6px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.code-search-theme-toggle:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
 }
 
 .protected-rag-eyebrow {
@@ -89,6 +110,7 @@
 }
 
 .search-form {
+  color: var(--th-text);
   padding: 20px;
   border: 1px solid var(--th-border);
   border-radius: 8px;
@@ -99,7 +121,7 @@
   margin: 0 0 16px 0;
   font-size: var(--font-size-h3);
   font-weight: 600;
-  color: #1f2937;
+  color: var(--th-text);
 }
 
 .search-input-group {
@@ -119,11 +141,12 @@
 
 .search-input:focus {
   outline: none;
-  border-color: #059669;
+  border-color: var(--cs-accent);
   box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
 }
 
 .search-input:disabled {
+  color: var(--th-text-muted);
   background-color: var(--th-bg-inset);
   cursor: not-allowed;
 }
@@ -131,9 +154,9 @@
 /* Scoped under .code-search-page so global .btn / reset rules cannot
    flatten Search into an unstyled browser button (board B6). */
 .code-search-page .search-button {
+  color: var(--th-text-invert);
   padding: 10px 20px;
-  background-color: #059669;
-  color: white;
+  background-color: var(--cs-accent);
   border: none;
   border-radius: 4px;
   font-weight: 500;
@@ -144,33 +167,35 @@
 }
 
 .code-search-page .search-button:hover:not(:disabled) {
-  background-color: #047857;
+  background-color: var(--cs-accent-hover);
 }
 
 .code-search-page .search-button:disabled {
-  background-color: #d1d5db;
+  color: var(--th-text-muted);
+  background-color: var(--th-bg-inset);
   cursor: not-allowed;
 }
 
 .search-error {
+  color: var(--th-status-error-text);
   padding: 12px;
-  background-color: #fee2e2;
-  border: 1px solid #fecaca;
+  background-color: var(--th-status-error-bg);
+  border: 1px solid var(--th-status-error-border);
   border-radius: 4px;
-  color: #dc2626;
   font-size: var(--font-size-sm);
 }
 
 .panel-error {
+  color: var(--th-status-error-text);
   padding: 12px;
-  background-color: #fee2e2;
-  border: 1px solid #fecaca;
+  background-color: var(--th-status-error-bg);
+  border: 1px solid var(--th-status-error-border);
   border-radius: 4px;
-  color: #dc2626;
   font-size: var(--font-size-sm);
 }
 
 .codebases-list {
+  color: var(--th-text);
   padding: 20px;
   border: 1px solid var(--th-border);
   border-radius: 8px;
@@ -185,11 +210,11 @@
 }
 
 .default-index-status {
+  color: var(--th-status-success-text);
   padding: 10px 12px;
-  border: 1px solid #a7f3d0;
+  border: 1px solid var(--th-status-success-border);
   border-radius: 6px;
-  background: var(--cs-accent-muted, rgba(5, 150, 105, 0.1));
-  color: #065f46;
+  background: var(--th-status-success-bg);
   font-size: var(--font-size-sm);
 }
 
@@ -211,6 +236,7 @@
 }
 
 .codebase-item {
+  color: var(--th-text);
   padding: 10px 12px;
   border: 1px solid var(--th-border);
   border-radius: 4px;
@@ -220,18 +246,19 @@
 }
 
 .codebase-item:hover {
+  color: var(--th-text);
   background: var(--th-bg-inset);
-  border-color: #059669;
+  border-color: var(--cs-accent);
 }
 
 .codebase-item.active {
-  background: #ecfdf5;
-  border-color: #059669;
+  background: var(--cs-accent-muted);
+  border-color: var(--cs-accent);
 }
 
 .codebase-name {
   font-weight: 500;
-  color: #1f2937;
+  color: var(--th-text);
   font-size: var(--font-size-sm);
   margin-bottom: 4px;
 }
@@ -244,11 +271,12 @@
 /* ── Ask/Search tab strip ─────────────────────────────────────────────────
    Segmented control for the right panel's Ask/Search toggle. */
 .code-search-page .cs-tabs {
+  color: var(--th-text-muted);
   display: flex;
   gap: 4px;
   padding: 4px;
   width: fit-content;
-  background: var(--v2-surface-3, #ebebea);
+  background: var(--th-bg-inset);
   border-radius: var(--v2-r-md, 8px);
 }
 
@@ -260,7 +288,7 @@
   font-family: var(--v2-font-body, sans-serif);
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: var(--v2-ink-2, #4c4c48);
+  color: var(--th-text-muted);
   cursor: pointer;
   transition:
     background 0.12s,
@@ -268,11 +296,11 @@
 }
 
 .code-search-page .cs-tabs button:hover:not(.active) {
-  color: var(--v2-ink-1, #111110);
+  color: var(--th-text);
 }
 
 .code-search-page .cs-tabs button.active {
-  background: var(--v2-surface, #ffffff);
+  background: var(--th-bg-card);
   color: var(--cs-accent);
   box-shadow: var(--v2-shadow-1, 0 1px 2px rgba(0, 0, 0, 0.08));
 }
@@ -282,12 +310,13 @@
    reversed), typing dots, pinned input area, starter chips. Scoped under
    .code-search-ask so nothing leaks into other pages. */
 .code-search-page .code-search-ask {
+  color: var(--th-text);
   display: flex;
   flex-direction: column;
   min-height: 480px;
   max-height: calc(100vh - 140px);
-  background: var(--v2-surface, #ffffff);
-  border: 1px solid var(--v2-line-1, #e4e4e0);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
   border-radius: var(--v2-r-lg, 12px);
   overflow: hidden;
 }
@@ -302,14 +331,14 @@
   margin: 0 0 8px 0;
   font-size: var(--font-size-h3);
   font-weight: 600;
-  color: var(--v2-ink-1, #1f2937);
+  color: var(--th-text);
 }
 
 .code-search-page .code-search-ask .ask-empty p {
   margin: 0 0 16px 0;
   font-size: 0.85rem;
   line-height: 1.5;
-  color: var(--v2-ink-2, #4c4c48);
+  color: var(--th-text-muted);
 }
 
 .code-search-page .code-search-ask .starter-chips {
@@ -319,15 +348,15 @@
 }
 
 .code-search-page .code-search-ask .starter-chip {
+  color: var(--th-text-muted);
   padding: 0.55rem 0.85rem;
-  background: var(--v2-surface, #fff);
-  border: 1px solid var(--v2-line-1, #e4e4e0);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
   border-radius: var(--v2-r-md, 8px);
   cursor: pointer;
   text-align: left;
   font-size: 0.78rem;
   font-family: var(--v2-font-body, sans-serif);
-  color: var(--v2-ink-2, #4c4c48);
   line-height: 1.4;
   transition:
     background 0.12s,
@@ -348,10 +377,11 @@
 
 /* Prompt library remains available after an answer. */
 .code-search-page .code-search-ask .quick-chip-bar {
+  color: var(--th-text);
   flex-shrink: 0;
   padding: 0.75rem 1rem 0;
-  border-top: 1px solid var(--v2-line-1, #e4e4e0);
-  background: var(--v2-surface-2, #f4f4f2);
+  border-top: 1px solid var(--th-border);
+  background: var(--th-bg-inset);
 }
 
 .code-search-page .code-search-ask .prompt-menu {
@@ -386,7 +416,7 @@
 .code-search-page .code-search-ask .prompt-menu summary span {
   margin-left: auto;
   margin-right: 0.75rem;
-  color: var(--v2-ink-3, #8c8c88);
+  color: var(--th-text-faint);
   font-size: 0.7rem;
   font-weight: 500;
 }
@@ -402,7 +432,7 @@
 
 .code-search-page .code-search-ask .prompt-group h3 {
   margin: 0 0 0.5rem;
-  color: var(--v2-ink-1, #111110);
+  color: var(--th-text);
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -428,7 +458,7 @@
   flex-direction: column;
   gap: 1.25rem;
   scrollbar-width: thin;
-  scrollbar-color: var(--v2-line-2, #d5d5d0) transparent;
+  scrollbar-color: var(--th-border-strong) transparent;
 }
 
 .code-search-page .code-search-ask .messages-container::-webkit-scrollbar {
@@ -436,7 +466,8 @@
 }
 
 .code-search-page .code-search-ask .messages-container::-webkit-scrollbar-thumb {
-  background: var(--v2-line-2, #d5d5d0);
+  color: var(--th-text);
+  background: var(--th-border-strong);
   border-radius: 3px;
 }
 
@@ -466,8 +497,8 @@
 }
 
 .code-search-page .code-search-ask .message-row.user .msg-avatar {
-  background: var(--v2-surface-3, #ebebea);
-  color: var(--v2-ink-2, #4c4c48);
+  background: var(--th-bg-inset);
+  color: var(--th-text-muted);
 }
 
 .code-search-page .code-search-ask .msg-body {
@@ -489,12 +520,13 @@
   word-break: break-word;
   font-size: 0.9rem;
   line-height: 1.7;
-  color: var(--v2-ink-1, #111110);
+  color: var(--th-text);
 }
 
 .code-search-page .code-search-ask .message-row.assistant .message-bubble {
-  background: var(--v2-surface, #ffffff);
-  border: 1px solid var(--v2-line-1, #e4e4e0);
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
   box-shadow: var(--v2-shadow-1, 0 1px 2px rgba(0, 0, 0, 0.05));
   border-top-left-radius: var(--v2-r-sm, 4px);
 }
@@ -507,15 +539,15 @@
 
 /* Error answers keep assistant styling but read clearly as failures. */
 .code-search-page .code-search-ask .message-bubble.error {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #b91c1c;
+  color: var(--th-status-error-text);
+  background: var(--th-status-error-bg);
+  border: 1px solid var(--th-status-error-border);
 }
 
 /* Meta line under an answer (mode / tool calls) */
 .code-search-page .code-search-ask .ask-meta {
   font-size: 0.72rem;
-  color: var(--v2-ink-2, #4c4c48);
+  color: var(--th-text-muted);
   padding-left: 0.25rem;
 }
 
@@ -533,11 +565,11 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: var(--v2-ink-2, #4c4c48);
+  color: var(--th-text-muted);
 }
 
 .code-search-page .code-search-ask .ask-source {
-  border: 1px solid var(--v2-line-1, #e4e4e0);
+  border: 1px solid var(--th-border);
   border-radius: var(--v2-r-md, 8px);
   overflow: hidden;
 }
@@ -557,19 +589,20 @@
   padding: 8px 10px;
   font-size: 0.72rem;
   line-height: 1.5;
-  color: var(--v2-ink-1, #111110);
-  background: var(--v2-surface-2, #f4f4f2);
+  color: var(--th-text);
+  background: var(--th-bg-inset);
   overflow-x: auto;
 }
 
 /* Typing indicator */
 .code-search-page .code-search-ask .typing-indicator {
+  color: var(--th-text-muted);
   display: flex;
   align-items: center;
   gap: 4px;
   padding: 0.7rem 1rem;
-  background: var(--v2-surface, #fff);
-  border: 1px solid var(--v2-line-1, #e4e4e0);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
   border-radius: var(--v2-r-lg, 12px);
   border-top-left-radius: var(--v2-r-sm, 4px);
   box-shadow: var(--v2-shadow-1, 0 1px 2px rgba(0, 0, 0, 0.05));
@@ -577,9 +610,10 @@
 }
 
 .code-search-page .code-search-ask .typing-dot {
+  color: var(--th-text-faint);
   width: 7px;
   height: 7px;
-  background: var(--v2-ink-3, #8c8c88);
+  background: var(--th-text-faint);
   border-radius: 50%;
   animation: cs-bounce 1.2s infinite;
 }
@@ -605,13 +639,14 @@
 
 /* Input area — pinned at the bottom of the panel */
 .code-search-page .code-search-ask .input-area {
+  color: var(--th-text);
   display: flex;
   align-items: center;
   gap: 0;
   margin: 0.75rem 1rem 1rem;
   flex-shrink: 0;
-  background: var(--v2-surface, #fff);
-  border: 1px solid var(--v2-line-2, #d5d5d0);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border-strong);
   border-radius: var(--v2-r-xl, 16px);
   box-shadow: var(--v2-shadow-2, 0 2px 6px rgba(0, 0, 0, 0.06));
   overflow: hidden;
@@ -634,13 +669,13 @@
   background: transparent;
   font-size: 0.9rem;
   font-family: var(--v2-font-body, sans-serif);
-  color: var(--v2-ink-1, #111110);
+  color: var(--th-text);
   outline: none;
   min-width: 0;
 }
 
 .code-search-page .code-search-ask .input-area input::placeholder {
-  color: var(--v2-ink-3, #8c8c88);
+  color: var(--th-text-faint);
 }
 
 .code-search-page .code-search-ask .input-area input:disabled {
@@ -693,18 +728,20 @@
 }
 
 .code-search-page .code-search-ask .send-btn:disabled {
-  background: var(--v2-surface-3, #ebebea);
-  color: var(--v2-ink-3, #8c8c88);
+  background: var(--th-bg-inset);
+  color: var(--th-text-faint);
   cursor: not-allowed;
   transform: none;
 }
 
 .code-search-page .code-search-ask .stop-btn {
-  background: var(--v2-negative, #a33020);
+  color: var(--th-text-invert);
+  background: var(--th-status-error);
 }
 
 .code-search-page .code-search-ask .stop-btn:hover {
-  background: #7f2518;
+  color: var(--th-text-invert);
+  background: color-mix(in srgb, var(--th-status-error) 85%, black);
   transform: scale(1.05);
 }
 
@@ -737,6 +774,12 @@
 
   .protected-rag-banner {
     padding: 20px;
+  }
+
+  .code-search-theme-toggle {
+    position: static;
+    display: inline-block;
+    margin-bottom: 12px;
   }
 
   .protected-rag-controls {

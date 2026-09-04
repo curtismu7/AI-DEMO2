@@ -32,9 +32,12 @@ describe('InspectorShell', () => {
     expect(screen.getByRole('button', { name: 'Refresh' })).toBeInTheDocument();
   });
 
-  it('omits the actions wrapper when no actions are provided', () => {
+  it('renders the theme toggle in the topbar even when no actions are provided', () => {
     const { container } = render(<InspectorShell title="X" />);
-    expect(container.querySelector('.inspector-shell-topbar__right')).toBeNull();
+    // The wrapper now always renders — it hosts the light/dark toggle
+    // regardless of whether the caller passed actions.
+    expect(container.querySelector('.inspector-shell-topbar__right')).not.toBeNull();
+    expect(screen.getByRole('button', { name: /dark mode/i })).toBeInTheDocument();
   });
 
   it('applies the embedded grid modifier only when fullHeight is false', () => {

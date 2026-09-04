@@ -39,6 +39,17 @@
 .inspector-shell-topbar__btn:hover { background: var(--th-bg-hover); }
 .inspector-shell-topbar__btn--active { background: #2563eb; border-color: #2563eb; color: var(--th-text-invert); }
 .inspector-shell-topbar__btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.inspector-shell-topbar__theme-toggle {
+  color: var(--th-text);
+  font-size: var(--font-size-2xs);
+  padding: 5px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--th-text-muted);
+  background: var(--th-bg-page);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.inspector-shell-topbar__theme-toggle:hover { color: var(--th-text); background: var(--th-bg-hover); }
 
 /* Three-column grid */
 .inspector-shell-grid {

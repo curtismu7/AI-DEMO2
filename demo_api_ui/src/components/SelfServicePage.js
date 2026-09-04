@@ -9,10 +9,12 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './SelfServicePage.css';
 import SignInPrompt from './SignInPrompt';
+import { useThemeOptional } from '../context/ThemeContext';
 
 const SelfServicePage = () => {
   const navigate = useNavigate();
-  
+  const { darkMode, toggleDarkMode } = useThemeOptional();
+
   // Tab state
   const [activeTab, setActiveTab] = useState('create');
 
@@ -191,6 +193,15 @@ const SelfServicePage = () => {
     <div className="ssp-root">
       <div className="ssp-container">
         <header className="ssp-header">
+          <button
+            type="button"
+            onClick={toggleDarkMode}
+            className="ssp-theme-toggle"
+            title="Switch the app between light and dark"
+            aria-pressed={darkMode}
+          >
+            {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
+          </button>
           <h1>Self-Service User Provisioning</h1>
           <p>Create your Demo account or manage your existing profile</p>
         </header>

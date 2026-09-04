@@ -10,6 +10,7 @@ import ApiCallPreviewCard from "./shared/ApiCallPreviewCard";
 import MFATestCard from "./MFATestCard";
 import PingOneApiPanel from "./PingOneApiPanel";
 import MFALogsModal from "./MFALogsModal";
+import { useThemeOptional } from "../context/ThemeContext";
 
 interface PingOneUser {
   id: string;
@@ -44,6 +45,7 @@ interface PingOneResponse {
 }
 
 const MFATestPage: FC = () => {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const [config, setConfig] = useState<MFAConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1253,6 +1255,15 @@ const MFATestPage: FC = () => {
   return (
     <div className="mfa-test-page">
       <div className="mfa-test-header">
+        <button
+          type="button"
+          onClick={toggleDarkMode}
+          className="mfa-test-theme-toggle"
+          title="Switch this page between light and dark"
+          aria-pressed={darkMode}
+        >
+          {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
+        </button>
         <h1 className="mfa-test-title">PingOne MFA Test Page</h1>
         <div className="mfa-test-meta">
           <div className="mfa-test-status">

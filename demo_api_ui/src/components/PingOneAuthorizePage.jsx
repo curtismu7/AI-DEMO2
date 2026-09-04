@@ -506,6 +506,7 @@ export function EvaluatePanel({ endpointId, autoPreset, policiesState, pendingTe
     <InspectorShell
       title="P1AZ Inspector"
       actions={<PacEditorLaunch />}
+      hideThemeToggle
       statusOn={!!endpointId}
       statusText={endpointId ? undefined : 'Select a decision endpoint above'}
       fullHeight={false}

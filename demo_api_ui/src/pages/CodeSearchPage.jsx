@@ -6,6 +6,7 @@ import CodeSearchAsk from '../components/CodeSearchAsk';
 import SearchResults from '../components/SearchResults';
 import { indexCodebase, searchCode, listCodebases } from '../services/codeSearchAPI';
 import { spinner } from '../services/spinnerService';
+import { useThemeOptional } from '../context/ThemeContext';
 import './CodeSearchPage.css';
 
 // Read the persisted codebase list once, synchronously, so the very first
@@ -25,6 +26,7 @@ function loadStoredCodebases() {
 }
 
 export function CodeSearchPage() {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const [codebases, setCodebases] = useState(loadStoredCodebases);
   const [selectedCodebaseId, setSelectedCodebaseId] = useState(
     () => codebases[0]?.id || ''
@@ -262,6 +264,15 @@ export function CodeSearchPage() {
   return (
     <div className="code-search-page">
       <section className="protected-rag-banner" aria-labelledby="protected-rag-title">
+        <button
+          type="button"
+          onClick={toggleDarkMode}
+          className="code-search-theme-toggle"
+          title="Switch this page between light and dark"
+          aria-pressed={darkMode}
+        >
+          {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
+        </button>
         <div>
           <span className="protected-rag-eyebrow">Identity-governed retrieval</span>
           <h1 id="protected-rag-title">Protected RAG</h1>
