@@ -292,7 +292,7 @@ function ResourceCard({ resource, expanded, onToggle, onAddScope, onFixAll, addi
             {badgeText}
           </span>
           {scopes.length > 0 && (
-            <span style={{ fontSize: '0.72rem', color: '#374151' }}>
+            <span className="scope-resource-card__scope-count">
               {scopes.length} scope{scopes.length !== 1 ? 's' : ''}
             </span>
           )}
