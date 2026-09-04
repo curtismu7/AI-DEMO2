@@ -1,0 +1,33 @@
+{
+  "mcpServers": {
+    "1 · Direct — OpenSearch (no Privilege)": {
+      "url": "https://ai-demo.ping-devops.com/mcp-facade/opensearch/mcp"
+    },
+    "2 · Privilege — OpenSearch (direct to gateway)": {
+      "url": "https://mcpgw.ai-demo.ping-devops.com/opensearch22/mcp"
+    },
+    "3 · Privilege — OpenSearch (through the façade)": {
+      "url": "https://ai-demo.ping-devops.com/mcp-facade/privilege-gateway/mcp"
+    },
+    "4 · Privilege — Brave Search (direct to gateway)": {
+      "url": "https://mcpgw.ai-demo.ping-devops.com/mcp-brave-search/mcp"
+    },
+    "Direct — Banking": {
+      "url": "https://cmuir-mcp.ping-devops.com/mcp"
+    },
+    "Direct — Banking via demo gateway": {
+      "url": "https://ai-demo.ping-devops.com/mcp-facade/agent-gateway/mcp"
+    },
+    "PingOne admin (hosted)": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote@0.8.1",
+        "https://mcp.pingone.com/admin/9e2f2f0c-f9fa-46da-b6f0-7eda4d3ccca2/mcp",
+        "7475",
+        "--static-oauth-client-info",
+        "{\"client_id\": \"pingone-mcp-server\", \"redirect_uris\": [\"http://localhost:7475/oauth/callback\"]}"
+      ]
+    }
+  }
+}
