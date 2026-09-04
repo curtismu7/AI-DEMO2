@@ -93,7 +93,8 @@ describe('mcpPingOneAdminAuth', () => {
       expect(res.status).toBe(401);
     });
 
-    it('finds-or-creates the PingOne MCP Server app, registers our callback, and redirects to /authorize with PKCE', async () => {
+    it('finds-or-creates the PingOne MCP Server app, registers our callback, pushes PAR, and redirects to /authorize with request_uri', async () => {
+      mockAxiosPost.mockResolvedValue({ data: { request_uri: 'urn:pingone:par:req-1', expires_in: 60 } });
       const { app, session } = buildApp();
       const res = await request(app).get('/login');
 
@@ -116,16 +117,27 @@ describe('mcpPingOneAdminAuth', () => {
         })
       );
 
+      // RFC 9126: authorization details are pushed to /par, not carried inline
+      // on /authorize — the hosted PingOne MCP server rejects an inline
+      // `resource` param with "401 Invalid authentication".
+      const [parEndpoint, parBody] = mockAxiosPost.mock.calls[0];
+      expect(parEndpoint).toBe('https://auth.pingone.com/env-123/as/par');
+      const parParams = new URLSearchParams(parBody);
+      expect(parParams.get('client_id')).toBe('client-1');
+      expect(parParams.get('response_type')).toBe('code');
+      expect(parParams.get('code_challenge_method')).toBe('S256');
+      expect(parParams.get('redirect_uri')).toBe(
+        'https://api.ping.demo:3001/api/mcp/inspector/pingone-admin/callback'
+      );
+      expect(parParams.get('state')).toBe(session.pingoneMcpAdminOAuth.state);
+      expect(session.pingoneMcpAdminOAuth.codeVerifier).toBeTruthy();
+
+      // Per RFC 9126, the visible redirect carries only client_id + request_uri.
       const location = new URL(res.headers.location);
       expect(location.origin + location.pathname).toBe('https://auth.pingone.com/env-123/as/authorize');
       expect(location.searchParams.get('client_id')).toBe('client-1');
-      expect(location.searchParams.get('response_type')).toBe('code');
-      expect(location.searchParams.get('code_challenge_method')).toBe('S256');
-      expect(location.searchParams.get('redirect_uri')).toBe(
-        'https://api.ping.demo:3001/api/mcp/inspector/pingone-admin/callback'
-      );
-      expect(location.searchParams.get('state')).toBe(session.pingoneMcpAdminOAuth.state);
-      expect(session.pingoneMcpAdminOAuth.codeVerifier).toBeTruthy();
+      expect(location.searchParams.get('request_uri')).toBe('urn:pingone:par:req-1');
+      expect(location.searchParams.get('code_challenge_method')).toBeNull();
     });
 
     it('does not duplicate the redirect URI on a second login once it is already registered', async () => {
