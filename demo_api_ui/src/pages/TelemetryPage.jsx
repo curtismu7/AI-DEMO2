@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import "./TelemetryPage.css";
 import TraceGraphCore from "../components/TraceGraphCore";
 import { getMyAccounts } from "../services/demoAgentService";
+import { useThemeOptional } from "../context/ThemeContext";
 
 const REFRESH_MS = 5000;
 const DEFAULT_SERVICE = "demo-api-server";
@@ -30,6 +31,7 @@ async function fetchJson(url) {
  */
 export default function TelemetryPage() {
   const navigate = useNavigate();
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const [mode, setMode] = useState("overview");
   const [lookback, setLookback] = useState("1h");
   const [traces, setTraces] = useState([]);
@@ -108,6 +110,15 @@ export default function TelemetryPage() {
             {generating ? "Generating…" : "Generate demo traffic"}
           </button>
           <button type="button" className="telemetry-btn" onClick={refreshAll}>Refresh</button>
+          <button
+            type="button"
+            className="telemetry-btn"
+            onClick={toggleDarkMode}
+            title="Switch this page between light and dark"
+            aria-pressed={darkMode}
+          >
+            {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
+          </button>
         </div>
       </header>
 

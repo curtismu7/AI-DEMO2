@@ -10,11 +10,34 @@
   color: var(--th-text, #111827);
 }
 
+.ttrace-header-top {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
 .ttrace-header h1 {
   margin: 0;
   font-size: var(--font-size-2xl);
   font-weight: 700;
   color: var(--th-text, #111827);
+}
+
+.ttrace-theme-toggle {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border: 1px solid var(--th-border);
+  border-radius: 6px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+.ttrace-theme-toggle:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
 }
 
 .ttrace-sub {
@@ -73,20 +96,20 @@
   gap: 12px;
   flex-wrap: wrap;
   padding-bottom: 10px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--th-border);
   margin-bottom: 12px;
 }
 
 .ttrace-verdict { font-weight: 700; }
-.ttrace-verdict.fail { color: #b91c1c; }
-.ttrace-verdict.pass { color: #047857; }
-.ttrace-verdict.incomplete { color: #b45309; }
+.ttrace-verdict.fail { color: var(--th-status-error-text); }
+.ttrace-verdict.pass { color: var(--th-status-success-text); }
+.ttrace-verdict.incomplete { color: var(--th-status-warning-text); }
 
 .ttrace-recon {
   font-size: var(--font-size-2xs);
   padding: 2px 8px;
   border-radius: 10px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--th-border);
 }
 
 /* Unknown must not read as a failure — an unavailable witness is not tampering. */
@@ -98,11 +121,11 @@
 .ttrace-links a { color: #1d4ed8; font-weight: 600; text-decoration: none; }
 .ttrace-links a:hover { text-decoration: underline; }
 
-.ttrace-detail-error { color: #b91c1c; font-size: var(--font-size-sm); }
+.ttrace-detail-error { color: var(--th-status-error-text); font-size: var(--font-size-sm); }
 .ttrace-detail-error p { margin: 0 0 8px; }
 
 .ttrace-retry-btn {
-  background: #fff;
+  background: var(--th-bg-card);
   border: 1px solid #b91c1c;
   color: #b91c1c;
   border-radius: 6px;
@@ -112,7 +135,10 @@
   cursor: pointer;
 }
 
-.ttrace-retry-btn:hover { background: #fef2f2; }
+.ttrace-retry-btn:hover {
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
+}
 
 /*
  * Chain-of-custody spine: hops are numbered nodes strung along a continuous
@@ -134,7 +160,7 @@
   gap: 12px;
   padding: 12px 0 12px 26px;
   margin-left: 9px;
-  border-left: 2px solid #d1d5db;
+  border-left: 2px solid var(--th-border-strong);
 }
 
 .ttrace-hop--severed { border-left-color: #b91c1c; }
@@ -184,7 +210,7 @@
   font-size: var(--font-size-xs);
   color: var(--th-text, #111827);
   background: var(--th-bg-inset);
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--th-border);
   border-radius: 8px;
   padding: 0 6px;
 }
@@ -200,8 +226,8 @@
 }
 
 .ttrace-decision { margin-top: 4px; font-size: var(--font-size-2xs); font-weight: 600; }
-.ttrace-decision.deny { color: #b91c1c; }
-.ttrace-decision.permit { color: #047857; }
+.ttrace-decision.deny { color: var(--th-status-error-text); }
+.ttrace-decision.permit { color: var(--th-status-success-text); }
 .ttrace-reason { font-weight: 400; color: var(--th-text, #111827); margin-left: 8px; font-family: var(--font-mono); }
 
 /* A status-inferred outcome is a guess, not a confirmed PDP verdict — amber so it
@@ -260,9 +286,9 @@
 .ttrace-filter {
   font-size: var(--font-size-xs);
   font-weight: 500;
-  color: var(--th-text-muted, #4b5563);
-  background: var(--th-surface-2, #f3f4f6);
-  border: 1px solid var(--th-border, #d1d5db);
+  color: var(--th-text-muted);
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
   border-radius: 8px;
   padding: 0 6px;
   font-family: var(--font-mono);

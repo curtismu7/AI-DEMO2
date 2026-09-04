@@ -72,7 +72,10 @@ import path from 'node:path';
 // so it inherited --th-text from .alp-root while sitting on a background
 // that never flipped with the theme.
 // 153 -> 152: ActivityLogPage.css (the /monitoring/activity-log page shell).
-const MAX_UNTHEMED = 152;
+// 152 -> 151: TelemetryPage.css, fully converted (the D3 service-graph
+// canvas/tooltip/panel stays its own literal dark palette on purpose — a
+// fixed dark stage for colored nodes/edges, not a light/dark surface).
+const MAX_UNTHEMED = 151;
 
 const SRC = path.join(__dirname, '..', '..');
 
