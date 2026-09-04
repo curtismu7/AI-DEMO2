@@ -13,7 +13,26 @@
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  background: var(--v2-bg, #f7f7f5);
+  background: var(--th-bg-page);
+  color: var(--th-text);
+}
+
+.oauth-academy-page .oa-theme-toggle {
+  align-self: flex-end;
+  flex-shrink: 0;
+  margin: 10px 1.5rem 0;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--th-border);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.oauth-academy-page .oa-theme-toggle:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
 }
 
 /* ── Messages — scrollable, fills all available space ───────────────────── */
@@ -26,7 +45,7 @@
   flex-direction: column;
   gap: 1.25rem;
   scrollbar-width: thin;
-  scrollbar-color: var(--v2-line-2, #d5d5d0) transparent;
+  scrollbar-color: var(--th-border-strong) transparent;
 }
 
 .oauth-academy-page .messages-container::-webkit-scrollbar {
@@ -34,8 +53,9 @@
 }
 
 .oauth-academy-page .messages-container::-webkit-scrollbar-thumb {
-  background: var(--v2-line-2, #d5d5d0);
+  background: var(--th-border-strong);
   border-radius: 3px;
+  color: var(--th-text);
 }
 
 .oauth-academy-page .message-row {
@@ -68,8 +88,8 @@
 }
 
 .oauth-academy-page .message-row.user .msg-avatar {
-  background: var(--v2-surface-3, #ebebea);
-  color: var(--v2-ink-2, #4c4c48);
+  background: var(--th-bg-inset);
+  color: var(--th-text-muted);
 }
 
 .oauth-academy-page .message-bubble {
@@ -79,13 +99,14 @@
   word-break: break-word;
   font-size: 0.9rem;
   line-height: 1.7;
-  color: #111110;
+  color: var(--th-text);
   max-width: calc(100% - 44px);
 }
 
 .oauth-academy-page .message-row.assistant .message-bubble {
-  background: #ffffff;
-  border: 1px solid var(--v2-line-1, #e4e4e0);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border: 1px solid var(--th-border);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
   border-top-left-radius: var(--v2-r-sm, 4px);
 }
@@ -130,7 +151,7 @@
 }
 .oauth-academy-page .message-bubble .md-hr {
   border: none;
-  border-top: 1px solid var(--v2-line-1, #e4e4e0);
+  border-top: 1px solid var(--th-border);
   margin: 0.5em 0;
 }
 .oauth-academy-page .message-bubble .md-table {
@@ -144,12 +165,13 @@
 }
 .oauth-academy-page .message-bubble .md-table th,
 .oauth-academy-page .message-bubble .md-table td {
-  border: 1px solid var(--v2-line-1, #e4e4e0);
+  border: 1px solid var(--th-border);
   padding: 0.35em 0.6em;
   text-align: left;
 }
 .oauth-academy-page .message-bubble .md-table th {
-  background: var(--v2-surface-3, #ebebea);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
   font-weight: 600;
 }
 
@@ -172,8 +194,9 @@
   align-items: center;
   gap: 4px;
   padding: 0.7rem 1rem;
-  background: var(--v2-surface, #fff);
-  border: 1px solid var(--v2-line-1, #e4e4e0);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border: 1px solid var(--th-border);
   border-radius: var(--v2-r-lg, 12px);
   border-top-left-radius: var(--v2-r-sm, 4px);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
@@ -183,7 +206,8 @@
 .oauth-academy-page .typing-dot {
   width: 7px;
   height: 7px;
-  background: var(--v2-ink-3, #8c8c88);
+  background: var(--th-text-faint);
+  color: var(--th-text-faint);
   border-radius: 50%;
   animation: oa-bounce 1.2s infinite;
 }
@@ -220,8 +244,9 @@
   display: flex;
   align-items: center;
   gap: 0;
-  background: var(--v2-surface, #fff);
-  border: 1px solid var(--v2-line-2, #d5d5d0);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border: 1px solid var(--th-border-strong);
   border-radius: var(--v2-r-xl, 16px);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
   overflow: hidden;
@@ -244,13 +269,13 @@
   background: transparent;
   font-size: 0.9rem;
   font-family: var(--v2-font-body, sans-serif);
-  color: var(--v2-ink-1, #111110);
+  color: var(--th-text);
   outline: none;
   min-width: 0;
 }
 
 .oauth-academy-page .input-area input::placeholder {
-  color: var(--v2-ink-3, #8c8c88);
+  color: var(--th-text-faint);
 }
 
 .oauth-academy-page .input-area input:disabled {
@@ -303,8 +328,8 @@
 }
 
 .oauth-academy-page .send-btn:disabled {
-  background: var(--v2-surface-3, #ebebea);
-  color: var(--v2-ink-3, #8c8c88);
+  background: var(--th-bg-inset);
+  color: var(--th-text-faint);
   cursor: not-allowed;
   transform: none;
 }
@@ -333,14 +358,14 @@
 
 .oauth-academy-page .starter-chip {
   padding: 0.55rem 0.85rem;
-  background: var(--v2-surface, #fff);
-  border: 1px solid var(--v2-line-1, #e4e4e0);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
   border-radius: var(--v2-r-md, 8px);
   cursor: pointer;
   text-align: left;
   font-size: 0.78rem;
   font-family: var(--v2-font-body, sans-serif);
-  color: var(--v2-ink-2, #4c4c48);
+  color: var(--th-text-muted);
   line-height: 1.4;
   transition:
     background 0.12s,
@@ -367,24 +392,26 @@
   padding: 1.25rem 1.5rem;
   box-sizing: border-box;
   flex-shrink: 0;
-  border-top: 1px solid #e2e8f0;
-  background: #f0fdf4;
+  border-top: 1px solid var(--th-status-success-border);
+  background: var(--th-status-success-bg);
+  color: var(--th-text);
 }
 
 .oauth-academy-page .oa-token-chain-label {
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: #16a34a;
+  color: var(--th-status-success-text);
   margin-bottom: 10px;
   text-transform: uppercase;
   letter-spacing: 0.02em;
 }
 
 .oauth-academy-page .oa-token-chain-wrapper .tctr {
-  background: #fff;
-  border: 1px solid #bbf7d0;
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-status-success-border);
   border-radius: 6px;
   padding: 12px;
+  color: var(--th-text);
 }
 
 .oauth-academy-page .oa-signin-btn {

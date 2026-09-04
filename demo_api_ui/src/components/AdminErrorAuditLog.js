@@ -6,6 +6,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import JsonHighlight from './shared/JsonHighlight';
+import { useThemeOptional } from '../context/ThemeContext';
 import './AdminErrorAuditLog.css';
 
 const SEVERITY_MAP = {
@@ -20,6 +21,7 @@ function toFilterSeverity(s) {
 }
 
 export default function AdminErrorAuditLog() {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const [entries, setEntries] = useState([]);
   const [filter, setFilter] = useState('all');
   const [expanded, setExpanded] = useState(null);
@@ -67,10 +69,19 @@ export default function AdminErrorAuditLog() {
             Auto-refresh (5s)
           </label>
           <button className="btn btn-secondary" onClick={handleRefresh} type="button">Refresh</button>
+          <button
+            className="btn btn-secondary"
+            onClick={toggleDarkMode}
+            type="button"
+            title="Switch this page between light and dark"
+            aria-pressed={darkMode}
+          >
+            {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
+          </button>
         </div>
       </div>
 
-      {fetchError && <p style={{ color: '#991b1b', padding: '8px 16px' }}>⚠ {fetchError}</p>}
+      {fetchError && <p className="audit-fetch-error">⚠ {fetchError}</p>}
 
       {/* Filter buttons */}
       <div className="audit-filters">

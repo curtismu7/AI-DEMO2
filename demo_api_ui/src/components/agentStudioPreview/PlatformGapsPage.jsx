@@ -4,6 +4,7 @@
 // Ping Identity platform, not in this demo (the other 4 pages simulate what
 // each gap, once closed, would enable).
 import React from "react";
+import { useThemeOptional } from "../../context/ThemeContext";
 import "./agentStudioPreview.css";
 
 const GAPS = [
@@ -30,9 +31,22 @@ const GAPS = [
 ];
 
 export default function PlatformGapsPage() {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   return (
     <div className="asp-root">
       <div className="asp-page">
+        <div className="asp-banner-row">
+          <button
+            type="button"
+            className="asp-theme-toggle"
+            onClick={toggleDarkMode}
+            title="Switch this page between light and dark"
+            aria-pressed={darkMode}
+            style={{ marginLeft: "auto" }}
+          >
+            {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
+          </button>
+        </div>
         <div className="asp-hero">
           <span className="asp-eyebrow">Agent Studio · what's missing today</span>
           <h1>Where Ping Identity is missing pieces</h1>

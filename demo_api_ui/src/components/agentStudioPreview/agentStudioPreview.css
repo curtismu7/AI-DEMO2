@@ -134,6 +134,13 @@
 }
 
 /* ---------- banner ---------- */
+.asp-banner-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+}
 .asp-banner {
   display: flex;
   align-items: center;
@@ -146,12 +153,29 @@
   border: 1px solid var(--asp-accent);
   border-radius: 999px;
   padding: 8px 16px;
-  margin-bottom: 22px;
+  flex: 1 1 auto;
 }
 .asp-banner a {
   color: var(--asp-accent);
   text-decoration: underline;
   font-weight: 700;
+}
+
+.asp-theme-toggle {
+  flex-shrink: 0;
+  appearance: none;
+  border: 1px solid var(--asp-border);
+  background: var(--asp-panel);
+  color: var(--asp-ink);
+  font: 700 12.5px inherit;
+  padding: 8px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: var(--asp-shadow);
+}
+.asp-theme-toggle:hover {
+  border-color: var(--asp-ink-3);
+  color: var(--asp-ink);
 }
 
 /* ---------- hero ---------- */

@@ -83,8 +83,13 @@ const ProtocolPlayground = () => {
         </div>
       </header>
       <div className="protocol-playground__container">
-        <button className="pp-theme-toggle" onClick={() => setDark(d => !d)}>
-          {dark ? 'Light' : 'Dark'}
+        <button
+          className="pp-theme-toggle"
+          onClick={() => setDark(d => !d)}
+          title="Switch this page between light and dark"
+          aria-pressed={dark}
+        >
+          {dark ? '☀️ Light mode' : '🌙 Dark mode'}
         </button>
         <aside
           className="protocol-playground__sidebar"

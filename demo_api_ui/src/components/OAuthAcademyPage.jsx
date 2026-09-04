@@ -8,6 +8,7 @@ import { navigateToCustomerOAuthLogin } from "../utils/authUi";
 import AgentConsentModal from "./AgentConsentModal";
 import TokenChainTraceRail from "./TokenChainTraceRail";
 import { MarkdownContent } from "./shared/MarkdownText";
+import { useThemeOptional } from "../context/ThemeContext";
 
 // OAuth Academy is its own page (modeled on Code Explorer) but its agent IS the
 // real `oauth-teaching` vertical: every message is pinned to that vertical via the
@@ -63,6 +64,7 @@ const renderBubbleContent = (content) => {
 };
 
 const OAuthAcademyPage = () => {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
@@ -269,6 +271,15 @@ const OAuthAcademyPage = () => {
 
   return (
     <div className="oauth-academy-page">
+      <button
+        type="button"
+        onClick={toggleDarkMode}
+        className="oa-theme-toggle"
+        title="Switch this page between light and dark"
+        aria-pressed={darkMode}
+      >
+        {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
+      </button>
       <HeroSection
         avatar="OA"
         title="OAuth Academy"
