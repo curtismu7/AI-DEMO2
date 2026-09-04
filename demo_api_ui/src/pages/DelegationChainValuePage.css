@@ -12,6 +12,26 @@
   margin: 0 auto;
   padding: 24px;
   color: var(--th-text);
+  position: relative;
+}
+
+.dcv-theme-toggle {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  padding: 6px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dcv-theme-toggle:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
 }
 
 .dcv-intro {
@@ -24,13 +44,6 @@
   margin: 0 0 8px;
   font-size: clamp(1.6rem, 3vw, 2.2rem);
   line-height: 1.2;
-}
-
-.dcv-header-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
 }
 
 .dcv-eyebrow {
@@ -143,4 +156,12 @@
 
 .dcv-clear-button:active {
   transform: translateY(1px);
+}
+
+@media (max-width: 640px) {
+  .dcv-theme-toggle {
+    position: static;
+    display: inline-block;
+    margin-bottom: 12px;
+  }
 }

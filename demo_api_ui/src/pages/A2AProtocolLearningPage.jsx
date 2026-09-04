@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import SignInPrompt from '../components/SignInPrompt';
-import ThemeToggle from '../components/common/ThemeToggle';
+import { useThemeOptional } from '../context/ThemeContext';
 import { buildA2aChainDetail } from '../utils/a2aChainDetail';
 import { A2A_RECORDED_RUN } from '../data/a2aRecordedRun';
 import {
@@ -76,6 +76,7 @@ function Section({ id, num, title, lead, children }) {
 }
 
 export default function A2AProtocolLearningPage() {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const [vertical, setVertical] = useState(DEFAULT_VERTICAL);
 
   const [card, setCard] = useState(null);
@@ -186,10 +187,16 @@ export default function A2AProtocolLearningPage() {
   return (
     <div className="a2l-page">
       <header className="a2l-header">
-        <div className="a2l-header-row">
-          <h1 className="a2l-h1">Agent-to-Agent (A2A), end to end</h1>
-          <ThemeToggle />
-        </div>
+        <button
+          type="button"
+          onClick={toggleDarkMode}
+          className="a2l-theme-toggle"
+          title="Switch this page between light and dark"
+          aria-pressed={darkMode}
+        >
+          {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
+        </button>
+        <h1 className="a2l-h1">Agent-to-Agent (A2A), end to end</h1>
         <p className="a2l-sub">
           One generalist agent hands work to a specialist. This page shows the real
           artifacts at every hop — the tokens, the Agent Card, and the JSON-RPC call —

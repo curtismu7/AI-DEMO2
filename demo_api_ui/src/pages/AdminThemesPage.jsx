@@ -5,13 +5,14 @@
 // "Reset all". See skill: vertical-theme-zones.
 import React, { useEffect, useState, useCallback } from 'react';
 import ThemeZonePanel from '../components/ThemeZonePanel';
-import ThemeToggle from '../components/common/ThemeToggle';
 import { useVertical } from '../vertical/useVertical';
+import { useThemeOptional } from '../context/ThemeContext';
 import { cssVarsFromBrand } from '../config/themeZones';
 import './AdminThemesPage.css';
 
 export default function AdminThemesPage() {
   const { refetch } = useVertical();
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const [verticals, setVerticals] = useState(null); // null = loading
   const [open, setOpen] = useState({});             // verticalId → expanded
   const [nonce, setNonce] = useState({});           // verticalId → remount key (after reset-all / brandfetch apply)
@@ -76,10 +77,16 @@ export default function AdminThemesPage() {
 
   return (
     <div className="admin-themes-page">
-      <div className="atp-header-row">
-        <h1 className="atp-title">Vertical Themes</h1>
-        <ThemeToggle />
-      </div>
+      <button
+        type="button"
+        onClick={toggleDarkMode}
+        className="atp-theme-toggle"
+        title="Switch this page between light and dark"
+        aria-pressed={darkMode}
+      >
+        {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
+      </button>
+      <h1 className="atp-title">Vertical Themes</h1>
       <p className="atp-sub">
         Pick a palette per zone for each vertical. Changes apply live for the active
         vertical and persist per-vertical. Unset zones use the vertical&rsquo;s default.
