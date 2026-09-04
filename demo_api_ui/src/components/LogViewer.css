@@ -9,6 +9,7 @@
   display: flex;
   flex-direction: column;
   background: var(--th-bg-card);
+  color: var(--th-text);
   border: 1px solid var(--th-border);
   border-radius: 8px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
@@ -29,6 +30,7 @@
   padding: 12px 16px;
   border-bottom: 1px solid var(--th-border);
   background: var(--th-bg-inset);
+  color: var(--th-text);
   border-radius: 8px 8px 0 0;
   cursor: grab;
   user-select: none;
@@ -476,12 +478,14 @@
   display: flex;
   flex-direction: column;
   background: var(--th-bg-card);
+  color: var(--th-text);
   border-radius: 0;
 }
 
 .log-page-shell {
   min-height: 100vh;
   background: var(--th-bg-page);
+  color: var(--th-text);
 }
 
 /* Responsive */
