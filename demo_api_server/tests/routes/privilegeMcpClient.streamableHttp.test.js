@@ -124,6 +124,42 @@ describe('Privilege MCP dual-era Streamable HTTP client', () => {
     expect(calls[2].options.headers['MCP-Session-Id']).toBe('legacy-session');
   });
 
+  test('falls back to legacy lifecycle for a 200-OK JSON-RPC "Method not found" (pingone-admin\'s local handler shape)', async () => {
+    // The pingone-admin door has no server/discover case at all: its handler
+    // answers any unrecognized method with HTTP 200 + a JSON-RPC -32601 body,
+    // never an HTTP 400/404/405 — a real door shape, not a hypothetical.
+    const calls = [];
+    global.fetch = jest.fn(async (_url, options) => {
+      const rpc = JSON.parse(options.body);
+      calls.push({ options, rpc });
+      if (rpc.method === 'server/discover') {
+        return response({ status: 200, body: JSON.stringify({
+          jsonrpc: '2.0', id: rpc.id, error: { code: -32601, message: 'Method not found: server/discover' },
+        }) });
+      }
+      if (rpc.method === 'initialize') {
+        return rpcResponse(rpc, {
+          protocolVersion: '2025-06-18', capabilities: { tools: {} },
+          serverInfo: { name: 'PingOne Admin (hosted MCP)', version: '1.0.0' },
+        }, { headers: { 'MCP-Session-Id': 'admin-session' } });
+      }
+      if (rpc.method === 'notifications/initialized') return response({ status: 202 });
+      return rpcResponse(rpc, { tools: [{ name: 'listUsers' }] });
+    });
+
+    const app = buildApp('pingone-admin-fallback-test');
+    await request(app).post('/api/privilege-mcp/config').send({
+      gatewayMode: 'agentless', mcpUrl: MCP_URL, clientId: 'client-id',
+    });
+    const listed = await request(app).post('/api/privilege-mcp/tools/list')
+      .set('Authorization', 'Bearer test-token').send({}).expect(200);
+
+    expect(listed.body.tools.map((tool) => tool.name)).toEqual(['listUsers']);
+    expect(calls.map(({ rpc }) => rpc.method)).toEqual([
+      'server/discover', 'initialize', 'notifications/initialized', 'tools/list',
+    ]);
+  });
+
   test('does not misclassify a recognized modern protocol error as legacy', async () => {
     global.fetch = jest.fn(async (_url, options) => {
       const rpc = JSON.parse(options.body);
