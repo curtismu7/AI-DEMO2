@@ -1,5 +1,6 @@
 // banking_api_ui/src/components/AdminSubPageShell.js
 import React from 'react';
+import { useThemeOptional } from '../context/ThemeContext';
 import '../styles/appShellPages.css';
 
 /**
@@ -11,6 +12,7 @@ import '../styles/appShellPages.css';
  * @param {import('react').ReactNode} props.children Main content (PageNav, toolbars, cards)
  */
 export default function AdminSubPageShell({ title, lead, wide = true, children }) {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const bodyClass = wide
     ? 'app-page-shell__body app-page-shell__body--wide'
     : 'app-page-shell__body';
@@ -25,6 +27,15 @@ export default function AdminSubPageShell({ title, lead, wide = true, children }
               <div className="app-page-shell__lead">{lead}</div>
             )}
           </div>
+          <button
+            type="button"
+            onClick={toggleDarkMode}
+            className="app-page-toolbar-btn app-page-toolbar-btn--theme"
+            title="Switch this page between light and dark"
+            aria-pressed={darkMode}
+          >
+            {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
+          </button>
         </div>
       </header>
       <div className={bodyClass}>{children}</div>
