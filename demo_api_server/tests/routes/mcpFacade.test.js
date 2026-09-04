@@ -192,6 +192,16 @@ describe('/mcp-facade/pingone-admin — local handler, no upstream fetch', () =>
     expect(seen).toEqual([]); // never hit the stub upstream server
   });
 
+  test('an x-pingone-admin-token header is forwarded to listTools as the delegated token', async () => {
+    const init = await request(app()).post('/mcp-facade/pingone-admin/mcp')
+      .send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} });
+    const sid = init.headers['mcp-session-id'];
+    await request(app()).post('/mcp-facade/pingone-admin/mcp').set('mcp-session-id', sid)
+      .set('x-pingone-admin-token', 'delegated-token-1')
+      .send({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
+    expect(listTools).toHaveBeenCalledWith('delegated-token-1');
+  });
+
   test('tools/call dispatches through the raw adapter by hosted tool name and relays its result verbatim', async () => {
     const init = await request(app()).post('/mcp-facade/pingone-admin/mcp')
       .send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} });
@@ -199,9 +209,11 @@ describe('/mcp-facade/pingone-admin — local handler, no upstream fetch', () =>
     const res = await request(app()).post('/mcp-facade/pingone-admin/mcp').set('mcp-session-id', sid)
       .send({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'listUsers', arguments: { filter: 'username sw "curt"' } } });
     expect(res.status).toBe(200);
-    // Third arg is req.session, forwarded so listTools/callTool can find a
-    // delegated PKCE token there (routes/mcpPingOneAdminAuth.js) — this test's
-    // app() sets up no session middleware, so it's undefined here.
+    // Third arg is the x-pingone-admin-token header — the delegated PKCE
+    // token routes/mcpPingOneAdminAuth.js stores on the browser's real
+    // session, forwarded this way because this route is reached
+    // server-to-server and never sees that session's cookie (see the call
+    // site comment in POST /:door/mcp). No such header was sent here.
     expect(callTool).toHaveBeenCalledWith('listUsers', { filter: 'username sw "curt"' }, undefined);
     expect(JSON.parse(res.body.result.content[0].text)).toEqual({ tool: 'listUsers', ok: true });
   });

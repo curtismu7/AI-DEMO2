@@ -159,6 +159,14 @@ function getClientSession(req) {
     session.oauth.dcrClientSecret = null;
     session.oauth.source = 'main_app_session';
   }
+  // pingone-admin's delegated PKCE token (routes/mcpPingOneAdminAuth.js)
+  // lives on THIS real browser session — but /mcp-facade/pingone-admin/mcp is
+  // reached by fetchMcp() as a server-to-server call (see below), which never
+  // carries the browser's session cookie. Re-sync every request (not seed-once
+  // like appAccessToken above) so a login completed mid-session is picked up
+  // on the very next call, and forward it as a header instead of relying on
+  // req.session ever reaching the façade layer.
+  session.pingoneMcpAdminToken = req.session?.pingoneMcpAdminToken?.accessToken || null;
   // Allow MCP clients that already hold a PingOne token to pass it directly
   // via Authorization: Bearer instead of going through the /auth/login flow.
   // Clear refresh metadata when seeding: keeping a prior browser-OAuth
@@ -487,6 +495,12 @@ async function fetchMcp(session, pathname, body, withAuth = true, allowRefreshRe
   if (targetUrl.hostname === 'privilege.pingone.com' || targetUrl.hostname.endsWith('.applications.privilege.pingone.com')) {
     if (!session.config._procyonSessionId) session.config._procyonSessionId = crypto.randomUUID();
     headers['x-procyon-session-id'] = session.config._procyonSessionId;
+  }
+  // Carries the delegated PKCE token to the pingone-admin door specifically
+  // (see the getClientSession comment above for why a header, not a cookie).
+  // Harmless no-op for every other door, which just ignores an unknown header.
+  if (session.pingoneMcpAdminToken) {
+    headers['x-pingone-admin-token'] = session.pingoneMcpAdminToken;
   }
   if (session.mcpSession.era === 'modern' && requestBody?.method) {
     addModernHeaders(headers, session, requestBody);
