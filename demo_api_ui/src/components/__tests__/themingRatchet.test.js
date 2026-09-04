@@ -50,7 +50,10 @@ import path from 'node:path';
 // sporting-goods,workforce} ops console) — aliased --tint onto
 // color-mix(var(--accent), --th-bg-card) rather than a per-vertical dark
 // literal.
-const MAX_UNTHEMED = 165;
+// 165 -> 164: MortgagePathPage.css, fully converted. The amber brand accent
+// (#ca8a04) stays literal per THEMING.md §1.3 — it's this page's identity,
+// distinguishing Path A from Path B/C.
+const MAX_UNTHEMED = 164;
 
 const SRC = path.join(__dirname, '..', '..');
 

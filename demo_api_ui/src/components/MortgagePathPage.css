@@ -1,12 +1,31 @@
 /* MortgagePathPage.css — Phase 266 Path A landing page (amber theme).
-   No emoji glyphs anywhere (REGRESSION_PLAN §0). */
+   No emoji glyphs anywhere (REGRESSION_PLAN §0). Themed with --th-* per
+   THEMING.md; the amber badge/accent border stays literal (§1.3 — it's
+   this page's own brand identity, distinguishing Path A from Path B/C). */
 
 .mpp-container {
   max-width: 880px;
   margin: 32px auto;
   padding: 24px;
   font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
-  color: #1f2937;
+  color: var(--th-text);
+}
+
+.mpp-theme-toggle {
+  float: right;
+  padding: 6px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mpp-theme-toggle:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
 }
 
 .mpp-header {
@@ -15,6 +34,7 @@
   padding: 18px 22px;
   margin-bottom: 22px;
   border-radius: 0 6px 6px 0;
+  color: var(--th-text);
 }
 
 .mpp-badge {
@@ -32,23 +52,24 @@
 .mpp-title {
   font-size: var(--font-size-h2);
   font-weight: 600;
-  color: #1f2937;
+  color: var(--th-text);
   margin: 4px 0 6px 0;
 }
 
 .mpp-subtitle {
   font-size: var(--font-size-body);
-  color: #4b5563;
+  color: var(--th-text-muted);
   margin: 0;
   line-height: 1.5;
 }
 
 .mpp-card {
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
   border-radius: 6px;
   padding: 20px 22px;
   margin-bottom: 18px;
+  color: var(--th-text);
 }
 
 .mpp-card--mortgage {
@@ -56,14 +77,15 @@
 }
 
 .mpp-card--swap {
-  background: #fffbeb;
-  border-color: #fde68a;
+  background: var(--th-status-warning-bg);
+  border-color: var(--th-status-warning-border);
+  color: var(--th-text);
 }
 
 .mpp-card-title {
   font-size: var(--font-size-base);
   font-weight: 700;
-  color: #111827;
+  color: var(--th-text);
   margin: 0 0 12px 0;
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -81,7 +103,7 @@
   grid-template-columns: minmax(180px, 220px) 1fr;
   gap: 16px;
   padding: 8px 0;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--th-border);
 }
 
 .mpp-field-row:last-child {
@@ -90,25 +112,25 @@
 
 .mpp-field-row dt {
   font-size: var(--font-size-sm);
-  color: #6b7280;
+  color: var(--th-text-muted);
   font-weight: 500;
 }
 
 .mpp-field-row dd {
   font-size: var(--font-size-body);
-  color: #1f2937;
+  color: var(--th-text);
   margin: 0;
   font-weight: 500;
 }
 
 .mpp-field-row--accent dd {
-  color: #92400e;
+  color: var(--th-status-warning-text);
   font-weight: 700;
 }
 
 .mpp-swap-line {
   font-size: var(--font-size-body);
-  color: #374151;
+  color: var(--th-text-body);
   line-height: 1.55;
   margin: 0 0 14px 0;
 }
@@ -117,7 +139,8 @@
   display: flex;
   gap: 12px;
   align-items: baseline;
-  background: #fef3c7;
+  background: var(--th-status-warning-bg);
+  color: var(--th-text);
   padding: 10px 14px;
   border-radius: 4px;
   margin-bottom: 14px;
@@ -125,17 +148,17 @@
 
 .mpp-swap-label {
   font-weight: 600;
-  color: #4b5563;
+  color: var(--th-text-muted);
   font-size: var(--font-size-sm);
 }
 
 .mpp-swap-value {
   font-family: var(--font-mono);
   font-size: var(--font-size-body);
-  background: #fef9c3;
+  background: var(--th-status-warning-bg);
   padding: 2px 8px;
   border-radius: 2px;
-  color: #713f12;
+  color: var(--th-status-warning-text);
 }
 
 .mpp-swap-details {
@@ -146,7 +169,7 @@
 
 .mpp-swap-details li {
   font-size: var(--font-size-sm);
-  color: #4b5563;
+  color: var(--th-text-muted);
   line-height: 1.6;
 }
 
@@ -169,9 +192,9 @@
 .mpp-back-btn:hover { background: #111827; }
 
 .mpp-error {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #991b1b;
+  background: var(--th-status-error-bg);
+  border: 1px solid var(--th-status-error-border);
+  color: var(--th-status-error-text);
   padding: 16px;
   border-radius: 4px;
   margin-bottom: 16px;
@@ -179,27 +202,29 @@
 }
 
 .mpp-loading {
-  color: #6b7280;
+  color: var(--th-text-muted);
   padding: 24px;
   text-align: center;
 }
 
 .mpp-card--learning {
-  background: #f0fdf4;
-  border-color: #bbf7d0;
+  background: var(--th-status-success-bg);
+  border-color: var(--th-status-success-border);
+  color: var(--th-text);
 }
 
 .mpp-learning-intro {
   font-size: var(--font-size-sm);
-  color: #374151;
+  color: var(--th-text-body);
   margin: 0 0 16px 0;
   line-height: 1.6;
 }
 
 .mpp-token-rail {
-  border: 1px solid #bbf7d0;
+  border: 1px solid var(--th-status-success-border);
   border-radius: 4px;
-  background: #f9fdf9;
+  background: var(--th-status-success-bg);
+  color: var(--th-text);
   padding: 12px;
   min-height: 200px;
   overflow-y: auto;

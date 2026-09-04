@@ -19,7 +19,23 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { formatCurrency, formatPercent } from '../utils/formatters';
 import TokenChainTraceRail from './TokenChainTraceRail';
+import { useThemeOptional } from '../context/ThemeContext';
 import './MortgagePathPage.css';
+
+function ThemeToggleButton() {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
+  return (
+    <button
+      type="button"
+      onClick={toggleDarkMode}
+      className="mpp-theme-toggle"
+      title="Switch this page between light and dark"
+      aria-pressed={darkMode}
+    >
+      {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
+    </button>
+  );
+}
 
 export default function MortgagePathPage() {
   const navigate = useNavigate();
@@ -31,6 +47,7 @@ export default function MortgagePathPage() {
   if (!data) {
     return (
       <div className="mpp-container">
+        <ThemeToggleButton />
         <header className="mpp-header">
           <span className="mpp-badge">API-KEY PATH</span>
           <h1 className="mpp-title">Mortgage data not loaded</h1>
@@ -53,6 +70,7 @@ export default function MortgagePathPage() {
 
   return (
     <div className="mpp-container">
+      <ThemeToggleButton />
       <header className="mpp-header">
         <span className="mpp-badge">API-KEY PATH</span>
         <h1 className="mpp-title">Mortgage account</h1>
