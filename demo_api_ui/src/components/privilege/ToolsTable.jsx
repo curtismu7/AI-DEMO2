@@ -6,6 +6,44 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import JsonHighlight from '../shared/JsonHighlight';
 import './ToolsTable.css';
 
+// Curated quick-fill values for params whose schema has no enum (free-text
+// search queries, locations, ...) so a demo doesn't need to type them live.
+// The JSON textarea below stays fully editable — picking one just seeds it,
+// it never restricts what can be sent, unlike a real schema enum.
+const PARAM_EXAMPLES = {
+  brave_news_search: {
+    query: ['PingOne security', 'Yankees trade news', 'identity and access management'],
+  },
+  // Gateway enforces a Texas-only geofence on this door (demo policy) — every
+  // example must be a Texas city or the call is denied, not just empty.
+  get_weather: {
+    city_name: ['Austin, TX', 'Dallas, TX', 'Houston, TX'],
+  },
+  get_branch_hours: {
+    city: ['Austin', 'Dallas', 'Houston'],
+    vertical: ['banking', 'healthcare', 'government'],
+  },
+  sequential_think: {
+    query: ['Should I transfer $500 from savings to checking?', 'Is this account eligible for a fee waiver?'],
+    context: ['Checking balance $1,200, savings balance $8,400', 'Account opened 2019, no prior overdrafts'],
+  },
+  code_search: {
+    query: ['transfer money between accounts', 'RFC 8693 token exchange', 'admin role check'],
+  },
+  lookup_customer: {
+    query: ['demo', 'smith', 'cmuir'],
+  },
+  request_fee_waiver: {
+    reason: ['Overdraft fee due to bank error', 'First-time customer courtesy request'],
+  },
+  list_pingone_tools: {
+    filter: ['user', 'application', 'population'],
+  },
+  call_pingone_tool: {
+    name: ['listUsers', 'listApplications', 'listPopulations', 'getEnvironment'],
+  },
+};
+
 function paramsOf(tool) {
   const props = tool.inputSchema?.properties || {};
   const required = new Set(tool.inputSchema?.required ?? []);
@@ -14,6 +52,7 @@ function paramsOf(tool) {
     type: (schema && schema.type) || 'any',
     required: required.has(name),
     enumValues: Array.isArray(schema?.enum) ? schema.enum : null,
+    examples: PARAM_EXAMPLES[tool.name]?.[name] || null,
   }));
 }
 
@@ -271,36 +310,44 @@ function FragmentRow({ tool, params, isOpen, selected = false, presentMode, onTo
   );
 }
 
-// A dropdown per enum-typed parameter (e.g. account_type), writing straight
+// A dropdown per enum-typed or example-seeded parameter (e.g. account_type,
+// or a free-text search query with curated demo values), writing straight
 // into the same args JSON the textarea below edits — no separate state, no
-// risk of the two disagreeing. Nothing renders when the tool has no enum
-// parameters.
+// risk of the two disagreeing. A real schema enum is the only valid set; an
+// example list is just a shortcut; the textarea always accepts anything.
+// Nothing renders when the tool has neither.
 function EnumParamFields({ params, args, onArgs }) {
-  const enumParams = params.filter((p) => p.enumValues);
-  if (enumParams.length === 0) return null;
+  const quickFillParams = params.filter((p) => p.enumValues || p.examples);
+  if (quickFillParams.length === 0) return null;
   const parsed = tryParseArgs(args);
   return (
     <div className="ptt-enum-fields">
-      {enumParams.map((p) => (
-        <label key={p.name} className="ptt-enum-field">
-          <span>{p.name}{p.required ? '*' : ''}</span>
-          <select
-            value={parsed[p.name] ?? ''}
-            onClick={(e) => e.stopPropagation()}
-            onChange={(e) => {
-              const next = { ...parsed };
-              if (e.target.value === '') delete next[p.name];
-              else next[p.name] = e.target.value;
-              onArgs(JSON.stringify(next, null, 2));
-            }}
-          >
-            <option value="">{p.required ? '— choose a value —' : '(none)'}</option>
-            {p.enumValues.map((v) => (
-              <option key={v} value={v}>{v}</option>
-            ))}
-          </select>
-        </label>
-      ))}
+      {quickFillParams.map((p) => {
+        const values = p.enumValues || p.examples;
+        const placeholder = p.enumValues
+          ? (p.required ? '— choose a value —' : '(none)')
+          : '— pick an example, or type below —';
+        return (
+          <label key={p.name} className="ptt-enum-field">
+            <span>{p.name}{p.required ? '*' : ''}</span>
+            <select
+              value={parsed[p.name] ?? ''}
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => {
+                const next = { ...parsed };
+                if (e.target.value === '') delete next[p.name];
+                else next[p.name] = e.target.value;
+                onArgs(JSON.stringify(next, null, 2));
+              }}
+            >
+              <option value="">{placeholder}</option>
+              {values.map((v) => (
+                <option key={v} value={v}>{v}</option>
+              ))}
+            </select>
+          </label>
+        );
+      })}
     </div>
   );
 }

@@ -484,8 +484,13 @@ async function verifyDoorBearer(req, door) {
 
   const expected = door.expectedAudience && door.expectedAudience();
   if (expected) {
+    // expectedAudience() falls back to MCP_GW_RESOURCE_URI, a comma-list of
+    // accepted audiences (see GatewayServer.ts's split(',')[0] and
+    // tokenValidator.ts) — a live token only ever carries one of them, so
+    // matching against the raw joined string rejected every valid token.
+    const expectedList = expected.split(',').map((s) => s.trim()).filter(Boolean);
     const aud = Array.isArray(claims.aud) ? claims.aud : [claims.aud].filter(Boolean);
-    if (!aud.includes(expected)) return { ok: false, reason: 'audience_mismatch' };
+    if (!aud.some((a) => expectedList.includes(a))) return { ok: false, reason: 'audience_mismatch' };
   }
   return { ok: true };
 }

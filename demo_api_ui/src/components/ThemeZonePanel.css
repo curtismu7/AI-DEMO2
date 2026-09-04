@@ -17,8 +17,8 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.07em;
-  color: #94a3b8;
-  border-bottom: 1px solid #e2e8f0;
+  color: var(--th-text-muted);
+  border-bottom: 1px solid var(--th-border);
   padding-bottom: 3px;
 }
 
@@ -32,7 +32,7 @@
 .tzp-zone-label {
   font-size: var(--font-size-2xs);
   font-weight: 600;
-  color: #334155;
+  color: var(--th-text-body);
   min-width: 150px;
 }
 
@@ -63,10 +63,10 @@
   outline-offset: 2px;
 }
 
-/* Selected: dark ring + inner white gap + checkmark (not color-only — a11y). */
+/* Selected: dark ring + inner gap (matches card surface) + checkmark (not color-only — a11y). */
 .tzp-swatch--on {
-  border-color: #1e293b;
-  box-shadow: 0 0 0 2px #fff inset;
+  border-color: var(--th-text);
+  box-shadow: 0 0 0 2px var(--th-bg-card) inset;
 }
 
 .tzp-swatch--on::after {
@@ -84,9 +84,9 @@
 }
 
 .tzp-swatch--reset {
-  background: #fff;
-  border: 1.5px dashed #cbd5e1;
-  color: #94a3b8;
+  background: var(--th-bg-card);
+  border: 1.5px dashed var(--th-border-strong);
+  color: var(--th-text-faint);
   font-size: var(--font-size-xs);
   line-height: 1;
   display: flex;
@@ -95,8 +95,8 @@
 }
 
 .tzp-swatch--reset:hover {
-  border-color: #94a3b8;
-  color: #475569;
+  border-color: var(--th-text-faint);
+  color: var(--th-text-muted);
 }
 
 .tzp-toast {
@@ -104,8 +104,8 @@
   bottom: 0;
   align-self: center;
   margin-top: 6px;
-  background: #1e293b;
-  color: #fff;
+  background: var(--th-bg-emphasis);
+  color: var(--th-text-on-emphasis);
   font-size: var(--font-size-2xs);
   padding: 7px 14px;
   border-radius: 20px;

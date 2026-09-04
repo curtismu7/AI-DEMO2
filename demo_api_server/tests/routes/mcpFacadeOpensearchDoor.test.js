@@ -121,6 +121,28 @@ describe('opensearch door — façade-enforced bearer', () => {
     expect(upstreamHits).toBe(1);
   });
 
+  // Regression: on SE, MCP_GW_RESOURCE_URI is a comma-list of accepted
+  // audiences (mcpgateway.ping.demo,https://api.ping.demo:3036/mcp) — the
+  // fallback expectedAudience() uses when MCP_FACADE_OPENSEARCH_AUD is unset.
+  // A live token only ever carries one of them, so matching against the raw
+  // joined string rejected every valid token with audience_mismatch.
+  it('falls back to MCP_GW_RESOURCE_URI and accepts any listed audience', async () => {
+    const prevAud = process.env.MCP_FACADE_OPENSEARCH_AUD;
+    const prevGw = process.env.MCP_GW_RESOURCE_URI;
+    delete process.env.MCP_FACADE_OPENSEARCH_AUD;
+    process.env.MCP_GW_RESOURCE_URI = 'mcpgateway.ping.demo,https://api.ping.demo:3036/mcp';
+    try {
+      const res = await verifyDoorBearer(
+        { get: () => `Bearer ${makeToken({ aud: 'mcpgateway.ping.demo' })}` },
+        DOORS.opensearch,
+      );
+      expect(res).toEqual({ ok: true });
+    } finally {
+      process.env.MCP_FACADE_OPENSEARCH_AUD = prevAud;
+      process.env.MCP_GW_RESOURCE_URI = prevGw;
+    }
+  });
+
   it('fails closed when JWKS is unavailable', async () => {
     jwksService.getPublicKey.mockRejectedValue(new Error('network'));
     const res = await post(makeToken());

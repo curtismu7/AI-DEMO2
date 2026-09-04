@@ -33,7 +33,9 @@ import path from 'node:path';
 // count and the reality agree again. Treat a one-rule drop with suspicion.
 // 179 -> 178: AgentBuilderPage.css, fully converted (a dark/light toggle
 // button needed real theming to be visible on this page at all).
-const MAX_UNTHEMED = 178;
+// 178 -> 176: AdminThemesPage.css and ThemeZonePanel.css (the /themes page),
+// merged in from a parallel session's toggle rollout (PR #2744).
+const MAX_UNTHEMED = 176;
 
 const SRC = path.join(__dirname, '..', '..');
 

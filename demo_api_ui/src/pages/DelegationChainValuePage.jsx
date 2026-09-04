@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from "react";
 import apiClient from "../services/apiClient";
 import { requiredFlagsForUseCase } from "../utils/requiredDemoFlags";
+import { useThemeOptional } from "../context/ThemeContext";
 import "./DelegationChainValuePage.css";
 
 const VERTICAL = "sporting-goods";
@@ -35,6 +36,7 @@ const RUNS = [
 ];
 
 export default function DelegationChainValuePage() {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const [status, setStatus] = useState({});
   const [results, setResults] = useState({});
 
@@ -82,6 +84,15 @@ export default function DelegationChainValuePage() {
 
   return (
     <div className="dcv-page">
+      <button
+        type="button"
+        onClick={toggleDarkMode}
+        className="dcv-theme-toggle"
+        title="Switch this page between light and dark"
+        aria-pressed={darkMode}
+      >
+        {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
+      </button>
       <p className="dcv-eyebrow">WHY THIS DEMO EXISTS</p>
       <h1>Prove who acted, and who authorized it</h1>
       <p className="dcv-intro">

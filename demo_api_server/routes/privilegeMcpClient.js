@@ -16,7 +16,14 @@ const router = express.Router();
 // frontend it named (`*.applications.procyon.ai:8643`) has nothing behind it —
 // the page sat on "authenticated, 0 tools" forever.
 const PUBLIC_APP_ORIGIN = () => (process.env.PUBLIC_APP_URL || 'https://ai-demo.ping-devops.com').replace(/\/+$/, '');
+const PRIVILEGE_GATEWAY_HOST = 'https://mcpgw.ai-demo.ping-devops.com';
 const PRIVILEGE_APP = () => process.env.MCP_FACADE_PRIVILEGE_GATEWAY_APP || 'opensearch22';
+// Sibling Agentic Apps registered on the same AI Gateway, each with its own
+// Privilege policy (console: Agentic Apps > opensearch / brave). Same
+// multiApp mechanism as PRIVILEGE_APP() above, just a fixed second and third
+// app name instead of the single configurable default.
+const PRIVILEGE_APP_OPENSEARCH = () => process.env.MCP_FACADE_PRIVILEGE_GATEWAY_APP_OPENSEARCH || 'opensearch';
+const PRIVILEGE_APP_BRAVE = () => process.env.MCP_FACADE_PRIVILEGE_GATEWAY_APP_BRAVE || 'brave';
 
 // No Privilege in the path at all — the façade's opensearch door talks straight
 // to the MCP server. This is the "before" picture.
@@ -30,16 +37,25 @@ const DEFAULT_DIRECT_BANKING_MCP_URL = () =>
   process.env.PRIVILEGE_DIRECT_BANKING_MCP_URL || `${PUBLIC_APP_ORIGIN()}/mcp-facade/banking/mcp`;
 const DEFAULT_DIRECT_PINGONE_MCP_URL = () =>
   process.env.PRIVILEGE_DIRECT_PINGONE_MCP_URL || `${PUBLIC_APP_ORIGIN()}/mcp-facade/pingone-admin/mcp`;
-const DEFAULT_DIRECT_AGENT_GATEWAY_MCP_URL = () =>
-  process.env.PRIVILEGE_DIRECT_AGENT_GATEWAY_MCP_URL || `${PUBLIC_APP_ORIGIN()}/mcp-facade/agent-gateway/mcp`;
 // Straight at the AI Gateway: policy enforced, but the client registers with the
 // gateway, whose registry is in memory — a restart breaks it.
 const DEFAULT_PRIVILEGE_MCP_URL = () =>
-  process.env.PRIVILEGE_MCPGW_URL || `https://mcpgw.ai-demo.ping-devops.com/${PRIVILEGE_APP()}/mcp`;
+  process.env.PRIVILEGE_MCPGW_URL || `${PRIVILEGE_GATEWAY_HOST}/${PRIVILEGE_APP()}/mcp`;
+// Sibling Privilege apps — same "straight at the AI Gateway" shape, different
+// registered app (and so a different policy). Presented as a Door picker
+// option once Privilege mode is active, same idea as the direct-mode siblings.
+const DEFAULT_PRIVILEGE_OPENSEARCH_MCP_URL = () =>
+  process.env.PRIVILEGE_MCPGW_OPENSEARCH_URL || `${PRIVILEGE_GATEWAY_HOST}/${PRIVILEGE_APP_OPENSEARCH()}/mcp`;
+const DEFAULT_PRIVILEGE_BRAVE_MCP_URL = () =>
+  process.env.PRIVILEGE_MCPGW_BRAVE_URL || `${PRIVILEGE_GATEWAY_HOST}/${PRIVILEGE_APP_BRAVE()}/mcp`;
 // Through our façade: same policy, but the client registers with our own durable
 // AS, so it survives a gateway restart.
 const DEFAULT_FACADE_MCP_URL = () =>
   process.env.PRIVILEGE_FACADE_MCP_URL || `${PUBLIC_APP_ORIGIN()}/mcp-facade/privilege-gateway/${PRIVILEGE_APP()}/mcp`;
+const DEFAULT_FACADE_OPENSEARCH_MCP_URL = () =>
+  process.env.PRIVILEGE_FACADE_OPENSEARCH_URL || `${PUBLIC_APP_ORIGIN()}/mcp-facade/privilege-gateway/${PRIVILEGE_APP_OPENSEARCH()}/mcp`;
+const DEFAULT_FACADE_BRAVE_MCP_URL = () =>
+  process.env.PRIVILEGE_FACADE_BRAVE_URL || `${PUBLIC_APP_ORIGIN()}/mcp-facade/privilege-gateway/${PRIVILEGE_APP_BRAVE()}/mcp`;
 
 const GATEWAY_MODES = ['direct', 'privilege', 'facade'];
 const DEFAULT_GATEWAY_MODE = 'privilege';
@@ -1289,19 +1305,36 @@ router.get('/state', (req, res) => {
       url: DEFAULT_DIRECT_PINGONE_MCP_URL(),
     },
     {
-      label: 'Direct — Agent Gateway',
-      mode: 'direct',
-      url: DEFAULT_DIRECT_AGENT_GATEWAY_MCP_URL(),
-    },
-    {
       label: '2 · Privilege — direct to the AI Gateway',
       mode: 'privilege',
       url: DEFAULT_PRIVILEGE_MCP_URL(),
+    },
+    // Sibling Privilege apps — same "straight at the AI Gateway" shape as the
+    // default above, different registered app and so a different policy.
+    {
+      label: 'Privilege — opensearch',
+      mode: 'privilege',
+      url: DEFAULT_PRIVILEGE_OPENSEARCH_MCP_URL(),
+    },
+    {
+      label: 'Privilege — brave',
+      mode: 'privilege',
+      url: DEFAULT_PRIVILEGE_BRAVE_MCP_URL(),
     },
     {
       label: '3 · Privilege — through the façade',
       mode: 'facade',
       url: DEFAULT_FACADE_MCP_URL(),
+    },
+    {
+      label: 'Façade — opensearch',
+      mode: 'facade',
+      url: DEFAULT_FACADE_OPENSEARCH_MCP_URL(),
+    },
+    {
+      label: 'Façade — brave',
+      mode: 'facade',
+      url: DEFAULT_FACADE_BRAVE_MCP_URL(),
     },
     {
       // Kept through the mode rename: the banking door is deliberately dark
