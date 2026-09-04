@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import GroupMembershipToggle from "../components/GroupMembershipToggle";
+import { useThemeOptional } from "../context/ThemeContext";
 import "./GroupPolicyBoardPage.css";
 
 /**
@@ -17,6 +18,7 @@ import "./GroupPolicyBoardPage.css";
  * demo exists to disprove.
  */
 export default function GroupPolicyBoardPage() {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -46,6 +48,15 @@ export default function GroupPolicyBoardPage() {
   return (
     <div className="gpb-page">
       <header className="gpb-head">
+        <button
+          type="button"
+          onClick={toggleDarkMode}
+          className="gpb-theme-toggle"
+          title="Switch this page between light and dark"
+          aria-pressed={darkMode}
+        >
+          {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
+        </button>
         <p className="gpb-eyebrow">LIVE AUTHORIZATION EXPLAINER</p>
         <h1>Group policy — live decisions</h1>
         <p className="gpb-sub">
