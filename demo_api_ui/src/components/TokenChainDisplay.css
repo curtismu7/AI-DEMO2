@@ -1222,6 +1222,29 @@ pre.tcd-jwt-dump.jh-dark {
 .tcd-claim--act {
   background: rgba(20, 184, 166, 0.12);
 }
+/* Withheld claims. Ink is set alongside the ground on every rule below: <body>
+   ink is identical in both themes, so a themed background without a colour
+   renders near-black once the ground flips (THEMING.md §1.5, enforced by the
+   ground-without-ink ratchet). */
+.tcd-claim--hidden {
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+.tcd-claim--hidden .tcd-claim-key,
+.tcd-claim--hidden .tcd-claim-val {
+  color: var(--th-text);
+}
+.tcd-claim-hidden-name {
+  /* Use the token, never a literal font stack — uiRegression.test.js enforces
+   * that for fixed-width faces. */
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-2xs);
+  padding: 1px 4px;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
 .tcd-claim--scope {
   background: rgba(71, 85, 105, 0.08);
 }
@@ -1902,7 +1925,7 @@ pre.tcd-jwt-dump.jh-dark {
 
 .tci-body::-webkit-scrollbar-thumb {
   background: #cbd5e1;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
 }
 
 .tci-body::-webkit-scrollbar-thumb:hover {
@@ -2038,7 +2061,7 @@ pre.tcd-jwt-dump.jh-dark {
 .tcd-scope-badge {
   display: inline-block;
   padding: 2px 6px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   font-size: 0.72rem;
   font-weight: 500;
   white-space: nowrap;
@@ -2150,7 +2173,7 @@ pre.tcd-jwt-dump.jh-dark {
   background: rgba(20, 184, 166, 0.08);
   border-left: 2px solid #14b8a6;
   padding: 6px 8px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
 }
 
 /* ── RFC 8693 annotation below exchange arrows ───────────────────────────── */
@@ -2209,7 +2232,7 @@ pre.tcd-jwt-dump.jh-dark {
   font-weight: 700;
   letter-spacing: 0.04em;
   padding: 1px 6px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   text-transform: uppercase;
 }
 
@@ -2259,14 +2282,14 @@ pre.tcd-jwt-dump.jh-dark {
   font-size: 0.72rem;
   background: var(--th-bg-inset);
   padding: 1px 5px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
 }
 
 .tcd-nl-source {
   font-weight: 600;
   font-size: 0.72rem;
   padding: 1px 6px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
 }
 
 .tcd-nl-source--heuristic {
@@ -2280,7 +2303,7 @@ pre.tcd-jwt-dump.jh-dark {
   color: #166534;
   background: #dcfce7;
   padding: 1px 6px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
 }
 
 .tcd-nl-source--llm {
@@ -2597,7 +2620,7 @@ pre.tcd-jwt-dump.jh-dark {
   font-weight: 700;
   letter-spacing: 0.06em;
   padding: 1px 6px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   text-transform: uppercase;
   flex-shrink: 0;
 }
@@ -2672,7 +2695,7 @@ pre.tcd-jwt-dump.jh-dark {
   background: var(--th-bg-inset);
   color: var(--th-text-body);
   padding: 1px 5px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   font-family: var(--font-family-mono);
 }
 
@@ -2681,7 +2704,7 @@ pre.tcd-jwt-dump.jh-dark {
   font-weight: 700;
   letter-spacing: 0.04em;
   padding: 1px 5px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   text-transform: uppercase;
 }
 

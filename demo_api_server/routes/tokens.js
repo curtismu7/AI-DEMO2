@@ -12,6 +12,7 @@ const { getSessionAccessToken } = require('../services/mcpWebSocketClient');
 const agentMcpTokenService = require('../services/agentMcpTokenService');
 const axios = require('axios');
 const oauthUserConfig = require('../config/oauthUser');
+const { parseJwtHeader, parseJwtPayload } = require('../utils/jwtDecoder');
 
 /**
  * Parse token content for display
@@ -24,35 +25,27 @@ async function parseTokenContent(token) {
   try {
     // Try to parse as JWT
     if (typeof token === 'string' && token.split('.').length === 3) {
-      const parts = token.split('.');
-      const header = JSON.parse(Buffer.from(parts[0], 'base64').toString());
-      const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+      // Routed through utils/jwtDecoder rather than decoding inline. The old
+      // inline spelling produced correct claims (Node's base64 decoder accepts
+      // the URL alphabet), so this is consolidation onto one tested decoder,
+      // not a decode fix — the real change is the full payload below.
+      const header = parseJwtHeader(token);
+      const payload = parseJwtPayload(token);
 
       return {
         type: 'JWT',
-        header: {
-          alg: header.alg,
-          typ: header.typ,
-          kid: header.kid
-        },
-        payload: {
-          iss: payload.iss,
-          sub: payload.sub,
-          aud: payload.aud,
-          exp: payload.exp,
-          iat: payload.iat,
-          jti: payload.jti,
-          scope: payload.scope,
-          client_id: payload.client_id,
-          // Include act/may_act claims if present
-          act: payload.act,
-          may_act: payload.may_act,
-          // Include other relevant claims
-          email: payload.email,
-          name: payload.name,
-          roles: payload.roles,
-          permissions: payload.permissions
-        },
+        // FULL header and payload, deliberately not an allowlist. The previous
+        // version hand-picked 15 claims, so azp, sid, amr, acr, nonce, cnf and
+        // every PingOne custom claim vanished with no indication they existed —
+        // a token viewer that silently hides most of the token teaches the wrong
+        // thing. Adding claims is additive: every key the old shape returned is
+        // still present, so existing readers are unaffected.
+        header,
+        payload,
+        // The signature is never sent. Callers only need to know the token was
+        // signed; shipping it would hand the browser a replayable credential and
+        // break the demo's own "browser never holds a raw token" property.
+        signature: 'present',
         expires_at: payload.exp ? new Date(payload.exp * 1000).toISOString() : null,
         issued_at: payload.iat ? new Date(payload.iat * 1000).toISOString() : null
       };
@@ -122,8 +115,7 @@ async function buildTokenChain(req) {
       // when ENDUSER_AUDIENCE is configured and the login only carries agent:invoke.
       const userPayload = (() => {
         try {
-          const parts = sessionToken.split('.');
-          return parts.length === 3 ? JSON.parse(Buffer.from(parts[1], 'base64url').toString()) : {};
+          return parseJwtPayload(sessionToken);
         } catch (_) { return {}; }
       })();
       const userScopeStr = typeof userPayload.scope === 'string' ? userPayload.scope : '';
@@ -600,3 +592,6 @@ router.post('/exchange-test', async (req, res) => {
 
 module.exports = router;
 module.exports.agentCcPreviewHandler = agentCcPreviewHandler;
+// Exported for tests: this is what decides how much of a token the UI can show,
+// and that the signature never leaves the server.
+module.exports.parseTokenContent = parseTokenContent;

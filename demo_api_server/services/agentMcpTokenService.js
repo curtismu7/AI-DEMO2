@@ -357,6 +357,28 @@ function sanitizeClaims(claims) {
 }
 
 /**
+ * The NAMES of claims sanitizeClaims dropped — never their values.
+ *
+ * The allowlist above is deliberate: an unexpected claim could be PII or a
+ * credential, so unknown claims are removed. The problem was that it happened
+ * SILENTLY — the Token Chain panel showed a tidy claim list and gave no hint
+ * that most of the token was missing, which teaches the opposite of what a
+ * token viewer is for.
+ *
+ * Returning names (not values) keeps the security property intact: a claim's
+ * name is not the secret, so a reader learns that `at_hash` exists and was
+ * withheld without the withheld material crossing the wire.
+ *
+ * @param {object|null} claims  the ORIGINAL decoded claims, pre-sanitize
+ * @returns {string[]} dropped claim names, sorted; empty when nothing was hidden
+ */
+function hiddenClaimNames(claims) {
+  if (!claims || typeof claims !== 'object') { return []; }
+  const kept = sanitizeClaims(claims) || {};
+  return Object.keys(claims).filter((k) => !(k in kept)).sort();
+}
+
+/**
  * Build a token event object for the frontend Token Chain panel.
  * @param {string}  id
  * @param {string}  label
@@ -391,6 +413,10 @@ function buildTokenEvent(id, label, status, decoded, explanation, extra = {}) {
     timestamp: new Date().toISOString(),
     alg: decoded?.header?.alg || null,
     claims: sanitizeClaims(decoded?.claims),
+    // Names only, never values — see hiddenClaimNames. Lets the panel say
+    // "6 claims hidden by policy: acr, amr, ..." instead of presenting the
+    // allowlisted subset as if it were the whole token.
+    hiddenClaims: hiddenClaimNames(decoded?.claims),
     explanation,
     ...extra,
     ...(jwtFullDecode ? { jwtFullDecode } : {}),
@@ -2882,6 +2908,7 @@ module.exports = {
   buildRefreshTokenEvent,
   prependRefreshEvent,
   sanitizeClaims,
+  hiddenClaimNames,
   countJwtScopes,
   MIN_USER_SCOPES_FOR_MCP,
   buildTratContext,
