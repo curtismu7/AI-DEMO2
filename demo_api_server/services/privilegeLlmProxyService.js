@@ -51,6 +51,25 @@ function gatewayUrl() {
   return process.env.PRIVILEGE_LLM_GATEWAY_URL || '';
 }
 
+// Provider rate-limit headers, passed through by the gateway. These are the
+// PROVIDER's limits (OpenAI stamps x-openai-proxy-wasm alongside them), NOT the
+// Privilege virtual key's caps — the console must label them as such or it would
+// claim to show a governance limit while showing someone else's. Privilege exposes
+// no per-key usage endpoint today; when it does, that becomes a separate field.
+function readProviderLimits(res) {
+  const g = (n) => (res.headers && typeof res.headers.get === 'function' ? res.headers.get(n) : null);
+  const num = (v) => (v === null || v === undefined || v === '' ? null : Number(v));
+  const limits = {
+    requestsLimit: num(g('x-ratelimit-limit-requests')),
+    requestsRemaining: num(g('x-ratelimit-remaining-requests')),
+    tokensLimit: num(g('x-ratelimit-limit-tokens')),
+    tokensRemaining: num(g('x-ratelimit-remaining-tokens')),
+    resetRequests: g('x-ratelimit-reset-requests'),
+    resetTokens: g('x-ratelimit-reset-tokens'),
+  };
+  return Object.values(limits).some((v) => v !== null) ? limits : null;
+}
+
 /** Denial (400/403) vs any other failure — shared by both providers. */
 function throwForResponse(res, data, label) {
   const msg = data?.error?.message || res.statusText || String(res.status);
@@ -90,6 +109,9 @@ async function callPrivilegeGemini(messages, config = {}) {
     body: JSON.stringify({ model, messages }),
   }, { label: 'privilege-llm-google', timeoutMs: 12000, retryOn429: false });
 
+  // The caller may pass a `meta` object to collect transport facts it cannot
+  // otherwise see — the lane returns text, and the headers die with the response.
+  if (config.meta) config.meta.limits = readProviderLimits(res);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throwForResponse(res, data, 'google');
 
@@ -127,6 +149,9 @@ async function callPrivilegeClaude(messages, config = {}) {
     body: JSON.stringify({ model, max_tokens: 512, system: system || undefined, messages: turns }),
   }, { label: 'privilege-llm-anthropic', timeoutMs: 12000, retryOn429: false });
 
+  // The caller may pass a `meta` object to collect transport facts it cannot
+  // otherwise see — the lane returns text, and the headers die with the response.
+  if (config.meta) config.meta.limits = readProviderLimits(res);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throwForResponse(res, data, 'anthropic');
 
@@ -163,6 +188,9 @@ async function callPrivilegeOpenAI(messages, config = {}) {
     body: JSON.stringify({ model, max_tokens: 512, messages }),
   }, { label: 'privilege-llm-openai', timeoutMs: 12000, retryOn429: false });
 
+  // The caller may pass a `meta` object to collect transport facts it cannot
+  // otherwise see — the lane returns text, and the headers die with the response.
+  if (config.meta) config.meta.limits = readProviderLimits(res);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throwForResponse(res, data, 'openai');
 
@@ -173,6 +201,7 @@ async function callPrivilegeOpenAI(messages, config = {}) {
 
 module.exports = {
   LANES,
+  readProviderLimits,
   resolveRoute,
   callPrivilegeGemini,
   callPrivilegeClaude,

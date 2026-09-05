@@ -300,6 +300,7 @@ describe("CSS/JS monospace regression", () => {
         f.includes("shared/JsonFormView.css") ||         // JSON display component (intentional)
         f.includes("FootprintMockGalleryPage.css") ||    // mock code-editor/terminal gallery display (intentional)
         f.includes("PrivilegeMcpClientPage.css") ||      // MCP client code/token display (intentional)
+        f.includes("LlmGatewayPage.css") ||             // LLM gateway route/model/verdict display (intentional)
         f.includes("TransactionTracePage.css") ||        // trace cid/phase/op code display (intentional)
         f.includes("DetailedStepsTabContent.css") ||     // step request/response code display (intentional)
         f.includes("ProtocolPlayground/ProtocolPlayground.css") || // protocol frame/code display (intentional)
