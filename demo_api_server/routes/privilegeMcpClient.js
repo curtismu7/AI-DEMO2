@@ -2064,6 +2064,56 @@ router.post('/doors/probe', express.json(), async (req, res) => {
 
 
 // POST /chat — demo chat with optional LLM routing
+// ── Privilege LLM protection ────────────────────────────────────────────────
+// One lane per provider, one route. The panel needs the gateway path back so
+// the demo can show WHERE the call went — that is the visible difference
+// between "we called Anthropic" and "we called Anthropic through Privilege".
+const {
+  callPrivilegeGemini: llmGoogle,
+  callPrivilegeClaude: llmAnthropic,
+  callPrivilegeOpenAI: llmOpenAI,
+} = require('../services/privilegeLlmProxyService');
+
+const LLM_LANES = {
+  anthropic: { call: (m) => llmAnthropic(m), route: '/llm/anthropic/v1/messages' },
+  google: { call: (m) => llmGoogle(m), route: '/llm/google/v1/chat/completions' },
+  openai: { call: (m) => llmOpenAI(m), route: '/llm/openai/v1/chat/completions' },
+};
+
+router.post('/llm/call', express.json(), async (req, res) => {
+  const provider = String(req.body?.provider || '');
+  const lane = LLM_LANES[provider];
+  if (!lane) {
+    return res.status(400).json({ error: `Unknown provider "${provider}". Use one of: ${Object.keys(LLM_LANES).join(', ')}` });
+  }
+  const prompt = typeof req.body?.prompt === 'string' ? req.body.prompt.trim() : '';
+  if (!prompt) return res.status(400).json({ error: 'Prompt is required.' });
+
+  const t0 = Date.now();
+  try {
+    const reply = await lane.call([{ role: 'user', content: prompt }]);
+    return res.json({ reply, provider, route: lane.route, latencyMs: Date.now() - t0 });
+  } catch (err) {
+    // A denial is the demo, not a failure: its own status, its own code, and the
+    // reason and provider carried through for the panel to render.
+    if (err.code === 'llm_policy_denied') {
+      return res.status(403).json({
+        error: err.message,
+        code: 'llm_policy_denied',
+        reason: err.reason || err.message,
+        provider: err.provider || provider,
+        route: lane.route,
+        latencyMs: Date.now() - t0,
+      });
+    }
+    // Missing config is an operator problem with a named fix, not a bad gateway.
+    if (/not configured/.test(err.message || '')) {
+      return res.status(503).json({ error: err.message });
+    }
+    return res.status(502).json({ error: err.message || 'Privilege LLM call failed' });
+  }
+});
+
 router.post('/chat', express.json(), async (req, res) => {
   const session = getClientSession(req);
   try {
