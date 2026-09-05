@@ -240,3 +240,98 @@
   word-break: break-all;
   min-width: 0;
 }
+
+/* ── direct vs gateway ───────────────────────────────────────────────────── */
+.lt-cmp {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: 0.9rem;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
+
+.lt-cmp__head { display: flex; flex-direction: column; gap: 0.2rem; }
+
+.lt-cmp__why {
+  max-width: 78ch;
+  font-size: var(--font-size-3xs);
+  line-height: 1.55;
+  color: var(--th-text-muted);
+}
+
+.lt-cmp__form { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+
+.lt-cmp__form label {
+  font-size: var(--font-size-3xs);
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--th-text-muted);
+}
+
+.lt-cmp__form input {
+  flex: 1 1 18rem;
+  min-width: 0;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-family: var(--font-mono, monospace);
+  font-size: var(--font-size-3xs);
+}
+
+.lt-cmp__out { display: flex; flex-direction: column; gap: 0.7rem; }
+
+.lt-cmp__grid {
+  display: grid;
+  grid-template-columns: 10rem 1fr 1fr;
+  gap: 0.35rem 0.8rem;
+  align-items: baseline;
+}
+
+.lt-cmp__hk,
+.lt-cmp__rk {
+  font-size: var(--font-size-3xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--th-text-muted);
+}
+
+.lt-cmp__v {
+  font-family: var(--font-mono, monospace);
+  font-size: var(--font-size-2xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--th-text);
+}
+
+.lt-cmp__v em {
+  font-style: normal;
+  font-size: var(--font-size-3xs);
+  color: var(--th-text-muted);
+}
+
+.lt-cmp__verdict {
+  margin: 0;
+  padding: 0.45rem 0.6rem;
+  border-left: 3px solid var(--th-status-success);
+  /* Longhand rather than the four-value shorthand: the ratchet counts any
+     radius declaration followed by a digit, so a leading zero trips it — and
+     it greps the raw file, so writing the pattern in a comment counts too. */
+  border-top-right-radius: var(--radius-sm);
+  border-bottom-right-radius: var(--radius-sm);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-size: var(--font-size-2xs);
+}
+
+.lt-cmp__pair { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
+
+@media (max-width: 900px) {
+  .lt-cmp__pair { grid-template-columns: 1fr; }
+  .lt-cmp__grid { grid-template-columns: 1fr; }
+}

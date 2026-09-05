@@ -404,3 +404,62 @@ describe('POST /llm/raw', () => {
     expect(llmFetch).not.toHaveBeenCalled();
   });
 });
+
+// ── /llm/compare ────────────────────────────────────────────────────────────
+jest.mock('../../services/llmDirectCompare', () => ({ compare: jest.fn() }));
+const directCompare = require('../../services/llmDirectCompare');
+
+describe('POST /llm/compare', () => {
+  const env = { ...process.env };
+  const cmp = (body) => request(app()).post('/api/privilege-mcp/llm/compare').send(body);
+
+  beforeEach(() => {
+    directCompare.compare.mockReset();
+    directCompare.compare.mockResolvedValue({ provider: 'anthropic', models: {}, completion: {} });
+    process.env.PRIVILEGE_LLM_GATEWAY_URL = 'https://gw.test';
+    process.env.PRIVILEGE_LLM_VIRTUAL_KEY_ANTHROPIC = 'virtual-key-for-tests';
+  });
+  afterEach(() => { process.env = { ...env }; });
+
+  it('passes the operator key to the direct side and the virtual key to the gateway side', async () => {
+    await cmp({ provider: 'anthropic', directKey: 'operator-supplied', model: 'm', prompt: 'hi' });
+
+    expect(directCompare.compare).toHaveBeenCalledWith(expect.objectContaining({
+      provider: 'anthropic',
+      directKey: 'operator-supplied',
+      virtualKey: 'virtual-key-for-tests',
+      model: 'm',
+      prompt: 'hi',
+    }));
+  });
+
+  // The whole bargain of the paste-a-key field: used once, then gone.
+  it('never echoes the operator key back', async () => {
+    directCompare.compare.mockResolvedValue({ provider: 'anthropic', models: { direct: {} }, completion: {} });
+
+    const res = await cmp({ provider: 'anthropic', directKey: 'operator-supplied' });
+
+    expect(res.status).toBe(200);
+    expect(JSON.stringify(res.body)).not.toContain('operator-supplied');
+  });
+
+  it('requires a direct key rather than silently comparing one side', async () => {
+    const res = await cmp({ provider: 'anthropic' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/key is required/i);
+    expect(directCompare.compare).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the lane default model when none is given', async () => {
+    await cmp({ provider: 'anthropic', directKey: 'k' });
+    expect(directCompare.compare).toHaveBeenCalledWith(
+      expect.objectContaining({ model: 'claude-haiku-4-5-20251001' }),
+    );
+  });
+
+  it('rejects an unknown provider', async () => {
+    const res = await cmp({ provider: 'nope', directKey: 'k' });
+    expect(res.status).toBe(400);
+    expect(directCompare.compare).not.toHaveBeenCalled();
+  });
+});
