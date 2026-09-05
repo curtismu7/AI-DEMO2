@@ -157,7 +157,13 @@ describe('/api/reference CSP allowlist', () => {
     expect(csp['connect-src']).not.toContain('https://cdn.jsdelivr.net');
   });
 
-  test('fontSrc does not allow the CDN (webfonts ship in the local bundle)', () => {
+  // Measured on the live page 2026-09-05: the bundle fetches its Inter and mono
+  // webfonts from fonts.scalar.com — 14 blocked loads named that host exactly.
+  // #2811 had guessed jsdelivr for this and left a note to verify; the guess was
+  // wrong. A blocked font degrades to system fallback rather than blanking the
+  // page, so this is typography, not availability.
+  test('fontSrc allows Scalar\'s font host but still not the CDN', () => {
+    expect(csp['font-src']).toContain('https://fonts.scalar.com');
     expect(csp['font-src']).not.toContain('https://cdn.jsdelivr.net');
   });
 

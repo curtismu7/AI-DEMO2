@@ -304,7 +304,15 @@ app.use(helmet({
             styleSrc: ["'self'", "'unsafe-inline'", "https://assets.pingone.com"],
             imgSrc: ["'self'", 'data:', 'https:'],
             connectSrc: ["'self'", 'https://*.pingone.com', 'https://*.pingidentity.com', 'wss:', 'https://*.keyless.technology'],
-            fontSrc: ["'self'", 'data:'],
+            // https://fonts.scalar.com: Scalar's bundle fetches its Inter and
+            // mono webfonts from there — measured on the live page 2026-09-05,
+            // 14 blocked font loads naming that exact host. #2811 had guessed
+            // cdn.jsdelivr.net for this and left a note to verify; the guess was
+            // wrong, so jsdelivr never served these and is not restored here.
+            // Unlike the script, a blocked font degrades gracefully (system
+            // fallback, page still fully usable), so this host being unreachable
+            // on a bad network costs typography, not the page.
+            fontSrc: ["'self'", 'data:', 'https://fonts.scalar.com'],
             // Scalar renders its request "Try it" sandbox in a blob: URL
             // iframe; unset falls back to default-src 'self', which does not
             // cover the blob: scheme, so the browser blocks the frame.
