@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useLayoutEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./LandingPage.css";
 
@@ -94,10 +94,21 @@ export default function LandingPage({ user, hasTopNav }) {
   // another one — see TECH_DEBT.md 2026-09-05). Hide those two floats only
   // while the hero CTAs are actually on screen, so they never fight for the
   // same pixels regardless of device height.
-  useEffect(() => {
+  //
+  // useLayoutEffect (not useEffect) plus a synchronous initial
+  // getBoundingClientRect check, not just the observer's first callback:
+  // IntersectionObserver's own initial entry fires asynchronously, which
+  // left a frame where the floats were visible over the CTAs on first paint
+  // (PR #2799 review).
+  useLayoutEffect(() => {
     if (typeof IntersectionObserver === "undefined") return undefined;
     const heroActions = document.querySelector(".landing-hero-actions");
     if (!heroActions) return undefined;
+
+    const rect = heroActions.getBoundingClientRect();
+    const initiallyInView = rect.top < window.innerHeight && rect.bottom > 0;
+    document.body.classList.toggle("landing-hero-ctas-in-view", initiallyInView);
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         document.body.classList.toggle("landing-hero-ctas-in-view", entry.isIntersecting);
