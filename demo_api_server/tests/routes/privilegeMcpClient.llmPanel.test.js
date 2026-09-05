@@ -316,3 +316,91 @@ describe('GET /llm/models', () => {
     expect(proxy.listModels).not.toHaveBeenCalled();
   });
 });
+
+// ── /llm/raw: the gateway as a REST endpoint ────────────────────────────────
+// This one interprets nothing. It exists so a human can see what the gateway
+// really returns when the console's verdict looks wrong.
+
+jest.mock('../../services/llmFetch', () => ({ llmFetch: jest.fn() }));
+const { llmFetch } = require('../../services/llmFetch');
+
+describe('POST /llm/raw', () => {
+  const env = { ...process.env };
+  const raw = (body) => request(app()).post('/api/privilege-mcp/llm/raw').send(body);
+
+  beforeEach(() => {
+    llmFetch.mockReset();
+    process.env.PRIVILEGE_LLM_GATEWAY_URL = 'https://gw.test';
+    process.env.PRIVILEGE_LLM_VIRTUAL_KEY_ANTHROPIC = 'virtual-key-for-tests';
+  });
+  afterEach(() => { process.env = { ...env }; });
+
+  it('sends the body verbatim to the chosen path and returns the raw response', async () => {
+    llmFetch.mockResolvedValue({
+      ok: true, status: 200,
+      text: async () => JSON.stringify({ choices: [{ message: { content: 'Paris' } }] }),
+    });
+
+    const res = await raw({
+      provider: 'anthropic',
+      path: '/llm/anthropic/v1/chat/completions',
+      body: { model: 'claude-haiku-4-5-20251001', messages: [{ role: 'user', content: 'hi' }] },
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body.request.url).toBe('https://gw.test/llm/anthropic/v1/chat/completions');
+    expect(res.body.response.status).toBe(200);
+    expect(res.body.response.json.choices[0].message.content).toBe('Paris');
+    // Verbatim: no max_tokens injected, no system extracted, nothing normalised.
+    expect(JSON.parse(llmFetch.mock.calls[0][1].body)).toEqual({
+      model: 'claude-haiku-4-5-20251001',
+      messages: [{ role: 'user', content: 'hi' }],
+    });
+  });
+
+  // An upstream 4xx is the ANSWER here, not this endpoint's failure — returning a
+  // 4xx of our own would let the UI's error path swallow the body being asked for.
+  it('returns 200 with the upstream status as data when the gateway refuses', async () => {
+    llmFetch.mockResolvedValue({
+      ok: false, status: 403,
+      text: async () => JSON.stringify({ error: { message: 'model x not allowed for this key' } }),
+    });
+
+    const res = await raw({ provider: 'anthropic', body: { model: 'x' } });
+
+    expect(res.status).toBe(200);
+    expect(res.body.response.status).toBe(403);
+    expect(res.body.response.json.error.message).toMatch(/not allowed for this key/);
+  });
+
+  it('masks the virtual key in the echoed request', async () => {
+    llmFetch.mockResolvedValue({ ok: true, status: 200, text: async () => '{}' });
+
+    const res = await raw({ provider: 'anthropic', body: { model: 'x' } });
+
+    expect(res.body.request.headers.Authorization).toMatch(/^Bearer virtual-k•+ests$/);
+    expect(JSON.stringify(res.body)).not.toContain('virtual-key-for-tests');
+  });
+
+  it('sends the anthropic-version header only on the anthropic lane', async () => {
+    llmFetch.mockResolvedValue({ ok: true, status: 200, text: async () => '{}' });
+    await raw({ provider: 'anthropic', body: { model: 'x' } });
+    expect(llmFetch.mock.calls[0][1].headers['anthropic-version']).toBe('2023-06-01');
+  });
+
+  it.each([
+    ['another host', 'https://evil.test/x'],
+    ['an admin path', '/admin/keys'],
+  ])('rejects %s without calling the gateway', async (_l, path) => {
+    const res = await raw({ provider: 'anthropic', path, body: {} });
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('llm_bad_route');
+    expect(llmFetch).not.toHaveBeenCalled();
+  });
+
+  it('rejects a non-object body rather than posting it', async () => {
+    const res = await raw({ provider: 'anthropic', body: 'not json' });
+    expect(res.status).toBe(400);
+    expect(llmFetch).not.toHaveBeenCalled();
+  });
+});
