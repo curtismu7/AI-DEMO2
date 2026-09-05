@@ -1,6 +1,21 @@
 /* ============================================================================
    Landing Page — Professional B2B identity platform theme
    Palette: navy #0F172A primary, blue #0369A1 CTA, white/gray-50 background
+
+   READ BEFORE EDITING — the plain rules in this file are usually NOT what
+   renders. LandingPage.js sets `data-rd-v2` unconditionally on the page root,
+   so every `[data-rd-v2] .foo` rule below always applies, and those rules use
+   !important. Sixteen selectors have such a twin — .landing-hero,
+   .landing-header, .landing-logo, .hero-cta-primary, the feature cards, the
+   token chain — so for any property the twin also sets, editing the plain rule
+   changes nothing on screen.
+
+   Editing a `.landing-*` rule? Search this file for its `[data-rd-v2]` twin
+   (there are twins at the 768px and 480px breakpoints too) and change that one
+   as well. Then confirm with getComputedStyle on the running page, not by
+   re-reading this file — check your new value is present in the loaded CSS so
+   a stale container can't look like a working fix. PR #2816 skipped this and
+   merged a padding fix that did nothing; #2818 repaired it.
    ============================================================================ */
 
 /* ---- Design tokens ---- */
