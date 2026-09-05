@@ -1502,6 +1502,22 @@
   }
 }
 
+/* Below 480px the base .hero-cta rule forces min-width: 100%, stacking all
+   four hero CTAs into one tall column. On phones with a ~950px+ viewport
+   height (e.g. iPhone 15/16/17 Pro Max) that stack runs tall enough for the
+   last two buttons to sit directly under the fixed AI Agent FAB and Demo
+   Script launcher. A 2-column grid halves the stack height so every CTA
+   clears both fixed buttons. */
+@media (max-width: 480px) {
+  [data-rd-v2] .landing-hero-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  [data-rd-v2] .hero-cta {
+    min-width: 0;
+  }
+}
+
 /* ── Task 10: Dashboard v2 structural layout (bottom-dock mode) ────── */
 
 /* Global page background for v2 dashboard */

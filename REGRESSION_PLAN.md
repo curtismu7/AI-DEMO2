@@ -140,6 +140,50 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-05 — Landing hero CTAs overlapped the fixed AI Agent FAB / Demo Script launcher on mobile
+
+**Files changed:** `demo_api_ui/src/components/LandingPage.css`,
+`demo_api_ui/src/theme/refinedDashboardV2.css`.
+
+**What was broken:** on the logged-out landing page, the hero's four CTA
+buttons (Admin Dashboard, Customer Dashboard, Use Cases, Setup) rendered
+directly under the fixed `.banking-agent-fab` and `.demo-script-launch`
+buttons on phone-sized viewports — reproduced live at 440x956 (iPhone 17 Pro
+Max) via `getBoundingClientRect()`: "Customer Dashboard" fully overlapped
+both fixed buttons. Root cause: `[data-rd-v2] .landing-hero { padding: 96px
+32px 88px !important; }` (`LandingPage.css`) is unconditional — the landing
+page always sets `data-rd-v2` (`LandingPage.js:112`, not behind a flag) — so
+it silently won over `.landing-hero`'s existing `@media (max-width:
+768px/480px)` padding rules at every viewport width. Those responsive rules
+had been dead code since the `!important` rule was added; nothing caught it
+because nothing asserts computed layout on this page at narrow widths.
+
+**What was fixed:** added matching `!important` `[data-rd-v2] .landing-hero`
+padding overrides inside the existing 768px/480px media queries (so the
+skin's own responsive intent, not just the base selector's, actually renders),
+and switched `.hero-cta` to a 2-column grid at <=480px
+(`refinedDashboardV2.css`) so the CTA stack is 2 rows instead of 4. Verified
+live at 440x956: zero intersection between any `.hero-cta` and either fixed
+button.
+
+**Do not break:** the `!important` on `[data-rd-v2] .landing-hero`'s base
+(96/32/88) padding is intentional skin behavior for >=769px — only the
+768px/480px overrides were added, and only for that same selector. Don't
+remove the `!important` from the new overrides — the base rule's importance
+means a non-`!important` override is silently ignored (confirmed by testing
+before adding it).
+
+**Known gap:** the fix is verified for iPhone 17 Pro Max and iPhone SE only.
+iPhone 14 (390x844) and iPhone 15 Pro Max (430x932) still show a ~16-17px
+graze between the CTA row and the fixed buttons, because the fixed buttons'
+`bottom:`-anchored position is viewport-height-relative while the hero
+content above the CTAs has a fixed pixel height. See `TECH_DEBT.md`
+2026-09-05 entry.
+
+**Verify:** `cd demo_api_ui && npm run build` (exit 0). Live: at 440x956,
+`document.querySelectorAll('.hero-cta')` rects don't intersect
+`.banking-agent-fab` or `.demo-script-launch` rects.
+
 ### 2026-09-04 — Expanded side-nav icons unreadable in dark mode; Home/Dashboard/Canvas Diagram icons missing entirely
 
 **Files changed:** `demo_api_ui/src/components/adminSkinPing2026.css`,

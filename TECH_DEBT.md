@@ -16,6 +16,35 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-09-05 — Landing hero CTAs still graze the fixed FAB/Demo Script on ~830-950px-tall phones
+
+`LandingPage.js`'s hero CTA row (Admin/Customer Dashboard, Use Cases, Setup)
+overlapped the fixed `.banking-agent-fab` and `.demo-script-launch` buttons on
+every phone width, because `[data-rd-v2] .landing-hero { padding: 96px 32px
+88px !important; }` (`LandingPage.css`) is unconditional — `data-rd-v2` is
+always set on the landing page, so it silently won over the existing
+`.landing-hero` responsive padding rules at every breakpoint, and those had
+been dead code the whole time. Fixed for the reported case (iPhone 17 Pro Max,
+440x956: verified zero overlap via `getBoundingClientRect`) by adding
+`!important`-matched `[data-rd-v2] .landing-hero` padding overrides inside the
+existing `@media (max-width: 768px)`/`(max-width: 480px)` blocks, plus a
+2-column grid for `.hero-cta` at <=480px so the stack is 2 rows instead of 4.
+
+**Why not fully fixed:** the fixed FAB/Demo Script sit at a `bottom:`
+viewport-relative offset while the hero content above the buttons has a fixed
+pixel height, so overlap risk is a function of viewport HEIGHT, not just
+width. The current fix clears iPhone 17 Pro Max (956) and iPhone SE (667, buttons
+fall below the fold) but leaves a ~16-17px graze on iPhone 14 (390x844) and
+iPhone 15 Pro Max (430x932) — verified live, not guessed. Chasing every
+device height with more padding tweaks is whack-a-mole; the real fix is
+either height-aware spacing (`@media (max-height: ...)`) or giving the FAB/
+Demo Script a lower z-index than the hero CTAs (or hiding them) specifically
+while the hero is the top of the page.
+
+**Verify:** `demo_api_ui`, viewport 440x956 — `getBoundingClientRect()` on
+`.hero-cta`, `.banking-agent-fab`, `.demo-script-launch` shows no
+intersection. At 390x844 and 430x932 a small intersection remains.
+
 ### [ ] 2026-09-04 — /architecture/token-chain renders the raw mermaid source, not the diagram
 
 `TokenChainArchitecturePage.js` puts its flowchart in a plain
