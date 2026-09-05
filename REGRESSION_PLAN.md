@@ -140,6 +140,41 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-05 — Banking MCP server could not be discovered by the Privilege AI Gateway (no legacy SSE transport)
+
+**Files changed:** `oauth-mcp/src/server/HttpMCPTransport.ts`,
+`oauth-mcp/tests/legacy-sse-transport.test.ts` (new).
+
+**What was broken:** the rebuilt Privilege AI Gateway's discovery client opens a bare
+GET and waits for the SSE `endpoint` event; it does not POST `initialize` (this changed
+with the 2026-09-01/02 rebuild — the older estate did POST, which is why the 2026-08-03
+entry below is about the POST handshake). `oauth-mcp` serves only Streamable HTTP on
+`/mcp`, so registering it as an Agentic App could only ever fail with
+"Gateway Unreachable — Error discovering MCP server: calling initialize: Unauthorized",
+which reads as an auth fault and is not one. That blocked the banking door repoint
+tracked in TECH_DEBT.md (2026-09-01).
+
+**What was fixed:** added the 2024-11-05 HTTP+SSE transport as `GET /sse` (emits the
+`endpoint` event) plus `POST /messages?sessionId=…`. Two headers a legacy client
+predates are supplied on its behalf, and only when it sent none: `MCP-Protocol-Version`
+(set to `2024-11-05`, the revision that transport IS) and `MCP-Session-Id` (latched from
+the `initialize` that flowed over that same stream — handlePost returns it in a header
+the legacy client never sees).
+
+**Do not break:** `/messages` MUST delegate to `handlePost`, which owns the bearer gate,
+the discovery allowlist and every other check — giving it its own dispatch is how an
+unauthenticated `tools/call` gets in, and `legacy-sse-transport.test.ts`'s last test is
+what catches that (verified by deliberately introducing the bypass and watching it go
+red). The legacy stream is deliberately NOT mounted on `GET /mcp`: that path requires a
+bearer to open the server→client stream and must keep requiring one, even though it
+means a catalog-pinned backend URL cannot be used. Neither injected header may override
+a value the client actually sent.
+
+**Verify:** `cd oauth-mcp && npm run build && npm run test:unit`
+(`npx jest tests/legacy-sse-transport.test.ts` for the transport alone); live: register
+the server as an Agentic App with backend `.../sse` and confirm the console lists its
+tools instead of Gateway Unreachable.
+
 ### 2026-09-05 — Landing hero CTAs still grazed the fixed FAB/Demo Script on iPhone 14 / 15 Pro Max (follow-up on the entry below)
 
 **Files changed:** `demo_api_ui/src/components/LandingPage.js`,

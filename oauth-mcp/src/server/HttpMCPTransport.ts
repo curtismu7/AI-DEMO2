@@ -9,6 +9,18 @@
  *   POST /mcp                                    — Streamable HTTP MCP endpoint
  *   GET  /mcp                                    — 405 (SSE not required for basic spec compliance)
  *   DELETE /mcp                                  — client-initiated session termination
+ *   GET  /sse                                    — legacy HTTP+SSE transport (2024-11-05) stream
+ *   POST /messages?sessionId=…                   — legacy HTTP+SSE transport inbound channel
+ *
+ * The legacy HTTP+SSE pair exists for ONE caller: the PingOne Privilege AI
+ * Gateway's discovery client, which opens a bare GET and waits for the SSE
+ * `endpoint` event rather than POSTing `initialize` (see
+ * .claude/skills/privilege-mcpgw-agent-k8s). Without it, registering this
+ * server as an Agentic App fails with "Gateway Unreachable — Error discovering
+ * MCP server: calling initialize: Unauthorized", which reads as an auth fault
+ * and is not one. It is deliberately NOT served on GET /mcp: that path requires
+ * a bearer to open the server→client stream, and keeping it that way matters
+ * more than supporting a catalog-pinned backend URL.
  *
  * The WebSocket transport is completely unchanged; enable HTTP transport with:
  *   HTTP_MCP_TRANSPORT_ENABLED=true   (env var, default true)
@@ -52,6 +64,20 @@ const MCP_NAME_HEADER = 'mcp-name';           // 2026-07-28: routing header (e.g
 // HTTP session idle TTL. Sessions unused for longer are evicted (lazily on access,
 // and swept on each initialize) so the in-memory map can't grow unbounded.
 const DEFAULT_HTTP_SESSION_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+// The protocol revision the legacy HTTP+SSE transport belongs to. Its clients
+// predate the MCP-Protocol-Version header, so /messages supplies this on their
+// behalf when they omit it (see handleLegacySseMessage) rather than 400ing on a
+// header their transport generation never had.
+const LEGACY_SSE_PROTOCOL_VERSION = '2024-11-05';
+
+// Idle SSE streams get dropped by proxies; a comment frame keeps them open.
+const LEGACY_SSE_KEEPALIVE_MS = 25_000;
+
+// Opening a legacy stream is unauthenticated (it must be — the gateway
+// discovers tokenless), so cap concurrent streams: each one costs a socket and
+// a timer, and nothing else bounds them.
+const MAX_LEGACY_SSE_STREAMS = 64;
 
 // Shared with the authorization-server metadata in OAuthRouter — see oauth/scopes.ts
 // for why these must not be declared in two places.
@@ -117,12 +143,72 @@ interface HttpSession {
 // Transport
 // ---------------------------------------------------------------------------
 
+/**
+ * A ServerResponse stand-in that captures what handlePost writes instead of
+ * sending it, so the legacy HTTP+SSE transport can deliver the reply on the SSE
+ * stream (where that transport expects it) while the POST itself just ACKs.
+ *
+ * Reusing handlePost verbatim is the entire point: it owns the bearer gate, the
+ * discovery allowlist, session handling and every security check. A second
+ * dispatch path for /messages would be a second place for those to drift — and
+ * an unauthenticated `tools/call` is exactly what that drift would look like.
+ *
+ * handlePost and every helper it delegates to touch only writeHead() and end()
+ * — no write(), setHeader() or headersSent — so this is the whole surface.
+ */
+class CapturedResponse {
+  statusCode = 200;
+  readonly headers: Record<string, string> = {};
+  private body = '';
+
+  writeHead(status: number, headers?: unknown): this {
+    this.statusCode = status;
+    if (headers && typeof headers === 'object') {
+      for (const [k, v] of Object.entries(headers as Record<string, unknown>)) {
+        this.headers[k.toLowerCase()] = Array.isArray(v) ? v.join(', ') : String(v);
+      }
+    }
+    return this;
+  }
+
+  end(chunk?: unknown): this {
+    if (typeof chunk === 'string') this.body += chunk;
+    return this;
+  }
+
+  /** The JSON-RPC payload handlePost produced, or '' for a 202/no-body reply. */
+  get payload(): string {
+    return this.body;
+  }
+}
+
 export class HttpMCPTransport {
   /**
    * MCP-Session-Id → HTTP session metadata.
    * All sessions share the same BankingSessionManager used by WebSocket connections.
    */
   private readonly sessions = new Map<string, HttpSession>();
+
+  /**
+   * Legacy HTTP+SSE transport: our own session id → the open stream and its
+   * keep-alive timer. Separate from `sessions` above on purpose — that map is
+   * Streamable HTTP's MCP-Session-Id, a different identifier with different
+   * lifetime rules, and conflating them would let one transport's session
+   * terminate the other's stream.
+   */
+  private readonly legacySseStreams = new Map<string, {
+    res: ServerResponse;
+    keepAlive: NodeJS.Timeout;
+    /**
+     * The Streamable-HTTP session id that the `initialize` flowing over THIS
+     * stream created. handlePost hands it back in a response header, which a
+     * legacy client never sees (it reads only the SSE body), so the stream
+     * remembers it and presents it on that client's behalf for every later
+     * message. Without this, everything after initialize is "Unknown or
+     * expired MCP-Session-Id".
+     */
+    mcpSessionId?: string;
+  }>();
 
   /** Idle TTL for HTTP sessions (ms). Override with MCP_HTTP_SESSION_TTL_MS. */
   private readonly sessionTtlMs: number;
@@ -245,6 +331,17 @@ export class HttpMCPTransport {
       AuditLogger.clearEvents();
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: true, message: 'Audit log cleared' }));
+      return;
+    }
+
+    // Legacy HTTP+SSE transport (2024-11-05). See the file header for why this
+    // exists and why it is not also mounted on GET /mcp.
+    if (pathname === '/sse' && req.method === 'GET') {
+      this.handleLegacySseOpen(req, res);
+      return;
+    }
+    if (pathname === '/messages' && req.method === 'POST') {
+      await this.handleLegacySseMessage(req, res);
       return;
     }
 
@@ -745,6 +842,102 @@ export class HttpMCPTransport {
       res.writeHead(404);
     }
     res.end();
+  }
+
+  // -------------------------------------------------------------------------
+  // GET /sse  — legacy HTTP+SSE transport (2024-11-05), stream half
+  //
+  // Unauthenticated by necessity: the Privilege gateway discovers tokenless,
+  // and this is the handshake it performs instead of POST initialize. That
+  // exposes nothing on its own — no data crosses this stream until a POST
+  // /messages arrives, and that runs the full handlePost gate, so the method
+  // set reachable here is exactly the one POST /mcp already serves tokenless
+  // (initialize, notifications/initialized, tools/list). Everything else still
+  // needs a bearer.
+  // -------------------------------------------------------------------------
+
+  private handleLegacySseOpen(req: IncomingMessage, res: ServerResponse): void {
+    if (this.legacySseStreams.size >= MAX_LEGACY_SSE_STREAMS) {
+      res.writeHead(503, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Too many open SSE streams; retry shortly' }));
+      return;
+    }
+
+    const sessionId = randomUUID();
+    res.writeHead(200, {
+      'Content-Type':                'text/event-stream',
+      'Cache-Control':               'no-cache, no-transform',
+      'Connection':                  'keep-alive',
+      'X-Accel-Buffering':           'no', // disable Nginx buffering
+      'Access-Control-Allow-Origin': req.headers.origin || '*',
+    });
+
+    // THE handshake: it tells the client where to POST. A client that never
+    // sees this event waits forever, which is what "Gateway Unreachable"
+    // actually is at the far end.
+    res.write(`event: endpoint\ndata: /messages?sessionId=${sessionId}\n\n`);
+
+    const keepAlive = setInterval(() => {
+      res.write(': keep-alive\n\n');
+    }, LEGACY_SSE_KEEPALIVE_MS);
+    // Node keeps the process alive for a pending timer; this one must not.
+    keepAlive.unref?.();
+
+    this.legacySseStreams.set(sessionId, { res, keepAlive });
+    console.log(`[HttpMCPTransport] legacy SSE stream opened (session ${sessionId})`);
+
+    req.on('close', () => {
+      clearInterval(keepAlive);
+      this.legacySseStreams.delete(sessionId);
+      console.log(`[HttpMCPTransport] legacy SSE stream closed (session ${sessionId})`);
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // POST /messages?sessionId=…  — legacy HTTP+SSE transport, inbound half
+  //
+  // Delegates to handlePost so the bearer gate, discovery allowlist and every
+  // other check run identically to POST /mcp; only the reply's destination
+  // differs (the stream, per that transport, not the POST body).
+  // -------------------------------------------------------------------------
+
+  private async handleLegacySseMessage(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const sessionId = new URL(req.url ?? '/messages', 'http://localhost').searchParams.get('sessionId');
+    const stream = sessionId ? this.legacySseStreams.get(sessionId) : undefined;
+    if (!stream) {
+      // Name the part that is wrong: a stale session id is otherwise
+      // indistinguishable from a broken server.
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Unknown or closed SSE session', sessionId }));
+      return;
+    }
+
+    // This transport predates MCP-Protocol-Version, and handlePost requires it
+    // on every non-initialize request. Supply the revision this transport IS,
+    // and only when the client sent none — never override what it did send.
+    if (!req.headers[MCP_PROTO_HEADER]) {
+      req.headers[MCP_PROTO_HEADER] = LEGACY_SSE_PROTOCOL_VERSION;
+    }
+    // Likewise the session id: it lives in this stream, not in the client's
+    // headers. See the mcpSessionId note on legacySseStreams.
+    if (!req.headers[MCP_SESSION_HEADER] && stream.mcpSessionId) {
+      req.headers[MCP_SESSION_HEADER] = stream.mcpSessionId;
+    }
+
+    // handlePost reads the body off `req` itself, so it must not be consumed here.
+    const captured = new CapturedResponse();
+    await this.handlePost(req, captured as unknown as ServerResponse);
+
+    // Latch the session that `initialize` just created onto this stream.
+    const issuedSessionId = captured.headers[MCP_SESSION_HEADER];
+    if (issuedSessionId) stream.mcpSessionId = issuedSessionId;
+
+    // The POST is only an ACK in this transport; the reply travels on the stream.
+    res.writeHead(202);
+    res.end();
+    if (captured.payload) {
+      stream.res.write(`event: message\ndata: ${captured.payload}\n\n`);
+    }
   }
 
   // -------------------------------------------------------------------------
