@@ -1222,6 +1222,27 @@ pre.tcd-jwt-dump.jh-dark {
 .tcd-claim--act {
   background: rgba(20, 184, 166, 0.12);
 }
+/* Withheld claims. Ink is set alongside the ground on every rule below: <body>
+   ink is identical in both themes, so a themed background without a colour
+   renders near-black once the ground flips (THEMING.md §1.5, enforced by the
+   ground-without-ink ratchet). */
+.tcd-claim--hidden {
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+.tcd-claim--hidden .tcd-claim-key,
+.tcd-claim--hidden .tcd-claim-val {
+  color: var(--th-text);
+}
+.tcd-claim-hidden-name {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--font-size-2xs);
+  padding: 1px 4px;
+  border: 1px solid var(--th-border);
+  border-radius: 3px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
 .tcd-claim--scope {
   background: rgba(71, 85, 105, 0.08);
 }

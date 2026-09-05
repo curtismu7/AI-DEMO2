@@ -188,7 +188,7 @@ function StatusBadge({ status }) {
 
 // ─── Claims viewer ────────────────────────────────────────────────────────────
 
-function ClaimsPanel({ claims, alg, jsonMode = "json" }) {
+function ClaimsPanel({ claims, alg, hiddenClaims = [], jsonMode = "json" }) {
   if (!claims) {
     return <p className="tcd-no-claims">No decoded claims available.</p>;
   }
@@ -297,6 +297,31 @@ function ClaimsPanel({ claims, alg, jsonMode = "json" }) {
             </pre>
           </div>
         ))}
+      {/* The server allowlists claims on purpose (agentMcpTokenService
+          .sanitizeClaims) so an unexpected PII/credential claim cannot reach the
+          browser. Saying so is the point: without this line the panel looks like
+          the whole token, which is the opposite of what a token viewer is for.
+          Names only — the values are exactly what the allowlist is withholding. */}
+      {hiddenClaims.length > 0 && (
+        <div className="tcd-claim tcd-claim--hidden">
+          <span
+            className="tcd-claim-key"
+            title="Present in the token but withheld by the server's claim allowlist, which drops anything that could be PII or a credential. Names are shown; values are not sent to the browser."
+          >
+            Hidden by policy
+          </span>
+          <span className="tcd-claim-sep">:</span>
+          <span className="tcd-claim-val">
+            {hiddenClaims.length} claim{hiddenClaims.length === 1 ? "" : "s"} withheld —{" "}
+            {hiddenClaims.map((name, i) => (
+              <code key={name} className="tcd-claim-hidden-name">
+                {name}
+                {i < hiddenClaims.length - 1 ? ", " : ""}
+              </code>
+            ))}
+          </span>
+        </div>
+      )}
       {delegatedTo.length > 0 && (
         <div className="tcd-claim tcd-claim--may-act">
           <span
@@ -2337,7 +2362,12 @@ function EventDetail({ event, chainEvents }) {
             JWT Claims (Quick Reference)
           </summary>
           <div className="tcd-collapsible-body">
-            <ClaimsPanel claims={event.claims} alg={event.alg} jsonMode={jsonMode} />
+            <ClaimsPanel
+              claims={event.claims}
+              alg={event.alg}
+              hiddenClaims={event.hiddenClaims}
+              jsonMode={jsonMode}
+            />
           </div>
         </details>
       )}

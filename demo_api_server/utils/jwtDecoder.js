@@ -55,6 +55,36 @@ function parseJwtPayload(jwt) {
 }
 
 /**
+ * Parse a JWT's header (the first '.'-separated section) into an object.
+ * Does NOT verify the signature — use only with previously-verified JWTs.
+ *
+ * Exists so callers that want to SHOW a token (alg, kid, typ) stop hand-rolling
+ * `Buffer.from(parts[0], 'base64')`. That spelling is not spec-correct — JWT
+ * segments are base64URL — though Node's decoder is lenient enough to accept it
+ * in practice, so this is about having one tested decoder, not about fixing
+ * wrong output. jwtDecoder.test.js pins that equivalence explicitly.
+ *
+ * @param {string} jwt — complete JWT string (header.payload.signature)
+ * @returns {object} decoded JWT header as a JavaScript object
+ * @throws {Error} if the JWT format is invalid or the header is not valid JSON
+ */
+function parseJwtHeader(jwt) {
+  if (typeof jwt !== 'string') {
+    throw new TypeError('Expected a JWT string');
+  }
+  const parts = jwt.split('.');
+  if (parts.length !== 3) {
+    throw new Error('Invalid JWT format: expected 3 parts separated by "."');
+  }
+  const headerStr = decodeBase64Url(parts[0]);
+  try {
+    return JSON.parse(headerStr);
+  } catch (err) {
+    throw new Error(`Invalid JWT header JSON: ${err.message}`);
+  }
+}
+
+/**
  * Extract a claim from a JWT's payload by key, with fallback to a default value.
  *
  * @param {string} jwt — complete JWT string
@@ -71,5 +101,6 @@ function getJwtClaim(jwt, claimKey, defaultValue) {
 module.exports = {
   decodeBase64Url,
   parseJwtPayload,
+  parseJwtHeader,
   getJwtClaim,
 };
