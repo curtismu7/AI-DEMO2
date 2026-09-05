@@ -382,8 +382,8 @@ describe("LandingPage — hero CTA visibility observer", () => {
 		global.IntersectionObserver = class FakeIntersectionObserver {
 			constructor(callback) {
 				this.callback = callback;
-				this.observe = jest.fn();
-				this.disconnect = jest.fn();
+				this.observe = vi.fn();
+				this.disconnect = vi.fn();
 				instances.push(this);
 			}
 		};
