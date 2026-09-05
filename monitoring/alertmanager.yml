@@ -1,0 +1,21 @@
+# Alertmanager config — shared by Docker Compose and Kubernetes (same trick as
+# prometheus.yml: k8s/create-secrets.sh turns this into a ConfigMap, one copy
+# in the repo, both targets read it).
+#
+# `default` is a no-op receiver (no email/Slack/webhook configured) — alerts
+# still evaluate in Prometheus and route here, so they show up as firing in
+# Grafana's Alerting page (add the Alertmanager datasource, or query the
+# ALERTS{} metric on the Prometheus one), but nothing pages or posts anywhere
+# yet. That's deliberate for a demo stack, not an oversight: add a receiver
+# here (Slack webhook_configs / email_configs) when there's a real destination
+# to send to.
+
+route:
+  receiver: default
+  group_by: ['alertname']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+
+receivers:
+  - name: default

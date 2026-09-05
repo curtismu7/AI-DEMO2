@@ -175,6 +175,9 @@ function logEvent(category, severity, message, options = {}) {
   events.push(event);
   _notify(event);
   require('./newRelicForwarder').forwardAppEvent(event).catch(() => {});
+  // Second sink, independent of the first: Loki backs Grafana's log view the
+  // way New Relic backs its own. Both no-op when unconfigured.
+  require('./lokiForwarder').forwardAppEvent(event).catch(() => {});
 
   // Persist to NDJSON file — D-01
   try {

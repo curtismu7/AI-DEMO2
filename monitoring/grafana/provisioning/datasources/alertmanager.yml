@@ -1,0 +1,15 @@
+# Alertmanager as a fourth datasource — lets Grafana's own Alerting page show
+# alerts.yml's rules as firing/pending, not just Prometheus's raw ALERTS{}
+# series. No env var needed: same reasoning as prometheus.yml — the service is
+# named `alertmanager` on both targets.
+apiVersion: 1
+
+datasources:
+  - name: Alertmanager
+    type: alertmanager
+    access: proxy
+    uid: ai-demo-alertmanager
+    url: http://alertmanager:9093
+    jsonData:
+      implementation: prometheus
+    editable: false

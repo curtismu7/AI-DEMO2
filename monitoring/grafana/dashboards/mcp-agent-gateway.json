@@ -1,0 +1,156 @@
+{
+  "uid": "ai-demo-mcp-agent-gateway",
+  "title": "MCP & Agent Gateway",
+  "description": "Request/call volume, latency and logs for the Agent Gateway (demo_mcp_gateway) and the three resource servers behind it (oauth-mcp, mcp-resource-server, api-resource-server). PingGateway's own MCP panels live on the PingGateway dashboard — those measure IG's HTTP surface only and miss the WebSocket tool-call path this dashboard covers directly at the source.",
+  "tags": ["ai-demo", "mcp"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "logservice",
+        "label": "Service (logs)",
+        "type": "query",
+        "datasource": { "type": "loki", "uid": "ai-demo-loki" },
+        "query": "label_values(service)",
+        "refresh": 2,
+        "includeAll": true,
+        "multi": true,
+        "current": { "text": "All", "value": "$__all" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "About these numbers",
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 0 },
+      "options": {
+        "mode": "markdown",
+        "content": "Each of the four services below wraps its own single message-dispatch chokepoint (the one function every request or WebSocket message already passes through) with a Prometheus histogram — it observes what already happens, it does not change how a request is handled. Metric prefixes: `mcpgw_` (Agent Gateway), `oauthmcp_` (banking MCP server), `mcprs_` (invest/airlines resource server), `apirs_` (mortgage resource server). Process metrics (CPU, heap, event loop) come from prom-client's default collector on each. The Logs panel below is Tier 2 — Grafana Alloy tailing every container's stdout into Loki, filterable by the Service variable above."
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Agent Gateway — MCP calls by method (per 5 min)",
+      "description": "demo_mcp_gateway/src/proxy.ts wraps proxyJsonRpc/proxyJsonRpcHttp — every call to a backend MCP server over either transport, WebSocket or Streamable HTTP.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "ai-demo-prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum by (method) (increase(mcpgw_mcp_call_duration_seconds_count[5m]))", "legendFormat": "{{method}}" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short", "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "showPoints": "never" }, "min": 0, "decimals": 0 },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Agent Gateway — call errors by method (per 5 min)",
+      "description": "mcpgw_mcp_call_errors_total increments when a proxied call settles as a JSON-RPC error response or throws (timeout, backend close, abort).",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "ai-demo-prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum by (method) (increase(mcpgw_mcp_call_errors_total[5m]))", "legendFormat": "{{method}}" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short", "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "showPoints": "never" }, "min": 0, "decimals": 0 },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Banking MCP server (oauth-mcp) — messages by method (per 5 min)",
+      "description": "DemoMCPServer.processMessage — shared by the WebSocket listener and the HTTP MCP transport.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "ai-demo-prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum by (method) (increase(oauthmcp_mcp_message_duration_seconds_count[5m]))", "legendFormat": "{{method}}" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short", "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "showPoints": "never" }, "min": 0, "decimals": 0 },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Invest/airlines resource server — messages by method (per 5 min)",
+      "description": "demo_mcp_resource_server/src/index.ts handleMessage — shared by the WebSocket listener and the HTTP MCP transport.",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "ai-demo-prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum by (method) (increase(mcprs_mcp_message_duration_seconds_count[5m]))", "legendFormat": "{{method}}" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short", "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "showPoints": "never" }, "min": 0, "decimals": 0 },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Mortgage resource server (api-resource-server) — requests by route (per 5 min)",
+      "description": "Plain Express middleware — every HTTP request, labeled by matched route and status code.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "datasource": { "type": "prometheus", "uid": "ai-demo-prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum by (route, status) (increase(apirs_http_request_duration_seconds_count[5m]))", "legendFormat": "{{route}} ({{status}})" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short", "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "showPoints": "never" }, "min": 0, "decimals": 0 },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Process CPU — all four services",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "datasource": { "type": "prometheus", "uid": "ai-demo-prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "rate(mcpgw_process_cpu_seconds_total[5m])", "legendFormat": "mcp-gateway" },
+        { "refId": "B", "expr": "rate(oauthmcp_process_cpu_seconds_total[5m])", "legendFormat": "mcp-server (oauth-mcp)" },
+        { "refId": "C", "expr": "rate(mcprs_process_cpu_seconds_total[5m])", "legendFormat": "mcp-resource-server" },
+        { "refId": "D", "expr": "rate(apirs_process_cpu_seconds_total[5m])", "legendFormat": "api-resource-server" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "percentunit", "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "showPoints": "never" }, "min": 0 },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 8,
+      "type": "logs",
+      "title": "Live logs",
+      "description": "Every container's stdout (Tier 2 — Grafana Alloy). Filter with the Service variable above; narrow further with the panel's own search box, e.g. |= \"tools/call\".",
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 28 },
+      "datasource": { "type": "loki", "uid": "ai-demo-loki" },
+      "targets": [
+        { "refId": "A", "expr": "{service=~\"$logservice\"}" }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none"
+      }
+    }
+  ],
+  "links": []
+}

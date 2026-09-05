@@ -715,6 +715,10 @@ if [ -f "$ASSET_ROOT/monitoring/prometheus.yml" ]; then
     --from-file=prometheus.yml="$ASSET_ROOT/monitoring/prometheus.yml" \
     --from-file=alerts.yml="$ASSET_ROOT/monitoring/alerts.yml" \
     --dry-run=client -o yaml | kubectl apply -f -
+  kubectl create configmap alertmanager-config \
+    --namespace="$NS" \
+    --from-file=alertmanager.yml="$ASSET_ROOT/monitoring/alertmanager.yml" \
+    --dry-run=client -o yaml | kubectl apply -f -
   kubectl create configmap grafana-datasources \
     --namespace="$NS" \
     --from-file="$ASSET_ROOT/monitoring/grafana/provisioning/datasources/" \
@@ -727,7 +731,11 @@ if [ -f "$ASSET_ROOT/monitoring/prometheus.yml" ]; then
     --namespace="$NS" \
     --from-file="$ASSET_ROOT/monitoring/grafana/dashboards/" \
     --dry-run=client -o yaml | kubectl apply -f -
-  info "  prometheus-config, grafana-datasources, grafana-dashboard-provider, grafana-dashboards applied."
+  kubectl create configmap alloy-config \
+    --namespace="$NS" \
+    --from-file=config.alloy="$ASSET_ROOT/monitoring/alloy/config.k8s.alloy" \
+    --dry-run=client -o yaml | kubectl apply -f -
+  info "  prometheus-config, alertmanager-config, grafana-datasources, grafana-dashboard-provider, grafana-dashboards, alloy-config applied."
 
   # Grafana admin login. GRAFANA_ADMIN_PASSWORD from the environment wins; the
   # fallback exists so a fresh cluster comes up loginable rather than broken.

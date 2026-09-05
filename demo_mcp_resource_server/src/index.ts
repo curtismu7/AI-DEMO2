@@ -69,6 +69,7 @@ import { extractRequestedProtocolVersion, buildUnsupportedProtocolVersionError }
 import { resolvePassenger, listBookings } from './db/airlinesDb';
 import { getHoldings, resolveInvestor } from './db/investDb';
 import { emitHop } from './transactionHop';
+import { register as metricsRegister, mcpMessageDuration } from './metrics';
 
 // ---------------------------------------------------------------------------
 // MCP Prompts capability — real, usable templates referencing this server's
@@ -217,6 +218,16 @@ function handleHttp(req: IncomingMessage, res: ServerResponse): void {
     if (asList.length) metadata.authorization_servers = asList;
     res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=3600' });
     res.end(JSON.stringify(metadata, null, 2));
+    return;
+  }
+
+  if (url === '/metrics' && req.method === 'GET') {
+    // Prometheus scrape target — unauthenticated, same posture as
+    // PingGateway's own /metrics/prometheus/0.0.4.
+    metricsRegister.metrics().then((body) => {
+      res.writeHead(200, { 'Content-Type': metricsRegister.contentType });
+      res.end(body);
+    });
     return;
   }
 
@@ -402,7 +413,32 @@ function rpcResult(id: unknown, result: unknown): string {
 // MCP message handler
 // ---------------------------------------------------------------------------
 
+/**
+ * Metrics-observing wrapper — records mcprs_mcp_message_duration_seconds and
+ * delegates to the unchanged implementation below. The label is a throwaway
+ * best-effort parse purely for the metric; the real parse (with its own
+ * error handling) still happens inside the impl exactly as before.
+ */
 async function handleMessage(
+  rawMsg: string,
+  token: string,
+  send: (s: string) => void,
+  loggingState: LoggingState = {},
+): Promise<void> {
+  let method = 'unknown';
+  try {
+    const parsed = JSON.parse(rawMsg);
+    if (parsed && typeof parsed.method === 'string') method = parsed.method;
+  } catch { /* labeled 'unknown'; the real parse below reports the real error */ }
+  const endTimer = mcpMessageDuration.startTimer({ method });
+  try {
+    await handleMessageImpl(rawMsg, token, send, loggingState);
+  } finally {
+    endTimer();
+  }
+}
+
+async function handleMessageImpl(
   rawMsg: string,
   token: string,
   send: (s: string) => void,

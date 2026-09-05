@@ -1,0 +1,124 @@
+# Grafana Alloy — ships every other service's stdout into Loki. Tier 1
+# (services/lokiForwarder.js) only ever carried structured BFF app events;
+# oauth-mcp, mcp-gateway, the agents, the resource servers only console.log,
+# and nothing shipped that anywhere until this.
+#
+# A single Deployment, NOT a DaemonSet. The usual Loki/Promtail pattern reads
+# /var/log/pods off every node via hostPath, which needs a pod on every node
+# in the cluster and filesystem access to every OTHER tenant's pod logs on
+# that node too. This is the Ping SE shared cluster — one namespace per
+# engineer — so that blast radius is not acceptable here. loki.source.kubernetes
+# (monitoring/alloy/config.k8s.alloy) tails logs through the Kubernetes API
+# instead, the same mechanism `kubectl logs` uses, scoped by the namespaced
+# Role below to pods in THIS namespace only. One replica is enough because
+# nothing here is per-node.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: alloy
+  namespace: ai-demo
+---
+# Role, not ClusterRole — RBAC is namespace-scoped by construction, so this
+# genuinely cannot list or read another tenant's pods even if asked to.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: alloy
+  namespace: ai-demo
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: alloy
+  namespace: ai-demo
+subjects:
+  - kind: ServiceAccount
+    name: alloy
+    namespace: ai-demo
+roleRef:
+  kind: Role
+  name: alloy
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alloy
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: alloy
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: ai-demo
+      component: alloy
+  template:
+    metadata:
+      labels:
+        app: ai-demo
+        component: alloy
+    spec:
+      serviceAccountName: alloy
+      containers:
+        - name: alloy
+          image: grafana/alloy:v1.19.2
+          imagePullPolicy: IfNotPresent
+          args:
+            - run
+            - --server.http.listen-addr=0.0.0.0:12345
+            - --storage.path=/var/lib/alloy/data
+            - /etc/alloy/config.alloy
+          env:
+            # Downward API, not a literal "ai-demo" — the SE cluster deploys
+            # into a pre-existing per-engineer namespace (K8S_NAMESPACE in
+            # k8s/aws/deploy.sh) and apply_patched's string substitution only
+            # rewrites YAML manifests, never the River config this wraps.
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          ports:
+            - containerPort: 12345
+              name: http
+          volumeMounts:
+            - name: config
+              mountPath: /etc/alloy
+            - name: data
+              mountPath: /var/lib/alloy/data
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "50m"
+            limits:
+              memory: "512Mi"
+              cpu: "250m"
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: 12345
+            initialDelaySeconds: 5
+            periodSeconds: 30
+            timeoutSeconds: 3
+            failureThreshold: 3
+      volumes:
+        - name: config
+          configMap:
+            name: alloy-config
+            optional: true
+        - name: data
+          emptyDir: {}
+      restartPolicy: Always

@@ -13,6 +13,7 @@ import * as https from 'https';
 import WebSocket from 'ws';
 import axios from 'axios';
 import { getCorrelationId } from './correlationContext';
+import { mcpCallDuration, mcpCallErrors } from './metrics';
 
 export interface MtlsOptions {
   cert: string; // PEM client certificate
@@ -46,7 +47,36 @@ export interface JsonRpcResponse {
   error?: { code: number; message: string; data?: unknown };
 }
 
+/**
+ * Metrics-observing wrapper — records mcpgw_mcp_call_duration_seconds /
+ * mcpgw_mcp_call_errors_total on settle and re-throws/re-returns exactly what
+ * proxyJsonRpcImpl produced. Never changes the resolved/rejected value.
+ */
 export function proxyJsonRpc(
+  backendWsUrl: string,
+  backendToken: string,
+  request: JsonRpcRequest,
+  xTratContext?: string,
+  tlsOptions?: MtlsOptions,
+  onProgress?: (params: unknown) => void,
+  signal?: AbortSignal,
+): Promise<JsonRpcResponse> {
+  const endTimer = mcpCallDuration.startTimer({ method: request.method });
+  return proxyJsonRpcImpl(backendWsUrl, backendToken, request, xTratContext, tlsOptions, onProgress, signal).then(
+    (response) => {
+      endTimer();
+      if (response.error) mcpCallErrors.inc({ method: request.method });
+      return response;
+    },
+    (err) => {
+      endTimer();
+      mcpCallErrors.inc({ method: request.method });
+      throw err;
+    },
+  );
+}
+
+function proxyJsonRpcImpl(
   backendWsUrl: string,
   backendToken: string,
   request: JsonRpcRequest,
@@ -255,7 +285,29 @@ const MCP_PROTO_HEADER = 'mcp-protocol-version';
  * method) so it's a drop-in HTTP sibling with the same request/response
  * contract.
  */
+/**
+ * Metrics-observing wrapper — same contract as proxyJsonRpc's above.
+ */
 export async function proxyJsonRpcHttp(
+  backendHttpUrl: string,
+  backendToken: string,
+  request: JsonRpcRequest,
+  xTratContext?: string,
+): Promise<JsonRpcResponse> {
+  const endTimer = mcpCallDuration.startTimer({ method: request.method });
+  try {
+    const response = await proxyJsonRpcHttpImpl(backendHttpUrl, backendToken, request, xTratContext);
+    if (response.error) mcpCallErrors.inc({ method: request.method });
+    return response;
+  } catch (err) {
+    mcpCallErrors.inc({ method: request.method });
+    throw err;
+  } finally {
+    endTimer();
+  }
+}
+
+async function proxyJsonRpcHttpImpl(
   backendHttpUrl: string,
   backendToken: string,
   request: JsonRpcRequest,

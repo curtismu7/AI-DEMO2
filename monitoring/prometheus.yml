@@ -4,15 +4,16 @@
 # (same trick as ping-gateway-config), so there is exactly one copy of this
 # config in the repo and both deployment targets read it.
 #
-# One target on purpose: PingGateway is the only component in this stack that
-# publishes Prometheus metrics. The Node services are instrumented for OpenTelemetry
-# traces, which go to Jaeger over OTLP — a different pipeline entirely, and not
-# something Prometheus can scrape. Adding `prom-client` to them would be a much
-# larger change than wiring up metrics the gateway already publishes.
+# PingGateway publishes Prometheus metrics on its admin connector by default —
+# nothing to add there. The Node MCP/resource servers below were OTel-traces-only
+# (a different pipeline, to Jaeger) until each grew its own small prom-client
+# /metrics route (see demo_mcp_gateway/src/metrics.ts and its siblings) — small
+# because it wraps each service's single existing message-dispatch chokepoint
+# rather than adding new instrumentation surface.
 #
-# The gateway serves this on its ADMIN connector (8085), which is a different
-# port from the one serving routes (8080/8443) and is unauthenticated by design.
-# Both stay cluster-internal; only Grafana is reachable from outside.
+# Every target below serves /metrics unauthenticated, same posture as
+# PingGateway's own admin connector. All stay cluster-internal; only Grafana is
+# reachable from outside.
 
 global:
   scrape_interval: 15s
@@ -20,10 +21,16 @@ global:
   external_labels:
     stack: ai-demo
 
-# Alert rules live next door. No Alertmanager in this stack, so they evaluate and
-# surface in Prometheus/Grafana but are not routed anywhere — see alerts.yml.
+# Alert rules live next door. Routed to Alertmanager below — visible in
+# Grafana's Alerting page — but Alertmanager has no external receiver
+# configured, so nothing pages or posts anywhere yet. See alerts.yml.
 rule_files:
   - alerts.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
 
 scrape_configs:
   - job_name: pinggateway
@@ -34,3 +41,27 @@ scrape_configs:
       - targets: ['ping-gateway:8085']
         labels:
           service: pinggateway
+
+  - job_name: mcp-gateway
+    static_configs:
+      - targets: ['mcp-gateway:3005']
+        labels:
+          service: mcp-gateway
+
+  - job_name: mcp-server
+    static_configs:
+      - targets: ['mcp-server:8080']
+        labels:
+          service: mcp-server
+
+  - job_name: mcp-resource-server
+    static_configs:
+      - targets: ['mcp-resource-server:8081']
+        labels:
+          service: mcp-resource-server
+
+  - job_name: api-resource-server
+    static_configs:
+      - targets: ['api-resource-server:8082']
+        labels:
+          service: api-resource-server

@@ -1,0 +1,40 @@
+// Grafana Alloy — docker-compose log collector (Tier 2).
+//
+// Tier 1 (services/lokiForwarder.js) only ever carried structured BFF app
+// events. Every other service — oauth-mcp, mcp-gateway, the agents, the
+// resource servers — only console.logs, and nothing shipped that to Loki.
+// This is the piece that does: discover every container on the `ai-demo`
+// network via the Docker socket, tail its stdout/stderr, push to Loki.
+//
+// Read-only docker.sock mount (see the compose `alloy` service) — Alloy only
+// lists containers and reads their log streams, same permission docker logs
+// itself needs, nothing more.
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+// Compose container_names are already "ai-demo-<service>" (e.g.
+// ai-demo-mcp-gateway); Docker's API prefixes a leading "/" on top of that.
+// Strip both so the `service` label here reads the same as Tier 1's fixed
+// "ai-demo-bff" value — one label convention across both tiers in Loki.
+discovery.relabel "containers" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "service"
+  }
+}
+
+loki.source.docker "containers" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.containers.output
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
