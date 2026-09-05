@@ -1790,6 +1790,7 @@ select.cur-input { cursor: pointer; }
 
 .cur-gw-session-warn__btn:hover:not(:disabled) {
   background: var(--th-bg-hover);
+  color: var(--th-text);
 }
 
 .cur-gw-session-warn__btn:disabled {
