@@ -5,6 +5,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const privilegeGatewaySession = require('../services/privilegeGatewaySession');
+const privilegeDoorStore = require('../services/lmdb/privilegeDoorStore.lmdb');
 const router = express.Router();
 
 // The three ways to reach the same MCP server, which is the whole point of this
@@ -56,6 +57,24 @@ const DEFAULT_FACADE_OPENSEARCH_MCP_URL = () =>
   process.env.PRIVILEGE_FACADE_OPENSEARCH_URL || `${PUBLIC_APP_ORIGIN()}/mcp-facade/privilege-gateway/${PRIVILEGE_APP_OPENSEARCH()}/mcp`;
 const DEFAULT_FACADE_BRAVE_MCP_URL = () =>
   process.env.PRIVILEGE_FACADE_BRAVE_URL || `${PUBLIC_APP_ORIGIN()}/mcp-facade/privilege-gateway/${PRIVILEGE_APP_BRAVE()}/mcp`;
+
+// Where an Agentic App discovered from the Privilege console actually lives.
+//
+// Derived from the PRIVILEGE-mode default rather than the session's CURRENT
+// door: discovery describes one gateway, and it is the same gateway whichever
+// mode the operator happens to be looking at. Reading the current door instead
+// is what made façade-mode discovery emit `<public-origin>/<app>/mcp` — a URL
+// that is missing the /mcp-facade/privilege-gateway prefix and reaches nothing.
+function privilegeGatewayOrigin() {
+  try { return new URL(DEFAULT_PRIVILEGE_MCP_URL()).origin; } catch { return PRIVILEGE_GATEWAY_HOST; }
+}
+// The gateway derives a client route from the APPLICATION NAME — /<name>/mcp
+// (privilege/AGENTLESS-CONFIGURATION.md). FrontEndName is the agent-mode
+// procyon host and is deliberately not used here.
+function privilegeDoorUrl(appName) { return `${privilegeGatewayOrigin()}/${appName}/mcp`; }
+// The façade reaches the same app through its multiApp privilege-gateway door,
+// so only the <app> segment differs.
+function facadeDoorUrl(appName) { return `${PUBLIC_APP_ORIGIN()}/mcp-facade/privilege-gateway/${appName}/mcp`; }
 
 const GATEWAY_MODES = ['direct', 'privilege', 'facade'];
 const DEFAULT_GATEWAY_MODE = 'privilege';
@@ -1310,6 +1329,49 @@ router.get('/state', (req, res) => {
     (mainAppToken && mainAppToken !== '_cookie_session')
     || (req.session?.user && (!mainAppToken || req.session?._restoredFromCookie)),
   );
+  // Sibling Agentic Apps — everything registered on the gateway that is not the
+  // numbered default. The list comes from the last console discovery, so
+  // registering an app in the Privilege console makes it a selectable door with
+  // no code change, no env var and no redeploy (spec §7 criterion 7).
+  //
+  // The URLs are derived from the CURRENT configuration rather than read back
+  // from the store: the store is the authority on which apps exist, never on
+  // where the gateway lives, so re-pointing PRIVILEGE_MCPGW_URL cannot leave
+  // the picker offering doors on a gateway nobody uses any more.
+  //
+  // No discovery yet -> the two apps that were hardcoded before W8, still built
+  // through their own env overrides so an existing deployment sees no change at
+  // all until somebody connects the console.
+  const discovery = readInventory();
+  const defaultApp = PRIVILEGE_APP();
+  const siblingApps = (discovery
+    ? discovery.applications.map((a) => ({
+      name: a.name,
+      privilegeUrl: privilegeDoorUrl(a.name),
+      facadeUrl: facadeDoorUrl(a.name),
+      status: a.status || '',
+      // Which policies NAME this app. A heuristic, computed at discovery time
+      // (see the store) -- never a claim that a policy grants it.
+      policies: Array.isArray(a.policies) ? a.policies : [],
+    }))
+    : [
+      {
+        name: PRIVILEGE_APP_OPENSEARCH(),
+        privilegeUrl: DEFAULT_PRIVILEGE_OPENSEARCH_MCP_URL(),
+        facadeUrl: DEFAULT_FACADE_OPENSEARCH_MCP_URL(),
+        status: '',
+        policies: [],
+      },
+      {
+        name: PRIVILEGE_APP_BRAVE(),
+        privilegeUrl: DEFAULT_PRIVILEGE_BRAVE_MCP_URL(),
+        facadeUrl: DEFAULT_FACADE_BRAVE_MCP_URL(),
+        status: '',
+        policies: [],
+      },
+    ]
+  ).filter((app) => app.name && app.name !== defaultApp);
+
   // Presets the UI offers. The first three are the three paths in order, so the
   // preset list reads as the demo itself; the audit door is a scope-narrowing
   // extra that belongs to none of them.
@@ -1344,31 +1406,21 @@ router.get('/state', (req, res) => {
     },
     // Sibling Privilege apps — same "straight at the AI Gateway" shape as the
     // default above, different registered app and so a different policy.
-    {
-      label: 'Privilege — opensearch',
+    ...siblingApps.map((app) => ({
+      label: `Privilege — ${app.name}`,
       mode: 'privilege',
-      url: DEFAULT_PRIVILEGE_OPENSEARCH_MCP_URL(),
-    },
-    {
-      label: 'Privilege — brave',
-      mode: 'privilege',
-      url: DEFAULT_PRIVILEGE_BRAVE_MCP_URL(),
-    },
+      url: app.privilegeUrl,
+    })),
     {
       label: '3 · Privilege — through the façade',
       mode: 'facade',
       url: DEFAULT_FACADE_MCP_URL(),
     },
-    {
-      label: 'Façade — opensearch',
+    ...siblingApps.map((app) => ({
+      label: `Façade — ${app.name}`,
       mode: 'facade',
-      url: DEFAULT_FACADE_OPENSEARCH_MCP_URL(),
-    },
-    {
-      label: 'Façade — brave',
-      mode: 'facade',
-      url: DEFAULT_FACADE_BRAVE_MCP_URL(),
-    },
+      url: app.facadeUrl,
+    })),
     {
       // Kept through the mode rename: the banking door is deliberately dark
       // (see TECH_DEBT 2026-09-01), and this preset is env-gated, so it simply
@@ -1394,6 +1446,9 @@ router.get('/state', (req, res) => {
     // that dies with the process (services/privilegeGatewaySession.js). Ship its
     // state so the page can say so instead of the door failing silently.
     gatewaySession: privilegeGatewaySession.status(),
+    // Where the sibling doors above came from. `persisted: false` means nobody
+    // has connected the console yet and the picker is on the pre-W8 fallback.
+    doorDiscovery: discoverySummary(discovery),
     mainAppAuthenticated: mainAppAuth,
     user: req.session?.user || null,
     tools: session.tools,
@@ -1820,7 +1875,16 @@ async function consoleInventory(session) {
     const name = app.ObjectMeta?.Name || '';
     return {
       name,
+      // Relative to the door in play, which is what the Door picker groups by
+      // origin. Correct for Privilege mode (the gateway) and for Direct.
       mcpUrl: doorUrl(session.config.mcpUrl, name),
+      // ...and explicitly NOT that, for the façade. In façade mode
+      // session.config.mcpUrl is <public-origin>/mcp-facade/privilege-gateway/
+      // <app>/mcp, so taking its ORIGIN drops the whole /mcp-facade/
+      // privilege-gateway prefix and yields <public-origin>/<app>/mcp — a URL
+      // that reaches nothing. The façade door has to be built, not derived.
+      facadeUrl: facadeDoorUrl(name),
+      gatewayUrl: privilegeDoorUrl(name),
       frontEndName: cfg.FrontEndName?.Elems?.[0] || null,
       backends: cfg.Backends?.Elems || [],
       entryPath: cfg.EntryPath || null,
@@ -1836,6 +1900,72 @@ async function consoleInventory(session) {
     spec: p.Spec || {},
   }));
   return { applications, policies, envId };
+}
+
+/**
+ * Write a completed discovery to the door store.
+ *
+ * A store failure must not fail the discovery: the operator's console token is
+ * the scarce thing here (one paste, ~60 minutes), and the apps they just asked
+ * for are already in the response. So this degrades to "discovered but not
+ * persisted" and SAYS so through discoverySummary — the doors then live only as
+ * long as this session, which is exactly the behaviour W8 exists to remove, and
+ * therefore must never be reported as success.
+ */
+function rememberInventory(inventory) {
+  try {
+    return privilegeDoorStore.saveInventory({ ...inventory, gatewayOrigin: privilegeGatewayOrigin() });
+  } catch (err) {
+    console.warn('[privilege] door store write failed:', err.message);
+    return null;
+  }
+}
+
+/**
+ * The last discovery, or null when there is none AND when the store cannot be
+ * trusted.
+ *
+ * /state is the page's whole bootstrap, so a bad read here has to degrade to
+ * the hardcoded fallback doors rather than 500 the page: an LMDB open failure
+ * or a record written by an older shape would otherwise take out the one screen
+ * an operator would use to diagnose it. `applications` is validated because
+ * everything downstream maps over it.
+ */
+function readInventory() {
+  let record;
+  try {
+    record = privilegeDoorStore.getInventory();
+  } catch (err) {
+    console.warn('[privilege] door store read failed:', err.message);
+    return null;
+  }
+  if (!record || !Array.isArray(record.applications)) return null;
+  return record;
+}
+
+/** What the page reports after a refresh, and what /state reports about the last one. */
+function discoverySummary(record) {
+  if (!record) {
+    return { persisted: false, appCount: 0, policyCount: 0, discoveredAt: null, gatewayOrigin: null, applications: [] };
+  }
+  return {
+    persisted: true,
+    appCount: record.applications.length,
+    policyCount: record.policyCount,
+    discoveredAt: record.discoveredAt,
+    // Provenance, not a URL source: the door URLs below are always derived from
+    // the CURRENT configuration, so changing PRIVILEGE_MCPGW_URL cannot leave
+    // the picker serving doors on a gateway nobody points at any more.
+    gatewayOrigin: record.gatewayOrigin || null,
+    // Status and policy mentions, the two things that explain a 403 nobody
+    // asked for. Without these the page can only say a door EXISTS, which is
+    // the state W8 step 4 exists to improve on.
+    applications: record.applications.map((a) => ({
+      name: a.name,
+      status: a.status || '',
+      policies: Array.isArray(a.policies) ? a.policies : [],
+    })),
+  };
 }
 
 // POST /console/connect — { authToken } from the console's auth_token cookie
@@ -1854,8 +1984,9 @@ router.post('/console/connect', express.json(), async (req, res) => {
     if (!sessionId) return res.status(502).json({ error: 'Console did not return a session_id.' });
     session.console = { authToken, sessionId };
     const inventory = await consoleInventory(session);
+    const stored = rememberInventory(inventory);
     emitEvent(session, 'relay', { scope: 'console', message: `connected — ${inventory.applications.length} apps, ${inventory.policies.length} policies` });
-    res.json(inventory);
+    res.json({ ...inventory, discovery: discoverySummary(stored) });
   } catch (err) {
     session.console = null;
     res.status(err.status === 401 ? 401 : 502).json({ error: err.message });
@@ -1867,7 +1998,10 @@ router.get('/console/inventory', async (req, res) => {
   const session = getClientSession(req);
   if (!session.console?.authToken) return res.status(401).json({ error: 'No console token. Connect first.' });
   try {
-    res.json(await consoleInventory(session));
+    const inventory = await consoleInventory(session);
+    const stored = rememberInventory(inventory);
+    emitEvent(session, 'relay', { scope: 'console', message: `refreshed — ${inventory.applications.length} apps, ${inventory.policies.length} policies` });
+    res.json({ ...inventory, discovery: discoverySummary(stored) });
   } catch (err) {
     res.status(err.status === 401 ? 401 : 502).json({ error: err.message });
   }

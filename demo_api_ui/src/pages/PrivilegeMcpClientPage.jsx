@@ -738,7 +738,30 @@ export default function PrivilegeMcpClientPage() {
   // ELSE to try", so it excludes the door that just failed. The header picker
   // has to include it, or the control cannot show what is currently selected.
   const knownDoors = (includeCurrent = false) => {
-    const fromConsole = (consoleData?.applications || []).map((a) => a.mcpUrl).filter(Boolean);
+    // Each app carries its own URL per lane because the lanes reach it
+    // differently: the gateway serves /<app>/mcp, the façade serves
+    // /mcp-facade/privilege-gateway/<app>/mcp.
+    //
+    // Both are derived server-side from configuration, NOT from the door that
+    // happened to be selected when the console was read -- consoleData outlives
+    // a mode switch, so discovering in Direct mode and then switching to
+    // Privilege used to leave this offering <public-origin>/<app>/mcp, which
+    // never reaches the gateway. `mcpUrl` is that mode-relative value and is
+    // deliberately not used here.
+    //
+    // Direct mode contributes NOTHING from the console. A discovered app is a
+    // Privilege Agentic App; "direct" means no Privilege in the path at all, and
+    // the direct doors are this demo's own façade doors, which the presets below
+    // already supply. Offering a gateway URL here would let the denial probe --
+    // which does not apply the picker's origin filter -- switch the client to a
+    // gateway door while it is still in Direct mode, mismatching mode and auth.
+    // Offering the mode-relative mcpUrl instead is no better: it is whatever
+    // origin happened to be selected when the console was read.
+    const fromConsole = gatewayMode === 'direct'
+      ? []
+      : (consoleData?.applications || [])
+        .map((a) => (gatewayMode === 'facade' ? a.facadeUrl : a.gatewayUrl))
+        .filter(Boolean);
     // The direct-mode presets are excluded UNLESS the active mode can actually
     // reach them: sameGatewayDoors() below groups by origin, and Direct's
     // presets (banking/brave/opensearch/pingone-admin — plain façade doors,
