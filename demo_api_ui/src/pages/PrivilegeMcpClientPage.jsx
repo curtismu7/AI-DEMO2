@@ -87,6 +87,11 @@ function api(path, options = {}) {
     try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
     if (!r.ok) {
       const err = new Error(data.error || text || `HTTP ${r.status}`);
+      // The STATUS, not just the prose. The message is data.error -- a code like
+      // 'unauthenticated', which contains neither '401' nor 'bearer token
+      // required', so a challenge detected by substring alone was invisible and
+      // the raw JSON reached the operator with no sign-in offered.
+      err.status = r.status;
       // Extra flags alongside the error string (never instead of it) — e.g.
       // pingoneAdminLocalHandler's delegated-PKCE login requirement carries a
       // loginUrl a caller can act on instead of just showing the message.
@@ -108,8 +113,31 @@ function scopeColor(scope) {
 }
 
 function isGatewayAuthChallenge(error) {
+  // Status first: every 401 is a challenge, whatever the body happens to say.
+  // The substring tests remain for errors raised without one -- a challenge
+  // parsed out of a WWW-Authenticate header, or thrown by our own code.
+  if (error?.status === 401) return true;
   const message = String(error?.message || '').toLowerCase();
   return message.includes('401') || message.includes('bearer token required') || message.includes('authorization_uri');
+}
+
+/**
+ * A 401 does not say WHICH sign-in it wants, and this page has two.
+ *
+ * The PingOne Admin door needs a delegated PKCE login of its own
+ * (routes/mcpPingOneAdminAuth.js), which the façade advertises by attaching a
+ * loginUrl to the challenge. Everything else needs this page's gateway OAuth.
+ * Sending an operator to the gateway modal for a door that cannot use it is
+ * a dead end, so the loginUrl always wins when present.
+ *
+ * Returns the action taken so a caller can word its own message.
+ */
+function authChallengeKind(error, { alreadyReturnedFromAdminLogin = false } = {}) {
+  if (!isGatewayAuthChallenge(error) && !error?.loginUrl) return null;
+  // Never bounce twice: coming back from that round trip still unauthenticated
+  // means the login did not take, and a second redirect is a loop.
+  if (error?.loginUrl && !alreadyReturnedFromAdminLogin) return 'pingone-admin-login';
+  return isGatewayAuthChallenge(error) ? 'gateway-signin' : null;
 }
 
 // The three ways to reach the same MCP server. Each says what the audience is
@@ -225,6 +253,26 @@ export default function PrivilegeMcpClientPage() {
   // here instead of the raw setter so this stays in one place, not seven.
   const requestSignIn = () => {
     setShowSignInModal(true);
+  };
+  /**
+   * Act on an auth challenge, whichever sign-in it turns out to want.
+   * Returns true when it handled the error, so a caller can skip its own
+   * error reporting rather than double-reporting.
+   */
+  const handleAuthChallenge = (err, { silent = false } = {}) => {
+    const kind = authChallengeKind(err, {
+      alreadyReturnedFromAdminLogin: searchParams.get('pingone_admin_login') === 'success',
+    });
+    if (kind === 'pingone-admin-login') {
+      if (!silent) appendChat('system', 'Signing in for PingOne Admin access...');
+      window.location.href = err.loginUrl;
+      return true;
+    }
+    if (kind === 'gateway-signin') {
+      requestSignIn();
+      return true;
+    }
+    return false;
   };
   const [showFlowModal, setShowFlowModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -646,12 +694,15 @@ export default function PrivilegeMcpClientPage() {
       // pingone_admin_login=success we just came back from exactly that round
       // trip and it still didn't work, so fall through to the plain error
       // instead of bouncing the browser in a loop.
-      if (err.loginUrl && searchParams.get('pingone_admin_login') !== 'success') {
+      const challengeKind = authChallengeKind(err, {
+        alreadyReturnedFromAdminLogin: searchParams.get('pingone_admin_login') === 'success',
+      });
+      if (challengeKind === 'pingone-admin-login') {
         if (!silent) appendChat('system', 'Signing in for PingOne Admin access...');
         window.location.href = err.loginUrl;
         return;
       }
-      if (err.message?.toLowerCase().includes('not authenticated') || err.message?.includes('401')) {
+      if (challengeKind === 'gateway-signin' || err.message?.toLowerCase().includes('not authenticated')) {
         setAuthenticated(false);
         requestSignIn();
       } else if (
@@ -846,9 +897,10 @@ export default function PrivilegeMcpClientPage() {
         }
       }
     } catch (err) {
-      if (isGatewayAuthChallenge(err)) {
-        requestSignIn();
-        appendChat('system', 'Sign in is required to access the gateway.');
+      if (handleAuthChallenge(err)) {
+        // handleAuthChallenge already said what it was doing for the admin-login
+        // case; only the gateway branch needs a line of its own here.
+        if (!err.loginUrl) appendChat('system', 'Sign in is required to access the gateway.');
       } else {
         appendChat('assistant', `Error: ${err.message}`);
       }
@@ -875,8 +927,8 @@ export default function PrivilegeMcpClientPage() {
       out = JSON.stringify(data, null, 2);
       ok = !data?.error && !data?.result?.isError;
     } catch (err) {
-      if (isGatewayAuthChallenge(err)) requestSignIn();
-      out = JSON.stringify({ error: isGatewayAuthChallenge(err) ? 'Sign in is required to access the gateway.' : err.message }, null, 2);
+      const handled = handleAuthChallenge(err, { silent: true });
+      out = JSON.stringify({ error: handled ? 'Sign in is required for this door.' : err.message }, null, 2);
       ok = false;
     }
     recordResult(name, out, ok);
@@ -941,8 +993,8 @@ export default function PrivilegeMcpClientPage() {
         setMcpInputRequired(null);
       }
     } catch (err) {
-      if (isGatewayAuthChallenge(err)) requestSignIn();
-      setMcpResult(JSON.stringify({ error: isGatewayAuthChallenge(err) ? 'Sign in is required to access the gateway.' : err.message }, null, 2));
+      const handled = handleAuthChallenge(err, { silent: true });
+      setMcpResult(JSON.stringify({ error: handled ? 'Sign in is required for this door.' : err.message }, null, 2));
     }
   };
 
@@ -961,8 +1013,8 @@ export default function PrivilegeMcpClientPage() {
       setMcpResult(JSON.stringify(data, null, 2));
       if (data?.result?.resultType !== 'input_required') setMcpInputRequired(null);
     } catch (err) {
-      if (isGatewayAuthChallenge(err)) requestSignIn();
-      setMcpResult(JSON.stringify({ error: isGatewayAuthChallenge(err) ? 'Sign in is required to access the gateway.' : err.message }, null, 2));
+      const handled = handleAuthChallenge(err, { silent: true });
+      setMcpResult(JSON.stringify({ error: handled ? 'Sign in is required for this door.' : err.message }, null, 2));
     }
   };
 
