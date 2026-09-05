@@ -1361,7 +1361,7 @@ skipped, since it is not running to be recreated. If the comparison itself ever
 fails, deploy-live says so loudly rather than swallowing it — a silent failure
 here would restore the very staleness this closes.
 
-### [ ] 2026-08-28 — gateway tools/list is only governed on the WebSocket transport
+### [x] 2026-08-28 — gateway tools/list is only governed on the WebSocket transport
 
 The audit-agent work shipped a door that advertises `audit:read`, a scope wired
 through all four config points, a PingOne scope, and an OAuth chain that
@@ -1407,6 +1407,30 @@ a decision that is never asked with a tool list. A cheaper interim option worth
 evaluating first: point the page at the WebSocket transport, where the
 narrowing already works.
 
+**RESOLVED (branch `claude/lm-studio-ai-gateway-privilege-z0k90q`):** took the
+real fix as scoped above. `GatewayServer.handleMcpPost` now keeps the
+`DecodedGatewayToken` from its existing `validateInboundToken` call (was
+previously discarded once the token passed validation) and threads it through
+to `forwardToUpstream`, which passes it to a new `governHttpToolsList` for any
+`tools/list` response with a 2xx status. That method parses the upstream body
+— plain JSON or a single `event: message` / `data: <json>` SSE frame, the two
+shapes a Streamable HTTP MCP server can reply with — calls `guardToolsList`
+with the upstream's own tool names as `CandidateTools` (same call the WS
+transport already makes), and drops `deniedTools` before re-serializing in
+whichever shape the upstream used. A `guardToolsList` result of
+`permitted: false` (e.g. P1AZ unconfigured with local fallback off) drops
+every candidate rather than relaying the full catalog, matching the WS
+transport's existing fail-closed posture instead of inventing a new one. A
+body that doesn't parse, or isn't a `tools/list` result at all, is relayed
+unchanged — this never turns a shape it doesn't recognize into a failed
+request. Covered by
+`demo_mcp_gateway/tests/gateway-http-tools-list-governance.test.ts`: a token
+scoped `read mcp:invoke` gets `search_audit_activities` (requires
+`audit:read`) dropped from the HTTP response, a token that also carries
+`audit:read` keeps it, and a `tools/call` response shaped identically to a
+tools/list result is left untouched (the filter keys off the JSON-RPC method,
+not off "any body with a `tools` array").
+
 ### [ ] 2026-08-28 — the BFF's pingone-admin façade door is broken upstream
 
 `demo_api_server/routes/mcpFacade.js`'s `pingone-admin` door calls PingOne's
@@ -1432,7 +1456,7 @@ invites someone to trust a tool count that no longer exists.
 a user-OAuth door (matching `audit`/`agentless`) or be retired; either way,
 correct the comment so the next reader does not assume 85 working tools.
 
-### [ ] 2026-08-28 — no dynamically-registered client can hold a custom gateway scope
+### [x] 2026-08-28 — no dynamically-registered client can hold a custom gateway scope
 
 `demo_mcp_gateway/src/oauth/ClientRegistry.ts` pins **every** DCR client to
 `brokerRegistrationScope()` (`mcp:invoke`) and refuses non-loopback
@@ -1460,6 +1484,36 @@ door advertised, and the mismatch is silent.
 (the door already carries `scopes`, so the broker could mint what that door
 advertises) or require authentication on `/oauth/register` for anything beyond
 `mcp:invoke`. Not a relaxation of the loopback rule.
+
+**RESOLVED (branch `claude/lm-studio-ai-gateway-privilege-z0k90q`):** took the
+first option, but bottom-up rather than door-scoped: `ClientRegistry` now
+takes the broker's `scopesSupported` list (GATEWAY_SCOPES, the same list
+already passed into `OAuthBrokerRouter` for its RFC 8414 metadata) and honors
+a client's requested `scope` — from the DCR `/oauth/register` body, or the
+`scope` query param on `/oauth/authorize` for a post-restart `adoptClient` —
+bounded to that set (`ClientRegistry.resolveRequestedScope`). A token outside
+the set (or none at all) falls back to the existing default (`mcp:invoke`),
+same as before. This gets every door's own client the right scope without
+threading door identity through the façade at all: a client reaches the
+audit door's own `/.well-known/oauth-protected-resource`
+(`scopes_supported: ['audit:read']`), requests exactly that in its DCR body
+per RFC 7591, and now gets it back — while a client hitting the wide
+`agent-gateway` door never asks for `audit:read` in the first place, so it
+never gets it. No loopback-check or registration-endpoint-auth change, and no
+new escalation surface: `/oauth/authorize` already forwarded the client's
+raw `scope` query param straight to PingOne regardless of what
+`ClientRegistry` returned at registration (verified by reading
+`OAuthBrokerRouter.handleAuthorize`), so the real grant was always decided by
+PingOne + the per-tool authz gate, never by this registry record — this
+change only fixes what a *spec-following* client (LM Studio, the MCP SDK)
+echoes back on later requests, which is what made the door narrowing
+invisible to exactly the clients this was meant to demo for. The static
+operator-configured client (`MCP_GW_OAUTH_STATIC_*`) is untouched and stays
+unbounded by `scopesSupported` — a different, higher trust level, per its own
+doc comment. Covered by new cases in
+`demo_mcp_gateway/tests/oauth-client-registry.test.ts` (bounded requested
+scope, multi-token requests, `adoptClient` parity) and an updated doc comment
+in `clientRegistry.static.test.ts`.
 
 ### [x] 2026-08-28 — a sixth service map exists outside the hygiene gate
 

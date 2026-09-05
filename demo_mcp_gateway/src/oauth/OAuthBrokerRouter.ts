@@ -62,7 +62,8 @@ export class OAuthBrokerRouter {
     return true;
   }
 
-  // --- RFC 7591 (open — see ClientRegistry.brokerRegistrationScope for why) ---
+  // --- RFC 7591 (open — see ClientRegistry.resolveRequestedScope for the
+  // loopback-only, bounded-scope trust model this implies) ---
   private async handleRegister(req: IncomingMessage, res: ServerResponse): Promise<boolean> {
     if (req.method !== 'POST') return false;
     const body = await this.readBody(req);
@@ -78,6 +79,7 @@ export class OAuthBrokerRouter {
         client_name: meta.client_name as string | undefined,
         redirect_uris: (meta.redirect_uris as string[]) || [],
         grant_types: meta.grant_types as string[] | undefined,
+        scope: meta.scope as string | undefined,
       });
       this.json(res, 201, {
         client_id: client.client_id,
@@ -129,7 +131,7 @@ export class OAuthBrokerRouter {
       // Unknown id + loopback redirect = a client that registered before the
       // gateway restarted (in-memory registry). Adopt it; see ClientRegistry.
       try {
-        client = this.clientRegistry.adoptClient({ client_id: clientId, redirect_uris: [redirectUri] });
+        client = this.clientRegistry.adoptClient({ client_id: clientId, redirect_uris: [redirectUri], scope });
       } catch (err) {
         if (!(err instanceof InvalidRedirectUriError)) throw err;
         this.json(res, 400, { error: 'invalid_client', error_description: 'Unknown client_id' });

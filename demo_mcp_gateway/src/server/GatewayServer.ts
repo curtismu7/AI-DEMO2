@@ -36,7 +36,8 @@ import { GatewayConfig, isInternalSecretUsable } from '../config';
 import { adminConfigSafeView, applyAdminConfigUpdate, ADMIN_CONFIG_ALLOWED_KEYS } from '../adminConfig';
 import { McpTokenExchangeClient } from '../auth/McpTokenExchangeClient';
 import { GatewayIntrospectionClient } from '../auth/GatewayIntrospectionClient';
-import { extractBearerToken, validateInboundToken, TokenValidationError } from '../tokenValidator';
+import { extractBearerToken, validateInboundToken, TokenValidationError, type DecodedGatewayToken } from '../tokenValidator';
+import { guardToolsList } from '../pingAuthorizeGuard';
 import { extractCorrelationId } from '../correlationId';
 import { routeTool, backendWsUrl, backendHttpMcpUrl } from '../router';
 import { proxyJsonRpc, MCP_PROTOCOL_VERSION } from '../proxy';
@@ -176,7 +177,7 @@ export class GatewayServer {
   constructor({ config, upstreamMcpUrl, requestMiddleware, mtlsCerts }: GatewayServerOptions) {
     this.config = config;
     this.oauthBroker = new OAuthBrokerRouter(
-      new ClientRegistry(),
+      new ClientRegistry(GATEWAY_SCOPES),
       new BrokerTokenStore(),
       // MCP_GW_RESOURCE_URI is a comma-list of accepted audiences in compose
       // (tokenValidator splits it); the PingOne `resource` param takes ONE —
@@ -691,9 +692,14 @@ export class GatewayServer {
     }
 
     // Dev bypass: skip inbound token validation so the gateway works without real PingOne tokens.
+    // Kept for forwardToUpstream's tools/list governance below (TECH_DEBT.md
+    // "gateway tools/list is only governed on the WebSocket transport") — the
+    // WS transport (index.ts) already has this decoded token available at the
+    // same point; the HTTP transport previously discarded it.
+    let decodedInboundToken: DecodedGatewayToken | undefined;
     if (!this.config.devBypass) {
       try {
-        await validateInboundToken(bearerToken, this.config.gatewayResourceUri);
+        decodedInboundToken = await validateInboundToken(bearerToken, this.config.gatewayResourceUri);
       } catch (err) {
         if (err instanceof TokenValidationError) {
           this.sendUnauthorized(req, res,err.code, err.message);
@@ -858,7 +864,7 @@ export class GatewayServer {
         req,
         res,
         async (upstreamToken, upstreamBody) => {
-          await this.forwardToUpstream(req, res, upstreamToken, upstreamBody, callerScope);
+          await this.forwardToUpstream(req, res, upstreamToken, upstreamBody, callerScope, decodedInboundToken);
         },
       );
     });
@@ -887,6 +893,7 @@ export class GatewayServer {
     upstreamToken: string,
     body: Buffer,
     callerScope: string,
+    decoded?: DecodedGatewayToken,
   ): Promise<void> {
     const timeoutMs = parseInt(process.env.GW_UPSTREAM_TIMEOUT_MS || '30000', 10);
 
@@ -1098,8 +1105,14 @@ export class GatewayServer {
       if (upstreamWwwAuth) responseHeaders['WWW-Authenticate'] = upstreamWwwAuth;
       if (mcpHandshake) responseHeaders['X-Gw-Mcp-Handshake'] = JSON.stringify(mcpHandshake);
 
+      let responseBody = Buffer.from(upstream.data);
+      if (jsonRpc.method === 'tools/list' && decoded && upstream.status >= 200 && upstream.status < 300) {
+        const governed = await this.governHttpToolsList(responseBody, responseHeaders['Content-Type'], decoded);
+        if (governed) responseBody = governed;
+      }
+
       res.writeHead(upstream.status, responseHeaders);
-      res.end(Buffer.from(upstream.data));
+      res.end(responseBody);
     } catch (err) {
       const axErr = err as AxiosError;
       if (axErr.code === 'ECONNREFUSED' || axErr.code === 'ETIMEDOUT' || axErr.code === 'ECONNRESET') {
@@ -1109,6 +1122,66 @@ export class GatewayServer {
         throw err;
       }
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // HTTP-transport tools/list governance (TECH_DEBT.md "gateway tools/list is
+  // only governed on the WebSocket transport").
+  //
+  // The WS transport (index.ts) already runs the merged tool list through
+  // guardToolsList with CandidateTools and drops deniedTools before replying.
+  // This HTTP transport instead relayed the upstream tools/list body verbatim
+  // — a caller holding a scope-narrowed token (e.g. the audit door's
+  // `audit:read`) discovered the FULL upstream catalog over HTTP even though
+  // only per-tool `tools/call` was actually gated. This mirrors that same
+  // guard onto the single upstream this transport forwards to.
+  //
+  // Returns the filtered body, or null when there is nothing to change (not a
+  // tools/list result, nothing denied, or the body could not be parsed — in
+  // which case the caller relays the original body unchanged rather than
+  // failing the request over a shape this method doesn't recognize).
+  // ---------------------------------------------------------------------------
+  private async governHttpToolsList(
+    rawBody: Buffer,
+    contentType: string | undefined,
+    decoded: DecodedGatewayToken,
+  ): Promise<Buffer | null> {
+    const isSse = (contentType || '').includes('text/event-stream');
+    let parsed: { result?: { tools?: unknown[] } } | undefined;
+    try {
+      if (isSse) {
+        // Streamable HTTP MCP transport: a non-streaming POST response can still
+        // arrive as one `data: <json>` SSE frame instead of a bare JSON body.
+        const dataLine = rawBody.toString('utf-8').split(/\r?\n/).find((l) => l.startsWith('data:'));
+        if (!dataLine) return null;
+        parsed = JSON.parse(dataLine.slice('data:'.length).trim());
+      } else {
+        parsed = JSON.parse(rawBody.toString('utf-8'));
+      }
+    } catch {
+      return null; // unrecognized shape — relay verbatim rather than fail the request
+    }
+
+    const tools = parsed?.result?.tools;
+    if (!Array.isArray(tools)) return null; // not a tools/list result (e.g. a JSON-RPC error)
+
+    const candidateNames = tools
+      .map((t) => (t as { name?: string } | null)?.name)
+      .filter((n): n is string => !!n);
+    if (candidateNames.length === 0) return null;
+
+    const authz = await guardToolsList(decoded, this.config, (decoded as { vertical?: string }).vertical, candidateNames);
+    // Not permitted at all (e.g. P1AZ unconfigured with local fallback off,
+    // the same fail-closed posture guardToolsList already applies on the WS
+    // transport) — deny every candidate rather than relay the full catalog.
+    const deniedNames = authz.permitted
+      ? new Set((authz.deniedTools || []).map((d) => d.name))
+      : new Set(candidateNames);
+    if (deniedNames.size === 0) return null;
+
+    parsed!.result!.tools = tools.filter((t) => !deniedNames.has((t as { name?: string } | null)?.name || ''));
+    const payload = JSON.stringify(parsed);
+    return isSse ? Buffer.from(`event: message\ndata: ${payload}\n\n`) : Buffer.from(payload);
   }
 
   // ---------------------------------------------------------------------------
