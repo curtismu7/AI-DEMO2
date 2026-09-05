@@ -1896,6 +1896,7 @@ select.cur-input { cursor: pointer; }
 
 .cur-llmpanel__row button:hover:not(:disabled) {
   background: var(--th-bg-hover);
+  color: var(--th-text);
 }
 
 .cur-llmpanel__row button:disabled {
