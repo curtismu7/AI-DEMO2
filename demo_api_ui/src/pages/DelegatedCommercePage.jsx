@@ -8,6 +8,7 @@ import DraggableModal from "../components/DraggableModal";
 import { useAgentUiMode } from "../context/AgentUiModeContext";
 import { notifyError, notifySuccess } from "../utils/appToast";
 import { startRoleSwitch } from "../utils/roleSwitch";
+import { useThemeOptional } from "../context/ThemeContext";
 
 const CLAIM_CODE_KEY = "delegated-commerce-claim-code";
 
@@ -92,6 +93,7 @@ function ConsentModal({ open, scopes, onScopesChange, onClose, onConfirm, busy }
 }
 
 export default function DelegatedCommercePage({ user }) {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const { size: seqWidth, handleProps: seqHandleProps } = useDividerDrag({
     min: 220,
     max: 420,
@@ -407,6 +409,15 @@ export default function DelegatedCommercePage({ user }) {
           <button className="dc-btn dc-btn--secondary" type="button" onClick={preflight} disabled={!!busy}>Run preflight</button>
           <button className="dc-btn dc-btn--secondary" type="button" onClick={reset}>Reset view</button>
           <button className="dc-btn" type="button" onClick={runCurrent} disabled={!!busy}>{busy ? "Running..." : "Run current step"}</button>
+          <button
+            type="button"
+            onClick={toggleDarkMode}
+            className="dc-btn dc-btn--secondary"
+            title="Switch this page between light and dark"
+            aria-pressed={darkMode}
+          >
+            {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
+          </button>
         </div>
       </section>
 

@@ -6,6 +6,7 @@
 // OWASP (the "how we protect" payoff). Offline-safe: all content is static.
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useThemeOptional } from "../context/ThemeContext";
 import "./OwaspLearnerPage.css";
 
 const GUIDE_URL = "https://genai.owasp.org/";
@@ -110,6 +111,7 @@ const DEMO_MAP = [
 ];
 
 export default function OwaspLearnerPage() {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const navigate = useNavigate();
   const [openKc, setOpenKc] = useState(null);
 
@@ -119,6 +121,15 @@ export default function OwaspLearnerPage() {
   return (
     <div className="owasp-page" data-testid="owasp-learner-page">
       <header className="owasp-header">
+        <button
+          type="button"
+          onClick={toggleDarkMode}
+          className="owasp-theme-toggle"
+          title="Switch this page between light and dark"
+          aria-pressed={darkMode}
+        >
+          {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
+        </button>
         <div className="owasp-badge" aria-hidden="true">OWASP ASI</div>
         <h1>OWASP: Securing Agentic Applications</h1>
         <p className="owasp-subtitle">

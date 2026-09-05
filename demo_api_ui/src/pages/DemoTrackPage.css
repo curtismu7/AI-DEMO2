@@ -1,11 +1,20 @@
 /* Guided Demo Track — standalone page. Palette from the approved mock
-   (docs/superpowers/specs/assets/2026-08-03-guided-demo-track/demo-track-mock.html). */
+   (docs/superpowers/specs/assets/2026-08-03-guided-demo-track/demo-track-mock.html).
+   Themed with --th-* per THEMING.md — --dtp-red and --dtp-navy are this
+   page's own brand accents (active-step, act labels, takeaway cards) and
+   stay literal (THEMING.md §1.3); the rest were plain ambient ink/ground/
+   status aliases with no dark pair, so they now point at semantic tokens.
+   --dtp-navy-ink/--dtp-red-ink are for the few spots where the brand
+   accent is used as *text* on a card that itself flips with the theme —
+   there the literal accent goes unreadable on a dark card, so these read
+   from the matching --th-status-*-text pair instead. */
 .dtp-root {
-  --dtp-red: #b3282d; --dtp-ink: #1a1d21; --dtp-muted: #5f6b76;
-  --dtp-line: #e3e7eb; --dtp-bg: #f6f7f9; --dtp-card: #ffffff;
-  --dtp-green: #1e7b34; --dtp-green-bg: #ecf7ef;
-  --dtp-deny: #c62828; --dtp-deny-bg: #fdeeee;
-  --dtp-amber: #9a6700; --dtp-amber-bg: #fff8e6; --dtp-navy: #16324f;
+  --dtp-red: #b3282d; --dtp-ink: var(--th-text); --dtp-muted: var(--th-text-muted);
+  --dtp-line: var(--th-border); --dtp-bg: var(--th-bg-page); --dtp-card: var(--th-bg-card);
+  --dtp-green: var(--th-status-success); --dtp-green-bg: var(--th-status-success-bg);
+  --dtp-deny: var(--th-status-error); --dtp-deny-bg: var(--th-status-error-bg);
+  --dtp-amber: var(--th-status-warning); --dtp-amber-bg: var(--th-status-warning-bg); --dtp-navy: #16324f;
+  --dtp-navy-ink: var(--th-status-info-text); --dtp-red-ink: var(--th-status-error-text);
   background: var(--dtp-bg); color: var(--dtp-ink); min-height: 100%;
   line-height: 1.45;
 }
@@ -23,8 +32,16 @@
   border: 2px solid var(--dtp-line); color: var(--dtp-muted); background: var(--dtp-card);
 }
 .dtp-dot--done { background: var(--dtp-green); border-color: var(--dtp-green); color: #fff; }
-.dtp-dot--active { border-color: var(--dtp-red); color: var(--dtp-red); }
+.dtp-dot--active { border-color: var(--dtp-red); color: var(--dtp-red-ink); }
 .dtp-controls { display: flex; align-items: center; gap: 10px; }
+.dtp-theme-toggle {
+  font-size: 12.5px; font-weight: 600; padding: 6px 14px; border-radius: 999px;
+  border: 1px solid var(--dtp-line); background: var(--dtp-card); color: var(--dtp-ink); cursor: pointer;
+}
+.dtp-theme-toggle:hover {
+  background: var(--th-bg-hover);
+  color: var(--dtp-ink);
+}
 .dtp-run-picker { font-size: 12.5px; color: var(--dtp-muted); display: flex; align-items: center; gap: 6px; }
 .dtp-run-picker select { font-size: 12.5px; padding: 4px 6px; border: 1px solid var(--dtp-line); border-radius: 6px; }
 .dtp-newrun {
@@ -58,7 +75,11 @@
   border: 2px solid var(--dtp-line);
 }
 .dtp-step--done .dtp-step-num { background: var(--dtp-green); border-color: var(--dtp-green); color: #fff; }
-.dtp-step--active .dtp-step-num { border-color: var(--dtp-red); color: var(--dtp-red); background: #fff; }
+.dtp-step--active .dtp-step-num {
+  border-color: var(--dtp-red);
+  color: var(--dtp-red-ink);
+  background: var(--th-bg-card);
+}
 .dtp-step-title { font-weight: 700; font-size: var(--font-size-base); }
 .dtp-step-cap {
   font-size: var(--font-size-xs); font-weight: 600; color: var(--dtp-navy); background: #eaf1f8;
@@ -75,7 +96,8 @@
 }
 .dtp-run-row {
   display: flex; align-items: center; gap: 12px; padding: 10px 12px;
-  border: 1px solid var(--dtp-line); border-radius: 8px; margin-bottom: 8px; background: #fbfcfd;
+  border: 1px solid var(--dtp-line); border-radius: 8px; margin-bottom: 8px; background: var(--th-bg-card);
+  color: var(--th-text);
 }
 .dtp-run-tag {
   font-size: 10px; font-weight: 800; letter-spacing: .06em; padding: 3px 8px;
@@ -84,12 +106,13 @@
 .dtp-run-tag--g { background: var(--dtp-green-bg); color: var(--dtp-green); }
 .dtp-run-tag--r { background: var(--dtp-deny-bg); color: var(--dtp-deny); }
 .dtp-chip {
-  font-size: var(--font-size-sm); background: #fff; border: 1px solid var(--dtp-line);
+  font-size: var(--font-size-sm); background: var(--th-bg-card); border: 1px solid var(--dtp-line);
   border-radius: 999px; padding: 5px 13px;
+  color: var(--th-text);
 }
 .dtp-run-note { color: var(--dtp-muted); font-size: var(--font-size-2xs); }
 .dtp-run-note--error { color: var(--dtp-deny); font-weight: 600; }
-.dtp-run-note--running { color: var(--dtp-navy); font-weight: 600; }
+.dtp-run-note--running { color: var(--dtp-navy-ink); font-weight: 600; }
 .dtp-run-note--done { color: var(--dtp-green); font-weight: 700; }
 .dtp-run-btn--done { background: var(--dtp-green); }
 /* Plain-language "why" under a filled slot / gauntlet tile */
@@ -108,9 +131,10 @@
 /* What the agent actually returned on a Run — see what happened, not just a stamp */
 .dtp-response {
   margin: 2px 0 10px 76px; border: 1px solid var(--dtp-line); border-left: 3px solid var(--dtp-navy);
-  border-radius: 8px; background: #fbfcfd; padding: 10px 12px;
+  border-radius: 8px; background: var(--th-bg-card); padding: 10px 12px;
+  color: var(--th-text);
 }
-.dtp-response-head { font-size: var(--font-size-xs); font-weight: 800; letter-spacing: .04em; color: var(--dtp-navy); margin-bottom: 6px; }
+.dtp-response-head { font-size: var(--font-size-xs); font-weight: 800; letter-spacing: .04em; color: var(--dtp-navy-ink); margin-bottom: 6px; }
 .dtp-response-tool { font-weight: 600; color: var(--dtp-muted); }
 .dtp-response-body { font-size: 12.5px; line-height: 1.5; color: var(--dtp-ink); white-space: pre-wrap; }
 .dtp-response-sim { display: flex; gap: 10px; font-size: var(--font-size-2xs); padding: 2px 0; }
@@ -150,7 +174,10 @@
 .dtp-gauntlet-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
 .dtp-gauntlet-score { font-size: var(--font-size-sm); font-weight: 700; color: var(--dtp-green); }
 .dtp-gauntlet { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 4px; }
-.dtp-g-tile { border: 1px solid var(--dtp-line); border-radius: 8px; padding: 11px 12px; background: #fbfcfd; }
+.dtp-g-tile {
+  border: 1px solid var(--dtp-line); border-radius: 8px; padding: 11px 12px; background: var(--th-bg-card);
+  color: var(--th-text);
+}
 .dtp-g-name { font-size: 12.5px; font-weight: 600; margin-bottom: 2px; }
 .dtp-g-uc { font-size: var(--font-size-xs); color: var(--dtp-muted); margin-bottom: 8px; }
 .dtp-g-verdict {
@@ -164,7 +191,7 @@
 }
 .dtp-finish--done { border-style: solid; border-color: var(--dtp-green); }
 .dtp-finish b { color: var(--dtp-ink); }
-.dtp-error, .dtp-loading { padding: 40px; text-align: center; color: #5f6b76; }
+.dtp-error, .dtp-loading { padding: 40px; text-align: center; color: var(--th-text-muted); }
 @media (max-width: 760px) {
   .dtp-gauntlet { grid-template-columns: 1fr; }
   .dtp-step-ucs { display: none; }

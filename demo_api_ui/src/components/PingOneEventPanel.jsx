@@ -1,6 +1,7 @@
 // demo_api_ui/src/components/PingOneEventPanel.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useActivityLog } from '../hooks/useActivityLog';
+import { useThemeOptional } from '../context/ThemeContext';
 import './PingOneEventPanel.css';
 
 function statusIcon(status) {
@@ -32,6 +33,7 @@ function normalizeStreamEvent(e) {
 }
 
 export default function PingOneEventPanel() {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const [events, setEvents] = useState([]);
   const [expanded, setExpanded] = useState(null);
   const hasFetched = useRef(false);
@@ -84,6 +86,15 @@ export default function PingOneEventPanel() {
       <div className="pingone-event-panel__header">
         <span className="pingone-event-panel__title">PingOne Events</span>
         <span className="pingone-event-panel__badge">{events.length}</span>
+        <button
+          type="button"
+          onClick={toggleDarkMode}
+          className="pingone-event-panel__theme-toggle"
+          title="Switch this page between light and dark"
+          aria-pressed={darkMode}
+        >
+          {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
+        </button>
       </div>
       {events.length === 0 ? (
         <div className="pingone-event-panel__empty">No events received yet</div>

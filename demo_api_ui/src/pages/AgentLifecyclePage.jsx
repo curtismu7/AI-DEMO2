@@ -6,6 +6,7 @@ import { getAgents } from '../services/controlPlaneApi';
 import apiClient from '../services/apiClient';
 import KillSwitchConfirmModal from '../components/KillSwitchConfirmModal';
 import { useAgentUiMode } from '../context/AgentUiModeContext';
+import { useThemeOptional } from '../context/ThemeContext';
 
 function RegistrationSlot() {
   return (
@@ -394,6 +395,7 @@ function RevokeSlot() {
 }
 
 export default function AgentLifecyclePage() {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const { setSurfaceHostEl } = useAgentUiMode();
   const [agentHostEl, setAgentHostEl] = React.useState(null);
   const agentHostRef = React.useCallback((node) => setAgentHostEl(node), []);
@@ -411,6 +413,15 @@ export default function AgentLifecyclePage() {
 
   return (
     <div className="alp-wrap">
+      <button
+        type="button"
+        onClick={toggleDarkMode}
+        className="alp-theme-toggle"
+        title="Switch this page between light and dark"
+        aria-pressed={darkMode}
+      >
+        {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
+      </button>
       <h1 className="alp-title">Agent Lifecycle</h1>
       <p className="alp-subtitle">
         Register, call, step up, and revoke — one AI agent's full access

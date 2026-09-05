@@ -1,10 +1,12 @@
 /* Document-flow height (not 100vh): a viewport-tall wrap overflowed under
    .footer (z-index 10) and .topnav, so slot buttons looked clickable but
-   pointer events hit the chrome instead. */
+   pointer events hit the chrome instead. Themed with --th-* per THEMING.md —
+   the monochrome ink/ground design inverts consistently in dark mode since
+   "button" and "active state" are literally --th-text on --th-bg-page. */
 .alp-wrap {
   padding: 48px 24px 80px;
-  background: #fff;
-  color: #1a1a1a;
+  background: var(--th-bg-page);
+  color: var(--th-text);
   font-family: Helvetica, Arial, sans-serif;
 }
 .alp-title {
@@ -15,9 +17,25 @@
   margin-bottom: 8px;
 }
 .alp-subtitle {
-  color: #555;
+  color: var(--th-text-muted);
   margin-bottom: 40px;
   font-size: var(--font-size-base);
+}
+.alp-theme-toggle {
+  display: block;
+  margin: 0 0 16px auto;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--th-border);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: var(--font-size-2xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+.alp-theme-toggle:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
 }
 .alp-body { display: flex; gap: 2rem; align-items: flex-start; flex-wrap: nowrap; }
 .alp-slots { flex: 1 1 auto; min-width: 0; }
@@ -33,7 +51,7 @@
 .alp-agent-host { overflow: visible; }
 .alp-rail-host { min-width: 0; }
 .alp-slot {
-  border-top: 1px solid #1a1a1a;
+  border-top: 1px solid var(--th-text);
   padding: 32px 0;
   margin-bottom: 0;
 }
@@ -44,12 +62,12 @@
   text-transform: uppercase;
   margin-bottom: 10px;
 }
-.alp-slot__desc { color: #555; margin-bottom: 16px; font-size: var(--font-size-body); line-height: 1.5; }
+.alp-slot__desc { color: var(--th-text-muted); margin-bottom: 16px; font-size: var(--font-size-body); line-height: 1.5; }
 .alp-slot__status { margin-top: 14px; font-size: var(--font-size-body); }
 .alp-video { width: 100%; display: block; }
 .alp-btn {
-  background: #1a1a1a;
-  color: #fff;
+  background: var(--th-text);
+  color: var(--th-bg-page);
   border: none;
   padding: 14px 28px;
   font-size: var(--font-size-sm);
@@ -58,22 +76,27 @@
   text-transform: uppercase;
   cursor: pointer;
 }
-.alp-btn:disabled { background: #999; cursor: not-allowed; }
+.alp-btn:disabled {
+  background: var(--th-text-faint);
+  color: var(--th-bg-page);
+  cursor: not-allowed;
+}
 .alp-result {
-  background: #f7f6f4;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
   padding: 16px;
   overflow-x: auto;
   font-size: var(--font-size-sm);
   margin-top: 16px;
 }
-.alp-error { color: #b3261e; margin-top: 10px; font-size: var(--font-size-body); }
+.alp-error { color: var(--th-status-error-text); margin-top: 10px; font-size: var(--font-size-body); }
 .alp-spinner {
   display: inline-block;
   width: 12px;
   height: 12px;
   margin-right: 8px;
-  border: 2px solid #ccc;
-  border-top-color: #1a1a1a;
+  border: 2px solid var(--th-border);
+  border-top-color: var(--th-text);
   border-radius: 50%;
   vertical-align: -1px;
   animation: alp-spin 0.8s linear infinite;
@@ -84,7 +107,7 @@
 .alp-audit-link {
   display: inline-block;
   margin-top: 16px;
-  color: #1a1a1a;
+  color: var(--th-text);
   font-size: var(--font-size-sm);
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -98,8 +121,9 @@
   margin-bottom: 16px;
 }
 .alp-view-btn {
-  background: #f0f0f0;
-  border: 1px solid #ddd;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  border: 1px solid var(--th-border);
   padding: 8px 16px;
   font-size: var(--font-size-2xs);
   font-weight: 600;
@@ -108,12 +132,13 @@
   transition: all 0.2s ease;
 }
 .alp-view-btn:hover {
-  background: #e8e8e8;
+  background: var(--th-bg-hover);
+  color: var(--th-text);
 }
 .alp-view-btn--active {
-  background: #1a1a1a;
-  color: #fff;
-  border-color: #1a1a1a;
+  background: var(--th-text);
+  color: var(--th-bg-page);
+  border-color: var(--th-text);
 }
 .alp-form-container {
   margin-top: 16px;
@@ -122,16 +147,17 @@
   gap: 16px;
 }
 .alp-form-empty {
-  background: #f7f6f4;
+  background: var(--th-bg-inset);
   padding: 24px;
   text-align: center;
-  color: #888;
+  color: var(--th-text-muted);
   font-size: var(--font-size-body);
   margin-top: 16px;
 }
 .alp-form-card {
-  background: #f7f6f4;
-  border: 1px solid #e0dbd3;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  border: 1px solid var(--th-border);
   border-radius: 6px;
   padding: 16px;
 }
@@ -149,17 +175,17 @@
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: #555;
+  color: var(--th-text-muted);
   margin-bottom: 6px;
 }
 .alp-form-value {
   font-size: var(--font-size-body);
-  color: #1a1a1a;
+  color: var(--th-text);
   word-break: break-word;
   padding: 8px;
-  background: #fff;
+  background: var(--th-bg-card);
   border-radius: 4px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--th-border);
   min-height: 32px;
   display: flex;
   align-items: center;

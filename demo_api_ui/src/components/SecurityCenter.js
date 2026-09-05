@@ -3,6 +3,7 @@ import { notifySuccess, notifyError } from '../utils/appToast';
 import { navigateToCustomerOAuthLogin } from '../utils/authUi';
 import SignInPrompt from './SignInPrompt';
 import { loadPublicConfig } from '../services/configService';
+import { useThemeOptional } from '../context/ThemeContext';
 import './SecurityCenter.css';
 
 function deviceTypeLabel(type) {
@@ -18,6 +19,7 @@ function deviceTypeLabel(type) {
 }
 
 export default function SecurityCenter({ user }) {
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const [activeTab, setActiveTab] = useState('overview');
 
   // MFA device list
@@ -276,7 +278,7 @@ export default function SecurityCenter({ user }) {
     if (!enrollType) {
       return (
         <div className="enroll-picker">
-          <p style={{ margin: '0 0 0.5rem', fontWeight: 600, color: '#333' }}>Select device type to add:</p>
+          <p className="sc-label-strong" style={{ margin: '0 0 0.5rem', fontWeight: 600 }}>Select device type to add:</p>
           {[
             { key: 'email', label: 'Email OTP' },
             { key: 'sms', label: 'SMS OTP' },
@@ -303,11 +305,11 @@ export default function SecurityCenter({ user }) {
       return (
         <div className="enroll-picker">
           <p style={{ margin: '0 0 0.5rem', fontWeight: 600 }}>Enroll Email OTP</p>
-          <p style={{ margin: '0 0 0.75rem', color: '#666', fontSize: '0.875rem' }}>
+          <p className="sc-hint" style={{ margin: '0 0 0.75rem' }}>
             A verification code will be sent to your account email.
           </p>
           {enrollError && (
-            <p style={{ color: '#dc2626', fontSize: '0.875rem', margin: '0 0 0.5rem' }}>{enrollError}</p>
+            <p className="sc-error-inline" style={{ margin: '0 0 0.5rem' }}>{enrollError}</p>
           )}
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button
@@ -336,7 +338,7 @@ export default function SecurityCenter({ user }) {
         <div className="enroll-picker">
           <p style={{ margin: '0 0 0.5rem', fontWeight: 600 }}>Enroll SMS OTP</p>
           {enrollError && (
-            <p style={{ color: '#dc2626', fontSize: '0.875rem', margin: '0 0 0.5rem' }}>{enrollError}</p>
+            <p className="sc-error-inline" style={{ margin: '0 0 0.5rem' }}>{enrollError}</p>
           )}
           {enrollSmsStep === 'phone' ? (
             <>
@@ -370,7 +372,7 @@ export default function SecurityCenter({ user }) {
             </>
           ) : (
             <>
-              <p style={{ color: '#666', fontSize: '0.875rem', margin: '0 0 0.5rem' }}>
+              <p className="sc-hint" style={{ margin: '0 0 0.5rem' }}>
                 Enter the code sent to {enrollPhone}.
               </p>
               <input
@@ -410,7 +412,7 @@ export default function SecurityCenter({ user }) {
     // TOTP or FIDO2 — requires native browser APIs or mobile app
     return (
       <div className="enroll-picker">
-        <p style={{ color: '#666', fontSize: '0.875rem', margin: '0 0 0.75rem' }}>
+        <p className="sc-hint" style={{ margin: '0 0 0.75rem' }}>
           Use the PingOne mobile app or admin portal to enroll this device type.
         </p>
         <button type="button" className="btn btn-outline btn-sm" onClick={closeEnrollPicker}>
@@ -426,7 +428,7 @@ export default function SecurityCenter({ user }) {
         <h3 style={{ marginTop: 0 }}>MFA Devices</h3>
         {loading && <p className="demo-unavailable">Loading devices...</p>}
         {fetchError && needsSignIn && <SignInPrompt message="Sign in to view and manage your MFA devices." />}
-        {fetchError && !needsSignIn && <p style={{ color: '#dc2626' }}>{fetchError}</p>}
+        {fetchError && !needsSignIn && <p className="sc-error-text">{fetchError}</p>}
         {!loading && !fetchError && devices !== null && (
           <>
             {devices.length === 0 ? (
@@ -646,7 +648,7 @@ export default function SecurityCenter({ user }) {
     return (
       <div>
         <h3 style={{ marginTop: 0 }}>Sessions</h3>
-        {sessionError && <p style={{ color: '#dc2626' }}>{sessionError}</p>}
+        {sessionError && <p className="sc-error-text">{sessionError}</p>}
         {!sessionError && session === null && (
           <p className="demo-unavailable">Loading session...</p>
         )}
@@ -724,8 +726,19 @@ export default function SecurityCenter({ user }) {
   return (
     <div className="security-center">
       <div className="security-header">
-        <h2>Security Center</h2>
-        <p>Manage your account security settings</p>
+        <div>
+          <h2>Security Center</h2>
+          <p>Manage your account security settings</p>
+        </div>
+        <button
+          type="button"
+          onClick={toggleDarkMode}
+          className="sc-theme-toggle"
+          title="Switch this page between light and dark"
+          aria-pressed={darkMode}
+        >
+          {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
+        </button>
       </div>
 
       <div className="security-tabs">
@@ -761,20 +774,42 @@ export default function SecurityCenter({ user }) {
 
         .security-header {
           margin-bottom: 2rem;
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 1rem;
+        }
+
+        .sc-theme-toggle {
+          flex-shrink: 0;
+          padding: 6px 14px;
+          border-radius: 999px;
+          border: 1px solid var(--th-border);
+          background: var(--th-bg-card);
+          color: var(--th-text);
+          font-size: var(--font-size-2xs);
+          font-weight: 600;
+          cursor: pointer;
+        }
+
+        .sc-theme-toggle:hover {
+          background: var(--th-bg-hover);
+          color: var(--th-text);
         }
 
         .security-header h2 {
           margin: 0 0 0.5rem 0;
-          color: #333;
+          color: var(--th-text);
         }
 
         .security-header p {
           margin: 0;
-          color: #666;
+          color: var(--th-text-muted);
         }
 
         .security-tabs {
-          background: white;
+          background: var(--th-bg-card);
+          color: var(--th-text);
           border-radius: 8px;
           box-shadow: 0 2px 4px rgba(0,0,0,0.1);
           overflow: hidden;
@@ -782,8 +817,9 @@ export default function SecurityCenter({ user }) {
 
         .tab-nav {
           display: flex;
-          border-bottom: 1px solid #e5e7eb;
-          background: #f9fafb;
+          border-bottom: 1px solid var(--th-border);
+          background: var(--th-bg-inset);
+          color: var(--th-text);
         }
 
         .tab-btn {
@@ -800,11 +836,12 @@ export default function SecurityCenter({ user }) {
         }
 
         .tab-btn:hover {
-          background: #f3f4f6;
+          background: var(--th-bg-hover);
+          color: var(--th-text);
         }
 
         .tab-btn.active {
-          background: white;
+          background: var(--th-bg-card);
           border-bottom: 2px solid #4f46e5;
           color: #4f46e5;
           font-weight: 600;
@@ -819,7 +856,7 @@ export default function SecurityCenter({ user }) {
           align-items: center;
           gap: 1rem;
           padding: 0.75rem;
-          border: 1px solid #e5e7eb;
+          border: 1px solid var(--th-border);
           border-radius: 6px;
           margin-bottom: 0.5rem;
         }
@@ -827,13 +864,13 @@ export default function SecurityCenter({ user }) {
         .device-type {
           font-weight: 600;
           flex: 0 0 160px;
-          color: #333;
+          color: var(--th-text);
           font-size: 0.875rem;
         }
 
         .device-contact {
           flex: 1;
-          color: #666;
+          color: var(--th-text-muted);
           font-size: 0.875rem;
         }
 
@@ -845,9 +882,11 @@ export default function SecurityCenter({ user }) {
 
         .rename-input {
           padding: 0.375rem 0.625rem;
-          border: 1px solid #d1d5db;
+          border: 1px solid var(--th-border);
           border-radius: 4px;
           font-size: 0.875rem;
+          background: var(--th-bg-card);
+          color: var(--th-text);
         }
 
         .enroll-picker {
@@ -860,9 +899,10 @@ export default function SecurityCenter({ user }) {
 
         .enroll-option-btn {
           padding: 0.75rem 1rem;
-          border: 1px solid #d1d5db;
+          border: 1px solid var(--th-border);
           border-radius: 6px;
-          background: white;
+          background: var(--th-bg-card);
+          color: var(--th-text);
           cursor: pointer;
           text-align: left;
           font-size: 0.9rem;
@@ -888,10 +928,28 @@ export default function SecurityCenter({ user }) {
         }
 
         .demo-unavailable {
-          color: #6b7280;
+          color: var(--th-text-muted);
           font-style: italic;
           padding: 2rem 0;
           margin: 0;
+        }
+
+        .sc-label-strong {
+          color: var(--th-text);
+        }
+
+        .sc-hint {
+          color: var(--th-text-muted);
+          font-size: 0.875rem;
+        }
+
+        .sc-error-inline {
+          color: var(--th-status-error-text);
+          font-size: 0.875rem;
+        }
+
+        .sc-error-text {
+          color: var(--th-status-error-text);
         }
 
         .btn {
