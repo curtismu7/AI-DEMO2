@@ -35,7 +35,8 @@
 .dtp-dot--active { border-color: var(--dtp-red); color: var(--dtp-red-ink); }
 .dtp-controls { display: flex; align-items: center; gap: 10px; }
 .dtp-theme-toggle {
-  font-size: 12.5px; font-weight: 600; padding: 6px 14px; border-radius: 999px;
+  /* REGRESSION_PLAN.md §0 H2: was a literal 12.5px, off the scale entirely. */
+  font-size: var(--font-size-sm); font-weight: 600; padding: 6px 14px; border-radius: 999px;
   border: 1px solid var(--dtp-line); background: var(--dtp-card); color: var(--dtp-ink); cursor: pointer;
 }
 .dtp-theme-toggle:hover {

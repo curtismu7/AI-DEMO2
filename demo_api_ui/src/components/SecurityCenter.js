@@ -841,7 +841,12 @@ export default function SecurityCenter({ user }) {
         }
 
         .tab-btn.active {
-          background: var(--th-bg-card);
+          /* REGRESSION_PLAN.md §0 H1: was a tokenised background paired with
+             a literal ink/border — the brand indigo below matches every
+             other #4f46e5 use in this file (a deliberate accent, THEMING.md
+             §3), so the background is now the same literal-tint idiom
+             OAuthAcademyPage.css's --oa-accent-muted uses, not a token. */
+          background: rgba(79, 70, 229, 0.1);
           border-bottom: 2px solid #4f46e5;
           color: #4f46e5;
           font-weight: 600;
@@ -940,12 +945,12 @@ export default function SecurityCenter({ user }) {
 
         .sc-hint {
           color: var(--th-text-muted);
-          font-size: 0.875rem;
+          font-size: var(--font-size-body);
         }
 
         .sc-error-inline {
           color: var(--th-status-error-text);
-          font-size: 0.875rem;
+          font-size: var(--font-size-body);
         }
 
         .sc-error-text {
