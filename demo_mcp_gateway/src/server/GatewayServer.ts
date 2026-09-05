@@ -38,6 +38,7 @@ import { McpTokenExchangeClient } from '../auth/McpTokenExchangeClient';
 import { GatewayIntrospectionClient } from '../auth/GatewayIntrospectionClient';
 import { extractBearerToken, validateInboundToken, TokenValidationError, type DecodedGatewayToken } from '../tokenValidator';
 import { guardToolsList } from '../pingAuthorizeGuard';
+import { getScopesForGatewayTool } from '../auth/toolScopes';
 import { extractCorrelationId } from '../correlationId';
 import { routeTool, backendWsUrl, backendHttpMcpUrl } from '../router';
 import { proxyJsonRpc, MCP_PROTOCOL_VERSION } from '../proxy';
@@ -1107,7 +1108,13 @@ export class GatewayServer {
 
       let responseBody = Buffer.from(upstream.data);
       if (jsonRpc.method === 'tools/list' && decoded && upstream.status >= 200 && upstream.status < 300) {
-        const governed = await this.governHttpToolsList(responseBody, responseHeaders['Content-Type'], decoded);
+        // Header fallback parity with the WS transport (index.ts:288) — a
+        // token without its own `vertical` claim relies on the BFF-supplied
+        // X-Active-Vertical header, already read for tools/call on this same
+        // request (authorizeMcpRequest.ts).
+        const rawVertical = req.headers['x-active-vertical'];
+        const activeVertical = (Array.isArray(rawVertical) ? rawVertical[0] : rawVertical || '').trim() || undefined;
+        const governed = await this.governHttpToolsList(responseBody, responseHeaders['Content-Type'], decoded, activeVertical);
         if (governed) responseBody = governed;
       }
 
@@ -1145,9 +1152,10 @@ export class GatewayServer {
     rawBody: Buffer,
     contentType: string | undefined,
     decoded: DecodedGatewayToken,
+    activeVertical?: string,
   ): Promise<Buffer | null> {
     const isSse = (contentType || '').includes('text/event-stream');
-    let parsed: { result?: { tools?: unknown[] } } | undefined;
+    let parsed: { id?: unknown; result?: { tools?: unknown[] } } | undefined;
     try {
       if (isSse) {
         // Streamable HTTP MCP transport: a non-streaming POST response can still
@@ -1170,16 +1178,53 @@ export class GatewayServer {
       .filter((n): n is string => !!n);
     if (candidateNames.length === 0) return null;
 
-    const authz = await guardToolsList(decoded, this.config, (decoded as { vertical?: string }).vertical, candidateNames);
-    // Not permitted at all (e.g. P1AZ unconfigured with local fallback off,
-    // the same fail-closed posture guardToolsList already applies on the WS
-    // transport) — deny every candidate rather than relay the full catalog.
-    const deniedNames = authz.permitted
-      ? new Set((authz.deniedTools || []).map((d) => d.name))
-      : new Set(candidateNames);
-    if (deniedNames.size === 0) return null;
+    // Vertical precedence mirrors the WS transport (index.ts:288): the token's
+    // own `vertical` claim wins, else the BFF-supplied header — omitting the
+    // fallback here sent HTTP callers a different (emptier) vertical context
+    // than WS for the same caller/token.
+    const effectiveVertical = (decoded as { vertical?: string }).vertical || activeVertical;
+    const authz = await guardToolsList(decoded, this.config, effectiveVertical, candidateNames);
 
-    parsed!.result!.tools = tools.filter((t) => !deniedNames.has((t as { name?: string } | null)?.name || ''));
+    if (!authz.permitted) {
+      // Same fail-closed condition the WS transport reports with an explicit
+      // JSON-RPC -32403 (index.ts:384-391) — e.g. P1AZ unconfigured with local
+      // fallback off. This used to deny every candidate and relay a plain 200
+      // with an empty tools[], indistinguishable from "no tools exist"; send
+      // the same shaped error instead so an HTTP caller can tell the two apart.
+      const errorPayload = {
+        jsonrpc: '2.0',
+        id: parsed?.id ?? null,
+        error: {
+          code: -32403,
+          message: authz.reason || 'Forbidden',
+          data: { error: 'insufficient_scope', required_scopes: getScopesForGatewayTool(''), login_required: false },
+        },
+      };
+      const payload = JSON.stringify(errorPayload);
+      return isSse ? Buffer.from(`event: message\ndata: ${payload}\n\n`) : Buffer.from(payload);
+    }
+
+    // 1) AllowedVertical (mirrors index.ts:396-404): banking never sees
+    // healthcare, etc. Tools without a `vertical` tag are cross-vertical and
+    // always pass. This transport had no cross-vertical filter at all —
+    // only the scope-denied filter below — so an HTTP caller's tools/list
+    // still included every vertical-foreign tool that merely passed scope.
+    let scoped = tools;
+    if (authz.allowedVertical) {
+      scoped = tools.filter((t) => {
+        const v = (t as { vertical?: string } | null)?.vertical;
+        return !v || v === authz.allowedVertical;
+      });
+    }
+
+    // 2) Scope-denied tools. Unlike the WS transport (which keeps them visible
+    // but greyed via _meta for the UI), an HTTP/MCP client has no such UI, so
+    // they're dropped entirely — same as before this fix.
+    const deniedNames = new Set((authz.deniedTools || []).map((d) => d.name));
+    const filtered = scoped.filter((t) => !deniedNames.has((t as { name?: string } | null)?.name || ''));
+    if (filtered.length === tools.length) return null; // nothing changed — relay original body
+
+    parsed!.result!.tools = filtered;
     const payload = JSON.stringify(parsed);
     return isSse ? Buffer.from(`event: message\ndata: ${payload}\n\n`) : Buffer.from(payload);
   }

@@ -85,12 +85,13 @@ const stubConfig: GatewayConfig = {
 
 // Same shape as gateway-server.test.ts's makeToken — jwt.decode()-only, no
 // real signature (MCP_GW_ALLOW_UNVERIFIED_TOKENS bypasses verification).
-function makeToken(scope: string): string {
+function makeToken(scope: string, vertical?: string): string {
   const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
   const payload = Buffer.from(JSON.stringify({
     sub: 'user-123',
     aud: GATEWAY_AUDIENCE,
     scope,
+    ...(vertical ? { vertical } : {}),
     exp: Math.floor(Date.now() / 1000) + 3600,
     iss: 'https://auth.example.com',
   })).toString('base64url');
@@ -110,6 +111,25 @@ function mockUpstreamToolsListResponse(): void {
     status: 200,
     headers: { 'content-type': 'application/json' },
     data: Buffer.from(JSON.stringify({ jsonrpc: '2.0', id: 1, result: TOOLS_LIST_RESULT })),
+  } as never);
+}
+
+// None of these three names are in TOOL_SCOPES, so they default to `['read']`
+// — scope 'read mcp:invoke' permits all three, isolating the vertical filter
+// (the thing under test below) from scope-based denial.
+const MULTI_VERTICAL_TOOLS = {
+  tools: [
+    { name: 'banking_tool_x', description: 'Banking-tagged tool', vertical: 'banking' },
+    { name: 'healthcare_tool_y', description: 'Healthcare-tagged tool', vertical: 'healthcare' },
+    { name: 'cross_vertical_tool_z', description: 'No vertical tag — always cross-vertical' },
+  ],
+};
+
+function mockUpstreamMultiVerticalResponse(): void {
+  mockedAxios.post.mockResolvedValue({
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+    data: Buffer.from(JSON.stringify({ jsonrpc: '2.0', id: 1, result: MULTI_VERTICAL_TOOLS })),
   } as never);
 }
 
@@ -181,5 +201,89 @@ describe('GatewayServer HTTP tools/list governance', () => {
     expect(res.status).toBe(200);
     const names = res.body.result.tools.map((t: { name: string }) => t.name);
     expect(names).toEqual(['get_my_accounts', 'search_audit_activities']);
+  });
+
+  // The WS transport (index.ts:396-404) drops vertical-foreign tools as a
+  // filter separate from scope denial; this HTTP transport had no such filter
+  // at all, so a caller scoped correctly still saw every other vertical's
+  // tools too. These three prove the filter now runs here, and that its
+  // vertical precedence matches WS (index.ts:288): token claim, else header.
+  describe('cross-vertical filtering', () => {
+    it('drops a vertical-foreign tool using the token\'s own vertical claim', async () => {
+      mockUpstreamMultiVerticalResponse();
+      const token = makeToken('read mcp:invoke', 'banking');
+
+      const res = await request
+        .post('/mcp')
+        .set('Mcp-Session-Id', 'test-session')
+        .set('Authorization', `Bearer ${token}`)
+        .set('Content-Type', 'application/json')
+        .send(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }));
+
+      expect(res.status).toBe(200);
+      const names = res.body.result.tools.map((t: { name: string }) => t.name);
+      expect(names).toEqual(['banking_tool_x', 'cross_vertical_tool_z']);
+    });
+
+    it('falls back to the X-Active-Vertical header when the token has no vertical claim', async () => {
+      mockUpstreamMultiVerticalResponse();
+      const token = makeToken('read mcp:invoke'); // no vertical claim
+
+      const res = await request
+        .post('/mcp')
+        .set('Mcp-Session-Id', 'test-session')
+        .set('Authorization', `Bearer ${token}`)
+        .set('X-Active-Vertical', 'banking')
+        .set('Content-Type', 'application/json')
+        .send(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }));
+
+      expect(res.status).toBe(200);
+      const names = res.body.result.tools.map((t: { name: string }) => t.name);
+      expect(names).toEqual(['banking_tool_x', 'cross_vertical_tool_z']);
+    });
+
+    it('prefers the token claim over a conflicting header', async () => {
+      mockUpstreamMultiVerticalResponse();
+      const token = makeToken('read mcp:invoke', 'healthcare');
+
+      const res = await request
+        .post('/mcp')
+        .set('Mcp-Session-Id', 'test-session')
+        .set('Authorization', `Bearer ${token}`)
+        .set('X-Active-Vertical', 'banking')
+        .set('Content-Type', 'application/json')
+        .send(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }));
+
+      expect(res.status).toBe(200);
+      const names = res.body.result.tools.map((t: { name: string }) => t.name);
+      expect(names).toEqual(['healthcare_tool_y', 'cross_vertical_tool_z']);
+    });
+  });
+
+  // Before this fix, `!authz.permitted` denied every candidate and fell
+  // through to the ordinary filtered-body path — a plain 200 with an empty
+  // tools[], indistinguishable from "this catalog is genuinely empty". The WS
+  // transport has always reported this condition as an explicit -32403
+  // (index.ts:384-391); this proves the HTTP transport now does too.
+  it('returns an explicit JSON-RPC error instead of a silent empty list when not permitted', async () => {
+    mockUpstreamToolsListResponse();
+    const deniedGateway = new GatewayServer({
+      config: { ...stubConfig, allowLocalScopeFallback: false },
+      upstreamMcpUrl: 'http://127.0.0.1:19999',
+    });
+    const deniedRequest = supertest(deniedGateway.httpServer);
+    const token = makeToken('read mcp:invoke');
+
+    const res = await deniedRequest
+      .post('/mcp')
+      .set('Mcp-Session-Id', 'test-session')
+      .set('Authorization', `Bearer ${token}`)
+      .set('Content-Type', 'application/json')
+      .send(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }));
+
+    expect(res.status).toBe(200); // JSON-RPC error is in-band, not an HTTP-level failure
+    expect(res.body.result).toBeUndefined();
+    expect(res.body.error.code).toBe(-32403);
+    expect(res.body.error.data.error).toBe('insufficient_scope');
   });
 });
