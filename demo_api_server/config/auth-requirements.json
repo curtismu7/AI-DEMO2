@@ -175,6 +175,7 @@
     "/llama-vscode-guide": "user",
     "/llm-config": "admin",
     "/llm-gateway": "user",
+    "/llm-test": "user",
     "/login": "public",
     "/logout": "public",
     "/logs": "public",
