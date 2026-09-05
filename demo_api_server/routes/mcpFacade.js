@@ -84,30 +84,14 @@ const DOORS = {
     scopes: ['audit:read'],
     forwardCorrelation: true,
   },
-  agent: {
-    label: 'Privilege agent',
-    // DARK since 2026-09-01: the agent-mode frontends below resolve through the
-    // Priv Agent's DNS proxy but have no gateway behind them — the agent-based
-    // release (cm-mcpgw) was uninstalled, and the AI Gateway chart exposes no
-    // inbound mesh port, so these hang rather than fail fast. The live client
-    // path is now https://mcpgw.ai-demo.ping-devops.com/<app>/mcp.
-    upstream: () => process.env.PRIVILEGE_AGENT_MCPGW_URL
-      || 'https://opensearch.default.applications.procyon.ai:8643/mcp',
-    authorizationServer: null,
-    scopes: [],
-    forwardCorrelation: false,
-  },
-  'agent-cmuir': {
-    label: 'Privilege agent (cmuir OpenSearch)',
-    // Second Agentic App under the same ai-demo-agent Mesh Cluster as the
-    // `agent` door above, registered 2026-08-26 against
-    // ping-mcpgw-opensearch-mcp-server.ping-devops-cmuir (see mcpFacade.test.js).
-    upstream: () => process.env.PRIVILEGE_AGENT_CMUIR_MCPGW_URL
-      || 'https://opensearch-cmuir.default.applications.procyon.ai:8643/mcp',
-    authorizationServer: null,
-    scopes: [],
-    forwardCorrelation: false,
-  },
+  // The `agent` and `agent-cmuir` (Privilege agent-mode) doors were REMOVED
+  // 2026-09-05. They pointed at *.applications.procyon.ai:8643 mesh frontends
+  // whose gateway was torn down when the estate moved to the one AI Gateway;
+  // the names still resolve through the Priv Agent's DNS proxy while nothing
+  // serves the mesh port, so they HUNG rather than failing fast — worse than
+  // no door. Restoring agent mode needs inbound mesh exposure the AI Gateway
+  // chart does not ship (the old agent chart had an SSL-passthrough ingress),
+  // and the live client path is now the `privilege-gateway` door below.
   opensearch: {
     label: 'OpenSearch',
     // Cross-namespace FQDN, not a short name: there were briefly TWO OpenSearch
@@ -207,11 +191,17 @@ const DOORS = {
     label: 'PingOne Admin',
     // No real upstream fetch — see localHandler. Display-only, for hop details.
     upstream: () => 'local:pingone-admin (config/admin/tools.js)',
-    // Worker client_credentials, baked in server-side — same model as the
-    // `agent` door above (the identity is fixed, not the caller's own
-    // login), so no OAuth challenge at all, matching authorizationServer:
-    // null there. Every caller through this door gets the same worker-level
-    // PingOne admin access; there is no per-user distinction.
+    // authorizationServer stays null even though this door IS per-user: the
+    // hosted PingOne MCP server only accepts a delegated Authorization Code +
+    // PKCE token (an audience thing — the worker token is minted for
+    // api.pingone.com, the MCP server is mcp.pingone.com), and that login is
+    // driven by routes/mcpPingOneAdminAuth.js against the BROWSER session, not
+    // by an RFC 9728 challenge from this door. The token reaches the handler as
+    // the caller's x-pingone-admin-token header; privilegeMcpClient.js sets it
+    // from the session. Consequence: the demo's own client page works, and an
+    // external MCP client cannot use this door at all — it has no way to obtain
+    // or attach that header, and gets the 401 + loginUrl a browser can act on
+    // but a generic client cannot.
     authorizationServer: null,
     scopes: [],
     forwardCorrelation: false,

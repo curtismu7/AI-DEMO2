@@ -72,7 +72,7 @@ beforeAll(async () => {
   process.env.MCP_FACADE_AGENT_GATEWAY_URL = upstreamUrl;
   process.env.MCP_FACADE_AGENT_GATEWAY_AS = 'http://localhost:3005';
   process.env.MCP_FACADE_AGENTLESS_URL = upstreamUrl;
-  process.env.PRIVILEGE_AGENT_MCPGW_URL = upstreamUrl;
+  process.env.MCP_FACADE_BANKING_URL = upstreamUrl;
   process.env.MCP_FACADE_REEL_BASE = 'https://ui.example';
 });
 
@@ -120,8 +120,8 @@ describe('/mcp-facade — RFC 9728 surface', () => {
     expect(res.body.scopes_supported).toEqual(expect.arrayContaining(['read', 'mcp:invoke']));
   });
 
-  test('the Priv-Agent door advertises no authorization server (the agent is the identity)', async () => {
-    const res = await request(app()).get('/mcp-facade/agent/.well-known/oauth-protected-resource');
+  test('a door with authorizationServer:null advertises none (the upstream owns identity)', async () => {
+    const res = await request(app()).get('/mcp-facade/banking/.well-known/oauth-protected-resource');
     expect(res.status).toBe(200);
     expect(res.body.authorization_servers).toBeUndefined();
   });
@@ -129,7 +129,7 @@ describe('/mcp-facade — RFC 9728 surface', () => {
   test('unknown door → 404 listing the doors', async () => {
     const res = await request(app()).get('/mcp-facade/nope/.well-known/oauth-protected-resource');
     expect(res.status).toBe(404);
-    expect(res.body.doors).toEqual(['agent-gateway', 'agentless', 'audit', 'agent', 'agent-cmuir', 'opensearch', 'banking', 'brave', 'privilege-gateway', 'pingone-admin']);
+    expect(res.body.doors).toEqual(['agent-gateway', 'agentless', 'audit', 'opensearch', 'banking', 'brave', 'privilege-gateway', 'pingone-admin']);
   });
 
   test('an upstream 401 is relayed with resource_metadata rewritten to the façade', async () => {
@@ -368,25 +368,25 @@ describe('/mcp-facade — relay + recording', () => {
   });
 
   describe('denied session — a door said 403 before any session existed', () => {
-    const initDenied = () => request(app()).post('/mcp-facade/agent/mcp').set('Authorization', AUTH)
+    const initDenied = () => request(app()).post('/mcp-facade/agentless/mcp').set('Authorization', AUTH)
       .send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'denied-device', version: '0' } } });
 
     test('initialize succeeds with the denial in MCP instructions and a denied- session id; the reel records the DENY', async () => {
       const res = await initDenied();
       expect(res.status).toBe(200);
       expect(res.headers['mcp-session-id']).toMatch(/^denied-[0-9a-f-]{36}$/);
-      expect(res.body.result.serverInfo.name).toBe('Privilege agent (access denied)');
-      expect(res.body.result.instructions).toMatch(/^You have been denied by Policy\. Privilege agent refused initialize: User b1645e7b doesn't have access to MCP app opensearch/);
+      expect(res.body.result.serverInfo.name).toBe('Privilege agentless (access denied)');
+      expect(res.body.result.instructions).toMatch(/^You have been denied by Policy\. Privilege agentless refused initialize: User b1645e7b doesn't have access to MCP app opensearch/);
       const hops = hopsByPhase();
       expect(hops['mcp.step']).toMatchObject({ op: 'initialize', status: 'error', details: { httpStatus: 403 } });
-      expect(hops['gateway.authorize'].decision).toMatchObject({ outcome: 'deny', by: 'Privilege agent', source: 'inferred' });
+      expect(hops['gateway.authorize'].decision).toMatchObject({ outcome: 'deny', by: 'Privilege agentless', source: 'inferred' });
     });
 
     test('tools/list in a denied session exposes one policy_denied tool and never reaches the upstream', async () => {
       const init = await initDenied();
       const sid = init.headers['mcp-session-id'];
       const before = seen.length;
-      const res = await request(app()).post('/mcp-facade/agent/mcp').set('Authorization', AUTH).set('mcp-session-id', sid)
+      const res = await request(app()).post('/mcp-facade/agentless/mcp').set('Authorization', AUTH).set('mcp-session-id', sid)
         .send({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
       expect(res.status).toBe(200);
       expect(res.body.result.tools).toEqual([expect.objectContaining({ name: 'policy_denied', description: expect.stringMatching(/^You have been denied by Policy\./) })]);
@@ -397,11 +397,11 @@ describe('/mcp-facade — relay + recording', () => {
       const init = await initDenied();
       const sid = init.headers['mcp-session-id'];
       ledger.appendHop.mockClear();
-      const res = await request(app()).post('/mcp-facade/agent/mcp').set('Authorization', AUTH).set('mcp-session-id', sid)
+      const res = await request(app()).post('/mcp-facade/agentless/mcp').set('Authorization', AUTH).set('mcp-session-id', sid)
         .send({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'search', arguments: { q: 'x' } } });
       expect(res.status).toBe(200);
       expect(res.body.result.isError).toBe(true);
-      expect(res.body.result.content[0].text).toMatch(/^You have been denied by Policy\. Privilege agent refused initialize: User b1645e7b/);
+      expect(res.body.result.content[0].text).toMatch(/^You have been denied by Policy\. Privilege agentless refused initialize: User b1645e7b/);
       expect(res.body.result.content[1].text).toMatch(/^reel_url: /);
       const phases = ledger.appendHop.mock.calls.map(([, h]) => h.phase);
       expect(phases).toEqual(['ui.request', 'gateway.authorize', 'mcp.tool', 'response']);

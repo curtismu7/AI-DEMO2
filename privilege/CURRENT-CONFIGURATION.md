@@ -42,9 +42,16 @@ what this repo called "agentless").
 
 ## Doors that are deliberately dark
 
-`mcpFacade.js`'s `agentless` (banking), `agent` and `agent-cmuir` doors point at
-torn-down infrastructure and are left that way on purpose — see the 2026-09-01
-entry in [`../TECH_DEBT.md`](../TECH_DEBT.md) for what each would need.
+`mcpFacade.js`'s `agentless` (banking) door points at torn-down infrastructure
+and is left that way on purpose until a banking MCP server is registered on the
+gateway as its own Agentic App — see the 2026-09-01 entry in
+[`../TECH_DEBT.md`](../TECH_DEBT.md) for the remaining steps.
+
+The `agent` and `agent-cmuir` (agent-mode) doors were **removed** 2026-09-05.
+They hung rather than failing fast: their `*.applications.procyon.ai:8643`
+frontends still resolve through the Priv Agent's DNS proxy while nothing serves
+the mesh port. Restoring agent mode needs inbound mesh exposure this chart does
+not ship; the live client path is the `privilege-gateway` door.
 
 Historical investigation and product reference material remains indexed in
 [`PRIVILEGE-MCP.md`](PRIVILEGE-MCP.md); `AGENTLESS-CONFIGURATION.md` and

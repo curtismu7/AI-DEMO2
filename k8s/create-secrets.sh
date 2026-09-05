@@ -446,8 +446,9 @@ override_redirect_uris_for_public_origin() {
 # matter the backend-protocol annotation (HTTP/HTTPS/GRPCS all tried against
 # the real gateway). The Agentless Helm release instead exposes Streamable HTTP:
 #   https://<namespace-owner>-agentless-mcpgw.ping-devops.com/<app-name>/mcp
-# Keep this separate from PRIVILEGE_AGENT_MCPGW_URL: the Priv Agent frontend
-# owns its authentication and must not inherit Agentless OAuth configuration.
+# This used to be kept separate from PRIVILEGE_AGENT_MCPGW_URL, whose Priv Agent
+# frontend owned its own authentication. That variable and its two façade doors
+# were removed 2026-09-05 (they hung on a mesh port nothing serves).
 override_privilege_urls_for_public_origin() {
   local origin="${CALLER_PUBLIC_APP_URL:-}"
   if [ -z "$origin" ]; then
