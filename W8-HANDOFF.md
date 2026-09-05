@@ -85,20 +85,21 @@ taking its **origin** dropped the prefix and produced `<public-origin>/<app>/mcp
    existing deployment must see no change until someone connects the console.
 5. **A store write failure reports `persisted: false`**, never success —
    "discovered but only for this session" is the exact behaviour W8 removes.
-6. **Both new suites double the store; neither writes real LMDB.** The store
-   keeps one key, so concurrent suites under jest's 4 workers would clobber
-   each other — and `privilegeMcpClient.state.test.js` asserts on the exact
-   sibling labels `/state` derives from that key, so the damage would surface
-   in a different file as an unexplained failure.
+6. **Every suite that touches the store doubles it; none writes real LMDB.**
+   The store keeps one key under a per-worker dir, so two suites in the same
+   worker clobber each other — and `privilegeMcpClient.state.test.js` asserts on
+   the exact sibling labels `/state` derives from that key, so the damage lands
+   in a different file as an unexplained failure. That is not hypothetical: it
+   is the CI failure described below.
 
 ### Verification already done
 
 ```
-CI=true npx jest tests/routes/privilegeDoorDiscovery.test.js \
+CI=true npx jest tests/routes/privilegeConsoleInventory.test.js \
+  tests/routes/privilegeDoorDiscovery.test.js \
   tests/services/privilegeDoorStore.test.js \
-  tests/routes/privilegeConsoleInventory.test.js \
-  tests/routes/privilegeMcpClient.{state,config}.test.js --forceExit
-  -> 5 suites / 37 tests passed, exit 0
+  'tests/routes/privilegeMcpClient\..*\.test\.js' --runInBand --no-cache
+  -> 24 suites / 104 tests passed, exit 0
 
 npx vitest run (doorPicker, denialDoor, gatewaySwitch) -> 16 passed, exit 0
 npm run build                                          -> exit 0
@@ -109,9 +110,30 @@ Both new guards were proven able to **fail**, not just pass: reintroducing the
 façade-URL bug reds 1 test; disabling persistence reds 4, including *"doors
 outlive the console session that discovered them"*.
 
-CI on `c3dc9f239` as of writing: `Select affected` and `Hygiene + topology`
-green; `API server tests (Jest)` and `UI tests (Vitest) + build` still running.
-**Check these before merging.**
+### The CI failure this branch already hit, and why
+
+The first full CI run went red on ONE test, in a file this PR does not touch:
+`privilegeMcpClient.state.test.js` saw `Privilege — cmuir` / `Privilege —
+external` where it expects the fallback `opensearch` / `brave` pair.
+
+Those two names exist only in `privilegeConsoleInventory.test.js`'s fixture.
+That suite exercises `/console/connect`, which W8 made PERSIST -- and the store
+keeps a single key under a **per-worker** LMDB dir (`src/__tests__/setup/
+lmdbTestDir.js`), shared by every suite jest puts in that worker. So one file's
+fixture leaked into another file's assertions.
+
+Fixed by doubling the store in that suite too; its own assertions are unchanged.
+**Any future suite that exercises `/console/connect` or `/console/inventory`
+needs the same double** -- there is a comment saying so at the top of both.
+
+Reproducing it needs one jest invocation with the writing suite ordered first
+(`globalSetup` wipes the LMDB base per run, so two sequential invocations hide
+it):
+
+```
+CI=true npx jest tests/routes/privilegeConsoleInventory.test.js \
+  tests/routes/privilegeMcpClient.state.test.js --runInBand --no-cache
+```
 
 ### Not verified
 

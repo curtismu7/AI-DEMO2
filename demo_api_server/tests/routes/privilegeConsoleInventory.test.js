@@ -13,6 +13,27 @@
 const express = require('express');
 const request = require('supertest');
 
+// /console/connect and /console/inventory PERSIST what they discover (W8), and
+// the door store keeps a single key under a per-WORKER LMDB dir -- shared by
+// every suite jest happens to put in that worker. Writing it for real here made
+// privilegeMcpClient.state.test.js read this file's fixture apps and fail on the
+// sibling-door labels it asserts: a failure in a different file, with nothing in
+// its own diff to explain it. Nothing below is about persistence, so the store is
+// doubled and this suite writes nothing shared.
+//
+// Any future suite that exercises those two routes needs the same double.
+jest.mock('../../services/lmdb/privilegeDoorStore.lmdb', () => {
+  let saved = null;
+  return {
+    saveInventory: (inv) => {
+      saved = { ...inv, applications: inv.applications || [], policyCount: (inv.policies || []).length, discoveredAt: Date.now() };
+      return saved;
+    },
+    getInventory: () => saved,
+    clearInventory: () => { saved = null; },
+  };
+});
+
 const ENV_ID = 'test-env-id';
 const CONSOLE = 'https://console.privilege.pingone.com';
 const GATEWAY = 'https://cmuir-agentless-mcpgw.ping-devops.com/cmuir/mcp';
