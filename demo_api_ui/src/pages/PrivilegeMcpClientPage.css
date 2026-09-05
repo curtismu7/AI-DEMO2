@@ -1934,3 +1934,93 @@ select.cur-input { cursor: pointer; }
   color: var(--th-status-error);
   font-size: var(--font-size-2xs);
 }
+
+/* Per-lane route/model probe table. Every rule that takes a --th-* ground also
+   states its ink — THEMING.md §1.5, enforced by the ground-without-ink ratchet. */
+.cur-llmlanes {
+  margin: 0 0 0.6rem;
+  padding: 0.5rem;
+  border: 1px solid var(--th-border);
+  border-radius: 4px;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+
+.cur-llmlanes__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+  font-size: var(--font-size-2xs);
+  font-weight: 600;
+}
+
+.cur-llmlanes__head button {
+  margin-left: auto;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid var(--th-border);
+  border-radius: 4px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  cursor: pointer;
+}
+
+.cur-llmlanes__head button:hover:not(:disabled) {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+.cur-llmlanes__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.3rem;
+}
+
+.cur-llmlanes__name {
+  min-width: 5.5rem;
+  font-size: var(--font-size-2xs);
+  font-weight: 600;
+}
+
+.cur-llmlanes__row input {
+  flex: 1 1 12rem;
+  min-width: 8rem;
+  padding: 0.2rem 0.4rem;
+  border: 1px solid var(--th-border);
+  border-radius: 4px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-family: var(--font-mono, monospace);
+  font-size: var(--font-size-3xs);
+}
+
+.cur-llmlanes__row button {
+  padding: 0.2rem 0.55rem;
+  border: 1px solid var(--th-border);
+  border-radius: 4px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  cursor: pointer;
+}
+
+.cur-llmlanes__row button:hover:not(:disabled) {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+.cur-llmlanes__result {
+  flex: 1 1 100%;
+  font-size: var(--font-size-3xs);
+}
+
+.cur-llmlanes__result--ok { color: var(--th-status-success); }
+.cur-llmlanes__result--denied { color: var(--th-status-warning); }
+.cur-llmlanes__result--bad { color: var(--th-status-error); }
+
+.cur-llmlanes__detail {
+  display: block;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-3xs);
+}

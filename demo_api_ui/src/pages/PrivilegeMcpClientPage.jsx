@@ -90,7 +90,9 @@ function api(path, options = {}) {
       // The STATUS, not just the prose. The message is data.error -- a code like
       // 'unauthenticated', which contains neither '401' nor 'bearer token
       // required', so a challenge detected by substring alone was invisible and
-      // the raw JSON reached the operator with no sign-in offered.
+      // the raw JSON reached the operator with no sign-in offered. The LLM lane
+      // table reads it too, to name WHICH layer refused: 400 the caller, 403
+      // Privilege policy, 503 missing config, 502 the provider.
       err.status = r.status;
       // Extra flags alongside the error string (never instead of it) — e.g.
       // pingoneAdminLocalHandler's delegated-PKCE login requirement carries a
@@ -187,6 +189,10 @@ export default function PrivilegeMcpClientPage() {
   const [llmPrompt, setLlmPrompt] = useState('');
   const [llmBusy, setLlmBusy] = useState(false);
   const [llmResult, setLlmResult] = useState(null);
+  const [llmLanes, setLlmLanes] = useState([]);
+  const [llmGatewayUrl, setLlmGatewayUrl] = useState('');
+  const [laneResults, setLaneResults] = useState({});
+  const [laneBusy, setLaneBusy] = useState('');
   const [llmDenial, setLlmDenial] = useState(null);
   const [llmError, setLlmError] = useState('');
   const [rearmError, setRearmError] = useState('');
@@ -677,6 +683,65 @@ export default function PrivilegeMcpClientPage() {
       setLlmBusy(false);
     }
   }, [llmProvider, llmPrompt]);
+
+  // Load the lanes so the table prefills with what the SERVER actually calls,
+  // rather than a path copied into the UI that can drift out of step with it.
+  useEffect(() => {
+    let cancelled = false;
+    api('/llm/config')
+      .then((cfg) => {
+        if (cancelled) return;
+        setLlmGatewayUrl(cfg.gatewayUrl || '');
+        setLlmLanes(cfg.lanes || []);
+      })
+      .catch(() => { /* panel still works on defaults */ });
+    return () => { cancelled = true; };
+  }, []);
+
+  const setLane = useCallback((provider, field, value) => {
+    setLlmLanes((prev) => prev.map((l) => (l.provider === provider ? { ...l, [field]: value } : l)));
+  }, []);
+
+  // Which layer refused, by status — the distinction that makes this table worth
+  // having: a 403 means Privilege did its job, a 502 means the provider credential
+  // behind the virtual key is the problem, and they look identical in a raw log.
+  const classify = (err) => {
+    if (err.code === 'llm_bad_route') return { layer: 'route rejected', tone: 'bad' };
+    if (err.code === 'llm_policy_denied') return { layer: 'Privilege policy', tone: 'denied' };
+    if (err.status === 503) return { layer: 'not configured', tone: 'bad' };
+    if (err.status === 502) return { layer: 'provider', tone: 'bad' };
+    return { layer: `HTTP ${err.status || '?'}`, tone: 'bad' };
+  };
+
+  const testLane = useCallback(async (lane) => {
+    setLaneBusy(lane.provider);
+    setLaneResults((prev) => ({ ...prev, [lane.provider]: null }));
+    const t0 = Date.now();
+    try {
+      const data = await api('/llm/call', {
+        method: 'POST',
+        body: { provider: lane.provider, prompt: 'Reply with one word: ping', route: lane.route, model: lane.model },
+      });
+      setLaneResults((prev) => ({
+        ...prev,
+        [lane.provider]: { ok: true, layer: 'reply', tone: 'ok', text: data.reply, latencyMs: data.latencyMs },
+      }));
+    } catch (err) {
+      const { layer, tone } = classify(err);
+      setLaneResults((prev) => ({
+        ...prev,
+        [lane.provider]: { ok: false, layer, tone, text: err.reason || err.message, latencyMs: Date.now() - t0 },
+      }));
+    } finally {
+      setLaneBusy('');
+    }
+  }, []);
+
+  const testAllLanes = useCallback(async () => {
+    // Sequential: three concurrent calls through one gateway muddies which lane
+    // a rate-limit belongs to, and the whole point here is attribution.
+    for (const lane of llmLanes) await testLane(lane);
+  }, [llmLanes, testLane]);
 
   // "Prove the policy": a prompt the Privilege policy is configured to deny.
   // Deliberately obvious PII so the denial is explainable on stage.
@@ -1585,6 +1650,52 @@ export default function PrivilegeMcpClientPage() {
       </div>
 
       <div className="cur-llmpanel">
+        {llmLanes.length > 0 && (
+          <div className="cur-llmlanes" data-testid="llm-lanes">
+            <div className="cur-llmlanes__head">
+              <span>Lanes</span>
+              <code className="cur-llmpanel__meta">{llmGatewayUrl || 'gateway URL not configured'}</code>
+              <button type="button" onClick={testAllLanes} disabled={Boolean(laneBusy)}>
+                {laneBusy ? 'Testing…' : 'Test all lanes'}
+              </button>
+            </div>
+            {llmLanes.map((lane) => {
+              const r = laneResults[lane.provider];
+              return (
+                <div className="cur-llmlanes__row" key={lane.provider}>
+                  <span className="cur-llmlanes__name">{lane.provider}</span>
+                  <input
+                    aria-label={`${lane.provider} route`}
+                    value={lane.route}
+                    onChange={(e) => setLane(lane.provider, 'route', e.target.value)}
+                  />
+                  <input
+                    aria-label={`${lane.provider} model`}
+                    value={lane.model}
+                    onChange={(e) => setLane(lane.provider, 'model', e.target.value)}
+                  />
+                  <button type="button" onClick={() => testLane(lane)} disabled={Boolean(laneBusy)}>
+                    Test
+                  </button>
+                  {!lane.keyConfigured && (
+                    <span className="cur-llmlanes__result cur-llmlanes__result--bad">
+                      {lane.keyEnv} not set
+                    </span>
+                  )}
+                  {r && (
+                    <span
+                      className={`cur-llmlanes__result cur-llmlanes__result--${r.tone}`}
+                      data-testid={`lane-result-${lane.provider}`}
+                    >
+                      {r.ok ? '✅' : r.tone === 'denied' ? '⚠️' : '❌'} {r.layer} · {r.latencyMs} ms
+                      <span className="cur-llmlanes__detail">{r.text}</span>
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
         <div className="cur-llmpanel__row">
           <label htmlFor="llm-provider">Provider</label>
           <select

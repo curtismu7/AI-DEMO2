@@ -158,3 +158,93 @@ describe("Privilege LLM panel", () => {
     expect(JSON.parse(init.body).prompt.length).toBeGreaterThan(0);
   });
 });
+
+// ── Per-lane probe table ────────────────────────────────────────────────────
+// Three lanes, each with an editable route and model and its own Test button.
+// The value is attribution: a policy denial and a dead provider credential are
+// both "it didn't answer", and the table has to tell them apart on sight.
+
+const LANES_BODY = JSON.stringify({
+  gatewayUrl: "https://gw.test",
+  lanes: [
+    { provider: "anthropic", route: "/llm/anthropic/v1/messages", model: "claude-haiku-4-5-20251001", keyConfigured: true, keyEnv: "PRIVILEGE_LLM_VIRTUAL_KEY_ANTHROPIC" },
+    { provider: "google", route: "/llm/google/v1/chat/completions", model: "gemini-2.0-flash", keyConfigured: true, keyEnv: "PRIVILEGE_LLM_VIRTUAL_KEY_GOOGLE" },
+    { provider: "openai", route: "/llm/openai/v1/chat/completions", model: "gpt-4o-mini", keyConfigured: false, keyEnv: "PRIVILEGE_LLM_VIRTUAL_KEY_OPENAI" },
+  ],
+});
+
+function mockFetchWithLanes(llmCall) {
+  global.fetch = vi.fn((url) => {
+    const u = String(url);
+    if (u.endsWith("/api/privilege-mcp/state")) {
+      return Promise.resolve({ ok: true, status: 200, text: async () => stateBody() });
+    }
+    if (u.endsWith("/api/privilege-mcp/llm/config")) {
+      return Promise.resolve({ ok: true, status: 200, text: async () => LANES_BODY });
+    }
+    if (u.endsWith("/api/privilege-mcp/llm/call")) return Promise.resolve(llmCall());
+    return new Promise(() => {});
+  });
+}
+
+describe("Privilege LLM lane table", () => {
+  it("prefills each lane from the server and flags a missing key", async () => {
+    mockFetchWithLanes(() => new Promise(() => {}));
+    renderPage();
+
+    expect(await screen.findByLabelText("anthropic route")).toHaveValue("/llm/anthropic/v1/messages");
+    expect(screen.getByLabelText("google model")).toHaveValue("gemini-2.0-flash");
+    // The lane whose key is unset says so instead of failing mysteriously on Test.
+    expect(screen.getByText(/PRIVILEGE_LLM_VIRTUAL_KEY_OPENAI not set/)).toBeInTheDocument();
+  });
+
+  it("sends the edited route and model, and reports a reply", async () => {
+    mockFetchWithLanes(() => ({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({ reply: "ping", route: "/llm/anthropic/v1/chat/completions", latencyMs: 120 }),
+    }));
+    renderPage();
+
+    fireEvent.change(await screen.findByLabelText("anthropic route"), {
+      target: { value: "/llm/anthropic/v1/chat/completions" },
+    });
+    fireEvent.click(screen.getAllByRole("button", { name: /^test$/i })[0]);
+
+    expect(await screen.findByTestId("lane-result-anthropic")).toHaveTextContent(/reply/);
+    const call = global.fetch.mock.calls.find((c) => String(c[0]).endsWith("/llm/call"));
+    expect(JSON.parse(call[1].body)).toMatchObject({
+      provider: "anthropic",
+      route: "/llm/anthropic/v1/chat/completions",
+    });
+  });
+
+  // The distinction the table exists for.
+  it("attributes a policy denial to Privilege, not to the provider", async () => {
+    mockFetchWithLanes(() => ({
+      ok: false,
+      status: 403,
+      text: async () => JSON.stringify({ error: "blocked", code: "llm_policy_denied", reason: "no PII" }),
+    }));
+    renderPage();
+
+    fireEvent.click((await screen.findAllByRole("button", { name: /^test$/i }))[0]);
+
+    expect(await screen.findByTestId("lane-result-anthropic")).toHaveTextContent(/Privilege policy/);
+  });
+
+  it("attributes a 502 to the provider behind the virtual key", async () => {
+    mockFetchWithLanes(() => ({
+      ok: false,
+      status: 502,
+      text: async () => JSON.stringify({ error: "401: API key is invalid." }),
+    }));
+    renderPage();
+
+    fireEvent.click((await screen.findAllByRole("button", { name: /^test$/i }))[0]);
+
+    const result = await screen.findByTestId("lane-result-anthropic");
+    expect(result).toHaveTextContent(/provider/);
+    expect(result).not.toHaveTextContent(/Privilege policy/);
+  });
+});

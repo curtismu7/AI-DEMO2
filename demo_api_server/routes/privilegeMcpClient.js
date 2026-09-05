@@ -2068,17 +2068,36 @@ router.post('/doors/probe', express.json(), async (req, res) => {
 // One lane per provider, one route. The panel needs the gateway path back so
 // the demo can show WHERE the call went — that is the visible difference
 // between "we called Anthropic" and "we called Anthropic through Privilege".
+const { resolveRoute } = require('../services/privilegeLlmProxyService');
 const {
+  LANES,
   callPrivilegeGemini: llmGoogle,
   callPrivilegeClaude: llmAnthropic,
   callPrivilegeOpenAI: llmOpenAI,
 } = require('../services/privilegeLlmProxyService');
 
+// Routes come from LANES so the path the panel PRINTS is the path the code CALLS.
 const LLM_LANES = {
-  anthropic: { call: (m) => llmAnthropic(m), route: '/llm/anthropic/v1/messages' },
-  google: { call: (m) => llmGoogle(m), route: '/llm/google/v1/chat/completions' },
-  openai: { call: (m) => llmOpenAI(m), route: '/llm/openai/v1/chat/completions' },
+  anthropic: { call: (m, c) => llmAnthropic(m, c), ...LANES.anthropic },
+  google: { call: (m, c) => llmGoogle(m, c), ...LANES.google },
+  openai: { call: (m, c) => llmOpenAI(m, c), ...LANES.openai },
 };
+
+// GET /llm/config — what the panel prefills its per-lane route/model boxes from.
+// Reports only WHETHER each virtual key is configured; the key itself never leaves
+// the server, which is the entire point of the virtual-key indirection.
+router.get('/llm/config', (req, res) => {
+  res.json({
+    gatewayUrl: process.env.PRIVILEGE_LLM_GATEWAY_URL || '',
+    lanes: Object.entries(LLM_LANES).map(([provider, lane]) => ({
+      provider,
+      route: lane.route,
+      model: lane.defaultModel,
+      keyConfigured: Boolean(process.env[lane.keyEnv]),
+      keyEnv: lane.keyEnv,
+    })),
+  });
+});
 
 router.post('/llm/call', express.json(), async (req, res) => {
   const provider = String(req.body?.provider || '');
@@ -2089,10 +2108,23 @@ router.post('/llm/call', express.json(), async (req, res) => {
   const prompt = typeof req.body?.prompt === 'string' ? req.body.prompt.trim() : '';
   if (!prompt) return res.status(400).json({ error: 'Prompt is required.' });
 
+  // Overrides are for probing a lane from the panel — the server still owns the
+  // gateway origin and the virtual key. An invalid route is the caller's mistake
+  // (400), not a gateway failure.
+  const overrides = {};
+  if (req.body?.route) overrides.route = req.body.route;
+  if (req.body?.model) overrides.model = req.body.model;
+  let route;
+  try {
+    route = resolveRoute(provider, overrides.route);
+  } catch (err) {
+    return res.status(400).json({ error: err.message, code: 'llm_bad_route' });
+  }
+
   const t0 = Date.now();
   try {
-    const reply = await lane.call([{ role: 'user', content: prompt }]);
-    return res.json({ reply, provider, route: lane.route, latencyMs: Date.now() - t0 });
+    const reply = await lane.call([{ role: 'user', content: prompt }], overrides);
+    return res.json({ reply, provider, route, latencyMs: Date.now() - t0 });
   } catch (err) {
     // A denial is the demo, not a failure: its own status, its own code, and the
     // reason and provider carried through for the panel to render.
@@ -2102,7 +2134,7 @@ router.post('/llm/call', express.json(), async (req, res) => {
         code: 'llm_policy_denied',
         reason: err.reason || err.message,
         provider: err.provider || provider,
-        route: lane.route,
+        route,
         latencyMs: Date.now() - t0,
       });
     }

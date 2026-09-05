@@ -21,6 +21,32 @@ const DEFAULT_MODEL_ANTHROPIC = 'claude-haiku-4-5-20251001';
 const DEFAULT_MODEL_OPENAI = 'gpt-4o-mini';
 const ANTHROPIC_VERSION = '2023-06-01';
 
+// The lanes, and the ONLY place their routes live. privilegeMcpClient.js used to
+// keep a second copy for display, which meant the panel could confidently print a
+// path the code no longer called. Import LANES instead of restating them.
+const LANES = {
+  anthropic: { route: '/llm/anthropic/v1/messages', defaultModel: DEFAULT_MODEL_ANTHROPIC, keyEnv: 'PRIVILEGE_LLM_VIRTUAL_KEY_ANTHROPIC' },
+  google: { route: '/llm/google/v1/chat/completions', defaultModel: DEFAULT_MODEL_GOOGLE, keyEnv: 'PRIVILEGE_LLM_VIRTUAL_KEY_GOOGLE' },
+  openai: { route: '/llm/openai/v1/chat/completions', defaultModel: DEFAULT_MODEL_OPENAI, keyEnv: 'PRIVILEGE_LLM_VIRTUAL_KEY_OPENAI' },
+};
+
+// A route override arrives from the browser, so it is a trust boundary: the server
+// owns the origin and the caller may only steer the PATH, to a shape that looks like
+// a gateway LLM route. Without this the panel could aim a server-side, credentialed
+// fetch at any path on the gateway host.
+const ROUTE_SHAPE = /^\/llm\/[a-z0-9-]+\/v1\/[a-z0-9/-]+$/;
+
+function resolveRoute(lane, override) {
+  if (override === undefined || override === null || override === '') return LANES[lane].route;
+  const route = String(override).trim();
+  if (route.length > 128 || route.includes('..') || route.includes('//') || !ROUTE_SHAPE.test(route)) {
+    const err = new Error(`Invalid route "${route}" — expected a path like ${LANES[lane].route}`);
+    err.code = 'llm_bad_route';
+    throw err;
+  }
+  return route;
+}
+
 function gatewayUrl() {
   return process.env.PRIVILEGE_LLM_GATEWAY_URL || '';
 }
@@ -54,7 +80,7 @@ async function callPrivilegeGemini(messages, config = {}) {
   if (!key) throw new Error('PRIVILEGE_LLM_VIRTUAL_KEY_GOOGLE not configured');
 
   const model = config.google_model || config.model || process.env.PRIVILEGE_LLM_MODEL || DEFAULT_MODEL_GOOGLE;
-  const url = `${base.replace(/\/+$/, '')}/llm/google/v1/chat/completions`;
+  const url = `${base.replace(/\/+$/, '')}${resolveRoute('google', config.route)}`;
   const res = await llmFetch(url, {
     method: 'POST',
     headers: {
@@ -90,7 +116,7 @@ async function callPrivilegeClaude(messages, config = {}) {
   const system = messages.filter((m) => m.role === 'system').map((m) => m.content).join('\n\n');
   const turns = messages.filter((m) => m.role !== 'system');
 
-  const url = `${base.replace(/\/+$/, '')}/llm/anthropic/v1/messages`;
+  const url = `${base.replace(/\/+$/, '')}${resolveRoute('anthropic', config.route)}`;
   const res = await llmFetch(url, {
     method: 'POST',
     headers: {
@@ -127,7 +153,7 @@ async function callPrivilegeOpenAI(messages, config = {}) {
 
   const model = config.openai_model || config.model || process.env.PRIVILEGE_LLM_MODEL_OPENAI || DEFAULT_MODEL_OPENAI;
 
-  const url = `${base.replace(/\/+$/, '')}/llm/openai/v1/chat/completions`;
+  const url = `${base.replace(/\/+$/, '')}${resolveRoute('openai', config.route)}`;
   const res = await llmFetch(url, {
     method: 'POST',
     headers: {
@@ -146,6 +172,8 @@ async function callPrivilegeOpenAI(messages, config = {}) {
 }
 
 module.exports = {
+  LANES,
+  resolveRoute,
   callPrivilegeGemini,
   callPrivilegeClaude,
   callPrivilegeOpenAI,
