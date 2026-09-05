@@ -51,6 +51,7 @@ import { enforceUpstreamContract, resolveUpstreamAudiences } from '../auth/lastH
 import { resolveEmbeddedIssuer } from '../oauth/embeddedIssuer';
 import { openClientRegistrationEnabled } from '../oauth/ClientRegistry';
 import { BANKING_SCOPES as SHARED_BANKING_SCOPES } from '../oauth/scopes';
+import { httpTransportDuration } from '../metrics';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -253,7 +254,21 @@ export class HttpMCPTransport {
   // Entry point — called by DemoMCPServer.handleHttpRequest
   // -------------------------------------------------------------------------
 
+  /**
+   * Metrics-observing wrapper — records oauthmcp_mcp_http_transport_duration_seconds
+   * and delegates to the unchanged implementation below. Labeled by pathname
+   * only (see metrics.ts for why), never touches the request stream itself.
+   */
   async handleRequest(req: IncomingMessage, res: ServerResponse, pathname: string): Promise<void> {
+    const endTimer = httpTransportDuration.startTimer({ path: pathname });
+    try {
+      await this.handleRequestImpl(req, res, pathname);
+    } finally {
+      endTimer();
+    }
+  }
+
+  private async handleRequestImpl(req: IncomingMessage, res: ServerResponse, pathname: string): Promise<void> {
     // Public discovery endpoint — skip origin check (D-09: publicly discoverable)
     if (pathname === '/.well-known/mcp-server' && req.method === 'GET') {
       this.handleMcpDiscovery(res);
