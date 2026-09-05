@@ -68,12 +68,19 @@ async function addMissingBankingAccount(userId, existingAccounts, spec) {
   return [...existingAccounts, created];
 }
 
+// Named (not inline) so the OpenAPI introspection in lib/openapiFromRoutes.js
+// can see it via AUTH_MIDDLEWARE and document this route as admin-gated —
+// an inline `if (req.user.role !== 'admin')` check is invisible to it.
+function requireAdminRole(req, res, next) {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Access denied. Admin role required.' });
+  }
+  next();
+}
+
 // Get all accounts (admin only)
-router.get('/', authenticateToken, requireScopes(['read']), async (req, res) => {
+router.get('/', authenticateToken, requireScopes(['read']), requireAdminRole, async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Access denied. Admin role required.' });
-    }
     const allAccounts = dataStore.getAllAccounts();
     const total = allAccounts.length;
     const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);

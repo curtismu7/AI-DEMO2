@@ -16,6 +16,33 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-09-05 — Inline `req.user.role !== 'admin'` checks stay invisible to the OpenAPI introspection
+
+`lib/openapiFromRoutes.js`'s `AUTH_MIDDLEWARE` map can only recognize a
+*named* guard function — `Function.prototype.name` has to appear on the
+Express Layer. `GET /api/accounts` had this exact blind spot (an inline
+`if (req.user.role !== 'admin') return res.status(403)...` on the route
+handler itself, not a separate middleware) and was fixed by extracting it to
+`requireAdminRole` and adding that name to the map.
+
+**Why not fully fixed:** the same inline pattern (`grep -rl "role !== 'admin'"
+routes/*.js`) also appears in `conversations.js`, `groupMembership.js`,
+`lighthouseRoute.js`, `selfServiceUsers.js`, `transactions.js`, `users.js`,
+`verticalManifest.js`, and six more call sites inside `accounts.js` itself
+(lines ~332, 360, 393, 409, 427, 448 as of this entry — one of them,
+`role !== 'admin' && account.userId !== req.user.id`, is an ownership-or-admin
+check, not a straight extraction). Every one of those routes currently
+generates an OpenAPI `security` requirement that understates its real gate
+(session instead of admin, or nothing at all) — correct behavior, wrong docs.
+Fixing all of them is a wider, higher-risk sweep than the one route a review
+pass actually flagged; out of scope for that fix.
+
+**Real fix:** extract each inline check to a named `requireAdminRole`-style
+function (or, for the ownership-or-admin case, its own named guard) the same
+way `accounts.js`'s `GET /` was — mechanical, one file at a time, verified per
+file against `openapiFromRoutes.test.js`'s existing pattern of asserting the
+generated `security` field for a specific path.
+
 ### [x] 2026-09-05 — Landing hero CTAs still graze the fixed FAB/Demo Script on ~830-950px-tall phones
 
 `LandingPage.js`'s hero CTA row (Admin/Customer Dashboard, Use Cases, Setup)
