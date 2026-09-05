@@ -13,6 +13,7 @@ const {
   getExpectedFrontendOrigin,
 } = require('../services/oauthRedirectUris');
 const { setPkceCookie, readPkceCookie, clearPkceCookie } = require('../services/pkceStateCookie');
+const pingoneAdminSession = require('../services/pingoneAdminSession');
 const { setAuthCookie, clearAuthCookie } = require('../services/authStateCookie');
 const { clearAllAuthCookies, buildPingOneSignoffUrl } = require('../services/sessionCookies');
 const oauthConfig = require('../config/oauth');
@@ -484,6 +485,12 @@ router.get('/logout', async (req, res) => {
   try {
     await terminateAllUserSessions(pingOneUserId);
   } catch (_) { /* non-fatal — token revocation + signoff redirect still cover logout */ }
+
+  // The shared PingOne admin credential outlives the browser session it was
+  // established from (that is the point — it serves callers with no session),
+  // so destroying the session alone would leave this user's admin token
+  // serving the façade door after they signed out.
+  if (req.session?.pingoneMcpAdminToken) pingoneAdminSession.clear();
 
   req.session.destroy((err) => {
     if (err) {

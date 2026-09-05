@@ -45,18 +45,19 @@ mcpServers:
   # 2026-08-25: /mcp-facade/agentless/.well-known/oauth-protected-resource
   # -> 200).
 
-  # 1. OpenSearch via the Priv Agent — cm-mcpgw in K8s (ns
-  #    ping-devops-curtismuir) fronting cm-mcpgw-opensearch-mcp-server.
-  #    UNVERIFIED from this variant: the docker variant's own comment says
-  #    the facade reaches the Priv Agent through "the Mac-local Priv Agent
-  #    listener on :8643" — that's a Mac-local connection the docker-hosted
-  #    facade holds. Whether the pingaws-hosted facade (running in-cluster,
-  #    not on the Mac) has its own path to the same Priv Agent has not been
-  #    checked. If this door 502s with upstream_unavailable, that's the
-  #    first thing to confirm, not a LibreChat or facade bug.
-  opensearch-privilege-agent:
+  # 1. OpenSearch through the Privilege AI Gateway. This was the `agent`
+  #    door (Priv Agent mode) until 2026-09-05, when it was deleted — its
+  #    mesh frontend still resolved through the Priv Agent's DNS proxy
+  #    while nothing served the port, so it hung instead of failing. That
+  #    also settles the "UNVERIFIED" note this comment used to carry about
+  #    whether an in-cluster facade could reach the Mac-local Priv Agent:
+  #    the question is moot, nothing routes that way any more. The facade
+  #    holds the AI Gateway leg server-side
+  #    (services/privilegeGatewaySession.js) — sign in once at
+  #    /privilege-mcp-client after a gateway restart.
+  opensearch-privilege-gateway:
     type: streamable-http
-    url: 'https://ai-demo.ping-devops.com/mcp-facade/agent/mcp'
+    url: 'https://ai-demo.ping-devops.com/mcp-facade/privilege-gateway/opensearch22/mcp'
     timeout: 60000
 
   # 2. Via the Agentless gateway — the `external` Privilege application

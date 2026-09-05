@@ -101,23 +101,20 @@ mcpServers:
   #    OAuth detection and DCR+PKCE flow work directly against it, the same
   #    way they already did against the real agentless gateway.
 
-  # 3. OpenSearch via the Priv Agent — the cm-mcpgw gateway in K8s
-  #    (ns ping-devops-curtismuir, k8s/helm/mcpgw) fronting
-  #    cm-mcpgw-opensearch-mcp-server, reached through the Mac-local Priv
-  #    Agent listener on :8643. The facade holds that connection now (its
-  #    own TLS trust, its own host alias) — LibreChat only ever talks to
-  #    the facade. The agent IS the identity there — no OAuth, so this
-  #    door has none either. A 403 "doesn't have access to MCP app
-  #    opensearch" passed through means the gateway was reached and
-  #    Privilege's time-boxed policy for that user has lapsed — re-author
-  #    it in the Privilege console; nothing here is wrong. A 502
-  #    "upstream_unavailable" during local dev usually means the Priv
-  #    Agent's DNS proxy hasn't resolved opensearch.default.applications.
-  #    procyon.ai on the Mac running the facade yet — environmental, not a
-  #    facade or LibreChat bug.
-  opensearch-privilege-agent:
+  # 3. OpenSearch through the Privilege AI Gateway. This used to be the
+  #    `agent` door (Priv Agent mode, the agent's own mTLS identity, no
+  #    OAuth). That door was deleted 2026-09-05: its mesh frontend still
+  #    resolves through the Priv Agent's DNS proxy while nothing serves the
+  #    port, so it hung rather than failing. The AI Gateway is the live path
+  #    now, and the facade holds its upstream leg server-side
+  #    (services/privilegeGatewaySession.js) — sign in once at
+  #    /privilege-mcp-client after a gateway restart. A 403 "doesn't have
+  #    access to MCP app opensearch" means the gateway WAS reached and this
+  #    user's time-boxed Privilege policy has lapsed — re-author it in the
+  #    console; nothing here is wrong.
+  opensearch-privilege-gateway:
     type: streamable-http
-    url: 'https://api.ping.demo:3001/mcp-facade/agent/mcp'
+    url: 'https://api.ping.demo:3001/mcp-facade/privilege-gateway/opensearch22/mcp'
     timeout: 60000
 
   # 4. Via the Agentless gateway — the `external` Privilege application
