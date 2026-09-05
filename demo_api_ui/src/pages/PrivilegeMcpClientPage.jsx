@@ -148,6 +148,11 @@ export default function PrivilegeMcpClientPage() {
   const navigate = useNavigate();
   const [config, setConfig] = useState({ mcpUrl: '', clientId: '', scopes: 'openid profile email', llmUrl: 'http://127.0.0.1:11434', llmModel: 'llama3.2:1b' });
   const [gatewayMode, setGatewayMode] = useState('privilege');
+  const [gatewaySession, setGatewaySession] = useState(null);
+  const [rearmError, setRearmError] = useState('');
+  const [preflight, setPreflight] = useState(null);
+  const [preflightError, setPreflightError] = useState('');
+  const [preflightBusy, setPreflightBusy] = useState(false);
   const [gatewayConfigs, setGatewayConfigs] = useState({ direct: {}, privilege: {}, facade: {} });
   const [presets, setPresets] = useState([]);
   const [gatewayStateLoaded, setGatewayStateLoaded] = useState(false);
@@ -354,6 +359,7 @@ export default function PrivilegeMcpClientPage() {
     api('/state').then((s) => {
       setConfig(s.config || config);
       setGatewayMode(s.gatewayMode || 'privilege');
+      setGatewaySession(s.gatewaySession || null);
       setGatewayConfigs(s.gatewayConfigs || { direct: {}, privilege: {}, facade: {} });
       savedMcpUrlRef.current = s.config?.mcpUrl || '';
       setPresets(Array.isArray(s.presets) ? s.presets : []);
@@ -384,8 +390,7 @@ export default function PrivilegeMcpClientPage() {
           requestSignIn();
         } else {
           setSilentAuthPending(true);
-          api('/auth/start', { method: 'POST' })
-            .then((data) => { window.location.href = data.authUrl; })
+          startAuthRedirect()
             .catch(() => { setSilentAuthPending(false); requestSignIn(); });
         }
       }
@@ -476,18 +481,29 @@ export default function PrivilegeMcpClientPage() {
       setTools([]);
       setSelectedTool(null);
       try { sessionStorage.setItem('cur_priv_switching', '1'); } catch { /* storage disabled */ }
-      const data = await api('/auth/start', { method: 'POST' });
-      window.location.href = data.authUrl;
+      await startAuthRedirect();
     } catch (err) {
       clearSwitching();
       appendChat('system', `Save failed: ${err.message}`);
     }
   };
 
-  const switchGatewayMode = async (nextMode) => {
-    if (nextMode === gatewayMode) return;
+  // /auth/start answering 200 with no authUrl — a misconfigured door, or a
+  // changed body shape — used to send the browser to the literal string
+  // "undefined": blank page, no error, nothing logged. Every caller redirects
+  // through here so that failure surfaces as an exception their catch reports.
+  const startAuthRedirect = async () => {
+    const data = await api('/auth/start', { method: 'POST' });
+    if (!data?.authUrl) throw new Error('sign-in did not return an authorization URL');
+    window.location.href = data.authUrl;
+  };
+
+  const switchGatewayMode = async (nextMode, { forceReauth = false } = {}) => {
+    if (nextMode === gatewayMode && !forceReauth) return;
     const savedConfig = gatewayConfigs[nextMode] || {};
     const nextConfig = { ...config, ...savedConfig };
+    const prevMode = gatewayMode;
+    const prevConfig = config;
 
     setGatewayMode(nextMode);
     setConfig(nextConfig);
@@ -511,20 +527,69 @@ export default function PrivilegeMcpClientPage() {
       // /config) — skip the full re-auth redirect instead of always forcing
       // one, which used to show the sign-in modal on every switch back to a
       // mode you were already authenticated in.
-      if (saved.oauth?.authenticated) {
+      // forceReauth skips this: a re-arm exists precisely because the gateway
+      // session is dead while session.oauth may still hold a restored token.
+      // Taking the shortcut there would switch mode, arm nothing, and say
+      // nothing — the same dead-end button Ruling 5 removed by another route.
+      if (saved.oauth?.authenticated && !forceReauth) {
         setAuthenticated(true);
         refreshTools(true);
         return;
       }
       setSwitching(true);
       try { sessionStorage.setItem('cur_priv_switching', '1'); } catch { /* storage disabled */ }
-      const data = await api('/auth/start', { method: 'POST' });
-      window.location.href = data.authUrl;
+      await startAuthRedirect();
     } catch (err) {
       clearSwitching();
-      appendChat('system', `Gateway switch failed: ${err.message}`);
+      // The mode was set optimistically above. Leaving it on failure makes the
+      // UI claim a mode the BFF never accepted — and unmounts the facade-only
+      // banner, taking the error message with it.
+      setGatewayMode(prevMode);
+      setConfig(prevConfig);
+      const msg = `Gateway switch failed: ${err.message}`;
+      appendChat('system', msg);
+      // Returned so a caller with its own error surface (the re-arm banner) can
+      // show it inline; callers that ignore the return value are unaffected.
+      return msg;
     }
   };
+
+  // The façade's gateway leg is a server-side token that dies with the BFF
+  // process, and the gateway offers no client_credentials grant — only a human
+  // browser sign-in can mint a new one.
+  //
+  // It MUST be a Privilege-mode sign-in. privilegeMcpClient.js only remembers
+  // the gateway session when the token exchange hit the real gateway's own
+  // token endpoint (tokenOrigin === gatewayOrigin). A Façade-mode sign-in mints
+  // a token from OUR broker, whose resource identifier collides by name with
+  // the real gateway's, and is deliberately NOT remembered — so re-arming from
+  // Façade mode would authenticate successfully and arm nothing.
+  const rearmGatewaySession = useCallback(async () => {
+    setRearmError('');
+    setRearmError((await switchGatewayMode('privilege', { forceReauth: true })) || '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [switchGatewayMode]);
+
+  // Reuses /doors/probe — it already initializes an MCP session per URL with
+  // the operator's token and returns a tool count, which is the only honest
+  // proof a door works for a real caller. Goes through api() rather than a raw
+  // fetch so a 401 ("Not authenticated.") arrives as an Error carrying the
+  // server's message, instead of a body with no `results` that would render as
+  // an empty list — a failed preflight that looks exactly like a clean one.
+  const runPreflight = useCallback(async () => {
+    setPreflightBusy(true);
+    setPreflightError('');
+    setPreflight(null);
+    try {
+      const urls = presets.map((p) => p.url).filter(Boolean);
+      const data = await api('/doors/probe', { method: 'POST', body: { urls } });
+      setPreflight(Array.isArray(data.results) ? data.results : []);
+    } catch (err) {
+      setPreflightError(err.message || 'Preflight failed');
+    } finally {
+      setPreflightBusy(false);
+    }
+  }, [presets]);
 
   const loadEnv = async () => {
     try {
@@ -547,8 +612,7 @@ export default function PrivilegeMcpClientPage() {
   const startAuth = async () => {
     try {
       await api('/config', { method: 'POST', body: config });
-      const data = await api('/auth/start', { method: 'POST' });
-      window.location.href = data.authUrl;
+      await startAuthRedirect();
     } catch (err) {
       appendChat('system', `OAuth start failed: ${err.message}`);
     }
@@ -923,8 +987,7 @@ export default function PrivilegeMcpClientPage() {
                 setShowSignInModal(false);
                 setSilentAuthPending(true);
                 try {
-                  const data = await api('/auth/start', { method: 'POST' });
-                  window.location.href = data.authUrl;
+                  await startAuthRedirect();
                 } catch (err) {
                   setSilentAuthPending(false);
                   appendChat('system', `Sign-in unavailable: ${err.message}`);
@@ -1345,6 +1408,60 @@ export default function PrivilegeMcpClientPage() {
           </div>
         )}
       </section>
+
+      {gatewayMode === 'facade' && gatewaySession && !gatewaySession.ready && (
+        <div className="cur-gw-session-warn" role="status">
+          <span className="cur-gw-session-warn__icon" aria-hidden="true">⚠️</span>
+          <span>
+            Gateway session {gatewaySession.reason === 'expired' ? 'expired' : 'not established'}.
+            Façade mode relays on a server-side token that does not survive a restart.
+          </span>
+          <button
+            type="button"
+            className="cur-gw-session-warn__btn"
+            onClick={rearmGatewaySession}
+            disabled={switching}
+          >
+            {switching ? 'Re-arming…' : 'Re-arm gateway session'}
+          </button>
+          {rearmError && (
+            <span className="cur-gw-session-warn__err" role="alert">{rearmError}</span>
+          )}
+        </div>
+      )}
+
+      <div className="cur-preflight">
+        <button
+          type="button"
+          className="cur-preflight__run"
+          onClick={runPreflight}
+          disabled={preflightBusy}
+        >
+          {preflightBusy ? 'Probing…' : 'Run preflight'}
+        </button>
+        {preflightError && (
+          <p className="cur-preflight__error" role="alert">{preflightError}</p>
+        )}
+        {/* An empty result set is a real outcome — /doors/probe skips the
+            currently-selected door and caps the fan-out at 12 — so it is
+            reported rather than rendered as an empty list that reads clean. */}
+        {preflight && preflight.length === 0 && (
+          <p className="cur-preflight__empty">
+            No doors were probed. The selected door is skipped; add a preset for another one.
+          </p>
+        )}
+        {preflight && preflight.length > 0 && (
+          <ul className="cur-preflight__list">
+            {preflight.map((r) => (
+              <li key={r.url} className={r.ok ? 'cur-preflight__row--ok' : 'cur-preflight__row--bad'}>
+                <span aria-hidden="true">{r.ok ? '✅' : '❌'}</span>
+                <span className="cur-preflight__url">{r.url}</span>
+                <span>{r.ok ? `${r.tools} tools` : `${r.status || ''} ${r.error || ''}`.trim() || 'failed'}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       <div className="cur-body" ref={bodyRef}>
         {/* Activity bar */}
