@@ -28,7 +28,11 @@
 }
 
 .admin-required-modal .arm-path {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* Use the token, never a literal font stack — uiRegression.test.js enforces
+   * that so the fixed-width face stays a single decision. (This comment avoids
+   * spelling the banned word: the check skips only lines whose trimmed text
+   * starts with a comment marker, so a wrapped line would trip it.) */
+  font-family: var(--font-family-mono);
   font-size: var(--font-size-sm);
   padding: 2px 6px;
   border: 1px solid var(--th-border);
@@ -61,9 +65,12 @@
   display: inline-block;
 }
 
+/* --th-status-info, not --theme-accent: that token is defined nowhere in the
+   app, and signinAccentTokens.test.js fails any var() whose token is undefined
+   and has no fallback — it would have rendered with no background at all. */
 .admin-required-modal .arm-btn-primary {
-  background: var(--theme-accent);
-  border-color: var(--theme-accent);
+  background: var(--th-status-info);
+  border-color: var(--th-status-info);
   color: var(--th-text-invert);
 }
 
