@@ -36,6 +36,7 @@ const AUTH_MIDDLEWARE = {
     requireAdminAccess: 'admin',
     requireAdminWrite: 'admin',
     requireAdminOrUnconfigured: 'admin',
+    requireAdminRole: 'admin',
 };
 
 const SECURITY_SCHEMES = {
@@ -139,7 +140,17 @@ function buildSpec(app, options = {}) {
     // "these endpoints don't exist" — surface the count in the document.
     const skipped = [];
 
-    for (const endpoint of listEndpoints(app)) {
+    // Walked once and reused below for knownKeys — express-list-endpoints
+    // re-introspects the whole router on every call, and this ran twice per
+    // buildSpec (~165 route files, walked again just to build the overlay's
+    // anti-rot set). knownKeys is built unconditionally per endpoint, BEFORE
+    // the wildcard skip below, so an overlay key targeting a skipped
+    // wildcard/regexp route still counts as known — same as the two-pass
+    // version, which re-walked listEndpoints(app) without that skip at all.
+    const endpoints = listEndpoints(app);
+    const knownKeys = new Set();
+    for (const endpoint of endpoints) {
+        for (const method of endpoint.methods) knownKeys.add(`${method} ${endpoint.path}`);
         if (/[*(]/.test(endpoint.path)) {
             skipped.push(endpoint.path);
             continue;
@@ -180,10 +191,6 @@ function buildSpec(app, options = {}) {
     }
 
     const overlayRouteKeys = Object.keys(overlay).filter((k) => /^[A-Z]+ \//.test(k));
-    const knownKeys = new Set();
-    for (const endpoint of listEndpoints(app)) {
-        for (const method of endpoint.methods) knownKeys.add(`${method} ${endpoint.path}`);
-    }
     const unmatchedOverlayKeys = overlayRouteKeys.filter((k) => !knownKeys.has(k));
 
     const spec = {

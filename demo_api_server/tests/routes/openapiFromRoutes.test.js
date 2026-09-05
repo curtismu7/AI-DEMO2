@@ -52,11 +52,14 @@ describe('OpenAPI document generated from the Express router', () => {
 });
 
 describe('auth inference', () => {
-  test('a session-gated endpoint reports exactly one session requirement', () => {
-    // /api/accounts is gated twice — at the mount and on the route — so this
-    // asserts the two sources are de-duplicated, not that mount gates work.
-    // The requireAdmin test below is what covers the mount-only path.
-    expect(spec.paths['/api/accounts'].get.security).toEqual([{ session: [] }]);
+  test('GET /api/accounts reports admin, not session-only', () => {
+    // Was gated by an inline `if (req.user.role !== 'admin')` check, invisible
+    // to AUTH_MIDDLEWARE — the generated spec used to report this route as
+    // merely session-gated while the overlay's prose next to it already said
+    // "admin only", disagreeing with its own structured security field. Now
+    // named requireAdminRole, recognized the same way requireAdmin is, and
+    // de-duplicated against the mount-level session gate (admin implies it).
+    expect(spec.paths['/api/accounts'].get.security).toEqual([{ admin: [] }]);
   });
 
   test('a mount-level requireAdmin gate is reported as admin', () => {
