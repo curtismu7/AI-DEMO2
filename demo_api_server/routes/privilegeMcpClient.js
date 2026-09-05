@@ -822,8 +822,8 @@ async function callMcp(session, method, params = {}) {
 }
 
 // Both pagination loops below page through an operator-configured MCP
-// endpoint (PRIVILEGE_AGENTLESS_MCPGW_URL / PRIVILEGE_AGENT_MCPGW_URL, no
-// allowlist restricting it to a fixed trusted host) with no bound otherwise
+// endpoint (PRIVILEGE_AGENTLESS_MCPGW_URL, no allowlist restricting it to a
+// fixed trusted host) with no bound otherwise
 // -- a pagination bug on that upstream (repeating a cursor, or always
 // emitting a fresh nextCursor) would hang the request indefinitely.
 const MAX_MCP_PAGES = 100;

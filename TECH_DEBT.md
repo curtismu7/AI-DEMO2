@@ -2423,8 +2423,22 @@ registerable.
    the app exists the door stays dark deliberately: pointing it at
    `opensearch22` would silently serve the wrong tools, which is worse.
 
-The `agent`/`agent-cmuir` doors are untouched by this and still hang — that
-half is unchanged, and deleting them remains the cheap correct answer.
+**Update 2026-09-05 (2) — the `agent`/`agent-cmuir` half is now closed.** Both
+doors were deleted, taking the "or delete the doors" branch of the real fix
+above: they hung rather than failing fast, because their
+`*.applications.procyon.ai:8643` frontends still resolve through the Priv
+Agent's DNS proxy while nothing serves the mesh port, and a door that hangs is
+worse than no door. `PRIVILEGE_AGENT_MCPGW_URL` and
+`PRIVILEGE_AGENT_CMUIR_MCPGW_URL` are now unused anywhere in the repo. The
+denied-session coverage those doors carried in `mcpFacade.test.js` was
+repointed to the `agentless` door rather than dropped — that behaviour keys off
+`upstream.status === 403` and `door.label`, so it was never agent-specific.
+Restoring agent mode would need inbound mesh exposure the AI Gateway chart does
+not ship (the old agent chart had an SSL-passthrough ingress); the live client
+path is the `privilege-gateway` door.
+
+**What remains open in this entry is the `agentless` (banking) door only** —
+steps 1-3 above.
 
 ### [x] 2026-08-26 — `ping-mcpgw` Helm release's only remaining purpose is a backend it doesn't gate
 
