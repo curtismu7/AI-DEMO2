@@ -1054,6 +1054,7 @@ app.use('/api/admin/config', adminConfigRoutes);
 const swaggerUi = require('swagger-ui-express');
 const { buildSpec: buildOpenApiSpec } = require('./lib/openapiFromRoutes');
 const openApiOverlay = require('./config/openapi-overlay.json');
+const { sanitizePostLoginReturnPath } = require('./routes/oauthUser');
 let openApiSpecCache = null;
 function openApiSpec() {
     if (!openApiSpecCache) {
@@ -1065,11 +1066,26 @@ function openApiSpec() {
     }
     return openApiSpecCache;
 }
-app.get('/api/openapi.json', authenticateToken, requireAdmin, (req, res) => {
+// These three doc pages are reached via window.open from the admin nav — a
+// bare browser tab with no React app loaded, so authenticateToken's usual
+// JSON 401 body reads as a dead page instead of a sign-in prompt. Bounce to
+// the real admin login first when there is no session at all (genuinely
+// signed out — reported live 2026-09-05). A signed-in non-admin still falls
+// through to requireAdmin's existing 403 JSON, unchanged — this only covers
+// "not signed in", not "signed in without the admin role".
+function redirectDocsToLoginIfNoSession(req, res, next) {
+    const token = req.session?.oauthTokens?.accessToken;
+    const hasToken = !!(token && token !== '_cookie_session');
+    if (hasToken) return next();
+    const returnTo = sanitizePostLoginReturnPath(req.originalUrl) || req.path;
+    res.redirect(`/api/auth/oauth/login?return_to=${encodeURIComponent(returnTo)}`);
+}
+app.get('/api/openapi.json', redirectDocsToLoginIfNoSession, authenticateToken, requireAdmin, (req, res) => {
     res.json(openApiSpec());
 });
 app.use(
     '/api/docs',
+    redirectDocsToLoginIfNoSession,
     authenticateToken,
     requireAdmin,
     swaggerUi.serve,
@@ -1094,7 +1110,7 @@ app.use(
 // light matches the app's own default and stops Scalar falling back to
 // prefers-color-scheme, which THEMING.md forbids; Scalar's own toggle still works.
 let scalarHandler = null;
-app.get('/api/reference', authenticateToken, requireAdmin, async (req, res, next) => {
+app.get('/api/reference', redirectDocsToLoginIfNoSession, authenticateToken, requireAdmin, async (req, res, next) => {
     try {
         if (!scalarHandler) {
             const { apiReference } = await import('@scalar/express-api-reference');

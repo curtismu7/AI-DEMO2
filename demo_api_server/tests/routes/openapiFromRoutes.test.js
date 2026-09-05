@@ -163,6 +163,25 @@ describe('/api/reference CSP allowlist', () => {
   });
 });
 
+describe('doc pages redirect to admin login when signed out', () => {
+  // Reported live 2026-09-05: all three doc pages open in a bare browser tab
+  // via window.open (no SPA/login-modal loaded there), so authenticateToken's
+  // usual JSON 401 body read as a dead page instead of a sign-in prompt.
+  // These requests carry no session cookie at all (supertest default), the
+  // same "genuinely signed out" case that was reported — not the separate
+  // signed-in-but-non-admin case, which still gets requireAdmin's 403 JSON
+  // unchanged (not exercised here; that code path itself did not change).
+  test.each([
+    ['/api/reference', '%2Fapi%2Freference'],
+    ['/api/openapi.json', '%2Fapi%2Fopenapi.json'],
+    ['/api/docs', '%2Fapi%2Fdocs'],
+  ])('%s redirects to admin login with return_to', async (path, encodedReturnTo) => {
+    const res = await request(app).get(path);
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe(`/api/auth/oauth/login?return_to=${encodedReturnTo}`);
+  });
+});
+
 describe('overlay', () => {
   test('every overlay route key still matches a real route', () => {
     // This is the anti-rot guard: rename a route and the overlay entry for it
