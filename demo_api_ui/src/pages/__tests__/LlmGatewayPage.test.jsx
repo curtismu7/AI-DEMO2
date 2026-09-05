@@ -100,6 +100,25 @@ describe("LLM Gateway console", () => {
     expect(screen.getByText("9,999 / 10,000")).toBeInTheDocument();
   });
 
+  // "Refused by" under a verdict of "Answered" is a contradiction the live page
+  // showed on its first successful call.
+  it("shows no 'Refused by' row when the call succeeded", async () => {
+    mockFetch(() => ({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({
+        reply: "Paris.", provider: "openai", route: "/llm/openai/v1/chat/completions",
+        latencyMs: 1600, reachedProvider: true,
+      }),
+    }));
+    render(<LlmGatewayPage />);
+    await ask("capital of France?");
+
+    const dec = await screen.findByTestId("lgw-decision");
+    expect(dec).toHaveTextContent(/Answered/);
+    expect(dec).not.toHaveTextContent(/Refused by/);
+  });
+
   // Spend has no source anywhere, so the page must not imply one.
   it("shows no spend meter, and says why", async () => {
     mockFetch(() => new Promise(() => {}));
