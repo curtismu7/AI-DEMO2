@@ -432,6 +432,27 @@
   }
 }
 
+/* AI Agent FAB / Demo Script launcher are global, fixed-position buttons
+   portaled to document.body. LandingPage.js's IntersectionObserver adds this
+   class to <body> only while the hero's CTA row is on screen, so the two
+   floats never overlap it regardless of viewport height (a padding-only fix
+   can clear one device height but not all — see TECH_DEBT.md 2026-09-05).
+   Scoped to phone/tablet widths: above 768px the hero is short enough that
+   it never reaches the floats in the first place. */
+@media (max-width: 768px) {
+  /* !important to win over AIAgent.css's own
+     `visibility: visible !important; opacity: 1 !important;` (forces the FAB
+     visible against Ping's end-user-nano widget) — same specificity, so
+     without !important here that rule silently wins and the FAB never hides. */
+  body.landing-hero-ctas-in-view .banking-agent-fab,
+  body.landing-hero-ctas-in-view .demo-script-launch {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    transition: opacity 0.15s ease;
+  }
+}
+
 /* ========== Session Banner ========== */
 .landing-session-banner {
   background: var(--lp-surface);

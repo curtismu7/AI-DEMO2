@@ -140,6 +140,48 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-05 — Landing hero CTAs still grazed the fixed FAB/Demo Script on iPhone 14 / 15 Pro Max (follow-up on the entry below)
+
+**Files changed:** `demo_api_ui/src/components/LandingPage.js`,
+`demo_api_ui/src/components/LandingPage.css`.
+
+**What was broken:** the entry below fixed the reported iPhone 17 Pro Max
+overlap by tuning `.landing-hero` padding per width breakpoint, but flagged
+(and a Greptile review comment on PR #2793 independently confirmed) that
+390x844 and 430x932 still had a ~16-17px intersection. Padding is a function
+of viewport WIDTH; the fixed FAB/Demo Script's `bottom:` offset is a function
+of viewport HEIGHT — no single padding value clears the CTA row for every
+height in the ~830-956px band, and a follow-up attempt to shift the floats up
+instead (via a `max-height` media query) was verified live to regress the
+440x956 case it had just fixed, because the two CTA rows sit only 8px apart.
+
+**What was fixed:** stopped trying to dodge the floats with spacing and
+instead hid them. `LandingPage.js` mounts an `IntersectionObserver` on
+`.landing-hero-actions` that toggles `landing-hero-ctas-in-view` on
+`<body>`; `LandingPage.css` fades/hides `.banking-agent-fab` and
+`.demo-script-launch` while that class is present (`<=768px` only — desktop's
+hero never reaches the floats). This is height-independent by construction.
+Verified live at 375x667, 390x844, 430x932, 440x956, 700x900: zero visual
+intersection at every one, and the floats return (`opacity:1`) once the user
+scrolls the hero out of view.
+
+**Do not break:** `.banking-agent-fab` carries `visibility: visible
+!important; opacity: 1 !important;` elsewhere (`AIAgent.css`, keeps it
+visible against Ping's end-user-nano widget) at the same selector
+specificity as this new rule — the hide rule MUST keep its own `!important`
+or the FAB silently stops hiding (confirmed: first pass without it hid
+`.demo-script-launch` but not the FAB). Don't remove the `<=768px` media
+query scope — desktop's hero is short enough that hiding the floats there
+would just be a pointless flicker on load with no overlap to prevent.
+
+**Verify:** `cd demo_api_ui && npm run build` (exit 0) and `npx vitest run`
+(479 files / 3706 tests, 0 failed — `IntersectionObserver` is guarded with a
+`typeof` check so it no-ops harmlessly in jsdom). Live: at each of the five
+viewports above, `document.body.classList.contains('landing-hero-ctas-in-view')`
+is `true` while the hero CTAs are on screen and the FAB/Demo Script report
+`getComputedStyle(...).opacity === '0'`; scrolling past the hero flips both
+back.
+
 ### 2026-09-05 — Landing hero CTAs overlapped the fixed AI Agent FAB / Demo Script launcher on mobile
 
 **Files changed:** `demo_api_ui/src/components/LandingPage.css`,

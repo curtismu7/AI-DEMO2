@@ -16,7 +16,7 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
-### [ ] 2026-09-05 — Landing hero CTAs still graze the fixed FAB/Demo Script on ~830-950px-tall phones
+### [x] 2026-09-05 — Landing hero CTAs still graze the fixed FAB/Demo Script on ~830-950px-tall phones
 
 `LandingPage.js`'s hero CTA row (Admin/Customer Dashboard, Use Cases, Setup)
 overlapped the fixed `.banking-agent-fab` and `.demo-script-launch` buttons on
@@ -44,6 +44,26 @@ while the hero is the top of the page.
 **Verify:** `demo_api_ui`, viewport 440x956 — `getBoundingClientRect()` on
 `.hero-cta`, `.banking-agent-fab`, `.demo-script-launch` shows no
 intersection. At 390x844 and 430x932 a small intersection remains.
+
+**RESOLVED (follow-up on `worktree-mobile-fab-overlap-followup`):** took the
+"hide them specifically while the hero is the top of the page" option named
+above rather than more padding math. `LandingPage.js` now runs an
+`IntersectionObserver` on `.landing-hero-actions` that toggles a
+`landing-hero-ctas-in-view` class on `<body>`; `LandingPage.css` fades/hides
+`.banking-agent-fab` and `.demo-script-launch` (`opacity/visibility/
+pointer-events: none`, `<=768px` only — desktop hero is short enough to never
+need it) while that class is present, and they reappear once the hero scrolls
+out of view. This is viewport-height-independent by construction — verified
+live at 375x667, 390x844, 430x932, 440x956 and 700x900: zero visual
+intersection at all five, floats restored (`opacity:1`) after scrolling to
+the bottom.
+
+One gotcha hit along the way: `.banking-agent-fab` already carries
+`visibility: visible !important; opacity: 1 !important;` elsewhere in
+`AIAgent.css` (keeps it visible against Ping's end-user-nano widget) at the
+same selector specificity as the new rule, so the first pass silently failed
+to hide the FAB (`.demo-script-launch` has no such rule and hid correctly,
+which is what exposed it) — the fix needed `!important` to actually win.
 
 ### [ ] 2026-09-04 — /architecture/token-chain renders the raw mermaid source, not the diagram
 

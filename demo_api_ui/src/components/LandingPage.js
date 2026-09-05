@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./LandingPage.css";
 
@@ -85,6 +86,31 @@ function IconAgent() {
 
 export default function LandingPage({ user, hasTopNav }) {
   const navigate = useNavigate();
+
+  // The AI Agent FAB and Demo Script launcher are global, fixed-position
+  // buttons portaled to document.body; on phones they can land directly on
+  // top of the hero's own CTA row (PR #2793 fixed this at 440x956 but a
+  // padding-only fix can't cover every viewport height without regressing
+  // another one — see TECH_DEBT.md 2026-09-05). Hide those two floats only
+  // while the hero CTAs are actually on screen, so they never fight for the
+  // same pixels regardless of device height.
+  useEffect(() => {
+    if (typeof IntersectionObserver === "undefined") return undefined;
+    const heroActions = document.querySelector(".landing-hero-actions");
+    if (!heroActions) return undefined;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        document.body.classList.toggle("landing-hero-ctas-in-view", entry.isIntersecting);
+      },
+      { threshold: 0.1 },
+    );
+    observer.observe(heroActions);
+    return () => {
+      observer.disconnect();
+      document.body.classList.remove("landing-hero-ctas-in-view");
+    };
+  }, []);
+
   const handleAdminDashboard = (e) => {
     e.preventDefault();
     if (user?.role === "admin") {
