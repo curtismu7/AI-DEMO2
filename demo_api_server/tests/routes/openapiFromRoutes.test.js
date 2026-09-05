@@ -85,6 +85,15 @@ describe('auth inference', () => {
     expect(spec.paths['/api/use-cases'].get.security).toBeUndefined();
   });
 
+  test('route-level guards declared outside middleware/auth.js are still recognized', () => {
+    // AUTH_MIDDLEWARE originally only knew the shared middleware/auth.js
+    // exports. Several routes declare their own equivalent guard function
+    // (e.g. `function requireAdminSession(req, res, next) { ... }`) — before
+    // those names were added, these routes reported as unauthenticated.
+    expect(spec.paths['/api/path/apikey-info'].get.security).toEqual([{ session: [] }]);
+    expect(spec.paths['/api/security/dashboard'].get.security).toEqual([{ admin: [] }]);
+  });
+
   test('names every security scheme it references', () => {
     const declared = Object.keys(spec.components.securitySchemes);
     const used = new Set();

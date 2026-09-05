@@ -18,14 +18,24 @@
 const listEndpoints = require('express-list-endpoints');
 
 /**
- * Middleware names that mean "not reachable anonymously". These are the
- * `const authenticateToken = ...` style declarations in middleware/auth.js, so
- * Function.prototype.name — and therefore the Express Layer name — matches.
+ * Middleware names that mean "not reachable anonymously". Most are the
+ * `const authenticateToken = ...` style declarations in middleware/auth.js;
+ * the rest are locally-declared, route-level guards (e.g.
+ * `function requireAdminSession(req, res, next) { ... }` in routes/*.js) with
+ * equivalent semantics — Function.prototype.name matches either way, and
+ * express-list-endpoints reports route-level handlers by name regardless of
+ * which file declared them.
  */
 const AUTH_MIDDLEWARE = {
     authenticateToken: 'session',
     requireSession: 'session',
     requireAdmin: 'admin',
+    requireAuth: 'session',
+    requireSignedInSession: 'session',
+    requireAdminSession: 'admin',
+    requireAdminAccess: 'admin',
+    requireAdminWrite: 'admin',
+    requireAdminOrUnconfigured: 'admin',
 };
 
 const SECURITY_SCHEMES = {
