@@ -127,13 +127,17 @@ describe("gateway switch on Settings save", () => {
     expect(screen.queryByText("Switching gateway...")).not.toBeInTheDocument();
   });
 
-  it("offers all three paths and no retired Agent option", async () => {
+  it("offers all three MCP paths and no retired Agent option", async () => {
     global.fetch = mockFetch({ state: baseState });
     renderPage();
 
     const modeSelect = await screen.findByLabelText("Connection path");
     const values = Array.from(modeSelect.querySelectorAll("option")).map((o) => o.value);
-    expect(values).toEqual(["direct", "privilege", "facade"]);
+    // The MCP group is exactly these three. The select also carries an LLM group
+    // (llm:*) that retargets the PROMPT rather than the tool path, so this asserts
+    // the MCP set precisely instead of the whole list.
+    expect(values.filter((v) => !v.startsWith("llm:"))).toEqual(["direct", "privilege", "facade"]);
+    expect(values).not.toContain("agent");
   });
 
   it("a preset carries its own path, so choosing one switches mode with it", async () => {
