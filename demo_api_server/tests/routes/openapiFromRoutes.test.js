@@ -10,6 +10,7 @@
  * ...)` — which is how most of this app is gated — is invisible to it. Taking
  * its output at face value labels every admin endpoint public.
  */
+const request = require('supertest');
 const app = require('../../server');
 const { buildSpec } = require('../../lib/openapiFromRoutes');
 const overlay = require('../../config/openapi-overlay.json');
@@ -109,6 +110,20 @@ describe('auth inference', () => {
     }
     expect(used.size).toBeGreaterThan(0);
     expect([...used].filter((k) => !declared.includes(k))).toEqual([]);
+  });
+});
+
+describe('/api/reference CSP allowlist', () => {
+  // Scalar's page is a static HTML shell whose <script> tag loads its whole
+  // UI from cdn.jsdelivr.net client-side (server.js's /api/reference route
+  // comment). Without that origin in helmet's script-src, the browser blocks
+  // it and the page renders blank — reported live on the SE cluster
+  // (2026-09-05) after the route itself started working. helmet runs before
+  // auth, so this is visible on the 401 too — no admin session needed.
+  test('scriptSrc allows cdn.jsdelivr.net', async () => {
+    const res = await request(app).get('/api/reference');
+    const csp = res.headers['content-security-policy'];
+    expect(csp).toContain('https://cdn.jsdelivr.net');
   });
 });
 

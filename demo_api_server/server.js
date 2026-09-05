@@ -293,7 +293,10 @@ app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
-            scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdn.keyless.technology'], // CRA requires unsafe-inline in prod build
+            // https://cdn.jsdelivr.net: Scalar's /api/reference bundle (server.js)
+            // loads its whole UI from there client-side — omitted here, the
+            // script tag is CSP-blocked and the page renders blank.
+            scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdn.keyless.technology', 'https://cdn.jsdelivr.net'], // CRA requires unsafe-inline in prod build
             styleSrc: ["'self'", "'unsafe-inline'", "https://assets.pingone.com"],
             imgSrc: ["'self'", 'data:', 'https:'],
             connectSrc: ["'self'", 'https://*.pingone.com', 'https://*.pingidentity.com', 'wss:', 'https://*.keyless.technology'],
