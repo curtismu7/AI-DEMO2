@@ -5,6 +5,7 @@ jest.mock('../../services/lmdb/transactionLedger.lmdb', () => ({
 }));
 jest.mock('../../services/transactionAssembler', () => ({ assemble: jest.fn() }));
 jest.mock('../../services/configStore', () => ({ getEffective: jest.fn(() => 'true') }));
+jest.mock('../../services/jwksService', () => ({ getPublicKey: jest.fn() }));
 jest.mock('../../services/mcpPingOneHttpAdapter', () => ({
   listTools: jest.fn(async () => [
     { name: 'listUsers', description: 'List users', inputSchema: { type: 'object', properties: {} } },
@@ -82,6 +83,9 @@ beforeEach(() => {
   jest.clearAllMocks();
   seen = [];
   router.__test.sessions.clear();
+  pingoneAdminSession.clear();
+  delete process.env.MCP_FACADE_PINGONE_ADMIN_SHARED_SESSION;
+  jwksService.getPublicKey.mockResolvedValue({ keyObject: publicKey, alg: 'RS256' });
 });
 
 function app() {
@@ -92,6 +96,24 @@ function app() {
 
 const CLAIMS = { sub: 'user-1', scope: 'read mcp:invoke', aud: 'mcpgateway.ping.demo', client_id: 'c1' };
 const AUTH = `Bearer e30.${Buffer.from(JSON.stringify(CLAIMS)).toString('base64url')}.sig`;
+
+// The pingone-admin door verifies its bearer for real (requireBearer), so that
+// door alone needs a properly signed RS256 token — the unsigned AUTH above is
+// enough for every door that only relays it.
+const crypto = require('crypto');
+const jwksService = require('../../services/jwksService');
+const pingoneAdminSession = require('../../services/pingoneAdminSession');
+const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+
+function makeSignedToken(aud = 'mcpgateway.ping.demo') {
+  const head = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT', kid: 'k1' })).toString('base64url');
+  const body = Buffer.from(JSON.stringify({
+    sub: 'user-1', scope: 'mcp:invoke', aud, exp: Math.floor(Date.now() / 1000) + 3600,
+  })).toString('base64url');
+  const sig = crypto.createSign('RSA-SHA256').update(`${head}.${body}`).sign(privateKey).toString('base64url');
+  return `Bearer ${head}.${body}.${sig}`;
+}
+const ADMIN_AUTH = makeSignedToken();
 
 function hopsByPhase() {
   return Object.fromEntries(ledger.appendHop.mock.calls.map(([, h]) => [h.phase, h]));
@@ -166,14 +188,26 @@ describe('/mcp-facade/pingone-admin — local handler, no upstream fetch', () =>
     ({ listTools, callTool } = require('../../services/mcpPingOneHttpAdapter'));
   });
 
-  test('advertises no authorization server — auth is session-based (delegated PKCE), not an RFC 9728 challenge', async () => {
+  test('advertises OUR broker as the AS — never PingOne, whose token is audienced elsewhere', async () => {
     const res = await request(app()).get('/mcp-facade/pingone-admin/.well-known/oauth-protected-resource');
     expect(res.status).toBe(200);
-    expect(res.body.authorization_servers).toBeUndefined();
+    expect(res.body.authorization_servers).toEqual(['http://localhost:3005']);
+    expect(res.body.scopes_supported).toEqual(['mcp:invoke']);
+    // The door names ITSELF, not mcp.pingone.com — advertising PingOne's
+    // resource identifier here would hand clients a wrong-hop token.
+    expect(res.body.resource).toMatch(/mcp-facade\/pingone-admin\/mcp$/);
   });
 
-  test('initialize succeeds with no Authorization header at all', async () => {
+  test('an anonymous caller is challenged, never served from the operator session', async () => {
     const res = await request(app()).post('/mcp-facade/pingone-admin/mcp')
+      .send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} });
+    expect(res.status).toBe(401);
+    expect(res.headers['www-authenticate']).toMatch(/resource_metadata=/);
+    expect(listTools).not.toHaveBeenCalled();
+  });
+
+  test('initialize succeeds for a caller holding a verified bearer', async () => {
+    const res = await request(app()).post('/mcp-facade/pingone-admin/mcp').set('Authorization', ADMIN_AUTH)
       .send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18' } });
     expect(res.status).toBe(200);
     expect(res.body.result.serverInfo.name).toBe('PingOne Admin (hosted MCP)');
@@ -181,10 +215,10 @@ describe('/mcp-facade/pingone-admin — local handler, no upstream fetch', () =>
   });
 
   test('tools/list returns the RAW hosted catalog, uncapped, never touches the facade\'s own upstream stub', async () => {
-    const init = await request(app()).post('/mcp-facade/pingone-admin/mcp')
+    const init = await request(app()).post('/mcp-facade/pingone-admin/mcp').set('Authorization', ADMIN_AUTH)
       .send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} });
     const sid = init.headers['mcp-session-id'];
-    const res = await request(app()).post('/mcp-facade/pingone-admin/mcp').set('mcp-session-id', sid)
+    const res = await request(app()).post('/mcp-facade/pingone-admin/mcp').set('Authorization', ADMIN_AUTH).set('mcp-session-id', sid)
       .send({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
     expect(res.status).toBe(200);
     expect(res.body.result.tools.map((t) => t.name)).toEqual(['listUsers', 'getEnvironment']);
@@ -193,33 +227,32 @@ describe('/mcp-facade/pingone-admin — local handler, no upstream fetch', () =>
   });
 
   test('an x-pingone-admin-token header is forwarded to listTools as the delegated token', async () => {
-    const init = await request(app()).post('/mcp-facade/pingone-admin/mcp')
+    const init = await request(app()).post('/mcp-facade/pingone-admin/mcp').set('Authorization', ADMIN_AUTH)
       .send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} });
     const sid = init.headers['mcp-session-id'];
-    await request(app()).post('/mcp-facade/pingone-admin/mcp').set('mcp-session-id', sid)
+    await request(app()).post('/mcp-facade/pingone-admin/mcp').set('Authorization', ADMIN_AUTH).set('mcp-session-id', sid)
       .set('x-pingone-admin-token', 'delegated-token-1')
       .send({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
     expect(listTools).toHaveBeenCalledWith('delegated-token-1');
   });
 
   test('tools/call dispatches through the raw adapter by hosted tool name and relays its result verbatim', async () => {
-    const init = await request(app()).post('/mcp-facade/pingone-admin/mcp')
+    const init = await request(app()).post('/mcp-facade/pingone-admin/mcp').set('Authorization', ADMIN_AUTH)
       .send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} });
     const sid = init.headers['mcp-session-id'];
-    const res = await request(app()).post('/mcp-facade/pingone-admin/mcp').set('mcp-session-id', sid)
+    const res = await request(app()).post('/mcp-facade/pingone-admin/mcp').set('Authorization', ADMIN_AUTH).set('mcp-session-id', sid)
       .send({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'listUsers', arguments: { filter: 'username sw "curt"' } } });
     expect(res.status).toBe(200);
-    // Third arg is the x-pingone-admin-token header — the delegated PKCE
-    // token routes/mcpPingOneAdminAuth.js stores on the browser's real
-    // session, forwarded this way because this route is reached
-    // server-to-server and never sees that session's cookie (see the call
-    // site comment in POST /:door/mcp). No such header was sent here.
-    expect(callTool).toHaveBeenCalledWith('listUsers', { filter: 'username sw "curt"' }, undefined);
+    // Third arg is the delegated PKCE token: the caller's x-pingone-admin-token
+    // header, else the shared operator session. Neither exists here, and null
+    // is what an empty session reports — the adapter then throws
+    // pingone_mcp_auth_required rather than calling PingOne with nothing.
+    expect(callTool).toHaveBeenCalledWith('listUsers', { filter: 'username sw "curt"' }, null);
     expect(JSON.parse(res.body.result.content[0].text)).toEqual({ tool: 'listUsers', ok: true });
   });
 
   test('DELETE tears down the local session without an upstream call', async () => {
-    const init = await request(app()).post('/mcp-facade/pingone-admin/mcp')
+    const init = await request(app()).post('/mcp-facade/pingone-admin/mcp').set('Authorization', ADMIN_AUTH)
       .send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} });
     const sid = init.headers['mcp-session-id'];
     const res = await request(app()).delete('/mcp-facade/pingone-admin/mcp').set('mcp-session-id', sid);
@@ -227,15 +260,62 @@ describe('/mcp-facade/pingone-admin — local handler, no upstream fetch', () =>
     expect(seen).toEqual([]);
   });
 
+  test('the shared operator session is OFF unless a deployment opts in', async () => {
+    delete process.env.MCP_FACADE_PINGONE_ADMIN_SHARED_SESSION;
+    pingoneAdminSession.remember({ accessToken: 'operator-token', expiresIn: 3600 });
+    // A generic mcp:invoke bearer says nothing about admin entitlement, so
+    // without the opt-in an ordinary broker client must NOT inherit the
+    // operator's PingOne admin authority.
+    expect(pingoneAdminSession.getAccessToken()).toBeNull();
+    expect(pingoneAdminSession.status()).toEqual({ ready: false, reason: 'disabled' });
+  });
+
+  test('falls back to the shared operator session when the caller sends no delegated token', async () => {
+    process.env.MCP_FACADE_PINGONE_ADMIN_SHARED_SESSION = 'true';
+    pingoneAdminSession.remember({ accessToken: 'operator-token', expiresIn: 3600 });
+    const init = await request(app()).post('/mcp-facade/pingone-admin/mcp').set('Authorization', ADMIN_AUTH)
+      .send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} });
+    const sid = init.headers['mcp-session-id'];
+    await request(app()).post('/mcp-facade/pingone-admin/mcp').set('Authorization', ADMIN_AUTH).set('mcp-session-id', sid)
+      .send({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
+    expect(listTools).toHaveBeenCalledWith('operator-token');
+  });
+
+  test("the caller's own delegated token wins over the shared operator session", async () => {
+    process.env.MCP_FACADE_PINGONE_ADMIN_SHARED_SESSION = 'true';
+    pingoneAdminSession.remember({ accessToken: 'operator-token', expiresIn: 3600 });
+    const init = await request(app()).post('/mcp-facade/pingone-admin/mcp').set('Authorization', ADMIN_AUTH)
+      .send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} });
+    const sid = init.headers['mcp-session-id'];
+    await request(app()).post('/mcp-facade/pingone-admin/mcp').set('Authorization', ADMIN_AUTH).set('mcp-session-id', sid)
+      .set('x-pingone-admin-token', 'my-own-token')
+      .send({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
+    expect(listTools).toHaveBeenCalledWith('my-own-token');
+  });
+
+  // Regression: the store has one slot, so operators overwrite each other. An
+  // unconditional clear on logout let an older operator's sign-out wipe a newer
+  // one's live token and break every external caller until someone signed in.
+  test('logout clears only the operator whose token is actually stored', () => {
+    process.env.MCP_FACADE_PINGONE_ADMIN_SHARED_SESSION = 'true';
+    pingoneAdminSession.remember({ accessToken: 'operator-B', expiresIn: 3600 });
+
+    pingoneAdminSession.clearIfCurrent('operator-A');   // A logs out after B signed in
+    expect(pingoneAdminSession.getAccessToken()).toBe('operator-B');
+
+    pingoneAdminSession.clearIfCurrent('operator-B');   // B logs out
+    expect(pingoneAdminSession.getAccessToken()).toBeNull();
+  });
+
   test('tools/list with no delegated token answers 401 with a loginUrl the client can drive', async () => {
     const authRequired = new Error('PingOne MCP requires a delegated PKCE token.');
     authRequired.code = 'pingone_mcp_auth_required';
     listTools.mockRejectedValueOnce(authRequired);
 
-    const init = await request(app()).post('/mcp-facade/pingone-admin/mcp')
+    const init = await request(app()).post('/mcp-facade/pingone-admin/mcp').set('Authorization', ADMIN_AUTH)
       .send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} });
     const sid = init.headers['mcp-session-id'];
-    const res = await request(app()).post('/mcp-facade/pingone-admin/mcp').set('mcp-session-id', sid)
+    const res = await request(app()).post('/mcp-facade/pingone-admin/mcp').set('Authorization', ADMIN_AUTH).set('mcp-session-id', sid)
       .send({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
 
     expect(res.status).toBe(401);

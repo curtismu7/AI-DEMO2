@@ -196,6 +196,18 @@ services:
       # mcp-server needs as a Step 9 subject_token on the Privilege open-access
       # hop). 404s the endpoint when false. No other BFF behavior keys on it.
       MCP_AUTH_DISABLED: "${MCP_AUTH_DISABLED:-false}"
+      # Lets an EXTERNAL MCP client use the pingone-admin façade door. That door
+      # needs a delegated PingOne PKCE token, which only a browser can obtain, so
+      # with this on the door falls back to the token a human established at
+      # /privilege-mcp-client (services/pingoneAdminSession.js).
+      #
+      # THE TRADE, deliberately opt-in rather than defaulted: the bearer the
+      # façade verifies is a generic mcp:invoke token — anything that completes
+      # DCR against the broker holds one, and nothing in it says "admin" — so
+      # every such caller acts as that operator, on environment-wide PingOne
+      # admin tooling. On for the demo, which is the point of the door; unset
+      # everywhere else, so no deployment inherits it by upgrading.
+      MCP_FACADE_PINGONE_ADMIN_SHARED_SESSION: "${MCP_FACADE_PINGONE_ADMIN_SHARED_SESSION:-true}"
       # Phase 4 crash guard: unhandled rejections log-and-continue in demo runs
       # (see demo_api_server/utils/crashGuard.js).
       CRASH_GUARD: "1"

@@ -1505,11 +1505,30 @@ Tool count moves with the signed-in user's roles (~73 for an admin, ~6 for a
 plain user), which is the point of a delegated token — so no fixed number in a
 comment can be right.
 
-**Still true, and the one real limitation:** this door is usable only by the
-demo's own client page. An external MCP client through the façade has no way to
-obtain or attach `x-pingone-admin-token`, and `authorizationServer: null` means
-it is never pointed at a login, so it sees a 401 a browser could act on and it
-cannot. Making it externally usable is a separate, unstarted piece of work.
+**The external-client limitation is now closed too (2026-09-05).** The door
+advertises the demo's own broker as its AS and challenges with `requireBearer`,
+exactly like `opensearch`/`brave`, so an external client completes the ordinary
+RFC 9728 → DCR → PKCE dance against a server that supports it. What goes
+upstream is still a delegated PingOne token: the caller's own
+`x-pingone-admin-token` when it has one, otherwise a shared server-side session
+(`services/pingoneAdminSession.js`) carrying the login a human already
+completed.
+
+It deliberately does NOT advertise PingOne as the AS. The hosted server's token
+must be minted for its own resource
+(`mcp.pingone.{region}/admin/{envId}/mcp`), so advertising PingOne would mean
+this door claiming to BE that resource in its RFC 9728 metadata and handing
+clients a token audienced elsewhere — the wrong-hop pattern the gateway's own
+D-05 check exists to reject. A client that wants true per-user identity should
+connect to PingOne directly instead (see the `pingone-remote-mcp-connect`
+skill); it just does not get the façade's reel/ledger recording.
+
+**The trade, on the record:** a caller served from the shared session acts as
+whoever last signed in, on environment-wide admin tooling. That is why the
+bearer is mandatory — an anonymous caller must never ride the operator's
+credential — and why the caller's own token always wins when present. The
+shared session is in-memory and has no refresh (the login requests `openid`
+only), so it simply expires and someone signs in again.
 
 ### [x] 2026-08-28 — no dynamically-registered client can hold a custom gateway scope
 

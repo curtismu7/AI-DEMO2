@@ -185,9 +185,15 @@ describe('opensearch door — façade-enforced bearer', () => {
     expect(upstreamHits).toBe(0);
   });
 
-  it('leaves the other doors ungated (their upstreams issue their own 401)', () => {
-    for (const name of ['agent-gateway', 'agentless', 'banking', 'pingone-admin']) {
-      expect(DOORS[name].requireBearer).toBeUndefined();
-    }
+  // Derived from DOORS rather than hand-listing the ungated ones: this pins
+  // BOTH directions at once (exactly these gate; everything else relies on its
+  // upstream's own 401), and a door added or re-gated fails here loudly instead
+  // of quietly falling off a list someone forgot to update.
+  it('gates exactly the doors that attach a credential of their own', () => {
+    const gated = Object.entries(DOORS)
+      .filter(([, d]) => d.requireBearer)
+      .map(([name]) => name)
+      .sort();
+    expect(gated).toEqual(['brave', 'opensearch', 'pingone-admin', 'privilege-gateway']);
   });
 });

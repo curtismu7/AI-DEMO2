@@ -29,6 +29,7 @@ const configStore = require('../services/configStore');
 const { getAuthorizationEndpoint, getTokenEndpoint, getParEndpoint } = require('../services/oauthEndpointResolver');
 const { PingOneProvisionService } = require('../services/pingoneProvisionService');
 const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
+const pingoneAdminSession = require('../services/pingoneAdminSession');
 
 const APP_NAME = 'PingOne MCP Server';
 const CALLBACK_PATH = '/api/mcp/inspector/pingone-admin/callback';
@@ -281,6 +282,18 @@ router.get('/callback', async (req, res) => {
     delete req.session.pingoneMcpAdminOAuth;
     req.session.save((err) => {
       if (err) console.error('[mcpPingOneAdminAuth] session save error (post-token):', err.message);
+      // Publish to the shared store ONLY once the browser session that owns
+      // this token actually persisted. Publishing first left a privileged
+      // credential serving the façade door on behalf of a sign-in that never
+      // completed — and with no session, nothing would later clear it (logout
+      // keys off req.session.pingoneMcpAdminToken). See
+      // services/pingoneAdminSession.js for the trade this store makes.
+      if (!err) {
+        pingoneAdminSession.remember({
+          accessToken: resp.data.access_token,
+          expiresAt: Date.now() + expiresInMs,
+        });
+      }
       res.redirect(returnTo ? `${returnTo}?pingone_admin_login=success` : '/pingone-mcp-inspector?source=custom');
     });
   } catch (err) {

@@ -36,6 +36,7 @@ const configStore = require('../services/configStore');
 const { renderReelSvg } = require('../services/reelSvg');
 const jwksService = require('../services/jwksService');
 const privilegeGatewaySession = require('../services/privilegeGatewaySession');
+const pingoneAdminSession = require('../services/pingoneAdminSession');
 
 const router = express.Router();
 const SERVICE = 'mcp-facade';
@@ -191,20 +192,32 @@ const DOORS = {
     label: 'PingOne Admin',
     // No real upstream fetch — see localHandler. Display-only, for hop details.
     upstream: () => 'local:pingone-admin (config/admin/tools.js)',
-    // authorizationServer stays null even though this door IS per-user: the
-    // hosted PingOne MCP server only accepts a delegated Authorization Code +
-    // PKCE token (an audience thing — the worker token is minted for
-    // api.pingone.com, the MCP server is mcp.pingone.com), and that login is
-    // driven by routes/mcpPingOneAdminAuth.js against the BROWSER session, not
-    // by an RFC 9728 challenge from this door. The token reaches the handler as
-    // the caller's x-pingone-admin-token header; privilegeMcpClient.js sets it
-    // from the session. Consequence: the demo's own client page works, and an
-    // external MCP client cannot use this door at all — it has no way to obtain
-    // or attach that header, and gets the 401 + loginUrl a browser can act on
-    // but a generic client cannot.
-    authorizationServer: null,
-    scopes: [],
+    // TWO credentials, and they answer different questions.
+    //
+    // WHO IS CALLING is settled here, by OUR broker: this door advertises the
+    // same authorization server as opensearch/brave and challenges with
+    // requireBearer. It cannot advertise PingOne instead — the hosted MCP
+    // server's token must be minted for ITS resource
+    // (mcp.pingone.{region}/admin/{envId}/mcp), so advertising PingOne would
+    // mean this door claiming to BE that resource in its RFC 9728 metadata and
+    // handing clients a token audienced elsewhere. That is the wrong-hop
+    // pattern the gateway's own D-05 check exists to reject.
+    //
+    // WHAT REACHES PINGONE is the delegated PKCE token from
+    // routes/mcpPingOneAdminAuth.js: the caller's own x-pingone-admin-token
+    // header when it has one (the demo's client page forwards it, and that
+    // caller acts as itself), otherwise the shared server-side session in
+    // services/pingoneAdminSession.js — where the caller acts as whoever last
+    // signed in. That shared-identity trade is exactly why the bearer above is
+    // mandatory: an anonymous caller must never ride the operator's admin
+    // credential.
+    authorizationServer: () => process.env.MCP_FACADE_AGENT_GATEWAY_AS || 'http://localhost:3005',
+    scopes: ['mcp:invoke'],
     forwardCorrelation: false,
+    requireBearer: true,
+    expectedAudience: () => process.env.MCP_FACADE_OPENSEARCH_AUD
+      || process.env.MCP_GW_RESOURCE_URI
+      || 'mcpgateway.ping.demo',
     localHandler: pingoneAdminLocalHandler,
   },
 };
@@ -695,7 +708,10 @@ router.post(['/:door/mcp', '/:door/:app/mcp'], express.json({ limit: '1mb', type
       // fetchMcp() as a server-to-server call, which never carries the
       // browser's own session cookie (verified live with a temporary
       // diagnostic — every such call got a fresh, empty req.session).
-      ? await door.localHandler({ rpc, method, sessionIdIn: req.get('mcp-session-id'), delegatedToken: req.get('x-pingone-admin-token'), returnTo: '/privilege-mcp-client' })
+      // The caller's own header wins, so a caller that completed the PingOne
+      // login acts as itself; the shared operator session is the fallback that
+      // makes this door reachable without a browser at all.
+      ? await door.localHandler({ rpc, method, sessionIdIn: req.get('mcp-session-id'), delegatedToken: req.get('x-pingone-admin-token') || pingoneAdminSession.getAccessToken(), returnTo: '/privilege-mcp-client' })
       : await fetch(upstreamUrl, {
         method: 'POST',
         headers: upstreamHeaders,
