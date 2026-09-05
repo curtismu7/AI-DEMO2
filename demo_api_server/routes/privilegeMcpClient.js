@@ -2084,6 +2084,7 @@ router.post('/doors/probe', express.json(), async (req, res) => {
 // One lane per provider, one route. The panel needs the gateway path back so
 // the demo can show WHERE the call went — that is the visible difference
 // between "we called Anthropic" and "we called Anthropic through Privilege".
+const { llmFetch } = require('../services/llmFetch');
 const { resolveRoute } = require('../services/privilegeLlmProxyService');
 const {
   LANES,
@@ -2099,6 +2100,15 @@ const LLM_LANES = {
   google: { call: (m, c) => llmGoogle(m, c), ...LANES.google },
   openai: { call: (m, c) => llmOpenAI(m, c), ...LANES.openai },
 };
+
+// Show enough of the virtual key to recognise which one is in play, never enough
+// to use it: Privilege keys are `sk-orion-<hex>`.
+function maskKey(key) {
+  if (!key) return '';
+  return key.length <= 12 ? 'Bearer ••••' : `Bearer ${key.slice(0, 9)}${'•'.repeat(8)}${key.slice(-4)}`;
+}
+
+const ANTHROPIC_VERSION_HEADER = '2023-06-01';
 
 // GET /llm/config — what the panel prefills its per-lane route/model boxes from.
 // Reports only WHETHER each virtual key is configured; the key itself never leaves
@@ -2136,6 +2146,76 @@ router.get('/llm/models', async (req, res) => {
     if (/not configured/.test(err.message || '')) return res.status(503).json({ error: err.message });
     res.status(502).json({ error: err.message || 'Privilege LLM models call failed' });
   }
+});
+
+// POST /llm/raw — the gateway as a REST endpoint, for the test page.
+//
+// Deliberately NOT the lane helpers: those pick a wire shape, extract `system`,
+// set max_tokens and read the reply out for you. This one sends the body you typed
+// to the path you chose and hands back exactly what came out, so the page can show
+// what the gateway actually returns rather than a normalised summary.
+//
+// The virtual key is injected here and never leaves the server; the echoed request
+// carries a masked Authorization so the page can display a faithful cURL/SDK
+// equivalent without publishing the key.
+router.post('/llm/raw', express.json({ limit: '256kb' }), async (req, res) => {
+  const provider = String(req.body?.provider || '');
+  const lane = LLM_LANES[provider];
+  if (!lane) {
+    return res.status(400).json({ error: `Unknown provider "${provider}". Use one of: ${Object.keys(LLM_LANES).join(', ')}` });
+  }
+
+  let route;
+  try {
+    route = resolveRoute(provider, req.body?.path);
+  } catch (err) {
+    return res.status(400).json({ error: err.message, code: 'llm_bad_route' });
+  }
+
+  const base = (process.env.PRIVILEGE_LLM_GATEWAY_URL || '').replace(/\/+$/, '');
+  const key = process.env[lane.keyEnv] || '';
+  if (!base) return res.status(503).json({ error: 'PRIVILEGE_LLM_GATEWAY_URL not configured' });
+  if (!key) return res.status(503).json({ error: `${lane.keyEnv} not configured` });
+
+  const body = req.body?.body;
+  if (!body || typeof body !== 'object') {
+    return res.status(400).json({ error: 'body must be a JSON object — the request to send to the gateway.' });
+  }
+
+  const url = `${base}${route}`;
+  // Anthropic's native Messages route requires the version header; the
+  // OpenAI-compatible route on the same lane does not care that it is present.
+  const headers = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${key}`,
+    ...(provider === 'anthropic' ? { 'anthropic-version': ANTHROPIC_VERSION_HEADER } : {}),
+  };
+
+  const t0 = Date.now();
+  let upstream;
+  try {
+    upstream = await llmFetch(url, { method: 'POST', headers, body: JSON.stringify(body) },
+      { label: `privilege-llm-raw-${provider}`, timeoutMs: 30000, retryOn429: false });
+  } catch (err) {
+    return res.status(502).json({
+      error: err.message || 'request failed before a response',
+      request: { url, headers: { ...headers, Authorization: maskKey(key) }, body },
+      latencyMs: Date.now() - t0,
+    });
+  }
+
+  const text = await upstream.text().catch(() => '');
+  let parsed = null;
+  try { parsed = text ? JSON.parse(text) : null; } catch { parsed = null; }
+
+  // 200 for the probe itself whatever the gateway said — the upstream status is
+  // data here, not this endpoint's outcome. A 4xx from the gateway is a result
+  // the page must render, not an error that hides the body.
+  return res.json({
+    request: { url, method: 'POST', headers: { ...headers, Authorization: maskKey(key) }, body },
+    response: { status: upstream.status, ok: upstream.ok, json: parsed, raw: parsed ? null : text.slice(0, 4000) },
+    latencyMs: Date.now() - t0,
+  });
 });
 
 router.post('/llm/call', express.json(), async (req, res) => {

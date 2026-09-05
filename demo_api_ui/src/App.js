@@ -195,6 +195,7 @@ import PublicRoutes, {
   GroupPolicyBoardPageRoute,
   PrivilegeMcpClientPageRoute,
   LlmGatewayPageRoute,
+  LlmTestPageRoute,
   AuditAgentPageRoute,
   PingOneSetupPageRoute,
   M2mCredentialsSamplePageRoute,
@@ -1061,6 +1062,16 @@ function AppWithAuth() {
                   element={
                     loading ? null : user ? (
                       <LlmGatewayPageRoute user={user} logout={logout} />
+                    ) : (
+                      <SignInRequired />
+                    )
+                  }
+                />
+                <Route
+                  path="/llm-test"
+                  element={
+                    loading ? null : user ? (
+                      <LlmTestPageRoute user={user} logout={logout} />
                     ) : (
                       <SignInRequired />
                     )

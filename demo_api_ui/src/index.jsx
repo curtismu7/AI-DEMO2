@@ -32,6 +32,17 @@ if (
 patchFetch();
 // initPosthog();  // disabled — see the posthogClient import note above
 
+// PWA installability (mobile/iOS "Add to Home Screen"). The service worker
+// only cache-firsts content-hashed build assets — see public/service-worker.js
+// for why it never touches API/WS/auth traffic. Guarded so it's a no-op under
+// vitest (jsdom has no navigator.serviceWorker) and on non-secure origins,
+// where registration would throw.
+if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js').catch(() => {});
+  });
+}
+
 // Server restart notification is automatically initialized via monitorApiHealth() in App.js
 // See: bankingRestartNotificationService.js for implementation details
 
