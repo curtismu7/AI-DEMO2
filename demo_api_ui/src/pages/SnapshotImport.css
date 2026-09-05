@@ -14,7 +14,7 @@
   border-radius: var(--radius-md);
   border: 1px solid var(--th-border-strong);
   background: var(--th-bg-inset);
-  font-size: 0.82rem;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   cursor: pointer;
 }
@@ -34,7 +34,16 @@
 
 .snapshot-import h2 {
   font-size: var(--font-size-2xl);
+  /* Reserves room for the absolutely-positioned toggle above 480px so the
+     long "P1AZ Snapshot Import & Validation" heading never renders under it. */
+  padding-right: 130px;
   margin-bottom: 10px;
+}
+
+@media (max-width: 480px) {
+  .snapshot-import h2 {
+    padding-right: 0;
+  }
 }
 
 .snapshot-import .description {
