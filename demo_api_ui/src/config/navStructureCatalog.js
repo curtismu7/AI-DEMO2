@@ -248,6 +248,8 @@ export const NAV_STRUCTURE_CATALOG = [
       "App Configuration",
       "OAuth Debug",
       "Postman Collections",
+      "API Docs (Swagger)",
+      "API Reference (Scalar)",
     ],
   },
   {
