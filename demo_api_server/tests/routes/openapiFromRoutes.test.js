@@ -189,6 +189,43 @@ describe('the self-hosted Scalar bundle', () => {
     const res = await request(app).get('/api/reference/standalone.js');
     expect(res.status).toBe(302);
   });
+
+  // @scalar/api-reference is a 3.6MB dependency that only this one admin docs
+  // page needs, and it is missing from any image or node_modules volume built
+  // before it was added. Resolving it at MODULE scope took the entire BFF down
+  // with MODULE_NOT_FOUND at boot — measured, not theorised: the version merged
+  // in #2820 exited 1 here, which would have bricked every such deploy.
+  // Booting a real server.js in a child process is the only honest way to test
+  // this; an in-process assertion cannot observe module-load failure.
+  test('the whole BFF still boots when @scalar/api-reference is missing', () => {
+    const { execFileSync } = require('child_process');
+    const p = require('path');
+    const fs = require('fs');
+    const preload = p.join(require('os').tmpdir(), `block-scalar-${process.pid}.js`);
+    fs.writeFileSync(
+      preload,
+      `const M=require('module');const o=M._resolveFilename;` +
+      `M._resolveFilename=function(r,...a){if(r==='@scalar/api-reference'){` +
+      `const e=new Error('Cannot find module');e.code='MODULE_NOT_FOUND';throw e;}` +
+      `return o.call(this,r,...a);};`,
+    );
+    try {
+      const out = execFileSync(
+        process.execPath,
+        ['--require', preload, '-e', "require('./server.js');console.log('BOOT_OK');process.exit(0);"],
+        {
+          cwd: p.resolve(__dirname, '../..'),
+          env: { ...process.env, NODE_ENV: 'test', PORT: '0' },
+          encoding: 'utf8',
+          timeout: 60000,
+          stdio: ['ignore', 'pipe', 'pipe'],
+        },
+      );
+      expect(out).toContain('BOOT_OK');
+    } finally {
+      fs.unlinkSync(preload);
+    }
+  }, 70000);
 });
 
 describe('doc pages redirect to admin login when signed out', () => {

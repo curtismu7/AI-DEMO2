@@ -1116,17 +1116,48 @@ app.use(
 // light matches the app's own default and stops Scalar falling back to
 // prefers-color-scheme, which THEMING.md forbids; Scalar's own toggle still works.
 const SCALAR_BUNDLE_ROUTE = '/api/reference/standalone.js';
-const scalarBundleFile = path.resolve(
-    path.dirname(require.resolve('@scalar/api-reference')),
-    'browser/standalone.js',
-);
+
+// Resolved on first request, NOT at module load. @scalar/api-reference is a
+// 3.6MB dependency that only this one admin page needs, and it is absent from
+// any image or node_modules volume built before it was added — the running
+// demo_api_server container was in exactly that state when this was written.
+// A module-scope require.resolve() there throws MODULE_NOT_FOUND at boot and
+// takes the WHOLE BFF down over a docs page. Resolving lazily keeps the damage
+// to /api/reference, which then says why instead of rendering blank.
+// `undefined` = not yet tried, `null` = tried and unavailable.
+let scalarBundleFile;
+function resolveScalarBundle() {
+    if (scalarBundleFile === undefined) {
+        try {
+            scalarBundleFile = path.resolve(
+                path.dirname(require.resolve('@scalar/api-reference')),
+                'browser/standalone.js',
+            );
+        } catch (err) {
+            // console, not `logger`: that is imported further down this file and
+            // takes (category, message, meta), so calling it here would be both
+            // a declaration-order bet and the wrong signature.
+            console.warn(
+                `[scalar] @scalar/api-reference not installed (${err.code}) — /api/reference is unavailable. Run npm install in demo_api_server.`,
+            );
+            scalarBundleFile = null;
+        }
+    }
+    return scalarBundleFile;
+}
 
 // Same admin gate as the page that loads it: the browser sends the session
 // cookie with the script request, so gating costs nothing and keeps the asset
 // off the public surface.
 app.get(SCALAR_BUNDLE_ROUTE, redirectDocsToLoginIfNoSession, authenticateToken, requireAdmin, (req, res, next) => {
+    const file = resolveScalarBundle();
+    if (!file) {
+        return res.status(503).type('text/plain').send(
+            '@scalar/api-reference is not installed on this server. Run npm install in demo_api_server. Swagger UI at /api/docs is unaffected.',
+        );
+    }
     res.type('application/javascript');
-    res.sendFile(scalarBundleFile, (err) => {
+    res.sendFile(file, (err) => {
         if (err) next(err);
     });
 });
@@ -1134,6 +1165,14 @@ app.get(SCALAR_BUNDLE_ROUTE, redirectDocsToLoginIfNoSession, authenticateToken, 
 let scalarHandler = null;
 app.get('/api/reference', redirectDocsToLoginIfNoSession, authenticateToken, requireAdmin, async (req, res, next) => {
     try {
+        // Fail loudly rather than serving a shell whose script 503s — that
+        // renders as a blank page with a 200, which is indistinguishable from
+        // the CDN outage this whole arrangement exists to prevent.
+        if (!resolveScalarBundle()) {
+            return res.status(503).type('text/plain').send(
+                '@scalar/api-reference is not installed on this server, so /api/reference cannot render. Run npm install in demo_api_server. Swagger UI at /api/docs is unaffected.',
+            );
+        }
         if (!scalarHandler) {
             const { apiReference } = await import('@scalar/express-api-reference');
             scalarHandler = apiReference({
