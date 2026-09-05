@@ -12,16 +12,35 @@ const CONFIG = {
   ],
 };
 
-function mockFetch(raw) {
+function mockFetch(raw, compare) {
   global.fetch = vi.fn((url) => {
     const u = String(url);
     if (u.endsWith("/llm/config")) {
       return Promise.resolve({ ok: true, status: 200, text: async () => JSON.stringify(CONFIG) });
     }
+    if (u.endsWith("/llm/compare")) return Promise.resolve(compare ? compare() : new Promise(() => {}));
     if (u.endsWith("/llm/raw")) return Promise.resolve(raw());
     return new Promise(() => {});
   });
 }
+
+const CMP = (over = {}) => ({
+  ok: true,
+  status: 200,
+  text: async () => JSON.stringify({
+    provider: "anthropic",
+    models: {
+      direct: { status: 200, count: 11, ids: [] },
+      gateway: { status: 200, count: 11, ids: [] },
+      onlyDirect: [], onlyGateway: [], identical: true,
+      ...over.models,
+    },
+    completion: {
+      direct: { status: 200, latencyMs: 500, json: { ok: 1 } },
+      gateway: { status: 200, latencyMs: 900, json: { ok: 1 } },
+    },
+  }),
+});
 
 const OK_RAW = {
   ok: true,
@@ -125,5 +144,51 @@ describe("LLM Gateway Test page", () => {
 
     expect(await screen.findByText(/PRIVILEGE_LLM_VIRTUAL_KEY_OPENAI is not set/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /send request/i })).toBeDisabled();
+  });
+});
+
+
+describe("direct vs gateway comparison", () => {
+  async function compareWith(res) {
+    mockFetch(() => OK_RAW, () => res);
+    render(<LlmTestPage />);
+    await ready();
+    fireEvent.change(screen.getByLabelText(/provider api key/i), { target: { value: "operator-key" } });
+    fireEvent.click(screen.getByRole("button", { name: /^compare$/i }));
+  }
+
+  it("reads identical lists as constraining calling, not seeing", async () => {
+    await compareWith(CMP());
+    expect(await screen.findByTestId("lt-compare-verdict"))
+      .toHaveTextContent(/constrains what the key may CALL, not what it can SEE/i);
+  });
+
+  it("names how many models each side withheld when the lists differ", async () => {
+    await compareWith(CMP({ models: { identical: false, onlyDirect: ["secret-model"], onlyGateway: [] } }));
+    expect(await screen.findByTestId("lt-compare-verdict")).toHaveTextContent(/1 only direct/);
+    expect(screen.getByText("secret-model")).toBeInTheDocument();
+  });
+
+  // An unauthenticated direct side must not read as "the gateway hid everything".
+  it("says to check the key when the direct side returned nothing", async () => {
+    await compareWith(CMP({ models: { direct: { status: 401, count: 0, ids: [] }, identical: false } }));
+    expect(await screen.findByTestId("lt-compare-verdict")).toHaveTextContent(/check the key/i);
+  });
+
+  it("will not compare without a key, and does not call the server", async () => {
+    mockFetch(() => OK_RAW, () => CMP());
+    render(<LlmTestPage />);
+    await ready();
+    fireEvent.click(screen.getByRole("button", { name: /^compare$/i }));
+
+    expect(await screen.findByText(/Paste a provider API key/i)).toBeInTheDocument();
+    expect(global.fetch.mock.calls.filter(([u]) => String(u).endsWith("/llm/compare"))).toHaveLength(0);
+  });
+
+  it("uses a password field so the key is not shoulder-readable", async () => {
+    mockFetch(() => OK_RAW, () => CMP());
+    render(<LlmTestPage />);
+    await ready();
+    expect(screen.getByLabelText(/provider api key/i)).toHaveAttribute("type", "password");
   });
 });

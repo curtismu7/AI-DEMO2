@@ -2085,6 +2085,7 @@ router.post('/doors/probe', express.json(), async (req, res) => {
 // the demo can show WHERE the call went — that is the visible difference
 // between "we called Anthropic" and "we called Anthropic through Privilege".
 const { llmFetch } = require('../services/llmFetch');
+const { compare: compareLlmPaths } = require('../services/llmDirectCompare');
 const { resolveRoute } = require('../services/privilegeLlmProxyService');
 const {
   LANES,
@@ -2145,6 +2146,43 @@ router.get('/llm/models', async (req, res) => {
   } catch (err) {
     if (/not configured/.test(err.message || '')) return res.status(503).json({ error: err.message });
     res.status(502).json({ error: err.message || 'Privilege LLM models call failed' });
+  }
+});
+
+// POST /llm/compare — the same prompt and the same model list, both ways.
+//
+// The direct key arrives in the request body because this app holds no usable
+// provider key of its own (configStore reports all three "not available") — which is
+// the point the demo makes. It is used for these calls and nothing else: not stored,
+// not cached, not logged, and deliberately absent from the response, which is
+// asserted by a test.
+router.post('/llm/compare', express.json({ limit: '64kb' }), async (req, res) => {
+  const provider = String(req.body?.provider || '');
+  const lane = LLM_LANES[provider];
+  if (!lane) {
+    return res.status(400).json({ error: `Unknown provider "${provider}". Use one of: ${Object.keys(LLM_LANES).join(', ')}` });
+  }
+  const directKey = typeof req.body?.directKey === 'string' ? req.body.directKey.trim() : '';
+  if (!directKey) {
+    return res.status(400).json({ error: 'A provider API key is required for the direct side. It is used once and never stored.' });
+  }
+
+  const gatewayBase = process.env.PRIVILEGE_LLM_GATEWAY_URL || '';
+  const virtualKey = process.env[lane.keyEnv] || '';
+  if (!gatewayBase) return res.status(503).json({ error: 'PRIVILEGE_LLM_GATEWAY_URL not configured' });
+  if (!virtualKey) return res.status(503).json({ error: `${lane.keyEnv} not configured` });
+
+  const model = typeof req.body?.model === 'string' && req.body.model.trim() ? req.body.model.trim() : lane.defaultModel;
+  const prompt = typeof req.body?.prompt === 'string' && req.body.prompt.trim()
+    ? req.body.prompt.trim()
+    : 'What is the capital of France? Answer in one word.';
+
+  try {
+    const result = await compareLlmPaths({ provider, directKey, gatewayBase, virtualKey, model, prompt });
+    return res.json(result);
+  } catch (err) {
+    if (err.code === 'llm_no_direct') return res.status(400).json({ error: err.message, code: err.code });
+    return res.status(502).json({ error: err.message || 'comparison failed' });
   }
 });
 

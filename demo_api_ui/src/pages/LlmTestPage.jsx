@@ -67,6 +67,13 @@ export default function LlmTestPage() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
+  // The direct key lives only in this component's state for as long as the tab is
+  // open. It is sent with the comparison request and never persisted anywhere —
+  // not localStorage, not the server. Closing the page forgets it.
+  const [directKey, setDirectKey] = useState('');
+  const [cmp, setCmp] = useState(null);
+  const [cmpBusy, setCmpBusy] = useState(false);
+  const [cmpError, setCmpError] = useState('');
 
   const lane = lanes.find((l) => l.provider === provider);
 
@@ -122,6 +129,25 @@ export default function LlmTestPage() {
       setBusy(false);
     }
   }, [bodyText, provider, path]);
+
+  const runCompare = useCallback(async () => {
+    if (!directKey.trim()) { setCmpError('Paste a provider API key to run the direct side.'); return; }
+    setCmpBusy(true);
+    setCmp(null);
+    setCmpError('');
+    let model;
+    try { model = JSON.parse(bodyText).model; } catch { model = lane?.model; }
+    try {
+      setCmp(await api('/llm/compare', {
+        method: 'POST',
+        body: { provider, directKey: directKey.trim(), model },
+      }));
+    } catch (err) {
+      setCmpError(err.message || 'Comparison failed');
+    } finally {
+      setCmpBusy(false);
+    }
+  }, [directKey, provider, bodyText, lane]);
 
   const snippet = useMemo(() => {
     const base = `${gatewayUrl || '{gateway_url}'}${path.replace(/\/(messages|chat\/completions)$/, '')}`;
@@ -243,6 +269,82 @@ export default function LlmTestPage() {
           )}
         </section>
       </div>
+
+      <section className="lt-cmp" aria-label="Direct vs gateway">
+        <div className="lt-cmp__head">
+          <span className="lt-k">Direct vs through Privilege</span>
+          <span className="lt-cmp__why">
+            This app holds no provider key of its own &mdash; that is the point of a virtual key.
+            Paste one to run the unmediated side. It is used for this request only and never stored.
+          </span>
+        </div>
+
+        <div className="lt-cmp__form">
+          <label htmlFor="lt-directkey">Provider API key</label>
+          <input
+            id="lt-directkey"
+            type="password"
+            autoComplete="off"
+            spellCheck="false"
+            placeholder={`your real ${TITLES[provider] || provider} key`}
+            value={directKey}
+            onChange={(e) => setDirectKey(e.target.value)}
+          />
+          <button type="button" className="lt-send" onClick={runCompare} disabled={cmpBusy}>
+            {cmpBusy ? 'Comparing…' : 'Compare'}
+          </button>
+        </div>
+
+        {cmpError ? <p className="lt-badjson" role="alert">{cmpError}</p> : null}
+
+        {cmp ? (
+          <div className="lt-cmp__out" data-testid="lt-compare">
+            <div className="lt-cmp__grid">
+              <span className="lt-cmp__hk" />
+              <span className="lt-cmp__hk">Direct to provider</span>
+              <span className="lt-cmp__hk">Through Privilege</span>
+
+              <span className="lt-cmp__rk">Models visible</span>
+              <span className="lt-cmp__v">{cmp.models.direct.count} <em>HTTP {cmp.models.direct.status ?? '—'}</em></span>
+              <span className="lt-cmp__v">{cmp.models.gateway.count} <em>HTTP {cmp.models.gateway.status ?? '—'}</em></span>
+
+              <span className="lt-cmp__rk">Completion</span>
+              <span className="lt-cmp__v">
+                HTTP {cmp.completion.direct.status ?? '—'} <em>{cmp.completion.direct.latencyMs} ms</em>
+              </span>
+              <span className="lt-cmp__v">
+                HTTP {cmp.completion.gateway.status ?? '—'} <em>{cmp.completion.gateway.latencyMs} ms</em>
+              </span>
+            </div>
+
+            <p className="lt-cmp__verdict" data-testid="lt-compare-verdict">
+              {cmp.models.direct.count === 0
+                ? 'The direct call returned no model list — check the key and read the raw responses below.'
+                : cmp.models.identical
+                  ? 'Identical model lists. Privilege constrains what the key may CALL, not what it can SEE.'
+                  : `Lists differ — ${cmp.models.onlyDirect.length} only direct, ${cmp.models.onlyGateway.length} only via the gateway.`}
+            </p>
+
+            {cmp.models.onlyDirect.length ? (
+              <div className="lt-pane">
+                <span className="lt-k">Visible only without the gateway</span>
+                <pre>{cmp.models.onlyDirect.join('\n')}</pre>
+              </div>
+            ) : null}
+
+            <div className="lt-cmp__pair">
+              <div className="lt-pane">
+                <span className="lt-k">Direct response</span>
+                <pre>{JSON.stringify(cmp.completion.direct.json ?? cmp.completion.direct.error ?? cmp.completion.direct.raw, null, 2)}</pre>
+              </div>
+              <div className="lt-pane">
+                <span className="lt-k">Gateway response</span>
+                <pre>{JSON.stringify(cmp.completion.gateway.json ?? cmp.completion.gateway.error ?? cmp.completion.gateway.raw, null, 2)}</pre>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </section>
     </div>
   );
 }
