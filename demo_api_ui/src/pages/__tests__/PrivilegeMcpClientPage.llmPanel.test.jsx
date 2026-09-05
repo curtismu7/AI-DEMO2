@@ -248,3 +248,69 @@ describe("Privilege LLM lane table", () => {
     expect(result).not.toHaveTextContent(/Privilege policy/);
   });
 });
+
+// ── LLM as a Path ───────────────────────────────────────────────────────────
+// Picking an LLM path retargets the CHAT: the prompt goes to a model through a
+// Privilege virtual key instead of into the MCP agent loop. It must not touch the
+// MCP connection — switching destination for a prompt is not a reconnection.
+
+function selectLlmPath(provider) {
+  fireEvent.change(screen.getByLabelText(/connection path/i), {
+    target: { value: `llm:${provider}` },
+  });
+}
+
+describe("LLM path in the chat", () => {
+  it("offers the three lanes as paths alongside the MCP ones", async () => {
+    mockFetchWithLanes(() => new Promise(() => {}));
+    renderPage();
+
+    const path = await screen.findByLabelText(/connection path/i);
+    const values = Array.from(path.querySelectorAll("option")).map((o) => o.value);
+    expect(values).toEqual(
+      expect.arrayContaining(["direct", "privilege", "facade", "llm:anthropic", "llm:google", "llm:openai"]),
+    );
+  });
+
+  it("sends the chat prompt to the chosen lane, not to /chat", async () => {
+    mockFetchWithLanes(() => ({
+      ok: true,
+      status: 200,
+      text: async () =>
+        JSON.stringify({ reply: "Paris", route: "/llm/openai/v1/chat/completions", latencyMs: 300 }),
+    }));
+    renderPage();
+    await screen.findByLabelText(/connection path/i);
+
+    selectLlmPath("openai");
+    fireEvent.change(screen.getByPlaceholderText(/ask the agent/i), {
+      target: { value: "capital of France?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /send message/i }));
+
+    await screen.findByText(/Paris/);
+    const urls = global.fetch.mock.calls.map((c) => String(c[0]));
+    expect(urls.some((u) => u.endsWith("/llm/call"))).toBe(true);
+    // The MCP agent loop must not run for an LLM path.
+    expect(urls.some((u) => u.endsWith("/api/privilege-mcp/chat"))).toBe(false);
+  });
+
+  it("speaks a policy denial in the transcript instead of swallowing it", async () => {
+    mockFetchWithLanes(() => ({
+      ok: false,
+      status: 403,
+      text: async () =>
+        JSON.stringify({ error: "blocked", code: "llm_policy_denied", reason: "no PII", provider: "google" }),
+    }));
+    renderPage();
+    await screen.findByLabelText(/connection path/i);
+
+    selectLlmPath("google");
+    fireEvent.change(screen.getByPlaceholderText(/ask the agent/i), {
+      target: { value: "here is an SSN" } });
+    fireEvent.click(screen.getByRole("button", { name: /send message/i }));
+
+    expect(await screen.findByText(/Privilege denied this call/)).toBeInTheDocument();
+    expect(screen.getByText(/no PII/)).toBeInTheDocument();
+  });
+});
