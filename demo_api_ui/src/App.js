@@ -1058,7 +1058,13 @@ function AppWithAuth() {
                 />
                 <Route
                   path="/llm-gateway"
-                  element={<LlmGatewayPageRoute user={user} logout={logout} />}
+                  element={
+                    loading ? null : user ? (
+                      <LlmGatewayPageRoute user={user} logout={logout} />
+                    ) : (
+                      <SignInRequired />
+                    )
+                  }
                 />
                 <Route
                   path="/audit-agent"

@@ -174,7 +174,7 @@
     "/learning": "public",
     "/llama-vscode-guide": "user",
     "/llm-config": "admin",
-    "/llm-gateway": "public",
+    "/llm-gateway": "user",
     "/login": "public",
     "/logout": "public",
     "/logs": "public",
