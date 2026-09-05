@@ -1049,6 +1049,21 @@ export default function AdminSideNav({
         { label: "App Configuration", path: "/configure", icon: "fix" },
         { label: "OAuth Debug", path: "/configure?tab=debug", icon: "dbg" },
         { label: "Postman Collections", path: "/postman", icon: "msg" },
+        {
+          // BFF-served pages, not router routes — same action+window.open
+          // shape as Grafana above. Admin-gated server-side (authenticateToken
+          // + requireAdmin on the route), so a non-admin tab just gets a 401.
+          label: "API Docs (Swagger)",
+          icon: "doc",
+          searchAlias: "openapi swagger rest api reference",
+          action: () => window.open("/api/docs", "_blank", "noopener,noreferrer"),
+        },
+        {
+          label: "API Reference (Scalar)",
+          icon: "doc",
+          searchAlias: "openapi scalar rest api reference",
+          action: () => window.open("/api/reference", "_blank", "noopener,noreferrer"),
+        },
       ],
     },
     {
