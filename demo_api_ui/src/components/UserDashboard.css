@@ -1936,7 +1936,10 @@
 /* Inline toast-style messages (replaces browser alert/confirm modals) */
 .inline-message {
   position: fixed;
-  top: 20px;
+  /* Installed-PWA iOS has no Safari chrome, so a bare 20px can sit under the
+     status bar / notch — env() is 0 on browsers without safe-area support,
+     so this is a no-op everywhere else. */
+  top: max(20px, calc(20px + env(safe-area-inset-top)));
   left: 50%;
   transform: translateX(-50%);
   z-index: 9999;
