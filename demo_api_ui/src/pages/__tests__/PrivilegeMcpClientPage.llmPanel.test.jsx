@@ -249,6 +249,74 @@ describe("Privilege LLM lane table", () => {
   });
 });
 
+// ── Check models ─────────────────────────────────────────────────────────────
+// The gateway's model-allowlist for a virtual key is not exposed directly —
+// the panel infers it by trying a couple of real model names and reading the
+// verdict, alongside the provider's own (unfiltered) catalog for context.
+
+describe("Check models", () => {
+  function mockFetchWithModelCheck({ catalog, callFor }) {
+    global.fetch = vi.fn((url, init) => {
+      const u = String(url);
+      if (u.endsWith("/api/privilege-mcp/state")) {
+        return Promise.resolve({ ok: true, status: 200, text: async () => stateBody() });
+      }
+      if (u.endsWith("/api/privilege-mcp/llm/config")) {
+        return Promise.resolve({ ok: true, status: 200, text: async () => LANES_BODY });
+      }
+      if (u.includes("/api/privilege-mcp/llm/models")) {
+        return Promise.resolve({ ok: true, status: 200, text: async () => JSON.stringify(catalog) });
+      }
+      if (u.endsWith("/api/privilege-mcp/llm/call")) {
+        const body = JSON.parse(init.body);
+        return Promise.resolve(callFor(body.model));
+      }
+      return new Promise(() => {});
+    });
+  }
+
+  it("shows a per-model verdict and the provider catalog, distinguishing a model-not-allowed 403 from a policy denial", async () => {
+    mockFetchWithModelCheck({
+      catalog: { provider: "anthropic", status: 200, ok: true, models: ["claude-haiku-4-5-20251001", "claude-3-5-haiku-20241022"] },
+      callFor: (model) => (model === "claude-haiku-4-5-20251001"
+        ? { ok: true, status: 200, text: async () => JSON.stringify({ reply: "ping", latencyMs: 90 }) }
+        : {
+            ok: false,
+            status: 403,
+            text: async () => JSON.stringify({
+              error: `model "${model}" not allowed for this key`,
+              code: "llm_policy_denied",
+              reason: `model "${model}" not allowed for this key`,
+            }),
+          }),
+    });
+    renderPage();
+
+    fireEvent.click((await screen.findAllByRole("button", { name: /check models/i }))[0]);
+
+    const panel = await screen.findByTestId("model-check-anthropic");
+    expect(panel).toHaveTextContent(/claude-haiku-4-5-20251001/);
+    expect(panel).toHaveTextContent(/allowed/);
+    expect(panel).toHaveTextContent(/model not allowed/);
+    expect(panel).not.toHaveTextContent(/Privilege policy/);
+    expect(panel).toHaveTextContent(/Provider catalog \(not filtered to this key\): 2 models/);
+  });
+
+  it("shows the catalog error when the provider credential itself is dead", async () => {
+    mockFetchWithModelCheck({
+      catalog: { provider: "anthropic", status: 200, ok: true, models: null, raw: { error: { message: "API key is invalid." } } },
+      callFor: () => ({ ok: true, status: 200, text: async () => JSON.stringify({ reply: "ping", latencyMs: 90 }) }),
+    });
+    renderPage();
+
+    fireEvent.click((await screen.findAllByRole("button", { name: /check models/i }))[0]);
+
+    const panel = await screen.findByTestId("model-check-anthropic");
+    expect(await screen.findByText(/Provider catalog: HTTP 200/)).toBeInTheDocument();
+    expect(panel).toBeInTheDocument();
+  });
+});
+
 // ── LLM as a Path ───────────────────────────────────────────────────────────
 // Picking an LLM path retargets the CHAT: the prompt goes to a model through a
 // Privilege virtual key instead of into the MCP agent loop. It must not touch the

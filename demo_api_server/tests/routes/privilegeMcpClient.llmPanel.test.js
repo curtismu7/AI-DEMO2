@@ -15,6 +15,7 @@ jest.mock('../../services/privilegeLlmProxyService', () => ({
   callPrivilegeGemini: jest.fn(),
   callPrivilegeClaude: jest.fn(),
   callPrivilegeOpenAI: jest.fn(),
+  listModels: jest.fn(),
 }));
 
 const express = require('express');
@@ -38,6 +39,7 @@ beforeEach(() => {
   proxy.callPrivilegeClaude.mockReset();
   proxy.callPrivilegeGemini.mockReset();
   proxy.callPrivilegeOpenAI.mockReset();
+  proxy.listModels.mockReset();
 });
 
 describe('POST /llm/call', () => {
@@ -191,5 +193,70 @@ describe('POST /llm/call overrides', () => {
 
     expect(res.body.route).toBe('/llm/anthropic/v1/messages');
     expect(proxy.callPrivilegeClaude).toHaveBeenCalledWith([{ role: 'user', content: 'hi' }], {});
+  });
+
+  // A model-allowlist probe (GET /llm/models below, run once per candidate)
+  // needs to stay cheap whether or not the model turns out to be allowed.
+  it('passes maxTokens through as the provider-facing max_tokens', async () => {
+    proxy.callPrivilegeClaude.mockResolvedValue('ok');
+
+    await post({ provider: 'anthropic', prompt: 'hi', model: 'claude-haiku-4-5-20251001', maxTokens: 1 });
+
+    expect(proxy.callPrivilegeClaude).toHaveBeenCalledWith(
+      [{ role: 'user', content: 'hi' }],
+      { model: 'claude-haiku-4-5-20251001', max_tokens: 1 },
+    );
+  });
+});
+
+// ── Model catalog (compare against the allowlist) ───────────────────────────
+// The provider's own /models list is not filtered to what a virtual key can
+// actually use — Privilege enforces that per chat-completions call, as a 403.
+// This endpoint exists so a rejected model name reads as "not allowed for
+// this key" rather than "unrecognized model", by showing it IS a real model.
+
+describe('GET /llm/models', () => {
+  function get(provider) {
+    return request(app()).get('/api/privilege-mcp/llm/models').query({ provider });
+  }
+
+  it('returns the model ids from the provider catalog', async () => {
+    proxy.listModels.mockResolvedValue({
+      status: 200,
+      ok: true,
+      data: { object: 'list', data: [{ id: 'gpt-4o' }, { id: 'gpt-4o-mini' }] },
+    });
+
+    const res = await get('openai');
+
+    expect(res.status).toBe(200);
+    expect(res.body.models).toEqual(['gpt-4o', 'gpt-4o-mini']);
+    expect(proxy.listModels).toHaveBeenCalledWith('openai');
+  });
+
+  it('falls back to the raw body when the catalog is not the expected shape', async () => {
+    proxy.listModels.mockResolvedValue({ status: 401, ok: false, data: { error: { message: 'API key is invalid.' } } });
+
+    const res = await get('anthropic');
+
+    expect(res.status).toBe(200);
+    expect(res.body.models).toBeNull();
+    expect(res.body.raw).toMatchObject({ error: { message: 'API key is invalid.' } });
+  });
+
+  it('answers 503 when the provider is not configured', async () => {
+    proxy.listModels.mockRejectedValue(new Error('PRIVILEGE_LLM_VIRTUAL_KEY_GOOGLE not configured'));
+
+    const res = await get('google');
+
+    expect(res.status).toBe(503);
+    expect(res.body.error).toMatch(/not configured/);
+  });
+
+  it('rejects an unknown provider without calling anything', async () => {
+    const res = await get('llama');
+
+    expect(res.status).toBe(400);
+    expect(proxy.listModels).not.toHaveBeenCalled();
   });
 });
