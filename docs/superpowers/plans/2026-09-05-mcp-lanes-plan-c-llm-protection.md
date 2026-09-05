@@ -48,7 +48,7 @@
 
 **Design note:** the test is a drift guard, not a value check. It asserts that every key the service *reads* appears in every place a deployment *supplies* it — the failure being fixed is a key that exists in code and nowhere else, which is invisible until a fresh clone fails at runtime with an empty string.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `scripts/check-privilege-llm-config.test.js`:
 
@@ -123,7 +123,7 @@ describe('Privilege LLM config is reproducible', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 ```bash
 node --test scripts/check-privilege-llm-config.test.js
@@ -131,7 +131,7 @@ node --test scripts/check-privilege-llm-config.test.js
 
 Expected: FAIL — many cases, because none of the four keys is in any surface today.
 
-- [ ] **Step 3: Add the keys to the k8s secrets template**
+- [x] **Step 3: Add the keys to the k8s secrets template**
 
 In `k8s/03-secrets.yaml.template`, beside the existing `ANTHROPIC_API_KEY: ""` (line 52), add:
 
@@ -146,7 +146,7 @@ In `k8s/03-secrets.yaml.template`, beside the existing `ANTHROPIC_API_KEY: ""` (
   PRIVILEGE_LLM_VIRTUAL_KEY_OPENAI: ""
 ```
 
-- [ ] **Step 4: Mirror them in `create-secrets.sh`**
+- [x] **Step 4: Mirror them in `create-secrets.sh`**
 
 Find the block that mirrors `ANTHROPIC_API_KEY` from the BFF `.env` and add the four keys to the same list, following whatever loop or explicit-name pattern is already there:
 
@@ -156,7 +156,7 @@ grep -n "ANTHROPIC_API_KEY" scripts/create-secrets.sh
 
 Match the existing style exactly rather than introducing a second mechanism. If the script uses an explicit array of key names, append these four to it; if it iterates a list, extend the list.
 
-- [ ] **Step 5: Document them in `.env.example`**
+- [x] **Step 5: Document them in `.env.example`**
 
 In `demo_api_server/.env.example`, beside the existing `# ANTHROPIC_API_KEY=sk-ant-...` (line 438):
 
@@ -180,7 +180,7 @@ In `demo_api_server/.env.example`, beside the existing `# ANTHROPIC_API_KEY=sk-a
 # PRIVILEGE_LLM_VIRTUAL_KEY_OPENAI=
 ```
 
-- [ ] **Step 6: Pass them through `docker-compose.yml`**
+- [x] **Step 6: Pass them through `docker-compose.yml`**
 
 In the `demo-api-server` service's `environment:` block, add:
 
@@ -193,7 +193,7 @@ In the `demo-api-server` service's `environment:` block, add:
 
 **Careful:** `environment:` **beats** `env_file` in Compose. An unset variable with the `:-` default becomes an empty string that *overrides* whatever `env_file` supplied. Confirm the service's `.env` route still wins for anyone already setting these — if the service relies on `env_file` for other LLM keys, add these to the `env_file` path instead and leave `environment:` alone.
 
-- [ ] **Step 7: Run the test to verify it passes**
+- [x] **Step 7: Run the test to verify it passes**
 
 ```bash
 node --test scripts/check-privilege-llm-config.test.js
@@ -201,7 +201,7 @@ node --test scripts/check-privilege-llm-config.test.js
 
 Expected: PASS, 18 tests.
 
-- [ ] **Step 8: Prove a fresh container actually receives them**
+- [x] **Step 8: Prove a fresh container actually receives them**
 
 A template mentioning a key does not prove the process gets it:
 
@@ -211,7 +211,7 @@ docker exec ai-demo-api-server printenv | grep -c PRIVILEGE_LLM_
 
 Expected: `4`. Paste the count. Do **not** print the values.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add k8s/03-secrets.yaml.template scripts/create-secrets.sh demo_api_server/.env.example docker-compose.yml scripts/check-privilege-llm-config.test.js
@@ -232,7 +232,7 @@ git commit -m "feat(privilege-llm): put the gateway URL and virtual keys on the 
 
 **Design note:** OpenAI's route is **OpenAI-compatible**, the same wire shape as the existing Google lane — not the Anthropic one. Model the new function on `callPrivilegeGemini`, not `callPrivilegeClaude`: no `anthropic-version` header, `system` stays a message role, and the reply is at `data.choices[0].message.content`, not `data.content[0].text`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `demo_api_server/tests/services/privilegeLlmProxyService.openai.test.js`:
 
@@ -361,7 +361,7 @@ describe('callPrivilegeOpenAI', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 ```bash
 cd demo_api_server && CI=true npx jest tests/services/privilegeLlmProxyService.openai.test.js --forceExit
@@ -369,7 +369,7 @@ cd demo_api_server && CI=true npx jest tests/services/privilegeLlmProxyService.o
 
 Expected: FAIL — `svc.callPrivilegeOpenAI is not a function`.
 
-- [ ] **Step 3: Add the lane**
+- [x] **Step 3: Add the lane**
 
 In `demo_api_server/services/privilegeLlmProxyService.js`, add `DEFAULT_MODEL_OPENAI` beside the other two defaults:
 
@@ -436,7 +436,7 @@ module.exports = {
 };
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 ```bash
 cd demo_api_server && CI=true npx jest tests/services/privilegeLlmProxyService.openai.test.js --forceExit
@@ -444,7 +444,7 @@ cd demo_api_server && CI=true npx jest tests/services/privilegeLlmProxyService.o
 
 Expected: PASS, 9 tests.
 
-- [ ] **Step 5: Prove the existing lanes still work — the agent modes depend on them**
+- [x] **Step 5: Prove the existing lanes still work — the agent modes depend on them**
 
 ```bash
 cd demo_api_server && CI=true npx jest tests/services/privilegeLlmProxyService --forceExit
@@ -452,7 +452,7 @@ cd demo_api_server && CI=true npx jest tests/services/privilegeLlmProxyService -
 
 Expected: PASS, including any pre-existing Anthropic/Google specs. `privilege_llm` and `privilege_claude` agent modes must be unaffected.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add demo_api_server/services/privilegeLlmProxyService.js demo_api_server/tests/services/privilegeLlmProxyService.openai.test.js
@@ -477,7 +477,7 @@ git commit -m "feat(privilege-llm): add the OpenAI lane behind the same denial c
 
 **Design note:** a policy denial is **not** a 500. It gets its own status and its own `code`, because the panel renders it as the security story — "Privilege stopped this" — rather than as a broken feature. That distinction is the entire point of W5's "prove the policy" control.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `demo_api_server/tests/routes/privilegeMcpClient.llmPanel.test.js`:
 
@@ -599,7 +599,7 @@ describe('POST /llm/call', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 ```bash
 cd demo_api_server && CI=true npx jest tests/routes/privilegeMcpClient.llmPanel.test.js --forceExit
@@ -607,7 +607,7 @@ cd demo_api_server && CI=true npx jest tests/routes/privilegeMcpClient.llmPanel.
 
 Expected: FAIL — 404, the route does not exist.
 
-- [ ] **Step 3: Add the route**
+- [x] **Step 3: Add the route**
 
 At the top of `demo_api_server/routes/privilegeMcpClient.js`, extend the existing require of the proxy service (or add it if absent):
 
@@ -662,7 +662,7 @@ router.post('/llm/call', express.json(), async (req, res) => {
 });
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 ```bash
 cd demo_api_server && CI=true npx jest tests/routes/privilegeMcpClient.llmPanel.test.js --forceExit
@@ -670,7 +670,7 @@ cd demo_api_server && CI=true npx jest tests/routes/privilegeMcpClient.llmPanel.
 
 Expected: PASS, 11 tests.
 
-- [ ] **Step 5: Run the route suite**
+- [x] **Step 5: Run the route suite**
 
 ```bash
 cd demo_api_server && CI=true npx jest tests/routes/privilegeMcpClient --forceExit
@@ -678,7 +678,7 @@ cd demo_api_server && CI=true npx jest tests/routes/privilegeMcpClient --forceEx
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add demo_api_server/routes/privilegeMcpClient.js demo_api_server/tests/routes/privilegeMcpClient.llmPanel.test.js
@@ -700,7 +700,7 @@ git commit -m "feat(privilege-llm): one route for all three provider lanes"
 
 **Design note — the one that matters.** A denial must not render as an error. It is the security story: the panel shows the provider, the gateway route and the policy's reason, styled as a *warning with an explanation*, not a red failure. `api()` throws on a 403, so the handler has to inspect the thrown error rather than treat every rejection alike — see step 3.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `demo_api_ui/src/pages/__tests__/PrivilegeMcpClientPage.llmPanel.test.jsx`:
 
@@ -844,7 +844,7 @@ describe("Privilege LLM panel", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 ```bash
 cd demo_api_ui && npm run test:unit -- src/pages/__tests__/PrivilegeMcpClientPage.llmPanel.test.jsx
@@ -854,7 +854,7 @@ Expected: FAIL — no prompt field.
 
 Use `npm run test:unit`, **not** `npx vitest`.
 
-- [ ] **Step 3: Implement the panel**
+- [x] **Step 3: Implement the panel**
 
 `api()` throws on any non-2xx, and the thrown Error carries only `message` by
 default. Extend the page's `api()` helper (line ~78) so the structured denial
@@ -974,7 +974,7 @@ Render it:
       </div>
 ```
 
-- [ ] **Step 4: Style it**
+- [x] **Step 4: Style it**
 
 Append to `demo_api_ui/src/pages/PrivilegeMcpClientPage.css`:
 
@@ -1052,7 +1052,7 @@ Append to `demo_api_ui/src/pages/PrivilegeMcpClientPage.css`:
 }
 ```
 
-- [ ] **Step 5: Run the test to verify it passes**
+- [x] **Step 5: Run the test to verify it passes**
 
 ```bash
 cd demo_api_ui && npm run test:unit -- src/pages/__tests__/PrivilegeMcpClientPage.llmPanel.test.jsx
@@ -1060,7 +1060,7 @@ cd demo_api_ui && npm run test:unit -- src/pages/__tests__/PrivilegeMcpClientPag
 
 Expected: PASS, 5 tests.
 
-- [ ] **Step 6: Run the whole page suite and the build gate**
+- [x] **Step 6: Run the whole page suite and the build gate**
 
 ```bash
 cd demo_api_ui && npm run test:unit -- src/pages/__tests__/PrivilegeMcpClientPage && npm run build
@@ -1068,7 +1068,7 @@ cd demo_api_ui && npm run test:unit -- src/pages/__tests__/PrivilegeMcpClientPag
 
 Expected: PASS across every spec file, build exit 0.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx demo_api_ui/src/pages/PrivilegeMcpClientPage.css demo_api_ui/src/pages/__tests__/PrivilegeMcpClientPage.llmPanel.test.jsx
@@ -1087,7 +1087,7 @@ git commit -m "feat(privilege-llm): protection panel with a live policy-denial p
 
 **Why this is a task and not a step:** spec §W6.4 — "currently the only prose is a source header." An operator cannot issue a virtual key from a comment inside a service file.
 
-- [ ] **Step 1: Write the doc**
+- [x] **Step 1: Write the doc**
 
 Create `docs/privilege-llm-protection.md` covering, in this order:
 
@@ -1100,11 +1100,11 @@ Create `docs/privilege-llm-protection.md` covering, in this order:
 4. **How to demo it.** Open `/privilege-mcp-client`, pick a provider, send a prompt, point at the route and latency. Then click **Prove the policy** and read the denial aloud: provider, route, reason.
 5. **What a failure means.** `403` + `llm_policy_denied` = Privilege denied it, working as designed. `503` = a key or the gateway URL is missing — the message names which. `502` = the gateway or provider is unreachable.
 
-- [ ] **Step 2: Link it from `README.md`**
+- [x] **Step 2: Link it from `README.md`**
 
 Add one line to whichever list of docs the README already keeps. Do not restructure the README.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add docs/privilege-llm-protection.md README.md
@@ -1149,6 +1149,57 @@ The criterion is that a fresh clone plus documented setup reproduces the panel
 **without hand-patching a secret**. Follow `docs/privilege-llm-protection.md`
 from step 1 as written, changing nothing else, and confirm the panel works.
 Anything you had to do that the doc does not say is a doc bug — fix the doc.
+
+---
+
+## Execution record — Tasks 1-5 complete 2026-09-05
+
+**Verification, pasted not asserted:**
+
+| Gate | Result |
+|---|---|
+| `node --test scripts/check-privilege-llm-config.test.js` | **19 pass / 0 fail**, exit 0 |
+| `CI=true jest tests/services/privilegeLlmProxyService tests/routes/privilegeMcpClient` | **23 suites / 98 tests**, exit 0 |
+| `npm run test:unit -- src/pages/__tests__/PrivilegeMcpClientPage` | **17 files / 65 tests**, exit 0 |
+| `npm run build` | exit 0 |
+| `docker compose config` (against the main checkout's env) | exit 0 |
+| `bash k8s/create-secrets.restart-targets.test.sh` | pass=8 fail=0 |
+
+**Five corrections to this plan as written.** Three were wrong paths or wrong
+mechanisms; one would have shipped a bug.
+
+1. **`create-secrets.sh` is at `k8s/`, not `scripts/`.**
+2. **The compose step would have broken the feature.** The plan said to add
+   `${VAR:-}` entries under the `demo-api-server` service's `environment:`.
+   That service's own `env_file` block carries an explicit warning:
+   `environment:` **always** overrides `env_file` for the same key, *even when
+   the key is absent* (PR #911/#914, plus a compose-env-shadow hygiene check).
+   A `${VAR:-}` default would therefore replace a real virtual key with an
+   empty string on every machine where the key is actually set. The keys are
+   now **documented in a comment and deliberately not declared**, and the test
+   asserts they never appear under `environment:` so nobody "fixes" this later.
+   Proven: `docker compose config` renders the three currently-set keys, and
+   the running container has them — both via `env_file`.
+3. **`create-secrets.sh` must patch `ai-demo-secrets`, not `langchain-secrets`.**
+   The neighbouring `mirror_*` functions target `langchain-secrets` because the
+   *agent* mounts it. These keys are read by the *BFF*, which mounts
+   `ai-demo-secrets`. Copying the neighbouring pattern verbatim would have put
+   the values where nothing reads them.
+4. **The drift test's model-override filter missed a key.** The service reads a
+   bare `PRIVILEGE_LLM_MODEL` with no trailing underscore, so
+   `startsWith('PRIVILEGE_LLM_MODEL_')` did not exclude it. Model overrides
+   have in-code defaults and need no deployment surface.
+5. **Task 2 Step 5 assumed a pre-existing suite.** There were no tests for
+   `privilegeLlmProxyService.js` at all — the new file is its first. The
+   "existing lanes still work" check was done instead by asserting both are
+   still exported, and by running the destructure `services/geminiNlIntent.js`
+   actually performs (`const { callPrivilegeGemini, callPrivilegeClaude } =
+   require(...)`), which is the only consumer.
+
+**Worktree note:** this worktree had no `node_modules`, and `npx jest` silently
+pulled an unrelated jest from `~/.npm/_npx` that died inside babel config
+loading — a failure that looks nothing like a missing dependency. Symlinked
+`node_modules` from the main checkout and ran `./node_modules/.bin/jest`.
 
 ---
 
