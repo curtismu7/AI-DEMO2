@@ -564,7 +564,7 @@ align_internal_secret() {
   info "  BFF_INTERNAL_SECRET aligned across BFF + gateway + agent + langchain + ping-gateway + mcp-resource-server"
 }
 
-# ── Agentless gateway OIDC: a rotation must reach an ALREADY-INSTALLED gateway ─
+# ── Gateway OIDC: a rotation must reach an ALREADY-INSTALLED gateway ─────────
 # The agentless chart writes secret/agentless-mcpgw-oidc-config (its pingone.env)
 # ONCE, at `helm install`, from the PRIVILEGE_SSO_* values in ai-demo-secrets.
 # k8s/aws/deploy.sh deliberately never upgrades an existing release — the proxy
@@ -578,25 +578,32 @@ align_internal_secret() {
 # status: 401" at its /callback — agentless sign-in dead for every fresh session,
 # with the gateway logging nothing at all about it.
 #
+# It happened AGAIN on 2026-09-01, to the second holder: ping-mcpgw-secrets'
+# pingone.env is built verbatim from the gitignored asset
+# ping-mcpgw/procyon/config/pingone.env, which had sat at the pre-rotation secret
+# since August. One alignment for one secret was not enough — hence the parameter.
+#
 # Re-sync only the fields derived from ai-demo-secrets; SERVER_URL and
 # OIDC_SCOPES are the gateway's own and must survive. The restart is required
 # because the binary reads pingone.env eagerly at startup, and is skipped when
-# nothing changed so a routine deploy never bounces a healthy gateway.
-align_agentless_gateway_oidc() {
-  kubectl get secret agentless-mcpgw-oidc-config --namespace="$NS" >/dev/null 2>&1 || return 0
+# nothing changed so a routine deploy never bounces a healthy gateway. Pass an
+# empty deployment when no workload mounts the secret.
+align_gateway_oidc_secret() {
+  local secret_name="$1" deploy_name="${2:-}"
+  kubectl get secret "$secret_name" --namespace="$NS" >/dev/null 2>&1 || return 0
 
   local cid sec env_id current desired
   cid="$(kubectl get secret ai-demo-secrets --namespace="$NS" -o jsonpath='{.data.PRIVILEGE_SSO_CLIENT_ID}' 2>/dev/null | base64 -d)"
   sec="$(kubectl get secret ai-demo-secrets --namespace="$NS" -o jsonpath='{.data.PRIVILEGE_SSO_CLIENT_SECRET}' 2>/dev/null | base64 -d)"
   env_id="$(kubectl get secret ai-demo-secrets --namespace="$NS" -o jsonpath='{.data.PRIVILEGE_SSO_ENV_ID}' 2>/dev/null | base64 -d)"
   if [ -z "$cid" ] || [ -z "$sec" ] || [ -z "$env_id" ]; then
-    warn "  agentless-mcpgw-oidc-config left alone — PRIVILEGE_SSO_* missing from ai-demo-secrets"
+    warn "  $secret_name left alone — PRIVILEGE_SSO_* missing from ai-demo-secrets"
     return
   fi
 
-  current="$(kubectl get secret agentless-mcpgw-oidc-config --namespace="$NS" -o jsonpath='{.data.pingone\.env}' 2>/dev/null | base64 -d)"
+  current="$(kubectl get secret "$secret_name" --namespace="$NS" -o jsonpath='{.data.pingone\.env}' 2>/dev/null | base64 -d)"
   if [ -z "$current" ]; then
-    warn "  agentless-mcpgw-oidc-config has no pingone.env — leaving it to the chart"
+    warn "  $secret_name has no pingone.env — leaving it to the chart"
     return
   fi
 
@@ -608,16 +615,20 @@ align_agentless_gateway_oidc() {
     -e "s#^OIDC_USER_URL=.*#OIDC_USER_URL=https://auth.pingone.com/${env_id}/as/userinfo#")"
 
   if [ "$desired" = "$current" ]; then
-    info "  agentless-mcpgw-oidc-config already matches ai-demo-secrets — no restart"
+    info "  $secret_name already matches ai-demo-secrets — no restart"
     return
   fi
 
   printf '{"stringData":{"pingone.env":%s}}' \
     "$(printf '%s' "$desired" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')" \
-    | kubectl patch secret agentless-mcpgw-oidc-config --namespace="$NS" --type merge --patch-file /dev/stdin >/dev/null
-  kubectl rollout restart deployment/agentless-mcpgw --namespace="$NS" >/dev/null 2>&1 \
-    || warn "  agentless-mcpgw-oidc-config updated but the restart failed — restart it by hand or the gateway keeps the old secret"
-  info "  agentless-mcpgw-oidc-config re-synced from ai-demo-secrets + gateway restarted"
+    | kubectl patch secret "$secret_name" --namespace="$NS" --type merge --patch-file /dev/stdin >/dev/null
+  if [ -z "$deploy_name" ]; then
+    info "  $secret_name re-synced from ai-demo-secrets (no workload mounts it — nothing to restart)"
+    return
+  fi
+  kubectl rollout restart "deployment/$deploy_name" --namespace="$NS" >/dev/null 2>&1 \
+    || warn "  $secret_name updated but the restart failed — restart $deploy_name by hand or the gateway keeps the old secret"
+  info "  $secret_name re-synced from ai-demo-secrets + $deploy_name restarted"
 }
 
 # ── Per-service secrets (one per .env, mirroring docker-compose env_file) ─────
@@ -636,7 +647,7 @@ secret_from_envfile gateway-secrets   "$ASSET_ROOT/demo_mcp_gateway/.env"   # MC
 secret_from_envfile agent-secrets        "$ASSET_ROOT/demo_agent_service/.env" # Agent service
 secret_from_envfile ping-gateway-secrets "$ASSET_ROOT/ping-gateway/.env"        # PingGateway (IG)
 align_internal_secret                                                       # one internal secret across every consumer (must run after all four exist)
-align_agentless_gateway_oidc                                                # rotation reaches an already-installed gateway (deploy.sh only ever installs)
+align_gateway_oidc_secret agentless-mcpgw-oidc-config agentless-mcpgw       # rotation reaches an already-installed gateway (deploy.sh only ever installs)
 
 # Privilege proxy: ENV_PROXY_TOKEN from the gateway wizard, stored in
 # ping-mcpgw/procyon/config/proxy-token.env — an ENV FILE (`ENV_PROXY_TOKEN=eyJ...`),
@@ -675,6 +686,10 @@ if [ -f "$ASSET_ROOT/ping-mcpgw/procyon/config/proxy-token.env" ]; then
     --dry-run=client -o yaml | kubectl apply -f -
   info "  ping-mcpgw-secrets applied (ENV_PROXY_TOKEN from ping-mcpgw/procyon/config/proxy-token.env)"
   override_privilege_urls_for_public_origin
+  # pingone.env above came verbatim from the gitignored asset file, which nothing
+  # keeps in step with a PingOne secret rotation — align it the same way as the
+  # agentless gateway's copy. No deployment mounts this secret today, so no restart.
+  align_gateway_oidc_secret ping-mcpgw-secrets
 else
   warn "  ping-mcpgw/procyon/config/proxy-token.env not found — skipping secret ping-mcpgw-secrets"
 fi
