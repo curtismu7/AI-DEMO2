@@ -131,7 +131,12 @@ export default function LlmTestPage() {
   }, [bodyText, provider, path]);
 
   const runCompare = useCallback(async () => {
-    if (!directKey.trim()) { setCmpError('Paste a provider API key to run the direct side.'); return; }
+    // The server's own key covers the direct side when it has one; the field is an
+    // override for trying a different key without an .env edit and a restart.
+    if (!directKey.trim() && !lane?.directKeyConfigured) {
+      setCmpError('No key for the direct side. Paste one, or set it on the server.');
+      return;
+    }
     setCmpBusy(true);
     setCmp(null);
     setCmpError('');
@@ -140,7 +145,7 @@ export default function LlmTestPage() {
     try {
       setCmp(await api('/llm/compare', {
         method: 'POST',
-        body: { provider, directKey: directKey.trim(), model },
+        body: { provider, directKey: directKey.trim() || undefined, model },
       }));
     } catch (err) {
       setCmpError(err.message || 'Comparison failed');
@@ -274,8 +279,9 @@ export default function LlmTestPage() {
         <div className="lt-cmp__head">
           <span className="lt-k">Direct vs through Privilege</span>
           <span className="lt-cmp__why">
-            This app holds no provider key of its own &mdash; that is the point of a virtual key.
-            Paste one to run the unmediated side. It is used for this request only and never stored.
+            {lane?.directKeyConfigured
+              ? `The direct side uses ${lane.directKeyEnv} on the server. Paste a key here to run it with a different one — a pasted key is used for this request only and never stored.`
+              : 'This app holds no provider key of its own — that is the point of a virtual key. Paste one to run the unmediated side. It is used for this request only and never stored.'}
           </span>
         </div>
 
@@ -286,7 +292,9 @@ export default function LlmTestPage() {
             type="password"
             autoComplete="off"
             spellCheck="false"
-            placeholder={`your real ${TITLES[provider] || provider} key`}
+            placeholder={lane?.directKeyConfigured
+              ? `using ${lane.directKeyEnv} — paste to override`
+              : `your real ${TITLES[provider] || provider} key`}
             value={directKey}
             onChange={(e) => setDirectKey(e.target.value)}
           />

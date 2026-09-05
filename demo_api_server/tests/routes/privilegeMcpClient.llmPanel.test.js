@@ -139,6 +139,20 @@ describe('GET /llm/config', () => {
 
   // The virtual key is the one thing that must never reach the browser — the whole
   // point of the indirection is that the provider key stays server-side.
+  it('reports whether the server can run the direct side unaided', async () => {
+    process.env.LLM_DIRECT_ANTHROPIC_KEY = 'server-side-direct-key';
+    delete process.env.LLM_DIRECT_OPENAI_KEY;
+
+    const res = await request(app()).get('/api/privilege-mcp/llm/config');
+
+    const a = res.body.lanes.find((l) => l.provider === 'anthropic');
+    const o = res.body.lanes.find((l) => l.provider === 'openai');
+    expect(a.directKeyConfigured).toBe(true);
+    expect(a.directKeyEnv).toBe('LLM_DIRECT_ANTHROPIC_KEY');
+    expect(o.directKeyConfigured).toBe(false);
+    expect(JSON.stringify(res.body)).not.toContain('server-side-direct-key');
+  });
+
   it('reports only WHETHER a key is set, never the key', async () => {
     process.env.PRIVILEGE_LLM_VIRTUAL_KEY_ANTHROPIC = 'sk-orion-supersecret';
     delete process.env.PRIVILEGE_LLM_VIRTUAL_KEY_OPENAI;
@@ -443,10 +457,46 @@ describe('POST /llm/compare', () => {
     expect(JSON.stringify(res.body)).not.toContain('operator-supplied');
   });
 
-  it('requires a direct key rather than silently comparing one side', async () => {
+  it('refuses when neither the request nor the server has a direct key', async () => {
+    delete process.env.LLM_DIRECT_ANTHROPIC_KEY;
+
     const res = await cmp({ provider: 'anthropic' });
+
     expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/key is required/i);
+    // The message names the variable, so an operator knows what to set.
+    expect(res.body.error).toMatch(/LLM_DIRECT_ANTHROPIC_KEY/);
+    expect(directCompare.compare).not.toHaveBeenCalled();
+  });
+
+  it('uses the server key when no key was pasted', async () => {
+    process.env.LLM_DIRECT_ANTHROPIC_KEY = 'server-side-direct-key';
+
+    await cmp({ provider: 'anthropic' });
+
+    expect(directCompare.compare).toHaveBeenCalledWith(
+      expect.objectContaining({ directKey: 'server-side-direct-key' }),
+    );
+  });
+
+  // So a different key can be tried without an .env edit and a restart.
+  it('lets a pasted key override the server one', async () => {
+    process.env.LLM_DIRECT_ANTHROPIC_KEY = 'server-side-direct-key';
+
+    await cmp({ provider: 'anthropic', directKey: 'pasted-key' });
+
+    expect(directCompare.compare).toHaveBeenCalledWith(
+      expect.objectContaining({ directKey: 'pasted-key' }),
+    );
+  });
+
+  // ANTHROPIC_API_KEY drives seven other services; the comparison must not reach for it.
+  it('does not fall back to ANTHROPIC_API_KEY', async () => {
+    delete process.env.LLM_DIRECT_ANTHROPIC_KEY;
+    process.env.ANTHROPIC_API_KEY = 'the-app-wide-key';
+
+    const res = await cmp({ provider: 'anthropic' });
+
+    expect(res.status).toBe(400);
     expect(directCompare.compare).not.toHaveBeenCalled();
   });
 
