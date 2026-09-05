@@ -191,11 +191,17 @@ const DOORS = {
     label: 'PingOne Admin',
     // No real upstream fetch — see localHandler. Display-only, for hop details.
     upstream: () => 'local:pingone-admin (config/admin/tools.js)',
-    // Worker client_credentials, baked in server-side — same model as the
-    // `agent` door above (the identity is fixed, not the caller's own
-    // login), so no OAuth challenge at all, matching authorizationServer:
-    // null there. Every caller through this door gets the same worker-level
-    // PingOne admin access; there is no per-user distinction.
+    // authorizationServer stays null even though this door IS per-user: the
+    // hosted PingOne MCP server only accepts a delegated Authorization Code +
+    // PKCE token (an audience thing — the worker token is minted for
+    // api.pingone.com, the MCP server is mcp.pingone.com), and that login is
+    // driven by routes/mcpPingOneAdminAuth.js against the BROWSER session, not
+    // by an RFC 9728 challenge from this door. The token reaches the handler as
+    // the caller's x-pingone-admin-token header; privilegeMcpClient.js sets it
+    // from the session. Consequence: the demo's own client page works, and an
+    // external MCP client cannot use this door at all — it has no way to obtain
+    // or attach that header, and gets the 401 + loginUrl a browser can act on
+    // but a generic client cannot.
     authorizationServer: null,
     scopes: [],
     forwardCorrelation: false,

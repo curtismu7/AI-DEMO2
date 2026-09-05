@@ -1431,7 +1431,7 @@ scoped `read mcp:invoke` gets `search_audit_activities` (requires
 tools/list result is left untouched (the filter keys off the JSON-RPC method,
 not off "any body with a `tools` array").
 
-### [ ] 2026-08-28 — the BFF's pingone-admin façade door is broken upstream
+### [x] 2026-08-28 — the BFF's pingone-admin façade door is broken upstream
 
 `demo_api_server/routes/mcpFacade.js`'s `pingone-admin` door calls PingOne's
 hosted admin MCP (`mcp.pingone.com/admin/<envId>/mcp`) with a worker
@@ -1455,6 +1455,34 @@ invites someone to trust a tool count that no longer exists.
 **What the real fix looks like:** decide whether `pingone-admin` should become
 a user-OAuth door (matching `audit`/`agentless`) or be retired; either way,
 correct the comment so the next reader does not assume 85 working tools.
+
+**RESOLVED — this entry was already stale when re-read 2026-09-05; the
+user-OAuth option landed ~2026-08-30 and nobody closed it.** The diagnosis
+above was also half wrong: the 401 was an AUDIENCE mismatch, not a missing
+admin role. The worker token is minted for `https://api.pingone.com` while the
+hosted MCP server is a different resource at `https://mcp.pingone.com`, so
+granting the worker more roles could never have helped.
+
+What exists today:
+- `demo_api_server/routes/mcpPingOneAdminAuth.js` — Authorization Code + PKCE
+  (with PAR) against the "PingOne MCP Server" app, mounted at
+  `/api/mcp/inspector/pingone-admin` (`server.js`).
+- `mcpPingOneHttpAdapter._delegatedToken()` **throws**
+  `pingone_mcp_auth_required` rather than falling back to the worker token —
+  "a worker token is not a weaker credential here, it is an invalid one".
+- The door threads it (`delegatedToken: req.get('x-pingone-admin-token')`) and
+  answers a missing token with 401 + a `loginUrl`; `privilegeMcpClient.js` sets
+  that header from the browser session.
+
+Tool count moves with the signed-in user's roles (~73 for an admin, ~6 for a
+plain user), which is the point of a delegated token — so no fixed number in a
+comment can be right.
+
+**Still true, and the one real limitation:** this door is usable only by the
+demo's own client page. An external MCP client through the façade has no way to
+obtain or attach `x-pingone-admin-token`, and `authorizationServer: null` means
+it is never pointed at a login, so it sees a 401 a browser could act on and it
+cannot. Making it externally usable is a separate, unstarted piece of work.
 
 ### [x] 2026-08-28 — no dynamically-registered client can hold a custom gateway scope
 

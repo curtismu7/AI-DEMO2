@@ -6,8 +6,6 @@
  * Replaces the local `pingone-mcp-server` stdio binary: instead of spawning a
  * process, it POSTs MCP JSON-RPC (`tools/list` / `tools/call`) to
  *   https://mcp.pingone.{region}/admin/{envId}/mcp
- * authenticated with a worker `client_credentials` token (the same worker app
- * that backs Management API calls).
  *
  * AUTH IS DELEGATED PKCE, NOT A WORKER TOKEN. The hosted server only accepts an
  * authorization-code + PKCE token. A worker `client_credentials` token is
@@ -28,9 +26,11 @@
  * is no `initialize` handshake or `Mcp-Session-Id` to track.
  *
  * Drop-in for the old stdio adapter — exports `listTools()` and `callTool()`
- * with the same shapes the agent / pipeline / inspector already consume.
- * Worker auth is internal; the optional accessToken/userSub args are accepted
- * for call-site compatibility but are NOT used for authentication.
+ * with the same shapes the agent / pipeline / inspector already consume, with
+ * one difference that is NOT optional: the token argument IS the
+ * authentication. It was ignored back when this adapter used a worker token;
+ * passing nothing now throws `pingone_mcp_auth_required` rather than sending a
+ * credential the server rejects.
  */
 const axios = require('axios');
 const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
