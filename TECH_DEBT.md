@@ -2400,6 +2400,32 @@ ingress); the SE1 guide's client path does not use it.
 to `https://mcpgw.ai-demo.ping-devops.com/<that-app>/mcp`. For the agent doors,
 either add a passthrough ingress for the mesh port or delete the doors.
 
+**Update 2026-09-05 — the stated fix above was not actually performable, and
+that half is now done.** "Register a banking Agentic App" could not have
+succeeded: the rebuilt gateway discovers over the legacy HTTP+SSE transport
+(bare GET, waits for the `endpoint` event — see
+`.claude/skills/privilege-mcpgw-agent-k8s`), and `oauth-mcp` served only
+Streamable HTTP on `/mcp`. Any attempt would have returned "Gateway
+Unreachable — Error discovering MCP server: calling initialize: Unauthorized",
+which names auth and means transport. `oauth-mcp` now serves `GET /sse` +
+`POST /messages` (REGRESSION_PLAN §4, 2026-09-05), so the backend is
+registerable.
+
+**Still open, and still needs a human with console + cluster access:**
+1. Register the Agentic App — backend `http://mcp-server.<demo-ns>.svc.cluster.local:8080/sse`
+   (**`/sse`, not `/mcp`** — that is the documented trap), Mesh Cluster
+   `ai-demo-cmuir`. Note the demo deploys to a different namespace than the
+   gateway's `ping-devops-curtismuir`, so this is a cross-namespace FQDN.
+2. Author a policy on that app naming the demo users — a new app has no policy
+   even when a sibling app does, and the denial surfaces to the client as a
+   bare 403.
+3. Only then set `MCP_FACADE_AGENTLESS_URL`/`_AS` and repoint the door. Until
+   the app exists the door stays dark deliberately: pointing it at
+   `opensearch22` would silently serve the wrong tools, which is worse.
+
+The `agent`/`agent-cmuir` doors are untouched by this and still hang — that
+half is unchanged, and deleting them remains the cheap correct answer.
+
 ### [x] 2026-08-26 — `ping-mcpgw` Helm release's only remaining purpose is a backend it doesn't gate
 
 **Resolved 2026-09-01:** the "real fix" landed as the second option — the
