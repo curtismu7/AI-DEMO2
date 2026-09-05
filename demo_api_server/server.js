@@ -674,6 +674,9 @@ app.use(
 const TRACKING_SKIP_PREFIXES = [
     '/api-calls', '/tokens/session-preview', '/tokens/agent-cc-preview',
     '/healthz', '/health', '/mcp/traffic', '/oauth/monitor',
+    // Swagger UI: one page load pulls a dozen static assets plus the spec, which
+    // would bury real traffic in the API Explorer.
+    '/docs', '/openapi.json', '/reference',
 ];
 
 // Auto-track all /api/* calls into the API Explorer (skips polling endpoints to avoid noise)
@@ -1026,6 +1029,73 @@ app.use('/api/admin/pingcli', authenticateToken, pingcliRoutes);
 app.use('/api/admin/mgmt-api', authenticateToken, requireAdmin, mgmtApiRoutes);
 app.use('/api/admin/ping-ai-test-lab', authenticateToken, pingAiTestLabRoutes);
 app.use('/api/admin/config', adminConfigRoutes);
+
+// OpenAPI / Swagger UI. The document is introspected from this app's own router
+// (lib/openapiFromRoutes.js) rather than from per-route annotations, so it cannot
+// drift from what is actually mounted. Built once, on first request, so routes
+// registered after this line are still included.
+// Admin-gated on purpose: it enumerates every endpoint the BFF exposes.
+// Mounted under /api so the UI dev proxy carries it to the browser origin at
+// :4000 — reached directly on :3001 there is no session cookie and every
+// "Try it out" would come back 401.
+const swaggerUi = require('swagger-ui-express');
+const { buildSpec: buildOpenApiSpec } = require('./lib/openapiFromRoutes');
+const openApiOverlay = require('./config/openapi-overlay.json');
+let openApiSpecCache = null;
+function openApiSpec() {
+    if (!openApiSpecCache) {
+        const { spec, unmatchedOverlayKeys } = buildOpenApiSpec(app, { overlay: openApiOverlay });
+        if (unmatchedOverlayKeys.length) {
+            console.warn(`[openapi] overlay keys match no route: ${unmatchedOverlayKeys.join(', ')}`);
+        }
+        openApiSpecCache = spec;
+    }
+    return openApiSpecCache;
+}
+app.get('/api/openapi.json', authenticateToken, requireAdmin, (req, res) => {
+    res.json(openApiSpec());
+});
+app.use(
+    '/api/docs',
+    authenticateToken,
+    requireAdmin,
+    swaggerUi.serve,
+    // Point the UI at the spec endpoint instead of inlining the document: the
+    // fetch is same-origin so it carries the session cookie, and the spec stays
+    // a single source both the page and any client can read.
+    swaggerUi.setup(null, {
+        swaggerOptions: { url: '/api/openapi.json' },
+        customSiteTitle: 'Banking Demo BFF API',
+    }),
+);
+
+// Second renderer over the SAME document — Scalar. Two views, one spec: it is
+// handed the built object, so there is no second build and no second fetch.
+// The package is ESM-only and this file is CommonJS, hence the cached dynamic
+// import. A GET route rather than app.use() because Scalar serves one HTML page
+// (its bundle comes from a CDN) — and a route is what makes /api/reference
+// visible to the router introspection, so it documents itself.
+// Theme: `darkMode: false` only seeds the initial state. The app's dark mode is
+// `:root[data-theme="dark"]` set by ThemeContext from localStorage, and this is
+// a separate top-level document, so that attribute cannot reach it. Seeding
+// light matches the app's own default and stops Scalar falling back to
+// prefers-color-scheme, which THEMING.md forbids; Scalar's own toggle still works.
+let scalarHandler = null;
+app.get('/api/reference', authenticateToken, requireAdmin, async (req, res, next) => {
+    try {
+        if (!scalarHandler) {
+            const { apiReference } = await import('@scalar/express-api-reference');
+            scalarHandler = apiReference({
+                content: openApiSpec(),
+                pageTitle: 'Banking Demo BFF API',
+                darkMode: false,
+            });
+        }
+        scalarHandler(req, res, next);
+    } catch (err) {
+        next(err);
+    }
+});
 
 // PingOne MCP setup — isolated endpoint with its own authenticateToken guard
 // (not part of the /api/admin/* prefix pattern; auth is enforced at the route level)
