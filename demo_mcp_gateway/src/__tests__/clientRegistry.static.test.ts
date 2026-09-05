@@ -1,9 +1,13 @@
 /**
- * Static broker clients exist so a SERVER-SIDE relay can hold a scope no
- * dynamic client may have. The DCR controls they bypass (loopback redirects,
- * pinned mcp:invoke scope) protect an UNAUTHENTICATED endpoint; server config
- * is a different trust level. These tests pin that the bypass is available to
- * config only, and never leaks back into /oauth/register.
+ * Static broker clients exist so a SERVER-SIDE relay can hold a scope this
+ * ClientRegistry instance was never told to advertise at all (no
+ * `scopesSupported` bound applies to them — see ClientRegistry's
+ * seedStaticClient doc). A dynamic client is bounded to whatever
+ * `scopesSupported` this instance was constructed with (resolveRequestedScope
+ * tests cover that separately); these tests pin that a static client's scope
+ * is a different, unbounded trust level that never leaks into /oauth/register
+ * — a dynamic client that doesn't request the static client's scope still
+ * gets the ordinary default, not it.
  */
 import { ClientRegistry } from '../oauth/ClientRegistry';
 

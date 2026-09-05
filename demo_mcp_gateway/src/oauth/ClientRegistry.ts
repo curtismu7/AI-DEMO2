@@ -13,6 +13,16 @@ export interface RegisterClientInput {
   client_name?: string;
   redirect_uris: string[];
   grant_types?: string[];
+  /**
+   * Scope the CLIENT is requesting (RFC 7591 registration request `scope`).
+   * A spec-following client sets this to whatever it discovered as required
+   * for the door it's about to use (a door's oauth-protected-resource
+   * advertises its own `scopes_supported` — see mcpFacade.js's DOORS). Honored
+   * only where it intersects the broker's own `scopesSupported`; anything
+   * outside that set is dropped, same as an omitted scope. See
+   * ClientRegistry.resolveRequestedScope.
+   */
+  scope?: string;
 }
 
 export class InvalidRedirectUriError extends Error {
@@ -23,10 +33,8 @@ export class InvalidRedirectUriError extends Error {
 }
 
 /**
- * Scope granted to every dynamically-registered client. Pinned server-side,
- * never read from the registration request — an unauthenticated caller
- * naming its own scope would be exactly the escalation open DCR exists to
- * avoid (mirrors oauth-mcp's ClientRegistry.openRegistrationScope reasoning).
+ * Default scope for a dynamically-registered client that requests none, or
+ * requests only scopes outside what this broker advertises.
  */
 function brokerRegistrationScope(): string {
   return process.env.MCP_GW_OAUTH_BROKER_SCOPE || 'mcp:invoke';
@@ -53,9 +61,36 @@ function assertLoopback(uri: string): void {
  */
 export class ClientRegistry {
   private clients: Map<string, OAuthBrokerClient> = new Map();
+  private readonly supportedScopes: Set<string>;
 
-  constructor() {
+  /**
+   * @param scopesSupported the broker's RFC 8414 `scopes_supported` list
+   * (GATEWAY_SCOPES in GatewayServer.ts) — the ceiling a dynamic client's
+   * requested scope is bounded to. Unrelated to `MCP_GW_OAUTH_STATIC_SCOPE`,
+   * which is operator-configured and not bounded by this set at all.
+   */
+  constructor(scopesSupported: string[] = ['mcp:invoke']) {
+    this.supportedScopes = new Set(scopesSupported);
     this.seedStaticClient();
+  }
+
+  /**
+   * Bound a client's requested scope to what this broker actually
+   * advertises. This is what lets per-door scope narrowing (e.g. the audit
+   * façade door's `audit:read`) reach a DYNAMIC client at all: a
+   * spec-following client (LM Studio, the MCP SDK) sets `scope` in its
+   * /oauth/register body to what it discovered a door requires, and this
+   * honors that — filtered to a known set, never to an arbitrary caller-named
+   * value. A token's REAL scope is still whatever PingOne actually grants the
+   * signed-in user at /oauth/authorize; this only decides what the registered
+   * client record reports back to the client, which is what a spec-following
+   * client asks for on every later request.
+   */
+  private resolveRequestedScope(requested: string | undefined): string {
+    const tokens = (requested || '')
+      .split(/\s+/)
+      .filter((s) => s && this.supportedScopes.has(s));
+    return tokens.length ? tokens.join(' ') : brokerRegistrationScope();
   }
 
   /**
@@ -105,7 +140,7 @@ export class ClientRegistry {
       grant_types: input.grant_types || ['authorization_code'],
       redirect_uris: input.redirect_uris,
       token_endpoint_auth_method: 'none',
-      scope: brokerRegistrationScope(),
+      scope: this.resolveRequestedScope(input.scope),
     };
     this.clients.set(client.client_id, client);
     return client;
@@ -117,7 +152,7 @@ export class ClientRegistry {
    * id it was issued and fails /oauth/authorize with invalid_client (LM Studio,
    * live 2026-08-25). Open DCR already lets any loopback client register, so
    * adopting the presented id is the same trust — same loopback check, same
-   * pinned scope; only the client_name is lost.
+   * bounded scope resolution as registerClient; only the client_name is lost.
    */
   adoptClient(input: RegisterClientInput & { client_id: string }): OAuthBrokerClient {
     if (!input.redirect_uris || input.redirect_uris.length === 0) {
@@ -132,7 +167,7 @@ export class ClientRegistry {
       grant_types: input.grant_types || ['authorization_code'],
       redirect_uris: input.redirect_uris,
       token_endpoint_auth_method: 'none',
-      scope: brokerRegistrationScope(),
+      scope: this.resolveRequestedScope(input.scope),
     };
     this.clients.set(client.client_id, client);
     return client;
