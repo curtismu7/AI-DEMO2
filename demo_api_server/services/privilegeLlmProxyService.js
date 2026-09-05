@@ -92,10 +92,38 @@ async function listModels(lane) {
   return { status: res.status, ok: res.ok, data };
 }
 
-/** Denial (400/403) vs any other failure — shared by both providers. */
+// A provider's own error envelope, not the gateway's. Anthropic and OpenAI both
+// wrap errors with a top-level `type` and/or a `request_id`; every Privilege
+// rejection observed on this gateway — "Forbidden", "invalid virtual key",
+// "wrong_provider", "model ... not allowed for this key" — is a bare {error:{…}}
+// with neither. The distinction matters because Privilege answers a policy denial
+// with 403 while providers use 400 for a malformed or unbillable request, and the
+// old status-only test called both a denial.
+function looksLikeProviderError(data) {
+  if (!data || typeof data !== 'object') return false;
+  // Anthropic: {"type":"error","error":{…},"request_id":…}
+  if (data.type === 'error' || Object.hasOwn(data, 'request_id')) return true;
+  // OpenAI-compatible: the error object carries `param` (usually null, always
+  // present) — e.g. {"error":{"message":"…","type":"insufficient_quota",
+  // "param":null,"code":"credit_balance_exhausted"}}. The gateway's own bodies
+  // ("Forbidden", "invalid virtual key", "wrong_provider", "model … not allowed
+  // for this key") carry message/type/code but never `param`.
+  const err = data.error;
+  return Boolean(err) && typeof err === 'object' && Object.hasOwn(err, 'param');
+}
+
+/**
+ * Denial vs any other failure — shared by every lane.
+ *
+ * A denial is Privilege refusing before the provider sees the prompt, and the demo
+ * shows it as the product working. Mislabelling a provider failure as one asserts
+ * that Privilege blocked something it actually passed through: on 2026-09-05 an
+ * Anthropic billing error ("Your credit balance is too low") rendered as
+ * "Privilege denied this call", which is the product's central claim stated falsely.
+ */
 function throwForResponse(res, data, label) {
   const msg = data?.error?.message || res.statusText || String(res.status);
-  if (res.status === 403 || res.status === 400) {
+  if ((res.status === 403 || res.status === 400) && !looksLikeProviderError(data)) {
     const err = new Error(msg);
     err.code = 'llm_policy_denied';
     err.reason = msg;
@@ -223,6 +251,7 @@ async function callPrivilegeOpenAI(messages, config = {}) {
 
 module.exports = {
   LANES,
+  looksLikeProviderError,
   readProviderLimits,
   resolveRoute,
   listModels,
