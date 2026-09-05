@@ -32,7 +32,7 @@
       "gridPos": { "h": 4, "w": 24, "x": 0, "y": 0 },
       "options": {
         "mode": "markdown",
-        "content": "Each of the four services below wraps its own single message-dispatch chokepoint (the one function every request or WebSocket message already passes through) with a Prometheus histogram — it observes what already happens, it does not change how a request is handled. Metric prefixes: `mcpgw_` (Agent Gateway), `oauthmcp_` (banking MCP server), `mcprs_` (invest/airlines resource server), `apirs_` (mortgage resource server). Process metrics (CPU, heap, event loop) come from prom-client's default collector on each. The Logs panel below is Tier 2 — Grafana Alloy tailing every container's stdout into Loki, filterable by the Service variable above."
+        "content": "Each of the four services below wraps its own message-dispatch chokepoint(s) with a Prometheus histogram — it observes what already happens, it does not change how a request is handled. Metric prefixes: `mcpgw_` (Agent Gateway), `oauthmcp_` (banking MCP server), `mcprs_` (invest/airlines resource server), `apirs_` (mortgage resource server). oauth-mcp has TWO separate dispatch paths that never call each other — WebSocket (`processMessage`) and Streamable HTTP/legacy SSE (`HttpMCPTransport.handleRequest`), each with its own panel below; PingGateway's OLB token exchange uses the HTTP one. Some tool calls never reach any of these four services at all — PingGateway answers certain verticals with its own built-in synthetic response, no backend forwarding involved (confirmed for sporting-goods via `[OlbExchange] MCP direct response` in its logs) — an empty panel there is that, not a gap. Process metrics (CPU, heap, event loop) come from prom-client's default collector on each. The Logs panel below is Tier 2 — Grafana Alloy tailing every container's stdout into Loki, filterable by the Service variable above."
       }
     },
     {
@@ -70,9 +70,9 @@
     {
       "id": 4,
       "type": "timeseries",
-      "title": "Banking MCP server (oauth-mcp) — messages by method (per 5 min)",
-      "description": "DemoMCPServer.processMessage — shared by the WebSocket listener and the HTTP MCP transport.",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "title": "Banking MCP server (oauth-mcp) — WebSocket messages by method (per 5 min)",
+      "description": "DemoMCPServer.processMessage — the WebSocket listener ONLY. PingGateway's OLB token exchange uses the separate HTTP transport instead (see the panel to the right) — a live demo exercised through PingGateway shows nothing here, by design, not a gap.",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 12 },
       "datasource": { "type": "prometheus", "uid": "ai-demo-prometheus" },
       "targets": [
         { "refId": "A", "expr": "sum by (method) (increase(oauthmcp_mcp_message_duration_seconds_count[5m]))", "legendFormat": "{{method}}" }
@@ -84,11 +84,27 @@
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } }
     },
     {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Banking MCP server (oauth-mcp) — HTTP transport calls by path (per 5 min)",
+      "description": "HttpMCPTransport.handleRequest — Streamable HTTP + legacy SSE. This is the path PingGateway's OLB token exchange actually uses (confirmed via ping-gateway logs: 'Sending MCP initialize to http://mcp-server:8080/mcp'). Labeled by pathname, not JSON-RPC method — the method lives in the POST body, which the wrapped function reads as a stream.",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "ai-demo-prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum by (path) (increase(oauthmcp_mcp_http_transport_duration_seconds_count[5m]))", "legendFormat": "{{path}}" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short", "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "showPoints": "never" }, "min": 0, "decimals": 0 },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
       "id": 5,
       "type": "timeseries",
       "title": "Invest/airlines resource server — messages by method (per 5 min)",
-      "description": "demo_mcp_resource_server/src/index.ts handleMessage — shared by the WebSocket listener and the HTTP MCP transport.",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "description": "demo_mcp_resource_server/src/index.ts handleMessage — shared by the WebSocket listener and the HTTP MCP transport. Empty for tool calls PingGateway answers itself without forwarding (confirmed for sporting-goods list_gear/extend_rental via ping-gateway logs: '[OlbExchange] MCP direct response') — that's the gateway's own mock responder, not a gap here.",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 12 },
       "datasource": { "type": "prometheus", "uid": "ai-demo-prometheus" },
       "targets": [
         { "refId": "A", "expr": "sum by (method) (increase(mcprs_mcp_message_duration_seconds_count[5m]))", "legendFormat": "{{method}}" }
