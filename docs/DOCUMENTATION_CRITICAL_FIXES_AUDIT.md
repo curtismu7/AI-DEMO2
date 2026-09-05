@@ -119,6 +119,13 @@ No central documentation index or navigation structure.
 
 ### 2. Missing OpenAPI/Swagger Specifications
 
+> **Resolved (#2791) — do not hand-write the spec below.** The BFF now generates
+> OpenAPI 3.1 from the live Express router at `GET /api/openapi.json`, rendered by
+> Swagger UI (`/api/docs`) and Scalar (`/api/reference`). Prose and schemas are
+> layered on via `demo_api_server/config/openapi-overlay.json`. The hand-written
+> `docs/openapi.yaml` this section called for was created, drifted into fiction
+> (servers that never existed, paths no route serves), and has been deleted.
+
 #### Issue
 No machine-readable API documentation for automated client generation.
 

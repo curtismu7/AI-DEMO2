@@ -19,7 +19,6 @@ docs/
   SETUP.md (12,120 lines) - Setup and configuration guide
   FEATURES.md (12,647 lines) - Feature documentation
   RFC-STANDARDS.md (14,998 lines) - RFC standards reference
-  openapi.yaml (51,749 lines) - OpenAPI specification
   ARCHITECTURE_WALKTHROUGH.md (13,575 lines) - Architecture documentation
   
   API Documentation/
