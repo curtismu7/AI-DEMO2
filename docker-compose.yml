@@ -237,6 +237,15 @@ services:
       # service's own `.env` is then plaintext and loads unchanged.
       - path: ./.env.keys
         required: false
+      # PingOne Privilege LLM protection — PRIVILEGE_LLM_GATEWAY_URL,
+      # PRIVILEGE_LLM_VIRTUAL_KEY_ANTHROPIC, PRIVILEGE_LLM_VIRTUAL_KEY_GOOGLE
+      # and PRIVILEGE_LLM_VIRTUAL_KEY_OPENAI arrive through the
+      # demo_api_server/.env above and are deliberately NOT listed under
+      # `environment:` below. Same trap as DOTENV_PRIVATE_KEY: `environment:`
+      # always wins over env_file for the same key, so a `${VAR:-}` default
+      # would replace a real virtual key with an empty string and every
+      # Privilege LLM call would fail "not configured" on a machine where the
+      # key is actually set. See demo_api_server/.env.example for the values.
     environment:
       NODE_ENV: development
       # Allow self-signed TLS (host.docker.internal MCP server)

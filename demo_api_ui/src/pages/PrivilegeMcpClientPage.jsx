@@ -90,12 +90,20 @@ function api(path, options = {}) {
       // The STATUS, not just the prose. The message is data.error -- a code like
       // 'unauthenticated', which contains neither '401' nor 'bearer token
       // required', so a challenge detected by substring alone was invisible and
-      // the raw JSON reached the operator with no sign-in offered.
+      // the raw JSON reached the operator with no sign-in offered. The LLM lane
+      // table reads it too, to name WHICH layer refused: 400 the caller, 403
+      // Privilege policy, 503 missing config, 502 the provider.
       err.status = r.status;
       // Extra flags alongside the error string (never instead of it) — e.g.
       // pingoneAdminLocalHandler's delegated-PKCE login requirement carries a
       // loginUrl a caller can act on instead of just showing the message.
       if (data.loginUrl) err.loginUrl = data.loginUrl;
+      // A Privilege LLM denial is a structured outcome the panel renders as the
+      // security story, so its fields must survive rather than flatten to text.
+      if (data.code) err.code = data.code;
+      if (data.reason) err.reason = data.reason;
+      if (data.provider) err.provider = data.provider;
+      if (data.route) err.route = data.route;
       throw err;
     }
     return data;
@@ -177,6 +185,16 @@ export default function PrivilegeMcpClientPage() {
   const [config, setConfig] = useState({ mcpUrl: '', clientId: '', scopes: 'openid profile email', llmUrl: 'http://127.0.0.1:11434', llmModel: 'llama3.2:1b' });
   const [gatewayMode, setGatewayMode] = useState('privilege');
   const [gatewaySession, setGatewaySession] = useState(null);
+  const [llmProvider, setLlmProvider] = useState('anthropic');
+  const [llmPrompt, setLlmPrompt] = useState('');
+  const [llmBusy, setLlmBusy] = useState(false);
+  const [llmResult, setLlmResult] = useState(null);
+  const [llmLanes, setLlmLanes] = useState([]);
+  const [llmGatewayUrl, setLlmGatewayUrl] = useState('');
+  const [laneResults, setLaneResults] = useState({});
+  const [laneBusy, setLaneBusy] = useState('');
+  const [llmDenial, setLlmDenial] = useState(null);
+  const [llmError, setLlmError] = useState('');
   const [rearmError, setRearmError] = useState('');
   const [preflight, setPreflight] = useState(null);
   const [preflightError, setPreflightError] = useState('');
@@ -638,6 +656,99 @@ export default function PrivilegeMcpClientPage() {
       setPreflightBusy(false);
     }
   }, [presets]);
+
+  // A denial (403 + llm_policy_denied) is the point of this panel, so it gets
+  // its own state and its own rendering — never the error channel.
+  const sendLlm = useCallback(async (promptOverride) => {
+    const prompt = (typeof promptOverride === 'string' ? promptOverride : llmPrompt).trim();
+    if (!prompt) return;
+    setLlmBusy(true);
+    setLlmResult(null);
+    setLlmDenial(null);
+    setLlmError('');
+    try {
+      const data = await api('/llm/call', { method: 'POST', body: { provider: llmProvider, prompt } });
+      setLlmResult(data);
+    } catch (err) {
+      if (err.code === 'llm_policy_denied') {
+        setLlmDenial({
+          reason: err.reason || err.message,
+          provider: err.provider || llmProvider,
+          route: err.route || '',
+        });
+      } else {
+        setLlmError(err.message || 'LLM call failed');
+      }
+    } finally {
+      setLlmBusy(false);
+    }
+  }, [llmProvider, llmPrompt]);
+
+  // Load the lanes so the table prefills with what the SERVER actually calls,
+  // rather than a path copied into the UI that can drift out of step with it.
+  useEffect(() => {
+    let cancelled = false;
+    api('/llm/config')
+      .then((cfg) => {
+        if (cancelled) return;
+        setLlmGatewayUrl(cfg.gatewayUrl || '');
+        setLlmLanes(cfg.lanes || []);
+      })
+      .catch(() => { /* panel still works on defaults */ });
+    return () => { cancelled = true; };
+  }, []);
+
+  const setLane = useCallback((provider, field, value) => {
+    setLlmLanes((prev) => prev.map((l) => (l.provider === provider ? { ...l, [field]: value } : l)));
+  }, []);
+
+  // Which layer refused, by status — the distinction that makes this table worth
+  // having: a 403 means Privilege did its job, a 502 means the provider credential
+  // behind the virtual key is the problem, and they look identical in a raw log.
+  const classify = (err) => {
+    if (err.code === 'llm_bad_route') return { layer: 'route rejected', tone: 'bad' };
+    if (err.code === 'llm_policy_denied') return { layer: 'Privilege policy', tone: 'denied' };
+    if (err.status === 503) return { layer: 'not configured', tone: 'bad' };
+    if (err.status === 502) return { layer: 'provider', tone: 'bad' };
+    return { layer: `HTTP ${err.status || '?'}`, tone: 'bad' };
+  };
+
+  const testLane = useCallback(async (lane) => {
+    setLaneBusy(lane.provider);
+    setLaneResults((prev) => ({ ...prev, [lane.provider]: null }));
+    const t0 = Date.now();
+    try {
+      const data = await api('/llm/call', {
+        method: 'POST',
+        body: { provider: lane.provider, prompt: 'Reply with one word: ping', route: lane.route, model: lane.model },
+      });
+      setLaneResults((prev) => ({
+        ...prev,
+        [lane.provider]: { ok: true, layer: 'reply', tone: 'ok', text: data.reply, latencyMs: data.latencyMs },
+      }));
+    } catch (err) {
+      const { layer, tone } = classify(err);
+      setLaneResults((prev) => ({
+        ...prev,
+        [lane.provider]: { ok: false, layer, tone, text: err.reason || err.message, latencyMs: Date.now() - t0 },
+      }));
+    } finally {
+      setLaneBusy('');
+    }
+  }, []);
+
+  const testAllLanes = useCallback(async () => {
+    // Sequential: three concurrent calls through one gateway muddies which lane
+    // a rate-limit belongs to, and the whole point here is attribution.
+    for (const lane of llmLanes) await testLane(lane);
+  }, [llmLanes, testLane]);
+
+  // "Prove the policy": a prompt the Privilege policy is configured to deny.
+  // Deliberately obvious PII so the denial is explainable on stage.
+  const proveLlmPolicy = useCallback(
+    () => sendLlm('Here is a customer SSN 123-45-6789 — summarise this record.'),
+    [sendLlm],
+  );
 
   const loadEnv = async () => {
     try {
@@ -1535,6 +1646,103 @@ export default function PrivilegeMcpClientPage() {
               </li>
             ))}
           </ul>
+        )}
+      </div>
+
+      <div className="cur-llmpanel">
+        {llmLanes.length > 0 && (
+          <div className="cur-llmlanes" data-testid="llm-lanes">
+            <div className="cur-llmlanes__head">
+              <span>Lanes</span>
+              <code className="cur-llmpanel__meta">{llmGatewayUrl || 'gateway URL not configured'}</code>
+              <button type="button" onClick={testAllLanes} disabled={Boolean(laneBusy)}>
+                {laneBusy ? 'Testing…' : 'Test all lanes'}
+              </button>
+            </div>
+            {llmLanes.map((lane) => {
+              const r = laneResults[lane.provider];
+              return (
+                <div className="cur-llmlanes__row" key={lane.provider}>
+                  <span className="cur-llmlanes__name">{lane.provider}</span>
+                  <input
+                    aria-label={`${lane.provider} route`}
+                    value={lane.route}
+                    onChange={(e) => setLane(lane.provider, 'route', e.target.value)}
+                  />
+                  <input
+                    aria-label={`${lane.provider} model`}
+                    value={lane.model}
+                    onChange={(e) => setLane(lane.provider, 'model', e.target.value)}
+                  />
+                  <button type="button" onClick={() => testLane(lane)} disabled={Boolean(laneBusy)}>
+                    Test
+                  </button>
+                  {!lane.keyConfigured && (
+                    <span className="cur-llmlanes__result cur-llmlanes__result--bad">
+                      {lane.keyEnv} not set
+                    </span>
+                  )}
+                  {r && (
+                    <span
+                      className={`cur-llmlanes__result cur-llmlanes__result--${r.tone}`}
+                      data-testid={`lane-result-${lane.provider}`}
+                    >
+                      {r.ok ? '✅' : r.tone === 'denied' ? '⚠️' : '❌'} {r.layer} · {r.latencyMs} ms
+                      <span className="cur-llmlanes__detail">{r.text}</span>
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <div className="cur-llmpanel__row">
+          <label htmlFor="llm-provider">Provider</label>
+          <select
+            id="llm-provider"
+            value={llmProvider}
+            onChange={(e) => setLlmProvider(e.target.value)}
+          >
+            <option value="anthropic">Anthropic</option>
+            <option value="google">Google</option>
+            <option value="openai">OpenAI</option>
+          </select>
+        </div>
+        <div className="cur-llmpanel__row">
+          <label htmlFor="llm-prompt">Prompt</label>
+          <input
+            id="llm-prompt"
+            type="text"
+            value={llmPrompt}
+            onChange={(e) => setLlmPrompt(e.target.value)}
+          />
+          <button type="button" onClick={() => sendLlm()} disabled={llmBusy}>
+            {llmBusy ? 'Sending…' : 'Send'}
+          </button>
+          <button type="button" onClick={proveLlmPolicy} disabled={llmBusy}>
+            Prove the policy
+          </button>
+        </div>
+        {llmResult && (
+          <div className="cur-llmpanel__reply">
+            <p>{llmResult.reply}</p>
+            <p className="cur-llmpanel__meta">
+              <code>{llmResult.route}</code> · {llmResult.latencyMs} ms
+            </p>
+          </div>
+        )}
+        {llmDenial && (
+          <div className="cur-llmpanel__denial" data-testid="llm-denial" role="status">
+            <strong>⚠️ Privilege denied this call.</strong>
+            <span>{llmDenial.reason}</span>
+            <span className="cur-llmpanel__meta">
+              provider {llmDenial.provider}
+              {llmDenial.route ? ` · ${llmDenial.route}` : ''}
+            </span>
+          </div>
+        )}
+        {llmError && (
+          <p className="cur-llmpanel__error" data-testid="llm-error" role="alert">{llmError}</p>
         )}
       </div>
 

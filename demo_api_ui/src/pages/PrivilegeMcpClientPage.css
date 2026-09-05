@@ -1861,3 +1861,166 @@ select.cur-input { cursor: pointer; }
 .cur-preflight__row--bad {
   color: var(--th-status-error);
 }
+
+/* Privilege LLM panel — real tokens, verified against src/index.css. */
+.cur-llmpanel {
+  margin: 0 0 0.75rem;
+  font-size: var(--font-size-xs);
+}
+
+.cur-llmpanel__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.cur-llmpanel__row input[type="text"] {
+  flex: 1 1 16rem;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid var(--th-border);
+  border-radius: 4px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
+
+.cur-llmpanel__row button {
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--th-border);
+  border-radius: 4px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  cursor: pointer;
+}
+
+.cur-llmpanel__row button:hover:not(:disabled) {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+.cur-llmpanel__row button:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.cur-llmpanel__reply {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--th-border);
+  border-radius: 4px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
+
+/* A denial is the demo, not a failure: warning tones, with the reason shown. */
+.cur-llmpanel__denial {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--th-status-warning-border);
+  border-radius: 4px;
+  background: var(--th-status-warning-bg);
+  color: var(--th-status-warning-text);
+}
+
+.cur-llmpanel__meta {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-2xs);
+}
+
+.cur-llmpanel__error {
+  margin: 0.4rem 0 0;
+  color: var(--th-status-error);
+  font-size: var(--font-size-2xs);
+}
+
+/* Per-lane route/model probe table. Every rule that takes a --th-* ground also
+   states its ink — THEMING.md §1.5, enforced by the ground-without-ink ratchet. */
+.cur-llmlanes {
+  margin: 0 0 0.6rem;
+  padding: 0.5rem;
+  border: 1px solid var(--th-border);
+  border-radius: 4px;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+
+.cur-llmlanes__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+  font-size: var(--font-size-2xs);
+  font-weight: 600;
+}
+
+.cur-llmlanes__head button {
+  margin-left: auto;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid var(--th-border);
+  border-radius: 4px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  cursor: pointer;
+}
+
+.cur-llmlanes__head button:hover:not(:disabled) {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+.cur-llmlanes__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.3rem;
+}
+
+.cur-llmlanes__name {
+  min-width: 5.5rem;
+  font-size: var(--font-size-2xs);
+  font-weight: 600;
+}
+
+.cur-llmlanes__row input {
+  flex: 1 1 12rem;
+  min-width: 8rem;
+  padding: 0.2rem 0.4rem;
+  border: 1px solid var(--th-border);
+  border-radius: 4px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-family: var(--font-mono, monospace);
+  font-size: var(--font-size-3xs);
+}
+
+.cur-llmlanes__row button {
+  padding: 0.2rem 0.55rem;
+  border: 1px solid var(--th-border);
+  border-radius: 4px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  cursor: pointer;
+}
+
+.cur-llmlanes__row button:hover:not(:disabled) {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+.cur-llmlanes__result {
+  flex: 1 1 100%;
+  font-size: var(--font-size-3xs);
+}
+
+.cur-llmlanes__result--ok { color: var(--th-status-success); }
+.cur-llmlanes__result--denied { color: var(--th-status-warning); }
+.cur-llmlanes__result--bad { color: var(--th-status-error); }
+
+.cur-llmlanes__detail {
+  display: block;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-3xs);
+}

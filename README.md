@@ -579,6 +579,7 @@ Then re-install: `curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-demo
 See **[docs/FEATURES.md](docs/user-guide/FEATURES.md)** — demo scenarios, full feature matrix, 20-minute pitch checklist.  
 See **[docs/RFC-STANDARDS.md](docs/RFC-STANDARDS.md)** — every RFC and standard implemented, compliance level, and known gaps.  
 See **[docs/REQUEST_FLOW_SERVERS.md](docs/REQUEST_FLOW_SERVERS.md)** — complete request flow reference: every server a chat prompt touches, in order, with token details, for all 6 flows (login, agent actor token, chat, NL intent, HITL consent, MFA/step-up).
+See **[docs/privilege-llm-protection.md](docs/privilege-llm-protection.md)** — calling Anthropic/Google/OpenAI through a PingOne Privilege virtual key, so the app holds no provider key and a policy can deny the call before it reaches the provider.
 
 **Recent additions (June 2026):**
 

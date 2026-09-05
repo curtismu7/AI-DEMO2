@@ -403,6 +403,39 @@ PY
   info "  ANTHROPIC_API_KEY mirrored into langchain-secrets from BFF .env"
 }
 
+# Mirror the Privilege LLM protection config from the BFF .env into
+# ai-demo-secrets, which the BFF DOES mount (unlike the langchain-secrets
+# mirrors above, which exist because the agent mounts a different secret).
+#
+# 03-secrets.yaml.template declares all four keys but ships them empty, because
+# the three virtual keys are credentials and a populated template would commit
+# them. Without this mirror the BFF gets empty strings and every Privilege LLM
+# call fails with "PRIVILEGE_LLM_VIRTUAL_KEY_* not configured" — a named error,
+# but only after a deploy that looked clean.
+mirror_privilege_llm_config() {
+  local bff_env="$ASSET_ROOT/demo_api_server/.env"
+  local pairs=""
+  local key value
+  for key in PRIVILEGE_LLM_GATEWAY_URL \
+             PRIVILEGE_LLM_VIRTUAL_KEY_ANTHROPIC \
+             PRIVILEGE_LLM_VIRTUAL_KEY_GOOGLE \
+             PRIVILEGE_LLM_VIRTUAL_KEY_OPENAI; do
+    value=$(grep -E "^${key}=.+" "$bff_env" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"')
+    [ -z "$value" ] && continue
+    export MIRROR_KEY="$key" MIRROR_VALUE="$value"
+    pairs="${pairs}$(python3 -c 'import json,os; print(json.dumps({os.environ["MIRROR_KEY"]: os.environ["MIRROR_VALUE"]})[1:-1])'),"
+    unset MIRROR_KEY MIRROR_VALUE
+  done
+  # Nothing set in the BFF .env is a valid state — the feature is optional.
+  if [ -z "$pairs" ]; then
+    return
+  fi
+  printf '{"stringData":{%s}}' "${pairs%,}" \
+    | kubectl patch secret ai-demo-secrets --namespace="$NS" --type merge --patch-file /dev/stdin >/dev/null
+  # Count only. NEVER log a virtual key's value.
+  info "  Privilege LLM config mirrored into ai-demo-secrets from BFF .env"
+}
+
 # ── Cloud override: redirect URIs must match the public origin ───────────────
 # The BFF .env carries the LOCAL redirect URIs (https://api.ping.demo:4000/...).
 # Shipping them verbatim breaks sign-in on any public deployment: these keys are
@@ -643,6 +676,7 @@ inject_helix_api_key                                                        # He
 mirror_google_api_key                                                       # BFF → langchain for Google/Gemini provider
 mirror_groq_api_key                                                          # BFF → langchain for Groq provider
 mirror_anthropic_api_key                                                    # BFF → langchain for Anthropic/Claude provider
+mirror_privilege_llm_config                                                 # BFF → ai-demo-secrets for Privilege LLM protection
 secret_from_envfile gateway-secrets   "$ASSET_ROOT/demo_mcp_gateway/.env"   # MCP gateway
 secret_from_envfile agent-secrets        "$ASSET_ROOT/demo_agent_service/.env" # Agent service
 secret_from_envfile ping-gateway-secrets "$ASSET_ROOT/ping-gateway/.env"        # PingGateway (IG)
