@@ -173,6 +173,27 @@ const GATEWAY_MODES = {
   },
 };
 
+// The Path picker carries two kinds of route. The three above are MCP paths — they
+// change which gateway the TOOL calls traverse. These three are LLM paths: the chat
+// prompt goes to a model through a Privilege virtual key instead of to the MCP agent
+// loop, so the thing under policy is the PROMPT, not a tool. Prefixed 'llm:' in the
+// select so one control can offer both without two dropdowns.
+const LLM_PATHS = {
+  anthropic: { key: 'anthropic', title: 'LLM — Anthropic through Privilege', detail: 'The prompt goes to Claude through a Privilege virtual key. Privilege injects the provider key and can deny the call before the model ever sees it.' },
+  google: { key: 'google', title: 'LLM — Google through Privilege', detail: 'The prompt goes to Gemini through a Privilege virtual key. Privilege injects the provider key and can deny the call before the model ever sees it.' },
+  openai: { key: 'openai', title: 'LLM — OpenAI through Privilege', detail: 'The prompt goes to GPT through a Privilege virtual key. Privilege injects the provider key and can deny the call before the model ever sees it.' },
+};
+
+// A couple of real model names per lane to probe against the virtual key's
+// allowlist — not the provider's full catalog (see checkModels/GET
+// /llm/models), just enough to show a live pass/blocked contrast without a
+// long, expensive batch of calls.
+const MODEL_CANDIDATES = {
+  anthropic: ['claude-haiku-4-5-20251001', 'claude-3-5-haiku-20241022'],
+  google: ['gemini-2.0-flash', 'gemini-1.5-pro'],
+  openai: ['gpt-4o', 'gpt-4o-mini'],
+};
+
 function gatewayModeDetails(mode, mcpUrl) {
   const known = GATEWAY_MODES[mode];
   if (!known) return { key: 'unknown', title: 'Connection not selected', detail: 'Pick a path in Settings.' };
@@ -184,6 +205,8 @@ export default function PrivilegeMcpClientPage() {
   const navigate = useNavigate();
   const [config, setConfig] = useState({ mcpUrl: '', clientId: '', scopes: 'openid profile email', llmUrl: 'http://127.0.0.1:11434', llmModel: 'llama3.2:1b' });
   const [gatewayMode, setGatewayMode] = useState('privilege');
+  // '' = an MCP path is active. Non-empty = chat goes to that LLM lane instead.
+  const [llmPath, setLlmPath] = useState('');
   const [gatewaySession, setGatewaySession] = useState(null);
   const [llmProvider, setLlmProvider] = useState('anthropic');
   const [llmPrompt, setLlmPrompt] = useState('');
@@ -193,6 +216,11 @@ export default function PrivilegeMcpClientPage() {
   const [llmGatewayUrl, setLlmGatewayUrl] = useState('');
   const [laneResults, setLaneResults] = useState({});
   const [laneBusy, setLaneBusy] = useState('');
+  // Per-lane model-allowlist check: the provider's own catalog (not filtered
+  // to this key) alongside a live pass/blocked verdict for a couple of real
+  // model names, so "not allowed for this key" and "not a real model" don't
+  // look the same on sight.
+  const [modelChecks, setModelChecks] = useState({});
   const [llmDenial, setLlmDenial] = useState(null);
   const [llmError, setLlmError] = useState('');
   const [rearmError, setRearmError] = useState('');
@@ -310,7 +338,9 @@ export default function PrivilegeMcpClientPage() {
     try { localStorage.setItem('cur_priv_theme', pageTheme); } catch { /* storage disabled */ }
   }, [pageTheme]);
   const [terminalTab, setTerminalTab] = useState('events');
-  const mode = gatewayModeDetails(gatewayMode, config.mcpUrl);
+  const mode = llmPath
+    ? { ...LLM_PATHS[llmPath], url: llmGatewayUrl }
+    : gatewayModeDetails(gatewayMode, config.mcpUrl);
   // The latest tool-call result shown in the RESULTS terminal tab. resultNonce
   // bumps on each new result to flash the tab so the user notices output arrived.
   const [toolResults, setToolResults] = useState([]);
@@ -707,7 +737,15 @@ export default function PrivilegeMcpClientPage() {
   // behind the virtual key is the problem, and they look identical in a raw log.
   const classify = (err) => {
     if (err.code === 'llm_bad_route') return { layer: 'route rejected', tone: 'bad' };
-    if (err.code === 'llm_policy_denied') return { layer: 'Privilege policy', tone: 'denied' };
+    if (err.code === 'llm_policy_denied') {
+      // Same HTTP shape (403 + llm_policy_denied) as a deliberate Privilege
+      // demo denial, but this one means "you typed a model this key's
+      // allowlist doesn't cover" — a config mistake, not the policy story.
+      if (/not allowed for this key/i.test(err.reason || err.message || '')) {
+        return { layer: 'model not allowed', tone: 'bad' };
+      }
+      return { layer: 'Privilege policy', tone: 'denied' };
+    }
     if (err.status === 503) return { layer: 'not configured', tone: 'bad' };
     if (err.status === 502) return { layer: 'provider', tone: 'bad' };
     return { layer: `HTTP ${err.status || '?'}`, tone: 'bad' };
@@ -742,6 +780,33 @@ export default function PrivilegeMcpClientPage() {
     // a rate-limit belongs to, and the whole point here is attribution.
     for (const lane of llmLanes) await testLane(lane);
   }, [llmLanes, testLane]);
+
+  // "What models are actually allowed for this key?" The gateway does not
+  // expose that allowlist directly (GET /llm/models is the provider's own
+  // catalog, unfiltered) — the only way to learn it is to try a candidate and
+  // read the verdict, so this fetches the catalog for context and then tests
+  // a couple of real model names, one at a time, with max_tokens capped at 1
+  // to keep a PASSING candidate cheap too.
+  const checkModels = useCallback(async (lane) => {
+    setModelChecks((prev) => ({ ...prev, [lane.provider]: { busy: true, catalog: prev[lane.provider]?.catalog, results: [] } }));
+    const catalog = await api(`/llm/models?provider=${lane.provider}`).catch((err) => ({ error: err.message }));
+    const results = [];
+    for (const model of MODEL_CANDIDATES[lane.provider] || []) {
+      const t0 = Date.now();
+      try {
+        await api('/llm/call', {
+          method: 'POST',
+          body: { provider: lane.provider, prompt: 'hi', model, maxTokens: 1 },
+        });
+        results.push({ model, tone: 'ok', layer: 'allowed', latencyMs: Date.now() - t0 });
+      } catch (err) {
+        const { layer, tone } = classify(err);
+        results.push({ model, tone, layer, latencyMs: Date.now() - t0 });
+      }
+      setModelChecks((prev) => ({ ...prev, [lane.provider]: { busy: true, catalog, results: [...results] } }));
+    }
+    setModelChecks((prev) => ({ ...prev, [lane.provider]: { busy: false, catalog, results } }));
+  }, []);
 
   // "Prove the policy": a prompt the Privilege policy is configured to deny.
   // Deliberately obvious PII so the denial is explainable on stage.
@@ -983,6 +1048,29 @@ export default function PrivilegeMcpClientPage() {
     appendChat('user', prompt);
     setChatInput('');
     setThinking(true);
+
+    // LLM path: the prompt goes to a model through a Privilege virtual key, not
+    // through the MCP agent loop. A denial is the demo, so it is spoken in the
+    // transcript rather than thrown into the page-level error channel where the
+    // conversation would just stop with no explanation.
+    if (llmPath) {
+      try {
+        const data = await api('/llm/call', { method: 'POST', body: { provider: llmPath, prompt } });
+        appendChat('assistant', data.reply, { steps: [`${llmPath} · ${data.route} · ${data.latencyMs} ms`] });
+      } catch (err) {
+        if (err.code === 'llm_policy_denied') {
+          appendChat('assistant', `⚠️ Privilege denied this call. ${err.reason || err.message}`, {
+            steps: [`${err.provider || llmPath} · ${err.route || ''} · denied by policy`],
+          });
+        } else {
+          appendChat('assistant', `❌ ${err.message}`, { steps: [`${llmPath} · call failed`] });
+        }
+      } finally {
+        setThinking(false);
+      }
+      return;
+    }
+
     try {
       await api('/config', { method: 'POST', body: config });
       const data = await api('/chat', { method: 'POST', body: { prompt } });
@@ -1510,13 +1598,28 @@ export default function PrivilegeMcpClientPage() {
             <span>Path</span>
             <select
               aria-label="Connection path"
-              value={gatewayMode}
+              value={llmPath ? `llm:${llmPath}` : gatewayMode}
               disabled={!gatewayStateLoaded || switching}
-              onChange={(event) => switchGatewayMode(event.target.value)}
+              onChange={(event) => {
+                const v = event.target.value;
+                // Switching to an LLM lane leaves the MCP connection exactly as it
+                // is — it is a different destination for the PROMPT, not a
+                // reconnection, so no /config write and no re-auth.
+                if (v.startsWith('llm:')) { setLlmPath(v.slice(4)); return; }
+                setLlmPath('');
+                switchGatewayMode(v);
+              }}
             >
-              <option value="direct">Direct</option>
-              <option value="privilege">Privilege</option>
-              <option value="facade">Façade</option>
+              <optgroup label="MCP path (tools)">
+                <option value="direct">Direct</option>
+                <option value="privilege">Privilege</option>
+                <option value="facade">Façade</option>
+              </optgroup>
+              <optgroup label="LLM path (prompt)">
+                <option value="llm:anthropic">Anthropic</option>
+                <option value="llm:google">Google</option>
+                <option value="llm:openai">OpenAI</option>
+              </optgroup>
             </select>
           </label>
           {/* Door picker. Always shown once state has loaded — even with a
@@ -1658,9 +1761,19 @@ export default function PrivilegeMcpClientPage() {
               <button type="button" onClick={testAllLanes} disabled={Boolean(laneBusy)}>
                 {laneBusy ? 'Testing…' : 'Test all lanes'}
               </button>
+              {/* This panel is the quick probe; the console is where the caps and the
+                  full decision live. Deliberately a link, not a duplicate of that view. */}
+              <button
+                type="button"
+                className="cur-llmlanes__open"
+                onClick={() => navigate('/llm-gateway')}
+              >
+                Open in LLM Gateway
+              </button>
             </div>
             {llmLanes.map((lane) => {
               const r = laneResults[lane.provider];
+              const mc = modelChecks[lane.provider];
               return (
                 <div className="cur-llmlanes__row" key={lane.provider}>
                   <span className="cur-llmlanes__name">{lane.provider}</span>
@@ -1677,6 +1790,9 @@ export default function PrivilegeMcpClientPage() {
                   <button type="button" onClick={() => testLane(lane)} disabled={Boolean(laneBusy)}>
                     Test
                   </button>
+                  <button type="button" onClick={() => checkModels(lane)} disabled={Boolean(laneBusy) || mc?.busy}>
+                    {mc?.busy ? 'Checking…' : 'Check models'}
+                  </button>
                   {!lane.keyConfigured && (
                     <span className="cur-llmlanes__result cur-llmlanes__result--bad">
                       {lane.keyEnv} not set
@@ -1690,6 +1806,24 @@ export default function PrivilegeMcpClientPage() {
                       {r.ok ? '✅' : r.tone === 'denied' ? '⚠️' : '❌'} {r.layer} · {r.latencyMs} ms
                       <span className="cur-llmlanes__detail">{r.text}</span>
                     </span>
+                  )}
+                  {mc && (
+                    <div className="cur-llmlanes__result" data-testid={`model-check-${lane.provider}`}>
+                      {mc.results.map((res) => (
+                        <span key={res.model} className={`cur-llmlanes__detail cur-llmlanes__result--${res.tone}`}>
+                          {res.tone === 'ok' ? '✅' : res.tone === 'denied' ? '⚠️' : '❌'} <code>{res.model}</code> — {res.layer} · {res.latencyMs} ms
+                        </span>
+                      ))}
+                      {mc.catalog && (
+                        <span className="cur-llmlanes__detail">
+                          {mc.catalog.error
+                            ? `Provider catalog: ${mc.catalog.error}`
+                            : Array.isArray(mc.catalog.models)
+                              ? `Provider catalog (not filtered to this key): ${mc.catalog.models.length} models — e.g. ${mc.catalog.models.slice(0, 5).join(', ')}`
+                              : `Provider catalog: HTTP ${mc.catalog.status}`}
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
               );
@@ -1940,7 +2074,7 @@ export default function PrivilegeMcpClientPage() {
                     placeholder="Ask the agent... (Cmd+Enter to send)"
                     rows={2}
                   />
-                  <button className="cur-composer-send" onClick={sendChat} disabled={thinking}>
+                  <button className="cur-composer-send" onClick={sendChat} disabled={thinking} aria-label="Send message">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
                   </button>
                 </div>

@@ -1,0 +1,242 @@
+/* LLM Gateway Test — a REST client for the Privilege gateway.
+   Every rule taking a --th-* ground states its ink on the next line (THEMING.md
+   §1.5, ground-without-ink ratchet). Status colour is semantic, not the accent:
+   a 4xx here is a real answer worth reading, not a page failure. */
+
+.lt {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.25rem;
+  min-height: 100%;
+  background: var(--th-bg-page);
+  color: var(--th-text);
+}
+
+.lt-bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.lt-bar h1 {
+  margin: 0 0 0.25rem;
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  color: var(--th-text);
+}
+
+.lt-bar p {
+  margin: 0;
+  max-width: 70ch;
+  font-size: var(--font-size-2xs);
+  color: var(--th-text-muted);
+}
+
+.lt-bar__side {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.lt-origin {
+  font-family: var(--font-mono, monospace);
+  font-size: var(--font-size-3xs);
+  padding: 0.2rem 0.45rem;
+  border: 1px solid var(--th-border);
+  border-radius: 4px;
+  background: var(--th-bg-card);
+  color: var(--th-text-muted);
+}
+
+.lt-theme {
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--th-border);
+  border-radius: 4px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: var(--font-size-3xs);
+  cursor: pointer;
+}
+
+.lt-theme:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+.lt-error {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid var(--th-status-error);
+  border-radius: 0 4px 4px 0;
+  background: var(--th-bg-card);
+  color: var(--th-status-error);
+  font-size: var(--font-size-2xs);
+}
+
+/* ── two panes ───────────────────────────────────────────────────────────── */
+.lt-body {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+@media (max-width: 1000px) {
+  .lt-body { grid-template-columns: 1fr; }
+}
+
+.lt-req,
+.lt-res {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.9rem;
+  border: 1px solid var(--th-border);
+  border-radius: 6px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
+
+.lt-row { display: flex; align-items: center; gap: 0.6rem; }
+.lt-row--stack { flex-direction: column; align-items: stretch; gap: 0.3rem; }
+
+.lt-row label {
+  min-width: 6.5rem;
+  font-size: var(--font-size-3xs);
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--th-text-muted);
+}
+
+.lt-row select {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--th-border);
+  border-radius: 5px;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font: inherit;
+  font-size: var(--font-size-2xs);
+}
+
+.lt-row textarea {
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--th-border);
+  border-radius: 5px;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-family: var(--font-mono, monospace);
+  font-size: var(--font-size-3xs);
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.lt-badjson {
+  margin: 0;
+  font-size: var(--font-size-3xs);
+  color: var(--th-status-error);
+}
+
+.lt-actions { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+
+.lt-send {
+  padding: 0.42rem 1rem;
+  border: 1px solid var(--th-border);
+  border-radius: 5px;
+  background: var(--th-bg-emphasis);
+  color: var(--th-text);
+  font-size: var(--font-size-2xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lt-send:hover:not(:disabled) {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+.lt-send:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.lt-note { font-size: var(--font-size-3xs); color: var(--th-status-error); }
+
+/* ── snippet + panes ─────────────────────────────────────────────────────── */
+.lt-k {
+  font-size: var(--font-size-3xs);
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--th-text-muted);
+}
+
+.lt-snippet,
+.lt-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.lt-snippet pre,
+.lt-pane pre {
+  margin: 0;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--th-border);
+  border-radius: 5px;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-family: var(--font-mono, monospace);
+  font-size: var(--font-size-3xs);
+  line-height: 1.6;
+  overflow-x: auto;
+  max-height: 24rem;
+  overflow-y: auto;
+}
+
+.lt-empty {
+  margin: 0;
+  font-size: var(--font-size-2xs);
+  color: var(--th-text-muted);
+}
+
+.lt-resline {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.lt-pill {
+  padding: 0.12rem 0.45rem;
+  border-radius: 3px;
+  font-family: var(--font-mono, monospace);
+  font-size: var(--font-size-3xs);
+  font-weight: 700;
+  background: var(--th-bg-inset);
+  color: var(--th-text-muted);
+}
+
+.lt-pill.is-ok { color: var(--th-status-success); }
+.lt-pill.is-warn { color: var(--th-status-warning); }
+.lt-pill.is-bad { color: var(--th-status-error); }
+
+.lt-ms {
+  font-family: var(--font-mono, monospace);
+  font-size: var(--font-size-3xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--th-text-muted);
+}
+
+.lt-url {
+  font-family: var(--font-mono, monospace);
+  font-size: var(--font-size-3xs);
+  color: var(--th-text-muted);
+  word-break: break-all;
+  min-width: 0;
+}

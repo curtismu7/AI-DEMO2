@@ -96,6 +96,8 @@ describe('callPrivilegeClaude', () => {
 
   // The security story: a denial is a structured, attributable outcome, not a
   // generic error the UI renders as a failure.
+  // Both statuses still deny when the body is the GATEWAY's own shape. What
+  // changed is that a provider's envelope no longer counts — see the test below.
   it.each([403, 400])('turns a %s into llm_policy_denied carrying the reason', async (status) => {
     llmFetch.mockResolvedValue({
       ok: false,
@@ -122,6 +124,30 @@ describe('callPrivilegeClaude', () => {
     await expect(svc.callPrivilegeClaude([{ role: 'user', content: 'hi' }])).rejects.not.toMatchObject({
       code: 'llm_policy_denied',
     });
+  });
+
+  // A provider failure is NOT the product working. On 2026-09-05 Anthropic's
+  // "Your credit balance is too low" (a 400) rendered in the demo as "Privilege
+  // denied this call" — claiming a policy block that never happened.
+  it('does not call a provider-shaped 400 a policy denial', async () => {
+    llmFetch.mockResolvedValue({
+      ok: false,
+      status: 400,
+      statusText: 'Bad Request',
+      json: async () => ({
+        type: 'error',
+        error: { type: 'invalid_request_error', message: 'Your credit balance is too low' },
+        request_id: 'req_011Cem3bkAocAcTqx8YJnGEw',
+      }),
+    });
+
+    await expect(svc.callPrivilegeClaude([{ role: 'user', content: 'hi' }])).rejects.not.toMatchObject({
+      code: 'llm_policy_denied',
+    });
+    // It still surfaces, with the provider named and the message intact.
+    await expect(svc.callPrivilegeClaude([{ role: 'user', content: 'hi' }])).rejects.toThrow(
+      /\(anthropic\) 400: Your credit balance is too low/,
+    );
   });
 
   it('names the missing config rather than failing at the provider', async () => {

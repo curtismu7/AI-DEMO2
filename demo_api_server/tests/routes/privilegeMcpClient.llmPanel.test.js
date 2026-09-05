@@ -15,6 +15,7 @@ jest.mock('../../services/privilegeLlmProxyService', () => ({
   callPrivilegeGemini: jest.fn(),
   callPrivilegeClaude: jest.fn(),
   callPrivilegeOpenAI: jest.fn(),
+  listModels: jest.fn(),
 }));
 
 const express = require('express');
@@ -38,6 +39,7 @@ beforeEach(() => {
   proxy.callPrivilegeClaude.mockReset();
   proxy.callPrivilegeGemini.mockReset();
   proxy.callPrivilegeOpenAI.mockReset();
+  proxy.listModels.mockReset();
 });
 
 describe('POST /llm/call', () => {
@@ -166,9 +168,12 @@ describe('POST /llm/call overrides', () => {
     // The route REPORTED back is the overridden one, not the lane default —
     // otherwise the panel would show a path the call did not use.
     expect(res.body.route).toBe('/llm/anthropic/v1/chat/completions');
+    // objectContaining, not an exact match: the route also passes a `meta`
+    // collector the console needs. What this test pins is that the override
+    // reaches the lane, not the full shape of the options bag.
     expect(proxy.callPrivilegeClaude).toHaveBeenCalledWith(
       [{ role: 'user', content: 'hi' }],
-      { route: '/llm/anthropic/v1/chat/completions', model: 'claude-opus-5' },
+      expect.objectContaining({ route: '/llm/anthropic/v1/chat/completions', model: 'claude-opus-5' }),
     );
   });
 
@@ -190,6 +195,212 @@ describe('POST /llm/call overrides', () => {
     const res = await post({ provider: 'anthropic', prompt: 'hi' });
 
     expect(res.body.route).toBe('/llm/anthropic/v1/messages');
-    expect(proxy.callPrivilegeClaude).toHaveBeenCalledWith([{ role: 'user', content: 'hi' }], {});
+    const [, opts] = proxy.callPrivilegeClaude.mock.calls[0];
+    expect(opts.route).toBeUndefined();
+    expect(opts.model).toBeUndefined();
+  });
+});
+
+// ── Console transport facts ─────────────────────────────────────────────────
+// The LLM Gateway console leads with "did this reach the model?", because that is
+// the difference between Privilege doing its job and a dead provider credential.
+// The route must report it on all three outcomes, not just the happy one.
+
+describe('POST /llm/call transport facts', () => {
+  it('reports reachedProvider true and the provider limits on a reply', async () => {
+    proxy.callPrivilegeClaude.mockImplementation(async (_m, config) => {
+      // The service fills the caller's meta with what the response headers carried.
+      if (config && config.meta) config.meta.limits = { requestsLimit: 10000, requestsRemaining: 9999 };
+      return 'ok';
+    });
+
+    const res = await post({ provider: 'anthropic', prompt: 'hi' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.reachedProvider).toBe(true);
+    expect(res.body.providerLimits).toEqual({ requestsLimit: 10000, requestsRemaining: 9999 });
+  });
+
+  // The claim the console makes on a denial: nothing was sent, nothing was billed.
+  it('reports reachedProvider false on a policy denial', async () => {
+    const denial = new Error('blocked');
+    denial.code = 'llm_policy_denied';
+    denial.reason = 'no PII';
+    denial.provider = 'anthropic';
+    proxy.callPrivilegeClaude.mockRejectedValue(denial);
+
+    const res = await post({ provider: 'anthropic', prompt: 'hi' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.reachedProvider).toBe(false);
+  });
+
+  // The opposite diagnosis, and the pair is indistinguishable without this flag.
+  it('reports reachedProvider true when the provider itself refused', async () => {
+    proxy.callPrivilegeClaude.mockRejectedValue(
+      new Error('Privilege LLM proxy (anthropic) 401: API key is invalid.'),
+    );
+
+    const res = await post({ provider: 'anthropic', prompt: 'hi' });
+
+    expect(res.status).toBe(502);
+    expect(res.body.reachedProvider).toBe(true);
+    expect(res.body.route).toBe('/llm/anthropic/v1/messages');
+  });
+
+  // A model-allowlist probe (GET /llm/models below, run once per candidate)
+  // needs to stay cheap whether or not the model turns out to be allowed.
+  it('passes maxTokens through as the provider-facing max_tokens', async () => {
+    proxy.callPrivilegeClaude.mockResolvedValue('ok');
+
+    await post({ provider: 'anthropic', prompt: 'hi', model: 'claude-haiku-4-5-20251001', maxTokens: 1 });
+
+    // objectContaining: the route also passes a `meta` transport-facts collector
+    // (see "POST /llm/call transport facts" below) — this test only pins that
+    // maxTokens reaches the lane as max_tokens, not the full options shape.
+    expect(proxy.callPrivilegeClaude).toHaveBeenCalledWith(
+      [{ role: 'user', content: 'hi' }],
+      expect.objectContaining({ model: 'claude-haiku-4-5-20251001', max_tokens: 1 }),
+    );
+  });
+});
+
+// ── Model catalog (compare against the allowlist) ───────────────────────────
+// The provider's own /models list is not filtered to what a virtual key can
+// actually use — Privilege enforces that per chat-completions call, as a 403.
+// This endpoint exists so a rejected model name reads as "not allowed for
+// this key" rather than "unrecognized model", by showing it IS a real model.
+
+describe('GET /llm/models', () => {
+  function get(provider) {
+    return request(app()).get('/api/privilege-mcp/llm/models').query({ provider });
+  }
+
+  it('returns the model ids from the provider catalog', async () => {
+    proxy.listModels.mockResolvedValue({
+      status: 200,
+      ok: true,
+      data: { object: 'list', data: [{ id: 'gpt-4o' }, { id: 'gpt-4o-mini' }] },
+    });
+
+    const res = await get('openai');
+
+    expect(res.status).toBe(200);
+    expect(res.body.models).toEqual(['gpt-4o', 'gpt-4o-mini']);
+    expect(proxy.listModels).toHaveBeenCalledWith('openai');
+  });
+
+  it('falls back to the raw body when the catalog is not the expected shape', async () => {
+    proxy.listModels.mockResolvedValue({ status: 401, ok: false, data: { error: { message: 'API key is invalid.' } } });
+
+    const res = await get('anthropic');
+
+    expect(res.status).toBe(200);
+    expect(res.body.models).toBeNull();
+    expect(res.body.raw).toMatchObject({ error: { message: 'API key is invalid.' } });
+  });
+
+  it('answers 503 when the provider is not configured', async () => {
+    proxy.listModels.mockRejectedValue(new Error('PRIVILEGE_LLM_VIRTUAL_KEY_GOOGLE not configured'));
+
+    const res = await get('google');
+
+    expect(res.status).toBe(503);
+    expect(res.body.error).toMatch(/not configured/);
+  });
+
+  it('rejects an unknown provider without calling anything', async () => {
+    const res = await get('llama');
+
+    expect(res.status).toBe(400);
+    expect(proxy.listModels).not.toHaveBeenCalled();
+  });
+});
+
+// ── /llm/raw: the gateway as a REST endpoint ────────────────────────────────
+// This one interprets nothing. It exists so a human can see what the gateway
+// really returns when the console's verdict looks wrong.
+
+jest.mock('../../services/llmFetch', () => ({ llmFetch: jest.fn() }));
+const { llmFetch } = require('../../services/llmFetch');
+
+describe('POST /llm/raw', () => {
+  const env = { ...process.env };
+  const raw = (body) => request(app()).post('/api/privilege-mcp/llm/raw').send(body);
+
+  beforeEach(() => {
+    llmFetch.mockReset();
+    process.env.PRIVILEGE_LLM_GATEWAY_URL = 'https://gw.test';
+    process.env.PRIVILEGE_LLM_VIRTUAL_KEY_ANTHROPIC = 'virtual-key-for-tests';
+  });
+  afterEach(() => { process.env = { ...env }; });
+
+  it('sends the body verbatim to the chosen path and returns the raw response', async () => {
+    llmFetch.mockResolvedValue({
+      ok: true, status: 200,
+      text: async () => JSON.stringify({ choices: [{ message: { content: 'Paris' } }] }),
+    });
+
+    const res = await raw({
+      provider: 'anthropic',
+      path: '/llm/anthropic/v1/chat/completions',
+      body: { model: 'claude-haiku-4-5-20251001', messages: [{ role: 'user', content: 'hi' }] },
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body.request.url).toBe('https://gw.test/llm/anthropic/v1/chat/completions');
+    expect(res.body.response.status).toBe(200);
+    expect(res.body.response.json.choices[0].message.content).toBe('Paris');
+    // Verbatim: no max_tokens injected, no system extracted, nothing normalised.
+    expect(JSON.parse(llmFetch.mock.calls[0][1].body)).toEqual({
+      model: 'claude-haiku-4-5-20251001',
+      messages: [{ role: 'user', content: 'hi' }],
+    });
+  });
+
+  // An upstream 4xx is the ANSWER here, not this endpoint's failure — returning a
+  // 4xx of our own would let the UI's error path swallow the body being asked for.
+  it('returns 200 with the upstream status as data when the gateway refuses', async () => {
+    llmFetch.mockResolvedValue({
+      ok: false, status: 403,
+      text: async () => JSON.stringify({ error: { message: 'model x not allowed for this key' } }),
+    });
+
+    const res = await raw({ provider: 'anthropic', body: { model: 'x' } });
+
+    expect(res.status).toBe(200);
+    expect(res.body.response.status).toBe(403);
+    expect(res.body.response.json.error.message).toMatch(/not allowed for this key/);
+  });
+
+  it('masks the virtual key in the echoed request', async () => {
+    llmFetch.mockResolvedValue({ ok: true, status: 200, text: async () => '{}' });
+
+    const res = await raw({ provider: 'anthropic', body: { model: 'x' } });
+
+    expect(res.body.request.headers.Authorization).toMatch(/^Bearer virtual-k•+ests$/);
+    expect(JSON.stringify(res.body)).not.toContain('virtual-key-for-tests');
+  });
+
+  it('sends the anthropic-version header only on the anthropic lane', async () => {
+    llmFetch.mockResolvedValue({ ok: true, status: 200, text: async () => '{}' });
+    await raw({ provider: 'anthropic', body: { model: 'x' } });
+    expect(llmFetch.mock.calls[0][1].headers['anthropic-version']).toBe('2023-06-01');
+  });
+
+  it.each([
+    ['another host', 'https://evil.test/x'],
+    ['an admin path', '/admin/keys'],
+  ])('rejects %s without calling the gateway', async (_l, path) => {
+    const res = await raw({ provider: 'anthropic', path, body: {} });
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('llm_bad_route');
+    expect(llmFetch).not.toHaveBeenCalled();
+  });
+
+  it('rejects a non-object body rather than posting it', async () => {
+    const res = await raw({ provider: 'anthropic', body: 'not json' });
+    expect(res.status).toBe(400);
+    expect(llmFetch).not.toHaveBeenCalled();
   });
 });

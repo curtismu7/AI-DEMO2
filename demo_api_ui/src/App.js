@@ -195,6 +195,8 @@ import PublicRoutes, {
   EnterpriseMcpDemoPageRoute,
   GroupPolicyBoardPageRoute,
   PrivilegeMcpClientPageRoute,
+  LlmGatewayPageRoute,
+  LlmTestPageRoute,
   AuditAgentPageRoute,
   PingOneSetupPageRoute,
   M2mCredentialsSamplePageRoute,
@@ -1068,6 +1070,26 @@ function AppWithAuth() {
                   path="/privilege-mcp-client"
                   element={
                     <PrivilegeMcpClientPageRoute user={user} logout={logout} />
+                  }
+                />
+                <Route
+                  path="/llm-gateway"
+                  element={
+                    loading ? null : user ? (
+                      <LlmGatewayPageRoute user={user} logout={logout} />
+                    ) : (
+                      <SignInRequired />
+                    )
+                  }
+                />
+                <Route
+                  path="/llm-test"
+                  element={
+                    loading ? null : user ? (
+                      <LlmTestPageRoute user={user} logout={logout} />
+                    ) : (
+                      <SignInRequired />
+                    )
                   }
                 />
                 <Route

@@ -1,0 +1,118 @@
+{
+  "uid": "ai-demo-p1az-decisions",
+  "title": "P1AZ Decisions",
+  "description": "PingOne Authorize (P1AZ) decisions on the MCP door — PingGateway logs one PERMIT/DENY line per tool call (o.f.o.f.S.P1AZDecision), and exposes nothing as a Prometheus metric for it, so every panel here reads Tier 2's Loki logs instead.",
+  "tags": ["ai-demo", "p1az", "authorize"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "About this dashboard",
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 0 },
+      "options": {
+        "mode": "markdown",
+        "content": "PingGateway's Groovy P1AZDecision filter logs one line per MCP tool call — `[P1AZ] DECISION: PERMIT|DENY | backend=... | tool=... | method=... | vertical=... | obligation=...` — and never exports a matching Prometheus metric. Rather than add Groovy-side instrumentation to a protected authorization filter, every panel here is a LogQL query against Tier 2's Loki (Grafana Alloy tailing `ping-gateway`'s stdout), extracting `decision`/`tool`/`vertical` from the line at query time. No vertical/tool filter variable: Grafana's Loki datasource can only populate a variable dropdown from a real ingested label, and `vertical`/`tool` exist only as parsed fields — the by-vertical and by-tool panels below break it out as a legend instead. `obligation=hitl` marks a decision that also required human approval before the tool ran."
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Decisions by outcome (per 5 min)",
+      "description": "PERMIT vs DENY, extracted from the DECISION: token on each P1AZ log line.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "loki", "uid": "ai-demo-loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (decision) (count_over_time({service=\"ping-gateway\"} |= \"[P1AZ] DECISION:\" | regexp \"DECISION: (?P<decision>PERMIT|DENY)\" [5m]))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short", "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "showPoints": "never" }, "min": 0, "decimals": 0 },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "DENY" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }] },
+          { "matcher": { "id": "byName", "options": "PERMIT" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }] }
+        ]
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Decisions by vertical (per 5 min)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "loki", "uid": "ai-demo-loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (vertical) (count_over_time({service=\"ping-gateway\"} |= \"[P1AZ] DECISION:\" | regexp \"vertical=(?P<vertical>[^ |]+)\" [5m]))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short", "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "showPoints": "never" }, "min": 0, "decimals": 0 },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Decisions by tool (per 5 min)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "datasource": { "type": "loki", "uid": "ai-demo-loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (tool) (count_over_time({service=\"ping-gateway\"} |= \"[P1AZ] DECISION:\" | regexp \"tool=(?P<tool>[^ |]+)\" [5m]))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short", "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "showPoints": "never" }, "min": 0, "decimals": 0 },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "DENYs and HITL obligations (per 5 min)",
+      "description": "The two outcomes worth a demo audience noticing: a hard DENY, or a PERMIT that still required human approval (obligation=hitl).",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "datasource": { "type": "loki", "uid": "ai-demo-loki" },
+      "targets": [
+        { "refId": "A", "expr": "sum(count_over_time({service=\"ping-gateway\"} |= \"[P1AZ] DECISION: DENY\" [5m]))", "legendFormat": "DENY" },
+        { "refId": "B", "expr": "sum(count_over_time({service=\"ping-gateway\"} |= \"[P1AZ] DECISION: PERMIT\" |= \"obligation=hitl\" [5m]))", "legendFormat": "PERMIT (HITL required)" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short", "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "showPoints": "never" }, "min": 0, "decimals": 0 },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 6,
+      "type": "logs",
+      "title": "Live P1AZ decisions",
+      "description": "Every P1AZDecision log line, unfiltered. Use the panel's own search box to narrow, e.g. |= \"DENY\" or |= \"vertical=banking\".",
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 20 },
+      "datasource": { "type": "loki", "uid": "ai-demo-loki" },
+      "targets": [
+        { "refId": "A", "expr": "{service=\"ping-gateway\"} |= \"[P1AZ] DECISION:\"" }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none"
+      }
+    }
+  ],
+  "links": []
+}

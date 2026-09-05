@@ -363,3 +363,47 @@ textarea {
   color: var(--th-status-error-text);
   background: var(--th-status-error-bg);
 }
+
+/* Mobile / iOS: the three panels above are fixed-width (240px + 320px +
+   300px min) and never fit a phone viewport — they were designed as a
+   desktop-only 3-pane inspector. Below 768px, stack them full-width and
+   let the page scroll instead of clipping the right two panels. */
+@media (max-width: 768px) {
+  .inspector-clean-page {
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .inspector-clean-header {
+    padding: max(12px, env(safe-area-inset-top)) 16px 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .inspector-clean-statusbar {
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    padding: 10px 16px;
+  }
+
+  .inspector-clean-content {
+    overflow: visible;
+  }
+
+  .inspector-clean-main {
+    flex-direction: column;
+    overflow: visible;
+  }
+
+  .inspector-clean-panel:nth-child(1),
+  .inspector-clean-panel:nth-child(2),
+  .inspector-clean-panel:nth-child(3) {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .inspector-clean-output-content {
+    max-height: 50vh;
+  }
+}

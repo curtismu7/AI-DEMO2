@@ -43,7 +43,7 @@ export default defineConfig(({ mode }) => {
   // host/port is visible in `docker logs ai-demo-ui` instead of silently
   // hitting loopback and masquerading as a "servers down" error.
   console.log(
-    `[vite] dev proxy: /api,/a2a/,/health,/pinggateway-test.html → ${httpTarget}  |  /ws → ${wsTarget}`,
+    `[vite] dev proxy: /api,/a2a/,/health,/mcp-facade,/pinggateway-test.html → ${httpTarget}  |  /ws → ${wsTarget}`,
   )
   if (process.env.HTTPS !== 'false') {
     if (mkcert) {
@@ -142,6 +142,19 @@ export default defineConfig(({ mode }) => {
       }),
       proxy: {
         '/health': {
+          target: httpTarget,
+          changeOrigin: true,
+          secure: false,
+        },
+        // MCP façade doors live on the BFF, but every door URL is built from
+        // PUBLIC_APP_URL (https://local.ping-devops.com:4000) because that is the
+        // address a real MCP client is handed. In SE/k8s port 4000 is nginx and
+        // fronts both; in dev it is this server, which forwarded no such prefix —
+        // so every door 404'd locally, for the browser and for the BFF's own
+        // preflight alike. Same reason as the entry below: mirror what nginx
+        // already serves rather than rewrite the published URL, which is also the
+        // token audience and must not change.
+        '/mcp-facade': {
           target: httpTarget,
           changeOrigin: true,
           secure: false,

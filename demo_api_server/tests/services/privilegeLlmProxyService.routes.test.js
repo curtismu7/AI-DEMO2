@@ -98,3 +98,31 @@ describe('route override reaches the wire', () => {
     expect(llmFetch).not.toHaveBeenCalled();
   });
 });
+
+describe('readProviderLimits', () => {
+  const withHeaders = (h) => ({ headers: { get: (k) => (k in h ? h[k] : null) } });
+
+  it('reads the rate headers the gateway passes through', () => {
+    const limits = svc.readProviderLimits(withHeaders({
+      'x-ratelimit-limit-requests': '10000',
+      'x-ratelimit-remaining-requests': '9999',
+      'x-ratelimit-limit-tokens': '200000',
+      'x-ratelimit-remaining-tokens': '199997',
+      'x-ratelimit-reset-requests': '8.64s',
+    }));
+
+    expect(limits).toMatchObject({
+      requestsLimit: 10000,
+      requestsRemaining: 9999,
+      tokensLimit: 200000,
+      tokensRemaining: 199997,
+      resetRequests: '8.64s',
+    });
+  });
+
+  // No headers must read as "unknown", never as zero — a meter showing 0 of 0
+  // would claim a cap was measured and exhausted when nothing was measured.
+  it('returns null when the response carried no rate headers', () => {
+    expect(svc.readProviderLimits(withHeaders({}))).toBeNull();
+  });
+});

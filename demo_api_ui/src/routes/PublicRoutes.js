@@ -48,6 +48,8 @@ import PrivilegeDemoPage from "../pages/PrivilegeDemoPage";
 import EnterpriseMcpDemoPage from '../pages/EnterpriseMcpDemoPage';
 import GroupPolicyBoardPage from '../pages/GroupPolicyBoardPage';
 import PrivilegeMcpClientPage from "../pages/PrivilegeMcpClientPage";
+import LlmGatewayPage from '../pages/LlmGatewayPage';
+import LlmTestPage from '../pages/LlmTestPage';
 import AuditAgentPage from "../pages/AuditAgentPage";
 
 export default function PublicRoutes({ user, logout }) {
@@ -289,6 +291,24 @@ export function PrivilegeMcpClientPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <PrivilegeMcpClientPage />
+    </AppShell>
+  );
+}
+
+/** LLM Gateway — what a Privilege virtual key permits, and what it just decided. */
+export function LlmGatewayPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <LlmGatewayPage />
+    </AppShell>
+  );
+}
+
+/** LLM Gateway Test — raw request/response against the gateway, nothing interpreted. */
+export function LlmTestPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <LlmTestPage />
     </AppShell>
   );
 }

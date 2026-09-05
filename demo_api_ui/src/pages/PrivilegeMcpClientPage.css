@@ -2024,3 +2024,18 @@ select.cur-input { cursor: pointer; }
   color: var(--th-text-muted);
   font-size: var(--font-size-3xs);
 }
+
+.cur-llmlanes__open {
+  padding: 0.2rem 0.55rem;
+  border: 1px solid var(--th-border);
+  border-radius: 4px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: var(--font-size-3xs);
+  cursor: pointer;
+}
+
+.cur-llmlanes__open:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}

@@ -248,3 +248,137 @@ describe("Privilege LLM lane table", () => {
     expect(result).not.toHaveTextContent(/Privilege policy/);
   });
 });
+
+// ── Check models ─────────────────────────────────────────────────────────────
+// The gateway's model-allowlist for a virtual key is not exposed directly —
+// the panel infers it by trying a couple of real model names and reading the
+// verdict, alongside the provider's own (unfiltered) catalog for context.
+
+describe("Check models", () => {
+  function mockFetchWithModelCheck({ catalog, callFor }) {
+    global.fetch = vi.fn((url, init) => {
+      const u = String(url);
+      if (u.endsWith("/api/privilege-mcp/state")) {
+        return Promise.resolve({ ok: true, status: 200, text: async () => stateBody() });
+      }
+      if (u.endsWith("/api/privilege-mcp/llm/config")) {
+        return Promise.resolve({ ok: true, status: 200, text: async () => LANES_BODY });
+      }
+      if (u.includes("/api/privilege-mcp/llm/models")) {
+        return Promise.resolve({ ok: true, status: 200, text: async () => JSON.stringify(catalog) });
+      }
+      if (u.endsWith("/api/privilege-mcp/llm/call")) {
+        const body = JSON.parse(init.body);
+        return Promise.resolve(callFor(body.model));
+      }
+      return new Promise(() => {});
+    });
+  }
+
+  it("shows a per-model verdict and the provider catalog, distinguishing a model-not-allowed 403 from a policy denial", async () => {
+    mockFetchWithModelCheck({
+      catalog: { provider: "anthropic", status: 200, ok: true, models: ["claude-haiku-4-5-20251001", "claude-3-5-haiku-20241022"] },
+      callFor: (model) => (model === "claude-haiku-4-5-20251001"
+        ? { ok: true, status: 200, text: async () => JSON.stringify({ reply: "ping", latencyMs: 90 }) }
+        : {
+            ok: false,
+            status: 403,
+            text: async () => JSON.stringify({
+              error: `model "${model}" not allowed for this key`,
+              code: "llm_policy_denied",
+              reason: `model "${model}" not allowed for this key`,
+            }),
+          }),
+    });
+    renderPage();
+
+    fireEvent.click((await screen.findAllByRole("button", { name: /check models/i }))[0]);
+
+    const panel = await screen.findByTestId("model-check-anthropic");
+    expect(panel).toHaveTextContent(/claude-haiku-4-5-20251001/);
+    expect(panel).toHaveTextContent(/allowed/);
+    expect(panel).toHaveTextContent(/model not allowed/);
+    expect(panel).not.toHaveTextContent(/Privilege policy/);
+    expect(panel).toHaveTextContent(/Provider catalog \(not filtered to this key\): 2 models/);
+  });
+
+  it("shows the catalog error when the provider credential itself is dead", async () => {
+    mockFetchWithModelCheck({
+      catalog: { provider: "anthropic", status: 200, ok: true, models: null, raw: { error: { message: "API key is invalid." } } },
+      callFor: () => ({ ok: true, status: 200, text: async () => JSON.stringify({ reply: "ping", latencyMs: 90 }) }),
+    });
+    renderPage();
+
+    fireEvent.click((await screen.findAllByRole("button", { name: /check models/i }))[0]);
+
+    const panel = await screen.findByTestId("model-check-anthropic");
+    expect(await screen.findByText(/Provider catalog: HTTP 200/)).toBeInTheDocument();
+    expect(panel).toBeInTheDocument();
+  });
+});
+
+// ── LLM as a Path ───────────────────────────────────────────────────────────
+// Picking an LLM path retargets the CHAT: the prompt goes to a model through a
+// Privilege virtual key instead of into the MCP agent loop. It must not touch the
+// MCP connection — switching destination for a prompt is not a reconnection.
+
+function selectLlmPath(provider) {
+  fireEvent.change(screen.getByLabelText(/connection path/i), {
+    target: { value: `llm:${provider}` },
+  });
+}
+
+describe("LLM path in the chat", () => {
+  it("offers the three lanes as paths alongside the MCP ones", async () => {
+    mockFetchWithLanes(() => new Promise(() => {}));
+    renderPage();
+
+    const path = await screen.findByLabelText(/connection path/i);
+    const values = Array.from(path.querySelectorAll("option")).map((o) => o.value);
+    expect(values).toEqual(
+      expect.arrayContaining(["direct", "privilege", "facade", "llm:anthropic", "llm:google", "llm:openai"]),
+    );
+  });
+
+  it("sends the chat prompt to the chosen lane, not to /chat", async () => {
+    mockFetchWithLanes(() => ({
+      ok: true,
+      status: 200,
+      text: async () =>
+        JSON.stringify({ reply: "Paris", route: "/llm/openai/v1/chat/completions", latencyMs: 300 }),
+    }));
+    renderPage();
+    await screen.findByLabelText(/connection path/i);
+
+    selectLlmPath("openai");
+    fireEvent.change(screen.getByPlaceholderText(/ask the agent/i), {
+      target: { value: "capital of France?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /send message/i }));
+
+    await screen.findByText(/Paris/);
+    const urls = global.fetch.mock.calls.map((c) => String(c[0]));
+    expect(urls.some((u) => u.endsWith("/llm/call"))).toBe(true);
+    // The MCP agent loop must not run for an LLM path.
+    expect(urls.some((u) => u.endsWith("/api/privilege-mcp/chat"))).toBe(false);
+  });
+
+  it("speaks a policy denial in the transcript instead of swallowing it", async () => {
+    mockFetchWithLanes(() => ({
+      ok: false,
+      status: 403,
+      text: async () =>
+        JSON.stringify({ error: "blocked", code: "llm_policy_denied", reason: "no PII", provider: "google" }),
+    }));
+    renderPage();
+    await screen.findByLabelText(/connection path/i);
+
+    selectLlmPath("google");
+    fireEvent.change(screen.getByPlaceholderText(/ask the agent/i), {
+      target: { value: "here is an SSN" } });
+    fireEvent.click(screen.getByRole("button", { name: /send message/i }));
+
+    expect(await screen.findByText(/Privilege denied this call/)).toBeInTheDocument();
+    expect(screen.getByText(/no PII/)).toBeInTheDocument();
+  });
+});

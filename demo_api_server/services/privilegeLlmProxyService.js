@@ -51,10 +51,79 @@ function gatewayUrl() {
   return process.env.PRIVILEGE_LLM_GATEWAY_URL || '';
 }
 
-/** Denial (400/403) vs any other failure — shared by both providers. */
+// Provider rate-limit headers, passed through by the gateway. These are the
+// PROVIDER's limits (OpenAI stamps x-openai-proxy-wasm alongside them), NOT the
+// Privilege virtual key's caps — the console must label them as such or it would
+// claim to show a governance limit while showing someone else's. Privilege exposes
+// no per-key usage endpoint today; when it does, that becomes a separate field.
+function readProviderLimits(res) {
+  const g = (n) => (res.headers && typeof res.headers.get === 'function' ? res.headers.get(n) : null);
+  const num = (v) => (v === null || v === undefined || v === '' ? null : Number(v));
+  const limits = {
+    requestsLimit: num(g('x-ratelimit-limit-requests')),
+    requestsRemaining: num(g('x-ratelimit-remaining-requests')),
+    tokensLimit: num(g('x-ratelimit-limit-tokens')),
+    tokensRemaining: num(g('x-ratelimit-remaining-tokens')),
+    resetRequests: g('x-ratelimit-reset-requests'),
+    resetTokens: g('x-ratelimit-reset-tokens'),
+  };
+  return Object.values(limits).some((v) => v !== null) ? limits : null;
+}
+
+/**
+ * The provider's own model catalog, fetched through the gateway with the
+ * lane's virtual key. NOT filtered to what that key is actually allowed to
+ * use — Privilege enforces the per-key model allowlist on the chat-completions
+ * call itself (a 403 there), not on this endpoint — so this is only useful
+ * to confirm a model name is real, not that this key can use it.
+ * @param {'anthropic'|'google'|'openai'} lane
+ */
+async function listModels(lane) {
+  const base = gatewayUrl();
+  const key = process.env[LANES[lane].keyEnv] || '';
+  if (!base) throw new Error('PRIVILEGE_LLM_GATEWAY_URL not configured');
+  if (!key) throw new Error(`${LANES[lane].keyEnv} not configured`);
+
+  const url = `${base.replace(/\/+$/, '')}/llm/${lane}/v1/models`;
+  const res = await llmFetch(url, {
+    headers: { Authorization: `Bearer ${key}` },
+  }, { label: `privilege-llm-${lane}-models`, timeoutMs: 10000, retryOn429: false });
+  const data = await res.json().catch(() => null);
+  return { status: res.status, ok: res.ok, data };
+}
+
+// A provider's own error envelope, not the gateway's. Anthropic and OpenAI both
+// wrap errors with a top-level `type` and/or a `request_id`; every Privilege
+// rejection observed on this gateway — "Forbidden", "invalid virtual key",
+// "wrong_provider", "model ... not allowed for this key" — is a bare {error:{…}}
+// with neither. The distinction matters because Privilege answers a policy denial
+// with 403 while providers use 400 for a malformed or unbillable request, and the
+// old status-only test called both a denial.
+function looksLikeProviderError(data) {
+  if (!data || typeof data !== 'object') return false;
+  // Anthropic: {"type":"error","error":{…},"request_id":…}
+  if (data.type === 'error' || Object.hasOwn(data, 'request_id')) return true;
+  // OpenAI-compatible: the error object carries `param` (usually null, always
+  // present) — e.g. {"error":{"message":"…","type":"insufficient_quota",
+  // "param":null,"code":"credit_balance_exhausted"}}. The gateway's own bodies
+  // ("Forbidden", "invalid virtual key", "wrong_provider", "model … not allowed
+  // for this key") carry message/type/code but never `param`.
+  const err = data.error;
+  return Boolean(err) && typeof err === 'object' && Object.hasOwn(err, 'param');
+}
+
+/**
+ * Denial vs any other failure — shared by every lane.
+ *
+ * A denial is Privilege refusing before the provider sees the prompt, and the demo
+ * shows it as the product working. Mislabelling a provider failure as one asserts
+ * that Privilege blocked something it actually passed through: on 2026-09-05 an
+ * Anthropic billing error ("Your credit balance is too low") rendered as
+ * "Privilege denied this call", which is the product's central claim stated falsely.
+ */
 function throwForResponse(res, data, label) {
   const msg = data?.error?.message || res.statusText || String(res.status);
-  if (res.status === 403 || res.status === 400) {
+  if ((res.status === 403 || res.status === 400) && !looksLikeProviderError(data)) {
     const err = new Error(msg);
     err.code = 'llm_policy_denied';
     err.reason = msg;
@@ -90,6 +159,9 @@ async function callPrivilegeGemini(messages, config = {}) {
     body: JSON.stringify({ model, messages }),
   }, { label: 'privilege-llm-google', timeoutMs: 12000, retryOn429: false });
 
+  // The caller may pass a `meta` object to collect transport facts it cannot
+  // otherwise see — the lane returns text, and the headers die with the response.
+  if (config.meta) config.meta.limits = readProviderLimits(res);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throwForResponse(res, data, 'google');
 
@@ -124,9 +196,12 @@ async function callPrivilegeClaude(messages, config = {}) {
       Authorization: `Bearer ${key}`,
       'anthropic-version': ANTHROPIC_VERSION,
     },
-    body: JSON.stringify({ model, max_tokens: 512, system: system || undefined, messages: turns }),
+    body: JSON.stringify({ model, max_tokens: config.max_tokens || 512, system: system || undefined, messages: turns }),
   }, { label: 'privilege-llm-anthropic', timeoutMs: 12000, retryOn429: false });
 
+  // The caller may pass a `meta` object to collect transport facts it cannot
+  // otherwise see — the lane returns text, and the headers die with the response.
+  if (config.meta) config.meta.limits = readProviderLimits(res);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throwForResponse(res, data, 'anthropic');
 
@@ -160,9 +235,12 @@ async function callPrivilegeOpenAI(messages, config = {}) {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${key}`,
     },
-    body: JSON.stringify({ model, max_tokens: 512, messages }),
+    body: JSON.stringify({ model, max_tokens: config.max_tokens || 512, messages }),
   }, { label: 'privilege-llm-openai', timeoutMs: 12000, retryOn429: false });
 
+  // The caller may pass a `meta` object to collect transport facts it cannot
+  // otherwise see — the lane returns text, and the headers die with the response.
+  if (config.meta) config.meta.limits = readProviderLimits(res);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throwForResponse(res, data, 'openai');
 
@@ -173,7 +251,10 @@ async function callPrivilegeOpenAI(messages, config = {}) {
 
 module.exports = {
   LANES,
+  looksLikeProviderError,
+  readProviderLimits,
   resolveRoute,
+  listModels,
   callPrivilegeGemini,
   callPrivilegeClaude,
   callPrivilegeOpenAI,
