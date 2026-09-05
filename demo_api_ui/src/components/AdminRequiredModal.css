@@ -36,7 +36,7 @@
   font-size: var(--font-size-sm);
   padding: 2px 6px;
   border: 1px solid var(--th-border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--th-bg-inset);
   color: var(--th-text);
 }
@@ -58,7 +58,7 @@
   font-size: var(--font-size-sm);
   font-weight: 600;
   padding: 8px 16px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--th-border-strong);
   cursor: pointer;
   text-decoration: none;
