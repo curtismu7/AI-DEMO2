@@ -489,8 +489,10 @@ router.get('/logout', async (req, res) => {
   // The shared PingOne admin credential outlives the browser session it was
   // established from (that is the point — it serves callers with no session),
   // so destroying the session alone would leave this user's admin token
-  // serving the façade door after they signed out.
-  if (req.session?.pingoneMcpAdminToken) pingoneAdminSession.clear();
+  // serving the façade door after they signed out. Scoped to THIS user's
+  // token: the store holds one slot, so an unconditional clear here would wipe
+  // a newer operator's session when an older one logs out.
+  pingoneAdminSession.clearIfCurrent(req.session?.pingoneMcpAdminToken?.accessToken);
 
   req.session.destroy((err) => {
     if (err) {

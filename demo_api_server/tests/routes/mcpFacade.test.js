@@ -293,6 +293,20 @@ describe('/mcp-facade/pingone-admin — local handler, no upstream fetch', () =>
     expect(listTools).toHaveBeenCalledWith('my-own-token');
   });
 
+  // Regression: the store has one slot, so operators overwrite each other. An
+  // unconditional clear on logout let an older operator's sign-out wipe a newer
+  // one's live token and break every external caller until someone signed in.
+  test('logout clears only the operator whose token is actually stored', () => {
+    process.env.MCP_FACADE_PINGONE_ADMIN_SHARED_SESSION = 'true';
+    pingoneAdminSession.remember({ accessToken: 'operator-B', expiresIn: 3600 });
+
+    pingoneAdminSession.clearIfCurrent('operator-A');   // A logs out after B signed in
+    expect(pingoneAdminSession.getAccessToken()).toBe('operator-B');
+
+    pingoneAdminSession.clearIfCurrent('operator-B');   // B logs out
+    expect(pingoneAdminSession.getAccessToken()).toBeNull();
+  });
+
   test('tools/list with no delegated token answers 401 with a loginUrl the client can drive', async () => {
     const authRequired = new Error('PingOne MCP requires a delegated PKCE token.');
     authRequired.code = 'pingone_mcp_auth_required';

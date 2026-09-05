@@ -79,6 +79,19 @@ function clear() {
   current = null;
 }
 
+/**
+ * Clear only if the stored credential is the given one.
+ *
+ * Logout cannot use clear() unconditionally: operators overwrite each other in
+ * this single-slot store, so A signing in, then B, then A logging out would
+ * wipe B's still-valid token and break every external caller until someone
+ * signs in again. Comparing identifies the owner without the store having to
+ * track one.
+ */
+function clearIfCurrent(accessToken) {
+  if (accessToken && current?.accessToken === accessToken) current = null;
+}
+
 /** What the door reports when it cannot serve a request, for the operator. */
 function status() {
   if (!sharedSessionEnabled()) return { ready: false, reason: 'disabled' };
@@ -92,4 +105,4 @@ function getAccessToken() {
   return status().ready ? current.accessToken : null;
 }
 
-module.exports = { remember, clear, status, getAccessToken, sharedSessionEnabled };
+module.exports = { remember, clear, clearIfCurrent, status, getAccessToken, sharedSessionEnabled };
