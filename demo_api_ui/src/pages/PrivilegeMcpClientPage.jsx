@@ -184,6 +184,16 @@ const LLM_PATHS = {
   openai: { key: 'openai', title: 'LLM — OpenAI through Privilege', detail: 'The prompt goes to GPT through a Privilege virtual key. Privilege injects the provider key and can deny the call before the model ever sees it.' },
 };
 
+// A couple of real model names per lane to probe against the virtual key's
+// allowlist — not the provider's full catalog (see checkModels/GET
+// /llm/models), just enough to show a live pass/blocked contrast without a
+// long, expensive batch of calls.
+const MODEL_CANDIDATES = {
+  anthropic: ['claude-haiku-4-5-20251001', 'claude-3-5-haiku-20241022'],
+  google: ['gemini-2.0-flash', 'gemini-1.5-pro'],
+  openai: ['gpt-4o', 'gpt-4o-mini'],
+};
+
 function gatewayModeDetails(mode, mcpUrl) {
   const known = GATEWAY_MODES[mode];
   if (!known) return { key: 'unknown', title: 'Connection not selected', detail: 'Pick a path in Settings.' };
@@ -206,6 +216,11 @@ export default function PrivilegeMcpClientPage() {
   const [llmGatewayUrl, setLlmGatewayUrl] = useState('');
   const [laneResults, setLaneResults] = useState({});
   const [laneBusy, setLaneBusy] = useState('');
+  // Per-lane model-allowlist check: the provider's own catalog (not filtered
+  // to this key) alongside a live pass/blocked verdict for a couple of real
+  // model names, so "not allowed for this key" and "not a real model" don't
+  // look the same on sight.
+  const [modelChecks, setModelChecks] = useState({});
   const [llmDenial, setLlmDenial] = useState(null);
   const [llmError, setLlmError] = useState('');
   const [rearmError, setRearmError] = useState('');
@@ -722,7 +737,15 @@ export default function PrivilegeMcpClientPage() {
   // behind the virtual key is the problem, and they look identical in a raw log.
   const classify = (err) => {
     if (err.code === 'llm_bad_route') return { layer: 'route rejected', tone: 'bad' };
-    if (err.code === 'llm_policy_denied') return { layer: 'Privilege policy', tone: 'denied' };
+    if (err.code === 'llm_policy_denied') {
+      // Same HTTP shape (403 + llm_policy_denied) as a deliberate Privilege
+      // demo denial, but this one means "you typed a model this key's
+      // allowlist doesn't cover" — a config mistake, not the policy story.
+      if (/not allowed for this key/i.test(err.reason || err.message || '')) {
+        return { layer: 'model not allowed', tone: 'bad' };
+      }
+      return { layer: 'Privilege policy', tone: 'denied' };
+    }
     if (err.status === 503) return { layer: 'not configured', tone: 'bad' };
     if (err.status === 502) return { layer: 'provider', tone: 'bad' };
     return { layer: `HTTP ${err.status || '?'}`, tone: 'bad' };
@@ -757,6 +780,33 @@ export default function PrivilegeMcpClientPage() {
     // a rate-limit belongs to, and the whole point here is attribution.
     for (const lane of llmLanes) await testLane(lane);
   }, [llmLanes, testLane]);
+
+  // "What models are actually allowed for this key?" The gateway does not
+  // expose that allowlist directly (GET /llm/models is the provider's own
+  // catalog, unfiltered) — the only way to learn it is to try a candidate and
+  // read the verdict, so this fetches the catalog for context and then tests
+  // a couple of real model names, one at a time, with max_tokens capped at 1
+  // to keep a PASSING candidate cheap too.
+  const checkModels = useCallback(async (lane) => {
+    setModelChecks((prev) => ({ ...prev, [lane.provider]: { busy: true, catalog: prev[lane.provider]?.catalog, results: [] } }));
+    const catalog = await api(`/llm/models?provider=${lane.provider}`).catch((err) => ({ error: err.message }));
+    const results = [];
+    for (const model of MODEL_CANDIDATES[lane.provider] || []) {
+      const t0 = Date.now();
+      try {
+        await api('/llm/call', {
+          method: 'POST',
+          body: { provider: lane.provider, prompt: 'hi', model, maxTokens: 1 },
+        });
+        results.push({ model, tone: 'ok', layer: 'allowed', latencyMs: Date.now() - t0 });
+      } catch (err) {
+        const { layer, tone } = classify(err);
+        results.push({ model, tone, layer, latencyMs: Date.now() - t0 });
+      }
+      setModelChecks((prev) => ({ ...prev, [lane.provider]: { busy: true, catalog, results: [...results] } }));
+    }
+    setModelChecks((prev) => ({ ...prev, [lane.provider]: { busy: false, catalog, results } }));
+  }, []);
 
   // "Prove the policy": a prompt the Privilege policy is configured to deny.
   // Deliberately obvious PII so the denial is explainable on stage.
@@ -1723,6 +1773,7 @@ export default function PrivilegeMcpClientPage() {
             </div>
             {llmLanes.map((lane) => {
               const r = laneResults[lane.provider];
+              const mc = modelChecks[lane.provider];
               return (
                 <div className="cur-llmlanes__row" key={lane.provider}>
                   <span className="cur-llmlanes__name">{lane.provider}</span>
@@ -1739,6 +1790,9 @@ export default function PrivilegeMcpClientPage() {
                   <button type="button" onClick={() => testLane(lane)} disabled={Boolean(laneBusy)}>
                     Test
                   </button>
+                  <button type="button" onClick={() => checkModels(lane)} disabled={Boolean(laneBusy) || mc?.busy}>
+                    {mc?.busy ? 'Checking…' : 'Check models'}
+                  </button>
                   {!lane.keyConfigured && (
                     <span className="cur-llmlanes__result cur-llmlanes__result--bad">
                       {lane.keyEnv} not set
@@ -1752,6 +1806,24 @@ export default function PrivilegeMcpClientPage() {
                       {r.ok ? '✅' : r.tone === 'denied' ? '⚠️' : '❌'} {r.layer} · {r.latencyMs} ms
                       <span className="cur-llmlanes__detail">{r.text}</span>
                     </span>
+                  )}
+                  {mc && (
+                    <div className="cur-llmlanes__result" data-testid={`model-check-${lane.provider}`}>
+                      {mc.results.map((res) => (
+                        <span key={res.model} className={`cur-llmlanes__detail cur-llmlanes__result--${res.tone}`}>
+                          {res.tone === 'ok' ? '✅' : res.tone === 'denied' ? '⚠️' : '❌'} <code>{res.model}</code> — {res.layer} · {res.latencyMs} ms
+                        </span>
+                      ))}
+                      {mc.catalog && (
+                        <span className="cur-llmlanes__detail">
+                          {mc.catalog.error
+                            ? `Provider catalog: ${mc.catalog.error}`
+                            : Array.isArray(mc.catalog.models)
+                              ? `Provider catalog (not filtered to this key): ${mc.catalog.models.length} models — e.g. ${mc.catalog.models.slice(0, 5).join(', ')}`
+                              : `Provider catalog: HTTP ${mc.catalog.status}`}
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
               );

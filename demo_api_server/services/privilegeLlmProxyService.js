@@ -70,6 +70,28 @@ function readProviderLimits(res) {
   return Object.values(limits).some((v) => v !== null) ? limits : null;
 }
 
+/**
+ * The provider's own model catalog, fetched through the gateway with the
+ * lane's virtual key. NOT filtered to what that key is actually allowed to
+ * use — Privilege enforces the per-key model allowlist on the chat-completions
+ * call itself (a 403 there), not on this endpoint — so this is only useful
+ * to confirm a model name is real, not that this key can use it.
+ * @param {'anthropic'|'google'|'openai'} lane
+ */
+async function listModels(lane) {
+  const base = gatewayUrl();
+  const key = process.env[LANES[lane].keyEnv] || '';
+  if (!base) throw new Error('PRIVILEGE_LLM_GATEWAY_URL not configured');
+  if (!key) throw new Error(`${LANES[lane].keyEnv} not configured`);
+
+  const url = `${base.replace(/\/+$/, '')}/llm/${lane}/v1/models`;
+  const res = await llmFetch(url, {
+    headers: { Authorization: `Bearer ${key}` },
+  }, { label: `privilege-llm-${lane}-models`, timeoutMs: 10000, retryOn429: false });
+  const data = await res.json().catch(() => null);
+  return { status: res.status, ok: res.ok, data };
+}
+
 /** Denial (400/403) vs any other failure — shared by both providers. */
 function throwForResponse(res, data, label) {
   const msg = data?.error?.message || res.statusText || String(res.status);
@@ -146,7 +168,7 @@ async function callPrivilegeClaude(messages, config = {}) {
       Authorization: `Bearer ${key}`,
       'anthropic-version': ANTHROPIC_VERSION,
     },
-    body: JSON.stringify({ model, max_tokens: 512, system: system || undefined, messages: turns }),
+    body: JSON.stringify({ model, max_tokens: config.max_tokens || 512, system: system || undefined, messages: turns }),
   }, { label: 'privilege-llm-anthropic', timeoutMs: 12000, retryOn429: false });
 
   // The caller may pass a `meta` object to collect transport facts it cannot
@@ -185,7 +207,7 @@ async function callPrivilegeOpenAI(messages, config = {}) {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${key}`,
     },
-    body: JSON.stringify({ model, max_tokens: 512, messages }),
+    body: JSON.stringify({ model, max_tokens: config.max_tokens || 512, messages }),
   }, { label: 'privilege-llm-openai', timeoutMs: 12000, retryOn429: false });
 
   // The caller may pass a `meta` object to collect transport facts it cannot
@@ -203,6 +225,7 @@ module.exports = {
   LANES,
   readProviderLimits,
   resolveRoute,
+  listModels,
   callPrivilegeGemini,
   callPrivilegeClaude,
   callPrivilegeOpenAI,

@@ -136,13 +136,16 @@ function getClientSession(req) {
       },
       gatewayMode: DEFAULT_GATEWAY_MODE,
       gatewayConfigs: modeConfigs,
-      // Per-mode oauth, kept OUT of gatewayConfigs (which is echoed back to the
-      // client verbatim in /state and /config responses) so a token is never
-      // serialized into a JSON body. session.oauth below is a single slot
-      // shared across modes — switching modes stashes the outgoing token here
-      // and restores the destination mode's, so revisiting an already-signed-in
-      // mode does not force a redundant /auth/start. See POST /config.
-      savedOauthByMode: {},
+      // Per-(mode+door) oauth, kept OUT of gatewayConfigs (which is echoed
+      // back to the client verbatim in /state and /config responses) so a
+      // token is never serialized into a JSON body. session.oauth below is a
+      // single slot shared across mode/door combinations — switching either
+      // stashes the outgoing key's token here and restores the destination
+      // key's, so revisiting an already-signed-in mode+door does not force a
+      // redundant /auth/start. Keyed by door too, not just mode: each door is
+      // its own OAuth audience, so a token good for one door 401s against
+      // another. See POST /config.
+      savedOauthByDoor: {},
       oauth: {
          accessToken: null, refreshToken: null, expiresAt: null, tokenUri: null, source: null,
 
@@ -1493,18 +1496,31 @@ router.post('/config', express.json(), (req, res) => {
     llmUrl: patch.llmUrl || session.config.llmUrl,
     llmModel: patch.llmModel || session.config.llmModel,
   };
-  // Actually switching modes (not just re-saving the current mode's door) —
-  // stash the outgoing mode's live token so returning to it later can reuse
-  // it, then restore whatever the destination mode last had instead of
+  // Actually switching mode+door (not just re-saving the current selection)
+  // — stash the outgoing key's live token so returning to it later can reuse
+  // it, then restore whatever the destination key last had instead of
   // leaving the outgoing token in place: session.oauth is a single slot, and
-  // a stale cross-mode token reporting `authenticated: true` here is exactly
+  // a stale cross-key token reporting `authenticated: true` here is exactly
   // what the /auth/callback tokenOrigin guard above protects against — the
   // real gateway rejects a Façade-broker token as "Bearer token required".
-  if (gatewayMode !== session.gatewayMode) {
+  // Keyed by door as well as mode: switchDoor (frontend) never changes mode,
+  // so without the door in the key this block used to skip entirely on a
+  // door-only switch, leaving door A's token in place to 401 against door B
+  // and force a re-sign-in the user had already done for door B before.
+  // A request that hands us a fresh Bearer credential (getClientSession
+  // above already copied it into session.oauth) is asserting "this token IS
+  // for the key you're about to select" — swapping it back out for whatever
+  // was last stashed under that key would discard the very credential the
+  // caller just supplied.
+  const providedBearerThisRequest = /^Bearer\s+\S+/i.test(String(req.headers?.authorization || ''));
+  const oauthKey = (mode, mcpUrl) => `${mode}::${mcpUrl || ''}`;
+  const previousOauthKey = oauthKey(session.gatewayMode, session.config.mcpUrl);
+  const nextOauthKey = oauthKey(gatewayMode, session.gatewayConfigs[gatewayMode].mcpUrl);
+  if (nextOauthKey !== previousOauthKey && !providedBearerThisRequest) {
     if (session.oauth.accessToken) {
-      session.savedOauthByMode[session.gatewayMode] = { ...session.oauth };
+      session.savedOauthByDoor[previousOauthKey] = { ...session.oauth };
     }
-    const restored = session.savedOauthByMode[gatewayMode];
+    const restored = session.savedOauthByDoor[nextOauthKey];
     // An expired stash must not report authenticated: true — the frontend
     // would skip /auth/start on the strength of it and hand a dead token
     // straight to tools/list instead of getting a fresh one.
@@ -2071,6 +2087,7 @@ router.post('/doors/probe', express.json(), async (req, res) => {
 const { resolveRoute } = require('../services/privilegeLlmProxyService');
 const {
   LANES,
+  listModels,
   callPrivilegeGemini: llmGoogle,
   callPrivilegeClaude: llmAnthropic,
   callPrivilegeOpenAI: llmOpenAI,
@@ -2099,6 +2116,28 @@ router.get('/llm/config', (req, res) => {
   });
 });
 
+// GET /llm/models — the provider's own catalog, fetched through the gateway
+// with the lane's virtual key. Deliberately NOT the same thing as "models
+// this key is allowed to use": Privilege enforces that allowlist per
+// chat-completions call (see /llm/call's llm_policy_denied), so a real model
+// name can still 403 there. This is only here so a rejected model name reads
+// as "not allowed for this key", not "does this even exist" — the panel
+// checks both.
+router.get('/llm/models', async (req, res) => {
+  const provider = String(req.query.provider || '');
+  if (!LLM_LANES[provider]) {
+    return res.status(400).json({ error: `Unknown provider "${provider}". Use one of: ${Object.keys(LLM_LANES).join(', ')}` });
+  }
+  try {
+    const { status, ok, data } = await listModels(provider);
+    const ids = Array.isArray(data?.data) ? data.data.map((m) => m.id).filter(Boolean) : null;
+    res.json({ provider, status, ok, models: ids, raw: ids ? undefined : data });
+  } catch (err) {
+    if (/not configured/.test(err.message || '')) return res.status(503).json({ error: err.message });
+    res.status(502).json({ error: err.message || 'Privilege LLM models call failed' });
+  }
+});
+
 router.post('/llm/call', express.json(), async (req, res) => {
   const provider = String(req.body?.provider || '');
   const lane = LLM_LANES[provider];
@@ -2114,6 +2153,10 @@ router.post('/llm/call', express.json(), async (req, res) => {
   const overrides = {};
   if (req.body?.route) overrides.route = req.body.route;
   if (req.body?.model) overrides.model = req.body.model;
+  // A model-allowlist probe sends one candidate model at a time (see
+  // GET /llm/models) — capping tokens keeps each check cheap regardless of
+  // whether the model turns out to be allowed and actually reaches the provider.
+  if (req.body?.maxTokens) overrides.max_tokens = Number(req.body.maxTokens);
   let route;
   try {
     route = resolveRoute(provider, overrides.route);

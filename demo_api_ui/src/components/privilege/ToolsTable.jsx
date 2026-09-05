@@ -44,6 +44,17 @@ const PARAM_EXAMPLES = {
   },
 };
 
+// Same idea as PARAM_EXAMPLES, but keyed by parameter NAME instead of tool
+// name — for fields whose meaning is the same across every tool that takes
+// them (every OpenSearch door tool takes the same "index"), so one entry
+// covers ListIndexTool, IndexMappingTool, SearchIndexTool, etc. without
+// having to name each one. `_all`/`*` stay valid regardless of which indices
+// actually exist; a real name is date-stamped and rotates daily, so it is
+// only ever a today-accurate seed, not a promise.
+const PARAM_EXAMPLES_BY_NAME = {
+  index: ['_all', '*', 'top_queries-2026.09.05-04062'],
+};
+
 function paramsOf(tool) {
   const props = tool.inputSchema?.properties || {};
   const required = new Set(tool.inputSchema?.required ?? []);
@@ -52,7 +63,7 @@ function paramsOf(tool) {
     type: (schema && schema.type) || 'any',
     required: required.has(name),
     enumValues: Array.isArray(schema?.enum) ? schema.enum : null,
-    examples: PARAM_EXAMPLES[tool.name]?.[name] || null,
+    examples: PARAM_EXAMPLES[tool.name]?.[name] || PARAM_EXAMPLES_BY_NAME[name] || null,
   }));
 }
 
