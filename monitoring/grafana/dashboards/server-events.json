@@ -1,0 +1,77 @@
+{
+  "uid": "ai-demo-server-events",
+  "title": "Server Events",
+  "description": "The BFF's own structured event stream — appEventService.logEvent() calls (~100 call sites: auth, oauth, token exchange, MCP tool dispatch, agent lifecycle, startup) — forwarded to Loki via Tier 1's lokiForwarder. PingOne webhook activity is its own category here too but has its own dedicated dashboard (PingOne Webhook) with type/status breakdowns; this one is the general view across every category.",
+  "tags": ["ai-demo", "server", "bff"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "About this dashboard",
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 0 },
+      "options": {
+        "mode": "markdown",
+        "content": "Every `appEventService.logEvent(category, severity, message, ...)` call across the BFF reaches Loki with `category` and `severity` as real ingested labels (`service=\"ai-demo-bff\"`, `logtype=\"app_event\"`) — this is Tier 1's structured stream, not the raw stdout Tier 2 also captures for every container (that's `{service=\"api-server\"}` — the same physical pod, its console.log output instead). Categories seen so far: `agent`, `auth_lifecycle`, `intent_auth`, `intent_token`, `introspection`, `mcp`, `oauth`, `pingone`, `startup`, `token_exchange` — the by-category panel picks up new ones automatically, nothing to configure."
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Events by category (per 5 min)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "loki", "uid": "ai-demo-loki" },
+      "targets": [
+        { "refId": "A", "expr": "sum by (category) (count_over_time({service=\"ai-demo-bff\", logtype=\"app_event\"} [5m]))" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short", "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "showPoints": "never" }, "min": 0, "decimals": 0 },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Events by severity (per 5 min)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "loki", "uid": "ai-demo-loki" },
+      "targets": [
+        { "refId": "A", "expr": "sum by (severity) (count_over_time({service=\"ai-demo-bff\", logtype=\"app_event\"} [5m]))" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short", "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "showPoints": "never" }, "min": 0, "decimals": 0 },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "error" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }] },
+          { "matcher": { "id": "byName", "options": "warn" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }] },
+          { "matcher": { "id": "byName", "options": "info" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }] }
+        ]
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 4,
+      "type": "logs",
+      "title": "Live server events",
+      "description": "Every category, unfiltered. Narrow with the panel's own search box, e.g. |= \"error\" or |= \"category\":\"oauth\".",
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 12 },
+      "datasource": { "type": "loki", "uid": "ai-demo-loki" },
+      "targets": [
+        { "refId": "A", "expr": "{service=\"ai-demo-bff\", logtype=\"app_event\"}" }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none"
+      }
+    }
+  ],
+  "links": []
+}
