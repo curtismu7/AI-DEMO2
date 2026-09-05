@@ -29,6 +29,7 @@ const configStore = require('../services/configStore');
 const { getAuthorizationEndpoint, getTokenEndpoint, getParEndpoint } = require('../services/oauthEndpointResolver');
 const { PingOneProvisionService } = require('../services/pingoneProvisionService');
 const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
+const pingoneAdminSession = require('../services/pingoneAdminSession');
 
 const APP_NAME = 'PingOne MCP Server';
 const CALLBACK_PATH = '/api/mcp/inspector/pingone-admin/callback';
@@ -277,6 +278,14 @@ router.get('/callback', async (req, res) => {
       accessToken: resp.data.access_token,
       expiresAt: Date.now() + expiresInMs,
     };
+    // Also carry it server-side so the pingone-admin façade door can serve
+    // callers with no browser session (external MCP clients). Those callers
+    // then act as THIS human — see services/pingoneAdminSession.js for the
+    // trade and why the door requires a verified bearer alongside it.
+    pingoneAdminSession.remember({
+      accessToken: resp.data.access_token,
+      expiresAt: Date.now() + expiresInMs,
+    });
     const returnTo = pending.returnTo;
     delete req.session.pingoneMcpAdminOAuth;
     req.session.save((err) => {
