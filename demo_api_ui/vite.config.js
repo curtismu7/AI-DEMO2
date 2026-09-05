@@ -35,9 +35,7 @@ export default defineConfig(({ mode }) => {
   // Proxy config — mirrors setupProxy.js logic exactly
   const apiPort = cfg('REACT_APP_API_PORT') || '3001'
   const mkcert = resolveMkcertPaths()
-  // Respect explicit REACT_APP_API_HTTPS=false (for container-to-container over HTTP).
-  // If unset, default to HTTPS when mkcert files exist.
-  const apiHttps = cfg('REACT_APP_API_HTTPS') === 'false' ? false : (Boolean(mkcert) || cfg('REACT_APP_API_HTTPS') === 'true')
+  const apiHttps = Boolean(mkcert) || cfg('REACT_APP_API_HTTPS') === 'true'
   const hostname = cfg('REACT_APP_API_HOST') || (apiHttps ? 'api.ping.demo' : 'localhost')
   const httpTarget = `${apiHttps ? 'https' : 'http'}://${hostname}:${apiPort}`
   const wsTarget = `${apiHttps ? 'wss' : 'ws'}://${hostname}:${apiPort}`

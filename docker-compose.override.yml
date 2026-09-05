@@ -51,9 +51,9 @@ services:
     # older versions.)
     environment:
       # Proxy /api and /ws to the BFF by compose service DNS (vite.config.js builds
-      # the target from REACT_APP_API_HOST). Container-to-container uses HTTP, not TLS.
+      # the target from REACT_APP_API_HOST). secure:false there tolerates the cert
+      # CN mismatch on demo-api-server.
       REACT_APP_API_HOST: demo-api-server
-      REACT_APP_API_HTTPS: "false"
       # Exit at boot if mkcert files are missing — never serve HTTP-only on :4000 silently.
       REQUIRE_DEV_TLS: "1"
     volumes:
