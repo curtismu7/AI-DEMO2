@@ -5,6 +5,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const privilegeGatewaySession = require('../services/privilegeGatewaySession');
+const privilegeDoorStore = require('../services/lmdb/privilegeDoorStore.lmdb');
 const router = express.Router();
 
 // The three ways to reach the same MCP server, which is the whole point of this
@@ -56,6 +57,24 @@ const DEFAULT_FACADE_OPENSEARCH_MCP_URL = () =>
   process.env.PRIVILEGE_FACADE_OPENSEARCH_URL || `${PUBLIC_APP_ORIGIN()}/mcp-facade/privilege-gateway/${PRIVILEGE_APP_OPENSEARCH()}/mcp`;
 const DEFAULT_FACADE_BRAVE_MCP_URL = () =>
   process.env.PRIVILEGE_FACADE_BRAVE_URL || `${PUBLIC_APP_ORIGIN()}/mcp-facade/privilege-gateway/${PRIVILEGE_APP_BRAVE()}/mcp`;
+
+// Where an Agentic App discovered from the Privilege console actually lives.
+//
+// Derived from the PRIVILEGE-mode default rather than the session's CURRENT
+// door: discovery describes one gateway, and it is the same gateway whichever
+// mode the operator happens to be looking at. Reading the current door instead
+// is what made façade-mode discovery emit `<public-origin>/<app>/mcp` — a URL
+// that is missing the /mcp-facade/privilege-gateway prefix and reaches nothing.
+function privilegeGatewayOrigin() {
+  try { return new URL(DEFAULT_PRIVILEGE_MCP_URL()).origin; } catch { return PRIVILEGE_GATEWAY_HOST; }
+}
+// The gateway derives a client route from the APPLICATION NAME — /<name>/mcp
+// (privilege/AGENTLESS-CONFIGURATION.md). FrontEndName is the agent-mode
+// procyon host and is deliberately not used here.
+function privilegeDoorUrl(appName) { return `${privilegeGatewayOrigin()}/${appName}/mcp`; }
+// The façade reaches the same app through its multiApp privilege-gateway door,
+// so only the <app> segment differs.
+function facadeDoorUrl(appName) { return `${PUBLIC_APP_ORIGIN()}/mcp-facade/privilege-gateway/${appName}/mcp`; }
 
 const GATEWAY_MODES = ['direct', 'privilege', 'facade'];
 const DEFAULT_GATEWAY_MODE = 'privilege';
