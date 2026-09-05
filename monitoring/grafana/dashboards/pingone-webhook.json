@@ -1,0 +1,76 @@
+{
+  "uid": "ai-demo-pingone-webhook",
+  "title": "PingOne Webhook",
+  "description": "PingOne Activity events delivered to /webhook/pingone (routes/webhookPingOne.js), forwarded to Loki via appEventService's category='pingone' events (Tier 1). Every panel here reads that Loki stream.",
+  "tags": ["ai-demo", "pingone", "webhook"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "About this dashboard",
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 0 },
+      "options": {
+        "mode": "markdown",
+        "content": "PingOne posts an Activity batch (up to 500 events) to `/webhook/pingone`; `webhookPingOne.js` stores each in LMDB and logs it through `appEventService.logEvent('pingone', ...)`, which Tier 1's `lokiForwarder` pushes to Loki with `category=\"pingone\"` as a real label. `eventType` (e.g. `USER.ACCESS_ALLOWED`) and `status` (`SUCCESS`/`FAILURE`) live inside the JSON log line, not as labels — every query below parses them out with `| json`, which Loki flattens to `metadata_eventType` / `metadata_status`."
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Events by type (per 5 min)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "loki", "uid": "ai-demo-loki" },
+      "targets": [
+        { "refId": "A", "expr": "sum by (metadata_eventType) (count_over_time({category=\"pingone\"} | json [5m]))" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short", "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "showPoints": "never" }, "min": 0, "decimals": 0 },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Events by status (per 5 min)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "loki", "uid": "ai-demo-loki" },
+      "targets": [
+        { "refId": "A", "expr": "sum by (metadata_status) (count_over_time({category=\"pingone\"} | json [5m]))" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short", "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "showPoints": "never" }, "min": 0, "decimals": 0 },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "FAILURE" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }] },
+          { "matcher": { "id": "byName", "options": "SUCCESS" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }] }
+        ]
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 4,
+      "type": "logs",
+      "title": "Live webhook events",
+      "description": "Every event PingOne has delivered, unfiltered. Use the panel's own search box to narrow, e.g. |= \"FAILURE\".",
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 12 },
+      "datasource": { "type": "loki", "uid": "ai-demo-loki" },
+      "targets": [
+        { "refId": "A", "expr": "{category=\"pingone\"}" }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none"
+      }
+    }
+  ],
+  "links": []
+}
