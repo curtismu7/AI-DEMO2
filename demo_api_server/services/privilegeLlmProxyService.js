@@ -10,6 +10,7 @@
 //   /llm/anthropic/v1/messages         native Anthropic Messages API (requires
 //                                      anthropic-version header, system is a
 //                                      top-level field, not a message role)
+//   /llm/openai/v1/chat/completions    OpenAI-compatible (same shape as google)
 // Both error envelopes expose the message at data.error.message, so denial
 // handling is shared.
 
@@ -17,6 +18,7 @@ const { llmFetch } = require('./llmFetch');
 
 const DEFAULT_MODEL_GOOGLE = 'gemini-2.0-flash';
 const DEFAULT_MODEL_ANTHROPIC = 'claude-haiku-4-5-20251001';
+const DEFAULT_MODEL_OPENAI = 'gpt-4o-mini';
 const ANTHROPIC_VERSION = '2023-06-01';
 
 function gatewayUrl() {
@@ -107,4 +109,47 @@ async function callPrivilegeClaude(messages, config = {}) {
   return text;
 }
 
-module.exports = { callPrivilegeGemini, callPrivilegeClaude, DEFAULT_MODEL_GOOGLE, DEFAULT_MODEL_ANTHROPIC };
+/**
+ * Call OpenAI through the Privilege virtual key and return assistant text.
+ * OpenAI-compatible wire shape — the same as the Google lane, NOT Anthropic's:
+ * `system` stays a message role and the reply is at choices[0].message.content.
+ * Throws an Error with `code: 'llm_policy_denied'` when Privilege's policy
+ * layer denies the request.
+ * @param {Array<{role: string, content: string}>} messages
+ * @param {object} [config]
+ * @returns {Promise<string>}
+ */
+async function callPrivilegeOpenAI(messages, config = {}) {
+  const base = gatewayUrl();
+  const key = process.env.PRIVILEGE_LLM_VIRTUAL_KEY_OPENAI || '';
+  if (!base) throw new Error('PRIVILEGE_LLM_GATEWAY_URL not configured');
+  if (!key) throw new Error('PRIVILEGE_LLM_VIRTUAL_KEY_OPENAI not configured');
+
+  const model = config.openai_model || config.model || process.env.PRIVILEGE_LLM_MODEL_OPENAI || DEFAULT_MODEL_OPENAI;
+
+  const url = `${base.replace(/\/+$/, '')}/llm/openai/v1/chat/completions`;
+  const res = await llmFetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${key}`,
+    },
+    body: JSON.stringify({ model, max_tokens: 512, messages }),
+  }, { label: 'privilege-llm-openai', timeoutMs: 12000, retryOn429: false });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throwForResponse(res, data, 'openai');
+
+  const text = data?.choices?.[0]?.message?.content;
+  if (!text) throw new Error('Privilege LLM proxy (openai) returned empty response');
+  return text;
+}
+
+module.exports = {
+  callPrivilegeGemini,
+  callPrivilegeClaude,
+  callPrivilegeOpenAI,
+  DEFAULT_MODEL_GOOGLE,
+  DEFAULT_MODEL_ANTHROPIC,
+  DEFAULT_MODEL_OPENAI,
+};
