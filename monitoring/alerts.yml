@@ -6,10 +6,11 @@
 # response the gateway sent, including the rejections the MCP counter drops, so
 # these rules see the whole picture.
 #
-# NOTE: there is no Alertmanager in this stack. Rules evaluate and show as
-# pending/firing in Prometheus and in Grafana's alert-rule views, but nothing is
-# routed anywhere — no email, no Slack, no paging. Adding Alertmanager is a
-# separate decision; this gives the signal a home without pretending to notify.
+# Routed to Alertmanager (monitoring/alertmanager.yml) — rules evaluate and
+# show as pending/firing in Prometheus and in Grafana's Alerting page. There is
+# still no external receiver configured (no email, no Slack, no paging) —
+# Alertmanager's default receiver is a no-op, deliberately, until a real
+# destination is chosen. Add one by editing monitoring/alertmanager.yml.
 #
 # Thresholds are ratios, not counts, for a specific reason: a 401 on the external
 # door is NORMAL. Spec-following MCP clients discover the auth server by making

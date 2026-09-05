@@ -1,0 +1,98 @@
+# Alertmanager — receives firing alerts from Prometheus and routes them.
+#
+# Config lives in monitoring/alertmanager.yml and is turned into the
+# `alertmanager-config` ConfigMap by k8s/create-secrets.sh, same trick as
+# prometheus-config. The default receiver is a no-op (see that file) — this
+# exists so alerts.yml's rules actually route somewhere and show up in
+# Grafana's Alerting page, not so anything pages or posts externally yet.
+#
+# Storage is an emptyDir, same demo-telemetry trade as Prometheus/Jaeger/Loki:
+# silence/notification-log state resets on restart, which is fine here.
+#
+# ClusterIP only, no ingress — same reasoning as Prometheus: no auth of its
+# own, so exposing it would let anyone silence or inspect alert state.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: alertmanager
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: ai-demo
+      component: alertmanager
+  template:
+    metadata:
+      labels:
+        app: ai-demo
+        component: alertmanager
+    spec:
+      securityContext:
+        # The image runs as nobody(65534); the emptyDir must be writable by it.
+        fsGroup: 65534
+      containers:
+        - name: alertmanager
+          image: prom/alertmanager:v0.34.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - --config.file=/etc/alertmanager/alertmanager.yml
+            - --storage.path=/alertmanager
+          ports:
+            - containerPort: 9093
+              name: http
+          volumeMounts:
+            - name: config
+              mountPath: /etc/alertmanager
+            - name: data
+              mountPath: /alertmanager
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "25m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: 9093
+            initialDelaySeconds: 5
+            periodSeconds: 30
+            timeoutSeconds: 3
+            failureThreshold: 3
+      volumes:
+        - name: config
+          configMap:
+            name: alertmanager-config
+            optional: true
+        - name: data
+          emptyDir: {}
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: alertmanager
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9093
+      targetPort: 9093
+      protocol: TCP
+      name: http
+  selector:
+    app: ai-demo
+    component: alertmanager

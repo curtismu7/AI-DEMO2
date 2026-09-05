@@ -18,6 +18,7 @@
 require('dotenv').config();
 const crypto = require('crypto');
 const express = require('express');
+const { register: metricsRegister, requestMetrics } = require('./metrics');
 
 // Accept API_RESOURCE_SERVER_PORT=0 (ephemeral port); only fall back on a
 // missing/non-integer value rather than any falsy value.
@@ -46,7 +47,15 @@ if (!envKey) {
 
 const app = express();
 app.disable('x-powered-by');
+app.use(requestMetrics);
 app.use(express.json({ limit: '64kb' }));
+
+// Prometheus scrape target — unauthenticated, same posture as PingGateway's
+// own /metrics/prometheus/0.0.4.
+app.get('/metrics', async (_req, res) => {
+  res.set('Content-Type', metricsRegister.contentType);
+  res.end(await metricsRegister.metrics());
+});
 
 // Health — unauthenticated, used by run-demo.sh status checks. Returns no
 // secret-derived material (the endpoint is public).

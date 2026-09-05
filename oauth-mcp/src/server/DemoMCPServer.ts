@@ -24,6 +24,7 @@ import { authorizeLastHop } from '../auth/lastHopAuthorization';
 import { runWithCorrelation } from '../utils/correlationContext';
 import { createMtlsVerifier } from '../auth/mtlsMiddleware';
 import { ClientRegistry, TokenStore, OAuthRouter, getEmbeddedSigningKeyManager } from '../oauth';
+import { register as metricsRegister, mcpMessageDuration } from '../metrics';
 
 export interface ServerConfig {
   host: string;
@@ -429,7 +430,27 @@ export class DemoMCPServer extends EventEmitter {
   /**
    * Process incoming MCP message
    */
+  /**
+   * Metrics-observing wrapper — records oauthmcp_mcp_message_duration_seconds
+   * and delegates to the unchanged implementation below. The label is a
+   * throwaway best-effort parse purely for the metric; the real parse (with
+   * its own error handling) still happens inside the impl exactly as before.
+   */
   async processMessage(connectionId: string, rawMessage: string): Promise<void> {
+    let method = 'unknown';
+    try {
+      const parsed = JSON.parse(rawMessage);
+      if (parsed && typeof parsed.method === 'string') method = parsed.method;
+    } catch { /* labeled 'unknown'; the real parse below reports the real error */ }
+    const endTimer = mcpMessageDuration.startTimer({ method });
+    try {
+      await this._processMessageImpl(connectionId, rawMessage);
+    } finally {
+      endTimer();
+    }
+  }
+
+  private async _processMessageImpl(connectionId: string, rawMessage: string): Promise<void> {
     const connection = this.connections.get(connectionId);
     if (!connection) {
       return;
@@ -889,6 +910,11 @@ export class DemoMCPServer extends EventEmitter {
       await this.handleAuthStatus(req, res, url);
     } else if (pathname === '/auth/token-exchange') {
       await this.handleTokenExchange(req, res, url);
+    } else if (pathname === '/metrics') {
+      // Prometheus scrape target — unauthenticated, same posture as
+      // PingGateway's own /metrics/prometheus/0.0.4.
+      res.writeHead(200, { 'Content-Type': metricsRegister.contentType });
+      res.end(await metricsRegister.metrics());
     } else if (pathname === '/health') {
       this.handleHealth(res);
     } else if (pathname === '/inspector/mcp-host') {

@@ -1,0 +1,64 @@
+// Grafana Alloy — Kubernetes log collector (Tier 2).
+//
+// Tier 1 (services/lokiForwarder.js) only ever carried structured BFF app
+// events. Every other service — oauth-mcp, mcp-gateway, the agents, the
+// resource servers — only console.logs, and nothing shipped that to Loki.
+// This is the piece that does.
+//
+// Deliberately NOT a DaemonSet + hostPath /var/log/pods reader — the usual
+// pattern. This cluster is shared (the SE cluster runs one namespace per
+// engineer), and a DaemonSet schedules a pod on EVERY node, each one able to
+// read every OTHER tenant's pod logs off that node's disk. loki.source.kubernetes
+// tails logs through the Kubernetes API instead (the same mechanism `kubectl
+// logs` uses) — no hostPath, no node-level access, and RBAC below is a
+// namespace-scoped Role, not a ClusterRole, so this genuinely cannot see
+// another tenant's pods. That also means one Deployment replica is enough;
+// it isn't scheduled per-node.
+//
+// POD_NAMESPACE comes from the Deployment's downward API (fieldRef:
+// metadata.namespace) rather than a literal "ai-demo" — the SE cluster
+// deploys into a pre-existing namespace named after the engineer
+// (K8S_NAMESPACE in k8s/aws/deploy.sh), and apply_patched's string
+// replacement only rewrites YAML manifests, not the River config this
+// ConfigMap wraps.
+discovery.kubernetes "pods" {
+  role = "pod"
+
+  namespaces {
+    names = [sys.env("POD_NAMESPACE")]
+  }
+}
+
+// discovery.kubernetes only emits __meta_kubernetes_* labels, and Loki drops
+// every "__"-prefixed label before it reaches storage (that's what makes it
+// safe for relabeling in the first place) — without this step there would be
+// nothing to filter a Loki query by except the internal, unqueryable ones.
+// `service` matches Tier 1's fixed "ai-demo-bff" convention and the docker
+// side's stripped container name.
+discovery.relabel "pods" {
+  targets = discovery.kubernetes.pods.targets
+
+  rule {
+    source_labels = ["__meta_kubernetes_pod_container_name"]
+    target_label  = "service"
+  }
+  rule {
+    source_labels = ["__meta_kubernetes_namespace"]
+    target_label  = "namespace"
+  }
+  rule {
+    source_labels = ["__meta_kubernetes_pod_name"]
+    target_label  = "pod"
+  }
+}
+
+loki.source.kubernetes "pods" {
+  targets    = discovery.relabel.pods.output
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

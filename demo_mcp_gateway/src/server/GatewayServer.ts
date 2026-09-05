@@ -52,6 +52,7 @@ import { toolsListBackendOutage } from '../toolsListHealth';
 import { OAuthBrokerRouter } from '../oauth/OAuthBrokerRouter';
 import { ClientRegistry } from '../oauth/ClientRegistry';
 import { BrokerTokenStore } from '../oauth/BrokerTokenStore';
+import { register as metricsRegister } from '../metrics';
 
 const MCP_SESSION_HEADER = 'mcp-session-id';
 const MCP_PROTO_HEADER = 'mcp-protocol-version';
@@ -257,6 +258,15 @@ export class GatewayServer {
       const parsedUrl = new URL(url, `http://${req.headers.host || 'localhost'}`);
       const handled = await this.oauthBroker.handle(req, res, parsedUrl);
       if (handled) return;
+    }
+
+    // Prometheus scrape target — unauthenticated, same posture as PingGateway's
+    // own /metrics/prometheus/0.0.4 (monitoring/prometheus.yml already trusts
+    // the internal network for scraping).
+    if (url === '/metrics' && method === 'GET') {
+      res.writeHead(200, { 'Content-Type': metricsRegister.contentType });
+      res.end(await metricsRegister.metrics());
+      return;
     }
 
     if (url === '/health' && method === 'GET') {

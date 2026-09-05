@@ -89,6 +89,26 @@ services:
       # ConfigMap — one copy in the repo, both targets read it.
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+    depends_on:
+      - alertmanager
+    networks:
+      - ai-demo
+
+  # Receives firing alerts from Prometheus (prometheus.yml's `alerting:` block)
+  # and routes them — default receiver is a no-op (see monitoring/alertmanager.yml),
+  # so alerts.yml's rules show up in Grafana's Alerting page without paging or
+  # posting anywhere yet.
+  alertmanager:
+    image: prom/alertmanager:v0.34.0
+    container_name: ai-demo-alertmanager
+    mem_limit: 256m
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
     networks:
       - ai-demo
 
@@ -106,6 +126,32 @@ services:
     command: ["-config.file=/etc/loki/local-config.yaml"]
     ports:
       - "3100:3100"
+    networks:
+      - ai-demo
+
+  # Ships every OTHER container's stdout into Loki. Tier 1 (services/
+  # lokiForwarder.js) only ever carried structured BFF app events; this is what
+  # gets oauth-mcp, mcp-gateway, the agents, the resource servers in too — they
+  # only console.log, and nothing shipped that anywhere until this.
+  #
+  # Read-only docker.sock mount: discovery.docker + loki.source.docker only
+  # list containers and read their log streams, same permission `docker logs`
+  # itself needs.
+  alloy:
+    image: grafana/alloy:v1.19.2
+    container_name: ai-demo-alloy
+    mem_limit: 512m
+    restart: unless-stopped
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    volumes:
+      - ./monitoring/alloy/config.docker.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - loki
     networks:
       - ai-demo
 

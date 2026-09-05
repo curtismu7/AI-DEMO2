@@ -129,7 +129,9 @@ deploy() {
   # without the grafana Service does not degrade to a broken /grafana — it
   # crash-loops and takes the WHOLE site down.
   kubectl apply -f "$SCRIPT_DIR/76-prometheus-deployment.yaml"
+  kubectl apply -f "$SCRIPT_DIR/83-alertmanager-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/81-loki-deployment.yaml"
+  kubectl apply -f "$SCRIPT_DIR/82-alloy-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/77-grafana-deployment.yaml"
   # Frontend
   kubectl apply -f "$SCRIPT_DIR/10-frontend-deployment.yaml"
