@@ -194,6 +194,7 @@ import PublicRoutes, {
   EnterpriseMcpDemoPageRoute,
   GroupPolicyBoardPageRoute,
   PrivilegeMcpClientPageRoute,
+  LlmGatewayPageRoute,
   AuditAgentPageRoute,
   PingOneSetupPageRoute,
   M2mCredentialsSamplePageRoute,
@@ -1054,6 +1055,10 @@ function AppWithAuth() {
                   element={
                     <PrivilegeMcpClientPageRoute user={user} logout={logout} />
                   }
+                />
+                <Route
+                  path="/llm-gateway"
+                  element={<LlmGatewayPageRoute user={user} logout={logout} />}
                 />
                 <Route
                   path="/audit-agent"
