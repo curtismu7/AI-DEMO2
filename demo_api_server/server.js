@@ -293,20 +293,18 @@ app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
-            // https://cdn.jsdelivr.net: Scalar's /api/reference bundle (server.js)
-            // loads its whole UI from there client-side — omitted here, the
-            // script tag is CSP-blocked and the page renders blank.
-            scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdn.keyless.technology', 'https://cdn.jsdelivr.net'], // CRA requires unsafe-inline in prod build
+            // No cdn.jsdelivr.net here on purpose: Scalar's /api/reference
+            // bundle is served from this origin (see SCALAR_BUNDLE_ROUTE below),
+            // so its script, sourcemap and webfonts are all 'self'. Re-adding
+            // the CDN would silently re-introduce a demo that goes blank without
+            // internet. Nothing else served by this app loads from jsdelivr —
+            // the UI's Monaco loader does, but the UI is served by its own
+            // container under its own headers, not by this CSP.
+            scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdn.keyless.technology'], // CRA requires unsafe-inline in prod build
             styleSrc: ["'self'", "'unsafe-inline'", "https://assets.pingone.com"],
             imgSrc: ["'self'", 'data:', 'https:'],
-            // https://cdn.jsdelivr.net: same self-hosted Scalar bundle as
-            // scriptSrc above — its sourcemap fetch (`.map`) needs connect-src,
-            // and its webfonts need font-src (reported live via a blocked font
-            // load whose exact URL wasn't captured; inferred from the same CDN
-            // already confirmed for the script and sourcemap — verify on next
-            // check and narrow if it turns out wrong).
-            connectSrc: ["'self'", 'https://*.pingone.com', 'https://*.pingidentity.com', 'wss:', 'https://*.keyless.technology', 'https://cdn.jsdelivr.net'],
-            fontSrc: ["'self'", 'data:', 'https://cdn.jsdelivr.net'],
+            connectSrc: ["'self'", 'https://*.pingone.com', 'https://*.pingidentity.com', 'wss:', 'https://*.keyless.technology'],
+            fontSrc: ["'self'", 'data:'],
             // Scalar renders its request "Try it" sandbox in a blob: URL
             // iframe; unset falls back to default-src 'self', which does not
             // cover the blob: scheme, so the browser blocks the frame.
@@ -1102,13 +1100,37 @@ app.use(
 // handed the built object, so there is no second build and no second fetch.
 // The package is ESM-only and this file is CommonJS, hence the cached dynamic
 // import. A GET route rather than app.use() because Scalar serves one HTML page
-// (its bundle comes from a CDN) — and a route is what makes /api/reference
-// visible to the router introspection, so it documents itself.
+// — and a route is what makes /api/reference visible to the router
+// introspection, so it documents itself.
+//
+// The bundle is served from THIS origin, not cdn.jsdelivr.net (Scalar's
+// default). The CDN default made the page blank whenever the CDN was
+// unreachable or CSP drifted — which already happened twice post-merge
+// (#2809, #2811). Serving it locally also lets the CSP drop jsdelivr entirely.
+// Deep-importing the file is blocked by the package's `exports` map, so resolve
+// the main entry and derive — that survives npm hoisting, unlike a hand-built
+// node_modules path.
 // Theme: `darkMode: false` only seeds the initial state. The app's dark mode is
 // `:root[data-theme="dark"]` set by ThemeContext from localStorage, and this is
 // a separate top-level document, so that attribute cannot reach it. Seeding
 // light matches the app's own default and stops Scalar falling back to
 // prefers-color-scheme, which THEMING.md forbids; Scalar's own toggle still works.
+const SCALAR_BUNDLE_ROUTE = '/api/reference/standalone.js';
+const scalarBundleFile = path.resolve(
+    path.dirname(require.resolve('@scalar/api-reference')),
+    'browser/standalone.js',
+);
+
+// Same admin gate as the page that loads it: the browser sends the session
+// cookie with the script request, so gating costs nothing and keeps the asset
+// off the public surface.
+app.get(SCALAR_BUNDLE_ROUTE, redirectDocsToLoginIfNoSession, authenticateToken, requireAdmin, (req, res, next) => {
+    res.type('application/javascript');
+    res.sendFile(scalarBundleFile, (err) => {
+        if (err) next(err);
+    });
+});
+
 let scalarHandler = null;
 app.get('/api/reference', redirectDocsToLoginIfNoSession, authenticateToken, requireAdmin, async (req, res, next) => {
     try {
@@ -1118,6 +1140,7 @@ app.get('/api/reference', redirectDocsToLoginIfNoSession, authenticateToken, req
                 content: openApiSpec(),
                 pageTitle: 'Banking Demo BFF API',
                 darkMode: false,
+                cdn: SCALAR_BUNDLE_ROUTE,
             });
         }
         scalarHandler(req, res, next);

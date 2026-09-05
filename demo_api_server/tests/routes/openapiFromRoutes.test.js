@@ -114,12 +114,14 @@ describe('auth inference', () => {
 });
 
 describe('/api/reference CSP allowlist', () => {
-  // Scalar's page is a static HTML shell whose <script> tag loads its whole
-  // UI from cdn.jsdelivr.net client-side (server.js's /api/reference route
-  // comment). Without that origin in helmet's script-src, the browser blocks
-  // it and the page renders blank — reported live on the SE cluster
-  // (2026-09-05) after the route itself started working. helmet runs before
-  // auth, so this is visible on the 401 too — no admin session needed.
+  // Scalar's page is a static HTML shell whose <script> tag loads its whole UI
+  // client-side. That bundle used to come from cdn.jsdelivr.net, which made the
+  // page blank whenever the CDN was unreachable or the CSP drifted — it broke
+  // twice post-merge (#2809, #2811) and would break on any demo without solid
+  // internet. The bundle is now served from this origin, so jsdelivr must NOT
+  // reappear in any directive: if it does, someone has re-pointed Scalar at the
+  // CDN and reintroduced the outage. helmet runs before auth, so this is
+  // visible on the redirect too — no admin session needed.
   //
   // Parsed into a directive -> source-list map so each assertion checks the
   // SPECIFIC directive the browser actually enforces, not just "the string
@@ -141,8 +143,9 @@ describe('/api/reference CSP allowlist', () => {
     csp = parseCsp(res.headers['content-security-policy']);
   });
 
-  test('scriptSrc allows cdn.jsdelivr.net (the bundle itself)', () => {
-    expect(csp['script-src']).toContain('https://cdn.jsdelivr.net');
+  test('scriptSrc allows self and NOT the CDN (bundle is served locally)', () => {
+    expect(csp['script-src']).toContain("'self'");
+    expect(csp['script-src']).not.toContain('https://cdn.jsdelivr.net');
   });
 
   // Reported live 2026-09-05: with the script itself allowed, the page
@@ -150,16 +153,41 @@ describe('/api/reference CSP allowlist', () => {
   // showed a blocked sourcemap fetch (connect-src), blocked webfont loads
   // (font-src), and a blocked blob: iframe (falls back to default-src, which
   // does not cover the blob: scheme).
-  test('connectSrc allows cdn.jsdelivr.net (the bundle\'s sourcemap fetch)', () => {
-    expect(csp['connect-src']).toContain('https://cdn.jsdelivr.net');
+  test('connectSrc does not allow the CDN (sourcemap is same-origin now)', () => {
+    expect(csp['connect-src']).not.toContain('https://cdn.jsdelivr.net');
   });
 
-  test('fontSrc allows cdn.jsdelivr.net (the bundle\'s webfonts)', () => {
-    expect(csp['font-src']).toContain('https://cdn.jsdelivr.net');
+  test('fontSrc does not allow the CDN (webfonts ship in the local bundle)', () => {
+    expect(csp['font-src']).not.toContain('https://cdn.jsdelivr.net');
   });
 
   test('frameSrc allows blob: (the bundle\'s sandboxed "Try it" iframe)', () => {
     expect(csp['frame-src']).toContain('blob:');
+  });
+});
+
+describe('the self-hosted Scalar bundle', () => {
+  // server.js derives this path by resolving the package's MAIN entry and
+  // walking to browser/standalone.js, because the package's `exports` map
+  // blocks deep-importing the file directly. If Scalar reorganises dist/, or a
+  // future install hoists differently, the derive silently points at nothing
+  // and /api/reference serves a 404 script — a blank page with a 200 on the
+  // HTML, which is the failure this whole change exists to prevent. Assert the
+  // file is really there rather than trusting the resolution.
+  test('resolves to a file that exists on disk', () => {
+    const fs = require('fs');
+    const p = require('path');
+    const file = p.resolve(
+      p.dirname(require.resolve('@scalar/api-reference')),
+      'browser/standalone.js',
+    );
+    expect(fs.existsSync(file)).toBe(true);
+    expect(fs.statSync(file).size).toBeGreaterThan(1000);
+  });
+
+  test('is admin-gated like the page that loads it', async () => {
+    const res = await request(app).get('/api/reference/standalone.js');
+    expect(res.status).toBe(302);
   });
 });
 
