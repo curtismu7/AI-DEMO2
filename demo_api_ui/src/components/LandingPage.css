@@ -575,12 +575,16 @@
    Restore responsiveness for the skin that's actually active. */
 @media (max-width: 768px) {
   [data-rd-v2] .landing-hero {
-    padding: 64px 16px 56px !important;
+    /* 100px, not 56px: the fixed Demo Script / AI Agent launcher buttons sit at
+       the viewport's bottom edge and overlap the last lines of hero copy. Must
+       match the unskinned .landing-hero rule above — this one carries
+       !important, so whatever it says is what actually renders. */
+    padding: 64px 16px 100px !important;
   }
 }
 @media (max-width: 480px) {
   [data-rd-v2] .landing-hero {
-    padding: 0 16px 56px !important;
+    padding: 0 16px 100px !important;
   }
   [data-rd-v2] .landing-hero-actions {
     gap: 8px !important;
