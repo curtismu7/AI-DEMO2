@@ -120,10 +120,46 @@ describe('/api/reference CSP allowlist', () => {
   // it and the page renders blank — reported live on the SE cluster
   // (2026-09-05) after the route itself started working. helmet runs before
   // auth, so this is visible on the 401 too — no admin session needed.
-  test('scriptSrc allows cdn.jsdelivr.net', async () => {
+  //
+  // Parsed into a directive -> source-list map so each assertion checks the
+  // SPECIFIC directive the browser actually enforces, not just "the string
+  // cdn.jsdelivr.net appears somewhere in the header" (which every directive
+  // added below would satisfy even if it landed in the wrong one).
+  function parseCsp(header) {
+    const directives = {};
+    for (const part of (header || '').split(';')) {
+      const tokens = part.trim().split(/\s+/).filter(Boolean);
+      if (!tokens.length) continue;
+      directives[tokens[0]] = tokens.slice(1);
+    }
+    return directives;
+  }
+
+  let csp;
+  beforeAll(async () => {
     const res = await request(app).get('/api/reference');
-    const csp = res.headers['content-security-policy'];
-    expect(csp).toContain('https://cdn.jsdelivr.net');
+    csp = parseCsp(res.headers['content-security-policy']);
+  });
+
+  test('scriptSrc allows cdn.jsdelivr.net (the bundle itself)', () => {
+    expect(csp['script-src']).toContain('https://cdn.jsdelivr.net');
+  });
+
+  // Reported live 2026-09-05: with the script itself allowed, the page
+  // rendered but its dark-mode toggle never appeared — the browser console
+  // showed a blocked sourcemap fetch (connect-src), blocked webfont loads
+  // (font-src), and a blocked blob: iframe (falls back to default-src, which
+  // does not cover the blob: scheme).
+  test('connectSrc allows cdn.jsdelivr.net (the bundle\'s sourcemap fetch)', () => {
+    expect(csp['connect-src']).toContain('https://cdn.jsdelivr.net');
+  });
+
+  test('fontSrc allows cdn.jsdelivr.net (the bundle\'s webfonts)', () => {
+    expect(csp['font-src']).toContain('https://cdn.jsdelivr.net');
+  });
+
+  test('frameSrc allows blob: (the bundle\'s sandboxed "Try it" iframe)', () => {
+    expect(csp['frame-src']).toContain('blob:');
   });
 });
 

@@ -299,8 +299,18 @@ app.use(helmet({
             scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdn.keyless.technology', 'https://cdn.jsdelivr.net'], // CRA requires unsafe-inline in prod build
             styleSrc: ["'self'", "'unsafe-inline'", "https://assets.pingone.com"],
             imgSrc: ["'self'", 'data:', 'https:'],
-            connectSrc: ["'self'", 'https://*.pingone.com', 'https://*.pingidentity.com', 'wss:', 'https://*.keyless.technology'],
-            fontSrc: ["'self'", 'data:'],
+            // https://cdn.jsdelivr.net: same self-hosted Scalar bundle as
+            // scriptSrc above — its sourcemap fetch (`.map`) needs connect-src,
+            // and its webfonts need font-src (reported live via a blocked font
+            // load whose exact URL wasn't captured; inferred from the same CDN
+            // already confirmed for the script and sourcemap — verify on next
+            // check and narrow if it turns out wrong).
+            connectSrc: ["'self'", 'https://*.pingone.com', 'https://*.pingidentity.com', 'wss:', 'https://*.keyless.technology', 'https://cdn.jsdelivr.net'],
+            fontSrc: ["'self'", 'data:', 'https://cdn.jsdelivr.net'],
+            // Scalar renders its request "Try it" sandbox in a blob: URL
+            // iframe; unset falls back to default-src 'self', which does not
+            // cover the blob: scheme, so the browser blocks the frame.
+            frameSrc: ["'self'", 'blob:'],
             frameAncestors: ["'none'"],
         },
     },
