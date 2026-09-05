@@ -239,9 +239,12 @@ describe('doc pages redirect to admin login when signed out', () => {
   // via window.open (no SPA/login-modal loaded there), so authenticateToken's
   // usual JSON 401 body read as a dead page instead of a sign-in prompt.
   // These requests carry no session cookie at all (supertest default), the
-  // same "genuinely signed out" case that was reported — not the separate
-  // signed-in-but-non-admin case, which still gets requireAdmin's 403 JSON
-  // unchanged (not exercised here; that code path itself did not change).
+  // same "genuinely signed out" case that was reported. The separate
+  // signed-in-but-non-admin case now redirects into the SPA's admin-required
+  // modal instead of rendering requireAdmin's 403 JSON as a dead page — that
+  // middleware is covered by docsAdminRedirect.test.js, since faking a
+  // signed-in user here would mean mocking middleware/auth.js, which this
+  // repo's jest setup handles badly.
   test.each([
     ['/api/reference', '%2Fapi%2Freference'],
     ['/api/openapi.json', '%2Fapi%2Fopenapi.json'],
