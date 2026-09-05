@@ -787,7 +787,7 @@ export default function SecurityCenter({ user }) {
           border: 1px solid var(--th-border);
           background: var(--th-bg-card);
           color: var(--th-text);
-          font-size: 0.78rem;
+          font-size: var(--font-size-2xs);
           font-weight: 600;
           cursor: pointer;
         }
