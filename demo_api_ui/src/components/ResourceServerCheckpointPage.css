@@ -50,7 +50,7 @@
   border-radius: var(--radius-md);
   border: 1px solid var(--th-border-strong);
   background: var(--th-bg-inset);
-  font-size: 0.82rem;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   cursor: pointer;
 }
@@ -218,9 +218,11 @@
   border-color: var(--th-status-error);
 }
 .rsc-badge {
-  /* Solid verdict pill: always white-on-saturated-color by design, in both
-     themes, so PERMIT/DENY reads instantly — deliberately not themed. */
-  color: #fff;
+  /* Solid verdict pill: always inverted-text-on-saturated-color by design, in
+     both themes, so PERMIT/DENY reads instantly — deliberately not themed.
+     --th-text-invert is literal #fff in both themes, so this stays a token
+     pairing rather than mixing a literal with the --th-status-* background. */
+  color: var(--th-text-invert);
   font-size: var(--font-size-xs);
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -228,11 +230,11 @@
   border-radius: var(--radius-md);
 }
 .rsc-verdict--permit .rsc-badge {
-  color: #fff;
+  color: var(--th-text-invert);
   background: var(--th-status-success);
 }
 .rsc-verdict--deny .rsc-badge {
-  color: #fff;
+  color: var(--th-text-invert);
   background: var(--th-status-error);
 }
 .rsc-vtext {
