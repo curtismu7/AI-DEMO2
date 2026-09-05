@@ -367,6 +367,66 @@ describe("LandingPage", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// LandingPage — hides the floating AI Agent FAB / Demo Script launcher while
+// the hero CTA row is on screen (PR #2799), via IntersectionObserver toggling
+// a body class. jsdom has no IntersectionObserver, so a minimal fake stands in
+// — it exists to prove the wiring (observe/callback/disconnect/class), not to
+// re-test the browser's own intersection geometry.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("LandingPage — hero CTA visibility observer", () => {
+	let instances;
+	const OriginalIO = global.IntersectionObserver;
+
+	beforeEach(() => {
+		instances = [];
+		global.IntersectionObserver = class FakeIntersectionObserver {
+			constructor(callback) {
+				this.callback = callback;
+				this.observe = vi.fn();
+				this.disconnect = vi.fn();
+				instances.push(this);
+			}
+		};
+	});
+
+	afterEach(() => {
+		global.IntersectionObserver = OriginalIO;
+		document.body.classList.remove("landing-hero-ctas-in-view");
+	});
+
+	it("adds landing-hero-ctas-in-view to <body> when the observer reports the hero CTAs intersecting", () => {
+		renderAt(LandingPage, "/");
+		const [observer] = instances;
+		expect(observer.observe).toHaveBeenCalled();
+		observer.callback([{ isIntersecting: true }]);
+		expect(
+			document.body.classList.contains("landing-hero-ctas-in-view"),
+		).toBe(true);
+	});
+
+	it("removes the class once the hero CTAs scroll out of view", () => {
+		renderAt(LandingPage, "/");
+		const [observer] = instances;
+		observer.callback([{ isIntersecting: true }]);
+		observer.callback([{ isIntersecting: false }]);
+		expect(
+			document.body.classList.contains("landing-hero-ctas-in-view"),
+		).toBe(false);
+	});
+
+	it("disconnects the observer and clears the body class on unmount", () => {
+		const { unmount } = renderAt(LandingPage, "/");
+		const [observer] = instances;
+		observer.callback([{ isIntersecting: true }]);
+		unmount();
+		expect(observer.disconnect).toHaveBeenCalled();
+		expect(
+			document.body.classList.contains("landing-hero-ctas-in-view"),
+		).toBe(false);
+	});
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // OAuthDebugLogViewer — Dashboard link is role-aware (Bug 2 fix)
 // ─────────────────────────────────────────────────────────────────────────────
 import OAuthDebugLogViewer from "../OAuthDebugLogViewer";

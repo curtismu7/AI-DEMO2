@@ -1,3 +1,4 @@
+import { useLayoutEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./LandingPage.css";
 
@@ -85,6 +86,42 @@ function IconAgent() {
 
 export default function LandingPage({ user, hasTopNav }) {
   const navigate = useNavigate();
+
+  // The AI Agent FAB and Demo Script launcher are global, fixed-position
+  // buttons portaled to document.body; on phones they can land directly on
+  // top of the hero's own CTA row (PR #2793 fixed this at 440x956 but a
+  // padding-only fix can't cover every viewport height without regressing
+  // another one — see TECH_DEBT.md 2026-09-05). Hide those two floats only
+  // while the hero CTAs are actually on screen, so they never fight for the
+  // same pixels regardless of device height.
+  //
+  // useLayoutEffect (not useEffect) plus a synchronous initial
+  // getBoundingClientRect check, not just the observer's first callback:
+  // IntersectionObserver's own initial entry fires asynchronously, which
+  // left a frame where the floats were visible over the CTAs on first paint
+  // (PR #2799 review).
+  useLayoutEffect(() => {
+    if (typeof IntersectionObserver === "undefined") return undefined;
+    const heroActions = document.querySelector(".landing-hero-actions");
+    if (!heroActions) return undefined;
+
+    const rect = heroActions.getBoundingClientRect();
+    const initiallyInView = rect.top < window.innerHeight && rect.bottom > 0;
+    document.body.classList.toggle("landing-hero-ctas-in-view", initiallyInView);
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        document.body.classList.toggle("landing-hero-ctas-in-view", entry.isIntersecting);
+      },
+      { threshold: 0.1 },
+    );
+    observer.observe(heroActions);
+    return () => {
+      observer.disconnect();
+      document.body.classList.remove("landing-hero-ctas-in-view");
+    };
+  }, []);
+
   const handleAdminDashboard = (e) => {
     e.preventDefault();
     if (user?.role === "admin") {
