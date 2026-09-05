@@ -1,0 +1,21 @@
+# Loki as a third datasource, so BFF logs sit beside the PingGateway metrics
+# and the Jaeger traces rather than in `kubectl logs`.
+#
+# Unlike jaeger.yml this needs no env var: the service is named `loki` on both
+# targets (compose service / k8s Service), so one literal URL is correct in
+# both — the same reason prometheus.yml hardcodes its own.
+#
+# What lands here is what demo_api_server pushes: PingOne webhook events and
+# appEventService events. It is NOT container stdout — nothing scrapes pod logs,
+# so a service that only console.logs is still invisible here.
+apiVersion: 1
+
+datasources:
+  - name: Loki
+    type: loki
+    access: proxy
+    # Fixed uid for the same reason Prometheus has one: a generated uid changes
+    # across reinstalls and orphans any panel that referenced it.
+    uid: ai-demo-loki
+    url: http://loki:3100
+    editable: false

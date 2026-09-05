@@ -247,6 +247,7 @@ for manifest in \
   66-openai-agent-deployment.yaml \
   67-pydantic-agent-deployment.yaml \
   76-prometheus-deployment.yaml \
+  81-loki-deployment.yaml \
   77-grafana-deployment.yaml \
   10-frontend-deployment.yaml; do
   # NOT in this list: 78-notebooklm-deployment.yaml. Nothing builds or pushes

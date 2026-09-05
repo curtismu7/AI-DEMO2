@@ -91,6 +91,11 @@ spec:
         # /jaeger, and the root /api/* returns the UI HTML shell instead of JSON.
         - name: JAEGER_QUERY_URL
           value: "http://jaeger:16686/jaeger"
+        # Turns on services/lokiForwarder.js — unset means no-op, so native and
+        # any stack without Loki keep working unchanged. Push endpoint, not the
+        # query one Grafana uses; both are port 3100 on the same Service.
+        - name: LOKI_URL
+          value: "http://loki:3100"
         # Baked package trees live at /repo in the image (see Dockerfile).
         # Compose overrides this with a host bind-mount of the same path.
         - name: CODE_SEARCH_REPO_ROOT

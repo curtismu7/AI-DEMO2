@@ -92,6 +92,23 @@ services:
     networks:
       - ai-demo
 
+  # Loki backs Grafana's log view the way prometheus backs its metrics — Grafana
+  # stores nothing itself. Unprofiled for the same reason as prometheus above.
+  # No config file: the image's /etc/loki/local-config.yaml is already
+  # single-binary, filesystem-backed and listening on 3100. Storage is the
+  # container's own layer, matching the emptyDir the k8s manifest uses — demo
+  # telemetry, gone on recreate, nothing to clean up.
+  loki:
+    image: grafana/loki:3.3.2
+    container_name: ai-demo-loki
+    mem_limit: 1g
+    restart: unless-stopped
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    ports:
+      - "3100:3100"
+    networks:
+      - ai-demo
+
   grafana:
     image: grafana/grafana:11.3.0
     container_name: ai-demo-grafana
@@ -178,6 +195,12 @@ services:
       NODE_ENV: development
       # Allow self-signed TLS (host.docker.internal MCP server)
       NODE_TLS_REJECT_UNAUTHORIZED: "0"
+      # Turns on services/lokiForwarder.js — unset means no-op, so `./run.sh`
+      # (native, no Loki) keeps working unchanged. Safe in `environment:` rather
+      # than env_file because it is a fixed compose address, not a secret and
+      # not something demo_api_server/.env ever sets. Push endpoint, not the
+      # query one Grafana uses; both are port 3100 on the same container.
+      LOKI_URL: "http://loki:3100"
       # Plain-HTTP façade listener — see the 127.0.0.1:3002 port mapping above.
       MCP_FACADE_HTTP_PORT: "3002"
       # The gateway's OAuth broker advertises itself as localhost:3005 for the
