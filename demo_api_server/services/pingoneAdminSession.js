@@ -29,6 +29,14 @@
  * so PingOne returns no refresh token and this session simply expires (~1h).
  * Someone signs in again; there is nothing to renew. Deliberately in-memory:
  * an admin credential at rest would buy the demo nothing.
+ *
+ * PROCESS-LOCAL, so it assumes ONE BFF replica. Scale the BFF out without
+ * request affinity and the callback can populate one process while a façade
+ * request lands on another, which reports `pingone_admin_login_required` even
+ * though someone just signed in. The demo runs a single replica and
+ * services/privilegeGatewaySession.js already carries the same assumption;
+ * moving either to shared storage means putting a privileged token at rest,
+ * which is a bigger decision than this store should make on its own.
  * ponytail: single shared session; key it per user if a second identity ever
  * needs this door.
  */
@@ -36,6 +44,22 @@
 // Treat a token this close to expiry as already gone, so a call never races
 // the clock mid-request.
 const EXPIRY_SKEW_MS = 60_000;
+
+/**
+ * OFF unless a deployment opts in. The bearer the façade verifies is a generic
+ * `mcp:invoke` token — any client that completes DCR against the broker holds
+ * one — and nothing in it says "admin". So serving this store to that caller
+ * hands ordinary broker users the operator's environment-wide PingOne admin
+ * authority. That is the accepted trade for a demo, but it is not a safe
+ * default for a deployment that never asked for it: unset, the door behaves as
+ * it always did (browser-forwarded token only, 401 + loginUrl otherwise).
+ *
+ * Read per call, not captured at module load, so a test or a config change can
+ * flip it without reloading the module.
+ */
+function sharedSessionEnabled() {
+  return process.env.MCP_FACADE_PINGONE_ADMIN_SHARED_SESSION === 'true';
+}
 
 let current = null;
 
@@ -57,6 +81,7 @@ function clear() {
 
 /** What the door reports when it cannot serve a request, for the operator. */
 function status() {
+  if (!sharedSessionEnabled()) return { ready: false, reason: 'disabled' };
   if (!current) return { ready: false, reason: 'no_session' };
   if (current.expiresAt - EXPIRY_SKEW_MS > Date.now()) return { ready: true };
   return { ready: false, reason: 'expired' };
@@ -67,4 +92,4 @@ function getAccessToken() {
   return status().ready ? current.accessToken : null;
 }
 
-module.exports = { remember, clear, status, getAccessToken };
+module.exports = { remember, clear, status, getAccessToken, sharedSessionEnabled };

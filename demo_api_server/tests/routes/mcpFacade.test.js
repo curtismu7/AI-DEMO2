@@ -84,6 +84,7 @@ beforeEach(() => {
   seen = [];
   router.__test.sessions.clear();
   pingoneAdminSession.clear();
+  delete process.env.MCP_FACADE_PINGONE_ADMIN_SHARED_SESSION;
   jwksService.getPublicKey.mockResolvedValue({ keyObject: publicKey, alg: 'RS256' });
 });
 
@@ -259,7 +260,18 @@ describe('/mcp-facade/pingone-admin — local handler, no upstream fetch', () =>
     expect(seen).toEqual([]);
   });
 
+  test('the shared operator session is OFF unless a deployment opts in', async () => {
+    delete process.env.MCP_FACADE_PINGONE_ADMIN_SHARED_SESSION;
+    pingoneAdminSession.remember({ accessToken: 'operator-token', expiresIn: 3600 });
+    // A generic mcp:invoke bearer says nothing about admin entitlement, so
+    // without the opt-in an ordinary broker client must NOT inherit the
+    // operator's PingOne admin authority.
+    expect(pingoneAdminSession.getAccessToken()).toBeNull();
+    expect(pingoneAdminSession.status()).toEqual({ ready: false, reason: 'disabled' });
+  });
+
   test('falls back to the shared operator session when the caller sends no delegated token', async () => {
+    process.env.MCP_FACADE_PINGONE_ADMIN_SHARED_SESSION = 'true';
     pingoneAdminSession.remember({ accessToken: 'operator-token', expiresIn: 3600 });
     const init = await request(app()).post('/mcp-facade/pingone-admin/mcp').set('Authorization', ADMIN_AUTH)
       .send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} });
@@ -270,6 +282,7 @@ describe('/mcp-facade/pingone-admin — local handler, no upstream fetch', () =>
   });
 
   test("the caller's own delegated token wins over the shared operator session", async () => {
+    process.env.MCP_FACADE_PINGONE_ADMIN_SHARED_SESSION = 'true';
     pingoneAdminSession.remember({ accessToken: 'operator-token', expiresIn: 3600 });
     const init = await request(app()).post('/mcp-facade/pingone-admin/mcp').set('Authorization', ADMIN_AUTH)
       .send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} });
