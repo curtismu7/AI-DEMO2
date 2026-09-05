@@ -875,20 +875,45 @@ router.get('/reel/:correlationId.svg', async (req, res) => {
 // 405 as "not offered".
 router.get(['/:door/mcp', '/:door/:app/mcp'], (req, res) => res.status(405).end());
 
-router.delete('/:door/mcp', async (req, res) => {
+// Both shapes, exactly as POST and GET register them. Registering only the bare
+// path 404'd every app-scoped teardown, and resolving with upstream() tore down
+// the DEFAULT app instead of the one the client actually used.
+router.delete(['/:door/mcp', '/:door/:app/mcp'], async (req, res) => {
+  const sessionId = req.get('mcp-session-id');
   if (req.door.localHandler) {
     // Stateless upstream (see pingoneAdminLocalHandler) — nothing to tear
     // down but this door's own local session-tracking entry.
-    sessions.delete(req.get('mcp-session-id'));
+    sessions.delete(sessionId);
     return res.status(200).end();
   }
-  const upstreamUrl = req.door.upstream();
+  const upstreamUrl = req.params.app && req.door.upstreamFor
+    ? req.door.upstreamFor(req.params.app)
+    : req.door.upstream();
+  // A door that owns its upstream auth must swap in the gateway token here too:
+  // forwardHeaders passes the caller's bearer through, which is the wrong
+  // credential for this upstream and is rejected by it.
+  let headers = forwardHeaders(req, null);
+  if (req.door.ownsUpstreamAuth) {
+    const upstreamToken = await privilegeGatewaySession.getAccessToken();
+    if (!upstreamToken) {
+      // Unlike the POST path, a missing gateway session is not worth a 503: the
+      // client is tearing its side down either way, and the upstream session
+      // lapses on its own. Drop the local entry and answer success.
+      sessions.delete(sessionId);
+      return res.status(200).end();
+    }
+    headers = { ...headers, authorization: `Bearer ${upstreamToken}` };
+  }
   try {
-    const upstream = await fetch(upstreamUrl, { method: 'DELETE', headers: forwardHeaders(req, null), ...fetchOpts(upstreamUrl) });
-    sessions.delete(req.get('mcp-session-id'));
+    const upstream = await fetch(upstreamUrl, { method: 'DELETE', headers, ...fetchOpts(upstreamUrl) });
     return res.status(upstream.status).end();
   } catch (err) {
     return res.status(502).json({ error: 'upstream_unavailable', message: err.message });
+  } finally {
+    // Always, on every exit: the client has torn down its side and will not
+    // retry, so a local entry kept after a failed upstream call leaks a slot
+    // out of the bounded session map for the life of the process.
+    sessions.delete(sessionId);
   }
 });
 

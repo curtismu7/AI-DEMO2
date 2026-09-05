@@ -6,9 +6,9 @@
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
-.pingcli-page__title { color: var(--th-text); font-size: 22px; font-weight: 800; margin: 0 0 6px; }
-.pingcli-page__version { color: var(--th-text-muted); font-size: 13px; font-weight: 600; margin: 0 0 6px; }
-.pingcli-page__intro { color: var(--th-text-muted); font-size: 14px; margin: 0 0 28px; }
+.pingcli-page__title { color: var(--th-text); font-size: var(--font-size-h2); font-weight: 800; margin: 0 0 6px; }
+.pingcli-page__version { color: var(--th-text-muted); font-size: var(--font-size-sm); font-weight: 600; margin: 0 0 6px; }
+.pingcli-page__intro { color: var(--th-text-muted); font-size: var(--font-size-body); margin: 0 0 28px; }
 
 .pingcli-theme-toggle {
   position: absolute;
@@ -19,7 +19,7 @@
   border: 1px solid var(--th-border-strong);
   background: var(--th-bg-inset);
   color: var(--th-text);
-  font-size: 0.82rem;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   cursor: pointer;
 }

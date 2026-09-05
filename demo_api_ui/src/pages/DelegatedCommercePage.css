@@ -130,7 +130,13 @@
 
 .dc-step--active { background: var(--dc-pale); border-color: #9bc6e3; }
 .dc-step--done .dc-step-number {
-  background: var(--th-status-success);
+  /* REGRESSION_PLAN.md §0 H1: was a tokenised background (--th-status-success
+     flips #16a34a -> #22c55e in dark mode) with a literal white ink — the
+     dark-mode pairing has ~2.3:1 contrast, well under the ~4.5:1 this badge
+     text needs. Fixed literal to match, same pattern the base .dc-step-number
+     rule below already uses (#71849a + #fff, chosen for contrast in both
+     themes since it never flips). */
+  background: #15803d;
   color: #fff;
 }
 .dc-step-number { flex: 0 0 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: #71849a; color: #fff; font-weight: 800; }

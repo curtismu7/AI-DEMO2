@@ -1390,6 +1390,10 @@ router.get('/state', (req, res) => {
     gatewayMode: session.gatewayMode,
     gatewayConfigs: session.gatewayConfigs,
     oauth: { authenticated: Boolean(session.oauth.accessToken), source: session.oauth.source || null, expiresAt: session.oauth.expiresAt, scope: session.oauth.scope || '' },
+    // The façade's privilege-gateway door runs on a server-side gateway token
+    // that dies with the process (services/privilegeGatewaySession.js). Ship its
+    // state so the page can say so instead of the door failing silently.
+    gatewaySession: privilegeGatewaySession.status(),
     mainAppAuthenticated: mainAppAuth,
     user: req.session?.user || null,
     tools: session.tools,

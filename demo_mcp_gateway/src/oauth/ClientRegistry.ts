@@ -69,7 +69,7 @@ export class ClientRegistry {
    * requested scope is bounded to. Unrelated to `MCP_GW_OAUTH_STATIC_SCOPE`,
    * which is operator-configured and not bounded by this set at all.
    */
-  constructor(scopesSupported: string[] = ['mcp:invoke']) {
+  constructor(scopesSupported: string[] = [brokerRegistrationScope()]) {
     this.supportedScopes = new Set(scopesSupported);
     this.seedStaticClient();
   }
@@ -86,8 +86,13 @@ export class ClientRegistry {
    * client record reports back to the client, which is what a spec-following
    * client asks for on every later request.
    */
-  private resolveRequestedScope(requested: string | undefined): string {
-    const tokens = (requested || '')
+  private resolveRequestedScope(requested: unknown): string {
+    // `requested` is `meta.scope` straight out of an unauthenticated caller's
+    // JSON body (OAuthBrokerRouter.handleRegister casts it but never checks
+    // it) — a non-string value (array, number, object) used to reach
+    // `.split()` here and throw, turning a bad request into an unhandled 500
+    // instead of falling back to the default scope like an omitted one does.
+    const tokens = (typeof requested === 'string' ? requested : '')
       .split(/\s+/)
       .filter((s) => s && this.supportedScopes.has(s));
     return tokens.length ? tokens.join(' ') : brokerRegistrationScope();

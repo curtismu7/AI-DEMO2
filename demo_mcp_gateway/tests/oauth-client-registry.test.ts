@@ -106,5 +106,27 @@ describe('ClientRegistry', () => {
       });
       expect(client.scope).toBe('audit:read');
     });
+
+    // `scope` reaches here straight from an unauthenticated caller's JSON body
+    // (OAuthBrokerRouter.handleRegister casts it but never checks it at
+    // runtime) — a non-string value used to reach `.split()` and throw,
+    // turning a malformed request into an unhandled 500 instead of falling
+    // back to the default scope the way an omitted one does.
+    it('falls back to the default instead of throwing when scope is not a string', () => {
+      const registry = new ClientRegistry(['mcp:invoke', 'audit:read']);
+      expect(() =>
+        registry.registerClient({
+          client_name: 'malformed',
+          redirect_uris: ['http://127.0.0.1:33389/mcp-oauth-callback'],
+          scope: ['audit:read'] as unknown as string,
+        }),
+      ).not.toThrow();
+      const client = registry.registerClient({
+        client_name: 'malformed',
+        redirect_uris: ['http://127.0.0.1:33389/mcp-oauth-callback'],
+        scope: 123 as unknown as string,
+      });
+      expect(client.scope).toBe('mcp:invoke');
+    });
   });
 });
