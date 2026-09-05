@@ -117,7 +117,7 @@ export default function LlmGatewayPage() {
       const data = await api('/llm/call', { method: 'POST', body: { provider: selected, prompt: text } });
       setTurns((t) => [...t, { role: 'model', text: data.reply, tone: 'ok', provider: selected }]);
       record(selected, {
-        verdict: 'Answered', tone: 'ok', layer: 'provider',
+        verdict: 'Answered', tone: 'ok', layer: null,
         provider: selected, route: data.route, latencyMs: data.latencyMs,
         reachedProvider: data.reachedProvider !== false,
         reason: null, providerLimits: data.providerLimits || null,
@@ -248,7 +248,12 @@ export default function LlmGatewayPage() {
                 <dt>Verdict</dt>
                 <dd><span className={`lgw-pill is-${decision.tone}`}>{decision.verdict}</span></dd>
               </div>
-              <div><dt>Refused by</dt><dd>{decision.layer}</dd></div>
+              {/* Only a refusal has a refuser. Rendering this row on a success read
+                  "Refused by provider" under a verdict of "Answered" — caught driving
+                  the live page, where it is the first thing the eye lands on. */}
+              {decision.tone === 'ok' ? null : (
+                <div><dt>Refused by</dt><dd>{decision.layer}</dd></div>
+              )}
               <div><dt>Lane</dt><dd>{decision.provider}</dd></div>
               <div><dt>Route</dt><dd>{decision.route}</dd></div>
               <div>
