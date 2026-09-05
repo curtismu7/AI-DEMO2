@@ -19,6 +19,7 @@ const request = require('supertest');
 
 let mockStored = null;
 let mockThrowOnSave = false;
+let mockThrowOnGet = false;
 const mockSave = jest.fn((inv) => {
   if (mockThrowOnSave) throw new Error('LMDB is unhappy');
   mockStored = {
@@ -33,7 +34,10 @@ const mockSave = jest.fn((inv) => {
 
 jest.mock('../../services/lmdb/privilegeDoorStore.lmdb', () => ({
   saveInventory: (inv) => mockSave(inv),
-  getInventory: () => mockStored,
+  getInventory: () => {
+    if (mockThrowOnGet) throw new Error('LMDB will not open');
+    return mockStored;
+  },
   clearInventory: () => { mockStored = null; },
 }));
 
@@ -97,6 +101,7 @@ const savedEnv = { ...process.env };
 beforeEach(() => {
   mockStored = null;
   mockThrowOnSave = false;
+  mockThrowOnGet = false;
   mockSave.mockClear();
 });
 
@@ -211,6 +216,56 @@ describe('W8 — door discovery feeds the Door picker', () => {
     const { body } = await request(app).get('/api/privilege-mcp/state').expect(200);
     expect(urlFor(body, 'Privilege — opensearch')).toBe('https://pinned.example.test/opensearch/mcp');
     expect(urlFor(body, 'Façade — brave')).toBe('https://pinned.example.test/mcp-facade/privilege-gateway/brave/mcp');
+  });
+
+  test('a store read failure falls back to the hardcoded doors, it does not 500', async () => {
+    // /state is the page's whole bootstrap. An LMDB open failure taking it out
+    // would remove the one screen an operator would use to diagnose the store.
+    mockThrowOnGet = true;
+    const app = buildApp();
+
+    const { body } = await request(app).get('/api/privilege-mcp/state').expect(200);
+    expect(labels(body, 'privilege')).toEqual(expect.arrayContaining(['Privilege — opensearch', 'Privilege — brave']));
+    expect(body.doorDiscovery).toMatchObject({ persisted: false });
+  });
+
+  test('a malformed stored record is ignored rather than mapped over', async () => {
+    // A record written by an older shape must not reach the .map() below it.
+    mockStored = { envId: 'e', applications: 'not-an-array', policyCount: 0 };
+    const app = buildApp();
+
+    const { body } = await request(app).get('/api/privilege-mcp/state').expect(200);
+    expect(labels(body, 'privilege')).toEqual(expect.arrayContaining(['Privilege — opensearch', 'Privilege — brave']));
+  });
+
+  test('/state carries each door status and which policies mention it', async () => {
+    // After the console token expires this is the only thing distinguishing a
+    // non-ready or unmentioned door from a working one.
+    mockConsole();
+    const app = buildApp();
+    await request(app).post('/api/privilege-mcp/console/connect').send({ authToken: 'cookie' }).expect(200);
+    mockStored.applications = mockStored.applications.map((a) => ({ ...a, policies: a.name === 'newly-registered' ? ['p1'] : [] }));
+
+    const { body } = await request(app).get('/api/privilege-mcp/state').expect(200);
+    const discovered = body.doorDiscovery.applications.find((a) => a.name === 'newly-registered');
+    expect(discovered).toMatchObject({ status: 'Ready', policies: ['p1'] });
+    expect(body.doorDiscovery.applications.find((a) => a.name === 'opensearch22').policies).toEqual([]);
+  });
+
+  test('the gateway URL does not depend on the mode active during discovery', async () => {
+    // consoleData outlives a mode switch. Deriving the gateway URL from the door
+    // in play at discovery time meant discovering in Direct or Facade mode and
+    // then switching to Privilege offered <public-origin>/<app>/mcp, which never
+    // reaches the gateway.
+    mockConsole();
+    const app = buildApp();
+    await request(app).post('/api/privilege-mcp/config')
+      .send({ mcpUrl: `${PUBLIC_ORIGIN}/mcp-facade/privilege-gateway/opensearch22/mcp` }).expect(200);
+
+    const res = await request(app).post('/api/privilege-mcp/console/connect').send({ authToken: 'cookie' }).expect(200);
+    const discovered = res.body.applications.find((a) => a.name === 'newly-registered');
+    expect(discovered.gatewayUrl).toBe(`${GATEWAY_HOST}/newly-registered/mcp`);
+    expect(discovered.facadeUrl).toBe(`${PUBLIC_ORIGIN}/mcp-facade/privilege-gateway/newly-registered/mcp`);
   });
 
   test('an app removed from the console stops being offered', async () => {

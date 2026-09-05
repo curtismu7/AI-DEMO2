@@ -1342,24 +1342,32 @@ router.get('/state', (req, res) => {
   // No discovery yet -> the two apps that were hardcoded before W8, still built
   // through their own env overrides so an existing deployment sees no change at
   // all until somebody connects the console.
-  const discovery = privilegeDoorStore.getInventory();
+  const discovery = readInventory();
   const defaultApp = PRIVILEGE_APP();
   const siblingApps = (discovery
     ? discovery.applications.map((a) => ({
       name: a.name,
       privilegeUrl: privilegeDoorUrl(a.name),
       facadeUrl: facadeDoorUrl(a.name),
+      status: a.status || '',
+      // Which policies NAME this app. A heuristic, computed at discovery time
+      // (see the store) -- never a claim that a policy grants it.
+      policies: Array.isArray(a.policies) ? a.policies : [],
     }))
     : [
       {
         name: PRIVILEGE_APP_OPENSEARCH(),
         privilegeUrl: DEFAULT_PRIVILEGE_OPENSEARCH_MCP_URL(),
         facadeUrl: DEFAULT_FACADE_OPENSEARCH_MCP_URL(),
+        status: '',
+        policies: [],
       },
       {
         name: PRIVILEGE_APP_BRAVE(),
         privilegeUrl: DEFAULT_PRIVILEGE_BRAVE_MCP_URL(),
         facadeUrl: DEFAULT_FACADE_BRAVE_MCP_URL(),
+        status: '',
+        policies: [],
       },
     ]
   ).filter((app) => app.name && app.name !== defaultApp);
@@ -1876,6 +1884,7 @@ async function consoleInventory(session) {
       // privilege-gateway prefix and yields <public-origin>/<app>/mcp — a URL
       // that reaches nothing. The façade door has to be built, not derived.
       facadeUrl: facadeDoorUrl(name),
+      gatewayUrl: privilegeDoorUrl(name),
       frontEndName: cfg.FrontEndName?.Elems?.[0] || null,
       backends: cfg.Backends?.Elems || [],
       entryPath: cfg.EntryPath || null,
@@ -1912,9 +1921,33 @@ function rememberInventory(inventory) {
   }
 }
 
+/**
+ * The last discovery, or null when there is none AND when the store cannot be
+ * trusted.
+ *
+ * /state is the page's whole bootstrap, so a bad read here has to degrade to
+ * the hardcoded fallback doors rather than 500 the page: an LMDB open failure
+ * or a record written by an older shape would otherwise take out the one screen
+ * an operator would use to diagnose it. `applications` is validated because
+ * everything downstream maps over it.
+ */
+function readInventory() {
+  let record;
+  try {
+    record = privilegeDoorStore.getInventory();
+  } catch (err) {
+    console.warn('[privilege] door store read failed:', err.message);
+    return null;
+  }
+  if (!record || !Array.isArray(record.applications)) return null;
+  return record;
+}
+
 /** What the page reports after a refresh, and what /state reports about the last one. */
 function discoverySummary(record) {
-  if (!record) return { persisted: false, appCount: 0, policyCount: 0, discoveredAt: null, gatewayOrigin: null };
+  if (!record) {
+    return { persisted: false, appCount: 0, policyCount: 0, discoveredAt: null, gatewayOrigin: null, applications: [] };
+  }
   return {
     persisted: true,
     appCount: record.applications.length,
@@ -1924,6 +1957,14 @@ function discoverySummary(record) {
     // the CURRENT configuration, so changing PRIVILEGE_MCPGW_URL cannot leave
     // the picker serving doors on a gateway nobody points at any more.
     gatewayOrigin: record.gatewayOrigin || null,
+    // Status and policy mentions, the two things that explain a 403 nobody
+    // asked for. Without these the page can only say a door EXISTS, which is
+    // the state W8 step 4 exists to improve on.
+    applications: record.applications.map((a) => ({
+      name: a.name,
+      status: a.status || '',
+      policies: Array.isArray(a.policies) ? a.policies : [],
+    })),
   };
 }
 

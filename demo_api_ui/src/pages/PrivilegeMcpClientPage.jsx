@@ -738,12 +738,18 @@ export default function PrivilegeMcpClientPage() {
   // ELSE to try", so it excludes the door that just failed. The header picker
   // has to include it, or the control cannot show what is currently selected.
   const knownDoors = (includeCurrent = false) => {
-    // Each app carries two URLs because the two lanes reach it differently: the
-    // gateway serves /<app>/mcp, the façade serves /mcp-facade/privilege-gateway/
-    // <app>/mcp. Picking by mode is what stops façade mode offering doors built
-    // from the gateway's shape, which reach nothing.
+    // Each app carries its own URL per lane because the lanes reach it
+    // differently: the gateway serves /<app>/mcp, the façade serves
+    // /mcp-facade/privilege-gateway/<app>/mcp.
+    //
+    // Both are derived server-side from configuration, NOT from the door that
+    // happened to be selected when the console was read -- consoleData outlives
+    // a mode switch, so discovering in Direct mode and then switching to
+    // Privilege used to leave this offering <public-origin>/<app>/mcp, which
+    // never reaches the gateway. `mcpUrl` is that mode-relative value and is
+    // deliberately not used here.
     const fromConsole = (consoleData?.applications || [])
-      .map((a) => (gatewayMode === 'facade' ? a.facadeUrl : a.mcpUrl))
+      .map((a) => (gatewayMode === 'facade' ? a.facadeUrl : a.gatewayUrl))
       .filter(Boolean);
     // The direct-mode presets are excluded UNLESS the active mode can actually
     // reach them: sameGatewayDoors() below groups by origin, and Direct's
