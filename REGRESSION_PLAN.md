@@ -140,6 +140,47 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-05 — `/api/docs` and `/api/reference` dead-ended for a signed-in non-admin
+
+**Files changed:** `demo_api_server/server.js`, new
+`demo_api_server/lib/docsAdminRedirect.js`, new
+`demo_api_server/tests/routes/docsAdminRedirect.test.js`, new
+`demo_api_ui/src/components/AdminRequiredModal.{jsx,css}`,
+`demo_api_ui/src/App.js`.
+
+**What was broken:** a signed-out user was already redirected to login, but a
+user who WAS signed in without the admin role got `requireAdmin`'s JSON 403
+(`insufficient_scope`). These pages open in a bare tab via `window.open` with
+no SPA loaded, so that body rendered as a dead page with no way forward.
+Observed live on the SE cluster (`ai-demo.ping-devops.com`), where the signed-in
+session has no admin role — three attempts, all `403 303`.
+
+**What was fixed:** a pre-check, `makeDocsAdminRedirect`, mounted on
+`/api/docs` and `/api/reference` between `authenticateToken` and
+`requireAdmin`. A signed-in non-admin is redirected to `/?adminRequired=<path>`;
+the SPA reads that param on first render (same capture pattern as
+`?oauth=success`) and opens `AdminRequiredModal`, which offers "Sign in as
+admin" preserving the wanted path. `/api/openapi.json` deliberately still
+returns JSON 403 — it is consumed programmatically, and redirecting it to HTML
+would break a client rather than help a human.
+
+**Do not break:**
+
+- `requireAdmin` stays in BOTH chains, AFTER the redirect middleware. The
+  redirect only changes what a denial LOOKS like; it is not the gate. If its
+  admin signals ever diverge from `middleware/auth.js`, the original 403 must
+  still fire behind it.
+- Admin signals must stay identical to `middleware/auth.js`: admin role OR
+  admin scope (`BANKING_SCOPES.ADMIN`). Anything looser silently widens access
+  to the spec.
+- The wanted path must keep going through `sanitizePostLoginReturnPath`.
+  Interpolating `req.originalUrl` straight into `Location` makes this an open
+  redirect; two tests pin that (absolute and protocol-relative URLs).
+- No user (`req.user` absent) must fall through, not redirect — otherwise a
+  401 is masked as a UI nudge.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/routes/docsAdminRedirect.test.js tests/routes/openapiFromRoutes.test.js --forceExit` — 2 suites, 30 tests; UI `cd demo_api_ui && npm run build` (exit 0) and the component suite (208 files, 1525 passed).
+
 ### 2026-09-05 — Banking MCP server could not be discovered by the Privilege AI Gateway (no legacy SSE transport)
 
 **Files changed:** `oauth-mcp/src/server/HttpMCPTransport.ts`,

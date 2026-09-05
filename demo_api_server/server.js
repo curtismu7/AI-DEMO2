@@ -1086,6 +1086,13 @@ function redirectDocsToLoginIfNoSession(req, res, next) {
     const returnTo = sanitizePostLoginReturnPath(req.originalUrl) || req.path;
     res.redirect(`/api/auth/oauth/login?return_to=${encodeURIComponent(returnTo)}`);
 }
+
+// Signed in but not an admin: redirect to the SPA so it can show the
+// admin-required modal, instead of requireAdmin's JSON 403 rendering as a dead
+// page in a bare tab. Mounted BEFORE requireAdmin, never instead of it — see
+// lib/docsAdminRedirect.js for why, and for the admin-signal parity rule.
+const { makeDocsAdminRedirect } = require('./lib/docsAdminRedirect');
+const redirectDocsToAdminModalIfNotAdmin = makeDocsAdminRedirect(sanitizePostLoginReturnPath);
 app.get('/api/openapi.json', redirectDocsToLoginIfNoSession, authenticateToken, requireAdmin, (req, res) => {
     res.json(openApiSpec());
 });
@@ -1093,6 +1100,7 @@ app.use(
     '/api/docs',
     redirectDocsToLoginIfNoSession,
     authenticateToken,
+    redirectDocsToAdminModalIfNotAdmin,
     requireAdmin,
     swaggerUi.serve,
     // Point the UI at the spec endpoint instead of inlining the document: the
@@ -1171,7 +1179,7 @@ app.get(SCALAR_BUNDLE_ROUTE, redirectDocsToLoginIfNoSession, authenticateToken, 
 });
 
 let scalarHandler = null;
-app.get('/api/reference', redirectDocsToLoginIfNoSession, authenticateToken, requireAdmin, async (req, res, next) => {
+app.get('/api/reference', redirectDocsToLoginIfNoSession, authenticateToken, redirectDocsToAdminModalIfNotAdmin, requireAdmin, async (req, res, next) => {
     try {
         // Fail loudly rather than serving a shell whose script 503s — that
         // renders as a blank page with a 200, which is indistinguishable from

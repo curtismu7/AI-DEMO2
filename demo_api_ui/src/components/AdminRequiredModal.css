@@ -1,0 +1,88 @@
+/* AdminRequiredModal — shown when a signed-in non-admin opens an admin-only
+   page. Colours come from --th-* tokens so light/dark follow the app theme
+   (THEMING.md: dark is :root[data-theme="dark"] only, never
+   prefers-color-scheme — no dark block is needed here because every colour
+   below is a token that already flips).
+
+   No muted/low-contrast body text: REGRESSION_PLAN §0 requires modals to use
+   solid high-contrast colours, so --th-text-muted is deliberately not used
+   for the explanatory copy. */
+
+/* No padding here: .dm-scroll carries it. */
+.admin-required-modal .arm-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  color: var(--th-text);
+}
+
+.admin-required-modal .arm-icon {
+  font-size: var(--font-size-h2);
+  line-height: 1;
+}
+
+.admin-required-modal .arm-lead {
+  margin: 0;
+  font-size: var(--font-size-base);
+  color: var(--th-text);
+}
+
+.admin-required-modal .arm-path {
+  /* Use the token, never a literal font stack — uiRegression.test.js enforces
+   * that so the fixed-width face stays a single decision. (This comment avoids
+   * spelling the banned word: the check skips only lines whose trimmed text
+   * starts with a comment marker, so a wrapped line would trip it.) */
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  padding: 2px 6px;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+
+.admin-required-modal .arm-detail {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--th-text-body);
+}
+
+.admin-required-modal .arm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.admin-required-modal .arm-btn {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--th-border-strong);
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+}
+
+/* --th-status-info, not --theme-accent: that token is defined nowhere in the
+   app, and signinAccentTokens.test.js fails any var() whose token is undefined
+   and has no fallback — it would have rendered with no background at all. */
+.admin-required-modal .arm-btn-primary {
+  background: var(--th-status-info);
+  border-color: var(--th-status-info);
+  color: var(--th-text-invert);
+}
+
+.admin-required-modal .arm-btn-secondary {
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
+
+/* Ink alongside the ground: <body> ink is the same in both themes, so a themed
+   background with no color renders near-black text once the ground flips
+   (THEMING.md §1.5, enforced by the ground-without-ink ratchet). */
+.admin-required-modal .arm-btn-secondary:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}

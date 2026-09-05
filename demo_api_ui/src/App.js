@@ -73,6 +73,7 @@ import LearningHub from "./components/LearningHub";
 import LlmConfigPage from "./components/LlmConfigPage";
 import LogoutPage from "./components/LogoutPage";
 import LoginSuccessModal from "./components/LoginSuccessModal";
+import AdminRequiredModal from "./components/AdminRequiredModal";
 import LogViewer from "./components/LogViewer";
 import MgmtApiRunnerPage from "./components/MgmtApiRunnerPage";
 import MissingCredentialsModal from "./components/MissingCredentialsModal";
@@ -418,6 +419,20 @@ function AppWithAuth() {
       new URLSearchParams(window.location.search || "").get("oauth") ===
         "success",
   );
+  // `?adminRequired=<path>` is set by the BFF when a signed-in non-admin opens
+  // an admin-only doc page (/api/docs, /api/reference). Those open in a bare
+  // tab with no SPA, so the server redirects here to show the modal. Captured
+  // on first render for the same reason as `?oauth=success` above — the URL
+  // cleanup strips it.
+  const [adminRequiredPath] = useState(() =>
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search || "").get("adminRequired")
+      : null,
+  );
+  const [adminRequiredOpen, setAdminRequiredOpen] = useState(
+    () => !!adminRequiredPath,
+  );
+
   const [loginSuccessOpen, setLoginSuccessOpen] = useState(false);
   const loginModalShownRef = useRef(false);
   useEffect(() => {
@@ -1962,6 +1977,11 @@ function AppWithAuth() {
                 initialScope={killModal?.initialScope}
                 onCancel={closeKillSwitchModal}
                 onConfirm={killModal?.onConfirm}
+              />
+              <AdminRequiredModal
+                wantedPath={adminRequiredPath}
+                isOpen={adminRequiredOpen}
+                onClose={() => setAdminRequiredOpen(false)}
               />
               <LoginSuccessModal
                 user={user}
