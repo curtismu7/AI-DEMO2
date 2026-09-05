@@ -748,9 +748,20 @@ export default function PrivilegeMcpClientPage() {
     // Privilege used to leave this offering <public-origin>/<app>/mcp, which
     // never reaches the gateway. `mcpUrl` is that mode-relative value and is
     // deliberately not used here.
-    const fromConsole = (consoleData?.applications || [])
-      .map((a) => (gatewayMode === 'facade' ? a.facadeUrl : a.gatewayUrl))
-      .filter(Boolean);
+    //
+    // Direct mode contributes NOTHING from the console. A discovered app is a
+    // Privilege Agentic App; "direct" means no Privilege in the path at all, and
+    // the direct doors are this demo's own façade doors, which the presets below
+    // already supply. Offering a gateway URL here would let the denial probe --
+    // which does not apply the picker's origin filter -- switch the client to a
+    // gateway door while it is still in Direct mode, mismatching mode and auth.
+    // Offering the mode-relative mcpUrl instead is no better: it is whatever
+    // origin happened to be selected when the console was read.
+    const fromConsole = gatewayMode === 'direct'
+      ? []
+      : (consoleData?.applications || [])
+        .map((a) => (gatewayMode === 'facade' ? a.facadeUrl : a.gatewayUrl))
+        .filter(Boolean);
     // The direct-mode presets are excluded UNLESS the active mode can actually
     // reach them: sameGatewayDoors() below groups by origin, and Direct's
     // presets (banking/brave/opensearch/pingone-admin — plain façade doors,
