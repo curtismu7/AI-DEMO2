@@ -1235,7 +1235,9 @@ pre.tcd-jwt-dump.jh-dark {
   color: var(--th-text);
 }
 .tcd-claim-hidden-name {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* Use the token, never a literal font stack — uiRegression.test.js enforces
+   * that for fixed-width faces. */
+  font-family: var(--font-family-mono);
   font-size: var(--font-size-2xs);
   padding: 1px 4px;
   border: 1px solid var(--th-border);
