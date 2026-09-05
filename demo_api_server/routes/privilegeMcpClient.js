@@ -2164,10 +2164,22 @@ router.post('/llm/call', express.json(), async (req, res) => {
     return res.status(400).json({ error: err.message, code: 'llm_bad_route' });
   }
 
+  // The console needs the transport facts, not just the text: which caps the
+  // provider reported, and how far the request actually travelled.
+  const meta = {};
+  overrides.meta = meta;
+
   const t0 = Date.now();
   try {
     const reply = await lane.call([{ role: 'user', content: prompt }], overrides);
-    return res.json({ reply, provider, route, latencyMs: Date.now() - t0 });
+    return res.json({
+      reply,
+      provider,
+      route,
+      latencyMs: Date.now() - t0,
+      reachedProvider: true,
+      providerLimits: meta.limits || null,
+    });
   } catch (err) {
     // A denial is the demo, not a failure: its own status, its own code, and the
     // reason and provider carried through for the panel to render.
@@ -2179,13 +2191,26 @@ router.post('/llm/call', express.json(), async (req, res) => {
         provider: err.provider || provider,
         route,
         latencyMs: Date.now() - t0,
+        // A denial is decided AT the gateway, so the prompt never reached the
+        // model. That is the fact the console leads with.
+        reachedProvider: false,
+        providerLimits: meta.limits || null,
       });
     }
     // Missing config is an operator problem with a named fix, not a bad gateway.
     if (/not configured/.test(err.message || '')) {
       return res.status(503).json({ error: err.message });
     }
-    return res.status(502).json({ error: err.message || 'Privilege LLM call failed' });
+    // Past the gateway and refused by the provider — the opposite diagnosis to a
+    // denial, and the pair is indistinguishable without this flag.
+    return res.status(502).json({
+      error: err.message || 'Privilege LLM call failed',
+      provider,
+      route,
+      latencyMs: Date.now() - t0,
+      reachedProvider: true,
+      providerLimits: meta.limits || null,
+    });
   }
 });
 

@@ -1761,6 +1761,15 @@ export default function PrivilegeMcpClientPage() {
               <button type="button" onClick={testAllLanes} disabled={Boolean(laneBusy)}>
                 {laneBusy ? 'Testing…' : 'Test all lanes'}
               </button>
+              {/* This panel is the quick probe; the console is where the caps and the
+                  full decision live. Deliberately a link, not a duplicate of that view. */}
+              <button
+                type="button"
+                className="cur-llmlanes__open"
+                onClick={() => navigate('/llm-gateway')}
+              >
+                Open in LLM Gateway
+              </button>
             </div>
             {llmLanes.map((lane) => {
               const r = laneResults[lane.provider];

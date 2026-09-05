@@ -168,9 +168,12 @@ describe('POST /llm/call overrides', () => {
     // The route REPORTED back is the overridden one, not the lane default —
     // otherwise the panel would show a path the call did not use.
     expect(res.body.route).toBe('/llm/anthropic/v1/chat/completions');
+    // objectContaining, not an exact match: the route also passes a `meta`
+    // collector the console needs. What this test pins is that the override
+    // reaches the lane, not the full shape of the options bag.
     expect(proxy.callPrivilegeClaude).toHaveBeenCalledWith(
       [{ role: 'user', content: 'hi' }],
-      { route: '/llm/anthropic/v1/chat/completions', model: 'claude-opus-5' },
+      expect.objectContaining({ route: '/llm/anthropic/v1/chat/completions', model: 'claude-opus-5' }),
     );
   });
 
@@ -192,7 +195,57 @@ describe('POST /llm/call overrides', () => {
     const res = await post({ provider: 'anthropic', prompt: 'hi' });
 
     expect(res.body.route).toBe('/llm/anthropic/v1/messages');
-    expect(proxy.callPrivilegeClaude).toHaveBeenCalledWith([{ role: 'user', content: 'hi' }], {});
+    const [, opts] = proxy.callPrivilegeClaude.mock.calls[0];
+    expect(opts.route).toBeUndefined();
+    expect(opts.model).toBeUndefined();
+  });
+});
+
+// ── Console transport facts ─────────────────────────────────────────────────
+// The LLM Gateway console leads with "did this reach the model?", because that is
+// the difference between Privilege doing its job and a dead provider credential.
+// The route must report it on all three outcomes, not just the happy one.
+
+describe('POST /llm/call transport facts', () => {
+  it('reports reachedProvider true and the provider limits on a reply', async () => {
+    proxy.callPrivilegeClaude.mockImplementation(async (_m, config) => {
+      // The service fills the caller's meta with what the response headers carried.
+      if (config && config.meta) config.meta.limits = { requestsLimit: 10000, requestsRemaining: 9999 };
+      return 'ok';
+    });
+
+    const res = await post({ provider: 'anthropic', prompt: 'hi' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.reachedProvider).toBe(true);
+    expect(res.body.providerLimits).toEqual({ requestsLimit: 10000, requestsRemaining: 9999 });
+  });
+
+  // The claim the console makes on a denial: nothing was sent, nothing was billed.
+  it('reports reachedProvider false on a policy denial', async () => {
+    const denial = new Error('blocked');
+    denial.code = 'llm_policy_denied';
+    denial.reason = 'no PII';
+    denial.provider = 'anthropic';
+    proxy.callPrivilegeClaude.mockRejectedValue(denial);
+
+    const res = await post({ provider: 'anthropic', prompt: 'hi' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.reachedProvider).toBe(false);
+  });
+
+  // The opposite diagnosis, and the pair is indistinguishable without this flag.
+  it('reports reachedProvider true when the provider itself refused', async () => {
+    proxy.callPrivilegeClaude.mockRejectedValue(
+      new Error('Privilege LLM proxy (anthropic) 401: API key is invalid.'),
+    );
+
+    const res = await post({ provider: 'anthropic', prompt: 'hi' });
+
+    expect(res.status).toBe(502);
+    expect(res.body.reachedProvider).toBe(true);
+    expect(res.body.route).toBe('/llm/anthropic/v1/messages');
   });
 
   // A model-allowlist probe (GET /llm/models below, run once per candidate)
@@ -202,9 +255,12 @@ describe('POST /llm/call overrides', () => {
 
     await post({ provider: 'anthropic', prompt: 'hi', model: 'claude-haiku-4-5-20251001', maxTokens: 1 });
 
+    // objectContaining: the route also passes a `meta` transport-facts collector
+    // (see "POST /llm/call transport facts" below) — this test only pins that
+    // maxTokens reaches the lane as max_tokens, not the full options shape.
     expect(proxy.callPrivilegeClaude).toHaveBeenCalledWith(
       [{ role: 'user', content: 'hi' }],
-      { model: 'claude-haiku-4-5-20251001', max_tokens: 1 },
+      expect.objectContaining({ model: 'claude-haiku-4-5-20251001', max_tokens: 1 }),
     );
   });
 });

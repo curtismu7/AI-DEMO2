@@ -1,0 +1,105 @@
+{
+  "uid": "ai-demo-agent-gateway",
+  "title": "Agent Gateway",
+  "description": "demo_mcp_gateway only — a separate service from PingGateway (ping-gateway), not a synonym for it. Node/TypeScript, its own OAuth broker and admin routing topology, used by external MCP clients and A2A delegation flows. The browser demo chat's banking chips do NOT route through here — those go through PingGateway's PingOne Authorize path instead (see the P1AZ Decisions and PingGateway dashboards). Empty panels here usually mean whatever you just drove used that other path, not that this one is broken.",
+  "tags": ["ai-demo", "mcp", "agent-gateway"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "About these numbers",
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 0 },
+      "options": {
+        "mode": "markdown",
+        "content": "`demo_mcp_gateway/src/proxy.ts` wraps its single dispatch chokepoint (`proxyJsonRpc`/`proxyJsonRpcHttp` — every call to a backend MCP server over either transport) with a Prometheus histogram, prefixed `mcpgw_`. It observes what already happens; it does not change how a request is handled. The Logs panel is Tier 2 — Grafana Alloy tailing this container's stdout into Loki."
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "MCP calls by method (per 5 min)",
+      "description": "demo_mcp_gateway/src/proxy.ts wraps proxyJsonRpc/proxyJsonRpcHttp — every call to a backend MCP server over either transport, WebSocket or Streamable HTTP.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "ai-demo-prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum by (method) (increase(mcpgw_mcp_call_duration_seconds_count[5m]))", "legendFormat": "{{method}}" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short", "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "showPoints": "never" }, "min": 0, "decimals": 0 },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Call errors by method (per 5 min)",
+      "description": "mcpgw_mcp_call_errors_total increments when a proxied call settles as a JSON-RPC error response or throws (timeout, backend close, abort).",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "ai-demo-prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum by (method) (increase(mcpgw_mcp_call_errors_total[5m]))", "legendFormat": "{{method}}" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short", "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "showPoints": "never" }, "min": 0, "decimals": 0 },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Process CPU",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "ai-demo-prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "rate(mcpgw_process_cpu_seconds_total[5m])", "legendFormat": "mcp-gateway" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "percentunit", "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "showPoints": "never" }, "min": 0 },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Event loop lag",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "ai-demo-prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "mcpgw_nodejs_eventloop_lag_seconds", "legendFormat": "lag" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "s", "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "showPoints": "never" }, "min": 0 },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 6,
+      "type": "logs",
+      "title": "Live logs",
+      "description": "This container's stdout (Tier 2 — Grafana Alloy). Narrow with the panel's own search box, e.g. |= \"tools/call\".",
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 20 },
+      "datasource": { "type": "loki", "uid": "ai-demo-loki" },
+      "targets": [
+        { "refId": "A", "expr": "{service=\"mcp-gateway\"}" }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none"
+      }
+    }
+  ],
+  "links": []
+}
