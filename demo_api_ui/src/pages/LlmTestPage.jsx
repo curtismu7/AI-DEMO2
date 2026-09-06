@@ -170,8 +170,13 @@ export default function LlmTestPage() {
   const runCompare = useCallback(async () => {
     // The server's own key covers the direct side when it has one; the field is an
     // override for trying a different key without an .env edit and a restart.
-    if (!directKey.trim() && !lane?.directKeyConfigured) {
+    const trimmedKey = directKey.trim();
+    if (!trimmedKey && !lane?.directKeyConfigured) {
       setCmpError('No key for the direct side. Paste one, or set it on the server.');
+      return;
+    }
+    if (trimmedKey && !/^sk-/.test(trimmedKey)) {
+      setCmpError('Key must start with sk-. Check for extra whitespace or corruption.');
       return;
     }
     setCmpBusy(true);
