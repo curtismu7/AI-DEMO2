@@ -56,6 +56,15 @@ opensearch:
       cpu: "1000m"
       memory: "2Gi"
 
+# Ships the gateway's "LLM request" and "AIGuard" log lines into the
+# OpenSearch above, so guardrail Alert/Sanitize verdicts (never returned to the
+# LLM caller) become queryable. Local addition to the vendored chart — the
+# log-tailer sidecar's original stdout-forwarding behavior is unchanged.
+logShipping:
+  enabled: true
+  opensearchUrl: "http://opensearch:9200"
+  index: gateway-events
+
 opensearchMcpServer:
   enabled: true
   image: cjmuir710/opensearch-mcp-server:latest
