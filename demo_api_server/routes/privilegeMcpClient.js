@@ -2430,16 +2430,18 @@ router.post('/llm/call', express.json(), async (req, res) => {
   } catch (err) {
     // A denial is the demo, not a failure: its own status, its own code, and the
     // reason and provider carried through for the panel to render.
-    if (err.code === 'llm_policy_denied') {
-      return res.status(403).json({
+    // Both are decided AT the gateway, so the prompt never reached the model —
+    // the fact the console leads with. A policy denial (content) answers 403; a
+    // rate-cap block answers 429, its own verdict so the panel does not read a
+    // throttle as a content refusal.
+    if (err.code === 'llm_policy_denied' || err.code === 'llm_rate_limited') {
+      return res.status(err.code === 'llm_rate_limited' ? 429 : 403).json({
         error: err.message,
-        code: 'llm_policy_denied',
+        code: err.code,
         reason: err.reason || err.message,
         provider: err.provider || provider,
         route,
         latencyMs: Date.now() - t0,
-        // A denial is decided AT the gateway, so the prompt never reached the
-        // model. That is the fact the console leads with.
         reachedProvider: false,
         providerLimits: meta.limits || null,
       });

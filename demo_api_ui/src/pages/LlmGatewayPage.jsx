@@ -54,6 +54,7 @@ const TITLES = { anthropic: 'Anthropic', google: 'Google', openai: 'OpenAI' };
 function classify(err) {
   if (err.code === 'llm_bad_route') return { verdict: 'Route rejected', tone: 'bad', layer: 'client' };
   if (err.code === 'llm_policy_denied') return { verdict: 'Denied by policy', tone: 'warn', layer: 'Privilege' };
+  if (err.code === 'llm_rate_limited') return { verdict: 'Rate limited by policy', tone: 'warn', layer: 'Privilege' };
   if (err.status === 503) return { verdict: 'Not configured', tone: 'bad', layer: 'this app' };
   if (err.status === 502) return { verdict: 'Provider refused', tone: 'bad', layer: 'provider' };
   return { verdict: `HTTP ${err.status || '?'}`, tone: 'bad', layer: 'unknown' };

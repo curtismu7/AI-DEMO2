@@ -130,6 +130,17 @@ function throwForResponse(res, data, label) {
     err.provider = label;
     throw err;
   }
+  // A 429 from the GATEWAY (not the provider's own quota envelope) is Privilege
+  // enforcing the virtual key's rate cap — a governance decision, not a provider
+  // failure. Same discriminator as above: a provider-shaped body means the
+  // provider throttled, so leave that as a generic upstream failure.
+  if (res.status === 429 && !looksLikeProviderError(data)) {
+    const err = new Error(msg);
+    err.code = 'llm_rate_limited';
+    err.reason = msg;
+    err.provider = label;
+    throw err;
+  }
   throw new Error(`Privilege LLM proxy (${label}) ${res.status}: ${msg}`);
 }
 
