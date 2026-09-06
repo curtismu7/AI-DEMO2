@@ -21,6 +21,11 @@
   padding: 0 1rem;
   border-bottom: 1px solid var(--th-border);
   background: var(--th-bg-inset);
+  /* No text of its own — the tab buttons set their own color — but the
+     ground-without-ink ratchet requires every --th-* background to carry a
+     color on the SAME rule, so this states the ink explicitly rather than
+     relying on child overrides. */
+  color: var(--th-text);
 }
 
 .lgwc-tab {
