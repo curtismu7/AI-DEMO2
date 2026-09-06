@@ -218,3 +218,112 @@ describe("direct vs gateway comparison", () => {
     expect(screen.getByLabelText(/provider api key/i)).toHaveAttribute("type", "password");
   });
 });
+
+
+// ── LM Studio: the local, ungoverned lane ───────────────────────────────────
+// It earns its place by being the one call with nothing in front of it. The page
+// must never imply the gateway is involved, and must not hide the reasoning-model
+// trap where a small budget returns HTTP 200 with an empty string.
+
+const LOCAL_CFG = {
+  ...CONFIG,
+  local: {
+    provider: "lmstudio",
+    title: "LM Studio (local)",
+    baseUrl: "http://host.docker.internal:1234",
+    route: "/v1/chat/completions",
+    defaultMaxTokens: 512,
+  },
+};
+
+function mockLocal({ models = ["qwen3.8-27b", "google/gemma-4-12b-qat"], modelsFail, raw } = {}) {
+  global.fetch = vi.fn((url) => {
+    const u = String(url);
+    if (u.endsWith("/llm/config")) {
+      return Promise.resolve({ ok: true, status: 200, text: async () => JSON.stringify(LOCAL_CFG) });
+    }
+    if (u.endsWith("/llm/models/lmstudio")) {
+      return modelsFail
+        ? Promise.resolve({ ok: false, status: 502, text: async () => JSON.stringify({ error: "LM Studio unreachable at http://host.docker.internal:1234" }) })
+        : Promise.resolve({ ok: true, status: 200, text: async () => JSON.stringify({ models }) });
+    }
+    if (u.endsWith("/llm/raw")) return Promise.resolve(raw || OK_RAW);
+    return new Promise(() => {});
+  });
+}
+
+async function pickLocal() {
+  await ready();
+  fireEvent.change(screen.getByLabelText(/^lane$/i), { target: { value: "lmstudio" } });
+}
+
+describe("LM Studio lane", () => {
+  it("is offered under its own group, apart from the Privilege lanes", async () => {
+    mockLocal();
+    render(<LlmTestPage />);
+    await ready();
+
+    const lane = screen.getByLabelText(/^lane$/i);
+    const groups = Array.from(lane.querySelectorAll("optgroup")).map((g) => g.label);
+    expect(groups).toEqual(["Through Privilege", "Local, no gateway"]);
+  });
+
+  it("offers the models LM Studio reports right now, not a fixed list", async () => {
+    mockLocal({ models: ["qwen3.8-27b", "another-loaded-model"] });
+    render(<LlmTestPage />);
+    await pickLocal();
+
+    const sel = await screen.findByLabelText(/^model$/i);
+    expect(Array.from(sel.querySelectorAll("option")).map((o) => o.value))
+      .toEqual(["qwen3.8-27b", "another-loaded-model"]);
+  });
+
+  // Measured: max_tokens 24 returned "" in 7.6s; 512 returned "Paris".
+  it("defaults max_tokens high, because a small budget returns an empty 200", async () => {
+    mockLocal();
+    render(<LlmTestPage />);
+    await pickLocal();
+
+    await screen.findByLabelText(/^model$/i);
+    expect(JSON.parse(screen.getByLabelText(/request body/i).value).max_tokens).toBe(512);
+  });
+
+  it("says the call is unmediated, and names the address", async () => {
+    mockLocal();
+    render(<LlmTestPage />);
+    await pickLocal();
+
+    expect(await screen.findByText(/no virtual key, no gateway/i)).toBeInTheDocument();
+    expect(screen.getByText("http://host.docker.internal:1234")).toBeInTheDocument();
+  });
+
+  // Comparing "direct vs through Privilege" is meaningless when there is no gateway side.
+  it("hides the direct-vs-gateway comparison for the local lane", async () => {
+    mockLocal();
+    render(<LlmTestPage />);
+    expect(await screen.findByLabelText(/direct vs gateway/i)).toBeInTheDocument();
+
+    await pickLocal();
+    await screen.findByLabelText(/^model$/i);
+    expect(screen.queryByLabelText(/direct vs gateway/i)).not.toBeInTheDocument();
+  });
+
+  it("can send without any Privilege key configured", async () => {
+    mockLocal();
+    render(<LlmTestPage />);
+    await pickLocal();
+    await screen.findByLabelText(/^model$/i);
+
+    expect(screen.getByRole("button", { name: /send request/i })).not.toBeDisabled();
+  });
+
+  // An empty dropdown would read as "no models"; unreachable is a different problem.
+  it("names the address when LM Studio cannot be reached", async () => {
+    mockLocal({ modelsFail: true });
+    render(<LlmTestPage />);
+    await pickLocal();
+
+    expect(await screen.findByText(/LM Studio unreachable at http:\/\/host\.docker\.internal:1234/))
+      .toBeInTheDocument();
+  });
+});
