@@ -13,7 +13,6 @@ export const NAV_STRUCTURE_CATALOG = [
       "Protocol Playground",
       "AI Gateway Client",
       "LLM Gateway",
-      "LLM Gateway Test",
       "Audit Agent",
       "AI Agent Gateway Guide",
       "AI Agent Gateway Diagrams",
@@ -76,8 +75,6 @@ export const NAV_STRUCTURE_CATALOG = [
       "Ping AI Test Lab",
       "Agent Gateway Inspector",
       "Capability Tour",
-      "LLM Gateway",
-      "LLM Gateway Test",
     ],
   },
   {

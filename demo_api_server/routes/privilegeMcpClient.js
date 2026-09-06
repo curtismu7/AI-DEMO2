@@ -2268,6 +2268,13 @@ router.post('/llm/compare', express.json({ limit: '64kb' }), async (req, res) =>
 // The virtual key is injected here and never leaves the server; the echoed request
 // carries a masked Authorization so the page can display a faithful cURL/SDK
 // equivalent without publishing the key.
+//
+// The HTTP verb WE receive this on is always POST (this is our own API, and the
+// page always posts its form) — `method` in the body picks the verb sent
+// UPSTREAM to the gateway. Added for the /v1/models path, which is GET-only and
+// takes no body; defaults to 'POST' so every existing caller is unaffected.
+const RAW_UPSTREAM_METHODS = new Set(['GET', 'POST']);
+
 router.post('/llm/raw', express.json({ limit: '256kb' }), async (req, res) => {
   const provider = String(req.body?.provider || '');
 
@@ -2314,21 +2321,36 @@ router.post('/llm/raw', express.json({ limit: '256kb' }), async (req, res) => {
     return res.status(400).json({ error: err.message, code: 'llm_bad_route' });
   }
 
+  const upstreamMethod = req.body?.method === undefined ? 'POST' : String(req.body.method).toUpperCase();
+  if (!RAW_UPSTREAM_METHODS.has(upstreamMethod)) {
+    return res.status(400).json({ error: `Unsupported method "${upstreamMethod}" — use GET or POST.` });
+  }
+
   const base = (process.env.PRIVILEGE_LLM_GATEWAY_URL || '').replace(/\/+$/, '');
   const key = process.env[lane.keyEnv] || '';
   if (!base) return res.status(503).json({ error: 'PRIVILEGE_LLM_GATEWAY_URL not configured' });
   if (!key) return res.status(503).json({ error: `${lane.keyEnv} not configured` });
 
-  const body = req.body?.body;
-  if (!body || typeof body !== 'object') {
-    return res.status(400).json({ error: 'body must be a JSON object — the request to send to the gateway.' });
+  // A GET has no body — /v1/models takes none, and sending one would misrepresent
+  // what actually goes over the wire on a page whose entire point is fidelity.
+  let body;
+  if (upstreamMethod === 'GET') {
+    if (req.body?.body !== undefined && req.body?.body !== null) {
+      return res.status(400).json({ error: 'GET requests take no body.' });
+    }
+  } else {
+    body = req.body?.body;
+    if (!body || typeof body !== 'object') {
+      return res.status(400).json({ error: 'body must be a JSON object — the request to send to the gateway.' });
+    }
   }
 
   const url = `${base}${route}`;
   // Anthropic's native Messages route requires the version header; the
   // OpenAI-compatible route on the same lane does not care that it is present.
+  // Content-Type only makes sense when there is a body to describe.
   const headers = {
-    'Content-Type': 'application/json',
+    ...(upstreamMethod === 'POST' ? { 'Content-Type': 'application/json' } : {}),
     Authorization: `Bearer ${key}`,
     ...(provider === 'anthropic' ? { 'anthropic-version': ANTHROPIC_VERSION_HEADER } : {}),
   };
@@ -2336,12 +2358,15 @@ router.post('/llm/raw', express.json({ limit: '256kb' }), async (req, res) => {
   const t0 = Date.now();
   let upstream;
   try {
-    upstream = await llmFetch(url, { method: 'POST', headers, body: JSON.stringify(body) },
-      { label: `privilege-llm-raw-${provider}`, timeoutMs: 30000, retryOn429: false });
+    upstream = await llmFetch(
+      url,
+      { method: upstreamMethod, headers, ...(upstreamMethod === 'POST' ? { body: JSON.stringify(body) } : {}) },
+      { label: `privilege-llm-raw-${provider}`, timeoutMs: 30000, retryOn429: false },
+    );
   } catch (err) {
     return res.status(502).json({
       error: err.message || 'request failed before a response',
-      request: { url, headers: { ...headers, Authorization: maskKey(key) }, body },
+      request: { url, method: upstreamMethod, headers: { ...headers, Authorization: maskKey(key) }, body },
       latencyMs: Date.now() - t0,
     });
   }
@@ -2354,7 +2379,7 @@ router.post('/llm/raw', express.json({ limit: '256kb' }), async (req, res) => {
   // data here, not this endpoint's outcome. A 4xx from the gateway is a result
   // the page must render, not an error that hides the body.
   return res.json({
-    request: { url, method: 'POST', headers: { ...headers, Authorization: maskKey(key) }, body },
+    request: { url, method: upstreamMethod, headers: { ...headers, Authorization: maskKey(key) }, body },
     response: { status: upstream.status, ok: upstream.ok, json: parsed, raw: parsed ? null : text.slice(0, 4000) },
     latencyMs: Date.now() - t0,
   });
