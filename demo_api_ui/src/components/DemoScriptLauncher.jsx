@@ -53,6 +53,60 @@ export default function DemoScriptLauncher({ user }) {
     return () => window.removeEventListener("demo-script-toggle", toggle);
   }, []);
 
+  // This button is fixed at bottom-left on every page (guest sessions only —
+  // see the `!user` guard below), with no page-specific layout awareness. On
+  // a public/guest use case the AI agent renders as a full-width bottom dock
+  // (AIAgent.js `isBottomDock` -> `.ba-embedded-bottom-dock`), which on a
+  // short mobile viewport reaches the same bottom-left corner and gets
+  // covered by this button — reported live on a phone. Same fix pattern as
+  // LandingPage.js's `landing-hero-ctas-in-view` (REGRESSION_PLAN.md
+  // 2026-09-05), generalized: toggle a body class while the dock is
+  // on-screen so CSS can hide this button under `<=768px` instead of guessing
+  // a fixed pixel offset the dock's variable height would break anyway. A
+  // MutationObserver (not a one-time querySelector) is needed here, unlike
+  // the landing page's static hero, because the dock mounts/unmounts as the
+  // agent panel opens and closes.
+  useEffect(() => {
+    if (typeof IntersectionObserver === "undefined" || typeof MutationObserver === "undefined") {
+      return undefined;
+    }
+    let intersectionObserver = null;
+    let observedEl = null;
+
+    const setInView = (inView) => {
+      document.body.classList.toggle("agent-bottom-dock-in-view", inView);
+    };
+
+    const attachTo = (el) => {
+      if (el === observedEl) return;
+      intersectionObserver?.disconnect();
+      observedEl = el;
+      if (!el) {
+        setInView(false);
+        return;
+      }
+      const rect = el.getBoundingClientRect();
+      setInView(rect.top < window.innerHeight && rect.bottom > 0);
+      intersectionObserver = new IntersectionObserver(
+        ([entry]) => setInView(entry.isIntersecting),
+        { threshold: 0.1 },
+      );
+      intersectionObserver.observe(el);
+    };
+
+    attachTo(document.querySelector(".ba-embedded-bottom-dock"));
+    const mutationObserver = new MutationObserver(() => {
+      attachTo(document.querySelector(".ba-embedded-bottom-dock"));
+    });
+    mutationObserver.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      mutationObserver.disconnect();
+      intersectionObserver?.disconnect();
+      setInView(false);
+    };
+  }, []);
+
   // Follow the workbench's selection so the teleprompter highlights and
   // scrolls to the matching beat. Listens only - never posts a `select`
   // message itself, or a run-channel echo could be misread as a selection.
