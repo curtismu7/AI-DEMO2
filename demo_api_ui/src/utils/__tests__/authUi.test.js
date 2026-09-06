@@ -197,6 +197,31 @@ describe('authUi', () => {
       window.removeEventListener(SESSION_REAUTH_EVENT, handler);
     });
 
+    it('stays silent until the user has interacted with the page', () => {
+      // A page-load fetch or a background poll that 401s must not interrupt a
+      // visitor who has not touched anything yet.
+      const handler = jest.fn();
+      window.addEventListener(SESSION_REAUTH_EVENT, handler);
+      window.history.pushState({}, '', '/dashboard');
+      Object.defineProperty(navigator, 'userActivation', {
+        value: { hasBeenActive: false },
+        configurable: true,
+      });
+
+      notifySessionExpiredIfNeeded({ status: 401, body: { error: 'session_expired' } });
+      expect(handler).not.toHaveBeenCalled();
+
+      Object.defineProperty(navigator, 'userActivation', {
+        value: { hasBeenActive: true },
+        configurable: true,
+      });
+      notifySessionExpiredIfNeeded({ status: 401, body: { error: 'session_expired' } });
+      expect(handler).toHaveBeenCalled();
+
+      delete navigator.userActivation;
+      window.removeEventListener(SESSION_REAUTH_EVENT, handler);
+    });
+
     it('does not dispatch on public landing', () => {
       const handler = jest.fn();
       window.addEventListener(SESSION_REAUTH_EVENT, handler);

@@ -240,6 +240,24 @@ function sessionReauthRoleForPath(pathname) {
 }
 
 /**
+ * True once the user has actually interacted with this page.
+ *
+ * A 401 nobody asked for — a page-load fetch, a background poll, the global
+ * fetch wrapper in apiTrafficStore — must not throw a modal in front of a
+ * visitor who has done nothing yet. `navigator.userActivation.hasBeenActive`
+ * is the browser's own answer to "has the user touched this page", so no
+ * listener or module state is needed. Sticky (not the 5s transient window) on
+ * purpose: a prompt submit that 401s 30s later still counts as user-driven.
+ *
+ * Undefined (jsdom, older Firefox) → true, i.e. the previous behaviour.
+ * @returns {boolean}
+ */
+function userHasInteracted() {
+  const ua = typeof navigator !== 'undefined' ? navigator.userActivation : null;
+  return ua ? ua.hasBeenActive === true : true;
+}
+
+/**
  * Show the global SessionReauthBanner when an API call proves auth is required again.
  * Clears cached oauth status and stale React user state via `invalidateSession` on the event.
  * @param {{ status?: number, body?: unknown, pathname?: string }} [opts]
@@ -249,6 +267,7 @@ export function notifySessionExpiredIfNeeded(opts = {}) {
   const { status, body, pathname = window.location?.pathname } = opts;
   if (!isAuthRequiredApiError(status, body)) return;
   if (!isAuthenticatedAppSurface(pathname)) return;
+  if (!userHasInteracted()) return;
 
   const now = Date.now();
   if (now - lastSessionExpiryNotifyAt < SESSION_EXPIRY_NOTIFY_MS) return;
