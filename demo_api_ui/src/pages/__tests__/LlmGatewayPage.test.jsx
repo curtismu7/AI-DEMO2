@@ -125,6 +125,9 @@ describe("LLM Gateway console", () => {
     const dec = await screen.findByTestId("lgw-decision");
     expect(dec).toHaveTextContent(/Answered/);
     expect(dec).not.toHaveTextContent(/Refused by/);
+    // The no-policy-layer caveat is for local lanes only — a Privilege lane has
+    // a real gateway in front of it, so this note would be misleading here.
+    expect(screen.queryByText(/that was the model deciding — not the gateway/)).not.toBeInTheDocument();
   });
 
   // Spend has no source anywhere, so the page must not imply one.
@@ -292,6 +295,9 @@ describe("LLM Gateway console", () => {
 
       await ask("What is the capital of Texas?");
       expect(await screen.findByText("Austin")).toBeInTheDocument();
+      // No policy layer sits in front of a local lane, so a refusal-shaped reply
+      // would look identical to a compliant one here — the panel says so.
+      expect(screen.getByText(/that was the model deciding — not the gateway/)).toBeInTheDocument();
     });
 
     it("does not appear when the backend reports no local lanes", async () => {

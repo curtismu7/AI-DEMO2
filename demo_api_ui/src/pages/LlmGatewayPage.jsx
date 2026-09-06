@@ -382,6 +382,15 @@ export default function LlmGatewayPage() {
               The prompt stopped at the gateway. Nothing was sent to the model and nothing was billed.
             </p>
           ) : null}
+          {/* This page can't tell a compliant reply from a refusal — both come back
+              as {reply} with tone "ok". A local lane has no policy in front of it,
+              so if the text above declined to answer, that was the model's own
+              guardrails, not this demo's gateway. */}
+          {decision && decision.tone === 'ok' && active?.isLocal ? (
+            <p className="lgw-rail__note">
+              This lane has no policy layer. If the reply above declined to answer, that was the model deciding — not the gateway.
+            </p>
+          ) : null}
         </section>
       </div>
     </div>
