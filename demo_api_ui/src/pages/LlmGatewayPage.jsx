@@ -15,6 +15,7 @@
 // would discredit the one thing this page exists to prove.
 import { useCallback, useEffect, useState } from 'react';
 import { useThemeOptional } from '../context/ThemeContext';
+import { ATTACK_CATEGORIES, GUARDRAIL_ATTACKS } from '../config/guardrailAttackCatalog';
 import './LlmGatewayPage.css';
 
 const API_BASE = process.env.REACT_APP_API_URL || '/api/privilege-mcp';
@@ -223,6 +224,28 @@ export default function LlmGatewayPage() {
             ))}
             {busy ? <p className="lgw-empty">Sending through {TITLES[selected] || selected}&hellip;</p> : null}
           </div>
+          <div className="lgw-attacks">
+            <label htmlFor="lgw-attack">🛡 Attack library</label>
+            <select
+              id="lgw-attack"
+              value=""
+              onChange={(e) => {
+                const atk = GUARDRAIL_ATTACKS.find((a) => a.id === e.target.value);
+                if (atk) setPrompt(atk.payload);
+              }}
+            >
+              <option value="">Pick an attack to test the gateway policy…</option>
+              {ATTACK_CATEGORIES.map((cat) => (
+                <optgroup key={cat} label={cat}>
+                  {GUARDRAIL_ATTACKS.filter((a) => a.category === cat).map((a) => (
+                    <option key={a.id} value={a.id}>{a.label}</option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+            <span className="lgw-attacks__note">Fills the prompt below — review it, then Send.</span>
+          </div>
+
           <div className="lgw-composer">
             <input
               type="text"
