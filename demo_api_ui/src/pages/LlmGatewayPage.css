@@ -313,6 +313,40 @@
   color: var(--th-text);
 }
 
+/* ── attack library ──────────────────────────────────────────────────────── */
+.lgw-attacks {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.6rem 0.9rem;
+  border-top: 1px solid var(--th-border);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
+
+.lgw-attacks label {
+  font-size: var(--font-size-sm);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--th-text-muted);
+}
+
+.lgw-attacks select {
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--th-border);
+  border-radius: 5px;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font: inherit;
+  font-size: var(--font-size-sm);
+}
+
+.lgw-attacks__note {
+  font-size: var(--font-size-sm);
+  color: var(--th-text-muted);
+}
+
 .lgw-composer {
   display: flex;
   gap: 0.5rem;

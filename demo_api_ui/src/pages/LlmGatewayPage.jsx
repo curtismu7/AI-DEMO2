@@ -54,6 +54,7 @@ const TITLES = { anthropic: 'Anthropic', google: 'Google', openai: 'OpenAI' };
 function classify(err) {
   if (err.code === 'llm_bad_route') return { verdict: 'Route rejected', tone: 'bad', layer: 'client' };
   if (err.code === 'llm_policy_denied') return { verdict: 'Denied by policy', tone: 'warn', layer: 'Privilege' };
+  if (err.code === 'llm_rate_limited') return { verdict: 'Rate limited by policy', tone: 'warn', layer: 'Privilege' };
   if (err.status === 503) return { verdict: 'Not configured', tone: 'bad', layer: 'this app' };
   if (err.status === 502) return { verdict: 'Provider refused', tone: 'bad', layer: 'provider' };
   return { verdict: `HTTP ${err.status || '?'}`, tone: 'bad', layer: 'unknown' };
@@ -239,6 +240,28 @@ export default function LlmGatewayPage() {
             ))}
             {busy ? <p className="lgw-empty">Sending through {TITLES[selected] || selected}&hellip;</p> : null}
           </div>
+          <div className="lgw-attacks">
+            <label htmlFor="lgw-attack">🛡 Attack library</label>
+            <select
+              id="lgw-attack"
+              value=""
+              onChange={(e) => {
+                const atk = GUARDRAIL_ATTACKS.find((a) => a.id === e.target.value);
+                if (atk) setPrompt(atk.payload);
+              }}
+            >
+              <option value="">Pick an attack to test the gateway policy…</option>
+              {ATTACK_CATEGORIES.map((cat) => (
+                <optgroup key={cat} label={cat}>
+                  {GUARDRAIL_ATTACKS.filter((a) => a.category === cat).map((a) => (
+                    <option key={a.id} value={a.id}>{a.label}</option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+            <span className="lgw-attacks__note">Fills the prompt below — review it, then Send.</span>
+          </div>
+
           <div className="lgw-composer">
             <input
               type="text"

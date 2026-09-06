@@ -83,6 +83,39 @@ describe('callPrivilegeOpenAI', () => {
     });
   });
 
+  // A gateway 429 is Privilege enforcing the virtual key's rate cap — its own
+  // governance verdict, distinct from a content denial, so the panel does not
+  // read a throttle as "Provider refused".
+  it('turns a gateway 429 into llm_rate_limited carrying the reason', async () => {
+    llmFetch.mockResolvedValue({
+      ok: false,
+      status: 429,
+      statusText: 'Too Many Requests',
+      json: async () => ({ error: { message: 'rate limit exceeded', type: 'rate_limit_error', code: 'rate_limit_exceeded' } }),
+    });
+
+    await expect(svc.callPrivilegeOpenAI([{ role: 'user', content: 'hi' }])).rejects.toMatchObject({
+      code: 'llm_rate_limited',
+      reason: 'rate limit exceeded',
+      provider: 'openai',
+    });
+  });
+
+  // A provider-shaped 429 (its own quota/credit envelope) is the provider
+  // throttling, not Privilege — it must NOT be relabelled a Privilege decision.
+  it('does not call a provider-shaped 429 a rate-limit decision', async () => {
+    llmFetch.mockResolvedValue({
+      ok: false,
+      status: 429,
+      statusText: 'Too Many Requests',
+      json: async () => ({ error: { message: 'Your credit balance is too low', type: 'insufficient_quota', code: 'credit_balance_exhausted', param: null } }),
+    });
+
+    await expect(svc.callPrivilegeOpenAI([{ role: 'user', content: 'hi' }])).rejects.not.toMatchObject({
+      code: 'llm_rate_limited',
+    });
+  });
+
   it('does not mark a 500 as a policy denial', async () => {
     llmFetch.mockResolvedValue({
       ok: false,
