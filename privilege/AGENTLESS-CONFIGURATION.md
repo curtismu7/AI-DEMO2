@@ -3,6 +3,92 @@
 Verified 2026-08-20 against the live `ping-devops-cmuir` deployment. This is the
 operational source of truth for Agentless mode.
 
+## 2026-09-06 — Grafana added from the MCP catalog (`mcp-grafana`), as a pod sidecar
+
+| Item | Value |
+|---|---|
+| Privilege application | `mcp-grafana` (created from the console's **Add Grafana** catalog wizard) |
+| MCP client URL | `https://mcpgw.ai-demo.ping-devops.com/mcp-grafana/mcp` |
+| AI Gateway | `ai-demo-cmuir — https://mcpgw.ai-demo.ping-devops.com` |
+| Backend Name | `http://localhost:8081/mcp` — edited off the 8080 default, see below |
+| Auth Mode | None |
+| Server | `demo_mcp_grafana/`, image `ghcr.io/curtismu7/ai-demo-mcp-grafana:latest` |
+| Runs as | `extraContainers` sidecar `mcp-grafana` in the `agentless-mcpgw` pod (`ping-devops-curtismuir`) |
+| Upstream Grafana | `http://grafana.ping-devops-cmuir.svc.cluster.local:3000` |
+| Token | k8s Secret `grafana-secrets` / key `GRAFANA_SERVICE_ACCOUNT_TOKEN`, in the **gateway's** namespace |
+
+Verified live: 6 dashboards, 4 datasources (Alertmanager, Jaeger, Loki,
+Prometheus), and the "MCP Servers" dashboard's 7 panels.
+
+### Creating the app in the console configures nothing that runs
+
+The catalog wizard collects `GRAFANA_URL` and `GRAFANA_SERVICE_ACCOUNT_TOKEN`
+and shows them under **Configuration** on the app — but **those values never
+reach the server.** They stay on the app record. The connector is a container
+*you* run as a sidecar in the gateway pod, and it reads its own env from the
+Helm release. `mcp-brave` is the same story: its key comes from the
+`brave-secrets` Secret, not from anything typed into the console. So the URL
+lives in two places and only the Helm one does anything; rotating the token
+means updating the **Secret**, not the console field.
+
+The Secret must exist in the **gateway's** namespace (`ping-devops-curtismuir`),
+which is not the namespace Grafana itself runs in (`ping-devops-cmuir`).
+
+### The backend port collides, and the field IS editable
+
+A catalog app's Backend Name defaults to `http://localhost:8080/mcp` — the
+gateway reaches its sidecar over pod loopback, which is why an ordinary
+in-cluster Service cannot serve one of these apps. `mcp-brave` already held
+8080, and containers in a pod share one network namespace, so the second
+connector cannot bind it. Left alone, `mcp-grafana` would have resolved to
+**Brave** and come back with Brave's tool list — populated, and wrong.
+
+**Backend Name is editable via Edit on the app** (proven 2026-09-06). An earlier
+note in the chart's `values.yaml` said it was locked; acting on that would mean
+standing up a whole second gateway for nothing. Setting it to `:8081` and giving
+the sidecar `PORT=8081` is the entire fix.
+
+### `extraContainers` is a list — `--reuse-values` deletes what you omit
+
+```bash
+helm --kube-context us -n ping-devops-curtismuir upgrade agentless-mcpgw \
+  pingone-privgateway-helm-main/agentless/agentless-mcpgw \
+  --reuse-values -f <patch>.yaml
+```
+
+Helm replaces a list wholesale rather than merging it, so the patch has to carry
+**every** sidecar you intend to keep. A patch naming only `mcp-grafana` silently
+removes `mcp-brave` and kills the Brave door. Confirm with a container count: the
+pod goes 3/4 containers, not 4/4.
+
+### Testing traps
+
+- `grafana.ping-devops-cmuir.svc.cluster.local` is cluster-internal DNS. It does
+  not resolve from a laptop, so curling it from your Mac proves nothing. Test it
+  from inside the gateway pod (`kubectl exec … -c log-tailer -- wget -qO-
+  http://grafana.ping-devops-cmuir.svc.cluster.local:3000/api/health` → 200).
+- Grafana **service accounts require Admin**, and this deployment pins every
+  PingOne SSO user to Viewer (`GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH:
+  'Viewer'`). Create the token signed in through the **local admin form**, not SSO.
+- The gateway only probes the backend when the console triggers discovery
+  (the app's refresh control). Until then "Tools" stays empty and the gateway log
+  shows no discovery attempt — that is not a failure.
+
+### Building the image
+
+All 27 cluster nodes are Graviton, so the image is `linux/arm64` (as is
+`ai-demo-mcp-brave`); an amd64 build crash-loops with an exec format error.
+
+```bash
+docker buildx build --platform linux/arm64 --build-arg GIT_SHA=$(git rev-parse --short HEAD) \
+  -t ghcr.io/curtismu7/ai-demo-mcp-grafana:latest --push demo_mcp_grafana
+```
+
+Deliberately **not** wired into `se-update-code.sh`: that path needs matching
+entries in five cross-checked maps plus a compose service and a k8s Deployment,
+none of which a sidecar-only image has. `mcp-brave` is in there because it also
+runs standalone for the Agent Gateway/IG path; this connector never does.
+
 ## 2026-08-24 — banking flow verified end-to-end through a second application (`external`)
 
 A second Agentless application, `external`, was created on the same gateway
