@@ -156,6 +156,67 @@ describe('AI gateway client + LLM gateway clients coexisting', () => {
     expect(claudeOutcome.value).toBe('claude-still-fine');
   });
 
+  // The test above deliberately used a 404 to sidestep llmFetch's shared 429/5xx
+  // retry-with-backoff path — which means it never actually proved that path is
+  // safe under concurrency. This is the highest-risk piece of shared behavior: a
+  // regression that made one caller's retry delay leak into (or block) another's
+  // request would pass every other test in this file. Real llmFetch runs the
+  // retry for real (via a real setTimeout backoff), so this measures wall-clock
+  // time rather than just call counts.
+  it('one lane retrying a 5xx/429 backoff does not delay or block a concurrent unrelated lane', async () => {
+    process.env.PRIVILEGE_LLM_GATEWAY_URL = 'https://gw.test';
+    process.env.PRIVILEGE_LLM_VIRTUAL_KEY_ANTHROPIC = 'vk-a';
+    process.env.LLAMACPP_BASE_URL = 'http://127.0.0.1:8090';
+    process.env.LLAMACPP_MODEL = 'local-test-model';
+
+    const privilege = require('../../services/privilegeLlmProxyService');
+    const llamacpp = require('../../services/llamacppLlmService');
+
+    let llamaAttempts = 0;
+    global.fetch = jest.fn((url) => {
+      const u = String(url);
+      if (u === 'https://gw.test/llm/anthropic/v1/messages') {
+        // Resolves immediately — nothing about this lane should wait on the
+        // other lane's retry backoff.
+        return Promise.resolve(jsonRes(200, { content: [{ text: 'claude-fast' }] }));
+      }
+      if (u === 'http://127.0.0.1:8090/v1/chat/completions') {
+        llamaAttempts += 1;
+        if (llamaAttempts === 1) {
+          // A 503 with Retry-After triggers llmFetch's ONE shared retry, backing
+          // off ~1s before trying again — the real path this suite needs to cover.
+          return Promise.resolve({
+            ok: false,
+            status: 503,
+            statusText: 'Service Unavailable',
+            headers: { get: (h) => (String(h).toLowerCase() === 'retry-after' ? '1' : null) },
+            json: async () => ({ error: 'overloaded' }),
+            text: async () => JSON.stringify({ error: 'overloaded' }),
+            clone() { return this; },
+          });
+        }
+        return Promise.resolve(jsonRes(200, { choices: [{ message: { content: 'llama-after-retry' } }] }));
+      }
+      return Promise.resolve(jsonRes(404, {}));
+    });
+
+    const t0 = Date.now();
+    const [claudeResult, llamaResult] = await Promise.all([
+      privilege.callPrivilegeClaude([{ role: 'user', content: 'hi' }])
+        .then((text) => ({ text, elapsed: Date.now() - t0 })),
+      llamacpp.callLlamaCpp([{ role: 'user', content: 'hi' }])
+        .then((text) => ({ text, elapsed: Date.now() - t0 })),
+    ]);
+
+    expect(claudeResult.text).toBe('claude-fast');
+    expect(llamaResult.text).toBe('llama-after-retry');
+    expect(llamaAttempts).toBe(2);
+    // The unrelated lane finished well inside the retrying lane's ~1s backoff —
+    // proof that lane's retry delay never blocked or slowed a concurrent caller.
+    expect(claudeResult.elapsed).toBeLessThan(400);
+    expect(llamaResult.elapsed).toBeGreaterThanOrEqual(900);
+  }, 10000);
+
   it('each client resolves its own env vars, never falling back to another client\'s', async () => {
     delete process.env.AGENT_GATEWAY_URL;
     process.env.PRIVILEGE_LLM_GATEWAY_URL = 'https://privilege-only.test';
