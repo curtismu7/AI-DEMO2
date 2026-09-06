@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useThemeOptional } from '../context/ThemeContext';
 import useDividerDrag from '../hooks/useDividerDrag';
+import { ATTACK_CATEGORIES, GUARDRAIL_ATTACKS } from '../config/guardrailAttackCatalog';
 import './LlmGatewayPage.css';
 
 const API_BASE = process.env.REACT_APP_API_URL || '/api/privilege-mcp';
