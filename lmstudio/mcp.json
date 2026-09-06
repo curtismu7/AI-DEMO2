@@ -17,6 +17,9 @@
     },
     "MCP PingOne-Admin": {
       "url": "http://localhost:3002/mcp-facade/pingone-admin/mcp"
+    },
+    "MCP Privilege-Grafana": {
+      "url": "https://mcpgw.ai-demo.ping-devops.com/mcp-grafana/mcp"
     }
   }
 }
