@@ -2123,6 +2123,10 @@ router.get('/llm/config', (req, res) => {
       model: lane.defaultModel,
       keyConfigured: Boolean(process.env[lane.keyEnv]),
       keyEnv: lane.keyEnv,
+      // Whether the server can run the comparison's direct side unaided. Reports
+      // only WHETHER, exactly like the virtual key above.
+      directKeyConfigured: Boolean(serverDirectKey(provider)),
+      directKeyEnv: directKeyEnv(provider),
     })),
   });
 });
@@ -2149,6 +2153,13 @@ router.get('/llm/models', async (req, res) => {
   }
 });
 
+// Direct-to-provider key for the comparison's "without Privilege" side. Deliberately
+// NOT ANTHROPIC_API_KEY: seven services read that one, and a real value there would
+// switch the demo/banking/admin agents to calling Anthropic directly. This var exists
+// only for /llm-test.
+const directKeyEnv = (provider) => `LLM_DIRECT_${provider.toUpperCase()}_KEY`;
+const serverDirectKey = (provider) => process.env[directKeyEnv(provider)] || '';
+
 // POST /llm/compare — the same prompt and the same model list, both ways.
 //
 // The direct key arrives in the request body because this app holds no usable
@@ -2162,9 +2173,14 @@ router.post('/llm/compare', express.json({ limit: '64kb' }), async (req, res) =>
   if (!lane) {
     return res.status(400).json({ error: `Unknown provider "${provider}". Use one of: ${Object.keys(LLM_LANES).join(', ')}` });
   }
-  const directKey = typeof req.body?.directKey === 'string' ? req.body.directKey.trim() : '';
+  // A pasted key wins so a different one can be tried without an .env edit and a
+  // restart; otherwise the server's own, when it has one.
+  const pasted = typeof req.body?.directKey === 'string' ? req.body.directKey.trim() : '';
+  const directKey = pasted || serverDirectKey(provider);
   if (!directKey) {
-    return res.status(400).json({ error: 'A provider API key is required for the direct side. It is used once and never stored.' });
+    return res.status(400).json({
+      error: `No key for the direct side. Set ${directKeyEnv(provider)} on the server, or paste one here — a pasted key is used once and never stored.`,
+    });
   }
 
   const gatewayBase = process.env.PRIVILEGE_LLM_GATEWAY_URL || '';

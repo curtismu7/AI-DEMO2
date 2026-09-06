@@ -175,14 +175,40 @@ describe("direct vs gateway comparison", () => {
     expect(await screen.findByTestId("lt-compare-verdict")).toHaveTextContent(/check the key/i);
   });
 
-  it("will not compare without a key, and does not call the server", async () => {
+  it("will not compare when neither side has a key, and does not call the server", async () => {
     mockFetch(() => OK_RAW, () => CMP());
     render(<LlmTestPage />);
     await ready();
     fireEvent.click(screen.getByRole("button", { name: /^compare$/i }));
 
-    expect(await screen.findByText(/Paste a provider API key/i)).toBeInTheDocument();
+    expect(await screen.findByText(/No key for the direct side/i)).toBeInTheDocument();
     expect(global.fetch.mock.calls.filter(([u]) => String(u).endsWith("/llm/compare"))).toHaveLength(0);
+  });
+
+  // With a server key the comparison is one click, and the field becomes an override.
+  it("compares with no typing when the server holds the direct key", async () => {
+    const withServerKey = {
+      ...CONFIG,
+      lanes: CONFIG.lanes.map((l) => (l.provider === "anthropic"
+        ? { ...l, directKeyConfigured: true, directKeyEnv: "LLM_DIRECT_ANTHROPIC_KEY" }
+        : l)),
+    };
+    global.fetch = vi.fn((url) => {
+      const u = String(url);
+      if (u.endsWith("/llm/config")) return Promise.resolve({ ok: true, status: 200, text: async () => JSON.stringify(withServerKey) });
+      if (u.endsWith("/llm/compare")) return Promise.resolve(CMP());
+      return new Promise(() => {});
+    });
+    render(<LlmTestPage />);
+    await ready();
+
+    expect(screen.getByPlaceholderText(/using LLM_DIRECT_ANTHROPIC_KEY/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /^compare$/i }));
+
+    expect(await screen.findByTestId("lt-compare-verdict")).toBeInTheDocument();
+    // Nothing typed, so no key rides along in the request.
+    const body = JSON.parse(global.fetch.mock.calls.find(([u]) => String(u).endsWith("/llm/compare"))[1].body);
+    expect(body.directKey).toBeUndefined();
   });
 
   it("uses a password field so the key is not shoulder-readable", async () => {
