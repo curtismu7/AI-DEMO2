@@ -1,0 +1,13 @@
+{
+  "name": "demo-mcp-grafana",
+  "version": "1.0.0",
+  "description": "MCP-over-HTTP server fronting Grafana's read API — Privilege AI Gateway catalog app (mcp-grafana)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
