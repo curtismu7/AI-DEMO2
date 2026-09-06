@@ -144,7 +144,24 @@ describe("LLM Gateway console", () => {
       expect(container.querySelectorAll(".lgw-resize-handle")).toHaveLength(2);
     });
 
-    it("dragging the right handle grows the Last Decision column (inverted axis)", () => {
+    it("defaults to its own max — already at the drag ceiling, so growing further does nothing", () => {
+      mockFetch(() => new Promise(() => {}));
+      const { container } = render(<LlmGatewayPage />);
+      const [, decisionHandle] = container.querySelectorAll(".lgw-resize-handle");
+      const grid = container.querySelector(".lgw-body");
+      const readDecisionWidth = () => parseInt(grid.style.gridTemplateColumns.match(/(\d+)px$/)[1], 10);
+      expect(readDecisionWidth()).toBe(560);
+
+      // invert:true — dragging LEFT would grow the right-hand pane, but it
+      // is already clamped at max, so this must be a no-op, not 560+60.
+      fireEvent.mouseDown(decisionHandle, { clientX: 800 });
+      fireEvent.mouseMove(document, { clientX: 740 });
+      fireEvent.mouseUp(document);
+
+      expect(readDecisionWidth()).toBe(560);
+    });
+
+    it("dragging the right handle right shrinks the Last Decision column back down", () => {
       mockFetch(() => new Promise(() => {}));
       const { container } = render(<LlmGatewayPage />);
       const [, decisionHandle] = container.querySelectorAll(".lgw-resize-handle");
@@ -152,13 +169,12 @@ describe("LLM Gateway console", () => {
       const readDecisionWidth = () => parseInt(grid.style.gridTemplateColumns.match(/(\d+)px$/)[1], 10);
       const before = readDecisionWidth();
 
-      // invert:true — dragging LEFT (toward the middle column) grows the
-      // right-hand pane, matching how it sits on the right of this divider.
+      // invert:true — dragging RIGHT (away from the middle column) shrinks it.
       fireEvent.mouseDown(decisionHandle, { clientX: 800 });
-      fireEvent.mouseMove(document, { clientX: 740 });
+      fireEvent.mouseMove(document, { clientX: 860 });
       fireEvent.mouseUp(document);
 
-      expect(readDecisionWidth()).toBe(before + 60);
+      expect(readDecisionWidth()).toBe(before - 60);
     });
 
     it("dragging the left handle resizes the Lanes column", () => {
