@@ -631,6 +631,18 @@ export default function AdminSideNav({
           icon: "rte",
         },
         { label: "Capability Tour", path: "/agent-gateway-capabilities", icon: "shld" },
+        {
+          label: "LLM Gateway",
+          path: "/llm-gateway",
+          icon: "shld",
+          searchAlias: "privilege virtual key llm gateway permits decided policy",
+        },
+        {
+          label: "LLM Gateway Test",
+          path: "/llm-test",
+          icon: "tst",
+          searchAlias: "llm gateway raw request response status error anthropic openai google",
+        },
       ],
     },
     {

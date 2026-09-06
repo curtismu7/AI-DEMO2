@@ -141,7 +141,7 @@
 .lgw-lane.is-selected {
   border-color: var(--th-accent, var(--th-text));
   background: var(--th-bg-emphasis);
-  color: var(--th-text);
+  color: var(--th-text-on-emphasis);
 }
 
 .lgw-lane:focus-visible {
@@ -315,7 +315,7 @@
   border: 1px solid var(--th-border);
   border-radius: 5px;
   background: var(--th-bg-emphasis);
-  color: var(--th-text);
+  color: var(--th-text-on-emphasis);
   font-size: var(--font-size-2xs);
   font-weight: 600;
   cursor: pointer;
