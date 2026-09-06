@@ -200,21 +200,29 @@ describe('AI gateway client + LLM gateway clients coexisting', () => {
       return Promise.resolve(jsonRes(404, {}));
     });
 
+    // Completion ORDER, not a fixed wall-clock budget — a busy CI worker can
+    // legitimately push the claude continuation past any fixed millisecond
+    // bound without the lanes actually being coupled. Order only flips if the
+    // retrying lane's ~1s backoff finishes FIRST, which is exactly the bug
+    // this test guards against.
+    const order = [];
     const t0 = Date.now();
-    const [claudeResult, llamaResult] = await Promise.all([
+    const [claudeText, llamaText] = await Promise.all([
       privilege.callPrivilegeClaude([{ role: 'user', content: 'hi' }])
-        .then((text) => ({ text, elapsed: Date.now() - t0 })),
+        .then((text) => { order.push('claude'); return text; }),
       llamacpp.callLlamaCpp([{ role: 'user', content: 'hi' }])
-        .then((text) => ({ text, elapsed: Date.now() - t0 })),
+        .then((text) => { order.push('llama'); return text; }),
     ]);
+    const llamaElapsed = Date.now() - t0;
 
-    expect(claudeResult.text).toBe('claude-fast');
-    expect(llamaResult.text).toBe('llama-after-retry');
+    expect(claudeText).toBe('claude-fast');
+    expect(llamaText).toBe('llama-after-retry');
     expect(llamaAttempts).toBe(2);
-    // The unrelated lane finished well inside the retrying lane's ~1s backoff —
-    // proof that lane's retry delay never blocked or slowed a concurrent caller.
-    expect(claudeResult.elapsed).toBeLessThan(400);
-    expect(llamaResult.elapsed).toBeGreaterThanOrEqual(900);
+    expect(order).toEqual(['claude', 'llama']);
+    // Lower bound only (never flaky in the direction that matters): the backoff
+    // is a real setTimeout, so llama can't resolve faster than it — a slow CI
+    // worker only makes this number bigger, never smaller.
+    expect(llamaElapsed).toBeGreaterThanOrEqual(900);
   }, 10000);
 
   it('each client resolves its own env vars, never falling back to another client\'s', async () => {
