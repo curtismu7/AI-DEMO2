@@ -63,9 +63,14 @@
   cursor: pointer;
 }
 
-.lgw-theme:hover {
+.lgw-theme:hover:not(:disabled) {
   background: var(--th-bg-hover);
   color: var(--th-text);
+}
+
+.lgw-theme:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .lgw-error {

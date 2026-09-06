@@ -120,6 +120,17 @@ export default function LlmGatewayPage() {
     if (d.providerLimits) setLimitsByLane((prev) => ({ ...prev, [provider]: d.providerLimits }));
   }, []);
 
+  // Nothing here clears itself — turns, the last decision and the provider
+  // limits meters all only ever append/replace, so a long demo session (or
+  // firing several attacks from the library) leaves the conversation growing
+  // with no way back to a clean slate short of reloading the page.
+  const reset = useCallback(() => {
+    setTurns([]);
+    setDecision(null);
+    setLimitsByLane({});
+    setPrompt('');
+  }, []);
+
   const send = useCallback(async () => {
     const text = prompt.trim();
     if (!text || busy) return;
@@ -167,6 +178,15 @@ export default function LlmGatewayPage() {
         </div>
         <div className="lgw-bar__side">
           {gatewayUrl ? <code className="lgw-origin">{gatewayUrl}</code> : null}
+          <button
+            type="button"
+            className="lgw-theme"
+            onClick={reset}
+            disabled={turns.length === 0 && !decision}
+            title="Clear the conversation and start over"
+          >
+            Reset
+          </button>
           <button
             type="button"
             className="lgw-theme"
