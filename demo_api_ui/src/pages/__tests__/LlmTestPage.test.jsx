@@ -89,6 +89,41 @@ describe("LLM Gateway Test page", () => {
     expect(screen.getByTestId("lt-response")).toHaveTextContent(/"content": "Paris"/);
   });
 
+  it("renders the response as color-coded JSON, not a plain text dump", async () => {
+    mockFetch(() => OK_RAW);
+    render(<LlmTestPage />);
+    await ready();
+    fireEvent.click(screen.getByRole("button", { name: /send request/i }));
+
+    const pane = await screen.findByTestId("lt-response");
+    // A plain <pre>{JSON.stringify(...)}</pre> has no descendant elements at
+    // all — these classes only exist if JsonHighlight actually rendered.
+    expect(pane.querySelector(".jh-key")).toBeInTheDocument();
+    expect(pane.querySelector(".jh-string")).toBeInTheDocument();
+  });
+
+  // 429 is the headline proof-point this whole page exists to surface — a real
+  // rate limit, enforced by Privilege or the provider behind it. It must stand
+  // out visually, not read as one of three equally-weighted status colors.
+  it("gives a 429 its own bold treatment, distinct from a plain success or failure", async () => {
+    mockFetch(() => ({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({
+        request: { url: "https://gw.test/llm/anthropic/v1/chat/completions", headers: {} },
+        response: { status: 429, ok: false, json: { error: { message: "rate limited" } } },
+        latencyMs: 146,
+      }),
+    }));
+    render(<LlmTestPage />);
+    await ready();
+    fireEvent.click(screen.getByRole("button", { name: /send request/i }));
+
+    const pill = await screen.findByTestId("lt-status");
+    expect(pill).toHaveTextContent("HTTP 429");
+    expect(pill).toHaveClass("is-warn");
+  });
+
   // A 4xx from the gateway is a result to read, not a page failure to swallow.
   it("renders a gateway 4xx body rather than an error banner", async () => {
     mockFetch(() => ({
@@ -242,7 +277,9 @@ describe("direct vs gateway comparison", () => {
   it("names how many models each side withheld when the lists differ", async () => {
     await compareWith(CMP({ models: { identical: false, onlyDirect: ["secret-model"], onlyGateway: [] } }));
     expect(await screen.findByTestId("lt-compare-verdict")).toHaveTextContent(/1 only direct/);
-    expect(screen.getByText("secret-model")).toBeInTheDocument();
+    // Rendered as colored JSON now (an array), so the model id sits inside a
+    // quoted-string span rather than being the element's whole exact text.
+    expect(screen.getByText(/secret-model/)).toBeInTheDocument();
   });
 
   // An unauthenticated direct side must not read as "the gateway hid everything".
