@@ -513,3 +513,68 @@ describe('POST /llm/compare', () => {
     expect(directCompare.compare).not.toHaveBeenCalled();
   });
 });
+
+// ── LM Studio: the local lane ───────────────────────────────────────────────
+describe('LM Studio lane', () => {
+  const env = { ...process.env };
+  beforeEach(() => {
+    llmFetch.mockReset();
+    process.env.LMSTUDIO_BASE_URL = 'http://lmstudio.test:1234';
+  });
+  afterEach(() => { process.env = { ...env }; });
+
+  it('advertises itself apart from the Privilege lanes', async () => {
+    const res = await request(app()).get('/api/privilege-mcp/llm/config');
+
+    expect(res.body.local.provider).toBe('lmstudio');
+    expect(res.body.local.baseUrl).toBe('http://lmstudio.test:1234');
+    // Measured: a small budget returns HTTP 200 with an empty string.
+    expect(res.body.local.defaultMaxTokens).toBe(512);
+    // It is NOT a Privilege lane — it must never appear among them.
+    expect(res.body.lanes.map((l) => l.provider)).not.toContain('lmstudio');
+  });
+
+  it('lists the models LM Studio reports right now', async () => {
+    llmFetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ data: [{ id: 'qwen3.8-27b' }, { id: 'gemma' }] }) });
+
+    const res = await request(app()).get('/api/privilege-mcp/llm/models/lmstudio');
+
+    expect(res.body.models).toEqual(['qwen3.8-27b', 'gemma']);
+    expect(llmFetch.mock.calls[0][0]).toBe('http://lmstudio.test:1234/v1/models');
+  });
+
+  // Unreachable is the normal case when LM Studio is not running; an empty list
+  // would read as "no models", which is a different problem entirely.
+  it('names the address when LM Studio is unreachable', async () => {
+    llmFetch.mockRejectedValue(new Error('connect ECONNREFUSED'));
+
+    const res = await request(app()).get('/api/privilege-mcp/llm/models/lmstudio');
+
+    expect(res.status).toBe(502);
+    expect(res.body.error).toMatch(/http:\/\/lmstudio\.test:1234/);
+  });
+
+  it('posts the body verbatim and never involves a virtual key', async () => {
+    llmFetch.mockResolvedValue({
+      ok: true, status: 200,
+      text: async () => JSON.stringify({ choices: [{ message: { content: 'Paris' } }] }),
+    });
+
+    const res = await request(app()).post('/api/privilege-mcp/llm/raw')
+      .send({ provider: 'lmstudio', body: { model: 'qwen3.8-27b', messages: [], max_tokens: 512 } });
+
+    expect(res.status).toBe(200);
+    expect(res.body.request.url).toBe('http://lmstudio.test:1234/v1/chat/completions');
+    expect(res.body.response.json.choices[0].message.content).toBe('Paris');
+    // No gateway origin anywhere in the request it made.
+    expect(JSON.stringify(res.body)).not.toContain('mcpgw');
+    expect(res.body.request.headers.Authorization).toMatch(/•/);
+  });
+
+  it('still refuses a non-object body', async () => {
+    const res = await request(app()).post('/api/privilege-mcp/llm/raw')
+      .send({ provider: 'lmstudio', body: 'nope' });
+    expect(res.status).toBe(400);
+    expect(llmFetch).not.toHaveBeenCalled();
+  });
+});
