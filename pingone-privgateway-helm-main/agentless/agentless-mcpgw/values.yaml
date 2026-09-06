@@ -79,10 +79,21 @@ opensearchMcpServer:
 
 # Extra containers to run INSIDE the gateway pod, verbatim.
 #
-# Apps added from the Privilege MCP catalog pin their backend to
-# http://localhost:8080/mcp and the field is not editable, so the server has to
-# live on the gateway's own localhost. That is what this is for — an ordinary
-# in-cluster Service cannot satisfy such an app.
+# Apps added from the Privilege MCP catalog default their backend to
+# http://localhost:8080/mcp, so the server has to live on the gateway's own
+# localhost — an ordinary in-cluster Service cannot satisfy such an app. The
+# console's Configuration fields (e.g. GRAFANA_URL) do NOT reach the container:
+# they stay on the app record, and the sidecar reads its own env from here.
+#
+# That backend field IS editable via Edit on the app (2026-09-06 — an earlier
+# note here said it was locked, which was wrong and would send you off to build
+# a second gateway for nothing). It matters because containers in one pod share
+# a network namespace, so a second catalog app needs its own port: mcp-brave
+# holds 8080, mcp-grafana runs on 8081 with its Backend Name edited to match.
+#
+# extraContainers is a LIST, so `helm upgrade --reuse-values` REPLACES it whole
+# instead of merging — always pass every sidecar you want to keep, or the
+# upgrade silently deletes the ones you left out.
 #
 # Local addition to the vendored chart; upstream has no equivalent, so
 # re-vendoring drops it. Example (Brave, the catalog's mcp-brave-search):
