@@ -87,10 +87,18 @@ spec:
             plans/surface-privilege-gateway-verdicts.md for the full design.
           */}}
           command: ["sh", "-c"]
+          {{- /*
+            `helm upgrade --reuse-values` replays the PREVIOUS release's fully
+            merged values, which never had logShipping at all — plain
+            .Values.logShipping.enabled then panics on a nil pointer instead of
+            falling back to this chart's own default. `default dict` makes the
+            lookup nil-safe regardless of how values were supplied.
+          */}}
+          {{- $ls := .Values.logShipping | default dict }}
           args:
             - |
               until [ -f /var/log/procyon/cyonproxy.log ]; do sleep 1; done
-              {{- if .Values.logShipping.enabled }}
+              {{- if $ls.enabled }}
               tail -F /var/log/procyon/cyonproxy.log | while IFS= read -r line; do
                 echo "$line"
                 case "$line" in
@@ -99,7 +107,7 @@ spec:
                     wget -q -O /dev/null -T 3 \
                       --header 'Content-Type: application/json' \
                       --post-file=/tmp/gw-event.json \
-                      "{{ .Values.logShipping.opensearchUrl }}/{{ .Values.logShipping.index }}/_doc" \
+                      "{{ $ls.opensearchUrl | default "http://opensearch:9200" }}/{{ $ls.index | default "gateway-events" }}/_doc" \
                       2>/dev/null
                     ;;
                 esac
