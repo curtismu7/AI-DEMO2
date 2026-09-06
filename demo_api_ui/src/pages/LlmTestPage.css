@@ -213,18 +213,39 @@
 }
 
 .lt-pill {
-  padding: 0.12rem 0.45rem;
-  border-radius: 3px;
+  padding: 0.3rem 0.75rem;
+  border-radius: 5px;
+  border: 1px solid transparent;
   font-family: var(--font-mono, monospace);
-  font-size: var(--font-size-sm);
-  font-weight: 700;
+  font-size: var(--font-size-base);
+  font-weight: 800;
   background: var(--th-bg-inset);
   color: var(--th-text-muted);
 }
 
-.lt-pill.is-ok { color: var(--th-status-success); }
-.lt-pill.is-warn { color: var(--th-status-warning); }
-.lt-pill.is-bad { color: var(--th-status-error); }
+.lt-pill.is-ok {
+  color: var(--th-status-success-text);
+  background: var(--th-status-success-bg);
+  border-color: var(--th-status-success-border);
+}
+
+/* Rate-limited (429 lands here — anything < 500) is the headline proof-point
+   of this page: Privilege's own gateway, or the provider behind it, actually
+   enforcing a limit. It gets a solid fill plus a soft ring, not just a color
+   change like the other two tones, so it reads as the important one at a
+   glance rather than one of three equally-weighted badges. */
+.lt-pill.is-warn {
+  color: var(--th-status-warning-text);
+  background: var(--th-status-warning-bg);
+  border: 2px solid var(--th-status-warning-border);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--th-status-warning) 25%, transparent);
+}
+
+.lt-pill.is-bad {
+  color: var(--th-status-error-text);
+  background: var(--th-status-error-bg);
+  border-color: var(--th-status-error-border);
+}
 
 .lt-ms {
   font-family: var(--font-mono, monospace);

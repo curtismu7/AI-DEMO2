@@ -148,7 +148,7 @@ export default function LlmGatewayPage() {
     <div className="lgw">
       <header className="lgw-bar">
         <div>
-          <h1>LLM Gateway</h1>
+          <h1>AI Guard</h1>
           <p>Every prompt below travels through a PingOne Privilege virtual key. The provider key stays inside
             Privilege, and policy can refuse the call before the model ever sees the text.</p>
         </div>

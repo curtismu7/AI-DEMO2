@@ -13,6 +13,7 @@
 // being usable.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useThemeOptional } from '../context/ThemeContext';
+import JsonHighlight from '../components/shared/JsonHighlight';
 import './LlmTestPage.css';
 
 const API_BASE = process.env.REACT_APP_API_URL || '/api/privilege-mcp';
@@ -264,7 +265,7 @@ export default function LlmTestPage() {
     <div className="lt">
       <header className="lt-bar">
         <div>
-          <h1>LLM Gateway Test</h1>
+          <h1>AI Guard — Raw Request</h1>
           <p>Send a request straight at the Privilege gateway and read exactly what comes back.
             Nothing here interprets the result &mdash; the virtual key is injected server-side and
             never reaches this page.</p>
@@ -379,16 +380,16 @@ export default function LlmTestPage() {
 
               <div className="lt-pane">
                 <span className="lt-k">Response</span>
-                <pre data-testid="lt-response">
+                <pre data-testid="lt-response" className={darkMode ? 'jh-dark' : ''}>
                   {result.response?.json
-                    ? JSON.stringify(result.response.json, null, 2)
+                    ? <JsonHighlight value={result.response.json} />
                     : result.response?.raw || '(empty body)'}
                 </pre>
               </div>
 
               <div className="lt-pane">
                 <span className="lt-k">Request as sent</span>
-                <pre>{JSON.stringify(result.request, null, 2)}</pre>
+                <pre className={darkMode ? 'jh-dark' : ''}><JsonHighlight value={result.request} /></pre>
               </div>
             </>
           )}
@@ -457,18 +458,26 @@ export default function LlmTestPage() {
             {cmp.models.onlyDirect.length ? (
               <div className="lt-pane">
                 <span className="lt-k">Visible only without the gateway</span>
-                <pre>{cmp.models.onlyDirect.join('\n')}</pre>
+                <pre className={darkMode ? 'jh-dark' : ''}><JsonHighlight value={cmp.models.onlyDirect} /></pre>
               </div>
             ) : null}
 
             <div className="lt-cmp__pair">
               <div className="lt-pane">
                 <span className="lt-k">Direct response</span>
-                <pre>{JSON.stringify(cmp.completion.direct.json ?? cmp.completion.direct.error ?? cmp.completion.direct.raw, null, 2)}</pre>
+                <pre className={darkMode ? 'jh-dark' : ''}>
+                  {cmp.completion.direct.json
+                    ? <JsonHighlight value={cmp.completion.direct.json} />
+                    : (cmp.completion.direct.error ?? cmp.completion.direct.raw)}
+                </pre>
               </div>
               <div className="lt-pane">
                 <span className="lt-k">Gateway response</span>
-                <pre>{JSON.stringify(cmp.completion.gateway.json ?? cmp.completion.gateway.error ?? cmp.completion.gateway.raw, null, 2)}</pre>
+                <pre className={darkMode ? 'jh-dark' : ''}>
+                  {cmp.completion.gateway.json
+                    ? <JsonHighlight value={cmp.completion.gateway.json} />
+                    : (cmp.completion.gateway.error ?? cmp.completion.gateway.raw)}
+                </pre>
               </div>
             </div>
           </div>

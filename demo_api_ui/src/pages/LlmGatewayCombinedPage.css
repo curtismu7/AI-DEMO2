@@ -17,15 +17,57 @@
 
 .lgwc-tabs {
   display: flex;
-  gap: 0.25rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
   padding: 0 1rem;
   border-bottom: 1px solid var(--th-border);
   background: var(--th-bg-inset);
-  /* No text of its own — the tab buttons set their own color — but the
-     ground-without-ink ratchet requires every --th-* background to carry a
-     color on the SAME rule, so this states the ink explicitly rather than
-     relying on child overrides. */
+  /* No text of its own — the tab buttons and font control set their own
+     color — but the ground-without-ink ratchet requires every --th-*
+     background to carry a color on the SAME rule, so this states the ink
+     explicitly rather than relying on child overrides. */
   color: var(--th-text);
+}
+
+.lgwc-tablist {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.lgwc-fontctl {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.lgwc-fontbtn {
+  padding: 0.3rem 0.55rem;
+  border: 1px solid var(--th-border);
+  border-radius: 4px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.lgwc-fontbtn:hover:not(:disabled) {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+.lgwc-fontbtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.lgwc-fontpct {
+  min-width: 2.6rem;
+  text-align: center;
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--th-text-muted);
 }
 
 .lgwc-tab {
