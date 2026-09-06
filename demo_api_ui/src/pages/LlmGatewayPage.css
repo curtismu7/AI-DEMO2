@@ -97,7 +97,11 @@
 
 .lgw-resize-handle:hover,
 .lgw-resize-handle:active {
+  /* No text lives in this bar either, but per .lgw-meter__track above, the
+     ratchet counts surfaces, not glyphs — I wrote that comment in this exact
+     file and still missed it here on the first pass. */
   background: var(--th-border-strong);
+  color: var(--th-text);
 }
 
 @media (max-width: 1100px) {
