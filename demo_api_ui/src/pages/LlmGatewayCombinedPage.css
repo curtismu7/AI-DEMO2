@@ -34,7 +34,7 @@
   border-bottom: 2px solid transparent;
   background: transparent;
   color: var(--th-text-muted);
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-base);
   font-weight: 600;
   cursor: pointer;
 }

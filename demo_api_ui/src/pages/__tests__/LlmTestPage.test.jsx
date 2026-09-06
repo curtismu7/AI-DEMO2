@@ -182,6 +182,45 @@ describe("LLM Gateway Test page", () => {
     await screen.findByTestId("lt-status");
     expect(sentBody).toEqual({ provider: "anthropic", path: "/llm/anthropic/v1/models", method: "GET" });
   });
+
+  it("offers /completions, /embeddings and /responses alongside chat/completions and models", async () => {
+    mockFetch(() => new Promise(() => {}));
+    render(<LlmTestPage />);
+    await ready();
+
+    const opts = Array.from(screen.getByLabelText(/^path$/i).querySelectorAll("option")).map((o) => o.value);
+    expect(opts).toEqual(expect.arrayContaining([
+      "/llm/anthropic/v1/chat/completions",
+      "/llm/anthropic/v1/messages",
+      "/llm/anthropic/v1/completions",
+      "/llm/anthropic/v1/embeddings",
+      "/llm/anthropic/v1/responses",
+      "/llm/anthropic/v1/models",
+    ]));
+  });
+
+  it("sends a prompt string, not a messages array, on the legacy /completions path", async () => {
+    mockFetch(() => new Promise(() => {}));
+    render(<LlmTestPage />);
+    await ready();
+    fireEvent.change(screen.getByLabelText(/^path$/i), { target: { value: "/llm/anthropic/v1/completions" } });
+
+    const body = JSON.parse(screen.getByLabelText(/request body/i).value);
+    expect(body.prompt).toBe("What is the capital of Texas?");
+    expect(body.messages).toBeUndefined();
+  });
+
+  it("sends input, not messages, on /embeddings", async () => {
+    mockFetch(() => new Promise(() => {}));
+    render(<LlmTestPage />);
+    await ready();
+    fireEvent.change(screen.getByLabelText(/^path$/i), { target: { value: "/llm/anthropic/v1/embeddings" } });
+
+    const body = JSON.parse(screen.getByLabelText(/request body/i).value);
+    expect(body.input).toBe("What is the capital of Texas?");
+    expect(body.messages).toBeUndefined();
+    expect(body.prompt).toBeUndefined();
+  });
 });
 
 
