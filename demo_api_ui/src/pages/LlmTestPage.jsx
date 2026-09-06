@@ -37,7 +37,8 @@ function api(path, options = {}) {
   });
 }
 
-const TITLES = { anthropic: 'Anthropic', google: 'Google', openai: 'OpenAI' };
+const TITLES = { anthropic: 'Anthropic', google: 'Google', openai: 'OpenAI', lmstudio: 'LM Studio (local)' };
+const LOCAL = 'lmstudio';
 
 // Ping's integration snippet points the OpenAI SDK at {gateway}/llm/<provider>/v1,
 // so /chat/completions is the shape people arrive with. Anthropic's native Messages
@@ -83,6 +84,10 @@ export default function LlmTestPage() {
   const [cmp, setCmp] = useState(null);
   const [cmpBusy, setCmpBusy] = useState(false);
   const [cmpError, setCmpError] = useState('');
+  // The local lane is not a Privilege lane, so it is tracked apart from `lanes`.
+  const [local, setLocal] = useState(null);
+  const [localModels, setLocalModels] = useState([]);
+  const [localError, setLocalError] = useState('');
 
   const lane = lanes.find((l) => l.provider === provider);
 
@@ -93,6 +98,7 @@ export default function LlmTestPage() {
         if (cancelled) return;
         setGatewayUrl(cfg.gatewayUrl || '');
         setLanes(cfg.lanes || []);
+        setLocal(cfg.local || null);
         const first = (cfg.lanes || []).find((l) => l.keyConfigured) || (cfg.lanes || [])[0];
         if (first) setProvider(first.provider);
       })
@@ -112,6 +118,37 @@ export default function LlmTestPage() {
     setError('');
     setBodyError('');
   }, [lane]);
+
+  // Live, not static: LM Studio lists every installed model but serves only the
+  // resident ones, so a hand-kept list would offer models that cannot run.
+  useEffect(() => {
+    if (provider !== LOCAL) return;
+    let cancelled = false;
+    setLocalError('');
+    api('/llm/models/lmstudio')
+      .then((d) => {
+        if (cancelled) return;
+        setLocalModels(d.models || []);
+        if ((d.models || []).length) {
+          setBodyText(JSON.stringify({
+            model: d.models[0],
+            messages: [{ role: 'user', content: 'What is the capital of France? Answer in one word.' }],
+            max_tokens: local?.defaultMaxTokens || 512,
+          }, null, 2));
+        }
+      })
+      .catch((err) => { if (!cancelled) setLocalError(err.message || 'LM Studio unreachable'); });
+    return () => { cancelled = true; };
+  }, [provider, local]);
+
+  const onLocalModel = useCallback((model) => {
+    setBodyText((prev) => {
+      try {
+        const b = JSON.parse(prev);
+        return JSON.stringify({ ...b, model }, null, 2);
+      } catch { return prev; }
+    });
+  }, []);
 
   const onPath = useCallback((next) => {
     setPath(next);
@@ -230,20 +267,51 @@ export default function LlmTestPage() {
           <div className="lt-row">
             <label htmlFor="lt-provider">Lane</label>
             <select id="lt-provider" value={provider} onChange={(e) => setProvider(e.target.value)}>
-              {lanes.map((l) => (
-                <option key={l.provider} value={l.provider}>
-                  {TITLES[l.provider] || l.provider}{l.keyConfigured ? '' : ' — no key'}
-                </option>
-              ))}
+              <optgroup label="Through Privilege">
+                {lanes.map((l) => (
+                  <option key={l.provider} value={l.provider}>
+                    {TITLES[l.provider] || l.provider}{l.keyConfigured ? '' : ' — no key'}
+                  </option>
+                ))}
+              </optgroup>
+              {local ? (
+                <optgroup label="Local, no gateway">
+                  <option value={LOCAL}>{local.title}</option>
+                </optgroup>
+              ) : null}
             </select>
           </div>
 
-          <div className="lt-row">
-            <label htmlFor="lt-path">Path</label>
-            <select id="lt-path" value={path} onChange={(e) => onPath(e.target.value)}>
-              {(lane ? pathsFor(lane) : []).map((p) => <option key={p} value={p}>{p}</option>)}
-            </select>
-          </div>
+          {provider === LOCAL ? (
+            <>
+              <div className="lt-row">
+                <label htmlFor="lt-localmodel">Model</label>
+                <select
+                  id="lt-localmodel"
+                  value={(() => { try { return JSON.parse(bodyText).model || ''; } catch { return ''; } })()}
+                  onChange={(e) => onLocalModel(e.target.value)}
+                  disabled={!localModels.length}
+                >
+                  {localModels.length
+                    ? localModels.map((m) => <option key={m} value={m}>{m}</option>)
+                    : <option value="">no models loaded</option>}
+                </select>
+              </div>
+              <p className="lt-local-note">
+                Straight to LM Studio at <code>{local?.baseUrl}</code> &mdash; no virtual key, no gateway,
+                no policy. Its resident models reason before answering, so a small <code>max_tokens</code>
+                returns HTTP&nbsp;200 with an empty string; this lane defaults high for that reason.
+              </p>
+              {localError ? <p className="lt-badjson" role="alert">{localError}</p> : null}
+            </>
+          ) : (
+            <div className="lt-row">
+              <label htmlFor="lt-path">Path</label>
+              <select id="lt-path" value={path} onChange={(e) => onPath(e.target.value)}>
+                {(lane ? pathsFor(lane) : []).map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+          )}
 
           {isModelsPath(path) ? (
             <p className="lt-empty">GET request &mdash; no body to send.</p>
@@ -262,10 +330,10 @@ export default function LlmTestPage() {
           )}
 
           <div className="lt-actions">
-            <button type="button" className="lt-send" onClick={send} disabled={busy || !lane?.keyConfigured}>
+            <button type="button" className="lt-send" onClick={send} disabled={busy || (provider !== LOCAL && !lane?.keyConfigured)}>
               {busy ? 'Sending…' : 'Send request'}
             </button>
-            {lane && !lane.keyConfigured ? <span className="lt-note">{lane.keyEnv} is not set</span> : null}
+            {provider !== LOCAL && lane && !lane.keyConfigured ? <span className="lt-note">{lane.keyEnv} is not set</span> : null}
           </div>
 
           <div className="lt-snippet">
@@ -304,6 +372,7 @@ export default function LlmTestPage() {
         </section>
       </div>
 
+      {provider === LOCAL ? null : (
       <section className="lt-cmp" aria-label="Direct vs gateway">
         <div className="lt-cmp__head">
           <span className="lt-k">Direct vs through Privilege</span>
@@ -382,6 +451,7 @@ export default function LlmTestPage() {
           </div>
         ) : null}
       </section>
+      )}
     </div>
   );
 }

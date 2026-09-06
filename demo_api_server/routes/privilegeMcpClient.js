@@ -2117,6 +2117,15 @@ const ANTHROPIC_VERSION_HEADER = '2023-06-01';
 router.get('/llm/config', (req, res) => {
   res.json({
     gatewayUrl: process.env.PRIVILEGE_LLM_GATEWAY_URL || '',
+    // Reported apart from `lanes` because it is not a Privilege lane: no virtual
+    // key, no policy. The page must not imply the gateway is involved.
+    local: {
+      provider: LMSTUDIO.provider,
+      title: LMSTUDIO.title,
+      baseUrl: LMSTUDIO.base(),
+      route: LMSTUDIO.route,
+      defaultMaxTokens: LMSTUDIO.defaultMaxTokens,
+    },
     lanes: Object.entries(LLM_LANES).map(([provider, lane]) => ({
       provider,
       route: lane.route,
@@ -2157,8 +2166,55 @@ router.get('/llm/models', async (req, res) => {
 // NOT ANTHROPIC_API_KEY: seven services read that one, and a real value there would
 // switch the demo/banking/admin agents to calling Anthropic directly. This var exists
 // only for /llm-test.
+// ── LM Studio: a local, unmediated lane ─────────────────────────────────────
+// Not a Privilege lane. No virtual key, no gateway, no policy — which is exactly
+// why it earns a place on this page: it is the shape of "a model call with nothing
+// in front of it", next to three that are governed.
+//
+// The address is host.docker.internal, matching LLAMACPP_BASE_URL and MLX_LM_BASE_URL
+// in docker-compose.yml. LM Studio binds *:1234 but serves loopback only, so the
+// machine's own LAN address is refused, and inside a container 127.0.0.1 is the
+// container. Verified 2026-09-05: host.docker.internal:1234 answers, 192.168.x:1234
+// accepts the TCP connection then closes it.
+const LMSTUDIO = {
+  provider: 'lmstudio',
+  title: 'LM Studio (local)',
+  base: () => (process.env.LMSTUDIO_BASE_URL || 'http://host.docker.internal:1234').replace(/\/+$/, ''),
+  key: () => process.env.LMSTUDIO_API_KEY || 'lmstudio',
+  route: '/v1/chat/completions',
+  modelsRoute: '/v1/models',
+  // Its resident models are reasoning models. At a small cap they spend the whole
+  // budget thinking and return HTTP 200 with an EMPTY string — measured: max_tokens
+  // 24 gave "" in 7.6s, 512 gave "Paris" in 3.4s. A low default here would look like
+  // a broken lane, so this one starts high deliberately.
+  defaultMaxTokens: 512,
+};
+
 const directKeyEnv = (provider) => `LLM_DIRECT_${provider.toUpperCase()}_KEY`;
 const serverDirectKey = (provider) => process.env[directKeyEnv(provider)] || '';
+
+// GET /llm/models/lmstudio — what is actually loaded right now.
+//
+// A live list, not a static one: LM Studio lists every installed model but only
+// serves the resident ones. Measured — an unloaded model 400s in 94ms while a
+// resident one answers. A hand-maintained list would offer models that cannot run.
+router.get('/llm/models/lmstudio', async (req, res) => {
+  const url = `${LMSTUDIO.base()}${LMSTUDIO.modelsRoute}`;
+  try {
+    const upstream = await llmFetch(url, { headers: { Authorization: `Bearer ${LMSTUDIO.key()}` } },
+      { label: 'lmstudio-models', timeoutMs: 8000, retryOn429: false });
+    const data = await upstream.json().catch(() => ({}));
+    const models = (Array.isArray(data?.data) ? data.data : []).map((m) => m.id).filter(Boolean);
+    return res.json({ baseUrl: LMSTUDIO.base(), models, status: upstream.status });
+  } catch (err) {
+    // Unreachable is the normal case when LM Studio is not running — a named,
+    // actionable message beats an empty dropdown that looks like "no models".
+    return res.status(502).json({
+      error: `LM Studio unreachable at ${LMSTUDIO.base()} — is it running, and is "Serve on Local Network" reachable from Docker? (${err.message})`,
+      baseUrl: LMSTUDIO.base(),
+    });
+  }
+});
 
 // POST /llm/compare — the same prompt and the same model list, both ways.
 //
@@ -2221,6 +2277,38 @@ const RAW_UPSTREAM_METHODS = new Set(['GET', 'POST']);
 
 router.post('/llm/raw', express.json({ limit: '256kb' }), async (req, res) => {
   const provider = String(req.body?.provider || '');
+
+  // The local lane bypasses everything the gateway lanes do — no virtual key, no
+  // resolveRoute (there is no gateway origin to pin a path to), no policy. Same
+  // response shape so the page renders it identically.
+  if (provider === LMSTUDIO.provider) {
+    const body = req.body?.body;
+    if (!body || typeof body !== 'object') {
+      return res.status(400).json({ error: 'body must be a JSON object — the request to send to LM Studio.' });
+    }
+    const url = `${LMSTUDIO.base()}${LMSTUDIO.route}`;
+    const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${LMSTUDIO.key()}` };
+    const t0 = Date.now();
+    try {
+      const upstream = await llmFetch(url, { method: 'POST', headers, body: JSON.stringify(body) },
+        { label: 'lmstudio-raw', timeoutMs: 120000, retryOn429: false });
+      const text = await upstream.text().catch(() => '');
+      let parsed = null;
+      try { parsed = text ? JSON.parse(text) : null; } catch { parsed = null; }
+      return res.json({
+        request: { url, method: 'POST', headers: { ...headers, Authorization: maskKey(LMSTUDIO.key()) }, body },
+        response: { status: upstream.status, ok: upstream.ok, json: parsed, raw: parsed ? null : text.slice(0, 4000) },
+        latencyMs: Date.now() - t0,
+      });
+    } catch (err) {
+      return res.status(502).json({
+        error: `LM Studio unreachable at ${LMSTUDIO.base()} (${err.message})`,
+        request: { url, headers: { ...headers, Authorization: maskKey(LMSTUDIO.key()) }, body },
+        latencyMs: Date.now() - t0,
+      });
+    }
+  }
+
   const lane = LLM_LANES[provider];
   if (!lane) {
     return res.status(400).json({ error: `Unknown provider "${provider}". Use one of: ${Object.keys(LLM_LANES).join(', ')}` });
