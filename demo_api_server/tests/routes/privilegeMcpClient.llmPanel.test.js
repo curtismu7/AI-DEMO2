@@ -571,6 +571,15 @@ describe('LM Studio lane', () => {
     expect(res.body.lanes.map((l) => l.provider)).not.toContain('lmstudio');
   });
 
+  it("also lists itself among the Chat console's local lanes", async () => {
+    const res = await request(app()).get('/api/privilege-mcp/llm/config');
+
+    const providers = res.body.locals.map((l) => l.provider);
+    expect(providers).toContain('lmstudio');
+    expect(providers).toContain('llamacpp');
+    expect(res.body.lanes.map((l) => l.provider)).not.toContain('llamacpp');
+  });
+
   it('lists the models LM Studio reports right now', async () => {
     llmFetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ data: [{ id: 'qwen3.8-27b' }, { id: 'gemma' }] }) });
 
@@ -661,6 +670,50 @@ describe('POST /llm/call — LM Studio lane', () => {
 
   it('still requires a prompt', async () => {
     const res = await post({ provider: 'lmstudio', prompt: '' });
+    expect(res.status).toBe(400);
+    expect(llmFetch).not.toHaveBeenCalled();
+  });
+});
+
+// ── llama.cpp on the Chat console: /llm/call's other unmediated local branch ─
+describe('POST /llm/call — llama.cpp lane', () => {
+  const env = { ...process.env };
+  beforeEach(() => {
+    llmFetch.mockReset();
+    // Pinned explicitly so callLlamaCpp's model() never takes the /v1/models
+    // discovery path — this lane doesn't do the resident-model dance LM
+    // Studio does, so only one llmFetch call is expected per test.
+    process.env.LLAMACPP_BASE_URL = 'http://llamacpp.test:8090';
+    process.env.LLAMACPP_MODEL = 'phi-4-mini-instruct';
+  });
+  afterEach(() => { process.env = { ...env }; });
+
+  it('calls the BFF\'s own llama.cpp client and returns the {reply} shape the console expects', async () => {
+    llmFetch.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ choices: [{ message: { content: 'Austin' } }] }) });
+
+    const res = await post({ provider: 'llamacpp', prompt: 'What is the capital of Texas?' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.reply).toBe('Austin');
+    expect(res.body.provider).toBe('llamacpp');
+    expect(res.body.route).toBe('/v1/chat/completions');
+    expect(res.body.reachedProvider).toBe(true);
+    // No rate-limit headers exist for a local model — never invent one.
+    expect(res.body.providerLimits).toBeNull();
+    expect(llmFetch.mock.calls[0][0]).toBe('http://llamacpp.test:8090/v1/chat/completions');
+    expect(JSON.parse(llmFetch.mock.calls[0][1].body).model).toBe('phi-4-mini-instruct');
+  });
+
+  it('502s when the local model server is unreachable', async () => {
+    llmFetch.mockRejectedValueOnce(new Error('connect ECONNREFUSED'));
+
+    const res = await post({ provider: 'llamacpp', prompt: 'hi' });
+
+    expect(res.status).toBe(502);
+  });
+
+  it('still requires a prompt', async () => {
+    const res = await post({ provider: 'llamacpp', prompt: '' });
     expect(res.status).toBe(400);
     expect(llmFetch).not.toHaveBeenCalled();
   });

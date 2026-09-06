@@ -106,4 +106,4 @@ async function callLlamaCpp(messages, opts = {}) {
   return content.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
 }
 
-module.exports = { callLlamaCpp };
+module.exports = { callLlamaCpp, baseUrl };
