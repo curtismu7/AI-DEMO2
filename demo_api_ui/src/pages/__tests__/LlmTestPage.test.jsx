@@ -102,6 +102,49 @@ describe("LLM Gateway Test page", () => {
     expect(pane.querySelector(".jh-string")).toBeInTheDocument();
   });
 
+  // The toggle mirrors the Chat console's Last Decision view. JSON stays the
+  // default here — the raw body is this page's contract, pinned by the tests
+  // above — and Form is the opt-in: every leaf as a path-labelled row.
+  it("offers a Form view of the response, and JSON stays the default", async () => {
+    mockFetch(() => OK_RAW);
+    render(<LlmTestPage />);
+    await ready();
+    fireEvent.click(screen.getByRole("button", { name: /send request/i }));
+    await screen.findByTestId("lt-response");
+
+    expect(screen.getByRole("button", { name: /^json$/i })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByTestId("lt-response-form")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /^form$/i }));
+    const dl = screen.getByTestId("lt-response-form");
+    // A path-labelled leaf with its verbatim value — a rendering, not a summary.
+    expect(dl).toHaveTextContent("choices[0].message.content");
+    expect(dl).toHaveTextContent("Paris");
+    expect(screen.queryByTestId("lt-response")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /^json$/i }));
+    expect(screen.getByTestId("lt-response")).toBeInTheDocument();
+  });
+
+  // A body that did not parse has no fields to lay out; a toggle would be a lie.
+  it("hides the Form toggle when the response is not JSON", async () => {
+    mockFetch(() => ({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({
+        request: { url: "https://gw.test/llm/anthropic/v1/chat/completions", headers: {} },
+        response: { status: 200, ok: true, raw: "plain text, not json" },
+        latencyMs: 12,
+      }),
+    }));
+    render(<LlmTestPage />);
+    await ready();
+    fireEvent.click(screen.getByRole("button", { name: /send request/i }));
+
+    expect(await screen.findByTestId("lt-response")).toHaveTextContent("plain text, not json");
+    expect(screen.queryByRole("button", { name: /^form$/i })).not.toBeInTheDocument();
+  });
+
   // 429 is the headline proof-point this whole page exists to surface — a real
   // rate limit, enforced by Privilege or the provider behind it. It must stand
   // out visually, not read as one of three equally-weighted status colors.
