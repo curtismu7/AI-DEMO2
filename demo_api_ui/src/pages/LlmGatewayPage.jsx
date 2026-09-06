@@ -17,6 +17,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useThemeOptional } from '../context/ThemeContext';
 import useDividerDrag from '../hooks/useDividerDrag';
 import { ATTACK_CATEGORIES, GUARDRAIL_ATTACKS } from '../config/guardrailAttackCatalog';
+import JsonHighlight from '../components/shared/JsonHighlight';
 import './LlmGatewayPage.css';
 
 const API_BASE = process.env.REACT_APP_API_URL || '/api/privilege-mcp';
@@ -101,6 +102,7 @@ export default function LlmGatewayPage() {
   const [busy, setBusy] = useState(false);
   const [turns, setTurns] = useState([]);
   const [decision, setDecision] = useState(null);
+  const [decisionView, setDecisionView] = useState('form');
   const [limitsByLane, setLimitsByLane] = useState({});
 
   useEffect(() => {
@@ -303,9 +305,35 @@ export default function LlmGatewayPage() {
         <div className="lgw-resize-handle" aria-label="Resize last decision column" {...decisionHandleProps} />
 
         <section className="lgw-rail lgw-rail--right" aria-label="Last decision">
-          <h2 className="lgw-rail__k">Last decision</h2>
+          <div className="lgw-rail__head">
+            <h2 className="lgw-rail__k">Last decision</h2>
+            {decision ? (
+              <div className="lgw-viewtoggle" role="group" aria-label="Decision view">
+                <button
+                  type="button"
+                  className={decisionView === 'form' ? 'is-active' : ''}
+                  aria-pressed={decisionView === 'form'}
+                  onClick={() => setDecisionView('form')}
+                >
+                  Form
+                </button>
+                <button
+                  type="button"
+                  className={decisionView === 'json' ? 'is-active' : ''}
+                  aria-pressed={decisionView === 'json'}
+                  onClick={() => setDecisionView('json')}
+                >
+                  JSON
+                </button>
+              </div>
+            ) : null}
+          </div>
           {!decision ? (
             <p className="lgw-rail__note">Send a prompt and the gateway&rsquo;s verdict lands here.</p>
+          ) : decisionView === 'json' ? (
+            <pre className={`lgw-decision-json${darkMode ? ' jh-dark' : ''}`} data-testid="lgw-decision-json">
+              <JsonHighlight value={decision} />
+            </pre>
           ) : (
             <dl className="lgw-dec" data-testid="lgw-decision">
               <div>
