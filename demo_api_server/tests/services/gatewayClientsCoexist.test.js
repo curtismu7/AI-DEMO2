@@ -195,4 +195,104 @@ describe('AI gateway client + LLM gateway clients coexisting', () => {
     expect(claudeText).toBe('claude-ok');
     expect(llamaText).toBe('llama default host ok');
   });
+
+  // llmDirectCompare is the third of the Sept 2026 lanes: it calls a DIRECT
+  // provider host AND the Privilege gateway host in the same operation (4 fetches
+  // per compare()), which is the shared llmFetch module under the most concurrent
+  // load any single caller puts on it. Run it alongside tool discovery and a plain
+  // llama.cpp call to prove that load doesn't leak into either.
+  it('llmDirectCompare (4 fetches at once) coexists with tool discovery and llama.cpp', async () => {
+    process.env.AGENT_GATEWAY_URL = 'http://agent-gw.test:8080';
+    process.env.LLAMACPP_BASE_URL = 'http://127.0.0.1:8090';
+    process.env.LLAMACPP_MODEL = 'local-test-model';
+
+    const axios = require('axios');
+    const agentGatewayClient = require('../../services/agentGatewayClient');
+    const llamacpp = require('../../services/llamacppLlmService');
+    const { compare } = require('../../services/llmDirectCompare');
+
+    axios.post.mockResolvedValueOnce({
+      data: { result: { tools: [{ name: 'get_my_transactions' }] } },
+    });
+
+    const fetchCalls = [];
+    global.fetch = jest.fn((url) => {
+      const u = String(url);
+      fetchCalls.push(u);
+      if (u === 'https://api.anthropic.com/v1/models') return Promise.resolve(jsonRes(200, { data: [{ id: 'claude-a' }] }));
+      if (u === 'https://gw.test/llm/anthropic/v1/models') return Promise.resolve(jsonRes(200, { data: [{ id: 'claude-a' }] }));
+      if (u === 'https://api.anthropic.com/v1/messages') return Promise.resolve(jsonRes(200, { content: [{ text: 'direct-Paris' }] }));
+      if (u === 'https://gw.test/llm/anthropic/v1/messages') return Promise.resolve(jsonRes(200, { content: [{ text: 'gateway-Paris' }] }));
+      if (u === 'http://127.0.0.1:8090/v1/chat/completions') return Promise.resolve(jsonRes(200, { choices: [{ message: { content: 'llama-reply' } }] }));
+      return Promise.resolve(jsonRes(404, {}));
+    });
+
+    const [toolsResult, compareResult, llamaText] = await Promise.all([
+      agentGatewayClient.getAvailableTools({}, 'cc-token'),
+      compare({
+        provider: 'anthropic',
+        directKey: 'direct-key',
+        gatewayBase: 'https://gw.test',
+        virtualKey: 'vk-a',
+        model: 'claude-haiku-4-5-20251001',
+        prompt: 'capital of france?',
+      }),
+      llamacpp.callLlamaCpp([{ role: 'user', content: 'hi' }]),
+    ]);
+
+    expect(toolsResult.tools.map((t) => t.name)).toEqual(['get_my_transactions']);
+    expect(llamaText).toBe('llama-reply');
+    expect(compareResult.completion.direct.json.content[0].text).toBe('direct-Paris');
+    expect(compareResult.completion.gateway.json.content[0].text).toBe('gateway-Paris');
+
+    // The tool-discovery call went through axios only; llama.cpp's single fetch
+    // never picked up one of compare()'s four concurrent responses (or vice versa).
+    expect(axios.post).toHaveBeenCalledTimes(1);
+    expect(fetchCalls.filter((u) => u === 'http://127.0.0.1:8090/v1/chat/completions')).toHaveLength(1);
+    expect(fetchCalls.some((u) => u.includes('agent-gw.test'))).toBe(false);
+  });
+});
+
+// llmCircuitBreaker is the shared, module-level state (a `provider -> {failures,
+// openUntil}` Map) that geminiNlIntent.js consults before routing to any LLM lane.
+// It is the one piece of real shared mutable state between lanes — the tests above
+// share a transport module (llmFetch) but no mutable state — so it is the place a
+// bug would let one lane's failures silently gate a completely different lane.
+describe('llmCircuitBreaker isolation across LLM lanes', () => {
+  const breaker = require('../../services/llmCircuitBreaker');
+
+  afterEach(() => breaker._resetAll());
+
+  it('tripping one provider key never opens another', () => {
+    for (let i = 0; i < breaker.BREAKER_THRESHOLD; i++) breaker.recordFailure('llamacpp');
+
+    expect(breaker.isOpen('llamacpp')).toBe(true);
+    // geminiNlIntent.js uses separate keys per lane ('privilege_llm' for Gemini,
+    // 'privilege_claude' for Claude, plus 'google', 'helix', 'lmstudio', 'mlx') —
+    // none of them may read as open just because llamacpp's did.
+    expect(breaker.isOpen('privilege_llm')).toBe(false);
+    expect(breaker.isOpen('privilege_claude')).toBe(false);
+    expect(breaker.isOpen('google')).toBe(false);
+  });
+
+  it('a caller\'s open breaker does not block a different caller\'s direct client call', async () => {
+    process.env.LLAMACPP_BASE_URL = 'http://127.0.0.1:8090';
+    process.env.LLAMACPP_MODEL = 'local-test-model';
+    for (let i = 0; i < breaker.BREAKER_THRESHOLD; i++) breaker.recordFailure('llamacpp');
+    expect(breaker.isOpen('llamacpp')).toBe(true);
+
+    // llamacppLlmService itself has no breaker awareness — gating is each CALLER's
+    // own responsibility (geminiNlIntent.js checks isOpen() before calling it).
+    // a2aOrchestratorService.js and agentFrameworkOrchestrator.js call callLlamaCpp
+    // directly with no such check, so one caller tripping the breaker must never
+    // silently block a different caller reaching the same underlying client.
+    const llamacpp = require('../../services/llamacppLlmService');
+    global.fetch = jest.fn(() => Promise.resolve(jsonRes(200, {
+      choices: [{ message: { content: 'still reachable' } }],
+    })));
+
+    const text = await llamacpp.callLlamaCpp([{ role: 'user', content: 'hi' }]);
+    expect(text).toBe('still reachable');
+    expect(global.fetch).toHaveBeenCalled();
+  });
 });
