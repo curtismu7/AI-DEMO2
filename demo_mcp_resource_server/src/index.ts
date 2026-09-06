@@ -18,6 +18,10 @@
  *   GET  /health
  *   POST /mcp                                   — MCP JSON-RPC (for PingGateway,
  *                                                 which has no WS listener)
+ *   GET  /invest, /banking, /banking/:id        — REST, X-API-Key backend-app
+ *                                                 pattern (no OAuth bearer)
+ *   GET  /openapi/banking-rest.json             — OpenAPI doc for the above,
+ *                                                 for OpenAPI-to-MCP importers
  *
  * Start: MCP_RESOURCE_SERVER_RESOURCE_URI=mcp-invest.ping.demo node dist/index.js
  */
@@ -66,8 +70,11 @@ import { decodeAndValidate, extractScopes, TokenError } from './server/tokenVali
 import { isValidLogLevel, emitLogMessage, LoggingState } from './mcpLogging';
 import { buildDiscoverResult, SUPPORTED_PROTOCOL_VERSIONS } from './serverDiscover';
 import { extractRequestedProtocolVersion, buildUnsupportedProtocolVersionError } from './modernNegotiation';
+import fs from 'fs';
+import path from 'path';
 import { resolvePassenger, listBookings } from './db/airlinesDb';
 import { getHoldings, resolveInvestor } from './db/investDb';
+import { listAccounts, getAccount } from './db/bankingDb';
 import { emitHop } from './transactionHop';
 import { register as metricsRegister, mcpMessageDuration } from './metrics';
 
@@ -170,6 +177,19 @@ function apiKeyMatches(presented: string): boolean {
   const d = crypto.createHash('sha256').update(presented, 'utf8').digest();
   return crypto.timingSafeEqual(d, API_KEY_DIGEST);
 }
+
+// The banking vertical's seed data has a single subject ('demo-user'), same as
+// /invest's resolveInvestor() — the static-key path has no per-user identity,
+// so it always serves that one demo subject.
+const DEMO_BANKING_SUBJECT = 'demo-user';
+
+// Served at GET /openapi/banking-rest.json so an external OpenAPI-to-MCP
+// importer (e.g. a Privilege AI Gateway "Add OpenAPI MCP" app) can point at
+// this server's REST banking surface. Read once at startup, not per request.
+const BANKING_OPENAPI_SPEC = fs.readFileSync(
+  path.join(__dirname, '..', 'openapi', 'banking-rest.openapi.json'),
+  'utf8',
+);
 
 // SUPPORTED_SCOPES is derived from the tool catalog (tools/registry.ts), so a
 // client reading this RFC 9728 metadata always requests a scope that actually
@@ -390,6 +410,65 @@ function handleHttp(req: IncomingMessage, res: ServerResponse): void {
       authMechanism: 'X-API-Key (shared secret)',
       note: 'This portfolio was returned because the gateway presented a valid service API key. No OAuth bearer was involved on this hop — the gateway dropped the user token and attached a shared secret from its vault.',
     }, null, 2));
+    return;
+  }
+
+  // Same backend-app pattern as /invest, for the banking vertical — lets an
+  // OpenAPI-to-MCP importer turn these into tools without any bearer plumbing.
+  if (url === '/banking' && req.method === 'GET') {
+    const presented = req.headers['x-api-key'] as string | undefined;
+    if (!presented) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'api_key_missing', message: 'X-API-Key header required' }));
+      return;
+    }
+    if (!apiKeyMatches(presented)) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'api_key_invalid' }));
+      return;
+    }
+
+    res.writeHead(200, { 'Content-Type': 'application/json', 'X-Auth-Mechanism': 'api_key' });
+    const accounts = listAccounts(DEMO_BANKING_SUBJECT);
+    res.end(JSON.stringify({
+      accounts,
+      count: accounts.length,
+      source: 'banking_mcp_resource_server',
+      authMechanism: 'X-API-Key (shared secret)',
+      note: 'These accounts were returned because the gateway presented a valid service API key. No OAuth bearer was involved on this hop — the gateway dropped the user token and attached a shared secret from its vault.',
+    }, null, 2));
+    return;
+  }
+
+  if (url?.startsWith('/banking/') && req.method === 'GET') {
+    const presented = req.headers['x-api-key'] as string | undefined;
+    if (!presented) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'api_key_missing', message: 'X-API-Key header required' }));
+      return;
+    }
+    if (!apiKeyMatches(presented)) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'api_key_invalid' }));
+      return;
+    }
+
+    const accountId = url.slice('/banking/'.length);
+    const account = getAccount(accountId, DEMO_BANKING_SUBJECT);
+    res.writeHead(account ? 200 : 404, { 'Content-Type': 'application/json', 'X-Auth-Mechanism': 'api_key' });
+    res.end(JSON.stringify(
+      account
+        ? { found: true, account, source: 'banking_mcp_resource_server', authMechanism: 'X-API-Key (shared secret)' }
+        : { found: false, account_id: accountId },
+    ));
+    return;
+  }
+
+  // Static OpenAPI doc for the /banking REST surface above — unauthenticated,
+  // same posture as /metrics, so an external importer can fetch it directly.
+  if (url === '/openapi/banking-rest.json' && req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=3600' });
+    res.end(BANKING_OPENAPI_SPEC);
     return;
   }
 

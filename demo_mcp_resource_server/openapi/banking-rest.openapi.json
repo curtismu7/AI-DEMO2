@@ -1,0 +1,84 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Banking REST (backend-app pattern)",
+    "description": "Plain REST mirror of this server's list_banking_accounts / get_banking_account MCP tools, gated by a shared X-API-Key instead of an OAuth bearer. Served at /openapi/banking-rest.json so an OpenAPI-to-MCP importer (e.g. a Privilege AI Gateway 'Add OpenAPI MCP' app) can turn these into tools.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    { "url": "http://mcp-resource-server:8081", "description": "In-cluster (k8s ClusterIP, see k8s/02-configmap.yaml)" },
+    { "url": "http://localhost:8081", "description": "Local development" }
+  ],
+  "security": [{ "apiKeyAuth": [] }],
+  "paths": {
+    "/banking": {
+      "get": {
+        "operationId": "list_banking_accounts",
+        "summary": "List bank accounts for the demo subject",
+        "responses": {
+          "200": {
+            "description": "Bank accounts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "accounts": { "type": "array", "items": { "$ref": "#/components/schemas/Account" } },
+                    "count": { "type": "integer" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Missing or invalid X-API-Key" }
+        }
+      }
+    },
+    "/banking/{accountId}": {
+      "get": {
+        "operationId": "get_banking_account",
+        "summary": "Get a single bank account by ID",
+        "parameters": [
+          { "name": "accountId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bank account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "found": { "type": "boolean" },
+                    "account": { "$ref": "#/components/schemas/Account" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Missing or invalid X-API-Key" },
+          "404": { "description": "No such account for the demo subject" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "apiKeyAuth": { "type": "apiKey", "in": "header", "name": "X-API-Key" }
+    },
+    "schemas": {
+      "Account": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "userId": { "type": "string" },
+          "accountNumber": { "type": "string" },
+          "accountType": { "type": "string" },
+          "balance": { "type": "number" },
+          "currency": { "type": "string" },
+          "isActive": { "type": "boolean" }
+        }
+      }
+    }
+  }
+}
