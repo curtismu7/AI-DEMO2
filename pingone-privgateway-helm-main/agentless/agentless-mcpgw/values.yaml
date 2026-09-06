@@ -9,6 +9,14 @@ image:
   tag: latest
   pullPolicy: Always
 
+# Port the gateway binary actually listens on. Current builds derive it from
+# SERVER_URL (https://<hostname>, no port → 443) and expose no flag to set it
+# (`-listen` is the tunnel port). One value feeds BOTH the Service targetPort and
+# the readiness probe so they cannot drift apart again (2026-09-06 outage).
+# Templates fall back to 443 when this key is absent — which is what
+# `helm upgrade --reuse-values` sees on a release created before it existed.
+listenPort: 443
+
 # cert-manager ClusterIssuer name
 clusterIssuer: letsencrypt-pdo
 

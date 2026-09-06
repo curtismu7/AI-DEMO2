@@ -14,17 +14,19 @@ spec:
       targetPort: 8680
       protocol: TCP
     {{- /*
-      targetPort is 443, not 8623. Current gateway builds (v1.260904+ confirmed)
-      derive their listen port from SERVER_URL — the log says so verbatim:
-      "mcpgw will listen on :443 (derived from AIGwServer/SERVER_URL ...)" —
-      and https://<hostname> with no port means 443. Builds before that listened
-      on a fixed 8623 ("MCP GW running [::]:8623" on every Sept 1 boot). Both
-      Ingresses reference the SERVICE port 8623, which is unchanged; only the
-      pod-side port moves. 2026-09-06: every restart onto a current build 502'd
-      until this was remapped — the pod looked Ready because the main container
-      has no readiness probe. Local addition to the vendored chart.
+      targetPort is .Values.listenPort (443), not 8623. Current gateway builds
+      (v1.260904+ confirmed) derive their listen port from SERVER_URL — the log
+      says so verbatim: "mcpgw will listen on :443 (derived from
+      AIGwServer/SERVER_URL ...)" — and https://<hostname> with no port means
+      443. Builds before that listened on a fixed 8623 ("MCP GW running
+      [::]:8623" on every Sept 1 boot). Both Ingresses reference the SERVICE
+      port 8623, which is unchanged; only the pod-side port moves. 2026-09-06:
+      every restart onto a current build 502'd until this was remapped — and
+      the pod looked Ready throughout because the main container had no
+      readiness probe. It has one now, on this same value. Local addition to
+      the vendored chart.
     */}}
     - name: oidc
       port: 8623
-      targetPort: 443
+      targetPort: {{ .Values.listenPort | default 443 }}
       protocol: TCP

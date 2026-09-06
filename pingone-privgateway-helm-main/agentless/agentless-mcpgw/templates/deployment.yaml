@@ -60,6 +60,25 @@ spec:
                   key: ENV_PROXY_TOKEN
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+          {{- /*
+            Readiness on the port the Service actually targets. 2026-09-06: the
+            pod reported 3/3 Ready for two hours while nothing listened on the
+            served port, because there was no probe at all — the Service kept
+            routing to a dead socket and `kubectl wait`/`rollout status` passed
+            instantly. tcpSocket, not httpGet, on purpose: the gateway routes by
+            Host header, and an HTTP probe presenting the pod IP as Host could
+            404, mark the pod NotReady, and take the Service to zero endpoints —
+            a self-inflicted outage. A bound socket is exactly the condition the
+            incident lacked. Same value as the Service targetPort so the two
+            cannot drift apart. Local addition to the vendored chart.
+          */}}
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.listenPort | default 443 }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
           volumeMounts:
             - name: logs
               mountPath: /var/log/procyon
