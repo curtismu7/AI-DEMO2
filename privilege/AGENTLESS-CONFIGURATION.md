@@ -3,6 +3,84 @@
 Verified 2026-08-20 against the live `ping-devops-cmuir` deployment. This is the
 operational source of truth for Agentless mode.
 
+## 2026-09-06 — Banking REST added as an OpenAPI MCP app (`banking-rest`), as a pod sidecar
+
+| Item | Value |
+|---|---|
+| Privilege application type | **Add OpenAPI MCP** (not the MCP Server catalog tile — this app takes a REST API Endpoint + OpenAPI Spec URL directly, no JSON-RPC/SSE handshake) |
+| Privilege application | `banking-rest` |
+| Mesh Cluster | `ai-demo-cmuir — https://mcpgw.ai-demo.ping-devops.com` |
+| REST API Endpoint | `http://localhost:8082` |
+| OpenAPI Spec URL | `http://localhost:8082/openapi/banking-rest.json` |
+| Auth Mode | None — the sidecar attaches the real `X-API-Key` itself, Privilege never sees it |
+| Server | `demo_mcp_banking_rest/`, image `ghcr.io/curtismu7/ai-demo-mcp-banking-rest:latest` |
+| Runs as | `extraContainers` sidecar `mcp-banking-rest` in the `agentless-mcpgw` pod (`ping-devops-curtismuir`), port 8082 (8080=mcp-brave, 8081=mcp-grafana) |
+| Upstream | `http://mcp-resource-server.ping-devops-cmuir.svc.cluster.local:8081` — the real `demo_mcp_resource_server`'s `GET /banking`, `/banking/:id`, `/openapi/banking-rest.json` (see `demo_mcp_resource_server/src/index.ts`, PR #2861) |
+| Key | k8s Secret `banking-rest-secrets` / key `BANKING_API_KEY`, in the **gateway's** namespace — must equal `MCP_RESOURCE_SERVER_API_KEY` set directly on the `mcp-resource-server` Deployment in `ping-devops-cmuir` (that service has no dedicated `.env`-backed k8s Secret, so this is a plain `kubectl set env`, not the create-secrets.sh pipeline) |
+
+Verified live end-to-end 2026-09-06: `wget` from inside the `mcp-banking-rest`
+container to its own `http://127.0.0.1:8082/banking` returned the real seeded
+accounts (`acct-001`/`002`/`003`), proving sidecar → in-cluster DNS → real
+mcp-resource-server → API-key auth all work together.
+
+### Same sidecar mechanics as `mcp-grafana`, different app type
+
+This app is an **OpenAPI MCP** app, not an **MCP Server** catalog app — Privilege
+translates OpenAPI-described REST calls into MCP tools on its own side, so the
+sidecar just has to BE the REST API the spec describes. No SSE discovery probe,
+no JSON-RPC `initialize`/`tools/list` handshake like `demo_mcp_grafana`/
+`demo_mcp_brave` implement — `demo_mcp_banking_rest/server.js` is a ~90-line
+plain HTTP GET proxy.
+
+The reachability constraint is identical to the catalog apps though: the
+console's Mesh Cluster field still ties the app to one gateway pod, and this
+pod can only reach `localhost:<port>` for a manually-registered backend the
+same way a catalog app's fixed default does — confirmed by trying the real
+in-cluster Service DNS name first (`mcp-resource-server.ping-devops-cmuir...`)
+directly as the REST API Endpoint and finding no ingress/route makes it
+reachable from the gateway pod's namespace by any other means. Proxying
+through a `localhost` sidecar was the only working path, exactly as it was
+for Grafana.
+
+### `extraContainers` is a list — the patch must carry every sidecar
+
+Same trap as documented below for `mcp-grafana`: `helm upgrade --reuse-values`
+replaces `extraContainers` wholesale. Adding banking meant re-supplying
+`mcp-brave` and `mcp-grafana` verbatim (pulled fresh via `helm get values
+agentless-mcpgw -o yaml` immediately before the upgrade, not retyped from
+memory or from this repo's checked-in `values.yaml` example — that file's
+`extraContainers: []` is illustrative only and does not reflect the live
+release) alongside the new `mcp-banking-rest` block. Confirmed with a
+container count after: pod went 5/5, not 3/5.
+
+```bash
+helm --kube-context us -n ping-devops-curtismuir upgrade agentless-mcpgw \
+  pingone-privgateway-helm-main/agentless/agentless-mcpgw \
+  --reuse-values -f <patch>.yaml
+```
+
+### `mcp-resource-server` needed its own fixed key first
+
+Unlike Grafana (whose token already lived in a real k8s Secret), the SE
+cluster's `mcp-resource-server` Deployment had never been given a fixed
+`MCP_RESOURCE_SERVER_API_KEY` — without one it generates a random ephemeral
+key on every restart (logged as a warning, the value itself never printed),
+which no sidecar could ever know. Fixed with a plain `kubectl set env` on that
+one Deployment (not the `create-secrets.sh`/vault pipeline, which doesn't
+manage a secret for this service at all) — the same value then went into the
+gateway-namespace `banking-rest-secrets` Secret the sidecar reads from.
+
+**Trap that cost time:** `kubectl set env KEY="$(cat file)"` truncates
+differently than the file itself — command substitution strips the trailing
+newline `openssl rand -hex 24 > file` leaves behind, but `kubectl create
+secret generic --from-file=KEY=file` does NOT strip it. Setting the Deployment
+env var from the file via `$(cat ...)` and the sidecar's Secret via
+`--from-file` from the *same* file produces two different values that look
+identical printed, and every proxied call 401s as `api_key_invalid` with no
+other symptom. Fix: write a byte-exact, newline-free copy of the key
+(`printf '%s' "$(cat file)" > file2`) and build both the env var and the
+Secret from the same newline-free source.
+
 ## 2026-09-06 — Grafana added from the MCP catalog (`mcp-grafana`), as a pod sidecar
 
 | Item | Value |
