@@ -15,11 +15,19 @@ const CONFIG = {
   ],
 };
 
-function mockFetch(call) {
+const CONFIG_WITH_LOCAL = {
+  ...CONFIG,
+  local: {
+    provider: "lmstudio", title: "LM Studio (local)",
+    baseUrl: "http://host.docker.internal:1234", route: "/v1/chat/completions", defaultMaxTokens: 512,
+  },
+};
+
+function mockFetch(call, config = CONFIG) {
   global.fetch = vi.fn((url) => {
     const u = String(url);
     if (u.endsWith("/llm/config")) {
-      return Promise.resolve({ ok: true, status: 200, text: async () => JSON.stringify(CONFIG) });
+      return Promise.resolve({ ok: true, status: 200, text: async () => JSON.stringify(config) });
     }
     if (u.endsWith("/llm/call")) return Promise.resolve(call());
     return new Promise(() => {});
@@ -226,6 +234,39 @@ describe("LLM Gateway console", () => {
       // Back to the empty-conversation prompt, and the button is disabled again.
       expect(await screen.findByText(/Ask something through/i)).toBeInTheDocument();
       expect(resetBtn).toBeDisabled();
+    });
+  });
+
+  describe("LM Studio lane", () => {
+    it("appears after OpenAI with no key needed, and can send without one configured", async () => {
+      mockFetch(() => ({
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify({
+          reply: "Austin", provider: "lmstudio", route: "/v1/chat/completions",
+          latencyMs: 42, reachedProvider: true, providerLimits: null,
+        }),
+      }), CONFIG_WITH_LOCAL);
+      render(<LlmGatewayPage />);
+
+      const lmstudioName = await screen.findByText("LM Studio (local)");
+      expect(screen.getByText("No key needed")).toBeInTheDocument();
+      expect(screen.getByText("http://host.docker.internal:1234")).toBeInTheDocument();
+
+      fireEvent.click(lmstudioName.closest("button"));
+      // No PRIVILEGE_LLM_VIRTUAL_KEY_* is set for this lane, yet Send must not be blocked.
+      expect(screen.getByRole("button", { name: /^send$/i })).not.toBeDisabled();
+
+      await ask("What is the capital of Texas?");
+      expect(await screen.findByText("Austin")).toBeInTheDocument();
+    });
+
+    it("does not appear when the backend reports no local lane", async () => {
+      mockFetch(() => new Promise(() => {}), CONFIG);
+      render(<LlmGatewayPage />);
+      await screen.findByText("/llm/anthropic/v1/messages");
+
+      expect(screen.queryByText("LM Studio (local)")).not.toBeInTheDocument();
     });
   });
 

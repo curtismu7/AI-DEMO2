@@ -2216,6 +2216,34 @@ router.get('/llm/models/lmstudio', async (req, res) => {
   }
 });
 
+// Chat-console support for the local lane. Same wire shape /llm/raw already sends
+// for LM Studio, but normalized to the {reply} contract /llm/call's other lanes
+// return, since the console renders one turn shape for every lane. No `meta.limits`
+// to fill in — LM Studio exposes no rate-limit headers, and this page never shows a
+// number it cannot back with a real one.
+async function lmStudioCall(messages, config = {}) {
+  const base = LMSTUDIO.base();
+  const key = LMSTUDIO.key();
+  let model = config.model;
+  if (!model) {
+    const modelsRes = await llmFetch(`${base}${LMSTUDIO.modelsRoute}`, { headers: { Authorization: `Bearer ${key}` } },
+      { label: 'lmstudio-models-for-call', timeoutMs: 8000, retryOn429: false });
+    const modelsData = await modelsRes.json().catch(() => ({}));
+    model = Array.isArray(modelsData?.data) ? modelsData.data[0]?.id : undefined;
+    if (!model) throw new Error(`No model loaded in LM Studio at ${base} — load one before sending a prompt.`);
+  }
+  const res = await llmFetch(`${base}${LMSTUDIO.route}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+    body: JSON.stringify({ model, max_tokens: config.max_tokens || LMSTUDIO.defaultMaxTokens, messages }),
+  }, { label: 'lmstudio-call', timeoutMs: 120000, retryOn429: false });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error?.message || res.statusText || String(res.status));
+  const text = data?.choices?.[0]?.message?.content;
+  if (!text) throw new Error('LM Studio returned empty response');
+  return text;
+}
+
 // POST /llm/compare — the same prompt and the same model list, both ways.
 //
 // The direct key arrives in the request body because this app holds no usable
@@ -2387,6 +2415,36 @@ router.post('/llm/raw', express.json({ limit: '256kb' }), async (req, res) => {
 
 router.post('/llm/call', express.json(), async (req, res) => {
   const provider = String(req.body?.provider || '');
+
+  // The local lane bypasses everything the gateway lanes do — no virtual key, no
+  // route override, no policy verdict, no provider-limits meter. Same {reply}
+  // response shape so the console renders it identically to the other three.
+  if (provider === LMSTUDIO.provider) {
+    const prompt = typeof req.body?.prompt === 'string' ? req.body.prompt.trim() : '';
+    if (!prompt) return res.status(400).json({ error: 'Prompt is required.' });
+    const t0 = Date.now();
+    try {
+      const reply = await lmStudioCall([{ role: 'user', content: prompt }]);
+      return res.json({
+        reply,
+        provider,
+        route: LMSTUDIO.route,
+        latencyMs: Date.now() - t0,
+        reachedProvider: true,
+        providerLimits: null,
+      });
+    } catch (err) {
+      return res.status(502).json({
+        error: err.message || 'LM Studio call failed',
+        provider,
+        route: LMSTUDIO.route,
+        latencyMs: Date.now() - t0,
+        reachedProvider: true,
+        providerLimits: null,
+      });
+    }
+  }
+
   const lane = LLM_LANES[provider];
   if (!lane) {
     return res.status(400).json({ error: `Unknown provider "${provider}". Use one of: ${Object.keys(LLM_LANES).join(', ')}` });

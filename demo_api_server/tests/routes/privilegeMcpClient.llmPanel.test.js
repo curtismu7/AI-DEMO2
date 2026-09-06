@@ -615,3 +615,53 @@ describe('LM Studio lane', () => {
     expect(llmFetch).not.toHaveBeenCalled();
   });
 });
+
+// ── LM Studio on the Chat console: /llm/call's local branch ─────────────────
+describe('POST /llm/call — LM Studio lane', () => {
+  const env = { ...process.env };
+  beforeEach(() => {
+    llmFetch.mockReset();
+    process.env.LMSTUDIO_BASE_URL = 'http://lmstudio.test:1234';
+  });
+  afterEach(() => { process.env = { ...env }; });
+
+  it('auto-picks the first resident model and returns the {reply} shape the console expects', async () => {
+    llmFetch
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: [{ id: 'qwen3.8-27b' }] }) })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ choices: [{ message: { content: 'Austin' } }] }) });
+
+    const res = await post({ provider: 'lmstudio', prompt: 'What is the capital of Texas?' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.reply).toBe('Austin');
+    expect(res.body.provider).toBe('lmstudio');
+    expect(res.body.route).toBe('/v1/chat/completions');
+    expect(res.body.reachedProvider).toBe(true);
+    // No rate-limit headers exist for a local model — never invent one.
+    expect(res.body.providerLimits).toBeNull();
+    expect(JSON.parse(llmFetch.mock.calls[1][1].body).model).toBe('qwen3.8-27b');
+  });
+
+  it('reports a named error when no model is loaded, instead of a bare upstream failure', async () => {
+    llmFetch.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: [] }) });
+
+    const res = await post({ provider: 'lmstudio', prompt: 'hi' });
+
+    expect(res.status).toBe(502);
+    expect(res.body.error).toMatch(/No model loaded/);
+  });
+
+  it('502s when LM Studio is unreachable', async () => {
+    llmFetch.mockRejectedValueOnce(new Error('connect ECONNREFUSED'));
+
+    const res = await post({ provider: 'lmstudio', prompt: 'hi' });
+
+    expect(res.status).toBe(502);
+  });
+
+  it('still requires a prompt', async () => {
+    const res = await post({ provider: 'lmstudio', prompt: '' });
+    expect(res.status).toBe(400);
+    expect(llmFetch).not.toHaveBeenCalled();
+  });
+});
