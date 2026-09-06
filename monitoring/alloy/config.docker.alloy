@@ -15,14 +15,17 @@ discovery.docker "containers" {
 
 // Compose container_names are already "ai-demo-<service>" (e.g.
 // ai-demo-mcp-gateway); Docker's API prefixes a leading "/" on top of that.
-// Strip both so the `service` label here reads the same as Tier 1's fixed
-// "ai-demo-bff" value — one label convention across both tiers in Loki.
+// Strip both, so `service` is the bare name ("mcp-gateway", "ping-gateway").
+// That is what config.k8s.alloy produces on the SE cluster (it labels by pod
+// container name, which is already bare) — one value per service across both
+// deployments, so the same dashboard query works in either. Leaving the
+// "ai-demo-" prefix on made every Tier 2 log panel silently empty in Docker.
 discovery.relabel "containers" {
   targets = discovery.docker.containers.targets
 
   rule {
     source_labels = ["__meta_docker_container_name"]
-    regex         = "/(.*)"
+    regex         = "/(?:ai-demo-)?(.*)"
     target_label  = "service"
   }
 }

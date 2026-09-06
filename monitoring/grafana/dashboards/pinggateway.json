@@ -455,6 +455,35 @@
           "sort": "desc"
         }
       }
+    },
+    {
+      "id": 9,
+      "type": "logs",
+      "title": "Live logs",
+      "description": "This container's stdout (Tier 2 — Grafana Alloy). Narrow with the panel's own search box, e.g. |= \"[P1AZ] DECISION:\" or |= \"ERROR\".",
+      "gridPos": {
+        "h": 12,
+        "w": 24,
+        "x": 0,
+        "y": 31
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "ai-demo-loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service=\"ping-gateway\"}"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none"
+      }
     }
   ],
   "links": [
