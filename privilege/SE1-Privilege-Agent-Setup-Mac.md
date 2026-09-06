@@ -162,6 +162,7 @@ VM-specific steps in the source PDF do not apply here: Windows installer and UAC
 | Sessions fail for no stated reason | Mac clock drift |
 | Passkey missing after switching browsers | Factor bound to the other Chrome profile. Prefer email MFA |
 | Second persona unpairs the first | Expected risk of two identities on one Secure Enclave — see "Two personas, one Mac" |
+| Console is a white page with broken images after "Open Console"; CLI diagnostic (`PingOne Privilege - CLI Mode`) shows `stream receive error: rpc error: code = Unknown desc = Domain not found` from `tunclient` | The console UI is served locally by the agent at `https://local.procyon.ai:8643/ui/...` with a self-signed cert. DevTools shows its CSS/JS/manifest requests failing `net::ERR_CERT_AUTHORITY_INVALID`. A browser can't click through a cert warning for these (subresource loads, not a top-level navigation) — quit **PingOne Privilege** from the menu-bar icon and relaunch it from Applications; that re-establishes the agent's local state and console UI without needing `sudo`. Confirmed fix, 2026-09-06. Restarting the root-owned `com.procyon.ai` LaunchDaemon (`sudo launchctl kickstart -k system/com.procyon.ai`) is the next step only if a plain relaunch doesn't clear it, and needs admin rights this doc does not assume you have |
 
 ## Source
 
