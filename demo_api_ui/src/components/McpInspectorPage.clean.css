@@ -338,6 +338,27 @@
   border-right: 1px solid var(--th-border);
 }
 
+/* Mobile / iOS: `.inspector-clean-main`'s 260px/1fr/350px grid (~610px
+   minimum before the middle column even starts) never fits a phone —
+   stack the three panels full-width and let the page scroll instead. */
+@media (max-width: 768px) {
+  .inspector-clean-page {
+    height: auto;
+    min-height: 100vh;
+  }
+  .inspector-clean-content {
+    grid-template-rows: none;
+    height: auto;
+  }
+  .inspector-clean-main {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+  .inspector-clean-panel {
+    max-height: 60vh;
+  }
+}
+
 .inspector-clean-reel-frame {
   flex-shrink: 0;
   padding: 6px 10px;

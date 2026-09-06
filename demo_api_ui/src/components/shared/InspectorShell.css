@@ -411,3 +411,30 @@
 }
 .inspector-shell-replay-bar__btn:hover { background: var(--th-bg-hover); }
 .inspector-shell-replay-bar__btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Mobile / iOS: the 3-column grid (240px + 6px + 380px + 6px + 1fr, ~632px
+   minimum before the right column even starts) never fits a phone. Only
+   applies when InspectorShell.jsx has stopped setting the inline
+   gridTemplateColumns (its --narrow modifier class), since an inline style
+   always outranks this rule regardless of the media query. */
+@media (max-width: 768px) {
+  .inspector-shell-grid--narrow {
+    grid-template-columns: 1fr;
+    grid-auto-rows: auto;
+    height: auto;
+    overflow: visible;
+  }
+  .inspector-shell-grid--narrow .inspector-shell-resize-handle {
+    display: none;
+  }
+  .inspector-shell-grid--narrow .inspector-shell-col-left--collapsed {
+    display: none;
+  }
+  .inspector-shell-grid--narrow .inspector-shell-col-left,
+  .inspector-shell-grid--narrow .inspector-shell-col-middle,
+  .inspector-shell-grid--narrow .inspector-shell-col-right {
+    border-right: none;
+    border-bottom: 1px solid var(--th-border);
+    max-height: 70vh;
+  }
+}
