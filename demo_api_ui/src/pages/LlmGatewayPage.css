@@ -168,6 +168,15 @@
   word-break: break-all;
 }
 
+/* --th-text-muted reads fine on the card's normal --th-bg-inset ground, but
+   the selected lane switches its ground to --th-bg-emphasis (see
+   .lgw-lane.is-selected below) without this sub-line following — measured
+   live: rgb(148,163,184) muted text on rgb(147,197,253) emphasis background,
+   low contrast in dark mode. Same fix as .lgw-lane.is-selected itself. */
+.lgw-lane.is-selected .lgw-lane__r {
+  color: var(--th-text-on-emphasis);
+}
+
 .lgw-lane__warn {
   font-size: var(--font-size-3xs);
   color: var(--th-status-error);
