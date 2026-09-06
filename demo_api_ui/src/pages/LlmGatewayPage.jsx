@@ -15,6 +15,7 @@
 // would discredit the one thing this page exists to prove.
 import { useCallback, useEffect, useState } from 'react';
 import { useThemeOptional } from '../context/ThemeContext';
+import useDividerDrag from '../hooks/useDividerDrag';
 import './LlmGatewayPage.css';
 
 const API_BASE = process.env.REACT_APP_API_URL || '/api/privilege-mcp';
@@ -78,6 +79,16 @@ function Meter({ label, remaining, limit, reset }) {
 
 export default function LlmGatewayPage() {
   const { darkMode, toggleDarkMode } = useThemeOptional();
+  // Column widths, drag-to-resize, persisted — same primitive InspectorShell
+  // already uses, not a page-local reimplementation. Right column defaults
+  // wider than the old fixed 15rem (~240px): "Refused by / Route / Reached
+  // the model / Reason" definition rows wrapped hard at that width.
+  const { size: railWidth, handleProps: railHandleProps } = useDividerDrag({
+    min: 220, max: 420, initial: 272, storageKey: 'lgw-rail-width',
+  });
+  const { size: decisionWidth, handleProps: decisionHandleProps } = useDividerDrag({
+    min: 260, max: 560, initial: 340, storageKey: 'lgw-decision-width', invert: true,
+  });
   const [gatewayUrl, setGatewayUrl] = useState('');
   const [lanes, setLanes] = useState([]);
   const [selected, setSelected] = useState('openai');
@@ -168,7 +179,10 @@ export default function LlmGatewayPage() {
 
       {loadError ? <p className="lgw-error" role="alert">{loadError}</p> : null}
 
-      <div className="lgw-body">
+      <div
+        className="lgw-body"
+        style={{ gridTemplateColumns: `${railWidth}px 6px minmax(0, 1fr) 6px ${decisionWidth}px` }}
+      >
         <section className="lgw-rail" aria-label="Lanes">
           <h2 className="lgw-rail__k">Lanes</h2>
           {lanes.map((lane) => {
@@ -207,6 +221,8 @@ export default function LlmGatewayPage() {
           </p>
         </section>
 
+        <div className="lgw-resize-handle" aria-label="Resize lanes column" {...railHandleProps} />
+
         <section className="lgw-main" aria-label="Conversation">
           <div className="lgw-turns">
             {turns.length === 0 ? (
@@ -237,6 +253,8 @@ export default function LlmGatewayPage() {
             </button>
           </div>
         </section>
+
+        <div className="lgw-resize-handle" aria-label="Resize last decision column" {...decisionHandleProps} />
 
         <section className="lgw-rail lgw-rail--right" aria-label="Last decision">
           <h2 className="lgw-rail__k">Last decision</h2>

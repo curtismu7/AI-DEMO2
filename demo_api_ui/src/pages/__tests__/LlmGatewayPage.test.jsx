@@ -128,4 +128,52 @@ describe("LLM Gateway console", () => {
     expect(screen.queryByText(/\$/)).not.toBeInTheDocument();
     expect(screen.getByText(/no per-key usage today/i)).toBeInTheDocument();
   });
+
+  describe("resizable columns", () => {
+    // The Last Decision column previously defaulted to a fixed 15rem
+    // (~240px); its dt/dd rows wrapped hard at that width.
+    it("defaults the Last Decision column wider than the old fixed 15rem, with two resize-handle tracks", () => {
+      mockFetch(() => new Promise(() => {}));
+      const { container } = render(<LlmGatewayPage />);
+
+      const grid = container.querySelector(".lgw-body");
+      // "minmax(0, 1fr)" has an internal space, so a plain split(" ") over-counts —
+      // pull out just the trailing px value, which is the decision column.
+      const decisionWidth = parseInt(grid.style.gridTemplateColumns.match(/(\d+)px$/)[1], 10);
+      expect(decisionWidth).toBeGreaterThan(240);
+      expect(container.querySelectorAll(".lgw-resize-handle")).toHaveLength(2);
+    });
+
+    it("dragging the right handle grows the Last Decision column (inverted axis)", () => {
+      mockFetch(() => new Promise(() => {}));
+      const { container } = render(<LlmGatewayPage />);
+      const [, decisionHandle] = container.querySelectorAll(".lgw-resize-handle");
+      const grid = container.querySelector(".lgw-body");
+      const readDecisionWidth = () => parseInt(grid.style.gridTemplateColumns.match(/(\d+)px$/)[1], 10);
+      const before = readDecisionWidth();
+
+      // invert:true — dragging LEFT (toward the middle column) grows the
+      // right-hand pane, matching how it sits on the right of this divider.
+      fireEvent.mouseDown(decisionHandle, { clientX: 800 });
+      fireEvent.mouseMove(document, { clientX: 740 });
+      fireEvent.mouseUp(document);
+
+      expect(readDecisionWidth()).toBe(before + 60);
+    });
+
+    it("dragging the left handle resizes the Lanes column", () => {
+      mockFetch(() => new Promise(() => {}));
+      const { container } = render(<LlmGatewayPage />);
+      const [railHandle] = container.querySelectorAll(".lgw-resize-handle");
+      const grid = container.querySelector(".lgw-body");
+      const before = parseInt(grid.style.gridTemplateColumns.split(" ")[0], 10);
+
+      fireEvent.mouseDown(railHandle, { clientX: 272 });
+      fireEvent.mouseMove(document, { clientX: 320 });
+      fireEvent.mouseUp(document);
+
+      const after = parseInt(grid.style.gridTemplateColumns.split(" ")[0], 10);
+      expect(after).toBe(before + 48);
+    });
+  });
 });
