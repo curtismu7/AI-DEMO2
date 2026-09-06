@@ -47,7 +47,8 @@ function api(path, options = {}) {
   });
 }
 
-const TITLES = { anthropic: 'Anthropic', google: 'Google', openai: 'OpenAI' };
+const TITLES = { anthropic: 'Anthropic', google: 'Google', openai: 'OpenAI', lmstudio: 'LM Studio (local)' };
+const LOCAL = 'lmstudio';
 
 // Which layer refused. The pair this page exists to separate is "Privilege stopped
 // it" (403, never reached the model) and "the provider credential behind the virtual
@@ -109,7 +110,12 @@ export default function LlmGatewayPage() {
       .then((cfg) => {
         if (cancelled) return;
         setGatewayUrl(cfg.gatewayUrl || '');
-        setLanes(cfg.lanes || []);
+        // The local lane goes last (after OpenAI) — no virtual key, no policy,
+        // so it renders with an adapted card rather than a "No key" warning.
+        const local = cfg.local
+          ? [{ provider: cfg.local.provider, route: cfg.local.route, baseUrl: cfg.local.baseUrl, isLocal: true }]
+          : [];
+        setLanes([...(cfg.lanes || []), ...local]);
         const firstReady = (cfg.lanes || []).find((l) => l.keyConfigured);
         if (firstReady) setSelected(firstReady.provider);
       })
@@ -222,13 +228,21 @@ export default function LlmGatewayPage() {
               >
                 <span className="lgw-lane__top">
                   <span className="lgw-lane__n">{TITLES[lane.provider] || lane.provider}</span>
-                  <span className={`lgw-pill ${lane.keyConfigured ? 'is-ok' : 'is-bad'}`}>
-                    {lane.keyConfigured ? 'Key set' : 'No key'}
-                  </span>
+                  {lane.isLocal ? (
+                    <span className="lgw-pill is-ok">No key needed</span>
+                  ) : (
+                    <span className={`lgw-pill ${lane.keyConfigured ? 'is-ok' : 'is-bad'}`}>
+                      {lane.keyConfigured ? 'Key set' : 'No key'}
+                    </span>
+                  )}
                 </span>
                 <span className="lgw-lane__r">{lane.route}</span>
-                <span className="lgw-lane__r">{lane.model}</span>
-                {!lane.keyConfigured ? <span className="lgw-lane__warn">{lane.keyEnv} is not set</span> : null}
+                {lane.isLocal ? (
+                  <span className="lgw-lane__r">{lane.baseUrl}</span>
+                ) : (
+                  <span className="lgw-lane__r">{lane.model}</span>
+                )}
+                {!lane.isLocal && !lane.keyConfigured ? <span className="lgw-lane__warn">{lane.keyEnv} is not set</span> : null}
                 {limits ? (
                   <span className="lgw-lane__limits">
                     <span className="lgw-lane__limitk">Provider limits</span>
@@ -251,8 +265,13 @@ export default function LlmGatewayPage() {
           <div className="lgw-turns">
             {turns.length === 0 ? (
               <p className="lgw-empty">
-                Ask something through <strong>{TITLES[selected] || selected}</strong>. To see a refusal, send a
-                prompt the policy is configured to stop &mdash; anything carrying obvious PII.
+                {selected === LOCAL ? (
+                  <>Ask something through <strong>{TITLES[selected]}</strong>. This lane runs unmediated &mdash; no
+                    virtual key, no Privilege policy, nothing between the prompt and the model.</>
+                ) : (
+                  <>Ask something through <strong>{TITLES[selected] || selected}</strong>. To see a refusal, send a
+                    prompt the policy is configured to stop &mdash; anything carrying obvious PII.</>
+                )}
               </p>
             ) : null}
             {turns.map((t, i) => (
@@ -294,7 +313,7 @@ export default function LlmGatewayPage() {
               onChange={(e) => setPrompt(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); send(); } }}
             />
-            <button type="button" className="lgw-send" onClick={send} disabled={busy || !active?.keyConfigured}>
+            <button type="button" className="lgw-send" onClick={send} disabled={busy || !(active?.isLocal || active?.keyConfigured)}>
               {busy ? 'Sending…' : 'Send'}
             </button>
           </div>
