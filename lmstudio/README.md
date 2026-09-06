@@ -14,13 +14,16 @@ cp lmstudio/mcp.json ~/.lmstudio/mcp.json   # then restart LM Studio
 | `MCP Privilege-OpenSearch` | OpenSearch MCP **through the Privilege AI Gateway** (`agentless-mcpgw`, app `opensearch22`), through the **local** recording façade. Replaced `MCP Agent-OpenSearch` on 2026-09-05: agent mode's mesh frontend still resolves but nothing serves it, so that door hung and was deleted | the façade holds the gateway leg — sign in once at `/privilege-mcp-client` after a gateway restart |
 | `MCP Direct-OpenSearch` | the same OpenSearch MCP server (`cm-mcpgw` in K8s), **bypassing Privilege** | none — needs a port-forward first (below) |
 | `MCP AgentGateway-Banking` | this repo's Agent Gateway (`demo_mcp_gateway`, deployed to the SE cluster), through the **SE-hosted** recording façade | native OAuth via the gateway's broker (PR #2353, real Let's Encrypt cert) → PingOne login |
+| `MCP Privilege-Grafana` | Grafana's read API **through the Privilege AI Gateway** (`agentless-mcpgw`, catalog app `mcp-grafana`), served by the `demo_mcp_grafana` sidecar in the gateway pod on port 8081. Direct to the gateway, not through the façade, so there is no movie reel for it | native OAuth (RFC 9728 → DCR → PKCE) against Privilege's AS, then PingOne login |
 | `MCP PingOne-Admin` | the hosted PingOne MCP server (Management API surface, not banking), through the **local** recording façade's `pingone-admin` door | broker OAuth (RFC 9728 → DCR → PKCE) against the demo's own AS. What reaches PingOne is a **delegated** PKCE token, never a worker one: the caller's own `x-pingone-admin-token` when it sends one, otherwise the shared operator session, which is off unless `MCP_FACADE_PINGONE_ADMIN_SHARED_SESSION=true` (see `demo_api_server/services/pingoneAdminSession.js`) |
 
-The first five doors ultimately talk to the SE cluster (`ping-devops-cmuir` namespace,
+Every door but the last talks to the SE cluster (`ping-devops-cmuir` namespace,
 `ai-demo.ping-devops.com`) — the two OpenSearch doors reach it via a local hop
 (the AI Gateway for `MCP Privilege-OpenSearch`, a `kubectl port-forward` for `MCP
 Direct-OpenSearch`) because their upstream has no public ingress; the three
-banking/gateway doors go straight to it. `MCP PingOne-Admin`
+banking/gateway doors go straight to it, as does `MCP Privilege-Grafana` (whose
+gateway lives in `ping-devops-curtismuir`, one namespace over from the Grafana it
+reads). `MCP PingOne-Admin`
 talks to PingOne's own hosted MCP server directly from the BFF, unrelated to the SE
 cluster's own app resources.
 
