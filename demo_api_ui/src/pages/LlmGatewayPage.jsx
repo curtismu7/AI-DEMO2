@@ -48,8 +48,10 @@ function api(path, options = {}) {
   });
 }
 
-const TITLES = { anthropic: 'Anthropic', google: 'Google', openai: 'OpenAI', lmstudio: 'LM Studio (local)' };
-const LOCAL = 'lmstudio';
+const TITLES = {
+  anthropic: 'Anthropic', google: 'Google', openai: 'OpenAI',
+  lmstudio: 'LM Studio (local)', llamacpp: 'llama.cpp (local)',
+};
 
 // Which layer refused. The pair this page exists to separate is "Privilege stopped
 // it" (403, never reached the model) and "the provider credential behind the virtual
@@ -112,12 +114,11 @@ export default function LlmGatewayPage() {
       .then((cfg) => {
         if (cancelled) return;
         setGatewayUrl(cfg.gatewayUrl || '');
-        // The local lane goes last (after OpenAI) — no virtual key, no policy,
-        // so it renders with an adapted card rather than a "No key" warning.
-        const local = cfg.local
-          ? [{ provider: cfg.local.provider, route: cfg.local.route, baseUrl: cfg.local.baseUrl, isLocal: true }]
-          : [];
-        setLanes([...(cfg.lanes || []), ...local]);
+        // The local lanes go last (after OpenAI) — no virtual key, no policy,
+        // so they render with an adapted card rather than a "No key" warning.
+        const locals = (cfg.locals || [])
+          .map((l) => ({ provider: l.provider, route: l.route, baseUrl: l.baseUrl, isLocal: true }));
+        setLanes([...(cfg.lanes || []), ...locals]);
         const firstReady = (cfg.lanes || []).find((l) => l.keyConfigured);
         if (firstReady) setSelected(firstReady.provider);
       })
@@ -267,7 +268,7 @@ export default function LlmGatewayPage() {
           <div className="lgw-turns">
             {turns.length === 0 ? (
               <p className="lgw-empty">
-                {selected === LOCAL ? (
+                {active?.isLocal ? (
                   <>Ask something through <strong>{TITLES[selected]}</strong>. This lane runs unmediated &mdash; no
                     virtual key, no Privilege policy, nothing between the prompt and the model.</>
                 ) : (

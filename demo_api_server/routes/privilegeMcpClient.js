@@ -2094,6 +2094,7 @@ const {
   callPrivilegeClaude: llmAnthropic,
   callPrivilegeOpenAI: llmOpenAI,
 } = require('../services/privilegeLlmProxyService');
+const { callLlamaCpp, baseUrl: llamaCppBaseUrl } = require('../services/llamacppLlmService');
 
 // Routes come from LANES so the path the panel PRINTS is the path the code CALLS.
 const LLM_LANES = {
@@ -2126,6 +2127,16 @@ router.get('/llm/config', (req, res) => {
       route: LMSTUDIO.route,
       defaultMaxTokens: LMSTUDIO.defaultMaxTokens,
     },
+    // Both unmediated local lanes, for the Chat console (LlmGatewayPage) to
+    // render as a list. Kept alongside `local` above rather than replacing it —
+    // LlmTestPage reads `local` (singular, LM-Studio-only) directly.
+    locals: [LMSTUDIO, LLAMACPP].map((l) => ({
+      provider: l.provider,
+      title: l.title,
+      baseUrl: l.base(),
+      route: l.route,
+      defaultMaxTokens: l.defaultMaxTokens,
+    })),
     lanes: Object.entries(LLM_LANES).map(([provider, lane]) => ({
       provider,
       route: lane.route,
@@ -2188,6 +2199,20 @@ const LMSTUDIO = {
   // 24 gave "" in 7.6s, 512 gave "Paris" in 3.4s. A low default here would look like
   // a broken lane, so this one starts high deliberately.
   defaultMaxTokens: 512,
+};
+
+// ── llama.cpp: the model the demo's own agents run on ───────────────────────
+// Also unmediated (no virtual key), same reasoning as LM Studio above. Reuses
+// the BFF's own llamacppLlmService client rather than a bespoke fetch, since
+// this is the exact backend the customer dashboard agent already calls.
+const LLAMACPP = {
+  provider: 'llamacpp',
+  title: 'llama.cpp (local)',
+  base: llamaCppBaseUrl,
+  route: '/v1/chat/completions',
+  // Mirrors callLlamaCpp's own hardcoded max_tokens cap (llamacppLlmService.js) —
+  // raising this means plumbing an override into that function, not just here.
+  defaultMaxTokens: 256,
 };
 
 const directKeyEnv = (provider) => `LLM_DIRECT_${provider.toUpperCase()}_KEY`;
@@ -2438,6 +2463,34 @@ router.post('/llm/call', express.json(), async (req, res) => {
         error: err.message || 'LM Studio call failed',
         provider,
         route: LMSTUDIO.route,
+        latencyMs: Date.now() - t0,
+        reachedProvider: true,
+        providerLimits: null,
+      });
+    }
+  }
+
+  // Same unmediated shape as LM Studio above, calling the BFF's own
+  // llama.cpp client instead of a bespoke fetch.
+  if (provider === LLAMACPP.provider) {
+    const prompt = typeof req.body?.prompt === 'string' ? req.body.prompt.trim() : '';
+    if (!prompt) return res.status(400).json({ error: 'Prompt is required.' });
+    const t0 = Date.now();
+    try {
+      const reply = await callLlamaCpp([{ role: 'user', content: prompt }]);
+      return res.json({
+        reply,
+        provider,
+        route: LLAMACPP.route,
+        latencyMs: Date.now() - t0,
+        reachedProvider: true,
+        providerLimits: null,
+      });
+    } catch (err) {
+      return res.status(502).json({
+        error: err.message || 'llama.cpp call failed',
+        provider,
+        route: LLAMACPP.route,
         latencyMs: Date.now() - t0,
         reachedProvider: true,
         providerLimits: null,

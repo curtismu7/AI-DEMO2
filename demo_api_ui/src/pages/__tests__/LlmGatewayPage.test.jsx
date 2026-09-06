@@ -15,12 +15,12 @@ const CONFIG = {
   ],
 };
 
-const CONFIG_WITH_LOCAL = {
+const CONFIG_WITH_LOCALS = {
   ...CONFIG,
-  local: {
-    provider: "lmstudio", title: "LM Studio (local)",
-    baseUrl: "http://host.docker.internal:1234", route: "/v1/chat/completions", defaultMaxTokens: 512,
-  },
+  locals: [
+    { provider: "lmstudio", title: "LM Studio (local)", baseUrl: "http://host.docker.internal:1234", route: "/v1/chat/completions", defaultMaxTokens: 512 },
+    { provider: "llamacpp", title: "llama.cpp (local)", baseUrl: "http://host.docker.internal:8090", route: "/v1/chat/completions", defaultMaxTokens: 256 },
+  ],
 };
 
 function mockFetch(call, config = CONFIG) {
@@ -246,11 +246,11 @@ describe("LLM Gateway console", () => {
           reply: "Austin", provider: "lmstudio", route: "/v1/chat/completions",
           latencyMs: 42, reachedProvider: true, providerLimits: null,
         }),
-      }), CONFIG_WITH_LOCAL);
+      }), CONFIG_WITH_LOCALS);
       render(<LlmGatewayPage />);
 
       const lmstudioName = await screen.findByText("LM Studio (local)");
-      expect(screen.getByText("No key needed")).toBeInTheDocument();
+      expect(screen.getAllByText("No key needed").length).toBeGreaterThan(0);
       expect(screen.getByText("http://host.docker.internal:1234")).toBeInTheDocument();
 
       fireEvent.click(lmstudioName.closest("button"));
@@ -261,12 +261,45 @@ describe("LLM Gateway console", () => {
       expect(await screen.findByText("Austin")).toBeInTheDocument();
     });
 
-    it("does not appear when the backend reports no local lane", async () => {
+    it("does not appear when the backend reports no local lanes", async () => {
       mockFetch(() => new Promise(() => {}), CONFIG);
       render(<LlmGatewayPage />);
       await screen.findByText("/llm/anthropic/v1/messages");
 
       expect(screen.queryByText("LM Studio (local)")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("llama.cpp lane", () => {
+    it("appears alongside LM Studio with no key needed, and can send without one configured", async () => {
+      mockFetch(() => ({
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify({
+          reply: "Austin", provider: "llamacpp", route: "/v1/chat/completions",
+          latencyMs: 42, reachedProvider: true, providerLimits: null,
+        }),
+      }), CONFIG_WITH_LOCALS);
+      render(<LlmGatewayPage />);
+
+      const llamacppName = await screen.findByText("llama.cpp (local)");
+      expect(screen.getAllByText("No key needed").length).toBeGreaterThan(0);
+      expect(screen.getByText("http://host.docker.internal:8090")).toBeInTheDocument();
+
+      fireEvent.click(llamacppName.closest("button"));
+      // No PRIVILEGE_LLM_VIRTUAL_KEY_* is set for this lane, yet Send must not be blocked.
+      expect(screen.getByRole("button", { name: /^send$/i })).not.toBeDisabled();
+
+      await ask("What is the capital of Texas?");
+      expect(await screen.findByText("Austin")).toBeInTheDocument();
+    });
+
+    it("does not appear when the backend reports no local lanes", async () => {
+      mockFetch(() => new Promise(() => {}), CONFIG);
+      render(<LlmGatewayPage />);
+      await screen.findByText("/llm/anthropic/v1/messages");
+
+      expect(screen.queryByText("llama.cpp (local)")).not.toBeInTheDocument();
     });
   });
 
