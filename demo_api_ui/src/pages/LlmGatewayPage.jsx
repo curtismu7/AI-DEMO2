@@ -89,7 +89,9 @@ export default function LlmGatewayPage() {
     min: 220, max: 420, initial: 272, storageKey: 'lgw-rail-width',
   });
   const { size: decisionWidth, handleProps: decisionHandleProps } = useDividerDrag({
-    min: 260, max: 560, initial: 340, storageKey: 'lgw-decision-width', invert: true,
+    // Defaults to the drag ceiling itself — widest by default, drag it
+    // smaller if you want the room back for the conversation column.
+    min: 260, max: 560, initial: 560, storageKey: 'lgw-decision-width', invert: true,
   });
   const [gatewayUrl, setGatewayUrl] = useState('');
   const [lanes, setLanes] = useState([]);
