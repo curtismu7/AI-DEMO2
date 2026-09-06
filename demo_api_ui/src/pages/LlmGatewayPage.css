@@ -411,6 +411,7 @@
 
 .lgw-attacks select:hover {
   background: var(--th-bg-hover);
+  color: var(--th-text);
 }
 
 .lgw-attacks select:focus-visible {
