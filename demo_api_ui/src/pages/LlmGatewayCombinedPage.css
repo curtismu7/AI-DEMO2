@@ -1,0 +1,44 @@
+/* demo_api_ui/src/pages/LlmGatewayCombinedPage.css
+ *
+ * Underline-style tabs, following ArchitectureTabsPanel.css's pattern:
+ * inactive = muted text on a transparent background, active = full-contrast
+ * text plus a bottom border, never a filled background behind text. No
+ * --th-bg-emphasis anywhere here on purpose — LlmGatewayPage.css and
+ * LlmTestPage.css both mispaired that token with the wrong ink in three
+ * separate spots (#2843, #2844) before this file was written, so the whole
+ * fill+ink pairing risk is avoided rather than repeated a fourth time.
+ */
+
+.lgwc {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.lgwc-tabs {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0 1rem;
+  border-bottom: 1px solid var(--th-border);
+  background: var(--th-bg-inset);
+}
+
+.lgwc-tab {
+  padding: 0.65rem 1rem;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-2xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lgwc-tab:hover {
+  color: var(--th-text);
+}
+
+.lgwc-tab.is-active {
+  color: var(--th-text);
+  border-bottom-color: var(--th-text);
+}

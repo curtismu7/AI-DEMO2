@@ -48,8 +48,7 @@ import PrivilegeDemoPage from "../pages/PrivilegeDemoPage";
 import EnterpriseMcpDemoPage from '../pages/EnterpriseMcpDemoPage';
 import GroupPolicyBoardPage from '../pages/GroupPolicyBoardPage';
 import PrivilegeMcpClientPage from "../pages/PrivilegeMcpClientPage";
-import LlmGatewayPage from '../pages/LlmGatewayPage';
-import LlmTestPage from '../pages/LlmTestPage';
+import LlmGatewayCombinedPage from '../pages/LlmGatewayCombinedPage';
 import AuditAgentPage from "../pages/AuditAgentPage";
 
 export default function PublicRoutes({ user, logout }) {
@@ -295,20 +294,24 @@ export function PrivilegeMcpClientPageRoute({ user, logout }) {
   );
 }
 
-/** LLM Gateway — what a Privilege virtual key permits, and what it just decided. */
+/**
+ * LLM Gateway — one page, two tabs: the chat console (what a Privilege virtual
+ * key permits, and what it just decided) and the raw REST tester (nothing
+ * interpreted). /llm-gateway and /llm-test both render this, defaulting to
+ * whichever tab matches the URL a link or bookmark used.
+ */
 export function LlmGatewayPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
-      <LlmGatewayPage />
+      <LlmGatewayCombinedPage defaultTab="chat" />
     </AppShell>
   );
 }
 
-/** LLM Gateway Test — raw request/response against the gateway, nothing interpreted. */
 export function LlmTestPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
-      <LlmTestPage />
+      <LlmGatewayCombinedPage defaultTab="raw" />
     </AppShell>
   );
 }

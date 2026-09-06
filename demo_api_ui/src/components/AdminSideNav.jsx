@@ -475,7 +475,6 @@ export default function AdminSideNav({
         { label: "Protocol Playground", path: "/protocol-playground", icon: "dbg" },
         { label: "AI Gateway Client", path: "/privilege-mcp-client", icon: "shld" },
         { label: "LLM Gateway", path: "/llm-gateway", icon: "key" },
-        { label: "LLM Gateway Test", path: "/llm-test", icon: "dbg" },
         { label: "Audit Agent", path: "/audit-agent", icon: "shld" },
         { label: "AI Agent Gateway Guide", path: "/privilege-mcp-learning", icon: "doc" },
         { label: "AI Agent Gateway Diagrams", path: "/privilege-mcp-diagrams", icon: "arc" },
@@ -631,18 +630,6 @@ export default function AdminSideNav({
           icon: "rte",
         },
         { label: "Capability Tour", path: "/agent-gateway-capabilities", icon: "shld" },
-        {
-          label: "LLM Gateway",
-          path: "/llm-gateway",
-          icon: "shld",
-          searchAlias: "privilege virtual key llm gateway permits decided policy",
-        },
-        {
-          label: "LLM Gateway Test",
-          path: "/llm-test",
-          icon: "tst",
-          searchAlias: "llm gateway raw request response status error anthropic openai google",
-        },
       ],
     },
     {

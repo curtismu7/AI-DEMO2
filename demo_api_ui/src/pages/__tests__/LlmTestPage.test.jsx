@@ -145,6 +145,43 @@ describe("LLM Gateway Test page", () => {
     expect(await screen.findByText(/PRIVILEGE_LLM_VIRTUAL_KEY_OPENAI is not set/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /send request/i })).toBeDisabled();
   });
+
+  it("offers /v1/models as a path, and hides the body editor when it is chosen", async () => {
+    mockFetch(() => OK_RAW);
+    render(<LlmTestPage />);
+    await ready();
+
+    const path = screen.getByLabelText(/^path$/i);
+    const opts = Array.from(path.querySelectorAll("option")).map((o) => o.value);
+    expect(opts).toContain("/llm/anthropic/v1/models");
+
+    fireEvent.change(path, { target: { value: "/llm/anthropic/v1/models" } });
+
+    expect(screen.getByText(/GET request/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/request body/i)).not.toBeInTheDocument();
+  });
+
+  it("sends /v1/models as a bodiless GET, not a POST with an empty body", async () => {
+    let sentBody;
+    global.fetch = vi.fn((url, opts) => {
+      const u = String(url);
+      if (u.endsWith("/llm/config")) {
+        return Promise.resolve({ ok: true, status: 200, text: async () => JSON.stringify(CONFIG) });
+      }
+      if (u.endsWith("/llm/raw")) {
+        sentBody = JSON.parse(opts.body);
+        return Promise.resolve(OK_RAW);
+      }
+      return new Promise(() => {});
+    });
+    render(<LlmTestPage />);
+    await ready();
+    fireEvent.change(screen.getByLabelText(/^path$/i), { target: { value: "/llm/anthropic/v1/models" } });
+    fireEvent.click(screen.getByRole("button", { name: /send request/i }));
+
+    await screen.findByTestId("lt-status");
+    expect(sentBody).toEqual({ provider: "anthropic", path: "/llm/anthropic/v1/models", method: "GET" });
+  });
 });
 
 

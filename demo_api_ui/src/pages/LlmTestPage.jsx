@@ -41,15 +41,24 @@ const TITLES = { anthropic: 'Anthropic', google: 'Google', openai: 'OpenAI' };
 
 // Ping's integration snippet points the OpenAI SDK at {gateway}/llm/<provider>/v1,
 // so /chat/completions is the shape people arrive with. Anthropic's native Messages
-// route is offered too because our own service calls it.
+// route is offered too because our own service calls it. /v1/models is real on every
+// lane (privilegeLlmProxyService.listModels) — GET-only, no body, so it is handled
+// separately below rather than in bodyFor.
 function pathsFor(lane) {
   const v1 = lane.route.replace(/\/(messages|chat\/completions)$/, '');
   const paths = [`${v1}/chat/completions`];
   if (lane.provider === 'anthropic') paths.push(`${v1}/messages`);
+  paths.push(`${v1}/models`);
   return paths;
 }
 
+// GET, no body — the only other path this page knows how to probe.
+function isModelsPath(path) {
+  return path.endsWith('/models');
+}
+
 function bodyFor(path, model) {
+  if (isModelsPath(path)) return null;
   const messages = [{ role: 'user', content: 'What is the capital of France? Answer in one word.' }];
   return path.endsWith('/messages')
     ? { model, max_tokens: 64, messages }
@@ -106,23 +115,33 @@ export default function LlmTestPage() {
 
   const onPath = useCallback((next) => {
     setPath(next);
-    if (lane) setBodyText(JSON.stringify(bodyFor(next, lane.model), null, 2));
+    setBodyError('');
+    if (!lane) return;
+    // A GET has no body to prefill — showing "null" in the textarea would look
+    // like a bug, and an empty, disabled area is what actually goes over the wire.
+    setBodyText(isModelsPath(next) ? '' : JSON.stringify(bodyFor(next, lane.model), null, 2));
   }, [lane]);
 
   const send = useCallback(async () => {
+    const isModels = isModelsPath(path);
     let body;
-    try {
-      body = JSON.parse(bodyText);
-    } catch (err) {
-      setBodyError(`Body is not valid JSON — ${err.message}`);
-      return;
+    if (!isModels) {
+      try {
+        body = JSON.parse(bodyText);
+      } catch (err) {
+        setBodyError(`Body is not valid JSON — ${err.message}`);
+        return;
+      }
     }
     setBodyError('');
     setBusy(true);
     setResult(null);
     setError('');
     try {
-      setResult(await api('/llm/raw', { method: 'POST', body: { provider, path, body } }));
+      setResult(await api('/llm/raw', {
+        method: 'POST',
+        body: isModels ? { provider, path, method: 'GET' } : { provider, path, body },
+      }));
     } catch (err) {
       setError(err.message || 'Request failed');
     } finally {
@@ -155,16 +174,22 @@ export default function LlmTestPage() {
   }, [directKey, provider, bodyText, lane]);
 
   const snippet = useMemo(() => {
-    const base = `${gatewayUrl || '{gateway_url}'}${path.replace(/\/(messages|chat\/completions)$/, '')}`;
-    let model = lane?.model || 'model';
-    try { model = JSON.parse(bodyText).model || model; } catch { /* keep the lane default */ }
-    return [
+    const base = `${gatewayUrl || '{gateway_url}'}${path.replace(/\/(messages|chat\/completions|models)$/, '')}`;
+    const preamble = [
       '# OpenAI SDK — point base_url at the gateway, use the virtual key',
       'from openai import OpenAI',
       'client = OpenAI(',
       `    base_url="${base}",`,
       '    api_key="sk-orion-…",  # your Privilege virtual key',
       ')',
+    ];
+    if (isModelsPath(path)) {
+      return [...preamble, 'resp = client.models.list()'].join('\n');
+    }
+    let model = lane?.model || 'model';
+    try { model = JSON.parse(bodyText).model || model; } catch { /* keep the lane default */ }
+    return [
+      ...preamble,
       'resp = client.chat.completions.create(',
       `    model="${model}",`,
       '    messages=[{"role":"user","content":"Hello"}],',
@@ -220,17 +245,21 @@ export default function LlmTestPage() {
             </select>
           </div>
 
-          <div className="lt-row lt-row--stack">
-            <label htmlFor="lt-body">Request body</label>
-            <textarea
-              id="lt-body"
-              spellCheck="false"
-              rows={14}
-              value={bodyText}
-              onChange={(e) => setBodyText(e.target.value)}
-            />
-            {bodyError ? <p className="lt-badjson" role="alert">{bodyError}</p> : null}
-          </div>
+          {isModelsPath(path) ? (
+            <p className="lt-empty">GET request &mdash; no body to send.</p>
+          ) : (
+            <div className="lt-row lt-row--stack">
+              <label htmlFor="lt-body">Request body</label>
+              <textarea
+                id="lt-body"
+                spellCheck="false"
+                rows={14}
+                value={bodyText}
+                onChange={(e) => setBodyText(e.target.value)}
+              />
+              {bodyError ? <p className="lt-badjson" role="alert">{bodyError}</p> : null}
+            </div>
+          )}
 
           <div className="lt-actions">
             <button type="button" className="lt-send" onClick={send} disabled={busy || !lane?.keyConfigured}>

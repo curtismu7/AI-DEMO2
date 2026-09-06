@@ -417,6 +417,43 @@ describe('POST /llm/raw', () => {
     expect(res.status).toBe(400);
     expect(llmFetch).not.toHaveBeenCalled();
   });
+
+  // /v1/models is GET-only and takes no body — added for the combined LLM
+  // Gateway page's path dropdown.
+  it('sends a GET with no body when method is GET', async () => {
+    llmFetch.mockResolvedValue({
+      ok: true, status: 200,
+      text: async () => JSON.stringify({ data: [{ id: 'claude-haiku-4-5-20251001' }] }),
+    });
+
+    const res = await raw({ provider: 'anthropic', path: '/llm/anthropic/v1/models', method: 'GET' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.request.method).toBe('GET');
+    expect(res.body.request.body).toBeUndefined();
+    expect(llmFetch.mock.calls[0][1].method).toBe('GET');
+    expect(llmFetch.mock.calls[0][1].body).toBeUndefined();
+    // No Content-Type on a bodiless request.
+    expect(llmFetch.mock.calls[0][1].headers['Content-Type']).toBeUndefined();
+  });
+
+  it('rejects a body sent alongside method GET', async () => {
+    const res = await raw({ provider: 'anthropic', path: '/llm/anthropic/v1/models', method: 'GET', body: { x: 1 } });
+    expect(res.status).toBe(400);
+    expect(llmFetch).not.toHaveBeenCalled();
+  });
+
+  it('rejects an unsupported method rather than forwarding it', async () => {
+    const res = await raw({ provider: 'anthropic', method: 'DELETE', body: { model: 'x' } });
+    expect(res.status).toBe(400);
+    expect(llmFetch).not.toHaveBeenCalled();
+  });
+
+  it('still defaults to POST when method is omitted (existing callers unaffected)', async () => {
+    llmFetch.mockResolvedValue({ ok: true, status: 200, text: async () => '{}' });
+    await raw({ provider: 'anthropic', body: { model: 'x' } });
+    expect(llmFetch.mock.calls[0][1].method).toBe('POST');
+  });
 });
 
 // ── /llm/compare ────────────────────────────────────────────────────────────
