@@ -103,10 +103,18 @@ if [[ "${PROD_MODE:-0}" != "1" && -f "${OVERRIDE_FILE}" ]]; then
 fi
 
 # Core banking demo — always started by default.
+#
+# The observability four (loki alloy prometheus grafana) carry no compose
+# profile, so before they were listed here nothing ever started them: the
+# Grafana dashboards existed but had no container to serve them, and Alloy
+# shipped no container stdout to Loki. They are cheap (1g + 512m + 512m +
+# 512m mem_limits, all four image-only, no build) and every Grafana log panel
+# depends on Alloy running alongside the services it tails.
 CORE_SERVICES=(
   ui mcp-server mcp-resource-server mcp-weather mcp-brave api-resource-server mcp-proxy
   ping-gateway langchain-agent agent-service hitl-service llm-proxy
   promptfoo-step-narration
+  loki alloy prometheus grafana
 )
 
 # Optional groups — start on demand via `./run-docker.sh optional start <group>`.
