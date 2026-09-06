@@ -1,5 +1,7 @@
-ARG GIT_SHA=unknown
 FROM node:22-alpine
+# Re-declared after FROM on purpose: an ARG from before it is out of scope here,
+# and the ENV silently resolves to empty without this.
+ARG GIT_SHA=unknown
 ENV GIT_SHA=$GIT_SHA
 
 WORKDIR /app
