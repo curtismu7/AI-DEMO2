@@ -24,7 +24,7 @@
 
 .lgw-bar h1 {
   margin: 0 0 0.25rem;
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-2xl);
   font-weight: 700;
   color: var(--th-text);
 }
@@ -32,7 +32,7 @@
 .lgw-bar p {
   margin: 0;
   max-width: 68ch;
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-base);
   color: var(--th-text-muted);
 }
 
@@ -45,7 +45,7 @@
 
 .lgw-origin {
   font-family: var(--font-mono, monospace);
-  font-size: var(--font-size-3xs);
+  font-size: var(--font-size-sm);
   padding: 0.2rem 0.45rem;
   border: 1px solid var(--th-border);
   border-radius: 4px;
@@ -59,7 +59,7 @@
   border-radius: 4px;
   background: var(--th-bg-card);
   color: var(--th-text);
-  font-size: var(--font-size-3xs);
+  font-size: var(--font-size-sm);
   cursor: pointer;
 }
 
@@ -75,7 +75,7 @@
   border-radius: 0 4px 4px 0;
   background: var(--th-bg-card);
   color: var(--th-status-error);
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-base);
 }
 
 /* ── three panes ─────────────────────────────────────────────────────────── */
@@ -103,7 +103,7 @@
 
 .lgw-rail__k {
   margin: 0;
-  font-size: var(--font-size-3xs);
+  font-size: var(--font-size-sm);
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -112,7 +112,7 @@
 
 .lgw-rail__note {
   margin: 0;
-  font-size: var(--font-size-3xs);
+  font-size: var(--font-size-sm);
   line-height: 1.5;
   color: var(--th-text-muted);
 }
@@ -157,13 +157,13 @@
 }
 
 .lgw-lane__n {
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-base);
   font-weight: 600;
 }
 
 .lgw-lane__r {
   font-family: var(--font-mono, monospace);
-  font-size: var(--font-size-3xs);
+  font-size: var(--font-size-sm);
   color: var(--th-text-muted);
   word-break: break-all;
 }
@@ -178,7 +178,7 @@
 }
 
 .lgw-lane__warn {
-  font-size: var(--font-size-3xs);
+  font-size: var(--font-size-sm);
   color: var(--th-status-error);
 }
 
@@ -192,7 +192,7 @@
 }
 
 .lgw-lane__limitk {
-  font-size: var(--font-size-3xs);
+  font-size: var(--font-size-sm);
   letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--th-text-muted);
@@ -205,7 +205,7 @@
   justify-content: space-between;
   gap: 0.4rem;
   font-family: var(--font-mono, monospace);
-  font-size: var(--font-size-3xs);
+  font-size: var(--font-size-sm);
   font-variant-numeric: tabular-nums;
   color: var(--th-text-muted);
 }
@@ -234,7 +234,7 @@
 
 .lgw-meter__reset {
   font-family: var(--font-mono, monospace);
-  font-size: var(--font-size-3xs);
+  font-size: var(--font-size-sm);
   color: var(--th-text-muted);
 }
 
@@ -261,21 +261,21 @@
 
 .lgw-empty {
   margin: 0;
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-base);
   color: var(--th-text-muted);
 }
 
 .lgw-turn { display: flex; flex-direction: column; gap: 0.2rem; }
 
 .lgw-turn__who {
-  font-size: var(--font-size-3xs);
+  font-size: var(--font-size-sm);
   letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--th-text-muted);
 }
 
 .lgw-turn__body {
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-base);
   line-height: 1.55;
   color: var(--th-text);
 }
@@ -316,7 +316,7 @@
   background: var(--th-bg-card);
   color: var(--th-text);
   font: inherit;
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-base);
 }
 
 .lgw-send {
@@ -325,7 +325,7 @@
   border-radius: 5px;
   background: var(--th-bg-emphasis);
   color: var(--th-text-on-emphasis);
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-base);
   font-weight: 600;
   cursor: pointer;
 }
@@ -343,7 +343,7 @@
 .lgw-dec > div { display: flex; flex-direction: column; gap: 0.1rem; }
 
 .lgw-dec dt {
-  font-size: var(--font-size-3xs);
+  font-size: var(--font-size-sm);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--th-text-muted);
@@ -352,7 +352,7 @@
 .lgw-dec dd {
   margin: 0;
   font-family: var(--font-mono, monospace);
-  font-size: var(--font-size-3xs);
+  font-size: var(--font-size-sm);
   color: var(--th-text);
   word-break: break-all;
 }
@@ -362,7 +362,7 @@
   padding: 0.1rem 0.4rem;
   border-radius: 3px;
   font-family: var(--font-mono, monospace);
-  font-size: var(--font-size-3xs);
+  font-size: var(--font-size-sm);
   font-weight: 700;
   letter-spacing: 0.05em;
   background: var(--th-bg-inset);

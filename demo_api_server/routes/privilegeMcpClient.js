@@ -2247,7 +2247,7 @@ router.post('/llm/compare', express.json({ limit: '64kb' }), async (req, res) =>
   const model = typeof req.body?.model === 'string' && req.body.model.trim() ? req.body.model.trim() : lane.defaultModel;
   const prompt = typeof req.body?.prompt === 'string' && req.body.prompt.trim()
     ? req.body.prompt.trim()
-    : 'What is the capital of France? Answer in one word.';
+    : 'What is the capital of Texas?';
 
   try {
     const result = await compareLlmPaths({ provider, directKey, gatewayBase, virtualKey, model, prompt });

@@ -23,7 +23,7 @@
 
 .lt-bar h1 {
   margin: 0 0 0.25rem;
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-2xl);
   font-weight: 700;
   color: var(--th-text);
 }
@@ -31,7 +31,7 @@
 .lt-bar p {
   margin: 0;
   max-width: 70ch;
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-base);
   color: var(--th-text-muted);
 }
 
@@ -44,7 +44,7 @@
 
 .lt-origin {
   font-family: var(--font-mono, monospace);
-  font-size: var(--font-size-3xs);
+  font-size: var(--font-size-sm);
   padding: 0.2rem 0.45rem;
   border: 1px solid var(--th-border);
   border-radius: 4px;
@@ -58,7 +58,7 @@
   border-radius: 4px;
   background: var(--th-bg-card);
   color: var(--th-text);
-  font-size: var(--font-size-3xs);
+  font-size: var(--font-size-sm);
   cursor: pointer;
 }
 
@@ -74,7 +74,7 @@
   border-radius: 0 4px 4px 0;
   background: var(--th-bg-card);
   color: var(--th-status-error);
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-base);
 }
 
 /* ── two panes ───────────────────────────────────────────────────────────── */
@@ -106,7 +106,7 @@
 
 .lt-row label {
   min-width: 6.5rem;
-  font-size: var(--font-size-3xs);
+  font-size: var(--font-size-sm);
   font-weight: 600;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -122,7 +122,7 @@
   background: var(--th-bg-inset);
   color: var(--th-text);
   font: inherit;
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-base);
 }
 
 .lt-row textarea {
@@ -133,14 +133,14 @@
   background: var(--th-bg-inset);
   color: var(--th-text);
   font-family: var(--font-mono, monospace);
-  font-size: var(--font-size-3xs);
+  font-size: var(--font-size-sm);
   line-height: 1.6;
   resize: vertical;
 }
 
 .lt-badjson {
   margin: 0;
-  font-size: var(--font-size-3xs);
+  font-size: var(--font-size-sm);
   color: var(--th-status-error);
 }
 
@@ -152,7 +152,7 @@
   border-radius: 5px;
   background: var(--th-bg-emphasis);
   color: var(--th-text-on-emphasis);
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-base);
   font-weight: 600;
   cursor: pointer;
 }
@@ -164,11 +164,11 @@
 
 .lt-send:disabled { opacity: 0.55; cursor: not-allowed; }
 
-.lt-note { font-size: var(--font-size-3xs); color: var(--th-status-error); }
+.lt-note { font-size: var(--font-size-sm); color: var(--th-status-error); }
 
 /* ── snippet + panes ─────────────────────────────────────────────────────── */
 .lt-k {
-  font-size: var(--font-size-3xs);
+  font-size: var(--font-size-sm);
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -192,7 +192,7 @@
   background: var(--th-bg-inset);
   color: var(--th-text);
   font-family: var(--font-mono, monospace);
-  font-size: var(--font-size-3xs);
+  font-size: var(--font-size-sm);
   line-height: 1.6;
   overflow-x: auto;
   max-height: 24rem;
@@ -201,7 +201,7 @@
 
 .lt-empty {
   margin: 0;
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-base);
   color: var(--th-text-muted);
 }
 
@@ -216,7 +216,7 @@
   padding: 0.12rem 0.45rem;
   border-radius: 3px;
   font-family: var(--font-mono, monospace);
-  font-size: var(--font-size-3xs);
+  font-size: var(--font-size-sm);
   font-weight: 700;
   background: var(--th-bg-inset);
   color: var(--th-text-muted);
@@ -228,14 +228,14 @@
 
 .lt-ms {
   font-family: var(--font-mono, monospace);
-  font-size: var(--font-size-3xs);
+  font-size: var(--font-size-sm);
   font-variant-numeric: tabular-nums;
   color: var(--th-text-muted);
 }
 
 .lt-url {
   font-family: var(--font-mono, monospace);
-  font-size: var(--font-size-3xs);
+  font-size: var(--font-size-sm);
   color: var(--th-text-muted);
   word-break: break-all;
   min-width: 0;
@@ -257,7 +257,7 @@
 
 .lt-cmp__why {
   max-width: 78ch;
-  font-size: var(--font-size-3xs);
+  font-size: var(--font-size-sm);
   line-height: 1.55;
   color: var(--th-text-muted);
 }
@@ -265,7 +265,7 @@
 .lt-cmp__form { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
 
 .lt-cmp__form label {
-  font-size: var(--font-size-3xs);
+  font-size: var(--font-size-sm);
   font-weight: 600;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -281,7 +281,7 @@
   background: var(--th-bg-inset);
   color: var(--th-text);
   font-family: var(--font-mono, monospace);
-  font-size: var(--font-size-3xs);
+  font-size: var(--font-size-sm);
 }
 
 .lt-cmp__out { display: flex; flex-direction: column; gap: 0.7rem; }
@@ -295,7 +295,7 @@
 
 .lt-cmp__hk,
 .lt-cmp__rk {
-  font-size: var(--font-size-3xs);
+  font-size: var(--font-size-sm);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -304,14 +304,14 @@
 
 .lt-cmp__v {
   font-family: var(--font-mono, monospace);
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-base);
   font-variant-numeric: tabular-nums;
   color: var(--th-text);
 }
 
 .lt-cmp__v em {
   font-style: normal;
-  font-size: var(--font-size-3xs);
+  font-size: var(--font-size-sm);
   color: var(--th-text-muted);
 }
 
@@ -326,7 +326,7 @@
   border-bottom-right-radius: var(--radius-sm);
   background: var(--th-bg-inset);
   color: var(--th-text);
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-base);
 }
 
 .lt-cmp__pair { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
@@ -339,7 +339,7 @@
 .lt-local-note {
   margin: 0;
   max-width: 78ch;
-  font-size: var(--font-size-3xs);
+  font-size: var(--font-size-sm);
   line-height: 1.55;
   color: var(--th-text-muted);
 }

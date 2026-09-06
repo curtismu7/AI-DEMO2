@@ -42,28 +42,41 @@ const LOCAL = 'lmstudio';
 
 // Ping's integration snippet points the OpenAI SDK at {gateway}/llm/<provider>/v1,
 // so /chat/completions is the shape people arrive with. Anthropic's native Messages
-// route is offered too because our own service calls it. /v1/models is real on every
-// lane (privilegeLlmProxyService.listModels) — GET-only, no body, so it is handled
-// separately below rather than in bodyFor.
+// route is offered too because our own service calls it. The rest — /completions,
+// /embeddings, /responses, /models — are the OpenAI-compatible endpoint set every
+// lane's route is built to accept (LANES in privilegeLlmProxyService.js all use the
+// same OpenAI-compatible shape except Anthropic's native /messages); offering them
+// is exactly this page's job, since it interprets nothing and shows whatever the
+// gateway actually says about a path it may or may not have wired up.
 function pathsFor(lane) {
   const v1 = lane.route.replace(/\/(messages|chat\/completions)$/, '');
   const paths = [`${v1}/chat/completions`];
   if (lane.provider === 'anthropic') paths.push(`${v1}/messages`);
-  paths.push(`${v1}/models`);
+  paths.push(`${v1}/completions`, `${v1}/embeddings`, `${v1}/responses`, `${v1}/models`);
   return paths;
 }
 
-// GET, no body — the only other path this page knows how to probe.
+// GET, no body — the only path this page knows that takes none.
 function isModelsPath(path) {
   return path.endsWith('/models');
 }
 
+const DEMO_PROMPT = 'What is the capital of Texas?';
+
 function bodyFor(path, model) {
   if (isModelsPath(path)) return null;
-  const messages = [{ role: 'user', content: 'What is the capital of France? Answer in one word.' }];
-  return path.endsWith('/messages')
-    ? { model, max_tokens: 64, messages }
-    : { model, messages, max_tokens: 64 };
+  // Order matters: check the more specific suffix before the generic one, since
+  // '/chat/completions' also ends with the substring 'completions'.
+  if (path.endsWith('/embeddings')) return { model, input: DEMO_PROMPT };
+  if (path.endsWith('/responses')) return { model, input: DEMO_PROMPT };
+  if (path.endsWith('/messages')) {
+    return { model, max_tokens: 64, messages: [{ role: 'user', content: DEMO_PROMPT }] };
+  }
+  if (path.endsWith('/chat/completions')) {
+    return { model, messages: [{ role: 'user', content: DEMO_PROMPT }], max_tokens: 64 };
+  }
+  // The legacy Completions API: a prompt string, not a messages array.
+  return { model, prompt: DEMO_PROMPT, max_tokens: 64 };
 }
 
 export default function LlmTestPage() {
@@ -132,7 +145,7 @@ export default function LlmTestPage() {
         if ((d.models || []).length) {
           setBodyText(JSON.stringify({
             model: d.models[0],
-            messages: [{ role: 'user', content: 'What is the capital of France? Answer in one word.' }],
+            messages: [{ role: 'user', content: DEMO_PROMPT }],
             max_tokens: local?.defaultMaxTokens || 512,
           }, null, 2));
         }
@@ -211,7 +224,7 @@ export default function LlmTestPage() {
   }, [directKey, provider, bodyText, lane]);
 
   const snippet = useMemo(() => {
-    const base = `${gatewayUrl || '{gateway_url}'}${path.replace(/\/(messages|chat\/completions|models)$/, '')}`;
+    const base = `${gatewayUrl || '{gateway_url}'}${path.replace(/\/(messages|chat\/completions|completions|embeddings|responses|models)$/, '')}`;
     const preamble = [
       '# OpenAI SDK — point base_url at the gateway, use the virtual key',
       'from openai import OpenAI',
@@ -225,6 +238,16 @@ export default function LlmTestPage() {
     }
     let model = lane?.model || 'model';
     try { model = JSON.parse(bodyText).model || model; } catch { /* keep the lane default */ }
+    if (path.endsWith('/embeddings')) {
+      return [...preamble, 'resp = client.embeddings.create(', `    model="${model}",`, `    input="${DEMO_PROMPT}",`, ')'].join('\n');
+    }
+    if (path.endsWith('/responses')) {
+      return [...preamble, 'resp = client.responses.create(', `    model="${model}",`, `    input="${DEMO_PROMPT}",`, ')'].join('\n');
+    }
+    if (!path.endsWith('/chat/completions') && !path.endsWith('/messages')) {
+      // The legacy Completions API.
+      return [...preamble, 'resp = client.completions.create(', `    model="${model}",`, `    prompt="${DEMO_PROMPT}",`, ')'].join('\n');
+    }
     return [
       ...preamble,
       'resp = client.chat.completions.create(',
