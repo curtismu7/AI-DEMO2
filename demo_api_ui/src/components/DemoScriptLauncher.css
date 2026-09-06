@@ -22,6 +22,19 @@
   background: #1f2937;
 }
 
+/* Mobile: the AI agent's full-width bottom dock (.ba-embedded-bottom-dock,
+   see DemoScriptLauncher.jsx) reaches this same bottom-left corner on a short
+   phone viewport and gets covered by this button — reported live. Desktop
+   has enough width that the dock and this corner button don't compete for
+   the same pixels, so this is scoped to <=768px like the equivalent landing
+   page fix. */
+@media (max-width: 768px) {
+  body.agent-bottom-dock-in-view .demo-script-launch {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
 /* Teleprompter body - self-contained explicit colors. The pop-out window does
    not inherit theme CSS variables, so every color is stated here to stay
    readable on a second monitor in any app theme. */
