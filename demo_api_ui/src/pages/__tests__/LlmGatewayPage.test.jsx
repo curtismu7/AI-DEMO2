@@ -269,4 +269,54 @@ describe("LLM Gateway console", () => {
       expect(screen.queryByText("LM Studio (local)")).not.toBeInTheDocument();
     });
   });
+
+  describe("decision view toggle", () => {
+    async function sendAndGetDecision() {
+      mockFetch(() => ({
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify({
+          reply: "Paris.", provider: "anthropic", route: "/llm/anthropic/v1/messages",
+          latencyMs: 300, reachedProvider: true,
+        }),
+      }));
+      render(<LlmGatewayPage />);
+      await ask("capital of France?");
+      await screen.findByTestId("lgw-decision");
+    }
+
+    it("has no toggle before a decision exists", async () => {
+      mockFetch(() => new Promise(() => {}));
+      render(<LlmGatewayPage />);
+      await screen.findByText("/llm/anthropic/v1/messages");
+
+      expect(screen.queryByRole("button", { name: /^json$/i })).not.toBeInTheDocument();
+    });
+
+    it("defaults to the form view, and JSON shows the same decision data raw", async () => {
+      await sendAndGetDecision();
+
+      expect(screen.getByRole("button", { name: /^form$/i })).toHaveAttribute("aria-pressed", "true");
+      expect(screen.queryByTestId("lgw-decision-json")).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: /^json$/i }));
+
+      expect(screen.queryByTestId("lgw-decision")).not.toBeInTheDocument();
+      const json = screen.getByTestId("lgw-decision-json");
+      expect(json).toHaveTextContent(/"verdict"/);
+      expect(json).toHaveTextContent(/"provider"/);
+      expect(json).toHaveTextContent(/anthropic/);
+    });
+
+    it("switches back to the form view", async () => {
+      await sendAndGetDecision();
+      fireEvent.click(screen.getByRole("button", { name: /^json$/i }));
+      await screen.findByTestId("lgw-decision-json");
+
+      fireEvent.click(screen.getByRole("button", { name: /^form$/i }));
+
+      expect(screen.queryByTestId("lgw-decision-json")).not.toBeInTheDocument();
+      expect(await screen.findByTestId("lgw-decision")).toBeInTheDocument();
+    });
+  });
 });
