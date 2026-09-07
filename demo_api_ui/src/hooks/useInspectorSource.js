@@ -145,21 +145,28 @@ export function useInspectorSource(sourceKey) {
   }, []);
 
   // Custom Server: the profile list has to land before tools can be fetched.
-  useEffect(() => {
-    if (mode !== 'profiles') return undefined;
-    let cancelled = false;
-    apiClient.get(config.profilesEndpoint)
-      .then(({ data }) => {
-        if (cancelled) return;
-        setProfiles(data.profiles || []);
-        setDefaultProfileId(data.defaultProfileId || '');
-        setSelectedProfileId((prev) => prev || data.defaultProfileId || '');
-      })
-      .catch((e) => {
-        if (!cancelled) setBanner({ message: formatAxiosError(e, 'Failed to load server profiles'), loginUrl: null });
-      });
-    return () => { cancelled = true; };
+  // Exposed as loadProfiles so the page can re-fetch after adding one (and,
+  // optionally, select it) without duplicating this fetch/parse logic.
+  // profilesReqRef guards against a stale response landing after a newer
+  // call started (tab-switch while in flight, or a rapid add) — the same
+  // protection the old effect's local `cancelled` flag gave a single fetch.
+  const profilesReqRef = useRef(0);
+  const loadProfiles = useCallback(async (selectId) => {
+    if (mode !== 'profiles') return;
+    const reqId = ++profilesReqRef.current;
+    try {
+      const { data } = await apiClient.get(config.profilesEndpoint);
+      if (profilesReqRef.current !== reqId) return;
+      setProfiles(data.profiles || []);
+      setDefaultProfileId(data.defaultProfileId || '');
+      setSelectedProfileId((prev) => selectId || prev || data.defaultProfileId || '');
+    } catch (e) {
+      if (profilesReqRef.current !== reqId) return;
+      setBanner({ message: formatAxiosError(e, 'Failed to load server profiles'), loginUrl: null });
+    }
   }, [mode, config.profilesEndpoint]);
+
+  useEffect(() => { loadProfiles(); }, [loadProfiles]);
 
   // Load tools for this source
   const loadTools = useCallback(async () => {
@@ -369,5 +376,6 @@ export function useInspectorSource(sourceKey) {
     setSelectedProfileId,
     handleExecute,
     loadTools,
+    loadProfiles,
   };
 }

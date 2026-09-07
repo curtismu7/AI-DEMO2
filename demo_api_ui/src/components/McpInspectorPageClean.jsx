@@ -8,7 +8,19 @@ import { useThemeOptional } from '../context/ThemeContext';
 import useDividerDrag from '../hooks/useDividerDrag';
 import JsonHighlight from './shared/JsonHighlight';
 import JsonFormView from './shared/JsonFormView';
+import apiClient from '../services/apiClient';
+import { formatAxiosError } from '../utils/formatAxiosError';
 import './McpInspectorPage.clean.css';
+
+const NEW_PROFILE_DEFAULTS = {
+  label: '',
+  transport: 'http',
+  url: '',
+  authHeader: 'Authorization',
+  authValue: '',
+  command: '',
+  argsText: '',
+};
 
 const SOURCES = [
   { key: 'banking', label: 'AI Demo MCP' },
@@ -78,6 +90,50 @@ function McpInspectorPageClean() {
   // Use unified hook for current source
   const source = useInspectorSource(activeSource);
   const mode = source.mode || 'tools';
+
+  // Custom Server: adding a new saved profile (websocket/http/stdio). The
+  // known Privilege-gateway doors and the built-in PingOne/banking profiles
+  // are already seeded server-side (mcpProfileStore.js) and need no form —
+  // this is only for a server not already on that list.
+  const [showAddServer, setShowAddServer] = useState(false);
+  const [newProfile, setNewProfile] = useState(NEW_PROFILE_DEFAULTS);
+  const [addProfileError, setAddProfileError] = useState(null);
+  const [addProfileBusy, setAddProfileBusy] = useState(false);
+
+  const handleAddProfile = useCallback(async () => {
+    setAddProfileError(null);
+    const { label, transport, url, authHeader, authValue, command, argsText } = newProfile;
+    const body = { label: label.trim(), transport };
+    if (transport === 'stdio') {
+      if (!command.trim()) {
+        setAddProfileError('Command is required.');
+        return;
+      }
+      body.command = command.trim();
+      body.args = argsText.trim() ? argsText.trim().split(/\s+/) : [];
+    } else {
+      if (!url.trim()) {
+        setAddProfileError('Server URL is required.');
+        return;
+      }
+      body.url = url.trim();
+      if (authHeader.trim() && authValue.trim()) {
+        body.authHeader = authHeader.trim();
+        body.authValue = authValue.trim();
+      }
+    }
+    setAddProfileBusy(true);
+    try {
+      const { data } = await apiClient.post('/api/mcp/inspector/profiles', body);
+      await source.loadProfiles(data.profile.id);
+      setShowAddServer(false);
+      setNewProfile(NEW_PROFILE_DEFAULTS);
+    } catch (e) {
+      setAddProfileError(formatAxiosError(e, 'Failed to add server'));
+    } finally {
+      setAddProfileBusy(false);
+    }
+  }, [newProfile, source]);
 
   // Handle source switch
   const handleSourceChange = useCallback((newSource) => {
@@ -186,6 +242,98 @@ function McpInspectorPageClean() {
                     <option key={p.id} value={p.id}>{p.label || p.id}</option>
                   ))}
                 </select>
+                <button
+                  type="button"
+                  className="inspector-clean-button inspector-clean-addserver-toggle"
+                  onClick={() => setShowAddServer((v) => !v)}
+                >
+                  {showAddServer ? 'Cancel' : '+ Add server'}
+                </button>
+              </div>
+            )}
+            {mode === 'profiles' && showAddServer && (
+              <div className="inspector-clean-panel-subhead inspector-clean-addserver-form">
+                <div className="inspector-clean-field">
+                  <div className="inspector-clean-field-label"><span>Label</span></div>
+                  <input
+                    type="text"
+                    value={newProfile.label}
+                    onChange={(e) => setNewProfile((p) => ({ ...p, label: e.target.value }))}
+                    placeholder="e.g. Staging MCP server"
+                  />
+                </div>
+                <div className="inspector-clean-field">
+                  <div className="inspector-clean-field-label"><span>Transport</span></div>
+                  <select
+                    value={newProfile.transport}
+                    onChange={(e) => setNewProfile((p) => ({ ...p, transport: e.target.value }))}
+                  >
+                    <option value="http">http</option>
+                    <option value="websocket">websocket</option>
+                    <option value="stdio">stdio</option>
+                  </select>
+                </div>
+                {newProfile.transport === 'stdio' ? (
+                  <>
+                    <div className="inspector-clean-field">
+                      <div className="inspector-clean-field-label"><span>Command</span></div>
+                      <input
+                        type="text"
+                        value={newProfile.command}
+                        onChange={(e) => setNewProfile((p) => ({ ...p, command: e.target.value }))}
+                        placeholder="node"
+                      />
+                    </div>
+                    <div className="inspector-clean-field">
+                      <div className="inspector-clean-field-label"><span>Args</span></div>
+                      <input
+                        type="text"
+                        value={newProfile.argsText}
+                        onChange={(e) => setNewProfile((p) => ({ ...p, argsText: e.target.value }))}
+                        placeholder="server.js --stdio"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="inspector-clean-field">
+                      <div className="inspector-clean-field-label"><span>Server URL</span></div>
+                      <input
+                        type="text"
+                        value={newProfile.url}
+                        onChange={(e) => setNewProfile((p) => ({ ...p, url: e.target.value }))}
+                        placeholder="https://example.test/mcp"
+                      />
+                    </div>
+                    <div className="inspector-clean-field">
+                      <div className="inspector-clean-field-label"><span>Auth header</span></div>
+                      <input
+                        type="text"
+                        value={newProfile.authHeader}
+                        onChange={(e) => setNewProfile((p) => ({ ...p, authHeader: e.target.value }))}
+                        placeholder="Authorization"
+                      />
+                    </div>
+                    <div className="inspector-clean-field">
+                      <div className="inspector-clean-field-label"><span>Auth value</span></div>
+                      <input
+                        type="password"
+                        value={newProfile.authValue}
+                        onChange={(e) => setNewProfile((p) => ({ ...p, authValue: e.target.value }))}
+                        placeholder="Bearer ..."
+                      />
+                    </div>
+                  </>
+                )}
+                <button
+                  type="button"
+                  className="inspector-clean-button"
+                  onClick={handleAddProfile}
+                  disabled={addProfileBusy}
+                >
+                  {addProfileBusy ? 'Saving...' : 'Save'}
+                </button>
+                {addProfileError && <div className="inspector-clean-addserver-error">{addProfileError}</div>}
               </div>
             )}
             {/* Gateway Showcase fronts two servers; one can 401 while the other
