@@ -489,7 +489,7 @@ services:
       SCOPE_TOPOLOGY_PATH: "/repo/scope-topology.json"
       # llama.cpp — BFF status probe (llmProviderStatus.js) needs the host-reachable
       # URL (origin only; the service appends /v1). Launch llama-server on the host.
-      LLAMACPP_BASE_URL: "http://host.docker.internal:8090"
+      LLAMACPP_BASE_URL: "${LLAMACPP_BASE_URL:-http://host.docker.internal:8090}"
       # Small NON-reasoning model: BFF NL-intent / teaching answers must return
       # under the SPA fetch timeout. A reasoning model takes ~22s+ and blows it,
       # surfacing "Could not parse: signal timed out"; a 3.8B-class model answers
@@ -855,7 +855,7 @@ services:
       AGUI_HTTP_HOST: "0.0.0.0"
       CHAT_WS_HOST: "0.0.0.0"
       # CodeGraph Explorer LLM — priority: Anthropic > Groq > local llama
-      LLAMACPP_BASE_URL: "http://host.docker.internal:8090"
+      LLAMACPP_BASE_URL: "${LLAMACPP_BASE_URL:-http://host.docker.internal:8090}"
       LLAMACPP_MODEL: "gpt-oss-20b"
       # GROQ_API_KEY intentionally absent: environment: overrides env_file, so a
       # "${GROQ_API_KEY:-}" entry here blanks the value langchain_agent/.env supplies
@@ -1096,7 +1096,7 @@ services:
       NODE_OPTIONS: "-r /otel/otel-instrument.js"
       BFF_BASE_URL: "https://demo-api-server:3001"
       MCP_GATEWAY_URL: "http://mcp-gateway:3005"
-      LLAMACPP_BASE_URL: "http://host.docker.internal:8090"
+      LLAMACPP_BASE_URL: "${LLAMACPP_BASE_URL:-http://host.docker.internal:8090}"
       # Agent reasoning + native tool calls → strongest tier. The proxy treats
       # this as a minimum capability class (per-agent routing, swap mode).
       LLAMACPP_MODEL: "gpt-oss-20b"
@@ -2060,7 +2060,7 @@ services:
       WEAVIATE_GRPC_PORT: "50051"
       EMBEDDING_URL: http://embeddings:8080
       EMBEDDING_MODEL: nomic-embed-text-v1.5
-      LLAMACPP_BASE_URL: http://host.docker.internal:8090
+      LLAMACPP_BASE_URL: "${LLAMACPP_BASE_URL:-http://host.docker.internal:8090}"
       AGENT_MODE: single-shot
       AGENT_MAX_TOOL_CALLS: "4"
     networks:

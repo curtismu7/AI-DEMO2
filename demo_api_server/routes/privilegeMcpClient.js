@@ -2215,6 +2215,18 @@ const LLAMACPP = {
   defaultMaxTokens: 256,
 };
 
+// Did the prompt actually get to the model? undici reports a connection-level
+// failure (DNS, refused, reset) as a TypeError whose message is the bare
+// "fetch failed", carrying the real errno on `cause` — nothing was sent and
+// nothing answered. Every other throw on these lanes is a plain Error raised
+// after a response came back (an HTTP error body, or an empty completion), so
+// the model DID see the prompt. Reporting this honestly is the whole point of
+// the local lanes: they sit next to three governed ones, and "the provider
+// refused" must never be shown for a call that never left the building.
+// ponytail: a timeout counts as reached — we genuinely don't know, but its
+// message says "timed out after Nms", so the text is self-explanatory either way.
+const reachedLocalProvider = (err) => !(err instanceof TypeError && err.cause !== undefined);
+
 const directKeyEnv = (provider) => `LLM_DIRECT_${provider.toUpperCase()}_KEY`;
 const serverDirectKey = (provider) => process.env[directKeyEnv(provider)] || '';
 
@@ -2464,7 +2476,7 @@ router.post('/llm/call', express.json(), async (req, res) => {
         provider,
         route: LMSTUDIO.route,
         latencyMs: Date.now() - t0,
-        reachedProvider: true,
+        reachedProvider: reachedLocalProvider(err),
         providerLimits: null,
       });
     }
@@ -2492,7 +2504,7 @@ router.post('/llm/call', express.json(), async (req, res) => {
         provider,
         route: LLAMACPP.route,
         latencyMs: Date.now() - t0,
-        reachedProvider: true,
+        reachedProvider: reachedLocalProvider(err),
         providerLimits: null,
       });
     }

@@ -140,6 +140,64 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-07 — AI Guard blamed the model for calls that never left the building; local lanes 429'd by a shared rate-limit bucket
+
+**Files changed:** `demo_api_server/routes/privilegeMcpClient.js`,
+`demo_api_server/tests/routes/privilegeMcpClient.llmPanel.test.js`,
+`demo_api_ui/src/pages/LlmGatewayPage.jsx`, `docker-compose.yml`,
+`run-docker.sh`.
+
+**What was broken:** two independent bugs behind one symptom on `/llm-gateway`.
+
+1. **Misattribution.** `/llm/call`'s two unmediated local branches (LM Studio,
+   llama.cpp) hardcoded `reachedProvider: true` in their catch blocks. A
+   connection-level failure — undici's bare `fetch failed` — therefore rendered
+   as **"LM Studio stopped this / Privilege passed the prompt through — the
+   refusal came from the provider"**, plus "Reached the model: yes". Three false
+   claims: nothing was reached, nothing refused it, and Privilege is not in the
+   local path at all. `classify()` compounded it by mapping *any* 502 to
+   `layer: 'provider'`, and the `!reachedProvider` rail note claimed the prompt
+   "stopped at the gateway" on lanes that have no gateway.
+2. **The 429.** All four `LLAMACPP_BASE_URL` consumers (`demo-api-server`,
+   `langchain-agent`, `agent-service`, `llamaindex-agent`) pointed at
+   `host.docker.internal:8090`. That leaves the host and re-enters through the
+   published port, so every container arrives SNAT'd to the docker gateway
+   address and shares ONE per-IP bucket in `demo_llm_proxy/router.js`
+   (60 req/min) — together with host-side probes. PingOne Privilege's local AI
+   discovery agent (`cyonagent_mac`, `Go-http-client/1.1`) probes every local
+   LLM port every ~30s, measured at ~94 req/min into the proxy, which exhausts
+   the bucket on its own. Measured 2026-09-07, same instant, same container:
+   `host.docker.internal:8090` → **429**, `llm-proxy:8090` → **200**.
+
+**What was fixed:** `reachedLocalProvider(err)` replaces the hardcoded flag —
+a connection failure is undici's `TypeError` carrying a `cause`; every other
+throw on these lanes happens after a response came back. The UI gained a
+`transport` layer with its own verdict and attribution copy, suppresses the
+"Refused by" row when nothing refused anything, and gates the gateway note on
+`layer === 'Privilege'`. `LLAMACPP_BASE_URL` became
+`${LLAMACPP_BASE_URL:-http://host.docker.internal:8090}` in all four services,
+and `run-docker.sh` exports `http://llm-proxy:8090` only when the llm-proxy
+container is actually in the core-up list.
+
+**Do not break:**
+
+- The default must stay `host.docker.internal:8090`. Under
+  `LLM_BACKEND=omlx`/`mlx` (`run-docker.sh` `_effective_core_services`) there IS
+  no llm-proxy container — host oMLX owns `:8090` — and a hardcoded
+  `llm-proxy:8090` resolves to nothing, breaking every LLM call in all four
+  services. k8s (`k8s/02-configmap.yaml`) hardcodes the in-cluster name because
+  in-cluster the container always exists; compose cannot copy that.
+- The export must NOT move into `_effective_core_services()`. It runs inside
+  `$(...)`, so an assignment there never reaches the parent — the same trap that
+  made `deploy-live.sh`'s `filter_running` stamp fix inert.
+- `reachedProvider` must stay honest on the local lanes. It is the ONLY signal
+  separating "the model refused" from "the call never got there", and the whole
+  point of these lanes is sitting unmediated next to three governed ones.
+- Frozen LLM settings are untouched and must stay so: `LLAMACPP_MAX_TOKENS`,
+  `LLM_PROXY_RESIDENT_TIERS`, `reasoning_effort`, `REASON_LOOP_TIMEOUT_MS`.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/routes/privilegeMcpClient.llmPanel.test.js --forceExit` — 60 passed (reverted the fix to confirm only the new `reachedProvider false` test goes red, then restored). UI `cd demo_api_ui && npm run build` exit 0 and `./node_modules/.bin/vitest run src/pages/__tests__/LlmGatewayPage.test.jsx` — 29 passed. Compose interpolation both ways: `docker compose --profile "*" config` shows 4 services on `host.docker.internal:8090` by default and 4 on `llm-proxy:8090` with the var exported.
+
 ### 2026-09-05 — `/api/docs` and `/api/reference` dead-ended for a signed-in non-admin
 
 **Files changed:** `demo_api_server/server.js`, new
