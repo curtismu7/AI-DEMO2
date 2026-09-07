@@ -86,6 +86,14 @@ function attribution(decision, isLocal) {
   return { who: `Stopped by ${decision.layer}`, note: 'The call never reached Privilege or the model.' };
 }
 
+// A <select> fires no onChange when you pick the option already selected, so any
+// state where the dropdown names an attack the prompt box does not hold is a dead
+// end: the fix has to keep the two in step, not re-fill on re-pick. Everywhere the
+// box is emptied, the selection is cleared with it.
+function payloadFor(id) {
+  return (GUARDRAIL_ATTACKS.find((a) => a.id === id) || {}).payload || '';
+}
+
 function Meter({ label, remaining, limit, reset }) {
   if (remaining === null || remaining === undefined || !limit) return null;
   const used = Math.max(0, limit - remaining);
@@ -122,7 +130,10 @@ export default function LlmGatewayPage() {
   const [lanes, setLanes] = useState([]);
   const [selected, setSelected] = useState('openai');
   const [loadError, setLoadError] = useState('');
-  const [prompt, setPrompt] = useState('');
+  // The dropdown's choice persists across reloads; the prompt box must be seeded
+  // from the same key or the two load out of sync — select reads "Prompt Injection",
+  // box is empty, and re-picking that option fires no change event.
+  const [prompt, setPrompt] = useState(() => payloadFor(window.localStorage.getItem('lgw-attack-choice')));
   const [busy, setBusy] = useState(false);
   const [turns, setTurns] = useState([]);
   const [decision, setDecision] = useState(null);
@@ -162,6 +173,8 @@ export default function LlmGatewayPage() {
     setDecision(null);
     setLimitsByLane({});
     setPrompt('');
+    setSelectedAttack('');
+    window.localStorage.removeItem('lgw-attack-choice');
   }, []);
 
   const send = useCallback(async () => {
@@ -170,6 +183,7 @@ export default function LlmGatewayPage() {
     setBusy(true);
     setTurns((t) => [...t, { role: 'you', text }]);
     setPrompt('');
+    setSelectedAttack('');
     try {
       const data = await api('/llm/call', { method: 'POST', body: { provider: selected, prompt: text } });
       setTurns((t) => [...t, { role: 'model', text: data.reply, tone: 'ok', provider: selected }]);
@@ -321,8 +335,7 @@ export default function LlmGatewayPage() {
                 const id = e.target.value;
                 setSelectedAttack(id);
                 window.localStorage.setItem('lgw-attack-choice', id);
-                const atk = GUARDRAIL_ATTACKS.find((a) => a.id === id);
-                if (atk) setPrompt(atk.payload);
+                if (id) setPrompt(payloadFor(id));
               }}
             >
               <option value="">Pick an attack to test the gateway policy…</option>

@@ -5,6 +5,7 @@
 // cap unless it is one.
 import { fireEvent, render, screen } from "@testing-library/react";
 import LlmGatewayPage from "../LlmGatewayPage";
+import { GUARDRAIL_ATTACKS } from "../../config/guardrailAttackCatalog";
 
 const CONFIG = {
   gatewayUrl: "https://mcpgw.ai-demo.ping-devops.com",
@@ -132,6 +133,47 @@ describe("LLM Gateway console", () => {
 
   // "How do I know if Privilege stopped it or the model did?" — asked out loud on
   // every live drive, so the answer is a headline, not a field in the dl.
+  // A <select> fires no onChange when you re-pick the option already selected, so
+  // any state where the dropdown names an attack the box does not hold strands the
+  // user: reported live as "the default injection does not put the prompt in the
+  // box, you have to reselect it".
+  describe("attack library / prompt box stay in step", () => {
+    const ATTACK = GUARDRAIL_ATTACKS[0];
+
+    it("seeds the box from the remembered attack on load", async () => {
+      window.localStorage.setItem("lgw-attack-choice", ATTACK.id);
+      mockFetch(() => new Promise(() => {}));
+      render(<LlmGatewayPage />);
+
+      expect(await screen.findByLabelText(/^prompt$/i)).toHaveValue(ATTACK.payload);
+      expect(screen.getByLabelText(/attack library/i)).toHaveValue(ATTACK.id);
+    });
+
+    it("returns the dropdown to the placeholder after sending, so the same attack can be re-picked", async () => {
+      mockFetch(() => ({
+        ok: true, status: 200,
+        text: async () => JSON.stringify({
+          reply: "no", provider: "anthropic", route: "/llm/anthropic/v1/messages",
+          latencyMs: 40, reachedProvider: true,
+        }),
+      }));
+      render(<LlmGatewayPage />);
+
+      const select = await screen.findByLabelText(/attack library/i);
+      fireEvent.change(select, { target: { value: ATTACK.id } });
+      expect(screen.getByLabelText(/^prompt$/i)).toHaveValue(ATTACK.payload);
+
+      fireEvent.click(screen.getByRole("button", { name: /^send$/i }));
+      await screen.findByTestId("lgw-decision");
+
+      // Box and dropdown cleared together — picking ATTACK again is a real change.
+      expect(screen.getByLabelText(/^prompt$/i)).toHaveValue("");
+      expect(select).toHaveValue("");
+      fireEvent.change(select, { target: { value: ATTACK.id } });
+      expect(screen.getByLabelText(/^prompt$/i)).toHaveValue(ATTACK.payload);
+    });
+  });
+
   describe("who-stopped-it headline", () => {
     const send = async (res, prompt) => {
       mockFetch(() => res);
