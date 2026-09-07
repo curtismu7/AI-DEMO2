@@ -145,7 +145,8 @@ read the configured host. A new browser origin must be added to ALL of:
 **Files changed:** `demo_api_ui/src/components/TokenChainFilmstrip.css`,
 `demo_api_ui/src/components/AIAgent.css`, `demo_api_ui/src/index.css`,
 `demo_api_ui/src/components/DemoScriptLauncher.jsx`,
-`demo_api_ui/src/components/DemoScriptLauncher.css`.
+`demo_api_ui/src/components/DemoScriptLauncher.css`,
+`demo_api_ui/src/components/AgentModeSelector.css`.
 
 **What was broken (dashboard layout, new bug):** on a phone-width Focus Mode
 dashboard, `.dashboard-content.ud-focus-mode`'s `grid-template-columns`
@@ -188,6 +189,22 @@ narrow-tablet rule's non-`strip` behavior, `.banking-agent-panel`'s floating
 emulation (iPhone SE/14 Pro Max, Pixel 7) that `document.documentElement`
 never overflows and the panel's own children stay within its host.
 
+**Third issue, same strip (cosmetic):** once the grid fix above let the
+Agent-mode/Routing/Wiring row render at all, its three `<select>`s
+(`AgentModeSelector.jsx`, class `.ams-select`) were still unreadable —
+each measured ~46-56px wide with its selected text hard-clipped
+(`"Fa"`, `"vi"` instead of `"Fallback (Heuristics)"`, `"via BFF…"`). Cause: as
+flex children of `.ba-header-tools` (which already has `flex-wrap: wrap`),
+the selects had no explicit `min-width`, so the browser let all three shrink
+to fit one row instead of wrapping. **Fixed** with `min-width: 108px` under
+`@media (max-width: 768px)`, appended to `AgentModeSelector.css` — confirmed
+via `CSS.getMatchedStylesForNode` (CDP) that `.ams--compact .ams-select`
+(0,2,0 specificity) was the only other rule touching this element and never
+set `min-width` itself, so no cascade conflict; the row now wraps to 2+ lines
+on a phone instead of clipping. **Do not break:** `.ams--compact`'s row
+layout and this component's desktop/tablet sizing are untouched — the new
+rule only sets a floor below 768px.
+
 **Second issue (pre-existing dead code, found while verifying merged PRs no.
 2830, 2871, 2872, not caused by them):** PR #2830's dashboard toast safe-area
 fix (`.inline-message` in `UserDashboard.css`) targets a class with
@@ -212,7 +229,7 @@ listener and teleprompter state are untouched; the Demo Script button's
 guest-only (`!user`) visibility and its plain fixed bottom-left position are
 unchanged.
 
-**Verify:** `cd demo_api_ui && npx vitest run src/components/UserDashboardPing2026.test.js src/components/__tests__/UserDashboardPing2026.test.js src/components/__tests__/AIAgent.chips.test.js src/components/__tests__/DemoScriptLauncher.test.jsx src/utils/__tests__/tokenRailLayout.test.js src/components/__tests__/DashboardTokenRail.test.jsx src/__tests__/FocusModeFilmstripGuard.test.js` — 7/7 files, 116/116 tests pass. `npm run build` exits 0.
+**Verify:** `cd demo_api_ui && npx vitest run src/components/UserDashboardPing2026.test.js src/components/__tests__/UserDashboardPing2026.test.js src/components/__tests__/AIAgent.chips.test.js src/components/__tests__/DemoScriptLauncher.test.jsx src/components/__tests__/AgentModeSelector.test.jsx src/utils/__tests__/tokenRailLayout.test.js src/components/__tests__/DashboardTokenRail.test.jsx src/__tests__/FocusModeFilmstripGuard.test.js` — 8/8 files, 129/129 tests pass. `npm run build` exits 0.
 
 ### 2026-09-07 — Every path and every door on `/privilege-mcp-client` was broken
 
