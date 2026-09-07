@@ -78,7 +78,7 @@ describe("AuthorizeConfigPage — error state", () => {
     // (1) MCP tools prefetch → error (swallowed internally)
     // (2) Config fetch → error → shows Retry button
     // (3) Retry → success → shows page title
-    global.fetch = jest
+    global.fetch = vi
       .fn()
       .mockResolvedValueOnce({ ok: false, status: 500 })
       .mockResolvedValueOnce({ ok: false, status: 500 })

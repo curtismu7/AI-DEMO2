@@ -44,7 +44,7 @@ describe('fetchMyAccountsWithResilience', () => {
 
   it('retries on 401 then succeeds', async () => {
     const bffAxios = {
-      get: jest
+      get: vi
         .fn()
         .mockRejectedValueOnce({ response: { status: 401 } })
         .mockResolvedValueOnce({ data: { accounts: [{ id: 'x' }] } }),

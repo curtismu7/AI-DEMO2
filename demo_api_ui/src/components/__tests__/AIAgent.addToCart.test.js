@@ -68,7 +68,7 @@ vi.mock("../../context/SessionTokenContext", () => ({
 }));
 
 vi.mock("../../services/demoAgentNlService", () => ({
-  fetchNlStatus: jest
+  fetchNlStatus: vi
     .fn()
     .mockResolvedValue({ groqConfigured: false, geminiConfigured: false }),
   parseNaturalLanguage: vi.fn().mockResolvedValue({
@@ -88,7 +88,7 @@ vi.mock("../../services/demoAgentService", () => ({
   warmupAuthz: vi.fn().mockResolvedValue({}),
   callMcpTool: vi.fn().mockResolvedValue({ success: true }),
   sendAgentMessage: vi.fn().mockResolvedValue({ success: true }),
-  fetchAgentTools: jest
+  fetchAgentTools: vi
     .fn()
     .mockResolvedValue({ availableTools: [], vertical: null, allowWrite: true }),
 }));
