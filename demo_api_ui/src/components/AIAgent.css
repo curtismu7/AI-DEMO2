@@ -7200,3 +7200,40 @@ button.ba-action-btn:hover {
     overflow-y: auto;
   }
 }
+
+/* Phone: .ba-input's flex-basis:320px (line ~2325) plus its 20px margin-right
+   plus .ba-send-btn's min-width:64px (line ~6960, both !important) add up to
+   more than a 320-375px viewport, pushing Send off-screen — confirmed live
+   (Send's right edge measured 17px past a 320px viewport). Both conflicting
+   declarations are !important, so on an equal-specificity tie the LAST one in
+   source wins regardless of media-query nesting — this block has to be the
+   last word in the file, not just inside a later-looking media query, or an
+   earlier-in-file !important elsewhere silently keeps winning. Letting the
+   input shrink fully and trimming the button's floor fixes it without
+   touching either rule's non-mobile behavior. */
+@media (max-width: 480px) {
+  .ba-input {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    margin-right: 8px !important;
+  }
+  .ba-send-btn {
+    min-width: 44px !important;
+    padding: 0 10px !important;
+  }
+}
+
+/* Phone: .banking-agent-panel's base min-width:280px (line ~203, for the
+   floating widget) still applies to inline mode too — .ba-mode-inline (line
+   ~2910) sets width:100% to fill its host column, but min-width isn't
+   `width`'s companion, it always wins the conflict, so the panel gets clamped
+   to 280px regardless of a narrower host. Confirmed live: on a 236px-wide
+   inline host the panel rendered at exactly 280px and pushed its own Send
+   button 17px past the viewport. Floating/FAB mode keeps its 280px floor —
+   this only relaxes the inline case, which has no reason to need one; the
+   host column is what should decide inline's minimum. */
+@media (max-width: 480px) {
+  .banking-agent-panel.ba-mode-inline {
+    min-width: 0 !important;
+  }
+}

@@ -1,0 +1,440 @@
+/* InspectorShell.css — shared topbar + 3-column layout for tool/list-detail
+   inspector pages. Renamed from the page-owned p1mcp-* classnames this
+   replaces (previously duplicated in PingOneMcpInspector.css and hand-copied
+   by McpInspector.js, ApiExplorerPanel.js, AgentGatewayTester.jsx). */
+
+/* Page wrapper */
+.inspector-shell-page {
+  width: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--th-bg-page);
+}
+
+/* Top bar */
+.inspector-shell-topbar {
+  background: var(--th-bg-inset);
+  border-bottom: 1px solid var(--th-border);
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.inspector-shell-topbar h1 { font-size: 16px; font-weight: 600; color: var(--th-text); margin: 0; }
+.inspector-shell-topbar__dot { width: 8px; height: 8px; border-radius: 50%; background: #16a34a; flex-shrink: 0; }
+.inspector-shell-topbar__dot--off { background: #dc2626; }
+.inspector-shell-topbar__status { font-size: var(--font-size-2xs); color: var(--th-text-muted); }
+.inspector-shell-topbar__right { margin-left: auto; display: flex; gap: 8px; }
+.inspector-shell-topbar__btn {
+  font-size: var(--font-size-2xs);
+  padding: 5px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--th-text-muted);
+  background: var(--th-bg-page);
+  color: var(--th-text);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.inspector-shell-topbar__btn:hover { background: var(--th-bg-hover); }
+.inspector-shell-topbar__btn--active { background: #2563eb; border-color: #2563eb; color: var(--th-text-invert); }
+.inspector-shell-topbar__btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.inspector-shell-topbar__theme-toggle {
+  color: var(--th-text);
+  font-size: var(--font-size-2xs);
+  padding: 5px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--th-text-muted);
+  background: var(--th-bg-page);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.inspector-shell-topbar__theme-toggle:hover { color: var(--th-text); background: var(--th-bg-hover); }
+
+/* Three-column grid */
+.inspector-shell-grid {
+  display: grid;
+  grid-template-columns: 240px 6px 380px 6px 1fr;
+  height: calc(100vh - 45px);
+  overflow: hidden;
+}
+.inspector-shell-resize-handle {
+  cursor: col-resize;
+  background: transparent;
+}
+.inspector-shell-resize-handle:hover,
+.inspector-shell-resize-handle:active {
+  background: var(--th-text-muted);
+}
+/* fullHeight={false}: the shell is one section inside a taller scrolling
+   page (siblings above/below), not the whole route — a 100vh-tall grid
+   there would blow out the page height. Columns still scroll internally
+   via their own overflow-y:auto. */
+.inspector-shell-grid--embedded {
+  height: 640px;
+}
+/* fullHeight='fill': the shell is embedded in a tab panel that already
+   constrains its own height. Use 100% instead of a fixed pixel height. */
+.inspector-shell-grid--fill {
+  height: 100%;
+}
+
+/* Column 1: left (tool tree / call list / preset list) */
+.inspector-shell-col-left {
+  background: var(--th-bg-inset);
+  border-right: 1px solid var(--th-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+/* Collapsed: track width is already 0 via gridTemplateColumns; this only
+   removes the stray 1px border that would otherwise still render at the
+   track's edge (a 0-width box still paints its border). */
+.inspector-shell-col-left--collapsed {
+  border-right: none;
+}
+.inspector-shell-tree-header {
+  padding: 12px 16px;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--th-text-muted);
+  border-bottom: 1px solid var(--th-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+/* Source switcher — page-owned row above a source's own left-column
+   content, for pages (like McpInspectorPage) that switch between several
+   independent data sources inside one shell instance. Not part of
+   InspectorShell.jsx itself — pages compose it into their own `left` slot. */
+.source-switcher {
+  display: flex;
+  gap: 4px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--th-border);
+}
+.src-pill {
+  font-family: inherit;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--th-text);
+  background: var(--th-bg-page);
+  border: 1px solid var(--th-border);
+  border-radius: 20px;
+  padding: 4px 10px;
+  cursor: pointer;
+  flex: 1;
+}
+.src-pill:hover { border-color: var(--th-text-muted); }
+/* #2563eb on its own 6% tint measures 4.36:1 — just under WCAG AA's 4.5.
+   The darker shade of the same accent clears it at 6.3:1 and reads identically. */
+.src-pill--active { background: rgba(37, 99, 235, 0.06); border-color: #2563eb; color: #1e40af; }
+.inspector-shell-tree-search {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--th-border);
+}
+.inspector-shell-tree-search input {
+  width: 100%;
+  padding: 6px 10px;
+  font-size: var(--font-size-2xs);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-text-muted);
+  border-radius: 4px;
+  color: var(--th-text);
+}
+.inspector-shell-tree-search input:focus { outline: none; border-color: #3b82f6; }
+.inspector-shell-tree-search input::placeholder { color: var(--th-text-muted); }
+.inspector-shell-tree-body { flex: 1; overflow-y: auto; padding: 4px 0; }
+
+/* Tree groups */
+.inspector-shell-tree-group__label {
+  padding: 8px 16px 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--th-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.inspector-shell-tree-item {
+  padding: 5px 16px 5px 24px;
+  font-size: var(--font-size-sm);
+  font-family: var(--font-mono);
+  color: var(--th-text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.08s;
+  border: 1px solid transparent;
+  border-radius: 0;
+  background: none;
+  text-align: left;
+}
+.inspector-shell-tree-item:hover { background: var(--th-bg-hover); }
+.inspector-shell-tree-item--active {
+  background: #2563eb;
+  color: var(--th-text-invert);
+  border-radius: 4px;
+  margin: 1px 8px;
+  padding-left: 16px;
+}
+.inspector-shell-tree-item__dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; background: #16a34a; }
+.inspector-shell-tree-item__dot--write { background: #d97706; }
+.inspector-shell-tree-item__dot--sensitive { background: #dc2626; }
+.inspector-shell-tree-item__badge {
+  margin-left: auto;
+  font-size: var(--font-size-3xs);
+  font-weight: 700;
+  font-family: -apple-system, sans-serif;
+  padding: 1px 5px;
+  border-radius: 3px;
+  letter-spacing: 0.03em;
+}
+.inspector-shell-tree-item__badge--write { background: #fef3c7; color: #92400e; }
+.inspector-shell-tree-item__badge--sensitive { background: #fee2e2; color: #991b1b; }
+.inspector-shell-tree-item__badge--order { background: #e0e7ff; color: #3730a3; margin-left: 6px; }
+.inspector-shell-tree-item__token-icon { font-size: 10px; line-height: 1; color: #2563eb; flex-shrink: 0; }
+.inspector-shell-tree-item__token-icon--write { color: #d97706; }
+.inspector-shell-tree-item__token-icon--sensitive { color: #dc2626; }
+
+/* Column 2: middle (param form / detail fields) */
+.inspector-shell-col-middle {
+  background: var(--th-bg-page);
+  border-right: 1px solid var(--th-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.inspector-shell-form-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--th-border);
+}
+.inspector-shell-form-header__name {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  color: var(--th-text);
+}
+.inspector-shell-form-header__desc {
+  font-size: var(--font-size-sm);
+  color: var(--th-text);
+  margin-top: 6px;
+  line-height: 1.5;
+}
+.inspector-shell-form-body { padding: 16px 20px; flex: 1; overflow-y: auto; }
+.inspector-shell-form-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-body);
+  text-align: center;
+  padding: 40px 20px;
+}
+
+/* Form fields */
+.inspector-shell-field { margin-bottom: 14px; }
+.inspector-shell-field label {
+  display: block;
+  font-size: var(--font-size-2xs);
+  font-weight: 600;
+  color: var(--th-text);
+  margin-bottom: 4px;
+  font-family: var(--font-mono);
+}
+.inspector-shell-field label .req { color: #dc2626; }
+.inspector-shell-field label .type { font-weight: 400; color: var(--th-text-muted); margin-left: 6px; }
+.inspector-shell-field input, .inspector-shell-field textarea {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: var(--font-size-sm);
+  font-family: var(--font-mono);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-text-muted);
+  border-radius: 4px;
+  color: var(--th-text);
+  resize: vertical;
+}
+.inspector-shell-field input:focus, .inspector-shell-field textarea:focus { outline: none; border-color: #3b82f6; }
+.inspector-shell-field input::placeholder, .inspector-shell-field textarea::placeholder { color: var(--th-text-muted); }
+
+/* Form actions */
+.inspector-shell-form-actions {
+  padding: 12px 20px;
+  border-top: 1px solid var(--th-border);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.inspector-shell-form-actions--top {
+  border-top: none;
+  border-bottom: 1px solid var(--th-border);
+}
+.inspector-shell-btn-call {
+  padding: 9px 20px;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  background: #2563eb;
+  color: var(--th-text-invert);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.inspector-shell-btn-call:hover { background: #1d4ed8; }
+.inspector-shell-btn-call:disabled { opacity: 0.5; cursor: not-allowed; }
+.inspector-shell-spinner {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: var(--th-text-invert);
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: -1px;
+  animation: inspector-shell-spin 0.7s linear infinite;
+}
+@keyframes inspector-shell-spin {
+  to { transform: rotate(360deg); }
+}
+.inspector-shell-btn-clear {
+  padding: 9px 14px;
+  font-size: var(--font-size-sm);
+  background: transparent;
+  color: var(--th-text);
+  border: 1px solid var(--th-text-muted);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.inspector-shell-btn-clear:hover { background: var(--th-bg-hover); }
+.inspector-shell-form-error { font-size: var(--font-size-2xs); color: #dc2626; margin-left: 8px; }
+
+/* Column 3: right (tabbed output) */
+.inspector-shell-col-right {
+  background: var(--th-bg-page);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.inspector-shell-output-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--th-border);
+  padding: 0;
+  /* The parent clips overflow (overflow: hidden); on smaller displays the tab row
+     exceeded the width and got cut off. Let it scroll horizontally instead. */
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.inspector-shell-output-tab {
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-size: var(--font-size-2xs);
+  font-weight: 500;
+  color: var(--th-text-muted);
+  padding: 10px 16px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.1s;
+}
+.inspector-shell-output-tab:hover { color: var(--th-text); }
+.inspector-shell-output-tab--active { color: var(--th-text); border-bottom-color: #2563eb; }
+
+.inspector-shell-output-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+.inspector-shell-output-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-body);
+  text-align: center;
+  padding: 40px 20px;
+}
+.inspector-shell-output-code {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  line-height: 1.7;
+  color: var(--th-text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  background: var(--th-bg-inset);
+  padding: 12px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--th-bg-hover);
+}
+
+.inspector-shell-output-footer {
+  padding: 8px 20px;
+  border-top: 1px solid var(--th-border);
+  font-size: var(--font-size-xs);
+  color: var(--th-text-muted);
+  display: flex;
+  gap: 20px;
+  flex-shrink: 0;
+}
+.inspector-shell-output-footer strong { color: var(--th-text); }
+
+/* Replay bar — persistent status/nav strip between topbar and grid */
+.inspector-shell-replay-bar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 9px 20px;
+  background: var(--th-bg-page);
+  border-bottom: 1px solid var(--th-border);
+  font-size: var(--font-size-2xs);
+  color: var(--th-text);
+}
+.inspector-shell-replay-bar__item strong { color: var(--th-text); }
+.inspector-shell-replay-bar__item--warn strong { color: #991b1b; }
+.inspector-shell-replay-bar__controls { margin-left: auto; display: flex; gap: 6px; }
+.inspector-shell-replay-bar__btn {
+  font-size: var(--font-size-2xs);
+  padding: 5px 10px;
+  border-radius: 5px;
+  border: 1px solid var(--th-text-muted);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  cursor: pointer;
+}
+.inspector-shell-replay-bar__btn:hover { background: var(--th-bg-hover); }
+.inspector-shell-replay-bar__btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Mobile / iOS: the 3-column grid (240px + 6px + 380px + 6px + 1fr, ~632px
+   minimum before the right column even starts) never fits a phone. Only
+   applies when InspectorShell.jsx has stopped setting the inline
+   gridTemplateColumns (its --narrow modifier class), since an inline style
+   always outranks this rule regardless of the media query. */
+@media (max-width: 768px) {
+  .inspector-shell-grid--narrow {
+    grid-template-columns: 1fr;
+    grid-auto-rows: auto;
+    height: auto;
+    overflow: visible;
+  }
+  .inspector-shell-grid--narrow .inspector-shell-resize-handle {
+    display: none;
+  }
+  .inspector-shell-grid--narrow .inspector-shell-col-left--collapsed {
+    display: none;
+  }
+  .inspector-shell-grid--narrow .inspector-shell-col-left,
+  .inspector-shell-grid--narrow .inspector-shell-col-middle,
+  .inspector-shell-grid--narrow .inspector-shell-col-right {
+    border-right: none;
+    border-bottom: 1px solid var(--th-border);
+    max-height: 70vh;
+  }
+}

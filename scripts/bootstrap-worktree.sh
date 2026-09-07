@@ -25,11 +25,49 @@
 set -euo pipefail
 
 CHECK_ONLY=0
+CHECK_DEPS=0
 [ "${1:-}" = "--check" ] && CHECK_ONLY=1
+[ "${1:-}" = "--check-deps" ] && CHECK_DEPS=1
 
 # The worktree this runs from, and the main checkout its .git points at.
 WT="$(git rev-parse --show-toplevel)"
 MAIN="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
+
+# --check-deps verifies MAIN's own installed trees and links nothing, so unlike
+# every other mode it is meaningful FROM the main checkout — which is where most
+# sessions start. `--check` there returns "nothing to link" and exit 0 without
+# verifying a single dependency, so a caller that wanted the gap detector and
+# reached for `--check` would be silent by construction.
+#
+# The gap it finds: every package-lock.json here is gitignored, so worktrees take
+# their deps by symlinking MAIN's node_modules. A dependency added to a service's
+# package.json therefore reaches nobody until someone runs an install in MAIN,
+# and nothing surfaces it until a worktree fails to compile — which is how the
+# same prom-client omission sat unnoticed in three services at once (2026-09-07).
+if [ "$CHECK_DEPS" = "1" ]; then
+  gaps=0
+  for pkg in "$MAIN"/package.json "$MAIN"/*/package.json; do
+    [ -f "$pkg" ] || continue
+    svc="$(dirname "$pkg")"
+    rel="${svc#"$MAIN"}"; rel="${rel#/}"
+    [ -d "$svc/node_modules" ] || continue   # never installed here — not a gap
+    missing="$(node -e '
+      const fs = require("fs"), path = require("path");
+      const svc = process.argv[1];
+      const pkg = JSON.parse(fs.readFileSync(path.join(svc, "package.json"), "utf8"));
+      const deps = Object.keys({ ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) });
+      const gone = deps.filter((d) => !fs.existsSync(path.join(svc, "node_modules", d)));
+      process.stdout.write(gone.join(" "));
+    ' "$svc")"
+    if [ -n "$missing" ]; then
+      echo "${rel:-.}: declared but not installed — $missing"
+      echo "  fix: npm --prefix '$svc' install"
+      gaps=$((gaps + 1))
+    fi
+  done
+  [ "$gaps" -gt 0 ] && exit 1
+  exit 0
+fi
 
 if [ "$WT" = "$MAIN" ]; then
   echo "[bootstrap-worktree] this IS the main checkout — nothing to link."
