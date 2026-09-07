@@ -1499,12 +1499,16 @@ services:
       # SSL_CERT_FILE). Without it, every tool call to https://api.ping.demo fails
       # with CERTIFICATE_VERIFY_FAILED. Same bundle as the langchain agent.
       SSL_CERT_FILE: "/etc/ssl/certs/ca-bundle-with-mkcert.pem"
+      # OpenTelemetry → local Jaeger. Unset = tracing disabled (no-op in otel-python-entrypoint.sh).
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT-http://jaeger:4317}"
+      OTEL_SERVICE_NAME: "openai-agent"
     env_file:
       - path: ./openai_agent/.env
         required: false
     volumes:
       # CA bundle for SSL_CERT_FILE above (gitignored; generated on the host).
       - ./certs/ca-bundle-with-mkcert.pem:/etc/ssl/certs/ca-bundle-with-mkcert.pem:ro
+      - ./scripts:/otel:ro  # dir mount: survives git pull replacing the file (a single-file bind mount pins the old inode and crash-loops the entrypoint)
     networks:
       - ai-demo
     depends_on:
@@ -1534,12 +1538,16 @@ services:
       # SSL_CERT_FILE). Without it, every tool call to https://api.ping.demo fails
       # with CERTIFICATE_VERIFY_FAILED. Same bundle as the langchain agent.
       SSL_CERT_FILE: "/etc/ssl/certs/ca-bundle-with-mkcert.pem"
+      # OpenTelemetry → local Jaeger. Unset = tracing disabled (no-op in otel-python-entrypoint.sh).
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT-http://jaeger:4317}"
+      OTEL_SERVICE_NAME: "pydantic-agent"
     env_file:
       - path: ./pydantic_agent/.env
         required: false
     volumes:
       # CA bundle for SSL_CERT_FILE above (gitignored; generated on the host).
       - ./certs/ca-bundle-with-mkcert.pem:/etc/ssl/certs/ca-bundle-with-mkcert.pem:ro
+      - ./scripts:/otel:ro  # dir mount: survives git pull replacing the file (a single-file bind mount pins the old inode and crash-loops the entrypoint)
     networks:
       - ai-demo
     depends_on:
