@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 import uuid
 from typing import AsyncGenerator
 
@@ -15,6 +16,7 @@ from .agui_emitter import AGUIEmitter
 from .bff_tool_adapter import resolve_bff_tool_url
 from .config import get_config
 from .grounding_guardrail import CommitmentGroundingValidator, contains_commitment_claim
+from .metrics import run_duration, run_errors
 from guardrails.validator_base import FailResult
 
 logger = logging.getLogger(__name__)
@@ -89,7 +91,7 @@ async def agent_run(request: Request) -> StreamingResponse:
     }
 
     return StreamingResponse(
-        _stream(run_id, thread_id, messages, tool_schemas, run_ctx, model, llm_api_key, vertical_flavor),
+        _stream_with_metrics(run_id, thread_id, messages, tool_schemas, run_ctx, model, llm_api_key, vertical_flavor),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
@@ -206,6 +208,35 @@ async def _stream(
             pass
         except Exception:
             logger.exception("[openai-agent] agent task teardown error run=%s", run_id)
+
+
+async def _stream_with_metrics(
+    run_id: str,
+    thread_id: str,
+    messages: list,
+    tool_schemas: list,
+    run_ctx: dict,
+    model: str,
+    api_key: str,
+    vertical_flavor: str | None = None,
+) -> AsyncGenerator[str, None]:
+    """Pure-observation wrapper around _stream — does not touch its control
+    flow, error handling, or yielded events. _stream's own try/except (above)
+    swallows agent/tool/LLM errors into an AG-UI RUN_ERROR SSE event rather
+    than raising, so this only records run_errors for something escaping
+    that except entirely.
+    """
+    start = time.monotonic()
+    try:
+        async for item in _stream(
+            run_id, thread_id, messages, tool_schemas, run_ctx, model, api_key, vertical_flavor
+        ):
+            yield item
+        run_duration.record(time.monotonic() - start)
+    except Exception:
+        run_duration.record(time.monotonic() - start)
+        run_errors.add(1)
+        raise
 
 
 async def _handle_sdk_event(event, emitter: AGUIEmitter) -> None:
