@@ -221,6 +221,235 @@ function resourceMetadataUrl(req: IncomingMessage): string {
   return `${proto}://${req.headers.host}/.well-known/oauth-protected-resource`;
 }
 
+// Methods a caller may invoke with no bearer at all — MCP discovery, so an
+// MCP client or gateway (e.g. PingOne Privilege, whose legacy SSE client
+// below is tokenless by construction) can see this server's tools before
+// auth. Every other method, tools/call included, still requires the bearer
+// checked in handleMcpPost. handleMessageImpl separately widens its own
+// tools/list branch to skip scope-filtering when `token` is empty — see the
+// comment there.
+const DISCOVERY_METHODS = new Set(['initialize', 'notifications/initialized', 'tools/list']);
+
+/**
+ * POST /mcp — JSON-RPC over HTTP. Extracted into its own function so the
+ * legacy HTTP+SSE transport's /messages endpoint (below) can reuse it
+ * verbatim: reusing this exact gate is the point, so a bearer check can never
+ * drift between the two transports.
+ */
+function handleMcpPost(req: IncomingMessage, res: ServerResponse): void {
+  const token = bearerFrom(req.headers['authorization']);
+  let body = '';
+  let tooLarge = false;
+  req.on('data', (chunk) => {
+    if (tooLarge) return;
+    body += chunk;
+    if (body.length > MAX_MCP_BODY_BYTES) {
+      tooLarge = true;
+      res.writeHead(413, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'payload_too_large' }));
+      req.destroy();
+    }
+  });
+  req.on('end', () => {
+    if (tooLarge) return;
+
+    let parsedMethod: string | undefined;
+    try { parsedMethod = JSON.parse(body)?.method; } catch { /* malformed body — handleMessage below reports the parse error */ }
+
+    if (!token && !DISCOVERY_METHODS.has(parsedMethod ?? '')) {
+      res.writeHead(401, {
+        'Content-Type': 'application/json',
+        'WWW-Authenticate': `Bearer realm="banking-mcp-resource-server", error="invalid_token", error_description="Bearer token required", resource_metadata="${resourceMetadataUrl(req)}"`,
+      });
+      res.end(JSON.stringify({ error: 'invalid_token', error_description: 'Bearer token required' }));
+      return;
+    }
+
+    // MCP Streamable HTTP transport: the server MAY assign a session id on
+    // initialize. Read once `body` is fully accumulated (not `s`, the
+    // outbound body) so it's known before the response is written.
+    let sessionIdForInitialize: string | undefined;
+    try {
+      if (JSON.parse(body).method === 'initialize') sessionIdForInitialize = crypto.randomUUID();
+    } catch { /* malformed body — handleMessage below reports the parse error */ }
+
+    let replied = false;
+    const send = (s: string): void => {
+      if (replied) return;
+      replied = true;
+      // RFC 6750 §3.1: scope violations on HTTP MUST return 403, not 200.
+      // WebSocket callers get the JSON-RPC error body unchanged (no HTTP status after handshake).
+      let isInsufficientScope = false;
+      let scopeHint = '';
+      try {
+        const parsed = JSON.parse(s);
+        if (parsed?.error?.code === -32005) {
+          isInsufficientScope = true;
+          const d = parsed.error.data;
+          const scopes: string[] = d?.requiredScopes ?? (d?.requiredScope ? [d.requiredScope] : []);
+          if (scopes.length) scopeHint = `, scope="${scopes.join(' ')}"`;
+        }
+      } catch { /* ok — malformed body goes through as 200 */ }
+      // MCP spec 2026-07-28 Streamable HTTP §Protocol Version Header:
+      // UnsupportedProtocolVersionError MUST ride HTTP 400, not 200.
+      let isUnsupportedProtocolVersion = false;
+      try {
+        const parsed = JSON.parse(s);
+        isUnsupportedProtocolVersion = parsed?.error?.code === -32022;
+      } catch { /* ok — malformed body goes through as 200 */ }
+      // RFC 6750 §3.1: an invalid/expired/malformed token MUST return 401,
+      // same as the missing-bearer case above — not 200 with the failure
+      // buried in the JSON-RPC body. TokenError (tokenValidator.ts) always
+      // surfaces as -32001.
+      let isInvalidToken = false;
+      try {
+        const parsed = JSON.parse(s);
+        isInvalidToken = parsed?.error?.code === -32001;
+      } catch { /* ok — malformed body goes through as 200 */ }
+      const sessionHeader = sessionIdForInitialize ? { 'mcp-session-id': sessionIdForInitialize } : {};
+      if (isInsufficientScope) {
+        res.writeHead(403, {
+          'Content-Type': 'application/json',
+          'WWW-Authenticate': `Bearer realm="banking-mcp-resource-server", error="insufficient_scope"${scopeHint}, resource_metadata="${resourceMetadataUrl(req)}"`,
+          ...sessionHeader,
+        });
+      } else if (isUnsupportedProtocolVersion) {
+        res.writeHead(400, { 'Content-Type': 'application/json', ...sessionHeader });
+      } else if (isInvalidToken) {
+        res.writeHead(401, {
+          'Content-Type': 'application/json',
+          'WWW-Authenticate': `Bearer realm="banking-mcp-resource-server", error="invalid_token", resource_metadata="${resourceMetadataUrl(req)}"`,
+          ...sessionHeader,
+        });
+      } else {
+        res.writeHead(200, { 'Content-Type': 'application/json', ...sessionHeader });
+      }
+      res.end(s);
+    };
+    handleMessage(body, token, send)
+      .then(() => {
+        // A notification (e.g. notifications/initialized) produces no response.
+        if (!replied) { res.writeHead(202); res.end(); }
+      })
+      .catch((err) => {
+        console.error('[mcp-resource-server] HTTP MCP handler error:', err);
+        if (!replied) {
+          replied = true;
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(rpcError(null, -32603, 'Internal error'));
+        }
+      });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Legacy HTTP+SSE transport (2024-11-05) — see the handleHttp dispatch above
+// for why this exists. Mirrors oauth-mcp/src/server/HttpMCPTransport.ts.
+// ---------------------------------------------------------------------------
+
+const MAX_LEGACY_SSE_STREAMS = 64;
+const LEGACY_SSE_KEEPALIVE_MS = 25_000;
+
+const legacySseStreams = new Map<string, { res: ServerResponse; keepAlive: NodeJS.Timeout }>();
+
+// GET /sse — unauthenticated by necessity: the gateway discovers tokenless,
+// and this is the handshake it performs instead of POST initialize. Nothing
+// crosses this stream until a POST /messages arrives, and that runs the full
+// handleMcpPost gate — so the method set reachable here is exactly the one
+// POST /mcp already serves tokenless (DISCOVERY_METHODS above).
+function handleLegacySseOpen(req: IncomingMessage, res: ServerResponse): void {
+  if (legacySseStreams.size >= MAX_LEGACY_SSE_STREAMS) {
+    res.writeHead(503, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Too many open SSE streams; retry shortly' }));
+    return;
+  }
+
+  const sessionId = crypto.randomUUID();
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache, no-transform',
+    'Connection': 'keep-alive',
+    'X-Accel-Buffering': 'no', // disable Nginx buffering
+    'Access-Control-Allow-Origin': req.headers.origin || '*',
+  });
+
+  // THE handshake: it tells the client where to POST. A client that never
+  // sees this event waits forever, which is what "Gateway Unreachable" is
+  // at the far end.
+  res.write(`event: endpoint\ndata: /messages?sessionId=${sessionId}\n\n`);
+
+  const keepAlive = setInterval(() => { res.write(': keep-alive\n\n'); }, LEGACY_SSE_KEEPALIVE_MS);
+  keepAlive.unref?.();
+
+  legacySseStreams.set(sessionId, { res, keepAlive });
+
+  req.on('close', () => {
+    clearInterval(keepAlive);
+    legacySseStreams.delete(sessionId);
+  });
+}
+
+/**
+ * A ServerResponse stand-in that captures what handleMcpPost writes instead
+ * of sending it, so the reply can be delivered on the SSE stream (where this
+ * transport expects it) while the POST itself just ACKs. handleMcpPost and
+ * every helper it calls touch only writeHead()/end() — no write() or
+ * setHeader() — so that is the whole surface this needs to implement.
+ * `onEnd` fires once end() runs, since handleMcpPost finishes asynchronously
+ * (its own req 'data'/'end' listeners) rather than returning a promise.
+ */
+class CapturedResponse {
+  statusCode = 200;
+  readonly headers: Record<string, string> = {};
+  private body = '';
+  constructor(private readonly onEnd: () => void) {}
+
+  writeHead(status: number, headers?: unknown): this {
+    this.statusCode = status;
+    if (headers && typeof headers === 'object') {
+      for (const [k, v] of Object.entries(headers as Record<string, unknown>)) {
+        this.headers[k.toLowerCase()] = Array.isArray(v) ? v.join(', ') : String(v);
+      }
+    }
+    return this;
+  }
+
+  end(chunk?: unknown): this {
+    if (typeof chunk === 'string') this.body += chunk;
+    this.onEnd();
+    return this;
+  }
+
+  get payload(): string {
+    return this.body;
+  }
+}
+
+// POST /messages?sessionId=… — delegates to handleMcpPost so the bearer gate
+// and discovery allowlist run identically to POST /mcp; only the reply's
+// destination differs (the stream, per this transport, not the POST body).
+function handleLegacySseMessage(req: IncomingMessage, res: ServerResponse): void {
+  const sessionId = new URL(req.url ?? '/messages', 'http://localhost').searchParams.get('sessionId');
+  const stream = sessionId ? legacySseStreams.get(sessionId) : undefined;
+  if (!stream) {
+    // Name the part that is wrong: a stale session id is otherwise
+    // indistinguishable from a broken server.
+    res.writeHead(404, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Unknown or closed SSE session', sessionId }));
+    return;
+  }
+
+  const captured = new CapturedResponse(() => {
+    res.writeHead(202);
+    res.end();
+    if (captured.payload) {
+      stream.res.write(`event: message\ndata: ${captured.payload}\n\n`);
+    }
+  });
+  // handleMcpPost reads the body off `req` itself, so it must not be consumed here.
+  handleMcpPost(req, captured as unknown as ServerResponse);
+}
+
 function handleHttp(req: IncomingMessage, res: ServerResponse): void {
   const url = req.url || '/';
 
@@ -263,6 +492,22 @@ function handleHttp(req: IncomingMessage, res: ServerResponse): void {
     return;
   }
 
+  // Legacy HTTP+SSE transport (2024-11-05) — for ONE caller: the PingOne
+  // Privilege AI Gateway's discovery client, which opens a bare GET and waits
+  // for the SSE `endpoint` event rather than POSTing `initialize` (see
+  // .claude/skills/privilege-mcpgw-agent-k8s). Mirrors oauth-mcp's
+  // HttpMCPTransport.ts, minus its MCP-Session-Id/protocol-version-header
+  // machinery — this server is already stateless per request, so there is
+  // nothing for the legacy client to predate.
+  if (url === '/sse' && req.method === 'GET') {
+    handleLegacySseOpen(req, res);
+    return;
+  }
+  if ((url === '/messages' || url.startsWith('/messages?')) && req.method === 'POST') {
+    handleLegacySseMessage(req, res);
+    return;
+  }
+
   // HTTP MCP — JSON-RPC over POST.
   //
   // The WebSocket transport below is the original one, but PingGateway/IG has no
@@ -271,105 +516,7 @@ function handleHttp(req: IncomingMessage, res: ServerResponse): void {
   // the SAME handleMessage as the WS path, so audience validation and the
   // per-tool scope gate are identical by construction, not by duplication.
   if (url === '/mcp' && req.method === 'POST') {
-    const token = bearerFrom(req.headers['authorization']);
-    if (!token) {
-      res.writeHead(401, {
-        'Content-Type': 'application/json',
-        'WWW-Authenticate': `Bearer realm="banking-mcp-resource-server", error="invalid_token", error_description="Bearer token required", resource_metadata="${resourceMetadataUrl(req)}"`,
-      });
-      res.end(JSON.stringify({ error: 'invalid_token', error_description: 'Bearer token required' }));
-      return;
-    }
-
-    let body = '';
-    let tooLarge = false;
-    req.on('data', (chunk) => {
-      if (tooLarge) return;
-      body += chunk;
-      if (body.length > MAX_MCP_BODY_BYTES) {
-        tooLarge = true;
-        res.writeHead(413, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'payload_too_large' }));
-        req.destroy();
-      }
-    });
-    req.on('end', () => {
-      if (tooLarge) return;
-      // MCP Streamable HTTP transport: the server MAY assign a session id on
-      // initialize. Read once `body` is fully accumulated (not `s`, the
-      // outbound body) so it's known before the response is written.
-      let sessionIdForInitialize: string | undefined;
-      try {
-        if (JSON.parse(body).method === 'initialize') sessionIdForInitialize = crypto.randomUUID();
-      } catch { /* malformed body — handleMessage below reports the parse error */ }
-
-      let replied = false;
-      const send = (s: string): void => {
-        if (replied) return;
-        replied = true;
-        // RFC 6750 §3.1: scope violations on HTTP MUST return 403, not 200.
-        // WebSocket callers get the JSON-RPC error body unchanged (no HTTP status after handshake).
-        let isInsufficientScope = false;
-        let scopeHint = '';
-        try {
-          const parsed = JSON.parse(s);
-          if (parsed?.error?.code === -32005) {
-            isInsufficientScope = true;
-            const d = parsed.error.data;
-            const scopes: string[] = d?.requiredScopes ?? (d?.requiredScope ? [d.requiredScope] : []);
-            if (scopes.length) scopeHint = `, scope="${scopes.join(' ')}"`;
-          }
-        } catch { /* ok — malformed body goes through as 200 */ }
-        // MCP spec 2026-07-28 Streamable HTTP §Protocol Version Header:
-        // UnsupportedProtocolVersionError MUST ride HTTP 400, not 200.
-        let isUnsupportedProtocolVersion = false;
-        try {
-          const parsed = JSON.parse(s);
-          isUnsupportedProtocolVersion = parsed?.error?.code === -32022;
-        } catch { /* ok — malformed body goes through as 200 */ }
-        // RFC 6750 §3.1: an invalid/expired/malformed token MUST return 401,
-        // same as the missing-bearer case above — not 200 with the failure
-        // buried in the JSON-RPC body. TokenError (tokenValidator.ts) always
-        // surfaces as -32001.
-        let isInvalidToken = false;
-        try {
-          const parsed = JSON.parse(s);
-          isInvalidToken = parsed?.error?.code === -32001;
-        } catch { /* ok — malformed body goes through as 200 */ }
-        const sessionHeader = sessionIdForInitialize ? { 'mcp-session-id': sessionIdForInitialize } : {};
-        if (isInsufficientScope) {
-          res.writeHead(403, {
-            'Content-Type': 'application/json',
-            'WWW-Authenticate': `Bearer realm="banking-mcp-resource-server", error="insufficient_scope"${scopeHint}, resource_metadata="${resourceMetadataUrl(req)}"`,
-            ...sessionHeader,
-          });
-        } else if (isUnsupportedProtocolVersion) {
-          res.writeHead(400, { 'Content-Type': 'application/json', ...sessionHeader });
-        } else if (isInvalidToken) {
-          res.writeHead(401, {
-            'Content-Type': 'application/json',
-            'WWW-Authenticate': `Bearer realm="banking-mcp-resource-server", error="invalid_token", resource_metadata="${resourceMetadataUrl(req)}"`,
-            ...sessionHeader,
-          });
-        } else {
-          res.writeHead(200, { 'Content-Type': 'application/json', ...sessionHeader });
-        }
-        res.end(s);
-      };
-      handleMessage(body, token, send)
-        .then(() => {
-          // A notification (e.g. notifications/initialized) produces no response.
-          if (!replied) { res.writeHead(202); res.end(); }
-        })
-        .catch((err) => {
-          console.error('[mcp-resource-server] HTTP MCP handler error:', err);
-          if (!replied) {
-            replied = true;
-            res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(rpcError(null, -32603, 'Internal error'));
-          }
-        });
-    });
+    handleMcpPost(req, res);
     return;
   }
 
@@ -635,14 +782,24 @@ async function handleMessageImpl(
   }
 
   if (method === 'tools/list') {
-    let decoded;
-    try { decoded = await decodeAndValidate(token, ACCEPTED_AUDIENCES); } catch (e) {
-      const te = e as TokenError;
-      send(rpcError(id, -32001, te.message));
-      return;
+    // No token at all is the unauthenticated legacy-SSE discovery caller
+    // (see DISCOVERY_METHODS in index.ts's HTTP layer) — list every tool's
+    // metadata unfiltered, matching MCP's "discover capabilities before
+    // auth" convention. A caller that DID present a token, even an invalid
+    // one, still goes through decodeAndValidate exactly as before: this
+    // widens only the fully-tokenless case, which was unreachable until now.
+    let toolsForList = ALL_TOOLS;
+    if (token) {
+      let decoded;
+      try { decoded = await decodeAndValidate(token, ACCEPTED_AUDIENCES); } catch (e) {
+        const te = e as TokenError;
+        send(rpcError(id, -32001, te.message));
+        return;
+      }
+      const scopes = extractScopes(decoded);
+      toolsForList = filterByScopes(ALL_TOOLS, scopes);
     }
-    const scopes = extractScopes(decoded);
-    const tools = filterByScopes(ALL_TOOLS, scopes).map((t) => ({
+    const tools = toolsForList.map((t) => ({
       name: t.name,
       description: t.description,
       inputSchema: t.inputSchema,
