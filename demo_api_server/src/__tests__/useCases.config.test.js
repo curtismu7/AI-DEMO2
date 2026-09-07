@@ -11,11 +11,11 @@ const MATURITY = /^(works|needs-console-import|needs-build|flag:[a-z0-9_]+)$/;
 const UTILITY_TRACKS = ['tools', 'learn', 'nhi'];
 
 describe('useCases catalog SoT', () => {
-  test('contains all 60 use cases including UC1..UC32, UC33..UC35, UC37..UC42, and UC-NHI1/2', () => {
+  test('contains all 61 use cases including UC1..UC32, UC33..UC35, UC37..UC42, and UC-NHI1/2', () => {
     // 57 since UC40 (enterprise-managed-mcp-authorization) joined the catalog.
-    expect(USE_CASES).toHaveLength(60);
+    expect(USE_CASES).toHaveLength(61);
     const ids = USE_CASES.map((u) => u.id);
-    expect(new Set(ids).size).toBe(60);
+    expect(new Set(ids).size).toBe(61);
     for (let n = 1; n <= 22; n++) expect(ids).toContain(`UC${n}`);
     expect(ids).toContain('UC23');
     expect(ids).toContain('UC24');
@@ -206,9 +206,9 @@ describe('useCases catalog SoT', () => {
     }
   });
 
-  test('listUseCases returns all 60 resolved for a vertical', () => {
-    expect(listUseCases('healthcare')).toHaveLength(60);
-    expect(listUseCases()).toHaveLength(60);
+  test('listUseCases returns all 61 resolved for a vertical', () => {
+    expect(listUseCases('healthcare')).toHaveLength(61);
+    expect(listUseCases()).toHaveLength(61);
   });
 
   test('only UC14 and UC15 are advanced', () => {

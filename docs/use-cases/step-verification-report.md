@@ -53,6 +53,10 @@
 | airlines | UC39 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-29 |
 | airlines | UC4 | chip | unit-parse | ✅ PASS |  | 2026-08-29 |
 | airlines | UC4 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-29 |
+| airlines | UC41 | chip | unit-parse | ✅ PASS |  | 2026-08-31 |
+| airlines | UC41 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-31 |
+| airlines | UC42 | chip | unit-parse | ✅ PASS |  | 2026-08-31 |
+| airlines | UC42 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-31 |
 | airlines | UC6 | chip | unit-gate | ✅ PASS |  | 2026-08-29 |
 | airlines | UC6 | chip | unit-gate-pdp | ✅ PASS |  | 2026-08-29 |
 | airlines | UC6 | chip | unit-parse | ✅ PASS |  | 2026-08-29 |
@@ -74,7 +78,7 @@
 | banking | UC14 | attack | heuristic | ✅ PASS |  | 2026-07-22 |
 | banking | UC14 | attack | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-29 |
 | banking | UC14b | link | heuristic | ✅ PASS |  | 2026-07-25 |
-| banking | UC14b | link | unit-par-redirect | ✅ PASS |  | 2026-08-14 |
+| banking | UC14b | link | unit-par-redirect | ✅ PASS |  | 2026-08-31 |
 | banking | UC14b | link | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-29 |
 | banking | UC17 | chip | unit-parse | ✅ PASS |  | 2026-08-29 |
 | banking | UC17 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-29 |
@@ -88,7 +92,7 @@
 | banking | UC21 | chip | unit-parse | ✅ PASS |  | 2026-08-29 |
 | banking | UC21 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-29 |
 | banking | UC22 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-29 |
-| banking | UC22 | chip | unit-ref | ✅ PASS |  | 2026-08-29 |
+| banking | UC22 | chip | unit-ref | ✅ PASS |  | 2026-09-01 |
 | banking | UC24 | chip | unit-parse | ✅ PASS |  | 2026-08-29 |
 | banking | UC24 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-29 |
 | banking | UC25 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-29 |
@@ -112,6 +116,10 @@
 | banking | UC39 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-29 |
 | banking | UC4 | chip | unit-parse | ✅ PASS |  | 2026-08-29 |
 | banking | UC4 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-29 |
+| banking | UC41 | chip | unit-parse | ✅ PASS |  | 2026-08-31 |
+| banking | UC41 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-31 |
+| banking | UC42 | chip | unit-parse | ✅ PASS |  | 2026-08-31 |
+| banking | UC42 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-31 |
 | banking | UC5 | attack | unit-ref | ✅ PASS |  | 2026-07-23 |
 | banking | UC6 | chip | unit-gate | ✅ PASS |  | 2026-08-29 |
 | banking | UC6 | chip | unit-gate-pdp | ✅ PASS |  | 2026-08-29 |
@@ -178,6 +186,10 @@
 | government | UC39 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-29 |
 | government | UC4 | chip | unit-parse | ✅ PASS |  | 2026-08-29 |
 | government | UC4 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-29 |
+| government | UC41 | chip | unit-parse | ✅ PASS |  | 2026-08-31 |
+| government | UC41 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-31 |
+| government | UC42 | chip | unit-parse | ✅ PASS |  | 2026-08-31 |
+| government | UC42 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-31 |
 | government | UC6 | chip | unit-gate | ✅ PASS |  | 2026-08-29 |
 | government | UC6 | chip | unit-gate-pdp | ✅ PASS |  | 2026-08-29 |
 | government | UC6 | chip | unit-parse | ✅ PASS |  | 2026-08-29 |
@@ -233,6 +245,10 @@
 | healthcare | UC39 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-29 |
 | healthcare | UC4 | chip | unit-parse | ✅ PASS |  | 2026-08-29 |
 | healthcare | UC4 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-29 |
+| healthcare | UC41 | chip | unit-parse | ✅ PASS |  | 2026-08-31 |
+| healthcare | UC41 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-31 |
+| healthcare | UC42 | chip | unit-parse | ✅ PASS |  | 2026-08-31 |
+| healthcare | UC42 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-31 |
 | healthcare | UC6 | chip | unit-gate | ✅ PASS |  | 2026-08-29 |
 | healthcare | UC6 | chip | unit-gate-pdp | ✅ PASS |  | 2026-08-29 |
 | healthcare | UC6 | chip | unit-parse | ✅ PASS |  | 2026-08-29 |
@@ -292,6 +308,10 @@
 | investment | UC39 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-29 |
 | investment | UC4 | chip | unit-parse | ✅ PASS |  | 2026-08-29 |
 | investment | UC4 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-29 |
+| investment | UC41 | chip | unit-parse | ✅ PASS |  | 2026-08-31 |
+| investment | UC41 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-31 |
+| investment | UC42 | chip | unit-parse | ✅ PASS |  | 2026-08-31 |
+| investment | UC42 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-31 |
 | investment | UC6 | chip | unit-gate | ✅ PASS |  | 2026-08-29 |
 | investment | UC6 | chip | unit-gate-pdp | ✅ PASS |  | 2026-08-29 |
 | investment | UC6 | chip | unit-parse | ✅ PASS |  | 2026-08-29 |
@@ -346,6 +366,10 @@
 | manufacturing | UC39 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-29 |
 | manufacturing | UC4 | chip | unit-parse | ✅ PASS |  | 2026-08-29 |
 | manufacturing | UC4 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-29 |
+| manufacturing | UC41 | chip | unit-parse | ✅ PASS |  | 2026-08-31 |
+| manufacturing | UC41 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-31 |
+| manufacturing | UC42 | chip | unit-parse | ✅ PASS |  | 2026-08-31 |
+| manufacturing | UC42 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-31 |
 | manufacturing | UC6 | chip | unit-gate | ✅ PASS |  | 2026-08-29 |
 | manufacturing | UC6 | chip | unit-gate-pdp | ✅ PASS |  | 2026-08-29 |
 | manufacturing | UC6 | chip | unit-parse | ✅ PASS |  | 2026-08-29 |
@@ -440,6 +464,10 @@
 | retail | UC39 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-29 |
 | retail | UC4 | chip | unit-parse | ✅ PASS |  | 2026-08-29 |
 | retail | UC4 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-29 |
+| retail | UC41 | chip | unit-parse | ✅ PASS |  | 2026-08-31 |
+| retail | UC41 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-31 |
+| retail | UC42 | chip | unit-parse | ✅ PASS |  | 2026-08-31 |
+| retail | UC42 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-31 |
 | retail | UC6 | chip | unit-gate | ✅ PASS |  | 2026-08-29 |
 | retail | UC6 | chip | unit-gate-pdp | ✅ PASS |  | 2026-08-29 |
 | retail | UC6 | chip | unit-parse | ✅ PASS |  | 2026-08-29 |
@@ -494,6 +522,10 @@
 | sporting-goods | UC39 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-29 |
 | sporting-goods | UC4 | chip | unit-parse | ✅ PASS |  | 2026-08-29 |
 | sporting-goods | UC4 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-29 |
+| sporting-goods | UC41 | chip | unit-parse | ✅ PASS |  | 2026-08-31 |
+| sporting-goods | UC41 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-31 |
+| sporting-goods | UC42 | chip | unit-parse | ✅ PASS |  | 2026-08-31 |
+| sporting-goods | UC42 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-31 |
 | sporting-goods | UC6 | chip | unit-gate | ✅ PASS |  | 2026-08-29 |
 | sporting-goods | UC6 | chip | unit-gate-pdp | ✅ PASS |  | 2026-08-29 |
 | sporting-goods | UC6 | chip | unit-parse | ✅ PASS |  | 2026-08-29 |
@@ -548,6 +580,10 @@
 | university | UC39 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-29 |
 | university | UC4 | chip | unit-parse | ✅ PASS |  | 2026-08-29 |
 | university | UC4 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-29 |
+| university | UC41 | chip | unit-parse | ✅ PASS |  | 2026-08-31 |
+| university | UC41 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-31 |
+| university | UC42 | chip | unit-parse | ✅ PASS |  | 2026-08-31 |
+| university | UC42 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-31 |
 | university | UC6 | chip | unit-gate | ✅ PASS |  | 2026-08-29 |
 | university | UC6 | chip | unit-gate-pdp | ✅ PASS |  | 2026-08-29 |
 | university | UC6 | chip | unit-parse | ✅ PASS |  | 2026-08-29 |
@@ -602,6 +638,10 @@
 | workforce | UC39 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-29 |
 | workforce | UC4 | chip | unit-parse | ✅ PASS |  | 2026-08-29 |
 | workforce | UC4 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-29 |
+| workforce | UC41 | chip | unit-parse | ✅ PASS |  | 2026-08-31 |
+| workforce | UC41 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-31 |
+| workforce | UC42 | chip | unit-parse | ✅ PASS |  | 2026-08-31 |
+| workforce | UC42 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-08-31 |
 | workforce | UC6 | chip | unit-gate | ✅ PASS |  | 2026-08-29 |
 | workforce | UC6 | chip | unit-gate-pdp | ✅ PASS |  | 2026-08-29 |
 | workforce | UC6 | chip | unit-parse | ✅ PASS |  | 2026-08-29 |
@@ -618,8 +658,8 @@
 
 ## Summary
 
-306/606 checks proven.
-300 UNPROVEN — the check ran with the runtime conditions stubbed, so it proves the catalog declares the right prerequisites and nothing more.
+326/646 checks proven.
+320 UNPROVEN — the check ran with the runtime conditions stubbed, so it proves the catalog declares the right prerequisites and nothing more.
 Live invoke/LLM rows: 5/5 proven.
 
 ## Proven coverage by vertical
@@ -627,14 +667,14 @@ Live invoke/LLM rows: 5/5 proven.
 | Vertical | Proven | Unproven | FAIL | Total |
 |---|---:|---:|---:|---:|
 | abercrombie-fitch | 3 | 0 | 0 | 3 |
-| airlines | 24 | 30 | 0 | 54 |
-| banking | 41 | 30 | 0 | 71 |
-| government | 24 | 30 | 0 | 54 |
-| healthcare | 30 | 30 | 0 | 60 |
-| investment | 24 | 30 | 0 | 54 |
-| manufacturing | 24 | 30 | 0 | 54 |
+| airlines | 26 | 32 | 0 | 58 |
+| banking | 43 | 32 | 0 | 75 |
+| government | 26 | 32 | 0 | 58 |
+| healthcare | 32 | 32 | 0 | 64 |
+| investment | 26 | 32 | 0 | 58 |
+| manufacturing | 26 | 32 | 0 | 58 |
 | pingone-admin | 37 | 0 | 0 | 37 |
-| retail | 27 | 30 | 0 | 57 |
-| sporting-goods | 24 | 30 | 0 | 54 |
-| university | 24 | 30 | 0 | 54 |
-| workforce | 24 | 30 | 0 | 54 |
+| retail | 29 | 32 | 0 | 61 |
+| sporting-goods | 26 | 32 | 0 | 58 |
+| university | 26 | 32 | 0 | 58 |
+| workforce | 26 | 32 | 0 | 58 |
