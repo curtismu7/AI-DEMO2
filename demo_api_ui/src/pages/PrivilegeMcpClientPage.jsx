@@ -159,7 +159,11 @@ const GATEWAY_MODES = {
   direct: {
     key: 'direct',
     title: 'Direct to MCP',
-    detail: 'No Privilege in this path. Every tool answers, nobody checks who asked, and nothing is recorded.',
+    // The door still authenticates — every façade door sets requireBearer, so
+    // "nobody checks who asked" was never true here and read as a bug once the
+    // 401 became visible. What Direct actually leaves out is Privilege: no
+    // per-tool policy, no denial, no record of the call.
+    detail: 'No Privilege in this path. The door still checks who you are, but no per-tool policy is applied, nothing is denied, and nothing is recorded.',
   },
   privilege: {
     key: 'privilege',
@@ -481,7 +485,15 @@ export default function PrivilegeMcpClientPage() {
       // Use s.gatewayMode (this response), not the gatewayMode state variable —
       // this effect has an empty dep array, so that closure only ever sees the
       // mount-time value, never a fresh one.
-      if (s.mainAppAuthenticated && !s.oauth?.authenticated && s.gatewayMode !== 'direct') {
+      //
+      // Direct is NOT excluded, for the same reason requestSignIn above stopped
+      // excluding it: "no Privilege in the path" describes what Direct leaves
+      // out, not whether the door needs a bearer. Every direct door is a façade
+      // door with requireBearer (mcpFacade.js DOORS), so without this Direct
+      // could never obtain a token at all and every one of its doors answered
+      // "Not authenticated" forever. It signs in against our OWN broker here,
+      // never Privilege — which is exactly what keeps Direct "direct".
+      if (s.mainAppAuthenticated && !s.oauth?.authenticated) {
         if (searchParams.get('auth')) {
           requestSignIn();
         } else {

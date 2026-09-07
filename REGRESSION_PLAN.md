@@ -144,7 +144,9 @@ read the configured host. A new browser origin must be added to ALL of:
 
 **Files changed:** `demo_api_server/routes/privilegeMcpClient.js`,
 `demo_api_server/tests/routes/privilegeMcpClient.doorReachability.regression.test.js` (new),
-`demo_api_server/tests/routes/privilegeMcpClient.pingoneAdminTokenHeader.test.js`.
+`demo_api_server/tests/routes/privilegeMcpClient.pingoneAdminTokenHeader.test.js`,
+`demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`,
+`demo_api_ui/src/pages/__tests__/PrivilegeMcpClientPage.silentAutoConnect.test.jsx`.
 
 **What was broken:** all three Paths (Direct / Privilege / Façade) and every
 Door under them failed, in three different-looking ways with two root causes.
@@ -179,7 +181,22 @@ for the same cert reason `DEFAULT_AUDIT_MCP_URL` already documents), applied at
 the five server-side fetch sites (`fetchMcp`, both stream openers, and both
 `discoverAuth` probes).
 
+A third defect, found once the first two stopped masking it: **Direct mode could
+never authenticate.** Its silent auto-connect was excluded by
+`s.gatewayMode !== 'direct'`, on the reading that Direct has "no auth at all" —
+but every direct door is a façade door with `requireBearer`, so all four answered
+"Not authenticated" forever, and the operator had no way past it because the
+sign-in it needed was the one being skipped. (`requestSignIn` had already stopped
+excluding Direct for the same reason; the auto-connect guard was the survivor.)
+The guard is removed — Direct signs in against our OWN broker, never Privilege,
+which is what keeps it "direct". Its `GATEWAY_MODES.direct` copy said "nobody
+checks who asked", which was never true of these doors and read as a bug once the
+401 became visible; it now says the door still checks identity but applies no
+per-tool policy, denies nothing and records nothing.
+
 **Do not break:**
+- Direct mode must keep auto-connecting. Re-adding a `gatewayMode !== 'direct'`
+  guard re-creates a dead end with no operator-visible way out.
 - `session.oauth.accessToken` must stay EMPTY on a fresh session. It is what
   makes `/state` report `oauth.authenticated: false` while
   `mainAppAuthenticated: true`, and that pair is what triggers the page's
@@ -193,10 +210,24 @@ the five server-side fetch sites (`fetchMcp`, both stream openers, and both
   `pingoneMcpAdminToken` re-sync are unchanged and must stay that way.
 
 **Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/routes/privilegeMcpClient --forceExit --runInBand`
-— 23 suites / 144 tests passed. Each fix was reverted individually to confirm
-only its own tests go red (fix 1 → the two token tests; fix 2 → the façade-dial
-test). Verified live on `https://local.ping-devops.com:4000/privilege-mcp-client`
-by driving all three Paths and every Door signed in as `demoUser`.
+— 23 suites / 144 tests passed. `cd demo_api_ui && ./node_modules/.bin/vitest run
+src/pages/__tests__/PrivilegeMcpClientPage.silentAutoConnect.test.jsx` — 4 passed;
+`npm run build` exit 0. Each of the three fixes was reverted individually to
+confirm only its own tests go red (fix 1 → the two token tests; fix 2 → the
+façade-dial test; fix 3 → the new Direct auto-connect test). Verified live on
+`https://local.ping-devops.com:4000/privilege-mcp-client` signed in as `demoUser`,
+with the container's file content checked **before and after** each run — the
+shared stack was being reclaimed by other sessions mid-run, which silently voided
+two earlier attempts and made old code look like a live result.
+
+**Still open, not caused by this change:** with auth working, both Privilege and
+Façade reach the gateway and get `404 Not found`. The gateway log gives the
+reason — `rejecting /mcp on app opensearch22: outside entry path "/sse"`. Both
+`opensearch22` and `opensearch` are registered with entry path `/sse` while the
+demo calls `/<app>/mcp`; the app and its backend are healthy. Deliberately NOT
+worked around here (a `/sse` switch would have been ~8 lines) — the gateway pod
+was rebuilt the same day and these apps previously served `/mcp` to clients, so
+the behaviour change is being raised with Ping first.
 
 Note `privilegeMcpClient.pingoneAdminTokenHeader.test.js` was passing only
 because it set `oauthTokens: { accessToken: 'main-app-token' }` to clear the
