@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 /**
  * The six Inspector sources, at the seam that broke them.
@@ -95,6 +95,56 @@ describe('source endpoints', () => {
     await waitFor(() => expect(get).toHaveBeenCalledWith('/api/mcp/inspector/profiles'));
     await waitFor(() => expect(screen.getByTestId('selectedProfileId')).toHaveTextContent('new-id'));
     await waitFor(() => expect(get).toHaveBeenCalledWith('/api/mcp/inspector/tools?profile=new-id'));
+  });
+});
+
+describe('the Privilege/PingOne admin login round-trip lands back as ?profile= / ?..._error=', () => {
+  afterEach(() => {
+    window.history.replaceState({}, '', '/pingone-mcp-inspector');
+  });
+
+  it('selects the door that was just logged into on success (no error param)', async () => {
+    window.history.pushState({}, '', '/pingone-mcp-inspector?source=custom&profile=built-in-privilege-grafana');
+    get.mockImplementation((url) => {
+      if (url === '/api/mcp/inspector/profiles') {
+        return Promise.resolve({
+          data: { profiles: [{ id: 'built-in-privilege-grafana', label: 'Privilege: Grafana' }], defaultProfileId: 'default-banking' },
+        });
+      }
+      return Promise.resolve({ data: { tools: [] } });
+    });
+
+    renderSource('custom');
+
+    await waitFor(() => expect(screen.getByTestId('selectedProfileId')).toHaveTextContent('built-in-privilege-grafana'));
+    expect(window.location.search).not.toContain('profile=');
+  });
+
+  it('surfaces a failed login instead of silently looking like "sign in required" again', async () => {
+    window.history.pushState({}, '', '/pingone-mcp-inspector?source=custom&profile=built-in-privilege-grafana&privilege_error=invalid_state');
+    get.mockResolvedValue({ data: { profiles: [], defaultProfileId: 'default-banking' } });
+
+    renderSource('custom');
+
+    await waitFor(() => expect(screen.getByTestId('banner')).toHaveTextContent('invalid_state'));
+    expect(window.location.search).not.toContain('privilege_error=');
+    expect(window.location.search).not.toContain('profile=');
+  });
+
+  it('does the same for a failed PingOne admin login', async () => {
+    window.history.pushState({}, '', '/pingone-mcp-inspector?source=custom&pingone_admin_error=access_denied');
+    get.mockResolvedValue({ data: { profiles: [], defaultProfileId: 'default-banking' } });
+
+    renderSource('custom');
+
+    await waitFor(() => expect(screen.getByTestId('banner')).toHaveTextContent('access_denied'));
+  });
+
+  it('does nothing on a plain load with no redirect params', async () => {
+    get.mockResolvedValue({ data: { profiles: [], defaultProfileId: 'default-banking' } });
+    renderSource('custom');
+    await waitFor(() => expect(get).toHaveBeenCalledWith('/api/mcp/inspector/profiles'));
+    expect(screen.getByTestId('banner')).toHaveTextContent('');
   });
 });
 

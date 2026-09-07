@@ -90,19 +90,19 @@ describe('mcpPrivilegeAuth', () => {
   });
 
   describe('GET /login', () => {
-    it('401s when not signed in as admin', async () => {
+    it('401s when there is no session at all', async () => {
       const { app } = buildApp({ authed: false });
       const res = await request(app).get(`/login?profile=${BANKING_PROFILE_ID}`);
       expect(res.status).toBe(401);
     });
 
-    it('403s for a signed-in customer', async () => {
+    it('allows a signed-in customer, not just admin, to log in (any session, not admin-only)', async () => {
       const app = express();
       const session = { save: (cb) => cb && cb(), user: { id: 'u1', role: 'customer' } };
       app.use((req, res, next) => { req.session = session; next(); });
       app.use('/', require('../../routes/mcpPrivilegeAuth'));
       const res = await request(app).get(`/login?profile=${BANKING_PROFILE_ID}`);
-      expect(res.status).toBe(403);
+      expect(res.status).toBe(302);
     });
 
     it('400s when no ?profile= is given (there is no login without a door)', async () => {
