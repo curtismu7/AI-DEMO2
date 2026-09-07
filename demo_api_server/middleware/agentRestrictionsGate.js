@@ -152,6 +152,7 @@ async function agentRestrictionsGate(req, res, next) {
     }
     logger.warn('[agentRestrictionsGate] No userId resolvable, failing closed');
     return res.status(503).json({
+      error: 'Agent restriction check is temporarily unavailable',
       code: 'agent_restrictions_unavailable',
       message: 'Agent restriction check is temporarily unavailable',
       tool: toolName,
@@ -253,6 +254,7 @@ async function agentRestrictionsGate(req, res, next) {
     }
     logger.error('[agentRestrictionsGate] Unexpected error, failing closed', { err: err.message });
     return res.status(503).json({
+      error: 'Agent restriction check is temporarily unavailable',
       code: 'agent_restrictions_unavailable',
       message: 'Agent restriction check is temporarily unavailable',
       tool: toolName,
