@@ -1,34 +1,38 @@
 'use strict';
 /**
  * mcpPrivilegeAuth.js — Authorization Code + PKCE login for the built-in
- * "Privilege MCP" profile in the Generic MCP Inspector (routes/mcpInspector.js).
+ * `transport: 'privilege'` profiles in the Generic MCP Inspector
+ * (routes/mcpInspector.js, services/mcpProfileStore.js).
  *
- * Unlike mcpPingOneAdminAuth.js's target (a manually pre-registered PingOne
- * WORKER app), the Privilege Cloud gateway (cmuir-agentless-mcpgw.ping-devops.com
- * /external) is not a PingOne "Application" object at all — per
- * privilege/AGENTLESS-CONFIGURATION.md's 2026-08-24 entry, only Dynamic Client
- * Registration (RFC 7591) against the gateway's own /external/register is a
- * proven working path for a per-consumer client on this gateway; the one
- * manually-registered PingOne OIDC application documented there is the
- * gateway's own shared login client, not a per-consumer pattern. This route
- * discovers the gateway's OAuth endpoints (RFC 8414 authorization-server
- * metadata) and registers a public client (token_endpoint_auth_method:
- * "none", PKCE-only, no secret) once per process, caching the result exactly
- * like mcpPingOneAdminAuth.js caches its found-or-created PingOne app.
+ * One login per door, not one shared login. Confirmed live 2026-09-07 against
+ * the current single AI Gateway (privilege/CURRENT-CONFIGURATION.md): each
+ * Agentic App is its OWN OAuth authorization server —
+ * `https://mcpgw.ai-demo.ping-devops.com/<app>/.well-known/oauth-authorization-server`
+ * returns a distinct `issuer`/`authorization_endpoint`/`token_endpoint`/
+ * `registration_endpoint` per app. That is a change from the older per-owner
+ * gateway this file used to target (a single shared `/external` issuer good
+ * for every app, per privilege/AGENTLESS-CONFIGURATION.md's 2026-08-24 entry).
+ * A token minted against one door's issuer is not expected to validate on
+ * another, so this file registers a client and mints a token per profileId,
+ * caching each independently — the same discover-once-per-target shape
+ * mcpPingOneAdminAuth.js uses for its one PingOne app, just keyed by door.
+ *
+ * Every door still uses Dynamic Client Registration (RFC 7591): none of them
+ * are a pre-registered PingOne "Application" object.
  */
 const express = require('express');
 const crypto = require('crypto');
 const axios = require('axios');
 const router = express.Router();
 const configStore = require('../services/configStore');
+const mcpProfileStore = require('../services/mcpProfileStore');
 const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 
-const GATEWAY_ISSUER = 'https://cmuir-agentless-mcpgw.ping-devops.com/external';
 const CALLBACK_PATH = '/api/mcp/inspector/privilege/callback';
 
-// Cached for the process lifetime — same discover-once, reuse-forever shape
-// as mcpPingOneAdminAuth.js's _appCache.
-let _clientCache = null;
+// Cached for the process lifetime, one entry per profileId — same
+// discover-once, reuse-forever shape as mcpPingOneAdminAuth.js's _appCache.
+const _clientCache = new Map();
 
 function base64url(buf) {
   return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -63,12 +67,26 @@ function inspectorCallbackUrls(req) {
   return [...urls];
 }
 
-/** Discover the gateway's OAuth endpoints, then register a public PKCE client. */
-async function ensureClient(req) {
-  if (_clientCache) return _clientCache;
+/** A privilege-transport profile's own issuer: <gateway>/<door>/mcp -> <gateway>/<door>. */
+function issuerForProfile(profile) {
+  const u = new URL(profile.url);
+  return `${u.origin}${u.pathname.replace(/\/mcp$/, '')}`;
+}
+
+/** Discover profileId's door's OAuth endpoints, then register a public PKCE client for it. */
+async function ensureClient(req, profileId) {
+  if (_clientCache.has(profileId)) return _clientCache.get(profileId);
+
+  const profile = mcpProfileStore.getProfile(profileId);
+  if (!profile || profile.transport !== 'privilege' || !profile.url) {
+    const err = new Error(`"${profileId}" is not a known Privilege door profile.`);
+    err.code = 'unknown_privilege_profile';
+    throw err;
+  }
+  const issuer = issuerForProfile(profile);
 
   const { data: metadata } = await axios.get(
-    `${GATEWAY_ISSUER}/.well-known/oauth-authorization-server`,
+    `${issuer}/.well-known/oauth-authorization-server`,
     { timeout: 10000 },
   );
   const { data: registration } = await axios.post(
@@ -78,17 +96,18 @@ async function ensureClient(req) {
       grant_types: ['authorization_code', 'refresh_token'],
       response_types: ['code'],
       token_endpoint_auth_method: 'none',
-      client_name: 'AI-DEMO2 MCP Inspector',
+      client_name: `AI-DEMO2 MCP Inspector (${profile.label || profileId})`,
     },
     { headers: { 'Content-Type': 'application/json' }, timeout: 10000 },
   );
 
-  _clientCache = {
+  const client = {
     clientId: registration.client_id,
     authorizationEndpoint: metadata.authorization_endpoint,
     tokenEndpoint: metadata.token_endpoint,
   };
-  return _clientCache;
+  _clientCache.set(profileId, client);
+  return client;
 }
 
 // Session-cookie admin gate — this router is mounted under /api/mcp/inspector
@@ -112,18 +131,27 @@ function requireAdminSession(req, res, next) {
   return next();
 }
 
-// GET /api/mcp/inspector/privilege/login — admin only (this mints a token
-// carrying the signed-in user's own PingOne identity; only meaningful for
-// our own demo admin, same guard as the PingOne MCP admin login).
+// GET /api/mcp/inspector/privilege/login?profile=<id> — admin only (this
+// mints a token carrying the signed-in user's own PingOne identity; only
+// meaningful for our own demo admin, same guard as the PingOne MCP admin
+// login). `profile` must name one of the seeded transport:'privilege'
+// profiles (mcpProfileStore.js) — there is no login without a door.
 router.get('/login', requireAdminSession, async (req, res) => {
+  const profileId = typeof req.query.profile === 'string' ? req.query.profile.trim() : '';
+  if (!profileId) {
+    return res.status(400).json({
+      error: 'profile_required',
+      message: 'A ?profile=<id> query param naming the Privilege door is required.',
+    });
+  }
   try {
-    const client = await ensureClient(req);
+    const client = await ensureClient(req, profileId);
     const state = crypto.randomBytes(16).toString('hex');
     const codeVerifier = base64url(crypto.randomBytes(32));
     const codeChallenge = base64url(crypto.createHash('sha256').update(codeVerifier).digest());
     const redirectUri = callbackUrl(req);
 
-    req.session.privilegeMcpOAuth = { state, codeVerifier, redirectUri };
+    req.session.privilegeMcpOAuth = { state, codeVerifier, redirectUri, profileId };
 
     const params = new URLSearchParams({
       response_type: 'code',
@@ -144,7 +172,8 @@ router.get('/login', requireAdminSession, async (req, res) => {
     });
   } catch (err) {
     console.error('[mcpPrivilegeAuth] /login error:', err.message);
-    res.redirect(`/pingone-mcp-inspector?source=custom&privilege_error=${encodeURIComponent(err.message)}`);
+    const profileParam = `&profile=${encodeURIComponent(profileId)}`;
+    res.redirect(`/pingone-mcp-inspector?source=custom${profileParam}&privilege_error=${encodeURIComponent(err.message)}`);
   }
 });
 
@@ -153,17 +182,19 @@ router.get('/callback', async (req, res) => {
   const { code, state, error, error_description: errorDescription } = req.query;
   const pending = req.session?.privilegeMcpOAuth;
 
-  const failAndRedirect = (message) => {
+  const failAndRedirect = (message, profileId) => {
     delete req.session.privilegeMcpOAuth;
-    res.redirect(`/pingone-mcp-inspector?source=custom&privilege_error=${encodeURIComponent(message)}`);
+    const profileParam = profileId ? `&profile=${encodeURIComponent(profileId)}` : '';
+    res.redirect(`/pingone-mcp-inspector?source=custom${profileParam}&privilege_error=${encodeURIComponent(message)}`);
   };
 
-  if (error) return failAndRedirect(errorDescription || error);
-  if (!pending || !state || state !== pending.state) return failAndRedirect('invalid_state');
-  if (!code) return failAndRedirect('missing_code');
+  if (error) return failAndRedirect(errorDescription || error, pending?.profileId);
+  if (!pending || !state || state !== pending.state) return failAndRedirect('invalid_state', pending?.profileId);
+  if (!code) return failAndRedirect('missing_code', pending.profileId);
 
+  const { profileId } = pending;
   try {
-    const client = await ensureClient(req);
+    const client = await ensureClient(req, profileId);
     const body = new URLSearchParams({
       grant_type: 'authorization_code',
       code,
@@ -176,22 +207,23 @@ router.get('/callback', async (req, res) => {
       timeout: 15000,
     });
     const expiresInMs = (resp.data.expires_in || 3600) * 1000;
-    req.session.privilegeMcpToken = {
+    req.session.privilegeMcpTokens = req.session.privilegeMcpTokens || {};
+    req.session.privilegeMcpTokens[profileId] = {
       accessToken: resp.data.access_token,
       expiresAt: Date.now() + expiresInMs,
     };
     delete req.session.privilegeMcpOAuth;
     req.session.save((err) => {
       if (err) console.error('[mcpPrivilegeAuth] session save error (post-token):', err.message);
-      res.redirect('/pingone-mcp-inspector?source=custom&profile=built-in-privilege-mcp');
+      res.redirect(`/pingone-mcp-inspector?source=custom&profile=${encodeURIComponent(profileId)}`);
     });
   } catch (err) {
     const n = normalizeAxiosError(err, { label: 'Privilege token request' });
     console.error('[mcpPrivilegeAuth] token exchange failed:', n.message);
-    failAndRedirect(n.message);
+    failAndRedirect(n.message, profileId);
   }
 });
 
 module.exports = router;
 // Test-only exports (pure helpers — no live network calls).
-module.exports._test = { CALLBACK_PATH, callbackUrl, inspectorCallbackUrls };
+module.exports._test = { CALLBACK_PATH, callbackUrl, inspectorCallbackUrls, issuerForProfile, _clientCache };
