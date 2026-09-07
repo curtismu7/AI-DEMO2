@@ -140,6 +140,51 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-07 — External door's 401 challenge was unparseable, so LM Studio could never authenticate to `MCP Direct-Banking`
+
+**Files changed:** `ping-gateway/scripts/groovy/external-door-401-metadata.groovy`,
+new `ping-gateway/scripts/check-www-authenticate-shape.test.js`, `package.json`
+(`hygiene:check`).
+
+**What was broken:** the script appended the RFC 9728 hint with an unconditional
+comma. The external door's upstream answers with a **param-less** `Bearer`, so
+the emitted header was
+
+```text
+WWW-Authenticate: Bearer , resource_metadata="https://cmuir-mcp.ping-devops.com/.well-known/oauth-protected-resource"
+```
+
+RFC 7235 puts commas **between** auth-params, never between the scheme and the
+first one, so that header's first auth-param is empty and a strict parser rejects
+the whole thing. The client therefore never extracts `resource_metadata`, never
+fetches the metadata document, and never begins OAuth. Measured 2026-09-07: LM
+Studio's MCP bridge died with `[MCPBridge/auth] Bridge process failed:
+authentication required` on `mcp-direct-banking`, while every other door — which
+emit `Bearer resource_metadata="..."` or
+`Bearer scope="mcp:invoke", resource_metadata="..."` — completed discovery
+against the same client. The door's own discovery chain (PRM → AS metadata → DCR)
+was verified healthy end to end; only the challenge header was malformed.
+
+**What was fixed:** the separator is chosen from whether an auth-param is
+actually present (`existing.contains('=') ? ', ' : ' '`), and `existing` is
+trimmed.
+
+**Do not break:**
+
+- Never reintroduce an unconditional `existing + ', resource_metadata='`. The
+  new `node --test` check asserts both that the malformed shape fails a strict
+  parse and that the Groovy still selects its separator; it is wired into
+  `npm run hygiene:check`.
+- This script has exactly ONE consumer, `ping-gateway/config/routes/00-mcp-external-door.json`
+  (`Host: cmuir-mcp.ping-devops.com`). The AI Gateway client page
+  (`/privilege-mcp-client`) and the façade doors do not go through it — keep it
+  that way rather than generalising this script across routes.
+- It must stay a response-header rewrite and must NOT become
+  `McpProtectionFilter`; that filter registers a well-known handler globally by
+  path and took down `mcp-olb-primary` (PR #2276 revert).
+
+**Verify:** `node --test ping-gateway/scripts/check-www-authenticate-shape.test.js` — 3 passed (reverted the Groovy to confirm the guard goes red, then restored); `node ping-gateway/scripts/check-route-conditions.js` exit 0. Live confirmation needs an SE deploy of `ping-gateway`; re-run the header probe against `https://cmuir-mcp.ping-devops.com/mcp` afterwards and check the comma is gone.
+
 ### 2026-09-07 — AI Guard blamed the model for calls that never left the building; local lanes 429'd by a shared rate-limit bucket
 
 **Files changed:** `demo_api_server/routes/privilegeMcpClient.js`,

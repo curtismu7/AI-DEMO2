@@ -10,7 +10,7 @@ cp lmstudio/mcp.json ~/.lmstudio/mcp.json   # then restart LM Studio
 | entry (shown as `mcp/<entry>` in LM Studio) | door | auth |
 |---|---|---|
 | `MCP Direct-Banking` | our banking MCP server (`oauth-mcp`) on the SE cluster | LM Studio's native OAuth (RFC 9728 → DCR → PKCE) |
-| `MCP Agentless-Banking` | Privilege **agentless** gateway, `external` app (banking tools; see `privilege/AGENTLESS-CONFIGURATION.md`), through the **SE-hosted** recording façade | native OAuth (the façade points LM Studio at Privilege's AS) |
+| `MCP Agentless-Banking` | **DARK since 2026-09-01 — expect it to fail, nothing is wrong.** Was the Privilege **agentless** gateway, `external` app (banking tools; see `privilege/AGENTLESS-CONFIGURATION.md`), through the **SE-hosted** recording façade. Its gateway was torn down when the estate moved to the one AI Gateway at `mcpgw.ai-demo.ping-devops.com`, and `cmuir-agentless-mcpgw.ping-devops.com` is now NXDOMAIN, so the door answers `502 {"error":"upstream_unavailable"}`. Relighting it needs a **banking** MCP server registered on the new gateway as its own Agentic App — only `opensearch22` exists today, and pointing a banking door at an OpenSearch app would silently serve the wrong tools. Once that app exists, set `MCP_FACADE_AGENTLESS_URL` (and `MCP_FACADE_AGENTLESS_AS`); see `demo_api_server/routes/mcpFacade.js` | n/a while dark |
 | `MCP Privilege-OpenSearch` | OpenSearch MCP **through the Privilege AI Gateway** (`agentless-mcpgw`, app `opensearch22`), through the **local** recording façade. Replaced `MCP Agent-OpenSearch` on 2026-09-05: agent mode's mesh frontend still resolves but nothing serves it, so that door hung and was deleted | the façade holds the gateway leg — sign in once at `/privilege-mcp-client` after a gateway restart |
 | `MCP Direct-OpenSearch` | the same OpenSearch MCP server (`cm-mcpgw` in K8s), **bypassing Privilege** | none — needs a port-forward first (below) |
 | `MCP AgentGateway-Banking` | this repo's Agent Gateway (`demo_mcp_gateway`, deployed to the SE cluster), through the **SE-hosted** recording façade | native OAuth via the gateway's broker (PR #2353, real Let's Encrypt cert) → PingOne login |
@@ -94,3 +94,51 @@ kubectl --context us -n ping-devops-curtismuir port-forward svc/cm-mcpgw-opensea
 ```
 
 (The local `mcpgw` compose profile publishes the same server on `:9900`, so the entry works there too.)
+
+## When a door will not connect
+
+LM Studio's MCP client logs to **`~/Library/Logs/LM Studio/main.log`** — *not*
+`~/.lmstudio/server-logs/`, which is the inference server. Look for:
+
+```text
+[InternalPluginsProvider][PluginProcess(mcp/<door>)] stderr:
+  [MCPBridge/auth] Bridge process failed: authentication required.
+[LMSAuthenticator][Endpoint=startMcpAuthentication] ... Error: Rehydrated error
+- Caused By: Error: SSE error: Non-200 status code (403)
+```
+
+`Rehydrated error` is an obfuscated cross-worker wrapper and tells you nothing —
+**the real cause is the `- Caused By:` line under it.** Read past the stack.
+
+Then walk the four discovery hops by hand; each one names the next:
+
+```bash
+# 1. the challenge — expect 401 WITH a resource_metadata hint
+curl -s -D - -o /dev/null -X POST "<door url>" \
+  -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"p","version":"1"}}}' \
+  | grep -i '^www-authenticate'
+# 2. that resource_metadata URL  -> names authorization_servers
+# 3. <as>/.well-known/oauth-authorization-server  (also try the path-suffixed
+#    /.well-known/oauth-authorization-server/<path> — RFC 8414 allows both)
+#    -> names registration_endpoint
+# 4. POST that registration_endpoint  -> expect 201
+```
+
+Three things that look like outages and are not:
+
+- **A malformed challenge.** `Bearer , resource_metadata="…"` has an empty first
+  auth-param (RFC 7235 puts commas *between* params, never after the bare
+  scheme). Strict clients reject the whole header, never fetch the metadata, and
+  report only "authentication required". Valid shapes are
+  `Bearer resource_metadata="…"` and `Bearer scope="x", resource_metadata="…"`.
+  Guarded by `ping-gateway/scripts/check-www-authenticate-shape.test.js`.
+- **A probe that raced a deploy.** An SE door answering nginx's HTML
+  `502 Bad Gateway` usually means `demo-api-server` was restarting, not that the
+  backend is broken. Check `kubectl --context us -n ping-devops-cmuir get pods`
+  for ages under ~10m and re-probe before concluding anything. A 502 from the
+  façade *itself* looks different and is real:
+  `{"error":"upstream_unavailable","message":"fetch failed"}`.
+- **A 403 from a Privilege door.** That is policy denying the call — the product
+  working, not a defect. Fix it in registration/policy, never by loosening the
+  gateway.
