@@ -107,6 +107,7 @@ export default function LlmGatewayPage() {
   const [decision, setDecision] = useState(null);
   const [decisionView, setDecisionView] = useState('form');
   const [limitsByLane, setLimitsByLane] = useState({});
+  const [selectedAttack, setSelectedAttack] = useState(() => window.localStorage.getItem('lgw-attack-choice') || '');
 
   useEffect(() => {
     let cancelled = false;
@@ -283,15 +284,23 @@ export default function LlmGatewayPage() {
                 <div className={`lgw-turn__body${t.tone && t.tone !== 'ok' ? ` is-${t.tone}` : ''}`}>{t.text}</div>
               </div>
             ))}
-            {busy ? <p className="lgw-empty">Sending through {TITLES[selected] || selected}&hellip;</p> : null}
+            {busy ? (
+              <p className="lgw-empty lgw-busy">
+                <span className="lgw-spinner" aria-hidden="true" />
+                Sending through {TITLES[selected] || selected}&hellip;
+              </p>
+            ) : null}
           </div>
           <div className="lgw-attacks">
             <label htmlFor="lgw-attack">🛡 Attack library</label>
             <select
               id="lgw-attack"
-              value=""
+              value={selectedAttack}
               onChange={(e) => {
-                const atk = GUARDRAIL_ATTACKS.find((a) => a.id === e.target.value);
+                const id = e.target.value;
+                setSelectedAttack(id);
+                window.localStorage.setItem('lgw-attack-choice', id);
+                const atk = GUARDRAIL_ATTACKS.find((a) => a.id === id);
                 if (atk) setPrompt(atk.payload);
               }}
             >
@@ -366,6 +375,27 @@ export default function LlmGatewayPage() {
               {decision.tone === 'ok' ? null : (
                 <div><dt>Refused by</dt><dd>{decision.layer}</dd></div>
               )}
+              {/* The pair "which lanes are governed" answers in the abstract; this
+                  answers it for the call that just happened. Local lanes never had
+                  a Privilege chip to begin with — the chain just skips it. */}
+              {decision.tone === 'ok' ? (
+                <div>
+                  <dt>Path</dt>
+                  <dd>
+                    <div className="lgw-path">
+                      <span className="lgw-path__chip">You</span>
+                      <span className="lgw-path__arrow">&rarr;</span>
+                      {(lanes.find((l) => l.provider === decision.provider) || {}).isLocal ? null : (
+                        <>
+                          <span className="lgw-path__chip lgw-path__chip--gateway">🔐 Privilege</span>
+                          <span className="lgw-path__arrow">&rarr;</span>
+                        </>
+                      )}
+                      <span className="lgw-path__chip lgw-path__chip--reached">{TITLES[decision.provider] || decision.provider} &#10003;</span>
+                    </div>
+                  </dd>
+                </div>
+              ) : null}
               <div><dt>Lane</dt><dd>{decision.provider}</dd></div>
               <div><dt>Route</dt><dd>{decision.route}</dd></div>
               <div>
