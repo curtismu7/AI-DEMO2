@@ -193,9 +193,16 @@ do-not-break rather than left in a commit message:
 - The service must not be published to the host locally, nor given an ingress on
   the cluster.
 
-**Open item to settle before build:** which PingOne admin roles the worker
-actually needs. Least privilege for the demo's tool set, not blanket admin. The
-roles chosen directly bound the blast radius above.
+**Worker roles — SETTLED 2026-09-07: read-only to start.** The worker gets
+configuration read plus identity-data read, and no write roles. Every upstream
+read tool works; a write fails at PingOne regardless of what Privilege permits,
+so the credential sitting behind the NetworkPolicy cannot change the tenant.
+
+That is enough to demo the whole chain — discovery, tool listing, and a policy
+permit against a policy deny — because what is being shown is the gateway
+deciding, not the write landing. Widen deliberately, one role at a time, if a
+demo needs a real mutation; each widening enlarges the blast radius described
+above and should be recorded here.
 
 ---
 

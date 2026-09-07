@@ -959,6 +959,18 @@ in a commit message."
 
 ---
 
-## Open item — settle before Task 4
+## Worker roles — settled
 
-**Which PingOne admin roles does the worker application get?** The spec names this unresolved. The roles chosen directly bound the blast radius described in Task 4's NetworkPolicy comment. Decide least privilege for the demo's tool set rather than granting blanket admin, and record the decision in the spec before building the image that carries the credential.
+**Read-only to start** (decided 2026-09-07). The worker application gets
+configuration read plus identity-data read, and **no write roles**.
+
+Consequences for the tasks below:
+
+- Task 4 Step 3 and Task 5 Step 4 will succeed: startup, SSE discovery and
+  `tools/list` need no write permission.
+- Task 6 Step 3 should pick a **read-only** tool for the permit case.
+- Task 6 Step 4's deny case still proves the gateway decides, because the denial
+  happens at the gateway before PingOne is reached.
+- A write tool called through a permit will fail at PingOne, not at the gateway.
+  That is expected, not a defect — do not "fix" it by widening roles without a
+  deliberate decision recorded in the spec.
