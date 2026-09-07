@@ -13,15 +13,15 @@ import ResourceServerTester from "../ResourceServerTester";
 
 vi.mock("../../services/bffAxios", () => ({
   __esModule: true,
-  default: { post: jest.fn() },
+  default: { post: vi.fn() },
 }));
 
 // notifySessionExpiredIfNeeded is a side-effecting no-op here; navigateToCustomerOAuthLogin
 // is the click target we assert on.
 vi.mock("../../utils/authUi", () => ({
   __esModule: true,
-  notifySessionExpiredIfNeeded: jest.fn(),
-  navigateToCustomerOAuthLogin: jest.fn(),
+  notifySessionExpiredIfNeeded: vi.fn(),
+  navigateToCustomerOAuthLogin: vi.fn(),
 }));
 
 // Select the named operation in the tree (InspectorShell layout — always
@@ -31,7 +31,7 @@ function openPanel(panelNameRe) {
 }
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
 });
 
 test("probe verdict 401 renders the rejected/sign-in row with a Sign in button", async () => {

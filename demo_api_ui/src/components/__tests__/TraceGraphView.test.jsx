@@ -5,11 +5,11 @@ import agentFixture from "../../services/__tests__/fixtures/trace-agent-run.json
 import chipFixture from "../../services/__tests__/fixtures/trace-chip-run.json";
 
 afterEach(() => {
-  jest.resetAllMocks();
+  vi.resetAllMocks();
 });
 
 test("fetches raw trace and renders an svg with service nodes", async () => {
-  global.fetch = jest.fn(() =>
+  global.fetch = vi.fn(() =>
     Promise.resolve({ ok: true, json: () => Promise.resolve(agentFixture) }));
   const traceId = agentFixture.data[0].traceID;
   const { container } = render(<TraceGraphView traceId={traceId} />);
@@ -22,7 +22,7 @@ test("fetches raw trace and renders an svg with service nodes", async () => {
 });
 
 test("renders a multi-service trace with cross-service nodes and edges", async () => {
-  global.fetch = jest.fn(() =>
+  global.fetch = vi.fn(() =>
     Promise.resolve({ ok: true, json: () => Promise.resolve(chipFixture) }));
   const traceId = chipFixture.data[0].traceID;
   const { container } = render(<TraceGraphView traceId={traceId} />);
@@ -37,7 +37,7 @@ test("renders a multi-service trace with cross-service nodes and edges", async (
 });
 
 test("shows the error state when the trace fetch fails", async () => {
-  global.fetch = jest.fn(() =>
+  global.fetch = vi.fn(() =>
     Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({ message: "Trace not found." }) }));
   render(<TraceGraphView traceId="feedfacefeedface" />);
   await waitFor(() => expect(screen.getByText(/Trace not found/i)).toBeInTheDocument());

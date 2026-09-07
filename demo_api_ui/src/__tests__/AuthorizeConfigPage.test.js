@@ -38,18 +38,18 @@ const MOCK_CONFIG = {
 };
 
 function mockFetchSuccess(body = MOCK_CONFIG) {
-  global.fetch = jest.fn().mockResolvedValue({
+  global.fetch = vi.fn().mockResolvedValue({
     ok: true,
     json: async () => body,
   });
 }
 
 function mockFetchError() {
-  global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 500 });
+  global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500 });
 }
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
 });
 
 // ── Loading state ─────────────────────────────────────────────────────────────
@@ -57,7 +57,7 @@ beforeEach(() => {
 describe("AuthorizeConfigPage — loading state", () => {
   it("shows loading indicator while fetch is pending", async () => {
     // Keep the fetch promise unresolved for this test
-    global.fetch = jest.fn(() => new Promise(() => {}));
+    global.fetch = vi.fn(() => new Promise(() => {}));
     render(<AuthorizeConfigPage />);
     expect(screen.getByText(/loading authorize config/i)).toBeInTheDocument();
   });
@@ -78,7 +78,7 @@ describe("AuthorizeConfigPage — error state", () => {
     // (1) MCP tools prefetch → error (swallowed internally)
     // (2) Config fetch → error → shows Retry button
     // (3) Retry → success → shows page title
-    global.fetch = jest
+    global.fetch = vi
       .fn()
       .mockResolvedValueOnce({ ok: false, status: 500 })
       .mockResolvedValueOnce({ ok: false, status: 500 })

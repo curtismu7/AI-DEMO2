@@ -10,7 +10,7 @@ describe('dashboardToast raises the sign-in interrupt', () => {
   let handler;
 
   beforeEach(() => {
-    handler = jest.fn();
+    handler = vi.fn();
     window.addEventListener(SESSION_REAUTH_EVENT, handler);
   });
 

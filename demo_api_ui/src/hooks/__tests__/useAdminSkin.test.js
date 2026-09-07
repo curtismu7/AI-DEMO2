@@ -15,7 +15,7 @@ function Probe() {
 describe("useAdminSkin", () => {
   afterEach(() => {
     document.body.classList.remove("admin-skin-p1");
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   it("applies the body class unconditionally", async () => {
@@ -26,7 +26,7 @@ describe("useAdminSkin", () => {
   });
 
   it("does not fetch feature flags", () => {
-    const fetchSpy = jest.spyOn(global, "fetch");
+    const fetchSpy = vi.spyOn(global, "fetch");
     render(<Probe />);
     expect(fetchSpy).not.toHaveBeenCalled();
   });

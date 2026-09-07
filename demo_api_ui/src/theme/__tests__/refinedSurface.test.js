@@ -2,11 +2,11 @@
 
 // Polyfill window.scrollTo for jsdom (dashboard handlers reference it)
 if (typeof window !== "undefined" && !window.scrollTo) {
-  window.scrollTo = jest.fn();
+  window.scrollTo = vi.fn();
 }
 
 // fetch is used by mount effects (feature-flags, session-preview) — stub it
-global.fetch = jest.fn(() =>
+global.fetch = vi.fn(() =>
   Promise.resolve({ ok: false, json: () => Promise.resolve({}) }),
 );
 
@@ -14,18 +14,18 @@ global.fetch = jest.fn(() =>
 vi.mock("../../context/AgentUiModeContext", () => ({
   useAgentUiMode: () => ({
     placement: "none",
-    setSurfaceHostEl: jest.fn(),
+    setSurfaceHostEl: vi.fn(),
   }),
 }));
 vi.mock("../../context/EducationUIContext", () => ({
-  useEducationUI: () => ({ open: jest.fn() }),
+  useEducationUI: () => ({ open: vi.fn() }),
 }));
 vi.mock("../../context/SessionTokenContext", () => ({
   useSessionToken: () => ({
     tokenSecondsLeft: null,
     openTokenModal: null,
     registerTokenModalOpener: () => () => {},
-    refreshTokenStatus: jest.fn(),
+    refreshTokenStatus: vi.fn(),
   }),
 }));
 vi.mock("../../hooks/useCurrentUserTokenEvent", () => ({
@@ -56,7 +56,7 @@ vi.mock("react-router-dom", () => {
         { href: typeof to === "string" ? to : "", ...rest },
         children,
       ),
-    useNavigate: () => jest.fn(),
+    useNavigate: () => vi.fn(),
     useLocation: () => ({ pathname: "/dashboard", search: "", state: null }),
   };
 });
@@ -65,30 +65,30 @@ vi.mock("react-router-dom", () => {
 vi.mock("../../services/apiClient", () => ({
   __esModule: true,
   default: {
-    get: jest.fn(() => Promise.resolve({ data: {} })),
-    post: jest.fn(() => Promise.resolve({ data: {} })),
-    put: jest.fn(() => Promise.resolve({ data: {} })),
+    get: vi.fn(() => Promise.resolve({ data: {} })),
+    post: vi.fn(() => Promise.resolve({ data: {} })),
+    put: vi.fn(() => Promise.resolve({ data: {} })),
   },
 }));
 vi.mock("axios", () => {
   const instance = {
-    get: jest.fn(() => Promise.resolve({ data: {} })),
-    post: jest.fn(() => Promise.resolve({ data: {} })),
-    put: jest.fn(() => Promise.resolve({ data: {} })),
-    interceptors: { request: { use: jest.fn() }, response: { use: jest.fn() } },
+    get: vi.fn(() => Promise.resolve({ data: {} })),
+    post: vi.fn(() => Promise.resolve({ data: {} })),
+    put: vi.fn(() => Promise.resolve({ data: {} })),
+    interceptors: { request: { use: vi.fn() }, response: { use: vi.fn() } },
   };
   return {
     __esModule: true,
     default: {
       ...instance,
       // bffAxios.js calls axios.create() at module load — return a usable instance.
-      create: jest.fn(() => instance),
+      create: vi.fn(() => instance),
     },
   };
 });
 vi.mock("../../services/cachedStatusService", () => ({
   __esModule: true,
-  getCachedJson: jest.fn(() =>
+  getCachedJson: vi.fn(() =>
     Promise.resolve({ data: { authenticated: false } }),
   ),
 }));
@@ -108,13 +108,13 @@ vi.mock("../../components/agent-clinical/AgentClinicalHost", () => ({ default: (
 
 vi.mock("react-toastify", () => ({
   toast: {
-    dismiss: jest.fn(),
-    isActive: jest.fn(() => false),
-    update: jest.fn(),
-    warning: jest.fn(),
-    success: jest.fn(),
-    error: jest.fn(),
-    info: jest.fn(),
+    dismiss: vi.fn(),
+    isActive: vi.fn(() => false),
+    update: vi.fn(),
+    warning: vi.fn(),
+    success: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
   },
 }));
 

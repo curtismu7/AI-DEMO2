@@ -1395,6 +1395,30 @@ const RAW_USE_CASES = [
     productRoles: {},
     primaryTool: null,
   },
+  {
+    id: 'UC-TOOL3',
+    useCaseId: 'llm-gateway',
+    track: 'tools',
+    title: 'LLM Gateway',
+    buyerStory: 'Verify what the Privilege AI Gateway actually decided about an LLM call — the chat console classifies the outcome (denied by policy / provider refused / answered), while the raw-request tab (/llm-test) interprets nothing and shows exactly what was sent and returned.',
+    pingOneSolution: 'The PingOne Privilege AI Gateway fronts every LLM backend behind a virtual key, scanning for prompt injection, PII, and malicious content and returning a policy verdict alongside the provider response.',
+    trigger: { type: 'link', path: '/llm-gateway', label: 'Open LLM Gateway' },
+    expectedOutcome: 'GATEWAY_VERDICT',
+    evidence: { tokenChain: [], activity: [] },
+    codeRefs: [
+      'demo_api_ui/src/pages/LlmGatewayCombinedPage.jsx',
+      'demo_api_ui/src/pages/LlmGatewayPage.jsx',
+      'demo_api_ui/src/pages/LlmTestPage.jsx',
+    ],
+    maturity: 'works',
+    owasp: { threats: [], sections: [] },
+    whatToSay: 'Two tabs, one gateway: the chat console classifies what happened to a call, the raw-request tab shows the unfiltered wire traffic when the two need to be checked against each other.',
+    advanced: false,
+    whatLong: 'A developer utility (not an identity scenario): the chat console tab classifies each call through the Privilege AI Gateway virtual key (denied by policy / provider refused / answered), while the raw-request tab (/llm-test) is a REST client that interprets nothing — pick a lane, edit the JSON body, send it, and read exactly what came back.',
+    businessValue: "Lets a demo presenter or engineer confirm gateway behavior directly, rather than trusting only the chat console's interpretation of the outcome.",
+    productRoles: {},
+    primaryTool: null,
+  },
 
   // --- NHI GOVERNANCE --- (link-type cards; AI Control Plane's own pages own the actual behavior)
   {

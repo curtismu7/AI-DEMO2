@@ -337,6 +337,29 @@
   color: var(--th-text-muted);
 }
 
+.lgw-busy {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Mirrors InspectorShell.css's spinner (.inspector-shell-spinner) — same
+   border-circle technique, sized and colored for this page's plain-text
+   busy line rather than a solid button. */
+.lgw-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--th-border);
+  border-top-color: var(--th-text);
+  border-radius: 50%;
+  animation: lgw-spin 0.7s linear infinite;
+}
+
+@keyframes lgw-spin {
+  to { transform: rotate(360deg); }
+}
+
 .lgw-turn { display: flex; flex-direction: column; gap: 0.2rem; }
 
 .lgw-turn__who {
@@ -411,6 +434,7 @@
 
 .lgw-attacks select:hover {
   background: var(--th-bg-hover);
+  color: var(--th-text);
 }
 
 .lgw-attacks select:focus-visible {
@@ -497,3 +521,69 @@
 .lgw-pill.is-ok { color: var(--th-status-success); }
 .lgw-pill.is-warn { color: var(--th-status-warning); }
 .lgw-pill.is-bad { color: var(--th-status-error); }
+
+/* Only rendered on a successful call — the chain itself says whether Privilege
+   sat in the middle: local lanes just skip straight from "You" to the model. */
+.lgw-path {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.lgw-path__chip {
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--th-border);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  white-space: nowrap;
+}
+
+.lgw-path__chip--gateway {
+  border-color: var(--th-bg-emphasis);
+  background: var(--th-bg-emphasis);
+  color: var(--th-text-on-emphasis);
+}
+
+.lgw-path__chip--reached {
+  border-color: var(--th-status-success);
+  background: var(--th-status-success);
+  color: var(--th-text-invert);
+}
+
+.lgw-path__arrow {
+  color: var(--th-text-muted);
+}
+
+/* ── who stopped it ──────────────────────────────────────────────────────── */
+/* The headline answer to "Privilege or the model?" — a coloured left rule and
+   type one step above the dl, so it reads before the field list does. */
+.lgw-who {
+  margin: 0 0 0.9rem;
+  padding: 0.5rem 0 0.5rem 0.7rem;
+  border-left: 4px solid var(--th-border-strong);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+
+.lgw-who__who {
+  margin: 0;
+  font-size: var(--font-size-lg, 1.0625rem);
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--th-text);
+}
+
+.lgw-who__note {
+  margin: 0.2rem 0 0;
+  font-size: var(--font-size-sm);
+  line-height: 1.35;
+  color: var(--th-text-muted);
+}
+
+.lgw-who.is-warn { border-left-color: var(--th-status-warning); }
+.lgw-who.is-warn .lgw-who__who { color: var(--th-status-warning); }
+.lgw-who.is-bad { border-left-color: var(--th-status-error); }
+.lgw-who.is-bad .lgw-who__who { color: var(--th-status-error); }
+.lgw-who.is-ok { border-left-color: var(--th-status-success); }

@@ -34,6 +34,7 @@ const mfaService = require('../services/mfaService');
 const oauthService = require('../services/oauthService');
 const apiCallTrackerService = require('../services/apiCallTrackerService');
 const { mfaLogger } = require('../utils/mfaLogger');
+const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 
 /**
  * Normalize a PingOne debug request object for UI trace display.
@@ -1227,9 +1228,12 @@ router.get('/users', async (req, res) => {
     }));
     res.json({ success: true, users, query: q || null });
   } catch (err) {
-    console.error('[MFA Test] GET /users failed:', err.message, err.response?.data || '');
-    const pingError = err.response?.data || err.message;
-    res.status(err.response?.status || 500).json({ success: false, error: err.message, pingError });
+    // Raw err.response.data here is the PingOne Management API's own error body,
+    // reached with a bearer worker token — normalize so it reaches neither the
+    // client nor the log. See root CLAUDE.md "Upstream failures — normalize".
+    const n = normalizeAxiosError(err, { label: 'PingOne users', timeoutMs: 10000 });
+    console.error('[MFA Test] GET /users failed:', n.message);
+    res.status(n.httpStatus || 500).json({ success: false, error: n.message });
   }
 });
 

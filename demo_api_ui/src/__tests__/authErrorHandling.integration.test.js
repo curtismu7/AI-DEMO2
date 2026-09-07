@@ -95,7 +95,7 @@ describe('Frontend Auth Error Handling — Integration', () => {
       };
 
       let attempts = 0;
-      const fn = jest.fn().mockImplementation(() => {
+      const fn = vi.fn().mockImplementation(() => {
         attempts++;
         if (attempts < 2) {
           throw error;
@@ -117,7 +117,7 @@ describe('Frontend Auth Error Handling — Integration', () => {
         retryable: false,
       };
 
-      const fn = jest.fn().mockRejectedValue(error);
+      const fn = vi.fn().mockRejectedValue(error);
 
       try {
         await ErrorRetryStrategy.executeWithRetry(fn, { maxAttempts: 3 });
@@ -134,7 +134,7 @@ describe('Frontend Auth Error Handling — Integration', () => {
         retryable: false,
       };
 
-      const fn = jest.fn().mockRejectedValue(error);
+      const fn = vi.fn().mockRejectedValue(error);
 
       try {
         await ErrorRetryStrategy.executeWithRetry(fn, { maxAttempts: 3 });
@@ -151,7 +151,7 @@ describe('Frontend Auth Error Handling — Integration', () => {
         retryable: true,
       };
 
-      const fn = jest.fn().mockRejectedValue(error);
+      const fn = vi.fn().mockRejectedValue(error);
 
       try {
         await ErrorRetryStrategy.executeWithRetry(fn, { maxAttempts: 2 });
@@ -254,7 +254,7 @@ describe('Frontend Auth Error Handling — Integration', () => {
       };
 
       let callCount = 0;
-      const apiCall = jest.fn().mockImplementation(() => {
+      const apiCall = vi.fn().mockImplementation(() => {
         callCount++;
         if (callCount === 1) throw transientError;
         return { data: 'success' };
@@ -276,7 +276,7 @@ describe('Frontend Auth Error Handling — Integration', () => {
         userAction: 're-auth',
       };
 
-      const apiCall = jest.fn().mockRejectedValue(userError);
+      const apiCall = vi.fn().mockRejectedValue(userError);
 
       try {
         await ErrorRetryStrategy.executeWithRetry(apiCall);
@@ -299,7 +299,7 @@ describe('Frontend Auth Error Handling — Integration', () => {
         },
       };
 
-      global.fetch = jest.fn().mockResolvedValue({
+      global.fetch = vi.fn().mockResolvedValue({
         ok: true,
         json: async () => mockChecks,
       });
@@ -323,7 +323,7 @@ describe('Frontend Auth Error Handling — Integration', () => {
         timestamp: new Date().toISOString(),
       };
 
-      const onRetry = jest.fn();
+      const onRetry = vi.fn();
       const { rerender } = render(
         <AuthErrorBanner error={error} onRetry={onRetry} />
       );
@@ -349,7 +349,7 @@ describe('Frontend Auth Error Handling — Integration', () => {
         },
       };
 
-      const apiCall = jest.fn().mockImplementation(() => {
+      const apiCall = vi.fn().mockImplementation(() => {
         attempts++;
         if (attempts === 1) throw error;
         return { token: 'new-token' };

@@ -387,6 +387,7 @@ router.get('/startup', (_req, res) => {
 
   if (missing.length > 0) {
     return res.status(503).json({
+      error: 'Required configuration missing',
       status: 'not_started',
       missing_config: missing,
       message: 'Required configuration missing'

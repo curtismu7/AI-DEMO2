@@ -12,20 +12,20 @@ import { BrowserRouter } from "react-router-dom";
 // ─── Service mocks ────────────────────────────────────────────────────────────
 
 vi.mock("../../services/webMcpClient", () => ({
-  listMcpTools: jest.fn(),
-  listMcpToolsWithStream: jest.fn(),
-  callMcpTool: jest.fn(),
-  openMcpToolStream: jest.fn(),
-  openMcpDiscoveryStream: jest.fn(),
+  listMcpTools: vi.fn(),
+  listMcpToolsWithStream: vi.fn(),
+  callMcpTool: vi.fn(),
+  openMcpToolStream: vi.fn(),
+  openMcpDiscoveryStream: vi.fn(),
 }));
 
 vi.mock("../../context/AgentUiModeContext", () => ({
-  useAgentUiMode: () => ({ setWebMcpLastResult: jest.fn() }),
+  useAgentUiMode: () => ({ setWebMcpLastResult: vi.fn() }),
 }));
 
 vi.mock("../../context/EducationUIContext", () => ({
-  useEducationUI: () => ({ open: jest.fn(), close: jest.fn() }),
-  useEducationUIOptional: () => ({ open: jest.fn(), close: jest.fn() }),
+  useEducationUI: () => ({ open: vi.fn(), close: vi.fn() }),
+  useEducationUIOptional: () => ({ open: vi.fn(), close: vi.fn() }),
 }));
 
 vi.mock("../WebMcpPanel.css", () => ({}), { virtual: true });
@@ -68,7 +68,7 @@ async function renderComponent() {
 }
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
   listMcpTools.mockResolvedValue({ tools: MOCK_TOOLS });
   // Component switched from listMcpTools to listMcpToolsWithStream; delegate
   // so existing tests that set listMcpTools.mockResolved/RejectedValue still
@@ -250,7 +250,7 @@ describe("WebMcpPanel — tool invocation", () => {
   });
 
   it("calls disconnect on SSE stream before starting a new call", async () => {
-    const disconnect = jest.fn();
+    const disconnect = vi.fn();
     openMcpToolStream.mockReturnValue(disconnect);
 
     await renderComponent();

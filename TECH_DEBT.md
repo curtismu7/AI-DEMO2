@@ -2533,8 +2533,25 @@ Restoring agent mode would need inbound mesh exposure the AI Gateway chart does
 not ship (the old agent chart had an SSL-passthrough ingress); the live client
 path is the `privilege-gateway` door.
 
-**What remains open in this entry is the `agentless` (banking) door only** —
-steps 1-3 above.
+**Update 2026-09-07 — step 1 done, via a different path than planned, steps 2-3
+still open.** `oauth-mcp`'s `mcp-server` was never directly registered. Instead
+`banking-rest2`, an OpenAPI-MCP app (Privilege's native OpenAPI-to-MCP
+conversion, not a raw MCP-Server registration) was added, backed by a new
+`mcp-banking-rest` sidecar in the gateway pod that wraps AI-DEMO2's own
+`mcp-resource-server` REST surface (PR #2861) as OpenAPI. Confirmed working
+end to end: the sidecar's `/openapi/banking-rest.json` returns the real spec
+through the gateway. Full topology and the two bugs hit along the way (a
+port-number typo pointing at the wrong sidecar; `BANKING_UPSTREAM_URL`
+initially pointed at an unrelated same-port resource-server deployment in the
+wrong namespace) are in
+[`privilege/CURRENT-CONFIGURATION.md`](privilege/CURRENT-CONFIGURATION.md).
+
+**What remains open in this entry**: step 2 (author a policy on `banking-rest2`
+naming the demo users — unconfirmed whether one exists) and step 3 (repoint
+`mcpFacade.js`'s `agentless` door / `MCP_FACADE_AGENTLESS_URL`,
+`PRIVILEGE_AGENTLESS_MCPGW_URL_BANKING` at
+`https://mcpgw.ai-demo.ping-devops.com/banking-rest2/mcp` — not done, the door
+still points at the old torn-down host).
 
 ### [x] 2026-08-26 — `ping-mcpgw` Helm release's only remaining purpose is a backend it doesn't gate
 
