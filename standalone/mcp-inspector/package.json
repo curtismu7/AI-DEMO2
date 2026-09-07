@@ -1,0 +1,14 @@
+{
+  "name": "mcp-inspector",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A local, no-login tool for listing and calling tools on any MCP server (Streamable HTTP or stdio), the non-tools/call protocol methods, and (optionally) PingOne's hosted MCP server.",
+  "license": "MIT",
+  "scripts": {
+    "install:all": "npm install --prefix server && npm install --prefix web",
+    "dev": "npm run dev --prefix server & npm run dev --prefix web",
+    "build": "npm run build --prefix web",
+    "start": "npm run build --prefix web && npm start --prefix server",
+    "test": "npm test --prefix server"
+  }
+}

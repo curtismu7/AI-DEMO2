@@ -301,6 +301,25 @@ body:has(.dashboard-content.ud-body.ud-focus-mode) .footer {
   .tcfs-spotlight { border-left: 0; border-top: 1px solid var(--th-border); }
 }
 
+/* Phone: the rule above still loses grid-template-columns to
+   `.ud-body.ud-body--dashboard-split3`'s own (unmedia'd, 0,3,0)
+   `minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)` — confirmed live via
+   getComputedStyle (resolves to real px like "0px 0px 238px", not the single
+   `minmax(0,1fr)` track this file declares). Out-specificity-ing a rule that
+   already won a documented war once (see the file-header comment) risks
+   re-breaking the desktop case for a fix scoped to phones; !important here is
+   deliberately narrower than that war, not a way around it. The 1100px area
+   list above also omits "strip" (ud-dashboard-config-strip's own grid-area),
+   which orphans the Agent-mode/Routing/Wiring row into auto-placement — adding
+   it back is the other half of this fix. */
+@media (max-width: 768px) {
+  .dashboard-content.ud-focus-mode {
+    grid-template-columns: 1fr !important;
+    grid-template-areas: "strip" "agent" "spotlight" "chain" !important;
+    height: auto !important;
+  }
+}
+
 .tcfs-head {
   display: flex;
   align-items: center;

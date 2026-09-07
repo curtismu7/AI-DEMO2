@@ -30,7 +30,12 @@ textarea {
   z-index: var(--z-toast) !important;
 }
 .Toastify__toast-container--top-center {
-  top: 1rem;
+  /* Installed-PWA iOS has no Safari chrome, so a bare 1rem can sit under the
+     status bar / notch — env() is 0 on browsers without safe-area support,
+     so this is a no-op everywhere else. (UserDashboard.css's .inline-message
+     carried this same fix, but nothing renders that class — this is the
+     container react-toastify actually mounts.) */
+  top: max(1rem, calc(1rem + env(safe-area-inset-top)));
   left: 50%;
   transform: translateX(-50%);
   width: auto;

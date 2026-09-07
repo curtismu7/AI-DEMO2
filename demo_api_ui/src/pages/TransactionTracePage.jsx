@@ -21,6 +21,10 @@ const VERDICT_BADGE = {
 
 const PHASE_ICON = {
   "token.exchange": "🔐",
+  // The login leg of an MCP door — 🔑 from the REGRESSION_PLAN §0 allowlist,
+  // distinct from 🔐 so an authorize is not mistaken for a token exchange.
+  "oauth.authorize": "🔑",
+  "oauth.callback": "🔑",
 };
 
 const RECONCILIATION_LABEL = {

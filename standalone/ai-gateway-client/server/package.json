@@ -1,0 +1,16 @@
+{
+  "name": "ai-gateway-client-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local server for ai-gateway-client — OAuth PKCE + DCR test client for an OAuth-protected MCP gateway.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "test": "node --test *.test.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2"
+  }
+}

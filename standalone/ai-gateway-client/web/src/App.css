@@ -1,0 +1,158 @@
+/* Design tokens InspectorShell.css (copied from the banking demo) expects.
+   Minimal light/dark pair — swap these for your own brand if you fork this. */
+:root {
+  --th-bg-page: #ffffff;
+  --th-bg-inset: #f8fafc;
+  --th-bg-card: #ffffff;
+  --th-bg-hover: #f1f5f9;
+  --th-border: #e2e8f0;
+  --th-text: #0f172a;
+  --th-text-muted: #64748b;
+  --th-text-invert: #ffffff;
+  --font-size-3xs: 10px;
+  --font-size-2xs: 11px;
+  --font-size-xs: 12px;
+  --font-size-sm: 13px;
+  --font-size-base: 14px;
+  --font-size-body: 14px;
+}
+
+:root[data-theme='dark'] {
+  --th-bg-page: #0f172a;
+  --th-bg-inset: #1e293b;
+  --th-bg-card: #1e293b;
+  --th-bg-hover: #334155;
+  --th-border: #334155;
+  --th-text: #e2e8f0;
+  --th-text-muted: #94a3b8;
+  --th-text-invert: #0f172a;
+}
+
+body {
+  margin: 0;
+  background: var(--th-bg-page);
+  color: var(--th-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.source-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: var(--th-bg-inset);
+  border-bottom: 1px solid var(--th-border);
+  flex-wrap: wrap;
+}
+
+.btn {
+  font-size: var(--font-size-xs);
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--th-text-muted);
+  background: var(--th-bg-page);
+  color: var(--th-text);
+  cursor: pointer;
+  text-decoration: none;
+}
+.btn:hover { background: var(--th-bg-hover); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn--primary { background: #2563eb; border-color: #2563eb; color: #fff; }
+.btn--danger { border-color: #dc2626; color: #dc2626; }
+
+select, input, textarea {
+  font-size: var(--font-size-xs);
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--th-border);
+  background: var(--th-bg-page);
+  color: var(--th-text);
+  font-family: inherit;
+}
+input.wide, select.wide { min-width: 260px; }
+
+.add-server-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 20px;
+  background: var(--th-bg-inset);
+  border-bottom: 1px solid var(--th-border);
+}
+
+.page-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 20px;
+  background: #eff6ff;
+  color: #1e40af;
+  font-size: var(--font-size-xs);
+}
+:root[data-theme='dark'] .page-banner { background: #1e3a5f; color: #bfdbfe; }
+
+.tool-tree {
+  padding: 8px;
+  overflow-y: auto;
+  height: 100%;
+}
+.tool-tree__empty {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-xs);
+  padding: 12px;
+}
+.tool-tree__policy {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-2xs);
+  padding: 8px 12px;
+  border-top: 1px solid var(--th-border);
+  margin-top: 8px;
+}
+
+.tool-form {
+  padding: 16px;
+  overflow-y: auto;
+  height: 100%;
+}
+.tool-form h2 { font-size: var(--font-size-sm); margin: 0 0 8px; }
+.tool-form__desc { font-size: var(--font-size-xs); color: var(--th-text-muted); margin: 0 0 12px; }
+.tool-form__field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; font-size: var(--font-size-xs); }
+.tool-form__field span { color: var(--th-text-muted); }
+.tool-form__field textarea { font-family: ui-monospace, monospace; }
+
+.tool-output {
+  padding: 8px 16px;
+  overflow-y: auto;
+  height: 100%;
+}
+.tool-output__json {
+  font-size: var(--font-size-xs);
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
+  border-radius: 6px;
+  padding: 10px;
+}
+.tool-output__timing { font-size: var(--font-size-xs); margin-top: 8px; }
+.tool-output__timing--error { color: #dc2626; }
+
+.relay-log__row {
+  border-bottom: 1px solid var(--th-border);
+  padding: 6px 0;
+}
+.relay-log__type {
+  display: block;
+  font-size: var(--font-size-2xs);
+  font-weight: 600;
+  color: var(--th-text-muted);
+  margin-bottom: 2px;
+}
+.relay-log__row pre {
+  font-size: var(--font-size-3xs);
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+}
+.relay-log__row--error .relay-log__type { color: #dc2626; }

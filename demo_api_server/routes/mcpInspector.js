@@ -170,38 +170,19 @@ router.get('/profiles', (req, res) => {
   }
 });
 
-/**
- * Admin session gate for profile management and non-default profile dispatch.
- * This router is mounted WITHOUT authenticateToken (so banking tools/list can
- * fall back to the local catalog for anonymous visitors) — so
- * middleware/auth.requireAdmin, which reads req.user, cannot be used here.
- * Mirrors the /api/mcp/audit session.user.role check.
- *
- * Critical: a stdio profile spawns profile.command on the BFF host
- * (services/mcpTransports/stdio.js). Any signed-in customer able to create or
- * invoke one has remote code execution; http/websocket profiles are SSRF.
- * Both creation and dispatch stay behind an admin session.
- */
-function requireAdminSession(req, res, next) {
-  if (!req.session?.user) {
-    return res.status(401).json({
-      error: 'unauthenticated',
-      message: 'A valid session is required. Please sign in.',
-    });
-  }
-  if (req.session.user.role !== 'admin') {
-    return res.status(403).json({
-      error: 'admin_required',
-      message: 'Admin session required to manage or invoke non-default MCP server profiles.',
-    });
-  }
-  return next();
-}
-
 // POST /api/mcp/inspector/profiles — add a server profile (websocket/http need
-// a url, stdio needs a local command). Admin only — see requireAdminSession.
+// a url, stdio needs a local command). Any signed-in session (user or admin),
+// not admin-only, and not anonymous — see requireSession.
 // The default banking profile is seeded separately and cannot be created here.
-router.post('/profiles', requireAdminSession, express.json(), (req, res) => {
+//
+// A stdio profile spawns profile.command on the BFF host
+// (services/mcpTransports/stdio.js) — that is remote code execution for
+// whoever can reach this route; http/websocket profiles are SSRF the same
+// way. This was previously admin-only (see REGRESSION_PLAN.md's 2026-07-26
+// entry, where the gate's total absence was a real reviewed finding) and is
+// deliberately relaxed to any signed-in session per explicit instruction —
+// still gated, just not admin-only, and never fully anonymous.
+router.post('/profiles', requireSession, express.json(), (req, res) => {
   try {
     const profile = mcpProfileStore.createProfile(req.body || {});
     res.status(201).json({ profile });
@@ -212,7 +193,8 @@ router.post('/profiles', requireAdminSession, express.json(), (req, res) => {
 
 // DELETE /api/mcp/inspector/profiles/:id — remove a saved profile; the default
 // banking profile is protected (mcpProfileStore throws default_profile_protected).
-router.delete('/profiles/:id', requireAdminSession, (req, res) => {
+// Any signed-in session — see POST /profiles above.
+router.delete('/profiles/:id', requireSession, (req, res) => {
   try {
     mcpProfileStore.deleteProfile(req.params.id);
     res.status(204).end();
@@ -246,9 +228,15 @@ function requirePingoneAdminLogin() {
   return err;
 }
 
-/** Session bearer for the built-in Privilege profile — null when not signed in or expired. */
-function privilegeAdminBearer(req) {
-  const tok = req.session?.privilegeMcpToken;
+/**
+ * Session bearer for one Privilege door — null when not signed in or expired.
+ * Keyed per profileId, not shared: each door on the gateway is its own OAuth
+ * authorization server (own issuer/authorize/token/register endpoints — see
+ * mcpPrivilegeAuth.js), so a token from one door is not expected to validate
+ * against another.
+ */
+function privilegeAdminBearer(req, profileId) {
+  const tok = req.session?.privilegeMcpTokens?.[profileId];
   if (!tok || !tok.accessToken || !(tok.expiresAt > Date.now())) return null;
   return tok.accessToken;
 }
@@ -294,7 +282,7 @@ async function listToolsForProfile(profile, req) {
     return { tools };
   }
   if (profile.transport === 'privilege') {
-    const bearer = privilegeAdminBearer(req);
+    const bearer = privilegeAdminBearer(req, profile.id);
     if (!bearer) throw requirePrivilegeLogin();
     const { tools } = await mcpHttpTransport.listTools(privilegeVirtualProfile(bearer, profile.url));
     return { tools };
@@ -323,7 +311,7 @@ async function callToolForProfile(profile, tool, params, req) {
     return { result };
   }
   if (profile.transport === 'privilege') {
-    const bearer = privilegeAdminBearer(req);
+    const bearer = privilegeAdminBearer(req, profile.id);
     if (!bearer) throw requirePrivilegeLogin();
     const result = await mcpHttpTransport.callTool(privilegeVirtualProfile(bearer, profile.url), tool, params);
     return { result };
@@ -362,7 +350,9 @@ async function handleProfileTools(req, res, profileId) {
       return res.json({
         tools: [],
         privilege_login_required: true,
-        loginUrl: '/api/mcp/inspector/privilege/login',
+        // Each door is its own OAuth authorization server (mcpPrivilegeAuth.js),
+        // so signing in must target THIS profile's door, not a shared login.
+        loginUrl: `/api/mcp/inspector/privilege/login?profile=${encodeURIComponent(profile.id)}`,
         _source: 'privilege_login_required',
         _profileId: profile.id,
         _profileLabel: profile.label,
@@ -412,7 +402,7 @@ async function handleProfileInvoke(req, res, profileId, tool, params) {
       return res.status(401).json({
         error: 'privilege_login_required',
         message: err.message,
-        loginUrl: '/api/mcp/inspector/privilege/login',
+        loginUrl: `/api/mcp/inspector/privilege/login?profile=${encodeURIComponent(profile.id)}`,
         _profileId: profile.id,
       });
     }
@@ -464,8 +454,10 @@ router.get('/tools', async (req, res) => {
   // falls through to the existing behavior unchanged.
   const requestedProfileId = typeof req.query.profile === 'string' ? req.query.profile.trim() : '';
   if (requestedProfileId && requestedProfileId !== mcpProfileStore.DEFAULT_PROFILE_ID) {
-    // Non-default profile dispatch is admin-only (stdio spawns a host process).
-    return requireAdminSession(req, res, () => handleProfileTools(req, res, requestedProfileId));
+    // Non-default profile dispatch needs a signed-in session, not admin-only
+    // (stdio spawns a host process, so it stays behind SOME session — see
+    // requireSession's own doc comment).
+    return requireSession(req, res, () => handleProfileTools(req, res, requestedProfileId));
   }
 
   const effectiveUserId = req.session?.user?.id || req.user?.id || null;
@@ -670,8 +662,8 @@ router.post('/invoke', express.json(), async (req, res) => {
   // Non-default profile: dispatch to its transport, bypassing the banking-
   // server token exchange / local-handler path below entirely.
   if (requestedProfileId && requestedProfileId !== mcpProfileStore.DEFAULT_PROFILE_ID) {
-    // Non-default profile dispatch is admin-only (stdio spawns a host process).
-    return requireAdminSession(req, res, () =>
+    // Non-default profile dispatch needs a signed-in session, not admin-only.
+    return requireSession(req, res, () =>
       handleProfileInvoke(req, res, requestedProfileId, tool, params));
   }
 

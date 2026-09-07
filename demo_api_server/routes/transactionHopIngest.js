@@ -28,6 +28,15 @@ const VALID_PHASES = new Set([
   'hitl.consent',
   'mcp.tool',
   'response',
+  // The OAuth leg of an MCP door. Until these existed the ledger only ever saw a
+  // transaction AFTER a client was already authenticated, so the one moment that
+  // decides WHOSE identity the whole chain runs as — the login — was the only
+  // moment with no record. `oauth.authorize` is what the broker asked PingOne for
+  // (door, client, and the re-auth params from mcp_broker_prompt);
+  // `oauth.callback` is who came back. Claims only — the TOKEN_KEYS strip below
+  // still applies, so no id_token or code ever lands in the record.
+  'oauth.authorize',
+  'oauth.callback',
 ]);
 
 // The ledger is presented as an audit record, so raw credentials must never
