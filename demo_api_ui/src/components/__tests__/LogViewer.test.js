@@ -316,7 +316,7 @@ describe("LogViewer Component", () => {
 			let createElSpy;
 			try {
 				const origCreateElement = document.createElement.bind(document);
-				createElSpy = jest
+				createElSpy = vi
 					.spyOn(document, "createElement")
 					.mockImplementation((tag) => {
 						if (tag === "a") {

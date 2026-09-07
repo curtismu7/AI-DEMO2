@@ -85,7 +85,7 @@ describe('ErrorRetryStrategy', () => {
         retryable: true,
       };
 
-      const fn = jest
+      const fn = vi
         .fn()
         .mockRejectedValueOnce(error)
         .mockResolvedValueOnce('success');
@@ -177,7 +177,7 @@ describe('ErrorRetryStrategy', () => {
         retryable: true,
       };
 
-      const fn = jest
+      const fn = vi
         .fn()
         .mockRejectedValueOnce(error)
         .mockResolvedValueOnce('success');
@@ -214,7 +214,7 @@ describe('ErrorRetryStrategy', () => {
         retryable: true,
       };
 
-      const fn = jest
+      const fn = vi
         .fn()
         .mockRejectedValueOnce(error)
         .mockResolvedValueOnce('success');

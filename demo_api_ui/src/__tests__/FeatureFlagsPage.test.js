@@ -148,7 +148,7 @@ describe("FeatureFlagsPage — flag toggle", () => {
     const confirmedFlags = MOCK_FLAGS.map((f) =>
       f.id === "ff_authorize_real" ? { ...f, value: true } : f,
     );
-    global.fetch = jest
+    global.fetch = vi
       .fn()
       .mockResolvedValueOnce({ ok: true, json: async () => ({ apiKeySet: false, tenantNameSet: false, tenantName: null }) })
       .mockResolvedValueOnce({ ok: true, json: async () => MOCK_RESPONSE })
@@ -175,7 +175,7 @@ describe("FeatureFlagsPage — flag toggle", () => {
   });
 
   it("rolls back flag and shows error when PATCH fails", async () => {
-    global.fetch = jest
+    global.fetch = vi
       .fn()
       .mockResolvedValueOnce({ ok: true, json: async () => ({ apiKeySet: false, tenantNameSet: false, tenantName: null }) })
       .mockResolvedValueOnce({ ok: true, json: async () => MOCK_RESPONSE })
@@ -206,7 +206,7 @@ describe("FeatureFlagsPage — flag toggle", () => {
     const confirmedFlags = MOCK_FLAGS.map((f) =>
       f.id === "ff_authorize_real" ? { ...f, value: true } : f,
     );
-    global.fetch = jest
+    global.fetch = vi
       .fn()
       .mockResolvedValueOnce({ ok: true, json: async () => ({ apiKeySet: false, tenantNameSet: false, tenantName: null }) })
       .mockResolvedValueOnce({ ok: true, json: async () => MOCK_RESPONSE })
@@ -231,7 +231,7 @@ describe("FeatureFlagsPage — flag toggle", () => {
     const confirmedFlags = MOCK_FLAGS.map((f) =>
       f.id === "ff_authorize_real" ? { ...f, value: true } : f,
     );
-    global.fetch = jest
+    global.fetch = vi
       .fn()
       .mockResolvedValueOnce({ ok: true, json: async () => ({ apiKeySet: false, tenantNameSet: false, tenantName: null }) })
       .mockResolvedValueOnce({ ok: true, json: async () => MOCK_RESPONSE })
