@@ -5,6 +5,7 @@ import axios from 'axios';
 import { ClientRegistry, InvalidRedirectUriError } from './ClientRegistry';
 import { BrokerTokenStore } from './BrokerTokenStore';
 import { selfBaseUrl } from '../selfBaseUrl';
+import { resolveAuthorizeParams } from './brokerPrompt';
 
 /**
  * OAuth 2.1 Authorization Server for external MCP clients (LM Studio,
@@ -182,6 +183,15 @@ export class OAuthBrokerRouter {
     // granted (profile/email were), so an over-ask is harmless.
     const pingOneScopes = new Set(['openid', ...scope.split(/\s+/).filter(Boolean), 'mcp:invoke']);
     pingOneAuthorize.searchParams.set('scope', [...pingOneScopes].join(' '));
+
+    // Send nothing and PingOne silently re-authenticates against whatever SSO
+    // session the browser already holds, so an MCP client adopts the current user
+    // with no login screen and nothing reveals whose identity is on the token.
+    // The BFF decides how strict to be (default: max_age, so the first door
+    // prompts and the rest ride that login).
+    for (const [k, v] of Object.entries(await resolveAuthorizeParams())) {
+      pingOneAuthorize.searchParams.set(k, v);
+    }
 
     res.writeHead(302, { Location: pingOneAuthorize.toString() });
     res.end();
