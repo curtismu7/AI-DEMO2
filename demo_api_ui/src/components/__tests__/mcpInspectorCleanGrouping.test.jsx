@@ -46,9 +46,18 @@ function makeSource({ groupBy, tools }) {
     setOutputTab: vi.fn(),
     outputText: '',
     outputContent: '',
+    outputValue: null,
     mcpHistory: [],
     statusOn: true,
     statusText: '',
+    mode: 'tools',
+    banner: null,
+    servers: [],
+    profiles: [],
+    selectedProfileId: '',
+    setSelectedProfileId: vi.fn(),
+    loadTools: vi.fn(),
+    lastInvoke: null,
     config: { toolKey: 'name', paramsKey: 'tool', ...(groupBy ? { groupBy } : {}) },
   };
 }

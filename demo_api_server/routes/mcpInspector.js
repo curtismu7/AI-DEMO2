@@ -952,7 +952,7 @@ async function pingOneInspectorLiveFlag() {
 // MCP Server (HTTP), gated behind the mcp_inspector_pingone_live feature flag.
 // Graceful fallback: when the flag is off or the server is unreachable, the
 // page still renders the request and an explanatory state (never a hard error).
-router.get('/pingone-tools', requireSession, async (_req, res) => {
+router.get('/pingone-tools', requireSession, async (req, res) => {
   // The JSON-RPC request the BFF sends to the hosted PingOne MCP server over HTTP.
   const request = { jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} };
 
@@ -970,7 +970,11 @@ router.get('/pingone-tools', requireSession, async (_req, res) => {
   try {
     const { listTools } = require('../services/mcpPingOneHttpAdapter');
     const started = Date.now();
-    const tools = await listTools();
+    // The adapter needs the delegated PKCE token from the PingOne admin login
+    // (req.session.pingoneMcpAdminToken). Calling listTools() with no argument
+    // made every request fail as `pingone_mcp_auth_required` even for a user
+    // who HAD completed that login — the tab could never populate.
+    const tools = await listTools(req.session);
     return res.json({
       enabled: true,
       request,
@@ -987,6 +991,22 @@ router.get('/pingone-tools', requireSession, async (_req, res) => {
       _source: 'pingone_mcp_server',
     });
   } catch (err) {
+    // A missing delegated token is not "unreachable" — it is a sign-in the user
+    // can complete. Name it as such and hand back the URL so the page can offer
+    // the button instead of rendering an empty tool list with no explanation.
+    if (err.code === 'pingone_mcp_auth_required') {
+      return res.json({
+        enabled: true,
+        error: true,
+        authRequired: true,
+        loginUrl: '/api/mcp/inspector/pingone-admin/login',
+        reason: 'Sign in to PingOne as an admin to list the hosted PingOne MCP tools.',
+        request,
+        response: null,
+        tools: [],
+        _source: 'pingone_admin_login_required',
+      });
+    }
     return res.json({
       enabled: true,
       error: true,
@@ -1028,9 +1048,11 @@ router.post('/pingone-invoke', requireSession, async (req, res) => {
 
   try {
     const { callTool } = require('../services/mcpPingOneHttpAdapter');
-    const accessToken = req.session?.oauthTokens?.accessToken || '';
+    // req.session (not session.oauthTokens.accessToken) — the adapter reads the
+    // delegated PingOne admin PKCE token off it. The banking user's access token
+    // is a different credential entirely and PingOne 401s on it.
     const started = Date.now();
-    const result = await callTool(tool, args, accessToken, req.session?.user?.id);
+    const result = await callTool(tool, args, req.session, req.session?.user?.id);
     return res.json({
       enabled: true,
       request,
@@ -1039,6 +1061,18 @@ router.post('/pingone-invoke', requireSession, async (req, res) => {
       _source: 'pingone_mcp_server',
     });
   } catch (err) {
+    if (err.code === 'pingone_mcp_auth_required') {
+      return res.json({
+        enabled: true,
+        error: true,
+        authRequired: true,
+        loginUrl: '/api/mcp/inspector/pingone-admin/login',
+        reason: 'Sign in to PingOne as an admin to call hosted PingOne MCP tools.',
+        request,
+        response: null,
+        _source: 'pingone_admin_login_required',
+      });
+    }
     return res.json({
       enabled: true,
       error: true,
@@ -1052,41 +1086,14 @@ router.post('/pingone-invoke', requireSession, async (req, res) => {
   }
 });
 
-// GET /api/mcp/inspector/api-methods — list available API methods
-// Stub: returns empty for now; real API calls are tracked at /api/api-calls
-router.get('/api-methods', (_req, res) => {
-  res.json({
-    methods: [],
-    _source: 'api_stub',
-  });
-});
-
-// POST /api/mcp/inspector/api-invoke — invoke an API method
-// Stub: not implemented
-router.post('/api-invoke', (_req, res) => {
-  res.json({
-    error: 'API methods not implemented',
-    _source: 'api_stub',
-  });
-});
-
-// GET /api/mcp/inspector/custom-tools — list custom MCP tools
-// Stub: returns empty; use Custom Server source to add profiles
-router.get('/custom-tools', (_req, res) => {
-  res.json({
-    tools: [],
-    _source: 'custom_stub',
-  });
-});
-
-// POST /api/mcp/inspector/custom-invoke — invoke a custom tool
-// Stub: not implemented
-router.post('/custom-invoke', (_req, res) => {
-  res.json({
-    error: 'Custom tools not implemented',
-    _source: 'custom_stub',
-  });
-});
+// The api-methods / api-invoke / custom-tools / custom-invoke stubs that used to
+// live here are gone. They returned `{ methods: [] }` forever, which is what made
+// the Inspector's "API Calls" and "Custom Server" tabs render empty with no
+// explanation. Both sources now read the endpoints that already hold the data:
+//   API Calls     -> GET  /api/api-calls        (the captured-call log)
+//   Custom Server -> GET  /api/mcp/inspector/profiles, then
+//                    GET  /api/mcp/inspector/tools?profile=<id>
+//                    POST /api/mcp/inspector/invoke { profile, tool, params }
 
 /**
  * Bearer for the gateway doors that sit behind an rsFilter (Brave). Deliberately
@@ -1137,21 +1144,106 @@ router.post('/gateway-invoke', async (req, res) => {
   }
 });
 
-// GET /api/mcp/inspector/protocol-methods — list protocol testing methods
-// Stub: returns empty; use the Protocol Playground page for testing
+/**
+ * The non-tools/call MCP methods, as inspectable "tools" — one entry per member
+ * of PROTOCOL_RPC_METHODS above, so the two lists cannot drift: a method the
+ * catalog offers but /rpc rejects would 400, and one /rpc accepts but the
+ * catalog omits would be invisible. The assertion below enforces that.
+ *
+ * Sampling, Roots and Cancellation are deliberately absent: they are
+ * server->client capabilities (the MCP server asks the BFF, never the reverse),
+ * so an Execute button for them would misrepresent the protocol's direction.
+ */
+const PROTOCOL_METHOD_CATALOG = [
+  {
+    method: 'server/discover',
+    description: 'MCP 2026-07-28 handshake RPC. Answered locally by the gateway on both transports, never forwarded upstream.',
+    inputSchema: { type: 'object', properties: {}, required: [] },
+  },
+  {
+    method: 'resources/list',
+    description: 'List the resources this server exposes.',
+    inputSchema: { type: 'object', properties: {}, required: [] },
+  },
+  {
+    method: 'resources/templates/list',
+    description: 'List the parameterized resource URI templates this server exposes.',
+    inputSchema: { type: 'object', properties: {}, required: [] },
+  },
+  {
+    method: 'resources/read',
+    description: 'Read one resource by URI.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        uri: { type: 'string', description: 'Resource URI, e.g. banking://accounts' },
+      },
+      required: ['uri'],
+    },
+  },
+  {
+    method: 'prompts/list',
+    description: 'List the prompt templates this server exposes.',
+    inputSchema: { type: 'object', properties: {}, required: [] },
+  },
+  {
+    method: 'prompts/get',
+    description: 'Fetch one prompt template, with its arguments interpolated.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Prompt name, e.g. summarize_airline_booking' },
+        arguments: { type: 'object', description: 'JSON object of prompt arguments, e.g. { "bookingId": "ABC123" }' },
+      },
+      required: ['name'],
+    },
+  },
+  {
+    method: 'completion/complete',
+    description: 'Ask the server to complete a partially-typed prompt or resource argument.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ref: { type: 'object', description: 'What is being completed, e.g. { "type": "ref/prompt", "name": "summarize_airline_booking" }' },
+        argument: { type: 'object', description: 'The argument and its partial value, e.g. { "name": "bookingId", "value": "AB" }' },
+      },
+      required: ['ref', 'argument'],
+    },
+  },
+  {
+    method: 'logging/setLevel',
+    description: 'Set the minimum severity the server emits log notifications for.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        level: {
+          type: 'string',
+          description: 'One of: debug, info, notice, warning, error, critical, alert, emergency',
+          enum: ['debug', 'info', 'notice', 'warning', 'error', 'critical', 'alert', 'emergency'],
+        },
+      },
+      required: ['level'],
+    },
+  },
+];
+
+// Fail loudly at load time rather than shipping a catalog that /rpc will reject.
+{
+  const catalogued = new Set(PROTOCOL_METHOD_CATALOG.map((m) => m.method));
+  for (const m of PROTOCOL_RPC_METHODS) {
+    if (!catalogued.has(m)) throw new Error(`PROTOCOL_METHOD_CATALOG is missing ${m}`);
+  }
+  for (const m of catalogued) {
+    if (!PROTOCOL_RPC_METHODS.has(m)) throw new Error(`PROTOCOL_METHOD_CATALOG offers ${m}, which POST /rpc rejects`);
+  }
+}
+
+// GET /api/mcp/inspector/protocol-methods — the Protocol source's method tree.
+// Invocation is POST /rpc (above), which already takes { method, params }.
 router.get('/protocol-methods', (_req, res) => {
   res.json({
-    methods: [],
-    _source: 'protocol_stub',
-  });
-});
-
-// POST /api/mcp/inspector/protocol-call — call a protocol method
-// Stub: not implemented
-router.post('/protocol-call', (_req, res) => {
-  res.json({
-    error: 'Protocol methods not implemented',
-    _source: 'protocol_stub',
+    methods: PROTOCOL_METHOD_CATALOG,
+    _source: 'protocol_catalog',
   });
 });
 

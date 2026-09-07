@@ -421,3 +421,168 @@
 .inspector-clean-group-label:first-child {
   margin-top: 0;
 }
+
+/* --- Source banner -------------------------------------------------------
+   Why a tab is empty or refusing, plus the sign-in that fixes it. Sits under
+   the header so it reads before the panes, not after them. */
+.inspector-clean-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 24px;
+  background: var(--th-status-warning-bg);
+  color: var(--th-status-warning-text);
+  border-bottom: 1px solid var(--th-border);
+  font-size: var(--font-size-sm);
+}
+
+.inspector-clean-banner-icon {
+  flex-shrink: 0;
+}
+
+.inspector-clean-banner-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.inspector-clean-banner-action {
+  flex-shrink: 0;
+  padding: 4px 12px;
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.inspector-clean-banner-action:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+/* --- Left-pane sub-headers (profile picker, per-server status) ----------- */
+.inspector-clean-panel-subhead {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--th-border);
+  background: var(--th-bg-card);
+  color: var(--th-text-body);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.inspector-clean-panel-subhead select {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-size: var(--font-size-xs);
+}
+
+.inspector-clean-server-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-size-xs);
+  color: var(--th-text-body);
+}
+
+.inspector-clean-server-detail {
+  margin-left: auto;
+  color: var(--th-text-muted);
+  font-family: var(--font-mono);
+}
+
+/* The dot is a glyph, not a surface: its token is ink, and the fill follows it.
+   `background: var(--th-*)` here would be a themed ground with no ink, which is
+   what THEMING.md §1.5 (and the ground-without-ink ratchet) exist to stop. */
+.inspector-clean-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  flex-shrink: 0;
+  color: var(--th-status-success);
+  background: currentColor;
+}
+
+.inspector-clean-dot.error {
+  color: var(--th-status-error);
+}
+
+/* One captured API call's status + duration, under its method and URL. */
+.inspector-clean-item-detail {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--font-size-3xs);
+  color: var(--th-text-muted);
+  font-family: var(--font-mono);
+}
+
+/* --- Output controls: Form/JSON toggle + font stepper -------------------- */
+.inspector-clean-output-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+}
+
+.inspector-clean-viewtoggle {
+  display: inline-flex;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-right: 4px;
+}
+
+.inspector-clean-viewtoggle button {
+  padding: 4px 10px;
+  border: 0;
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.inspector-clean-viewtoggle button + button {
+  border-left: 1px solid var(--th-border);
+}
+
+.inspector-clean-viewtoggle button.active {
+  background: var(--th-status-info-bg);
+  color: var(--th-status-info-text);
+}
+
+.inspector-clean-fontstep {
+  padding: 4px 8px;
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  border: 1px solid var(--th-border);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  border-radius: var(--radius-sm);
+}
+
+.inspector-clean-fontsize {
+  font-size: var(--font-size-xs);
+  min-width: 30px;
+  text-align: center;
+  line-height: 1.5;
+  color: var(--th-text-muted);
+}
+
+/* The Form view scrolls in the same slot the <pre> occupies. */
+.inspector-clean-formview {
+  flex: 1;
+  overflow: auto;
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  padding: 12px;
+}
