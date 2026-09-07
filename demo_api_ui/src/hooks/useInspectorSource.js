@@ -69,7 +69,7 @@ const SOURCE_CONFIG = {
   },
 };
 
-export function useInspectorSource(sourceKey) {
+export function useInspectorSource(sourceKey, { profileId } = {}) {
   const config = SOURCE_CONFIG[sourceKey];
   if (!config) throw new Error(`Unknown source: ${sourceKey}`);
 
@@ -93,7 +93,10 @@ export function useInspectorSource(sourceKey) {
   const loadTools = useCallback(async () => {
     setLoadingTools(true);
     try {
-      const { data } = await apiClient.get(config.endpoint);
+      const url = profileId
+        ? `${config.endpoint}?profile=${encodeURIComponent(profileId)}`
+        : config.endpoint;
+      const { data } = await apiClient.get(url);
       const toolsList = data.tools || data.methods || data.items || [];
       setTools(toolsList);
       setSelectedTool(null);
@@ -105,7 +108,7 @@ export function useInspectorSource(sourceKey) {
     } finally {
       setLoadingTools(false);
     }
-  }, [sourceKey, config]);
+  }, [sourceKey, config, profileId]);
 
   useEffect(() => {
     loadTools();
@@ -143,6 +146,8 @@ export function useInspectorSource(sourceKey) {
         ...(config.serverKey && selectedTool[config.serverKey]
           ? { [config.serverKey]: selectedTool[config.serverKey] }
           : {}),
+        // Custom Server source: which saved profile to dispatch to.
+        ...(profileId ? { profile: profileId } : {}),
       };
 
       const { data } = await apiClient.post(config.invokeEndpoint, payload);
@@ -162,7 +167,7 @@ export function useInspectorSource(sourceKey) {
     } finally {
       setBusy(false);
     }
-  }, [selectedTool, paramValues, config]);
+  }, [selectedTool, paramValues, config, profileId]);
 
   const schemaProps = useMemo(() => {
     if (!selectedTool) return {};

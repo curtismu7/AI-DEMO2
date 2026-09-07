@@ -5,7 +5,20 @@ import { useSearchParams } from 'react-router-dom';
 import { useInspectorSource } from '../hooks/useInspectorSource';
 import { useInspectorFields } from '../context/InspectorFieldContext';
 import { useThemeOptional } from '../context/ThemeContext';
+import apiClient from '../services/apiClient';
+import { notifyError } from '../utils/appToast';
+import { formatAxiosError } from '../utils/formatAxiosError';
 import './McpInspectorPage.clean.css';
+
+const NEW_PROFILE_DEFAULTS = {
+  label: '',
+  transport: 'http',
+  url: '',
+  authHeader: 'Authorization',
+  authValue: '',
+  command: '',
+  argsText: '',
+};
 
 const SOURCES = [
   { key: 'banking', label: 'AI Demo MCP' },
@@ -57,8 +70,81 @@ function McpInspectorPageClean() {
   const highlightJSON = (json) => json.replace(/"([^"]+)":/g, '<span style="color: #0066cc;">\"$1\"</span>:').replace(/: "([^"]+)"/g, ': <span style="color: #009900;">\"$1\"</span>').replace(/: (\d+)/g, ': <span style="color: #cc6600;">$1</span>').replace(/: (true|false)/g, ': <span style="color: #993399;">$1</span>').replace(/: null/g, ': <span style="color: #666666;">null</span>');
   const { registerFields, getMatchingFields } = useInspectorFields();
 
+  // Custom Server tab: saved MCP server profiles (see mcpProfileStore.js).
+  // Loaded regardless of activeSource (cheap, unauthenticated GET) so the
+  // picker is ready the moment the user switches to the Custom tab.
+  const [profiles, setProfiles] = useState([]);
+  const [selectedProfileId, setSelectedProfileId] = useState('');
+  const [showAddServer, setShowAddServer] = useState(false);
+  const [newProfile, setNewProfile] = useState(NEW_PROFILE_DEFAULTS);
+  const [addProfileError, setAddProfileError] = useState(null);
+  const [addProfileBusy, setAddProfileBusy] = useState(false);
+
+  const loadProfiles = useCallback(async () => {
+    try {
+      const { data } = await apiClient.get('/api/mcp/inspector/profiles');
+      setProfiles(data.profiles || []);
+      setSelectedProfileId((prev) => prev || data.defaultProfileId || '');
+    } catch (e) {
+      notifyError(formatAxiosError(e, 'Failed to load MCP server profiles'));
+    }
+  }, []);
+
+  useEffect(() => { loadProfiles(); }, [loadProfiles]);
+
+  const handleAddProfile = useCallback(async () => {
+    setAddProfileError(null);
+    const { label, transport, url, authHeader, authValue, command, argsText } = newProfile;
+    const body = { label: label.trim(), transport };
+    if (transport === 'stdio') {
+      if (!command.trim()) {
+        setAddProfileError('Command is required.');
+        return;
+      }
+      body.command = command.trim();
+      body.args = argsText.trim() ? argsText.trim().split(/\s+/) : [];
+    } else {
+      if (!url.trim()) {
+        setAddProfileError('Server URL is required.');
+        return;
+      }
+      body.url = url.trim();
+      if (authHeader.trim() && authValue.trim()) {
+        body.authHeader = authHeader.trim();
+        body.authValue = authValue.trim();
+      }
+    }
+    setAddProfileBusy(true);
+    try {
+      const { data } = await apiClient.post('/api/mcp/inspector/profiles', body);
+      await loadProfiles();
+      setSelectedProfileId(data.profile.id);
+      setShowAddServer(false);
+      setNewProfile(NEW_PROFILE_DEFAULTS);
+    } catch (e) {
+      setAddProfileError(formatAxiosError(e, 'Failed to add server'));
+    } finally {
+      setAddProfileBusy(false);
+    }
+  }, [newProfile, loadProfiles]);
+
+  const handleDeleteProfile = useCallback(async (profileId) => {
+    try {
+      await apiClient.delete(`/api/mcp/inspector/profiles/${profileId}`);
+      setSelectedProfileId((prev) => (prev === profileId ? '' : prev));
+      await loadProfiles();
+    } catch (e) {
+      notifyError(formatAxiosError(e, 'Failed to delete server'));
+    }
+  }, [loadProfiles]);
+
+  const selectedProfile = profiles.find((p) => p.id === selectedProfileId) || null;
+
   // Use unified hook for current source
-  const source = useInspectorSource(activeSource);
+  const source = useInspectorSource(
+    activeSource,
+    activeSource === 'custom' ? { profileId: selectedProfileId } : undefined,
+  );
 
   // Handle source switch
   const handleSourceChange = useCallback((newSource) => {
@@ -119,6 +205,128 @@ function McpInspectorPageClean() {
           {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
         </button>
       </div>
+
+      {activeSource === 'custom' && (
+        <div className="inspector-clean-custom-bar">
+          <label htmlFor="custom-profile-select" style={{ fontSize: '12px', color: 'var(--inspector-text-secondary)' }}>
+            Server:
+          </label>
+          <select
+            id="custom-profile-select"
+            value={selectedProfileId}
+            onChange={(e) => setSelectedProfileId(e.target.value)}
+          >
+            {profiles.length === 0 && <option value="">No servers yet</option>}
+            {profiles.map((p) => (
+              <option key={p.id} value={p.id}>{p.label}</option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="inspector-clean-button"
+            style={{ padding: '6px 12px' }}
+            onClick={() => setShowAddServer((v) => !v)}
+          >
+            {showAddServer ? 'Cancel' : '+ Add server'}
+          </button>
+          {selectedProfile && !selectedProfile.isBuiltIn && (
+            <button
+              type="button"
+              className="inspector-clean-button"
+              style={{ padding: '6px 12px', background: 'var(--th-status-error-text)' }}
+              onClick={() => handleDeleteProfile(selectedProfile.id)}
+            >
+              Delete
+            </button>
+          )}
+        </div>
+      )}
+
+      {activeSource === 'custom' && showAddServer && (
+        <div className="inspector-clean-custom-add">
+          <div className="inspector-clean-field">
+            <div className="inspector-clean-field-label"><span>Label</span></div>
+            <input
+              type="text"
+              value={newProfile.label}
+              onChange={(e) => setNewProfile((p) => ({ ...p, label: e.target.value }))}
+              placeholder="e.g. banking-rest2 (Privilege)"
+            />
+          </div>
+          <div className="inspector-clean-field">
+            <div className="inspector-clean-field-label"><span>Transport</span></div>
+            <select
+              value={newProfile.transport}
+              onChange={(e) => setNewProfile((p) => ({ ...p, transport: e.target.value }))}
+            >
+              <option value="http">http</option>
+              <option value="websocket">websocket</option>
+              <option value="stdio">stdio</option>
+            </select>
+          </div>
+          {newProfile.transport === 'stdio' ? (
+            <>
+              <div className="inspector-clean-field">
+                <div className="inspector-clean-field-label"><span>Command</span></div>
+                <input
+                  type="text"
+                  value={newProfile.command}
+                  onChange={(e) => setNewProfile((p) => ({ ...p, command: e.target.value }))}
+                  placeholder="node"
+                />
+              </div>
+              <div className="inspector-clean-field">
+                <div className="inspector-clean-field-label"><span>Args</span></div>
+                <input
+                  type="text"
+                  value={newProfile.argsText}
+                  onChange={(e) => setNewProfile((p) => ({ ...p, argsText: e.target.value }))}
+                  placeholder="server.js --stdio"
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="inspector-clean-field">
+                <div className="inspector-clean-field-label"><span>Server URL</span></div>
+                <input
+                  type="text"
+                  value={newProfile.url}
+                  onChange={(e) => setNewProfile((p) => ({ ...p, url: e.target.value }))}
+                  placeholder="https://mcpgw.ai-demo.ping-devops.com/banking-rest2/mcp"
+                />
+              </div>
+              <div className="inspector-clean-field">
+                <div className="inspector-clean-field-label"><span>Auth header</span></div>
+                <input
+                  type="text"
+                  value={newProfile.authHeader}
+                  onChange={(e) => setNewProfile((p) => ({ ...p, authHeader: e.target.value }))}
+                  placeholder="Authorization"
+                />
+              </div>
+              <div className="inspector-clean-field">
+                <div className="inspector-clean-field-label"><span>Auth value</span></div>
+                <input
+                  type="password"
+                  value={newProfile.authValue}
+                  onChange={(e) => setNewProfile((p) => ({ ...p, authValue: e.target.value }))}
+                  placeholder="Bearer ..."
+                />
+              </div>
+            </>
+          )}
+          <button
+            type="button"
+            className="inspector-clean-button"
+            onClick={handleAddProfile}
+            disabled={addProfileBusy}
+          >
+            {addProfileBusy ? 'Saving...' : 'Save'}
+          </button>
+          {addProfileError && <div className="inspector-clean-custom-error">{addProfileError}</div>}
+        </div>
+      )}
 
       <div className="inspector-clean-content">
         <div className="inspector-clean-main">

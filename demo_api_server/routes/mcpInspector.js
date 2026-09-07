@@ -1070,22 +1070,29 @@ router.post('/api-invoke', (_req, res) => {
   });
 });
 
-// GET /api/mcp/inspector/custom-tools — list custom MCP tools
-// Stub: returns empty; use Custom Server source to add profiles
-router.get('/custom-tools', (_req, res) => {
-  res.json({
-    tools: [],
-    _source: 'custom_stub',
-  });
+// GET /api/mcp/inspector/custom-tools?profile=<id> — list tools for a saved
+// MCP server profile (see mcpProfileStore.js). Reuses the same dispatch as
+// GET /tools?profile=X; admin-gated for the same reason (stdio profiles spawn
+// a host process, http/websocket profiles are SSRF — see requireAdminSession).
+router.get('/custom-tools', (req, res) => {
+  const profileId = typeof req.query.profile === 'string' ? req.query.profile.trim() : '';
+  if (!profileId) {
+    return res.json({ tools: [], _source: 'custom_no_profile' });
+  }
+  return requireAdminSession(req, res, () => handleProfileTools(req, res, profileId));
 });
 
-// POST /api/mcp/inspector/custom-invoke — invoke a custom tool
-// Stub: not implemented
-router.post('/custom-invoke', (_req, res) => {
-  res.json({
-    error: 'Custom tools not implemented',
-    _source: 'custom_stub',
-  });
+// POST /api/mcp/inspector/custom-invoke — invoke a tool on a saved profile.
+// Body: { tool, params, profile }. Mirrors POST /invoke's profile dispatch.
+router.post('/custom-invoke', express.json(), (req, res) => {
+  const { tool, params, profile: profileId } = req.body || {};
+  if (!tool || typeof tool !== 'string') {
+    return res.status(400).json({ error: 'tool name is required' });
+  }
+  if (!profileId || typeof profileId !== 'string') {
+    return res.status(400).json({ error: 'profile is required' });
+  }
+  return requireAdminSession(req, res, () => handleProfileInvoke(req, res, profileId, tool, params));
 });
 
 /**
