@@ -54,12 +54,16 @@ describe('x-pingone-admin-token header forwarding', () => {
     const calls = [];
     global.fetch = mockDoor(calls);
 
-    const app = buildApp({
-      oauthTokens: { accessToken: 'main-app-token' }, // clears the route's own "not authenticated" guard
-      pingoneMcpAdminToken: { accessToken: 'delegated-abc' },
-    });
+    const app = buildApp({ pingoneMcpAdminToken: { accessToken: 'delegated-abc' } });
     await request(app).post('/api/privilege-mcp/config').send({ mcpUrl: MCP_URL, clientId: 'client-abc' }).expect(200);
-    await request(app).post('/api/privilege-mcp/tools/list').send({}).expect(200);
+    // A presented Bearer — the supported bring-your-own-token path — is what
+    // clears the route's "not authenticated" guard. This used to lean on
+    // `oauthTokens: { accessToken: 'main-app-token' }` instead, which worked
+    // only because getClientSession seeded the main app's banking token as a
+    // gateway credential. That seeding was the 2026-09-07 bug (it 401'd every
+    // real door), so a test that depends on it is asserting the defect.
+    await request(app).post('/api/privilege-mcp/tools/list')
+      .set('Authorization', 'Bearer gateway-token').send({}).expect(200);
 
     expect(calls.length).toBeGreaterThan(0);
     for (const call of calls) {
@@ -71,9 +75,10 @@ describe('x-pingone-admin-token header forwarding', () => {
     const calls = [];
     global.fetch = mockDoor(calls);
 
-    const app = buildApp({ oauthTokens: { accessToken: 'main-app-token' } });
+    const app = buildApp({});
     await request(app).post('/api/privilege-mcp/config').send({ mcpUrl: MCP_URL, clientId: 'client-abc' }).expect(200);
-    await request(app).post('/api/privilege-mcp/tools/list').send({}).expect(200);
+    await request(app).post('/api/privilege-mcp/tools/list')
+      .set('Authorization', 'Bearer gateway-token').send({}).expect(200);
 
     expect(calls.length).toBeGreaterThan(0);
     for (const call of calls) {

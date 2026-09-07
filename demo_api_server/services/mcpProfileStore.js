@@ -92,6 +92,12 @@ function ensureBuiltInsSeeded() {
     url: `${PRIVILEGE_GATEWAY_BASE}/banking-rest2/mcp`,
     isDefault: false,
   });
+  // Known limitation, not fixed here: this door 404s once actually
+  // authenticated — the gateway rejects /opensearch22/mcp because that app's
+  // backend is registered with an /sse entry path. See
+  // privilege/GATEWAY-ENTRY-PATH-QUESTION.md (raised with Ping). The other
+  // three doors use the catalog/OpenAPI-MCP mechanism, not an /sse backend,
+  // and are unaffected.
   seedBuiltIn(PRIVILEGE_OPENSEARCH_PROFILE_ID, {
     label: 'Privilege: OpenSearch',
     transport: 'privilege',
