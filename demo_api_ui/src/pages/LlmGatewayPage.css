@@ -555,3 +555,35 @@
 .lgw-path__arrow {
   color: var(--th-text-muted);
 }
+
+/* ── who stopped it ──────────────────────────────────────────────────────── */
+/* The headline answer to "Privilege or the model?" — a coloured left rule and
+   type one step above the dl, so it reads before the field list does. */
+.lgw-who {
+  margin: 0 0 0.9rem;
+  padding: 0.5rem 0 0.5rem 0.7rem;
+  border-left: 4px solid var(--th-border-strong);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+
+.lgw-who__who {
+  margin: 0;
+  font-size: var(--font-size-lg, 1.0625rem);
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--th-text);
+}
+
+.lgw-who__note {
+  margin: 0.2rem 0 0;
+  font-size: var(--font-size-sm);
+  line-height: 1.35;
+  color: var(--th-text-muted);
+}
+
+.lgw-who.is-warn { border-left-color: var(--th-status-warning); }
+.lgw-who.is-warn .lgw-who__who { color: var(--th-status-warning); }
+.lgw-who.is-bad { border-left-color: var(--th-status-error); }
+.lgw-who.is-bad .lgw-who__who { color: var(--th-status-error); }
+.lgw-who.is-ok { border-left-color: var(--th-status-success); }
