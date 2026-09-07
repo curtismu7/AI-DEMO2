@@ -256,6 +256,13 @@ const FIELD_DEFS = {
   // MCP Gateway HTTP base URL — scheme + host + port for the BFF → gateway HTTP channel.
   // Local dev: https://api.ping.demo:3005 (TLS via mkcert). Env alias: MCP_GATEWAY_HTTP_URL.
   mcp_gateway_http_url:           { public: true,  default: 'https://api.ping.demo:3005' },
+  // How hard the MCP OAuth brokers make PingOne re-authenticate:
+  // 'once' | 'login' | 'select_account' | 'off'. Sending nothing (the old behavior)
+  // lets PingOne silently re-authenticate against whatever SSO session the browser
+  // already holds, so an MCP client adopts the current user invisibly. Default
+  // 'once' uses OIDC max_age: the first door prompts, the rest ride that login.
+  // See services/mcpBrokerPrompt.js; public because both brokers read it server-to-server.
+  mcp_broker_prompt:              { public: true,  default: 'once' },
   PINGONE_DEBUG_OAUTH:            { public: true,  default: 'false' },
 
   // PingOne Authorize (policy decision point for transfers/withdrawals)

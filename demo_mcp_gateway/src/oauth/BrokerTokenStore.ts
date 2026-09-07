@@ -14,6 +14,11 @@ export interface PendingAuthorization {
    *  distinct from `codeChallenge`, which belongs to the external client's
    *  PKCE against this broker. */
   pingOneCodeVerifier: string;
+  /** Ledger correlation id for this authorize, so the `oauth.authorize` hop and
+   *  the `oauth.callback` hop that follows a PingOne round trip land on ONE
+   *  record. Deliberately not `state`: that is a single-use CSRF token and the
+   *  ledger is a readable audit surface. */
+  correlationId?: string;
   expiresAt: number;
 }
 

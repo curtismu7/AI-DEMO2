@@ -20,6 +20,11 @@
  *   # edit tests/e2e/.env.e2e with your PingOne test user credentials
  */
 
+// The demo credentials come from demo_api_server/.env — the one place that
+// defines them. Seeded BEFORE .env.e2e so a stale hand-copied duplicate there
+// can no longer outrank the real value; a shell export still wins over both.
+require('./tests/helpers/demoCredentials').seedDemoCredentials();
+
 // Load .env.e2e if it exists (never commit the actual file)
 const path = require('path');
 const fs   = require('fs');

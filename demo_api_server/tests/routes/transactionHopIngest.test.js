@@ -66,6 +66,35 @@ describe('POST /internal/transaction-hop', () => {
     expect(ledger.appendHop).not.toHaveBeenCalled();
   });
 
+  // The brokers' emitHop is fire-and-forget: a 400 here is swallowed by its
+  // .catch(), so a phase missing from VALID_PHASES means the login leg silently
+  // never reaches the ledger — the failure mode this whole trace exists to end.
+  test.each(['oauth.authorize', 'oauth.callback'])('accepts the %s phase', async (phase) => {
+    const res = await request(app())
+      .post('/internal/transaction-hop')
+      .set('x-internal-gateway-secret', SECRET)
+      .send({ ...VALID, phase, service: 'mcp-gateway' });
+    expect(res.status).toBe(204);
+    expect(ledger.appendHop).toHaveBeenCalledWith('c1', expect.objectContaining({ phase }));
+  });
+
+  test('keeps identity claims on an oauth.callback but never a raw token', async () => {
+    await request(app())
+      .post('/internal/transaction-hop')
+      .set('x-internal-gateway-secret', SECRET)
+      .send({
+        ...VALID,
+        phase: 'oauth.callback',
+        identity: { sub: 'demouser-sub', auth_time: 1788800000, id_token: 'eyJ.SECRET.value' },
+      });
+    const [, hop] = ledger.appendHop.mock.calls[0];
+    // auth_time is the payload: it is what distinguishes a fresh login from a
+    // silently reused SSO session.
+    expect(hop.identity.sub).toBe('demouser-sub');
+    expect(hop.identity.auth_time).toBe(1788800000);
+    expect(JSON.stringify(hop)).not.toContain('SECRET.value');
+  });
+
   test('400 on an unknown phase', async () => {
     const res = await request(app())
       .post('/internal/transaction-hop')

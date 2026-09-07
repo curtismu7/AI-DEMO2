@@ -231,6 +231,62 @@ unchanged.
 
 **Verify:** `cd demo_api_ui && npx vitest run src/components/UserDashboardPing2026.test.js src/components/__tests__/UserDashboardPing2026.test.js src/components/__tests__/AIAgent.chips.test.js src/components/__tests__/DemoScriptLauncher.test.jsx src/components/__tests__/AgentModeSelector.test.jsx src/utils/__tests__/tokenRailLayout.test.js src/components/__tests__/DashboardTokenRail.test.jsx src/__tests__/FocusModeFilmstripGuard.test.js` — 8/8 files, 129/129 tests pass. `npm run build` exits 0.
 
+### 2026-09-07 — Built-in "Privilege MCP (admin)" Inspector profile pointed at a torn-down gateway host
+
+**Files changed:** `demo_api_server/services/mcpProfileStore.js`,
+`demo_api_server/routes/mcpInspector.js`, `demo_api_server/src/__tests__/mcpProfileStore.test.js`,
+`demo_api_server/src/__tests__/mcpInspectorProfiles.test.js`, `demo_api_ui/src/hooks/useInspectorSource.js`,
+`demo_api_ui/src/components/McpInspectorPageClean.jsx`, `demo_api_ui/src/components/McpInspectorPage.clean.css`.
+
+**What was broken:** the built-in Privilege profile's dispatch
+(`privilegeVirtualProfile()`) hardcoded `https://cmuir-agentless-mcpgw.ping-devops.com/external/mcp`
+— the per-owner gateway host that was torn down 2026-09-01 when the single AI
+Gateway replaced it (see `privilege/CURRENT-CONFIGURATION.md`). Confirmed live
+2026-09-07: `curl` to that host fails to connect at all, while the current
+gateway's per-app paths (`https://mcpgw.ai-demo.ping-devops.com/<app>/mcp`)
+answer 401 (reachable, just needs the bearer). Every Custom Server tab call
+through the built-in Privilege profile therefore failed outright, with no
+useful error (a connection failure, not an auth failure).
+
+**What was fixed:** `privilegeVirtualProfile(bearer, url)` now takes the URL
+from the profile record instead of a hardcoded constant — there is no single
+generic endpoint under the current gateway, only per-app paths. `mcpProfileStore.js`
+seeds four `transport: 'privilege'` profiles, one per known door on the
+single gateway (`built-in-privilege-mcp` → banking-rest2, plus new
+`built-in-privilege-opensearch`/`-brave`/`-grafana`), all authenticated via the
+same Privilege admin session bearer, no stored secret. `ensureBuiltInsSeeded()`
+now upserts built-ins (only writing when transport/url/label actually
+drifted from the desired shape) instead of "create once", so a stale value
+like this one self-heals on the next call instead of needing manual LMDB
+surgery again. The Custom Server tab also gained a small "Add server" form
+(`McpInspectorPageClean.jsx`) for anything not on that seeded list, posting to
+the already-working `POST /api/mcp/inspector/profiles`.
+
+**Do not break:**
+
+- `PRIVILEGE_PROFILE_ID` (`built-in-privilege-mcp`) keeps its original id —
+  `routes/mcpPrivilegeAuth.js`'s post-login redirect deep-links to
+  `?profile=built-in-privilege-mcp`; renaming it breaks that link.
+- `seedBuiltIn()`'s drift check must stay narrow (transport/url/label) — it
+  runs on every `listProfiles()`/`getProfile()` call, so anything broader turns
+  routine reads into LMDB writes.
+- The four gateway app names (`banking-rest2`, `opensearch22`,
+  `mcp-brave-search`, `mcp-grafana`) and the gateway base
+  (`https://mcpgw.ai-demo.ping-devops.com`) are `privilege/CURRENT-CONFIGURATION.md`'s
+  source of truth — if the gateway is ever re-consolidated again, fix it there
+  first, then here.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest src/__tests__/mcpProfileStore.test.js src/__tests__/mcpInspectorProfiles.test.js src/__tests__/mcpPrivilegeAuth.test.js tests/mcpInspectorGateway.test.js tests/mcpInspectorRpc.test.js --forceExit` — 73 passed; `cd demo_api_ui && ./node_modules/.bin/vitest run src/hooks/__tests__/useInspectorSource.test.js src/components/__tests__/McpInspectorPageClean.addServer.test.jsx` — 18 passed; `npm run build` exit 0. Live: `curl -X POST https://mcpgw.ai-demo.ping-devops.com/banking-rest2/mcp` (and `/opensearch22/mcp`, `/mcp-brave-search/mcp`, `/mcp-grafana/mcp`) all answer 401 with no bearer, confirming each door is reachable and the host is correct.
+
+**Known limitation, not fixed here:** the `built-in-privilege-opensearch` door
+(`opensearch22`) is only reachable up to the auth check — see the entry below
+("Every path and every door on `/privilege-mcp-client` was broken") and
+`privilege/GATEWAY-ENTRY-PATH-QUESTION.md`: with a *valid* bearer the gateway
+404s `/opensearch22/mcp` (`rejecting /mcp on app opensearch22: outside entry
+path "/sse"`), a gateway-side behavior change under discussion with Ping. The
+other three doors use the catalog/OpenAPI-MCP registration mechanism, not the
+`/sse`-backend one that trips this, and are unaffected.
+
 ### 2026-09-07 — Every path and every door on `/privilege-mcp-client` was broken
 
 **Files changed:** `demo_api_server/routes/privilegeMcpClient.js`,
@@ -325,6 +381,7 @@ because it set `oauthTokens: { accessToken: 'main-app-token' }` to clear the
 route's auth guard — i.e. it depended on root cause 1. It now presents a real
 `Authorization: Bearer` instead. Same false-confidence pattern as the 2026-09-03
 entry below, where four mocks matched the bug rather than the real contract.
+
 ### 2026-09-07 — External door's 401 challenge was unparseable, so LM Studio could never authenticate to `MCP Direct-Banking`
 
 **Files changed:** `ping-gateway/scripts/groovy/external-door-401-metadata.groovy`,

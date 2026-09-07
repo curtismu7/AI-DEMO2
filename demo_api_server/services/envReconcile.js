@@ -158,6 +158,10 @@ const ENV_AGNOSTIC_KEYS = new Set([
   'use_agent_actor_for_mcp', 'token_exchange_auto_fallback', 'token_exchange_log_mode_switches',
   'mcp_use_legacy_protocol', 'mcp_gw_passthrough_to_mcp_server', 'gateway_health_probe_insecure',
   'mcp_gateway_reject_unauthorized', 'pingone_validate_on_startup', 'mcp_gw_p1az_enabled',
+  // How hard the MCP OAuth brokers make PingOne re-authenticate ('once' | 'login' |
+  // 'select_account' | 'off'). A behavioural preference, not env identity — the same
+  // choice is still the right one after the PingOne env_id changes.
+  'mcp_broker_prompt',
   // enterprise-managed MCP auth policy (Phase 2 demo — group/resource allowlists, not env identity)
   'enterprise_mcp_allowed_groups', 'enterprise_mcp_resource_uris',
   // native ID-JAG (Phase 3): deployment endpoints + a behavioural threshold, not env identity.

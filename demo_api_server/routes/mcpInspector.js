@@ -253,10 +253,16 @@ function privilegeAdminBearer(req) {
   return tok.accessToken;
 }
 
-/** Wraps the session's Privilege token as a one-off profile so it can ride the http transport as-is. */
-function privilegeVirtualProfile(bearer) {
+/**
+ * Wraps the session's Privilege token as a one-off profile so it can ride the
+ * http transport as-is. `url` comes from the saved profile record (each
+ * built-in `transport: 'privilege'` profile is a specific door on the single
+ * gateway — see mcpProfileStore.js) rather than a hardcoded constant, since
+ * there is no one generic Privilege endpoint under the current gateway.
+ */
+function privilegeVirtualProfile(bearer, url) {
   return {
-    url: 'https://cmuir-agentless-mcpgw.ping-devops.com/external/mcp',
+    url,
     authHeader: 'Authorization',
     authValue: `Bearer ${bearer}`,
   };
@@ -290,7 +296,7 @@ async function listToolsForProfile(profile, req) {
   if (profile.transport === 'privilege') {
     const bearer = privilegeAdminBearer(req);
     if (!bearer) throw requirePrivilegeLogin();
-    const { tools } = await mcpHttpTransport.listTools(privilegeVirtualProfile(bearer));
+    const { tools } = await mcpHttpTransport.listTools(privilegeVirtualProfile(bearer, profile.url));
     return { tools };
   }
   throw new Error(`Unknown transport: ${profile.transport}`);
@@ -319,7 +325,7 @@ async function callToolForProfile(profile, tool, params, req) {
   if (profile.transport === 'privilege') {
     const bearer = privilegeAdminBearer(req);
     if (!bearer) throw requirePrivilegeLogin();
-    const result = await mcpHttpTransport.callTool(privilegeVirtualProfile(bearer), tool, params);
+    const result = await mcpHttpTransport.callTool(privilegeVirtualProfile(bearer, profile.url), tool, params);
     return { result };
   }
   throw new Error(`Unknown transport: ${profile.transport}`);

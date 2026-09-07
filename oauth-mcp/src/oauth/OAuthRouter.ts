@@ -12,6 +12,8 @@ import {
 } from './IdJagGrantHandler';
 import { resolveAudience } from './TokenIssuer';
 import { AUTHORIZATION_SERVER_SCOPES } from './scopes';
+import { resolveAuthorizeParams } from './brokerPrompt';
+import { emitHop } from '../utils/transactionHop';
 
 /**
  * RFC 8252 §7.3: for a loopback redirect URI the port is chosen at request time
@@ -198,9 +200,13 @@ export class OAuthRouter {
     // `state` travels with it in TokenStore but is never sent to PingOne as
     // the outbound state — a malicious redirect_uri must not be able to
     // observe or replay it against PingOne.
+    // One ledger record spans the whole login: minted here, carried on the
+    // pending record across the PingOne round trip, and reused by the callback
+    // so "who asked" and "who came back" sit on one trace.
+    const correlationId = crypto.randomUUID();
     const relayState = this.tokenStore.createPendingAuthorization({
       clientId, redirectUri, scope, codeChallenge, codeChallengeMethod, clientState: state,
-      pingOneCodeVerifier,
+      pingOneCodeVerifier, correlationId,
     });
 
     const callbackUri = `${this.issuer}/authorize/callback`;
@@ -228,6 +234,31 @@ export class OAuthRouter {
     } else {
       pingOneAuthorize.searchParams.set('scope', 'openid profile email');
     }
+
+    // Send nothing and PingOne silently re-authenticates against whatever SSO
+    // session the browser already holds — and LM Studio opens the SYSTEM default
+    // browser, which is exactly where a stale session lives. The MCP client then
+    // adopts the current user with no login screen, and nothing in the flow shows
+    // whose identity ended up on the token. The BFF decides how strict to be
+    // (default: max_age, so the first door prompts and the rest ride that login).
+    const reauthParams = await resolveAuthorizeParams();
+    for (const [k, v] of Object.entries(reauthParams)) {
+      pingOneAuthorize.searchParams.set(k, v);
+    }
+
+    // The login leg, on the record. Until this existed the ledger only saw a
+    // transaction once the client was ALREADY authenticated, so the moment that
+    // decides whose identity the rest of the chain runs as had no trace at all.
+    emitHop({
+      phase: 'oauth.authorize',
+      correlationId,
+      op: 'authorize',
+      status: 'ok',
+      identity: { clientId },
+      // What we asked PingOne for, so a silent SSO reuse is distinguishable from
+      // a real login after the fact — the whole point of mcp_broker_prompt.
+      params: { scope, reauth: reauthParams },
+    });
 
     res.writeHead(302, { Location: pingOneAuthorize.toString() });
     res.end();
@@ -265,6 +296,7 @@ export class OAuthRouter {
     }
 
     let subject: string;
+    const identityClaims: Record<string, unknown> = {};
     let pingOneAccessToken: string;
     try {
       const callbackUri = `${this.issuer}/authorize/callback`;
@@ -308,11 +340,38 @@ export class OAuthRouter {
         throw new Error('PingOne access token has no sub claim');
       }
       subject = payload.sub as string;
+      // These are VERIFIED claims (jwtVerify above), unlike the gateway's
+      // display-only decode — same allowlist, so the ledger never carries more
+      // than it needs and never the token itself.
+      for (const key of ['sub', 'preferred_username', 'email', 'auth_time', 'amr', 'acr'] as const) {
+        if (payload[key] !== undefined) identityClaims[key] = payload[key];
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
+      emitHop({
+        phase: 'oauth.callback',
+        correlationId: pending.correlationId,
+        op: 'authorize-callback',
+        status: 'error',
+        // `params`, not `details`: this service's TransactionHopInput has no
+        // details field (the gateway's does), and the extra key would be dropped.
+        params: { error: msg },
+      });
       this.json(res, 502, { error: 'server_error', error_description: `PingOne login verification failed: ${msg}` });
       return true;
     }
+
+    // Who actually came back. `auth_time` is the claim that answers "did I just
+    // reuse a session?" — an auth_time far older than this hop means PingOne
+    // honoured an existing SSO session rather than authenticating anybody, which
+    // is invisible everywhere else in the flow.
+    emitHop({
+      phase: 'oauth.callback',
+      correlationId: pending.correlationId,
+      op: 'authorize-callback',
+      status: 'ok',
+      identity: { clientId: pending.clientId, ...identityClaims },
+    });
 
     const ownCode = this.tokenStore.createCode({
       clientId: pending.clientId,

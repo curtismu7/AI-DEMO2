@@ -5,6 +5,7 @@
  */
 
 const mcpProfileStore = require('../../services/mcpProfileStore');
+const lmdb = require('../../services/lmdb/mcpProfileStore.lmdb');
 
 describe('mcpProfileStore', () => {
   it('seeds exactly one default banking profile on first list', () => {
@@ -89,5 +90,36 @@ describe('mcpProfileStore', () => {
     } catch (err) {
       expect(err.code).toBe('profile_not_found');
     }
+  });
+
+  describe('built-in Privilege-gateway door profiles', () => {
+    const DOORS = [
+      { id: () => mcpProfileStore.PRIVILEGE_PROFILE_ID, urlSuffix: 'banking-rest2/mcp' },
+      { id: () => mcpProfileStore.PRIVILEGE_OPENSEARCH_PROFILE_ID, urlSuffix: 'opensearch22/mcp' },
+      { id: () => mcpProfileStore.PRIVILEGE_BRAVE_PROFILE_ID, urlSuffix: 'mcp-brave-search/mcp' },
+      { id: () => mcpProfileStore.PRIVILEGE_GRAFANA_PROFILE_ID, urlSuffix: 'mcp-grafana/mcp' },
+    ];
+
+    it.each(DOORS)('$urlSuffix is seeded as transport:privilege, isBuiltIn, pointed at the current gateway', ({ id, urlSuffix }) => {
+      const profiles = mcpProfileStore.listProfiles();
+      const found = profiles.find((p) => p.id === id());
+      expect(found).toMatchObject({ transport: 'privilege', isBuiltIn: true });
+      expect(found.url).toBe(`https://mcpgw.ai-demo.ping-devops.com/${urlSuffix}`);
+    });
+
+    it.each(DOORS)('$urlSuffix cannot be deleted', ({ id }) => {
+      expect(() => mcpProfileStore.deleteProfile(id())).toThrow(/built-in/i);
+    });
+
+    it('self-heals a drifted url back to the current gateway on the next call', () => {
+      const id = mcpProfileStore.PRIVILEGE_OPENSEARCH_PROFILE_ID;
+      const current = lmdb.getProfile(id);
+      lmdb.saveProfile(id, { ...current, url: 'https://cmuir-agentless-mcpgw.ping-devops.com/external/mcp' });
+      expect(lmdb.getProfile(id).url).toBe('https://cmuir-agentless-mcpgw.ping-devops.com/external/mcp');
+
+      const healed = mcpProfileStore.listProfiles().find((p) => p.id === id);
+
+      expect(healed.url).toBe('https://mcpgw.ai-demo.ping-devops.com/opensearch22/mcp');
+    });
   });
 });

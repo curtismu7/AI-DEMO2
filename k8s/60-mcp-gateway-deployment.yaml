@@ -102,6 +102,12 @@ spec:
         # guard), so MCP gateway hops never appear on /transaction-trace.
         - name: BFF_TRANSACTION_HOP_URL
           value: "https://demo-api-server:3001/internal/transaction-hop"
+        # Which OIDC `prompt` this broker sends PingOne — mirrors docker-compose's
+        # BFF_BROKER_PROMPT_URL. Read live so the radio on /privilege-mcp-client
+        # applies without a redeploy. Unreachable → falls back to `login`, never to
+        # silent SSO reuse.
+        - name: BFF_BROKER_PROMPT_URL
+          value: "https://demo-api-server:3001/mcp-facade/broker-prompt"
         # mkcert TLS on demo-api-server — same opt-in as MCP_GATEWAY_REJECT_UNAUTHORIZED.
         - name: NODE_TLS_REJECT_UNAUTHORIZED
           value: "0"

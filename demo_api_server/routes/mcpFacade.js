@@ -33,6 +33,7 @@ const ledger = require('../services/lmdb/transactionLedger.lmdb');
 const { getProcyonDispatcher, isProcyonAgentUrl, decodeMcpBody } = require('./privilegeMcpClient');
 const { assemble } = require('../services/transactionAssembler');
 const configStore = require('../services/configStore');
+const mcpBrokerPrompt = require('../services/mcpBrokerPrompt');
 const { renderReelSvg } = require('../services/reelSvg');
 const jwksService = require('../services/jwksService');
 const privilegeGatewaySession = require('../services/privilegeGatewaySession');
@@ -915,6 +916,21 @@ router.delete(['/:door/mcp', '/:door/:app/mcp'], async (req, res) => {
     // out of the bounded session map for the life of the process.
     sessions.delete(sessionId);
   }
+});
+
+// GET /mcp-facade/broker-prompt — which OIDC `prompt` the MCP OAuth brokers
+// should send to PingOne. Both brokers (oauth-mcp, demo_mcp_gateway) fetch this
+// at authorize time, server-to-server, with no user session — hence a plain
+// unauthenticated GET. The value is a display preference, not a secret, and the
+// WRITE deliberately lives on /api/admin/config instead: this router is also
+// mounted on the plain-HTTP :3002 façade app (server.js), which has no auth, so
+// a mutating route here would be anonymously writable.
+// `params` is what the broker actually applies to its PingOne authorize URL, so
+// the MODE→params mapping stays here and not in two image-built services: a new
+// mode ships with a BFF restart instead of two rebuilds and a GHCR push.
+router.get('/broker-prompt', (_req, res) => {
+  const mode = mcpBrokerPrompt.effective();
+  res.json({ mode, params: mcpBrokerPrompt.authorizeParams(mode), choices: mcpBrokerPrompt.CHOICES });
 });
 
 module.exports = router;

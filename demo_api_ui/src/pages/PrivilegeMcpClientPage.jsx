@@ -75,6 +75,38 @@ const MCP_METHOD_TEMPLATES = {
   'tasks/update': { taskId: '', action: 'input', input: {} },
 };
 
+// Sign-in behaviour for every MCP door, in the order the radio shows them.
+// The BFF owns the mode→OIDC-params mapping (services/mcpBrokerPrompt.js); this
+// list only has to name and explain the choices.
+const BROKER_PROMPT_MODES = [
+  {
+    value: 'once',
+    label: 'Once per session',
+    hint: 'Sign in at the first door; the rest reuse it (OIDC max_age).',
+  },
+  {
+    value: 'login',
+    label: 'Every time',
+    hint: 'Force a fresh sign-in on every door (prompt=login).',
+  },
+  {
+    value: 'select_account',
+    label: 'Pick the account',
+    hint: "Show PingOne's account chooser each time (prompt=select_account).",
+  },
+  {
+    value: 'off',
+    label: 'Off',
+    hint: 'Send nothing — PingOne silently reuses the browser session.',
+  },
+];
+
+// These two live outside API_BASE (/api/privilege-mcp): the read is on the
+// façade so both brokers can fetch it unauthenticated, and the write is on the
+// admin config surface because this page is public.
+const BROKER_PROMPT_READ = '/mcp-facade/broker-prompt';
+const BROKER_PROMPT_WRITE = '/api/admin/config/mcp-broker-prompt';
+
 function api(path, options = {}) {
   return fetch(`${API_BASE}${path}`, {
     method: options.method || 'GET',
@@ -329,6 +361,51 @@ export default function PrivilegeMcpClientPage() {
   const [showGuide, setShowGuide] = useState(false);
   const [toolSearch, setToolSearch] = useState('');
   const [activeTab, setActiveTab] = useState('chat');
+  // How hard the MCP OAuth brokers make PingOne re-authenticate. Server-owned
+  // (BFF key mcp_broker_prompt) because BOTH brokers read it — including the one
+  // LM Studio talks to, which never loads this page.
+  const [brokerPrompt, setBrokerPrompt] = useState(null);
+  const [brokerPromptBusy, setBrokerPromptBusy] = useState(false);
+  const [brokerPromptError, setBrokerPromptError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(BROKER_PROMPT_READ, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((d) => { if (!cancelled) setBrokerPrompt(d.mode); })
+      .catch(() => { if (!cancelled) setBrokerPromptError('Could not read the current setting.'); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const saveBrokerPrompt = useCallback(async (mode) => {
+    const previous = brokerPrompt;
+    setBrokerPrompt(mode);          // optimistic: the radio must feel immediate
+    setBrokerPromptBusy(true);
+    setBrokerPromptError('');
+    try {
+      const r = await fetch(BROKER_PROMPT_WRITE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: mode }),
+        credentials: 'include',
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+      // Trust the server's read-back, not the click: mcp_broker_prompt has to be
+      // registered in configStore's FIELD_DEFS or setConfig drops it silently,
+      // and an optimistic radio would happily show a write that never landed.
+      setBrokerPrompt(data.prompt);
+    } catch (err) {
+      setBrokerPrompt(previous);
+      setBrokerPromptError(
+        err.message === 'unauthorized' || /401/.test(String(err.message))
+          ? 'Admin sign-in required to change this.'
+          : err.message || 'Could not save.',
+      );
+    } finally {
+      setBrokerPromptBusy(false);
+    }
+  }, [brokerPrompt]);
   const [showPresent, setShowPresent] = useState(false);
   const jumpedToToolsRef = useRef(false);
   const silentAuthAttempted = useRef(false);
@@ -2213,6 +2290,36 @@ export default function PrivilegeMcpClientPage() {
                     </div>
                   )}
                 </div>
+
+                {/* Applies to EVERY MCP door, not just this page's connection —
+                    including the ones LM Studio opens, which never load this UI.
+                    Shown to everyone (this route is public) but saving needs an
+                    admin session; the error says so rather than hiding the control. */}
+                <fieldset className="cur-prompt-mode">
+                  <legend>Sign-in behaviour for MCP doors</legend>
+                  <p className="cur-denial-note">
+                    Without this, PingOne silently reuses whatever session your browser
+                    already holds, so a door can adopt the wrong user with no sign-in shown.
+                  </p>
+                  {BROKER_PROMPT_MODES.map((mode) => (
+                    <label key={mode.value} className="cur-prompt-mode__row">
+                      <input
+                        type="radio"
+                        name="mcp-broker-prompt"
+                        value={mode.value}
+                        checked={brokerPrompt === mode.value}
+                        disabled={brokerPrompt === null || brokerPromptBusy}
+                        onChange={() => saveBrokerPrompt(mode.value)}
+                      />
+                      <span className="cur-prompt-mode__label">{mode.label}</span>
+                      <span className="cur-prompt-mode__hint">{mode.hint}</span>
+                    </label>
+                  ))}
+                  {brokerPrompt === null && !brokerPromptError && (
+                    <p className="cur-denial-note">Reading the current setting...</p>
+                  )}
+                  {brokerPromptError && <p className="cur-prompt-mode__err">{brokerPromptError}</p>}
+                </fieldset>
 
                 {!consoleData && (
                   <>
