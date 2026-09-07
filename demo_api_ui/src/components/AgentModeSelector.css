@@ -107,3 +107,15 @@
   border: 1px solid #fcd34d;
   border-radius: 6px;
 }
+
+/* Phone: as a flex child of .ba-header-tools (which already wraps), .ams-select
+   has no min-width floor and shrinks to whatever squeezes 3-across on one row
+   — confirmed live, each select measured ~46-56px wide with its value text
+   hard-clipped ("Fa", "vi") rather than wrapping to a new line. A real
+   min-width gives .ba-header-tools's existing flex-wrap something to trigger
+   on, so Agent mode/Routing/Wiring stack across rows instead of clipping. */
+@media (max-width: 768px) {
+  .ams-select {
+    min-width: 108px;
+  }
+}
