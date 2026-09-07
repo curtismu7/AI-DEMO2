@@ -34,6 +34,16 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 NS="${K8S_NAMESPACE:-ai-demo}"
 
+# Shadow `kubectl` for every call this script makes, so all ~60 call sites get
+# a generous timeout without hand-editing each one. Observed 2026-09-07: the
+# SE cluster's default per-request timeout was too short during a period of
+# elevated latency (15-30s round trips on individual calls), killing this
+# script partway through at a different call each retry. `command kubectl`
+# calls the real binary, not this function, avoiding infinite recursion.
+kubectl() {
+  command kubectl --request-timeout=60s "$@"
+}
+
 # ── Restart only what actually changed ──────────────────────────────────────
 # This script used to `rollout restart` nine deployments on every run, changed
 # or not. That is ~10-40s of downtime per service per run for nothing, and for
