@@ -130,6 +130,60 @@ describe("LLM Gateway console", () => {
     expect(screen.queryByText(/that was the model deciding — not the gateway/)).not.toBeInTheDocument();
   });
 
+  describe("path chain", () => {
+    it("shows the Privilege hop for a mediated lane's successful reply", async () => {
+      mockFetch(() => ({
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify({
+          reply: "Paris.", provider: "anthropic", route: "/llm/anthropic/v1/messages",
+          latencyMs: 300, reachedProvider: true,
+        }),
+      }));
+      render(<LlmGatewayPage />);
+      await ask("capital of France?");
+
+      const dec = await screen.findByTestId("lgw-decision");
+      expect(dec).toHaveTextContent(/Privilege/);
+      expect(dec).toHaveTextContent(/Anthropic/);
+    });
+
+    it("omits the Privilege hop for a local lane's successful reply", async () => {
+      mockFetch(() => ({
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify({
+          reply: "Austin", provider: "llamacpp", route: "/v1/chat/completions",
+          latencyMs: 42, reachedProvider: true, providerLimits: null,
+        }),
+      }), CONFIG_WITH_LOCALS);
+      render(<LlmGatewayPage />);
+      fireEvent.click((await screen.findByText("llama.cpp (local)")).closest("button"));
+      await ask("What is the capital of Texas?");
+
+      const dec = await screen.findByTestId("lgw-decision");
+      expect(dec).not.toHaveTextContent(/Privilege/);
+    });
+
+    it("does not render on a denial — only the existing 'Refused by' row does", async () => {
+      mockFetch(() => ({
+        ok: false,
+        status: 403,
+        text: async () => JSON.stringify({
+          error: "blocked", code: "llm_policy_denied", reason: "no PII",
+          provider: "anthropic", route: "/llm/anthropic/v1/messages",
+          latencyMs: 60, reachedProvider: false,
+        }),
+      }));
+      render(<LlmGatewayPage />);
+      await ask("customer SSN 123-45-6789");
+
+      const dec = await screen.findByTestId("lgw-decision");
+      expect(dec).toHaveTextContent(/Refused by/);
+      expect(screen.queryByText("Path")).not.toBeInTheDocument();
+    });
+  });
+
   // Spend has no source anywhere, so the page must not imply one.
   it("shows no spend meter, and says why", async () => {
     mockFetch(() => new Promise(() => {}));
@@ -306,6 +360,49 @@ describe("LLM Gateway console", () => {
       await screen.findByText("/llm/anthropic/v1/messages");
 
       expect(screen.queryByText("llama.cpp (local)")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("busy spinner", () => {
+    it("shows while a call is in flight and disappears once the reply lands", async () => {
+      let resolveCall;
+      mockFetch(() => new Promise((resolve) => { resolveCall = resolve; }));
+      const { container } = render(<LlmGatewayPage />);
+      await ask("hello");
+
+      expect(container.querySelector(".lgw-spinner")).toBeInTheDocument();
+
+      resolveCall({
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify({
+          reply: "hi", provider: "anthropic", route: "/llm/anthropic/v1/messages",
+          latencyMs: 10, reachedProvider: true,
+        }),
+      });
+
+      expect(await screen.findByText("hi")).toBeInTheDocument();
+      expect(container.querySelector(".lgw-spinner")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("attack library", () => {
+    beforeEach(() => { window.localStorage.clear(); });
+
+    it("remembers the last-picked attack across a remount", async () => {
+      mockFetch(() => new Promise(() => {}));
+      const { unmount } = render(<LlmGatewayPage />);
+      await screen.findByText("/llm/anthropic/v1/messages");
+
+      fireEvent.change(screen.getByLabelText(/attack library/i), { target: { value: "prompt_injection" } });
+      expect(screen.getByLabelText(/attack library/i)).toHaveValue("prompt_injection");
+      unmount();
+
+      mockFetch(() => new Promise(() => {}));
+      render(<LlmGatewayPage />);
+      await screen.findByText("/llm/anthropic/v1/messages");
+
+      expect(screen.getByLabelText(/attack library/i)).toHaveValue("prompt_injection");
     });
   });
 
