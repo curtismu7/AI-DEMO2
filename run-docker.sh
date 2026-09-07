@@ -1317,7 +1317,13 @@ cmd_demo_sync() {
   # compose default — ensure Jaeger is up.
   # The demo-auth-gated services are always up now (see the sync above), so
   # they are always part of the instrumented set.
-  local otel_services="demo-api-server mcp-server agent-service hitl-service mcp-resource-server authz-server mcp-gateway"
+  local otel_services="demo-api-server mcp-server agent-service hitl-service mcp-resource-server authz-server mcp-gateway mcp-proxy"
+  # mastra-agent lives in the optional "agents" profile group — only fold it
+  # into the toggle when a user has actually started it, so flipping ff_tracing
+  # never force-starts an optional container nobody asked for.
+  if docker compose "${COMPOSE_FILES[@]}" ps --status running --services 2>/dev/null | grep -qx 'mastra-agent'; then
+    otel_services="${otel_services} mastra-agent"
+  fi
   if [[ "${trc}" == "0" ]]; then
     ok "Tracing OFF — stopping Jaeger and recreating instrumented services without OTLP export"
     docker compose "${COMPOSE_FILES[@]}" stop jaeger 2>/dev/null || true
