@@ -879,6 +879,9 @@ services:
       # so external HTTPS (Anthropic/OpenAI/PingOne) keeps verifying. Generate:
       #   cat /etc/ssl/cert.pem "$(mkcert -CAROOT)/rootCA.pem" > certs/ca-bundle-with-mkcert.pem
       SSL_CERT_FILE: "/etc/ssl/certs/ca-bundle-with-mkcert.pem"
+      # OpenTelemetry → local Jaeger. Unset = tracing disabled (no-op in otel-python-entrypoint.sh).
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT-http://jaeger:4317}"
+      OTEL_SERVICE_NAME: "langchain-agent"
     env_file:
       - path: ./langchain_agent/.env
         required: false   # add LLM provider key (ANTHROPIC_API_KEY / OPENAI_API_KEY)
@@ -892,6 +895,7 @@ services:
       - ./.codegraph:/app/live-repo/.codegraph
       # CA bundle for SSL_CERT_FILE above (gitignored; generated on the host).
       - ./certs/ca-bundle-with-mkcert.pem:/etc/ssl/certs/ca-bundle-with-mkcert.pem:ro
+      - ./scripts:/otel:ro  # dir mount: survives git pull replacing the file (a single-file bind mount pins the old inode and crash-loops the entrypoint)
     networks:
       - ai-demo
     depends_on:
