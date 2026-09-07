@@ -596,7 +596,21 @@ async function main() {
     // ALLOW_JWKS_FAILOPEN has no BFF consumer, so it needs no prefix.
     SKIP_TOKEN_SIGNATURE_VALIDATION: fb('MCP_SERVER_SKIP_TOKEN_SIGNATURE_VALIDATION'),
     ALLOW_JWKS_FAILOPEN:             fb('ALLOW_JWKS_FAILOPEN'),
-  });
+  }, [
+    'This is the OAuth MCP (banking/OLB) server.',
+    'GW_INTROSPECTION_CLIENT_ID/SECRET must be the MCP Exchanger app (token',
+    'aud=mcpgateway.ping.demo) — the correct introspector in passthrough mode.',
+    'PINGONE_MCP_EXCHANGER_CLIENT_ID/SECRET is the Step 9 backend-exchange app;',
+    'do not let it fall back to PINGONE_TOKEN_EXCHANGER_CLIENT_ID, which has no',
+    'grant on Demo API (enduser.ping.demo) and silently breaks Step 9.',
+    'ENCRYPTION_KEY is independent of BFF_INTERNAL_SECRET on purpose — set',
+    'MCP_SERVER_ENCRYPTION_KEY in demo_api_server/.env to pin it; rotating it',
+    'orphans any existing *.enc token storage.',
+    'SKIP_TOKEN_SIGNATURE_VALIDATION and ALLOW_JWKS_FAILOPEN are fail-OPEN auth',
+    'switches. Unset resolves to the secure default (checks required); only set',
+    'MCP_SERVER_SKIP_TOKEN_SIGNATURE_VALIDATION / ALLOW_JWKS_FAILOPEN in',
+    'demo_api_server/.env deliberately to opt out.',
+  ]);
   console.log('[refresh-envs] Wrote oauth-mcp/.env');
 
   // ── demo_mcp_gateway/.env ─────────────────────────────────────────────────
@@ -620,7 +634,14 @@ async function main() {
     // BFF_INTERNAL_SECRET (docker-compose mcp-gateway): supplied via env_file,
     // never pinned in compose `environment:`.
     INTENT_TOKEN_SECRET:               fbVault('INTENT_TOKEN_SECRET') || fb('SESSION_SECRET'),
-  });
+  }, [
+    'This is the Node MCP gateway (mcpgateway.ping.demo).',
+    'INTENT_TOKEN_SECRET must resolve the SAME key the BFF signs with',
+    '(services/intentTokenService.js) and ping-gateway/.env verifies with.',
+    'If it is ever missing here, intentTokenValidator.ts throws and every',
+    'gw_audit_trail entry silently reports IntentTokenValid=false —',
+    'the HMAC verifier ships as dead code with no error visible elsewhere.',
+  ]);
   console.log('[refresh-envs] Wrote demo_mcp_gateway/.env');
 
   // ── demo_agent_service/.env ───────────────────────────────────────────────
@@ -663,7 +684,14 @@ async function main() {
     PINGONE_USER_CLIENT_SECRET:            creds.aiAgentSecret,
     AGENT_CLIENT_ID:                       creds.aiAgentClientId,
     AGENT_CLIENT_SECRET:                   creds.aiAgentSecret,
-  });
+  }, [
+    'This is the LangGraph AI agent.',
+    'PINGONE_USER_CLIENT_ID/SECRET and AGENT_CLIENT_ID/SECRET are the SAME',
+    'AI_AGENT_ACTOR credentials, just under the two names langchain_agent',
+    'expects — not two separate PingOne apps.',
+    'ENCRYPTION_MASTER_KEY is independent of BFF_INTERNAL_SECRET on purpose —',
+    'set LANGCHAIN_ENCRYPTION_MASTER_KEY in demo_api_server/.env to pin it.',
+  ]);
   console.log('[refresh-envs] Wrote langchain_agent/.env');
 
   // ── pydantic_agent/.env ───────────────────────────────────────────────────
@@ -744,7 +772,15 @@ async function main() {
     // on lookup failure.
     PINGONE_WORKER_CLIENT_ID:        fb('PINGONE_WORKER_CLIENT_ID'),
     PINGONE_WORKER_CLIENT_SECRET:    fb('PINGONE_WORKER_CLIENT_SECRET'),
-  });
+  }, [
+    'This is the mock PingOne Authorize server.',
+    'PINGONE_WORKER_CLIENT_ID/SECRET back pingOneUserLookup.js\'s Management API',
+    'user-existence check (Rule 0a2, every decision including A2A nested-act',
+    'tool discovery). If unset, the lookup throws "not configured" and the',
+    'mock engine surfaces it as a DENY (user_lookup_failed) — an infra fault',
+    'that looks like a policy denial, and silently kills every A2A specialist',
+    'call (UC2 / UC2.5) since the mock engine denies by default on failure.',
+  ]);
   console.log('[refresh-envs] Wrote demo_authz_server/.env');
 
   // ── ping-gateway/.env ─────────────────────────────────────────────────────
@@ -850,7 +886,26 @@ async function main() {
     // exists for this single-purpose SE-cluster endpoint; fb() lets it be
     // overridden per-deploy.
     OAUTH_MCP_ISSUER_URI:           fb('OAUTH_MCP_ISSUER_URI') || 'https://cmuir-mcp.ping-devops.com',
-  });
+  }, [
+    'This is PingGateway (IG), the MCP token-exchange/authorization gateway.',
+    'PG_GATEWAY_RESOURCE_ID is the SoT deployment aud (scope-topology.json),',
+    'NOT PINGONE_RESOURCE_MCP_GATEWAY_URI — the two are distinct identifiers.',
+    'TE_CLIENT_ID/SECRET (exchange #3) MUST be the MCP Gateway app, not the',
+    'MCP Exchanger — using the exchanger yields the wrong aud / D-05 or',
+    'invalid_scope.',
+    'PG_OLB_SCOPE / PG_INVEST_SCOPE are single-resource scopes only — mixing',
+    '`mcp:invoke` across resources triggers PingOne\'s "May not request scopes',
+    'for multiple resources" (or a 200 with the wrong aud).',
+    'INTENT_TOKEN_SECRET and HITL_INTERNAL_SECRET must be the SAME values the',
+    'BFF and HITL service hold — set them via env_file here, never pin a',
+    'different default in compose `environment:`, or the filters fail closed',
+    '(503) or verify against dead code.',
+    'P1AZ_DECISION_ENDPOINT_ID is the MCP decision endpoint, not a worker —',
+    'the worker is P1AZ_WORKER_CLIENT_ID. P1AZ_WORKER_ID is a deprecated alias',
+    'kept for one release for pre-rename Groovy containers.',
+    'DELEGATION_RESOURCE_AUDIENCE/SCOPE are fixed demo values for the Phase 2',
+    'RFC 8693 delegation route, not a real production audience.',
+  ]);
   console.log('[refresh-envs] Wrote ping-gateway/.env');
 
   // ── demo_api_resource_server/.env ────────────────────────────────────────────
