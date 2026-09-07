@@ -134,6 +134,14 @@ const ALLOWED_ENV_VARS = Object.freeze([
   'INTROSPECT_CLIENT_SECRET',
   'P1AZ_WORKER_CLIENT_SECRET',
   'TE_CLIENT_SECRET',
+  // Added 2026-09-07: demo_mcp_resource_server's /invest and /banking REST
+  // endpoints (backend-app pattern, X-API-Key) had no vault-backed secret at
+  // all — create-secrets.sh minted BFF_INTERNAL_SECRET into
+  // mcp-resource-server-secrets but never sourced this key, so it lived only
+  // as a plaintext demo_mcp_resource_server/.env value and a one-off
+  // `kubectl set env` on the SE deployment (see privilege/AGENTLESS-
+  // CONFIGURATION.md, 2026-09-06 banking-rest entry).
+  'MCP_RESOURCE_SERVER_API_KEY',
   // Deliberately NOT added, same judgment call already made and documented
   // for dotenvx encryption in demo_api_server/scripts/dotenvx-encrypt-envs.js
   // (ADDITIONAL_SECRET_NAMES comment, 2026-08-18): `DOTENV_PUBLIC_KEY` (meant
