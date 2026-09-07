@@ -43,6 +43,7 @@
 | UC42 | [Third-party search server — blocked query denied](./brave-mcp-crypto-deny.md) | controls | ✅ works | 🛡️ T6 |  |
 | UC-TOOL1 | [Protected RAG](./code-search.md) | tools | ✅ works | 🛡️ T2, T6 |  |
 | UC-TOOL2 | [Code Explorer](./code-explorer.md) | tools | ✅ works |  |  |
+| UC-TOOL3 | [LLM Gateway](./llm-gateway.md) | tools | ✅ works |  |  |
 | UC-NHI1 | [Multi-source NHI inventory](./nhi-inventory.md) | nhi | ✅ works |  |  |
 | UC-NHI2 | [Agent lifecycle export (JML)](./nhi-lifecycle-export.md) | nhi | ✅ works |  |  |
 | UC-LEARN1 | [OAuth Academy](./oauth-academy.md) | learn | ✅ works |  |  |
@@ -84,8 +85,8 @@
 
 | Status | Count |
 |---|---|
-| ✅ Works | 49 |
+| ✅ Works | 50 |
 | 🚩 Flag-gated | 10 |
 | 📥 Needs console import | 0 |
 | 🏗️ Needs build | 1 |
-| **Total** | **60** |
+| **Total** | **61** |
