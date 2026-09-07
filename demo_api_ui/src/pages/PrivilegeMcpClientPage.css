@@ -2049,7 +2049,11 @@ select.cur-input { cursor: pointer; }
   padding: 12px 14px;
   border: 1px solid var(--th-border);
   border-radius: 8px;
+  /* Ink WITH the ground (THEMING.md H1): a themed background without a themed
+     colour inherits whatever the ancestor set and goes unreadable in one theme.
+     themingRatchet.test.js counts these, and caught this rule. */
   background: var(--th-bg-inset);
+  color: var(--th-text);
 }
 
 .cur-prompt-mode legend {
