@@ -40,8 +40,20 @@ NS="${K8S_NAMESPACE:-ai-demo}"
 # elevated latency (15-30s round trips on individual calls), killing this
 # script partway through at a different call each retry. `command kubectl`
 # calls the real binary, not this function, avoiding infinite recursion.
+#
+# `apply` additionally gets --validate=false: by default it fetches the full
+# server OpenAPI schema (a large one-time download, cached in ~/.kube/cache/
+# once it succeeds) to validate client-side before sending the actual write.
+# Observed live: one of the ~14 `apply` calls in this script died specifically
+# on that schema fetch ("failed to download openapi"), not on the small
+# secret payload itself. --validate is apply-only — `get`/`patch`/etc. reject
+# it as an unknown flag, so it's conditional on $1, not blanket-added.
 kubectl() {
-  command kubectl --request-timeout=60s "$@"
+  if [ "$1" = "apply" ]; then
+    command kubectl --request-timeout=60s --validate=false "$@"
+  else
+    command kubectl --request-timeout=60s "$@"
+  fi
 }
 
 # ── Restart only what actually changed ──────────────────────────────────────
