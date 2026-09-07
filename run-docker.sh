@@ -514,6 +514,31 @@ _effective_core_services() {
   done
 }
 
+# Clients of the llm-proxy must reach it by SERVICE NAME whenever the container is
+# the one serving :8090 — going out via host.docker.internal leaves the host and
+# re-enters through the published port, so every consumer arrives SNAT'd to one
+# address and shares a single per-IP bucket in the proxy's rate limiter (see
+# REGRESSION_PLAN §4, 2026-09-07).
+#
+# This lived inline in cmd_start, so ONLY a full `start` ever applied it. Every
+# targeted path — `restart <svc>`, `build <svc>`, and deploy-live.sh, which is
+# built on restart — recreated the four consumers with the compose default and
+# silently put them back on the shared host path. Confirmed live 2026-09-07:
+# deploying the fix left all four containers still reading host.docker.internal.
+#
+# Config-derived, not runtime: _effective_core_services drops llm-proxy under
+# LLM_BACKEND=omlx/mlx, where the host owns :8090 and there is no container to
+# name — so the compose default correctly stands there. Must NOT be folded into
+# _effective_core_services itself, which runs in $(...) where an export cannot
+# escape to the parent shell.
+_export_llamacpp_base_url() {
+  local core_up
+  core_up="$(_effective_core_services | tr '\n' ' ')"
+  if [[ " ${core_up} " == *" llm-proxy "* ]]; then
+    export LLAMACPP_BASE_URL="${LLAMACPP_BASE_URL:-http://llm-proxy:8090}"
+  fi
+}
+
 # When docker-compose.override.yml selects the Vite dev stage, ensure the UI image
 # is built with `target: dev` — otherwise a cached nginx prod image gets `npm start`.
 _dev_ui_build_arg() {
@@ -1120,6 +1145,7 @@ cmd_restart_one() {
   _needs_tls_bind_mounts "$@" && { ensure_bind_mounts; echo ""; }
   _includes_bff "$@" && { vault_preflight; dotenvx_preflight; echo ""; }
   _purge_foreign_container_names
+  _export_llamacpp_base_url
   docker compose "${COMPOSE_FILES[@]}" up -d --force-recreate --no-deps "$@"
   ok "Restarted: ${*}."
   if _includes_bff "$@"; then
@@ -1148,6 +1174,7 @@ cmd_build_one() {
   _needs_tls_bind_mounts "${services[@]}" && { ensure_bind_mounts; echo ""; }
   _includes_bff "${services[@]}" && { vault_preflight; dotenvx_preflight; echo ""; }
   _purge_foreign_container_names
+  _export_llamacpp_base_url
   docker compose "${COMPOSE_FILES[@]}" up -d --build${build_opts} --no-deps "${services[@]}"
   ok "Rebuilt and restarted: ${services[@]}."
   echo ""
@@ -1502,19 +1529,7 @@ cmd_start() {
   echo ""
 
   _CORE_UP=($(_effective_core_services))
-  # When the llm-proxy CONTAINER is the one serving :8090, let its clients reach it
-  # by service name. Same process either way — but host.docker.internal leaves the
-  # host and comes back through the published port, so the BFF and all three agent
-  # services arrive SNAT'd to the docker gateway address and land in one shared
-  # per-IP bucket in the proxy's rate limiter, together with anything on the host
-  # that probes :8090 (PingOne Privilege's local AI discovery does, every 30s).
-  # Measured 2026-09-07: host.docker.internal:8090 → 429, llm-proxy:8090 → 200,
-  # same instant, same container. Under host oMLX/mlx there IS no container, so
-  # the compose default (host.docker.internal) stays — do not hoist this into
-  # _effective_core_services, which runs in $(...) where an export cannot escape.
-  if [[ " ${_CORE_UP[*]} " == *" llm-proxy "* ]]; then
-    export LLAMACPP_BASE_URL="${LLAMACPP_BASE_URL:-http://llm-proxy:8090}"
-  fi
+  _export_llamacpp_base_url
   # shellcheck disable=SC2206
   _DEFAULT_PROFILES=($(_optional_profile_args "${DEFAULT_OPTIONAL_GROUPS[@]}"))
   # shellcheck disable=SC2206
