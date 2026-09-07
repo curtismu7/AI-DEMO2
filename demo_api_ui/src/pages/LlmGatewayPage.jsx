@@ -65,6 +65,27 @@ function classify(err) {
   return { verdict: `HTTP ${err.status || '?'}`, tone: 'bad', layer: 'unknown' };
 }
 
+// The one question this page is asked out loud every time it is driven: "how do I
+// know if Privilege stopped it or the model did?" The dl below carries the evidence
+// (refused-by, reached-the-model, latency) but reads as one field among eight, so
+// the answer gets its own headline above the fold. `provider` names the model so a
+// refusal reads "Anthropic stopped this", not the abstract "provider".
+function attribution(decision, isLocal) {
+  const model = TITLES[decision.provider] || decision.provider;
+  if (decision.tone === 'ok') {
+    return isLocal
+      ? { who: `${model} answered`, note: 'No policy layer on this lane — the model decided on its own.' }
+      : { who: `${model} answered`, note: 'Privilege passed the prompt through. A refusal in the text above is the model\u2019s own.' };
+  }
+  if (decision.layer === 'Privilege') {
+    return { who: '\ud83d\udd10 Privilege stopped this', note: 'The prompt never reached the model. Nothing was sent, nothing was billed.' };
+  }
+  if (decision.layer === 'provider') {
+    return { who: `${model} stopped this`, note: 'Privilege passed the prompt through — the refusal came from the provider.' };
+  }
+  return { who: `Stopped by ${decision.layer}`, note: 'The call never reached Privilege or the model.' };
+}
+
 function Meter({ label, remaining, limit, reset }) {
   if (remaining === null || remaining === undefined || !limit) return null;
   const used = Math.max(0, limit - remaining);
@@ -357,6 +378,12 @@ export default function LlmGatewayPage() {
               </div>
             ) : null}
           </div>
+          {decision ? (
+            <div className={`lgw-who is-${decision.tone}`} data-testid="lgw-who">
+              <p className="lgw-who__who">{attribution(decision, active?.isLocal).who}</p>
+              <p className="lgw-who__note">{attribution(decision, active?.isLocal).note}</p>
+            </div>
+          ) : null}
           {!decision ? (
             <p className="lgw-rail__note">Send a prompt and the gateway&rsquo;s verdict lands here.</p>
           ) : decisionView === 'json' ? (
@@ -369,9 +396,9 @@ export default function LlmGatewayPage() {
                 <dt>Verdict</dt>
                 <dd><span className={`lgw-pill is-${decision.tone}`}>{decision.verdict}</span></dd>
               </div>
-              {/* Only a refusal has a refuser. Rendering this row on a success read
-                  "Refused by provider" under a verdict of "Answered" — caught driving
-                  the live page, where it is the first thing the eye lands on. */}
+              {/* Only a refusal has a refuser, and the headline banner above already
+                  names it — this row stays as the machine-readable restatement, so
+                  it must never appear under a verdict of "Answered". */}
               {decision.tone === 'ok' ? null : (
                 <div><dt>Refused by</dt><dd>{decision.layer}</dd></div>
               )}
