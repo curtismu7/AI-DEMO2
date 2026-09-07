@@ -26,6 +26,7 @@ const axios = require('axios');
 const router = express.Router();
 const configStore = require('../services/configStore');
 const mcpProfileStore = require('../services/mcpProfileStore');
+const { requireSession } = require('../middleware/auth');
 const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 
 const CALLBACK_PATH = '/api/mcp/inspector/privilege/callback';
@@ -110,33 +111,13 @@ async function ensureClient(req, profileId) {
   return client;
 }
 
-// Session-cookie admin gate — this router is mounted under /api/mcp/inspector
-// WITHOUT authenticateToken (see mcpInspector.js), so middleware/auth.requireAdmin
-// (which reads req.user) would 401 every browser redirect that arrives with
-// only a session cookie. Same fix REGRESSION_PLAN.md's 2026-07-26 entry
-// applied to mcpPingOneAdminAuth.js — check session.user.role directly.
-function requireAdminSession(req, res, next) {
-  if (!req.session?.user) {
-    return res.status(401).json({
-      error: 'unauthenticated',
-      message: 'A valid session is required. Please sign in.',
-    });
-  }
-  if (req.session.user.role !== 'admin') {
-    return res.status(403).json({
-      error: 'admin_required',
-      message: 'Admin session required for Privilege MCP admin login.',
-    });
-  }
-  return next();
-}
-
-// GET /api/mcp/inspector/privilege/login?profile=<id> — admin only (this
-// mints a token carrying the signed-in user's own PingOne identity; only
-// meaningful for our own demo admin, same guard as the PingOne MCP admin
-// login). `profile` must name one of the seeded transport:'privilege'
-// profiles (mcpProfileStore.js) — there is no login without a door.
-router.get('/login', requireAdminSession, async (req, res) => {
+// GET /api/mcp/inspector/privilege/login?profile=<id> — any signed-in session
+// (user or admin), not admin-only, not anonymous — see requireSession
+// (middleware/auth.js, session-cookie based since this router is mounted
+// without authenticateToken; see mcpInspector.js's own use of it). `profile`
+// must name one of the seeded transport:'privilege' profiles
+// (mcpProfileStore.js) — there is no login without a door.
+router.get('/login', requireSession, async (req, res) => {
   const profileId = typeof req.query.profile === 'string' ? req.query.profile.trim() : '';
   if (!profileId) {
     return res.status(400).json({

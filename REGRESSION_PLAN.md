@@ -140,6 +140,42 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-07 — Generic MCP Inspector's admin-only gate deliberately relaxed to any signed-in session
+
+**This is not a bug fix — it reverses part of the 2026-07-26 entry further down
+this log ("Generic MCP Inspector profiles were reachable by any signed-in
+customer (stdio = RCE on the BFF host)") on explicit instruction.** Recorded
+here so that entry's own "Do not break" line is not read as still current.
+
+**Files changed:** `demo_api_server/routes/mcpInspector.js`,
+`demo_api_server/routes/mcpPrivilegeAuth.js`,
+`demo_api_server/src/__tests__/mcpInspectorProfiles.test.js`,
+`demo_api_server/src/__tests__/mcpPrivilegeAuth.test.js`.
+
+**What changed:** `requireAdminSession` (both the local copy in
+`mcpInspector.js` and `mcpPrivilegeAuth.js`'s own copy) is gone. `POST
+/profiles`, `DELETE /profiles/:id`, non-default profile dispatch (`GET
+/tools?profile=`, `POST /invoke`), and `GET /privilege/login` now use the
+shared `requireSession` (`middleware/auth.js` — session-cookie based, checks
+only `req.session.user` exists) instead: **any signed-in session, not
+admin-only, but never fully anonymous.** I raised the RCE (stdio spawns a
+command on the BFF host)/SSRF (http/websocket URL is arbitrary) risk this gate
+existed for before making the change; the explicit instruction, after that,
+was "everything, no admin gate at all," walked back one message later to
+"either user token or admin token but not public" — this entry reflects that
+final instruction, not the fully-public intermediate one.
+
+**Do not break:** do not silently re-tighten this back to admin-only, and do
+not read the 2026-07-26 entry's "Do not break" line as still binding — this
+entry supersedes it. Do not remove `requireSession` entirely either
+(unauthenticated/anonymous access was explicitly rejected). If the RCE/SSRF
+risk this trades away ever becomes a real concern (this app also ships
+intentionally-insecure attack-surface demos elsewhere, so that risk was
+accepted knowingly), the fix is putting `requireAdminSession` back, not
+inventing a third gate.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest src/__tests__/mcpPrivilegeAuth.test.js src/__tests__/mcpInspectorProfiles.test.js src/__tests__/mcpProfileStore.test.js tests/mcpInspectorGateway.test.js tests/mcpInspectorRpc.test.js --forceExit` — 78 passed, including a signed-in-customer (role: 'user') success case replacing the old 403 case on both routes; `cd demo_api_ui && npm run build` exit 0 (a tooltip-only UI change rode along in the same commit, unrelated to this gate).
+
 ### 2026-09-07 — Privilege admin login itself was still pointed at the torn-down gateway, and one shared login could never work for 4 doors
 
 **Files changed:** `demo_api_server/routes/mcpPrivilegeAuth.js`, `demo_api_server/routes/mcpInspector.js`,

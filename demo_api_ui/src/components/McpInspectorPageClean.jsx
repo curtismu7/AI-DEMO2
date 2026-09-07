@@ -23,15 +23,33 @@ const NEW_PROFILE_DEFAULTS = {
 };
 
 const SOURCES = [
-  { key: 'banking', label: 'AI Demo MCP' },
-  { key: 'pingone', label: 'PingOne MCP' },
-  { key: 'api', label: 'API Calls' },
-  { key: 'custom', label: 'Custom Server' },
-  { key: 'protocol', label: 'Protocol' },
+  {
+    key: 'banking', label: 'AI Demo MCP',
+    description: "This app's own banking MCP server — the tools the AI agent actually calls.",
+  },
+  {
+    key: 'pingone', label: 'PingOne MCP',
+    description: 'The hosted PingOne MCP server, reached with your PingOne admin sign-in.',
+  },
+  {
+    key: 'api', label: 'API Calls',
+    description: 'A live log of API calls already captured elsewhere in the app — a read-only history, nothing to execute here.',
+  },
+  {
+    key: 'custom', label: 'Custom Server',
+    description: 'Point this at any saved MCP server profile — the built-in Privilege gateway doors, or one you add yourself.',
+  },
+  {
+    key: 'protocol', label: 'Protocol',
+    description: 'Test raw MCP protocol methods that are not tools/call — resources, prompts, completion, and log level.',
+  },
   // One tab for BOTH gateway-fronted third-party servers. They are the same
   // story told twice — PingGateway scoping a server it does not own — and
   // Brave exposes a single tool, which is a thin thing to give a tab of its own.
-  { key: 'gateway', label: 'Gateway Showcase' },
+  {
+    key: 'gateway', label: 'Gateway Showcase',
+    description: 'Third-party MCP servers (Weather, Brave) reached through PingGateway, which scopes access to them at the edge.',
+  },
 ];
 
 const OUTPUT_TABS = [
@@ -182,6 +200,7 @@ function McpInspectorPageClean() {
               key={s.key}
               className={`inspector-clean-tab ${activeSource === s.key ? 'active' : ''}`}
               onClick={() => handleSourceChange(s.key)}
+              title={s.description}
             >
               {s.label}
             </button>
