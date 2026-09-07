@@ -140,6 +140,57 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-07 — Privilege admin login itself was still pointed at the torn-down gateway, and one shared login could never work for 4 doors
+
+**Files changed:** `demo_api_server/routes/mcpPrivilegeAuth.js`, `demo_api_server/routes/mcpInspector.js`,
+`demo_api_server/src/__tests__/mcpPrivilegeAuth.test.js`, `demo_api_server/src/__tests__/mcpInspectorProfiles.test.js`.
+
+**What was broken:** the entry right below this one fixed where a `transport:
+'privilege'` profile's tools/list *dispatch* goes once you have a bearer, but
+the login that gets that bearer in the first place was still broken — found
+by actually clicking "Sign in as Privilege admin" live, not by re-reading the
+already-fixed file. `mcpPrivilegeAuth.js`'s `GATEWAY_ISSUER` was hardcoded to
+`https://cmuir-agentless-mcpgw.ping-devops.com/external`, the same torn-down
+host, so `/login` failed with `getaddrinfo ENOTFOUND cmuir-agentless-mcpgw.ping-devops.com`.
+
+Pointing that one constant at the new gateway would not have been enough.
+Confirmed live: each door's `/.well-known/oauth-authorization-server` returns
+its OWN `issuer`/`authorization_endpoint`/`token_endpoint`/`registration_endpoint`
+(`.../mcp-grafana` vs `.../opensearch22`, etc.) — the old per-owner gateway had
+one shared `/external` issuer good for every app; the current single gateway
+does not. A token minted for one door is not expected to authenticate another.
+The four built-in `transport: 'privilege'` profiles sharing one
+`session.privilegeMcpToken` was therefore an architecture that could never
+have worked against the current gateway, regardless of which host it pointed at.
+
+**What was fixed:** `mcpPrivilegeAuth.js` now discovers and DCR-registers a
+client **per profileId** (`_clientCache` is a `Map`, not a single cached
+object), deriving each door's own issuer from its profile's own `url`
+(`<gateway>/<door>/mcp` → `<gateway>/<door>`) via `mcpProfileStore.getProfile()`
+— no `GATEWAY_ISSUER` constant survives. `/login` now requires `?profile=<id>`;
+the OAuth `state` payload (`session.privilegeMcpOAuth`) carries `profileId`
+through to `/callback`, which stores the resulting token under
+`session.privilegeMcpTokens[profileId]` instead of one shared
+`session.privilegeMcpToken`. `mcpInspector.js`'s `privilegeAdminBearer(req,
+profileId)` reads that keyed map, and both `privilege_login_required`
+responses (`GET /tools`, `POST /invoke`) now hand back a
+`loginUrl` scoped to the door that actually needs it
+(`/api/mcp/inspector/privilege/login?profile=<id>`) instead of one generic link.
+
+**Do not break:**
+
+- Never reintroduce a single shared `session.privilegeMcpToken` or a single
+  `GATEWAY_ISSUER` constant for all doors — confirmed live that each door is
+  its own OAuth authorization server; a shared login cannot serve them all.
+- `/login` without `?profile=` must stay a 400 (`profile_required`), not a
+  silent default — there is no "the" Privilege door anymore, only specific ones.
+- `requireAdminSession`'s admin-only gate on `/login` is unchanged; it runs
+  before the `?profile=` check, so the 401/403 paths need no profile param.
+- The OAuth PKCE mechanics (state, S256 code challenge, `session.save()`
+  before redirecting) are unchanged — only what gets cached/keyed by is new.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest src/__tests__/mcpPrivilegeAuth.test.js src/__tests__/mcpInspectorProfiles.test.js src/__tests__/mcpProfileStore.test.js tests/mcpInspectorGateway.test.js tests/mcpInspectorRpc.test.js --forceExit` — 78 passed, including a new cross-door isolation test (a token held for one door does not unlock a different door) and a per-door DCR discovery/cache test. Live: confirmed via browser that `/login` previously threw `ENOTFOUND` on the old host; confirmed via curl that `mcp-grafana` and `opensearch22` each serve distinct OAuth authorization-server metadata at their own `/.well-known/oauth-authorization-server`.
+
 ### 2026-09-07 — Built-in "Privilege MCP (admin)" Inspector profile pointed at a torn-down gateway host
 
 **Files changed:** `demo_api_server/services/mcpProfileStore.js`,

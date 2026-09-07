@@ -246,9 +246,15 @@ function requirePingoneAdminLogin() {
   return err;
 }
 
-/** Session bearer for the built-in Privilege profile — null when not signed in or expired. */
-function privilegeAdminBearer(req) {
-  const tok = req.session?.privilegeMcpToken;
+/**
+ * Session bearer for one Privilege door — null when not signed in or expired.
+ * Keyed per profileId, not shared: each door on the gateway is its own OAuth
+ * authorization server (own issuer/authorize/token/register endpoints — see
+ * mcpPrivilegeAuth.js), so a token from one door is not expected to validate
+ * against another.
+ */
+function privilegeAdminBearer(req, profileId) {
+  const tok = req.session?.privilegeMcpTokens?.[profileId];
   if (!tok || !tok.accessToken || !(tok.expiresAt > Date.now())) return null;
   return tok.accessToken;
 }
@@ -294,7 +300,7 @@ async function listToolsForProfile(profile, req) {
     return { tools };
   }
   if (profile.transport === 'privilege') {
-    const bearer = privilegeAdminBearer(req);
+    const bearer = privilegeAdminBearer(req, profile.id);
     if (!bearer) throw requirePrivilegeLogin();
     const { tools } = await mcpHttpTransport.listTools(privilegeVirtualProfile(bearer, profile.url));
     return { tools };
@@ -323,7 +329,7 @@ async function callToolForProfile(profile, tool, params, req) {
     return { result };
   }
   if (profile.transport === 'privilege') {
-    const bearer = privilegeAdminBearer(req);
+    const bearer = privilegeAdminBearer(req, profile.id);
     if (!bearer) throw requirePrivilegeLogin();
     const result = await mcpHttpTransport.callTool(privilegeVirtualProfile(bearer, profile.url), tool, params);
     return { result };
@@ -362,7 +368,9 @@ async function handleProfileTools(req, res, profileId) {
       return res.json({
         tools: [],
         privilege_login_required: true,
-        loginUrl: '/api/mcp/inspector/privilege/login',
+        // Each door is its own OAuth authorization server (mcpPrivilegeAuth.js),
+        // so signing in must target THIS profile's door, not a shared login.
+        loginUrl: `/api/mcp/inspector/privilege/login?profile=${encodeURIComponent(profile.id)}`,
         _source: 'privilege_login_required',
         _profileId: profile.id,
         _profileLabel: profile.label,
@@ -412,7 +420,7 @@ async function handleProfileInvoke(req, res, profileId, tool, params) {
       return res.status(401).json({
         error: 'privilege_login_required',
         message: err.message,
-        loginUrl: '/api/mcp/inspector/privilege/login',
+        loginUrl: `/api/mcp/inspector/privilege/login?profile=${encodeURIComponent(profile.id)}`,
         _profileId: profile.id,
       });
     }
