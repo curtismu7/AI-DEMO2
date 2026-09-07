@@ -28,6 +28,7 @@ router.post('/exchange', (req, res) => {
   if (!apiKey) {
     logger.warn('[apiKeyExchange] Missing X-API-Key header', { ip: req.ip });
     return res.status(400).json({
+      error: 'X-API-Key header is required',
       code: 'missing_apikey',
       message: 'X-API-Key header is required',
     });
@@ -42,6 +43,7 @@ router.post('/exchange', (req, res) => {
         keyPrefix: apiKey.substring(0, 5),
       });
       return res.status(result.statusCode || 403).json({
+        error: result.message,
         code: result.error,
         message: result.message,
       });
@@ -61,6 +63,7 @@ router.post('/exchange', (req, res) => {
   } catch (err) {
     logger.error('[apiKeyExchange] Unexpected error', { err: err.message });
     return res.status(500).json({
+      error: 'Failed to generate bearer token',
       code: 'internal_error',
       message: 'Failed to generate bearer token',
     });

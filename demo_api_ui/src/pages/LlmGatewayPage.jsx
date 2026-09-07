@@ -65,6 +65,35 @@ function classify(err) {
   return { verdict: `HTTP ${err.status || '?'}`, tone: 'bad', layer: 'unknown' };
 }
 
+// The one question this page is asked out loud every time it is driven: "how do I
+// know if Privilege stopped it or the model did?" The dl below carries the evidence
+// (refused-by, reached-the-model, latency) but reads as one field among eight, so
+// the answer gets its own headline above the fold. `provider` names the model so a
+// refusal reads "Anthropic stopped this", not the abstract "provider".
+function attribution(decision, isLocal) {
+  const model = TITLES[decision.provider] || decision.provider;
+  if (decision.tone === 'ok') {
+    return isLocal
+      ? { who: `${model} answered`, note: 'No policy layer on this lane — the model decided on its own.' }
+      : { who: `${model} answered`, note: 'Privilege passed the prompt through. A refusal in the text above is the model\u2019s own.' };
+  }
+  if (decision.layer === 'Privilege') {
+    return { who: '\ud83d\udd10 Privilege stopped this', note: 'The prompt never reached the model. Nothing was sent, nothing was billed.' };
+  }
+  if (decision.layer === 'provider') {
+    return { who: `${model} stopped this`, note: 'Privilege passed the prompt through — the refusal came from the provider.' };
+  }
+  return { who: `Stopped by ${decision.layer}`, note: 'The call never reached Privilege or the model.' };
+}
+
+// A <select> fires no onChange when you pick the option already selected, so any
+// state where the dropdown names an attack the prompt box does not hold is a dead
+// end: the fix has to keep the two in step, not re-fill on re-pick. Everywhere the
+// box is emptied, the selection is cleared with it.
+function payloadFor(id) {
+  return (GUARDRAIL_ATTACKS.find((a) => a.id === id) || {}).payload || '';
+}
+
 function Meter({ label, remaining, limit, reset }) {
   if (remaining === null || remaining === undefined || !limit) return null;
   const used = Math.max(0, limit - remaining);
@@ -101,12 +130,16 @@ export default function LlmGatewayPage() {
   const [lanes, setLanes] = useState([]);
   const [selected, setSelected] = useState('openai');
   const [loadError, setLoadError] = useState('');
-  const [prompt, setPrompt] = useState('');
+  // The dropdown's choice persists across reloads; the prompt box must be seeded
+  // from the same key or the two load out of sync — select reads "Prompt Injection",
+  // box is empty, and re-picking that option fires no change event.
+  const [prompt, setPrompt] = useState(() => payloadFor(window.localStorage.getItem('lgw-attack-choice')));
   const [busy, setBusy] = useState(false);
   const [turns, setTurns] = useState([]);
   const [decision, setDecision] = useState(null);
   const [decisionView, setDecisionView] = useState('form');
   const [limitsByLane, setLimitsByLane] = useState({});
+  const [selectedAttack, setSelectedAttack] = useState(() => window.localStorage.getItem('lgw-attack-choice') || '');
 
   useEffect(() => {
     let cancelled = false;
@@ -140,6 +173,8 @@ export default function LlmGatewayPage() {
     setDecision(null);
     setLimitsByLane({});
     setPrompt('');
+    setSelectedAttack('');
+    window.localStorage.removeItem('lgw-attack-choice');
   }, []);
 
   const send = useCallback(async () => {
@@ -148,6 +183,7 @@ export default function LlmGatewayPage() {
     setBusy(true);
     setTurns((t) => [...t, { role: 'you', text }]);
     setPrompt('');
+    setSelectedAttack('');
     try {
       const data = await api('/llm/call', { method: 'POST', body: { provider: selected, prompt: text } });
       setTurns((t) => [...t, { role: 'model', text: data.reply, tone: 'ok', provider: selected }]);
@@ -283,16 +319,23 @@ export default function LlmGatewayPage() {
                 <div className={`lgw-turn__body${t.tone && t.tone !== 'ok' ? ` is-${t.tone}` : ''}`}>{t.text}</div>
               </div>
             ))}
-            {busy ? <p className="lgw-empty">Sending through {TITLES[selected] || selected}&hellip;</p> : null}
+            {busy ? (
+              <p className="lgw-empty lgw-busy">
+                <span className="lgw-spinner" aria-hidden="true" />
+                Sending through {TITLES[selected] || selected}&hellip;
+              </p>
+            ) : null}
           </div>
           <div className="lgw-attacks">
             <label htmlFor="lgw-attack">🛡 Attack library</label>
             <select
               id="lgw-attack"
-              value=""
+              value={selectedAttack}
               onChange={(e) => {
-                const atk = GUARDRAIL_ATTACKS.find((a) => a.id === e.target.value);
-                if (atk) setPrompt(atk.payload);
+                const id = e.target.value;
+                setSelectedAttack(id);
+                window.localStorage.setItem('lgw-attack-choice', id);
+                if (id) setPrompt(payloadFor(id));
               }}
             >
               <option value="">Pick an attack to test the gateway policy…</option>
@@ -348,6 +391,12 @@ export default function LlmGatewayPage() {
               </div>
             ) : null}
           </div>
+          {decision ? (
+            <div className={`lgw-who is-${decision.tone}`} data-testid="lgw-who">
+              <p className="lgw-who__who">{attribution(decision, active?.isLocal).who}</p>
+              <p className="lgw-who__note">{attribution(decision, active?.isLocal).note}</p>
+            </div>
+          ) : null}
           {!decision ? (
             <p className="lgw-rail__note">Send a prompt and the gateway&rsquo;s verdict lands here.</p>
           ) : decisionView === 'json' ? (
@@ -360,12 +409,33 @@ export default function LlmGatewayPage() {
                 <dt>Verdict</dt>
                 <dd><span className={`lgw-pill is-${decision.tone}`}>{decision.verdict}</span></dd>
               </div>
-              {/* Only a refusal has a refuser. Rendering this row on a success read
-                  "Refused by provider" under a verdict of "Answered" — caught driving
-                  the live page, where it is the first thing the eye lands on. */}
+              {/* Only a refusal has a refuser, and the headline banner above already
+                  names it — this row stays as the machine-readable restatement, so
+                  it must never appear under a verdict of "Answered". */}
               {decision.tone === 'ok' ? null : (
                 <div><dt>Refused by</dt><dd>{decision.layer}</dd></div>
               )}
+              {/* The pair "which lanes are governed" answers in the abstract; this
+                  answers it for the call that just happened. Local lanes never had
+                  a Privilege chip to begin with — the chain just skips it. */}
+              {decision.tone === 'ok' ? (
+                <div>
+                  <dt>Path</dt>
+                  <dd>
+                    <div className="lgw-path">
+                      <span className="lgw-path__chip">You</span>
+                      <span className="lgw-path__arrow">&rarr;</span>
+                      {(lanes.find((l) => l.provider === decision.provider) || {}).isLocal ? null : (
+                        <>
+                          <span className="lgw-path__chip lgw-path__chip--gateway">🔐 Privilege</span>
+                          <span className="lgw-path__arrow">&rarr;</span>
+                        </>
+                      )}
+                      <span className="lgw-path__chip lgw-path__chip--reached">{TITLES[decision.provider] || decision.provider} &#10003;</span>
+                    </div>
+                  </dd>
+                </div>
+              ) : null}
               <div><dt>Lane</dt><dd>{decision.provider}</dd></div>
               <div><dt>Route</dt><dd>{decision.route}</dd></div>
               <div>

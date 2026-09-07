@@ -4,24 +4,24 @@
 /* eslint-disable import/first -- jest.mock must run before axios import */
 
 vi.mock('axios', () => {
-  const sharedGet = jest.fn();
-  const sharedPost = jest.fn();
+  const sharedGet = vi.fn();
+  const sharedPost = vi.fn();
   const mockClient = {
     get: sharedGet,
     post: sharedPost,
-    put: jest.fn(),
-    delete: jest.fn(),
-    patch: jest.fn(),
+    put: vi.fn(),
+    delete: vi.fn(),
+    patch: vi.fn(),
     interceptors: {
-      request: { use: jest.fn(), eject: jest.fn() },
-      response: { use: jest.fn(), eject: jest.fn() },
+      request: { use: vi.fn(), eject: vi.fn() },
+      response: { use: vi.fn(), eject: vi.fn() },
     },
     defaults: { headers: { common: {} } },
   };
   return {
     __esModule: true,
     default: {
-      create: jest.fn(() => mockClient),
+      create: vi.fn(() => mockClient),
       get: sharedGet,
       post: sharedPost,
       defaults: { headers: { common: {} } },
@@ -36,7 +36,7 @@ const mockClient = axios.create.mock.results[0].value;
 const sharedGet = mockClient.get;
 const sharedPost = mockClient.post;
 
-/** Captured at module load so assertions survive jest.restoreAllMocks() between tests */
+/** Captured at module load so assertions survive vi.restoreAllMocks() between tests */
 const axiosCreateOptions = axios.create.mock.calls[0][0];
 
 // Index 0 = spinner interceptor, index 1 = traffic-stamp, index 2 = auth token
@@ -56,7 +56,7 @@ describe('apiClient session OAuth', () => {
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   // getTokenFromSession is a BFF-pattern holdover: the server holds the access
@@ -75,7 +75,7 @@ describe('apiClient session OAuth', () => {
       data: { authenticated: true, accessToken: 'tok', tokenType: 'Bearer' },
     });
 
-    jest.spyOn(apiClient, 'getValidToken').mockResolvedValue('tok');
+    vi.spyOn(apiClient, 'getValidToken').mockResolvedValue('tok');
 
     const out = await requestInterceptorFn({ headers: {} });
     expect(out.headers.Authorization).toBe('Bearer tok');
@@ -83,7 +83,7 @@ describe('apiClient session OAuth', () => {
 
   it('request interceptor omits Authorization when getValidToken is null (Backend-for-Frontend (BFF) session cookie)', async () => {
     expect(requestInterceptorFn).toEqual(expect.any(Function));
-    jest.spyOn(apiClient, 'getValidToken').mockResolvedValue(null);
+    vi.spyOn(apiClient, 'getValidToken').mockResolvedValue(null);
     const out = await requestInterceptorFn({ headers: {} });
     expect(out.headers.Authorization).toBeUndefined();
   });
@@ -103,9 +103,9 @@ describe('apiClient session OAuth', () => {
 
   it('401 response rejects with original error when refresh fails; does not call handleAuthFailure', async () => {
     expect(responseInterceptorFn).toEqual(expect.any(Function));
-    const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    const handleSpy = jest.spyOn(apiClient, 'handleAuthFailure').mockImplementation(() => {});
-    jest.spyOn(apiClient, 'refreshToken').mockRejectedValue({ response: { status: 501 } });
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const handleSpy = vi.spyOn(apiClient, 'handleAuthFailure').mockImplementation(() => {});
+    vi.spyOn(apiClient, 'refreshToken').mockRejectedValue({ response: { status: 501 } });
 
     const originalErr = {
       response: { status: 401, data: { error: 'expired_token' } },
@@ -120,9 +120,9 @@ describe('apiClient session OAuth', () => {
   });
 
   it('401 response rejects with original error when refresh returns 401', async () => {
-    const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    const handleSpy = jest.spyOn(apiClient, 'handleAuthFailure').mockImplementation(() => {});
-    jest.spyOn(apiClient, 'refreshToken').mockRejectedValue({ response: { status: 401 } });
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const handleSpy = vi.spyOn(apiClient, 'handleAuthFailure').mockImplementation(() => {});
+    vi.spyOn(apiClient, 'refreshToken').mockRejectedValue({ response: { status: 401 } });
 
     const originalErr = {
       response: { status: 401 },

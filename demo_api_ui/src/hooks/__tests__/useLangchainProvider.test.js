@@ -3,7 +3,7 @@ import { renderHook, act, waitFor } from "@testing-library/react";
 import useLangchainProvider from "../useLangchainProvider";
 
 beforeEach(() => {
-  global.fetch = jest.fn((url) => {
+  global.fetch = vi.fn((url) => {
     if (String(url).includes("/status")) {
       return Promise.resolve({
         ok: true,
@@ -44,7 +44,7 @@ test("hydrates mode + wiring; setMode posts and updates", async () => {
 });
 
 test('non-external mode hydrates externalWiring as null (honest, not "bff")', async () => {
-  global.fetch = jest.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({
+  global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({
     provider: 'helix', agent_mode: 'heuristics', external_wiring: null,
     agent_modes: [], key_set: { helix: true }, default_models: {},
   }) }));
@@ -55,7 +55,7 @@ test('non-external mode hydrates externalWiring as null (honest, not "bff")', as
 });
 
 test('setExternalWiring delegates to setMode with current mode', async () => {
-  global.fetch = jest.fn((url, opts) => {
+  global.fetch = vi.fn((url, opts) => {
     if (String(url).includes('/status')) {
       return Promise.resolve({ ok: true, json: () => Promise.resolve({
         provider: 'openai', agent_mode: 'chatgpt', external_wiring: 'bff',

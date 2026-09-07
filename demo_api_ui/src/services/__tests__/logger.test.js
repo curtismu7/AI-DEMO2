@@ -5,14 +5,14 @@ describe('createLogger', () => {
 
   beforeEach(() => {
     spy = {
-      log: jest.spyOn(console, 'log').mockImplementation(() => {}),
-      info: jest.spyOn(console, 'info').mockImplementation(() => {}),
-      warn: jest.spyOn(console, 'warn').mockImplementation(() => {}),
-      error: jest.spyOn(console, 'error').mockImplementation(() => {}),
+      log: vi.spyOn(console, 'log').mockImplementation(() => {}),
+      info: vi.spyOn(console, 'info').mockImplementation(() => {}),
+      warn: vi.spyOn(console, 'warn').mockImplementation(() => {}),
+      error: vi.spyOn(console, 'error').mockImplementation(() => {}),
     };
   });
 
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
 
   it('prefixes output with [name]', () => {
     const log = createLogger('myService');

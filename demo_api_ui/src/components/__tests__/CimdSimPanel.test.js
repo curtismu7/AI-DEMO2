@@ -44,7 +44,7 @@ function clickTab(name) {
 // ── FAB button ────────────────────────────────────────────────────────────────
 
 describe('CimdSimPanel — FAB button', () => {
-  afterEach(() => jest.clearAllMocks());
+  afterEach(() => vi.clearAllMocks());
 
   it('does not render a FAB button (FAB removed in favour of CustomEvent)', () => {
     render(<CimdSimPanel />);
@@ -98,7 +98,7 @@ describe('CimdSimPanel — FAB button', () => {
 
 describe('CimdSimPanel — tab navigation', () => {
   beforeEach(() => { render(<CimdSimPanel />); openPanel(); });
-  afterEach(() => jest.clearAllMocks());
+  afterEach(() => vi.clearAllMocks());
 
   it('defaults to the "What is CIMD" tab', () => {
     expect(screen.getByRole('tab', { name: 'What is CIMD' })).toHaveClass('cimd-tab--active');
@@ -149,7 +149,7 @@ describe('CimdSimPanel — tab navigation', () => {
 // ── education-open-cimd event ─────────────────────────────────────────────────
 
 describe('CimdSimPanel — education-open-cimd event', () => {
-  afterEach(() => jest.clearAllMocks());
+  afterEach(() => vi.clearAllMocks());
 
   it('opens the drawer when the event is dispatched', () => {
     render(<CimdSimPanel />);
@@ -178,7 +178,7 @@ describe('CimdSimPanel — education-open-cimd event', () => {
 
   it('removes the event listener on unmount', () => {
     const { unmount } = render(<CimdSimPanel />);
-    const spy = jest.spyOn(window, 'removeEventListener');
+    const spy = vi.spyOn(window, 'removeEventListener');
     unmount();
     expect(spy).toHaveBeenCalledWith('education-open-cimd', expect.any(Function));
   });
@@ -188,7 +188,7 @@ describe('CimdSimPanel — education-open-cimd event', () => {
 
 describe('CimdSimPanel — Simulate tab state machine', () => {
   beforeEach(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     axios.get.mockRejectedValue(new Error('network'));
     render(<CimdSimPanel />);
     openPanel();
@@ -196,9 +196,9 @@ describe('CimdSimPanel — Simulate tab state machine', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
-    jest.clearAllTimers();
-    jest.useRealTimers();
+    vi.clearAllMocks();
+    vi.clearAllTimers();
+    vi.useRealTimers();
   });
 
   it('shows idle state initially — Run Simulation button visible, no progress bar', () => {
@@ -262,7 +262,7 @@ describe('CimdSimPanel — Simulate tab state machine', () => {
     const fetchBtn = screen.getByRole('button', { name: /fetch document/i });
     await act(async () => {
       fireEvent.click(fetchBtn);
-      jest.runAllTimers(); // advance the 900ms spinner
+      vi.runAllTimers(); // advance the 900ms spinner
     });
 
     // Step 3: Metadata Document Received
@@ -278,7 +278,7 @@ describe('CimdSimPanel — Simulate tab state machine', () => {
     // Step 2 → 3 (fetch)
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /fetch document/i }));
-      jest.runAllTimers();
+      vi.runAllTimers();
     });
     // Steps 3 → 4 → 5 (final)
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: /next/i })); });
@@ -293,7 +293,7 @@ describe('CimdSimPanel — Simulate tab state machine', () => {
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: /next/i })); });
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /fetch document/i }));
-      jest.runAllTimers();
+      vi.runAllTimers();
     });
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: /next/i })); });
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: /next/i })); });
@@ -319,16 +319,16 @@ describe('CimdSimPanel — real document pre-fetch', () => {
   };
 
   beforeEach(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     render(<CimdSimPanel />);
     openPanel();
     clickTab('Simulate');
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
-    jest.clearAllTimers();
-    jest.useRealTimers();
+    vi.clearAllMocks();
+    vi.clearAllTimers();
+    vi.useRealTimers();
   });
 
   it('does NOT call axios when ID field is empty', async () => {
@@ -370,7 +370,7 @@ describe('CimdSimPanel — real document pre-fetch', () => {
 // ── Accessibility ─────────────────────────────────────────────────────────────
 
 describe('CimdSimPanel — accessibility', () => {
-  afterEach(() => jest.clearAllMocks());
+  afterEach(() => vi.clearAllMocks());
 
   it('drawer has role="dialog"', () => {
     render(<CimdSimPanel />);

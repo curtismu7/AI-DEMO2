@@ -6,14 +6,14 @@ import { BrowserRouter } from 'react-router-dom';
 import Header from '../Header';
 
 // stub out fetch so the switch-role call never fires
-global.fetch = jest.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ redirectUrl: '/' }) }));
+global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ redirectUrl: '/' }) }));
 
 vi.mock('../BrandLogo', () => ({ default: () => <svg data-testid="brand-logo" /> }));
 
 const renderHeader = (userOverrides = {}) =>
   render(
     <BrowserRouter>
-      <Header user={{ sub: 'u1', email: 'test@example.com', role: 'user', ...userOverrides }} onLogout={jest.fn()} />
+      <Header user={{ sub: 'u1', email: 'test@example.com', role: 'user', ...userOverrides }} onLogout={vi.fn()} />
     </BrowserRouter>
   );
 

@@ -21,8 +21,8 @@ vi.mock("../../context/IndustryBrandingContext", () => ({
 }));
 
 vi.mock("../../context/EducationUIContext", () => ({
-  useEducationUIOptional: () => ({ open: jest.fn(), close: jest.fn() }),
-  useEducationUI: () => ({ open: jest.fn(), close: jest.fn() }),
+  useEducationUIOptional: () => ({ open: vi.fn(), close: vi.fn() }),
+  useEducationUI: () => ({ open: vi.fn(), close: vi.fn() }),
 }));
 
 vi.mock("../../context/TokenChainContext", () => ({
@@ -30,7 +30,7 @@ vi.mock("../../context/TokenChainContext", () => ({
 }));
 
 vi.mock("../../context/AgentUiModeContext", () => ({
-  useAgentUiMode: () => ({ placement: "none", fab: true, setAgentUi: jest.fn() }),
+  useAgentUiMode: () => ({ placement: "none", fab: true, setAgentUi: vi.fn() }),
 }));
 
 vi.mock("../../context/SessionTokenContext", () => ({
@@ -43,56 +43,56 @@ vi.mock("../../context/SessionTokenContext", () => ({
 }));
 
 vi.mock("../../services/demoAgentNlService", () => ({
-  fetchNlStatus: jest.fn().mockResolvedValue({ groqConfigured: false, geminiConfigured: false }),
-  parseNaturalLanguage: jest.fn().mockResolvedValue({
+  fetchNlStatus: vi.fn().mockResolvedValue({ groqConfigured: false, geminiConfigured: false }),
+  parseNaturalLanguage: vi.fn().mockResolvedValue({
     source: "local",
     result: { kind: "action", action: { id: "accounts" } },
   }),
 }));
 
 vi.mock("../../services/demoAgentService", () => ({
-  getMyAccounts: jest.fn().mockResolvedValue([]),
-  getAccountBalance: jest.fn().mockResolvedValue({ balance: 100 }),
-  getMyTransactions: jest.fn().mockResolvedValue([]),
-  createTransfer: jest.fn().mockResolvedValue({ success: true }),
-  createDeposit: jest.fn().mockResolvedValue({ success: true }),
-  createWithdrawal: jest.fn().mockResolvedValue({ success: true }),
-  refreshOAuthSession: jest.fn().mockResolvedValue({}),
-  warmupAuthz: jest.fn().mockResolvedValue({}),
-  callMcpTool: jest.fn().mockResolvedValue({ success: true }),
-  sendAgentMessage: jest.fn().mockResolvedValue({ success: true, reply: "Done." }),
-  fetchAgentTools: jest.fn().mockResolvedValue({ availableTools: [], vertical: null, allowWrite: true }),
+  getMyAccounts: vi.fn().mockResolvedValue([]),
+  getAccountBalance: vi.fn().mockResolvedValue({ balance: 100 }),
+  getMyTransactions: vi.fn().mockResolvedValue([]),
+  createTransfer: vi.fn().mockResolvedValue({ success: true }),
+  createDeposit: vi.fn().mockResolvedValue({ success: true }),
+  createWithdrawal: vi.fn().mockResolvedValue({ success: true }),
+  refreshOAuthSession: vi.fn().mockResolvedValue({}),
+  warmupAuthz: vi.fn().mockResolvedValue({}),
+  callMcpTool: vi.fn().mockResolvedValue({ success: true }),
+  sendAgentMessage: vi.fn().mockResolvedValue({ success: true, reply: "Done." }),
+  fetchAgentTools: vi.fn().mockResolvedValue({ availableTools: [], vertical: null, allowWrite: true }),
 }));
 
 vi.mock("../../services/configService", () => ({
-  loadPublicConfig: jest.fn().mockResolvedValue({}),
+  loadPublicConfig: vi.fn().mockResolvedValue({}),
 }));
 
 vi.mock("../../services/agentAccessConsent", () => ({
-  isAgentBlockedByConsentDecline: jest.fn(() => false),
-  setAgentBlockedByConsentDecline: jest.fn(),
+  isAgentBlockedByConsentDecline: vi.fn(() => false),
+  setAgentBlockedByConsentDecline: vi.fn(),
   AGENT_CONSENT_BLOCK_USER_MESSAGE: "Blocked by consent decline.",
-  getConsentState: jest.fn(() => null),
-  setConsentDeclined: jest.fn(),
+  getConsentState: vi.fn(() => null),
+  setConsentDeclined: vi.fn(),
 }));
 
 vi.mock("../../utils/agentToolSteps", () => ({
-  getToolStepsForAction: jest.fn(() => []),
+  getToolStepsForAction: vi.fn(() => []),
 }));
 
 vi.mock("react-toastify", () => ({
-  toast: { error: jest.fn(), success: jest.fn(), info: jest.fn(), warn: jest.fn() },
+  toast: { error: vi.fn(), success: vi.fn(), info: vi.fn(), warn: vi.fn() },
 }));
 
 vi.mock("../../utils/appToast", () => ({
   toast: {
-    info: jest.fn(), success: jest.fn(), error: jest.fn(), warn: jest.fn(),
-    warning: jest.fn(), update: jest.fn(), dismiss: jest.fn(),
+    info: vi.fn(), success: vi.fn(), error: vi.fn(), warn: vi.fn(),
+    warning: vi.fn(), update: vi.fn(), dismiss: vi.fn(),
   },
-  notifySuccess: jest.fn(),
-  notifyError: jest.fn(),
-  notifyInfo: jest.fn(),
-  notifyWarning: jest.fn(),
+  notifySuccess: vi.fn(),
+  notifyError: vi.fn(),
+  notifyInfo: vi.fn(),
+  notifyWarning: vi.fn(),
 }));
 
 vi.mock("../BankingAgent.css", () => ({}), { virtual: true });
@@ -115,12 +115,12 @@ vi.mock("../../hooks/useAgentState", () => ({
       error: mockAguiError,
     },
     handlers: {},
-    reset: jest.fn(),
+    reset: vi.fn(),
   }),
 }));
 
 vi.mock("../../hooks/useAgentRun", () => ({
-  useAgentRun: () => ({ run: jest.fn(), abort: jest.fn() }),
+  useAgentRun: () => ({ run: vi.fn(), abort: vi.fn() }),
 }));
 
 import AIAgent from "../AIAgent";

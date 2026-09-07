@@ -1,5 +1,6 @@
 ARG GIT_SHA=unknown
 FROM node:22-alpine
+LABEL org.opencontainers.image.source=https://github.com/curtismu7/AI-DEMO2
 ENV GIT_SHA=$GIT_SHA
 
 WORKDIR /app

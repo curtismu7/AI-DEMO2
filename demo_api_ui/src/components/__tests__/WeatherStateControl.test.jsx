@@ -4,7 +4,7 @@ import '@testing-library/jest-dom';
 import WeatherStateControl from '../WeatherStateControl';
 
 function mockFetchSequence(getBody, patchBody) {
-  global.fetch = jest.fn((url, opts) => {
+  global.fetch = vi.fn((url, opts) => {
     if (!opts || opts.method === undefined) {
       return Promise.resolve({ ok: true, json: async () => getBody });
     }
@@ -13,7 +13,7 @@ function mockFetchSequence(getBody, patchBody) {
 }
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
 });
 
 test('loads and displays the current allowed state', async () => {
@@ -41,7 +41,7 @@ test('PATCHes on change and reflects the confirmed value', async () => {
 });
 
 test('shows an error and reverts the select on a failed PATCH', async () => {
-  global.fetch = jest.fn((url, opts) => {
+  global.fetch = vi.fn((url, opts) => {
     if (!opts || opts.method === undefined) {
       return Promise.resolve({ ok: true, json: async () => ({ flags: [{ id: 'ff_weather_mcp_allowed_state', value: 'texas' }] }) });
     }

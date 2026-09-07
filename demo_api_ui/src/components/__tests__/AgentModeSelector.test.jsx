@@ -18,8 +18,8 @@ const mockHook = {
     { id: "helix_google", label: "Helix", external: true },
     { id: "gemini", label: "Google Gemini", external: true },
   ],
-  setMode: jest.fn(),
-  setExternalWiring: jest.fn(),
+  setMode: vi.fn(),
+  setExternalWiring: vi.fn(),
 };
 vi.mock("../../hooks/useLangchainProvider", () => ({
   __esModule: true,
@@ -28,7 +28,7 @@ vi.mock("../../hooks/useLangchainProvider", () => ({
 
 beforeEach(() => {
   // The selector probes llama.cpp reachability on mount; default it to available.
-  global.fetch = jest.fn(() =>
+  global.fetch = vi.fn(() =>
     Promise.resolve({ ok: true, json: () => Promise.resolve({ status: "available" }) }),
   );
 });
@@ -39,7 +39,7 @@ afterEach(() => {
   mockHook.externalWiring = null;
   mockHook.loading = false;
   mockHook.keySet = { helix: true, anthropic: true, "anthropic-lmstudio": true, google: true, groq: true };
-  jest.clearAllMocks();
+  vi.clearAllMocks();
 });
 
 test("renders the four modes and calls setMode on change", () => {
@@ -63,7 +63,7 @@ test("greys out a mode whose provider is not configured", async () => {
 });
 
 test("greys out llama.cpp when the server is unreachable", async () => {
-  global.fetch = jest.fn(() =>
+  global.fetch = vi.fn(() =>
     Promise.resolve({ ok: true, json: () => Promise.resolve({ status: "unreachable" }) }),
   );
   render(<AgentModeSelector />);
@@ -77,7 +77,7 @@ test("auto-switches an unavailable selected mode to Heuristics with a notice", a
   // Persisted mode is llama.cpp but the backend is unreachable → the user must
   // not be stranded on a dead mode. Selector auto-switches to Heuristics.
   mockHook.mode = "llamacpp";
-  global.fetch = jest.fn(() =>
+  global.fetch = vi.fn(() =>
     Promise.resolve({ ok: true, json: () => Promise.resolve({ status: "unreachable" }) }),
   );
   render(<AgentModeSelector />);
@@ -131,7 +131,7 @@ test("compact mode: platform shows chip not full banner", () => {
 });
 
 test("onChange not called on initial settled render (hydration suppression)", () => {
-  const onChange = jest.fn();
+  const onChange = vi.fn();
   render(<AgentModeSelector onChange={onChange} />);
   expect(onChange).not.toHaveBeenCalled();
 });
@@ -147,7 +147,7 @@ test("Heuristics mode shows Routing locked to Fallback", () => {
 
 test("LLM mode shows Fallback / LLM-only toggle and notifies on change", async () => {
   mockHook.mode = "gemini";
-  const onRouting = jest.fn();
+  const onRouting = vi.fn();
   render(
     <AgentModeSelector heuristicFallback onHeuristicFallbackChange={onRouting} />,
   );

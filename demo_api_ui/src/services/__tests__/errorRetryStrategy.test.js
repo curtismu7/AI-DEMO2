@@ -66,8 +66,8 @@ describe('ErrorRetryStrategy', () => {
 
   describe('executeWithRetry', () => {
     it('succeeds on first attempt', async () => {
-      const fn = jest.fn().mockResolvedValue('success');
-      const onSuccess = jest.fn();
+      const fn = vi.fn().mockResolvedValue('success');
+      const onSuccess = vi.fn();
 
       const result = await ErrorRetryStrategy.executeWithRetry(fn, {
         onSuccess,
@@ -85,13 +85,13 @@ describe('ErrorRetryStrategy', () => {
         retryable: true,
       };
 
-      const fn = jest
+      const fn = vi
         .fn()
         .mockRejectedValueOnce(error)
         .mockResolvedValueOnce('success');
 
-      const onRetry = jest.fn();
-      const onSuccess = jest.fn();
+      const onRetry = vi.fn();
+      const onSuccess = vi.fn();
 
       const result = await ErrorRetryStrategy.executeWithRetry(fn, {
         maxAttempts: 3,
@@ -112,8 +112,8 @@ describe('ErrorRetryStrategy', () => {
         retryable: false,
       };
 
-      const fn = jest.fn().mockRejectedValue(error);
-      const onFailure = jest.fn();
+      const fn = vi.fn().mockRejectedValue(error);
+      const onFailure = vi.fn();
 
       try {
         await ErrorRetryStrategy.executeWithRetry(fn, {
@@ -136,7 +136,7 @@ describe('ErrorRetryStrategy', () => {
         isConfig: true,
       };
 
-      const fn = jest.fn().mockRejectedValue(error);
+      const fn = vi.fn().mockRejectedValue(error);
 
       try {
         await ErrorRetryStrategy.executeWithRetry(fn, { maxAttempts: 3 });
@@ -154,8 +154,8 @@ describe('ErrorRetryStrategy', () => {
         retryable: true,
       };
 
-      const fn = jest.fn().mockRejectedValue(error);
-      const onRetry = jest.fn();
+      const fn = vi.fn().mockRejectedValue(error);
+      const onRetry = vi.fn();
 
       try {
         await ErrorRetryStrategy.executeWithRetry(fn, {
@@ -177,12 +177,12 @@ describe('ErrorRetryStrategy', () => {
         retryable: true,
       };
 
-      const fn = jest
+      const fn = vi
         .fn()
         .mockRejectedValueOnce(error)
         .mockResolvedValueOnce('success');
 
-      const onRetry = jest.fn();
+      const onRetry = vi.fn();
 
       await ErrorRetryStrategy.executeWithRetry(fn, {
         maxAttempts: 3,
@@ -199,7 +199,7 @@ describe('ErrorRetryStrategy', () => {
 
   describe('retry', () => {
     it('succeeds on first attempt', async () => {
-      const fn = jest.fn().mockResolvedValue('result');
+      const fn = vi.fn().mockResolvedValue('result');
 
       const result = await ErrorRetryStrategy.retry(fn);
 
@@ -214,7 +214,7 @@ describe('ErrorRetryStrategy', () => {
         retryable: true,
       };
 
-      const fn = jest
+      const fn = vi
         .fn()
         .mockRejectedValueOnce(error)
         .mockResolvedValueOnce('success');

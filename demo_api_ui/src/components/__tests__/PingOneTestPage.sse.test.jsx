@@ -23,7 +23,7 @@ class MockEventSource {
     this.url = url;
     this.opts = opts;
     this.onmessage = null;
-    this.close = jest.fn();
+    this.close = vi.fn();
   }
   /** Fire a synthetic message event on the most-recently created instance. */
   static fireMessage(data) {
@@ -55,13 +55,13 @@ vi.mock("../../context/TokenChainContext", () => ({
 // implementations survive across tests even if clearMocks runs between them.
 vi.mock("../../services/apiClient", () => {
   const instance = {
-    get: jest.fn(() =>
+    get: vi.fn(() =>
       Promise.resolve({ data: { success: false, error: "no session" } }),
     ),
-    post: jest.fn(() => Promise.resolve({ data: {} })),
-    put: jest.fn(() => Promise.resolve({ data: {} })),
-    patch: jest.fn(() => Promise.resolve({ data: {} })),
-    delete: jest.fn(() => Promise.resolve({ data: {} })),
+    post: vi.fn(() => Promise.resolve({ data: {} })),
+    put: vi.fn(() => Promise.resolve({ data: {} })),
+    patch: vi.fn(() => Promise.resolve({ data: {} })),
+    delete: vi.fn(() => Promise.resolve({ data: {} })),
   };
   return { __esModule: true, default: instance, ...instance };
 });
@@ -71,9 +71,9 @@ vi.mock("../../utils/resolveApiBaseUrl", () => ({
 }));
 
 vi.mock("../../utils/appToast", () => ({
-  notifyError: jest.fn(),
-  notifyInfo: jest.fn(),
-  notifySuccess: jest.fn(),
+  notifyError: vi.fn(),
+  notifyInfo: vi.fn(),
+  notifySuccess: vi.fn(),
 }));
 
 // Child components that make their own API calls — stub to null

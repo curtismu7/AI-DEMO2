@@ -70,6 +70,58 @@ resolves only inside the cluster — Postman/LM Studio failing on it is correct,
 not a symptom. Clients use the Frontend/client URL above. To reach the backend
 from a laptop: `kubectl port-forward -n ping-devops-curtismuir svc/opensearch-mcp-server 9900:80`.
 
+## The packaged `.tgz` goes stale silently — repackage after every template edit
+
+`templates/deployment.yaml` in the vendored chart carries **local additions**
+the upstream chart doesn't have: `imagePullSecrets` and `extraContainers`
+(the mechanism for adding a new MCP server as a sidecar — see below). The
+`.tgz` alongside the chart source is a **build artifact**, not the source of
+truth. Edit the source and forget to `helm package` it again, and every
+subsequent `helm upgrade` against the stale `.tgz` silently re-renders the
+Deployment WITHOUT those blocks — dropping every `extraContainers` sidecar
+and the pull secret in one shot.
+
+**This is the trap that caused a live outage 2026-09-07.** The tell that cost
+the most time: `helm get values` / `helm get values -a` kept showing
+`extraContainers` and `imagePullSecrets` present and correct in the merged
+values object, because Helm happily stores values for keys a stale template
+never reads. Only `helm get manifest <release> --revision <N> | grep
+extraContainers` (or a `--dry-run` against the render you're about to apply)
+tells you whether the template actually consumed them. Recovery required a
+direct `kubectl patch --type=json` on the live Deployment to restore service,
+then re-running `helm package agentless-mcpgw/` and `helm upgrade
+agentless-mcpgw agentless-mcpgw/ -n ping-devops-curtismuir --reuse-values`
+**against the source directory, not the tgz**, to bring the release's own
+tracked state back in sync with reality.
+
+**Rule going forward:**
+- After ANY edit to `agentless-mcpgw/templates/*` or `agentless-mcpgw/values.yaml`, run `helm package agentless-mcpgw/` immediately, in the same change.
+- Before any upgrade that touches `extraContainers` or `imagePullSecrets`, dry-run it first and grep the render: `helm upgrade agentless-mcpgw <chart> -n ping-devops-curtismuir --reuse-values --dry-run | grep -c 'name: mcp-brave\|name: mcp-grafana\|name: mcp-banking-rest\|ghcr-pull-secret'` — expect 4. Zero means you're about to drop sidecars, whatever `helm get values` claims.
+- When actively iterating on the chart, upgrade directly against the **source directory** (`pingone-privgateway-helm-main/agentless/agentless-mcpgw/`) instead of the `.tgz` — it can't go stale because there's nothing to forget to repackage.
+- Never patch a nested list index with `--set` (e.g. `--set extraContainers[2].env[1].value=...`) combined with `--reuse-values` — on this chart it corrupted sibling list entries to `null` rather than patching the one field. Use a full values file (`-f`) that restates the whole list instead.
+
+### Adding a new MCP server as a sidecar
+
+Apps added from the Privilege MCP catalog pin their backend to a fixed,
+non-editable `http://localhost:8080/mcp` — the only way to satisfy that is to
+run the server inside this same pod. Add an entry to `extraContainers` in a
+values file (same shape as the existing three: `name`, `image`, `ports`,
+`env`, `readinessProbe` on `/health`), give it its own `PORT` (8080/8081/8082
+are taken), then:
+
+```bash
+helm package agentless-mcpgw/                      # keep the .tgz in sync
+helm upgrade agentless-mcpgw agentless-mcpgw/ -n ping-devops-curtismuir \
+  --reuse-values --dry-run -f my-new-sidecar.yaml   # verify the render first
+helm upgrade agentless-mcpgw agentless-mcpgw/ -n ping-devops-curtismuir \
+  --reuse-values -f my-new-sidecar.yaml
+kubectl rollout status deployment/agentless-mcpgw -n ping-devops-curtismuir
+```
+
+Then register it in the Privilege console as its own Agentic App pointing at
+`http://localhost:<its-port>/sse` (not `/mcp` — see the SSE-transport trap
+above), Mesh Cluster `ai-demo-cmuir`, Auth Mode None.
+
 ## Deploy
 
 ```bash

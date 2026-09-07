@@ -9,8 +9,8 @@ import PingOneAuthorizePage, { EvaluatePanel, filterPolicyTree, policyNodeMatche
 vi.mock('../../services/bffAxios', () => ({
   __esModule: true,
   default: {
-    get: jest.fn(),
-    post: jest.fn(),
+    get: vi.fn(),
+    post: vi.fn(),
   },
 }));
 
@@ -93,7 +93,7 @@ function renderPanel(props = {}) {
 }
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
   localStorage.clear();
   // EvaluatePanel fetches MCP-console defaults once on mount regardless of preset.
   bffAxios.get.mockResolvedValue({ data: {} });
@@ -279,7 +279,7 @@ function mockPageEndpoints() {
 
 describe('PingOneAuthorizePage (full page wiring)', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockPageEndpoints();
   });
 

@@ -50,14 +50,14 @@ const MOCK_FLAGS = [
 const MOCK_RESPONSE = { flags: MOCK_FLAGS, categories: ["Security"] };
 
 function mockFetchSuccess(body = MOCK_RESPONSE) {
-  global.fetch = jest.fn().mockResolvedValue({
+  global.fetch = vi.fn().mockResolvedValue({
     ok: true,
     json: async () => body,
   });
 }
 
 function mockFetchError(status = 500, error = "server_error") {
-  global.fetch = jest.fn().mockResolvedValue({
+  global.fetch = vi.fn().mockResolvedValue({
     ok: false,
     status,
     json: async () => ({ error }),
@@ -65,14 +65,14 @@ function mockFetchError(status = 500, error = "server_error") {
 }
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
 });
 
 // ── Loading state ─────────────────────────────────────────────────────────────
 
 describe("FeatureFlagsPage — loading state", () => {
   it("shows loading indicator while fetch is pending", () => {
-    global.fetch = jest.fn(() => new Promise(() => {}));
+    global.fetch = vi.fn(() => new Promise(() => {}));
     render(<FeatureFlagsPage />);
     expect(screen.getByText(/loading feature flags/i)).toBeInTheDocument();
   });
@@ -148,7 +148,7 @@ describe("FeatureFlagsPage — flag toggle", () => {
     const confirmedFlags = MOCK_FLAGS.map((f) =>
       f.id === "ff_authorize_real" ? { ...f, value: true } : f,
     );
-    global.fetch = jest
+    global.fetch = vi
       .fn()
       .mockResolvedValueOnce({ ok: true, json: async () => ({ apiKeySet: false, tenantNameSet: false, tenantName: null }) })
       .mockResolvedValueOnce({ ok: true, json: async () => MOCK_RESPONSE })
@@ -175,7 +175,7 @@ describe("FeatureFlagsPage — flag toggle", () => {
   });
 
   it("rolls back flag and shows error when PATCH fails", async () => {
-    global.fetch = jest
+    global.fetch = vi
       .fn()
       .mockResolvedValueOnce({ ok: true, json: async () => ({ apiKeySet: false, tenantNameSet: false, tenantName: null }) })
       .mockResolvedValueOnce({ ok: true, json: async () => MOCK_RESPONSE })
@@ -206,7 +206,7 @@ describe("FeatureFlagsPage — flag toggle", () => {
     const confirmedFlags = MOCK_FLAGS.map((f) =>
       f.id === "ff_authorize_real" ? { ...f, value: true } : f,
     );
-    global.fetch = jest
+    global.fetch = vi
       .fn()
       .mockResolvedValueOnce({ ok: true, json: async () => ({ apiKeySet: false, tenantNameSet: false, tenantName: null }) })
       .mockResolvedValueOnce({ ok: true, json: async () => MOCK_RESPONSE })
@@ -227,11 +227,11 @@ describe("FeatureFlagsPage — flag toggle", () => {
   });
 
   it("auto-dismisses lastSaved toast after 2.5 s", async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     const confirmedFlags = MOCK_FLAGS.map((f) =>
       f.id === "ff_authorize_real" ? { ...f, value: true } : f,
     );
-    global.fetch = jest
+    global.fetch = vi
       .fn()
       .mockResolvedValueOnce({ ok: true, json: async () => ({ apiKeySet: false, tenantNameSet: false, tenantName: null }) })
       .mockResolvedValueOnce({ ok: true, json: async () => MOCK_RESPONSE })
@@ -253,11 +253,11 @@ describe("FeatureFlagsPage — flag toggle", () => {
 
     // Fire the 2500ms auto-dismiss timer
     act(() => {
-      jest.advanceTimersByTime(2600);
+      vi.advanceTimersByTime(2600);
     });
 
     expect(screen.queryByText(/saved/)).not.toBeInTheDocument();
 
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 });

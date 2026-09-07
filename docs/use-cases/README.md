@@ -69,6 +69,7 @@ See also: [Audit Table](./audit-table.md), [Step Verification Report](./step-ver
 
 - [**UC-TOOL1** — Protected RAG](./code-search.md) ✅ 🛡️
 - [**UC-TOOL2** — Code Explorer](./code-explorer.md) ✅
+- [**UC-TOOL3** — LLM Gateway](./llm-gateway.md) ✅
 
 ## Learn
 

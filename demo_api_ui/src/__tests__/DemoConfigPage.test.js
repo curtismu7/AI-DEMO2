@@ -28,7 +28,7 @@ const CONFIGS_RESPONSE = {
 };
 
 function mockFetch(overrides = {}) {
-  global.fetch = jest.fn((url, opts) => {
+  global.fetch = vi.fn((url, opts) => {
     const method = (opts && opts.method) || "GET";
     if (String(url).includes("/api/user/nav-config") && method === "GET") {
       return Promise.resolve({ ok: true, json: async () => overrides.prefs || PREFS_RESPONSE });
@@ -44,7 +44,7 @@ function mockFetch(overrides = {}) {
 }
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
 });
 
 describe("DemoConfigPage", () => {
@@ -102,7 +102,7 @@ describe("DemoConfigPage", () => {
   });
 
   it("shows an error banner when the prefs fetch fails", async () => {
-    global.fetch = jest.fn(() => Promise.resolve({ ok: false, status: 500, json: async () => ({ error: "boom" }) }));
+    global.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 500, json: async () => ({ error: "boom" }) }));
     render(<DemoConfigPage />);
     await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
     expect(screen.getByRole("alert")).toHaveTextContent("boom");
