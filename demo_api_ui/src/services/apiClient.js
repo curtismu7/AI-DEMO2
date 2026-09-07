@@ -1,8 +1,11 @@
 import axios from 'axios';
+import { trace, isSpanContextValid } from '@opentelemetry/api';
 import { resolveApiBaseUrl } from '../utils/resolveApiBaseUrl';
 import { notifySessionExpiredIfNeeded } from '../utils/authUi';
 import { appendTrafficEntry, redactHeaders, redactBody, tryParseJson, normalizeHeaders } from './apiTrafficStore';
 import { spinner } from './spinnerService';
+
+const tracer = trace.getTracer('demo-api-ui');
 
 class ApiClient {
   constructor() {
@@ -175,6 +178,42 @@ class ApiClient {
           await new Promise((resolve) => setTimeout(resolve, 700));
           return this.client(cfg);
         }
+        return Promise.reject(error);
+      }
+    );
+
+    // ── OTel span + correlation header — appended LAST ────────────────────────
+    // Registered after every interceptor above: apiClient.session.test.js and
+    // apiClient.inspectorTimeout.test.js index request interceptors [2]/[3] and
+    // apiClient.session.test.js / apiClient.noAuthBanner.test.js index response
+    // interceptors [0]/[1] by registration order — appending here instead of
+    // inserting keeps every existing index unchanged.
+    //
+    // A no-op when tracing.js never registered a real WebTracerProvider
+    // (ff_tracing off): startSpan() then returns @opentelemetry/api's default
+    // no-op span, whose all-zero trace ID isSpanContextValid() rejects, so no
+    // header is set and nothing is exported.
+    this.client.interceptors.request.use(
+      (config) => {
+        const span = tracer.startSpan(`HTTP ${(config.method || 'GET').toUpperCase()} ${config.url || ''}`);
+        if (isSpanContextValid(span.spanContext())) {
+          config.headers['X-Request-ID'] = span.spanContext().traceId;
+          config._otelSpan = span;
+        } else {
+          span.end();
+        }
+        return config;
+      },
+      (error) => Promise.reject(error)
+    );
+
+    this.client.interceptors.response.use(
+      (response) => {
+        response.config?._otelSpan?.end();
+        return response;
+      },
+      (error) => {
+        error.config?._otelSpan?.end();
         return Promise.reject(error);
       }
     );

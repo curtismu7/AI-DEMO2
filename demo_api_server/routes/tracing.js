@@ -75,6 +75,62 @@ async function resolveJaegerBase() {
   return null;
 }
 
+/** Candidate Jaeger OTLP/HTTP bases (the collector's :4318, not the query API's :16686). */
+function jaegerOtlpCandidates() {
+  const raw = [
+    process.env.JAEGER_OTLP_HTTP_URL,
+    'http://jaeger:4318',
+    'http://host.docker.internal:4318',
+    'http://localhost:4318',
+  ].filter(Boolean);
+  return [...new Set(raw.map((u) => u.replace(/\/$/, '')))];
+}
+
+// Sticky across requests so the common case (docker jaeger:4318 always works)
+// doesn't re-probe every candidate on every trace batch. Cleared on failure so
+// a Jaeger restart on a different candidate self-heals on the next call.
+let cachedOtlpBase = null;
+
+/** Best-effort forward to Jaeger's OTLP/HTTP+JSON receiver. Throws on total failure. */
+async function forwardToJaegerOtlp(body) {
+  const bases = [...new Set([cachedOtlpBase, ...jaegerOtlpCandidates()].filter(Boolean))];
+  let lastErr;
+  for (const base of bases) {
+    try {
+      const resp = await axios.post(`${base}/v1/traces`, body, {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 2500,
+      });
+      cachedOtlpBase = base;
+      return resp;
+    } catch (err) {
+      if (base === cachedOtlpBase) cachedOtlpBase = null;
+      lastErr = err;
+    }
+  }
+  throw lastErr || new Error('no reachable Jaeger OTLP/HTTP endpoint');
+}
+
+/**
+ * POST /ingest — same-origin OTLP/HTTP+JSON passthrough for the browser's
+ * WebTracerProvider. The browser cannot reach jaeger:4318 directly (not
+ * published to the host, and CORS is unconfigured on Jaeger's OTLP receiver)
+ * — this is a dumb same-origin relay, the same relationship /api/nr-log has
+ * to New Relic. Always acks (202/204): tracing plumbing must never surface as
+ * a user-visible failure or make the exporter retry into a growing queue.
+ */
+router.post('/ingest', express.json({ limit: '1mb' }), async (req, res) => {
+  if (String(configStore.getEffective('ff_tracing')).trim() === 'false') {
+    return res.status(204).end();
+  }
+  try {
+    await forwardToJaegerOtlp(req.body);
+  } catch {
+    // Best-effort — see doc comment above.
+  }
+  res.status(202).end();
+});
+
 /** GET /status — collector reachability + UI link for the tracing page header. */
 router.get('/status', async (_req, res) => {
   const base = await resolveJaegerBase();
