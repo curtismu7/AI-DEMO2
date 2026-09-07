@@ -1,10 +1,11 @@
 // demo_api_ui/src/components/shared/InspectorShell.jsx
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import useDividerDrag from '../../hooks/useDividerDrag';
 import { useThemeOptional } from '../../context/ThemeContext';
 import './InspectorShell.css';
 
 const LEFT_COLLAPSED_KEY = 'inspector-shell-left-collapsed';
+const NARROW_QUERY = '(max-width: 768px)';
 
 function loadLeftCollapsed() {
   try {
@@ -13,6 +14,24 @@ function loadLeftCollapsed() {
     // Malformed or unavailable storage (private browsing, quota) — default open.
     return false;
   }
+}
+
+// The 3-column grid's widths are set inline below (drag-to-resize), and an
+// inline style always beats a stylesheet rule — a plain `@media` override on
+// grid-template-columns can never win. Below NARROW_QUERY we stop setting it
+// at all so InspectorShell.css's mobile block (same breakpoint) can stack the
+// columns instead of clipping two of them off-screen on a phone.
+function useIsNarrow() {
+  const [isNarrow, setIsNarrow] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(NARROW_QUERY).matches,
+  );
+  useEffect(() => {
+    const mql = window.matchMedia(NARROW_QUERY);
+    const onChange = (e) => setIsNarrow(e.matches);
+    mql.addEventListener('change', onChange);
+    return () => mql.removeEventListener('change', onChange);
+  }, []);
+  return isNarrow;
 }
 
 /**
@@ -56,6 +75,7 @@ export default function InspectorShell({
   });
   const [leftCollapsed, setLeftCollapsed] = useState(loadLeftCollapsed);
   const { darkMode, toggleDarkMode } = useThemeOptional();
+  const isNarrow = useIsNarrow();
 
   const toggleLeftCollapsed = useCallback(() => {
     setLeftCollapsed((prev) => {
@@ -110,17 +130,22 @@ export default function InspectorShell({
       {banner}
       <div
         className={
-          fullHeight === 'fill'
+          (fullHeight === 'fill'
             ? 'inspector-shell-grid inspector-shell-grid--fill'
             : fullHeight
               ? 'inspector-shell-grid'
-              : 'inspector-shell-grid inspector-shell-grid--embedded'
+              : 'inspector-shell-grid inspector-shell-grid--embedded') +
+          (isNarrow ? ' inspector-shell-grid--narrow' : '')
         }
-        style={{
-          gridTemplateColumns: leftCollapsed
-            ? `0px 0px ${middleWidth}px 6px 1fr`
-            : `${leftWidth}px 6px ${middleWidth}px 6px 1fr`,
-        }}
+        style={
+          isNarrow
+            ? undefined
+            : {
+                gridTemplateColumns: leftCollapsed
+                  ? `0px 0px ${middleWidth}px 6px 1fr`
+                  : `${leftWidth}px 6px ${middleWidth}px 6px 1fr`,
+              }
+        }
       >
         <div
           className={
@@ -132,19 +157,23 @@ export default function InspectorShell({
         >
           {left}
         </div>
-        <div
-          className="inspector-shell-resize-handle"
-          aria-label="Resize tool list column"
-          aria-hidden={leftCollapsed || undefined}
-          style={leftCollapsed ? { pointerEvents: 'none' } : undefined}
-          {...leftHandleProps}
-        />
+        {!isNarrow && (
+          <div
+            className="inspector-shell-resize-handle"
+            aria-label="Resize tool list column"
+            aria-hidden={leftCollapsed || undefined}
+            style={leftCollapsed ? { pointerEvents: 'none' } : undefined}
+            {...leftHandleProps}
+          />
+        )}
         <div className="inspector-shell-col-middle">{middle}</div>
-        <div
-          className="inspector-shell-resize-handle"
-          aria-label="Resize form column"
-          {...middleHandleProps}
-        />
+        {!isNarrow && (
+          <div
+            className="inspector-shell-resize-handle"
+            aria-label="Resize form column"
+            {...middleHandleProps}
+          />
+        )}
         <div className="inspector-shell-col-right">{right}</div>
       </div>
     </div>

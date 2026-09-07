@@ -16,6 +16,28 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-09-06 — `themingRatchet.test.js`'s ground-without-ink pin is already stale on `main`
+
+`no more than 453 rules take a themed ground without ink` fails on an
+unmodified `main` checkout (`05c5983` and later) — the real count is 454
+before this entry's own changes touch anything. Confirmed by stashing this
+branch's diff and re-running the suite: identical failure, same example
+selectors (`App.css :root[data-theme="dark"] .App`, `.global-embedded-agent-dock-wrap`,
+`.main-content--auth-loading`, `.session-reauth-banner`,
+`.session-reauth-banner__btn--ghost:hover`).
+
+**Why not fixed here:** none of the offending rules are in files this branch
+touches (`InspectorShell.jsx/css`, `McpInspectorPage.clean.css`) — whatever
+merged the drift did so separately. Chasing it down means auditing
+`App.css`'s themed-ground rules for a missing `color`, unrelated to the
+mobile-layout work this branch is doing.
+
+**Real fix:** find the commit that pushed the count from 453 to 454 (bisect
+`App.css` history, or just look at what changed there most recently), add the
+missing `--th-*` color per THEMING.md §1.5, and lower `MAX_GROUND_WITHOUT_INK`
+back down — or, if the new rule is legitimate (e.g. intentionally inherits
+ink from a themed ancestor), raise the pin with a comment saying why.
+
 ### [ ] 2026-09-05 — Inline `req.user.role !== 'admin'` checks stay invisible to the OpenAPI introspection
 
 `lib/openapiFromRoutes.js`'s `AUTH_MIDDLEWARE` map can only recognize a
