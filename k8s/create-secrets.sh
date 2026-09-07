@@ -575,13 +575,15 @@ align_internal_secret() {
       warn "  BFF_INTERNAL_SECRET missing/default in demo_api_server/.env — minted a deploy-local internal secret"
       ;;
   esac
-  # mcp-resource-server has no per-service .env / secret of its own (unlike the
-  # other four) — create-or-update it here so the patch loop below has a target.
-  # Scoped to just this one key, unlike reusing gateway-secrets/ai-demo-secrets,
-  # which would leak unrelated worker/agent credentials into the resource server.
-  kubectl create secret generic mcp-resource-server-secrets --namespace="$NS" \
-    --from-literal=BFF_INTERNAL_SECRET="$secret" --dry-run=client -o yaml \
-    | kubectl apply -f - >/dev/null 2>&1 || true
+  # mcp-resource-server-secrets is now created by secret_from_envfile above
+  # (2026-09-07, MCP_RESOURCE_SERVER_API_KEY vault-backing) — it MUST run
+  # before this function so the patch loop below has a target. Do NOT restore
+  # a bare `kubectl create ... | kubectl apply` here: apply's 3-way merge
+  # deletes any key present in the object's last-applied-config but absent
+  # from a later apply's narrower manifest, which would silently wipe
+  # MCP_RESOURCE_SERVER_API_KEY the next time this function runs. The `kubectl
+  # patch --type merge` calls below are safe — merge patches only touch the
+  # keys named in the patch.
   local s
   # langchain-secrets belongs here too: langchain_agent compares this value in
   # its _gate_internal middleware (src/main.py), but it was omitted, so the
@@ -671,6 +673,7 @@ override_redirect_uris_for_public_origin                                    # pu
 align_service_api_keys                                                      # one key for the vault bridge AND the mortgage backend
 secret_from_envfile mcp-secrets       "$ASSET_ROOT/oauth-mcp/.env" legacy-env-only  # MCP server — own independent secret architecture, see oauth-mcp/src/vault.ts
 secret_from_envfile hitl-secrets      "$ASSET_ROOT/demo_hitl_service/.env"  # HITL service — HITL_INTERNAL_SECRET
+secret_from_envfile mcp-resource-server-secrets "$ASSET_ROOT/demo_mcp_resource_server/.env"  # invest/banking REST X-API-Key (align_internal_secret's merge-patch below adds BFF_INTERNAL_SECRET on top — must run BEFORE it, see that function's comment)
 secret_from_envfile langchain-secrets "$ASSET_ROOT/langchain_agent/.env"    # LangChain agent
 inject_helix_api_key                                                        # Helix key from <agent>.json keyfile (patches langchain-secrets — must run after it exists)
 mirror_google_api_key                                                       # BFF → langchain for Google/Gemini provider
