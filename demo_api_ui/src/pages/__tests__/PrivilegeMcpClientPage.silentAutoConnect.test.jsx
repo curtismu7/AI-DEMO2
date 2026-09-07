@@ -22,7 +22,7 @@ vi.mock("../../services/apiClient", () => ({
 
 const AUTH_URL = "https://cmuir-agentless-mcpgw.ping-devops.com/cmuir/authorize?client_id=dcr-1";
 
-function mockState({ mainAppAuthenticated, authenticated = false }) {
+function mockState({ mainAppAuthenticated, authenticated = false, gatewayMode = "agentless" }) {
   global.fetch = vi.fn((url, opts) => {
     const u = String(url);
     if (u.endsWith("/api/privilege-mcp/state")) {
@@ -32,7 +32,7 @@ function mockState({ mainAppAuthenticated, authenticated = false }) {
         text: async () =>
           JSON.stringify({
             config: { mcpUrl: "https://cmuir-agentless-mcpgw.ping-devops.com/cmuir/mcp", clientId: "a6219652", scopes: "openid profile email" },
-            gatewayMode: "agentless",
+            gatewayMode,
             gatewayConfigs: { agent: {}, agentless: {} },
             oauth: { authenticated },
             mainAppAuthenticated,
@@ -102,5 +102,22 @@ describe("Privilege silent auto-connect", () => {
 
     await waitFor(() => expect(global.fetch).toHaveBeenCalled());
     expect(authStartCalls()).toHaveLength(0);
+  });
+
+  // 2026-09-07. Direct used to be excluded from auto-connect on the reading that
+  // it has "no auth at all". It does not: every direct door is a façade door
+  // with requireBearer (mcpFacade.js DOORS), so excluding it meant Direct could
+  // never obtain a token and all four of its doors answered "Not authenticated"
+  // forever — with no way for the operator to get past it, because the sign-in
+  // it needs is the one that was being skipped.
+  //
+  // What makes Direct "direct" is WHERE it signs in (our own broker, never
+  // Privilege), not whether it signs in at all.
+  it("auto-starts in Direct mode too, because every direct door still requires a bearer", async () => {
+    mockState({ mainAppAuthenticated: true, gatewayMode: "direct" });
+    renderAt("/privilege-mcp-client");
+
+    await waitFor(() => expect(authStartCalls()).toHaveLength(1));
+    await waitFor(() => expect(window.location.href).toBe(AUTH_URL));
   });
 });

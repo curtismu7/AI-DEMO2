@@ -178,21 +178,33 @@ function getClientSession(req) {
   }
   const session = clientSessions.get(sid);
   session._sid = sid;
-  const appAccessToken = req.session?.oauthTokens?.accessToken;
-  if (appAccessToken && appAccessToken !== '_cookie_session' && !session.oauth.accessToken) {
-    session.oauth.accessToken = appAccessToken;
-    session.oauth.refreshToken = null;
-    session.oauth.expiresAt = null;
-    session.oauth.tokenUri = null;
-    session.oauth.dcrClientId = null;
-    session.oauth.dcrClientSecret = null;
-    session.oauth.source = 'main_app_session';
-  }
+  // The main app's user token is NOT a credential for any door on this page,
+  // and must never be seeded into session.oauth. It is minted for the banking
+  // API (aud: enduser.ping.demo); every door here wants something else —
+  // the façade doors and oauth-mcp verify aud mcpgateway.ping.demo, and the
+  // Privilege AI Gateway is its own AS that only accepts a token it issued
+  // through DCR. So it authenticates nowhere.
+  //
+  // Seeding it did active harm twice over (2026-09-07): the Privilege path
+  // 401'd "Bearer token required" on every door because that was the token
+  // fetchMcp attached, AND — because /state reports
+  // `authenticated: Boolean(session.oauth.accessToken)` — the page believed it
+  // was already signed in, so the silent prompt=none sign-in that would have
+  // fetched a REAL gateway token never ran. The page rendered
+  // "authStatus: authenticated" while holding a token good for nothing.
+  //
+  // Leaving the slot empty is what makes the page work: /tools/list answers
+  // 401, the page's `mainAppAuthenticated && !oauth.authenticated` guard fires,
+  // and sign-in happens against the door's own authorization server.
+  //
+  // The main app session still matters here — it is what /state reports as
+  // `mainAppAuthenticated`, which is what gates that auto-connect. It just is
+  // not a bearer token for the gateway.
   // pingone-admin's delegated PKCE token (routes/mcpPingOneAdminAuth.js)
   // lives on THIS real browser session — but /mcp-facade/pingone-admin/mcp is
   // reached by fetchMcp() as a server-to-server call (see below), which never
   // carries the browser's session cookie. Re-sync every request (not seed-once
-  // like appAccessToken above) so a login completed mid-session is picked up
+  // re-synced every request, not seeded once, so a login completed mid-session is picked up
   // on the very next call, and forward it as a header instead of relying on
   // req.session ever reaching the façade layer.
   session.pingoneMcpAdminToken = req.session?.pingoneMcpAdminToken?.accessToken || null;
@@ -498,7 +510,7 @@ async function fetchMcp(session, pathname, body, withAuth = true, allowRefreshRe
     await refreshAccessToken(session);
   }
 
-  const targetUrl = new URL(session.config.mcpUrl);
+  const targetUrl = new URL(toInternalMcpUrl(session.config.mcpUrl));
   if (pathname) targetUrl.pathname = pathname;
 
   const requestBody = session.mcpSession.era === 'modern'
@@ -706,7 +718,7 @@ function resetMcpState(session) {
 async function openMcpEventStream(session) {
   if (session.eventStream.disabled || session.eventStream.active) return;
   if (!session.mcpSession.sessionId) return;
-  const targetUrl = new URL(session.config.mcpUrl);
+  const targetUrl = new URL(toInternalMcpUrl(session.config.mcpUrl));
   const headers = {
     Accept: 'text/event-stream',
     'MCP-Session-Id': session.mcpSession.sessionId,
@@ -775,7 +787,7 @@ async function startModernSubscription(session, types) {
     jsonrpc: '2.0', id: nextMcpRequestId(session), method: 'subscriptions/listen',
     params: { types },
   }, session.mcpSession.protocolVersion);
-  const targetUrl = new URL(session.config.mcpUrl);
+  const targetUrl = new URL(toInternalMcpUrl(session.config.mcpUrl));
   const headers = {
     'Content-Type': 'application/json', Accept: 'text/event-stream', Origin: targetUrl.origin,
   };
@@ -945,6 +957,37 @@ function toInternalAs(url) {
 }
 
 /**
+ * What toInternalAs does for the authorization server, for the DOOR itself.
+ *
+ * The Direct and Façade presets are built from PUBLIC_APP_ORIGIN() — correct
+ * for the browser, which is how the operator reads and shares them, and how
+ * the page's door picker groups doors by origin. But this process is the one
+ * that FETCHES them: /mcp-facade/<door>/mcp is served by this very server, so
+ * a self-call has to go to the loopback listener, not back out through the
+ * public hostname. On local dev PUBLIC_APP_URL is
+ * https://local.ping-devops.com:4000 — inside the BFF container that name
+ * resolves to 127.0.0.1, where nothing listens on 4000, so every Direct and
+ * Façade door died with `fetch failed` (ECONNREFUSED) and, because discoverAuth
+ * swallows the transport error, Façade sign-in then fell through to PingOne
+ * with the Privilege SSO client and bounced the browser to a PingOne
+ * NOT_FOUND page.
+ *
+ * MCP_FACADE_HTTP_PORT is the plain-HTTP façade listener, chosen for exactly
+ * the reason DEFAULT_AUDIT_MCP_URL above already states: the HTTPS listener
+ * uses mkcert certs a self-call would have to be told to trust.
+ *
+ * Only the public origin is rewritten. The Privilege gateway, PingOne, and any
+ * other external host are returned untouched, so this can never redirect a
+ * door away from the host the operator selected.
+ */
+function toInternalMcpUrl(url) {
+  const publicOrigin = PUBLIC_APP_ORIGIN();
+  const value = String(url);
+  if (!publicOrigin || !value.startsWith(publicOrigin)) return value;
+  return `http://localhost:${process.env.MCP_FACADE_HTTP_PORT || 3002}${value.slice(publicOrigin.length)}`;
+}
+
+/**
  * Is this authorization endpoint served by the demo's OWN Agent Gateway broker?
  *
  * AGENT_GATEWAY_BROKER_CLIENT_ID names a client pre-registered on that broker
@@ -1061,7 +1104,7 @@ async function discoverAuth(session) {
   let bodyText = '';
   let transportError = null;
   try {
-    response = await fetch(session.config.mcpUrl, { method: 'GET', headers: discoverHeaders });
+    response = await fetch(toInternalMcpUrl(session.config.mcpUrl), { method: 'GET', headers: discoverHeaders });
     bodyText = await response.text();
   } catch (err) {
     transportError = err;
@@ -1092,7 +1135,7 @@ async function discoverAuth(session) {
   // to fall straight through to the PingOne branch below, signing the user in
   // with the Privilege SSO client and a token the door's AS never issued.
   try {
-    const rfc9728 = await discoverProtectedResource(session.config.mcpUrl, discoverHeaders);
+    const rfc9728 = await discoverProtectedResource(toInternalMcpUrl(session.config.mcpUrl), discoverHeaders);
     if (rfc9728) return rfc9728;
   } catch (err) {
     emitEvent(session, 'oauth', { phase: 'rfc9728_skipped', error: err.message });
