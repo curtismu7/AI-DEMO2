@@ -82,11 +82,22 @@
 
 .inspector-clean-main {
   display: grid;
-  grid-template-columns: 260px 1fr 350px;
+  /* Two 6px tracks are the drag handles. The outer columns are driven by CSS
+     vars the component sets inline (useDividerDrag); the fallbacks are the
+     widths this grid used before it was resizable. The middle stays 1fr, so
+     dragging either handle resizes it too. */
+  grid-template-columns:
+    var(--inspector-col-left, 260px) 6px 1fr 6px var(--inspector-col-right, 350px);
   gap: 1px;
   background: var(--th-border);
   min-height: 0;
 }
+
+/* No background of its own: the shared .divider-drag-handle is transparent, so
+   this grid's --th-border ground shows through and the handle reads as the
+   separator itself. Its :hover/:active rule supplies the grab affordance.
+   (Painting a --th-* ground here would trip the ground-without-ink ratchet for
+   an element that holds no text — the honest fix is to not paint it.) */
 
 .inspector-clean-panel {
   background: var(--th-bg-card);
@@ -353,6 +364,10 @@
   .inspector-clean-main {
     grid-template-columns: 1fr;
     height: auto;
+  }
+  /* Stacked full-width panels have no vertical edge to drag. */
+  .inspector-clean-divider {
+    display: none;
   }
   .inspector-clean-panel {
     max-height: 60vh;

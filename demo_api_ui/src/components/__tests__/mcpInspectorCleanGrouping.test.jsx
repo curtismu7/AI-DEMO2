@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -107,5 +107,75 @@ describe('grouped tool tree', () => {
     sourceState.current = makeSource({ groupBy: null, tools: [] });
     renderPage();
     expect(screen.getByRole('button', { name: 'Gateway Showcase' })).toBeInTheDocument();
+  });
+});
+
+/**
+ * Resizable columns. The middle pane is the 1fr remainder, so the two outer
+ * widths are the whole control surface. They ride as CSS vars on the grid's
+ * inline style rather than on the tracks themselves, so the mobile media query
+ * that collapses to one column still wins — assert the vars, not a track list.
+ */
+describe('column resizing', () => {
+  const gridOf = (container) => container.querySelector('.inspector-clean-main');
+
+  beforeEach(() => {
+    sourceState.current = makeSource({ groupBy: null, tools: [{ name: 'get_my_accounts' }] });
+    window.localStorage.clear();
+  });
+
+  it('starts at the widths the grid used before it was resizable', () => {
+    const { container } = renderPage();
+    const grid = gridOf(container);
+    expect(grid.style.getPropertyValue('--inspector-col-left')).toBe('260px');
+    expect(grid.style.getPropertyValue('--inspector-col-right')).toBe('350px');
+  });
+
+  it('gives each divider a labelled separator role', () => {
+    renderPage();
+    expect(screen.getByRole('separator', { name: 'Resize tool list column' })).toBeInTheDocument();
+    expect(screen.getByRole('separator', { name: 'Resize output column' })).toBeInTheDocument();
+  });
+
+  it('drag right grows the left column', () => {
+    const { container } = renderPage();
+    const handle = screen.getByRole('separator', { name: 'Resize tool list column' });
+    fireEvent.mouseDown(handle, { clientX: 260 });
+    fireEvent.mouseMove(document, { clientX: 340 });
+    fireEvent.mouseUp(document);
+    expect(gridOf(container).style.getPropertyValue('--inspector-col-left')).toBe('340px');
+  });
+
+  it('drag LEFT grows the right column — it sits on the divider\'s right', () => {
+    // The inverted axis. Without `invert`, dragging left would shrink the pane
+    // you are dragging open, which is the bug this pins.
+    const { container } = renderPage();
+    const handle = screen.getByRole('separator', { name: 'Resize output column' });
+    fireEvent.mouseDown(handle, { clientX: 800 });
+    fireEvent.mouseMove(document, { clientX: 700 });
+    fireEvent.mouseUp(document);
+    expect(gridOf(container).style.getPropertyValue('--inspector-col-right')).toBe('450px');
+  });
+
+  it('clamps instead of letting a column swallow the page', () => {
+    const { container } = renderPage();
+    const handle = screen.getByRole('separator', { name: 'Resize tool list column' });
+    fireEvent.mouseDown(handle, { clientX: 260 });
+    fireEvent.mouseMove(document, { clientX: -5000 });
+    fireEvent.mouseUp(document);
+    expect(gridOf(container).style.getPropertyValue('--inspector-col-left')).toBe('180px');
+  });
+
+  it('remembers a width across a remount', () => {
+    const { container, unmount } = renderPage();
+    const handle = screen.getByRole('separator', { name: 'Resize tool list column' });
+    fireEvent.mouseDown(handle, { clientX: 260 });
+    fireEvent.mouseMove(document, { clientX: 360 });
+    fireEvent.mouseUp(document);
+    expect(gridOf(container).style.getPropertyValue('--inspector-col-left')).toBe('360px');
+    unmount();
+
+    const second = renderPage();
+    expect(gridOf(second.container).style.getPropertyValue('--inspector-col-left')).toBe('360px');
   });
 });

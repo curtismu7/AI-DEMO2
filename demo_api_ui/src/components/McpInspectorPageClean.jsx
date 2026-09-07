@@ -5,6 +5,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useInspectorSource } from '../hooks/useInspectorSource';
 import { useInspectorFields } from '../context/InspectorFieldContext';
 import { useThemeOptional } from '../context/ThemeContext';
+import useDividerDrag from '../hooks/useDividerDrag';
 import JsonHighlight from './shared/JsonHighlight';
 import JsonFormView from './shared/JsonFormView';
 import './McpInspectorPage.clean.css';
@@ -63,6 +64,16 @@ function McpInspectorPageClean() {
   // Per-page, not per-source — switching tabs should not reset how you read.
   const [outputView, setOutputView] = useState('json');
   const { registerFields, getMatchingFields } = useInspectorFields();
+
+  // The middle column is the 1fr remainder, so resizing the outer two resizes
+  // all three. `invert` on the right handle because that pane sits to the
+  // divider's right — dragging toward the start grows it.
+  const { size: leftWidth, handleProps: leftHandleProps } = useDividerDrag({
+    min: 180, max: 520, initial: 260, storageKey: 'mcp-inspector-col-left',
+  });
+  const { size: rightWidth, handleProps: rightHandleProps } = useDividerDrag({
+    min: 240, max: 720, initial: 350, storageKey: 'mcp-inspector-col-right', invert: true,
+  });
 
   // Use unified hook for current source
   const source = useInspectorSource(activeSource);
@@ -148,7 +159,12 @@ function McpInspectorPageClean() {
       )}
 
       <div className="inspector-clean-content">
-        <div className="inspector-clean-main">
+        {/* Widths ride as CSS vars on the inline style so the mobile stacking
+            media query (which drops to a single column) still wins over them. */}
+        <div
+          className="inspector-clean-main"
+          style={{ '--inspector-col-left': `${leftWidth}px`, '--inspector-col-right': `${rightWidth}px` }}
+        >
           {/* Left: Tools Tree */}
           <div className="inspector-clean-panel">
             <div className="inspector-clean-panel-header">
@@ -224,6 +240,12 @@ function McpInspectorPageClean() {
             </div>
           </div>
 
+          <div
+            className="divider-drag-handle inspector-clean-divider"
+            aria-label="Resize tool list column"
+            {...leftHandleProps}
+          />
+
           {/* Middle: Form */}
           <div className="inspector-clean-panel">
             <div className="inspector-clean-panel-header">
@@ -289,6 +311,12 @@ function McpInspectorPageClean() {
               )}
             </div>
           </div>
+
+          <div
+            className="divider-drag-handle inspector-clean-divider"
+            aria-label="Resize output column"
+            {...rightHandleProps}
+          />
 
           {/* Right: Output */}
           <div className="inspector-clean-panel">
