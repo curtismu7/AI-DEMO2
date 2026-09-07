@@ -23,6 +23,7 @@ const rateLimit = require('express-rate-limit');
 const configStore = require('../services/configStore');
 const { FIELD_DEFS } = require('../services/configStore');
 const { getOAuthRedirectDebugInfo } = require('../services/oauthRedirectUris');
+const mcpBrokerPrompt = require('../services/mcpBrokerPrompt');
 const { blockInDemoMode } = require('../middleware/demoMode');
 const hosting = require('../config/hosting');
 const { probeManagementApiAccess } = require('../services/pingoneBootstrapService');
@@ -504,6 +505,34 @@ router.post('/oauth-health/check', requireAdminOrUnconfigured, configReadLimiter
       message: error.message,
       checks,
     });
+  }
+});
+
+// POST /api/admin/config/mcp-broker-prompt — set the OIDC `prompt` both MCP
+// OAuth brokers send to PingOne ('login' | 'select_account' | 'off').
+//
+// The write lives here, behind requireAdminOrUnconfigured, rather than next to
+// its public GET on the façade router: that router is also mounted on the
+// plain-HTTP :3002 listener, which has no auth, and /privilege-mcp-client — the
+// page carrying the control — is declared `public` in auth-requirements.json.
+// An anonymous visitor to the SE deployment must not be able to set 'off' and
+// silently restore session reuse for everyone.
+router.post('/mcp-broker-prompt', requireAdminOrUnconfigured, async (req, res) => {
+  const prompt = String(req.body?.prompt ?? '');
+  if (!mcpBrokerPrompt.isValid(prompt)) {
+    return res.status(400).json({
+      error: `Invalid prompt "${prompt}". Use one of: ${mcpBrokerPrompt.CHOICES.join(', ')}`,
+    });
+  }
+  try {
+    await configStore.setConfig({ mcp_broker_prompt: prompt });
+    // Read back through the same accessor the brokers use, rather than echoing
+    // the input: mcp_broker_prompt has to be registered in FIELD_DEFS or
+    // setConfig drops it silently, and echoing would report a write that never
+    // landed.
+    return res.json({ prompt: mcpBrokerPrompt.effective() });
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Failed to save mcp_broker_prompt' });
   }
 });
 

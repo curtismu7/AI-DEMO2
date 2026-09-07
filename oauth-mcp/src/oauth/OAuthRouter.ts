@@ -12,6 +12,7 @@ import {
 } from './IdJagGrantHandler';
 import { resolveAudience } from './TokenIssuer';
 import { AUTHORIZATION_SERVER_SCOPES } from './scopes';
+import { resolveAuthorizeParams } from './brokerPrompt';
 
 /**
  * RFC 8252 §7.3: for a loopback redirect URI the port is chosen at request time
@@ -227,6 +228,16 @@ export class OAuthRouter {
       pingOneAuthorize.searchParams.set('scope', 'openid profile email read');
     } else {
       pingOneAuthorize.searchParams.set('scope', 'openid profile email');
+    }
+
+    // Send nothing and PingOne silently re-authenticates against whatever SSO
+    // session the browser already holds — and LM Studio opens the SYSTEM default
+    // browser, which is exactly where a stale session lives. The MCP client then
+    // adopts the current user with no login screen, and nothing in the flow shows
+    // whose identity ended up on the token. The BFF decides how strict to be
+    // (default: max_age, so the first door prompts and the rest ride that login).
+    for (const [k, v] of Object.entries(await resolveAuthorizeParams())) {
+      pingOneAuthorize.searchParams.set(k, v);
     }
 
     res.writeHead(302, { Location: pingOneAuthorize.toString() });

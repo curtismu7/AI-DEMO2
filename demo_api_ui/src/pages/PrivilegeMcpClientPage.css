@@ -2039,3 +2039,58 @@ select.cur-input { cursor: pointer; }
   background: var(--th-bg-hover);
   color: var(--th-text);
 }
+
+/* Sign-in behaviour for MCP doors — the mcp_broker_prompt radio.
+   Colours come from --th-* tokens only (THEMING.md): this stylesheet still
+   carries older literals like #8b949e, and adding more would deepen the
+   light-mode debt rather than pay it down. */
+.cur-prompt-mode {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--th-border);
+  border-radius: 8px;
+  /* Ink WITH the ground (THEMING.md H1): a themed background without a themed
+     colour inherits whatever the ancestor set and goes unreadable in one theme.
+     themingRatchet.test.js counts these, and caught this rule. */
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+
+.cur-prompt-mode legend {
+  padding: 0 6px;
+  font-size: var(--font-size-2xs);
+  font-weight: 600;
+  color: var(--th-text);
+}
+
+.cur-prompt-mode__row {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 0;
+  cursor: pointer;
+}
+
+.cur-prompt-mode__row input:disabled {
+  cursor: progress;
+}
+
+.cur-prompt-mode__label {
+  font-size: var(--font-size-2xs);
+  color: var(--th-text);
+}
+
+/* The hint carries the OIDC parameter, so it has to stay readable rather than
+   fade out — --font-size-3xs is the 10px floor from the scale, not a literal. */
+.cur-prompt-mode__hint {
+  font-size: var(--font-size-3xs);
+  color: var(--th-text-muted, var(--th-text));
+  line-height: 1.5;
+}
+
+.cur-prompt-mode__err {
+  margin: 8px 0 0;
+  font-size: var(--font-size-3xs);
+  color: var(--th-status-error);
+}
