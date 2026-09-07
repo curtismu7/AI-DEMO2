@@ -1,0 +1,17 @@
+{
+  "name": "mcp-inspector-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local server for mcp-inspector — lists and calls tools on any MCP server.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "test": "node --test *.test.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.9",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2"
+  }
+}
