@@ -415,8 +415,20 @@ function McpInspectorPageClean() {
 
           {/* Middle: Form */}
           <div className="inspector-clean-panel">
-            <div className="inspector-clean-panel-header">
+            <div className="inspector-clean-panel-header inspector-clean-panel-header--action">
               <div className="inspector-clean-panel-label">{mode === 'calls' ? 'Call' : 'Parameters'}</div>
+              {/* Sticky header, so this stays visible without scrolling past a
+                  long parameter list — a second copy of the same button below
+                  the form, not a replacement for it. */}
+              {mode !== 'calls' && source.selectedTool && (
+                <button
+                  className="inspector-clean-button inspector-clean-button--compact"
+                  onClick={source.handleExecute}
+                  disabled={source.busy}
+                >
+                  {source.busy ? 'Calling...' : 'Execute Call'}
+                </button>
+              )}
             </div>
             <div className="inspector-clean-panel-body">
               {source.selectedTool ? (
