@@ -499,6 +499,20 @@
   font-size: var(--font-size-xs);
 }
 
+.inspector-clean-addserver-toggle {
+  padding: 6px 10px;
+  font-size: var(--font-size-xs);
+}
+
+.inspector-clean-addserver-form {
+  gap: 10px;
+}
+
+.inspector-clean-addserver-error {
+  color: var(--th-status-error-text);
+  font-size: var(--font-size-xs);
+}
+
 .inspector-clean-server-status {
   display: flex;
   align-items: center;

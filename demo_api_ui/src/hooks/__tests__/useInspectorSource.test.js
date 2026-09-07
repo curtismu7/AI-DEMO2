@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 /**
@@ -38,6 +38,8 @@ function Probe({ sourceKey }) {
       <span data-testid="banner">{s.banner?.message || ''}</span>
       <span data-testid="loginUrl">{s.banner?.loginUrl || ''}</span>
       <span data-testid="first">{s.tools[0]?.[s.config.toolKey] || ''}</span>
+      <span data-testid="selectedProfileId">{s.selectedProfileId}</span>
+      <button data-testid="reload" onClick={() => s.loadProfiles('new-id')}>reload</button>
     </div>
   );
 }
@@ -73,6 +75,26 @@ describe('source endpoints', () => {
     await waitFor(() => expect(get).toHaveBeenCalledWith('/api/mcp/inspector/profiles'));
     // defaultProfileId is the banking path, so no ?profile= is appended for it.
     await waitFor(() => expect(get).toHaveBeenCalledWith('/api/mcp/inspector/tools'));
+  });
+
+  it('loadProfiles re-fetches the profile list and can select one by id (e.g. one just added)', async () => {
+    get.mockImplementation((url) => {
+      if (url === '/api/mcp/inspector/profiles') {
+        return Promise.resolve({
+          data: { profiles: [{ id: 'p1', label: 'Weather' }, { id: 'new-id', label: 'New' }], defaultProfileId: 'banking' },
+        });
+      }
+      return Promise.resolve({ data: { tools: [] } });
+    });
+    renderSource('custom');
+    await waitFor(() => expect(get).toHaveBeenCalledWith('/api/mcp/inspector/profiles'));
+    get.mockClear();
+
+    fireEvent.click(screen.getByTestId('reload'));
+
+    await waitFor(() => expect(get).toHaveBeenCalledWith('/api/mcp/inspector/profiles'));
+    await waitFor(() => expect(screen.getByTestId('selectedProfileId')).toHaveTextContent('new-id'));
+    await waitFor(() => expect(get).toHaveBeenCalledWith('/api/mcp/inspector/tools?profile=new-id'));
   });
 });
 
