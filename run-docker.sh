@@ -1502,6 +1502,19 @@ cmd_start() {
   echo ""
 
   _CORE_UP=($(_effective_core_services))
+  # When the llm-proxy CONTAINER is the one serving :8090, let its clients reach it
+  # by service name. Same process either way — but host.docker.internal leaves the
+  # host and comes back through the published port, so the BFF and all three agent
+  # services arrive SNAT'd to the docker gateway address and land in one shared
+  # per-IP bucket in the proxy's rate limiter, together with anything on the host
+  # that probes :8090 (PingOne Privilege's local AI discovery does, every 30s).
+  # Measured 2026-09-07: host.docker.internal:8090 → 429, llm-proxy:8090 → 200,
+  # same instant, same container. Under host oMLX/mlx there IS no container, so
+  # the compose default (host.docker.internal) stays — do not hoist this into
+  # _effective_core_services, which runs in $(...) where an export cannot escape.
+  if [[ " ${_CORE_UP[*]} " == *" llm-proxy "* ]]; then
+    export LLAMACPP_BASE_URL="${LLAMACPP_BASE_URL:-http://llm-proxy:8090}"
+  fi
   # shellcheck disable=SC2206
   _DEFAULT_PROFILES=($(_optional_profile_args "${DEFAULT_OPTIONAL_GROUPS[@]}"))
   # shellcheck disable=SC2206

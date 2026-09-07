@@ -668,6 +668,33 @@ describe('POST /llm/call — LM Studio lane', () => {
     expect(res.status).toBe(502);
   });
 
+  // The console reads reachedProvider to decide between "the model refused" and
+  // "the call never got there". Hardcoding it true made a closed port render as
+  // "LM Studio stopped this — Privilege passed the prompt through", which is two
+  // false claims about an unmediated lane whose socket never opened.
+  it('reports reachedProvider false when the connection never opened', async () => {
+    llmFetch.mockRejectedValueOnce(
+      Object.assign(new TypeError('fetch failed'), { cause: new Error('connect ECONNREFUSED 1.2.3.4:1234') }),
+    );
+
+    const res = await post({ provider: 'lmstudio', prompt: 'hi' });
+
+    expect(res.status).toBe(502);
+    expect(res.body.reachedProvider).toBe(false);
+  });
+
+  it('reports reachedProvider true when LM Studio itself answered with an error', async () => {
+    llmFetch
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: [{ id: 'qwen3.8-27b' }] }) })
+      .mockResolvedValueOnce({ ok: false, status: 400, statusText: 'Bad Request', json: async () => ({ error: { message: 'model not loaded' } }) });
+
+    const res = await post({ provider: 'lmstudio', prompt: 'hi' });
+
+    expect(res.status).toBe(502);
+    expect(res.body.error).toBe('model not loaded');
+    expect(res.body.reachedProvider).toBe(true);
+  });
+
   it('still requires a prompt', async () => {
     const res = await post({ provider: 'lmstudio', prompt: '' });
     expect(res.status).toBe(400);

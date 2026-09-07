@@ -61,7 +61,16 @@ function classify(err) {
   if (err.code === 'llm_policy_denied') return { verdict: 'Denied by policy', tone: 'warn', layer: 'Privilege' };
   if (err.code === 'llm_rate_limited') return { verdict: 'Rate limited by policy', tone: 'warn', layer: 'Privilege' };
   if (err.status === 503) return { verdict: 'Not configured', tone: 'bad', layer: 'this app' };
-  if (err.status === 502) return { verdict: 'Provider refused', tone: 'bad', layer: 'provider' };
+  // A 502 covers two different stories: the model answered with a refusal, or the
+  // call never got there at all (DNS, refused, reset). `reachedProvider` rides on
+  // the error body and is the only thing that separates them — without it a local
+  // lane whose port was closed reads as "the provider refused", which is a claim
+  // about a conversation that never happened.
+  if (err.status === 502) {
+    return err.reachedProvider === false
+      ? { verdict: 'Could not reach the model', tone: 'bad', layer: 'transport' }
+      : { verdict: 'Provider refused', tone: 'bad', layer: 'provider' };
+  }
   return { verdict: `HTTP ${err.status || '?'}`, tone: 'bad', layer: 'unknown' };
 }
 
@@ -80,8 +89,18 @@ function attribution(decision, isLocal) {
   if (decision.layer === 'Privilege') {
     return { who: '\ud83d\udd10 Privilege stopped this', note: 'The prompt never reached the model. Nothing was sent, nothing was billed.' };
   }
+  if (decision.layer === 'transport') {
+    return {
+      who: `${model} could not be reached`,
+      note: isLocal
+        ? 'The call never connected, so nothing refused it — this lane has no policy layer in front of it anyway.'
+        : 'The call never connected. Nothing was sent to the model and nothing was billed.',
+    };
+  }
   if (decision.layer === 'provider') {
-    return { who: `${model} stopped this`, note: 'Privilege passed the prompt through — the refusal came from the provider.' };
+    return isLocal
+      ? { who: `${model} stopped this`, note: 'No policy layer on this lane — the refusal came from the model itself.' }
+      : { who: `${model} stopped this`, note: 'Privilege passed the prompt through — the refusal came from the provider.' };
   }
   return { who: `Stopped by ${decision.layer}`, note: 'The call never reached Privilege or the model.' };
 }
@@ -412,7 +431,7 @@ export default function LlmGatewayPage() {
               {/* Only a refusal has a refuser, and the headline banner above already
                   names it — this row stays as the machine-readable restatement, so
                   it must never appear under a verdict of "Answered". */}
-              {decision.tone === 'ok' ? null : (
+              {decision.tone === 'ok' || decision.layer === 'transport' ? null : (
                 <div><dt>Refused by</dt><dd>{decision.layer}</dd></div>
               )}
               {/* The pair "which lanes are governed" answers in the abstract; this
@@ -447,7 +466,11 @@ export default function LlmGatewayPage() {
                 ? <div><dt>Latency</dt><dd>{decision.latencyMs} ms</dd></div> : null}
             </dl>
           )}
-          {decision && !decision.reachedProvider ? (
+          {/* Only a Privilege denial actually stopped at the gateway. A transport
+              failure also never reached the model, but there was no gateway in the
+              story — on a local lane there isn't one at all — so this note would be
+              claiming credit for a refusal that never happened. */}
+          {decision && !decision.reachedProvider && decision.layer === 'Privilege' ? (
             <p className="lgw-rail__note">
               The prompt stopped at the gateway. Nothing was sent to the model and nothing was billed.
             </p>
