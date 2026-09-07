@@ -369,3 +369,75 @@
   font-family: var(--font-mono, monospace);
   color: var(--th-text);
 }
+
+/* ── response view toggle + form view ────────────────────────────────────── */
+/* Mirrors .lgw-rail__head / .lgw-viewtoggle on the Chat console so the two tabs
+   read as one product. Form is a rendering of the same JSON, not a summary —
+   every leaf, path-labelled — so it keeps this page's "interprets nothing"
+   contract; JSON stays the default for the same reason. */
+.lt-pane__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.lt-viewtoggle {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.lt-viewtoggle button {
+  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--th-border);
+  border-radius: 4px;
+  background: var(--th-bg-card);
+  color: var(--th-text-muted);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+.lt-viewtoggle button:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+.lt-viewtoggle button.is-active {
+  border-color: var(--th-accent, var(--th-text));
+  background: var(--th-bg-emphasis);
+  color: var(--th-text-on-emphasis);
+}
+
+/* Same box as the <pre> it stands in for (.lt-pane pre above), so toggling
+   does not shift the layout. Unlike .lgw-dec, the dt is NOT uppercased: it is a
+   JSON path (choices[0].message.content), an identifier, not a label. */
+.lt-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--th-border);
+  border-radius: 5px;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  max-height: 24rem;
+  overflow-y: auto;
+}
+
+.lt-form > div { display: flex; flex-direction: column; gap: 0.1rem; }
+
+.lt-form dt {
+  font-family: var(--font-mono, monospace);
+  font-size: var(--font-size-sm);
+  color: var(--th-text-muted);
+  word-break: break-all;
+}
+
+.lt-form dd {
+  margin: 0;
+  font-size: var(--font-size-base);
+  line-height: 1.5;
+  color: var(--th-text);
+  word-break: break-word;
+}

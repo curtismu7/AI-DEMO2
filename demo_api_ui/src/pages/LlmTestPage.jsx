@@ -80,6 +80,20 @@ function bodyFor(path, model) {
   return { model, prompt: DEMO_PROMPT, max_tokens: 64 };
 }
 
+// Form view of an arbitrary JSON body: every leaf as a `path: value` row, paths in
+// JS notation (choices[0].message.content). A rendering, not an interpretation —
+// nothing is summarised or dropped, which is the contract this page keeps.
+function flatten(value, prefix = '') {
+  if (value === null || typeof value !== 'object') {
+    return [[prefix || '(value)', value === null ? 'null' : String(value)]];
+  }
+  const entries = Array.isArray(value)
+    ? value.map((v, i) => [`${prefix}[${i}]`, v])
+    : Object.entries(value).map(([k, v]) => [prefix ? `${prefix}.${k}` : k, v]);
+  if (!entries.length) return [[prefix || '(value)', Array.isArray(value) ? '[]' : '{}']];
+  return entries.flatMap(([p, v]) => flatten(v, p));
+}
+
 export default function LlmTestPage() {
   const { darkMode, toggleDarkMode } = useThemeOptional();
   const [lanes, setLanes] = useState([]);
@@ -91,6 +105,10 @@ export default function LlmTestPage() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
+  // Response pane view. JSON stays the default: the raw body is this page's
+  // contract (the tests pin it), so Form is the opt-in reading aid, not the
+  // form-first default the Chat console uses for its Last Decision pane.
+  const [resView, setResView] = useState('json');
   // The direct key lives only in this component's state for as long as the tab is
   // open. It is sent with the comparison request and never persisted anywhere —
   // not localStorage, not the server. Closing the page forgets it.
@@ -379,12 +397,43 @@ export default function LlmTestPage() {
               </div>
 
               <div className="lt-pane">
-                <span className="lt-k">Response</span>
-                <pre data-testid="lt-response" className={darkMode ? 'jh-dark' : ''}>
-                  {result.response?.json
-                    ? <JsonHighlight value={result.response.json} />
-                    : result.response?.raw || '(empty body)'}
-                </pre>
+                <div className="lt-pane__head">
+                  <span className="lt-k">Response</span>
+                  {/* Only a parsed body has fields to lay out; raw text gets no toggle. */}
+                  {result.response?.json ? (
+                    <div className="lt-viewtoggle" role="group" aria-label="Response view">
+                      <button
+                        type="button"
+                        className={resView === 'form' ? 'is-active' : ''}
+                        aria-pressed={resView === 'form'}
+                        onClick={() => setResView('form')}
+                      >
+                        Form
+                      </button>
+                      <button
+                        type="button"
+                        className={resView === 'json' ? 'is-active' : ''}
+                        aria-pressed={resView === 'json'}
+                        onClick={() => setResView('json')}
+                      >
+                        JSON
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+                {result.response?.json && resView === 'form' ? (
+                  <dl className="lt-form" data-testid="lt-response-form">
+                    {flatten(result.response.json).map(([k, v]) => (
+                      <div key={k}><dt>{k}</dt><dd>{v}</dd></div>
+                    ))}
+                  </dl>
+                ) : (
+                  <pre data-testid="lt-response" className={darkMode ? 'jh-dark' : ''}>
+                    {result.response?.json
+                      ? <JsonHighlight value={result.response.json} />
+                      : result.response?.raw || '(empty body)'}
+                  </pre>
+                )}
               </div>
 
               <div className="lt-pane">

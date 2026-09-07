@@ -13,8 +13,9 @@
  */
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
-const { test, describe, beforeEach, afterEach } = require('node:test');
+const { test, describe, before, after, beforeEach, afterEach } = require('node:test');
 const assert = require('node:assert');
+const express = require('express');
 
 const SECRET = 'test-authz-secret-not-a-real-one';
 const TRUST_DOMAIN = 'demo.local';
@@ -49,7 +50,33 @@ function load() {
 }
 
 describe('token exchange with a JWT-SVID actor_token', () => {
-  const prev = { secret: process.env.AUTHZ_JWT_SECRET, flag: process.env.FF_SPIFFE_ACTOR_TOKEN };
+  const prev = {
+    secret: process.env.AUTHZ_JWT_SECRET,
+    flag: process.env.FF_SPIFFE_ACTOR_TOKEN,
+    port: process.env.AUTHZ_PORT,
+  };
+  let server;
+
+  // routes/token.js reaches the policy decision over real HTTP, calling the authz
+  // server on AUTHZ_PORT — itself, in production. Without a server there the call
+  // is refused and the route fails closed with 503, so the two tests that expect a
+  // minted token only passed on a machine with the demo stack up on :9001. That is
+  // what CI caught once the suite became blocking. Same remedy as
+  // token.decision.test.js: serve the real decision route ourselves. Port 0 rather
+  // than a fixed one, so this cannot collide with that sibling suite's listener.
+  before(async () => {
+    const app = express();
+    app.use(express.json());
+    app.post('/governance/pap/alpha/policy/:workerId/decision', (req, res) => require('./routes/decision')(req, res));
+    await new Promise((resolve) => { server = app.listen(0, resolve); });
+    process.env.AUTHZ_PORT = String(server.address().port);
+  });
+
+  after(async () => {
+    await new Promise((resolve) => server.close(resolve));
+    if (prev.port === undefined) delete process.env.AUTHZ_PORT;
+    else process.env.AUTHZ_PORT = prev.port;
+  });
 
   beforeEach(() => { process.env.AUTHZ_JWT_SECRET = SECRET; });
   afterEach(() => {
