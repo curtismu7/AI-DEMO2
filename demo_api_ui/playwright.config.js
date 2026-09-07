@@ -35,6 +35,11 @@
 
 const { defineConfig, devices } = require('@playwright/test');
 
+// The demo credentials come from demo_api_server/.env — the one place that
+// defines them. Seeded BEFORE .env.e2e so a stale hand-copied duplicate there
+// can no longer outrank the real value; a shell export still wins over both.
+require('./tests/helpers/demoCredentials').seedDemoCredentials();
+
 // Load tests/e2e/.env.e2e into process.env before any spec is collected.
 // The *.real.spec.js suites gate on requireRealLoginEnv() (E2E_CUSTOMER_USERNAME /
 // E2E_CUSTOMER_PASSWORD). Nothing loaded this file, so running them directly
