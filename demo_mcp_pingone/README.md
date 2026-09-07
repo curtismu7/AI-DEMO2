@@ -39,8 +39,36 @@ connecting through Privilege would hang on "Waiting for authorization…" showin
 nothing. Verified 2026-09-07 with a client that explicitly advertised
 `elicitation` capability — no elicitation was ever sent.
 
-**Use `PINGONE_AUTH_GRANT_TYPE=client_credentials`.** It is undocumented in the
-upstream README but fully supported by the binary, needs no human, and self-renews.
+**Use a worker `client_credentials` token.** But note the platform split found
+on 2026-09-07, on v0.0.2:
+
+| Build (same commit `68064d2`) | `PINGONE_AUTH_GRANT_TYPE=client_credentials` |
+|---|---|
+| `darwin_arm64` | honoured — proven by a wrong secret returning `invalid_client` |
+| `linux_arm64` | **ignored** — never attempts the flow, fails every tool call |
+
+`--grant-type client_credentials` is rejected as a *flag* on both
+("unable to parse grant type"), so the env var is the only route — and it does
+not work on Linux, which is what we deploy.
+
+**So the bridge mints the token itself** and writes the session file the binary
+reads. That depends on the file's UNDOCUMENTED shape:
+
+```json
+{ "accessToken": "...", "refreshToken": "", "expiry": "<RFC3339>", "sessionId": "..." }
+```
+
+`test/sessionShape.test.js` pins that shape against a real captured sample, so an
+upstream change surfaces as a red test rather than a demo that silently stops
+authenticating. There is no refresh token (client_credentials never issues one),
+so expiry is handled by re-minting ahead of a 5-minute skew, plus a retry-once
+path when the child reports an auth failure — that self-heals even if the child
+cached a token in memory.
+
+`--store-type file` is also mandatory in a container: the default `keychain`
+means the DBus Secret Service on Linux, and without it the process exits 1 on
+every start with `keychain is not accessible: exec: "dbus-launch": executable
+file not found`. Invisible on macOS, which has a keychain.
 
 **Consequence worth saying on stage:** the upstream then acts as a **service**
 identity, so PingOne's own role filtering is static and *every* per-user access
@@ -83,10 +111,11 @@ denial and is not one.
 |---|---|---|
 | `PORT` | `8083` | 8080–8082 are the other gateway sidecars |
 | `PINGONE_MCP_BIN` | `/usr/local/bin/pingone-mcp-server` | |
-| `PINGONE_MCP_ARGS` | `run --disable-read-only --include-tool-collections applications,populations` | |
+| `PINGONE_MCP_ARGS` | `run --store-type file --disable-read-only --include-tool-collections applications,populations` | `--store-type file` is mandatory in a container |
 | `PINGONE_MCP_TIMEOUT_MS` | `30000` | PingOne management calls are not fast |
 | `PINGONE_MCP_ENVIRONMENT_ID` | — | required |
-| `PINGONE_AUTH_GRANT_TYPE` | — | set to `client_credentials` |
+| `PINGONE_AUTH_GRANT_TYPE` | — | set to `client_credentials` (ignored by the Linux build; the bridge mints instead) |
+| `PINGONE_MCP_SESSION_FILE` | `$HOME/.pingone_mcp_session.json` | where the minted session is written |
 | `PINGONE_CLIENT_CREDENTIALS_CLIENT_ID` / `_SECRET` | — | worker app |
 | `PINGONE_CLIENT_CREDENTIALS_SCOPES` | — | `p1:read:env` |
 | `PINGONE_ROOT_DOMAIN` | — | `pingone.com` |

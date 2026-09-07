@@ -45,6 +45,7 @@ process.stdin.on('data', (c) => {
 `;
 
 let binPath;
+let sessionPath;
 let server;
 let shutdown;
 let base;
@@ -55,6 +56,16 @@ before(async () => {
   process.env.PINGONE_MCP_BIN = process.execPath;
   process.env.PINGONE_MCP_ARGS = binPath;
   process.env.PORT = '0';
+  // A session file that is already fresh, so ensureSession() is a no-op and
+  // these tests need no PingOne credentials and make no network call.
+  sessionPath = path.join(os.tmpdir(), `fake-session-${process.pid}.json`);
+  fs.writeFileSync(sessionPath, JSON.stringify({
+    accessToken: 'test-token',
+    refreshToken: '',
+    expiry: new Date(Date.now() + 3600_000).toISOString(),
+    sessionId: '00000000-0000-0000-0000-000000000001',
+  }));
+  process.env.PINGONE_MCP_SESSION_FILE = sessionPath;
   ({ server, shutdown } = require('../server'));
   await new Promise((r) => server.listen(0, r));
   base = `http://127.0.0.1:${server.address().port}`;
@@ -66,6 +77,7 @@ after(() => {
   shutdown();
   server.close();
   try { fs.unlinkSync(binPath); } catch { /* already gone */ }
+  try { fs.unlinkSync(sessionPath); } catch { /* already gone */ }
 });
 
 function post(urlPath, body) {

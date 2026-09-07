@@ -27,8 +27,11 @@
 #
 # Ports 8080-8083 are taken, in this order. A new sidecar takes 8084.
 
+# ghcr-pull-secret, NOT ghcr-pull. Both exist in this namespace; the running
+# Deployment uses ghcr-pull-secret, and naming the other one here would swap the
+# pull secret out from under all four sidecars on the next upgrade.
 imagePullSecrets:
-  - name: ghcr-pull
+  - name: ghcr-pull-secret
 
 extraContainers:
   - name: mcp-brave

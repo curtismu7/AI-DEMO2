@@ -30,6 +30,9 @@
 'use strict';
 
 const http = require('node:http');
+const os = require('node:os');
+const path = require('node:path');
+const fs = require('node:fs');
 const { spawn } = require('node:child_process');
 const { randomUUID } = require('node:crypto');
 
@@ -39,11 +42,39 @@ const CHILD_BIN = process.env.PINGONE_MCP_BIN || '/usr/local/bin/pingone-mcp-ser
 // applications+populations with writes enabled is what gives the Privilege demo
 // its contrast — permit list_applications, deny create_oidc_application.
 // Override with PINGONE_MCP_ARGS (space-separated) rather than editing this.
+//
+// --store-type file is NOT optional in a container. The upstream default is
+// `keychain`, which on Linux means the DBus Secret Service; without it the
+// process exits 1 on EVERY start with
+//   keychain is not accessible: exec: "dbus-launch": executable file not found
+// and the bridge just reports "child exited" on each call. It is invisible on
+// macOS, which has a keychain — so this only shows up once deployed.
 const CHILD_ARGS = (process.env.PINGONE_MCP_ARGS
-  || 'run --disable-read-only --include-tool-collections applications,populations').split(/\s+/).filter(Boolean);
+  || 'run --store-type file --disable-read-only --include-tool-collections applications,populations').split(/\s+/).filter(Boolean);
 const CALL_TIMEOUT_MS = parseInt(process.env.PINGONE_MCP_TIMEOUT_MS || '30000', 10);
 const INIT_ID = '__bridge_init__';
 const SSE_KEEPALIVE_MS = 25_000;
+
+// --- Session minting ---------------------------------------------------------
+// The Linux v0.0.2 binary does NOT honour PINGONE_AUTH_GRANT_TYPE=client_credentials
+// — it never attempts the flow and fails every tool call with "no active auth
+// session found and a browser can't be used for login". The darwin build of the
+// SAME commit (68064d2) does honour it, proven by a wrong-secret run returning
+// `invalid_client`. Measured 2026-09-07 on v0.0.2.
+//
+// So the bridge mints the worker token itself and writes the session file the
+// binary reads. This deliberately depends on that file's UNDOCUMENTED shape:
+//   { accessToken, refreshToken: "", expiry: <RFC3339>, sessionId }
+// If an upstream release changes it, this breaks — sessionShape.test.js
+// pins the shape so the break is a red test, not a silent demo failure.
+//
+// There is no refresh token (client_credentials never issues one), so expiry is
+// handled by RE-MINTING, and by retrying once when the child reports an auth
+// failure — that self-heals even if the child cached a token in memory.
+const SESSION_FILE = process.env.PINGONE_MCP_SESSION_FILE
+  || path.join(process.env.HOME || os.homedir(), '.pingone_mcp_session.json');
+const AUTH_HOST = () => `https://auth.${process.env.PINGONE_ROOT_DOMAIN || 'pingone.com'}`;
+const EXPIRY_SKEW_MS = 5 * 60 * 1000;
 
 let child = null;
 let childInit = null; // the upstream's own initialize result, echoed to callers
@@ -51,6 +82,60 @@ let stdoutBuffer = '';
 const pending = new Map(); // internal id -> { resolve, reject, timer, callerId }
 const sseSessions = new Map(); // sse session id -> open response stream
 const keepAlives = new Set(); // live keep-alive intervals, so shutdown can clear them
+
+/** Is the session file present and good for at least EXPIRY_SKEW_MS more? */
+function sessionIsFresh() {
+  try {
+    const s = JSON.parse(fs.readFileSync(SESSION_FILE, 'utf8'));
+    if (!s.accessToken || !s.expiry) return false;
+    return new Date(s.expiry).getTime() - Date.now() > EXPIRY_SKEW_MS;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Mint a worker client_credentials token and write the session file the
+ * upstream binary reads. No-op when the current one is still fresh unless
+ * `force` is set (used by the retry-once path after an auth failure).
+ */
+async function ensureSession({ force = false } = {}) {
+  if (!force && sessionIsFresh()) return;
+  const envId = process.env.PINGONE_MCP_ENVIRONMENT_ID;
+  const clientId = process.env.PINGONE_CLIENT_CREDENTIALS_CLIENT_ID;
+  const clientSecret = process.env.PINGONE_CLIENT_CREDENTIALS_CLIENT_SECRET;
+  if (!envId || !clientId || !clientSecret) {
+    throw new Error('PINGONE_MCP_ENVIRONMENT_ID / PINGONE_CLIENT_CREDENTIALS_CLIENT_ID / _CLIENT_SECRET are required');
+  }
+  const body = new URLSearchParams({ grant_type: 'client_credentials' });
+  if (process.env.PINGONE_CLIENT_CREDENTIALS_SCOPES) {
+    body.set('scope', process.env.PINGONE_CLIENT_CREDENTIALS_SCOPES);
+  }
+  const res = await fetch(`${AUTH_HOST()}/${envId}/as/token`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
+    },
+    body,
+    signal: AbortSignal.timeout(15000),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    // Surface PingOne's own reason (invalid_client, invalid_scope, ...) rather
+    // than a generic failure — it is the difference between a bad secret and a
+    // bad scope, and the sidecar's logs are the only place anyone will look.
+    throw new Error(`token endpoint ${res.status}: ${text.slice(0, 300)}`);
+  }
+  const tok = JSON.parse(text);
+  fs.writeFileSync(SESSION_FILE, `${JSON.stringify({
+    accessToken: tok.access_token,
+    refreshToken: '',
+    expiry: new Date(Date.now() + (tok.expires_in || 3600) * 1000).toISOString(),
+    sessionId: randomUUID(),
+  })}\n`, { mode: 0o600 });
+  console.log(`[mcp-pingone] minted worker session, expires in ${tok.expires_in || 3600}s`);
+}
 
 function startChild() {
   // stderr is inherited on purpose: the upstream logs auth and API failures
@@ -128,6 +213,12 @@ function handleChildLine(line) {
   waiter.resolve(msg);
 }
 
+/** The upstream's message when it has no usable session. */
+function isAuthFailure(response) {
+  const text = JSON.stringify(response || '');
+  return /no active auth session found|failed to login|Unable to authenticate/i.test(text);
+}
+
 function callChild(message, timeoutMs = CALL_TIMEOUT_MS) {
   return new Promise((resolve, reject) => {
     if (!child) startChild();
@@ -168,8 +259,10 @@ async function dispatch(rpc) {
     return { jsonrpc: '2.0', id: (rpc && rpc.id) ?? null, error: { code: -32600, message: 'Invalid Request' } };
   }
   // Answered locally — the bridge is already initialized against the child.
+  // Deliberately does NOT spawn the child: the first spawn should happen after
+  // ensureSession() below has written a session file, otherwise every first
+  // tool call pays for a guaranteed auth failure and retry.
   if (rpc.method === 'initialize') {
-    if (!child) startChild();
     return {
       jsonrpc: '2.0',
       id: rpc.id,
@@ -184,7 +277,18 @@ async function dispatch(rpc) {
   if (rpc.id == null) return null; // any other notification: nothing to answer
 
   try {
-    return await callChild(rpc);
+    await ensureSession();
+    let response = await callChild(rpc);
+    if (isAuthFailure(response)) {
+      // The token expired, or the child cached one from before the last mint.
+      // Re-mint, restart the child so it re-reads the file, and try once more.
+      // This is what makes expiry self-healing without a refresh timer.
+      console.warn('[mcp-pingone] auth failure from child — re-minting session and retrying once');
+      await ensureSession({ force: true });
+      if (child) { child.kill(); child = null; childInit = null; }
+      response = await callChild(rpc);
+    }
+    return response;
   } catch (e) {
     return { jsonrpc: '2.0', id: rpc.id, error: { code: -32000, message: e.message } };
   }
@@ -295,4 +399,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { server, dispatch, shutdown };
+module.exports = { server, dispatch, shutdown, ensureSession, sessionIsFresh, isAuthFailure };

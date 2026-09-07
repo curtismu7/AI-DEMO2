@@ -5,12 +5,18 @@ ARG GIT_SHA=unknown
 # the safe base for a third-party binary we do not compile.
 FROM node:22-slim
 LABEL org.opencontainers.image.source=https://github.com/curtismu7/AI-DEMO2
+# Re-declared after FROM: an ARG before FROM is global and is NOT in scope in
+# the build stage, so `ENV GIT_SHA=$GIT_SHA` alone resolves to empty.
+ARG GIT_SHA
 ENV GIT_SHA=$GIT_SHA
 
 # Pinned, not "latest": this is a v0.0.x project (v0.0.2 released 2025-12-12)
 # and its tool surface is still moving. Bump deliberately, not by rebuild.
 ARG PINGONE_MCP_VERSION=0.0.2
-ARG TARGETARCH=amd64
+# TARGETARCH is set by buildx from --platform. The SE cluster's nodes are
+# arm64, so build with --platform linux/arm64; the default here only matters
+# for a plain `docker build` on this host, which is also arm64.
+ARG TARGETARCH=arm64
 
 WORKDIR /app
 
