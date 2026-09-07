@@ -140,6 +140,70 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-07 — Every path and every door on `/privilege-mcp-client` was broken
+
+**Files changed:** `demo_api_server/routes/privilegeMcpClient.js`,
+`demo_api_server/tests/routes/privilegeMcpClient.doorReachability.regression.test.js` (new),
+`demo_api_server/tests/routes/privilegeMcpClient.pingoneAdminTokenHeader.test.js`.
+
+**What was broken:** all three Paths (Direct / Privilege / Façade) and every
+Door under them failed, in three different-looking ways with two root causes.
+
+1. **Wrong-audience token.** `getClientSession()` seeded
+   `session.oauth.accessToken` from the main banking app's user token
+   (`req.session.oauthTokens.accessToken`, `aud: enduser.ping.demo`). No door on
+   this page accepts that audience — the façade doors and `oauth-mcp` verify
+   `mcpgateway.ping.demo`, and the Privilege AI Gateway is its own AS that only
+   accepts a token it minted through DCR. So the Privilege path 401'd
+   `"Bearer token required"` on every door. It also **suppressed its own fix**:
+   `/state` reports `authenticated: Boolean(session.oauth.accessToken)`, so the
+   page believed it was signed in and the silent `prompt=none` sign-in that would
+   have fetched a real gateway token never ran — the page rendered
+   `authStatus: authenticated` while holding a token good for nothing.
+2. **Browser-facing URL used for a server-side fetch.** The Direct and Façade
+   door URLs are built from `PUBLIC_APP_ORIGIN()`, but this process is the one
+   that fetches them (`/mcp-facade/<door>/mcp` is served by this same server).
+   With `PUBLIC_APP_URL=https://local.ping-devops.com:4000`, that name resolves
+   to `127.0.0.1` inside the BFF container, where nothing listens on 4000: every
+   Direct/Façade door died with `fetch failed` (ECONNREFUSED). Because
+   `discoverAuth` deliberately swallows that transport error, Façade sign-in then
+   fell through to the PingOne branch with the Privilege SSO client and bounced
+   the browser to a PingOne `NOT_FOUND` page.
+
+**What was fixed:** the main-app seeding block is removed (replaced by a comment
+explaining why the slot must stay empty). A new `toInternalMcpUrl()` — the
+sibling of the existing `toInternalAs()`, which already solved this exact class
+of bug for the authorization-server URL — rewrites only our own public origin to
+`http://localhost:${MCP_FACADE_HTTP_PORT||3002}` (the plain-HTTP façade listener,
+for the same cert reason `DEFAULT_AUDIT_MCP_URL` already documents), applied at
+the five server-side fetch sites (`fetchMcp`, both stream openers, and both
+`discoverAuth` probes).
+
+**Do not break:**
+- `session.oauth.accessToken` must stay EMPTY on a fresh session. It is what
+  makes `/state` report `oauth.authenticated: false` while
+  `mainAppAuthenticated: true`, and that pair is what triggers the page's
+  auto-connect. Seeding anything into it re-creates this bug.
+- `toInternalMcpUrl` must rewrite ONLY `PUBLIC_APP_ORIGIN()`. Rewriting an
+  external host would point a Privilege or PingOne door at our loopback.
+- The rewrite is fetch-time only. `session.config.mcpUrl` must keep its public
+  form — the page displays it and `sameGatewayDoors()` groups doors by its
+  origin, so a stored localhost URL loses the door from the picker.
+- The `Authorization: Bearer` bring-your-own-token path and the per-request
+  `pingoneMcpAdminToken` re-sync are unchanged and must stay that way.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/routes/privilegeMcpClient --forceExit --runInBand`
+— 23 suites / 144 tests passed. Each fix was reverted individually to confirm
+only its own tests go red (fix 1 → the two token tests; fix 2 → the façade-dial
+test). Verified live on `https://local.ping-devops.com:4000/privilege-mcp-client`
+by driving all three Paths and every Door signed in as `demoUser`.
+
+Note `privilegeMcpClient.pingoneAdminTokenHeader.test.js` was passing only
+because it set `oauthTokens: { accessToken: 'main-app-token' }` to clear the
+route's auth guard — i.e. it depended on root cause 1. It now presents a real
+`Authorization: Bearer` instead. Same false-confidence pattern as the 2026-09-03
+entry below, where four mocks matched the bug rather than the real contract.
+
 ### 2026-09-07 — AI Guard blamed the model for calls that never left the building; local lanes 429'd by a shared rate-limit bucket
 
 **Files changed:** `demo_api_server/routes/privilegeMcpClient.js`,
