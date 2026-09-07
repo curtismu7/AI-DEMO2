@@ -87,7 +87,7 @@ describe("TxErrorModal — render and interaction", () => {
     render(
       <TxErrorModal
         modal={{ title: "Transaction Failed", message: "Insufficient funds" }}
-        onClose={jest.fn()}
+        onClose={vi.fn()}
       />,
     );
     expect(screen.getByText(/Transaction Failed/)).toBeInTheDocument();
@@ -96,7 +96,7 @@ describe("TxErrorModal — render and interaction", () => {
 
   it("modal is not rendered when txErrorModal is null", () => {
     const { container } = render(
-      <TxErrorModal modal={null} onClose={jest.fn()} />,
+      <TxErrorModal modal={null} onClose={vi.fn()} />,
     );
     expect(container).toBeEmptyDOMElement();
   });

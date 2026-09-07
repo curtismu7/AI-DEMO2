@@ -48,7 +48,7 @@ function Probe() {
 
 beforeEach(() => {
   tokenChainTraceStore.reset();
-  global.fetch = jest.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ useCases: CATALOG }) }));
+  global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ useCases: CATALOG }) }));
 });
 
 test('does not fetch the use-case catalog when there is no session', async () => {

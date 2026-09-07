@@ -5,11 +5,11 @@ import agentFixture from "../../services/__tests__/fixtures/trace-agent-run.json
 import chipFixture from "../../services/__tests__/fixtures/trace-chip-run.json";
 
 afterEach(() => {
-  jest.resetAllMocks();
+  vi.resetAllMocks();
 });
 
 test("rawUrl change shows loading then the new graph", async () => {
-  global.fetch = jest.fn(() =>
+  global.fetch = vi.fn(() =>
     Promise.resolve({ ok: true, json: () => Promise.resolve(agentFixture) }));
   const { container, rerender } = render(<TraceGraphCore rawUrl="/api/health/tracing/traces/a/raw" />);
   expect(global.fetch).toHaveBeenCalledWith(
@@ -18,7 +18,7 @@ test("rawUrl change shows loading then the new graph", async () => {
   await waitFor(() => expect(container.querySelector("svg")).toBeInTheDocument());
   expect(container.textContent).toContain("AI Agent"); // DISPLAY_LABELS['agent-service']
 
-  global.fetch = jest.fn(() =>
+  global.fetch = vi.fn(() =>
     Promise.resolve({ ok: true, json: () => Promise.resolve(chipFixture) }));
   rerender(<TraceGraphCore rawUrl="/api/health/tracing/traces/b/raw" />);
   // A genuine rawUrl change resets to the loading state before the new data arrives.
@@ -29,7 +29,7 @@ test("rawUrl change shows loading then the new graph", async () => {
 });
 
 test("refreshKey-only change does NOT blank the graph while the new fetch is in flight", async () => {
-  global.fetch = jest.fn(() =>
+  global.fetch = vi.fn(() =>
     Promise.resolve({ ok: true, json: () => Promise.resolve(agentFixture) }));
   const { container, rerender } = render(
     <TraceGraphCore rawUrl="/api/health/tracing/overview/raw" refreshKey={0} />,
@@ -40,7 +40,7 @@ test("refreshKey-only change does NOT blank the graph while the new fetch is in 
   // the DOM mid-refetch instead of only before/after.
   let resolveRefetch;
   const pending = new Promise((resolve) => { resolveRefetch = resolve; });
-  global.fetch = jest.fn(() => pending);
+  global.fetch = vi.fn(() => pending);
 
   rerender(<TraceGraphCore rawUrl="/api/health/tracing/overview/raw" refreshKey={1} />);
 

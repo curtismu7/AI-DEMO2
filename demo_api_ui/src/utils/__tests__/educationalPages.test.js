@@ -70,7 +70,7 @@ describe('isEducationalPath', () => {
     let locationSpy;
 
     beforeEach(() => {
-      locationSpy = jest.spyOn(window, 'location', 'get');
+      locationSpy = vi.spyOn(window, 'location', 'get');
     });
 
     afterEach(() => {

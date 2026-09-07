@@ -30,16 +30,16 @@ describe('diagramRenderer', () => {
   describe('renderDiagram', () => {
     beforeEach(() => {
       // Mock document for SVG element creation
-      jest.spyOn(document, 'createElementNS').mockImplementation((ns, tag) => {
+      vi.spyOn(document, 'createElementNS').mockImplementation((ns, tag) => {
         const element = document.createElement(tag === 'svg' ? 'div' : 'span');
         element._tag = tag;
         element._ns = ns;
         element._attrs = {};
         element._children = [];
-        element.setAttribute = jest.fn((key, value) => {
+        element.setAttribute = vi.fn((key, value) => {
           element._attrs[key] = value;
         });
-        element.appendChild = jest.fn((child) => {
+        element.appendChild = vi.fn((child) => {
           element._children.push(child);
         });
         return element;
@@ -47,7 +47,7 @@ describe('diagramRenderer', () => {
     });
 
     afterEach(() => {
-      jest.restoreAllMocks();
+      vi.restoreAllMocks();
     });
 
     it('returns an SVG element', () => {

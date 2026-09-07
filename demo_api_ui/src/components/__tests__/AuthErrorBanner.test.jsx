@@ -43,7 +43,7 @@ describe('AuthErrorBanner', () => {
     });
 
     it('calls onRetry when Refresh is clicked', () => {
-      const onRetry = jest.fn();
+      const onRetry = vi.fn();
       const error = {
         ...baseError,
         classification: { ...baseError.classification, category: 'USER' },
@@ -56,7 +56,7 @@ describe('AuthErrorBanner', () => {
     });
 
     it('dismisses when close button is clicked', () => {
-      const onDismiss = jest.fn();
+      const onDismiss = vi.fn();
       const error = {
         ...baseError,
         classification: { ...baseError.classification, category: 'USER' },
@@ -150,7 +150,7 @@ describe('AuthErrorBanner', () => {
     });
 
     it('calls onContactSupport when Contact Support is clicked', async () => {
-      const onContactSupport = jest.fn().mockResolvedValue(undefined);
+      const onContactSupport = vi.fn().mockResolvedValue(undefined);
       const error = {
         ...baseError,
         classification: { ...baseError.classification, category: 'CONFIG' },

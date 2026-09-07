@@ -88,7 +88,7 @@ describe("useDraggablePanel unmount mid-drag", () => {
 
     const target = document.createElement("div");
     document.body.appendChild(target);
-    const removeSpy = jest.spyOn(target, "removeEventListener");
+    const removeSpy = vi.spyOn(target, "removeEventListener");
 
     captured.handleDragStart({
       button: 0,

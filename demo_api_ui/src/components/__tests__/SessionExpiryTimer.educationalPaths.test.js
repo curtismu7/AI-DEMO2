@@ -20,8 +20,8 @@ import SessionExpiryTimer from "../SessionExpiryTimer";
 vi.mock("../../services/bffAxios", () => ({
   __esModule: true,
   default: {
-    get: jest.fn(() => Promise.resolve({ data: { tokenEvents: [] } })),
-    post: jest.fn(() => Promise.resolve({ data: {} })),
+    get: vi.fn(() => Promise.resolve({ data: { tokenEvents: [] } })),
+    post: vi.fn(() => Promise.resolve({ data: {} })),
   },
 }));
 

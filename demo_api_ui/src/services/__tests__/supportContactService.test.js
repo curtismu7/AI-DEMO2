@@ -18,7 +18,7 @@ describe('SupportContactService', () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     localStorage.clear();
     delete window.location;
     window.location = { href: '' };
@@ -220,7 +220,7 @@ describe('SupportContactService', () => {
       const quotaError = new Error('QuotaExceededError');
       quotaError.code = 22;
 
-      jest.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => {
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => {
         throw quotaError;
       });
 

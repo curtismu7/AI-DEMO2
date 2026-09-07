@@ -14,14 +14,14 @@ import { useTokenChainOptional } from '../../context/TokenChainContext';
 
 // Stub the TokenChain context so the hook has a non-null context to act on.
 // Without this the hook short-circuits at `if (!tokenChain) return` and we
-// can't observe the path-check branch. Declared as a jest.fn() (not a plain
+// can't observe the path-check branch. Declared as a vi.fn() (not a plain
 // arrow) so individual tests can override its per-render return value via
 // mockImplementation — needed below to simulate a context whose object
 // identity changes every render but whose setTokenEvents callback does not.
 vi.mock('../../context/TokenChainContext', () => ({
-  useTokenChainOptional: jest.fn(() => ({
+  useTokenChainOptional: vi.fn(() => ({
     events: [],
-    setTokenEvents: jest.fn(),
+    setTokenEvents: vi.fn(),
   })),
 }));
 
@@ -30,14 +30,14 @@ describe('useAgentCCTokenPrefetch — path gating', () => {
   let locationSpy;
 
   beforeEach(() => {
-    fetchMock = jest.fn(() =>
+    fetchMock = vi.fn(() =>
       Promise.resolve({
         ok: true,
         json: () => Promise.resolve({ tokenEvents: [] }),
       }),
     );
     global.fetch = fetchMock;
-    locationSpy = jest.spyOn(window, 'location', 'get');
+    locationSpy = vi.spyOn(window, 'location', 'get');
   });
 
   afterEach(() => {
@@ -94,16 +94,16 @@ describe('useAgentCCTokenPrefetch — stable dependency (no re-fetch loop)', () 
   let stableSetTokenEvents;
 
   beforeEach(() => {
-    fetchMock = jest.fn(() =>
+    fetchMock = vi.fn(() =>
       Promise.resolve({
         ok: true,
         json: () => Promise.resolve({ tokenEvents: [] }),
       }),
     );
     global.fetch = fetchMock;
-    locationSpy = jest.spyOn(window, 'location', 'get');
+    locationSpy = vi.spyOn(window, 'location', 'get');
     locationSpy.mockReturnValue({ pathname: '/dashboard' });
-    stableSetTokenEvents = jest.fn();
+    stableSetTokenEvents = vi.fn();
   });
 
   afterEach(() => {
@@ -113,7 +113,7 @@ describe('useAgentCCTokenPrefetch — stable dependency (no re-fetch loop)', () 
     // doesn't leak into other describe blocks in this file.
     useTokenChainOptional.mockImplementation(() => ({
       events: [],
-      setTokenEvents: jest.fn(),
+      setTokenEvents: vi.fn(),
     }));
   });
 

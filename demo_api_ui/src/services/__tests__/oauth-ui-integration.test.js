@@ -13,23 +13,23 @@
 
 vi.mock('axios', () => {
   const mockClient = {
-    get: jest.fn(),
-    post: jest.fn(),
-    put: jest.fn(),
-    delete: jest.fn(),
-    patch: jest.fn(),
+    get: vi.fn(),
+    post: vi.fn(),
+    put: vi.fn(),
+    delete: vi.fn(),
+    patch: vi.fn(),
     interceptors: {
-      request: { use: jest.fn(), eject: jest.fn() },
-      response: { use: jest.fn(), eject: jest.fn() },
+      request: { use: vi.fn(), eject: vi.fn() },
+      response: { use: vi.fn(), eject: vi.fn() },
     },
     defaults: { headers: { common: {} } },
   };
   return {
     __esModule: true,
     default: {
-      create: jest.fn(() => mockClient),
-      get: jest.fn(),
-      post: jest.fn(),
+      create: vi.fn(() => mockClient),
+      get: vi.fn(),
+      post: vi.fn(),
       defaults: { headers: { common: {} } },
     },
   };
@@ -50,7 +50,7 @@ const responseInterceptorFromMock =
 // Kept for reference; replace with focused tests in apiClient.session.test.js.
 describe.skip('UI OAuth Integration Tests (legacy)', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     
     // Reset axios defaults
     delete axios.defaults.headers.common['Authorization'];
@@ -164,10 +164,10 @@ describe.skip('UI OAuth Integration Tests (legacy)', () => {
 
       // Mock API request
       mockedAxios.create.mockReturnValue({
-        get: jest.fn().mockResolvedValue({ data: { accounts: [] } }),
+        get: vi.fn().mockResolvedValue({ data: { accounts: [] } }),
         interceptors: {
-          request: { use: jest.fn() },
-          response: { use: jest.fn() }
+          request: { use: vi.fn() },
+          response: { use: vi.fn() }
         }
       });
 
@@ -179,7 +179,7 @@ describe.skip('UI OAuth Integration Tests (legacy)', () => {
       const requestInterceptor = testClient.client.interceptors.request.use.mock.calls[0][0];
       
       // Mock getValidToken to return OAuth token
-      testClient.getValidToken = jest.fn().mockResolvedValue('oauth-token-123');
+      testClient.getValidToken = vi.fn().mockResolvedValue('oauth-token-123');
       
       const modifiedConfig = await requestInterceptor(mockConfig);
       
@@ -205,8 +205,8 @@ describe.skip('UI OAuth Integration Tests (legacy)', () => {
       // Mock retry request success
       const mockClient = {
         interceptors: {
-          request: { use: jest.fn() },
-          response: { use: jest.fn() }
+          request: { use: vi.fn() },
+          response: { use: vi.fn() }
         }
       };
 
@@ -218,7 +218,7 @@ describe.skip('UI OAuth Integration Tests (legacy)', () => {
       const responseInterceptor = mockClient.interceptors.response.use.mock.calls[0][1];
       
       // Mock the client method for retry
-      testClient.client = jest.fn().mockResolvedValue({ data: { success: true } });
+      testClient.client = vi.fn().mockResolvedValue({ data: { success: true } });
       
       // Test the error handling
       const result = await responseInterceptor(expiredTokenError);
@@ -242,8 +242,8 @@ describe.skip('UI OAuth Integration Tests (legacy)', () => {
 
       const mockClient = {
         interceptors: {
-          request: { use: jest.fn() },
-          response: { use: jest.fn() }
+          request: { use: vi.fn() },
+          response: { use: vi.fn() }
         }
       };
 
@@ -337,10 +337,10 @@ describe.skip('UI OAuth Integration Tests (legacy)', () => {
       window.location = { href: '' };
 
       // Mock localStorage
-      const setItemSpy = jest.spyOn(localStorage, 'setItem');
+      const setItemSpy = vi.spyOn(localStorage, 'setItem');
       
       // Mock event dispatch
-      const dispatchEventSpy = jest.spyOn(window, 'dispatchEvent');
+      const dispatchEventSpy = vi.spyOn(window, 'dispatchEvent');
 
       apiClient.handleAuthFailure();
 
@@ -364,7 +364,7 @@ describe.skip('UI OAuth Integration Tests (legacy)', () => {
     });
 
     it('should dispatch logout event for other components', () => {
-      const dispatchEventSpy = jest.spyOn(window, 'dispatchEvent');
+      const dispatchEventSpy = vi.spyOn(window, 'dispatchEvent');
 
       apiClient.handleAuthFailure();
 
@@ -422,8 +422,8 @@ describe.skip('UI OAuth Integration Tests (legacy)', () => {
 
       const mockClient = {
         interceptors: {
-          request: { use: jest.fn() },
-          response: { use: jest.fn() }
+          request: { use: vi.fn() },
+          response: { use: vi.fn() }
         }
       };
 
@@ -461,8 +461,8 @@ describe.skip('UI OAuth Integration Tests (legacy)', () => {
 
       const mockClient = {
         interceptors: {
-          request: { use: jest.fn() },
-          response: { use: jest.fn() }
+          request: { use: vi.fn() },
+          response: { use: vi.fn() }
         }
       };
 
@@ -505,15 +505,15 @@ describe.skip('UI OAuth Integration Tests (legacy)', () => {
 
       const mockClient = {
         interceptors: {
-          request: { use: jest.fn() },
-          response: { use: jest.fn() }
+          request: { use: vi.fn() },
+          response: { use: vi.fn() }
         }
       };
 
       mockedAxios.create.mockReturnValue(mockClient);
 
       const testClient = new (require('../apiClient').constructor)();
-      testClient.client = jest.fn().mockResolvedValue({ data: { success: true } });
+      testClient.client = vi.fn().mockResolvedValue({ data: { success: true } });
       
       // Get the response interceptor
       const responseInterceptor = mockClient.interceptors.response.use.mock.calls[0][1];
@@ -542,10 +542,10 @@ describe.skip('UI OAuth Integration Tests (legacy)', () => {
       // Mock API call with OAuth token
       const mockApiResponse = { data: { accounts: [{ id: '1', balance: 1000 }] } };
       mockedAxios.create.mockReturnValue({
-        get: jest.fn().mockResolvedValue(mockApiResponse),
+        get: vi.fn().mockResolvedValue(mockApiResponse),
         interceptors: {
-          request: { use: jest.fn() },
-          response: { use: jest.fn() }
+          request: { use: vi.fn() },
+          response: { use: vi.fn() }
         }
       });
 
@@ -577,13 +577,13 @@ describe.skip('UI OAuth Integration Tests (legacy)', () => {
  */
 describe('apiClient Backend-for-Frontend (BFF) OAuth (current)', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     delete axios.defaults.headers.common['Authorization'];
     localStorage.clear();
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   it('getValidToken returns null without calling oauth status endpoints', async () => {
@@ -594,9 +594,9 @@ describe('apiClient Backend-for-Frontend (BFF) OAuth (current)', () => {
 
   it('401 + refresh failure does not call handleAuthFailure', async () => {
     expect(responseInterceptorFromMock).toEqual(expect.any(Function));
-    const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    const handleSpy = jest.spyOn(apiClient, 'handleAuthFailure').mockImplementation(() => {});
-    jest.spyOn(apiClient, 'refreshToken').mockRejectedValue({ response: { status: 501 } });
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const handleSpy = vi.spyOn(apiClient, 'handleAuthFailure').mockImplementation(() => {});
+    vi.spyOn(apiClient, 'refreshToken').mockRejectedValue({ response: { status: 501 } });
 
     const originalErr = {
       response: { status: 401, data: { error: 'expired_token' } },

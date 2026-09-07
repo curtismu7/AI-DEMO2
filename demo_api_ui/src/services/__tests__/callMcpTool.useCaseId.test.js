@@ -2,7 +2,7 @@ import { callMcpTool } from '../demoAgentService';
 
 describe('callMcpTool useCaseId plumbing', () => {
   beforeEach(() => {
-    global.fetch = jest.fn(() =>
+    global.fetch = vi.fn(() =>
       Promise.resolve({
         ok: true,
         status: 200,

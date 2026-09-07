@@ -22,19 +22,19 @@ describe('isAccountsHydrationTransientError', () => {
 
 describe('fetchMyAccountsWithResilience', () => {
   beforeEach(() => {
-    jest.spyOn(global, 'setTimeout').mockImplementation((fn) => {
+    vi.spyOn(global, 'setTimeout').mockImplementation((fn) => {
       if (typeof fn === 'function') fn();
       return 0;
     });
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   it('returns accounts on first successful non-empty response', async () => {
     const bffAxios = {
-      get: jest.fn().mockResolvedValue({ data: { accounts: [{ id: 'a1' }] } }),
+      get: vi.fn().mockResolvedValue({ data: { accounts: [{ id: 'a1' }] } }),
     };
     await expect(fetchMyAccountsWithResilience(bffAxios, { isUserLoggedOut: () => false })).resolves.toEqual([
       { id: 'a1' },
@@ -57,7 +57,7 @@ describe('fetchMyAccountsWithResilience', () => {
 
   it('throws when user logged out on 401', async () => {
     const err = { response: { status: 401 } };
-    const bffAxios = { get: jest.fn().mockRejectedValue(err) };
+    const bffAxios = { get: vi.fn().mockRejectedValue(err) };
     await expect(
       fetchMyAccountsWithResilience(bffAxios, { isUserLoggedOut: () => true })
     ).rejects.toBe(err);
@@ -65,7 +65,7 @@ describe('fetchMyAccountsWithResilience', () => {
 
   it('stops after max attempts', async () => {
     const err = { response: { status: 401 } };
-    const bffAxios = { get: jest.fn().mockRejectedValue(err) };
+    const bffAxios = { get: vi.fn().mockRejectedValue(err) };
     await expect(fetchMyAccountsWithResilience(bffAxios, { isUserLoggedOut: () => false })).rejects.toBe(err);
     expect(bffAxios.get).toHaveBeenCalledTimes(ACCOUNT_FETCH_MAX_ATTEMPTS);
   });

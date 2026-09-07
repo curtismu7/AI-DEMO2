@@ -5,7 +5,7 @@ import { McpFieldProvider } from '../context/McpFieldContext';
 import CopyableValue from '../components/CopyableValue';
 
 // Mock clipboard
-const writeText = jest.fn(() => Promise.resolve());
+const writeText = vi.fn(() => Promise.resolve());
 Object.assign(navigator, { clipboard: { writeText } });
 
 function Wrapper({ children }) {

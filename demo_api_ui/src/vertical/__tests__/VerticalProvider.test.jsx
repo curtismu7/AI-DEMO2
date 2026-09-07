@@ -13,7 +13,7 @@ const BANKING = {
 const HEALTHCARE = { ...BANKING, id: 'healthcare', identity: { displayName: 'Health' } };
 
 function setupMocks({ user, manifest }) {
-  global.fetch = jest.fn().mockResolvedValue({
+  global.fetch = vi.fn().mockResolvedValue({
     ok: true,
     json: async () => ({
       activeId: manifest.id,
@@ -60,7 +60,7 @@ function Probe() {
 
 describe('VerticalProvider', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   test('does not render children until hydrated', async () => {
@@ -152,7 +152,7 @@ describe('VerticalProvider', () => {
   test('401 from /me still renders children (with empty manifest)', async () => {
     // Unauthenticated users see the landing/login pages — the provider must
     // NOT block first paint when /api/verticals/me returns 401.
-    global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 401 });
+    global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 401 });
     const FakeES = fireableES();
 
     function NullProbe() {
@@ -169,7 +169,7 @@ describe('VerticalProvider', () => {
   });
 
   test('fetch network error still renders children (with empty manifest)', async () => {
-    global.fetch = jest.fn().mockRejectedValue(new Error('offline'));
+    global.fetch = vi.fn().mockRejectedValue(new Error('offline'));
     const FakeES = fireableES();
 
     function NullProbe() {
@@ -206,7 +206,7 @@ describe('VerticalProvider', () => {
     });
 
     test('network error concludes as failed', async () => {
-      global.fetch = jest.fn().mockRejectedValue(new Error('offline'));
+      global.fetch = vi.fn().mockRejectedValue(new Error('offline'));
       const FakeES = fireableES();
       const { findByTestId } = render(
         <MemoryRouter><VerticalProvider><StatusProbe /></VerticalProvider></MemoryRouter>
@@ -218,7 +218,7 @@ describe('VerticalProvider', () => {
     });
 
     test('401 stays loading until the /active follow-up answers, then resolves with its id', async () => {
-      global.fetch = jest.fn()
+      global.fetch = vi.fn()
         .mockResolvedValueOnce({ ok: false, status: 401 })
         .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'retail' }) });
       const FakeES = fireableES();
@@ -232,7 +232,7 @@ describe('VerticalProvider', () => {
     });
 
     test('401 with a failing /active follow-up still concludes (resolved, no vertical)', async () => {
-      global.fetch = jest.fn()
+      global.fetch = vi.fn()
         .mockResolvedValueOnce({ ok: false, status: 401 })
         .mockRejectedValueOnce(new Error('offline'));
       const FakeES = fireableES();
