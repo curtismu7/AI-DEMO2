@@ -3,6 +3,8 @@
 const http = require('http');
 const httpProxy = require('http-proxy');
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 const {
   captureGeneration,
   modelFromRequest,
@@ -153,11 +155,28 @@ const partition = (kws) => {
 
 // Two tiers: small (Phi-4-mini) and big (gpt-oss-20b). Complex/reasoning and
 // code prompts route to the big tier; everything else stays on small.
-const COMPLEX = partition([
-  'demonstrate', 'show.*flow', 'show.*diagram', 'token exchange', 'rfc 8693',
-  'act and may_act', 'delegation', 'pkce', 'confused deputy', 'introspection',
-  'authorization code flow', 'client credentials',
-]);
+// The keyword list below is tuned to this deployment's own vocabulary (e.g. an
+// OAuth/token-exchange demo). Point LLM_PROXY_CLASSIFY_KEYWORDS_FILE at a JSON
+// file shaped `{ "complex": [...] }` to swap in your own domain's keywords —
+// falls back to this default list when unset or the file is missing.
+function loadComplexKeywords() {
+  const defaults = [
+    'demonstrate', 'show.*flow', 'show.*diagram', 'token exchange', 'rfc 8693',
+    'act and may_act', 'delegation', 'pkce', 'confused deputy', 'introspection',
+    'authorization code flow', 'client credentials',
+  ];
+  const file = process.env.LLM_PROXY_CLASSIFY_KEYWORDS_FILE
+    || path.join(__dirname, 'classify-keywords.json');
+  try {
+    const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
+    if (Array.isArray(parsed.complex)) return parsed.complex;
+  } catch {
+    /* file absent or invalid — use built-in default */
+  }
+  return defaults;
+}
+
+const COMPLEX = partition(loadComplexKeywords());
 const CODE = partition([
   'write.*code', 'code.*example', 'implement', 'function', 'script', 'snippet',
   'regex', 'sql', 'json.*schema', 'refactor', 'debug',
