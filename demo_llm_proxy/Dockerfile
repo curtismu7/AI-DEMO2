@@ -17,10 +17,10 @@ LABEL org.opencontainers.image.source=https://github.com/curtismu7/AI-DEMO2
 
 WORKDIR /app
 
-COPY package.json ./
-RUN npm install --production
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
 
-COPY router.js posthogAi.js .
+COPY router.js posthogAi.js ./
 
 EXPOSE 8090
 ENV LLM_PROXY_PORT=8090

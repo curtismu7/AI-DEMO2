@@ -53,7 +53,7 @@ A bigger loaded tier serves smaller classes without a swap; swaps happen only up
 
 ### 1. Download Models
 
-Models should be in `/Users/cmuir/models/` as GGUF-quantized files:
+Models should be in `$MODELS_DIR` (default `~/models`) as GGUF-quantized files:
 
 ```bash
 bash demo_llm_proxy/download-models.sh
@@ -155,9 +155,9 @@ curl http://localhost:8090/health | jq .
 
 If llama.cpp instances fail to start, check:
 
-1. Models exist in `/Users/cmuir/models/`
+1. Models exist in `$MODELS_DIR` (default `~/models`)
 2. Filenames match expected patterns (`microsoft_Phi-4-mini-instruct-Q4_K_M.gguf`, `gpt-oss-20b-mxfp4.gguf`)
-3. Model files are readable: `ls -lh /Users/cmuir/models/`
+3. Model files are readable: `ls -lh "${MODELS_DIR:-$HOME/models}"`
 
 ### Proxy can't reach models
 
