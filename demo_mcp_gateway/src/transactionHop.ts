@@ -5,7 +5,12 @@ const SERVICE = 'mcp-gateway';
 export interface TransactionHopInput {
   phase:
     | 'ui.request' | 'agent.reason' | 'token.exchange' | 'gateway.authorize'
-    | 'authz.decision' | 'hitl.consent' | 'mcp.tool' | 'response';
+    | 'authz.decision' | 'hitl.consent' | 'mcp.tool' | 'response'
+    // The OAuth leg of an MCP door: what the broker asked PingOne for, and who
+    // came back. Must stay in step with VALID_PHASES in the BFF's
+    // routes/transactionHopIngest.js — an unknown phase is rejected 400 and the
+    // hop is swallowed by emitHop's fire-and-forget .catch(), i.e. silently.
+    | 'oauth.authorize' | 'oauth.callback';
   op?: string;
   identity?: Record<string, unknown>;
   decision?: Record<string, unknown>;
