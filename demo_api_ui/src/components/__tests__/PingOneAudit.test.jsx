@@ -17,14 +17,14 @@ import PingOneAudit from "../PingOneAudit";
 
 vi.mock("../../services/apiClient", () => ({
 	default: {
-		get: jest.fn(() => Promise.resolve({ data: {} })),
-		post: jest.fn(() => Promise.resolve({ data: {} })),
+		get: vi.fn(() => Promise.resolve({ data: {} })),
+		post: vi.fn(() => Promise.resolve({ data: {} })),
 	},
 }));
 
 describe("PingOneAudit Component", () => {
 	beforeEach(() => {
-		jest.clearAllMocks();
+		vi.clearAllMocks();
 	});
 
 	describe("Initial State", () => {
@@ -254,7 +254,7 @@ describe("PingOneAudit Component", () => {
 			});
 
 			// Reset mock and make another call
-			jest.clearAllMocks();
+			vi.clearAllMocks();
 			apiClient.get.mockResolvedValueOnce({ data: mockData });
 
 			fireEvent.click(screen.getByText("Refresh Audit"));

@@ -23,7 +23,7 @@ const PENDING_DELEGATION = {
 };
 
 function mockFetchSequence() {
-  global.fetch = jest.fn((url) => {
+  global.fetch = vi.fn((url) => {
     if (url === '/api/delegation') {
       return Promise.resolve({ json: () => Promise.resolve({ delegations: [PENDING_DELEGATION] }) });
     }

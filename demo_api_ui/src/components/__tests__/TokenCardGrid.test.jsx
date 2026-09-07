@@ -216,7 +216,7 @@ describe('TokenCardGrid', () => {
     });
 
     it('calls onInspectToken callback when Inspect button is clicked', () => {
-      const onInspect = jest.fn();
+      const onInspect = vi.fn();
 
       render(
         <TokenCardGrid
@@ -235,7 +235,7 @@ describe('TokenCardGrid', () => {
     });
 
     it('passes correct token type to callback', () => {
-      const onInspect = jest.fn();
+      const onInspect = vi.fn();
 
       render(
         <TokenCardGrid
@@ -259,7 +259,7 @@ describe('TokenCardGrid', () => {
     });
 
     it('passes token data to callback', () => {
-      const onInspect = jest.fn();
+      const onInspect = vi.fn();
 
       render(
         <TokenCardGrid
@@ -278,7 +278,7 @@ describe('TokenCardGrid', () => {
     });
 
     it('handles button clicks even with null tokens', () => {
-      const onInspect = jest.fn();
+      const onInspect = vi.fn();
 
       render(
         <TokenCardGrid
@@ -475,7 +475,7 @@ describe('TokenCardGrid', () => {
     });
 
     it('buttons are keyboard accessible', () => {
-      const onInspect = jest.fn();
+      const onInspect = vi.fn();
 
       render(
         <TokenCardGrid

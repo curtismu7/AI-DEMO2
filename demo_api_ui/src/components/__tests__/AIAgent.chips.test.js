@@ -38,8 +38,8 @@ vi.mock("../../context/IndustryBrandingContext", () => ({
 }));
 
 vi.mock("../../context/EducationUIContext", () => ({
-  useEducationUIOptional: () => ({ open: jest.fn(), close: jest.fn() }),
-  useEducationUI: () => ({ open: jest.fn(), close: jest.fn() }),
+  useEducationUIOptional: () => ({ open: vi.fn(), close: vi.fn() }),
+  useEducationUI: () => ({ open: vi.fn(), close: vi.fn() }),
 }));
 
 vi.mock("../../context/TokenChainContext", () => ({
@@ -49,7 +49,7 @@ vi.mock("../../context/TokenChainContext", () => ({
 const mockAgentUiMode = {
   placement: "none",
   fab: true,
-  setAgentUi: jest.fn(),
+  setAgentUi: vi.fn(),
   toolbarHostEl: null,
 };
 vi.mock("../../context/AgentUiModeContext", () => ({
@@ -70,7 +70,7 @@ const DEFAULT_VERTICAL_MOCK = {
   refetch: () => {},
 };
 vi.mock("../../vertical/useVertical", () => ({
-  useVertical: jest.fn(),
+  useVertical: vi.fn(),
 }));
 
 vi.mock("../../context/SessionTokenContext", () => ({
@@ -87,67 +87,67 @@ vi.mock("../../services/demoAgentNlService", () => ({
   fetchNlStatus: jest
     .fn()
     .mockResolvedValue({ groqConfigured: false, geminiConfigured: false }),
-  parseNaturalLanguage: jest.fn().mockResolvedValue({
+  parseNaturalLanguage: vi.fn().mockResolvedValue({
     source: "local",
     result: { kind: "action", action: { id: "accounts" } },
   }),
 }));
 
 vi.mock("../../services/demoAgentService", () => ({
-  getMyAccounts: jest.fn().mockResolvedValue([]),
-  getAccountBalance: jest.fn().mockResolvedValue({ balance: 100 }),
-  getMyTransactions: jest.fn().mockResolvedValue([]),
-  createTransfer: jest.fn().mockResolvedValue({ success: true }),
-  createDeposit: jest.fn().mockResolvedValue({ success: true }),
-  createWithdrawal: jest.fn().mockResolvedValue({ success: true }),
-  refreshOAuthSession: jest.fn().mockResolvedValue({}),
-  warmupAuthz: jest.fn().mockResolvedValue({}),
-  callMcpTool: jest.fn().mockResolvedValue({ success: true }),
-  sendAgentMessage: jest.fn().mockResolvedValue({ success: true }),
+  getMyAccounts: vi.fn().mockResolvedValue([]),
+  getAccountBalance: vi.fn().mockResolvedValue({ balance: 100 }),
+  getMyTransactions: vi.fn().mockResolvedValue([]),
+  createTransfer: vi.fn().mockResolvedValue({ success: true }),
+  createDeposit: vi.fn().mockResolvedValue({ success: true }),
+  createWithdrawal: vi.fn().mockResolvedValue({ success: true }),
+  refreshOAuthSession: vi.fn().mockResolvedValue({}),
+  warmupAuthz: vi.fn().mockResolvedValue({}),
+  callMcpTool: vi.fn().mockResolvedValue({ success: true }),
+  sendAgentMessage: vi.fn().mockResolvedValue({ success: true }),
   fetchAgentTools: jest
     .fn()
     .mockResolvedValue({ availableTools: [], vertical: null, allowWrite: true }),
 }));
 
 vi.mock("../../services/configService", () => ({
-  loadPublicConfig: jest.fn().mockResolvedValue({}),
+  loadPublicConfig: vi.fn().mockResolvedValue({}),
 }));
 
 vi.mock("../../services/agentAccessConsent", () => ({
-  isAgentBlockedByConsentDecline: jest.fn(() => false),
-  setAgentBlockedByConsentDecline: jest.fn(),
+  isAgentBlockedByConsentDecline: vi.fn(() => false),
+  setAgentBlockedByConsentDecline: vi.fn(),
   AGENT_CONSENT_BLOCK_USER_MESSAGE: "Blocked by consent decline.",
-  getConsentState: jest.fn(() => null),
-  setConsentDeclined: jest.fn(),
+  getConsentState: vi.fn(() => null),
+  setConsentDeclined: vi.fn(),
 }));
 
 vi.mock("../../utils/agentToolSteps", () => ({
-  getToolStepsForAction: jest.fn(() => []),
+  getToolStepsForAction: vi.fn(() => []),
 }));
 
 vi.mock("react-toastify", () => ({
   toast: {
-    error: jest.fn(),
-    success: jest.fn(),
-    info: jest.fn(),
-    warn: jest.fn(),
+    error: vi.fn(),
+    success: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
   },
 }));
 
 vi.mock("../../utils/appToast", () => ({
   toast: {
-    info: jest.fn(),
-    success: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
-    warning: jest.fn(),
-    update: jest.fn(),
-    dismiss: jest.fn(),
+    info: vi.fn(),
+    success: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    warning: vi.fn(),
+    update: vi.fn(),
+    dismiss: vi.fn(),
   },
-  notifySuccess: jest.fn(),
-  notifyError: jest.fn(),
-  notifyInfo: jest.fn(),
-  notifyWarning: jest.fn(),
+  notifySuccess: vi.fn(),
+  notifyError: vi.fn(),
+  notifyInfo: vi.fn(),
+  notifyWarning: vi.fn(),
 }));
 
 // CSS imports are no-ops in tests
@@ -157,7 +157,7 @@ vi.mock("../BankingAgent.css", () => ({}), { virtual: true });
 
 // Clear localStorage and re-arm async mocks before each test.
 // BankingAgent persists isOpen to localStorage which can contaminate subsequent tests.
-// jest.fn().mockResolvedValue() in a factory can be silently cleared; re-arm to be safe.
+// vi.fn().mockResolvedValue() in a factory can be silently cleared; re-arm to be safe.
 beforeEach(() => {
   localStorage.clear();
   const nlMock = demoAgentNlService;
@@ -916,7 +916,7 @@ describe("Error-role messages render (admin token on customer agent)", () => {
     origFetch = global.fetch;
     // Typed sends hit /api/demo-agent/nl with raw fetch; resolve it to the
     // admin lookup_customer vertical intent. Any other fetch gets a benign {}.
-    global.fetch = jest.fn((url) => {
+    global.fetch = vi.fn((url) => {
       if (String(url).includes("/api/demo-agent/nl")) {
         return Promise.resolve({
           ok: true,
@@ -982,7 +982,7 @@ describe("NL error envelope (BFF restarting) degrades gracefully", () => {
 
   beforeEach(() => {
     origFetch = global.fetch;
-    global.fetch = jest.fn((url) => {
+    global.fetch = vi.fn((url) => {
       if (String(url).includes("/api/demo-agent/nl")) {
         // Vite proxy shape when the BFF is down: JSON, parses fine, no `result`.
         return Promise.resolve({
@@ -1028,7 +1028,7 @@ describe("agent failure envelopes render a plain sentence, not the raw error", (
   // (mocked service) runs the tool and returns success:false with backend prose.
   const mockAgentFailure = async (body) => {
     demoAgentService.sendAgentMessage.mockResolvedValue(body);
-    global.fetch = jest.fn((url) => {
+    global.fetch = vi.fn((url) => {
       if (String(url).includes("/api/demo-agent/nl")) {
         return Promise.resolve({
           ok: true,

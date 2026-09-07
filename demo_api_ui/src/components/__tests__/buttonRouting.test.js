@@ -13,7 +13,7 @@ import { MemoryRouter } from "react-router-dom";
 
 // ── Core mocks ────────────────────────────────────────────────────────────────
 
-const mockNavigate = jest.fn();
+const mockNavigate = vi.fn();
 vi.mock("react-router-dom", async () => ({
 	...await vi.importActual("react-router-dom"),
 	useNavigate: () => mockNavigate,
@@ -22,15 +22,15 @@ vi.mock("react-router-dom", async () => ({
 // Axios — must include create() so bffAxios / apiClient constructors don't throw
 vi.mock("axios", () => {
 	const instance = {
-		get: jest.fn(() => Promise.resolve({ data: {} })),
-		post: jest.fn(() => Promise.resolve({ data: {} })),
-		delete: jest.fn(() => Promise.resolve({ data: {} })),
-		interceptors: { request: { use: jest.fn() }, response: { use: jest.fn() } },
+		get: vi.fn(() => Promise.resolve({ data: {} })),
+		post: vi.fn(() => Promise.resolve({ data: {} })),
+		delete: vi.fn(() => Promise.resolve({ data: {} })),
+		interceptors: { request: { use: vi.fn() }, response: { use: vi.fn() } },
 	};
 	return {
-		default: { ...instance, create: jest.fn(() => instance) },
+		default: { ...instance, create: vi.fn(() => instance) },
 		...instance,
-		create: jest.fn(() => instance),
+		create: vi.fn(() => instance),
 	};
 });
 
@@ -40,7 +40,7 @@ vi.mock("axios", () => {
 // `import bffAxios from "..."` resolves to the instance.
 vi.mock("../../services/bffAxios", () => {
 	const instance = {
-		get: jest.fn((url) => {
+		get: vi.fn((url) => {
 			if (url && url.includes("stats")) {
 				return Promise.resolve({
 					data: {
@@ -60,25 +60,25 @@ vi.mock("../../services/bffAxios", () => {
 			}
 			return Promise.resolve({ data: {} });
 		}),
-		post: jest.fn(() => Promise.resolve({ data: {} })),
-		delete: jest.fn(() => Promise.resolve({ data: {} })),
+		post: vi.fn(() => Promise.resolve({ data: {} })),
+		delete: vi.fn(() => Promise.resolve({ data: {} })),
 	};
 	// Jest needs __esModule:true so the `default` key is used for default imports
 	return { __esModule: true, default: instance };
 });
 vi.mock("../../services/apiClient", () => {
 	const instance = {
-		get: jest.fn(() =>
+		get: vi.fn(() =>
 			Promise.resolve({ data: { lines: [], backend: "", hint: "" } }),
 		),
-		post: jest.fn(() => Promise.resolve({ data: {} })),
-		patch: jest.fn(() => Promise.resolve({ data: {} })),
-		delete: jest.fn(() => Promise.resolve({ data: {} })),
+		post: vi.fn(() => Promise.resolve({ data: {} })),
+		patch: vi.fn(() => Promise.resolve({ data: {} })),
+		delete: vi.fn(() => Promise.resolve({ data: {} })),
 	};
 	return { __esModule: true, default: instance };
 });
 vi.mock("../../services/demoScenarioService", () => ({
-	fetchDemoScenario: jest.fn(() =>
+	fetchDemoScenario: vi.fn(() =>
 		Promise.resolve({
 			accounts: [],
 			settings: {},
@@ -87,10 +87,10 @@ vi.mock("../../services/demoScenarioService", () => ({
 			persistenceNote: null,
 		}),
 	),
-	saveDemoScenario: jest.fn(() => Promise.resolve({ ok: true })),
+	saveDemoScenario: vi.fn(() => Promise.resolve({ ok: true })),
 }));
 vi.mock("../../services/sessionResolver", () => ({
-	resolveSessionUser: jest.fn(() => Promise.resolve(null)),
+	resolveSessionUser: vi.fn(() => Promise.resolve(null)),
 }));
 
 // Context mocks
@@ -103,15 +103,15 @@ vi.mock("../../context/AgentUiModeContext", () => ({
 	useAgentUiMode: () => ({
 		placement: "none",
 		fab: true,
-		setAgentUi: jest.fn(),
+		setAgentUi: vi.fn(),
 	}),
 }));
 vi.mock("../../context/EducationUIContext", () => ({
-	useEducationUI: () => ({ open: jest.fn(), close: jest.fn() }),
-	useEducationUIOptional: () => ({ open: jest.fn(), close: jest.fn() }),
+	useEducationUI: () => ({ open: vi.fn(), close: vi.fn() }),
+	useEducationUIOptional: () => ({ open: vi.fn(), close: vi.fn() }),
 }));
 vi.mock("../../context/ExchangeModeContext", () => ({
-	useExchangeMode: () => ({ mode: "single", setMode: jest.fn() }),
+	useExchangeMode: () => ({ mode: "single", setMode: vi.fn() }),
 	ExchangeModeProvider: ({ children }) => children,
 }));
 vi.mock("../../context/TokenChainContext", () => ({
@@ -122,29 +122,29 @@ vi.mock("../../context/TokenChainContext", () => ({
 // Utility mocks
 vi.mock("../../utils/appToast", () => ({
 	toast: {
-		dismiss: jest.fn(),
-		error: jest.fn(),
-		success: jest.fn(),
-		info: jest.fn(),
-		warning: jest.fn(),
+		dismiss: vi.fn(),
+		error: vi.fn(),
+		success: vi.fn(),
+		info: vi.fn(),
+		warning: vi.fn(),
 	},
-	notifySuccess: jest.fn(),
-	notifyError: jest.fn(),
-	notifyWarning: jest.fn(),
-	notifyInfo: jest.fn(),
+	notifySuccess: vi.fn(),
+	notifyError: vi.fn(),
+	notifyWarning: vi.fn(),
+	notifyInfo: vi.fn(),
 }));
 vi.mock(
 	"../utils/authUi",
 	() => ({
-		navigateToAdminOAuthLogin: jest.fn(),
+		navigateToAdminOAuthLogin: vi.fn(),
 	}),
 	{ virtual: true },
 );
 vi.mock("../../utils/authUi", () => ({
-	navigateToAdminOAuthLogin: jest.fn(),
+	navigateToAdminOAuthLogin: vi.fn(),
 }));
 vi.mock("../../utils/dashboardToast", () => ({
-	toastAdminSessionError: jest.fn(),
+	toastAdminSessionError: vi.fn(),
 }));
 // (no mock needed — isDashboardQuickNavRoute uses real path matching)
 
@@ -170,7 +170,7 @@ vi.mock("../PingOneAudit", () => ({ default: () => null }));
 // DemoDataPage child components
 vi.mock("../VerticalSwitcher", () => ({ default: () => null }));
 vi.mock("../../services/cachedStatusService", () => ({
-	getCachedJson: jest.fn((url) => {
+	getCachedJson: vi.fn((url) => {
 		if (url === "/api/auth/oauth/status")
 			return Promise.resolve({ data: { authenticated: false } });
 		if (url === "/api/auth/oauth/user/status")
@@ -179,23 +179,23 @@ vi.mock("../../services/cachedStatusService", () => ({
 			return Promise.resolve({ data: { authenticated: false } });
 		return Promise.resolve({ data: {} });
 	}),
-	clearStatusCache: jest.fn(),
+	clearStatusCache: vi.fn(),
 }));
 // Dashboard uses useCurrentUserTokenEvent — stub it
 vi.mock("../../hooks/useCurrentUserTokenEvent", () => ({
-	useCurrentUserTokenEvent: jest.fn(),
+	useCurrentUserTokenEvent: vi.fn(),
 }));
 
 // ── Shared test state ─────────────────────────────────────────────────────────
 const adminUser = { id: "a1", role: "admin", email: "admin@test.com" };
 const customerUser = { id: "u1", role: "customer", email: "user@test.com" };
-const onLogout = jest.fn();
+const onLogout = vi.fn();
 
 let windowOpenSpy;
 beforeEach(() => {
 	mockNavigate.mockClear();
 	onLogout.mockClear();
-	windowOpenSpy = jest.spyOn(window, "open").mockReturnValue(null);
+	windowOpenSpy = vi.spyOn(window, "open").mockReturnValue(null);
 });
 afterEach(() => {
 	windowOpenSpy.mockRestore();

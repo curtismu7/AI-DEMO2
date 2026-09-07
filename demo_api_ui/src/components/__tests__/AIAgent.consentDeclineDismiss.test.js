@@ -34,54 +34,54 @@ vi.mock("../../vertical/useVertical", () => ({
     pageMockData: null,
     isAdmin: false,
     isAdminScope: false,
-    refetch: jest.fn(),
+    refetch: vi.fn(),
   }),
 }));
 vi.mock("../../context/IndustryBrandingContext", () => ({
   useIndustryBranding: () => ({ preset: { shortName: "Super Banking", name: "Super Banking" } }),
 }));
 vi.mock("../../context/EducationUIContext", () => ({
-  useEducationUIOptional: () => ({ open: jest.fn(), close: jest.fn() }),
-  useEducationUI: () => ({ open: jest.fn(), close: jest.fn() }),
+  useEducationUIOptional: () => ({ open: vi.fn(), close: vi.fn() }),
+  useEducationUI: () => ({ open: vi.fn(), close: vi.fn() }),
 }));
 vi.mock("../../context/TokenChainContext", () => ({
   useTokenChainOptional: () => null,
 }));
 vi.mock("../../context/AgentUiModeContext", () => ({
-  useAgentUiMode: () => ({ placement: "none", fab: true, setAgentUi: jest.fn() }),
+  useAgentUiMode: () => ({ placement: "none", fab: true, setAgentUi: vi.fn() }),
 }));
 vi.mock("../../services/demoAgentNlService", () => ({
-  fetchNlStatus: jest.fn().mockResolvedValue({ groqConfigured: false, geminiConfigured: false }),
-  parseNaturalLanguage: jest.fn().mockResolvedValue({ source: "local", result: { kind: "action", action: { id: "accounts" } } }),
+  fetchNlStatus: vi.fn().mockResolvedValue({ groqConfigured: false, geminiConfigured: false }),
+  parseNaturalLanguage: vi.fn().mockResolvedValue({ source: "local", result: { kind: "action", action: { id: "accounts" } } }),
 }));
 vi.mock("../../services/demoAgentService", () => ({
-  getMyAccounts: jest.fn().mockResolvedValue([]),
-  getAccountBalance: jest.fn().mockResolvedValue({ balance: 100 }),
-  getMyTransactions: jest.fn().mockResolvedValue([]),
-  createTransfer: jest.fn().mockResolvedValue({ success: true }),
-  createDeposit: jest.fn().mockResolvedValue({ success: true }),
-  createWithdrawal: jest.fn().mockResolvedValue({ success: true }),
-  refreshOAuthSession: jest.fn().mockResolvedValue({}),
-  warmupAuthz: jest.fn().mockResolvedValue({}),
-  callMcpTool: jest.fn().mockResolvedValue({ success: true }),
-  sendAgentMessage: jest.fn().mockResolvedValue({ success: true }),
-  fetchAgentTools: jest.fn().mockResolvedValue({ availableTools: [], vertical: null, allowWrite: true }),
+  getMyAccounts: vi.fn().mockResolvedValue([]),
+  getAccountBalance: vi.fn().mockResolvedValue({ balance: 100 }),
+  getMyTransactions: vi.fn().mockResolvedValue([]),
+  createTransfer: vi.fn().mockResolvedValue({ success: true }),
+  createDeposit: vi.fn().mockResolvedValue({ success: true }),
+  createWithdrawal: vi.fn().mockResolvedValue({ success: true }),
+  refreshOAuthSession: vi.fn().mockResolvedValue({}),
+  warmupAuthz: vi.fn().mockResolvedValue({}),
+  callMcpTool: vi.fn().mockResolvedValue({ success: true }),
+  sendAgentMessage: vi.fn().mockResolvedValue({ success: true }),
+  fetchAgentTools: vi.fn().mockResolvedValue({ availableTools: [], vertical: null, allowWrite: true }),
 }));
 vi.mock("../../services/configService", () => ({
-  loadPublicConfig: jest.fn().mockResolvedValue({}),
+  loadPublicConfig: vi.fn().mockResolvedValue({}),
 }));
 vi.mock("../../services/agentAccessConsent", () => ({
-  isAgentBlockedByConsentDecline: jest.fn(() => mockBlocked),
-  setAgentBlockedByConsentDecline: jest.fn(),
+  isAgentBlockedByConsentDecline: vi.fn(() => mockBlocked),
+  setAgentBlockedByConsentDecline: vi.fn(),
   AGENT_CONSENT_BLOCK_USER_MESSAGE: "Blocked.",
-  getConsentState: jest.fn(() => null),
-  setConsentDeclined: jest.fn(),
+  getConsentState: vi.fn(() => null),
+  setConsentDeclined: vi.fn(),
 }));
-vi.mock("../../utils/agentToolSteps", () => ({ getToolStepsForAction: jest.fn(() => []) }));
-vi.mock("react-toastify", () => ({ toast: { error: jest.fn(), success: jest.fn(), info: jest.fn(), warn: jest.fn() } }));
+vi.mock("../../utils/agentToolSteps", () => ({ getToolStepsForAction: vi.fn(() => []) }));
+vi.mock("react-toastify", () => ({ toast: { error: vi.fn(), success: vi.fn(), info: vi.fn(), warn: vi.fn() } }));
 vi.mock("../../utils/appToast", () => ({
-  toast: { info: jest.fn(), success: jest.fn(), error: jest.fn(), warn: jest.fn(), warning: jest.fn(), update: jest.fn(), dismiss: jest.fn() },
-  notifySuccess: jest.fn(), notifyError: jest.fn(), notifyInfo: jest.fn(), notifyWarning: jest.fn(),
+  toast: { info: vi.fn(), success: vi.fn(), error: vi.fn(), warn: vi.fn(), warning: vi.fn(), update: vi.fn(), dismiss: vi.fn() },
+  notifySuccess: vi.fn(), notifyError: vi.fn(), notifyInfo: vi.fn(), notifyWarning: vi.fn(),
 }));
 vi.mock("../BankingAgent.css", () => ({}), { virtual: true });
 
@@ -100,7 +100,7 @@ function declineHighValueConsent() {
 beforeEach(() => {
   localStorage.clear();
   mockBlocked = false;
-  jest.clearAllMocks();
+  vi.clearAllMocks();
 });
 
 test("the consent-decline notice can be dismissed, which unblocks the agent", () => {

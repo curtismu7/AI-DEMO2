@@ -7,7 +7,7 @@ import * as proofCtx from '../../../context/ProofOfEnforcementContext';
 vi.mock('../../../hooks/useAgentCCTokenPrefetch', () => ({ useAgentCCTokenPrefetch: () => {} }));
 
 test('shows a use-case checklist card when a verdict is active', () => {
-  jest.spyOn(proofCtx, 'useProofOfEnforcement').mockReturnValue({
+  vi.spyOn(proofCtx, 'useProofOfEnforcement').mockReturnValue({
     verdict: {
       useCaseId: 'step-up-required', title: 'Step-up required', state: 'verified',
       matchedSteps: ['user-token', 'authorize-decision', 'tool-dispatched'], missingSteps: [],
@@ -20,7 +20,7 @@ test('shows a use-case checklist card when a verdict is active', () => {
 });
 
 test('renders nothing extra when there is no active verdict', () => {
-  jest.spyOn(proofCtx, 'useProofOfEnforcement').mockReturnValue({ verdict: null, history: [] });
+  vi.spyOn(proofCtx, 'useProofOfEnforcement').mockReturnValue({ verdict: null, history: [] });
   render(<TokenChainPanel />);
   expect(screen.queryByText(/steps matched/)).not.toBeInTheDocument();
 });

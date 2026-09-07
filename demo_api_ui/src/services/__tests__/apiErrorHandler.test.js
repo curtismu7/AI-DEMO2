@@ -167,7 +167,7 @@ describe("apiErrorHandler", () => {
 
   describe("executeWithRetry", () => {
     it("should succeed on first attempt", async () => {
-      const mockFetch = jest.fn().mockResolvedValue({
+      const mockFetch = vi.fn().mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({ data: "test" }),
       });
@@ -208,7 +208,7 @@ describe("apiErrorHandler", () => {
       const err = new Error("Bad Request");
       err.status = 400;
 
-      const mockFetch = jest.fn().mockRejectedValue(err);
+      const mockFetch = vi.fn().mockRejectedValue(err);
 
       await expect(
         executeWithRetry(mockFetch, { maxRetries: 3 }),
@@ -236,7 +236,7 @@ describe("apiErrorHandler", () => {
     });
 
     it("should call onRetry callback", async () => {
-      const onRetry = jest.fn();
+      const onRetry = vi.fn();
       const err = new Error("Failed to fetch");
 
       const mockFetch = jest
@@ -260,7 +260,7 @@ describe("apiErrorHandler", () => {
       const err = new Error("Server Error");
       err.status = 500;
 
-      const mockFetch = jest.fn().mockRejectedValue(err);
+      const mockFetch = vi.fn().mockRejectedValue(err);
 
       let thrownError;
       try {

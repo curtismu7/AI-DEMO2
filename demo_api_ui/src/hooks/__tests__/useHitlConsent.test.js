@@ -1,10 +1,10 @@
 import { renderHook, act } from '@testing-library/react';
 import useHitlConsent from '../useHitlConsent';
 
-global.fetch = jest.fn();
+global.fetch = vi.fn();
 
 describe('useHitlConsent', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => vi.clearAllMocks());
 
   test('no pending consent initially', () => {
     const { result } = renderHook(() => useHitlConsent({ hitlPending: null, runId: null }));

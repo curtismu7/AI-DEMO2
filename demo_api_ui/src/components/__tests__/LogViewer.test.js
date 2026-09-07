@@ -18,16 +18,16 @@ import * as appToastMocks from "../../utils/appToast";
 
 vi.mock("axios");
 vi.mock("../../utils/appToast", () => ({
-	notifyError: jest.fn(),
-	notifySuccess: jest.fn(),
-	notifyInfo: jest.fn(),
+	notifyError: vi.fn(),
+	notifySuccess: vi.fn(),
+	notifyInfo: vi.fn(),
 }));
 vi.mock("../../services/toastLogStore", () => ({
 	toastLogStore: {
-		getAll: jest.fn(() => []),
-		subscribe: jest.fn(() => () => {}),
-		clear: jest.fn(),
-		append: jest.fn(),
+		getAll: vi.fn(() => []),
+		subscribe: vi.fn(() => () => {}),
+		clear: vi.fn(),
+		append: vi.fn(),
 	},
 }));
 
@@ -62,7 +62,7 @@ describe("LogViewer Component", () => {
 	};
 
 	beforeEach(() => {
-		jest.clearAllMocks();
+		vi.clearAllMocks();
 		axios.get.mockResolvedValue({
 			data: {
 				logs: mockLogs,
@@ -74,7 +74,7 @@ describe("LogViewer Component", () => {
 	describe("Rendering", () => {
 		it("should not render when closed", () => {
 			const { container } = render(
-				<LogViewer isOpen={false} onClose={jest.fn()} />,
+				<LogViewer isOpen={false} onClose={vi.fn()} />,
 			);
 			expect(
 				container.querySelector(".log-viewer-overlay"),
@@ -82,7 +82,7 @@ describe("LogViewer Component", () => {
 		});
 
 		it("should render when open", async () => {
-			render(<LogViewer isOpen={true} onClose={jest.fn()} standalone={true} />);
+			render(<LogViewer isOpen={true} onClose={vi.fn()} standalone={true} />);
 
 			await waitFor(() => {
 				expect(screen.getByText("Learning Log")).toBeInTheDocument();
@@ -93,7 +93,7 @@ describe("LogViewer Component", () => {
 
 		it("should render close button", async () => {
 			// ✕ only renders in float mode (non-standalone); open via the custom event.
-			render(<LogViewer isOpen={false} onClose={jest.fn()} />);
+			render(<LogViewer isOpen={false} onClose={vi.fn()} />);
 			fireEvent(window, new CustomEvent("banking-log-viewer-open"));
 
 			await waitFor(() => {
@@ -104,7 +104,7 @@ describe("LogViewer Component", () => {
 
 	describe("Log Fetching", () => {
 		it("should fetch logs on open", async () => {
-			render(<LogViewer isOpen={true} onClose={jest.fn()} standalone={true} />);
+			render(<LogViewer isOpen={true} onClose={vi.fn()} standalone={true} />);
 
 			await waitFor(() => {
 				expect(axios.get).toHaveBeenCalledWith(
@@ -126,7 +126,7 @@ describe("LogViewer Component", () => {
 				});
 			});
 
-			render(<LogViewer isOpen={true} onClose={jest.fn()} standalone={true} />);
+			render(<LogViewer isOpen={true} onClose={vi.fn()} standalone={true} />);
 
 			await waitFor(() => {
 				expect(axios.get).toHaveBeenCalledWith("/api/logs/stats");
@@ -134,7 +134,7 @@ describe("LogViewer Component", () => {
 		});
 
 		it("should display fetched logs", async () => {
-			render(<LogViewer isOpen={true} onClose={jest.fn()} standalone={true} />);
+			render(<LogViewer isOpen={true} onClose={vi.fn()} standalone={true} />);
 
 			await waitFor(() => {
 				expect(screen.getAllByText("Test info message").length).toBeGreaterThan(
@@ -154,7 +154,7 @@ describe("LogViewer Component", () => {
 			notifyError.mockClear();
 			axios.get.mockRejectedValue(new Error("Network error"));
 
-			render(<LogViewer isOpen={true} onClose={jest.fn()} standalone={true} />);
+			render(<LogViewer isOpen={true} onClose={vi.fn()} standalone={true} />);
 
 			await waitFor(() => {
 				expect(notifyError).toHaveBeenCalledWith("Network error");
@@ -164,7 +164,7 @@ describe("LogViewer Component", () => {
 
 	describe("Filtering", () => {
 		it("should filter by log level", async () => {
-			render(<LogViewer isOpen={true} onClose={jest.fn()} standalone={true} />);
+			render(<LogViewer isOpen={true} onClose={vi.fn()} standalone={true} />);
 
 			await waitFor(() => {
 				const [, levelSelect] = screen.getAllByRole("combobox");
@@ -190,7 +190,7 @@ describe("LogViewer Component", () => {
 		});
 
 		it("should filter by search term", async () => {
-			render(<LogViewer isOpen={true} onClose={jest.fn()} standalone={true} />);
+			render(<LogViewer isOpen={true} onClose={vi.fn()} standalone={true} />);
 
 			await waitFor(() => {
 				const searchInput = screen.getByPlaceholderText("Filter logs...");
@@ -216,7 +216,7 @@ describe("LogViewer Component", () => {
 		});
 
 		it("should change log source", async () => {
-			render(<LogViewer isOpen={true} onClose={jest.fn()} standalone={true} />);
+			render(<LogViewer isOpen={true} onClose={vi.fn()} standalone={true} />);
 
 			await waitFor(() => {
 				const [sourceSelect] = screen.getAllByRole("combobox");
@@ -234,15 +234,15 @@ describe("LogViewer Component", () => {
 
 	describe("Auto-refresh", () => {
 		beforeEach(() => {
-			jest.useFakeTimers();
+			vi.useFakeTimers();
 		});
 
 		afterEach(() => {
-			jest.useRealTimers();
+			vi.useRealTimers();
 		});
 
 		it("should auto-refresh when enabled", async () => {
-			render(<LogViewer isOpen={true} onClose={jest.fn()} standalone={true} />);
+			render(<LogViewer isOpen={true} onClose={vi.fn()} standalone={true} />);
 
 			await waitFor(() => {
 				expect(axios.get).toHaveBeenCalled();
@@ -250,7 +250,7 @@ describe("LogViewer Component", () => {
 
 			const initialCallCount = axios.get.mock.calls.length;
 
-			jest.advanceTimersByTime(2000);
+			vi.advanceTimersByTime(2000);
 
 			await waitFor(() => {
 				expect(axios.get.mock.calls.length).toBeGreaterThan(initialCallCount);
@@ -258,7 +258,7 @@ describe("LogViewer Component", () => {
 		});
 
 		it("should stop auto-refresh when disabled", async () => {
-			render(<LogViewer isOpen={true} onClose={jest.fn()} standalone={true} />);
+			render(<LogViewer isOpen={true} onClose={vi.fn()} standalone={true} />);
 
 			await waitFor(() => {
 				const autoRefreshCheckbox = screen.getByLabelText(/Auto-refresh/);
@@ -267,7 +267,7 @@ describe("LogViewer Component", () => {
 
 			const callCountAfterDisable = axios.get.mock.calls.length;
 
-			jest.advanceTimersByTime(2000);
+			vi.advanceTimersByTime(2000);
 
 			expect(axios.get.mock.calls.length).toBe(callCountAfterDisable);
 		});
@@ -275,7 +275,7 @@ describe("LogViewer Component", () => {
 
 	describe("Actions", () => {
 		it("should close modal when close button clicked", async () => {
-			const onClose = jest.fn();
+			const onClose = vi.fn();
 			// ✕ only renders in float mode; open via the custom event.
 			render(<LogViewer isOpen={false} onClose={onClose} />);
 			fireEvent(window, new CustomEvent("banking-log-viewer-open"));
@@ -289,7 +289,7 @@ describe("LogViewer Component", () => {
 		});
 
 		it("should re-fetch logs when filter changes", async () => {
-			render(<LogViewer isOpen={true} onClose={jest.fn()} standalone={true} />);
+			render(<LogViewer isOpen={true} onClose={vi.fn()} standalone={true} />);
 
 			await waitFor(() => {
 				expect(screen.getAllByText("Test info message").length).toBeGreaterThan(
@@ -309,10 +309,10 @@ describe("LogViewer Component", () => {
 		});
 
 		it("should invoke downloadLogs via keyboard shortcut (Ctrl+S)", async () => {
-			global.URL.createObjectURL = jest.fn(() => "blob:mock-url");
-			global.URL.revokeObjectURL = jest.fn();
+			global.URL.createObjectURL = vi.fn(() => "blob:mock-url");
+			global.URL.revokeObjectURL = vi.fn();
 
-			const mockClick = jest.fn();
+			const mockClick = vi.fn();
 			let createElSpy;
 			try {
 				const origCreateElement = document.createElement.bind(document);
@@ -325,7 +325,7 @@ describe("LogViewer Component", () => {
 						return origCreateElement(tag);
 					});
 
-				render(<LogViewer isOpen={true} onClose={jest.fn()} standalone={true} />);
+				render(<LogViewer isOpen={true} onClose={vi.fn()} standalone={true} />);
 
 				await waitFor(() => {
 					expect(
@@ -344,9 +344,9 @@ describe("LogViewer Component", () => {
 
 		it("should clear console logs via keyboard shortcut (Ctrl+K)", async () => {
 			axios.delete.mockResolvedValue({ data: { cleared: 10 } });
-			global.confirm = jest.fn(() => true);
+			global.confirm = vi.fn(() => true);
 
-			render(<LogViewer isOpen={true} onClose={jest.fn()} standalone={true} />);
+			render(<LogViewer isOpen={true} onClose={vi.fn()} standalone={true} />);
 
 			await waitFor(() => {
 				expect(screen.getAllByText("Test info message").length).toBeGreaterThan(
@@ -364,7 +364,7 @@ describe("LogViewer Component", () => {
 		});
 
 		it("should render without Clear button when UI uses keyboard shortcuts", () => {
-			render(<LogViewer isOpen={true} onClose={jest.fn()} standalone={true} />);
+			render(<LogViewer isOpen={true} onClose={vi.fn()} standalone={true} />);
 
 			// The LogViewer uses keyboard shortcuts (Ctrl+K) for clearing,
 			// not a visible Clear button — confirm no Clear button is rendered
@@ -376,7 +376,7 @@ describe("LogViewer Component", () => {
 
 	describe("Display Features", () => {
 		it("should display log count", async () => {
-			render(<LogViewer isOpen={true} onClose={jest.fn()} standalone={true} />);
+			render(<LogViewer isOpen={true} onClose={vi.fn()} standalone={true} />);
 
 			await waitFor(() => {
 				expect(screen.getByText(/logs displayed/)).toBeInTheDocument();
@@ -384,7 +384,7 @@ describe("LogViewer Component", () => {
 		});
 
 		it("should display live indicator when auto-refresh enabled", async () => {
-			render(<LogViewer isOpen={true} onClose={jest.fn()} standalone={true} />);
+			render(<LogViewer isOpen={true} onClose={vi.fn()} standalone={true} />);
 
 			await waitFor(() => {
 				expect(screen.getByText("● Live")).toBeInTheDocument();
@@ -392,7 +392,7 @@ describe("LogViewer Component", () => {
 		});
 
 		it("should display correlation IDs", async () => {
-			render(<LogViewer isOpen={true} onClose={jest.fn()} standalone={true} />);
+			render(<LogViewer isOpen={true} onClose={vi.fn()} standalone={true} />);
 
 			await waitFor(() => {
 				expect(screen.getAllByText(/test-123/).length).toBeGreaterThan(0);
@@ -402,7 +402,7 @@ describe("LogViewer Component", () => {
 		it("should display loading state", () => {
 			axios.get.mockImplementation(() => new Promise(() => {}));
 
-			render(<LogViewer isOpen={true} onClose={jest.fn()} standalone={true} />);
+			render(<LogViewer isOpen={true} onClose={vi.fn()} standalone={true} />);
 
 			expect(screen.getByText("Loading logs...")).toBeInTheDocument();
 		});
@@ -410,7 +410,7 @@ describe("LogViewer Component", () => {
 		it("should display empty state", async () => {
 			axios.get.mockResolvedValue({ data: { logs: [], total: 0 } });
 
-			render(<LogViewer isOpen={true} onClose={jest.fn()} standalone={true} />);
+			render(<LogViewer isOpen={true} onClose={vi.fn()} standalone={true} />);
 
 			await waitFor(() => {
 				expect(screen.getByText("No logs found")).toBeInTheDocument();
@@ -429,7 +429,7 @@ describe("LogViewer Component", () => {
 				});
 			});
 
-			render(<LogViewer isOpen={true} onClose={jest.fn()} standalone={true} />);
+			render(<LogViewer isOpen={true} onClose={vi.fn()} standalone={true} />);
 
 			await waitFor(() => {
 				expect(screen.getByText(/Total: 100/)).toBeInTheDocument();
