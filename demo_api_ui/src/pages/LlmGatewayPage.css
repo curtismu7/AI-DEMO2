@@ -620,3 +620,13 @@
 .lgw-who.is-bad { border-left-color: var(--th-status-error); }
 .lgw-who.is-bad .lgw-who__who { color: var(--th-status-error); }
 .lgw-who.is-ok { border-left-color: var(--th-status-success); }
+
+/* Second caption line under the attack picker: what the caller will actually
+   see. Quieter than the instruction above it — it is context, not a control. */
+.lgw-attacks__effect {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: var(--font-size-sm);
+  line-height: 1.35;
+  color: var(--th-text-muted);
+}
