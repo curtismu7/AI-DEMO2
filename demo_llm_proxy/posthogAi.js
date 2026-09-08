@@ -5,27 +5,21 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-/** Soft-load POSTHOG_* from nearby .env files when not already in process.env. */
+/** Soft-load POSTHOG_* from this service's own .env when not already in process.env. */
 function softLoadPosthogEnv() {
   if (process.env.POSTHOG_API_KEY) return;
-  const candidates = [
-    path.join(__dirname, '..', 'demo_api_server', '.env'),
-    path.join(__dirname, '..', '.env'),
-  ];
-  for (const file of candidates) {
-    let text;
-    try {
-      text = fs.readFileSync(file, 'utf8');
-    } catch {
-      continue;
-    }
-    for (const line of text.split('\n')) {
-      const m = line.match(/^(POSTHOG_API_KEY|POSTHOG_HOST)\s*=\s*(.*)$/);
-      if (!m) continue;
-      if (process.env[m[1]]) continue;
-      process.env[m[1]] = m[2].trim().replace(/^['"]|['"]$/g, '');
-    }
-    if (process.env.POSTHOG_API_KEY) return;
+  const file = path.join(__dirname, '..', '.env');
+  let text;
+  try {
+    text = fs.readFileSync(file, 'utf8');
+  } catch {
+    return;
+  }
+  for (const line of text.split('\n')) {
+    const m = line.match(/^(POSTHOG_API_KEY|POSTHOG_HOST)\s*=\s*(.*)$/);
+    if (!m) continue;
+    if (process.env[m[1]]) continue;
+    process.env[m[1]] = m[2].trim().replace(/^['"]|['"]$/g, '');
   }
 }
 

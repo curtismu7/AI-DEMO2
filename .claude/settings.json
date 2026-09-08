@@ -47,6 +47,11 @@
             "type": "command",
             "command": "bash \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/warn-stale-main-checkout.sh\"",
             "timeout": 20
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/warn-missing-service-deps.sh\"",
+            "timeout": 20
           }
         ]
       }

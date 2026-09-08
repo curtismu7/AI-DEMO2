@@ -44,12 +44,16 @@ jest.mock('../../services/mcpPingOneHttpAdapter', () => ({
 }));
 
 // Test-only session shim ahead of the router: sets req.session.user when the
-// request carries x-test-authed. Default role is admin (profile CRUD and
-// non-default dispatch are admin-gated); pass x-test-role: user to exercise
-// the customer 403 path. The unauthenticated 401 behavior is left intact.
+// request carries x-test-authed. Default role is admin, but profile CRUD and
+// non-default dispatch only require SOME signed-in session (requireSession),
+// not admin specifically — pass x-test-role: user to exercise that. The
+// unauthenticated 401 behavior (no x-test-authed at all) is left intact.
 // x-test-pingone-token (JSON) seeds req.session.pingoneMcpAdminToken for the
 // built-in PingOne profile's dispatch; x-test-privilege-token does the same
-// for req.session.privilegeMcpToken.
+// for req.session.privilegeMcpTokens[<x-test-privilege-profile, default
+// built-in-privilege-mcp>] — each door's token is keyed by its own profile id
+// (see mcpPrivilegeAuth.js's header comment on why: each door is its own
+// OAuth authorization server, so one shared token cannot serve all of them).
 function testSession(req, res, next) {
   req.session = req.session || {};
   if (req.headers['x-test-authed']) {
@@ -62,7 +66,9 @@ function testSession(req, res, next) {
     req.session.pingoneMcpAdminToken = JSON.parse(req.headers['x-test-pingone-token']);
   }
   if (req.headers['x-test-privilege-token']) {
-    req.session.privilegeMcpToken = JSON.parse(req.headers['x-test-privilege-token']);
+    const profileId = req.headers['x-test-privilege-profile'] || 'built-in-privilege-mcp';
+    req.session.privilegeMcpTokens = req.session.privilegeMcpTokens || {};
+    req.session.privilegeMcpTokens[profileId] = JSON.parse(req.headers['x-test-privilege-token']);
   }
   next();
 }
@@ -105,21 +111,14 @@ describe('Generic MCP Inspector — profiles', () => {
       expect(res.status).toBe(401);
     });
 
-    it('403s for a signed-in customer (a stdio profile would be RCE on the BFF host)', async () => {
+    it('allows a signed-in customer, not just admin, to create a profile (any session, not admin-only)', async () => {
       const res = await request(app)
         .post('/api/mcp/inspector/profiles')
         .set('x-test-authed', '1')
         .set('x-test-role', 'user')
-        .send({
-          label: 'evil',
-          transport: 'stdio',
-          command: 'node',
-          args: ['-e', "require('fs').writeFileSync('/tmp/pwned','x')"],
-        });
-      expect(res.status).toBe(403);
-      expect(res.body.error).toBe('admin_required');
-      expect(mockStdioListTools).not.toHaveBeenCalled();
-      expect(mockStdioCallTool).not.toHaveBeenCalled();
+        .send({ label: 'Customer server', transport: 'http', url: 'https://example.test/mcp' });
+      expect(res.status).toBe(201);
+      expect(res.body.profile.label).toBe('Customer server');
     });
 
     it('creates an http profile and never echoes the secret back', async () => {
@@ -399,7 +398,7 @@ describe('Generic MCP Inspector — profiles', () => {
         .set('x-test-authed', '1');
       expect(res.status).toBe(200);
       expect(res.body.privilege_login_required).toBe(true);
-      expect(res.body.loginUrl).toBe('/api/mcp/inspector/privilege/login');
+      expect(res.body.loginUrl).toBe(`/api/mcp/inspector/privilege/login?profile=${PRIVILEGE_PROFILE_ID}`);
       expect(res.body.tools).toEqual([]);
       expect(mockHttpListTools).not.toHaveBeenCalled();
     });
@@ -432,6 +431,19 @@ describe('Generic MCP Inspector — profiles', () => {
       });
     });
 
+    it('a token held for one door does not unlock a different door', async () => {
+      const bankingToken = JSON.stringify({ accessToken: 'banking-token', expiresAt: Date.now() + 60000 });
+      const res = await request(app)
+        .get('/api/mcp/inspector/tools?profile=built-in-privilege-grafana')
+        .set('x-test-authed', '1')
+        .set('x-test-privilege-token', bankingToken)
+        .set('x-test-privilege-profile', PRIVILEGE_PROFILE_ID);
+
+      expect(res.body.privilege_login_required).toBe(true);
+      expect(res.body.loginUrl).toBe('/api/mcp/inspector/privilege/login?profile=built-in-privilege-grafana');
+      expect(mockHttpListTools).not.toHaveBeenCalled();
+    });
+
     it('POST /invoke 401s with privilege_login_required when not signed in', async () => {
       const res = await request(app)
         .post('/api/mcp/inspector/invoke')
@@ -439,7 +451,7 @@ describe('Generic MCP Inspector — profiles', () => {
         .send({ tool: 'get_my_accounts', params: {}, profile: PRIVILEGE_PROFILE_ID });
       expect(res.status).toBe(401);
       expect(res.body.error).toBe('privilege_login_required');
-      expect(res.body.loginUrl).toBe('/api/mcp/inspector/privilege/login');
+      expect(res.body.loginUrl).toBe(`/api/mcp/inspector/privilege/login?profile=${PRIVILEGE_PROFILE_ID}`);
     });
 
     it('rejects transport:"privilege" on POST /profiles (reserved for the built-in)', async () => {

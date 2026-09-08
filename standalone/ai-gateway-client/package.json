@@ -1,0 +1,14 @@
+{
+  "name": "ai-gateway-client",
+  "version": "1.0.0",
+  "private": true,
+  "description": "OAuth PKCE + Dynamic Client Registration test client for an OAuth-protected MCP gateway (PingOne Privilege AI Gateway by default).",
+  "license": "MIT",
+  "scripts": {
+    "install:all": "npm install --prefix server && npm install --prefix web",
+    "dev": "npm run dev --prefix server & npm run dev --prefix web",
+    "build": "npm run build --prefix web",
+    "start": "npm run build --prefix web && npm start --prefix server",
+    "test": "npm test --prefix server"
+  }
+}

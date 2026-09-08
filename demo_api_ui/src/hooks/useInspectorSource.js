@@ -168,11 +168,48 @@ export function useInspectorSource(sourceKey) {
 
   useEffect(() => { loadProfiles(); }, [loadProfiles]);
 
+  // The Privilege/PingOne admin login round-trip lands back here as
+  // ?profile=<id> (success) or ?profile=<id>&privilege_error=<msg> /
+  // &pingone_admin_error=<msg> (failure) — see mcpPrivilegeAuth.js /
+  // mcpPingOneAdminAuth.js's redirects. Without reading these, a failed
+  // login is indistinguishable from never having tried: the door stays
+  // unselected and the failure reason is silently dropped, so it just looks
+  // like "sign in required" again with no clue why. One-time read on mount,
+  // then scrub the URL so a refresh doesn't re-show a stale error.
+  //
+  // suppressNextBannerRef: setting selectedProfileId here immediately
+  // triggers loadTools' own mount effect, which unconditionally nulls (then
+  // re-sets) the banner as soon as its fetch resolves — that race would
+  // erase this error before the user ever saw it. Set when there's an error
+  // to report, consumed by exactly the next loadTools() call so this specific
+  // race is skipped without suppressing banners for any later, real reload.
+  const suppressNextBannerRef = useRef(false);
+  useEffect(() => {
+    if (mode !== 'profiles') return;
+    const params = new URLSearchParams(window.location.search);
+    const profileId = params.get('profile');
+    const error = params.get('privilege_error') || params.get('pingone_admin_error');
+    if (!profileId && !error) return;
+    if (profileId) setSelectedProfileId(profileId);
+    if (error) {
+      setBanner({ message: error, loginUrl: null });
+      suppressNextBannerRef.current = true;
+    }
+    params.delete('profile');
+    params.delete('privilege_error');
+    params.delete('pingone_admin_error');
+    const qs = params.toString();
+    window.history.replaceState({}, '', qs ? `${window.location.pathname}?${qs}` : window.location.pathname);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode]);
+
   // Load tools for this source
   const loadTools = useCallback(async () => {
     if (mode === 'profiles' && !selectedProfileId) return;
+    const suppressBanner = suppressNextBannerRef.current;
+    suppressNextBannerRef.current = false;
     setLoadingTools(true);
-    setBanner(null);
+    if (!suppressBanner) setBanner(null);
     try {
       const url = mode === 'profiles' && selectedProfileId !== defaultProfileId
         ? `${config.endpoint}?profile=${encodeURIComponent(selectedProfileId)}`
@@ -186,12 +223,12 @@ export function useInspectorSource(sourceKey) {
       }
       setServers(data.servers || []);
       setParamDefaults(data.paramDefaults || {});
-      setBanner(bannerFromPayload(data));
+      if (!suppressBanner) setBanner(bannerFromPayload(data));
       setSelectedTool(null);
       setLastInvoke(null);
       setParamValues({});
     } catch (e) {
-      setBanner({
+      if (!suppressBanner) setBanner({
         message: formatAxiosError(e, `Failed to load ${sourceKey} tools`),
         loginUrl: e.response?.data?.loginUrl || null,
       });

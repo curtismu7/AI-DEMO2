@@ -140,6 +140,227 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-07 — Generic MCP Inspector's admin-only gate deliberately relaxed to any signed-in session
+
+**This is not a bug fix — it reverses part of the 2026-07-26 entry further down
+this log ("Generic MCP Inspector profiles were reachable by any signed-in
+customer (stdio = RCE on the BFF host)") on explicit instruction.** Recorded
+here so that entry's own "Do not break" line is not read as still current.
+
+**Files changed:** `demo_api_server/routes/mcpInspector.js`,
+`demo_api_server/routes/mcpPrivilegeAuth.js`,
+`demo_api_server/src/__tests__/mcpInspectorProfiles.test.js`,
+`demo_api_server/src/__tests__/mcpPrivilegeAuth.test.js`.
+
+**What changed:** `requireAdminSession` (both the local copy in
+`mcpInspector.js` and `mcpPrivilegeAuth.js`'s own copy) is gone. `POST
+/profiles`, `DELETE /profiles/:id`, non-default profile dispatch (`GET
+/tools?profile=`, `POST /invoke`), and `GET /privilege/login` now use the
+shared `requireSession` (`middleware/auth.js` — session-cookie based, checks
+only `req.session.user` exists) instead: **any signed-in session, not
+admin-only, but never fully anonymous.** I raised the RCE (stdio spawns a
+command on the BFF host)/SSRF (http/websocket URL is arbitrary) risk this gate
+existed for before making the change; the explicit instruction, after that,
+was "everything, no admin gate at all," walked back one message later to
+"either user token or admin token but not public" — this entry reflects that
+final instruction, not the fully-public intermediate one.
+
+**Do not break:** do not silently re-tighten this back to admin-only, and do
+not read the 2026-07-26 entry's "Do not break" line as still binding — this
+entry supersedes it. Do not remove `requireSession` entirely either
+(unauthenticated/anonymous access was explicitly rejected). If the RCE/SSRF
+risk this trades away ever becomes a real concern (this app also ships
+intentionally-insecure attack-surface demos elsewhere, so that risk was
+accepted knowingly), the fix is putting `requireAdminSession` back, not
+inventing a third gate.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest src/__tests__/mcpPrivilegeAuth.test.js src/__tests__/mcpInspectorProfiles.test.js src/__tests__/mcpProfileStore.test.js tests/mcpInspectorGateway.test.js tests/mcpInspectorRpc.test.js --forceExit` — 78 passed, including a signed-in-customer (role: 'user') success case replacing the old 403 case on both routes; `cd demo_api_ui && npm run build` exit 0 (a tooltip-only UI change rode along in the same commit, unrelated to this gate).
+
+### 2026-09-07 — A failed Privilege/PingOne admin login looked identical to never having tried
+
+**Files changed:** `demo_api_ui/src/hooks/useInspectorSource.js`, `demo_api_ui/src/hooks/__tests__/useInspectorSource.test.js`.
+
+**What was broken:** `mcpPrivilegeAuth.js`/`mcpPingOneAdminAuth.js`'s OAuth
+callbacks redirect back to `/pingone-mcp-inspector?source=custom&profile=<id>`
+on success, or `...&profile=<id>&privilege_error=<msg>` /
+`&pingone_admin_error=<msg>` on failure — but `McpInspectorPageClean.jsx`
+(the live routed page since PR #2897) only ever read `?source=`. A failed
+login therefore left no trace: the door stayed unselected, the specific
+failure reason was dropped, and the page just showed the same generic
+"sign in required" banner as if the user had never clicked anything — live-
+confirmed as the reported symptom "every time I try Grafana Privilege, it
+asks me to log in" (again, and again, with zero diagnostic information).
+
+Reproducing it live also surfaced two *separate*, infrastructure-side issues,
+not fixed here: with a valid token, `banking-rest2`/`mcp-brave-search`/
+`mcp-grafana` all answer `403 Forbidden` (no Privilege policy authored yet on
+those Agentic Apps — a new app starts with none, per
+`privilege/CURRENT-CONFIGURATION.md`), and `opensearch22` still 404s per the
+already-tracked `privilege/GATEWAY-ENTRY-PATH-QUESTION.md`. The per-door
+login mechanism itself (previous entry) works correctly for all four.
+
+**What was fixed:** a new one-time effect in `useInspectorSource.js` (only for
+`mode === 'profiles'`) reads `profile`/`privilege_error`/`pingone_admin_error`
+off `window.location.search`, selects the door that was logged into, shows any
+error as the banner, then scrubs the URL via `history.replaceState`. A real
+race had to be closed to make this stick: setting `selectedProfileId`
+immediately retriggers `loadTools`'s own mount effect, which unconditionally
+nulled (then re-set) the banner as soon as its fetch resolved — erasing the
+redirect error before it was ever seen. `suppressNextBannerRef` skips exactly
+the one `loadTools()` call that follows a redirect-error render; every later
+call (Retry, switching doors) behaves normally.
+
+**Do not break:** `suppressNextBannerRef` must be consumed (reset to `false`)
+on every `loadTools()` call, not just when it's `true` — otherwise a later,
+unrelated fetch could inherit the suppression and hide a real new error.
+Do not move the URL-reading effect before `loadProfiles`'s own mount effect in
+source order, or `selectedProfileId`'s later `prev`-preferring update could
+race the other way.
+
+**Verify:** `cd demo_api_ui && ./node_modules/.bin/vitest run src/hooks/__tests__/useInspectorSource.test.js src/components/__tests__/McpInspectorPageClean.addServer.test.jsx` — 22 passed, including 4 new cases pinning the redirect-read, the scrub, and the suppression race; `npm run build` exit 0. Live: drove all 4 doors' login end to end against the running stack and confirmed the 403/404 responses above via direct `fetch()` calls in the browser console.
+
+### 2026-09-07 — `/dashboard` Focus Mode unusable on phone widths; two dead-code mobile "fixes" traced to their real cause
+
+**Files changed:** `demo_api_ui/src/components/TokenChainFilmstrip.css`,
+`demo_api_ui/src/components/AIAgent.css`, `demo_api_ui/src/index.css`,
+`demo_api_ui/src/components/DemoScriptLauncher.jsx`,
+`demo_api_ui/src/components/DemoScriptLauncher.css`,
+`demo_api_ui/src/components/AgentModeSelector.css`.
+
+**What was broken (dashboard layout, new bug):** on a phone-width Focus Mode
+dashboard, `.dashboard-content.ud-focus-mode`'s `grid-template-columns`
+resolved to three real tracks (`"0px 0px 238px"` measured live), not the one
+column its own `@media (max-width: 1100px)` rule declares. Root cause:
+`.ud-body.ud-body--2026.ud-body--dashboard-split3` (unmedia'd, specificity
+0,3,0) also sets `grid-template-columns`, and per-property cascade doesn't
+care that the losing declaration's condition is "more specific to the
+viewport" — only specificity/!important/order decide, and nothing in this
+file's mobile block beat that rule for every property. Effect: `.tcfs-spotlight`
+(the Token Chain Filmstrip's empty-state explainer) rendered at 0×220 then
+923px tall in a squeezed 48px column — the "big blank grey box" a user saw —
+and the Agent-mode/Routing/Wiring row (`.ud-dashboard-config-strip`, grid-area
+`strip`) was orphaned because the same 1100px rule's `grid-template-areas`
+never included a `strip` row at all.
+
+Fixing that revealed a second, previously-invisible overflow: `.ba-send-btn`'s
+`right` edge sat 17px past a 320px viewport. Cause: `.banking-agent-panel`'s
+base `min-width: 280px` (written for the floating/FAB widget) still applied
+in `.ba-mode-inline` — `width: 100%` and `min-width` aren't the same
+declaration, so the panel clamped to 280px inside a 236px inline host
+regardless of how much its children shrank.
+
+**What was fixed:** a new `@media (max-width: 768px)` block in
+`TokenChainFilmstrip.css`, appended (not interleaved — see below) with
+`!important`, forces `.dashboard-content.ud-focus-mode` to one column
+including the `strip` row. A second `@media (max-width: 480px)` block at the
+very end of `AIAgent.css` relaxes `.ba-input`'s flex/margin, `.ba-send-btn`'s
+min-width, and `.banking-agent-panel.ba-mode-inline`'s min-width to 0.
+**Both were written at the end of their files on purpose**: the conflicting
+declarations are themselves `!important`, so on an equal-specificity tie the
+*last* declaration in source wins regardless of which one looks more
+mobile-specific — a first attempt placed the override earlier in `AIAgent.css`
+and silently lost to a later unconditional `!important` rule.
+
+**Do not break:** neither fix touches the desktop split3 grid, the 1100px
+narrow-tablet rule's non-`strip` behavior, `.banking-agent-panel`'s floating
+(`:not(.ba-mode-inline)`) `min-width: 280px`, or any `middleAgentOpen`/
+`REAUTH_KEY`/filmstrip-default logic. Verified live via real Playwright mobile
+emulation (iPhone SE/14 Pro Max, Pixel 7) that `document.documentElement`
+never overflows and the panel's own children stay within its host.
+
+**Third issue, same strip (cosmetic):** once the grid fix above let the
+Agent-mode/Routing/Wiring row render at all, its three `<select>`s
+(`AgentModeSelector.jsx`, class `.ams-select`) were still unreadable —
+each measured ~46-56px wide with its selected text hard-clipped
+(`"Fa"`, `"vi"` instead of `"Fallback (Heuristics)"`, `"via BFF…"`). Cause: as
+flex children of `.ba-header-tools` (which already has `flex-wrap: wrap`),
+the selects had no explicit `min-width`, so the browser let all three shrink
+to fit one row instead of wrapping. **Fixed** with `min-width: 108px` under
+`@media (max-width: 768px)`, appended to `AgentModeSelector.css` — confirmed
+via `CSS.getMatchedStylesForNode` (CDP) that `.ams--compact .ams-select`
+(0,2,0 specificity) was the only other rule touching this element and never
+set `min-width` itself, so no cascade conflict; the row now wraps to 2+ lines
+on a phone instead of clipping. **Do not break:** `.ams--compact`'s row
+layout and this component's desktop/tablet sizing are untouched — the new
+rule only sets a floor below 768px.
+
+**Second issue (pre-existing dead code, found while verifying merged PRs no.
+2830, 2871, 2872, not caused by them):** PR #2830's dashboard toast safe-area
+fix (`.inline-message` in `UserDashboard.css`) targets a class with
+zero renderers anywhere in the repo — the real dashboard toast is
+`react-toastify`'s `.Toastify__toast-container--top-center` (`index.css`),
+which had no safe-area treatment. PR #2872's Demo-Script/agent-dock overlap
+fix reacts to `.ba-embedded-bottom-dock`, whose only prop
+(`embeddedDockBottom`) has had zero production callers since PR #2501
+(2026-08-27) deleted the entire bottom-dock layout as unreachable — 11 days
+before #2872 shipped a fix for a case that can no longer occur.
+
+**What was fixed:** moved the safe-area `env()` fix onto
+`.Toastify__toast-container--top-center` in `index.css` (the dead
+`.inline-message` rule in `UserDashboard.css` is left as-is — untangling
+unrelated dead CSS is out of scope for this fix). Removed the dead
+`IntersectionObserver`/`MutationObserver` block from `DemoScriptLauncher.jsx`
+and its matching `body.agent-bottom-dock-in-view` CSS rule — deleted rather
+than rewired, since there is no live caller to attach real behavior to.
+
+**Do not break:** `DemoScriptLauncher`'s remaining `demo-script-toggle` event
+listener and teleprompter state are untouched; the Demo Script button's
+guest-only (`!user`) visibility and its plain fixed bottom-left position are
+unchanged.
+
+**Verify:** `cd demo_api_ui && npx vitest run src/components/UserDashboardPing2026.test.js src/components/__tests__/UserDashboardPing2026.test.js src/components/__tests__/AIAgent.chips.test.js src/components/__tests__/DemoScriptLauncher.test.jsx src/components/__tests__/AgentModeSelector.test.jsx src/utils/__tests__/tokenRailLayout.test.js src/components/__tests__/DashboardTokenRail.test.jsx src/__tests__/FocusModeFilmstripGuard.test.js` — 8/8 files, 129/129 tests pass. `npm run build` exits 0.
+
+### 2026-09-07 — Privilege admin login itself was still pointed at the torn-down gateway, and one shared login could never work for 4 doors
+
+**Files changed:** `demo_api_server/routes/mcpPrivilegeAuth.js`, `demo_api_server/routes/mcpInspector.js`,
+`demo_api_server/src/__tests__/mcpPrivilegeAuth.test.js`, `demo_api_server/src/__tests__/mcpInspectorProfiles.test.js`.
+
+**What was broken:** the entry right below this one fixed where a `transport:
+'privilege'` profile's tools/list *dispatch* goes once you have a bearer, but
+the login that gets that bearer in the first place was still broken — found
+by actually clicking "Sign in as Privilege admin" live, not by re-reading the
+already-fixed file. `mcpPrivilegeAuth.js`'s `GATEWAY_ISSUER` was hardcoded to
+`https://cmuir-agentless-mcpgw.ping-devops.com/external`, the same torn-down
+host, so `/login` failed with `getaddrinfo ENOTFOUND cmuir-agentless-mcpgw.ping-devops.com`.
+
+Pointing that one constant at the new gateway would not have been enough.
+Confirmed live: each door's `/.well-known/oauth-authorization-server` returns
+its OWN `issuer`/`authorization_endpoint`/`token_endpoint`/`registration_endpoint`
+(`.../mcp-grafana` vs `.../opensearch22`, etc.) — the old per-owner gateway had
+one shared `/external` issuer good for every app; the current single gateway
+does not. A token minted for one door is not expected to authenticate another.
+The four built-in `transport: 'privilege'` profiles sharing one
+`session.privilegeMcpToken` was therefore an architecture that could never
+have worked against the current gateway, regardless of which host it pointed at.
+
+**What was fixed:** `mcpPrivilegeAuth.js` now discovers and DCR-registers a
+client **per profileId** (`_clientCache` is a `Map`, not a single cached
+object), deriving each door's own issuer from its profile's own `url`
+(`<gateway>/<door>/mcp` → `<gateway>/<door>`) via `mcpProfileStore.getProfile()`
+— no `GATEWAY_ISSUER` constant survives. `/login` now requires `?profile=<id>`;
+the OAuth `state` payload (`session.privilegeMcpOAuth`) carries `profileId`
+through to `/callback`, which stores the resulting token under
+`session.privilegeMcpTokens[profileId]` instead of one shared
+`session.privilegeMcpToken`. `mcpInspector.js`'s `privilegeAdminBearer(req,
+profileId)` reads that keyed map, and both `privilege_login_required`
+responses (`GET /tools`, `POST /invoke`) now hand back a
+`loginUrl` scoped to the door that actually needs it
+(`/api/mcp/inspector/privilege/login?profile=<id>`) instead of one generic link.
+
+**Do not break:**
+
+- Never reintroduce a single shared `session.privilegeMcpToken` or a single
+  `GATEWAY_ISSUER` constant for all doors — confirmed live that each door is
+  its own OAuth authorization server; a shared login cannot serve them all.
+- `/login` without `?profile=` must stay a 400 (`profile_required`), not a
+  silent default — there is no "the" Privilege door anymore, only specific ones.
+- `requireAdminSession`'s admin-only gate on `/login` is unchanged; it runs
+  before the `?profile=` check, so the 401/403 paths need no profile param.
+- The OAuth PKCE mechanics (state, S256 code challenge, `session.save()`
+  before redirecting) are unchanged — only what gets cached/keyed by is new.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest src/__tests__/mcpPrivilegeAuth.test.js src/__tests__/mcpInspectorProfiles.test.js src/__tests__/mcpProfileStore.test.js tests/mcpInspectorGateway.test.js tests/mcpInspectorRpc.test.js --forceExit` — 78 passed, including a new cross-door isolation test (a token held for one door does not unlock a different door) and a per-door DCR discovery/cache test. Live: confirmed via browser that `/login` previously threw `ENOTFOUND` on the old host; confirmed via curl that `mcp-grafana` and `opensearch22` each serve distinct OAuth authorization-server metadata at their own `/.well-known/oauth-authorization-server`.
+
 ### 2026-09-07 — Built-in "Privilege MCP (admin)" Inspector profile pointed at a torn-down gateway host
 
 **Files changed:** `demo_api_server/services/mcpProfileStore.js`,
