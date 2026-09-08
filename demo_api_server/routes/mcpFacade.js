@@ -170,12 +170,14 @@ const DOORS = {
     // the token minted for the human who signed in at /privilege-mcp-client,
     // not a service identity.
     // One door, every registered Agentic App: /privilege-gateway/<app>/mcp
-    // resolves to <gateway>/<app>/mcp. Without the segment the door falls back
-    // to the default app, so the shorter URL keeps working.
+    // resolves to <gateway>/<app>/<that app's entry path> — see
+    // privilegeEntryPath, the gateway pins a different one per app. Without the
+    // segment the door falls back to the default app, so the shorter URL keeps
+    // working.
     multiApp: true,
     upstream: () => process.env.MCP_FACADE_PRIVILEGE_GATEWAY_URL
-      || `${privilegeGatewayBase()}/${process.env.MCP_FACADE_PRIVILEGE_GATEWAY_APP || 'opensearch22'}/mcp`,
-    upstreamFor: (app) => `${privilegeGatewayBase()}/${app}/mcp`,
+      || privilegeDoorUpstream(process.env.MCP_FACADE_PRIVILEGE_GATEWAY_APP || 'opensearch22'),
+    upstreamFor: (app) => privilegeDoorUpstream(app),
     authorizationServer: () => process.env.MCP_FACADE_AGENT_GATEWAY_AS || 'http://localhost:3005',
     scopes: [],
     forwardCorrelation: false,
@@ -380,6 +382,38 @@ function facadeBase(req) {
 function privilegeGatewayBase() {
   return String(process.env.MCP_FACADE_PRIVILEGE_GATEWAY_BASE || 'https://mcpgw.ai-demo.ping-devops.com')
     .replace(/\/+$/, '');
+}
+
+// The gateway pins each Agentic App to ONE client-facing entry path, derived
+// from the backend URL it was registered with, and answers a bare 404 on any
+// other. The only explanation is in the gateway's own log:
+//
+//   [mcpgw] rejecting /mcp on app opensearch22: outside entry path "/sse"
+//
+// It is per APP, not per gateway — `openapi2` and the catalog doors speak /mcp
+// while the two OpenSearch apps are registered with an /sse backend — and this
+// door fronts every app through one multiApp route, so it cannot hardcode /mcp.
+//
+// /sse is a PATH here, not a transport: the console's MCP Config block for
+// opensearch22 reads {"transport":"http","url":"…/opensearch22/sse"}, so the
+// plain JSON-RPC POST this façade already makes stays correct.
+//
+// Overridable because the path follows a CONSOLE EDIT rather than a release —
+// it flipped twice on 2026-09-08 — so realigning must be an env change and a
+// restart, never a code change. Anything unlisted keeps /mcp.
+const PRIVILEGE_ENTRY_PATH_DEFAULTS = { opensearch22: 'sse', opensearch: 'sse' };
+
+function privilegeEntryPath(app) {
+  const override = String(process.env.MCP_FACADE_PRIVILEGE_GATEWAY_PATHS || '')
+    .split(',')
+    .map((pair) => pair.split(':').map((part) => part.trim()))
+    .find(([name, path]) => name === app && path);
+  const path = override ? override[1] : (PRIVILEGE_ENTRY_PATH_DEFAULTS[app] || 'mcp');
+  return String(path).replace(/^\/+/, '');
+}
+
+function privilegeDoorUpstream(app) {
+  return `${privilegeGatewayBase()}/${app}/${privilegeEntryPath(app)}`;
 }
 
 // Where the reel_url points. Deliberately NOT PUBLIC_APP_URL: the embed page is
