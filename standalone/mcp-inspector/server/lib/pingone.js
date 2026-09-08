@@ -4,12 +4,15 @@
  * hosted PingOne MCP server (https://mcp.pingone.{region}/admin/{envId}/mcp),
  * plus a thin JSON-RPC client using the resulting token.
  *
- * No client secret, no worker credentials, no dynamic app provisioning: this
- * is a standalone single-user tool, so it expects the user to have already
- * created a PingOne OIDC app themselves (Authorization Code grant, PKCE
- * S256_REQUIRED, token endpoint auth method "none") with this tool's own
- * callback URL registered as a redirect URI — see README. Config comes from
- * PINGONE_ENVIRONMENT_ID / PINGONE_REGION / PINGONE_MCP_CLIENT_ID env vars.
+ * No client secret, no worker credentials, no dynamic app provisioning.
+ * Defaults to the public Ping AI Demo's own "PingOne MCP Server" app
+ * (Authorization Code grant, PKCE S256_REQUIRED, token endpoint auth method
+ * "none" — a public client, so its client id isn't a secret), which already
+ * has this tool's callback URL (http://127.0.0.1:3900/api/pingone/callback)
+ * registered as a redirect URI — so this works with zero setup. Point
+ * PINGONE_ENVIRONMENT_ID / PINGONE_MCP_CLIENT_ID at your own PingOne OIDC
+ * app instead (same shape: Authorization Code + PKCE, "none" auth method,
+ * this tool's callback URL registered as a redirect URI) to test that.
  *
  * Token is held in a single process-local variable — this tool drives one
  * operator identity, like the rest of this app (no login system of its own).
@@ -32,16 +35,17 @@ function region() {
   return process.env.PINGONE_REGION || 'com';
 }
 
+// Both are public identifiers (a PKCE-only client id, and an environment id
+// that already appears in issuer URLs) — not secrets, safe to default.
+const DEFAULT_ENVIRONMENT_ID = '01d89b06-66d5-430e-9f28-65636843788b';
+const DEFAULT_CLIENT_ID = 'eec33861-dc73-4ca2-93c7-9ceb45174825';
+
 function environmentId() {
-  const id = process.env.PINGONE_ENVIRONMENT_ID;
-  if (!id) throw new Error('PINGONE_ENVIRONMENT_ID is not set (see .env.example)');
-  return id;
+  return process.env.PINGONE_ENVIRONMENT_ID || DEFAULT_ENVIRONMENT_ID;
 }
 
 function clientId() {
-  const id = process.env.PINGONE_MCP_CLIENT_ID;
-  if (!id) throw new Error('PINGONE_MCP_CLIENT_ID is not set (see .env.example)');
-  return id;
+  return process.env.PINGONE_MCP_CLIENT_ID || DEFAULT_CLIENT_ID;
 }
 
 function authBase() {
@@ -52,8 +56,11 @@ function mcpUrl() {
   return `https://mcp.pingone.${region()}/admin/${environmentId()}/mcp`;
 }
 
+// Always true now that both values default to the public demo app — kept as
+// a function (rather than inlined at call sites) in case a future config
+// source needs a real "is this usable" check again.
 function isConfigured() {
-  return Boolean(process.env.PINGONE_ENVIRONMENT_ID && process.env.PINGONE_MCP_CLIENT_ID);
+  return true;
 }
 
 function status() {

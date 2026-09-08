@@ -41,11 +41,11 @@ Open http://127.0.0.1:5173 while developing.
 
 - **Tools** — `tools/list` / `tools/call` against whichever server profile is selected.
 - **Protocol** — the MCP methods that aren't `tools/call`: `resources/list`, `resources/read`, `resources/templates/list`, `prompts/list`, `prompts/get`, `completion/complete`, `logging/setLevel`. Also dispatched to the selected profile.
-- **PingOne** — tools on PingOne's hosted MCP server (`mcp.pingone.<region>`), authenticated via your own browser sign-in (Authorization Code + PKCE — no client secret, no worker credentials). Optional; see `.env.example` for setup. You need your own PingOne OIDC app (public client, PKCE required) with this tool's callback URL registered as a redirect URI.
+- **PingOne** — tools on PingOne's hosted MCP server (`mcp.pingone.<region>`), authenticated via your own browser sign-in (Authorization Code + PKCE — no client secret, no worker credentials). Defaults to the public Ping AI Demo's own PingOne environment/app, so it works with zero setup as long as you run on the default port (3900); point `PINGONE_ENVIRONMENT_ID`/`PINGONE_MCP_CLIENT_ID` at your own PingOne OIDC app (public client, PKCE required, this tool's callback URL registered as a redirect URI) to test that instead.
 
 ## Config
 
-Copy `server/.env.example` to `server/.env` and fill in what you need. Nothing is required for the Tools/Protocol sources — only the PingOne tab needs environment config.
+Copy `server/.env.example` to `server/.env` and fill in what you need. Nothing is required — Tools/Protocol work out of the box, and so does the PingOne tab as long as `PORT` stays 3900.
 
 Saved server profiles (including any auth header/value or stdio command you add) are stored in `~/.mcp-inspector/profiles.json` on your machine — set `PROFILE_STORE_DIR` to change where.
 
