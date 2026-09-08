@@ -1,12 +1,18 @@
 # Privilege AI Gateway — lessons learned
 
-Non-obvious, repeat-cost behavior discovered building and operating the
-`pingone-admin-local` Agentic App (`demo_mcp_pingone/`) and its predecessors
-(2026-09-07/08). Every entry below cost real debugging time at least once —
-some of them twice, because the first fix didn't stick. This is a companion to
-`.claude/skills/privilege-mcpgw-agent-k8s/SKILL.md` (deploy mechanics) and
-`demo_mcp_pingone/README.md` (this integration's specific setup) — read those
-for procedure; read this for what will surprise you.
+Non-obvious, repeat-cost behavior discovered building and operating PingOne
+Privilege across this demo — the `pingone-admin-local` Agentic App
+(`demo_mcp_pingone/`) and its predecessors, the agentless AI Gateway on the SE
+cluster, the PingOne clients and tenants behind both, and the Privilege agent
+that runs on the laptop. Every entry below cost real debugging time at least
+once — some of them twice, because the first fix didn't stick. This is a
+companion to `.claude/skills/privilege-mcpgw-agent-k8s/SKILL.md` (deploy
+mechanics) and `demo_mcp_pingone/README.md` (this integration's specific setup)
+— read those for procedure; read this for what will surprise you.
+
+Roughly: the first half is **building against the gateway** (policy, paths,
+clients); the second half is **operating it** (restarts, identity, tenants,
+guardrails) plus how to read what it tells you when it breaks.
 
 ## Policy authoring
 
@@ -349,6 +355,338 @@ a server-side app, and not evidence a given environment is configured for it
 — check which environment the working client actually targets before
 assuming the behavior transfers.
 
+## Running the gateway: restarts, upgrades, and the signals that lie
+
+### `helm uninstall` can destroy the enrollment permanently — check the PV reclaim policy FIRST
+
+On 2026-09-01 a `helm uninstall agentless-mcpgw` deleted the release's PVC **and
+its PV** (reclaim policy was `Delete`), destroying the EBS volume and with it the
+mTLS enrollment pair. The certificate went immediately; the PVC entered
+Terminating and the PV was gone before it could be patched to `Retain`.
+
+The reinstall then CrashLooped in a way that cannot be fixed from the cluster:
+
+```
+Proxy cert not found /procyon/ssl/proxy-crt.pem
+  -> CSR -> privilege.pingone.com 500 "not found"
+  -> fatal: Error creating edge proxy
+```
+
+With no mTLS pair and an expired proxy token, **the gateway cannot re-enroll
+itself.** A fresh token only comes from the Privilege console's Gateways wizard —
+which was itself down at the time. Uninstalling a *working* gateway created an
+unrecoverable-without-console deadlock.
+
+Before any `helm uninstall` of this release:
+
+```bash
+kubectl patch pv <pv> -p '{"spec":{"persistentVolumeReclaimPolicy":"Retain"}}'   # FIRST
+kubectl get pvc <release>-ssl -o jsonpath='{.metadata.annotations}'              # want helm.sh/resource-policy: keep
+```
+
+...and confirm a valid, non-expired proxy token is physically in hand. An earlier
+note in this repo claimed "the PVC survives `helm uninstall`, so no fresh token is
+needed" — that was observed once on 2026-08-27 and **did not reproduce**. Do not
+plan around it.
+
+### The listen port is derived from `SERVER_URL`, so `:latest` makes every restart an upgrade
+
+Cost ~2h of outage on 2026-09-06, triggered by the pod's first restart in days.
+
+Current vendor builds (`v1.260904/05/06` all confirmed) derive the MCP GW listen
+port from `SERVER_URL` (`oidc.serverUrl` in values, via the `pingone.env` secret):
+
+```
+mcpgw will listen on :443 (derived from AIGwServer/SERVER_URL "https://mcpgw.ai-demo.ping-devops.com")
+MCP GW running [::]:443
+```
+
+`https://<host>` with no port resolves to 443. **Older builds listened on a fixed
+8623**, and our chart hardcoded 8623 in the Service and both Ingresses — so
+nothing was listening where nginx was sending, and every request 502'd. A healthy
+pre-restart boot logs `MCP GW running [::]:8623` with **no "derived from" line**;
+that line's presence is the tell. Fix was one line: `targetPort: 8623` -> `443`.
+
+Two traps around it:
+
+- **`image.tag: latest` + `pullPolicy: Always` means every recreation is an
+  unplanned upgrade.** Helm upgrade, rollback, node drain, `rollout restart` — all
+  re-pull whatever `:latest` is now. The pod had run 44h+ on an old binary. *The
+  restart was never the bug; it merely exposed a version skew that had already
+  landed in the registry.*
+- **`helm rollback` does not restore the old binary.** It reverts chart values
+  only; the floating tag re-resolves. Pinning to `04`/`05` also failed — they all
+  derive 443.
+
+`-listen` in `mcpgw -h` is the **tunnel** port (default `:8680`), not the app
+listener. There is no vendor flag for the MCP GW port. And do not put `:8623` into
+`SERVER_URL` — it doubles as the public OIDC issuer base URL.
+
+### Four separate "healthy" signals stay green while the gateway is down
+
+During the outage above, all of these read healthy simultaneously:
+
+| signal | why it lied |
+|---|---|
+| Privilege console "Status: Success" | reflects mesh registration, not the listener |
+| desktop agent "Connected" | same |
+| `NodeStatus:Active` in the pod log | same |
+| pod `Ready` | **the chart defines no readiness probe** — Ready means the container started |
+
+Add to that the recurring `level=error` line every ~30s:
+
+```
+this node and &MedusaNode{...} has same NodeURL - this happens because of
+misconfigured Node
+```
+
+It fired 390 times *during the healthy window* and first appeared hours before any
+restart. It is a node seeing itself in the mesh directory. **Benign — do not chase
+it.** The only trustworthy check is an actual request through the path a caller
+uses.
+
+### `--reuse-values` silently deletes sidecars
+
+`extraContainers` is a **list, not a map**, so `helm upgrade --reuse-values` with a
+patch naming only the new sidecar replaces the whole list and drops the others.
+Carry every sidecar forward explicitly, and verify by container count (4/4, not
+3/4) rather than by whether the release reports `deployed`.
+
+## Catalog apps are sidecars you run — the console's Configuration panel is inert
+
+Adding an app from the Privilege console's MCP catalog ("Add Grafana", "Add
+Brave", ...) **deploys nothing.** The connector is a container *you* run as an
+`extraContainers` sidecar inside the `agentless-mcpgw` pod; the gateway reaches it
+over pod loopback. That is why `Backend Name` is `http://localhost:<port>/mcp` and
+why an ordinary in-cluster Service can never serve one of these apps.
+
+**The console's Configuration panel (e.g. `GRAFANA_URL`,
+`GRAFANA_SERVICE_ACCOUNT_TOKEN`) stores values on the app record and never passes
+them to the container.** The sidecar reads its env from the Helm release. Proven by
+`mcp-brave`, whose key comes from the `brave-secrets` Secret and not from anything
+typed in the console. **Rotating one of these tokens means editing the k8s Secret**
+— and that Secret lives in the *gateway's* namespace, not the upstream service's.
+
+Three traps, in the order they bite:
+
+1. **Port collision.** Every catalog app defaults to `localhost:8080`, and
+   containers in a pod share a network namespace. `mcp-brave` already holds 8080,
+   so a second app registered as-is silently resolves to Brave and returns
+   **Brave's tool list — populated, and wrong.** `Backend Name` *is* editable (Edit
+   on the app, proven 2026-09-06); a chart comment claiming otherwise sent one
+   session off to build a second gateway for nothing.
+2. **`--reuse-values` wipes the sidecar list** — see above.
+3. **Cluster-internal DNS.** `*.svc.cluster.local` does not resolve from a laptop,
+   so curling one from your Mac proves nothing. Test from inside the gateway pod.
+
+Images must be `linux/arm64` — all 27 SE nodes are Graviton.
+
+## Identity: the clients you must not touch, and the two legs people conflate
+
+### `a6219652` has a sixth holder with no API and no console field — never regenerate it
+
+PingOne app `a6219652-47af-4ed2-8dea-20e9940b3377` ("PingOne Privilege", env
+`01d89b06`) is **provisioned by the Privilege service itself** when PAM is enabled.
+Its redirect URIs include `https://callback.login.privilege.pingone.com/oidc/callback`
+— the Privilege **cloud console signs in through it**.
+
+It has six holders. Five are reachable and can be updated; the sixth is the
+Privilege service's own internal copy, for which **there is no API and no console
+field**. `GET /applications/{id}/secret` returns a `secret` with **no `previous`
+field**, so `secret.regenerate` kills the old value instantly — there is no overlap
+window to migrate within.
+
+This happened on 2026-08-31: a session rotated the secret while debugging, the
+reachable holders were updated over the following days, and the console then failed
+every sign-in with
+
+```
+Failed to exchange token: oauth2: "invalid_client" "Request denied: Invalid client credentials"
+```
+
+**Nothing in our stack logs this**, because the exchange happens inside Ping's
+cloud. Do not hunt it in the gateway pod logs — you will find only unrelated
+`Unsupported authentication method` Basic-auth fallback noise.
+
+### A self-advertising authorization server will take a client_id it never issued
+
+Fixed 2026-08-31 (PR #2644). `beginOAuthFlow` had:
+
+```js
+if (selfAdvertised && brokerClientId) { clientId = brokerClientId; ... }
+```
+
+`AGENT_GATEWAY_BROKER_CLIENT_ID` names a client on the demo's **own** RFC 7591
+broker. The Privilege agentless gateway is *also* `selfAdvertised` — it mints
+`/<app>/authorize` and `/<app>/token` into its 401 body — so it was handed a
+client_id Privilege had never heard of, producing `unknown_client` and then
+`Bearer token required`. **Any "is this AS self-advertising?" guard must be scoped
+by AS origin**, never by the capability alone.
+
+The trap that hid it: **two unrelated things were both named `ai-demo-bff-audit`**
+— a broker-registry client id, and a PingOne OIDC app someone mistakenly wrote into
+`PRIVILEGE_SSO_CLIENT_ID` in both Docker and K8s. Same name, different registries.
+
+### The gateway's own OIDC client and your caller's DCR client are different legs
+
+Privilege agentless wants DCR, and it works cold:
+
+```
+POST https://<gw>/<app>/register   -> 201 {client_id, client_secret}
+GET  https://<gw>/<app>/authorize  -> 302 to PingOne using the GATEWAY's client
+                                       (a6219652) and the GATEWAY's redirect_uri
+```
+
+Two legs, two different clients. Debugging one while looking at the other is the
+default failure mode here.
+
+## Tenants: the gateway is probably not in the tenant you think
+
+Proven live 2026-09-03. The agentless gateway authenticates against PingOne env
+**`0428ba4f`** — live name "**AI Agent**", *not* "Privilege Agent" as the skill doc
+said — with `oidc.clientId` `1a403855-...` ("AI Gateway"). `0428ba4f` and the main
+demo tenant `01d89b06` are in the same org, and **nobody knew the users in
+`0428ba4f`**, which is why an OIDC External IdP now federates it back to the main
+tenant.
+
+The mapping that made it work:
+
+```
+username <- ${providerAttributes.preferred_username}
+```
+
+- `sub` (PingOne's default) creates a **UUID-named shadow user**.
+- `email` does **not** match — the addresses differ across tenants.
+- Only `preferred_username` matches, case-insensitively: `demoUser` -> `demouser`.
+
+The result is an **account LINK, not a duplicate**, so the existing Agentic App
+policy grant still applies with no re-granting. Verify with:
+
+```bash
+GET /environments/0428ba4f/users/<id>/linkedAccounts
+```
+
+**Policy actions run in sequence**, so a sign-on policy with an
+`IDENTITY_PROVIDER` action followed by a `LOGIN` fallback will demand a *local*
+password when the first action does not complete — which looks exactly like broken
+federation and is not.
+
+## Guardrails: what actually blocks a caller, and why an HTTP probe is blind
+
+Verified live 2026-09-06 against the OpenAI lane, gpt-4o-mini, through
+`POST /llm/openai/v1/chat/completions`. Of 15+ payload techniques across every
+content category, **only `prompt_injection` returns a caller-visible block**
+(HTTP 400 `security_error`), plus `jailbreak` on a strong "DAN" payload.
+
+Everything else returns HTTP 200 — for two reasons, **neither of which is "not
+detected":**
+
+1. **Alert and Sanitize verdicts are never surfaced to the API caller.** Console
+   policy bands are Allow / Alert / Sanitize / Block; only **Block** produces a
+   400. Alert and Sanitize return a clean 200 with no `x-*` security header and no
+   body annotation. Those verdicts live on the gateway dashboard, not in the
+   response. **An HTTP-status probe therefore cannot see them — "passed" is not
+   "not detected".**
+2. **Malicious Content, PII, and Data Exfiltration scan the model OUTPUT, not the
+   prompt.** With Malicious Content set to Block at >=20%, "write ransomware" still
+   returned 200 — because the model refused, so the output was clean and there was
+   nothing to catch. **A well-aligned model self-censors before the gateway ever
+   sees output.** To demo an output-detector block you need a model that actually
+   complies.
+
+Prompt Injection, Jailbreak and Hidden Instructions are *input* scanners, which is
+why prompt_injection can block a request the model would have refused anyway.
+Tuning thresholds on the output-scanning categories changes nothing observable
+through the response path.
+
+## The local Mac agent is a third component — not either k8s gateway
+
+Easy to conflate with the cluster gateways, and it fails differently.
+`/Applications/PingOne Privilege.app` runs `cyonagent_mac` **as root**, enrolled to
+`controllerURL = https://privilege.pingone.com/` (from
+`~/Library/Application Support/procyon-agent/config.json`). It listens on **8643**
+and intercepts loopback connections — including to **:4000**, the demo UI.
+
+- **Unprivileged `lsof` shows it owning no sockets at all**, because it is root.
+  `lsof -a -p <pid> -iTCP` returning nothing is not evidence it isn't listening —
+  a plain TCP connect to 8643 succeeds. Use `sudo`, or probe the port.
+- **`curl https://127.0.0.1:8643/` returns 000.** That is TLS negotiation failing,
+  not a dead listener. Distinguish the two before concluding anything.
+- **It port-scans every local LLM endpoint every ~30s** (`/v1/models`, `/api/tags`,
+  `/lmstudio-greeting`, ...), producing tens of thousands of log lines a day
+  elsewhere and consuming a shared per-IP rate bucket. Traffic arrives at
+  containers from the Docker gateway IP, so the originating process is easy to lose.
+- **Its own diagnostics are near-worthless as a health signal.** Every substantive
+  check passes — cyonagent running, enclave running, "Agent is connected to
+  controller", proxy reachable — and the only failure it reports is a **self-
+  referential log scrape**: "Found N errors in the last 100 lines of logs". The
+  reported error count is just how many error lines the tail happened to contain.
+
+## Reading vendor logs: separating noise from real failure
+
+Two opposite mistakes have both cost time here, and the same technique settles both.
+
+**Mistake 1 — treating a real failure as noise.** On 2026-09-08 the agent log
+showed `stream receive error: rpc error: code = Unknown desc = Domain not found`
+paired almost exactly 1:1 with `client side Closing connection..`, always 3-260 ms
+after the close. That correlation reads as "the vendor logs normal teardown at
+error level". **It was wrong.** Counting across four rotated logs (93 minutes)
+partitioned it:
+
+| window | closes | Domain not found | tls unknown cert | clean |
+|---|---|---|---|---|
+| 06:34-06:58 | 211 | 144 | 54 | 13 |
+| 06:58-07:22 | 181 | 123 | 45 | 13 |
+| 07:22-07:44 | 155 | 129 | 24 | 2 |
+| 07:44-08:07 |  78 |  72 |  4 | 2 |
+
+Roughly **95% of all streams end in an error**, in two distinct ways. Benign
+teardown logging would not partition like that, and would not have a TLS error
+mixed in. The per-stream sequence sealed it: `handleNewConn` -> send process info
+-> close at **+0.7 ms** (no data ever flows) -> terminal status. Nothing was being
+torn down, because nothing ever connected.
+
+**Mistake 2 — chasing noise as a failure.** `has same NodeURL` above: 390
+occurrences at `level=error` during a provably healthy window.
+
+**The technique that resolves both:** never judge a repeated log line by its level
+or by its correlation with a nearby event. Instead —
+
+1. **Count it against the total population.** Do *all* closes error, or a subset?
+   A universal error and a selective one mean opposite things.
+2. **Ask whether the success case exists at all in the sample.** If nothing ever
+   succeeds, "this is how success is logged" is not available as an explanation.
+3. **Check the time-to-close.** Data flowed, or it didn't.
+4. **Find a window where the system was known-healthy** and see whether the line
+   was already firing.
+
+Also worth knowing: an RPC-level error status coming back (rather than a connection
+error) proves the transport and enrollment are fine, and narrows the fault to what
+the request *asked for* — here, a domain the controller did not recognize.
+
+## Where things live drifts faster than the notes about them
+
+Verified live 2026-09-08, and it contradicted every note in this repo:
+
+| namespace | what is actually there |
+|---|---|
+| `ping-devops-cmuir` | the AI Demo app only — 25 pods, **zero Helm releases** (kustomize-deployed), **no mcpgw of any kind** |
+| `ping-devops-curtismuir` | `agentless-mcpgw` (chart `agentless-mcpgw-0.1.0`, rev 21), `mcp-config-standalone-mcp-resource-server`, `opensearch`, `opensearch-mcp-server` |
+
+**There is exactly one gateway, it is the agentless one, and it is in
+`curtismuir`.** The agent-based `cm-mcpgw` release is gone entirely. Prior notes
+had the split the other way round (agentless in `cmuir`, agent in `curtismuir`) and
+had both existing.
+
+This churns on the order of weeks. **Before trusting any topology statement — in
+this doc included — run:**
+
+```bash
+helm list -n <ns> --kube-context us
+kubectl get pods -n <ns> --context us
+kubectl get ingress -n <ns> --context us -o custom-columns='NAME:.metadata.name,HOSTS:.spec.rules[*].host'
+```
+
 ## Related
 
 - `.claude/skills/privilege-mcpgw-agent-k8s/SKILL.md` — deploy mechanics, the
@@ -357,6 +695,10 @@ assuming the behavior transfers.
 - `demo_mcp_pingone/README.md` — this app's specific auth workaround
   (client_credentials ignored on the Linux build), tool curation, and the
   session-minting design that follows from the hosted-vs-self-hosted split above
+- `privilege/AGENTLESS-CONFIGURATION.md` — §2026-09-06 carries the live sidecar
+  values and build command behind the "Catalog apps are sidecars" section above
+- `privilege/CURRENT-CONFIGURATION.md` — the as-built record; cross-check it
+  against a live `helm list` before relying on it (see the last section above)
 - [`ai-gateway-client`](https://github.com/curtismu7/ai-gateway-client) —
   standalone client behind the "Building a client from zero" section above;
   `server/lib/relay.js` is the ~700-line essential core (discovery, DCR,
