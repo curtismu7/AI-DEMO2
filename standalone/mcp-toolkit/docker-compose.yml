@@ -1,0 +1,31 @@
+services:
+  llm-gateway:
+    build:
+      context: https://github.com/curtismu7/llm-gateway.git
+    ports:
+      - "8090:8090"
+    environment:
+      LLM_PROXY_DISABLE_RATE_LIMIT: "${LLM_PROXY_DISABLE_RATE_LIMIT:-}"
+    restart: unless-stopped
+
+  mcp-inspector:
+    build:
+      context: https://github.com/curtismu7/mcp-inspector.git
+    ports:
+      - "3900:3900"
+    volumes:
+      - mcp-inspector-data:/root/.mcp-inspector
+    restart: unless-stopped
+
+  ai-gateway-client:
+    build:
+      context: https://github.com/curtismu7/ai-gateway-client.git
+    ports:
+      - "3910:3910"
+    volumes:
+      - ai-gateway-client-data:/root/.ai-gateway-client
+    restart: unless-stopped
+
+volumes:
+  mcp-inspector-data:
+  ai-gateway-client-data:

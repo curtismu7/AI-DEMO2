@@ -1,0 +1,12 @@
+{
+  "name": "mcp-toolkit",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Install and run llm-gateway, mcp-inspector, and ai-gateway-client together.",
+  "license": "MIT",
+  "scripts": {
+    "install:all": "bash scripts/install.sh",
+    "start": "bash scripts/start-all.sh",
+    "stop": "bash scripts/stop-all.sh"
+  }
+}
