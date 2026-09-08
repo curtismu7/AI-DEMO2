@@ -425,7 +425,7 @@ describe('Generic MCP Inspector — profiles', () => {
       expect(res.body._source).toBe('profile');
       expect(res.body.tools).toEqual([{ name: 'get_my_accounts' }]);
       expect(mockHttpListTools).toHaveBeenCalledWith({
-        url: 'https://mcpgw.ai-demo.ping-devops.com/banking-rest2/mcp',
+        url: 'https://mcpgw.ai-demo.ping-devops.com/openapi2/mcp',
         authHeader: 'Authorization',
         authValue: 'Bearer privilege-mcp-token',
       });

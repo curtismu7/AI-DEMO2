@@ -34,7 +34,7 @@ const GATEWAY_BASE = 'https://mcpgw.ai-demo.ping-devops.com';
 // Candidates this script knows how to add. Each is skipped if an entry with
 // that exact url already exists anywhere in mcpServers (under any key name).
 const KNOWN_DOORS = [
-  { key: 'MCP Privilege-Banking', url: `${GATEWAY_BASE}/banking-rest2/mcp` },
+  { key: 'MCP Privilege-Banking', url: `${GATEWAY_BASE}/openapi2/mcp` },
   { key: 'MCP Privilege-Brave', url: `${GATEWAY_BASE}/mcp-brave-search/mcp` },
   { key: 'MCP Privilege-Grafana', url: `${GATEWAY_BASE}/mcp-grafana/mcp` },
 ];

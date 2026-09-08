@@ -49,7 +49,7 @@ what this repo called "agentless").
 | `pingone-mcp-server-2` | MCP Server (subdomain) | unrelated, pre-existing app kept for its own purpose | Not part of this demo — see the note below, this is NOT the demo's PingOne MCP |
 | `mcp-brave-search` | Catalog sidecar | Privilege's own `mcp/brave-search:1.0.0` image, reaching our `mcp-brave` sidecar via the mesh | Working after the 2026-09-07 gateway restart (was stuck in a "Tenant not found" registration retry loop) |
 | `mcp-grafana` | Catalog sidecar | Privilege's own `mcp/grafana:1.0.0` image → our `mcp-grafana` sidecar via the mesh | Working after the same restart |
-| `banking-rest2` | OpenAPI MCP | Privilege's own `mcp/openapi:latest` image → our `mcp-banking-rest` sidecar via the mesh → AI-DEMO2's `mcp-resource-server` in `ping-devops-cmuir` | Working after fixing a port typo and a wrong-upstream bug (both below) |
+| `openapi2` | OpenAPI MCP | Privilege's own `mcp/openapi:latest` image → our `mcp-banking-rest` sidecar via the mesh → AI-DEMO2's `mcp-resource-server` in `ping-devops-cmuir` | **Tools not discovering as of 2026-09-08** — see "The banking door: `banking-rest2` → `openapi2`" below |
 
 **`pingone-mcp-server-2` is not the demo's PingOne MCP — do not go looking for a
 backend behind it.** The name invites the assumption and the table above has been
@@ -76,7 +76,7 @@ subdomain and a directly-editable backend URL — the `/sse`-not-`/mcp` rule
 below applies to these.
 
 **Catalog and OpenAPI-MCP apps** (`mcp-brave-search`, `mcp-grafana`,
-`banking-rest2`) work completely differently, and the console's "localhost"
+`openapi2`) work completely differently, and the console's "localhost"
 fields are not a mistake: Privilege runs its **own** adapter image
 (`public.ecr.aws/n2z2g8w6/mcp/...`) somewhere in its own infrastructure, and
 that adapter's `localhost:<port>` is tunneled through the mesh back to *this
@@ -110,6 +110,39 @@ the `ping-devops-cmuir` one:
 it at the local `curtismuir` one (an easy mistake — it's same-namespace as the
 gateway, which looks like the "tidier" choice) 404s on every real route.
 
+### The banking door: `banking-rest2` → `openapi2`
+
+`banking-rest2` was **deleted** on 2026-09-08 and re-created from scratch as
+`openapi2` (same Mesh Cluster, same sidecar, same spec). Anything still naming
+`banking-rest2` is stale — its client URL now 404s. `mcpProfileStore.js`'s
+`built-in-privilege-mcp` profile was repointed at `/openapi2/mcp`; the profile
+**id** deliberately did not change, because `routes/mcpPrivilegeAuth.js`'s
+post-login redirect deep-links to it.
+
+Two settings on this app type that cost hours, both verified live:
+
+- **`OPENAPIMCP_ENDPOINT` takes no `/mcp` suffix.** The adapter appends the
+  spec's own paths to it, so `http://localhost:8082` + `/banking` is the real
+  call. With `/mcp` on the end you get `…/mcp/banking`, which 404s. (The `/mcp`
+  convention belongs to the catalog apps — Brave, Grafana — which really do
+  speak MCP JSON-RPC at that path.)
+- **The console's "Backend Name" field is not this setting** and does not sync
+  with it. Only the `Configuration` block (`OPENAPIMCP_*`) drives behaviour;
+  "Backend Name" sat at a stale `http://localhost:8080/mcp` the whole time the
+  live config was correct. Read the app-container JSON on the pod, not the form.
+
+**Still unresolved as of 2026-09-08: `openapi2` discovers no tools.** The
+gateway itself is healthy (`LinkStatus:Active`, certs valid, enrollment PVC
+intact) and the config on the pod is correct. Two open leads, neither confirmed:
+the Privilege console's own API returns `401` on
+`/api/<tenant>/v1/github-account` (the call `OverviewTab.jsx` makes to render
+the Tools panel) reproducibly in a clean incognito session with `isadmin:true`;
+and the local Mac agent's device cert is rejected by Ping's regional proxy
+(`remote error: tls: unknown certificate`), though that agent's control-plane
+connection reports READY, so it may be unrelated. Do **not** chase
+`has same NodeURL` — the skill documents it as cosmetic, and a session was lost
+to it.
+
 **The packaged chart `.tgz` goes stale silently.** See
 `.claude/skills/privilege-mcpgw-agent-k8s/SKILL.md`'s "packaged `.tgz` goes
 stale silently" section — a 16-day-stale `.tgz` dropped all three sidecars and
@@ -120,10 +153,11 @@ chart source directory, or repackage after every template/values edit.
 ## Doors that are deliberately dark
 
 `mcpFacade.js`'s `agentless` (banking) door still points at torn-down
-infrastructure. `banking-rest2` (above) now exists and is correctly wired as
-of 2026-09-07, but the BFF's own facade config (`MCP_FACADE_AGENTLESS_URL`/`_AS`,
-`PRIVILEGE_AGENTLESS_MCPGW_URL_BANKING`) has not been repointed at it yet, and
-no policy has been authored on the app — see the 2026-09-01 entry in
+infrastructure. `openapi2` (above) is its replacement and is correctly
+configured as of 2026-09-08, but the BFF's own facade config
+(`MCP_FACADE_AGENTLESS_URL`/`_AS`, `PRIVILEGE_AGENTLESS_MCPGW_URL_BANKING`) has
+not been repointed at it yet, and no policy has been authored on the app —
+which cannot be done until it discovers tools. See the 2026-09-01 entry in
 [`../TECH_DEBT.md`](../TECH_DEBT.md) for the remaining steps.
 
 The `agent` and `agent-cmuir` (agent-mode) doors were **removed** 2026-09-05.

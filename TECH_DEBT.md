@@ -2572,11 +2572,29 @@ initially pointed at an unrelated same-port resource-server deployment in the
 wrong namespace) are in
 [`privilege/CURRENT-CONFIGURATION.md`](privilege/CURRENT-CONFIGURATION.md).
 
-**What remains open in this entry**: step 2 (author a policy on `banking-rest2`
-naming the demo users — unconfirmed whether one exists) and step 3 (repoint
+**Update 2026-09-08 — `banking-rest2` was deleted and re-created as `openapi2`;
+steps 2-3 still open and now blocked on tool discovery.** The app was rebuilt
+from scratch under the new name (same sidecar, same spec, same Mesh Cluster) in
+the course of debugging why its Tools panel stayed empty. Two real
+configuration bugs were found and fixed along the way — `OPENAPIMCP_ENDPOINT`
+must have **no `/mcp` suffix** (the adapter appends the spec's own paths), and
+the console's "Backend Name" field neither drives nor reflects that setting —
+but the app still discovers zero tools, so **no policy can be authored** (the
+console's policy UI needs discovered tools to attach to), which keeps step 2
+blocked and therefore step 3 too. The gateway itself is healthy; the two
+unresolved leads are a `401` from the Privilege console's own
+`/api/<tenant>/v1/github-account` API (reproducible in a clean incognito
+session with `isadmin:true`) and a rejected device cert on the local Mac agent.
+Both are plausibly Ping-side. `mcpProfileStore.js`'s built-in profile has been
+repointed to `/openapi2/mcp`. Detail in
+[`privilege/CURRENT-CONFIGURATION.md`](privilege/CURRENT-CONFIGURATION.md)'s
+"The banking door" section.
+
+**What remains open in this entry**: step 2 (author a policy on `openapi2`
+naming the demo users — blocked, see above) and step 3 (repoint
 `mcpFacade.js`'s `agentless` door / `MCP_FACADE_AGENTLESS_URL`,
 `PRIVILEGE_AGENTLESS_MCPGW_URL_BANKING` at
-`https://mcpgw.ai-demo.ping-devops.com/banking-rest2/mcp` — not done, the door
+`https://mcpgw.ai-demo.ping-devops.com/openapi2/mcp` — not done, the door
 still points at the old torn-down host).
 
 ### [x] 2026-08-26 — `ping-mcpgw` Helm release's only remaining purpose is a backend it doesn't gate
