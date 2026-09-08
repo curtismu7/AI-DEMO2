@@ -819,3 +819,56 @@
 }
 .afm-vcs-side .fi--ts { color: #519aba; }
 .afm-vcs-side .fi--md { color: #519aba; opacity: 0.8; }
+
+
+/* Claude Code's terminal furniture. Boxes are CSS borders, not box-drawing
+   characters: this pane is fluid-width and real characters only line up at a
+   fixed column count. */
+.afm-cc-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid #5c4033;
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+}
+.afm-cc-card__t { color: #e8a87c; }
+
+/* Tool calls carry a bullet, results the turnstile Claude Code indents them
+   with. */
+.afm-cc-tool { display: block; color: #d8d2cc; }
+.afm-cc-res {
+  display: block;
+  padding-left: 14px;
+  opacity: 0.65;
+  margin-bottom: 4px;
+}
+
+.afm-cc-prompt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #5c4033;
+  border-radius: 6px;
+  padding: 7px 10px;
+  margin-top: 4px;
+}
+.afm-cc-caret {
+  width: 7px;
+  height: 1.05em;
+  background: #e8a87c;
+  opacity: 0.9;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .afm-cc-caret { animation: afm-cc-blink 1.1s step-end infinite; }
+}
+@keyframes afm-cc-blink {
+  50% { opacity: 0; }
+}
+
+.afm-cc-hint {
+  display: block;
+  padding: 4px 2px 0;
+  font-size: var(--font-size-3xs);
+}

@@ -327,15 +327,36 @@ function CodingChrome({ variant = "claude-code", hostRef, preview = false, onExi
           ) : null}
         </div>
         <div className="afm-code-body">
+          {/* Claude Code's actual terminal grammar, not a generic shell
+              transcript: the welcome card, bulleted tool calls with their
+              indented result line, and the bordered prompt with its hint row
+              underneath. The boxes are CSS borders rather than box-drawing
+              characters because this pane is fluid-width — real characters
+              only align at a fixed column count. */}
           <div className="afm-code-term">
             <span className="prompt">curtis@demo</span>{" "}
-            <span className="dim">banking-demo %</span> claude{"\n"}
-            <span className="dim">Claude Code · simulated shell</span>
-            {"\n\n"}
-            <span className="prompt">&gt;</span> find transfer scope checks{"\n"}
-            <span className="dim">→ MCP code_search … get_code oauth.ts</span>
-            {"\n\n"}
-            <span className="prompt">&gt;</span> _
+            <span className="dim">banking-demo %</span> claude{"\n\n"}
+
+            <span className="afm-cc-card">
+              <span className="afm-cc-card__t">&#10022; Welcome to Claude Code</span>
+              <span className="dim">/help for help</span>
+              <span className="dim">cwd: ~/banking-demo</span>
+            </span>
+
+            {"\n"}
+            <span className="prompt">&gt;</span> find transfer scope checks{"\n\n"}
+
+            <span className="afm-cc-tool">&#9679; code_search(&quot;transfer scope&quot;)</span>
+            <span className="afm-cc-res">&#9492;  3 matches &middot; oauth.ts, transfer.ts</span>
+            <span className="afm-cc-tool">&#9679; get_code(&quot;oauth.ts&quot;)</span>
+            <span className="afm-cc-res">&#9492;  read 42 lines</span>
+
+            {"\n"}
+            <span className="afm-cc-prompt">
+              <span className="prompt">&gt;</span>
+              <span className="afm-cc-caret" />
+            </span>
+            <span className="afm-cc-hint dim">&#9205;&#9205; accept edits on &middot; esc to interrupt</span>
           </div>
           <aside className="afm-code-panel">
             <div className="ph">
