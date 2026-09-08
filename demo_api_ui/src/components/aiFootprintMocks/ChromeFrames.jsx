@@ -24,9 +24,9 @@ function hostContent(children, preview) {
 }
 
 /**
- * @param {{ variant: string, hostRef?: (el: HTMLElement|null) => void, preview?: boolean, onExit?: () => void }} props
+ * @param {{ variant: string, hostRef?: (el: HTMLElement|null) => void, preview?: boolean }} props
  */
-function VsCodeChrome({ variant = "classic-dark", hostRef, preview = false, onExit, children }) {
+function VsCodeChrome({ variant = "classic-dark", hostRef, preview = false, children }) {
   const light = variant === "light";
   const studio = variant === "copilot-studio";
   const cls = [
@@ -46,12 +46,7 @@ function VsCodeChrome({ variant = "classic-dark", hostRef, preview = false, onEx
           <i />
         </div>
         <strong>banking-demo — Visual Studio Code</strong>
-        <SimulatedBadge />
-        {onExit ? (
-          <button type="button" className="afm-badge" onClick={onExit}>
-            Exit
-          </button>
-        ) : null}
+        {preview ? <SimulatedBadge /> : null}
       </div>
       <div className="afm-vcs-body">
         <div className="afm-vcs-act" aria-hidden="true">
@@ -95,16 +90,15 @@ function VsCodeChrome({ variant = "classic-dark", hostRef, preview = false, onEx
 }
 
 /**
- * @param {{ variant: string, hostRef?: (el: HTMLElement|null) => void, preview?: boolean, onExit?: () => void }} props
+ * @param {{ variant: string, hostRef?: (el: HTMLElement|null) => void, preview?: boolean }} props
  */
-function ClaudeDesktopChrome({ hostRef, preview = false, onExit, children }) {
+function ClaudeDesktopChrome({ hostRef, preview = false, children }) {
   return (
     <div className="afm-claude-desktop" data-variant="desktop">
       <div className="afm-claude-title">
         <div className="afm-vcs-dots" aria-hidden="true"><i /><i /><i /></div>
         <strong>Claude</strong>
-        <SimulatedBadge pill />
-        {onExit ? <button type="button" className="afm-badge afm-badge--pill" onClick={onExit}>Exit</button> : null}
+        {preview ? <SimulatedBadge pill /> : null}
       </div>
       <div className="afm-claude-body">
         <aside className="afm-claude-side">
@@ -129,7 +123,7 @@ function ClaudeDesktopChrome({ hostRef, preview = false, onExit, children }) {
   );
 }
 
-function ChatGptChrome({ variant = "desktop-dark", hostRef, preview = false, onExit, children }) {
+function ChatGptChrome({ variant = "desktop-dark", hostRef, preview = false, children }) {
   const light = variant === "desktop-light";
   const web = variant === "web";
   const cls = [
@@ -149,12 +143,7 @@ function ChatGptChrome({ variant = "desktop-dark", hostRef, preview = false, onE
           <i />
         </div>
         <strong>{web ? "ChatGPT — Web" : "ChatGPT"}</strong>
-        <SimulatedBadge pill />
-        {onExit ? (
-          <button type="button" className="afm-badge afm-badge--pill" onClick={onExit}>
-            Exit
-          </button>
-        ) : null}
+        {preview ? <SimulatedBadge pill /> : null}
       </div>
       <div className="afm-cgpt-body">
         <aside className="afm-cgpt-side">
@@ -214,9 +203,9 @@ const SAAS_COPY = {
 };
 
 /**
- * @param {{ variant: string, hostRef?: (el: HTMLElement|null) => void, preview?: boolean, onExit?: () => void }} props
+ * @param {{ variant: string, hostRef?: (el: HTMLElement|null) => void, preview?: boolean }} props
  */
-function SaasChrome({ variant = "zendesk", hostRef, preview = false, onExit, children }) {
+function SaasChrome({ variant = "zendesk", hostRef, preview = false, children }) {
   const copy = SAAS_COPY[variant] || SAAS_COPY.zendesk;
   return (
     <div className={`afm-saas afm-saas--${variant}`} data-variant={variant}>
@@ -227,12 +216,7 @@ function SaasChrome({ variant = "zendesk", hostRef, preview = false, onExit, chi
             <em key={t}>{i === 0 ? t : t}</em>
           ))}
         </div>
-        <SimulatedBadge />
-        {onExit ? (
-          <button type="button" className="afm-badge" onClick={onExit}>
-            Exit
-          </button>
-        ) : null}
+        {preview ? <SimulatedBadge /> : null}
       </div>
       <div className="afm-saas-body">
         <div className="afm-saas-main">
@@ -261,20 +245,15 @@ function SaasChrome({ variant = "zendesk", hostRef, preview = false, onExit, chi
 }
 
 /**
- * @param {{ variant: string, hostRef?: (el: HTMLElement|null) => void, preview?: boolean, onExit?: () => void }} props
+ * @param {{ variant: string, hostRef?: (el: HTMLElement|null) => void, preview?: boolean }} props
  */
-function CodingChrome({ variant = "claude-code", hostRef, preview = false, onExit, children }) {
+function CodingChrome({ variant = "claude-code", hostRef, preview = false, children }) {
   if (variant === "claude-code") {
     return (
       <div className="afm-code afm-code--claude" data-variant={variant}>
         <div className="afm-code-bar">
           <strong>Claude Code</strong>
-          <SimulatedBadge />
-          {onExit ? (
-            <button type="button" className="afm-badge" onClick={onExit}>
-              Exit
-            </button>
-          ) : null}
+          {preview ? <SimulatedBadge /> : null}
         </div>
         <div className="afm-code-body">
           <div className="afm-code-term">
@@ -309,12 +288,7 @@ function CodingChrome({ variant = "claude-code", hostRef, preview = false, onExi
       <div className="afm-code afm-code--inline" data-variant={variant}>
         <div className="afm-code-bar">
           <strong>banking-demo — inline assistant</strong>
-          <SimulatedBadge />
-          {onExit ? (
-            <button type="button" className="afm-badge" onClick={onExit}>
-              Exit
-            </button>
-          ) : null}
+          {preview ? <SimulatedBadge /> : null}
         </div>
         <div className="afm-code-body">
           <div className="afm-code-editor">
@@ -345,12 +319,7 @@ function CodingChrome({ variant = "claude-code", hostRef, preview = false, onExi
     <div className="afm-code afm-code--cursor" data-variant={variant}>
       <div className="afm-code-bar">
         <strong>AI IDE — composer</strong>
-        <SimulatedBadge />
-        {onExit ? (
-          <button type="button" className="afm-badge" onClick={onExit}>
-            Exit
-          </button>
-        ) : null}
+        {preview ? <SimulatedBadge /> : null}
       </div>
       <div className="afm-code-body">
         <div className="afm-code-editor">
@@ -376,21 +345,21 @@ function CodingChrome({ variant = "claude-code", hostRef, preview = false, onExi
 /**
  * Render chrome for a catalog category + variant id.
  */
-export function FootprintChrome({ category, variant, hostRef, preview, onExit, children }) {
+export function FootprintChrome({ category, variant, hostRef, preview, children }) {
   if (category === "vscode") {
-    return <VsCodeChrome variant={variant} hostRef={hostRef} preview={preview} onExit={onExit}>{children}</VsCodeChrome>;
+    return <VsCodeChrome variant={variant} hostRef={hostRef} preview={preview}>{children}</VsCodeChrome>;
   }
   if (category === "chatgpt") {
-    return <ChatGptChrome variant={variant} hostRef={hostRef} preview={preview} onExit={onExit}>{children}</ChatGptChrome>;
+    return <ChatGptChrome variant={variant} hostRef={hostRef} preview={preview}>{children}</ChatGptChrome>;
   }
   if (category === "saas") {
-    return <SaasChrome variant={variant} hostRef={hostRef} preview={preview} onExit={onExit}>{children}</SaasChrome>;
+    return <SaasChrome variant={variant} hostRef={hostRef} preview={preview}>{children}</SaasChrome>;
   }
   if (category === "coding") {
-    return <CodingChrome variant={variant} hostRef={hostRef} preview={preview} onExit={onExit}>{children}</CodingChrome>;
+    return <CodingChrome variant={variant} hostRef={hostRef} preview={preview}>{children}</CodingChrome>;
   }
   if (category === "claude-desktop") {
-    return <ClaudeDesktopChrome hostRef={hostRef} preview={preview} onExit={onExit}>{children}</ClaudeDesktopChrome>;
+    return <ClaudeDesktopChrome hostRef={hostRef} preview={preview}>{children}</ClaudeDesktopChrome>;
   }
   return null;
 }

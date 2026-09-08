@@ -417,10 +417,17 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 8px;
   padding: 6px 8px;
   background: var(--bg);
   flex-shrink: 0;
+}
+
+/* The honesty badge anchors left, our switches right, so the badge reads as a
+   label for the window below rather than as one more control. */
+.afm-shell-controls__label {
+  margin-right: auto;
 }
 
 /* The costume frame fills what is left. Every frame root sets height: 100%

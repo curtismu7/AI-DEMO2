@@ -1,8 +1,14 @@
 // demo_api_ui/src/pages/__tests__/AiFootprintShellPages.test.js
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import FootprintMockGalleryPage from "../FootprintMockGalleryPage";
 import FootprintLiveShellPage from "../FootprintLiveShellPage";
+
+const navigateSpy = vi.fn();
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual("react-router-dom");
+  return { ...actual, useNavigate: () => navigateSpy };
+});
 
 // Live shells mount the Privilege MCP client panel, which probes the BFF on
 // mount — keep the probe pending so these layout tests stay synchronous.
@@ -121,5 +127,60 @@ describe("AI footprint locked picks page", () => {
     const root = screen.getByTestId("footprint-picks-page");
     fireEvent.click(screen.getByRole("button", { name: "Dark" }));
     expect(root).toHaveAttribute("data-theme", "dark");
+  });
+});
+
+// Our controls moved OUT of every costume title bar and into one row above the
+// window. The point of the move is fidelity — no real product has a
+// "Simulated shell" badge or an Exit button in its title bar — so the thing
+// worth pinning is that moving them lost nothing.
+describe("live shell control row", () => {
+  const renderShell = (slug = "vscode-copilot") =>
+    render(
+      <MemoryRouter initialEntries={[`/demo/${slug}`]}>
+        <FootprintLiveShellPage />
+      </MemoryRouter>,
+    );
+
+  it("keeps every control that used to live in the costume title bar", () => {
+    renderShell();
+    const controls = document.querySelector(".afm-shell-controls");
+    expect(controls).toBeTruthy();
+    // All four, in one place: honesty badge, skin switcher, theme, exit.
+    expect(controls).toHaveTextContent(/Simulated shell/);
+    expect(within(controls).getByRole("combobox", { name: "Skin" })).toBeInTheDocument();
+    expect(within(controls).getByRole("button", { name: "Exit" })).toBeInTheDocument();
+    // The theme control is a two-button segment, not one toggle.
+    expect(within(controls).getByRole("button", { name: "Light" })).toBeInTheDocument();
+    expect(within(controls).getByRole("button", { name: "Dark" })).toBeInTheDocument();
+  });
+
+  it("leaves the costume title bar with only the product's own chrome", () => {
+    renderShell();
+    const shell = screen.getByTestId("footprint-live-vscode");
+    const chrome = shell.querySelector(".afm-vcs");
+    expect(chrome).toBeTruthy();
+    // The window still says what it is — that is the product's own title.
+    expect(chrome).toHaveTextContent(/Visual Studio Code/);
+    // But nothing of ours is painted into it any more.
+    expect(chrome.textContent).not.toMatch(/Simulated shell/);
+    expect(within(chrome).queryByRole("button", { name: "Exit" })).toBeNull();
+  });
+
+  it("still exits to the picks page", () => {
+    renderShell();
+    fireEvent.click(screen.getByRole("button", { name: "Exit" }));
+    expect(navigateSpy).toHaveBeenCalledWith("/demo/footprint-picks");
+  });
+
+  // Gallery and picks thumbnails are pictures of a mock, so they must keep
+  // saying so — the badge is preview-only now, not gone.
+  it("keeps the honesty badge on preview thumbnails", () => {
+    render(
+      <MemoryRouter>
+        <FootprintMockGalleryPage />
+      </MemoryRouter>,
+    );
+    expect(screen.getAllByText(/Simulated shell/).length).toBeGreaterThan(0);
   });
 });
