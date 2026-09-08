@@ -358,6 +358,12 @@ export default function PrivilegeMcpClientPage() {
   // Privilege console inventory — only populated once an auth_token is pasted.
   const [consoleToken, setConsoleToken] = useState('');
   const [consoleData, setConsoleData] = useState(null);
+  // The BFF persists every console read (privilegeDoorStore.lmdb) and ships the
+  // summary on /state, so the door list and its policy mentions outlive the ~1h
+  // token that produced them. Without this the Policies tab asks for a token it
+  // does not need to answer "which policies name this door" — the answer is
+  // already on disk. Names only: the raw Specs are not persisted.
+  const [doorDiscovery, setDoorDiscovery] = useState(null);
   // Which policy the operator is reading. Purely a viewer: selecting one cannot
   // change which policy Privilege applies — that is resolved server-side from
   // (user, door, tool), which is why this is not offered as a control anywhere
@@ -636,6 +642,7 @@ export default function PrivilegeMcpClientPage() {
       setGatewayConfigs(s.gatewayConfigs || { direct: {}, privilege: {}, facade: {} });
       savedMcpUrlRef.current = s.config?.mcpUrl || '';
       setPresets(Array.isArray(s.presets) ? s.presets : []);
+      setDoorDiscovery(s.doorDiscovery?.persisted ? s.doorDiscovery : null);
       setAuthenticated(Boolean(s.oauth?.authenticated));
       setMainAppAuthenticated(Boolean(s.mainAppAuthenticated));
       setUser(s.user || null);
@@ -1363,11 +1370,27 @@ export default function PrivilegeMcpClientPage() {
                         : `${naming.map((p) => p.name).join(', ')} also mention this user — check the grant has not expired.`)}
                 </p>
               );
-            })() : (
-              <p className="cur-denial-note">
-                Connect a console token in the Policies tab to see which policies cover this door.
-              </p>
-            )}
+            })() : (() => {
+              // No live token, but the last console read is persisted and already
+              // answers the question the room asks first. It cannot answer the
+              // second one (does a policy name THIS user) — only names survive.
+              const known = (doorDiscovery?.applications || []).find((a) => a.name === deniedDoor);
+              if (!known) {
+                return (
+                  <p className="cur-denial-note">
+                    Connect a console token in the Policies tab to see which policies cover this door.
+                  </p>
+                );
+              }
+              return (
+                <p className="cur-denial-note">
+                  {known.policies.length === 0
+                    ? `No policy mentioned "${deniedDoor}" at the last console read. That is the likeliest reason.`
+                    : `Policies mentioning "${deniedDoor}" at the last console read: ${known.policies.join(', ')}.`}
+                  {' '}Connect a console token in the Policies tab to check whether any of them mention you.
+                </p>
+              );
+            })()}
             {doorProbe.running && <p className="cur-denial-note">Trying the other doors with this identity...</p>}
             {doorProbe.results && (
               <div className="cur-denial-probe">
@@ -2231,6 +2254,38 @@ export default function PrivilegeMcpClientPage() {
                   )}
                   {brokerPromptError && <p className="cur-prompt-mode__err">{brokerPromptError}</p>}
                 </fieldset>
+
+                {!consoleData && doorDiscovery && (
+                  <>
+                    <h4 className="cur-console-heading">
+                      Last console read — {doorDiscovery.appCount} doors, {doorDiscovery.policyCount} policies
+                    </h4>
+                    <p className="cur-denial-note">
+                      Read {new Date(doorDiscovery.discoveredAt).toLocaleString()}
+                      {doorDiscovery.gatewayOrigin ? ` from ${doorDiscovery.gatewayOrigin}` : ''}. Persisted
+                      by the BFF, so it survives the token that produced it. Policy <em>names</em> only —
+                      connect a token below to read a policy&apos;s contents, to check whether one mentions
+                      you, or to refresh this list.
+                    </p>
+                    <div className="cur-console-list">
+                      {doorDiscovery.applications.map((app) => (
+                        <div
+                          key={app.name}
+                          className={`cur-console-row${app.name === doorName(config.mcpUrl) ? ' cur-console-row--active' : ''}`}
+                        >
+                          <span className="cur-console-name">{app.name}</span>
+                          <span className="cur-console-meta">
+                            {app.policies.length
+                              ? `mentioned by ${app.policies.join(', ')}`
+                              : 'no policy mentions it'}
+                            {app.status ? ` · ${app.status}` : ''}
+                          </span>
+                          {app.name === doorName(config.mcpUrl) && <span className="cur-console-current">current</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
 
                 {!consoleData && (
                   <>
