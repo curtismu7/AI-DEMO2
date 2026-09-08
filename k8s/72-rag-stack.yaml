@@ -174,18 +174,17 @@ spec:
             - "2048"
             - "--parallel"
             - "1"
-            - "-hf"
-            - "nomic-ai/nomic-embed-text-v1.5-GGUF:Q8_0"
+            # -m, never -hf: seeded by 54-seed-llm-models.yaml, not fetched here.
+            - "-m"
+            - "/models/nomic-embed-text-v1.5.Q8_0.gguf"
           ports:
             - containerPort: 8080
               name: http
           volumeMounts:
             - name: models
-              # Parent cache dir — llama.cpp:server writes -hf downloads to
-              # .cache/huggingface/, so the old path left this PVC empty and the
-              # model on the pod's ephemeral disk, re-fetched every restart. Same
-              # defect and same fix as the llama tiers in 56-llm-stack.yaml.
-              mountPath: /root/.cache
+              # A path this repo owns, not the image's cache dir — see the same
+              # mount in 56-llm-stack.yaml.
+              mountPath: /models
           resources:
             requests:
               memory: "256Mi"

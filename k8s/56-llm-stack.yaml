@@ -96,22 +96,22 @@ spec:
             - "1"
             # HuggingFace GGUF download into PVC cache (SE/AWS has no hostPath).
             # Quant shorthand :Q4_K_M — not the full .gguf filename (llama.cpp 2026+).
-            - "-hf"
-            - "bartowski/microsoft_Phi-4-mini-instruct-GGUF:Q4_K_M"
+            # -m, never -hf: a serving pod must not be a downloader. The file is
+            # put here by the seed Job (54-seed-llm-models.yaml); if it is absent
+            # llama.cpp exits with "failed to load model" and this pod
+            # CrashLoopBackOffs, which says so plainly.
+            - "-m"
+            - "/models/microsoft_Phi-4-mini-instruct-Q4_K_M.gguf"
           ports:
             - containerPort: 8091
               name: http
           volumeMounts:
             - name: models
-              # The PARENT cache dir, not .cache/llama.cpp: llama.cpp:server now
-              # writes -hf downloads to .cache/huggingface/ in the HF-hub blob
-              # layout, so a volume mounted on the old path sits empty (measured
-              # 2026-09-08: PVC 1% used while a 10.7GB blob filled the pod's
-              # ephemeral overlay, discarded on every restart — a ~12GB re-download
-              # per start, and llm-proxy NotReady for the whole of it). Mounting the
-              # parent covers whichever subdirectory the image picks, so the next
-              # upstream path change cannot silently un-cache this again.
-              mountPath: /root/.cache
+              # A path this repo owns, not the image's cache dir. Mounting the HF
+              # cache only mattered while -hf made these pods downloaders; with -m
+              # the model is simply a file at a known location, and llama.cpp
+              # moving its cache directory again cannot affect this.
+              mountPath: /models
           resources:
             requests:
               memory: "2Gi"
@@ -200,22 +200,20 @@ spec:
             - "1"
             - "--jinja"
             # HuggingFace GGUF download into PVC cache (SE/AWS has no hostPath).
-            - "-hf"
-            - "bartowski/Llama-3-Groq-8B-Tool-Use-GGUF:Q4_K_M"
+            # NOT seeded by default — see 54-seed-llm-models.yaml. Scaling this
+            # tier up without adding it there gets a CrashLoopBackOff, on purpose.
+            - "-m"
+            - "/models/Llama-3-Groq-8B-Tool-Use-Q4_K_M.gguf"
           ports:
             - containerPort: 8093
               name: http
           volumeMounts:
             - name: models
-              # The PARENT cache dir, not .cache/llama.cpp: llama.cpp:server now
-              # writes -hf downloads to .cache/huggingface/ in the HF-hub blob
-              # layout, so a volume mounted on the old path sits empty (measured
-              # 2026-09-08: PVC 1% used while a 10.7GB blob filled the pod's
-              # ephemeral overlay, discarded on every restart — a ~12GB re-download
-              # per start, and llm-proxy NotReady for the whole of it). Mounting the
-              # parent covers whichever subdirectory the image picks, so the next
-              # upstream path change cannot silently un-cache this again.
-              mountPath: /root/.cache
+              # A path this repo owns, not the image's cache dir. Mounting the HF
+              # cache only mattered while -hf made these pods downloaders; with -m
+              # the model is simply a file at a known location, and llama.cpp
+              # moving its cache directory again cannot affect this.
+              mountPath: /models
           resources:
             requests:
               memory: "3Gi"
@@ -298,25 +296,20 @@ spec:
             - "--port"
             - "8096"
             - "--jinja"
-            - "-hf"
-            # quant TAG, not filename — llama.cpp:server matches the text after
-            # ':' against quant tags (cf. tier1's :Q4_K_M); the filename form
-            # finds nothing and the server exits at startup.
-            - "ggml-org/gpt-oss-20b-GGUF:mxfp4"
+            # Exact filename as published by ggml-org/gpt-oss-20b-GGUF — note the
+            # capitalised MXFP4; the lowercase spelling 404s.
+            - "-m"
+            - "/models/gpt-oss-20b-MXFP4.gguf"
           ports:
             - containerPort: 8096
               name: http
           volumeMounts:
             - name: models
-              # The PARENT cache dir, not .cache/llama.cpp: llama.cpp:server now
-              # writes -hf downloads to .cache/huggingface/ in the HF-hub blob
-              # layout, so a volume mounted on the old path sits empty (measured
-              # 2026-09-08: PVC 1% used while a 10.7GB blob filled the pod's
-              # ephemeral overlay, discarded on every restart — a ~12GB re-download
-              # per start, and llm-proxy NotReady for the whole of it). Mounting the
-              # parent covers whichever subdirectory the image picks, so the next
-              # upstream path change cannot silently un-cache this again.
-              mountPath: /root/.cache
+              # A path this repo owns, not the image's cache dir. Mounting the HF
+              # cache only mattered while -hf made these pods downloaders; with -m
+              # the model is simply a file at a known location, and llama.cpp
+              # moving its cache directory again cannot affect this.
+              mountPath: /models
           resources:
             requests:
               memory: "2Gi"
@@ -324,11 +317,10 @@ spec:
             limits:
               memory: "16Gi"
               cpu: "4000m"
-          # First start downloads ~12GB from HF into the PVC then loads to RAM;
-          # /health returns 503 the whole time. Without a startupProbe the
-          # liveness probe (4 min budget) kills the pod mid-download repeatedly.
-          # "First start" only holds while the volume is mounted where the image
-          # actually writes — see the mountPath note above.
+          # No download happens here any more (the seed Job owns that), but loading
+          # ~12GB from the PVC into RAM still takes minutes and /health returns 503
+          # throughout. Without a startupProbe the liveness probe (4 min budget)
+          # would kill the pod mid-load, repeatedly.
           startupProbe:
             httpGet:
               path: /health
