@@ -60,6 +60,15 @@ spec:
         component: seed-llm-models
     spec:
       restartPolicy: OnFailure
+      # curlimages/curl runs as uid 100 (curl_user), and both PVC roots are owned
+      # by root:root — the first live run died with BackoffLimitExceeded in ~90s
+      # because it could not create the .part file. llama-server runs as root and
+      # the models it reads are root-owned, so writing them as root is what keeps
+      # the modes consistent; an fsGroup would instead re-chown volumes holding a
+      # 12GB file on every mount.
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
       containers:
         - name: seed
           image: curlimages/curl:latest
