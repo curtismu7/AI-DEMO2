@@ -81,6 +81,49 @@ describe("blocked-by-policy visibility", () => {
     expect(screen.getByRole("alert", { name: /blocked by policy/i })).toBeInTheDocument();
   });
 
+  // A door probe reported only a status. 500 there does NOT mean the server
+  // errored: relayFailureStatus maps anything without a 4xx upstream status to
+  // 500, so it means the relay never got an HTTP answer — and the reason lives
+  // only in the `error` string the BFF already returns. Without it, a row of
+  // bare 500s is unreadable, which cost a session's diagnosis.
+  it("shows WHY a probed door failed, not just its status", async () => {
+    // knownDoors() is built from presets — with none, probeDoors returns early
+    // and never calls the BFF, so this test needs other doors to exist.
+    const withDoors = {
+      ...baseState,
+      presets: [
+        { label: 'Privilege — brave', mode: 'privilege', url: 'https://mcpgw.example.com/brave/mcp' },
+        { label: 'Privilege — opensearch', mode: 'privilege', url: 'https://mcpgw.example.com/opensearch/mcp' },
+      ],
+    };
+    global.fetch = vi.fn((url) => {
+      const u = String(url);
+      if (u.endsWith("/api/privilege-mcp/state")) return Promise.resolve(jsonResponse(withDoors));
+      if (u.endsWith("/api/privilege-mcp/tools/list")) {
+        return Promise.resolve(jsonResponse({ error: "MCP request failed: 403 Forbidden" }, 403));
+      }
+      if (u.endsWith("/api/privilege-mcp/doors/probe")) {
+        return Promise.resolve(jsonResponse({
+          results: [
+            { url: "https://mcpgw.example.com/brave/mcp", ok: false, status: 500, error: "fetch failed: ECONNREFUSED" },
+            { url: "https://mcpgw.example.com/opensearch/mcp", ok: true, tools: 9 },
+          ],
+        }));
+      }
+      if (u.endsWith("/api/privilege-mcp/config")) return Promise.resolve(jsonResponse({ ok: true }));
+      return new Promise(() => {});
+    });
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: /Get MCP Tools|Retry Tools/i }));
+    await screen.findByRole("alert", { name: /blocked by policy/i });
+
+    fireEvent.click(await screen.findByRole("button", { name: /Try other doors/i }));
+
+    expect(await screen.findByText(/fetch failed: ECONNREFUSED/)).toBeInTheDocument();
+    // A door that worked still reports tools, not an error string.
+    expect(screen.getByText("9 tools")).toBeInTheDocument();
+  });
+
   it("explains the empty tool list instead of saying nothing was discovered", async () => {
     global.fetch = mockFetch();
     renderPage();
