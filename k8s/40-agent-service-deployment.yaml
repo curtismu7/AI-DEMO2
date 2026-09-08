@@ -53,6 +53,12 @@ spec:
           mountPath: /etc/ssl/certs/ca-bundle-with-mkcert.pem
           subPath: ca-bundle-with-mkcert.pem
           readOnly: true
+        # The image's ENTRYPOINT is /otel/otel-python-entrypoint.sh
+        # (langchain_agent/Dockerfile), which in docker-compose is a bind mount.
+        # Without this the container cannot exec at all and crashloops.
+        - name: otel-instrument
+          mountPath: /otel
+          readOnly: true
         resources:
           requests:
             memory: "512Mi"
@@ -87,6 +93,13 @@ spec:
           items:
           - key: ca-bundle-with-mkcert.pem
             path: ca-bundle-with-mkcert.pem
+      # 0755, not the 0644 a ConfigMap mounts by default: this holds the image's
+      # ENTRYPOINT script, and a non-executable entrypoint fails exactly like a
+      # missing one.
+      - name: otel-instrument
+        configMap:
+          name: otel-instrument
+          defaultMode: 0755
       restartPolicy: Always
       securityContext:
         runAsNonRoot: true

@@ -164,11 +164,22 @@ info "Creating secrets from demo_api_server/.env..."
 # mcpgw binary routes /mcpgw/<app-name>/mcp — set to match the registered name.
 K8S_NAMESPACE="$NS" MCPGW_APP_NAME="${MCPGW_APP_NAME:-}" bash "$K8S_DIR/create-secrets.sh"
 
-# OTel bootstrap script mounted at /otel in every instrumented Node service
-# (mirrors docker-compose's ./scripts/otel-instrument.js bind mount).
+# OTel bootstrap scripts mounted at /otel in every instrumented service
+# (mirrors docker-compose's ./scripts/ bind mounts).
+#
+# Keep in step with the same ConfigMap in k8s/deploy.sh — the two are separate
+# copies and only this one runs for SE.
+#
+# The Python entrypoint is NOT optional the way the Node one is: the Python
+# agents' Dockerfiles set ENTRYPOINT ["/otel/otel-python-entrypoint.sh"], so a
+# pod whose /otel lacks it cannot start at all —
+#   exec: "/otel/otel-python-entrypoint.sh": no such file or directory
+# langchain-agent crashlooped on SE on its first restart after that ENTRYPOINT
+# landed, because this ConfigMap carried only the .js file.
 info "Creating otel-instrument ConfigMap..."
 kubectl create configmap otel-instrument \
   --from-file=otel-instrument.js="$K8S_DIR/../scripts/otel-instrument.js" \
+  --from-file=otel-python-entrypoint.sh="$K8S_DIR/../scripts/otel-python-entrypoint.sh" \
   -n "$NS" --dry-run=client -o yaml | kubectl apply -f -
 
 # Read the origin currently live in the cluster BEFORE the apply below resets
