@@ -612,6 +612,15 @@
   white-space: nowrap;
 }
 
+/* The two actors, not a hop or a verdict — info family so they read as
+   identity, distinct from the gateway/success/warning/error chips around them. */
+.lgw-path__chip--you {
+  border-color: var(--th-status-info-border);
+  background: var(--th-status-info-bg);
+  color: var(--th-status-info-text);
+  font-weight: 600;
+}
+
 .lgw-path__chip--gateway {
   border-color: var(--th-bg-emphasis);
   background: var(--th-bg-emphasis);
@@ -644,11 +653,14 @@
 }
 
 /* Names the provider that would have been called, without claiming it was —
-   muted and un-bordered, no arrow leads into it. */
+   same identity family as the "You" chip so the two ends of the chain read as
+   a pair, but dashed and un-filled since no arrow leads into it. */
 .lgw-path__chip--unreached {
   border-style: dashed;
-  color: var(--th-text-muted);
+  border-color: var(--th-status-info-border);
+  color: var(--th-status-info-text);
   background: transparent;
+  font-weight: 600;
 }
 
 .lgw-path__arrow {
