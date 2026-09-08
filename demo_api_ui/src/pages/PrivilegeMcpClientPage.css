@@ -558,7 +558,10 @@ select.cur-input { cursor: pointer; }
   border: none;
   border-bottom: 2px solid transparent;
   color: #969696;
-  font: inherit;
+  /* NOT `font: inherit` — the shorthand carries font-size: inherit, and after
+     minification it beat the font-size below: getComputedStyle reported 15px
+     where this rule says 16px. Only the family is inherited. */
+  font-family: inherit;
   font-size: var(--font-size-md);
   font-weight: 600;
   cursor: pointer;
@@ -1022,14 +1025,11 @@ select.cur-input { cursor: pointer; }
 }
 .cur-flow-trigger:hover { border-color: #007acc; color: #fff; }
 
-/* Settings gear — bigger and red so it stands out in the titlebar. The
-   U+FE0E selector forces the text glyph so the CSS color applies. */
+/* Settings — red so it stands out in the titlebar, as it always has. It used
+   to be U+2699 with a U+FE0E text-presentation selector; verified live, that
+   renders as an illegible blob rather than a gear, so the button now says what
+   it does. Its neighbours (Clear, Guide, Flow) are words too. */
 .cur-settings-gear {
-  min-width: 34px;
-  font-size: 26px;
-  font-weight: 800;
-  padding: 0 8px;
-  line-height: 1;
   color: #ff3b30 !important;
   border-color: #ff3b30 !important;
 }

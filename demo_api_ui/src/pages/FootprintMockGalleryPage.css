@@ -404,15 +404,33 @@
   flex-direction: column;
 }
 
-/* Skin switcher + light/dark, floated over the costume's own title bar. */
+/* Skin switcher + light/dark. These are OUR controls, not the costume's, and
+   they used to be absolutely positioned over the costume's own title bar —
+   which is where every costume puts its Exit button and Simulated-shell badge,
+   so they collided on all three shells (worst on Claude Desktop, where the
+   dropdown covered both). Verified live 2026-09-08.
+
+   They now sit in their own row ABOVE the costume window. That also stops a
+   teal light/dark pill appearing to be part of VS Code's title bar, which was
+   the first thing that broke the illusion. */
 .afm-shell-controls {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 1201;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
+  padding: 6px 8px;
+  background: var(--bg);
+  flex-shrink: 0;
+}
+
+/* The costume frame fills what is left. Every frame root sets height: 100%
+   with a min-height floor, which resolves to the floor inside a flex column
+   that never told it to grow — Claude Desktop collapsed to its 320px
+   min-height and left the rest of the shell as a black void, because its
+   content is short. Frames whose content is tall (VS Code) hid the bug. */
+.afm-live-shell > *:not(.afm-shell-controls) {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .afm-live-shell .afm-theme-toggle {

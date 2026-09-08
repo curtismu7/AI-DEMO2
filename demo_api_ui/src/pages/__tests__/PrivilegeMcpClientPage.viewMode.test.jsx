@@ -88,15 +88,26 @@ describe("Demo / Inspect", () => {
     expect(screen.queryByRole("button", { name: "MCP Explorer" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Raw RPC" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Policies" })).toBeNull();
-    expect(screen.queryByRole("combobox", { name: "Skin" })).toBeNull();
     expect(screen.queryByRole("button", { name: /probe other doors/i })).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Inspect" }));
 
     expect(tabNames()).toEqual(["MCP Explorer", "Raw RPC", "Policies"]);
-    expect(screen.getByRole("combobox", { name: "Skin" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /probe other doors/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "LLM Gateway" })).toBeInTheDocument();
+  });
+
+  // The skin picker used to be gated behind Inspect with the other appearance
+  // chrome. It is the ONLY route to the VS Code, Claude Terminal and Claude
+  // Desktop client shells, so gating it hid three whole demos behind a
+  // debugging mode. Same correction as Light/Dark, for the same reason.
+  it("keeps the skin picker in both modes, because it is the only way to the other shells", async () => {
+    renderPage();
+    await ready();
+
+    expect(screen.getByRole("combobox", { name: "Skin" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Inspect" }));
+    expect(screen.getByRole("combobox", { name: "Skin" })).toBeInTheDocument();
   });
 
   it("keeps the connection rail and the demo controls in both modes", async () => {
