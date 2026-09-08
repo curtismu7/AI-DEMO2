@@ -56,6 +56,10 @@ function mockApi(doorDiscovery) {
 
 beforeEach(() => {
   global.EventSource = class { addEventListener() {} close() {} };
+  // viewMode is persisted in localStorage, so a spec that left the page in
+  // Inspect makes the Policies tab appear here without asking for it. Clearing
+  // it pins the real default (Demo) and keeps this file order-independent.
+  try { localStorage.removeItem("cur_priv_view"); } catch { /* storage disabled */ }
 });
 
 async function openPoliciesTab() {
@@ -64,8 +68,15 @@ async function openPoliciesTab() {
       <PrivilegeMcpClientPage />
     </MemoryRouter>,
   );
-  await waitFor(() => expect(document.querySelectorAll(".cur-tab").length).toBeGreaterThan(0));
-  fireEvent.click([...document.querySelectorAll(".cur-tab")].find((b) => b.textContent === "Policies"));
+  // Policies is an Inspect surface; the page opens in Demo (VIEW_TABS).
+  fireEvent.click(await screen.findByRole("button", { name: "Inspect" }));
+  // Selected by class: "Policies" is also a section heading once the panel opens.
+  let tab;
+  await waitFor(() => {
+    tab = [...document.querySelectorAll(".cur-tab")].find((b) => b.textContent.trim() === "Policies");
+    expect(tab).toBeTruthy();
+  });
+  fireEvent.click(tab);
 }
 
 describe("Policies tab — persisted door discovery", () => {
