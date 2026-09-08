@@ -16,9 +16,10 @@
  * stored-secret pattern the in-app Inspector's built-in profiles
  * (mcpProfileStore.js) were deliberately designed to avoid.
  *
- * opensearch22 is intentionally excluded: privilege/GATEWAY-ENTRY-PATH-QUESTION.md
- * documents that door 404ing on /mcp once actually authenticated (a gateway-side
- * behavior change raised with Ping), and an OpenSearch entry already exists in
+ * opensearch22 is intentionally excluded: that door 404s on /mcp once actually
+ * authenticated, because the gateway pins an app to its registered entry path
+ * (/sse here) — see demo_mcp_pingone/README.md "Entry path". An OpenSearch entry
+ * already exists in
  * most users' mcp.json via a different route (the local mcp-facade proxy) —
  * adding a second, known-broken entry for it would only add confusion.
  */
