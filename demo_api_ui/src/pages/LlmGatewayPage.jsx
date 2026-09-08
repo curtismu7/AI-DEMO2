@@ -59,9 +59,21 @@ const TITLES = {
 // [REDACTED:<kind>] and says nothing else. Counting those markers is the only
 // signal the caller has, and without it a redacted answer renders under
 // "Privilege passed the prompt through", which is the opposite of what happened.
-const REDACTION_RE = /\[REDACTED(?::[^\]]*)?\]/gi;
+const REDACTION_RE = /(\[REDACTED(?::[^\]]*)?\])/gi;
 function countRedactions(text) {
   return typeof text === 'string' ? (text.match(REDACTION_RE) || []).length : 0;
+}
+
+// The markers are the demo's payoff — the only place the gateway's work shows up
+// in the caller's own text — and they were being left to be spotted inside a wall
+// of prose. Splitting on the capture group alternates [text, marker, text, ...],
+// so odd indices are the markers; <mark> carries the meaning, the stylesheet the
+// colour. No early return: an unredacted reply just splits into one part.
+function renderReply(text) {
+  if (typeof text !== 'string') return text;
+  return text.split(REDACTION_RE).map((part, i) => (
+    i % 2 ? <mark key={i} className="lgw-redacted">{part}</mark> : part
+  ));
 }
 
 // Which layer refused. The pair this page exists to separate is "Privilege stopped
@@ -385,7 +397,7 @@ export default function LlmGatewayPage() {
                   onClick={() => { setDecision(t.decision); setSelectedTurnId(t.id); }}
                 >
                   <span className="lgw-turn__who">{TITLES[t.provider] || 'Gateway'}</span>
-                  <div className={`lgw-turn__body${t.tone && t.tone !== 'ok' ? ` is-${t.tone}` : ''}`}>{t.text}</div>
+                  <div className={`lgw-turn__body${t.tone && t.tone !== 'ok' ? ` is-${t.tone}` : ''}`}>{renderReply(t.text)}</div>
                 </button>
               ) : (
                 <div key={t.id} className="lgw-turn lgw-turn--you">
@@ -511,6 +523,18 @@ export default function LlmGatewayPage() {
                           <span className="lgw-path__arrow">&rarr;</span>
                         </>
                       )}
+                      {/* Sits between the two actors it involves. The arrow before it
+                          points back, because the redaction happened on the RETURN leg —
+                          the prompt itself went out untouched, and a chip reading
+                          left-to-right here would claim otherwise. */}
+                      {decision.redactions > 0 ? (
+                        <>
+                          <span className="lgw-path__chip lgw-path__chip--redacted" title="Privilege redacted the reply on its way back from the model">
+                            🛡 {decision.redactions} redacted
+                          </span>
+                          <span className="lgw-path__arrow">&larr;</span>
+                        </>
+                      ) : null}
                       <span className="lgw-path__chip lgw-path__chip--reached">{TITLES[decision.provider] || decision.provider} &#10003;</span>
                     </div>
                   </dd>

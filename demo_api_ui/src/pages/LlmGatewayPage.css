@@ -410,6 +410,18 @@
 
 .lgw-turn--you .lgw-turn__body { color: var(--th-text-muted); }
 
+/* The whole point of the demo: the gateway's edit, visible inside the model's own
+   answer. <mark>'s UA background is a fixed yellow that ignores the dark theme, so
+   both colours are set from the warning family here. */
+.lgw-redacted {
+  padding: 0.05em 0.3em;
+  border-radius: 3px;
+  background: var(--th-status-warning-bg);
+  color: var(--th-status-warning-text);
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1px var(--th-status-warning-border);
+}
+
 .lgw-turn__body.is-warn {
   padding: 0.45rem 0.6rem;
   border-left: 3px solid var(--th-status-warning);
@@ -583,6 +595,16 @@
   border-color: var(--th-status-success);
   background: var(--th-status-success);
   color: var(--th-text-invert);
+}
+
+/* The one chip that reports an action rather than a hop. It carries the warning
+   family — not the error family — because a redaction is the policy working, not
+   the call failing. */
+.lgw-path__chip--redacted {
+  border-color: var(--th-status-warning-border);
+  background: var(--th-status-warning-bg);
+  color: var(--th-status-warning-text);
+  font-weight: 600;
 }
 
 .lgw-path__arrow {
