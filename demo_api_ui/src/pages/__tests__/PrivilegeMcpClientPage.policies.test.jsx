@@ -75,6 +75,8 @@ async function openPoliciesAndConnect(token = "console-cookie") {
   renderPage();
   // Select the tab by its class: "Policies" also appears as a section heading
   // once connected, and getByText would go ambiguous.
+  // Policies is an Inspect surface; the page opens in Demo.
+  fireEvent.click(await screen.findByRole("button", { name: "Inspect" }));
   await waitFor(() => expect(document.querySelectorAll(".cur-tab").length).toBeGreaterThan(0));
   fireEvent.click([...document.querySelectorAll(".cur-tab")].find((b) => b.textContent === "Policies"));
   const field = await screen.findByPlaceholderText("paste the auth_token cookie value");

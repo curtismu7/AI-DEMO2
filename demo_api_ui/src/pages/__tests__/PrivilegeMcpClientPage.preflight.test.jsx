@@ -57,6 +57,9 @@ function renderPage() {
 }
 
 async function clickRun() {
+  // The door probe answers "why is this door refusing me" — an Inspect
+  // question, so it is not offered in Demo.
+  fireEvent.click(await screen.findByRole("button", { name: "Inspect" }));
   fireEvent.click(await screen.findByRole("button", { name: /probe other doors/i }));
 }
 

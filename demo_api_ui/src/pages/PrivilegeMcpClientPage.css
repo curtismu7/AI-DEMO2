@@ -1832,3 +1832,32 @@ select.cur-input { cursor: pointer; }
 .cur-ide[data-cur-theme="light"] .cur-viewtoggle button:hover { background: #e4e4e4; color: #222; }
 .cur-ide[data-cur-theme="light"] .cur-viewtoggle button.is-active { background: #fff; color: #000; }
 .cur-ide[data-cur-theme="light"] .cur-formview { background: #fff; border-color: #e0e0e0; }
+
+/* Demo / Inspect. Sits at the far end of the tab strip because it governs
+   which tabs are there — same segmented idiom as the Form/JSON toggle. */
+.cur-viewmode {
+  display: inline-flex;
+  margin-left: auto;
+  align-self: center;
+  margin-right: 8px;
+  border: 1px solid #3c3c3c;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.cur-viewmode button {
+  background: #2a2a2a;
+  color: #999;
+  border: 0;
+  padding: 3px 12px;
+  font: inherit;
+  font-size: var(--font-size-3xs);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.cur-viewmode button:hover { background: #333; color: #ccc; }
+.cur-viewmode button.is-active { background: #37373d; color: #fff; }
+
+.cur-ide[data-cur-theme="light"] .cur-viewmode { border-color: #d0d0d0; }
+.cur-ide[data-cur-theme="light"] .cur-viewmode button { background: #f0f0f0; color: #666; }
+.cur-ide[data-cur-theme="light"] .cur-viewmode button:hover { background: #e4e4e4; color: #222; }
+.cur-ide[data-cur-theme="light"] .cur-viewmode button.is-active { background: #fff; color: #000; }
