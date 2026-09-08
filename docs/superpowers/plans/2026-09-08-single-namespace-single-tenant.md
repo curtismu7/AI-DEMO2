@@ -10,11 +10,127 @@
 
 **Spec:** This document. Findings were gathered live from the cluster on 2026-09-08; see "Established Facts" below.
 
+**Status: PARKED for future consideration. Nothing in this plan has been executed.**
+Revised 2026-09-08 (later the same day) with evidence from an unrelated live
+incident that happened to exercise most of the same machinery — see
+"Revisions" immediately below. Read that section before the plan body: it
+changes the justification for Phase 2 and adds three execution traps that
+would each have made a step silently no-op.
+
+---
+
+## Revisions — evidence from the 2026-09-08 AI Gateway Client incident
+
+A `405`/`404` outage on the AI Gateway Client was debugged the same day this
+plan was written. It touched the gateway, the federation and the Helm release,
+so it produced hard evidence the plan was previously guessing at.
+
+### 1. Phase 2 now has a real justification (it did not before)
+
+The original assessment was that collapsing the tenants bought "one fewer hop"
+and little else, so Phase 2 was rated not worth the risk. Measured:
+
+```
+https://mcpgw.ai-demo.ping-devops.com/opensearch22/authorize
+  -> auth.pingone.com/0428ba4f…/as/authorize
+  -> /rp/authenticate?providerId=122422d9…       (External IdP)
+FINAL: https://apps.pingone.com/01d89b06-…/signon/
+```
+
+**Every gateway login is a three-hop federated round trip**, and each hop is a
+session that can lapse independently. The user-visible sign-on page is
+`01d89b06` — the main demo tenant — even though the OAuth client lives in
+`0428ba4f`. Phase 2 removes two of those three hops. Treat it as worth doing,
+not as hygiene.
+
+### 2. The token is minted by `0428ba4f`, NOT by the tenant users log into
+
+This is the trap the above appearance sets. Because the sign-on page is
+`01d89b06`, it is natural to conclude that PingOne app changes belong there.
+They do not: in a federated flow the token is issued by the tenant where the
+**client** is registered — `0428ba4f`, app `1a403855` ("AI Gateway").
+`01d89b06` only authenticates the user and returns an assertion; it holds no
+OAuth client in this chain. Task 2.1 creates the replacement client in
+`01d89b06` precisely to move that role.
+
+### 3. `offline_access` is already enabled upstream — Phase 2 must preserve it
+
+Applied 2026-09-08 (Helm revision 22), verified inside the running container:
+
+```
+OIDC_SCOPES=openid profile email offline_access p1:read:env p1:read:user p1:read:application
+```
+
+App `1a403855` accepts the scope (an authorize probe carrying it returns the
+normal federation 302, not `invalid_scope`). Task 2.2's values edit MUST carry
+this scope across to the `01d89b06` client, and that client must be created
+with the `REFRESH_TOKEN` grant — otherwise the scope is accepted and silently
+yields no refresh token, which is exactly how PR #1181's refresh code shipped
+inert for a day.
+
+### 4. The gateway's entry path is pinned per Agentic App and can deadlock
+
+The gateway pins ONE client-facing entry path per app, derived from the backend
+URL it was registered with, and 404s anything else:
+
+```
+[mcpgw] rejecting /mcp on app opensearch22: outside entry path "/sse"
+```
+
+It forwards the path after the app segment verbatim. Measured at the
+`opensearch-mcp-server` backend (uvicorn) behind `opensearch22`:
+
+| | GET | POST |
+|---|---|---|
+| `/sse` | 200 | **405** (`Allow: HEAD, GET`) |
+| `/mcp` | 200 | accepted |
+
+So an app registered with an `/sse` backend cannot serve a JSON-RPC POST at
+all: `/sse` 405s at the backend and `/mcp` 404s at the gateway. **Task 1.5 must
+check every Agentic App's registered backend path, not just its namespace.**
+Re-registering the backend with a `/mcp` suffix is the only fix, and it is a
+console action with no API available from the CLI.
+
+### 5. Three traps that make a step look applied when it is not
+
+- **`helm upgrade` does not restart the pod when only a Secret changes.** The
+  OIDC config lives in `agentless-mcpgw-oidc-config`, not the pod spec, so
+  revision 22 deployed with `STATUS: deployed` while the pod stayed 5h45m old
+  and the process kept the old scopes. **Task 2.2 must follow the upgrade with
+  an explicit `kubectl rollout restart`.**
+- **The Secret is mounted as a single FILE**
+  (`oidc-config -> /var/lib/procyon/config/pingone.env`). Kubernetes never
+  auto-updates file-level mounts, so the change reaches the process only on
+  restart. Verify by reading the file inside the container, never from
+  `kubectl get secret`.
+- **Permission rules are prefix matches, so flag order matters.** This repo
+  allows `Bash(helm upgrade *)` and `Bash(kubectl patch *)`. Writing
+  `helm --kube-context us upgrade …` or `kubectl --context us … patch …` does
+  not match, and the command gets refused. Put the subcommand first —
+  `helm upgrade --kube-context us …` — both tools accept global flags there.
+  This affects nearly every command in this plan.
+
+### 6. A scoped SE deploy touches more than its target, and exits 0 when it fails
+
+`./run-pingaws.sh update code bff` calls the full `k8s/aws/deploy.sh`, which
+re-applies all manifests. During the incident it reset `langchain-agent`'s image
+to the unqualified local name `ai-demo-k8-langchain-agent:latest`, which
+resolves to Docker Hub and `ImagePullBackOff`; all 22 prior ReplicaSets used
+`ghcr.io/curtismu7/ai-demo-langchain-agent:latest`. The GHCR rewrite map in
+`k8s/aws/deploy.sh:86` has the right entry, but the manifest is misnamed —
+**`k8s/40-agent-service-deployment.yaml` actually defines `langchain-agent`,
+not `agent-service`** — and the rewrite misses it.
+
+The run reported `[SMOKE] 2 check(s) FAILED` and still **exited 0**. Any deploy
+step in this plan must verify pod state directly rather than trust the exit
+status. This is unfixed at time of writing.
+
 ---
 
 ## Global Constraints
 
-- kube context is `us` for every `kubectl` and `helm` command. Pass `--context us` / `--kube-context us` explicitly; do not rely on the current context.
+- kube context is `us` for every `kubectl` and `helm` command. Pass `--context us` / `--kube-context us` explicitly; do not rely on the current context. **Put the subcommand BEFORE the global flag** — `helm upgrade --kube-context us …`, `kubectl patch --context us …` — because this repo's permission rules are prefix matches (`Bash(helm upgrade *)`, `Bash(kubectl patch *)`) and a flag-first command matches none of them and is refused. See Revision 5.
+- **A Helm values change that only rewrites a Secret does not restart the pod, and a single-file Secret mount never auto-updates.** After any `helm upgrade` in this plan, run `kubectl rollout restart` and then verify by reading the value *inside the running container*. `helm` reporting `STATUS: deployed` and `kubectl get secret` showing the new value both lie about what the process is using. See Revision 5.
 - Target namespace is `ping-devops-cmuir`. It is already pinned in `demo_api_server/.env` as `SE_NAMESPACE=ping-devops-cmuir`; do not change that line.
 - Public hostnames MUST NOT change: `mcpgw.ai-demo.ping-devops.com`, `pingone-mcp-server-2.mcpgw.ai-demo.ping-devops.com`, `opensearch-mcp-server.mcpgw.ai-demo.ping-devops.com`, `mcp-resource-server.ping-devops.com`. Changing any of them forces OIDC redirect-URI and Privilege console re-registration that is not in scope.
 - NEVER rotate PingOne client `a6219652-47af-4ed2-8dea-20e9940b3377` — it is the Privilege service client and rotating it permanently kills console sign-in.
@@ -61,6 +177,18 @@ Both AZs have Ready nodes, so either PV can schedule after the move. The PVs car
 | Secrets `ghcr-pull`, `ghcr-pull-secret` | DO NOT COPY. The values reference `ghcr-pull-secret`, which already exists in cmuir; `ghcr-pull` is unreferenced |
 | Ingresses `agentless-mcpgw`, `agentless-mcpgw-mcp`, `mcp-config-standalone-mcp-resource-server` | RECREATED by Helm in cmuir; the third is dropped with its release |
 | ConfigMap `mcp-config-standalone-mcp-resource-server-env` | DELETE with its release |
+
+---
+
+## Prerequisites before starting (added 2026-09-08)
+
+Do not begin while the AI Gateway Client is broken. Phase 1 uninstalls the
+gateway and re-binds both PVs, so a pre-existing fault makes any new failure
+unattributable — and the whole value of splitting the phases is attribution.
+
+- [ ] `tools/list` through `mcpgw.ai-demo.ping-devops.com` returns `200` with a non-empty array **today**, on the current namespace and tenant. As of 2026-09-08 it does NOT — see Revision 4.
+- [ ] Task 0.2's console check is answered. A "no" parks Phase 2 indefinitely; Phase 1 still stands alone.
+- [ ] No other session owns the SE cluster or the Docker stack (`npm run serve:worktree`).
 
 ---
 
@@ -466,10 +594,21 @@ http://opensearch-mcp-server.ping-devops-curtismuir.svc.cluster.local/sse
 ```
 becomes
 ```
-http://opensearch-mcp-server.ping-devops-cmuir.svc.cluster.local/sse
+http://opensearch-mcp-server.ping-devops-cmuir.svc.cluster.local/mcp
 ```
 
-Backends already pointing at `.ping-devops-cmuir.` need no change.
+Backends already pointing at `.ping-devops-cmuir.` need no namespace change — but still check their path suffix per the next paragraph.
+
+**Fix the PATH while you are in here, not just the namespace.** The suffix sets
+the gateway's client-facing entry path for that app, and an `/sse` registration
+cannot serve this demo at all: the gateway forwards the path verbatim, and the
+`opensearch-mcp-server` backend answers `POST /sse` with `405 Allow: HEAD, GET`
+while `POST /mcp` is accepted. Registering `/sse` therefore deadlocks — `/sse`
+405s at the backend and `/mcp` 404s at the gateway with
+`rejecting /mcp on app opensearch22: outside entry path "/sse"`. This is a live
+defect as of 2026-09-08, independent of the migration; doing the migration is a
+natural moment to clear it. Audit every Agentic App, not only the ones naming
+the old namespace.
 
 - [ ] **Step 2: Verify the rewritten backend resolves from inside the gateway pod**
 
@@ -572,6 +711,12 @@ Record from `0428ba4f` application `1a403855-81f6-45eb-b233-fed59abc5c73` ("AI G
 
 Create an OIDC Web App named `AI Gateway` in `01d89b06` with the SAME redirect URIs — the gateway's `serverUrl` is unchanged, so its callback is unchanged. Do NOT reuse `a6219652`; that is the Privilege service client and must not be touched.
 
+**It MUST carry the `REFRESH_TOKEN` grant and permit the `offline_access` scope.** The gateway requests `offline_access` as of Helm rev 22 (Revision 3). PingOne accepts an ungranted scope at `/authorize` without complaint and simply issues no refresh token, so a missing grant does not surface until you notice the gateway re-running its full identity dance. This repo has already lost a day to exactly that failure on a different app (`6586d3de`, PR #1181).
+
+- [ ] **Step 2a: Confirm the grant before moving on**
+
+Read the new application's `grantTypes` via the Management API or console and confirm `REFRESH_TOKEN` is present alongside `AUTHORIZATION_CODE`. Do not infer it from a successful `/authorize` — that call succeeds either way.
+
 - [ ] **Step 3: Verify discovery works against the new tenant**
 
 Run:
@@ -585,35 +730,61 @@ Expected: `200`.
 
 ### Task 2.2: Repoint the gateway's OIDC
 
-- [ ] **Step 1: Update the four oidc values**
+- [ ] **Step 1: Update the oidc values, keeping `offline_access`**
 
 In `/tmp/ns-migration-rollback/agentless-mcpgw.values.yaml`, replace every `0428ba4f-169c-436b-aff9-b230496e0e3b` with `01d89b06-66d5-430e-9f28-65636843788b`, and set `oidc.clientId` / `oidc.clientSecret` to the values from Task 2.1. Leave `oidc.serverUrl` alone.
 
-- [ ] **Step 2: Verify the old tenant id is gone from the values**
+`oidc.scopes` was added 2026-09-08 (Helm rev 22) and MUST survive the move:
+
+```yaml
+oidc:
+  scopes: openid profile email offline_access p1:read:env p1:read:user p1:read:application
+```
+
+If the captured values file predates rev 22 it will not contain this line — add it. Without `offline_access` the gateway re-runs its full identity dance instead of refreshing, which is the behaviour Phase 2 exists to reduce.
+
+- [ ] **Step 2: Verify the old tenant id is gone and the scope survived**
 
 Run:
 ```bash
 grep -c '0428ba4f' /tmp/ns-migration-rollback/agentless-mcpgw.values.yaml
+grep -c 'offline_access' /tmp/ns-migration-rollback/agentless-mcpgw.values.yaml
 ```
-Expected: `0`.
+Expected: `0` then `1`. A `0` on the second line means the scope was dropped — go back to Step 1.
 
 - [ ] **Step 3: Apply**
 
+Subcommand before the global flag, or the permission rule will not match:
+
 ```bash
-helm --kube-context us upgrade agentless-mcpgw \
+helm upgrade --kube-context us agentless-mcpgw \
   ./pingone-privgateway-helm-main/agentless/agentless-mcpgw \
   -n ping-devops-cmuir \
   -f /tmp/ns-migration-rollback/agentless-mcpgw.values.yaml
 ```
 
-- [ ] **Step 4: Verify the rollout and the endpoint**
+- [ ] **Step 4: Restart — the upgrade alone changes nothing the process can see**
+
+This edit touches only `agentless-mcpgw-oidc-config`, a Secret, so the pod
+template is unchanged and Helm triggers no rollout. The Secret is also mounted
+as a single FILE, which Kubernetes never auto-updates. Without this step the
+release reports `STATUS: deployed` while the gateway keeps authenticating
+against `0428ba4f`.
+
+```bash
+kubectl rollout restart --context us -n ping-devops-cmuir deploy/agentless-mcpgw
+kubectl rollout status  --context us -n ping-devops-cmuir deploy/agentless-mcpgw --timeout=300s
+```
+
+- [ ] **Step 5: Verify from INSIDE the container, then the endpoint**
 
 Run:
 ```bash
-kubectl --context us -n ping-devops-cmuir rollout status deploy/agentless-mcpgw --timeout=300s
+kubectl exec --context us -n ping-devops-cmuir deploy/agentless-mcpgw -c agentless-mcpgw \
+  -- grep -h '^OIDC_AUTH_URL\|^OIDC_SCOPES' /var/lib/procyon/config/pingone.env
 curl -s -o /dev/null -w '%{http_code}\n' https://mcpgw.ai-demo.ping-devops.com/opensearch22/sse
 ```
-Expected: `successfully rolled out`, then `401`. A `502` is the derived-listen-port trap, not an auth failure.
+Expected: the auth URL names `01d89b06`, the scopes include `offline_access`, and the endpoint returns `401`. Reading `kubectl get secret` instead proves nothing — it shows the new value whether or not the process has it. A `502` is the derived-listen-port trap, not an auth failure.
 
 ---
 
@@ -701,3 +872,7 @@ git commit -m "docs(privilege): record the single-tenant cutover to 01d89b06"
 - Signing in to the gateway as `demoUser` uses the `01d89b06` login page with a single password prompt and no tenant hop.
 - `grep -rn "0428ba4f"` finds no live configuration — only historical narrative.
 - Grafana in `ping-devops-cmuir` still accepts both PingOne SSO and the local admin fallback.
+- Reading `/var/lib/procyon/config/pingone.env` **inside the running gateway container** shows an `OIDC_AUTH_URL` naming `01d89b06` and `OIDC_SCOPES` containing `offline_access`. Passing this from `kubectl get secret` instead does not count — see Revision 5.
+- Every Agentic App's registered backend ends in `/mcp`, and the gateway log contains no `outside entry path` rejection during a full `tools/list`.
+- Phase 2 only: the gateway's token response carries a `refresh_token`. If it does not, the `01d89b06` client is missing the `REFRESH_TOKEN` grant and the `offline_access` scope is inert.
+
