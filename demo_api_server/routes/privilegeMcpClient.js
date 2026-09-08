@@ -122,6 +122,13 @@ function facadeDoorUrl(appName) { return `${PUBLIC_APP_ORIGIN()}/mcp-facade/priv
 
 const GATEWAY_MODES = ['direct', 'privilege', 'facade'];
 const DEFAULT_GATEWAY_MODE = 'privilege';
+// Identifies which door a token is for. Module-level (not local to POST
+// /config, which is where this used to live) because persistPrivilegeOauth
+// also needs it: the "current" oauth slot has no door tag of its own, so
+// without recording the key it was minted under, a restart-rehydrated token
+// looks like it belongs to whatever door the fresh session defaults to —
+// see persistPrivilegeOauth's comment for what that broke.
+const oauthKey = (mode, mcpUrl) => `${mode}::${mcpUrl || ''}`;
 // The `audit` façade door, NOT Privilege — that route was abandoned once the
 // hosted PingOne MCP stopped accepting worker client_credentials (401 "Invalid
 // authentication", 2026-08-27).
@@ -179,6 +186,31 @@ function getClientSession(req) {
       privilege: { ...oauthDefaults, mcpUrl: DEFAULT_PRIVILEGE_MCP_URL() },
       facade: { ...oauthDefaults, mcpUrl: DEFAULT_FACADE_MCP_URL() },
     };
+    // A BFF restart wipes clientSessions (an in-process Map) but not the
+    // browser's cookie — the Express session survives it (LMDB, server.js).
+    // Rehydrate ONLY the OAuth slice a prior request mirrored there via
+    // persistPrivilegeOauth(): live handles (subscription/eventStream
+    // controllers), the gateway-issued mcpSession id, and the operator's
+    // pasted console credential are either meaningless after a restart or
+    // deliberately never persisted — see `console` below.
+    const rehydrated = req.session?.privilegeMcpClientOAuth;
+    const initialOauth = {
+      accessToken: null, refreshToken: null, expiresAt: null, tokenUri: null, source: null,
+      dcrClientId: null, dcrClientSecret: null,
+      ...(rehydrated && typeof rehydrated.oauth === 'object' ? rehydrated.oauth : null),
+    };
+    const initialSavedOauthByDoor = {
+      ...((rehydrated && typeof rehydrated.savedOauthByDoor === 'object' && rehydrated.savedOauthByDoor) || {}),
+    };
+    // The "current" slot carries no door tag of its own — only this dict's
+    // keys do — so without also stashing the rehydrated token under the door
+    // it was minted for, the fresh session's default door looks like the one
+    // it belongs to. The next POST /config to the operator's REAL door then
+    // reads as a genuine switch and finds nothing there, wiping the very
+    // token this rehydration just restored. See persistPrivilegeOauth.
+    if (rehydrated?.currentOauthKey && initialOauth.accessToken) {
+      initialSavedOauthByDoor[rehydrated.currentOauthKey] = { ...initialOauth };
+    }
     clientSessions.set(sid, {
       _sid: sid,
       config: {
@@ -197,15 +229,12 @@ function getClientSession(req) {
       // redundant /auth/start. Keyed by door too, not just mode: each door is
       // its own OAuth audience, so a token good for one door 401s against
       // another. See POST /config.
-      savedOauthByDoor: {},
-      oauth: {
-         accessToken: null, refreshToken: null, expiresAt: null, tokenUri: null, source: null,
-
-        // Set when login went through a self-advertising gateway (MCPGW acting as
-        // its own AS) via Dynamic Client Registration — refreshAccessToken must
-        // reuse this client, not the PingOne app id, or the token endpoint 400s.
-        dcrClientId: null, dcrClientSecret: null,
-      },
+      // dcrClientId/dcrClientSecret: set when login went through a
+      // self-advertising gateway (MCPGW acting as its own AS) via Dynamic
+      // Client Registration — refreshAccessToken must reuse this client, not
+      // the PingOne app id, or the token endpoint 400s.
+      savedOauthByDoor: initialSavedOauthByDoor,
+      oauth: initialOauth,
       tools: [],
       toolPolicy: { permitted: [], filtered: [], total: 0 },
       mcpSession: {
@@ -230,6 +259,10 @@ function getClientSession(req) {
   }
   const session = clientSessions.get(sid);
   session._sid = sid;
+  // Lets refreshAccessToken/fetchMcp reach req.session without threading req
+  // through their own signatures — they take only `session`, and every call
+  // site already runs inside a request that just called getClientSession(req).
+  session._req = req;
   // The main app's user token is NOT a credential for any door on this page,
   // and must never be seeded into session.oauth. It is minted for the banking
   // API (aud: enduser.ping.demo); every door here wants something else —
@@ -265,6 +298,13 @@ function getClientSession(req) {
   // Clear refresh metadata when seeding: keeping a prior browser-OAuth
   // refreshToken/expiresAt/tokenUri would let accessTokenExpiring() or a 401
   // retry silently replace this Bearer with another identity's access token.
+  //
+  // Deliberately NOT mirrored by persistPrivilegeOauth: this is re-synced from
+  // the header every request the caller sends it (like pingoneMcpAdminToken
+  // above), never "seeded once" — so it is already re-derived, not durable
+  // state this file owns. Persisting it would let a later request WITHOUT the
+  // header still report as authenticated on a Bearer the caller never
+  // reasserted.
   const auth = req.headers?.authorization;
   if (typeof auth === 'string') {
     const match = auth.match(/^Bearer\s+(\S+)/i);
@@ -278,6 +318,52 @@ function getClientSession(req) {
     }
   }
   return session;
+}
+
+/**
+ * Mirror the OAuth slice — session.oauth and session.savedOauthByDoor — into
+ * the LMDB-backed Express session, so a BFF restart does not force a
+ * re-sign-in on every door: getClientSession() rehydrates from this the next
+ * time this session id is unknown to the in-process Map. Deliberately narrow:
+ * everything else on `session` (live controllers, the gateway-issued
+ * mcpSession id, the operator's pasted console credential) is either
+ * meaningless after a restart or deliberately never persisted — see
+ * getClientSession's own comments on `console`.
+ *
+ * Call after any block that assigns into session.oauth or
+ * session.savedOauthByDoor. Silently no-ops if this session has no Express
+ * session (session._req unset, or req.session absent) rather than throwing —
+ * every call site already runs after getClientSession(req), so this is
+ * defensive, not an expected path.
+ * @param {object} session
+ */
+function persistPrivilegeOauth(session) {
+  const req = session._req;
+  if (!req || !req.session) return;
+  req.session.privilegeMcpClientOAuth = {
+    oauth: session.oauth,
+    savedOauthByDoor: session.savedOauthByDoor,
+    // Which door session.oauth is FOR. The current slot carries no door tag of
+    // its own — only savedOauthByDoor's keys do — so without this, a
+    // rehydrated token looks like it belongs to whatever door the fresh
+    // (post-restart) session defaults to. The very next POST /config with the
+    // operator's real door then reads as a genuine switch AWAY from a door
+    // that never actually held this token, stashes it under the wrong
+    // (default) key, and finds nothing under the real key — wiping the token
+    // /config was supposed to just be re-confirming. Found writing this fix's
+    // own restart test: a same-door round trip passed, but the realistic
+    // "frontend re-POSTs its config on the next page load" sequence silently
+    // undid the restart fix for any door other than the env default.
+    currentOauthKey: oauthKey(session.gatewayMode, session.config.mcpUrl),
+  };
+  // Some callers (tests, and any future minimal req.session shim) supply a
+  // plain object with no store behind it — matches the existing guard in
+  // routes/demoAgentNl.js for the same reason.
+  if (typeof req.session.save === 'function') {
+    req.session.save((err) => {
+      if (err) console.warn('[privilegeMcpClient] failed to persist OAuth state:', err.message);
+    });
+  }
 }
 
 /**
@@ -537,6 +623,7 @@ async function refreshAccessToken(session) {
     session.oauth.accessToken = null;
     session.oauth.refreshToken = null;
     session.oauth.expiresAt = null;
+    persistPrivilegeOauth(session);
     emitEvent(session, 'oauth', { phase: 'refresh_failed', status: response.status });
     return false;
   }
@@ -546,6 +633,7 @@ async function refreshAccessToken(session) {
   if (data.refresh_token) session.oauth.refreshToken = data.refresh_token;
   session.oauth.expiresAt = data.expires_in ? Date.now() + data.expires_in * 1000 : null;
   if (data.scope) session.oauth.scope = data.scope;
+  persistPrivilegeOauth(session);
   emitEvent(session, 'oauth', { phase: 'refresh_success', expiresIn: data.expires_in || null });
   return true;
 }
@@ -1658,7 +1746,6 @@ router.post('/config', express.json(), (req, res) => {
   // was last stashed under that key would discard the very credential the
   // caller just supplied.
   const providedBearerThisRequest = /^Bearer\s+\S+/i.test(String(req.headers?.authorization || ''));
-  const oauthKey = (mode, mcpUrl) => `${mode}::${mcpUrl || ''}`;
   const previousOauthKey = oauthKey(session.gatewayMode, session.config.mcpUrl);
   const nextOauthKey = oauthKey(gatewayMode, session.gatewayConfigs[gatewayMode].mcpUrl);
   if (nextOauthKey !== previousOauthKey && !providedBearerThisRequest) {
@@ -1673,6 +1760,7 @@ router.post('/config', express.json(), (req, res) => {
     session.oauth = restoredIsLive
       ? { ...restored }
       : { accessToken: null, refreshToken: null, expiresAt: null, tokenUri: null, source: null, dcrClientId: null, dcrClientSecret: null };
+    persistPrivilegeOauth(session);
   }
   session.gatewayMode = gatewayMode;
   session.config = { ...session.gatewayConfigs[gatewayMode], ...sharedConfig };
@@ -1784,6 +1872,7 @@ router.get('/auth/callback', async (req, res) => {
     session.oauth.dcrClientSecret = session.pendingAuth.dcrClientSecret || null;
     session.pendingAuth = null;
     resetMcpState(session);
+    persistPrivilegeOauth(session);
     if (req.session) req.session.privilegePromptNoneFailed = false;
 
     // Hand the gateway leg to the façade's privilege-gateway door, so standalone
@@ -1980,6 +2069,7 @@ router.post('/auth/logout', (req, res) => {
   session.oauth.tokenUri = null;
   session.oauth.scope = '';
   resetMcpState(session);
+  persistPrivilegeOauth(session);
   emitEvent(session, 'oauth', { phase: 'logout' });
   res.json({ ok: true });
 });
