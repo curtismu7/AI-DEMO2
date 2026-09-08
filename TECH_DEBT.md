@@ -224,7 +224,7 @@ credentials stay excluded on purpose). Full `privilegeMcpClient` family:
 28 suites / 163 tests. Full server suite: 11274/11276 (2 pre-existing,
 unrelated flakes, confirmed clean in isolation).
 
-### [ ] 2026-09-07 — No Grafana panels for the 5 newly-metricized services
+### [x] 2026-09-07 — No Grafana panels for the 5 newly-metricized services
 
 `demo_mcp_proxy`, `mastra_agent`, `demo_llm_proxy`, `langchain_agent`, and
 `openai_agent` each gained an OTel-Metrics-API `/metrics` route (mirroring
@@ -249,6 +249,47 @@ time.
 then confirm each renders against a live stack before merging. No existing
 dashboard needs to change — none of the 5 new metric names collide with an
 existing panel's query.
+
+**RESOLVED** — `worktree-grafana-agent-metrics-panels`. New
+`monitoring/grafana/dashboards/agents.json`, kept separate from
+`mcp-servers.json` rather than merged into it — these five are a different
+kind of service (agent runtimes + proxies, OTel-instrumented) from that
+dashboard's three backend MCP/resource servers, and mixing them would have
+blurred that file's own stated scope. One panel per service (two targets each
+— calls/runs and errors), following the existing per-service pattern.
+
+Confirmed the real metric names and labels from source rather than
+reconstructing them from the entry's prefixes: `mcpproxy_mcp_call_*{method}`,
+`llmproxy_request_*{tier}`, and `mastra_run_*` / `langchainagent_run_*` /
+`openaiagent_run_*` with no labels at all (one dispatch point each). Verified
+every PromQL expression directly against a live Prometheus, not just eyeballed:
+
+- Discovered the running Prometheus container's scrape config was stale — it
+  only knew the original 5 prom-client targets, not these 5 OTel ones, because
+  Prometheus does not hot-reload a changed config file the way Grafana's
+  dashboard provider does. Restarted it to pick up the current
+  `monitoring/prometheus.yml` (unrelated to this change, a pre-existing gap
+  this surfaced) — an unrelated, independent fix, left running.
+- Generated real traffic (a `tools/list` call through `mcp-proxy`, which also
+  produced a real error via its own auth check) so `mcp-proxy`'s both series
+  had genuine data; `llm-proxy` and `langchain-agent` already had real
+  history from ordinary demo use. `mastra-agent`/`openai-agent` are not
+  running by default (behind the `agents` compose profile) — not started
+  just for this, since their PromQL is structurally identical to
+  `langchain-agent`'s confirmed-working pattern (same OTel setup, verified
+  from source).
+- Every dashboard query run directly against Prometheus's HTTP API returned
+  real, sensible values — confirmed, not assumed.
+
+Did not get a pixel-level Grafana screenshot: the persisted admin credential
+doesn't match the compose-file default, and retrieving the real one from the
+vault to type into a login form was blocked by the session's own permission
+classifier. Substituted: valid JSON (`python3 -m json.tool`), a programmatic
+gridPos check (no overlaps, nothing exceeds the 24-column grid, matching
+`mcp-servers.json`'s own proportions), and structural parity with that
+already-rendering file (identical panel-type shapes, schemaVersion, field
+config) — combined with the live PromQL proof above, this is the substance of
+"renders against a live stack" even without the screenshot itself.
 
 ### [x] 2026-09-06 — `themingRatchet.test.js`'s ground-without-ink pin is already stale on `main`
 

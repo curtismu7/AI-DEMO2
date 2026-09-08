@@ -1,0 +1,128 @@
+{
+  "uid": "ai-demo-agents",
+  "title": "Agents & Proxies",
+  "description": "The five OTel-Metrics-API services: the MCP proxy sidecar (demo_mcp_proxy), the 2-tier LLM router (demo_llm_proxy), and the three agent runtimes (mastra_agent, langchain_agent, openai_agent). Prometheus scrapes all five (monitoring/prometheus.yml) via the OTel SDK's Prometheus exporter rather than prom-client directly — see the MCP Servers dashboard for that half of the fleet — but both end up in the same Prometheus with the same metric shape, so the PromQL here reads identically.",
+  "tags": ["ai-demo", "agents"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "About these numbers",
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 0 },
+      "options": {
+        "mode": "markdown",
+        "content": "Each service wraps its own single dispatch point with one duration histogram and one error counter — pure observation, the wrapped function's control flow and return value are unchanged. Metric prefixes: `mcpproxy_` (MCP proxy, labeled by JSON-RPC `method`), `llmproxy_` (LLM router, labeled by model `tier`), `mastra_` / `langchainagent_` / `openaiagent_` (the three agent runtimes — no labels; each has exactly one `/run` dispatch point). The three agents' own try/except already swallows agent/tool/LLM errors into an AG-UI RUN_ERROR SSE event instead of raising, so each `_run_errors_total` counts only something escaping that handler entirely (a framework-level failure) — an agent that reports its OWN error to the chat still shows here as a normal, error-free run. The Logs panel is Tier 2 — Grafana Alloy tailing every container's stdout into Loki."
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "MCP proxy (demo_mcp_proxy) — calls and errors by method (per 5 min)",
+      "description": "server.js wraps mcpRpc, the sole dispatch point for JSON-RPC calls proxied to the backend MCP gateway.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "ai-demo-prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum by (method) (increase(mcpproxy_mcp_call_duration_seconds_count[5m]))", "legendFormat": "{{method}} calls" },
+        { "refId": "B", "expr": "sum by (method) (increase(mcpproxy_mcp_call_errors_total[5m]))", "legendFormat": "{{method}} errors" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short", "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "showPoints": "never" }, "min": 0, "decimals": 0 },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "LLM proxy (demo_llm_proxy) — requests and errors by tier (per 5 min)",
+      "description": "router.js's proxy 'proxyRes'/'error' hooks — the same tee point PostHog LLM analytics already uses. Labeled by which local model tier served the request.",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "ai-demo-prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum by (tier) (increase(llmproxy_request_duration_seconds_count[5m]))", "legendFormat": "{{tier}} requests" },
+        { "refId": "B", "expr": "sum by (tier) (increase(llmproxy_request_errors_total[5m]))", "legendFormat": "{{tier}} errors" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short", "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "showPoints": "never" }, "min": 0, "decimals": 0 },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Mastra agent — runs and errors (per 5 min)",
+      "description": "index.ts's handleRun, the /run dispatch point. No labels — one agent, one route.",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "ai-demo-prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "increase(mastra_run_duration_seconds_count[5m])", "legendFormat": "runs" },
+        { "refId": "B", "expr": "increase(mastra_run_errors_total[5m])", "legendFormat": "errors" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short", "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "showPoints": "never" }, "min": 0, "decimals": 0 },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "LangChain agent — runs and errors (per 5 min)",
+      "description": "agui_run_handler.py's _run_stream generator, the /run dispatch point. No labels — one agent, one route.",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "ai-demo-prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "increase(langchainagent_run_duration_seconds_count[5m])", "legendFormat": "runs" },
+        { "refId": "B", "expr": "increase(langchainagent_run_errors_total[5m])", "legendFormat": "errors" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short", "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "showPoints": "never" }, "min": 0, "decimals": 0 },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "OpenAI agent — runs and errors (per 5 min)",
+      "description": "run_handler.py's _stream generator, the /run dispatch point. No labels — one agent, one route.",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "ai-demo-prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "increase(openaiagent_run_duration_seconds_count[5m])", "legendFormat": "runs" },
+        { "refId": "B", "expr": "increase(openaiagent_run_errors_total[5m])", "legendFormat": "errors" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short", "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "showPoints": "never" }, "min": 0, "decimals": 0 },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 7,
+      "type": "logs",
+      "title": "Live logs",
+      "description": "All five containers' stdout (Tier 2 — Grafana Alloy). Narrow with the panel's own search box, e.g. |= \"error\".",
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 20 },
+      "datasource": { "type": "loki", "uid": "ai-demo-loki" },
+      "targets": [
+        { "refId": "A", "expr": "{service=~\"mcp-proxy|llm-proxy|mastra-agent|langchain-agent|openai-agent\"}" }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none"
+      }
+    }
+  ],
+  "links": []
+}
