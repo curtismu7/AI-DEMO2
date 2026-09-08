@@ -67,22 +67,45 @@ async function mintSessionId() {
   return (await res.json()).session_id;
 }
 
+// Two credential shapes are plausible and only one is documented, so try both
+// rather than making the operator guess: the console's own `auth_token` cookie
+// (LESSONS-LEARNED.md) and a PingOne bearer. Whichever answers 200 is reported,
+// so a 401 from BOTH is real evidence about the credential, not an untried path.
+const AUTH_MODES = [
+  { name: 'auth_token cookie', headers: (t) => ({ Cookie: `auth_token=${t}` }) },
+  { name: 'Authorization: Bearer', headers: (t) => ({ Authorization: `Bearer ${t}` }) },
+];
+
 function makeGet(token, sessionId) {
+  let mode = null; // pinned to whichever mode first answers non-401
   return async function get(path) {
-    const res = await fetch(`${CONSOLE_BASE}${path}`, {
-      headers: {
-        Cookie: `auth_token=${token}`,
-        'x-procyon-session-id': sessionId,
-        accept: 'application/json',
-      },
-    });
-    const text = await res.text();
+    let res;
+    let text;
+    for (const candidate of mode ? [mode] : AUTH_MODES) {
+      res = await fetch(`${CONSOLE_BASE}${path}`, {
+        headers: {
+          ...candidate.headers(token),
+          'x-procyon-session-id': sessionId,
+          accept: 'application/json',
+        },
+      });
+      text = await res.text();
+      if (res.status !== 401) {
+        if (!mode) console.log(`# authenticated with: ${candidate.name}\n`);
+        mode = candidate;
+        break;
+      }
+    }
     if (res.status === 401) {
       // Never echo the request headers — they carry the console token.
       throw new Error(
-        'Console API 401. The auth_token cookie is expired or wrong.\n' +
-          'It lives ~60 minutes. Re-grab it: console.pingone.com/?env=<privilege-env> -> launch\n' +
-          'PingOne Privilege -> devtools Network -> any XHR -> Request Headers -> Cookie: auth_token=…',
+        `Console API 401 on ${path} — rejected as BOTH an auth_token cookie and a Bearer token.\n` +
+          'So the credential is wrong, not merely mis-sent. Two common causes:\n' +
+          '  - it expired (the console cookie lives ~60 min; a PingOne adminui token only ~5)\n' +
+          '  - it is a PingOne token (aud https://api.pingone.com), not the Privilege console cookie.\n' +
+          'Re-grab it: console.pingone.com/?env=<privilege-env> -> launch PingOne Privilege ->\n' +
+          'devtools Network -> an XHR to console.privilege.pingone.com -> Request Headers ->\n' +
+          'Cookie -> the auth_token=… value.',
       );
     }
     if (!res.ok) throw new Error(`Console API ${res.status} on ${path}: ${text.slice(0, 300)}`);
