@@ -20,6 +20,15 @@ import './GatewayVerdicts.css';
  * `grant_types_supported: ['authorization_code','refresh_token']` and no
  * client_credentials, so a human signs in once per session. The panel says so
  * rather than sitting empty and looking broken.
+ *
+ * The inspector signals that state as **HTTP 200** with
+ * `{ tools: [], privilege_login_required: true, loginUrl }` — NOT a 401. An
+ * earlier version of this file checked status codes and would have rendered
+ * "this door exposes no search tool" for a door that was merely not connected
+ * yet. Verified live 2026-09-08 against built-in-privilege-opensearch, which
+ * returned exactly that shape. Read the body, not the status.
+ *
+ * `error: true` + `reason` is the genuine-failure shape, also at 200.
  */
 
 const PROFILE_ID = 'built-in-privilege-opensearch';
@@ -74,10 +83,27 @@ export function pickSearchTool(tools) {
   return names.find((n) => /search/i.test(n)) || names.find((n) => /query/i.test(n)) || null;
 }
 
+/**
+ * Is this response the "sign in to this door first" state?
+ *
+ * The inspector reports it as 200 with a flag in the body, so a status-only
+ * check misses it entirely and the caller mistakes an unconnected door for a
+ * broken one. 401/403 stay covered as a fallback for other transports.
+ */
+export function authGate(res, body) {
+  const b = body || {};
+  if (b.privilege_login_required || b.pingone_admin_login_required) {
+    return { loginUrl: b.loginUrl || null };
+  }
+  if (res && (res.status === 401 || res.status === 403)) return { loginUrl: b.loginUrl || null };
+  return null;
+}
+
 export default function GatewayVerdicts({ fetchImpl }) {
   const [state, setState] = useState('idle'); // idle | loading | ready | needsAuth | error
   const [verdicts, setVerdicts] = useState([]);
   const [error, setError] = useState(null);
+  const [loginUrl, setLoginUrl] = useState(null);
 
   const doFetch = fetchImpl || ((url, opts) => fetch(url, opts));
 
@@ -88,16 +114,19 @@ export default function GatewayVerdicts({ fetchImpl }) {
       const toolsRes = await doFetch(`${INSPECTOR_BASE}/tools?profile=${encodeURIComponent(PROFILE_ID)}`, {
         credentials: 'include',
       });
-      if (toolsRes.status === 401 || toolsRes.status === 403) {
+      const toolsBody = await toolsRes.json().catch(() => ({}));
+      const gate = authGate(toolsRes, toolsBody);
+      if (gate) {
+        setLoginUrl(gate.loginUrl || null);
         setState('needsAuth');
         return;
       }
-      const toolsBody = await toolsRes.json();
       if (!toolsRes.ok) throw new Error(toolsBody.error || `HTTP ${toolsRes.status}`);
+      if (toolsBody.error) throw new Error(toolsBody.reason || 'The door reported an error.');
 
       const tool = pickSearchTool(toolsBody.tools);
       if (!tool) {
-        throw new Error('This door exposes no search tool, so its verdict log cannot be queried from here.');
+        throw new Error('This door is connected but exposes no search tool, so its verdict log cannot be queried from here.');
       }
 
       const invokeRes = await doFetch(`${INSPECTOR_BASE}/invoke`, {
@@ -115,11 +144,13 @@ export default function GatewayVerdicts({ fetchImpl }) {
           },
         }),
       });
-      if (invokeRes.status === 401 || invokeRes.status === 403) {
+      const invokeBody = await invokeRes.json().catch(() => ({}));
+      const invokeGate = authGate(invokeRes, invokeBody);
+      if (invokeGate) {
+        setLoginUrl(invokeGate.loginUrl || null);
         setState('needsAuth');
         return;
       }
-      const invokeBody = await invokeRes.json();
       if (!invokeRes.ok) throw new Error(invokeBody.error || `HTTP ${invokeRes.status}`);
 
       const hits = invokeBody?.result?.hits?.hits || invokeBody?.hits?.hits || [];
@@ -147,9 +178,16 @@ export default function GatewayVerdicts({ fetchImpl }) {
 
       {state === 'needsAuth' ? (
         <p className="gwv__note gwv__note--auth" data-testid="gwv-needs-auth">
-          This door needs a sign-in before it will answer &mdash; its authorization server offers no
-          client-credentials grant, so the panel cannot populate on its own. Connect the
-          Privilege&nbsp;OpenSearch door in the MCP Inspector, then load again.
+          This door needs its own sign-in before it will answer &mdash; its authorization server
+          offers no client-credentials grant, so the panel cannot populate on its own.{' '}
+          {loginUrl ? (
+            <a className="gwv__login" href={loginUrl} data-testid="gwv-login-link">
+              Sign in to this door
+            </a>
+          ) : (
+            <>Connect the Privilege&nbsp;OpenSearch door in the MCP Inspector</>
+          )}
+          , then load again.
         </p>
       ) : null}
 

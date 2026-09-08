@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import GatewayVerdicts, { normalizeVerdict, pickSearchTool, frameworkLabel } from '../GatewayVerdicts';
+import GatewayVerdicts, { normalizeVerdict, pickSearchTool, frameworkLabel, authGate } from '../GatewayVerdicts';
 
 const AIGUARD_DOC = {
   _source: {
@@ -21,13 +21,13 @@ const AIGUARD_DOC = {
   },
 };
 
-function mockFetch({ toolsStatus = 200, tools = [{ name: 'search_index' }], hits = [AIGUARD_DOC], invokeStatus = 200 } = {}) {
+function mockFetch({ toolsStatus = 200, tools = [{ name: 'search_index' }], hits = [AIGUARD_DOC], invokeStatus = 200, toolsBody = null } = {}) {
   return vi.fn((url, opts) => {
     if (String(url).includes('/tools')) {
       return Promise.resolve({
         ok: toolsStatus === 200,
         status: toolsStatus,
-        json: async () => ({ tools }),
+        json: async () => (toolsBody || { tools }),
       });
     }
     return Promise.resolve({
@@ -81,6 +81,25 @@ describe('pickSearchTool', () => {
   });
 });
 
+describe('authGate', () => {
+  it('detects the 200 + privilege_login_required shape the inspector really sends', () => {
+    expect(authGate({ status: 200 }, { privilege_login_required: true, loginUrl: '/x' }))
+      .toEqual({ loginUrl: '/x' });
+  });
+
+  it('detects the pingone admin variant too', () => {
+    expect(authGate({ status: 200 }, { pingone_admin_login_required: true })).toEqual({ loginUrl: null });
+  });
+
+  it('still catches a plain 401', () => {
+    expect(authGate({ status: 401 }, {})).toEqual({ loginUrl: null });
+  });
+
+  it('does not gate a healthy tool list', () => {
+    expect(authGate({ status: 200 }, { tools: [{ name: 'search' }] })).toBeNull();
+  });
+});
+
 describe('GatewayVerdicts', () => {
   it('renders the compliance identifiers after loading', async () => {
     render(<GatewayVerdicts fetchImpl={mockFetch()} />);
@@ -100,18 +119,45 @@ describe('GatewayVerdicts', () => {
     expect(container.innerHTML).not.toContain('sk-orion');
   });
 
-  // The door has no client_credentials grant, so the panel cannot populate
-  // itself. Saying so is the difference between "sign in" and "looks broken".
-  it('explains the sign-in requirement on 401 instead of showing an error', async () => {
+  // MEASURED 2026-09-08 against built-in-privilege-opensearch: an unconnected
+  // door answers HTTP 200 with tools: [] and privilege_login_required — NOT a
+  // 401. A status-only check rendered "no search tool" for a door that was
+  // merely not signed in. This is the shape the live system actually returns.
+  it('treats the real unconnected-door shape (200 + flag) as needing sign-in', async () => {
+    render(<GatewayVerdicts fetchImpl={mockFetch({
+      toolsBody: {
+        tools: [],
+        privilege_login_required: true,
+        loginUrl: '/api/mcp/inspector/privilege/login?profile=built-in-privilege-opensearch',
+      },
+    })} />);
+    fireEvent.click(screen.getByRole('button', { name: /load findings/i }));
+
+    await waitFor(() => expect(screen.getByTestId('gwv-needs-auth')).toBeInTheDocument());
+    expect(screen.queryByTestId('gwv-error')).not.toBeInTheDocument();
+    // And it offers the door's own login, not prose directions.
+    expect(screen.getByTestId('gwv-login-link').getAttribute('href'))
+      .toContain('/api/mcp/inspector/privilege/login');
+  });
+
+  it('still treats a 401 as needing sign-in, for transports that use one', async () => {
     render(<GatewayVerdicts fetchImpl={mockFetch({ toolsStatus: 401 })} />);
     fireEvent.click(screen.getByRole('button', { name: /load findings/i }));
 
     await waitFor(() => expect(screen.getByTestId('gwv-needs-auth')).toBeInTheDocument());
-    expect(screen.getByTestId('gwv-needs-auth').textContent).toMatch(/sign-in/i);
-    expect(screen.queryByTestId('gwv-error')).not.toBeInTheDocument();
   });
 
-  it('reports plainly when the door exposes no search tool', async () => {
+  it('surfaces a genuine door error with its reason', async () => {
+    render(<GatewayVerdicts fetchImpl={mockFetch({
+      toolsBody: { tools: [], error: true, reason: 'upstream refused' },
+    })} />);
+    fireEvent.click(screen.getByRole('button', { name: /load findings/i }));
+
+    await waitFor(() => expect(screen.getByTestId('gwv-error')).toBeInTheDocument());
+    expect(screen.getByTestId('gwv-error').textContent).toMatch(/upstream refused/);
+  });
+
+  it('reports plainly when a CONNECTED door exposes no search tool', async () => {
     render(<GatewayVerdicts fetchImpl={mockFetch({ tools: [{ name: 'ListIndices' }] })} />);
     fireEvent.click(screen.getByRole('button', { name: /load findings/i }));
 
