@@ -451,6 +451,12 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false, zoom: zoomPr
                 window.dispatchEvent(new CustomEvent("token-topology-open"));
                 return;
               }
+              // Same pattern: the system map is a pop-out mounted in App.js,
+              // not an inline tab.
+              if (viewId === "system") {
+                window.dispatchEvent(new CustomEvent("system-flow-open"));
+                return;
+              }
               setTab(VIEW_ID_TO_TAB[viewId] || "chain");
             }}
           />

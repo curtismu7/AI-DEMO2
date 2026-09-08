@@ -15,7 +15,7 @@ const EMPTY_TRACE = () => ({
   // whose flowTraceId belongs to a DIFFERENT run (a prior run's late, out-of-
   // order SSE result landing on this run's fresh trace).
   flowTraceId: null,
-  startedAt: null, prompt: null, routingMode: null, routingDetail: null,
+  startedAt: null, finishedAt: null, prompt: null, routingMode: null, routingDetail: null,
   llmDetail: null, llmReply: null,
   phases: [], tokenEvents: [], mcpResult: null, authorize: null, authorizeEvaluations: null, outcome: null,
   // 'declined' once the human refuses a step-up / HITL approval gate. Without
@@ -311,6 +311,9 @@ export const tokenChainTraceStore = {
   completeTrace(ok, flowTraceId = null) {
     if (isForeignRun(flowTraceId)) return;
     trace.outcome = ok ? "ok" : "error";
+    // Stamped so a settled run can report its own wall-clock duration.
+    // startedAt alone only gives an elapsed time while the run is still live.
+    trace.finishedAt = Date.now();
     emit();
   },
   /** Full demo reset — empty pipeline (nothing done) ready for the next run. */

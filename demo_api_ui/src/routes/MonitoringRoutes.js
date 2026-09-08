@@ -11,10 +11,10 @@ import P1AzDashboard from "../components/P1AzDashboard";
 import PingOneEventPanel from "../components/PingOneEventPanel";
 import SequenceDiagramPage from "../components/SequenceDiagramPage";
 import TokenChainTraceRail from "../components/TokenChainTraceRail";
+import { SystemFlowMapView } from "../components/SystemFlowMap";
 import TokenExchangeDashboard from "../components/TokenExchangeDashboard";
 import WebMcpPanel from "../components/WebMcpPanel";
 import AgentFlowHistoryPage from "../pages/AgentFlowHistoryPage";
-import SignInPrompt from "../components/SignInPrompt";
 
 // Passed as prop to avoid circular dependency — AgentFlowPage is defined in App.js
 export default function MonitoringRoutes({ user, logout, AgentFlowPage }) {
@@ -29,14 +29,17 @@ export default function MonitoringRoutes({ user, logout, AgentFlowPage }) {
         {/* One live Token Chain model (tokenChainTraceStore) — TraceRail is the
             canonical display; classic TokenChainDisplay is no longer mounted. */}
         <Route path="token-chain" element={<TokenChainTraceRail />} />
+        {/* Same live model as token-chain, drawn on the deployment map instead
+            of as a sequence. Ungated for the same reason as its siblings. */}
+        <Route path="system-flow" element={<SystemFlowMapView />} />
         <Route path="mcp-traffic" element={<McpTrafficPage />} />
         <Route path="api-explorer" element={<Navigate to="/pingone-mcp-inspector?source=api" replace />} />
+        {/* Public: AgentFlowPage takes no props and reads no session — it
+            dispatches `agent-flow-diagram-open` and renders static copy telling
+            you to run the agent. Gating it behind SignInPrompt showed a
+            sign-in wall instead of the page, for a page that reveals nothing. */}
         <Route path="agent-flow" element={
-          !user
-            ? <SignInPrompt />
-            : AgentFlowPage
-              ? <AgentFlowPage />
-              : <Navigate to="/" replace />
+          AgentFlowPage ? <AgentFlowPage /> : <Navigate to="/" replace />
         } />
         {/* Live app-events stream (oauth / mcp / HITL / …). HTTP audit table kept at api-activity. */}
         <Route path="activity-log" element={<ActivityLogPage />} />

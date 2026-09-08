@@ -121,7 +121,10 @@ function auditAppRoutes(appJsPath, root) {
             own = guardFromElementExpression(src.slice(attr.value.expression.start, attr.value.expression.end));
           }
         }
-        if (routePath) {
+        // `path=""` is an index route — a real addressable surface (the mount
+        // root itself), not the absence of a path. A truthiness check here
+        // dropped it silently, which is how /setup stayed undeclared.
+        if (routePath !== null) {
           routes.push({
             path: routePath,
             level: strongest(own || 'public', inherited || 'public'),
@@ -154,9 +157,19 @@ function auditAppRoutes(appJsPath, root) {
  * @returns {{ path: string, level: string, line: number, file: string }[]}
  */
 function auditRouteTrees(root) {
+  // Every file that owns a <Routes> tree, with the prefix App.js mounts it at.
+  // A tree missing from this list is not "unchecked" — it is exempt, and the
+  // reverse check in check-auth-requirements.js then FAILS on any attempt to
+  // declare its routes, so the omission actively pushes them out of the SoT.
+  //
+  // CustomerRoutes.js and ProtocolPlaygroundRoutes.js are deliberately absent:
+  // they export shell-wrapped components, not <Route> elements, so they own no
+  // tree to audit.
   const trees = [
     { file: 'demo_api_ui/src/App.js', prefix: '' },
     { file: 'demo_api_ui/src/routes/EducationRoutes.js', prefix: '/architecture/' },
+    { file: 'demo_api_ui/src/routes/MonitoringRoutes.js', prefix: '/monitoring/' },
+    { file: 'demo_api_ui/src/routes/PublicRoutes.js', prefix: '/setup/' },
   ];
   const out = [];
   for (const { file, prefix } of trees) {
@@ -166,7 +179,10 @@ function auditRouteTrees(root) {
       // App.js declares the mount point as `/architecture/*`; the real surfaces
       // are the children, so drop the wildcard rather than list it twice.
       if (prefix && r.path === '*') continue;
-      out.push({ ...r, path: prefix ? prefix + r.path.replace(/^\//, '') : r.path, file });
+      // An index route (`path=""`) IS the mount root, so joining leaves a bare
+      // trailing slash — "/setup/" for what is addressable as "/setup".
+      const joined = prefix ? (prefix + r.path.replace(/^\//, '')).replace(/\/$/, '') : r.path;
+      out.push({ ...r, path: joined, file });
     }
   }
   return out;

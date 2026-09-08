@@ -935,6 +935,11 @@ export default function AdminSideNav({
           path: "/monitoring/token-exchange",
           icon: "log",
         },
+        {
+          label: "System Flow",
+          path: "/monitoring/system-flow",
+          icon: "lnk",
+        },
       ],
     },
     {
