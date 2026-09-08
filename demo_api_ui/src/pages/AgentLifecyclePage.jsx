@@ -124,6 +124,9 @@ function StepUpSlot() {
   const [phase, setPhase] = React.useState('idle'); // idle | checking-out | waiting-approval | approved | error
   const [message, setMessage] = React.useState('');
   const timerRef = React.useRef(null);
+  // The gateway-issued HITL challengeId from the first 428, threaded through
+  // CIBA initiate and the retry — see postCheckout's _hitl_challenge_id note.
+  const hitlChallengeIdRef = React.useRef(null);
 
   // Routed through callMcpTool (same as ScopedCallSlot's list_orders call above)
   // so this checkout shows up in the Token Chain rail / right-side agent panel
@@ -133,11 +136,19 @@ function StepUpSlot() {
   // banking agent can open a consent modal. This page has no modal — treat
   // those soft-success payloads as failed checkout, or we falsely show
   // "Checkout completed" when authorize still blocked the purchase.
-  const postCheckout = React.useCallback(async () => {
+  const postCheckout = React.useCallback(async (hitlChallengeId) => {
     try {
       const { result } = await callMcpTool(
         'checkout',
-        { product: 'Headphones', amount: 600 },
+        {
+          product: 'Headphones',
+          amount: 600,
+          // Same bridge AIAgent.js/demoAgentService.js use for every other CIBA
+          // retry: without the ORIGINAL gateway challengeId echoed back here,
+          // routes/ciba.js has nothing to mark approved, PingGateway's P1AZ
+          // decision re-asks fresh on retry, and CIBA approval loops forever.
+          ...(hitlChallengeId ? { _hitl_challenge_id: hitlChallengeId } : {}),
+        },
         { useCaseId: 'ciba-out-of-band-approval', vertical: 'retail' },
       );
       const softGate =
@@ -152,6 +163,7 @@ function StepUpSlot() {
           body: {
             error: result.error,
             message: result.error_description || result.message || result.error,
+            hitlChallengeId: result.hitlChallengeId || null,
           },
         };
       }
@@ -175,6 +187,7 @@ function StepUpSlot() {
         ok: false,
         body: {
           error: code,
+          hitlChallengeId: err.hitlChallengeId || null,
           message: err.message || code || `HTTP ${err.statusCode || 500}`,
         },
       };
@@ -193,7 +206,7 @@ function StepUpSlot() {
         const data = await res.json().catch(() => ({}));
         if (data.status === 'approved') {
           setMessage('Approved — retrying checkout…');
-          const retry = await postCheckout();
+          const retry = await postCheckout(hitlChallengeIdRef.current);
           if (retry.ok) {
             setPhase('approved');
             setMessage('Checkout completed.');
@@ -224,12 +237,19 @@ function StepUpSlot() {
         body.error === 'mcp_hitl_required' ||
         body.error === 'hitl_required');
     if (needsCiba) {
+      hitlChallengeIdRef.current = body.hitlChallengeId || null;
       try {
         const initRes = await fetch('/api/auth/ciba/initiate', {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ binding_message: 'Approve your $600 headphones purchase' }),
+          body: JSON.stringify({
+            binding_message: 'Approve your $600 headphones purchase',
+            // Lets routes/ciba.js mark the gateway's ORIGINAL HITL challenge
+            // approved via hitlServiceClient.respondToChallenge — otherwise
+            // the retry below re-triggers a fresh, unapproved challenge.
+            hitl_challenge_id: body.hitlChallengeId || undefined,
+          }),
         });
         const { auth_req_id, interval } = await initRes.json();
         setPhase('waiting-approval');
@@ -238,7 +258,7 @@ function StepUpSlot() {
         // docs/superpowers/plans/2026-07-20-ciba-real-platform-provisioning.md),
         // which auto-approves after a few seconds. There is no push/email
         // action for the user to take today.
-        setMessage(`Waiting for approval (auth_req_id: ${auth_req_id})… this demo auto-approves in a few seconds — no action needed.`);
+        setMessage(`Waiting for approval (auth_req_id: ${auth_req_id})… this demo auto-approves within a minute — no action needed.`);
         pollCiba(auth_req_id, (interval || 5) * 1000);
       } catch (err) {
         setPhase('error');

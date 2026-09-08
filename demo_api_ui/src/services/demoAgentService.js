@@ -637,6 +637,12 @@ export async function callMcpTool(tool, params = {}, { signal, useCaseId, vertic
           // out-of-band approval: a CIBA bypass.
           ...(err.step_up_method ? { step_up_method: err.step_up_method } : {}),
           ...(err.step_up_acr ? { step_up_acr: err.step_up_acr } : {}),
+          // mcp_step_up_required carries the gateway's HITL challengeId too when
+          // the tool call ALSO trips the HITL statement (e.g. checkout's $600
+          // needs both step-up AND HITL) — without it, a caller that resolves
+          // step-up via CIBA has no id to echo back on retry, so the untouched
+          // HITL challenge re-triggers a fresh, unapproved one every time.
+          ...(err.hitlChallengeId ? { hitlChallengeId: err.hitlChallengeId } : {}),
           ...(err.transaction_amount != null
             ? { transaction_amount: err.transaction_amount }
             : {}),

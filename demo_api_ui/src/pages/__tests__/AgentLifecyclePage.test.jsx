@@ -186,6 +186,83 @@ describe('AgentLifecyclePage — Slot 3 step-up on purchase', () => {
     );
   });
 
+  it('threads the gateway hitlChallengeId through CIBA initiate and the retry (checkout tripping both step-up AND HITL)', async () => {
+    // mcp_step_up_required is a THROW (not a soft-resolve like mcp_hitl_required),
+    // and it's the one that actually loops: the gateway HITL statement rides
+    // along on it (`hitlChallengeId`) whenever a call trips both gates, same as
+    // the live $600 checkout reproduction that found this bug.
+    callMcpTool
+      .mockImplementationOnce(() =>
+        Promise.reject(
+          Object.assign(new Error('MCP error: 428'), {
+            statusCode: 428,
+            code: 'mcp_step_up_required',
+            hitlChallengeId: 'chal-original-428',
+          }),
+        ),
+      )
+      .mockImplementationOnce(() =>
+        Promise.resolve({
+          result: { content: [{ type: 'text', text: '{}' }] },
+          tokenEvents: [],
+        }),
+      );
+
+    let pollCount = 0;
+    global.fetch = vi.fn((url) => {
+      if (url === '/api/auth/ciba/initiate') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ auth_req_id: 'req-challenge', interval: 1 }),
+        });
+      }
+      if (url === '/api/auth/ciba/poll/req-challenge') {
+        pollCount += 1;
+        return Promise.resolve({
+          status: 200,
+          json: () => Promise.resolve(
+            pollCount < 2 ? { status: 'pending' } : { status: 'approved' },
+          ),
+        });
+      }
+      return Promise.reject(new Error(`unhandled fetch: ${url}`));
+    });
+
+    render(<AgentLifecyclePage />);
+    fireEvent.click(screen.getByText('Checkout $600 headphones'));
+
+    await waitFor(() =>
+      expect(screen.getByText(/Waiting for approval/)).toBeInTheDocument(),
+    );
+
+    // The original gateway challengeId must ride along on the CIBA initiate
+    // call, or routes/ciba.js has nothing to mark approved.
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/auth/ciba/initiate',
+      expect.objectContaining({
+        body: JSON.stringify({
+          binding_message: 'Approve your $600 headphones purchase',
+          hitl_challenge_id: 'chal-original-428',
+        }),
+      }),
+    );
+
+    await vi.advanceTimersByTimeAsync(1000);
+    await vi.advanceTimersByTimeAsync(1000);
+
+    await waitFor(() =>
+      expect(screen.getByText('Checkout completed.')).toBeInTheDocument(),
+    );
+
+    // The retry must echo the same challengeId back to the gateway, or the
+    // untouched HITL statement re-triggers a fresh, unapproved challenge.
+    expect(callMcpTool).toHaveBeenLastCalledWith(
+      'checkout',
+      { product: 'Headphones', amount: 600, _hitl_challenge_id: 'chal-original-428' },
+      { useCaseId: 'ciba-out-of-band-approval', vertical: 'retail' },
+    );
+  });
+
   it('starts CIBA when callMcpTool soft-succeeds with mcp_hitl_required (no false checkout)', async () => {
     // callMcpTool resolves HITL 428s so the banking agent can open a modal.
     // StepUpSlot must not treat that as a completed purchase.
