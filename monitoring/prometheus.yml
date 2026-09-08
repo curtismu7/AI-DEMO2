@@ -65,3 +65,36 @@ scrape_configs:
       - targets: ['api-resource-server:8082']
         labels:
           service: api-resource-server
+
+  # Below: the OTel-Metrics-API equivalent of the prom-client services above
+  # (see e.g. demo_mcp_proxy/metrics.js) — same scrape shape, metrics emitted
+  # via the OTel SDK's Prometheus exporter instead of prom-client directly.
+  - job_name: mcp-proxy
+    static_configs:
+      - targets: ['mcp-proxy:8895']
+        labels:
+          service: mcp-proxy
+
+  - job_name: mastra-agent
+    static_configs:
+      - targets: ['mastra-agent:8892']
+        labels:
+          service: mastra-agent
+
+  - job_name: llm-proxy
+    static_configs:
+      - targets: ['llm-proxy:8090']
+        labels:
+          service: llm-proxy
+
+  - job_name: langchain-agent
+    static_configs:
+      - targets: ['langchain-agent:8888']
+        labels:
+          service: langchain-agent
+
+  - job_name: openai-agent
+    static_configs:
+      - targets: ['openai-agent:8891']
+        labels:
+          service: openai-agent

@@ -15,7 +15,8 @@ ENV GIT_SHA=$GIT_SHA
 WORKDIR /app
 
 COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt && guardrails configure --disable-metrics --disable-remote-inferencing --token ""
+RUN pip install --no-cache-dir -r requirements.txt && guardrails configure --disable-metrics --disable-remote-inferencing --token "" \
+  && opentelemetry-bootstrap -a install
 
 COPY src/ ./src/
 
@@ -24,4 +25,7 @@ EXPOSE 8893
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
   CMD python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:8893/health')" || exit 1
 
+# /otel is a bind mount (scripts/otel-python-entrypoint.sh) — see docker-compose.yml.
+# No-ops when OTEL_EXPORTER_OTLP_ENDPOINT is unset, same contract as otel-instrument.js.
+ENTRYPOINT ["/otel/otel-python-entrypoint.sh"]
 CMD ["python3", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8893"]

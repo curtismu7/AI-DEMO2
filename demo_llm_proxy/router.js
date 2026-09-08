@@ -9,6 +9,7 @@ const {
   captureGeneration,
   modelFromRequest,
 } = require('./posthogAi');
+const { exporter: metricsExporter, requestDuration, requestErrors } = require('./metrics');
 
 // ── Config ──────────────────────────────────────────────────────────────────
 // host.docker.internal lets the container reach llama-server processes running
@@ -406,6 +407,12 @@ function releaseTier(req) {
 proxy.on('proxyRes', (proxyRes, req) => {
   releaseTier(req);
 
+  if (req._aiStartedAt) {
+    requestDuration.record((Date.now() - req._aiStartedAt) / 1000, {
+      tier: req.proxyTarget?.name || 'unknown',
+    });
+  }
+
   // Tee response bytes for PostHog LLM Analytics ($ai_generation) without
   // altering the client stream. Metadata only — no prompt/completion text.
   if (!req._aiStartedAt) return;
@@ -441,6 +448,11 @@ proxy.on('proxyRes', (proxyRes, req) => {
 
 proxy.on('error', (err, req, res) => {
   console.error(`[proxy] Error: ${err.message}`);
+  const tierLabel = req.proxyTarget?.name || 'unknown';
+  requestErrors.add(1, { tier: tierLabel });
+  if (req._aiStartedAt) {
+    requestDuration.record((Date.now() - req._aiStartedAt) / 1000, { tier: tierLabel });
+  }
   // The target is likely gone (e.g. swapped out behind our back by a UI
   // pre-warm) — mark it unhealthy NOW so the next request re-selects instead
   // of riding the stale health cache for up to HEALTH_TTL_MS.
@@ -512,6 +524,13 @@ const server = http.createServer((req, res) => {
       res.end(JSON.stringify({ ok: true, pin: pinSummary(), models: TIERS.map(modelSummary) }));
     });
     return;
+  }
+
+  // Prometheus scrape target — unauthenticated, same posture as the other
+  // Node MCP services' /metrics routes (monitoring/prometheus.yml already
+  // trusts the internal network for scraping).
+  if (req.url === '/metrics' && req.method === 'GET') {
+    return metricsExporter.getMetricsRequestHandler(req, res);
   }
 
   if (req.url === '/status' && req.method === 'GET') {

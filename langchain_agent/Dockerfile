@@ -14,8 +14,13 @@ RUN apt-get update && apt-get install -y \
 
 # Copy requirements and install Python dependencies
 COPY langchain_agent/requirements.txt .
+# PIP_USER=1 forces opentelemetry-bootstrap's own internal `pip install` calls
+# (it doesn't expose a --user flag) into /root/.local, same as the -r install
+# above — otherwise its packages would land in the global site-packages and
+# never make it into the runtime stage's `COPY --from=builder /root/.local`.
 RUN pip install --no-cache-dir --user -r requirements.txt \
-    && PATH="/root/.local/bin:$PATH" guardrails configure --disable-metrics --disable-remote-inferencing --token ""
+    && PATH="/root/.local/bin:$PATH" guardrails configure --disable-metrics --disable-remote-inferencing --token "" \
+    && PATH="/root/.local/bin:$PATH" PIP_USER=1 opentelemetry-bootstrap -a install
 
 # Production stage
 ARG GIT_SHA=unknown
@@ -99,5 +104,11 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8080/health || exit 1
 
+# /otel is a bind mount (scripts/otel-python-entrypoint.sh) — see docker-compose.yml.
+# No-ops when OTEL_EXPORTER_OTLP_ENDPOINT is unset, same contract as otel-instrument.js.
+# docker-compose overrides CMD with `command: ./scripts/startup.sh`, which itself
+# execs `python -m src.main` — env vars set by opentelemetry-instrument (PYTHONPATH,
+# OTEL_*) survive both execs, so auto-instrumentation still applies to the final process.
+ENTRYPOINT ["/otel/otel-python-entrypoint.sh"]
 # Default command
 CMD ["python", "-m", "src.main"]

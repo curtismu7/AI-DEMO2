@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import time
 import uuid
 from typing import Any, AsyncGenerator, Dict, Optional
 
@@ -17,6 +18,7 @@ from fastapi.responses import StreamingResponse
 from agui.bff_tool_adapter import resolve_bff_tool_url
 from agui.emitter import AGUIEventEmitter
 from agui.sse_transport import format_sse, KEEPALIVE_PING
+from metrics import run_duration, run_errors
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +105,7 @@ async def agent_run(request: Request) -> StreamingResponse:
                 session_id, run_id, len(message), len(tool_schemas), run_provider or "default")
 
     return StreamingResponse(
-        _run_stream(run_id, session_id, message, auth_token, vertical_flavor,
+        _run_stream_with_metrics(run_id, session_id, message, auth_token, vertical_flavor,
                     bff_tool_url=bff_tool_url, tool_schemas=tool_schemas,
                     messages_list=messages_list, run_provider=run_provider, run_model=run_model,
                     user_identity=user_identity),
@@ -170,6 +172,38 @@ async def _run_stream(
                 pass
             except Exception:
                 logger.debug("[AG-UI] task teardown error", exc_info=True)
+
+
+async def _run_stream_with_metrics(
+    run_id: str, session_id: str, message: str, auth_token: str,
+    vertical_flavor: Optional[str] = None,
+    bff_tool_url: str = "",
+    tool_schemas: Optional[list] = None,
+    messages_list: Optional[list] = None,
+    run_provider: Optional[str] = None,
+    run_model: Optional[str] = None,
+    user_identity: Optional[Dict[str, Any]] = None,
+) -> AsyncGenerator[str, None]:
+    """Pure-observation wrapper around _run_stream — does not touch its
+    control flow, error handling, or yielded events. _invoke_agent's own
+    try/except (below) swallows agent/tool/LLM errors into an AG-UI
+    RUN_ERROR SSE event rather than raising, so this only records
+    run_errors for something escaping that except entirely.
+    """
+    start = time.monotonic()
+    try:
+        async for item in _run_stream(
+            run_id, session_id, message, auth_token, vertical_flavor,
+            bff_tool_url=bff_tool_url, tool_schemas=tool_schemas,
+            messages_list=messages_list, run_provider=run_provider, run_model=run_model,
+            user_identity=user_identity,
+        ):
+            yield item
+        run_duration.record(time.monotonic() - start)
+    except Exception:
+        run_duration.record(time.monotonic() - start)
+        run_errors.add(1)
+        raise
 
 
 async def _invoke_agent(
