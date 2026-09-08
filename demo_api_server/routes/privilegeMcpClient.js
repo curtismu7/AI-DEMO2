@@ -53,15 +53,27 @@ const DEFAULT_PRIVILEGE_BRAVE_MCP_URL = () =>
 // registered as the Agentic App `pingone-admin-local`. This is the door where
 // Privilege polices PingOne ADMINISTRATIVE actions rather than banking ones.
 //
-// `/sse`, NOT `/mcp` — and that is not a style choice. The gateway constrains a
-// client to the app's registered entry path, and this app's backend is
-// registered as /sse (the only path its discovery handshake works on). Asking
-// for /mcp gets a bare 404 whose only explanation is in the gateway log:
-//   rejecting /mcp on app pingone-admin-local: outside entry path "/sse"
+// THE PATH IS NOT COSMETIC AND IT IS NOT OURS TO CHOOSE. The gateway pins each
+// Agentic App to ONE client-facing entry path, derived from the Backend Name it
+// was registered with, and asking for the other one gets a bare 404 whose only
+// explanation is in the gateway log:
+//   rejecting /sse on app pingone-admin-local: outside entry path "/mcp"
+//
+// Both work as a BACKEND, because demo_mcp_pingone answers the SSE handshake on
+// /sse and /mcp alike — so this flips whenever someone edits Backend Name in the
+// console (it flipped from /sse to /mcp on 2026-09-08). It takes effect only
+// after the gateway restarts and re-runs discovery.
+//
+// Hence the separate PATH override: realigning after a console edit should be an
+// env change and a restart, not a code change. /mcp is the better default —
+// it is what the console's own MCP Config block hands out, and what console door
+// discovery reports.
 const PRIVILEGE_APP_PINGONE_ADMIN = () => process.env.PRIVILEGE_APP_PINGONE_ADMIN || 'pingone-admin-local';
+const PRIVILEGE_APP_PINGONE_ADMIN_PATH = () =>
+  String(process.env.PRIVILEGE_APP_PINGONE_ADMIN_PATH || 'mcp').replace(/^\/+/, '');
 const DEFAULT_PRIVILEGE_PINGONE_ADMIN_URL = () =>
   process.env.PRIVILEGE_MCPGW_PINGONE_ADMIN_URL
-  || `${PRIVILEGE_GATEWAY_HOST}/${PRIVILEGE_APP_PINGONE_ADMIN()}/sse`;
+  || `${PRIVILEGE_GATEWAY_HOST}/${PRIVILEGE_APP_PINGONE_ADMIN()}/${PRIVILEGE_APP_PINGONE_ADMIN_PATH()}`;
 // Through our façade: same policy, but the client registers with our own durable
 // AS, so it survives a gateway restart.
 const DEFAULT_FACADE_MCP_URL = () =>
@@ -1473,8 +1485,9 @@ router.get('/state', (req, res) => {
     {
       // The PingOne-admin door: Privilege policing PingOne administration
       // itself, rather than banking tools. Listed explicitly rather than left
-      // to console discovery because discovery reports the app's URL with the
-      // /mcp path, which this app answers with 404 (see the constant above).
+      // to console discovery so the path stays pinned to whatever the gateway
+      // currently enforces (see PRIVILEGE_APP_PINGONE_ADMIN_PATH above) instead
+      // of whatever the console happens to report.
       label: 'Privilege — PingOne admin (local MCP server)',
       mode: 'privilege',
       url: DEFAULT_PRIVILEGE_PINGONE_ADMIN_URL(),
