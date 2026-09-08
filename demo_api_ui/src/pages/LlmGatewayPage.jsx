@@ -13,7 +13,7 @@
 // PROVIDER (passed through the gateway) and are labelled as such. Spend is not shown
 // at all — Privilege exposes no per-key usage endpoint today, and an invented meter
 // would discredit the one thing this page exists to prove.
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useThemeOptional } from '../context/ThemeContext';
 import useDividerDrag from '../hooks/useDividerDrag';
 import { ATTACK_CATEGORIES, GUARDRAIL_ATTACKS } from '../config/guardrailAttackCatalog';
@@ -159,6 +159,10 @@ export default function LlmGatewayPage() {
   const [decisionView, setDecisionView] = useState('form');
   const [limitsByLane, setLimitsByLane] = useState({});
   const [selectedAttack, setSelectedAttack] = useState(() => window.localStorage.getItem('lgw-attack-choice') || '');
+  // Which turn's decision is showing in the right column — defaults to the
+  // most recent, but clicking an older model turn re-points it there.
+  const [selectedTurnId, setSelectedTurnId] = useState(null);
+  const nextTurnId = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -190,6 +194,7 @@ export default function LlmGatewayPage() {
   const reset = useCallback(() => {
     setTurns([]);
     setDecision(null);
+    setSelectedTurnId(null);
     setLimitsByLane({});
     setPrompt('');
     setSelectedAttack('');
@@ -200,25 +205,24 @@ export default function LlmGatewayPage() {
     const text = prompt.trim();
     if (!text || busy) return;
     setBusy(true);
-    setTurns((t) => [...t, { role: 'you', text }]);
+    setTurns((t) => [...t, { id: nextTurnId.current++, role: 'you', text }]);
     setPrompt('');
     setSelectedAttack('');
     try {
       const data = await api('/llm/call', { method: 'POST', body: { provider: selected, prompt: text } });
-      setTurns((t) => [...t, { role: 'model', text: data.reply, tone: 'ok', provider: selected }]);
-      record(selected, {
+      const d = {
         verdict: 'Answered', tone: 'ok', layer: null,
         provider: selected, route: data.route, latencyMs: data.latencyMs,
         reachedProvider: data.reachedProvider !== false,
         reason: null, providerLimits: data.providerLimits || null,
-      });
+      };
+      const id = nextTurnId.current++;
+      setTurns((t) => [...t, { id, role: 'model', text: data.reply, tone: 'ok', provider: selected, decision: d }]);
+      setSelectedTurnId(id);
+      record(selected, d);
     } catch (err) {
       const { verdict, tone, layer } = classify(err);
-      setTurns((t) => [...t, {
-        role: 'model', tone, provider: selected,
-        text: tone === 'warn' ? `Privilege denied this call. ${err.reason || err.message}` : err.message,
-      }]);
-      record(selected, {
+      const d = {
         verdict, tone, layer,
         provider: err.provider || selected,
         route: err.route || (lanes.find((l) => l.provider === selected) || {}).route || '',
@@ -226,7 +230,14 @@ export default function LlmGatewayPage() {
         reachedProvider: err.reachedProvider === true,
         reason: err.reason || err.message,
         providerLimits: err.providerLimits || null,
-      });
+      };
+      const id = nextTurnId.current++;
+      setTurns((t) => [...t, {
+        id, role: 'model', tone, provider: selected, decision: d,
+        text: tone === 'warn' ? `Privilege denied this call. ${err.reason || err.message}` : err.message,
+      }]);
+      setSelectedTurnId(id);
+      record(selected, d);
     } finally {
       setBusy(false);
     }
@@ -320,6 +331,7 @@ export default function LlmGatewayPage() {
         <div className="lgw-resize-handle" aria-label="Resize lanes column" {...railHandleProps} />
 
         <section className="lgw-main" aria-label="Conversation">
+          <h2 className="lgw-rail__k lgw-main__k">Request</h2>
           <div className="lgw-turns">
             {turns.length === 0 ? (
               <p className="lgw-empty">
@@ -332,11 +344,25 @@ export default function LlmGatewayPage() {
                 )}
               </p>
             ) : null}
-            {turns.map((t, i) => (
-              <div key={i} className={`lgw-turn lgw-turn--${t.role}`}>
-                <span className="lgw-turn__who">{t.role === 'you' ? 'You' : TITLES[t.provider] || 'Gateway'}</span>
-                <div className={`lgw-turn__body${t.tone && t.tone !== 'ok' ? ` is-${t.tone}` : ''}`}>{t.text}</div>
-              </div>
+            {turns.map((t) => (
+              t.role === 'model' ? (
+                <button
+                  type="button"
+                  key={t.id}
+                  className={`lgw-turn lgw-turn--model${t.id === selectedTurnId ? ' is-selected' : ''}`}
+                  aria-pressed={t.id === selectedTurnId}
+                  title="Show this run's result in Last decision"
+                  onClick={() => { setDecision(t.decision); setSelectedTurnId(t.id); }}
+                >
+                  <span className="lgw-turn__who">{TITLES[t.provider] || 'Gateway'}</span>
+                  <div className={`lgw-turn__body${t.tone && t.tone !== 'ok' ? ` is-${t.tone}` : ''}`}>{t.text}</div>
+                </button>
+              ) : (
+                <div key={t.id} className="lgw-turn lgw-turn--you">
+                  <span className="lgw-turn__who">You</span>
+                  <div className="lgw-turn__body">{t.text}</div>
+                </div>
+              )
             ))}
             {busy ? (
               <p className="lgw-empty lgw-busy">

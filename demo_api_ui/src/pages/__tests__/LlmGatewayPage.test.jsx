@@ -546,4 +546,46 @@ describe("LLM Gateway console", () => {
       expect(await screen.findByTestId("lgw-decision")).toBeInTheDocument();
     });
   });
+
+  describe("turn selection", () => {
+    it("re-points Last decision at an older turn's own result when it's clicked", async () => {
+      const responses = [
+        {
+          ok: true, status: 200,
+          text: async () => JSON.stringify({
+            reply: "Paris.", provider: "anthropic", route: "/llm/anthropic/v1/messages",
+            latencyMs: 300, reachedProvider: true,
+          }),
+        },
+        {
+          ok: false, status: 403,
+          text: async () => JSON.stringify({
+            error: "blocked", code: "llm_policy_denied", reason: "no PII",
+            provider: "anthropic", route: "/llm/anthropic/v1/messages",
+            latencyMs: 60, reachedProvider: false,
+          }),
+        },
+      ];
+      let call = 0;
+      global.fetch = vi.fn((url) => {
+        const u = String(url);
+        if (u.endsWith("/llm/config")) {
+          return Promise.resolve({ ok: true, status: 200, text: async () => JSON.stringify(CONFIG) });
+        }
+        if (u.endsWith("/llm/call")) return Promise.resolve(responses[call++]);
+        return new Promise(() => {});
+      });
+
+      render(<LlmGatewayPage />);
+      await ask("capital of France?");
+      await screen.findByText("Paris.");
+
+      await ask("customer SSN 123-45-6789");
+      expect(await screen.findByTestId("lgw-decision")).toHaveTextContent(/Denied by policy/);
+
+      // Click back on the earlier, successful turn.
+      fireEvent.click(screen.getByText("Paris.").closest("button"));
+      expect(await screen.findByTestId("lgw-decision")).toHaveTextContent(/Answered/);
+    });
+  });
 });

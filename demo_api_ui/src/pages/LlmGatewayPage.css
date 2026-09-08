@@ -322,6 +322,10 @@
   overflow: hidden;
 }
 
+.lgw-main__k {
+  padding: 0.85rem 0.9rem 0;
+}
+
 .lgw-turns {
   display: flex;
   flex-direction: column;
@@ -362,6 +366,29 @@
 
 .lgw-turn { display: flex; flex-direction: column; gap: 0.2rem; }
 
+/* Model turns are buttons — clicking one re-points Last decision at that
+   run's result — so they need the usual button-reset plus a click affordance
+   and a way to show which run is currently on display in the right column. */
+.lgw-turn--model {
+  width: 100%;
+  padding: 0.3rem 0.4rem;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.lgw-turn--model:hover {
+  background: var(--th-bg-hover);
+}
+
+.lgw-turn--model.is-selected {
+  border-color: var(--th-accent, var(--th-border-strong));
+  background: var(--th-bg-inset);
+}
+
 .lgw-turn__who {
   font-size: var(--font-size-sm);
   letter-spacing: 0.09em;
@@ -373,6 +400,10 @@
   font-size: var(--font-size-base);
   line-height: 1.55;
   color: var(--th-text);
+}
+
+.lgw-turn--you {
+  padding: 0.3rem 0.4rem;
 }
 
 .lgw-turn--you .lgw-turn__body { color: var(--th-text-muted); }
