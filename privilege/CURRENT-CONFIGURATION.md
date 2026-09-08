@@ -46,10 +46,28 @@ what this repo called "agentless").
 | --- | --- | --- | --- |
 | `opensearch22` | MCP Server (subdomain) | `http://opensearch-mcp-server.ping-devops-curtismuir.svc.cluster.local/sse` | Working — 9 tools |
 | `opensearch` | MCP Server (subdomain) | same, older duplicate registration | Working — 9 tools |
-| `pingone-mcp-server-2` | MCP Server (subdomain) | unrelated, pre-existing app kept for its own purpose | Not part of this demo |
+| `pingone-mcp-server-2` | MCP Server (subdomain) | unrelated, pre-existing app kept for its own purpose | Not part of this demo — see the note below, this is NOT the demo's PingOne MCP |
 | `mcp-brave-search` | Catalog sidecar | Privilege's own `mcp/brave-search:1.0.0` image, reaching our `mcp-brave` sidecar via the mesh | Working after the 2026-09-07 gateway restart (was stuck in a "Tenant not found" registration retry loop) |
 | `mcp-grafana` | Catalog sidecar | Privilege's own `mcp/grafana:1.0.0` image → our `mcp-grafana` sidecar via the mesh | Working after the same restart |
 | `banking-rest2` | OpenAPI MCP | Privilege's own `mcp/openapi:latest` image → our `mcp-banking-rest` sidecar via the mesh → AI-DEMO2's `mcp-resource-server` in `ping-devops-cmuir` | Working after fixing a port typo and a wrong-upstream bug (both below) |
+
+**`pingone-mcp-server-2` is not the demo's PingOne MCP — do not go looking for a
+backend behind it.** The name invites the assumption and the table above has been
+read that way at least once, costing a session's work: someone concluded the demo
+had no working PingOne MCP, went looking for one in `ping-devops-cmuir` and
+`ping-devops-curtismuir` (neither has one), and started building a replacement
+that already existed.
+
+The demo's PingOne MCP is the **`mcp-pingone`** sidecar
+(`ghcr.io/curtismu7/ai-demo-mcp-pingone`), which wraps PingOne's own MCP server
+behind a stdio-to-HTTP bridge. It arrives with PR #2913 and is absent from the
+table above only because that PR is unmerged — add its row when it lands.
+
+One measured constraint from that work, worth knowing before anyone designs
+around it: the gateway does **not** relay MCP elicitation, so PingOne's
+interactive device-code prompt never reaches a human and a caller arriving
+through the gateway hangs on "Waiting for authorization..." forever
+(measured 2026-09-07).
 
 ### Two registration mechanisms, and why "localhost" shows up in the console
 
