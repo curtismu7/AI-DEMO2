@@ -17,15 +17,38 @@ describe('POST /api/privilege-mcp/config — blank values do not overwrite', () 
     else process.env.PRIVILEGE_MCPGW_URL = originalMcpUrl;
   });
 
-  it('keeps the env-seeded clientId when the client posts a blank one', async () => {
-    const res = await request(app)
+  // clientId is no longer seeded from PRIVILEGE_SSO_CLIENT_ID — that is a
+  // client_credentials worker client, not a browser app, and PingOne answers its
+  // /as/authorize with a bare NOT_FOUND. So the value this protects is one the
+  // OPERATOR set; the blank-does-not-overwrite rule itself is unchanged.
+  it('a blank clientId does not wipe one the operator already set', async () => {
+    // One agent, so both posts land on the same BFF session — config is stored
+    // per session, and a bare request() gets a fresh cookie each time.
+    const agent = request.agent(app);
+    await agent
+      .post('/api/privilege-mcp/config')
+      .send({ clientId: 'operator-supplied-id' })
+      .expect(200);
+
+    const res = await agent
       .post('/api/privilege-mcp/config')
       .send({ mcpUrl: '', clientId: '', scopes: 'openid profile email' })
       .expect(200);
 
-    expect(res.body.config.clientId).toBe('seeded-client-id');
+    expect(res.body.config.clientId).toBe('operator-supplied-id');
     expect(res.body.config.mcpUrl).toBe('https://gateway.example.com/mcp');
     expect(res.body.config.scopes).toBe('openid profile email');
+  });
+
+  it('does not seed clientId from the Privilege SSO worker client', async () => {
+    const res = await request(app).get('/api/privilege-mcp/state').expect(200);
+    for (const [mode, cfg] of Object.entries(res.body.gatewayConfigs || {})) {
+      expect([mode, cfg.clientId]).not.toEqual([mode, 'seeded-client-id']);
+    }
+    // ...and the page is told what supplies the client instead, so a blank
+    // field reads as "handled" rather than "missing".
+    expect(res.body.clientHints.privilege).toMatch(/dynamic/i);
+    expect(res.body.clientHints.facade).toMatch(/broker/i);
   });
 
   it('still applies a non-blank value', async () => {

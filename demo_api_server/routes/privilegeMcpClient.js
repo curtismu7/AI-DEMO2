@@ -97,6 +97,25 @@ function privilegeGatewayOrigin() {
 // (privilege/AGENTLESS-CONFIGURATION.md). FrontEndName is the agent-mode
 // procyon host and is deliberately not used here.
 function privilegeDoorUrl(appName) { return `${privilegeGatewayOrigin()}/${appName}/mcp`; }
+
+// Where each mode's OAuth client actually comes from. The Client ID field is a
+// fallback for a gateway that does not advertise its own AS, and none of the
+// doors shipped here are that: the façade and Direct doors register with OUR
+// broker, and the Privilege gateway mints a fresh client per sign-in via RFC
+// 7591. Stated so an empty field reads as "supplied automatically" rather than
+// "someone deleted the config" — the previous default filled it with the
+// Privilege SSO worker client, which cannot complete a browser flow at all.
+function CLIENT_HINTS() {
+  const broker = process.env.AGENT_GATEWAY_BROKER_CLIENT_ID;
+  const viaBroker = broker
+    ? `registered with this app's own broker as "${broker}"`
+    : 'registered with this app\'s own broker';
+  return {
+    direct: viaBroker,
+    facade: viaBroker,
+    privilege: 'registered dynamically with the gateway at sign-in (RFC 7591)',
+  };
+}
 // The façade reaches the same app through its multiApp privilege-gateway door,
 // so only the <app> segment differs.
 function facadeDoorUrl(appName) { return `${PUBLIC_APP_ORIGIN()}/mcp-facade/privilege-gateway/${appName}/mcp`; }
@@ -143,10 +162,18 @@ function getClientSession(req) {
     // Every mode authenticates the same way (OAuth + PKCE, dynamic client
     // registration); only the destination differs. clientId is a fallback for a
     // gateway that does not advertise its own AS — DCR replaces it when one does.
-    const oauthDefaults = {
-      clientId: process.env.PRIVILEGE_SSO_CLIENT_ID || process.env.PINGONE_MCP_GATEWAY_CLIENT_ID || '',
-      scopes: 'openid profile email',
-    };
+    //
+    // Deliberately EMPTY rather than defaulted to PRIVILEGE_SSO_CLIENT_ID. That
+    // is a client_credentials WORKER client (see privilegeMcpSimple.js), not a
+    // browser app: PingOne answers its /as/authorize with a bare `NOT_FOUND`,
+    // which is what the operator saw when a dead door fell through to the
+    // PingOne branch. Every door this page ships with self-advertises its AS, so
+    // the field is unused in a working sign-in anyway — prefilling it with an id
+    // that cannot complete the flow only made a broken door look like an OAuth
+    // misconfiguration. An operator pointing at a gateway that does NOT
+    // self-advertise still sets it by hand, and beginOAuthFlow now says so by
+    // name instead of authorizing with an empty client_id.
+    const oauthDefaults = { clientId: '', scopes: 'openid profile email' };
     const modeConfigs = {
       direct: { ...oauthDefaults, mcpUrl: DEFAULT_DIRECT_MCP_URL() },
       privilege: { ...oauthDefaults, mcpUrl: DEFAULT_PRIVILEGE_MCP_URL() },
@@ -1368,6 +1395,16 @@ async function beginOAuthFlow(session, req) {
     }
   }
 
+  // Neither DCR nor the broker supplied one, and nothing is configured. Sending
+  // client_id= empty gets an opaque PingOne error page that names nothing; say
+  // which door needs the setting instead.
+  if (!clientId) {
+    throw new Error(
+      `No client_id for ${session.config.mcpUrl}: its authorization server (${new URL(authorizationUri).origin}) `
+      + 'does not advertise dynamic client registration, so set Client ID in Settings to an app registered there.',
+    );
+  }
+
   const authUrl = new URL(authorizationUri);
   authUrl.searchParams.set('client_id', clientId);
   authUrl.searchParams.set('response_type', 'code');
@@ -1542,6 +1579,10 @@ router.get('/state', (req, res) => {
     config: session.config,
     gatewayMode: session.gatewayMode,
     gatewayConfigs: session.gatewayConfigs,
+    // What actually supplies the client for each mode, so an empty Client ID
+    // field reads as "handled" rather than "missing". Computed here rather than
+    // stored in gatewayConfigs, which round-trips through POST /config.
+    clientHints: CLIENT_HINTS(),
     oauth: { authenticated: Boolean(session.oauth.accessToken), source: session.oauth.source || null, expiresAt: session.oauth.expiresAt, scope: session.oauth.scope || '' },
     // The façade's privilege-gateway door runs on a server-side gateway token
     // that dies with the process (services/privilegeGatewaySession.js). Ship its

@@ -293,6 +293,10 @@ export default function PrivilegeMcpClientPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [config, setConfig] = useState({ mcpUrl: '', clientId: '', scopes: 'openid profile email', llmUrl: 'http://127.0.0.1:11434', llmModel: 'llama3.2:1b' });
+  // Per-mode "what actually supplies the OAuth client", from /state. Only read
+  // when the Client ID field is blank, which is the normal state for every door
+  // shipped here (they all self-advertise and register their own client).
+  const [clientHints, setClientHints] = useState({});
   const [gatewayMode, setGatewayMode] = useState('privilege');
   // '' = an MCP path is active. Non-empty = chat goes to that LLM lane instead.
   const [llmPath, setLlmPath] = useState('');
@@ -643,6 +647,7 @@ export default function PrivilegeMcpClientPage() {
       savedMcpUrlRef.current = s.config?.mcpUrl || '';
       setPresets(Array.isArray(s.presets) ? s.presets : []);
       setDoorDiscovery(s.doorDiscovery?.persisted ? s.doorDiscovery : null);
+      setClientHints(s.clientHints || {});
       setAuthenticated(Boolean(s.oauth?.authenticated));
       setMainAppAuthenticated(Boolean(s.mainAppAuthenticated));
       setUser(s.user || null);
@@ -1614,8 +1619,21 @@ export default function PrivilegeMcpClientPage() {
                 </label>
                 <label className="cur-field">
                   <span className="cur-field-label">OAuth Client ID</span>
-                  <input className="cur-input" value={config.clientId} onChange={(e) => setConfig({ ...config, clientId: e.target.value })} />
+                  <input className="cur-input" value={config.clientId} onChange={(e) => setConfig({ ...config, clientId: e.target.value })} placeholder="supplied automatically — see below" />
                 </label>
+                {/* An empty Client ID is the NORMAL state for every door shipped
+                    here: they all advertise their own AS, so the client is
+                    registered rather than configured. Saying which one avoids
+                    reading the blank field as missing config — the old default
+                    filled it with the Privilege SSO worker client, which cannot
+                    complete a browser flow and produced a bare PingOne
+                    NOT_FOUND page when a broken door fell through to it. */}
+                {!config.clientId?.trim() && clientHints[gatewayMode] && (
+                  <p className="cur-denial-note">
+                    Client ID is optional here — this path&apos;s client is {clientHints[gatewayMode]}.
+                    Set it only for a gateway that does not advertise dynamic client registration.
+                  </p>
+                )}
                 <label className="cur-field">
                   <span className="cur-field-label">Requested Scopes</span>
                   <input className="cur-input" value={config.scopes} onChange={(e) => setConfig({ ...config, scopes: e.target.value })} />
