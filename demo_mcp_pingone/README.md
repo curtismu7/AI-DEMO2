@@ -4,6 +4,12 @@ Runs [`pingidentity/pingone-mcp-server`](https://github.com/pingidentity/pingone
 as a sidecar in the PingOne Privilege AI Gateway pod, so Privilege applies
 per-tool policy to **PingOne administrative actions**.
 
+**Gateway/policy behaviors that aren't specific to this server** — policy
+union across multiple policies, entry-path pinning, DCR statelessness, the
+hosted-vs-self-hosted auth split — live in
+[`privilege/LESSONS-LEARNED.md`](../privilege/LESSONS-LEARNED.md), not here.
+This file stays scoped to what's specific to this bridge.
+
 The demo it enables: *"this agent may inventory your PingOne applications, but
 may not create or modify one."*
 

@@ -217,6 +217,12 @@ kubectl logs -n ping-devops-curtismuir deployment/agentless-mcpgw -c log-tailer 
 The client renders both as a bare `403 Forbidden` / "The MCP server denied this
 operation", so always go to the log for the real reason.
 
+**Policy behaves strangely (union of old + new grants, an app you just
+created denies everything, the wrong tool list) or a door you registered
+moments ago 404s or 401s in a way that doesn't add up?** Read
+`privilege/LESSONS-LEARNED.md` first — it covers exactly those failure
+modes with the log lines that distinguish them.
+
 ## Symptom index
 
 | Symptom | Cause |

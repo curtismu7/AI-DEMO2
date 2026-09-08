@@ -22,6 +22,7 @@ including Ping's SE enablement storyboards and the code paths, is
 | [`AGENTLESS-CONFIGURATION.md`](AGENTLESS-CONFIGURATION.md) | Operating or testing the OAuth/PKCE Agentless gateway in `ping-devops-cmuir` |
 | [`AGENT-CONFIGURATION.md`](AGENT-CONFIGURATION.md) | Operating or testing the Agent-authenticated OpenSearch deployment in `ping-devops-curtismuir` |
 | [`CURRENT-CONFIGURATION.md`](CURRENT-CONFIGURATION.md) | Choosing a mode and comparing their current values |
+| [`LESSONS-LEARNED.md`](LESSONS-LEARNED.md) | Authoring a policy, registering an Agentic App, or debugging a 403/404 you don't understand — behaviors that cost real time and aren't documented by Ping (policy union, entry-path pinning, DCR statelessness, hosted-vs-self-hosted auth) |
 | [`PRIVILEGE-MCP.md`](PRIVILEGE-MCP.md) | The canonical record. Architecture, protocol per hop, every blocker and how it was ruled out, dated newest-last. Long, but the trap list at the end of each section is what saves the time |
 | [`PRIVILEGE-MCP-CONSOLE-STEPS.md`](PRIVILEGE-MCP-CONSOLE-STEPS.md) | Doing console work. These steps cannot be automated or tested from this repo |
 | [`runbooks/ping-mcpgw.md`](runbooks/ping-mcpgw.md) | Standing the gateway up locally |
@@ -32,6 +33,7 @@ including Ping's SE enablement storyboards and the code paths, is
 
 ```
 privilege/
+├── LESSONS-LEARNED.md                policy/authz/entry-path behaviors that cost real time
 ├── PRIVILEGE-MCP.md                  canonical investigation record
 ├── PRIVILEGE-MCP-CONSOLE-STEPS.md    console-side steps (not automatable)
 ├── PRIVILEGE-MCP-STATUS-2026-08-02.md  point-in-time snapshot, superseded
