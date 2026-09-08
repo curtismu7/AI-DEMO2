@@ -221,6 +221,25 @@ const LLM_PATHS = {
   openai: { key: 'openai', title: 'LLM — OpenAI through Privilege', detail: 'The prompt goes to GPT through a Privilege virtual key. Privilege injects the provider key and can deny the call before the model ever sees it.' },
 };
 
+// Which surfaces each view mode shows. Demo keeps Tools (its Run buttons and
+// Present mode ARE a demo move) and RESULTS (the returned data is half of what
+// you are showing), so the split is narrower than "chat vs everything else".
+const VIEW_TABS = {
+  demo: ['chat', 'tools'],
+  inspect: ['mcp', 'rpc', 'policies'],
+};
+const VIEW_TERMINAL_TABS = {
+  demo: ['trace', 'results'],
+  inspect: ['events', 'trace', 'scopes', 'results'],
+};
+const TAB_LABELS = [
+  ['chat', 'Agent Chat'],
+  ['tools', 'Tools'],
+  ['mcp', 'MCP Explorer'],
+  ['rpc', 'Raw RPC'],
+  ['policies', 'Policies'],
+];
+
 function gatewayModeDetails(mode, mcpUrl) {
   const known = GATEWAY_MODES[mode];
   if (!known) return { key: 'unknown', title: 'Connection not selected', detail: 'Pick a path in Settings.' };
@@ -452,7 +471,44 @@ export default function PrivilegeMcpClientPage() {
   useEffect(() => {
     try { localStorage.setItem('cur_priv_theme', pageTheme); } catch { /* storage disabled */ }
   }, [pageTheme]);
+
+  // Demo vs Inspect. Two audiences share this page: a customer watching the
+  // chain do what it was told, and whoever is working out why it did not.
+  // Nothing is removed by the split — every tab, pane and modal stays mounted
+  // behind this one flag — it just stops the debugging surfaces competing for
+  // the room during a demo.
+  //
+  // Persisted for the same reason pageTheme is: a mode that resets on every
+  // reload gets re-clicked on every reload, which reads as broken rather than
+  // minimal. `mode` is already taken by the gateway path above.
+  const [viewMode, setViewMode] = useState(() => {
+    try { return localStorage.getItem('cur_priv_view') === 'inspect' ? 'inspect' : 'demo'; } catch { return 'demo'; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('cur_priv_view', viewMode); } catch { /* storage disabled */ }
+  }, [viewMode]);
+  const inspecting = viewMode === 'inspect';
+  // Each mode remembers where you were, so flipping across to check a policy
+  // and back does not dump you on Agent Chat with your place lost.
+  const [lastTab, setLastTab] = useState({ demo: 'chat', inspect: 'mcp' });
+  const chooseTab = (tab) => {
+    setActiveTab(tab);
+    setLastTab((prev) => ({ ...prev, [viewMode]: tab }));
+  };
+  const switchViewMode = (next) => {
+    if (next === viewMode) return;
+    setViewMode(next);
+    setActiveTab(lastTab[next]);
+  };
+
   const [terminalTab, setTerminalTab] = useState('events');
+  // Derived rather than corrected, so nothing has to police setActiveTab /
+  // setTerminalTab. Two callers set a terminal tab from elsewhere on the page
+  // (a scope pill, a subscription start) and both live on Inspect-only
+  // surfaces — but a stored 'inspect' view on a fresh mount would otherwise
+  // land on activeTab's 'chat' default, which is not an Inspect tab at all.
+  const visibleTab = VIEW_TABS[viewMode].includes(activeTab) ? activeTab : lastTab[viewMode];
+  const visibleTerminalTab = VIEW_TERMINAL_TABS[viewMode].includes(terminalTab) ? terminalTab : 'trace';
   const mode = llmPath
     ? { ...LLM_PATHS[llmPath], url: llmGatewayUrl }
     : gatewayModeDetails(gatewayMode, config.mcpUrl);
@@ -1605,16 +1661,22 @@ export default function PrivilegeMcpClientPage() {
             controls that decide where a call goes, and they belong next to the
             identity and tool count that answer for the result, not in a strip
             of view toggles. */}
+        {/* Demo keeps only what you would touch with an audience watching:
+            Clear, Guide, Flow, Settings. Appearance controls and the cross-page
+            link are workbench chrome and move to Inspect — nothing is removed,
+            it is one toggle away. */}
         <div className="cur-titlebar-right">
-          <FootprintSkinPicker className="cur-skin-picker" />
-          <button
-            type="button"
-            className="cur-flow-trigger"
-            onClick={() => setPageTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
-            title={pageTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          >
-            {pageTheme === 'dark' ? 'Light' : 'Dark'}
-          </button>
+          {inspecting && <FootprintSkinPicker className="cur-skin-picker" />}
+          {inspecting && (
+            <button
+              type="button"
+              className="cur-flow-trigger"
+              onClick={() => setPageTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+              title={pageTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {pageTheme === 'dark' ? 'Light' : 'Dark'}
+            </button>
+          )}
           <button className="cur-flow-trigger" onClick={clearActivity} title="Clear chat, events, and results for a fresh demo">Clear</button>
           <button className="cur-flow-trigger" onClick={() => setShowGuide(true)} title="Learning Guide">Guide</button>
           <button className="cur-flow-trigger cur-settings-gear" onClick={() => setShowSettings(true)} title="Settings">&#x2699;&#xFE0E;</button>
@@ -1623,15 +1685,17 @@ export default function PrivilegeMcpClientPage() {
               that used to sit on this page in a second copy now live only on
               /llm-gateway. This is the link that used to be buried in that
               panel's header. */}
-          <button
-            type="button"
-            className="cur-flow-trigger"
-            onClick={() => navigate('/llm-gateway')}
-            title="Provider lanes, model checks and policy proofs live there"
-          >
-            LLM Gateway
-          </button>
-          {config.llmModel && <span className="cur-model-badge">{config.llmModel}</span>}
+          {inspecting && (
+            <button
+              type="button"
+              className="cur-flow-trigger"
+              onClick={() => navigate('/llm-gateway')}
+              title="Provider lanes, model checks and policy proofs live there"
+            >
+              LLM Gateway
+            </button>
+          )}
+          {inspecting && config.llmModel && <span className="cur-model-badge">{config.llmModel}</span>}
         </div>
       </header>
 
@@ -1779,27 +1843,31 @@ export default function PrivilegeMcpClientPage() {
                 {/* Was an unlabelled "Run preflight" button on its own strip.
                     It probes the OTHER configured doors with this identity —
                     /doors/probe deliberately skips the door already selected —
-                    so it is named for that and sits on the row it is about. */}
-                <button
-                  type="button"
-                  className="cur-btn cur-rail__btn"
-                  onClick={runPreflight}
-                  disabled={preflightBusy}
-                >
-                  {preflightBusy ? 'Probing…' : 'Probe other doors'}
-                </button>
+                    so it is named for that and sits on the row it is about.
+                    Inspect-only: it answers "why is this door refusing me",
+                    which is not a question you ask on stage. */}
+                {inspecting && (
+                  <button
+                    type="button"
+                    className="cur-btn cur-rail__btn"
+                    onClick={runPreflight}
+                    disabled={preflightBusy}
+                  >
+                    {preflightBusy ? 'Probing…' : 'Probe other doors'}
+                  </button>
+                )}
               </span>
               {mode.url && <code className="cur-rail__url">{mode.url}</code>}
-              {preflightError && <p className="cur-rail__note cur-rail__note--bad" role="alert">{preflightError}</p>}
+              {inspecting && preflightError && <p className="cur-rail__note cur-rail__note--bad" role="alert">{preflightError}</p>}
               {/* An empty result set is a real outcome — /doors/probe skips the
                   currently-selected door and caps the fan-out at 12 — so it is
                   reported rather than rendered as an empty list that reads clean. */}
-              {preflight && preflight.length === 0 && (
+              {inspecting && preflight && preflight.length === 0 && (
                 <p className="cur-rail__note">
                   No other doors to probe. The selected door is skipped; add a preset for another one.
                 </p>
               )}
-              {preflight && preflight.length > 0 && (
+              {inspecting && preflight && preflight.length > 0 && (
                 <ul className="cur-rail__probe">
                   {preflight.map((r) => (
                     <li key={r.url} className={r.ok ? 'cur-rail__probe--ok' : 'cur-rail__probe--bad'}>
@@ -1823,7 +1891,13 @@ export default function PrivilegeMcpClientPage() {
               {/* Façade relays on a server-side token that does not survive a
                   restart, so this is a property of the connection, not a
                   page-wide alarm — it belongs on the row whose tool count it
-                  explains. */}
+                  explains.
+
+                  NOT gated behind Inspect, unlike the door probe above. This is
+                  the reason the tool count is zero; hide it in Demo and the
+                  rail reads "broken" instead of "the session lapsed, press
+                  this" — the same failure the blocked-policy band exists to
+                  prevent. A one-click recovery is worth more on stage than off. */}
               {gatewayMode === 'facade' && gatewaySession && !gatewaySession.ready && (
                 <p className="cur-rail__note cur-rail__note--warn" role="status">
                   <span aria-hidden="true">⚠️</span>{' '}
@@ -1844,7 +1918,7 @@ export default function PrivilegeMcpClientPage() {
 
           <div className="cur-sidebar-content">
 
-            {grantedScopes.length > 0 && (
+            {inspecting && grantedScopes.length > 0 && (
               <div className="cur-scopes-section">
                 <div className="cur-sidebar-header">
                   <span className="cur-sidebar-title">GRANTED SCOPES</span>
@@ -1927,15 +2001,33 @@ export default function PrivilegeMcpClientPage() {
         {/* Main editor area */}
         <main className="cur-main">
           <div className="cur-tabs">
-            <button className={`cur-tab ${activeTab === 'chat' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('chat')}>Agent Chat</button>
-            <button className={`cur-tab ${activeTab === 'tools' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('tools')}>Tools</button>
-            <button className={`cur-tab ${activeTab === 'mcp' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('mcp')}>MCP Explorer</button>
-            <button className={`cur-tab ${activeTab === 'rpc' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('rpc')}>Raw RPC</button>
-            <button className={`cur-tab ${activeTab === 'policies' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('policies')}>Policies</button>
+            {TAB_LABELS.filter(([key]) => VIEW_TABS[viewMode].includes(key)).map(([key, label]) => (
+              <button
+                key={key}
+                className={`cur-tab ${visibleTab === key ? 'cur-tab--active' : ''}`}
+                onClick={() => chooseTab(key)}
+              >{label}</button>
+            ))}
+            <div className="cur-viewmode" role="group" aria-label="View mode">
+              <button
+                type="button"
+                className={!inspecting ? 'is-active' : ''}
+                aria-pressed={!inspecting}
+                onClick={() => switchViewMode('demo')}
+                title="Chat, tools and the trace — what you drive in front of someone"
+              >Demo</button>
+              <button
+                type="button"
+                className={inspecting ? 'is-active' : ''}
+                aria-pressed={inspecting}
+                onClick={() => switchViewMode('inspect')}
+                title="Explorer, raw RPC, policies, relay log and scopes"
+              >Inspect</button>
+            </div>
           </div>
 
           <div className="cur-editor-area">
-            {activeTab === 'chat' && (
+            {visibleTab === 'chat' && (
               <div className="cur-chat-panel">
                 <div className="cur-chat-messages">
                   {chatMessages.length === 0 && (
@@ -1989,7 +2081,7 @@ export default function PrivilegeMcpClientPage() {
               </div>
             )}
 
-            {activeTab === 'tools' && (
+            {visibleTab === 'tools' && (
               <ToolsTable
                 tools={tools}
                 onExecute={executeToolCall}
@@ -1999,7 +2091,7 @@ export default function PrivilegeMcpClientPage() {
               />
             )}
 
-            {activeTab === 'mcp' && (
+            {visibleTab === 'mcp' && (
               <div className="cur-rpc-panel cur-mcp-explorer">
                 <div className="cur-tools-header">
                   <h3>Server Capabilities</h3>
@@ -2079,7 +2171,7 @@ export default function PrivilegeMcpClientPage() {
               </div>
             )}
 
-            {activeTab === 'rpc' && (
+            {visibleTab === 'rpc' && (
               <div className="cur-rpc-panel">
                 <div className="cur-tools-header"><h3>Raw MCP JSON-RPC</h3></div>
                 <label className="cur-field">
@@ -2096,7 +2188,7 @@ export default function PrivilegeMcpClientPage() {
               </div>
             )}
 
-            {activeTab === 'policies' && (
+            {visibleTab === 'policies' && (
               <div className="cur-rpc-panel">
                 <div className="cur-tools-header">
                   <h3>Privilege Console — doors and policies</h3>
@@ -2271,22 +2363,24 @@ export default function PrivilegeMcpClientPage() {
           {/* Terminal panel */}
           <div className="cur-resize-handle cur-resize-handle--h" onPointerDown={startTerminalDrag} />
           <div className="cur-terminal" ref={terminalRef}>
+            {/* RELAY LOG and SCOPES are Inspect-only; TRACE and RESULTS carry
+                the demo, so they stay in both. */}
             <div className="cur-terminal-tabs">
-              <button className={`cur-terminal-tab ${terminalTab === 'events' ? 'cur-terminal-tab--active' : ''}`} onClick={() => setTerminalTab('events')}>RELAY LOG</button>
-              <button className={`cur-terminal-tab ${terminalTab === 'trace' ? 'cur-terminal-tab--active' : ''}`} onClick={() => setTerminalTab('trace')}>TRACE</button>
-              <button className={`cur-terminal-tab ${terminalTab === 'scopes' ? 'cur-terminal-tab--active' : ''}`} onClick={() => setTerminalTab('scopes')}>SCOPES</button>
+              {inspecting && <button className={`cur-terminal-tab ${visibleTerminalTab === 'events' ? 'cur-terminal-tab--active' : ''}`} onClick={() => setTerminalTab('events')}>RELAY LOG</button>}
+              <button className={`cur-terminal-tab ${visibleTerminalTab === 'trace' ? 'cur-terminal-tab--active' : ''}`} onClick={() => setTerminalTab('trace')}>TRACE</button>
+              {inspecting && <button className={`cur-terminal-tab ${visibleTerminalTab === 'scopes' ? 'cur-terminal-tab--active' : ''}`} onClick={() => setTerminalTab('scopes')}>SCOPES</button>}
               <button
                 key={`results-tab-${resultNonce}`}
-                className={`cur-terminal-tab ${terminalTab === 'results' ? 'cur-terminal-tab--active' : ''}${resultNonce > 0 && terminalTab !== 'results' ? ' cur-terminal-tab--flash' : ''}`}
+                className={`cur-terminal-tab ${visibleTerminalTab === 'results' ? 'cur-terminal-tab--active' : ''}${resultNonce > 0 && visibleTerminalTab !== 'results' ? ' cur-terminal-tab--flash' : ''}`}
                 onClick={() => setTerminalTab('results')}
               >
                 RESULTS{toolResults.length > 0 && <span className="cur-terminal-tab-badge">{toolResults.length}</span>}
               </button>
-              {terminalTab === 'trace' && <button className="cur-terminal-tab" style={{marginLeft:'auto',opacity:0.6}} onClick={() => setEvents([])}>Clear</button>}
-              {terminalTab === 'results' && toolResults.length > 0 && <button className="cur-terminal-tab" style={{marginLeft:'auto',opacity:0.6}} onClick={() => setToolResults([])}>Clear</button>}
+              {visibleTerminalTab === 'trace' && <button className="cur-terminal-tab" style={{marginLeft:'auto',opacity:0.6}} onClick={() => setEvents([])}>Clear</button>}
+              {visibleTerminalTab === 'results' && toolResults.length > 0 && <button className="cur-terminal-tab" style={{marginLeft:'auto',opacity:0.6}} onClick={() => setToolResults([])}>Clear</button>}
             </div>
             <div className="cur-terminal-content">
-              {terminalTab === 'trace' && (
+              {visibleTerminalTab === 'trace' && (
                 <div className="cur-terminal-log" style={{fontFamily:'monospace',fontSize:13}}>
                   {events.length === 0 && <span className="cur-terminal-empty">No events yet — sign in or call a tool</span>}
                   {events.slice(0, 100).map((e, i) => {
@@ -2314,7 +2408,7 @@ export default function PrivilegeMcpClientPage() {
                   })}
                 </div>
               )}
-              {terminalTab === 'events' && (
+              {visibleTerminalTab === 'events' && (
                 <div className="cur-terminal-log">
                   {events.length === 0 && <span className="cur-terminal-empty">Waiting for events...</span>}
                   {events.slice(0, 50).map((e, i) => (
@@ -2326,7 +2420,7 @@ export default function PrivilegeMcpClientPage() {
                   ))}
                 </div>
               )}
-              {terminalTab === 'scopes' && (
+              {visibleTerminalTab === 'scopes' && (
                 <div className="cur-terminal-scopes">
                   {grantedScopes.length === 0 ? (
                     <span className="cur-terminal-empty">No scopes granted yet — sign in first</span>
@@ -2358,7 +2452,7 @@ export default function PrivilegeMcpClientPage() {
                   )}
                 </div>
               )}
-              {terminalTab === 'results' && (
+              {visibleTerminalTab === 'results' && (
                 <div className="cur-terminal-results">
                   {toolResults.length === 0 ? (
                     <span className="cur-terminal-empty">No results yet — run a tool to see its output here</span>

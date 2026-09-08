@@ -31,12 +31,15 @@ beforeEach(() => {
   };
 });
 
-function renderClientPage() {
+async function renderClientPage() {
   render(
     <MemoryRouter initialEntries={["/privilege-mcp-client"]}>
       <PrivilegeMcpClientPage />
     </MemoryRouter>,
   );
+  // Appearance controls are Inspect chrome; Demo keeps the titlebar to the
+  // four buttons you would touch with an audience watching.
+  fireEvent.click(await screen.findByRole("button", { name: "Inspect" }));
   return screen.getByRole("combobox", { name: "Skin" });
 }
 
@@ -50,8 +53,8 @@ function renderShell(category = "coding") {
 }
 
 describe("costume picker on the Privilege client page", () => {
-  it("defaults to Cursor and lists only the four supported client skins", () => {
-    const select = renderClientPage();
+  it("defaults to Cursor and lists only the four supported client skins", async () => {
+    const select = await renderClientPage();
     const options = within(select).getAllByRole("option");
     expect(select).toHaveValue("");
     expect(options).toHaveLength(4);
@@ -63,8 +66,8 @@ describe("costume picker on the Privilege client page", () => {
     ]);
   });
 
-  it("selecting a skin persists the pick and loads that shell immediately", () => {
-    fireEvent.change(renderClientPage(), { target: { value: "claude-desktop:desktop" } });
+  it("selecting a skin persists the pick and loads that shell immediately", async () => {
+    fireEvent.change(await renderClientPage(), { target: { value: "claude-desktop:desktop" } });
     expect(readMockSelection()["claude-desktop"]).toBe("desktop");
     expect(navigate).toHaveBeenCalledWith("/demo/claude-desktop?v=desktop");
   });

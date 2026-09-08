@@ -61,6 +61,8 @@ async function openPoliciesTabConnected() {
       <PrivilegeMcpClientPage />
     </MemoryRouter>,
   );
+  // Policies is an Inspect surface; the page opens in Demo.
+  fireEvent.click(await screen.findByRole("button", { name: "Inspect" }));
   fireEvent.click(await screen.findByRole("button", { name: "Policies" }));
   const token = await screen.findByLabelText(/auth_token|console token/i);
   fireEvent.change(token, { target: { value: "console-cookie" } });

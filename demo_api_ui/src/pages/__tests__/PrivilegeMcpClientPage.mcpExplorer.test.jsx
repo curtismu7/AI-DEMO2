@@ -40,6 +40,8 @@ test('discovers prompts/resources and supports modern input-required continuatio
   // Tools no longer auto-discover on mount — drive it via the button first,
   // which also populates the MCP Explorer tab's catalog data.
   fireEvent.click(await screen.findByRole('button', { name: 'Get MCP Tools' }));
+  // MCP Explorer is an Inspect surface; the page opens in Demo.
+  fireEvent.click(await screen.findByRole('button', { name: 'Inspect' }));
   fireEvent.click(await screen.findByRole('button', { name: 'MCP Explorer' }));
   expect(await screen.findByText('Demo MCP')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'summarize' })).toBeInTheDocument();
