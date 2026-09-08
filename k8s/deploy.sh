@@ -84,10 +84,18 @@ deploy() {
   # 30-mcp-server-deployment.yaml, which mounts it, can be scheduled.
   kubectl apply -f "$SCRIPT_DIR/31-mcp-server-oauth-state-pvc.yaml"
 
-  # OTel bootstrap script mounted at /otel in every instrumented Node service
-  # (mirrors docker-compose's ./scripts/otel-instrument.js bind mount).
+  # OTel bootstrap scripts mounted at /otel in every instrumented service
+  # (mirrors docker-compose's ./scripts/ bind mounts).
+  #
+  # The Python entrypoint is NOT optional the way the Node one is: the Python
+  # agents' Dockerfiles set ENTRYPOINT ["/otel/otel-python-entrypoint.sh"], so a
+  # pod whose /otel lacks it cannot start at all —
+  #   exec: "/otel/otel-python-entrypoint.sh": no such file or directory
+  # langchain-agent crashlooped on its first restart after that ENTRYPOINT
+  # landed, because this ConfigMap carried only the .js file.
   kubectl create configmap otel-instrument -n "$NS" \
     --from-file=otel-instrument.js="$SCRIPT_DIR/../scripts/otel-instrument.js" \
+    --from-file=otel-python-entrypoint.sh="$SCRIPT_DIR/../scripts/otel-python-entrypoint.sh" \
     --dry-run=client -o yaml | kubectl apply -f -
 
   # Deploy in dependency order: tracing → backends → bff → gateway/agents → ui

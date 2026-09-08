@@ -44,6 +44,15 @@ spec:
         envFrom:
         - configMapRef:
             name: ai-demo-config
+        # The image's ENTRYPOINT is /otel/otel-python-entrypoint.sh
+        # (openai_agent/Dockerfile), a bind mount under docker-compose. Without
+        # this the container cannot exec at all — the crashloop langchain-agent
+        # hit on 2026-09-08. This deployment runs 0 replicas today, so it would
+        # only have surfaced on a scale-up.
+        volumeMounts:
+        - name: otel-instrument
+          mountPath: /otel
+          readOnly: true
         resources:
           requests:
             memory: "256Mi"
@@ -58,6 +67,13 @@ spec:
           periodSeconds: 30
           timeoutSeconds: 3
           failureThreshold: 3
+      # 0755, not a ConfigMap's default 0644: this holds the image's ENTRYPOINT
+      # script, and a non-executable entrypoint fails exactly like a missing one.
+      volumes:
+      - name: otel-instrument
+        configMap:
+          name: otel-instrument
+          defaultMode: 0755
       restartPolicy: Always
 ---
 apiVersion: v1
