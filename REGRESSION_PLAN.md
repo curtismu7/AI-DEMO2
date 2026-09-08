@@ -140,6 +140,56 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-08 — A BFF restart silently dropped every Privilege gateway token
+
+**Files changed:** `demo_api_server/routes/privilegeMcpClient.js`,
+`demo_api_server/tests/routes/privilegeMcpClient.restartRehydrate.test.js` (new).
+
+**What was broken:** `clientSessions` (the per-session OAuth/config state for
+`/privilege-mcp-client`) is a plain in-process `Map`. A `demo-api-server`
+restart wipes it, but the browser's Express session cookie (LMDB-backed)
+survives — so the page rendered `mainAppAuthenticated: true` alongside
+`oauth.authenticated: false`: signed in to the app, silently signed out of the
+gateway, with nothing explaining why. Observed 2026-09-08 rolling the SE
+frontend, which also restarted the BFF and took every gateway token in the
+namespace with it.
+
+The obvious fix — persist the whole session object — is wrong: `subscription`/
+`eventStream` hold live `AbortController`s (not serializable, restore nothing),
+`mcpSession` holds a gateway-issued session id the gateway itself forgot in the
+same restart, and `console` is the operator's pasted Privilege console
+credential, whose own comment says explicitly "never persisted."
+
+**What was fixed:** `persistPrivilegeOauth()` mirrors only `session.oauth` and
+`session.savedOauthByDoor` — plus which door key the current token belongs to
+— into the existing LMDB-backed Express session, at every point that already
+mutates them (token issuance, refresh success/failure, door switch, logout).
+`getClientSession()` rehydrates from that mirror when a session id is unknown
+to the (now-empty) Map.
+
+The door-key tag turned out to be load-bearing, not incidental: without it, a
+rehydrated token sits in the "current" slot with no record of which door it
+was minted for. The fresh (post-restart) session defaults to the env door, so
+the very next `POST /config` — which the frontend sends routinely, e.g. on
+page load — reads as a genuine switch away from a door the token was never
+actually on, stashes it under the wrong key, and restores nothing for the
+real one. Found writing this fix's own test: a same-door round trip passed
+first try; the realistic "reconfigure after restart" sequence silently undid
+the fix for any door other than the default. Fixed by persisting the door key
+alongside the token and seeding `savedOauthByDoor` under it on rehydrate, so
+the switch-restore path finds it instead of discarding it.
+
+**Do not break:** the main app's user token must never be seeded into
+`session.oauth` (PR #2898 defect 1) — this fix reads only from
+`req.session.privilegeMcpClientOAuth`, a key this file alone writes, never
+from the main app's own session fields. A Bearer-header-supplied credential
+(re-synced from the request header every call, never "seeded once") is
+deliberately excluded from persistence — persisting it would let a later
+request without the header still report authenticated on a credential the
+caller never reasserted.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/routes/privilegeMcpClient --forceExit --runInBand` — 28 suites / 163 tests passed. Full suite: `CI=true npm test -- --forceExit --runInBand` — 11274/11276 passed; the 2 failures (`delegatedCommerceRoutes.test.js`, `dpopDemo.route.test.js`) are unrelated files matching this repo's documented host-contention flake signature, confirmed by re-running both in isolation — both pass clean.
+
 ### 2026-09-08 — A dead façade door bounced the browser to a bare PingOne `NOT_FOUND` page
 
 **Files changed:** `demo_api_server/routes/privilegeMcpClient.js`,

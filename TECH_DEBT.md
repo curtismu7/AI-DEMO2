@@ -134,7 +134,7 @@ level the guard enforced; the tenth, `/monitoring/agent-flow`, is `user` — its
 inline `!user ? <SignInPrompt />` guard (`MonitoringRoutes.js:36`) had never
 been cross-checked against anything.
 
-### [ ] 2026-09-08 — A BFF restart silently drops every Privilege gateway token
+### [x] 2026-09-08 — A BFF restart silently drops every Privilege gateway token
 
 `routes/privilegeMcpClient.js:138` keeps all per-user gateway state in a plain
 in-process `Map` (`clientSessions`), keyed by the Express session id. The
@@ -180,6 +180,20 @@ triggers a silent `prompt=none` sign-in, which costs one redirect and no login
 page. That recovery is only reliable since PR #2940 stopped a stale
 `?auth=success` from suppressing it — before that fix, a restart could strand
 the page on a sign-in prompt indefinitely, which is how this was found.
+
+**RESOLVED** — `worktree-bff-restart-gateway-token-persist`. Built exactly as
+scoped above: `persistPrivilegeOauth()` mirrors only `oauth`/`savedOauthByDoor`
+into `req.session.privilegeMcpClientOAuth`, called from the five points that
+already mutate them; `getClientSession()` rehydrates from it. Full account,
+including a real gap the entry didn't anticipate (the door-key tag needed to
+survive a post-restart `/config` re-POST), is in `REGRESSION_PLAN.md` §4.
+
+Tests: new `privilegeMcpClient.restartRehydrate.test.js` (7 cases — persist
+shape, restart survival, the door-key interaction, logout clears the
+persisted slice too, console credential never leaks into it, Bearer-header
+credentials stay excluded on purpose). Full `privilegeMcpClient` family:
+28 suites / 163 tests. Full server suite: 11274/11276 (2 pre-existing,
+unrelated flakes, confirmed clean in isolation).
 
 ### [ ] 2026-09-07 — No Grafana panels for the 5 newly-metricized services
 
