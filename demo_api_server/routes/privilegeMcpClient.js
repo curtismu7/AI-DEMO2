@@ -1583,7 +1583,13 @@ router.get('/state', (req, res) => {
     // field reads as "handled" rather than "missing". Computed here rather than
     // stored in gatewayConfigs, which round-trips through POST /config.
     clientHints: CLIENT_HINTS(),
-    oauth: { authenticated: Boolean(session.oauth.accessToken), source: session.oauth.source || null, expiresAt: session.oauth.expiresAt, scope: session.oauth.scope || '' },
+    // hasRefreshToken is a BOOLEAN, never the token: it says whether an expiring
+    // session can recover silently or will bounce the user to login. The
+    // agentless gateway's AS omits offline_access from scopes_supported and
+    // returns no refresh_token (measured 2026-09-08), so this reads false there
+    // and refreshAccessToken() dead-ends — that is the "asked to log in over and
+    // over" symptom, not a bug in this relay.
+    oauth: { authenticated: Boolean(session.oauth.accessToken), source: session.oauth.source || null, expiresAt: session.oauth.expiresAt, scope: session.oauth.scope || '', hasRefreshToken: Boolean(session.oauth.refreshToken) },
     // The façade's privilege-gateway door runs on a server-side gateway token
     // that dies with the process (services/privilegeGatewaySession.js). Ship its
     // state so the page can say so instead of the door failing silently.
