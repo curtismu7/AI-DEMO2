@@ -33,6 +33,13 @@ data:
   REACT_APP_CLIENT_URL: "https://local.ping-devops.com:4000"
   MCP_FACADE_REEL_BASE: "https://local.ping-devops.com:4000"
   MCP_FACADE_AGENT_GATEWAY_AS: "https://local.ping-devops.com:4000"
+  # Starts the plain-HTTP façade listener (server.js — it only listens when this
+  # is set), which is the target toInternalMcpUrl() rewrites every own-origin
+  # door to. Without it the BFF cannot reach its OWN façade and Direct doors:
+  # the rewrite still points at localhost:3002, nothing listens, and every one
+  # fails "fetch failed". docker-compose has always set it; k8s never did, so
+  # those doors were dead on any cluster deploy while working locally.
+  MCP_FACADE_HTTP_PORT: "3002"
   FRONTEND_ADMIN_URL: "https://local.ping-devops.com:4000/admin"
   FRONTEND_DASHBOARD_URL: "https://local.ping-devops.com:4000/dashboard"
   CORS_ORIGIN: "https://local.ping-devops.com:4000,https://api.ping.demo:4000"
