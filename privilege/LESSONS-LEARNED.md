@@ -667,6 +667,25 @@ and intercepts loopback connections — including to **:4000**, the demo UI.
   `/lmstudio-greeting`, ...), producing tens of thousands of log lines a day
   elsewhere and consuming a shared per-IP rate bucket. Traffic arrives at
   containers from the Docker gateway IP, so the originating process is easy to lose.
+- **`Domain not found` floods here are usually the local console UI, not a
+  registration problem.** The agent serves its own console at
+  `https://local.procyon.ai:8643/ui/...` with a self-signed cert whose trust
+  install can fail (`main.log` shows the
+  `security authorizationdb write com.apple.trust-settings.admin` call failing).
+  Every failed subresource load opens and kills a tunnel stream, which surfaces as
+  `stream receive error: ... Domain not found` plus `tls: unknown certificate`.
+  **Fix: quit PingOne Privilege from the menu-bar icon and relaunch it from
+  Applications** — see `SE1-Privilege-Agent-Setup-Mac.md` (Troubleshooting, last
+  row) for the confirmed procedure and the `launchctl kickstart` escalation.
+  Verified 2026-09-08: quitting the app drops tunnel streams from ~61 per 20
+  minutes to zero and closes 8643; after relaunch the log stays clean, with only
+  an unrelated `collectShadowAIEvents: shadowAISync not initialized`. **Caveat on
+  that evidence:** 8643 only listens once the console UI is opened, so a quiet log
+  on a freshly relaunched agent partly reflects an idle console, not a proven
+  repair — re-open the console to actually exercise it. Note also that a GUI app
+  cannot be relaunched from a sandboxed shell: `open -a` and a direct exec both
+  report success and do nothing, while `osascript ... to activate` does launch it
+  (then times out waiting for a reply).
 - **Its own diagnostics are near-worthless as a health signal.** Every substantive
   check passes — cyonagent running, enclave running, "Agent is connected to
   controller", proxy reachable — and the only failure it reports is a **self-
@@ -676,6 +695,12 @@ and intercepts loopback connections — including to **:4000**, the demo UI.
 ## Reading vendor logs: separating noise from real failure
 
 Two opposite mistakes have both cost time here, and the same technique settles both.
+
+**Mistake 0 — not searching the repo first.** Both mistakes below were avoidable:
+`SE1-Privilege-Agent-Setup-Mac.md` already documented this exact error string,
+its cause, and a one-step fix, confirmed 2026-09-06. Roughly an hour of log
+forensics reproduced a conclusion the repo already held. **Grep the error string
+across `privilege/` before analysing anything.**
 
 **Mistake 1 — treating a real failure as noise.** On 2026-09-08 the agent log
 showed `stream receive error: rpc error: code = Unknown desc = Domain not found`
