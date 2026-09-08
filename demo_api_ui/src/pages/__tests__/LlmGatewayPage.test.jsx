@@ -313,7 +313,7 @@ describe("LLM Gateway console", () => {
       expect(dec).not.toHaveTextContent(/Privilege/);
     });
 
-    it("does not render on a denial — only the existing 'Refused by' row does", async () => {
+    it("renders a stopped-at-Privilege chip chain on a denial, alongside the existing 'Refused by' row", async () => {
       mockFetch(() => ({
         ok: false,
         status: 403,
@@ -328,7 +328,9 @@ describe("LLM Gateway console", () => {
 
       const dec = await screen.findByTestId("lgw-decision");
       expect(dec).toHaveTextContent(/Refused by/);
-      expect(screen.queryByText("Path")).not.toBeInTheDocument();
+      expect(screen.getByText("Path")).toBeInTheDocument();
+      expect(dec).toHaveTextContent(/Privilege ✕ denied/);
+      expect(dec).toHaveTextContent(/Anthropic/);
     });
   });
 

@@ -546,33 +546,46 @@ export default function LlmGatewayPage() {
               )}
               {/* The pair "which lanes are governed" answers in the abstract; this
                   answers it for the call that just happened. Local lanes never had
-                  a Privilege chip to begin with — the chain just skips it. */}
-              {decision.tone === 'ok' ? (
+                  a Privilege chip to begin with — the chain just skips it. A
+                  Privilege denial gets a chip chain too (You -> Privilege X, chain
+                  stops there, the provider never saw it) rather than only the plain
+                  "Refused by" row above — the chips are the thing a demo audience
+                  actually reads. */}
+              {decision.tone === 'ok' || decision.layer === 'Privilege' ? (
                 <div>
                   <dt>Path</dt>
                   <dd>
                     <div className="lgw-path">
                       <span className="lgw-path__chip">You</span>
                       <span className="lgw-path__arrow">&rarr;</span>
-                      {(lanes.find((l) => l.provider === decision.provider) || {}).isLocal ? null : (
+                      {decision.layer === 'Privilege' ? (
                         <>
-                          <span className="lgw-path__chip lgw-path__chip--gateway">🔐 Privilege</span>
-                          <span className="lgw-path__arrow">&rarr;</span>
+                          <span className="lgw-path__chip lgw-path__chip--gateway lgw-path__chip--denied">🔐 Privilege ✕ denied</span>
+                          <span className="lgw-path__chip lgw-path__chip--unreached">{TITLES[decision.provider] || decision.provider}</span>
+                        </>
+                      ) : (
+                        <>
+                          {(lanes.find((l) => l.provider === decision.provider) || {}).isLocal ? null : (
+                            <>
+                              <span className="lgw-path__chip lgw-path__chip--gateway">🔐 Privilege</span>
+                              <span className="lgw-path__arrow">&rarr;</span>
+                            </>
+                          )}
+                          {/* Sits between the two actors it involves. The arrow before it
+                              points back, because the redaction happened on the RETURN leg —
+                              the prompt itself went out untouched, and a chip reading
+                              left-to-right here would claim otherwise. */}
+                          {decision.redactions > 0 ? (
+                            <>
+                              <span className="lgw-path__chip lgw-path__chip--redacted" title="Privilege redacted the reply on its way back from the model">
+                                🛡 {decision.redactions} redacted
+                              </span>
+                              <span className="lgw-path__arrow">&larr;</span>
+                            </>
+                          ) : null}
+                          <span className="lgw-path__chip lgw-path__chip--reached">{TITLES[decision.provider] || decision.provider} &#10003;</span>
                         </>
                       )}
-                      {/* Sits between the two actors it involves. The arrow before it
-                          points back, because the redaction happened on the RETURN leg —
-                          the prompt itself went out untouched, and a chip reading
-                          left-to-right here would claim otherwise. */}
-                      {decision.redactions > 0 ? (
-                        <>
-                          <span className="lgw-path__chip lgw-path__chip--redacted" title="Privilege redacted the reply on its way back from the model">
-                            🛡 {decision.redactions} redacted
-                          </span>
-                          <span className="lgw-path__arrow">&larr;</span>
-                        </>
-                      ) : null}
-                      <span className="lgw-path__chip lgw-path__chip--reached">{TITLES[decision.provider] || decision.provider} &#10003;</span>
                     </div>
                   </dd>
                 </div>

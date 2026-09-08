@@ -593,8 +593,9 @@
 .lgw-pill.is-warn { color: var(--th-status-warning); }
 .lgw-pill.is-bad { color: var(--th-status-error); }
 
-/* Only rendered on a successful call — the chain itself says whether Privilege
-   sat in the middle: local lanes just skip straight from "You" to the model. */
+/* Rendered on a successful call or a Privilege denial — the chain itself says
+   whether Privilege sat in the middle: local lanes just skip straight from
+   "You" to the model. */
 .lgw-path {
   display: flex;
   align-items: center;
@@ -631,6 +632,23 @@
   background: var(--th-status-warning-bg);
   color: var(--th-status-warning-text);
   font-weight: 600;
+}
+
+/* The chain stops here — Privilege refused before the provider ever saw the
+   prompt, so this carries the error family, not the warning one a redaction gets. */
+.lgw-path__chip--denied {
+  border-color: var(--th-status-error-border);
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
+  font-weight: 600;
+}
+
+/* Names the provider that would have been called, without claiming it was —
+   muted and un-bordered, no arrow leads into it. */
+.lgw-path__chip--unreached {
+  border-style: dashed;
+  color: var(--th-text-muted);
+  background: transparent;
 }
 
 .lgw-path__arrow {
