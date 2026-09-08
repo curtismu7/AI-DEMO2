@@ -330,6 +330,57 @@ like it should be simple but the diff keeps growing, checking whether the
 growth is in that essential core or in this-repo's-own plumbing is worth
 doing before assuming the gateway itself got more complicated.
 
+### Privilege Cloud needs a header the agentless AI Gateway doesn't — same product name, different requirement
+
+`privilege.pingone.com` and `*.applications.privilege.pingone.com` (Privilege
+Cloud, the SaaS product) require `x-procyon-session-id` on **every** MCP
+request, not just the console API — `demo_api_server/routes/
+privilegeMcpClient.js:560-563` mints one `crypto.randomUUID()` per session and
+attaches it to every relay call and to the discovery probe alike
+(`:1120-1121`). The agentless AI Gateway this demo actually runs against
+(`mcpgw.ai-demo.ping-devops.com`) needs no such header — it's a different
+deployment of the same product family, and code that special-cases one by
+hostname (as this file does) will silently do nothing for the other. Don't
+assume a header requirement transfers between "Privilege Cloud" and "the
+agentless AI Gateway" without checking which one you're actually pointed at.
+
+### The console API's real credential is a browser cookie — the header that looks like a session token isn't one
+
+`x-procyon-session-id` reappears in a second, unrelated place — the same
+file's Privilege **console** API calls (`privilegeMcpClient.js:1941`), not
+the MCP gateway relay above — where it is **not** a credential at all,
+despite the name. It's a correlation id, mintable by anyone:
+`GET console.privilege.pingone.com/session-token` with **no cookie at all**
+returns `200 {"session_id":"<uuid>"}`. The actual credential is the
+`auth_token` cookie value from an operator's own console browser session
+(~60 minute lifetime), pasted in by hand — there is no API-key or
+service-account path to the console.
+`privilegeMcpClient.js`'s own header comment on the console section
+(`:1914-1926`) records how this was pinned down: an earlier version of the
+code sent the MCP gateway's own OAuth token to the console and "could never
+work"; two separate probes on 2026-08-31 explain why —
+`GET /session-token` with **no cookie at all** answers `200`, while
+`GET /v1/pacpolicys` with a **junk `auth_token`** answers `401 "User is not
+authorized"`. Together they prove the session-id header is unauthenticated
+and the cookie is the only thing the API actually checks — a distinction a
+single probe wouldn't have shown, since either test alone is consistent with
+several wrong theories.
+
+### Why "always PAR" and "DCR worked fine without it" aren't a contradiction
+
+The "PAR validates a redirect URI properly, `/authorize` does not" lesson
+above is about a **shared, well-known client** (`pingone-mcp-server`) that
+already exists and accepts *any* redirect URI at `/authorize` without
+checking it against what was registered. Building `ai-gateway-client`
+against the real Privilege gateway used no PAR at all — plain query-param
+`/authorize` — and DCR-registered redirect URIs were still honored
+correctly. The difference is what's being validated: a **freshly-DCR'd
+client** (`POST /register`) declares its own `redirect_uris` at registration
+time, so there's nothing stale or shared for `/authorize` to get wrong. PAR
+matters when a client is reusing a **pre-existing, shared** registration
+whose accepted redirect URIs you can't otherwise verify — not as a blanket
+rule for every OAuth flow this gateway participates in.
+
 ## Hosted vs. self-hosted PingOne MCP — two different auth models
 
 Two servers, easy to conflate because they answer to the same product name:
