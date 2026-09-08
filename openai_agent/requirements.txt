@@ -11,3 +11,4 @@ respx>=0.21.0
 guardrails-ai==0.10.2
 opentelemetry-distro
 opentelemetry-exporter-otlp-proto-grpc
+opentelemetry-exporter-prometheus

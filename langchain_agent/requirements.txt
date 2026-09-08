@@ -20,6 +20,7 @@ guardrails-ai==0.10.2
 pydantic-ai==1.107.0    # Code Explorer agent (replaces LangChain ReAct for codegraph)
 opentelemetry-distro
 opentelemetry-exporter-otlp-proto-grpc
+opentelemetry-exporter-prometheus
 
 # Development dependencies
 pytest>=7.0.0

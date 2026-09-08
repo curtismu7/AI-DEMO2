@@ -16,6 +16,32 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-09-07 — No Grafana panels for the 5 newly-metricized services
+
+`demo_mcp_proxy`, `mastra_agent`, `demo_llm_proxy`, `langchain_agent`, and
+`openai_agent` each gained an OTel-Metrics-API `/metrics` route (mirroring
+`demo_mcp_gateway/src/metrics.ts`'s prom-client shape) and a scrape job in
+`monitoring/prometheus.yml`. Prometheus is scraping all 5 — verified live
+(`curl .../metrics` on each, real histogram/counter output with correct
+labels) — but `monitoring/grafana/dashboards/*.json` has no panels querying
+`mcpproxy_*`, `mastra_*`, `llmproxy_*`, `langchainagent_*`, or
+`openaiagent_*` yet, so none of it is visible in Grafana.
+
+**Why not fixed here:** dashboard JSON is the checked-in source of truth
+(`allowUiUpdates: false` — see root CLAUDE.md) with no live Grafana instance
+in this environment to visually confirm a new panel actually renders
+sensibly (gridPos, datasource ref, legend) before committing it. Authoring 5
+services' worth of panels blind, in the same change as the instrumentation
+itself, risked shipping something wrong in a file nothing catches at review
+time.
+
+**Real fix:** add a panel per service to `monitoring/grafana/dashboards/mcp-servers.json`
+(or a new `agents.json`) following the existing per-service pattern (see
+`mcp-servers.json`'s oauth-mcp panels — `sum by (method) (increase(..._count[5m]))`),
+then confirm each renders against a live stack before merging. No existing
+dashboard needs to change — none of the 5 new metric names collide with an
+existing panel's query.
+
 ### [ ] 2026-09-06 — `themingRatchet.test.js`'s ground-without-ink pin is already stale on `main`
 
 `no more than 453 rules take a themed ground without ink` fails on an

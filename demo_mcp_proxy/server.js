@@ -6,6 +6,7 @@
 const http = require('node:http');
 const { randomUUID, createHash } = require('node:crypto');
 const { URL } = require('node:url');
+const { exporter: metricsExporter, mcpCallDuration, mcpCallErrors } = require('./metrics');
 
 const MCP_BASE = (process.env.MCP_GATEWAY_HTTP_URL || 'http://127.0.0.1:3005').replace(/\/$/, '');
 const PORT = parseInt(process.env.PORT || '8895', 10);
@@ -52,6 +53,21 @@ function toolCacheSet(cacheKey, tools) {
 // ---------------------------------------------------------------------------
 
 function mcpRpc(method, params, bearerToken) {
+  const start = process.hrtime.bigint();
+  return mcpRpcImpl(method, params, bearerToken).then(
+    (result) => {
+      mcpCallDuration.record(Number(process.hrtime.bigint() - start) / 1e9, { method });
+      return result;
+    },
+    (err) => {
+      mcpCallDuration.record(Number(process.hrtime.bigint() - start) / 1e9, { method });
+      mcpCallErrors.add(1, { method });
+      throw err;
+    },
+  );
+}
+
+function mcpRpcImpl(method, params, bearerToken) {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({ jsonrpc: '2.0', id: randomUUID(), method, params });
     const parsed = new URL(`${MCP_BASE}/mcp`);
@@ -143,6 +159,13 @@ const server = http.createServer(async (req, res) => {
   // 1. GET /health
   if (method === 'GET' && url === '/health') {
     return send(res, 200, { ok: true, mcp: MCP_BASE });
+  }
+
+  // Prometheus scrape target — unauthenticated, same posture as the other
+  // Node MCP services' /metrics routes (monitoring/prometheus.yml already
+  // trusts the internal network for scraping).
+  if (method === 'GET' && url === '/metrics') {
+    return metricsExporter.getMetricsRequestHandler(req, res);
   }
 
   // 2. GET /tools

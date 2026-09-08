@@ -313,14 +313,24 @@ class LangChainMCPApplication:
         """
         import os as _os
         import uvicorn
-        from fastapi import FastAPI
+        from fastapi import FastAPI, Response as _Response
         from fastapi.responses import JSONResponse as _JSONResponse
+        from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
         from api.agui_run_handler import router as agui_router
         from api.codegraph_handler import router as codegraph_router
 
         app = FastAPI(title="LangChain AG-UI", docs_url=None, redoc_url=None)
         app.include_router(agui_router)
         app.include_router(codegraph_router, prefix="/codegraph")
+
+        # Prometheus scrape target — unauthenticated, same posture as the
+        # other MCP services' /metrics routes (monitoring/prometheus.yml
+        # already trusts the internal network for scraping). Health (:8890)
+        # binds loopback-only (CR-03, see comment below) so it can't be
+        # scraped from another container — this port is the reachable one.
+        @app.get("/metrics")
+        async def metrics_endpoint() -> _Response:
+            return _Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
         # Heal empty/wrong-schema demo index. Never promote the host CodeGraph
         # product DB (.codegraph/codegraph.db). Rebuild into demo-codegraph.db
@@ -415,6 +425,12 @@ class LangChainMCPApplication:
 
         @app.middleware("http")
         async def _gate_internal(request, call_next):
+            # Prometheus scrape target — same unauthenticated posture as
+            # every other /metrics route in this repo (monitoring/prometheus.yml
+            # already trusts the internal network). This gate exists for
+            # /run and /codegraph, not for metrics scraping.
+            if request.url.path == "/metrics":
+                return await call_next(request)
             if _gate_disabled_reason is not None:
                 return _JSONResponse(
                     {"detail": "internal endpoint disabled: " + _gate_disabled_reason},
