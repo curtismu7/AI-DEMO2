@@ -54,6 +54,16 @@ const TITLES = {
   lmstudio: 'LM Studio (local)', llamacpp: 'llama.cpp (local)',
 };
 
+// A sanitize is the one Privilege verdict that arrives with HTTP 200 and no error
+// body — the gateway rewrites the matched values inside the reply as
+// [REDACTED:<kind>] and says nothing else. Counting those markers is the only
+// signal the caller has, and without it a redacted answer renders under
+// "Privilege passed the prompt through", which is the opposite of what happened.
+const REDACTION_RE = /\[REDACTED(?::[^\]]*)?\]/gi;
+function countRedactions(text) {
+  return typeof text === 'string' ? (text.match(REDACTION_RE) || []).length : 0;
+}
+
 // Which layer refused. The pair this page exists to separate is "Privilege stopped
 // it" (403, never reached the model) and "the provider credential behind the virtual
 // key is dead" (502, reached it and was rejected) — identical-looking in a raw log.
@@ -83,6 +93,13 @@ function classify(err) {
 function attribution(decision, isLocal) {
   const model = TITLES[decision.provider] || decision.provider;
   if (decision.tone === 'ok') {
+    if (decision.redactions > 0) {
+      const n = decision.redactions;
+      return {
+        who: '\ud83d\udd10 Privilege redacted the reply',
+        note: `${model} answered, and Privilege removed ${n} matched value${n === 1 ? '' : 's'} from the text before it reached you. The prompt itself was passed through.`,
+      };
+    }
     return isLocal
       ? { who: `${model} answered`, note: 'No policy layer on this lane — the model decided on its own.' }
       : { who: `${model} answered`, note: 'Privilege passed the prompt through. A refusal in the text above is the model\u2019s own.' };
@@ -221,8 +238,10 @@ export default function LlmGatewayPage() {
     setSelectedAttack('');
     try {
       const data = await api('/llm/call', { method: 'POST', body: { provider: selected, prompt: text } });
+      const redactions = countRedactions(data.reply);
       const d = {
-        verdict: 'Answered', tone: 'ok', layer: null,
+        verdict: redactions > 0 ? 'Answered, redacted' : 'Answered', tone: 'ok', layer: null,
+        redactions,
         provider: selected, route: data.route, latencyMs: data.latencyMs,
         reachedProvider: data.reachedProvider !== false,
         reason: null, providerLimits: data.providerLimits || null,
