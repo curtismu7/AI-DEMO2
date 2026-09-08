@@ -74,10 +74,10 @@ describe('mcp-facade multi-app door', () => {
   afterEach(() => gatewaySession.clear());
 
   test('routes each app segment to its own gateway app', async () => {
-    // The upstream entry path is per app (see privilegeEntryPath): opensearch22
-    // is registered with an /sse backend, the rest default to /mcp. What this
-    // test is about is that the SEGMENT is treated as a name, never a path.
-    for (const [appName, entry] of [['opensearch22', 'sse'], ['banking-mcp', 'mcp'], ['git_server.v2', 'mcp']]) {
+    // The upstream entry path is per app (see privilegeEntryPath) and every app
+    // now defaults to /mcp — POST is 405 on a backend's /sse. What this test is
+    // about is that the SEGMENT is treated as a name, never a path.
+    for (const [appName, entry] of [['opensearch22', 'mcp'], ['banking-mcp', 'mcp'], ['git_server.v2', 'mcp']]) {
       // eslint-disable-next-line no-await-in-loop
       const res = await request(app())
         .post(`/api/mcp-facade/privilege-gateway/${appName}/mcp`)
@@ -95,7 +95,7 @@ describe('mcp-facade multi-app door', () => {
       .send(RPC);
 
     expect(res.status).toBe(200);
-    expect(seenPath).toBe('/opensearch22/sse'); // opensearch22's entry path
+    expect(seenPath).toBe('/opensearch22/mcp'); // opensearch22's entry path
   });
 
   test('discovery advertises the resource URL that was actually called', async () => {
@@ -173,7 +173,7 @@ describe('mcp-facade multi-app DELETE', () => {
       .set('mcp-session-id', 'sess-2');
 
     expect(res.status).toBe(200);
-    expect(seenPath).toBe('/opensearch22/sse'); // opensearch22's entry path
+    expect(seenPath).toBe('/opensearch22/mcp'); // opensearch22's entry path
   });
 
   test('tears down locally without calling upstream when no gateway session exists', async () => {
