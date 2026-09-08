@@ -219,6 +219,24 @@ describe("LLM Gateway console", () => {
       expect(who).toHaveTextContent(/Anthropic answered/);
       expect(who).toHaveTextContent(/Privilege passed the prompt through/);
     });
+
+    // A sanitize is a 200 with no error body — the only trace is the markers the
+    // gateway leaves in the reply. Reading the status alone renders the gateway's
+    // own redaction as "Privilege passed the prompt through".
+    it("credits Privilege when the reply came back redacted", async () => {
+      const who = await send({
+        ok: true, status: 200,
+        text: async () => JSON.stringify({
+          reply: "Margaret Chen | [REDACTED:pii] | 4532 | [REDACTED:pii]",
+          provider: "anthropic", route: "/llm/anthropic/v1/messages",
+          latencyMs: 2658, reachedProvider: true,
+        }),
+      }, "generate 3 example customer records");
+      expect(who).toHaveTextContent(/Privilege redacted the reply/);
+      expect(who).toHaveTextContent(/removed 2 matched values/);
+      expect(who).not.toHaveTextContent(/passed the prompt through\./);
+      expect(screen.getByTestId("lgw-decision")).toHaveTextContent(/Answered, redacted/);
+    });
   });
 
   describe("path chain", () => {
