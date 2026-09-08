@@ -16,6 +16,35 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-09-08 — A non-admin cannot see their own MCP audit trail (external-door movie reel)
+
+`/api/mcp/audit` is admin-only, so the external-door movie reel — the view that
+shows an LM Studio → Agent Gateway call as it happens — has nothing to read for a
+regular signed-in demo user. That is the audience the reel is for.
+
+Half of the fix was written on 2026-08-24 and parked on
+`wip/external-door-movie-reel`, then never finished because it had no UI
+consumer. **The branch was deleted on 2026-09-08 after three weeks of drift**;
+this entry exists so the design is not lost with it. Nothing was on main and
+nothing referenced it, so deleting cost only the typing.
+
+What it was, and what still needs doing:
+
+- `demo_api_server/routes/mcpAuditMine.js` — `GET /api/mcp/audit/mine`, ~32
+  lines. Reads the same durable `mcpAuditStore.lmdb` the admin route reads and
+  filters to `event.userId === req.session.user.id`. That `userId` is the PingOne
+  `sub` the gateway stamps (`demo_mcp_gateway/src/gatewayAudit.ts`). Mounted in
+  `server.js` behind `requireSession`, mirroring the gate pattern at
+  `server.js:1431`.
+- `demo_api_ui/src/hooks/useExternalDoorAudit.js` — ~43 lines, polls it.
+- **Missing: any component that calls the hook.** That is the whole reason it
+  stalled.
+
+Both dependencies still exist on `main` (`mcpAuditStore.lmdb`, `/api/mcp/audit`),
+so the approach is still valid — it is a couple of hours of UI work, not a
+rewrite. Worth confirming the reel still wants a per-user feed before rebuilding
+the backend half.
+
 ### [x] 2026-09-08 — SE cluster (`ping-devops-cmuir`) has never seeded the tier1 model
 
 Found while live-verifying the `seed-llm-models` skip-if-already-Complete fix
