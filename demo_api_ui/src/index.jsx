@@ -8,6 +8,7 @@ import './theme/refinedAgent.css';
 import './styles/controls.css';
 import App from './App';
 import { patchFetch } from './services/apiTrafficStore';
+import { initTracing } from './services/tracing';
 import ErrorBoundary from './components/ErrorBoundary';
 // PostHog off for now — no project token configured. Re-enable by uncommenting
 // this import and the initPosthog() call below (build wiring is already in place:
@@ -31,6 +32,9 @@ if (
 // Patch window.fetch before React renders so every /api/* call is captured
 patchFetch();
 // initPosthog();  // disabled — see the posthogClient import note above
+
+// Best-effort, gated by ff_tracing — see services/tracing.js.
+initTracing();
 
 // PWA installability (mobile/iOS "Add to Home Screen"). The service worker
 // only cache-firsts content-hashed build assets — see public/service-worker.js
