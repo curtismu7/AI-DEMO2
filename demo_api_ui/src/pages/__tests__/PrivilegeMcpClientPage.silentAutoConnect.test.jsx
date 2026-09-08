@@ -10,7 +10,7 @@
 // the BFF has set privilegePromptNoneFailed, so auto-starting again would send
 // the user to a real PingOne login page they never asked for.
 import { render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import PrivilegeMcpClientPage from "../PrivilegeMcpClientPage";
 
 vi.mock("../../services/apiClient", () => ({
@@ -58,10 +58,15 @@ function authStartCalls() {
   );
 }
 
+function ShowSearch() {
+  return <span data-testid="search">{useLocation().search}</span>;
+}
+
 function renderAt(entry) {
   render(
     <MemoryRouter initialEntries={[entry]}>
       <PrivilegeMcpClientPage />
+      <ShowSearch />
     </MemoryRouter>,
   );
 }
@@ -84,16 +89,42 @@ describe("Privilege silent auto-connect", () => {
     await waitFor(() => expect(authStartCalls()).toHaveLength(1));
     await waitFor(() => expect(window.location.href).toBe(AUTH_URL));
     // No modal — the whole point is that the user is not asked.
-    expect(screen.queryByText("Sign in to continue")).toBeNull();
+    expect(screen.queryByTestId("sign-in-prompt")).toBeNull();
   });
 
   it("does NOT auto-start after a round trip, so a failed silent attempt cannot force a login page", async () => {
     mockState({ mainAppAuthenticated: true });
     renderAt("/privilege-mcp-client?auth=silent_failed");
 
-    await waitFor(() => expect(screen.getByText("Sign in to continue")).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId("sign-in-prompt")).toBeTruthy());
     expect(authStartCalls()).toHaveLength(0);
     expect(window.location.href).toBe("");
+  });
+
+  // 2026-09-08. The round-trip guard above is correct, but `auth` used to be
+  // left in the URL forever. So the guard fired on every later visit too: a
+  // reload, a bookmark or a shared /privilege-mcp-client?auth=success link went
+  // straight to a sign-in prompt on a session that could have signed itself in
+  // silently. That is the reported "it asks me to sign in even though I am
+  // signed in to the app". The marker is consumed once, then stripped.
+  it("strips the auth marker from the URL so the next visit is treated as fresh", async () => {
+    mockState({ mainAppAuthenticated: true });
+    renderAt("/privilege-mcp-client?auth=success&reason=x");
+
+    // Still honoured on THIS mount — we really did just come back from a trip.
+    await waitFor(() => expect(screen.getByTestId("sign-in-prompt")).toBeTruthy());
+    expect(authStartCalls()).toHaveLength(0);
+
+    await waitFor(() => expect(screen.getByTestId("search").textContent).not.toMatch(/auth=/));
+    expect(screen.getByTestId("search").textContent).not.toMatch(/reason=/);
+  });
+
+  it("auto-starts on a reload of the stripped URL, instead of asking again", async () => {
+    mockState({ mainAppAuthenticated: true });
+    renderAt("/privilege-mcp-client");
+
+    await waitFor(() => expect(authStartCalls()).toHaveLength(1));
+    expect(screen.queryByTestId("sign-in-prompt")).toBeNull();
   });
 
   it("does not auto-start when the main app is not signed in", async () => {

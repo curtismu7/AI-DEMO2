@@ -80,7 +80,7 @@ describe("pingone-admin door's delegated-PKCE login", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Get MCP Tools/i }));
 
     await waitFor(() => expect(window.location.href).toBe(LOGIN_URL));
-    expect(screen.queryByText("Sign in to continue")).toBeNull();
+    expect(screen.queryByTestId("sign-in-prompt")).toBeNull();
   });
 
   it("does NOT navigate again when already returning from that exact round trip (loop guard)", async () => {

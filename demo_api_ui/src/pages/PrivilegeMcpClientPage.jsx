@@ -5,6 +5,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { FootprintSkinPicker } from '../components/aiFootprintMocks/FootprintSkinPicker';
 import ToolsTable from '../components/privilege/ToolsTable';
 import JsonHighlight from '../components/shared/JsonHighlight';
+import JsonFormView from '../components/shared/JsonFormView';
 import DraggableModal from '../components/DraggableModal';
 import PrivilegeMcpLearningPage from './PrivilegeMcpLearningPage';
 import './PrivilegeMcpClientPage.css';
@@ -220,45 +221,68 @@ const LLM_PATHS = {
   openai: { key: 'openai', title: 'LLM — OpenAI through Privilege', detail: 'The prompt goes to GPT through a Privilege virtual key. Privilege injects the provider key and can deny the call before the model ever sees it.' },
 };
 
-// A couple of real model names per lane to probe against the virtual key's
-// allowlist — not the provider's full catalog (see checkModels/GET
-// /llm/models), just enough to show a live pass/blocked contrast without a
-// long, expensive batch of calls.
-const MODEL_CANDIDATES = {
-  anthropic: ['claude-haiku-4-5-20251001', 'claude-3-5-haiku-20241022'],
-  google: ['gemini-2.0-flash', 'gemini-1.5-pro'],
-  openai: ['gpt-4o', 'gpt-4o-mini'],
-};
-
 function gatewayModeDetails(mode, mcpUrl) {
   const known = GATEWAY_MODES[mode];
   if (!known) return { key: 'unknown', title: 'Connection not selected', detail: 'Pick a path in Settings.' };
   return { ...known, url: mcpUrl };
 }
 
+/**
+ * Every JSON output on this page — MCP responses, raw JSON-RPC, tool results,
+ * trace frames — through one Form/JSON toggle, matching /llm-gateway's idiom.
+ * Form wins by default: an MCP tools/call response is nested enough that the
+ * raw text is the harder read, and the raw text is one click away.
+ * Each pane owns its own toggle state so switching the Explorer to JSON does
+ * not silently reformat the trace log someone is mid-read of.
+ */
+function JsonPane({ value, deep = false, emptyMessage, label = 'Output view' }) {
+  const [view, setView] = useState('form');
+  return (
+    <>
+      <div className="cur-viewtoggle" role="group" aria-label={label}>
+        <button
+          type="button"
+          className={view === 'form' ? 'is-active' : ''}
+          aria-pressed={view === 'form'}
+          onClick={() => setView('form')}
+        >
+          Form
+        </button>
+        <button
+          type="button"
+          className={view === 'json' ? 'is-active' : ''}
+          aria-pressed={view === 'json'}
+          onClick={() => setView('json')}
+        >
+          JSON
+        </button>
+      </div>
+      {view === 'form'
+        ? <div className="cur-formview"><JsonFormView value={value} emptyMessage={emptyMessage} /></div>
+        : <pre className="cur-code-output jh-dark"><JsonHighlight value={value} deep={deep} /></pre>}
+    </>
+  );
+}
+
 export default function PrivilegeMcpClientPage() {
-  const [searchParams] = useSearchParams();
+  // The setter matters as much as the getter here: `auth` used to be left in the
+  // URL forever, and the mount effect below treats ANY `auth` param as "we just
+  // came back from a round trip, do not retry silently". So a bookmarked or
+  // shared `?auth=success` link suppressed silent sign-in permanently and went
+  // straight to a sign-in prompt on a session that was perfectly able to sign in
+  // by itself. It is consumed once, then stripped.
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [config, setConfig] = useState({ mcpUrl: '', clientId: '', scopes: 'openid profile email', llmUrl: 'http://127.0.0.1:11434', llmModel: 'llama3.2:1b' });
   const [gatewayMode, setGatewayMode] = useState('privilege');
   // '' = an MCP path is active. Non-empty = chat goes to that LLM lane instead.
   const [llmPath, setLlmPath] = useState('');
   const [gatewaySession, setGatewaySession] = useState(null);
-  const [llmProvider, setLlmProvider] = useState('anthropic');
-  const [llmPrompt, setLlmPrompt] = useState('');
-  const [llmBusy, setLlmBusy] = useState(false);
-  const [llmResult, setLlmResult] = useState(null);
-  const [llmLanes, setLlmLanes] = useState([]);
+  // The provider lanes, their probes and the prove-the-policy prompt all live on
+  // /llm-gateway now — this page kept a second copy of them for months. What
+  // stays is the gateway URL, because the mode switcher's LLM path still routes
+  // the CHAT through it and the connection rail prints where that goes.
   const [llmGatewayUrl, setLlmGatewayUrl] = useState('');
-  const [laneResults, setLaneResults] = useState({});
-  const [laneBusy, setLaneBusy] = useState('');
-  // Per-lane model-allowlist check: the provider's own catalog (not filtered
-  // to this key) alongside a live pass/blocked verdict for a couple of real
-  // model names, so "not allowed for this key" and "not a real model" don't
-  // look the same on sight.
-  const [modelChecks, setModelChecks] = useState({});
-  const [llmDenial, setLlmDenial] = useState(null);
-  const [llmError, setLlmError] = useState('');
   const [rearmError, setRearmError] = useState('');
   const [preflight, setPreflight] = useState(null);
   const [preflightError, setPreflightError] = useState('');
@@ -326,15 +350,25 @@ export default function PrivilegeMcpClientPage() {
   // the time the denial modal paints — not whatever was in scope when the 403
   // arrived. See the blockedDetail comment above.
   const deniedDoor = doorName(config.mcpUrl);
-  const [showSignInModal, setShowSignInModal] = useState(false);
+  // Was a blocking modal. It is now a line on the connection rail's "Gateway
+  // identity" row, next to the Sign in button it is explaining — a demo that
+  // has just been refused should keep its trace, tools and denial band on
+  // screen, not have them covered by a dialog whose only action is the button
+  // already sitting in the rail.
+  const [signInReason, setSignInReason] = useState('');
   // "No Privilege in the path" (GATEWAY_MODES above) describes what Direct
   // mode adds on top of a door, not whether the door itself needs a bearer —
   // opensearch and brave still façade-challenge (requireBearer, see
   // mcpFacade.js's DOORS), so a 401 there is exactly as real as it is under
   // Façade/Privilege. Every isGatewayAuthChallenge() call site routes through
   // here instead of the raw setter so this stays in one place, not seven.
-  const requestSignIn = () => {
-    setShowSignInModal(true);
+  const requestSignIn = (reason) => {
+    setSignInReason(
+      reason
+        || 'This gateway is its own authorization server, so it issues its own token '
+           + 'rather than reusing your app session. Silent sign-in did not complete, so '
+           + 'this one may ask for your credentials.',
+    );
   };
   /**
    * Act on an auth challenge, whichever sign-in it turns out to want.
@@ -422,6 +456,12 @@ export default function PrivilegeMcpClientPage() {
   const mode = llmPath
     ? { ...LLM_PATHS[llmPath], url: llmGatewayUrl }
     : gatewayModeDetails(gatewayMode, config.mcpUrl);
+  // ONE answer to "are we signed in to the gateway", read by the rail, the
+  // status bar and nothing else. It deliberately does not consider
+  // mainAppAuthenticated: the app token is aud: enduser.ping.demo and is
+  // accepted by exactly zero doors, so counting it as gateway auth is what made
+  // three surfaces disagree with each other and with the sign-in prompt.
+  const gatewayAuth = authenticated ? 'signed-in' : silentAuthPending ? 'connecting' : 'needed';
   // The latest tool-call result shown in the RESULTS terminal tab. resultNonce
   // bumps on each new result to flash the tab so the user notices output arrived.
   const [toolResults, setToolResults] = useState([]);
@@ -642,6 +682,24 @@ export default function PrivilegeMcpClientPage() {
     } else if (pingoneAdminLogin === 'error') {
       appendChat('system', `PingOne Admin sign-in failed: ${reason ? decodeURIComponent(reason) : 'Unknown'}`);
     }
+
+    // Consume the round-trip markers so a reload, a bookmark or a shared link
+    // is treated as a fresh visit and gets the silent prompt=none path. The
+    // /state effect above still sees them on THIS mount — its closure captured
+    // the pre-strip snapshot and has an empty dep array — so the "do not
+    // auto-retry after a round trip" guard is untouched for the trip we are
+    // actually returning from.
+    //
+    // pingone_admin_login is deliberately NOT stripped: handleAuthChallenge
+    // reads it on every render as its "already came back from the admin login"
+    // loop guard, so removing it here would re-arm the redirect loop it exists
+    // to break.
+    if (authResult || reason) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('auth');
+      next.delete('reason');
+      setSearchParams(next, { replace: true });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -776,32 +834,6 @@ export default function PrivilegeMcpClientPage() {
     }
   }, [presets]);
 
-  // A denial (403 + llm_policy_denied) is the point of this panel, so it gets
-  // its own state and its own rendering — never the error channel.
-  const sendLlm = useCallback(async (promptOverride) => {
-    const prompt = (typeof promptOverride === 'string' ? promptOverride : llmPrompt).trim();
-    if (!prompt) return;
-    setLlmBusy(true);
-    setLlmResult(null);
-    setLlmDenial(null);
-    setLlmError('');
-    try {
-      const data = await api('/llm/call', { method: 'POST', body: { provider: llmProvider, prompt } });
-      setLlmResult(data);
-    } catch (err) {
-      if (err.code === 'llm_policy_denied') {
-        setLlmDenial({
-          reason: err.reason || err.message,
-          provider: err.provider || llmProvider,
-          route: err.route || '',
-        });
-      } else {
-        setLlmError(err.message || 'LLM call failed');
-      }
-    } finally {
-      setLlmBusy(false);
-    }
-  }, [llmProvider, llmPrompt]);
 
   // Load the lanes so the table prefills with what the SERVER actually calls,
   // rather than a path copied into the UI that can drift out of step with it.
@@ -811,98 +843,10 @@ export default function PrivilegeMcpClientPage() {
       .then((cfg) => {
         if (cancelled) return;
         setLlmGatewayUrl(cfg.gatewayUrl || '');
-        setLlmLanes(cfg.lanes || []);
       })
-      .catch(() => { /* panel still works on defaults */ });
+      .catch(() => { /* the rail just shows no URL for the LLM path */ });
     return () => { cancelled = true; };
   }, []);
-
-  const setLane = useCallback((provider, field, value) => {
-    setLlmLanes((prev) => prev.map((l) => (l.provider === provider ? { ...l, [field]: value } : l)));
-  }, []);
-
-  // Which layer refused, by status — the distinction that makes this table worth
-  // having: a 403 means Privilege did its job, a 502 means the provider credential
-  // behind the virtual key is the problem, and they look identical in a raw log.
-  const classify = (err) => {
-    if (err.code === 'llm_bad_route') return { layer: 'route rejected', tone: 'bad' };
-    if (err.code === 'llm_policy_denied') {
-      // Same HTTP shape (403 + llm_policy_denied) as a deliberate Privilege
-      // demo denial, but this one means "you typed a model this key's
-      // allowlist doesn't cover" — a config mistake, not the policy story.
-      if (/not allowed for this key/i.test(err.reason || err.message || '')) {
-        return { layer: 'model not allowed', tone: 'bad' };
-      }
-      return { layer: 'Privilege policy', tone: 'denied' };
-    }
-    if (err.status === 503) return { layer: 'not configured', tone: 'bad' };
-    if (err.status === 502) return { layer: 'provider', tone: 'bad' };
-    return { layer: `HTTP ${err.status || '?'}`, tone: 'bad' };
-  };
-
-  const testLane = useCallback(async (lane) => {
-    setLaneBusy(lane.provider);
-    setLaneResults((prev) => ({ ...prev, [lane.provider]: null }));
-    const t0 = Date.now();
-    try {
-      const data = await api('/llm/call', {
-        method: 'POST',
-        body: { provider: lane.provider, prompt: 'Reply with one word: ping', route: lane.route, model: lane.model },
-      });
-      setLaneResults((prev) => ({
-        ...prev,
-        [lane.provider]: { ok: true, layer: 'reply', tone: 'ok', text: data.reply, latencyMs: data.latencyMs },
-      }));
-    } catch (err) {
-      const { layer, tone } = classify(err);
-      setLaneResults((prev) => ({
-        ...prev,
-        [lane.provider]: { ok: false, layer, tone, text: err.reason || err.message, latencyMs: Date.now() - t0 },
-      }));
-    } finally {
-      setLaneBusy('');
-    }
-  }, []);
-
-  const testAllLanes = useCallback(async () => {
-    // Sequential: three concurrent calls through one gateway muddies which lane
-    // a rate-limit belongs to, and the whole point here is attribution.
-    for (const lane of llmLanes) await testLane(lane);
-  }, [llmLanes, testLane]);
-
-  // "What models are actually allowed for this key?" The gateway does not
-  // expose that allowlist directly (GET /llm/models is the provider's own
-  // catalog, unfiltered) — the only way to learn it is to try a candidate and
-  // read the verdict, so this fetches the catalog for context and then tests
-  // a couple of real model names, one at a time, with max_tokens capped at 1
-  // to keep a PASSING candidate cheap too.
-  const checkModels = useCallback(async (lane) => {
-    setModelChecks((prev) => ({ ...prev, [lane.provider]: { busy: true, catalog: prev[lane.provider]?.catalog, results: [] } }));
-    const catalog = await api(`/llm/models?provider=${lane.provider}`).catch((err) => ({ error: err.message }));
-    const results = [];
-    for (const model of MODEL_CANDIDATES[lane.provider] || []) {
-      const t0 = Date.now();
-      try {
-        await api('/llm/call', {
-          method: 'POST',
-          body: { provider: lane.provider, prompt: 'hi', model, maxTokens: 1 },
-        });
-        results.push({ model, tone: 'ok', layer: 'allowed', latencyMs: Date.now() - t0 });
-      } catch (err) {
-        const { layer, tone } = classify(err);
-        results.push({ model, tone, layer, latencyMs: Date.now() - t0 });
-      }
-      setModelChecks((prev) => ({ ...prev, [lane.provider]: { busy: true, catalog, results: [...results] } }));
-    }
-    setModelChecks((prev) => ({ ...prev, [lane.provider]: { busy: false, catalog, results } }));
-  }, []);
-
-  // "Prove the policy": a prompt the Privilege policy is configured to deny.
-  // Deliberately obvious PII so the denial is explainable on stage.
-  const proveLlmPolicy = useCallback(
-    () => sendLlm('Here is a customer SSN 123-45-6789 — summarise this record.'),
-    [sendLlm],
-  );
 
   const loadEnv = async () => {
     try {
@@ -1336,31 +1280,6 @@ export default function PrivilegeMcpClientPage() {
           <ToolsTable tools={tools} presentMode onClose={() => setShowPresent(false)} />
         </div>
       )}
-      {showSignInModal && (
-        <div className="cur-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="cur-signin-title">
-          <div className="cur-modal">
-            <h2 id="cur-signin-title">Sign in to continue</h2>
-            <p>
-              This gateway is its own authorization server, so it issues its own token
-              rather than reusing your app session. Silent sign-in did not complete, so
-              this one may ask for your credentials.
-            </p>
-            <div className="cur-btn-row">
-              <button className="cur-btn cur-btn--primary" onClick={async () => {
-                setShowSignInModal(false);
-                setSilentAuthPending(true);
-                try {
-                  await startAuthRedirect();
-                } catch (err) {
-                  setSilentAuthPending(false);
-                  appendChat('system', `Sign-in unavailable: ${err.message}`);
-                }
-              }}>Sign In</button>
-              <button className="cur-btn" onClick={() => setShowSignInModal(false)}>Cancel</button>
-            </div>
-          </div>
-        </div>
-      )}
       {showBlockedModal && (
         <div className="cur-modal-overlay" onClick={() => setShowBlockedModal(false)}>
           <div className="cur-modal" onClick={(e) => e.stopPropagation()}>
@@ -1677,62 +1596,16 @@ export default function PrivilegeMcpClientPage() {
           <span className="cur-titlebar-title">AI Agent Gateway Client — PingOne</span>
         </div>
         <div className="cur-titlebar-center">
-          <div className={`cur-status ${(authenticated || mainAppAuthenticated) ? 'cur-status--ok' : ''}`}>
+          <div className={`cur-status ${gatewayAuth === 'signed-in' ? 'cur-status--ok' : ''}`}>
             <span className="cur-status-dot" />
-            {(authenticated || mainAppAuthenticated) ? 'Connected' : 'Disconnected'}
+            {gatewayAuth === 'signed-in' ? 'Connected' : gatewayAuth === 'connecting' ? 'Connecting…' : 'Disconnected'}
           </div>
         </div>
+        {/* Path and Door moved to the connection rail — they are the two
+            controls that decide where a call goes, and they belong next to the
+            identity and tool count that answer for the result, not in a strip
+            of view toggles. */}
         <div className="cur-titlebar-right">
-          <label className="cur-mode-switcher">
-            <span>Path</span>
-            <select
-              aria-label="Connection path"
-              value={llmPath ? `llm:${llmPath}` : gatewayMode}
-              disabled={!gatewayStateLoaded || switching}
-              onChange={(event) => {
-                const v = event.target.value;
-                // Switching to an LLM lane leaves the MCP connection exactly as it
-                // is — it is a different destination for the PROMPT, not a
-                // reconnection, so no /config write and no re-auth.
-                if (v.startsWith('llm:')) { setLlmPath(v.slice(4)); return; }
-                setLlmPath('');
-                switchGatewayMode(v);
-              }}
-            >
-              <optgroup label="MCP path (tools)">
-                <option value="direct">Direct</option>
-                <option value="privilege">Privilege</option>
-                <option value="facade">Façade</option>
-              </optgroup>
-              <optgroup label="LLM path (prompt)">
-                <option value="llm:anthropic">Anthropic</option>
-                <option value="llm:google">Google</option>
-                <option value="llm:openai">OpenAI</option>
-              </optgroup>
-            </select>
-          </label>
-          {/* Door picker. Always shown once state has loaded — even with a
-              single known backend at the current origin (see
-              sameGatewayDoors()), it doubles as a live readout of what
-              target the client is actually pointed at, not just a switcher.
-              For Privilege it picks the DOOR, never a policy: Privilege
-              resolves the policy server-side from (user, door, tool), so a
-              policy control could only mislead about what it does. */}
-          {sameGatewayDoors().length > 0 && (
-            <label className="cur-mode-switcher">
-              <span>Door</span>
-              <select
-                aria-label="MCP backend (door)"
-                value={config.mcpUrl || ''}
-                disabled={switching || toolsLoading}
-                onChange={(event) => switchDoor(event.target.value)}
-              >
-                {sameGatewayDoors().map((url) => (
-                  <option key={url} value={url}>{doorName(url) || url}</option>
-                ))}
-              </select>
-            </label>
-          )}
           <FootprintSkinPicker className="cur-skin-picker" />
           <button
             type="button"
@@ -1746,6 +1619,18 @@ export default function PrivilegeMcpClientPage() {
           <button className="cur-flow-trigger" onClick={() => setShowGuide(true)} title="Learning Guide">Guide</button>
           <button className="cur-flow-trigger cur-settings-gear" onClick={() => setShowSettings(true)} title="Settings">&#x2699;&#xFE0E;</button>
           <button className="cur-flow-trigger" onClick={() => setShowFlowModal(true)}>Flow</button>
+          {/* The provider lanes, their probes and the prove-the-policy prompt
+              that used to sit on this page in a second copy now live only on
+              /llm-gateway. This is the link that used to be buried in that
+              panel's header. */}
+          <button
+            type="button"
+            className="cur-flow-trigger"
+            onClick={() => navigate('/llm-gateway')}
+            title="Provider lanes, model checks and policy proofs live there"
+          >
+            LLM Gateway
+          </button>
           {config.llmModel && <span className="cur-model-badge">{config.llmModel}</span>}
         </div>
       </header>
@@ -1773,257 +1658,191 @@ export default function PrivilegeMcpClientPage() {
         </section>
       )}
 
-      <section className={`cur-gateway-banner cur-gateway-banner--${mode.key}`} aria-label="Gateway mode">
-        <div className="cur-gateway-banner__eyebrow">ACTIVE USE CASE</div>
-        <div className="cur-gateway-banner__title">{mode.title}</div>
-        <div className="cur-gateway-banner__detail">{mode.detail}</div>
-        {mode.url && <code className="cur-gateway-banner__url">{mode.url}</code>}
-        {toolPolicy.total > 0 && (
-          <div className="cur-policy-summary" aria-label="Tool policy summary">
-            <span><strong>{toolPolicy.total}</strong> catalog</span>
-            <span className="cur-policy-summary__allowed"><strong>{toolPolicy.permitted}</strong> permitted</span>
-            <span className="cur-policy-summary__filtered"><strong>{toolPolicy.filtered}</strong> filtered</span>
-          </div>
-        )}
-      </section>
-
-      {gatewayMode === 'facade' && gatewaySession && !gatewaySession.ready && (
-        <div className="cur-gw-session-warn" role="status">
-          <span className="cur-gw-session-warn__icon" aria-hidden="true">⚠️</span>
-          <span>
-            Gateway session {gatewaySession.reason === 'expired' ? 'expired' : 'not established'}.
-            Façade mode relays on a server-side token that does not survive a restart.
-          </span>
-          <button
-            type="button"
-            className="cur-gw-session-warn__btn"
-            onClick={rearmGatewaySession}
-            disabled={switching}
-          >
-            {switching ? 'Re-arming…' : 'Re-arm gateway session'}
-          </button>
-          {rearmError && (
-            <span className="cur-gw-session-warn__err" role="alert">{rearmError}</span>
-          )}
-        </div>
-      )}
-
-      <div className="cur-preflight">
-        <button
-          type="button"
-          className="cur-preflight__run"
-          onClick={runPreflight}
-          disabled={preflightBusy}
-        >
-          {preflightBusy ? 'Probing…' : 'Run preflight'}
-        </button>
-        {preflightError && (
-          <p className="cur-preflight__error" role="alert">{preflightError}</p>
-        )}
-        {/* An empty result set is a real outcome — /doors/probe skips the
-            currently-selected door and caps the fan-out at 12 — so it is
-            reported rather than rendered as an empty list that reads clean. */}
-        {preflight && preflight.length === 0 && (
-          <p className="cur-preflight__empty">
-            No doors were probed. The selected door is skipped; add a preset for another one.
-          </p>
-        )}
-        {preflight && preflight.length > 0 && (
-          <ul className="cur-preflight__list">
-            {preflight.map((r) => (
-              <li key={r.url} className={r.ok ? 'cur-preflight__row--ok' : 'cur-preflight__row--bad'}>
-                <span aria-hidden="true">{r.ok ? '✅' : '❌'}</span>
-                <span className="cur-preflight__url">{r.url}</span>
-                <span>{r.ok ? `${r.tools} tools` : `${r.status || ''} ${r.error || ''}`.trim() || 'failed'}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <div className="cur-llmpanel">
-        {llmLanes.length > 0 && (
-          <div className="cur-llmlanes" data-testid="llm-lanes">
-            <div className="cur-llmlanes__head">
-              <span>Lanes</span>
-              <code className="cur-llmpanel__meta">{llmGatewayUrl || 'gateway URL not configured'}</code>
-              <button type="button" onClick={testAllLanes} disabled={Boolean(laneBusy)}>
-                {laneBusy ? 'Testing…' : 'Test all lanes'}
-              </button>
-              {/* This panel is the quick probe; the console is where the caps and the
-                  full decision live. Deliberately a link, not a duplicate of that view. */}
-              <button
-                type="button"
-                className="cur-llmlanes__open"
-                onClick={() => navigate('/llm-gateway')}
-              >
-                Open in LLM Gateway
-              </button>
-            </div>
-            {llmLanes.map((lane) => {
-              const r = laneResults[lane.provider];
-              const mc = modelChecks[lane.provider];
-              return (
-                <div className="cur-llmlanes__row" key={lane.provider}>
-                  <span className="cur-llmlanes__name">{lane.provider}</span>
-                  <input
-                    aria-label={`${lane.provider} route`}
-                    value={lane.route}
-                    onChange={(e) => setLane(lane.provider, 'route', e.target.value)}
-                  />
-                  <input
-                    aria-label={`${lane.provider} model`}
-                    value={lane.model}
-                    onChange={(e) => setLane(lane.provider, 'model', e.target.value)}
-                  />
-                  <button type="button" onClick={() => testLane(lane)} disabled={Boolean(laneBusy)}>
-                    Test
-                  </button>
-                  <button type="button" onClick={() => checkModels(lane)} disabled={Boolean(laneBusy) || mc?.busy}>
-                    {mc?.busy ? 'Checking…' : 'Check models'}
-                  </button>
-                  {!lane.keyConfigured && (
-                    <span className="cur-llmlanes__result cur-llmlanes__result--bad">
-                      {lane.keyEnv} not set
-                    </span>
-                  )}
-                  {r && (
-                    <span
-                      className={`cur-llmlanes__result cur-llmlanes__result--${r.tone}`}
-                      data-testid={`lane-result-${lane.provider}`}
-                    >
-                      {r.ok ? '✅' : r.tone === 'denied' ? '⚠️' : '❌'} {r.layer} · {r.latencyMs} ms
-                      <span className="cur-llmlanes__detail">{r.text}</span>
-                    </span>
-                  )}
-                  {mc && (
-                    <div className="cur-llmlanes__result" data-testid={`model-check-${lane.provider}`}>
-                      {mc.results.map((res) => (
-                        <span key={res.model} className={`cur-llmlanes__detail cur-llmlanes__result--${res.tone}`}>
-                          {res.tone === 'ok' ? '✅' : res.tone === 'denied' ? '⚠️' : '❌'} <code>{res.model}</code> — {res.layer} · {res.latencyMs} ms
-                        </span>
-                      ))}
-                      {mc.catalog && (
-                        <span className="cur-llmlanes__detail">
-                          {mc.catalog.error
-                            ? `Provider catalog: ${mc.catalog.error}`
-                            : Array.isArray(mc.catalog.models)
-                              ? `Provider catalog (not filtered to this key): ${mc.catalog.models.length} models — e.g. ${mc.catalog.models.slice(0, 5).join(', ')}`
-                              : `Provider catalog: HTTP ${mc.catalog.status}`}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-        <div className="cur-llmpanel__row">
-          <label htmlFor="llm-provider">Provider</label>
-          <select
-            id="llm-provider"
-            value={llmProvider}
-            onChange={(e) => setLlmProvider(e.target.value)}
-          >
-            <option value="anthropic">Anthropic</option>
-            <option value="google">Google</option>
-            <option value="openai">OpenAI</option>
-          </select>
-        </div>
-        <div className="cur-llmpanel__row">
-          <label htmlFor="llm-prompt">Prompt</label>
-          <input
-            id="llm-prompt"
-            type="text"
-            value={llmPrompt}
-            onChange={(e) => setLlmPrompt(e.target.value)}
-          />
-          <button type="button" onClick={() => sendLlm()} disabled={llmBusy}>
-            {llmBusy ? 'Sending…' : 'Send'}
-          </button>
-          <button type="button" onClick={proveLlmPolicy} disabled={llmBusy}>
-            Prove the policy
-          </button>
-        </div>
-        {llmResult && (
-          <div className="cur-llmpanel__reply">
-            <p>{llmResult.reply}</p>
-            <p className="cur-llmpanel__meta">
-              <code>{llmResult.route}</code> · {llmResult.latencyMs} ms
-            </p>
-          </div>
-        )}
-        {llmDenial && (
-          <div className="cur-llmpanel__denial" data-testid="llm-denial" role="status">
-            <strong>⚠️ Privilege denied this call.</strong>
-            <span>{llmDenial.reason}</span>
-            <span className="cur-llmpanel__meta">
-              provider {llmDenial.provider}
-              {llmDenial.route ? ` · ${llmDenial.route}` : ''}
-            </span>
-          </div>
-        )}
-        {llmError && (
-          <p className="cur-llmpanel__error" data-testid="llm-error" role="alert">{llmError}</p>
-        )}
-      </div>
-
       <div className="cur-body" ref={bodyRef}>
-        {/* Activity bar */}
-        <nav className="cur-activity-bar">
-          <button className={`cur-act-btn ${activeTab === 'chat' ? 'cur-act-btn--active' : ''}`} onClick={() => setActiveTab('chat')} title="Agent Chat">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-          </button>
-          <button className={`cur-act-btn ${activeTab === 'tools' ? 'cur-act-btn--active' : ''}`} onClick={() => setActiveTab('tools')} title="MCP Tools">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-          </button>
-          <button className={`cur-act-btn ${activeTab === 'rpc' ? 'cur-act-btn--active' : ''}`} onClick={() => setActiveTab('rpc')} title="Raw RPC">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-          </button>
-        </nav>
-
         {/* Sidebar */}
         <aside className="cur-sidebar" ref={sidebarRef}>
           <div className="cur-sidebar-header">
             <span className="cur-sidebar-title">CONNECTION</span>
           </div>
-          <div className="cur-conn-debug">
-            <div><span className="cur-cd-k">mcpUrl: </span><span className="cur-cd-v cur-cd-v--url">{config.mcpUrl || '—'}</span></div>
-            <div><span className="cur-cd-k">clientId: </span><span className="cur-cd-v cur-cd-v--id">{config.clientId || '—'}</span></div>
-            <div><span className="cur-cd-k">scopes: </span><span className="cur-cd-v cur-cd-v--scope">{config.scopes || '—'}</span></div>
-            <div><span className="cur-cd-k">authStatus: </span><span className={`cur-cd-v ${authenticated ? 'cur-cd-v--ok' : 'cur-cd-v--bad'}`}>{authenticated ? 'authenticated' : 'unauthenticated'}</span></div>
-          </div>
-          <div className="cur-sidebar-content">
-            {(authenticated ? (
-              <div className="cur-auth-status">
-                <span className="cur-auth-badge cur-auth-badge--ok">Authenticated</span>
-                {user?.email && <span className="cur-auth-user">{user.email}</span>}
-                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                  <button className="cur-btn" onClick={() => refreshTools()}>Retry Tools</button>
-                  <button className="cur-btn" onClick={async () => {
-                    await api('/auth/logout', { method: 'POST' }).catch(() => {});
-                    setAuthenticated(false);
-                    setGrantedScopes([]);
-                    setTools([]);
-                  }}>Sign Out</button>
-                </div>
-              </div>
-            ) : silentAuthPending ? (
-              <div className="cur-btn-row">
-                <span className="cur-auth-badge">Connecting...</span>
-              </div>
-            ) : (
-              <div className="cur-btn-row">
-                {gatewayMode === 'direct' ? (
-                  <span className="cur-auth-badge cur-auth-badge--ok">No sign-in required</span>
-                ) : mainAppAuthenticated ? (
-                  <span className="cur-auth-badge cur-auth-badge--ok">Authenticated</span>
-                ) : (
-                  <button className="cur-btn cur-btn--primary" onClick={startAuth}>Sign In with Privilege</button>
+          {/* The rail, in the order the connection is actually established:
+              app session, then gateway identity, then where the call goes, then
+              what came back. It replaced a debug block, an auth-badge block, a
+              gateway banner, a session warning and a bare "Run preflight"
+              button that were five separate strips saying overlapping things.
+
+              Rows 1 and 2 are separate on purpose. They are two different
+              identities and the page used to claim otherwise in three places at
+              once — the footer said "Authenticated" whenever EITHER was signed
+              in, the badge here said it off the app session alone, and the
+              debug line right above said "unauthenticated" — while a modal
+              demanded a sign-in. That contradiction is the whole of "it asks me
+              to sign in when I am already signed in". */}
+          <ol className="cur-rail">
+            <li className="cur-rail__row">
+              <span className="cur-rail__n">1</span>
+              <span className="cur-rail__k">App session</span>
+              <span className="cur-rail__v">
+                {mainAppAuthenticated
+                  ? <><span aria-hidden="true">✅</span> {user?.email || 'signed in'}</>
+                  : <><span aria-hidden="true">❌</span> Not signed in</>}
+              </span>
+            </li>
+
+            <li className="cur-rail__row">
+              <span className="cur-rail__n">2</span>
+              <span className="cur-rail__k">Gateway identity</span>
+              <span className="cur-rail__v" data-testid="rail-gateway-identity">
+                {gatewayAuth === 'signed-in' && (
+                  <>
+                    <span aria-hidden="true">✅</span> {user?.email || 'token held'}
+                    <button className="cur-btn cur-rail__btn" onClick={() => refreshTools()}>Retry tools</button>
+                    <button
+                      className="cur-btn cur-rail__btn"
+                      onClick={async () => {
+                        await api('/auth/logout', { method: 'POST' }).catch(() => {});
+                        setAuthenticated(false);
+                        setGrantedScopes([]);
+                        setTools([]);
+                      }}
+                    >Sign out</button>
+                  </>
                 )}
-              </div>
-            ))}
+                {gatewayAuth === 'connecting' && <><span className="cur-spinner" aria-hidden="true" /> Signing in…</>}
+                {gatewayAuth === 'needed' && (
+                  <>
+                    <span aria-hidden="true">⚠️</span> Not signed in
+                    <button className="cur-btn cur-btn--primary cur-rail__btn" onClick={startAuth}>Sign in</button>
+                  </>
+                )}
+              </span>
+              {signInReason && gatewayAuth !== 'signed-in' && (
+                <p className="cur-rail__note" role="status" data-testid="sign-in-prompt">{signInReason}</p>
+              )}
+            </li>
+
+            <li className="cur-rail__row">
+              <span className="cur-rail__n">3</span>
+              <span className="cur-rail__k">Path</span>
+              <span className="cur-rail__v">
+                <select
+                  aria-label="Connection path"
+                  value={llmPath ? `llm:${llmPath}` : gatewayMode}
+                  disabled={!gatewayStateLoaded || switching}
+                  onChange={(event) => {
+                    const v = event.target.value;
+                    // Switching to an LLM lane leaves the MCP connection exactly as it
+                    // is — it is a different destination for the PROMPT, not a
+                    // reconnection, so no /config write and no re-auth.
+                    if (v.startsWith('llm:')) { setLlmPath(v.slice(4)); return; }
+                    setLlmPath('');
+                    switchGatewayMode(v);
+                  }}
+                >
+                  <optgroup label="MCP path (tools)">
+                    <option value="direct">Direct</option>
+                    <option value="privilege">Privilege</option>
+                    <option value="facade">Façade</option>
+                  </optgroup>
+                  <optgroup label="LLM path (prompt)">
+                    <option value="llm:anthropic">Anthropic</option>
+                    <option value="llm:google">Google</option>
+                    <option value="llm:openai">OpenAI</option>
+                  </optgroup>
+                </select>
+              </span>
+              <p className="cur-rail__note">{mode.detail}</p>
+            </li>
+
+            {/* Door picker. Always shown once state has loaded — even with a
+                single known backend at the current origin (see
+                sameGatewayDoors()), it doubles as a live readout of what
+                target the client is actually pointed at, not just a switcher.
+                For Privilege it picks the DOOR, never a policy: Privilege
+                resolves the policy server-side from (user, door, tool), so a
+                policy control could only mislead about what it does. */}
+            <li className="cur-rail__row">
+              <span className="cur-rail__n">4</span>
+              <span className="cur-rail__k">Door</span>
+              <span className="cur-rail__v">
+                {sameGatewayDoors().length > 0 ? (
+                  <select
+                    aria-label="MCP backend (door)"
+                    value={config.mcpUrl || ''}
+                    disabled={switching || toolsLoading}
+                    onChange={(event) => switchDoor(event.target.value)}
+                  >
+                    {sameGatewayDoors().map((url) => (
+                      <option key={url} value={url}>{doorName(url) || url}</option>
+                    ))}
+                  </select>
+                ) : (doorName(config.mcpUrl) || '—')}
+                {/* Was an unlabelled "Run preflight" button on its own strip.
+                    It probes the OTHER configured doors with this identity —
+                    /doors/probe deliberately skips the door already selected —
+                    so it is named for that and sits on the row it is about. */}
+                <button
+                  type="button"
+                  className="cur-btn cur-rail__btn"
+                  onClick={runPreflight}
+                  disabled={preflightBusy}
+                >
+                  {preflightBusy ? 'Probing…' : 'Probe other doors'}
+                </button>
+              </span>
+              {mode.url && <code className="cur-rail__url">{mode.url}</code>}
+              {preflightError && <p className="cur-rail__note cur-rail__note--bad" role="alert">{preflightError}</p>}
+              {/* An empty result set is a real outcome — /doors/probe skips the
+                  currently-selected door and caps the fan-out at 12 — so it is
+                  reported rather than rendered as an empty list that reads clean. */}
+              {preflight && preflight.length === 0 && (
+                <p className="cur-rail__note">
+                  No other doors to probe. The selected door is skipped; add a preset for another one.
+                </p>
+              )}
+              {preflight && preflight.length > 0 && (
+                <ul className="cur-rail__probe">
+                  {preflight.map((r) => (
+                    <li key={r.url} className={r.ok ? 'cur-rail__probe--ok' : 'cur-rail__probe--bad'}>
+                      <span aria-hidden="true">{r.ok ? '✅' : '❌'}</span>
+                      <span className="cur-rail__probe-door">{doorName(r.url) || r.url}</span>
+                      <span>{r.ok ? `${r.tools} tools` : `${r.status || ''} ${r.error || ''}`.trim() || 'failed'}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </li>
+
+            <li className="cur-rail__row">
+              <span className="cur-rail__n">5</span>
+              <span className="cur-rail__k">Tools</span>
+              <span className="cur-rail__v">
+                {toolPolicy.total > 0
+                  ? <><strong>{toolPolicy.total}</strong> catalog · <strong className="cur-rail__ok-text">{toolPolicy.permitted}</strong> permitted · <strong className="cur-rail__bad-text">{toolPolicy.filtered}</strong> filtered</>
+                  : '—'}
+              </span>
+              {/* Façade relays on a server-side token that does not survive a
+                  restart, so this is a property of the connection, not a
+                  page-wide alarm — it belongs on the row whose tool count it
+                  explains. */}
+              {gatewayMode === 'facade' && gatewaySession && !gatewaySession.ready && (
+                <p className="cur-rail__note cur-rail__note--warn" role="status">
+                  <span aria-hidden="true">⚠️</span>{' '}
+                  Gateway session {gatewaySession.reason === 'expired' ? 'expired' : 'not established'}.
+                  <button
+                    type="button"
+                    className="cur-btn cur-rail__btn"
+                    onClick={rearmGatewaySession}
+                    disabled={switching}
+                  >
+                    {switching ? 'Re-arming…' : 'Re-arm'}
+                  </button>
+                  {rearmError && <span className="cur-rail__bad-text" role="alert"> {rearmError}</span>}
+                </p>
+              )}
+            </li>
+          </ol>
+
+          <div className="cur-sidebar-content">
 
             {grantedScopes.length > 0 && (
               <div className="cur-scopes-section">
@@ -2254,7 +2073,7 @@ export default function PrivilegeMcpClientPage() {
                 {mcpResult && (
                   <div className="cur-result-block">
                     <span className="cur-result-label">Response</span>
-                    <pre className="cur-code-output jh-dark"><JsonHighlight value={mcpResult} deep /></pre>
+                    <JsonPane value={mcpResult} deep label="MCP response view" />
                   </div>
                 )}
               </div>
@@ -2271,7 +2090,7 @@ export default function PrivilegeMcpClientPage() {
                 {rawRpcResult && (
                   <div className="cur-result-block">
                     <span className="cur-result-label">Response</span>
-                    <pre className="cur-code-output jh-dark"><JsonHighlight value={rawRpcResult} deep /></pre>
+                    <JsonPane value={rawRpcResult} deep label="Raw RPC response view" />
                   </div>
                 )}
               </div>
@@ -2438,7 +2257,7 @@ export default function PrivilegeMcpClientPage() {
                               This policy names no registered app, so there is no door to jump to.
                             </p>
                           )}
-                          <pre className="cur-code-output jh-dark"><JsonHighlight value={picked.spec} deep /></pre>
+                          <JsonPane value={picked.spec} deep label="Policy spec view" />
                         </div>
                       );
                     })()}
@@ -2551,7 +2370,7 @@ export default function PrivilegeMcpClientPage() {
                           <span className="cur-result-item-tool">{r.tool}</span>
                           <span className="cur-result-item-ts">{r.ts.slice(11, 19)}</span>
                         </div>
-                        <pre className="cur-result-item-body jh-dark"><JsonHighlight value={r.result} deep /></pre>
+                        <JsonPane value={r.result} deep label={`${r.tool} result view`} />
                       </div>
                     ))
                   )}
@@ -2571,7 +2390,7 @@ export default function PrivilegeMcpClientPage() {
         </div>
         <div className="cur-statusbar-right">
           <span className="cur-statusbar-item">{config.llmModel || 'No LLM'}</span>
-          <span className="cur-statusbar-item">{(authenticated || mainAppAuthenticated) ? 'Authenticated' : 'Not signed in'}</span>
+          <span className="cur-statusbar-item">{gatewayAuth === 'signed-in' ? 'Gateway: signed in' : gatewayAuth === 'connecting' ? 'Gateway: signing in…' : 'Gateway: not signed in'}</span>
         </div>
       </footer>
     </div>
