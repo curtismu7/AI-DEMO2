@@ -101,6 +101,19 @@ deploy() {
   kubectl apply -f "$SCRIPT_DIR/58-mcp-brave-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/59-mcp-jwt-verifier-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/62-hitl-service-deployment.yaml"
+  # Models onto the PVCs BEFORE anything that serves them. Both model PVCs are
+  # RWO, so a serving pod started first holds its volume on one node and a seed
+  # Job scheduled anywhere else waits forever — the stacks must not start until
+  # this Job is done. Deleted first because a completed Job is immutable, and the
+  # Job itself skips any file already present, so a re-run on a seeded cluster
+  # costs one pod start.
+  kubectl delete job seed-llm-models -n "$NS" --ignore-not-found >/dev/null 2>&1 || true
+  kubectl apply -f "$SCRIPT_DIR/54-seed-llm-models.yaml"
+  info "Seeding model PVCs (first run downloads ~14GB; later runs are a no-op)..."
+  if ! kubectl wait --for=condition=complete job/seed-llm-models -n "$NS" --timeout=45m; then
+    kubectl logs job/seed-llm-models -n "$NS" --tail=20 2>/dev/null || true
+    die "Model seed Job did not complete — the LLM tiers would CrashLoopBackOff with no model to load."
+  fi
   kubectl apply -f "$SCRIPT_DIR/56-llm-stack.yaml"           # 2-tier LLM proxy + swap tiers
   kubectl apply -f "$SCRIPT_DIR/72-rag-stack.yaml"           # RAG (starts by default; use `rag off` to stop)
   # BFF (token custodian)
@@ -757,10 +770,10 @@ PY
 yotuo_cmd() {
   local action="${1:-on}"
   if [ "$action" = "off" ]; then
-    info "Restoring llama tiers to PVC + HuggingFace download mode..."
+    info "Restoring llama tiers to the PVC models seeded by 54-seed-llm-models.yaml..."
     kubectl apply -f "$SCRIPT_DIR/56-llm-stack.yaml"
     kubectl rollout restart deployment/llama-tier1 deployment/llama-tier5 -n "$NS"
-    success "YOTUO overlay removed — tiers use llm-models PVC again."
+    success "YOTUO overlay removed — tiers read the llm-models PVC again (no HF download either way)."
     return
   fi
   local path="${2:-$DEFAULT_YOTUO_PATH}"

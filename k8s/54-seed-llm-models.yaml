@@ -1,0 +1,96 @@
+# Seed the model PVCs — the ONLY thing in this repo that downloads a model.
+#
+# Serving pods do not fetch anything: the llama tiers and the embeddings pod run
+# `-m /models/<file>.gguf` against a file that must already be on their PVC. If it
+# is absent they exit with llama.cpp's own "failed to load model" and stay in
+# CrashLoopBackOff, which is a legible failure — the previous `-hf` form instead
+# made every serving pod a downloader, and a silent one: when llama.cpp moved its
+# cache directory the PVC quietly stopped being used and every restart re-fetched
+# ~12GB onto an ephemeral disk (see the mountPath note in 56-llm-stack.yaml).
+#
+# Pinning an explicit path also ends that class of bug outright. Nothing here
+# depends on where the image chooses to cache; the file is at a path this repo
+# owns.
+#
+# Ordering: this Job must COMPLETE before 56-llm-stack.yaml and 72-rag-stack.yaml
+# start their pods. Both PVCs are RWO, so a running consumer holds the volume on
+# its node and a Job scheduled elsewhere would wait forever. deploy.sh applies and
+# waits on this first.
+#
+# Re-running: safe. Every file is skipped if already present, so this is a no-op
+# on a seeded cluster. To re-seed, scale the consumers to 0 first (RWO).
+#
+# tier3 (Llama-3-Groq-8B-Tool-Use) is deliberately NOT seeded: it is the
+# experimental A/B tier, runs at replicas 0, and the three tier models together
+# (12G + 2.5G + 4.9G) do not fit the 20Gi PVC. Add it to MODELS below, and grow
+# the PVC, only if you actually intend to run it.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: seed-llm-models
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: seed-llm-models
+spec:
+  backoffLimit: 4
+  # Kept after success so `kubectl logs job/seed-llm-models` can still explain
+  # what it did; deploy.sh deletes it before re-applying.
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app: ai-demo
+        component: seed-llm-models
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: seed
+          image: curlimages/curl:latest
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -eu
+              # dest|repo|filename
+              MODELS="
+              /models/gpt-oss-20b-MXFP4.gguf|ggml-org/gpt-oss-20b-GGUF|gpt-oss-20b-MXFP4.gguf
+              /models/microsoft_Phi-4-mini-instruct-Q4_K_M.gguf|bartowski/microsoft_Phi-4-mini-instruct-GGUF|microsoft_Phi-4-mini-instruct-Q4_K_M.gguf
+              /embed-models/nomic-embed-text-v1.5.Q8_0.gguf|nomic-ai/nomic-embed-text-v1.5-GGUF|nomic-embed-text-v1.5.Q8_0.gguf
+              "
+              echo "$MODELS" | while IFS='|' read -r dest repo file; do
+                [ -n "$dest" ] || continue
+                if [ -f "$dest" ]; then
+                  echo "have  $dest"
+                  continue
+                fi
+                echo "fetch $dest  <-  $repo/$file"
+                # Download to .part and rename only on success: a truncated GGUF
+                # loads far enough to crash the tier with a corrupt-tensor error
+                # that reads nothing like "the download died halfway".
+                curl -fL --retry 5 --retry-delay 10 --retry-connrefused \
+                  -o "$dest.part" \
+                  "https://huggingface.co/$repo/resolve/main/$file"
+                mv "$dest.part" "$dest"
+                echo "done  $dest"
+              done
+              echo "seed complete"
+              ls -la /models /embed-models
+          volumeMounts:
+            - name: models
+              mountPath: /models
+            - name: embed-models
+              mountPath: /embed-models
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: llm-models
+        - name: embed-models
+          persistentVolumeClaim:
+            claimName: embed-models
