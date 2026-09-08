@@ -15,7 +15,6 @@ import { SystemFlowMapView } from "../components/SystemFlowMap";
 import TokenExchangeDashboard from "../components/TokenExchangeDashboard";
 import WebMcpPanel from "../components/WebMcpPanel";
 import AgentFlowHistoryPage from "../pages/AgentFlowHistoryPage";
-import SignInPrompt from "../components/SignInPrompt";
 
 // Passed as prop to avoid circular dependency — AgentFlowPage is defined in App.js
 export default function MonitoringRoutes({ user, logout, AgentFlowPage }) {
@@ -35,12 +34,12 @@ export default function MonitoringRoutes({ user, logout, AgentFlowPage }) {
         <Route path="system-flow" element={<SystemFlowMapView />} />
         <Route path="mcp-traffic" element={<McpTrafficPage />} />
         <Route path="api-explorer" element={<Navigate to="/pingone-mcp-inspector?source=api" replace />} />
+        {/* Public: AgentFlowPage takes no props and reads no session — it
+            dispatches `agent-flow-diagram-open` and renders static copy telling
+            you to run the agent. Gating it behind SignInPrompt showed a
+            sign-in wall instead of the page, for a page that reveals nothing. */}
         <Route path="agent-flow" element={
-          !user
-            ? <SignInPrompt />
-            : AgentFlowPage
-              ? <AgentFlowPage />
-              : <Navigate to="/" replace />
+          AgentFlowPage ? <AgentFlowPage /> : <Navigate to="/" replace />
         } />
         {/* Live app-events stream (oauth / mcp / HITL / …). HTTP audit table kept at api-activity. */}
         <Route path="activity-log" element={<ActivityLogPage />} />

@@ -154,9 +154,10 @@ describe('every tree that owns a <Routes> is audited', () => {
 
   it('covers the monitoring tree', () => {
     assert.equal(levelOf(audited, '/monitoring/token-chain'), 'public');
-    // Its inline `!user ? <SignInPrompt />` guard, previously cross-checked
-    // against nothing.
-    assert.equal(levelOf(audited, '/monitoring/agent-flow'), 'user');
+    // Was gated by an inline `!user ? <SignInPrompt />` that nothing had ever
+    // cross-checked. AgentFlowPage reads no session, so the wall hid a page
+    // that reveals nothing — the guard was the bug, not the declaration.
+    assert.equal(levelOf(audited, '/monitoring/agent-flow'), 'public');
   });
 
   it('covers the setup tree', () => {

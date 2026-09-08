@@ -189,7 +189,7 @@
     "/mfa-test": "public",
     "/mgmt-api": "public",
     "/monitoring/activity-log": "public",
-    "/monitoring/agent-flow": "user",
+    "/monitoring/agent-flow": "public",
     "/monitoring/api-activity": "public",
     "/monitoring/api-explorer": "public",
     "/monitoring/mcp-traffic": "public",
