@@ -1,0 +1,153 @@
+# Every MCP sidecar that runs inside the agentless-mcpgw pod, in one place.
+#
+# WHY THIS FILE EXISTS
+# `extraContainers` is a LIST. Helm REPLACES a list wholesale on
+# `--reuse-values` rather than merging it, so any upgrade that passes a partial
+# list silently DELETES the sidecars it omitted. That is not hypothetical: it
+# took the estate down on 2026-09-07 (see .claude/skills/privilege-mcpgw-agent-k8s).
+# Until now the only copy of this list lived in the cluster, recoverable only
+# via `helm get values`. Now it is in git, and an upgrade restates all of it.
+#
+# ALWAYS upgrade with this file, never with --set on a list index:
+#
+#   helm upgrade agentless-mcpgw \
+#     pingone-privgateway-helm-main/agentless/agentless-mcpgw/ \
+#     -n ping-devops-curtismuir --reuse-values \
+#     -f pingone-privgateway-helm-main/agentless/sidecars.values.yaml
+#
+# VERIFY THE RENDER FIRST — `helm get values` will happily report values a
+# stale template never consumed, so it is not proof:
+#
+#   helm upgrade ... --dry-run -f sidecars.values.yaml \
+#     | grep -c 'name: mcp-brave\|name: mcp-grafana\|name: mcp-banking-rest\|name: mcp-pingone'
+#   # expect 4
+#
+# Upgrade against the chart SOURCE DIRECTORY, not the .tgz — the packaged chart
+# is a build artifact that goes stale and drops these local template additions.
+#
+# Ports 8080-8083 are taken, in this order. A new sidecar takes 8084.
+
+# ghcr-pull-secret, NOT ghcr-pull. Both exist in this namespace; the running
+# Deployment uses ghcr-pull-secret, and naming the other one here would swap the
+# pull secret out from under all four sidecars on the next upgrade.
+imagePullSecrets:
+  - name: ghcr-pull-secret
+
+extraContainers:
+  - name: mcp-brave
+    image: ghcr.io/curtismu7/ai-demo-mcp-brave:latest
+    imagePullPolicy: Always
+    env:
+      - name: PORT
+        value: "8080"
+      - name: BRAVE_SEARCH_API_KEY
+        valueFrom:
+          secretKeyRef:
+            name: brave-secrets
+            key: BRAVE_SEARCH_API_KEY
+    ports:
+      - containerPort: 8080
+    readinessProbe:
+      httpGet:
+        path: /health
+        port: 8080
+      initialDelaySeconds: 3
+      periodSeconds: 10
+
+  - name: mcp-grafana
+    image: ghcr.io/curtismu7/ai-demo-mcp-grafana:latest
+    imagePullPolicy: Always
+    env:
+      - name: PORT
+        value: "8081"
+      - name: GRAFANA_URL
+        value: http://grafana.ping-devops-cmuir.svc.cluster.local:3000
+      - name: GRAFANA_SERVICE_ACCOUNT_TOKEN
+        valueFrom:
+          secretKeyRef:
+            name: grafana-secrets
+            key: GRAFANA_SERVICE_ACCOUNT_TOKEN
+    ports:
+      - containerPort: 8081
+    readinessProbe:
+      httpGet:
+        path: /health
+        port: 8081
+      initialDelaySeconds: 3
+      periodSeconds: 10
+
+  - name: mcp-banking-rest
+    image: ghcr.io/curtismu7/ai-demo-mcp-banking-rest:latest
+    imagePullPolicy: Always
+    env:
+      - name: PORT
+        value: "8082"
+      - name: BANKING_UPSTREAM_URL
+        value: http://mcp-resource-server.ping-devops-cmuir.svc.cluster.local:8081
+      - name: BANKING_API_KEY
+        valueFrom:
+          secretKeyRef:
+            name: banking-rest-secrets
+            key: BANKING_API_KEY
+    ports:
+      - containerPort: 8082
+    readinessProbe:
+      httpGet:
+        path: /health
+        port: 8082
+      initialDelaySeconds: 3
+      periodSeconds: 10
+
+  # PingOne's own MCP server (github.com/pingidentity/pingone-mcp-server),
+  # fronted by demo_mcp_pingone's bridge because that server is stdio-only and
+  # the gateway discovers a backend over SSE. See demo_mcp_pingone/README.md.
+  #
+  # client_credentials, NOT the documented authorization_code/device_code
+  # grants: those surface their authorization URL on stderr as a log line, not
+  # as an MCP elicitation, so a caller arriving through the gateway would hang
+  # on "Waiting for authorization..." forever. Measured 2026-09-07.
+  - name: mcp-pingone
+    image: ghcr.io/curtismu7/ai-demo-mcp-pingone:latest
+    imagePullPolicy: Always
+    env:
+      - name: PORT
+        value: "8083"
+      - name: PINGONE_ROOT_DOMAIN
+        value: pingone.com
+      - name: PINGONE_AUTH_GRANT_TYPE
+        value: client_credentials
+      - name: PINGONE_MCP_ENVIRONMENT_ID
+        valueFrom:
+          secretKeyRef:
+            name: pingone-mcp-secrets
+            key: PINGONE_MCP_ENVIRONMENT_ID
+      - name: PINGONE_CLIENT_CREDENTIALS_CLIENT_ID
+        valueFrom:
+          secretKeyRef:
+            name: pingone-mcp-secrets
+            key: PINGONE_CLIENT_CREDENTIALS_CLIENT_ID
+      - name: PINGONE_CLIENT_CREDENTIALS_CLIENT_SECRET
+        valueFrom:
+          secretKeyRef:
+            name: pingone-mcp-secrets
+            key: PINGONE_CLIENT_CREDENTIALS_CLIENT_SECRET
+      - name: PINGONE_CLIENT_CREDENTIALS_SCOPES
+        value: p1:read:env
+      # The WRITE path constructs its own PingOne client for "environment
+      # validation" and ignores --store-type file, failing with
+      # "storage name is required when using keychain storage". These env vars
+      # reach the code path the flag misses.
+      - name: PINGONE_STORAGE_TYPE
+        value: file
+      - name: PINGONE_STORAGE_NAME
+        value: /tmp/pingone-mcp-store
+      - name: HOME
+        value: /tmp
+    ports:
+      - containerPort: 8083
+    readinessProbe:
+      httpGet:
+        path: /health
+        port: 8083
+      initialDelaySeconds: 3
+      periodSeconds: 10

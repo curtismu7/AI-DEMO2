@@ -49,6 +49,19 @@ const DEFAULT_PRIVILEGE_OPENSEARCH_MCP_URL = () =>
   process.env.PRIVILEGE_MCPGW_OPENSEARCH_URL || `${PRIVILEGE_GATEWAY_HOST}/${PRIVILEGE_APP_OPENSEARCH()}/mcp`;
 const DEFAULT_PRIVILEGE_BRAVE_MCP_URL = () =>
   process.env.PRIVILEGE_MCPGW_BRAVE_URL || `${PRIVILEGE_GATEWAY_HOST}/${PRIVILEGE_APP_BRAVE()}/mcp`;
+// PingOne's own MCP server, run as a gateway sidecar (demo_mcp_pingone) and
+// registered as the Agentic App `pingone-admin-local`. This is the door where
+// Privilege polices PingOne ADMINISTRATIVE actions rather than banking ones.
+//
+// `/sse`, NOT `/mcp` — and that is not a style choice. The gateway constrains a
+// client to the app's registered entry path, and this app's backend is
+// registered as /sse (the only path its discovery handshake works on). Asking
+// for /mcp gets a bare 404 whose only explanation is in the gateway log:
+//   rejecting /mcp on app pingone-admin-local: outside entry path "/sse"
+const PRIVILEGE_APP_PINGONE_ADMIN = () => process.env.PRIVILEGE_APP_PINGONE_ADMIN || 'pingone-admin-local';
+const DEFAULT_PRIVILEGE_PINGONE_ADMIN_URL = () =>
+  process.env.PRIVILEGE_MCPGW_PINGONE_ADMIN_URL
+  || `${PRIVILEGE_GATEWAY_HOST}/${PRIVILEGE_APP_PINGONE_ADMIN()}/sse`;
 // Through our façade: same policy, but the client registers with our own durable
 // AS, so it survives a gateway restart.
 const DEFAULT_FACADE_MCP_URL = () =>
@@ -1457,6 +1470,15 @@ router.get('/state', (req, res) => {
       mode: 'privilege',
       url: app.privilegeUrl,
     })),
+    {
+      // The PingOne-admin door: Privilege policing PingOne administration
+      // itself, rather than banking tools. Listed explicitly rather than left
+      // to console discovery because discovery reports the app's URL with the
+      // /mcp path, which this app answers with 404 (see the constant above).
+      label: 'Privilege — PingOne admin (local MCP server)',
+      mode: 'privilege',
+      url: DEFAULT_PRIVILEGE_PINGONE_ADMIN_URL(),
+    },
     {
       label: '3 · Privilege — through the façade',
       mode: 'facade',

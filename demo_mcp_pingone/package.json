@@ -1,0 +1,13 @@
+{
+  "name": "demo-mcp-pingone",
+  "version": "1.0.0",
+  "description": "HTTP/SSE bridge for pingidentity/pingone-mcp-server (stdio-only) so the PingOne Privilege AI Gateway can front it",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
