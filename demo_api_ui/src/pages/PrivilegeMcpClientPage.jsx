@@ -1689,12 +1689,15 @@ export default function PrivilegeMcpClientPage() {
             cross-page link are workbench chrome and move to Inspect — nothing is
             removed, it is one toggle away.
 
-            Light/Dark is NOT gated. It was, briefly, and that was wrong:
-            flipping to light for a projector or a bright room is the most
-            demo-ish control on this bar, and burying it behind Inspect meant
-            reaching for a debugging mode to do a presentation job. */}
+            Light/Dark and the skin picker are NOT gated. Both were, briefly,
+            and both were wrong for the same reason: flipping to light for a
+            projector, and switching costume to show the same chain inside VS
+            Code or Claude Desktop, are the two most demo-ish controls on this
+            bar. Burying them behind Inspect meant reaching for a debugging mode
+            to do a presentation job — and the skin picker is the ONLY route to
+            the other three client shells, so gating it hid three whole demos. */}
         <div className="cur-titlebar-right">
-          {inspecting && <FootprintSkinPicker className="cur-skin-picker" />}
+          <FootprintSkinPicker className="cur-skin-picker" />
           <button
             type="button"
             className="cur-flow-trigger"
@@ -1705,7 +1708,7 @@ export default function PrivilegeMcpClientPage() {
           </button>
           <button className="cur-flow-trigger" onClick={clearActivity} title="Clear chat, events, and results for a fresh demo">Clear</button>
           <button className="cur-flow-trigger" onClick={() => setShowGuide(true)} title="Learning Guide">Guide</button>
-          <button className="cur-flow-trigger cur-settings-gear" onClick={() => setShowSettings(true)} title="Settings">&#x2699;&#xFE0E;</button>
+          <button className="cur-flow-trigger cur-settings-gear" onClick={() => setShowSettings(true)} title="Settings">Settings</button>
           <button className="cur-flow-trigger" onClick={() => setShowFlowModal(true)}>Flow</button>
           {/* The provider lanes, their probes and the prove-the-policy prompt
               that used to sit on this page in a second copy now live only on
