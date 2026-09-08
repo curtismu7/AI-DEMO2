@@ -6,9 +6,19 @@ This comprehensive guide provides detailed documentation and best practices for 
 
 ## Integration Architecture
 
+> **Scope:** this section documents the `POST /api/agent/invoke` path specifically
+> (admin vertical, quick-action chips, non-banking-vertical follow-through, or
+> AG-UI toggled off). Typed customer chat defaults instead to `POST /api/agent/run`
+> (AG-UI, `ff_agui_enabled` default `true`), which reaches an external SDK
+> container — `langchain_agent` by default (`llm_framework` config), or
+> `openai_agent`/`mastra_agent`/`pydantic_agent` — for the reasoning hop, sharing
+> the same RFC 8693 exchange and tool-execution steps described below. See
+> `docs/ARCHITECTURE.md` §3.2 for the full picture and
+> `docs/AGENT_FRAMEWORK_TECHNICAL_COMPARISON.md` for the four-framework comparison.
+
 ### System Components
 
-#### 1. AI Agent Service
+#### 1. AI Agent Service (the `/api/agent/invoke` path)
 ```
 User / SPA
     |
