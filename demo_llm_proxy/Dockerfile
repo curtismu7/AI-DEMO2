@@ -20,7 +20,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
-COPY router.js posthogAi.js ./
+COPY router.js posthogAi.js metrics.js ./
 
 EXPOSE 8090
 ENV LLM_PROXY_PORT=8090
