@@ -23,6 +23,8 @@ const http = require('http');
 const https = require('https');
 const { URL } = require('url');
 const { getTokenEndpoint } = require('../services/oauthEndpointResolver');
+// The client secret is a vault entry, not a process env var — see getAccessToken.
+const configStore = require('../services/configStore');
 
 const router = express.Router();
 
@@ -119,11 +121,32 @@ async function getAccessToken() {
   if (cachedToken && Date.now() < cachedToken.expiresAt - TOKEN_SKEW_MS) {
     return cachedToken.accessToken;
   }
-  const clientId = process.env.PRIVILEGE_SSO_CLIENT_ID || process.env.PINGONE_MCP_GATEWAY_CLIENT_ID;
-  const clientSecret = process.env.PRIVILEGE_SSO_CLIENT_SECRET || process.env.PINGONE_MCP_GATEWAY_CLIENT_SECRET;
-  const envId = process.env.PRIVILEGE_SSO_ENV_ID || process.env.PINGONE_ENVIRONMENT_ID;
+  // The audience this route needs is mcpserver.ping.demo (see the file header),
+  // a BANKING-environment resource — so these are the banking env's
+  // client_credentials credentials, never the Privilege tenant's.
+  //
+  // This read PRIVILEGE_SSO_* first purely because of the route's name, and that
+  // was wrong in every direction. Measured 2026-09-08: PRIVILEGE_SSO_CLIENT_ID
+  // (a6219652) does not exist in the banking env at all and authenticates in
+  // neither tenant, so every call here failed `invalid_client`. The Privilege
+  // gateway's own OIDC client cannot stand in either — it is an
+  // authorization_code web app and answers `unauthorized_client` to this grant.
+  // PINGONE_MCP_GATEWAY_CLIENT_ID does work: verified live, it returns a token
+  // with aud=mcpserver.ping.demo for `read write mcp:invoke`.
+  //
+  // The secret lives in the vault, so it has to come through configStore —
+  // process.env is empty for it and reading it directly is what left the
+  // credentials looking absent.
+  const clientId = process.env.PRIVILEGE_SIMPLE_CLIENT_ID
+    || process.env.PINGONE_MCP_GATEWAY_CLIENT_ID;
+  const clientSecret = process.env.PRIVILEGE_SIMPLE_CLIENT_SECRET
+    || configStore.getEffective('PINGONE_MCP_GATEWAY_CLIENT_SECRET')
+    || process.env.PINGONE_MCP_GATEWAY_CLIENT_SECRET;
+  const envId = process.env.PINGONE_ENVIRONMENT_ID;
   if (!clientId || !clientSecret || !envId) {
-    throw new Error('Missing client credentials: need PRIVILEGE_SSO_CLIENT_ID/_SECRET and an environment id.');
+    throw new Error('Missing client credentials: need PINGONE_MCP_GATEWAY_CLIENT_ID and its secret '
+      + '(vault key PINGONE_MCP_GATEWAY_CLIENT_SECRET, or PRIVILEGE_SIMPLE_CLIENT_ID/_SECRET to override) '
+      + 'plus PINGONE_ENVIRONMENT_ID.');
   }
 
   const tokenUrl = getTokenEndpoint();
