@@ -34,9 +34,13 @@ const PRIVILEGE_APP_BRAVE = () => process.env.PRIVILEGE_GATEWAY_APP_BRAVE || 'br
 const DEFAULT_PRIVILEGE_MCP_URL = () => `${PRIVILEGE_GATEWAY_HOST}/${PRIVILEGE_APP()}/mcp`;
 const DEFAULT_PRIVILEGE_OPENSEARCH_MCP_URL = () => `${PRIVILEGE_GATEWAY_HOST}/${PRIVILEGE_APP_OPENSEARCH()}/mcp`;
 const DEFAULT_PRIVILEGE_BRAVE_MCP_URL = () => `${PRIVILEGE_GATEWAY_HOST}/${PRIVILEGE_APP_BRAVE()}/mcp`;
-// No Privilege in the path — any MCP server you run yourself. No bundled
-// default: this tool has no façade to fall back to, unlike the embedded demo.
-const DEFAULT_DIRECT_MCP_URL = () => process.env.DIRECT_MCP_URL || '';
+// No Privilege in the path. Defaults to the AI Demo's own façade
+// (ai-demo.ping-devops.com) — verified live: it's a self-advertising OAuth
+// broker with open Dynamic Client Registration (RFC 7591) and no shared
+// secret, so this resolves the same way Privilege mode's default does, with
+// zero setup. Override to point at any MCP server you run yourself.
+const DEFAULT_DIRECT_MCP_URL = () => process.env.DIRECT_MCP_URL || 'https://ai-demo.ping-devops.com/mcp-facade/opensearch/mcp';
+const DEFAULT_DIRECT_BRAVE_MCP_URL = () => process.env.DIRECT_BRAVE_MCP_URL || 'https://ai-demo.ping-devops.com/mcp-facade/brave/mcp';
 
 function privilegeDoorUrl(appName) {
   return `${PRIVILEGE_GATEWAY_HOST}/${appName}/mcp`;
@@ -997,6 +1001,7 @@ router.get('/state', (req, res) => {
     { label: '1 · Privilege — straight at the AI Gateway', mode: 'privilege', url: DEFAULT_PRIVILEGE_MCP_URL() },
     ...siblingApps.map((app) => ({ label: `Privilege — ${app.name}`, mode: 'privilege', url: app.privilegeUrl })),
     { label: '2 · Direct — no Privilege in the path', mode: 'direct', url: DEFAULT_DIRECT_MCP_URL() },
+    { label: 'Direct — Brave Search', mode: 'direct', url: DEFAULT_DIRECT_BRAVE_MCP_URL() },
   ].filter((p) => p.url);
 
   res.json({
