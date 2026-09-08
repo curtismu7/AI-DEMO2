@@ -203,6 +203,127 @@ Practical consequence: a server-side web app (this demo's BFF) cannot use a
 loopback-only client at all, regardless of how well it works from a CLI tool
 sitting on the operator's own machine.
 
+## Building a client from zero (no prior registration, no BFF) — `ai-gateway-client`, 2026-09-08
+
+Everything above was learned authoring policy and running the gateway. This
+section is the mirror image: what a brand-new, previously-unseen client
+discovers hitting the AI Gateway cold, extracted while building
+[`ai-gateway-client`](https://github.com/curtismu7/ai-gateway-client) — a
+standalone OAuth PKCE + DCR test client with no BFF, no session, no worker
+credentials, verified against the real public gateway
+(`mcpgw.ai-demo.ping-devops.com`).
+
+### RFC 9728 discovery needs a POST with a real JSON-RPC body — a GET gets a plain 405 with no challenge at all
+
+The instinct is to probe a door with `GET /opensearch22/mcp` to see what
+happens. That gets a bare `405`, no `WWW-Authenticate` header, nothing to
+chain discovery off. The challenge only appears on a `POST` carrying a
+plausible JSON-RPC request:
+
+```bash
+curl -s -D - -o /dev/null https://mcpgw.ai-demo.ping-devops.com/opensearch22/mcp \
+  -X POST -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":"discovery","method":"tools/list","params":{}}'
+# www-authenticate: Bearer scope="mcp:invoke", resource_metadata="https://.../.well-known/oauth-protected-resource"
+```
+
+Same trap exists one layer down: the protected-resource document's
+`authorization_servers[0]` points at an AS whose own
+`.well-known/oauth-authorization-server` you then have to fetch separately —
+three network hops (probe → resource metadata → AS metadata) before you have
+an `authorization_endpoint` to redirect a browser to. A client that stops
+after the first 401 concludes the door is broken rather than merely
+unauthenticated.
+
+### DCR against the AI Gateway works cold, from a client it has never seen, no prior setup — verified live
+
+`POST /<app>/register` with no client secret and
+`token_endpoint_auth_method: "none"` returns a real, usable `client_id` in
+one call, no console step, no coordination with whoever owns the environment:
+
+```bash
+curl -s -X POST http://127.0.0.1:3910/api/gateway/auth/start -d '{}'
+# {"authUrl":"https://mcpgw.ai-demo.ping-devops.com/opensearch22/authorize?
+#   client_id=e9UwED-wTocSrJduDaVmSolu5ZV7Z9bb&response_type=code&
+#   code_challenge=...&redirect_uri=http://127.0.0.1:3910/api/gateway/auth/callback&..."}
+```
+
+That `client_id` was minted milliseconds earlier, for a redirect URI the
+gateway had never heard of before that call. Combined with the "DCR registry
+is in memory" lesson above: a client built this way needs **no bootstrap
+step at all** as long as it re-registers whenever the liveness probe fails —
+see the next entry for how to detect that without an introspection endpoint.
+
+### Detecting a forgotten DCR registration without an introspection endpoint: the liveness-probe pattern
+
+The existing lesson above ("DCR registry is in memory — every restart
+forgets it") names the failure; this is the actual detection technique,
+ported into `ai-gateway-client` from this demo's own BFF
+(`isDcrClientStillKnown` in `privilegeMcpClient.js`). There is no "is my
+registration still alive" endpoint, so probe indirectly: POST a
+deliberately-invalid authorization code to the token endpoint and read which
+way it's rejected.
+
+```text
+401 / invalid_client  -> the client is gone; re-register
+400 / invalid_grant    -> the client is fine, only the fake code was bad
+```
+
+The secret **must** be sent when the client is confidential — an
+unauthenticated probe against a confidential client answers the same `401`
+as a client that no longer exists at all, so a probe that omits it reports
+every real, working confidential client as forgotten. `ai-gateway-client`'s
+doors are all public/PKCE (`none` auth method), so this doesn't bite there,
+but it's the reason the original probe takes the secret as a parameter — a
+future door that isn't public-client would silently misreport without it.
+
+### The demo's own façade is *also* a self-advertising, open-DCR broker — not just internal plumbing
+
+`ai-demo.ping-devops.com/mcp-facade/{opensearch,brave}/mcp` (the "no
+Privilege in the path" comparison door) answers the same RFC 9728 challenge
+shape as the real gateway, pointing at an AS the demo runs at its own
+origin:
+
+```bash
+curl -s https://ai-demo.ping-devops.com/mcp-facade/opensearch/.well-known/oauth-protected-resource
+# {"authorization_servers":["https://ai-demo.ping-devops.com"]}
+curl -s https://ai-demo.ping-devops.com/.well-known/oauth-authorization-server
+# {"registration_endpoint":"https://ai-demo.ping-devops.com/oauth/register",
+#  "token_endpoint_auth_methods_supported":["none"], ...}
+```
+
+`token_endpoint_auth_methods_supported: ["none"]` on an **open**
+`registration_endpoint` means literally any external caller can dynamically
+register and mint a `mcp:invoke`-scoped token against these doors with zero
+coordination — the same generic RFC 9728/DCR path that talks to the real
+Privilege gateway needed no special-casing to also talk to this broker
+(confirmed by removing this demo's own broker-specific client-id
+special-case from `ai-gateway-client` entirely — the generic path still
+works, because it never needed to be generic-*plus*-a-special-case in the
+first place). Worth knowing both ways: it's what makes the standalone
+Direct-mode default work with zero setup, and it's a genuinely public
+self-service OAuth AS sitting at the demo's own root origin, not merely an
+implementation detail of how the BFF happens to reach the façade internally.
+
+### Most of what looked essential to talking to Privilege wasn't
+
+`demo_api_server/routes/privilegeMcpClient.js` is ~2,900 lines. The
+standalone extraction that talks to the *same* real gateway, does the *same*
+RFC 9728/8414 discovery, the *same* DCR-with-liveness-probe, the *same*
+tools/list+call relay, is about a third of that with zero loss of
+correctness (verified: real DCR client issued, real PKCE redirect, real
+tools/list against live doors). What didn't survive the cut: Docker-network
+internal/external URL rewriting, this demo's own banking- and
+pingone-admin-specific doors, a "Façade" mode that exists to keep a
+standalone MCP client's registration alive across a gateway restart (which
+needs hosting infrastructure a standalone tool doesn't have), and an
+entirely separate LLM-call-policy comparison feature bolted onto the same
+route file. None of that is what makes Privilege work — it's what makes
+*this specific demo* work. If a change to Privilege integration code feels
+like it should be simple but the diff keeps growing, checking whether the
+growth is in that essential core or in this-repo's-own plumbing is worth
+doing before assuming the gateway itself got more complicated.
+
 ## Hosted vs. self-hosted PingOne MCP — two different auth models
 
 Two servers, easy to conflate because they answer to the same product name:
@@ -236,3 +357,8 @@ assuming the behavior transfers.
 - `demo_mcp_pingone/README.md` — this app's specific auth workaround
   (client_credentials ignored on the Linux build), tool curation, and the
   session-minting design that follows from the hosted-vs-self-hosted split above
+- [`ai-gateway-client`](https://github.com/curtismu7/ai-gateway-client) —
+  standalone client behind the "Building a client from zero" section above;
+  `server/lib/relay.js` is the ~700-line essential core (discovery, DCR,
+  liveness probe, relay) with the this-demo-specific plumbing already
+  stripped out
