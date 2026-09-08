@@ -1975,7 +1975,7 @@ export default function PrivilegeMcpClientPage() {
                 placeholder="Filter tools..."
                 value={toolSearch}
                 onChange={(e) => setToolSearch(e.target.value)}
-                style={{ margin: '4px 8px', width: 'calc(100% - 16px)', fontSize: 11 }}
+                style={{ margin: '4px 8px', width: 'calc(100% - 16px)' }}
               />
             )}
             {tools.length > 0 ? (() => {
@@ -2436,7 +2436,7 @@ export default function PrivilegeMcpClientPage() {
             </div>
             <div className="cur-terminal-content">
               {visibleTerminalTab === 'trace' && (
-                <div className="cur-terminal-log" style={{fontFamily:'monospace',fontSize:13}}>
+                <div className="cur-terminal-log">
                   {events.length === 0 && <span className="cur-terminal-empty">No events yet — sign in or call a tool</span>}
                   {events.slice(0, 100).map((e, i) => {
                     const rest = { ...e, ts: undefined, type: undefined };
