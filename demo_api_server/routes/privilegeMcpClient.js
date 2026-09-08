@@ -1166,6 +1166,26 @@ async function discoverAuth(session) {
     emitEvent(session, 'oauth', { phase: 'rfc9728_skipped', error: err.message });
   }
 
+  // A door on OUR OWN public origin is a façade or Direct door, and every one of
+  // them advertises its Authorization Server through the RFC 9728 block above.
+  // Reaching this line means that door is broken — and PingOne is never its AS.
+  //
+  // Falling through authorized with session.config.clientId (the Privilege SSO
+  // client), which the demo's PingOne environment has never heard of, so the
+  // browser landed on a PingOne error page reading only `code: NOT_FOUND` —
+  // naming neither the door nor the client. Measured live 2026-09-08 on
+  // /mcp-facade/banking/mcp, whose upstream host was torn down on 2026-09-01.
+  // The fallback below stays for the hosts it was written for.
+  const ownOrigin = PUBLIC_APP_ORIGIN();
+  if (ownOrigin && String(session.config.mcpUrl).startsWith(ownOrigin)) {
+    throw new Error(
+      `${session.config.mcpUrl} advertised no authorization server `
+      + `(${transportError ? transportError.message : `HTTP ${response && response.status}`}). `
+      + 'This door is served by this app, so PingOne is not its AS — the door itself is down. '
+      + 'Check the door\'s upstream rather than the OAuth configuration.',
+    );
+  }
+
   // PingOne OIDC discovery fallback
   try {
     const mcpUrl = new URL(session.config.mcpUrl);
