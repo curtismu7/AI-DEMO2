@@ -1684,22 +1684,25 @@ export default function PrivilegeMcpClientPage() {
             controls that decide where a call goes, and they belong next to the
             identity and tool count that answer for the result, not in a strip
             of view toggles. */}
-        {/* Demo keeps only what you would touch with an audience watching:
-            Clear, Guide, Flow, Settings. Appearance controls and the cross-page
-            link are workbench chrome and move to Inspect — nothing is removed,
-            it is one toggle away. */}
+        {/* Demo keeps what you would touch with an audience watching: the theme
+            toggle, Clear, Guide, Flow, Settings. The skin picker and the
+            cross-page link are workbench chrome and move to Inspect — nothing is
+            removed, it is one toggle away.
+
+            Light/Dark is NOT gated. It was, briefly, and that was wrong:
+            flipping to light for a projector or a bright room is the most
+            demo-ish control on this bar, and burying it behind Inspect meant
+            reaching for a debugging mode to do a presentation job. */}
         <div className="cur-titlebar-right">
           {inspecting && <FootprintSkinPicker className="cur-skin-picker" />}
-          {inspecting && (
-            <button
-              type="button"
-              className="cur-flow-trigger"
-              onClick={() => setPageTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
-              title={pageTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
-              {pageTheme === 'dark' ? 'Light' : 'Dark'}
-            </button>
-          )}
+          <button
+            type="button"
+            className="cur-flow-trigger"
+            onClick={() => setPageTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+            title={pageTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {pageTheme === 'dark' ? 'Light' : 'Dark'}
+          </button>
           <button className="cur-flow-trigger" onClick={clearActivity} title="Clear chat, events, and results for a fresh demo">Clear</button>
           <button className="cur-flow-trigger" onClick={() => setShowGuide(true)} title="Learning Guide">Guide</button>
           <button className="cur-flow-trigger cur-settings-gear" onClick={() => setShowSettings(true)} title="Settings">&#x2699;&#xFE0E;</button>
@@ -1975,7 +1978,7 @@ export default function PrivilegeMcpClientPage() {
                 placeholder="Filter tools..."
                 value={toolSearch}
                 onChange={(e) => setToolSearch(e.target.value)}
-                style={{ margin: '4px 8px', width: 'calc(100% - 16px)', fontSize: 11 }}
+                style={{ margin: '4px 8px', width: 'calc(100% - 16px)' }}
               />
             )}
             {tools.length > 0 ? (() => {
@@ -2436,7 +2439,7 @@ export default function PrivilegeMcpClientPage() {
             </div>
             <div className="cur-terminal-content">
               {visibleTerminalTab === 'trace' && (
-                <div className="cur-terminal-log" style={{fontFamily:'monospace',fontSize:13}}>
+                <div className="cur-terminal-log">
                   {events.length === 0 && <span className="cur-terminal-empty">No events yet — sign in or call a tool</span>}
                   {events.slice(0, 100).map((e, i) => {
                     const rest = { ...e, ts: undefined, type: undefined };
