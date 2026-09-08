@@ -2834,12 +2834,48 @@ repointed to `/openapi2/mcp`. Detail in
 [`privilege/CURRENT-CONFIGURATION.md`](privilege/CURRENT-CONFIGURATION.md)'s
 "The banking door" section.
 
-**What remains open in this entry**: step 2 (author a policy on `openapi2`
-naming the demo users — blocked, see above) and step 3 (repoint
-`mcpFacade.js`'s `agentless` door / `MCP_FACADE_AGENTLESS_URL`,
-`PRIVILEGE_AGENTLESS_MCPGW_URL_BANKING` at
-`https://mcpgw.ai-demo.ping-devops.com/openapi2/mcp` — not done, the door
-still points at the old torn-down host).
+**Update 2026-09-08 (2) — step 3 done; the "blocked on tool discovery" claim
+above was resting on a measurement that proves nothing.**
+
+The reason for believing `openapi2` discovers no tools was that the gateway logs
+no discovery for it. That signal is worthless here: `mcp-grafana` and
+`mcp-brave-search` — both **working** catalog apps — log exactly zero lines too,
+because for catalog and OpenAPI-MCP apps the adapter runs in Privilege's own
+infrastructure and our gateway pod only provides the mesh tunnel. Absence of logs
+is the normal state for this app type, not evidence of failure.
+
+Re-verified 2026-09-08, everything checkable without a console token passes:
+
+- the saved config on the pod is correct — `OPENAPIMCP_ENDPOINT=http://localhost:8082`
+  (no `/mcp` suffix), spec URL and tool mode as intended;
+- the sidecar serves the spec: `200`, 2867 bytes, valid OpenAPI 3.0.3 with two
+  operations carrying `operationId`s (`list_banking_accounts`,
+  `get_banking_account`) — so there is something for the adapter to convert;
+- the door is registered and routed: `POST /openapi2/mcp` answers a well-formed
+  401 challenge and `/.well-known/oauth-protected-resource/openapi2/mcp` returns
+  200 — **byte-for-byte the same behaviour as the working `mcp-grafana` door**.
+
+One of the two "unresolved leads" recorded above is also closed: the console's
+`401` on `/v1/github-account` is irrelevant, settled by reading the console's own
+JS bundle (the Tools panel renders from `applicationList`, not from any API
+call). Do not chase it again.
+
+So **step 3 is no longer gated on step 2** and has been done: the `agentless`
+door and the `Privilege — banking` preset now default to `openapi2` on the
+current gateway, resolving the path through `privilegeEntryPath` rather than
+hardcoding `/mcp`. The door's own comment set the condition — "a banking MCP
+server registered there as its own Agentic App", explicitly not an OpenSearch app
+— and `openapi2` is precisely that. `PRIVILEGE_AGENTLESS_MCPGW_URL_BANKING` is
+blanked in `.env` so the code default applies rather than an override naming a
+host deleted on 2026-09-01.
+
+**What remains open in this entry**: step 2 only — author a policy on `openapi2`
+naming the demo users. That needs the console, and the lesson from `opensearch22`
+the same day applies directly: an **expired** policy presents identically to a
+missing one (a bare 403), and re-adding it fixed that app immediately. Whether
+`openapi2`'s Tools panel is populated is still unconfirmed from outside the
+console — and note the console's tool list can itself be stale cache, which the
+gateway says out loud as `keeping the N tools already discovered`.
 
 ### [x] 2026-08-26 — `ping-mcpgw` Helm release's only remaining purpose is a backend it doesn't gate
 

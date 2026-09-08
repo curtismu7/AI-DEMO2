@@ -1648,12 +1648,15 @@ router.get('/state', (req, res) => {
       url: app.facadeUrl,
     })),
     {
-      // Kept through the mode rename: the banking door is deliberately dark
-      // (see TECH_DEBT 2026-09-01), and this preset is env-gated, so it simply
-      // does not appear unless someone points it at a live banking app.
-      label: 'Privilege — banking (external)',
+      // The banking door, dark from 2026-09-01 to 2026-09-08 while it addressed
+      // a torn-down gateway. `openapi2` is the banking Agentic App on the current
+      // gateway, so the preset now has a real default instead of being env-gated
+      // into invisibility — an operator should be able to pick the banking door
+      // without knowing an env var exists.
+      label: 'Privilege — banking (openapi2)',
       mode: 'privilege',
-      url: process.env.PRIVILEGE_AGENTLESS_MCPGW_URL_BANKING || '',
+      url: process.env.PRIVILEGE_AGENTLESS_MCPGW_URL_BANKING
+        || privilegeDoorUrl(process.env.MCP_FACADE_PRIVILEGE_GATEWAY_APP_BANKING || 'openapi2'),
     },
     {
       label: 'Agent Gateway — PingOne audit (scope-narrowed)',
