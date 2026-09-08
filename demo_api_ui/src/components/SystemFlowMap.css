@@ -84,13 +84,17 @@
   flex-direction: column;
   gap: 12px;
 }
+/* Above the bands, not below them. The bands and node cards carry opaque
+   backgrounds, so an underlying overlay was painted over everywhere except the
+   gaps between bands — the edges were correct, measured and almost entirely
+   invisible. pointer-events stay off so the layer never eats a click. */
 .sfm-edges {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   pointer-events: none;
-  z-index: 0;
+  z-index: 2;
   overflow: visible;
 }
 .sfm-map > .sfm-band,

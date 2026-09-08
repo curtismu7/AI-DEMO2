@@ -130,7 +130,13 @@ export function buildFlowModel(steps) {
   const decision = raw && raw !== 'NOT_RECORDED' ? raw : null;
 
   const nodeStates = {};
-  const edges = [];
+  // Keyed by node pair, not by step. Several steps legitimately run between the
+  // same two boxes — tools-list-challenge, tools-list and gateway are all
+  // bff→pep — and one path per step drew three coincident lines whose visible
+  // colour was just whichever rendered last. A skipped hop could then paint a
+  // lane that had actually succeeded.
+  const edgeByPair = new Map();
+  let lit = 0;
   const bump = (id, state) => {
     if (!id || !state) return;
     if (!nodeStates[id] || RANK[state] > RANK[nodeStates[id]]) nodeStates[id] = state;
@@ -141,18 +147,37 @@ export function buildFlowModel(steps) {
     if (!spec) continue;
     const state = stateForStep(step, spec.to === 'p1-authorize' ? decision : null);
     if (!state) continue;
+    if (state !== 'skipped') lit += 1;
     if (spec.node) {
       bump(spec.node, state);
       continue;
     }
-    edges.push({ id: step.id, from: spec.from, to: spec.to, kind: spec.kind, state, title: step.title });
+    const key = `${spec.from}|${spec.to}`;
+    const prev = edgeByPair.get(key);
+    if (!prev) {
+      edgeByPair.set(key, {
+        id: key, from: spec.from, to: spec.to, kind: spec.kind, state, titles: [step.title],
+      });
+    } else {
+      prev.titles.push(step.title);
+      // Strongest state owns the lane, for the same reason it owns a box.
+      if (RANK[state] > RANK[prev.state]) {
+        prev.state = state;
+        prev.kind = spec.kind;
+      }
+    }
     bump(spec.to, state);
     // The source box is at least reached — it originated the hop. Never
     // stronger than `done`, so a failing hop reddens its target, not its caller.
     bump(spec.from, state === 'skipped' ? 'skipped' : 'done');
   }
 
-  const lit = edges.filter((e) => e.state !== 'skipped').length;
+  // `lit` counts hops that ran, not lanes drawn — collapsing three bff→pep
+  // steps into one line must not make the header under-report the run.
+  const edges = [...edgeByPair.values()].map((e) => ({
+    ...e,
+    title: [...new Set(e.titles)].join(' · '),
+  }));
   return { nodeStates, edges, decision, lit };
 }
 
@@ -165,18 +190,41 @@ function pathBetween(box, a, b) {
   const ay = A.top - box.top + A.height / 2;
   const bx = B.left - box.left + B.width / 2;
   const by = B.top - box.top + B.height / 2;
-  if (Math.abs(bx - ax) > Math.abs(by - ay) * 1.1) {
+  // Control offsets are purely proportional. A fixed floor overshot on short
+  // gaps: two adjacent boxes 10px apart produced C223…177… — control points
+  // past each other — drawing an S-squiggle where a near-straight line belongs.
+  // The centres pick which SIDES to leave from; the anchor points that result
+  // pick which way the curve travels. Those disagree whenever the boxes overlap
+  // on that axis — a wrapped flex row puts the agent below AND left of the BFF,
+  // and steering by the centres then pushed both control points outside the
+  // span (C134…446 for a line from 205 to 375), doubling the curve back.
+  //
+  // Offsets stay proportional too: a fixed floor overshot on short gaps, drawing
+  // an S-squiggle between two boxes 10px apart.
+  // Which axis to leave on. Centres alone mislead when one box is much wider
+  // than the other: the LLM proxy fills its band, so its centre sits far to the
+  // right of the agent directly above it, and a centre-distance test sent that
+  // edge sweeping sideways across the map. If the boxes share a column and not
+  // a row, the honest line is vertical — and vice versa.
+  const sharesColumn = Math.min(A.right, B.right) - Math.max(A.left, B.left) > 0;
+  const sharesRow = Math.min(A.bottom, B.bottom) - Math.max(A.top, B.top) > 0;
+  const horizontal = sharesRow !== sharesColumn
+    ? sharesRow
+    : Math.abs(bx - ax) > Math.abs(by - ay) * 1.1;
+  if (horizontal) {
     const s = bx - ax > 0 ? 1 : -1;
     const x1 = ax + (s * A.width) / 2;
     const x2 = bx - (s * B.width) / 2;
-    const o = Math.max(28, Math.abs(x2 - x1) * 0.42);
-    return `M${x1},${ay} C${x1 + s * o},${ay} ${x2 - s * o},${by} ${x2},${by}`;
+    const dir = x2 >= x1 ? 1 : -1;
+    const o = Math.abs(x2 - x1) * 0.42;
+    return `M${x1},${ay} C${x1 + dir * o},${ay} ${x2 - dir * o},${by} ${x2},${by}`;
   }
   const t = by - ay > 0 ? 1 : -1;
   const y1 = ay + (t * A.height) / 2;
   const y2 = by - (t * B.height) / 2;
-  const p = Math.max(26, Math.abs(y2 - y1) * 0.45);
-  return `M${ax},${y1} C${ax},${y1 + t * p} ${bx},${y2 - t * p} ${bx},${y2}`;
+  const dir = y2 >= y1 ? 1 : -1;
+  const p = Math.abs(y2 - y1) * 0.45;
+  return `M${ax},${y1} C${ax},${y1 + dir * p} ${bx},${y2 - dir * p} ${bx},${y2}`;
 }
 
 export function verdictLabel(decision, story) {
@@ -245,11 +293,22 @@ export function SystemFlowMapView() {
 
   useEffect(() => {
     measure();
-    const el = mapRef.current;
-    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    // A second pass on the next frame: inside DraggableModal the panel is still
+    // sizing when the effect first runs, and the paths measured then anchor to
+    // where the boxes WERE — one edge drew from the agent out through the side
+    // of the panel.
+    const raf = requestAnimationFrame(measure);
+    if (typeof ResizeObserver === 'undefined') return () => cancelAnimationFrame(raf);
+    // Observe the boxes, not just their container. Nodes reflow inside a map
+    // whose own box never changes (font swap, a label wrapping), and watching
+    // only the container missed every one of those.
     const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
+    if (mapRef.current) ro.observe(mapRef.current);
+    for (const el of Object.values(nodeRefs.current)) if (el) ro.observe(el);
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+    };
   }, [measure]);
 
   const rowBands = BANDS.filter((b) => ['stack', 'pep', 'backends'].includes(b.id));

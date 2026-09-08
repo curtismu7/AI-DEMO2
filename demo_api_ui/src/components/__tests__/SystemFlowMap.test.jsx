@@ -82,6 +82,41 @@ describe('buildFlowModel', () => {
     expect(buildFlowModel([authorizeStep('PERMIT')]).decision).toBe('PERMIT');
   });
 
+  it('draws one lane per node pair, not one per step', () => {
+    // Found by driving a live run: tools-list-challenge, tools-list and gateway
+    // are all bff->pep, and one path each drew three coincident lines whose
+    // visible colour was whichever rendered last.
+    const { edges } = buildFlowModel([
+      step('tools-list-challenge', 'done'),
+      step('tools-list', 'done'),
+      step('gateway', 'done'),
+    ]);
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({ from: 'bff', to: 'pep' });
+    expect(edges[0].title).toBe('tools-list-challenge · tools-list · gateway');
+  });
+
+  it('gives a shared lane its strongest state, so a skipped hop cannot blank a real one', () => {
+    const { edges } = buildFlowModel([
+      step('tools-list', 'done'),
+      step('gateway', 'notinpath'),
+    ]);
+    expect(edges).toHaveLength(1);
+    expect(edges[0].state).toBe('done');
+  });
+
+  it('counts hops that ran, not lanes drawn', () => {
+    // Collapsing three bff->pep steps into one line must not make the header
+    // under-report the run.
+    const { edges, lit } = buildFlowModel([
+      step('tools-list-challenge', 'done'),
+      step('tools-list', 'done'),
+      step('gateway', 'done'),
+    ]);
+    expect(edges).toHaveLength(1);
+    expect(lit).toBe(3);
+  });
+
   it('counts only hops that actually ran', () => {
     const { lit } = buildFlowModel([
       step('prompt', 'done'),
