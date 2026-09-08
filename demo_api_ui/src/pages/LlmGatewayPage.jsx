@@ -556,7 +556,7 @@ export default function LlmGatewayPage() {
                   <dt>Path</dt>
                   <dd>
                     <div className="lgw-path">
-                      <span className="lgw-path__chip">You</span>
+                      <span className="lgw-path__chip lgw-path__chip--you">You</span>
                       <span className="lgw-path__arrow">&rarr;</span>
                       {decision.layer === 'Privilege' ? (
                         <>
