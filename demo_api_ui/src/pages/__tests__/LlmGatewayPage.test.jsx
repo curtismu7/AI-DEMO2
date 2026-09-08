@@ -234,6 +234,9 @@ describe("LLM Gateway console", () => {
       }, "generate 3 example customer records");
       expect(who).toHaveTextContent(/Privilege redacted the reply/);
       expect(who).toHaveTextContent(/removed 2 matched values/);
+      // The markers are marked up, not just present in the text — the demo's payoff.
+      expect(document.querySelectorAll('.lgw-redacted')).toHaveLength(2);
+      expect(screen.getByTestId("lgw-decision")).toHaveTextContent(/2 redacted/);
       expect(who).not.toHaveTextContent(/passed the prompt through\./);
       expect(screen.getByTestId("lgw-decision")).toHaveTextContent(/Answered, redacted/);
     });
