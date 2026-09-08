@@ -1317,7 +1317,7 @@ cmd_demo_sync() {
   # compose default — ensure Jaeger is up.
   # The demo-auth-gated services are always up now (see the sync above), so
   # they are always part of the instrumented set.
-  local otel_services="demo-api-server mcp-server agent-service hitl-service mcp-resource-server authz-server mcp-gateway mcp-proxy llm-proxy"
+  local otel_services="demo-api-server mcp-server agent-service hitl-service mcp-resource-server authz-server mcp-gateway mcp-proxy llm-proxy langchain-agent"
   # mastra-agent, openai-agent, pydantic-agent live in the optional "agents"
   # compose profile — only fold each into the toggle when a user has actually
   # started it, so flipping ff_tracing never force-starts an optional
