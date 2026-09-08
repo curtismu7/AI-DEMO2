@@ -142,11 +142,33 @@
   background: var(--act);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  padding: 8px 0;
-  gap: 6px;
+  justify-content: space-between;
+  align-items: stretch;
+  padding: 4px 0 8px;
   flex-shrink: 0;
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.afm-vcs-act__group {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+/* One 48px square per icon, the inactive ones dimmed and the active one full
+   strength with the 2px left accent — VS Code's own treatment. */
+.afm-vcs-act__i {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-left: 2px solid transparent;
+  opacity: 0.65;
+}
+.afm-vcs-act__i.is-on {
+  opacity: 1;
+  color: #fff;
+  border-left-color: currentColor;
 }
 
 .afm-vcs-act button {
@@ -762,3 +784,38 @@
 }
 
 .afm-ent-mhead .dim { color: #64748b; font-weight: 500; }
+
+
+/* Explorer tree root. VS Code shows the workspace folder above the files. */
+.afm-vcs-side__root {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px 4px;
+  font-size: var(--font-size-3xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  opacity: 0.9;
+}
+.afm-vcs-side__root .chev { opacity: 0.7; }
+
+/* File-type marks. Real codicons are glyphs from a font we do not ship, so
+   these are the two-letter marks VS Code's Seti theme uses for the same
+   extensions, in the same colours. */
+.afm-vcs-side .f {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.afm-vcs-side .fi {
+  flex: none;
+  width: 17px;
+  /* The 10px floor (REGRESSION_PLAN section 0 H2) is the smallest this may be,
+     and the ratchet test enforces it — an 8px mark was rejected here. */
+  font-size: var(--font-size-3xs);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  text-align: center;
+}
+.afm-vcs-side .fi--ts { color: #519aba; }
+.afm-vcs-side .fi--md { color: #519aba; opacity: 0.8; }
