@@ -4,14 +4,24 @@ A local, no-login test client for an OAuth-protected [MCP](https://modelcontextp
 
 It shows the same tool call through two paths — **straight at the gateway** (Privilege mode, policy enforced) and **no gateway in the path at all** (Direct mode, any MCP server you point it at) — so you can see exactly what the gateway adds: the same call succeeding, being refused, or being logged, depending only on which door you went through.
 
-## Quick start
+## Installation
+
+**Prerequisites:** Node.js 22+ and npm. Docker is optional (a `Dockerfile` is included).
 
 ```bash
-npm run install:all
-npm start          # builds the UI, then starts the server on :3910
+git clone https://github.com/curtismu7/ai-gateway-client.git
+cd ai-gateway-client
+npm run install:all   # installs both server/ and web/
+npm start              # builds the UI, then starts the server on :3910
 ```
 
-Open http://127.0.0.1:3910. It defaults to the **Privilege** door on the public Ping AI Demo gateway — click **Sign in** and complete the OAuth flow in your browser (no client registration needed; the tool registers itself with the gateway on the fly via RFC 7591 Dynamic Client Registration).
+Verify it's up:
+
+```bash
+curl http://127.0.0.1:3910/health
+```
+
+Then open http://127.0.0.1:3910. It defaults to the **Privilege** door on the public Ping AI Demo gateway — click **Sign in** and complete the OAuth flow in your browser (no client registration needed; the tool registers itself with the gateway on the fly via RFC 7591 Dynamic Client Registration).
 
 ## What it does
 

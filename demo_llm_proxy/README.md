@@ -2,6 +2,18 @@
 
 Smart routing proxy for managing 2 local language models through a single endpoint.
 
+## Installation
+
+**Prerequisites:** Node.js 22+ and npm. The proxy itself has no model-serving code — it only routes requests to local `llama-server` processes (Linux/any platform) or [oMLX](https://github.com/jundot/omlx) (Apple Silicon), so you'll also need one of those. Docker is optional (a `Dockerfile` is included).
+
+```bash
+git clone https://github.com/curtismu7/llm-gateway.git
+cd llm-gateway
+npm install
+```
+
+That installs the proxy's own dependencies. See **Setup** below to get an actual model running behind it, or jump straight to **Which backend?** if you already know which path you're on.
+
 ## Which backend?
 
 | Context | Backend | How |
@@ -10,7 +22,7 @@ Smart routing proxy for managing 2 local language models through a single endpoi
 | **Linux / AWS / CI / Docker on Linux** | **llama.cpp** (auto) | Omit `LLM_BACKEND` (GGUF tiers + this router) |
 | **Force llama.cpp on Mac** | **llama.cpp** | `LLM_BACKEND=llamacpp ./run.sh` |
 
-Platform detection lives in `demo_llm_proxy/resolve-llm-backend.sh` (darwin + arm64 → omlx).
+Platform detection lives in `resolve-llm-backend.sh` (darwin + arm64 → omlx).
 Provider id stays `llamacpp` in the UI for all backends (OpenAI-compatible `/v1` on `:8090`).
 K8s/AWS agent LLM uses in-cluster llama.cpp or Helix — never oMLX.
 
@@ -56,7 +68,7 @@ A bigger loaded tier serves smaller classes without a swap; swaps happen only up
 Models should be in `$MODELS_DIR` (default `~/models`) as GGUF-quantized files:
 
 ```bash
-bash demo_llm_proxy/download-models.sh
+bash download-models.sh
 ```
 
 This script checks for required models and provides download links if missing.
@@ -65,21 +77,30 @@ This script checks for required models and provides download links if missing.
 - `microsoft_Phi-4-mini-instruct-Q4_K_M.gguf` (~2.5GB)
 - `gpt-oss-20b-mxfp4.gguf` (~11GB)
 
-### 2. Update docker-compose.yml
-
-The proxy is included in `docker-compose.yml` by default:
+### 2. Start the proxy
 
 ```bash
-docker compose up llm-proxy   # Starts proxy (host llama-server backends are separate)
+npm start        # same as: node router.js
 ```
 
-### 3. Configure Agent Service
+You should see it log the tiers it knows about and `listening on 0.0.0.0:8090`.
 
-The agent-service automatically uses the proxy when:
-- `LLM_PROVIDER=llamacpp`
-- `LLAMACPP_BASE_URL=http://llm-proxy:8090` (default)
+### 3. Verify
 
-This is set by `refresh-service-envs.js` during bootstrap.
+```bash
+curl http://localhost:8090/health
+```
+
+`/health` returns `503` until at least one tier has loaded — that's expected on a cold start, not a failure. `/livez` (below) is always `200` once the process is up, regardless of tier state.
+
+### Optional: Docker
+
+```bash
+docker build -t llm-gateway .
+docker run -p 8090:8090 -e LLAMA_HOST=host.docker.internal llm-gateway
+```
+
+`LLAMA_HOST` tells the container where to reach the `llama-server` processes running on your host — `host.docker.internal` works on Docker Desktop (Mac/Windows); on Linux, use `--network host` or the host's real address instead.
 
 ## Endpoints
 
@@ -164,7 +185,7 @@ If llama.cpp instances fail to start, check:
 If the proxy reports all models unhealthy:
 
 1. Check Docker network: `docker network ls | grep ai-demo`
-2. Verify host llama-server backends started: `bash demo_llm_proxy/start-local-models.sh status`
+2. Verify host llama-server backends started: `bash start-local-models.sh status`
 3. Check logs: `tail /tmp/llama-models/llama-*.log`
 
 ### Slow responses
@@ -175,7 +196,7 @@ If the proxy reports all models unhealthy:
 
 ## Configuration
 
-Edit `demo_llm_proxy/start-local-models.sh` to customize:
+Edit `start-local-models.sh` to customize:
 
 - **Threads per model**: the 4th field in each `MODELS` entry (e.g. `4` for Tier 1)
 - **GPU layers**: `--n-gpu-layers 33` flag (set to `0` for CPU only)
@@ -236,7 +257,7 @@ SSD-persisted KV cache — much faster repeat turns than swap-mode llama.cpp.
 brew tap jundot/omlx https://github.com/jundot/omlx
 brew trust jundot/omlx   # required on Homebrew 6.0+
 brew install omlx
-bash demo_llm_proxy/download-omlx-models.sh fetch
+bash download-omlx-models.sh fetch
 ./run.sh                              # auto oMLX on Apple Silicon
 LLM_BACKEND=omlx ./run-docker.sh start
 ```
