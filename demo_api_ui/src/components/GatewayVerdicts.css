@@ -1,0 +1,108 @@
+/* Gateway findings panel. Every rule taking a --th-* ground states its ink on
+   the next line — THEMING.md. */
+.gwv {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
+
+.gwv__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.gwv__title {
+  margin: 0;
+  font-size: var(--font-size-base);
+  color: var(--th-text);
+}
+
+.gwv__btn {
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  cursor: pointer;
+}
+
+.gwv__btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.gwv__note {
+  margin: 0.4rem 0 0;
+  font-size: var(--font-size-sm);
+  line-height: 1.35;
+  color: var(--th-text-muted);
+}
+
+.gwv__note--auth { color: var(--th-status-warning); }
+.gwv__note--error { color: var(--th-status-error); }
+
+.gwv__list {
+  list-style: none;
+  margin: 0.6rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.gwv__item {
+  padding: 0.4rem 0.5rem;
+  border-left: 3px solid var(--th-border-strong);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+
+.gwv__item.is-bad { border-left-color: var(--th-status-error); }
+.gwv__item.is-warn { border-left-color: var(--th-status-warning); }
+
+.gwv__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+}
+
+.gwv__cat { font-weight: 700; color: var(--th-text); }
+.gwv__event,
+.gwv__dir,
+.gwv__time { color: var(--th-text-muted); }
+
+.gwv__frameworks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.3rem;
+}
+
+.gwv__fw {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--th-border);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+}
+
+.gwv__fw-label { color: var(--th-text-muted); }
+.gwv__fw-id {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--th-text);
+}
+
+.gwv__login {
+  color: var(--th-link, var(--th-text));
+  text-decoration: underline;
+}
