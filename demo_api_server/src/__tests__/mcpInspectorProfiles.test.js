@@ -44,9 +44,10 @@ jest.mock('../../services/mcpPingOneHttpAdapter', () => ({
 }));
 
 // Test-only session shim ahead of the router: sets req.session.user when the
-// request carries x-test-authed. Default role is admin (profile CRUD and
-// non-default dispatch are admin-gated); pass x-test-role: user to exercise
-// the customer 403 path. The unauthenticated 401 behavior is left intact.
+// request carries x-test-authed. Default role is admin, but profile CRUD and
+// non-default dispatch only require SOME signed-in session (requireSession),
+// not admin specifically — pass x-test-role: user to exercise that. The
+// unauthenticated 401 behavior (no x-test-authed at all) is left intact.
 // x-test-pingone-token (JSON) seeds req.session.pingoneMcpAdminToken for the
 // built-in PingOne profile's dispatch; x-test-privilege-token does the same
 // for req.session.privilegeMcpTokens[<x-test-privilege-profile, default
@@ -110,21 +111,14 @@ describe('Generic MCP Inspector — profiles', () => {
       expect(res.status).toBe(401);
     });
 
-    it('403s for a signed-in customer (a stdio profile would be RCE on the BFF host)', async () => {
+    it('allows a signed-in customer, not just admin, to create a profile (any session, not admin-only)', async () => {
       const res = await request(app)
         .post('/api/mcp/inspector/profiles')
         .set('x-test-authed', '1')
         .set('x-test-role', 'user')
-        .send({
-          label: 'evil',
-          transport: 'stdio',
-          command: 'node',
-          args: ['-e', "require('fs').writeFileSync('/tmp/pwned','x')"],
-        });
-      expect(res.status).toBe(403);
-      expect(res.body.error).toBe('admin_required');
-      expect(mockStdioListTools).not.toHaveBeenCalled();
-      expect(mockStdioCallTool).not.toHaveBeenCalled();
+        .send({ label: 'Customer server', transport: 'http', url: 'https://example.test/mcp' });
+      expect(res.status).toBe(201);
+      expect(res.body.profile.label).toBe('Customer server');
     });
 
     it('creates an http profile and never echoes the secret back', async () => {

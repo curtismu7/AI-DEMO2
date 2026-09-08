@@ -6,8 +6,12 @@
 // load, liveness gives up after ~100s, and a restart cannot make a model load
 // faster. Liveness must ask only "is this process serving HTTP".
 //
-// No YAML dependency on purpose: demo_llm_proxy has no parser and this needs to
-// run under a bare `node --test`.
+// No YAML PARSER dependency on purpose: this needs to run under a bare
+// `node --test`. It does read the k8s manifest as plain text, though — that
+// file lives outside this directory (repo root `k8s/`), which this directory
+// is not guaranteed to have a sibling of once it's extracted to its own repo
+// (see standalone/llm-gateway). The three tests that need it skip gracefully
+// when it's absent; the two that check router.js itself always run.
 
 const test = require('node:test');
 const assert = require('node:assert');
@@ -16,6 +20,8 @@ const path = require('node:path');
 
 const MANIFEST = path.join(__dirname, '..', 'k8s', '56-llm-stack.yaml');
 const ROUTER = path.join(__dirname, 'router.js');
+const HAS_MANIFEST = fs.existsSync(MANIFEST);
+const skip = HAS_MANIFEST ? false : 'k8s/56-llm-stack.yaml not present outside the AI-DEMO2 monorepo';
 
 /** The llm-proxy container block, so sibling tiers' probes cannot satisfy these. */
 function llmProxyBlock() {
@@ -26,7 +32,7 @@ function llmProxyBlock() {
   return yaml.slice(start, svc > 0 ? svc : undefined);
 }
 
-test('llm-proxy liveness does NOT use the dependency-aware /health', () => {
+test('llm-proxy liveness does NOT use the dependency-aware /health', { skip }, () => {
   const block = llmProxyBlock();
   const liveness = block.slice(block.indexOf('livenessProbe:'));
   const probePath = /path:\s*(\S+)/.exec(liveness);
@@ -39,7 +45,7 @@ test('llm-proxy liveness does NOT use the dependency-aware /health', () => {
   );
 });
 
-test('llm-proxy readiness still uses /health, so traffic waits for a backend', () => {
+test('llm-proxy readiness still uses /health, so traffic waits for a backend', { skip }, () => {
   const block = llmProxyBlock();
   const readiness = block.slice(block.indexOf('readinessProbe:'));
   const probePath = /path:\s*(\S+)/.exec(readiness);
@@ -48,7 +54,7 @@ test('llm-proxy readiness still uses /health, so traffic waits for a backend', (
   assert.strictEqual(probePath[1], '/health');
 });
 
-test('readiness and liveness ask DIFFERENT questions', () => {
+test('readiness and liveness ask DIFFERENT questions', { skip }, () => {
   const block = llmProxyBlock();
   const readiness = /path:\s*(\S+)/.exec(block.slice(block.indexOf('readinessProbe:')))[1];
   const liveness = /path:\s*(\S+)/.exec(block.slice(block.indexOf('livenessProbe:')))[1];

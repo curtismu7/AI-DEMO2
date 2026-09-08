@@ -170,38 +170,19 @@ router.get('/profiles', (req, res) => {
   }
 });
 
-/**
- * Admin session gate for profile management and non-default profile dispatch.
- * This router is mounted WITHOUT authenticateToken (so banking tools/list can
- * fall back to the local catalog for anonymous visitors) — so
- * middleware/auth.requireAdmin, which reads req.user, cannot be used here.
- * Mirrors the /api/mcp/audit session.user.role check.
- *
- * Critical: a stdio profile spawns profile.command on the BFF host
- * (services/mcpTransports/stdio.js). Any signed-in customer able to create or
- * invoke one has remote code execution; http/websocket profiles are SSRF.
- * Both creation and dispatch stay behind an admin session.
- */
-function requireAdminSession(req, res, next) {
-  if (!req.session?.user) {
-    return res.status(401).json({
-      error: 'unauthenticated',
-      message: 'A valid session is required. Please sign in.',
-    });
-  }
-  if (req.session.user.role !== 'admin') {
-    return res.status(403).json({
-      error: 'admin_required',
-      message: 'Admin session required to manage or invoke non-default MCP server profiles.',
-    });
-  }
-  return next();
-}
-
 // POST /api/mcp/inspector/profiles — add a server profile (websocket/http need
-// a url, stdio needs a local command). Admin only — see requireAdminSession.
+// a url, stdio needs a local command). Any signed-in session (user or admin),
+// not admin-only, and not anonymous — see requireSession.
 // The default banking profile is seeded separately and cannot be created here.
-router.post('/profiles', requireAdminSession, express.json(), (req, res) => {
+//
+// A stdio profile spawns profile.command on the BFF host
+// (services/mcpTransports/stdio.js) — that is remote code execution for
+// whoever can reach this route; http/websocket profiles are SSRF the same
+// way. This was previously admin-only (see REGRESSION_PLAN.md's 2026-07-26
+// entry, where the gate's total absence was a real reviewed finding) and is
+// deliberately relaxed to any signed-in session per explicit instruction —
+// still gated, just not admin-only, and never fully anonymous.
+router.post('/profiles', requireSession, express.json(), (req, res) => {
   try {
     const profile = mcpProfileStore.createProfile(req.body || {});
     res.status(201).json({ profile });
@@ -212,7 +193,8 @@ router.post('/profiles', requireAdminSession, express.json(), (req, res) => {
 
 // DELETE /api/mcp/inspector/profiles/:id — remove a saved profile; the default
 // banking profile is protected (mcpProfileStore throws default_profile_protected).
-router.delete('/profiles/:id', requireAdminSession, (req, res) => {
+// Any signed-in session — see POST /profiles above.
+router.delete('/profiles/:id', requireSession, (req, res) => {
   try {
     mcpProfileStore.deleteProfile(req.params.id);
     res.status(204).end();
@@ -472,8 +454,10 @@ router.get('/tools', async (req, res) => {
   // falls through to the existing behavior unchanged.
   const requestedProfileId = typeof req.query.profile === 'string' ? req.query.profile.trim() : '';
   if (requestedProfileId && requestedProfileId !== mcpProfileStore.DEFAULT_PROFILE_ID) {
-    // Non-default profile dispatch is admin-only (stdio spawns a host process).
-    return requireAdminSession(req, res, () => handleProfileTools(req, res, requestedProfileId));
+    // Non-default profile dispatch needs a signed-in session, not admin-only
+    // (stdio spawns a host process, so it stays behind SOME session — see
+    // requireSession's own doc comment).
+    return requireSession(req, res, () => handleProfileTools(req, res, requestedProfileId));
   }
 
   const effectiveUserId = req.session?.user?.id || req.user?.id || null;
@@ -678,8 +662,8 @@ router.post('/invoke', express.json(), async (req, res) => {
   // Non-default profile: dispatch to its transport, bypassing the banking-
   // server token exchange / local-handler path below entirely.
   if (requestedProfileId && requestedProfileId !== mcpProfileStore.DEFAULT_PROFILE_ID) {
-    // Non-default profile dispatch is admin-only (stdio spawns a host process).
-    return requireAdminSession(req, res, () =>
+    // Non-default profile dispatch needs a signed-in session, not admin-only.
+    return requireSession(req, res, () =>
       handleProfileInvoke(req, res, requestedProfileId, tool, params));
   }
 

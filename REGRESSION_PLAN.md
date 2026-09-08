@@ -140,6 +140,85 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-07 — Generic MCP Inspector's admin-only gate deliberately relaxed to any signed-in session
+
+**This is not a bug fix — it reverses part of the 2026-07-26 entry further down
+this log ("Generic MCP Inspector profiles were reachable by any signed-in
+customer (stdio = RCE on the BFF host)") on explicit instruction.** Recorded
+here so that entry's own "Do not break" line is not read as still current.
+
+**Files changed:** `demo_api_server/routes/mcpInspector.js`,
+`demo_api_server/routes/mcpPrivilegeAuth.js`,
+`demo_api_server/src/__tests__/mcpInspectorProfiles.test.js`,
+`demo_api_server/src/__tests__/mcpPrivilegeAuth.test.js`.
+
+**What changed:** `requireAdminSession` (both the local copy in
+`mcpInspector.js` and `mcpPrivilegeAuth.js`'s own copy) is gone. `POST
+/profiles`, `DELETE /profiles/:id`, non-default profile dispatch (`GET
+/tools?profile=`, `POST /invoke`), and `GET /privilege/login` now use the
+shared `requireSession` (`middleware/auth.js` — session-cookie based, checks
+only `req.session.user` exists) instead: **any signed-in session, not
+admin-only, but never fully anonymous.** I raised the RCE (stdio spawns a
+command on the BFF host)/SSRF (http/websocket URL is arbitrary) risk this gate
+existed for before making the change; the explicit instruction, after that,
+was "everything, no admin gate at all," walked back one message later to
+"either user token or admin token but not public" — this entry reflects that
+final instruction, not the fully-public intermediate one.
+
+**Do not break:** do not silently re-tighten this back to admin-only, and do
+not read the 2026-07-26 entry's "Do not break" line as still binding — this
+entry supersedes it. Do not remove `requireSession` entirely either
+(unauthenticated/anonymous access was explicitly rejected). If the RCE/SSRF
+risk this trades away ever becomes a real concern (this app also ships
+intentionally-insecure attack-surface demos elsewhere, so that risk was
+accepted knowingly), the fix is putting `requireAdminSession` back, not
+inventing a third gate.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest src/__tests__/mcpPrivilegeAuth.test.js src/__tests__/mcpInspectorProfiles.test.js src/__tests__/mcpProfileStore.test.js tests/mcpInspectorGateway.test.js tests/mcpInspectorRpc.test.js --forceExit` — 78 passed, including a signed-in-customer (role: 'user') success case replacing the old 403 case on both routes; `cd demo_api_ui && npm run build` exit 0 (a tooltip-only UI change rode along in the same commit, unrelated to this gate).
+
+### 2026-09-07 — A failed Privilege/PingOne admin login looked identical to never having tried
+
+**Files changed:** `demo_api_ui/src/hooks/useInspectorSource.js`, `demo_api_ui/src/hooks/__tests__/useInspectorSource.test.js`.
+
+**What was broken:** `mcpPrivilegeAuth.js`/`mcpPingOneAdminAuth.js`'s OAuth
+callbacks redirect back to `/pingone-mcp-inspector?source=custom&profile=<id>`
+on success, or `...&profile=<id>&privilege_error=<msg>` /
+`&pingone_admin_error=<msg>` on failure — but `McpInspectorPageClean.jsx`
+(the live routed page since PR #2897) only ever read `?source=`. A failed
+login therefore left no trace: the door stayed unselected, the specific
+failure reason was dropped, and the page just showed the same generic
+"sign in required" banner as if the user had never clicked anything — live-
+confirmed as the reported symptom "every time I try Grafana Privilege, it
+asks me to log in" (again, and again, with zero diagnostic information).
+
+Reproducing it live also surfaced two *separate*, infrastructure-side issues,
+not fixed here: with a valid token, `banking-rest2`/`mcp-brave-search`/
+`mcp-grafana` all answer `403 Forbidden` (no Privilege policy authored yet on
+those Agentic Apps — a new app starts with none, per
+`privilege/CURRENT-CONFIGURATION.md`), and `opensearch22` still 404s per the
+already-tracked `privilege/GATEWAY-ENTRY-PATH-QUESTION.md`. The per-door
+login mechanism itself (previous entry) works correctly for all four.
+
+**What was fixed:** a new one-time effect in `useInspectorSource.js` (only for
+`mode === 'profiles'`) reads `profile`/`privilege_error`/`pingone_admin_error`
+off `window.location.search`, selects the door that was logged into, shows any
+error as the banner, then scrubs the URL via `history.replaceState`. A real
+race had to be closed to make this stick: setting `selectedProfileId`
+immediately retriggers `loadTools`'s own mount effect, which unconditionally
+nulled (then re-set) the banner as soon as its fetch resolved — erasing the
+redirect error before it was ever seen. `suppressNextBannerRef` skips exactly
+the one `loadTools()` call that follows a redirect-error render; every later
+call (Retry, switching doors) behaves normally.
+
+**Do not break:** `suppressNextBannerRef` must be consumed (reset to `false`)
+on every `loadTools()` call, not just when it's `true` — otherwise a later,
+unrelated fetch could inherit the suppression and hide a real new error.
+Do not move the URL-reading effect before `loadProfiles`'s own mount effect in
+source order, or `selectedProfileId`'s later `prev`-preferring update could
+race the other way.
+
+**Verify:** `cd demo_api_ui && ./node_modules/.bin/vitest run src/hooks/__tests__/useInspectorSource.test.js src/components/__tests__/McpInspectorPageClean.addServer.test.jsx` — 22 passed, including 4 new cases pinning the redirect-read, the scrub, and the suppression race; `npm run build` exit 0. Live: drove all 4 doors' login end to end against the running stack and confirmed the 403/404 responses above via direct `fetch()` calls in the browser console.
+
 ### 2026-09-07 — `/dashboard` Focus Mode unusable on phone widths; two dead-code mobile "fixes" traced to their real cause
 
 **Files changed:** `demo_api_ui/src/components/TokenChainFilmstrip.css`,
