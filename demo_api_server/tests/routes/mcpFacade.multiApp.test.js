@@ -1,9 +1,10 @@
 'use strict';
 
 // One door, every registered Agentic App: /privilege-gateway/<app>/mcp resolves
-// to <gateway>/<app>/mcp. The segment lands in the URL of an AUTHENTICATED
-// upstream hop, so most of what matters here is that it is treated as a name
-// and never as a path.
+// to <gateway>/<app>/<that app's entry path>, which the gateway pins per app
+// (see privilegeEntryPath in mcpFacade.js). The segment lands in the URL of an
+// AUTHENTICATED upstream hop, so most of what matters here is that it is
+// treated as a name and never as a path.
 
 jest.mock('../../services/lmdb/transactionLedger.lmdb', () => ({ appendHop: jest.fn() }));
 jest.mock('../../services/transactionAssembler', () => ({ assemble: jest.fn() }));
@@ -73,14 +74,17 @@ describe('mcp-facade multi-app door', () => {
   afterEach(() => gatewaySession.clear());
 
   test('routes each app segment to its own gateway app', async () => {
-    for (const appName of ['opensearch22', 'banking-mcp', 'git_server.v2']) {
+    // The upstream entry path is per app (see privilegeEntryPath): opensearch22
+    // is registered with an /sse backend, the rest default to /mcp. What this
+    // test is about is that the SEGMENT is treated as a name, never a path.
+    for (const [appName, entry] of [['opensearch22', 'sse'], ['banking-mcp', 'mcp'], ['git_server.v2', 'mcp']]) {
       // eslint-disable-next-line no-await-in-loop
       const res = await request(app())
         .post(`/api/mcp-facade/privilege-gateway/${appName}/mcp`)
         .set('Authorization', `Bearer ${callerToken()}`)
         .send(RPC);
       expect(res.status).toBe(200);
-      expect(seenPath).toBe(`/${appName}/mcp`);
+      expect(seenPath).toBe(`/${appName}/${entry}`);
     }
   });
 
@@ -91,7 +95,7 @@ describe('mcp-facade multi-app door', () => {
       .send(RPC);
 
     expect(res.status).toBe(200);
-    expect(seenPath).toBe('/opensearch22/mcp');
+    expect(seenPath).toBe('/opensearch22/sse'); // opensearch22's entry path
   });
 
   test('discovery advertises the resource URL that was actually called', async () => {
@@ -169,7 +173,7 @@ describe('mcp-facade multi-app DELETE', () => {
       .set('mcp-session-id', 'sess-2');
 
     expect(res.status).toBe(200);
-    expect(seenPath).toBe('/opensearch22/mcp');
+    expect(seenPath).toBe('/opensearch22/sse'); // opensearch22's entry path
   });
 
   test('tears down locally without calling upstream when no gateway session exists', async () => {
