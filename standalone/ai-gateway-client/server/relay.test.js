@@ -41,14 +41,45 @@ test('GET /state defaults to privilege mode with a Privilege door preset', async
   });
 });
 
-test('Direct mode also ships a working default (the demo façade), not an empty URL', async () => {
+test('Direct mode ships both the opensearch default and the Brave sibling at their exact URLs', async () => {
   await withServer(async (base) => {
     const body = await (await fetch(`${base}/api/gateway/state`)).json();
-    const directPreset = body.presets.find((p) => p.mode === 'direct');
-    assert.ok(directPreset, 'no Direct preset in /state');
-    assert.ok(directPreset.url, 'Direct mode has no default URL — regressed to the old "bring your own" default');
-    assert.match(directPreset.url, /^https:\/\//);
+    const directPresets = body.presets.filter((p) => p.mode === 'direct');
+    assert.equal(directPresets.length, 2, 'expected exactly 2 Direct presets (opensearch default + Brave sibling)');
+
+    const opensearch = directPresets.find((p) => p.label === '2 · Direct — no Privilege in the path');
+    assert.ok(opensearch, 'no Direct opensearch-default preset in /state');
+    assert.equal(opensearch.url, 'https://ai-demo.ping-devops.com/mcp-facade/opensearch/mcp');
+
+    const brave = directPresets.find((p) => p.label === 'Direct — Brave Search');
+    assert.ok(brave, 'no Direct Brave preset in /state — regressed, the new sibling disappeared');
+    assert.equal(brave.url, 'https://ai-demo.ping-devops.com/mcp-facade/brave/mcp');
   });
+});
+
+test('DIRECT_MCP_URL and DIRECT_BRAVE_MCP_URL override the Direct presets independently', async () => {
+  const prevMcp = process.env.DIRECT_MCP_URL;
+  const prevBrave = process.env.DIRECT_BRAVE_MCP_URL;
+  process.env.DIRECT_MCP_URL = 'https://example.com/custom-opensearch/mcp';
+  process.env.DIRECT_BRAVE_MCP_URL = 'https://example.com/custom-brave/mcp';
+  try {
+    await withServer(async (base) => {
+      const body = await (await fetch(`${base}/api/gateway/state`)).json();
+      const directPresets = body.presets.filter((p) => p.mode === 'direct');
+      assert.equal(directPresets.length, 2);
+      assert.equal(
+        directPresets.find((p) => p.label === '2 · Direct — no Privilege in the path').url,
+        'https://example.com/custom-opensearch/mcp',
+      );
+      assert.equal(
+        directPresets.find((p) => p.label === 'Direct — Brave Search').url,
+        'https://example.com/custom-brave/mcp',
+      );
+    });
+  } finally {
+    if (prevMcp === undefined) delete process.env.DIRECT_MCP_URL; else process.env.DIRECT_MCP_URL = prevMcp;
+    if (prevBrave === undefined) delete process.env.DIRECT_BRAVE_MCP_URL; else process.env.DIRECT_BRAVE_MCP_URL = prevBrave;
+  }
 });
 
 test('POST /config switches mode and persists a per-door mcpUrl', async () => {
