@@ -35,7 +35,7 @@ vi.mock('../../hooks/useInspectorSource', () => ({
     outputValue: null,
     banner: null,
     servers: [],
-    profiles: [{ id: 'built-in-privilege-mcp', label: 'Privilege: Banking (banking-rest2)', isBuiltIn: true }],
+    profiles: [{ id: 'built-in-privilege-mcp', label: 'Privilege: Banking (openapi2)', isBuiltIn: true }],
     selectedProfileId: 'built-in-privilege-mcp',
     defaultProfileId: 'default-banking',
     config: { toolKey: 'name', paramsKey: 'tool' },

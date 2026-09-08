@@ -22,11 +22,11 @@ jest.mock('axios', () => ({
 
 const mcpProfileStore = require('../../services/mcpProfileStore');
 
-// Real seeded doors (see mcpProfileStore.js) — banking-rest2 and grafana are
+// Real seeded doors (see mcpProfileStore.js) — the banking door (openapi2) and grafana are
 // used to prove per-door isolation (separate discovery, separate cache entry).
 const BANKING_PROFILE_ID = mcpProfileStore.PRIVILEGE_PROFILE_ID;
 const GRAFANA_PROFILE_ID = mcpProfileStore.PRIVILEGE_GRAFANA_PROFILE_ID;
-const BANKING_ISSUER = 'https://mcpgw.ai-demo.ping-devops.com/banking-rest2';
+const BANKING_ISSUER = 'https://mcpgw.ai-demo.ping-devops.com/openapi2';
 const GRAFANA_ISSUER = 'https://mcpgw.ai-demo.ping-devops.com/mcp-grafana';
 
 function discoveryFor(issuer) {

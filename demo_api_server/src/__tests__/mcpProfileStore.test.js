@@ -94,7 +94,7 @@ describe('mcpProfileStore', () => {
 
   describe('built-in Privilege-gateway door profiles', () => {
     const DOORS = [
-      { id: () => mcpProfileStore.PRIVILEGE_PROFILE_ID, urlSuffix: 'banking-rest2/mcp' },
+      { id: () => mcpProfileStore.PRIVILEGE_PROFILE_ID, urlSuffix: 'openapi2/mcp' },
       { id: () => mcpProfileStore.PRIVILEGE_OPENSEARCH_PROFILE_ID, urlSuffix: 'opensearch22/mcp' },
       { id: () => mcpProfileStore.PRIVILEGE_BRAVE_PROFILE_ID, urlSuffix: 'mcp-brave-search/mcp' },
       { id: () => mcpProfileStore.PRIVILEGE_GRAFANA_PROFILE_ID, urlSuffix: 'mcp-grafana/mcp' },

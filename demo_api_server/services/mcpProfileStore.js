@@ -86,10 +86,15 @@ function ensureBuiltInsSeeded() {
     transport: 'pingone',
     isDefault: false,
   });
+  // The banking door was re-registered as `openapi2` on 2026-09-08; the old
+  // `banking-rest2` Agentic App was deleted, so its client URL 404s. The
+  // profile ID stays `built-in-privilege-mcp` (mcpPrivilegeAuth.js's
+  // post-login redirect deep-links to it); only the door behind it moved.
+  // seedBuiltIn's drift check repoints the stored record on the next call.
   seedBuiltIn(PRIVILEGE_PROFILE_ID, {
-    label: 'Privilege: Banking (banking-rest2)',
+    label: 'Privilege: Banking (openapi2)',
     transport: 'privilege',
-    url: `${PRIVILEGE_GATEWAY_BASE}/banking-rest2/mcp`,
+    url: `${PRIVILEGE_GATEWAY_BASE}/openapi2/mcp`,
     isDefault: false,
   });
   // Known limitation, not fixed here: this door 404s once actually

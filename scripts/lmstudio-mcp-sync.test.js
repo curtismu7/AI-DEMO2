@@ -81,7 +81,7 @@ describe('CLI: --apply', () => {
 
     const written = JSON.parse(fs.readFileSync(targetFile, 'utf8'));
     assert.equal(written.mcpServers['Unrelated Server'].url, 'https://example.test/mcp');
-    assert.equal(written.mcpServers['MCP Privilege-Banking'].url, 'https://mcpgw.ai-demo.ping-devops.com/banking-rest2/mcp');
+    assert.equal(written.mcpServers['MCP Privilege-Banking'].url, 'https://mcpgw.ai-demo.ping-devops.com/openapi2/mcp');
     assert.equal(written.mcpServers['MCP Privilege-Brave'].url, 'https://mcpgw.ai-demo.ping-devops.com/mcp-brave-search/mcp');
     // No auth/headers field — see the script's own header comment on why.
     assert.equal('headers' in written.mcpServers['MCP Privilege-Banking'], false);
