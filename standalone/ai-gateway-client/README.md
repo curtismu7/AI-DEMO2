@@ -2,7 +2,7 @@
 
 A local, no-login test client for an OAuth-protected [MCP](https://modelcontextprotocol.io) gateway — the kind that authenticates callers itself (OAuth Authorization Code + PKCE, with Dynamic Client Registration for callers it's never seen before) rather than trusting a static API key. Defaults to [PingOne's Privilege AI Gateway](https://www.pingidentity.com), which works out of the box against the public Ping AI Demo instance with zero setup.
 
-It shows the same tool call through two paths — **straight at the gateway** (Privilege mode, policy enforced) and **no gateway in the path at all** (Direct mode, any MCP server you point it at) — so you can see exactly what the gateway adds: the same call succeeding, being refused, or being logged, depending only on which door you went through.
+It shows the same tool call through two paths — **straight at the gateway** (Privilege mode, policy enforced) and **no gateway in the path at all** (Direct mode) — so you can see exactly what the gateway adds: the same call succeeding, being refused, or being logged, depending only on which door you went through. Both doors default to the public Ping AI Demo instance and work with zero setup; point either at your own MCP server/gateway when you're ready.
 
 ## Installation
 
@@ -21,7 +21,7 @@ Verify it's up:
 curl http://127.0.0.1:3910/health
 ```
 
-Then open http://127.0.0.1:3910. It defaults to the **Privilege** door on the public Ping AI Demo gateway — click **Sign in** and complete the OAuth flow in your browser (no client registration needed; the tool registers itself with the gateway on the fly via RFC 7591 Dynamic Client Registration).
+Then open http://127.0.0.1:3910. It defaults to the **Privilege** door on the public Ping AI Demo gateway — click **Sign in** and complete the OAuth flow in your browser (no client registration needed; the tool registers itself with the gateway on the fly via RFC 7591 Dynamic Client Registration). Switch to the **Direct** door to make the same call with no gateway in front — it defaults to the same demo's façade, which is a separate self-advertising, open-registration broker, so it also needs no setup.
 
 ## What it does
 
@@ -34,7 +34,7 @@ Then open http://127.0.0.1:3910. It defaults to the **Privilege** door on the pu
 
 ## Config
 
-Copy `server/.env.example` to `server/.env`. Nothing is required to try it against the public demo gateway — set `PRIVILEGE_GATEWAY_HOST` (and friends) to point at your own Privilege AI Gateway, or `DIRECT_MCP_URL` to compare against any other MCP server you run.
+Copy `server/.env.example` to `server/.env`. Nothing is required to try either door against the public demo — set `PRIVILEGE_GATEWAY_HOST` (and friends) to point Privilege mode at your own Privilege AI Gateway, or `DIRECT_MCP_URL` to point Direct mode at any other MCP server you run.
 
 ## Development
 

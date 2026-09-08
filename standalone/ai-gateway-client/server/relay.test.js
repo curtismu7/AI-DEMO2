@@ -41,6 +41,16 @@ test('GET /state defaults to privilege mode with a Privilege door preset', async
   });
 });
 
+test('Direct mode also ships a working default (the demo façade), not an empty URL', async () => {
+  await withServer(async (base) => {
+    const body = await (await fetch(`${base}/api/gateway/state`)).json();
+    const directPreset = body.presets.find((p) => p.mode === 'direct');
+    assert.ok(directPreset, 'no Direct preset in /state');
+    assert.ok(directPreset.url, 'Direct mode has no default URL — regressed to the old "bring your own" default');
+    assert.match(directPreset.url, /^https:\/\//);
+  });
+});
+
 test('POST /config switches mode and persists a per-door mcpUrl', async () => {
   await withServer(async (base) => {
     const res = await fetch(`${base}/api/gateway/config`, {
