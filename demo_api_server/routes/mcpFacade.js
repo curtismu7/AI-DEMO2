@@ -42,6 +42,10 @@ const pingoneAdminSession = require('../services/pingoneAdminSession');
 const router = express.Router();
 const SERVICE = 'mcp-facade';
 
+// The Agentic App behind the banking door. Its own name rather than a literal at
+// each use, so the door and its authorization server can never drift apart.
+const BANKING_GATEWAY_APP = process.env.MCP_FACADE_PRIVILEGE_GATEWAY_APP_BANKING || 'openapi2';
+
 const DOORS = {
   'agent-gateway': {
     label: 'Agent Gateway',
@@ -53,17 +57,25 @@ const DOORS = {
   },
   agentless: {
     label: 'Privilege agentless',
-    // DARK since 2026-09-01, deliberately. This is the BANKING door (`/external`),
-    // and cmuir-agentless-mcpgw.ping-devops.com no longer resolves — that gateway
-    // was torn down when the estate moved to the one AI Gateway at
-    // mcpgw.ai-demo.ping-devops.com. Repointing needs a banking MCP server
-    // registered there as its own Agentic App; only `opensearch22` exists today,
-    // and pointing this door at an OpenSearch app would silently serve the wrong
-    // tools. Leave it dark until that app exists, then set MCP_FACADE_AGENTLESS_URL.
+    // The BANKING door. It was dark from 2026-09-01 to 2026-09-08: it addressed
+    // cmuir-agentless-mcpgw.ping-devops.com, torn down when the estate moved to
+    // the one AI Gateway, so every call failed ENOTFOUND.
+    //
+    // The condition this door's own comment set for repointing — "a banking MCP
+    // server registered there as its own Agentic App", explicitly NOT an
+    // OpenSearch app, which would silently serve the wrong tools — is met by
+    // `openapi2`: Privilege's mcp/openapi adapter -> our mcp-banking-rest
+    // sidecar -> AI-DEMO2's mcp-resource-server. Verified live 2026-09-08: the
+    // spec serves 200 with two operations (list_banking_accounts,
+    // get_banking_account) and the door answers a well-formed 401 challenge with
+    // RFC 9728 metadata, indistinguishable from the working mcp-grafana door.
+    //
+    // Path via privilegeEntryPath rather than a hardcoded /mcp: the gateway pins
+    // it per app and it follows a console edit, not a release.
     upstream: () => process.env.MCP_FACADE_AGENTLESS_URL
-      || 'https://cmuir-agentless-mcpgw.ping-devops.com/external/mcp',
+      || privilegeDoorUpstream(BANKING_GATEWAY_APP),
     authorizationServer: () => process.env.MCP_FACADE_AGENTLESS_AS
-      || 'https://cmuir-agentless-mcpgw.ping-devops.com/external',
+      || `${privilegeGatewayBase()}/${BANKING_GATEWAY_APP}`,
     scopes: [],
     forwardCorrelation: false,
   },

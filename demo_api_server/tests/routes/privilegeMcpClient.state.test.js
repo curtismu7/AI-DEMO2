@@ -35,18 +35,25 @@ describe('GET /api/privilege-mcp/state — mcpUrl default', () => {
     expect(res.body.config.mcpUrl).toMatch(/^https:\/\/mcpgw\.ai-demo\.ping-devops\.com\/[\w.-]+\/mcp$/);
   });
 
-  it('omits the Privilege banking preset when PRIVILEGE_AGENTLESS_MCPGW_URL_BANKING is unset — the three paths and the always-on Direct banking door are unaffected', async () => {
+  it('offers the Privilege banking preset by default, pointed at openapi2 — the three paths are unaffected', async () => {
+    // Dark from 2026-09-01 to 2026-09-08: the preset was env-gated into
+    // invisibility because its only URL named a torn-down gateway. `openapi2` is
+    // the banking Agentic App on the current gateway, so it now has a real
+    // default — an operator should not need to know an env var exists to pick
+    // the banking door.
     delete process.env.PRIVILEGE_AGENTLESS_MCPGW_URL_BANKING;
 
     const res = await request(app).get('/api/privilege-mcp/state').expect(200);
 
-    // Distinct from "Direct — Banking (oauth-mcp)", a different, always-on
-    // door: this one is the dark, env-gated Privilege agentless door.
-    expect(
-      res.body.presets.some((p) => p.mode === 'privilege' && p.label.includes('banking')),
-    ).toBe(false);
-    // Was pinned to the retired per-owner URL (/cmuir/mcp); the three paths are
-    // what must survive, and they are identified by mode rather than hostname.
+    // Distinct from "Direct — Banking (oauth-mcp)", a different, always-on door.
+    const banking = res.body.presets.find(
+      (p) => p.mode === 'privilege' && p.label.toLowerCase().includes('banking'),
+    );
+    expect(banking).toBeDefined();
+    expect(banking.url).toBe('https://mcpgw.ai-demo.ping-devops.com/openapi2/mcp');
+    // The regression that made it dark: never the retired per-owner gateway.
+    expect(banking.url).not.toContain('cmuir-agentless-mcpgw');
+    // The three paths must survive, identified by mode rather than hostname.
     expect(res.body.presets.map((p) => p.mode)).toEqual(
       expect.arrayContaining(['direct', 'privilege', 'facade']),
     );
