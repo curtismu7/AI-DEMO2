@@ -1468,12 +1468,17 @@ services:
       # NODE_EXTRA_CA_CERTS). Without it, every tool call to https://api.ping.demo
       # fails with UNABLE_TO_VERIFY_LEAF_SIGNATURE. Same bundle as the langchain agent.
       NODE_EXTRA_CA_CERTS: "/etc/ssl/certs/ca-bundle-with-mkcert.pem"
+      # OpenTelemetry → local Jaeger. Unset = tracing disabled (no-op in instrument.js).
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT-http://jaeger:4317}"
+      OTEL_SERVICE_NAME: "mastra-agent"
+      NODE_OPTIONS: "-r /otel/otel-instrument.js"
     env_file:
       - path: ./mastra_agent/.env
         required: false
     volumes:
       # CA bundle for NODE_EXTRA_CA_CERTS above (gitignored; generated on the host).
       - ./certs/ca-bundle-with-mkcert.pem:/etc/ssl/certs/ca-bundle-with-mkcert.pem:ro
+      - ./scripts:/otel:ro  # dir mount: survives git pull replacing the file (a single-file bind mount pins the old inode and crash-loops node -r)
     networks:
       - ai-demo
     depends_on:
@@ -1503,12 +1508,16 @@ services:
       # SSL_CERT_FILE). Without it, every tool call to https://api.ping.demo fails
       # with CERTIFICATE_VERIFY_FAILED. Same bundle as the langchain agent.
       SSL_CERT_FILE: "/etc/ssl/certs/ca-bundle-with-mkcert.pem"
+      # OpenTelemetry → local Jaeger. Unset = tracing disabled (no-op in otel-python-entrypoint.sh).
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT-http://jaeger:4317}"
+      OTEL_SERVICE_NAME: "openai-agent"
     env_file:
       - path: ./openai_agent/.env
         required: false
     volumes:
       # CA bundle for SSL_CERT_FILE above (gitignored; generated on the host).
       - ./certs/ca-bundle-with-mkcert.pem:/etc/ssl/certs/ca-bundle-with-mkcert.pem:ro
+      - ./scripts:/otel:ro  # dir mount: survives git pull replacing the file (a single-file bind mount pins the old inode and crash-loops the entrypoint)
     networks:
       - ai-demo
     depends_on:
@@ -1538,12 +1547,16 @@ services:
       # SSL_CERT_FILE). Without it, every tool call to https://api.ping.demo fails
       # with CERTIFICATE_VERIFY_FAILED. Same bundle as the langchain agent.
       SSL_CERT_FILE: "/etc/ssl/certs/ca-bundle-with-mkcert.pem"
+      # OpenTelemetry → local Jaeger. Unset = tracing disabled (no-op in otel-python-entrypoint.sh).
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT-http://jaeger:4317}"
+      OTEL_SERVICE_NAME: "pydantic-agent"
     env_file:
       - path: ./pydantic_agent/.env
         required: false
     volumes:
       # CA bundle for SSL_CERT_FILE above (gitignored; generated on the host).
       - ./certs/ca-bundle-with-mkcert.pem:/etc/ssl/certs/ca-bundle-with-mkcert.pem:ro
+      - ./scripts:/otel:ro  # dir mount: survives git pull replacing the file (a single-file bind mount pins the old inode and crash-loops the entrypoint)
     networks:
       - ai-demo
     depends_on:
@@ -1569,6 +1582,12 @@ services:
       # Topology SoT default (mcp-gateway:3005). run-docker.sh demo-sync recreates this
       # service with ping-gateway:8080 when Quick Flags select the real PingGateway stack.
       MCP_GATEWAY_HTTP_URL: "http://mcp-gateway:3005"
+      # OpenTelemetry → local Jaeger. Unset = tracing disabled (no-op in instrument.js).
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT-http://jaeger:4317}"
+      OTEL_SERVICE_NAME: "mcp-proxy"
+      NODE_OPTIONS: "-r /otel/otel-instrument.js"
+    volumes:
+      - ./scripts:/otel:ro  # dir mount: survives git pull replacing the file (a single-file bind mount pins the old inode and crash-loops node -r)
     networks:
       - ai-demo
     depends_on:
@@ -2113,6 +2132,12 @@ services:
       # PostHog LLM Analytics ($ai_generation). Optional — proxy no-ops when unset.
       POSTHOG_API_KEY: "${POSTHOG_API_KEY:-}"
       POSTHOG_HOST: "${POSTHOG_HOST:-https://us.i.posthog.com}"
+      # OpenTelemetry → local Jaeger. Unset = tracing disabled (no-op in instrument.js).
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT-http://jaeger:4317}"
+      OTEL_SERVICE_NAME: "llm-proxy"
+      NODE_OPTIONS: "-r /otel/otel-instrument.js"
+    volumes:
+      - ./scripts:/otel:ro  # dir mount: survives git pull replacing the file (a single-file bind mount pins the old inode and crash-loops node -r)
     networks:
       - ai-demo
     # Access host llama-server instances via host.docker.internal

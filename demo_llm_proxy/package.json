@@ -12,6 +12,9 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@opentelemetry/auto-instrumentations-node": "^0.59.0",
+    "@opentelemetry/exporter-trace-otlp-grpc": "^0.200.0",
+    "@opentelemetry/sdk-node": "^0.200.0",
     "http-proxy": "^1.18.1",
     "posthog-node": "^5.21.2"
   }
