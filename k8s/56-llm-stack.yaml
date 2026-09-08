@@ -103,7 +103,15 @@ spec:
               name: http
           volumeMounts:
             - name: models
-              mountPath: /root/.cache/llama.cpp
+              # The PARENT cache dir, not .cache/llama.cpp: llama.cpp:server now
+              # writes -hf downloads to .cache/huggingface/ in the HF-hub blob
+              # layout, so a volume mounted on the old path sits empty (measured
+              # 2026-09-08: PVC 1% used while a 10.7GB blob filled the pod's
+              # ephemeral overlay, discarded on every restart — a ~12GB re-download
+              # per start, and llm-proxy NotReady for the whole of it). Mounting the
+              # parent covers whichever subdirectory the image picks, so the next
+              # upstream path change cannot silently un-cache this again.
+              mountPath: /root/.cache
           resources:
             requests:
               memory: "2Gi"
@@ -199,7 +207,15 @@ spec:
               name: http
           volumeMounts:
             - name: models
-              mountPath: /root/.cache/llama.cpp
+              # The PARENT cache dir, not .cache/llama.cpp: llama.cpp:server now
+              # writes -hf downloads to .cache/huggingface/ in the HF-hub blob
+              # layout, so a volume mounted on the old path sits empty (measured
+              # 2026-09-08: PVC 1% used while a 10.7GB blob filled the pod's
+              # ephemeral overlay, discarded on every restart — a ~12GB re-download
+              # per start, and llm-proxy NotReady for the whole of it). Mounting the
+              # parent covers whichever subdirectory the image picks, so the next
+              # upstream path change cannot silently un-cache this again.
+              mountPath: /root/.cache
           resources:
             requests:
               memory: "3Gi"
@@ -292,7 +308,15 @@ spec:
               name: http
           volumeMounts:
             - name: models
-              mountPath: /root/.cache/llama.cpp
+              # The PARENT cache dir, not .cache/llama.cpp: llama.cpp:server now
+              # writes -hf downloads to .cache/huggingface/ in the HF-hub blob
+              # layout, so a volume mounted on the old path sits empty (measured
+              # 2026-09-08: PVC 1% used while a 10.7GB blob filled the pod's
+              # ephemeral overlay, discarded on every restart — a ~12GB re-download
+              # per start, and llm-proxy NotReady for the whole of it). Mounting the
+              # parent covers whichever subdirectory the image picks, so the next
+              # upstream path change cannot silently un-cache this again.
+              mountPath: /root/.cache
           resources:
             requests:
               memory: "2Gi"
@@ -303,6 +327,8 @@ spec:
           # First start downloads ~12GB from HF into the PVC then loads to RAM;
           # /health returns 503 the whole time. Without a startupProbe the
           # liveness probe (4 min budget) kills the pod mid-download repeatedly.
+          # "First start" only holds while the volume is mounted where the image
+          # actually writes — see the mountPath note above.
           startupProbe:
             httpGet:
               path: /health
