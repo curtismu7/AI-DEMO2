@@ -133,6 +133,16 @@ extraContainers:
             key: PINGONE_CLIENT_CREDENTIALS_CLIENT_SECRET
       - name: PINGONE_CLIENT_CREDENTIALS_SCOPES
         value: p1:read:env
+      # The WRITE path constructs its own PingOne client for "environment
+      # validation" and ignores --store-type file, failing with
+      # "storage name is required when using keychain storage". These env vars
+      # reach the code path the flag misses.
+      - name: PINGONE_STORAGE_TYPE
+        value: file
+      - name: PINGONE_STORAGE_NAME
+        value: /tmp/pingone-mcp-store
+      - name: HOME
+        value: /tmp
     ports:
       - containerPort: 8083
     readinessProbe:

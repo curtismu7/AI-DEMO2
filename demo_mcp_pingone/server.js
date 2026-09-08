@@ -273,6 +273,20 @@ async function dispatch(rpc) {
       },
     };
   }
+  // The AI Gateway issues `server/discover` to enumerate a backend's tools for
+  // policy. It is a GATEWAY method, not MCP — the upstream binary answers
+  // `JSON RPC not handled: "server/discover" unsupported`, and forwarding that
+  // error breaks the gateway session for every subsequent call. Answer it here
+  // with the tool inventory it is actually asking for.
+  if (rpc.method === 'server/discover') {
+    try {
+      await ensureSession();
+      const listed = await callChild({ jsonrpc: '2.0', id: rpc.id, method: 'tools/list', params: {} });
+      return { jsonrpc: '2.0', id: rpc.id, result: listed.result || { tools: [] } };
+    } catch (e) {
+      return { jsonrpc: '2.0', id: rpc.id, error: { code: -32000, message: e.message } };
+    }
+  }
   if (typeof rpc.method === 'string' && rpc.method.startsWith('notifications/')) return null;
   if (rpc.id == null) return null; // any other notification: nothing to answer
 
@@ -350,7 +364,11 @@ const server = http.createServer(async (req, res) => {
   }
 
   // --- Streamable HTTP transport -------------------------------------------
-  if (req.method === 'POST' && req.url === '/mcp') {
+  // /sse accepts POST too. The gateway forwards to whatever path the Agentic App
+  // was registered with, so an app registered as .../sse sends its JSON-RPC
+  // POSTs to /sse — not to /messages. Handling only GET there returned our own
+  // 404 for every call, which looks exactly like a missing app on the gateway.
+  if (req.method === 'POST' && (req.url === '/mcp' || req.url === '/sse')) {
     let rpc;
     try {
       rpc = await readBody(req);

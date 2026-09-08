@@ -184,6 +184,17 @@ test('a reply to an SSE session rides the stream, and the POST only ACKs', async
   assert.equal(payload.result.tools.length, 2);
 });
 
+// The gateway forwards JSON-RPC POSTs to whatever path the Agentic App was
+// registered with. Registered as .../sse, it POSTs to /sse -- not /messages.
+// Handling only GET there returned our own 404 for every call, which reads as a
+// missing app on the gateway rather than a gap in this bridge.
+test('POST /sse is answered like streamable HTTP, not 404', async () => {
+  const res = await post('/sse', { jsonrpc: '2.0', id: 21, method: 'tools/list', params: {} });
+  assert.equal(res.status, 200);
+  assert.equal(res.body.id, 21);
+  assert.equal(res.body.result.tools.length, 2);
+});
+
 test('an unknown SSE session is named as such, not passed off as a server fault', async () => {
   const res = await post('/messages?sessionId=00000000-0000-0000-0000-000000000000', { jsonrpc: '2.0', id: 1, method: 'tools/list' });
   assert.equal(res.status, 404);
