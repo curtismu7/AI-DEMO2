@@ -16,7 +16,7 @@
 // this script mints its own. The only real credential is the `auth_token`
 // cookie from an operator's console browser session (~60 min lifetime).
 // There is no API-key or service-account path. Read it from devtools:
-// Network -> any XHR to console.privilege.pingone.com -> Request Headers.
+// Network -> any XHR to the console host -> Request Headers.
 //
 // Usage:
 //   export PRIVILEGE_CONSOLE_TOKEN='eyJ...'        # the auth_token cookie value
@@ -25,15 +25,29 @@
 //   node scripts/privilege-console-probe.mjs openapi2 mcp-grafana  # diff broken vs working
 //   node scripts/privilege-console-probe.mjs --policies         # raw pacpolicys
 //
+// Host: the API is served from console.privilege.pingone.com, NOT from the
+// <tenant>.privilege.pingone.com host you see in devtools — see the note on
+// consoleBase below. Override with --base or PRIVILEGE_CONSOLE_BASE.
+//
 // The token is taken from the environment only, never argv — argv is visible
 // in `ps` to every user on the box. It is never printed, logged or echoed.
-
-const CONSOLE_BASE = 'https://console.privilege.pingone.com';
 
 // The AI Gateway's own tenant, from its enrollment JWT (`tenantName`). This is
 // Privilege's PingOne environment, NOT AI-Demo's 01d89b06 — conflating the two
 // has cost sessions before.
 const DEFAULT_TENANT = '0428ba4f-169c-436b-aff9-b230496e0e3b';
+
+// Several hosts under privilege.pingone.com answer /session-token with a 200,
+// so that probe cannot tell you which one serves the API. Requesting a real API
+// path can, and did (probed live 2026-09-08):
+//
+//   console.privilege.pingone.com/api/<tenant>/v1/applications  -> 401  (path exists, auth checked)
+//   <tenant>.privilege.pingone.com/api/<tenant>/v1/applications -> 404  ("not found on this server")
+//
+// So the API is on the bare console host even though the tenant-scoped host is
+// what the gateway dials for SAML/OAuth and what an operator sees in devtools.
+// Override with --base or PRIVILEGE_CONSOLE_BASE for a different deployment.
+const consoleBase = () => process.env.PRIVILEGE_CONSOLE_BASE || 'https://console.privilege.pingone.com';
 
 // --- pure helpers, unit-tested in privilege-console-probe.test.mjs ---------
 
@@ -61,9 +75,9 @@ export function diffRecords(a, b) {
 
 // --- API ------------------------------------------------------------------
 
-async function mintSessionId() {
-  const res = await fetch(`${CONSOLE_BASE}/session-token`, { headers: { accept: 'application/json' } });
-  if (!res.ok) throw new Error(`/session-token ${res.status} — the console API is unreachable from here.`);
+async function mintSessionId(base) {
+  const res = await fetch(`${base}/session-token`, { headers: { accept: 'application/json' } });
+  if (!res.ok) throw new Error(`/session-token ${res.status} — ${base} is unreachable from here.`);
   return (await res.json()).session_id;
 }
 
@@ -76,13 +90,13 @@ const AUTH_MODES = [
   { name: 'Authorization: Bearer', headers: (t) => ({ Authorization: `Bearer ${t}` }) },
 ];
 
-function makeGet(token, sessionId) {
+function makeGet(base, token, sessionId) {
   let mode = null; // pinned to whichever mode first answers non-401
   return async function get(path) {
     let res;
     let text;
     for (const candidate of mode ? [mode] : AUTH_MODES) {
-      res = await fetch(`${CONSOLE_BASE}${path}`, {
+      res = await fetch(`${base}${path}`, {
         headers: {
           ...candidate.headers(token),
           'x-procyon-session-id': sessionId,
@@ -91,8 +105,11 @@ function makeGet(token, sessionId) {
       });
       text = await res.text();
       if (res.status !== 401) {
-        if (!mode) console.log(`# authenticated with: ${candidate.name}\n`);
-        mode = candidate;
+        // A 404 is not proof the credential worked — only pin and announce the
+        // mode on a real success, or the tool reports "authenticated" for a
+        // host that simply does not serve this path.
+        if (res.ok && !mode) console.log(`# authenticated with: ${candidate.name}\n`);
+        if (res.ok) mode = candidate;
         break;
       }
     }
@@ -104,7 +121,7 @@ function makeGet(token, sessionId) {
           '  - it expired (the console cookie lives ~60 min; a PingOne adminui token only ~5)\n' +
           '  - it is a PingOne token (aud https://api.pingone.com), not the Privilege console cookie.\n' +
           'Re-grab it: console.pingone.com/?env=<privilege-env> -> launch PingOne Privilege ->\n' +
-          'devtools Network -> an XHR to console.privilege.pingone.com -> Request Headers ->\n' +
+          `devtools Network -> an XHR to ${new URL(base).host} -> Request Headers ->\n` +
           'Cookie -> the auth_token=… value.',
       );
     }
@@ -166,11 +183,14 @@ async function main() {
   const tenantFlag = args.indexOf('--tenant');
   const tenant =
     tenantFlag >= 0 ? args.splice(tenantFlag, 2)[1] : process.env.PRIVILEGE_CONSOLE_TENANT || DEFAULT_TENANT;
+  const baseFlag = args.indexOf('--base');
+  const base = (baseFlag >= 0 ? args.splice(baseFlag, 2)[1] : consoleBase()).replace(/\/$/, '');
   const wantPolicies = args.includes('--policies');
   const names = args.filter((a) => !a.startsWith('--'));
 
-  const get = makeGet(token, await mintSessionId());
+  console.log(`# base   ${base}`);
   console.log(`# tenant ${tenant}\n`);
+  const get = makeGet(base, token, await mintSessionId(base));
 
   if (wantPolicies) {
     const body = await get(`/api/${tenant}/v1/pacpolicys`);
