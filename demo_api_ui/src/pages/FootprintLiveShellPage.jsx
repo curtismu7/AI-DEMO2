@@ -44,19 +44,31 @@ export default function FootprintLiveShellPage({ category: categoryProp } = {}) 
 
   return (
     <div className="afm-live-shell" data-testid={`footprint-live-${category}`} data-theme={theme}>
+      {/* Everything in this row is OURS. None of it exists in the product being
+          simulated, so none of it belongs inside the costume's title bar —
+          which is where the badge and Exit used to live, in five duplicated
+          copies. Keeping the honesty badge here rather than dropping it means
+          the shell still says plainly what it is, one line above the window
+          instead of painted into VS Code's chrome. */}
       <div className="afm-shell-controls">
+        <span className="afm-badge afm-badge--pill afm-shell-controls__label">
+          Simulated shell &middot; Ping Privilege MCP client
+        </span>
         <FootprintSkinPicker
           category={category}
           variant={variant}
           className="afm-skin-picker"
         />
         <FootprintThemeToggle theme={theme} onToggle={toggleTheme} />
+        <button
+          type="button"
+          className="afm-badge afm-badge--pill"
+          onClick={() => navigate("/demo/footprint-picks")}
+        >
+          Exit
+        </button>
       </div>
-      <FootprintChrome
-        category={category}
-        variant={variant}
-        onExit={() => navigate("/demo/footprint-picks")}
-      >
+      <FootprintChrome category={category} variant={variant}>
         <PrivilegeShellPanel skin={category === "claude-desktop" ? "claude-desktop" : category} />
       </FootprintChrome>
     </div>
