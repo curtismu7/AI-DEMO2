@@ -61,19 +61,25 @@ describe("gateway presets in the Settings modal", () => {
     fireEvent.click(await screen.findByTitle("Settings"));
 
     const select = await screen.findByLabelText(/gateway preset/i);
-    expect(screen.getByRole("button", { name: /Sign In with Privilege/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Sign in$/i })).toBeInTheDocument();
 
     fireEvent.change(select, { target: { value: PRESETS[1].url } });
 
     // Choosing a preset fills the one URL field every path shares. The fields
     // no longer come and go with the mode: privilege and façade authenticate
     // the same way, which is why the retired agent mode's bare-URL form is
-    // gone. Direct is the exception — PRESETS[1] is mode: 'direct', which has
-    // no auth front door at all, so "Sign In with Privilege" is correctly
-    // replaced rather than staying present.
+    // gone.
+    //
+    // This used to also assert that picking PRESETS[1] (mode: 'direct')
+    // replaced the sign-in button with "No sign-in required". That label was
+    // wrong and is gone: every direct door is a façade door with requireBearer
+    // (mcpFacade.js DOORS), so Direct needs a token too — it just gets it from
+    // OUR broker rather than Privilege. See PR #2898 defect 3 and
+    // PrivilegeMcpClientPage.directSignIn.test.jsx, which pins the 401 that the
+    // old label sat next to. The rail asks for sign-in in every mode.
     expect(screen.getByLabelText(/MCP URL/i)).toHaveValue(PRESETS[1].url);
     expect(screen.getByLabelText(/OAuth Client ID/i)).toBeInTheDocument();
-    expect(screen.getByText(/no sign-in required/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Sign in$/i })).toBeInTheDocument();
   });
 
   it("keeps a hand-typed URL selectable as Custom", async () => {

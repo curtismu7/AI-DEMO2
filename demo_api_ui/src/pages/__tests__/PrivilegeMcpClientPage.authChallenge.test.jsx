@@ -83,7 +83,7 @@ describe("an auth challenge the body does not spell out", () => {
 
     // Before the status was carried, this rendered "Refresh failed:
     // unauthenticated" into the chat and nothing else -- a dead end.
-    expect(await screen.findByText("Sign in to continue")).toBeInTheDocument();
+    expect(await screen.findByTestId("sign-in-prompt")).toBeInTheDocument();
     // ...and it is THIS page's gateway sign-in, not a browser navigation:
     // no loginUrl came with the challenge, so there is nowhere else to send them.
     expect(window.location.href).toBe("");
@@ -96,7 +96,7 @@ describe("an auth challenge the body does not spell out", () => {
     renderPage();
 
     fireEvent.click(await screen.findByRole("button", { name: /Get MCP Tools/i }));
-    expect(await screen.findByText("Sign in to continue")).toBeInTheDocument();
+    expect(await screen.findByTestId("sign-in-prompt")).toBeInTheDocument();
   });
 
   it("does not offer sign-in for a non-401 failure", async () => {
@@ -108,6 +108,6 @@ describe("an auth challenge the body does not spell out", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Get MCP Tools/i }));
 
     await waitFor(() => expect(screen.getByText(/upstream exploded/)).toBeInTheDocument());
-    expect(screen.queryByText("Sign in to continue")).toBeNull();
+    expect(screen.queryByTestId("sign-in-prompt")).toBeNull();
   });
 });

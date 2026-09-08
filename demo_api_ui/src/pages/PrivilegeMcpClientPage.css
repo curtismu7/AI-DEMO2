@@ -55,27 +55,7 @@
   font-size: var(--font-size-2xs);
   color: #888;
   font-weight: 500;
-}
-
-.cur-gateway-banner {
-  flex-shrink: 0;
-  padding: 12px 22px 13px;
-  border-bottom: 1px solid #3a3a3a;
-  background: linear-gradient(100deg, #173b67, #10233d);
-  color: #eaf3ff;
-}
-.cur-gateway-banner--agentless { background: linear-gradient(100deg, #155e75, #12344a); }
-.cur-gateway-banner--unknown { background: linear-gradient(100deg, #55451b, #302915); }
-.cur-gateway-banner__eyebrow { font-size: 10px; letter-spacing: .14em; font-weight: 700; color: #9ecbff; }
-.cur-gateway-banner__title { font-size: var(--font-size-xl); font-weight: 750; line-height: 1.2; margin-top: 2px; }
-.cur-gateway-banner__detail { font-size: var(--font-size-2xs); color: #c5d9ee; margin-top: 2px; }
-.cur-gateway-banner__url { display: block; color: #8bd5ff; font-size: var(--font-size-xs); margin-top: 5px; overflow-wrap: anywhere; }
-.cur-policy-summary { display: flex; gap: 8px; margin-top: 10px; font-size: var(--font-size-2xs); }
-.cur-policy-summary span { padding: 4px 8px; border-radius: 999px; background: #26384d; }
-.cur-policy-summary__allowed { color: #86efac; }
-.cur-policy-summary__filtered { color: #fca5a5; }
-
-.cur-status {
+} .cur-status {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -109,35 +89,7 @@
   overflow: hidden;
 }
 
-/* Activity bar */
-.cur-activity-bar {
-  width: 48px;
-  background: #181818;
-  border-right: 1px solid #2b2b2b;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding-top: 8px;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-.cur-act-btn {
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background: transparent;
-  color: #666;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: color 0.15s, background 0.15s;
-}
-.cur-act-btn:hover { color: #ccc; background: #2a2a2a; }
-.cur-act-btn--active { color: #fff; background: #37373d; border-left: 2px solid #007acc; }
-
+/* Activity bar *
 /* Sidebar */
 .cur-sidebar {
   width: 440px;
@@ -1073,31 +1025,7 @@ select.cur-input { cursor: pointer; }
   color: #ff3b30 !important;
   border-color: #ff3b30 !important;
 }
-.cur-settings-gear:hover { color: #ff6b63 !important; border-color: #ff6b63 !important; }
-
-.cur-mode-switcher {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: #bbb;
-  font-size: var(--font-size-sm);
-  -webkit-app-region: no-drag;
-}
-
-.cur-mode-switcher select {
-  height: 24px;
-  border: 1px solid #3c3c3c;
-  border-radius: 4px;
-  background: #2a2a2a;
-  color: #fff;
-  padding: 2px 24px 2px 8px;
-  font: inherit;
-  cursor: pointer;
-}
-
-.cur-mode-switcher select:disabled { cursor: wait; opacity: .65; }
-
-.cur-flow-modal {
+.cur-settings-gear:hover { color: #ff6b63 !important; border-color: #ff6b63 !important; } .cur-flow-modal {
   background: #161b22;
   border: 1px solid #30363d;
   border-radius: 12px;
@@ -1272,34 +1200,7 @@ select.cur-input { cursor: pointer; }
   margin: 10px 0 0;
 }
 
-/* Auth status badge */
-.cur-auth-status {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 8px 0;
-}
-.cur-auth-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--font-size-2xs);
-  font-weight: 500;
-  padding: 4px 10px;
-  border-radius: 4px;
-  width: fit-content;
-}
-.cur-auth-badge--ok {
-  background: rgba(56, 139, 253, 0.15);
-  color: #58a6ff;
-  border: 1px solid rgba(56, 139, 253, 0.3);
-}
-.cur-auth-user {
-  font-size: var(--font-size-xs);
-  color: #8b949e;
-  padding-left: 2px;
-}
-
+/* Auth status badge *
 /* ─────────────────────────────────────────────────────────────────────────
    Light mode — page-local, toggled by the Light/Dark button in the title bar
    (data-cur-theme="light" on .cur-ide). The base styles above are the dark
@@ -1310,12 +1211,7 @@ select.cur-input { cursor: pointer; }
 
 /* Chrome: title bar, activity bar, sidebar, tabs, composer, terminal */
 .cur-ide[data-cur-theme="light"] .cur-titlebar { background: #f3f3f3; border-bottom-color: #e0e0e0; }
-.cur-ide[data-cur-theme="light"] .cur-titlebar-title { color: #555; }
-.cur-ide[data-cur-theme="light"] .cur-activity-bar { background: #ececec; border-right-color: #e0e0e0; }
-.cur-ide[data-cur-theme="light"] .cur-act-btn { color: #666; }
-.cur-ide[data-cur-theme="light"] .cur-act-btn:hover { background: #ddd; color: #222; }
-.cur-ide[data-cur-theme="light"] .cur-act-btn--active { background: #d0d0d0; color: #000; }
-.cur-ide[data-cur-theme="light"] .cur-sidebar { background: #f7f7f7; border-right-color: #e0e0e0; }
+.cur-ide[data-cur-theme="light"] .cur-titlebar-title { color: #555; } .cur-ide[data-cur-theme="light"] .cur-sidebar { background: #f7f7f7; border-right-color: #e0e0e0; }
 .cur-ide[data-cur-theme="light"] .cur-sidebar-title,
 .cur-ide[data-cur-theme="light"] .cur-field-label,
 .cur-ide[data-cur-theme="light"] .cur-settings-note,
@@ -1346,8 +1242,7 @@ select.cur-input { cursor: pointer; }
 .cur-ide[data-cur-theme="light"] .cur-flow-trigger:hover { background: #eaeaea; color: #000; }
 .cur-ide[data-cur-theme="light"] .cur-skin-picker > span,
 .cur-ide[data-cur-theme="light"] .cur-msg-role,
-.cur-ide[data-cur-theme="light"] .cur-result-label,
-.cur-ide[data-cur-theme="light"] .cur-auth-user { color: #666; }
+.cur-ide[data-cur-theme="light"] .cur-result-label{ color: #666; }
 
 /* Muted greys → readable on white */
 .cur-ide[data-cur-theme="light"] .cur-empty-state,
@@ -1416,10 +1311,7 @@ select.cur-input { cursor: pointer; }
 .cur-ide[data-cur-theme="light"] .cur-flow-cv--ok,
 .cur-ide[data-cur-theme="light"] .cur-flow-cv--aud { color: #15803d; }
 .cur-ide[data-cur-theme="light"] .cur-flow-line { background: #ccc; }
-.cur-ide[data-cur-theme="light"] .cur-flow-arrow { color: #6e7681; }
-.cur-ide[data-cur-theme="light"] .cur-auth-badge--ok { background: rgba(56, 139, 253, 0.12); color: #1d4ed8; }
-
-/* ─────────────────────────────────────────────────────────────────────────
+.cur-ide[data-cur-theme="light"] .cur-flow-arrow { color: #6e7681; }/* ─────────────────────────────────────────────────────────────────────────
    Readability: on the dark background every bit of body/label/muted text is
    bright white. Scoped to dark (never light mode, where white-on-white would
    vanish). Bright accent colors — teal tool names, coloured badges, blue links
@@ -1448,7 +1340,6 @@ select.cur-input { cursor: pointer; }
 .cur-ide:not([data-cur-theme="light"]) .cur-scope-cat,
 .cur-ide:not([data-cur-theme="light"]) .cur-scopes-table th,
 .cur-ide:not([data-cur-theme="light"]) .cur-result-label,
-.cur-ide:not([data-cur-theme="light"]) .cur-auth-user,
 .cur-ide:not([data-cur-theme="light"]) .cur-skin-picker > span,
 .cur-ide:not([data-cur-theme="light"]) .cur-flow-label,
 .cur-ide:not([data-cur-theme="light"]) .cur-flow-conn-label,
@@ -1485,32 +1376,9 @@ select.cur-input { cursor: pointer; }
    Connection debug strip + trace JSON — were inline-styled with fixed dark
    colors, so light mode left them dark ("stays dark even when toggled").
    Now class-based with explicit light overrides so the toggle flips them too.
-   ───────────────────────────────────────────────────────────────────────── */
-.cur-conn-debug {
-  padding: 6px 12px;
-  font-size: 10px;
-  font-family: var(--font-mono);
-  background: #0a0a0a;
-  border-bottom: 1px solid #1e1e1e;
-  color: #888;
-}
-.cur-cd-k { color: #7a7a7a; }
-.cur-cd-v--url { color: #7ec8e3; word-break: break-all; }
-.cur-cd-v--id { color: #ffd93d; }
-.cur-cd-v--scope { color: #a8e6cf; }
-.cur-cd-v--ok { color: #a8e6cf; }
-.cur-cd-v--bad { color: #ff6b6b; }
+   ───────────────────────────────────────────────────────────────────────── *
 .cur-trace-ts { color: #777; min-width: 70px; }
-.cur-trace-json { margin: 4px 0 4px 80px; color: #ddd; white-space: pre-wrap; word-break: break-all; }
-
-.cur-ide[data-cur-theme="light"] .cur-conn-debug { background: #f0f0f0; border-bottom-color: #e0e0e0; color: #555; }
-.cur-ide[data-cur-theme="light"] .cur-cd-k { color: #888; }
-.cur-ide[data-cur-theme="light"] .cur-cd-v--url { color: #0369a1; }
-.cur-ide[data-cur-theme="light"] .cur-cd-v--id { color: #92600a; }
-.cur-ide[data-cur-theme="light"] .cur-cd-v--scope,
-.cur-ide[data-cur-theme="light"] .cur-cd-v--ok { color: #0a7d4f; }
-.cur-ide[data-cur-theme="light"] .cur-cd-v--bad { color: #c0392b; }
-.cur-ide[data-cur-theme="light"] .cur-trace-ts { color: #999; }
+.cur-trace-json { margin: 4px 0 4px 80px; color: #ddd; white-space: pre-wrap; word-break: break-all; } .cur-ide[data-cur-theme="light"] .cur-trace-ts { color: #999; }
 .cur-ide[data-cur-theme="light"] .cur-trace-json { color: #333; }
 
 /* Scope pick — left rail pill selects and jumps to the right SCOPES table. */
@@ -1605,14 +1473,7 @@ select.cur-input { cursor: pointer; }
 /* Titlebar switchers (Gateway, Door) — the label was #bbb on the light skin's
    #f3f3f3 titlebar, i.e. barely legible, and the select kept its dark fill so
    the control read as a stray dark pill. Pre-existing on Gateway; fixed here
-   because the Door picker reuses the same class. */
-.cur-ide[data-cur-theme="light"] .cur-mode-switcher { color: #555; }
-.cur-ide[data-cur-theme="light"] .cur-mode-switcher select {
-  background: #ffffff;
-  border-color: #d0d0d0;
-  color: #1e1e1e;
-}
-
+   because the Door picker reuses the same class. *
 /* Denial evidence + console inventory — light skin */
 .cur-ide[data-cur-theme="light"] .cur-denial-facts dt,
 .cur-ide[data-cur-theme="light"] .cur-denial-note,
@@ -1645,7 +1506,6 @@ select.cur-input { cursor: pointer; }
   .cur-ide { height: auto; min-height: 0; overflow: visible; }
   .cur-titlebar { height: auto; min-height: 38px; flex-wrap: wrap; gap: 6px; padding: 4px 10px; }
   .cur-body { flex-direction: column; overflow: visible; }
-  .cur-activity-bar { display: none; }
   .cur-sidebar {
     width: 100% !important;
     min-width: 0;
@@ -1758,288 +1618,13 @@ select.cur-input { cursor: pointer; }
 }
 
 /* Gateway session warning — facade mode only. Real status tokens, not literals:
-   this page is themed and a hard-coded amber goes muddy in dark mode. */
-.cur-gw-session-warn {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  margin: 0 0 0.75rem;
-  border: 1px solid var(--th-status-warning-border);
-  border-radius: 6px;
-  background: var(--th-status-warning-bg);
-  color: var(--th-status-warning-text);
-  font-size: var(--font-size-xs);
-}
-
-.cur-gw-session-warn__icon {
-  flex: 0 0 auto;
-}
-
-.cur-gw-session-warn__btn {
-  margin-left: auto;
-  flex: 0 0 auto;
-  padding: 0.25rem 0.6rem;
-  border: 1px solid var(--th-border);
-  border-radius: 4px;
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  cursor: pointer;
-}
-
-.cur-gw-session-warn__btn:hover:not(:disabled) {
-  background: var(--th-bg-hover);
-  color: var(--th-text);
-}
-
-.cur-gw-session-warn__btn:disabled {
-  cursor: progress;
-  opacity: 0.6;
-}
-
-/* Re-arm failure lands on its own row — the button holds margin-left:auto. */
-.cur-gw-session-warn__err {
-  flex: 1 0 100%;
-  color: var(--th-status-error);
-  font-size: var(--font-size-2xs);
-}
-
-/* Preflight panel — real theme tokens, verified against src/index.css. */
-.cur-preflight {
-  margin: 0 0 0.75rem;
-}
-
-.cur-preflight__run {
-  padding: 0.3rem 0.7rem;
-  border: 1px solid var(--th-border);
-  border-radius: 4px;
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  cursor: pointer;
-}
-
-.cur-preflight__run:disabled {
-  cursor: progress;
-  opacity: 0.7;
-}
-
-.cur-preflight__error,
-.cur-preflight__empty {
-  margin: 0.4rem 0 0;
-  font-size: var(--font-size-2xs);
-}
-
-.cur-preflight__error {
-  color: var(--th-status-error);
-}
-
-.cur-preflight__empty {
-  color: var(--th-text-muted);
-}
-
-.cur-preflight__list {
-  list-style: none;
-  margin: 0.5rem 0 0;
-  padding: 0;
-  font-size: var(--font-size-xs);
-}
-
-.cur-preflight__list li {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.2rem 0;
-  color: var(--th-text);
-}
-
-.cur-preflight__url {
-  flex: 1 1 auto;
-  overflow-wrap: anywhere;
-}
-
-.cur-preflight__row--bad {
-  color: var(--th-status-error);
-}
-
-/* Privilege LLM panel — real tokens, verified against src/index.css. */
-.cur-llmpanel {
-  margin: 0 0 0.75rem;
-  font-size: var(--font-size-xs);
-}
-
-.cur-llmpanel__row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.4rem;
-}
-
-.cur-llmpanel__row input[type="text"] {
-  flex: 1 1 16rem;
-  padding: 0.25rem 0.4rem;
-  border: 1px solid var(--th-border);
-  border-radius: 4px;
-  background: var(--th-bg-card);
-  color: var(--th-text);
-}
-
-.cur-llmpanel__row button {
-  padding: 0.25rem 0.6rem;
-  border: 1px solid var(--th-border);
-  border-radius: 4px;
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  cursor: pointer;
-}
-
-.cur-llmpanel__row button:hover:not(:disabled) {
-  background: var(--th-bg-hover);
-  color: var(--th-text);
-}
-
-.cur-llmpanel__row button:disabled {
-  cursor: progress;
-  opacity: 0.7;
-}
-
-.cur-llmpanel__reply {
-  padding: 0.4rem 0.6rem;
-  border: 1px solid var(--th-border);
-  border-radius: 4px;
-  background: var(--th-bg-card);
-  color: var(--th-text);
-}
-
-/* A denial is the demo, not a failure: warning tones, with the reason shown. */
-.cur-llmpanel__denial {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  padding: 0.4rem 0.6rem;
-  border: 1px solid var(--th-status-warning-border);
-  border-radius: 4px;
-  background: var(--th-status-warning-bg);
-  color: var(--th-status-warning-text);
-}
-
-.cur-llmpanel__meta {
-  color: var(--th-text-muted);
-  font-size: var(--font-size-2xs);
-}
-
-.cur-llmpanel__error {
-  margin: 0.4rem 0 0;
-  color: var(--th-status-error);
-  font-size: var(--font-size-2xs);
-}
-
+   this page is themed and a hard-coded amber goes muddy in dark mode. *
+/* Re-arm failure lands on its own row — the button holds margin-left:auto. *
+/* Preflight panel — real theme tokens, verified against src/index.css. *
+/* Privilege LLM panel — real tokens, verified against src/index.css. *
+/* A denial is the demo, not a failure: warning tones, with the reason shown. *
 /* Per-lane route/model probe table. Every rule that takes a --th-* ground also
-   states its ink — THEMING.md §1.5, enforced by the ground-without-ink ratchet. */
-.cur-llmlanes {
-  margin: 0 0 0.6rem;
-  padding: 0.5rem;
-  border: 1px solid var(--th-border);
-  border-radius: 4px;
-  background: var(--th-bg-inset);
-  color: var(--th-text);
-}
-
-.cur-llmlanes__head {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.4rem;
-  font-size: var(--font-size-2xs);
-  font-weight: 600;
-}
-
-.cur-llmlanes__head button {
-  margin-left: auto;
-  padding: 0.2rem 0.55rem;
-  border: 1px solid var(--th-border);
-  border-radius: 4px;
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  cursor: pointer;
-}
-
-.cur-llmlanes__head button:hover:not(:disabled) {
-  background: var(--th-bg-hover);
-  color: var(--th-text);
-}
-
-.cur-llmlanes__row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem;
-  margin-top: 0.3rem;
-}
-
-.cur-llmlanes__name {
-  min-width: 5.5rem;
-  font-size: var(--font-size-2xs);
-  font-weight: 600;
-}
-
-.cur-llmlanes__row input {
-  flex: 1 1 12rem;
-  min-width: 8rem;
-  padding: 0.2rem 0.4rem;
-  border: 1px solid var(--th-border);
-  border-radius: 4px;
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  font-family: var(--font-mono, monospace);
-  font-size: var(--font-size-3xs);
-}
-
-.cur-llmlanes__row button {
-  padding: 0.2rem 0.55rem;
-  border: 1px solid var(--th-border);
-  border-radius: 4px;
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  cursor: pointer;
-}
-
-.cur-llmlanes__row button:hover:not(:disabled) {
-  background: var(--th-bg-hover);
-  color: var(--th-text);
-}
-
-.cur-llmlanes__result {
-  flex: 1 1 100%;
-  font-size: var(--font-size-3xs);
-}
-
-.cur-llmlanes__result--ok { color: var(--th-status-success); }
-.cur-llmlanes__result--denied { color: var(--th-status-warning); }
-.cur-llmlanes__result--bad { color: var(--th-status-error); }
-
-.cur-llmlanes__detail {
-  display: block;
-  color: var(--th-text-muted);
-  font-size: var(--font-size-3xs);
-}
-
-.cur-llmlanes__open {
-  padding: 0.2rem 0.55rem;
-  border: 1px solid var(--th-border);
-  border-radius: 4px;
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  font-size: var(--font-size-3xs);
-  cursor: pointer;
-}
-
-.cur-llmlanes__open:hover {
-  background: var(--th-bg-hover);
-  color: var(--th-text);
-}
-
+   states its ink — THEMING.md §1.5, enforced by the ground-without-ink ratchet. *
 /* Sign-in behaviour for MCP doors — the mcp_broker_prompt radio.
    Colours come from --th-* tokens only (THEMING.md): this stylesheet still
    carries older literals like #8b949e, and adding more would deepen the
@@ -2094,3 +1679,156 @@ select.cur-input { cursor: pointer; }
   font-size: var(--font-size-3xs);
   color: var(--th-status-error);
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Connection rail
+   Replaces the old conn-debug block, auth-badge block, gateway banner,
+   session-warning strip and bare "Run preflight" strip — five separate
+   surfaces that between them said what these five rows say once, in the
+   order the connection is actually established.
+   ───────────────────────────────────────────────────────────────────────── */
+.cur-rail {
+  list-style: none;
+  margin: 0;
+  padding: 4px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cur-rail__row {
+  display: grid;
+  grid-template-columns: 16px 92px 1fr;
+  align-items: baseline;
+  gap: 6px;
+  padding: 6px 6px 7px;
+  border-radius: 4px;
+  border-left: 2px solid transparent;
+  font-size: var(--font-size-2xs);
+}
+.cur-rail__row:hover { background: #232323; }
+.cur-rail__n {
+  color: #5a5a5a;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--font-size-3xs);
+}
+.cur-rail__k {
+  color: #888;
+  font-size: var(--font-size-3xs);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+.cur-rail__v {
+  color: #ddd;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  word-break: break-word;
+}
+.cur-rail__v select {
+  background: #2a2a2a;
+  color: #ddd;
+  border: 1px solid #3c3c3c;
+  border-radius: 4px;
+  padding: 3px 6px;
+  font: inherit;
+  font-size: var(--font-size-2xs);
+  max-width: 100%;
+}
+.cur-rail__v select:disabled { cursor: wait; opacity: 0.65; }
+.cur-rail__btn { padding: 3px 8px; font-size: var(--font-size-3xs); }
+/* Notes, URLs and probe output belong to the row above them, so they clear the
+   number and label columns rather than starting a new visual row. */
+.cur-rail__note,
+.cur-rail__url,
+.cur-rail__probe {
+  grid-column: 3;
+  margin: 4px 0 0;
+  font-size: var(--font-size-3xs);
+  line-height: 1.45;
+  color: #8a8a8a;
+}
+.cur-rail__url {
+  display: block;
+  color: #6ba7d6;
+  word-break: break-all;
+}
+.cur-rail__note--bad { color: #fca5a5; }
+.cur-rail__note--warn { color: #fcd34d; }
+.cur-rail__ok-text { color: #86efac; }
+.cur-rail__bad-text { color: #fca5a5; }
+.cur-rail__probe {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.cur-rail__probe li {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  gap: 6px;
+  align-items: baseline;
+}
+.cur-rail__probe-door { color: #ccc; word-break: break-all; }
+.cur-rail__probe--ok { color: #86efac; }
+.cur-rail__probe--bad { color: #fca5a5; }
+
+/* Form / JSON toggle — same idiom as /llm-gateway's lgw-viewtoggle, in this
+   page's own chrome. */
+.cur-viewtoggle {
+  display: inline-flex;
+  gap: 0;
+  margin: 0 0 6px;
+  border: 1px solid #3c3c3c;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.cur-viewtoggle button {
+  background: #2a2a2a;
+  color: #999;
+  border: 0;
+  padding: 3px 10px;
+  font: inherit;
+  font-size: var(--font-size-3xs);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.cur-viewtoggle button:hover { background: #333; color: #ccc; }
+.cur-viewtoggle button.is-active { background: #37373d; color: #fff; }
+/* JsonFormView ships its own light-ground styling, so it needs a light
+   surface under it even while the rest of this page is dark. */
+.cur-formview {
+  background: #f7f7f7;
+  border: 1px solid #3c3c3c;
+  border-radius: 4px;
+  padding: 8px;
+  max-height: 420px;
+  overflow: auto;
+}
+
+.cur-ide[data-cur-theme="light"] .cur-rail__row:hover { background: #ececec; }
+.cur-ide[data-cur-theme="light"] .cur-rail__n { color: #999; }
+.cur-ide[data-cur-theme="light"] .cur-rail__k { color: #666; }
+.cur-ide[data-cur-theme="light"] .cur-rail__v { color: #222; }
+.cur-ide[data-cur-theme="light"] .cur-rail__v select {
+  background: #fff;
+  color: #222;
+  border-color: #d0d0d0;
+}
+.cur-ide[data-cur-theme="light"] .cur-rail__note,
+.cur-ide[data-cur-theme="light"] .cur-rail__probe { color: #666; }
+.cur-ide[data-cur-theme="light"] .cur-rail__url { color: #0b6bb5; }
+.cur-ide[data-cur-theme="light"] .cur-rail__note--bad,
+.cur-ide[data-cur-theme="light"] .cur-rail__bad-text,
+.cur-ide[data-cur-theme="light"] .cur-rail__probe--bad { color: #b91c1c; }
+.cur-ide[data-cur-theme="light"] .cur-rail__note--warn { color: #92400e; }
+.cur-ide[data-cur-theme="light"] .cur-rail__ok-text,
+.cur-ide[data-cur-theme="light"] .cur-rail__probe--ok { color: #15803d; }
+.cur-ide[data-cur-theme="light"] .cur-rail__probe-door { color: #333; }
+.cur-ide[data-cur-theme="light"] .cur-viewtoggle { border-color: #d0d0d0; }
+.cur-ide[data-cur-theme="light"] .cur-viewtoggle button { background: #f0f0f0; color: #666; }
+.cur-ide[data-cur-theme="light"] .cur-viewtoggle button:hover { background: #e4e4e4; color: #222; }
+.cur-ide[data-cur-theme="light"] .cur-viewtoggle button.is-active { background: #fff; color: #000; }
+.cur-ide[data-cur-theme="light"] .cur-formview { background: #fff; border-color: #e0e0e0; }

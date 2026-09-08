@@ -57,7 +57,7 @@ function renderPage() {
 }
 
 async function clickRun() {
-  fireEvent.click(await screen.findByRole("button", { name: /run preflight/i }));
+  fireEvent.click(await screen.findByRole("button", { name: /probe other doors/i }));
 }
 
 describe("preflight panel", () => {
@@ -102,6 +102,6 @@ describe("preflight panel", () => {
     renderPage();
     await clickRun();
 
-    expect(await screen.findByText(/no doors were probed/i)).toBeInTheDocument();
+    expect(await screen.findByText(/no other doors to probe/i)).toBeInTheDocument();
   });
 });

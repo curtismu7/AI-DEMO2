@@ -75,6 +75,6 @@ describe("Direct mode sign-in on a real door challenge", () => {
     // Tools no longer auto-discover on mount — drive it via the button.
     fireEvent.click(await screen.findByRole("button", { name: /Get MCP Tools/i }));
 
-    await waitFor(() => expect(screen.getByText("Sign in to continue")).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId("sign-in-prompt")).toBeTruthy());
   });
 });

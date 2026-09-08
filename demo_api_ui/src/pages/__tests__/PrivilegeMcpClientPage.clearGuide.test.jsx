@@ -96,7 +96,7 @@ describe("Clear and Guide buttons", () => {
     // Wait for discovery, then switch tabs explicitly so the query below has no
     // timing dependency at all.
     await screen.findByText("first_tool");
-    fireEvent.click(screen.getByTitle("MCP Tools"));
+    fireEvent.click(screen.getByRole("button", { name: "Tools" }));
 
     const runButtons = await screen.findAllByRole("button", { name: "Run" });
     fireEvent.click(runButtons[0]);

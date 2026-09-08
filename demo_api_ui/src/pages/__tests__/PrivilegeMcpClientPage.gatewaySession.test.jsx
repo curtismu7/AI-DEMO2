@@ -57,7 +57,7 @@ describe("gateway session banner", () => {
 
     // Specific wording, not /gateway session/i — that also matches the button.
     expect(await screen.findByText(/gateway session not established/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /re-arm gateway session/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^re-arm$/i })).toBeInTheDocument();
   });
 
   it("stays hidden in facade mode when the session is ready", async () => {
@@ -65,7 +65,7 @@ describe("gateway session banner", () => {
     renderPage();
 
     await screen.findByTitle("Settings");
-    expect(screen.queryByRole("button", { name: /re-arm gateway session/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^re-arm$/i })).not.toBeInTheDocument();
   });
 
   it("stays hidden in privilege mode even with no gateway session — that mode carries the caller's own bearer", async () => {
@@ -73,7 +73,7 @@ describe("gateway session banner", () => {
     renderPage();
 
     await screen.findByTitle("Settings");
-    expect(screen.queryByRole("button", { name: /re-arm gateway session/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^re-arm$/i })).not.toBeInTheDocument();
   });
 
   // The load-bearing behaviour: re-arm must go through PRIVILEGE mode.
@@ -106,7 +106,7 @@ describe("gateway session banner", () => {
     });
 
     renderPage();
-    fireEvent.click(await screen.findByRole("button", { name: /re-arm gateway session/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /^re-arm$/i }));
 
     await vi.waitFor(() => {
       expect(posted.some((b) => b.gatewayMode === "privilege")).toBe(true);
@@ -142,7 +142,7 @@ describe("gateway session banner", () => {
     });
 
     renderPage();
-    fireEvent.click(await screen.findByRole("button", { name: /re-arm gateway session/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /^re-arm$/i }));
 
     await vi.waitFor(() => expect(startCalls).toBe(1));
   });
@@ -168,7 +168,7 @@ describe("gateway session banner", () => {
     });
 
     renderPage();
-    fireEvent.click(await screen.findByRole("button", { name: /re-arm gateway session/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /^re-arm$/i }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       /did not return an authorization URL/i,
@@ -193,7 +193,7 @@ describe("gateway session banner", () => {
     });
 
     renderPage();
-    fireEvent.click(await screen.findByRole("button", { name: /re-arm gateway session/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /^re-arm$/i }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/Gateway switch failed/i);
   });
