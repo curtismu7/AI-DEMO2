@@ -390,18 +390,28 @@ function privilegeGatewayBase() {
 //
 //   [mcpgw] rejecting /mcp on app opensearch22: outside entry path "/sse"
 //
-// It is per APP, not per gateway — `openapi2` and the catalog doors speak /mcp
-// while the two OpenSearch apps are registered with an /sse backend — and this
-// door fronts every app through one multiApp route, so it cannot hardcode /mcp.
+// It is per APP, not per gateway, and this door fronts every app through one
+// multiApp route, so it cannot hardcode a path blindly.
 //
-// /sse is a PATH here, not a transport: the console's MCP Config block for
-// opensearch22 reads {"transport":"http","url":"…/opensearch22/sse"}, so the
-// plain JSON-RPC POST this façade already makes stays correct.
+// An earlier revision defaulted the two OpenSearch apps to /sse, on the theory
+// that /sse was merely a PATH and the JSON-RPC POST stayed correct. Measured
+// 2026-09-08 against the opensearch-mcp-server backend (uvicorn) that both apps
+// front, that is FALSE — it is the legacy GET-only SSE endpoint:
 //
-// Overridable because the path follows a CONSOLE EDIT rather than a release —
-// it flipped twice on 2026-09-08 — so realigning must be an env change and a
-// restart, never a code change. Anything unlisted keeps /mcp.
-const PRIVILEGE_ENTRY_PATH_DEFAULTS = { opensearch22: 'sse', opensearch: 'sse' };
+//   GET  /sse -> 200        POST /sse -> 405, Allow: HEAD, GET
+//   GET  /mcp -> 200        POST /mcp -> accepted
+//
+// The gateway forwards the path after the app segment verbatim, so POSTing to
+// /<app>/sse reaches the backend as POST /sse and dies 405 — which is exactly
+// how it failed live. A JSON-RPC POST is only ever valid on /mcp, so NO app
+// defaults to sse. An app must be registered in the console with a /mcp backend
+// so the gateway pins /mcp to match; registering /sse cannot be made to work
+// from this side.
+//
+// Still overridable because the path follows a CONSOLE EDIT rather than a
+// release — it flipped twice on 2026-09-08 — so realigning is an env change and
+// a restart, never a code change.
+const PRIVILEGE_ENTRY_PATH_DEFAULTS = {};
 
 function privilegeEntryPath(app) {
   const override = String(process.env.MCP_FACADE_PRIVILEGE_GATEWAY_PATHS || '')

@@ -45,9 +45,12 @@ afterEach(() => {
 });
 
 describe('privilege-gateway door: per-app entry path', () => {
-  test('the /sse-registered apps get /sse, not /mcp', () => {
-    expect(door.upstreamFor('opensearch22')).toBe(`${BASE}/opensearch22/sse`);
-    expect(door.upstreamFor('opensearch')).toBe(`${BASE}/opensearch/sse`);
+  // Measured 2026-09-08 at the opensearch-mcp-server backend both apps front:
+  // POST /sse -> 405 (Allow: HEAD, GET), POST /mcp -> accepted. /sse is the
+  // legacy GET-only SSE endpoint, so a JSON-RPC POST can never default there.
+  test('the OpenSearch apps get /mcp — POST is 405 on their /sse', () => {
+    expect(door.upstreamFor('opensearch22')).toBe(`${BASE}/opensearch22/mcp`);
+    expect(door.upstreamFor('opensearch')).toBe(`${BASE}/opensearch/mcp`);
   });
 
   test('every other app keeps /mcp — the console hands that out for most apps', () => {
@@ -63,7 +66,7 @@ describe('privilege-gateway door: per-app entry path', () => {
     expect(door.upstreamFor('openapi2')).toBe(`${BASE}/openapi2/sse`);
     expect(door.upstreamFor('opensearch22')).toBe(`${BASE}/opensearch22/mcp`);
     // Unlisted apps are untouched by a partial override.
-    expect(door.upstreamFor('opensearch')).toBe(`${BASE}/opensearch/sse`);
+    expect(door.upstreamFor('opensearch')).toBe(`${BASE}/opensearch/mcp`);
   });
 
   test('a leading slash in the override is tolerated', () => {
@@ -73,7 +76,7 @@ describe('privilege-gateway door: per-app entry path', () => {
 
   test('the default door (no /<app> segment) uses the same table', () => {
     process.env.MCP_FACADE_PRIVILEGE_GATEWAY_APP = 'opensearch22';
-    expect(door.upstream()).toBe(`${BASE}/opensearch22/sse`);
+    expect(door.upstream()).toBe(`${BASE}/opensearch22/mcp`);
     process.env.MCP_FACADE_PRIVILEGE_GATEWAY_APP = 'openapi2';
     expect(door.upstream()).toBe(`${BASE}/openapi2/mcp`);
   });
