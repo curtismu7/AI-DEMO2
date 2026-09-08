@@ -241,18 +241,28 @@ apply_patched "$K8S_DIR/31-mcp-server-oauth-state-pvc.yaml"
 # 2026-09-08. On a cluster that is ALREADY serving, scale llama-tier* and
 # embeddings to 0 before re-seeding, for the same reason.
 #
-# Deleted first because a completed Job is immutable; re-running is otherwise a
-# no-op, since every file already present is skipped.
-kubectl delete job seed-llm-models -n "$NS" --ignore-not-found >/dev/null 2>&1 || true
-apply_patched "$K8S_DIR/54-seed-llm-models.yaml"
-info "Seeding model PVCs (first run downloads ~14GB; later runs are a no-op)..."
-if ! kubectl wait --for=condition=complete job/seed-llm-models -n "$NS" --timeout=45m; then
-  kubectl logs job/seed-llm-models -n "$NS" --tail=20 2>/dev/null || true
-  kubectl describe pod -n "$NS" -l component=seed-llm-models 2>/dev/null | sed -n '/Events:/,$p' | tail -10 || true
-  die "Model seed Job did not complete — the LLM tiers would CrashLoopBackOff with no model to load.
+# A re-run does NOT cost "one pod start": on an already-serving cluster the tier
+# that owns the RWO volume never releases it, so a re-applied Job cannot even
+# attach — the 45-minute wait above is paid on every scoped deploy, whether or
+# not that deploy touched anything model-related. If the Job already reports
+# Complete, the models are already on disk (the seed script itself is what skips
+# present files, so this only trusts a completion this repo's own Job produced)
+# — skip the delete/re-apply/wait outright rather than pay that tax again. A Job
+# that does not exist yet, or previously Failed, still runs exactly as before.
+if [[ "$(kubectl get job seed-llm-models -n "$NS" -o jsonpath='{.status.conditions[?(@.type=="Complete")].status}' 2>/dev/null)" == "True" ]]; then
+  info "seed-llm-models already Complete — models on disk, skipping re-seed."
+else
+  kubectl delete job seed-llm-models -n "$NS" --ignore-not-found >/dev/null 2>&1 || true
+  apply_patched "$K8S_DIR/54-seed-llm-models.yaml"
+  info "Seeding model PVCs (first run downloads ~14GB; later runs are a no-op)..."
+  if ! kubectl wait --for=condition=complete job/seed-llm-models -n "$NS" --timeout=45m; then
+    kubectl logs job/seed-llm-models -n "$NS" --tail=20 2>/dev/null || true
+    kubectl describe pod -n "$NS" -l component=seed-llm-models 2>/dev/null | sed -n '/Events:/,$p' | tail -10 || true
+    die "Model seed Job did not complete — the LLM tiers would CrashLoopBackOff with no model to load.
   A 'Multi-Attach error' above means a serving pod already holds an RWO model PVC:
     kubectl scale deploy/llama-tier1 deploy/llama-tier3 deploy/llama-tier5 deploy/embeddings -n $NS --replicas=0
   then re-run this deploy."
+  fi
 fi
 
 # Deploy in dependency order (jaeger first so the OTLP collector is up before
