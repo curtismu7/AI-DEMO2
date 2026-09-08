@@ -195,8 +195,8 @@ Reproducing it live also surfaced two *separate*, infrastructure-side issues,
 not fixed here: with a valid token, `banking-rest2`/`mcp-brave-search`/
 `mcp-grafana` all answer `403 Forbidden` (no Privilege policy authored yet on
 those Agentic Apps — a new app starts with none, per
-`privilege/CURRENT-CONFIGURATION.md`), and `opensearch22` still 404s per the
-already-tracked `privilege/GATEWAY-ENTRY-PATH-QUESTION.md`. The per-door
+`privilege/CURRENT-CONFIGURATION.md`), and `opensearch22` still 404s because the gateway pins an
+app to its registered entry path (`demo_mcp_pingone/README.md`, "Entry path"). The per-door
 login mechanism itself (previous entry) works correctly for all four.
 
 **What was fixed:** a new one-time effect in `useInspectorSource.js` (only for
@@ -411,9 +411,9 @@ the already-working `POST /api/mcp/inspector/profiles`.
 **Known limitation, not fixed here:** the `built-in-privilege-opensearch` door
 (`opensearch22`) is only reachable up to the auth check — see the entry below
 ("Every path and every door on `/privilege-mcp-client` was broken") and
-`privilege/GATEWAY-ENTRY-PATH-QUESTION.md`: with a *valid* bearer the gateway
+`demo_mcp_pingone/README.md` "Entry path": with a *valid* bearer the gateway
 404s `/opensearch22/mcp` (`rejecting /mcp on app opensearch22: outside entry
-path "/sse"`), a gateway-side behavior change under discussion with Ping. The
+path "/sse"`), because the gateway pins an app to its registered entry path. The
 other three doors use the catalog/OpenAPI-MCP registration mechanism, not the
 `/sse`-backend one that trips this, and are unaffected.
 

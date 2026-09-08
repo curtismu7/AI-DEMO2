@@ -120,6 +120,39 @@ denial and is not one.
 | `PINGONE_CLIENT_CREDENTIALS_SCOPES` | — | `p1:read:env` |
 | `PINGONE_ROOT_DOMAIN` | — | `pingone.com` |
 
+## Entry path: `/sse`, both sides
+
+The AI Gateway pins an Agentic App to ONE path, derived from how its backend was
+registered, and this applies to the CLIENT-facing URL too — not just the
+backend. An app whose backend is registered as `/sse` is reachable by clients
+only at `/<app>/sse`; `/<app>/mcp` returns a bare `404`.
+
+The only place that says so is the gateway log:
+
+```
+[mcpgw] resolved host for app <name>: <name>.default.applications.procyon.ai:8643
+[mcpgw] rejecting /mcp on app <name>: outside entry path "/sse"
+```
+
+Two traps follow from this:
+
+- **The 404 arrives AFTER authentication.** With no bearer you get a normal 401
+  challenge, so a door can look healthy and still 404 every real call. Auth is
+  not the problem when this happens.
+- **Console discovery reports the app's URL with `/mcp`**, so a door picked up
+  automatically from the Privilege inventory may be unusable while a hardcoded
+  `/sse` preset works. That is why `privilegeMcpClient.js` lists this door
+  explicitly instead of relying on discovery.
+
+Registering the backend as `/mcp` is not a way out: the gateway's discovery
+client issues a bare `GET` and waits for the SSE `endpoint` event, so a `/mcp`
+backend fails discovery entirely (`Gateway Unreachable … calling "initialize":
+Unauthorized`) and the app gets no tools and no policy.
+
+**Known live example:** the `opensearch22` door 404s on `/mcp` for exactly this
+reason. It is excluded from `scripts/lmstudio-mcp-sync.js` and flagged in
+`demo_api_server/services/mcpProfileStore.js` on those grounds.
+
 ## Deploy
 
 The sidecar is declared in
