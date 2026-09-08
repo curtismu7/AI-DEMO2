@@ -22,7 +22,7 @@ const { resolveActingIdentity } = require('../../middleware/transactionTurn');
 // ownership (list/limit/degrade/traceId behaviour) keep exercising exactly
 // what they did before ownership enforcement was added. Ownership-specific
 // tests below pass an explicit non-admin user.
-function app(user = { id: 'admin-test', role: 'admin' }) {
+function app(user = { id: 'admin-test', sub: 'admin-test', role: 'admin' }) {
   const a = express();
   a.use((req, res, next) => {
     req.user = user;
@@ -139,7 +139,7 @@ describe('ownership enforcement — GET /api/transaction-trace/:correlationId', 
       correlationId: 'c1', startedAt: 'A', endedAt: 'B', principal: 'user-1',
       hops: [{ seq: 1, phase: 'ui.request', service: 'demo-api-server' }],
     });
-    const res = await request(app({ id: 'user-1', role: 'customer' })).get('/api/transaction-trace/c1');
+    const res = await request(app({ id: 'user-1', sub: 'user-1', role: 'customer' })).get('/api/transaction-trace/c1');
     expect(res.status).toBe(200);
     expect(res.body.correlationId).toBe('c1');
     expect(assemble).toHaveBeenCalledWith('c1');
@@ -147,7 +147,7 @@ describe('ownership enforcement — GET /api/transaction-trace/:correlationId', 
 
   test('non-admin gets 404 (not 403) for another principal\'s record, and never reaches the derived-token read', async () => {
     ledger.getRecord.mockReturnValue({ correlationId: 'c1', principal: 'other-user' });
-    const res = await request(app({ id: 'user-1', role: 'customer' })).get('/api/transaction-trace/c1');
+    const res = await request(app({ id: 'user-1', sub: 'user-1', role: 'customer' })).get('/api/transaction-trace/c1');
     expect(res.status).toBe(404);
     expect(res.body).toEqual({ error: 'not_found' });
     // The regression this guards against: assemble() (and inside it,
@@ -161,7 +161,7 @@ describe('ownership enforcement — GET /api/transaction-trace/:correlationId', 
 
   test('non-admin gets 404 for a record with an unattributed (unknown) principal, and never reaches the derived-token read', async () => {
     ledger.getRecord.mockReturnValue({ correlationId: 'c1', principal: null });
-    const res = await request(app({ id: 'user-1', role: 'customer' })).get('/api/transaction-trace/c1');
+    const res = await request(app({ id: 'user-1', sub: 'user-1', role: 'customer' })).get('/api/transaction-trace/c1');
     expect(res.status).toBe(404);
     expect(res.body).toEqual({ error: 'not_found' });
     expect(assemble).not.toHaveBeenCalled();
@@ -189,10 +189,10 @@ describe('ownership enforcement — GET /api/transaction-trace/:correlationId', 
 
   test('the 404 for "not yours" is byte-identical (status + body) to the 404 for "nonexistent"', async () => {
     ledger.getRecord.mockReturnValueOnce({ correlationId: 'c1', principal: 'other-user' });
-    const notYours = await request(app({ id: 'user-1', role: 'customer' })).get('/api/transaction-trace/c1');
+    const notYours = await request(app({ id: 'user-1', sub: 'user-1', role: 'customer' })).get('/api/transaction-trace/c1');
 
     ledger.getRecord.mockReturnValueOnce(null);
-    const nonexistent = await request(app({ id: 'user-1', role: 'customer' })).get('/api/transaction-trace/c2');
+    const nonexistent = await request(app({ id: 'user-1', sub: 'user-1', role: 'customer' })).get('/api/transaction-trace/c2');
 
     expect(notYours.status).toBe(404);
     expect(nonexistent.status).toBe(404);
@@ -219,7 +219,7 @@ describe('ownership enforcement — GET /api/transaction-trace (list)', () => {
     // pushed `principal` into the store call instead of filtering the
     // already-limited page itself.
     ledger.listRecords.mockReturnValue(RECORDS.filter((r) => r.principal === 'user-1'));
-    const res = await request(app({ id: 'user-1', role: 'customer' })).get('/api/transaction-trace');
+    const res = await request(app({ id: 'user-1', sub: 'user-1', role: 'customer' })).get('/api/transaction-trace');
     expect(ledger.listRecords).toHaveBeenCalledWith({ limit: undefined, principal: 'user-1' });
     expect(res.body.transactions.map((t) => t.correlationId)).toEqual(['c1']);
   });
@@ -240,48 +240,53 @@ describe('ownership enforcement — GET /api/transaction-trace (list)', () => {
 
   test('non-admin limit is pushed through alongside the principal filter', async () => {
     ledger.listRecords.mockReturnValue(RECORDS.filter((r) => r.principal === 'user-1'));
-    await request(app({ id: 'user-1', role: 'customer' })).get('/api/transaction-trace?limit=2');
+    await request(app({ id: 'user-1', sub: 'user-1', role: 'customer' })).get('/api/transaction-trace?limit=2');
     expect(ledger.listRecords).toHaveBeenCalledWith({ limit: 2, principal: 'user-1' });
   });
 });
+
+const SUB = '00000000-0000-4000-8000-0000000000ab';
 
 describe('write/read identity agreement', () => {
   beforeEach(() => { jest.clearAllMocks(); });
 
   test('a principal resolved from a session-shaped write request is visible to a matching non-admin reader, and not to a different non-admin', async () => {
-    // Simulates the write side: /api/demo-agent has no authenticateToken
-    // ahead of transactionTurnMiddleware, so the principal it stamps comes
-    // from req.session.user — the real BFF session shape ({id, username,
-    // email, firstName, lastName, role}, no `sub`). Calling the exact same
-    // resolveActingIdentity() the write side uses (rather than hand-writing
-    // 'user-1' here) is what proves write/read agreement instead of just
-    // two independently-chosen strings that happen to match.
+    // Simulates the write side: /api/demo-agent has no authenticateToken ahead
+    // of transactionTurnMiddleware, so the principal it stamps comes from
+    // req.session.user — which carries `oauthId`, the PingOne UUID, alongside
+    // the legacy numeric `id`. Calling the exact same resolveActingIdentity()
+    // the write side uses (rather than hand-writing the value here) is what
+    // proves write/read agreement instead of two independently-chosen strings
+    // that happen to match.
     const writeSideRequest = {
       session: {
         user: {
-          id: '5',
+          id: '5',                                        // legacy key — NOT the identity (T-6)
+          oauthId: SUB,
           username: 'demoUser',
           email: 'demoUser@api.ping.demo',
-          firstName: 'Demo',
-          lastName: 'User',
           role: 'customer',
         },
       },
     };
     const storedPrincipal = resolveActingIdentity(writeSideRequest);
-    expect(storedPrincipal).toBe('5');
+    // The PingOne sub, not "5": stamping the legacy id is what made INV-2 fire
+    // on ordinary agent turns, reporting one user recorded two ways as two
+    // subjects.
+    expect(storedPrincipal).toBe(SUB);
+    expect(storedPrincipal).not.toBe('5');
 
     ledger.getRecord.mockReturnValue({ correlationId: 'c1', principal: storedPrincipal });
     assemble.mockResolvedValue({ correlationId: 'c1', startedAt: 'A', endedAt: 'B', hops: [] });
 
     // Read side: authenticateToken populates req.user, not req.session.user.
-    // Same identity ('5') must see the record.
-    const own = await request(app({ id: '5', role: 'customer' })).get('/api/transaction-trace/c1');
+    // The SAME PingOne sub must see the record.
+    const own = await request(app({ id: '5', sub: SUB, role: 'customer' })).get('/api/transaction-trace/c1');
     expect(own.status).toBe(200);
     expect(own.body.correlationId).toBe('c1');
 
     // A different non-admin must not — and gets 404, not 403.
-    const other = await request(app({ id: 'someone-else', role: 'customer' })).get('/api/transaction-trace/c1');
+    const other = await request(app({ id: 'someone-else', sub: 'someone-else', role: 'customer' })).get('/api/transaction-trace/c1');
     expect(other.status).toBe(404);
     expect(other.body).toEqual({ error: 'not_found' });
   });
