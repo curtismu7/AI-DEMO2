@@ -1690,9 +1690,15 @@ router.post('/config', express.json(), (req, res) => {
 router.post('/auth/start', express.json(), async (req, res) => {
   const session = getClientSession(req);
   try {
-    if (!session.config.clientId) {
-      return res.status(400).json({ error: 'Client ID is required before auth start.' });
-    }
+    // No clientId pre-check here on purpose. config.clientId defaults to EMPTY
+    // (see getClientSession) because every door this page ships with
+    // self-advertises its AS and supplies the id by Dynamic Client Registration
+    // inside beginOAuthFlow. Rejecting an empty id up front pre-empted the very
+    // step that fills it, so a session that had not yet registered — any session
+    // at all after a BFF restart, since clientSessions is an in-memory Map —
+    // could never start OAuth at all. beginOAuthFlow already refuses the genuine
+    // case (an AS with no DCR and no configured id) with a message naming the
+    // gateway and telling the operator to set Client ID in Settings.
     const authUrl = await beginOAuthFlow(session, req);
     session.pendingAuth.returnTo = sanitizeReturnTo(req.body?.returnTo);
     // Force express-session to persist so connect.sid cookie survives the redirect
