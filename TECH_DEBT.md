@@ -16,6 +16,53 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-09-08 — A BFF restart silently drops every Privilege gateway token
+
+`routes/privilegeMcpClient.js:138` keeps all per-user gateway state in a plain
+in-process `Map` (`clientSessions`), keyed by the Express session id. The
+Express session itself IS persisted (LMDB, `server.js:98`), so the browser's
+cookie survives a `demo-api-server` restart — but everything the Map holds does
+not. The pair that results is `mainAppAuthenticated: true` alongside
+`oauth.authenticated: false`, which the page renders as "you are signed in to
+the app but not to the gateway".
+
+Observed 2026-09-08 while deploying the connection-rail work: rolling the SE
+frontend also restarted the BFF at 13:56:51Z, and every gateway token in the
+namespace went with it. Nothing anywhere reports this — the user just finds
+themselves signed out of the gateway with no explanation.
+
+**Why it wasn't fixed now.** "Move it into the persisted session" is the
+obvious fix and it is wrong. Reading what the Map actually holds:
+
+- `subscription.controller` and `eventStream.controller` are live
+  `AbortController` instances. They are not serializable, and a restored one
+  would abort nothing.
+- `mcpSession` holds a gateway-issued MCP session id. The gateway forgot it
+  during the same restart, so persisting it restores a handle to nothing.
+- `console` is the operator's pasted Privilege console credential, and its
+  comment says explicitly: "In-memory for the life of this session only — never
+  persisted and never sent to the client." Persisting the Map wholesale would
+  quietly reverse that decision.
+
+So a blanket move would restore three things that are meaningless after a
+restart and one that is deliberately ephemeral.
+
+**What the real fix looks like.** Persist only the OAuth slice — `oauth` and
+`savedOauthByDoor` — into the existing LMDB-backed session, and leave the live
+handles, the MCP session and the console credential in memory where they
+belong. Rehydrate on first `getClientSession()` for a session id the Map does
+not know. That is a change to auth/session code (REGRESSION_PLAN section 1
+protected area), it must not resurrect PR #2898 defect 1 (the main app's token
+being seeded as the gateway bearer), and it needs its own tests for the
+restart-rehydrate path.
+
+**Why it is survivable meanwhile.** The page already self-heals: on a load with
+no `auth` marker in the URL, `mainAppAuthenticated && !oauth.authenticated`
+triggers a silent `prompt=none` sign-in, which costs one redirect and no login
+page. That recovery is only reliable since PR #2940 stopped a stale
+`?auth=success` from suppressing it — before that fix, a restart could strand
+the page on a sign-in prompt indefinitely, which is how this was found.
+
 ### [ ] 2026-09-07 — No Grafana panels for the 5 newly-metricized services
 
 `demo_mcp_proxy`, `mastra_agent`, `demo_llm_proxy`, `langchain_agent`, and
