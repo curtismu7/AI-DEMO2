@@ -120,7 +120,16 @@ denial and is not one.
 | `PINGONE_CLIENT_CREDENTIALS_SCOPES` | — | `p1:read:env` |
 | `PINGONE_ROOT_DOMAIN` | — | `pingone.com` |
 
-## Entry path: `/sse`, both sides
+The demo client's **door URL** is configured separately, in
+`demo_api_server/routes/privilegeMcpClient.js`:
+
+| Env | Default | Notes |
+|---|---|---|
+| `PRIVILEGE_APP_PINGONE_ADMIN` | `pingone-admin-local` | the Agentic App name |
+| `PRIVILEGE_APP_PINGONE_ADMIN_PATH` | `mcp` | must match the gateway's current entry path — see below |
+| `PRIVILEGE_MCPGW_PINGONE_ADMIN_URL` | — | whole URL, overrides both |
+
+## Entry path: whichever the app is registered with
 
 The AI Gateway pins an Agentic App to ONE path, derived from how its backend was
 registered, and this applies to the CLIENT-facing URL too — not just the
@@ -139,19 +148,32 @@ Two traps follow from this:
 - **The 404 arrives AFTER authentication.** With no bearer you get a normal 401
   challenge, so a door can look healthy and still 404 every real call. Auth is
   not the problem when this happens.
-- **Console discovery reports the app's URL with `/mcp`**, so a door picked up
-  automatically from the Privilege inventory may be unusable while a hardcoded
-  `/sse` preset works. That is why `privilegeMcpClient.js` lists this door
-  explicitly instead of relying on discovery.
+- **Console discovery reports the app's URL with `/mcp`**, which is only correct
+  while the app is registered that way. That is why `privilegeMcpClient.js`
+  lists this door explicitly rather than relying on discovery.
 
-Registering the backend as `/mcp` is not a way out: the gateway's discovery
-client issues a bare `GET` and waits for the SSE `endpoint` event, so a `/mcp`
-backend fails discovery entirely (`Gateway Unreachable … calling "initialize":
-Unauthorized`) and the app gets no tools and no policy.
+**Either path works as a BACKEND for this server**, because the bridge answers
+the SSE handshake on `/sse` and `/mcp` alike. That is unusual — a plain
+streamable-HTTP server answers a bare `GET /mcp` without the `endpoint` event and
+fails discovery entirely (`Gateway Unreachable … calling "initialize":
+Unauthorized`, no tools, no policy). So for THIS server the Backend Name is a
+free choice, and whichever you pick becomes the client path.
+
+`/mcp` is the better choice: it is what the console's own MCP Config block hands
+out and what console door discovery reports, so picking it makes both usable
+rather than traps.
+
+**It changes under you.** Editing Backend Name in the console flips the client
+path for every caller, and only after the gateway restarts and re-runs
+discovery — it flipped from `/sse` to `/mcp` on 2026-09-08 mid-session. That is
+why `privilegeMcpClient.js` exposes `PRIVILEGE_APP_PINGONE_ADMIN_PATH`:
+realigning the demo's door should be an env change and a restart, not a PR.
 
 **Known live example:** the `opensearch22` door 404s on `/mcp` for exactly this
 reason. It is excluded from `scripts/lmstudio-mcp-sync.js` and flagged in
-`demo_api_server/services/mcpProfileStore.js` on those grounds.
+`demo_api_server/services/mcpProfileStore.js` on those grounds. Do NOT assume the
+free choice above transfers to it — its backend is the OpenSearch MCP server,
+not this bridge, and it may genuinely only answer the handshake on `/sse`.
 
 ## Deploy
 
