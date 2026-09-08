@@ -54,13 +54,22 @@ function tokenOk() {
 describe('privilege MCP simple relay', () => {
   const originalFetch = global.fetch;
   const savedEnv = {};
-  const ENV_KEYS = ['PRIVILEGE_SSO_CLIENT_ID', 'PRIVILEGE_SSO_CLIENT_SECRET', 'PRIVILEGE_SSO_ENV_ID', 'MCP_MTLS_ENABLED', 'PRIVILEGE_SIMPLE_MCP_URL'];
+  // This route needs the BANKING env's client_credentials client — its audience
+  // is mcpserver.ping.demo. It used to read PRIVILEGE_SSO_* purely because of
+  // the route's name; that client authenticates in no tenant at all.
+  // PRIVILEGE_SIMPLE_* is the explicit override and is used here so the test
+  // never depends on a vault lookup.
+  const ENV_KEYS = [
+    'PRIVILEGE_SIMPLE_CLIENT_ID', 'PRIVILEGE_SIMPLE_CLIENT_SECRET',
+    'PINGONE_MCP_GATEWAY_CLIENT_ID', 'PINGONE_ENVIRONMENT_ID',
+    'MCP_MTLS_ENABLED', 'PRIVILEGE_SIMPLE_MCP_URL',
+  ];
 
   beforeEach(() => {
     for (const k of ENV_KEYS) savedEnv[k] = process.env[k];
-    process.env.PRIVILEGE_SSO_CLIENT_ID = 'client-1';
-    process.env.PRIVILEGE_SSO_CLIENT_SECRET = 'secret-1';
-    process.env.PRIVILEGE_SSO_ENV_ID = 'env-1';
+    process.env.PRIVILEGE_SIMPLE_CLIENT_ID = 'client-1';
+    process.env.PRIVILEGE_SIMPLE_CLIENT_SECRET = 'secret-1';
+    process.env.PINGONE_ENVIRONMENT_ID = 'env-1';
     process.env.MCP_MTLS_ENABLED = 'false';
     process.env.PRIVILEGE_SIMPLE_MCP_URL = 'https://mcp-server:8080/mcp';
   });
@@ -137,7 +146,7 @@ describe('privilege MCP simple relay', () => {
   });
 
   test('missing credentials fail with a named cause, not a crash', async () => {
-    delete process.env.PRIVILEGE_SSO_CLIENT_ID;
+    delete process.env.PRIVILEGE_SIMPLE_CLIENT_ID;
     delete process.env.PINGONE_MCP_GATEWAY_CLIENT_ID;
     const app = buildApp();
     global.fetch = jest.fn();
