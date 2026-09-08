@@ -219,6 +219,31 @@ apply_patched "$K8S_DIR/21-api-server-logs-pvc.yaml"
 # cannot schedule until the claim exists.
 apply_patched "$K8S_DIR/31-mcp-server-oauth-state-pvc.yaml"
 
+# Models onto the PVCs BEFORE anything that serves them. The llama tiers and the
+# embeddings pod run `-m /models/<file>.gguf` and never download; if the file is
+# absent they CrashLoopBackOff. This Job is the only thing that fetches a model.
+#
+# It must COMPLETE before 56-llm-stack.yaml and 72-rag-stack.yaml appear in the
+# loop below. Both model PVCs are RWO, so a serving pod that starts first pins the
+# volume to its node and the Job then fails to attach with a Multi-Attach error and
+# sits in ContainerCreating until its deadline — measured on the SE cluster
+# 2026-09-08. On a cluster that is ALREADY serving, scale llama-tier* and
+# embeddings to 0 before re-seeding, for the same reason.
+#
+# Deleted first because a completed Job is immutable; re-running is otherwise a
+# no-op, since every file already present is skipped.
+kubectl delete job seed-llm-models -n "$NS" --ignore-not-found >/dev/null 2>&1 || true
+apply_patched "$K8S_DIR/54-seed-llm-models.yaml"
+info "Seeding model PVCs (first run downloads ~14GB; later runs are a no-op)..."
+if ! kubectl wait --for=condition=complete job/seed-llm-models -n "$NS" --timeout=45m; then
+  kubectl logs job/seed-llm-models -n "$NS" --tail=20 2>/dev/null || true
+  kubectl describe pod -n "$NS" -l component=seed-llm-models 2>/dev/null | sed -n '/Events:/,$p' | tail -10 || true
+  die "Model seed Job did not complete — the LLM tiers would CrashLoopBackOff with no model to load.
+  A 'Multi-Attach error' above means a serving pod already holds an RWO model PVC:
+    kubectl scale deploy/llama-tier1 deploy/llama-tier3 deploy/llama-tier5 deploy/embeddings -n $NS --replicas=0
+  then re-run this deploy."
+fi
+
 # Deploy in dependency order (jaeger first so the OTLP collector is up before
 # the instrumented services start exporting spans).
 #

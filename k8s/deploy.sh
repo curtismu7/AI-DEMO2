@@ -112,7 +112,11 @@ deploy() {
   info "Seeding model PVCs (first run downloads ~14GB; later runs are a no-op)..."
   if ! kubectl wait --for=condition=complete job/seed-llm-models -n "$NS" --timeout=45m; then
     kubectl logs job/seed-llm-models -n "$NS" --tail=20 2>/dev/null || true
-    die "Model seed Job did not complete — the LLM tiers would CrashLoopBackOff with no model to load."
+    kubectl describe pod -n "$NS" -l component=seed-llm-models 2>/dev/null | sed -n '/Events:/,$p' | tail -10 || true
+    die "Model seed Job did not complete — the LLM tiers would CrashLoopBackOff with no model to load.
+  A 'Multi-Attach error' above means a serving pod already holds an RWO model PVC:
+    kubectl scale deploy/llama-tier1 deploy/llama-tier3 deploy/llama-tier5 deploy/embeddings -n $NS --replicas=0
+  then re-run this deploy."
   fi
   kubectl apply -f "$SCRIPT_DIR/56-llm-stack.yaml"           # 2-tier LLM proxy + swap tiers
   kubectl apply -f "$SCRIPT_DIR/72-rag-stack.yaml"           # RAG (starts by default; use `rag off` to stop)

@@ -17,8 +17,19 @@
 # its node and a Job scheduled elsewhere would wait forever. deploy.sh applies and
 # waits on this first.
 #
-# Re-running: safe. Every file is skipped if already present, so this is a no-op
-# on a seeded cluster. To re-seed, scale the consumers to 0 first (RWO).
+# Re-running: safe in the sense that every file already present is skipped — but on
+# a cluster that is ALREADY SERVING you must scale llama-tier* and embeddings to 0
+# first. Both PVCs are RWO, and a running consumer holds the volume: the Job pod is
+# then scheduled onto some other node, fails to attach with
+#
+#   Multi-Attach error for volume "pvc-..." Volume is already used by pod(s) llama-tier5-...
+#
+# and sits in ContainerCreating. Measured on the SE cluster 2026-09-08, where it
+# hung rather than failed — hence activeDeadlineSeconds below, so the deadlock ends
+# with a real error instead of a pod that looks busy forever.
+#
+#   kubectl scale deploy/llama-tier1 deploy/llama-tier3 deploy/llama-tier5 \
+#     deploy/embeddings -n <ns> --replicas=0
 #
 # tier3 (Llama-3-Groq-8B-Tool-Use) is deliberately NOT seeded: it is the
 # experimental A/B tier, runs at replicas 0, and the three tier models together
@@ -34,6 +45,11 @@ metadata:
     component: seed-llm-models
 spec:
   backoffLimit: 4
+  # Bounds the RWO Multi-Attach deadlock described above, which otherwise never
+  # ends on its own. Generous rather than tight: a genuine first seed pulls ~14GB,
+  # and killing a real download to catch a misconfiguration faster is the wrong
+  # trade. Matches the 45m kubectl wait in both deploy.sh copies.
+  activeDeadlineSeconds: 2700
   # Kept after success so `kubectl logs job/seed-llm-models` can still explain
   # what it did; deploy.sh deletes it before re-applying.
   ttlSecondsAfterFinished: 86400
@@ -44,6 +60,15 @@ spec:
         component: seed-llm-models
     spec:
       restartPolicy: OnFailure
+      # curlimages/curl runs as uid 100 (curl_user), and both PVC roots are owned
+      # by root:root — the first live run died with BackoffLimitExceeded in ~90s
+      # because it could not create the .part file. llama-server runs as root and
+      # the models it reads are root-owned, so writing them as root is what keeps
+      # the modes consistent; an fsGroup would instead re-chown volumes holding a
+      # 12GB file on every mount.
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
       containers:
         - name: seed
           image: curlimages/curl:latest
