@@ -140,6 +140,48 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-08 — A dead façade door bounced the browser to a bare PingOne `NOT_FOUND` page
+
+**Files changed:** `demo_api_server/routes/privilegeMcpClient.js`,
+`demo_api_server/tests/routes/privilegeMcpClient.ownOriginDoorGuard.test.js`.
+
+**What was broken:** selecting the banking façade door on `/privilege-mcp-client`
+landed the user on a PingOne error page whose entire content was
+`code: NOT_FOUND` — naming neither the door nor the client, and pointing at
+PingOne rather than at the door that was actually down.
+
+Traced live 2026-09-08. `/mcp-facade/banking/mcp` answers **400 with no
+`WWW-Authenticate`** (its upstream, `cmuir-agentless-mcpgw.ping-devops.com`, was
+torn down 2026-09-01 and `PRIVILEGE_AGENTLESS_MCPGW_URL_BANKING` still points at
+it). With no challenge, `discoverAuth()`'s RFC 9728 step returned null and
+execution fell through to the PingOne OIDC fallback, which authorizes with
+`session.config.clientId` = `PRIVILEGE_SSO_CLIENT_ID` (`a6219652…`). Probed
+directly: that client returns `NOT_FOUND` from env `01d89b06…` and from
+`0428ba4f…`, while the broker client `c8392dc4…` returns `INVALID_DATA` in
+`01d89b06…` — i.e. `a6219652…` exists in neither environment. The file's own
+comment at the DCR branch already predicted this: *"silently falling back to the
+configured PingOne client id that this AS has never heard of."*
+
+Only the banking door was affected — a sweep of all seven façade/Direct doors
+from inside the BFF showed the other six return `401` with a challenge.
+
+**What was fixed:** `discoverAuth()` now refuses to reach the PingOne fallback
+for a door served from this app's own `PUBLIC_APP_URL` origin. Those are the
+façade and Direct doors; every one of them self-advertises its AS, so arriving
+there means the door is down and PingOne is definitively not its Authorization
+Server. It throws an error naming the door URL, the HTTP status or transport
+error, and where to look.
+
+**Do not break:** the PingOne OIDC fallback itself must stay reachable for
+**external** hosts — Privilege Cloud and a self-hosted gateway frontend rely on
+it, and an unreachable external gateway must still resolve endpoints from
+`PRIVILEGE_SSO_ENV_ID`. The guard keys on the door being on our own origin, not
+on the failure shape. A third test pins that external behaviour unchanged.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/routes/privilegeMcp --forceExit`
+(25 suites, 152 tests). The guard's own file is
+`privilegeMcpClient.ownOriginDoorGuard.test.js`.
+
 ### 2026-09-07 — Generic MCP Inspector's admin-only gate deliberately relaxed to any signed-in session
 
 **This is not a bug fix — it reverses part of the 2026-07-26 entry further down
