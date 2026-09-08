@@ -8,6 +8,39 @@ const SAMPLE_TS = `export async function createTransfer(req) {
   });
 }`;
 
+/* VS Code's activity bar, drawn from its real icon set rather than left as the
+   three empty <span>s that were here — `.afm-vcs-act span` had no rule at all,
+   so the bar rendered as a bare 48px strip. Codicon shapes, top group plus
+   bottom group, the way VS Code lays them out. */
+const VSCODE_ACTIVITY = [
+  { key: "explorer", label: "Explorer", d: "M3 3h6l2 2h10v14H3z" },
+  { key: "search", label: "Search", d: "M10.5 3a7.5 7.5 0 1 0 4.7 13.4l4.7 4.7 1.4-1.4-4.7-4.7A7.5 7.5 0 0 0 10.5 3zm0 2a5.5 5.5 0 1 1 0 11 5.5 5.5 0 0 1 0-11z" },
+  { key: "scm", label: "Source Control", d: "M6 3a3 3 0 0 0-1 5.8V15A3 3 0 1 0 7 15V8.8A3 3 0 0 0 6 3zm12 0a3 3 0 0 0-1 5.8V11a3 3 0 0 1-3 3h-2v2h2a5 5 0 0 0 5-5V8.8A3 3 0 0 0 18 3z" },
+  { key: "debug", label: "Run and Debug", d: "M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18zm-2 5.5v7l6-3.5z" },
+  { key: "extensions", label: "Extensions", d: "M3 3h8v8H3zm10 0h8v8h-8zM3 13h8v8H3zm12 2h4v-2h2v2h4v2h-4v2h-2v-2h-4z" },
+];
+const VSCODE_ACTIVITY_BOTTOM = [
+  { key: "accounts", label: "Accounts", d: "M12 3a4 4 0 1 1 0 8 4 4 0 0 1 0-8zm0 10c4.4 0 8 2.2 8 5v3H4v-3c0-2.8 3.6-5 8-5z" },
+  { key: "manage", label: "Manage", d: "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm9 4-.1 1.3 2 1.6-2 3.5-2.4-1a7.6 7.6 0 0 1-2.2 1.3L16 21h-4l-.3-2.3a7.6 7.6 0 0 1-2.2-1.3l-2.4 1-2-3.5 2-1.6a7.7 7.7 0 0 1 0-2.6l-2-1.6 2-3.5 2.4 1a7.6 7.6 0 0 1 2.2-1.3L12 3h4l.3 2.3c.8.3 1.5.7 2.2 1.3l2.4-1 2 3.5-2 1.6z" },
+];
+
+function VsCodeIcon({ d, label, on = false }) {
+  return (
+    <span className={`afm-vcs-act__i${on ? " is-on" : ""}`} title={label} aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="24" height="24">
+        <path d={d} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+      </svg>
+    </span>
+  );
+}
+
+/* VS Code never shows a bare file list — every row carries a file-type mark. */
+const VSCODE_FILES = [
+  { name: "README.md", kind: "md" },
+  { name: "transfer.ts", kind: "ts", on: true },
+  { name: "oauth.ts", kind: "ts" },
+];
+
 /** Honesty badge shared by all costume shells. */
 function SimulatedBadge({ pill = false }) {
   return (
@@ -49,16 +82,33 @@ function VsCodeChrome({ variant = "classic-dark", hostRef, preview = false, chil
         {preview ? <SimulatedBadge /> : null}
       </div>
       <div className="afm-vcs-body">
-        <div className="afm-vcs-act" aria-hidden="true">
-          <span className="is-on" />
-          <span />
-          <span />
+        <div className="afm-vcs-act">
+          <div className="afm-vcs-act__group">
+            {VSCODE_ACTIVITY.map((i) => (
+              <VsCodeIcon key={i.key} d={i.d} label={i.label} on={i.key === "explorer"} />
+            ))}
+          </div>
+          <div className="afm-vcs-act__group afm-vcs-act__group--end">
+            {VSCODE_ACTIVITY_BOTTOM.map((i) => (
+              <VsCodeIcon key={i.key} d={i.d} label={i.label} />
+            ))}
+          </div>
         </div>
         <aside className="afm-vcs-side">
           <div className="lbl">Explorer</div>
-          <div className="f">README.md</div>
-          <div className="f on">transfer.ts</div>
-          <div className="f">oauth.ts</div>
+          {/* VS Code roots the tree at the workspace folder, chevron and all,
+              before any file. Without it the panel reads as a plain list. */}
+          <div className="afm-vcs-side__root">
+            <span className="chev" aria-hidden="true">&#9662;</span>BANKING-DEMO
+          </div>
+          {VSCODE_FILES.map((f) => (
+            <div key={f.name} className={`f${f.on ? " on" : ""}`}>
+              <span className={`fi fi--${f.kind}`} aria-hidden="true">
+                {f.kind === "ts" ? "TS" : "MD"}
+              </span>
+              {f.name}
+            </div>
+          ))}
         </aside>
         <div className="afm-vcs-main">
           <section className="afm-vcs-editor">
@@ -256,15 +306,36 @@ function CodingChrome({ variant = "claude-code", hostRef, preview = false, child
           {preview ? <SimulatedBadge /> : null}
         </div>
         <div className="afm-code-body">
+          {/* Claude Code's actual terminal grammar, not a generic shell
+              transcript: the welcome card, bulleted tool calls with their
+              indented result line, and the bordered prompt with its hint row
+              underneath. The boxes are CSS borders rather than box-drawing
+              characters because this pane is fluid-width — real characters
+              only align at a fixed column count. */}
           <div className="afm-code-term">
             <span className="prompt">curtis@demo</span>{" "}
-            <span className="dim">banking-demo %</span> claude{"\n"}
-            <span className="dim">Claude Code · simulated shell</span>
-            {"\n\n"}
-            <span className="prompt">&gt;</span> find transfer scope checks{"\n"}
-            <span className="dim">→ MCP code_search … get_code oauth.ts</span>
-            {"\n\n"}
-            <span className="prompt">&gt;</span> _
+            <span className="dim">banking-demo %</span> claude{"\n\n"}
+
+            <span className="afm-cc-card">
+              <span className="afm-cc-card__t">&#10022; Welcome to Claude Code</span>
+              <span className="dim">/help for help</span>
+              <span className="dim">cwd: ~/banking-demo</span>
+            </span>
+
+            {"\n"}
+            <span className="prompt">&gt;</span> find transfer scope checks{"\n\n"}
+
+            <span className="afm-cc-tool">&#9679; code_search(&quot;transfer scope&quot;)</span>
+            <span className="afm-cc-res">&#9492;  3 matches &middot; oauth.ts, transfer.ts</span>
+            <span className="afm-cc-tool">&#9679; get_code(&quot;oauth.ts&quot;)</span>
+            <span className="afm-cc-res">&#9492;  read 42 lines</span>
+
+            {"\n"}
+            <span className="afm-cc-prompt">
+              <span className="prompt">&gt;</span>
+              <span className="afm-cc-caret" />
+            </span>
+            <span className="afm-cc-hint dim">&#9205;&#9205; accept edits on &middot; esc to interrupt</span>
           </div>
           <aside className="afm-code-panel">
             <div className="ph">
