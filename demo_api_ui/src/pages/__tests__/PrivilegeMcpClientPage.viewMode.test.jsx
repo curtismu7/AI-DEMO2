@@ -113,6 +113,11 @@ describe("Demo / Inspect", () => {
     for (const name of ["Guide", "Flow"]) {
       expect(screen.getByRole("button", { name })).toBeInTheDocument();
     }
+    // Light/Dark stays in Demo. It was briefly gated behind Inspect with the
+    // rest of the appearance chrome, and that was wrong: flipping to light for
+    // a projector or a bright room is the most demo-ish control on this bar,
+    // and gating it meant reaching for a debugging mode to do a stage job.
+    expect(screen.getByRole("button", { name: /^(Light|Dark)$/ })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Inspect" }));
     expect(document.querySelectorAll(".cur-rail__row")).toHaveLength(5);
