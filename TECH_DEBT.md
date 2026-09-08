@@ -16,7 +16,7 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
-### [ ] 2026-09-08 — SE cluster (`ping-devops-cmuir`) has never seeded the tier1 model
+### [x] 2026-09-08 — SE cluster (`ping-devops-cmuir`) has never seeded the tier1 model
 
 Found while live-verifying the `seed-llm-models` skip-if-already-Complete fix
 (same PR/day as the entry below): manufacturing a `Complete` job — scale
@@ -56,6 +56,31 @@ then scale back up. Worth checking first whether tier1 was ever actually
 exercised on this cluster (`llama-tier1` sits at `0/0` replicas) — if it has
 never been demoed here, this may be the first time anything asked for its
 file.
+
+**RESOLVED** — same day, live on `ping-devops-cmuir`, no branch (cluster
+operation, not a code change).
+
+The user confirmed sole ownership of the namespace ("no one on the pods but
+me, restart anytime"), which removed the only reason to wait for a window.
+Ran the real fix exactly as scoped above: scaled `llama-tier5`/`embeddings`
+to 0, deleted the stale `Failed` Job, re-applied `54-seed-llm-models.yaml`.
+
+The ~23KB/s reading that projected "tens of hours" was a cold-start artifact,
+not the real rate — the Job reached `Completed` in under 5 minutes.
+`microsoft_Phi-4-mini-instruct-Q4_K_M.gguf` landed at 2,491,874,688 bytes,
+matching the catalog's expected size exactly. All three catalog files
+(tier5, tier1, the embedding model) are now on their PVCs. Scaled
+`llama-tier5`/`embeddings` back to 1, confirmed `1/1 Running`, confirmed
+`/api/health` healthy afterward.
+
+Direct consequence for the sibling PR (#2973, merged same day): that PR's
+skip-if-Complete fix could only be verified by code review at merge time,
+because manufacturing a `Complete` Job was what surfaced this very gap. With
+tier1 now genuinely seeded, `kubectl get job seed-llm-models -o
+jsonpath='{.status.conditions[?(@.type=="Complete")].status}'` reads `True`
+on the real cluster — the exact condition #2973's fix checks — so that
+PR's previously-code-review-only positive case is now independently
+confirmed live. No further action needed there.
 
 ### [x] 2026-09-08 — `authz:verify` audited two route trees; two others were invisible
 
@@ -182,7 +207,7 @@ then confirm each renders against a live stack before merging. No existing
 dashboard needs to change — none of the 5 new metric names collide with an
 existing panel's query.
 
-### [ ] 2026-09-06 — `themingRatchet.test.js`'s ground-without-ink pin is already stale on `main`
+### [x] 2026-09-06 — `themingRatchet.test.js`'s ground-without-ink pin is already stale on `main`
 
 `no more than 453 rules take a themed ground without ink` fails on an
 unmodified `main` checkout (`05c5983` and later) — the real count is 454
@@ -203,6 +228,42 @@ mobile-layout work this branch is doing.
 missing `--th-*` color per THEMING.md §1.5, and lower `MAX_GROUND_WITHOUT_INK`
 back down — or, if the new rule is legitimate (e.g. intentionally inherits
 ink from a themed ancestor), raise the pin with a comment saying why.
+
+**RESOLVED** — investigated on `worktree-theming-ratchet-drift`, no source
+change needed: it does not reproduce.
+
+Ran `themingRatchet.test.js` for real (not a hand-derived count) against
+current `main` (`33dfd56f4`): all 7 tests pass, including both
+ground-without-ink assertions. The count is exactly 453, matching the pin.
+
+Went further than "it passes now" to rule out a stale-worktree fluke: this
+worktree's branch point is confirmed current with `origin/main`
+(`git merge-base --is-ancestor origin/main HEAD`), and `App.css` — the file
+the entry's five example selectors live in — has had **zero** commits since
+`05c5983` (`git log 05c5983..HEAD -- .../App.css` is empty). So whatever the
+entry measured did not come from that file changing.
+
+Replayed the test's own detection logic (verified line-for-line identical:
+`SRC`, `cssFiles()`, `CSS_RULE`/`HAS_COLOR`/`THEMED_BG` — the test file itself
+has had zero commits in the same range) against the exact cited commit via
+`git archive 05c5983 -- demo_api_ui/src`, extracted to a scratch directory,
+counted directly: **453**, not 454. The named example selectors
+(`.session-reauth-banner` etc.) are genuinely still ground-without-ink today —
+they did not gain a color — they just never actually pushed the total past
+453, at that commit or any other checked.
+
+Did not chase the "454" number through the other ~39 CSS-touching commits in
+the range once two independent, direct measurements (the real test at HEAD;
+the test's exact logic replayed at the cited commit) both disagreed with it —
+further bisection would be chasing a number that may never have existed in a
+clean checkout, not verifying a real drift. Likely explanation, unconfirmed:
+the original "confirmed by stashing this branch's diff" measurement ran
+against that branch's actual base commit, which may not have been precisely
+`05c5983` despite the citation, or carried some other local difference.
+
+Net effect: no `App.css` color was missing to add, so none was added. The
+pin stays at 453 and the test suite is green on `main` as of this
+investigation.
 
 ### [ ] 2026-09-05 — Inline `req.user.role !== 'admin'` checks stay invisible to the OpenAPI introspection
 
