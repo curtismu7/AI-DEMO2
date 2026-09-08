@@ -117,7 +117,12 @@ This actor token becomes the `actor_token` in the RFC 8693 exchange when the BFF
 
 ---
 
-## Flow 3 — Chat Request (main path)
+## Flow 3 — Chat Request via `/api/agent/invoke` (admin vertical, chips, non-banking-vertical follow-through, or AG-UI off)
+
+Typed customer chat on a banking vertical defaults instead to `POST /api/agent/run`
+(AG-UI, `ff_agui_enabled` default `true`) — see Flow 3a below. This flow triggers
+when AG-UI is off, the active vertical is `pingone-admin`, or a quick-action chip
+dispatches directly.
 
 ```
 Browser
@@ -192,6 +197,42 @@ Chat Interface :4000  (SSE stream back from Agent via BFF)
 **Tool execution note:** `executeTool` is a JavaScript closure passed into `runReasonLoop` — it is not an HTTP endpoint. The `:3006` service does NOT POST back to the BFF; all tool execution happens BFF-side via `executeBffTool → runMcpToolPipeline → callToolViaGateway`.
 
 **Token note:** The Ping Agent Gateway forwards the BFF-issued token unchanged to MCP Server and MCP Invest — no second RFC 8693 exchange occurs. The `aud=mcp-gw` token is valid at both the gateway and the downstream MCP servers by design.
+
+---
+
+## Flow 3a — Chat Request via `/api/agent/run` (AG-UI, the actual default for typed customer chat)
+
+```
+Browser
+  │
+  ▼
+Chat Interface :4000
+  • user submits prompt
+  • ff_agui_enabled=true (default), an LLM provider is selected, vertical ≠ pingone-admin
+  │
+  ▼
+BFF :3001  POST /api/agent/run  (agentRun.js)
+  • session auth, same as Flow 3
+  • resolveAgentTarget() reads llm_framework config (default 'langchain')
+  │
+  ▼
+External SDK container, selected by llm_framework:
+  langchain_agent :8888 (Python, default)  │  openai_agent :8891 (Python)
+  mastra_agent :8892 (Node)                │  pydantic_agent :8893 (Python)
+  • POST /run — same AG-UI SSE contract on every container
+  • reasoning loop runs INSIDE the container, not via runReasonLoop/:3006
+  │
+  └── (each tool call) — HTTP POST back to BFF's /internal/agent-tool
+                               │
+                               executeBffTool → runMcpToolPipeline → callToolViaGateway
+                               (identical downstream steps to Flow 3: RFC 8693 exchange,
+                               PingOne Authorize decision, gateway, MCP servers)
+  │
+  ▼
+Chat Interface :4000  (AG-UI SSE stream back from the SDK container via the BFF)
+```
+
+**Fallback note:** when `ff_agui_enabled=false`, `activeLlmProvider` is unset (Heuristics mode), or the vertical is `pingone-admin`, the client falls back to Flow 3 (`/api/agent/invoke`) or the heuristic NL pipeline (`/api/demo-agent/nl`) instead. Only `langchain_agent` currently supports HITL consent interrupt/resume — see `docs/AGENT_FRAMEWORK_TECHNICAL_COMPARISON.md`.
 
 ---
 

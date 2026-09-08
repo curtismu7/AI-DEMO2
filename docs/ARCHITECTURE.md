@@ -100,7 +100,7 @@ The demo deliberately ships **five interchangeable agent runtimes** so you can c
 - **mastra_agent** (TS), **openai_agent** (Python), **pydantic_agent** (Python) — each wraps a different SDK and executes tools through a BFF-internal tool adapter.
 - **In-BFF agent** (`demoAgentLangGraphService.js`) — the always-available fallback; calls `runReasonLoop()` to drive `demo_agent_service` at :3006 (does not run LangGraph.js in-process).
 
-Routing is **hybrid and operator-selectable**:
+The branch point above (heuristic floor vs. AG-UI vs. `/api/agent/invoke`) is decided client-side by `AIAgent.js` (`aguiEnabled && activeLlmProvider && vertical !== 'pingone-admin'` routes to AG-UI; otherwise `/api/agent/invoke`). The routing described next is **within** the `/api/agent/invoke` path and is **hybrid and operator-selectable**:
 
 1. A deterministic **heuristic floor** (`nlIntentParser`) matches common intents with zero LLM cost and zero latency.
 2. If the heuristic returns no match, an **LLM path** takes over (Helix / Ping AI, Anthropic Claude, OpenAI, or a local LM Studio endpoint) — **except** in mode `heuristics` (mode 1), where no LLM is ever called; a no-match returns a static capability catalog instead. The `forceHeuristic` flag overrides mode and forces heuristic-only resolution regardless of the active mode.

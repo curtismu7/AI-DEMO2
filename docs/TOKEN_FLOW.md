@@ -83,7 +83,17 @@ Complete reference for OAuth token lifecycle: how tokens are obtained, what reso
 
    LLM execution: BFF calls runReasonLoop → external TypeScript reasoning service (:3006)
    Tool execution: BFF-side via executeBffTool → runMcpToolPipeline
-   (LangChain does NOT call the gateway directly)
+
+   NOTE — this is the /api/agent/invoke path (admin vertical, quick-action
+   chips, non-banking-vertical follow-through, or AG-UI toggled off). Typed
+   customer chat defaults instead to POST /api/agent/run (AG-UI, ff_agui_enabled
+   default true), which reaches an external SDK container — langchain_agent
+   by default (llm_framework config), or openai_agent/mastra_agent/pydantic_agent
+   — for step 2's reasoning hop. Steps 3-6 below (BFF-side RFC 8693 exchange,
+   gateway enforcement, tool execution) are identical either way; only the
+   reasoning/LLM-call hop differs. See docs/AGENT_FRAMEWORK_TECHNICAL_COMPARISON.md.
+   Neither path calls the gateway directly from the agent process — tool
+   execution is always BFF-side.
 
 BFF-side RFC 8693 Exchange (one exchange per tool call)
    BFF gets AI Agent Actor CC Token
@@ -253,8 +263,10 @@ Final MCP Token                      Gateway-Issued Upstream Token
 
 6. UI receives decoded claims only — NO raw tokens leave the BFF (D-04)
    Tool execution is BFF-side via executeBffTool → runMcpToolPipeline.
-   LangChain does NOT call the gateway directly; the LLM path uses runReasonLoop
-   against the external TypeScript reasoning service (:3006).
+   The agent process never calls the gateway directly — this walkthrough's
+   reasoning hop (step 2) used runReasonLoop against the external TypeScript
+   reasoning service (:3006); an AG-UI-routed chat (see the note at step 2)
+   uses an external SDK container instead, with identical steps 3-6.
    Result returned without token exposure to the model context window.
 ```
 

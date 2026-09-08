@@ -88,7 +88,7 @@ The MCP Gateway is the inline per-tool security enforcement point that sits betw
 
 - **Heuristic Routing (first)**: `processAgentMessage` runs heuristic matching before any LLM call; on a match (`kind='banking'` or `kind='vertical'`) it returns immediately — in `heuristics` mode no LLM call ever occurs
 - **Pre-execution Intent Gating**: When `ff_intent_authorization_enabled=true`, `agentInvokeRoute.js` runs `extractIntentFromPrompt` before `processAgentMessage`; denied → 403, consent required → 428, neither result ever reaches the agent loop
-- **Node.js Reasoning Loop**: The LLM path calls `runReasonLoop` (Node.js, `agentReasoningClient.js`) against the TypeScript reasoning service at `:3006` (`demo_agent_service`); there is no Python process in the production path
+- **Node.js Reasoning Loop (`/api/agent/invoke` path only)**: On this route — admin vertical, quick-action chips, non-banking-vertical follow-through, or AG-UI toggled off — the LLM path calls `runReasonLoop` (Node.js, `agentReasoningClient.js`) against the TypeScript reasoning service at `:3006` (`demo_agent_service`). Typed customer chat instead defaults to AG-UI (`POST /api/agent/run`, `ff_agui_enabled` default `true`), which reaches an external SDK container — `langchain_agent` (Python) by default, or `openai_agent`/`mastra_agent`/`pydantic_agent` — for the reasoning hop. See "AG-UI Streaming" below and `docs/AGENT_FRAMEWORK_TECHNICAL_COMPARISON.md`.
 - **BFF-side Tool Execution**: Tool calls are executed BFF-side via `executeBffTool → runMcpToolPipeline`; the BFF proxies each tool call through the MCP Gateway at `:3005`
 - **State Management**: Conversation state persistence
 - **Error Handling**: Graceful error recovery and reporting
@@ -121,8 +121,8 @@ The MCP Gateway is the inline per-tool security enforcement point that sits betw
 
 ### Reasoning Service (`demo_agent_service`, port 3006)
 
-- **TypeScript/Node.js**: The production agent reasoning service; no Python process is involved
-- **`runReasonLoop`**: Entry point called by the BFF's `agentReasoningClient.js` for all LLM-driven turns
+- **TypeScript/Node.js**: backs the `/api/agent/invoke` path only — admin vertical, quick-action chips, non-banking-vertical follow-through, and AG-UI-off sessions. Typed customer chat defaults instead to AG-UI (`POST /api/agent/run`), which reaches `langchain_agent` (Python) or one of three other SDK containers — see "AG-UI Streaming" below.
+- **`runReasonLoop`**: Entry point called by the BFF's `agentReasoningClient.js` for `/api/agent/invoke` turns
 - **Tool Results**: Tool calls are executed BFF-side and results fed back into the reasoning loop
 - **Local Only**: Security boundary - no external network access
 
@@ -284,7 +284,7 @@ PingGateway (Ping Identity IG) is the alternative MCP gateway, selected by `ff_m
 
 ### AG-UI Streaming
 
-The agent layer supports AG-UI streaming, enabling real-time event delivery from the reasoning loop to the browser. Tool invocations, intermediate reasoning steps, and final responses are streamed as typed events, reducing perceived latency and enabling the Security Showcase and HITL consent modal to update without polling.
+`POST /api/agent/run` is the default path for typed customer chat (`ff_agui_enabled` default `true`, disabled for Heuristics mode and the `pingone-admin` vertical, which fall back to `/api/agent/invoke` above). The BFF proxies the request to one of four standalone SDK containers selected by the `llm_framework` config flag — `langchain_agent` (Python, default), `openai_agent` (Python), `mastra_agent` (Node), or `pydantic_agent` (Python) — each speaking the AG-UI protocol over SSE. Tool invocations, intermediate reasoning steps, and final responses stream back as typed events, reducing perceived latency and enabling the Security Showcase to update without polling. Tool execution still happens BFF-side (`executeBffTool → runMcpToolPipeline`), identical to the `/api/agent/invoke` path — only the reasoning hop differs. HITL consent interrupt/resume is currently only implemented by `langchain_agent`; see `docs/AGENT_FRAMEWORK_TECHNICAL_COMPARISON.md` for the full per-framework capability matrix.
 
 ### Security Showcase
 

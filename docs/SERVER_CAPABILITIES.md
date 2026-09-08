@@ -132,34 +132,24 @@ The user-facing web application. Human banking customers use it to log in (via P
 ---
 
 ## langchain_agent
-**Role: Full Python AI agent with OAuth and MCP**
+**Role: Full Python AI agent with OAuth and MCP — the primary, feature-complete agent**
 
-Standalone Python agent built on LangChain. Has its own OAuth client, handles both client-credentials (agent identity) and authorization-code (user identity) flows against PingOne. Connects to MCP servers via WebSocket and streams reasoning + tool results to a browser chat UI in real time. The most complete standalone agent demo — shows the full OAuth + MCP stack from a Python perspective.
+Standalone Python agent built on LangChain + LangGraph. Has its own OAuth client, handles both client-credentials (agent identity) and authorization-code (user identity) flows against PingOne, and is a real MCP host with cross-turn conversation memory (`MemorySaver`). The banking chat UI's `POST /api/agent/run` is proxied to whichever framework the `llm_framework` config flag names (`demo_api_server/routes/agentRun.js`); `langchain_agent` is the default and the only one of the four that supports HITL transfer-consent interrupt/resume. The most complete standalone agent demo — shows the full OAuth + MCP stack from a Python perspective.
 
-**Takes in:** Browser WebSocket chat messages, OAuth callbacks from PingOne  
-**Gives back:** Chat responses, token-authenticated tool calls to MCP servers  
-**Runs on:** Port 8890 (configurable), optional LangSmith trace UI on 8090
-
----
-
-## mastra_agent
-**Role: Mastra framework agent runtime**
-
-`POST /run` HTTP service wrapping the Mastra agent framework. Accepts a prompt and context, executes with tool support using OpenAI or Anthropic as the LLM backend, and returns results. Pluggable into the same demo architecture as the other agent runtimes.
+**Takes in:** `POST /run` AG-UI protocol requests from the BFF, OAuth callbacks from PingOne  
+**Gives back:** AG-UI SSE event stream (chat responses, tool-call lifecycle), token-authenticated tool calls to MCP servers  
+**Runs on:** AG-UI HTTP (`/run`) on port 8888, WebSocket chat on 8889, health on 8890 — all three bind simultaneously; the BFF's `llm_framework` dispatcher and the main banking chat UI both talk to 8888
 
 ---
 
-## openai_agent
-**Role: OpenAI Agents SDK runtime**
+## mastra_agent, openai_agent, pydantic_agent
+**Role: Alternative agent-SDK runtimes — a framework-comparison exhibit, not a separate demo narrative**
 
-FastAPI service wrapping OpenAI's native agents API. Same `POST /run` interface as the other agent services. Demonstrates how the demo's backend can swap in different agent SDKs without changing the surrounding infrastructure.
+Three lightweight sibling services (`POST /run`, same AG-UI SSE contract as `langchain_agent`) wrapping Mastra, OpenAI's native Agents SDK, and Pydantic AI respectively. All three are **stateless** — no OAuth, no MCP host, no cross-turn memory, no HITL resume — the BFF resends full history each turn and drives every banking/MCP tool call through the same dynamic per-request tool list it gives `langchain_agent`, so ordinary tool-calling demos (balances, transfers without step-up, branch lookup) work identically on any of the four. Selected via the `llm_framework` admin config flag (`langchain` / `openai_agents` / `mastra` / `pydantic_ai` / `auto`), not a chat-time picker; `auto` round-robins between all four to showcase them rather than routing on any real signal. All three containers are gated behind the Docker Compose `agents` profile and are **not started by default** (`./run-docker.sh agents` or `all`) — pointing `llm_framework` at one whose container isn't running fails silently with `AGENT_UNREACHABLE`.
 
----
+mastra_agent uses the AI SDK against OpenAI-compatible endpoints (LM Studio/llama.cpp) or native Anthropic; openai_agent and pydantic_agent additionally wire in a commitment-grounding guardrail (`CommitmentGroundingValidator`) that mastra_agent lacks. See `docs/AGENT_FRAMEWORK_TECHNICAL_COMPARISON.md` for the full capability matrix.
 
-## pydantic_agent
-**Role: Pydantic AI agent runtime**
-
-FastAPI service wrapping Pydantic AI. Same `POST /run` contract. Rounds out the four-way agent framework comparison (LangChain / Mastra / OpenAI / Pydantic).
+**Runs on:** mastra_agent :8892 · openai_agent :8891 · pydantic_agent :8893
 
 ---
 
