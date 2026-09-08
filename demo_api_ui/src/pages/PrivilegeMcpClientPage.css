@@ -563,7 +563,15 @@ select.cur-input { cursor: pointer; }
   flex-shrink: 0;
 }
 
-.cur-tab {
+/* Scoped to .cur-ide to outrank PingOne's end-user-nano.css, which styles form
+   controls app-wide. A bare .cur-tab is (0,1,0) and LOST to it — verified live:
+   the rule said 16px and getComputedStyle said 15px, and overriding the token on
+   the element changed nothing while a direct font-size did. That sheet is
+   cross-origin, so its rules never appear in a cssRules walk and the conflict is
+   invisible from the CSSOM. .cur-viewmode button won only because class+type is
+   (0,1,1). Anything here that styles a button, input, textarea or select needs
+   the .cur-ide prefix for the same reason. */
+.cur-ide .cur-tab {
   padding: 0 18px;
   height: 100%;
   background: transparent;
@@ -580,7 +588,7 @@ select.cur-input { cursor: pointer; }
   transition: color 0.15s;
 }
 .cur-tab:hover { color: #ccc; }
-.cur-tab--active { color: #fff; border-bottom-color: #007acc; background: #1e1e1e; }
+.cur-ide .cur-tab--active { color: #fff; border-bottom-color: #007acc; background: #1e1e1e; }
 
 /* Editor area */
 .cur-editor-area {
@@ -1024,7 +1032,7 @@ select.cur-input { cursor: pointer; }
 
 /* ── Flow Topology Modal ────────────────────────────────────────────────── */
 
-.cur-flow-trigger {
+.cur-ide .cur-flow-trigger {
   font-size: var(--font-size-md);
   font-weight: 600;
   padding: 4px 12px;
