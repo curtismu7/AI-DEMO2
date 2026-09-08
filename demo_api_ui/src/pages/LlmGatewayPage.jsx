@@ -18,6 +18,7 @@ import { useThemeOptional } from '../context/ThemeContext';
 import useDividerDrag from '../hooks/useDividerDrag';
 import { ATTACK_CATEGORIES, GUARDRAIL_ATTACKS } from '../config/guardrailAttackCatalog';
 import JsonHighlight from '../components/shared/JsonHighlight';
+import GatewayVerdicts from '../components/GatewayVerdicts';
 import './LlmGatewayPage.css';
 
 const API_BASE = process.env.REACT_APP_API_URL || '/api/privilege-mcp';
@@ -526,6 +527,12 @@ export default function LlmGatewayPage() {
             </p>
           ) : null}
         </section>
+
+        {/* The verdicts above are already visible in the response; this panel is
+            for the compliance mappings, which are not. It needs its own sign-in
+            (the door offers no client-credentials grant), so it loads on demand
+            rather than firing a request nobody asked for on every page view. */}
+        <GatewayVerdicts />
       </div>
     </div>
   );
