@@ -16,6 +16,40 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-09-08 — `authz:verify` audits two route trees; four others are invisible
+
+`scripts/lib/appRouteAudit.js:157` walks exactly two files:
+
+```js
+const trees = [
+  { file: 'demo_api_ui/src/App.js', prefix: '' },
+  { file: 'demo_api_ui/src/routes/EducationRoutes.js', prefix: '/architecture/' },
+];
+```
+
+`MonitoringRoutes.js`, `CustomerRoutes.js`, `PublicRoutes.js` and
+`ProtocolPlaygroundRoutes.js` each own their own `<Routes>` tree and are never
+parsed. Their child routes are therefore exempt from every check the SoT makes:
+no declared level is required, and a guard on one of those routes can disagree
+with `auth-requirements.json` without failing anything.
+
+Worse, the exemption is not passive. The reverse check
+(`check-auth-requirements.js:189`) fails on any entry "which no `<Route>`
+declares" — so *adding* one of these routes to the SoT breaks the gate. The file
+actively pushes you toward leaving them undeclared. That is why
+`/monitoring/token-chain`, `/monitoring/mcp-traffic` and now
+`/monitoring/system-flow` are absent from it.
+
+**Why it wasn't fixed now:** found while adding one route to
+`MonitoringRoutes.js`. Declaring the whole set means auditing four trees at
+once and reconciling whatever drift turns up — a change to the gate itself, not
+to the feature that tripped over it.
+
+**The real fix:** add the four trees to `auditRouteTrees` with their mount
+prefixes (`/monitoring/`, etc.), run the checker, and declare every route it
+then reports. Expect real disagreements: these trees carry inline `!user`
+guards (`MonitoringRoutes.js:33`) that nothing has ever cross-checked.
+
 ### [ ] 2026-09-08 — A BFF restart silently drops every Privilege gateway token
 
 `routes/privilegeMcpClient.js:138` keeps all per-user gateway state in a plain

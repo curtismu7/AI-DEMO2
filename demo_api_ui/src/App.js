@@ -66,6 +66,7 @@ import FeatureFlagsPage from "./components/FeatureFlagsPage";
 import Footer from "./components/Footer";
 import FloatingTokenChainPanel from "./components/FloatingTokenChainPanel";
 import TokenTopologyPanel from "./components/TokenTopologyPanel";
+import SystemFlowMapPanel from "./components/SystemFlowMap";
 import HealthcareAdminOps from "./components/HealthcareAdminOps";
 import KillSwitchConfirmModal from "./components/KillSwitchConfirmModal";
 import LandingPage from "./components/LandingPage";
@@ -399,10 +400,16 @@ function AppWithAuth() {
   const [credentialsModal, setCredentialsModal] = useState(null);
   const [showTokenChain, setShowTokenChain] = useState(false);
   const [showTokenTopology, setShowTokenTopology] = useState(false);
+  const [showSystemFlow, setShowSystemFlow] = useState(false);
   useEffect(() => {
     const onOpen = () => setShowTokenTopology(true);
     window.addEventListener('token-topology-open', onOpen);
     return () => window.removeEventListener('token-topology-open', onOpen);
+  }, []);
+  useEffect(() => {
+    const onOpen = () => setShowSystemFlow(true);
+    window.addEventListener('system-flow-open', onOpen);
+    return () => window.removeEventListener('system-flow-open', onOpen);
   }, []);
   useEffect(() => {
     const onOpen = () => setShowTokenChain(true);
@@ -1938,6 +1945,10 @@ function AppWithAuth() {
               <TokenTopologyPanel
                 isOpen={showTokenTopology}
                 onClose={() => setShowTokenTopology(false)}
+              />
+              <SystemFlowMapPanel
+                isOpen={showSystemFlow}
+                onClose={() => setShowSystemFlow(false)}
               />
               <LogViewer
                 isOpen={logViewerOpen}

@@ -32,6 +32,7 @@ const VIEWS = [
   ["detailed", "Detailed", "The chain as a full stepper, claim by claim."],
   ["demoTrack", "Demo Track", "The guided nine-step demo script."],
   ["topology", "Topology", "Live delegation-chain diagram — nodes appear as the run happens."],
+  ["system", "System", "The run on the deployment map — which boxes, and where the decision was taken."],
 ];
 
 export default function ChainViewMenu({ steps, onOpenView, showTrust = true, mcpCount = 0 }) {

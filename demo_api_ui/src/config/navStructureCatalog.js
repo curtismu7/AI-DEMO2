@@ -178,6 +178,7 @@ export const NAV_STRUCTURE_CATALOG = [
       "PingOne Events",
       "PingOne Authorize",
       "Token Exchange",
+      "System Flow",
     ],
   },
   {

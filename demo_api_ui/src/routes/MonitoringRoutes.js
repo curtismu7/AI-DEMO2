@@ -11,6 +11,7 @@ import P1AzDashboard from "../components/P1AzDashboard";
 import PingOneEventPanel from "../components/PingOneEventPanel";
 import SequenceDiagramPage from "../components/SequenceDiagramPage";
 import TokenChainTraceRail from "../components/TokenChainTraceRail";
+import { SystemFlowMapView } from "../components/SystemFlowMap";
 import TokenExchangeDashboard from "../components/TokenExchangeDashboard";
 import WebMcpPanel from "../components/WebMcpPanel";
 import AgentFlowHistoryPage from "../pages/AgentFlowHistoryPage";
@@ -29,6 +30,9 @@ export default function MonitoringRoutes({ user, logout, AgentFlowPage }) {
         {/* One live Token Chain model (tokenChainTraceStore) — TraceRail is the
             canonical display; classic TokenChainDisplay is no longer mounted. */}
         <Route path="token-chain" element={<TokenChainTraceRail />} />
+        {/* Same live model as token-chain, drawn on the deployment map instead
+            of as a sequence. Ungated for the same reason as its siblings. */}
+        <Route path="system-flow" element={<SystemFlowMapView />} />
         <Route path="mcp-traffic" element={<McpTrafficPage />} />
         <Route path="api-explorer" element={<Navigate to="/pingone-mcp-inspector?source=api" replace />} />
         <Route path="agent-flow" element={
