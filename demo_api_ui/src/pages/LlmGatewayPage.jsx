@@ -105,6 +105,16 @@ function attribution(decision, isLocal) {
   return { who: `Stopped by ${decision.layer}`, note: 'The call never reached Privilege or the model.' };
 }
 
+// What the caller will actually see, so firing a payload that produces nothing
+// reads as "the model declined" rather than "the guardrail failed". Three of the
+// seven produce no gateway verdict at all; saying so up front is the difference
+// between a demo and an unexplained silence.
+const ATTACK_EFFECT = {
+  blocks: 'Privilege blocks this before the model sees it.',
+  sanitizes: 'The model answers, and Privilege redacts the matched values inside the reply.',
+  none: 'No Privilege verdict fires for this one — any refusal you see is the model\u2019s own.',
+};
+
 // A <select> fires no onChange when you pick the option already selected, so any
 // state where the dropdown names an attack the prompt box does not hold is a dead
 // end: the fix has to keep the two in step, not re-fill on re-pick. Everywhere the
@@ -393,6 +403,11 @@ export default function LlmGatewayPage() {
               ))}
             </select>
             <span className="lgw-attacks__note">Fills the prompt below — review it, then Send.</span>
+            {selectedAttack && ATTACK_EFFECT[(GUARDRAIL_ATTACKS.find((a) => a.id === selectedAttack) || {}).effect] ? (
+              <span className="lgw-attacks__effect" data-testid="lgw-attack-effect">
+                {ATTACK_EFFECT[(GUARDRAIL_ATTACKS.find((a) => a.id === selectedAttack) || {}).effect]}
+              </span>
+            ) : null}
           </div>
 
           <div className="lgw-composer">

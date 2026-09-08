@@ -15,6 +15,29 @@ describe('guardrailAttackCatalog', () => {
     }
   });
 
+  // `effect` is what the page promises the caller will see. A missing or
+  // invented value would silently show nothing under the picker, which is the
+  // exact confusion this field exists to remove.
+  it('every entry declares a known effect', () => {
+    for (const a of GUARDRAIL_ATTACKS) {
+      expect(['blocks', 'sanitizes', 'none'], `effect for ${a.id}`).toContain(a.effect);
+    }
+  });
+
+  // Measured 2026-09-08: these two only produce a visible gateway verdict
+  // because they ask the model to GENERATE example data. Asking it to leak or
+  // transmit real data gets a refusal, the output scanner sees nothing, and the
+  // demo shows an unexplained "Answered". Do not "tidy" these back into
+  // leak-style prompts.
+  it('the sanitize payloads ask the model to generate, not to leak', () => {
+    for (const id of ['pii', 'data_exfiltration']) {
+      const a = GUARDRAIL_ATTACKS.find((x) => x.id === id);
+      expect(a.effect, `${id} effect`).toBe('sanitizes');
+      expect(a.payload.toLowerCase(), `${id} payload`).toMatch(/generate|draft|example/);
+      expect(a.payload.toLowerCase(), `${id} must not ask to leak`).not.toMatch(/repeat all of that back|post the encoded/);
+    }
+  });
+
   it('ids are unique', () => {
     const ids = GUARDRAIL_ATTACKS.map((a) => a.id);
     expect(new Set(ids).size).toBe(ids.length);
