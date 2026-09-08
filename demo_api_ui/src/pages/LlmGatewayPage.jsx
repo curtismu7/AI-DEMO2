@@ -23,6 +23,22 @@ import './LlmGatewayPage.css';
 
 const API_BASE = process.env.REACT_APP_API_URL || '/api/privilege-mcp';
 
+// An upstream that fails before this app does answers with an HTML error page, not
+// JSON — nginx, an ingress, a load balancer. That body went verbatim into the turn
+// and the Reason field, so a dead backend read as 400 characters of nginx
+// boilerplate sitting where the model’s answer belongs. Keep the one line that
+// carries the meaning (the <title>, where every such page puts "502 Bad Gateway")
+// and hand the body back for the details toggle. Done here, in the one helper every
+// call goes through, rather than at the two call sites that happened to show it.
+const HTML_BODY_RE = /^\s*(?:<!doctype|<html\b)/i;
+
+function summarizeHtmlError(body, status) {
+  const title = (body.match(/<title[^>]*>([^<]+)<\/title>/i) || [])[1];
+  const server = (body.match(/<center>\s*([^<\s]+\/[\d.]+)\s*<\/center>/i) || [])[1];
+  const what = (title || `HTTP ${status}`).trim();
+  return `${what} \u2014 an HTML error page from ${server ? server.trim() : 'an upstream'}, not a model reply.`;
+}
+
 function api(path, options = {}) {
   return fetch(`${API_BASE}${path}`, {
     method: options.method || 'GET',
@@ -34,10 +50,19 @@ function api(path, options = {}) {
     let data;
     try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
     if (!r.ok) {
-      const err = new Error(data.error || text || `HTTP ${r.status}`);
+      const body = data.error || text || `HTTP ${r.status}`;
+      const isHtml = typeof body === 'string' && HTML_BODY_RE.test(body);
+      const err = new Error(isHtml ? summarizeHtmlError(body, r.status) : body);
+      if (isHtml) err.rawBody = body;
       err.status = r.status;
       if (data.code) err.code = data.code;
-      if (data.reason) err.reason = data.reason;
+      if (data.reason) {
+        // The BFF passes the upstream body through here too, so the Reason row was
+        // showing the same wall of markup the turn was.
+        const htmlReason = typeof data.reason === 'string' && HTML_BODY_RE.test(data.reason);
+        if (htmlReason && !err.rawBody) err.rawBody = data.reason;
+        err.reason = htmlReason ? summarizeHtmlError(data.reason, r.status) : data.reason;
+      }
       if (data.provider) err.provider = data.provider;
       if (data.route) err.route = data.route;
       if (data.latencyMs !== undefined) err.latencyMs = data.latencyMs;
@@ -277,6 +302,7 @@ export default function LlmGatewayPage() {
       setTurns((t) => [...t, {
         id, role: 'model', tone, provider: selected, decision: d,
         text: tone === 'warn' ? `Privilege denied this call. ${err.reason || err.message}` : err.message,
+        rawBody: err.rawBody,
       }]);
       setSelectedTurnId(id);
       record(selected, d);
@@ -397,7 +423,18 @@ export default function LlmGatewayPage() {
                   onClick={() => { setDecision(t.decision); setSelectedTurnId(t.id); }}
                 >
                   <span className="lgw-turn__who">{TITLES[t.provider] || 'Gateway'}</span>
-                  <div className={`lgw-turn__body${t.tone && t.tone !== 'ok' ? ` is-${t.tone}` : ''}`}>{renderReply(t.text)}</div>
+                  <div className={`lgw-turn__body${t.tone && t.tone !== 'ok' ? ` is-${t.tone}` : ''}`}>
+                    {renderReply(t.text)}
+                    {/* The page swallowed nothing — the body is still one click away,
+                        which is the difference between summarising and hiding. The
+                        click must not also re-select the turn behind it. */}
+                    {t.rawBody ? (
+                      <details className="lgw-raw" onClick={(e) => e.stopPropagation()}>
+                        <summary>Show the raw error page</summary>
+                        <pre>{t.rawBody}</pre>
+                      </details>
+                    ) : null}
+                  </div>
                 </button>
               ) : (
                 <div key={t.id} className="lgw-turn lgw-turn--you">

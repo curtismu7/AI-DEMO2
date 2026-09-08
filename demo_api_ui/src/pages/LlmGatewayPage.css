@@ -422,6 +422,32 @@
   box-shadow: inset 0 0 0 1px var(--th-status-warning-border);
 }
 
+/* Closed by default: the summary above already says what happened, and the body is
+   here for the one time someone needs to see the upstream's actual words. */
+.lgw-raw {
+  margin-top: 0.45rem;
+  font-size: var(--font-size-2xs);
+}
+
+.lgw-raw > summary {
+  cursor: pointer;
+  color: var(--th-text-muted);
+}
+
+.lgw-raw > pre {
+  margin: 0.35rem 0 0;
+  padding: 0.45rem 0.6rem;
+  max-height: 12rem;
+  overflow: auto;
+  border: 1px solid var(--th-border);
+  border-radius: 4px;
+  background: var(--th-bg-inset);
+  color: var(--th-text-muted);
+  font-family: var(--font-mono, monospace);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .lgw-turn__body.is-warn {
   padding: 0.45rem 0.6rem;
   border-left: 3px solid var(--th-status-warning);

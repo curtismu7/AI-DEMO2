@@ -242,6 +242,42 @@ describe("LLM Gateway console", () => {
     });
   });
 
+  // Measured live 2026-09-08 on the SE cluster: llm-proxy sat NotReady for 21h and
+  // its ingress answered with this page, which the turn and the Reason field then
+  // rendered verbatim where the model's answer belongs.
+  describe("upstream HTML error pages", () => {
+    const NGINX_502 = '<html>\r\n<head><title>502 Bad Gateway</title></head>\r\n<body>\r\n'
+      + '<center><h1>502 Bad Gateway</h1></center>\r\n<hr><center>nginx/1.31.4</center>\r\n'
+      + '</body>\r\n</html>\r\n<!-- a padding to disable MSIE and Chrome friendly error page -->';
+
+    it("summarises the page instead of dumping it, and keeps the body one click away", async () => {
+      mockFetch(() => ({
+        ok: false, status: 502,
+        text: async () => JSON.stringify({
+          error: NGINX_502, reason: NGINX_502, provider: "llamacpp",
+          route: "/v1/chat/completions", latencyMs: 30, reachedProvider: false,
+        }),
+      }));
+      render(<LlmGatewayPage />);
+      await ask("capital of France?");
+      await screen.findByTestId("lgw-decision");
+
+      // The summary carries what the page meant; the boilerplate is gone from view.
+      // Both the turn and the Reason row were dumping the body; both are summarised.
+      expect(screen.getAllByText(/502 Bad Gateway .* an HTML error page from nginx\/1\.31\.4/))
+        .toHaveLength(2);
+      // Summarised, not swallowed — the body is present but collapsed. jsdom keeps a
+      // closed <details>' contents in the DOM, so the assertion is on `open`, not on
+      // presence: querying for the text alone would pass even if it were dumped
+      // inline, which is the bug this test exists for.
+      const raw = screen.getByText(/padding to disable MSIE/).closest('details');
+      expect(raw).not.toHaveAttribute('open');
+      expect(screen.getByText(/Show the raw error page/)).toBeInTheDocument();
+      // And the boilerplate is not loose in the turn body.
+      expect(raw.parentElement).toHaveClass('lgw-turn__body');
+    });
+  });
+
   describe("path chain", () => {
     it("shows the Privilege hop for a mediated lane's successful reply", async () => {
       mockFetch(() => ({
