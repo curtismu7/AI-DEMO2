@@ -15,23 +15,34 @@
 const { resolveActingIdentity } = require('../../middleware/transactionTurn');
 
 describe('resolveActingIdentity', () => {
-  test('resolves from the real BFF session-user shape ({id, username, email, role} — no sub)', () => {
+  test('resolves the PingOne sub from the session user, NOT the legacy numeric id', () => {
     const req = {
       session: {
         user: {
           id: '5',
+          oauthId: '00000000-0000-4000-8000-0000000000ab',
           username: 'demoUser',
           email: 'demoUser@api.ping.demo',
-          firstName: 'Demo',
-          lastName: 'User',
           role: 'customer',
         },
       },
     };
-    expect(resolveActingIdentity(req)).toBe('5');
+    expect(resolveActingIdentity(req)).toBe('00000000-0000-4000-8000-0000000000ab');
+    // The bug this replaces: returning "5" here put an app-internal key on the
+    // ui.request hop while authz-server reported the PingOne sub on its own,
+    // so INV-2 ("one transaction, one subject") fired on ordinary agent turns.
+    expect(resolveActingIdentity(req)).not.toBe('5');
   });
 
-  test('resolves from req.user (authenticateToken shape: {id, sub, ...}) when there is no session', () => {
+  // ARCHITECTURE-TRUTHS T-6: the numeric id is not an identity. An
+  // unattributable record (principal null) is correct and fails closed on the
+  // read side; a WRONG attribution is not.
+  test('returns null rather than the legacy id when no PingOne sub is present', () => {
+    const req = { session: { user: { id: '5', username: 'demoUser', role: 'customer' } } };
+    expect(resolveActingIdentity(req)).toBeNull();
+  });
+
+  test('falls back to req.user.sub (authenticateToken shape) when there is no session', () => {
     const req = { user: { id: 'abc-123', sub: 'abc-123', role: 'customer' } };
     expect(resolveActingIdentity(req)).toBe('abc-123');
   });
@@ -45,10 +56,10 @@ describe('resolveActingIdentity', () => {
   // every non-admin. The session wins because it is present on BOTH paths.
   test('prefers req.session.user over req.user so write and read resolve the SAME identity', () => {
     const req = {
-      user: { id: 'pingone-sub-uuid' },
-      session: { user: { id: 'from-session' } },
+      user: { sub: 'sub-from-token' },
+      session: { user: { id: '5', oauthId: 'sub-from-session' } },
     };
-    expect(resolveActingIdentity(req)).toBe('from-session');
+    expect(resolveActingIdentity(req)).toBe('sub-from-session');
   });
 
   test('returns null (not undefined, not the string "undefined") when neither source carries an identity', () => {

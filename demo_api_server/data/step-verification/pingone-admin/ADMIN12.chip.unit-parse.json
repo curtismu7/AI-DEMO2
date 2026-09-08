@@ -6,6 +6,6 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "call_pingone_tool",
-  "checkedAt": "2026-08-20",
+  "checkedAt": "2026-09-08",
   "verifiedBy": "nlIntentParser pingone-admin heuristics → listDavinciConnectors"
 }

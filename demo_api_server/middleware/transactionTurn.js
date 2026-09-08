@@ -17,12 +17,22 @@ const configStore = require('../services/configStore');
  * identity spaces, and picking the wrong one per-route silently breaks
  * ownership:
  *
- *  1. `req.session?.user?.id` — the BFF session-user shape stored at login
- *     (`{id, username, email, firstName, lastName, role}` — note it has NO
- *     `sub`). This is an app-internal id such as `"5"`.
- *  2. `req.user?.id` / `req.user?.sub` — set by `authenticateToken`
- *     (middleware/auth.js sets `{ id: decoded.sub, sub: decoded.sub, ... }`),
- *     so both are the PingOne `sub` claim — a UUID, NOT the same value as (1).
+ *  1. `req.session?.user?.oauthId` — the PingOne UUID, stored on the session
+ *     user at login (routes/oauthUser.js). THIS is the identity.
+ *  2. `req.session?.user?.id` — an app-internal key such as `"5"`, legacy on
+ *     bootstrap users. NOT an identity, and never used here: per
+ *     ARCHITECTURE-TRUTHS T-6 (middleware/agentSessionMiddleware.js) it does
+ *     not match per-user data, which is seeded against the PingOne sub. That
+ *     middleware refuses to fall back to it and 401s instead.
+ *  3. `req.user?.sub` — set by `authenticateToken` (middleware/auth.js sets
+ *     `{ id: decoded.sub, sub: decoded.sub, ... }`), so it is the same PingOne
+ *     UUID as (1) and agrees with it.
+ *
+ * Using (2) was a real, live defect: the ledger stamped `"5"` on the
+ * `ui.request` hop while authz-server reported the PingOne sub on its own
+ * hops, so INV-2 ("one transaction, one subject") fired on ORDINARY agent
+ * turns — reporting a confused deputy where there was only one user recorded
+ * two ways. An invariant that cries wolf on every turn is worse than none.
  *
  * The write path (`/api/demo-agent`) has no `authenticateToken`, so only the
  * session is available there. The read path (`/api/transaction-trace`) has
@@ -37,7 +47,15 @@ const configStore = require('../services/configStore');
  * be mistaken for an attributable one.
  */
 function resolveActingIdentity(req) {
-  const id = req.session?.user?.id ?? req.user?.id ?? req.user?.sub ?? null;
+  // Session first is load-bearing and unchanged: the write path
+  // (/api/demo-agent) has no `authenticateToken`, so `req.user` is absent
+  // there. Reading the PingOne sub from the SESSION keeps one value on both
+  // paths — which is what stops the read/write mismatch that once made every
+  // record look like someone else's.
+  const id = req.session?.user?.oauthId
+    ?? req.session?.user?.sub
+    ?? req.user?.sub
+    ?? null;
   return id == null ? null : String(id);
 }
 
