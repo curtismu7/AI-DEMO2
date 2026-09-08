@@ -257,6 +257,29 @@ while IFS= read -r f; do
     openai_agent/*)               add_build openai-agent ;;
     pydantic_agent/*)             add_build pydantic-agent ;;
     demo_ungoverned_agent/*)      add_build ungoverned-agent ;;
+    # ── monitoring configs: bind-mounted, but none of these three containers
+    # watches its file for changes — a restart is the only way they pick one up.
+    # Prometheus (prometheus.yml, alerts.yml) even runs with
+    # --web.enable-lifecycle, which exists for exactly this and is unused
+    # anywhere in this repo; a restart is still correct, just a few seconds
+    # noisier than the /-/reload that flag enables. Confirmed live 2026-09-08:
+    # a Prometheus container kept scraping its ORIGINAL 5 targets for hours
+    # after prometheus.yml grew 5 more scrape jobs, because nothing had
+    # restarted it since — this file's silent catch-all is exactly why nobody
+    # noticed. Grafana dashboard JSON is deliberately NOT listed here: its file
+    # provider re-polls every 30s on its own (monitoring/grafana/provisioning/
+    # dashboards/dashboards.yml, updateIntervalSeconds: 30), so restarting for
+    # it would be redundant, not just unnecessary.
+    monitoring/prometheus.yml|monitoring/alerts.yml)
+      add_restart prometheus ;;
+    monitoring/alertmanager.yml)  add_restart alertmanager ;;
+    monitoring/alloy/*)           add_restart alloy ;;
+    # Datasource/provider YAML, unlike dashboard JSON, is read once at Grafana
+    # startup — no equivalent poller re-reads it.
+    monitoring/grafana/provisioning/*)
+      add_restart grafana ;;
+    monitoring/grafana/dashboards/*)
+      : ;; # self-polled every 30s — see the block comment above
     # ── needs a human decision ───────────────────────────────────────────────
     docker-compose.yml|docker-compose.*.yml)
       note "compose file changed ($f) — decide the blast radius yourself (./run-docker.sh restart <svc> or full restart)" ;;
