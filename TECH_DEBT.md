@@ -16,6 +16,47 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-09-08 — SE cluster (`ping-devops-cmuir`) has never seeded the tier1 model
+
+Found while live-verifying the `seed-llm-models` skip-if-already-Complete fix
+(same PR/day as the entry below): manufacturing a `Complete` job — scale
+`llama-tier5`/`embeddings` to 0, delete the stale `Failed` job, re-apply
+`k8s/54-seed-llm-models.yaml` — did not no-op the way the YAML's own comment
+promises ("every file already present is skipped"). The log showed:
+
+```
+have  /models/gpt-oss-20b-MXFP4.gguf
+fetch /models/microsoft_Phi-4-mini-instruct-Q4_K_M.gguf  <-  bartowski/...
+```
+
+`gpt-oss-20b` (tier5, the model actually serving traffic) and the embedding
+model are present. `microsoft_Phi-4-mini-instruct-Q4_K_M.gguf` (tier1) is not,
+and a real ~2.5GB fetch started at roughly 23KB/s — at that rate, tens of
+hours, not the "later runs are a no-op" the YAML advertises.
+
+Aborted rather than let a 2.5GB download run with two serving pods at 0
+replicas on a shared namespace; `llama-tier5`/`embeddings` were back to `1/1
+Running` within about a minute of the abort, health-checked afterward.
+
+**Why it wasn't fixed now:** out of scope for the deploy-script fix that found
+it, and re-attempting the download needs a deliberate low-traffic window with
+the tiers correctly held down for the download's real duration — not
+something to do incidentally while proving an unrelated one-line change.
+
+**Consequence for the sibling fix below:** the skip-if-Complete optimization
+will not help the *next* deploy on this namespace — the seed Job still
+legitimately needs the missing tier1 file, so it will still hit the documented
+Multi-Attach collision and still fail. It starts paying off only once a seed
+genuinely completes with all three catalog files present.
+
+**The real fix:** during a deliberate window, scale `llama-tier5` and
+`embeddings` to 0, run `54-seed-llm-models.yaml` to completion (budget real
+time for a real ~2.5GB fetch, not the instant no-op this was expected to be),
+then scale back up. Worth checking first whether tier1 was ever actually
+exercised on this cluster (`llama-tier1` sits at `0/0` replicas) — if it has
+never been demoed here, this may be the first time anything asked for its
+file.
+
 ### [x] 2026-09-08 — `authz:verify` audited two route trees; two others were invisible
 
 `scripts/lib/appRouteAudit.js:157` walked exactly two files:
