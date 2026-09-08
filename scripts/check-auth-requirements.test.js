@@ -22,7 +22,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const { auditAppRoutes } = require('./lib/appRouteAudit');
+const { auditAppRoutes, auditRouteTrees } = require('./lib/appRouteAudit');
 
 const ROOT = path.join(__dirname, '..');
 
@@ -122,6 +122,61 @@ describe('App.js route guard audit', () => {
     `);
     assert.equal(levelOf(guarded, '/settings'), 'admin');
     assert.equal(levelOf(unguarded, '/settings'), 'public');
+  });
+});
+
+describe('index routes', () => {
+  // `path=""` addresses the mount root, so a truthiness check drops a real
+  // surface. This is how /setup stayed undeclared while its siblings
+  // /setup/pingone and /setup/wizard were merely unaudited.
+  it('reports an index route rather than skipping it as pathless', () => {
+    const routes = auditSource(`
+      export default function PublicRoutes() {
+        return <Routes><Route path="" element={<SetupPage />} /></Routes>;
+      }
+    `);
+    assert.equal(levelOf(routes, ''), 'public');
+  });
+
+  it('joins an index route to its mount without a trailing slash', () => {
+    const setup = auditRouteTrees(ROOT).filter((r) => r.path.startsWith('/setup'));
+    assert.ok(setup.some((r) => r.path === '/setup'), 'expected /setup, not /setup/');
+    assert.ok(!setup.some((r) => r.path.endsWith('/')), `trailing slash in ${JSON.stringify(setup.map((r) => r.path))}`);
+  });
+});
+
+describe('every tree that owns a <Routes> is audited', () => {
+  // Omission from auditRouteTrees is not a missing check, it is an exemption:
+  // the reverse check in check-auth-requirements.js then FAILS any attempt to
+  // declare that tree's routes, so a forgotten tree is pushed out of the SoT
+  // and stays out.
+  const audited = auditRouteTrees(ROOT);
+
+  it('covers the monitoring tree', () => {
+    assert.equal(levelOf(audited, '/monitoring/token-chain'), 'public');
+    // Its inline `!user ? <SignInPrompt />` guard, previously cross-checked
+    // against nothing.
+    assert.equal(levelOf(audited, '/monitoring/agent-flow'), 'user');
+  });
+
+  it('covers the setup tree', () => {
+    assert.equal(levelOf(audited, '/setup/wizard'), 'public');
+  });
+
+  it('leaves no route-owning file out of the tree list', () => {
+    // Ask the parser, not a regex: CustomerRoutes.js mentions "<Route>" in a
+    // comment explaining why it has none, and a grep-shaped check reads that
+    // as a tree.
+    const dir = path.join(ROOT, 'demo_api_ui/src/routes');
+    const auditedFiles = new Set(audited.map((r) => path.basename(r.file)));
+    for (const f of fs.readdirSync(dir).filter((n) => /\.jsx?$/.test(n))) {
+      if (auditAppRoutes(path.join(dir, f), ROOT).length === 0) continue;
+      assert.ok(
+        auditedFiles.has(f),
+        `${f} declares <Route> elements but is not in auditRouteTrees — its routes ` +
+          'are exempt from authz:verify AND cannot be declared in auth-requirements.json',
+      );
+    }
   });
 });
 

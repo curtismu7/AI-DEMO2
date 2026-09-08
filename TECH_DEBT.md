@@ -16,9 +16,9 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
-### [ ] 2026-09-08 — `authz:verify` audits two route trees; four others are invisible
+### [x] 2026-09-08 — `authz:verify` audited two route trees; two others were invisible
 
-`scripts/lib/appRouteAudit.js:157` walks exactly two files:
+`scripts/lib/appRouteAudit.js:157` walked exactly two files:
 
 ```js
 const trees = [
@@ -27,28 +27,46 @@ const trees = [
 ];
 ```
 
-`MonitoringRoutes.js`, `CustomerRoutes.js`, `PublicRoutes.js` and
-`ProtocolPlaygroundRoutes.js` each own their own `<Routes>` tree and are never
-parsed. Their child routes are therefore exempt from every check the SoT makes:
-no declared level is required, and a guard on one of those routes can disagree
-with `auth-requirements.json` without failing anything.
+`MonitoringRoutes.js` and `PublicRoutes.js` each own their own `<Routes>` tree
+and were never parsed. Their child routes were therefore exempt from every check
+the SoT makes: no declared level was required, and a guard on one of those routes
+could disagree with `auth-requirements.json` without failing anything.
 
-Worse, the exemption is not passive. The reverse check
+Worse, the exemption was not passive. The reverse check
 (`check-auth-requirements.js:189`) fails on any entry "which no `<Route>`
-declares" — so *adding* one of these routes to the SoT breaks the gate. The file
-actively pushes you toward leaving them undeclared. That is why
-`/monitoring/token-chain`, `/monitoring/mcp-traffic` and now
-`/monitoring/system-flow` are absent from it.
+declares" — so *adding* one of these routes to the SoT broke the gate. The file
+actively pushed you toward leaving them undeclared. That is why
+`/monitoring/token-chain`, `/monitoring/mcp-traffic` and initially
+`/monitoring/system-flow` were absent from it.
 
-**Why it wasn't fixed now:** found while adding one route to
-`MonitoringRoutes.js`. Declaring the whole set means auditing four trees at
-once and reconciling whatever drift turns up — a change to the gate itself, not
-to the feature that tripped over it.
+**Found while** adding one route to `MonitoringRoutes.js` and discovering it
+could not be declared.
 
-**The real fix:** add the four trees to `auditRouteTrees` with their mount
-prefixes (`/monitoring/`, etc.), run the checker, and declare every route it
-then reports. Expect real disagreements: these trees carry inline `!user`
-guards (`MonitoringRoutes.js:33`) that nothing has ever cross-checked.
+**RESOLVED** — branch `worktree-system-flow-map`, same PR that added the System
+Flow view.
+
+The entry originally claimed four invisible trees. That was wrong, and the
+correction is the useful half of the record: `CustomerRoutes.js` and
+`ProtocolPlaygroundRoutes.js` contain no `<Route>` elements at all. They export
+shell-wrapped components (`DashboardContent`, `ProtocolPlaygroundPageRoute`)
+that App.js uses as route *elements*. There was no tree to audit, so counting
+them as gaps overstated the problem by half.
+
+Two real fixes:
+
+1. `auditRouteTrees` now lists `MonitoringRoutes.js` (`/monitoring/`) and
+   `PublicRoutes.js` (`/setup/`), and carries a comment saying that omission
+   from this list is an exemption rather than an oversight.
+2. The route walker dropped index routes. `if (routePath)` treats `path=""` as
+   no path, but an index route addresses the mount root — that is exactly how
+   `/setup` stayed undeclared while `/setup/pingone` and `/setup/wizard` were
+   merely unaudited. Now `routePath !== null`, with the joined path's trailing
+   slash trimmed so the surface reads `/setup`, not `/setup/`.
+
+Ten routes moved from exempt to declared (177 → 187). Nine were already at the
+level the guard enforced; the tenth, `/monitoring/agent-flow`, is `user` — its
+inline `!user ? <SignInPrompt />` guard (`MonitoringRoutes.js:36`) had never
+been cross-checked against anything.
 
 ### [ ] 2026-09-08 — A BFF restart silently drops every Privilege gateway token
 
