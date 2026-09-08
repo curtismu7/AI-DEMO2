@@ -4,14 +4,24 @@ A local, no-login tool for listing and calling tools on any [MCP](https://modelc
 
 No account, no cloud service: it runs on your machine, talks directly to the MCP server(s) you point it at, and stores its config in `~/.mcp-inspector/`.
 
-## Quick start
+## Installation
+
+**Prerequisites:** Node.js 22+ and npm. Docker is optional (a `Dockerfile` is included).
 
 ```bash
-npm run install:all
-npm start          # builds the UI, then starts the server on :3900
+git clone https://github.com/curtismu7/mcp-inspector.git
+cd mcp-inspector
+npm run install:all   # installs both server/ and web/
+npm start              # builds the UI, then starts the server on :3900
 ```
 
-Open http://127.0.0.1:3900, click **+ Add server**, and point it at an MCP server:
+Verify it's up:
+
+```bash
+curl http://127.0.0.1:3900/health
+```
+
+Then open http://127.0.0.1:3900, click **+ Add server**, and point it at an MCP server:
 
 - **HTTP** — a server URL (Streamable HTTP transport), plus an optional auth header/value if it needs one.
 - **stdio** — a local command, e.g. `npx` with args `-y @modelcontextprotocol/server-everything stdio`.
