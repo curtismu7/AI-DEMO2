@@ -262,6 +262,18 @@ select.cur-input { cursor: pointer; }
   font-size: var(--font-size-body);
 }
 .cur-denial-door { color: #ddd; font-family: var(--font-mono); }
+/* Why a door failed. Kept on one line so a long relay message cannot push the
+   door name out of view; the full text is on the title attribute. */
+.cur-denial-probe-why {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #9aa0a6;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+}
 
 .cur-console-heading {
   margin: 16px 0 6px;
@@ -1493,6 +1505,7 @@ select.cur-input { cursor: pointer; }
 .cur-ide[data-cur-theme="light"] .cur-denial-ok,
 .cur-ide[data-cur-theme="light"] .cur-console-current { color: #0a7d6b; }
 .cur-ide[data-cur-theme="light"] .cur-denial-bad { color: #b91c1c; }
+.cur-ide[data-cur-theme="light"] .cur-denial-probe-why { color: #5f6368; }
 .cur-ide[data-cur-theme="light"] .cur-console-row,
 .cur-ide[data-cur-theme="light"] .cur-console-policy {
   background: #f7f7f7;

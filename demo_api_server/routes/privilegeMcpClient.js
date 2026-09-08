@@ -1991,8 +1991,28 @@ router.post('/auth/logout', (req, res) => {
 // ---------------------------------------------------------------------------
 const CONSOLE_BASE = 'https://console.privilege.pingone.com';
 
+// The console API is tenanted on the PRIVILEGE tenant — the one that owns the
+// Agentic Apps. Proven from the gateway's own log, where the app reference
+// base64-decodes to `0428ba4f-…@@@default@@@opensearch22`.
+//
+// This used to read PRIVILEGE_SSO_ENV_ID first and nothing else, which is a
+// different thing and is currently the BANKING env: startupConfigGuard warns
+// about exactly that pairing on every boot ("PRIVILEGE_SSO_ENV_ID ==
+// PINGONE_ENVIRONMENT_ID"). The result was every console read — the Policies
+// tab and the door discovery that fills the Door picker — querying
+// /api/<banking-env>/v1/applications, which cannot return these apps. That is
+// why the door store stayed empty however many times an operator connected.
+//
+// Its own variable rather than repointing PRIVILEGE_SSO_ENV_ID, because that
+// one is paired with PRIVILEGE_SSO_CLIENT_ID/_SECRET for a client_credentials
+// grant (privilegeMcpSimple.js) and moving it would break that separately.
+// This mirrors standalone/ai-gateway-client, which has always kept the two
+// apart as PRIVILEGE_CONSOLE_ENV_ID.
 function consoleEnvId() {
-  return process.env.PRIVILEGE_SSO_ENV_ID || process.env.PINGONE_ENVIRONMENT_ID || '';
+  return process.env.PRIVILEGE_CONSOLE_ENV_ID
+    || process.env.PRIVILEGE_SSO_ENV_ID
+    || process.env.PINGONE_ENVIRONMENT_ID
+    || '';
 }
 
 async function consoleGet(session, path) {

@@ -1400,10 +1400,16 @@ export default function PrivilegeMcpClientPage() {
             {doorProbe.results && (
               <div className="cur-denial-probe">
                 {doorProbe.results.length === 0 && <p className="cur-denial-note">No other doors to try.</p>}
+                {/* The BFF already returns `error` for a failed probe; showing
+                    only the status made a 500 unreadable. 500 here is not "the
+                    server errored" — relayFailureStatus maps anything WITHOUT a
+                    4xx upstream status to 500, so it means the relay never got
+                    an HTTP answer, and the reason is only in this string. */}
                 {doorProbe.results.map((r) => (
                   <div key={r.url} className="cur-denial-probe-row">
                     <span className={r.ok ? 'cur-denial-ok' : 'cur-denial-bad'}>{r.ok ? `${r.tools} tools` : (r.status || 'failed')}</span>
                     <span className="cur-denial-door">{doorName(r.url) || r.url}</span>
+                    {!r.ok && r.error && <span className="cur-denial-probe-why" title={r.error}>{r.error}</span>}
                     {r.ok && <button className="cur-btn" onClick={() => switchDoor(r.url)}>Switch</button>}
                   </div>
                 ))}
