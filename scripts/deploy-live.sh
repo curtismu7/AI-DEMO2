@@ -175,9 +175,37 @@ RESTART_SET=""
 BUILD_SET=""
 NOTES=""
 
-add_restart() { case " $RESTART_SET " in *" $1 "*) ;; *) RESTART_SET="$RESTART_SET $1" ;; esac; }
+# Compose services that run-docker.sh deliberately does NOT manage.
+#
+# llm-proxy is a real compose service, but run-docker.sh keeps it out of its
+# SERVICES table on purpose: clear_stale_host_listeners() kills whatever listens
+# on every port in that table, and with LLM_BACKEND=omlx|mlx the HOST owns
+# :8090 — listing it would make run-docker.sh shoot the host LLM backend.
+#
+# Both places that can schedule work must consult this. The path-based dispatch
+# below always knew; the compose-env diff did not, and called
+# `./run-docker.sh restart llm-proxy` whenever an env block of its changed.
+# run-docker.sh answers "Unknown service" and exits 1, which aborted the ENTIRE
+# deploy — after earlier services had already been rebuilt, so the deploy
+# half-applied and stopped. Seen live 2026-09-08 (BFF never restarted).
+UNMANAGED_BY_RUN_DOCKER=" llm-proxy "
+is_unmanaged_by_run_docker() { case "$UNMANAGED_BY_RUN_DOCKER" in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
+
+# Returns non-zero, and schedules nothing, for a service run-docker.sh cannot
+# take — the ONE choke point, so a future caller cannot reintroduce the abort.
+# Returns non-zero, and schedules nothing, for a service run-docker.sh cannot
+# take — the ONE choke point, so a future caller cannot reintroduce the abort.
+add_restart() {
+  if is_unmanaged_by_run_docker "$1"; then
+    note "$1 needs recreating but run-docker.sh does not manage it — do it directly: docker compose up -d $1"
+    return 1
+  fi
+  case " $RESTART_SET " in *" $1 "*) ;; *) RESTART_SET="$RESTART_SET $1" ;; esac
+  return 0
+}
 add_build()   { case " $BUILD_SET "   in *" $1 "*) ;; *) BUILD_SET="$BUILD_SET $1"   ;; esac; }
 note()        { NOTES="${NOTES}[deploy-live] note: $1"$'\n'; }
+
 
 while IFS= read -r f; do
   [ -z "$f" ] && continue
@@ -211,11 +239,8 @@ while IFS= read -r f; do
     demo_hitl_service/*)          add_build hitl-service ;;
     langchain_agent/*)            add_build langchain-agent ;;
     llamaindex_agent/*)           add_build llamaindex-agent ;;
-    # llm-proxy is a real compose service, but run-docker.sh deliberately keeps
-    # it OUT of its SERVICES table: clear_stale_host_listeners() kills whatever
-    # listens on every port in that table, and with LLM_BACKEND=omlx|mlx the
-    # HOST owns :8090. Listing it there would make run-docker.sh shoot the host
-    # LLM backend. So route it through docker compose directly, not run-docker.sh.
+    # llm-proxy is handled by is_unmanaged_by_run_docker() above — see the
+    # reason there. Route it through docker compose directly, not run-docker.sh.
     demo_llm_proxy/*)
       if [ -z "${LLM_PROXY_NOTED:-}" ]; then
         LLM_PROXY_NOTED=1
@@ -258,8 +283,11 @@ if grep -qx 'docker-compose.yml' <<<"$CHANGED"; then
   # invisible staleness the block exists to end.
   if _env_svcs="$(node scripts/compose-env-diff.js "$_old_compose" "$_new_compose" 2>&1)"; then
     for _svc in $_env_svcs; do
-      add_restart "$_svc"
-      note "compose env changed for $_svc — recreating (container env is frozen at create, so a code-only deploy would leave it stale)"
+      # add_restart refuses services run-docker.sh cannot take and notes why,
+      # so this loop does not need its own special case.
+      if add_restart "$_svc"; then
+        note "compose env changed for $_svc — recreating (container env is frozen at create, so a code-only deploy would leave it stale)"
+      fi
     done
   else
     note "could not compare compose env blocks: $_env_svcs"
