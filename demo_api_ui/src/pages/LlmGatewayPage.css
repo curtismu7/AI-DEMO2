@@ -382,11 +382,13 @@
 
 .lgw-turn--model:hover {
   background: var(--th-bg-hover);
+  color: var(--th-text);
 }
 
 .lgw-turn--model.is-selected {
   border-color: var(--th-accent, var(--th-border-strong));
   background: var(--th-bg-inset);
+  color: var(--th-text);
 }
 
 .lgw-turn__who {
