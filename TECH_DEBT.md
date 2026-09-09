@@ -2501,7 +2501,7 @@ either a schema requiring `secondaryTools` on every multi-step entry — noise o
 the ~50 single-tool use cases — or inferring tools from prose, which is guesswork.
 The exact-name floor catches the shape that actually bit us and costs nothing.
 
-### [ ] 2026-08-26 — `sensitive_passenger_record` requires only bare `read`, a weaker scope than its non-sensitive sibling
+### [x] 2026-08-26 — `sensitive_passenger_record` requires only bare `read`, a weaker scope than its non-sensitive sibling
 
 `scope-topology.json`:
 
@@ -2622,6 +2622,14 @@ Exchange #2 dies with `invalid_scope`.
 defect. Recorded in `REGRESSION_PLAN.md` §1 ("Airlines is THREE tiers, not two")
 so the next person does not re-file this finding — as I did.
 
+**Box ticked 2026-09-09** (`chore/tech-debt-status-sweep`) — bookkeeping only,
+no code change. The entry has read WITHDRAWN / "nothing to fix" since
+2026-08-27, but stayed unchecked and so kept counting against the open list.
+Closed as withdrawn, not as paid off: the conclusion is that the convention was
+never a defect. Re-verified against `scope-topology.json` today — the ten
+A2A-delegated tools still share the coarse `read` base scope with a dedicated
+`a2aDelegatedScope`, and `sensitive_airline_bookings` is still the singleton
+with no `a2aDelegatedScope` that made the convention look like an outlier.
 ### [x] 2026-08-26 — 143 gateway tools are intent-unreachable; only the 17 chip-driven ones were mapped
 
 `server.js` mints `intent = _TOOL_TO_INTENT[tool] || tool`, and the gateway then
