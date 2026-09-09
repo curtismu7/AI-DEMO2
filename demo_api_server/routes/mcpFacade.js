@@ -227,8 +227,19 @@ const DOORS = {
   },
   'pingone-admin': {
     label: 'PingOne Admin',
-    // No real upstream fetch — see localHandler. Display-only, for hop details.
-    upstream: () => 'local:pingone-admin (config/admin/tools.js)',
+    // No upstream fetch from THIS file — see localHandler. Display-only, for
+    // hop details; nothing reads this string as a URL.
+    //
+    // It named config/admin/tools.js, which is not in this door's path at all:
+    // that is the admin agent's 4-tool wrapper, and the localHandler below
+    // deliberately does NOT use it (it exposes the hosted catalog RAW — see its
+    // docstring). So the one pointer anyone had sent them to the module whose
+    // behaviour this door is defined by avoiding.
+    //
+    // Name the real hop instead: the handler is local, the SERVER is Ping's
+    // hosted admin-plane MCP. That distinction is the whole reason a 401 here
+    // cannot be fixed by starting a container — see REGRESSION_PLAN 2026-09-09.
+    upstream: () => 'local handler → hosted https://mcp.pingone.<region>/admin/<envId>/mcp (services/mcpPingOneHttpAdapter.js)',
     // TWO credentials, and they answer different questions.
     //
     // WHO IS CALLING is settled here, by OUR broker: this door advertises the
