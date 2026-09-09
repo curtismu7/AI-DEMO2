@@ -6,7 +6,6 @@
  */
 import React, { useEffect, useRef, useState } from 'react';
 import mermaid from 'mermaid';
-import { useThemeOptional } from '../context/ThemeContext';
 import './TokenChainArchitecturePage.css';
 
 export const MERMAID_DIAGRAM = `
@@ -148,7 +147,6 @@ const CARDS = [
 ];
 
 export default function TokenChainArchitecturePage({ user }) {
-  const { darkMode, toggleDarkMode } = useThemeOptional();
   const diagramRef = useRef(null);
   const [renderError, setRenderError] = useState(null);
 
@@ -177,15 +175,6 @@ export default function TokenChainArchitecturePage({ user }) {
             Complete flow: PingOne auth → Agent → Token Exchange → Agent Gateway → Authorization → Resource Servers
           </p>
         </div>
-        <button
-          type="button"
-          className="tca-theme-toggle"
-          onClick={toggleDarkMode}
-          title="Switch this page between light and dark"
-          aria-pressed={darkMode}
-        >
-          {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
-        </button>
       </div>
 
       <div className="tca-diagram-frame">

@@ -309,6 +309,25 @@
   color: rgba(255, 255, 255, 0.9);
 }
 
+.topnav-theme-toggle {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+  font-size: 1rem;
+  line-height: 1;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.topnav-theme-toggle:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .topnav-search-input {
   padding: 8px 12px;
   border: 1px solid #e0e0e0;

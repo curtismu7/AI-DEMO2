@@ -6,6 +6,7 @@ import {
 } from "react-icons/md";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useSessionToken } from "../context/SessionTokenContext";
+import { useTheme } from "../context/ThemeContext";
 import { useRoleSwitch } from "../hooks/useRoleSwitch";
 import { useVertical } from "../vertical/useVertical";
 import { navigateToCustomerOAuthLogin } from "../utils/authUi";
@@ -32,6 +33,7 @@ export default function TopNav({ user, onLogout }) {
   const { pageManifest } = useVertical();
   const identity = pageManifest?.identity;
   const { tokenSecondsLeft, tokenLoading, sessionType, staleSession, hasActiveToken: tokenIsActive, openTokenModal } = useSessionToken();
+  const { darkMode, toggleDarkMode } = useTheme();
   const brandName = (identity && (identity.headerTitle || identity.displayName)) || 'AI Demo';
   // Per-vertical brand icon (manifest identity.icon); unknown/absent → bank icon.
   const BrandIcon = (identity && BRAND_ICONS[identity.icon]) || MdAccountBalance;
@@ -303,6 +305,19 @@ export default function TopNav({ user, onLogout }) {
             </div>
 
           </div>
+
+          {/* Theme toggle — always visible (outside the scroll area) so it never
+              scrolls off, and available to every page since TopNav is app-wide. */}
+          <button
+            type="button"
+            className="topnav-theme-toggle"
+            onClick={toggleDarkMode}
+            title="Switch between light and dark mode"
+            aria-pressed={darkMode}
+            aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {darkMode ? '☀️' : '🌙'}
+          </button>
 
           {/* Always-visible session actions — Switch + Sign Out/Sign In never
               scroll off behind the user menu (the reported "no way to logout"). */}

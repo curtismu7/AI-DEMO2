@@ -7,7 +7,6 @@ import ArchitectureSimControls from './ArchitectureSimControls';
 import ArchitectureSimStepDesc from './ArchitectureSimStepDesc';
 import ArchitectureSimSvg from './ArchitectureSimSvg';
 import DiagramExportBar from './DiagramExportBar';
-import { useThemeOptional } from '../context/ThemeContext';
 import './ArchitectureOverviewPage.css';
 
 // ─── State machine ───────────────────────────────────────────────────────────
@@ -119,7 +118,6 @@ function simReducer(state, action) {
 // ─── Page component ──────────────────────────────────────────────────────────
 
 export default function ArchitectureOverviewPage() {
-  const { darkMode, toggleDarkMode } = useThemeOptional();
   const [sim, dispatch] = useReducer(simReducer, INITIAL_STATE);
   const playTimerRef = useRef(null);
   const sseRef = useRef(null);
@@ -195,15 +193,6 @@ export default function ArchitectureOverviewPage() {
               </a>.
             </p>
           </div>
-          <button
-            type="button"
-            className="aov-theme-toggle"
-            onClick={toggleDarkMode}
-            title="Switch this page between light and dark"
-            aria-pressed={darkMode}
-          >
-            {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
-          </button>
         </div>
 
         <ArchitectureSimControls
