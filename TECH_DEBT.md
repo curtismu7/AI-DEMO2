@@ -535,7 +535,7 @@ layout, so a real render can't run there — same constraint as
 `PrivilegeGatewayTopologyPage.test.jsx`) and asserts render is called with the
 diagram source and that no raw `pre.mermaid` survives.
 
-### [ ] 2026-09-04 — UseCaseLauncherPage.css — literal colors outside the FlagGate/theme-toggle work
+### [x] 2026-09-04 — UseCaseLauncherPage.css — literal colors outside the FlagGate/theme-toggle work
 
 **What's wrong.** `--color-accent` and `--color-ping-blue` are referenced only
 as `var(--color-accent, #2563eb)`-style fallbacks and are never actually
@@ -550,6 +550,21 @@ The real fix: alias `--color-accent`/`--color-ping-blue` to `--signin-accent`
 (same `#2563eb` value) either locally in this file or in `index.css`'s
 existing alias block, and convert `.uc-sim-result__*` to the
 `--th-status-success`/`--th-status-error` families.
+
+**RESOLVED — branch `fix/tech-debt-small-wins`.** No alias was added: the
+three never-defined vars (`--color-accent`, `--color-ping-blue`,
+`--color-ping-blue-dark`) were referenced only in this one file, so their uses
+were rewritten to `var(--signin-accent)` / `var(--signin-accent-hover)`
+directly — one fewer indirection than an alias, and it keeps `index.css`'s
+deliberate refusal to define `--color-accent` globally (its fallbacks disagree
+across files) intact. `--color-ping-blue`'s `#1a56db` becomes `#2563eb` and its
+dark `#1345b5` becomes `#1d4ed8`; both were already blue buttons.
+`.uc-sim-result__*` now reads `--th-status-error-bg/-text` and
+`--th-status-success-bg/-text`. The same `#fee2e2`/`#991b1b`/`#dcfce7`/`#166534`
+literals appeared three more times in the same file
+(`.uc-card__copy-btn--copied`, `.aae-status-badge--deny`) and were converted
+with them rather than left as the only hard-coded pair in the file.
+`uiRegression.test.js` + `UseCaseLauncherPage.test.js` pass (81).
 
 ### [ ] 2026-09-03 — jwksService can hand back a key `crypto.Verify` rejects outright
 
