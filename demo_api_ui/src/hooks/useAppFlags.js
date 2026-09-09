@@ -32,6 +32,18 @@ function mapCfgToFlags(cfg) {
     showUseCaseLauncher:
       cfg.ff_use_cases_launcher !== false &&
       cfg.ff_use_cases_launcher !== "false",
+    // Spinner appearance. Values arrive as strings from configStore but as real
+    // booleans/numbers straight off the config page's own save, so each is
+    // normalized rather than trusted — the same string-or-boolean dance every
+    // other flag above does.
+    spinnerVariant: cfg.spinner_variant || "neural",
+    spinnerSize: Number(cfg.spinner_size) || 88,
+    spinnerAccent: cfg.spinner_accent || "",
+    spinnerDarkCard:
+      cfg.spinner_dark_card !== false && cfg.spinner_dark_card !== "false",
+    spinnerActivityFeed:
+      cfg.spinner_activity_feed !== false &&
+      cfg.spinner_activity_feed !== "false",
   };
 }
 
@@ -45,6 +57,11 @@ export function useAppFlags() {
     logFilterCategories: "",
     copilotMode: false,
     showUseCaseLauncher: true,
+    spinnerVariant: "neural",
+    spinnerSize: 88,
+    spinnerAccent: "",
+    spinnerDarkCard: true,
+    spinnerActivityFeed: true,
   });
 
   const refresh = useCallback(() => {

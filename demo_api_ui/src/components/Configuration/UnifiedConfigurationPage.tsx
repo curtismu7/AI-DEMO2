@@ -20,6 +20,7 @@ import { useEducationUI } from "../../context/EducationUIContext";
 import { useIndustryBranding } from "../../context/IndustryBrandingContext";
 import "./UnifiedConfigurationPage.css";
 import DemoSetupPanel from "../DemoSetupPanel";
+import NeuralSpinner from "../shared/NeuralSpinner";
 import LmStudioPanel from "../LmStudioPanel";
 import HelixPanel from "../HelixPanel";
 import AuthorizeConfigPage from "../AuthorizeConfigPage";
@@ -227,7 +228,12 @@ const CONFIGURATION_TABS: Array<{
     description:
       "Minimum setup to run the demo — PingOne region, environment ID, and branding",
     requiresAuth: false,
-    sections: ["pingone-basics", "demo-data-setup", "industry-branding"],
+    sections: [
+      "pingone-basics",
+      "demo-data-setup",
+      "industry-branding",
+      "appearance",
+    ],
   },
   {
     id: "feature-flags",
@@ -402,6 +408,12 @@ interface ConfigurationState {
   demoScenario: string;
   industryId: string;
   agentUiMode: string;
+  // Appearance — the loading-spinner knobs (see configStore's spinner_* keys)
+  spinnerVariant: string;
+  spinnerSize: number;
+  spinnerAccent: string;
+  spinnerDarkCard: boolean;
+  spinnerActivityFeed: boolean;
   // Agent configuration
   mcpScopes: string;
   showEducationPanel: boolean;
@@ -452,6 +464,11 @@ const getDefaultState = (): ConfigurationState => ({
   demoScenario: "default",
   industryId: "banking",
   agentUiMode: "standard",
+  spinnerVariant: "neural",
+  spinnerSize: 88,
+  spinnerAccent: "",
+  spinnerDarkCard: true,
+  spinnerActivityFeed: true,
   mcpScopes: "openid\nprofile\nemail\np1:read:user\nbankingapi",
   showEducationPanel: true,
   maxTokenChainHistory: 10,
@@ -693,6 +710,7 @@ const SectionNavigation: FC<{
     "pingone-basics": "PingOne Basics",
     "demo-data-setup": "Demo Data Setup",
     "industry-branding": "Industry Branding",
+    appearance: "Appearance",
     "pingone-connection": "Connection Settings",
     "oauth-flows": "OAuth Flows",
     "mfa-settings": "Multi-Factor Authentication",
@@ -1877,6 +1895,11 @@ const UnifiedConfigurationPage: FC<{
             (cfg.pingone_admin_token_endpoint_auth_method as string) ||
             "client_secret_basic",
           demoScenario: (cfg.demo_scenario as string) || "default",
+          spinnerVariant: (cfg.spinner_variant as string) || "neural",
+          spinnerSize: Number(cfg.spinner_size) || 88,
+          spinnerAccent: (cfg.spinner_accent as string) || "",
+          spinnerDarkCard: cfg.spinner_dark_card !== false,
+          spinnerActivityFeed: cfg.spinner_activity_feed !== false,
           industryId: (cfg.industry_id as string) || ctxIndustryId || "banking",
           agentUiMode:
             (cfg.agent_ui_mode as string) || ctxAgentUiMode || "standard",
@@ -2126,6 +2149,11 @@ const UnifiedConfigurationPage: FC<{
         PINGONE_AUTHORIZE_WORKER_CLIENT_ID: state.workerClientId,
         PINGONE_AUTHORIZE_WORKER_CLIENT_SECRET: state.workerClientSecret,
         demo_scenario: state.demoScenario,
+        spinner_variant: state.spinnerVariant,
+        spinner_size: state.spinnerSize,
+        spinner_accent: state.spinnerAccent,
+        spinner_dark_card: state.spinnerDarkCard,
+        spinner_activity_feed: state.spinnerActivityFeed,
         industry_id: state.industryId,
         agent_ui_mode: state.agentUiMode,
         agent_mcp_allowed_scopes: state.mcpScopes,
@@ -2708,6 +2736,109 @@ const UnifiedConfigurationPage: FC<{
               "Agent Showcase: Agent requests consent before transfers. " +
               "MFA & Step-Up: Every transfer requires MFA."
             }
+          />
+        </div>
+      );
+
+    if (s === "appearance")
+      return (
+        <div className="cfg-section">
+          <p className="cfg-section-desc">
+            The loading overlay every page shares. Defaults reproduce what the
+            spinner looked like before these knobs existed, so leaving this
+            section alone changes nothing.
+          </p>
+          <div
+            style={
+              {
+                display: "grid",
+                placeItems: "center",
+                gap: "10px",
+                padding: "24px",
+                marginBottom: "16px",
+                borderRadius: "12px",
+                background: state.spinnerDarkCard ? "#1e293b" : "#fff",
+                border: "1px solid var(--th-border, #e2e8f0)",
+                "--spinner-accent": state.spinnerAccent || undefined,
+              } as React.CSSProperties
+            }
+          >
+            {state.spinnerVariant === "neural" ? (
+              <NeuralSpinner size={state.spinnerSize} />
+            ) : (
+              <span
+                style={{
+                  fontSize: "12px",
+                  color: state.spinnerDarkCard ? "#94a3b8" : "#64748b",
+                }}
+              >
+                No preview for the {state.spinnerVariant} variant — it renders
+                on the next overlay.
+              </span>
+            )}
+          </div>
+          <CfgSelect
+            label="Spinner"
+            value={state.spinnerVariant}
+            onChange={(v) =>
+              setState((prev) => ({ ...prev, spinnerVariant: v, saveStatus: "idle" }))
+            }
+            options={[
+              { value: "neural", label: "Neural — token ingress dial" },
+              { value: "busy", label: "Busy — telemetry radar" },
+              { value: "classic", label: "Classic — plain border ring" },
+            ]}
+            help="Classic always uses the light card; the dark-card toggle below does not apply to it."
+          />
+          <CfgField
+            label="Size (px)"
+            type="number"
+            value={String(state.spinnerSize)}
+            onChange={(v) =>
+              setState((prev) => ({
+                ...prev,
+                spinnerSize: Math.min(140, Math.max(48, Number(v) || 88)),
+                saveStatus: "idle",
+              }))
+            }
+            help="48–140. Applies to the full-screen overlay. The small inline spinners inside the Inspectors stay sized to their panels."
+          />
+          <CfgSelect
+            label="Accent"
+            value={state.spinnerAccent}
+            onChange={(v) =>
+              setState((prev) => ({ ...prev, spinnerAccent: v, saveStatus: "idle" }))
+            }
+            options={[
+              { value: "", label: "Theme default (brand navy, colour varies per request)" },
+              { value: "#7c3aed", label: "Violet" },
+              { value: "#059669", label: "Emerald" },
+              { value: "#dc2626", label: "Red" },
+              { value: "#d97706", label: "Amber" },
+              { value: "#0891b2", label: "Cyan" },
+              { value: "#db2777", label: "Pink" },
+            ]}
+            help="Theme default keeps the existing behaviour, where each request picks its own colour for the card's top border. Choosing one here pins every spinner to it instead."
+          />
+          <CfgToggle
+            label="Dark card"
+            checked={state.spinnerDarkCard}
+            onChange={(v) =>
+              setState((prev) => ({ ...prev, spinnerDarkCard: v, saveStatus: "idle" }))
+            }
+            help="Off gives the spinner the original white card."
+          />
+          <CfgToggle
+            label="Activity feed"
+            checked={state.spinnerActivityFeed}
+            onChange={(v) =>
+              setState((prev) => ({
+                ...prev,
+                spinnerActivityFeed: v,
+                saveStatus: "idle",
+              }))
+            }
+            help="The scrolling server-event list under the message. This only hides it: the feed polls /api/admin/app-events, which 403s for anyone who is not an admin, so turning it on cannot show it to a non-admin viewer."
           />
         </div>
       );

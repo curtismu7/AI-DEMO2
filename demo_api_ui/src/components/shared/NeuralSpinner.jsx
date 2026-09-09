@@ -32,7 +32,7 @@ const TOKEN_HUES = [198, 238, 272, 310, 340, 22, 44, 160];
 const CSS = `
 .ns {
   --ns-size: 96px;
-  --ns-accent: var(--brand-navy, #1d4ed8);
+  --ns-accent: var(--spinner-accent, var(--brand-navy, #1d4ed8));
   --ns-dot: calc(var(--ns-size) * .075);
   --ns-dim: color-mix(in srgb, var(--ns-accent) 30%, transparent);
   position: relative;

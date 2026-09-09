@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useThemeOptional } from '../context/ThemeContext';
 import { useAgentGatewayInspector } from '../hooks/useAgentGatewayInspector';
 import { useInspectorFields } from '../context/InspectorFieldContext';
+import NeuralSpinner from './shared/NeuralSpinner';
 import './AgentGatewayInspectorClean.css';
 
 export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
@@ -249,7 +250,13 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
               </div>
 
               <div className="inspector-clean-output-content" style={{ fontSize: `${outputFontSize}px` }}>
-                {!result && !error && <div style={{ color: 'var(--th-text-muted)', fontSize: '12px' }}>Execute a tool to see results</div>}
+                {running && !result && !error && (
+                  <div style={{ color: 'var(--th-text-muted)', fontSize: '12px', padding: '20px', display: 'grid', placeItems: 'center', gap: '12px' }}>
+                    <NeuralSpinner size={72} />
+                    Executing...
+                  </div>
+                )}
+                {!running && !result && !error && <div style={{ color: 'var(--th-text-muted)', fontSize: '12px' }}>Execute a tool to see results</div>}
 
                 {result && outputTab === 'response' && (
                   <pre dangerouslySetInnerHTML={{ __html: highlightJSON(JSON.stringify(result.response || result, null, 2)) }} />
