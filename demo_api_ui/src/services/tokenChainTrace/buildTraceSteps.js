@@ -593,7 +593,8 @@ function pausedGate(trace) {
 }
 
 /**
- * Human label for the approval gate a run is paused on, or null.
+ * The approval gate state of a run: which gate holds it, and whether the human
+ * already refused. Null when no gate is involved.
  *
  * Exported for the surfaces that render the decision THEMSELVES rather than
  * through buildRunStory — TokenFlowDetailModal's scope-flow strip read
@@ -601,12 +602,19 @@ function pausedGate(trace) {
  * "action blocked" card directly under a banner correctly saying it was waiting
  * on a human. One predicate for both, so they cannot disagree again.
  *
+ * `declined` travels WITH the label rather than being re-read per surface: a
+ * refused gate is terminal, so every renderer has to stop saying "awaiting".
+ *
  * @param {object|null|undefined} trace
- * @returns {string|null}
+ * @returns {{ label: string, declined: boolean } | null}
  */
-export function pausedGateLabel(trace) {
+export function pausedGateState(trace) {
   const kind = pausedGate(trace);
-  return kind ? (PAUSE_LABEL[kind] || "approval") : null;
+  if (!kind) return null;
+  return {
+    label: PAUSE_LABEL[kind] || "approval",
+    declined: trace?.approvalOutcome === "declined",
+  };
 }
 
 /**
@@ -638,16 +646,18 @@ export function buildRunStory(trace, steps) {
   // An approval gate that fired and was never satisfied: the tool is paused,
   // not broken. Checked BEFORE the error branch because the transport stamps
   // the same `outcome: 'error'` a real crash gets.
-  const gate = expectedDeny ? null : pausedGate(trace);
-  const gateLabel = gate ? (PAUSE_LABEL[gate] || "approval") : null;
+  const gate = expectedDeny ? null : pausedGateState(trace);
   const tool = trace.mcpResult?.tool || trace.mcpResult?.toolName || null;
   let outcome = trace.outcome || (errStep ? "error" : "active");
   let headline;
   if (gate) {
-    outcome = "active";
-    headline = trace.approvalOutcome === "declined"
-      ? `Approval declined — ${gateLabel} was refused, so ${tool ? `“${tool}”` : "the tool"} never ran.`
-      : `Paused: waiting on ${gateLabel} before ${tool ? `“${tool}”` : "the tool"} runs.`;
+    // A refused gate is TERMINAL, not still pending: nothing is coming, and the
+    // control did its job — same reading ProofStrip gives it ('denied-as-
+    // expected', green). Only a gate still awaiting an answer is 'active'.
+    outcome = gate.declined ? "ok" : "active";
+    headline = gate.declined
+      ? `Approval declined — ${gate.label} was refused, so ${tool ? `“${tool}”` : "the tool"} never ran.`
+      : `Paused: waiting on ${gate.label} before ${tool ? `“${tool}”` : "the tool"} runs.`;
   } else if (expectedDeny) {
     outcome = "ok";
     headline = "Expected DENY — the control worked: the gateway blocked the out-of-scope call, exactly as this use case is meant to demonstrate.";
@@ -1488,12 +1498,18 @@ export function buildTraceSteps(trace) {
   // `mcpResult.status: 'error'` (transport-derived, `denied` false), which
   // painted this step red on every UC7/UC8 run. It stays "active" — the call is
   // waiting on the human, not broken. See pausedGate() above.
-  const mcpPausedGate = !gwDenied && !mcpDone ? pausedGate(trace) : null;
+  const mcpGate = !gwDenied && !mcpDone ? pausedGateState(trace) : null;
+  const mcpPausedGate = mcpGate && !mcpGate.declined ? mcpGate : null;
   steps.push(makeStep("mcp",
-    authorizeFailed ? "notinpath" : mcpDone ? "done" : mcpPausedGate ? "active" : (gwDenied || mcpErrored) ? "error" : mcpBegun ? "active" : traceComplete ? "notinpath" : "pending",
+    authorizeFailed ? "notinpath" : mcpDone ? "done" : mcpPausedGate ? "active"
+      // Refused gate: the tool never ran and never will — not a spinner, and
+      // not an error either. It was simply never in this run's path.
+      : mcpGate ? "notinpath" : (gwDenied || mcpErrored) ? "error" : mcpBegun ? "active" : traceComplete ? "notinpath" : "pending",
     mcpResult ? {
-      why: mcpPausedGate
-        ? `MCP has not run “${mcpResult.tool || mcpResult.toolName || "tool"}” yet — the call is paused on ${PAUSE_LABEL[mcpPausedGate] || "approval"}.`
+      why: mcpGate
+        ? (mcpGate.declined
+          ? `MCP never ran “${mcpResult.tool || mcpResult.toolName || "tool"}” — ${mcpGate.label} was refused.`
+          : `MCP has not run “${mcpResult.tool || mcpResult.toolName || "tool"}” yet — the call is paused on ${mcpGate.label}.`)
         : mcpErrored
         ? `MCP call failed for “${mcpResult.tool || mcpResult.toolName || "tool"}”${mcpResult.error ? ` (${mcpResult.error})` : ""}.`
         : `MCP executed “${mcpResult.tool || mcpResult.toolName || "tool"}”`

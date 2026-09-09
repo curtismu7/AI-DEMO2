@@ -32,6 +32,16 @@ describe("resolveAuthorizeCard", () => {
     expect(resolveAuthorizeCard(trace, [azStep("PERMIT")]).note).toBe("awaiting consent");
   });
 
+  it("stops saying 'awaiting' once the human has refused", () => {
+    const trace = {
+      outcome: "error",
+      approvalOutcome: "declined",
+      authorize: { decision: "INDETERMINATE", outcome: "STEP_UP" },
+    };
+    expect(resolveAuthorizeCard(trace, [azStep("INDETERMINATE")]))
+      .toEqual({ tone: "gate", verdict: "DECLINED", note: "step-up MFA refused" });
+  });
+
   it("still shows a real DENY as DENY", () => {
     const trace = { outcome: "error", authorize: { decision: "DENY", outcome: "DENY" } };
     const card = resolveAuthorizeCard(trace, [azStep("DENY", "error")]);

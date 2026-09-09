@@ -1379,6 +1379,22 @@ describe("buildTraceSteps — approval gate pause is not a failed run", () => {
     expect(story.headline).toMatch(/Approval declined — step-up MFA was refused/);
   });
 
+  test("a declined gate is TERMINAL — nothing is left pending", () => {
+    // A refusal cannot resume, so the run is over: 'active' would leave the rail
+    // claiming a gate is still being awaited, and the mcp step spinning forever.
+    const trace = pausedTrace({ approvalOutcome: "declined" });
+    const steps = buildTraceSteps(trace);
+    expect(buildRunStory(trace, steps).outcome).toBe("ok");
+    expect(steps.find((s) => s.id === "mcp").status).toBe("notinpath");
+    expect(steps.find((s) => s.id === "mcp").detail.why).toMatch(/never ran .* was refused/);
+  });
+
+  test("a declined gate keeps the badge green — the control did its job", () => {
+    const trace = pausedTrace({ approvalOutcome: "declined" });
+    expect(chainBadge(trace, buildTraceSteps(trace)))
+      .toEqual({ label: "CHAINED", tone: "ok" });
+  });
+
   test("a HITL obligation is named as human approval, not step-up", () => {
     const trace = pausedTrace({
       authorize: {

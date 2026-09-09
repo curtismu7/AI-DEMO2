@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import DraggableModal from './DraggableModal';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
-import { buildRunStory, pausedGateLabel } from '../services/tokenChainTrace/buildTraceSteps';
+import { buildRunStory, pausedGateState } from '../services/tokenChainTrace/buildTraceSteps';
 import './TokenFlowDetailModal.css';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -349,14 +349,12 @@ function ScopeFunnel({ steps, trace }) {
             <div className="tfd-fhop-head">
               <span className="tfd-fhop-icon">{AZ_CARD_ICON[azCard.tone]}</span>
               <span className="tfd-fhop-name">PingOne Authorize</span>
-              <span className="tfd-fhop-sub" style={{ color: AZ_CARD_COLOR[azCard.tone] }}>
-                {azCard.verdict}
-              </span>
+              <span className="tfd-fhop-sub">{azCard.verdict}</span>
             </div>
             {azCard.note && (
               <div className="tfd-fscopes">
                 <span className={`tfd-fscope tfd-fscope--${azCard.tone === 'gate' ? 'held' : 'blocked'}`}>
-                  {AZ_CARD_ICON[azCard.tone] === '⏸' ? '⏸' : '✕'} {azCard.note}
+                  {azCard.tone === 'gate' ? AZ_CARD_ICON.gate : '✕'} {azCard.note}
                 </span>
               </div>
             )}
@@ -431,8 +429,9 @@ function presentNode(id) {
  * @param {Array} steps from buildTraceSteps
  * @returns {Array} one node per slot, in flow order
  */
-const AZ_CARD_ICON  = { gate: '\u23f8', deny: '\u274c', permit: '\u2705' };
-const AZ_CARD_COLOR = { gate: 'var(--tfd-warn, #d29922)', deny: 'var(--tfd-danger, #f85149)', permit: 'var(--tfd-success, #3fb950)' };
+// \u270b is the allowlist's declared glyph for "human approval required"
+// (REGRESSION_PLAN \u00a70). A pause symbol is not on the list.
+const AZ_CARD_ICON = { gate: '\u270b', deny: '\u274c', permit: '\u2705' };
 
 /**
  * The PingOne Authorize card in the scope-flow strip: which of the three
@@ -451,8 +450,14 @@ const AZ_CARD_COLOR = { gate: 'var(--tfd-warn, #d29922)', deny: 'var(--tfd-dange
  */
 export function resolveAuthorizeCard(trace, azSteps) {
   const steps = Array.isArray(azSteps) ? azSteps : [];
-  const gate = pausedGateLabel(trace);
-  if (gate) return { tone: 'gate', verdict: 'HELD', note: `awaiting ${gate}` };
+  const gate = pausedGateState(trace);
+  // A refused gate is terminal — it is still the gate's card, but nothing is
+  // being awaited any more, so it must not read "awaiting".
+  if (gate) {
+    return gate.declined
+      ? { tone: 'gate', verdict: 'DECLINED', note: `${gate.label} refused` }
+      : { tone: 'gate', verdict: 'HELD', note: `awaiting ${gate.label}` };
+  }
 
   const deny = steps.find((s) => {
     const dec = s?.detail?.decision?.outcome;
