@@ -94,6 +94,42 @@ function resolveWorkerConfig() {
 }
 
 /**
+ * The ADMIN-environment OIDC client, when one is configured.
+ *
+ * PingOne serves the admin-plane MCP from the organisation's ADMINISTRATORS
+ * environment, and that endpoint's authorization server is that environment's
+ * — not the resource environment's. Authenticating in the resource env produced
+ * a valid token from the wrong issuer, which is the 401 this door has always
+ * shown (REGRESSION_PLAN 2026-09-09).
+ *
+ * Deliberately NOT find-or-create: ensureApp() needs a worker credential in the
+ * environment it provisions into, and we hold none in the admin env. PingOne's
+ * own built-in `pingone-mcp-server` client cannot stand in either — it is an
+ * `adminui` client, loopback-redirect-only, so a server-side HTTPS callback is
+ * refused with "Redirect URI mismatch", and it is system-owned so its allowlist
+ * cannot be edited. Hence a configured, operator-registered app.
+ *
+ * Returns null when unconfigured, so the pre-existing resource-env path stays
+ * exactly as it was for anyone whose admin env IS their resource env.
+ */
+function resolveAdminClientConfig() {
+  const region = process.env.PINGONE_REGION || configStore.getEffective('PINGONE_REGION') || 'com';
+  const envId = process.env.PINGONE_MCP_ENVIRONMENT_ID || configStore.getEffective('PINGONE_MCP_ENVIRONMENT_ID');
+  const clientId = process.env.PINGONE_MCP_ADMIN_CLIENT_ID || configStore.getEffective('PINGONE_MCP_ADMIN_CLIENT_ID');
+  const clientSecret = process.env.PINGONE_MCP_ADMIN_CLIENT_SECRET || configStore.getEffective('PINGONE_MCP_ADMIN_CLIENT_SECRET');
+  if (!envId || !clientId) return null;
+  const as = `https://auth.pingone.${region}/${envId}/as`;
+  return {
+    region,
+    envId,
+    clientId,
+    clientSecret: clientSecret || null,
+    authorizationEndpoint: `${as}/authorize`,
+    tokenEndpoint: `${as}/token`,
+  };
+}
+
+/**
  * Find-or-create the "PingOne MCP Server" app (idempotent — createApplication
  * patches drift on an existing app rather than duplicating it) and make sure
  * our callback URL is in its redirectUris alongside any existing ones
@@ -168,12 +204,43 @@ function sanitizeReturnTo(value) {
 // page (e.g. /privilege-mcp-client's pingone-admin door) can drive this flow.
 router.get('/login', requireSignedInSession, async (req, res) => {
   try {
-    const app = await ensureApp(req);
     const state = crypto.randomBytes(16).toString('hex');
     const codeVerifier = base64url(crypto.randomBytes(32));
     const codeChallenge = base64url(crypto.createHash('sha256').update(codeVerifier).digest());
     const redirectUri = callbackUrl(req);
     const returnTo = sanitizeReturnTo(req.query.returnTo);
+
+    // Configured admin-environment client: authenticate where the MCP endpoint's
+    // own authorization server lives. Plain inline authorize, no PAR — PAR was
+    // adopted here to bind `resource`, and `resource` turned out to be ignored
+    // by PingOne entirely (same entry), so it earns nothing and adds a leg that
+    // has to be enabled on the app.
+    //
+    // No login_hint on this path: the signed-in username belongs to the RESOURCE
+    // environment and pre-filling it into the admin environment's sign-on prompts
+    // for an account that may not exist there.
+    const admin = resolveAdminClientConfig();
+    if (admin) {
+      req.session.pingoneMcpAdminOAuth = { state, codeVerifier, redirectUri, returnTo, adminEnvId: admin.envId };
+      const params = new URLSearchParams({
+        response_type: 'code',
+        client_id: admin.clientId,
+        redirect_uri: redirectUri,
+        scope: 'openid',
+        state,
+        code_challenge: codeChallenge,
+        code_challenge_method: 'S256',
+      });
+      return req.session.save((err) => {
+        if (err) {
+          console.error('[mcpPingOneAdminAuth] session save error:', err.message);
+          return res.status(500).json({ error: 'login_init_failed', message: err.message });
+        }
+        return res.redirect(`${admin.authorizationEndpoint}?${params.toString()}`);
+      });
+    }
+
+    const app = await ensureApp(req);
 
     req.session.pingoneMcpAdminOAuth = { state, codeVerifier, redirectUri, returnTo };
 
@@ -257,19 +324,41 @@ router.get('/callback', async (req, res) => {
   if (!code) return failAndRedirect('missing_code');
 
   try {
-    const app = await ensureApp(req);
+    // Exchange where the code was issued. pending.adminEnvId is set only by the
+    // admin-client branch of /login, so a code minted in the resource env can
+    // never be redeemed against the admin env's token endpoint or vice versa,
+    // even if the configuration changes between the two legs.
+    const admin = pending.adminEnvId ? resolveAdminClientConfig() : null;
+    if (pending.adminEnvId && !admin) {
+      return failAndRedirect('admin client configuration disappeared mid-flow — sign in again');
+    }
+
+    let tokenEndpoint;
     const body = new URLSearchParams({
       grant_type: 'authorization_code',
       code,
       redirect_uri: pending.redirectUri,
-      client_id: app.clientId,
       code_verifier: pending.codeVerifier,
+    });
+
+    if (admin) {
+      tokenEndpoint = admin.tokenEndpoint;
+      body.set('client_id', admin.clientId);
+      // client_secret_post: a confidential app is what an operator can register
+      // in the admin env, unlike PingOne's loopback-only built-in client. A
+      // public app there simply omits the secret and still works.
+      if (admin.clientSecret) body.set('client_secret', admin.clientSecret);
+    } else {
+      const app = await ensureApp(req);
+      tokenEndpoint = getTokenEndpoint();
+      body.set('client_id', app.clientId);
       // Same resource as the /login authorize call — mirrors the working
       // reference (demo_mcp_gateway's OAuthBrokerRouter), which sets it on
       // both legs, not just authorize.
-      resource: `https://mcp.pingone.${app.region}/admin/${app.environmentId}/mcp`,
-    });
-    const resp = await axios.post(getTokenEndpoint(), body.toString(), {
+      body.set('resource', `https://mcp.pingone.${app.region}/admin/${app.environmentId}/mcp`);
+    }
+
+    const resp = await axios.post(tokenEndpoint, body.toString(), {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       timeout: 15000,
     });
