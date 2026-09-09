@@ -12,6 +12,7 @@
 // Reuses McpGatewayConfig.css (mgc-*) for styling.
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { isPause } from '../services/tokenChainTrace/pauseObligation';
 import apiClient from '../services/apiClient';
 import CapabilityCallout from './CapabilityCallout';
 import { AGENT_GATEWAY_CAPABILITIES } from '../config/capabilityLedgers/agentGatewayCapabilities';
@@ -119,14 +120,18 @@ export default function AgentGatewayLogPanel() {
         <table className="mgc-env-table">
           <tbody>
             {decisions.map((d, i) => {
-              const denied = d.decision !== 'PERMIT';
+              // An approval gate is not a denial: INDETERMINATE/STEP_UP/
+              // HITL_REQUIRED are held, and only a real refusal earns the error
+              // badge. Same predicate as the Token Chain surfaces.
+              const held = isPause(String(d.decision || '').toUpperCase(), d);
+              const denied = !held && d.decision !== 'PERMIT';
               const why = d.reason
                 || (d.statements || []).map(statementMessage).filter(Boolean).join(' | ')
                 || '';
               return (
                 <tr key={`${d.ts}-${i}`}>
                   <td className="mgc-env-key" style={{ whiteSpace: 'nowrap' }}>
-                    <span className={denied ? 'mgc-badge mgc-badge--error' : 'mgc-badge mgc-badge--live'}>
+                    <span className={denied ? 'mgc-badge mgc-badge--error' : held ? 'mgc-badge mgc-badge--warn' : 'mgc-badge mgc-badge--live'}>
                       {d.decision}
                     </span>
                   </td>

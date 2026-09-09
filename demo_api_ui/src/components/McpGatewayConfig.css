@@ -51,7 +51,9 @@
   background: #d4edda;
   color: #155724;
 }
-.mgc-badge--mock {
+/* --warn shares the amber: an approval gate is held, neither live nor failed. */
+.mgc-badge--mock,
+.mgc-badge--warn {
   background: #fff3cd;
   color: #856404;
 }

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import mermaid from 'mermaid';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
+import { pausedGateState } from '../services/tokenChainTrace/buildTraceSteps';
 import { useThemeOptional } from '../context/ThemeContext';
 import DiagramExportBar from './DiagramExportBar';
 
@@ -45,6 +46,7 @@ const PALETTES = {
     issued:  { fill: '#0a2418', color: '#6ee7b7', stroke: '#059669' },
     authzOk: { fill: '#0f1a2e', color: '#a5b4fc', stroke: '#4f46e5' },
     authzDn: { fill: '#2d0a0a', color: '#fca5a5', stroke: '#dc2626' },
+    authzHold: { fill: '#2b2408', color: '#fde68a', stroke: '#d29922' },
     gateway: { fill: '#071a0f', color: '#86efac', stroke: '#16a34a' },
     mcp:     { fill: '#071520', color: '#67e8f9', stroke: '#0891b2' },
     idle:    { fill: '#0d1117', color: '#94a3b8', stroke: '#334155' },
@@ -67,6 +69,7 @@ const PALETTES = {
     issued:  { fill: '#ecfdf5', color: '#065f46', stroke: '#059669' },
     authzOk: { fill: '#eef2ff', color: '#3730a3', stroke: '#4f46e5' },
     authzDn: { fill: '#fef2f2', color: '#991b1b', stroke: '#dc2626' },
+    authzHold: { fill: '#fffbeb', color: '#92400e', stroke: '#d29922' },
     gateway: { fill: '#f0fdf4', color: '#14532d', stroke: '#16a34a' },
     mcp:     { fill: '#ecfeff', color: '#155e75', stroke: '#0891b2' },
     idle:    { fill: '#f8fafc', color: '#475569', stroke: '#cbd5e1' },
@@ -208,17 +211,30 @@ export function buildDiagramSource(trace, steps, dark = true) {
   // ── Authorize subgraph ───────────────────────────────────────────────────
   if (showAZ) {
     const dec     = azStep.detail?.decision;
-    const outcome = dec?.outcome || azStep.status === 'error' ? 'DENY' : 'PERMIT';
+    // `||` binds tighter than `?:`, so the previous
+    //   dec?.outcome || azStep.status === 'error' ? 'DENY' : 'PERMIT'
+    // parsed as (outcome || isError) ? 'DENY' : 'PERMIT' — ANY recorded
+    // decision, PERMIT included, rendered as a red DENY, and only a run with no
+    // decision at all showed PERMIT. Exactly backwards.
+    const decided = String(dec?.outcome || '').toUpperCase();
+    // An approval gate is not a denial — same predicate the Token Chain banner
+    // and the Flow Detail card use, so the three surfaces cannot disagree.
+    const isHeld  = !!pausedGateState(trace);
+    const isDeny  = !isHeld && (decided === 'DENY' || azStep.status === 'error');
+    // Never fabricate a verdict: an unrecorded decision prints as itself.
+    const verdict = isHeld ? '✋ HELD'
+      : isDeny ? '✕ DENY'
+      : decided === 'PERMIT' ? '✓ PERMIT'
+      : decided || '—';
     const engine  = dec?.label?.split(' — ')?.[1] || '';
-    const isDeny  = outcome === 'DENY' || azStep.status === 'error';
     lines.push(`    subgraph AZ["PingOne Authorize  ·  Policy Decision"]`);
     lines.push(`        POL["Policy Decision`);
         lines.push(`        ────────────────────────`);
-        lines.push(`        ${kpad('outcome')}  ${isDeny ? '✕ DENY' : '✓ PERMIT'}`);
+        lines.push(`        ${kpad('outcome')}  ${verdict}`);
         if (engine) lines.push(`        ${kpad('engine')}   ${trunc(engine, 36)}`);
     lines.push(`"]`);
     lines.push(`    end`);
-    styles.push(sty('POL', isDeny ? C.authzDn : C.authzOk));
+    styles.push(sty('POL', isHeld ? C.authzHold : isDeny ? C.authzDn : C.authzOk));
   }
 
   // ── Gateway subgraph ─────────────────────────────────────────────────────
