@@ -161,9 +161,10 @@ export const spinner = {
    * @param {string} [url]
    */
   increment(method = 'GET', url = '') {
-    // Spinner overlay disabled — too distracting on the dashboard
-    return;
-
+    // Must mirror decrement()'s silent-URL guard exactly. Without it these
+    // routes increment _pending and never decrement it, so the counter climbs
+    // forever and no real request can ever hide the spinner again.
+    if (isSilentUrl(url)) return;
     _pending++;
     // Cancel any pending hide from a previous cycle
     if (_hideTimer) { clearTimeout(_hideTimer); _hideTimer = null; }
@@ -212,8 +213,12 @@ export const spinner = {
    * @param {string} [sub] - shown as endpoint line (optional)
    */
   show(message, sub) {
-    // Spinner overlay disabled
-    return;
+    _pending++;
+    if (_hideTimer) { clearTimeout(_hideTimer); _hideTimer = null; }
+    const color = pick(SPINNER_COLORS);
+    const msg   = message || pick(SPINNER_QUIPS);
+    if (_showTimer) { clearTimeout(_showTimer); _showTimer = null; }
+    show(msg, color, sub || null);
   },
 
   /** Manual hide — mirrors decrement but always fast */

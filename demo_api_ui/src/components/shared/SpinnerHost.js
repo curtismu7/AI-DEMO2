@@ -4,14 +4,16 @@ import ReactDOM from 'react-dom';
 import { useSpinner } from '../../context/SpinnerContext';
 import { spinnerActivity } from '../../services/spinnerActivityService';
 import BusySpinner from './BusySpinner';
+import NeuralSpinner from './NeuralSpinner';
 import './LoadingOverlay.css';
 
 /**
- * Spinner variant switch — flip to 'classic' to restore the original CSS ring.
- *   'busy'    → BusySpinner telemetry dial (default)
+ * Spinner variant switch.
+ *   'neural'  → NeuralSpinner token-ingress dial (default)
+ *   'busy'    → BusySpinner telemetry radar
  *   'classic' → original <span className="lo-spinner"> border ring
  */
-const SPINNER_VARIANT = 'busy';
+const SPINNER_VARIANT = 'neural';
 
 /**
  * Global spinner overlay — rendered once in App.js via createPortal.
@@ -73,14 +75,18 @@ export default function SpinnerHost() {
         className={SPINNER_VARIANT === 'classic' ? 'lo-card' : 'lo-card lo-card--dark'}
         style={{ borderTopColor: accentColor }}
       >
-        {SPINNER_VARIANT === 'classic' ? (
+        {SPINNER_VARIANT === 'classic' && (
           <span
             className="lo-spinner"
             style={{ borderTopColor: accentColor }}
             aria-hidden="true"
           />
-        ) : (
+        )}
+        {SPINNER_VARIANT === 'busy' && (
           <BusySpinner size={72} accent={accentColor} aria-hidden="true" />
+        )}
+        {SPINNER_VARIANT === 'neural' && (
+          <NeuralSpinner size={88} accent={accentColor} />
         )}
         <p className="lo-message">{message || 'Please wait…'}</p>
         {activityLabel && (
