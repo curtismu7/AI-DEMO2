@@ -213,6 +213,56 @@ describe("AdminSideNav — best-of-breed pass", () => {
     });
   });
 
+  // A saved navOrder is a snapshot of the nav when the user dragged it. Groups
+  // added afterwards are absent from it, and used to be appended to the very
+  // bottom — "AI Agent Gateway" rendered below "Integration Tests", which reads
+  // as missing rather than as reordered. Reported from the live demo.
+  it("places a group the saved navOrder predates at its natural position, not last", async () => {
+    // A realistic stale order: no "AI Agent Gateway", and labels from groups
+    // that have since been renamed.
+    const staleOrder = [
+      "Home", "Dashboard", "Demos", "Privilege MCP", "Themes", "AI Footprint",
+      "Inspectors", "PingOne MCP", "Monitoring", "Integration Tests",
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url) => {
+        if (String(url).includes("/api/user/nav-config")) {
+          return Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve({
+                hiddenLabels: [],
+                activeConfigId: null,
+                navOrder: staleOrder,
+                childOrder: null,
+                flagOn: true,
+              }),
+          });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+      }),
+    );
+    renderNav();
+    await screen.findByText("AI Agent Gateway");
+
+    const labels = Array.from(
+      document.querySelectorAll(".admin-side-nav__label"),
+    ).map((el) => el.textContent.trim());
+    const idx = (l) => labels.indexOf(l);
+
+    // It sits directly after Dashboard — its position in allNavItems — because
+    // Dashboard is the nearest preceding sibling the saved order knows about.
+    expect(idx("AI Agent Gateway")).toBeGreaterThan(-1);
+    expect(idx("AI Agent Gateway")).toBe(idx("Dashboard") + 1);
+    // And crucially NOT dumped at the bottom past everything ordered.
+    expect(idx("AI Agent Gateway")).toBeLessThan(idx("Integration Tests"));
+
+    // The user's explicit ordering is still honoured for what it does contain.
+    expect(idx("Demos")).toBeLessThan(idx("Themes"));
+    vi.unstubAllGlobals();
+  });
+
   it("applies a saved childOrder — a child moved to another group renders there, not in its origin", async () => {
     vi.stubGlobal(
       "fetch",

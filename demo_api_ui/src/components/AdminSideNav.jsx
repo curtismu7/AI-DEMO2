@@ -1133,9 +1133,34 @@ export default function AdminSideNav({
   const navItems = (() => {
     if (!Array.isArray(navOrder) || navOrder.length === 0) return childOrderedItems;
     const byLabel = Object.fromEntries(childOrderedItems.map((i) => [i.label, i]));
-    const ordered = navOrder.filter((l) => byLabel[l]).map((l) => byLabel[l]);
-    const rest = childOrderedItems.filter((i) => !navOrder.includes(i.label));
-    return [...ordered, ...rest];
+    const result = navOrder.filter((l) => byLabel[l]).map((l) => byLabel[l]);
+    // Items the saved order predates keep their NATURAL position instead of
+    // being appended to the end.
+    //
+    // A saved navOrder is a snapshot of the nav as it was when the user dragged
+    // it, so every group added since is absent from it. Appending them all to
+    // the bottom buried "AI Agent Gateway" below "Integration Tests" for anyone
+    // with a saved order — it rendered, but 20+ groups down from where its
+    // position in allNavItems says it belongs, which reads as missing. Same for
+    // "PingOne Sample Apps" and "Platform Admin". Worse, navOrder is returned
+    // even when ff_sidebar_customization is OFF (routes/userNavConfig.js only
+    // gates hiddenLabels), so turning the feature off did not escape it either.
+    //
+    // Each unknown item is placed after its nearest preceding natural sibling
+    // that the saved order does know about — which puts a new group where the
+    // code says it goes, while leaving every explicitly-ordered item where the
+    // user put it. Consecutive unknowns keep their relative order because each
+    // one is in `result` by the time the next is placed.
+    childOrderedItems.forEach((item, naturalIdx) => {
+      if (navOrder.includes(item.label)) return;
+      let insertAt = 0;
+      for (let i = naturalIdx - 1; i >= 0; i--) {
+        const at = result.indexOf(childOrderedItems[i]);
+        if (at !== -1) { insertAt = at + 1; break; }
+      }
+      result.splice(insertAt, 0, item);
+    });
+    return result;
   })();
 
   // Live filter: match by label (or an item's optional search alias, for
