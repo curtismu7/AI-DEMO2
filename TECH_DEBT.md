@@ -749,7 +749,7 @@ and `.aae-header` were given a `--th-status-error-text` colour (the ratchet's
 own prescribed fix; the pin was not bumped). The hazard was there before the
 conversion, just uncounted.
 
-### [ ] 2026-09-03 — jwksService can hand back a key `crypto.Verify` rejects outright
+### [x] 2026-09-03 — jwksService can hand back a key `crypto.Verify` rejects outright
 
 **What's wrong.** `verifyDoorBearer` (`demo_api_server/routes/mcpFacade.js`)
 fixed a hang where a bad key from `jwksService.getPublicKey(kid)` threw out of
@@ -772,6 +772,39 @@ what `jwksService.getPublicKey` actually returned for that `kid` (shape, not
 value — it is a public key) before it reaches `crypto.createVerify`, and check
 whether `jwksService.js` has a code path that returns a raw JWK instead of
 converting it.
+
+**RESOLVED — branch `fix/jwks-public-key-shape`.** No wait for a recurrence was
+needed, and the entry's guess was wrong in a useful way: **jwksService was never
+at fault.** `_fetchAndBuildKeyMap` converts every JWK through
+`crypto.createPublicKey({ key: jwk, format: 'jwk' })` and catches + skips the
+ones that fail, so the cache can only ever hold real KeyObjects. There is no
+code path that returns a raw JWK.
+
+The bug was on the CALLER side, and git history shows the whole arc:
+
+1. `289b5969b` (the OpenSearch door itself) wrote `.verify(key, ...)` — passing
+   the WRAPPER `{ keyObject, alg, use }` that `getPublicKey` returns, not the
+   key. Node reads `.key` off that object and throws
+   `key.key must be ... Received undefined` — exactly the live error quoted in
+   this entry.
+2. `566951b22` added the try/catch (the "fail closed and fast" half described
+   above) but kept passing the wrapper, so the door could never verify ANY
+   token — every call returned `verify_error`.
+3. `d028b7dc6` (#2736, "stop the sign-in loop on the façade and Direct-to-MCP
+   modes") changed it to `key.keyObject`. That was the root-cause fix, but it
+   landed inside a sign-in-loop fix, so nothing connected it back to this entry
+   — which has said "the trigger is still a guess" ever since.
+
+So the open half was already closed, by accident, six days before this entry was
+read again. What remained was the comment above the try/catch still blaming
+jwksService and sending the next reader to the wrong file; it now records the
+wrapper shape and names #2736.
+
+Regression coverage already exists and is load-bearing: reverting
+`key.keyObject` to `key` reds **five** tests in
+`tests/routes/mcpFacadeOpensearchDoor.test.js`, including the happy path
+"relays once the bearer verifies". Verified by doing exactly that before
+restoring it, so no new test was written.
 
 ### [x] 2026-08-31 — Brandfetch MCP cannot replace `BRANDFETCH_API_KEY`: the AS offers no machine grant
 
