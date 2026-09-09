@@ -140,6 +140,45 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-09 — One colliding scope name 400'd the whole grant PUT, so the reconciler could never add any of the others
+
+**Files changed:** `demo_api_server/services/twoExchangeReconciler.js`,
+new `demo_api_server/tests/twoExchangeReconciler.scopeCollision.test.js`.
+
+**What was broken:** PingOne rejects a grant write whose scope NAMES collide
+with names the same app already holds on ANOTHER resource's grant —
+`INVALID_DATA` / "Multiple scopes with the same name cannot be added to the same
+grant". The write is all-or-nothing, so ONE colliding name costs every other
+name in the same request. Live, the gateway app already held
+`airlines:read` / `airlines:write` / `pnr:read` on the MCP Invest grant, so the
+MCP Server reconcile 400'd on every boot; the MCP Exchanger reconcile 400'd the
+same way on nine names. The static `excludeNames` partition below reserves only
+`invest:read` and cannot know what an environment already granted before that
+partition existed.
+
+**What was fixed:** `_reconcileAppGrants` now resolves the names this app holds
+on its other grants and treats a name held elsewhere as satisfied-elsewhere
+rather than missing, sending only the rest. It never moves a live grant: the
+gateway's exchange already tolerates requesting a name this partition did not
+grant on that resource (PingOne drops it from the issued token rather than
+erroring — see `resourceScopesForBackend`), and the failing PUT was adding
+nothing at all anyway. On the first boot with this fix the reconciler finally
+granted `audit:read` to MCP Exchanger on MCP Gateway — a scope that had been
+blocked all along by the colliding names sharing its request.
+
+**Do not break:** the collision filter must stay NAME-based, not id-based —
+each resource has its own scope id for the same name, which is exactly why the
+id comparison above cannot see the clash. If a name genuinely belongs on the
+other resource's grant, move it there deliberately; do not "fix" this by
+deleting the sibling grant's scope, which is live state other flows depend on.
+
+**Verify:** `cd demo_api_server && CI=true npx jest
+tests/twoExchangeReconciler.scopeCollision.test.js
+tests/twoExchangeReconciler.summary.test.js --forceExit` — 3 passed (the
+collision test fails against the pre-fix helper; confirmed by reverting it).
+Live: boot logs the two "already granted to this app on another resource" lines
+and no 400s; `npm run test:e2e:real:demo-steps` 120 passed / 72 skipped.
+
 ### 2026-09-09 — TwoExchangeReconciler reported OK on every boot while two of its PingOne calls were failing
 
 **Files changed:** `demo_api_server/services/twoExchangeReconciler.js`,
