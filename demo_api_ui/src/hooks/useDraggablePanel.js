@@ -154,16 +154,30 @@ export function useDraggablePanel(initialPos, initialSize, options = {}) {
       if (direction.includes('e')) {
         newW = Math.max(resolvedMinW, startW + deltaX);
       }
+      // Growing from the north/west edges moves the panel's top-left as a side
+      // effect of the size change. Left unbounded it walked the title bar off
+      // the viewport — and the title bar is the only drag target, so the panel
+      // could not be brought back. Cap the growth instead: the far edge stays
+      // put, and the near edge stops at the boundary.
+      //
+      // The floor is min(0, start) rather than a flat 0 so a panel the user
+      // DELIBERATELY dragged off-screen (live dragging is unclamped on purpose
+      // — second monitor) is not yanked back by resizing it; resizing simply
+      // cannot make the overhang worse than the user already chose.
       if (direction.includes('w')) {
-        newW = Math.max(resolvedMinW, startW - deltaX);
-        newL = startL + (startW - newW);
+        const right = startL + startW;
+        const maxW = right - Math.min(0, startL);
+        newW = Math.max(resolvedMinW, Math.min(maxW, startW - deltaX));
+        newL = right - newW;
       }
       if (direction.includes('s')) {
         newH = Math.max(resolvedMinH, startH + deltaY);
       }
       if (direction.includes('n')) {
-        newH = Math.max(resolvedMinH, startH - deltaY);
-        newT = startT + (startH - newH);
+        const bottom = startT + startH;
+        const maxH = bottom - Math.min(0, startT);
+        newH = Math.max(resolvedMinH, Math.min(maxH, startH - deltaY));
+        newT = bottom - newH;
       }
       
       setSize({ w: newW, h: newH });
