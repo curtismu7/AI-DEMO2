@@ -6189,6 +6189,28 @@ callers. If yes, grant the scope or add it to the resource's `mirroredScopes` in
 `scope-topology.json`; if no, deny at the gateway with a scope-mismatch reason so
 the caller learns it from the response rather than from a gateway log.
 
+**RESOLVED 2026-09-08.** Yes — these tools are meant to be reachable: they are
+the whole point of UC2/UC2.5 A2A delegation (`expectedOutcome: 'PERMIT'`), whose
+own intent-classification bug (separate fix, same day) was masking this one —
+with the intent token minting `unknown`, the gateway denied on `intent_mismatch`
+before the call ever reached this exchange to reveal the scope gap underneath.
+Once that was fixed, live testing surfaced this exact `invalid_scope: multiple
+resources` failure on `sensitive_membership_details` (sporting-goods).
+Added the 5 missing A2A specialist scopes (`membership:read`, `payroll:read`,
+`holdings:read`, `purchase:read`, `identity:read` — sporting-goods, workforce,
+investment, retail/A&F, and admin respectively) to `Super Banking MCP Server`'s
+`mirroredScopes` in both `scope-topology.json` and its `ping-gateway/config`
+copy. `tax:read`, `finaid:read`, `supplier:read`, `records:read`, `pnr:read`
+(government, university, manufacturing, healthcare, airlines) were already
+present, coincidentally reused from unrelated scopes — those verticals' A2A
+delegation already worked. Updated `mcpTokenExchangeNoScope.test.ts` and
+`authorizeMcpRequest-exchange.test.ts`, whose fixtures used `purchase:read` as
+the canonical "scope foreign to olb" example — now genuinely valid, so those
+tests now use `jwt:verify` instead. Takes effect live via the existing
+`twoExchangeReconciler.js` self-heal on the next `demo-api-server` boot (same
+mechanism `mirroredScopes` already relies on) — no PingOne console changes
+needed.
+
 ### [~] 2026-08-18 — `olb` tools/list times out; its tools vanish from the catalog and callers see "tool not found"
 
 **INSTRUMENTED 2026-08-18 (PR #2054, merged + deployed) — root cause not yet

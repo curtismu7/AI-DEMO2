@@ -39,7 +39,7 @@ const config = {
 /** Real shape of the failing token: one scope belonging to no backend. */
 const foreignScopeToken = [
   Buffer.from(JSON.stringify({ alg: 'none' })).toString('base64url'),
-  Buffer.from(JSON.stringify({ sub: 'u1', scope: 'purchase:read' })).toString('base64url'),
+  Buffer.from(JSON.stringify({ sub: 'u1', scope: 'jwt:verify' })).toString('base64url'),
   '',
 ].join('.');
 
@@ -61,7 +61,7 @@ describe('scope-less exchange diagnostics', () => {
 
     const warned = warnSpy.mock.calls.map((c) => String(c[0])).join('\n');
     expect(warned).toMatch(/scope-less/i);
-    expect(warned).toContain('purchase:read');        // what the caller holds
+    expect(warned).toContain('jwt:verify');            // what the caller holds
     expect(warned).toContain('mcpserver.ping.demo');   // the target resource
     expect(warned).toMatch(/mirroredScopes|Grant the caller/); // how to fix it
   });
@@ -116,16 +116,16 @@ describe('scopeMismatchReasonFromExchangeError — caller-facing reason', () => 
     'HTTP 400 — invalid_scope: May not request scopes for multiple resources',
   );
 
-  it('names BOTH scope sets — the caller holds purchase:read, olb accepts none of it', () => {
+  it('names BOTH scope sets — the caller holds jwt:verify, olb accepts none of it', () => {
     const m = scopeMismatchReasonFromExchangeError(opaqueRejection, foreignScopeToken, 'get_my_accounts');
     expect(m).not.toBeNull();
     expect(m!.backend).toBe('olb');
-    expect(m!.subjectScopes).toEqual(['purchase:read']); // what the caller holds
+    expect(m!.subjectScopes).toEqual(['jwt:verify']); // what the caller holds
     expect(m!.backendScopes).toContain('read');           // what the backend accepts
     expect(m!.backendScopes).toContain('mcp:invoke');
-    expect(m!.backendScopes).not.toContain('purchase:read');
+    expect(m!.backendScopes).not.toContain('jwt:verify');
     // The sentence names both sets so the caller can act on it.
-    expect(m!.reason).toContain('purchase:read');
+    expect(m!.reason).toContain('jwt:verify');
     expect(m!.reason).toContain('read');
     expect(m!.reason).toMatch(/scope mismatch/i);
     expect(m!.reason).toMatch(/mirroredScopes|Grant the caller/);
