@@ -140,6 +140,47 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-09 — Every provisioned decision endpoint was unbound: the create payload sent `policyId`, a field PingOne accepts and discards
+
+**Files changed:** `demo_api_server/services/pingOneAuthorizeService.js`, new
+`demo_api_server/tests/pingOneAuthorizeService.decisionEndpointPolicyBinding.test.js`.
+
+**What was broken:** `_createDecisionEndpointResource` put the policy binding in
+`policyId`. The PingOne decision-endpoint API takes `policy: { id }`. It answers
+**201 either way** and silently drops the unknown key, so every endpoint created
+by `provisionDemoDecisionEndpoints` (and by `POST
+/api/authorize/bootstrap-demo-endpoints`) came out with no policy binding and
+fell through to the environment's root policy tree. Nothing errored, nothing
+logged, and the only visible symptom was an absence: a GET on the endpoint has
+no `policy` key at all. Found while trying to bind a new endpoint to the Agent
+Intent Governance policy set and getting decisions from a different policy.
+
+Measured live 2026-09-09 against the AI Demo environment:
+
+| request | result |
+|---|---|
+| `POST { policyId }` | 201, GET shows no `policy` key |
+| `POST { policy: { id } }` | 201, GET shows `policy: { id }` |
+| `PUT { policy: { id } }` | 400 `INVALID_DATA` — "Cannot update policy id" |
+| `PUT { policyId }` | 200, and still ignored |
+
+**What was fixed:** the create payload now sends `policy: { id: opts.policyId }`.
+The public option name is unchanged, so `routes/authorize.js` and its callers are
+untouched.
+
+**Do not break:** the binding is **create-only** — the PUT above proves it. An
+endpoint that already exists unbound cannot be repaired by re-running
+provisioning; `provisionDemoDecisionEndpoints` skips any endpoint whose name
+already exists, so such an endpoint must be deleted and recreated. Note the
+Authorize worker returns **403 on DELETE** for decision endpoints, so that
+deletion is a console action.
+
+**Verify:** `cd demo_api_server && CI=true npx jest
+tests/pingOneAuthorizeService.decisionEndpointPolicyBinding.test.js
+tests/authorizePreflightRoute.regression.test.js --forceExit` — 10 passed. The
+new guard was confirmed to FAIL against the old `policyId` field before the fix
+was restored.
+
 ### 2026-09-09 — One colliding scope name 400'd the whole grant PUT, so the reconciler could never add any of the others
 
 **Files changed:** `demo_api_server/services/twoExchangeReconciler.js`,
