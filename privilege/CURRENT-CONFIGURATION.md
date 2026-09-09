@@ -381,6 +381,54 @@ the GHCR pull secret from a live `helm upgrade` on 2026-09-07, while
 `helm get values` kept reporting them as present. Always upgrade against the
 chart source directory, or repackage after every template/values edit.
 
+## Backend hop: what the Node gateway accepts (measured 2026-09-09)
+
+Phase 0 of `docs/superpowers/plans/2026-09-08-privilege-first-gateway.md`,
+partially answered. Everything here was measured from **inside the gateway pod**
+(`agentless-mcpgw`, container `log-tailer`) against the Node gateway in the demo
+namespace; response bodies were read from inside `mcp-gateway` itself, because
+busybox `wget` discards the body on a non-2xx.
+
+**1. The cross-namespace hop is open.** From the gateway pod,
+`http://mcp-gateway.ping-devops-cmuir.svc.cluster.local:3005/health` answers
+`200` (`devBypass:false`, `policySource:p1az`, `failOpen:[]`). No NetworkPolicy
+stands between the two namespaces, so the standing risk the plan records for
+this leg does not apply today. Re-measure it rather than assuming — it is one
+`kubectl exec` away and the namespaces are owned by different releases.
+
+**2. Every bearer shape Privilege can put on that hop is refused, and the reason
+is key selection, not policy.** `POST /mcp`, MCP `initialize`:
+
+| Sent | Response |
+|---|---|
+| no `Authorization` (Auth Mode **None**) | `401 invalid_token` — `Bearer token required` |
+| `Authorization: Bearer probe-static-1` (Auth Mode **Static Token**) | `401 invalid_token` — `Token has no kid header and the JWKS exposes 4 keys — cannot select a verification key unambiguously` |
+| the same, plus `X-Subject-Token: probe-subject` | byte-identical to the row above |
+
+The second row is the load-bearing one. The rejection comes from
+`demo_mcp_gateway/src/tokenValidator.ts:221-226`, raised **inside**
+`_decodeAndVerify` and therefore **before any policy, audience or scope check
+runs**. `Malformed JWT` (`tokenValidator.ts:374`) is only the fallback for a
+throw that is *not* already a `TokenValidationError`, so a non-JWT bearer never
+produces that string — anything citing it (including the first draft of the
+plan's D1) is describing a path that does not fire. The conclusion is unchanged
+and now measured rather than read: **the Node gateway cannot accept a Privilege
+backend-hop bearer without new code** (plan Task 8), and the bridge secret has
+to be matched *before* `validateInboundToken`, not inside it.
+
+The third row confirms the other half: `X-Subject-Token` is ignored today, which
+is correct — no bridge exists yet, and a header from an arbitrary caller must
+never be trusted.
+
+**3. What is still unmeasured, and why.** The D1 fork — *does Privilege forward
+custom request headers to the backend* — cannot be answered from the cluster
+side. It needs (a) an Agentic App registered against the Node gateway, which is
+console work, and (b) a client call that clears the front door, which needs a
+gateway-minted token from a human browser sign-in. Checked 2026-09-09: the SE
+BFF reports `gatewaySession: {ready:false, reason:"no_session"}`, so no such
+call can be made right now. Registering the probe app and arming the session are
+the two operator steps that unblock the rest of Task 0.
+
 ## Which PingOne identity is which (settled 2026-09-08)
 
 Three different things get confused here, and every one of them cost time. All
