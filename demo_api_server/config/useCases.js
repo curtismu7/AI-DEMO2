@@ -188,6 +188,68 @@ const REQUEST_ONLY_NOT_APPLICABLE = {
   airlines: 'No request-only tool yet — needs a "request a change-fee waiver" tool the agent can FILE but not GRANT (wave 2). pay_airline_fee is the opposite: it completes the transaction.',
 };
 
+/** The group-gated sensitive tool per vertical — mirrors each manifest's
+ *  restrictedTools entry, which Task 1 re-pointed to premiumTier. Duplicates
+ *  across verticals are deliberate (isolation over DRY): editing one vertical's
+ *  entry must never change another's. */
+const GROUP_TOOL_BY_VERTICAL = {
+  banking: 'get_sensitive_account_details',
+  'sporting-goods': 'sensitive_membership_details',
+  healthcare: 'sensitive_patient_records',
+  retail: 'sensitive_order_history',
+  'abercrombie-fitch': 'sensitive_order_history',
+  investment: 'sensitive_holdings',
+  manufacturing: 'sensitive_supplier_contract',
+  government: 'sensitive_tax_record',
+  university: 'sensitive_student_finance',
+  workforce: 'sensitive_payroll_details',
+  admin: 'sensitive_customer_identity',
+  airlines: 'sensitive_passenger_record',
+};
+
+/** Verticals with no group gate — declared, not silently skipped, same shape as
+ *  REQUEST_ONLY_NOT_APPLICABLE (useCases.js:187). */
+const GROUP_GATE_NOT_APPLICABLE = {
+  'admin-console': 'No groups block in the manifest — nothing to gate on.',
+  'oauth-teaching': 'No groups block in the manifest — nothing to gate on.',
+  'pingone-admin': 'Declares a privileged category but no restrictedTools, and demoUser is not a member.',
+};
+
+/**
+ * UC9/UC21 chip triggers — each vertical's own sensitive-tool phrasing, worded
+ * distinctly from UC2's "show my sensitive X" (A2A_TRIGGER_BY_VERTICAL) so the
+ * two never collide even though most verticals target the same tool. Every
+ * vertical's own heuristics regex only needs "sensitive" plus its keyword
+ * somewhere in the phrase (order-agnostic), which "for tier access" / "for
+ * group entitlement" satisfies while keeping the exact string distinct.
+ * Excludes banking (base entry carries its own values) and the 3 verticals with
+ * no group gate (see GROUP_GATE_NOT_APPLICABLE).
+ */
+const GROUP_TIER_TRIGGER_BY_VERTICAL = {
+  healthcare: 'check my sensitive patient records for tier access',
+  retail: 'check my sensitive order history for tier access',
+  'abercrombie-fitch': 'check my sensitive A&F order history for tier access',
+  government: 'check my sensitive tax record for tier access',
+  university: 'check my sensitive student finance for tier access',
+  workforce: 'check my sensitive payroll details for tier access',
+  'sporting-goods': 'check my sensitive membership details for tier access',
+  manufacturing: 'check my sensitive supplier contract for tier access',
+  investment: 'check my sensitive holdings for tier access',
+  airlines: 'check my sensitive passenger record for tier access',
+};
+const GROUP_ENTITLEMENT_TRIGGER_BY_VERTICAL = {
+  healthcare: 'check my sensitive patient records for group entitlement',
+  retail: 'check my sensitive order history for group entitlement',
+  'abercrombie-fitch': 'check my sensitive A&F order history for group entitlement',
+  government: 'check my sensitive tax record for group entitlement',
+  university: 'check my sensitive student finance for group entitlement',
+  workforce: 'check my sensitive payroll details for group entitlement',
+  'sporting-goods': 'check my sensitive membership details for group entitlement',
+  manufacturing: 'check my sensitive supplier contract for group entitlement',
+  investment: 'check my sensitive holdings for group entitlement',
+  airlines: 'check my sensitive passenger record for group entitlement',
+};
+
 /** Merge per-vertical primaryTool into chipOverrides extras. */
 const withPrimaryTool = (toolByVertical, extraByVertical = {}) => {
   const out = { ...extraByVertical };
@@ -198,6 +260,12 @@ const withPrimaryTool = (toolByVertical, extraByVertical = {}) => {
 };
 
 const READ_PER_VERTICAL = chipOverrides(READ_TRIGGER_BY_VERTICAL, withPrimaryTool(READ_PRIMARY_TOOL_BY_VERTICAL));
+
+/** UC21 (tier check, PERMIT) and UC9 (entitlement check, DENY) — group-gated,
+ *  amount-free triggers per vertical. Banking (base entry) and the 3 N/A
+ *  verticals (GROUP_GATE_NOT_APPLICABLE) are not included here. */
+const GROUP_TIER_PER_VERTICAL = chipOverrides(GROUP_TIER_TRIGGER_BY_VERTICAL, withPrimaryTool(GROUP_TOOL_BY_VERTICAL));
+const GROUP_ENTITLEMENT_PER_VERTICAL = chipOverrides(GROUP_ENTITLEMENT_TRIGGER_BY_VERTICAL, withPrimaryTool(GROUP_TOOL_BY_VERTICAL));
 
 /** UC33 — every vertical's own second product. No READ fallback: see the map's comment. */
 const SECOND_PRODUCT_PER_VERTICAL = chipOverrides(
@@ -744,8 +812,8 @@ const RAW_USE_CASES = [
     title: 'Group / entitlement check',
     buyerStory: "An agent acting for a user who is not in the required group must be denied, regardless of the token's scopes.",
     pingOneSolution: 'PingOne Authorize evaluates the user group membership claim and returns DENY when the user is not entitled.',
-    trigger: { type: 'chip', text: 'transfer $600 from checking to savings' },
-    expectedOutcome: 'DENY',
+    trigger: { type: 'chip', text: 'check my sensitive account details for group entitlement' },
+    expectedOutcome: 'DENY_403',
     evidence: { tokenChain: ['authorize-decision'], activity: ['authorize'] },
     codeRefs: ['demo_api_server/services/simulatedAuthorizeService.js', 'demo_authz_server/routes/decision.js'],
     maturity: 'flag:ff_authorize_group_policy',
@@ -759,8 +827,13 @@ const RAW_USE_CASES = [
       authz: 'Evaluates the group claim against the entitlement rule; returns DENY when the user is not a member.',
       gw:    'Enforces the DENY returned by Authorize before any tool is dispatched.',
     },
-    primaryTool: 'create_transfer',
-    perVertical: AMOUNT_PER_VERTICAL(600),
+    // Decided by PingOne group membership, not a dollar amount — demoUser is NOT
+    // seeded into the vertical's `privileged` group, so this is reachable and
+    // stays DENY. See GROUP_TOOL_BY_VERTICAL for why each vertical targets its
+    // own manifest-declared sensitive tool.
+    requiresGroup: 'out',
+    primaryTool: GROUP_TOOL_BY_VERTICAL.banking,
+    perVertical: GROUP_ENTITLEMENT_PER_VERTICAL,
   },
   {
     id: 'UC21',
@@ -769,7 +842,7 @@ const RAW_USE_CASES = [
     title: 'Entitlement-tiered capability',
     buyerStory: "A premium-tier user's agent should have access to higher-value tools; a standard user's agent should not even see them.",
     pingOneSolution: "PingOne group membership drives a per-tier tool set and amount limits; the user's tier expands what the agent may do.",
-    trigger: { type: 'chip', text: 'transfer $600 from checking to savings' },
+    trigger: { type: 'chip', text: 'check my sensitive account details for tier access' },
     expectedOutcome: 'PERMIT',
     evidence: { tokenChain: ['authorize-decision', 'tool-dispatched'], activity: ['authorize', 'mcp'] },
     codeRefs: ['demo_api_server/services/simulatedAuthorizeService.js', 'demo_authz_server/routes/decision.js'],
@@ -777,8 +850,7 @@ const RAW_USE_CASES = [
     owasp: { threats: ['T3'], sections: ['§4.1.1', '§5.1'] },
     whatToSay: "Private Banking tier gets wire tools and a higher limit; Standard tier's agent is not offered them.",
     advanced: false,
-    match: { tool: 'create_transfer', amountMin: 500, amountMax: 2000 },
-    primaryTool: 'create_transfer',
+    primaryTool: GROUP_TOOL_BY_VERTICAL.banking,
     whatLong: "A Private Banking tier user's agent should have access to higher-value tools and limits; a Standard tier user's agent should not even be offered them. PingOne group membership drives the tier — the agent's available tool set and limits expand with the user's entitlement tier.",
     businessValue: "Tiered entitlement is policy-driven, not hard-coded. Promoting a user to a higher tier in PingOne immediately changes what their agent can do — with no code change and no redeploy.",
     productRoles: {
@@ -786,7 +858,10 @@ const RAW_USE_CASES = [
       authz: 'Evaluates the tier claim against the entitlement rule; adjusts the permitted tool set and limits.',
       gw:    'Enforces the per-tier decision from Authorize before dispatching tool calls.',
     },
-    perVertical: AMOUNT_PER_VERTICAL(600),
+    // Decided by PingOne group membership, not a dollar amount — demoUser IS
+    // seeded into the vertical's premiumTier group (Task 1), so this stays PERMIT.
+    requiresGroup: 'in',
+    perVertical: GROUP_TIER_PER_VERTICAL,
   },
   {
     id: 'UC22',
@@ -2078,6 +2153,19 @@ function getUseCaseStepUpMethod(slug) {
 }
 
 /**
+ * Per-use-case group requirement. Mirrors getUseCaseStepUpMethod: one catalog
+ * field the Run path reads to arm state before firing the chip.
+ * @returns {'in'|'out'|null}
+ */
+function getUseCaseGroupRequirement(slug) {
+  if (!slug || typeof slug !== 'string') return null;
+  const uc = USE_CASES.find((u) => u.useCaseId === slug);
+  return (uc && (uc.requiresGroup === 'in' || uc.requiresGroup === 'out'))
+    ? uc.requiresGroup
+    : null;
+}
+
+/**
  * Organic reverse-map: given a resolved tool name + args, return the useCaseId
  * of the matching catalog entry, or undefined. The catalog `match` field is the SoT.
  * Per-vertical match routing is a future extension (catalog `match` is banking-only today).
@@ -2114,4 +2202,4 @@ function resolveChipUseCaseId(clientId, toolName, args, vertical) {
   return deriveUseCaseId(toolName, args, vertical);
 }
 
-module.exports = { USE_CASES, VERTICALS, getUseCase, resolveUseCase, listUseCases, deriveUseCaseId, isValidUseCaseId, getUseCaseStepUpMethod, resolveChipUseCaseId, READ_PRIMARY_TOOL_BY_VERTICAL, A2A_PRIMARY_TOOL_BY_VERTICAL, AMOUNT_PRIMARY_TOOL_BY_VERTICAL, SECOND_PRODUCT_TOOL_BY_VERTICAL, REQUEST_ONLY_TOOL_BY_VERTICAL, REQUEST_ONLY_NOT_APPLICABLE };
+module.exports = { USE_CASES, VERTICALS, getUseCase, resolveUseCase, listUseCases, deriveUseCaseId, isValidUseCaseId, getUseCaseStepUpMethod, getUseCaseGroupRequirement, resolveChipUseCaseId, READ_PRIMARY_TOOL_BY_VERTICAL, A2A_PRIMARY_TOOL_BY_VERTICAL, AMOUNT_PRIMARY_TOOL_BY_VERTICAL, SECOND_PRODUCT_TOOL_BY_VERTICAL, REQUEST_ONLY_TOOL_BY_VERTICAL, REQUEST_ONLY_NOT_APPLICABLE };

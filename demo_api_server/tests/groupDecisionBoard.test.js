@@ -23,7 +23,14 @@ const membershipService = require('../services/pingOneGroupMembershipService');
 const groupPolicy = require('../services/groupPolicy');
 const { verticalManifest } = require('../services/verticalManifest');
 
-const PRIVILEGED = 'AI_Demo_Privileged';
+// Since the premiumTier re-point (spec §3.2) the gate is per-vertical: each row's
+// requiredGroup is that vertical's own <Vertical>_PremiumTier, so one constant can
+// no longer stand in for "the group the user must hold". Resolve it per vertical.
+const gateFor = (verticalId) => groupPolicy.groupNameForCategory(verticalId, 'premiumTier');
+
+// A group no vertical's gate requires — proves a LIVE group is passed through
+// rather than anything the manifest would have derived.
+const SENTINEL = 'AI_Demo_Privileged';
 
 /** Invoke the route handler directly — no supertest app wiring needed. */
 // Required ONCE, at module load. Calling jest.resetModules() per-invocation
@@ -31,9 +38,16 @@ const PRIVILEGED = 'AI_Demo_Privileged';
 // mocks — the lazy-require/resetModules trap this repo has hit before.
 const router = require('../routes/groupMembership');
 
-async function callBoard({ groups = [PRIVILEGED], evaluate } = {}) {
+async function callBoard({ groups, evaluate } = {}) {
   membershipService.isReady.mockReturnValue(true);
-  membershipService.listUserGroupNamesForVertical.mockResolvedValue(groups);
+  // Default: the user holds exactly the gate group of whichever vertical is asked
+  // about. `groups` overrides with a fixed list, or a fn of verticalId.
+  membershipService.listUserGroupNamesForVertical.mockImplementation(
+    async (_userId, verticalId) => (
+      typeof groups === 'function' ? groups(verticalId)
+        : groups || [gateFor(verticalId)].filter(Boolean)
+    ),
+  );
   pingOneAuthorizeService.evaluateMcpToolDelegation.mockImplementation(
     evaluate || (async () => ({ decision: 'PERMIT', raw: { statements: [{ code: 'mcp-tool-authorized' }] } })),
   );
@@ -64,7 +78,7 @@ describe('GET /api/groups/decision-board', () => {
     expect(payload.rows.length).toBeGreaterThanOrEqual(9);
     for (const r of payload.rows) {
       expect(r.tool).toBeTruthy();
-      expect(r.requiredGroup).toBe(PRIVILEGED);
+      expect(r.requiredGroup).toBe(gateFor(r.verticalId));
       expect(r.verticalId).toBeTruthy();
     }
   });
@@ -84,13 +98,13 @@ describe('GET /api/groups/decision-board', () => {
     }
   });
 
-  it('marks inRequiredGroup false when the user holds no privileged group', async () => {
+  it('marks inRequiredGroup false when the user holds no gate group', async () => {
     const { payload } = await callBoard({ groups: ['AI_Demo_Delegates'] });
     for (const r of payload.rows) expect(r.inRequiredGroup).toBe(false);
   });
 
   it('marks inRequiredGroup true when the user holds it', async () => {
-    const { payload } = await callBoard({ groups: [PRIVILEGED] });
+    const { payload } = await callBoard();
     for (const r of payload.rows) expect(r.inRequiredGroup).toBe(true);
   });
 
@@ -105,10 +119,10 @@ describe('GET /api/groups/decision-board', () => {
   });
 
   it('passes the user\'s REAL groups to the decision, not the manifest', async () => {
-    await callBoard({ groups: [PRIVILEGED] });
+    await callBoard({ groups: (v) => [SENTINEL, gateFor(v)] });
     const args = pingOneAuthorizeService.evaluateMcpToolDelegation.mock.calls[0][0];
-    expect(args.userGroups).toEqual([PRIVILEGED]);
+    expect(args.userGroups).toEqual([SENTINEL, gateFor(args.verticalId)]);
     expect(args.inRequiredGroup).toBe(true);
-    expect(args.requiredGroup).toBe(PRIVILEGED);
+    expect(args.requiredGroup).toBe(gateFor(args.verticalId));
   });
 });

@@ -37,7 +37,9 @@ import {
   getCompletedUseCaseIds,
   markUseCaseCompleted,
 } from '../utils/useCaseDemoProgress';
-import { requiredFlagsForUseCase } from '../utils/requiredDemoFlags';
+import { requiredFlagsForUseCase, groupRequirementForUseCase } from '../utils/requiredDemoFlags';
+import { restoreGroupMembership } from '../utils/restoreGroupMembership';
+import { armGroupMembership, restoreGroupMembershipAfterRun } from '../utils/groupMembershipRun';
 import {
   DEMO_USE_CASE_IDS,
   DEMO_USE_CASE_LABEL,
@@ -795,6 +797,19 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
         console.warn('[handleRun] Could not auto-enable flags:', e.message);
       }
     }
+    // Group-gated use cases (UC9/UC21) need the demo user really in or out of
+    // THIS run's vertical premiumTier group before the chip fires. Unlike flag
+    // arming above this MUST block and throw — see utils/groupMembershipRun.js.
+    const groupReq = groupRequirementForUseCase(uc);
+    if (groupReq) {
+      try {
+        await armGroupMembership(uc, vertical);
+      } catch (e) {
+        // `msg`, not `message` — that is the key the card renders (line ~1064).
+        setChipRun({ id: uc.id, state: 'error', msg: `Could not set group membership: ${e.message}` });
+        return;
+      }
+    }
     apiClient.post('/api/use-cases/demo/run', { useCaseId, vertical })
       .then(({ data }) => {
         // Switch to the target vertical so the dashboard loads with the correct context.
@@ -803,6 +818,14 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
           .then(() => data);
       })
       .then((data) => {
+        // Arm the restore, do NOT run it: /demo/run only RETURNS the trigger
+        // text — the chip is dispatched later by AIAgent, after the navigate
+        // below. Restoring here put the user back into premiumTier while UC9's
+        // chip was still in flight, so UC9 raced its declared DENY_403 to a
+        // false PERMIT. This fires on the chip's terminal verdict instead, which
+        // is late enough for the denial to have been demonstrated and early
+        // enough that UC2/UC37 are not left stranded outside the shared group.
+        if (groupReq === 'out') restoreGroupMembershipAfterRun(vertical);
         // A newer Run click has since started its own chain — discard this
         // stale one so it can't overwrite chipRun or navigate over the newer run.
         if (myRunToken !== chipRunTokenRef.current) return;
@@ -821,6 +844,10 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
         });
       })
       .catch((err) => {
+        // Restore now, not on a verdict: arming definitely ran (it is above, and
+        // its own failure returns before this chain starts), but no chip will
+        // ever fire, so nothing else would put the user back.
+        if (groupReq === 'out') restoreGroupMembership(vertical);
         if (myRunToken !== chipRunTokenRef.current) return;
         console.error('Failed to run use case:', err);
         // The BFF now says WHICH sign-in a refused step wants, so offer it

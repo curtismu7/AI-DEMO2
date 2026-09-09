@@ -46,7 +46,7 @@ const CASES = [
     tool: 'sensitive_customer_identity',
     appKey: 'identity',
     delegatedScope: 'identity:read',
-    group: 'AI_Demo_Privileged',
+    group: 'Admin_PremiumTier',
     chipId: 'adm-a2a',
     intermediateUri: 'a2a-intermediate-identity.ping.demo',
     invokeScope: 'agent:invoke:identity',

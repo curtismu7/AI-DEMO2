@@ -132,9 +132,12 @@ describe('sensitive tools are group-gated in every vertical', () => {
   it('admin is gated too, even though the list() walk cannot see it', () => {
     const listed = verticalManifest.list().map((v) => v.id);
     expect(listed).not.toContain('admin');
-    expect(groupPolicy.requiredGroupForTool('sensitive_customer_identity', 'admin')).toBe('AI_Demo_Privileged');
-    expect(groupPolicy.groupsForUserSync('demoUser', 'admin')).toContain('AI_Demo_Privileged');
-    expect(groupPolicy.groupsForUserSync(NON_MEMBER, 'admin')).not.toContain('AI_Demo_Privileged');
+    // The gate is admin's own premiumTier group since the re-point (spec §3.2);
+    // `privileged` still exists and demoUser still holds it, it is just no longer
+    // what this tool requires.
+    expect(groupPolicy.requiredGroupForTool('sensitive_customer_identity', 'admin')).toBe('Admin_PremiumTier');
+    expect(groupPolicy.groupsForUserSync('demoUser', 'admin')).toContain('Admin_PremiumTier');
+    expect(groupPolicy.groupsForUserSync(NON_MEMBER, 'admin')).not.toContain('Admin_PremiumTier');
   });
 
   it.each(sensitiveTools)(

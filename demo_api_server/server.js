@@ -880,6 +880,12 @@ app.get('/api/auth/logout', async (req, res) => {
         }
     } catch (_) {}
 
+    // Backstop for an abandoned group-gated run — see groupMembershipLogoutRestore.js.
+    // Must run before session.destroy() below, since it reads the user + vertical
+    // off the session. Never throws (its own try/catch); logout must not fail
+    // because a group write failed.
+    await require('./services/groupMembershipLogoutRestore').restorePremiumTierOnLogout(req);
+
     req.session.destroy((err) => {
         if (err) {
             console.error('Session destruction error during unified logout:', err);

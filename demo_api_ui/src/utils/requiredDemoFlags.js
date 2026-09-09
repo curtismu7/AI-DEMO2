@@ -21,6 +21,9 @@ const MCP_GATEWAY_RUNTIME_FLAGS = [
   'ff_mcp_gateway_pinggateway',
 ];
 
+/** Flag that makes PingOne group membership actually decide (groupPolicy.isEnabled). */
+const GROUP_POLICY_FLAG = 'ff_authorize_group_policy';
+
 /**
  * Whether a catalog entry exercises the MCP token-exchange path.
  * @param {object|null|undefined} uc
@@ -48,7 +51,22 @@ export function requiredFlagsForUseCase(uc) {
   if (needsMcpGatewayRuntime(uc)) {
     for (const f of MCP_GATEWAY_RUNTIME_FLAGS) flags.add(f);
   }
+  // A group-gated chip (UC9/UC21) is decided by PingOne group membership only
+  // while this flag is on. Off, the group decides nothing and the chip PERMITs
+  // trivially — a false green for the one thing the step exists to show.
+  if (uc.requiresGroup === 'in' || uc.requiresGroup === 'out') {
+    flags.add(GROUP_POLICY_FLAG);
+  }
   return [...flags];
+}
+
+/**
+ * Client mirror of getUseCaseGroupRequirement (demo_api_server/config/useCases.js).
+ * @returns {'in'|'out'|null}
+ */
+export function groupRequirementForUseCase(uc) {
+  if (!uc || typeof uc !== 'object') return null;
+  return (uc.requiresGroup === 'in' || uc.requiresGroup === 'out') ? uc.requiresGroup : null;
 }
 
 /**
