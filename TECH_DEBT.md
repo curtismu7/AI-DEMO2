@@ -16,6 +16,40 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-09-09 — UC14b intermittently DENYs with `rar_unexpected_deny`, but only in a multi-vertical Demo Steps run
+
+**What's wrong.** `UC14b` ("PAR + RAR intent verified — PERMIT") posts a
+within-cap $80 transfer to `/api/demo/intent-binding/run` and expects PERMIT.
+On the four-vertical `npm run test:e2e:real:demo-steps` run of 2026-09-09 it
+came back `403` / `rar_unexpected_deny` / `access_denied` in the LAST vertical
+to execute (airlines). Every single-vertical run of the same code passed,
+including airlines on its own (30/30) and a later full four-vertical run
+(120/72). So it is order- or state-dependent, not vertical-specific: UC14b runs
+the same endpoint in every vertical, so it surfaces in whichever one goes last.
+
+**Why it wasn't fixed now.** Found while fixing the UC38 expectation
+(REGRESSION_PLAN §4, 2026-09-09) and not reproducible on demand — two
+deliberate attempts to reproduce it in isolation both passed. Chasing a
+non-deterministic P1AZ deny needs its own session with the decision-endpoint
+logs captured across a full sequential run, which was out of scope for a test
+expectation fix.
+
+**What the real fix looks like.** First establish which it is:
+
+1. Capture the P1AZ deny `statements` for a failing run. If they read
+   `mcp-authorization-denied` + `mcp-invalid-actor`, this is the same
+   actor-chain snapshot drift as the 2026-08-22 entry, recurring — the snapshot
+   would need re-harvesting with the current `.env` unioned in.
+2. If the statements name an amount or funding rule instead, the cause is
+   accumulated data state: the preceding verticals' write steps (three
+   `checkout` amounts, deposits, transfers) run against the same demo user, so
+   by the fourth vertical the source account may no longer satisfy the rule the
+   $80 transfer assumes. The fix there is for the sim to fund or reset its own
+   source account rather than inheriting whatever the previous steps left.
+
+Do NOT treat a lone UC14b red as a regression before re-running that vertical
+alone — the flake predates any change on 2026-09-09.
+
 ### [ ] 2026-09-08 — `buildAllowedScopesByAudience` is still hand-curated and drifts from `scope-topology.json`; the native ID-JAG path clamps `transfer` a second time
 
 **What's wrong.** Fixing the `transfer` gap (REGRESSION_PLAN §4, 2026-09-08,
