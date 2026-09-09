@@ -33,15 +33,36 @@ CI=true npm test -- --forceExit          # full suite
 CI=true npm run test:unit                # core regression, fastest
 ```
 
-**Add `--runInBand` for a full local run.** Measured 2026-08-31 on this 16-core
-host: `--maxWorkers=4` failed ~2 of 11,000 tests on roughly half of all runs,
-`--maxWorkers=2` still failed, and `--runInBand` passed 929/929 clean. The
-failures land in a DIFFERENT random suite each time and are connection-level
-(`ECONNRESET`, `connect ETIMEDOUT`, socket hang up) or a stray `401` — never the
-same test twice, always green in isolation. They are host contention between
-parallel worker processes, not defects, and chasing one wastes an hour. In-band
-costs ~3 extra minutes (454s vs 259s). CI runs on a clean runner, so
-`jest.config.js` keeps 4 workers there deliberately — do not lower it.
+**The random `ECONNRESET` was NOT host contention** — that was the standing
+explanation here until 2026-09-09 and it is wrong, which matters because it
+sends you to `--runInBand`, where the failures still happen. Instrumenting one
+full run to capture a creation stack per failing socket found **4,072 real
+outbound connection attempts** (1,801 `ENOTFOUND`, 1,991 `UND_ERR_SOCKET`, 185
+`ECONNABORTED`), almost all from `services/mcpChallengeProbe.js` and
+`services/rfc9728ComplianceAuditService.js` dialling hosts like `gw.local:443`
+that do not resolve. Those errors resolve AFTER the test that started them has
+finished, so jest pins them on whichever test is running when they land — a
+different suite every run, always green in isolation, and independent of worker
+count. The DNS timeouts also blew wall-clock budgets:
+`rfc9728-integration-verification` took 39.4s and FAILED its own `<5000ms`
+assertion.
+
+`src/__tests__/setup.js` now blocks outbound network from unit tests (loopback
+allowed, by RESOLVED address — `/etc/hosts` maps `api.ping.demo` here — and
+`ALLOW_TEST_NETWORK=1` opts out). Suites over 1s went 38 → 11 and their combined
+time 380.9s → ~93-149s; the 39.4s failure became 0.5s green.
+`tests/testNetworkGuard.test.js` pins the two things that were silently wrong on
+the first attempt.
+
+**Flakiness is REDUCED, NOT GONE.** Two full in-band runs after the guard still
+failed 1 and 2 suites — different ones each time, all green in isolation, and
+the guard's own error appears in none of them. Residual causes: LMDB
+`MDB_READERS_FULL: Environment maxreaders limit reached` (took out 5 suites in
+one run) and loopback-level `read ECONNRESET` between supertest and the
+ephemeral server it starts per request. Still worth `--runInBand` locally for a
+quieter signal, but do not read a lone red suite as a regression — re-run it
+alone first. CI runs on a clean runner, so `jest.config.js` keeps 4 workers
+there deliberately — do not lower it.
 
 **It is NOT the Docker stack** — measured 2026-09-01, correcting the first
 version of this note. All 25 containers together draw **0.13 of 16 cores**

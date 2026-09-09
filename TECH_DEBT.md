@@ -16,6 +16,44 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-09-09 — the jest suite is still flaky after the network guard: LMDB reader exhaustion and loopback ECONNRESET
+
+**What's wrong.** Blocking outbound network in unit tests (PR for
+`src/__tests__/setup.js`, 2026-09-09) removed the dominant cause of random
+`read ECONNRESET` — 4,072 real outbound socket errors per run, from
+`mcpChallengeProbe.js` and `rfc9728ComplianceAuditService.js` dialling
+unresolvable hosts. It did NOT make the suite deterministic. Two full in-band
+runs after it still failed 1 and 2 suites, a different set each time, every one
+green in isolation, and the guard's own error message appears in none of them.
+
+Two residual causes, both observed:
+
+1. **`MDB_READERS_FULL: Environment maxreaders limit reached`** — took out five
+   suites in one in-band run (`transactionConsentChallengeDavinci`,
+   `recognizeConsent.regression`, and others). LMDB reader slots are a fixed
+   per-environment pool; an in-band run opens many environments in one process
+   and something is not releasing readers.
+2. **Loopback `read ECONNRESET`** — e.g. `mcpPingOneAdminAuth.returnTo`. With
+   external network blocked, the remaining sockets are supertest talking to the
+   ephemeral server it starts per `request(app())`. Thousands of listen/close
+   cycles per run; a client socket outliving its server is the likely shape.
+
+Also seen and not explained: `adminVerticals.route.test.js` timing out at 30s
+in one run while taking 12s in another.
+
+**Why not fixed now.** The network guard was one root cause proven end to end;
+these are two more, each needing its own investigation. Bundling them would
+have made a shared-setup change that touches 983 suites unreviewable.
+
+**Real fix.** For (1) establish which LMDB environments are opened per suite and
+whether `close()` is ever called — `maxReaders` can also be raised at
+`open()`, but that is a symptom fix, so find the leak first. For (2) capture
+which side resets: instrument supertest's server close against the client
+socket lifetime. Note the instrumentation trap — a tracer that adds a listener
+per socket and does a synchronous `fs.appendFileSync` per error perturbs timing
+enough to CREATE failures (it produced 2,594 MaxListeners warnings and one
+otherwise-unreproducible `scope-integration` 401→200 in this session).
+
 ### [ ] 2026-09-09 — UC14b intermittently DENYs with `rar_unexpected_deny`, but only in a multi-vertical Demo Steps run
 
 **What's wrong.** `UC14b` ("PAR + RAR intent verified — PERMIT") posts a
