@@ -211,3 +211,51 @@ extraContainers:
         port: 8080
       initialDelaySeconds: 3
       periodSeconds: 10
+
+  # CONTRACT DISCOVERY, TEMPORARY. Point the console's External Guardrail
+  # "ML Sidecar URL" at http://localhost:8085/inspect, make one governed call,
+  # then `kubectl logs <pod> -c guardrail-probe`. Ping publishes no spec for
+  # this endpoint, so the request body it logs IS the spec — that is the only
+  # way to learn what Llama Guard has to answer with. Leave "Sidecar Fail
+  # Closed" OFF while probing: the verdict below is a guess, and a gateway that
+  # cannot parse it will then fail open rather than block every call.
+  #
+  # Inline python, no image build: nothing here is worth a registry push, and
+  # the chart already runs a container this way (see log-tailer). Replace this
+  # container with the Llama Guard shim once the body shape is known.
+  - name: guardrail-probe
+    image: python:3.12-alpine
+    command: ["python", "-u", "-c"]
+    args:
+      - |
+        import http.server, json
+        class H(http.server.BaseHTTPRequestHandler):
+            def log_message(self, *a): pass
+            def reply(self, code, body):
+                self.send_response(code)
+                self.send_header("content-type", "application/json")
+                self.send_header("content-length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            def do_GET(self):
+                if self.path == "/health":
+                    return self.reply(200, b'{"ok":true}')
+                self.handle_any()
+            def do_POST(self): self.handle_any()
+            def do_PUT(self): self.handle_any()
+            def handle_any(self):
+                n = int(self.headers.get("content-length") or 0)
+                body = self.rfile.read(n).decode("utf-8", "replace")
+                print("GUARDRAIL-PROBE " + json.dumps({
+                    "method": self.command, "path": self.path,
+                    "headers": dict(self.headers), "body": body}))
+                self.reply(200, b'{"allow":true,"action":"allow","blocked":false,"score":0.0}')
+        http.server.HTTPServer(("0.0.0.0", 8085), H).serve_forever()
+    ports:
+      - containerPort: 8085
+    readinessProbe:
+      httpGet:
+        path: /health
+        port: 8085
+      initialDelaySeconds: 3
+      periodSeconds: 10
