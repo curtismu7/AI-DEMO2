@@ -997,6 +997,12 @@ services:
       PINGAUTHORIZE_MOCK_BASE: "http://authz-server:9001"
       PINGAUTHORIZE_WORKER_ID: "mcp-gateway"
       MCP_GW_P1AZ_ENABLED: "true"
+      # Arms the Agent Intent Governance policy for REAL tool calls. Default OFF:
+      # the policy is evaluated on every decision and its fail-closed defaults
+      # would deny every mutating call, so enforcement is opt-in. Set
+      # MCP_GW_INTENT_ENFORCE=true in the shell and recreate this service to arm.
+      # Only the literal "true" arms it.
+      MCP_GW_INTENT_ENFORCE: "${MCP_GW_INTENT_ENFORCE:-false}"
       # Token validation on this gateway is JWKS, not introspection.
       #
       # RFC 7662 introspection CANNOT work here, and three reverts were spent

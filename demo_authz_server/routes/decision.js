@@ -240,6 +240,20 @@ module.exports = async function decisionHandler(req, res) {
     IntentJti = '',
     IntentIntent = '',
     IntentConfidence = '',
+    // Agent Intent Governance (Rule 4c). Mirrors the cloud policy of the same
+    // name in the AI Demo root policy set — see snapshots/intentGovernancePolicy.js.
+    IntentEnforce = '',
+    IntentGrantPresent = '',
+    IntentGrantConsented = '',
+    IntentGrantExpired = '',
+    IntentGrantAction = '',
+    IntentGrantPayee = '',
+    IntentGrantMaxAmount = '',
+    IntentRequestAction = '',
+    IntentRequestPayee = '',
+    IntentRequestAmount = '',
+    IntentRequestMutating = '',
+    IntentDriftScore = '',
     ActChainDepth = '',
     NestedActClientId = '',
     RarAuthorizationDetails = '',
@@ -1112,6 +1126,59 @@ module.exports = async function decisionHandler(req, res) {
   if (IntentTokenValid === 'true' && IntentMatchesTool === 'false') {
     warn(`[AuthzServer/decision] DENY — intent mismatch: tool="${ToolName}" not in permitted_tools for intent="${IntentIntent}" jti=${IntentJti}`);
     return deny(res, `intent_mismatch: tool "${ToolName}" not permitted for intent "${IntentIntent}"`);
+  }
+
+  // ── Rule 4c: Agent Intent Governance ──────────────────────────────────────
+  // Mirror of the cloud "Agent Intent Governance" policy. Compares the grant the
+  // USER consented to (RFC 9396 authorization_details, carried in the TraT azd)
+  // against the action actually being attempted. Distinct from Rules 4a/4b: those
+  // consume a verdict the gateway already reached about an intent TOKEN; this
+  // compares grant vs request here, which is the only version that can catch a
+  // drifted ARGUMENT on a permitted tool.
+  //
+  // GATED, exactly like the cloud policy. The gateway sends IntentEnforce='true'
+  // only when MCP_GW_INTENT_ENFORCE is armed; unset means these rules do not run
+  // at all. Without that gate the fail-closed defaults below would deny every
+  // ordinary tool call, because an unarmed call sends no IntentGrant* at all.
+  //
+  // Keep in lockstep with intentGovernancePolicy.js — decision.mockCloudParity
+  // is the gate that notices when they diverge.
+  if (asStr(IntentEnforce) === 'true') {
+    // Fail closed on both, matching the cloud attribute defaults: an unclassified
+    // action is treated as mutating, and an unstated grant lifetime as expired.
+    const mutating = asStr(IntentRequestMutating) !== 'false';
+    const grantPresent = asStr(IntentGrantPresent) === 'true';
+    const governed = grantPresent && mutating;
+
+    if (!grantPresent && mutating) {
+      warn(`[AuthzServer/decision] DENY — no intent grant: tool="${ToolName}"`);
+      return deny(res, `intent_grant_missing: "${IntentRequestAction || ToolName}" changes state but no user-consented intent grant is bound to this token`);
+    }
+    if (governed && asStr(IntentGrantExpired) !== 'false') {
+      warn(`[AuthzServer/decision] DENY — intent grant expired: tool="${ToolName}"`);
+      return deny(res, 'intent_grant_expired: the intent grant authorizing this action has expired');
+    }
+    if (governed && asStr(IntentGrantConsented) !== 'true') {
+      warn(`[AuthzServer/decision] DENY — intent grant not user-consented: tool="${ToolName}"`);
+      return deny(res, 'intent_not_consented: the grant was asserted by the client, not approved by the user');
+    }
+    if (governed && asStr(IntentRequestAction) !== asStr(IntentGrantAction)) {
+      warn(`[AuthzServer/decision] DENY — intent action drift: attempted="${IntentRequestAction}" granted="${IntentGrantAction}"`);
+      return deny(res, `intent_action_drift: attempted "${IntentRequestAction}" but the user consented only to "${IntentGrantAction}"`);
+    }
+    if (governed && asStr(IntentRequestPayee) !== asStr(IntentGrantPayee)) {
+      warn(`[AuthzServer/decision] DENY — intent payee drift: attempted="${IntentRequestPayee}" granted="${IntentGrantPayee}"`);
+      return deny(res, `intent_payee_drift: attempted "${IntentRequestPayee}" but the user consented only to "${IntentGrantPayee}"`);
+    }
+    if (governed && Number(IntentRequestAmount || 0) > Number(IntentGrantMaxAmount || 0)) {
+      warn(`[AuthzServer/decision] DENY — intent amount drift: attempted=${IntentRequestAmount} granted=${IntentGrantMaxAmount}`);
+      return deny(res, `intent_amount_drift: attempted ${IntentRequestAmount} but the user consented to at most ${IntentGrantMaxAmount}`);
+    }
+    // Semantic drift permits with a re-consent obligation rather than denying —
+    // inert until something supplies IntentDriftScore.
+    if (governed && Number(IntentDriftScore || 0) > 0.5) {
+      log(`[AuthzServer/decision] PERMIT + RECONSENT — semantic drift ${IntentDriftScore} tool="${ToolName}"`);
+    }
   }
 
   // ── PERMIT ────────────────────────────────────────────────────────────────

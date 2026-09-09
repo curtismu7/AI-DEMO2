@@ -32,6 +32,11 @@ COPY scope-topology.json /repo/scope-topology.json
 # routes/generate-snapshot.js require()s the reconciler + the snapshot it
 # reads/writes at module load — missing this crash-loops the container.
 COPY snapshots/gen-authorize-snapshot.js /repo/snapshots/gen-authorize-snapshot.js
+# gen-authorize-snapshot.js requires this at module load, so a missing copy is not
+# a degraded feature — index.js -> routes/generate-snapshot.js -> the generator
+# means the whole service crash-loops on MODULE_NOT_FOUND. Any further module the
+# generator requires must be added here too.
+COPY snapshots/intentGovernancePolicy.js /repo/snapshots/intentGovernancePolicy.js
 COPY snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json /repo/snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json
 
 EXPOSE 9001
