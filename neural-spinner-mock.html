@@ -547,15 +547,15 @@ const MESSAGES = [
   ['Untangling the token chain…',      '🔑 POST /api/tokens/exchange'],
   ['Evaluating access policy…',        '🛡️ POST /api/authorize'],
   ['Asking PingOne very nicely…',      '🌐 GET /api/admin/setup/management-probe'],
-  ['Summoning RFC 8693…',              '🔁 POST /api/tokens'],
-  ['Consulting the access policy oracle…', '📜 GET /api/authorize'],
+  ['Summoning RFC 8693…',              '🔄 POST /api/tokens'],
+  ['Consulting the access policy oracle…', '📄 GET /api/authorize'],
 ];
 const EVENTS = [
   ['🔑', 'actor token minted (sub=agent-fraud-watch)'],
-  ['🔁', 'RFC 8693 exchange → banking-api audience'],
+  ['🔄', 'RFC 8693 exchange → banking-api audience'],
   ['🛡️', 'P1AZ decision: PERMIT (policy banking.read)'],
   ['🌐', 'gateway forwarded to demo_api_resource_server'],
-  ['📜', 'scope check: read ✓  transactions:list ✓'],
+  ['📄', 'scope check: read ✓  transactions:list ✓'],
   ['✅', 'response 200 · 412 ms'],
 ];
 let mi = 0, ei = 0, t0 = Date.now();

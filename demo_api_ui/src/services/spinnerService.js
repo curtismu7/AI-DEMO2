@@ -97,8 +97,15 @@ let _hideTimer = null;
 let _stuckTimer = null;
 /** @type {{ message: string, color: string, endpoint: string|null }|null} */
 let _current   = null;
-/** True while a manual show() is outstanding — keeps repeated shows to one _pending entry. */
-let _manualHeld = false;
+/**
+ * Keys of the manual show() holds currently outstanding, one entry per logical
+ * operation. A Set rather than a counter so repeated shows from the SAME
+ * operation stay idempotent (message updates in a loop), while two DIFFERENT
+ * operations — CodebaseUploader's folder index and CodeSearchPage's zip upload
+ * both live on the code-search page — each keep their own hold, and whichever
+ * finishes first cannot hide the overlay out from under the other.
+ */
+const _manualHolds = new Set();
 const _listeners = new Set();
 
 /** Notify all React subscribers */
@@ -134,7 +141,7 @@ function show(message, color, endpoint) {
       _pending = 0;
       _visible = false;
       _current = null;
-      _manualHeld = false;
+      _manualHolds.clear();
       _stuckTimer = null;
       notify();
     }
@@ -152,7 +159,7 @@ function scheduleHide(immediate) {
     _hideTimer = null;
     _visible = false;
     _current = null;
-    _manualHeld = false;
+    _manualHolds.clear();
     notify();
   }, delay);
 }
@@ -216,11 +223,12 @@ export const spinner = {
    * @param {string} [message]
    * @param {string} [sub] - shown as endpoint line (optional)
    */
-  show(message, sub) {
-    // Idempotent: repeated shows refresh the message but contribute exactly one
-    // _pending entry, so a caller that shows per-item in a loop and hides once
-    // (CodebaseUploader) still balances instead of pinning the overlay open.
-    if (!_manualHeld) { _manualHeld = true; _pending++; }
+  show(message, sub, key = 'default') {
+    // Idempotent per key: repeated shows from one operation refresh the message
+    // but contribute exactly one _pending entry, so a caller that shows per-item
+    // in a loop and hides once still balances instead of pinning the overlay
+    // open. Distinct keys hold independently — see _manualHolds.
+    if (!_manualHolds.has(key)) { _manualHolds.add(key); _pending++; }
     if (_hideTimer) { clearTimeout(_hideTimer); _hideTimer = null; }
     const color = pick(SPINNER_COLORS);
     const msg   = message || pick(SPINNER_QUIPS);
@@ -233,9 +241,10 @@ export const spinner = {
    * show() is outstanding, so a defensive hide() cannot steal a pending entry
    * belonging to an in-flight request.
    */
-  hide() {
-    if (!_manualHeld) return;
-    _manualHeld = false;
+  hide(key = 'default') {
+    // No-op unless this key holds — a defensive or duplicate hide must not
+    // consume an entry belonging to another operation or an in-flight request.
+    if (!_manualHolds.delete(key)) return;
     this.decrement(true);
   },
 

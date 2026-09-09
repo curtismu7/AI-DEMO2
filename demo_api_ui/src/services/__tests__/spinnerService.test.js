@@ -156,6 +156,45 @@ describe('spinnerService', () => {
     expect(spinner.getState().visible).toBe(false);
   });
 
+  /**
+   * Regression: a single global manual flag let whichever operation hid first
+   * clear the shared hold, hiding the overlay while the other was still
+   * running (CodebaseUploader's folder index renders inside CodeSearchPage,
+   * which runs its own zip upload — they genuinely overlap).
+   */
+  it('gives concurrent manual operations independent holds', async () => {
+    const { spinner } = await import('../spinnerService');
+
+    spinner.show('Indexing folder…', null, 'codebase-folder-index');
+    spinner.show('Uploading zip…', null, 'codebase-zip-upload');
+    expect(spinner.getState().visible).toBe(true);
+
+    // The folder index finishes first — the zip upload is still running.
+    spinner.hide('codebase-folder-index');
+    vi.advanceTimersByTime(MIN_DISPLAY_MS * 2);
+    expect(spinner.getState().visible).toBe(true);
+
+    spinner.hide('codebase-zip-upload');
+    vi.advanceTimersByTime(MIN_DISPLAY_MS);
+    expect(spinner.getState().visible).toBe(false);
+  });
+
+  it('a duplicate hide for the same key releases nothing extra', async () => {
+    const { spinner } = await import('../spinnerService');
+
+    spinner.show('One…', null, 'op-a');
+    spinner.show('Two…', null, 'op-b');
+
+    spinner.hide('op-a');
+    spinner.hide('op-a');
+    vi.advanceTimersByTime(MIN_DISPLAY_MS * 2);
+    expect(spinner.getState().visible).toBe(true);
+
+    spinner.hide('op-b');
+    vi.advanceTimersByTime(MIN_DISPLAY_MS);
+    expect(spinner.getState().visible).toBe(false);
+  });
+
   /** A defensive hide() must not consume a pending entry it never created. */
   it('hide is a no-op when no manual show is outstanding', async () => {
     const { spinner } = await import('../spinnerService');
