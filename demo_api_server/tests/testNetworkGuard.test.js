@@ -15,7 +15,24 @@
  *     suites that dial the local stack through those names must still work.
  */
 
+const fs = require('fs');
 const net = require('net');
+
+/** First hostname /etc/hosts points at a loopback address, or null. */
+function loopbackNameFromEtcHosts() {
+  try {
+    for (const rawLine of fs.readFileSync('/etc/hosts', 'utf8').split('\n')) {
+      const line = rawLine.replace(/#.*$/, '').trim();
+      if (!line) continue;
+      const [addr, ...names] = line.split(/\s+/);
+      if (!/^(127\.\d{1,3}\.\d{1,3}\.\d{1,3}|::1)$/.test(addr)) continue;
+      // 'localhost' would pass on the literal check alone and prove nothing.
+      const alias = names.find((n) => n.toLowerCase() !== 'localhost' && n.includes('.'));
+      if (alias) return alias;
+    }
+  } catch { /* no /etc/hosts */ }
+  return null;
+}
 
 const connectError = (opts) =>
   new Promise((resolve) => {
@@ -51,9 +68,15 @@ describe('unit-test network guard', () => {
   });
 
   it('allows a hostname /etc/hosts maps to loopback', async () => {
-    // api.ping.demo is 127.0.0.1 here. Whether the local stack happens to be up
-    // is irrelevant — what matters is that the guard did NOT answer.
-    const err = await connectError({ host: 'api.ping.demo', port: 3001 });
+    // Derived, never hardcoded: a dev box maps api.ping.demo to 127.0.0.1 and a
+    // clean CI runner maps nothing, where blocking that name is the CORRECT
+    // answer. Asserting `api.ping.demo` is allowed passes locally and fails on
+    // CI for the right reason, which is exactly what happened first time round.
+    const name = loopbackNameFromEtcHosts();
+    if (!name) return; // no loopback aliases on this host — nothing to assert
+    // Whether the local stack happens to be listening is irrelevant; what
+    // matters is that the guard did NOT answer.
+    const err = await connectError({ host: name, port: 3001 });
     if (err) expect(err.message).not.toMatch(/outbound network is blocked/);
   });
 
