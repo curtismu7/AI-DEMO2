@@ -39,6 +39,7 @@ import {
 } from '../utils/useCaseDemoProgress';
 import { requiredFlagsForUseCase, groupRequirementForUseCase } from '../utils/requiredDemoFlags';
 import { restoreGroupMembership } from '../utils/restoreGroupMembership';
+import { armGroupMembership, restoreGroupMembershipAfterRun } from '../utils/groupMembershipRun';
 import {
   DEMO_USE_CASE_IDS,
   DEMO_USE_CASE_LABEL,
@@ -796,25 +797,16 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
         console.warn('[handleRun] Could not auto-enable flags:', e.message);
       }
     }
-    // Group-gated use cases (UC9/UC21) need the demo user really in or out of the
-    // vertical's premiumTier group before the chip fires. Unlike flag arming above,
-    // this MUST block: the endpoint reads membership back from PingOne precisely so
-    // a write that did nothing cannot report success, and a chip fired against
-    // unverified membership produces a verdict that proves nothing.
+    // Group-gated use cases (UC9/UC21) need the demo user really in or out of
+    // THIS run's vertical premiumTier group before the chip fires. Unlike flag
+    // arming above this MUST block and throw — see utils/groupMembershipRun.js.
     const groupReq = groupRequirementForUseCase(uc);
     if (groupReq) {
       try {
-        const { data: m } = await apiClient.post(
-          '/api/groups/membership/toggle',
-          { inGroup: groupReq === 'in', category: 'premiumTier' },
-          { _noAuthBanner: true },
-        );
-        if (m?.verified !== true || m?.inGroup !== (groupReq === 'in')) {
-          throw new Error(`membership not verified (wanted inGroup=${groupReq === 'in'}, got ${m?.inGroup})`);
-        }
+        await armGroupMembership(uc, vertical);
       } catch (e) {
-        const detail = e?.response?.data?.message || e.message;
-        setChipRun({ id: uc.id, state: 'error', message: `Could not set group membership: ${detail}` });
+        // `msg`, not `message` — that is the key the card renders (line ~1064).
+        setChipRun({ id: uc.id, state: 'error', msg: `Could not set group membership: ${e.message}` });
         return;
       }
     }
@@ -826,10 +818,14 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
           .then(() => data);
       })
       .then((data) => {
-        // Restore the demo user to premiumTier now that the UC9 denial has been
-        // demonstrated — an unhandled error below this point (or the tab closing)
-        // must not leave UC2/UC37 stranded outside the group they share the tool with.
-        if (groupReq === 'out') restoreGroupMembership();
+        // Arm the restore, do NOT run it: /demo/run only RETURNS the trigger
+        // text — the chip is dispatched later by AIAgent, after the navigate
+        // below. Restoring here put the user back into premiumTier while UC9's
+        // chip was still in flight, so UC9 raced its declared DENY_403 to a
+        // false PERMIT. This fires on the chip's terminal verdict instead, which
+        // is late enough for the denial to have been demonstrated and early
+        // enough that UC2/UC37 are not left stranded outside the shared group.
+        if (groupReq === 'out') restoreGroupMembershipAfterRun(vertical);
         // A newer Run click has since started its own chain — discard this
         // stale one so it can't overwrite chipRun or navigate over the newer run.
         if (myRunToken !== chipRunTokenRef.current) return;
@@ -848,9 +844,10 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
         });
       })
       .catch((err) => {
-        // Same restore on the failure path — the run itself never got a chance
-        // to leave premiumTier stranded, but it may have; best-effort either way.
-        if (groupReq === 'out') restoreGroupMembership();
+        // Restore now, not on a verdict: arming definitely ran (it is above, and
+        // its own failure returns before this chain starts), but no chip will
+        // ever fire, so nothing else would put the user back.
+        if (groupReq === 'out') restoreGroupMembership(vertical);
         if (myRunToken !== chipRunTokenRef.current) return;
         console.error('Failed to run use case:', err);
         // The BFF now says WHICH sign-in a refused step wants, so offer it

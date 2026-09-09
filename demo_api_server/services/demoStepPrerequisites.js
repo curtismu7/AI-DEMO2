@@ -38,6 +38,9 @@ const MCP_GATEWAY_RUNTIME_FLAGS = [
   'ff_mcp_gateway_pinggateway',
 ];
 
+/** Flag that makes PingOne group membership actually decide (groupPolicy.isEnabled). */
+const GROUP_POLICY_FLAG = 'ff_authorize_group_policy';
+
 /**
  * Whether a use case exercises the PAR/RAR (Pushed Authorization Request) path.
  * Catches non-chip triggers — attack sim `rar-exceeded` and the intent-binding
@@ -112,6 +115,14 @@ function requiredFlagsForUseCase(uc) {
   // demo_api_ui/src/utils/requiredDemoFlags.js.
   if (needsMcpGatewayRuntime(uc)) {
     for (const f of MCP_GATEWAY_RUNTIME_FLAGS) flags.add(f);
+  }
+  // A group-gated chip (UC9/UC21) is decided by PingOne group membership only
+  // while this flag is on. Off, the group decides nothing and the chip PERMITs
+  // trivially — a false green for the one thing the step exists to show. Listed
+  // here (not as `maturity: flag:*`) because both are maturity `works`, and the
+  // UI mirror is the only path that arms flags before a Run.
+  if (uc.requiresGroup === 'in' || uc.requiresGroup === 'out') {
+    flags.add(GROUP_POLICY_FLAG);
   }
   return [...flags];
 }
@@ -210,13 +221,11 @@ function checkChipPrerequisites(uc, vertical, cfg) {
       errors.push(`PAR config missing: ${par.missing.join(', ')}`);
     }
   }
-  // A group-gated chip needs live PingOne worker credentials to move membership;
-  // without them the toggle 503s and the run cannot demonstrate what it claims.
+  // A group-gated chip needs a premiumTier group to move the user in and out of.
+  // ff_authorize_group_policy is checked by the requiredFlags loop above —
+  // requiredFlagsForUseCase adds it for exactly these use cases.
   if (uc && (uc.requiresGroup === 'in' || uc.requiresGroup === 'out')) {
     const groupPolicy = require('./groupPolicy');
-    if (!groupPolicy.isEnabled(cfg)) {
-      errors.push('ff_authorize_group_policy is off, so group membership decides nothing');
-    }
     if (!groupPolicy.groupNameForCategory(vertical, 'premiumTier')) {
       errors.push(`vertical '${vertical}' declares no premiumTier group`);
     }

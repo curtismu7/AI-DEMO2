@@ -8,11 +8,13 @@
   "primaryTool": "get_sensitive_account_details",
   "checkedAt": "2026-09-09",
   "requiredFlags": [
-    "ff_mcp_gateway_pinggateway"
+    "ff_mcp_gateway_pinggateway",
+    "ff_authorize_group_policy"
   ],
   "flagsAssumedOn": true,
   "provesDeclaredOnly": true,
   "flagsOffDetected": [
-    "ff_mcp_gateway_pinggateway"
+    "ff_mcp_gateway_pinggateway",
+    "ff_authorize_group_policy"
   ]
 }

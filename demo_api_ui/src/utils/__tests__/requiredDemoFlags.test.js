@@ -70,4 +70,23 @@ describe('requiredDemoFlags', () => {
     expect(requiredFlagsForUseCase({ useCaseId: 'plain', primaryTool: 'get_account_balance' }))
       .not.toContain('ff_a2a_delegation');
   });
+
+  // With ff_authorize_group_policy off, the group decides nothing and a
+  // group-gated chip PERMITs trivially — a false green for a step whose whole
+  // point is that membership decides. Nothing else arms this flag.
+  test('a group-gated entry arms the group policy flag', () => {
+    expect(requiredFlagsForUseCase({
+      id: 'UC21', useCaseId: 'entitlement-tiered-capability', maturity: 'works', requiresGroup: 'in',
+    })).toEqual(['ff_authorize_group_policy']);
+  });
+
+  test('a group-gated chip with a tool arms the gateway flags too', () => {
+    expect(requiredFlagsForUseCase({
+      id: 'UC9',
+      useCaseId: 'group-entitlement-check',
+      maturity: 'works',
+      requiresGroup: 'out',
+      primaryTool: 'sensitive_holdings',
+    }).sort()).toEqual(['ff_authorize_group_policy', ...GATEWAY].sort());
+  });
 });
