@@ -18,6 +18,86 @@ process.env.OAUTH_CLIENT_ID = 'test-client-id';
 process.env.OAUTH_CLIENT_SECRET = 'test-client-secret';
 process.env.OAUTH_ISSUER = 'https://auth.pingone.com/test-env';
 
+// ── No real outbound network from a unit test ────────────────────────────────
+// Measured 2026-09-09 over one full in-band run: the suite made ~4,000 real
+// outbound connection attempts — 1,801 ENOTFOUND, 1,991 UND_ERR_SOCKET, 185
+// ECONNABORTED — overwhelmingly from services/mcpChallengeProbe.js and
+// services/rfc9728ComplianceAuditService.js dialling hosts like `gw.local:443`
+// that do not resolve. Two failure modes come out of that, both of which read
+// as "flaky tests":
+//
+//  1. A DNS/socket error resolves AFTER the test that started it has finished,
+//     so jest attributes it to whichever test is running when it lands — the
+//     random `read ECONNRESET` in a different suite every run that always
+//     passes in isolation. It is independent of --maxWorkers, which is why
+//     --runInBand never cured it.
+//  2. Each unresolvable host costs a real DNS timeout, so wall-clock
+//     assertions blow their budget (rfc9728 "concurrent load" expects <5000ms
+//     and was taking 39s).
+//
+// LOOPBACK IS ALLOWED, and by RESOLVED ADDRESS rather than by name. The demo
+// puts `api.ping.demo` and `local.ping-devops.com` on 127.0.0.1 in /etc/hosts
+// (see the root CLAUDE.md), and suites like tests/anthropic.lmstudio.live.test.js
+// legitimately dial the local stack through those names. A by-name loopback
+// check blocks them and reds six suites — that mistake is why this is parsed
+// out of /etc/hosts.
+//
+// Escape hatch: ALLOW_TEST_NETWORK=1 disables the guard for a run.
+const fs = require('fs');
+const net = require('net');
+
+const GUARD = Symbol.for('aiDemo.testNetworkGuard');
+// jest gives each test FILE its own module registry but core modules are shared,
+// so without this flag the prototype gets re-wrapped once per suite — 982 nested
+// wrappers in an in-band run.
+if (!net.Socket.prototype[GUARD] && process.env.ALLOW_TEST_NETWORK !== '1') {
+  const LOOPBACK_LITERAL = /^(127\.\d{1,3}\.\d{1,3}\.\d{1,3}|::1|::ffff:127\.\d{1,3}\.\d{1,3}\.\d{1,3}|0\.0\.0\.0|localhost)$/i;
+
+  // Hostnames /etc/hosts maps to a loopback address. Read once per process.
+  const loopbackNames = new Set();
+  try {
+    for (const rawLine of fs.readFileSync('/etc/hosts', 'utf8').split('\n')) {
+      const line = rawLine.replace(/#.*$/, '').trim();
+      if (!line) continue;
+      const [addr, ...names] = line.split(/\s+/);
+      if (LOOPBACK_LITERAL.test(addr)) for (const n of names) loopbackNames.add(n.toLowerCase());
+    }
+  } catch { /* no /etc/hosts (container, Windows) — literals still allowed */ }
+
+  const originalConnect = net.Socket.prototype.connect;
+  net.Socket.prototype.connect = function guardedConnect(...args) {
+    // Socket.prototype.connect takes three shapes: connect(options),
+    // connect(port, host) and — the one that matters — connect(normalized),
+    // where `normalized` is Node's internal [options, callback] ARRAY. An array
+    // is typeof 'object', so reading .host straight off args[0] silently yields
+    // undefined for every net.connect() call and waves it through.
+    const first = args[0];
+    const opts = Array.isArray(first)
+      ? (first[0] || {})
+      : ((first && typeof first === 'object') ? first : { port: args[0], host: args[1] });
+    const host = String(opts.host || opts.hostname || opts.servername || '').toLowerCase();
+    // Unix sockets, and a shape we cannot read, are left alone: this guard is
+    // here to stop the network, not to police connections it cannot identify.
+    if (opts.path || !host || LOOPBACK_LITERAL.test(host) || loopbackNames.has(host)) {
+      return originalConnect.apply(this, args);
+    }
+    const err = Object.assign(
+      new Error(
+        `getaddrinfo ENOTFOUND ${host} — outbound network is blocked in unit tests. `
+        + 'Mock this call, or set ALLOW_TEST_NETWORK=1 to run against the real host '
+        + '(see src/__tests__/setup.js).',
+      ),
+      { code: 'ENOTFOUND', errno: -3008, syscall: 'getaddrinfo', hostname: host },
+    );
+    // Shaped as the DNS failure these call sites already get today for the same
+    // hosts, so nothing downstream has to learn a new error code — it just
+    // arrives immediately instead of seconds later, inside the test that caused it.
+    process.nextTick(() => this.destroy(err));
+    return this;
+  };
+  net.Socket.prototype[GUARD] = true;
+}
+
 // Increase timeout for integration tests
 jest.setTimeout(30000);
 
