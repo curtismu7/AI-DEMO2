@@ -220,7 +220,9 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     // 2025-06-18; the Node gateway and MCP server use the current 2025-11-25.
     const mcpVersion = isIgBase ? IG_MCP_PROTOCOL_VERSION : MCP_PROTOCOL_VERSION;
     const headers = {
-        'Authorization':        `Bearer ${bearerToken}`,
+        // A public tool called with no session (mcpToolPipeline guestPublicTool)
+        // carries no bearer at all — never "Bearer null".
+        ...(bearerToken ? { 'Authorization': `Bearer ${bearerToken}` } : {}),
         'Content-Type':         'application/json',
         'Accept':               'application/json, text/event-stream',
         'MCP-Protocol-Version': mcpVersion,

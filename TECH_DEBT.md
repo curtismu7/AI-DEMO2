@@ -16,7 +16,15 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
-### [ ] 2026-09-08 — UC29 "introspection outage — fail closed" cannot be demonstrated on this deployment
+### [x] 2026-09-08 — UC29 "introspection outage — fail closed" cannot be demonstrated on this deployment
+
+**RESOLVED** (`worktree-fix-demo-steps-guest-weather`): retired from the
+script. Introspection on the Node gateway was never an option — its
+`docker-compose.yml` comment records three reverts spent learning that PingOne
+scopes RFC 7662 to the issuing client, so no single introspection identity can
+cover the five A2A specialist issuers; JWKS is the right mechanism there. UC29
+is out of `DEMO_PRIMARY_USE_CASE_IDS` and badged `needs-build` in the catalog,
+still runnable from the Attacks group where it reports `501 sim_not_applicable`.
 
 `docker-compose.yml` runs the Demo Agent Gateway with
 `GW_INTROSPECTION_ENABLED: "false"` (local JWKS signature validation instead of

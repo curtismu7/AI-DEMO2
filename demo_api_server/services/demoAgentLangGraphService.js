@@ -6,6 +6,11 @@
 
 const { getBankingToolDefinitions, MAX_TOOL_ITERATIONS } = require('./agentBuilder');
 const { READ_PRIMARY_TOOL_BY_VERTICAL } = require('../config/useCases');
+// Actions a signed-out visitor may run (config/auth-requirements.json — the
+// same list agentRun.js's PUBLIC_GUEST_ACTIONS mirrors and authz:verify holds
+// equal). mcpToolPipeline runs these anonymously when there is no session.
+const { AUTH_REQUIREMENTS } = require('../config/authRequirements');
+const PUBLIC_GUEST_ACTIONS = new Set(AUTH_REQUIREMENTS.publicAgentActions || []);
 
 /**
  * UC34-class "reason over my recent activity" prompts. Narrow on purpose: it
@@ -2008,9 +2013,13 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
         // transfer, accounts, …) need a session bearer for RFC 8693 / gateway.
         // Without this, guests (lazy-auth #1445) hit executeBffTool, get a bare
         // error reply, and never receive need_auth — so the SPA never redirects
-        // to PingOne. branch_hours is the public catalog (UC24) and stays open.
+        // to PingOne. The public actions stay open: branch_hours (UC24) never
+        // touches the gateway, weather / brave_search (UC30, UC41) reach it
+        // through mcpToolPipeline's public-tool branch with no exchange. This
+        // guard used to exempt only branch_hours, so a signed-out UC30 got
+        // need_auth although auth-requirements.json declares it public.
         const bankingAction = heuristic.banking?.action;
-        if (bankingAction !== 'branch_hours' && (!userToken || userToken === '_cookie_session')) {
+        if (!PUBLIC_GUEST_ACTIONS.has(bankingAction) && (!userToken || userToken === '_cookie_session')) {
           if (req) req.agentPath = 'heuristic';
           console.warn('[processAgentMessage] banking intent blocked — no real OAuth token (got: %s)', userToken || 'null');
           return {

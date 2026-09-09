@@ -140,6 +140,49 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-08 — UC30 weather never worked signed out (declared public, wire said 401); UC29 dropped from the Demo Steps script
+
+**Files changed:** `demo_api_server/services/mcpToolPipeline.js`,
+`demo_api_server/services/mcpGatewayClient.js`,
+`demo_api_server/services/demoAgentLangGraphService.js`,
+`demo_api_server/config/auth-requirements.json` (UC31 → public),
+`demo_api_server/config/useCases.js` (UC29 maturity),
+`demo_api_ui/src/config/demoUseCaseSteps.js` (+ test),
+`demo_api_server/tests/mcpToolPipeline.publicToolGuest.test.js` (new),
+`demo_api_server/tests/demoAgentLangGraphService.heuristicBankingTokenGuard.regression.test.js`.
+
+**What was broken:** `auth-requirements.json` declared UC30 public and
+PingGateway's `/mcp/weather` route carries no auth filter, but the public flip
+(`9092cd1f6`) changed only the JSON. A signed-out call died twice before the
+gateway: the agent service's banking no-token guard (exempted only
+`branch_hours`) and then `mcpToolPipeline`'s no-bearer gate, because the
+pipeline always ran the RFC 8693 exchange. Separately UC29 (introspection
+outage) sat in the Demo Steps script although the Node gateway validates by
+JWKS (`GW_INTROSPECTION_ENABLED=false` — RFC 7662 cannot cover its
+multi-issuer A2A tokens, three reverts documented in `docker-compose.yml`)
+and PingGateway has no outage toggle, so the sim can never fire here.
+
+**What was fixed:** `mcpToolPipeline` has a public-tool branch: when the tool is
+on `publicAgentActions` (mapped through `ACTION_TO_TOOL`) AND the session holds
+no bearer at all, the exchange, introspection and BFF pre-flight are skipped
+with a `skipped` token-chain event and the gateway is called anonymously —
+`callToolViaGateway` sends no `Authorization` header instead of `Bearer null`.
+The gateway remains the PEP (live: Austin PERMIT, Miami DENY by the Texas
+geofence, both signed out). The agent-service guard exempts every public
+action. A signed-in caller of the same tool is unchanged. UC31 is now `public`
+like UC30 (same tool, same wire). UC29 is out of `DEMO_PRIMARY_USE_CASE_IDS`
+and badged `needs-build` in the catalog; the sim's own `501 sim_not_applicable`
+(PR #2988) stays for the Attacks group.
+
+**Do not break:** the public-tool branch fires ONLY with `need_auth:true` from
+the token resolver (no bearer at all) — a cookie-only / unhydrated session must
+still hit `mcpNoBearerResponse`. Never widen `publicAgentActions` without a
+gateway route that is safe anonymous (`authz:verify` holds it equal to
+`agentRun.js`). Do not put UC29 back into the script until the Node gateway
+introspects.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/mcpToolPipeline.publicToolGuest.test.js tests/demoAgentLangGraphService.heuristicBankingTokenGuard.regression.test.js tests/mcpToolPipeline.*.test.js tests/authRequirements.test.js` — 28 passed; `npm run authz:verify` OK; live (stack served from the worktree, Super Sports): signed out UC24 PERMIT, UC30 weather returned, UC31 `❌ Agent Gateway: Miami, FL is blocked by demo policy`; signed in unchanged.
+
 ### 2026-09-08 — UC2 / UC2.5 A2A delegation denied in every non-banking vertical: intent token minted "unknown"
 
 **Files changed:** `demo_api_server/services/nlIntentParser.js`,

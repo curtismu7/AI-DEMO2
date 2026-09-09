@@ -1205,7 +1205,12 @@ const RAW_USE_CASES = [
     expectedOutcome: 'DENY_503',
     evidence: { tokenChain: ['user-token'], activity: ['gateway'] },
     codeRefs: ['demo_mcp_gateway/src/auth/GatewayIntrospectionClient.ts', 'demo_mcp_gateway/src/middleware/authorizeMcpRequest.ts'],
-    maturity: 'works',
+    // Not demonstrable on this deployment: the Node gateway validates by JWKS
+    // (GW_INTROSPECTION_ENABLED=false — RFC 7662 cannot cover its multi-issuer
+    // A2A tokens, see docker-compose.yml) so the introspectionSimDown hook is
+    // never reached, and PingGateway has no outage toggle. The sim reports
+    // 501 sim_not_applicable; the step is out of the Demo Steps script.
+    maturity: 'needs-build',
     owasp: { threats: ['T2'], sections: ['§3.2.1', '§8'] },
     whatToSay: 'Kill the introspection path and the gateway stops every call cold — it never fails open.',
     advanced: false,
