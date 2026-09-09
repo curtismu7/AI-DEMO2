@@ -864,60 +864,71 @@ caller never reasserted.
 
 **Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/routes/privilegeMcpClient --forceExit --runInBand` — 28 suites / 163 tests passed. Full suite: `CI=true npm test -- --forceExit --runInBand` — 11274/11276 passed; the 2 failures (`delegatedCommerceRoutes.test.js`, `dpopDemo.route.test.js`) are unrelated files matching this repo's documented host-contention flake signature, confirmed by re-running both in isolation — both pass clean.
 
-### 2026-09-09 — `pingone-admin` 401: a valid admin token with the wrong audience
+### 2026-09-09 — `pingone-admin` 401: the admin MCP lives in the org's ADMIN environment, not the one being administered
 
 **Files changed:** `demo_api_server/services/mcpPingOneHttpAdapter.js`,
-`demo_api_server/tests/services/mcpPingOneHttpAdapter.audienceDiagnosis.test.js`.
+`demo_api_server/tests/services/mcpPingOneHttpAdapter.authDiagnosis.test.js`.
 
-**Not a code defect — a platform entitlement.** Recorded because three separate
-investigations chased roles, app type and scopes, all of which were already
-correct, and the error string gave no way to tell.
+⚠️ **This entry replaces an earlier one that reached the wrong conclusion.** The
+first version blamed missing tenant-side Remote MCP enablement. That was wrong,
+and the way it went wrong is the lesson: it assumed the `{envId}` in
+`https://mcp.pingone.com/admin/{envId}/mcp` is the environment whose data you
+administer. **It is not.** PingOne serves the admin-plane MCP from the
+**organisation's Administrators environment**, and that one endpoint administers
+every environment in the org. For this org the correct URL names `9e2f2f0c…`
+even though the demo's data lives in `01d89b06…`, and it administers `01d89b06`
+perfectly well. Corrected on a user report, then verified.
 
-Measured end to end against env `01d89b06`:
+**What was broken:** `_mcpUrl()` built the endpoint from `PINGONE_ENVIRONMENT_ID`
+(the resource env), and `routes/mcpPingOneAdminAuth.js` mints the delegated PKCE
+token from that same environment's AS against an app it creates there. So both
+the endpoint and the token issuer were the wrong environment, and every call
+returned `401 Invalid authentication`.
+
+**Measured, and all of it consistent with the corrected reading:**
 
 | Checked | Result |
 |---|---|
-| Signed-in user's admin roles | ✅ Identity Data Admin, **DaVinci Admin**, **Environment Admin**, PingOne Privilege Administrator |
-| App `PingOne MCP Server` (`eec33861`) | ✅ type **WORKER**, enabled, PKCE `S256_REQUIRED`, tokenAuth `NONE`, our callback registered |
-| PKCE + PAR round trip | ✅ completes, code exchanges, RS256 token issued |
-| Token against **Management API** | ✅ **200** — it is a genuinely valid admin token |
-| Token against **hosted MCP** | ❌ **401 Invalid authentication** |
-| Token `aud` | ❌ `https://api.pingone.com` — **not** `https://mcp.pingone.com/admin/{envId}/mcp` |
+| Signed-in user's admin roles | ✅ Identity Data Admin, DaVinci Admin, Environment Admin, Privilege Administrator |
+| App `PingOne MCP Server` (`eec33861`) in `01d89b06` | ✅ WORKER, enabled, S256 PKCE, our callback registered |
+| Token from `01d89b06` AS → Management API | ✅ **200** — a genuinely valid admin token |
+| Same token → `admin/01d89b06/mcp` | ❌ 401 |
+| Same token → `admin/9e2f2f0c/mcp` (correct endpoint) | ❌ 401 — **wrong issuer**, so repointing the URL alone is not enough |
 
-`resource` (RFC 8707) is already sent on **both** legs — inline and through PAR —
-and PingOne ignores it. Confirmed why: the environment's AS metadata advertises
-no `resource_indicators_supported`, no environment Resource carries the MCP
-audience, the app holds **zero** resource grants, and the `PINGONE_API` resource
-exposes only the 23 self-service scopes (`p1:read:user`, devices, sessions) —
-admin-plane access rides on **roles**, not scopes, which is exactly why the same
-token works against the Management API.
+**About the real endpoint** (`admin/9e2f2f0c/mcp`): its RFC 9728 metadata names
+`auth.pingone.com/9e2f2f0c/as` as its AS, and the client PingOne publishes for it
+is the built-in **`pingone-mcp-server`** — an `adminui` client that rejects
+`response_mode=pi.flow` (`Invalid response_mode for adminui`) and whose redirect
+allowlist is **loopback-only**: our HTTPS callback gets `Redirect URI mismatch`.
+It is system-owned, so its redirect URIs cannot be edited.
 
-**Ruled out, so nobody re-runs them:**
+**Ruled out, so nobody re-runs them:** scope is not the lever (`openid` and
+no-scope both give the same token and the same 401, driven through real PKCE);
+not protocol negotiation (`initialize` + `MCP-Protocol-Version` also 401s); not
+app type (already WORKER); **not tenant enablement** (the original wrong answer).
 
-- **Scope is not the lever.** `scope=openid` and *no scope at all* were both
-  driven through a real PKCE flow: identical `aud`, identical 401.
-- **Not protocol negotiation.** `initialize` with `MCP-Protocol-Version`, and
-  `Accept: application/json` alone, both still 401.
-- **Not the app type.** Already WORKER; the skill's #1 root cause does not apply.
-- **Not a second environment.** `9e2f2f0c…` returns byte-identical protected-
-  resource and AS metadata, so that metadata proves nothing either way.
+**What was fixed here:** `PINGONE_MCP_ENVIRONMENT_ID` now names the admin
+environment for the URL, falling back to `PINGONE_ENVIRONMENT_ID` so an org whose
+admin env *is* its resource env is unchanged. The 401 diagnosis compares the
+token's **issuer environment** against the endpoint's and says which mismatch it
+is, naming both ids and the variable to set.
 
-**What was fixed:** only the legibility. A 401 now decodes the token it sent and
-says which 401 it is — wrong audience (naming both audiences, and that roles and
-scopes cannot fix it) versus correct audience (a permissions problem). Non-401s
-are untouched, and the diagnosis is appended to the original error, never
-substituted for it.
+**Still required for the door to actually work** — not done here, needs a
+credential nobody in this repo holds: an OIDC app registered **in the admin
+environment** (`9e2f2f0c`) with the BFF's callback
+`https://local.ping-devops.com:4000/api/mcp/inspector/pingone-admin/callback`,
+and `routes/mcpPingOneAdminAuth.js` pointed at that environment's AS. The
+built-in `pingone-mcp-server` client cannot be used server-side (loopback-only).
 
-**Do not break:** the diagnosis must never swallow the underlying
-`PingOne MCP HTTP <status>` string, and must not throw — a token that is not a
-JWT is reported as such rather than crashing the handler. Pinned by the test.
+**Do not break:**
 
-**The actual fix is on Ping's side:** the tenant needs Remote MCP enablement
-(`.claude/skills/pingone-remote-mcp-connect/SKILL.md` Prerequisite 1 — contact
-Amit Ben-Chanoch, Nathan Langton, or Saparja Dey). Until then this door cannot work.
+- **The env in the MCP URL is the ADMIN env.** Anyone "fixing" `_mcpUrl()` back
+  to `PINGONE_ENVIRONMENT_ID` reintroduces this exact 401. Pinned by a test.
+- The diagnosis must never swallow the underlying `PingOne MCP HTTP <status>`
+  string, and must not throw — a non-JWT credential is reported, not crashed on.
+- A test asserts the string `enablement` does **not** come back.
 
 **Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/services/mcpPingOne tests/oas/pingone-admin --forceExit --runInBand`
-— 3 suites / 37 tests passed.
 
 ### 2026-09-09 — Two of the four Direct doors were dead, for two unrelated reasons
 
