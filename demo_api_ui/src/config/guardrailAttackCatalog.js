@@ -9,7 +9,18 @@
 // Tool & Agent Safety threats (Tool Abuse, Tool Poisoning, Schema Violation,
 // Inter-Agent Abuse) are tool-call/A2A threats, not prompt text — the chat lane
 // never exercises them, so they are deliberately absent here rather than shown
-// as a fake pass. They belong on the MCP tool path (AI Agent Gateway Client).
+// as a fake pass. Where each one actually lives:
+//
+//   Tool Abuse        — services/attackSimulatorService.js (server): ten real
+//                       token-deficiency attacks fired at the live MCP gateway.
+//   Tool Poisoning    — routes/demoAttackSeeds.js plants the payload in a
+//                       transaction description (indirect, via tool OUTPUT);
+//                       config/toolAttackCatalog.js carries the direct
+//                       arg-injection variant.
+//   Schema Violation  — config/toolAttackCatalog.js, fired from the Agent
+//                       Gateway Tester.
+//   Inter-Agent Abuse — not built. Needs a second agent; no single tool call
+//                       can stage it.
 //
 // `effect` records what the CALLER actually sees, measured live on the OpenAI
 // lane 2026-09-08. It exists because a payload that produces nothing looks like
