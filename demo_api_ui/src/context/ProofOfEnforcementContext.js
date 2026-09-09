@@ -170,7 +170,22 @@ export function computeVerdict(trace, catalogEntry) {
   // both false on the 403 that IS the demo. Demoting on `outcome` alone turned
   // UC13/UC31 from 'denied-as-expected' into 'mismatch'. Only a run whose
   // expectation was NOT met by the block is a real failure.
-  if (trace.outcome === 'error' && state !== 'denied-as-expected') {
+  //
+  // `trace.outcome` alone is not enough: it is derived from the TRANSPORT
+  // (`data.success === false || data.error`), so a run that returns HTTP 200 with a
+  // tool failure buried inside it still reports outcome 'ok'. That is exactly the
+  // A2A shape — on 2026-09-09 the live SE cluster answered every specialist tool
+  // call with 401 invalid_aud (the k8s configmap was missing the
+  // mcpgateway-a2a.ping.demo audience), and UC2/UC2.5/UC37 still rendered
+  // "Verified" over a dispatch that never succeeded. A proof surface that goes
+  // green on a failed call is worse than no proof surface, so consult the dispatch
+  // itself, which ingestMcpResult already stamps status:'error' on.
+  //
+  // The `denied-as-expected` carve-out below still applies unchanged: a gateway
+  // policy DENY also lands here as status:'error' (with denied:true), and for a
+  // deny-like use case that block IS the demo working.
+  const dispatchFailed = trace.mcpResult?.status === 'error';
+  if ((trace.outcome === 'error' || dispatchFailed) && state !== 'denied-as-expected') {
     return {
       useCaseId, id: catalogEntry.id, title: catalogEntry.title,
       expectedOutcome: expected || null,

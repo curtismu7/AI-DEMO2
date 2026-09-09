@@ -68,7 +68,14 @@ data:
   MCP_SERVER_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo"
   MCP_RESOURCE_SERVER_RESOURCE_URI: "mcp-invest.ping.demo,mcp-resource-server.ping.demo,mcpgateway.ping.demo"
   MCP_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo"
-  MCP_GW_RESOURCE_URI: "mcpgateway.ping.demo,https://api.ping.demo:3036/mcp"
+  # Must list every audience the Node gateway accepts. PR #364 gave A2A its own
+  # Exchange #2 destination (mcpgateway-a2a.ping.demo) and added it to all three
+  # docker-compose blocks, but not here — so on k8s every A2A specialist tool call
+  # minted aud=mcpgateway-a2a.ping.demo and the gateway answered 401 invalid_aud.
+  # That killed UC2.6 outright (its leg-1 dispatch fails, so the mismatch probe
+  # never runs) and left UC2/UC2.5/UC37 dispatching against a failing call.
+  # Keep in sync with docker-compose.yml.
+  MCP_GW_RESOURCE_URI: "mcpgateway.ping.demo,https://api.ping.demo:3036/mcp,mcpgateway-a2a.ping.demo,mcpserver.ping.demo"
   PINGONE_RESOURCE_MCP_GATEWAY_URI: "mcpgateway.ping.demo"
   PINGONE_RESOURCE_AGENT_GATEWAY_URI: "agentgateway.ping.demo"
   PINGONE_RESOURCE_TWO_EXCHANGE_URI: "mcpgateway.ping.demo"
