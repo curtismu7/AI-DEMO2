@@ -198,7 +198,7 @@ function getDisplayItems(track, items) {
     : items;
 }
 
-function AttackSimResult({ result }) {
+export function AttackSimResult({ result }) {
   if (!result) return null;
   const { status, errorCode, reason, tokenChainEvents } = result;
   // Attack sims block via a 4xx/5xx; treat anything below 400 as an (unexpected) permit.
@@ -219,17 +219,28 @@ function AttackSimResult({ result }) {
       )}
       {Array.isArray(tokenChainEvents) && tokenChainEvents.length > 0 && (
         <ol className="uc-sim-result__events">
-          {tokenChainEvents.map((ev, i) => (
-            <li
-              key={ev.label || ev.step || ev.status || i}
-              className={`uc-sim-result__event${['deny', 'fail', 'error', 'denied'].includes((ev.status || '').toLowerCase()) ? ' uc-sim-result__event--deny' : ''}`}
-            >
-              <span className="uc-sim-result__event-label">{ev.label || ev.step || `Step ${i + 1}`}</span>
-              <span className={`uc-sim-result__event-status uc-sim-result__event-status--${(ev.status || '').toLowerCase()}`}>
-                {ev.status}
-              </span>
-            </li>
-          ))}
+          {tokenChainEvents.map((ev, i) => {
+            // `status` is not always a string: the cross-owner-account and
+            // rogue-actor sims emit gateway hops whose status is the numeric
+            // HTTP code, and `(403 || '').toLowerCase()` threw — taking the
+            // whole Use Cases page down through the error boundary, so UC10 and
+            // UC13 could not be run at all (live, 2026-09-08). Every other
+            // reader of an event status in this repo already coerces
+            // (TokenChainTraceRail, TokenTopologyPanel, supportConsoleConfig);
+            // this was the one that did not.
+            const evStatus = String(ev.status ?? '').toLowerCase();
+            return (
+              <li
+                key={ev.label || ev.step || ev.status || i}
+                className={`uc-sim-result__event${['deny', 'fail', 'error', 'denied'].includes(evStatus) ? ' uc-sim-result__event--deny' : ''}`}
+              >
+                <span className="uc-sim-result__event-label">{ev.label || ev.step || `Step ${i + 1}`}</span>
+                <span className={`uc-sim-result__event-status uc-sim-result__event-status--${evStatus}`}>
+                  {ev.status}
+                </span>
+              </li>
+            );
+          })}
         </ol>
       )}
     </div>

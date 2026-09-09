@@ -38,6 +38,7 @@ const appEventService = require('../services/appEventService');
 const { guardPromptInput } = require('../services/promptGuard');
 const mcpFlowSseHub = require('../services/mcpFlowSseHub');
 const { parseVerticalParam } = require('../services/nlIntentParser');
+const { stampUseCaseId, stampVertical } = require('../services/useCaseTagging');
 const { verticalManifest } = require('../services/verticalManifest');
 const reportStore = require('../services/lmdb/reportStore.lmdb');
 const conversationStore = require('../services/lmdb/conversationStore.lmdb');
@@ -523,6 +524,21 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
     }
     if (req._mcpAuthorizeEvaluations && !agentResponse.mcpAuthorizeEvaluations) {
       agentResponse.mcpAuthorizeEvaluations = req._mcpAuthorizeEvaluations;
+    }
+    // Backfill useCaseId/vertical on every token event this run produced.
+    // Deeper emitters (bffMcpToolExecutor, the /api/mcp/tool path in server.js)
+    // already stamp the gateway-dispatched chains, and stampUseCaseId never
+    // overwrites an existing tag — but a run whose tool never takes that path
+    // (get_branch_hours, the A2A delegate_to_specialist chain) reached the
+    // client with NOTHING tagged. ProofOfEnforcementContext.firstUseCaseId then
+    // found no call-scoped useCaseId, filed no verdict for the run, and
+    // ProofStrip rendered nothing at all — the tool had run correctly and the
+    // demo's headline proof surface was simply absent (observed live on UC2,
+    // UC2.5, UC2.6, UC24 and UC37, 2026-09-08). Same two calls as server.js's
+    // chip path, at the one boundary every dispatch path passes through.
+    if (Array.isArray(agentResponse.tokenEvents)) {
+      stampUseCaseId(agentResponse.tokenEvents, requestedUseCaseId);
+      stampVertical(agentResponse.tokenEvents, vertical);
     }
     ensureNonEmptyReply(agentResponse);
     return res.json(agentResponse);
