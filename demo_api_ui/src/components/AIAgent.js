@@ -9759,6 +9759,19 @@ export default function BankingAgent({
                       >
                         Topology
                       </button>
+                      {/* The other half of the same run: Topology answers "what
+                          happened, in what order", this answers "which boxes,
+                          and where the decision was taken". Both read
+                          tokenChainTraceStore, and the panel lives in App.js.
+                          Reachable before only via the trace rail's view menu. */}
+                      <button
+                        type="button"
+                        className="ba-actions-trigger"
+                        title="System flow — the run on the deployment map, and where the decision was taken"
+                        onClick={() => window.dispatchEvent(new CustomEvent('system-flow-open'))}
+                      >
+                        System flow
+                      </button>
                       <button
                         type="button"
                         className={`ba-actions-trigger${showFloatingTokenChain ? " active" : ""}`}
