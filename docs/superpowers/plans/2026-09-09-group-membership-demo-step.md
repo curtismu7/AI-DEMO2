@@ -34,7 +34,30 @@
 - Consumes: nothing (first task).
 - Produces: every eligible manifest has `groups.categories.premiumTier`, its single `restrictedTools` entry maps to `"premiumTier"`, and `demoUser` is a member of `premiumTier`. Task 2 and Task 3 rely on `groupPolicy.groupNameForCategory(vertical, 'premiumTier')` resolving for all 12.
 
-**Group-name decision (settle before editing):** the code addresses groups by **category key**, not display name (`groupNameForCategory(verticalId, 'premiumTier')`), so a differing name is invisible to the lever. Banking already has `premiumTier` named `Banking_PremiumTier` and a real PingOne group behind it. **Recommendation: leave banking's name alone; give the other 11 the shared name `AI_Demo_PremiumTier`**, matching how `AI_Demo_Privileged` already serves every vertical. This adds exactly one new PingOne group.
+**Group naming — DECIDED: one group per vertical.** The code addresses groups by
+**category key** (`groupNameForCategory(verticalId, 'premiumTier')`), so the name
+is invisible to the lever — but it decides the **blast radius of a UC9 run**.
+
+A shared group (the way `AI_Demo_Privileged` works today) means toggling the demo
+user OUT in one vertical removes them from the single group behind all 12, so the
+sensitive tool denies **everywhere** until restore runs — and UC2/UC37 break in
+every vertical, not just the one being demoed. Per-vertical groups contain the
+denial to the vertical you ran it in.
+
+Banking's existing `Banking_PremiumTier` is the naming template and needs **no
+change**. Use `<PascalCaseVertical>_PremiumTier`:
+
+| vertical | group name | vertical | group name |
+|---|---|---|---|
+| banking | `Banking_PremiumTier` (exists) | government | `Government_PremiumTier` |
+| sporting-goods | `SportingGoods_PremiumTier` | university | `University_PremiumTier` |
+| healthcare | `Healthcare_PremiumTier` | workforce | `Workforce_PremiumTier` |
+| retail | `Retail_PremiumTier` | manufacturing | `Manufacturing_PremiumTier` |
+| abercrombie-fitch | `AbercrombieFitch_PremiumTier` | admin | `Admin_PremiumTier` |
+| investment | `Investment_PremiumTier` | airlines | `Airlines_PremiumTier` |
+
+`POST /api/groups/provision` creates all of them from the manifests, so 12 groups
+cost no more effort than 1.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -58,12 +81,22 @@ describe('premiumTier is the gate in every eligible vertical', () => {
     expect(groups).toBeTruthy();
     expect(groups.categories.premiumTier).toBeTruthy();
     expect(typeof groups.categories.premiumTier.name).toBe('string');
+    expect(groups.categories.premiumTier.name).toMatch(/_PremiumTier$/);
 
     const restricted = Object.entries(groups.restrictedTools || {});
     expect(restricted.length).toBeGreaterThan(0);
     for (const [tool, category] of restricted) {
       expect(`${tool}:${category}`).toBe(`${tool}:premiumTier`);
     }
+  });
+
+  // Per-vertical, not shared: a shared group would make a UC9 run in one vertical
+  // deny the sensitive tool in all twelve until restore ran.
+  test('every eligible vertical has its OWN premiumTier group', () => {
+    const names = ELIGIBLE.map(
+      (v) => verticalManifest.resolver.resolve(v).groups.categories.premiumTier.name,
+    );
+    expect(new Set(names).size).toBe(ELIGIBLE.length);
   });
 
   // Load-bearing: sensitive_membership_details is also UC2/UC37's primaryTool.
@@ -91,10 +124,13 @@ For each eligible vertical, in `groups`:
 
 ```json
 "premiumTier": {
-  "name": "AI_Demo_PremiumTier",
-  "description": "Entitlement tier that gates this vertical's sensitive tool (UC21 permits, UC9 denies). One group serves every vertical."
+  "name": "<PascalCaseVertical>_PremiumTier",
+  "description": "Entitlement tier that gates this vertical's sensitive tool (UC21 permits, UC9 denies). Scoped to this vertical so a UC9 run does not deny the other eleven."
 }
 ```
+
+Use the exact name from the table above — do not reuse one name across verticals,
+which is the whole point of the decision.
 
 2. Change the `restrictedTools` value from `"privileged"` to `"premiumTier"`. Airlines has two entries — re-point **both**, since the tool the chip uses (`sensitive_passenger_record`) and its sibling should not disagree about which tier gates them.
 
@@ -108,7 +144,7 @@ Leave `privileged` defined and untouched everywhere — it simply stops being th
 cd demo_api_server && CI=true npx jest tests/groupPolicy.premiumTierGate.test.js --forceExit
 ```
 
-Expected: PASS (24 assertions).
+Expected: PASS (25 assertions).
 
 ```bash
 cd demo_api_server && CI=true npx jest tests/stepVerification --forceExit > /tmp/sv.log 2>&1; echo "exit=$?"; tail -6 /tmp/sv.log
