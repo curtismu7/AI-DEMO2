@@ -264,6 +264,12 @@ services:
       # fetches use the service name. The authorize URL handed to the browser
       # deliberately keeps the advertised localhost form.
       MCP_FACADE_AGENT_GATEWAY_AS_INTERNAL: "http://mcp-gateway:3005"
+      # The opensearch door's code default is the SE cluster's in-cluster DNS
+      # name, which is EAI_AGAIN from a local BFF container — the Direct door
+      # answered a bare 502 "upstream_unavailable" on every request. Locally the
+      # backend is the compose service of the same name (profile: mcpgw), so
+      # point at it here and leave the code default alone for the cluster.
+      MCP_FACADE_OPENSEARCH_URL: "${MCP_FACADE_OPENSEARCH_URL:-http://opensearch-mcp-server:9900/mcp}"
       # Operator-registered client on the gateway broker. The broker refuses
       # non-loopback redirect_uris and pins every DYNAMIC client to mcp:invoke
       # (both deliberate — /oauth/register is unauthenticated), so this

@@ -805,6 +805,15 @@ export default function PrivilegeMcpClientPage() {
   // through here so that failure surfaces as an exception their catch reports.
   const startAuthRedirect = async () => {
     const data = await api('/auth/start', { method: 'POST' });
+    // An ungated door (mcpFacade.js DOORS.banking) has no authorization server
+    // to redirect to. Its tools load with no token, so fetch them rather than
+    // navigating — and say so, because a Sign in button that appears to do
+    // nothing reads as broken.
+    if (data?.noAuthRequired) {
+      appendChat('system', 'This door needs no sign-in — its upstream owns identity. Loading tools.');
+      await refreshTools();
+      return;
+    }
     if (!data?.authUrl) throw new Error('sign-in did not return an authorization URL');
     window.location.href = data.authUrl;
   };

@@ -395,6 +395,58 @@ function isProcyonAgentUrl(url) {
   }
 }
 
+/**
+ * Has this door already been established as ungated? A pure memo read — no
+ * network call, deliberately: the gate it guards is pinned by
+ * privilegeMcpClient.procyon.test.js to reach the door only after it has
+ * decided the caller is allowed to.
+ */
+function isOpenDoor(session) {
+  return session.oauth.openDoorUrl === session.config.mcpUrl;
+}
+
+/**
+ * Does this door actually demand a bearer? The door itself is the only
+ * authority — not this client's assumption that every door does.
+ *
+ * The banking façade door is deliberately ungated (mcpFacade.js DOORS.banking:
+ * "the upstream's own 401 is what the client sees"), so it answers 200 with no
+ * token at all. This client refused to relay to it anyway, and /auth/start
+ * threw "the door itself is down" at a door that was up — the page showed a
+ * dead Sign in button and zero tools for a backend that was answering fine.
+ *
+ * Probed, never hardcoded: a door's gating follows its DOORS entry and its
+ * upstream binding, both of which move without this file changing. Only runs on
+ * the tokenless path — the one that was about to fail outright — and the "open"
+ * verdict is memoised per door URL.
+ *
+ * Fails CLOSED, and only a 2xx counts as open. A door that is merely BROKEN
+ * answers 400/405/5xx without a challenge too (the 2026-09-08 banking outage
+ * did exactly that), and reading that as "open" would relay into a dead
+ * upstream and swallow the guard error that names which door is down.
+ */
+async function doorRequiresBearer(session) {
+  const url = session.config.mcpUrl;
+  if (session.oauth.openDoorUrl === url) return false;
+  try {
+    const probe = await fetch(toInternalMcpUrl(url), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 'auth-probe',
+        method: 'initialize',
+        params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'ai-demo-bff', version: '1' } },
+      }),
+    });
+    if (!probe.ok) return true;
+    session.oauth.openDoorUrl = url;
+    return false;
+  } catch {
+    return true;
+  }
+}
+
 let procyonDispatcher = null;
 function getProcyonDispatcher() {
   if (!procyonDispatcher) {
@@ -1293,12 +1345,17 @@ async function discoverAuth(session) {
   // The fallback below stays for the hosts it was written for.
   const ownOrigin = PUBLIC_APP_ORIGIN();
   if (ownOrigin && String(session.config.mcpUrl).startsWith(ownOrigin)) {
-    throw new Error(
+    const noAs = new Error(
       `${session.config.mcpUrl} advertised no authorization server `
       + `(${transportError ? transportError.message : `HTTP ${response && response.status}`}). `
       + 'This door is served by this app, so PingOne is not its AS — the door itself is down. '
       + 'Check the door\'s upstream rather than the OAuth configuration.',
     );
+    // "No AS" is not the same as "down": an ungated door advertises none either
+    // and is perfectly healthy. /auth/start tells the two apart; everything
+    // else keeps treating this as the failure it usually is.
+    noAs.code = 'door_advertises_no_as';
+    throw noAs;
   }
 
   // PingOne OIDC discovery fallback
@@ -1825,8 +1882,19 @@ router.post('/auth/start', express.json(), async (req, res) => {
     emitEvent(session, 'oauth', { phase: 'start', authUrl: authUrl.toString() });
     res.json({ authUrl: authUrl.toString() });
   } catch (err) {
+    // An ungated door has no authorization server to redirect to, so failing
+    // here is the expected outcome, not a fault: /mcp-facade/banking/mcp
+    // answers 200 with no bearer and the rail's Sign in button answered 500 at
+    // a door that was up. Narrow on purpose — only the "advertised no AS" case,
+    // and only after beginOAuthFlow has already failed. A door that advertises
+    // an AS and then refuses DCR still fails loudly, naming the client id to
+    // set, and no door that works pays a probe.
+    if (err.code === 'door_advertises_no_as' && !await doorRequiresBearer(session)) {
+      emitEvent(session, 'oauth', { phase: 'not_required', door: session.config.mcpUrl });
+      return res.json({ noAuthRequired: true });
+    }
     emitEvent(session, 'error', { scope: 'oauth_start', message: err.message });
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 });
 
@@ -1940,7 +2008,9 @@ router.get('/auth/callback', async (req, res) => {
 router.post('/tools/list', express.json(), async (req, res) => {
   const session = getClientSession(req);
   try {
-    if (!session.oauth.accessToken && !isProcyonAgentUrl(session.config.mcpUrl)) return res.status(401).json({ error: 'Not authenticated — click Sign In with Privilege.' });
+    if (!session.oauth.accessToken && !isProcyonAgentUrl(session.config.mcpUrl) && !isOpenDoor(session)) {
+      return res.status(401).json({ error: 'Not authenticated — click Sign In with Privilege.' });
+    }
     await discoverPolicyTools(session);
     res.json({ tools: session.tools, policy: publicPolicySummary(session) });
   } catch (err) {
@@ -1961,7 +2031,9 @@ router.post('/tools/list', express.json(), async (req, res) => {
 router.post('/tools/call', express.json(), async (req, res) => {
   const session = getClientSession(req);
   try {
-    if (!session.oauth.accessToken && !isProcyonAgentUrl(session.config.mcpUrl)) return res.status(401).json({ error: 'Not authenticated.' });
+    if (!session.oauth.accessToken && !isProcyonAgentUrl(session.config.mcpUrl) && !isOpenDoor(session)) {
+      return res.status(401).json({ error: 'Not authenticated.' });
+    }
     const { name, arguments: args } = req.body || {};
     if (!name) return res.status(400).json({ error: 'Tool name is required.' });
     const data = await callMcp(session, 'tools/call', { name, arguments: args || {} });
