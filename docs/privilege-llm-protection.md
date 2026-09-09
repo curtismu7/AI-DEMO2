@@ -141,13 +141,22 @@ trusting this table.
 The latency gap is the line to say out loud: the allowed call took ~2–8 s, the
 refusal ~40 ms. Nothing left the gateway, so there was nothing to wait for.
 
-> **The Google virtual key currently refuses every model**, including its own
-> lane default `gemini-2.0-flash`, and `GET /llm/models` on that lane 403s too —
-> so the Model dropdown there holds only the default and says its list could not
-> be read. That is a key/allowlist problem in the Privilege console, not in this
-> app: Privilege itself lists Google's models, so the key can be granted whatever
-> it needs to do the same. Until then the Google lane cannot show the *allowed*
-> half of the demo. Demo Anthropic and OpenAI.
+> **The Google virtual key is misconfigured in the Privilege console — it is not
+> a per-model allowlist gap.** Every call on the `google` lane, including
+> `GET /llm/models`, answers `403 wrong_provider`: *"key not valid for provider
+> 'google'"*. The same key IS accepted on the `openai` route (no `wrong_provider`
+> there), which reached the real OpenAI API and got `401 invalid_api_key —
+> Incorrect API key provided: **lm-studio**`. So the virtual key configured for
+> `PRIVILEGE_LLM_VIRTUAL_KEY_GOOGLE` is actually a Privilege key registered
+> against the **OpenAI** provider, backed by the literal placeholder string
+> `lm-studio` as its real upstream credential — not a Google key at all.
+> Verified live 2026-09-09 against both the local stack and the SE cluster
+> (`mcpgw.ai-demo.ping-devops.com`), same result on both — this is the key
+> object itself, not an environment drift. Fix in the Privilege console: create
+> or repoint a virtual key that is actually provider=Google, backed by a real
+> Gemini API key, and update `PRIVILEGE_LLM_VIRTUAL_KEY_GOOGLE` (local `.env`
+> and the SE cluster's `demo-api-server` secret) to that key's value. Demo
+> Anthropic and OpenAI until then.
 
 ## What a failure means
 
