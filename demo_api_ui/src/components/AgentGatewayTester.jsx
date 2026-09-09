@@ -7,11 +7,22 @@ import { consumeReplay } from '../services/inspectorReplay';
 import { notifyError } from '../utils/appToast';
 import { formatAxiosError } from '../utils/formatAxiosError';
 import { decodeMcpTextContent } from '../utils/decodeMcpTextContent';
+import { TOOL_ATTACK_CATEGORIES, TOOL_ATTACKS } from '../config/toolAttackCatalog';
 import JsonHighlight from './shared/JsonHighlight';
 import JsonFormView from './shared/JsonFormView';
 import InspectorShell from './shared/InspectorShell';
 import InspectorTabs from './shared/InspectorTabs';
 import InlineSpinner from './shared/InlineSpinner';
+
+// What the caller is told to expect under the attack picker. Every catalog entry
+// is 'unmeasured' today, and that MUST render as text — silence would read as
+// "the gateway allowed it" rather than "nobody has fired this yet".
+const ATTACK_EFFECT = {
+  blocks: 'Gateway refuses the call before the tool runs.',
+  denies: 'Ping Authorize returns a deny decision.',
+  none: 'No verdict fires — handled as an ordinary error.',
+  unmeasured: 'Effect not yet measured against a live gateway.',
+};
 
 const GATEWAY_FLAG = 'ff_mcp_gateway_pinggateway';
 const AUTHZ_FLAG = 'ff_authorize_real';
@@ -352,6 +363,7 @@ export default function AgentGatewayTester() {
   const [bursting, setBursting] = useState(false);
   const [burstResp, setBurstResp] = useState(null);
   const [toolSearch, setToolSearch] = useState('');
+  const [selectedAttack, setSelectedAttack] = useState('');
   const [outputTab, setOutputTab] = useState('result');
   const [refreshing, setRefreshing] = useState(false);
   const [treeSection, setTreeSection] = useState('tools');
@@ -642,6 +654,20 @@ export default function AgentGatewayTester() {
     setOutputTab('result');
   };
 
+  // Unlike selectTool, this does NOT run buildArgsTemplate — the catalog's args
+  // ARE the payload, and a template would overwrite the very values that make it
+  // an attack. If the live gateway filtered the tool out of its list, fall back to
+  // a bare {name}: that Authorize hid it is itself the interesting result.
+  const pickAttack = (id) => {
+    setSelectedAttack(id);
+    const attack = TOOL_ATTACKS.find((a) => a.id === id);
+    if (!attack) return;
+    setSelectedTool(tools.find((t) => t.name === attack.tool) || { name: attack.tool });
+    setArgsText(JSON.stringify(attack.args, null, 2));
+    setResp(null);
+    setOutputTab('result');
+  };
+
   const clearForm = () => {
     setArgsText('{}');
     setResp(null);
@@ -707,6 +733,32 @@ export default function AgentGatewayTester() {
                   onChange={e => setToolSearch(e.target.value)}
                   spellCheck={false}
                 />
+              </div>
+              <div className="inspector-shell-tree-search">
+                <label htmlFor="agw-attack" style={{ fontSize: 11 }}>🛡 Attack library</label>
+                <select
+                  id="agw-attack"
+                  value={selectedAttack}
+                  style={{ fontSize: 11, width: '100%' }}
+                  onChange={e => pickAttack(e.target.value)}
+                >
+                  <option value="">Pick an attack to test the gateway policy…</option>
+                  {TOOL_ATTACK_CATEGORIES.map(cat => (
+                    <optgroup key={cat} label={cat}>
+                      {TOOL_ATTACKS.filter(a => a.category === cat).map(a => (
+                        <option key={a.id} value={a.id}>{a.label}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+                {selectedAttack && (
+                  <span
+                    data-testid="agw-attack-effect"
+                    style={{ fontSize: 10, display: 'block', marginTop: 4 }}
+                  >
+                    {ATTACK_EFFECT[(TOOL_ATTACKS.find(a => a.id === selectedAttack) || {}).effect]}
+                  </span>
+                )}
               </div>
               <div className="inspector-shell-tree-body">
                 {groupedTools.map(group => (
