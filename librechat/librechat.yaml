@@ -23,11 +23,11 @@ endpoints:
     - name: 'Local LLM Proxy'
       # demo_llm_proxy/ router.js — no auth check on any route, so any
       # non-empty apiKey value works (LibreChat requires the field to be set).
-      apiKey: 'none'
+      apiKey: '${AGENT_LLM_API_KEY}'
       # host.docker.internal — see librechat/docker-compose.yml's extra_hosts
       # entry (docs/superpowers/plans/2026-08-24-librechat-privilege-mcp-client.md)
       # and this repo's own docker-compose.yml:1828 for the identical pattern.
-      baseURL: 'http://host.docker.internal:8090/v1'
+      baseURL: '${AGENT_LLM_BASE_URL}'
       models:
         # The proxy classifies every request by prompt content (or by an
         # exact model-name match it recognizes) to pick a tier — it does

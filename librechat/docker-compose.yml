@@ -33,6 +33,12 @@ services:
       # (ERR_TLS_CERT_ALTNAME_INVALID); api.ping.demo does not.
       - "api.ping.demo:host-gateway"
     environment:
+      # LLM endpoint for librechat.yaml's 'Local LLM Proxy' entry. Same two
+      # knobs as this repo's sidecar agents: leave unset for the local proxy,
+      # or set AGENT_LLM_BASE_URL=<PRIVILEGE_LLM_GATEWAY_URL>/llm/openai/v1 and
+      # AGENT_LLM_API_KEY=<OpenAI virtual key> to enter PingOne Privilege first.
+      AGENT_LLM_BASE_URL: "${AGENT_LLM_BASE_URL:-http://host.docker.internal:8090/v1}"
+      AGENT_LLM_API_KEY: "${AGENT_LLM_API_KEY:-none}"
       # Trust this repo's own mkcert-issued dev CA so LibreChat's outbound
       # HTTPS to the BFF's mcp-facade (demo_api_server, :3001 — see
       # librechat.yaml's opensearch-privilege-agent/privilege-agentless/

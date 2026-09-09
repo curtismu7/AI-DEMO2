@@ -135,6 +135,20 @@ function extractTextContent(content: unknown): string {
 // the Anthropic tool-use reasoning path below with a local baseURL.
 const LMSTUDIO_PROVIDERS = new Set<string>(['anthropic-lmstudio', 'lmstudio']);
 
+// PingOne Privilege virtual-key lanes (ff_privilege_llm_first on the BFF). The
+// BFF resolver sends privilege_claude / privilege_llm; each rides an existing
+// branch below with the gateway as base URL and the virtual key as the API key,
+// so the provider key never leaves Privilege. Route shapes mirror
+// demo_api_server/services/privilegeLlmProxyService.js LANES.
+const PRIVILEGE_LANES: Record<string, { branch: 'anthropic' | 'openai'; path: string; keyEnv: string; modelEnv: string; defaultModel: string }> = {
+  privilege_claude: { branch: 'anthropic', path: '/llm/anthropic', keyEnv: 'PRIVILEGE_LLM_VIRTUAL_KEY_ANTHROPIC', modelEnv: 'PRIVILEGE_LLM_MODEL_ANTHROPIC', defaultModel: 'claude-haiku-4-5-20251001' },
+  privilege_llm: { branch: 'openai', path: '/llm/google/v1', keyEnv: 'PRIVILEGE_LLM_VIRTUAL_KEY_GOOGLE', modelEnv: 'PRIVILEGE_LLM_MODEL', defaultModel: 'gemini-2.0-flash' },
+};
+
+function privilegeGatewayBase(): string {
+  return (process.env.PRIVILEGE_LLM_GATEWAY_URL || '').replace(/\/+$/, '');
+}
+
 /** Resolve the model id from LM Studio's loaded models (OpenAI-style /v1/models). */
 async function resolveLmStudioModel(originBase: string): Promise<string> {
   try {
@@ -173,12 +187,17 @@ async function resolveMlxModel(origin: string): Promise<string> {
 
 export async function reasonOnce(req: ReasonRequest): Promise<ReasonResponse> {
   const isLmStudio = LMSTUDIO_PROVIDERS.has(req.provider as string);
-  if (req.provider === 'anthropic' || isLmStudio) {
+  const privilegeLane = PRIVILEGE_LANES[req.provider as string];
+  const isPrivilegeAnthropic = privilegeLane?.branch === 'anthropic';
+  if (req.provider === 'anthropic' || isLmStudio || isPrivilegeAnthropic) {
     const apiKey = isLmStudio
       ? 'lm-studio' // LM Studio ignores the key but the SDK requires a non-empty one
-      : (req.anthropicApiKey || process.env.ANTHROPIC_API_KEY || '');
+      : isPrivilegeAnthropic
+        // Both the gateway URL and the virtual key are required; either missing = lane unconfigured.
+        ? (privilegeGatewayBase() ? (process.env[privilegeLane.keyEnv] || '') : '')
+        : (req.anthropicApiKey || process.env.ANTHROPIC_API_KEY || '');
     if (!apiKey) {
-      teachLog.error('Anthropic API key missing', null, { operation: 'reasonOnce' });
+      teachLog.error('Anthropic API key missing', null, { operation: 'reasonOnce', provider: req.provider });
       return { type: 'final', answer: '', messages: req.messages, reasoningUnavailable: true };
     }
     try {
@@ -189,6 +208,10 @@ export async function reasonOnce(req: ReasonRequest): Promise<ReasonResponse> {
         const originBase = (process.env.LMSTUDIO_BASE_URL || 'http://localhost:1234/v1').replace(/\/v1\/?$/, '');
         clientOpts.baseURL = originBase;
         model = req.model || process.env.LMSTUDIO_MODEL || (await resolveLmStudioModel(originBase));
+      } else if (isPrivilegeAnthropic) {
+        // Gateway lane: the SDK appends /v1/messages, giving /llm/anthropic/v1/messages.
+        clientOpts.baseURL = `${privilegeGatewayBase()}${privilegeLane.path}`;
+        model = req.model || process.env[privilegeLane.modelEnv] || privilegeLane.defaultModel;
       } else {
         model = req.model || DEFAULT_MODELS.anthropic;
       }
@@ -356,21 +379,28 @@ export async function reasonOnce(req: ReasonRequest): Promise<ReasonResponse> {
     }
   }
 
-  if (req.provider === 'groq') {
+  const isPrivilegeOpenAi = privilegeLane?.branch === 'openai';
+  if (req.provider === 'groq' || isPrivilegeOpenAi) {
     // GroqCloud — LPU-hosted, OpenAI-compatible /v1 API. Real key required
     // (billed cloud service), same contract as the Google branch above.
-    const apiKey = req.groqApiKey || process.env.GROQ_API_KEY || '';
+    // The Privilege Gemini lane (/llm/google/v1) is OpenAI-compatible too and
+    // rides this same branch with the gateway as base URL.
+    const apiKey = isPrivilegeOpenAi
+      ? (privilegeGatewayBase() ? (process.env[privilegeLane.keyEnv] || '') : '')
+      : (req.groqApiKey || process.env.GROQ_API_KEY || '');
     if (!apiKey) {
-      teachLog.error('Groq API key missing', null, { operation: 'reasonOnce' });
+      teachLog.error(isPrivilegeOpenAi ? 'Privilege LLM lane not configured' : 'Groq API key missing', null, { operation: 'reasonOnce', provider: req.provider });
       return { type: 'final', answer: '', messages: req.messages, reasoningUnavailable: true };
     }
     try {
-      const model = req.model || process.env.GROQ_MODEL || DEFAULT_MODELS.groq;
+      const model = isPrivilegeOpenAi
+        ? (req.model || process.env[privilegeLane.modelEnv] || privilegeLane.defaultModel)
+        : (req.model || process.env.GROQ_MODEL || DEFAULT_MODELS.groq);
       const llm = new ChatOpenAI({
         model,
         temperature: 0,
         apiKey,
-        configuration: { baseURL: 'https://api.groq.com/openai/v1' },
+        configuration: { baseURL: isPrivilegeOpenAi ? `${privilegeGatewayBase()}${privilegeLane.path}` : 'https://api.groq.com/openai/v1' },
       });
       const withTools = req.tools.length > 0
         ? llm.bindTools(req.tools.map((t) => ({
