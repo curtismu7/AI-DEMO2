@@ -423,6 +423,7 @@
 
 .uc-sim-result__event--deny {
   background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
 }
 
 .uc-sim-result__event-label {
@@ -469,8 +470,9 @@
 
 .aae-header {
   background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
   padding: 0.9rem 1.25rem 0.75rem;
-  border-bottom: 1px solid #fca5a5;
+  border-bottom: 1px solid var(--th-status-error-border);
 }
 
 .aae-title {

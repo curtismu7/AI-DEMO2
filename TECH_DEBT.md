@@ -564,7 +564,14 @@ dark `#1345b5` becomes `#1d4ed8`; both were already blue buttons.
 literals appeared three more times in the same file
 (`.uc-card__copy-btn--copied`, `.aae-status-badge--deny`) and were converted
 with them rather than left as the only hard-coded pair in the file.
-`uiRegression.test.js` + `UseCaseLauncherPage.test.js` pass (81).
+`uiRegression.test.js` + `UseCaseLauncherPage.test.js` pass, and the full UI
+vitest suite is green (501 files). One catch worth knowing: converting a
+hard-coded background to a `--th-*` one puts the rule INSIDE
+`themingRatchet.test.js`'s "themed ground without ink" count, which a raw hex
+background escapes — the pin went 453 -> 455 until `.uc-sim-result__event--deny`
+and `.aae-header` were given a `--th-status-error-text` colour (the ratchet's
+own prescribed fix; the pin was not bumped). The hazard was there before the
+conversion, just uncounted.
 
 ### [ ] 2026-09-03 — jwksService can hand back a key `crypto.Verify` rejects outright
 
