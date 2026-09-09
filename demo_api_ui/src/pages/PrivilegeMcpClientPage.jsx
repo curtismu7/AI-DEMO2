@@ -836,12 +836,13 @@ export default function PrivilegeMcpClientPage() {
       });
       savedMcpUrlRef.current = nextConfig.mcpUrl;
       setGatewayConfigs(saved.gatewayConfigs || gatewayConfigs);
-      // Direct has no auth front door — nothing to redirect to /auth/start for.
-      // Tools are reachable immediately.
-      if (nextMode === 'direct') {
-        refreshTools(true);
-        return;
-      }
+      // Direct is NOT exempt. It used to return here on the reading that it has
+      // "no auth front door", but every direct door is a façade door with
+      // requireBearer (mcpFacade.js DOORS) — the same wrong reading the
+      // 2026-09-07 fix already removed from mount-time auto-connect. Switching
+      // INTO Direct nulls the token slot for the destination key, so returning
+      // early left every direct door answering "Not authenticated" forever.
+      // The shared check below covers it: a restored token skips the redirect.
       // The BFF restores this mode's own token if it was signed in before
       // (session.oauth is a single slot shared across modes — see POST
       // /config) — skip the full re-auth redirect instead of always forcing
@@ -1058,10 +1059,22 @@ export default function PrivilegeMcpClientPage() {
   const switchDoor = async (mcpUrl) => {
     const next = { ...config, mcpUrl };
     try {
-      await api('/config', { method: 'POST', body: next });
+      const saved = await api('/config', { method: 'POST', body: next });
       setConfig(next);
       setShowBlockedModal(false);
       appendChat('system', `Switched to door: ${doorName(mcpUrl) || mcpUrl}`);
+      // session.oauth is a single slot keyed mode::mcpUrl (privilegeMcpClient.js
+      // oauthKey), so selecting a door this session has never signed into leaves
+      // it nulled and every later tools/list answers 401 "Not authenticated" —
+      // no matter which door is picked. /config reports the DESTINATION key's
+      // state; act on it rather than fetching tools with a credential the BFF
+      // has just told us does not exist. Same branch switchGatewayMode uses.
+      if (!saved?.oauth?.authenticated && mainAppAuthenticated) {
+        setAuthenticated(false);
+        await startAuthRedirect();
+        return;
+      }
+      setAuthenticated(Boolean(saved?.oauth?.authenticated));
       refreshTools(true);
     } catch (err) {
       appendChat('system', `Failed to switch door: ${err.message}`);
