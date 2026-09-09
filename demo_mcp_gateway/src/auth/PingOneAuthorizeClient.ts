@@ -226,10 +226,12 @@ export function buildAuthorizeParameters(
     McpMethod: method,
     ToolName: toolName ?? '',
     ClientId: decoded.sub,
-    // UserId + McpResourceUri are required by the cloud P1AZ MCP Delegation policy
-    // (HasValidUserId checks UserId; HasValidMcpAudience checks TokenAudience ==
-    // McpResourceUri). The BFF and the PingGateway groovy filter both send them; the
-    // Node gateway must too, or every real-cloud decision fails those conditions.
+    // UserId is required by the cloud P1AZ MCP Delegation policy (HasValidUserId).
+    // McpResourceUri is sent for the deny diagnostic only — HasValidMcpAudience
+    // does NOT compare TokenAudience against it, despite what this comment and the
+    // mcp-invalid-audience message both used to claim. That condition carries its
+    // own accepted-audience allowlist, plus an external-door branch gated on
+    // TokenIss. The BFF and the PingGateway groovy filter both send it too.
     UserId: decoded.sub,
     ActClientId: decoded.act?.sub ?? '',
     ActChainDepth: String(actChainDepth(decoded.act)),
@@ -238,9 +240,11 @@ export function buildAuthorizeParameters(
     NestedActClientId: nestedActClientId(decoded.act),
     MayActSub: decoded.may_act?.sub ?? '',
     TokenScopes: tokenScopes.join(' '),
-    // McpResourceUri is the EXPECTED audience — the gateway's own identity. It is
-    // deliberately still a constant; TokenAudience below is the observed one, and
-    // the policy's job is to compare the two.
+    // McpResourceUri is this gateway's own identity — the audience a token SHOULD
+    // carry. Reported, not compared (see above). Note the Groovy filter sends the
+    // comma-joined accepted set here instead of a single URI, so the two transports
+    // differ in this one value; the deny diagnostic labels it as caller-declared
+    // precisely so that difference is visible rather than mistaken for the rule.
     McpResourceUri: gatewayResourceUri,
     TokenExp: decoded.exp ? String(decoded.exp) : '',
     TokenIat: decoded.iat ? String(decoded.iat) : '',
@@ -359,6 +363,78 @@ export function buildAuthorizeParameters(
     base.IntentJti         = intentValidation.payload?.jti ?? '';
     base.IntentIntent      = intentValidation.payload?.intent ?? '';
     base.IntentConfidence  = String(intentValidation.payload?.confidence ?? 0);
+  }
+
+  // --- Agent Intent Governance -------------------------------------------
+  // Inputs for the "PingOne Authorize — Agent Intent Governance" policy set
+  // (snapshots/PingOne_Authorize_Agent_Intent_Governance.snapshot.json).
+  //
+  // These differ in kind from the IntentTokenValid / IntentMatchesTool pair
+  // above. Those hand the PDP a VERDICT the gateway already computed. These
+  // hand it the GRANT and the REQUEST as separate facts and let the policy do
+  // the comparison, which is the only version that can be audited as policy.
+  //
+  // Additive: rules that do not read these attributes are unaffected, so this
+  // is safe to emit before the policy set is deployed to a decision endpoint.
+  const rarDetails = Array.isArray(tratClaims?.azd?.authorization_details)
+    ? (tratClaims!.azd.authorization_details as Array<Record<string, unknown>>)
+    : [];
+  // The CONSENTED grant is authorization_details[0], deliberately NOT the detail
+  // matching this tool. enforceRarSubset() selects by tool because it answers a
+  // different question ("is this call inside its own grant"). Selecting by tool
+  // here would make IntentGrantAction equal IntentRequestAction by construction
+  // and the action-drift rule could never fire — the same tautology that makes
+  // the chip path's intent token meaningless. Details beyond the first are not
+  // represented, so an action granted only by details[1..n] reads as drift and
+  // denies: fail closed, and consistent with the policy's documented model of
+  // one consented action per decision.
+  const consentedGrant = rarDetails[0];
+
+  base.IntentRequestAction = toolName ?? '';
+  base.IntentRequestPayee = String(toolArgs?.to_account_id ?? toolArgs?.payee ?? '');
+  // Absent/unparseable amount falls to the attribute default (0), which cannot
+  // exceed a cap. That is deliberate: this rule catches INFLATION (the injected
+  // larger amount), not a malformed call — enforceRarSubset already fails closed
+  // on a missing amount when the grant caps one.
+  const requestAmount = Number(toolArgs?.amount);
+  if (Number.isFinite(requestAmount)) base.IntentRequestAmount = String(requestAmount);
+  // Intent governs state changes; reads fall through to scope policy. The
+  // annotation lookup is fail-safe — an unknown tool reports readOnly:false and
+  // is therefore treated as mutating.
+  base.IntentRequestMutating = ann.readOnly ? 'false' : 'true';
+  base.IntentGrantPresent = consentedGrant ? 'true' : 'false';
+  base.IntentBindingMethod = consentedGrant
+    ? 'par-rar'
+    : (intentValidation?.valid ? 'intent-token' : 'none');
+
+  if (consentedGrant) {
+    const actions = Array.isArray(consentedGrant.actions) ? consentedGrant.actions : [];
+    base.IntentGrantAction = String(actions[0] ?? consentedGrant.tool ?? '');
+    base.IntentGrantPayee = String(consentedGrant.payee ?? '');
+    const grantMax = Number(consentedGrant.amount);
+    if (Number.isFinite(grantMax)) base.IntentGrantMaxAmount = String(grantMax);
+    const grantRef = consentedGrant.request_uri ?? consentedGrant.grant_ref;
+    if (grantRef) base.IntentGrantRef = String(grantRef);
+
+    // Consent and expiry are NOT derivable here. TratClaims.azd carries
+    // {sub, act, gateway, authorization_details} — no consent record, no grant
+    // lifetime — and the demo's grant is BFF-built from the same request it
+    // authorizes (see rarEnforce.ts's own docstring). Emitting 'true' would be a
+    // fabrication, so both are OMITTED unless the grant actually states them and
+    // the policy's fail-closed defaults apply: IntentGrantConsented=false and
+    // IntentGrantExpired=true.
+    //
+    // Consequence, stated plainly: with this policy set deployed, a mutating call
+    // DENIES as intent-not-consented until the BFF stamps a real PAR consent onto
+    // the grant. That is the correct answer to "can we prove the user agreed to
+    // this", not a wiring defect.
+    if (typeof consentedGrant.consented === 'boolean') {
+      base.IntentGrantConsented = String(consentedGrant.consented);
+    }
+    const expiresAt = Number(consentedGrant.expires_at ?? consentedGrant.exp);
+    if (Number.isFinite(expiresAt) && expiresAt > 0) {
+      base.IntentGrantExpired = String(expiresAt * 1000 <= Date.now());
+    }
   }
 
   if (introspectionResult) {
