@@ -20,13 +20,13 @@ if (typeof global.TextEncoder === "undefined") {
 vi.mock("../../services/bffAxios", () => ({
   __esModule: true,
   default: {
-    get: jest.fn(),
+    get: vi.fn(),
   },
 }));
 
 describe("RunReportPage with malformed records", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("renders the table without crashing when a run has no prompt", async () => {

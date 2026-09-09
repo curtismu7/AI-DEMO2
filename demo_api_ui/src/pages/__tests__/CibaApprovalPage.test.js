@@ -5,7 +5,7 @@ import CibaApprovalPage from "../CibaApprovalPage";
 
 describe("CibaApprovalPage", () => {
   beforeEach(() => {
-    global.fetch = jest.fn();
+    global.fetch = vi.fn();
   });
 
   function renderAt(search) {

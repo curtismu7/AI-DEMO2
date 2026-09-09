@@ -24,12 +24,12 @@ if (typeof global.TextEncoder === "undefined") {
 vi.mock("../../services/bffAxios", () => ({
   __esModule: true,
   default: {
-    get: jest.fn(),
+    get: vi.fn(),
   },
 }));
 
 // Mock react-router-dom — only mock what the component uses
-const mockNavigate = jest.fn();
+const mockNavigate = vi.fn();
 vi.mock("react-router-dom", () => ({
   useNavigate: () => mockNavigate,
 }));
@@ -50,7 +50,7 @@ function renderPage() {
 }
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
 });
 
 // Test 1: renders the exact badge string "API-KEY PATH"

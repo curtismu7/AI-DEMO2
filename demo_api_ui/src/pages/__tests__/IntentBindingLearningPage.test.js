@@ -3,7 +3,7 @@ import { MemoryRouter } from "react-router-dom";
 import IntentBindingLearningPage from "../IntentBindingLearningPage";
 
 beforeEach(() => {
-  global.fetch = jest.fn();
+  global.fetch = vi.fn();
 });
 
 test("renders the pipeline, the grant, and both columns", () => {

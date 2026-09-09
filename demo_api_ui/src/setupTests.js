@@ -5,10 +5,13 @@ import "@testing-library/jest-dom";
 // Polyfill from Node's built-in 'util' so all tests that import react-router-dom work.
 import { TextEncoder, TextDecoder } from "util";
 
-// Vitest migration: expose `jest` as alias for `vi` so existing test files
-// written against the Jest API (jest.fn, jest.useFakeTimers, etc.) work
-// without a mass rename. vi.mock() hoisting still requires using vi.mock()
-// directly in each file — this alias only covers non-hoisted calls.
+// DO NOT REMOVE — this is not a migration leftover.
+// @testing-library/dom gates its entire fake-timer path on a `jest` global:
+// helpers.js `jestFakeTimersAreEnabled()` returns false unless `typeof jest
+// !== "undefined"`, so without this alias `waitFor` never advances Vitest's
+// fake timers and every fake-timer + waitFor test hangs to its 30 s timeout
+// (11 of them, across App.session / FeatureFlagsPage / CreateUserPanel /
+// LogViewer). Test files themselves use `vi.*` directly.
 global.jest = vi;
 
 // jsdom does not implement scrollIntoView — mock it globally

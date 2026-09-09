@@ -28,10 +28,10 @@ const PROJECTION = {
 };
 
 beforeEach(() => {
-  global.fetch = jest.fn(() =>
+  global.fetch = vi.fn(() =>
     Promise.resolve({ ok: true, json: () => Promise.resolve(PROJECTION) }));
 });
-afterEach(() => jest.resetAllMocks());
+afterEach(() => vi.resetAllMocks());
 
 test("renders one card per projected span with facets", async () => {
   render(<ProjectedTimeline traceId={PROJECTION.traceId} />);
@@ -52,7 +52,7 @@ test("error-status card is visually flagged and details expand on click", async 
 });
 
 test("empty projection explains itself", async () => {
-  global.fetch = jest.fn(() =>
+  global.fetch = vi.fn(() =>
     Promise.resolve({ ok: true, json: () => Promise.resolve({ ...PROJECTION, spans: [] }) }));
   render(<ProjectedTimeline traceId={PROJECTION.traceId} />);
   await waitFor(() =>

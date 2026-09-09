@@ -11,14 +11,14 @@ describe('ErrorMonitor', () => {
   beforeEach(() => {
     monitor = new ErrorMonitor();
     // Suppress console output during tests
-    jest.spyOn(console, 'debug').mockImplementation(() => {});
-    jest.spyOn(console, 'info').mockImplementation(() => {});
-    jest.spyOn(console, 'error').mockImplementation(() => {});
-    jest.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(console, 'debug').mockImplementation(() => {});
+    vi.spyOn(console, 'info').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   describe('logAttempt', () => {
@@ -237,7 +237,7 @@ describe('ErrorMonitor', () => {
 
   describe('subscribe', () => {
     it('should notify listeners on new events', () => {
-      const listener = jest.fn();
+      const listener = vi.fn();
       monitor.subscribe(listener);
 
       monitor.logAttempt({ endpoint: '/api/test', attemptNumber: 1, classification: {} });
@@ -252,7 +252,7 @@ describe('ErrorMonitor', () => {
     });
 
     it('should return unsubscribe function', () => {
-      const listener = jest.fn();
+      const listener = vi.fn();
       const unsubscribe = monitor.subscribe(listener);
 
       monitor.logAttempt({ endpoint: '/api/test', attemptNumber: 1, classification: {} });
@@ -265,10 +265,10 @@ describe('ErrorMonitor', () => {
     });
 
     it('should handle listener errors gracefully', () => {
-      const badListener = jest.fn(() => {
+      const badListener = vi.fn(() => {
         throw new Error('Listener error');
       });
-      const goodListener = jest.fn();
+      const goodListener = vi.fn();
 
       monitor.subscribe(badListener);
       monitor.subscribe(goodListener);
@@ -314,7 +314,7 @@ describe('ErrorMonitor', () => {
 
   describe('analytics integration', () => {
     it('should send events to analytics endpoint when enabled', async () => {
-      global.fetch = jest.fn(() =>
+      global.fetch = vi.fn(() =>
         Promise.resolve({
           ok: true,
           json: () => Promise.resolve({}),
@@ -345,7 +345,7 @@ describe('ErrorMonitor', () => {
     });
 
     it('should not fail if analytics endpoint is unreachable', async () => {
-      global.fetch = jest.fn(() => Promise.reject(new Error('Network error')));
+      global.fetch = vi.fn(() => Promise.reject(new Error('Network error')));
 
       monitor.configure({
         enableAnalytics: true,

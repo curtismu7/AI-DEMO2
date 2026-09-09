@@ -18,12 +18,12 @@
 
 // Polyfill window.scrollTo for jsdom
 if (typeof window !== "undefined" && !window.scrollTo) {
-  window.scrollTo = jest.fn();
+  window.scrollTo = vi.fn();
 }
 
 // Mock indexedDB since it's not available in jsdom
 global.indexedDB = {
-  open: jest.fn(() => ({
+  open: vi.fn(() => ({
     onupgradeneeded: null,
     onsuccess: null,
     onerror: null,
@@ -33,40 +33,40 @@ global.indexedDB = {
 vi.mock("../services/bffAxios", () => ({
   __esModule: true,
   default: {
-    get: jest.fn(() => Promise.resolve({ data: { authenticated: false } })),
-    post: jest.fn(),
-    put: jest.fn(),
-    delete: jest.fn(),
-    patch: jest.fn(),
-    create: jest.fn(),
+    get: vi.fn(() => Promise.resolve({ data: { authenticated: false } })),
+    post: vi.fn(),
+    put: vi.fn(),
+    delete: vi.fn(),
+    patch: vi.fn(),
+    create: vi.fn(),
     interceptors: {
-      request: { use: jest.fn(), eject: jest.fn() },
-      response: { use: jest.fn(), eject: jest.fn() },
+      request: { use: vi.fn(), eject: vi.fn() },
+      response: { use: vi.fn(), eject: vi.fn() },
     },
   },
 }));
 
 vi.mock("axios", () => {
-  const mockGet = jest.fn(() =>
+  const mockGet = vi.fn(() =>
     Promise.resolve({ data: { authenticated: false } }),
   );
-  const mockPost = jest.fn();
+  const mockPost = vi.fn();
   const mockClient = {
     get: mockGet,
     post: mockPost,
-    put: jest.fn(),
-    delete: jest.fn(),
-    patch: jest.fn(),
+    put: vi.fn(),
+    delete: vi.fn(),
+    patch: vi.fn(),
     interceptors: {
-      request: { use: jest.fn(), eject: jest.fn() },
-      response: { use: jest.fn(), eject: jest.fn() },
+      request: { use: vi.fn(), eject: vi.fn() },
+      response: { use: vi.fn(), eject: vi.fn() },
     },
     defaults: { headers: { common: {} } },
   };
   return {
     __esModule: true,
     default: {
-      create: jest.fn(() => mockClient),
+      create: vi.fn(() => mockClient),
       get: mockGet,
       post: mockPost,
       defaults: { headers: { common: {} } },
@@ -87,10 +87,10 @@ vi.mock("react-router-dom", () => ({
       {children}
     </a>
   ),
-  useNavigate: () => jest.fn(),
+  useNavigate: () => vi.fn(),
   useLocation: () => routeLocation,
   /** AppWithAuth reads query params for OAuth error toasts — must be iterable [params, setParams]. */
-  useSearchParams: () => [new URLSearchParams(""), jest.fn()],
+  useSearchParams: () => [new URLSearchParams(""), vi.fn()],
 }));
 
 // Minimal stubs for heavy child components that can't render in jsdom
@@ -133,13 +133,13 @@ vi.mock("../vertical/useVertical", () => ({
     pageMockData: null,
     isAdmin: false,
     isAdminScope: false,
-    refetch: jest.fn(),
+    refetch: vi.fn(),
   }),
 }));
 vi.mock("../context/EducationUIContext", () => ({
   EducationUIProvider: ({ children }) => children,
-  useEducationUIOptional: () => ({ open: jest.fn(), close: jest.fn() }),
-  useEducationUI: () => ({ open: jest.fn(), close: jest.fn() }),
+  useEducationUIOptional: () => ({ open: vi.fn(), close: vi.fn() }),
+  useEducationUI: () => ({ open: vi.fn(), close: vi.fn() }),
 }));
 vi.mock("../context/TokenChainContext", () => ({
   TokenChainProvider: ({ children }) => children,
@@ -151,14 +151,14 @@ vi.mock("../context/AgentUiModeContext", () => ({
   useAgentUiMode: () => ({
     placement: "none",
     fab: true,
-    setAgentUi: jest.fn(),
+    setAgentUi: vi.fn(),
     surfaceHostEl: null,
-    setSurfaceHostEl: jest.fn(),
+    setSurfaceHostEl: vi.fn(),
   }),
 }));
 vi.mock("../services/configService", () => {
-  const loadPublicConfig = jest.fn(() => Promise.resolve({}));
-  const savePublicConfig = jest.fn(() => Promise.resolve(undefined));
+  const loadPublicConfig = vi.fn(() => Promise.resolve({}));
+  const savePublicConfig = vi.fn(() => Promise.resolve(undefined));
   return {
     __esModule: true,
     loadPublicConfig,
@@ -166,19 +166,19 @@ vi.mock("../services/configService", () => {
   };
 });
 vi.mock("../services/demoScenarioService", () => {
-  const fetchDemoScenario = jest.fn(() => Promise.resolve({ settings: {} }));
+  const fetchDemoScenario = vi.fn(() => Promise.resolve({ settings: {} }));
   return {
     __esModule: true,
     fetchDemoScenario,
-    persistAgentUiMode: jest.fn(() => Promise.resolve(true)),
-    persistAgentUi: jest.fn(() => Promise.resolve(true)),
+    persistAgentUiMode: vi.fn(() => Promise.resolve(true)),
+    persistAgentUi: vi.fn(() => Promise.resolve(true)),
   };
 });
 vi.mock("react-toastify", () => ({
   ToastContainer: (props) => (
     <div data-testid="toast-container" data-position={props.position} />
   ),
-  toast: { success: jest.fn(), error: jest.fn() },
+  toast: { success: vi.fn(), error: vi.fn() },
 }));
 
 // App.js checkOAuthSession uses getCachedJson which internally uses fetch (not axios.get).
@@ -187,10 +187,10 @@ vi.mock("react-toastify", () => ({
 // Using a manual factory with __esModule so named import { getCachedJson } resolves correctly.
 vi.mock("../services/cachedStatusService", () => ({
   __esModule: true,
-  getCachedJson: jest.fn(),
-  getCachedStatus: jest.fn(),
-  clearStatusCache: jest.fn(),
-  clearStatusCacheFor: jest.fn(),
+  getCachedJson: vi.fn(),
+  getCachedStatus: vi.fn(),
+  clearStatusCache: vi.fn(),
+  clearStatusCacheFor: vi.fn(),
 }));
 
 import { act, render, screen, waitFor } from "@testing-library/react";
@@ -258,7 +258,7 @@ const CUSTOMER_USER = {
 
 describe("App — toast position", () => {
   beforeEach(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     localStorage.clear();
     sessionStorage.clear();
     mockAllUnauthenticated();
@@ -266,9 +266,9 @@ describe("App — toast position", () => {
 
   afterEach(() => {
     routeLocation.pathname = "/";
-    jest.clearAllMocks();
-    jest.clearAllTimers();
-    jest.useRealTimers();
+    vi.clearAllMocks();
+    vi.clearAllTimers();
+    vi.useRealTimers();
   });
 
   it("uses bottom-left on the dashboard", () => {
@@ -293,7 +293,7 @@ describe("App — toast position", () => {
 
 describe("App — unauthenticated state", () => {
   beforeEach(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     localStorage.clear();
     sessionStorage.clear();
     delete window.location;
@@ -302,17 +302,17 @@ describe("App — unauthenticated state", () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
-    jest.clearAllTimers();
-    jest.useRealTimers();
+    vi.clearAllMocks();
+    vi.clearAllTimers();
+    vi.useRealTimers();
   });
 
   it("does not dispatch userAuthenticated when no session is found", async () => {
-    const listener = jest.fn();
+    const listener = vi.fn();
     window.addEventListener("userAuthenticated", listener);
     render(<App />);
     await act(async () => {
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
     });
     expect(listener).not.toHaveBeenCalled();
     window.removeEventListener("userAuthenticated", listener);
@@ -321,7 +321,7 @@ describe("App — unauthenticated state", () => {
   it("calls /api/auth/oauth/status, /api/auth/oauth/user/status, and /api/auth/session", async () => {
     render(<App />);
     await act(async () => {
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
     });
     const urls = () => axios.get.mock.calls.map((c) => c[0]);
     await waitFor(() => expect(urls()).toContain("/api/auth/oauth/status"));
@@ -336,7 +336,7 @@ describe("App — unauthenticated state", () => {
 
 describe("App — admin OAuth session detected", () => {
   beforeEach(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     localStorage.clear();
     delete window.location;
     window.location = { search: "", href: "/" };
@@ -344,17 +344,17 @@ describe("App — admin OAuth session detected", () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
-    jest.clearAllTimers();
-    jest.useRealTimers();
+    vi.clearAllMocks();
+    vi.clearAllTimers();
+    vi.useRealTimers();
   });
 
   it("dispatches userAuthenticated when admin session is found", async () => {
-    const listener = jest.fn();
+    const listener = vi.fn();
     window.addEventListener("userAuthenticated", listener);
     render(<App />);
     await act(async () => {
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
     });
     await waitFor(() => expect(listener).toHaveBeenCalled());
     window.removeEventListener("userAuthenticated", listener);
@@ -365,7 +365,7 @@ describe("App — admin OAuth session detected", () => {
 
 describe("App — end-user OAuth session detected", () => {
   beforeEach(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     localStorage.clear();
     delete window.location;
     window.location = { search: "", href: "/" };
@@ -383,17 +383,17 @@ describe("App — end-user OAuth session detected", () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
-    jest.clearAllTimers();
-    jest.useRealTimers();
+    vi.clearAllMocks();
+    vi.clearAllTimers();
+    vi.useRealTimers();
   });
 
   it("dispatches userAuthenticated when end-user session is found", async () => {
-    const listener = jest.fn();
+    const listener = vi.fn();
     window.addEventListener("userAuthenticated", listener);
     render(<App />);
     await act(async () => {
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
     });
     await waitFor(() => expect(listener).toHaveBeenCalled());
     window.removeEventListener("userAuthenticated", listener);
@@ -404,7 +404,7 @@ describe("App — end-user OAuth session detected", () => {
 
 describe("App — generic /api/auth/session fallback", () => {
   beforeEach(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     localStorage.clear();
     delete window.location;
     window.location = { search: "", href: "/" };
@@ -422,17 +422,17 @@ describe("App — generic /api/auth/session fallback", () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
-    jest.clearAllTimers();
-    jest.useRealTimers();
+    vi.clearAllMocks();
+    vi.clearAllTimers();
+    vi.useRealTimers();
   });
 
   it("dispatches userAuthenticated for the /api/auth/session cookie-restore path", async () => {
-    const listener = jest.fn();
+    const listener = vi.fn();
     window.addEventListener("userAuthenticated", listener);
     render(<App />);
     await act(async () => {
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
     });
     await waitFor(() => expect(listener).toHaveBeenCalled());
     window.removeEventListener("userAuthenticated", listener);
@@ -443,7 +443,7 @@ describe("App — generic /api/auth/session fallback", () => {
 
 describe("App — regular page load does not retry", () => {
   beforeEach(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     localStorage.clear();
     delete window.location;
     window.location = { search: "", href: "/" }; // NOT ?oauth=success
@@ -451,18 +451,18 @@ describe("App — regular page load does not retry", () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
-    jest.clearAllTimers();
-    jest.useRealTimers();
+    vi.clearAllMocks();
+    vi.clearAllTimers();
+    vi.useRealTimers();
   });
 
   it("makes exactly one round of endpoint checks (no retry loop)", async () => {
     render(<App />);
     await act(async () => {
-      jest.advanceTimersByTime(200);
+      vi.advanceTimersByTime(200);
     });
     await act(async () => {
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
     });
 
     const authCalls = axios.get.mock.calls
@@ -479,7 +479,7 @@ describe("App — regular page load does not retry", () => {
 
 describe("App — ?oauth=success triggers retry loop", () => {
   beforeEach(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     localStorage.clear();
     delete window.location;
     window.location = {
@@ -489,9 +489,9 @@ describe("App — ?oauth=success triggers retry loop", () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
-    jest.clearAllTimers();
-    jest.useRealTimers();
+    vi.clearAllMocks();
+    vi.clearAllTimers();
+    vi.useRealTimers();
   });
 
   it("eventually finds the session after a late Redis response", async () => {
@@ -509,23 +509,23 @@ describe("App — ?oauth=success triggers retry loop", () => {
       });
     });
 
-    const listener = jest.fn();
+    const listener = vi.fn();
     window.addEventListener("userAuthenticated", listener);
 
     render(<App />);
 
     // Advance through initial check + 3 retries
     await act(async () => {
-      jest.advanceTimersByTime(200);
+      vi.advanceTimersByTime(200);
     });
     await act(async () => {
-      jest.advanceTimersByTime(450);
+      vi.advanceTimersByTime(450);
     });
     await act(async () => {
-      jest.advanceTimersByTime(950);
+      vi.advanceTimersByTime(950);
     });
     await act(async () => {
-      jest.advanceTimersByTime(1900);
+      vi.advanceTimersByTime(1900);
     });
 
     await waitFor(() => expect(listener).toHaveBeenCalled());
@@ -537,23 +537,23 @@ describe("App — ?oauth=success triggers retry loop", () => {
 
 describe("App — userAuthenticated event re-triggers check", () => {
   beforeEach(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     localStorage.clear();
     delete window.location;
     window.location = { search: "", href: "/" };
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
-    jest.clearAllTimers();
-    jest.useRealTimers();
+    vi.clearAllMocks();
+    vi.clearAllTimers();
+    vi.useRealTimers();
   });
 
   it("re-checks session when BankingAgent dispatches userAuthenticated", async () => {
     mockAllUnauthenticated();
     render(<App />);
     await act(async () => {
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
     });
 
     const callsBefore = axios.get.mock.calls
@@ -565,7 +565,7 @@ describe("App — userAuthenticated event re-triggers check", () => {
       window.dispatchEvent(new CustomEvent("userAuthenticated"));
     });
     await act(async () => {
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
     });
 
     // App should re-run checkOAuthSession — more auth calls expected
@@ -583,12 +583,12 @@ describe("App — userLoggedOut localStorage flag skips check", () => {
     delete window.location;
     window.location = { search: "", href: "/", pathname: "/" };
     localStorage.setItem("userLoggedOut", "true");
-    global.fetch = jest.fn(() => Promise.resolve({ ok: true }));
-    window.history.replaceState = jest.fn();
+    global.fetch = vi.fn(() => Promise.resolve({ ok: true }));
+    window.history.replaceState = vi.fn();
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     localStorage.clear();
   });
 

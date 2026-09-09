@@ -19,16 +19,16 @@ function baseState(overrides = {}) {
     isPaused: false,
     newCount: 0,
     activeFilters: new Set(ALL_CATEGORIES),
-    toggleFilter: jest.fn(),
-    setAllFilters: jest.fn(),
-    pause: jest.fn(),
-    resume: jest.fn(),
-    clear: jest.fn(),
-    resetNewCount: jest.fn(),
+    toggleFilter: vi.fn(),
+    setAllFilters: vi.fn(),
+    pause: vi.fn(),
+    resume: vi.fn(),
+    clear: vi.fn(),
+    resetNewCount: vi.fn(),
     availableUseCaseIds: [],
     activeUseCaseFilters: null,
-    toggleUseCaseFilter: jest.fn(),
-    clearUseCaseFilter: jest.fn(),
+    toggleUseCaseFilter: vi.fn(),
+    clearUseCaseFilter: vi.fn(),
     ...overrides,
   };
 }
@@ -90,7 +90,7 @@ describe('ActivityLogPanel — use-case filter pills', () => {
   });
 
   it('calls toggleUseCaseFilter when a pill is clicked', async () => {
-    const toggleUseCaseFilter = jest.fn();
+    const toggleUseCaseFilter = vi.fn();
     _mockReturn = baseState({ availableUseCaseIds: ['uc-a'], toggleUseCaseFilter });
     render(<ActivityLogPanel enabled={true} />);
     await userEvent.click(screen.getByText('uc-a'));
@@ -104,7 +104,7 @@ describe('ActivityLogPanel — use-case filter pills', () => {
   });
 
   it('All button is enabled and calls clearUseCaseFilter when filter is active', async () => {
-    const clearUseCaseFilter = jest.fn();
+    const clearUseCaseFilter = vi.fn();
     _mockReturn = baseState({
       availableUseCaseIds: ['uc-a'],
       activeUseCaseFilters: new Set(['uc-a']),

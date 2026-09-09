@@ -140,7 +140,7 @@ describe('authUi', () => {
 
   describe('notifySessionExpiredIfNeeded', () => {
     it('dispatches re-auth event on protected routes', () => {
-      const handler = jest.fn();
+      const handler = vi.fn();
       window.addEventListener(SESSION_REAUTH_EVENT, handler);
       window.history.pushState({}, '', '/dashboard');
 
@@ -161,7 +161,7 @@ describe('authUi', () => {
     });
 
     it('keeps raw provider text out of the leading sentence', () => {
-      const handler = jest.fn();
+      const handler = vi.fn();
       window.addEventListener(SESSION_REAUTH_EVENT, handler);
       window.history.pushState({}, '', '/dashboard');
 
@@ -184,7 +184,7 @@ describe('authUi', () => {
     });
 
     it('dispatches for human Session expired on agent host path', () => {
-      const handler = jest.fn();
+      const handler = vi.fn();
       window.addEventListener(SESSION_REAUTH_EVENT, handler);
       window.history.pushState({}, '', '/use-cases/live');
 
@@ -200,7 +200,7 @@ describe('authUi', () => {
     it('stays silent until the user has interacted with the page', () => {
       // A page-load fetch or a background poll that 401s must not interrupt a
       // visitor who has not touched anything yet.
-      const handler = jest.fn();
+      const handler = vi.fn();
       window.addEventListener(SESSION_REAUTH_EVENT, handler);
       window.history.pushState({}, '', '/dashboard');
       Object.defineProperty(navigator, 'userActivation', {
@@ -223,7 +223,7 @@ describe('authUi', () => {
     });
 
     it('does not dispatch on public landing', () => {
-      const handler = jest.fn();
+      const handler = vi.fn();
       window.addEventListener(SESSION_REAUTH_EVENT, handler);
       window.history.pushState({}, '', '/');
 
@@ -254,7 +254,7 @@ describe('authUi', () => {
 
     it('navigateToCustomerOAuthLogin sets user OAuth URL', () => {
       delete window.location;
-      window.location = { href: '', assign: jest.fn(), replace: jest.fn(), reload: jest.fn() };
+      window.location = { href: '', assign: vi.fn(), replace: vi.fn(), reload: vi.fn() };
 
       navigateToCustomerOAuthLogin();
 
@@ -263,7 +263,7 @@ describe('authUi', () => {
 
     it('navigateToAdminOAuthLogin sets admin OAuth URL', () => {
       delete window.location;
-      window.location = { href: '', assign: jest.fn(), replace: jest.fn(), reload: jest.fn() };
+      window.location = { href: '', assign: vi.fn(), replace: vi.fn(), reload: vi.fn() };
 
       navigateToAdminOAuthLogin();
 
@@ -279,9 +279,9 @@ describe('authUi', () => {
         window.location = {
           href: '',
           pathname,
-          assign: jest.fn(),
-          replace: jest.fn(),
-          reload: jest.fn(),
+          assign: vi.fn(),
+          replace: vi.fn(),
+          reload: vi.fn(),
         };
       };
 

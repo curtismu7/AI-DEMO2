@@ -17,8 +17,8 @@ import ArchitectureTabsPanel from "../ArchitectureTabsPanel";
 vi.mock("../../services/bffAxios", () => ({
   __esModule: true,
   default: {
-    get: jest.fn(() => Promise.resolve({ data: { diagrams: [] } })),
-    post: jest.fn(() => Promise.resolve({ data: {} })),
+    get: vi.fn(() => Promise.resolve({ data: { diagrams: [] } })),
+    post: vi.fn(() => Promise.resolve({ data: {} })),
   },
 }));
 
@@ -29,7 +29,7 @@ vi.mock("../education/InteractiveArchDiagram", () => ({ default: () => null }));
 vi.mock("../NarrativePanel", () => ({ default: () => null }));
 
 vi.mock("../../context/ExchangeModeContext", () => ({
-  useExchangeMode: () => ({ mode: "1-exchange", setMode: jest.fn() }),
+  useExchangeMode: () => ({ mode: "1-exchange", setMode: vi.fn() }),
 }));
 
 describe("ArchitectureTabsPanel — anon gating of /api/admin/diagrams/list", () => {

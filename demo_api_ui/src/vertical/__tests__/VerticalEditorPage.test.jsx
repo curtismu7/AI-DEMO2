@@ -33,7 +33,7 @@ function tree({ pageManifest, isAdmin = true }) {
           pageMockData: {},
           adminManifest: MIN('admin-console'),
           isAdmin,
-          refetch: jest.fn(),
+          refetch: vi.fn(),
         }}
       >
         <VerticalEditorPage />
@@ -46,7 +46,7 @@ beforeEach(() => {
   // Route by URL: the editor fetches /list (vertical list) AND /:id/seed (the
   // raw seed manifest that save() diffs against). Without a seedManifest,
   // seedValue stays '' and save()'s JSON.parse(seedValue) throws.
-  global.fetch = jest.fn().mockImplementation((url) => {
+  global.fetch = vi.fn().mockImplementation((url) => {
     if (typeof url === 'string' && url.includes('/seed')) {
       return Promise.resolve({
         ok: true,
@@ -61,7 +61,7 @@ beforeEach(() => {
       ]),
     });
   });
-  global.confirm = jest.fn(() => true);
+  global.confirm = vi.fn(() => true);
 });
 
 describe('VerticalEditorPage', () => {

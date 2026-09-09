@@ -6,7 +6,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import AuditPage from "../AuditPage";
 
-const mockNavigate = jest.fn();
+const mockNavigate = vi.fn();
 let searchParamsValue = "";
 
 vi.mock("react-router-dom", () => ({
@@ -24,10 +24,10 @@ async function renderSettled(props) {
 }
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
   searchParamsValue = "";
   // Floating window mode fetches the audit feed + summary on mount.
-  global.fetch = jest.fn(() =>
+  global.fetch = vi.fn(() =>
     Promise.resolve({ ok: true, json: () => Promise.resolve([]) }),
   );
 });
@@ -36,7 +36,7 @@ describe("AuditPage — agentId query-param seeding", () => {
   it("seeds the agent filter and includes it in the initial fetch", async () => {
     searchParamsValue = "agentId=demo-agent";
 
-    await renderSettled({ onClose: jest.fn() });
+    await renderSettled({ onClose: vi.fn() });
 
     const calledWithAgentId = global.fetch.mock.calls.some(
       ([url]) => typeof url === "string" && url.includes("agentId=demo-agent"),
@@ -47,7 +47,7 @@ describe("AuditPage — agentId query-param seeding", () => {
 
 describe("AuditPage floating window — title-bar interaction", () => {
   it("does not drag the window when the mousedown lands on an action button", async () => {
-    await renderSettled({ onClose: jest.fn() });
+    await renderSettled({ onClose: vi.fn() });
     const win = document.querySelector(".audit-float-window");
     const before = win.style.left;
 
@@ -62,7 +62,7 @@ describe("AuditPage floating window — title-bar interaction", () => {
   });
 
   it("drags the window when the mousedown lands on the bare title bar", async () => {
-    await renderSettled({ onClose: jest.fn() });
+    await renderSettled({ onClose: vi.fn() });
     const win = document.querySelector(".audit-float-window");
     // Capture the origin rather than hardcoding it — the initial left depends
     // on DEFAULT_W vs the jsdom window width, not a fixed 0.
@@ -79,7 +79,7 @@ describe("AuditPage floating window — title-bar interaction", () => {
   });
 
   it("keeps the close button clickable after a mousedown + move on it (the #389 symptom)", async () => {
-    const onClose = jest.fn();
+    const onClose = vi.fn();
     await renderSettled({ onClose });
     const win = document.querySelector(".audit-float-window");
     const before = win.style.left;

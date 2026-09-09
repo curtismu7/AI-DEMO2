@@ -46,7 +46,7 @@ describe.each(Object.entries(HITL_TOOL_BY_VERTICAL))(
         evidence: { tokenChain: ['authorize-decision'], activity: ['authorize', 'mcp', 'hitl'] },
         primaryTool: tool,
       }];
-      global.fetch = jest.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ useCases: catalog }) }));
+      global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ useCases: catalog }) }));
 
       const { getByTestId } = render(
         <ProofOfEnforcementProvider vertical={vertical}>

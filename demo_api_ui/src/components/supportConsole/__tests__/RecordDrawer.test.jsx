@@ -13,7 +13,7 @@ it('renders record detail, actions, and a timeline when open', () => {
 });
 
 it('calls onAction with the label, row, and category id', () => {
-  const onAction = jest.fn();
+  const onAction = vi.fn();
   render(<RecordDrawer open vertical="banking" category={category} row={row} customer={customer} onClose={() => {}} onAction={onAction} />);
   fireEvent.click(screen.getByRole('button', { name: 'Seed charge' }));
   expect(onAction).toHaveBeenCalledWith('Seed charge', row, 'accounts');

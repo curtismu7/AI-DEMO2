@@ -73,7 +73,7 @@ test('different keys are independent', () => {
 });
 
 test('useMcpField throws when used outside provider', () => {
-  const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
   expect(() => render(<Consumer fieldKey="x" />)).toThrow();
   spy.mockRestore();
 });
