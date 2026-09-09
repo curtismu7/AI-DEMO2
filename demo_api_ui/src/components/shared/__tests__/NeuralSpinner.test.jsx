@@ -29,7 +29,11 @@ describe('NeuralSpinner', () => {
     expect(root.style.getPropertyValue('--ns-accent')).toBe('');
     expect(root.style.color).toBe('');
     expect(root.style.background).toBe('');
-    expect(css()).toContain('--ns-accent: var(--brand-navy');
+    // The accent now reads through --spinner-accent so /configure's Appearance
+    // knob can override it from :root — a value merely inherited from an
+    // ancestor loses to this declaration on .ns itself. Still no inline colour,
+    // and still --brand-navy when nothing overrides it.
+    expect(css()).toContain('--ns-accent: var(--spinner-accent, var(--brand-navy');
   });
 
   it('renders eight token spokes with distinct hues', () => {

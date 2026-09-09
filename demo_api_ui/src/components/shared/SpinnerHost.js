@@ -2,18 +2,24 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { useSpinner } from '../../context/SpinnerContext';
+import { useAppFlags } from '../../hooks/useAppFlags';
 import { spinnerActivity } from '../../services/spinnerActivityService';
 import BusySpinner from './BusySpinner';
 import NeuralSpinner from './NeuralSpinner';
 import './LoadingOverlay.css';
 
 /**
- * Spinner variant switch.
- *   'neural'  → NeuralSpinner token-ingress dial (default)
- *   'busy'    → BusySpinner telemetry radar
- *   'classic' → original <span className="lo-spinner"> border ring
+ * Every knob below now comes from configStore via useAppFlags (/configure →
+ * Appearance), not a constant here. The catalog defaults reproduce exactly what
+ * these constants used to hardcode, so an untouched demo looks the same:
+ *   spinner_variant       'neural' → NeuralSpinner token-ingress dial
+ *                         'busy'   → BusySpinner telemetry radar
+ *                         'classic'→ original <span className="lo-spinner"> ring
+ *   spinner_size          88
+ *   spinner_accent        '' → --brand-navy
+ *   spinner_dark_card     true
+ *   spinner_activity_feed true
  */
-const SPINNER_VARIANT = 'neural';
 
 /**
  * Global spinner overlay — rendered once in App.js via createPortal.
@@ -24,6 +30,14 @@ const SPINNER_VARIANT = 'neural';
  */
 export default function SpinnerHost() {
   const { visible, message, color, endpoint } = useSpinner();
+  const { appFlags } = useAppFlags();
+  const {
+    spinnerVariant: variant,
+    spinnerSize,
+    spinnerAccent,
+    spinnerDarkCard,
+    spinnerActivityFeed,
+  } = appFlags;
   const [activityEvents, setActivityEvents] = useState([]);
   const feedRef = useRef(null);
 
@@ -46,6 +60,17 @@ export default function SpinnerHost() {
     }
   }, [visible]);
 
+  // Publish the configured accent to :root so EVERY spinner picks it up — the
+  // inline ones in the inspectors as well as this overlay. It has to land on a
+  // variable NeuralSpinner's own `.ns { --ns-accent: ... }` reads through
+  // (--spinner-accent), because a value merely inherited from an ancestor
+  // loses to that declaration on the element itself.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (spinnerAccent) root.style.setProperty('--spinner-accent', spinnerAccent);
+    else root.style.removeProperty('--spinner-accent');
+  }, [spinnerAccent]);
+
   // Auto-scroll feed to bottom when new events arrive
   useEffect(() => {
     if (feedRef.current) {
@@ -55,7 +80,7 @@ export default function SpinnerHost() {
 
   if (!visible) return null;
 
-  const accentColor = color || 'var(--brand-navy)';
+  const accentColor = spinnerAccent || color || 'var(--brand-navy)';
 
   // Strip origin from endpoint for compact display: "GET https://host:4000/api/foo" → "GET /api/foo"
   const shortEndpoint = endpoint ? endpoint.replace(/^(\w+\s+)https?:\/\/[^/]+/, '$1') : null;
@@ -72,27 +97,27 @@ export default function SpinnerHost() {
       aria-label={message || 'Loading…'}
     >
       <div
-        className={SPINNER_VARIANT === 'classic' ? 'lo-card' : 'lo-card lo-card--dark'}
+        className={variant === 'classic' || !spinnerDarkCard ? 'lo-card' : 'lo-card lo-card--dark'}
         style={{ borderTopColor: accentColor }}
       >
-        {SPINNER_VARIANT === 'classic' && (
+        {variant === 'classic' && (
           <span
             className="lo-spinner"
             style={{ borderTopColor: accentColor }}
             aria-hidden="true"
           />
         )}
-        {SPINNER_VARIANT === 'busy' && (
-          <BusySpinner size={72} accent={accentColor} aria-hidden="true" />
+        {variant === 'busy' && (
+          <BusySpinner size={spinnerSize} accent={accentColor} aria-hidden="true" />
         )}
-        {SPINNER_VARIANT === 'neural' && (
-          <NeuralSpinner size={88} />
+        {variant === 'neural' && (
+          <NeuralSpinner size={spinnerSize} />
         )}
         <p className="lo-message">{message || 'Please wait…'}</p>
         {activityLabel && (
           <code className="lo-endpoint">{activityLabel}</code>
         )}
-        {activityEvents.length > 0 && (
+        {spinnerActivityFeed && activityEvents.length > 0 && (
           <div className="lo-activity-feed" ref={feedRef}>
             {activityEvents.map((evt) => (
               <div key={evt.id} className="lo-activity-line">
