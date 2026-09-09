@@ -8,6 +8,7 @@ import { useThemeOptional } from '../context/ThemeContext';
 import useDividerDrag from '../hooks/useDividerDrag';
 import JsonHighlight from './shared/JsonHighlight';
 import JsonFormView from './shared/JsonFormView';
+import NeuralSpinner from './shared/NeuralSpinner';
 import apiClient from '../services/apiClient';
 import { formatAxiosError } from '../utils/formatAxiosError';
 import './McpInspectorPage.clean.css';
@@ -29,7 +30,7 @@ const SOURCES = [
   },
   {
     key: 'pingone', label: 'PingOne MCP',
-    description: 'The hosted PingOne MCP server, reached with your PingOne admin sign-in.',
+    description: 'The hosted PingOne MCP server, reached with a PingOne sign-in of your own account. Your PingOne roles decide which tools appear.',
   },
   {
     key: 'api', label: 'API Calls',
@@ -370,7 +371,8 @@ function McpInspectorPageClean() {
             )}
             <div className="inspector-clean-panel-body">
               {source.loadingTools ? (
-                <div style={{ color: 'var(--inspector-text-tertiary)', padding: '20px', textAlign: 'center' }}>
+                <div style={{ color: 'var(--inspector-text-tertiary)', padding: '20px', display: 'grid', placeItems: 'center', gap: '12px' }}>
+                  <NeuralSpinner size={56} />
                   Loading tools...
                 </div>
               ) : source.tools.length === 0 ? (
@@ -576,6 +578,11 @@ function McpInspectorPageClean() {
                       </div>
                     </div>
                   </>
+                ) : source.busy ? (
+                  <div style={{ color: 'var(--inspector-text-secondary)', padding: '20px', display: 'grid', placeItems: 'center', gap: '12px' }}>
+                    <NeuralSpinner size={72} />
+                    Calling...
+                  </div>
                 ) : (
                   <div style={{ color: 'var(--inspector-text-secondary)', padding: '20px', textAlign: 'center' }}>
                     {source.selectedTool ? 'Click Execute to see the response' : 'Select and execute a tool'}

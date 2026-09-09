@@ -154,6 +154,10 @@ export function useInspectorSource(sourceKey) {
   const loadProfiles = useCallback(async (selectId) => {
     if (mode !== 'profiles') return;
     const reqId = ++profilesReqRef.current;
+    // The tools panel is not ready until profiles land — without this it sits on
+    // "No tools available" for the whole first fetch, which reads as "empty",
+    // not "loading". loadTools() is what clears the flag on the way out.
+    setLoadingTools(true);
     try {
       const { data } = await apiClient.get(config.profilesEndpoint);
       if (profilesReqRef.current !== reqId) return;
@@ -163,6 +167,11 @@ export function useInspectorSource(sourceKey) {
     } catch (e) {
       if (profilesReqRef.current !== reqId) return;
       setBanner({ message: formatAxiosError(e, 'Failed to load server profiles'), loginUrl: null });
+    } finally {
+      // ponytail: clearing here shows one frame of the empty state before
+      // loadTools() re-raises the flag. Thread the selected id back out and
+      // hand the flag straight over if that frame ever reads as a flicker.
+      if (profilesReqRef.current === reqId) setLoadingTools(false);
     }
   }, [mode, config.profilesEndpoint]);
 
