@@ -807,6 +807,59 @@ caller never reasserted.
 
 **Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/routes/privilegeMcpClient --forceExit --runInBand` — 28 suites / 163 tests passed. Full suite: `CI=true npm test -- --forceExit --runInBand` — 11274/11276 passed; the 2 failures (`delegatedCommerceRoutes.test.js`, `dpopDemo.route.test.js`) are unrelated files matching this repo's documented host-contention flake signature, confirmed by re-running both in isolation — both pass clean.
 
+### 2026-09-09 — Two of the four Direct doors were dead, for two unrelated reasons
+
+**Files changed:** `demo_api_server/routes/privilegeMcpClient.js`,
+`demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`, `docker-compose.yml`,
+`demo_api_server/tests/routes/privilegeMcpClient.openDoor.test.js`.
+
+**What was broken:** on `/privilege-mcp-client` with Path = Direct, three of the
+four doors returned no tools. Driven live 2026-09-09 on a pinned stack; `brave`
+worked throughout, so "none of them work" was three separate faults:
+
+- **`opensearch`** (the door the page defaults to) — 502 `upstream_unavailable`.
+  `MCP_FACADE_OPENSEARCH_URL` was unset, so `mcpFacade.js` fell back to its code
+  default `http://opensearch-mcp-server.ping-devops-curtismuir.svc.cluster.local:80/mcp`
+  — the SE cluster's in-cluster DNS name, `EAI_AGAIN` from a local BFF container.
+- **`banking`** — an ungated door (`DOORS.banking`, "the upstream's own 401 is
+  what the client sees") whose upstream `mcp-server:8080` answers **200 with no
+  bearer**. This client gated it anyway: `/tools/list` answered 401 before ever
+  calling the door, and `/auth/start` threw the 2026-09-08 guard's "the door
+  itself is down" at a door that was up.
+- **`pingone-admin`** — NOT fixed here. The delegated-PKCE round trip completes
+  and the hosted upstream then answers `PingOne MCP HTTP 401: Invalid
+  authentication`. A live credential/identity matter, not code.
+
+**What was fixed:** `discoverAuth()`'s own-origin guard error now carries
+`code: 'door_advertises_no_as'`. `/auth/start` catches exactly that code, probes
+the door once, and answers `200 {noAuthRequired: true}` when the door replies
+2xx — the UI then fetches tools instead of navigating. `docker-compose.yml`
+points `MCP_FACADE_OPENSEARCH_URL` at the local compose service (profile
+`mcpgw`), leaving the code default for the cluster.
+
+**Do not break:**
+
+- **The gate must not reach the network to decide who is allowed in.**
+  `privilegeMcpClient.procyon.test.js` pins `expect(global.fetch).not.toHaveBeenCalled()`
+  on the tokenless `/tools/list` path. The probe therefore lives in
+  `/auth/start`'s catch only; `/tools/list` reads a memo (`isOpenDoor`). A first
+  attempt that probed inside the gate broke 42 tests.
+- **OPEN is not BROKEN.** Only a 2xx counts as ungated. A door answering
+  400/405/5xx carries no challenge either, and reading that as "open" would
+  relay into a dead upstream and swallow the guard error naming the door — the
+  exact regression the 2026-09-08 entry above exists to prevent.
+- **A door that advertises an AS and then refuses DCR must still fail loudly**,
+  naming the client id to set (`privilegeMcpClient.authStartNoClientId.test.js`).
+  That is why the catch keys on the error code and not on the failure alone.
+- The banking door stays **ungated**. `mcpFacadeDirectSiblingDoors.test.js`
+  pins `DOORS.banking.requireBearer === undefined` on purpose; the defect was
+  client-side, and flipping the door would have changed what it demonstrates.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/routes/privilegeMcp tests/routes/mcpFacade --forceExit --runInBand`
+— 40 suites / 270 tests passed. Revert-to-RED confirmed: with the route change
+backed out, the two new behaviour tests fail and the guard tests stay green.
+The Direct `opensearch` door additionally needs `./run-docker.sh optional start mcpgw`.
+
 ### 2026-09-08 — A dead façade door bounced the browser to a bare PingOne `NOT_FOUND` page
 
 **Files changed:** `demo_api_server/routes/privilegeMcpClient.js`,
