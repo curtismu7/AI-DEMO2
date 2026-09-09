@@ -972,6 +972,15 @@ export default function AdminSideNav({
           path: "/architecture/system",
           icon: "arc",
         },
+        // Cross-listed: the canonical entry is Monitoring > System Flow. Same
+        // route, second door — a presenter hunting a system picture looks here,
+        // not under Monitoring. Distinct label so Demo Config (which hides by
+        // label) can drop either door without taking the other with it.
+        {
+          label: "System Flow (Live)",
+          path: "/monitoring/system-flow",
+          icon: "lnk",
+        },
         {
           label: "Overview Diagram (Node)",
           path: "/architecture/overview",
