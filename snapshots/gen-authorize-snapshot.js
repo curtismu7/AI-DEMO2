@@ -66,6 +66,7 @@ const BANKING_MANIFEST = path.join(REPO, 'demo_api_server', 'config', 'verticals
 
 const ATTR = {
   Amount: '12345678-0001-4321-abcd-000000000001',
+TransactionType: '12345678-0002-4321-abcd-000000000002',
   UserId: '12345678-0003-4321-abcd-000000000003',
   ToolName: '12345678-0008-4321-abcd-000000000008',
   ActClientId: '12345678-0010-4321-abcd-000000000010',
@@ -1115,6 +1116,33 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
     + 'INDETERMINATE. 0 trips no ceiling, so reads PERMIT and caps still deny.',
   ), true);
 
+  // 9-pre-b) TransactionType defaultValue '' — the SAME fix, applied to the last
+  // condition-read request attribute that still had no default at all.
+  //
+  // Found 2026-09-09 by the per-PEP request contract: pingAuthorizeGuard.ts
+  // builds a DecisionContext=McpToolsList request and does not send
+  // TransactionType (a tools/list has no transaction). IsTransferOrWithdrawal
+  // reads it, and with defaultValue null an omitted STRING left that comparison
+  // unresolved — the same mechanism that made every read INDETERMINATE before
+  // Amount got its default.
+  //
+  // '' is inert, not a loosening: IsTransferOrWithdrawal matches 'transfer' /
+  // 'withdrawal', and '' is neither, so a request that omits the key trips no
+  // transfer rule. Fixing it here rather than in the guard fixes every present
+  // and future caller at once — the reason Amount and RarMaxAmount were fixed
+  // this way too.
+  rarUpsert(requestAttr(
+    ATTR.TransactionType,
+    'TransactionType',
+    'STRING',
+    '',
+    'Kind of transaction being authorized (transfer / withdrawal / deposit / a tool '
+    + 'name for MCP contexts). Read by IsTransferOrWithdrawal. defaultValue \'\' so a '
+    + 'request with no transaction — tools/list discovery, for one — resolves inert '
+    + 'instead of leaving the comparison unresolved and taking the WHOLE decision to '
+    + 'INDETERMINATE.',
+  ), true);
+
   // 9a) RarMaxAmount request attribute (NUMBER) — same resolver shape as Amount.
   rarUpsert({
     objectType: 'AttributeDefinition', id: ATTR.RarMaxAmount,
@@ -1188,10 +1216,13 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
   rarUpsert(requestAttr(
     ATTR.AgentClass, 'AgentClass', 'STRING', 'none',
     'Which class of agent is calling: "autonomous" for a run with nobody signed in '
-    + '(sub = agent, no act claim). defaultValue "none" — not the empty string — because '
-    + 'P1AZ leaves an empty STRING unresolved and answers INDETERMINATE for the WHOLE '
-    + 'decision; "none" resolves cleanly to != autonomous, so every human transaction and '
-    + 'worker-agent call leaves these rules inert instead of blowing up the decision.',
+    + '(sub = agent, no act claim). defaultValue "none" is the READABLE inert sentinel: '
+    + '"none" resolves cleanly to != autonomous, so every human transaction and '
+    + 'worker-agent call leaves these rules inert. (An earlier version of this comment '
+    + 'claimed P1AZ leaves an empty STRING unresolved. It does not — TokenAudActual, '
+    + 'TokenIss, ResourceOwnerId and the IntentToken* trio all default to \'\' and their '
+    + 'requests PERMIT live. What P1AZ cannot resolve is an attribute with NO default '
+    + 'that the request omits; see snapshots/p1azRequestContract.js.)',
   ), true);
   rarUpsert(requestAttr(
     ATTR.MandateMaxAmount, 'MandateMaxAmount', 'NUMBER', 0,
