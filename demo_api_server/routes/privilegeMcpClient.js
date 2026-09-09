@@ -1918,6 +1918,36 @@ async function consoleInventory(session) {
   return { applications, policies, envId };
 }
 
+// Candidate resource kinds for the console's "Agent" object — the one the
+// Edit Agent > Gateway & Apps > Model Access & Limits wizard writes (rate
+// limits, budget, allowed models). Unlike Applications and PacPolicys, no
+// schema or endpoint for this is documented anywhere this codebase has
+// access to, and a live probe from an admin-role browser session got 401
+// "User is not authorized" on all three — which does NOT confirm any of
+// these names, since Privilege may return that same denial whether or not
+// the path even exists. So this tries every candidate through the SAME
+// proven session-cookie + x-procyon-session-id auth /applications and
+// /pacpolicys already use (server-side, not a raw browser fetch — the two
+// are not guaranteed to authenticate identically), and reports exactly
+// what happened for each rather than fabricating a result.
+const AGENT_CONFIG_CANDIDATES = ['/v1/agents', '/v1/aiagents', '/v1/agentconfigs'];
+
+async function discoverAgentConfig(session) {
+  const envId = consoleEnvId();
+  if (!envId) throw new Error('PRIVILEGE_SSO_ENV_ID not configured.');
+  const tried = [];
+  for (const suffix of AGENT_CONFIG_CANDIDATES) {
+    const path = `/api/${envId}${suffix}`;
+    try {
+      const raw = await consoleGet(session, path);
+      return { found: true, path, raw, tried };
+    } catch (err) {
+      tried.push({ path, status: err.status ?? null, message: err.message });
+    }
+  }
+  return { found: false, tried };
+}
+
 /**
  * Write a completed discovery to the door store.
  *
@@ -2018,6 +2048,19 @@ router.get('/console/inventory', async (req, res) => {
     const stored = rememberInventory(inventory);
     emitEvent(session, 'relay', { scope: 'console', message: `refreshed — ${inventory.applications.length} apps, ${inventory.policies.length} policies` });
     res.json({ ...inventory, discovery: discoverySummary(stored) });
+  } catch (err) {
+    res.status(err.status === 401 ? 401 : 502).json({ error: err.message });
+  }
+});
+
+// GET /console/agent-config — best-effort discovery only; see
+// discoverAgentConfig's own comment for why this cannot promise success.
+router.get('/console/agent-config', async (req, res) => {
+  const session = getClientSession(req);
+  if (!session.console?.authToken) return res.status(401).json({ error: 'No console token. Connect first.' });
+  try {
+    const result = await discoverAgentConfig(session);
+    res.json(result);
   } catch (err) {
     res.status(err.status === 401 ? 401 : 502).json({ error: err.message });
   }
