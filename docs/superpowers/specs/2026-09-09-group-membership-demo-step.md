@@ -191,6 +191,7 @@ UC21's maturity is `works` and would need the same flag added.
 ## 7. Open questions — decide before implementing
 
 ### 7.1 Does banking use `premiumTier` for UC21?
+
 It is the only vertical with a tier group, and UC21's title is
 "entitlement-tiered capability". Using it is more faithful to the card and makes
 banking the one vertical that differs. Using `privileged` everywhere is
@@ -199,10 +200,12 @@ uniform and simpler. **Recommendation: `privileged` everywhere for v1**, with
 the thing being asked for.
 
 ### 7.2 Airlines has two restricted tools
+
 `sensitive_airline_bookings` and `sensitive_passenger_record`. Pick one for the
 chip. **Recommendation: `sensitive_airline_bookings`.**
 
 ### 7.3 Restore policy
+
 Automatic after the run, or presenter-driven with a visible "restore
 membership" affordance? Automatic is safer on shared infrastructure; manual
 makes the transition visible, which is the teaching point. **Recommendation:
@@ -210,13 +213,32 @@ automatic restore, plus the existing `GroupMembershipToggle` on the page for a
 presenter who wants to drive it by hand.** Tie-break with D4.
 
 ### 7.4 Does UC9 keep `expectedOutcome: 'DENY'`?
+
 Yes under this design — the denial becomes reachable, so no re-scoping is
 needed. This supersedes the "re-scope UC9 like UC19/UC39" suggestion in PR #3015,
 which was written before the toggle endpoint was found.
 
 ## 8. Verification
 
-- 12 `stepVerification.<vertical>.test.js` suites — the cross-vertical gate.
+There are **16** `stepVerification.*.test.js` suites, of which 11 are per-vertical
+(`airlines`, `banking`, `government`, `healthcare`, `investment`, `manufacturing`,
+`pingone-admin`, `retail`, `sporting-goods`, `university`, `workforce`) and 5 are
+cross-cutting. Two of the cross-cutting ones bear directly on this change and
+must be read before touching either trigger:
+
+- **`stepVerification.amountGateBand.test.js`** — asserts behaviour per amount
+  band. UC9/UC21 are losing their amounts entirely, so this suite is the one
+  most likely to encode an assumption about them.
+- **`stepVerification.uc22.test.js`** — UC22 has its own suite, and UC22 is the
+  case the reverted `$200` attempt broke.
+
+Note `abercrombie-fitch` and `admin` are eligible verticals with **no**
+`stepVerification` suite of their own; they are covered only by the catalog-wide
+suites. Adding coverage for them is optional and out of scope here — but do not
+mistake their silence for a pass.
+
+Also run:
+
 - `useCases.primaryTool.test.js` — per-vertical primaryTool contract (129 checks).
 - `useCases.chipCompletes.test.js` — the suite that caught the UC22 seed
   collision; must stay green, and is the specific proof that removing the amount
