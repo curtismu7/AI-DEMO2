@@ -349,6 +349,7 @@ export default function PrivilegeMcpClientPage() {
   const [rawRpc, setRawRpc] = useState('{\n  "jsonrpc": "2.0",\n  "id": 1,\n  "method": "tools/list",\n  "params": {}\n}');
   const [rawRpcResult, setRawRpcResult] = useState('');
   const [showBlockedModal, setShowBlockedModal] = useState(false);
+  const [showSignInModal, setShowSignInModal] = useState(false);
   // The gateway answers a policy denial with a bare "Forbidden" and writes
   // nothing to its own log, so the modal has to assemble its own evidence:
   // the door and identity we already know, plus a live probe of the other doors.
@@ -392,6 +393,10 @@ export default function PrivilegeMcpClientPage() {
   // Façade/Privilege. Every isGatewayAuthChallenge() call site routes through
   // here instead of the raw setter so this stays in one place, not seven.
   const requestSignIn = (reason) => {
+    // The rail note alone lost the room: it renders three rows down from the
+    // failure and reads as description, not as the next action. Raise a modal
+    // over it too -- the note stays, so nothing that keys on it changes.
+    setShowSignInModal(true);
     setSignInReason(
       reason
         || 'This gateway is its own authorization server, so it issues its own token '
@@ -982,6 +987,7 @@ export default function PrivilegeMcpClientPage() {
       if (challengeKind === 'gateway-signin' || err.message?.toLowerCase().includes('not authenticated')) {
         setAuthenticated(false);
         requestSignIn();
+        return;
       } else if (
         err.message?.toLowerCase().includes('not authorized') ||
         err.message?.includes('403') ||
@@ -1346,6 +1352,21 @@ export default function PrivilegeMcpClientPage() {
       {showPresent && (
         <div className="ptt-present-overlay">
           <ToolsTable tools={tools} presentMode onClose={() => setShowPresent(false)} />
+        </div>
+      )}
+      {showSignInModal && gatewayAuth !== 'signed-in' && (
+        <div className="cur-modal-overlay" onClick={() => setShowSignInModal(false)}>
+          <div className="cur-modal" onClick={(e) => e.stopPropagation()}>
+            <h2>Sign in to the gateway</h2>
+            <p className="cur-denial-note">{signInReason}</p>
+            <div className="cur-btn-row">
+              <button
+                className="cur-btn cur-btn--primary"
+                onClick={() => { setShowSignInModal(false); startAuth(); }}
+              >Sign in</button>
+              <button className="cur-btn" onClick={() => setShowSignInModal(false)}>Not now</button>
+            </div>
+          </div>
         </div>
       )}
       {showBlockedModal && (

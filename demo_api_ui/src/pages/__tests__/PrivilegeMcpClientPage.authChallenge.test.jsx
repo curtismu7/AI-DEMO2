@@ -110,4 +110,31 @@ describe("an auth challenge the body does not spell out", () => {
     await waitFor(() => expect(screen.getByText(/upstream exploded/)).toBeInTheDocument());
     expect(screen.queryByTestId("sign-in-prompt")).toBeNull();
   });
+
+  it("raises the sign-in modal, not just the rail note", async () => {
+    // The rail note renders three rows above the failure and reads as
+    // description. On a live 401 the operator saw "Refresh failed: Not
+    // authenticated" in the chat and never noticed the note or the Sign in
+    // button beside it. The modal is the offer; the note stays for the tests
+    // above and for anyone who dismisses it.
+    mockState();
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: /Get MCP Tools/i }));
+
+    expect(await screen.findByRole("heading", { name: /Sign in to the gateway/i })).toBeInTheDocument();
+    // ...and the 401 no longer ALSO reports itself as a plain refresh failure
+    // underneath the offer -- the sibling 403 branch returns for this reason.
+    expect(screen.queryByText(/Refresh failed/)).toBeNull();
+  });
+
+  it("does not raise the sign-in modal for a non-401 failure", async () => {
+    mockState({ toolsListBody: { error: "upstream exploded" }, toolsListStatus: 500 });
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: /Get MCP Tools/i }));
+
+    await waitFor(() => expect(screen.getByText(/upstream exploded/)).toBeInTheDocument());
+    expect(screen.queryByRole("heading", { name: /Sign in to the gateway/i })).toBeNull();
+  });
 });
