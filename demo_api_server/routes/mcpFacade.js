@@ -84,10 +84,13 @@ const DOORS = {
     // get_banking_account — which is exactly the discovery this gateway build
     // performs (it POSTs initialize to the registered path; see #2958 for the
     // measurement that killed the older "register /sse" rule). Discovery is
-    // tokenless by that server's design (PR #2891); tools/call needs a bearer
-    // carrying `read` on an audience it accepts — the console's Auth Mode OAuth
-    // (client_credentials as Fraud Watch Agent, aud mcpgateway.ping.demo)
-    // supplies it. See privilege/CURRENT-CONFIGURATION.md "The call hop".
+    // tokenless by that server's design (PR #2891) when measured from inside
+    // the gateway pod. Through this same URL — the real path a caller uses —
+    // discovery and tools/call both 401 regardless of Auth Mode or bearer:
+    // the gateway's public entry point only accepts a token from its own
+    // internal registry, never a PingOne-issued one. Platform blocker, not
+    // fixable here. See privilege/CURRENT-CONFIGURATION.md "The call hop is a
+    // platform blocker, not a config gap."
     //
     // Path via privilegeEntryPath rather than a hardcoded /mcp so a console
     // edit remains an env change, not a code change.
