@@ -7,9 +7,12 @@ import { useEffect } from "react";
  *  that flashes as it absorbs each one, while a full-spectrum comet sweeps the
  *  rim and counter-rotating attention ticks scan behind it.
  *
- *  The token spectrum is fixed — it is the identity you recognise app-wide —
- *  while the comet, core and glow take `accent`, so the random per-request
- *  colour spinnerService picks still reads as visually distinct.
+ *  The token spectrum is fixed — it is the identity you recognise app-wide.
+ *  The accent is owned by the stylesheet (`--ns-accent`, defaulting to the
+ *  themeable --brand-navy) rather than passed in: REGRESSION_PLAN.md H3 bans
+ *  inline colour because it beats every [data-theme] override. Per-request
+ *  colour variation still reads on the card's top border, which SpinnerHost
+ *  drives from spinnerService's SPINNER_COLORS.
  *
  *  Everything is a ratio of --ns-size except the ring hairlines, so one
  *  component covers the overlay and inline use. Below ~40px the tokens stop
@@ -18,7 +21,6 @@ import { useEffect } from "react";
  *  Props
  *  -----
  *  size       number  diameter in px                                     (96)
- *  accent     string  any CSS colour — drives comet, core and glow  (#1d4ed8)
  *  className  string  extra class on the root for positioning           ("")
  * -------------------------------------------------------------------------- */
 
@@ -30,7 +32,7 @@ const TOKEN_HUES = [198, 238, 272, 310, 340, 22, 44, 160];
 const CSS = `
 .ns {
   --ns-size: 96px;
-  --ns-accent: #1d4ed8;
+  --ns-accent: var(--brand-navy, #1d4ed8);
   --ns-dot: calc(var(--ns-size) * .075);
   --ns-dim: color-mix(in srgb, var(--ns-accent) 30%, transparent);
   position: relative;
@@ -129,13 +131,14 @@ const CSS = `
 @keyframes ns-halo  { 0%   { transform: scale(1);   opacity: .75; }
                       100% { transform: scale(2.9); opacity: 0; } }
 
-/* Respect reduced motion: keep the identity, drop the churn. */
+/* Reduced motion means motion stops. The identity survives as a static figure:
+   the spectrum ring of tokens around a lit core, no rotation, no pulsing. */
 @media (prefers-reduced-motion: reduce) {
-  .ns-sweep { animation-duration: 5.5s; }
-  .ns-ticks, .ns::before, .ns-halo, .ns-spoke::after { animation: none; }
-  .ns-spoke::before { animation: ns-core 2s ease-in-out infinite;
-    transform: translateX(calc(var(--ns-size) * .3)); opacity: .85; }
-  .ns-core { animation-duration: 2.4s; }
+  .ns::before, .ns-sweep, .ns-ticks, .ns-core, .ns-halo,
+  .ns-spoke::before, .ns-spoke::after { animation: none; }
+  .ns-spoke::before { transform: translateX(calc(var(--ns-size) * .32)); opacity: .9; }
+  .ns-spoke::after  { opacity: .3; }
+  .ns-halo { opacity: .3; }
 }
 `;
 
@@ -152,7 +155,6 @@ function useInjectedStyles() {
 
 export default function NeuralSpinner({
   size = 96,
-  accent = "#1d4ed8",
   className = "",
 }) {
   useInjectedStyles();
@@ -160,7 +162,7 @@ export default function NeuralSpinner({
   return (
     <div
       className={`ns ${className}`.trim()}
-      style={{ "--ns-size": `${size}px`, "--ns-accent": accent }}
+      style={{ "--ns-size": `${size}px` }}
       aria-hidden="true"
     >
       <div className="ns-sweep" />

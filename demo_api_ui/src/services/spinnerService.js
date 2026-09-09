@@ -97,6 +97,8 @@ let _hideTimer = null;
 let _stuckTimer = null;
 /** @type {{ message: string, color: string, endpoint: string|null }|null} */
 let _current   = null;
+/** True while a manual show() is outstanding — keeps repeated shows to one _pending entry. */
+let _manualHeld = false;
 const _listeners = new Set();
 
 /** Notify all React subscribers */
@@ -132,6 +134,7 @@ function show(message, color, endpoint) {
       _pending = 0;
       _visible = false;
       _current = null;
+      _manualHeld = false;
       _stuckTimer = null;
       notify();
     }
@@ -149,6 +152,7 @@ function scheduleHide(immediate) {
     _hideTimer = null;
     _visible = false;
     _current = null;
+    _manualHeld = false;
     notify();
   }, delay);
 }
@@ -213,7 +217,10 @@ export const spinner = {
    * @param {string} [sub] - shown as endpoint line (optional)
    */
   show(message, sub) {
-    _pending++;
+    // Idempotent: repeated shows refresh the message but contribute exactly one
+    // _pending entry, so a caller that shows per-item in a loop and hides once
+    // (CodebaseUploader) still balances instead of pinning the overlay open.
+    if (!_manualHeld) { _manualHeld = true; _pending++; }
     if (_hideTimer) { clearTimeout(_hideTimer); _hideTimer = null; }
     const color = pick(SPINNER_COLORS);
     const msg   = message || pick(SPINNER_QUIPS);
@@ -221,8 +228,14 @@ export const spinner = {
     show(msg, color, sub || null);
   },
 
-  /** Manual hide — mirrors decrement but always fast */
+  /**
+   * Manual hide — mirrors decrement but always fast. No-op unless a manual
+   * show() is outstanding, so a defensive hide() cannot steal a pending entry
+   * belonging to an in-flight request.
+   */
   hide() {
+    if (!_manualHeld) return;
+    _manualHeld = false;
     this.decrement(true);
   },
 

@@ -135,6 +135,67 @@ describe('spinnerService', () => {
     expect(spinner.getState().visible).toBe(false);
   });
 
+  /**
+   * Regression: show() used to increment _pending unconditionally. Callers that
+   * show per item in a loop and hide once (CodebaseUploader) left the counter
+   * above zero, pinning the overlay open until the 60s safety timer.
+   */
+  it('keeps repeated manual shows to a single pending entry', async () => {
+    const { spinner } = await import('../spinnerService');
+
+    spinner.show('Indexing folder…');
+    spinner.show('Indexing file 1…');
+    spinner.show('Indexing file 2…');
+    expect(spinner.getState().visible).toBe(true);
+    expect(spinner.getState().message).toBe('Indexing file 2…');
+
+    // Bounded advance on purpose: vi.runAllTimers() would fire the 60s safety
+    // timeout, which force-hides regardless and makes this pass even unfixed.
+    spinner.hide();
+    vi.advanceTimersByTime(MIN_DISPLAY_MS);
+    expect(spinner.getState().visible).toBe(false);
+  });
+
+  /** A defensive hide() must not consume a pending entry it never created. */
+  it('hide is a no-op when no manual show is outstanding', async () => {
+    const { spinner } = await import('../spinnerService');
+
+    spinner.increment('GET', '/api/users');
+    vi.advanceTimersByTime(DEBOUNCE_MS);
+    expect(spinner.getState().visible).toBe(true);
+
+    spinner.hide();
+    vi.advanceTimersByTime(MIN_DISPLAY_MS * 2);
+    expect(spinner.getState().visible).toBe(true);
+
+    spinner.decrement(false, '/api/users');
+    vi.advanceTimersByTime(MIN_DISPLAY_MS);
+    expect(spinner.getState().visible).toBe(false);
+  });
+
+  /**
+   * Regression: patchFetch passes the url to increment() but used to call
+   * decrement() without it. Once increment gained a silent-URL guard, a silent
+   * fetch decremented without ever incrementing — draining the counter and
+   * hiding the overlay while a real request was still in flight.
+   */
+  it('a silent-route decrement cannot drain a real request\'s pending entry', async () => {
+    const { spinner } = await import('../spinnerService');
+
+    spinner.increment('GET', '/api/users');
+    vi.advanceTimersByTime(DEBOUNCE_MS);
+    expect(spinner.getState().visible).toBe(true);
+
+    // The silent poll completes; it never incremented, so it must not decrement.
+    spinner.decrement(false, '/api/auth/session');
+    vi.advanceTimersByTime(MIN_DISPLAY_MS * 2);
+    expect(spinner.getState().visible).toBe(true);
+
+    spinner.decrement(false, '/api/users');
+    vi.advanceTimersByTime(MIN_DISPLAY_MS);
+    expect(spinner.getState().visible).toBe(false);
+  });
+
   it('manual show displays at once and hide clears it', async () => {
     const { spinner } = await import('../spinnerService');
     spinner.show('Redirecting to PingOne…', 'GET /authorize');

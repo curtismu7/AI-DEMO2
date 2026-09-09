@@ -86,7 +86,7 @@ export default function SpinnerHost() {
           <BusySpinner size={72} accent={accentColor} aria-hidden="true" />
         )}
         {SPINNER_VARIANT === 'neural' && (
-          <NeuralSpinner size={88} accent={accentColor} />
+          <NeuralSpinner size={88} />
         )}
         <p className="lo-message">{message || 'Please wait…'}</p>
         {activityLabel && (

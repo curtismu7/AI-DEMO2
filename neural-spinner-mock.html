@@ -339,6 +339,15 @@ button.btn[aria-pressed="true"] { background: #1d4ed8; border-color: #3b82f6; }
 <div class="wrap">
 
   <p class="eyebrow">AI-DEMO2 · demo_api_ui · approval mock</p>
+  <p class="note" style="margin:0 0 26px">
+    <b>Historical:</b> this is the mock the design was approved from. Two things changed
+    in review before shipping. The per-request <b>accent no longer recolours the spinner</b> —
+    <code>REGRESSION_PLAN.md</code> H3 bans inline colour, so the accent is now a stylesheet
+    token and the per-request colour reads on the card's top border instead; the swatches in
+    section 01 and the palette strip in section 03 are kept as a record of the option that was
+    considered. And <b>reduced motion now stops every animation</b> rather than slowing it.
+    <code>NeuralSpinner.jsx</code> is the source of truth.
+  </p>
   <h1>Neural<em>Spinner</em></h1>
   <p class="lede">
     Eight coloured tokens fall down their synapses into a pulsing core while a full-spectrum
