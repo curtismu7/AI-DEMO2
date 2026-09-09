@@ -209,6 +209,43 @@ tier-only) so new P1AZ deny codes surface without a BFF edit.
 
 **Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/mcpGatewayClient tests/mcpToolPipeline.*.test.js tests/gwMcpHandshakeHeader.test.js src/__tests__/attackSimulator.authorizeEvidence.test.js --forceExit` — green; `npm run authz:verify` OK. Not verified live: the shared stack was being served from another session's worktree (`npm run serve:worktree` status) and was not repointed.
 
+### 2026-09-08 — UC2 A2A delegation still denied in A&F / retail / investment: banking regex outran the vertical heuristic
+
+**Files changed:** `demo_api_server/services/nlIntentParser.js`,
+`demo_api_server/tests/intentToken.a2aDelegation.regression.test.js`.
+
+**What was broken:** After PR #2985, Demo Steps UC2 still replied
+`❌ Delegated to Purchase History Specialist, but sensitive_order_history
+failed: gateway_policy_denied` in A&F (and retail, same trigger text) and
+`... Holdings Specialist, but sensitive_holdings failed` in investment.
+Gateway: `intent=view_transactions confidence=0.8 not in permitted_tools
+tool=sensitive_order_history` / `intent=view_holdings confidence=0.85 not in
+permitted_tools tool=sensitive_holdings`. `extractIntentAndConfidence` ran its
+vertical-blind banking/investment regexes first — "history" matched
+`view_transactions`, "holdings" matched `view_holdings` — so the vertical-aware
+`parseHeuristic` fallback #2985 added at the tail was never reached. Super
+Sports, healthcare, airlines etc. passed only because their trigger text
+contains no regex keyword; UC2.5 passed because it mints
+`delegate_to_specialist`.
+
+**What was fixed:** When `vertical` is supplied, `parseHeuristic` runs once at
+the top of the function. A `kind:'vertical'` answer (the vertical plugin
+claimed the prompt — the same parse that will dispatch the tool) is minted
+immediately, ahead of the regexes. A `kind:'banking'` answer is NOT promoted:
+banking heuristics return dispatch labels (`transactions`, `balance`) that
+differ from the intent labels (`view_transactions`) `INTENT_TO_PERMITTED_TOOLS`
+keys on, so those still fall through to the regexes and only fill in at the
+tail as before. Callers without `vertical` (the pre-execution risk gate at
+`agentInvokeRoute.js` and `agentRun.js`'s mint) are unchanged.
+
+**Do not break:** the early return must stay gated on `p.kind === "vertical"`
+— promoting banking-kind actions would mint `transactions` for "show my recent
+transactions" and the gateway would deny `get_my_transactions`. Cross-vertical
+showcase chips (weather, branch hours, brave) return `kind:'banking'` and rely
+on the regex labels `get_weather` / `get_branch_hours` / `brave_news_search`.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/intentToken tests/intentTokenService tests/agentRun.intentTokenMint.regression.test.js tests/intentAuthService.readOnly.test.js tests/a2aVerticalParity.test.js tests/chipSchemaContract.test.js tests/abercrombieFitchVertical.test.js tests/nlIntentParser src/__tests__/nlIntentParser src/__tests__/intentTokenService src/__tests__/agentInvokeRoute.intentToken.test.js --forceExit` — 26 suites, 1119 passed; `npm run authz:verify` OK. Live (stack served from the worktree via `serve:worktree here`, signed in as the demo user, `POST /api/agent/invoke` with the UC2 trigger + `vertical`): A&F `Delegation complete — Purchase History Specialist retrieved sensitive order history on your behalf (act-chain depth 2)`, investment `Delegation complete — Holdings Specialist retrieved sensitive holdings…`; gateway `[GW] Intent Token: valid=true intent=sensitive_order_history confidence=0.5 permitted tool=sensitive_order_history` and the same for `sensitive_holdings`; banking "show my recent transactions" still `intent=view_transactions confidence=0.8 permitted tool=get_my_transactions`.
+
 ### 2026-09-08 — UC30 weather never worked signed out (declared public, wire said 401); UC29 dropped from the Demo Steps script
 
 **Files changed:** `demo_api_server/services/mcpToolPipeline.js`,

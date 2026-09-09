@@ -216,6 +216,30 @@ function extractIntentAndConfidence(message, vertical) {
     return { intent: "code_search", toolName: "code_search", confidence: 0.95 };
   }
 
+  // The regexes below are vertical-blind, so most vertical chips (UC2's
+  // "show my sensitive membership details", UC2.5's "delegate this to a
+  // specialist") would mint "unknown" — or worse, a banking label: "show my
+  // sensitive order history" matched the transactions regex and "show my
+  // sensitive holdings" the holdings one, so the gateway denied
+  //   intent=view_transactions ... not in permitted_tools tool=sensitive_order_history
+  // When the caller knows the vertical, ask the vertical-aware heuristic
+  // (the same parse that will dispatch the tool). A kind:'vertical' answer is
+  // the plugin claiming the prompt, so mint THAT action ahead of the regexes.
+  // kind:'banking' answers carry dispatch labels ("transactions", not
+  // "view_transactions"), so they only fill in at the tail when no regex
+  // matched. Callers that omit `vertical` (the pre-execution risk gate) keep
+  // the regex-only answer.
+  let heuristicAction = null;
+  if (vertical) {
+    try {
+      const p = parseHeuristic(message, vertical, resolveVerticalCtx(vertical), {});
+      heuristicAction = p?.banking?.action ?? p?.action;
+      if (p?.kind === "vertical" && heuristicAction && heuristicAction !== "none") {
+        return { intent: heuristicAction, toolName: heuristicAction, confidence: 0.5 };
+      }
+    } catch (_) { heuristicAction = null; }
+  }
+
   // Exact/high-confidence banking actions: verb + full params or high-signal phrases
   const transferMatch = /\b(transfer|send|move)\s+\$?[\d,]+\s+(from|to)\b/.test(
     t,
@@ -357,24 +381,11 @@ function extractIntentAndConfidence(message, vertical) {
   if (/\b(fees?|pay fee)\b/.test(t))
     return { intent: "view_fees", toolName: "view_fees", confidence: 0.8 };
 
-  // The regexes above are vertical-blind, so most vertical chips (UC2's
-  // "show my sensitive membership details", UC2.5's "delegate this to a
-  // specialist") fall through here. Minting "unknown" restricts the intent
-  // token's permitted_tools to the vertical's non-sensitive reads, and the
-  // gateway then denies the very tool the chip exists to call with
-  //   intent_mismatch: tool "sensitive_membership_details" not permitted for intent "unknown"
-  // When the caller knows the vertical, ask the vertical-aware heuristic
-  // (the same parse that will dispatch the tool) and mint THAT action, the
-  // way server.js's /mcp/tool path mints the tool name. Callers that omit
-  // `vertical` (the pre-execution risk gate) keep the regex-only answer.
-  if (vertical) {
-    try {
-      const p = parseHeuristic(message, vertical, resolveVerticalCtx(vertical), {});
-      const action = p?.banking?.action ?? p?.action;
-      if (action && action !== "none") {
-        return { intent: action, toolName: action, confidence: 0.5 };
-      }
-    } catch (_) { /* fall through to unknown */ }
+  // No regex matched: mint whatever the vertical heuristic found (see the
+  // top of this function) rather than "unknown", which restricts the intent
+  // token's permitted_tools to the vertical's non-sensitive reads.
+  if (heuristicAction && heuristicAction !== "none") {
+    return { intent: heuristicAction, toolName: heuristicAction, confidence: 0.5 };
   }
 
   // Unknown/ambiguous intent
