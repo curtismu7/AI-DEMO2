@@ -174,3 +174,45 @@ describe('callPrivilegeClaude', () => {
     await expect(svc.callPrivilegeClaude([{ role: 'user', content: 'hi' }])).rejects.toThrow(/empty/i);
   });
 });
+
+// The lane's wire shape applies to the catalog too. Without the version header the
+// gateway answered 400 "anthropic-version: header is required" (verified live
+// 2026-09-09), so the model list came back empty on the one lane whose ids are
+// least guessable — which is where the console sources its model suggestions, and
+// where a model-allowlist demo needs a real id to send.
+describe('listModels', () => {
+  const env = { ...process.env };
+
+  beforeEach(() => {
+    llmFetch.mockReset();
+    process.env.PRIVILEGE_LLM_GATEWAY_URL = 'https://gw.test';
+    process.env.PRIVILEGE_LLM_VIRTUAL_KEY_ANTHROPIC = 'vk-anthropic';
+    process.env.PRIVILEGE_LLM_VIRTUAL_KEY_OPENAI = 'vk-openai';
+  });
+  afterEach(() => {
+    process.env = { ...env };
+  });
+
+  it('sends the version header on the anthropic catalog', async () => {
+    llmFetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ data: [{ id: 'claude-opus-5' }] }) });
+
+    const res = await svc.listModels('anthropic');
+
+    expect(res.data.data).toEqual([{ id: 'claude-opus-5' }]);
+    const [url, init] = llmFetch.mock.calls[0];
+    expect(url).toBe('https://gw.test/llm/anthropic/v1/models');
+    expect(init.headers.Authorization).toBe('Bearer vk-anthropic');
+    expect(init.headers['anthropic-version']).toBe('2023-06-01');
+  });
+
+  // The OpenAI-compatible lanes reject unknown headers on some gateways, and the
+  // header means nothing there in any case.
+  it('does not send it on an OpenAI-compatible lane', async () => {
+    llmFetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ data: [] }) });
+
+    await svc.listModels('openai');
+
+    const [, init] = llmFetch.mock.calls[0];
+    expect(init.headers['anthropic-version']).toBeUndefined();
+  });
+});

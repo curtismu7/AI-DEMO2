@@ -84,9 +84,16 @@ async function listModels(lane) {
   if (!base) throw new Error('PRIVILEGE_LLM_GATEWAY_URL not configured');
   if (!key) throw new Error(`${LANES[lane].keyEnv} not configured`);
 
+  // The lane's wire shape applies to /models too, not just the chat call: without
+  // this header the Anthropic lane answers 400 "anthropic-version: header is
+  // required", so the catalog was empty on the one lane whose model ids are least
+  // guessable. Verified live against the gateway 2026-09-09.
   const url = `${base.replace(/\/+$/, '')}/llm/${lane}/v1/models`;
   const res = await llmFetch(url, {
-    headers: { Authorization: `Bearer ${key}` },
+    headers: {
+      Authorization: `Bearer ${key}`,
+      ...(lane === 'anthropic' ? { 'anthropic-version': ANTHROPIC_VERSION } : {}),
+    },
   }, { label: `privilege-llm-${lane}-models`, timeoutMs: 10000, retryOn429: false });
   const data = await res.json().catch(() => null);
   return { status: res.status, ok: res.ok, data };

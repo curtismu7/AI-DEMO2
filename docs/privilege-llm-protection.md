@@ -90,11 +90,79 @@ If **Prove the policy** returns a normal reply instead of a denial, the policy
 does not deny that prompt. Fix the policy or the prompt — do not describe the
 feature as proven.
 
+## Demoing the model allowlist
+
+A virtual key can be restricted to a subset of its provider's models. Privilege
+enforces that on the chat/messages call itself — a `403` — so it looks exactly
+like the PII denial above and lands in the same place on the console.
+
+On `/llm-gateway`, next to the prompt box:
+
+1. Pick the lane. The **Model** dropdown sits on *Lane default — `<id>`*, which
+   sends no `model` at all and lets the server apply the lane's own.
+2. Pick a model. The options come from `GET /llm/models` — the **provider's
+   catalog fetched through the virtual key, not the key's allowlist**. Privilege
+   does not publish the allowlist, so the dropdown cannot mark which ids are
+   blocked. That is fine: the demo is finding out.
+3. Send. Allowed model → the model answers. Blocked model → 🔐 **Privilege
+   stopped this**, *Denied by policy*, *Reached the model: no*, and the **Model**
+   row names the id that was refused.
+
+Sourcing the options from the catalog is what keeps the demo honest: **the id has
+to be real for that provider**. A made-up one is rejected by the *provider*
+(`400`/`404`, arriving as `502` *Provider refused*, having reached it) — the
+opposite of the story. The dropdown cannot produce one; the Raw Request tab can,
+so take care there.
+
+The same three lanes, same field, `"model"` on the wire in each shape:
+
+| Lane | Body |
+|---|---|
+| Anthropic | `{"model": "claude-…", "max_tokens": …, "messages": […]}` |
+| Google | `{"model": "gemini-…", "messages": […]}` |
+| OpenAI | `{"model": "gpt-…", "messages": […]}` |
+
+The raw equivalent, if you would rather show the wire than the console, is the
+**AI Guard — Raw Request** tab on the same page: the request body is free-text
+JSON and prints the gateway's untouched response.
+
+### What the keys allow today
+
+Verified live against `mcpgw.ai-demo.ping-devops.com`, **2026-09-09**. The
+allowlist is Privilege console config, so re-check before a demo rather than
+trusting this table.
+
+| Lane | Answers | Refused `403` |
+|---|---|---|
+| Anthropic | `claude-haiku-4-5-20251001` | `claude-opus-5`, `claude-sonnet-5` |
+| OpenAI | `gpt-4o-mini`, `gpt-4o` | `o3` |
+| Google | **nothing** — see below | every id tried, incl. the lane default |
+
+The latency gap is the line to say out loud: the allowed call took ~2–8 s, the
+refusal ~40 ms. Nothing left the gateway, so there was nothing to wait for.
+
+> **The Google virtual key is misconfigured in the Privilege console — it is not
+> a per-model allowlist gap.** Every call on the `google` lane, including
+> `GET /llm/models`, answers `403 wrong_provider`: *"key not valid for provider
+> 'google'"*. The same key IS accepted on the `openai` route (no `wrong_provider`
+> there), which reached the real OpenAI API and got `401 invalid_api_key —
+> Incorrect API key provided: **lm-studio**`. So the virtual key configured for
+> `PRIVILEGE_LLM_VIRTUAL_KEY_GOOGLE` is actually a Privilege key registered
+> against the **OpenAI** provider, backed by the literal placeholder string
+> `lm-studio` as its real upstream credential — not a Google key at all.
+> Verified live 2026-09-09 against both the local stack and the SE cluster
+> (`mcpgw.ai-demo.ping-devops.com`), same result on both — this is the key
+> object itself, not an environment drift. Fix in the Privilege console: create
+> or repoint a virtual key that is actually provider=Google, backed by a real
+> Gemini API key, and update `PRIVILEGE_LLM_VIRTUAL_KEY_GOOGLE` (local `.env`
+> and the SE cluster's `demo-api-server` secret) to that key's value. Demo
+> Anthropic and OpenAI until then.
+
 ## What a failure means
 
 | Result | Meaning |
 |---|---|
-| `403` + `llm_policy_denied` | Privilege denied it. **Working as designed** — this is the demo. |
+| `403` + `llm_policy_denied` | Privilege denied it — a policy, or the key's model allowlist. **Working as designed** — this is the demo. |
 | `503` | A virtual key or the gateway URL is missing. The message names which one. |
 | `502` | The gateway or the provider is unreachable, or returned something unexpected. |
 | `400` | Unknown provider, or an empty prompt. Nothing was called. |
