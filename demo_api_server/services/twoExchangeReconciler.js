@@ -211,6 +211,13 @@ async function _resolveOrCreateResourceId(client, audience, displayName, label) 
  * Should be called once at startup after config is loaded.
  */
 async function reconcileTwoExchangeGrants() {
+  // Every check below is individually try/caught so one PingOne hiccup cannot
+  // take the BFF's boot with it. That made the summary a liar: a failed check
+  // leaves its result at the empty default, which is indistinguishable from
+  // "nothing needed doing", so the run still ended on the OK line. Record each
+  // failure here and let the summary report it.
+  const failures = [];
+
   // Resolve credentials from env/configStore
   const envId = process.env.PINGONE_ENVIRONMENT_ID || configStore.getEffective('pingone_environment_id');
   const region = process.env.PINGONE_REGION || configStore.getEffective('pingone_region') || 'com';
@@ -277,6 +284,7 @@ async function reconcileTwoExchangeGrants() {
       mcpExchangerAppId = await _resolveAppId(client, mcpExchangerClientId, 'MCP Exchanger');
     } catch (err) {
       console.warn(`${TAG} Could not resolve MCP Exchanger app (non-fatal): ${err.message}`);
+      failures.push('resolve MCP Exchanger app');
     }
   }
 
@@ -290,12 +298,14 @@ async function reconcileTwoExchangeGrants() {
     ex1ScopeResult = await _reconcileResourceScopes(client, agentGwResourceId, 'Super Banking Agent Gateway', 'Agent Gateway');
   } catch (err) {
     console.warn(`${TAG} Exchange #1 scope reconcile failed: ${err.message}`);
+    failures.push('Exchange #1 scope reconcile');
   }
 
   try {
     ex1GrantResult = await _reconcileAppGrants(client, aiAgentAppId, agentGwResourceId, 'Super Banking Agent Gateway', 'AI Agent on Agent Gateway');
   } catch (err) {
     console.warn(`${TAG} Exchange #1 grant reconcile failed: ${err.message}`);
+    failures.push('Exchange #1 grant reconcile');
   }
 
   // ── Exchange #2 pre-conditions ─────────────────────────────────────────────
@@ -308,6 +318,7 @@ async function reconcileTwoExchangeGrants() {
     ex2ScopeResult = await _reconcileResourceScopes(client, mcpGwResourceId, 'Super Banking MCP Gateway', 'MCP Gateway');
   } catch (err) {
     console.warn(`${TAG} Exchange #2 scope reconcile failed: ${err.message}`);
+    failures.push('Exchange #2 scope reconcile');
   }
 
   if (mcpExchangerAppId) {
@@ -315,6 +326,7 @@ async function reconcileTwoExchangeGrants() {
       ex2GrantResult = await _reconcileAppGrants(client, mcpExchangerAppId, mcpGwResourceId, 'Super Banking MCP Gateway', 'MCP Exchanger on MCP Gateway');
     } catch (err) {
       console.warn(`${TAG} Exchange #2 grant reconcile failed: ${err.message}`);
+      failures.push('Exchange #2 grant reconcile');
     }
   } else {
     console.log(`${TAG} MCP Exchanger client ID not configured — skipping Exchange #2 grant check`);
@@ -349,6 +361,7 @@ async function reconcileTwoExchangeGrants() {
     mcpServerResourceId = await _resolveResourceId(client, mcpServerAud, 'MCP Server');
   } catch (err) {
     console.warn(`${TAG} Could not resolve MCP Server resource: ${err.message}`);
+    failures.push('resolve MCP Server resource');
   }
 
   try {
@@ -357,6 +370,7 @@ async function reconcileTwoExchangeGrants() {
     ex3InvestResourceCreated = investRes.created;
   } catch (err) {
     console.warn(`${TAG} Could not resolve/create MCP Invest resource: ${err.message}`);
+    failures.push('resolve/create MCP Invest resource');
   }
 
   let ex3JwtVerifierResourceCreated = false;
@@ -366,6 +380,7 @@ async function reconcileTwoExchangeGrants() {
     ex3JwtVerifierResourceCreated = jwtVerifierRes.created;
   } catch (err) {
     console.warn(`${TAG} Could not resolve/create MCP JWT Verifier resource: ${err.message}`);
+    failures.push('resolve/create MCP JWT Verifier resource');
   }
 
   // Pre-condition 5: MCP Server resource scopes (native + mirrored).
@@ -374,6 +389,7 @@ async function reconcileTwoExchangeGrants() {
       ex3ServerScopeResult = await _reconcileResourceScopes(client, mcpServerResourceId, 'Super Banking MCP Server', 'MCP Server');
     } catch (err) {
       console.warn(`${TAG} Exchange #3 MCP Server scope reconcile failed: ${err.message}`);
+      failures.push('Exchange #3 MCP Server scope reconcile');
     }
   }
 
@@ -383,6 +399,7 @@ async function reconcileTwoExchangeGrants() {
       ex3InvestScopeResult = await _reconcileResourceScopes(client, mcpResourceServerResourceId, 'Super Banking MCP Invest', 'MCP Invest');
     } catch (err) {
       console.warn(`${TAG} Exchange #3 MCP Invest scope reconcile failed: ${err.message}`);
+      failures.push('Exchange #3 MCP Invest scope reconcile');
     }
   }
 
@@ -394,6 +411,7 @@ async function reconcileTwoExchangeGrants() {
       ex3JwtVerifierScopeResult = await _reconcileResourceScopes(client, mcpJwtVerifierResourceId, 'Super Banking MCP JWT Verifier', 'MCP JWT Verifier');
     } catch (err) {
       console.warn(`${TAG} Exchange #3 MCP JWT Verifier scope reconcile failed: ${err.message}`);
+      failures.push('Exchange #3 MCP JWT Verifier scope reconcile');
     }
   }
 
@@ -435,12 +453,14 @@ async function reconcileTwoExchangeGrants() {
       mcpGatewayAppId = await _resolveAppId(client, mcpGatewayClientId, 'MCP Gateway');
     } catch (err) {
       console.warn(`${TAG} Could not resolve MCP Gateway app (non-fatal): ${err.message}`);
+      failures.push('resolve MCP Gateway app');
     }
     if (mcpGatewayAppId && mcpServerResourceId) {
       try {
         ex3ServerGrantResult = await _reconcileAppGrants(client, mcpGatewayAppId, mcpServerResourceId, 'Super Banking MCP Server', 'MCP Gateway on MCP Server', serverExclude);
       } catch (err) {
         console.warn(`${TAG} Exchange #3 MCP Gateway→MCP Server grant reconcile failed: ${err.message}`);
+        failures.push('Exchange #3 MCP Gateway→MCP Server grant reconcile');
       }
     }
     if (mcpGatewayAppId && mcpResourceServerResourceId) {
@@ -448,6 +468,7 @@ async function reconcileTwoExchangeGrants() {
         ex3InvestGrantResult = await _reconcileAppGrants(client, mcpGatewayAppId, mcpResourceServerResourceId, 'Super Banking MCP Invest', 'MCP Gateway on MCP Invest', investExclude);
       } catch (err) {
         console.warn(`${TAG} Exchange #3 MCP Gateway→MCP Invest grant reconcile failed: ${err.message}`);
+        failures.push('Exchange #3 MCP Gateway→MCP Invest grant reconcile');
       }
     }
     if (mcpGatewayAppId && mcpJwtVerifierResourceId) {
@@ -455,6 +476,7 @@ async function reconcileTwoExchangeGrants() {
         ex3JwtVerifierGrantResult = await _reconcileAppGrants(client, mcpGatewayAppId, mcpJwtVerifierResourceId, 'Super Banking MCP JWT Verifier', 'MCP Gateway on MCP JWT Verifier');
       } catch (err) {
         console.warn(`${TAG} Exchange #3 MCP Gateway→MCP JWT Verifier grant reconcile failed: ${err.message}`);
+        failures.push('Exchange #3 MCP Gateway→MCP JWT Verifier grant reconcile');
       }
     }
   } else {
@@ -468,8 +490,19 @@ async function reconcileTwoExchangeGrants() {
   const totalAdded   = ex1GrantResult.added.length   + ex2GrantResult.added.length
     + ex3ServerGrantResult.added.length  + ex3InvestGrantResult.added.length + ex3JwtVerifierGrantResult.added.length;
 
+  // A failed check proves nothing about the live state, so it can never be
+  // reported as a match — say so loudly and name what did not complete.
+  if (failures.length) {
+    console.warn(
+      `${TAG} INCOMPLETE — ${failures.length} check(s) failed: ${failures.join('; ')}. `
+      + 'PingOne state was NOT verified against scope-topology.json; see the warnings above.'
+    );
+  }
+
   if (totalCreated === 0 && totalAdded === 0 && !ex3InvestResourceCreated && !ex3JwtVerifierResourceCreated) {
-    console.log(`${TAG} OK — Exchange #1, #2, and #3 scopes and grants match scope-topology.json`);
+    if (!failures.length) {
+      console.log(`${TAG} OK — Exchange #1, #2, and #3 scopes and grants match scope-topology.json`);
+    }
   } else {
     const parts = [];
     if (ex1ScopeResult.created.length) parts.push(`Agent Gateway scopes created: [${ex1ScopeResult.created.join(', ')}]`);
