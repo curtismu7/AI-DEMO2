@@ -565,12 +565,17 @@ async function verifyDoorBearer(req, door) {
   }
   if (!key) return { ok: false, reason: 'unknown_kid' };
 
-  // jwksService can hand back a key shape crypto.Verify rejects outright (a
-  // raw, unconverted JWK, say) rather than a usable PEM/KeyObject. That threw
-  // out of this async function as an unhandled rejection — no response ever
-  // sent, so the caller hung until nginx's own 60s upstream timeout, not the
-  // "fails closed" this function promises. Same failure shape as a bad
-  // signature: deny and let the caller re-challenge.
+  // getPublicKey returns a WRAPPER — { keyObject, alg, use } — not a key.
+  // Passing it straight to .verify() made Node read `.key` off it and throw
+  // `key.key must be ... Received undefined`, out of this async function as an
+  // unhandled rejection: no response ever sent, so the caller hung until
+  // nginx's own 60s upstream timeout rather than the "fails closed" this
+  // function promises. That was the opensearch door's live 2026-09-03 failure;
+  // #2736 unwrapped it to key.keyObject. jwksService itself was never at fault
+  // — _fetchAndBuildKeyMap converts every JWK through crypto.createPublicKey
+  // and skips the ones that fail, so the map only ever holds real KeyObjects.
+  // The try/catch stays for any other unusable-key shape: same failure shape as
+  // a bad signature, deny and let the caller re-challenge.
   let verified;
   try {
     verified = crypto.createVerify('RSA-SHA256')
