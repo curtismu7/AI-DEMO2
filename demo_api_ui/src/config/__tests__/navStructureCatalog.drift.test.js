@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { NAV_STRUCTURE_CATALOG } from '../navStructureCatalog';
+import { NAV_ITEM_CATALOG } from '../navItemsCatalog';
 
 // NAV_STRUCTURE_CATALOG is a hand-maintained mirror of allNavItems in
 // AdminSideNav.jsx. DemoConfigPage builds its show/hide + reorder picker from
@@ -57,5 +58,27 @@ describe('NAV_STRUCTURE_CATALOG mirrors AdminSideNav allNavItems', () => {
       expect(catGroup.children ?? null, `children drift in "${liveGroup.label}"`)
         .toEqual(liveGroup.children ?? null);
     }
+  });
+});
+
+/**
+ * The OTHER catalog, and the other direction.
+ *
+ * NAV_ITEM_CATALOG (config/navItemsCatalog.js) is the flat top-level list the
+ * Demo Config picker and the built-in preset seeds use. Its own sync test in
+ * components/__tests__/adminSideNav.test.jsx asserts that every catalog label
+ * RENDERS in the nav — which stays green when the catalog is MISSING entries,
+ * because a missing label is never asserted about.
+ *
+ * That is exactly how it drifted: "AI Agent Gateway", "Inspectors", "PingOne
+ * Sample Apps" and "Platform Admin" were added to the nav and never added to
+ * the catalog, so the Demo Config picker could not show or hide any of them and
+ * nothing failed. This closes the reverse direction.
+ */
+describe('NAV_ITEM_CATALOG mirrors AdminSideNav top-level labels', () => {
+  const live = parseLiveNav();
+
+  it('covers every top-level label, in nav order', () => {
+    expect(NAV_ITEM_CATALOG).toEqual(live.map((i) => i.label));
   });
 });
