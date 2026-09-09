@@ -798,15 +798,15 @@ function buildMcpDelegationParameters({
     // it claims the token was read and its audience was empty. Omission is the
     // honest encoding of "this caller could not read an aud". Both encodings
     // fail closed at the PDP (mock Rule 0b denies invalid_aud either way).
-    ...(tokenAudience != null
-      ? {
-        TokenAudience: String(tokenAudience),
-        // C1: same value, retained for mock back-compat. The BFF reads the REAL
-        // aud off the presented token, so actual and reported audience are
-        // identical here (C1 rule 1 — never hardcode this to the expected URI).
-        TokenAudActual: String(tokenAudience),
-      }
-      : {}),
+    ...(tokenAudience != null ? { TokenAudience: String(tokenAudience) } : {}),
+    // C1: same value, retained for mock back-compat. The BFF reads the REAL aud
+    // off the presented token, so actual and reported audience are identical
+    // here (C1 rule 1 — never hardcode this to the expected URI).
+    //
+    // Stated unconditionally, unlike TokenAudience: TokenAudActual defaults to
+    // '' so sending '' is the value the policy would have resolved anyway,
+    // while TokenAudience defaults to 'none' and must keep omitting.
+    TokenAudActual: tokenAudience != null ? String(tokenAudience) : '',
     ActClientId: actClientId || '',          // from act.client_id || act.sub
     NestedActClientId: nestedActClientId || '', // from act.act.client_id || act.act.sub
     ActChainDepth: actChainDepth,
@@ -822,7 +822,7 @@ function buildMcpDelegationParameters({
     ...(tokenExp != null ? { TokenExp: tokenExp } : {}),
     ...(tokenIat != null ? { TokenIat: tokenIat } : {}),
     ...(tokenNbf != null ? { TokenNbf: tokenNbf } : {}),
-    ...(tokenIss ? { TokenIss: tokenIss } : {}),
+    TokenIss: tokenIss || '',
     ...(tokenKid ? { TokenKid: tokenKid } : {}),
     ...(tokenKidKnown != null ? { TokenKidKnown: tokenKidKnown } : {}),
     ...(delegatedAgentId ? { DelegatedAgentId: delegatedAgentId } : {}),
@@ -843,8 +843,21 @@ function buildMcpDelegationParameters({
     // PrivateBanking users. Sends the real amount for write tools unchanged.
     Amount: amount != null ? amount : 0,
     TransactionAmount: amount != null ? String(amount) : '0',
-    ...(transactionType ? { TransactionType: transactionType } : {}),
-    ...(resourceOwnerId ? { ResourceOwnerId: resourceOwnerId } : {}),
+    // Per-request facts every PEP states explicitly
+    // (snapshots/p1azRequestContract.js `explicit`), so a decision request has
+    // one shape whichever caller built it. Each defaults to '' in the Trust
+    // Framework, so stating '' is the value the policy resolved anyway.
+    //
+    // '' and NOT a sentinel: ResourceOwnerMismatch is
+    // `ResourceOwnerId NotEquals ''`, so any non-empty stand-in fires the
+    // resource-owner DENY on every request.
+    TransactionType: transactionType || '',
+    ResourceOwnerId: resourceOwnerId || '',
+    // Intent tokens are validated at the gateway, not here — this PEP has no
+    // intent facts to report, and '' is how it says so.
+    IntentTokenValid: '',
+    IntentMatchesTool: '',
+    IntentTokenError: '',
     ...(rarMaxAmount != null ? { RarMaxAmount: rarMaxAmount } : {}),
     ...(Array.isArray(rarPermittedPayees) ? { RarPermittedPayees: rarPermittedPayees } : {}),
     ...(toAccountId ? { ToAccountId: toAccountId } : {}),

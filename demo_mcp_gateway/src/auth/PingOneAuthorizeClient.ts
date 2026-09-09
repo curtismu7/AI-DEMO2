@@ -247,6 +247,20 @@ export function buildAuthorizeParameters(
     TokenNbf: decoded.nbf ? String(decoded.nbf) : '',
     TokenIss: decoded.iss ?? '',
     TransactionType: toolArgs?.transaction_type ?? toolName ?? '',
+    // Per-request facts every PEP states explicitly
+    // (snapshots/p1azRequestContract.js `explicit`), so a decision request has
+    // one shape whichever caller built it. These three are overwritten below
+    // when an intent token was validated; '' is the "no intent token" value.
+    // This PEP never names a resource owner — the BFF does, from the tool args
+    // — so ResourceOwnerId is always ''.
+    //
+    // '' and NOT a sentinel: ResourceOwnerMismatch is
+    // `ResourceOwnerId NotEquals ''`, so any non-empty value fires the
+    // resource-owner DENY on every gateway call.
+    ResourceOwnerId: '',
+    IntentTokenValid: '',
+    IntentMatchesTool: '',
+    IntentTokenError: '',
     ToAccountId: toolArgs?.to_account_id ?? '',
     Vertical: vertical ?? '',
     // C1: every decision is evaluated at a point in time; the cloud Trust
@@ -270,9 +284,14 @@ export function buildAuthorizeParameters(
   // compare a value to itself: the audience check could not fail. When the token
   // carries no aud at all we OMIT rather than fabricate — omission means
   // "unknown", and a fabricated match would silently re-create the tautology.
+  // TokenAudActual is stated unconditionally: its attribute defaults to '', so
+  // sending '' when the token carries no aud is the same value the policy would
+  // have resolved anyway — the shape becomes uniform, the behaviour does not
+  // change. TokenAudience keeps the omit-rather-than-fabricate rule above: it
+  // defaults to 'none', so '' would NOT be equivalent to omitting it.
+  base.TokenAudActual = tokenAud || ''; // retained for mock back-compat
   if (tokenAud) {
     base.TokenAudience = tokenAud;
-    base.TokenAudActual = tokenAud; // retained for mock back-compat
   }
 
   // C1 rule 2 — Amount and TransactionAmount always move together. The cloud

@@ -72,6 +72,9 @@ test('generator: every version literal is a deliberate, allowlisted freeze', () 
 const { contract, PEP_SOURCES, loadSnapshot, requestAttributes } =
   require('./p1azRequestContract');
 
+const pepSource = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
+const sends = (src, name) => new RegExp(`\\b${name}\\s*[:=]`).test(src);
+
 test('every request attribute a CONDITION reads has a defaultValue', () => {
   const c = contract();
   // Vacuity guard: a derivation that walked to zero would green-light everything.
@@ -106,6 +109,32 @@ test('any no-default attribute is sent by EVERY PEP, not just one of them', () =
     }
   }
   assert.deepStrictEqual(missing, [], `PEP(s) omit a required request attribute:\n  ${missing.join('\n  ')}`);
+});
+
+test('every PEP sends every per-request attribute explicitly', () => {
+  const { explicit } = contract();
+  // Vacuity guard — the derivation shrinking to nothing would pass silently.
+  assert.ok(explicit.length >= 5, `derivation looks broken — only ${explicit.length} explicit-send attributes`);
+
+  // Decision 2026-09-09: all four PEPs send all of these, so a decision request
+  // has ONE shape no matter which caller built it, and "this PEP has no value
+  // for X" is asserted as '' rather than left to a default nobody reads.
+  // '' is the required stand-in: ResourceOwnerMismatch is
+  // `ResourceOwnerId NotEquals ''`, so a non-empty sentinel would fire the
+  // resource-owner DENY on every request. Every other condition over these
+  // compares with Equals against a non-empty constant, so '' is inert there too.
+  const missing = [];
+  for (const rel of PEP_SOURCES) {
+    const src = pepSource(rel);
+    for (const name of explicit) if (!sends(src, name)) missing.push(`${rel} omits ${name}`);
+  }
+  assert.deepStrictEqual(
+    missing,
+    [],
+    `PEP(s) do not send every per-request attribute:\n  ${missing.join('\n  ')}\n` +
+    "Send it explicitly — '' when this caller has no real value. NEVER a non-empty sentinel for " +
+    'ResourceOwnerId: its condition is NotEquals \'\', so \'none\' fires the resource-owner DENY.',
+  );
 });
 
 test('the PEP source list still points at files that exist', () => {

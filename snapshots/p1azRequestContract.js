@@ -78,6 +78,16 @@ function hasDefault(attr) {
 }
 
 /**
+ * The attribute carries no VALUE of its own when the request omits it — either
+ * no default at all, or the empty string. These are the per-request facts
+ * (which token, whose resource, what intent), as opposed to attributes whose
+ * default is a real inert value like 'none', false or 0.
+ */
+function isBlankDefault(attr) {
+  return !hasDefault(attr) || attr.defaultValue === '';
+}
+
+/**
  * The contract: every request attribute, split by how it resolves.
  *
  * - `mustSend`  — read by a CONDITION and has NO default. The request MUST
@@ -86,6 +96,19 @@ function hasDefault(attr) {
  *                 fix is to give the attribute a default (the Amount pattern).
  * - `inert`     — read by a CONDITION but defaulted, so omitting it is safe and
  *                 the rule reading it simply stays inert.
+ * - `explicit`  — read by a CONDITION and blank when omitted (no default, or
+ *                 `''`). Resolvable, so omitting one cannot break a decision —
+ *                 but it is a per-request fact, and a PEP that omits it is
+ *                 asserting nothing rather than asserting "not applicable".
+ *                 Every PEP sends all of these, by decision (2026-09-09), so
+ *                 the request shape is uniform and reviewable across callers
+ *                 instead of each PEP carrying a different subset.
+ *                 The correct explicit value when a PEP has no real one is
+ *                 `''` — never a non-empty sentinel. Every condition reading
+ *                 these compares with `Equals <non-empty constant>` except
+ *                 ResourceOwnerMismatch, which is `ResourceOwnerId NotEquals ''`
+ *                 — so `''` keeps every one of them inert, while 'none' or
+ *                 'n/a' would FIRE the resource-owner DENY on every request.
  * - `unread`    — no CONDITION reads it: reportable input only.
  */
 function contract(objects = loadSnapshot()) {
@@ -95,6 +118,7 @@ function contract(objects = loadSnapshot()) {
 
   return {
     mustSend: attrs.filter((a) => read(a) && !hasDefault(a)).map((a) => a.name),
+    explicit: attrs.filter((a) => read(a) && isBlankDefault(a)).map((a) => a.name),
     inert: attrs.filter((a) => read(a) && hasDefault(a)).map((a) => a.name),
     unread: attrs.filter((a) => !read(a)).map((a) => a.name),
     all: attrs.map((a) => a.name),
@@ -107,5 +131,6 @@ module.exports = {
   loadSnapshot,
   requestAttributes,
   hasDefault,
+  isBlankDefault,
   contract,
 };

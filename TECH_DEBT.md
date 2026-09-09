@@ -7448,6 +7448,36 @@ the useful part runs without credentials:
 against env `01d89b06` — that needs the worker credentials and is the user's to
 run.
 
+**FOLLOW-UP, same branch — all four PEPs now send all seven explicitly.** The
+analysis above says only `TransactionType` was load-bearing and the other six
+resolve from their `''` defaults. That remains true; the uniform request shape
+was chosen anyway, so a decision request looks the same whichever caller built
+it and "this PEP has no value for X" is asserted rather than inferred from a
+default nobody reads.
+
+The seven are derived, not listed: `contract().explicit` = condition-read
+attributes whose value is blank when omitted (no default, or `''`). A new gate
+enforces them PER PEP, and it drove the work — it named all 12 gaps.
+
+**`''` is mandatory as the stand-in, and this is the whole safety argument.**
+Every condition over these compares `Equals <non-empty constant>` — except
+`ResourceOwnerMismatch`, which is `ResourceOwnerId NotEquals ''`. So `''` keeps
+all seven inert, while a sentinel like `'none'` would FIRE the resource-owner
+DENY on every request from every PEP. Verified by reading each condition's
+operator and right-hand side out of the snapshot before touching a PEP.
+
+Because `''` is exactly what these attributes already defaulted to, the decision
+outcome is unchanged everywhere — only the request shape moved.
+
+Two C1 rules were deliberately kept rather than swept up with the seven:
+`TokenAudience` still OMITS when the token has no aud (it defaults to `'none'`,
+so `''` would NOT be equivalent), and the temporal claims
+(`TokenExp`/`TokenIat`/`TokenNbf`), `TokenScopes` and `MayActSub` keep C1 rule 3.
+Four tests pinned the old omit-contract and now pin the new one — the "unknown
+!= verified absent" principle they protect is preserved, carried by the VALUE
+`''` instead of by the key's absence, and each still asserts the value is not
+`'false'` and not a fabricated URI.
+
 ### [x] 2026-08-17 — `DashboardTokenRail` persists its own default on mount, so every default flip costs a storage-key bump
 
 **Where:** `demo_api_ui/src/components/DashboardTokenRail.jsx` (~line 49, the

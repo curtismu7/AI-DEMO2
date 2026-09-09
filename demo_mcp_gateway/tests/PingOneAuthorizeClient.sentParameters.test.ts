@@ -87,10 +87,18 @@ describe('buildAuthorizeParameters — C1 canonical parameter set', () => {
     expect(p.TokenAudActual).toBe(p.TokenAudience);
   });
 
-  it('omits the audience keys entirely when the token has no aud (rule 1)', () => {
+  it('states an empty TokenAudActual, and still omits TokenAudience, with no aud (rule 1)', () => {
     const p = buildAuthorizeParameters(tok({ aud: undefined }), 'tools/call', GW, 'create_transfer');
+    // TokenAudience keeps rule 1's omit-rather-than-fabricate: its attribute
+    // defaults to 'none', so '' would NOT mean the same as leaving it out.
     expect(p).not.toHaveProperty('TokenAudience');
-    expect(p).not.toHaveProperty('TokenAudActual');
+    // TokenAudActual is now always stated (2026-09-09: every PEP sends every
+    // per-request attribute — snapshots/p1azRequestContract.js `explicit`).
+    // Its attribute defaults to '', so '' is exactly what the policy resolved
+    // before; the shape is uniform, the decision is unchanged. Crucially NOT
+    // the gateway's own URI — that fabrication is what rule 1 exists to stop.
+    expect(p.TokenAudActual).toBe('');
+    expect(p.TokenAudActual).not.toBe(GW);
     // The EXPECTED uri is still sent — it is the gateway's own fact, not the token's.
     expect(p.McpResourceUri).toBe(GW);
   });
@@ -128,12 +136,18 @@ describe('buildAuthorizeParameters — C1 canonical parameter set', () => {
     expect(Number.isNaN(Date.parse(p.Timestamp))).toBe(false);
   });
 
-  it('omits unverified binding claims rather than sending false (rule 3)', () => {
+  it('states unverified binding claims as empty, never as false (rule 3)', () => {
     // No intentValidation passed => the transport did not verify intent at all.
-    // "Omitted" means unknown; `false` would mean "verified absent".
+    // Rule 3's point stands and is now carried by the VALUE rather than by the
+    // key's absence: '' means unknown, `false` would mean "verified absent",
+    // and the IntentToken* attributes default to '' — so stating '' is the
+    // value the policy resolved before, and IntentTokenTampered
+    // (IntentTokenValid Equals 'false') still cannot fire on an unverified call.
     const p = buildAuthorizeParameters(tok(), 'tools/call', GW, 'create_transfer');
-    expect(p).not.toHaveProperty('IntentTokenValid');
-    expect(p).not.toHaveProperty('IntentMatchesTool');
+    expect(p.IntentTokenValid).toBe('');
+    expect(p.IntentMatchesTool).toBe('');
+    expect(p.IntentTokenValid).not.toBe('false');
+    expect(p.IntentMatchesTool).not.toBe('false');
   });
 });
 

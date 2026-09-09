@@ -63,6 +63,21 @@ async function authorizeUnattendedTransfer({ agentName, amount, type = 'transfer
     ClientId: agentName,
     ActClientId: '',
     TokenScopes: 'transfer',
+    // Per-request facts every PEP states explicitly (snapshots/p1azRequestContract.js
+    // `explicit`), so a decision request has one shape whichever caller built it.
+    // An unattended run presents no user token and carries no intent token, so
+    // each of these is genuinely absent and '' says so.
+    //
+    // '' and NOT a sentinel like 'none': ResourceOwnerMismatch is
+    // `ResourceOwnerId NotEquals ''`, so any non-empty value fires the
+    // resource-owner DENY. Every other condition over these compares Equals
+    // against a non-empty constant, so '' is inert there too.
+    TokenAudActual: '',
+    TokenIss: '',
+    ResourceOwnerId: '',
+    IntentTokenValid: '',
+    IntentMatchesTool: '',
+    IntentTokenError: '',
   };
 
   const url = `${_endpoint()}/governance/pap/alpha/policy/${_workerId()}/decision`;

@@ -127,6 +127,14 @@ describe('buildMcpDelegationParameters — contract', () => {
       TransactionAmount: '2500',
       TransactionType: 'transfer',
       ResourceOwnerId: 'user-1',
+      // The BFF never validates intent tokens (the gateway does), but it states
+      // the three keys anyway — every PEP sends the seven per-request
+      // attributes in snapshots/p1azRequestContract.js `explicit`, so a
+      // decision request has one shape whichever caller built it. '' is
+      // "nothing to report", the value these attributes default to.
+      IntentTokenValid: '',
+      IntentMatchesTool: '',
+      IntentTokenError: '',
       RarMaxAmount: 5000,
       RarPermittedPayees: ['acct-2'],
       ToAccountId: 'acct-2',
