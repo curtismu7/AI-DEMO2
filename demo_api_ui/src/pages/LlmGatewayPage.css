@@ -44,7 +44,7 @@
 }
 
 .lgw-origin {
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono);
   font-size: var(--font-size-sm);
   padding: 0.2rem 0.45rem;
   border: 1px solid var(--th-border);
@@ -174,7 +174,7 @@
   border-radius: 5px;
   background: var(--th-bg-inset);
   color: var(--th-text);
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono);
   font-size: var(--font-size-sm);
   line-height: 1.6;
   overflow-x: auto;
@@ -234,7 +234,7 @@
 }
 
 .lgw-lane__r {
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono);
   font-size: var(--font-size-sm);
   color: var(--th-text-muted);
   word-break: break-all;
@@ -276,7 +276,7 @@
   display: flex;
   justify-content: space-between;
   gap: 0.4rem;
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono);
   font-size: var(--font-size-sm);
   font-variant-numeric: tabular-nums;
   color: var(--th-text-muted);
@@ -305,7 +305,7 @@
 }
 
 .lgw-meter__reset {
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono);
   font-size: var(--font-size-sm);
   color: var(--th-text-muted);
 }
@@ -443,7 +443,7 @@
   border-radius: 4px;
   background: var(--th-bg-inset);
   color: var(--th-text-muted);
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono);
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -571,7 +571,7 @@
 
 .lgw-dec dd {
   margin: 0;
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono);
   font-size: var(--font-size-sm);
   color: var(--th-text);
   word-break: break-all;
@@ -581,7 +581,7 @@
   display: inline-block;
   padding: 0.1rem 0.4rem;
   border-radius: 3px;
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono);
   font-size: var(--font-size-sm);
   font-weight: 700;
   letter-spacing: 0.05em;

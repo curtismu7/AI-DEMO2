@@ -988,7 +988,7 @@
   background: #0f172a;
   color: #bae6fd;
   border-radius: 6px;
-  font: 11px/1.45 ui-monospace, Menlo, monospace;
+  font: 11px/1.45 var(--font-mono);
   white-space: pre-wrap;
   word-break: break-word;
   max-height: 220px;

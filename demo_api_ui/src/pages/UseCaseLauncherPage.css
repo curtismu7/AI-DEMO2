@@ -110,7 +110,7 @@
 }
 
 .uc-launcher__search-input:focus {
-  outline: 2px solid var(--color-accent, #2563eb);
+  outline: 2px solid var(--signin-accent);
   outline-offset: 1px;
 }
 
@@ -148,11 +148,11 @@
 }
 
 .uc-track--happy-path .uc-track__heading {
-  border-bottom-color: var(--color-accent, #2563eb);
+  border-bottom-color: var(--signin-accent);
 }
 
 .uc-track--demo-script .uc-track__heading {
-  border-bottom-color: var(--color-accent, #2563eb);
+  border-bottom-color: var(--signin-accent);
 }
 
 /* ── Use Case card ─────────────────────────────────────────────────────── */
@@ -211,8 +211,8 @@
   font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
-  color: var(--color-accent, #2563eb);
-  border: 1px solid var(--color-accent, #2563eb);
+  color: var(--signin-accent);
+  border: 1px solid var(--signin-accent);
   padding: 0.1rem 0.4rem;
   border-radius: 999px;
 }
@@ -290,8 +290,8 @@
 }
 
 .uc-card__copy-btn--copied {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
   border-color: #86efac;
 }
 
@@ -330,13 +330,13 @@
   border-radius: 6px;
   border: none;
   cursor: pointer;
-  background: var(--color-ping-blue, #1a56db);
+  background: var(--signin-accent);
   color: var(--th-text-invert);
   transition: background 0.15s;
 }
 
 .uc-run-btn:hover:not(:disabled) {
-  background: var(--color-ping-blue-dark, #1345b5);
+  background: var(--signin-accent-hover);
 }
 
 /* Attack buttons (disabled until A6) */
@@ -385,8 +385,8 @@
 }
 
 .uc-sim-result__status-chip--deny {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
 }
 
 .uc-sim-result__error-code {
@@ -422,7 +422,8 @@
 }
 
 .uc-sim-result__event--deny {
-  background: #fee2e2;
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
 }
 
 .uc-sim-result__event-label {
@@ -440,20 +441,20 @@
 
 .uc-sim-result__event-status--deny,
 .uc-sim-result__event-status--fail {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
 }
 
 .uc-sim-result__event-status--ok,
 .uc-sim-result__event-status--pass,
 .uc-sim-result__event-status--permit {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
 }
 
 .uc-sim-result__fetch-error {
   font-size: 0.8rem;
-  color: #991b1b;
+  color: var(--th-status-error-text);
   margin: 0.5rem 0 0;
 }
 
@@ -468,9 +469,10 @@
 }
 
 .aae-header {
-  background: #fee2e2;
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
   padding: 0.9rem 1.25rem 0.75rem;
-  border-bottom: 1px solid #fca5a5;
+  border-bottom: 1px solid var(--th-status-error-border);
 }
 
 .aae-title {
@@ -483,7 +485,7 @@
 .aae-caption {
   font-size: 0.82rem;
   font-style: italic;
-  color: #991b1b;
+  color: var(--th-status-error-text);
   margin: 0;
 }
 
@@ -557,8 +559,8 @@
 }
 
 .aae-status-badge--deny {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
 }
 
 .aae-status-badge--permit {

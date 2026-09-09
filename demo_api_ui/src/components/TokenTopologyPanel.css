@@ -484,7 +484,7 @@
 .ttp-evidence-flow { display: grid; gap: 6px; }
 .ttp-evidence-label {
   color: #e9d5ff;
-  font: 700 10px 'JetBrains Mono', monospace;
+  font: 700 10px var(--font-mono);
   letter-spacing: .04em;
   text-transform: uppercase;
 }
@@ -513,7 +513,7 @@
 .ttp-evidence-node--error { border-color: #f85149; }
 .ttp-evidence-status {
   color: #3fb950;
-  font: 800 9px 'JetBrains Mono', monospace;
+  font: 800 9px var(--font-mono);
 }
 .ttp-evidence-node--pending .ttp-evidence-status { color: #fbbf24; }
 .ttp-evidence-node--error .ttp-evidence-status { color: #f85149; }

@@ -861,7 +861,7 @@ select.cur-input { cursor: pointer; }
   gap: 2px;
   /* Was an inline fontSize:13 on the TRACE pane. The trace is the demo's
      evidence surface, so it moves onto the class and steps up with the rest. */
-  font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+  font-family: var(--font-mono);
   font-size: var(--font-size-base);
 }
 

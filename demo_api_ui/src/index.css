@@ -218,9 +218,9 @@ textarea {
      but resolved to a SANS stack, so every consumer asking for it silently got
      a proportional face; it now aliases this.
      Kept on ONE line on purpose: uiRegression.test.js skips a line declaring
-     `--font-mono:` and checks the rest, so a wrapped stack would trip it.
-     `var(--font-mono)` carries no banned literal, which is how consuming files
-     drop out of that test's ~45-entry filename allowlist. */
+     a `--*mono*:` token and checks the rest, so a wrapped stack would trip it.
+     `var(--font-mono)` carries no banned literal, which is why that test now
+     needs no per-file exemptions at all. */
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   --font-family-mono: var(--font-mono);
   /* Referenced in 14 files, defined nowhere — each carried its own fallback,

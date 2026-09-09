@@ -1661,6 +1661,26 @@ router.get('/state', (req, res) => {
         || privilegeDoorUrl(process.env.MCP_FACADE_PRIVILEGE_GATEWAY_APP_BANKING || 'banking-mcp'),
     },
     {
+      // `openapi2`, the OpenAPI MCP app type, pinned ONLY so its failure can be
+      // measured. It has never discovered a tool, and everything we have
+      // recorded about why is inference: Privilege runs `mcp/openapi` on its own
+      // side, and that is the only catalog image published without Ping's
+      // `mcp-shim` (grafana: `sh -c "mcp-shim --port=${PORT} -- mcp-grafana"`,
+      // GET /mcp -> 200; openapi: bare `/openapimcp`, GET /mcp -> 405). Nobody
+      // has authenticated through the door and asked it for tools, which is the
+      // one direct measurement — and the one Ping will ask for. Probing this
+      // preset produces it.
+      //
+      // Pinned rather than left to console discovery, like the PingOne-admin
+      // door above: `openapi2` only reaches the picker via readInventory(), so
+      // until somebody connects the console it is not selectable at all.
+      //
+      // Retire this preset once the question is settled, either way.
+      label: 'Privilege — openapi2 (OpenAPI MCP app type — probe to measure)',
+      mode: 'privilege',
+      url: privilegeDoorUrl('openapi2'),
+    },
+    {
       label: 'Agent Gateway — PingOne audit (scope-narrowed)',
       // Not one of the three paths: this door narrows by advertised scope, and
       // it needs an OAuth-capable slot, which every mode now is.
