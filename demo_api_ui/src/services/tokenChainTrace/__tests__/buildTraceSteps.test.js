@@ -1327,3 +1327,135 @@ describe("buildTraceSteps — exchange proven by downstream evidence", () => {
     expect(exStep(steps).status).toBe("active");
   });
 });
+
+describe("buildTraceSteps — approval gate pause is not a failed run", () => {
+  // UC7/UC8: the 428 an approval gate raises is transport-level failure, so the
+  // trace arrives with outcome 'error' and mcpResult.status 'error' (denied
+  // false — it is not the expected-DENY shape). Before this, the rail narrated
+  // "This run stopped with an error at MCP server" while ProofStrip, reading the
+  // same trace, said "Step-up MFA required as expected".
+  const pausedTrace = (over = {}) => ({
+    ...EMPTY_TRACE,
+    outcome: "error",
+    prompt: { message: "extend my rental $600" },
+    authorize: {
+      decision: "INDETERMINATE",
+      engine: "pingone",
+      response: { decision: "INDETERMINATE", obligations: [{ type: "STEP_UP" }] },
+    },
+    mcpResult: {
+      tool: "extend_rental",
+      status: "error",
+      error: "mcp_step_up_required",
+      denied: false,
+      result: { error: "mcp_step_up_required", message: "Step-up required." },
+    },
+    ...over,
+  });
+
+  test("mcp step waits on the gate instead of painting error", () => {
+    const mcp = buildTraceSteps(pausedTrace()).find((s) => s.id === "mcp");
+    expect(mcp.status).toBe("active");
+    expect(mcp.detail.why).toMatch(/paused on step-up MFA/);
+  });
+
+  test("run story says paused, not stopped with an error", () => {
+    const trace = pausedTrace();
+    const story = buildRunStory(trace, buildTraceSteps(trace));
+    expect(story.outcome).toBe("active");
+    expect(story.headline).toMatch(/Paused: waiting on step-up MFA before “extend_rental”/);
+    expect(story.headline).not.toMatch(/error/i);
+  });
+
+  test("badge stays CHAINED while the gate holds", () => {
+    const trace = pausedTrace();
+    expect(chainBadge(trace, buildTraceSteps(trace)))
+      .toEqual({ label: "CHAINED", tone: "ok" });
+  });
+
+  test("a declined gate says so rather than claiming the run is still waiting", () => {
+    const trace = pausedTrace({ approvalOutcome: "declined" });
+    const story = buildRunStory(trace, buildTraceSteps(trace));
+    expect(story.headline).toMatch(/Approval declined — step-up MFA was refused/);
+  });
+
+  test("a declined gate is TERMINAL — nothing is left pending", () => {
+    // A refusal cannot resume, so the run is over: 'active' would leave the rail
+    // claiming a gate is still being awaited, and the mcp step spinning forever.
+    const trace = pausedTrace({ approvalOutcome: "declined" });
+    const steps = buildTraceSteps(trace);
+    expect(buildRunStory(trace, steps).outcome).toBe("ok");
+    expect(steps.find((s) => s.id === "mcp").status).toBe("notinpath");
+    expect(steps.find((s) => s.id === "mcp").detail.why).toMatch(/never ran .* was refused/);
+  });
+
+  test("a declined gate keeps the badge green — the control did its job", () => {
+    const trace = pausedTrace({ approvalOutcome: "declined" });
+    expect(chainBadge(trace, buildTraceSteps(trace)))
+      .toEqual({ label: "CHAINED", tone: "ok" });
+  });
+
+  test("a HITL obligation is named as human approval, not step-up", () => {
+    const trace = pausedTrace({
+      authorize: {
+        decision: "PERMIT",
+        response: { decision: "PERMIT", obligations: [{ type: "HITL_APPROVAL" }] },
+      },
+      mcpResult: { tool: "create_transfer", status: "error", error: "hitl_required", denied: false },
+    });
+    const story = buildRunStory(trace, buildTraceSteps(trace));
+    expect(story.headline).toMatch(/waiting on human approval/);
+  });
+
+  test("the BFF's stamped authorize.outcome names the gate, not the obligation", () => {
+    // mcpToolPipeline stamps the block kind on trace.authorize.outcome and
+    // ProofStrip scores THAT (EXPECTED_OUTCOME_FAMILY). Reading it first is what
+    // keeps the rail and the strip from classifying one run two different ways.
+    const trace = pausedTrace({
+      authorize: { decision: "INDETERMINATE", outcome: "HITL_REQUIRED", engine: "pingone" },
+      mcpResult: { tool: "create_transfer", status: "error", error: "mcp_hitl_required", denied: false },
+    });
+    expect(buildRunStory(trace, buildTraceSteps(trace)).headline)
+      .toMatch(/waiting on human approval/);
+  });
+
+  test("a gate that was SATISFIED is not reported as still pausing the run", () => {
+    // ingestAuthorize carries the block kind forward onto the PERMIT that
+    // follows an approved step-up so ProofStrip can still score it — so
+    // `outcome: 'STEP_UP'` appears on satisfied runs too. `priorGate` is what
+    // says the human already answered.
+    const trace = pausedTrace({
+      outcome: null,
+      authorize: { decision: "PERMIT", outcome: "STEP_UP", priorGate: "STEP_UP" },
+      mcpResult: { tool: "extend_rental", status: "success", result: { ok: true } },
+    });
+    expect(buildRunStory(trace, buildTraceSteps(trace)).headline).not.toMatch(/Paused/);
+  });
+
+  test("a stamped hard block is NOT dressed up as a gate", () => {
+    // The legacy fallback treats a bare INDETERMINATE as a pause. A stamped
+    // DENY/POLICY_NOT_FOUND has to stop the lookup before it gets there, or a
+    // hard block renders as "waiting on approval" and the run looks recoverable.
+    for (const outcome of ["DENY", "POLICY_NOT_FOUND"]) {
+      const trace = pausedTrace({
+        authorize: { decision: "INDETERMINATE", outcome, engine: "pingone" },
+        mcpResult: { tool: "create_transfer", status: "error", error: "mcp_authorization_denied", denied: false },
+      });
+      const steps = buildTraceSteps(trace);
+      expect(steps.find((s) => s.id === "mcp").status).toBe("error");
+      expect(buildRunStory(trace, steps).outcome).toBe("error");
+    }
+  });
+
+  test("a REAL mcp failure still paints error — the carve-out is gate-only", () => {
+    const trace = {
+      ...EMPTY_TRACE,
+      outcome: "error",
+      prompt: { message: "what's the weather in Miami" },
+      mcpResult: { tool: "get_weather", status: "error", error: "mcp_error", denied: false },
+    };
+    const steps = buildTraceSteps(trace);
+    expect(steps.find((s) => s.id === "mcp").status).toBe("error");
+    expect(buildRunStory(trace, steps).outcome).toBe("error");
+  });
+});

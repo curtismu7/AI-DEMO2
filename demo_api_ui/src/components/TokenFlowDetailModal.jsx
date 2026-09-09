@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import DraggableModal from './DraggableModal';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
-import { buildRunStory } from '../services/tokenChainTrace/buildTraceSteps';
+import { buildRunStory, pausedGateState } from '../services/tokenChainTrace/buildTraceSteps';
 import './TokenFlowDetailModal.css';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -288,14 +288,7 @@ function ScopeFunnel({ steps, trace }) {
   const actClaim    = delegTok?.claims?.act?.sub ?? delegTok?.claims?.act;
   const exchAud     = delegTok?.claims?.aud || exchStep?.detail?.claims?.aud || 'mcp-server';
 
-  const azDeny = azSteps.find(s => {
-    const dec = s.detail?.decision?.outcome;
-    return dec === 'DENY' || dec === 'INDETERMINATE' || s.status === 'error';
-  });
-  const azPermit = azSteps.find(s => {
-    const dec = s.detail?.decision?.outcome;
-    return dec === 'PERMIT' || dec === 'done';
-  });
+  const azCard = resolveAuthorizeCard(trace, azSteps);
 
   return (
     <div className="tfd-funnel">
@@ -348,21 +341,21 @@ function ScopeFunnel({ steps, trace }) {
           </div>
         </div>
 
-        {(azPermit || azDeny) && <span className="tfd-farrow">→</span>}
+        {azCard && <span className="tfd-farrow">→</span>}
 
         {/* Authorize */}
-        {(azPermit || azDeny) && (
-          <div className={`tfd-fhop${azDeny ? ' tfd-fhop--deny' : ' tfd-fhop--permit'}`}>
+        {azCard && (
+          <div className={`tfd-fhop tfd-fhop--${azCard.tone}`}>
             <div className="tfd-fhop-head">
-              <span className="tfd-fhop-icon">{azDeny ? '❌' : '✅'}</span>
+              <span className="tfd-fhop-icon">{AZ_CARD_ICON[azCard.tone]}</span>
               <span className="tfd-fhop-name">PingOne Authorize</span>
-              <span className="tfd-fhop-sub" style={{ color: azDeny ? 'var(--tfd-danger, #f85149)' : 'var(--tfd-success, #3fb950)' }}>
-                {azDeny ? 'DENY' : 'PERMIT'}
-              </span>
+              <span className="tfd-fhop-sub">{azCard.verdict}</span>
             </div>
-            {azDeny && (
+            {azCard.note && (
               <div className="tfd-fscopes">
-                <span className="tfd-fscope tfd-fscope--blocked">✕ {azDeny.detail?.decision?.decisionContext || 'action blocked'}</span>
+                <span className={`tfd-fscope tfd-fscope--${azCard.tone === 'gate' ? 'held' : 'blocked'}`}>
+                  {azCard.tone === 'gate' ? AZ_CARD_ICON.gate : '✕'} {azCard.note}
+                </span>
               </div>
             )}
           </div>
@@ -436,6 +429,52 @@ function presentNode(id) {
  * @param {Array} steps from buildTraceSteps
  * @returns {Array} one node per slot, in flow order
  */
+// \u270b is the allowlist's declared glyph for "human approval required"
+// (REGRESSION_PLAN \u00a70). A pause symbol is not on the list.
+const AZ_CARD_ICON = { gate: '\u270b', deny: '\u274c', permit: '\u2705' };
+
+/**
+ * The PingOne Authorize card in the scope-flow strip: which of the three
+ * verdicts it shows, or null when Authorize is not in this run's path.
+ *
+ * Exported so the three-way choice is testable — it used to be inline ternaries
+ * that read `outcome === 'INDETERMINATE'` as a hard DENY, so a step-up/HITL run
+ * painted a red "action blocked" card directly under a banner correctly saying
+ * the run was waiting on a human. The gate is checked FIRST and via
+ * pausedGateLabel(), the same predicate buildRunStory's banner uses, so the two
+ * cannot drift apart again.
+ *
+ * @param {object} trace     token chain trace
+ * @param {Array}  azSteps   the authorize step(s) from buildTraceSteps
+ * @returns {{ tone: 'gate'|'deny'|'permit', verdict: string, note: string|null } | null}
+ */
+export function resolveAuthorizeCard(trace, azSteps) {
+  const steps = Array.isArray(azSteps) ? azSteps : [];
+  const gate = pausedGateState(trace);
+  // A refused gate is terminal — it is still the gate's card, but nothing is
+  // being awaited any more, so it must not read "awaiting".
+  if (gate) {
+    return gate.declined
+      ? { tone: 'gate', verdict: 'DECLINED', note: `${gate.label} refused` }
+      : { tone: 'gate', verdict: 'HELD', note: `awaiting ${gate.label}` };
+  }
+
+  const deny = steps.find((s) => {
+    const dec = s?.detail?.decision?.outcome;
+    return dec === 'DENY' || dec === 'INDETERMINATE' || s?.status === 'error';
+  });
+  if (deny) {
+    return { tone: 'deny', verdict: 'DENY',
+      note: deny.detail?.decision?.decisionContext || 'action blocked' };
+  }
+
+  const permit = steps.find((s) => {
+    const dec = s?.detail?.decision?.outcome;
+    return dec === 'PERMIT' || dec === 'done';
+  });
+  return permit ? { tone: 'permit', verdict: 'PERMIT', note: null } : null;
+}
+
 export function resolveTopoNodes(steps) {
   const list = Array.isArray(steps) ? steps : [];
   const ran = (id) => list.some((s) => s && s.id === id && RAN_STATUSES.includes(s.status));
