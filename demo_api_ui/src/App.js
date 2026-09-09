@@ -30,6 +30,7 @@ import InvestDualAuthDiagramPage from "./components/InvestDualAuthDiagramPage";
 import ExternalDoorDiagramPage from "./components/ExternalDoorDiagramPage";
 import GatewayEnforcementMapPage from "./components/GatewayEnforcementMapPage";
 import ResourceServerPlacementPage from "./components/ResourceServerPlacementPage";
+import PrivilegeFirstGatewayPage from "./components/PrivilegeFirstGatewayPage";
 import ResourceServerCheckpointPage from "./components/ResourceServerCheckpointPage";
 import DemoTrackPage from "./pages/DemoTrackPage";
 import DelegationChainValuePage from "./pages/DelegationChainValuePage";
@@ -1713,6 +1714,10 @@ function AppWithAuth() {
                             <Route
                               path="/resource-server-placement"
                               element={<ResourceServerPlacementPage />}
+                            />
+                            <Route
+                              path="/privilege-first-gateway"
+                              element={<PrivilegeFirstGatewayPage />}
                             />
                             <Route
                               path="/resource-server-checkpoint"

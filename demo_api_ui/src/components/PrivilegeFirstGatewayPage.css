@@ -1,0 +1,144 @@
+/* PrivilegeFirstGatewayPage.css — every colour comes from a --th-* token so the
+   inline SVG reads in both themes (THEMING.md H1/H3). Semantic families carry
+   the roles: error = Privilege (Ping red), info = Agent Gateway, warning = the
+   hop the Phase 0 spike must measure, success = PERMIT. */
+
+.pfg-page {
+  --pfg-mono: var(--font-mono);
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 32px 24px 60px;
+  display: grid;
+  gap: 32px;
+  color: var(--th-text);
+  background: var(--th-bg-page);
+}
+
+.pfg-hero {
+  display: grid;
+  gap: 8px;
+  max-width: 68ch;
+}
+.pfg-eyebrow {
+  font-family: var(--pfg-mono);
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--th-text-muted);
+}
+.pfg-hero h1 {
+  font-size: var(--font-size-h2);
+  margin: 0;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+.pfg-hero p {
+  margin: 0;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-body);
+}
+
+.pfg-figure {
+  margin: 0;
+  display: grid;
+  gap: 12px;
+}
+.pfg-frame {
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  overflow-x: auto;
+}
+.pfg-frame svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-width: 720px;
+}
+.pfg-figure figcaption {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-sm);
+  max-width: 78ch;
+}
+.pfg-figure figcaption strong {
+  color: var(--th-text);
+}
+
+/* SVG shapes */
+.pfg-box { fill: var(--th-bg-card); stroke: var(--th-border-strong); stroke-width: 1.2; }
+.pfg-box-priv { fill: var(--th-status-error-bg); stroke: var(--th-status-error); stroke-width: 1.6; }
+.pfg-box-ag { fill: var(--th-status-info-bg); stroke: var(--th-status-info); stroke-width: 1.6; }
+.pfg-box-ghost { fill: none; stroke: var(--th-border-strong); stroke-width: 1.2; stroke-dasharray: 5 4; }
+.pfg-lane { fill: var(--th-bg-card); stroke: var(--th-border); stroke-width: 1; }
+
+/* SVG text — sizes are viewBox units, scaled with the drawing */
+.pfg-t { fill: var(--th-text); font-size: 13px; }
+.pfg-t-b { fill: var(--th-text); font-size: 13px; font-weight: 600; }
+.pfg-t-h { fill: var(--th-text); font-size: 15px; font-weight: 600; }
+.pfg-t-m { fill: var(--th-text-muted); font-size: 11.5px; }
+.pfg-t-mono { fill: var(--th-text); font-family: var(--pfg-mono); font-size: 11.5px; }
+.pfg-t-mono-m { fill: var(--th-text-muted); font-family: var(--pfg-mono); font-size: 11px; }
+.pfg-t-priv { fill: var(--th-status-error-text); font-size: 12px; font-weight: 600; letter-spacing: 0.06em; }
+.pfg-t-ag { fill: var(--th-status-info-text); font-size: 12px; font-weight: 600; letter-spacing: 0.06em; }
+.pfg-t-spike { fill: var(--th-status-warning-text); font-size: 11.5px; font-weight: 600; }
+.pfg-t-deny { fill: var(--th-status-error-text); font-size: 12px; font-weight: 600; }
+.pfg-t-permit { fill: var(--th-status-success-text); font-size: 12px; font-weight: 600; }
+
+/* SVG edges */
+.pfg-e { fill: none; stroke: var(--th-text); stroke-width: 1.4; }
+.pfg-e-ghost { fill: none; stroke: var(--th-text-muted); stroke-width: 1.2; stroke-dasharray: 5 4; }
+.pfg-e-spike { fill: none; stroke: var(--th-status-warning); stroke-width: 1.8; stroke-dasharray: 7 4; }
+.pfg-arrow { fill: var(--th-text); }
+.pfg-arrow-m { fill: var(--th-text-muted); }
+.pfg-arrow-s { fill: var(--th-status-warning); }
+
+.pfg-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  font-size: var(--font-size-sm);
+  color: var(--th-text-muted);
+}
+.pfg-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.pfg-sw {
+  display: inline-block;
+  width: 22px;
+  height: 0;
+  border-top: 2px solid var(--th-text);
+}
+.pfg-sw--spike { border-top: 2px dashed var(--th-status-warning); }
+.pfg-sw--ghost { border-top: 2px dashed var(--th-text-muted); }
+
+.pfg-flags {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 12px;
+}
+.pfg-flag {
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: grid;
+  gap: 4px;
+}
+.pfg-flag code {
+  font-family: var(--pfg-mono);
+  font-size: var(--font-size-sm);
+  color: var(--th-code-text);
+  background: var(--th-code-bg);
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+  margin-right: 6px;
+}
+.pfg-flag small {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-sm);
+}

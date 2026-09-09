@@ -210,6 +210,7 @@ export const NAV_STRUCTURE_CATALOG = [
       "External Door MCP Flow (MM)",
       "AI Agent Gateway (MM)",
       "Privilege Gateway Topologies (MM)",
+      "Privilege-First Gateway (Node)",
       "Gateway vs P1AZ Enforcement (MM)",
       "Resource Server Placement (MM)",
     ],
