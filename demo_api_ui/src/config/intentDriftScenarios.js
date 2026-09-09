@@ -29,6 +29,17 @@ export const INTENT_SCENARIO_CATEGORIES = [
   'Semantic drift',
 ];
 
+/**
+ * The policy gate. "Agent Intent Governance" lives inside the AI Demo root
+ * policy set, which is DenyOverrides/evaluateAll — every child policy runs on
+ * every decision. The policy therefore carries its own condition,
+ * DecisionContext == 'IntentGovernance', so ordinary demo traffic (which sends
+ * no IntentGrant* parameters and would trip the fail-closed defaults) is not
+ * denied by it. Every scenario must send this or the policy is inert and the
+ * endpoint answers from the demo's other policies instead.
+ */
+const GATE = { DecisionContext: 'IntentGovernance' };
+
 /** The grant a user consented to: transfer up to $100 to acme-utilities. */
 const CONSENTED_GRANT = {
   IntentGrantPresent: 'true',
@@ -59,7 +70,7 @@ export const INTENT_DRIFT_SCENARIOS = [
     description:
       'The agent does what the user asked. Every dimension matches the grant, so no deny rule fires and the catch-all permits.',
     expect: { decision: 'PERMIT', statement: 'intent-within-grant' },
-    parameters: { ...CONSENTED_GRANT, ...MATCHING_REQUEST },
+    parameters: { ...GATE, ...CONSENTED_GRANT, ...MATCHING_REQUEST },
   },
   {
     key: 'read-no-grant',
@@ -69,7 +80,7 @@ export const INTENT_DRIFT_SCENARIOS = [
     description:
       'Intent governs state changes only; reads fall through to scope policy. IntentRequestMutating=false keeps every drift rule out of scope, so this permits even with no grant bound.',
     expect: { decision: 'PERMIT', statement: 'intent-within-grant' },
-    parameters: {
+    parameters: { ...GATE,
       IntentGrantPresent: 'false',
       IntentRequestAction: 'view_balance',
       IntentRequestMutating: 'false',
@@ -85,7 +96,7 @@ export const INTENT_DRIFT_SCENARIOS = [
     description:
       'The canonical injection. Same tool, same payee, inflated amount. A permitted_tools check passes this; only a grant comparison catches it.',
     expect: { decision: 'DENY', statement: 'intent-amount-drift' },
-    parameters: { ...CONSENTED_GRANT, ...MATCHING_REQUEST, IntentRequestAmount: '5000' },
+    parameters: { ...GATE, ...CONSENTED_GRANT, ...MATCHING_REQUEST, IntentRequestAmount: '5000' },
   },
   {
     key: 'payee-drift',
@@ -95,7 +106,7 @@ export const INTENT_DRIFT_SCENARIOS = [
     description:
       'Same tool, same amount, different counterparty. Also invisible to a tool-membership check.',
     expect: { decision: 'DENY', statement: 'intent-payee-drift' },
-    parameters: { ...CONSENTED_GRANT, ...MATCHING_REQUEST, IntentRequestPayee: 'attacker-account' },
+    parameters: { ...GATE, ...CONSENTED_GRANT, ...MATCHING_REQUEST, IntentRequestPayee: 'attacker-account' },
   },
   {
     key: 'action-drift',
@@ -105,7 +116,7 @@ export const INTENT_DRIFT_SCENARIOS = [
     description:
       'The agent switches to an operation the user never consented to. The granted action comes from the grant, not from the tool being invoked, so this comparison can actually fail.',
     expect: { decision: 'DENY', statement: 'intent-action-drift' },
-    parameters: { ...CONSENTED_GRANT, ...MATCHING_REQUEST, IntentRequestAction: 'delete_account' },
+    parameters: { ...GATE, ...CONSENTED_GRANT, ...MATCHING_REQUEST, IntentRequestAction: 'delete_account' },
   },
   {
     key: 'no-grant',
@@ -115,7 +126,7 @@ export const INTENT_DRIFT_SCENARIOS = [
     description:
       'A state-changing action with no user-consented authorization_details on the token. Nothing authorizes it.',
     expect: { decision: 'DENY', statement: 'intent-grant-missing' },
-    parameters: {
+    parameters: { ...GATE,
       IntentGrantPresent: 'false',
       IntentBindingMethod: 'none',
       ...MATCHING_REQUEST,
@@ -129,7 +140,7 @@ export const INTENT_DRIFT_SCENARIOS = [
     description:
       'Consent does not last forever. An expired grant must be refreshed before the agent may continue.',
     expect: { decision: 'DENY', statement: 'intent-grant-expired' },
-    parameters: { ...CONSENTED_GRANT, ...MATCHING_REQUEST, IntentGrantExpired: 'true' },
+    parameters: { ...GATE, ...CONSENTED_GRANT, ...MATCHING_REQUEST, IntentGrantExpired: 'true' },
   },
   {
     key: 'not-consented',
@@ -139,7 +150,7 @@ export const INTENT_DRIFT_SCENARIOS = [
     description:
       'The grant was asserted by the client rather than approved by the user. This is the case the demo is in today: the RAR grant is BFF-built from the same request it authorizes, so no consent can be proven.',
     expect: { decision: 'DENY', statement: 'intent-not-consented' },
-    parameters: { ...CONSENTED_GRANT, ...MATCHING_REQUEST, IntentGrantConsented: 'false' },
+    parameters: { ...GATE, ...CONSENTED_GRANT, ...MATCHING_REQUEST, IntentGrantConsented: 'false' },
   },
   {
     key: 'semantic-drift',
@@ -149,7 +160,7 @@ export const INTENT_DRIFT_SCENARIOS = [
     description:
       'Every hard dimension matches, but an external evaluator scored the action as diverging. Permits with a RECONSENT obligation rather than denying. Inert unless something supplies IntentDriftScore — nothing does today.',
     expect: { decision: 'PERMIT', statement: 'intent-reconsent-required' },
-    parameters: { ...CONSENTED_GRANT, ...MATCHING_REQUEST, IntentDriftScore: '0.8' },
+    parameters: { ...GATE, ...CONSENTED_GRANT, ...MATCHING_REQUEST, IntentDriftScore: '0.8' },
   },
 ];
 

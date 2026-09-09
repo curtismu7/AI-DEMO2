@@ -52,6 +52,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const { buildIntentGovernanceObjects } = require('./intentGovernancePolicy');
 
 const REPO = path.resolve(__dirname, '..');
 const SOT = path.join(REPO, 'scope-topology.json');
@@ -1450,6 +1451,42 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
       'and regenerate, or the import is a no-op and the cloud keeps the OLD ceiling.'
     );
   }
+
+  // 11) Agent Intent Governance — a THIRD policy under the root set.
+  //
+  // It was briefly its own standalone policy set, which was wrong: a PingOne
+  // Authorize environment evaluates a single root policy tree, so a sibling root
+  // imports to nothing. Verified live 2026-09-09 — after importing the
+  // standalone package and publishing, GET /authorizationPolicies still listed
+  // one root and the set's own id 404'd. See snapshots/intentGovernancePolicy.js.
+  //
+  // The builder gates the policy on DecisionContext == 'IntentGovernance'. That
+  // gate is load-bearing: the root is DenyOverrides/evaluateAll, so every child
+  // policy runs on every decision, and an ordinary tool call sends no IntentGrant*
+  // parameters — fail-closed defaults would fire intent-grant-missing and deny
+  // the entire demo. Do not widen it without also giving the gateway a way to
+  // prove PAR consent, or every mutating call denies as intent-not-consented.
+  const intent = buildIntentGovernanceObjects({ decisionContextAttrId: ATTR.DecisionContext });
+  for (const a of intent.attributes) upsert(a, afterLastAttrIdx);
+  for (const c of intent.conditions) upsert(c, beforeSepIdx);
+  for (const s of intent.statements) upsert(s, beforeSepIdx);
+  for (const r of intent.rules) upsert(r, beforeSepIdx);
+  upsert(intent.policy, beforeFirstPolicyIdx);
+
+  // Attach to the root set, after the two existing policies. Idempotent, and
+  // additive only — the existing children are never rewritten, because dropping
+  // one silently disables that half of the demo's authorization.
+  const rootSet = snap.find((o) => o.type === 'PolicySet');
+  if (!rootSet) throw new Error('no root PolicySet in the snapshot — cannot attach Agent Intent Governance');
+  if (!rootSet.children.some((c) => c.id === intent.POLICY_ID)) {
+    rootSet.children.push({ id: intent.POLICY_ID, type: 'Policy' });
+  }
+  for (const required of [POLICY.transaction, POLICY.mcp]) {
+    if (!rootSet.children.some((c) => c.id === required)) {
+      throw new Error(`root PolicySet lost policy ${required} — refusing to emit a snapshot that disables it`);
+    }
+  }
+  rootSet.version = ver('ffffffff', rootSet.id, { children: rootSet.children });
 
   return snap;
 }
