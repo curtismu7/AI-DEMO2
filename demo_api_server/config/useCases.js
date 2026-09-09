@@ -451,12 +451,19 @@ const RAW_USE_CASES = [
     buyerStory: "Calls from a retired or orphaned agent identity should fail — agent identities need a full lifecycle just like human ones.",
     pingOneSolution: 'PingOne manages the agent app as a first-class identity; rotating or retiring the client credential blocks all subsequent calls.',
     trigger: { type: 'chip', text: 'show my balance' },
-    expectedOutcome: 'DENY_401',
+    // PERMIT, not DENY_401. The demo has no retired-agent credential to exchange
+    // with: this chip runs as the LIVE agent identity and legitimately succeeds, so
+    // the declared 401 could never happen and the card sat at a permanent
+    // 'mismatch'. Rather than fake the denial with a forced outcome — which would
+    // make the proof strip assert enforcement that never ran — the card now claims
+    // what it actually demonstrates (a healthy agent identity minting a token), and
+    // whatToSay names the console step that produces the denial half.
+    expectedOutcome: 'PERMIT',
     evidence: { tokenChain: ['token-exchange'], activity: ['token'] },
     codeRefs: ['demo_api_server/services/agentMcpTokenService.js'],
     maturity: 'works',
     owasp: { threats: ['T9', 'T13'], sections: ['§3.3.6', '§8'] },
-    whatToSay: 'The agent app was retired — its credential no longer mints tokens, so the call dies at the exchange step.',
+    whatToSay: 'This is the live agent identity, so the exchange succeeds. Retire or rotate that agent app in the PingOne console and run it again — the same call dies at the exchange step, with no per-tool cleanup anywhere.',
     advanced: false,
     whatLong: "A retired or orphaned agent application still holds credentials. Without lifecycle management, those credentials remain valid indefinitely. This scenario demonstrates what happens when the agent app's client credential is revoked in PingOne — subsequent token exchange requests fail, cutting off all tool access immediately.",
     businessValue: 'Agent identities are managed with the same lifecycle rigor as human identities. Retiring a credential in PingOne is instant and complete — no per-tool, per-API, or per-service cleanup required.',
@@ -1741,7 +1748,14 @@ const RAW_USE_CASES = [
     buyerStory: 'When someone changes teams or leaves, IT revokes their MCP access in one console — not service by service.',
     pingOneSolution: 'Removing the user from the allowed PingOne group makes the enterprise IdP refuse to issue an ID-JAG on the next tool call, and any MCP token the session still holds is revoked.',
     trigger: { type: 'chip', text: 'show my balance' },
-    expectedOutcome: 'DENY',
+    // PERMIT, not DENY. The denial half of this card requires a manual console step
+    // that whatToSay already spells out — remove the user from the allowed PingOne
+    // group. Until someone does that the signed-in demo user IS still entitled, so
+    // the run legitimately permits and a declared DENY was a permanent 'mismatch'.
+    // This card declares its BASELINE (access while entitled); the revocation is the
+    // presenter's second run, and the proof strip then reports that denial honestly
+    // instead of having pre-declared it.
+    expectedOutcome: 'PERMIT',
     evidence: { tokenChain: ['user-token', 'enterprise-managed-mode'], activity: ['token', 'mcp'] },
     codeRefs: [
       'demo_api_server/services/enterpriseMcpPolicyService.js',

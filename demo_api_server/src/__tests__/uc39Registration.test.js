@@ -16,8 +16,21 @@ describe('UC39 — centralized MCP revocation', () => {
     expect(authRequirements.useCases.UC39).toBe('user');
   });
 
-  test('expects a denial — the whole point is that access is gone', () => {
-    expect(uc.expectedOutcome).toBe('DENY');
+  test('declares its BASELINE — the revocation is the presenter\'s second run', () => {
+    // Not DENY. The denial half needs a manual console step (remove the user from
+    // the allowed PingOne group) that no run performs on its own, so while the demo
+    // user is still entitled the call legitimately permits and a declared DENY sat
+    // as a permanent 'mismatch' on the proof strip. Forcing the outcome instead
+    // would make the strip assert enforcement that never ran.
+    expect(uc.expectedOutcome).toBe('PERMIT');
+  });
+
+  test('still teaches revocation — whatToSay names the step that denies', () => {
+    // The point of the card is unchanged; only which half it DECLARES moved. If
+    // this stops naming the console step, the card silently becomes a plain
+    // happy-path token demo and the reason the outcome is PERMIT is lost.
+    expect(uc.whatToSay).toMatch(/remove the user from the group/i);
+    expect(uc.whatToSay).toMatch(/access is gone/i);
   });
 
   test('is gated on the enterprise-managed flag, like UC25', () => {
