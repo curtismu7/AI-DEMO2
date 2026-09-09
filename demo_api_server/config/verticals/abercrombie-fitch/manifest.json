@@ -62,7 +62,7 @@
     "userMemberships": {
       "demoUser": ["privileged", "premiumTier"],
       "demoAdmin": ["privileged", "premiumTier"],
-      "demoDelegate": ["privileged"]
+      "demoDelegate": ["privileged", "premiumTier"]
     }
   },
   "agent": {

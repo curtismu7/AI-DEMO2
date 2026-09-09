@@ -17,22 +17,22 @@ describe('groupPolicy', () => {
   });
 
   describe('requiredGroupForTool', () => {
-    it('returns the privileged group for a restricted tool', () => {
+    it("returns the vertical's premium-tier group for a restricted tool", () => {
       expect(groupPolicy.requiredGroupForTool('get_sensitive_account_details', 'banking'))
-        .toBe('AI_Demo_Privileged');
+        .toBe('Banking_PremiumTier');
     });
 
-    it('returns the SAME group for another vertical — one group serves all', () => {
-      // The privileged group used to be per-vertical (Banking_Privileged,
-      // Healthcare_Privileged, … 11 names for one concept). They are now a single
-      // generic group so a demo does not have to manage 11 memberships. This is
-      // behaviour-preserving: demoUser/demoAdmin were already privileged in every
-      // vertical (as, since #2616, is demoDelegate). The per-vertical part that
-      // still matters is WHICH TOOL is gated, which restrictedTools still declares.
+    it('returns a DIFFERENT group per vertical — the gate is the vertical tier', () => {
+      // The gate was briefly a single generic group (AI_Demo_Privileged) so a demo
+      // did not have to manage 11 memberships. Since the premiumTier re-point
+      // (spec §3.2) the sensitive tool requires the vertical's OWN tier group
+      // instead, so that toggling one membership is a real, per-vertical gate the
+      // UC21 chip can prove rather than narrate. `privileged` still exists and
+      // demoUser still holds it — it is simply no longer this tool's requirement.
       expect(groupPolicy.requiredGroupForTool('sensitive_patient_records', 'healthcare'))
-        .toBe('AI_Demo_Privileged');
+        .toBe('Healthcare_PremiumTier');
       expect(groupPolicy.requiredGroupForTool('sensitive_tax_record', 'government'))
-        .toBe('AI_Demo_Privileged');
+        .toBe('Government_PremiumTier');
     });
 
     it('returns null for an unrestricted tool', () => {
@@ -53,7 +53,14 @@ describe('groupPolicy', () => {
       }
     });
 
-    it('falls back to the legacy banking config when manifest resolution throws for banking', () => {
+    // NOTE: this does not currently reach the legacy fallback. config/group-policy.json
+    // maps the tool to 'PrivilegedBanking', so a real fallback would return that name;
+    // the spy below does not bite (groupPolicy re-inits the manifest on every call) and
+    // the manifest path answers instead. It passed on main only because the manifest and
+    // the assertion happened to agree on 'AI_Demo_Privileged' — a false green this PR
+    // exposed by changing the manifest value. Left asserting the real behaviour, and
+    // renamed so it no longer claims coverage it does not have.
+    it('resolves banking through the manifest even with the resolver spied to throw', () => {
       const spy = jest
         .spyOn(verticalManifest.resolver, 'resolve')
         .mockImplementation(() => {
@@ -61,7 +68,7 @@ describe('groupPolicy', () => {
         });
       try {
         expect(groupPolicy.requiredGroupForTool('get_sensitive_account_details', 'banking'))
-          .toBe('AI_Demo_Privileged');
+          .toBe('Banking_PremiumTier');
       } finally {
         spy.mockRestore();
       }
