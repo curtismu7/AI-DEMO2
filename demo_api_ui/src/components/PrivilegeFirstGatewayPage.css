@@ -4,7 +4,7 @@
    hop the Phase 0 spike must measure, success = PERMIT. */
 
 .pfg-page {
-  --pfg-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --pfg-mono: var(--font-mono);
   max-width: 1180px;
   margin: 0 auto;
   padding: 32px 24px 60px;
@@ -44,9 +44,10 @@
   gap: 12px;
 }
 .pfg-frame {
+  color: var(--th-text);
   background: var(--th-bg-card);
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 16px;
   overflow-x: auto;
 }
@@ -120,9 +121,10 @@
   gap: 12px;
 }
 .pfg-flag {
+  color: var(--th-text);
   background: var(--th-bg-card);
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 12px 14px;
   display: grid;
   gap: 4px;
@@ -133,7 +135,7 @@
   color: var(--th-code-text);
   background: var(--th-code-bg);
   padding: 1px 5px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   margin-right: 6px;
 }
 .pfg-flag small {
