@@ -140,6 +140,47 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-09 — Every provisioned decision endpoint was unbound: the create payload sent `policyId`, a field PingOne accepts and discards
+
+**Files changed:** `demo_api_server/services/pingOneAuthorizeService.js`, new
+`demo_api_server/tests/pingOneAuthorizeService.decisionEndpointPolicyBinding.test.js`.
+
+**What was broken:** `_createDecisionEndpointResource` put the policy binding in
+`policyId`. The PingOne decision-endpoint API takes `policy: { id }`. It answers
+**201 either way** and silently drops the unknown key, so every endpoint created
+by `provisionDemoDecisionEndpoints` (and by `POST
+/api/authorize/bootstrap-demo-endpoints`) came out with no policy binding and
+fell through to the environment's root policy tree. Nothing errored, nothing
+logged, and the only visible symptom was an absence: a GET on the endpoint has
+no `policy` key at all. Found while trying to bind a new endpoint to the Agent
+Intent Governance policy set and getting decisions from a different policy.
+
+Measured live 2026-09-09 against the AI Demo environment:
+
+| request | result |
+|---|---|
+| `POST { policyId }` | 201, GET shows no `policy` key |
+| `POST { policy: { id } }` | 201, GET shows `policy: { id }` |
+| `PUT { policy: { id } }` | 400 `INVALID_DATA` — "Cannot update policy id" |
+| `PUT { policyId }` | 200, and still ignored |
+
+**What was fixed:** the create payload now sends `policy: { id: opts.policyId }`.
+The public option name is unchanged, so `routes/authorize.js` and its callers are
+untouched.
+
+**Do not break:** the binding is **create-only** — the PUT above proves it. An
+endpoint that already exists unbound cannot be repaired by re-running
+provisioning; `provisionDemoDecisionEndpoints` skips any endpoint whose name
+already exists, so such an endpoint must be deleted and recreated. Note the
+Authorize worker returns **403 on DELETE** for decision endpoints, so that
+deletion is a console action.
+
+**Verify:** `cd demo_api_server && CI=true npx jest
+tests/pingOneAuthorizeService.decisionEndpointPolicyBinding.test.js
+tests/authorizePreflightRoute.regression.test.js --forceExit` — 10 passed. The
+new guard was confirmed to FAIL against the old `policyId` field before the fix
+was restored.
+
 ### 2026-09-09 — One colliding scope name 400'd the whole grant PUT, so the reconciler could never add any of the others
 
 **Files changed:** `demo_api_server/services/twoExchangeReconciler.js`,
@@ -253,6 +294,48 @@ run of the same code. It is order/state dependent and shared across verticals
 whichever vertical runs last, not in airlines specifically. Same signature as
 the 2026-08-22 actor-chain drift entry below — unconfirmed whether it is the
 same cause. Re-run the single vertical before treating a UC14b red as real.
+
+### 2026-09-09 — `mcp-invalid-audience` blamed the wrong operand: the deny message named an attribute `HasValidMcpAudience` never reads
+
+**Files changed:** `snapshots/gen-authorize-snapshot.js`,
+`snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json`,
+`snapshots/authorizeSnapshotDrift.test.js`.
+
+**What was broken:** the `mcp-invalid-audience` statement read "Token audience
+'X' does not match expected MCP resource URI 'Y'", interpolating
+`McpResourceUri` as Y. `HasValidMcpAudience` never consults `McpResourceUri` —
+it compares `TokenAudience` against an allowlist baked into the condition, plus
+an external-door branch that additionally requires a matching `TokenIss`.
+`McpResourceUri` is the comma-joined accepted set the *caller* declares
+(`p1az-decision.groovy`: `mcpResourceUri = acceptedAuds.join(',')`). Two
+consequences: a caller sending a single value got "audience 'a' does not match
+expected MCP resource URI 'a'" — a value failing to match itself — and a real
+external-door token from an unrecognised issuer denied with a message about
+resource URIs that never mentioned the issuer that actually failed. Hit live
+while probing the MCP decision endpoint: `TokenAudience=mcpserver.ping.demo`
+with no `TokenIss` denied correctly, but the message sent the investigation to
+resource-URI config instead of the issuer pairing.
+
+**What was fixed:** the generator now rewrites that statement to name the
+operands the rule actually reads (`TokenAudience`, `TokenIss`), state the
+allowlist this package deploys including the issuer-paired exemption, and report
+the caller-declared set separately and labelled as the caller's — so a drift
+between deployed policy and `scope-topology.json` is visible in the deny itself.
+The statement's `version` is now content-derived via `ver()` rather than the
+frozen `-4321-` block; without that, PingOne skips the object on import and the
+corrected message never lands (the #1311/#1897 trap class).
+
+**Do not break:** the rule itself is correct and unchanged — `mcpserver.ping.demo`
+must stay accepted ONLY when paired with an external-door `TokenIss`. This was a
+diagnostic fix, not a policy change; one line of the snapshot differs. Any future
+edit to a snapshot object must re-derive its `version` from content, or the
+import silently skips it.
+
+**Verify:** `npm run test:snapshots` — 62/62 pass, including the new
+`mcp-invalid-audience diagnostic names the operands the rule reads`. That guard
+rejects the old payload on all four assertions (issuer absent, "expected MCP
+resource URI" present, no caller-declared label, frozen version). The corrected
+message requires a console re-import to reach the live environment.
 
 ### 2026-09-08 — Demo Steps had no outcome-level gate: a step could answer wrong and every suite stayed green
 

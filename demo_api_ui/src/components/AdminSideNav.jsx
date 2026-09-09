@@ -475,6 +475,7 @@ export default function AdminSideNav({
         { label: "Protocol Playground", path: "/protocol-playground", icon: "dbg" },
         { label: "AI Gateway Client", path: "/privilege-mcp-client", icon: "shld" },
         { label: "LLM Gateway", path: "/llm-gateway", icon: "key" },
+        { label: "Intent Inspector", path: "/intent-inspector", icon: "shld", adminOnly: true },
         { label: "Audit Agent", path: "/audit-agent", icon: "shld" },
         { label: "AI Agent Gateway Guide", path: "/privilege-mcp-learning", icon: "doc" },
         { label: "AI Agent Gateway Diagrams", path: "/privilege-mcp-diagrams", icon: "arc" },
@@ -558,10 +559,10 @@ export default function AdminSideNav({
           icon: "clk",
         },
         {
+          // Public on purpose (auth-requirements.json) — no adminOnly here.
           label: "Personal Agent",
           path: "/personal-agent",
           icon: "agt",
-          adminOnly: true,
         },
         {
           label: "Agent Lifecycle (guided demo)",
@@ -1454,7 +1455,12 @@ export default function AdminSideNav({
                 e.preventDefault();
                 setControlPlaneIntroPath(item.path);
               }
-            : undefined
+            : !isAdmin && item.adminOnly
+              ? (e) => {
+                  e.preventDefault();
+                  setAdminPromptPath(item.path);
+                }
+              : undefined
         }
         className={`admin-side-nav__item ${item.highlight ? "admin-side-nav__item--highlight-danger" : ""} ${isActive(item.path) ? "admin-side-nav__item--active" : ""}`}
         title={collapsed ? item.label : undefined}
@@ -1464,6 +1470,9 @@ export default function AdminSideNav({
         {!collapsed && (
           <>
             <span className="admin-side-nav__label">{item.label}</span>
+            {item.adminOnly && (
+              <span className="admin-side-nav__badge">🔐 admin</span>
+            )}
             {item.badge && (
               <span className="admin-side-nav__badge">{item.badge}</span>
             )}

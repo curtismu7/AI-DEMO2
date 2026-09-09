@@ -1354,7 +1354,22 @@ async function _createDecisionEndpointResource(opts) {
     description: opts.description,
     recordRecentRequests: true,
   };
-  if (opts.policyId) base.policyId = opts.policyId;
+  // The wire field is `policy: { id }`, NOT `policyId`.
+  //
+  // This sent `policyId` for its whole life. PingOne accepts the POST with 201
+  // and silently drops the field: a GET on the created endpoint shows no policy
+  // binding at all, so it falls through to the environment's root policy tree.
+  // Every endpoint provisioned by this function has therefore been unbound.
+  // Measured live 2026-09-09 against the AI Demo environment:
+  //   POST { policyId }      -> 201, GET shows no `policy` key
+  //   POST { policy:{ id } } -> 201, GET shows policy:{ id: ... }
+  //   PUT  { policy:{ id } } -> 400 INVALID_DATA "Cannot update policy id"
+  //   PUT  { policyId }      -> 200, and still ignored
+  // The binding is CREATE-ONLY. An endpoint that already exists unbound cannot
+  // be repaired here — it has to be deleted and recreated, which is why this
+  // function's "already exists" branches leave such an endpoint alone rather
+  // than trying to patch it.
+  if (opts.policyId) base.policy = { id: opts.policyId };
   if (opts.authorizationVersionId) {
     base.authorizationVersion = { id: opts.authorizationVersionId };
   }

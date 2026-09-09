@@ -2,7 +2,7 @@
 // TokenChainTraceRail. No I/O, no store access — unit-testable in isolation.
 
 import { EDU } from "../../components/education/educationIds";
-import { isPause } from "./pauseObligation";
+import { isPause, pauseObligationKind } from "./pauseObligation";
 
 const LANES = {
   website: "BROWSER", signin: "PINGONE", prompt: "CHAT", agent: "AGENT",
@@ -529,6 +529,94 @@ function makeStep(id, status, detail) {
   return { id, title: TITLES[id], lane: LANES[id], status, detail: { ...base, ...(detail || {}) } };
 }
 
+/** Wording for each pause kind the approval gate can raise. */
+const PAUSE_LABEL = {
+  stepUp: "step-up MFA",
+  consent: "consent",
+  hitl: "human approval",
+  elicitation: "the elicitation reply",
+};
+
+/**
+ * Which block kinds `trace.authorize.outcome` names, and whether each is a
+ * pause. The BFF stamps exactly these four (mcpToolPipeline's authorizeOutcome
+ * map) — DENY and POLICY_NOT_FOUND are hard blocks and must keep painting the
+ * step red, so they map to null rather than being absent.
+ */
+const OUTCOME_GATE = {
+  STEP_UP: "stepUp",
+  HITL_REQUIRED: "hitl",
+  DENY: null,
+  POLICY_NOT_FOUND: null,
+};
+
+/**
+ * The approval gate this run is paused on ('stepUp' | 'consent' | 'hitl' |
+ * 'elicitation'), or null.
+ *
+ * A 428 pause is NOT a failed run — but every caller derives `ok` from the
+ * transport, so a paused run arrives here stamped `outcome: 'error'` with an
+ * `mcpResult.status: 'error'` whose `denied` is false. Without this, the rail
+ * narrated UC7/UC8 as "stopped with an error at MCP server" while ProofStrip,
+ * reading the same trace, correctly said "Step-up MFA required as expected".
+ *
+ * `authorize.outcome` FIRST, because that is the same signal ProofStrip scores
+ * (its EXPECTED_OUTCOME_FAMILY) — the BFF already named the block kind there, so
+ * reading it is what keeps the two surfaces from classifying one run two ways.
+ * It is also decisive: a DENY/POLICY_NOT_FOUND stops here rather than falling
+ * through to the obligation reader, which would otherwise let the legacy bare
+ * "INDETERMINATE" fallback dress a hard block up as an approval gate.
+ *
+ * The obligation and 428-code reads stay as fallbacks for the paths that carry
+ * no stamped outcome: an evaluation the gateway raised with no BFF pipeline
+ * behind it, and the multi-decision `authorizeEvaluations` entries.
+ */
+function pausedGate(trace) {
+  // A gate that FIRED is not a gate we are stuck on. ingestAuthorize carries the
+  // block kind forward onto the PERMIT that follows an approved step-up/HITL
+  // (`priorGate`), so ProofStrip can still score which gate held — meaning
+  // `authorize.outcome: 'STEP_UP'` shows up on satisfied runs too. Both exits
+  // below say "already resolved": the run reached a success, or the outcome is
+  // explicitly a carried-forward one.
+  if (trace?.outcome === "ok") return null;
+  const evals = [trace?.authorize, ...(Array.isArray(trace?.authorizeEvaluations) ? trace.authorizeEvaluations : [])];
+  for (const e of evals) {
+    if (!e) continue;
+    if (e.priorGate) return null;
+    if (e.outcome && Object.prototype.hasOwnProperty.call(OUTCOME_GATE, e.outcome)) return OUTCOME_GATE[e.outcome];
+    if (isPause(String(e.decision || "").toUpperCase(), e)) return pauseObligationKind(e) || "hitl";
+  }
+  const code = String(trace?.mcpResult?.error || trace?.mcpResult?.result?.error || "");
+  if (/step_up_required/i.test(code)) return "stepUp";
+  if (/hitl_required|consent_required/i.test(code)) return "hitl";
+  return null;
+}
+
+/**
+ * The approval gate state of a run: which gate holds it, and whether the human
+ * already refused. Null when no gate is involved.
+ *
+ * Exported for the surfaces that render the decision THEMSELVES rather than
+ * through buildRunStory — TokenFlowDetailModal's scope-flow strip read
+ * `outcome === 'INDETERMINATE'` as a hard DENY, so a paused run showed a red
+ * "action blocked" card directly under a banner correctly saying it was waiting
+ * on a human. One predicate for both, so they cannot disagree again.
+ *
+ * `declined` travels WITH the label rather than being re-read per surface: a
+ * refused gate is terminal, so every renderer has to stop saying "awaiting".
+ *
+ * @param {object|null|undefined} trace
+ * @returns {{ label: string, declined: boolean } | null}
+ */
+export function pausedGateState(trace) {
+  const kind = pausedGate(trace);
+  if (!kind) return null;
+  return {
+    label: PAUSE_LABEL[kind] || "approval",
+    declined: trace?.approvalOutcome === "declined",
+  };
+}
+
 /**
  * L0 run story for the TraceRail header — plain English, no JSON.
  * @param {object} trace
@@ -555,9 +643,22 @@ export function buildRunStory(trace, steps) {
   // An expected DENY (an expectedOutcome:'DENY' use case whose gateway block fired)
   // is the control working — present it as a successful run, not an error.
   const expectedDeny = Boolean(trace.mcpResult?.denied && trace.mcpResult?.expected);
+  // An approval gate that fired and was never satisfied: the tool is paused,
+  // not broken. Checked BEFORE the error branch because the transport stamps
+  // the same `outcome: 'error'` a real crash gets.
+  const gate = expectedDeny ? null : pausedGateState(trace);
+  const tool = trace.mcpResult?.tool || trace.mcpResult?.toolName || null;
   let outcome = trace.outcome || (errStep ? "error" : "active");
   let headline;
-  if (expectedDeny) {
+  if (gate) {
+    // A refused gate is TERMINAL, not still pending: nothing is coming, and the
+    // control did its job — same reading ProofStrip gives it ('denied-as-
+    // expected', green). Only a gate still awaiting an answer is 'active'.
+    outcome = gate.declined ? "ok" : "active";
+    headline = gate.declined
+      ? `Approval declined — ${gate.label} was refused, so ${tool ? `“${tool}”` : "the tool"} never ran.`
+      : `Paused: waiting on ${gate.label} before ${tool ? `“${tool}”` : "the tool"} runs.`;
+  } else if (expectedDeny) {
     outcome = "ok";
     headline = "Expected DENY — the control worked: the gateway blocked the out-of-scope call, exactly as this use case is meant to demonstrate.";
   } else if (outcome === "error" || errStep) {
@@ -1393,10 +1494,23 @@ export function buildTraceSteps(trace) {
   const mcpErrored = !!(mcpResult && mcpResult.status === "error");
   const mcpDone = !mcpErrored && (hasPhase(phases, "mcp_remote_done") || !!(mcpResult && mcpResult.result));
   const mcpBegun = hasPhase(phases, "mcp_remote_begin");
+  // A pause is not a failure: the 428 the approval gate raises arrives as
+  // `mcpResult.status: 'error'` (transport-derived, `denied` false), which
+  // painted this step red on every UC7/UC8 run. It stays "active" — the call is
+  // waiting on the human, not broken. See pausedGate() above.
+  const mcpGate = !gwDenied && !mcpDone ? pausedGateState(trace) : null;
+  const mcpPausedGate = mcpGate && !mcpGate.declined ? mcpGate : null;
   steps.push(makeStep("mcp",
-    authorizeFailed ? "notinpath" : mcpDone ? "done" : (gwDenied || mcpErrored) ? "error" : mcpBegun ? "active" : traceComplete ? "notinpath" : "pending",
+    authorizeFailed ? "notinpath" : mcpDone ? "done" : mcpPausedGate ? "active"
+      // Refused gate: the tool never ran and never will — not a spinner, and
+      // not an error either. It was simply never in this run's path.
+      : mcpGate ? "notinpath" : (gwDenied || mcpErrored) ? "error" : mcpBegun ? "active" : traceComplete ? "notinpath" : "pending",
     mcpResult ? {
-      why: mcpErrored
+      why: mcpGate
+        ? (mcpGate.declined
+          ? `MCP never ran “${mcpResult.tool || mcpResult.toolName || "tool"}” — ${mcpGate.label} was refused.`
+          : `MCP has not run “${mcpResult.tool || mcpResult.toolName || "tool"}” yet — the call is paused on ${mcpGate.label}.`)
+        : mcpErrored
         ? `MCP call failed for “${mcpResult.tool || mcpResult.toolName || "tool"}”${mcpResult.error ? ` (${mcpResult.error})` : ""}.`
         : `MCP executed “${mcpResult.tool || mcpResult.toolName || "tool"}”`
           + (mcpResult.durationMs != null ? ` in ${mcpResult.durationMs} ms` : "")

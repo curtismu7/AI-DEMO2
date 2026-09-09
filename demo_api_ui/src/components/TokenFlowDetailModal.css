@@ -480,6 +480,12 @@
 .tfd-fhop--issued   .tfd-fhop-head { background: rgba(63,185,80,.07);  border-color: rgba(63,185,80,.2); }
 .tfd-fhop--deny     .tfd-fhop-head { background: rgba(248,81,73,.07);  border-color: rgba(248,81,73,.2); }
 .tfd-fhop--permit   .tfd-fhop-head { background: rgba(63,185,80,.07);  border-color: rgba(63,185,80,.2); }
+/* Approval gate held — amber, matching .tfd-banner.pending, NOT the deny red. */
+.tfd-fhop--gate     .tfd-fhop-head { background: rgba(210,153,34,.07); border-color: rgba(210,153,34,.2); }
+/* Verdict tone lives here, not inline, so theme selectors can override it. */
+.tfd-fhop--gate     .tfd-fhop-sub  { color: var(--tfd-warn, #d29922); }
+.tfd-fhop--deny     .tfd-fhop-sub  { color: var(--tfd-danger, #f85149); }
+.tfd-fhop--permit   .tfd-fhop-sub  { color: var(--tfd-success, #3fb950); }
 .tfd-fhop-icon { font-size: var(--font-size-base); }
 .tfd-fhop-name { font-size: 10.5px; font-weight: 600; color: var(--text-secondary, #c9d1d9); line-height: 1.2; }
 .tfd-fhop-sub  { font-size: var(--font-size-3xs); font-family: var(--font-mono); color: var(--text-muted, #8b949e); }
@@ -493,6 +499,7 @@
 .tfd-fscope--dropped { background: var(--surface-tertiary, #21262d); border: 1px solid var(--border-primary, #30363d); color: var(--text-muted, #6e7681); text-decoration: line-through; opacity: .5; }
 .tfd-fscope--narrowed{ background: rgba(47,129,247,.1);  border: 1px solid rgba(47,129,247,.2); color: var(--accent, #2f81f7); }
 .tfd-fscope--blocked { background: rgba(248,81,73,.1);   border: 1px solid rgba(248,81,73,.2);  color: var(--tfd-danger, #f85149); }
+.tfd-fscope--held    { background: rgba(210,153,34,.1);  border: 1px solid rgba(210,153,34,.2); color: var(--tfd-warn, #d29922); }
 
 .tfd-farrow {
   font-size: var(--font-size-body); color: var(--text-muted, #6e7681);
@@ -715,9 +722,11 @@
 .tfd-root.tfd-light .tfd-fhop--exchange .tfd-fhop-head { background: rgba(9,105,218,.06); border-color: rgba(9,105,218,.2); }
 .tfd-root.tfd-light .tfd-fhop--issued   .tfd-fhop-head { background: rgba(26,127,55,.06); border-color: rgba(26,127,55,.2); }
 .tfd-root.tfd-light .tfd-fhop--deny     .tfd-fhop-head { background: rgba(207,34,46,.06); border-color: rgba(207,34,46,.2); }
+.tfd-root.tfd-light .tfd-fhop--gate     .tfd-fhop-head { background: rgba(154,103,0,.07); border-color: rgba(154,103,0,.22); }
 .tfd-root.tfd-light .tfd-fscope--kept     { background: rgba(26,127,55,.07);  border-color: rgba(26,127,55,.2);  color: #1a7f37; }
 .tfd-root.tfd-light .tfd-fscope--narrowed { background: rgba(9,105,218,.08);  border-color: rgba(9,105,218,.2);  color: #0969da; }
 .tfd-root.tfd-light .tfd-fscope--blocked  { background: rgba(207,34,46,.08);  border-color: rgba(207,34,46,.2);  color: #cf222e; }
+.tfd-root.tfd-light .tfd-fscope--held     { background: rgba(154,103,0,.09);  border-color: rgba(154,103,0,.22); color: #9a6700; }
 .tfd-root.tfd-light .tfd-act-callout { background: rgba(26,127,55,.06); border-color: rgba(26,127,55,.2); color: #1a7f37; }
 .tfd-root.tfd-light .tfd-banner.ok    { background: rgba(26,127,55,.07); border-color: rgba(26,127,55,.2); color: #116329; }
 .tfd-root.tfd-light .tfd-banner.error { background: rgba(207,34,46,.06); border-color: rgba(207,34,46,.2); color: #cf222e; }

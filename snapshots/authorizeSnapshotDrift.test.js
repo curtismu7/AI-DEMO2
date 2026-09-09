@@ -29,6 +29,7 @@ const {
   MCP_DECISION_CONTEXTS,
   ATTR,
   COND,
+  STMT,
   SNAP,
 } = require('./gen-authorize-snapshot.js');
 
@@ -91,7 +92,7 @@ test('regeneration is idempotent — reconciling the committed snapshot is a no-
   assert.deepStrictEqual(reconcile(again, loadSot()), committed);
 });
 
-test('widening touches exactly one object — 104 in, 104 out, none added or removed', () => {
+test('widening touches exactly one object — 153 in, 153 out, none added or removed', () => {
   const committed = readSnapshot();
   const objectCount = committed.length;
   // 73 pre-cloud-delta objects + 30 added: 21 by the fine-grained deny steps,
@@ -108,7 +109,7 @@ test('widening touches exactly one object — 104 in, 104 out, none added or rem
   // IsAutonomousWithoutMandate CONDITIONs, and a Statement+Rule pair each for
   // the ciba-approval-required pause and the autonomous-no-mandate fail-closed
   // deny. Cloud twin of mock Rule 0m.
-  assert.strictEqual(objectCount, 112, 'snapshot object count drifted — see authorizeSnapshotCloudDelta.test.js');
+  assert.strictEqual(objectCount, 153, 'snapshot object count drifted — see authorizeSnapshotCloudDelta.test.js');
 
   // Rebuild the pre-1e8619d09 state: the condition matched only the first two
   // contexts. Everything else in the snapshot is already reconciled.
@@ -154,4 +155,45 @@ test('widening touches exactly one object — 104 in, 104 out, none added or rem
     matchedContexts(findById(reconciled, COND.IsMcpFirstToolRequest)),
     MCP_DECISION_CONTEXTS,
   );
+});
+
+/**
+ * The mcp-invalid-audience deny statement must describe the comparison
+ * HasValidMcpAudience actually performs.
+ *
+ * It used to read "Token audience 'X' does not match expected MCP resource URI
+ * 'Y'", interpolating McpResourceUri as Y. That condition never reads
+ * McpResourceUri — it compares TokenAudience against a baked-in allowlist plus
+ * a TokenIss-paired external-door branch. McpResourceUri is the comma-joined
+ * set the CALLER declares, so a single-valued caller got "audience 'a' does not
+ * match expected MCP resource URI 'a'" — a value failing to match itself, with
+ * no mention of the issuer that actually failed.
+ */
+test('mcp-invalid-audience diagnostic names the operands the rule reads', () => {
+  const snap = readSnapshot();
+  const stmt = findById(snap, STMT.invalidAudience);
+  assert.ok(stmt, 'mcp-invalid-audience statement must exist');
+  assert.strictEqual(stmt.code, 'mcp-invalid-audience');
+
+  const payload = JSON.parse(stmt.payload);
+
+  // The two operands HasValidMcpAudience actually compares.
+  assert.match(payload.message, new RegExp(`\\{\\{${ATTR.TokenAudience}\\}\\}`),
+    'must report the token audience');
+  assert.match(payload.message, new RegExp(`\\{\\{${ATTR.TokenIss}\\}\\}`),
+    'must report the issuer — the external-door branch turns on it');
+
+  // The old wording claimed McpResourceUri was the expected value.
+  assert.doesNotMatch(payload.message, /expected MCP resource URI/i,
+    'must not present McpResourceUri as the value the rule compares against');
+
+  // Reporting the caller-declared set is fine, and is how policy/SoT drift
+  // becomes visible — but it must be labelled as the caller's, not as expected.
+  assert.match(payload.message, /Caller declared/i);
+
+  // The version must be content-derived, not the frozen -4321- block. Mutating
+  // a snapshot object at a frozen version means PingOne skips it on import and
+  // the corrected message never reaches the environment.
+  assert.notStrictEqual(stmt.version, 'cccccccc-0006-4321-abcd-000000000006',
+    'a mutated statement at its frozen version is silently skipped on import');
 });
