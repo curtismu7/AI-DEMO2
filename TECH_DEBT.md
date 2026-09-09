@@ -16,6 +16,45 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-09-08 — `buildAllowedScopesByAudience` is still hand-curated and drifts from `scope-topology.json`; the native ID-JAG path clamps `transfer` a second time
+
+**What's wrong.** Fixing the `transfer` gap (REGRESSION_PLAN §4, 2026-09-08,
+branch `fix/mcp-server-transfer-scope-narrowing`) exposed two leftovers:
+
+1. The MCP Server / MCP Gateway audience lists in
+   `demo_api_server/services/configStore.js` are typed by hand under a comment
+   that says "mirroredScopes from scope-topology.json must be kept in sync
+   here" — and they are not. Today the MCP Server list lacks ten scopes the SoT
+   mirrors (`tax:read`, `finaid:read`, `supplier:read`, `purchase:read`,
+   `membership:read`, `payroll:read`, `holdings:read`, `identity:read`,
+   `pnr:read`, `ai:agent:read`) and carries one it does not (`audit:read`). The
+   parity gate (`src/__tests__/allowedScopesByAudience.parity.test.js`) only
+   checks gateway-surface tool `requiredScopes`, so none of those ten fail it —
+   `transfer` only did because two tools require it. The new
+   `bff_scope_audience_misconfigured` error in `agentMcpTokenService` makes the
+   next such gap loud at runtime, but it is still a runtime discovery.
+2. Under `ff_enterprise_managed_mcp_auth` (native ID-JAG), the BFF now
+   requests `write transfer` but oauth-mcp's
+   `TokenIssuer.issueAuthorizationCode` clamps the redeemed token to the
+   redeeming client's registration, and `demo-bff-mcp-client` is registered
+   with `scope: 'mcp:invoke read write'` (`oauth-mcp/src/oauth/ClientRegistry.ts`).
+   `transfer` is stripped a second time and the gateway still 403s
+   `insufficient_scope: missing transfer` on that path. The RFC 8693 paths
+   (default) are fixed.
+
+**Why not now.** (1) is an OAuth-scope-semantics change (widening the exchange
+allow-list by ten scopes) outside the bug being fixed; (2) is a scope grant on
+a registered client in a different service — both need a deliberate decision,
+not a drive-by.
+
+**Real fix.** (1) Derive both MCP audience lists from
+`scopeTopology.resourceScopes()` + `resourceMirroredScopes()` (configStore
+already lazy-loads the SoT) and delete the hand lists, or extend the parity
+gate to full set-equality. (2) Add `transfer` to `demo-bff-mcp-client`'s
+registered scope in oauth-mcp (or register the ID-JAG client's scope from the
+SoT) and re-verify UC22 with the flag ON.
+
+----
 ### [x] 2026-09-08 — UC29 "introspection outage — fail closed" cannot be demonstrated on this deployment
 
 **RESOLVED** (`worktree-fix-demo-steps-guest-weather`): retired from the

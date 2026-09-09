@@ -31,13 +31,16 @@ describe('scope-audience allowlist ↔ gateway tool requiredScopes coverage', ()
   });
   afterAll(() => { process.env = prevEnv; });
 
-  // Documented gateway-only asymmetry: `transfer` is authorized at the MCP
-  // Gateway (create_transfer) and is deliberately NOT re-exchanged onto the MCP
-  // Server audience. See configStore.buildAllowedScopesByAudience() and the
-  // "MCP Gateway audience includes transfer" regression in
-  // configStore-tokenExchange.test.js. Such scopes are required on the gateway
-  // audience but exempt from the server audience.
-  const GATEWAY_ONLY_SCOPES = new Set(['transfer']);
+  // No gateway-only exemptions. `transfer` used to be exempt here on the claim
+  // that it was "deliberately not re-exchanged onto the MCP Server audience",
+  // but scope-topology.json mirrors it onto "Super Banking MCP Server" and the
+  // BFF narrows every exchange request against pingone_resource_mcp_server_uri
+  // (agentMcpTokenService → validateScopeAudience). With the exemption the
+  // allow-list silently dropped `transfer`, the exchanged token carried only
+  // `write mcp:invoke`, and the gateway 403'd create_transfer /
+  // create_wire_transfer with `insufficient_scope: missing transfer` before
+  // HITL / CIBA / step-up / tier were ever evaluated (UC6/7/8/22, 2026-09-08).
+  const GATEWAY_ONLY_SCOPES = new Set();
 
   const alias = scopeTopology.aliases();
   const norm = (s) => alias[s] || s;
