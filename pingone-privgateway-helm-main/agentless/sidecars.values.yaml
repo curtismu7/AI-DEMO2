@@ -25,7 +25,9 @@
 # Upgrade against the chart SOURCE DIRECTORY, not the .tgz — the packaged chart
 # is a build artifact that goes stale and drops these local template additions.
 #
-# Ports 8080-8083 are taken, in this order. A new sidecar takes 8084.
+# Ports in use: 8080 mcp-openapi-banking (hardcoded by its binary), 8081
+# mcp-grafana, 8082 mcp-banking-rest, 8083 mcp-pingone, 8084 mcp-brave.
+# A new sidecar takes 8085.
 
 # ghcr-pull-secret, NOT ghcr-pull. Both exist in this namespace; the running
 # Deployment uses ghcr-pull-secret, and naming the other one here would swap the
@@ -34,23 +36,28 @@ imagePullSecrets:
   - name: ghcr-pull-secret
 
 extraContainers:
+  # Moved 8080 -> 8084 on 2026-09-09 to free 8080 for mcp-openapi-banking, whose
+  # binary hardcodes :8080. Safe: no Privilege app addresses this sidecar. The
+  # `mcp-brave-search` Agentic App runs Privilege's own brave-search image with
+  # an API key and an empty envConfig, and the gateway log referenced no
+  # `localhost:8080` at all (only 8083, for pingone-admin-local).
   - name: mcp-brave
     image: ghcr.io/curtismu7/ai-demo-mcp-brave:latest
     imagePullPolicy: Always
     env:
       - name: PORT
-        value: "8080"
+        value: "8084"
       - name: BRAVE_SEARCH_API_KEY
         valueFrom:
           secretKeyRef:
             name: brave-secrets
             key: BRAVE_SEARCH_API_KEY
     ports:
-      - containerPort: 8080
+      - containerPort: 8084
     readinessProbe:
       httpGet:
         path: /health
-        port: 8080
+        port: 8084
       initialDelaySeconds: 3
       periodSeconds: 10
 
@@ -149,5 +156,49 @@ extraContainers:
       httpGet:
         path: /health
         port: 8083
+      initialDelaySeconds: 3
+      periodSeconds: 10
+
+  # Privilege's OWN OpenAPI->MCP adapter, run by us instead of by Privilege.
+  #
+  # WHY: the `openapi2` Agentic App (app type "OpenAPI MCP") never discovers a
+  # tool. Privilege runs `mcp/openapi` on its side, and that image is the only
+  # catalog image published WITHOUT Ping's `mcp-shim` in front of it. Measured
+  # 2026-09-09 on both published tags (`latest`, `dev` — identical behaviour):
+  #
+  #   mcp/grafana:1.0.0  CMD ["sh","-c","mcp-shim --port=${PORT} -- mcp-grafana"]  GET /mcp -> 200
+  #   mcp/openapi:latest ENTRYPOINT ["/openapimcp"]  (no shim)                     GET /mcp -> 405
+  #
+  # The binary itself is fine: POST /mcp `initialize` answers 200 and mints
+  # list_banking_accounts, get_banking_account and the three discovery tools.
+  # And POSTing `initialize` is exactly how this gateway discovers an MCP Server
+  # app ("Error discovering MCP server: calling \"initialize\"" in cyonproxy.log,
+  # over both /mcp and /sse). So we host the same binary ourselves and register
+  # it as an **MCP Server** app instead of an OpenAPI MCP app, which routes
+  # discovery through the path that already works for pingone-admin-local
+  # (http://localhost:8083/mcp) and opensearch22.
+  #
+  # Env is copied verbatim from the openapi2 app-container JSON on the pod, which
+  # was already proven correct. ENDPOINT takes NO /mcp suffix — the adapter
+  # appends the spec's own paths to it.
+  #
+  # No httpGet readiness probe: this server answers GET /mcp with 405, which
+  # kubelet scores as failure. tcpSocket is the honest check for a POST-only
+  # endpoint.
+  - name: mcp-openapi-banking
+    image: public.ecr.aws/n2z2g8w6/mcp/openapi:latest
+    imagePullPolicy: Always
+    env:
+      - name: OPENAPIMCP_ENDPOINT
+        value: http://localhost:8082
+      - name: OPENAPIMCP_SPEC_URL
+        value: http://localhost:8082/openapi/banking-rest.json
+      - name: OPENAPIMCP_TOOL_MODE
+        value: both
+    ports:
+      - containerPort: 8080
+    readinessProbe:
+      tcpSocket:
+        port: 8080
       initialDelaySeconds: 3
       periodSeconds: 10
