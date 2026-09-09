@@ -119,11 +119,17 @@ function resolveAdminClientConfig() {
   const clientSecret = process.env.PINGONE_MCP_ADMIN_CLIENT_SECRET || configStore.getEffective('PINGONE_MCP_ADMIN_CLIENT_SECRET');
   if (!envId || !clientId) return null;
   const as = `https://auth.pingone.${region}/${envId}/as`;
+  const authMethod = String(
+    process.env.PINGONE_MCP_ADMIN_CLIENT_AUTH
+    || configStore.getEffective('PINGONE_MCP_ADMIN_CLIENT_AUTH')
+    || 'basic',
+  ).toLowerCase();
   return {
     region,
     envId,
     clientId,
     clientSecret: clientSecret || null,
+    authMethod,
     authorizationEndpoint: `${as}/authorize`,
     tokenEndpoint: `${as}/token`,
   };
@@ -334,6 +340,7 @@ router.get('/callback', async (req, res) => {
     }
 
     let tokenEndpoint;
+    const tokenHeaders = { 'Content-Type': 'application/x-www-form-urlencoded' };
     const body = new URLSearchParams({
       grant_type: 'authorization_code',
       code,
@@ -344,10 +351,23 @@ router.get('/callback', async (req, res) => {
     if (admin) {
       tokenEndpoint = admin.tokenEndpoint;
       body.set('client_id', admin.clientId);
-      // client_secret_post: a confidential app is what an operator can register
-      // in the admin env, unlike PingOne's loopback-only built-in client. A
-      // public app there simply omits the secret and still works.
-      if (admin.clientSecret) body.set('client_secret', admin.clientSecret);
+      // client_secret_BASIC, not post. Measured against the live admin-env app:
+      // the secret in the POST body is refused with
+      // `401 invalid_client — Unsupported authentication method`, while the same
+      // credential in an Authorization: Basic header is accepted (it then fails
+      // only on grant type, which is a different, later check). Basic is also
+      // the OAuth 2.0 default for a confidential client.
+      //
+      // PINGONE_MCP_ADMIN_CLIENT_AUTH=post exists because this repo registers
+      // apps both ways and the wrong choice fails with that same opaque string,
+      // which is expensive to diagnose from the outside.
+      if (admin.clientSecret) {
+        if (admin.authMethod === 'post') {
+          body.set('client_secret', admin.clientSecret);
+        } else {
+          tokenHeaders.Authorization = `Basic ${Buffer.from(`${admin.clientId}:${admin.clientSecret}`).toString('base64')}`;
+        }
+      }
     } else {
       const app = await ensureApp(req);
       tokenEndpoint = getTokenEndpoint();
@@ -359,7 +379,7 @@ router.get('/callback', async (req, res) => {
     }
 
     const resp = await axios.post(tokenEndpoint, body.toString(), {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      headers: tokenHeaders,
       timeout: 15000,
     });
     const expiresInMs = (resp.data.expires_in || 3600) * 1000;

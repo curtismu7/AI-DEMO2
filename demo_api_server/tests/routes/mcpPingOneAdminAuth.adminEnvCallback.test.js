@@ -59,9 +59,15 @@ test('/callback redeems the code at the ADMIN token endpoint, with the configure
   const [endpoint, bodyStr] = axios.post.mock.calls[0];
   expect(endpoint).toBe(`https://auth.pingone.com/${ADMIN_ENV}/as/token`);
 
+  // client_secret_BASIC, not post: measured against the live admin-env app, the
+  // secret in the body is refused with "Unsupported authentication method".
+  const [, , opts] = axios.post.mock.calls[0];
+  const expected = 'Basic ' + Buffer.from(ADMIN_CLIENT + ':' + ADMIN_SECRET).toString('base64');
+  expect(opts.headers.Authorization).toBe(expected);
+
   const body = new URLSearchParams(bodyStr);
   expect(body.get('client_id')).toBe(ADMIN_CLIENT);
-  expect(body.get('client_secret')).toBe(ADMIN_SECRET);
+  expect(body.get('client_secret')).toBeNull();
   expect(body.get('grant_type')).toBe('authorization_code');
   expect(body.get('code_verifier')).toBeTruthy();
   // `resource` is not sent on this path: PingOne ignores it, and carrying it is
