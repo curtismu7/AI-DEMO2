@@ -854,7 +854,11 @@ const RAW_USE_CASES = [
     trigger: { type: 'chip', text: 'What branches are near me?' },
     hint: 'Works for Austin, Dallas, Houston, Miami, or Denver.',
     expectedOutcome: 'PERMIT',
-    evidence: { tokenChain: ['authorize-decision', 'tool-dispatched'], activity: ['mcp', 'authorize'] },
+    // No authorize evidence: this is the PUBLIC catalog path, which by design skips
+    // PingOne Authorize entirely (see pingOneSolution above). Declaring
+    // 'authorize-decision'/'authorize' demanded a step the run can never emit, so the
+    // verdict sat at 'incomplete' — "Waiting on authorize-decision" — forever.
+    evidence: { tokenChain: ['tool-dispatched'], activity: ['mcp'] },
     codeRefs: ['docs/planning/PLAN-progressive-trust-demo.md', 'demo_api_server/data/publicBranchCatalog.js', 'oauth-mcp/src/tools/handlers/publicCatalogHandlers.ts'],
     maturity: 'works',
     owasp: { threats: ['T3'], sections: ['§4.1.1'] },
