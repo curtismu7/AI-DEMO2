@@ -16,51 +16,6 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
-### [ ] 2026-09-08 — "Direct — Banking (oauth-mcp)" door on `/privilege-mcp-client` serves real account data with zero auth, locally
-
-Swept all 13 AI Gateway Client doors/presets live (tokenless `initialize` against
-each). 12 of 13 answer a proper 401 + `WWW-Authenticate` challenge. The
-"Direct — Banking (oauth-mcp)" door (`/mcp-facade/banking/mcp`) does not: with
-no `Authorization` header at all, `initialize` → `tools/list` →
-`tools/call get_my_accounts` all succeed and return real (seeded demo) account
-data for "Demo User" — balances, masked account numbers, the lot.
-
-This door is deliberately coded as an ungated pass-through
-(`DOORS.banking.requireBearer` is `undefined`, `authorizationServer` is `null` —
-[mcpFacade.js:147-156](demo_api_server/routes/mcpFacade.js#L147-L156)), on the
-stated assumption that `oauth-mcp` (the `mcp-server` container) enforces its own
-OAuth, so the façade doesn't need to. `mcpFacadeDirectSiblingDoors.test.js`
-pins exactly this shape ("relays an anonymous call straight through, unlike
-opensearch/brave") against a stub upstream that always returns 200 — the test
-proves the wiring is intentional, not that the real upstream actually gates
-anonymous callers.
-
-The assumption is false in this environment because root `.env` has
-`MCP_AUTH_DISABLED=true` — a flag REGRESSION_PLAN.md's 2026-08-10 entry
-documents as a deliberate "trust all callers" switch for an unrelated feature
-(the Privilege open-access hop). It disables `oauth-mcp`'s auth globally, not
-scoped to that hop, so this door's assumed security boundary is currently off.
-
-Left as-is on 2026-09-08 (user decision): local-only, synthetic seeded data
-("Demo User"), not real PII, and the ungated design was deliberate — not worth
-a code or config change purely to close a demo-data exposure in a dev
-environment.
-
-**The real fix, if this ever needs closing:** two independent options, not
-mutually exclusive —
-
-1. Add `requireBearer: true` (+ `expectedAudience`, `authorizationServer`) to
-   `DOORS.banking`, same pattern already used for `opensearch`/`brave`/
-   `pingone-admin` — makes the façade the security boundary regardless of
-   `MCP_AUTH_DISABLED`'s state in any environment. Requires updating
-   `mcpFacadeDirectSiblingDoors.test.js`'s "ungated" assertions to match.
-2. Check whether `MCP_AUTH_DISABLED=true` is still needed at all — the banking
-   Privilege door was repointed to `openapi2` (mcp-banking-rest →
-   mcp-resource-server) on 2026-09-08, a path that may no longer touch
-   `mcp-server:8080` the way the 2026-08-10 open-access-hop fix assumed. If
-   nothing live still needs the flag, unsetting it restores `oauth-mcp`'s real
-   OAuth — which is what this door already assumes — with no code change.
-
 ### [ ] 2026-09-08 — A non-admin cannot see their own MCP audit trail (external-door movie reel)
 
 `/api/mcp/audit` is admin-only, so the external-door movie reel — the view that
