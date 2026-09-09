@@ -1700,7 +1700,7 @@ deleted three live files, one of them `utils/jwtDecoder.js`, which
 move the surviving modules there in one mechanical commit, and add a hygiene
 assertion that no basename exists at both depths.
 
-### [ ] 2026-08-28 — `src/services/tokenValidationService.js` is kept alive only by dead files
+### [x] 2026-08-28 — `src/services/tokenValidationService.js` is kept alive only by dead files
 
 PR #2521 removed 27 unreferenced modules but deliberately kept this one. It IS
 a resolved `require()` target — but every file that requires it is itself in
@@ -1720,6 +1720,23 @@ dead-code pass will re-derive the same ambiguity from scratch.
 (`server.js`, every `tests/**` and `src/__tests__/**` file, `scripts/**`)
 rather than a reference-existence check, then delete whatever the closure does
 not reach. Note the `jest.mock()` caveat below.
+
+**RESOLVED — branch `fix/tech-debt-small-wins`.** No reachability tool was
+built; it turned out not to be needed. The ambiguity was simpler than the entry
+assumed: `demo_api_server` has TWO diverged copies of this module —
+`services/tokenValidationService.js` (the live one: `middleware/auth.js`,
+`middleware/a2aPingOneBearer.js`, `services/agentMcpTokenService.js`, and six
+`jest.mock` strings all resolve to it) and the `src/` "Enhanced" variant with
+`PingOneErrorClassifier` error categories, whose ONLY referrer in the whole
+repo was its own sibling test. Both files are deleted.
+
+The sibling test was itself dead: `jest.config.js` `testMatch` is
+`['**/src/__tests__/**/*.test.js', '**/tests/**/*.test.js']`, so nothing under
+`src/services/__tests__/` has ever run. `src/services/__tests__/pingoneErrorClassifier.test.js`
+is in the same position and was left in place — `pingoneErrorClassifier.js`
+still has another referrer (`src/__tests__/authErrorHandling.integration.test.js`,
+which does run), so it is a separate question from this entry. See the
+"two parallel module trees" entry above, which this is one instance of.
 
 ### [ ] 2026-08-28 — dead-code analysis must resolve `jest.mock()`, not just `require()`
 
