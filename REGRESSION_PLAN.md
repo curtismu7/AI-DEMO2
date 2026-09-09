@@ -177,6 +177,38 @@ heading changes.
 npm run test:e2e:real:demo-steps` — Super Sports: 30 passed, 18 skipped
 (user-only steps signed out), 0 failed, 39 s; `npm run authz:verify` OK.
 
+### 2026-09-08 — Airlines UC6 ($2500 pay_airline_fee) denied with a bare "❌ access_denied" instead of the tier reason
+
+**Files changed:** `demo_api_server/services/mcpGatewayClient.js`,
+`demo_api_server/tests/mcpGatewayClient.p1azDenyStatementReason.regression.test.js` (new).
+
+**What was broken:** airlines' `pay_airline_fee` goes through PingGateway to
+real PingOne Authorize. P1AZ answered DENY with `reason: null` and the human
+reason only in an applied statement (`mcp-tier-amount-exceeded`: "$2500 exceeds
+the 'none' tier ceiling of $2,000") inside `X-Gw-Audit-Trail`. PingGateway's
+DENY body (`ping-gateway/scripts/groovy/p1az-decision.groovy` DENY path) carries
+only `error/decision/backend/tool` — no `message` — and the BFF's
+`_extractGatewayDenyFields` read only `body.message`, degrading to the bare
+error code `access_denied`. Super Sports / A&F / investment read "2500 exceeds
+tier ceiling 2000" only because they hit the Node gateway's local tier
+backstop (`demo_mcp_gateway/src/tierEnforce.ts`), whose body carries the text.
+
+**What was fixed:** BFF-side only, no PingGateway redeploy.
+`_extractGatewayDenyFields(body, trail)` takes the already-parsed audit trail;
+when a flat body has no `message` it surfaces the first deny statement's
+`payload.message` (`_denyStatementMessage`, accepts object or JSON-string
+payloads) before falling back to the error code. The 403 branch parses the
+header once and hands the same trail to `_trailWithDenyFallback`. Verdict
+semantics (`gateway_policy_denied`, `gatewayErrorCode`, `authorize.backend`)
+are unchanged — only the surfaced reason text.
+
+**Do not break:** a body `message` still wins over the statement payload; the
+JSON-RPC `{error:{code,message}}` shape (weather ScriptableFilter) is untouched;
+`_denyStatementMessage` must stay generic (any statement with a message, not
+tier-only) so new P1AZ deny codes surface without a BFF edit.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/mcpGatewayClient tests/mcpToolPipeline.*.test.js tests/gwMcpHandshakeHeader.test.js src/__tests__/attackSimulator.authorizeEvidence.test.js --forceExit` — green; `npm run authz:verify` OK. Not verified live: the shared stack was being served from another session's worktree (`npm run serve:worktree` status) and was not repointed.
+
 ### 2026-09-08 — UC30 weather never worked signed out (declared public, wire said 401); UC29 dropped from the Demo Steps script
 
 **Files changed:** `demo_api_server/services/mcpToolPipeline.js`,

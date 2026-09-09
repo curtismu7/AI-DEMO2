@@ -720,7 +720,8 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
             );
         }
 
-        const denyFields = _extractGatewayDenyFields(body403);
+        const gwTrail403 = _parseGwAuditTrail(response);
+        const denyFields = _extractGatewayDenyFields(body403, gwTrail403);
         const denyMessage = denyFields.message || 'Gateway policy denied the tool call';
         const denyCode = /weather scope|weather capability/i.test(denyMessage)
             ? 'weather_scope_denied'
@@ -744,7 +745,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
                 // synthesize an authorize DENY for it as well — otherwise an
                 // intentional DENY renders as "Run failed before authorize-decision".
                 gwAuditTrail: _trailWithDenyFallback(
-                    _parseGwAuditTrail(response),
+                    gwTrail403,
                     body403,
                     denyMessage,
                     tool,
@@ -919,12 +920,34 @@ function _parseGwAuditTrail(response) {
 }
 
 /**
+ * PingGateway's real-P1AZ DENY body (p1az-decision.groovy DENY path) carries
+ * only error/decision/backend/tool — the human reason lives in the applied deny
+ * statement's payload (e.g. `mcp-tier-amount-exceeded`) inside X-Gw-Audit-Trail.
+ * Return the first statement message, or '' when the trail has none.
+ * @param {object|null} trail parsed X-Gw-Audit-Trail
+ * @returns {string}
+ */
+function _denyStatementMessage(trail) {
+    const statements = trail?.authorize?.statements;
+    if (!Array.isArray(statements)) return '';
+    for (const s of statements) {
+        let p = s?.payload;
+        if (typeof p === 'string') { try { p = JSON.parse(p); } catch (_) { p = null; } }
+        if (p && typeof p.message === 'string' && p.message) return p.message;
+    }
+    return '';
+}
+
+/**
  * Normalize gateway deny bodies: flat `{error,message}` OR JSON-RPC
  * `{error:{code,message}}` (tx-weather-scope.groovy returns the latter).
+ * A flat body with no message falls back to the audit trail's deny statement
+ * message before degrading to the bare error code.
  * @param {object} body
+ * @param {object|null} [trail] parsed X-Gw-Audit-Trail
  * @returns {{ message: string, errorCode: string }}
  */
-function _extractGatewayDenyFields(body) {
+function _extractGatewayDenyFields(body, trail = null) {
     const b = body && typeof body === 'object' ? body : {};
     const rpc = b.error;
     if (rpc && typeof rpc === 'object') {
@@ -934,7 +957,7 @@ function _extractGatewayDenyFields(body) {
         };
     }
     return {
-        message: String(b.message || (typeof rpc === 'string' ? rpc : '') || ''),
+        message: String(b.message || _denyStatementMessage(trail) || (typeof rpc === 'string' ? rpc : '') || ''),
         errorCode: (typeof rpc === 'string' && rpc) ? rpc : 'forbidden',
     };
 }
