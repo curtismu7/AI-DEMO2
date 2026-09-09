@@ -140,6 +140,43 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-08 — Demo Steps had no outcome-level gate: a step could answer wrong and every suite stayed green
+
+**Files changed:** new `demo_api_ui/tests/e2e/demo-steps-outcomes.real.spec.js`,
+`demo_api_ui/package.json` (`test:e2e:real:demo-steps`).
+
+**What was broken:** the live suites asserted "not the catalog card"
+(`use-cases-agent.real.spec.js`) or an HTTP status, so a Demo Steps step that
+PERMITted where the script says DENY, or a public step that died signed out,
+stayed green. That is why every bug in the 2026-09-08 review (UC30 signed out,
+UC2/UC2.5 delegation, UC-TOOL1, UC5/UC18 layer, the link/attack sign-in gate)
+was invisible to any gate.
+
+**What was fixed:** one live spec drives the exact dropdown list
+(`DEMO_PRIMARY_USE_CASE_IDS`, `require()`d from the ESM source) against
+`/api/use-cases?vertical=` and asserts each step's DECLARED outcome
+(`expectedOutcome`; `stepUpMethod: 'ciba'` → `step_up_required`; `auth`).
+Dispatch mirrors `AIAgent.handleDemoStepSelect`: chips via `/api/agent/invoke`
+(`hitl_required` / `step_up_required` / `*denied` / success + per-vertical reply
+regex), attack sims and UC14b's quick result scored by the SPA's own
+`attackSimVerdict` plus the `DENY_4xx` status, link steps by their heading
+rendered inside `<main>` with no page errors. Runs signed in (24 steps) and
+signed out (every `auth: public` step; the rest skip with the reason the
+dropdown shows). Arms only `requiredFlagsForUseCase(uc)` — the SPA's list —
+and restores what it changed. Super Sports is the verified vertical;
+`abercrombie-fitch` / `investment` / `airlines` are listed `verified: false`
+and run catalog-only when named in `E2E_DEMO_STEPS_VERTICALS`.
+
+**Do not break:** step ids and outcomes come from `demoUseCaseSteps.js` and the
+catalog — never hand-copy them into the spec. A vertical's `reply` table (and
+its `verified: true`) is added only after a live run confirms it. `PAGE_HEADING`
+(route → heading) is the one hand-kept table; update it when a link page's
+heading changes.
+
+**Verify:** `cd demo_api_ui && E2E_BASE_URL=https://local.ping-devops.com:4000
+npm run test:e2e:real:demo-steps` — Super Sports: 30 passed, 18 skipped
+(user-only steps signed out), 0 failed, 39 s; `npm run authz:verify` OK.
+
 ### 2026-09-08 — UC30 weather never worked signed out (declared public, wire said 401); UC29 dropped from the Demo Steps script
 
 **Files changed:** `demo_api_server/services/mcpToolPipeline.js`,
