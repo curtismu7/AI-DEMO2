@@ -9,6 +9,9 @@ import { spinner } from '../services/spinnerService';
 import { useThemeOptional } from '../context/ThemeContext';
 import './CodeSearchPage.css';
 
+/** Spinner hold key — the zip upload runs alongside CodebaseUploader's folder index. */
+const SPINNER_KEY = 'codebase-zip-upload';
+
 // Read the persisted codebase list once, synchronously, so the very first
 // render already has it. A load-on-mount useEffect instead starts from [] and,
 // under React StrictMode's double-effect invoke, the persist effect below fires
@@ -170,7 +173,7 @@ export function CodeSearchPage() {
       setIndexError('');
       // Global spinner modal while the ZIP uploads and indexes (same service
       // CodeExplorerPage drives around its async work).
-      spinner.show('Uploading and indexing codebase…', 'POST /api/code-search/index');
+      spinner.show('Uploading and indexing codebase…', 'POST /api/code-search/index', SPINNER_KEY);
 
       try {
         // Call the BFF API. Use the codebase_id the server generated — a
@@ -198,7 +201,7 @@ export function CodeSearchPage() {
           err.message || 'Failed to index codebase. Make sure the server is running.'
         );
       } finally {
-        spinner.hide();
+        spinner.hide(SPINNER_KEY);
         setIsIndexing(false);
       }
     },
