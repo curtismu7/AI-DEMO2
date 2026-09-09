@@ -94,11 +94,11 @@ describe('authorizeMcpRequest — RFC 8693 exchange before forward', () => {
   // scope-less; PingOne answers `invalid_scope: May not request scopes for
   // multiple resources`, naming neither set. The gateway maps that into a clear
   // scope-mismatch reason so the caller learns the real cause from the RESPONSE.
-  // A JWT carrying only purchase:read — the real shape of the failing token; olb
-  // accepts 27 scopes, none of them that one.
-  const purchaseReadToken = [
+  // A JWT carrying only jwt:verify — the real shape of the failing token; olb
+  // accepts 32 scopes, none of them that one.
+  const foreignScopeToken = [
     Buffer.from(JSON.stringify({ alg: 'none' })).toString('base64url'),
-    Buffer.from(JSON.stringify({ sub: 'u1', scope: 'purchase:read' })).toString('base64url'),
+    Buffer.from(JSON.stringify({ sub: 'u1', scope: 'jwt:verify' })).toString('base64url'),
     '',
   ].join('.');
   const multiResourceRejection = new Error(
@@ -119,7 +119,7 @@ describe('authorizeMcpRequest — RFC 8693 exchange before forward', () => {
       end: jest.fn((s?: string) => { if (s) chunks.push(s); }),
       setHeader: jest.fn(),
     } as any;
-    await middleware(purchaseReadToken, body, {} as any, fakeRes, async (t) => { forwarded.push(t); });
+    await middleware(foreignScopeToken, body, {} as any, fakeRes, async (t) => { forwarded.push(t); });
 
     expect(forwarded).toHaveLength(0); // still fails closed — nothing forwarded
     const rpc = JSON.parse(chunks.join(''));
@@ -129,10 +129,10 @@ describe('authorizeMcpRequest — RFC 8693 exchange before forward', () => {
     // New structured scope-mismatch reason, naming BOTH sets.
     expect(rpc.error.data.reason).toBe('scope_mismatch');
     expect(rpc.error.data.backend).toBe('olb');
-    expect(rpc.error.data.subject_scopes).toEqual(['purchase:read']); // caller's scopes
+    expect(rpc.error.data.subject_scopes).toEqual(['jwt:verify']); // caller's scopes
     expect(rpc.error.data.backend_scopes).toContain('read');           // backend's accepted set
-    expect(rpc.error.data.backend_scopes).not.toContain('purchase:read');
-    expect(rpc.error.message).toContain('purchase:read');
+    expect(rpc.error.data.backend_scopes).not.toContain('jwt:verify');
+    expect(rpc.error.message).toContain('jwt:verify');
     expect(rpc.error.message).toContain('read');
     expect(rpc.error.message).toMatch(/scope mismatch/i);
   });
@@ -149,7 +149,7 @@ describe('authorizeMcpRequest — RFC 8693 exchange before forward', () => {
       end: jest.fn((s?: string) => { if (s) chunks.push(s); }),
       setHeader: jest.fn(),
     } as any;
-    await middleware(purchaseReadToken, body, {} as any, fakeRes, async () => {});
+    await middleware(foreignScopeToken, body, {} as any, fakeRes, async () => {});
     const rpc = JSON.parse(chunks.join(''));
     expect(rpc.error.data.error).toBe('token_exchange_failed');
     expect(rpc.error.data.reason).toBeUndefined();

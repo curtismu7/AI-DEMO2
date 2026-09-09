@@ -230,6 +230,59 @@ effect), not return early like the link/attack branches.
 
 **Verify:** `cd demo_api_ui && ./node_modules/.bin/vitest run src/components/__tests__/AIAgent.demoStepGate.test.jsx src/components/__tests__/AIAgent.publicUseCase.test.jsx src/components/__tests__/DemoStepsDropdown.test.jsx` — 31 passed; `npm run build` exit 0.
 
+### 2026-09-08 — UC2/UC2.5 "Delegation complete" banner shipped with no real data — the fix above unmasked a second, separate DENY
+
+**Files changed:** `scope-topology.json`, `ping-gateway/config/scope-topology.json`,
+`demo_mcp_gateway/tests/mcpTokenExchangeNoScope.test.ts`,
+`demo_mcp_gateway/tests/authorizeMcpRequest-exchange.test.ts`, `TECH_DEBT.md`.
+
+**What was broken:** the entry above fixed the P1AZ `intent_mismatch` DENY, but
+the chat's "Delegation complete" banner is unconditional — it does not reflect
+whether the underlying tool call actually returned data. Once P1AZ started
+PERMITting (confirmed live: `IntentIntent: "sensitive_membership_details"` /
+`"delegate_to_specialist"`, `authorize.decision: "PERMIT"`), the SAME request
+still failed one hop later, in the gateway's own log (never surfaced to the
+caller): `[GW] HTTP token exchange failed — RFC 8693 exchange to backend=olb
+(resource=mcpserver.ping.demo) rejected with HTTP 400 — invalid_scope: May not
+request scopes for multiple resources`. This is exactly the failure
+TECH_DEBT.md's 2026-08-18 "`purchase:read` — olb accepts 27 scopes, none of them
+that one" entry diagnosed (clear error, deliberately not fixed then) — it
+recurs for `sensitive_membership_details` (`membership:read`), and the same
+gap exists for `sensitive_holdings` (`holdings:read`), `sensitive_payroll_details`
+(`payroll:read`), `sensitive_order_history`/A&F (`purchase:read`), and
+`sensitive_customer_identity` (`identity:read`): `Super Banking MCP Server`'s
+`mirroredScopes` never carried any of these 5 A2A specialist scopes, so
+`McpTokenExchangeClient.exchangeForBackend`'s caller∩backend scope intersection
+came up empty and PingOne rejected the resulting scope-less exchange. Healthcare,
+government, university, manufacturing, and airlines specialists were unaffected
+— their scopes (`records:read`, `tax:read`, `finaid:read`, `supplier:read`,
+`pnr:read`) already happened to be present in `mirroredScopes` for unrelated
+reasons.
+
+**What was fixed:** added the 5 missing scopes to `Super Banking MCP Server`'s
+`mirroredScopes` in both `scope-topology.json` copies — per the 2026-08-18
+entry's own deferred "Real fix," now answered: yes, these tools are meant to be
+reachable (they are the entire point of UC2/UC2.5). Two gateway tests
+(`mcpTokenExchangeNoScope.test.ts`, `authorizeMcpRequest-exchange.test.ts`) used
+`purchase:read` as their canonical "scope foreign to olb" fixture — now
+genuinely valid, so both were updated to use `jwt:verify` instead, which stays
+foreign to `olb` on principle (it belongs exclusively to the JWT-verifier
+resource).
+
+**Do not break:** this is additive-only (new mirroredScopes entries, nothing
+removed) — `exchangeForBackend`'s two pinned contracts ("sends no scope without
+the flag" and cache isolation) are untouched. The live PingOne grant is applied
+by the existing `twoExchangeReconciler.js` self-heal on the next
+`demo-api-server` boot, the same mechanism every other `mirroredScopes` entry
+already relies on — no manual PingOne console change needed, but the BFF does
+need to actually restart for the grant to take effect.
+
+**Verify:** `npm run topology:verify` (root) passed; `cd demo_mcp_gateway &&
+CI=true npm test -- --forceExit --runInBand` — 115 suites/946 tests passed;
+`npm run build` (tsc) clean. Live: after a `demo-api-server` restart, the
+`sensitive_membership_details` exchange to `backend=olb` should succeed instead
+of `invalid_scope` — re-verify against the running stack before closing.
+
 ### 2026-09-08 — A BFF restart silently dropped every Privilege gateway token
 
 **Files changed:** `demo_api_server/routes/privilegeMcpClient.js`,
