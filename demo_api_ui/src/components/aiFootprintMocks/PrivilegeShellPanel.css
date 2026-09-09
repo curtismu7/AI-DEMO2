@@ -232,7 +232,7 @@
 .pvs-exchange-grid > div { min-width: 0; padding: 8px; }
 .pvs-exchange-grid > div + div { border-left: 1px solid rgba(128, 128, 128, 0.3); }
 .pvs-exchange-grid span { display: block; margin-bottom: 5px; opacity: 0.65; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
-.pvs-exchange-grid pre { max-height: 220px; margin: 0; overflow: auto; white-space: pre-wrap; word-break: break-word; font: 10.5px/1.45 "SF Mono", ui-monospace, Menlo, monospace; }
+.pvs-exchange-grid pre { max-height: 220px; margin: 0; overflow: auto; white-space: pre-wrap; word-break: break-word; font: 10.5px/1.45 var(--font-mono); }
 
 .pvs--claude-desktop { color: #2d2926; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
 .pvs--claude-desktop .pvs-head strong { font-family: Georgia, "Times New Roman", serif; font-size: var(--font-size-body); }

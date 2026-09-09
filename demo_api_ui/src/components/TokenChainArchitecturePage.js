@@ -4,11 +4,12 @@
  * Interactive token chain diagram showing all servers, authentication,
  * authorization, token exchange, and MCP gateway flow.
  */
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import mermaid from 'mermaid';
 import { useThemeOptional } from '../context/ThemeContext';
 import './TokenChainArchitecturePage.css';
 
-const MERMAID_DIAGRAM = `
+export const MERMAID_DIAGRAM = `
 %%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#2E5090', 'primaryTextColor': '#fff', 'primaryBorderColor': '#1a3a5c', 'lineColor': '#4a7bb8', 'secondaryColor': '#28a745', 'tertiaryColor': '#f57c00', 'fontFamily': 'sans-serif'}, 'flowchart': {'useMaxWidth': true}}}%%
 graph LR
     subgraph Client["CLIENT"]
@@ -148,6 +149,25 @@ const CARDS = [
 
 export default function TokenChainArchitecturePage({ user }) {
   const { darkMode, toggleDarkMode } = useThemeOptional();
+  const diagramRef = useRef(null);
+  const [renderError, setRenderError] = useState(null);
+
+  // The diagram carries its own %%{init}%% theme block, so it renders the same
+  // in both modes -- render once on mount, not per theme change.
+  useEffect(() => {
+    let cancelled = false;
+    mermaid.initialize({ startOnLoad: false, securityLevel: 'loose' });
+    mermaid
+      .render('token-chain-architecture', MERMAID_DIAGRAM)
+      .then(({ svg }) => {
+        if (!cancelled && diagramRef.current) diagramRef.current.innerHTML = svg;
+      })
+      .catch((err) => {
+        if (!cancelled) setRenderError(err?.message || 'Mermaid render failed');
+      });
+    return () => { cancelled = true; };
+  }, []);
+
   return (
     <div className="tca-page">
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem' }}>
@@ -169,9 +189,11 @@ export default function TokenChainArchitecturePage({ user }) {
       </div>
 
       <div className="tca-diagram-frame">
-        <pre className="mermaid">
-          {MERMAID_DIAGRAM}
-        </pre>
+        {renderError ? (
+          <p className="tca-diagram-error">Diagram failed to render: {renderError}</p>
+        ) : (
+          <div ref={diagramRef} className="tca-diagram" />
+        )}
       </div>
 
       {/* Card accents match the mermaid subgraph colors above by design —

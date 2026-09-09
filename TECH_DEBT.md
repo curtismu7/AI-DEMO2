@@ -534,7 +534,7 @@ same selector specificity as the new rule, so the first pass silently failed
 to hide the FAB (`.demo-script-launch` has no such rule and hid correctly,
 which is what exposed it) — the fix needed `!important` to actually win.
 
-### [ ] 2026-09-04 — /architecture/token-chain renders the raw mermaid source, not the diagram
+### [x] 2026-09-04 — /architecture/token-chain renders the raw mermaid source, not the diagram
 
 `TokenChainArchitecturePage.js` puts its flowchart in a plain
 `<pre className="mermaid">{MERMAID_DIAGRAM}</pre>` and never calls
@@ -557,7 +557,19 @@ the real fix (wiring this page onto the same explicit mermaid.render()
 pattern the other MM pages use) touches rendering logic, not styling —
 better scoped as its own change.
 
-### [ ] 2026-09-04 — UseCaseLauncherPage.css — literal colors outside the FlagGate/theme-toggle work
+**RESOLVED — branch `fix/tech-debt-small-wins`.** Exactly as the entry
+guessed: no `mermaid` import on the page at all. `TokenChainArchitecturePage.js`
+now imports mermaid, calls `initialize({ startOnLoad: false })` +
+`render()` in a mount effect and injects the SVG into a `<div ref>`, with the
+`<pre className="mermaid">` deleted and a `.tca-diagram-error` fallback for a
+render failure. Rendering is mount-only, not theme-keyed, because the diagram
+carries its own `%%{init}%%` theme block and looks identical in both modes.
+`TokenChainArchitecturePage.test.jsx` mocks `mermaid.render` (jsdom has no
+layout, so a real render can't run there — same constraint as
+`PrivilegeGatewayTopologyPage.test.jsx`) and asserts render is called with the
+diagram source and that no raw `pre.mermaid` survives.
+
+### [x] 2026-09-04 — UseCaseLauncherPage.css — literal colors outside the FlagGate/theme-toggle work
 
 **What's wrong.** `--color-accent` and `--color-ping-blue` are referenced only
 as `var(--color-accent, #2563eb)`-style fallbacks and are never actually
@@ -572,6 +584,28 @@ The real fix: alias `--color-accent`/`--color-ping-blue` to `--signin-accent`
 (same `#2563eb` value) either locally in this file or in `index.css`'s
 existing alias block, and convert `.uc-sim-result__*` to the
 `--th-status-success`/`--th-status-error` families.
+
+**RESOLVED — branch `fix/tech-debt-small-wins`.** No alias was added: the
+three never-defined vars (`--color-accent`, `--color-ping-blue`,
+`--color-ping-blue-dark`) were referenced only in this one file, so their uses
+were rewritten to `var(--signin-accent)` / `var(--signin-accent-hover)`
+directly — one fewer indirection than an alias, and it keeps `index.css`'s
+deliberate refusal to define `--color-accent` globally (its fallbacks disagree
+across files) intact. `--color-ping-blue`'s `#1a56db` becomes `#2563eb` and its
+dark `#1345b5` becomes `#1d4ed8`; both were already blue buttons.
+`.uc-sim-result__*` now reads `--th-status-error-bg/-text` and
+`--th-status-success-bg/-text`. The same `#fee2e2`/`#991b1b`/`#dcfce7`/`#166534`
+literals appeared three more times in the same file
+(`.uc-card__copy-btn--copied`, `.aae-status-badge--deny`) and were converted
+with them rather than left as the only hard-coded pair in the file.
+`uiRegression.test.js` + `UseCaseLauncherPage.test.js` pass, and the full UI
+vitest suite is green (501 files). One catch worth knowing: converting a
+hard-coded background to a `--th-*` one puts the rule INSIDE
+`themingRatchet.test.js`'s "themed ground without ink" count, which a raw hex
+background escapes — the pin went 453 -> 455 until `.uc-sim-result__event--deny`
+and `.aae-header` were given a `--th-status-error-text` colour (the ratchet's
+own prescribed fix; the pin was not bumped). The hazard was there before the
+conversion, just uncounted.
 
 ### [ ] 2026-09-03 — jwksService can hand back a key `crypto.Verify` rejects outright
 
@@ -1465,7 +1499,7 @@ existing tokens as canonical, then sweep exact matches only, the way the type
 scale was adopted (1,974 declarations, zero visual change, because every
 mapping was value-identical).
 
-### [ ] 2026-08-28 — the monospace test's filename allowlist is now mostly stale
+### [x] 2026-08-28 — the monospace test's filename allowlist is now mostly stale
 
 `uiRegression.test.js` bans the fixed-width literal in CSS through a
 hand-maintained allowlist of ~45 FILENAMES, each commented "intentional" for
@@ -1485,6 +1519,22 @@ list into a per-PURPOSE token, which is what it should have been.
 Note `--font-family-mono` was named "mono" but resolved to a SANS stack, so
 every consumer asking for a fixed-width face silently got a proportional one.
 It now aliases `--font-mono`.
+
+**RESOLVED — branch `fix/tech-debt-small-wins`.** Six files, not twelve, still
+carried the literal by 2026-09-09 (the rest had been converted in the interim):
+`LlmGatewayPage.css` and `LlmTestPage.css` only had a redundant
+`var(--font-mono, monospace)` fallback; `TokenTopologyPanel.css`,
+`UnifiedTokenFlowInspector.css`, `PrivilegeShellPanel.css` and
+`PrivilegeMcpClientPage.css` declared their own stacks (all four inside a
+`font:` shorthand or a family list, so `var(--font-mono)` drops straight in).
+The ~45-entry filename allowlist in `uiRegression.test.js` is deleted outright
+and `isMonospaceLine` now skips any `--*mono*:` DEFINITION line via one regex
+instead of three hard-coded names — which also covers `--rd2-font-mono` /
+`--rd-font-mono` (the v2 dashboard/surface themes, whose "IBM Plex Mono" is a
+deliberate theme choice and was left alone; note it is never loaded as a
+webfont, so it already falls back to `ui-monospace`). `--agent-font-mono` no
+longer exists anywhere, so its skip went with the others. Note the JS half of
+the test still has its own three-file skip list — untouched, different list.
 
 
 ### [ ] 2026-08-28 — 271 emoji outside the §0 allowlist, in 53 files
@@ -1691,7 +1741,7 @@ deleted three live files, one of them `utils/jwtDecoder.js`, which
 move the surviving modules there in one mechanical commit, and add a hygiene
 assertion that no basename exists at both depths.
 
-### [ ] 2026-08-28 — `src/services/tokenValidationService.js` is kept alive only by dead files
+### [x] 2026-08-28 — `src/services/tokenValidationService.js` is kept alive only by dead files
 
 PR #2521 removed 27 unreferenced modules but deliberately kept this one. It IS
 a resolved `require()` target — but every file that requires it is itself in
@@ -1711,6 +1761,23 @@ dead-code pass will re-derive the same ambiguity from scratch.
 (`server.js`, every `tests/**` and `src/__tests__/**` file, `scripts/**`)
 rather than a reference-existence check, then delete whatever the closure does
 not reach. Note the `jest.mock()` caveat below.
+
+**RESOLVED — branch `fix/tech-debt-small-wins`.** No reachability tool was
+built; it turned out not to be needed. The ambiguity was simpler than the entry
+assumed: `demo_api_server` has TWO diverged copies of this module —
+`services/tokenValidationService.js` (the live one: `middleware/auth.js`,
+`middleware/a2aPingOneBearer.js`, `services/agentMcpTokenService.js`, and six
+`jest.mock` strings all resolve to it) and the `src/` "Enhanced" variant with
+`PingOneErrorClassifier` error categories, whose ONLY referrer in the whole
+repo was its own sibling test. Both files are deleted.
+
+The sibling test was itself dead: `jest.config.js` `testMatch` is
+`['**/src/__tests__/**/*.test.js', '**/tests/**/*.test.js']`, so nothing under
+`src/services/__tests__/` has ever run. `src/services/__tests__/pingoneErrorClassifier.test.js`
+is in the same position and was left in place — `pingoneErrorClassifier.js`
+still has another referrer (`src/__tests__/authErrorHandling.integration.test.js`,
+which does run), so it is a separate question from this entry. See the
+"two parallel module trees" entry above, which this is one instance of.
 
 ### [ ] 2026-08-28 — dead-code analysis must resolve `jest.mock()`, not just `require()`
 

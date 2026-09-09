@@ -68,3 +68,8 @@
   font-size: 1rem;
   color: var(--th-text);
 }
+
+.tca-diagram-error {
+  color: var(--th-status-error);
+  margin: 0;
+}
