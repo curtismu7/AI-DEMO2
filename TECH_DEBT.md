@@ -54,6 +54,17 @@ gate to full set-equality. (2) Add `transfer` to `demo-bff-mcp-client`'s
 registered scope in oauth-mcp (or register the ID-JAG client's scope from the
 SoT) and re-verify UC22 with the flag ON.
 
+**PARTLY RESOLVED (2) — branch `fix/oauth-mcp-idjag-client-transfer-scope`,
+stacked on #2998.** The ID-JAG clamp was exactly as guessed: the only source
+of `demo-bff-mcp-client`'s scope string is the static default in
+`oauth-mcp/src/oauth/ClientRegistry.ts` (no `OAUTH_CLIENTS` env, no k8s/compose
+override, and static clients are excluded from the persisted registry), so
+`transfer` was added there and `OAuthRouter.idJag.test.ts` now redeems through
+the default registration and asserts `write transfer` survives. Verified live
+with `ff_enterprise_managed_mcp_auth` ON — see REGRESSION_PLAN §4 2026-09-09.
+(1) — the hand-curated audience lists — is still open, so the box stays
+unticked.
+
 ----
 ### [x] 2026-09-08 — UC29 "introspection outage — fail closed" cannot be demonstrated on this deployment
 

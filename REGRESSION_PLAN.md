@@ -246,6 +246,56 @@ on the regex labels `get_weather` / `get_branch_hours` / `brave_news_search`.
 
 **Verify:** `cd demo_api_server && CI=true npx jest tests/intentToken tests/intentTokenService tests/agentRun.intentTokenMint.regression.test.js tests/intentAuthService.readOnly.test.js tests/a2aVerticalParity.test.js tests/chipSchemaContract.test.js tests/abercrombieFitchVertical.test.js tests/nlIntentParser src/__tests__/nlIntentParser src/__tests__/intentTokenService src/__tests__/agentInvokeRoute.intentToken.test.js --forceExit` — 26 suites, 1119 passed; `npm run authz:verify` OK. Live (stack served from the worktree via `serve:worktree here`, signed in as the demo user, `POST /api/agent/invoke` with the UC2 trigger + `vertical`): A&F `Delegation complete — Purchase History Specialist retrieved sensitive order history on your behalf (act-chain depth 2)`, investment `Delegation complete — Holdings Specialist retrieved sensitive holdings…`; gateway `[GW] Intent Token: valid=true intent=sensitive_order_history confidence=0.5 permitted tool=sensitive_order_history` and the same for `sensitive_holdings`; banking "show my recent transactions" still `intent=view_transactions confidence=0.8 permitted tool=get_my_transactions`.
 
+### 2026-09-09 — Native ID-JAG path still clamped `transfer` off the redeemed MCP token (banking UC22/UC8/UC7/UC6 `missing transfer` under `ff_enterprise_managed_mcp_auth`)
+
+**Files changed:** `oauth-mcp/src/oauth/ClientRegistry.ts` (default
+`demo-bff-mcp-client` registration), `oauth-mcp/src/oauth/__tests__/OAuthRouter.idJag.test.ts`
+(new redemption test through the default registration), `TECH_DEBT.md`
+(2026-09-08 entry, part 2 marked resolved). Stacks on #2998
+(`fix/mcp-server-transfer-scope-narrowing`).
+
+**What was broken:** #2998 fixed the BFF's MCP Server audience allow-list, so
+the BFF now asks for `write transfer`. On the RFC 8693 path that is the end of
+it. The local stack runs `ff_enterprise_managed_mcp_auth` ON, so the BFF
+instead mints an ID-JAG and redeems it at oauth-mcp (`/api/enterprise-idp/token`
+→ jwt-bearer grant), and `TokenIssuer.issueAuthorizationCode` clamps the
+redeemed scope to the redeeming client's registration. `demo-bff-mcp-client`
+was registered with `mcp:invoke read write`, so `transfer` was stripped a second
+time and the Node gateway's per-tool backstop still 403'd
+`insufficient_scope: missing transfer (tool: create_transfer)` before PingOne
+Authorize ran. Baseline with #2998 served and the old image: UC22 →
+`local-fallback: insufficient_scope: missing transfer`.
+
+**What was fixed:** `transfer` added to that one registration — it is the only
+source of the string (no `OAUTH_CLIENTS` env anywhere, no k8s/compose/env
+override, and static clients are excluded from the persisted registry, so a
+stale persisted copy cannot shadow it). No other client's scope changed.
+
+**Do not break:** keep `demo-bff-mcp-client`'s scope a subset of
+`scope-topology.json` "Super Banking MCP Server" `mirroredScopes`; the
+redeemed token is still clamped to the registration and still never widens
+beyond the assertion (`never widens scope beyond the assertion` test). The
+`mcp-server` image is built from `oauth-mcp/`, not bind-mounted — after merge
+run `docker compose build mcp-server && docker compose up -d --force-recreate
+mcp-server` from the main checkout or the running demo keeps the old clamp.
+
+**Verify:** `cd oauth-mcp && npm run build && npm run test:unit` → 91 suites,
+1136 tests pass (the new test fails on the old registration with
+`Received: ["write"]`). Live, flags unchanged (`ff_enterprise_managed_mcp_auth`
+= true, `ff_heuristic_enabled` = true, `ff_mcp_gateway_pinggateway` = true),
+worktree served, `mcp-server` rebuilt from the branch, signed in as the e2e
+demo user, `POST /api/agent/invoke` `{vertical:"banking", forceHeuristic:true}`;
+gateway audit trail shows `TokenScopes: "write transfer mcp:invoke"`,
+`TokenIss: http://localhost:8080` (oauth-mcp, i.e. the ID-JAG path):
+UC22 $150 → 428 first hop, P1AZ `INDETERMINATE / HITL_REQUIRED` surfaced as
+`elicitation_required`; UC8 $300 → `hitl_required`; UC7 $600 →
+`step_up_required`; UC6 $2500 → DENY `amount_exceeds_ceiling: $2500 exceeds
+the absolute deny limit of $2000`. None mention `missing transfer`. Stack
+generation pinned before/after: unchanged. `npm run authz:verify` OK (74 use
+cases, 187 routes); `npm run topology:verify` PASSED; BFF scoped
+(`allowedScopesByAudience.parity`, `configStore-tokenExchange`,
+`agentMcpTokenService.scopeNarrowingMisconfig.regression`) → 543 pass.
+
 ### 2026-09-08 — Banking UC6/UC7/UC8/UC22 died at the gateway with `insufficient_scope: missing transfer` before HITL/CIBA/step-up/tier ran
 
 **Files changed:** `demo_api_server/services/configStore.js` (MCP Server
