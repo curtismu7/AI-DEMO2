@@ -141,7 +141,50 @@ async function _reconcileAppGrants(client, appId, resourceId, resourceTopologyNa
 
   if (toAdd.length === 0) return { added: [], unchanged };
 
-  const allDesiredIds = [...grantedIds, ...toAdd.map(s => s.id)];
+  // A scope NAME this app already holds on ANOTHER resource's grant cannot also
+  // be added here — PingOne rejects the whole request with
+  //   INVALID_DATA / "Multiple scopes with the same name cannot be added to the
+  //   same grant"
+  // so one colliding name costs every other name in the same PUT. The static
+  // excludeNames partition below only reserves invest:read, and cannot know what
+  // a live environment already granted before that partition existed (here: the
+  // gateway app holds airlines:read/airlines:write/pnr:read on the MCP Invest
+  // grant, which made the MCP Server reconcile 400 on every boot).
+  //
+  // Treat a name held elsewhere as satisfied-elsewhere rather than missing. This
+  // never moves a live grant: the exchange already tolerates a requested name
+  // that this partition did not grant on that resource (PingOne drops it from
+  // the issued token instead of erroring — see the partition comment below), and
+  // the failing PUT was adding nothing anyway.
+  const heldElsewhere = new Set();
+  for (const g of grants) {
+    if (!g.resource?.id || g.resource.id === resourceId) continue;
+    let otherScopes;
+    try {
+      otherScopes = await client.get(`/resources/${g.resource.id}/scopes?limit=200`);
+    } catch (err) {
+      // Can't read the sibling resource — assume no collision rather than
+      // skipping a legitimate grant; a real collision still fails loudly below.
+      continue;
+    }
+    const nameById = new Map((otherScopes._embedded?.scopes || []).map(s => [s.id, s.name]));
+    for (const granted of (g.scopes || [])) {
+      const name = nameById.get(granted.id);
+      if (name) heldElsewhere.add(name);
+    }
+  }
+
+  const blocked = toAdd.filter(s => heldElsewhere.has(s.name));
+  const addable = toAdd.filter(s => !heldElsewhere.has(s.name));
+  if (blocked.length) {
+    console.log(
+      `${TAG} ${label}: ${blocked.length} scope(s) already granted to this app on another resource, `
+      + `leaving them there: [${blocked.map(s => s.name).join(', ')}]`
+    );
+  }
+  if (addable.length === 0) return { added: [], unchanged };
+
+  const allDesiredIds = [...grantedIds, ...addable.map(s => s.id)];
 
   if (resourceGrant) {
     // PingOne's grant-update verb is PUT (full replace), NOT PATCH — a PATCH is
@@ -159,11 +202,11 @@ async function _reconcileAppGrants(client, appId, resourceId, resourceTopologyNa
     });
   }
 
-  for (const s of toAdd) {
+  for (const s of addable) {
     console.log(`${TAG} Granted missing scope to ${label}: ${s.name}`);
   }
 
-  return { added: toAdd.map(s => s.name), unchanged };
+  return { added: addable.map(s => s.name), unchanged };
 }
 
 // ── Resource ID resolution ─────────────────────────────────────────────────
