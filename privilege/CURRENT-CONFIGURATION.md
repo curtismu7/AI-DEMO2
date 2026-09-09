@@ -199,7 +199,7 @@ performs. Register it in the console as:
 | Application type | MCP Server |
 | Application Name | `banking-mcp` |
 | MCP Server URL | `http://mcp-resource-server.ping-devops-cmuir.svc.cluster.local:8081/mcp` |
-| Auth Mode | None (discovery is tokenless by that server's design) |
+| Auth Mode | OAuth — the gateway calls the backend as `Demo AI App - Fraud Watch Agent`; fields under "The call hop" below |
 | Mesh Cluster | `ai-demo-cmuir` |
 
 `/mcp`, not `/sse` — that server answers `GET /mcp -> 404`, so an `/sse`
@@ -208,19 +208,64 @@ character by character; it is a cross-namespace FQDN (`cmuir`, not
 `curtismuir`), the same shape `opensearch22` uses. `mcpFacade.js`'s `agentless`
 door and the "Privilege — banking" preset default to this app name.
 
-**What this does and does not unblock.** Tools appear, so a policy can be
-authored — the blocker all day. `tools/call` is a separate matter: the server
-exempts only `initialize`/`tools/list` from its bearer gate, and the banking
-tools require scope `banking:read`, a **user** scope that reaches this server via
-the BFF's RFC 8693 exchange (`docs/TOKEN_FLOW.md`), not a scope any client can
-hold on a machine token. Its validator is the demo env's JWKS (`01d89b06…`) with
-accepted audiences `mcp-invest.ping.demo`, `mcp-resource-server.ping.demo`,
-`mcpgateway.ping.demo`. A Privilege-forwarded user token has the wrong issuer,
-Static Token is parsed as a JWT (see PRIVILEGE-MCP.md) and short-lived, so calls
-through this door will answer `insufficient_scope` until the backend hop gets a
-real design — most likely Auth Mode OAuth pointed at the demo env with
-`banking:read` made client-grantable. The door also exposes all 33 tools;
-narrow it with Privilege policy.
+**The call hop (designed 2026-09-08; the console write is the remaining
+step).** Discovery is tokenless, but `tools/call` needs a bearer this server's
+validator accepts (`demo_mcp_resource_server/src/server/tokenValidator.ts`):
+signed by the demo env's JWKS (`01d89b06…` — there is no issuer check), `aud`
+in {`mcp-invest.ping.demo`, `mcp-resource-server.ping.demo`,
+`mcpgateway.ping.demo`}, carrying each tool's `requiredScopes`. Three facts
+settled the design, all measured against the live env with
+`node demo_api_server/scripts/verify-scope-configuration.js` plus a per-app
+grants walk:
+
+- **`banking:read` — the scope both banking tools declared — exists in no
+  PingOne resource and nowhere in `scope-topology.json`.**
+  `scripts/check-tool-scope-registration.js` had carried both tools as
+  known-bad declarations, exempt only while unrouted. The tools now require
+  `read`, the topology's scope for banking reads (same as the gateway's
+  `get_my_accounts`), and are off that exemption list. No new scope anywhere.
+- **`mcp-resource-server.ping.demo` is not a PingOne resource either.** The
+  two accepted audiences that exist: `mcp-invest.ping.demo` (Demo MCP Invest —
+  `read invest:read mcp:invoke airlines:read pnr:read airlines:write`) and
+  `mcpgateway.ping.demo` (Demo MCP Gateway — 22 scopes including `read`).
+- **An existing client_credentials app already holds exactly what the hop
+  needs and nothing else:** `Demo AI App - Fraud Watch Agent` (`eb6b6743…`),
+  a single grant, `read` on `mcpgateway.ping.demo`. One resource, so a bare
+  `scope=read` request is unambiguous (no *"May not request scopes for
+  multiple resources"*). No PingOne change of any kind.
+
+So the door's Auth Mode is **OAuth**, the gateway acting as that client on the
+backend hop:
+
+| Field | Value |
+|---|---|
+| Client ID / Client Secret | Fraud Watch Agent's (PingOne console → Applications → `Demo AI App - Fraud Watch Agent`) |
+| Token URL | `https://auth.pingone.com/01d89b06-66d5-430e-9f28-65636843788b/as/token` |
+| Authorization URL | `https://auth.pingone.com/01d89b06-66d5-430e-9f28-65636843788b/as/authorize` (the form wants one; client_credentials never uses it) |
+| Scopes | `read` |
+
+That token has no `sub`; `bankingToolHandler.ts` resolves a sub-less bearer to
+the seed subject `demo-user` — the rule the static-key REST path already
+applied — so `list_banking_accounts` returns real rows instead of the
+undefined-binding error an unmapped `sub` produced.
+
+**Measured vs. inferred.** Validator, audiences, scopes, grants and the client
+are measured. The gateway's Auth Mode OAuth performing a `client_credentials`
+grant on the backend hop is *inferred*, and weakly: `/procyon/bin/mcpgw`
+does carry Procyon's own `ResourceOAuth` config (with a `token_url` field),
+which PRIVILEGE-MCP.md established is backend-facing, but its
+`client_credentials` / `grant_type` strings turned out to belong to bundled
+OpenAPI/protobuf model libraries, not gateway code — so they prove nothing
+about which grant it runs. No door in this repo has exercised Auth Mode OAuth
+(`external` and `opensearch22` are Static Token / None against auth-disabled
+backends). The first `tools/call` through the door is the test. `403 insufficient_scope`
+means the gateway forwarded no `read` token; `401 invalid_token` means it
+forwarded one from the wrong signer or audience; the gateway log line
+`MCP App RBAC check … AuthzServer:banking-mcp` confirms the request reached
+the hop at all. If the gateway turns out to forward the *user's* frontend
+token instead, the same validator accepts it once that OIDC client requests
+`read` — same env, same JWKS. The door also exposes all 33 tools; narrow it
+with Privilege policy.
 
 **Two leads recorded here previously are now closed — do not re-chase them:**
 

@@ -68,6 +68,7 @@ import { filterByScopes } from './tools/toolTypes';
 import { ALL_TOOLS, SUPPORTED_SCOPES, dispatch, findTool } from './tools/registry';
 import { decodeAndValidate, extractScopes, TokenError } from './server/tokenValidator';
 import { isValidLogLevel, emitLogMessage, LoggingState } from './mcpLogging';
+import { DEMO_BANKING_SUBJECT } from './tools/bankingToolHandler';
 import { buildDiscoverResult, SUPPORTED_PROTOCOL_VERSIONS } from './serverDiscover';
 import { extractRequestedProtocolVersion, buildUnsupportedProtocolVersionError } from './modernNegotiation';
 import fs from 'fs';
@@ -178,10 +179,9 @@ function apiKeyMatches(presented: string): boolean {
   return crypto.timingSafeEqual(d, API_KEY_DIGEST);
 }
 
-// The banking vertical's seed data has a single subject ('demo-user'), same as
-// /invest's resolveInvestor() — the static-key path has no per-user identity,
-// so it always serves that one demo subject.
-const DEMO_BANKING_SUBJECT = 'demo-user';
+// The static-key REST path below has no per-user identity, so it always serves
+// DEMO_BANKING_SUBJECT (tools/bankingToolHandler.ts), as the MCP tools do for a
+// sub-less machine token.
 
 // Served at GET /openapi/banking-rest.json so an external OpenAPI-to-MCP
 // importer (e.g. a Privilege AI Gateway "Add OpenAPI MCP" app) can point at

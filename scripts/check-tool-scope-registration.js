@@ -54,13 +54,11 @@ const TOPOLOGY = path.join(ROOT, 'scope-topology.json');
  */
 const UNROUTED_UNREGISTERED = [
   'get_anf_order',
-  'get_banking_account',
   'get_course',
   'get_expense',
   'get_patient_record',
   'get_permit',
   'get_work_order',
-  'list_banking_accounts',
 ];
 
 const allowlist = new Set(

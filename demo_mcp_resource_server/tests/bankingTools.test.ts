@@ -16,9 +16,9 @@ describe('BANKING_TOOLS', () => {
     }
   });
 
-  it('all tools require banking:read scope', () => {
+  it('all tools require the registered read scope (banking:read exists in no PingOne resource)', () => {
     for (const t of BANKING_TOOLS) {
-      expect(t.requiredScopes).toContain('banking:read');
+      expect(t.requiredScopes).toEqual(['read']);
     }
   });
 });
@@ -49,6 +49,13 @@ describe('dispatchBankingTool', () => {
 });
 
 describe('dispatchBankingTool — per-user scoping (IDOR fix — BUGS.md #45)', () => {
+  it('a sub-less machine token (undefined subject) resolves to the demo subject instead of throwing', async () => {
+    const own = (await dispatchBankingTool('list_banking_accounts', {}, 'demo-user') as any).accounts;
+    const result = await dispatchBankingTool('list_banking_accounts', {}, undefined) as any;
+    expect(result.count).toBe(own.length);
+    expect(result.accounts).toEqual(own);
+  });
+
   it('list_banking_accounts never returns another user\'s accounts', async () => {
     const result = await dispatchBankingTool('list_banking_accounts', {}, 'someone-else-entirely') as any;
     expect(result.accounts).toEqual([]);
