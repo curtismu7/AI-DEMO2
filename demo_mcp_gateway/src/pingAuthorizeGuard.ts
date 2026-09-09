@@ -192,6 +192,15 @@ export async function guardToolsList(
         IntentTokenValid: '',
         IntentMatchesTool: '',
         IntentTokenError: '',
+        // Intent-governance drift inputs. Sent as a PAIR of empty strings: ActionDrift
+        // and PayeeDrift compare request-vs-grant with NotEquals, so two blanks are
+        // equal and no drift fires. Sending one non-empty with the other blank WOULD
+        // fire a drift DENY. (Both are additionally gated by IntentGoverned, which is
+        // false without a bound grant.)
+        IntentRequestAction: '',
+        IntentGrantAction: '',
+        IntentRequestPayee: '',
+        IntentGrantPayee: '',
         McpResourceUri: config.gatewayResourceUri,
         TokenScopes: tokenScopes,
         ActiveVertical: activeVertical || '',

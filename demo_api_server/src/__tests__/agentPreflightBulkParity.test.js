@@ -135,6 +135,12 @@ describe('buildMcpDelegationParameters — contract', () => {
       IntentTokenValid: '',
       IntentMatchesTool: '',
       IntentTokenError: '',
+      // Drift inputs go as a PAIR of blanks: ActionDrift/PayeeDrift compare
+      // request-vs-grant with NotEquals, so two blanks never drift.
+      IntentRequestAction: '',
+      IntentGrantAction: '',
+      IntentRequestPayee: '',
+      IntentGrantPayee: '',
       RarMaxAmount: 5000,
       RarPermittedPayees: ['acct-2'],
       ToAccountId: 'acct-2',
