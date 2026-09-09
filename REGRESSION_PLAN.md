@@ -202,6 +202,33 @@ a plain `docker restart` keeps the old env.
 **Verify:** `node scripts/verify-pinggateway-parity.js` → `[OK] … 10 literal(s)
 verified`; live: Demo step UC-TOOL1 in Super Sports returns file/line hits, not
 the insufficient-scope card.
+### 2026-09-08 — Demo Steps: link/attack steps skipped the sign-in gate, and ✓ was stamped before a step ran
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js` (`handleDemoStepSelect`),
+`demo_api_ui/src/components/__tests__/AIAgent.demoStepGate.test.jsx` (new).
+
+**What was broken:** Only the chip branch of the Demo Steps dispatcher checked
+the step's auth level (`viewerMeetsUseCaseAuth`). A signed-out click on an
+attack sim or a `user`-level link step (UC14b quick result, UC38) POSTed or
+navigated anyway, 401'd, and raised the app-wide "please sign in" banner.
+`markUseCaseCompleted` ran before any branch, so a step that never ran —
+blocked by auth, no runnable trigger, sim request failed — showed ✓ and counted
+toward "N of 25 done". Found by the 2026-09-08 live Demo Steps review.
+
+**What was fixed:** the auth check is computed once, before the branch switch;
+link, attack and edu steps that the viewer may not run show the same sign-in
+prompt the chip branch shows and return (nothing to queue — they run
+immediately). ✓ moves to each branch's success exit: after navigate / panel
+open, after the sim or intent-binding POST resolves, and for chips at
+queue-or-send time (a queued chip is ticked when queued; the resume effect
+knows only the catalog slug — deliberate simplification).
+
+**Do not break:** a `public` step must still run signed out (UC24 chip, UC2.7
+/ UC32 / UC40 links) — the gate keys on the step's declared `uc.auth`, never on
+`isLoggedIn`. The chip branch must keep queueing behind the prompt (resume
+effect), not return early like the link/attack branches.
+
+**Verify:** `cd demo_api_ui && ./node_modules/.bin/vitest run src/components/__tests__/AIAgent.demoStepGate.test.jsx src/components/__tests__/AIAgent.publicUseCase.test.jsx src/components/__tests__/DemoStepsDropdown.test.jsx` — 31 passed; `npm run build` exit 0.
 
 ### 2026-09-08 — A BFF restart silently dropped every Privilege gateway token
 
