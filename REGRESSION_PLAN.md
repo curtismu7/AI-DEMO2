@@ -176,6 +176,32 @@ tool; a flow that calls a second gateway tool needs an `INTENT_TO_PERMITTED_TOOL
 entry (the `chipReachability` gate covers chips).
 
 **Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/intentToken tests/intentTokenService tests/agentRun.intentTokenMint tests/agentInvoke tests/intentAuthService tests/nlIntentParser.writeIntents` — 312 passed; live: UC2 and UC2.5 in Super Sports reply `Delegation complete — Membership Specialist retrieved sensitive membership details…`.
+### 2026-09-08 — UC-TOOL1 (Protected RAG) dead under PingGateway: OLB exchange never carried `code:search`
+
+**Files changed:** `ping-gateway/.env.example`, `demo_api_server/scripts/refresh-service-envs.js`.
+
+**What was broken:** Demo step UC-TOOL1 ("find where the BFF performs MCP token
+exchange") returned `❌ Insufficient scope for tool 'code_search'` in every
+vertical. PingGateway's Exchange #3 (`olb-token-exchange.groovy`) requests the
+fixed `PG_OLB_SCOPE="read write"`, so the token it hands the MCP server never
+carried `code:search` even though PingOne Authorize had already answered PERMIT
+for `code_search` and the "Demo AI App - MCP Gateway" app already holds the
+`code:search` grant on `mcpserver.ping.demo`. The MCP server rejected with
+JSON-RPC `-32005`. Found by the 2026-09-08 live Demo Steps review.
+
+**What was fixed:** `PG_OLB_SCOPE` is now `read write code:search` in the
+example env and in the env writer. `code:search` is a native scope on the same
+single resource, so the single-resource rule in the groovy comment still holds.
+The live `ping-gateway/.env` must carry the same value and the container must
+be recreated (`./run-docker.sh restart ping-gateway` from the main checkout) —
+a plain `docker restart` keeps the old env.
+
+**Do not break:** never add `mcp:invoke` to `PG_OLB_SCOPE` (multi-resource
+`invalid_scope` / wrong aud); keep `write` (write tools 502 without it).
+
+**Verify:** `node scripts/verify-pinggateway-parity.js` → `[OK] … 10 literal(s)
+verified`; live: Demo step UC-TOOL1 in Super Sports returns file/line hits, not
+the insufficient-scope card.
 
 ### 2026-09-08 — A BFF restart silently dropped every Privilege gateway token
 
