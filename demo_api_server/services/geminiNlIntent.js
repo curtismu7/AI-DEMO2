@@ -334,11 +334,34 @@ async function answerWithGoogle(userMessage, context = {}, langchainConfig = {})
   return null;
 }
 
+// Conversational answer through a Privilege virtual key. A policy denial must
+// reach the caller (same contract as the intent branches), so it is rethrown
+// rather than swallowed like a transport error.
+async function answerWithPrivilege(userMessage, context = {}, langchainConfig = {}, lane) {
+  const { callPrivilegeGemini, callPrivilegeClaude } = require('./privilegeLlmProxyService');
+  const call = lane === 'anthropic' ? callPrivilegeClaude : callPrivilegeGemini;
+  try {
+    const answer = await call([
+      { role: 'system', content: buildSystemWithCtx(null, context) },
+      { role: 'user', content: userMessage },
+    ], langchainConfig);
+    if (answer) {
+      return { kind: 'education', education: { panel: 'general-knowledge' }, message: answer };
+    }
+  } catch (err) {
+    if (err.code === 'llm_policy_denied') throw err;
+    console.warn(`[nlIntent] Privilege ${lane} conversational error:`, err.message);
+  }
+  return null;
+}
+
 async function answerConversational(userMessage, context, selectedProvider, langchainConfig = {}) {
   let result;
   if (LMSTUDIO_PROVIDERS.has(selectedProvider)) result = await answerWithLmStudio(userMessage, context);
   else if (CLAUDE_PROVIDERS.has(selectedProvider)) result = await answerWithClaude(userMessage, context);
   else if (GOOGLE_PROVIDERS.has(selectedProvider)) result = await answerWithGoogle(userMessage, context, langchainConfig);
+  else if (PRIVILEGE_LLM_PROVIDERS.has(selectedProvider)) result = await answerWithPrivilege(userMessage, context, langchainConfig, 'google');
+  else if (PRIVILEGE_CLAUDE_PROVIDERS.has(selectedProvider)) result = await answerWithPrivilege(userMessage, context, langchainConfig, 'anthropic');
   else if (LLAMACPP_PROVIDERS.has(selectedProvider)) result = await answerWithLlamaCpp(userMessage, context);
   else if (MLX_PROVIDERS.has(selectedProvider)) result = await answerWithMlx(userMessage, context);
   else result = await answerWithHelix(userMessage, context);
@@ -350,6 +373,8 @@ function conversationalSource(selectedProvider) {
   if (LMSTUDIO_PROVIDERS.has(selectedProvider)) return 'lmstudio_fallback';
   if (CLAUDE_PROVIDERS.has(selectedProvider)) return 'claude_fallback';
   if (GOOGLE_PROVIDERS.has(selectedProvider)) return 'google_fallback';
+  if (PRIVILEGE_LLM_PROVIDERS.has(selectedProvider)) return 'privilege_llm_fallback';
+  if (PRIVILEGE_CLAUDE_PROVIDERS.has(selectedProvider)) return 'privilege_claude_fallback';
   if (LLAMACPP_PROVIDERS.has(selectedProvider)) return 'llamacpp_fallback';
   if (MLX_PROVIDERS.has(selectedProvider)) return 'mlx_fallback';
   return 'helix_fallback';
@@ -871,11 +896,14 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
     LMSTUDIO_PROVIDERS.has(selectedProvider) ||
     CLAUDE_PROVIDERS.has(selectedProvider) ||
     GOOGLE_PROVIDERS.has(selectedProvider) ||
+    PRIVILEGE_LLM_PROVIDERS.has(selectedProvider) ||
+    PRIVILEGE_CLAUDE_PROVIDERS.has(selectedProvider) ||
     LLAMACPP_PROVIDERS.has(selectedProvider) ||
     MLX_PROVIDERS.has(selectedProvider) ||
     (selectedProvider === 'auto' && langchainConfig?.provider === 'helix')
   ) {
     const llmAnswer = await answerConversational(message, context, selectedProvider, langchainConfig).catch((e) => {
+      if (e.code === 'llm_policy_denied') throw e; // a Privilege denial is the answer, not a fallback trigger
       console.warn('[nlIntent] conversational fallback failed:', e.message);
       return null;
     });

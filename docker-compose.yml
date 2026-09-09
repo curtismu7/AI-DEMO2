@@ -1469,7 +1469,13 @@ services:
       MCP_SERVER_URL: "ws://mcp-server:8080"
       # Agent LLM → host llama.cpp proxy (:8090, OpenAI-compatible). Containers
       # reach the host proxy via host.docker.internal (same as LLAMACPP_BASE_URL).
-      AGENT_LLM_BASE_URL: "http://host.docker.internal:8090/v1"
+      AGENT_LLM_BASE_URL: "${AGENT_LLM_BASE_URL:-http://host.docker.internal:8090/v1}"
+      # Privilege-first posture (docs/superpowers/plans/2026-09-08-privilege-first-gateway.md,
+      # Task 3): set in the root .env
+      #   AGENT_LLM_BASE_URL=<PRIVILEGE_LLM_GATEWAY_URL>/llm/openai/v1
+      #   AGENT_LLM_API_KEY=<PRIVILEGE_LLM_VIRTUAL_KEY_OPENAI>
+      # Default = the local proxy, which ignores the key.
+      AGENT_LLM_API_KEY: "${AGENT_LLM_API_KEY:-none}"
       # Trust the BFF's mkcert TLS cert on the internal tool callback (Node honors
       # NODE_EXTRA_CA_CERTS). Without it, every tool call to https://api.ping.demo
       # fails with UNABLE_TO_VERIFY_LEAF_SIGNATURE. Same bundle as the langchain agent.
@@ -1509,7 +1515,13 @@ services:
       MCP_SERVER_URL: "ws://mcp-server:8080"
       # Agent LLM → host llama.cpp proxy (:8090, OpenAI-compatible). Containers
       # reach the host proxy via host.docker.internal (same as LLAMACPP_BASE_URL).
-      AGENT_LLM_BASE_URL: "http://host.docker.internal:8090/v1"
+      AGENT_LLM_BASE_URL: "${AGENT_LLM_BASE_URL:-http://host.docker.internal:8090/v1}"
+      # Privilege-first posture (docs/superpowers/plans/2026-09-08-privilege-first-gateway.md,
+      # Task 3): set in the root .env
+      #   AGENT_LLM_BASE_URL=<PRIVILEGE_LLM_GATEWAY_URL>/llm/openai/v1
+      #   AGENT_LLM_API_KEY=<PRIVILEGE_LLM_VIRTUAL_KEY_OPENAI>
+      # Default = the local proxy, which ignores the key.
+      AGENT_LLM_API_KEY: "${AGENT_LLM_API_KEY:-none}"
       # Trust the BFF's mkcert TLS cert on the internal tool callback (httpx honors
       # SSL_CERT_FILE). Without it, every tool call to https://api.ping.demo fails
       # with CERTIFICATE_VERIFY_FAILED. Same bundle as the langchain agent.
@@ -1548,7 +1560,13 @@ services:
       MCP_SERVER_URL: "ws://mcp-server:8080"
       # Agent LLM → host llama.cpp proxy (:8090, OpenAI-compatible). Containers
       # reach the host proxy via host.docker.internal (same as LLAMACPP_BASE_URL).
-      AGENT_LLM_BASE_URL: "http://host.docker.internal:8090/v1"
+      AGENT_LLM_BASE_URL: "${AGENT_LLM_BASE_URL:-http://host.docker.internal:8090/v1}"
+      # Privilege-first posture (docs/superpowers/plans/2026-09-08-privilege-first-gateway.md,
+      # Task 3): set in the root .env
+      #   AGENT_LLM_BASE_URL=<PRIVILEGE_LLM_GATEWAY_URL>/llm/openai/v1
+      #   AGENT_LLM_API_KEY=<PRIVILEGE_LLM_VIRTUAL_KEY_OPENAI>
+      # Default = the local proxy, which ignores the key.
+      AGENT_LLM_API_KEY: "${AGENT_LLM_API_KEY:-none}"
       # Trust the BFF's mkcert TLS cert on the internal tool callback (httpx honors
       # SSL_CERT_FILE). Without it, every tool call to https://api.ping.demo fails
       # with CERTIFICATE_VERIFY_FAILED. Same bundle as the langchain agent.

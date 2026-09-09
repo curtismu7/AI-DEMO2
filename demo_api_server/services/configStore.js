@@ -378,6 +378,7 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   ff_agent_restrictions:           { public: true, default: 'false' }, // P1AZ resource server gate + AgentRestrictions attribute
   introspectionProvider:           { public: true, default: 'pinggateway' }, // Token introspection provider: 'pinggateway' (PingGateway/ForgeRock IG, default) or 'p1az' (PingOne Authorize, optional)
   ff_mcp_gateway_pinggateway:      { public: true, default: 'true' }, // Route MCP traffic through PingGateway (IG) instead of the Node gateway
+  ff_privilege_llm_first:          { public: true, default: 'false' }, // Route google/anthropic chat through the PingOne Privilege virtual-key lanes instead of vendor-direct
   ff_mcp_gateway_jwks:             { public: true, default: 'false' }, // PingGateway validates MCP tokens locally (JWKS/HS256) instead of introspecting
   ff_aam:                          { public: true, default: 'true' }, // PingOne Authorize API Access Management on the IG /aam route. Defaults ON: AAM is the coarse-grained layer the demo expects to be running, so this flag turns it OFF rather than opting in
   ff_enterprise_managed_mcp_auth:  { public: true, default: 'false' }, // MCP Enterprise-Managed Authorization — IT policy gate + RFC 8693 ID-JAG stand-in (Phase 1–2)
@@ -998,6 +999,7 @@ const ENV_FALLBACK_MAP = {
   ff_prompt_injection_guard:       ['FF_PROMPT_INJECTION_GUARD'],
   ff_jit_credentials:              ['FF_JIT_CREDENTIALS'],
   ff_mcp_gateway_pinggateway:      ['FF_MCP_GATEWAY_PINGGATEWAY'],
+  ff_privilege_llm_first:          ['FF_PRIVILEGE_LLM_FIRST'],
   ff_mcp_gateway_jwks:             ['FF_MCP_GATEWAY_JWKS'],
   ff_aam:                          ['FF_AAM'],
   ff_local_fallback_on_exchange_failure: ['FF_LOCAL_FALLBACK_ON_EXCHANGE_FAILURE'],
@@ -2384,6 +2386,7 @@ async function syncOAuthEndpointsToLmdb() {
     ff_prompt_injection_guard:  'FF_PROMPT_INJECTION_GUARD',
     ff_jit_credentials:         'FF_JIT_CREDENTIALS',
     ff_mcp_gateway_pinggateway: 'FF_MCP_GATEWAY_PINGGATEWAY',
+    ff_privilege_llm_first:     'FF_PRIVILEGE_LLM_FIRST',
     ff_mcp_gateway_jwks:        'FF_MCP_GATEWAY_JWKS',
     ff_aam:                     'FF_AAM',
     ff_local_fallback_on_exchange_failure: 'FF_LOCAL_FALLBACK_ON_EXCHANGE_FAILURE',

@@ -6,6 +6,7 @@ require('./configCheck');
 require('./flagOverrideCheck');
 require('./llmCheck');
 require('./llmDeepCheck');
+require('./privilegeLlmFirstCheck');
 require('./gatewayCheck');
 require('./gatewayPostureCheck');
 // Follows the RFC 9728 resource_metadata pointer the gateway's 401 challenge
