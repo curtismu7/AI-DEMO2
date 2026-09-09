@@ -331,3 +331,27 @@ describe("Render smoke — Router still rejects route-group component children",
     consoleErrorSpy.mockRestore();
   });
 });
+
+// ─── Pop-out panel event contracts ────────────────────────────────────────────
+//
+// TokenTopologyPanel and SystemFlowMapPanel are mounted in App.js but opened
+// from elsewhere (the agent header, the trace rail's view menu) by a window
+// CustomEvent. Nothing type-checks that pairing: rename or typo the event on
+// either side and the button silently does nothing — no error, no console line,
+// just a control that looks fine and is dead. These assert both halves exist.
+describe("App.js — pop-out panel open events", () => {
+  const agentSrc = fs.readFileSync(
+    path.resolve(__dirname, "../components/AIAgent.js"),
+    "utf8",
+  );
+
+  const cases = [
+    ["token-topology-open", "TokenTopologyPanel"],
+    ["system-flow-open", "SystemFlowMapPanel"],
+  ];
+
+  test.each(cases)("%s is dispatched by the agent header and listened for in App.js", (event) => {
+    expect(agentSrc).toContain(`new CustomEvent('${event}')`);
+    expect(appSrc).toContain(`window.addEventListener('${event}'`);
+  });
+});
