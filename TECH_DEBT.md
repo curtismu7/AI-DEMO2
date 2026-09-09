@@ -1641,7 +1641,7 @@ longer exists anywhere, so its skip went with the others. Note the JS half of
 the test still has its own three-file skip list — untouched, different list.
 
 
-### [ ] 2026-08-28 — 271 emoji outside the §0 allowlist, in 53 files
+### [x] 2026-08-28 — 271 emoji outside the §0 allowlist, in 53 files
 
 **What's wrong.** `REGRESSION_PLAN.md` §0's emoji allowlist is a project-wide
 hard rule, but nothing enforced it app-wide. The only test was
@@ -1680,7 +1680,19 @@ rather than restating it — the list was once written out in five places and
 they drifted, one listing six entries while the others listed ten, so an agent
 reading the wrong copy stripped four legitimate emoji.
 
+**RESOLVED** (`chore/tech-debt-status-sweep`, 2026-09-09) — stale entry: the
+ratchet had already been driven to the bottom and nobody ticked the box.
+`demo_api_ui/src/__tests__/emojiAllowlistAppWide.test.js` now reads
+`BASELINE = 0` with an empty known-files list, and passes (3/3) — so the 271
+were not merely held, they were cleared. The per-file semantic pass this entry
+called for did happen; only the bookkeeping was outstanding.
 
+Scope worth stating: the ratchet walks `demo_api_ui/src` only. A scan of
+`demo_api_server`, `oauth-mcp`, `demo_mcp_gateway` and `scripts` finds ~35
+non-allowlisted glyphs left (`🏗` `🎉` `🔒` `📧` `📝` `🚀`), almost all in
+server-side console logging rather than rendered UI. Box-drawing and maths
+characters (`─` `═` `━` `║` `⇒` `≥`) are text, not emoji, and are not counted —
+a naive scan reports ~17.6k of them and buries the real signal.
 ### [x] 2026-08-28 — CI cannot push images: GHCR packages are user-owned, unlinked
 
 Every `push-image` job fails at its final step with
@@ -1883,7 +1895,7 @@ still has another referrer (`src/__tests__/authErrorHandling.integration.test.js
 which does run), so it is a separate question from this entry. See the
 "two parallel module trees" entry above, which this is one instance of.
 
-### [ ] 2026-08-28 — dead-code analysis must resolve `jest.mock()`, not just `require()`
+### [x] 2026-08-28 — dead-code analysis must resolve `jest.mock()`, not just `require()`
 
 A module referenced ONLY by a `jest.mock('../../services/x')` string is invisible
 to a `require()`-only scan, and deleting it does not break any import — it
@@ -1907,6 +1919,29 @@ trusts the boot check the way this session initially did.
 `scripts/` (or adopt `knip`, whose config was drafted in the parked branch) so
 the analysis is reproducible rather than reconstructed each time.
 
+**RESOLVED** (`chore/tech-debt-status-sweep`, 2026-09-09) — the resolver now
+lives in the repo as `scripts/find-unreferenced-modules.js`, so it is run rather
+than reconstructed. It resolves `require`, static and dynamic `import`,
+`jest.mock/doMock/unmock/requireActual/requireMock` **and the `vi.*` equivalents**
+— the UI moved to vitest since this entry was written, and `vi.mock()` has
+exactly the same invisibility.
+
+Two things the original entry did not anticipate:
+
+1. **"Referenced by nothing" is the wrong question** — it marks every test file
+   dead. The script walks reachability from roots (entry points, tests, scripts,
+   runner configs) instead: 1114 false positives became 5 on `demo_api_server`.
+2. **Runner config names files as path strings**, not requires —
+   `globalSetup`, `setupFiles`, `testResultsProcessor`, `'<rootDir>/...'`. That
+   is the same invisibility class as a mock and accounted for 16 of those false
+   positives, so the script resolves `<rootDir>/` specifiers too.
+
+Verified against the case that motivated the entry: `services/configHostnameService.js`
+is referenced **only** by `jest.mock('../../services/configHostnameService')`, and
+the script does not report it dead. `--self-test` pins that behaviour with an
+assertion; current signal is 5 unreferenced of 1775 (`demo_api_server`) and 15 of
+1253 (`demo_api_ui/src`). Those are reported, not deleted — several are
+manually-run tools.
 ### [ ] 2026-08-28 — `demo_api_server` dependencies never re-verified after the dead-code removal
 
 PR #2521 deleted 27 modules but deliberately left `package.json` untouched. The
@@ -2466,7 +2501,7 @@ either a schema requiring `secondaryTools` on every multi-step entry — noise o
 the ~50 single-tool use cases — or inferring tools from prose, which is guesswork.
 The exact-name floor catches the shape that actually bit us and costs nothing.
 
-### [ ] 2026-08-26 — `sensitive_passenger_record` requires only bare `read`, a weaker scope than its non-sensitive sibling
+### [x] 2026-08-26 — `sensitive_passenger_record` requires only bare `read`, a weaker scope than its non-sensitive sibling
 
 `scope-topology.json`:
 
@@ -2587,6 +2622,14 @@ Exchange #2 dies with `invalid_scope`.
 defect. Recorded in `REGRESSION_PLAN.md` §1 ("Airlines is THREE tiers, not two")
 so the next person does not re-file this finding — as I did.
 
+**Box ticked 2026-09-09** (`chore/tech-debt-status-sweep`) — bookkeeping only,
+no code change. The entry has read WITHDRAWN / "nothing to fix" since
+2026-08-27, but stayed unchecked and so kept counting against the open list.
+Closed as withdrawn, not as paid off: the conclusion is that the convention was
+never a defect. Re-verified against `scope-topology.json` today — the ten
+A2A-delegated tools still share the coarse `read` base scope with a dedicated
+`a2aDelegatedScope`, and `sensitive_airline_bookings` is still the singleton
+with no `a2aDelegatedScope` that made the convention look like an outlier.
 ### [x] 2026-08-26 — 143 gateway tools are intent-unreachable; only the 17 chip-driven ones were mapped
 
 `server.js` mints `intent = _TOOL_TO_INTENT[tool] || tool`, and the gateway then
