@@ -551,7 +551,10 @@ describe('Scope Policy Engine', () => {
       const testCases = [
         { tool: 'get_my_accounts', scopes: ['read'] },
         { tool: 'create_transfer', scopes: ['write'] },
-        { tool: 'query_user_by_email', scopes: ['ai_agent'] },
+        // 'ai_agent' until 2026-09-09: it is a delegation signal on the user
+        // token, stripped before the exchange, so it was never a scope this tool
+        // could match. oauth-mcp's toolScopeMap has always said ['read'].
+        { tool: 'query_user_by_email', scopes: ['read'] },
         { tool: 'admin_list_all_users', scopes: ['admin:read'] }
       ];
 

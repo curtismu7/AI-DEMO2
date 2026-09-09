@@ -35,7 +35,7 @@ export const AGENT_MCP_SCOPE_CATALOG = [
   {
     scope: 'ai:agent',
     label: 'User lookup (agent)',
-    description: 'Resolve user by email for agent workflows (query_user_by_email).',
+    description: 'Delegation marker for agent workflows. Not an exchange scope — it is stripped before token exchange.',
     group: 'specific',
   },
   // ── Agent identity marker ───────────────────────────────────────────────────

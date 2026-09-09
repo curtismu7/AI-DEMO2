@@ -145,7 +145,7 @@ cannot creep back in. It went from ~40 cases to 578. Negative proof: removing
 `audit:read` from the SoT again fails it with three named tools, which is
 exactly the drift that used to ship silently.
 
-### [ ] 2026-09-09 — `query_user_by_email` declares a scope it can never exchange
+### [x] 2026-09-09 — `query_user_by_email` declares a scope it can never exchange
 
 Found while extending the scope-audience parity gate to every tool surface.
 `query_user_by_email` (surface `exchange-only`) declares `ai_agent` as its ONLY
@@ -165,6 +165,43 @@ currently reports it failing, so the real-world impact is unmeasured.
 mirror that scope onto the MCP resources. If nothing calls it, delete it from
 the manifest. Until then the parity gate skips delegation-only scopes, so it
 does not fail on this.
+
+**RESOLVED — branch `fix/query-user-by-email-exchangeable-scope`.** Neither
+branch of the guess was needed: the answer was already written down in the MCP
+server. `oauth-mcp/src/tools/toolScopeMap.ts` — the map `TokenResolver` uses at
+exchange time — has always had `query_user_by_email: ['read']`. Only the BFF's
+SoT said `ai_agent`. So the manifest now says `read`, which is mirrored onto
+both MCP resources and therefore exchangeable.
+
+The delegation requirement `ai_agent` was standing in for is real (the tool is
+dispatched with the BFF-issued agent token — `BankingToolProvider.ts` errors
+with "requires an agent-delegated token" without one), so it moves to
+`requiresAgentMediation: true`, the SoT field that means exactly "needs an
+`act` claim". That is gated behind `ff_require_act_for_agent_tools`, so default
+behaviour is unchanged. It does NOT touch the PaC gate, which counts
+`a2aDelegated` (14), not `requiresAgentMediation` (now 29).
+
+The parity gate's delegation-only SKIP is replaced by an ASSERTION — "no tool
+declares a delegation-only scope as a requiredScope" — so the next tool to make
+this mistake reds CI instead of being quietly exempted. That is the whole
+defect class, in one test.
+
+Also corrected: `docs/TOKEN_FLOW.md`'s row for this tool, and the
+`ai:agent` entry in `demo_api_ui/src/config/agentMcpScopes.js`, which described
+itself as the scope for `query_user_by_email`.
+
+**Left alone deliberately.** Two inconsistencies inside `oauth-mcp` are visible
+from here and are NOT this entry:
+
+1. `BankingToolRegistry.ts` still declares `requiredScopes: ['ai_agent']` for
+   this tool, disagreeing with its own `toolScopeMap.ts`.
+2. That registry entry sets `requiresUserAuth: true`, which makes
+   `BankingToolProvider.ts`'s `if (!tool.requiresUserAuth)` branch — the one
+   holding the `executeQueryUserByEmail` agent-token dispatch quoted above —
+   unreachable for it.
+
+Both are MCP-server behaviour changes, not manifest drift, and neither is on
+the path this entry was about.
 
 ----
 ### [x] 2026-09-08 — UC29 "introspection outage — fail closed" cannot be demonstrated on this deployment

@@ -816,8 +816,9 @@
       "requiresAgentMediation": true
     },
     "query_user_by_email": {
-      "requiredScopes": ["ai_agent"],
-      "surface": "exchange-only"
+      "requiredScopes": ["read"],
+      "surface": "exchange-only",
+      "requiresAgentMediation": true
     },
     "admin_list_all_users": {
       "requiredScopes": ["admin:read", "users:read"],

@@ -416,7 +416,7 @@ Granted scopes: `read`, `identity:read`
 | `sensitive_tax_record` | gateway | `read` | consent |
 | `sensitive_student_finance` | gateway | `read` | consent |
 | `sensitive_supplier_contract` | gateway | `read` | consent |
-| `query_user_by_email` | exchange-only | `ai_agent` | — |
+| `query_user_by_email` | exchange-only | `read` | — |
 | `admin_list_all_users` | exchange-only | `admin:read` `users:read` | — |
 | `admin_get_user_details` | exchange-only | `admin:read` `users:read` | — |
 | `admin_delete_user` | exchange-only | `admin:write` `admin:delete` `users:manage` | — |
