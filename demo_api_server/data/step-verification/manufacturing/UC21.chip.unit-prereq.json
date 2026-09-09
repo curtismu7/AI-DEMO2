@@ -5,8 +5,8 @@
   "mode": "unit-prereq",
   "status": "UNPROVEN",
   "errorClass": null,
-  "primaryTool": "approve_purchase_order",
-  "checkedAt": "2026-08-29",
+  "primaryTool": "sensitive_supplier_contract",
+  "checkedAt": "2026-09-09",
   "requiredFlags": [
     "ff_mcp_gateway_pinggateway"
   ],

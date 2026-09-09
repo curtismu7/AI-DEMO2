@@ -5,8 +5,8 @@
   "mode": "unit-prereq",
   "status": "UNPROVEN",
   "errorClass": null,
-  "primaryTool": "pay_bill",
-  "checkedAt": "2026-08-29",
+  "primaryTool": "sensitive_patient_records",
+  "checkedAt": "2026-09-09",
   "requiredFlags": [
     "ff_mcp_gateway_pinggateway"
   ],
