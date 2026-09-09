@@ -7764,9 +7764,28 @@ export default function BankingAgent({
       setFilterModalKind({ userFilter: "user", appFilter: "app", toolFilter: "tool" }[uc.trigger.queryPrompt]);
       return;
     }
-    markUseCaseCompleted(uc.id);
     const stepLabel = `Demo step ${stepNumber}: ${uc.id} — ${uc.title}`;
     const trigger = uc.trigger || {};
+    // Only the step's own auth level decides whether it may run — and "a
+    // session" is not one level: an admin step asks a signed-in customer for
+    // an ADMIN sign-in rather than accepting theirs. Computed once here so
+    // every trigger type is gated the same way; the link and attack branches
+    // used to skip this and fired a 401 (plus the global "please sign in"
+    // banner) for a signed-out click.
+    const stepAuth = authLevelOf(uc);
+    const stepNeedsAuth = !viewerMeetsUseCaseAuth(uc, { isLoggedIn, isAdmin: isAdminUser });
+    const signInPrompt = () =>
+      addMessage(
+        "assistant",
+        stepAuth === "admin"
+          ? `${stepLabel} needs an admin sign-in — it'll run as soon as you're in.`
+          : `${stepLabel} needs you signed in — it'll run as soon as you do.`,
+        null,
+        {
+          showLoginPromptAction: true,
+          loginActionId: stepAuth === "admin" ? "login_admin" : "login_user",
+        },
+      );
 
     // Flag arming PATCHes an admin route, which 401s for a signed-out visitor —
     // and that 401 raised the global "please sign in" banner over a use case
@@ -7796,30 +7815,21 @@ export default function BankingAgent({
       // `/dashboard` allow guests to chat, which used to be read as "this step
       // may run" — so a signed-out visitor picking a non-public step sent it,
       // got a 401, and was bounced to PingOne mid-answer instead of seeing the
-      // sign-in prompt this branch exists to show. Only the step's own auth
-      // level decides — and "a session" is not one level: an admin step asks a
-      // signed-in customer for an ADMIN sign-in rather than accepting theirs.
-      const stepAuth = authLevelOf(uc);
-      const stepNeedsAuth = !viewerMeetsUseCaseAuth(uc, { isLoggedIn, isAdmin: isAdminUser });
+      // sign-in prompt this branch exists to show.
       pendingUcAuthRef.current = stepNeedsAuth ? stepAuth : null;
       // Not eligible to send yet — queue the step anyway (below) and show an
       // actionable sign-in prompt instead of returning with nothing; the resume
       // effect fires it the moment the right login lands.
       if (stepNeedsAuth) {
-        addMessage(
-          "assistant",
-          stepAuth === "admin"
-            ? `${stepLabel} needs an admin sign-in — it'll run as soon as you're in.`
-            : `${stepLabel} needs you signed in — it'll run as soon as you do.`,
-          null,
-          {
-            showLoginPromptAction: true,
-            loginActionId: stepAuth === "admin" ? "login_admin" : "login_user",
-          },
-        );
+        signInPrompt();
       } else {
         addMessage("assistant", `Running ${stepLabel}…`);
       }
+      // A chip is sent now or queued to send the moment the right login lands
+      // — either way the presenter has committed the step. (Queued chips are
+      // ticked here rather than in the resume effect, which only knows the
+      // catalog slug.)
+      markUseCaseCompleted(uc.id);
       setNlResumeAfterAuth(trigger.text);
       return;
     }
@@ -7827,6 +7837,16 @@ export default function BankingAgent({
     if (trigger.type === "edu" && trigger.panel) {
       edu?.open(trigger.panel, trigger.tab || "overview");
       addMessage("assistant", `${stepLabel} — opened learning panel.`);
+      markUseCaseCompleted(uc.id);
+      return;
+    }
+
+    // Link and attack steps run immediately, so there is nothing to queue: a
+    // step the viewer may not run yet just shows the sign-in prompt. Without
+    // this, a signed-out UC14b quick result POSTed an authenticated route,
+    // 401'd, and raised the app-wide session banner — with a ✓ on the step.
+    if (stepNeedsAuth) {
+      signInPrompt();
       return;
     }
 
@@ -7871,6 +7891,7 @@ export default function BankingAgent({
             } catch (_) { /* display-only — never break the reply */ }
           }
           try { tokenChainTraceStore.completeTrace(!isDeny); } catch (_) {}
+          markUseCaseCompleted(uc.id);
         } catch (err) {
           addMessage(
             "assistant",
@@ -7884,6 +7905,7 @@ export default function BankingAgent({
       }
       addMessage("assistant", `${stepLabel} — opening ${trigger.path}.`);
       navigate(trigger.path);
+      markUseCaseCompleted(uc.id);
       return;
     }
 
@@ -7932,6 +7954,9 @@ export default function BankingAgent({
         // trace — without this the rail shows the run stuck at the chatbot
         // instead of the gateway DENY.
         try { tokenChainTraceStore.completeTrace(!isDeny); } catch (_) {}
+        // Ticked only once the sim has actually answered — a click that
+        // failed before the sim ran used to show ✓ all the same.
+        markUseCaseCompleted(uc.id);
       } catch (err) {
         addMessage(
           "assistant",
