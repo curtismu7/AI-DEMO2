@@ -53,14 +53,18 @@
       "delegates": {
         "name": "AI_Demo_Delegates",
         "description": "Users authorized as delegated agents. One group serves every vertical."
+      },
+      "premiumTier": {
+        "name": "SportingGoods_PremiumTier",
+        "description": "Entitlement tier that gates this vertical's sensitive tool (UC21 permits, UC9 denies). Scoped to this vertical so a UC9 run does not deny the other eleven."
       }
     },
     "restrictedTools": {
-      "sensitive_membership_details": "privileged"
+      "sensitive_membership_details": "premiumTier"
     },
     "userMemberships": {
-      "demoUser": ["privileged"],
-      "demoAdmin": ["privileged"],
+      "demoUser": ["privileged", "premiumTier"],
+      "demoAdmin": ["privileged", "premiumTier"],
       "demoDelegate": ["privileged"]
     }
   },

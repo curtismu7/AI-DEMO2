@@ -76,7 +76,7 @@
       }
     },
     "restrictedTools": {
-      "get_sensitive_account_details": "privileged"
+      "get_sensitive_account_details": "premiumTier"
     },
     "userMemberships": {
       "demoUser": ["privileged", "premiumTier"],
