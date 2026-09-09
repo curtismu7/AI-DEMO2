@@ -397,6 +397,14 @@ function permittedToolsForIntent(intent, vertical) {
   // self-granting entries and cannot drift when a heuristic or tool is added.
   const dispatchable = dispatchableToolsFor(vertical);
   if (dispatchable && dispatchable.has(intent)) return [intent];
+  // UC2.5: delegate_to_specialist is not a gateway tool — the A2A specialist
+  // runs the vertical's sensitive read on the user's behalf, so permit exactly
+  // the tools that specialist is provisioned for (config/a2aSpecialists.js).
+  if (intent === 'delegate_to_specialist') {
+    const { specialistForVertical } = require('../config/a2aSpecialists');
+    const tools = specialistForVertical(vertical)?.tools;
+    if (Array.isArray(tools) && tools.length) return tools;
+  }
   // Unknown/unclassified intent: restrict to the current vertical's non-sensitive
   // reads instead of every read tool across every vertical (which exposed
   // get_sensitive_account_details / query_user_by_email / other verticals' data to
