@@ -354,8 +354,16 @@ describe('buildAllowedScopesByAudience()', () => {
   it('unions scopes when MCP server + gateway audiences collapse to the same URI (transfer survives)', () => {
     // In this demo the MCP server validates the GATEWAY aud, so both resource
     // URIs collapse to mcpgateway.ping.demo. The mapping must UNION the two
-    // scope sets — a plain overwrite let the server block (no transfer/ai:agent)
+    // scope sets — a plain overwrite let the server block (no transfer)
     // clobber the gateway block, which silently denied create_transfer.
+    //
+    // `ai:agent` was asserted here until 2026-09-09, when the two MCP lists
+    // became manifest-derived. It is a DELEGATION scope on the user token, not
+    // an exchange scope: agentMcpTokenService strips it (DELEGATION_ONLY_SCOPES)
+    // before validateScopeAudience is ever called, so its presence in the
+    // allow-list could never affect an exchange. `admin:read` replaces it here
+    // as a scope that IS requestable and only reaches this audience through the
+    // union — the 14 admin `exchange-only` tools require it.
     const prevServer = process.env.PINGONE_RESOURCE_MCP_SERVER_URI;
     process.env.PINGONE_RESOURCE_MCP_SERVER_URI = 'mcpgateway.ping.demo';
     try {
@@ -363,7 +371,7 @@ describe('buildAllowedScopesByAudience()', () => {
       cs._cache['PINGONE_RESOURCE_MCP_SERVER_URI'] = '';
       const mapping = cs.buildAllowedScopesByAudience();
       expect(mapping['mcpgateway.ping.demo']).toEqual(
-        expect.arrayContaining(['transfer', 'ai:agent', 'mcp:invoke', 'read', 'write', 'records:read']),
+        expect.arrayContaining(['transfer', 'admin:read', 'mcp:invoke', 'read', 'write', 'records:read']),
       );
     } finally {
       process.env.PINGONE_RESOURCE_MCP_SERVER_URI = prevServer;
