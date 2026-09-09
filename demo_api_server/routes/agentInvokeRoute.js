@@ -323,7 +323,10 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
     const intentTokenEnabled = configStore.getEffective('ff_intent_token_enabled') !== 'false';
 
     if (intentTokenEnabled) {
-      const { intent: _itIntent, confidence: _itConf } = extractIntentFromPrompt(prompt);
+      // Vertical-aware: the regex extractor alone classifies most vertical
+      // chips as "unknown", whose permitted_tools exclude the sensitive reads
+      // UC2/UC2.5 delegate — see extractIntentAndConfidence.
+      const { intent: _itIntent, confidence: _itConf } = extractIntentAndConfidence(prompt, vertical);
       const { token: _intentToken } = mintIntentToken({
         userId,
         sessionId: req.session?.id || null,

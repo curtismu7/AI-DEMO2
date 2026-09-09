@@ -209,7 +209,7 @@ const AMOUNT_RE =
  *   - Single keyword match (e.g., just "transfer"): 0.65
  *   - Ambiguous/unknown: 0.3
  */
-function extractIntentAndConfidence(message) {
+function extractIntentAndConfidence(message, vertical) {
   const t = norm(message);
 
   if (t === "find where the bff performs mcp token exchange") {
@@ -356,6 +356,26 @@ function extractIntentAndConfidence(message) {
     return { intent: "view_permits", toolName: "view_permits", confidence: 0.8 };
   if (/\b(fees?|pay fee)\b/.test(t))
     return { intent: "view_fees", toolName: "view_fees", confidence: 0.8 };
+
+  // The regexes above are vertical-blind, so most vertical chips (UC2's
+  // "show my sensitive membership details", UC2.5's "delegate this to a
+  // specialist") fall through here. Minting "unknown" restricts the intent
+  // token's permitted_tools to the vertical's non-sensitive reads, and the
+  // gateway then denies the very tool the chip exists to call with
+  //   intent_mismatch: tool "sensitive_membership_details" not permitted for intent "unknown"
+  // When the caller knows the vertical, ask the vertical-aware heuristic
+  // (the same parse that will dispatch the tool) and mint THAT action, the
+  // way server.js's /mcp/tool path mints the tool name. Callers that omit
+  // `vertical` (the pre-execution risk gate) keep the regex-only answer.
+  if (vertical) {
+    try {
+      const p = parseHeuristic(message, vertical, resolveVerticalCtx(vertical), {});
+      const action = p?.banking?.action ?? p?.action;
+      if (action && action !== "none") {
+        return { intent: action, toolName: action, confidence: 0.5 };
+      }
+    } catch (_) { /* fall through to unknown */ }
+  }
 
   // Unknown/ambiguous intent
   return { intent: "unknown", toolName: null, confidence: 0.3 };

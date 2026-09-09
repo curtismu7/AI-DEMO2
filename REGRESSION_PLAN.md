@@ -140,6 +140,43 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-08 — UC2 / UC2.5 A2A delegation denied in every non-banking vertical: intent token minted "unknown"
+
+**Files changed:** `demo_api_server/services/nlIntentParser.js`,
+`demo_api_server/services/intentTokenService.js`,
+`demo_api_server/routes/agentInvokeRoute.js`,
+`demo_api_server/tests/intentToken.a2aDelegation.regression.test.js` (new).
+
+**What was broken:** Demo steps UC2 ("show my sensitive membership details")
+and UC2.5 ("delegate this to a specialist") replied `❌ Delegated to
+Membership Specialist, but sensitive_membership_details failed:
+gateway_policy_denied` in Super Sports and every other non-banking vertical.
+`/api/agent/invoke` minted the Intent Token from `extractIntentAndConfidence`,
+a vertical-blind regex list that returns `unknown` for both chips. Unknown
+intents are limited to the vertical's non-sensitive reads, so the A2A gateway
+denied with `intent_mismatch: tool "sensitive_membership_details" not
+permitted for intent "unknown"`. Banking passed only because
+`get_portfolio_summary` happens to sit in its read list. Found by the
+2026-09-08 live Demo Steps review.
+
+**What was fixed:** `extractIntentAndConfidence(message, vertical)` takes an
+optional vertical; when the regexes miss and the vertical is known it mints
+the vertical-aware heuristic action (the same parse that dispatches the tool)
+at confidence 0.5 — the way the `/mcp/tool` path already mints the tool name.
+`permittedToolsForIntent('delegate_to_specialist', vertical)` permits the
+vertical specialist's own tools. Only the mint site in the invoke route passes
+the vertical; the pre-execution risk gate still calls the regex-only form, so
+its 403/428 behaviour is unchanged.
+
+**Do not break:** the pre-execution gate (`ff_intent_authorization_enabled`)
+must keep calling the extractor WITHOUT a vertical — passing one would route
+every chip through `evaluateIntentAuthorization`'s conservative-consent
+fallback. Chips that map to a single dispatchable tool now mint exactly that
+tool; a flow that calls a second gateway tool needs an `INTENT_TO_PERMITTED_TOOLS`
+entry (the `chipReachability` gate covers chips).
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/intentToken tests/intentTokenService tests/agentRun.intentTokenMint tests/agentInvoke tests/intentAuthService tests/nlIntentParser.writeIntents` — 312 passed; live: UC2 and UC2.5 in Super Sports reply `Delegation complete — Membership Specialist retrieved sensitive membership details…`.
+
 ### 2026-09-08 — A BFF restart silently dropped every Privilege gateway token
 
 **Files changed:** `demo_api_server/routes/privilegeMcpClient.js`,
