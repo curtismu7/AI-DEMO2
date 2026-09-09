@@ -83,6 +83,15 @@ function _authDiagnosis(token) {
             + 'Point PINGONE_MCP_ENVIRONMENT_ID at the admin environment AND mint the delegated token from that '
             + 'same environment\'s authorization server (routes/mcpPingOneAdminAuth.js). Roles are not the issue.';
     }
+    // Agreeing on the wrong environment is not the same as being right. Say so
+    // before the "matches, so it must be permissions" branch below can mislead.
+    if (wantEnv && tokenEnv && tokenEnv === wantEnv[1] && !_adminEnvConfigured()) {
+        return `PINGONE_MCP_ENVIRONMENT_ID is not set, so this URL fell back to environment ${wantEnv[1]} `
+            + 'and the token was minted there too. They agree — on the environment being administered, which '
+            + 'is the wrong one. PingOne serves the admin-plane MCP from the ORGANISATION\'S ADMINISTRATORS '
+            + 'environment, and one such endpoint covers the whole org. Set PINGONE_MCP_ENVIRONMENT_ID to it, '
+            + 'and PINGONE_MCP_ADMIN_CLIENT_ID to an OIDC app registered there. Roles are not the issue.';
+    }
     if (wantEnv && tokenEnv && tokenEnv === wantEnv[1]) {
         return `issuer environment ${tokenEnv} matches this endpoint, so this is a permissions or client problem `
             + 'rather than a wrong-environment one — check the signed-in user\'s admin roles and that the OIDC '
@@ -117,6 +126,23 @@ function _mcpUrl(overrides = {}) {
         || configStore.getEffective('PINGONE_ENVIRONMENT_ID');
     if (!envId) throw new Error('PingOne MCP: environment ID not configured');
     return `https://mcp.pingone.${region}/admin/${envId}/mcp`;
+}
+
+/**
+ * Has an admin environment actually been named, or is _mcpUrl() silently
+ * falling back to the resource environment?
+ *
+ * The fallback makes the endpoint and the issuer AGREE — on the wrong
+ * environment. Without this check the diagnosis read "issuer matches this
+ * endpoint, so this is a permissions problem", which is the same wrong turn
+ * that cost days before: it sends the reader back to roles and scopes when the
+ * real answer is that nobody set the variable.
+ */
+function _adminEnvConfigured() {
+    return Boolean(
+        process.env.PINGONE_MCP_ENVIRONMENT_ID
+        || configStore.getEffective('PINGONE_MCP_ENVIRONMENT_ID'),
+    );
 }
 
 /** The environment id embedded in a PingOne issuer URL, or null. */

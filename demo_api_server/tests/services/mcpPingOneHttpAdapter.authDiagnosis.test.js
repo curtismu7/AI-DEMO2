@@ -102,6 +102,28 @@ describe('a 401 from the hosted MCP names which 401 it is', () => {
     );
   });
 
+  // Agreeing on the wrong environment is not the same as being right. The
+  // fallback makes issuer and endpoint match, and reporting that as "matches,
+  // so it must be permissions" is the same wrong turn that cost days before.
+  test('an UNSET admin var is named, not reported as a permissions problem', async () => {
+    delete process.env.PINGONE_MCP_ENVIRONMENT_ID;
+    axios.post.mockRejectedValue(httpErr(401, 'Invalid authentication'));
+    const token = jwt({ iss: iss(RESOURCE_ENV) });
+
+    await expect(adapter.listTools(token)).rejects.toThrow(/PINGONE_MCP_ENVIRONMENT_ID is not set/);
+    await expect(adapter.listTools(token)).rejects.toThrow(/ADMINISTRATORS/);
+    await expect(adapter.listTools(token)).rejects.not.toThrow(/permissions or client problem/);
+    await expect(adapter.listTools(token)).rejects.toThrow(/PingOne MCP HTTP 401/);
+  });
+
+  test('with the admin var SET, a matching issuer is still a permissions problem', async () => {
+    axios.post.mockRejectedValue(httpErr(401, 'Invalid authentication'));
+    const token = jwt({ iss: iss(ADMIN_ENV) });
+
+    await expect(adapter.listTools(token)).rejects.toThrow(/permissions or client problem/);
+    await expect(adapter.listTools(token)).rejects.not.toThrow(/is not set/);
+  });
+
   test('a non-JWT credential is reported as such rather than crashing the handler', async () => {
     axios.post.mockRejectedValue(httpErr(401, 'Invalid authentication'));
 
