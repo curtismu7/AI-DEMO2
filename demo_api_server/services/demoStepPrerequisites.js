@@ -210,6 +210,17 @@ function checkChipPrerequisites(uc, vertical, cfg) {
       errors.push(`PAR config missing: ${par.missing.join(', ')}`);
     }
   }
+  // A group-gated chip needs live PingOne worker credentials to move membership;
+  // without them the toggle 503s and the run cannot demonstrate what it claims.
+  if (uc && (uc.requiresGroup === 'in' || uc.requiresGroup === 'out')) {
+    const groupPolicy = require('./groupPolicy');
+    if (!groupPolicy.isEnabled(cfg)) {
+      errors.push('ff_authorize_group_policy is off, so group membership decides nothing');
+    }
+    if (!groupPolicy.groupNameForCategory(vertical, 'premiumTier')) {
+      errors.push(`vertical '${vertical}' declares no premiumTier group`);
+    }
+  }
   return {
     ok: errors.length === 0,
     requiredFlags,

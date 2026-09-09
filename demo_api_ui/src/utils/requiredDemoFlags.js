@@ -52,6 +52,15 @@ export function requiredFlagsForUseCase(uc) {
 }
 
 /**
+ * Client mirror of getUseCaseGroupRequirement (demo_api_server/config/useCases.js).
+ * @returns {'in'|'out'|null}
+ */
+export function groupRequirementForUseCase(uc) {
+  if (!uc || typeof uc !== 'object') return null;
+  return (uc.requiresGroup === 'in' || uc.requiresGroup === 'out') ? uc.requiresGroup : null;
+}
+
+/**
  * @param {string|undefined} useCaseId
  * @param {object[]} [catalog]
  * @returns {string[]}

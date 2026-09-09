@@ -37,7 +37,7 @@ import {
   getCompletedUseCaseIds,
   markUseCaseCompleted,
 } from '../utils/useCaseDemoProgress';
-import { requiredFlagsForUseCase } from '../utils/requiredDemoFlags';
+import { requiredFlagsForUseCase, groupRequirementForUseCase } from '../utils/requiredDemoFlags';
 import {
   DEMO_USE_CASE_IDS,
   DEMO_USE_CASE_LABEL,
@@ -793,6 +793,28 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
         await apiClient.patch('/api/admin/feature-flags', { updates }, { _noAuthBanner: true });
       } catch (e) {
         console.warn('[handleRun] Could not auto-enable flags:', e.message);
+      }
+    }
+    // Group-gated use cases (UC9/UC21) need the demo user really in or out of the
+    // vertical's premiumTier group before the chip fires. Unlike flag arming above,
+    // this MUST block: the endpoint reads membership back from PingOne precisely so
+    // a write that did nothing cannot report success, and a chip fired against
+    // unverified membership produces a verdict that proves nothing.
+    const groupReq = groupRequirementForUseCase(uc);
+    if (groupReq) {
+      try {
+        const { data: m } = await apiClient.post(
+          '/api/groups/membership/toggle',
+          { inGroup: groupReq === 'in', category: 'premiumTier' },
+          { _noAuthBanner: true },
+        );
+        if (m?.verified !== true || m?.inGroup !== (groupReq === 'in')) {
+          throw new Error(`membership not verified (wanted inGroup=${groupReq === 'in'}, got ${m?.inGroup})`);
+        }
+      } catch (e) {
+        const detail = e?.response?.data?.message || e.message;
+        setChipRun({ id: uc.id, state: 'error', message: `Could not set group membership: ${detail}` });
+        return;
       }
     }
     apiClient.post('/api/use-cases/demo/run', { useCaseId, vertical })
