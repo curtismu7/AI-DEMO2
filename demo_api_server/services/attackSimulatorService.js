@@ -383,6 +383,27 @@ function _gatewayExchangeTarget(toolScopes) {
 }
 
 /**
+ * The Node Demo Agent Gateway's URL, whichever gateway is active.
+ *
+ * UC5 (per-tool scope), UC18 (rate limiter) and UC29 (introspection
+ * fail-closed) are controls only the Node gateway implements or exposes:
+ * PingGateway's inbound resource carries just the hop scope (its scope
+ * backstop skips by design), it has no /admin/config, and its uc18 limiter is
+ * env-fixed. Sending these sims to the ACTIVE gateway under PingGateway turned
+ * every one into a perimeter 403 (wrong aud / missing gateway:mcp:invoke) that
+ * the sim then relabelled as its own control — measured live 2026-09-08: UC18
+ * 403 instead of 429, UC29 403 instead of 503, UC5 "Gateway policy denied"
+ * instead of a scope miss. Target the gateway that enforces the control.
+ * mcp_demo_gateway_url, not MCP_GATEWAY_HTTP_URL — the latter is baked
+ * per-container and may point at IG (#375).
+ */
+function _nodeGatewayUrl() {
+  const url = (process.env.MCP_DEMO_GATEWAY_URL
+    || configStore.getEffective('mcp_demo_gateway_url') || '').replace(/\/$/, '');
+  return url || getMcpGatewayHttpUrl();
+}
+
+/**
  * Exchange the session token to the gateway audience and record token-chain events.
  * @returns {Promise<{ ok: true, token: string } | { ok: false, result: object }>}
  */
@@ -467,8 +488,13 @@ function _denyFromGateway(sim, useCaseId, tokenChainEvents, err, fallbackStatus,
     triedAudience,
     allowedAudience,
   } = _parseGatewayError(err, fallbackStatus);
-  const errorCode = canonicalCode || rawCode;
-  const httpStatus = canonicalCode ? fallbackStatus : rawStatus;
+  // The canonical code names the control the sim proves. Only a security-tier
+  // refusal (401/403) can be that control; a 5xx (gateway unreachable, timeout,
+  // schema 400) is the sim failing to run, and relabelling it made an outage
+  // read as "401 DENY — token audience does not match" (2026-09-08 review).
+  const rawIsDeny = rawStatus === 401 || rawStatus === 403;
+  const errorCode = canonicalCode && rawIsDeny ? canonicalCode : rawCode;
+  const httpStatus = canonicalCode && rawIsDeny ? fallbackStatus : rawStatus;
 
   // Surface the REAL PingOne Authorize decision the gateway returned (when it
   // reached Authorize at all — see _authorizeFromGatewayError). This is the
@@ -480,9 +506,12 @@ function _denyFromGateway(sim, useCaseId, tokenChainEvents, err, fallbackStatus,
   // description keyed on the canonical code > the gateway's generic body. The
   // generic fallback ("Gateway policy denied the tool call") is the LAST resort
   // so every sim reads distinctly and names the control that blocked it.
+  // "PingOne Authorize DENY" only when Authorize really answered (`authorize`
+  // is its audit record); a gateway-local refusal (audience binding, scope
+  // check) is a gateway DENY and says so.
   const controlReason = (authorize && authorize.reason) || CANONICAL_DENY_REASON[errorCode] || null;
   const reason = controlReason
-    ? `PingOne Authorize DENY — ${controlReason}`
+    ? `${authorize ? 'PingOne Authorize' : 'Gateway'} DENY — ${controlReason}`
     : rawReason;
 
   // Keep both audience values on the deny event so the Token Chain gateway step
@@ -541,7 +570,7 @@ function _denyFromPipeline(sim, useCaseId, tokenChainEvents, outcome, canonicalC
 
   const controlReason = (authorize && authorize.reason) || CANONICAL_DENY_REASON[errorCode] || null;
   const reason = controlReason
-    ? `PingOne Authorize DENY — ${controlReason}`
+    ? `${authorize ? 'PingOne Authorize' : 'Gateway'} DENY — ${controlReason}`
     : ((outcome.body && outcome.body.message) || `Pipeline rejected the call (HTTP ${httpStatus})`);
 
   stampUseCaseId(tokenChainEvents, useCaseId);
@@ -737,11 +766,16 @@ async function _runInsufficientScope(subjectToken, useCaseId, tokenChainEvents) 
   //   code: 'mcp_tool_error' + httpStatus: 200  (JSON-RPC error in 200 response)
   //   code: 'gateway_policy_denied' + httpStatus: 403  (gateway-layer 403)
   // Both are canonicalized to the sim's reason-distinct code 'insufficient_scope'.
+  // Node Demo Agent Gateway explicitly (see _nodeGatewayUrl) — the read-only
+  // token minted above is only "insufficient" at a gateway that checks per-tool
+  // scopes on the inbound token. from_account_id: the gateway's arg schema
+  // (mcp-tool-schemas.json) requires it, so the call reaches the scope check
+  // instead of a 400.
   const simTool = 'create_transfer';
-  const simArgs = { amount: 1, toAccountId: 'sim-acc-001' };
+  const simArgs = { amount: 1, from_account_id: 'sim-acc-002', to_account_id: 'sim-acc-001' };
   try {
     await callToolViaGateway(
-      null,
+      _nodeGatewayUrl(),
       exchangedToken,
       simTool,
       simArgs
@@ -924,7 +958,6 @@ async function _runWrongAud(subjectToken, useCaseId, tokenChainEvents) {
 async function _runRateLimitBurst(subjectToken, useCaseId, tokenChainEvents) {
   const sim = 'rate-limit-burst';
   const gatewayAud = _gatewayAud();
-  const usePing = configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
 
   if (!gatewayAud) {
     return {
@@ -948,52 +981,43 @@ async function _runRateLimitBurst(subjectToken, useCaseId, tokenChainEvents) {
     };
   }
 
-  if (usePing) {
-    const { getBffRateLimitConfig } = require('./mcpGatewayRateLimit');
-    const bffCfg = getBffRateLimitConfig();
-    tokenChainEvents.push(buildTokenEvent(
-      'sim-rate-limit-armed',
-      'BFF edge rate limit armed (UC18 / PingOne IG)',
-      'active',
-      null,
-      `BFF throttles before IG/P1AZ: max ${bffCfg.maxRequests} calls per ` +
-      `${bffCfg.windowMs}ms per (agent, tool) key.`,
-    ));
-  } else {
-    let gatewayUrl;
-    try {
-      gatewayUrl = getMcpGatewayHttpUrl();
-    } catch (err) {
-      return {
-        sim, useCaseId,
-        status: 503,
-        errorCode: 'gateway_not_configured',
-        reason: err.message,
-        tokenChainEvents,
-      };
-    }
-
-    const { pushGatewayAdminConfig } = require('../routes/mcpGatewayConfig');
-    const pushResult = await pushGatewayAdminConfig(gatewayUrl, UC18_DEMO_RATE_LIMIT);
-    if (!pushResult.ok) {
-      return {
-        sim, useCaseId,
-        status: 502,
-        errorCode: 'gateway_push_failed',
-        reason: pushResult.error || 'Could not enable rate limiting on gateway',
-        tokenChainEvents,
-      };
-    }
-
-    tokenChainEvents.push(buildTokenEvent(
-      'sim-rate-limit-armed',
-      'Gateway rate limit armed (UC18)',
-      'active',
-      null,
-      `Pushed demo limits to gateway: max ${UC18_DEMO_RATE_LIMIT.rateLimitMaxRequests} calls per ` +
-      `${UC18_DEMO_RATE_LIMIT.rateLimitWindowMs}ms per (agent, tool) key.`,
-    ));
+  // Always the Node Demo Agent Gateway (see _nodeGatewayUrl): it is the only
+  // gateway with a pushable limiter. The former PingGateway branch narrated a
+  // "BFF edge" limiter that no longer exists (shouldApplyBffRateLimit is a
+  // deprecated `false`) and then burst against IG, where the perimeter 403'd.
+  let gatewayUrl;
+  try {
+    gatewayUrl = _nodeGatewayUrl();
+  } catch (err) {
+    return {
+      sim, useCaseId,
+      status: 503,
+      errorCode: 'gateway_not_configured',
+      reason: err.message,
+      tokenChainEvents,
+    };
   }
+
+  const { pushGatewayAdminConfig } = require('../routes/mcpGatewayConfig');
+  const pushResult = await pushGatewayAdminConfig(gatewayUrl, UC18_DEMO_RATE_LIMIT);
+  if (!pushResult.ok) {
+    return {
+      sim, useCaseId,
+      status: 502,
+      errorCode: 'gateway_push_failed',
+      reason: pushResult.error || 'Could not enable rate limiting on gateway',
+      tokenChainEvents,
+    };
+  }
+
+  tokenChainEvents.push(buildTokenEvent(
+    'sim-rate-limit-armed',
+    'Gateway rate limit armed (UC18)',
+    'active',
+    null,
+    `Pushed demo limits to the Demo Agent Gateway: max ${UC18_DEMO_RATE_LIMIT.rateLimitMaxRequests} calls per ` +
+    `${UC18_DEMO_RATE_LIMIT.rateLimitWindowMs}ms per (agent, tool) key.`,
+  ));
 
   let exchangedToken;
   try {
@@ -1016,9 +1040,13 @@ async function _runRateLimitBurst(subjectToken, useCaseId, tokenChainEvents) {
   const burstCount = 5;
   let rateLimitedHit = null;
 
+  // The limiter is keyed per (sub, tool) and the gateway keeps it armed until
+  // told otherwise — without the disarm below, every later demo step that
+  // retried this tool within the window 429'd and looked like a broken demo.
+  try {
   for (let i = 0; i < burstCount; i++) {
     try {
-      await callToolViaGateway(null, exchangedToken, 'get_my_accounts', {});
+      await callToolViaGateway(gatewayUrl, exchangedToken, 'get_my_accounts', {});
       tokenChainEvents.push(buildTokenEvent(
         `sim-burst-${i + 1}`,
         `Burst call ${i + 1} PERMIT`,
@@ -1051,6 +1079,9 @@ async function _runRateLimitBurst(subjectToken, useCaseId, tokenChainEvents) {
       stampUseCaseId(tokenChainEvents, useCaseId);
       return { sim, useCaseId, status: httpStatus, errorCode, reason, tokenChainEvents };
     }
+  }
+  } finally {
+    await pushGatewayAdminConfig(gatewayUrl, { rateLimitEnabled: false });
   }
 
   stampUseCaseId(tokenChainEvents, useCaseId);
@@ -1099,30 +1130,25 @@ async function _runIntrospectionDown(subjectToken, useCaseId, tokenChainEvents) 
   }
 
   // PingGateway (IG) has no /admin/config and no introspectionSimDown toggle —
-  // this sim is Demo Agent Gateway-only (GatewayIntrospectionClient.ts). Arming
-  // it against IG 404s at the admin-config push, so skip the push on that path
-  // (mirrors the usePingGateway guard the RAR sims already use).
-  const usePingGateway = configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
-
-  let gatewayUrl = null;
-  if (!usePingGateway) {
-    try {
-      gatewayUrl = getMcpGatewayHttpUrl();
-    } catch (err) {
-      return {
-        sim, useCaseId,
-        status: 503,
-        errorCode: 'gateway_not_configured',
-        reason: err.message,
-        tokenChainEvents,
-      };
-    }
+  // this sim is Demo Agent Gateway-only (GatewayIntrospectionClient.ts), so it
+  // targets the Node gateway explicitly whichever gateway is active (see
+  // _nodeGatewayUrl). Skipping the arm under IG and calling IG instead gave a
+  // perimeter 403 labelled "FAILED CLOSED (503)".
+  let gatewayUrl;
+  try {
+    gatewayUrl = _nodeGatewayUrl();
+  } catch (err) {
+    return {
+      sim, useCaseId,
+      status: 503,
+      errorCode: 'gateway_not_configured',
+      reason: err.message,
+      tokenChainEvents,
+    };
   }
 
   const { pushGatewayAdminConfig } = require('../routes/mcpGatewayConfig');
-  const armResult = usePingGateway
-    ? { ok: true }
-    : await pushGatewayAdminConfig(gatewayUrl, { introspectionSimDown: true });
+  const armResult = await pushGatewayAdminConfig(gatewayUrl, { introspectionSimDown: true });
   if (!armResult.ok) {
     return {
       sim, useCaseId,
@@ -1138,9 +1164,7 @@ async function _runIntrospectionDown(subjectToken, useCaseId, tokenChainEvents) 
     'Introspection outage armed (UC29)',
     'active',
     null,
-    usePingGateway
-      ? 'PingGateway performs its own RFC 7662 introspection directly against PingOne — the Demo Agent Gateway simulated-outage toggle does not apply on that path.'
-      : 'Pushed introspectionSimDown:true to the gateway — the next call fails RFC 7662 introspection closed.',
+    'Pushed introspectionSimDown:true to the Demo Agent Gateway — the next call fails RFC 7662 introspection closed.',
   ));
 
   let exchangedToken;
@@ -1166,15 +1190,31 @@ async function _runIntrospectionDown(subjectToken, useCaseId, tokenChainEvents) 
       return { sim, useCaseId, status: 502, errorCode, reason, tokenChainEvents };
     }
 
-    await callToolViaGateway(null, exchangedToken, 'get_my_accounts', {});
-    // No throw means the gateway did NOT fail closed as expected.
+    await callToolViaGateway(gatewayUrl, exchangedToken, 'get_my_accounts', {});
+    // No throw means the gateway never introspected: the sim flag is the FIRST
+    // check in GatewayIntrospectionClient.introspect(), so a call that
+    // succeeds while armed can only mean introspection was not performed —
+    // this deployment runs the Demo Agent Gateway with
+    // GW_INTROSPECTION_ENABLED=false (local JWT signature validation). That is
+    // not a permit the control failed to stop; it is a control that does not
+    // exist here, and it must not render as PERMIT or DENY (measured live
+    // 2026-09-08: 200 "unexpected_permit" read as a green PERMIT).
+    const notPerformed = 'The Demo Agent Gateway did not introspect the token '
+      + '(GW_INTROSPECTION_ENABLED=false — it validates JWT signatures locally), so an '
+      + 'RFC 7662 introspection outage cannot be simulated on this deployment. Enable '
+      + 'introspection on the gateway to run UC29.';
+    tokenChainEvents.push(buildTokenEvent(
+      'sim-introspection-not-performed',
+      'Introspection not performed (sim not applicable)',
+      'warning',
+      null,
+      notPerformed,
+    ));
     result = {
       sim, useCaseId,
-      status: 200,
-      errorCode: 'unexpected_permit',
-      reason: usePingGateway
-        ? 'PingGateway path does not support the introspection-down sim toggle — the call went through normally.'
-        : 'Call succeeded despite the armed introspection-down sim — sim may not have taken effect.',
+      status: 501,
+      errorCode: 'sim_not_applicable',
+      reason: notPerformed,
       tokenChainEvents,
     };
   } catch (err) {
@@ -1191,9 +1231,7 @@ async function _runIntrospectionDown(subjectToken, useCaseId, tokenChainEvents) 
   } finally {
     // Always disarm, even if the call above threw for an unrelated reason —
     // an armed sim left on would silently break every later demo step.
-    if (!usePingGateway) {
-      await pushGatewayAdminConfig(gatewayUrl, { introspectionSimDown: false });
-    }
+    await pushGatewayAdminConfig(gatewayUrl, { introspectionSimDown: false });
   }
 
   stampUseCaseId(tokenChainEvents, useCaseId);
@@ -1902,5 +1940,5 @@ async function _runImpersonationNoAct(subjectToken, useCaseId, tokenChainEvents)
 
 module.exports = {
   runAttackSim, runIntentBindingDemo, _exchangeSimToken,
-  __test: { _resolveForeignAccountId, _gatewayExchangeTarget, IMPERSONATION_TRANSFER_ARGS, pickTransferAccounts },
+  __test: { _resolveForeignAccountId, _gatewayExchangeTarget, _denyFromGateway, _nodeGatewayUrl, IMPERSONATION_TRANSFER_ARGS, pickTransferAccounts },
 };

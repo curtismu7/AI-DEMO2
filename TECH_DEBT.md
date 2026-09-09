@@ -16,6 +16,23 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-09-08 — UC29 "introspection outage — fail closed" cannot be demonstrated on this deployment
+
+`docker-compose.yml` runs the Demo Agent Gateway with
+`GW_INTROSPECTION_ENABLED: "false"` (local JWKS signature validation instead of
+RFC 7662), so `GatewayIntrospectionClient.introspect()` — where the
+`introspectionSimDown` demo arm lives — is never called. PingGateway has no
+such toggle at all. Until 2026-09-08 the sim hid this: under PingGateway it sent
+its Node-audienced token to IG and relabelled the perimeter 403 as
+"FAILED CLOSED (503)". It now targets the Node gateway explicitly and, when the
+armed call still succeeds, returns `501 sim_not_applicable` with the reason
+above, which the UI renders as "sim could not run — no control was tested".
+
+Real fix: either run the Node gateway with introspection on (needs its
+introspection client credentials and accepts the per-call PingOne round trip)
+or retire UC29 from the Demo Steps script. Decide before a demo that leans on
+that step.
+
 ### [ ] 2026-09-08 — A non-admin cannot see their own MCP audit trail (external-door movie reel)
 
 `/api/mcp/audit` is admin-only, so the external-door movie reel — the view that

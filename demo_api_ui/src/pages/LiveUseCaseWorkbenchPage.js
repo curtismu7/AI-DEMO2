@@ -23,6 +23,7 @@ import {
   SECURITY_DEMO_USE_CASE_IDS,
 } from '../config/demoUseCaseSteps';
 import { DEMO_SCRIPT_BEAT_BY_UC_ID } from '../components/demoScript';
+import { attackSimVerdict } from '../utils/attackSimVerdict';
 import './LiveUseCaseWorkbenchPage.css';
 
 const RUNNABLE_SIMS = [
@@ -345,8 +346,10 @@ export default function LiveUseCaseWorkbenchPage() {
     tokenChainTraceStore.beginTrace({ prompt: `attack sim: ${uc.trigger.sim}` });
     apiClient.post('/api/demo/attack-sim/run', { sim: uc.trigger.sim })
       .then(({ data }) => {
-        setRunState({ id: uc.id, state: 'done' });
-        const isDeny = typeof data?.status !== 'number' || data.status >= 400;
+        // Same verdict rule as AIAgent's attack-sim handler: a sim that died
+        // before its control (502 exchange_failed …) is ERROR, not DENY.
+        const verdict = attackSimVerdict(data);
+        setRunState({ id: uc.id, state: verdict === 'ERROR' ? 'error' : 'done', msg: verdict === 'ERROR' ? (data?.reason || data?.errorCode || 'sim could not run') : undefined });
         // Same rail-feed wiring as AIAgent's own attack-sim handler (AIAgent.js) —
         // buildSimRailEvents remaps sim-* ids onto the full-pipeline steps
         // buildTraceSteps recognizes, and ingestAuthorize surfaces the real
@@ -356,7 +359,7 @@ export default function LiveUseCaseWorkbenchPage() {
           buildSimRailEvents(data).forEach((ev) => tokenChainTraceStore.ingestTokenEvent(ev));
           if (data.authorize) tokenChainTraceStore.ingestAuthorize(data.authorize);
         }
-        tokenChainTraceStore.completeTrace(!isDeny);
+        tokenChainTraceStore.completeTrace(verdict === 'PERMIT');
       })
       .catch((err) => {
         tokenChainTraceStore.completeTrace(false);

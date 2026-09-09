@@ -51,6 +51,7 @@ import {
 } from "../services/demoAgentService";
 import bffAxios from "../services/bffAxios";
 import { nrLog } from "../utils/nrLog";
+import { attackSimVerdict, attackSimVerdictNote } from "../utils/attackSimVerdict";
 import { getCachedStatus } from "../services/cachedStatusService";
 import { loadPublicConfig } from "../services/configService";
 import { spinner } from "../services/spinnerService";
@@ -7866,14 +7867,13 @@ export default function BankingAgent({
             requestedAmount: 80,
           });
           const status = data?.status;
-          const isDeny = typeof status !== "number" || status >= 400;
-          const verdict = isDeny ? "DENY" : "PERMIT";
+          const verdict = attackSimVerdict(data);
           const reason = data?.reason || data?.errorCode || "";
           addMessage(
             "assistant",
             [
               `${stepLabel}`,
-              `Intent binding \`permit\` → ${status ?? "?"} ${verdict}`,
+              `Intent binding \`permit\` → ${status ?? "?"} ${verdict} ${attackSimVerdictNote(verdict)}`.trim(),
               reason ? reason : null,
             ]
               .filter(Boolean)
@@ -7890,7 +7890,7 @@ export default function BankingAgent({
               buildSimRailEvents(data).forEach((ev) => { tokenChainTraceStore.ingestTokenEvent(ev); });
             } catch (_) { /* display-only — never break the reply */ }
           }
-          try { tokenChainTraceStore.completeTrace(!isDeny); } catch (_) {}
+          try { tokenChainTraceStore.completeTrace(verdict === "PERMIT"); } catch (_) {}
           markUseCaseCompleted(uc.id);
         } catch (err) {
           addMessage(
@@ -7919,14 +7919,16 @@ export default function BankingAgent({
       try {
         const { data } = await apiClient.post("/api/demo/attack-sim/run", { sim });
         const status = data?.status;
-        const isDeny = typeof status !== "number" || status >= 400;
-        const verdict = isDeny ? "DENY" : "PERMIT";
+        // Not "any 4xx/5xx is a DENY": a sim that died at exchange/config
+        // (502 exchange_failed …) tested nothing and must not read as a
+        // successful defence — see attackSimVerdict.
+        const verdict = attackSimVerdict(data);
         const reason = data?.reason || data?.errorCode || "";
         addMessage(
           "assistant",
           [
             `${stepLabel}`,
-            `Attack sim \`${sim}\` → ${status ?? "?"} ${verdict}`,
+            `Attack sim \`${sim}\` → ${status ?? "?"} ${verdict} ${attackSimVerdictNote(verdict)}`.trim(),
             reason ? reason : null,
           ]
             .filter(Boolean)
@@ -7953,7 +7955,7 @@ export default function BankingAgent({
         // Sims never stream pipeline phases, so nothing else completes the
         // trace — without this the rail shows the run stuck at the chatbot
         // instead of the gateway DENY.
-        try { tokenChainTraceStore.completeTrace(!isDeny); } catch (_) {}
+        try { tokenChainTraceStore.completeTrace(verdict === "PERMIT"); } catch (_) {}
         // Ticked only once the sim has actually answered — a click that
         // failed before the sim ran used to show ✓ all the same.
         markUseCaseCompleted(uc.id);
