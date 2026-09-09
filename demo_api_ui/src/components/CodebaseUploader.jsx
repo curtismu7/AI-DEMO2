@@ -10,6 +10,9 @@ import { spinner } from '../services/spinnerService';
 import './CodebaseUploader.css';
 import { notifyError, notifyWarning } from '../utils/appToast';
 
+/** Spinner hold key — folder indexing runs alongside CodeSearchPage's zip upload. */
+const SPINNER_KEY = 'codebase-folder-index';
+
 // Mirrors the multer `limits.fileSize` on the BFF route
 // (demo_api_server/routes/codeSearch.js) so oversized ZIPs are caught with a
 // clear message before the upload starts.
@@ -87,7 +90,7 @@ export default function CodebaseUploader({ onUpload, isLoading, onFolderIndexed 
     setFolderSkipped(skipped);
     setFolderIndexed(0);
     setIsFolderIndexing(true);
-    spinner.show('Indexing folder…', 'POST /api/code-search/index');
+    spinner.show('Indexing folder…', 'POST /api/code-search/index', SPINNER_KEY);
 
     try {
       const BATCH = 300;
@@ -101,7 +104,8 @@ export default function CodebaseUploader({ onUpload, isLoading, onFolderIndexed 
           jobs.length > 1
             ? `Indexing ${job.name} (${j + 1}/${jobs.length})…`
             : 'Indexing folder…',
-          'POST /api/code-search/index'
+          'POST /api/code-search/index',
+          SPINNER_KEY
         );
         for (let i = 0; i < job.files.length; i += BATCH) {
           const batch = job.files.slice(i, i + BATCH);
@@ -116,7 +120,7 @@ export default function CodebaseUploader({ onUpload, isLoading, onFolderIndexed 
     } catch (err) {
       setFolderError(err.message || 'Folder indexing failed');
     } finally {
-      spinner.hide();
+      spinner.hide(SPINNER_KEY);
       setIsFolderIndexing(false);
       e.target.value = '';
     }

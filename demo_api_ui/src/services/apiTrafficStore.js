@@ -331,7 +331,7 @@ export function patchFetch() {
 
       if (!silent) {
         try {
-          spinner.decrement(false);
+          spinner.decrement(false, url);
         } catch (_) {}
       }
 
@@ -400,7 +400,7 @@ export function patchFetch() {
     } catch (err) {
       if (!silent) {
         try {
-          spinner.decrement(true);
+          spinner.decrement(true, url);
         } catch (_) {}
       }
       appendTrafficEntry({
