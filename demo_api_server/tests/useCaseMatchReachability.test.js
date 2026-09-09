@@ -25,14 +25,17 @@
 const { USE_CASES, deriveUseCaseId } = require('../config/useCases');
 
 // Pre-existing on the day this guard was added. Never add to this list.
-//   entitlement-tiered-capability   — its create_transfer amount band sits
-//                                     inside step-up-required's, which is above it
 //   enterprise-managed-mcp-access   — both declare a bare { tool: 'get_balance' },
 //   enterprise-mcp-revocation         already claimed by delegated-access-with-proof
+//
+// entitlement-tiered-capability (UC21) was here for the exact reason this file
+// warns about — its create_transfer amount band sat inside step-up-required's,
+// above it, so the declared PERMIT could never be reached. Fixed by dropping
+// its match block entirely: UC21 is now decided by PingOne group membership,
+// not a dollar amount, so it has nothing to derive a tool call onto.
 const KNOWN_UNREACHABLE = [
   'enterprise-managed-mcp-access',
   'enterprise-mcp-revocation',
-  'entitlement-tiered-capability',
 ];
 
 /** An amount inside this entry's band, or undefined when it declares none. */
