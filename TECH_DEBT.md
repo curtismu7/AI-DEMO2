@@ -7329,7 +7329,7 @@ must carry it), then rewrite the step-9 checker to iterate that table instead of
 hard-coding `OWN_VAR` / `TOPOLOGY_RESOURCE`. One gate, every audience, and a new
 resource is covered the day it is added rather than the day it breaks a demo.
 
-### [ ] 2026-08-17 — Nothing fails a build when a P1AZ request omits an attribute the policy requires
+### [x] 2026-08-17 — Nothing fails a build when a P1AZ request omits an attribute the policy requires
 
 **PARTLY RESOLVED 2026-08-18 (branch `worktree-p1az-guards`) — the offline
 fail-at-build gate exists; the shared request-builder contract does not.**
@@ -7388,6 +7388,95 @@ an offline test that a caller omitting a required attribute fails at build time
 rather than at evaluation time. Pair it with a snapshot-parity check so
 "policy in the console is older than policy in the repo" is a reported condition
 instead of a residual note in `REGRESSION_PLAN.md`.
+
+**RESOLVED — branch `feat/p1az-request-contract`.** The contract is
+`snapshots/p1azRequestContract.js`: one derivation, read by the gate and the new
+parity verifier. Two things had to be settled before it could be written.
+
+**1. The gate was a blob, and it hid real gaps.** The old test concatenated all
+PEP sources and regexed the result, so an attribute sent by ONE caller satisfied
+it for all four. Per-source, the coverage was ragged —
+`pingAuthorizeGuard.ts` sent 1 of the 7 attributes the old derivation called
+required, `autonomousAuthorize.js` sent 1. The gate is now per-source and names
+the offending file.
+
+**2. `defaultValue: ''` IS a resolving default — the generator said otherwise
+and was wrong.** The `AgentClass` comment claimed "P1AZ leaves an empty STRING
+unresolved and answers INDETERMINATE for the WHOLE decision". If that were true
+the live policy would be broken today: `ResourceOwnerMismatch` compares
+`ResourceOwnerId` (default `''`) against `''`, most requests omit it, and those
+requests PERMIT live (the 2026-08-18 baseline in the INDETERMINATE entry). The
+comment is corrected in the generator and the reasoning recorded in the contract
+module. This mattered: on the wrong reading the "fix" is to send a non-empty
+sentinel for `ResourceOwnerId`, which would satisfy `ResourceOwnerId != ''` and
+fire the resource-owner DENY on every request.
+
+So the required set is not 7 attributes but the ones with NO default at all, and
+there was exactly one: **`TransactionType`** (`defaultValue: null`, read by
+`IsTransferOrWithdrawal`, and NOT sent by `pingAuthorizeGuard.ts`, which builds
+`DecisionContext=McpToolsList` requests — a tools/list has no transaction). That
+is the Amount bug again, in a second attribute: an omitted no-default attribute
+leaves the comparison unresolved and takes the whole decision to INDETERMINATE,
+which #1310 normalises to DENY.
+
+Fixed the way Amount and RarMaxAmount were — an inert default (`''`, which
+matches neither `transfer` nor `withdrawal`) in the generator rather than
+teaching one PEP to send it, because a default fixes every present and future
+caller at once. The gate is now the generalised invariant: **every request
+attribute a CONDITION reads has a defaultValue**, with the per-PEP check kept
+for any future attribute that cannot have one. Red-proven by stripping the
+default back out: the invariant fails, and the per-PEP gate then names
+`demo_mcp_gateway/src/pingAuthorizeGuard.ts omits TransactionType`.
+
+**The parity half is `demo_api_server/scripts/verifySnapshotParity.js`**
+(`npm --prefix demo_api_server run verify:snapshot-parity`), in two halves so
+the useful part runs without credentials:
+
+- OFFLINE (CI-safe): the invariant above, plus probe-coverage drift against
+  `verify:authorize-parity` — every DENY code the snapshot authors should be
+  probed live, and every probed code should still exist. It immediately found
+  that **17 deny codes are authored and only 7 are probed**; the 10 unprobed are
+  listed on every run instead of decaying silently.
+- LIVE (skipped without `PINGONE_*` worker credentials): a control request must
+  not return INDETERMINATE. It does exactly when the live Trust Framework holds
+  a condition-read attribute with no default that the repo's snapshot has since
+  defaulted — which is the signature of "the imported policy is older than this
+  repo". Exit 1 on divergence, so it is a reported condition rather than
+  something someone reads out of console output.
+
+**Not run live.** The live half is written and wired but has not been executed
+against env `01d89b06` — that needs the worker credentials and is the user's to
+run.
+
+**FOLLOW-UP, same branch — all four PEPs now send all seven explicitly.** The
+analysis above says only `TransactionType` was load-bearing and the other six
+resolve from their `''` defaults. That remains true; the uniform request shape
+was chosen anyway, so a decision request looks the same whichever caller built
+it and "this PEP has no value for X" is asserted rather than inferred from a
+default nobody reads.
+
+The seven are derived, not listed: `contract().explicit` = condition-read
+attributes whose value is blank when omitted (no default, or `''`). A new gate
+enforces them PER PEP, and it drove the work — it named all 12 gaps.
+
+**`''` is mandatory as the stand-in, and this is the whole safety argument.**
+Every condition over these compares `Equals <non-empty constant>` — except
+`ResourceOwnerMismatch`, which is `ResourceOwnerId NotEquals ''`. So `''` keeps
+all seven inert, while a sentinel like `'none'` would FIRE the resource-owner
+DENY on every request from every PEP. Verified by reading each condition's
+operator and right-hand side out of the snapshot before touching a PEP.
+
+Because `''` is exactly what these attributes already defaulted to, the decision
+outcome is unchanged everywhere — only the request shape moved.
+
+Two C1 rules were deliberately kept rather than swept up with the seven:
+`TokenAudience` still OMITS when the token has no aud (it defaults to `'none'`,
+so `''` would NOT be equivalent), and the temporal claims
+(`TokenExp`/`TokenIat`/`TokenNbf`), `TokenScopes` and `MayActSub` keep C1 rule 3.
+Four tests pinned the old omit-contract and now pin the new one — the "unknown
+!= verified absent" principle they protect is preserved, carried by the VALUE
+`''` instead of by the key's absence, and each still asserts the value is not
+`'false'` and not a fabricated URI.
 
 ### [x] 2026-08-17 — `DashboardTokenRail` persists its own default on mount, so every default flip costs a storage-key bump
 

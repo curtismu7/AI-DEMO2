@@ -65,53 +65,89 @@ test('generator: every version literal is a deliberate, allowlisted freeze', () 
 });
 
 // ── 2. request-attribute contract ────────────────────────────────────────────
+//
+// Derivation lives in p1azRequestContract.js so the gate, the parity verifier
+// and any future caller read ONE definition instead of three regexes.
 
-/** The sources that build decision requests (PEPs + the BFF service). */
-const PEP_SOURCES = [
-  'demo_mcp_gateway/src/auth/PingOneAuthorizeClient.ts',
-  'demo_mcp_gateway/src/pingAuthorizeGuard.ts',
-  'demo_api_server/services/pingOneAuthorizeService.js',
-  // The unattended-agent PEP: builds its own decision request (no session to
-  // borrow one from), so it is a source this contract must know about.
-  'demo_api_server/services/autonomousAuthorize.js',
-];
+const { contract, PEP_SOURCES, loadSnapshot, requestAttributes } =
+  require('./p1azRequestContract');
 
-function requiredRequestAttributes() {
-  const objects = JSON.parse(fs.readFileSync(SNAPSHOT, 'utf8'));
-  const conditions = objects.filter((o) => o && o.type === 'CONDITION');
-  const conditionBlob = JSON.stringify(conditions);
-  return objects
-    .filter((o) => o && o.type === 'ATTRIBUTE')
-    .filter((o) => (o.resolvers || []).some((r) => r.attributeResolverType === 'request'))
-    .filter((o) => o.defaultValue === null || o.defaultValue === undefined || o.defaultValue === '')
-    .filter((o) => conditionBlob.includes(o.id))
-    .map((o) => o.name);
-}
+const pepSource = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
+const sends = (src, name) => new RegExp(`\\b${name}\\s*[:=]`).test(src);
 
-test('every no-default request attribute a CONDITION reads is sent by some PEP', () => {
-  const required = requiredRequestAttributes();
-  // Vacuity guard: the derivation walking to zero would green-light everything.
-  assert.ok(required.length >= 5, `derivation looks broken — only ${required.length} required attributes found`);
+test('every request attribute a CONDITION reads has a defaultValue', () => {
+  const c = contract();
+  // Vacuity guard: a derivation that walked to zero would green-light everything.
+  assert.ok(c.inert.length >= 20, `derivation looks broken — only ${c.inert.length} condition-read attributes found`);
 
-  const pepBlob = PEP_SOURCES
-    .map((p) => fs.readFileSync(path.join(ROOT, p), 'utf8'))
-    .join('\n');
-
-  const unsent = required.filter((name) => !new RegExp(`\\b${name}\\s*[:=]`).test(pepBlob));
   assert.deepStrictEqual(
-    unsent,
+    c.mustSend,
     [],
-    `Policy condition(s) read request attribute(s) no PEP sends: ${unsent.join(', ')}.\n` +
-    'Live P1AZ resolves a missing no-default attribute to INDETERMINATE — never a legitimate outcome ' +
-    'in this demo. Fix by sending the attribute from the PEP (see buildAuthorizeParameters), or by ' +
-    'giving it a defaultValue in gen-authorize-snapshot.js (the Amount pattern).',
+    `Request attribute(s) read by a CONDITION with NO defaultValue: ${c.mustSend.join(', ')}.\n` +
+    'P1AZ cannot resolve an omitted attribute that has no default, and an unresolved attribute takes the ' +
+    'WHOLE decision to INDETERMINATE — no statements, every rule unevaluated — which #1310 normalises to ' +
+    'DENY. One such attribute therefore denies everything.\n' +
+    'Fix in gen-authorize-snapshot.js by giving it an INERT default (the Amount / RarMaxAmount / ' +
+    'TransactionType pattern), which fixes every present and future caller at once. Teaching one PEP to ' +
+    'send it fixes only that PEP — the next caller reintroduces the bug.',
   );
 });
 
+test('any no-default attribute is sent by EVERY PEP, not just one of them', () => {
+  const { mustSend } = contract();
+  if (mustSend.length === 0) return; // the invariant above holds; nothing to enforce
+
+  // Deliberately per-source. The previous version of this gate concatenated all
+  // PEP sources into one blob, so an attribute sent by a SINGLE PEP satisfied it
+  // for all four — which is how pingAuthorizeGuard.ts came to omit
+  // TransactionType while the gate stayed green.
+  const missing = [];
+  for (const rel of PEP_SOURCES) {
+    const src = fs.readFileSync(path.join(ROOT, rel), 'utf8');
+    for (const name of mustSend) {
+      if (!new RegExp(`\\b${name}\\s*[:=]`).test(src)) missing.push(`${rel} omits ${name}`);
+    }
+  }
+  assert.deepStrictEqual(missing, [], `PEP(s) omit a required request attribute:\n  ${missing.join('\n  ')}`);
+});
+
+test('every PEP sends every per-request attribute explicitly', () => {
+  const { explicit } = contract();
+  // Vacuity guard — the derivation shrinking to nothing would pass silently.
+  assert.ok(explicit.length >= 5, `derivation looks broken — only ${explicit.length} explicit-send attributes`);
+
+  // Decision 2026-09-09: all four PEPs send all of these, so a decision request
+  // has ONE shape no matter which caller built it, and "this PEP has no value
+  // for X" is asserted as '' rather than left to a default nobody reads.
+  // '' is the required stand-in: ResourceOwnerMismatch is
+  // `ResourceOwnerId NotEquals ''`, so a non-empty sentinel would fire the
+  // resource-owner DENY on every request. Every other condition over these
+  // compares with Equals against a non-empty constant, so '' is inert there too.
+  const missing = [];
+  for (const rel of PEP_SOURCES) {
+    const src = pepSource(rel);
+    for (const name of explicit) if (!sends(src, name)) missing.push(`${rel} omits ${name}`);
+  }
+  assert.deepStrictEqual(
+    missing,
+    [],
+    `PEP(s) do not send every per-request attribute:\n  ${missing.join('\n  ')}\n` +
+    "Send it explicitly — '' when this caller has no real value. NEVER a non-empty sentinel for " +
+    'ResourceOwnerId: its condition is NotEquals \'\', so \'none\' fires the resource-owner DENY.',
+  );
+});
+
+test('the PEP source list still points at files that exist', () => {
+  // The per-PEP gate silently weakens if a source is renamed away, so pin it.
+  for (const rel of PEP_SOURCES) {
+    assert.ok(fs.existsSync(path.join(ROOT, rel)), `PEP_SOURCES names a missing file: ${rel}`);
+  }
+});
+
 test('the exempt attributes stay exempt for the reason recorded, not by accident', () => {
-  const objects = JSON.parse(fs.readFileSync(SNAPSHOT, 'utf8'));
+  const objects = loadSnapshot();
   const conditionBlob = JSON.stringify(objects.filter((o) => o && o.type === 'CONDITION'));
-  const byName = Object.fromEntries(objects.filter((o) => o && o.type === 'ATTRIBUTE').map((o) => [o.name, o]));
+  const byName = Object.fromEntries(requestAttributes(objects).map((o) => [o.name, o]));
   // TokenKid is deliberately NOT sent (reportable-only; the PEP sends the
   // derived TokenKidKnown instead) — safe only while no condition reads it.
   if (byName.TokenKid) {

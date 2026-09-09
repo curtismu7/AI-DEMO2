@@ -171,7 +171,36 @@ export async function guardToolsList(
         // McpToolsList too, so the Node discovery path must as well or it fails closed.
         UserId: decoded.sub,
         ActClientId: decoded.act?.sub || '',
-        ...(tokenAud ? { TokenAudience: tokenAud, TokenAudActual: tokenAud } : {}),
+        ...(tokenAud ? { TokenAudience: tokenAud } : {}),
+        // Per-request facts every PEP states explicitly
+        // (snapshots/p1azRequestContract.js `explicit`), so a decision request
+        // has one shape whichever caller built it. TokenAudActual moves OUT of
+        // the conditional for that reason: '' when the token carries no aud is
+        // the same value the attribute defaults to, so behaviour is unchanged —
+        // what changes is that this PEP now states it. TokenAudience keeps its
+        // conditional: it defaults to 'none', not '', so sending '' would NOT
+        // be equivalent to omitting it.
+        TokenAudActual: tokenAud,
+        TokenIss: decoded.iss ?? '',
+        // Discovery (tools/list) has no transaction, no named resource owner and
+        // no intent token, so each of these is genuinely absent and '' says so.
+        // '' and NOT a sentinel: ResourceOwnerMismatch is
+        // `ResourceOwnerId NotEquals ''`, so any non-empty value fires the
+        // resource-owner DENY on every tools/list.
+        TransactionType: '',
+        ResourceOwnerId: '',
+        IntentTokenValid: '',
+        IntentMatchesTool: '',
+        IntentTokenError: '',
+        // Intent-governance drift inputs. Sent as a PAIR of empty strings: ActionDrift
+        // and PayeeDrift compare request-vs-grant with NotEquals, so two blanks are
+        // equal and no drift fires. Sending one non-empty with the other blank WOULD
+        // fire a drift DENY. (Both are additionally gated by IntentGoverned, which is
+        // false without a bound grant.)
+        IntentRequestAction: '',
+        IntentGrantAction: '',
+        IntentRequestPayee: '',
+        IntentGrantPayee: '',
         McpResourceUri: config.gatewayResourceUri,
         TokenScopes: tokenScopes,
         ActiveVertical: activeVertical || '',
