@@ -49,9 +49,16 @@ describe('PingOneAuthorizeClient — sentParameters', () => {
  * Contract C1 — the canonical decision parameter set.
  *
  * The headline defect: TokenAudience and McpResourceUri were BOTH hardcoded to
- * gatewayResourceUri, so the cloud rule `HasValidMcpAudience`
- * (TokenAudience == McpResourceUri) and mock Rule 0c compared a value to itself.
- * The audience rule could not fail, no matter what the token actually carried.
+ * gatewayResourceUri, so mock Rule 0c compared a value to itself and the
+ * audience rule could not fail, no matter what the token actually carried.
+ *
+ * The cloud rule `HasValidMcpAudience` does NOT compare those two — it tests
+ * TokenAudience against an allowlist baked into the condition, plus an
+ * external-door branch gated on TokenIss. That was misread for a long time
+ * because the mcp-invalid-audience deny message said otherwise; both it and the
+ * comments in PingOneAuthorizeClient.ts were corrected on 2026-09-09. The
+ * assertions below stand either way — TokenAudience must be the token's real
+ * aud, whichever side the policy compares it against.
  */
 describe('buildAuthorizeParameters — C1 canonical parameter set', () => {
   const GW = 'mcpgateway.ping.demo';
@@ -276,6 +283,105 @@ describe('buildAuthorizeParameters — Tool annotations and elicitation', () => 
       const without = buildAuthorizeParameters(tok(), 'tools/call', GW, 'get_my_accounts');
       expect(withJwks.TokenKidKnown).not.toBe('false');
       expect(without.TokenKidKnown).not.toBe('false');
+    });
+  });
+
+  /**
+   * Inputs for the "PingOne Authorize — Agent Intent Governance" policy set.
+   *
+   * The distinction being protected here: IntentTokenValid / IntentMatchesTool
+   * hand the PDP a verdict the gateway already reached. These parameters hand it
+   * the GRANT and the REQUEST separately so the policy performs the comparison.
+   * If IntentGrantAction were ever derived from the tool being invoked, the
+   * action-drift rule could never fire — see the tautology test below, which is
+   * the load-bearing one in this block.
+   */
+  describe('Agent Intent Governance parameters', () => {
+    const trat = (details: unknown[]): any => ({
+      reqctx: { tool: 'create_transfer', session_id: 's1', correlation_id: 'c1' },
+      purp: 'mcp',
+      azd: { sub: 'u1', authorization_details: details },
+      rctx: { ip: '', user_agent: '', timestamp: '' },
+    });
+    const GRANT = { type: 'banking_transaction', actions: ['create_transfer'], amount: 100, payee: 'acme-utilities' };
+
+    it('maps a consented grant onto the IntentGrant* facts', () => {
+      const p = buildAuthorizeParameters(
+        tok(), 'tools/call', GW, 'create_transfer', { amount: 80, to_account_id: 'acme-utilities' }, trat([GRANT]),
+      );
+      expect(p.IntentGrantPresent).toBe('true');
+      expect(p.IntentGrantAction).toBe('create_transfer');
+      expect(p.IntentGrantPayee).toBe('acme-utilities');
+      expect(p.IntentGrantMaxAmount).toBe('100');
+      expect(p.IntentBindingMethod).toBe('par-rar');
+    });
+
+    it('maps the proposed action onto the IntentRequest* facts', () => {
+      const p = buildAuthorizeParameters(
+        tok(), 'tools/call', GW, 'create_transfer', { amount: 5000, to_account_id: 'attacker-account' }, trat([GRANT]),
+      );
+      expect(p.IntentRequestAction).toBe('create_transfer');
+      expect(p.IntentRequestAmount).toBe('5000');
+      expect(p.IntentRequestPayee).toBe('attacker-account');
+      // Both drift comparisons are now expressible by the policy.
+      expect(Number(p.IntentRequestAmount)).toBeGreaterThan(Number(p.IntentGrantMaxAmount));
+      expect(p.IntentRequestPayee).not.toBe(p.IntentGrantPayee);
+    });
+
+    // THE load-bearing case. enforceRarSubset() picks the grant matching the
+    // tool; if this builder did the same, IntentGrantAction would equal
+    // IntentRequestAction by construction and action drift could never be seen.
+    it('takes the granted action from the grant, NOT from the tool being invoked', () => {
+      const p = buildAuthorizeParameters(
+        tok(), 'tools/call', GW, 'delete_account', { }, trat([GRANT]),
+      );
+      expect(p.IntentGrantAction).toBe('create_transfer');
+      expect(p.IntentRequestAction).toBe('delete_account');
+      expect(p.IntentGrantAction).not.toBe(p.IntentRequestAction);
+    });
+
+    it('omits consent and expiry when the grant does not state them, so the policy fails closed', () => {
+      const p = buildAuthorizeParameters(
+        tok(), 'tools/call', GW, 'create_transfer', { amount: 80 }, trat([GRANT]),
+      );
+      // Absent => policy defaults apply: IntentGrantConsented=false (deny),
+      // IntentGrantExpired=true (deny). Fabricating either would be a lie about
+      // whether a human agreed to this action.
+      expect('IntentGrantConsented' in p).toBe(false);
+      expect('IntentGrantExpired' in p).toBe(false);
+    });
+
+    it('forwards consent and expiry when the grant does state them', () => {
+      const future = Math.floor(Date.now() / 1000) + 300;
+      const p = buildAuthorizeParameters(
+        tok(), 'tools/call', GW, 'create_transfer', { amount: 80 },
+        trat([{ ...GRANT, consented: true, expires_at: future, request_uri: 'urn:ietf:params:oauth:request_uri:x' }]),
+      );
+      expect(p.IntentGrantConsented).toBe('true');
+      expect(p.IntentGrantExpired).toBe('false');
+      expect(p.IntentGrantRef).toBe('urn:ietf:params:oauth:request_uri:x');
+    });
+
+    it('marks a lapsed grant expired', () => {
+      const past = Math.floor(Date.now() / 1000) - 60;
+      const p = buildAuthorizeParameters(
+        tok(), 'tools/call', GW, 'create_transfer', { amount: 80 }, trat([{ ...GRANT, expires_at: past }]),
+      );
+      expect(p.IntentGrantExpired).toBe('true');
+    });
+
+    it('reports no grant when the request carries no TraT', () => {
+      const p = buildAuthorizeParameters(tok(), 'tools/call', GW, 'create_transfer', { amount: 80 });
+      expect(p.IntentGrantPresent).toBe('false');
+      expect(p.IntentBindingMethod).toBe('none');
+    });
+
+    it('classifies reads as non-mutating and unknown tools as mutating', () => {
+      const read = buildAuthorizeParameters(tok(), 'tools/call', GW, 'get_my_accounts');
+      expect(read.IntentRequestMutating).toBe('false');
+      // Fail-safe: an unannotated tool must be treated as state-changing.
+      const unknown = buildAuthorizeParameters(tok(), 'tools/call', GW, 'not_a_real_tool');
+      expect(unknown.IntentRequestMutating).toBe('true');
     });
   });
 });

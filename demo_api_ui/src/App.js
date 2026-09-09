@@ -199,6 +199,7 @@ import PublicRoutes, {
   PrivilegeMcpClientPageRoute,
   LlmGatewayPageRoute,
   LlmTestPageRoute,
+  IntentInspectorPageRoute,
   AuditAgentPageRoute,
   PingOneSetupPageRoute,
   M2mCredentialsSamplePageRoute,
@@ -1085,6 +1086,16 @@ function AppWithAuth() {
                   element={
                     loading ? null : user ? (
                       <LlmGatewayPageRoute user={user} logout={logout} />
+                    ) : (
+                      <SignInRequired />
+                    )
+                  }
+                />
+                <Route
+                  path="/intent-inspector"
+                  element={
+                    loading ? null : user ? (
+                      <IntentInspectorPageRoute user={user} logout={logout} />
                     ) : (
                       <SignInRequired />
                     )
