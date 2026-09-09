@@ -147,9 +147,17 @@ done
 if [ -n "$LLM_OK" ]; then pass "llm-proxy serving models"; else fail "llm-proxy not answering /v1/models — LLM agent modes will fall back to the heuristics catalog"; fi
 
 # ── 6. authz tools/list canary — must PERMIT ─────────────────────────────────
-# Replays the EXACT decision request the Node gateway sends for tools/list
-# (pingAuthorizeGuard.ts): comma-joined MCP_GW_RESOURCE_URI as TokenAudience/
-# McpResourceUri, UserId, empty ActClientId, Vertical, CandidateTools. Any
+# Replays the decision request the Node gateway sends for tools/list
+# (pingAuthorizeGuard.ts): UserId, empty ActClientId, Vertical, CandidateTools,
+# full comma-joined MCP_GW_RESOURCE_URI as McpResourceUri, and — as the token
+# audience — only the FIRST entry of that list. MCP_GW_RESOURCE_URI is the set
+# of audiences the gateway ACCEPTS, never the aud of any one token: the real
+# guard reads TokenAudience/TokenAudActual off the decoded token
+# (`decoded.aud`), and McpTokenExchangeClient narrows the same comma-list to
+# its first entry when it mints one. Sending the whole list as the token aud
+# fabricates a multi-aud [gateway, upstream] token, which is exactly what Rule
+# 0b-2 (D-05, anti-bypass) exists to DENY — so the canary failed the moment
+# PR #3013 added the upstream mcpserver.ping.demo to that list. Any
 # non-PERMIT means real discovery is denied → the BFF degrades to the local
 # catalog → vertical chips ride the fallback. SMOKE_SUB must be a real,
 # enabled PingOne user (Rule 0a2 user lookup); defaults to the demo user of
@@ -167,7 +175,8 @@ if [ -z "$GW_POD" ]; then
   fail "no mcp-gateway pod found"
 else
   CANARY=$(SMOKE_SUB="$SMOKE_SUB" kubectl exec -n "$NS" "$GW_POD" -c mcp-gateway -- env SMOKE_SUB="$SMOKE_SUB" node -e '
-    const aud = process.env.MCP_GW_RESOURCE_URI || "mcpgateway.ping.demo";
+    const accepted = process.env.MCP_GW_RESOURCE_URI || "mcpgateway.ping.demo";
+    const aud = accepted.split(",").map(s => s.trim()).find(Boolean);
     const sub = process.env.SMOKE_SUB;
     const body = JSON.stringify({ parameters: {
       DecisionContext: "McpToolsList",
@@ -176,7 +185,7 @@ else
       ActClientId: "",
       TokenAudience: aud,
       TokenAudActual: aud,
-      McpResourceUri: aud,
+      McpResourceUri: accepted,
       TokenScopes: "gateway:mcp:invoke",
       ActiveVertical: "",
       Vertical: "",

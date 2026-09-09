@@ -268,7 +268,12 @@ describe('evaluateMcpToolDelegation — decision parameters', () => {
     });
 
     // C1 rule 3: a caller that cannot supply a value OMITS the key rather than
-    // sending a falsy placeholder ("unknown" != "verified absent").
+    // sending a falsy placeholder ("unknown" != "verified absent"). Since
+    // 2026-09-09 the seven per-request attributes in
+    // snapshots/p1azRequestContract.js `explicit` are the exception: every PEP
+    // states them, and '' carries the same "unknown" meaning because that is
+    // the value their Trust Framework attributes default to. Rule 3 still holds
+    // for everything else, which is what this test now pins.
     test('omits TokenScopes and the temporal claims when unknown', async () => {
       mockWorkerThenDecision({ id: 'd1', decision: 'PERMIT', obligations: [] });
       await svc.evaluateMcpToolDelegation({
@@ -280,8 +285,9 @@ describe('evaluateMcpToolDelegation — decision parameters', () => {
       expect(body.TokenExp).toBeUndefined();
       expect(body.TokenIat).toBeUndefined();
       expect(body.TokenNbf).toBeUndefined();
-      expect(body.TokenIss).toBeUndefined();
       expect(body.MayActSub).toBeUndefined();
+      // TokenIss is one of the seven: stated, and empty when unknown.
+      expect(body.TokenIss).toBe('');
     });
 
     test('forwards the remaining C1 token facts and request keys', async () => {
@@ -349,15 +355,20 @@ describe('evaluateMcpToolDelegation — decision parameters', () => {
     // fails closed at the PDP, but '' is a value — it claims the token was
     // read and had an empty audience. Omission is the honest encoding of
     // "the caller could not read an aud".
-    test('omits TokenAudience/TokenAudActual when the aud is unknown', async () => {
+    test('omits TokenAudience, states an empty TokenAudActual, when the aud is unknown', async () => {
       mockWorkerThenDecision({ id: 'd1', decision: 'PERMIT', obligations: [] });
       await svc.evaluateMcpToolDelegation({
         userId: 'u1', toolName: 'get_my_accounts',
         mcpResourceUri: 'mcp.aud',
       });
       const body = JSON.parse(fetchSpy.mock.calls[1][1].body).parameters;
+      // TokenAudience defaults to 'none', so omitting it is NOT the same as
+      // sending '' — it keeps C1 rule 3.
       expect(body).not.toHaveProperty('TokenAudience');
-      expect(body).not.toHaveProperty('TokenAudActual');
+      // TokenAudActual is one of the seven and defaults to '', so stating ''
+      // is the value the policy resolved anyway. Never the expected URI.
+      expect(body.TokenAudActual).toBe('');
+      expect(body.TokenAudActual).not.toBe('mcp.aud');
     });
 
     // resolveExpectedMcpResourceUri() now returns '' when nothing is configured
