@@ -52,6 +52,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const { buildIntentGovernanceObjects } = require('./intentGovernancePolicy');
 
 const REPO = path.resolve(__dirname, '..');
 const SOT = path.join(REPO, 'scope-topology.json');
@@ -73,6 +74,12 @@ const ATTR = {
   HitlApproved: '12345678-0013-4321-abcd-000000000013',
   DecisionContext: '12345678-0007-4321-abcd-000000000007',
   TokenAudience: '12345678-0009-4321-abcd-000000000009',
+  // The comma-joined accepted-audience set the CALLER declares (see
+  // p1az-decision.groovy's `mcpResourceUri = acceptedAuds.join(',')`). It is
+  // NOT what HasValidMcpAudience compares against — that condition carries its
+  // own allowlist baked in below. Used only in the deny diagnostic, so a drift
+  // between caller and policy is visible in the message.
+  McpResourceUri: '12345678-0012-4321-abcd-000000000012',
   // New request-resolved attributes (cloud delta). Defaults are the inert
   // sentinels — a request that omits the key changes no decision.
   //
@@ -212,6 +219,7 @@ const STMT = {
   rarAmountExceeded: '34567890-0020-4321-abcd-000000000020', // rar_amount_exceeded (DENY)
   adminRole: '34567890-0022-4321-abcd-000000000022',         // NOT -0021 (retired)
   invalidKid: '34567890-0027-4321-abcd-000000000027',        // mcp-invalid-kid (DENY)
+  invalidAudience: '34567890-0006-4321-abcd-000000000006',   // mcp-invalid-audience (DENY)
 };
 const RULE = {
   mcpHitl: '45678901-0008-4321-abcd-000000000008',          // existing (generalized)
@@ -519,6 +527,52 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
   // lands — the #1311/#1897 trap class this ver() note warns about.
   audCond.version = ver('bbbbbbbb', COND.HasValidMcpAudience, {
     acceptedGatewayAudiences, externalDoorIssuers, externalDoorAudience,
+  });
+
+  // 0b) BUG — the mcp-invalid-audience diagnostic named the wrong operand.
+  // The statement read "Token audience 'X' does not match expected MCP resource
+  // URI 'Y'", interpolating McpResourceUri as Y. HasValidMcpAudience never
+  // consults McpResourceUri: it compares TokenAudience against the allowlist
+  // baked in at step 0, plus a TokenIss-paired external-door branch. Two ways
+  // that message misled an operator:
+  //   - It sent them to check resource-URI config for what is really an
+  //     audience-allowlist or issuer-pairing failure. A genuine external-door
+  //     token from an unrecognised issuer denies with a message about resource
+  //     URIs, naming nothing about the issuer that actually failed.
+  //   - McpResourceUri is the comma-joined set the CALLER declares, so a
+  //     single-valued caller renders "audience 'a' does not match expected MCP
+  //     resource URI 'a'" — a value failing to match itself.
+  // Fix: name both operands the rule actually reads (TokenAudience, TokenIss),
+  // state the allowlist this package deploys, and keep the caller-declared set
+  // alongside it so policy/scope-topology drift is visible in the deny itself.
+  const audStmt = byId.get(STMT.invalidAudience);
+  const audAccepted = acceptedGatewayAudiences.join(', ');
+  const audExemption = externalDoorAudience
+    ? ` ${externalDoorAudience} is accepted only when TokenIss is one of ${externalDoorIssuers.join(', ')}.`
+    : '';
+  audStmt.description =
+    'Denial when TokenAudience is not in the accepted gateway audience set, or is the external-door ' +
+    'audience without a matching TokenIss. Does NOT compare against McpResourceUri — that attribute is ' +
+    'reported for drift diagnosis only. Generated — do not hand-edit.';
+  audStmt.payload = JSON.stringify({
+    denied: true,
+    reason: 'invalid-audience',
+    message:
+      `Token audience '{{${ATTR.TokenAudience}}}' (issuer '{{${ATTR.TokenIss}}}') is not accepted by policy. ` +
+      `Policy accepts: ${audAccepted}.${audExemption} ` +
+      `Caller declared accepted set: '{{${ATTR.McpResourceUri}}}' — if that disagrees with the policy list, ` +
+      `the deployed policy and scope-topology.json have drifted.`,
+    tokenAudience: `{{${ATTR.TokenAudience}}}`,
+    tokenIss: `{{${ATTR.TokenIss}}}`,
+    policyAcceptedAudiences: audAccepted,
+    callerDeclaredAudiences: `{{${ATTR.McpResourceUri}}}`,
+  });
+  // Content-derived, for the same reason as audCond above: mutating the payload
+  // at the frozen -4321- version means PingOne skips the object on import and
+  // the corrected message never lands.
+  audStmt.version = ver('cccccccc', STMT.invalidAudience, {
+    acceptedGatewayAudiences, externalDoorIssuers, externalDoorAudience,
+    payload: audStmt.payload,
   });
 
   // 1) Generalize RequiresHitlConsent -> consent tool list.
@@ -1397,6 +1451,42 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
       'and regenerate, or the import is a no-op and the cloud keeps the OLD ceiling.'
     );
   }
+
+  // 11) Agent Intent Governance — a THIRD policy under the root set.
+  //
+  // It was briefly its own standalone policy set, which was wrong: a PingOne
+  // Authorize environment evaluates a single root policy tree, so a sibling root
+  // imports to nothing. Verified live 2026-09-09 — after importing the
+  // standalone package and publishing, GET /authorizationPolicies still listed
+  // one root and the set's own id 404'd. See snapshots/intentGovernancePolicy.js.
+  //
+  // The builder gates the policy on DecisionContext == 'IntentGovernance'. That
+  // gate is load-bearing: the root is DenyOverrides/evaluateAll, so every child
+  // policy runs on every decision, and an ordinary tool call sends no IntentGrant*
+  // parameters — fail-closed defaults would fire intent-grant-missing and deny
+  // the entire demo. Do not widen it without also giving the gateway a way to
+  // prove PAR consent, or every mutating call denies as intent-not-consented.
+  const intent = buildIntentGovernanceObjects({ decisionContextAttrId: ATTR.DecisionContext });
+  for (const a of intent.attributes) upsert(a, afterLastAttrIdx);
+  for (const c of intent.conditions) upsert(c, beforeSepIdx);
+  for (const s of intent.statements) upsert(s, beforeSepIdx);
+  for (const r of intent.rules) upsert(r, beforeSepIdx);
+  upsert(intent.policy, beforeFirstPolicyIdx);
+
+  // Attach to the root set, after the two existing policies. Idempotent, and
+  // additive only — the existing children are never rewritten, because dropping
+  // one silently disables that half of the demo's authorization.
+  const rootSet = snap.find((o) => o.type === 'PolicySet');
+  if (!rootSet) throw new Error('no root PolicySet in the snapshot — cannot attach Agent Intent Governance');
+  if (!rootSet.children.some((c) => c.id === intent.POLICY_ID)) {
+    rootSet.children.push({ id: intent.POLICY_ID, type: 'Policy' });
+  }
+  for (const required of [POLICY.transaction, POLICY.mcp]) {
+    if (!rootSet.children.some((c) => c.id === required)) {
+      throw new Error(`root PolicySet lost policy ${required} — refusing to emit a snapshot that disables it`);
+    }
+  }
+  rootSet.version = ver('ffffffff', rootSet.id, { children: rootSet.children });
 
   return snap;
 }

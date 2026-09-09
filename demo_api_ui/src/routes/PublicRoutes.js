@@ -49,6 +49,7 @@ import EnterpriseMcpDemoPage from '../pages/EnterpriseMcpDemoPage';
 import GroupPolicyBoardPage from '../pages/GroupPolicyBoardPage';
 import PrivilegeMcpClientPage from "../pages/PrivilegeMcpClientPage";
 import LlmGatewayCombinedPage from '../pages/LlmGatewayCombinedPage';
+import IntentInspectorPage from '../pages/IntentInspectorPage';
 import AuditAgentPage from "../pages/AuditAgentPage";
 
 export default function PublicRoutes({ user, logout }) {
@@ -312,6 +313,19 @@ export function LlmTestPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <LlmGatewayCombinedPage defaultTab="raw" />
+    </AppShell>
+  );
+}
+
+/**
+ * Intent Inspector — what the user consented to vs. what the agent is attempting,
+ * decided by the Agent Intent Governance policy set. Admin: it lists decision
+ * endpoints, which is an admin-only read.
+ */
+export function IntentInspectorPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <IntentInspectorPage />
     </AppShell>
   );
 }
