@@ -140,6 +140,63 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-09 — Switching door or path on `/privilege-mcp-client` de-authenticated the client and never signed it back in
+
+**Files changed:** `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`,
+new `demo_api_ui/src/pages/__tests__/PrivilegeMcpClientPage.doorSwitchReauth.test.jsx`.
+
+**What was broken:** reported as "every Path = Direct and every Door fails". A
+live sweep of all 14 presets returned **401 `Not authenticated` on 13 of them**;
+the only pass was `opensearch22`, the door that happened to be selected when the
+page loaded.
+
+`session.oauth` is a single slot keyed `mode::mcpUrl` (`privilegeMcpClient.js`
+`oauthKey`). Switching stashes the outgoing token and restores the destination
+key's — or **nulls the slot** when that key has none, so `tools/list` 401s
+before any door logic runs. That half is deliberate: a cross-key token is
+rejected by the gateway anyway. The missing half was re-authenticating
+afterwards. Mount-time auto-connect does it, which is why the door you land on
+works and every switch away from it does not:
+
+| caller | after `POST /config` | result |
+|---|---|---|
+| mount-time auto-connect | `startAuthRedirect()`, Direct included | worked |
+| `switchGatewayMode` → `direct` | early-returned `refreshTools()`, no auth | every Direct door |
+| `switchDoor` | `refreshTools()`, no auth | every door switch |
+
+The `direct` early-return rested on "Direct has no auth front door" — the same
+reading the 2026-09-07 entry below already removed from mount-time auto-connect,
+where the comment now records that every direct door is a façade door with
+`requireBearer` (`mcpFacade.js` DOORS). Two places held the same wrong belief;
+only one had been corrected.
+
+This is also why signing in again never stuck: sign-in mints a token for the
+door you are *on*, and the next switch discarded it.
+
+**Fixed by** branching both switchers on the `oauth: { authenticated }` that
+`POST /config` already returns for the **destination** key — the signal both
+needed and neither read. Frontend only; no server change.
+
+**Do not break:**
+
+- Returning to a door or mode you already signed into must NOT re-prompt — the
+  per-key stash exists precisely to avoid that. Pinned by the second new test.
+- Mount-time auto-connect must still fire exactly once per round trip
+  (`privilegePromptNoneFailed`); untouched here, and its own tests still pass.
+- Direct is not exempt from auth. If a future change re-adds a `direct`
+  shortcut anywhere, it reintroduces this bug.
+
+**Known consequence, not a defect:** a door switch now performs a full-page auth
+redirect, exactly as a path switch already did. With `privilegePromptNoneFailed`
+set on the BFF session, `prompt=none` is skipped and that redirect shows a real
+PingOne login page rather than completing silently.
+
+**Verify:** `cd demo_api_ui && ./node_modules/.bin/vitest run src/pages/__tests__/PrivilegeMcpClientPage`
+— 20 files, 80 passed; `npm run build` exit 0. The three new tests are red
+before the fix and green after. Not driven live: the change is frontend-only and
+the sweep that found the bug called the BFF API directly, bypassing both
+functions.
+
 ### 2026-09-09 — Every provisioned decision endpoint was unbound: the create payload sent `policyId`, a field PingOne accepts and discards
 
 **Files changed:** `demo_api_server/services/pingOneAuthorizeService.js`, new
