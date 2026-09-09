@@ -826,7 +826,7 @@ async function main() {
     // triggers PingOne "May not request scopes for multiple resources"
     // (or a 200 with the wrong aud). Must include `write` or write tools
     // 502 with "Insufficient scope".
-    PG_OLB_SCOPE:                   'read write',
+    PG_OLB_SCOPE:                   'read write code:search',
     PG_MCP_RESOURCE_SERVER_URI:         mcpResourceServerAud,
     // Same single-resource rule: invest resource mirrored/native scopes only.
     PG_INVEST_SCOPE:                'invest:read',
