@@ -448,20 +448,35 @@
   word-break: break-word;
 }
 
+/* A refusal is the answer on this screen, not an aside, and it was reading as
+   ordinary body text behind a stripe: the same neutral inset ground the raw
+   panel and the model's own replies use, with only 3px of colour to separate
+   "Privilege stopped this" from "here is your answer". Across a room that is
+   no separation at all.
+   Both now fill in their own status family, ground and ink together, the way
+   .lgw-redacted already marks the gateway's other visible act — same inset
+   hairline, same weight logic. The stripe goes with the tint: once the panel
+   carries the colour, a heavy coloured rule is decoration.
+   Warning family for a Privilege denial, error family for a provider refusal
+   or a dead lane — the difference between "policy stopped it" and "the model
+   refused" is the whole subject of the page (see the file header), so the two
+   may never collapse into one colour. */
 .lgw-turn__body.is-warn {
-  padding: 0.45rem 0.6rem;
-  border-left: 3px solid var(--th-status-warning);
-  border-radius: 0 4px 4px 0;
-  background: var(--th-bg-inset);
-  color: var(--th-text);
+  padding: 0.5rem 0.65rem;
+  border-radius: 4px;
+  background: var(--th-status-warning-bg);
+  color: var(--th-status-warning-text);
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px var(--th-status-warning-border);
 }
 
 .lgw-turn__body.is-bad {
-  padding: 0.45rem 0.6rem;
-  border-left: 3px solid var(--th-status-error);
-  border-radius: 0 4px 4px 0;
-  background: var(--th-bg-inset);
-  color: var(--th-text);
+  padding: 0.5rem 0.65rem;
+  border-radius: 4px;
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px var(--th-status-error-border);
 }
 
 /* ── attack library ──────────────────────────────────────────────────────── */
@@ -668,14 +683,20 @@
 }
 
 /* ── who stopped it ──────────────────────────────────────────────────────── */
-/* The headline answer to "Privilege or the model?" — a coloured left rule and
-   type one step above the dl, so it reads before the field list does. */
+/* The headline answer to "Privilege or the model?" — type one step above the dl,
+   so it reads before the field list does. When something was stopped it fills in
+   that status family below, matching the turn body in the conversation column:
+   the same event, told twice, has to look like the same event. The 4px rule that
+   used to carry the colour is a 1px hairline now — on a tinted panel a heavy
+   coloured bar is decoration, and on the neutral "answered" state it was the only
+   thing a reader could mistake for a status. */
 .lgw-who {
   margin: 0 0 0.9rem;
-  padding: 0.5rem 0 0.5rem 0.7rem;
-  border-left: 4px solid var(--th-border-strong);
+  padding: 0.5rem 0.7rem;
+  border-radius: 4px;
   background: var(--th-bg-inset);
   color: var(--th-text);
+  box-shadow: inset 0 0 0 1px var(--th-border);
 }
 
 .lgw-who__who {
@@ -693,10 +714,21 @@
   color: var(--th-text-muted);
 }
 
-.lgw-who.is-warn { border-left-color: var(--th-status-warning); }
-.lgw-who.is-warn .lgw-who__who { color: var(--th-status-warning); }
-.lgw-who.is-bad { border-left-color: var(--th-status-error); }
-.lgw-who.is-bad .lgw-who__who { color: var(--th-status-error); }
+.lgw-who.is-warn {
+  background: var(--th-status-warning-bg);
+  color: var(--th-status-warning-text);
+  box-shadow: inset 0 0 0 1px var(--th-status-warning-border);
+}
+.lgw-who.is-warn .lgw-who__who,
+.lgw-who.is-warn .lgw-who__note { color: var(--th-status-warning-text); }
+
+.lgw-who.is-bad {
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
+  box-shadow: inset 0 0 0 1px var(--th-status-error-border);
+}
+.lgw-who.is-bad .lgw-who__who,
+.lgw-who.is-bad .lgw-who__note { color: var(--th-status-error-text); }
 .lgw-who.is-ok { border-left-color: var(--th-status-success); }
 
 /* Second caption line under the attack picker: what the caller will actually
