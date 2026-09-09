@@ -202,7 +202,7 @@ else
   elif echo "$CANARY" | grep -q '"error"'; then
     fail "authz sidecar unreachable from mcp-gateway: $CANARY"
   else
-    fail "authz does not PERMIT the gateway tools/list shape — discovery is degraded, vertical chips ride the fallback catalog: $CANARY"
+    fail "authz did not PERMIT the canary's tools/list shape. This is a SYNTHETIC request, not a measurement of live traffic — two different things produce it, so confirm which before chasing an outage. (a) Real discovery is denied: the BFF degrades to the local catalog and vertical chips ride the fallback. (b) This canary has drifted from what pingAuthorizeGuard.ts actually sends, and is denying itself (how the 2026-09-09 D-05 false alarm happened). Tell them apart in the authz-server sidecar logs: 'kubectl logs <mcp-gateway pod> -c authz-server | grep authz_decision' — a DENY whose workerId is NOT smoke-canary means (a). Canary said: $CANARY"
   fi
 fi
 
