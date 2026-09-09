@@ -26,7 +26,11 @@ export const DEMO_PRIMARY_USE_CASE_IDS = [
   'UC11',  // Bad client gateway
   'UC20',  // Audit trail
   'UC18',  // Rate-limit / throttle burst
-  'UC29',  // OAuth fail-closed
+  // UC29 (OAuth introspection outage) is deliberately NOT in the script: the
+  // Node gateway validates tokens by JWKS (GW_INTROSPECTION_ENABLED=false —
+  // RFC 7662 cannot cover its multi-issuer A2A tokens, see docker-compose.yml)
+  // and PingGateway has no outage toggle, so the sim cannot fire on this
+  // deployment. It stays in the catalog under Attacks, badged "Needs build".
   'UC30',  // Weather MCP — Texas permit
   'UC31',  // Weather MCP — out-of-scope deny
   'UC32',  // Weather MCP — live-reconfigure the gateway scope

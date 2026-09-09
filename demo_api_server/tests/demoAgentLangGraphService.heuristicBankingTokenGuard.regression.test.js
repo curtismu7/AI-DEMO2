@@ -106,6 +106,28 @@ describe('processAgentMessage — heuristic banking token guard (regression)', (
     expect(executeBffTool).not.toHaveBeenCalled();
   });
 
+  test('weather without token stays open (UC30 public — dispatched, not need_auth)', async () => {
+    // UC30 is `public` in auth-requirements.json; the gateway route is open and
+    // mcpToolPipeline runs the tool anonymously. This guard used to exempt only
+    // branch_hours, so a signed-out UC30 got need_auth (2026-09-08 review).
+    nlIntentParser.parseHeuristic.mockReturnValue({
+      kind: 'banking',
+      banking: { action: 'weather', params: { city_name: 'Austin, TX' } },
+    });
+    executeBffTool.mockResolvedValueOnce('**Location:** Austin, TX — Clear');
+
+    const result = await processAgentMessage({
+      message: "what's the weather in Austin, TX",
+      userId: null,
+      userToken: null,
+      isGuest: true,
+      req: { body: {}, tokenEvents: [] },
+    });
+
+    expect(result.error).not.toBe('need_auth');
+    expect(executeBffTool).toHaveBeenCalledWith(expect.objectContaining({ name: 'get_weather', userToken: null }));
+  });
+
   test('with userToken → the no-token guard does NOT fire', async () => {
     const result = await processAgentMessage({
       message: 'show my balance',

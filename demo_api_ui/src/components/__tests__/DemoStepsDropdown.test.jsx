@@ -394,7 +394,7 @@ describe('DemoStepsDropdown — step rail numbering', () => {
     apiClient.get.mockResolvedValue({ data: { useCases: CATALOG } });
   });
 
-  it('numbers the full list 1–22 in walkthrough order', async () => {
+  it('numbers the full list in walkthrough order', async () => {
     render(
       <DemoStepsDropdown
         open
@@ -424,9 +424,11 @@ describe('DemoStepsDropdown — step rail numbering', () => {
       'aria-label',
       'Explain step 9: UC2 — Title for UC2',
     );
+    // UC29 left the script (not demonstrable on this deployment), so UC32
+    // moved up from 22 to 21.
     expect(screen.getByTestId('demo-explain-UC32')).toHaveAttribute(
       'aria-label',
-      'Explain step 22: UC32 — Title for UC32',
+      'Explain step 21: UC32 — Title for UC32',
     );
   });
 });

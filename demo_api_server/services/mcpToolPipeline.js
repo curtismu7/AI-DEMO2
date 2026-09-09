@@ -5,6 +5,34 @@ const { logger, LOG_CATEGORIES } = require('../utils/logger');
 const { buildGwAuthorizeEventExtra } = require('./agentMcpTokenService');
 const { resolveStepUpMethod } = require('./mcpToolAuthorizationService');
 const { getUseCaseStepUpMethod } = require('../config/useCases');
+
+/**
+ * Tools a signed-out visitor may call — config/auth-requirements.json
+ * `publicAgentActions`, mapped to tool names. UC30 ("what's the weather in
+ * Austin, TX") is declared public and PingGateway's /mcp/weather route carries
+ * no auth filter, yet this pipeline always ran the RFC 8693 exchange, which
+ * needs a subject token, so a guest died at the no-bearer gate below before
+ * the gateway was ever called. For these tools, and only with no session, the
+ * exchange / introspection / BFF pre-flight are skipped and the gateway is
+ * called anonymously; the gateway's own policy (the Texas geofence, the Brave
+ * blocklist) still runs. Resolved lazily — stepVerificationExpectations pulls
+ * the catalog in, which must not load with this module.
+ */
+let _publicGuestTools = null;
+function isPublicGuestTool(tool) {
+    if (!_publicGuestTools) {
+        try {
+            const { AUTH_REQUIREMENTS } = require('../config/authRequirements');
+            const { ACTION_TO_TOOL } = require('./stepVerificationExpectations');
+            _publicGuestTools = new Set(
+                (AUTH_REQUIREMENTS.publicAgentActions || []).map((a) => ACTION_TO_TOOL[a]).filter(Boolean),
+            );
+        } catch {
+            _publicGuestTools = new Set();
+        }
+    }
+    return _publicGuestTools.has(tool);
+}
 const _CAT = LOG_CATEGORIES.MCP_TOOL_PIPELINE;
 
 /**
@@ -232,6 +260,10 @@ async function runMcpToolPipeline(ctx) {
     let userSub = null;
     let tokenEvents = [];
     let tratContextHeader = null;
+    // True only for a public tool called with NO session at all (see
+    // isPublicGuestTool). A signed-in caller of the same tool still takes the
+    // full exchange → introspection → gateway path.
+    let guestPublicTool = false;
     try {
         deps.emit({
             phase: 'resolving_access_token'
@@ -252,6 +284,8 @@ async function runMcpToolPipeline(ctx) {
         tokenEvents = resolved.tokenEvents;
         userSub = resolved.userSub || null;
         tratContextHeader = resolved.tratContextHeader || null;
+        // need_auth is set only when the session holds no bearer at all.
+        guestPublicTool = !mcpAccessToken && resolved.need_auth === true && isPublicGuestTool(tool);
         if (resolved.blocked) {
             deps.publishTokenEventsToSse(flowTraceId, tokenEvents);
             return {
@@ -387,7 +421,22 @@ async function runMcpToolPipeline(ctx) {
         } };
     }
 
-    if (!mcpAccessToken) {
+    if (!mcpAccessToken && guestPublicTool) {
+        // Public tool, no session: nothing to exchange. The gateway is still
+        // called (anonymously) and remains the PEP — this is not the local
+        // fallback the branch below refuses to take.
+        deps.emit({ phase: 'public_tool_no_session', tool });
+        tokenEvents.push(deps.buildTokenEvent(
+            'token-exchange',
+            'RFC 8693 Token Exchange — skipped (public tool, no session)',
+            'skipped',
+            null,
+            `${tool} is a public tool: a signed-out visitor calls the gateway without a `
+                + 'delegated token. The gateway\'s own policy still applies to the call.',
+            { rfc: 'RFC 8693', publicTool: true, tool },
+        ));
+        deps.publishTokenEventsToSse(flowTraceId, tokenEvents);
+    } else if (!mcpAccessToken) {
         // No real bearer (cookie-only / unhydrated session). Do NOT fall back to
         // the local handler: that bypasses the gateway, the MCP server, and the
         // PingOne Authorize gate below, so the tool would "succeed" with NO
@@ -455,8 +504,9 @@ async function runMcpToolPipeline(ctx) {
     // `_hitl_challenge_id` is likewise left in `params` here on purpose: the gateway
     // verifies and strips it, so the BFF must not consume it first.
     const gatewayAuthoritative = !!useGateway;
-    if (ctx.skipBffAuthorize || gatewayAuthoritative) {
-        const skipReason = ctx.skipBffAuthorize ? 'a2a_supplied_token' : 'gateway_authoritative';
+    if (ctx.skipBffAuthorize || gatewayAuthoritative || guestPublicTool) {
+        const skipReason = ctx.skipBffAuthorize ? 'a2a_supplied_token'
+            : (gatewayAuthoritative ? 'gateway_authoritative' : 'public_tool_no_session');
         deps.emit({ phase: 'authorize_gate_skipped', reason: skipReason });
         // Contract C4 — omission is not permission. The SSE phase alone left the
         // RESPONSE BODY byte-identical to a run where the gate PERMITted, so a
@@ -768,7 +818,10 @@ async function runMcpToolPipeline(ctx) {
     // Introspect session token for zero-trust validation (RFC 7662)
     const sessionAccessToken = deps.getSessionAccessToken(req);
     const introspectionConfigured = deps.config.introspectionConfigured;
-    if (introspectionConfigured) {
+    if (introspectionConfigured && guestPublicTool) {
+        // Nothing to introspect — there is no session token by definition.
+        deps.emit({ phase: 'introspection_skipped_public_tool' });
+    } else if (introspectionConfigured) {
         deps.emit({
             phase: 'introspection_begin'
         });
