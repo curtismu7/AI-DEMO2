@@ -1,5 +1,5 @@
 import React from "react";
-import { render } from "@testing-library/react";
+import { act, render } from "@testing-library/react";
 import { useDraggablePanel } from "../useDraggablePanel";
 
 const STORAGE_KEY = "test-panel-pos";
@@ -110,5 +110,74 @@ describe("useDraggablePanel unmount mid-drag", () => {
     expect(removeSpy).toHaveBeenCalledWith("pointercancel", expect.any(Function));
 
     document.body.removeChild(target);
+  });
+});
+
+describe("useDraggablePanel resize keeps the title bar reachable", () => {
+  beforeEach(() => {
+    setViewport(1440, 811);
+    localStorage.clear();
+    captured = undefined;
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+  });
+
+  const startResize = (direction) =>
+    act(() => {
+      captured.handleResizeStart(
+        { button: 0, clientX: 200, clientY: 100, preventDefault: () => {}, stopPropagation: () => {} },
+        direction,
+      );
+    });
+
+  const moveTo = (clientX, clientY) =>
+    act(() => {
+      document.dispatchEvent(new MouseEvent("mousemove", { clientX, clientY }));
+    });
+
+  const endResize = () => act(() => { document.dispatchEvent(new MouseEvent("mouseup")); });
+
+  // Regression: growing from the north edge computed
+  //   newH = startH - deltaY;  newT = startT + (startH - newH)
+  // with nothing bounding newT, so dragging the top edge upward walked the
+  // panel's top off the viewport. The title bar is the ONLY drag target, so
+  // once it was above y=0 the panel could not be moved back — the reported
+  // "can not see the header when I made it bigger" on Token Topology.
+  it("does not push the top edge above the viewport when growing from the north edge", () => {
+    render(<Probe />);
+    startResize("n");
+    moveTo(200, -300); // drag the top edge 400px ABOVE where it started
+    endResize();
+
+    expect(captured.pos.y).toBeGreaterThanOrEqual(0);
+    // The bottom edge stays put — north resize moves the top, not the panel.
+    expect(captured.pos.y + captured.size.h).toBe(100 + SIZE.h);
+  });
+
+  it("does not push the left edge off-screen when growing from the west edge", () => {
+    render(<Probe />);
+    startResize("w");
+    moveTo(-300, 100);
+    endResize();
+
+    expect(captured.pos.x).toBeGreaterThanOrEqual(0);
+    expect(captured.pos.x + captured.size.w).toBe(100 + SIZE.w);
+  });
+
+  // The cap must not become a general clamp: growing downward is unbounded, and
+  // a north resize that stays on-screen must still work normally.
+  it("still grows normally from the south edge and from a bounded north drag", () => {
+    render(<Probe />);
+    startResize("s");
+    moveTo(200, 900);
+    endResize();
+    expect(captured.size.h).toBeGreaterThan(SIZE.h);
+
+    startResize("n");
+    moveTo(200, 60); // 40px up — well inside the viewport
+    endResize();
+    expect(captured.pos.y).toBe(60);
   });
 });
