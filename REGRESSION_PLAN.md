@@ -140,6 +140,43 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-09 — TwoExchangeReconciler reported OK on every boot while two of its PingOne calls were failing
+
+**Files changed:** `demo_api_server/services/twoExchangeReconciler.js`,
+new `demo_api_server/tests/twoExchangeReconciler.summary.test.js`.
+
+**What was broken:** the reconciler try/catches every check individually so one
+PingOne hiccup cannot take the BFF's boot with it. Each catch warned and left
+that check's result at its empty default — which the summary could not tell
+apart from "nothing needed doing". So a boot that logged
+
+```
+[TwoExchangeReconciler] Exchange #2 grant reconcile failed: Request failed with status code 400
+[TwoExchangeReconciler] Exchange #3 MCP Gateway→MCP Server grant reconcile failed: ...400
+[TwoExchangeReconciler] OK — Exchange #1, #2, and #3 scopes and grants match scope-topology.json
+```
+
+still ended on the OK line, three lines below the failures. This is the exact
+silent-failure class `docs/SILENT_FAILURE_REVIEW_GUIDE.md` exists for, and it
+has been happening on every boot of this environment (the 400s are real — see
+the scope-partition entry).
+
+**What was fixed:** the 15 catches that fall through to the summary now record
+what failed in a `failures` array. The summary reports `INCOMPLETE — N check(s)
+failed: <names>` and the OK line is emitted only when nothing failed. The three
+catches that `return` early are untouched: they exit before the summary, so
+they never produced a false OK.
+
+**Do not break:** OK must stay gated on `failures.length === 0`. A failed check
+proves nothing about live PingOne state, so it can never be reported as a match
+— that is the whole bug. The reconciler must still never throw: recording a
+failure is additive to the existing warn, not a replacement.
+
+**Verify:** `cd demo_api_server && CI=true npx jest
+tests/twoExchangeReconciler.summary.test.js --forceExit` — 2 passed (the
+INCOMPLETE test fails against the pre-fix summary; confirmed by reverting it).
+Live: on BFF boot the run now ends `INCOMPLETE — 2 check(s) failed: Exchange #2
+grant reconcile; Exchange #3 MCP Gateway→MCP Server grant reconcile`.
 ### 2026-09-09 — Demo Steps gate declared UC38 wrong, and three verticals sat unverified
 
 **Files changed:** `demo_api_ui/tests/e2e/demo-steps-outcomes.real.spec.js`.
