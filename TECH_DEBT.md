@@ -2964,16 +2964,21 @@ banking" preset default to it.
   Mode None, Mesh Cluster `ai-demo-cmuir`) — a console write the API refuses,
   so it is an operator action. Then step 2, the policy, same expiry caveat as
   before.
-- **The call hop.** Discovery is tokenless by that server's design, but
-  `tools/call` needs a bearer carrying `banking:read` on an audience it accepts
-  (`mcp-invest.ping.demo`, `mcp-resource-server.ping.demo`,
-  `mcpgateway.ping.demo`, validated against the demo env's JWKS).
-  `banking:read` is a user scope delivered by the BFF's RFC 8693 exchange, not
-  something a client can hold on a machine token; a Privilege-forwarded user
-  token has the wrong issuer, and Static Token is parsed as a JWT. So the door
-  answers `insufficient_scope` on calls until the backend hop is designed —
-  most likely Auth Mode OAuth into the demo env with `banking:read` made
-  client-grantable. It also exposes all 33 tools; narrow with policy.
+- **The call hop — designed 2026-09-08, repo side done.** The premise above
+  was wrong twice: `banking:read` is not a user scope, it is a scope that
+  exists in no PingOne resource and nowhere in `scope-topology.json`
+  (`check-tool-scope-registration.js` had both banking tools on its known-bad
+  list), and the validator checks JWKS + `aud`, never issuer. The tools now
+  require `read` (the topology's banking read scope), a sub-less machine
+  token maps to the seed subject `demo-user`, and the existing
+  `Demo AI App - Fraud Watch Agent` (`read` on `mcpgateway.ping.demo`, its
+  only grant) is the backend-hop client — no PingOne change. What's left is
+  the console write (Auth Mode OAuth with that client, token URL of env
+  `01d89b06`, scopes `read` — full recipe in
+  `privilege/CURRENT-CONFIGURATION.md` "The call hop") and the first
+  `tools/call`, which is also the measurement of the one inferred piece: that
+  Auth Mode OAuth runs `client_credentials` on the backend hop. It also
+  exposes all 33 tools; narrow with policy.
 
 ### [x] 2026-08-26 — `ping-mcpgw` Helm release's only remaining purpose is a backend it doesn't gate
 

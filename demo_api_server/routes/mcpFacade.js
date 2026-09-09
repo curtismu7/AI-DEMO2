@@ -84,8 +84,10 @@ const DOORS = {
     // get_banking_account — which is exactly the discovery this gateway build
     // performs (it POSTs initialize to the registered path; see #2958 for the
     // measurement that killed the older "register /sse" rule). Discovery is
-    // tokenless by that server's design (PR #2891); tools/call still needs a
-    // bearer carrying banking:read on an audience it accepts.
+    // tokenless by that server's design (PR #2891); tools/call needs a bearer
+    // carrying `read` on an audience it accepts — the console's Auth Mode OAuth
+    // (client_credentials as Fraud Watch Agent, aud mcpgateway.ping.demo)
+    // supplies it. See privilege/CURRENT-CONFIGURATION.md "The call hop".
     //
     // Path via privilegeEntryPath rather than a hardcoded /mcp so a console
     // edit remains an env change, not a code change.
