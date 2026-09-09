@@ -38,6 +38,7 @@ import {
   markUseCaseCompleted,
 } from '../utils/useCaseDemoProgress';
 import { requiredFlagsForUseCase, groupRequirementForUseCase } from '../utils/requiredDemoFlags';
+import { restoreGroupMembership } from '../utils/restoreGroupMembership';
 import {
   DEMO_USE_CASE_IDS,
   DEMO_USE_CASE_LABEL,
@@ -825,6 +826,10 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
           .then(() => data);
       })
       .then((data) => {
+        // Restore the demo user to premiumTier now that the UC9 denial has been
+        // demonstrated — an unhandled error below this point (or the tab closing)
+        // must not leave UC2/UC37 stranded outside the group they share the tool with.
+        if (groupReq === 'out') restoreGroupMembership();
         // A newer Run click has since started its own chain — discard this
         // stale one so it can't overwrite chipRun or navigate over the newer run.
         if (myRunToken !== chipRunTokenRef.current) return;
@@ -843,6 +848,9 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
         });
       })
       .catch((err) => {
+        // Same restore on the failure path — the run itself never got a chance
+        // to leave premiumTier stranded, but it may have; best-effort either way.
+        if (groupReq === 'out') restoreGroupMembership();
         if (myRunToken !== chipRunTokenRef.current) return;
         console.error('Failed to run use case:', err);
         // The BFF now says WHICH sign-in a refused step wants, so offer it
