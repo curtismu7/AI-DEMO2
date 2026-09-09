@@ -161,8 +161,8 @@ function attribution(decision, isLocal) {
 }
 
 // What the caller will actually see, so firing a payload that produces nothing
-// reads as "the model declined" rather than "the guardrail failed". Three of the
-// seven produce no gateway verdict at all; saying so up front is the difference
+// reads as "the model declined" rather than "the guardrail failed". One of the
+// seven produces no gateway verdict at all; saying so up front is the difference
 // between a demo and an unexplained silence.
 const ATTACK_EFFECT = {
   blocks: 'Privilege blocks this before the model sees it.',
