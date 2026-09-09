@@ -212,13 +212,9 @@ describe("CSS/JS monospace regression", () => {
     // Skip comment lines
     if (s.startsWith("//") || s.startsWith("*") || s.startsWith("/*"))
       return false;
-    // Skip the token definition itself (--font-family-mono: ...) — it's a variable name, not usage
-    if (
-      s.includes("--font-family-mono:") ||
-      s.includes("--font-mono:") ||
-      s.includes("--agent-font-mono:")
-    )
-      return false;
+    // Skip a token DEFINITION (--font-mono: ..., --rd2-font-mono: ...) — the
+    // whole point is that a mono stack is written down once, in a token.
+    if (/^--[\w-]*mono[\w-]*\s*:/.test(s)) return false;
     // Actual monospace font usage
     return /monospace/i.test(s);
   };
@@ -226,99 +222,6 @@ describe("CSS/JS monospace regression", () => {
   it("no CSS file uses monospace font", () => {
     const violations = [];
     for (const f of cssFiles) {
-      // Skip files that use monospace intentionally for code/token/value display
-      if (
-        f.includes("AgentDemoGuide.css") ||
-        f.includes("AuthorizeConfigPage.css") ||
-        f.includes("ApiKeyPathPage.css") ||
-        f.includes("AccessIdTokenPathPage.css") ||
-        f.includes("MortgagePathPage.css") ||
-        f.includes("Phase266ArchitecturePage.css") ||
-        f.includes("ActivityLogPanel.css") ||   // act-chain audit log display (intentional)
-        f.includes("AIAgent.css") ||        // agent inline code display (intentional)
-        f.includes("CopyableValue.css") ||       // copyable code/value display (intentional)
-        f.includes("FeatureFlagsPage.css") ||    // flag ID code display (intentional)
-        f.includes("McpGatewayConfig.css") ||    // config key/value display (intentional)
-        f.includes("PingOneMcpInspector.css") || // MCP inspector code/JSON display (intentional)
-        f.includes("ScopeReferencePage.css") ||  // OAuth scope identifier display (intentional)
-        f.includes("Profile.css") ||             // profile field code display (intentional)
-        f.includes("TokenCard.css") ||           // JWT token claim display (intentional)
-        f.includes("TokenChainDisplay.css") ||   // token chain code display (intentional)
-        f.includes("TokenChainTraceRail.css") || // trace rail code/claims/JSON display (intentional)
-        f.includes("TokenChainPresenter.css") || // presenter claim key/value display (intentional)
-        f.includes("privilege/ToolsTable.css") || // tool param/code display (intentional; shipped without this entry)
-        f.includes("StepDetailPanel.css") ||     // step request/response/claims display (intentional)
-        f.includes("UserMenu.css") ||            // user ID code display (intentional)
-        f.includes("VerticalFeaturePage.css") || // feature code display (intentional)
-        f.includes("WebMcpPanel.css") ||         // MCP tool code display (intentional)
-        f.includes("refinedDashboardV2.css") ||  // v2 dashboard mono token + numeric/badge display (intentional)
-        f.includes("refinedSurface.css") ||      // v2 surface mono token def (intentional)
-        f.includes("clinical.css") ||            // agent-clinical code/data panes (intentional)
-        f.includes("LandingPage.css") ||           // landing data figure via --rd2-font-mono (intentional)
-        f.includes("JsonField.css") ||           // raw JSON request/response display (intentional)
-        f.includes("RunReportPage.css") ||           // report log/code display (intentional)
-        f.includes("AuditPage.css") ||               // audit log/code display (intentional)
-        f.includes("DemoAuthzFallbackModal.css") ||  // authz decision code display (intentional)
-        f.includes("GatewayRoutingDiagram.css") ||   // gateway route/tool code display (intentional)
-        f.includes("PolicyDecisionTree.css") ||      // policy attribute/value code display (intentional)
-        f.includes("ResourceServerTester.css") ||    // scope/rule identifier code display (intentional)
-        f.includes("UseCaseExplainModal.css") ||     // tool/rule code + JSON display (intentional)
-        f.includes("UseCaseLauncherPage.css") ||     // use-case tool/trigger code display (intentional)
-        f.includes("OASDemoPage.css") ||             // OAS spec/API code display (intentional)
-        f.includes("EventCard.css") ||               // event technical details JSON display (intentional)
-        f.includes("ElicitationDialog.css") ||          // elicitation code examples display (intentional)
-        f.includes("AdminConfigValidationPanel.css") || // config panel code/value/feature-id display (intentional)
-        f.includes("AuthErrorBanner.css") ||            // error banner inline code display (intentional)
-        f.includes("TokenExchangeTesterPage.css") ||    // token tester input/error/claim display (intentional)
-        f.includes("AgentGatewayConfigEditor.css") ||   // config path/value code display (intentional)
-        f.includes("ArchitectureCanvasPage.css") ||     // architecture step-route/tool code labels (intentional)
-        f.includes("PingCliPage.css") ||                // CLI terminal / command output display (intentional)
-        f.includes("SearchResults.css") ||              // code snippet display in search results (intentional)
-        f.includes("StepDetailsSection.css") ||         // step request/response code + JSON display (intentional)
-        f.includes("TokenCardGrid.css") ||              // JWT token claim/value display (intentional)
-        f.includes("AnnotatedResult.css") ||            // authz annotated-result mono value display (intentional)
-        f.includes("McpDelegationScenarios.css") ||     // policy-statement code chip display (intentional)
-        f.includes("SnapshotImport.css") ||             // raw JSON snapshot display (intentional)
-        f.includes("TokenChainRedesign.css") ||         // token chain code/claims/JSON display (intentional)
-        f.includes("PrivilegeDemoPage.css") ||          // persona email identifier display (intentional)
-        f.includes("ServersPage.css") ||                // container/port/latency data columns (intentional)
-        f.includes("CheckPage.css") ||                   // pre-demo check id/count/log display via --mono (intentional)
-        f.includes("ProofStrip.css") ||                   // evidence chain step id display (intentional)
-        f.includes("VerifiedBanner.css") ||                // evidence chain step id display (intentional)
-        f.includes("ApiExplorerPanel.css") ||             // HTTP method/path badge display (intentional)
-        f.includes("LearningLogLearnPane.css") ||        // correlation id display (intentional)
-        f.includes("M2mCredentialsSamplePage.css") ||    // ported PingOne m2m sample: URL/JWT/JSON display (intentional)
-        f.includes("SampleAppPage.css") ||               // sample-app source code display (intentional)
-        f.includes("McpGatewayOauthFlowPage.css") ||     // OAuth flow code/token display (intentional)
-        f.includes("TokenSecurityTester.css") ||         // security tester tree/token display (intentional)
-        f.includes("TokenTopologyPanel.css") ||          // lane identifier display (intentional)
-        f.includes("UnifiedTokenFlowInspector.css") ||   // token inspector code/JSON display (intentional)
-        f.includes("aiFootprintMocks/chrome.css") ||     // mock code-editor/terminal chrome display (intentional)
-        f.includes("aiFootprintMocks/PrivilegeShellPanel.css") || // Privilege MCP tool/args/JSON display (intentional)
-        f.includes("shared/InspectorShell.css") ||       // shared inspector template code display (intentional)
-        f.includes("shared/JsonColumnsView.css") ||      // JSON display component (intentional)
-        f.includes("shared/JsonFormView.css") ||         // JSON display component (intentional)
-        f.includes("FootprintMockGalleryPage.css") ||    // mock code-editor/terminal gallery display (intentional)
-        f.includes("PrivilegeMcpClientPage.css") ||      // MCP client code/token display (intentional)
-        f.includes("LlmGatewayPage.css") ||             // LLM gateway route/model/verdict display (intentional)
-        f.includes("LlmTestPage.css") ||                // raw gateway request/response display (intentional)
-        f.includes("TransactionTracePage.css") ||        // trace cid/phase/op code display (intentional)
-        f.includes("DetailedStepsTabContent.css") ||     // step request/response code display (intentional)
-        f.includes("ProtocolPlayground/ProtocolPlayground.css") || // protocol frame/code display (intentional)
-        f.includes("ProtocolPlayground/JSONViewer.css") || // JSON response display (intentional)
-        f.includes("ProtocolPlayground/StepCard.css") ||   // request/response code display (intentional)
-        f.includes("ResourceServerInterstitial.css") ||  // RS token/scope code display (intentional)
-        f.includes("TokenFlowDetailModal.css") ||        // token claim/JSON code display (intentional)
-        f.includes("LiveUseCaseWorkbenchPage.css") ||    // workbench log/tool code display (intentional)
-        f.includes("ResourceServerJourneyPage.css") ||   // journey token/code display (intentional)
-        f.includes("agent-clinical/TokensPane.css") ||   // token claim/badge value display (intentional)
-        f.includes("PingOneEventPanel.css") ||            // PingOne event JSON detail display (intentional)
-        f.includes("NewRelicDashboard.css") ||             // pipeline stage counts/timestamps/correlation id/category chip display (intentional)
-        f.includes("ProductCardGrid.css") ||              // price tag tabular-nums display (intentional)
-        f.includes("SeatMapPanel.css") ||                 // seat label tabular-nums display (intentional)
-        f.includes("dashboard/dashboard.css")              // shared dashboard tabular stat/timestamp/correlation id/chip display (intentional)
-      )
-        continue;
       const lines = fs.readFileSync(f, "utf8").split("\n");
       lines.forEach((line, i) => {
         if (isMonospaceLine(line)) {

@@ -43,7 +43,7 @@
 }
 
 .lt-origin {
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono);
   font-size: var(--font-size-sm);
   padding: 0.2rem 0.45rem;
   border: 1px solid var(--th-border);
@@ -132,7 +132,7 @@
   border-radius: 5px;
   background: var(--th-bg-inset);
   color: var(--th-text);
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono);
   font-size: var(--font-size-sm);
   line-height: 1.6;
   resize: vertical;
@@ -191,7 +191,7 @@
   border-radius: 5px;
   background: var(--th-bg-inset);
   color: var(--th-text);
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono);
   font-size: var(--font-size-sm);
   line-height: 1.6;
   overflow-x: auto;
@@ -216,7 +216,7 @@
   padding: 0.3rem 0.75rem;
   border-radius: 5px;
   border: 1px solid transparent;
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono);
   font-size: var(--font-size-base);
   font-weight: 800;
   background: var(--th-bg-inset);
@@ -248,14 +248,14 @@
 }
 
 .lt-ms {
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono);
   font-size: var(--font-size-sm);
   font-variant-numeric: tabular-nums;
   color: var(--th-text-muted);
 }
 
 .lt-url {
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono);
   font-size: var(--font-size-sm);
   color: var(--th-text-muted);
   word-break: break-all;
@@ -301,7 +301,7 @@
   border-radius: var(--radius-sm);
   background: var(--th-bg-inset);
   color: var(--th-text);
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono);
   font-size: var(--font-size-sm);
 }
 
@@ -324,7 +324,7 @@
 }
 
 .lt-cmp__v {
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono);
   font-size: var(--font-size-base);
   font-variant-numeric: tabular-nums;
   color: var(--th-text);
@@ -366,7 +366,7 @@
 }
 
 .lt-local-note code {
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono);
   color: var(--th-text);
 }
 
@@ -428,7 +428,7 @@
 .lt-form > div { display: flex; flex-direction: column; gap: 0.1rem; }
 
 .lt-form dt {
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono);
   font-size: var(--font-size-sm);
   color: var(--th-text-muted);
   word-break: break-all;

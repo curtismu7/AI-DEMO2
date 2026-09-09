@@ -1458,7 +1458,7 @@ existing tokens as canonical, then sweep exact matches only, the way the type
 scale was adopted (1,974 declarations, zero visual change, because every
 mapping was value-identical).
 
-### [ ] 2026-08-28 — the monospace test's filename allowlist is now mostly stale
+### [x] 2026-08-28 — the monospace test's filename allowlist is now mostly stale
 
 `uiRegression.test.js` bans the fixed-width literal in CSS through a
 hand-maintained allowlist of ~45 FILENAMES, each commented "intentional" for
@@ -1478,6 +1478,22 @@ list into a per-PURPOSE token, which is what it should have been.
 Note `--font-family-mono` was named "mono" but resolved to a SANS stack, so
 every consumer asking for a fixed-width face silently got a proportional one.
 It now aliases `--font-mono`.
+
+**RESOLVED — branch `fix/tech-debt-small-wins`.** Six files, not twelve, still
+carried the literal by 2026-09-09 (the rest had been converted in the interim):
+`LlmGatewayPage.css` and `LlmTestPage.css` only had a redundant
+`var(--font-mono, monospace)` fallback; `TokenTopologyPanel.css`,
+`UnifiedTokenFlowInspector.css`, `PrivilegeShellPanel.css` and
+`PrivilegeMcpClientPage.css` declared their own stacks (all four inside a
+`font:` shorthand or a family list, so `var(--font-mono)` drops straight in).
+The ~45-entry filename allowlist in `uiRegression.test.js` is deleted outright
+and `isMonospaceLine` now skips any `--*mono*:` DEFINITION line via one regex
+instead of three hard-coded names — which also covers `--rd2-font-mono` /
+`--rd-font-mono` (the v2 dashboard/surface themes, whose "IBM Plex Mono" is a
+deliberate theme choice and was left alone; note it is never loaded as a
+webfont, so it already falls back to `ui-monospace`). `--agent-font-mono` no
+longer exists anywhere, so its skip went with the others. Note the JS half of
+the test still has its own three-file skip list — untouched, different list.
 
 
 ### [ ] 2026-08-28 — 271 emoji outside the §0 allowlist, in 53 files
