@@ -3,6 +3,7 @@ import { MdCheckCircle } from 'react-icons/md';
 import { toast } from 'react-toastify';
 import bffAxios from '../services/bffAxios';
 import AgentAccessCard from './AgentAccessCard';
+import AgentPermissionsCard from './AgentPermissionsCard';
 import SignInPrompt from './SignInPrompt';
 import { useThemeOptional } from '../context/ThemeContext';
 import './Profile.css';
@@ -489,6 +490,7 @@ export default function Profile({ user }) {
       </div>
 
       <AgentAccessCard />
+      <AgentPermissionsCard user={user} />
     </div>
   );
 }
