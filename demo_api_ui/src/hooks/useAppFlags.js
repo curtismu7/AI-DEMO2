@@ -38,7 +38,10 @@ function mapCfgToFlags(cfg) {
     // other flag above does.
     spinnerVariant: cfg.spinner_variant || "neural",
     spinnerSize: Number(cfg.spinner_size) || 88,
-    spinnerAccent: cfg.spinner_accent || "",
+    spinnerAccent:
+      !cfg.spinner_accent || cfg.spinner_accent === "default"
+        ? ""
+        : cfg.spinner_accent,
     spinnerDarkCard:
       cfg.spinner_dark_card !== false && cfg.spinner_dark_card !== "false",
     spinnerActivityFeed:

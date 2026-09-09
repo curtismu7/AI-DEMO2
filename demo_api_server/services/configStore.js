@@ -556,7 +556,9 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   // (REGRESSION_PLAN H3: it beats every [data-theme] override).
   spinner_variant:                 { public: true, default: 'neural' },  // neural | busy | classic
   spinner_size:                    { public: true, default: '88' },      // overlay diameter, px
-  spinner_accent:                  { public: true, default: '' },        // empty → --brand-navy
+  spinner_accent:                  { public: true, default: 'default' },  // 'default' → --brand-navy. NOT '': routes/adminConfig.js's POST
+                                                                          // reads an empty string as "leave unchanged" and skips the write, so an
+                                                                          // empty sentinel could set an accent but never clear one again.
   spinner_dark_card:               { public: true, default: 'true' },
   spinner_activity_feed:           { public: true, default: 'true' },    // can only hide the feed; showing it still needs admin (/api/admin/app-events 403s for everyone else)
 

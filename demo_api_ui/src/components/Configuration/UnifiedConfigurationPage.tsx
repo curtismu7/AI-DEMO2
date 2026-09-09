@@ -466,7 +466,7 @@ const getDefaultState = (): ConfigurationState => ({
   agentUiMode: "standard",
   spinnerVariant: "neural",
   spinnerSize: 88,
-  spinnerAccent: "",
+  spinnerAccent: "default",
   spinnerDarkCard: true,
   spinnerActivityFeed: true,
   mcpScopes: "openid\nprofile\nemail\np1:read:user\nbankingapi",
@@ -1897,7 +1897,7 @@ const UnifiedConfigurationPage: FC<{
           demoScenario: (cfg.demo_scenario as string) || "default",
           spinnerVariant: (cfg.spinner_variant as string) || "neural",
           spinnerSize: Number(cfg.spinner_size) || 88,
-          spinnerAccent: (cfg.spinner_accent as string) || "",
+          spinnerAccent: (cfg.spinner_accent as string) || "default",
           spinnerDarkCard: cfg.spinner_dark_card !== false,
           spinnerActivityFeed: cfg.spinner_activity_feed !== false,
           industryId: (cfg.industry_id as string) || ctxIndustryId || "banking",
@@ -2759,7 +2759,8 @@ const UnifiedConfigurationPage: FC<{
                 borderRadius: "12px",
                 background: state.spinnerDarkCard ? "#1e293b" : "#fff",
                 border: "1px solid var(--th-border, #e2e8f0)",
-                "--spinner-accent": state.spinnerAccent || undefined,
+                "--spinner-accent":
+                  state.spinnerAccent === "default" ? undefined : state.spinnerAccent,
               } as React.CSSProperties
             }
           >
@@ -2810,7 +2811,7 @@ const UnifiedConfigurationPage: FC<{
               setState((prev) => ({ ...prev, spinnerAccent: v, saveStatus: "idle" }))
             }
             options={[
-              { value: "", label: "Theme default (brand navy, colour varies per request)" },
+              { value: "default", label: "Theme default (brand navy, colour varies per request)" },
               { value: "#7c3aed", label: "Violet" },
               { value: "#059669", label: "Emerald" },
               { value: "#dc2626", label: "Red" },
