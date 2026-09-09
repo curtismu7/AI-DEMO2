@@ -298,6 +298,29 @@ function extractIntentAndConfidence(message) {
   if (/\bbranch\b.*\bhours?\b|\bhours?\b.*\bbranch\b/.test(t))
     return { intent: "get_branch_hours", toolName: "get_branch_hours", confidence: 0.9 };
 
+  // UC2/UC2.5 A2A delegation chips, same defect class as the showcase chips
+  // above. Each vertical's trigger is a DIFFERENT literal phrase
+  // (config/useCases.js A2A_TRIGGER_BY_VERTICAL — e.g. "show my sensitive
+  // membership details" for sporting-goods, "show my sensitive order history"
+  // for retail), and several of those phrases contain "history"/"details",
+  // which the accounts/transactions reads below would otherwise steal — must
+  // precede them, same as branch hours. UC2.5's orchestrator trigger ("delegate
+  // this to a specialist") and UC2's own un-overridden default ("hand off to a
+  // specialist") are vertical-neutral, so this intent stays generic; the
+  // vertical-specific specialist tool is resolved from a2aSpecialists.js (the
+  // single source of truth) in intentTokenService.permittedToolsForIntent.
+  // Without this, the prompt classified as "unknown" and PingGateway P1AZ
+  // denied with (measured live 2026-09-08):
+  //   intent_mismatch: tool "sensitive_membership_details" not permitted for intent "unknown"
+  // before the nested-act delegation the use case exists to prove was ever
+  // evaluated.
+  if (
+    /\b(hand off to a specialist|delegate (?:this )?to a specialist|show my sensitive (?:patient records|order history|a f order history|tax record|payroll details|membership details|supplier contract|holdings|passenger record)|access my sensitive student finance)\b/.test(
+      t,
+    )
+  )
+    return { intent: "a2a_specialist_handoff", toolName: null, confidence: 0.9 };
+
   // Balance/accounts: "show my X balance" or "check my X"
   const balanceMatch = /\b(balance|how much|what.*balance)\b/.test(t);
   if (balanceMatch)

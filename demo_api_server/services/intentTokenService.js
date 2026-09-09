@@ -1,6 +1,7 @@
 'use strict';
 
 const crypto = require('node:crypto');
+const { specialistForVertical } = require('../config/a2aSpecialists');
 
 const INTENT_TTL_SECONDS = 300; // 5-minute window per agent run
 
@@ -392,6 +393,15 @@ function permittedToolsForIntent(intent, vertical) {
   if (byVerticalIntent) return byVerticalIntent;
   const byIntent = ownEntry(INTENT_TO_PERMITTED_TOOLS, intent);
   if (byIntent) return byIntent;
+  // UC2/UC2.5 A2A delegation: nlIntentParser emits one vertical-neutral intent
+  // for every vertical's trigger phrase (their specialist tools differ), so the
+  // grant has to be resolved here instead of a static map entry.
+  // a2aSpecialists.js is the single source of truth for which tool(s) a
+  // vertical's specialist may call.
+  if (intent === 'a2a_specialist_handoff') {
+    const specialist = specialistForVertical(vertical);
+    if (specialist) return specialist.tools;
+  }
   // The intent is the name of a tool this vertical can dispatch: permit exactly
   // that tool. See dispatchableToolsFor — this replaces ~99 hand-written
   // self-granting entries and cannot drift when a heuristic or tool is added.
