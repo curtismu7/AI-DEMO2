@@ -47,17 +47,26 @@ describe('scope-audience allowlist ↔ gateway tool requiredScopes coverage', ()
   // HITL / CIBA / step-up / tier were ever evaluated (UC6/7/8/22, 2026-09-08).
   const GATEWAY_ONLY_SCOPES = new Set();
 
-  // agentMcpTokenService strips these from finalScopes BEFORE
-  // validateScopeAudience runs (DELEGATION_ONLY_SCOPES) — they are delegation
-  // signals on the USER token, never exchange scopes — so the allow-list is
-  // never asked about them and must not be required to carry them.
-  // NOTE: `query_user_by_email` declares `ai_agent` as its ONLY requiredScope,
-  // which means it can never resolve an exchangeable scope at all. That is a
-  // manifest bug, recorded in TECH_DEBT, not something this gate can fix.
-  const DELEGATION_ONLY_SCOPES = new Set(['ai:agent:read', 'ai_agent', 'ai:agent']);
-
   const alias = scopeTopology.aliases();
   const norm = (s) => alias[s] || s;
+
+  // agentMcpTokenService strips these from finalScopes BEFORE
+  // validateScopeAudience runs (DELEGATION_ONLY_SCOPES) — they are delegation
+  // signals carried on the USER token, never exchange scopes. A tool that
+  // declares one as a requiredScope therefore has NO exchangeable scope and can
+  // only ever 403 `no_exchangeable_scopes`, so this is asserted rather than
+  // skipped: `query_user_by_email` declared `ai_agent` as its only scope and
+  // failed exactly that way until 2026-09-09.
+  const DELEGATION_ONLY_SCOPES = new Set(['ai:agent:read', 'ai_agent', 'ai:agent']);
+
+  test('no tool declares a delegation-only scope as a requiredScope', () => {
+    const offenders = scopeTopology
+      .allTools()
+      .filter((t) => scopeTopology.toolScopes(t).some((s) => DELEGATION_ONLY_SCOPES.has(norm(s))))
+      .map((t) => `${t} [${scopeTopology.toolScopes(t).join(', ')}]`);
+    expect(offenders).toEqual([]);
+  });
+
   // Every surface, not just `gateway`: the BFF exchange requests
   // MCP_TOOL_SCOPES[tool] for whatever tool is called, and the 14 admin
   // `exchange-only` tools carry admin:*/users:* scopes that the gateway-only
@@ -67,7 +76,6 @@ describe('scope-audience allowlist ↔ gateway tool requiredScopes coverage', ()
   for (const t of scopeTopology.allTools()) {
     for (const raw of scopeTopology.toolScopes(t)) {
       const s = norm(raw);
-      if (DELEGATION_ONLY_SCOPES.has(s)) continue;
       gwCases.push([t, s]);
       if (!GATEWAY_ONLY_SCOPES.has(s)) srvCases.push([t, s]);
     }

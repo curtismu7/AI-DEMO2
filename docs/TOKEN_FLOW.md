@@ -49,7 +49,7 @@ Complete reference for OAuth token lifecycle: how tokens are obtained, what reso
 |---------|------------------------------|--------------------------|
 | `get_my_accounts`, `get_account_balance`, `get_my_transactions` | `banking:read` | `banking:read` |
 | `create_transfer`, `create_deposit`, `create_withdrawal` | `banking:write` | `banking:write` |
-| `query_user_by_email` | `ai_agent` | `ai_agent` |
+| `query_user_by_email` | `read` (plus an agent-delegated token) | `read` |
 | `admin_list_all_users`, `admin_get_user_details` | `admin:read`, `users:read` | `admin:read users:read` |
 | `admin_delete_user`, `admin_manage_accounts` | `admin:write`, `users:manage` | `admin:write users:manage` |
 | `admin_view_audit_logs`, `admin_system_status` | `admin:read` | `admin:read` |
