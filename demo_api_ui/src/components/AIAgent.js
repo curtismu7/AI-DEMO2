@@ -305,6 +305,22 @@ const NL_FAILURE_MESSAGES = {
 const NL_FAILURE_FALLBACK =
   "That step couldn't be completed. Try again, or pick another demo step.";
 
+// Path A (api_key disposition) placeholder actions. These names are NOT MCP
+// tools — each vertical declares one as a placeholder whose only implementation
+// is this file's runAction case, which swaps in the vertical's REAL feature tool
+// (gear_warranty_demo -> show_gear_warranty, mortgage_demo -> show_mortgage, …).
+// dispatchNlResult's kind:"vertical" branch re-dispatches to /api/agent/invoke,
+// which asks the gateway for a tool of that literal name and gets back
+// "unknown tool: <action>" — so these must go to runAction instead. Banking is
+// unaffected: it is redirected to the kind:"banking" path above, which already
+// runs runAction.
+const CLIENT_DISPATCHED_VERTICAL_ACTIONS = new Set([
+  "mortgage_demo",
+  "gear_warranty_demo",
+  "invest_demo",
+  "vertical_feature_demo",
+]);
+
 // Security Showcase dispatch tables (static — defined once at module scope).
 // showcase keys whose live harness is an existing runAction case.
 const SHOWCASE_RUN_ACTION = {
@@ -7151,6 +7167,16 @@ export default function BankingAgent({
           nlUserText,
           useCaseId,
         );
+      }
+      if (CLIENT_DISPATCHED_VERTICAL_ACTIONS.has(result.action)) {
+        // No MCP tool carries this name — runAction owns the real dispatch.
+        await runAction(result.action, result.params || {}, {
+          skipUserLabel: true,
+          nlSource: _source,
+          useCaseId,
+          vertical: verticalId,
+        });
+        return;
       }
       // The /nl endpoint only routed intent; execute via the agent endpoint to get data+render.
       // forceHeuristic: /nl already resolved a deterministic vertical action, so the
