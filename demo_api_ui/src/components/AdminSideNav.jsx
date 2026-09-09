@@ -559,10 +559,10 @@ export default function AdminSideNav({
           icon: "clk",
         },
         {
+          // Public on purpose (auth-requirements.json) — no adminOnly here.
           label: "Personal Agent",
           path: "/personal-agent",
           icon: "agt",
-          adminOnly: true,
         },
         {
           label: "Agent Lifecycle (guided demo)",
@@ -1455,7 +1455,12 @@ export default function AdminSideNav({
                 e.preventDefault();
                 setControlPlaneIntroPath(item.path);
               }
-            : undefined
+            : !isAdmin && item.adminOnly
+              ? (e) => {
+                  e.preventDefault();
+                  setAdminPromptPath(item.path);
+                }
+              : undefined
         }
         className={`admin-side-nav__item ${item.highlight ? "admin-side-nav__item--highlight-danger" : ""} ${isActive(item.path) ? "admin-side-nav__item--active" : ""}`}
         title={collapsed ? item.label : undefined}
@@ -1465,6 +1470,9 @@ export default function AdminSideNav({
         {!collapsed && (
           <>
             <span className="admin-side-nav__label">{item.label}</span>
+            {item.adminOnly && (
+              <span className="admin-side-nav__badge">🔐 admin</span>
+            )}
             {item.badge && (
               <span className="admin-side-nav__badge">{item.badge}</span>
             )}
