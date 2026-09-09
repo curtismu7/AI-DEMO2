@@ -140,6 +140,44 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-09 — Demo Steps gate declared UC38 wrong, and three verticals sat unverified
+
+**Files changed:** `demo_api_ui/tests/e2e/demo-steps-outcomes.real.spec.js`.
+
+**What was broken:** the gate scored UC38 (Personal Agent Concierge) against the
+catalog's `expectedOutcome: 'PERMIT'`, but UC38 gates delegation on an MFA `acr`
+claim in `agentInvokeRoute.js` BEFORE the agent runs, and the E2E customer signs
+in with a password only — so the wire answer is always `step_up_required` and
+airlines failed on every run. `abercrombie-fitch` / `investment` / `airlines`
+were also still listed `verified: false`, so the default gate covered only
+Super Sports and the other three ran nothing unless named explicitly.
+
+**What was fixed:** `chipExpectation` now returns `STEP_UP` for UC38, with the
+reason recorded inline. The three verticals are flipped to `verified: true`
+after a live run, so all four now run by default.
+
+**Do not break:** do NOT "fix" UC38 by declaring `stepUpMethod` on its catalog
+entry instead. That field is not documentation — `mcpToolAuthorizationService`
+reads it as `forceStepUp` (see UC7's `p1mfa`), so declaring it would add a
+SECOND step-up on the tool call after the MFA gate had already been satisfied.
+The catalog's `PERMIT` is correct for an MFA-satisfied session; only the test
+identity differs. The three flipped verticals carry no `reply` table yet — they
+assert declared outcomes only; add reply regexes as each vertical's copy is
+pinned.
+
+**Verify:** `cd demo_api_ui && E2E_BASE_URL=https://local.ping-devops.com:4000
+npm run test:e2e:real:demo-steps` — 119 passed / 72 skipped across all four
+verticals signed in and out.
+
+**Known intermittent (NOT caused by this change, do not read as a regression):**
+UC14b (`PAR + RAR intent verified`) failed once as `403 rar_unexpected_deny` /
+`access_denied` on the four-vertical run, and passed on every single-vertical
+run of the same code. It is order/state dependent and shared across verticals
+(the same `/api/demo/intent-binding/run` call in each), so it surfaces in
+whichever vertical runs last, not in airlines specifically. Same signature as
+the 2026-08-22 actor-chain drift entry below — unconfirmed whether it is the
+same cause. Re-run the single vertical before treating a UC14b red as real.
+
 ### 2026-09-08 — Demo Steps had no outcome-level gate: a step could answer wrong and every suite stayed green
 
 **Files changed:** new `demo_api_ui/tests/e2e/demo-steps-outcomes.real.spec.js`,
