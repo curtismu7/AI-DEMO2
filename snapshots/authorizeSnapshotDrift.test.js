@@ -92,7 +92,7 @@ test('regeneration is idempotent — reconciling the committed snapshot is a no-
   assert.deepStrictEqual(reconcile(again, loadSot()), committed);
 });
 
-test('widening touches exactly one object — 153 in, 153 out, none added or removed', () => {
+test('widening touches exactly one object — 154 in, 154 out, none added or removed', () => {
   const committed = readSnapshot();
   const objectCount = committed.length;
   // 73 pre-cloud-delta objects + 30 added: 21 by the fine-grained deny steps,
@@ -109,7 +109,7 @@ test('widening touches exactly one object — 153 in, 153 out, none added or rem
   // IsAutonomousWithoutMandate CONDITIONs, and a Statement+Rule pair each for
   // the ciba-approval-required pause and the autonomous-no-mandate fail-closed
   // deny. Cloud twin of mock Rule 0m.
-  assert.strictEqual(objectCount, 153, 'snapshot object count drifted — see authorizeSnapshotCloudDelta.test.js');
+  assert.strictEqual(objectCount, 154, 'snapshot object count drifted — see authorizeSnapshotCloudDelta.test.js');
 
   // Rebuild the pre-1e8619d09 state: the condition matched only the first two
   // contexts. Everything else in the snapshot is already reconciled.

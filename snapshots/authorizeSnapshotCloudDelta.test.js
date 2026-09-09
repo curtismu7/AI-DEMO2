@@ -612,7 +612,7 @@ test('kid: exactly one rule carries the invalid-kid statement, as a conditional 
 // Structure — exactly the intended delta, idempotent, committed
 // ─────────────────────────────────────────────────────────────────────────────
 
-test('structure: the committed snapshot carries all 38 new objects (153 total) and is reconciled', () => {
+test('structure: the committed snapshot carries all 38 new objects (154 total) and is reconciled', () => {
   const committed = readSnapshot();
   // +1 (2026-08-26): the TokenIss ATTRIBUTE for HasValidMcpAudience's
   // external-door exemption — 10 attrs now. No new condition/statement/rule:
@@ -620,9 +620,9 @@ test('structure: the committed snapshot carries all 38 new objects (153 total) a
   // +8 (2026-08-26): the autonomous-agent standing mandate (generator step 9f) —
   // 2 attrs (AgentClass, MandateMaxAmount), 2 conds, 2 stmts, 2 rules. Cloud
   // twin of mock Rule 0m in demo_authz_server/routes/decision.js.
-  assert.strictEqual(committed.length, 153,
+  assert.strictEqual(committed.length, 154,
     '73 pre-delta + 12 attrs + 9 conds + 9 stmts + 9 rules = 112, plus Agent Intent Governance ' +
-    '(13 attrs + 11 conds + 8 stmts + 8 rules + 1 policy = 41) folded into the root set');
+    '(14 attrs + 11 conds + 8 stmts + 8 rules + 1 policy = 42) folded into the root set');
   assert.deepStrictEqual(reconcile(clone(committed), loadSot()), committed,
     'committed snapshot is out of date — run: node snapshots/gen-authorize-snapshot.js');
 

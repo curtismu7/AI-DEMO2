@@ -376,6 +376,34 @@ describe('buildAuthorizeParameters — Tool annotations and elicitation', () => 
       expect(p.IntentBindingMethod).toBe('none');
     });
 
+    // The policy is evaluated on EVERY decision (root set is DenyOverrides /
+    // evaluateAll) and its fail-closed defaults would deny ordinary traffic, so
+    // it stays gated. This flag is how live calls opt in; unset must mean off.
+    it('omits IntentEnforce unless MCP_GW_INTENT_ENFORCE is exactly "true"', () => {
+      const prev = process.env.MCP_GW_INTENT_ENFORCE;
+      try {
+        delete process.env.MCP_GW_INTENT_ENFORCE;
+        expect(buildAuthorizeParameters(tok(), 'tools/call', GW, 'create_transfer'))
+          .not.toHaveProperty('IntentEnforce');
+
+        process.env.MCP_GW_INTENT_ENFORCE = 'false';
+        expect(buildAuthorizeParameters(tok(), 'tools/call', GW, 'create_transfer'))
+          .not.toHaveProperty('IntentEnforce');
+
+        // Not a truthy-string check — only the literal arms it.
+        process.env.MCP_GW_INTENT_ENFORCE = '1';
+        expect(buildAuthorizeParameters(tok(), 'tools/call', GW, 'create_transfer'))
+          .not.toHaveProperty('IntentEnforce');
+
+        process.env.MCP_GW_INTENT_ENFORCE = 'true';
+        expect(buildAuthorizeParameters(tok(), 'tools/call', GW, 'create_transfer').IntentEnforce)
+          .toBe('true');
+      } finally {
+        if (prev === undefined) delete process.env.MCP_GW_INTENT_ENFORCE;
+        else process.env.MCP_GW_INTENT_ENFORCE = prev;
+      }
+    });
+
     it('classifies reads as non-mutating and unknown tools as mutating', () => {
       const read = buildAuthorizeParameters(tok(), 'tools/call', GW, 'get_my_accounts');
       expect(read.IntentRequestMutating).toBe('false');

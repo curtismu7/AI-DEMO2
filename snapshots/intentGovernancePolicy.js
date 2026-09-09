@@ -38,13 +38,25 @@
  * IntentGrantPresent defaults false and IntentRequestMutating defaults true
  * (both fail-closed), which fires intent-grant-missing.
  *
- * So the Policy carries its own condition: DecisionContext == 'IntentGovernance'.
- * Nothing in the live path sends that today — only the Intent Inspector does —
- * which is deliberate. Turning on real enforcement is then a two-part change
- * made on purpose: widen this gate, and have the gateway send the grant facts
- * it already builds. Until the BFF can prove a PAR consent, widening it will
- * deny every mutating call as intent-not-consented, which is the correct answer
- * to "can we prove the user agreed" and not something to paper over.
+ * So the Policy carries its own condition, satisfied two ways:
+ *
+ *   DecisionContext == 'IntentGovernance'   the Intent Inspector, which exercises
+ *                                           the policy without touching live traffic
+ *   IntentEnforce   == true                 the gateway, once enforcement is armed
+ *                                           via MCP_GW_INTENT_ENFORCE
+ *
+ * Both are opt-in and an ordinary tool call sends neither, so the policy stays
+ * inert until someone deliberately arms it. IntentEnforce is a separate
+ * attribute rather than a DecisionContext value on purpose: DecisionContext is
+ * what the demo's OTHER policies route on (IsMcpFirstToolRequest), so changing
+ * it for real calls would take the MCP Delegation policy out of the path.
+ *
+ * Arming it only produces useful denials once the grant can prove consent.
+ * agentMcpTokenService stamps `consented` + `expires_at` onto a grant sourced
+ * from a HITL human approval, and deliberately not onto one built from the
+ * request's own params. So with enforcement armed, a HITL-approved transfer is
+ * governed on its real constraints, while an unapproved mutating call denies as
+ * intent-not-consented — the correct answer to "can we prove the user agreed".
  *
  * SCOPE OF GOVERNANCE
  * -------------------
@@ -150,6 +162,10 @@ function buildIntentGovernanceObjects({ decisionContextAttrId, gateValue = 'Inte
   attribute('IntentRequestMutating', 'BOOLEAN', true,
     'Whether the attempted action changes state. Intent governance applies only to mutating actions. Default TRUE — an unclassified action is treated as mutating (fail closed).');
 
+  // Runtime enforcement switch — see the gate note in the file header.
+  attribute('IntentEnforce', 'BOOLEAN', false,
+    'Set true by the gateway when intent enforcement is armed (MCP_GW_INTENT_ENFORCE), so real agent tool calls are governed without changing DecisionContext — which the demo\'s other policies use for routing. Default FALSE: enforcement is opt-in, and an omitted value leaves this policy inert.');
+
   // Reserved extension point.
   attribute('IntentDriftScore', 'NUMBER', 0,
     'Optional 0..1 semantic-drift score from an external evaluator comparing the original request to the proposed action. Default 0 (no drift asserted), so this policy behaves identically when no scorer is deployed.');
@@ -184,8 +200,11 @@ function buildIntentGovernanceObjects({ decisionContextAttrId, gateValue = 'Inte
   const and = (...cs) => ({ and: { conditions: cs } });
 
   condition('IntentGovernanceRequested',
-    `DecisionContext is '${gateValue}'. The policy-level gate — see the header note. Nothing in the live agent path sends this today, so this policy is inert for existing demo traffic.`,
-    cmp({ attribute: { id: decisionContextAttrId } }, 'Equals', constant(gateValue)));
+    `The policy-level gate — see the header note. True when DecisionContext is '${gateValue}' (the Intent Inspector, which exercises the policy without touching live traffic) OR when IntentEnforce is true (the gateway, once enforcement is armed). Both are opt-in: an ordinary tool call sends neither and this policy stays inert.`,
+    { or: { conditions: [
+      cmp({ attribute: { id: decisionContextAttrId } }, 'Equals', constant(gateValue)),
+      cmp(attr('IntentEnforce'), 'Equals', constant(true)),
+    ] } });
 
   condition('GrantPresent',
     'A user-consented intent grant is bound to the token.',

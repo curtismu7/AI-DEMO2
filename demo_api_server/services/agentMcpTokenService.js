@@ -101,7 +101,7 @@ function _flagOn(key) {
  * (action/amount/payee), not a broad scope. Returns a single-element array (the RAR
  * shape) or null when there is nothing to bind.
  */
-function buildRarAuthorizationDetails(tool, params, userSub) {
+function buildRarAuthorizationDetails(tool, params, userSub, consent) {
   if (!tool) return null;
   const p = params && typeof params === 'object' ? params : {};
   const detail = { type: 'banking_transaction', tool, actions: [tool] };
@@ -118,6 +118,22 @@ function buildRarAuthorizationDetails(tool, params, userSub) {
   const from = p.from_account_id ?? p.from ?? p.fromAccountId ?? p.fromAccount ?? p.account;
   if (from) detail.from = String(from);
   if (userSub) detail.sub = userSub;
+  // Consent provenance, for the Agent Intent Governance policy.
+  //
+  // Only a grant sourced from a HUMAN APPROVAL carries `consented`. A grant
+  // built from this request's own params must not: it proves the call was not
+  // mutated in transit, not that anyone agreed to it (see _resolveRarGrantSource's
+  // note on circularity). Omitting the field leaves IntentGrantConsented unset,
+  // and the policy's fail-closed default (false) denies — which is the correct
+  // answer to "can we prove the user agreed", not a gap to paper over.
+  //
+  // `expires_at` is the approval's own expiry, so consent cannot be replayed
+  // indefinitely. Omitted when unknown, which the policy treats as expired.
+  if (consent && consent.consented) {
+    detail.consented = true;
+    const exp = Number(consent.expiresAt);
+    if (Number.isFinite(exp) && exp > 0) detail.expires_at = exp;
+  }
   return [detail];
 }
 
@@ -140,7 +156,7 @@ function buildRarAuthorizationDetails(tool, params, userSub) {
  * fallback grant is never wider than the one it replaces, and the gateway's own
  * receipt verification (`verifyHitlReceipt`) is unaffected either way.
  *
- * @returns {Promise<{ source: object|undefined, provenance: 'human_approval'|'request_params' }>}
+ * @returns {Promise<{ source: object|undefined, provenance: 'human_approval'|'request_params', consent?: { consented: true, expiresAt: number|null } }>}
  */
 async function _resolveRarGrantSource(req, tool, userSub) {
   const params = req?.body?.params;
@@ -160,7 +176,16 @@ async function _resolveRarGrantSource(req, tool, userSub) {
     if (userSub && challenge.userId && challenge.userId !== userSub) return fallback;
     const ctx = challenge.context;
     if (!ctx || typeof ctx !== 'object') return fallback;
-    return { source: ctx, provenance: 'human_approval' };
+    // The approval's own expiry bounds the consent. HITL records expiresAt as an
+    // ISO string; the grant carries epoch seconds because that is what the
+    // gateway compares against (PingOne conditions have no time arithmetic, so
+    // the caller must resolve "expired" to a boolean).
+    const expMs = challenge.expiresAt ? Date.parse(challenge.expiresAt) : NaN;
+    return {
+      source: ctx,
+      provenance: 'human_approval',
+      consent: { consented: true, expiresAt: Number.isFinite(expMs) ? Math.floor(expMs / 1000) : null },
+    };
   } catch (err) {
     console.warn('[agentMcpTokenService] HITL grant source lookup failed, using request params:', err.message);
     return fallback;
@@ -178,8 +203,8 @@ async function _buildAgenticExtras(req, tool, userSub, tokenEvents) {
   const ffRar = _flagOn('ff_rar');
   const extras = {};
   if (ffRar) {
-    const { source, provenance } = await _resolveRarGrantSource(req, tool, userSub);
-    const rarDetails = buildRarAuthorizationDetails(tool, source, userSub);
+    const { source, provenance, consent } = await _resolveRarGrantSource(req, tool, userSub);
+    const rarDetails = buildRarAuthorizationDetails(tool, source, userSub, consent);
     if (rarDetails) {
       extras.rarDetails = rarDetails;
       extras.rarProvenance = provenance;

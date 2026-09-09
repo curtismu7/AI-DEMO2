@@ -407,6 +407,23 @@ export function buildAuthorizeParameters(
     ? 'par-rar'
     : (intentValidation?.valid ? 'intent-token' : 'none');
 
+  // Arms the Agent Intent Governance policy for REAL tool calls.
+  //
+  // That policy sits in the AI Demo root policy set, which is DenyOverrides with
+  // evaluateAll, so it is evaluated on every decision and is gated to stay inert
+  // by default. The Intent Inspector satisfies that gate with
+  // DecisionContext='IntentGovernance'; live traffic satisfies it with this flag.
+  // It is a separate attribute rather than a DecisionContext value because
+  // DecisionContext is what the demo's OTHER policies route on — changing it here
+  // would take the MCP Delegation policy out of the path.
+  //
+  // Read from env at call time (same shape as isJwksVerificationEnabled) so the
+  // shared builder signature stays identical for both transports. Only the
+  // literal 'true' arms it; anything else, including unset, leaves it off.
+  if (process.env.MCP_GW_INTENT_ENFORCE === 'true') {
+    base.IntentEnforce = 'true';
+  }
+
   if (consentedGrant) {
     const actions = Array.isArray(consentedGrant.actions) ? consentedGrant.actions : [];
     base.IntentGrantAction = String(actions[0] ?? consentedGrant.tool ?? '');

@@ -13,8 +13,10 @@
  *     sends no IntentGrant* parameters at all, matches "no grant + mutating"
  *     and would be DENIED as intent-grant-missing. Ungated, adding this policy
  *     denies the entire demo. The policy therefore carries its own condition,
- *     DecisionContext == 'IntentGovernance', and the "inert" tests below are
- *     the ones that must never be deleted.
+ *     satisfied only by DecisionContext == 'IntentGovernance' (the Intent
+ *     Inspector) or IntentEnforce == true (the gateway, once armed via
+ *     MCP_GW_INTENT_ENFORCE). The "inert" tests below, and the pair that arms
+ *     and un-arms the same call, are the ones that must never be deleted.
  *
  *  2. The decision table itself. Structural validation only proves the package
  *     is well formed; it cannot catch a policy that imports cleanly and then
@@ -153,6 +155,42 @@ test('removing the gate would deny ordinary traffic — proving the gate earns i
   const codes = denied.flatMap((r) => r.statements.map((sid) => stmtById.get(sid).code));
   assert.ok(codes.includes('intent-grant-missing'),
     'ungated, this policy denies ordinary traffic — the gate is load-bearing');
+});
+
+test('IntentEnforce arms the policy for a real tool call', () => {
+  // The other half of the gate: live traffic never sends
+  // DecisionContext='IntentGovernance' (the demo's own policies route on that
+  // attribute), so the gateway arms this policy with IntentEnforce instead.
+  const armed = decide({
+    DecisionContext: 'McpToolCall',
+    IntentEnforce: true,
+    IntentRequestAction: 'create_transfer',
+    IntentRequestMutating: true,
+  });
+  assert.strictEqual(armed.applies, true, 'IntentEnforce must satisfy the gate');
+  assert.ok(armed.denyCodes.includes('intent-grant-missing'));
+
+  // ...and the SAME call without the flag stays inert. This pair is what proves
+  // arming is opt-in rather than incidental.
+  const unarmed = decide({
+    DecisionContext: 'McpToolCall',
+    IntentRequestAction: 'create_transfer',
+    IntentRequestMutating: true,
+  });
+  assert.strictEqual(unarmed.applies, false);
+});
+
+test('an armed, HITL-consented grant still permits its own action', () => {
+  // Arming must not deny a legitimately consented call — otherwise enforcement
+  // is indistinguishable from an outage.
+  const r = decide({
+    IntentEnforce: true,
+    DecisionContext: 'McpToolCall',
+    ...CONSENTED_GRANT,
+    ...MATCHING_REQUEST,
+  });
+  assert.strictEqual(r.decision, 'PERMIT');
+  assert.ok(r.codes.includes('intent-within-grant'));
 });
 
 test('root policy set keeps all three policies', () => {
