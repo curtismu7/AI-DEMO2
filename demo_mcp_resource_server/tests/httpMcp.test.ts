@@ -112,6 +112,23 @@ describe('POST /mcp', () => {
     expect(payload.bookings[0].confirmationNumber).toBe('K7XR2M');
   });
 
+  // The Privilege banking-mcp door's backend hop is a PingOne client_credentials
+  // token: no `sub`, scope `read`, on an accepted audience (live: mcpgateway.ping.demo;
+  // this suite's env accepts only mcp-resource-server.ping.demo). Request-level, so
+  // a change in tokenValidator/registry/handler cannot silently break it.
+  it('completes a banking tools/call for a sub-less machine token, serving the demo subject', async () => {
+    const machine = [
+      b64({ alg: 'RS256', typ: 'JWT' }),
+      b64({ aud: 'mcp-resource-server.ping.demo', scope: 'read', client_id: 'fraud-watch', exp: Math.floor(Date.now() / 1000) + 600 }),
+      'unsigned',
+    ].join('.');
+    const r = await post(callTool('list_banking_accounts'), machine);
+    expect(r.status).toBe(200);
+    const payload = JSON.parse(r.json.result.content[0].text);
+    expect(payload.count).toBeGreaterThan(0);
+    expect(payload.accounts.every((a: { userId: string }) => a.userId === 'demo-user')).toBe(true);
+  });
+
   it('emits a transaction-trace hop when the caller forwards a correlationId', async () => {
     const hopCalls: Array<{ url: string; body: any }> = [];
     process.env.BFF_TRANSACTION_HOP_URL = 'http://bff/internal/transaction-hop';

@@ -251,12 +251,14 @@ undefined-binding error an unmapped `sub` produced.
 
 **Measured vs. inferred.** Validator, audiences, scopes, grants and the client
 are measured. The gateway's Auth Mode OAuth performing a `client_credentials`
-grant on the backend hop is *inferred*: `/procyon/bin/mcpgw` carries the
-strings `client_credentials`, `grant_type`, `TokenUrl`, `ClientSecret` and
-`ResourceOAuth`, and PRIVILEGE-MCP.md established `ResourceOAuth` is
-backend-facing — but no door in this repo has exercised it (`external` and
-`opensearch22` are Static Token / None against auth-disabled backends). The
-first `tools/call` through the door is the test. `403 insufficient_scope`
+grant on the backend hop is *inferred*, and weakly: `/procyon/bin/mcpgw`
+does carry Procyon's own `ResourceOAuth` config (with a `token_url` field),
+which PRIVILEGE-MCP.md established is backend-facing, but its
+`client_credentials` / `grant_type` strings turned out to belong to bundled
+OpenAPI/protobuf model libraries, not gateway code — so they prove nothing
+about which grant it runs. No door in this repo has exercised Auth Mode OAuth
+(`external` and `opensearch22` are Static Token / None against auth-disabled
+backends). The first `tools/call` through the door is the test. `403 insufficient_scope`
 means the gateway forwarded no `read` token; `401 invalid_token` means it
 forwarded one from the wrong signer or audience; the gateway log line
 `MCP App RBAC check … AuthzServer:banking-mcp` confirms the request reached
