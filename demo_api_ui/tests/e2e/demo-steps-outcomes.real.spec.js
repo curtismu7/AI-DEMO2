@@ -22,7 +22,7 @@
  *   E2E_DEMO_STEPS_VERTICALS=airlines,investment
  * (catalog-only assertions until its `verified` flag is flipped).
  *
- * Run (stack up, ~1 min):
+ * Run (stack up, ~4 min for the four verified verticals):
  *   cd demo_api_ui && E2E_BASE_URL=https://local.ping-devops.com:4000 \
  *     npm run test:e2e:real:demo-steps
  */
@@ -55,9 +55,12 @@ const VERTICALS = {
       UC31: /Miami/,
     },
   },
-  'abercrombie-fitch': { verified: false },
-  investment: { verified: false },
-  airlines: { verified: false },
+  // Confirmed live 2026-09-09 (90/90 across the three, signed in and out). No
+  // `reply` table yet — these run the catalog's declared-outcome assertions
+  // only; add per-use-case reply regexes as each vertical's copy is pinned.
+  'abercrombie-fitch': { verified: true },
+  investment: { verified: true },
+  airlines: { verified: true },
 };
 
 /** Link steps: text that proves the page rendered, not just the app shell. */
@@ -83,7 +86,16 @@ for (const v of RUN_VERTICALS) {
 function chipExpectation(uc) {
   // CIBA rides the step-up path (useCases.js UC22: stepUpMethod 'ciba'), so
   // the wire answer for the step is step_up_required, not the eventual PERMIT.
-  return uc.stepUpMethod === 'ciba' ? 'STEP_UP' : uc.expectedOutcome;
+  if (uc.stepUpMethod === 'ciba') return 'STEP_UP';
+  // UC38 gates delegation on an MFA `acr` claim in agentInvokeRoute.js, BEFORE
+  // the agent runs — an identity-layer check, not an Authorize obligation. The
+  // E2E customer signs in with a password only, so the wire answer is always
+  // step_up_required; the catalog's PERMIT describes an MFA-satisfied session.
+  // (Declaring stepUpMethod on UC38 would NOT be the fix: the catalog field
+  // also drives mcpToolAuthorizationService's forceStepUp, which would add a
+  // SECOND step-up on the tool call after MFA had already been satisfied.)
+  if (uc.id === 'UC38') return 'STEP_UP';
+  return uc.expectedOutcome;
 }
 
 function assertChip(uc, body, vertical) {
