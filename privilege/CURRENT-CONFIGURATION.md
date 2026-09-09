@@ -83,7 +83,7 @@ what this repo called "agentless").
 | `pingone-mcp-server-2` | MCP Server (subdomain) | unrelated, pre-existing app kept for its own purpose | Not part of this demo — see the note below, this is NOT the demo's PingOne MCP |
 | `mcp-brave-search` | Catalog sidecar | Privilege's own `mcp/brave-search:1.0.0` image, reaching our `mcp-brave` sidecar via the mesh | Working after the 2026-09-07 gateway restart (was stuck in a "Tenant not found" registration retry loop) |
 | `mcp-grafana` | Catalog sidecar | Privilege's own `mcp/grafana:1.0.0` image → our `mcp-grafana` sidecar via the mesh | Working after the same restart |
-| `openapi2` | OpenAPI MCP | Privilege's own `mcp/openapi:latest` image → our `mcp-banking-rest` sidecar via the mesh → AI-DEMO2's `mcp-resource-server` in `ping-devops-cmuir` | **Never discovers tools, and cannot from our side** — the `openapi:latest` image is not discoverable by Privilege's own runtime. Root cause and the replacement (`banking-mcp`) under "The banking door" below |
+| `openapi2` | OpenAPI MCP | Privilege's own `mcp/openapi:latest` image → our `mcp-banking-rest` sidecar via the mesh → AI-DEMO2's `mcp-resource-server` in `ping-devops-cmuir` | **Never discovers tools** — Privilege runs that image on its side and it is the only catalog image shipped without Ping's `mcp-shim`. Retire it: we now run the same binary ourselves as the `mcp-openapi-banking` sidecar, to be registered as an **MCP Server** app. See "The banking door" below |
 
 **`pingone-mcp-server-2` is not the demo's PingOne MCP — do not go looking for a
 backend behind it.** The name invites the assumption and the table above has been
@@ -181,10 +181,58 @@ binary built on `NewStreamableHTTPHandler` — `GET /mcp -> 405`, `GET /sse ->
 `SPEC_URL`, `SPEC_PATH`, `SPEC_INLINE`, `TOOL_MODE`, `HEADER_DENYLIST`), and
 `latest` is the only tag published. Privilege's runtime cannot discover its own
 openapi image. **Raise with Ping; nothing in the console or this repo changes
-it.** Also: absence of gateway log lines for this app proves nothing —
+it.** (Superseded in part on 2026-09-09 — we no longer depend on
+Ping fixing it; see "Self-hosting Ping's OpenAPI adapter" below.) Also: absence of gateway log lines for this app proves nothing —
 `mcp-grafana` and `mcp-brave-search`, both working, log zero lines too, because
 catalog adapters run in Privilege's infrastructure and this pod only provides
 the mesh tunnel.
+
+### Self-hosting Ping's OpenAPI adapter (2026-09-09)
+
+`openapi2` fails because of how Privilege *packages* the adapter, not because
+the adapter is broken. Measured today against both published tags:
+
+| Image | Entrypoint | `GET /mcp` | `POST /mcp initialize` |
+|---|---|---|---|
+| `mcp/grafana:1.0.0` (works) | `sh -c "mcp-shim --port=${PORT} -- mcp-grafana"` | 200 | 200 |
+| `mcp/openapi:latest` | `/openapimcp` — no shim | 405 | 200 |
+| `mcp/openapi:dev` | `/openapimcp` — no shim | 405 | 200 |
+
+`dev` was published after 2026-09-08, so "`latest` is the only tag" is no longer
+true — but it is byte-for-byte the same packaging and the same behaviour, so
+Ping has not fixed this. The binary is fine: run by hand it answers `initialize`
+and mints `list_banking_accounts`, `get_banking_account` and the three discovery
+tools. It simply declines `GET`, which the streamable-HTTP spec allows, since
+that stream is optional.
+
+That matters because **this gateway discovers by POSTing `initialize`** — its own
+words in `/var/log/procyon/cyonproxy.log`: `Error discovering MCP server: calling
+"initialize": sending "initialize": ...`, attempted over both `/mcp` and `/sse`.
+That machinery runs for **MCP Server** apps only; container apps (`mcp-grafana`,
+`mcp-brave-search`, `openapi2`) get no local frontend/backend/authz node and no
+discovery line at all, because Privilege runs and discovers those on its side.
+Which is why no amount of reading this pod's logs will ever explain `openapi2`.
+
+So: run Ping's own `openapimcp` ourselves and register it as an MCP Server app,
+the same shape as `pingone-admin-local` (`http://localhost:8083/mcp`).
+`sidecars.values.yaml` gained `mcp-openapi-banking`, on **8080** because that
+binary hardcodes its listen port; `mcp-brave` moved 8080 → 8084 to make room,
+which is safe — no Agentic App addresses that sidecar and the gateway log
+references no `localhost:8080`.
+
+Register it in the console as:
+
+| Field | Value |
+|---|---|
+| Application type | MCP Server |
+| Application Name | `banking-openapi` |
+| MCP Server URL | `http://localhost:8080/mcp` |
+| Auth Mode | None |
+| Mesh Cluster | `ai-demo-cmuir` |
+
+Two traps carried over: the readiness probe must be `tcpSocket`, not `httpGet`
+(kubelet scores the adapter's honest `405` as a failed probe), and
+`OPENAPIMCP_ENDPOINT` still takes **no** `/mcp` suffix.
 
 **The replacement: `banking-mcp`, a plain MCP Server app on our own
 `mcp-resource-server`.** PR #2891 built that server's legacy transport "so this
