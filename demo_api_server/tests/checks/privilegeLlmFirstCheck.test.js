@@ -4,7 +4,6 @@ jest.mock('../../services/privilegeLlmProxyService', () => ({
   callPrivilegeGemini: jest.fn(),
 }));
 
-const ENV = ['PRIVILEGE_LLM_GATEWAY_URL', 'AGENT_LLM_BASE_URL'];
 const saved = {};
 
 // setup.js resets the module registry after each test — require inside.
@@ -16,14 +15,12 @@ function load() {
 
 describe('llm.privilege_first check', () => {
   beforeEach(() => {
-    for (const k of ENV) { saved[k] = process.env[k]; delete process.env[k]; }
+    saved.url = process.env.PRIVILEGE_LLM_GATEWAY_URL;
     process.env.PRIVILEGE_LLM_GATEWAY_URL = 'https://mcpgw.example';
-    process.env.AGENT_LLM_BASE_URL = 'https://mcpgw.example/llm/openai/v1';
   });
   afterEach(() => {
-    for (const k of ENV) {
-      if (saved[k] === undefined) delete process.env[k]; else process.env[k] = saved[k];
-    }
+    if (saved.url === undefined) delete process.env.PRIVILEGE_LLM_GATEWAY_URL;
+    else process.env.PRIVILEGE_LLM_GATEWAY_URL = saved.url;
   });
 
   test('applies only when the flag is on', () => {
@@ -32,7 +29,7 @@ describe('llm.privilege_first check', () => {
     expect(check.appliesWhen({ ff_privilege_llm_first: false })).toBe(false);
   });
 
-  test('pass when the lane answers and the sidecars point at the gateway', async () => {
+  test('pass when the lane answers', async () => {
     const { check, callPrivilegeGemini } = load();
     callPrivilegeGemini.mockResolvedValue('READY');
     expect((await check.run()).status).toBe('pass');
@@ -57,14 +54,5 @@ describe('llm.privilege_first check', () => {
     delete process.env.PRIVILEGE_LLM_GATEWAY_URL;
     expect((await check.run()).status).toBe('fail');
     expect(callPrivilegeGemini).not.toHaveBeenCalled();
-  });
-
-  test('warn when the sidecars still use the local proxy', async () => {
-    const { check, callPrivilegeGemini } = load();
-    callPrivilegeGemini.mockResolvedValue('READY');
-    process.env.AGENT_LLM_BASE_URL = 'http://host.docker.internal:8090/v1';
-    const r = await check.run();
-    expect(r.status).toBe('warn');
-    expect(r.detail).toMatch(/sidecar/);
   });
 });

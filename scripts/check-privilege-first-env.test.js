@@ -22,18 +22,15 @@ describe('Privilege-first LLM posture is env-driven', () => {
   it('every sidecar AGENT_LLM_BASE_URL in docker-compose.yml is env-driven, with a key beside it', () => {
     const lines = read('docker-compose.yml').split('\n');
     const hits = lines.map((l, i) => [l, i]).filter(([l]) => /^\s+AGENT_LLM_BASE_URL:/.test(l));
-    // openai-agent, pydantic-agent, mastra-agent, plus the BFF's read-only mirror.
-    assert.ok(hits.length >= 4, `expected the three sidecars and the BFF mirror, found ${hits.length}`);
-    let sidecars = 0;
+    // openai-agent, pydantic-agent, mastra-agent. The BFF must NOT carry one:
+    // its env_file supplies its env and the compose-env-shadow hygiene rule
+    // rejects an environment: entry beside it.
+    assert.equal(hits.length, 3, `expected exactly the three sidecar agents, found ${hits.length}`);
     for (const [l, i] of hits) {
-      assert.match(l, /\$\{AGENT_LLM_BASE_URL:-[^}]*\}/, `line ${i + 1} is not env-driven`);
-      if (/:-http:\/\/host\.docker\.internal:8090\/v1\}/.test(l)) {
-        sidecars += 1;
-        const window = lines.slice(i, i + 8).join('\n');
-        assert.match(window, /AGENT_LLM_API_KEY: "\$\{AGENT_LLM_API_KEY:-none\}"/, `no key near line ${i + 1}`);
-      }
+      assert.match(l, /\$\{AGENT_LLM_BASE_URL:-http:\/\/host\.docker\.internal:8090\/v1\}/, `line ${i + 1} is not env-driven`);
+      const window = lines.slice(i, i + 8).join('\n');
+      assert.match(window, /AGENT_LLM_API_KEY: "\$\{AGENT_LLM_API_KEY:-none\}"/, `no key near line ${i + 1}`);
     }
-    assert.equal(sidecars, 3, 'expected exactly three sidecar agents');
   });
 
   it('LibreChat reads the same two knobs', () => {

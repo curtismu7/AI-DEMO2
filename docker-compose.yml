@@ -248,10 +248,6 @@ services:
       # key is actually set. See demo_api_server/.env.example for the values.
     environment:
       NODE_ENV: development
-      # Read-only mirror of the sidecar agents' LLM posture so /api/check can
-      # report when ff_privilege_llm_first is ON while the sidecars still point
-      # at the local proxy. The BFF never calls this URL itself.
-      AGENT_LLM_BASE_URL: "${AGENT_LLM_BASE_URL:-}"
       # Allow self-signed TLS (host.docker.internal MCP server)
       NODE_TLS_REJECT_UNAUTHORIZED: "0"
       # Turns on services/lokiForwarder.js — unset means no-op, so `./run.sh`
