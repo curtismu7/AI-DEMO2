@@ -617,6 +617,32 @@ tool= audience= dropped=`) and throws `bff_scope_audience_misconfigured`
 non-required scope is unchanged. Left behind: the two lists are still hand
 curated (ten SoT-mirrored scopes remain absent), and the native ID-JAG path
 re-clamps `transfer` in oauth-mcp — see TECH_DEBT 2026-09-08.
+### 2026-09-09 — UC32 linked to a page with no Allowed State control, and its flip stuck for the next pass of the script
+
+**Files changed:** `demo_api_server/config/useCases.js` (UC32 trigger + copy),
+`demo_api_ui/src/components/WeatherStateControl.jsx` (+ test).
+
+**What was broken:** Demo step UC32 ("Live-reconfigure the gateway's scope
+policy") opened `/agent-gateway-capabilities`, an inspector landing page,
+while its copy told the presenter to "switch the Allowed State dropdown on the
+Capability Tour card". The control (`WeatherStateControl`) renders only on
+`/weather-mcp`. And `ff_weather_mcp_allowed_state` is live and sticky: a
+presenter who flipped it to "Any" for UC32 and moved on left UC31 ("weather in
+Miami") PERMITting on the next pass until someone ran reset-demo — UC32 sits
+right after UC31 in the script. Found by the 2026-09-08 Demo Steps review.
+
+**What was fixed:** UC32 links to `/weather-mcp` (the control plus the
+Austin/Miami chips). `WeatherStateControl` remembers the last value it saved
+during the visit and, on unmount, PATCHes the flag back to its registered
+default (`texas`) with `keepalive`, so leaving the page restores the policy
+UC30/UC31 assume. Nothing is sent when the presenter changed nothing.
+
+**Do not break:** the restore keys on the default in `routes/featureFlags.js`
+(`texas`) — change both together. `/api/admin/reset-demo` remains the backstop
+(`RESET_DEMO_FLAG_IDS`). The unmount PATCH is best-effort and admin-gated; a
+signed-out viewer never reaches the control.
+
+**Verify:** `cd demo_api_ui && ./node_modules/.bin/vitest run src/components/__tests__/WeatherStateControl.test.jsx` — 5 passed; `npm run build` exit 0; `npm run authz:verify` OK.
 
 ### 2026-09-08 — UC30 weather never worked signed out (declared public, wire said 401); UC29 dropped from the Demo Steps script
 

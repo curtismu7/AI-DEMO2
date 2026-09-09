@@ -1,6 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 const FLAG_ID = 'ff_weather_mcp_allowed_state';
+// The flag's registered default (routes/featureFlags.js). UC30/UC31 in the
+// Demo Steps script assume it: Austin permits, Miami denies.
+const DEFAULT_STATE = 'texas';
 const OPTIONS = [
   { value: 'texas', label: 'Texas' },
   { value: 'michigan', label: 'Michigan' },
@@ -15,9 +18,26 @@ const OPTIONS = [
  * self-contained, no shared state with the rest of the Capability Tour page.
  */
 export default function WeatherStateControl() {
-  const [value, setValue] = useState('texas');
+  const [value, setValue] = useState(DEFAULT_STATE);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  // Last value this control successfully saved during this visit. The flag is
+  // live and sticky: a presenter who flipped it to "Any" for UC32 and moved on
+  // left UC31 (Miami) permitting on the next pass of the script until someone
+  // ran reset-demo. Leaving the page puts the policy back to its default.
+  const savedRef = useRef(null);
+
+  useEffect(() => () => {
+    if (savedRef.current && savedRef.current !== DEFAULT_STATE) {
+      fetch('/api/admin/feature-flags', {
+        method: 'PATCH',
+        credentials: 'include',
+        keepalive: true,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updates: { [FLAG_ID]: DEFAULT_STATE } }),
+      }).catch(() => { /* best-effort — reset-demo remains the backstop */ });
+    }
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -50,6 +70,7 @@ export default function WeatherStateControl() {
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
       const confirmed = (data.flags || []).find((f) => f.id === FLAG_ID);
       if (confirmed) setValue(confirmed.value);
+      savedRef.current = confirmed ? confirmed.value : next;
     } catch (err) {
       setValue(prev);
       setError(`Failed to save: ${err.message}`);
