@@ -173,7 +173,9 @@ export class ClientRegistry {
         grant_types: [JWT_BEARER_GRANT],
         redirect_uris: [],
         token_endpoint_auth_method: 'none',
-        scope: 'mcp:invoke read write',
+        // Mirrors scope-topology.json's Super Banking MCP Server mirroredScopes
+        // that gateway tools require: `transfer` is what create_transfer needs.
+        scope: 'mcp:invoke read write transfer',
       },
     ];
     for (const c of defaults) {

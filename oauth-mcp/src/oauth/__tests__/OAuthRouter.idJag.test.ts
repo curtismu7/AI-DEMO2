@@ -289,3 +289,26 @@ describe('OAuthRouter — authorization server metadata', () => {
     expect(md.grant_types_supported).toContain('client_credentials');
   });
 });
+
+describe('OAuthRouter — ID-JAG redemption by the default demo-bff-mcp-client', () => {
+  // ClientRegistry.initialize()'s built-in entry, not the test CLIENT above:
+  // TokenIssuer clamps the redeemed scope to that registration, and the BFF
+  // (agentMcpTokenService) asks for `write transfer` for banking
+  // create_transfer. If the registration lacks `transfer`, the gateway 403s
+  // `insufficient_scope: missing transfer` on the native ID-JAG path.
+  it('keeps `transfer` in the redeemed token when the assertion carries it', async () => {
+    const keyManager = new SigningKeyManager();
+    await keyManager.initialize();
+    const registry = new ClientRegistry();
+    registry.initialize();
+    const router = new OAuthRouter(keyManager, registry, new TokenStore());
+
+    const res = await postToken(router, {
+      grant_type: JWT_BEARER_GRANT,
+      assertion: mintIdJag({ client_id: 'demo-bff-mcp-client', scope: 'write transfer' }),
+      client_id: 'demo-bff-mcp-client',
+    });
+    expect(res.status).toBe(200);
+    expect(String(res.body.scope).split(' ')).toEqual(expect.arrayContaining(['write', 'transfer']));
+  });
+});
