@@ -222,9 +222,16 @@ router.get('/login', requireSignedInSession, async (req, res) => {
     // by PingOne entirely (same entry), so it earns nothing and adds a leg that
     // has to be enabled on the app.
     //
-    // No login_hint on this path: the signed-in username belongs to the RESOURCE
-    // environment and pre-filling it into the admin environment's sign-on prompts
-    // for an account that may not exist there.
+    // login_hint pre-fills the admin environment's sign-on. It is the SIGNED-IN
+    // username by default, which is the demo user — the identity this door is
+    // driven as. An earlier revision omitted it on the reasoning that the
+    // signed-in username belongs to the resource environment and might not exist
+    // in the admin one; that is a real risk but it is the operator's call, not a
+    // reason to make them retype it every time.
+    //
+    // PINGONE_MCP_ADMIN_LOGIN_HINT overrides it for the case that reasoning was
+    // about: an admin environment whose identity differs from the app session's.
+    // Set it empty to send no hint at all.
     const admin = resolveAdminClientConfig();
     if (admin) {
       req.session.pingoneMcpAdminOAuth = { state, codeVerifier, redirectUri, returnTo, adminEnvId: admin.envId };
@@ -237,6 +244,12 @@ router.get('/login', requireSignedInSession, async (req, res) => {
         code_challenge: codeChallenge,
         code_challenge_method: 'S256',
       });
+      // Configured empty means "send none" — distinguishable from unset, which
+      // falls back to the signed-in username.
+      const configuredHint = process.env.PINGONE_MCP_ADMIN_LOGIN_HINT
+        ?? configStore.getEffective('PINGONE_MCP_ADMIN_LOGIN_HINT');
+      const loginHint = configuredHint ?? req.session.user.username;
+      if (loginHint) params.set('login_hint', loginHint);
       return req.session.save((err) => {
         if (err) {
           console.error('[mcpPingOneAdminAuth] session save error:', err.message);
