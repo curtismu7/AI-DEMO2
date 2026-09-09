@@ -864,6 +864,61 @@ caller never reasserted.
 
 **Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/routes/privilegeMcpClient --forceExit --runInBand` — 28 suites / 163 tests passed. Full suite: `CI=true npm test -- --forceExit --runInBand` — 11274/11276 passed; the 2 failures (`delegatedCommerceRoutes.test.js`, `dpopDemo.route.test.js`) are unrelated files matching this repo's documented host-contention flake signature, confirmed by re-running both in isolation — both pass clean.
 
+### 2026-09-09 — `pingone-admin` 401: a valid admin token with the wrong audience
+
+**Files changed:** `demo_api_server/services/mcpPingOneHttpAdapter.js`,
+`demo_api_server/tests/services/mcpPingOneHttpAdapter.audienceDiagnosis.test.js`.
+
+**Not a code defect — a platform entitlement.** Recorded because three separate
+investigations chased roles, app type and scopes, all of which were already
+correct, and the error string gave no way to tell.
+
+Measured end to end against env `01d89b06`:
+
+| Checked | Result |
+|---|---|
+| Signed-in user's admin roles | ✅ Identity Data Admin, **DaVinci Admin**, **Environment Admin**, PingOne Privilege Administrator |
+| App `PingOne MCP Server` (`eec33861`) | ✅ type **WORKER**, enabled, PKCE `S256_REQUIRED`, tokenAuth `NONE`, our callback registered |
+| PKCE + PAR round trip | ✅ completes, code exchanges, RS256 token issued |
+| Token against **Management API** | ✅ **200** — it is a genuinely valid admin token |
+| Token against **hosted MCP** | ❌ **401 Invalid authentication** |
+| Token `aud` | ❌ `https://api.pingone.com` — **not** `https://mcp.pingone.com/admin/{envId}/mcp` |
+
+`resource` (RFC 8707) is already sent on **both** legs — inline and through PAR —
+and PingOne ignores it. Confirmed why: the environment's AS metadata advertises
+no `resource_indicators_supported`, no environment Resource carries the MCP
+audience, the app holds **zero** resource grants, and the `PINGONE_API` resource
+exposes only the 23 self-service scopes (`p1:read:user`, devices, sessions) —
+admin-plane access rides on **roles**, not scopes, which is exactly why the same
+token works against the Management API.
+
+**Ruled out, so nobody re-runs them:**
+
+- **Scope is not the lever.** `scope=openid` and *no scope at all* were both
+  driven through a real PKCE flow: identical `aud`, identical 401.
+- **Not protocol negotiation.** `initialize` with `MCP-Protocol-Version`, and
+  `Accept: application/json` alone, both still 401.
+- **Not the app type.** Already WORKER; the skill's #1 root cause does not apply.
+- **Not a second environment.** `9e2f2f0c…` returns byte-identical protected-
+  resource and AS metadata, so that metadata proves nothing either way.
+
+**What was fixed:** only the legibility. A 401 now decodes the token it sent and
+says which 401 it is — wrong audience (naming both audiences, and that roles and
+scopes cannot fix it) versus correct audience (a permissions problem). Non-401s
+are untouched, and the diagnosis is appended to the original error, never
+substituted for it.
+
+**Do not break:** the diagnosis must never swallow the underlying
+`PingOne MCP HTTP <status>` string, and must not throw — a token that is not a
+JWT is reported as such rather than crashing the handler. Pinned by the test.
+
+**The actual fix is on Ping's side:** the tenant needs Remote MCP enablement
+(`.claude/skills/pingone-remote-mcp-connect/SKILL.md` Prerequisite 1 — contact
+Amit Ben-Chanoch, Nathan Langton, or Saparja Dey). Until then this door cannot work.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/services/mcpPingOne tests/oas/pingone-admin --forceExit --runInBand`
+— 3 suites / 37 tests passed.
+
 ### 2026-09-09 — Two of the four Direct doors were dead, for two unrelated reasons
 
 **Files changed:** `demo_api_server/routes/privilegeMcpClient.js`,

@@ -38,6 +38,44 @@ const configStore = require('./configStore');
 
 const TIMEOUT_MS = 30_000;
 
+/**
+ * Which 401 is this? The hosted server answers "Invalid authentication" both
+ * when no usable credential was sent and when a perfectly valid PingOne token
+ * carries the wrong audience — and those need opposite actions.
+ *
+ * Measured 2026-09-09 against env 01d89b06: the delegated PKCE token is a real
+ * RS256 PingOne token for an Environment Admin, and it authenticates fine
+ * against the Management API (200) — but `aud` is `https://api.pingone.com`,
+ * not the MCP resource. `resource` (RFC 8707) is sent on BOTH legs, inline and
+ * through PAR, and PingOne ignores it: its AS metadata for this environment
+ * advertises no `resource_indicators_supported`, no environment Resource has
+ * the MCP audience, and the app holds no resource grants. So no request shape
+ * from this side can produce the audience the MCP server wants — the tenant
+ * needs PingOne-side Remote MCP enablement. Scope is NOT the lever: `openid`
+ * and no-scope were both tried and both produced the same audience.
+ *
+ * Reports, never throws — a diagnosis must not replace the error it explains.
+ */
+function _audienceDiagnosis(token) {
+    const want = (() => { try { return _mcpUrl(); } catch { return null; } })();
+    let aud;
+    try {
+        const parts = String(token).split('.');
+        if (parts.length !== 3) return 'token is not a JWT, so its audience could not be read.';
+        const claims = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+        aud = Array.isArray(claims.aud) ? claims.aud : [claims.aud].filter(Boolean);
+    } catch {
+        return 'token audience could not be decoded.';
+    }
+    if (want && aud.includes(want)) {
+        return `token audience is correct (${want}), so this is a permissions problem, not an audience one — check the signed-in user's admin roles.`;
+    }
+    return `token audience is [${aud.join(', ')}] but this server wants ${want}. `
+        + 'PingOne is ignoring the `resource` indicator, which it does when the tenant is not '
+        + 'enabled for the hosted Remote MCP server. Roles, app type and scopes cannot fix this — '
+        + 'the environment needs PingOne-side enablement.';
+}
+
 let _msgId = 0;
 let _toolsCache = null; // cached tools/list result for the process lifetime
 
@@ -123,7 +161,11 @@ async function _send(method, params, auth) {
             throw normalizeAxiosError(err, { label: 'PingOne MCP HTTP request', timeoutMs: TIMEOUT_MS });
         }
         const body = err.response?.data;
-        const msg = `PingOne MCP HTTP ${status}${body ? `: ${typeof body === 'string' ? body.slice(0, 300) : JSON.stringify(body).slice(0, 300)}` : ''}`;
+        let msg = `PingOne MCP HTTP ${status}${body ? `: ${typeof body === 'string' ? body.slice(0, 300) : JSON.stringify(body).slice(0, 300)}` : ''}`;
+        // A bare "401 Invalid authentication" sent three separate investigations
+        // after roles, app type and scopes, all of which were already correct.
+        // Say which of the two 401s this is, because they need opposite actions.
+        if (status === 401) msg += ` — ${_audienceDiagnosis(token)}`;
         const e = new Error(msg);
         e.code = 'pingone_mcp_http_error';
         e.status = status;
