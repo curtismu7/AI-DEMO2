@@ -70,7 +70,7 @@ Audience: `mcpserver.ping.demo`
 
 Native scopes: `mcp:invoke`, `code:search`
 
-Mirrored scopes (RFC 8693 exchange-hop, ARCHITECTURE-TRUTHS T-10): `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `tax:read`, `finaid:read`, `supplier:read`, `purchase:read`, `membership:read`, `payroll:read`, `holdings:read`, `identity:read`, `invest:read`, `airlines:read`, `airlines:write`, `pnr:read`, `ai:agent:read`, `admin:read`, `admin:write`, `admin:delete`, `users:read`, `users:manage`, `workorders:read`, `sensitive:read`, `code:search`
+Mirrored scopes (RFC 8693 exchange-hop, ARCHITECTURE-TRUTHS T-10): `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `tax:read`, `finaid:read`, `supplier:read`, `purchase:read`, `membership:read`, `payroll:read`, `holdings:read`, `identity:read`, `invest:read`, `airlines:read`, `airlines:write`, `pnr:read`, `ai:agent:read`, `admin:read`, `admin:write`, `admin:delete`, `users:read`, `users:manage`, `workorders:read`, `sensitive:read`, `code:search`, `audit:read`
 
 ### Super Banking MCP Invest
 
@@ -92,7 +92,7 @@ Audience: `mcpgateway.ping.demo`
 
 Native scopes: `mcp:invoke`
 
-Mirrored scopes (RFC 8693 exchange-hop, ARCHITECTURE-TRUTHS T-10): `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `tax:read`, `finaid:read`, `supplier:read`, `invest:read`, `airlines:read`, `airlines:write`, `pnr:read`, `workorders:read`, `sensitive:read`, `code:search`, `audit:read`
+Mirrored scopes (RFC 8693 exchange-hop, ARCHITECTURE-TRUTHS T-10): `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `tax:read`, `finaid:read`, `supplier:read`, `invest:read`, `airlines:read`, `airlines:write`, `pnr:read`, `workorders:read`, `sensitive:read`, `code:search`, `audit:read`, `admin:read`, `admin:write`, `admin:delete`, `users:read`, `users:manage`
 
 ### Super Banking Agent Gateway
 

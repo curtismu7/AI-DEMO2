@@ -50,7 +50,7 @@ expectation fix.
 Do NOT treat a lone UC14b red as a regression before re-running that vertical
 alone — the flake predates any change on 2026-09-09.
 
-### [ ] 2026-09-08 — `buildAllowedScopesByAudience` is still hand-curated and drifts from `scope-topology.json`; the native ID-JAG path clamps `transfer` a second time
+### [x] 2026-09-08 — `buildAllowedScopesByAudience` is still hand-curated and drifts from `scope-topology.json`; the native ID-JAG path clamps `transfer` a second time
 
 **What's wrong.** Fixing the `transfer` gap (REGRESSION_PLAN §4, 2026-09-08,
 branch `fix/mcp-server-transfer-scope-narrowing`) exposed two leftovers:
@@ -98,6 +98,73 @@ the default registration and asserts `write transfer` survives. Verified live
 with `ff_enterprise_managed_mcp_auth` ON — see REGRESSION_PLAN §4 2026-09-09.
 (1) — the hand-curated audience lists — is still open, so the box stays
 unticked.
+
+**RESOLVED (1) — branch `fix/derive-mcp-audience-scopes-from-sot`.** The entry's
+prescribed fix would have broken things, and the interesting part is why.
+
+Deriving the two lists straight from `resourceScopes()` and deleting the hand
+lists — as written above — would have DROPPED six scopes, not just added ten:
+
+- `audit:read`. The entry read this backwards. It is not surplus: three
+  gateway-surface tools require it (`search_audit_activities`,
+  `get_audit_activity`, `audit_summary`) and the SoT already mirrors it onto the
+  MCP **Gateway**. It was the MCP **Server**'s `mirroredScopes` that was missing
+  it. The hand list was right; the manifest had the gap.
+- `admin:read` / `admin:write` / `admin:delete` / `users:read` / `users:manage`.
+  Required by **14 `exchange-only` tools** (the admin console surface), present
+  in both hand lists, absent from the SoT's MCP Gateway. The parity gate never
+  saw them because it walked `gateway`-surface tools only — the same blind spot
+  that hid the `transfer` gap.
+
+So the manifest was fixed first (`audit:read` onto MCP Server; the five
+admin/users scopes onto MCP Gateway), and only then were the lists derived.
+
+**The lists are narrow by construction**, not by curation:
+`audienceScopesFromTopology()` returns the resource's native + mirrored scopes
+filtered to those some tool actually declares in `requiredScopes`, plus
+`mcp:invoke` (infrastructure — no tool declares it, the gateway policy needs
+it). The ten scopes the entry proposed adding are the `a2aDelegatedScope`
+family (`tax:read`, `pnr:read`, `holdings:read`, ...): the SoT mirrors them so
+bootstrap provisions them on the PingOne resource, but they are NOT exchange-
+requestable through this path — `validateScopeAudience` has exactly ONE caller
+(`agentMcpTokenService.js:1465`), and A2A Exchange #2 goes through
+`a2aDelegationService`, which never calls it. So they stay out, deliberately,
+and the parity gate now asserts that.
+
+**Net runtime change is one scope.** The MCP Server list is identical in
+content to what was hand-typed; the MCP Gateway list loses `ai:agent` only.
+That one is provably dead: `agentMcpTokenService`'s `DELEGATION_ONLY_SCOPES`
+strips `ai:agent` / `ai:agent:read` / `ai_agent` from `finalScopes` BEFORE
+`validateScopeAudience` runs, so its presence in the allow-list could never
+affect an exchange.
+
+The parity gate now walks **every** tool surface (not just `gateway`), skips
+delegation-only scopes the way the runtime does, and adds two set-EQUALITY
+assertions against a manifest-derived expectation — so a hand-typed scope
+cannot creep back in. It went from ~40 cases to 578. Negative proof: removing
+`audit:read` from the SoT again fails it with three named tools, which is
+exactly the drift that used to ship silently.
+
+### [ ] 2026-09-09 — `query_user_by_email` declares a scope it can never exchange
+
+Found while extending the scope-audience parity gate to every tool surface.
+`query_user_by_email` (surface `exchange-only`) declares `ai_agent` as its ONLY
+`requiredScopes` entry. `ai_agent` is in `agentMcpTokenService`'s
+`DELEGATION_ONLY_SCOPES`, which is filtered out of `finalScopes` on both
+resolution paths — so the tool can never resolve an exchangeable scope and
+`no_exchangeable_scopes` (403) is the only reachable outcome, unless a caller
+passes `opts.scopeOverride`.
+
+**Why not fixed now.** Deciding what this tool SHOULD require (`users:read`?
+`admin:read`? nothing, because it is only ever called with a scopeOverride?) is
+a manifest change with an authz consequence, not a drive-by — and nothing
+currently reports it failing, so the real-world impact is unmeasured.
+
+**Real fix.** Establish whether anything calls `query_user_by_email` without a
+`scopeOverride`. If yes, give it a requestable `requiredScopes` entry and
+mirror that scope onto the MCP resources. If nothing calls it, delete it from
+the manifest. Until then the parity gate skips delegation-only scopes, so it
+does not fail on this.
 
 ----
 ### [x] 2026-09-08 — UC29 "introspection outage — fail closed" cannot be demonstrated on this deployment

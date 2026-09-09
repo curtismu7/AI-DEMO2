@@ -1776,6 +1776,53 @@ class ConfigStore {
  * 
  * Called at validation time (not at module load) so config changes are reflected.
  */
+/**
+ * Every scope that some tool in the SoT can make the BFF request at exchange
+ * time (tools.<name>.requiredScopes). buildAllowedScopesByAudience narrows the
+ * MCP audience lists against this so a scope the SoT mirrors onto a resource
+ * for PROVISIONING reasons alone — bootstrap must create it on the PingOne
+ * resource — does not silently widen what the exchange is allowed to ask for.
+ *
+ * `a2aDelegatedScope` values (tax:read, pnr:read, holdings:read, ...) are
+ * deliberately NOT included: A2A Exchange #2 runs through a2aDelegationService,
+ * which never calls validateScopeAudience — this allow-list is not on that path.
+ * If that ever changes, add them here or those exchanges will narrow to nothing.
+ */
+function toolRequestableScopes() {
+  const topo = loadScopeTopology();
+  const set = new Set();
+  for (const tool of Object.values(topo?.tools || {})) {
+    for (const scope of tool.requiredScopes || []) set.add(scope);
+  }
+  return set;
+}
+
+/**
+ * RFC 8707 allow-list for one topology resource, derived from the SoT instead of
+ * hand-typed: native `scopes` + `mirroredScopes` (what bootstrap provisions onto
+ * the PingOne resource), kept only where a tool can actually request the scope.
+ *
+ * `mcp:invoke` is infrastructure — no tool declares it, the MCP Gateway policy
+ * requires it — so it survives the filter explicitly.
+ *
+ * Returns [] when the resource is absent from the manifest, which leaves the
+ * caller's audience entry empty rather than inventing scopes.
+ */
+function audienceScopesFromTopology(resourceName) {
+  const topo = loadScopeTopology();
+  const resource = topo?.resources?.[resourceName];
+  if (!resource) {
+    console.warn(
+      `[configStore] audienceScopesFromTopology: "${resourceName}" not in scope-topology.json — ` +
+      'no scopes allowed for its audience.'
+    );
+    return [];
+  }
+  const requestable = toolRequestableScopes();
+  const provisioned = [...new Set([...(resource.scopes || []), ...(resource.mirroredScopes || [])])];
+  return provisioned.filter((scope) => scope === 'mcp:invoke' || requestable.has(scope));
+}
+
 function buildAllowedScopesByAudience() {
   const mapping = {};
 
@@ -1823,67 +1870,27 @@ function buildAllowedScopesByAudience() {
     'ai_agent',
   ]);
 
-  // MCP Gateway — the BFF's single subject+actor RFC 8693 exchange is
-  // audienced here (canonical chain). Must allow the tool scopes the exchange
-  // requests (read / write / transfer / mortgage:read) plus the actor/invoke scopes.
-  // Audience: mcpgateway.ping.demo — see docs/PINGONE_CONFIG.md and scope-topology.json
-  allow(configStore.getEffective('pingone_resource_mcp_gateway_uri'), [
-    'read',
-    'write',
-    'transfer',           // banking — create_transfer (gateway-level authz gate)
-    'mcp:invoke',
-    'ai:agent',
-    'mortgage:read',      // banking — show_mortgage
-    'largepurchase:read', // retail — show_large_purchase
-    'records:read',       // healthcare — show_health_record
-    'gear:read',          // sporting-goods — show_gear_order
-    'expense:read',       // workforce — show_expense_report
-    'invest:read',        // investment — investment vertical tools
-    'airlines:read',      // airlines — SQLite-backed reservation/flight/seat tools
-    'airlines:write',     // airlines — reservation changes (Phase 2)
-    'permits:read',       // government — permit vertical tools
-    'transcript:read',    // university — enrollment/transcript vertical tools
-    'workorders:read',    // field-service — work-order vertical tools
-    'sensitive:read',     // sensitive account/record details (consent-gated downstream)
-    'code:search',        // code-search MCP tools (code_search/get_code/list_codebases)
-    'audit:read',         // audit MCP tools (search_audit_activities/get_audit_activity/audit_summary)
-    'admin:read',         // admin — lookup/view customer profile, accounts, transactions
-    'admin:write',        // admin — freeze account, adjust balance, reset password
-    'admin:delete',       // admin — delete customer
-    'users:read',         // admin — customer lookup/profile/accounts/transactions
-    'users:manage',       // admin — freeze/adjust/reset/delete
-  ]);
-
-  // MCP Resource Server — the gateway re-exchanges to this audience downstream.
-  // Audience: mcpserver.ping.demo — see docs/PINGONE_CONFIG.md and scope-topology.json
-  // mirroredScopes from scope-topology.json must be kept in sync here. NOTE:
-  // unioned (not overwritten) — when this collapses onto mcpgateway.ping.demo
-  // the gateway's transfer/ai:agent scopes must survive.
-  allow(configStore.getEffective('pingone_resource_mcp_server_uri'), [
-    'read',
-    'write',
-    'transfer',           // banking — create_transfer / create_wire_transfer (the exchange request is narrowed against THIS audience; drift here 403'd UC6/7/8/22 at the gateway, 2026-09-08)
-    'mcp:invoke',
-    'mortgage:read',      // banking — show_mortgage
-    'largepurchase:read', // retail — show_large_purchase
-    'records:read',       // healthcare — show_health_record
-    'gear:read',          // sporting-goods — show_gear_order
-    'expense:read',       // workforce — show_expense_report
-    'invest:read',        // investment — investment vertical tools
-    'airlines:read',      // airlines — SQLite-backed reservation/flight/seat tools
-    'airlines:write',     // airlines — reservation changes (Phase 2)
-    'permits:read',       // government — permit vertical tools
-    'transcript:read',    // university — enrollment/transcript vertical tools
-    'workorders:read',    // field-service — work-order vertical tools
-    'sensitive:read',     // sensitive account/record details (consent-gated downstream)
-    'code:search',        // code-search MCP tools (code_search/get_code/list_codebases)
-    'audit:read',         // audit MCP tools (search_audit_activities/get_audit_activity/audit_summary)
-    'admin:read',         // admin — lookup/view customer profile, accounts, transactions
-    'admin:write',        // admin — freeze account, adjust balance, reset password
-    'admin:delete',       // admin — delete customer
-    'users:read',         // admin — customer lookup/profile/accounts/transactions
-    'users:manage',       // admin — freeze/adjust/reset/delete
-  ]);
+  // MCP Gateway / MCP Server — DERIVED from scope-topology.json, not typed here.
+  // These two lists were hand-curated under a "keep in sync with mirroredScopes"
+  // comment and drifted anyway: `transfer` went missing from the MCP Server list
+  // and 403'd create_transfer / create_wire_transfer at the gateway with a
+  // misleading `insufficient_scope` (UC6/7/8/22, 2026-09-08), and `audit:read`
+  // was carried here while the SoT never mirrored it onto the MCP Server.
+  // Deriving makes that class of drift structurally impossible: add a tool scope
+  // to the manifest and it appears here; forget to mirror it onto the resource
+  // and the parity gate fails in CI rather than the gateway failing in a demo.
+  //
+  // Both audiences deliberately collapse onto mcpgateway.ping.demo in this demo
+  // (the MCP server validates the GATEWAY aud — ARCHITECTURE-TRUTHS /
+  // reference_mcp_gateway_aud_contract), which is why `allow` unions.
+  allow(
+    configStore.getEffective('pingone_resource_mcp_gateway_uri'),
+    audienceScopesFromTopology('Super Banking MCP Gateway')
+  );
+  allow(
+    configStore.getEffective('pingone_resource_mcp_server_uri'),
+    audienceScopesFromTopology('Super Banking MCP Server')
+  );
 
   // WR-19: warn when no resource URIs are configured (pre-bootstrap state)
   // so operators don't wonder why scope enforcement is silent.
