@@ -229,6 +229,50 @@ knows only the catalog slug — deliberate simplification).
 effect), not return early like the link/attack branches.
 
 **Verify:** `cd demo_api_ui && ./node_modules/.bin/vitest run src/components/__tests__/AIAgent.demoStepGate.test.jsx src/components/__tests__/AIAgent.publicUseCase.test.jsx src/components/__tests__/DemoStepsDropdown.test.jsx` — 31 passed; `npm run build` exit 0.
+### 2026-09-08 — Attack sims UC5 / UC18 / UC29 denied at the wrong layer under PingGateway, and any 5xx rendered as "DENY"
+
+**Files changed:** `demo_api_server/services/attackSimulatorService.js`,
+`demo_api_server/tests/attackSimDenyLabel.regression.test.js` (new),
+`demo_api_ui/src/utils/attackSimVerdict.js` (new, + test),
+`demo_api_ui/src/components/AIAgent.js`, `demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.js`,
+`TECH_DEBT.md`.
+
+**What was broken:** With PingGateway active (the default), the
+insufficient-scope, rate-limit-burst and introspection-down sims minted a
+Node-gateway token (aud `mcpgateway.ping.demo`, scope `read`) and sent it to
+the ACTIVE gateway, where IG refused it at the perimeter. The sim then
+relabelled that 403 as its own control — live 2026-09-08: UC5 "Gateway policy
+denied" instead of a scope miss, UC18 403 instead of 429, UC29 403 stamped
+"FAILED CLOSED (503)". PingGateway cannot host these controls: its inbound
+resource carries only `gateway:mcp:invoke` (the scope backstop skips by
+design), it has no `/admin/config`, and its uc18 limiter is env-fixed.
+Separately, `_denyFromGateway` applied the sim's canonical 401/403 to ANY
+error (a gateway that was down read as "401 DENY — token audience does not
+match"), every reason was prefixed "PingOne Authorize DENY" even with no
+Authorize record, the UC18 limiter was never disarmed (3 calls/10s left on
+the gateway), and both UI handlers labelled every non-2xx status DENY, so a
+502 `exchange_failed` rendered as a successful defence.
+
+**What was fixed:** the three sims target the Node Demo Agent Gateway
+explicitly (`_nodeGatewayUrl`, `mcp_demo_gateway_url`) whichever gateway is
+active — live: UC5 → `403 insufficient_scope: missing write, transfer`, UC18 →
+`429 rate limited`. UC18 disarms the limiter in `finally`. UC29 still cannot
+fire here (the Node gateway runs `GW_INTROSPECTION_ENABLED=false`, so the
+sim hook is never reached) and now returns `501 sim_not_applicable` with the
+reason instead of a green 200 — see TECH_DEBT. `_denyFromGateway` applies the
+canonical code only to a raw 401/403 and prefixes "PingOne Authorize DENY" only
+when an Authorize record exists ("Gateway DENY" otherwise). `attackSimVerdict`
+gives the UI a three-way verdict — PERMIT / DENY / ERROR ("sim could not run —
+no control was tested") — used by both the agent handler and the Live
+Workbench.
+
+**Do not break:** UC14 rar-exceeded still goes through `_exchangeGatewayToken`
+(PingGateway-aware) — do not "unify" it onto the Node URL, P1AZ's RarMaxAmount
+is the point. Keep `_exchangeSimToken(subjectToken, gatewayAud, ['read'])`
+for UC5/18/29 — that aud IS the Node gateway's. The 4xx/5xx→DENY collapse
+must not come back in either UI site.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/attackSimDenyLabel.regression.test.js tests/attackSimExchangerParity.test.js tests/attackSimToolArgs.test.js` — 15 passed; `cd demo_api_ui && ./node_modules/.bin/vitest run src/utils/__tests__/attackSimVerdict.test.js` — 4 passed; `npm run build` exit 0; live (Super Sports, signed in): UC5 403 / UC18 429 / UC12 401 "Gateway DENY —" / UC14 403 / UC10 403 / UC13 403 / UC11 401 / UC29 501 sim_not_applicable.
 
 ### 2026-09-08 — UC2/UC2.5 "Delegation complete" banner shipped with no real data — the fix above unmasked a second, separate DENY
 
