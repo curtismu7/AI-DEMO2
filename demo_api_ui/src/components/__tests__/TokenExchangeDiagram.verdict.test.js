@@ -37,6 +37,14 @@ describe('buildDiagramSource — Authorize verdict', () => {
     expect(src).not.toContain('DENY');
   });
 
+  it('does not call an unreachable PDP a policy DENY', () => {
+    // authorize_unavailable collapses to status 'error' with the decision left
+    // NOT_RECORDED. That is an availability failure, not a refusal.
+    const src = buildDiagramSource(traceWith({ outcome: 'error' }), azSteps('NOT_RECORDED', 'error'));
+    expect(src).not.toContain('DENY');
+    expect(src).toContain('NOT_RECORDED');
+  });
+
   it('never fabricates a verdict when no decision was recorded', () => {
     const src = buildDiagramSource(traceWith({ outcome: 'ok' }), azSteps('NOT_RECORDED'));
     expect(src).toContain('NOT_RECORDED');

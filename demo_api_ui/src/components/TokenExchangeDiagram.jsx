@@ -220,7 +220,13 @@ export function buildDiagramSource(trace, steps, dark = true) {
     // An approval gate is not a denial — same predicate the Token Chain banner
     // and the Flow Detail card use, so the three surfaces cannot disagree.
     const isHeld  = !!pausedGateState(trace);
-    const isDeny  = !isHeld && (decided === 'DENY' || azStep.status === 'error');
+    // Only a decision the engine actually RETURNED is a DENY. A failed step
+    // (authorize_unavailable, fail-closed) collapses to status 'error' with the
+    // decision left NOT_RECORDED — calling that "DENY" presents an availability
+    // failure as a policy refusal, the same fabrication this commit removes at
+    // the other end of the ternary.
+    const isDeny  = !isHeld && decided === 'DENY';
+    const failed  = azStep.status === 'error';
     // Never fabricate a verdict: an unrecorded decision prints as itself.
     const verdict = isHeld ? '✋ HELD'
       : isDeny ? '✕ DENY'
@@ -234,7 +240,7 @@ export function buildDiagramSource(trace, steps, dark = true) {
         if (engine) lines.push(`        ${kpad('engine')}   ${trunc(engine, 36)}`);
     lines.push(`"]`);
     lines.push(`    end`);
-    styles.push(sty('POL', isHeld ? C.authzHold : isDeny ? C.authzDn : C.authzOk));
+    styles.push(sty('POL', isHeld ? C.authzHold : (isDeny || failed) ? C.authzDn : C.authzOk));
   }
 
   // ── Gateway subgraph ─────────────────────────────────────────────────────

@@ -32,6 +32,26 @@ function statementMessage(stmt) {
   }
 }
 
+/**
+ * Badge for one gateway decision row.
+ *
+ * An approval gate is not a denial: INDETERMINATE / STEP_UP / HITL_REQUIRED are
+ * HELD and take the amber badge, so only a real refusal shows as an error. Uses
+ * isPause() — the same predicate the Token Chain surfaces read — so the gateway
+ * log cannot classify a decision differently from the trace rail.
+ *
+ * Exported so the mapping is testable rather than an inline ternary; the bug in
+ * #3019 hid in exactly that shape.
+ *
+ * @param {{decision?: string}} d  one parsed gateway decision
+ * @returns {'mgc-badge--live'|'mgc-badge--warn'|'mgc-badge--error'}
+ */
+export function decisionBadgeClass(d) {
+  const decision = String(d?.decision || '').toUpperCase();
+  if (isPause(decision, d)) return 'mgc-badge--warn';
+  return decision === 'PERMIT' ? 'mgc-badge--live' : 'mgc-badge--error';
+}
+
 export default function AgentGatewayLogPanel() {
   const [logs, setLogs] = useState([]);
   const [logError, setLogError] = useState(null);
@@ -120,18 +140,14 @@ export default function AgentGatewayLogPanel() {
         <table className="mgc-env-table">
           <tbody>
             {decisions.map((d, i) => {
-              // An approval gate is not a denial: INDETERMINATE/STEP_UP/
-              // HITL_REQUIRED are held, and only a real refusal earns the error
-              // badge. Same predicate as the Token Chain surfaces.
-              const held = isPause(String(d.decision || '').toUpperCase(), d);
-              const denied = !held && d.decision !== 'PERMIT';
+              const badgeClass = decisionBadgeClass(d);
               const why = d.reason
                 || (d.statements || []).map(statementMessage).filter(Boolean).join(' | ')
                 || '';
               return (
                 <tr key={`${d.ts}-${i}`}>
                   <td className="mgc-env-key" style={{ whiteSpace: 'nowrap' }}>
-                    <span className={denied ? 'mgc-badge mgc-badge--error' : held ? 'mgc-badge mgc-badge--warn' : 'mgc-badge mgc-badge--live'}>
+                    <span className={`mgc-badge ${badgeClass}`}>
                       {d.decision}
                     </span>
                   </td>
