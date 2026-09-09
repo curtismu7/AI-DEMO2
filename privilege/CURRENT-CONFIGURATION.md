@@ -215,10 +215,17 @@ Which is why no amount of reading this pod's logs will ever explain `openapi2`.
 
 So: run Ping's own `openapimcp` ourselves and register it as an MCP Server app,
 the same shape as `pingone-admin-local` (`http://localhost:8083/mcp`).
-`sidecars.values.yaml` gained `mcp-openapi-banking`, on **8080** because that
-binary hardcodes its listen port; `mcp-brave` moved 8080 → 8084 to make room,
-which is safe — no Agentic App addresses that sidecar and the gateway log
-references no `localhost:8080`.
+`sidecars.values.yaml` gained `mcp-openapi-banking` on **8080**, and `mcp-brave`
+moved 8080 → 8084 to make room — safe, because no Agentic App addresses that
+sidecar and the gateway log references no `localhost:8080`.
+
+**That move was not actually necessary.** `openapimcp` honours the standard
+`PORT` env var (`PORT=9999` → `listening on :9999/mcp`); it is simply absent
+from the documented `OPENAPIMCP_*` surface, so the first reading of its config
+concluded the port was fixed at 8080. The adapter could have taken 8085 and left
+`mcp-brave` alone. It is left as-is because the Agentic App is registered against
+`http://localhost:8080/mcp`, and re-pointing it costs a console edit for no
+functional gain.
 
 Register it in the console as:
 

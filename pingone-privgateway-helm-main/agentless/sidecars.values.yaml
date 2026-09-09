@@ -25,7 +25,7 @@
 # Upgrade against the chart SOURCE DIRECTORY, not the .tgz — the packaged chart
 # is a build artifact that goes stale and drops these local template additions.
 #
-# Ports in use: 8080 mcp-openapi-banking (hardcoded by its binary), 8081
+# Ports in use: 8080 mcp-openapi-banking, 8081
 # mcp-grafana, 8082 mcp-banking-rest, 8083 mcp-pingone, 8084 mcp-brave.
 # A new sidecar takes 8085.
 
@@ -36,8 +36,17 @@ imagePullSecrets:
   - name: ghcr-pull-secret
 
 extraContainers:
-  # Moved 8080 -> 8084 on 2026-09-09 to free 8080 for mcp-openapi-banking, whose
-  # binary hardcodes :8080. Safe: no Privilege app addresses this sidecar. The
+  # Moved 8080 -> 8084 on 2026-09-09 to free 8080 for mcp-openapi-banking.
+  #
+  # CORRECTION (same day): this move was NOT necessary. `openapimcp` honours the
+  # standard `PORT` env var — `PORT=9999` logs `listening on :9999/mcp` — it is
+  # simply absent from the documented `OPENAPIMCP_*` surface, so the first read
+  # of its config concluded :8080 was fixed. The adapter could have taken 8085
+  # and left brave alone. Left as-is because the Agentic App is registered
+  # against `http://localhost:8080/mcp` and re-pointing it costs a console edit
+  # for no functional gain. If you ever renumber these, `PORT` works here too.
+  #
+  # The move itself is safe: no Privilege app addresses this sidecar. The
   # `mcp-brave-search` Agentic App runs Privilege's own brave-search image with
   # an API key and an empty envConfig, and the gateway log referenced no
   # `localhost:8080` at all (only 8083, for pingone-admin-local).
