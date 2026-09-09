@@ -196,6 +196,7 @@ export const NAV_STRUCTURE_CATALOG = [
     label: "Diagrams",
     children: [
       "System Diagram (Node)",
+      "System Flow (Live)",
       "Overview Diagram (Node)",
       "Token Flow (Interactive) (Node)",
       "Token Chain Architecture (Node)",
