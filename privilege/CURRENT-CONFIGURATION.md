@@ -15,19 +15,25 @@ what this repo called "agentless").
 | Mesh cluster | `ai-demo-cmuir` |
 | PingOne tenant | `0428ba4f-169c-436b-aff9-b230496e0e3b` ("AI Agent") |
 | Agentic App | `opensearch22` |
-| MCP client URL | `https://mcpgw.ai-demo.ping-devops.com/opensearch22/sse` — **`/sse`, not `/mcp`**, see "The entry path is derived from the backend URL" |
-| Backend registered as | `http://opensearch-mcp-server.ping-devops-curtismuir.svc.cluster.local/sse` |
+| MCP client URL | `https://mcpgw.ai-demo.ping-devops.com/opensearch22/mcp` — see "The entry path is derived from the backend URL" |
+| Backend registered as | `http://opensearch-mcp-server.ping-devops-curtismuir.svc.cluster.local/mcp` — **`/mcp`, not `/sse`** (corrected 2026-09-08 evening, see the rule below) |
 | Authentication | Gateway-managed OAuth: RFC 7591 dynamic registration + PKCE, no client id configured on the client |
 | Gateway's own OIDC | client `1a403855-81f6-45eb-b233-fed59abc5c73` in tenant `0428ba4f…`, from secret `agentless-mcpgw-oidc-config` (key `pingone.env`). This is what `PRIVILEGE_SSO_CLIENT_ID`/`_ENV_ID` must match — see "Which PingOne identity is which" |
 
 ## Rules that still bite
 
-- **Register the backend with `/sse`, never `/mcp`.** The gateway's discovery
-  client speaks the SSE transport — it issues a `GET` and waits for the SSE
-  `endpoint` event, and never POSTs `initialize`. `/mcp` answers 200 and the
-  handshake then dies, which the console reports as
-  `Error discovering MCP server: calling "initialize": Unauthorized`. This
-  corrects the previous version of this file, which said to use `/mcp`.
+- **Register the backend with `/mcp`, never `/sse`** — and this file has now
+  said the opposite twice, so here is the measurement rather than a rule. The
+  gateway forwards the path after the app segment verbatim, and on this build
+  (v1.260906) its discovery client **POSTs `initialize`** to the registered
+  backend path — the morning's failure line read
+  `sending "initialize": rejected by transport: Post "…/sse"`. On a FastMCP
+  backend `/sse` is the legacy GET-only endpoint: `POST /sse -> 405, Allow:
+  HEAD, GET` measured inside the pod (PR #2958). So an `/sse` registration
+  breaks every JSON-RPC call, and the "GET and wait for the SSE `endpoint`
+  event" description recorded here earlier no longer matches what this gateway
+  does. `opensearch22` was re-registered as `…/mcp` on 2026-09-08 and its
+  calls succeeded over `/opensearch22/mcp` (200/202/200 in the gateway log).
 - **`svc.cluster.local` is the backend, not a client URL.** It resolves only
   inside the cluster; a client pointed there hangs. Clients use the client URL
   above.
@@ -48,12 +54,15 @@ what this repo called "agentless").
   **A 403 from Privilege is a valid answer, never something to fix in code.**
 - **The entry path is derived from the BACKEND URL, and is per app.** The gateway
   pins each Agentic App to one client-facing path and answers a bare 404 on any
-  other. Register the backend as `…/sse` and clients must call `/<app>/sse`;
-  register `…/mcp` and they must call `/<app>/mcp`. The only explanation is in
-  the log: `[mcpgw] rejecting /mcp on app opensearch22: outside entry path "/sse"`.
-  So `opensearch22`/`opensearch` are `/sse` doors while `openapi2` and the catalog
-  apps are `/mcp` — one hardcoded path cannot serve them all, which is why
-  `mcpFacade.js` resolves it per app (`privilegeEntryPath`).
+  other; the only explanation is in the log:
+  `[mcpgw] rejecting /mcp on app opensearch22: outside entry path "/sse"`. That
+  line is what a `/sse`-registered app produces when a client correctly calls
+  `/mcp` — the cure is to fix the registration, not the client. Combined with the
+  rule above, every JSON-RPC door must be registered on, and called on, `/mcp`.
+  `mcpFacade.js` still resolves the path per app (`privilegeEntryPath`, env
+  override `MCP_FACADE_PRIVILEGE_GATEWAY_PATHS`) so that a console edit is an
+  env change rather than a code change — but no app defaults to anything other
+  than `/mcp` any more (PR #2958).
 - **An unauthenticated probe cannot tell you the entry path.** The rejection
   happens AFTER the bearer is accepted, so `/mcp` and `/sse` both answer 401
   without a token. Only a real token — or the gateway log — distinguishes them.
@@ -69,12 +78,12 @@ what this repo called "agentless").
 
 | App | Type | Backend | Status |
 | --- | --- | --- | --- |
-| `opensearch22` | MCP Server (subdomain) | `http://opensearch-mcp-server.ping-devops-curtismuir.svc.cluster.local/sse` | Working end-to-end 2026-09-08 — client path is `/opensearch22/**sse**` |
+| `opensearch22` | MCP Server (subdomain) | `http://opensearch-mcp-server.ping-devops-curtismuir.svc.cluster.local/mcp` | Working end-to-end 2026-09-08 — client path `/opensearch22/mcp` (calls logged 200/202/200 after the `/mcp` re-registration) |
 | `opensearch` | MCP Server (subdomain) | same, older duplicate registration | Working — 9 tools |
 | `pingone-mcp-server-2` | MCP Server (subdomain) | unrelated, pre-existing app kept for its own purpose | Not part of this demo — see the note below, this is NOT the demo's PingOne MCP |
 | `mcp-brave-search` | Catalog sidecar | Privilege's own `mcp/brave-search:1.0.0` image, reaching our `mcp-brave` sidecar via the mesh | Working after the 2026-09-07 gateway restart (was stuck in a "Tenant not found" registration retry loop) |
 | `mcp-grafana` | Catalog sidecar | Privilege's own `mcp/grafana:1.0.0` image → our `mcp-grafana` sidecar via the mesh | Working after the same restart |
-| `openapi2` | OpenAPI MCP | Privilege's own `mcp/openapi:latest` image → our `mcp-banking-rest` sidecar via the mesh → AI-DEMO2's `mcp-resource-server` in `ping-devops-cmuir` | **Unverified since 2026-09-08 morning** — was not discovering tools then, and has had zero log activity since, so nobody has retested it. See "The banking door" below |
+| `openapi2` | OpenAPI MCP | Privilege's own `mcp/openapi:latest` image → our `mcp-banking-rest` sidecar via the mesh → AI-DEMO2's `mcp-resource-server` in `ping-devops-cmuir` | **Never discovers tools, and cannot from our side** — the `openapi:latest` image is not discoverable by Privilege's own runtime. Root cause and the replacement (`banking-mcp`) under "The banking door" below |
 
 **`pingone-mcp-server-2` is not the demo's PingOne MCP — do not go looking for a
 backend behind it.** The name invites the assumption and the table above has been
@@ -97,8 +106,8 @@ through the gateway hangs on "Waiting for authorization..." forever
 ### Two registration mechanisms, and why "localhost" shows up in the console
 
 **Plain "MCP Server" apps** (`opensearch22`, `opensearch`) get their own
-subdomain and a directly-editable backend URL — the `/sse`-not-`/mcp` rule
-below applies to these.
+subdomain and a directly-editable backend URL — the `/mcp`-not-`/sse` rule
+above applies to these.
 
 **Catalog and OpenAPI-MCP apps** (`mcp-brave-search`, `mcp-grafana`,
 `openapi2`) work completely differently, and the console's "localhost"
@@ -156,10 +165,62 @@ Two settings on this app type that cost hours, both verified live:
   "Backend Name" sat at a stale `http://localhost:8080/mcp` the whole time the
   live config was correct. Read the app-container JSON on the pod, not the form.
 
-**`openapi2` was not discovering tools on the morning of 2026-09-08 and has not
-been retested since** (zero log activity for it in the following six hours). The
-gateway itself is healthy (`LinkStatus:Active`, certs valid, enrollment PVC
-intact) and the config on the pod is correct.
+**`openapi2` never discovers tools, and the cause is Privilege's image, not our
+response — settled 2026-09-08 evening.** The gateway itself is healthy
+(`LinkStatus:Active`, certs valid, enrollment PVC intact), the config on the pod
+is correct, and our side was proven good by running the **identical** adapter
+image (`public.ecr.aws/n2z2g8w6/mcp/openapi:latest`) with the identical config
+against the identical sidecar by hand: it mints 5 tools (`list_banking_accounts`,
+`get_banking_account`, plus the three discovery-mode tools).
+
+The differential is the image itself. Every working catalog image is fronted by
+Privilege's own `mcp-shim` (`mcp-shim listening on 0.0.0.0:8080, child:
+[mcp-grafana]`) and answers `GET /mcp -> 200`; `openapi:latest` is a bare Go
+binary built on `NewStreamableHTTPHandler` — `GET /mcp -> 405`, `GET /sse ->
+404`, no transport or listen switch in its entire env surface (`ENDPOINT`,
+`SPEC_URL`, `SPEC_PATH`, `SPEC_INLINE`, `TOOL_MODE`, `HEADER_DENYLIST`), and
+`latest` is the only tag published. Privilege's runtime cannot discover its own
+openapi image. **Raise with Ping; nothing in the console or this repo changes
+it.** Also: absence of gateway log lines for this app proves nothing —
+`mcp-grafana` and `mcp-brave-search`, both working, log zero lines too, because
+catalog adapters run in Privilege's infrastructure and this pod only provides
+the mesh tunnel.
+
+**The replacement: `banking-mcp`, a plain MCP Server app on our own
+`mcp-resource-server`.** PR #2891 built that server's legacy transport "so this
+server could be registered as a native MCP Server Agentic App", and it needs no
+shim: measured from inside the gateway pod, a tokenless `POST /mcp initialize`
+answers 200 (`protocolVersion 2025-11-25`) and `tools/list` returns 33 tools
+including both banking tools — which is exactly the discovery this gateway build
+performs. Register it in the console as:
+
+| Field | Value |
+|---|---|
+| Application type | MCP Server |
+| Application Name | `banking-mcp` |
+| MCP Server URL | `http://mcp-resource-server.ping-devops-cmuir.svc.cluster.local:8081/mcp` |
+| Auth Mode | None (discovery is tokenless by that server's design) |
+| Mesh Cluster | `ai-demo-cmuir` |
+
+`/mcp`, not `/sse` — that server answers `GET /mcp -> 404`, so an `/sse`
+registration would hand the gateway a path it cannot POST to. Check the hostname
+character by character; it is a cross-namespace FQDN (`cmuir`, not
+`curtismuir`), the same shape `opensearch22` uses. `mcpFacade.js`'s `agentless`
+door and the "Privilege — banking" preset default to this app name.
+
+**What this does and does not unblock.** Tools appear, so a policy can be
+authored — the blocker all day. `tools/call` is a separate matter: the server
+exempts only `initialize`/`tools/list` from its bearer gate, and the banking
+tools require scope `banking:read`, a **user** scope that reaches this server via
+the BFF's RFC 8693 exchange (`docs/TOKEN_FLOW.md`), not a scope any client can
+hold on a machine token. Its validator is the demo env's JWKS (`01d89b06…`) with
+accepted audiences `mcp-invest.ping.demo`, `mcp-resource-server.ping.demo`,
+`mcpgateway.ping.demo`. A Privilege-forwarded user token has the wrong issuer,
+Static Token is parsed as a JWT (see PRIVILEGE-MCP.md) and short-lived, so calls
+through this door will answer `insufficient_scope` until the backend hop gets a
+real design — most likely Auth Mode OAuth pointed at the demo env with
+`banking:read` made client-grantable. The door also exposes all 33 tools;
+narrow it with Privilege policy.
 
 **Two leads recorded here previously are now closed — do not re-chase them:**
 
@@ -179,10 +240,11 @@ The Mac agent's device cert being rejected by Ping's regional proxy
 (`remote error: tls: unknown certificate`) is still open, but its control-plane
 connection reports READY so it is likely data-plane only and unrelated.
 
-**Retest it with what `opensearch22` taught us**, in this order: confirm the
-backend hostname resolves from inside the gateway pod (a one-character typo cost
-an hour); confirm the entry path the gateway actually pins; then check whether a
-policy exists AND has not expired.
+The three checks that `opensearch22` taught us still apply to **any** plain MCP
+Server app, `banking-mcp` included: confirm the backend hostname resolves from
+inside the gateway pod (a one-character typo cost an hour); confirm the entry
+path the gateway actually pins is `/mcp`; then check whether a policy exists AND
+has not expired.
 
 **The packaged chart `.tgz` goes stale silently.** See
 `.claude/skills/privilege-mcpgw-agent-k8s/SKILL.md`'s "packaged `.tgz` goes

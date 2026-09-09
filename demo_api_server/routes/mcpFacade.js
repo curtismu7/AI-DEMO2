@@ -44,7 +44,7 @@ const SERVICE = 'mcp-facade';
 
 // The Agentic App behind the banking door. Its own name rather than a literal at
 // each use, so the door and its authorization server can never drift apart.
-const BANKING_GATEWAY_APP = process.env.MCP_FACADE_PRIVILEGE_GATEWAY_APP_BANKING || 'openapi2';
+const BANKING_GATEWAY_APP = process.env.MCP_FACADE_PRIVILEGE_GATEWAY_APP_BANKING || 'banking-mcp';
 
 const DOORS = {
   'agent-gateway': {
@@ -64,14 +64,31 @@ const DOORS = {
     // The condition this door's own comment set for repointing — "a banking MCP
     // server registered there as its own Agentic App", explicitly NOT an
     // OpenSearch app, which would silently serve the wrong tools — is met by
-    // `openapi2`: Privilege's mcp/openapi adapter -> our mcp-banking-rest
-    // sidecar -> AI-DEMO2's mcp-resource-server. Verified live 2026-09-08: the
-    // spec serves 200 with two operations (list_banking_accounts,
-    // get_banking_account) and the door answers a well-formed 401 challenge with
-    // RFC 9728 metadata, indistinguishable from the working mcp-grafana door.
+    // `banking-mcp`: AI-DEMO2's own mcp-resource-server, registered as a plain
+    // "MCP Server" Agentic App with backend
+    // http://mcp-resource-server.ping-devops-cmuir.svc.cluster.local:8081/mcp.
     //
-    // Path via privilegeEntryPath rather than a hardcoded /mcp: the gateway pins
-    // it per app and it follows a console edit, not a release.
+    // NOT `openapi2`, which this door pointed at for one afternoon. That app is
+    // Privilege's OpenAPI-MCP adapter image (mcp/openapi:latest) fronting our
+    // mcp-banking-rest sidecar, and it never shows a single tool. Our side was
+    // proven fine — the identical image with the identical config against the
+    // identical sidecar mints 5 tools when run by hand — but the image is a bare
+    // Streamable-HTTP binary (GET /mcp -> 405, no /sse, no transport switch,
+    // only one tag published), while every working catalog image is fronted by
+    // Privilege's own mcp-shim (GET /mcp -> 200). Privilege's runtime cannot
+    // discover its own openapi image. Raised with Ping; not fixable from here.
+    //
+    // mcp-resource-server needs no shim: measured from inside the gateway pod,
+    // a tokenless POST /mcp initialize answers 200 (protocolVersion 2025-11-25)
+    // and tools/list returns 33 tools including list_banking_accounts and
+    // get_banking_account — which is exactly the discovery this gateway build
+    // performs (it POSTs initialize to the registered path; see #2958 for the
+    // measurement that killed the older "register /sse" rule). Discovery is
+    // tokenless by that server's design (PR #2891); tools/call still needs a
+    // bearer carrying banking:read on an audience it accepts.
+    //
+    // Path via privilegeEntryPath rather than a hardcoded /mcp so a console
+    // edit remains an env change, not a code change.
     upstream: () => process.env.MCP_FACADE_AGENTLESS_URL
       || privilegeDoorUpstream(BANKING_GATEWAY_APP),
     authorizationServer: () => process.env.MCP_FACADE_AGENTLESS_AS
