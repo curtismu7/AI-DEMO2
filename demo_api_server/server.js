@@ -880,30 +880,11 @@ app.get('/api/auth/logout', async (req, res) => {
         }
     } catch (_) {}
 
-    // Backstop for an abandoned group-gated run. The client restores membership
-    // after a UC9 run, but a closed tab or a thrown error between toggle and restore
-    // strands the demo user OUTSIDE premiumTier — which breaks UC2/UC37 (they share
-    // the gated tool) and reddens /group-policy for everyone on a shared cluster.
-    // Best-effort only: logout must never fail because a group write failed. Must
-    // run before session.destroy() below, since it reads the user + vertical off
-    // the session.
-    try {
-        const groupPolicy = require('./services/groupPolicy');
-        const pingOneGroupMembershipService = require('./services/pingOneGroupMembershipService');
-        const { verticalManifest } = require('./services/verticalManifest');
-        const verticalId = verticalManifest.resolver.activeIdFor(req) || 'banking';
-        const groupName = groupPolicy.groupNameForCategory(verticalId, 'premiumTier');
-        if (groupName && pingOneGroupMembershipService.isReady()) {
-            await pingOneGroupMembershipService.setUserGroupMembership({
-                username: req.session?.user?.username || null,
-                pingOneUserId: req.session?.user?.oauthId || req.session?.user?.sub || null,
-                groupName,
-                inGroup: true,
-            });
-        }
-    } catch (err) {
-        console.warn('[auth] premiumTier restore on logout failed:', err.message);
-    }
+    // Backstop for an abandoned group-gated run — see groupMembershipLogoutRestore.js.
+    // Must run before session.destroy() below, since it reads the user + vertical
+    // off the session. Never throws (its own try/catch); logout must not fail
+    // because a group write failed.
+    await require('./services/groupMembershipLogoutRestore').restorePremiumTierOnLogout(req);
 
     req.session.destroy((err) => {
         if (err) {
