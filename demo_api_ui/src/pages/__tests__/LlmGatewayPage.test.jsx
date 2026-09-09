@@ -3,7 +3,7 @@
 // credential behind the virtual key was rejected (it did). Everything below pins
 // that distinction, plus the honesty rule — no number is presented as a Privilege
 // cap unless it is one.
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import LlmGatewayPage from "../LlmGatewayPage";
 import { GUARDRAIL_ATTACKS } from "../../config/guardrailAttackCatalog";
 
@@ -645,6 +645,122 @@ describe("LLM Gateway console", () => {
       // Click back on the earlier, successful turn.
       fireEvent.click(screen.getByText("Paris.").closest("button"));
       expect(await screen.findByTestId("lgw-decision")).toHaveTextContent(/Answered/);
+    });
+  });
+
+  // The virtual key's model allowlist is a Privilege policy like any other, and the
+  // console has to be able to trip it without anyone hand-editing JSON. The model
+  // must reach the wire verbatim: silently substituting the lane default would show
+  // a call being allowed while claiming a blocked model was sent.
+  describe("model picker", () => {
+    const CATALOG = {
+      anthropic: ["claude-haiku-4-5-20251001", "claude-opus-5", "claude-sonnet-5"],
+      google: ["gemini-2.0-flash", "gemini-2.5-pro"],
+    };
+
+    function bodyOf(mock) {
+      const [, init] = mock.mock.calls.find(([u]) => String(u).endsWith("/llm/call"));
+      return JSON.parse(init.body);
+    }
+
+    const OK = () => ({
+      ok: true, status: 200,
+      text: async () => JSON.stringify({
+        reply: "Paris.", provider: "anthropic", route: "/llm/anthropic/v1/messages",
+        latencyMs: 300, reachedProvider: true,
+      }),
+    });
+
+    // `models` defaults to the catalog above; pass null for a lane whose list the
+    // gateway will not serve (Google's does exactly this today).
+    function mockWithCatalog(models = CATALOG) {
+      global.fetch = vi.fn((url) => {
+        const u = String(url);
+        if (u.endsWith("/llm/config")) {
+          return Promise.resolve({ ok: true, status: 200, text: async () => JSON.stringify(CONFIG) });
+        }
+        const lane = (u.match(/\/llm\/models\?provider=(\w+)/) || [])[1];
+        if (lane) {
+          if (!models) return Promise.resolve({ ok: false, status: 502, text: async () => JSON.stringify({ error: "gateway down" }) });
+          return Promise.resolve({ ok: true, status: 200, text: async () => JSON.stringify({ models: models[lane] || [] }) });
+        }
+        if (u.endsWith("/llm/call")) return Promise.resolve(OK());
+        return new Promise(() => {});
+      });
+    }
+
+    async function picker() {
+      const el = await screen.findByLabelText(/model/i);
+      // The options arrive from the catalog fetch, so nothing can be chosen until
+      // that has landed.
+      await waitFor(() => expect(el.options.length).toBeGreaterThan(1));
+      return el;
+    }
+
+    it("sends no model at all when the default option is left selected", async () => {
+      mockWithCatalog();
+      render(<LlmGatewayPage />);
+      await picker();
+      await ask("capital of France?");
+      await screen.findByText("Paris.");
+
+      expect(bodyOf(global.fetch)).toEqual({ provider: "anthropic", prompt: "capital of France?" });
+    });
+
+    it("sends the picked model, and names it on the decision", async () => {
+      mockWithCatalog();
+      render(<LlmGatewayPage />);
+      fireEvent.change(await picker(), { target: { value: "claude-opus-5" } });
+      await ask("capital of France?");
+      await screen.findByText("Paris.");
+
+      expect(bodyOf(global.fetch).model).toBe("claude-opus-5");
+      expect(screen.getByTestId("lgw-decision")).toHaveTextContent("claude-opus-5");
+    });
+
+    // The list is the provider's catalog, NOT the key's allowlist — Privilege does
+    // not publish that. The ids it will refuse have to be offered or the picker can
+    // only demonstrate calls that succeed, which is the opposite of the point.
+    it("offers the whole catalog, with the default as the empty option", async () => {
+      mockWithCatalog();
+      render(<LlmGatewayPage />);
+      const el = await picker();
+
+      expect([...el.options].map((o) => o.value))
+        .toEqual(["", "claude-opus-5", "claude-sonnet-5"]);
+      // The default is the empty option's label, not an entry of its own.
+      expect(el.options[0]).toHaveTextContent("claude-haiku-4-5-20251001");
+    });
+
+    // A blocked model is refused for the LANE it was picked in. Carrying it across
+    // would send a claude-* id to Google, which rejects it as an unknown model — a
+    // provider error dressed up as the policy denial the demo is trying to show.
+    it("does not carry one lane's model over to another", async () => {
+      mockWithCatalog();
+      render(<LlmGatewayPage />);
+      fireEvent.change(await picker(), { target: { value: "claude-opus-5" } });
+      fireEvent.click(screen.getByRole("button", { name: /google/i }));
+
+      const el = await screen.findByLabelText(/model/i);
+      expect(el).toHaveValue("");
+      await waitFor(() => expect([...el.options].map((o) => o.value)).toEqual(["", "gemini-2.5-pro"]));
+      await ask("capital of France?");
+      expect(bodyOf(global.fetch).model).toBeUndefined();
+    });
+
+    // Google's catalog 403s on the live gateway today. A picker holding one silent
+    // option would read as "this provider has one model"; the page has to say the
+    // list is missing instead.
+    it("says so when the catalog cannot be read, and still sends the default", async () => {
+      mockWithCatalog(null);
+      render(<LlmGatewayPage />);
+
+      expect(await screen.findByText(/model list could not be read/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/model/i).options).toHaveLength(1);
+
+      await ask("hello");
+      await screen.findByText("Paris.");
+      expect(bodyOf(global.fetch).model).toBeUndefined();
     });
   });
 });

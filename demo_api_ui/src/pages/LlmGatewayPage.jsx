@@ -213,6 +213,18 @@ export default function LlmGatewayPage() {
   const [gatewayUrl, setGatewayUrl] = useState('');
   const [lanes, setLanes] = useState([]);
   const [selected, setSelected] = useState('openai');
+  // Kept per lane so switching lanes never carries a claude-* id into the OpenAI
+  // lane. Empty means send no `model` at all and let the server apply the lane
+  // default, rather than this page restating a default it would then have to
+  // keep in step with privilegeLlmProxyService.js.
+  const [modelByLane, setModelByLane] = useState({});
+  // The provider's own catalog, fetched through the virtual key. Deliberately NOT
+  // the key's allowlist — Privilege enforces that on the call itself — and that is
+  // exactly what makes it the right source for this box: only a model id that is
+  // REAL for the provider but absent from the allowlist produces a Privilege
+  // denial. A made-up id gets a provider 400/404 and renders as "Provider
+  // refused", which tells the opposite story about who stopped the call.
+  const [catalogByLane, setCatalogByLane] = useState({});
   const [loadError, setLoadError] = useState('');
   // The dropdown's choice persists across reloads; the prompt box must be seeded
   // from the same key or the two load out of sync — select reads "Prompt Injection",
@@ -247,6 +259,18 @@ export default function LlmGatewayPage() {
     return () => { cancelled = true; };
   }, []);
 
+  // Suggestions only, so a gateway that cannot list models costs the demo a
+  // dropdown rather than the ability to run — the field stays free text either way.
+  useEffect(() => {
+    const lane = lanes.find((l) => l.provider === selected);
+    if (!lane || lane.isLocal || !lane.keyConfigured || catalogByLane[selected]) return undefined;
+    let cancelled = false;
+    api(`/llm/models?provider=${encodeURIComponent(selected)}`)
+      .then((d) => { if (!cancelled) setCatalogByLane((p) => ({ ...p, [selected]: d.models || [] })); })
+      .catch(() => { if (!cancelled) setCatalogByLane((p) => ({ ...p, [selected]: [] })); });
+    return () => { cancelled = true; };
+  }, [selected, lanes, catalogByLane]);
+
   const record = useCallback((provider, d) => {
     setDecision(d);
     if (d.providerLimits) setLimitsByLane((prev) => ({ ...prev, [provider]: d.providerLimits }));
@@ -269,16 +293,22 @@ export default function LlmGatewayPage() {
   const send = useCallback(async () => {
     const text = prompt.trim();
     if (!text || busy) return;
+    // The server never echoes the model back, so the decision has to carry what
+    // this page asked for — otherwise a denial names no model and reads as a
+    // refusal of the lane default, which is the one model that was not sent.
+    const lane = lanes.find((l) => l.provider === selected) || {};
+    const model = (modelByLane[selected] || '').trim();
     setBusy(true);
     setTurns((t) => [...t, { id: nextTurnId.current++, role: 'you', text }]);
     setPrompt('');
     setSelectedAttack('');
     try {
-      const data = await api('/llm/call', { method: 'POST', body: { provider: selected, prompt: text } });
+      const data = await api('/llm/call', { method: 'POST', body: { provider: selected, prompt: text, ...(model ? { model } : {}) } });
       const redactions = countRedactions(data.reply);
       const d = {
         verdict: redactions > 0 ? 'Answered, redacted' : 'Answered', tone: 'ok', layer: null,
         redactions,
+        model: model || lane.model || null,
         provider: selected, route: data.route, latencyMs: data.latencyMs,
         reachedProvider: data.reachedProvider !== false,
         reason: null, providerLimits: data.providerLimits || null,
@@ -291,8 +321,9 @@ export default function LlmGatewayPage() {
       const { verdict, tone, layer } = classify(err);
       const d = {
         verdict, tone, layer,
+        model: model || lane.model || null,
         provider: err.provider || selected,
-        route: err.route || (lanes.find((l) => l.provider === selected) || {}).route || '',
+        route: err.route || lane.route || '',
         latencyMs: err.latencyMs,
         reachedProvider: err.reachedProvider === true,
         reason: err.reason || err.message,
@@ -309,7 +340,7 @@ export default function LlmGatewayPage() {
     } finally {
       setBusy(false);
     }
-  }, [prompt, busy, selected, lanes, record]);
+  }, [prompt, busy, selected, lanes, modelByLane, record]);
 
   const active = lanes.find((l) => l.provider === selected);
 
@@ -377,7 +408,7 @@ export default function LlmGatewayPage() {
                 {lane.isLocal ? (
                   <span className="lgw-lane__r">{lane.baseUrl}</span>
                 ) : (
-                  <span className="lgw-lane__r">{lane.model}</span>
+                  <span className="lgw-lane__r">{modelByLane[lane.provider] || lane.model}</span>
                 )}
                 {!lane.isLocal && !lane.keyConfigured ? <span className="lgw-lane__warn">{lane.keyEnv} is not set</span> : null}
                 {limits ? (
@@ -478,6 +509,36 @@ export default function LlmGatewayPage() {
               </span>
             ) : null}
           </div>
+
+          {/* Local lanes have no virtual key and so no allowlist to demonstrate;
+              their model is whatever the local server has loaded. */}
+          {active && !active.isLocal ? (
+            <div className="lgw-attacks">
+              <label htmlFor="lgw-model">🧠 Model</label>
+              {/* The default is the empty option rather than an entry of its own, so
+                  it is picked by sending no `model` at all — the list would otherwise
+                  carry the same id twice, once as itself and once as "the default". */}
+              <select
+                id="lgw-model"
+                value={modelByLane[selected] || ''}
+                onChange={(e) => setModelByLane((p) => ({ ...p, [selected]: e.target.value }))}
+              >
+                <option value="">Lane default &mdash; {active.model}</option>
+                {(catalogByLane[selected] || []).filter((m) => m !== active.model).map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+              <span className="lgw-attacks__note">
+                {catalogByLane[selected] === undefined
+                  ? 'Reading the provider’s model list…'
+                  : catalogByLane[selected].length === 0
+                    // Saying so beats a dropdown that silently holds one option and
+                    // looks like the provider only has one model.
+                    ? 'This lane’s model list could not be read, so only the default is offered.'
+                    : 'These are the provider’s real models, not this key’s allowlist — pick one the key may not use and Privilege refuses the call before the model sees it.'}
+              </span>
+            </div>
+          ) : null}
 
           <div className="lgw-composer">
             <input
@@ -591,6 +652,9 @@ export default function LlmGatewayPage() {
                 </div>
               ) : null}
               <div><dt>Lane</dt><dd>{decision.provider}</dd></div>
+              {/* A model-allowlist denial refuses one specific model, so the row
+                  that names it is the evidence for the verdict above. */}
+              {decision.model ? <div><dt>Model</dt><dd>{decision.model}</dd></div> : null}
               <div><dt>Route</dt><dd>{decision.route}</dd></div>
               <div>
                 <dt>Reached the model</dt>
