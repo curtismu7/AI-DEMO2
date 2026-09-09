@@ -186,6 +186,9 @@ const ENV_AGNOSTIC_KEYS = new Set([
   // UI / demo experience keys
   'show_education_panel', 'enable_token_chain_display', 'agent_ui_mode',
   'demo_scenario', 'industry_id', 'demo_account_count', 'transaction_preset',
+  // loading-spinner appearance — presentation only, nothing to do with env identity
+  'spinner_variant', 'spinner_size', 'spinner_accent', 'spinner_dark_card',
+  'spinner_activity_feed',
   'max_token_chain_history', 'agent_transaction_count_limit', 'agent_transaction_value_limit',
   'active_vertical', 'ui_industry_preset',
   // simulated authorize thresholds (demo/sim config, not env identity)
