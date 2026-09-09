@@ -16,6 +16,28 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-09-08 — UC30 weather was declared `public` but no signed-out path exists
+
+`auth-requirements.json` said UC30 ("what's the weather in Austin, TX") is
+`public`, and `agentRun.js`'s `PUBLIC_GUEST_ACTIONS` allowlists `weather`, on
+the strength of PingGateway's `/mcp/weather` route carrying no auth filter.
+Commit `9092cd1f6` flipped the JSON and nothing else. On the wire a signed-out
+call dies twice before the gateway: `demoAgentLangGraphService`'s banking
+no-token guard (exempts only `branch_hours`) and then
+`mcpNoBearerResponse` in the MCP executor, because the pipeline always runs
+the RFC 8693 exchange, which needs a subject token. The Demo Steps dropdown
+sent it unauthenticated and the presenter saw "Please sign in again".
+
+Fixed for the demo by declaring UC30 `user` — the dropdown now queues a
+signed-out click behind the sign-in prompt, which is the flow every other
+step already uses. `weather` stays in `publicAgentActions` because
+`authz:verify` holds that list equal to `agentRun.js`; it is inert.
+
+Real fix: a public-tool branch in the MCP pipeline that skips the exchange
+and calls the gateway's open weather route with no bearer (the intent-token
+and audit trail still apply), then flip UC30 back to `public`. Same shape
+would serve UC41/UC42 (`brave_search`), also declared public today.
+
 ### [ ] 2026-09-08 — A non-admin cannot see their own MCP audit trail (external-door movie reel)
 
 `/api/mcp/audit` is admin-only, so the external-door movie reel — the view that
