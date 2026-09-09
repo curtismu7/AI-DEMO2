@@ -24,21 +24,6 @@
   margin-top: 0.5rem;
 }
 
-.tca-theme-toggle {
-  padding: 6px 14px;
-  border-radius: 6px;
-  border: 1px solid var(--th-border);
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-.tca-theme-toggle:hover {
-  background: var(--th-bg-hover);
-  color: var(--th-text);
-}
-
 .tca-diagram-frame {
   background: var(--th-bg-inset);
   padding: 2rem;

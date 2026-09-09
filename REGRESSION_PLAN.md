@@ -140,6 +140,40 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-09 — 17 of 19 pages in the "Diagrams" nav group had no light/dark toggle
+
+**Files changed:** `demo_api_ui/src/components/TopNav.js`, `TopNav.css`,
+`ArchitectureOverviewPage.js`, `ArchitectureOverviewPage.css`,
+`TokenChainArchitecturePage.js`, `TokenChainArchitecturePage.css`.
+
+**What was broken:** the toggle was never a shared control — `ThemeProvider`
+(`context/ThemeContext.js`) has held app-wide dark-mode state since 2026-08-02,
+but each page that wanted a switch had to hand-roll its own button. Only two of
+the 19 pages under the "Diagrams" side-nav group (`ArchitectureOverviewPage.js`,
+`TokenChainArchitecturePage.js`) ever did; the other 17 (System Flow, Token
+Flow, Sequence Diagram, the Agent Onboarding/Privilege/Gateway diagram pages,
+etc.) shipped with none.
+
+**Fixed by** adding one `☀️`/`🌙` icon button (`.topnav-theme-toggle`) to
+`TopNav.js`, the shared header every one of these pages already renders
+through `AppShell` or its own inline mount in `App.js` — all inside
+`ThemeProvider`, so `useTheme()` is safe there. Removed the two per-page
+hand-rolled toggles (and their now-dead CSS) so pages that already had one
+don't show it twice.
+
+**Do not break:** don't re-add a page-local toggle button — TopNav is the one
+place it belongs now, per this fix. If a future page renders outside
+`AppShell`/`App.js`'s `<ThemeProvider>` tree, use `useThemeOptional()`, not
+`useTheme()`, or the app will crash on mount instead of silently missing the
+control.
+
+**Verify:** `cd demo_api_ui && npm run test:unit` — 515/516 files passed (1
+pre-existing worker-contention flake in `DemoStepsDropdown.test.jsx`, confirmed
+green in isolation, unrelated to this change); `npm run build` exit 0. Live
+sweep via `serve:worktree` + Playwright: toggle present and functional on
+`/architecture/token-chain` (had one before) and `/privilege-gateway-topologies`
+(had none before), no duplicate control on either.
+
 ### 2026-09-09 — Switching door or path on `/privilege-mcp-client` de-authenticated the client and never signed it back in
 
 **Files changed:** `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`,

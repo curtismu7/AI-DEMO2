@@ -46,22 +46,6 @@
   text-decoration: underline;
 }
 
-.aov-theme-toggle {
-  flex-shrink: 0;
-  padding: 6px 14px;
-  border-radius: 6px;
-  border: 1px solid var(--th-border);
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-.aov-theme-toggle:hover {
-  background: var(--th-bg-hover);
-  color: var(--th-text);
-}
-
 .aov-diagram-wrap {
   background: var(--th-bg-card);
   border: 1px solid var(--th-border);
