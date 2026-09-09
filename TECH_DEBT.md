@@ -2927,13 +2927,45 @@ server registered there as its own Agentic App", explicitly not an OpenSearch ap
 blanked in `.env` so the code default applies rather than an override naming a
 host deleted on 2026-09-01.
 
-**What remains open in this entry**: step 2 only — author a policy on `openapi2`
-naming the demo users. That needs the console, and the lesson from `opensearch22`
-the same day applies directly: an **expired** policy presents identically to a
-missing one (a bare 403), and re-adding it fixed that app immediately. Whether
-`openapi2`'s Tools panel is populated is still unconfirmed from outside the
-console — and note the console's tool list can itself be stale cache, which the
-gateway says out loud as `keeping the N tools already discovered`.
+**Update 2026-09-08 (3) — `openapi2` is a dead end; the door now targets
+`banking-mcp`.** The afternoon's "no evidence it is broken" was correct as far
+as it went, but the evening settled it: `openapi2` will never discover tools,
+and it is Privilege's image, not our response. The identical adapter image
+(`public.ecr.aws/n2z2g8w6/mcp/openapi:latest`) with the identical config
+against the identical sidecar, run by hand, mints 5 tools — so the spec, the
+sidecar and the config are all fine. But that image is a bare Streamable-HTTP
+binary (`GET /mcp -> 405`, `GET /sse -> 404`, no transport switch anywhere in
+its env surface, `latest` the only tag published), while every working catalog
+image is fronted by Privilege's own `mcp-shim` (`GET /mcp -> 200`). Privilege's
+runtime cannot discover its own openapi image. Raised with Ping; not fixable
+from the console or this repo.
+
+Step 3 was therefore re-done against `banking-mcp`: AI-DEMO2's own
+`mcp-resource-server` registered as a plain MCP Server Agentic App on
+`http://mcp-resource-server.ping-devops-cmuir.svc.cluster.local:8081/mcp`. PR
+#2891 built that server's legacy transport for exactly this registration, and
+on this gateway build (which POSTs `initialize` to the registered path — #2958)
+it needs no shim: measured from inside the gateway pod, a tokenless
+`POST /mcp initialize` answers 200 and `tools/list` returns 33 tools including
+both banking tools. `mcpFacade.js`'s `agentless` door and the "Privilege —
+banking" preset default to it.
+
+**What remains open in this entry:**
+
+- **Register `banking-mcp` in the console** (MCP Server, the URL above, Auth
+  Mode None, Mesh Cluster `ai-demo-cmuir`) — a console write the API refuses,
+  so it is an operator action. Then step 2, the policy, same expiry caveat as
+  before.
+- **The call hop.** Discovery is tokenless by that server's design, but
+  `tools/call` needs a bearer carrying `banking:read` on an audience it accepts
+  (`mcp-invest.ping.demo`, `mcp-resource-server.ping.demo`,
+  `mcpgateway.ping.demo`, validated against the demo env's JWKS).
+  `banking:read` is a user scope delivered by the BFF's RFC 8693 exchange, not
+  something a client can hold on a machine token; a Privilege-forwarded user
+  token has the wrong issuer, and Static Token is parsed as a JWT. So the door
+  answers `insufficient_scope` on calls until the backend hop is designed —
+  most likely Auth Mode OAuth into the demo env with `banking:read` made
+  client-grantable. It also exposes all 33 tools; narrow with policy.
 
 ### [x] 2026-08-26 — `ping-mcpgw` Helm release's only remaining purpose is a backend it doesn't gate
 

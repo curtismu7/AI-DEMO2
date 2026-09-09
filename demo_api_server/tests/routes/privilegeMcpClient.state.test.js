@@ -50,7 +50,7 @@ describe('GET /api/privilege-mcp/state — mcpUrl default', () => {
       (p) => p.mode === 'privilege' && p.label.toLowerCase().includes('banking'),
     );
     expect(banking).toBeDefined();
-    expect(banking.url).toBe('https://mcpgw.ai-demo.ping-devops.com/openapi2/mcp');
+    expect(banking.url).toBe('https://mcpgw.ai-demo.ping-devops.com/banking-mcp/mcp');
     // The regression that made it dark: never the retired per-owner gateway.
     expect(banking.url).not.toContain('cmuir-agentless-mcpgw');
     // The three paths must survive, identified by mode rather than hostname.
