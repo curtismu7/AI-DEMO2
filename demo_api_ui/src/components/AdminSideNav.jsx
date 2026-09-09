@@ -475,7 +475,7 @@ export default function AdminSideNav({
         { label: "Protocol Playground", path: "/protocol-playground", icon: "dbg" },
         { label: "AI Gateway Client", path: "/privilege-mcp-client", icon: "shld" },
         { label: "LLM Gateway", path: "/llm-gateway", icon: "key" },
-{ label: "Intent Inspector", path: "/intent-inspector", icon: "shld" },
+        { label: "Intent Inspector", path: "/intent-inspector", icon: "shld", adminOnly: true },
         { label: "Audit Agent", path: "/audit-agent", icon: "shld" },
         { label: "AI Agent Gateway Guide", path: "/privilege-mcp-learning", icon: "doc" },
         { label: "AI Agent Gateway Diagrams", path: "/privilege-mcp-diagrams", icon: "arc" },

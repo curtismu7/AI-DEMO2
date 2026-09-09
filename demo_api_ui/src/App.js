@@ -1094,11 +1094,9 @@ function AppWithAuth() {
                 <Route
                   path="/intent-inspector"
                   element={
-                    loading ? null : user ? (
+                    <RequireAdminLogin user={user}>
                       <IntentInspectorPageRoute user={user} logout={logout} />
-                    ) : (
-                      <SignInRequired />
-                    )
+                    </RequireAdminLogin>
                   }
                 />
                 <Route
