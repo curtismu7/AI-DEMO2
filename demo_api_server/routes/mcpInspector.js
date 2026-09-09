@@ -223,7 +223,7 @@ function pingoneVirtualProfile(bearer) {
 }
 
 function requirePingoneAdminLogin() {
-  const err = new Error('Sign in as PingOne admin to use this profile.');
+  const err = new Error('Sign in to PingOne to use this profile.');
   err.code = 'pingone_admin_login_required';
   return err;
 }
@@ -998,7 +998,7 @@ router.get('/pingone-tools', requireSession, async (req, res) => {
         error: true,
         authRequired: true,
         loginUrl: '/api/mcp/inspector/pingone-admin/login',
-        reason: 'Sign in to PingOne as an admin to list the hosted PingOne MCP tools.',
+        reason: 'Sign in to PingOne to list the hosted PingOne MCP tools. Your PingOne roles decide how many appear.',
         request,
         response: null,
         tools: [],
@@ -1065,7 +1065,7 @@ router.post('/pingone-invoke', requireSession, async (req, res) => {
         error: true,
         authRequired: true,
         loginUrl: '/api/mcp/inspector/pingone-admin/login',
-        reason: 'Sign in to PingOne as an admin to call hosted PingOne MCP tools.',
+        reason: 'Sign in to PingOne to call hosted PingOne MCP tools.',
         request,
         response: null,
         _source: 'pingone_admin_login_required',
