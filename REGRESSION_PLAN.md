@@ -246,6 +246,40 @@ on the regex labels `get_weather` / `get_branch_hours` / `brave_news_search`.
 
 **Verify:** `cd demo_api_server && CI=true npx jest tests/intentToken tests/intentTokenService tests/agentRun.intentTokenMint.regression.test.js tests/intentAuthService.readOnly.test.js tests/a2aVerticalParity.test.js tests/chipSchemaContract.test.js tests/abercrombieFitchVertical.test.js tests/nlIntentParser src/__tests__/nlIntentParser src/__tests__/intentTokenService src/__tests__/agentInvokeRoute.intentToken.test.js --forceExit` — 26 suites, 1119 passed; `npm run authz:verify` OK. Live (stack served from the worktree via `serve:worktree here`, signed in as the demo user, `POST /api/agent/invoke` with the UC2 trigger + `vertical`): A&F `Delegation complete — Purchase History Specialist retrieved sensitive order history on your behalf (act-chain depth 2)`, investment `Delegation complete — Holdings Specialist retrieved sensitive holdings…`; gateway `[GW] Intent Token: valid=true intent=sensitive_order_history confidence=0.5 permitted tool=sensitive_order_history` and the same for `sensitive_holdings`; banking "show my recent transactions" still `intent=view_transactions confidence=0.8 permitted tool=get_my_transactions`.
 
+### 2026-09-08 — Banking UC6/UC7/UC8/UC22 died at the gateway with `insufficient_scope: missing transfer` before HITL/CIBA/step-up/tier ran
+
+**Files changed:** `demo_api_server/services/configStore.js` (MCP Server
+audience allow-list), `demo_api_server/services/agentMcpTokenService.js`
+(loud narrowing guard), `demo_api_server/src/__tests__/allowedScopesByAudience.parity.test.js`
+(drop the `transfer` exemption), `demo_api_server/src/__tests__/configStore-tokenExchange.test.js`
+(assert `transfer` on both MCP audiences),
+`demo_api_server/tests/agentMcpTokenService.scopeNarrowingMisconfig.regression.test.js` (new).
+
+**What was broken:** the login token carries `transfer`, `scope-topology.json`
+requires `write`+`transfer` for `create_transfer` (and `read`+`transfer` for
+`create_wire_transfer`) and mirrors `transfer` onto BOTH MCP audiences — but
+`configStore.buildAllowedScopesByAudience()`'s hand-typed list for
+`pingone_resource_mcp_server_uri` (`mcpserver.ping.demo`) never had it, and
+that is the audience `agentMcpTokenService` narrows every exchange request
+against. `validateScopeAudience` narrows silently (`narrowed: true`, no error),
+so the BFF minted `write mcp:invoke`, and the gateway's per-tool backstop
+(`demo_mcp_gateway/src/auth/toolScopes.ts`) 403'd `missing transfer` — a
+message that points at PingOne/the gateway, not at the BFF. Two tests actively
+codified the gap as intent ("not mirrored onto the MCP server — keep that
+asymmetry", PR #370), so the parity gate could not catch it. Other verticals'
+amount tools only require `write`, which is why only banking broke.
+
+**What was fixed:** `transfer` added to the MCP Server allow-list; the parity
+gate now has no gateway-only exemptions (so any gateway-surface tool scope
+missing from either MCP audience fails `topology:verify`); and when
+`validateScopeAudience` drops a scope the tool's `requiredScopes` needs,
+`agentMcpTokenService` logs at error level (`[SCOPE_AUDIENCE_MISCONFIG]
+tool= audience= dropped=`) and throws `bff_scope_audience_misconfigured`
+(HTTP 500) instead of minting a short token. Narrowing that drops a
+non-required scope is unchanged. Left behind: the two lists are still hand
+curated (ten SoT-mirrored scopes remain absent), and the native ID-JAG path
+re-clamps `transfer` in oauth-mcp — see TECH_DEBT 2026-09-08.
+
 ### 2026-09-08 — UC30 weather never worked signed out (declared public, wire said 401); UC29 dropped from the Demo Steps script
 
 **Files changed:** `demo_api_server/services/mcpToolPipeline.js`,

@@ -1463,6 +1463,30 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
 
   // RFC 8707: validate scopes against target audience — fail fast if invalid
   const scopeValidation = configStore.validateScopeAudience(finalScopes, mcpResourceUri);
+  // validateScopeAudience narrows SILENTLY (`narrowed: true`, no error). If it
+  // dropped a scope this tool requires, the allow-list in
+  // configStore.buildAllowedScopesByAudience has drifted from scope-topology.json
+  // — a BFF misconfiguration. Fail here, loudly, instead of minting a short token
+  // the gateway then 403s with a misleading `insufficient_scope` (UC6/7/8/22,
+  // 2026-09-08: `transfer` missing from the MCP Server audience list).
+  const droppedRequiredScopes = (MCP_TOOL_SCOPES[tool] || []).filter(
+    (s) => finalScopes.includes(s) && !scopeValidation.scopes.includes(s)
+  );
+  if (droppedRequiredScopes.length > 0) {
+    errorLog(
+      `[SCOPE_AUDIENCE_MISCONFIG] tool=${tool} audience=${mcpResourceUri} ` +
+      `dropped=[${droppedRequiredScopes.join(',')}] requested=[${finalScopes.join(',')}] — ` +
+      'required tool scope(s) are missing from configStore.buildAllowedScopesByAudience for this audience'
+    );
+    throwTokenResolutionError(
+      tokenEvents,
+      'bff_scope_audience_misconfigured',
+      `BFF misconfiguration: audience allow-list for ${mcpResourceUri} dropped required scope(s) ` +
+      `[${droppedRequiredScopes.join(', ')}] for tool ${tool}. ` +
+      'Add them to buildAllowedScopesByAudience (configStore.js) — see scope-topology.json mirroredScopes.',
+      500
+    );
+  }
   finalScopes = scopeValidation.scopes;
 
   // Ensure mcp:invoke is included in MCP tokens (required by MCP Gateway policy)

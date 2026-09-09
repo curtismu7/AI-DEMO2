@@ -1862,6 +1862,7 @@ function buildAllowedScopesByAudience() {
   allow(configStore.getEffective('pingone_resource_mcp_server_uri'), [
     'read',
     'write',
+    'transfer',           // banking — create_transfer / create_wire_transfer (the exchange request is narrowed against THIS audience; drift here 403'd UC6/7/8/22 at the gateway, 2026-09-08)
     'mcp:invoke',
     'mortgage:read',      // banking — show_mortgage
     'largepurchase:read', // retail — show_large_purchase

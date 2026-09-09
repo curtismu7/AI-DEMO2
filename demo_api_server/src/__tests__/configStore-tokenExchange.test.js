@@ -336,15 +336,19 @@ describe('buildAllowedScopesByAudience()', () => {
     }
   });
 
-  it('MCP Gateway audience includes transfer (scope-topology mirroredScopes parity)', () => {
-    // Regression: transfer is mirrored onto the MCP Gateway resource in
-    // scope-topology.json so create_transfer (requires write+transfer) can be
-    // authorized at the gateway. It must NOT be stripped by RFC 8707 audience
-    // validation. (Not mirrored onto the MCP server — keep that asymmetry.)
+  it('MCP Gateway AND MCP Server audiences include transfer (scope-topology mirroredScopes parity)', () => {
+    // Regression: transfer is mirrored onto BOTH the MCP Gateway and MCP Server
+    // resources in scope-topology.json so create_transfer (requires
+    // write+transfer) can be authorized at the gateway. The BFF narrows the
+    // exchange request against the MCP SERVER audience
+    // (pingone_resource_mcp_server_uri), so a server-side gap stripped
+    // `transfer` silently and the gateway 403'd `insufficient_scope: missing
+    // transfer` (UC6/7/8/22, 2026-09-08). It must NOT be stripped by RFC 8707
+    // audience validation on either audience.
     const { buildAllowedScopesByAudience } = loadConfigStore();
     const mapping = buildAllowedScopesByAudience();
     expect(mapping['mcpgateway.ping.demo']).toEqual(expect.arrayContaining(['transfer']));
-    expect(mapping['mcpserver.ping.demo']).not.toContain('transfer');
+    expect(mapping['mcpserver.ping.demo']).toEqual(expect.arrayContaining(['transfer']));
   });
 
   it('unions scopes when MCP server + gateway audiences collapse to the same URI (transfer survives)', () => {
