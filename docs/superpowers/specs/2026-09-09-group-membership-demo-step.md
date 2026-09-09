@@ -1,6 +1,6 @@
 # Group-membership demo step — UC9 / UC21 across every vertical
 
-**Status:** spec, not implemented
+**Status:** spec, decisions settled 2026-09-09, not implemented
 **Date:** 2026-09-09
 **Origin:** decision **D1** in the 2026-09-08 live UI pass. UC9 and UC21 declare
 outcomes their triggers cannot produce, and the two cards are inconsistent
@@ -43,15 +43,18 @@ One mechanism, identical in shape in all 12 eligible verticals, where the
 No dollar amount is involved in either, which is what removes the threshold
 collisions and the UC22 seed-state collision at the same time.
 
-## 3. What already exists — leverage, do not change
+## 3. What already exists — leverage; and the one thing that does change
 
 The 2026-09-09 survey found this already built and working. **This spec adds no
-new endpoint, no manifest change, and no change to the `/group-policy` board.**
+new endpoint and no change to the `/group-policy` board.** It DOES change every
+eligible manifest — see §3.2 — which is a deliberate, decided departure from the
+original "change nothing" framing.
 
 | Piece | Contract | Notes |
 |---|---|---|
 | `POST /api/groups/membership/toggle` | body `{ inGroup: boolean, category?: string='privileged' }`; vertical from session | Real PingOne write via `pingOneGroupMembershipService.setUserGroupMembership`. **Reads membership back from PingOne** rather than echoing the request. Returns `{ verticalId, username, groupName, category, requested, changed, inGroup, groups, userTier, verified }`. Errors: `user_not_toggleable` (403), `group_not_found` (404), `live_lookup_unavailable` (503, worker creds absent), `unknown_group_category` (400), `unknown_vertical` (404). |
 | `GET /api/groups/membership` | — | Current membership for the session user. |
+| `POST /api/groups/provision` (admin) | body `{ verticalId? }` | `provisionVerticalGroups` -> `provisionVerticalGroupsFromManifest`. Creates the vertical-scoped PingOne groups and seeds demo-user membership **straight from the manifests, with no full bootstrap**. This is what makes §3.2 cheap. |
 | `GET /api/groups/decision-board` | — | One live Authorize decision per vertical for that vertical's group-gated tool. Deliberately not manifest-derived. |
 | `GroupMembershipToggle` (component) | — | Already used by `/group-policy`. |
 | `groupPolicy.js` | `requiredGroupForTool(tool, vertical)`, `groupNameForCategory`, `resolveUserTier`, `getTierDefinitions`, `isEnabled(configStore)` | Enforcement gated by `ff_authorize_group_policy` (default OFF). |
@@ -77,16 +80,35 @@ data:
 | healthcare | `sensitive_patient_records` | university | `sensitive_student_finance` |
 | retail | `sensitive_order_history` | workforce | `sensitive_payroll_details` |
 | abercrombie-fitch | `sensitive_order_history` | admin | `sensitive_customer_identity` |
-| investment | `sensitive_holdings` | airlines | `sensitive_airline_bookings` (also has `sensitive_passenger_record` — pick the first, see §7.2) |
+| investment | `sensitive_holdings` | airlines | `sensitive_passenger_record` (decided — it also has `sensitive_airline_bookings`) |
 
 **Not eligible (3):** `admin-console` and `oauth-teaching` have no `groups`
 block; `pingone-admin` has an empty `restrictedTools` and `demoUser` is not in
 `privileged`. These must be declared N/A the same way `REQUEST_ONLY_NOT_APPLICABLE`
 already does it, not silently skipped.
 
-Banking additionally has a `premiumTier` category. UC21 is literally
-"entitlement-tiered capability", so banking MAY use `premiumTier` while the
-other 11 use `privileged` — see the open question in §7.1.
+### 3.2 Manifest change — `premiumTier` becomes the gate
+
+**Decided 2026-09-09.** Banking is currently the only vertical with a
+`premiumTier` category. Every eligible vertical gains one, and **the sensitive
+tool above is re-pointed to require `premiumTier` instead of `privileged`**, so
+the tier is what actually decides rather than something the card merely narrates.
+
+Per eligible manifest:
+
+1. Add a `premiumTier` entry to `groups.categories` (banking's is the template).
+2. Change that vertical's `restrictedTools` value from `privileged` to `premiumTier`.
+3. Seed `demoUser` into `premiumTier` in `groups.userMemberships`.
+4. Run `POST /api/groups/provision` to create the groups in PingOne.
+
+⚠️ **Step 3 is load-bearing, not housekeeping.** The sensitive tool is shared:
+`sensitive_membership_details` is also UC2's and UC37's `primaryTool`. If the
+tool starts requiring `premiumTier` and `demoUser` is not seeded into it, those
+A2A cards begin denying — a regression well outside this use case. The same
+applies in every vertical that reuses its sensitive tool elsewhere.
+
+`privileged` is left in place and untouched; it simply stops being this tool's
+gate. Nothing else that reads it changes.
 
 ## 4. Design — a declarative lever, armed through the existing endpoint
 
@@ -98,10 +120,13 @@ consumed by `mcpToolAuthorizationService` and `mcpToolPipeline`).
 
 ```js
 // demo_api_server/config/useCases.js — UC21
-requiresGroup: 'in',
+requiresGroup: 'in',      // category: premiumTier (see §3.2)
 // UC9
 requiresGroup: 'out',
 ```
+
+Both use the `premiumTier` category, so one field is enough — the category comes
+from the tool's `restrictedTools` entry rather than being restated per use case.
 
 Resolved by a new accessor beside the existing one:
 
@@ -126,7 +151,7 @@ same way, one extra pre-Run step:
 
 1. Read `getUseCaseGroupRequirement(useCaseId)`. Null -> nothing to do (every
    other use case is unaffected).
-2. `POST /api/groups/membership/toggle` with `{ inGroup: requirement === 'in' }`.
+2. `POST /api/groups/membership/toggle` with `{ inGroup: requirement === 'in', category: 'premiumTier' }`.
 3. **Gate on the response's `verified` and `inGroup` fields, not on HTTP 200.**
    The endpoint reads back from PingOne precisely so a write that did nothing
    cannot report success; the caller must honour that. If `verified !== true`,
@@ -146,9 +171,15 @@ Leaving `demoUser` out of `privileged` is not local to this use case:
   `out` state breaks A2A cards.
 - `/group-policy` turns red for everyone else on the shared cluster.
 
-So an `out` run **must** restore membership afterwards. This is the same class
-of problem as decision **D4** (running a flag-gated use case arms flags
-globally) and should be solved the same way, whatever is chosen there.
+**Decided 2026-09-09: automatic restore after the run, plus a
+restore-on-session-end backstop.** The backstop is the part that matters — an
+interrupted or abandoned run (browser closed, session expired, error thrown
+between toggle and restore) is exactly how a shared cluster gets stranded in a
+denied state, and the post-run restore alone does not cover it. Restore is
+therefore idempotent and safe to run when membership is already correct.
+
+Same class of problem as decision **D4** (running a flag-gated use case arms
+flags globally); solving it here does not solve it there.
 
 ### 4.4 Prerequisite reporting
 
@@ -166,15 +197,21 @@ UC21's maturity is `works` and would need the same flag added.
 
 | File | Change |
 |---|---|
-| `demo_api_server/config/useCases.js` | `requiresGroup` on UC9/UC21; `getUseCaseGroupRequirement` + export; retarget both to the per-vertical restricted tool; drop the amount from both triggers; per-vertical `primaryTool` entries; mark the 3 ineligible verticals N/A |
+| `demo_api_server/config/useCases.js` | `requiresGroup` on UC9/UC21; `getUseCaseGroupRequirement` + export; retarget both to the per-vertical restricted tool; drop the amount from both triggers; per-vertical `primaryTool` entries; UC9 `expectedOutcome: 'DENY_403'`; mark the 3 ineligible verticals N/A |
+| `demo_api_server/config/verticals/<v>/manifest.json` (12 files) | add `premiumTier` category, re-point `restrictedTools` to it, seed `demoUser` into it (§3.2) |
 | `demo_api_server/services/demoStepPrerequisites.js` | report group-requirement satisfiability |
 | `demo_api_ui/src/utils/requiredDemoFlags.js` | mirror, per its stated sync contract |
 | launcher Run path (`UseCaseLauncherPage` / `AIAgent` arming) | the §4.2 pre-Run toggle + `verified` gate + restore |
 | `demo_api_server/tests/useCases.primaryTool.test.js` | per-vertical entries are gated here (129 checks) |
 | `demo_api_server/tests/stepVerification.<vertical>.test.js` | 12 files already exist — one per vertical, which is exactly the cross-vertical consistency gate this needs |
 
-**No change to:** the toggle endpoint, `groupPolicy.js`, any manifest,
-`GroupPolicyBoardPage`, or the board API.
+**No change to:** the toggle endpoint, `groupPolicy.js`, `GroupPolicyBoardPage`,
+or the board API. Manifests DO change (§3.2) — that is decision #1/#5, not an
+oversight. `privileged` stays defined and untouched; it just stops being the
+sensitive tool's gate.
+
+**Operational step, not a code change:** `POST /api/groups/provision` must run
+after the manifest edits to create the new groups in PingOne.
 
 ## 6. Why this fixes what it claims
 
@@ -188,35 +225,20 @@ UC21's maturity is `works` and would need the same flag added.
 - All 12 verticals get the same shape because each manifest already names its own
   restricted tool.
 
-## 7. Open questions — decide before implementing
+## 7. Decisions — settled 2026-09-09
 
-### 7.1 Does banking use `premiumTier` for UC21?
+All five were put to the user with options and recommendations; the user chose
+against the recommendation in every case, and two of those recommendations were
+based on claims that turned out to be **wrong**. Both corrections are recorded
+here because they are the reason the decisions are safe.
 
-It is the only vertical with a tier group, and UC21's title is
-"entitlement-tiered capability". Using it is more faithful to the card and makes
-banking the one vertical that differs. Using `privileged` everywhere is
-uniform and simpler. **Recommendation: `privileged` everywhere for v1**, with
-`premiumTier` a later refinement, because a single shape across 12 verticals is
-the thing being asked for.
-
-### 7.2 Airlines has two restricted tools
-
-`sensitive_airline_bookings` and `sensitive_passenger_record`. Pick one for the
-chip. **Recommendation: `sensitive_airline_bookings`.**
-
-### 7.3 Restore policy
-
-Automatic after the run, or presenter-driven with a visible "restore
-membership" affordance? Automatic is safer on shared infrastructure; manual
-makes the transition visible, which is the teaching point. **Recommendation:
-automatic restore, plus the existing `GroupMembershipToggle` on the page for a
-presenter who wants to drive it by hand.** Tie-break with D4.
-
-### 7.4 Does UC9 keep `expectedOutcome: 'DENY'`?
-
-Yes under this design — the denial becomes reachable, so no re-scoping is
-needed. This supersedes the "re-scope UC9 like UC19/UC39" suggestion in PR #3015,
-which was written before the toggle endpoint was found.
+| # | Decision | Notes |
+|---|---|---|
+| 1 | **Add `premiumTier` to every eligible vertical and make it the gate** (§3.2) | Recommendation had been `privileged` everywhere, on the grounds that adding a group "needs a bootstrap run". **That was wrong** — `POST /api/groups/provision` provisions vertical groups straight from the manifests with no bootstrap, so the uniform-and-faithful option is also the cheap one. |
+| 2 | **Airlines uses `sensitive_passenger_record`** | The more sensitive record of the two, and the stronger story for an identity audience. |
+| 3 | **Automatic restore + restore-on-session-end backstop** (§4.3) | The backstop covers the interrupted run, which post-run restore alone does not. |
+| 4 | **UC9 declares `DENY_403`** | Recommendation had been generic `DENY`, warning that a specific code could re-create D1 in miniature. **That was wrong** — `EXPECTED_OUTCOME_FAMILY` maps `DENY`/`DENY_401`/`DENY_403`/`DENY_429`/`DENY_503` all to the family `'DENY'`, and `computeVerdict` compares families, not codes. `DENY_403` is behaviourally identical to `DENY` and strictly more informative to a reader. |
+| 5 | **Re-point the sensitive tool to `premiumTier`** (§3.2) | Follows from #1: with one shared tool, UC9 and UC21 cannot gate on different categories, so the tier has to be the tool's actual requirement for UC21's claim to be proof rather than prose. |
 
 ## 8. Verification
 
@@ -245,5 +267,14 @@ Also run:
   fixed it.
 - `useCaseConformance`, `useCaseMatchReachability`, `scenarioDistinctness`,
   `verticalChipCoverage`, `secondaryTools`.
-- Live: run UC21 then UC9 in Super Sports, confirm PERMIT then DENY, confirm
-  membership is restored afterwards, and confirm `/group-policy` is unchanged.
+- **UC2 and UC37 regression check — the highest-risk consequence of §3.2.** They
+  share `sensitive_membership_details` with UC9/UC21. Re-pointing that tool to
+  `premiumTier` without seeding `demoUser` into the new group makes both A2A
+  cards deny. Run them explicitly, in a vertical whose manifest was changed,
+  before believing this is done.
+- Live: run UC21 then UC9 in Super Sports, confirm PERMIT then DENY_403, confirm
+  membership is restored afterwards, confirm the restore also fires when the run
+  is abandoned mid-way, and confirm `/group-policy` still reads correctly.
+- `POST /api/groups/provision` must be run against the changed manifests before
+  any live check, or every re-pointed tool denies for want of a group that does
+  not exist yet.
