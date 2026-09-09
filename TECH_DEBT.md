@@ -3008,27 +3008,33 @@ it needs no shim: measured from inside the gateway pod, a tokenless
 both banking tools. `mcpFacade.js`'s `agentless` door and the "Privilege —
 banking" preset default to it.
 
-**What remains open in this entry:**
+**Update 2026-09-09 — registered, discoverable, `tools/call` is a platform
+blocker.** `banking-mcp` is registered (MCP Server, the URL above, Auth Mode
+None, AI Gateway `ai-demo-cmuir`, Mesh Cluster `ai-demo-cmuir`) and shows all
+33 tools including both banking ones. The repo-side scope fix landed in
+PR #2995: `banking:read` was a scope that existed in no PingOne resource and
+nowhere in `scope-topology.json`; the tools now require `read`, and a
+sub-less machine token maps to the seed subject `demo-user`.
 
-- **Register `banking-mcp` in the console** (MCP Server, the URL above, Auth
-  Mode None, Mesh Cluster `ai-demo-cmuir`) — a console write the API refuses,
-  so it is an operator action. Then step 2, the policy, same expiry caveat as
-  before.
-- **The call hop — designed 2026-09-08, repo side done.** The premise above
-  was wrong twice: `banking:read` is not a user scope, it is a scope that
-  exists in no PingOne resource and nowhere in `scope-topology.json`
-  (`check-tool-scope-registration.js` had both banking tools on its known-bad
-  list), and the validator checks JWKS + `aud`, never issuer. The tools now
-  require `read` (the topology's banking read scope), a sub-less machine
-  token maps to the seed subject `demo-user`, and the existing
-  `Demo AI App - Fraud Watch Agent` (`read` on `mcpgateway.ping.demo`, its
-  only grant) is the backend-hop client — no PingOne change. What's left is
-  the console write (Auth Mode OAuth with that client, token URL of env
-  `01d89b06`, scopes `read` — full recipe in
-  `privilege/CURRENT-CONFIGURATION.md` "The call hop") and the first
-  `tools/call`, which is also the measurement of the one inferred piece: that
-  Auth Mode OAuth runs `client_credentials` on the backend hop. It also
-  exposes all 33 tools; narrow with policy.
+The call-hop plan built on top of that — Auth Mode OAuth using
+`Demo AI App - Fraud Watch Agent`'s credentials — is **disproven, not just
+unfinished**. Measured live against the real public door (not from inside the
+gateway pod, which is how every prior "tokenless discovery" claim here was
+taken): Auth Mode OAuth 401s even tokenless `initialize`, its own
+`/banking-mcp/token` endpoint rejects the PingOne credentials entered in the
+console (wants a DCR-registered client instead), and reverting to Auth Mode
+None still 401s a real, correctly-scoped, correctly-signed PingOne bearer with
+`reason=token_not_found` — an internal token-registry lookup, not JWT/JWKS
+validation. No door in this repo has ever actually cleared this gate; the
+`/api/privilege-mcp-simple` row marked "verified end to end" bypasses
+Privilege's gateway entirely (mTLS straight to `mcp-server:8080`). This
+reproduces the `infra-root-jwt` signer wall `PRIVILEGE-MCP.md` already
+documented as "raised with Ping; not fixable from the console or this repo."
+Full reproduction in `privilege/CURRENT-CONFIGURATION.md` "The call hop is a
+platform blocker, not a config gap." Do not re-attempt minting our own bearer
+as a fix. Tools are discoverable and the policy is authorable; `tools/call`
+stays blocked for any caller until Ping resolves the gateway's token
+validation.
 
 ### [x] 2026-08-26 — `ping-mcpgw` Helm release's only remaining purpose is a backend it doesn't gate
 

@@ -199,7 +199,8 @@ performs. Register it in the console as:
 | Application type | MCP Server |
 | Application Name | `banking-mcp` |
 | MCP Server URL | `http://mcp-resource-server.ping-devops-cmuir.svc.cluster.local:8081/mcp` |
-| Auth Mode | OAuth — the gateway calls the backend as `Demo AI App - Fraud Watch Agent`; fields under "The call hop" below |
+| Auth Mode | None — see "The call hop is a platform blocker" below; OAuth was tried first and made things worse, not better |
+| AI Gateway | `ai-demo-cmuir — https://mcpgw.ai-demo.ping-devops.com` — a field the console does not always default; an app saved with the `Select Gateway…` placeholder never reaches any node and produces zero gateway-log activity, indistinguishable from a silent create failure |
 | Mesh Cluster | `ai-demo-cmuir` |
 
 `/mcp`, not `/sse` — that server answers `GET /mcp -> 404`, so an `/sse`
@@ -208,64 +209,91 @@ character by character; it is a cross-namespace FQDN (`cmuir`, not
 `curtismuir`), the same shape `opensearch22` uses. `mcpFacade.js`'s `agentless`
 door and the "Privilege — banking" preset default to this app name.
 
-**The call hop (designed 2026-09-08; the console write is the remaining
-step).** Discovery is tokenless, but `tools/call` needs a bearer this server's
-validator accepts (`demo_mcp_resource_server/src/server/tokenValidator.ts`):
-signed by the demo env's JWKS (`01d89b06…` — there is no issuer check), `aud`
-in {`mcp-invest.ping.demo`, `mcp-resource-server.ping.demo`,
-`mcpgateway.ping.demo`}, carrying each tool's `requiredScopes`. Three facts
-settled the design, all measured against the live env with
-`node demo_api_server/scripts/verify-scope-configuration.js` plus a per-app
-grants walk:
+The repo-side half of the design (2026-09-08) is real and shipped in PR #2995:
+the two banking tools required `banking:read`, a scope that exists in no
+PingOne resource and nowhere in `scope-topology.json` —
+`scripts/check-tool-scope-registration.js` had carried both as known-bad
+declarations, exempt only while unrouted. They now require `read`, the
+topology's scope for banking reads (same as the gateway's `get_my_accounts`),
+and a sub-less machine token (no `sub` claim) resolves to the seed subject
+`demo-user` in `bankingToolHandler.ts` instead of throwing on the undefined
+SQLite binding. Both are verified by request-level tests
+(`demo_mcp_resource_server/tests/httpMcp.test.ts`, `bankingTools.test.ts`) and
+hold regardless of what happens below.
 
-- **`banking:read` — the scope both banking tools declared — exists in no
-  PingOne resource and nowhere in `scope-topology.json`.**
-  `scripts/check-tool-scope-registration.js` had carried both tools as
-  known-bad declarations, exempt only while unrouted. The tools now require
-  `read`, the topology's scope for banking reads (same as the gateway's
-  `get_my_accounts`), and are off that exemption list. No new scope anywhere.
-- **`mcp-resource-server.ping.demo` is not a PingOne resource either.** The
-  two accepted audiences that exist: `mcp-invest.ping.demo` (Demo MCP Invest —
-  `read invest:read mcp:invoke airlines:read pnr:read airlines:write`) and
-  `mcpgateway.ping.demo` (Demo MCP Gateway — 22 scopes including `read`).
-- **An existing client_credentials app already holds exactly what the hop
-  needs and nothing else:** `Demo AI App - Fraud Watch Agent` (`eb6b6743…`),
-  a single grant, `read` on `mcpgateway.ping.demo`. One resource, so a bare
-  `scope=read` request is unambiguous (no *"May not request scopes for
-  multiple resources"*). No PingOne change of any kind.
+**The call hop is a platform blocker, not a config gap.** The original plan —
+Auth Mode OAuth, with the gateway using `Demo AI App - Fraud Watch Agent`'s
+credentials (`read` on `mcpgateway.ping.demo`, its only grant) to authenticate
+the backend hop — turned out to rest on a false premise, measured live on
+2026-09-09 against the actual public door
+(`https://mcpgw.ai-demo.ping-devops.com/banking-mcp/mcp`), not from inside the
+gateway pod:
 
-So the door's Auth Mode is **OAuth**, the gateway acting as that client on the
-backend hop:
+1. **Auth Mode OAuth gates the client, not just the backend.** With Auth Mode
+   set to OAuth, even a tokenless `initialize` — discovery — 401s: `Bearer
+   token required`, `WWW-Authenticate: realm="MCP OAuth Server"`. The console's
+   own Tools panel read Empty for the same reason; its discovery probe hit the
+   same wall. This contradicts the skill note and PRIVILEGE-MCP.md's own
+   earlier reading that Auth Mode is upstream-only ("not how clients are
+   challenged") — true for `Static Token`, false for `OAuth` on this gateway
+   build.
+2. **The gateway's own `/banking-mcp/token` endpoint rejects the PingOne
+   credentials entered in the console form.** `POST .../banking-mcp/token`
+   with Fraud Watch Agent's real client_id/secret (client_secret_post — basic
+   auth gets `invalid_client`) returns `401 Invalid client credentials`. The
+   OAuth fields in the wizard are not consumed as a client the gateway
+   authenticates *with*; DCR is the only client-facing path the gateway
+   advertises (`authorization_uri`/`token_uri` in its own 401 body).
+3. **Reverting Auth Mode to None does not help either.** A real PingOne
+   `client_credentials` token was minted for Fraud Watch Agent
+   (`aud: mcpgateway.ping.demo`, `scope: read`, correctly signed, unexpired)
+   and sent as the bearer on both `initialize` and `tools/call
+   list_banking_accounts`. Both still 401. The gateway's own log
+   (`agentless-mcpgw`, container `agentless-mcpgw`, pod
+   `agentless-mcpgw-*` in `ping-devops-curtismuir` — read with
+   `kubectl logs --all-containers`, **not** `-c agentless-mcpgw`, which
+   returned nothing despite being the right container name) shows why:
 
-| Field | Value |
-|---|---|
-| Client ID / Client Secret | Fraud Watch Agent's (PingOne console → Applications → `Demo AI App - Fraud Watch Agent`) |
-| Token URL | `https://auth.pingone.com/01d89b06-66d5-430e-9f28-65636843788b/as/token` |
-| Authorization URL | `https://auth.pingone.com/01d89b06-66d5-430e-9f28-65636843788b/as/authorize` (the form wants one; client_credentials never uses it) |
-| Scopes | `read` |
+   ```text
+   level=warning msg="[mcpgw] auth rejected: reason=token_not_found app=banking-mcp method=POST path=/banking-mcp/mcp"
+   ```
 
-That token has no `sub`; `bankingToolHandler.ts` resolves a sub-less bearer to
-the seed subject `demo-user` — the rule the static-key REST path already
-applied — so `list_banking_accounts` returns real rows instead of the
-undefined-binding error an unmapped `sub` produced.
+   `token_not_found` is a lookup against the gateway's own internal token
+   registry, not a JWT/JWKS validation failure — no externally-minted token,
+   PingOne or otherwise, can ever satisfy it regardless of signature,
+   audience, or scope correctness.
+4. **No door in this repo has ever actually cleared this gate.** The
+   `banking-mcp`/`opensearch22` "tokenless discovery" measurements this
+   document previously cited were taken from inside the gateway pod (a raw
+   probe against the backend or an internal port), not through the public
+   HTTPS URL a real caller uses — confirmed by checking `mcpFacade.js`'s own
+   default (`privilegeGatewayBase()` is literally
+   `https://mcpgw.ai-demo.ping-devops.com`, the same URL that just failed).
+   The one row in `PRIVILEGE-MCP.md` marked "verified end to end" via a
+   machine token (`/api/privilege-mcp-simple`) targets `mcp-server:8080`
+   directly over mTLS — it bypasses Privilege's gateway entirely and never
+   exercised this wall.
 
-**Measured vs. inferred.** Validator, audiences, scopes, grants and the client
-are measured. The gateway's Auth Mode OAuth performing a `client_credentials`
-grant on the backend hop is *inferred*, and weakly: `/procyon/bin/mcpgw`
-does carry Procyon's own `ResourceOAuth` config (with a `token_url` field),
-which PRIVILEGE-MCP.md established is backend-facing, but its
-`client_credentials` / `grant_type` strings turned out to belong to bundled
-OpenAPI/protobuf model libraries, not gateway code — so they prove nothing
-about which grant it runs. No door in this repo has exercised Auth Mode OAuth
-(`external` and `opensearch22` are Static Token / None against auth-disabled
-backends). The first `tools/call` through the door is the test. `403 insufficient_scope`
-means the gateway forwarded no `read` token; `401 invalid_token` means it
-forwarded one from the wrong signer or audience; the gateway log line
-`MCP App RBAC check … AuthzServer:banking-mcp` confirms the request reached
-the hop at all. If the gateway turns out to forward the *user's* frontend
-token instead, the same validator accepts it once that OIDC client requests
-`read` — same env, same JWKS. The door also exposes all 33 tools; narrow it
-with Privilege policy.
+This reproduces, on gateway build `v1.260906`, the exact `infra-root-jwt`
+signer wall `PRIVILEGE-MCP.md` documented months ago on an older build and
+marked "raised with Ping; not fixable from the console or this repo": the
+front door trusts only a token it minted or a console session, never a
+PingOne-issued JWKS-signed token.
+
+**Where this leaves the door:** discovery works and a policy can be authored
+(33 tools visible, `banking-mcp` on Auth Mode None, AI Gateway
+`ai-demo-cmuir` — reselect it if it reverts to the `Select Gateway…`
+placeholder, which happens on some edits). `tools/call` is blocked at the
+gateway's public entry point for any caller, ours or otherwise, and is not
+fixable from this repo or the console. Raised as an open item for Ping; do
+not re-attempt "mint a scoped bearer ourselves" as a fix — it is now
+disproven, not just unverified.
+
+A second app, `bankingmcp` (no hyphen), was created by mistake while chasing
+this — Application Name is not editable after creation, so the attempted
+rename created a duplicate instead of renaming in place. It is not referenced
+by any code in this repo (`BANKING_GATEWAY_APP` defaults to `banking-mcp`) and
+is safe to delete from the console as cleanup; harmless if left.
 
 **Two leads recorded here previously are now closed — do not re-chase them:**
 
