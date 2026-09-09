@@ -500,7 +500,7 @@ same selector specificity as the new rule, so the first pass silently failed
 to hide the FAB (`.demo-script-launch` has no such rule and hid correctly,
 which is what exposed it) — the fix needed `!important` to actually win.
 
-### [ ] 2026-09-04 — /architecture/token-chain renders the raw mermaid source, not the diagram
+### [x] 2026-09-04 — /architecture/token-chain renders the raw mermaid source, not the diagram
 
 `TokenChainArchitecturePage.js` puts its flowchart in a plain
 `<pre className="mermaid">{MERMAID_DIAGRAM}</pre>` and never calls
@@ -522,6 +522,18 @@ sees it fire.
 the real fix (wiring this page onto the same explicit mermaid.render()
 pattern the other MM pages use) touches rendering logic, not styling —
 better scoped as its own change.
+
+**RESOLVED — branch `fix/tech-debt-small-wins`.** Exactly as the entry
+guessed: no `mermaid` import on the page at all. `TokenChainArchitecturePage.js`
+now imports mermaid, calls `initialize({ startOnLoad: false })` +
+`render()` in a mount effect and injects the SVG into a `<div ref>`, with the
+`<pre className="mermaid">` deleted and a `.tca-diagram-error` fallback for a
+render failure. Rendering is mount-only, not theme-keyed, because the diagram
+carries its own `%%{init}%%` theme block and looks identical in both modes.
+`TokenChainArchitecturePage.test.jsx` mocks `mermaid.render` (jsdom has no
+layout, so a real render can't run there — same constraint as
+`PrivilegeGatewayTopologyPage.test.jsx`) and asserts render is called with the
+diagram source and that no raw `pre.mermaid` survives.
 
 ### [ ] 2026-09-04 — UseCaseLauncherPage.css — literal colors outside the FlagGate/theme-toggle work
 
