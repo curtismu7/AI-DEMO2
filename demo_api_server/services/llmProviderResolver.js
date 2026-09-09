@@ -17,9 +17,19 @@
  * No other module may inline a provider default.
  *
  * @param {{ provider?: string, model?: string }} langchainConfig
- * @returns {{ provider: 'helix'|'openai'|'anthropic'|'google'|'anthropic-lmstudio'|'llamacpp'|'mlx'|'bedrock'|'groq', model: string|undefined }}
+ * @returns {{ provider: 'helix'|'openai'|'anthropic'|'google'|'anthropic-lmstudio'|'llamacpp'|'mlx'|'bedrock'|'groq'|'privilege_llm'|'privilege_claude', model: string|undefined }}
  */
 const { isBedrockLlmEffective } = require('./bedrockPathGate');
+
+// ff_privilege_llm_first: cloud providers enter the PingOne Privilege AI Gateway
+// first (virtual-key lanes). The aliased names are what geminiNlIntent.js and
+// :3006's reasonOnce already dispatch. No openai alias yet — refused loudly.
+const PRIVILEGE_FIRST_ALIAS = { google: 'privilege_llm', anthropic: 'privilege_claude' };
+
+function privilegeFirstOn() {
+  // Lazy: the bedrock and lmstudio resolver tests load this module without a configStore mock.
+  return require('./configStore').getEffective('ff_privilege_llm_first') === 'true';
+}
 
 function resolveLlmProvider(langchainConfig = {}) {
   const requested = langchainConfig?.provider;
@@ -33,6 +43,19 @@ function resolveLlmProvider(langchainConfig = {}) {
   }
 
   if (requested === 'openai' || requested === 'anthropic' || requested === 'google') {
+    if (privilegeFirstOn()) {
+      if (!process.env.PRIVILEGE_LLM_GATEWAY_URL) {
+        console.warn('[llmProvider] ff_privilege_llm_first is ON but PRIVILEGE_LLM_GATEWAY_URL is unset — vendor-direct');
+        return { provider: requested, model };
+      }
+      const alias = PRIVILEGE_FIRST_ALIAS[requested];
+      if (!alias) {
+        const err = new Error(`ff_privilege_llm_first: no Privilege dispatch for provider "${requested}"`);
+        err.code = 'llm_privilege_first_unsupported';
+        throw err;
+      }
+      return { provider: alias, model };
+    }
     // Pass-through: :3006 enforces credential presence and fails fast.
     return { provider: requested, model };
   }

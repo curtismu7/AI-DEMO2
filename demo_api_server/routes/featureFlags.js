@@ -775,6 +775,21 @@ const FLAG_REGISTRY = [
     defaultValue: true,
   },
   {
+    id:           'ff_privilege_llm_first',
+    name:         'Privilege first: LLM',
+    category:     'LLM',
+    description:
+      'When **ON**, the BFF resolves `google` → `privilege_llm` and `anthropic` → `privilege_claude`, and ' +
+      'refuses `openai` (no Privilege dispatch exists for it yet), so every cloud LLM call enters the PingOne ' +
+      'Privilege AI Gateway first and the provider API key never leaves Privilege. Requires ' +
+      '`PRIVILEGE_LLM_GATEWAY_URL` and the virtual keys. Local models (llama.cpp / MLX) and Helix are unaffected.',
+    impact:
+      'OFF (default) = vendor-direct as today. ON = Privilege virtual keys are the only cloud LLM path; ' +
+      'a policy denial is shown, not hidden.',
+    type:         'boolean',
+    defaultValue: false,
+  },
+  {
     id:           'ff_weather_mcp_showcase',
     name:         'Weather MCP Showcase (Agent Gateway)',
     category:     'MCP / Agent',
@@ -1003,6 +1018,7 @@ function resolveFlag(flag) {
 const PINNED_ENV_ALIASES = {
   ff_mcp_gateway_pinggateway: 'FF_MCP_GATEWAY_PINGGATEWAY',
   ff_mcp_gateway_jwks:        'FF_MCP_GATEWAY_JWKS',
+  ff_privilege_llm_first:     'FF_PRIVILEGE_LLM_FIRST',
   ff_enterprise_managed_mcp_auth: 'FF_ENTERPRISE_MANAGED_MCP_AUTH',
   ff_authorize_real:     'FF_AUTHORIZE_REAL',
   ff_heuristic_enabled:       'FF_HEURISTIC_ENABLED',

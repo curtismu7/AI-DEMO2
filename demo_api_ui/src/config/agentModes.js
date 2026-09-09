@@ -47,6 +47,8 @@ const SOURCE_LABELS = {
   helix_fallback: "Helix",
   google: "Google Gemini",
   privilege_llm: "Gemini via Privilege",
+  privilege_llm_fallback: "Gemini via Privilege",
+  privilege_claude_fallback: "Claude via Privilege",
   llamacpp: "llama.cpp",
   mlx: "MLX",
   claude: "Anthropic",
