@@ -41,39 +41,54 @@ const TIMEOUT_MS = 30_000;
 /**
  * Which 401 is this? The hosted server answers "Invalid authentication" both
  * when no usable credential was sent and when a perfectly valid PingOne token
- * carries the wrong audience — and those need opposite actions.
+ * was issued by the wrong environment — and those need opposite actions.
  *
- * Measured 2026-09-09 against env 01d89b06: the delegated PKCE token is a real
- * RS256 PingOne token for an Environment Admin, and it authenticates fine
- * against the Management API (200) — but `aud` is `https://api.pingone.com`,
- * not the MCP resource. `resource` (RFC 8707) is sent on BOTH legs, inline and
- * through PAR, and PingOne ignores it: its AS metadata for this environment
- * advertises no `resource_indicators_supported`, no environment Resource has
- * the MCP audience, and the app holds no resource grants. So no request shape
- * from this side can produce the audience the MCP server wants — the tenant
- * needs PingOne-side Remote MCP enablement. Scope is NOT the lever: `openid`
- * and no-scope were both tried and both produced the same audience.
+ * CORRECTED 2026-09-09 (user report, then verified). An earlier revision of this
+ * function concluded the tenant lacked Remote MCP enablement. That was WRONG,
+ * and it was wrong because it assumed the env in the MCP URL is the environment
+ * being administered. It is not: PingOne serves the admin-plane MCP from the
+ * ORGANISATION'S ADMINISTRATORS ENVIRONMENT, and that single endpoint
+ * administers every environment in the org.
+ *
+ * What that assumption produced: we built the URL from PINGONE_ENVIRONMENT_ID
+ * and minted the token from that environment's AS, so both the endpoint and the
+ * issuer were wrong. Measured — a token issued by the resource env's AS is
+ * rejected by the admin-env endpoint AND by the resource-env one.
+ *
+ * Confirmed about the real endpoint: its RFC 9728 metadata names the admin
+ * env's own AS, and the client PingOne publishes for it is the built-in
+ * `pingone-mcp-server`, an `adminui` client that rejects response_mode=pi.flow
+ * and whose redirect allowlist is loopback-only — a server-side HTTPS callback
+ * gets "Redirect URI mismatch". So reaching this door from the BFF needs an
+ * OIDC app registered in the ADMIN environment, not the resource one.
  *
  * Reports, never throws — a diagnosis must not replace the error it explains.
  */
-function _audienceDiagnosis(token) {
+function _authDiagnosis(token) {
     const want = (() => { try { return _mcpUrl(); } catch { return null; } })();
-    let aud;
+    const wantEnv = want && /\/admin\/([0-9a-f-]{36})\/mcp$/.exec(want);
+    let claims;
     try {
         const parts = String(token).split('.');
-        if (parts.length !== 3) return 'token is not a JWT, so its audience could not be read.';
-        const claims = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
-        aud = Array.isArray(claims.aud) ? claims.aud : [claims.aud].filter(Boolean);
+        if (parts.length !== 3) return 'token is not a JWT, so its issuer could not be read.';
+        claims = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
     } catch {
-        return 'token audience could not be decoded.';
+        return 'token issuer could not be decoded.';
     }
-    if (want && aud.includes(want)) {
-        return `token audience is correct (${want}), so this is a permissions problem, not an audience one — check the signed-in user's admin roles.`;
+    const tokenEnv = _issuerEnv(claims.iss);
+    if (wantEnv && tokenEnv && tokenEnv !== wantEnv[1]) {
+        return `the token was issued by environment ${tokenEnv} but this endpoint belongs to ${wantEnv[1]}. `
+            + 'PingOne serves the admin-plane MCP from the ORGANISATION\'S ADMINISTRATORS environment, which is '
+            + 'not the environment whose data you are administering — one admin endpoint covers the whole org. '
+            + 'Point PINGONE_MCP_ENVIRONMENT_ID at the admin environment AND mint the delegated token from that '
+            + 'same environment\'s authorization server (routes/mcpPingOneAdminAuth.js). Roles are not the issue.';
     }
-    return `token audience is [${aud.join(', ')}] but this server wants ${want}. `
-        + 'PingOne is ignoring the `resource` indicator, which it does when the tenant is not '
-        + 'enabled for the hosted Remote MCP server. Roles, app type and scopes cannot fix this — '
-        + 'the environment needs PingOne-side enablement.';
+    if (wantEnv && tokenEnv && tokenEnv === wantEnv[1]) {
+        return `issuer environment ${tokenEnv} matches this endpoint, so this is a permissions or client problem `
+            + 'rather than a wrong-environment one — check the signed-in user\'s admin roles and that the OIDC '
+            + 'client is registered in that environment.';
+    }
+    return `token issuer is ${claims.iss || '(absent)'} and this endpoint is ${want || '(unresolved)'}.`;
 }
 
 let _msgId = 0;
@@ -82,11 +97,32 @@ let _toolsCache = null; // cached tools/list result for the process lifetime
 // Single source of truth for the hosted MCP URL format. Optional overrides let
 // callers (e.g. the /pingone-setup connectivity test) build the URL for a
 // submitted region/envId instead of the configured one.
+//
+// The env in this URL is the ORGANISATION'S ADMINISTRATORS ENVIRONMENT, which is
+// NOT the environment whose data you are administering. PingOne serves the
+// admin-plane MCP from the admin env and that one endpoint administers every
+// environment in the org — so the correct URL for this org names 9e2f2f0c even
+// though the demo's own data lives in 01d89b06.
+//
+// It defaulted to PINGONE_ENVIRONMENT_ID (the resource env), which is why every
+// call 401'd: wrong environment, and therefore a token from the wrong issuer.
+// PINGONE_MCP_ENVIRONMENT_ID exists to separate the two; the fallback keeps the
+// old behaviour for anyone whose admin env IS their resource env.
 function _mcpUrl(overrides = {}) {
     const region = overrides.region || process.env.PINGONE_REGION || configStore.getEffective('PINGONE_REGION') || 'com';
-    const envId = overrides.envId || process.env.PINGONE_ENVIRONMENT_ID || configStore.getEffective('PINGONE_ENVIRONMENT_ID');
+    const envId = overrides.envId
+        || process.env.PINGONE_MCP_ENVIRONMENT_ID
+        || configStore.getEffective('PINGONE_MCP_ENVIRONMENT_ID')
+        || process.env.PINGONE_ENVIRONMENT_ID
+        || configStore.getEffective('PINGONE_ENVIRONMENT_ID');
     if (!envId) throw new Error('PingOne MCP: environment ID not configured');
     return `https://mcp.pingone.${region}/admin/${envId}/mcp`;
+}
+
+/** The environment id embedded in a PingOne issuer URL, or null. */
+function _issuerEnv(iss) {
+    const m = /^https:\/\/auth\.pingone\.[^/]+\/([0-9a-f-]{36})\/as$/.exec(String(iss || ''));
+    return m ? m[1] : null;
 }
 
 /**
@@ -165,7 +201,7 @@ async function _send(method, params, auth) {
         // A bare "401 Invalid authentication" sent three separate investigations
         // after roles, app type and scopes, all of which were already correct.
         // Say which of the two 401s this is, because they need opposite actions.
-        if (status === 401) msg += ` — ${_audienceDiagnosis(token)}`;
+        if (status === 401) msg += ` — ${_authDiagnosis(token)}`;
         const e = new Error(msg);
         e.code = 'pingone_mcp_http_error';
         e.status = status;
