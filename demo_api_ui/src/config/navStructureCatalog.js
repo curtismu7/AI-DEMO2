@@ -13,6 +13,7 @@ export const NAV_STRUCTURE_CATALOG = [
       "Protocol Playground",
       "AI Gateway Client",
       "LLM Gateway",
+      "Intent Inspector",
       "Audit Agent",
       "AI Agent Gateway Guide",
       "AI Agent Gateway Diagrams",
