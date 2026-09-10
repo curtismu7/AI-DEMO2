@@ -40,19 +40,34 @@ async function callToolViaResolvedGateway(gatewayUrl, bearerToken, tool, params 
   if (!privilegeFirstOn()) {
     return callToolViaGateway(gatewayUrl, bearerToken, tool, params, opts);
   }
-  // Privilege-first: the PingOne Privilege AI Gateway owns the Authorization
-  // header on its own backend hop — it stamps the Static Token configured on
-  // the Agentic App. Sending the user's token there as well would be a foreign
-  // app's token to Privilege and is rejected before routing, so the user
-  // identity travels in X-Subject-Token instead. That header was measured
-  // surviving the hop unmodified (privilege/CURRENT-CONFIGURATION.md,
-  // "Backend hop", 2026-09-10); the Agent Gateway end of the bridge is Task 8.
+  // Two DIFFERENT hops, two different credentials — conflating them is the bug
+  // this comment exists to prevent, and it cost a live debugging session.
+  //
+  //   inbound   BFF -> Privilege : Privilege is an OAuth-protected door and
+  //                                demands ITS OWN token. Sending none answers
+  //                                `auth rejected: missing/invalid bearer`.
+  //   backend   Privilege -> Agent Gateway : Privilege owns that header and
+  //                                stamps the Agentic App's Static Token.
+  //
+  // So the bearer below is the Privilege session token, and the USER's token
+  // travels in X-Subject-Token — measured surviving that hop unmodified
+  // (privilege/CURRENT-CONFIGURATION.md, "Backend hop", 2026-09-10).
+  const gatewayToken = await require('./privilegeGatewaySession').getAccessToken();
+  if (!gatewayToken) {
+    // A named, actionable failure rather than an anonymous 401 from the
+    // gateway: this session dies with the BFF process by design, and the fix
+    // is one browser sign-in.
+    const err = new Error('Privilege gateway session unavailable');
+    err.code = 'privilege_session_unavailable';
+    err.remedy = 'Sign in at /privilege-mcp-client to arm the gateway session';
+    throw err;
+  }
   const extraHeaders = { ...(opts.extraHeaders || {}), 'X-Subject-Token': bearerToken };
   // Stamped at the START: the assembler orders hops by ts, so recording this on
   // completion would draw Privilege AFTER the gateway it sits in front of.
   const startedAt = new Date().toISOString();
   try {
-    const result = await callToolViaGateway(gatewayUrl, '', tool, params, { ...opts, extraHeaders });
+    const result = await callToolViaGateway(gatewayUrl, gatewayToken, tool, params, { ...opts, extraHeaders });
     recordPrivilegeHop({ startedAt, tool, status: 'ok', decision: { outcome: 'PERMIT' } });
     return result;
   } catch (err) {

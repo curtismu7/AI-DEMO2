@@ -18,6 +18,9 @@ jest.mock('../services/bedrockPathGate', () => ({
   isBedrockGatewayEffective: jest.fn(() => false),
   assertBedrockPath: jest.fn(),
 }));
+jest.mock('../services/privilegeGatewaySession', () => ({
+  getAccessToken: jest.fn(async () => 'PRIVILEGE-SESSION-TOKEN'),
+}));
 jest.mock('../services/mcpGatewayClient', () => ({
   getMcpGatewayHttpUrl: jest.fn(() => 'https://mcpgw.example/agent-gateway/mcp'),
   callToolViaGateway: jest.fn(async () => ({ ok: true })),
@@ -57,9 +60,17 @@ describe('privilege-first MCP transport', () => {
     const [, bearer, tool, , opts] = client.callToolViaGateway.mock.calls[0];
     expect(tool).toBe('get_my_accounts');
     expect(opts.extraHeaders['X-Subject-Token']).toBe('USER-TOKEN');
-    // Privilege owns Authorization on its own backend hop; sending the user
-    // token there too would be rejected as a foreign app's token.
-    expect(bearer).toBe('');
+    // The INBOUND hop is an OAuth-protected door: it needs Privilege's own
+    // session token. Sending nothing here answered `auth rejected:
+    // missing/invalid bearer` against the live gateway 2026-09-10.
+    expect(bearer).toBe('PRIVILEGE-SESSION-TOKEN');
+  });
+
+  it('ON: no armed Privilege session fails by NAME, not as an anonymous 401', async () => {
+    const { transport } = load('true');
+    require('../services/privilegeGatewaySession').getAccessToken.mockResolvedValueOnce(null);
+    await expect(transport.callToolViaResolvedGateway('https://gw/mcp', 'USER-TOKEN', 'get_my_accounts', {}, {}))
+      .rejects.toMatchObject({ code: 'privilege_session_unavailable' });
   });
 
   it('ON: caller-supplied extra headers survive alongside the subject token', async () => {
