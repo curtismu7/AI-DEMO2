@@ -164,6 +164,20 @@ export class McpTokenExchangeClient {
    * the exchange as though the question never arose (contract C4 — omission is
    * not permission).
    */
+  /**
+   * The gateway's OWN machine identity, as a real PingOne token.
+   *
+   * Exposed for the Privilege bridge: a discovery probe (initialize /
+   * tools/list) arrives with no user, because there is no user in a discovery
+   * probe. Rather than invent a synthetic subject the rest of the pipeline
+   * cannot introspect or exchange, the gateway presents ITSELF — the same
+   * credential it already uses as the RFC 8693 actor, audienced at this
+   * gateway, so validation, introspection and exchange all run unchanged.
+   */
+  async mintGatewayMachineToken(): Promise<string> {
+    return this.getActorToken();
+  }
+
   private async getActorToken(): Promise<string> {
     if (_actorToken && _actorToken.expiresAt > Date.now() + 5000) return _actorToken.token;
 

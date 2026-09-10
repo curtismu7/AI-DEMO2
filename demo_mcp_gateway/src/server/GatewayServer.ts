@@ -56,6 +56,18 @@ import { BrokerTokenStore } from '../oauth/BrokerTokenStore';
 import { register as metricsRegister } from '../metrics';
 
 const MCP_SESSION_HEADER = 'mcp-session-id';
+
+// What a Privilege discovery probe is allowed to ask with no user attached.
+// Read-only: they reveal the tool CATALOGUE, which is precisely what Privilege
+// needs to enforce per-tool policy, and touch no data. tools/call is absent on
+// purpose.
+export const PRIVILEGE_BRIDGE_DISCOVERY_METHODS = new Set([
+  'initialize',
+  'server/discover',
+  'tools/list',
+  'prompts/list',
+  'resources/list',
+]);
 const MCP_PROTO_HEADER = 'mcp-protocol-version';
 // MCP spec 2026-07-28 Streamable HTTP §Request Metadata — Modern-only.
 const MCP_METHOD_HEADER = 'mcp-method';
@@ -711,17 +723,16 @@ export class GatewayServer {
     // 8693 exchange, PingOne Authorize, the audit rail) runs on the real
     // delegated user instead of a machine identity. The header is honoured
     // only for the bridge bearer; from anyone else it is ignored entirely.
+    // A bridge call with NO subject token is a discovery probe: Privilege asks
+    // the backend what tools exist so its console can enforce per-tool policy,
+    // and there is genuinely no user in that question. It cannot be answered
+    // here, because the method is only known once the body is parsed — so it is
+    // deferred to resolvePrivilegeBridgeDiscovery() below, after parsing.
+    let bridgeAwaitingMachineToken = false;
     if (isPrivilegeBridgeBearer(bearerToken, this.config.privilegeBridgeSecret)) {
       const subjectToken = subjectTokenFromHeaders(req.headers);
-      if (!subjectToken) {
-        // The bridge authenticated but carried no user. Deliberately NOT a
-        // synthetic machine subject: this gateway's whole contract is a
-        // delegated identity, and inventing one would let a scope-gated tool
-        // run with nobody attached to it.
-        this.sendUnauthorized(req, res, 'invalid_token', 'Privilege bridge presented no X-Subject-Token');
-        return;
-      }
-      bearerToken = subjectToken;
+      if (subjectToken) bearerToken = subjectToken;
+      else bridgeAwaitingMachineToken = true;
     }
 
     // Dev bypass: skip inbound token validation so the gateway works without real PingOne tokens.
@@ -730,7 +741,10 @@ export class GatewayServer {
     // WS transport (index.ts) already has this decoded token available at the
     // same point; the HTTP transport previously discarded it.
     let decodedInboundToken: DecodedGatewayToken | undefined;
-    if (!this.config.devBypass) {
+    // Skipped for a deferred bridge discovery: there is nothing to validate yet
+    // — the bearer is still the shared secret, and the token that replaces it
+    // is not minted until the method is known.
+    if (!this.config.devBypass && !bridgeAwaitingMachineToken) {
       try {
         decodedInboundToken = await validateInboundToken(bearerToken, this.config.gatewayResourceUri);
       } catch (err) {
@@ -774,6 +788,40 @@ export class GatewayServer {
     let parsedRpc: { id?: unknown; method?: unknown; params?: { correlationId?: unknown; name?: unknown } } = {};
     try { parsedRpc = JSON.parse(body.toString('utf-8')); } catch { /* already validated above */ }
     const correlationId = extractCorrelationId(req.headers as Record<string, unknown>, parsedRpc);
+
+    // Deferred from the bridge check above, now that the method is known.
+    if (bridgeAwaitingMachineToken) {
+      const method = typeof parsedRpc.method === 'string' ? parsedRpc.method : '';
+      if (!PRIVILEGE_BRIDGE_DISCOVERY_METHODS.has(method)) {
+        // Anything that ACTS still needs a real delegated user. Running a
+        // tool as the gateway's own machine identity because nobody was
+        // attached is exactly the substitution this bridge must never make.
+        this.sendUnauthorized(req, res, 'invalid_token',
+          `Privilege bridge presented no X-Subject-Token; ${method || 'this method'} requires a delegated user`);
+        return;
+      }
+      try {
+        bearerToken = await this.exchangeClientForMachineToken().mintGatewayMachineToken();
+      } catch (err) {
+        // Fail closed and say which half broke: a gateway that cannot prove
+        // which service it is must not answer as though the question never
+        // arose.
+        console.error('[GatewayServer] Privilege bridge machine-token mint failed:', err instanceof Error ? err.message : String(err));
+        this.sendUnauthorized(req, res, 'invalid_token', 'Privilege bridge could not mint the gateway machine token');
+        return;
+      }
+      if (!this.config.devBypass) {
+        try {
+          decodedInboundToken = await validateInboundToken(bearerToken, this.config.gatewayResourceUri);
+        } catch (err) {
+          if (err instanceof TokenValidationError) {
+            this.sendUnauthorized(req, res, err.code, err.message);
+            return;
+          }
+          throw err;
+        }
+      }
+    }
 
     // MCP spec 2026-07-28: per-request version negotiation. A Modern request
     // declares its version in params._meta instead of an initialize
@@ -1323,6 +1371,21 @@ export class GatewayServer {
   // call registered under the SAME caller's token — different callers get
   // different scopes even when they reuse the same JSON-RPC id. Works under
   // devBypass too, where the token isn't a verifiable JWT.
+  /**
+   * Lazily-built exchange client, used only to mint the gateway's own machine
+   * token for a Privilege discovery probe. Lazy because the vast majority of
+   * requests never need it, and constructing it eagerly would put a token
+   * endpoint dependency in the constructor of every test that builds a server.
+   */
+  private _machineTokenClient?: McpTokenExchangeClient;
+
+  private exchangeClientForMachineToken(): McpTokenExchangeClient {
+    if (!this._machineTokenClient) {
+      this._machineTokenClient = new McpTokenExchangeClient(this.config);
+    }
+    return this._machineTokenClient;
+  }
+
   private callerScope(bearerToken: string): string {
     return crypto.createHash('sha256').update(bearerToken).digest('hex').slice(0, 16);
   }
