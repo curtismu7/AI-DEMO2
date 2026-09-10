@@ -822,13 +822,38 @@ router.post(['/:door/mcp', '/:door/:app/mcp'], express.json({ limit: '1mb', type
   // exchange. That failure is the lesson, not an embarrassment to hide.
   const exchangeOn = configStore.getEffective('ff_facade_upstream_exchange') !== 'false';
   const upstreamAudience = door.upstreamAudience && door.upstreamAudience();
-  if (!door.ownsUpstreamAuth && upstreamAudience && exchangeOn && upstreamExchange.isConfigured()) {
+  if (!door.ownsUpstreamAuth && upstreamAudience) {
     const inboundBearer = /^Bearer\s+(.+)$/i.exec(String(req.get('authorization') || '').trim())?.[1];
-    if (inboundBearer) {
+    // `from` comes off the caller's own token, so the trace names the real
+    // audience being replaced rather than a configured guess.
+    const fromAud = inboundBearer ? identityFromBearer(`Bearer ${inboundBearer}`).aud : null;
+    const audiences = { from: fromAud, to: upstreamAudience };
+
+    if (inboundBearer && exchangeOn && upstreamExchange.isConfigured()) {
+      const xStart = Date.now();
       try {
-        const exchanged = await upstreamExchange.exchangeForUpstream(inboundBearer, upstreamAudience, door.scopes || []);
-        upstreamHeaders = { ...upstreamHeaders, authorization: `Bearer ${exchanged}` };
+        const { accessToken, cached } = await upstreamExchange.exchangeForUpstream(
+          inboundBearer, upstreamAudience, door.scopes || [],
+        );
+        upstreamHeaders = { ...upstreamHeaders, authorization: `Bearer ${accessToken}` };
+        // The step the whole feature exists to show. Without a hop the trace
+        // jumps request -> response with no sign a token was swapped, leaving
+        // the RFC 8693 moment invisible — the opposite of the intent.
+        hop(correlationId, {
+          phase: 'token.exchange',
+          op: toolName || method,
+          status: 'ok',
+          durationMs: Date.now() - xStart,
+          details: { rfc: 'RFC 8693', audiences, cached, scopes: door.scopes || [] },
+        });
       } catch (err) {
+        hop(correlationId, {
+          phase: 'token.exchange',
+          op: toolName || method,
+          status: 'error',
+          durationMs: Date.now() - xStart,
+          details: { rfc: 'RFC 8693', audiences, reason: err.code || 'exchange_failed', error: { message: err.message } },
+        });
         // Surfaced, never swallowed: forwarding the un-exchanged token is the
         // very bypass D-05 catches, and it would resurface as a confusing
         // upstream 401 instead of naming what failed here.
@@ -842,6 +867,22 @@ router.post(['/:door/mcp', '/:door/:app/mcp'], express.json({ limit: '1mb', type
           },
         });
       }
+    } else if (inboundBearer) {
+      // Skipped on purpose. Recorded so the D-05 refusal that follows reads as
+      // a demonstrated consequence — "we did NOT exchange, and here is what the
+      // upstream said" — instead of an unexplained 401.
+      hop(correlationId, {
+        phase: 'token.exchange',
+        op: toolName || method,
+        status: 'skipped',
+        durationMs: 0,
+        details: {
+          rfc: 'RFC 8693',
+          audiences,
+          reason: !exchangeOn ? 'ff_facade_upstream_exchange=false' : 'exchange_not_configured',
+          consequence: 'Upstream enforces D-05: a gateway-audience token is refused at the next hop.',
+        },
+      });
     }
   }
 

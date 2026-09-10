@@ -99,7 +99,10 @@ function isConfigured() {
  * @param {string} subjectToken caller's bearer (gateway audience)
  * @param {string} audience     the upstream's audience, e.g. mcpserver.ping.demo
  * @param {string[]} [scopes]   optional scope narrowing
- * @returns {Promise<string>} the exchanged access token
+ * @returns {Promise<{accessToken: string, cached: boolean}>} `cached` is
+ *   reported so the trace can show a real mint distinctly from a cache hit —
+ *   a demo that shows "exchange" on every message teaches the wrong thing
+ *   about how often a token is actually minted.
  */
 async function exchangeForUpstream(subjectToken, audience, scopes = []) {
   if (!subjectToken) {
@@ -124,7 +127,7 @@ async function exchangeForUpstream(subjectToken, audience, scopes = []) {
 
   const key = cacheKey(subjectToken, audience);
   const cached = readCache(key);
-  if (cached) return cached;
+  if (cached) return { accessToken: cached, cached: true };
 
   const body = new URLSearchParams({
     grant_type: GRANT_TYPE,
@@ -155,7 +158,7 @@ async function exchangeForUpstream(subjectToken, audience, scopes = []) {
     throw e;
   }
   writeCache(key, token, resp.data.expires_in);
-  return token;
+  return { accessToken: token, cached: false };
 }
 
 module.exports = {

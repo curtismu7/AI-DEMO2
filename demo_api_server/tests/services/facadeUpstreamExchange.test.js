@@ -56,7 +56,8 @@ describe('facade upstream token exchange', () => {
     axios.post.mockResolvedValue({ data: { access_token: 'exchanged', expires_in: 300 } });
 
     const out = await svc.exchangeForUpstream('caller-token', UPSTREAM_AUD, ['read']);
-    expect(out).toBe('exchanged');
+    expect(out.accessToken).toBe('exchanged');
+    expect(out.cached).toBe(false);
 
     const [url, bodyStr] = axios.post.mock.calls[0];
     expect(url).toBe(TOKEN_URL);
@@ -74,17 +75,21 @@ describe('facade upstream token exchange', () => {
   test('caches per (subject token, audience) so a tools/call storm mints one token', async () => {
     axios.post.mockResolvedValue({ data: { access_token: 'exchanged', expires_in: 300 } });
 
-    await svc.exchangeForUpstream('caller-token', UPSTREAM_AUD);
-    await svc.exchangeForUpstream('caller-token', UPSTREAM_AUD);
+    const first = await svc.exchangeForUpstream('caller-token', UPSTREAM_AUD);
+    const second = await svc.exchangeForUpstream('caller-token', UPSTREAM_AUD);
     expect(axios.post).toHaveBeenCalledTimes(1);
+    // The trace distinguishes a real mint from a cache hit, so the demo does
+    // not claim an exchange happened on every JSON-RPC message.
+    expect(first.cached).toBe(false);
+    expect(second.cached).toBe(true);
   });
 
   test('a DIFFERENT caller never receives the cached token', async () => {
     axios.post.mockResolvedValueOnce({ data: { access_token: 'for-alice', expires_in: 300 } });
     axios.post.mockResolvedValueOnce({ data: { access_token: 'for-bob', expires_in: 300 } });
 
-    expect(await svc.exchangeForUpstream('alice-token', UPSTREAM_AUD)).toBe('for-alice');
-    expect(await svc.exchangeForUpstream('bob-token', UPSTREAM_AUD)).toBe('for-bob');
+    expect((await svc.exchangeForUpstream('alice-token', UPSTREAM_AUD)).accessToken).toBe('for-alice');
+    expect((await svc.exchangeForUpstream('bob-token', UPSTREAM_AUD)).accessToken).toBe('for-bob');
     expect(axios.post).toHaveBeenCalledTimes(2);
   });
 
