@@ -1796,6 +1796,30 @@ router.get('/state', (req, res) => {
       url: privilegeDoorUrl('openapi2'),
     },
     {
+      // THE Privilege-first MCP door: Privilege in front of the REAL PingGateway
+      // (Agentic App `agent-gateway`, backend
+      // ping-gateway.ping-devops-cmuir.svc.cluster.local:8080/mcp).
+      //
+      // Pinned for the same reason as `openapi2` above: an app only reaches the
+      // picker via readInventory(), so until somebody connects the console it is
+      // not selectable at all — and this is the one door a presenter needs to
+      // demonstrate the chain, so it must not depend on that.
+      //
+      // Needs Task 8b (privilege-bridge.groovy, PR #3068): Privilege stamps the
+      // Agentic App's Static Token on its backend hop, and until that filter
+      // existed PingGateway answered 401 to it ("Error discovering MCP server:
+      // calling \"initialize\": Unauthorized" in the console). The filter swaps
+      // the caller's token in from X-Subject-Token, so P1AZ and the RFC 8693
+      // exchange run on the real delegated user.
+      //
+      // Requires MCP_GW_PRIVILEGE_BRIDGE_SECRET on ping-gateway to equal that
+      // app's Static Token. Unset, the bridge is off and this door 401s — which
+      // is the safe direction, not a silent open door.
+      label: 'Privilege — agent-gateway (through the real PingGateway)',
+      mode: 'privilege',
+      url: privilegeDoorUrl('agent-gateway'),
+    },
+    {
       label: 'Agent Gateway — PingOne audit (scope-narrowed)',
       // Not one of the three paths: this door narrows by advertised scope, and
       // it needs an OAuth-capable slot, which every mode now is.
