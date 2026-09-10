@@ -75,6 +75,30 @@ function api(path, options = {}) {
   });
 }
 
+// The console key a lane most likely sends: the one the server matched to the
+// lane's configured virtual key, else the provider's only key. Never a guess
+// between two.
+function keyForLane(keys, provider) {
+  const mine = keys.filter((k) => k.provider === provider);
+  return mine.find((k) => k.inUse) || (mine.length === 1 ? mine[0] : null);
+}
+
+function keyBlocked(key) {
+  if (key.revoked) return 'Revoked — every call on this key is refused';
+  const t = Date.parse(key.notAfter || '');
+  return Number.isFinite(t) && t < Date.now() ? `Expired ${new Date(t).toLocaleString()}` : null;
+}
+
+function keyCaps(key) {
+  return [
+    key.allowedModels.length ? `models: ${key.allowedModels.join(', ')}` : 'no model allowlist',
+    key.rpmLimit ? `${key.rpmLimit} req/min` : null,
+    key.tpmLimit ? `${key.tpmLimit} tokens/min` : null,
+    key.budgetUsd ? `$${key.budgetUsd} budget${key.budgetDuration ? ` per ${key.budgetDuration}` : ''}` : null,
+    key.budgetTokens ? `${key.budgetTokens} token budget` : null,
+  ].filter(Boolean).join(' · ');
+}
+
 const TITLES = {
   anthropic: 'Anthropic', google: 'Google', openai: 'OpenAI',
   lmstudio: 'LM Studio (local)', llamacpp: 'llama.cpp (local)',
@@ -252,6 +276,9 @@ export default function LlmGatewayPage() {
   const [decision, setDecision] = useState(null);
   const [decisionView, setDecisionView] = useState('form');
   const [limitsByLane, setLimitsByLane] = useState({});
+  // Each virtual key's caps as Privilege stores them (console API). Empty when
+  // no console token is connected — the lane cards then show what they always did.
+  const [consoleKeys, setConsoleKeys] = useState([]);
   const [selectedAttack, setSelectedAttack] = useState(() => window.localStorage.getItem('lgw-attack-choice') || '');
   // Clicking Send with nothing typed used to be a silent no-op — the button
   // just did nothing, which reads as broken rather than "you forgot a step".
@@ -276,6 +303,16 @@ export default function LlmGatewayPage() {
         if (firstReady) setSelected(firstReady.provider);
       })
       .catch((err) => { if (!cancelled) setLoadError(err.message || 'Could not read the gateway configuration.'); });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Optional: 401 until a console token is connected on the Privilege MCP client's
+  // Policies tab. Any failure leaves the cards as they were.
+  useEffect(() => {
+    let cancelled = false;
+    api('/llm/keys')
+      .then((d) => { if (!cancelled) setConsoleKeys(d.keys || []); })
+      .catch(() => {});
     return () => { cancelled = true; };
   }, []);
 
@@ -469,12 +506,25 @@ export default function LlmGatewayPage() {
                     <Meter label="tokens" remaining={limits.tokensRemaining} limit={limits.tokensLimit} reset={limits.resetTokens} />
                   </span>
                 ) : null}
+                {!lane.isLocal && keyForLane(consoleKeys, lane.provider) ? (() => {
+                  const key = keyForLane(consoleKeys, lane.provider);
+                  const dead = keyBlocked(key);
+                  return (
+                    <span className="lgw-lane__limits">
+                      <span className="lgw-lane__limitk">Privilege key caps · {key.name}</span>
+                      {dead ? <span className="lgw-lane__warn">{dead}</span> : null}
+                      <span className="lgw-lane__r">{keyCaps(key)}</span>
+                    </span>
+                  );
+                })() : null}
               </button>
             );
           })}
           <p className="lgw-rail__note">
             Privilege publishes no per-key usage today, so spend against the virtual key cannot be shown. The
-            figures above are the provider&rsquo;s own limits, passed through the gateway.
+            meters above are the provider&rsquo;s own limits, passed through the gateway. Key caps are the limits
+            Privilege stores on the virtual key, read from the console API once a console token is connected on
+            the Privilege MCP client&rsquo;s Policies tab.
           </p>
         </section>
 

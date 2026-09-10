@@ -59,6 +59,28 @@ describe("LLM Gateway console", () => {
     expect(screen.getByText(/PRIVILEGE_LLM_VIRTUAL_KEY_OPENAI is not set/)).toBeInTheDocument();
   });
 
+  it("shows each virtual key's Privilege caps once the console is connected", async () => {
+    const key = (over) => ({
+      inUse: false, allowedModels: [], rpmLimit: null, tpmLimit: null, budgetUsd: null,
+      budgetTokens: null, budgetDuration: null, notAfter: null, revoked: false, ...over,
+    });
+    const KEYS = [
+      key({ name: "demo-anthropic", provider: "anthropic", inUse: true, allowedModels: ["claude-haiku-4-5-20251001"], rpmLimit: 60, budgetUsd: 25, budgetDuration: "30d" }),
+      key({ name: "old-google", provider: "google", revoked: true }),
+    ];
+    global.fetch = vi.fn((url) => {
+      const u = String(url);
+      if (u.endsWith("/llm/config")) return Promise.resolve({ ok: true, status: 200, text: async () => JSON.stringify(CONFIG) });
+      if (u.endsWith("/llm/keys")) return Promise.resolve({ ok: true, status: 200, text: async () => JSON.stringify({ keys: KEYS }) });
+      return new Promise(() => {});
+    });
+    render(<LlmGatewayPage />);
+
+    expect(await screen.findByText("Privilege key caps · demo-anthropic")).toBeInTheDocument();
+    expect(screen.getByText("models: claude-haiku-4-5-20251001 · 60 req/min · $25 budget per 30d")).toBeInTheDocument();
+    expect(screen.getByText("Revoked — every call on this key is refused")).toBeInTheDocument();
+  });
+
   it("attributes a denial to Privilege and says the model was never reached", async () => {
     mockFetch(() => ({
       ok: false,

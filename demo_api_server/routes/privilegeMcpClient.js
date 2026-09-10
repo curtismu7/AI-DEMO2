@@ -2346,6 +2346,8 @@ async function consoleInventory(session) {
   ]);
   const applications = (appsBody.Applications || []).map((app) => {
     const cfg = app.Spec?.McpAppConfig || {};    // McpAppConfig, NOT MCPAppConfig
+    const st = app.Status?.McpServerStatus || {};
+    const guard = cfg.AIGuardConfig;
     const name = app.ObjectMeta?.Name || '';
     return {
       name,
@@ -2362,7 +2364,15 @@ async function consoleInventory(session) {
       frontEndName: cfg.FrontEndName?.Elems?.[0] || null,
       backends: cfg.Backends?.Elems || [],
       entryPath: cfg.EntryPath || null,
-      status: app.Status?.McpServerStatus?.Status || '',
+      status: st.Status || '',
+      // Fields the 2026-09 console spec documents (console.privilege.pingone.com
+      // /swagger/imodel.swagger.json). An older console build omits them, so
+      // each degrades to empty rather than failing the read.
+      tools: (st.Capabilities?.Tools || []).map((t) => t.name).filter(Boolean),
+      lastDiscoveredAt: consoleTime(st.LastDiscoveredAt),
+      transport: st.Transport || null,
+      authMode: cfg.AuthMode || null,
+      aiGuard: guard ? { enabled: Boolean(guard.Enabled) && !guard.Disabled, failClosed: Boolean(guard.FailClosed) } : null,
     };
   });
   // The pacpolicy Spec schema is undocumented — the Postman collection that
@@ -2372,8 +2382,20 @@ async function consoleInventory(session) {
   const policies = (polBody.PacPolicys || polBody.Items || polBody.items || []).map((p) => ({
     name: p.ObjectMeta?.Name || '(unnamed)',
     spec: p.Spec || {},
+    // Top-level on the PacPolicy, outside the undocumented Spec — so these are
+    // facts, not heuristics. Console policies are often time-boxed, and an
+    // expired one denies exactly like a missing one.
+    notBefore: consoleTime(p.NotBefore),
+    notAfter: consoleTime(p.NotAfter),
   }));
   return { applications, policies, envId };
+}
+
+// A console timestamp as ISO, or null. The console is Go: an unset time
+// arrives as 0001-01-01T00:00:00Z, which must not read as "expired in year 1".
+function consoleTime(value) {
+  const t = Date.parse(value || '');
+  return Number.isFinite(t) && t > 0 ? new Date(t).toISOString() : null;
 }
 
 /**
@@ -2662,6 +2684,42 @@ router.get('/llm/models', async (req, res) => {
   } catch (err) {
     if (/not configured/.test(err.message || '')) return res.status(503).json({ error: err.message });
     res.status(502).json({ error: err.message || 'Privilege LLM models call failed' });
+  }
+});
+
+// GET /llm/keys — each virtual key's caps as Privilege stores them: the
+// AgentAccessKey objects the 2026-09 console spec documents. Reuses the console
+// token connected on the Privilege MCP client's Policies tab. That object also
+// carries RealKey (the PROVIDER secret) and VirtualKey, so the response is an
+// allowlist of fields — never spread Spec, or a provider key reaches the browser.
+router.get('/llm/keys', async (req, res) => {
+  const session = getClientSession(req);
+  if (!session.console?.authToken) {
+    return res.status(401).json({ error: 'No console token. Connect one on the Privilege MCP client Policies tab.' });
+  }
+  const laneKeys = new Set(Object.values(LLM_LANES).map((l) => process.env[l.keyEnv]).filter(Boolean));
+  try {
+    const body = await consoleGet(session, `/api/${consoleEnvId()}/v1/agentaccesskeys`);
+    const keys = (body.AgentAccessKeys || []).map((k) => {
+      const s = k.Spec || {};
+      return {
+        name: k.ObjectMeta?.Name || '(unnamed)',
+        provider: String(s.Provider || '').toLowerCase(),
+        // Compared here, so the browser learns only WHETHER a lane sends this key.
+        inUse: Boolean(s.VirtualKey) && laneKeys.has(s.VirtualKey),
+        allowedModels: s.AllowedModels?.Elems || [],
+        rpmLimit: s.RPMLimit || null,
+        tpmLimit: s.TPMLimit || null,
+        budgetUsd: s.BudgetUSD || null,
+        budgetTokens: s.BudgetTokens || null,
+        budgetDuration: s.BudgetDuration || null,
+        notAfter: consoleTime(s.NotAfter),
+        revoked: Boolean(s.Revoked),
+      };
+    });
+    res.json({ keys });
+  } catch (err) {
+    res.status(err.status === 401 ? 401 : 502).json({ error: err.message });
   }
 });
 
