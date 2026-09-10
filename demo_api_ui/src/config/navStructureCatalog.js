@@ -134,6 +134,7 @@ export const NAV_STRUCTURE_CATALOG = [
     label: "Platform Admin",
     children: [
       "Dashboard",
+      "Agentic Access Console",
     ],
   },
   {

@@ -29,7 +29,10 @@
   font-weight: 600;
   cursor: pointer;
 }
-.aac-theme-toggle:hover { background: var(--th-bg-hover); }
+.aac-theme-toggle:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
 
 .aac-eyebrow {
   margin: 0 0 8px;
@@ -63,7 +66,10 @@
   font-weight: 600;
   cursor: pointer;
 }
-.aac-tab:hover { background: var(--th-bg-hover); color: var(--th-text); }
+.aac-tab:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
 .aac-tab--active {
   background: var(--th-bg-emphasis);
   border-color: var(--th-bg-emphasis);
@@ -95,6 +101,7 @@
 }
 .aac-stat-tile {
   background: var(--th-bg-card);
+  color: var(--th-text);
   border: 1px solid var(--th-border);
   border-radius: var(--radius-lg);
   padding: 14px 16px;
@@ -125,8 +132,8 @@
   font: inherit;
 }
 .aac-agent-card--active {
+  border-width: 2px;
   border-color: var(--th-status-info);
-  box-shadow: 0 0 0 1px var(--th-status-info);
 }
 .aac-detail-panel { margin-top: 16px; }
 
@@ -136,12 +143,22 @@
   border: 1px solid var(--th-border);
   border-radius: var(--radius-lg);
   background: var(--th-bg-card);
+  color: var(--th-text);
 }
 .aac-table { width: 100%; border-collapse: collapse; font-size: var(--font-size-sm); }
 .aac-table th, .aac-table td { padding: 10px 14px; border-bottom: 1px solid var(--th-border); text-align: left; }
-.aac-table thead th { background: var(--th-bg-inset); color: var(--th-text); font-size: var(--font-size-xs); letter-spacing: 0.04em; text-transform: uppercase; }
+.aac-table thead th {
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
 .aac-table tbody tr:last-child td { border-bottom: 0; }
-.aac-table tbody tr:hover { background: var(--th-bg-hover); }
+.aac-table tbody tr:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
 .aac-mono { font-family: var(--font-mono); font-size: var(--font-size-xs); }
 
 /* Decision / status pills — semantic tokens, not invented colours. */
@@ -155,9 +172,21 @@
   letter-spacing: 0.03em;
   white-space: nowrap;
 }
-.aac-pill--permit { background: var(--th-status-success-bg); border-color: var(--th-status-success-border); color: var(--th-status-success-text); }
-.aac-pill--deny { background: var(--th-status-error-bg); border-color: var(--th-status-error-border); color: var(--th-status-error-text); }
-.aac-pill--indeterminate { background: var(--th-status-warning-bg); border-color: var(--th-status-warning-border); color: var(--th-status-warning-text); }
+.aac-pill--permit {
+  background: var(--th-status-success-bg);
+  border-color: var(--th-status-success-border);
+  color: var(--th-status-success-text);
+}
+.aac-pill--deny {
+  background: var(--th-status-error-bg);
+  border-color: var(--th-status-error-border);
+  color: var(--th-status-error-text);
+}
+.aac-pill--indeterminate {
+  background: var(--th-status-warning-bg);
+  border-color: var(--th-status-warning-border);
+  color: var(--th-status-warning-text);
+}
 
 /* Small tags — LIVE / BROKEN / PENDING and the three auth-level badges. */
 .aac-badge {
@@ -170,13 +199,41 @@
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
-.aac-badge--live { background: var(--th-status-success-bg); border-color: var(--th-status-success-border); color: var(--th-status-success-text); }
-.aac-badge--broken { background: var(--th-status-error-bg); border-color: var(--th-status-error-border); color: var(--th-status-error-text); }
-.aac-badge--pending { background: var(--th-status-warning-bg); border-color: var(--th-status-warning-border); color: var(--th-status-warning-text); }
-.aac-badge--neutral { background: var(--th-bg-inset); border-color: var(--th-border-strong); color: var(--th-text-muted); }
-.aac-badge--user { background: var(--th-status-info-bg); border-color: var(--th-status-info-border); color: var(--th-status-info-text); }
-.aac-badge--public { background: var(--th-status-success-bg); border-color: var(--th-status-success-border); color: var(--th-status-success-text); }
-.aac-badge--admin { background: var(--th-status-error-bg); border-color: var(--th-status-error-border); color: var(--th-status-error-text); }
+.aac-badge--live {
+  background: var(--th-status-success-bg);
+  border-color: var(--th-status-success-border);
+  color: var(--th-status-success-text);
+}
+.aac-badge--broken {
+  background: var(--th-status-error-bg);
+  border-color: var(--th-status-error-border);
+  color: var(--th-status-error-text);
+}
+.aac-badge--pending {
+  background: var(--th-status-warning-bg);
+  border-color: var(--th-status-warning-border);
+  color: var(--th-status-warning-text);
+}
+.aac-badge--neutral {
+  background: var(--th-bg-inset);
+  border-color: var(--th-border-strong);
+  color: var(--th-text-muted);
+}
+.aac-badge--user {
+  background: var(--th-status-info-bg);
+  border-color: var(--th-status-info-border);
+  color: var(--th-status-info-text);
+}
+.aac-badge--public {
+  background: var(--th-status-success-bg);
+  border-color: var(--th-status-success-border);
+  color: var(--th-status-success-text);
+}
+.aac-badge--admin {
+  background: var(--th-status-error-bg);
+  border-color: var(--th-status-error-border);
+  color: var(--th-status-error-text);
+}
 
 /* Tool-name chips. */
 .aac-chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
@@ -218,7 +275,11 @@
   font-weight: 600;
   cursor: pointer;
 }
-.aac-filter-btn--active { background: var(--th-bg-emphasis); border-color: var(--th-bg-emphasis); color: var(--th-text-on-emphasis); }
+.aac-filter-btn--active {
+  background: var(--th-bg-emphasis);
+  border-color: var(--th-bg-emphasis);
+  color: var(--th-text-on-emphasis);
+}
 
 /* Reveal-prompt disclosure (AI Broker attack log). */
 .aac-attempt { border: 1px solid var(--th-border); border-radius: var(--radius-md); padding: 10px 14px; margin-bottom: 10px; background: var(--th-bg-card); }
@@ -250,6 +311,7 @@
   border: 1px solid var(--th-border);
   border-radius: var(--radius-md);
   background: var(--th-bg-inset);
+  color: var(--th-text);
 }
 .aac-step-num {
   flex: none;
@@ -273,6 +335,7 @@
   border: 1px solid var(--th-border);
   border-radius: var(--radius-md);
   background: var(--th-bg-card);
+  color: var(--th-text);
   padding: 10px 12px;
   display: flex;
   align-items: center;
