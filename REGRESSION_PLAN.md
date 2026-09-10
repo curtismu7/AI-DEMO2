@@ -174,6 +174,44 @@ sweep via `serve:worktree` + Playwright: toggle present and functional on
 `/architecture/token-chain` (had one before) and `/privilege-gateway-topologies`
 (had none before), no duplicate control on either.
 
+### 2026-09-10 — `/privilege-mcp-client` redirected to the IdP by itself, mid-demo
+
+**Files changed:** `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx` and its
+`silentAutoConnect`, `gatewaySwitch` and `doorSwitchReauth` suites.
+
+**What was broken:** the page started an OAuth redirect on its own — on mount
+when unauthenticated, and again on every path or door change with no credential
+for the destination. Reported by the demo owner: *"we have to quit loading on
+changes. Make the user hit a button. This makes the demo look bad."* Even when
+it worked it read as the demo navigating away from itself before anyone touched
+it, and a silent attempt that could not complete dropped the user on a real
+PingOne login page they never asked for.
+
+**What was fixed:** nothing navigates the browser without a click. Four
+automatic `startAuthRedirect()` call sites removed (mount, path change,
+`switchGatewayMode`, `switchDoor`); each now marks the client not signed in and
+leaves the rail's existing **Sign in** button as the way forward. Most switches
+no longer need one at all — every door on our own origin already shares a single
+token (see the seven-logins entry below).
+
+**Do not break:**
+
+- **No automatic navigation.** `silentAutoConnect.test.jsx` is now the ban
+  rather than the requirement: any future "helpful" auto-connect fails it.
+- **`forceReauth` still redirects, and must.** It only ever comes from the
+  re-arm control on a dead gateway session, so it IS the click. Removing it
+  along with the others broke the re-arm button — caught by
+  `gatewaySession.test.jsx`, restored, and called out here because "no
+  automatic navigation" is easy to over-apply into "the sign-in button stops
+  working".
+- The invariant of the 2026-09-09 door-switch entry is unchanged in substance —
+  a switch must never silently leave a dead client — but it is now satisfied by
+  an explicit affordance instead of a redirect.
+
+**Verify:** `cd demo_api_ui && npm run test:unit && npm run build` — 517/518
+files pass (the one failure, `ResourceServerJourneyPage`, is unrelated and green
+in isolation); build exits 0.
+
 ### 2026-09-10 — `pingone-admin` 401: the hosted MCP accepts ONLY PingOne's built-in client
 
 **Files changed:** `demo_api_server/services/mcpPingOneHttpAdapter.js`,

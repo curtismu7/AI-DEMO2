@@ -85,7 +85,7 @@ const baseState = {
 };
 
 describe("gateway switch on Settings save", () => {
-  it("switches path from the main-page dropdown and re-authenticates against the new front door", async () => {
+  it("switches path from the main-page dropdown and offers Sign in for the new front door", async () => {
     global.fetch = mockFetch({ state: baseState });
     renderPage();
 
@@ -99,12 +99,12 @@ describe("gateway switch on Settings save", () => {
         expect.objectContaining({ method: "POST", body: expect.stringContaining('\"gatewayMode\":\"facade\"') }),
       );
     });
-    // Every path speaks OAuth now, and they do NOT share an authorization
-    // server — reusing the old token would silently call the new path with a
-    // credential its AS never issued.
-    await waitFor(() => {
-      expect(global.fetch.mock.calls.filter(([u]) => String(u).includes("/auth/start"))).toHaveLength(1);
-    });
+    // Every path speaks OAuth, and they do NOT share an authorization server —
+    // reusing the old token would silently call the new path with a credential
+    // its AS never issued. So the switch drops the credential and SAYS so; it
+    // does not take the browser to the IdP off a dropdown change (2026-09-10).
+    await waitFor(() => expect(screen.getByRole("button", { name: /sign in/i })).toBeTruthy());
+    expect(global.fetch.mock.calls.filter(([u]) => String(u).includes("/auth/start"))).toHaveLength(0);
   });
 
   it("skips re-auth when the BFF reports the destination mode already has a restored token", async () => {
