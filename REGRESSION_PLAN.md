@@ -174,6 +174,42 @@ sweep via `serve:worktree` + Playwright: toggle present and functional on
 `/architecture/token-chain` (had one before) and `/privilege-gateway-topologies`
 (had none before), no duplicate control on either.
 
+### 2026-09-09 — Seven interactive logins for one credential on `/privilege-mcp-client`
+
+**Files changed:** `demo_api_server/routes/privilegeMcpClient.js`,
+`demo_api_server/tests/routes/privilegeMcpClient.sharedDoorToken.test.js` (new).
+
+**What was broken:** reported as sign-in being "all fucked up". The token slot
+(`oauthKey`) was keyed `mode::mcpUrl`, i.e. **per door**. Every Direct and
+Façade door therefore demanded its own interactive PingOne sign-in, and each
+switch nulled the slot and bounced the user through the IdP again — opensearch,
+brave, banking, pingone-admin and the three façade doors were **seven logins for
+one credential**.
+
+They share the credential: every door on this app own public origin advertises
+the same authorization server (the Agent Gateway broker,
+`MCP_FACADE_AGENT_GATEWAY_AS`) and verifies against the same audience
+(`MCP_FACADE_OPENSEARCH_AUD` / `MCP_GW_RESOURCE_URI`). A token minted at any one
+of them is accepted by all of them — the per-door keying was self-inflicted.
+
+**What was fixed:** `oauthKey` collapses every own-origin door to a single slot.
+One sign-in now covers all of them, and switching between them keeps the token.
+
+**Do not break:**
+
+- **Only own-origin doors collapse.** The scope-narrowed `audit` door
+  (`audit:read`, served off the plain-HTTP façade port) and the Privilege doors
+  (gateway origin, one authorization server per Agentic App) keep their own
+  slots. Sharing with `audit` would hand it an `mcp:invoke` token and quietly
+  widen it from three tools to the full banking surface.
+- **A cross-origin switch must still re-authenticate** — that is the invariant
+  the 2026-09-09 entry below protects, and
+  `PrivilegeMcpClientPage.doorSwitchReauth.test.jsx` still passes unchanged.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/routes/privilegeMcp --forceExit --runInBand`
+— 31 suites / 175 tests, plus 4 new. Revert-to-RED confirmed: restoring the
+per-door key fails 3 of the 4 new tests.
+
 ### 2026-09-09 — Switching door or path on `/privilege-mcp-client` de-authenticated the client and never signed it back in
 
 **Files changed:** `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`,
