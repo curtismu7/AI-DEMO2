@@ -11,6 +11,7 @@ import {
   STEP_TO_EDGE,
   NODES,
   BANDS,
+  sidesFor,
 } from '../SystemFlowMap';
 
 const step = (id, status, detail) => ({ id, status, title: id, detail: detail || {} });
@@ -160,5 +161,12 @@ describe('map wiring', () => {
   it('every box is placed in exactly one band', () => {
     const placed = BANDS.flatMap((b) => b.nodes);
     expect([...placed].sort()).toEqual(Object.keys(NODES).sort());
+  });
+
+  it('runs a lane vertically between stacked bands and sideways within a row', () => {
+    expect(sidesFor('bff', 'pep')).toEqual(['right', 'left']);
+    expect(sidesFor('bff', 'browser')).toEqual(['left', 'right']);
+    expect(sidesFor('bff', 'p1-exchange')).toEqual(['top', 'bottom']);
+    expect(sidesFor('agent', 'llm')).toEqual(['bottom', 'top']);
   });
 });

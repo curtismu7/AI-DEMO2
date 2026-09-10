@@ -45,7 +45,7 @@ const readMap = (page) =>
       bands: [...root.querySelectorAll('.sfm-band')].map((b) => b.dataset.band),
       edges: [...root.querySelectorAll('.sfm-edge')].map((e) => {
         const d = e.getAttribute('d') || '';
-        const box = root.querySelector('.sfm-map').getBoundingClientRect();
+        const box = root.querySelector('.sfm-canvas').getBoundingClientRect();
         const r = e.getBoundingClientRect();
         return {
           kind: e.dataset.kind,
@@ -128,7 +128,7 @@ test.describe('System Flow map on a live run', () => {
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('system-flow-open')));
     const root = page.locator('.sfm-root');
     await expect(root, 'system flow map mounted').toBeVisible({ timeout: 15_000 });
-    await page.waitForTimeout(1_200); // let the ResizeObserver measure the edges
+    await page.waitForTimeout(1_200); // let React Flow measure and fit the view
 
     const popout = await readMap(page);
     console.log(`[drive] POPOUT ${JSON.stringify(popout, null, 2)}`);

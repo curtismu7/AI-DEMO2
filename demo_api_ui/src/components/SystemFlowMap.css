@@ -75,36 +75,28 @@
 }
 
 /* ---------- map ---------- */
-.sfm-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; }
-.sfm-map {
-  position: relative;
-  min-width: 860px;
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+/* React Flow owns pan, zoom and lane routing. Its chrome reads the app theme
+   through its own --xy-* hooks, so the canvas follows light/dark with the rest. */
+.sfm-canvas {
+  flex: 1 1 auto;
+  min-height: 360px;
+  --xy-background-color: var(--th-bg-card);
+  --xy-controls-button-background-color: var(--th-bg-card);
+  --xy-controls-button-background-color-hover: var(--th-bg-inset);
+  --xy-controls-button-color: var(--th-text);
+  --xy-controls-button-color-hover: var(--th-text);
+  --xy-controls-button-border-color: var(--th-border);
 }
-/* Above the bands, not below them. The bands and node cards carry opaque
-   backgrounds, so an underlying overlay was painted over everywhere except the
-   gaps between bands — the edges were correct, measured and almost entirely
-   invisible. pointer-events stay off so the layer never eats a click. */
-.sfm-edges {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 2;
-  overflow: visible;
-}
-.sfm-map > .sfm-band,
-.sfm-map > .sfm-row { position: relative; z-index: 1; }
+/* Anchors only — nothing on this map is connectable. */
+.sfm-canvas .react-flow__handle { opacity: 0; pointer-events: none; }
 
 .sfm-band {
   position: relative;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
   border: 1px dashed var(--th-border);
   border-radius: 10px;
-  padding: 22px 12px 12px;
   background: var(--th-bg-inset);
   color: var(--th-text);
 }
@@ -120,22 +112,12 @@
   color: var(--th-text-muted);
 }
 
-.sfm-row {
-  display: grid;
-  grid-template-columns: 1.3fr 0.9fr 0.9fr;
-  gap: 12px;
-  align-items: stretch;
-}
-
-.sfm-nodes { display: flex; gap: 10px; }
-.sfm-nodes--row { flex-direction: row; flex-wrap: wrap; }
-.sfm-nodes--col { flex-direction: column; }
-
 /* Unlit boxes stay legible — a hop that has not run is context, not noise,
    so it dims rather than disappearing. */
 .sfm-node {
-  flex: 1 1 0;
-  min-width: 128px;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
   background: var(--th-bg-card);
   color: var(--th-text);
   border: 1px solid var(--th-border);
