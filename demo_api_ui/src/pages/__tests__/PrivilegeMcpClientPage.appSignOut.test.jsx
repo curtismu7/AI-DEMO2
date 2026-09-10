@@ -47,10 +47,11 @@ function mockState({ mainAppAuthenticated }) {
   });
 }
 
-/** The App-session row's own button, not the Gateway-identity row's. */
+/** The app sign-out, by its own name. Both sign-outs now live in the one action
+ *  cluster beside "Get MCP Tools", so they are told apart by label rather than by
+ *  which rail row contains them — which is exactly why each names what it ends. */
 function appSessionSignOut() {
-  const row = screen.getByText("App session").closest("li");
-  return row.querySelector("button");
+  return screen.queryByRole("button", { name: /Sign out of app/i });
 }
 
 describe("PrivilegeMcpClientPage — App session sign out", () => {
@@ -62,12 +63,23 @@ describe("PrivilegeMcpClientPage — App session sign out", () => {
 
     await waitFor(() => expect(appSessionSignOut()).toBeTruthy());
     const btn = appSessionSignOut();
-    expect(btn).toHaveTextContent("Sign out");
+    expect(btn).toHaveTextContent("Sign out of app");
 
     fireEvent.click(btn);
     // /logout is the app's ONE sign-out path (App.js), the same route
     // AdminSideNav uses — not a bespoke POST from this page.
     expect(navigateSpy).toHaveBeenCalledWith("/logout");
+  });
+
+  test("the two sign-outs name what they end, so neither is a coin toss", async () => {
+    mockState({ mainAppAuthenticated: true });
+    render(<MemoryRouter><PrivilegeMcpClientPage /></MemoryRouter>);
+
+    await waitFor(() => expect(appSessionSignOut()).toBeTruthy());
+    // Both sit in the same action cluster now, so the LABEL is the only thing
+    // telling them apart. A bare "Sign out" on either would be ambiguous — and
+    // would match two nodes here, which is what makes this assertion bite.
+    expect(screen.queryByRole("button", { name: /^Sign out$/i })).toBeNull();
   });
 
   test("signed out: no App session sign out is offered", async () => {
