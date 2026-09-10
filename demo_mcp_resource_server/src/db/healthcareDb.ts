@@ -90,6 +90,12 @@ export function withDb<T>(fn: (db: DatabaseSync) => T): T {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const conn = new DatabaseSync(file);
   try {
+    // Every call opens a fresh connection (see this function's own doc comment
+    // above) -- under concurrent access (parallel Jest workers hitting the same
+    // file, or a genuinely concurrent request) SQLite's default busy_timeout of
+    // 0 throws "database is locked" immediately instead of waiting the other
+    // writer out.
+    conn.exec('PRAGMA busy_timeout = 5000');
     conn.exec('PRAGMA foreign_keys = ON');
     conn.exec(SCHEMA);
     seedIfEmpty(conn);
