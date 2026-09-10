@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mock — MCP Server OAuth Configuration</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0b1220;
+    --bg-elev: #121a2b;
+    --bg-panel: #162033;
+    --line: #2a3a55;
+    --line-strong: #3d5275;
+    --text: #e8eef8;
+    --muted: #8fa3c1;
+    --accent: #4f8cff;
+    --ok: #3ecf8e;
+    --warn: #e6b450;
+    --danger: #f07178;
+    --chip: #1c2740;
+    --mono: "IBM Plex Mono", ui-monospace, monospace;
+    --sans: "IBM Plex Sans", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: var(--sans);
+    color: var(--text);
+    background:
+      radial-gradient(1200px 600px at 10% -10%, rgba(79,140,255,0.12), transparent 55%),
+      radial-gradient(900px 500px at 90% 0%, rgba(230,180,80,0.08), transparent 50%),
+      linear-gradient(180deg, #0a101c 0%, var(--bg) 40%, #0d1524 100%);
+  }
+  .shell { max-width: 920px; margin: 0 auto; padding: 28px 24px 64px; }
+
+  .eyebrow {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--muted); margin: 0 0 8px;
+  }
+  h1 { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
+  .sub { margin: 8px 0 0; color: var(--muted); max-width: 68ch; line-height: 1.45; font-size: 14px; }
+
+  .callout {
+    margin: 22px 0; padding: 16px 18px; border-radius: 10px;
+    background: rgba(230,180,80,0.08); border: 1px solid rgba(230,180,80,0.35);
+    display: flex; gap: 12px; align-items: flex-start;
+  }
+  .callout .icon { font-size: 18px; line-height: 1; }
+  .callout .body { font-size: 13px; line-height: 1.55; color: var(--text); }
+  .callout .body b { color: var(--warn); }
+  .callout .body code {
+    font-family: var(--mono); font-size: 12px; background: var(--chip);
+    padding: 1px 5px; border-radius: 4px; border: 1px solid var(--line);
+  }
+  .callout .body a { color: var(--accent); }
+
+  .panel {
+    background: var(--bg-panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 20px 22px; margin-bottom: 20px;
+  }
+  .panel h2 {
+    margin: 0 0 4px; font-size: 15px; font-weight: 600;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .panel .panel-sub { margin: 0 0 16px; font-size: 12.5px; color: var(--muted); }
+
+  .badge {
+    font-family: var(--mono); font-size: 10.5px; font-weight: 600;
+    padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line);
+    background: var(--chip); letter-spacing: 0.05em; text-transform: uppercase;
+  }
+  .badge.live { color: var(--ok); border-color: rgba(62,207,142,0.45); }
+  .badge.mock { color: var(--warn); border-color: rgba(230,180,80,0.45); }
+
+  .kv-grid {
+    display: grid; grid-template-columns: 160px 1fr; gap: 10px 16px;
+    font-size: 13px;
+  }
+  .kv-grid dt { color: var(--muted); }
+  .kv-grid dd { margin: 0; font-family: var(--mono); font-size: 12.5px; }
+
+  .field { margin-bottom: 16px; }
+  .field label {
+    display: block; font-size: 12.5px; font-weight: 600; color: var(--muted);
+    margin-bottom: 6px; letter-spacing: 0.01em;
+  }
+  .field .hint { font-size: 11.5px; color: var(--muted); margin-top: 5px; }
+  .field input, .field select {
+    width: 100%; font-family: var(--mono); font-size: 13px; color: var(--text);
+    background: var(--bg-elev); border: 1px solid var(--line); border-radius: 8px;
+    padding: 9px 11px; outline: none;
+  }
+  .field input:focus, .field select:focus { border-color: var(--accent); }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  .secret-wrap { position: relative; }
+  .secret-wrap input { padding-right: 64px; }
+  .reveal-btn {
+    position: absolute; right: 6px; top: 6px; bottom: 6px;
+    font-family: var(--mono); font-size: 10.5px; color: var(--muted);
+    background: var(--chip); border: 1px solid var(--line); border-radius: 6px;
+    padding: 0 10px; cursor: pointer;
+  }
+  .reveal-btn:hover { color: var(--text); border-color: var(--line-strong); }
+
+  .auth-mode-tabs { display: flex; gap: 8px; margin-bottom: 18px; }
+  .auth-mode-tabs button {
+    font-family: var(--mono); font-size: 12px; color: var(--muted);
+    background: var(--bg-elev); border: 1px solid var(--line); border-radius: 8px;
+    padding: 8px 14px; cursor: pointer;
+  }
+  .auth-mode-tabs button.active {
+    color: var(--text); border-color: var(--accent);
+    background: rgba(79,140,255,0.12);
+  }
+
+  .actions { display: flex; gap: 10px; margin-top: 4px; }
+  .btn {
+    font-family: var(--sans); font-size: 13px; font-weight: 600;
+    padding: 10px 18px; border-radius: 8px; cursor: pointer; border: 1px solid transparent;
+  }
+  .btn.primary { background: var(--accent); color: #06101f; }
+  .btn.ghost { background: transparent; color: var(--text); border-color: var(--line-strong); }
+
+  .toast {
+    margin-top: 12px; font-size: 12.5px; color: var(--muted);
+    font-family: var(--mono); display: none;
+  }
+  .toast.show { display: block; }
+
+  footer { margin-top: 28px; font-size: 11.5px; color: var(--muted); text-align: center; }
+  footer a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="shell">
+  <p class="eyebrow">Mock · Admin · Privilege Integration</p>
+  <h1>MCP Server — OAuth Configuration</h1>
+  <p class="sub">
+    Illustrative config UI for <code style="font-family:var(--mono)">banking-mcp</code>
+    (<code style="font-family:var(--mono)">demo_mcp_resource_server</code>), the MCP server
+    registered with PingOne Privilege as an Agentic App. This page is a design mock only —
+    no data here is saved or wired to a real gateway.
+  </p>
+
+  <div class="callout">
+    <div class="icon">⚠️</div>
+    <div class="body">
+      <b>Auth Mode: OAuth is a known platform blocker, not a config gap.</b>
+      It was already tried against the live Privilege gateway on 2026-09-09 and made
+      discovery <i>worse</i> than Auth Mode None — a tokenless <code>initialize</code> 401s,
+      the gateway's own <code>/banking-mcp/token</code> endpoint rejects PingOne client
+      credentials, and even a correctly-signed PingOne bearer 401s with
+      <code>token_not_found</code> (the gateway checks its own internal token registry, not
+      the token's signature). See <code>privilege/CURRENT-CONFIGURATION.md</code>. This form
+      exists to show the shape of the config, not to re-attempt the fix.
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Current registration <span class="badge live">Live · Auth Mode None</span></h2>
+    <p class="panel-sub">What's actually configured in the Privilege console today.</p>
+    <dl class="kv-grid">
+      <dt>Application Name</dt><dd>banking-mcp</dd>
+      <dt>Application type</dt><dd>MCP Server</dd>
+      <dt>MCP Server URL</dt><dd>http://mcp-resource-server.ping-devops-cmuir.svc.cluster.local:8081/mcp</dd>
+      <dt>Auth Mode</dt><dd>None</dd>
+      <dt>AI Gateway</dt><dd>ai-demo-cmuir — https://mcpgw.ai-demo.ping-devops.com</dd>
+      <dt>Mesh Cluster</dt><dd>ai-demo-cmuir</dd>
+    </dl>
+  </div>
+
+  <div class="panel">
+    <h2>OAuth configuration <span class="badge mock">Mock · not wired</span></h2>
+    <p class="panel-sub">What an OAuth-backed registration would look like.</p>
+
+    <div class="auth-mode-tabs" role="tablist" aria-label="Auth Mode">
+      <button type="button" data-mode="none">None</button>
+      <button type="button" data-mode="static">Static Token</button>
+      <button type="button" class="active" data-mode="oauth">OAuth</button>
+    </div>
+
+    <div class="field">
+      <label for="client-id">Client ID</label>
+      <input id="client-id" type="text" value="banking-mcp-privilege-client" spellcheck="false" />
+    </div>
+
+    <div class="field">
+      <label for="client-secret">Client Secret</label>
+      <div class="secret-wrap">
+        <input id="client-secret" type="password" value="••••••••••••••••••••••••••••" spellcheck="false" />
+        <button type="button" class="reveal-btn" id="reveal-toggle">Show</button>
+      </div>
+      <p class="hint">Stored server-side only; never rendered in plaintext after save.</p>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="issuer">Authorization Server / Issuer</label>
+        <input id="issuer" type="text" value="https://auth.pingone.com/{envId}/as" spellcheck="false" />
+      </div>
+      <div class="field">
+        <label for="token-endpoint">Token Endpoint</label>
+        <input id="token-endpoint" type="text" value="https://auth.pingone.com/{envId}/as/token" spellcheck="false" />
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="scopes">Scopes</label>
+        <input id="scopes" type="text" value="read mcp:invoke" spellcheck="false" />
+      </div>
+      <div class="field">
+        <label for="audience">Resource / Audience</label>
+        <input id="audience" type="text" value="mcpgateway.ping.demo" spellcheck="false" />
+      </div>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="btn primary" id="test-btn">Test Connection</button>
+      <button type="button" class="btn ghost" id="save-btn">Save (disabled in mock)</button>
+    </div>
+    <p class="toast" id="toast">Mock only — no request sent.</p>
+  </div>
+
+  <footer>
+    Static design mock · <code style="font-family:var(--mono)">docs/mocks/mcp-oauth-config-mock.html</code> ·
+    background: <a href="../../privilege/CURRENT-CONFIGURATION.md">privilege/CURRENT-CONFIGURATION.md</a>
+  </footer>
+</div>
+
+<script>
+  document.querySelectorAll('.auth-mode-tabs button').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.auth-mode-tabs button').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+    });
+  });
+
+  var revealBtn = document.getElementById('reveal-toggle');
+  var secretInput = document.getElementById('client-secret');
+  revealBtn.addEventListener('click', function () {
+    var isPassword = secretInput.type === 'password';
+    secretInput.type = isPassword ? 'text' : 'password';
+    revealBtn.textContent = isPassword ? 'Hide' : 'Show';
+  });
+
+  var toast = document.getElementById('toast');
+  ['test-btn', 'save-btn'].forEach(function (id) {
+    document.getElementById(id).addEventListener('click', function () {
+      toast.classList.add('show');
+    });
+  });
+</script>
+</body>
+</html>
