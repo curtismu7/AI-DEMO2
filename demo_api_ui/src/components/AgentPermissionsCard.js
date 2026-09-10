@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { notifySuccess } from '../utils/appToast';
+import bffAxios from '../services/bffAxios';
+import { notifyError, notifySuccess } from '../utils/appToast';
 
 const DEFAULTS = {
   agentEnabled: true,
@@ -18,17 +19,8 @@ const DEFAULTS = {
   operatingMode: 'copilot',
 };
 
-function storageKey(user) {
-  return `agentPermissions:${user?.oauthId || user?.id || user?.email || 'anon'}`;
-}
-
 function loadPermissions(user) {
-  try {
-    const raw = localStorage.getItem(storageKey(user));
-    return raw ? { ...DEFAULTS, ...JSON.parse(raw) } : { ...DEFAULTS };
-  } catch {
-    return { ...DEFAULTS };
-  }
+  return { ...DEFAULTS, ...user?.agentPermissions };
 }
 
 const OPERATING_MODES = [
@@ -45,6 +37,7 @@ const ACCOUNT_TOGGLES = [
 
 export default function AgentPermissionsCard({ user }) {
   const [permissions, setPermissions] = useState(() => loadPermissions(user));
+  const [isSaving, setIsSaving] = useState(false);
   const userKey = user?.oauthId || user?.id || user?.email;
 
   useEffect(() => {
@@ -54,13 +47,18 @@ export default function AgentPermissionsCard({ user }) {
 
   const set = (patch) => setPermissions((prev) => ({ ...prev, ...patch }));
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    setIsSaving(true);
     try {
-      localStorage.setItem(storageKey(user), JSON.stringify(permissions));
-    } catch {
-      // localStorage unavailable — settings just won't survive a reload
+      await bffAxios.post('/api/auth/oauth/user/agent-permissions', {
+        agentPermissions: permissions,
+      });
+      notifySuccess('Agent permissions saved');
+    } catch (err) {
+      notifyError(err.response?.data?.error || 'Failed to save agent permissions');
+    } finally {
+      setIsSaving(false);
     }
-    notifySuccess('Agent permissions saved');
   };
 
   return (
@@ -230,8 +228,8 @@ export default function AgentPermissionsCard({ user }) {
       </div>
 
       <div className="up-form__actions">
-        <button type="button" className="up-btn up-btn--edit" onClick={handleSave}>
-          Save Agent Permissions
+        <button type="button" className="up-btn up-btn--edit" onClick={handleSave} disabled={isSaving}>
+          {isSaving ? 'Saving...' : 'Save Agent Permissions'}
         </button>
       </div>
     </div>

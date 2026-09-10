@@ -1357,6 +1357,80 @@ router.post('/notification-preferences', (req, res) => {
   }
 });
 
+/**
+ * Update the caller's AI agent permissions (transaction limits, approval
+ * rules, operating mode). Keys/defaults mirror DEFAULTS in
+ * demo_api_ui/src/components/AgentPermissionsCard.js.
+ */
+const AGENT_PERMISSIONS_FIELDS = {
+  agentEnabled: { type: 'boolean', default: true },
+  minAmount: { type: 'number', default: 0 },
+  maxAmount: { type: 'number', default: 500 },
+  restrictToPayees: { type: 'boolean', default: true },
+  avoidNewCategories: { type: 'boolean', default: false },
+  useSavedPaymentMethod: { type: 'boolean', default: true },
+  updateEmail: { type: 'boolean', default: false },
+  updatePassword: { type: 'boolean', default: false },
+  updateContactInfo: { type: 'boolean', default: false },
+  requireApproval: { type: 'boolean', default: true },
+  approvalOverAmount: { type: 'boolean', default: true },
+  approvalNewPayee: { type: 'boolean', default: true },
+  approvalEveryTransaction: { type: 'boolean', default: false },
+  operatingMode: { type: 'enum', values: ['copilot', 'autopilot', 'readonly'], default: 'copilot' },
+};
+
+// Router is mounted at /api/auth/oauth/user, so this path must not repeat "user".
+router.post('/agent-permissions', (req, res) => {
+  try {
+    if (!req.session?.user?.id) {
+      return res.status(401).json({ error: 'not_authenticated' });
+    }
+
+    const submitted = req.body?.agentPermissions;
+    if (!submitted || typeof submitted !== 'object' || Array.isArray(submitted)) {
+      return res.status(400).json({ error: 'invalid_agentPermissions' });
+    }
+
+    // Whitelist the keys so an arbitrary body cannot widen the stored user record.
+    const agentPermissions = {};
+    for (const [key, field] of Object.entries(AGENT_PERMISSIONS_FIELDS)) {
+      const value = submitted[key];
+      if (value === undefined) {
+        agentPermissions[key] = field.default;
+        continue;
+      }
+      if (field.type === 'boolean' && typeof value !== 'boolean') {
+        return res.status(400).json({ error: `invalid_${key}` });
+      }
+      if (field.type === 'number' && (typeof value !== 'number' || !Number.isFinite(value))) {
+        return res.status(400).json({ error: `invalid_${key}` });
+      }
+      if (field.type === 'enum' && !field.values.includes(value)) {
+        return res.status(400).json({ error: `invalid_${key}` });
+      }
+      agentPermissions[key] = value;
+    }
+
+    const dataStore = require('../data/store');
+    dataStore.updateUser(req.session.user.id, { agentPermissions }).then(() => {
+      req.session.user.agentPermissions = agentPermissions;
+      req.session.save((err) => {
+        if (err) {
+          console.error('[agent-permissions] Session save error:', err?.stack || String(err));
+          return res.status(500).json({ error: 'session_error' });
+        }
+        res.json({ agentPermissions, message: 'Preference updated' });
+      });
+    }).catch((err) => {
+      console.error('[agent-permissions] Update error:', err?.stack || String(err));
+      res.status(500).json({ error: 'update_failed' });
+    });
+  } catch (error) {
+    console.error('[agent-permissions] Error:', error?.stack || String(error));
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
 module.exports = router;
 module.exports.sanitizePostLoginReturnPath = sanitizePostLoginReturnPath;
 module.exports.sanitizeStepUpReturnTo = sanitizeStepUpReturnTo;
