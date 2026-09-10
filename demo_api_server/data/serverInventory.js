@@ -86,6 +86,18 @@ const SERVER_INVENTORY = [
     purpose: 'Alternative MCP gateway using the real PingGateway product (ff_mcp_gateway_pinggateway).',
   },
   {
+    key: 'privilege-ai-gateway', name: 'Privilege AI Gateway', container: null,
+    hostPort: null, internalPort: null, lang: 'PingOne Privilege (SaaS)', category: 'mcp', sourceDir: null,
+    // probe:false on purpose. This is an EXTERNAL, SE-only host whose /mcp answers
+    // only to an authenticated caller holding a live Privilege gateway session, so
+    // an unauthenticated reachability probe would paint every non-SE stack red and
+    // an acceptAnyStatus probe would paint a 401 green — the exact false-green the
+    // ping-gateway entry above documents. The real probe is the posture check
+    // gateway.privilege_first, which is authenticated AND gated on the flag.
+    probe: false,
+    purpose: 'Sits in FRONT of whichever Agent Gateway is selected, as the registered Agentic App "agent-gateway" (ff_mcp_gateway_privilege_first; SE only).',
+  },
+  {
     key: 'mcp-proxy', name: 'MCP Proxy', container: 'ai-demo-mcp-proxy',
     hostPort: 8895, internalPort: 8895, lang: 'Node', category: 'mcp', sourceDir: 'demo_mcp_proxy', probe: true,
     candidates: candidates(env('MCP_PROXY_URL'), 'http://mcp-proxy:8895', 'http://localhost:8895'),

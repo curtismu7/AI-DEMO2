@@ -52,7 +52,16 @@ const FACADE_DOORS = ['agent-gateway', 'opensearch', 'brave', 'banking', 'privil
 // Agentic Apps registered on the AI Gateway. Hardcoded here on purpose for now:
 // Plan B (W8) replaces this with the console inventory, and this list is what
 // that change is measured against.
-const GATEWAY_APPS = ['opensearch22', 'opensearch', 'brave'];
+// `agent-gateway` here is the Agentic App registered in Task 5 of the
+// privilege-first-gateway plan (gatewayBase/agent-gateway/mcp) — NOT the
+// same-named façade door above, which is a different URL on facadeBase.
+//
+// Caveat worth knowing before trusting a green: Privilege answers 401 BEFORE it
+// routes, so an unregistered app name is indistinguishable from a registered one
+// here (see lib/preflightRows.js's header). This row proves DNS/TLS/reachability
+// to the gateway, never that Task 5 was actually done. The authenticated proof is
+// the BFF posture check `gateway.privilege_first`.
+const GATEWAY_APPS = ['opensearch22', 'opensearch', 'brave', 'agent-gateway'];
 
 const TIMEOUT_MS = 15000;
 

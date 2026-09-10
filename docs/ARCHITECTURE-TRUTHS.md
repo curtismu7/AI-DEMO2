@@ -581,8 +581,27 @@ When `ff_mcp_gateway_pinggateway` is `true` (default), the system routes MCP too
 
 **Naive reading that is wrong:** "there is one MCP gateway; `ff_mcp_gateway_pinggateway` changes a config option on it." There are two distinct gateway processes; the flag selects which process receives tool-call traffic.
 
-- Code: `ping-gateway/` (IG config, Groovy filters), `demo_api_server/services/getMcpGatewayHttpUrl.js` (single gateway-URL resolver — the flag must be evaluated here, not patched elsewhere)
+- Code: `ping-gateway/` (IG config, Groovy filters), `demo_api_server/services/mcpGatewayClient.js:1162` (`getMcpGatewayHttpUrl` — the single gateway-URL resolver; the flag must be evaluated here, not patched elsewhere)
 - Related: T-1 (the active gateway is the security choke point, regardless of which is selected), T-2 (Authorize is the authoritative decision — both gateways enforce it), T-4 (PingOne performs the RFC 8693 exchange — PingGateway requests it)
+
+---
+
+## T-17 — Privilege-first is a chain, not a lane; it composes with the gateway flags rather than competing with them
+
+When `ff_mcp_gateway_privilege_first` is `true`, the **PingOne Privilege AI Gateway** is placed in **front of** whichever Agent Gateway the other flags already select. The call becomes a chain — Privilege → Agent Gateway (PingGateway *or* the Node gateway, per T-16) → MCP servers — not a third alternative lane beside them. `getMcpGatewayHttpUrl()` evaluates this flag **before** the PingGateway branch for exactly that reason: what sits behind Privilege is decided by the Agentic App's registered backend URL, not by this resolver.
+
+Three consequences that surprise people:
+
+1. **Two identities travel per call, by design.** Privilege owns the `Authorization` header on its own backend hop — it stamps the Static Token configured on the Agentic App. The user's token would be a foreign app's token there and is rejected before routing, so the user identity travels separately in `X-Subject-Token`. The Agent Gateway recognises the bridge secret *before* `validateInboundToken`, swaps the subject token in, and introspection, RFC 8693 exchange and PingOne Authorize then all run on the real delegated user rather than a machine identity.
+2. **`X-Subject-Token` is honoured only from the bridge.** It is trusted only when the bearer equals the configured `MCP_GW_PRIVILEGE_BRIDGE_SECRET`; from any other caller it is ignored outright, so it can never assert an identity from outside. An unset secret disables the bridge entirely and can never match — including against an empty bearer. A bridge call carrying no subject token is **refused**, not given a synthetic machine subject: this gateway's contract is a delegated identity, and inventing one would let a scope-gated tool run with nobody attached to it.
+3. **SE only, and off by default.** The Agentic App's backend must reach the Agent Gateway's in-cluster address, which holds only on the SE cluster (plan D3). Both `ff_privilege_llm_first` and `ff_mcp_gateway_privilege_first` default to `false`. An unresolvable Privilege URL logs a warning and **falls through to the next lane** rather than breaking every tool call on a box that has no Privilege gateway.
+
+**Naive reading that is wrong:** "`ff_mcp_gateway_privilege_first` picks Privilege instead of PingGateway, the way `ff_mcp_gateway_pinggateway` picks IG instead of the Node gateway." It does not replace either; it prepends a hop in front of whichever one T-16's flag already chose. Turning both on is a supported combination, not a conflict.
+
+**Known ceiling:** the `act` chain does not yet name Privilege as an actor hop. The user identity is correct and complete; what is missing is the audit claim that the call came *through* Privilege.
+
+- Code: `demo_api_server/services/mcpGatewayClient.js:1162` (`getMcpGatewayHttpUrl`, and `getPrivilegeGatewayUrl` beside it), `demo_api_server/services/checks/privilegeMcpFirstCheck.js` (the posture check that proves the chain is live, not merely configured)
+- Related: T-16 (which Agent Gateway sits behind Privilege), T-1 (the active gateway is still the choke point), T-4 (PingOne performs the RFC 8693 exchange — it runs on the swapped-in subject, not the bridge identity)
 
 ---
 

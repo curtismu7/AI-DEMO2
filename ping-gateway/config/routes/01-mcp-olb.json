@@ -93,6 +93,14 @@
           }
         },
         {
+          "name": "PrivilegeBridge",
+          "type": "ScriptableFilter",
+          "config": {
+            "type": "application/x-groovy",
+            "file": "privilege-bridge.groovy"
+          }
+        },
+        {
           "name": "McpAudit",
           "type": "McpAuditFilter",
           "config": {
