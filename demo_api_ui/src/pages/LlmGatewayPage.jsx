@@ -406,6 +406,21 @@ export default function LlmGatewayPage() {
         </div>
       </header>
 
+      {/* Placement B — the at-a-glance band. Full width so the boxes never wrap
+          and a denial is readable from across a room, which the Last Decision
+          column could not manage at its width. Shows the MOST RECENT call only;
+          per-turn history lives under each reply in the transcript (placement C).
+          Same guard the Path row used: a transport failure has no chain to draw. */}
+      {decision && (decision.tone === 'ok' || decision.layer === 'Privilege') ? (
+        <section className="lgw-reelband" aria-label="Path of the most recent call">
+          <LlmGatewayReel
+            decision={decision}
+            providerTitle={TITLES[decision.provider] || decision.provider}
+            isLocalLane={Boolean((lanes.find((l) => l.provider === decision.provider) || {}).isLocal)}
+          />
+        </section>
+      ) : null}
+
       {loadError ? <p className="lgw-error" role="alert">{loadError}</p> : null}
 
       <div
@@ -476,9 +491,12 @@ export default function LlmGatewayPage() {
             ) : null}
             {turns.map((t) => (
               t.role === 'model' ? (
+                // The reel is a SIBLING of the turn button, never inside it: it
+                // has its own buttons, and a button inside a button is invalid
+                // markup that swallows the inner clicks.
+                <div key={t.id} className="lgw-turn-group">
                 <button
                   type="button"
-                  key={t.id}
                   className={`lgw-turn lgw-turn--model${t.id === selectedTurnId ? ' is-selected' : ''}`}
                   aria-pressed={t.id === selectedTurnId}
                   title="Show this run's result in Last decision"
@@ -498,6 +516,17 @@ export default function LlmGatewayPage() {
                     ) : null}
                   </div>
                 </button>
+                {/* Placement C — every turn keeps its own evidence, so scrolling
+                    back through a session shows what each call actually did
+                    rather than only what the last one did. */}
+                {t.decision && (t.decision.tone === 'ok' || t.decision.layer === 'Privilege') ? (
+                  <LlmGatewayReel
+                    decision={t.decision}
+                    providerTitle={TITLES[t.decision.provider] || t.decision.provider}
+                    isLocalLane={Boolean((lanes.find((l) => l.provider === t.decision.provider) || {}).isLocal)}
+                  />
+                ) : null}
+                </div>
               ) : (
                 <div key={t.id} className="lgw-turn lgw-turn--you">
                   <span className="lgw-turn__who">You</span>
@@ -655,22 +684,6 @@ export default function LlmGatewayPage() {
                   stops there, the provider never saw it) rather than only the plain
                   "Refused by" row above — the chips are the thing a demo audience
                   actually reads. */}
-              {decision.tone === 'ok' || decision.layer === 'Privilege' ? (
-                <div className="lgw-path-row">
-                  <dt>Path</dt>
-                  <dd>
-                    {/* Was a read-only chip chain. Same story, but each hop now
-                        opens its own evidence — the questions a demo audience
-                        asks next ("what did Privilege check?", "did the model
-                        see it?") are answered by clicking rather than out loud. */}
-                    <LlmGatewayReel
-                      decision={decision}
-                      providerTitle={TITLES[decision.provider] || decision.provider}
-                      isLocalLane={Boolean((lanes.find((l) => l.provider === decision.provider) || {}).isLocal)}
-                    />
-                  </dd>
-                </div>
-              ) : null}
               <div><dt>Lane</dt><dd>{decision.provider}</dd></div>
               {/* A model-allowlist denial refuses one specific model, so the row
                   that names it is the evidence for the verdict above. */}
