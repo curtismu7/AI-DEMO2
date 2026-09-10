@@ -31,7 +31,15 @@ const { PingOneProvisionService } = require('../services/pingoneProvisionService
 const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 const pingoneAdminSession = require('../services/pingoneAdminSession');
 
+const PUBLIC_APP_ORIGIN = () => String(
+  configStore.getEffective('PUBLIC_APP_URL') || process.env.PUBLIC_APP_URL || 'https://local.ping-devops.com:4000',
+).replace(/\/+$/, '');
+
 const APP_NAME = 'PingOne MCP Server';
+// PingOne's built-in MCP client. Not an application object in any environment —
+// it cannot be listed, edited or recreated, and it is the ONLY client whose
+// tokens the hosted MCP accepts. See resolveLoopbackClientConfig.
+const BUILTIN_MCP_CLIENT_ID = 'pingone-mcp-server';
 const CALLBACK_PATH = '/api/mcp/inspector/pingone-admin/callback';
 
 // Cached for the process lifetime — same find-or-create app, reused across logins.
@@ -94,42 +102,46 @@ function resolveWorkerConfig() {
 }
 
 /**
- * The ADMIN-environment OIDC client, when one is configured.
+ * How this door signs in: PingOne's OWN built-in client, over a loopback
+ * callback.
  *
- * PingOne serves the admin-plane MCP from the organisation's ADMINISTRATORS
- * environment, and that endpoint's authorization server is that environment's
- * — not the resource environment's. Authenticating in the resource env produced
- * a valid token from the wrong issuer, which is the 401 this door has always
- * shown (REGRESSION_PLAN 2026-09-09).
+ * THE MEASURED RULE (2026-09-10): the hosted MCP accepts a token only when it
+ * was minted for `pingone-mcp-server`, PingOne's built-in client. Two tokens
+ * identical in aud, scope, sub, env, org, iss and acr — differing only in
+ * client_id — behave differently: an app we register 401s, the built-in one
+ * returns 78 tools. Roles are not the lever (a 141-role org admin is refused
+ * the same way), nor scopes, nor audience, nor app type.
  *
- * Deliberately NOT find-or-create: ensureApp() needs a worker credential in the
- * environment it provisions into, and we hold none in the admin env. PingOne's
- * own built-in `pingone-mcp-server` client cannot stand in either — it is an
- * `adminui` client, loopback-redirect-only, so a server-side HTTPS callback is
- * refused with "Redirect URI mismatch", and it is system-owned so its allowlist
- * cannot be edited. Hence a configured, operator-registered app.
+ * That client's redirect allowlist is loopback-only, which is the entire reason
+ * for the callback listener: an HTTPS callback on the app's own origin is
+ * refused with "Redirect URI mismatch", and the client is system-owned so the
+ * allowlist cannot be edited. A published container port satisfies it instead.
  *
- * Returns null when unconfigured, so the pre-existing resource-env path stays
- * exactly as it was for anyone whose admin env IS their resource env.
+ * The environment is the ordinary PINGONE_ENVIRONMENT_ID — the endpoint's
+ * environment must match the issuing one, and both are simply the environment
+ * being administered. An earlier revision routed this through a separate
+ * "admin environment"; that was wrong, and its config surface
+ * (PINGONE_MCP_ENVIRONMENT_ID, a client secret, a client_secret_basic/post
+ * switch) is gone with it — the built-in client is public and takes no secret.
  */
-function resolveAdminClientConfig() {
+function resolveLoopbackClientConfig() {
   const region = process.env.PINGONE_REGION || configStore.getEffective('PINGONE_REGION') || 'com';
-  const envId = process.env.PINGONE_MCP_ENVIRONMENT_ID || configStore.getEffective('PINGONE_MCP_ENVIRONMENT_ID');
-  const clientId = process.env.PINGONE_MCP_ADMIN_CLIENT_ID || configStore.getEffective('PINGONE_MCP_ADMIN_CLIENT_ID');
-  const clientSecret = process.env.PINGONE_MCP_ADMIN_CLIENT_SECRET || configStore.getEffective('PINGONE_MCP_ADMIN_CLIENT_SECRET');
-  if (!envId || !clientId) return null;
+  const envId = process.env.PINGONE_ENVIRONMENT_ID || configStore.getEffective('PINGONE_ENVIRONMENT_ID');
+  const port = process.env.PINGONE_MCP_ADMIN_LOOPBACK_PORT
+    || configStore.getEffective('PINGONE_MCP_ADMIN_LOOPBACK_PORT');
+  if (!envId || !port) return null;
+  const clientId = process.env.PINGONE_MCP_ADMIN_CLIENT_ID
+    || configStore.getEffective('PINGONE_MCP_ADMIN_CLIENT_ID')
+    || BUILTIN_MCP_CLIENT_ID;
   const as = `https://auth.pingone.${region}/${envId}/as`;
-  const authMethod = String(
-    process.env.PINGONE_MCP_ADMIN_CLIENT_AUTH
-    || configStore.getEffective('PINGONE_MCP_ADMIN_CLIENT_AUTH')
-    || 'basic',
-  ).toLowerCase();
   return {
     region,
     envId,
     clientId,
-    clientSecret: clientSecret || null,
-    authMethod,
+    port: Number(port),
+    // `localhost`, not 127.0.0.1: this exact string is what the built-in client
+    // allowlists, and PingOne matches redirect URIs character for character.
+    redirectUri: `http://localhost:${port}/callback`,
     authorizationEndpoint: `${as}/authorize`,
     tokenEndpoint: `${as}/token`,
   };
@@ -222,41 +234,39 @@ router.get('/login', requireSignedInSession, async (req, res) => {
     // by PingOne entirely (same entry), so it earns nothing and adds a leg that
     // has to be enabled on the app.
     //
-    // login_hint pre-fills the admin environment's sign-on. It is the SIGNED-IN
-    // username by default, which is the demo user — the identity this door is
-    // driven as. An earlier revision omitted it on the reasoning that the
-    // signed-in username belongs to the resource environment and might not exist
-    // in the admin one; that is a real risk but it is the operator's call, not a
-    // reason to make them retype it every time.
-    //
-    // PINGONE_MCP_ADMIN_LOGIN_HINT overrides it for the case that reasoning was
-    // about: an admin environment whose identity differs from the app session's.
-    // Set it empty to send no hint at all.
-    const admin = resolveAdminClientConfig();
-    if (admin) {
-      req.session.pingoneMcpAdminOAuth = { state, codeVerifier, redirectUri, returnTo, adminEnvId: admin.envId };
+    // login_hint pre-fills the sign-on with the signed-in username. Same
+    // environment as the app session, so the demo user is a valid hint here.
+    // PINGONE_MCP_ADMIN_LOGIN_HINT overrides it; set it empty to send none.
+    const configuredHint = process.env.PINGONE_MCP_ADMIN_LOGIN_HINT
+      ?? configStore.getEffective('PINGONE_MCP_ADMIN_LOGIN_HINT');
+    const loginHint = configuredHint ?? req.session.user.username;
+
+    // Loopback sign-in with PingOne's built-in client — the only shape the
+    // hosted MCP accepts. No PAR (it existed to bind `resource`, which PingOne
+    // ignores) and no client secret (the built-in client is public).
+    const loopback = resolveLoopbackClientConfig();
+    if (loopback) {
       const params = new URLSearchParams({
         response_type: 'code',
-        client_id: admin.clientId,
-        redirect_uri: redirectUri,
+        client_id: loopback.clientId,
+        redirect_uri: loopback.redirectUri,
         scope: 'openid',
         state,
         code_challenge: codeChallenge,
         code_challenge_method: 'S256',
       });
-      // Configured empty means "send none" — distinguishable from unset, which
-      // falls back to the signed-in username.
-      const configuredHint = process.env.PINGONE_MCP_ADMIN_LOGIN_HINT
-        ?? configStore.getEffective('PINGONE_MCP_ADMIN_LOGIN_HINT');
-      const loginHint = configuredHint ?? req.session.user.username;
       if (loginHint) params.set('login_hint', loginHint);
-      return req.session.save((err) => {
-        if (err) {
-          console.error('[mcpPingOneAdminAuth] session save error:', err.message);
-          return res.status(500).json({ error: 'login_init_failed', message: err.message });
-        }
-        return res.redirect(`${admin.authorizationEndpoint}?${params.toString()}`);
+      // Keyed by state, not by session: the callback lands on localhost:<port>,
+      // a different host from the one the session cookie is scoped to, so it
+      // arrives with no cookie and cannot look the session up.
+      rememberLoopbackPending(state, {
+        codeVerifier,
+        redirectUri: loopback.redirectUri,
+        clientId: loopback.clientId,
+        tokenEndpoint: loopback.tokenEndpoint,
+        returnTo,
       });
+      return res.redirect(`${loopback.authorizationEndpoint}?${params.toString()}`);
     }
 
     const app = await ensureApp(req);
@@ -343,56 +353,29 @@ router.get('/callback', async (req, res) => {
   if (!code) return failAndRedirect('missing_code');
 
   try {
-    // Exchange where the code was issued. pending.adminEnvId is set only by the
-    // admin-client branch of /login, so a code minted in the resource env can
-    // never be redeemed against the admin env's token endpoint or vice versa,
-    // even if the configuration changes between the two legs.
-    const admin = pending.adminEnvId ? resolveAdminClientConfig() : null;
-    if (pending.adminEnvId && !admin) {
-      return failAndRedirect('admin client configuration disappeared mid-flow — sign in again');
-    }
-
-    let tokenEndpoint;
-    const tokenHeaders = { 'Content-Type': 'application/x-www-form-urlencoded' };
+    // The legacy cookie-callback path, for a deployment with no loopback port
+    // configured. It cannot reach the hosted MCP — that needs PingOne's built-in
+    // client, which only redirects to loopback — but it is left intact rather
+    // than deleted so an operator who has not opened a port still gets a token
+    // and a clear 401 explaining why, instead of a broken route.
+    const app = await ensureApp(req);
+    const tokenEndpoint = getTokenEndpoint();
     const body = new URLSearchParams({
       grant_type: 'authorization_code',
       code,
       redirect_uri: pending.redirectUri,
       code_verifier: pending.codeVerifier,
+      client_id: app.clientId,
+      // Kept for parity with this path's PAR push, which pins it. NOTE: it is
+      // inert — PingOne ignores RFC 8707 `resource` here, measured repeatedly:
+      // the token comes back `aud: https://api.pingone.com` with or without it.
+      // Left in place only because this legacy path is vestigial and not worth
+      // a behaviour change; the working path (loopback) sends none.
+      resource: `https://mcp.pingone.${app.region}/admin/${app.environmentId}/mcp`,
     });
 
-    if (admin) {
-      tokenEndpoint = admin.tokenEndpoint;
-      body.set('client_id', admin.clientId);
-      // client_secret_BASIC, not post. Measured against the live admin-env app:
-      // the secret in the POST body is refused with
-      // `401 invalid_client — Unsupported authentication method`, while the same
-      // credential in an Authorization: Basic header is accepted (it then fails
-      // only on grant type, which is a different, later check). Basic is also
-      // the OAuth 2.0 default for a confidential client.
-      //
-      // PINGONE_MCP_ADMIN_CLIENT_AUTH=post exists because this repo registers
-      // apps both ways and the wrong choice fails with that same opaque string,
-      // which is expensive to diagnose from the outside.
-      if (admin.clientSecret) {
-        if (admin.authMethod === 'post') {
-          body.set('client_secret', admin.clientSecret);
-        } else {
-          tokenHeaders.Authorization = `Basic ${Buffer.from(`${admin.clientId}:${admin.clientSecret}`).toString('base64')}`;
-        }
-      }
-    } else {
-      const app = await ensureApp(req);
-      tokenEndpoint = getTokenEndpoint();
-      body.set('client_id', app.clientId);
-      // Same resource as the /login authorize call — mirrors the working
-      // reference (demo_mcp_gateway's OAuthBrokerRouter), which sets it on
-      // both legs, not just authorize.
-      body.set('resource', `https://mcp.pingone.${app.region}/admin/${app.environmentId}/mcp`);
-    }
-
     const resp = await axios.post(tokenEndpoint, body.toString(), {
-      headers: tokenHeaders,
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       timeout: 15000,
     });
     const expiresInMs = (resp.data.expires_in || 3600) * 1000;
@@ -426,6 +409,94 @@ router.get('/callback', async (req, res) => {
   }
 });
 
+/**
+ * Loopback OAuth state, keyed by the `state` parameter.
+ *
+ * The loopback callback arrives on http://localhost:<port>/callback — a
+ * DIFFERENT host from the one the session cookie is scoped to — so that request
+ * carries no cookie and cannot find the browser's session. `state` is the
+ * correlation handle instead: 128 bits of crypto randomness, single-use
+ * (deleted on redemption), and expiring, which is the same job it does in the
+ * cookie flow.
+ *
+ * In-process and deliberately not persisted: an entry is only meaningful
+ * between a /login and its callback, and a restart in that window should fail
+ * the sign-in rather than resurrect a half-finished one.
+ */
+const loopbackPending = new Map();
+const LOOPBACK_PENDING_TTL_MS = 10 * 60 * 1000;
+
+function rememberLoopbackPending(state, entry) {
+  // Swept on write — no timer to leak, and the map only ever holds sign-ins
+  // started in the last ten minutes.
+  const now = Date.now();
+  for (const [k, v] of loopbackPending) if (v.expiresAt <= now) loopbackPending.delete(k);
+  loopbackPending.set(state, { ...entry, expiresAt: now + LOOPBACK_PENDING_TTL_MS });
+}
+
+/**
+ * The loopback listener's ONLY route. server.js binds it to its own plain-HTTP
+ * port serving nothing else — the same discipline as the façade listener, which
+ * deliberately never exposes the session app.
+ *
+ * Publishes the token to the shared admin-session store, which is where the
+ * pingone-admin door already reads it from (mcpFacade.js ->
+ * pingoneAdminSession.getAccessToken), then sends the browser back to the
+ * public origin so the user lands on the page they started from rather than on
+ * a dead localhost tab.
+ */
+async function handleLoopbackCallback(req, res) {
+  const url = new URL(req.url, 'http://localhost');
+  const code = url.searchParams.get('code');
+  const state = url.searchParams.get('state');
+  const oauthError = url.searchParams.get('error');
+
+  const pending = state ? loopbackPending.get(state) : null;
+  // Single-use: redeemed or not, this state is spent.
+  if (state) loopbackPending.delete(state);
+
+  const backTo = (qs) => {
+    const base = `${PUBLIC_APP_ORIGIN()}${pending?.returnTo || '/pingone-mcp-inspector'}`;
+    res.writeHead(302, { Location: `${base}?${qs}` });
+    res.end();
+  };
+
+  if (oauthError) return backTo(`pingone_admin_login=error&reason=${encodeURIComponent(oauthError)}`);
+  // An unknown state must not redirect anywhere useful: it is expired,
+  // replayed, or forged.
+  if (!pending) {
+    res.writeHead(400, { 'Content-Type': 'text/plain' });
+    return res.end('Unknown or expired sign-in. Start again from the app.');
+  }
+  if (!code) return backTo('pingone_admin_login=error&reason=missing_code');
+
+  try {
+    const body = new URLSearchParams({
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: pending.redirectUri,
+      client_id: pending.clientId,
+      code_verifier: pending.codeVerifier,
+    });
+    const resp = await axios.post(pending.tokenEndpoint, body.toString(), {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      timeout: 15000,
+    });
+    const expiresInMs = (resp.data.expires_in || 3600) * 1000;
+    pingoneAdminSession.remember({
+      accessToken: resp.data.access_token,
+      expiresAt: Date.now() + expiresInMs,
+    });
+    return backTo('pingone_admin_login=success');
+  } catch (err) {
+    const n = normalizeAxiosError(err, { label: 'PingOne token request (loopback)' });
+    console.error('[mcpPingOneAdminAuth] loopback token exchange failed:', n.message);
+    return backTo(`pingone_admin_login=error&reason=${encodeURIComponent(n.message)}`);
+  }
+}
+
 module.exports = router;
+module.exports.handleLoopbackCallback = handleLoopbackCallback;
+module.exports.resolveLoopbackClientConfig = resolveLoopbackClientConfig;
 // Test-only exports (pure helpers — no live PingOne calls).
 module.exports._test = { CALLBACK_PATH, callbackUrl, inspectorCallbackUrls };

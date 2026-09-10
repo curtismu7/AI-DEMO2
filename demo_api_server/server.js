@@ -3129,6 +3129,31 @@ if (require.main === module) {
             });
         }
 
+        // PingOne admin-MCP loopback callback, plain HTTP, loopback only
+        // (docker-compose maps 127.0.0.1:7474). PingOne's built-in
+        // `pingone-mcp-server` client is the ONLY one whose tokens the hosted
+        // MCP accepts, and its redirect allowlist is loopback-only — an HTTPS
+        // callback on our own origin is refused with "Redirect URI mismatch",
+        // and the client is system-owned so the allowlist cannot be edited.
+        // A published loopback port is what satisfies it.
+        //
+        // Serves exactly ONE route and never the session app — same discipline
+        // as the façade listener above. It needs no session: the callback
+        // correlates by `state` (see mcpPingOneAdminAuth's loopbackPending).
+        if (process.env.PINGONE_MCP_ADMIN_LOOPBACK_PORT) {
+            const { handleLoopbackCallback } = require('./routes/mcpPingOneAdminAuth');
+            const port = process.env.PINGONE_MCP_ADMIN_LOOPBACK_PORT;
+            require('http').createServer((req, res) => {
+                if (!req.url.startsWith('/callback')) {
+                    res.writeHead(404, { 'Content-Type': 'text/plain' });
+                    return res.end('Not found');
+                }
+                return handleLoopbackCallback(req, res);
+            }).listen(port, () => {
+                console.log(`PingOne admin MCP loopback callback on http://localhost:${port}/callback`);
+            });
+        }
+
         let server;
         if (fs.existsSync(certFile) && fs.existsSync(keyFile)) {
             // Single source of truth for the scheme the server actually bound — read by
