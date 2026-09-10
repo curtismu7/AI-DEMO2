@@ -127,6 +127,34 @@ apply_patched() {
   echo "$content" | kubectl apply -f - -n "$NS"
 }
 
+# The seed Job's own "Complete" status is ephemeral (ttlSecondsAfterFinished:
+# 86400 in 54-seed-llm-models.yaml, or a plain delete before a re-apply) while
+# the model files it wrote to the RWO PVCs are not — so on a long-lived,
+# already-serving cluster that status check goes stale and this script
+# re-attempts a seed that Multi-Attaches against whichever tier/embeddings pod
+# already holds the volume (measured on the SE cluster 2026-09-08 and again
+# 2026-09-10, both a 45-minute wait ending in DeadlineExceeded). Checking the
+# files directly, through whichever serving pod already holds the mount, needs
+# no new volume attach and so cannot itself hit Multi-Attach.
+models_seeded_on_disk() {
+  local pod label llm_ok=0 embed_ok=0
+  for label in component=llama-tier1 component=llama-tier5; do
+    pod="$(kubectl get pods -n "$NS" -l "$label" --field-selector=status.phase=Running -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)"
+    [ -n "$pod" ] || continue
+    if kubectl exec -n "$NS" "$pod" -- sh -c \
+        'test -f /models/gpt-oss-20b-MXFP4.gguf && test -f /models/microsoft_Phi-4-mini-instruct-Q4_K_M.gguf' \
+        2>/dev/null; then
+      llm_ok=1
+      break
+    fi
+  done
+  pod="$(kubectl get pods -n "$NS" -l component=embeddings --field-selector=status.phase=Running -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)"
+  if [ -n "$pod" ] && kubectl exec -n "$NS" "$pod" -- test -f /models/nomic-embed-text-v1.5.Q8_0.gguf 2>/dev/null; then
+    embed_ok=1
+  fi
+  [ "$llm_ok" = 1 ] && [ "$embed_ok" = 1 ]
+}
+
 if [[ -n "$EKS_CLUSTER_NAME" ]]; then
   info "Updating kubeconfig for EKS cluster: $EKS_CLUSTER_NAME"
   aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$AWS_REGION"
@@ -251,6 +279,8 @@ apply_patched "$K8S_DIR/31-mcp-server-oauth-state-pvc.yaml"
 # that does not exist yet, or previously Failed, still runs exactly as before.
 if [[ "$(kubectl get job seed-llm-models -n "$NS" -o jsonpath='{.status.conditions[?(@.type=="Complete")].status}' 2>/dev/null)" == "True" ]]; then
   info "seed-llm-models already Complete — models on disk, skipping re-seed."
+elif models_seeded_on_disk; then
+  info "Model files already on disk (confirmed via the running tier/embeddings pods) — skipping re-seed."
 else
   kubectl delete job seed-llm-models -n "$NS" --ignore-not-found >/dev/null 2>&1 || true
   apply_patched "$K8S_DIR/54-seed-llm-models.yaml"
