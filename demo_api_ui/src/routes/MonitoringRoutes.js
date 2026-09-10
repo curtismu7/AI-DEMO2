@@ -15,6 +15,7 @@ import { SystemFlowMapView } from "../components/SystemFlowMap";
 import TokenExchangeDashboard from "../components/TokenExchangeDashboard";
 import WebMcpPanel from "../components/WebMcpPanel";
 import AgentFlowHistoryPage from "../pages/AgentFlowHistoryPage";
+import LoginFlowDiagramPage from "../pages/LoginFlowDiagramPage";
 
 // Passed as prop to avoid circular dependency — AgentFlowPage is defined in App.js
 export default function MonitoringRoutes({ user, logout, AgentFlowPage }) {
@@ -108,6 +109,13 @@ export function AgentFlowInspectorRoute() {
   // History view — UnifiedTokenFlowInspector (live execution) stays reachable
   // as a floating overlay via DevToolsRoute; this page reviews past runs.
   return <AgentFlowHistoryPage />;
+}
+
+export function LoginFlowRoute() {
+  // Public per auth-requirements.json ("/login-flow": "public") — no secrets in
+  // the recorded steps (titles/protocol-field names only, no token values).
+  // Same shell note as AgentFlowInspectorRoute above — no nested AppShell.
+  return <LoginFlowDiagramPage />;
 }
 
 // Public — no session required. Wrapped in AppShell so the header and side nav

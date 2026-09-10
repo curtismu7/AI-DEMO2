@@ -553,6 +553,11 @@ export default function AdminSideNav({
           icon: "flw",
         },
         {
+          label: "Login Flow Diagram",
+          path: "/login-flow",
+          icon: "flw",
+        },
+        {
           // Public on purpose (auth-requirements.json) — no adminOnly here.
           label: "Autonomous Agents",
           path: "/autonomous-agents",

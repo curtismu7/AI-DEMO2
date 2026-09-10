@@ -46,6 +46,19 @@ export function useOAuthUrlCleanup() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot on mount only
   }, []);
 
+  // Login flow diagram: strip ?login_trace= param once consumed by App.js.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search || "");
+    if (!params.has("login_trace")) return;
+    params.delete("login_trace");
+    const newSearch = params.toString();
+    const newUrl =
+      window.location.pathname + (newSearch ? `?${newSearch}` : "");
+    window.history.replaceState(null, "", newUrl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot on mount only
+  }, []);
+
   // Silent reauth failure: strip ?silent_reauth_failed= param (no error toast needed —
   // the param is simply cleared). Must run independently of the error-toast
   // check above which only fires when ?error= is also present.

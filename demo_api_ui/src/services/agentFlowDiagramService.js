@@ -592,6 +592,33 @@ export const agentFlowDiagram = {
     emit();
   },
 
+  /**
+   * Render the completed login sequence recorded by the BFF (see
+   * loginFlowTraceService.js) — the browser was away at PingOne for the
+   * middle of it, so this replaces the live step-by-step model with the
+   * finished result the moment the SPA lands back signed in. Does NOT open
+   * the panel — same convention as startMcpToolCall: the panel only opens
+   * on explicit user action (the Quick Config toggle).
+   * @param {Array<{title: string, detail?: string, actor?: string, toActor?: string, protocolDetail?: [string, string][]}>} steps
+   */
+  showLoginFlow(steps) {
+    state.hint = null;
+    state.phase = 'done';
+    state.toolName = 'login';
+    state.serverEvents = [];
+    state.steps = (steps || []).map((s, i) => ({
+      id: `login-${i}`,
+      title: s.title,
+      detail: s.detail || '',
+      status: 'done',
+      actor: s.actor || null,
+      toActor: s.toActor || null,
+      protocolDetail: s.protocolDetail || null,
+    }));
+    state.updatedAt = Date.now();
+    emit();
+  },
+
   /** Force-complete all 12 compliance steps for demo/testing purposes. */
   forceCompleteAllSteps() {
     state.complianceSteps.forEach(step => {

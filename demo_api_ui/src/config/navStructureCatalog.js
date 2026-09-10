@@ -44,6 +44,7 @@ export const NAV_STRUCTURE_CATALOG = [
       "Agent Registry",
       "PingOne Agent Builder",
       "Agent & Token Flow History",
+      "Login Flow Diagram",
       "Autonomous Agents",
       "Personal Agent",
       "Agent Lifecycle (guided demo)",

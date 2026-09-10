@@ -20,6 +20,13 @@
     sans-serif;
 }
 
+.afd-panel--maximized {
+  left: 5vw;
+  top: 5vh;
+  width: 90vw;
+  height: 90vh;
+}
+
 .afd-header {
   display: flex;
   align-items: center;
@@ -33,6 +40,10 @@
 
 .afd-header:active {
   cursor: grabbing;
+}
+
+.afd-panel--maximized .afd-header {
+  cursor: default;
 }
 
 .afd-header-icon {
@@ -255,6 +266,166 @@
 .afd-badge--error {
   background: #fee2e2;
   color: #991b1b;
+}
+
+/* ─── Sequence diagram (login-style flows only — steps carry actor/toActor) ───
+   Lifelines run down one column per actor; each step draws either a
+   cross-lane arrow or, for an internal step (no toActor), a small self-loop
+   next to its own lifeline. Rows after the scrubbed-to step dim, so the
+   diagram fades in as the replay control walks through it. */
+.afd-sequence {
+  margin: 0 0 0.6rem;
+}
+
+.afd-sequence-headers {
+  display: grid;
+  gap: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+
+.afd-sequence-header {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--th-text-muted);
+  text-align: center;
+}
+
+.afd-sequence-body {
+  position: relative;
+}
+
+.afd-sequence-svg {
+  display: block;
+}
+
+.afd-sequence-lifeline {
+  stroke: var(--th-border-strong);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.afd-sequence-row {
+  cursor: pointer;
+}
+
+.afd-sequence-row:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.afd-sequence-line {
+  stroke: var(--th-text-muted);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.afd-sequence-row--active .afd-sequence-line {
+  stroke: #2563eb;
+}
+
+.afd-sequence-row--dimmed {
+  opacity: 0.35;
+}
+
+/* Joint dots — HTML overlay, not SVG (see the render comment for why): each
+   is a small fixed-size circle so it stays round regardless of the panel's
+   width, positioned to land exactly on the SVG line ends beneath it. */
+.afd-sequence-dots {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.afd-sequence-dot {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-pill);
+  background: var(--th-bg-card);
+  color: var(--th-text-muted);
+  border: 1.5px solid var(--th-text-muted);
+  transform: translate(-50%, -50%);
+}
+
+.afd-sequence-dot--active {
+  border-color: #2563eb;
+}
+
+.afd-sequence-dot--dimmed {
+  opacity: 0.35;
+}
+
+.afd-step--focused .afd-step-card {
+  border-color: #93c5fd;
+}
+
+/* ─── Per-step protocol detail (login-flow steps only) ─── */
+.afd-step-protocol {
+  margin-top: 0.35rem;
+}
+
+.afd-step-protocol-list {
+  margin: 0.35rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.afd-step-protocol-row {
+  display: flex;
+  gap: 0.4rem;
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+
+.afd-step-protocol-row dt {
+  margin: 0;
+  font-weight: 700;
+  color: var(--th-text-muted);
+  flex-shrink: 0;
+}
+
+.afd-step-protocol-row dd {
+  margin: 0;
+  color: var(--th-text-faint);
+  word-break: break-word;
+}
+
+/* ─── Replay scrubber (completed flows with more than one step) ─── */
+.afd-replay {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--th-border);
+}
+
+.afd-replay-btn {
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-card);
+  color: var(--th-text-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+}
+
+.afd-replay-btn:hover {
+  background: var(--brand-light-gray);
+}
+
+.afd-replay-range {
+  flex: 1;
+  min-width: 0;
+}
+
+.afd-replay-count {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--th-text-muted);
+  white-space: nowrap;
 }
 
 /* ─── 8-direction resize handles ──────────────────────────────── */

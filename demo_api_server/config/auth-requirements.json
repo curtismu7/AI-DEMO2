@@ -180,6 +180,7 @@
     "/llm-gateway": "user",
     "/llm-test": "user",
     "/login": "public",
+    "/login-flow": "public",
     "/logout": "public",
     "/logs": "public",
     "/m2m-sample": "public",

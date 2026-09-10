@@ -803,6 +803,13 @@ export default function BankingAgent({
   /** MCP auth mode from oauth status — consumer vs enterprise-managed. */
   const [mcpAuthMode, setMcpAuthMode] = useState("consumer");
   const [txErrorModal, setTxErrorModal] = useState(null); // { title, message } or null
+  const [agentFlowPanelOpen, setAgentFlowPanelOpen] = useState(() => {
+    try {
+      return agentFlowDiagram.getState().visible;
+    } catch {
+      return false;
+    }
+  });
   const [complianceStripState, setComplianceStripState] = useState(() => {
     try {
       const s = agentFlowDiagram.getState();
@@ -1315,6 +1322,7 @@ export default function BankingAgent({
 
   useEffect(() => {
     return agentFlowDiagram.subscribe((state) => {
+      setAgentFlowPanelOpen(state.visible);
       setComplianceStripState({
         complianceStep: state.complianceStep || null,
         complianceSteps: state.complianceSteps || [],
@@ -9618,6 +9626,19 @@ export default function BankingAgent({
                         title="Show or hide RFC token-event messages in the chat"
                       >
                         RFC info
+                      </Check>
+                      {/* Agent request flow panel — MCP tool calls live, login sequence once you land back signed in */}
+                      <Check
+                        variant="switch"
+                        className="ba-header-toggle-label"
+                        checked={agentFlowPanelOpen}
+                        onChange={(e) => {
+                          if (e.target.checked) agentFlowDiagram.open();
+                          else agentFlowDiagram.close();
+                        }}
+                        title="Show or hide the agent request flow diagram (MCP tool calls, login sequence)"
+                      >
+                        Agent flow diagram
                       </Check>
                       {/* Dark mode switch — drives data-theme on the document root, which the
                           dark-capable panels (Token Chain rail) key off. */}

@@ -8,7 +8,16 @@ import { useEducationUIOptional } from '../context/EducationUIContext';
 import { useTokenChainOptional } from '../context/TokenChainContext';
 import TokenExchangeFlowDiagram from './TokenExchangeFlowDiagram';
 import JsonHighlight from './shared/JsonHighlight';
+import { buildSequenceLayout, nextPlayIndex } from '../utils/stepReplay';
 import './AgentFlowDiagramPanel.css';
+
+const REPLAY_TICK_MS = 900;
+const SEQ_ROW_H = 34;
+const SEQ_TOP_PAD = 12;
+const ACTOR_LABELS = { browser: 'Browser', bff: 'BFF', pingone: 'PingOne' };
+function actorLabel(actor) {
+  return ACTOR_LABELS[actor] || actor.charAt(0).toUpperCase() + actor.slice(1);
+}
 
 function statusBadge(status) {
   const labels = { pending: 'Waiting', active: 'In progress', done: 'Done', error: 'Issue' };
@@ -124,6 +133,205 @@ export function TokenEventCard({ event, resolvedIdentity }) {
   );
 }
 
+/**
+ * Step rail for AgentFlowDiagramPanel: an actor swimlane (only when steps
+ * carry actor/toActor — the login flow does, live MCP-call steps don't), the
+ * step cards with an optional protocol-detail toggle, and a play/pause/scrub
+ * replay control once a completed flow has more than one step to walk
+ * through (hidden while a flow is still live — there's nothing to replay yet).
+ */
+export function StepTimeline({ steps, phase }) {
+  const [focusIndex, setFocusIndex] = useState(null);
+  const [playing, setPlaying] = useState(false);
+  const [expanded, setExpanded] = useState(() => new Set());
+  const stepsKey = steps.map((s) => s.id).join('|');
+
+  useEffect(() => {
+    setFocusIndex(null);
+    setPlaying(false);
+  }, [stepsKey]);
+
+  useEffect(() => {
+    if (!playing) return undefined;
+    const id = setInterval(() => {
+      setFocusIndex((current) => {
+        const { index, done } = nextPlayIndex(current ?? 0, steps.length);
+        if (done) setPlaying(false);
+        return index;
+      });
+    }, REPLAY_TICK_MS);
+    return () => clearInterval(id);
+  }, [playing, steps.length]);
+
+  const showScrubber = steps.length > 1 && phase !== 'running';
+  const activeIndex = focusIndex ?? 0;
+  const { lane, rows: sequenceRows } = buildSequenceLayout(steps, activeIndex);
+
+  function toggleDetail(id) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function togglePlay() {
+    if (playing) { setPlaying(false); return; }
+    setFocusIndex((current) => (current === null || current >= steps.length - 1 ? 0 : current));
+    setPlaying(true);
+  }
+
+  const seqHeight = sequenceRows.length * SEQ_ROW_H + SEQ_TOP_PAD * 2;
+  const laneX = (idx) => ((idx + 0.5) / lane.length) * 100;
+
+  return (
+    <div className="afd-flow" aria-live="polite">
+      {lane.length > 0 && (
+        <div className="afd-sequence">
+          <div className="afd-sequence-headers" style={{ gridTemplateColumns: `repeat(${lane.length}, 1fr)` }}>
+            {lane.map((actor) => (
+              <div key={actor} className="afd-sequence-header">{actorLabel(actor)}</div>
+            ))}
+          </div>
+          <div className="afd-sequence-body">
+            <svg
+              className="afd-sequence-svg"
+              width="100%"
+              height={seqHeight}
+              viewBox={`0 0 100 ${seqHeight}`}
+              preserveAspectRatio="none"
+              role="img"
+              aria-label="Sequence diagram"
+            >
+              {lane.map((actor, i) => (
+                <line
+                  key={actor}
+                  className="afd-sequence-lifeline"
+                  x1={laneX(i)} y1={0}
+                  x2={laneX(i)} y2={seqHeight}
+                />
+              ))}
+              {sequenceRows.map((row) => {
+                if (row.fromIdx == null) return null;
+                const step = steps[row.index];
+                const y = SEQ_TOP_PAD + row.index * SEQ_ROW_H + SEQ_ROW_H / 2;
+                const cls = `afd-sequence-row${row.highlighted ? ' afd-sequence-row--active' : ''}${row.dimmed ? ' afd-sequence-row--dimmed' : ''}`;
+                const x1 = laneX(row.fromIdx);
+                const commonProps = {
+                  role: 'button',
+                  tabIndex: 0,
+                  'aria-label': step.title || `Step ${row.index + 1}`,
+                  onClick: () => setFocusIndex(row.index),
+                  onKeyDown: (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFocusIndex(row.index); }
+                  },
+                };
+                if (row.isSelf) {
+                  return (
+                    <g key={row.index} className={cls} {...commonProps}>
+                      <path className="afd-sequence-line" d={`M${x1},${y - 5} h6 v10 h-6`} fill="none" />
+                    </g>
+                  );
+                }
+                const x2 = laneX(row.toIdx);
+                return (
+                  <g key={row.index} className={cls} {...commonProps}>
+                    <line className="afd-sequence-line" x1={x1} y1={y} x2={x2} y2={y} />
+                  </g>
+                );
+              })}
+            </svg>
+            {/* Joint dots as HTML, not SVG — a plain <circle> would render as an
+                ellipse under this diagram's non-uniform stretch (x in %, y in
+                real px). Purely decorative; the clickable target is the <g>
+                above, so this stays out of the tab order and off the a11y tree. */}
+            <div className="afd-sequence-dots" aria-hidden="true">
+              {sequenceRows.map((row) => {
+                if (row.fromIdx == null) return null;
+                const y = SEQ_TOP_PAD + row.index * SEQ_ROW_H + SEQ_ROW_H / 2;
+                const dotCls = `afd-sequence-dot${row.highlighted ? ' afd-sequence-dot--active' : ''}${row.dimmed ? ' afd-sequence-dot--dimmed' : ''}`;
+                const x1 = laneX(row.fromIdx);
+                if (row.isSelf) {
+                  return (
+                    <React.Fragment key={row.index}>
+                      <span className={dotCls} style={{ left: `${x1}%`, top: y - 5 }} />
+                      <span className={dotCls} style={{ left: `${x1}%`, top: y + 5 }} />
+                    </React.Fragment>
+                  );
+                }
+                const x2 = laneX(row.toIdx);
+                return (
+                  <React.Fragment key={row.index}>
+                    <span className={dotCls} style={{ left: `${x1}%`, top: y }} />
+                    <span className={dotCls} style={{ left: `${x2}%`, top: y }} />
+                  </React.Fragment>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {steps.map((step, i) => {
+        const detailId = step.id || i;
+        return (
+          <div
+            key={detailId}
+            className={`afd-step afd-step--${step.status}${i === activeIndex ? ' afd-step--focused' : ''}`}
+          >
+            <div className="afd-step-rail" aria-hidden>
+              <span className="afd-step-dot" />
+              {i < steps.length - 1 && <span className="afd-step-line" />}
+            </div>
+            <div className="afd-step-card">
+              <h3 className="afd-step-title">{step.title}</h3>
+              <p className="afd-step-detail">{step.detail}</p>
+              {statusBadge(step.status)}
+              {step.protocolDetail && (
+                <div className="afd-step-protocol">
+                  <button type="button" className="afd-token-toggle" onClick={() => toggleDetail(detailId)}>
+                    {expanded.has(detailId) ? 'Hide protocol detail' : 'Show protocol detail'}
+                  </button>
+                  {expanded.has(detailId) && (
+                    <dl className="afd-step-protocol-list">
+                      {step.protocolDetail.map(([k, v]) => (
+                        <div className="afd-step-protocol-row" key={k}>
+                          <dt>{k}</dt>
+                          <dd>{v}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+
+      {showScrubber && (
+        <div className="afd-replay">
+          <button type="button" className="afd-replay-btn" aria-label="Jump to start" onClick={() => setFocusIndex(0)}>|&laquo;</button>
+          <button type="button" className="afd-replay-btn" onClick={() => setFocusIndex((c) => Math.max(0, (c ?? 0) - 1))}>Prev</button>
+          <button type="button" className="afd-replay-btn" onClick={togglePlay}>{playing ? 'Pause' : 'Play'}</button>
+          <button type="button" className="afd-replay-btn" onClick={() => setFocusIndex((c) => Math.min(steps.length - 1, (c ?? 0) + 1))}>Next</button>
+          <button type="button" className="afd-replay-btn" aria-label="Jump to end" onClick={() => setFocusIndex(steps.length - 1)}>&raquo;|</button>
+          <input
+            type="range"
+            className="afd-replay-range"
+            min={0}
+            max={steps.length - 1}
+            value={activeIndex}
+            onChange={(e) => setFocusIndex(Number(e.target.value))}
+            aria-label="Step scrubber"
+          />
+          <span className="afd-replay-count">{activeIndex + 1} / {steps.length}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Token chain display — uses live events from TokenChainContext
 function TokenChainDisplay({ events, resolvedIdentity }) {
   if (!events || events.length === 0) return <p className="afd-tc-empty">No token events yet.</p>;
@@ -157,6 +365,11 @@ export default function AgentFlowDiagramPanel() {
   const [snap, setSnap] = useState(() => agentFlowDiagram.getState());
   const [showTokenChain, setShowTokenChain] = useState(false);
   const [showFlowDiagram, setShowFlowDiagram] = useState(false);
+  // Maximize is a separate on-top-of-the-hook flag, not a bigger drag size —
+  // useDraggablePanel is shared by other floating panels, so its pos/size stay
+  // exactly as the user left them underneath; maximizing only overrides the
+  // rendered style, and restoring returns to that saved pos/size untouched.
+  const [maximized, setMaximized] = useState(false);
   const { mode } = useExchangeMode();
   const edu = useEducationUIOptional();
   const tokenChainCtx = useTokenChainOptional();
@@ -213,8 +426,8 @@ export default function AgentFlowDiagramPanel() {
 
   const panel = (
     <div
-      className="afd-panel"
-      style={{
+      className={`afd-panel${maximized ? ' afd-panel--maximized' : ''}`}
+      style={maximized ? undefined : {
         position: 'fixed',
         left: pos.x,
         top: pos.y,
@@ -225,7 +438,7 @@ export default function AgentFlowDiagramPanel() {
       aria-modal="false"
       aria-labelledby="afd-title"
     >
-      <div className="afd-header" onPointerDown={handleDragStart}>
+      <div className="afd-header" onPointerDown={maximized ? undefined : handleDragStart}>
         <span className="afd-header-icon" aria-hidden>
           🔀
         </span>
@@ -234,8 +447,13 @@ export default function AgentFlowDiagramPanel() {
             Agent request flow
           </h2>
           <span className="afd-subtitle">
-            {phase === 'running' ? 'Live' : phase === 'done' ? 'Complete' : phase === 'error' ? 'Completed with errors' : 'Overview'}
-            {toolName ? ` · ${toolName}` : ''}
+            {/* Login's steps render on their own page (/login-flow), not here —
+                so this panel reads as a generic overview for that case rather
+                than advertising "login" content it no longer shows. */}
+            {toolName === 'login'
+              ? 'Overview'
+              : (phase === 'running' ? 'Live' : phase === 'done' ? 'Complete' : phase === 'error' ? 'Completed with errors' : 'Overview')}
+            {toolName && toolName !== 'login' ? ` · ${toolName}` : ''}
           </span>
           {/* Phase 266 R2: show credential path badge when a path is active */}
           {tokenChainCtx?.events?.length > 0 && (
@@ -256,6 +474,15 @@ export default function AgentFlowDiagramPanel() {
           )}
         </div>
         <div className="afd-header-actions">
+          <button
+            type="button"
+            className="afd-btn"
+            onClick={() => setMaximized(v => !v)}
+            title={maximized ? 'Restore' : 'Maximize'}
+            aria-label={maximized ? 'Restore panel size' : 'Maximize panel'}
+          >
+            {maximized ? '⤡' : '⤢'}
+          </button>
           <button
             type="button"
             className="afd-btn"
@@ -320,23 +547,9 @@ export default function AgentFlowDiagramPanel() {
           );
         })()}
         
-        {steps.length > 0 && (
-          <div className="afd-flow" aria-live="polite">
-            {steps.map((step, i) => (
-              <div key={step.id || i} className={`afd-step afd-step--${step.status}`}>
-                <div className="afd-step-rail" aria-hidden>
-                  <span className="afd-step-dot" />
-                  {i < steps.length - 1 && <span className="afd-step-line" />}
-                </div>
-                <div className="afd-step-card">
-                  <h3 className="afd-step-title">{step.title}</h3>
-                  <p className="afd-step-detail">{step.detail}</p>
-                  {statusBadge(step.status)}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        {/* Login's sequence diagram now lives on its own page (/login-flow) —
+            this panel goes back to just the live MCP tool-call steps. */}
+        {steps.length > 0 && toolName !== 'login' && <StepTimeline steps={steps} phase={phase} />}
         {serverEvents.length > 0 && (
           <div className="afd-sse-block" aria-live="polite">
             <h3 className="afd-sse-title">Live server phases (SSE)</h3>
@@ -353,15 +566,19 @@ export default function AgentFlowDiagramPanel() {
 
       </div>
 
-      {/* 8-direction resize handles */}
-      <div className="afd-rh afd-rh--n"   onMouseDown={createResizeHandler('n')}  aria-hidden />
-      <div className="afd-rh afd-rh--ne"  onMouseDown={createResizeHandler('ne')} aria-hidden />
-      <div className="afd-rh afd-rh--e"   onMouseDown={createResizeHandler('e')}  aria-hidden />
-      <div className="afd-rh afd-rh--se"  onMouseDown={createResizeHandler('se')} aria-label="Resize" title="Drag to resize" />
-      <div className="afd-rh afd-rh--s"   onMouseDown={createResizeHandler('s')}  aria-hidden />
-      <div className="afd-rh afd-rh--sw"  onMouseDown={createResizeHandler('sw')} aria-hidden />
-      <div className="afd-rh afd-rh--w"   onMouseDown={createResizeHandler('w')}  aria-hidden />
-      <div className="afd-rh afd-rh--nw"  onMouseDown={createResizeHandler('nw')} aria-hidden />
+      {/* 8-direction resize handles — meaningless at a fixed maximized size */}
+      {!maximized && (
+        <>
+          <div className="afd-rh afd-rh--n"   onMouseDown={createResizeHandler('n')}  aria-hidden />
+          <div className="afd-rh afd-rh--ne"  onMouseDown={createResizeHandler('ne')} aria-hidden />
+          <div className="afd-rh afd-rh--e"   onMouseDown={createResizeHandler('e')}  aria-hidden />
+          <div className="afd-rh afd-rh--se"  onMouseDown={createResizeHandler('se')} aria-label="Resize" title="Drag to resize" />
+          <div className="afd-rh afd-rh--s"   onMouseDown={createResizeHandler('s')}  aria-hidden />
+          <div className="afd-rh afd-rh--sw"  onMouseDown={createResizeHandler('sw')} aria-hidden />
+          <div className="afd-rh afd-rh--w"   onMouseDown={createResizeHandler('w')}  aria-hidden />
+          <div className="afd-rh afd-rh--nw"  onMouseDown={createResizeHandler('nw')} aria-hidden />
+        </>
+      )}
     </div>
   );
 
