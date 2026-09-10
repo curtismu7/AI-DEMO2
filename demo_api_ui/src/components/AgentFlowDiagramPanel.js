@@ -365,6 +365,11 @@ export default function AgentFlowDiagramPanel() {
   const [snap, setSnap] = useState(() => agentFlowDiagram.getState());
   const [showTokenChain, setShowTokenChain] = useState(false);
   const [showFlowDiagram, setShowFlowDiagram] = useState(false);
+  // Maximize is a separate on-top-of-the-hook flag, not a bigger drag size —
+  // useDraggablePanel is shared by other floating panels, so its pos/size stay
+  // exactly as the user left them underneath; maximizing only overrides the
+  // rendered style, and restoring returns to that saved pos/size untouched.
+  const [maximized, setMaximized] = useState(false);
   const { mode } = useExchangeMode();
   const edu = useEducationUIOptional();
   const tokenChainCtx = useTokenChainOptional();
@@ -421,8 +426,8 @@ export default function AgentFlowDiagramPanel() {
 
   const panel = (
     <div
-      className="afd-panel"
-      style={{
+      className={`afd-panel${maximized ? ' afd-panel--maximized' : ''}`}
+      style={maximized ? undefined : {
         position: 'fixed',
         left: pos.x,
         top: pos.y,
@@ -433,7 +438,7 @@ export default function AgentFlowDiagramPanel() {
       aria-modal="false"
       aria-labelledby="afd-title"
     >
-      <div className="afd-header" onPointerDown={handleDragStart}>
+      <div className="afd-header" onPointerDown={maximized ? undefined : handleDragStart}>
         <span className="afd-header-icon" aria-hidden>
           🔀
         </span>
@@ -442,8 +447,13 @@ export default function AgentFlowDiagramPanel() {
             Agent request flow
           </h2>
           <span className="afd-subtitle">
-            {phase === 'running' ? 'Live' : phase === 'done' ? 'Complete' : phase === 'error' ? 'Completed with errors' : 'Overview'}
-            {toolName ? ` · ${toolName}` : ''}
+            {/* Login's steps render on their own page (/login-flow), not here —
+                so this panel reads as a generic overview for that case rather
+                than advertising "login" content it no longer shows. */}
+            {toolName === 'login'
+              ? 'Overview'
+              : (phase === 'running' ? 'Live' : phase === 'done' ? 'Complete' : phase === 'error' ? 'Completed with errors' : 'Overview')}
+            {toolName && toolName !== 'login' ? ` · ${toolName}` : ''}
           </span>
           {/* Phase 266 R2: show credential path badge when a path is active */}
           {tokenChainCtx?.events?.length > 0 && (
@@ -464,6 +474,15 @@ export default function AgentFlowDiagramPanel() {
           )}
         </div>
         <div className="afd-header-actions">
+          <button
+            type="button"
+            className="afd-btn"
+            onClick={() => setMaximized(v => !v)}
+            title={maximized ? 'Restore' : 'Maximize'}
+            aria-label={maximized ? 'Restore panel size' : 'Maximize panel'}
+          >
+            {maximized ? '⤡' : '⤢'}
+          </button>
           <button
             type="button"
             className="afd-btn"
@@ -528,7 +547,9 @@ export default function AgentFlowDiagramPanel() {
           );
         })()}
         
-        {steps.length > 0 && <StepTimeline steps={steps} phase={phase} />}
+        {/* Login's sequence diagram now lives on its own page (/login-flow) —
+            this panel goes back to just the live MCP tool-call steps. */}
+        {steps.length > 0 && toolName !== 'login' && <StepTimeline steps={steps} phase={phase} />}
         {serverEvents.length > 0 && (
           <div className="afd-sse-block" aria-live="polite">
             <h3 className="afd-sse-title">Live server phases (SSE)</h3>
@@ -545,15 +566,19 @@ export default function AgentFlowDiagramPanel() {
 
       </div>
 
-      {/* 8-direction resize handles */}
-      <div className="afd-rh afd-rh--n"   onMouseDown={createResizeHandler('n')}  aria-hidden />
-      <div className="afd-rh afd-rh--ne"  onMouseDown={createResizeHandler('ne')} aria-hidden />
-      <div className="afd-rh afd-rh--e"   onMouseDown={createResizeHandler('e')}  aria-hidden />
-      <div className="afd-rh afd-rh--se"  onMouseDown={createResizeHandler('se')} aria-label="Resize" title="Drag to resize" />
-      <div className="afd-rh afd-rh--s"   onMouseDown={createResizeHandler('s')}  aria-hidden />
-      <div className="afd-rh afd-rh--sw"  onMouseDown={createResizeHandler('sw')} aria-hidden />
-      <div className="afd-rh afd-rh--w"   onMouseDown={createResizeHandler('w')}  aria-hidden />
-      <div className="afd-rh afd-rh--nw"  onMouseDown={createResizeHandler('nw')} aria-hidden />
+      {/* 8-direction resize handles — meaningless at a fixed maximized size */}
+      {!maximized && (
+        <>
+          <div className="afd-rh afd-rh--n"   onMouseDown={createResizeHandler('n')}  aria-hidden />
+          <div className="afd-rh afd-rh--ne"  onMouseDown={createResizeHandler('ne')} aria-hidden />
+          <div className="afd-rh afd-rh--e"   onMouseDown={createResizeHandler('e')}  aria-hidden />
+          <div className="afd-rh afd-rh--se"  onMouseDown={createResizeHandler('se')} aria-label="Resize" title="Drag to resize" />
+          <div className="afd-rh afd-rh--s"   onMouseDown={createResizeHandler('s')}  aria-hidden />
+          <div className="afd-rh afd-rh--sw"  onMouseDown={createResizeHandler('sw')} aria-hidden />
+          <div className="afd-rh afd-rh--w"   onMouseDown={createResizeHandler('w')}  aria-hidden />
+          <div className="afd-rh afd-rh--nw"  onMouseDown={createResizeHandler('nw')} aria-hidden />
+        </>
+      )}
     </div>
   );
 

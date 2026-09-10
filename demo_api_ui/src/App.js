@@ -166,6 +166,7 @@ import MonitoringRoutes, {
   AgentFlowInspectorRoute,
   ApiTrafficRoute,
   DevToolsRoute,
+  LoginFlowRoute,
   LogsRoute,
   McpTrafficRoute,
   NewRelicRoute,
@@ -1644,6 +1645,10 @@ function AppWithAuth() {
                                   logout={logout}
                                 />
                               }
+                            />
+                            <Route
+                              path="/login-flow"
+                              element={<LoginFlowRoute />}
                             />
 
                             {/* === Education / resource routes ===

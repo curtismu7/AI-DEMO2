@@ -1,0 +1,50 @@
+.login-flow-page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 3rem;
+}
+
+.lfp-header {
+  margin-bottom: 1.5rem;
+}
+
+.lfp-title {
+  margin: 0 0 0.4rem;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--th-text);
+}
+
+.lfp-subtitle {
+  margin: 0;
+  max-width: 60ch;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--th-text-muted);
+}
+
+.lfp-diagram {
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-xl);
+  padding: 1.25rem;
+}
+
+.lfp-empty {
+  background: var(--th-bg-card);
+  border: 1px dashed var(--th-border-strong);
+  border-radius: var(--radius-xl);
+  padding: 2rem 1.5rem;
+  text-align: center;
+  color: var(--th-text-muted);
+}
+
+.lfp-empty p {
+  margin: 0 0 0.5rem;
+}
+
+.lfp-empty-hint {
+  font-size: 0.8rem;
+  color: var(--th-text-faint);
+}
