@@ -84,6 +84,20 @@
   white-space: normal;
 }
 
+/* At rest, before anything has been sent. Muted and dashed so it reads as a
+   placeholder rather than a result — the page shows the shape of the call it is
+   about to make without claiming one happened. */
+.lgw-reel__box--idle {
+  border-style: dashed;
+  border-color: var(--th-border);
+  background: transparent;
+  color: var(--th-text-muted);
+}
+
+.lgw-reel__box--idle .lgw-reel__label {
+  color: var(--th-text-muted);
+}
+
 .lgw-reel__box--ok {
   border-color: var(--th-status-success);
 }

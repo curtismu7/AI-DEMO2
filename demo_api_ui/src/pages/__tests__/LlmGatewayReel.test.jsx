@@ -62,12 +62,28 @@ describe("buildReelSteps", () => {
     expect(row[0]).toMatch(/provider/i);
   });
 
-  it("renders nothing without a decision", () => {
-    expect(buildReelSteps(null, {})).toEqual([]);
+  it("without a decision it returns the RESTING reel, not nothing", () => {
+    // The page opens showing the shape of the call it is about to make. Same
+    // boxes, same order, all idle — so the first real answer changes their
+    // state rather than making the reel appear from nothing.
+    const steps = buildReelSteps(null, { providerTitle: "Anthropic", pending: { provider: "anthropic" } });
+    expect(steps.map((s) => s.id)).toEqual(["you", "privilege", "provider"]);
+    expect(steps.every((s) => s.state === "idle")).toBe(true);
+    expect(steps[0].detail).toContainEqual(["Lane selected", "anthropic"]);
+  });
+
+  it("the resting reel drops Privilege for a local lane too", () => {
+    const steps = buildReelSteps(null, { providerTitle: "llama.cpp", isLocalLane: true });
+    expect(steps.map((s) => s.id)).toEqual(["you", "provider"]);
   });
 });
 
 describe("LlmGatewayReel", () => {
+  it("at rest it opens on You — the only box with anything to say yet", () => {
+    render(<LlmGatewayReel decision={null} providerTitle="Anthropic" pending={{ provider: "anthropic" }} />);
+    expect(screen.getByText("Lane selected")).toBeInTheDocument();
+  });
+
   it("opens on the hop that decided the outcome, so a denial explains itself unclicked", () => {
     render(<LlmGatewayReel decision={denied} providerTitle="OpenAI" />);
     expect(screen.getByText(/prompt_injection/)).toBeInTheDocument();
