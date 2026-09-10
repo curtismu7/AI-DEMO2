@@ -7,7 +7,9 @@
 // here derives its own verdict — the authorize decision comes off the authorize
 // step and the headline off buildRunStory, so the map cannot disagree with the
 // rail or the Proof verdict.
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { ReactFlow, Controls, Handle, Position, getBezierPath } from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
 import DraggableModal from './DraggableModal';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
 import { buildRunStory } from '../services/tokenChainTrace/buildTraceSteps';
@@ -36,18 +38,65 @@ export const NODES = {
   db: { name: 'Data store', sub: 'SQLite · vertical dataset' },
 };
 
+// Box and band geometry, in flow units. React Flow scales the whole canvas to
+// fit, so these are proportions, not pixels.
+const W = 160;
+const H = 64; // name + a two-line wrapped subtitle + padding
+const GAP = 14;
+const PAD = 12;
+const TOP = 26; // room for the band label
+
+// x/y place each band on the canvas; `cols` wraps its boxes into a grid. The
+// stack puts the agent under the browser, not beside the BFF, so the bff→pep
+// lane runs clear instead of straight through the agent box.
 export const BANDS = [
   {
     id: 'ping',
     label: 'Ping Identity · PingOne · Authorize PDP',
-    layout: 'row',
+    x: 0,
+    y: 0,
+    cols: 5,
     nodes: ['p1-signin', 'p1-agenttok', 'p1-exchange', 'p1-authorize', 'p1-stepup'],
   },
-  { id: 'stack', label: 'Demo stack · BFF + agent', layout: 'row', nodes: ['browser', 'bff', 'agent'] },
-  { id: 'pep', label: 'PEP · gateway', layout: 'row', nodes: ['pep'] },
-  { id: 'backends', label: 'MCP servers · data', layout: 'col', nodes: ['mcp', 'api', 'db'] },
-  { id: 'model', label: 'Model · demo_llm_proxy', layout: 'row', nodes: ['llm'] },
+  { id: 'stack', label: 'Demo stack · BFF + agent', x: 0, y: 122, cols: 2, nodes: ['browser', 'bff', 'agent'] },
+  { id: 'pep', label: 'PEP · gateway', x: 378, y: 122, cols: 1, nodes: ['pep'] },
+  { id: 'backends', label: 'MCP servers · data', x: 582, y: 122, cols: 1, nodes: ['mcp', 'api', 'db'] },
+  { id: 'model', label: 'Model · demo_llm_proxy', x: 0, y: 322, cols: 1, nodes: ['llm'] },
 ];
+
+// Bands before their boxes — React Flow requires a parent ahead of its children.
+const LAYOUT_NODES = [];
+const CENTRE = {};
+for (const b of BANDS) {
+  const cols = Math.min(b.cols, b.nodes.length);
+  const rows = Math.ceil(b.nodes.length / cols);
+  const bandId = `band-${b.id}`;
+  LAYOUT_NODES.push({
+    id: bandId,
+    type: 'band',
+    position: { x: b.x, y: b.y },
+    width: 2 * PAD + cols * W + (cols - 1) * GAP,
+    height: TOP + rows * H + (rows - 1) * GAP + PAD,
+    data: { label: b.label },
+  });
+  b.nodes.forEach((id, i) => {
+    const position = { x: PAD + (i % cols) * (W + GAP), y: TOP + Math.floor(i / cols) * (H + GAP) };
+    CENTRE[id] = { x: b.x + position.x + W / 2, y: b.y + position.y + H / 2 };
+    LAYOUT_NODES.push({ id, type: 'hop', parentId: bandId, position, width: W, height: H, data: NODES[id] });
+  });
+}
+
+/**
+ * Which sides a lane leaves and enters by: vertical between bands stacked
+ * above one another, horizontal between boxes sharing a row.
+ * @returns {[string, string]} [source side, target side]
+ */
+export function sidesFor(from, to) {
+  const a = CENTRE[from];
+  const b = CENTRE[to];
+  if (Math.abs(b.y - a.y) >= H) return b.y > a.y ? ['bottom', 'top'] : ['top', 'bottom'];
+  return b.x > a.x ? ['right', 'left'] : ['left', 'right'];
+}
 
 // Which two boxes each hop runs between. Keyed by step baseId (the authorize
 // step carries a baseId when a run evaluates twice), so a repeated hop paints
@@ -181,52 +230,6 @@ export function buildFlowModel(steps) {
   return { nodeStates, edges, decision, lit };
 }
 
-/** Anchor two boxes on their facing sides, then curve between them. */
-function pathBetween(box, a, b) {
-  if (!box || !a || !b) return null;
-  const A = a.getBoundingClientRect();
-  const B = b.getBoundingClientRect();
-  const ax = A.left - box.left + A.width / 2;
-  const ay = A.top - box.top + A.height / 2;
-  const bx = B.left - box.left + B.width / 2;
-  const by = B.top - box.top + B.height / 2;
-  // Control offsets are purely proportional. A fixed floor overshot on short
-  // gaps: two adjacent boxes 10px apart produced C223…177… — control points
-  // past each other — drawing an S-squiggle where a near-straight line belongs.
-  // The centres pick which SIDES to leave from; the anchor points that result
-  // pick which way the curve travels. Those disagree whenever the boxes overlap
-  // on that axis — a wrapped flex row puts the agent below AND left of the BFF,
-  // and steering by the centres then pushed both control points outside the
-  // span (C134…446 for a line from 205 to 375), doubling the curve back.
-  //
-  // Offsets stay proportional too: a fixed floor overshot on short gaps, drawing
-  // an S-squiggle between two boxes 10px apart.
-  // Which axis to leave on. Centres alone mislead when one box is much wider
-  // than the other: the LLM proxy fills its band, so its centre sits far to the
-  // right of the agent directly above it, and a centre-distance test sent that
-  // edge sweeping sideways across the map. If the boxes share a column and not
-  // a row, the honest line is vertical — and vice versa.
-  const sharesColumn = Math.min(A.right, B.right) - Math.max(A.left, B.left) > 0;
-  const sharesRow = Math.min(A.bottom, B.bottom) - Math.max(A.top, B.top) > 0;
-  const horizontal = sharesRow !== sharesColumn
-    ? sharesRow
-    : Math.abs(bx - ax) > Math.abs(by - ay) * 1.1;
-  if (horizontal) {
-    const s = bx - ax > 0 ? 1 : -1;
-    const x1 = ax + (s * A.width) / 2;
-    const x2 = bx - (s * B.width) / 2;
-    const dir = x2 >= x1 ? 1 : -1;
-    const o = Math.abs(x2 - x1) * 0.42;
-    return `M${x1},${ay} C${x1 + dir * o},${ay} ${x2 - dir * o},${by} ${x2},${by}`;
-  }
-  const t = by - ay > 0 ? 1 : -1;
-  const y1 = ay + (t * A.height) / 2;
-  const y2 = by - (t * B.height) / 2;
-  const dir = y2 >= y1 ? 1 : -1;
-  const p = Math.abs(y2 - y1) * 0.45;
-  return `M${ax},${y1} C${ax},${y1 + dir * p} ${bx},${y2 - dir * p} ${bx},${y2}`;
-}
-
 export function verdictLabel(decision, story) {
   if (decision) return decision.replace(/_/g, ' ');
   if (!story) return 'IDLE';
@@ -243,33 +246,44 @@ export function verdictTone(decision, story) {
   return 'done';
 }
 
-function Band({ band, nodeStates, nodeRefs }) {
-  if (!band) return null;
+function BandNode({ data }) {
+  return <div className="sfm-band" data-band={data.label} />;
+}
+
+const SIDES = { top: Position.Top, right: Position.Right, bottom: Position.Bottom, left: Position.Left };
+
+// A handle per side, each way, so a lane can pick the sides that face its
+// other end (sidesFor). They are anchors only — nothing here is connectable.
+function HopNode({ data }) {
   return (
-    <div className="sfm-band" data-band={band.label}>
-      <div className={`sfm-nodes sfm-nodes--${band.layout}`}>
-        {band.nodes.map((id) => (
-          <div
-            key={id}
-            className="sfm-node"
-            data-state={nodeStates[id] || undefined}
-            ref={(el) => { nodeRefs.current[id] = el; }}
-          >
-            <span className="sfm-node-name">{NODES[id].name}</span>
-            <span className="sfm-node-sub">{NODES[id].sub}</span>
-          </div>
-        ))}
-      </div>
+    <div className="sfm-node" data-state={data.state || undefined}>
+      <span className="sfm-node-name">{data.name}</span>
+      <span className="sfm-node-sub">{data.sub}</span>
+      {Object.entries(SIDES).flatMap(([side, position]) => [
+        <Handle key={`s-${side}`} id={`s-${side}`} type="source" position={position} isConnectable={false} />,
+        <Handle key={`t-${side}`} id={`t-${side}`} type="target" position={position} isConnectable={false} />,
+      ])}
     </div>
   );
 }
 
+// Own path rather than React Flow's default edge, so the existing kind (dash)
+// and state (colour) classes apply unchanged and the step titles show on hover.
+function HopEdge({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, data }) {
+  const [d] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
+  return (
+    <path d={d} className={`sfm-edge sfm-edge--${data.state}`} data-kind={data.kind}>
+      <title>{data.title}</title>
+    </path>
+  );
+}
+
+const NODE_TYPES = { band: BandNode, hop: HopNode };
+const EDGE_TYPES = { hop: HopEdge };
+
 /** The map itself, with no shell — mounted bare as a page and inside the modal. */
 export function SystemFlowMapView() {
   const [storeState, setStoreState] = useState(() => tokenChainTraceStore.getState());
-  const [paths, setPaths] = useState([]);
-  const nodeRefs = useRef({});
-  const mapRef = useRef(null);
 
   useEffect(() => tokenChainTraceStore.subscribe(setStoreState), []);
 
@@ -278,40 +292,19 @@ export function SystemFlowMapView() {
   const story = useMemo(() => buildRunStory(trace, steps), [trace, steps]);
   const elapsed = trace?.finishedAt && trace?.startedAt ? trace.finishedAt - trace.startedAt : null;
 
-  // Edges are measured, not computed, so the map stays responsive instead of
-  // carrying hard-coded coordinates that drift when a node label wraps.
-  const measure = useCallback(() => {
-    const el = mapRef.current;
-    if (!el) return;
-    const box = el.getBoundingClientRect();
-    setPaths(
-      edges
-        .map((e) => ({ ...e, d: pathBetween(box, nodeRefs.current[e.from], nodeRefs.current[e.to]) }))
-        .filter((e) => e.d),
-    );
-  }, [edges]);
-
-  useEffect(() => {
-    measure();
-    // A second pass on the next frame: inside DraggableModal the panel is still
-    // sizing when the effect first runs, and the paths measured then anchor to
-    // where the boxes WERE — one edge drew from the agent out through the side
-    // of the panel.
-    const raf = requestAnimationFrame(measure);
-    if (typeof ResizeObserver === 'undefined') return () => cancelAnimationFrame(raf);
-    // Observe the boxes, not just their container. Nodes reflow inside a map
-    // whose own box never changes (font swap, a label wrapping), and watching
-    // only the container missed every one of those.
-    const ro = new ResizeObserver(measure);
-    if (mapRef.current) ro.observe(mapRef.current);
-    for (const el of Object.values(nodeRefs.current)) if (el) ro.observe(el);
-    return () => {
-      cancelAnimationFrame(raf);
-      ro.disconnect();
-    };
-  }, [measure]);
-
-  const rowBands = BANDS.filter((b) => ['stack', 'pep', 'backends'].includes(b.id));
+  const flowNodes = useMemo(
+    () => LAYOUT_NODES.map((n) => (n.type === 'hop' ? { ...n, data: { ...n.data, state: nodeStates[n.id] } } : n)),
+    [nodeStates],
+  );
+  const flowEdges = useMemo(
+    () => edges.map((e) => {
+      const [out, into] = sidesFor(e.from, e.to);
+      return {
+        id: e.id, source: e.from, target: e.to, sourceHandle: `s-${out}`, targetHandle: `t-${into}`, type: 'hop', data: e,
+      };
+    }),
+    [edges],
+  );
 
   return (
     <div className="sfm-root">
@@ -333,30 +326,22 @@ export function SystemFlowMapView() {
         {story ? story.headline : 'No run yet — send an agent prompt and the hops paint here.'}
       </div>
 
-      <div className="sfm-scroll">
-        <div className="sfm-map" ref={mapRef}>
-          <svg className="sfm-edges" aria-hidden="true">
-            {paths.map((e) => (
-              <path key={e.id} d={e.d} className={`sfm-edge sfm-edge--${e.state}`} data-kind={e.kind}>
-                <title>{e.title}</title>
-              </path>
-            ))}
-          </svg>
-
-          <Band band={BANDS[0]} nodeStates={nodeStates} nodeRefs={nodeRefs} />
-
-          <div className="sfm-row">
-            {rowBands.map((band) => (
-              <Band key={band.id} band={band} nodeStates={nodeStates} nodeRefs={nodeRefs} />
-            ))}
-          </div>
-
-          <Band
-            band={BANDS.find((b) => b.id === 'model')}
-            nodeStates={nodeStates}
-            nodeRefs={nodeRefs}
-          />
-        </div>
+      <div className="sfm-canvas">
+        <ReactFlow
+          nodes={flowNodes}
+          edges={flowEdges}
+          nodeTypes={NODE_TYPES}
+          edgeTypes={EDGE_TYPES}
+          nodesDraggable={false}
+          nodesConnectable={false}
+          elementsSelectable={false}
+          fitView
+          fitViewOptions={{ padding: 0.06 }}
+          minZoom={0.4}
+          maxZoom={2}
+        >
+          <Controls showInteractive={false} />
+        </ReactFlow>
       </div>
 
       <div className="sfm-legend">

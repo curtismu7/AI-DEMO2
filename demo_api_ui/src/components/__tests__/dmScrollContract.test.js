@@ -33,7 +33,7 @@ const FULL_BLEED = new Set([
   'components/TokenExchangeModal.jsx',  // TokenExchangeInspector — full-height panel
   'components/TokenFlowDetailModal.jsx', // .tfd-root — own theme + toolbar
   'components/TokenTopologyPanel.jsx',  // .ttp-root — own theme + toolbar
-  'components/SystemFlowMap.jsx',       // .sfm-root — own header/legend, scrolls in .sfm-scroll
+  'components/SystemFlowMap.jsx',       // .sfm-root — own header/legend, pans in .sfm-canvas
   'pages/PrivilegeMcpClientPage.jsx',   // PrivilegeMcpLearningPage — whole page in a modal
 ]);
 
