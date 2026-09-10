@@ -136,6 +136,10 @@ export interface GatewayConfig {
   // The inbound token (aud=gatewayResourceUri) is forwarded unchanged.
   // MCP_SERVER_RESOURCE_URI on the MCP server must equal MCP_GW_RESOURCE_URI.
   mcpServerPassthrough: boolean;
+  // Privilege bridge — the Static Token configured on the Agentic App when the
+  // PingOne Privilege AI Gateway fronts this gateway. Empty disables the bridge
+  // entirely; see src/auth/privilegeBridge.ts.
+  privilegeBridgeSecret: string;
   // Phase 266: Path A — service API key for the api_key credential disposition (demo only)
   demoApiKeyServiceKey: string;
   // Phase 267: Path A backend — base URL of banking_api_resource_server (e.g. http://localhost:8082)
@@ -412,6 +416,7 @@ export function loadConfig(): GatewayConfig {
     devBypass: DEV_BYPASS,
     mcpServerPassthrough: process.env.MCP_GW_PASSTHROUGH_TO_MCP_SERVER === 'true',
     // Phase 266 fields
+    privilegeBridgeSecret: optional('MCP_GW_PRIVILEGE_BRIDGE_SECRET', ''),
     demoApiKeyServiceKey: optional('DEMO_APIKEY_SERVICE_KEY', 'demo-api-key-0000'),
     // Phase 267 fields — dedicated mortgage backend (kept separate from the
     // Phase 266 marker key so the Gateway-only apikey tools are unaffected)

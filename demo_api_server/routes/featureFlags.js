@@ -775,6 +775,24 @@ const FLAG_REGISTRY = [
     defaultValue: true,
   },
   {
+    id:           'ff_mcp_gateway_privilege_first',
+    name:         'Privilege first: MCP',
+    category:     'MCP / Agent',
+    description:
+      'When **ON**, MCP tool calls enter the **PingOne Privilege AI Gateway** first, which applies its own ' +
+      'per-application policy and then forwards to whichever Agent Gateway its Agentic App is registered ' +
+      'against — so this **composes with** the Real PingOne Agent Gateway flag rather than replacing it. ' +
+      'Privilege owns the Authorization header on that hop, so the user token travels in `X-Subject-Token` ' +
+      'and the Agent Gateway rebuilds the delegated identity from it. Requires `MCP_PRIVILEGE_GATEWAY_URL` ' +
+      '(or `MCP_FACADE_PRIVILEGE_GATEWAY_BASE`) and is **SE only** — the Agentic App backend must reach the ' +
+      'Agent Gateway in-cluster.',
+    impact:
+      'OFF (default) = tool calls go straight to the Agent Gateway as today. ON = two gates per call, ' +
+      'Privilege coarse-grained in front and the Agent Gateway fine-grained behind.',
+    type:         'boolean',
+    defaultValue: false,
+  },
+  {
     id:           'ff_privilege_llm_first',
     name:         'Privilege first: LLM',
     category:     'LLM',
@@ -1019,6 +1037,7 @@ const PINNED_ENV_ALIASES = {
   ff_mcp_gateway_pinggateway: 'FF_MCP_GATEWAY_PINGGATEWAY',
   ff_mcp_gateway_jwks:        'FF_MCP_GATEWAY_JWKS',
   ff_privilege_llm_first:     'FF_PRIVILEGE_LLM_FIRST',
+  ff_mcp_gateway_privilege_first: 'FF_MCP_GATEWAY_PRIVILEGE_FIRST',
   ff_enterprise_managed_mcp_auth: 'FF_ENTERPRISE_MANAGED_MCP_AUTH',
   ff_authorize_real:     'FF_AUTHORIZE_REAL',
   ff_heuristic_enabled:       'FF_HEURISTIC_ENABLED',

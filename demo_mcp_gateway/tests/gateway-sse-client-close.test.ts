@@ -78,6 +78,7 @@ const baseConfig: GatewayConfig = {
   rateLimitWindowMs: 60000,
   introspectionSimDown: false,
   enterpriseManagedMcpAuth: false,
+  privilegeBridgeSecret: '',
 };
 
 // Dev-bypass middleware: forward the inbound bearer unchanged (mirrors

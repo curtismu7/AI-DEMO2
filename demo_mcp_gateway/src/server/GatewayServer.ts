@@ -37,6 +37,7 @@ import { adminConfigSafeView, applyAdminConfigUpdate, ADMIN_CONFIG_ALLOWED_KEYS 
 import { McpTokenExchangeClient } from '../auth/McpTokenExchangeClient';
 import { GatewayIntrospectionClient } from '../auth/GatewayIntrospectionClient';
 import { extractBearerToken, validateInboundToken, TokenValidationError, type DecodedGatewayToken } from '../tokenValidator';
+import { isPrivilegeBridgeBearer, subjectTokenFromHeaders } from '../auth/privilegeBridge';
 import { guardToolsList } from '../pingAuthorizeGuard';
 import { getScopesForGatewayTool } from '../auth/toolScopes';
 import { extractCorrelationId } from '../correlationId';
@@ -695,11 +696,32 @@ export class GatewayServer {
     }
 
     const authHeader = req.headers['authorization'] as string | undefined;
-    const bearerToken = extractBearerToken(authHeader);
+    let bearerToken = extractBearerToken(authHeader);
 
     if (!bearerToken) {
       this.sendUnauthorized(req, res,'invalid_token', 'Bearer token required');
       return;
+    }
+
+    // Privilege bridge. When the PingOne Privilege AI Gateway fronts this one,
+    // the Authorization header belongs to Privilege (the Agentic App's Static
+    // Token) and the caller's own token arrives in X-Subject-Token. Swap the
+    // subject in HERE, before validateInboundToken — which would reject the
+    // secret at JWKS key selection — so every stage below (introspection, RFC
+    // 8693 exchange, PingOne Authorize, the audit rail) runs on the real
+    // delegated user instead of a machine identity. The header is honoured
+    // only for the bridge bearer; from anyone else it is ignored entirely.
+    if (isPrivilegeBridgeBearer(bearerToken, this.config.privilegeBridgeSecret)) {
+      const subjectToken = subjectTokenFromHeaders(req.headers);
+      if (!subjectToken) {
+        // The bridge authenticated but carried no user. Deliberately NOT a
+        // synthetic machine subject: this gateway's whole contract is a
+        // delegated identity, and inventing one would let a scope-gated tool
+        // run with nobody attached to it.
+        this.sendUnauthorized(req, res, 'invalid_token', 'Privilege bridge presented no X-Subject-Token');
+        return;
+      }
+      bearerToken = subjectToken;
     }
 
     // Dev bypass: skip inbound token validation so the gateway works without real PingOne tokens.

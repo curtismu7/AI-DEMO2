@@ -94,6 +94,7 @@ const stubConfig: GatewayConfig = {
   rateLimitWindowMs: 60000,
   introspectionSimDown: false,
   enterpriseManagedMcpAuth: false,
+  privilegeBridgeSecret: '',
 };
 
 const INTERNAL_SECRET = stubConfig.bffInternalSecret;

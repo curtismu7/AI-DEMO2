@@ -347,6 +347,14 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         Object.assign(headers, require('./mcpActorBridge').buildActorBridgeHeaders());
     }
 
+    // Caller-supplied headers (privilege-first sends the user's token here as
+    // X-Subject-Token — see mcpGatewayTransport). Merged BEFORE the internal
+    // assignments below so this can never overwrite a header this module sets
+    // for a security reason.
+    if (opts.extraHeaders && typeof opts.extraHeaders === 'object') {
+        Object.assign(headers, opts.extraHeaders);
+    }
+
     // Security Showcase — confused-deputy demo. When the caller passes a rogue,
     // non-allowlisted actor client_id, override the bridged X-Act-Client-Id so the
     // gateway forwards it to PingOne Authorize, whose HasValidActorChain condition
@@ -1137,6 +1145,22 @@ async function callToolViaResolvedGateway(gatewayUrl, bearerToken, tool, params 
 }
 
 function getMcpGatewayHttpUrl() {
+    // ff_mcp_gateway_privilege_first: put the PingOne Privilege AI Gateway in
+    // FRONT of whichever Agent Gateway the flags below already select. Checked
+    // first on purpose — the two COMPOSE rather than compete, because what sits
+    // behind Privilege is decided by the Agentic App's registered backend, not
+    // here. SE only: the Agentic App's backend has to reach the Agent Gateway's
+    // in-cluster address (plan D3).
+    if (configStore.getEffective('ff_mcp_gateway_privilege_first') === 'true') {
+        const base = (process.env.MCP_FACADE_PRIVILEGE_GATEWAY_BASE || '').replace(/\/$/, '');
+        const privUrl = process.env.MCP_PRIVILEGE_GATEWAY_URL
+            || (base ? `${base}/agent-gateway/mcp` : '');
+        if (privUrl) return privUrl.replace(/\/$/, '');
+        // Falling through beats throwing: an unset URL would otherwise break
+        // every tool call the moment someone flips the flag on a box that has
+        // no Privilege gateway (i.e. anywhere but SE).
+        console.warn('[mcpGateway] ff_mcp_gateway_privilege_first is ON but no MCP_PRIVILEGE_GATEWAY_URL — using the next lane');
+    }
     // ff_mcp_gateway_pinggateway: a runtime user choice (via /config) to route MCP
     // traffic through PingGateway (IG) instead of the Node gateway. When ON and a
     // PingGateway URL is resolvable, it wins over the Node-gateway URL — this is the
