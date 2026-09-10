@@ -171,7 +171,7 @@ const AUTO_EXPAND_SECTIONS = [
   { id: "delegation-consent", paths: ["/transaction-consent", "/actor-token-education"] },
   { id: "authorize", paths: ["/pingone-authorize", "/pingone-authorize-capabilities", "/policy-decision-trace", "/authz-test", "/scope-audit", "/scope-reference"] },
   { id: "users-accounts", paths: ["/users", "/accounts", "/transactions"] },
-  { id: "platform-admin", paths: ["/admin", "/admin/pingone", "/admin/agentic-access-console"] },
+  { id: "platform-admin", paths: ["/admin", "/admin/pingone"] },
   // No "/admin" here — it belongs to platform-admin now that the dashboard
   // is back on it. Listing a path in two sections expands both, which
   // breaks the single-section accordion.
@@ -468,6 +468,7 @@ export default function AdminSideNav({
   const allNavItems = [
     { label: "Home", path: "/", icon: "home" },
     { label: "Dashboard", path: "/dashboard", icon: "dashboard" },
+    { label: "Agentic Access Console", path: "/admin/agentic-access-console", icon: "shld" },
     {
       label: "AI Agent Gateway",
       icon: "shld",
@@ -781,11 +782,6 @@ export default function AdminSideNav({
           path: "/admin/pingone",
           icon: "cfg",
           adminOnly: true,
-        },
-        {
-          label: "Agentic Access Console",
-          path: "/admin/agentic-access-console",
-          icon: "shld",
         },
       ],
     },
