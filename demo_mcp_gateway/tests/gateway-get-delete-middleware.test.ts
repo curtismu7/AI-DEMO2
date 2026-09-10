@@ -85,6 +85,7 @@ const stubConfig: GatewayConfig = {
   rateLimitWindowMs: 60000,
   introspectionSimDown: false,
   enterpriseManagedMcpAuth: false,
+  privilegeBridgeSecret: '',
 };
 
 function makeToken(

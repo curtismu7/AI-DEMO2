@@ -67,6 +67,7 @@ function makeConfig(passthrough: boolean): GatewayConfig {
     rateLimitWindowMs: 60000,
     introspectionSimDown: false,
   enterpriseManagedMcpAuth: false,
+  privilegeBridgeSecret: '',
   };
 }
 
