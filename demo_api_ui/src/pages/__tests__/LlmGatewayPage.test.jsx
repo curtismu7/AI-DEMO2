@@ -556,6 +556,74 @@ describe("LLM Gateway console", () => {
     });
   });
 
+  describe("empty prompt", () => {
+    beforeEach(() => { window.localStorage.clear(); });
+
+    it("tells the user to enter a prompt instead of silently doing nothing", async () => {
+      mockFetch(() => new Promise(() => {}));
+      render(<LlmGatewayPage />);
+      await screen.findByText("/llm/anthropic/v1/messages");
+
+      fireEvent.click(screen.getByRole("button", { name: /^send$/i }));
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(/enter a prompt/i);
+      expect(global.fetch).not.toHaveBeenCalledWith(expect.stringContaining("/llm/call"));
+    });
+
+    it("clears the message once the user types something", async () => {
+      mockFetch(() => new Promise(() => {}));
+      render(<LlmGatewayPage />);
+      await screen.findByText("/llm/anthropic/v1/messages");
+
+      fireEvent.click(screen.getByRole("button", { name: /^send$/i }));
+      await screen.findByRole("alert");
+
+      fireEvent.change(screen.getByLabelText(/^prompt$/i), { target: { value: "hello" } });
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("why Privilege denied it", () => {
+    beforeEach(() => { window.localStorage.clear(); });
+
+    it("explains a catalog attack's denial instead of leaving the bare reason unexplained", async () => {
+      const attack = GUARDRAIL_ATTACKS.find((a) => a.id === "jailbreak");
+      mockFetch(() => ({
+        ok: false, status: 403,
+        text: async () => JSON.stringify({
+          error: "Forbidden", code: "llm_policy_denied", reason: "Forbidden",
+          provider: "anthropic", route: "/llm/anthropic/v1/messages",
+          latencyMs: 50, reachedProvider: false,
+        }),
+      }));
+      render(<LlmGatewayPage />);
+      await screen.findByText("/llm/anthropic/v1/messages");
+
+      fireEvent.change(screen.getByLabelText(/attack library/i), { target: { value: attack.id } });
+      fireEvent.click(screen.getByRole("button", { name: /^send$/i }));
+
+      const note = await screen.findByTestId("lgw-denial-explanation");
+      expect(note).toHaveTextContent(attack.whyDenied);
+      expect(note).toHaveTextContent(/Forbidden/);
+    });
+
+    it("falls back to a by-design note for a freeform prompt with no catalog match", async () => {
+      mockFetch(() => ({
+        ok: false, status: 403,
+        text: async () => JSON.stringify({
+          error: "Forbidden", code: "llm_policy_denied", reason: "Forbidden",
+          provider: "anthropic", route: "/llm/anthropic/v1/messages",
+          latencyMs: 50, reachedProvider: false,
+        }),
+      }));
+      render(<LlmGatewayPage />);
+      await ask("something I typed myself");
+
+      const note = await screen.findByTestId("lgw-denial-explanation");
+      expect(note).toHaveTextContent(/doesn.t disclose which policy or rule matched/i);
+    });
+  });
+
   describe("decision view toggle", () => {
     async function sendAndGetDecision() {
       mockFetch(() => ({

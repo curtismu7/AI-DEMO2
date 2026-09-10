@@ -170,6 +170,22 @@ const ATTACK_EFFECT = {
   none: 'No Privilege verdict fires for this one — any refusal you see is the model\u2019s own.',
 };
 
+// Privilege's own denial body never names the policy or rule it matched —
+// every denial actually observed on this gateway is a bare
+// {error:{message:"Forbidden"}} (or similarly terse: "invalid virtual key",
+// "model ... not allowed for this key"). Nothing richer is being discarded on
+// this page; the raw Reason field really is the full detail Privilege sends
+// back. For a known Attack Library payload we already know which detector it
+// is built to trip, so say that instead of leaving "Forbidden" to read like a
+// broken or truncated error.
+function denialExplanation(decision) {
+  const attack = GUARDRAIL_ATTACKS.find((a) => a.id === decision.attackId);
+  if (attack?.whyDenied) {
+    return `${attack.whyDenied} Privilege itself only returns "${decision.reason}" \u2014 it doesn\u2019t disclose the rule name in the response.`;
+  }
+  return 'Privilege doesn\u2019t disclose which policy or rule matched \u2014 the reason above is the full detail its response carries, not a truncated or failed lookup.';
+}
+
 // A <select> fires no onChange when you pick the option already selected, so any
 // state where the dropdown names an attack the prompt box does not hold is a dead
 // end: the fix has to keep the two in step, not re-fill on re-pick. Everywhere the
@@ -236,6 +252,9 @@ export default function LlmGatewayPage() {
   const [decisionView, setDecisionView] = useState('form');
   const [limitsByLane, setLimitsByLane] = useState({});
   const [selectedAttack, setSelectedAttack] = useState(() => window.localStorage.getItem('lgw-attack-choice') || '');
+  // Clicking Send with nothing typed used to be a silent no-op — the button
+  // just did nothing, which reads as broken rather than "you forgot a step".
+  const [sendError, setSendError] = useState('');
   // Which turn's decision is showing in the right column — defaults to the
   // most recent, but clicking an older model turn re-points it there.
   const [selectedTurnId, setSelectedTurnId] = useState(null);
@@ -287,17 +306,27 @@ export default function LlmGatewayPage() {
     setLimitsByLane({});
     setPrompt('');
     setSelectedAttack('');
+    setSendError('');
     window.localStorage.removeItem('lgw-attack-choice');
   }, []);
 
   const send = useCallback(async () => {
     const text = prompt.trim();
-    if (!text || busy) return;
+    if (busy) return;
+    if (!text) {
+      setSendError('Enter a prompt, or pick one from the Attack Library, before sending.');
+      return;
+    }
+    setSendError('');
     // The server never echoes the model back, so the decision has to carry what
     // this page asked for — otherwise a denial names no model and reads as a
     // refusal of the lane default, which is the one model that was not sent.
     const lane = lanes.find((l) => l.provider === selected) || {};
     const model = (modelByLane[selected] || '').trim();
+    // Only trust the dropdown's choice as the origin of THIS prompt if the box
+    // still holds that attack's payload untouched — otherwise an edited or
+    // hand-typed prompt would wrongly borrow another attack's explanation.
+    const attackId = selectedAttack && payloadFor(selectedAttack) === text ? selectedAttack : null;
     setBusy(true);
     setTurns((t) => [...t, { id: nextTurnId.current++, role: 'you', text }]);
     setPrompt('');
@@ -328,6 +357,7 @@ export default function LlmGatewayPage() {
         reachedProvider: err.reachedProvider === true,
         reason: err.reason || err.message,
         providerLimits: err.providerLimits || null,
+        attackId,
       };
       const id = nextTurnId.current++;
       setTurns((t) => [...t, {
@@ -340,7 +370,7 @@ export default function LlmGatewayPage() {
     } finally {
       setBusy(false);
     }
-  }, [prompt, busy, selected, lanes, modelByLane, record]);
+  }, [prompt, busy, selected, lanes, modelByLane, selectedAttack, record]);
 
   const active = lanes.find((l) => l.provider === selected);
 
@@ -491,6 +521,7 @@ export default function LlmGatewayPage() {
                 setSelectedAttack(id);
                 window.localStorage.setItem('lgw-attack-choice', id);
                 if (id) setPrompt(payloadFor(id));
+                setSendError('');
               }}
             >
               <option value="">Pick an attack to test the gateway policy…</option>
@@ -540,13 +571,14 @@ export default function LlmGatewayPage() {
             </div>
           ) : null}
 
+          {sendError ? <p className="lgw-error" role="alert">{sendError}</p> : null}
           <div className="lgw-composer">
             <input
               type="text"
               aria-label="Prompt"
               value={prompt}
               placeholder={`Ask through ${TITLES[selected] || selected}…`}
-              onChange={(e) => setPrompt(e.target.value)}
+              onChange={(e) => { setPrompt(e.target.value); setSendError(''); }}
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); send(); } }}
             />
             <button type="button" className="lgw-send" onClick={send} disabled={busy || !(active?.isLocal || active?.keyConfigured)}>
@@ -672,6 +704,15 @@ export default function LlmGatewayPage() {
           {decision && !decision.reachedProvider && decision.layer === 'Privilege' ? (
             <p className="lgw-rail__note">
               The prompt stopped at the gateway. Nothing was sent to the model and nothing was billed.
+            </p>
+          ) : null}
+          {/* The bare Reason field ("Forbidden") is everything Privilege's own
+              response discloses — no policy or rule name rides along. For a
+              known Attack Library payload this fills that gap from what the
+              catalog already knows the payload is built to trip. */}
+          {decision && decision.layer === 'Privilege' ? (
+            <p className="lgw-rail__note" data-testid="lgw-denial-explanation">
+              {denialExplanation(decision)}
             </p>
           ) : null}
           {/* This page can't tell a compliant reply from a refusal — both come back
