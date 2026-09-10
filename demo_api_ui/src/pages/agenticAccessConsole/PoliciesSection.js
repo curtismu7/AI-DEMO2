@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import apiClient from "../../services/apiClient";
+import ExpandableRow from "./ExpandableRow";
 
 const POLICY_RULES = [
   { rule: "Deny Large Transactions", condition: "amount > $2,000", outcome: "DENY" },
@@ -44,32 +45,6 @@ function flattenRules(nodes, ancestry = []) {
     if (node.children?.length) out = out.concat(flattenRules(node.children, path));
   }
   return out;
-}
-
-/** One clickable rule row that expands in place to show policy detail. */
-function RuleRow({ id, cells, detail }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <tr
-        className="aac-table-row--clickable"
-        onClick={() => setOpen((v) => !v)}
-        role="button"
-        tabIndex={0}
-        aria-expanded={open}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen((v) => !v); } }}
-      >
-        {cells}
-      </tr>
-      {open && (
-        <tr className="aac-table-row--detail">
-          <td colSpan={cells.length}>
-            <pre className="aac-prompt-block">{typeof detail === "string" ? detail : JSON.stringify(detail, null, 2)}</pre>
-          </td>
-        </tr>
-      )}
-    </>
-  );
 }
 
 export default function PoliciesSection({ user }) {
@@ -150,7 +125,7 @@ export default function PoliciesSection({ user }) {
                 </thead>
                 <tbody>
                   {liveRules.map((r) => (
-                    <RuleRow
+                    <ExpandableRow
                       key={r.id}
                       detail={r.raw}
                       cells={[
@@ -178,7 +153,7 @@ export default function PoliciesSection({ user }) {
                 </thead>
                 <tbody>
                   {POLICY_RULES.map((r) => (
-                    <RuleRow
+                    <ExpandableRow
                       key={r.rule}
                       detail={{ ...r, source: "illustrative example — not one of the 62 live PingOne Authorize rules" }}
                       cells={[
