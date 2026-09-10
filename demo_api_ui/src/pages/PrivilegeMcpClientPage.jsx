@@ -1875,7 +1875,31 @@ export default function PrivilegeMcpClientPage() {
               <span className="cur-rail__k">App session</span>
               <span className="cur-rail__v">
                 {mainAppAuthenticated
-                  ? <><span aria-hidden="true">✅</span> {user?.email || 'signed in'}</>
+                  ? (
+                    <>
+                      <span aria-hidden="true">✅</span> {user?.email || 'signed in'}
+                      {/* Row 2 could always be signed out; row 1 could not, and the
+                          two are separate identities on purpose. That gap bites in
+                          one specific way: the gateway session lives in BFF process
+                          MEMORY (services/privilegeGatewaySession.js), so any BFF
+                          restart empties it while this badge — read from the app
+                          cookie — still says ✅. The page then looks signed in
+                          against a server that holds nothing, and every call fails
+                          confusingly. Signing out of the app is the reset.
+
+                          Navigates to /logout rather than POSTing a logout here:
+                          that route is the app's ONE sign-out path (App.js:1259,
+                          the same one AdminSideNav sends you to), so it stays
+                          correct if app logout ever changes. Deliberately does NOT
+                          also drop the gateway identity — row 2 owns that, and
+                          silently clearing someone else's row would hide which of
+                          the two identities actually went away. */}
+                      <button
+                        className="cur-btn cur-rail__btn"
+                        onClick={() => navigate('/logout')}
+                      >Sign out</button>
+                    </>
+                  )
                   : <><span aria-hidden="true">❌</span> Not signed in</>}
               </span>
             </li>
