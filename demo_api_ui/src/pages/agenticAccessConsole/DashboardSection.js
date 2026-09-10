@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 
 // Illustrative snapshot of the demo's agent → MCP-tool access surface. Static
 // on purpose — see the "Agentic Access Console" TECH_DEBT.md entry.
@@ -9,13 +9,23 @@ const COVERAGE_BY_RUNTIME = [
   { runtime: "mastra_agent", framework: "Mastra", servers: 3, tools: 54 },
 ];
 
+// Sorted by resource-server tool count, descending. Super Banking has none of
+// its own — it runs on oauth-mcp's core surface, not a vertical-specific slice.
 const COVERAGE_BY_VERTICAL = [
   { vertical: "Meridian Wealth", domain: "investment", tools: 4 },
   { vertical: "United Airlines", domain: "airline", tools: 3 },
   { vertical: "Super Sports", domain: "gear", tools: 3 },
   { vertical: "CareConnect", domain: "records", tools: 2 },
+  { vertical: "Abercrombie & Fitch", domain: "retail", tools: 2 },
+  { vertical: "WX Workforce", domain: "payroll / expense", tools: 2 },
   { vertical: "Precision Works", domain: "work orders", tools: 1 },
+  { vertical: "CivicPermit", domain: "government", tools: 1 },
+  { vertical: "Super University", domain: "education", tools: 1 },
+  { vertical: "Great Buy", domain: "retail (shared)", tools: 1 },
+  { vertical: "OAuth Academy", domain: "teaching (public)", tools: 0 },
+  { vertical: "Super Banking", domain: "banking (core, oauth-mcp not resource-server)", tools: "—" },
 ];
+const VERTICAL_PREVIEW_COUNT = 5;
 
 const RECENT_DECISIONS = [
   { time: "14:02:11", agent: "openai_agent", tool: "create_transfer", scope: "transfer", decision: "PERMIT" },
@@ -31,6 +41,9 @@ function DecisionPill({ decision }) {
 }
 
 export default function DashboardSection() {
+  const [showAllVerticals, setShowAllVerticals] = useState(false);
+  const visibleVerticals = showAllVerticals ? COVERAGE_BY_VERTICAL : COVERAGE_BY_VERTICAL.slice(0, VERTICAL_PREVIEW_COUNT);
+
   return (
     <div>
       <p className="aac-section-intro">
@@ -106,7 +119,7 @@ export default function DashboardSection() {
               </tr>
             </thead>
             <tbody>
-              {COVERAGE_BY_VERTICAL.map((v) => (
+              {visibleVerticals.map((v) => (
                 <tr key={v.vertical}>
                   <th scope="row">{v.vertical}</th>
                   <td>{v.domain}</td>
@@ -116,7 +129,9 @@ export default function DashboardSection() {
             </tbody>
           </table>
         </div>
-        <p className="aac-card-sub" style={{ marginTop: 8 }}>+7 more verticals</p>
+        <button type="button" className="aac-chip-toggle" onClick={() => setShowAllVerticals((v) => !v)}>
+          {showAllVerticals ? "Show fewer" : `Show all ${COVERAGE_BY_VERTICAL.length} verticals`}
+        </button>
       </div>
 
       <div className="aac-section-block">

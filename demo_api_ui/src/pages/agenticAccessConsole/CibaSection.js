@@ -38,16 +38,41 @@ const LIVE_STATUS_MAP = { approved: "permit", denied: "deny", pending: "indeterm
 export default function CibaSection({ user }) {
   const [requests, setRequests] = useState(null);
   const [error, setError] = useState(false);
+  const [initiating, setInitiating] = useState(false);
+  const [initiateError, setInitiateError] = useState(null);
+
+  const fetchRequests = () => {
+    setError(false);
+    return apiClient
+      .get("/api/auth/ciba/requests")
+      .then(({ data }) => setRequests(data.requests || []))
+      .catch(() => setError(true));
+  };
 
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
-    apiClient
-      .get("/api/auth/ciba/requests")
-      .then(({ data }) => { if (!cancelled) setRequests(data.requests || []); })
-      .catch(() => { if (!cancelled) setError(true); });
+    fetchRequests().then(() => { if (cancelled) return; });
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  const handleTryIt = () => {
+    setInitiating(true);
+    setInitiateError(null);
+    apiClient
+      .post("/api/auth/ciba/initiate", {
+        amount: 500,
+        from_account_label: "Checking ••1234",
+        to_account_label: "Alex R.",
+        binding_message: "Agentic Access Console demo request",
+      })
+      .then(() => fetchRequests())
+      .catch((err) => {
+        setInitiateError(err?.response?.data?.message || err?.response?.data?.error || err.message || "Request failed");
+      })
+      .finally(() => setInitiating(false));
+  };
 
   const showLive = !!user && !error && Array.isArray(requests);
 
@@ -119,6 +144,18 @@ export default function CibaSection({ user }) {
           Source: <code>demo_api_server/routes/ciba.js</code> — independent of the
           Agentic Apps registry above.
         </p>
+        {user && (
+          <>
+            <button type="button" className="aac-filter-btn" style={{ marginBottom: 10 }} onClick={handleTryIt} disabled={initiating}>
+              {initiating ? "Initiating…" : "Try it live — initiate a real CIBA request"}
+            </button>
+            {initiateError && (
+              <p className="aac-card-sub" style={{ marginBottom: 10, color: "var(--th-status-error-text)" }}>
+                {initiateError}
+              </p>
+            )}
+          </>
+        )}
         {showLive ? (
           requests.length > 0 ? (
             <div className="aac-table-wrap">
@@ -146,7 +183,7 @@ export default function CibaSection({ user }) {
               </table>
             </div>
           ) : (
-            <div className="aac-card"><div className="aac-card-body">No CIBA requests tracked in this session yet.</div></div>
+            <div className="aac-card"><div className="aac-card-body">No CIBA requests tracked in this session yet — use "Try it live" above to create a real one.</div></div>
           )
         ) : (
           <>
