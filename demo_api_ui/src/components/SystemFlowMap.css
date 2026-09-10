@@ -86,6 +86,7 @@
   --xy-controls-button-color: var(--th-text);
   --xy-controls-button-color-hover: var(--th-text);
   --xy-controls-button-border-color: var(--th-border);
+  --xy-attribution-background-color: transparent;
 }
 /* Anchors only — nothing on this map is connectable. */
 .sfm-canvas .react-flow__handle { opacity: 0; pointer-events: none; }
