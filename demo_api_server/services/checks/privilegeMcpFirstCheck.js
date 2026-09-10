@@ -32,8 +32,13 @@ const { getPrivilegeGatewayUrl } = require('../mcpGatewayClient');
 const TIMEOUT_MS = 8000;
 
 async function runPrivilegeMcpFirstCheck() {
-  const url = getPrivilegeGatewayUrl();
-  if (!url) {
+  // getPrivilegeGatewayUrl() returns the DOOR BASE, without /mcp — the tool-call
+  // client appends its own, and a helper that sometimes carried the suffix
+  // produced /agent-gateway/mcp/mcp and a bare 404 live on 2026-09-10. Every
+  // consumer appends, including this probe.
+  const base = getPrivilegeGatewayUrl();
+  const url = base ? `${base}/mcp` : '';
+  if (!base) {
     // getMcpGatewayHttpUrl() warns and falls through to the next lane here, so
     // the flag is on but Privilege is not in the path at all. Say that, rather
     // than dialling `undefined` and reporting a confusing network error.
