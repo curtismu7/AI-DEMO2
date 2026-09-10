@@ -718,7 +718,7 @@ export default function PrivilegeMcpClientPage() {
     const authResult = searchParams.get('auth');
     const reason = searchParams.get('reason');
     if (authResult === 'success') {
-      appendChat('system', 'OAuth completed. Refreshing tools...');
+      appendChat('system', 'OAuth completed. Press "Get MCP Tools" to discover tools.');
       api('/state').then((s) => {
         if (s.oauth?.authenticated) {
           setAuthenticated(true);
@@ -728,14 +728,23 @@ export default function PrivilegeMcpClientPage() {
         }
         if (s.oauth?.scope) setGrantedScopes(s.oauth.scope.split(' ').filter(Boolean));
       })
-        // Discover only AFTER /state has landed. These used to run
-        // concurrently, so a 403 arriving first was rendered against an empty
-        // config: the denial modal said Door "(unknown)" and the door probe had
-        // no presets to try — the two facts the modal exists to supply. Caught
-        // by the live drive; unit tests seed state before rendering and cannot
-        // see it. .catch keeps discovery running even if /state fails.
+        // NO automatic discovery on the sign-in return trip. Signing in says
+        // who you are; it does not say which door you meant to probe, and
+        // firing tools/list at whatever door happened to be selected spends a
+        // real call — and on a denying door pops the denial modal — before the
+        // presenter has touched anything. "Get MCP Tools" is the one control
+        // that discovers, so the page never calls a door nobody asked for.
+        //
+        // clearSwitching used to ride on refreshTools().finally; it has to run
+        // on its own now or the switching overlay would never lift.
+        //
+        // (History, still true of the button path: discovery must not race
+        // /state. They used to run concurrently, so a 403 arriving first was
+        // rendered against an empty config — the denial modal said Door
+        // "(unknown)" and the door probe had no presets to try, the two facts
+        // that modal exists to supply.)
         .catch(() => {})
-        .then(() => refreshTools().finally(clearSwitching));
+        .finally(clearSwitching);
     } else {
       // Stale switch flag (auth error, silent_failed, or back-button out of the
       // redirect) — never leave the overlay stuck.
@@ -1875,7 +1884,31 @@ export default function PrivilegeMcpClientPage() {
               <span className="cur-rail__k">App session</span>
               <span className="cur-rail__v">
                 {mainAppAuthenticated
-                  ? <><span aria-hidden="true">✅</span> {user?.email || 'signed in'}</>
+                  ? (
+                    <>
+                      <span aria-hidden="true">✅</span> {user?.email || 'signed in'}
+                      {/* Row 2 could always be signed out; row 1 could not, and the
+                          two are separate identities on purpose. That gap bites in
+                          one specific way: the gateway session lives in BFF process
+                          MEMORY (services/privilegeGatewaySession.js), so any BFF
+                          restart empties it while this badge — read from the app
+                          cookie — still says ✅. The page then looks signed in
+                          against a server that holds nothing, and every call fails
+                          confusingly. Signing out of the app is the reset.
+
+                          Navigates to /logout rather than POSTing a logout here:
+                          that route is the app's ONE sign-out path (App.js:1259,
+                          the same one AdminSideNav sends you to), so it stays
+                          correct if app logout ever changes. Deliberately does NOT
+                          also drop the gateway identity — row 2 owns that, and
+                          silently clearing someone else's row would hide which of
+                          the two identities actually went away. */}
+                      <button
+                        className="cur-btn cur-rail__btn"
+                        onClick={() => navigate('/logout')}
+                      >Sign out</button>
+                    </>
+                  )
                   : <><span aria-hidden="true">❌</span> Not signed in</>}
               </span>
             </li>
