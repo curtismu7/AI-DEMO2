@@ -468,7 +468,6 @@ export default function AdminSideNav({
   const allNavItems = [
     { label: "Home", path: "/", icon: "home" },
     { label: "Dashboard", path: "/dashboard", icon: "dashboard" },
-    { label: "Agentic Access Console", path: "/admin/agentic-access-console", icon: "shld" },
     {
       label: "AI Agent Gateway",
       icon: "shld",
@@ -1622,6 +1621,13 @@ export default function AdminSideNav({
             title="Setup"
           >
             {collapsed ? <MdSettings size={16} aria-hidden="true" /> : "Setup"}
+          </Link>
+          <Link
+            to="/admin/agentic-access-console"
+            className={`admin-side-nav__quick-link${location.pathname === "/admin/agentic-access-console" ? " admin-side-nav__quick-link--active" : ""}`}
+            title="Agentic Access Console"
+          >
+            {collapsed ? <MdShield size={16} aria-hidden="true" /> : "Console"}
           </Link>
           {collapsed && (
             <button

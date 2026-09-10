@@ -7,7 +7,6 @@
 export const NAV_STRUCTURE_CATALOG = [
   { label: "Home" },
   { label: "Dashboard" },
-  { label: "Agentic Access Console" },
   {
     label: "AI Agent Gateway",
     children: [
