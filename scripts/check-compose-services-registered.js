@@ -70,13 +70,6 @@ const ALLOWED_UNREGISTERED = {
     'k8s-only tier manager; the Docker stack drives tiers through llm-proxy, so it is never started by the launcher',
   'ungoverned-agent':
     'deliberately-ungoverned demo agent, run ad hoc for the attack narrative rather than as part of any stack',
-  mcpgw:
-    'PRE-EXISTING ANOMALY, allowlisted rather than silently fixed: unlike its siblings ' +
-    '(mcpgw-nginx, ping-mcpgw, opensearch — all profiles:[mcpgw]) this one declares NO profile, ' +
-    'so compose treats it as core, yet it has no container running and no SERVICES entry. ' +
-    'Either it should carry profiles:[mcpgw] like the rest of that group, or it should be ' +
-    'registered — that call belongs to whoever owns the Privilege gateway work, not to the ' +
-    'change that added this guard.',
 };
 
 function fail(lines) {
