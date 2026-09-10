@@ -817,8 +817,29 @@ services:
       start_period: 30s
     restart: unless-stopped
 
-  # ── Privilege MCPGW (Procyon cyonproxy) ──────────────────────────────────────
+  # ── Privilege MCPGW (Procyon cyonproxy) — RETIRED 2026-09-09 ────────────────
+  # SUPERSEDED by `ping-mcpgw` in the BINARY SWAP of 2026-08-12 (see that service
+  # for why: cyonproxy never emits a WWW-Authenticate challenge). Nothing routes
+  # here any more — demo_mcpgw_nginx/nginx.conf proxies to ping-mcpgw:8623, and no
+  # service declares depends_on: mcpgw.
+  #
+  # Profile-gated rather than deleted so the old binary stays available for
+  # side-by-side comparison with its replacement. It was a CORE service until now,
+  # which meant it crash-looped on every boot and made deploy-live print
+  # "stopped containers (deliberate? verify): ai-demo-mcpgw" on every run.
+  #
+  # It could never have worked on macOS as written. The three host binds below use
+  # /var/..., but macOS /var is a symlink to /private/var which Docker does not
+  # resolve, so all three mount EMPTY. With no cert and no proxy-token.data in
+  # /procyon/ssl, cyonproxy re-enrolls as a brand-new gateway and the control plane
+  # answers 500 {"error":"not found"} -> level=fatal -> exit 1 in ~360ms. The crash
+  # is invisible (`docker logs` is empty) because its default logging is FILE-only
+  # and /var/log/procyon is equally unshared; `-logtostderr` is what surfaces it.
+  # If this is ever revived, copy ping-mcpgw's named volumes (mcpgw-ssl etc.) —
+  # named volumes live in the Docker VM, so they dodge both the symlink and the
+  # container-root-cannot-write-to-a-root:wheel-dir problem.
   mcpgw:
+    profiles: ["mcpgw"]
     image: public.ecr.aws/s7q1z8z4/privilege-proxy:latest
     container_name: ai-demo-mcpgw
     ports:
