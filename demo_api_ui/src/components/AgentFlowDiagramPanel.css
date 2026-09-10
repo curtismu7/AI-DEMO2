@@ -279,6 +279,10 @@
   text-align: center;
 }
 
+.afd-sequence-body {
+  position: relative;
+}
+
 .afd-sequence-svg {
   display: block;
 }
@@ -304,23 +308,39 @@
   vector-effect: non-scaling-stroke;
 }
 
-.afd-sequence-arrowhead {
-  stroke: var(--th-text-muted);
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  vector-effect: non-scaling-stroke;
-}
-
 .afd-sequence-row--active .afd-sequence-line {
   stroke: #2563eb;
 }
 
-.afd-sequence-row--active .afd-sequence-arrowhead {
-  stroke: #2563eb;
+.afd-sequence-row--dimmed {
+  opacity: 0.35;
 }
 
-.afd-sequence-row--dimmed {
+/* Joint dots — HTML overlay, not SVG (see the render comment for why): each
+   is a small fixed-size circle so it stays round regardless of the panel's
+   width, positioned to land exactly on the SVG line ends beneath it. */
+.afd-sequence-dots {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.afd-sequence-dot {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-pill);
+  background: var(--th-bg-card);
+  color: var(--th-text-muted);
+  border: 1.5px solid var(--th-text-muted);
+  transform: translate(-50%, -50%);
+}
+
+.afd-sequence-dot--active {
+  border-color: #2563eb;
+}
+
+.afd-sequence-dot--dimmed {
   opacity: 0.35;
 }
 

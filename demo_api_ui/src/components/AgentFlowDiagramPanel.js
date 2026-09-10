@@ -15,17 +15,6 @@ const REPLAY_TICK_MS = 900;
 const SEQ_ROW_H = 34;
 const SEQ_TOP_PAD = 12;
 const ACTOR_LABELS = { browser: 'Browser', bff: 'BFF', pingone: 'PingOne' };
-
-/**
- * Chevron pointing in `dir` (+1 = rightward, -1 = leftward), tip at (x, y).
- * Explicit points rather than an SVG marker — markers don't scale sanely
- * under this diagram's non-uniform viewBox stretch (x in 0-100 units, y in
- * real px), so a fixed-size marker either vanishes or distorts.
- */
-function seqArrowheadPoints(x, y, dir) {
-  const dx = 2 * dir;
-  return `${x - dx},${y - 4} ${x},${y} ${x - dx},${y + 4}`;
-}
 function actorLabel(actor) {
   return ACTOR_LABELS[actor] || actor.charAt(0).toUpperCase() + actor.slice(1);
 }
@@ -204,56 +193,82 @@ export function StepTimeline({ steps, phase }) {
               <div key={actor} className="afd-sequence-header">{actorLabel(actor)}</div>
             ))}
           </div>
-          <svg
-            className="afd-sequence-svg"
-            width="100%"
-            height={seqHeight}
-            viewBox={`0 0 100 ${seqHeight}`}
-            preserveAspectRatio="none"
-            role="img"
-            aria-label="Sequence diagram"
-          >
-            {lane.map((actor, i) => (
-              <line
-                key={actor}
-                className="afd-sequence-lifeline"
-                x1={laneX(i)} y1={0}
-                x2={laneX(i)} y2={seqHeight}
-              />
-            ))}
-            {sequenceRows.map((row) => {
-              if (row.fromIdx == null) return null;
-              const step = steps[row.index];
-              const y = SEQ_TOP_PAD + row.index * SEQ_ROW_H + SEQ_ROW_H / 2;
-              const cls = `afd-sequence-row${row.highlighted ? ' afd-sequence-row--active' : ''}${row.dimmed ? ' afd-sequence-row--dimmed' : ''}`;
-              const x1 = laneX(row.fromIdx);
-              const commonProps = {
-                role: 'button',
-                tabIndex: 0,
-                'aria-label': step.title || `Step ${row.index + 1}`,
-                onClick: () => setFocusIndex(row.index),
-                onKeyDown: (e) => {
-                  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFocusIndex(row.index); }
-                },
-              };
-              if (row.isSelf) {
+          <div className="afd-sequence-body">
+            <svg
+              className="afd-sequence-svg"
+              width="100%"
+              height={seqHeight}
+              viewBox={`0 0 100 ${seqHeight}`}
+              preserveAspectRatio="none"
+              role="img"
+              aria-label="Sequence diagram"
+            >
+              {lane.map((actor, i) => (
+                <line
+                  key={actor}
+                  className="afd-sequence-lifeline"
+                  x1={laneX(i)} y1={0}
+                  x2={laneX(i)} y2={seqHeight}
+                />
+              ))}
+              {sequenceRows.map((row) => {
+                if (row.fromIdx == null) return null;
+                const step = steps[row.index];
+                const y = SEQ_TOP_PAD + row.index * SEQ_ROW_H + SEQ_ROW_H / 2;
+                const cls = `afd-sequence-row${row.highlighted ? ' afd-sequence-row--active' : ''}${row.dimmed ? ' afd-sequence-row--dimmed' : ''}`;
+                const x1 = laneX(row.fromIdx);
+                const commonProps = {
+                  role: 'button',
+                  tabIndex: 0,
+                  'aria-label': step.title || `Step ${row.index + 1}`,
+                  onClick: () => setFocusIndex(row.index),
+                  onKeyDown: (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFocusIndex(row.index); }
+                  },
+                };
+                if (row.isSelf) {
+                  return (
+                    <g key={row.index} className={cls} {...commonProps}>
+                      <path className="afd-sequence-line" d={`M${x1},${y - 5} h6 v10 h-6`} fill="none" />
+                    </g>
+                  );
+                }
+                const x2 = laneX(row.toIdx);
                 return (
                   <g key={row.index} className={cls} {...commonProps}>
-                    <path className="afd-sequence-line" d={`M${x1},${y - 5} h6 v10 h-6`} fill="none" />
-                    <polyline className="afd-sequence-arrowhead" points={seqArrowheadPoints(x1, y + 5, -1)} fill="none" />
+                    <line className="afd-sequence-line" x1={x1} y1={y} x2={x2} y2={y} />
                   </g>
                 );
-              }
-              const x2 = laneX(row.toIdx);
-              const dir = x2 > x1 ? 1 : -1;
-              return (
-                <g key={row.index} className={cls} {...commonProps}>
-                  <line className="afd-sequence-line" x1={x1} y1={y} x2={x2} y2={y} />
-                  <polyline className="afd-sequence-arrowhead" points={seqArrowheadPoints(x2, y, dir)} fill="none" />
-                </g>
-              );
-            })}
-          </svg>
+              })}
+            </svg>
+            {/* Joint dots as HTML, not SVG — a plain <circle> would render as an
+                ellipse under this diagram's non-uniform stretch (x in %, y in
+                real px). Purely decorative; the clickable target is the <g>
+                above, so this stays out of the tab order and off the a11y tree. */}
+            <div className="afd-sequence-dots" aria-hidden="true">
+              {sequenceRows.map((row) => {
+                if (row.fromIdx == null) return null;
+                const y = SEQ_TOP_PAD + row.index * SEQ_ROW_H + SEQ_ROW_H / 2;
+                const dotCls = `afd-sequence-dot${row.highlighted ? ' afd-sequence-dot--active' : ''}${row.dimmed ? ' afd-sequence-dot--dimmed' : ''}`;
+                const x1 = laneX(row.fromIdx);
+                if (row.isSelf) {
+                  return (
+                    <React.Fragment key={row.index}>
+                      <span className={dotCls} style={{ left: `${x1}%`, top: y - 5 }} />
+                      <span className={dotCls} style={{ left: `${x1}%`, top: y + 5 }} />
+                    </React.Fragment>
+                  );
+                }
+                const x2 = laneX(row.toIdx);
+                return (
+                  <React.Fragment key={row.index}>
+                    <span className={dotCls} style={{ left: `${x1}%`, top: y }} />
+                    <span className={dotCls} style={{ left: `${x2}%`, top: y }} />
+                  </React.Fragment>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
 
