@@ -48,6 +48,8 @@ const MERMAID_SOURCE = `sequenceDiagram
     participant M as MCP Server (Banking, Mock)
     participant P as PingOne (Authorization Server)
 
+    Note over A,G: Variant: with ff_mcp_gateway_privilege_first ON, the PingOne<br/>Privilege AI Gateway sits AHEAD of the Agent Gateway and terminates<br/>this client OAuth itself. The Agent Gateway then receives Privilege's<br/>static bridge credential, with the user token in X-Subject-Token.<br/>See the Privilege-First Gateway page for that topology.
+
     rect rgb(27,42,31)
     Note over U,P: Initialization - 401 challenge and resource discovery
     U->>A: 1) Connect

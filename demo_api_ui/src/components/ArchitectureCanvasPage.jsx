@@ -25,6 +25,7 @@ const NODE_ICON = {
   bff:               '⚡',
   'langchain-agent': '🤖',
   'agent-service':   '🤖',
+  'privilege-gateway':'🛡',
   'mcp-gateway':     '🔀',
   'authz-server':    '🛡️',
   'pingone-sso':     '🔑',
@@ -60,7 +61,7 @@ const COL_DEFS = [
   { ids: ['frontend'],                               label: 'Browser' },
   { ids: ['bff'],                                    label: 'BFF' },
   { ids: ['langchain-agent', 'agent-service'],       label: 'Agent Layer' },
-  { ids: ['mcp-gateway'],                            label: 'Agent Gateway' },
+  { ids: ['privilege-gateway', 'mcp-gateway'],        label: 'Gateways' },
   { ids: ['authz-server', 'pingone-sso', 'hitl-service'], label: 'Auth / Policy' },
   { ids: ['mcp-server', 'mcp-resource-server', 'api-resource-server'], label: 'MCP Backends' },
 ];

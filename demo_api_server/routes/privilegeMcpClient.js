@@ -1886,7 +1886,19 @@ router.post('/config', express.json(), (req, res) => {
   });
 });
 
-// POST /auth/start — begin OAuth PKCE flow
+/**
+ * POST /auth/start — begin the OAuth PKCE flow against the Privilege AI Gateway.
+ *
+ * @flow privilege-ai-gateway
+ * @name Privilege AI Gateway sign-in
+ * @rfc https://datatracker.ietf.org/doc/html/rfc7591 RFC 7591 Dynamic Client Registration
+ * @why The PingOne Privilege AI Gateway is its own authorization server, and it registers callers dynamically rather than from a client id you configure ahead of time: the client discovers the gateway, registers itself (RFC 7591), then runs Authorization Code with PKCE (RFC 7636). Two consequences shape everything downstream. The token it issues is OPAQUE, so there are no claims to decode — introspection is the only way to inspect it. And it is bound to ONE Agentic App: presenting a token minted for another app is refused before routing even happens, which is why each door needs its own sign-in.
+ * @example A visitor badge that only opens one building. It proves who you are and it was issued on the spot rather than pre-arranged, but showing it at a different building gets you turned away at the door, not at the meeting room.
+ * @ai An agent reaching a tool behind Privilege cannot carry one credential everywhere. It registers with the gateway, signs its user in once per application, and the gateway decides per app and per tool whether that human is allowed — before the agent's own gateway ever evaluates scopes.
+ * @actor client-app
+ * @to privilege-gateway
+ * @step 1
+ */
 router.post('/auth/start', express.json(), async (req, res) => {
   const session = getClientSession(req);
   try {
@@ -1922,7 +1934,19 @@ router.post('/auth/start', express.json(), async (req, res) => {
   }
 });
 
-// GET /auth/callback — OAuth code exchange
+/**
+ * GET /auth/callback — exchange the authorization code for the gateway's token.
+ *
+ * @flow privilege-ai-gateway
+ * @name Privilege AI Gateway sign-in
+ * @rfc https://datatracker.ietf.org/doc/html/rfc7636 RFC 7636 PKCE
+ * @why The code comes back to this app, which redeems it with the PKCE verifier it kept. What returns is deliberately thin: an access token and its lifetime, with no id_token even when openid is requested, and no refresh token — the gateway's metadata does not advertise offline_access. So the session cannot renew itself silently, and an expired token means signing in again rather than refreshing.
+ * @example Handing back the numbered stub from your coat check. The stub alone is useless to anyone else, and the only thing you get back is the coat — no receipt, no record you can show elsewhere.
+ * @ai This is where an agent's delegated session actually begins, and where it ends: with no refresh token, a long-running agent must expect re-authentication rather than assume a session it can keep alive.
+ * @actor privilege-gateway
+ * @to client-app
+ * @step 2
+ */
 router.get('/auth/callback', async (req, res) => {
   const session = getClientSession(req);
   // returnTo was sanitized at /auth/start time (site-relative path only).

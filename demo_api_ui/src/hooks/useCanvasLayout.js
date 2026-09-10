@@ -28,6 +28,10 @@ const NODE_GRID = {
   // A2A delegation subsystem (agent layer)
   'a2a-orchestrator':{ col: 2, row: 2 },
   'a2a-specialist':  { col: 3, row: 2 },
+  // Flag-gated front gate (ff_mcp_gateway_privilege_first, SE only). Drawn in
+  // the same band as the Agent Gateway because both are gateways, one row up so
+  // the bff -> privilege -> mcp-gateway order reads left to right.
+  'privilege-gateway':{ col: 3, row: -1 },
   'mcp-gateway':     { col: 3, row: 0 },
   'authz-server':    { col: 4, row: -1 },
   'pingone-sso':     { col: 4, row: 0 },
@@ -55,6 +59,7 @@ const NODE_LAYER = {
   'agent-service':   'agent',
   'a2a-orchestrator':'agent',
   'a2a-specialist':  'agent',
+  'privilege-gateway':'gateway',
   'mcp-gateway':     'mcp',
   'authz-server':    'policy',
   'pingone-sso':     'policy',
@@ -66,6 +71,8 @@ const NODE_LAYER = {
 
 // Human-readable display labels (overrides the id as label)
 const NODE_LABEL = {
+  // Named as flag-gated so the canvas is not read as "this is always in the path".
+  'privilege-gateway': 'PingOne Privilege (flag)',
   'a2a-orchestrator': 'A2A Orchestrator',
   'a2a-specialist':   'Specialist Agent',
   'mcp-gateway':  'Agent Gateway',
@@ -117,6 +124,10 @@ function buildSeedEdges(nodes) {
     // BFF → PingOne SSO for RFC 8693 token exchange before calling gateway
     ['bff',             'pingone-sso'],
     ['bff',             'mcp-gateway'],
+    // The privilege-first chain: the BFF's tool call enters Privilege, which
+    // forwards to whichever Agent Gateway its Agentic App is registered against.
+    ['bff',             'privilege-gateway'],
+    ['privilege-gateway','mcp-gateway'],
     ['mcp-gateway',     'authz-server'],
     ['mcp-gateway',     'hitl-service'],
     ['mcp-gateway',     'mcp-server'],
