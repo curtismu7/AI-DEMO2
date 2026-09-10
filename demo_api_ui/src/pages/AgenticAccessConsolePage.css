@@ -91,6 +91,9 @@
 .aac-section + .aac-section-block,
 .aac-section-block { margin-bottom: 30px; }
 .aac-section-block h3 { margin: 0 0 10px; font-size: var(--font-size-lg); }
+.aac-section-head-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.aac-section-head-row h3 { margin: 0; }
+.aac-refresh-row { display: flex; align-items: center; gap: 10px; }
 
 /* Stat tiles — dashboard summary numbers. */
 .aac-stat-grid {
@@ -168,6 +171,19 @@
 }
 .aac-table-row--detail .aac-prompt-block { margin-top: 8px; }
 .aac-mono { font-family: var(--font-mono); font-size: var(--font-size-sm); }
+
+/* Form view inside an expanded row (the readable alternative to raw JSON). */
+.aac-detail-form { margin: 10px 0 0; }
+.aac-detail-form__row {
+  display: grid;
+  grid-template-columns: minmax(140px, 220px) 1fr;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--th-border);
+}
+.aac-detail-form__row:last-child { border-bottom: 0; }
+.aac-detail-form dt { color: var(--th-text-muted); font-size: var(--font-size-sm); }
+.aac-detail-form dd { margin: 0; color: var(--th-text); font-size: var(--font-size-sm); word-break: break-word; }
 
 /* Decision / status pills — semantic tokens, not invented colours. */
 .aac-pill {

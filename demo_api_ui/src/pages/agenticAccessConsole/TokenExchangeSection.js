@@ -98,6 +98,9 @@ export default function TokenExchangeSection() {
         replacing the subject, so the final token still carries the whole chain.
       </p>
 
+      <p className="aac-card-sub" style={{ marginBottom: 4 }}>
+        Chain shape <span className="aac-badge aac-badge--neutral">Illustrative</span> — pick which delegation pattern to walk through:
+      </p>
       <div className="aac-tabs-inline">
         {TABS.map((t) => (
           <button
@@ -122,24 +125,27 @@ export default function TokenExchangeSection() {
       </ol>
 
       <div className="aac-section-block">
-        <h3>Decoded final token</h3>
+        <h3>Decoded final token <span className="aac-badge aac-badge--neutral">Illustrative</span></h3>
+        <p className="aac-card-sub" style={{ marginBottom: 8 }}>
+          What this chain's Final Token looks like in a real deployment — fictional
+          identities, shown to illustrate the nested <code>act</code> shape.
+        </p>
         <pre className="aac-prompt-block">{finalToken}</pre>
       </div>
 
       <div className="aac-section-block">
-        <h3>Minimal example — <code>demo_api_server/routes/rfc8693Demo.js</code></h3>
+        <h3>Try a real exchange <span className="aac-badge aac-badge--live">Live</span></h3>
         <p className="aac-card-sub" style={{ marginBottom: 8 }}>
-          A self-contained mock exchange (no PingOne dependency) — the architectural
-          chains above describe a flow this single endpoint doesn't fully replicate.
+          <code>demo_api_server/routes/rfc8693Demo.js</code> — a self-contained
+          mock exchange (no PingOne dependency, one hop only) that mints a real
+          JWT. It doesn't replicate the multi-hop chain above; it demonstrates
+          the same RFC 8693 request/response shape with something you can
+          actually run.
         </p>
-        <p className="aac-card-sub" style={{ marginBottom: 8 }}>Request</p>
+        <p className="aac-card-sub" style={{ marginBottom: 8 }}>Request this button sends</p>
         <pre className="aac-prompt-block">{RFC8693_REQUEST}</pre>
-      </div>
-
-      <div className="aac-section-block">
-        <h3>Try it live <span className="aac-badge aac-badge--live">Live</span></h3>
-        <button type="button" className="aac-filter-btn" onClick={runLiveExchange} disabled={liveLoading}>
-          {liveLoading ? "Exchanging…" : "POST /api/demo/rfc8693/token"}
+        <button type="button" className="aac-filter-btn" style={{ marginTop: 10 }} onClick={runLiveExchange} disabled={liveLoading}>
+          {liveLoading ? "Exchanging…" : "Send it — POST /api/demo/rfc8693/token"}
         </button>
         {liveError && (
           <p className="aac-card-sub" style={{ marginTop: 8, color: "var(--th-status-error-text)" }}>
@@ -148,11 +154,11 @@ export default function TokenExchangeSection() {
         )}
         {liveResult && (
           <>
-            <p className="aac-card-sub" style={{ margin: "12px 0 8px" }}>Real response</p>
+            <p className="aac-card-sub" style={{ margin: "12px 0 8px" }}>Real response, just now</p>
             <pre className="aac-prompt-block">{JSON.stringify(liveResult.response, null, 2)}</pre>
             {liveResult.claims && (
               <>
-                <p className="aac-card-sub" style={{ margin: "10px 0 8px" }}>Decoded claims (client-side base64url)</p>
+                <p className="aac-card-sub" style={{ margin: "10px 0 8px" }}>Decoded claims (client-side base64url, from the real token above)</p>
                 <pre className="aac-prompt-block">{JSON.stringify(liveResult.claims, null, 2)}</pre>
               </>
             )}

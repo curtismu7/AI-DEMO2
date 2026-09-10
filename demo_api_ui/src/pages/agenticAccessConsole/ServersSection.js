@@ -70,15 +70,31 @@ function ToolChipList({ tools }) {
 export default function ServersSection() {
   const [liveTools, setLiveTools] = useState(null); // null=loading
   const [liveError, setLiveError] = useState(false);
+  const [fetchedAt, setFetchedAt] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchTools = () => {
+    setLiveError(false);
+    return apiClient
+      .get("/api/mcp/inspector/tools")
+      .then(({ data }) => {
+        setLiveTools(Array.isArray(data.tools) ? data.tools : []);
+        setFetchedAt(new Date());
+      })
+      .catch(() => setLiveError(true));
+  };
 
   useEffect(() => {
     let cancelled = false;
-    apiClient
-      .get("/api/mcp/inspector/tools")
-      .then(({ data }) => { if (!cancelled) setLiveTools(Array.isArray(data.tools) ? data.tools : []); })
-      .catch(() => { if (!cancelled) setLiveError(true); });
+    fetchTools().then(() => { if (cancelled) return; });
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchTools().finally(() => setRefreshing(false));
+  };
 
   const liveNames = liveTools?.map((t) => t.name).filter(Boolean);
   const oauthNames = !liveError && liveNames?.length ? liveNames : OAUTH_MCP_TOOLS;
@@ -94,7 +110,24 @@ export default function ServersSection() {
       </p>
 
       <div className="aac-section-block">
-        <h3>Agent-facing (3)</h3>
+        <div className="aac-section-head-row">
+          <h3>Agent-facing (3)</h3>
+          <div className="aac-refresh-row">
+            {fetchedAt && (
+              <span className="aac-card-sub">
+                {oauthIsLive ? "Fetched" : "Last attempt"} {fetchedAt.toLocaleTimeString()}
+              </span>
+            )}
+            <button type="button" className="aac-chip-toggle" onClick={handleRefresh} disabled={refreshing}>
+              {refreshing ? "Refreshing…" : "Refresh"}
+            </button>
+          </div>
+        </div>
+        <p className="aac-card-sub" style={{ marginBottom: 10 }}>
+          The tool counts below are fetched live on load (and on Refresh) — never
+          cached or hand-maintained. The other two tiers further down have no live
+          source to refresh from; keeping those current means editing this page.
+        </p>
         <div className="aac-grid-2">
           <div className="aac-card">
             <div className="aac-card-title">demo_mcp_gateway</div>
@@ -122,7 +155,12 @@ export default function ServersSection() {
       </div>
 
       <div className="aac-section-block">
-        <h3>Privilege-registered / admin — NOT agent-facing (5)</h3>
+        <h3>Privilege-registered / admin — NOT agent-facing (5) <span className="aac-badge aac-badge--neutral">Static</span></h3>
+        <p className="aac-card-sub" style={{ marginBottom: 10 }}>
+          No live listing endpoint exists for PingOne Privilege's Agentic Apps registry
+          from this public page — this table is maintained by hand here. If it drifts,
+          update the rows below to match the Privilege console.
+        </p>
         <div className="aac-table-wrap">
           <table className="aac-table">
             <thead>
@@ -151,8 +189,8 @@ export default function ServersSection() {
       </div>
 
       <div className="aac-section-block">
-        <h3>Dev &amp; diagnostic — NOT agent-facing (5)</h3>
-        <p className="aac-card-sub">Wired into the MCP Inspector's Gateway Showcase tab.</p>
+        <h3>Dev &amp; diagnostic — NOT agent-facing (5) <span className="aac-badge aac-badge--neutral">Static</span></h3>
+        <p className="aac-card-sub">Wired into the MCP Inspector's Gateway Showcase tab — also hand-maintained here, no live source.</p>
         <div className="aac-grid-3">
           {DEV_SERVERS.map((s) => (
             <div key={s.name} className="aac-card">

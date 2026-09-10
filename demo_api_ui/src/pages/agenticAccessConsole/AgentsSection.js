@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import apiClient from "../../services/apiClient";
+import ExpandableRow from "./ExpandableRow";
 
 const AGENTS = [
   {
@@ -44,17 +45,17 @@ const RESOURCE_SERVER_TOOLS = [
 // one narrow, sensitive read task to its vertical's specialist (Agent 2) over a
 // chained RFC 8693 exchange — see the Token Exchange and CIBA tabs.
 const SPECIALISTS = [
-  { vertical: "banking", name: "Investment Advisor", tools: ["get_portfolio_summary", "get_investment_accounts", "get_investment_balance", "get_investment_transactions"] },
-  { vertical: "healthcare", name: "Records Specialist", tools: ["sensitive_patient_records"] },
-  { vertical: "retail", name: "Purchase History Specialist", tools: ["sensitive_order_history"], note: "aliased by abercrombie-fitch" },
-  { vertical: "sporting-goods", name: "Membership Specialist", tools: ["sensitive_membership_details"] },
-  { vertical: "workforce", name: "Payroll Specialist", tools: ["sensitive_payroll_details"] },
-  { vertical: "government", name: "Tax Records Specialist", tools: ["sensitive_tax_record"] },
-  { vertical: "university", name: "Financial Aid Specialist", tools: ["sensitive_student_finance"] },
-  { vertical: "manufacturing", name: "Supplier Contract Specialist", tools: ["sensitive_supplier_contract"] },
-  { vertical: "investment", name: "Holdings Specialist", tools: ["sensitive_holdings"] },
-  { vertical: "airlines", name: "Passenger Records Specialist", tools: ["sensitive_passenger_record"] },
-  { vertical: "admin", name: "Identity Verification Specialist", tools: ["sensitive_customer_identity"] },
+  { vertical: "banking", appKey: "investment", appName: "Super Banking Investment Advisor Agent", name: "Investment Advisor", tools: ["get_portfolio_summary", "get_investment_accounts", "get_investment_balance", "get_investment_transactions"], subtaskHint: "review the customer's investment positions" },
+  { vertical: "healthcare", appKey: "records", appName: "Super Banking Records Specialist Agent", name: "Records Specialist", tools: ["sensitive_patient_records"], subtaskHint: "retrieve the sensitive patient health record" },
+  { vertical: "retail", appKey: "purchase", appName: "Super Banking Purchase Specialist Agent", name: "Purchase History Specialist", tools: ["sensitive_order_history"], note: "aliased by abercrombie-fitch", subtaskHint: "review the sensitive order / purchase history" },
+  { vertical: "sporting-goods", appKey: "membership", appName: "Super Banking Membership Specialist Agent", name: "Membership Specialist", tools: ["sensitive_membership_details"], subtaskHint: "review the sensitive membership details" },
+  { vertical: "workforce", appKey: "payroll", appName: "Super Banking Payroll Specialist Agent", name: "Payroll Specialist", tools: ["sensitive_payroll_details"], subtaskHint: "review the sensitive payroll details" },
+  { vertical: "government", appKey: "tax", appName: "Super Banking Tax Records Specialist Agent", name: "Tax Records Specialist", tools: ["sensitive_tax_record"], subtaskHint: "retrieve the sensitive tax assessment record" },
+  { vertical: "university", appKey: "finaid", appName: "Super Banking Financial Aid Specialist Agent", name: "Financial Aid Specialist", tools: ["sensitive_student_finance"], subtaskHint: "review the sensitive student financial aid record" },
+  { vertical: "manufacturing", appKey: "supplier", appName: "Super Banking Supplier Contract Specialist Agent", name: "Supplier Contract Specialist", tools: ["sensitive_supplier_contract"], subtaskHint: "review the sensitive supplier contract terms" },
+  { vertical: "investment", appKey: "holdings", appName: "Super Banking Holdings Specialist Agent", name: "Holdings Specialist", tools: ["sensitive_holdings"], subtaskHint: "review the sensitive investment holdings" },
+  { vertical: "airlines", appKey: "passenger", appName: "Super Banking Passenger Records Specialist Agent", name: "Passenger Records Specialist", tools: ["sensitive_passenger_record"], subtaskHint: "retrieve the sensitive passenger record" },
+  { vertical: "admin", appKey: "identity", appName: "Super Banking Identity Verification Specialist Agent", name: "Identity Verification Specialist", tools: ["sensitive_customer_identity"], subtaskHint: "retrieve the customer's identity-verification (KYC) record" },
 ];
 
 function SpecialistsPanel() {
@@ -63,7 +64,8 @@ function SpecialistsPanel() {
       <h3>Vertical specialists (A2A)</h3>
       <p className="aac-card-sub">
         One specialist per vertical — the Agent 2 a generalist delegates a single
-        sensitive read task to. Source: config/a2aSpecialists.js.
+        sensitive read task to. Source: config/a2aSpecialists.js. Click a row for
+        the full specialist detail.
       </p>
       <div className="aac-table-wrap">
         <table className="aac-table">
@@ -76,14 +78,18 @@ function SpecialistsPanel() {
           </thead>
           <tbody>
             {SPECIALISTS.map((s) => (
-              <tr key={s.vertical}>
-                <th scope="row" className="aac-mono">{s.vertical}</th>
-                <td>
-                  {s.name}
-                  {s.note && <span className="aac-card-sub"> ({s.note})</span>}
-                </td>
-                <td className="aac-mono">{s.tools.join(", ")}</td>
-              </tr>
+              <ExpandableRow
+                key={s.vertical}
+                detail={s}
+                cells={[
+                  <th key="vertical" scope="row" className="aac-mono">{s.vertical}</th>,
+                  <td key="name">
+                    {s.name}
+                    {s.note && <span className="aac-card-sub"> ({s.note})</span>}
+                  </td>,
+                  <td key="tools" className="aac-mono">{s.tools.join(", ")}</td>,
+                ]}
+              />
             ))}
           </tbody>
         </table>
