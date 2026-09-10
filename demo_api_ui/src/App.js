@@ -225,6 +225,8 @@ import SignInRequired from "./routes/SignInRequired";
 import SignInPrompt from "./components/SignInPrompt";
 import AppShell from "./routes/AppShell";
 import { ProtocolPlaygroundPageRoute } from "./routes/ProtocolPlaygroundRoutes";
+import apiClient from "./services/apiClient";
+import { agentFlowDiagram } from "./services/agentFlowDiagramService";
 import { monitorApiHealth } from "./services/bankingRestartNotificationService";
 import {
   isBankingAgentDashboardRoute,
@@ -450,6 +452,29 @@ function AppWithAuth() {
     loginModalShownRef.current = true;
     setLoginSuccessOpen(true);
   }, [freshLogin, user]);
+
+  // `?login_trace=<id>` — set by the BFF's OAuth callback (routes/oauthUser.js)
+  // alongside `?oauth=success`. Captured the same way as freshLogin, above,
+  // before useOAuthUrlCleanup strips it. Fetches the recorded login sequence
+  // once and renders it in the Agent Flow panel so it's visible the moment
+  // you land back signed in — see loginFlowTraceService.js for why this can't
+  // be a live stream (the browser was away at PingOne for the middle of it).
+  const [loginTraceId] = useState(() =>
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search || "").get("login_trace")
+      : null,
+  );
+  const loginTraceShownRef = useRef(false);
+  useEffect(() => {
+    if (loginTraceShownRef.current || !loginTraceId) return;
+    loginTraceShownRef.current = true;
+    apiClient
+      .get(`/api/auth/oauth/user/login-trace/${loginTraceId}`)
+      .then(({ data }) => {
+        if (data?.steps?.length) agentFlowDiagram.showLoginFlow(data.steps);
+      })
+      .catch(() => {}); // best-effort — a missing/expired trace just skips the diagram
+  }, [loginTraceId]);
 
   // Setup browser extension interference handling
   useEffect(() => {

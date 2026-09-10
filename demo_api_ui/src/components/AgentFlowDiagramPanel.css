@@ -257,6 +257,99 @@
   color: #991b1b;
 }
 
+/* ─── Actor swimlane (login-style flows only — steps carry actor/toActor) ─── */
+.afd-lane {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0 0 0.6rem;
+  padding: 0;
+  list-style: none;
+}
+
+.afd-lane-pill {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg-card);
+  color: var(--th-text-muted);
+}
+
+.afd-step--focused .afd-step-card {
+  border-color: #93c5fd;
+}
+
+/* ─── Per-step protocol detail (login-flow steps only) ─── */
+.afd-step-protocol {
+  margin-top: 0.35rem;
+}
+
+.afd-step-protocol-list {
+  margin: 0.35rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.afd-step-protocol-row {
+  display: flex;
+  gap: 0.4rem;
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+
+.afd-step-protocol-row dt {
+  margin: 0;
+  font-weight: 700;
+  color: var(--th-text-muted);
+  flex-shrink: 0;
+}
+
+.afd-step-protocol-row dd {
+  margin: 0;
+  color: var(--th-text-faint);
+  word-break: break-word;
+}
+
+/* ─── Replay scrubber (completed flows with more than one step) ─── */
+.afd-replay {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--th-border);
+}
+
+.afd-replay-btn {
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-card);
+  color: var(--th-text-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+}
+
+.afd-replay-btn:hover {
+  background: var(--brand-light-gray);
+}
+
+.afd-replay-range {
+  flex: 1;
+  min-width: 0;
+}
+
+.afd-replay-count {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--th-text-muted);
+  white-space: nowrap;
+}
+
 /* ─── 8-direction resize handles ──────────────────────────────── */
 .afd-rh {
   position: absolute;

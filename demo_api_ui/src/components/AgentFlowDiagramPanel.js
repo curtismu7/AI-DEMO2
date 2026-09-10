@@ -8,7 +8,14 @@ import { useEducationUIOptional } from '../context/EducationUIContext';
 import { useTokenChainOptional } from '../context/TokenChainContext';
 import TokenExchangeFlowDiagram from './TokenExchangeFlowDiagram';
 import JsonHighlight from './shared/JsonHighlight';
+import { deriveActorLane, nextPlayIndex } from '../utils/stepReplay';
 import './AgentFlowDiagramPanel.css';
+
+const REPLAY_TICK_MS = 900;
+const ACTOR_LABELS = { browser: 'Browser', bff: 'BFF', pingone: 'PingOne' };
+function actorLabel(actor) {
+  return ACTOR_LABELS[actor] || actor.charAt(0).toUpperCase() + actor.slice(1);
+}
 
 function statusBadge(status) {
   const labels = { pending: 'Waiting', active: 'In progress', done: 'Done', error: 'Issue' };
@@ -118,6 +125,124 @@ export function TokenEventCard({ event, resolvedIdentity }) {
               <pre className="afd-tc-pre"><JsonHighlight value={event.jwtFullDecode.header} /></pre>
             </section>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Step rail for AgentFlowDiagramPanel: an actor swimlane (only when steps
+ * carry actor/toActor — the login flow does, live MCP-call steps don't), the
+ * step cards with an optional protocol-detail toggle, and a play/pause/scrub
+ * replay control once a completed flow has more than one step to walk
+ * through (hidden while a flow is still live — there's nothing to replay yet).
+ */
+export function StepTimeline({ steps, phase }) {
+  const [focusIndex, setFocusIndex] = useState(null);
+  const [playing, setPlaying] = useState(false);
+  const [expanded, setExpanded] = useState(() => new Set());
+  const stepsKey = steps.map((s) => s.id).join('|');
+
+  useEffect(() => {
+    setFocusIndex(null);
+    setPlaying(false);
+  }, [stepsKey]);
+
+  useEffect(() => {
+    if (!playing) return undefined;
+    const id = setInterval(() => {
+      setFocusIndex((current) => {
+        const { index, done } = nextPlayIndex(current ?? 0, steps.length);
+        if (done) setPlaying(false);
+        return index;
+      });
+    }, REPLAY_TICK_MS);
+    return () => clearInterval(id);
+  }, [playing, steps.length]);
+
+  const lane = deriveActorLane(steps);
+  const showScrubber = steps.length > 1 && phase !== 'running';
+  const activeIndex = focusIndex ?? 0;
+
+  function toggleDetail(id) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function togglePlay() {
+    if (playing) { setPlaying(false); return; }
+    setFocusIndex((current) => (current === null || current >= steps.length - 1 ? 0 : current));
+    setPlaying(true);
+  }
+
+  return (
+    <div className="afd-flow" aria-live="polite">
+      {lane.length > 0 && (
+        <ul className="afd-lane" aria-label="Actors in this flow">
+          {lane.map((actor) => (
+            <li key={actor} className="afd-lane-pill">{actorLabel(actor)}</li>
+          ))}
+        </ul>
+      )}
+
+      {steps.map((step, i) => {
+        const detailId = step.id || i;
+        return (
+          <div
+            key={detailId}
+            className={`afd-step afd-step--${step.status}${i === activeIndex ? ' afd-step--focused' : ''}`}
+          >
+            <div className="afd-step-rail" aria-hidden>
+              <span className="afd-step-dot" />
+              {i < steps.length - 1 && <span className="afd-step-line" />}
+            </div>
+            <div className="afd-step-card">
+              <h3 className="afd-step-title">{step.title}</h3>
+              <p className="afd-step-detail">{step.detail}</p>
+              {statusBadge(step.status)}
+              {step.protocolDetail && (
+                <div className="afd-step-protocol">
+                  <button type="button" className="afd-token-toggle" onClick={() => toggleDetail(detailId)}>
+                    {expanded.has(detailId) ? 'Hide protocol detail' : 'Show protocol detail'}
+                  </button>
+                  {expanded.has(detailId) && (
+                    <dl className="afd-step-protocol-list">
+                      {step.protocolDetail.map(([k, v]) => (
+                        <div className="afd-step-protocol-row" key={k}>
+                          <dt>{k}</dt>
+                          <dd>{v}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+
+      {showScrubber && (
+        <div className="afd-replay">
+          <button type="button" className="afd-replay-btn" aria-label="Jump to start" onClick={() => setFocusIndex(0)}>|&laquo;</button>
+          <button type="button" className="afd-replay-btn" onClick={() => setFocusIndex((c) => Math.max(0, (c ?? 0) - 1))}>Prev</button>
+          <button type="button" className="afd-replay-btn" onClick={togglePlay}>{playing ? 'Pause' : 'Play'}</button>
+          <button type="button" className="afd-replay-btn" onClick={() => setFocusIndex((c) => Math.min(steps.length - 1, (c ?? 0) + 1))}>Next</button>
+          <button type="button" className="afd-replay-btn" aria-label="Jump to end" onClick={() => setFocusIndex(steps.length - 1)}>&raquo;|</button>
+          <input
+            type="range"
+            className="afd-replay-range"
+            min={0}
+            max={steps.length - 1}
+            value={activeIndex}
+            onChange={(e) => setFocusIndex(Number(e.target.value))}
+            aria-label="Step scrubber"
+          />
+          <span className="afd-replay-count">{activeIndex + 1} / {steps.length}</span>
         </div>
       )}
     </div>
@@ -320,23 +445,7 @@ export default function AgentFlowDiagramPanel() {
           );
         })()}
         
-        {steps.length > 0 && (
-          <div className="afd-flow" aria-live="polite">
-            {steps.map((step, i) => (
-              <div key={step.id || i} className={`afd-step afd-step--${step.status}`}>
-                <div className="afd-step-rail" aria-hidden>
-                  <span className="afd-step-dot" />
-                  {i < steps.length - 1 && <span className="afd-step-line" />}
-                </div>
-                <div className="afd-step-card">
-                  <h3 className="afd-step-title">{step.title}</h3>
-                  <p className="afd-step-detail">{step.detail}</p>
-                  {statusBadge(step.status)}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        {steps.length > 0 && <StepTimeline steps={steps} phase={phase} />}
         {serverEvents.length > 0 && (
           <div className="afd-sse-block" aria-live="polite">
             <h3 className="afd-sse-title">Live server phases (SSE)</h3>

@@ -19,6 +19,7 @@ const tokenIntrospectionService = require('../services/tokenIntrospectionService
 const { terminateAllUserSessions } = require('../services/pingOneSessionService');
 const demoScenarioStore = require('../services/demoScenarioStore');
 const { verticalManifest } = require('../services/verticalManifest');
+const loginFlowTrace = require('../services/loginFlowTraceService');
 
 const STEP_UP_TTL_MS = 5 * 60 * 1000; // 5 min step-up validity
 
@@ -151,6 +152,15 @@ async function reseedIfVerticalMismatch(userId, firstName, lastName) {
 /**
  * Initiate OAuth login for end users
  */
+/**
+ * Serves the recorded login sequence once, so the SPA can render the
+ * completed step-by-step diagram right after landing back signed in.
+ * Single-consume; an unknown/expired id just comes back empty.
+ */
+router.get('/login-trace/:id', (req, res) => {
+  res.json({ steps: loginFlowTrace.finish(req.params.id) });
+});
+
 router.get('/login', (req, res) => {
   try {
     const _mask = (v, n) => v ? v.slice(0, n) + '...' : 'MISSING';
@@ -246,6 +256,28 @@ router.get('/login', (req, res) => {
 
     // Generate a nonce for OIDC replay protection (RFC 6749 / OIDC Core §3.1.2.1)
     const nonce = crypto.randomBytes(16).toString('hex');
+
+    // Login flow diagram — see loginFlowTraceService.js. Purely observational;
+    // never affects the actual login decision below.
+    const loginTraceId = crypto.randomBytes(6).toString('hex');
+    loginFlowTrace.start(loginTraceId);
+    loginFlowTrace.addStep(loginTraceId, {
+      actor: 'browser',
+      toActor: 'bff',
+      title: 'You click "Sign in"',
+      detail: 'Browser requests GET /api/auth/oauth/user/login to start the OAuth flow.',
+    });
+    loginFlowTrace.addStep(loginTraceId, {
+      actor: 'bff',
+      title: 'BFF mints PKCE — server-side',
+      detail: 'Generates a one-time code_verifier and its SHA-256 code_challenge, plus state and a nonce; the verifier stays server-side.',
+      protocolDetail: [
+        ['code_challenge_method', 'S256'],
+        ['code_verifier', 'kept server-side (never sent to the browser)'],
+        ['state', 'random, stored in session'],
+      ],
+    });
+
     // force=true must send prompt=login — clearing the BFF session alone does not
     // stop PingOne SSO from silently re-auth'ing and bouncing the SPA to `/`.
     const url =
@@ -257,12 +289,24 @@ router.get('/login', (req, res) => {
         ...(forceLogin ? { prompt: 'login' } : {}),
       }) + resourceParam;
 
+    loginFlowTrace.addStep(loginTraceId, {
+      actor: 'bff',
+      toActor: 'pingone',
+      title: "BFF redirects you to PingOne's hosted login",
+      detail: '302 to PingOne /authorize carrying response_type, redirect_uri, and the code_challenge.',
+      protocolDetail: [
+        ['response_type', 'code'],
+        ['redirect_uri', redirectUri],
+      ],
+    });
+
     // Store state, verifier and redirect URI in session for CSRF protection and PKCE
     req.session.oauthState = state;
     req.session.oauthCodeVerifier = codeVerifier;
     req.session.oauthRedirectUri = redirectUri;
     req.session.oauthNonce = nonce;
     req.session.oauthType = 'user'; // Distinguish from admin OAuth
+    req.session.oauthLoginTraceId = loginTraceId;
 
     // Vercel / serverless: also persist PKCE data in a signed cookie so the
     // callback can recover it when the in-memory session is on a different instance.
@@ -435,16 +479,50 @@ router.get('/callback', async (req, res) => {
     const codeVerifier = req.session.oauthCodeVerifier || pkceCookie?.codeVerifier;
     const redirectUri   = req.session.oauthRedirectUri  || pkceCookie?.redirectUri;
     const expectedNonce = req.session.oauthNonce         || pkceCookie?.nonce;
+    const loginTraceId = req.session.oauthLoginTraceId || null;
     delete req.session.oauthCodeVerifier;
     delete req.session.oauthRedirectUri;
     delete req.session.oauthState;
     delete req.session.oauthNonce;
+    delete req.session.oauthLoginTraceId;
     clearPkceCookie(res, _isProd());
 
+    loginFlowTrace.addStep(loginTraceId, {
+      actor: 'pingone',
+      toActor: 'bff',
+      title: 'PingOne sends the auth code back to the BFF',
+      detail: '302 to the callback with a one-time authorization code and the original state; BFF checks state matches.',
+      protocolDetail: [
+        ['GET', '/api/auth/oauth/user/callback?code=…&state=…'],
+        ['state', 'matched stored value'],
+      ],
+    });
+
     // Exchange code for token (with PKCE verifier)
+    loginFlowTrace.addStep(loginTraceId, {
+      actor: 'bff',
+      toActor: 'pingone',
+      title: 'BFF redeems the code for tokens',
+      detail: 'Server-to-server POST to the token endpoint: the code + PKCE code_verifier prove this client started the flow.',
+      protocolDetail: [
+        ['grant_type', 'authorization_code'],
+        ['code_verifier', 'the stored PKCE verifier'],
+      ],
+    });
     const tokenData = await oauthService.exchangeCodeForToken(code, codeVerifier, redirectUri);
     console.debug('Token received for end user');
     appEventService.logEvent('token_exchange', 'info', 'OAuth token received ← PingOne', { tag: 'oauth/user/callback' });
+    loginFlowTrace.addStep(loginTraceId, {
+      actor: 'pingone',
+      toActor: 'bff',
+      title: 'PingOne returns the tokens',
+      detail: 'Access token, ID token (OIDC identity), and refresh token — stored server-side, never sent to the browser.',
+      protocolDetail: [
+        ['access_token', 'JWT, aud=BFF'],
+        ['id_token', tokenData.id_token ? 'JWT · OIDC identity of the user' : 'not issued'],
+        ['refresh_token', tokenData.refresh_token ? 'opaque' : 'not issued'],
+      ],
+    });
 
     // Decode ID token claims — used for nonce verification and as a fallback for userinfo gaps.
     let idTokenClaims = {};
@@ -648,6 +726,16 @@ router.get('/callback', async (req, res) => {
       // D-01: clear pending agent intent — client handles replay via sessionStorage (BX_AGENT_PENDING_NL_KEY)
       delete req.session.pendingAgentIntent;
 
+      loginFlowTrace.addStep(loginTraceId, {
+        actor: 'bff',
+        title: 'BFF regenerates the session and stores the tokens',
+        detail: 'Session id is rotated (anti-fixation); tokens stored server-side; profile read from the ID token.',
+        protocolDetail: [
+          ['regenerate()', 'new session id'],
+          ['sub', idTokenClaims.sub || 'unknown'],
+        ],
+      });
+
       console.log('[oauth/user/callback] tokens stored — access_token=%s id_token=%s refresh_token=%s sid=%s',
         oauthTokens.accessToken  ? 'PRESENT' : 'MISSING',
         oauthTokens.idToken      ? 'PRESENT' : 'MISSING',
@@ -729,12 +817,23 @@ router.get('/callback', async (req, res) => {
           return res.redirect(stepUpReturnTo);
         }
 
+        loginFlowTrace.addStep(loginTraceId, {
+          actor: 'bff',
+          toActor: 'browser',
+          title: 'You land back on the site, signed in',
+          detail: 'BFF redirects home and sets the sid cookie (HttpOnly) — the browser holds only this cookie, no tokens in JS.',
+          protocolDetail: [
+            ['Set-Cookie', 'sid=… · HttpOnly'],
+          ],
+        });
+        const loginTraceParam = loginTraceId ? `&login_trace=${loginTraceId}` : '';
+
         const ssoParam = silentSso ? '&sso_silent=1' : '';
         const returnPath = postLoginReturnToPath || '/dashboard';
         // Land directly on the app (was /success) carrying oauth=success so the
         // dashboard-level LoginSuccessModal opens once. returnPath is sanitized.
         const sep = returnPath.includes('?') ? '&' : '?';
-        res.redirect(`${origin}${returnPath}${sep}oauth=success${ssoParam}`);
+        res.redirect(`${origin}${returnPath}${sep}oauth=success${ssoParam}${loginTraceParam}`);
 
       });
       });
