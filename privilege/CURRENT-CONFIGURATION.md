@@ -79,7 +79,7 @@ what this repo called "agentless").
 | App | Type | Backend | Status |
 | --- | --- | --- | --- |
 | `opensearch22` | MCP Server (subdomain) | `http://opensearch-mcp-server.ping-devops-curtismuir.svc.cluster.local/mcp` | Working end-to-end 2026-09-08 — client path `/opensearch22/mcp` (calls logged 200/202/200 after the `/mcp` re-registration) |
-| `opensearch` | MCP Server (subdomain) | same, older duplicate registration | Working — 9 tools |
+| `opensearch` | MCP Server (subdomain) | same, older duplicate registration | **Was dead from 2026-09-08 to 2026-09-10, now fixed.** When `opensearch22` was re-registered on `/mcp`, this twin was left on `/sse`, so its entry path stayed pinned there and every client call to `/opensearch/mcp` answered a bare `404` — `[mcpgw] rejecting /mcp on app opensearch: outside entry path "/sse"`. This row claimed "Working" the whole time and cost a debugging session. Re-registered on `/mcp` 2026-09-10 |
 | `pingone-mcp-server-2` | MCP Server (subdomain) | unrelated, pre-existing app kept for its own purpose | Not part of this demo — see the note below, this is NOT the demo's PingOne MCP |
 | `mcp-brave-search` | Catalog sidecar | Privilege's own `mcp/brave-search:1.0.0` image, reaching our `mcp-brave` sidecar via the mesh | Working after the 2026-09-07 gateway restart (was stuck in a "Tenant not found" registration retry loop) |
 | `mcp-grafana` | Catalog sidecar | Privilege's own `mcp/grafana:1.0.0` image → our `mcp-grafana` sidecar via the mesh | Working after the same restart |
@@ -420,14 +420,41 @@ The third row confirms the other half: `X-Subject-Token` is ignored today, which
 is correct — no bridge exists yet, and a header from an arbitrary caller must
 never be trusted.
 
-**3. What is still unmeasured, and why.** The D1 fork — *does Privilege forward
-custom request headers to the backend* — cannot be answered from the cluster
-side. It needs (a) an Agentic App registered against the Node gateway, which is
-console work, and (b) a client call that clears the front door, which needs a
-gateway-minted token from a human browser sign-in. Checked 2026-09-09: the SE
-BFF reports `gatewaySession: {ready:false, reason:"no_session"}`, so no such
-call can be made right now. Registering the probe app and arming the session are
-the two operator steps that unblock the rest of Task 0.
+**3. ANSWERED 2026-09-10: Privilege forwards custom request headers unchanged,
+and forwards no `Authorization` at all under Auth Mode None.** This is D1
+outcome **(a)**, measured end to end — not inferred.
+
+Method: a throwaway Agentic App `probe-agent-gateway` (Auth Mode None, mesh
+cluster `ai-demo-cmuir`) pointed at a disposable backend that logs every header
+it receives, plus a policy naming the operator, then one real call from
+`/privilege-mcp-client`. What arrived at the backend:
+
+| Header | Arrived? |
+|---|---|
+| `x-pingone-admin-token` (a **custom** header the BFF adds in `fetchMcp`) | **Yes — full value, unmodified.** This is the whole finding |
+| `authorization` | **No.** Not the caller's bearer, and nothing substituted |
+| `x-forwarded-for` | Yes, and it preserves the caller's real client address ahead of the gateway's |
+| `mcp-method`, `mcp-protocol-version`, `origin`, `traceparent`, `x-request-id` | Yes |
+| `x-forwarded-host` | Present but **empty** — do not key anything on it |
+
+Two consequences, both load-bearing for the privilege-first plan:
+
+- **`X-Subject-Token` will reach the Agent Gateway.** The bridge can carry the
+  user's exchanged token, so the delegated identity survives the hop and Task 8
+  can rebuild a real `act` chain rather than falling back to a machine subject.
+- **The bearer slot is genuinely empty under Auth Mode None**, which is exactly
+  why a probe of the real Node gateway answers `Bearer token required` (§2
+  above). Putting the bridge secret there requires Auth Mode **Static Token**.
+
+The GET that opens the SSE stream carried no custom header, because the client
+does not add one to that request — that is the client's shape, not the gateway
+stripping it.
+
+**Do not repeat this measurement.** Tear-down after it was taken: the probe app
+and its policy are console objects, the disposable backend was a labelled
+`hdr-echo` Deployment plus Service in `ping-devops-cmuir`, and
+`PRIVILEGE_MCPGW_URL` was pointed at the probe door for the duration and then
+restored to `opensearch22`.
 
 ## Which PingOne identity is which (settled 2026-09-08)
 
