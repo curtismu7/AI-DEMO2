@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import apiClient from "../../services/apiClient";
 
-// Illustrative snapshot of the demo's agent → MCP-tool access surface. Static
-// on purpose — see the "Agentic Access Console" TECH_DEBT.md entry.
+// Hand-maintained snapshot of the demo's agent → MCP-tool access surface — no
+// live endpoint aggregates these; see the "Agentic Access Console" TECH_DEBT.md entry.
 const COVERAGE_BY_RUNTIME = [
   { runtime: "langchain_agent", framework: "LangGraph", servers: 3, tools: 54 },
   { runtime: "openai_agent", framework: "OpenAI Agents SDK", servers: 3, tools: 54 },
@@ -27,6 +28,7 @@ const COVERAGE_BY_VERTICAL = [
 ];
 const VERTICAL_PREVIEW_COUNT = 5;
 
+// Signed-out fallback only — signed-in users get GET /api/authorize/recent-decisions.
 const RECENT_DECISIONS = [
   { time: "14:02:11", agent: "openai_agent", tool: "create_transfer", scope: "transfer", decision: "PERMIT" },
   { time: "14:01:47", agent: "mastra_agent", tool: "create_transfer", scope: "transfer", decision: "INDETERMINATE" },
@@ -36,12 +38,32 @@ const RECENT_DECISIONS = [
 ];
 
 function DecisionPill({ decision }) {
-  const cls = decision.toLowerCase();
-  return <span className={`aac-pill aac-pill--${cls}`}>{decision}</span>;
+  const label = String(decision || "UNKNOWN");
+  return <span className={`aac-pill aac-pill--${label.toLowerCase()}`}>{label}</span>;
 }
 
-export default function DashboardSection() {
+export default function DashboardSection({ user }) {
   const [showAllVerticals, setShowAllVerticals] = useState(false);
+  const [decisions, setDecisions] = useState(null);
+  const [decisionsState, setDecisionsState] = useState("idle"); // idle|loading|ok|not_configured|error
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    setDecisionsState("loading");
+    apiClient
+      .get("/api/authorize/recent-decisions?limit=5")
+      .then(({ data }) => {
+        if (cancelled) return;
+        setDecisions(data.decisions || []);
+        setDecisionsState("ok");
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setDecisionsState(err?.response?.status === 422 ? "not_configured" : "error");
+      });
+    return () => { cancelled = true; };
+  }, [user]);
   const visibleVerticals = showAllVerticals ? COVERAGE_BY_VERTICAL : COVERAGE_BY_VERTICAL.slice(0, VERTICAL_PREVIEW_COUNT);
 
   return (
@@ -72,13 +94,13 @@ export default function DashboardSection() {
         </div>
         <div className="aac-stat-tile">
           <div className="aac-stat-value">1,842</div>
-          <div className="aac-stat-label">Authz decisions (24h)</div>
+          <div className="aac-stat-label">Authz decisions (24h) <span className="aac-badge aac-badge--neutral">Illustrative</span></div>
           <div className="aac-stat-detail">1,791 permit · 39 deny · 12 → HITL</div>
         </div>
       </div>
 
       <div className="aac-section-block">
-        <h3>Coverage by runtime</h3>
+        <h3>Coverage by runtime <span className="aac-badge aac-badge--neutral">Static</span></h3>
         <p className="aac-card-sub" style={{ marginBottom: 10 }}>
           All four runtimes see the same 3 servers / 54 tools — access is uniform,
           gated by policy at call time, not scoped per agent.
@@ -108,7 +130,7 @@ export default function DashboardSection() {
       </div>
 
       <div className="aac-section-block">
-        <h3>Coverage by vertical</h3>
+        <h3>Coverage by vertical <span className="aac-badge aac-badge--neutral">Static</span></h3>
         <div className="aac-table-wrap">
           <table className="aac-table">
             <thead>
@@ -135,36 +157,88 @@ export default function DashboardSection() {
       </div>
 
       <div className="aac-section-block">
-        <h3>Recent authorization decisions</h3>
-        <div className="aac-table-wrap">
-          <table className="aac-table">
-            <thead>
-              <tr>
-                <th scope="col">Time</th>
-                <th scope="col">Agent</th>
-                <th scope="col">Tool</th>
-                <th scope="col">Scope</th>
-                <th scope="col">Decision</th>
-              </tr>
-            </thead>
-            <tbody>
-              {RECENT_DECISIONS.map((d, i) => (
-                <tr key={i}>
-                  <td className="aac-mono">{d.time}</td>
-                  <td>{d.agent}</td>
-                  <td className="aac-mono">{d.tool}</td>
-                  <td className="aac-mono">{d.scope}</td>
-                  <td>
-                    <DecisionPill decision={d.decision} />
-                    {d.decision === "INDETERMINATE" && (
-                      <span className="aac-card-sub"> → demo_hitl_service</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <h3>
+          Recent authorization decisions{" "}
+          {user
+            ? decisionsState === "ok" && <span className="aac-badge aac-badge--live">Live</span>
+            : <span className="aac-badge aac-badge--neutral">Illustrative</span>}
+        </h3>
+        {user ? (
+          <>
+            {decisionsState === "ok" && decisions?.length > 0 && (
+              <div className="aac-table-wrap">
+                <table className="aac-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Time</th>
+                      <th scope="col">Decision</th>
+                      <th scope="col">Details</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {decisions.map((d, i) => (
+                      <tr key={d.id || i}>
+                        <td className="aac-mono">{d.createdAt || d.timestamp || "—"}</td>
+                        <td><DecisionPill decision={d.decision || d.result?.decision} /></td>
+                        <td>
+                          <details>
+                            <summary className="aac-card-sub" style={{ cursor: "pointer" }}>Raw</summary>
+                            <pre className="aac-prompt-block">{JSON.stringify(d, null, 2)}</pre>
+                          </details>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {decisionsState === "not_configured" && (
+              <div className="aac-card"><div className="aac-card-body">PingOne Authorize worker credentials not configured in this environment.</div></div>
+            )}
+            {decisionsState === "error" && (
+              <div className="aac-card"><div className="aac-card-body">Live decision log unavailable right now.</div></div>
+            )}
+            {decisionsState === "ok" && (!decisions || decisions.length === 0) && (
+              <div className="aac-card"><div className="aac-card-body">No recorded decisions for the configured endpoint yet.</div></div>
+            )}
+            {decisionsState === "loading" && (
+              <div className="aac-card"><div className="aac-card-body">Loading…</div></div>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="aac-table-wrap">
+              <table className="aac-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Time</th>
+                    <th scope="col">Agent</th>
+                    <th scope="col">Tool</th>
+                    <th scope="col">Scope</th>
+                    <th scope="col">Decision</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {RECENT_DECISIONS.map((d, i) => (
+                    <tr key={i}>
+                      <td className="aac-mono">{d.time}</td>
+                      <td>{d.agent}</td>
+                      <td className="aac-mono">{d.tool}</td>
+                      <td className="aac-mono">{d.scope}</td>
+                      <td>
+                        <DecisionPill decision={d.decision} />
+                        {d.decision === "INDETERMINATE" && (
+                          <span className="aac-card-sub"> → demo_hitl_service</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="aac-card-sub" style={{ marginTop: 8 }}>Sign in to see live data.</p>
+          </>
+        )}
       </div>
     </div>
   );

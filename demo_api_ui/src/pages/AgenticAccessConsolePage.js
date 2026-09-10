@@ -16,10 +16,9 @@ import "./AgenticAccessConsolePage.css";
  * demo's agent-to-MCP-tool access, RFC 8693 token exchange, PingOne Authorize
  * policy and the related control-plane concepts, in one place.
  *
- * All content is static/illustrative — it documents real, researched shapes
- * of the running demo (agent counts, tool counts, policy rules, token-exchange
- * chains) rather than calling any live endpoint. See TECH_DEBT.md for the
- * follow-up if this should read live data instead.
+ * Most sections fetch live endpoints; what has no live source is badged
+ * "Static" or "Illustrative" in place. See the TECH_DEBT.md "Agentic Access
+ * Console" entry for what is still hand-maintained.
  */
 const TABS = [
   { id: "dashboard", label: "Dashboard", Component: DashboardSection },
