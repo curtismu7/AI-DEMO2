@@ -25,6 +25,9 @@ const PHASE_ICON = {
   // distinct from 🔐 so an authorize is not mistaken for a token exchange.
   "oauth.authorize": "🔑",
   "oauth.callback": "🔑",
+  // 🛡 from the REGRESSION_PLAN §0 allowlist — a gate in the path, distinct
+  // from the token glyphs so Privilege is not mistaken for an exchange.
+  "privilege.authorize": "🛡",
 };
 
 const RECONCILIATION_LABEL = {
