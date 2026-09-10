@@ -70,6 +70,13 @@ const ALLOWED_UNREGISTERED = {
     'k8s-only tier manager; the Docker stack drives tiers through llm-proxy, so it is never started by the launcher',
   'ungoverned-agent':
     'deliberately-ungoverned demo agent, run ad hoc for the attack narrative rather than as part of any stack',
+  mcpgw:
+    'RETIRED 2026-09-09 (superseded by ping-mcpgw in the 2026-08-12 binary swap; nothing routes ' +
+    'to it and it exits 1 in ~360ms). Deliberately carries profile `mcpgw-legacy`, which maps to no ' +
+    'run-docker group, so it is startable ONLY on purpose for a side-by-side comparison with its ' +
+    'replacement. It is NOT in the `mcpgw` profile: that group is brought up without service names, ' +
+    'so being in it made this crash-loop alongside ping-mcpgw. Registering it in SERVICES would ' +
+    'reintroduce exactly that.',
 };
 
 function fail(lines) {
