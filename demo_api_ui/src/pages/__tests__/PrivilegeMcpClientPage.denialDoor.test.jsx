@@ -13,7 +13,12 @@
 // No artificial ordering is needed to reproduce it: refreshTools is created
 // once (effect deps []), so its closure keeps the INITIAL empty config even
 // after setConfig lands. A plain 403 is enough.
-import { render, screen, waitFor, within } from "@testing-library/react";
+// Discovery is now driven by the "Get MCP Tools" button, not by the auth=success
+// return trip (that auto-load was removed deliberately — see
+// PrivilegeMcpClientPage.noAutoDiscover.test.jsx). The bug this test guards is
+// unaffected by WHAT triggers discovery: refreshTools is created once with deps
+// [], so its closure keeps the initial empty config however it is called.
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import PrivilegeMcpClientPage from "../PrivilegeMcpClientPage";
 
@@ -62,6 +67,10 @@ it('names the door in the denial modal even when /state lands after the 403', as
       <PrivilegeMcpClientPage />
     </MemoryRouter>,
   );
+
+  // Discovery no longer fires on its own — press the one control that does it.
+  const discover = await screen.findByRole("button", { name: /Get MCP Tools/i });
+  fireEvent.click(discover);
 
   await waitFor(() => expect(screen.getByText("Access Denied")).toBeTruthy());
   // The door must be named, not "(unknown)". Scoped to the modal: the standing

@@ -718,7 +718,7 @@ export default function PrivilegeMcpClientPage() {
     const authResult = searchParams.get('auth');
     const reason = searchParams.get('reason');
     if (authResult === 'success') {
-      appendChat('system', 'OAuth completed. Refreshing tools...');
+      appendChat('system', 'OAuth completed. Press "Get MCP Tools" to discover tools.');
       api('/state').then((s) => {
         if (s.oauth?.authenticated) {
           setAuthenticated(true);
@@ -728,14 +728,23 @@ export default function PrivilegeMcpClientPage() {
         }
         if (s.oauth?.scope) setGrantedScopes(s.oauth.scope.split(' ').filter(Boolean));
       })
-        // Discover only AFTER /state has landed. These used to run
-        // concurrently, so a 403 arriving first was rendered against an empty
-        // config: the denial modal said Door "(unknown)" and the door probe had
-        // no presets to try — the two facts the modal exists to supply. Caught
-        // by the live drive; unit tests seed state before rendering and cannot
-        // see it. .catch keeps discovery running even if /state fails.
+        // NO automatic discovery on the sign-in return trip. Signing in says
+        // who you are; it does not say which door you meant to probe, and
+        // firing tools/list at whatever door happened to be selected spends a
+        // real call — and on a denying door pops the denial modal — before the
+        // presenter has touched anything. "Get MCP Tools" is the one control
+        // that discovers, so the page never calls a door nobody asked for.
+        //
+        // clearSwitching used to ride on refreshTools().finally; it has to run
+        // on its own now or the switching overlay would never lift.
+        //
+        // (History, still true of the button path: discovery must not race
+        // /state. They used to run concurrently, so a 403 arriving first was
+        // rendered against an empty config — the denial modal said Door
+        // "(unknown)" and the door probe had no presets to try, the two facts
+        // that modal exists to supply.)
         .catch(() => {})
-        .then(() => refreshTools().finally(clearSwitching));
+        .finally(clearSwitching);
     } else {
       // Stale switch flag (auth error, silent_failed, or back-button out of the
       // redirect) — never leave the overlay stuck.
