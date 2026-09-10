@@ -1,8 +1,6 @@
 // demo_api_ui/src/pages/PrivilegeDemoPage.jsx
 import { useMemo } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import PrivilegeSetupChecklist from '../components/privilege/PrivilegeSetupChecklist';
-import PrivilegeScriptGuide from '../components/privilege/PrivilegeScriptGuide';
+import { Link } from 'react-router-dom';
 import PrivilegeMcpOAuthConfig from '../components/privilege/PrivilegeMcpOAuthConfig';
 import { PingProductChip } from '../components/PingProductChip';
 import { useThemeOptional } from '../context/ThemeContext';
@@ -12,33 +10,16 @@ import {
 } from '../config/privilegeDemoConfig';
 import './PrivilegeDemoPage.css';
 
-const TABS = [
-  { id: 'setup', label: 'Setup' },
-  { id: 'script', label: 'Script' },
-  { id: 'oauth', label: 'OAuth Config' },
-];
-
 /**
  * Public SE presenter hub for the shared PingOne Privilege demo.
  */
 export default function PrivilegeDemoPage() {
   const { darkMode, toggleDarkMode } = useThemeOptional();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const tabParam = searchParams.get('tab');
-  const tab = tabParam === 'script' || tabParam === 'oauth' ? tabParam : 'setup';
-  const initialAct = Number.parseInt(searchParams.get('act') || '1', 10);
 
   const personaEntries = useMemo(
     () => Object.values(PRIVILEGE_DEMO.personas),
     [],
   );
-
-  const handleTabChange = (nextTab) => {
-    const next = new URLSearchParams(searchParams);
-    next.set('tab', nextTab);
-    if (nextTab === 'setup') next.delete('act');
-    setSearchParams(next, { replace: true });
-  };
 
   return (
     <div className="pd-page">
@@ -89,24 +70,24 @@ export default function PrivilegeDemoPage() {
       </div>
 
       <div className="pd-page__body">
-        <nav className="pd-tabs" aria-label="Privilege demo sections">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              className={`pd-tabs__btn${tab === t.id ? ' pd-tabs__btn--active' : ''}`}
-              onClick={() => handleTabChange(t.id)}
-            >
-              {t.label}
-            </button>
-          ))}
-        </nav>
+        <section className="pd-guide-callout">
+          <p>{PRIVILEGE_DEMO.overview}</p>
+          <a
+            href={PRIVILEGE_DEMO.se1GuideUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="pd-guide-callout__link"
+          >
+            Open the SE1 — Privilege Shared Demo guide
+          </a>
+        </section>
 
-        {tab === 'setup' && <PrivilegeSetupChecklist />}
-        {tab === 'script' && (
-          <PrivilegeScriptGuide initialAct={Number.isFinite(initialAct) ? initialAct : 1} />
-        )}
-        {tab === 'oauth' && <PrivilegeMcpOAuthConfig />}
+        <PrivilegeMcpOAuthConfig />
+
+        <p className="pd-built-with">
+          Built with the <code>privilege-admin-config-ui</code> skill (<code>.claude/skills/privilege-admin-config-ui/SKILL.md</code>) —
+          the recipe for a Privilege admin/config page in this repo.
+        </p>
       </div>
     </div>
   );

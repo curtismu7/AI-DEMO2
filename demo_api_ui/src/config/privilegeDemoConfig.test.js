@@ -4,7 +4,6 @@ import {
   PRIVILEGE_DEMO,
   privilegeConsoleUrl,
   personaConsoleUrl,
-  setupStepConsoleUrl,
 } from './privilegeDemoConfig';
 
 describe('privilegeDemoConfig', () => {
@@ -12,42 +11,18 @@ describe('privilegeDemoConfig', () => {
     expect(privilegeConsoleUrl('abc-123')).toBe('https://console.pingone.com/?env=abc-123');
   });
 
-  it('exposes shared environment ids', () => {
-    expect(PRIVILEGE_DEMO.adminEnvId).toMatch(/^[0-9a-f-]{36}$/i);
+  it('exposes the shared agent environment id', () => {
     expect(PRIVILEGE_DEMO.agentEnvId).toMatch(/^[0-9a-f-]{36}$/i);
   });
 
-  it('defines eight presenter acts with sequential numbers', () => {
-    expect(PRIVILEGE_DEMO.acts).toHaveLength(8);
-    expect(PRIVILEGE_DEMO.acts.map((a) => a.actNumber)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
-  });
-
-  it('defines setup steps with ids', () => {
-    expect(PRIVILEGE_DEMO.setupSteps.length).toBeGreaterThanOrEqual(11);
-    const ids = new Set(PRIVILEGE_DEMO.setupSteps.map((s) => s.id));
-    expect(ids.size).toBe(PRIVILEGE_DEMO.setupSteps.length);
-    expect(ids.has('prepare-workstations')).toBe(true);
-    expect(ids.has('grant-admin-role')).toBe(true);
-  });
-
-  it('exposes SE1 guide and workstation tools from shared demo', () => {
+  it('points to the SE1 shared-demo guide', () => {
     expect(PRIVILEGE_DEMO.overview.length).toBeGreaterThan(40);
     expect(PRIVILEGE_DEMO.se1GuidePath).toContain('SE1-Privilege-Shared-Demo.md');
-    expect(PRIVILEGE_DEMO.workstationTools).toContain('AWS CLI');
-  });
-
-  it('resolves setup step console links', () => {
-    const url = setupStepConsoleUrl('agentEnvId');
-    expect(url).toContain(PRIVILEGE_DEMO.agentEnvId);
+    expect(PRIVILEGE_DEMO.se1GuideUrl).toContain('SE1-Privilege-Shared-Demo.md');
   });
 
   it('resolves persona console links', () => {
     expect(personaConsoleUrl('endUser')).toContain(PRIVILEGE_DEMO.agentEnvId);
-    expect(personaConsoleUrl('platformAdmin')).toContain(PRIVILEGE_DEMO.adminEnvId);
-  });
-
-  it('includes S3 bucket resource names for fine-grained demo', () => {
-    expect(PRIVILEGE_DEMO.resources.s3Bucket).toContain('bx-');
-    expect(PRIVILEGE_DEMO.resources.s3BucketDenied).toContain('-1');
+    expect(personaConsoleUrl('platformAdmin')).toContain(PRIVILEGE_DEMO.personas.platformAdmin.envId);
   });
 });
