@@ -16,6 +16,31 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-09-10 — Agentic Access Console renders static/illustrative data, not live endpoints
+
+**What's wrong.** `demo_api_ui/src/pages/AgenticAccessConsolePage.js` and its nine
+`agenticAccessConsole/*Section.js` components are a read-only summary of the
+agent → MCP-tool access surface (agent/server/tool counts, P1AZ policy rules,
+token-exchange chains, AI Broker attack log, CIBA approvals, Agentic Apps
+registry). All of it is hardcoded from researched real shapes of the running
+demo — none of it calls a live endpoint, so the numbers (e.g. "1,842
+decisions (24h)", the decision-log rows, the CIBA approval rows) will not move
+as the demo runs.
+
+**Why it wasn't fixed now.** The page was scoped as a static dashboard —
+several of its sources (P1AZ snapshot rule count, Agentic Apps registry,
+scope-topology obligations) don't have a single existing endpoint that already
+aggregates them, so wiring it live is a multi-service effort, not a page-level
+fix.
+
+**What the real fix looks like.** Add a BFF endpoint (or a few) that reads the
+same sources the content cites — `AI_Demo_Transaction_Authorization_P1AZ.snapshot.json`,
+the gateway's own decision log, `demo_api_server/routes/ciba.js` state, the
+Privilege Agentic Apps registry — and have each section fetch instead of
+importing a local constant. The Dashboard and Policies sections (decision
+counts/log) are the highest-value first targets since those numbers are the
+ones most likely to be quoted as if live.
+
 ### [ ] 2026-09-09 — the jest suite is still flaky after the network guard: LMDB reader exhaustion and loopback ECONNRESET
 
 **What's wrong.** Blocking outbound network in unit tests (PR for
