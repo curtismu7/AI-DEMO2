@@ -128,7 +128,31 @@ const DEFAULT_GATEWAY_MODE = 'privilege';
 // without recording the key it was minted under, a restart-rehydrated token
 // looks like it belongs to whatever door the fresh session defaults to —
 // see persistPrivilegeOauth's comment for what that broke.
-const oauthKey = (mode, mcpUrl) => `${mode}::${mcpUrl || ''}`;
+//
+// Every door on OUR OWN public origin shares ONE slot, because they share the
+// credential: the Direct and Façade doors all advertise the same authorization
+// server (the Agent Gateway broker, MCP_FACADE_AGENT_GATEWAY_AS) and verify
+// against the same audience (MCP_FACADE_OPENSEARCH_AUD / MCP_GW_RESOURCE_URI),
+// so a token minted at any one of them is accepted by all of them.
+//
+// Keying those per URL made the page demand a fresh interactive sign-in for
+// every door — opensearch, brave, banking, pingone-admin and the façade doors
+// were seven logins for one credential, and switching between them nulled the
+// slot and bounced the user through PingOne again. Reported as sign-in being
+// "all fucked up", and it was self-inflicted.
+//
+// Deliberately NOT collapsing anything else:
+//   - the `audit` door is scope-narrowed (audit:read, not mcp:invoke) and is
+//     served off the plain-HTTP façade port, so it is not on this origin and
+//     keeps its own slot — sharing would hand it an mcp:invoke token and it
+//     would quietly serve the full banking surface instead of three tools;
+//   - Privilege doors live on the gateway origin and each Agentic App is its
+//     own authorization server, so those still authenticate per app.
+const oauthKey = (mode, mcpUrl) => {
+  const own = PUBLIC_APP_ORIGIN();
+  if (own && String(mcpUrl || '').startsWith(own)) return `own-origin::${own}`;
+  return `${mode}::${mcpUrl || ''}`;
+};
 // The `audit` façade door, NOT Privilege — that route was abandoned once the
 // hosted PingOne MCP stopped accepting worker client_credentials (401 "Invalid
 // authentication", 2026-08-27).
