@@ -849,7 +849,15 @@ services:
   # named volumes live in the Docker VM, so they dodge both the symlink and the
   # container-root-cannot-write-to-a-root:wheel-dir problem.
   mcpgw:
-    profiles: ["mcpgw"]
+    # profile `mcpgw-legacy`, NOT `mcpgw`. `./run-docker.sh optional start mcpgw`
+    # brings the profile up with NO service names, so every service that profile
+    # enables starts. Putting this retired binary in that profile made it start
+    # with the group and crash-loop under restart: unless-stopped (observed
+    # 2026-09-10). Its own profile keeps it available for a deliberate
+    # side-by-side comparison and reachable by nothing else — no run-docker group
+    # maps to it, which is why it is named in
+    # check-compose-services-registered.js's ALLOWED_UNREGISTERED.
+    profiles: ["mcpgw-legacy"]
     image: public.ecr.aws/s7q1z8z4/privilege-proxy:latest
     container_name: ai-demo-mcpgw
     ports:
@@ -863,7 +871,9 @@ services:
       - /var/lib/procyon/recordings:/procyon/recordings
     networks:
       - ai-demo
-    restart: unless-stopped
+    # NOT unless-stopped: this binary exits 1 in ~360ms for the reasons in the
+    # header, so a restart policy turns one deliberate start into a crash loop.
+    restart: "no"
     depends_on:
       - mcp-server
 
