@@ -204,6 +204,21 @@ const DOORS = {
       || configStore.getEffective('PINGONE_RESOURCE_MCP_SERVER_URI')
       || process.env.PINGONE_RESOURCE_MCP_SERVER_URI
       || 'mcpserver.ping.demo',
+    // What the EXCHANGE asks for, as opposed to `scopes`, which is what this
+    // door ADVERTISES (RFC 9728 + the 401 challenge it rewrites). They are
+    // different questions and this door answers them differently: it advertises
+    // nothing, because the upstream's own challenge is what the client follows.
+    //
+    // It cannot ask for nothing, though. Measured against the live tenant, an
+    // exchange with no `scope` is refused outright:
+    //
+    //   400 invalid_scope: May not request scopes for multiple resources
+    //
+    // because client 6586d3de holds scopes on several resources and PingOne
+    // will not guess which one an audience alone implies. Naming the upstream's
+    // invoke scope resolves it (verified: same request, scope=mcp:invoke,
+    // returns aud=["mcpserver.ping.demo"]).
+    upstreamScopes: ['mcp:invoke'],
   },
   brave: {
     label: 'Brave Search',
@@ -847,8 +862,9 @@ router.post(['/:door/mcp', '/:door/:app/mcp'], express.json({ limit: '1mb', type
     if (inboundBearer && exchangeOn && upstreamExchange.isConfigured()) {
       const xStart = Date.now();
       try {
+        const exchangeScopes = door.upstreamScopes || door.scopes || [];
         const { accessToken, cached } = await upstreamExchange.exchangeForUpstream(
-          inboundBearer, upstreamAudience, door.scopes || [],
+          inboundBearer, upstreamAudience, exchangeScopes,
         );
         upstreamHeaders = { ...upstreamHeaders, authorization: `Bearer ${accessToken}` };
         // The step the whole feature exists to show. Without a hop the trace
@@ -859,7 +875,7 @@ router.post(['/:door/mcp', '/:door/:app/mcp'], express.json({ limit: '1mb', type
           op: toolName || method,
           status: 'ok',
           durationMs: Date.now() - xStart,
-          details: { rfc: 'RFC 8693', audiences, cached, scopes: door.scopes || [] },
+          details: { rfc: 'RFC 8693', audiences, cached, scopes: exchangeScopes },
         });
       } catch (err) {
         hop(correlationId, {

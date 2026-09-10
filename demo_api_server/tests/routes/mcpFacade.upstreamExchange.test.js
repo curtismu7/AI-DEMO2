@@ -96,6 +96,12 @@ test('the caller bearer is EXCHANGED before forwarding, never passed through', a
   expect(mockExchangeCalls).toHaveLength(1);
   expect(mockExchangeCalls[0][0]).toBe('CALLER-GATEWAY-TOKEN');
   expect(mockExchangeCalls[0][1]).toBe('mcpserver.ping.demo');
+  // Measured against the live tenant: an exchange naming NO scope is refused
+  // with `invalid_scope: May not request scopes for multiple resources`,
+  // because the gateway client holds scopes on several resources. The door
+  // advertises no scopes (its clients follow the upstream's own challenge), so
+  // the exchange has to carry its own — hence upstreamScopes, not scopes.
+  expect(mockExchangeCalls[0][2]).toEqual(['mcp:invoke']);
   expect(lastUpstreamAuth).toBe('Bearer EXCHANGED-TOKEN');
   // The bypass D-05 exists to catch.
   expect(lastUpstreamAuth).not.toContain('CALLER-GATEWAY-TOKEN');

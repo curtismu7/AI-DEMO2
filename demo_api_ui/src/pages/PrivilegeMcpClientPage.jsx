@@ -455,12 +455,10 @@ export default function PrivilegeMcpClientPage() {
     return () => { cancelled = true; };
   }, []);
 
-  // Read on open, not on mount: this is a public page and the flag only matters
-  // once the settings panel is showing. Re-read each time because another
-  // session can flip it — a stale switch would claim the opposite of what the
-  // next call does.
+  // Read on mount, like the broker prompt above: the panel this switch lives in
+  // is one tab away, and any session can flip the flag, so a value read once at
+  // load is the same freshness guarantee the neighbouring control gives.
   useEffect(() => {
-    if (!showSettings) return undefined;
     let cancelled = false;
     fetch(FEATURE_FLAGS_API, { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
@@ -472,7 +470,7 @@ export default function PrivilegeMcpClientPage() {
       })
       .catch(() => { if (!cancelled) setUpstreamExchangeError('Could not read the current setting.'); });
     return () => { cancelled = true; };
-  }, [showSettings]);
+  }, []);
 
   const saveUpstreamExchange = useCallback(async (next) => {
     const previous = upstreamExchange;
@@ -487,6 +485,10 @@ export default function PrivilegeMcpClientPage() {
         credentials: 'include',
       });
       const data = await r.json().catch(() => ({}));
+      // Reads are open so the switch renders for anyone; writes go through
+      // authenticateToken. Say that, rather than showing the raw
+      // "authentication_required" to a visitor who is simply not signed in.
+      if (r.status === 401 || r.status === 403) throw new Error('Sign in to change this.');
       if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
       // Trust the server's read-back for the same reason as the broker prompt
       // below: an unrecognised id is dropped, and an optimistic switch would
