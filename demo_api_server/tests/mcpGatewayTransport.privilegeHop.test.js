@@ -16,6 +16,11 @@ jest.mock('../services/bedrockPathGate', () => ({
   assertBedrockPath: jest.fn(),
 }));
 jest.mock('../services/transactionHop', () => ({ emitHop: jest.fn(), SERVICE: 'demo-api-server' }));
+// The inbound hop to Privilege carries Privilege's OWN session token; without a
+// session the call fails before it can record anything.
+jest.mock('../services/privilegeGatewaySession', () => ({
+  getAccessToken: jest.fn(async () => 'PRIVILEGE-SESSION-TOKEN'),
+}));
 jest.mock('../services/mcpGatewayClient', () => ({
   getMcpGatewayHttpUrl: jest.fn(() => 'https://mcpgw.example/agent-gateway/mcp'),
   callToolViaGateway: jest.fn(async () => ({ ok: true })),

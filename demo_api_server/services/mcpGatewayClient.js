@@ -1155,8 +1155,13 @@ async function callToolViaResolvedGateway(gatewayUrl, bearerToken, tool, params 
 function getPrivilegeGatewayUrl() {
     const base = (process.env.MCP_FACADE_PRIVILEGE_GATEWAY_BASE || '').replace(/\/$/, '');
     const privUrl = process.env.MCP_PRIVILEGE_GATEWAY_URL
-        || (base ? `${base}/agent-gateway/mcp` : '');
-    return privUrl ? privUrl.replace(/\/$/, '') : '';
+        || (base ? `${base}/agent-gateway` : '');
+    // callToolViaGateway appends `/mcp` to whatever this returns, so a value
+    // ending in /mcp produced `/agent-gateway/mcp/mcp` and the gateway answered
+    // 404 — observed live 2026-09-10. Both spellings are accepted rather than
+    // only the bare one: the client URL the Privilege console displays DOES end
+    // in /mcp, so pasting it is the obvious thing for an operator to do.
+    return privUrl ? privUrl.replace(/\/$/, '').replace(/\/mcp$/, '') : '';
 }
 
 function getMcpGatewayHttpUrl() {
