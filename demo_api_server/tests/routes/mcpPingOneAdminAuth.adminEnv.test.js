@@ -79,9 +79,31 @@ describe('the delegated PKCE flow runs in the ADMIN environment when one is conf
     expect(axios.post.mock.calls.length).toBe(before);
   });
 
-  test('no login_hint — the signed-in username belongs to the OTHER environment', async () => {
+  test('login_hint pre-fills the signed-in username', async () => {
     const res = await login(buildApp()).expect(302);
-    expect(new URL(res.headers.location).searchParams.get('login_hint')).toBeNull();
+    expect(new URL(res.headers.location).searchParams.get('login_hint')).toBe('demoUser');
+  });
+
+  test('PINGONE_MCP_ADMIN_LOGIN_HINT overrides it for an admin env with a different identity', async () => {
+    process.env.PINGONE_MCP_ADMIN_LOGIN_HINT = 'admin@example.com';
+    try {
+      const res = await login(buildApp()).expect(302);
+      expect(new URL(res.headers.location).searchParams.get('login_hint')).toBe('admin@example.com');
+    } finally {
+      delete process.env.PINGONE_MCP_ADMIN_LOGIN_HINT;
+    }
+  });
+
+  // Empty is a real choice, distinct from unset: some admin environments should
+  // prompt with nothing pre-filled.
+  test('an EMPTY override sends no hint at all', async () => {
+    process.env.PINGONE_MCP_ADMIN_LOGIN_HINT = '';
+    try {
+      const res = await login(buildApp()).expect(302);
+      expect(new URL(res.headers.location).searchParams.get('login_hint')).toBeNull();
+    } finally {
+      delete process.env.PINGONE_MCP_ADMIN_LOGIN_HINT;
+    }
   });
 
   test('a code minted in the admin env is never redeemed after the config is removed', async () => {
