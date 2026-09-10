@@ -257,24 +257,71 @@
   color: #991b1b;
 }
 
-/* ─── Actor swimlane (login-style flows only — steps carry actor/toActor) ─── */
-.afd-lane {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
+/* ─── Sequence diagram (login-style flows only — steps carry actor/toActor) ───
+   Lifelines run down one column per actor; each step draws either a
+   cross-lane arrow or, for an internal step (no toActor), a small self-loop
+   next to its own lifeline. Rows after the scrubbed-to step dim, so the
+   diagram fades in as the replay control walks through it. */
+.afd-sequence {
   margin: 0 0 0.6rem;
-  padding: 0;
-  list-style: none;
 }
 
-.afd-lane-pill {
+.afd-sequence-headers {
+  display: grid;
+  gap: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+
+.afd-sequence-header {
   font-size: 0.68rem;
   font-weight: 700;
-  padding: 0.15rem 0.5rem;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--th-border-strong);
-  background: var(--th-bg-card);
   color: var(--th-text-muted);
+  text-align: center;
+}
+
+.afd-sequence-svg {
+  display: block;
+}
+
+.afd-sequence-lifeline {
+  stroke: var(--th-border-strong);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.afd-sequence-row {
+  cursor: pointer;
+}
+
+.afd-sequence-row:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.afd-sequence-line {
+  stroke: var(--th-text-muted);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.afd-sequence-arrowhead {
+  stroke: var(--th-text-muted);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.afd-sequence-row--active .afd-sequence-line {
+  stroke: #2563eb;
+}
+
+.afd-sequence-row--active .afd-sequence-arrowhead {
+  stroke: #2563eb;
+}
+
+.afd-sequence-row--dimmed {
+  opacity: 0.35;
 }
 
 .afd-step--focused .afd-step-card {

@@ -21,16 +21,28 @@ const MCP_STEPS = [
   { id: 'agent', title: 'Banking Agent', detail: 'calling BFF', status: 'done' },
 ];
 
-describe('StepTimeline — actor swimlane', () => {
-  test('renders the actor lane in first-appearance order when steps carry actor info', () => {
-    render(<StepTimeline steps={LOGIN_STEPS} phase="done" />);
-    const lane = screen.getByRole('list', { name: /actors/i });
-    expect(lane.textContent.indexOf('Browser')).toBeLessThan(lane.textContent.indexOf('BFF'));
+describe('StepTimeline — sequence diagram', () => {
+  test('renders one lifeline per actor, in first-appearance order, and one row per step', () => {
+    const { container } = render(<StepTimeline steps={LOGIN_STEPS} phase="done" />);
+
+    const headers = container.querySelectorAll('.afd-sequence-header');
+    expect(Array.from(headers).map((h) => h.textContent)).toEqual(['Browser', 'BFF']);
+    expect(container.querySelectorAll('.afd-sequence-lifeline')).toHaveLength(2);
+    expect(container.querySelectorAll('.afd-sequence-row')).toHaveLength(3);
   });
 
-  test('renders no actor lane when no step carries actor info (existing MCP-step shape)', () => {
-    render(<StepTimeline steps={MCP_STEPS} phase="done" />);
-    expect(screen.queryByRole('list', { name: /actors/i })).toBeNull();
+  test('renders no sequence diagram when no step carries actor info (existing MCP-step shape)', () => {
+    const { container } = render(<StepTimeline steps={MCP_STEPS} phase="done" />);
+    expect(container.querySelector('.afd-sequence')).toBeNull();
+  });
+
+  test('clicking a row focuses that step, same as the scrubber', () => {
+    render(<StepTimeline steps={LOGIN_STEPS} phase="done" />);
+    expect(screen.getByText('1 / 3')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'You land back signed in' }));
+
+    expect(screen.getByText('3 / 3')).toBeInTheDocument();
   });
 });
 

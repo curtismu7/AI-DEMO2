@@ -8,11 +8,24 @@ import { useEducationUIOptional } from '../context/EducationUIContext';
 import { useTokenChainOptional } from '../context/TokenChainContext';
 import TokenExchangeFlowDiagram from './TokenExchangeFlowDiagram';
 import JsonHighlight from './shared/JsonHighlight';
-import { deriveActorLane, nextPlayIndex } from '../utils/stepReplay';
+import { buildSequenceLayout, nextPlayIndex } from '../utils/stepReplay';
 import './AgentFlowDiagramPanel.css';
 
 const REPLAY_TICK_MS = 900;
+const SEQ_ROW_H = 34;
+const SEQ_TOP_PAD = 12;
 const ACTOR_LABELS = { browser: 'Browser', bff: 'BFF', pingone: 'PingOne' };
+
+/**
+ * Chevron pointing in `dir` (+1 = rightward, -1 = leftward), tip at (x, y).
+ * Explicit points rather than an SVG marker — markers don't scale sanely
+ * under this diagram's non-uniform viewBox stretch (x in 0-100 units, y in
+ * real px), so a fixed-size marker either vanishes or distorts.
+ */
+function seqArrowheadPoints(x, y, dir) {
+  const dx = 2 * dir;
+  return `${x - dx},${y - 4} ${x},${y} ${x - dx},${y + 4}`;
+}
 function actorLabel(actor) {
   return ACTOR_LABELS[actor] || actor.charAt(0).toUpperCase() + actor.slice(1);
 }
@@ -161,9 +174,9 @@ export function StepTimeline({ steps, phase }) {
     return () => clearInterval(id);
   }, [playing, steps.length]);
 
-  const lane = deriveActorLane(steps);
   const showScrubber = steps.length > 1 && phase !== 'running';
   const activeIndex = focusIndex ?? 0;
+  const { lane, rows: sequenceRows } = buildSequenceLayout(steps, activeIndex);
 
   function toggleDetail(id) {
     setExpanded((prev) => {
@@ -179,14 +192,69 @@ export function StepTimeline({ steps, phase }) {
     setPlaying(true);
   }
 
+  const seqHeight = sequenceRows.length * SEQ_ROW_H + SEQ_TOP_PAD * 2;
+  const laneX = (idx) => ((idx + 0.5) / lane.length) * 100;
+
   return (
     <div className="afd-flow" aria-live="polite">
       {lane.length > 0 && (
-        <ul className="afd-lane" aria-label="Actors in this flow">
-          {lane.map((actor) => (
-            <li key={actor} className="afd-lane-pill">{actorLabel(actor)}</li>
-          ))}
-        </ul>
+        <div className="afd-sequence">
+          <div className="afd-sequence-headers" style={{ gridTemplateColumns: `repeat(${lane.length}, 1fr)` }}>
+            {lane.map((actor) => (
+              <div key={actor} className="afd-sequence-header">{actorLabel(actor)}</div>
+            ))}
+          </div>
+          <svg
+            className="afd-sequence-svg"
+            width="100%"
+            height={seqHeight}
+            viewBox={`0 0 100 ${seqHeight}`}
+            preserveAspectRatio="none"
+            role="img"
+            aria-label="Sequence diagram"
+          >
+            {lane.map((actor, i) => (
+              <line
+                key={actor}
+                className="afd-sequence-lifeline"
+                x1={laneX(i)} y1={0}
+                x2={laneX(i)} y2={seqHeight}
+              />
+            ))}
+            {sequenceRows.map((row) => {
+              if (row.fromIdx == null) return null;
+              const step = steps[row.index];
+              const y = SEQ_TOP_PAD + row.index * SEQ_ROW_H + SEQ_ROW_H / 2;
+              const cls = `afd-sequence-row${row.highlighted ? ' afd-sequence-row--active' : ''}${row.dimmed ? ' afd-sequence-row--dimmed' : ''}`;
+              const x1 = laneX(row.fromIdx);
+              const commonProps = {
+                role: 'button',
+                tabIndex: 0,
+                'aria-label': step.title || `Step ${row.index + 1}`,
+                onClick: () => setFocusIndex(row.index),
+                onKeyDown: (e) => {
+                  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFocusIndex(row.index); }
+                },
+              };
+              if (row.isSelf) {
+                return (
+                  <g key={row.index} className={cls} {...commonProps}>
+                    <path className="afd-sequence-line" d={`M${x1},${y - 5} h6 v10 h-6`} fill="none" />
+                    <polyline className="afd-sequence-arrowhead" points={seqArrowheadPoints(x1, y + 5, -1)} fill="none" />
+                  </g>
+                );
+              }
+              const x2 = laneX(row.toIdx);
+              const dir = x2 > x1 ? 1 : -1;
+              return (
+                <g key={row.index} className={cls} {...commonProps}>
+                  <line className="afd-sequence-line" x1={x1} y1={y} x2={x2} y2={y} />
+                  <polyline className="afd-sequence-arrowhead" points={seqArrowheadPoints(x2, y, dir)} fill="none" />
+                </g>
+              );
+            })}
+          </svg>
+        </div>
       )}
 
       {steps.map((step, i) => {
