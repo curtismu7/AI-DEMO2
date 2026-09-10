@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import PrivilegeSetupChecklist from '../components/privilege/PrivilegeSetupChecklist';
 import PrivilegeScriptGuide from '../components/privilege/PrivilegeScriptGuide';
+import PrivilegeMcpOAuthConfig from '../components/privilege/PrivilegeMcpOAuthConfig';
 import { PingProductChip } from '../components/PingProductChip';
 import { useThemeOptional } from '../context/ThemeContext';
 import {
@@ -14,6 +15,7 @@ import './PrivilegeDemoPage.css';
 const TABS = [
   { id: 'setup', label: 'Setup' },
   { id: 'script', label: 'Script' },
+  { id: 'oauth', label: 'OAuth Config' },
 ];
 
 /**
@@ -22,7 +24,8 @@ const TABS = [
 export default function PrivilegeDemoPage() {
   const { darkMode, toggleDarkMode } = useThemeOptional();
   const [searchParams, setSearchParams] = useSearchParams();
-  const tab = searchParams.get('tab') === 'script' ? 'script' : 'setup';
+  const tabParam = searchParams.get('tab');
+  const tab = tabParam === 'script' || tabParam === 'oauth' ? tabParam : 'setup';
   const initialAct = Number.parseInt(searchParams.get('act') || '1', 10);
 
   const personaEntries = useMemo(
@@ -99,11 +102,11 @@ export default function PrivilegeDemoPage() {
           ))}
         </nav>
 
-        {tab === 'setup' ? (
-          <PrivilegeSetupChecklist />
-        ) : (
+        {tab === 'setup' && <PrivilegeSetupChecklist />}
+        {tab === 'script' && (
           <PrivilegeScriptGuide initialAct={Number.isFinite(initialAct) ? initialAct : 1} />
         )}
+        {tab === 'oauth' && <PrivilegeMcpOAuthConfig />}
       </div>
     </div>
   );

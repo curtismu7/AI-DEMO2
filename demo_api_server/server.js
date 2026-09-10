@@ -1424,6 +1424,8 @@ app.use('/api/privilege-mcp', require('./routes/privilegeMcpClient'));
 // Minimal machine-to-machine sibling of the above: client_credentials token in,
 // MCP JSON-RPC out. Separate route on purpose — the interactive flow is untouched.
 app.use('/api/privilege-mcp-simple', require('./routes/privilegeMcpSimple'));
+// Illustrative OAuth config admin page for banking-mcp — see docs/mocks/mcp-oauth-config-mock.html
+app.use('/api/mcp-oauth-config', require('./routes/mcpOAuthConfig'));
 // MCP Gateway Config — status + generated PingGateway mcp.json (open to any authenticated session)
 app.use('/api/admin/mcp-gateway', mcpGatewayConfigRouter);
 // User-accessible alias — mirrors /api/admin/mcp-gateway/* for enduser sessions
