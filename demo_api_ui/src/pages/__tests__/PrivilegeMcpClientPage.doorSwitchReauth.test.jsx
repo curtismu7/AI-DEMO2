@@ -146,8 +146,17 @@ describe("Privilege client — re-auth on switch", () => {
     const door = await screen.findByLabelText("MCP backend (door)");
     fireEvent.change(door, { target: { value: DOOR_B } });
 
+    // The `config` call IS the switch completing — that is what proves this
+    // path ran without redirecting.
     await waitFor(() => expect(callsTo("config")).toHaveLength(1));
-    await waitFor(() => expect(callsTo("tools/list")).not.toHaveLength(0));
+    // Switching a door no longer discovers. Selecting a door says which one to
+    // use, not that you want it probed, and probing spends a real call on it —
+    // on a denying door that pops the denial modal for a switch nobody asked to
+    // test. "Get MCP Tools" is the only control that fetches. This assertion
+    // used to be `not.toHaveLength(0)`, using discovery as a proxy for "the
+    // switch happened"; `config` above carries that now.
+    await new Promise((r) => setTimeout(r, 50));
+    expect(callsTo("tools/list")).toHaveLength(0);
     // A redirect here is the regression the stash exists to prevent: it would
     // show a sign-in for a door the user already signed into.
     expect(callsTo("auth/start")).toHaveLength(0);

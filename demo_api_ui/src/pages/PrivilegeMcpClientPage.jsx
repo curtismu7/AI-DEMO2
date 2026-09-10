@@ -871,7 +871,14 @@ export default function PrivilegeMcpClientPage() {
       // nothing — the same dead-end button Ruling 5 removed by another route.
       if (saved.oauth?.authenticated && !forceReauth) {
         setAuthenticated(true);
-        refreshTools(true);
+        // No auto-discovery on a path switch. Choosing a path says which lane
+        // to use, not that you want it probed — and probing spends a real call
+        // on whatever door is selected, which on a denying one pops the denial
+        // modal for a switch nobody asked to test. Drop the previous path's
+        // tools so the panel cannot show results that belong to a lane you just
+        // left, and let "Get MCP Tools" be the one thing that fetches.
+        setTools([]);
+        setSelectedTool(null);
         return;
       }
       // forceReauth IS the button: it only ever comes from the re-arm control
@@ -1110,7 +1117,11 @@ export default function PrivilegeMcpClientPage() {
         return;
       }
       setAuthenticated(Boolean(saved?.oauth?.authenticated));
-      refreshTools(true);
+      // Same rule as the path switch above: selecting a door is not a request to
+      // probe it. The tools from the door you just left are cleared so the panel
+      // never shows another door's results, and "Get MCP Tools" fetches.
+      setTools([]);
+      setSelectedTool(null);
     } catch (err) {
       appendChat('system', `Failed to switch door: ${err.message}`);
     }
@@ -1887,26 +1898,6 @@ export default function PrivilegeMcpClientPage() {
                   ? (
                     <>
                       <span aria-hidden="true">✅</span> {user?.email || 'signed in'}
-                      {/* Row 2 could always be signed out; row 1 could not, and the
-                          two are separate identities on purpose. That gap bites in
-                          one specific way: the gateway session lives in BFF process
-                          MEMORY (services/privilegeGatewaySession.js), so any BFF
-                          restart empties it while this badge — read from the app
-                          cookie — still says ✅. The page then looks signed in
-                          against a server that holds nothing, and every call fails
-                          confusingly. Signing out of the app is the reset.
-
-                          Navigates to /logout rather than POSTing a logout here:
-                          that route is the app's ONE sign-out path (App.js:1259,
-                          the same one AdminSideNav sends you to), so it stays
-                          correct if app logout ever changes. Deliberately does NOT
-                          also drop the gateway identity — row 2 owns that, and
-                          silently clearing someone else's row would hide which of
-                          the two identities actually went away. */}
-                      <button
-                        className="cur-btn cur-rail__btn"
-                        onClick={() => navigate('/logout')}
-                      >Sign out</button>
                     </>
                   )
                   : <><span aria-hidden="true">❌</span> Not signed in</>}
@@ -1920,16 +1911,6 @@ export default function PrivilegeMcpClientPage() {
                 {gatewayAuth === 'signed-in' && (
                   <>
                     <span aria-hidden="true">✅</span> {user?.email || 'token held'}
-                    <button className="cur-btn cur-rail__btn" onClick={() => refreshTools()}>Retry tools</button>
-                    <button
-                      className="cur-btn cur-rail__btn"
-                      onClick={async () => {
-                        await api('/auth/logout', { method: 'POST' }).catch(() => {});
-                        setAuthenticated(false);
-                        setGrantedScopes([]);
-                        setTools([]);
-                      }}
-                    >Sign out</button>
                   </>
                 )}
                 {gatewayAuth === 'connecting' && <><span className="cur-spinner" aria-hidden="true" /> Signing in…</>}
@@ -2147,13 +2128,55 @@ export default function PrivilegeMcpClientPage() {
             ) : (
               <div className="cur-empty-state">No tools discovered yet</div>
             )}
-            <button
-              className="cur-btn cur-btn--primary cur-btn--refresh"
-              onClick={() => refreshTools(false)}
-              disabled={toolsLoading}
-            >
-              {toolsLoading ? 'Discovering...' : 'Get MCP Tools'}
-            </button>
+            {/* One action cluster. These used to be scattered: discovery here,
+                "Retry tools" and two different "Sign out"s up in the rail at
+                cur-rail__btn size (3px/8px padding, --font-size-2xs) — small
+                enough to read as metadata rather than controls, and far from the
+                one button a presenter actually needs.
+                The rail is now purely status; every action lives here at one
+                size. Both sign-outs NAME what they end, because two controls
+                labelled "Sign out" side by side is a coin toss. */}
+            <div className="cur-actions">
+              <button
+                className="cur-btn cur-btn--primary cur-btn--refresh"
+                onClick={() => refreshTools(false)}
+                disabled={toolsLoading}
+              >
+                {toolsLoading ? 'Discovering...' : 'Get MCP Tools'}
+              </button>
+              {(gatewayAuth === 'signed-in' || mainAppAuthenticated) && (
+                <div className="cur-actions__row">
+                  {gatewayAuth === 'signed-in' && (
+                    <>
+                      <button className="cur-btn cur-actions__btn" onClick={() => refreshTools()}>
+                        Retry tools
+                      </button>
+                      <button
+                        className="cur-btn cur-actions__btn"
+                        onClick={async () => {
+                          await api('/auth/logout', { method: 'POST' }).catch(() => {});
+                          setAuthenticated(false);
+                          setGrantedScopes([]);
+                          setTools([]);
+                        }}
+                      >Sign out of gateway</button>
+                    </>
+                  )}
+                  {mainAppAuthenticated && (
+                    /* Navigates to /logout rather than POSTing a logout here: that
+                       route is the app's ONE sign-out path (App.js, the same one
+                       AdminSideNav uses), so it stays correct if app logout ever
+                       changes. Deliberately does NOT also drop the gateway
+                       identity — that is the button beside it, and silently
+                       clearing both would hide which identity actually went. */
+                    <button
+                      className="cur-btn cur-actions__btn"
+                      onClick={() => navigate('/logout')}
+                    >Sign out of app</button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </aside>
 
