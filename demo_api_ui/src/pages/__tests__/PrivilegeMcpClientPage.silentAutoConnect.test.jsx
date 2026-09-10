@@ -2,13 +2,17 @@
 //
 // The Privilege gateway is its own authorization server, so the banking app's
 // PingOne token can never be reused directly — a separate token is required.
-// But the BFF sends prompt=none when the main app session exists, so that token
-// costs a redirect and no login page. The page used to stop and ask for a click
-// anyway, which read as "why am I logging in again when I'm already logged in".
 //
-// The one thing that must not regress: auto-start fires ONCE. After a round trip
-// the BFF has set privilegePromptNoneFailed, so auto-starting again would send
-// the user to a real PingOne login page they never asked for.
+// REVERSED 2026-09-10, on the demo owner's call. This page used to obtain that
+// token by redirecting to the IdP BY ITSELF on mount. Even when it worked it
+// looked like a failure: the demo navigates away from itself before anyone
+// touches it, and a silent attempt that cannot complete drops the user on a
+// real PingOne login page nobody asked for.
+//
+// The rule now: NOTHING navigates the browser without a click. The rail's
+// "Gateway identity" row shows a Sign in button, and the page waits.
+//
+// These tests are the ban. Any future "helpful" auto-connect must fail them.
 import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import PrivilegeMcpClientPage from "../PrivilegeMcpClientPage";
@@ -82,14 +86,14 @@ beforeEach(() => {
 });
 
 describe("Privilege silent auto-connect", () => {
-  it("auto-starts OAuth when the main app is signed in and Privilege is not", async () => {
+  it("does NOT auto-start when the main app is signed in and Privilege is not", async () => {
     mockState({ mainAppAuthenticated: true });
     renderAt("/privilege-mcp-client");
 
-    await waitFor(() => expect(authStartCalls()).toHaveLength(1));
-    await waitFor(() => expect(window.location.href).toBe(AUTH_URL));
-    // No modal — the whole point is that the user is not asked.
-    expect(screen.queryByTestId("sign-in-prompt")).toBeNull();
+    // The button is the affordance; the redirect is the user's to trigger.
+    await waitFor(() => expect(screen.getByRole("button", { name: /sign in/i })).toBeTruthy());
+    expect(authStartCalls()).toHaveLength(0);
+    expect(window.location.href).toBe("");
   });
 
   it("does NOT auto-start after a round trip, so a failed silent attempt cannot force a login page", async () => {
@@ -119,12 +123,12 @@ describe("Privilege silent auto-connect", () => {
     expect(screen.getByTestId("search").textContent).not.toMatch(/reason=/);
   });
 
-  it("auto-starts on a reload of the stripped URL, instead of asking again", async () => {
+  it("still does not auto-start on a reload of the stripped URL", async () => {
     mockState({ mainAppAuthenticated: true });
     renderAt("/privilege-mcp-client");
 
-    await waitFor(() => expect(authStartCalls()).toHaveLength(1));
-    expect(screen.queryByTestId("sign-in-prompt")).toBeNull();
+    await waitFor(() => expect(screen.getByRole("button", { name: /sign in/i })).toBeTruthy());
+    expect(authStartCalls()).toHaveLength(0);
   });
 
   it("does not auto-start when the main app is not signed in", async () => {
@@ -142,13 +146,16 @@ describe("Privilege silent auto-connect", () => {
   // forever — with no way for the operator to get past it, because the sign-in
   // it needs is the one that was being skipped.
   //
-  // What makes Direct "direct" is WHERE it signs in (our own broker, never
-  // Privilege), not whether it signs in at all.
-  it("auto-starts in Direct mode too, because every direct door still requires a bearer", async () => {
+  // Direct still needs a bearer — every direct door is a façade door with
+  // requireBearer — but "needs one" is not a licence to go and get one
+  // unprompted. What makes Direct "direct" is WHERE it signs in (our own
+  // broker, never Privilege), not whether it does so without being asked.
+  it("does not auto-start in Direct mode either", async () => {
     mockState({ mainAppAuthenticated: true, gatewayMode: "direct" });
     renderAt("/privilege-mcp-client");
 
-    await waitFor(() => expect(authStartCalls()).toHaveLength(1));
-    await waitFor(() => expect(window.location.href).toBe(AUTH_URL));
+    await waitFor(() => expect(screen.getByRole("button", { name: /sign in/i })).toBeTruthy());
+    expect(authStartCalls()).toHaveLength(0);
+    expect(window.location.href).toBe("");
   });
 });

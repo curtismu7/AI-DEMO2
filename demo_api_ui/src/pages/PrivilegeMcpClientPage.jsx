@@ -683,14 +683,17 @@ export default function PrivilegeMcpClientPage() {
       // could never obtain a token at all and every one of its doors answered
       // "Not authenticated" forever. It signs in against our OWN broker here,
       // never Privilege — which is exactly what keeps Direct "direct".
-      if (s.mainAppAuthenticated && !s.oauth?.authenticated) {
-        if (searchParams.get('auth')) {
-          requestSignIn();
-        } else {
-          setSilentAuthPending(true);
-          startAuthRedirect()
-            .catch(() => { setSilentAuthPending(false); requestSignIn(); });
-        }
+      // NO automatic sign-in on load. This page used to redirect to the IdP by
+      // itself the moment it mounted unauthenticated — on stage that reads as
+      // the demo breaking and navigating away on its own, even when it is
+      // working. The rail's "Gateway identity" row shows a Sign in button
+      // instead, and nothing leaves this page until someone presses it.
+      //
+      // Returning from a round trip (?auth=...) still hands back to the modal:
+      // that redirect was user-initiated, so reporting its outcome is expected
+      // rather than surprising.
+      if (s.mainAppAuthenticated && !s.oauth?.authenticated && searchParams.get('auth')) {
+        requestSignIn();
       }
 
     }).catch(() => {});
@@ -791,13 +794,13 @@ export default function PrivilegeMcpClientPage() {
       }
       // The path changed, and the three paths have different OAuth front doors —
       // Direct and Façade authenticate against our broker, Privilege against the
-      // gateway itself — so re-auth against the new one. The redirect lands back
-      // on ?auth=success, which rediscovers tools and clears the overlay.
-      setSwitching(true);
+      // gateway itself — so the credential for the old one does not carry over.
+      // Say so and stop; the rail's Sign in button is the way forward. Sending
+      // the browser to the IdP from a dropdown change is what made this page
+      // look broken mid-demo.
       setTools([]);
       setSelectedTool(null);
-      try { sessionStorage.setItem('cur_priv_switching', '1'); } catch { /* storage disabled */ }
-      await startAuthRedirect();
+      setAuthenticated(false);
     } catch (err) {
       clearSwitching();
       appendChat('system', `Save failed: ${err.message}`);
@@ -862,9 +865,21 @@ export default function PrivilegeMcpClientPage() {
         refreshTools(true);
         return;
       }
-      setSwitching(true);
-      try { sessionStorage.setItem('cur_priv_switching', '1'); } catch { /* storage disabled */ }
-      await startAuthRedirect();
+      // forceReauth IS the button: it only ever comes from the re-arm control
+      // on a dead gateway session, so redirecting is what the user just asked
+      // for. The no-automatic-navigation rule is about switches nobody clicked
+      // "sign in" for — it is not a ban on the sign-in button working.
+      if (forceReauth) {
+        setSwitching(true);
+        try { sessionStorage.setItem('cur_priv_switching', '1'); } catch { /* storage disabled */ }
+        await startAuthRedirect();
+        return;
+      }
+      // An ordinary switch with no credential: surface it and wait for the
+      // Sign in button rather than navigating off the page.
+      setAuthenticated(false);
+      setTools([]);
+      setSelectedTool(null);
     } catch (err) {
       clearSwitching();
       // The mode was set optimistically above. Leaving it on failure makes the
@@ -1076,8 +1091,13 @@ export default function PrivilegeMcpClientPage() {
       // state; act on it rather than fetching tools with a credential the BFF
       // has just told us does not exist. Same branch switchGatewayMode uses.
       if (!saved?.oauth?.authenticated && mainAppAuthenticated) {
+        // Selecting a door this session has no credential for is not an error
+        // and not a reason to navigate. Show it as not signed in and let the
+        // rail's Sign in button do it — most switches no longer need one at
+        // all, since every door on our own origin shares a single token.
         setAuthenticated(false);
-        await startAuthRedirect();
+        setTools([]);
+        setSelectedTool(null);
         return;
       }
       setAuthenticated(Boolean(saved?.oauth?.authenticated));

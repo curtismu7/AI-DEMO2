@@ -18,6 +18,21 @@
 //
 // POST /config already answers `oauth: { authenticated }` for the DESTINATION
 // key. These tests pin that both switchers act on it.
+//
+// UPDATED 2026-09-10. The original fix made both switchers REDIRECT to the IdP
+// on a switch with no token. That fixed the 401s but made the page navigate
+// away from itself on a dropdown change — on stage it reads as the demo
+// breaking. Two things changed since:
+//
+//   - every door on our own origin now shares ONE token (privilegeMcpClient.js
+//     oauthKey), so the common switch needs no sign-in at all;
+//   - when a switch genuinely has no credential, the page now REPORTS it and
+//     waits for the rail's Sign in button instead of navigating.
+//
+// So the invariant these tests protect is unchanged in substance — a switch
+// must never silently leave a dead client — but it is now satisfied by an
+// explicit affordance rather than an automatic redirect. Nothing may navigate
+// the browser without a click.
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import PrivilegeMcpClientPage from "../PrivilegeMcpClientPage";
@@ -109,7 +124,7 @@ beforeEach(() => {
 });
 
 describe("Privilege client — re-auth on switch", () => {
-  it("signs in again after switching to a door this session has no token for", async () => {
+  it("offers Sign in — and does NOT navigate — after switching to a door with no token", async () => {
     mockGateway({ configAuthenticated: false });
     renderPage();
 
@@ -117,10 +132,11 @@ describe("Privilege client — re-auth on switch", () => {
     fireEvent.change(door, { target: { value: DOOR_B } });
 
     await waitFor(() => expect(callsTo("config")).toHaveLength(1));
-    // Without this the door switch leaves the slot nulled and every later
-    // tools/list answers 401 "Not authenticated" — the reported bug.
-    await waitFor(() => expect(callsTo("auth/start")).toHaveLength(1));
-    await waitFor(() => expect(window.location.href).toBe(AUTH_URL));
+    // The affordance the user acts on, in place of the old auto-redirect.
+    await waitFor(() => expect(screen.getByRole("button", { name: /sign in/i })).toBeTruthy());
+    // Nothing may leave the page on its own — this is the whole point.
+    expect(callsTo("auth/start")).toHaveLength(0);
+    expect(window.location.href).toBe("");
   });
 
   it("does NOT sign in again when the destination door already has a live token", async () => {
@@ -139,9 +155,9 @@ describe("Privilege client — re-auth on switch", () => {
   });
 
   // Direct is not exempt: every direct door is a façade door with requireBearer
-  // (mcpFacade.js DOORS), so switching INTO Direct without re-auth left every
-  // one of its doors answering "Not authenticated" forever.
-  it("signs in again after switching the path to Direct", async () => {
+  // (mcpFacade.js DOORS), so a path switch into Direct really does need its own
+  // credential — it just asks for one instead of taking the browser there.
+  it("offers Sign in — and does NOT navigate — after switching the path to Direct", async () => {
     mockGateway({ gatewayMode: "privilege", mcpUrl: PRIV_DOOR, configAuthenticated: false });
     renderPage();
 
@@ -149,6 +165,8 @@ describe("Privilege client — re-auth on switch", () => {
     fireEvent.change(path, { target: { value: "direct" } });
 
     await waitFor(() => expect(callsTo("config")).toHaveLength(1));
-    await waitFor(() => expect(callsTo("auth/start")).toHaveLength(1));
+    await waitFor(() => expect(screen.getByRole("button", { name: /sign in/i })).toBeTruthy());
+    expect(callsTo("auth/start")).toHaveLength(0);
+    expect(window.location.href).toBe("");
   });
 });
