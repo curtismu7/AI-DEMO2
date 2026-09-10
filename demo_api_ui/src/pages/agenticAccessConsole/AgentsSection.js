@@ -39,6 +39,59 @@ const RESOURCE_SERVER_TOOLS = [
   "list_banking_accounts", "get_banking_account", "list_gear", "gear_order_status", "checkout",
 ];
 
+// Per-vertical A2A specialist registry — source: demo_api_server/config/a2aSpecialists.js.
+// Distinct from the 4 generalist runtimes above: a generalist (Agent 1) delegates
+// one narrow, sensitive read task to its vertical's specialist (Agent 2) over a
+// chained RFC 8693 exchange — see the Token Exchange and CIBA tabs.
+const SPECIALISTS = [
+  { vertical: "banking", name: "Investment Advisor", tools: ["get_portfolio_summary", "get_investment_accounts", "get_investment_balance", "get_investment_transactions"] },
+  { vertical: "healthcare", name: "Records Specialist", tools: ["sensitive_patient_records"] },
+  { vertical: "retail", name: "Purchase History Specialist", tools: ["sensitive_order_history"], note: "aliased by abercrombie-fitch" },
+  { vertical: "sporting-goods", name: "Membership Specialist", tools: ["sensitive_membership_details"] },
+  { vertical: "workforce", name: "Payroll Specialist", tools: ["sensitive_payroll_details"] },
+  { vertical: "government", name: "Tax Records Specialist", tools: ["sensitive_tax_record"] },
+  { vertical: "university", name: "Financial Aid Specialist", tools: ["sensitive_student_finance"] },
+  { vertical: "manufacturing", name: "Supplier Contract Specialist", tools: ["sensitive_supplier_contract"] },
+  { vertical: "investment", name: "Holdings Specialist", tools: ["sensitive_holdings"] },
+  { vertical: "airlines", name: "Passenger Records Specialist", tools: ["sensitive_passenger_record"] },
+  { vertical: "admin", name: "Identity Verification Specialist", tools: ["sensitive_customer_identity"] },
+];
+
+function SpecialistsPanel() {
+  return (
+    <div className="aac-section-block">
+      <h3>Vertical specialists (A2A)</h3>
+      <p className="aac-card-sub">
+        One specialist per vertical — the Agent 2 a generalist delegates a single
+        sensitive read task to. Source: config/a2aSpecialists.js.
+      </p>
+      <div className="aac-table-wrap">
+        <table className="aac-table">
+          <thead>
+            <tr>
+              <th scope="col">Vertical</th>
+              <th scope="col">Specialist</th>
+              <th scope="col">Tool(s)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {SPECIALISTS.map((s) => (
+              <tr key={s.vertical}>
+                <th scope="row" className="aac-mono">{s.vertical}</th>
+                <td>
+                  {s.name}
+                  {s.note && <span className="aac-card-sub"> ({s.note})</span>}
+                </td>
+                <td className="aac-mono">{s.tools.join(", ")}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 function ScopeStatusBadge({ status }) {
   const map = { drift: "broken", match: "live", unverified: "neutral" };
   return <span className={`aac-badge aac-badge--${map[status] || "neutral"}`}>{status}</span>;
@@ -118,6 +171,8 @@ export default function AgentsSection({ user }) {
             {Object.entries(registry.sources).filter(([, s]) => s.up === false).map(([name]) => name).join(", ")} unavailable — other sources still shown.
           </p>
         )}
+
+        <SpecialistsPanel />
       </div>
     );
   }
@@ -175,6 +230,8 @@ export default function AgentsSection({ user }) {
             ? "Live agent registry unavailable — showing the illustrative runtime catalog."
             : "Loading live agent registry…"}
       </p>
+
+      <SpecialistsPanel />
     </div>
   );
 }
