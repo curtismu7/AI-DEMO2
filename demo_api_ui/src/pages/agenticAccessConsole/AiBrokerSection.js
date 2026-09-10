@@ -48,6 +48,71 @@ function liveAttribution(a) {
   return `${a.provider} answered — no Privilege verdict.`;
 }
 
+const IDENTITY_TYPE_LABEL = {
+  workload: "Workload agents",
+  agent: "Personal / delegated agents",
+  external: "External identities",
+};
+
+/** Real agent/workload identities from the same registry the Agents tab
+ * uses (GET /api/registry/agents), grouped by identityType — context for
+ * who's actually configured to call this broker. Not per-attempt
+ * attribution: /llm/call is a human-driven test console with no agent
+ * identity on the wire, so past attempts can't be tied to one of these. */
+function AgentsUsingBrokerPanel({ user }) {
+  const [rows, setRows] = useState(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    apiClient
+      .get("/api/registry/agents")
+      .then(({ data }) => { if (!cancelled) setRows(data?.rows || []); })
+      .catch(() => { if (!cancelled) setError(true); });
+    return () => { cancelled = true; };
+  }, [user]);
+
+  const showLive = !!user && !error && Array.isArray(rows);
+
+  const groups = {};
+  if (showLive) {
+    for (const r of rows) {
+      const key = r.identityType || "agent";
+      (groups[key] = groups[key] || []).push(r);
+    }
+  }
+
+  return (
+    <div className="aac-section-block">
+      <h3>Agents using this broker {showLive && <span className="aac-badge aac-badge--live">Live</span>}</h3>
+      <p className="aac-card-sub" style={{ marginBottom: 10 }}>
+        Source: <code>/api/registry/agents</code> — the same PingOne apps, workload
+        OAuth clients and A2A cards the Agents tab reads, grouped by identity type.
+      </p>
+      {!showLive ? (
+        <p className="aac-card-sub">
+          {!user ? "Sign in to see the real registry, grouped by identity type." : "Registry unavailable right now."}
+        </p>
+      ) : Object.keys(groups).length === 0 ? (
+        <p className="aac-card-sub">No registered identities found.</p>
+      ) : (
+        <div className="aac-grid-3">
+          {Object.entries(groups).map(([type, list]) => (
+            <div key={type} className="aac-card">
+              <div className="aac-card-title">{IDENTITY_TYPE_LABEL[type] || type}</div>
+              <div className="aac-card-sub">{list.length} identit{list.length === 1 ? "y" : "ies"}</div>
+              <div className="aac-chip-row">
+                {list.map((r) => <span key={r.id} className="aac-chip">{r.name}</span>)}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AiBrokerSection({ user }) {
   const [tiers, setTiers] = useState(null); // null=loading
   const [tiersError, setTiersError] = useState(false);
@@ -89,6 +154,8 @@ export default function AiBrokerSection({ user }) {
         The provider id stays <code>llamacpp</code> regardless of backend —
         llama.cpp by default, oMLX auto-detected on Apple Silicon.
       </p>
+
+      <AgentsUsingBrokerPanel user={user} />
 
       <div className="aac-section-block">
         <h3>Model tiers {tiersAreLive && <span className="aac-badge aac-badge--live">Live</span>}</h3>
