@@ -814,6 +814,21 @@ async function main() {
                                       || 'https://api.ping.demo:3036/mcp',
     PG_GATEWAY_RESOURCE_URI:        mcpGatewayAud,
     PG_INBOUND_SCOPE:               'gateway:mcp:invoke',
+    // privilege-bridge.groovy (Task 8b). MUST equal the Static Token on the
+    // Privilege console's `agent-gateway` Agentic App: Privilege stamps that
+    // token on its backend hop, and the filter swaps in the caller's real token
+    // from X-Subject-Token only when the bearer matches this. Empty disables the
+    // bridge and can never match, so an unset value degrades to today's 401
+    // rather than opening a door.
+    //
+    // Emitted here because this script REWRITES ping-gateway/.env wholesale — a
+    // hand-added key would be silently wiped on the next refresh.
+    //
+    // Uses fb(), not fbVault(): this secret does not live in the vault today. If
+    // it ever moves there, switch to fbVault and add it to loadVaultSecrets above,
+    // or this script will copy a stale .env value over the live one — the exact
+    // silent failure described in the INTENT_TOKEN_SECRET note.
+    MCP_GW_PRIVILEGE_BRIDGE_SECRET: fb('MCP_GW_PRIVILEGE_BRIDGE_SECRET'),
     // Exchange #3 TE client MUST be the MCP Gateway app (grants on
     // mcpserver.ping.demo), NOT the MCP Exchanger. The exchanger is for
     // BFF hop #2 (aud=gateway); using it here yields wrong aud / D-05 or
