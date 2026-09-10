@@ -48,7 +48,45 @@ async function callToolViaResolvedGateway(gatewayUrl, bearerToken, tool, params 
   // surviving the hop unmodified (privilege/CURRENT-CONFIGURATION.md,
   // "Backend hop", 2026-09-10); the Agent Gateway end of the bridge is Task 8.
   const extraHeaders = { ...(opts.extraHeaders || {}), 'X-Subject-Token': bearerToken };
-  return callToolViaGateway(gatewayUrl, '', tool, params, { ...opts, extraHeaders });
+  // Stamped at the START: the assembler orders hops by ts, so recording this on
+  // completion would draw Privilege AFTER the gateway it sits in front of.
+  const startedAt = new Date().toISOString();
+  try {
+    const result = await callToolViaGateway(gatewayUrl, '', tool, params, { ...opts, extraHeaders });
+    recordPrivilegeHop({ startedAt, tool, status: 'ok', decision: { outcome: 'PERMIT' } });
+    return result;
+  } catch (err) {
+    // Only a 403 is Privilege's own policy answer. Anything else is a transport
+    // failure, and calling that a denial would put a decision on the reel that
+    // nobody made.
+    const status = err?.status ?? err?.statusCode ?? err?.response?.status;
+    recordPrivilegeHop(status === 403
+      ? { startedAt, tool, status: 'denied', decision: { outcome: 'DENY', reason: 'Denied by PingOne Privilege policy' } }
+      : { startedAt, tool, status: 'error', error: String(err?.message || err).slice(0, 200) });
+    throw err;
+  }
+}
+
+/**
+ * Record the Privilege leg on the transaction record. Deliberately narrow: the
+ * BFF can honestly say the call was ROUTED through Privilege and what came
+ * back, and nothing about Privilege's internal reasoning — it is a third-party
+ * gateway that does not report hops to us.
+ *
+ * Fail-open by contract, like every other emitter: a dead ledger must never
+ * take down a tool call.
+ */
+function recordPrivilegeHop({ startedAt, tool, status, decision, error }) {
+  try {
+    require('./transactionHop').emitHop({
+      phase: 'privilege.authorize',
+      op: tool,
+      ts: startedAt,
+      status,
+      ...(decision ? { decision } : {}),
+      ...(error ? { error } : {}),
+    });
+  } catch { /* never break the request path to record it */ }
 }
 
 module.exports = {

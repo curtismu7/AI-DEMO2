@@ -37,6 +37,15 @@ const VALID_PHASES = new Set([
   // still applies, so no id_token or code ever lands in the record.
   'oauth.authorize',
   'oauth.callback',
+  // The PingOne Privilege AI Gateway leg, recorded when it fronts the Agent
+  // Gateway (ff_mcp_gateway_privilege_first). Deliberately narrow in what it
+  // claims: Privilege is a third party and does not post hops to us, so the
+  // BFF records only that the call was ROUTED through it and what came back —
+  // a 403 is Privilege's own policy denial, anything else is a transport
+  // failure and is never dressed up as a decision. This sits ALONGSIDE
+  // gateway.authorize rather than replacing it; two gates, two records, which
+  // is the whole point of putting Privilege in front.
+  'privilege.authorize',
 ]);
 
 // The ledger is presented as an audit record, so raw credentials must never
