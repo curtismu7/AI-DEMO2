@@ -1326,13 +1326,11 @@ function AppWithAuth() {
                                 </RequireAdminLogin>
                               }
                             />
+                            {/* Public on purpose — read-only/illustrative, meant to be
+                                shared without requiring an admin session. */}
                             <Route
                               path="/admin/agentic-access-console"
-                              element={
-                                <RequireAdminLogin user={user}>
-                                  <AgenticAccessConsolePage />
-                                </RequireAdminLogin>
-                              }
+                              element={<AgenticAccessConsolePage />}
                             />
                             <Route
                               path="/admin/banking"

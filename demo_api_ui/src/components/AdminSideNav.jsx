@@ -786,7 +786,6 @@ export default function AdminSideNav({
           label: "Agentic Access Console",
           path: "/admin/agentic-access-console",
           icon: "shld",
-          adminOnly: true,
         },
       ],
     },
