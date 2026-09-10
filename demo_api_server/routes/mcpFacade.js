@@ -38,6 +38,7 @@ const { renderReelSvg } = require('../services/reelSvg');
 const jwksService = require('../services/jwksService');
 const privilegeGatewaySession = require('../services/privilegeGatewaySession');
 const pingoneAdminSession = require('../services/pingoneAdminSession');
+const upstreamExchange = require('../services/facadeUpstreamExchange');
 
 const router = express.Router();
 const SERVICE = 'mcp-facade';
@@ -175,6 +176,19 @@ const DOORS = {
     authorizationServer: null,
     scopes: [],
     forwardCorrelation: false,
+    // The audience this door's upstream demands. oauth-mcp enforces a two-part
+    // contract (auth/lastHopAuthorization.ts): the token must NOT carry the
+    // gateway audience (D-05 anti-bypass) AND must carry an upstream one.
+    //
+    // Naming ONE audience is what satisfies both halves. MCP_SERVER_RESOURCE_URI
+    // lists several accepted values and includes the gateway audience, so a
+    // token that merely "matches the list" can still fail D-05 — asking for
+    // mcpserver.ping.demo specifically is what keeps the gateway audience off
+    // the exchanged token.
+    upstreamAudience: () => process.env.MCP_FACADE_BANKING_AUD
+      || configStore.getEffective('PINGONE_RESOURCE_MCP_SERVER_URI')
+      || process.env.PINGONE_RESOURCE_MCP_SERVER_URI
+      || 'mcpserver.ping.demo',
   },
   brave: {
     label: 'Brave Search',
@@ -790,6 +804,45 @@ router.post(['/:door/mcp', '/:door/:app/mcp'], express.json({ limit: '1mb', type
       });
     }
     upstreamHeaders = { ...upstreamHeaders, authorization: `Bearer ${upstreamToken}` };
+  }
+
+  // A door that FORWARDS the caller's bearer hands the upstream a token minted
+  // for the gateway's audience, which oauth-mcp refuses by design:
+  //
+  //   D-05 violation: gateway-audience token cannot be used at upstream.
+  //   The gateway must perform RFC 8693 exchange before forwarding.
+  //
+  // Do what it asks. `upstreamAudience` names the audience the next hop wants,
+  // and the exchanged token carries THAT one only — a token still carrying the
+  // gateway audience fails D-05 even when it also names the upstream, because
+  // MCP_SERVER_RESOURCE_URI lists both.
+  //
+  // ff_facade_upstream_exchange (default ON) exists so the refusal itself stays
+  // demonstrable: turn it off and the door shows the D-05 401 that motivates the
+  // exchange. That failure is the lesson, not an embarrassment to hide.
+  const exchangeOn = configStore.getEffective('ff_facade_upstream_exchange') !== 'false';
+  const upstreamAudience = door.upstreamAudience && door.upstreamAudience();
+  if (!door.ownsUpstreamAuth && upstreamAudience && exchangeOn && upstreamExchange.isConfigured()) {
+    const inboundBearer = /^Bearer\s+(.+)$/i.exec(String(req.get('authorization') || '').trim())?.[1];
+    if (inboundBearer) {
+      try {
+        const exchanged = await upstreamExchange.exchangeForUpstream(inboundBearer, upstreamAudience, door.scopes || []);
+        upstreamHeaders = { ...upstreamHeaders, authorization: `Bearer ${exchanged}` };
+      } catch (err) {
+        // Surfaced, never swallowed: forwarding the un-exchanged token is the
+        // very bypass D-05 catches, and it would resurface as a confusing
+        // upstream 401 instead of naming what failed here.
+        return res.status(502).json({
+          jsonrpc: '2.0',
+          id: rpc.id ?? null,
+          error: {
+            code: -32003,
+            message: 'Upstream token exchange failed',
+            data: { reason: err.code || 'exchange_failed', detail: err.message, audience: upstreamAudience },
+          },
+        });
+      }
+    }
   }
 
   const t0 = Date.now();
