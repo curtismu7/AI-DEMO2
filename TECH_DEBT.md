@@ -41,6 +41,36 @@ importing a local constant. The Dashboard and Policies sections (decision
 counts/log) are the highest-value first targets since those numbers are the
 ones most likely to be quoted as if live.
 
+**Update 2026-09-10 (same day) — partly wired live; PARTLY RESOLVED, not closing the box.**
+Most sections now fetch real endpoints instead of importing a local constant:
+
+- **Live, fully public:** Verticals tile grid + per-vertical auth level
+  (`GET /api/verticals/list`, `GET /api/use-cases?vertical=`), the Monitoring
+  stat tiles (`GET /api/health/gateway-metrics`), Token Exchange's "try it live"
+  panel (`POST /api/demo/rfc8693/token`, decoded client-side), Policies' rule
+  table (`GET /api/authorize/pingone-policies`, flattened from the PolicySet →
+  Policy → Rule tree — a real shape, not the old 3-column mock), Servers'
+  oauth-mcp tool list (`GET /api/mcp/inspector/tools`), and AI Broker's model
+  tier table (`GET /api/langchain/llamacpp/tiers`).
+- **Live, signed-in only (public page, real per-user data):** Agents'
+  identity cards (`GET /api/registry/agents` — real PingOne/workload/A2A
+  rows, not the 4 illustrative framework names), Policies' decision log
+  (`GET /api/authorize/recent-decisions`, degrades to a named "not configured"
+  state), CIBA's step-up approvals (new `GET /api/auth/ciba/requests`, reads
+  the session's existing `req.session.cibaRequests`), and AI Broker's recent
+  attempts log (new `GET /api/privilege-mcp/llm/guardrail-attempts`, backed by
+  a new 20-entry ring buffer in `services/guardrailAttemptLog.js` that
+  `POST /api/privilege-mcp/llm/call` appends to after each real Privilege
+  verdict). All four render the original illustrative content, labeled "Sign
+  in to see live data," for anonymous visitors.
+- **Still illustrative, on purpose:** Dashboard tab (not in scope this pass —
+  next target per the note above), Auth tab, Servers' Privilege-registered and
+  dev/diagnostic tiers and the resource-server tool list (no live endpoint),
+  CIBA's Agentic Apps registry and A2A protocol panels (need an operator
+  connect step this public page can't perform), and Token Exchange's 4-step
+  architectural chain diagrams (illustrate a flow no single mock endpoint
+  replicates).
+
 ### [ ] 2026-09-09 — the jest suite is still flaky after the network guard: LMDB reader exhaustion and loopback ECONNRESET
 
 **What's wrong.** Blocking outbound network in unit tests (PR for

@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import apiClient from "../../services/apiClient";
 
 const OAUTH_MCP_TOOLS = [
   "get_my_accounts", "get_account_balance", "get_account_nickname", "get_sensitive_account_details",
@@ -40,6 +41,22 @@ function StatusBadge({ status }) {
 }
 
 export default function ServersSection() {
+  const [liveTools, setLiveTools] = useState(null); // null=loading
+  const [liveError, setLiveError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    apiClient
+      .get("/api/mcp/inspector/tools")
+      .then(({ data }) => { if (!cancelled) setLiveTools(Array.isArray(data.tools) ? data.tools : []); })
+      .catch(() => { if (!cancelled) setLiveError(true); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const liveNames = liveTools?.map((t) => t.name).filter(Boolean);
+  const oauthNames = !liveError && liveNames?.length ? liveNames : OAUTH_MCP_TOOLS;
+  const oauthIsLive = !liveError && liveNames?.length > 0;
+
   return (
     <div>
       <p className="aac-section-intro">
@@ -61,11 +78,15 @@ export default function ServersSection() {
             </div>
           </div>
           <div className="aac-card">
-            <div className="aac-card-title">oauth-mcp <span className="aac-badge aac-badge--neutral">32 tools</span></div>
+            <div className="aac-card-title">
+              oauth-mcp{" "}
+              <span className="aac-badge aac-badge--neutral">{oauthNames.length} tools</span>{" "}
+              {oauthIsLive && <span className="aac-badge aac-badge--live">Live</span>}
+            </div>
             <div className="aac-card-sub">banking-mcp-server</div>
             <div className="aac-chip-row">
-              {OAUTH_MCP_TOOLS.map((t) => <span key={t} className="aac-chip">{t}</span>)}
-              <span className="aac-chip">+5 vertical show_* handlers</span>
+              {oauthNames.map((t) => <span key={t} className="aac-chip">{t}</span>)}
+              {!oauthIsLive && <span className="aac-chip">+5 vertical show_* handlers</span>}
             </div>
           </div>
           <div className="aac-card">

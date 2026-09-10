@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import apiClient from "../../services/apiClient";
 
 const AGENTS = [
   {
@@ -38,9 +39,90 @@ const RESOURCE_SERVER_TOOLS = [
   "list_banking_accounts", "get_banking_account", "list_gear", "gear_order_status", "checkout",
 ];
 
-export default function AgentsSection() {
-  const [selectedId, setSelectedId] = useState(AGENTS[0].id);
-  const selected = AGENTS.find((a) => a.id === selectedId);
+function ScopeStatusBadge({ status }) {
+  const map = { drift: "broken", match: "live", unverified: "neutral" };
+  return <span className={`aac-badge aac-badge--${map[status] || "neutral"}`}>{status}</span>;
+}
+
+export default function AgentsSection({ user }) {
+  const [registry, setRegistry] = useState(null);
+  const [error, setError] = useState(false);
+  const [selectedId, setSelectedId] = useState(null);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    apiClient
+      .get("/api/registry/agents")
+      .then(({ data }) => { if (!cancelled) setRegistry(data); })
+      .catch(() => { if (!cancelled) setError(true); });
+    return () => { cancelled = true; };
+  }, [user]);
+
+  const liveRows = registry?.rows || [];
+  const showLive = !!user && !error && liveRows.length > 0;
+
+  if (showLive) {
+    const selected = liveRows.find((r) => r.id === selectedId) || liveRows[0];
+    return (
+      <div>
+        <p className="aac-section-intro">
+          Real non-human identities from PingOne, the demo's own OAuth client
+          registry, and computed A2A Agent Cards. Select one to see its scopes
+          and lifecycle. <span className="aac-badge aac-badge--live">Live</span>
+        </p>
+
+        <div className="aac-grid-3">
+          {liveRows.map((r) => (
+            <button
+              key={r.id}
+              type="button"
+              className={`aac-card aac-agent-card${r.id === selected.id ? " aac-agent-card--active" : ""}`}
+              onClick={() => setSelectedId(r.id)}
+              aria-pressed={r.id === selected.id}
+            >
+              <div className="aac-card-title">{r.name}</div>
+              <div className="aac-card-sub">{r.identityType} · {r.source}</div>
+              <div className="aac-card-body">
+                <span className="aac-badge aac-badge--neutral">{r.status || "unknown"}</span>{" "}
+                <ScopeStatusBadge status={r.scopeStatus} />
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {selected && (
+          <div className="aac-card aac-detail-panel">
+            <div className="aac-card-title">{selected.name} — scopes &amp; lifecycle</div>
+            <div className="aac-card-sub" style={{ marginTop: 8 }}>Granted scopes</div>
+            <div className="aac-chip-row">
+              {(selected.grantedScopes || []).length > 0
+                ? selected.grantedScopes.map((s) => <span key={s} className="aac-chip">{s}</span>)
+                : <span className="aac-card-sub">none</span>}
+            </div>
+            {(selected.missingScopes || []).length > 0 && (
+              <>
+                <div className="aac-card-sub" style={{ marginTop: 10 }}>Missing (expected but not granted)</div>
+                <div className="aac-chip-row">
+                  {selected.missingScopes.map((s) => <span key={s} className="aac-chip">{s}</span>)}
+                </div>
+              </>
+            )}
+            <div className="aac-card-sub" style={{ marginTop: 10 }}>
+              Lifecycle events: {(selected.lifecycle || []).length}
+            </div>
+          </div>
+        )}
+        {registry.sources && Object.entries(registry.sources).some(([, s]) => s.up === false) && (
+          <p className="aac-card-sub" style={{ marginTop: 10 }}>
+            {Object.entries(registry.sources).filter(([, s]) => s.up === false).map(([name]) => name).join(", ")} unavailable — other sources still shown.
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  const selected = AGENTS.find((a) => a.id === (selectedId || AGENTS[0].id));
 
   return (
     <div>
@@ -54,9 +136,9 @@ export default function AgentsSection() {
           <button
             key={a.id}
             type="button"
-            className={`aac-card aac-agent-card${a.id === selectedId ? " aac-agent-card--active" : ""}`}
+            className={`aac-card aac-agent-card${a.id === selected.id ? " aac-agent-card--active" : ""}`}
             onClick={() => setSelectedId(a.id)}
-            aria-pressed={a.id === selectedId}
+            aria-pressed={a.id === selected.id}
           >
             <div className="aac-card-title">{a.identity}</div>
             <div className="aac-card-sub">{a.runtime} · {a.framework}</div>
@@ -85,6 +167,14 @@ export default function AgentsSection() {
           </div>
         </div>
       )}
+
+      <p className="aac-card-sub" style={{ marginTop: 12 }}>
+        {!user
+          ? "Sign in to see live agent registry data."
+          : error
+            ? "Live agent registry unavailable — showing the illustrative runtime catalog."
+            : "Loading live agent registry…"}
+      </p>
     </div>
   );
 }

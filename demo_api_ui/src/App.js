@@ -1330,7 +1330,7 @@ function AppWithAuth() {
                                 shared without requiring an admin session. */}
                             <Route
                               path="/admin/agentic-access-console"
-                              element={<AgenticAccessConsolePage />}
+                              element={<AgenticAccessConsolePage user={user} />}
                             />
                             <Route
                               path="/admin/banking"

@@ -6,7 +6,14 @@ const express = require('express');
 const crypto = require('crypto');
 const privilegeGatewaySession = require('../services/privilegeGatewaySession');
 const privilegeDoorStore = require('../services/lmdb/privilegeDoorStore.lmdb');
+const guardrailAttemptLog = require('../services/guardrailAttemptLog');
+const { requireSession } = require('../middleware/auth');
 const router = express.Router();
+
+// Same marker the LLM Gateway console (LlmGatewayPage.jsx) uses to detect a
+// Privilege sanitize verdict — counting these is the only signal available
+// that a 200 response was redacted rather than passed through untouched.
+const REDACTION_RE = /\[REDACTED(?::[^\]]*)?\]/gi;
 
 // The three ways to reach the same MCP server, which is the whole point of this
 // page: the audience sees what Privilege adds by watching the same tool call
@@ -3040,6 +3047,15 @@ router.post('/llm/call', express.json(), async (req, res) => {
   const t0 = Date.now();
   try {
     const reply = await lane.call([{ role: 'user', content: prompt }], overrides);
+    // Record AFTER the gateway call already decided — purely observational,
+    // never influences the reply. See services/guardrailAttemptLog.js.
+    const redactionCount = (typeof reply === 'string' ? reply.match(REDACTION_RE) : null)?.length || 0;
+    guardrailAttemptLog.record({
+      provider,
+      prompt,
+      verdict: redactionCount > 0 ? 'SANITIZED' : 'PASSED',
+      reason: redactionCount > 0 ? `${redactionCount} value(s) redacted` : null,
+    });
     return res.json({
       reply,
       provider,
@@ -3056,6 +3072,12 @@ router.post('/llm/call', express.json(), async (req, res) => {
     // rate-cap block answers 429, its own verdict so the panel does not read a
     // throttle as a content refusal.
     if (err.code === 'llm_policy_denied' || err.code === 'llm_rate_limited') {
+      guardrailAttemptLog.record({
+        provider: err.provider || provider,
+        prompt,
+        verdict: 'BLOCKED',
+        reason: err.reason || err.message,
+      });
       return res.status(err.code === 'llm_rate_limited' ? 429 : 403).json({
         error: err.message,
         code: err.code,
@@ -3082,6 +3104,14 @@ router.post('/llm/call', express.json(), async (req, res) => {
       providerLimits: meta.limits || null,
     });
   }
+});
+
+// GET /api/privilege-mcp/llm/guardrail-attempts — read-only recent Privilege
+// verdicts from POST /llm/call above (services/guardrailAttemptLog.js).
+// Entries carry real user-typed prompt text, so this is signed-in only — see
+// the Agentic Access Console's public-page privacy rule.
+router.get('/llm/guardrail-attempts', requireSession, (req, res) => {
+  res.json({ attempts: guardrailAttemptLog.list() });
 });
 
 router.post('/chat', express.json(), async (req, res) => {

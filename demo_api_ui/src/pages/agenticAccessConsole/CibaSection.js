@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import apiClient from "../../services/apiClient";
 
 const AGENTIC_APPS = [
   { name: "opensearch22", kind: "OpenSearch, native MCP", frontend: "opensearch.default.applications.procyon.ai:8643/mcp", gateway: "cm-mcpgw", status: "LIVE" },
@@ -32,7 +33,24 @@ function ApprovalStatusPill({ status }) {
   return <span className={`aac-pill aac-pill--${map[status] || "indeterminate"}`}>{status}</span>;
 }
 
-export default function CibaSection() {
+const LIVE_STATUS_MAP = { approved: "permit", denied: "deny", pending: "indeterminate", expired: "deny" };
+
+export default function CibaSection({ user }) {
+  const [requests, setRequests] = useState(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    apiClient
+      .get("/api/auth/ciba/requests")
+      .then(({ data }) => { if (!cancelled) setRequests(data.requests || []); })
+      .catch(() => { if (!cancelled) setError(true); });
+    return () => { cancelled = true; };
+  }, [user]);
+
+  const showLive = !!user && !error && Array.isArray(requests);
+
   return (
     <div>
       <p className="aac-section-intro">
@@ -73,6 +91,7 @@ export default function CibaSection() {
             </tbody>
           </table>
         </div>
+        <p className="aac-card-sub" style={{ marginTop: 8 }}>Illustrative — needs an operator connect step this public page can't perform.</p>
       </div>
 
       <div className="aac-section-block">
@@ -91,38 +110,75 @@ export default function CibaSection() {
           <span className="aac-badge aac-badge--neutral">UC2.5 — same flow, audit-trail framing</span>
           <span className="aac-badge aac-badge--broken">UC2.6 — negative test: rogue agent credential riding a legitimate delegation shape is still DENIED</span>
         </div>
+        <p className="aac-card-sub" style={{ marginTop: 8 }}>Illustrative.</p>
       </div>
 
       <div className="aac-section-block">
-        <h3>CIBA step-up approvals</h3>
+        <h3>CIBA step-up approvals {showLive && <span className="aac-badge aac-badge--live">Live</span>}</h3>
         <p className="aac-card-sub" style={{ marginBottom: 8 }}>
           Source: <code>demo_api_server/routes/ciba.js</code> — independent of the
           Agentic Apps registry above.
         </p>
-        <div className="aac-table-wrap">
-          <table className="aac-table">
-            <thead>
-              <tr>
-                <th scope="col">Agent</th>
-                <th scope="col">Action</th>
-                <th scope="col">Message</th>
-                <th scope="col">Status</th>
-                <th scope="col">Approver</th>
-              </tr>
-            </thead>
-            <tbody>
-              {CIBA_APPROVALS.map((c, i) => (
-                <tr key={i}>
-                  <th scope="row">{c.agent}</th>
-                  <td>{c.action}</td>
-                  <td>{c.message}</td>
-                  <td><ApprovalStatusPill status={c.status} /></td>
-                  <td>{c.approver}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {showLive ? (
+          requests.length > 0 ? (
+            <div className="aac-table-wrap">
+              <table className="aac-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Auth req</th>
+                    <th scope="col">Amount</th>
+                    <th scope="col">Message</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Engine</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {requests.map((r) => (
+                    <tr key={r.authReqId}>
+                      <th scope="row" className="aac-mono">{r.authReqId.slice(0, 8)}…</th>
+                      <td>{r.amount != null ? `$${r.amount}` : "—"}</td>
+                      <td>{r.bindingMessage || r.tool || "—"}</td>
+                      <td><span className={`aac-pill aac-pill--${LIVE_STATUS_MAP[r.status] || "indeterminate"}`}>{r.status.toUpperCase()}</span></td>
+                      <td>{r.engine}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="aac-card"><div className="aac-card-body">No CIBA requests tracked in this session yet.</div></div>
+          )
+        ) : (
+          <>
+            <div className="aac-table-wrap">
+              <table className="aac-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Agent</th>
+                    <th scope="col">Action</th>
+                    <th scope="col">Message</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Approver</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {CIBA_APPROVALS.map((c, i) => (
+                    <tr key={i}>
+                      <th scope="row">{c.agent}</th>
+                      <td>{c.action}</td>
+                      <td>{c.message}</td>
+                      <td><ApprovalStatusPill status={c.status} /></td>
+                      <td>{c.approver}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="aac-card-sub" style={{ marginTop: 8 }}>
+              {!user ? "Sign in to see live data." : "Live CIBA request data unavailable — showing an illustrative example."}
+            </p>
+          </>
+        )}
       </div>
     </div>
   );
