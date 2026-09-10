@@ -6,8 +6,14 @@ CLAUDE.md in this repo — do not carry over Node/jest conventions here.
 
 ## Stack
 
-- Python 3.11, matching the Dockerfile (`FROM python:3.11-slim`).
-  `scripts/run-pytest.sh` defaults to `python3.11` and falls back to `python3`.
+- Three Python versions are in play here, not one — know which is which:
+  the production/trace Dockerfiles run `3.13` (deliberately bumped, see
+  `git log -- Dockerfile`), CI's blocking gate (`Python agent suites` in
+  `.github/workflows/ci.yml`, 834 passing tests) runs `3.12`, and
+  `scripts/run-pytest.sh` defaults to `python3.11` locally purely because
+  that's what's reliably preinstalled on dev machines (falls back to
+  `python3` otherwise). None of the three is "the" canonical version; a
+  change that only passes on one of them isn't proven yet.
 - LangChain 1.3 + LangGraph 1.2 (stateful runtime, `MemorySaver` checkpointer)
 - pytest (`testpaths = tests`, `pythonpath = src .`, `asyncio_mode = auto`)
 - black + mypy for lint/type-check (no enforced pre-commit hook here)
