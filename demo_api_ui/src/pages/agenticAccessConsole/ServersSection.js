@@ -40,6 +40,33 @@ function StatusBadge({ status }) {
   return <span className={`aac-badge aac-badge--${map[status] || "neutral"}`}>{status}</span>;
 }
 
+const CHIP_PREVIEW_COUNT = 24;
+
+/** A tool list can run into the hundreds (oauth-mcp's live registry currently
+ * reports 242) — show a preview and let the visitor expand the rest, rather
+ * than rendering every chip inline. */
+function ToolChipList({ tools }) {
+  const [expanded, setExpanded] = useState(false);
+  if (tools.length <= CHIP_PREVIEW_COUNT) {
+    return (
+      <div className="aac-chip-row">
+        {tools.map((t) => <span key={t} className="aac-chip">{t}</span>)}
+      </div>
+    );
+  }
+  const visible = expanded ? tools : tools.slice(0, CHIP_PREVIEW_COUNT);
+  return (
+    <div>
+      <div className="aac-chip-row">
+        {visible.map((t) => <span key={t} className="aac-chip">{t}</span>)}
+      </div>
+      <button type="button" className="aac-chip-toggle" onClick={() => setExpanded((v) => !v)}>
+        {expanded ? "Show fewer" : `Show all ${tools.length} tools`}
+      </button>
+    </div>
+  );
+}
+
 export default function ServersSection() {
   const [liveTools, setLiveTools] = useState(null); // null=loading
   const [liveError, setLiveError] = useState(false);
@@ -84,17 +111,12 @@ export default function ServersSection() {
               {oauthIsLive && <span className="aac-badge aac-badge--live">Live</span>}
             </div>
             <div className="aac-card-sub">banking-mcp-server</div>
-            <div className="aac-chip-row">
-              {oauthNames.map((t) => <span key={t} className="aac-chip">{t}</span>)}
-              {!oauthIsLive && <span className="aac-chip">+5 vertical show_* handlers</span>}
-            </div>
+            <ToolChipList tools={!oauthIsLive ? [...oauthNames, "+5 vertical show_* handlers"] : oauthNames} />
           </div>
           <div className="aac-card">
             <div className="aac-card-title">demo_mcp_resource_server <span className="aac-badge aac-badge--neutral">22 tools</span></div>
             <div className="aac-card-sub">banking-mcp-resource-server</div>
-            <div className="aac-chip-row">
-              {RESOURCE_SERVER_TOOLS.map((t) => <span key={t} className="aac-chip">{t}</span>)}
-            </div>
+            <ToolChipList tools={RESOURCE_SERVER_TOOLS} />
           </div>
         </div>
       </div>

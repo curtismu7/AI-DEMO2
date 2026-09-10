@@ -32,17 +32,44 @@ function DecisionPill({ decision }) {
   return <span className={`aac-pill aac-pill--${decision.toLowerCase()}`}>{decision}</span>;
 }
 
-/** Flatten the PingOne policy tree (PolicySet > Policy > Rule) to its RULE leaves. */
+/** Flatten the PingOne policy tree (PolicySet > Policy > Rule) to its RULE leaves.
+ * Keeps the raw node too, so a clicked row can show the real policy detail. */
 function flattenRules(nodes, ancestry = []) {
   let out = [];
   for (const node of nodes || []) {
     const path = [...ancestry, node.name];
     if (node.kind === "RULE") {
-      out.push({ id: node.id, name: node.name, path: path.slice(0, -1).join(" › ") || "—", outcome: node.effect || node.algorithm || "—" });
+      out.push({ id: node.id, name: node.name, path: path.slice(0, -1).join(" › ") || "—", outcome: node.effect || node.algorithm || "—", raw: node });
     }
     if (node.children?.length) out = out.concat(flattenRules(node.children, path));
   }
   return out;
+}
+
+/** One clickable rule row that expands in place to show policy detail. */
+function RuleRow({ id, cells, detail }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <tr
+        className="aac-table-row--clickable"
+        onClick={() => setOpen((v) => !v)}
+        role="button"
+        tabIndex={0}
+        aria-expanded={open}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen((v) => !v); } }}
+      >
+        {cells}
+      </tr>
+      {open && (
+        <tr className="aac-table-row--detail">
+          <td colSpan={cells.length}>
+            <pre className="aac-prompt-block">{typeof detail === "string" ? detail : JSON.stringify(detail, null, 2)}</pre>
+          </td>
+        </tr>
+      )}
+    </>
+  );
 }
 
 export default function PoliciesSection({ user }) {
@@ -105,6 +132,7 @@ export default function PoliciesSection({ user }) {
 
       <div className="aac-section-block">
         <h3>Policy rules <span className="aac-badge aac-badge--live">Live</span></h3>
+        <p className="aac-card-sub">Click a row for the full policy detail.</p>
         {liveRules ? (
           <>
             <p className="aac-card-sub" style={{ marginBottom: 10 }}>
@@ -122,11 +150,15 @@ export default function PoliciesSection({ user }) {
                 </thead>
                 <tbody>
                   {liveRules.map((r) => (
-                    <tr key={r.id}>
-                      <th scope="row">{r.name}</th>
-                      <td>{r.path}</td>
-                      <td>{r.outcome}</td>
-                    </tr>
+                    <RuleRow
+                      key={r.id}
+                      detail={r.raw}
+                      cells={[
+                        <th key="name" scope="row">{r.name}</th>,
+                        <td key="path">{r.path}</td>,
+                        <td key="outcome">{r.outcome}</td>,
+                      ]}
+                    />
                   ))}
                 </tbody>
               </table>
@@ -146,11 +178,15 @@ export default function PoliciesSection({ user }) {
                 </thead>
                 <tbody>
                   {POLICY_RULES.map((r) => (
-                    <tr key={r.rule}>
-                      <th scope="row">{r.rule}</th>
-                      <td>{r.condition}</td>
-                      <td>{r.outcome}</td>
-                    </tr>
+                    <RuleRow
+                      key={r.rule}
+                      detail={{ ...r, source: "illustrative example — not one of the 62 live PingOne Authorize rules" }}
+                      cells={[
+                        <th key="rule" scope="row">{r.rule}</th>,
+                        <td key="condition">{r.condition}</td>,
+                        <td key="outcome">{r.outcome}</td>,
+                      ]}
+                    />
                   ))}
                 </tbody>
               </table>
