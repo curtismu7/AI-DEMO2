@@ -41,7 +41,7 @@ export const NODES = {
 // Box and band geometry, in flow units. React Flow scales the whole canvas to
 // fit, so these are proportions, not pixels.
 const W = 160;
-const H = 58;
+const H = 64; // name + a two-line wrapped subtitle + padding
 const GAP = 14;
 const PAD = 12;
 const TOP = 26; // room for the band label
@@ -58,10 +58,10 @@ export const BANDS = [
     cols: 5,
     nodes: ['p1-signin', 'p1-agenttok', 'p1-exchange', 'p1-authorize', 'p1-stepup'],
   },
-  { id: 'stack', label: 'Demo stack · BFF + agent', x: 0, y: 116, cols: 2, nodes: ['browser', 'bff', 'agent'] },
-  { id: 'pep', label: 'PEP · gateway', x: 378, y: 116, cols: 1, nodes: ['pep'] },
-  { id: 'backends', label: 'MCP servers · data', x: 582, y: 116, cols: 1, nodes: ['mcp', 'api', 'db'] },
-  { id: 'model', label: 'Model · demo_llm_proxy', x: 0, y: 304, cols: 1, nodes: ['llm'] },
+  { id: 'stack', label: 'Demo stack · BFF + agent', x: 0, y: 122, cols: 2, nodes: ['browser', 'bff', 'agent'] },
+  { id: 'pep', label: 'PEP · gateway', x: 378, y: 122, cols: 1, nodes: ['pep'] },
+  { id: 'backends', label: 'MCP servers · data', x: 582, y: 122, cols: 1, nodes: ['mcp', 'api', 'db'] },
+  { id: 'model', label: 'Model · demo_llm_proxy', x: 0, y: 322, cols: 1, nodes: ['llm'] },
 ];
 
 // Bands before their boxes — React Flow requires a parent ahead of its children.
