@@ -71,9 +71,18 @@ const APPLICATIONS = {
           FrontEndName: { Elems: ['cmuir.default.applications.procyon.ai:8643'] },
           Backends: { Elems: ['http://pingone-mcp-server-2:8080/mcp'] },
           EntryPath: '/mcp',
+          AuthMode: 'OAuth',
+          AIGuardConfig: { Enabled: true, FailClosed: true },
         },
       },
-      Status: { McpServerStatus: { Status: '' } },
+      Status: {
+        McpServerStatus: {
+          Status: '',
+          LastDiscoveredAt: '2026-09-10T12:00:00Z',
+          Transport: 'streamable-http',
+          Capabilities: { Tools: [{ name: 'search' }, { name: 'get_user' }] },
+        },
+      },
     },
     {
       ObjectMeta: { Name: 'external' },
@@ -85,8 +94,23 @@ const APPLICATIONS = {
 
 const POLICIES = {
   PacPolicys: [
-    { ObjectMeta: { Name: 'cmuir-tools' }, Spec: { Apps: ['cmuir'], Principals: ['someone-else@pingone.com'] } },
-    { ObjectMeta: { Name: 'banking-tools' }, Spec: { Apps: ['external'] } },
+    { ObjectMeta: { Name: 'cmuir-tools' }, Spec: { Apps: ['cmuir'], Principals: ['someone-else@pingone.com'] }, NotAfter: '2026-01-01T00:00:00Z' },
+    // Go's zero time: the console's "not set", which must not read as expired.
+    { ObjectMeta: { Name: 'banking-tools' }, Spec: { Apps: ['external'] }, NotAfter: '0001-01-01T00:00:00Z' },
+  ],
+};
+
+const ACCESS_KEYS = {
+  AgentAccessKeys: [
+    {
+      ObjectMeta: { Name: 'demo-anthropic' },
+      Spec: {
+        Provider: 'Anthropic', VirtualKey: 'sk-orion-lane-key', RealKey: 'sk-ant-REAL-PROVIDER-SECRET',
+        AllowedModels: { Elems: ['claude-haiku-4-5-20251001'] }, RPMLimit: 60, BudgetUSD: 25, BudgetDuration: '30d',
+        NotAfter: '2027-01-01T00:00:00Z', Revoked: false,
+      },
+    },
+    { ObjectMeta: { Name: 'other' }, Spec: { Provider: 'openai', VirtualKey: 'sk-orion-other', RealKey: 'sk-REAL-2', Revoked: true } },
   ],
 };
 
@@ -180,5 +204,75 @@ describe('Privilege console inventory', () => {
     mockConsole();
     await request(buildApp('never-connected'))
       .get('/api/privilege-mcp/console/inventory').expect(401);
+  });
+
+  test('carries the 2026-09 spec fields: tools, discovery, auth mode, AI Guard, policy expiry', async () => {
+    mockConsole();
+    const res = await connect(buildApp('spec-fields'));
+    expect(res.status).toBe(200);
+    expect(res.body.applications[0]).toMatchObject({
+      tools: ['search', 'get_user'],
+      lastDiscoveredAt: '2026-09-10T12:00:00.000Z',
+      transport: 'streamable-http',
+      authMode: 'OAuth',
+      aiGuard: { enabled: true, failClosed: true },
+    });
+    // An app from an older console build has none of them — empty, not a crash.
+    expect(res.body.applications[1]).toMatchObject({ tools: [], lastDiscoveredAt: null, authMode: null, aiGuard: null });
+    expect(res.body.policies[0].notAfter).toBe('2026-01-01T00:00:00.000Z');
+    // Go's zero time is "not set", never "expired in year 1".
+    expect(res.body.policies[1].notAfter).toBeNull();
+  });
+});
+
+describe('GET /llm/keys', () => {
+  const savedFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = savedFetch;
+    delete process.env.PRIVILEGE_LLM_VIRTUAL_KEY_ANTHROPIC;
+  });
+
+  function mockWithKeys() {
+    global.fetch = jest.fn(async (url) => {
+      const u = String(url);
+      if (u === `${CONSOLE}/session-token`) return jsonResponse({ session_id: 'sid-1' });
+      if (u.includes('/v1/applications')) return jsonResponse(APPLICATIONS);
+      if (u.includes('/v1/pacpolicys')) return jsonResponse(POLICIES);
+      if (u.includes('/v1/agentaccesskeys')) return jsonResponse(ACCESS_KEYS);
+      return jsonResponse({}, { status: 404 });
+    });
+  }
+
+  test('is 401 until a console token is connected', async () => {
+    mockWithKeys();
+    await request(buildApp('keys-no-console')).get('/api/privilege-mcp/llm/keys').expect(401);
+  });
+
+  test('returns each key\'s caps and never a provider or virtual key', async () => {
+    mockWithKeys();
+    process.env.PRIVILEGE_LLM_VIRTUAL_KEY_ANTHROPIC = 'sk-orion-lane-key';
+    const app = buildApp('keys');
+    expect((await connect(app)).status).toBe(200);
+
+    const res = await request(app).get('/api/privilege-mcp/llm/keys');
+    expect(res.status).toBe(200);
+    expect(res.body.keys[0]).toEqual({
+      name: 'demo-anthropic',
+      provider: 'anthropic',
+      inUse: true,
+      allowedModels: ['claude-haiku-4-5-20251001'],
+      rpmLimit: 60,
+      tpmLimit: null,
+      budgetUsd: 25,
+      budgetTokens: null,
+      budgetDuration: '30d',
+      notAfter: '2027-01-01T00:00:00.000Z',
+      revoked: false,
+    });
+    expect(res.body.keys[1]).toMatchObject({ name: 'other', inUse: false, revoked: true });
+    const body = JSON.stringify(res.body);
+    for (const secret of ['REAL-PROVIDER-SECRET', 'sk-REAL-2', 'sk-orion-lane-key', 'sk-orion-other', 'console-cookie-value']) {
+      expect(body).not.toContain(secret);
+    }
   });
 });

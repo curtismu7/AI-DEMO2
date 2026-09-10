@@ -62,6 +62,14 @@ function policyMentions(policy, needle) {
   return specStrings(policy.spec || {}).includes(String(needle).toLowerCase());
 }
 
+// NotAfter is a top-level PacPolicy field (not in the Spec), so unlike the
+// "mentions" heuristic this is a fact. Time-boxed policies are common, and an
+// expired one denies exactly like a missing one.
+function policyExpired(policy) {
+  const t = Date.parse(policy.notAfter || '');
+  return Number.isFinite(t) && t < Date.now();
+}
+
 function capabilityNote(declared, kind) {
   return declared
     ? `Server advertises ${kind} but returned none.`
@@ -1513,7 +1521,13 @@ export default function PrivilegeMcpClientPage() {
                     : `Policies mentioning "${deniedDoor}": ${covering.map((p) => p.name).join(', ')}. `
                       + (naming.length === 0
                         ? `None of them mention ${user?.email || 'this user'}.`
-                        : `${naming.map((p) => p.name).join(', ')} also mention this user — check the grant has not expired.`)}
+                        : (() => {
+                          const names = naming.map((p) => p.name).join(', ');
+                          const expired = naming.filter(policyExpired);
+                          if (expired.length === naming.length) return `${names} also mention this user, and all of them have expired. That is the likeliest reason.`;
+                          if (naming.some((p) => p.notAfter)) return `${names} also mention this user${expired.length ? ` (expired: ${expired.map((p) => p.name).join(', ')})` : ''}.`;
+                          return `${names} also mention this user — check the grant has not expired.`;
+                        })())}
                 </p>
               );
             })() : (() => {
@@ -2579,7 +2593,13 @@ export default function PrivilegeMcpClientPage() {
                           <span className="cur-console-name">{app.name}</span>
                           <span className="cur-console-meta">
                             {app.backends.join(', ') || 'no backend'}{app.status ? ` · ${app.status}` : ''}
+                            {app.tools?.length ? ` · ${app.tools.length} tools` : ''}
+                            {app.authMode ? ` · auth ${app.authMode}` : ''}
+                            {app.lastDiscoveredAt ? ` · discovered ${new Date(app.lastDiscoveredAt).toLocaleString()}` : ''}
                           </span>
+                          {app.aiGuard?.enabled && (
+                            <span className="cur-console-tag">AI Guard{app.aiGuard.failClosed ? ' · fail-closed' : ''}</span>
+                          )}
                           {app.mcpUrl === config.mcpUrl
                             ? <span className="cur-console-current">current</span>
                             : <button className="cur-btn" onClick={() => switchDoor(app.mcpUrl)}>Use</button>}
@@ -2614,7 +2634,7 @@ export default function PrivilegeMcpClientPage() {
                           ].filter(Boolean);
                           return (
                             <option key={p.name} value={p.name}>
-                              {p.name}{tags.length ? ` — mentions ${tags.join(' + ')}` : ''}
+                              {p.name}{tags.length ? ` — mentions ${tags.join(' + ')}` : ''}{policyExpired(p) ? ' — expired' : ''}
                             </option>
                           );
                         })}
@@ -2637,6 +2657,13 @@ export default function PrivilegeMcpClientPage() {
                             {policyMentions(picked, doorName(config.mcpUrl)) && <span className="cur-console-tag">mentions this door</span>}
                             {policyMentions(picked, user?.email) && <span className="cur-console-tag">mentions you</span>}
                           </div>
+                          {picked.notAfter && (
+                            <p className={`cur-denial-note${policyExpired(picked) ? ' cur-denial-bad' : ''}`}>
+                              {policyExpired(picked)
+                                ? `Expired ${new Date(picked.notAfter).toLocaleString()} — an expired policy denies exactly like a missing one.`
+                                : `Valid until ${new Date(picked.notAfter).toLocaleString()}.`}
+                            </p>
+                          )}
                           {coveredApps.length > 0 ? (
                             <div className="cur-console-list">
                               {coveredApps.map((app) => (

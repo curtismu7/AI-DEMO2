@@ -18,11 +18,14 @@ const EXTERNAL = "https://cmuir-agentless-mcpgw.ping-devops.com/external/mcp";
 
 const INVENTORY = {
   applications: [
-    { name: "cmuir", mcpUrl: GATEWAY, backends: ["http://pingone-mcp-server-2:8080/mcp"], status: "" },
+    {
+      name: "cmuir", mcpUrl: GATEWAY, backends: ["http://pingone-mcp-server-2:8080/mcp"], status: "",
+      tools: ["search", "get_user"], aiGuard: { enabled: true, failClosed: true },
+    },
     { name: "external", mcpUrl: EXTERNAL, backends: ["http://mcp-server:8080/mcp"], status: "Ready" },
   ],
   policies: [
-    { name: "cmuir-tools", spec: { Apps: ["cmuir"], Principals: ["someone-else@pingone.com"] } },
+    { name: "cmuir-tools", spec: { Apps: ["cmuir"], Principals: ["someone-else@pingone.com"] }, notAfter: "2020-01-01T00:00:00.000Z" },
     { name: "banking-tools", spec: { Apps: ["external"], Principals: ["cmuir+demo@pingone.com"] } },
   ],
 };
@@ -129,6 +132,22 @@ describe("Policies tab", () => {
     expect(labels.filter((l) => l.includes("mentions this door"))).toHaveLength(1);
     expect(labels.filter((l) => l.includes("mentions you"))).toHaveLength(1);
     expect(document.body.textContent).not.toMatch(/\bgrants you\b/i);
+  });
+
+  it("marks an expired policy and shows each door's tools and AI Guard", async () => {
+    mockApi();
+    await openPoliciesAndConnect();
+    await waitFor(() => expect(screen.getByText("Doors (2)")).toBeTruthy());
+
+    const doorRow = document.querySelector(".cur-console-row--active");
+    expect(doorRow.textContent).toContain("2 tools");
+    expect(doorRow.textContent).toContain("AI Guard · fail-closed");
+
+    const picker = screen.getByLabelText("Inspect a policy");
+    const option = Array.from(picker.querySelectorAll("option")).find((o) => o.value === "cmuir-tools");
+    expect(option.textContent).toMatch(/— expired$/);
+    fireEvent.change(picker, { target: { value: "cmuir-tools" } });
+    expect(await screen.findByText(/an expired policy denies exactly like a missing one/)).toBeTruthy();
   });
 
   it("surfaces a rejected console token instead of rendering an empty inventory", async () => {
