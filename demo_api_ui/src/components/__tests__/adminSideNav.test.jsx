@@ -251,11 +251,10 @@ describe("AdminSideNav — best-of-breed pass", () => {
     ).map((el) => el.textContent.trim());
     const idx = (l) => labels.indexOf(l);
 
-    // It sits two after Dashboard — its position in allNavItems — because
-    // Dashboard is the nearest preceding sibling the saved order knows about,
-    // and "Agentic Access Console" (also outside staleOrder) falls between them.
+    // It sits directly after Dashboard — its position in allNavItems — because
+    // Dashboard is the nearest preceding sibling the saved order knows about.
     expect(idx("AI Agent Gateway")).toBeGreaterThan(-1);
-    expect(idx("AI Agent Gateway")).toBe(idx("Dashboard") + 2);
+    expect(idx("AI Agent Gateway")).toBe(idx("Dashboard") + 1);
     // And crucially NOT dumped at the bottom past everything ordered.
     expect(idx("AI Agent Gateway")).toBeLessThan(idx("Integration Tests"));
 
