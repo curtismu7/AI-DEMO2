@@ -1270,6 +1270,30 @@ select.cur-input { cursor: pointer; }
    ───────────────────────────────────────────────────────────────────────── */
 .cur-ide[data-cur-theme="light"] { background: #ffffff; color: #1e1e1e; }
 
+/* Status and verdict ink for the light ground.
+   These colours are the Tailwind 200/300 pastels — chosen for the #1e1e1e dark
+   ground, where they read well. On the light theme's #ffffff they measured
+   1.40:1 to 3.55:1, i.e. the PERMIT/DENY verdict, the result badges and the
+   status line were the LEAST readable text on the page in light mode, which is
+   the opposite of what they are for.
+   Replaced with the dark end of the SAME hue rather than gray, so the semantic
+   colour survives: green 5.02:1, red 6.47:1, amber 5.02:1, slate 7.58:1 — all
+   measured against #ffffff, all >= the 4.5:1 body floor.
+   Only rules that sit on the page ground are here. .cur-btn--primary and
+   .cur-composer-send keep #fff because they sit on a #007acc fill. */
+.cur-ide[data-cur-theme="light"] .cur-policy-decision--allowed { color: #15803d; }
+.cur-ide[data-cur-theme="light"] .cur-status--ok { color: #15803d; }
+.cur-ide[data-cur-theme="light"] .cur-result-item-badge--ok { color: #047857; }
+.cur-ide[data-cur-theme="light"] .cur-policy-decision--denied,
+.cur-ide[data-cur-theme="light"] .cur-policy-decision--filtered { color: #b91c1c; }
+.cur-ide[data-cur-theme="light"] .cur-result-item-badge--err { color: #b91c1c; }
+.cur-ide[data-cur-theme="light"] .cur-policy-decision--confirmation_required,
+.cur-ide[data-cur-theme="light"] .cur-policy-decision--input_required { color: #b45309; }
+.cur-ide[data-cur-theme="light"] .cur-policy-decision span { color: #475569; }
+/* The source rule carries !important, so the override must too. */
+.cur-ide[data-cur-theme="light"] .cur-settings-gear { color: #b91c1c !important; }
+.cur-ide[data-cur-theme="light"] .cur-settings-gear:hover { color: #991b1b !important; }
+
 /* Chrome: title bar, activity bar, sidebar, tabs, composer, terminal */
 .cur-ide[data-cur-theme="light"] .cur-titlebar { background: #f3f3f3; border-bottom-color: #e0e0e0; }
 .cur-ide[data-cur-theme="light"] .cur-titlebar-title { color: #555; } .cur-ide[data-cur-theme="light"] .cur-sidebar { background: #f7f7f7; border-right-color: #e0e0e0; }

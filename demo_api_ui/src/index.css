@@ -267,6 +267,12 @@ textarea {
    with per-file fallbacks; defining those names globally would repaint
    unrelated pages. */
 :root {
+  /* Tells the browser which way to draw the surfaces WE do not: scrollbars,
+     the text caret, form controls, spellcheck underlines. Without it they stay
+     light over a dark page — the cheapest tell that a theme is only skin-deep.
+     Keyed to data-theme like every other token here, never prefers-color-scheme
+     (see the note above). */
+  color-scheme: light;
   --th-bg-page: #f6f7f9;
   --th-bg-card: #ffffff;
   --th-bg-inset: #f1f5f9;
@@ -374,6 +380,7 @@ textarea {
   --th-status-info-border: #bfdbfe;
 }
 :root[data-theme="dark"] {
+  color-scheme: dark;
   --th-bg-page: #0b1220;
   --th-bg-card: #131c2e;
   --th-bg-inset: #1b2540;
@@ -444,8 +451,17 @@ body {
   font-family: var(--font-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: var(--brand-light-gray);
-  color: var(--brand-dark-gray);
+  /* --th-bg-page, not --brand-light-gray. The brand literal is #f8fafc at
+     :root with NO dark override, so the document ground stayed near-white in
+     dark mode and every pixel the app did not paint itself was white. On a
+     dark page that reads as a full-window white flash during any reflow —
+     reported on /privilege-mcp-client when switching path or door, where a
+     dark IDE panel sits on this ground. --th-bg-page is already themed
+     (#f6f7f9 / #0b1220), so the ground now follows the theme like everything
+     else. Also sets color-scheme so the browser's own surfaces — scrollbars,
+     form controls, the caret — stop being drawn light over a dark page. */
+  background-color: var(--th-bg-page);
+  color: var(--th-text);
   overflow-x: hidden;
 }
 
