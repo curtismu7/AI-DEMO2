@@ -45,6 +45,7 @@ export default function DashboardSection() {
         <div className="aac-stat-tile">
           <div className="aac-stat-value">4</div>
           <div className="aac-stat-label">Agent runtimes</div>
+          <div className="aac-stat-detail">+ 11 per-vertical A2A specialists — see Agents tab</div>
         </div>
         <div className="aac-stat-tile">
           <div className="aac-stat-value">3</div>
