@@ -313,7 +313,7 @@ describe("LLM Gateway console", () => {
       expect(dec).not.toHaveTextContent(/Privilege/);
     });
 
-    it("renders a stopped-at-Privilege chip chain on a denial, alongside the existing 'Refused by' row", async () => {
+    it("renders a stopped-at-Privilege reel on a denial, alongside the existing 'Refused by' row", async () => {
       mockFetch(() => ({
         ok: false,
         status: 403,
@@ -329,8 +329,12 @@ describe("LLM Gateway console", () => {
       const dec = await screen.findByTestId("lgw-decision");
       expect(dec).toHaveTextContent(/Refused by/);
       expect(screen.getByText("Path")).toBeInTheDocument();
-      expect(dec).toHaveTextContent(/Privilege ✕ denied/);
+      // The chip chain became a reel of openable boxes (LlmGatewayReel). Same
+      // story, asserted through the reel's own vocabulary: Privilege denied,
+      // and the provider is drawn as never reached rather than as failed.
+      expect(dec).toHaveTextContent(/Denied by policy/);
       expect(dec).toHaveTextContent(/Anthropic/);
+      expect(dec).toHaveTextContent(/never saw the prompt/i);
     });
   });
 

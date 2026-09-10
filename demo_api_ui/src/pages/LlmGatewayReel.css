@@ -1,0 +1,156 @@
+/* LlmGatewayReel — the hops of one LLM call, as boxes you can open.
+   Colour families match the chip chain this replaces (LlmGatewayPage.css):
+   info = an actor, success = it happened, warning = policy ACTED, error = it
+   stopped here. Every value is a --th-* token so the reel follows the theme
+   rather than pinning its own light-mode colours. */
+
+.lgw-reel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.lgw-reel__track {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lgw-reel__cell {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.lgw-reel__link {
+  color: var(--th-text-muted);
+  letter-spacing: -1px;
+}
+
+/* The chain stopped: the run into an unreached hop is drawn broken, so the
+   picture says "never got there" without needing the label to say it. */
+.lgw-reel__link--broken {
+  color: var(--th-status-error-text);
+}
+
+.lgw-reel__box {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  min-width: 8.5rem;
+  max-width: 15rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--th-border);
+  border-radius: 8px;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.lgw-reel__box:hover {
+  border-color: var(--th-border-strong, var(--th-border));
+}
+
+.lgw-reel__box:focus-visible {
+  outline: 2px solid var(--th-focus-ring, var(--th-status-info-border));
+  outline-offset: 2px;
+}
+
+/* The open box is the one whose evidence is showing. A ring rather than a fill
+   so the state family below still reads through. */
+.lgw-reel__box.is-open {
+  box-shadow: inset 0 0 0 2px var(--th-status-info-border);
+}
+
+.lgw-reel__icon {
+  font-size: var(--font-size-sm);
+}
+
+.lgw-reel__label {
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+}
+
+.lgw-reel__summary {
+  font-size: var(--font-size-2xs);
+  color: var(--th-text-muted);
+  white-space: normal;
+}
+
+.lgw-reel__box--ok {
+  border-color: var(--th-status-success);
+}
+
+/* Policy DID something (a redaction) and the call still succeeded — warning
+   family, not error: the gate working is not the call failing. */
+.lgw-reel__box--acted {
+  border-color: var(--th-status-warning-border);
+  background: var(--th-status-warning-bg);
+  color: var(--th-status-warning-text);
+}
+
+.lgw-reel__box--acted .lgw-reel__summary {
+  color: var(--th-status-warning-text);
+}
+
+.lgw-reel__box--denied {
+  border-color: var(--th-status-error-border);
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
+}
+
+.lgw-reel__box--denied .lgw-reel__summary {
+  color: var(--th-status-error-text);
+}
+
+/* Named, but never called. Dashed and unfilled, matching the chip chain's
+   --unreached: the box is a placeholder for something that did not happen. */
+.lgw-reel__box--unreached {
+  border-style: dashed;
+  border-color: var(--th-status-info-border);
+  background: transparent;
+  color: var(--th-status-info-text);
+}
+
+.lgw-reel__detail {
+  border: 1px solid var(--th-border);
+  border-radius: 8px;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  padding: 0.5rem 0.7rem;
+}
+
+.lgw-reel__detail-title {
+  margin: 0 0 0.4rem;
+  font-size: var(--font-size-sm);
+  color: var(--th-text);
+}
+
+.lgw-reel__detail-list {
+  display: grid;
+  grid-template-columns: minmax(9rem, auto) 1fr;
+  gap: 0.2rem 0.8rem;
+  margin: 0;
+  font-size: var(--font-size-xs);
+}
+
+.lgw-reel__detail-list > div {
+  display: contents;
+}
+
+.lgw-reel__detail-list dt {
+  color: var(--th-text-muted);
+}
+
+.lgw-reel__detail-list dd {
+  margin: 0;
+  color: var(--th-text);
+  overflow-wrap: anywhere;
+}
