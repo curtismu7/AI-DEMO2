@@ -244,7 +244,9 @@ describe("LLM Gateway console", () => {
       expect(who).toHaveTextContent(/removed 2 matched values/);
       // The markers are marked up, not just present in the text — the demo's payoff.
       expect(document.querySelectorAll('.lgw-redacted')).toHaveLength(2);
-      expect(screen.getByTestId("lgw-decision")).toHaveTextContent(/2 redacted/);
+      // The redaction count moved off the decision panel and onto the reel,
+      // which now renders as a band under the header and under each reply.
+      expect(screen.getAllByText(/2 redacted/).length).toBeGreaterThan(0);
       expect(who).not.toHaveTextContent(/passed the prompt through\./);
       expect(screen.getByTestId("lgw-decision")).toHaveTextContent(/Answered, redacted/);
     });
@@ -299,9 +301,14 @@ describe("LLM Gateway console", () => {
       render(<LlmGatewayPage />);
       await ask("capital of France?");
 
-      const dec = await screen.findByTestId("lgw-decision");
-      expect(dec).toHaveTextContent(/Privilege/);
-      expect(dec).toHaveTextContent(/Anthropic/);
+      await screen.findByTestId("lgw-decision");
+      // The path is drawn by the reel now — a band under the header plus one
+      // under the reply — rather than a row inside the decision panel.
+      const band = document.querySelector(".lgw-reelband");
+      expect(band).toBeTruthy();
+      expect(band).toHaveTextContent(/Privilege/);
+      expect(band).toHaveTextContent(/Anthropic/);
+      expect(document.querySelector(".lgw-turn-group .lgw-reel")).toBeTruthy();
     });
 
     it("omits the Privilege hop for a local lane's successful reply", async () => {
@@ -336,13 +343,14 @@ describe("LLM Gateway console", () => {
 
       const dec = await screen.findByTestId("lgw-decision");
       expect(dec).toHaveTextContent(/Refused by/);
-      expect(screen.getByText("Path")).toBeInTheDocument();
-      // The chip chain became a reel of openable boxes (LlmGatewayReel). Same
-      // story, asserted through the reel's own vocabulary: Privilege denied,
-      // and the provider is drawn as never reached rather than as failed.
-      expect(dec).toHaveTextContent(/Denied by policy/);
-      expect(dec).toHaveTextContent(/Anthropic/);
-      expect(dec).toHaveTextContent(/never saw the prompt/i);
+      // The chip chain became a reel of openable boxes, and the reel moved out
+      // of the decision panel into a full-width band. Same story, asserted in
+      // the reel's own vocabulary: Privilege denied, and the provider is drawn
+      // as never reached rather than as failed.
+      const band = document.querySelector(".lgw-reelband");
+      expect(band).toHaveTextContent(/Denied by policy/);
+      expect(band).toHaveTextContent(/Anthropic/);
+      expect(band).toHaveTextContent(/never saw the prompt/i);
     });
   });
 
