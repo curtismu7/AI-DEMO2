@@ -185,10 +185,40 @@ const DOORS = {
     // token that merely "matches the list" can still fail D-05 — asking for
     // mcpserver.ping.demo specifically is what keeps the gateway audience off
     // the exchanged token.
+    //
+    // ONLY doors whose upstream is a TERMINAL resource server get this. D-05 is
+    // enforced in BOTH directions and they are mirror images:
+    //
+    //   oauth-mcp (last hop)        aud must NOT include the gateway audience
+    //                               → present an UPSTREAM-targeted token
+    //   demo_mcp_gateway (interm.)  aud must NOT include an upstream audience
+    //                               → present a GATEWAY-targeted token
+    //                               (GatewayTokenPolicy.ts, 'bypass_attempt')
+    //
+    // So `agent-gateway` and `audit`, whose upstream IS the gateway, must keep
+    // forwarding the gateway-audience token untouched — exchanging there would
+    // mint exactly the audience that gateway rejects as a bypass. The gateway
+    // performs its own next-hop exchange downstream; that is its job, not ours.
+    // Do not "finish the pattern" by adding upstreamAudience to those doors.
     upstreamAudience: () => process.env.MCP_FACADE_BANKING_AUD
       || configStore.getEffective('PINGONE_RESOURCE_MCP_SERVER_URI')
       || process.env.PINGONE_RESOURCE_MCP_SERVER_URI
       || 'mcpserver.ping.demo',
+    // What the EXCHANGE asks for, as opposed to `scopes`, which is what this
+    // door ADVERTISES (RFC 9728 + the 401 challenge it rewrites). They are
+    // different questions and this door answers them differently: it advertises
+    // nothing, because the upstream's own challenge is what the client follows.
+    //
+    // It cannot ask for nothing, though. Measured against the live tenant, an
+    // exchange with no `scope` is refused outright:
+    //
+    //   400 invalid_scope: May not request scopes for multiple resources
+    //
+    // because client 6586d3de holds scopes on several resources and PingOne
+    // will not guess which one an audience alone implies. Naming the upstream's
+    // invoke scope resolves it (verified: same request, scope=mcp:invoke,
+    // returns aud=["mcpserver.ping.demo"]).
+    upstreamScopes: ['mcp:invoke'],
   },
   brave: {
     label: 'Brave Search',
@@ -822,13 +852,39 @@ router.post(['/:door/mcp', '/:door/:app/mcp'], express.json({ limit: '1mb', type
   // exchange. That failure is the lesson, not an embarrassment to hide.
   const exchangeOn = configStore.getEffective('ff_facade_upstream_exchange') !== 'false';
   const upstreamAudience = door.upstreamAudience && door.upstreamAudience();
-  if (!door.ownsUpstreamAuth && upstreamAudience && exchangeOn && upstreamExchange.isConfigured()) {
+  if (!door.ownsUpstreamAuth && upstreamAudience) {
     const inboundBearer = /^Bearer\s+(.+)$/i.exec(String(req.get('authorization') || '').trim())?.[1];
-    if (inboundBearer) {
+    // `from` comes off the caller's own token, so the trace names the real
+    // audience being replaced rather than a configured guess.
+    const fromAud = inboundBearer ? identityFromBearer(`Bearer ${inboundBearer}`).aud : null;
+    const audiences = { from: fromAud, to: upstreamAudience };
+
+    if (inboundBearer && exchangeOn && upstreamExchange.isConfigured()) {
+      const xStart = Date.now();
       try {
-        const exchanged = await upstreamExchange.exchangeForUpstream(inboundBearer, upstreamAudience, door.scopes || []);
-        upstreamHeaders = { ...upstreamHeaders, authorization: `Bearer ${exchanged}` };
+        const exchangeScopes = door.upstreamScopes || door.scopes || [];
+        const { accessToken, cached } = await upstreamExchange.exchangeForUpstream(
+          inboundBearer, upstreamAudience, exchangeScopes,
+        );
+        upstreamHeaders = { ...upstreamHeaders, authorization: `Bearer ${accessToken}` };
+        // The step the whole feature exists to show. Without a hop the trace
+        // jumps request -> response with no sign a token was swapped, leaving
+        // the RFC 8693 moment invisible — the opposite of the intent.
+        hop(correlationId, {
+          phase: 'token.exchange',
+          op: toolName || method,
+          status: 'ok',
+          durationMs: Date.now() - xStart,
+          details: { rfc: 'RFC 8693', audiences, cached, scopes: exchangeScopes },
+        });
       } catch (err) {
+        hop(correlationId, {
+          phase: 'token.exchange',
+          op: toolName || method,
+          status: 'error',
+          durationMs: Date.now() - xStart,
+          details: { rfc: 'RFC 8693', audiences, reason: err.code || 'exchange_failed', error: { message: err.message } },
+        });
         // Surfaced, never swallowed: forwarding the un-exchanged token is the
         // very bypass D-05 catches, and it would resurface as a confusing
         // upstream 401 instead of naming what failed here.
@@ -842,6 +898,22 @@ router.post(['/:door/mcp', '/:door/:app/mcp'], express.json({ limit: '1mb', type
           },
         });
       }
+    } else if (inboundBearer) {
+      // Skipped on purpose. Recorded so the D-05 refusal that follows reads as
+      // a demonstrated consequence — "we did NOT exchange, and here is what the
+      // upstream said" — instead of an unexplained 401.
+      hop(correlationId, {
+        phase: 'token.exchange',
+        op: toolName || method,
+        status: 'skipped',
+        durationMs: 0,
+        details: {
+          rfc: 'RFC 8693',
+          audiences,
+          reason: !exchangeOn ? 'ff_facade_upstream_exchange=false' : 'exchange_not_configured',
+          consequence: 'Upstream enforces D-05: a gateway-audience token is refused at the next hop.',
+        },
+      });
     }
   }
 

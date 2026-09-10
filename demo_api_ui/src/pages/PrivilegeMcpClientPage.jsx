@@ -108,6 +108,13 @@ const BROKER_PROMPT_MODES = [
 const BROKER_PROMPT_READ = '/mcp-facade/broker-prompt';
 const BROKER_PROMPT_WRITE = '/api/admin/config/mcp-broker-prompt';
 
+// The façade's RFC 8693 next-hop exchange. It is a normal feature flag
+// (FLAG_REGISTRY is the source of truth for what flags exist), surfaced here as
+// well because what it changes — the token.exchange hop — is visible in THIS
+// page's TRACE panel. Same endpoint the Feature Flags page uses.
+const UPSTREAM_EXCHANGE_FLAG = 'ff_facade_upstream_exchange';
+const FEATURE_FLAGS_API = '/api/admin/feature-flags';
+
 function api(path, options = {}) {
   return fetch(`${API_BASE}${path}`, {
     method: options.method || 'GET',
@@ -435,6 +442,9 @@ export default function PrivilegeMcpClientPage() {
   const [brokerPrompt, setBrokerPrompt] = useState(null);
   const [brokerPromptBusy, setBrokerPromptBusy] = useState(false);
   const [brokerPromptError, setBrokerPromptError] = useState('');
+  const [upstreamExchange, setUpstreamExchange] = useState(null);
+  const [upstreamExchangeBusy, setUpstreamExchangeBusy] = useState(false);
+  const [upstreamExchangeError, setUpstreamExchangeError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -444,6 +454,54 @@ export default function PrivilegeMcpClientPage() {
       .catch(() => { if (!cancelled) setBrokerPromptError('Could not read the current setting.'); });
     return () => { cancelled = true; };
   }, []);
+
+  // Read on mount, like the broker prompt above: the panel this switch lives in
+  // is one tab away, and any session can flip the flag, so a value read once at
+  // load is the same freshness guarantee the neighbouring control gives.
+  useEffect(() => {
+    let cancelled = false;
+    fetch(FEATURE_FLAGS_API, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((d) => {
+        if (cancelled) return;
+        const flag = (d.flags || []).find((f) => f.id === UPSTREAM_EXCHANGE_FLAG);
+        setUpstreamExchange(flag ? flag.value === true : null);
+        setUpstreamExchangeError(flag ? '' : 'Flag not found on the server.');
+      })
+      .catch(() => { if (!cancelled) setUpstreamExchangeError('Could not read the current setting.'); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const saveUpstreamExchange = useCallback(async (next) => {
+    const previous = upstreamExchange;
+    setUpstreamExchange(next);      // optimistic: the switch must feel immediate
+    setUpstreamExchangeBusy(true);
+    setUpstreamExchangeError('');
+    try {
+      const r = await fetch(FEATURE_FLAGS_API, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updates: { [UPSTREAM_EXCHANGE_FLAG]: next } }),
+        credentials: 'include',
+      });
+      const data = await r.json().catch(() => ({}));
+      // Reads are open so the switch renders for anyone; writes go through
+      // authenticateToken. Say that, rather than showing the raw
+      // "authentication_required" to a visitor who is simply not signed in.
+      if (r.status === 401 || r.status === 403) throw new Error('Sign in to change this.');
+      if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+      // Trust the server's read-back for the same reason as the broker prompt
+      // below: an unrecognised id is dropped, and an optimistic switch would
+      // happily show a write that never landed.
+      const flag = (data.flags || []).find((f) => f.id === UPSTREAM_EXCHANGE_FLAG);
+      if (flag) setUpstreamExchange(flag.value === true);
+    } catch (err) {
+      setUpstreamExchange(previous);
+      setUpstreamExchangeError(err.message || 'Could not save.');
+    } finally {
+      setUpstreamExchangeBusy(false);
+    }
+  }, [upstreamExchange]);
 
   const saveBrokerPrompt = useCallback(async (mode) => {
     const previous = brokerPrompt;
@@ -2414,6 +2472,37 @@ export default function PrivilegeMcpClientPage() {
                     <p className="cur-denial-note">Reading the current setting...</p>
                   )}
                   {brokerPromptError && <p className="cur-prompt-mode__err">{brokerPromptError}</p>}
+                </fieldset>
+
+                {/* Lives here as well as on the Feature Flags page: what it
+                    changes is the token.exchange hop in this page's own TRACE
+                    panel, so the switch and its evidence sit together. */}
+                <fieldset className="cur-prompt-mode">
+                  <legend>Next-hop token exchange (RFC 8693)</legend>
+                  <p className="cur-denial-note">
+                    A door whose upstream is a resource server must present a token audienced to
+                    that upstream. Turn this off to forward the gateway-audience token instead and
+                    watch the upstream refuse it with D-05, then turn it back on to see the
+                    exchange fix it. TRACE records a token.exchange hop either way, naming both
+                    audiences.
+                  </p>
+                  <label className="cur-prompt-mode__row">
+                    <input
+                      type="checkbox"
+                      checked={upstreamExchange === true}
+                      disabled={upstreamExchange === null || upstreamExchangeBusy}
+                      onChange={(e) => saveUpstreamExchange(e.target.checked)}
+                    />
+                    <span className="cur-prompt-mode__label">Exchange before forwarding</span>
+                    <span className="cur-prompt-mode__hint">
+                      On by default. Affects doors that declare an upstream audience (banking);
+                      the gateway-upstream doors are untouched either way.
+                    </span>
+                  </label>
+                  {upstreamExchange === null && !upstreamExchangeError && (
+                    <p className="cur-denial-note">Reading the current setting...</p>
+                  )}
+                  {upstreamExchangeError && <p className="cur-prompt-mode__err">{upstreamExchangeError}</p>}
                 </fieldset>
 
                 {!consoleData && doorDiscovery && (

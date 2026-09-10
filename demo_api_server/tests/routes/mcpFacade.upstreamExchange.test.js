@@ -26,7 +26,13 @@ let mockIsConfigured;
 let mockExchangeResult;
 let mockExchangeError;
 let mockExchangeCalls;
+let mockExchangeCached;
 
+let mockHops;
+jest.mock('../../services/lmdb/transactionLedger.lmdb', () => ({
+  appendHop: (correlationId, hop) => { mockHops.push(hop); },
+  __esModule: true,
+}));
 jest.mock('../../services/configStore', () => ({
   getEffective: (k) => (k === 'ff_facade_upstream_exchange' ? mockFlagValue : undefined),
 }));
@@ -35,7 +41,7 @@ jest.mock('../../services/facadeUpstreamExchange', () => ({
   exchangeForUpstream: async (...args) => {
     mockExchangeCalls.push(args);
     if (mockExchangeError) throw mockExchangeError;
-    return mockExchangeResult;
+    return { accessToken: mockExchangeResult, cached: mockExchangeCached };
   },
 }));
 
@@ -79,6 +85,8 @@ beforeEach(() => {
   mockExchangeResult = 'EXCHANGED-TOKEN';
   mockExchangeError = null;
   mockExchangeCalls = [];
+  mockExchangeCached = false;
+  mockHops = [];
   lastUpstreamAuth = null;
 });
 
@@ -88,6 +96,12 @@ test('the caller bearer is EXCHANGED before forwarding, never passed through', a
   expect(mockExchangeCalls).toHaveLength(1);
   expect(mockExchangeCalls[0][0]).toBe('CALLER-GATEWAY-TOKEN');
   expect(mockExchangeCalls[0][1]).toBe('mcpserver.ping.demo');
+  // Measured against the live tenant: an exchange naming NO scope is refused
+  // with `invalid_scope: May not request scopes for multiple resources`,
+  // because the gateway client holds scopes on several resources. The door
+  // advertises no scopes (its clients follow the upstream's own challenge), so
+  // the exchange has to carry its own — hence upstreamScopes, not scopes.
+  expect(mockExchangeCalls[0][2]).toEqual(['mcp:invoke']);
   expect(lastUpstreamAuth).toBe('Bearer EXCHANGED-TOKEN');
   // The bypass D-05 exists to catch.
   expect(lastUpstreamAuth).not.toContain('CALLER-GATEWAY-TOKEN');
@@ -128,4 +142,48 @@ test('with the exchange unconfigured the door still works, un-exchanged', async 
 
   expect(mockExchangeCalls).toHaveLength(0);
   expect(lastUpstreamAuth).toBe('Bearer CALLER-GATEWAY-TOKEN');
+});
+
+// The hop is the whole point of the flag: without it the trace jumps
+// request -> response with no sign a token was swapped, and the RFC 8693
+// moment — the thing being demonstrated — is invisible.
+test('a successful exchange records a token.exchange hop naming both audiences', async () => {
+  await withBearer().expect(200);
+
+  const x = mockHops.find((h) => h.phase === 'token.exchange');
+  expect(x).toBeTruthy();
+  expect(x.status).toBe('ok');
+  expect(x.details.rfc).toBe('RFC 8693');
+  expect(x.details.audiences.to).toBe('mcpserver.ping.demo');
+  expect(x.details.cached).toBe(false);
+});
+
+test('a cache hit is recorded as cached, so the demo does not claim a mint per message', async () => {
+  mockExchangeCached = true;
+
+  await withBearer().expect(200);
+
+  const x = mockHops.find((h) => h.phase === 'token.exchange');
+  expect(x.details.cached).toBe(true);
+});
+
+test('a failed exchange records the reason on the hop, not just a 502', async () => {
+  mockExchangeError = Object.assign(new Error('invalid_grant'), { code: 'exchange_failed' });
+
+  await withBearer().expect(502);
+
+  const x = mockHops.find((h) => h.phase === 'token.exchange');
+  expect(x.status).toBe('error');
+  expect(x.details.reason).toBe('exchange_failed');
+});
+
+test('with the flag OFF the skip is recorded, so the D-05 refusal reads as a consequence', async () => {
+  mockFlagValue = 'false';
+
+  await withBearer();
+
+  const x = mockHops.find((h) => h.phase === 'token.exchange');
+  expect(x.status).toBe('skipped');
+  expect(x.details.reason).toBe('ff_facade_upstream_exchange=false');
+  expect(x.details.consequence).toMatch(/D-05/);
 });
