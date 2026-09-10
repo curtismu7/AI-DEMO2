@@ -252,6 +252,10 @@ select.cur-input { cursor: pointer; }
 }
 .cur-denial-ok { color: #86efac; }
 .cur-denial-bad { color: #fca5a5; }
+/* "sign-in needed" is neither success nor failure — this door simply has no
+   token yet, because the gateway issues one per application. Amber so it does
+   not read as the red denial it is not. */
+.cur-denial-auth { color: #fcd34d; }
 
 .cur-denial-probe { margin-bottom: 10px; }
 .cur-denial-probe-row {
@@ -1513,6 +1517,7 @@ select.cur-input { cursor: pointer; }
 .cur-ide[data-cur-theme="light"] .cur-denial-ok,
 .cur-ide[data-cur-theme="light"] .cur-console-current { color: #0a7d6b; }
 .cur-ide[data-cur-theme="light"] .cur-denial-bad { color: #b91c1c; }
+.cur-ide[data-cur-theme="light"] .cur-denial-auth { color: #92600e; }
 .cur-ide[data-cur-theme="light"] .cur-denial-probe-why { color: #5f6368; }
 .cur-ide[data-cur-theme="light"] .cur-console-row,
 .cur-ide[data-cur-theme="light"] .cur-console-policy {

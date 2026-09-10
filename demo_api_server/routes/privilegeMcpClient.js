@@ -2416,11 +2416,33 @@ router.post('/console/disconnect', (req, res) => {
 // shared: probe traffic then shows up in the operator's RELAY LOG, which is the
 // whole point of a diagnostic. eventStream is disabled — a probe must never
 // open a long-lived GET.
-function probeSessionFor(session, mcpUrl) {
+// The credential THIS door would actually be called with, or null when the
+// session holds none for it. The gateway issues one token per Agentic App and
+// rejects a token minted for another ("token issued for app X presented on app
+// Y; rejecting", measured 2026-09-10), so borrowing the current door's token to
+// probe a different one produces a 401 that says nothing about the operator's
+// grants. Own-origin doors share a single key by design (see oauthKey), so this
+// still finds the one token that covers all of them.
+function doorCredential(session, mcpUrl) {
+  const live = (o) => (o && o.accessToken && (!o.expiresAt || o.expiresAt > Date.now()) ? o : null);
+  if (oauthKey(session.gatewayMode, mcpUrl) === oauthKey(session.gatewayMode, session.config.mcpUrl)) {
+    return live(session.oauth);
+  }
+  // A door's stash is written under the mode it was signed in from; the probe
+  // list mixes lanes, so check this session's mode first and then the two the
+  // picker can produce rather than guessing one.
+  for (const mode of [session.gatewayMode, 'privilege', 'facade']) {
+    const found = live(session.savedOauthByDoor?.[oauthKey(mode, mcpUrl)]);
+    if (found) return found;
+  }
+  return null;
+}
+
+function probeSessionFor(session, mcpUrl, oauth) {
   return {
     _sid: session._sid,
     config: { ...session.config, mcpUrl },
-    oauth: session.oauth,
+    oauth: oauth || session.oauth,
     gatewayMode: session.gatewayMode,
     tools: [],
     toolPolicy: { permitted: [], filtered: [], total: 0 },
@@ -2448,7 +2470,19 @@ router.post('/doors/probe', express.json(), async (req, res) => {
     .slice(0, 12); // bound the fan-out: one gateway round trip each
   if (urls.length === 0) return res.json({ results: [] });
   const results = await Promise.all(urls.map(async (url) => {
-    const probe = probeSessionFor(session, url);
+    // No credential for this door: say so instead of borrowing another door's
+    // token. The gateway would answer that 401, and a 401 here used to read as
+    // "your identity is dead everywhere" when it only ever meant "wrong token".
+    const cred = doorCredential(session, url);
+    if (!cred) {
+      return {
+        url,
+        ok: false,
+        needsAuth: true,
+        error: 'Not signed in for this door yet — the gateway issues one token per application.',
+      };
+    }
+    const probe = probeSessionFor(session, url, cred);
     try {
       await ensureMcpSessionInitialized(probe);
       const tools = await listAllMcpPages(probe, 'tools/list', 'tools');

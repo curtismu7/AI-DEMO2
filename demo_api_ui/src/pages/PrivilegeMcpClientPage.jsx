@@ -1448,12 +1448,24 @@ export default function PrivilegeMcpClientPage() {
                     server errored" — relayFailureStatus maps anything WITHOUT a
                     4xx upstream status to 500, so it means the relay never got
                     an HTTP answer, and the reason is only in this string. */}
+                {/* needsAuth is NOT a failure: the gateway issues one token per
+                    application, so a door this session has never signed into has
+                    no token to present. Showing it as a bare 401 read as "your
+                    identity is dead everywhere" and sent people back through a
+                    sign-in they did not need. Offer the switch instead — picking
+                    the door is what starts its own sign-in. */}
                 {doorProbe.results.map((r) => (
                   <div key={r.url} className="cur-denial-probe-row">
-                    <span className={r.ok ? 'cur-denial-ok' : 'cur-denial-bad'}>{r.ok ? `${r.tools} tools` : (r.status || 'failed')}</span>
+                    <span className={r.ok ? 'cur-denial-ok' : (r.needsAuth ? 'cur-denial-auth' : 'cur-denial-bad')}>
+                      {r.ok ? `${r.tools} tools` : (r.needsAuth ? 'sign-in needed' : (r.status || 'failed'))}
+                    </span>
                     <span className="cur-denial-door">{doorName(r.url) || r.url}</span>
-                    {!r.ok && r.error && <span className="cur-denial-probe-why" title={r.error}>{r.error}</span>}
-                    {r.ok && <button className="cur-btn" onClick={() => switchDoor(r.url)}>Switch</button>}
+                    {!r.ok && !r.needsAuth && r.error && <span className="cur-denial-probe-why" title={r.error}>{r.error}</span>}
+                    {(r.ok || r.needsAuth) && (
+                      <button className="cur-btn" onClick={() => switchDoor(r.url)}>
+                        {r.ok ? 'Switch' : 'Use this door'}
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
