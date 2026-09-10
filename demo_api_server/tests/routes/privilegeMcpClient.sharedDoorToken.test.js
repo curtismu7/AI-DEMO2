@@ -90,6 +90,27 @@ describe('one sign-in covers every door on our own origin', () => {
     expect(res.body.oauth.authenticated).toBe(false);
   });
 
+  // The banking door fronts no authorization server of its own: it FORWARDS the
+  // caller's bearer to an upstream that was never issued our audience. Handing
+  // it the shared token produced a live 401 "D-05 violation: gateway-audience
+  // token cannot be used at upstream" — which the page renders as "Not signed
+  // in", so a working door started demanding a login the user had just done.
+  // It relays fine with NO bearer.
+  test('an ungated pure-proxy door is NOT given the shared token', async () => {
+    await signIn(DOOR_A);
+
+    const res = await setDoor(app, `${PUBLIC_ORIGIN}/mcp-facade/banking/mcp`, 'direct');
+    expect(res.body.oauth.authenticated).toBe(false);
+  });
+
+  test('and the gated doors still share it after visiting the ungated one', async () => {
+    await signIn(DOOR_A);
+    await setDoor(app, `${PUBLIC_ORIGIN}/mcp-facade/banking/mcp`, 'direct');
+
+    const res = await setDoor(app, DOOR_B, 'direct');
+    expect(res.body.oauth.authenticated).toBe(true);
+  });
+
   test('and coming back to our own origin still has it', async () => {
     await signIn(DOOR_A);
     await setDoor(app, GATEWAY_DOOR, 'privilege');

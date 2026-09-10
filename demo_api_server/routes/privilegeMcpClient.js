@@ -148,11 +148,45 @@ const DEFAULT_GATEWAY_MODE = 'privilege';
 //     would quietly serve the full banking surface instead of three tools;
 //   - Privilege doors live on the gateway origin and each Agentic App is its
 //     own authorization server, so those still authenticate per app.
+//
+// EXCEPT a door that fronts no authorization server of its own. Those are pure
+// proxies: they FORWARD the caller's bearer to their upstream rather than
+// verifying it here, and that upstream was never issued our audience. Handing
+// one the shared token produced, live:
+//
+//   401 D-05 violation: gateway-audience token cannot be used at upstream
+//   (aud includes "mcpgateway.ping.demo"). The gateway must perform RFC 8693
+//   exchange before forwarding.
+//
+// — which the page then renders as "Not signed in", so a door that had just
+// worked started asking for a login the user had already done. The token was
+// the problem, not its absence: the same door relays fine with NO bearer
+// (verified: anonymous initialize -> 200).
+//
+// Keyed by path segment because mcpFacade requires THIS module, so importing
+// its DOORS table back would be a cycle. The rule is "authorizationServer:
+// null and no requireBearer" in mcpFacade.js DOORS — one door today; add the
+// segment here if another such door appears.
+const UNGATED_OWN_ORIGIN_DOORS = new Set(['banking']);
+
 const oauthKey = (mode, mcpUrl) => {
   const own = PUBLIC_APP_ORIGIN();
-  if (own && String(mcpUrl || '').startsWith(own)) return `own-origin::${own}`;
-  return `${mode}::${mcpUrl || ''}`;
+  const url = String(mcpUrl || '');
+  if (own && url.startsWith(own) && !UNGATED_OWN_ORIGIN_DOORS.has(facadeDoorSegment(url))) {
+    return `own-origin::${own}`;
+  }
+  return `${mode}::${url}`;
 };
+
+/** The door segment of a /mcp-facade/<door>/... URL on our own origin, or null. */
+function facadeDoorSegment(mcpUrl) {
+  try {
+    const segments = new URL(mcpUrl).pathname.split('/').filter(Boolean);
+    return segments[0] === 'mcp-facade' ? segments[1] || null : null;
+  } catch {
+    return null;
+  }
+}
 // The `audit` façade door, NOT Privilege — that route was abandoned once the
 // hosted PingOne MCP stopped accepting worker client_credentials (401 "Invalid
 // authentication", 2026-08-27).
