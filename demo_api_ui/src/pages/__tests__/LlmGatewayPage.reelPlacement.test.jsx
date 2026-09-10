@@ -63,11 +63,22 @@ describe("reel placement", () => {
     await waitFor(() => expect(document.querySelector(".lgw-turn-group .lgw-reel")).toBeTruthy());
   });
 
-  it("no band before anything has been sent — an empty reel explains nothing", async () => {
+  it("the band is present at rest, so the reel does not appear from nothing", async () => {
     mockFetch(answered);
     render(<LlmGatewayPage />);
     await screen.findByPlaceholderText(/ask/i);
-    expect(document.querySelector(".lgw-reelband")).toBeNull();
+    const band = document.querySelector(".lgw-reelband");
+    expect(band).toBeTruthy();
+    expect(band).toHaveTextContent(/Waiting for a prompt/);
+    // Idle, not pretending a call happened.
+    expect(band.querySelectorAll(".lgw-reel__box--idle").length).toBeGreaterThan(0);
+  });
+
+  it("no per-turn reel before anything has been sent — there is no turn to explain", async () => {
+    mockFetch(answered);
+    render(<LlmGatewayPage />);
+    await screen.findByPlaceholderText(/ask/i);
+    expect(document.querySelector(".lgw-turn-group")).toBeNull();
   });
 
   it("the reel is a SIBLING of the turn button, never nested inside it", async () => {

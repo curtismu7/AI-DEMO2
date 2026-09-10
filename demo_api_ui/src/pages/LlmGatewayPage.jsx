@@ -411,15 +411,20 @@ export default function LlmGatewayPage() {
           column could not manage at its width. Shows the MOST RECENT call only;
           per-turn history lives under each reply in the transcript (placement C).
           Same guard the Path row used: a transport failure has no chain to draw. */}
-      {decision && (decision.tone === 'ok' || decision.layer === 'Privilege') ? (
-        <section className="lgw-reelband" aria-label="Path of the most recent call">
-          <LlmGatewayReel
-            decision={decision}
-            providerTitle={TITLES[decision.provider] || decision.provider}
-            isLocalLane={Boolean((lanes.find((l) => l.provider === decision.provider) || {}).isLocal)}
-          />
-        </section>
-      ) : null}
+      {/* Present from page load, not conditional on a call having happened: the
+          band shows the shape of the call it is ABOUT to make, then the same
+          boxes fill in. Rendering it only once a decision exists made the reel
+          appear from nothing and shove the conversation down. A decision that
+          has no chain to draw (a transport failure) falls back to the resting
+          state rather than blanking the band out again. */}
+      <section className="lgw-reelband" aria-label="Path of the current call">
+        <LlmGatewayReel
+          decision={decision && (decision.tone === 'ok' || decision.layer === 'Privilege') ? decision : null}
+          providerTitle={TITLES[decision?.provider || selected] || decision?.provider || selected}
+          isLocalLane={Boolean((lanes.find((l) => l.provider === (decision?.provider || selected)) || {}).isLocal)}
+          pending={{ provider: selected, model: modelByLane[selected] }}
+        />
+      </section>
 
       {loadError ? <p className="lgw-error" role="alert">{loadError}</p> : null}
 

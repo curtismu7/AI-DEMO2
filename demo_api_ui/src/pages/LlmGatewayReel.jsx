@@ -23,8 +23,48 @@ import "./LlmGatewayReel.css";
  * reached/unreached states are the substance of this component, and they are
  * far cheaper to assert here than through the DOM.
  */
-export function buildReelSteps(decision, { providerTitle, isLocalLane = false } = {}) {
-  if (!decision) return [];
+export function buildReelSteps(decision, { providerTitle, isLocalLane = false, pending = null } = {}) {
+  // Resting state. The page opens showing the shape of the call it is ABOUT to
+  // make, so the reel is already there when the first answer lands instead of
+  // appearing from nothing and shoving the conversation down. The boxes are the
+  // same boxes in the same order — only their state changes — so nothing moves
+  // when the real result arrives.
+  if (!decision) {
+    const resting = [{
+      id: "you",
+      icon: "👤",
+      label: "You",
+      state: "idle",
+      summary: "Waiting for a prompt",
+      detail: [
+        ["Lane selected", (pending && pending.provider) || "—"],
+        ["Model", (pending && pending.model) || "(lane default)"],
+        ["Status", "nothing sent yet"],
+      ],
+    }];
+    if (!isLocalLane) {
+      resting.push({
+        id: "privilege",
+        icon: "🛡",
+        label: "PingOne Privilege",
+        state: "idle",
+        summary: "Not called yet",
+        detail: [
+          ["Status", "waits for a prompt"],
+          ["Provider key", "held by Privilege — never sent by this app"],
+        ],
+      });
+    }
+    resting.push({
+      id: "provider",
+      icon: "🧠",
+      label: providerTitle || "Model",
+      state: "idle",
+      summary: "Not called yet",
+      detail: [["Status", "waits for a prompt"]],
+    });
+    return resting;
+  }
   const deniedAtGateway = decision.layer === "Privilege";
   const steps = [];
 
@@ -102,12 +142,16 @@ function formatLimits(limits) {
   return parts.length ? parts.join(" · ") : "reported, but empty";
 }
 
-export default function LlmGatewayReel({ decision, providerTitle, isLocalLane }) {
+export default function LlmGatewayReel({ decision, providerTitle, isLocalLane, pending }) {
   // Default to the hop that decided the outcome: on a denial that is Privilege,
   // otherwise the provider that answered. Opening on "You" would make every
-  // demo start with a click before it showed anything worth seeing.
-  const steps = buildReelSteps(decision, { providerTitle, isLocalLane });
-  const interesting = steps.find((s) => s.state === "denied") || steps[steps.length - 1];
+  // demo start with a click before it showed anything worth seeing — except at
+  // rest, where "You" is the only box with anything to say.
+  const steps = buildReelSteps(decision, { providerTitle, isLocalLane, pending });
+  const atRest = steps.length > 0 && steps.every((s) => s.state === "idle");
+  const interesting = atRest
+    ? steps[0]
+    : steps.find((s) => s.state === "denied") || steps[steps.length - 1];
   const [openId, setOpenId] = useState(null);
   if (steps.length === 0) return null;
   const activeId = openId || (interesting && interesting.id);
