@@ -8,6 +8,7 @@ const path = require('path');
 process.env.DOOR_STORE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-gateway-client-test-'));
 process.env.GATEWAY_ENV_PATH = path.join(process.env.DOOR_STORE_DIR, 'gateway.env');
 
+const http = require('http');
 const express = require('express');
 const relay = require('./lib/relay');
 
@@ -162,4 +163,76 @@ test('POST /console/connect requires an authToken', async () => {
     });
     assert.equal(res.status, 400);
   });
+});
+
+// Stands in for console.privilege.pingone.com so consoleInventory's reads
+// (session-token, applications, pacpolicys) resolve without a live console.
+function startMockConsole() {
+  const server = http.createServer((req, res) => {
+    const send = (body) => { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(body)); };
+    if (req.url === '/session-token') return send({ session_id: 'sid-1' });
+    if (req.url.includes('/v1/applications')) {
+      return send({
+        Applications: [{
+          ObjectMeta: { Name: 'cmuir' },
+          Spec: {
+            McpAppConfig: {
+              Backends: { Elems: ['http://mcp-server:8080/mcp'] },
+              AuthMode: 'OAuth',
+              AIGuardConfig: { Enabled: true, FailClosed: true },
+            },
+          },
+          Status: {
+            McpServerStatus: {
+              Status: 'Ready',
+              LastDiscoveredAt: '2026-09-10T12:00:00Z',
+              Transport: 'streamable-http',
+              Capabilities: { Tools: [{ name: 'search' }, { name: 'get_user' }] },
+            },
+          },
+        }],
+      });
+    }
+    if (req.url.includes('/v1/pacpolicys')) {
+      return send({
+        PacPolicys: [
+          { ObjectMeta: { Name: 'cmuir-tools' }, Spec: { Apps: ['cmuir'] }, NotAfter: '2020-01-01T00:00:00Z' },
+          // Go's zero time: the console's "not set", must not read as expired.
+          { ObjectMeta: { Name: 'other' }, Spec: {}, NotAfter: '0001-01-01T00:00:00Z' },
+        ],
+      });
+    }
+    res.statusCode = 404;
+    send({});
+  });
+  return new Promise((resolve) => server.listen(0, () => resolve(server)));
+}
+
+test('console/connect carries the 2026-09 spec fields: tools, discovery, auth mode, AI Guard, policy expiry', async () => {
+  const mockConsole = await startMockConsole();
+  const prevConsoleUrl = process.env.PRIVILEGE_CONSOLE_URL;
+  const prevEnvId = process.env.PRIVILEGE_CONSOLE_ENV_ID;
+  process.env.PRIVILEGE_CONSOLE_URL = `http://127.0.0.1:${mockConsole.address().port}`;
+  process.env.PRIVILEGE_CONSOLE_ENV_ID = 'test-env-id';
+  try {
+    await withServer(async (base) => {
+      const res = await fetch(`${base}/api/gateway/console/connect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ authToken: 'console-cookie-value' }),
+      });
+      const body = await res.json();
+      assert.equal(res.status, 200);
+      assert.deepEqual(
+        { tools: body.applications[0].tools, lastDiscoveredAt: body.applications[0].lastDiscoveredAt, transport: body.applications[0].transport, authMode: body.applications[0].authMode, aiGuard: body.applications[0].aiGuard },
+        { tools: ['search', 'get_user'], lastDiscoveredAt: '2026-09-10T12:00:00.000Z', transport: 'streamable-http', authMode: 'OAuth', aiGuard: { enabled: true, failClosed: true } },
+      );
+      assert.equal(body.policies[0].notAfter, '2020-01-01T00:00:00.000Z');
+      assert.equal(body.policies[1].notAfter, null);
+    });
+  } finally {
+    if (prevConsoleUrl === undefined) delete process.env.PRIVILEGE_CONSOLE_URL; else process.env.PRIVILEGE_CONSOLE_URL = prevConsoleUrl;
+    if (prevEnvId === undefined) delete process.env.PRIVILEGE_CONSOLE_ENV_ID; else process.env.PRIVILEGE_CONSOLE_ENV_ID = prevEnvId;
+    await new Promise((resolve) => mockConsole.close(resolve));
+  }
 });
