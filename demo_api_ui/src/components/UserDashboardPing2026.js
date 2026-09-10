@@ -12,6 +12,7 @@ import { useAgentUiMode } from "../context/AgentUiModeContext";
 import { useCurrentUserTokenEvent } from "../hooks/useCurrentUserTokenEvent";
 import apiClient from "../services/apiClient";
 import { getCachedJson } from "../services/cachedStatusService";
+import { spinner } from "../services/spinnerService";
 import {
   notifyError,
   notifyInfo,
@@ -487,7 +488,14 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           }
         }
       } finally {
-        if (!silent) setLoading(false);
+        if (!silent) {
+          setLoading(false);
+          // Clears the "Loading customer dashboard…" hold that AdminSideNav's
+          // Agent/Customer-View links set before navigating here — a fire-and-
+          // forget spinner.show() with no other hide() call, previously left
+          // to a 60s stuck-timeout that repeat clicks could keep postponing.
+          spinner.hide();
+        }
         fetchingRef.current = false;
       }
       })();
