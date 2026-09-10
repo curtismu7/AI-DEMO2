@@ -871,7 +871,14 @@ export default function PrivilegeMcpClientPage() {
       // nothing — the same dead-end button Ruling 5 removed by another route.
       if (saved.oauth?.authenticated && !forceReauth) {
         setAuthenticated(true);
-        refreshTools(true);
+        // No auto-discovery on a path switch. Choosing a path says which lane
+        // to use, not that you want it probed — and probing spends a real call
+        // on whatever door is selected, which on a denying one pops the denial
+        // modal for a switch nobody asked to test. Drop the previous path's
+        // tools so the panel cannot show results that belong to a lane you just
+        // left, and let "Get MCP Tools" be the one thing that fetches.
+        setTools([]);
+        setSelectedTool(null);
         return;
       }
       // forceReauth IS the button: it only ever comes from the re-arm control
@@ -1110,7 +1117,11 @@ export default function PrivilegeMcpClientPage() {
         return;
       }
       setAuthenticated(Boolean(saved?.oauth?.authenticated));
-      refreshTools(true);
+      // Same rule as the path switch above: selecting a door is not a request to
+      // probe it. The tools from the door you just left are cleared so the panel
+      // never shows another door's results, and "Get MCP Tools" fetches.
+      setTools([]);
+      setSelectedTool(null);
     } catch (err) {
       appendChat('system', `Failed to switch door: ${err.message}`);
     }
