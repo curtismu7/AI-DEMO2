@@ -996,6 +996,29 @@ const FLAG_REGISTRY = [
     defaultValue: false,
   },
 
+  // ── MCP façade next-hop ────────────────────────────────────────────────────
+  {
+    id:           'ff_facade_upstream_exchange',
+    name:         'Façade upstream token exchange (RFC 8693)',
+    category:     'MCP Gateway',
+    description:
+      'When **ON** (default), a façade door whose upstream is a terminal resource server ' +
+      'exchanges the caller\'s gateway-audience token for one audienced to that upstream ' +
+      'before forwarding. When **OFF**, the original token is forwarded and the upstream ' +
+      'refuses it with the **D-05** anti-bypass error — which is the point: it demonstrates ' +
+      'why a per-hop token must not skip a hop. Watch the TRACE panel on the AI Gateway ' +
+      'client page: OFF shows a `token.exchange` hop with status `skipped` followed by the ' +
+      'refusal, ON shows the exchange succeeding with both audiences named.',
+    impact:
+      'ON (default) = banking door works; TRACE shows the RFC 8693 exchange. ' +
+      'OFF = banking door returns the real D-05 401 from oauth-mcp. ' +
+      'Affects only doors declaring upstreamAudience — the gateway-upstream doors ' +
+      '(agent-gateway, audit) are untouched either way, because the gateway requires the ' +
+      'gateway audience and rejects an upstream-audienced token as a bypass attempt.',
+    type:         'boolean',
+    defaultValue: true,
+  },
+
 ];
 
 // ---------------------------------------------------------------------------

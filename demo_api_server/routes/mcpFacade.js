@@ -185,6 +185,21 @@ const DOORS = {
     // token that merely "matches the list" can still fail D-05 — asking for
     // mcpserver.ping.demo specifically is what keeps the gateway audience off
     // the exchanged token.
+    //
+    // ONLY doors whose upstream is a TERMINAL resource server get this. D-05 is
+    // enforced in BOTH directions and they are mirror images:
+    //
+    //   oauth-mcp (last hop)        aud must NOT include the gateway audience
+    //                               → present an UPSTREAM-targeted token
+    //   demo_mcp_gateway (interm.)  aud must NOT include an upstream audience
+    //                               → present a GATEWAY-targeted token
+    //                               (GatewayTokenPolicy.ts, 'bypass_attempt')
+    //
+    // So `agent-gateway` and `audit`, whose upstream IS the gateway, must keep
+    // forwarding the gateway-audience token untouched — exchanging there would
+    // mint exactly the audience that gateway rejects as a bypass. The gateway
+    // performs its own next-hop exchange downstream; that is its job, not ours.
+    // Do not "finish the pattern" by adding upstreamAudience to those doors.
     upstreamAudience: () => process.env.MCP_FACADE_BANKING_AUD
       || configStore.getEffective('PINGONE_RESOURCE_MCP_SERVER_URI')
       || process.env.PINGONE_RESOURCE_MCP_SERVER_URI
