@@ -55,6 +55,20 @@ const TOKEN_CHAIN_STEPS = [
     ],
   },
   {
+    id: 'privilege-gateway',
+    label: 'Privilege Gateway Token',
+    status: 'waiting',
+    // Only in the path when ff_mcp_gateway_privilege_first is on, which is off
+    // by default and SE-only — hence 'waiting' rather than 'active'. It earns a
+    // step of its own because it is a genuinely DIFFERENT kind of credential
+    // from every other link here: opaque rather than a JWT, issued by the
+    // gateway's own authorization server, and bound to ONE Agentic App (a token
+    // minted for another app is refused before routing — measured 2026-09-10).
+    summary: 'Front gate. When the PingOne Privilege AI Gateway sits ahead of the Agent Gateway, it issues its own OPAQUE token (RFC 7591 dynamic registration + PKCE) bound to a single Agentic App. The user token below does not disappear — it rides alongside in X-Subject-Token so the delegated identity survives the hop.',
+    payloadPreview: '— Opaque, not a JWT: there are no claims to show. Use introspection, not a decoder. —',
+    eventIds: ['privilege-authorize', 'privilege-denied'],
+  },
+  {
     id: 'mcp-server',
     label: 'MCPServer Token',
     status: 'acquiring',
