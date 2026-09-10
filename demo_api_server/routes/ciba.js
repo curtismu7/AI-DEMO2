@@ -299,6 +299,38 @@ router.get('/request/:authReqId', authenticateToken, (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// GET /api/auth/ciba/requests — read-only enumeration of THIS session's
+// tracked CIBA requests (the same req.session.cibaRequests structure
+// initiate/poll/status already read and write). No mutation, no change to
+// any transition logic — purely a list view for the Agentic Access Console's
+// CIBA tab. Session-gated because entries carry real transfer amounts and
+// recipient labels.
+// ---------------------------------------------------------------------------
+
+router.get('/requests', authenticateToken, (req, res) => {
+  const now = Date.now();
+  const requests = Object.entries(req.session.cibaRequests || {}).map(([authReqId, pending]) => {
+    let status = 'pending';
+    if (now > pending.expiresAt) status = 'expired';
+    else if (pending.pollOutcome === 'approved') status = 'approved';
+    else if (pending.deniedByUser) status = 'denied';
+    return {
+      authReqId,
+      status,
+      engine: pending.simulated ? 'simulated' : 'pingone',
+      amount: pending.amount ?? null,
+      fromAccountLabel: pending.fromAccountLabel ?? null,
+      toAccountLabel: pending.toAccountLabel ?? null,
+      bindingMessage: pending.binding_message || '',
+      tool: pending.hitlChallengeTool || null,
+      initiatedAt: pending.initiatedAt,
+      expiresAt: pending.expiresAt,
+    };
+  }).sort((a, b) => b.initiatedAt - a.initiatedAt);
+  res.json({ requests });
+});
+
+// ---------------------------------------------------------------------------
 // GET /api/auth/ciba/poll/:authReqId
 // ---------------------------------------------------------------------------
 

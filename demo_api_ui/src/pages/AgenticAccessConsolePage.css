@@ -1,0 +1,353 @@
+/* AgenticAccessConsolePage — shared styles for the page shell and all nine
+   agenticAccessConsole/ section components. One shared stylesheet rather than
+   nine tiny ones: the sections are small and share one visual language, so a
+   per-section file would only fragment the same dozen rules. */
+
+.aac-page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 32px clamp(18px, 4vw, 48px) 56px;
+  color: var(--th-text);
+}
+
+.aac-head {
+  max-width: 820px;
+  margin-bottom: 22px;
+  position: relative;
+}
+
+.aac-theme-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 6px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+.aac-theme-toggle:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+.aac-eyebrow {
+  margin: 0 0 8px;
+  color: var(--th-status-info);
+  font-size: var(--font-size-2xs);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.aac-head h1 { margin: 0 0 10px; font-size: var(--font-size-2xl); line-height: 1.2; }
+.aac-sub { margin: 0; color: var(--th-text-muted); font-size: var(--font-size-body); line-height: 1.6; }
+
+/* Tab bar — plain pill buttons, not a reinvented sidebar. */
+.aac-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 26px;
+  border-bottom: 1px solid var(--th-border);
+  padding-bottom: 16px;
+}
+.aac-tab {
+  appearance: none;
+  padding: 7px 14px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg-card);
+  color: var(--th-text-body);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+.aac-tab:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+.aac-tab--active {
+  background: var(--th-bg-emphasis);
+  border-color: var(--th-bg-emphasis);
+  color: var(--th-text-on-emphasis);
+}
+.aac-tab:focus-visible { outline: 3px solid color-mix(in srgb, var(--th-status-info) 35%, transparent); outline-offset: 2px; }
+
+.aac-section h2 {
+  margin: 0 0 6px;
+  font-size: var(--font-size-xl);
+}
+.aac-section-intro {
+  margin: 0 0 18px;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+  max-width: 860px;
+}
+.aac-section + .aac-section-block,
+.aac-section-block { margin-bottom: 30px; }
+.aac-section-block h3 { margin: 0 0 10px; font-size: var(--font-size-lg); }
+
+/* Stat tiles — dashboard summary numbers. */
+.aac-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.aac-stat-tile {
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+}
+.aac-stat-value { font-size: var(--font-size-2xl); font-weight: 800; line-height: 1.2; }
+.aac-stat-label { margin-top: 4px; color: var(--th-text-muted); font-size: var(--font-size-2xs); text-transform: uppercase; letter-spacing: 0.04em; }
+.aac-stat-detail { margin-top: 6px; color: var(--th-text-muted); font-size: var(--font-size-xs); }
+
+/* Generic card + grid layout used by Agents/Servers/CIBA sections. */
+.aac-grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.aac-grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
+
+.aac-card {
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  color: var(--th-text);
+}
+.aac-card-title { margin: 0 0 4px; font-size: var(--font-size-md); font-weight: 700; }
+.aac-card-sub { margin: 0; color: var(--th-text-muted); font-size: var(--font-size-xs); }
+.aac-card-body { margin-top: 10px; font-size: var(--font-size-sm); color: var(--th-text-body); line-height: 1.5; }
+
+/* Clickable variant for the Agents grid. */
+.aac-agent-card {
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+.aac-agent-card--active {
+  border-width: 2px;
+  border-color: var(--th-status-info);
+}
+.aac-detail-panel { margin-top: 16px; }
+
+/* Tables. */
+.aac-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
+.aac-table { width: 100%; border-collapse: collapse; font-size: var(--font-size-sm); }
+.aac-table th, .aac-table td { padding: 10px 14px; border-bottom: 1px solid var(--th-border); text-align: left; }
+.aac-table thead th {
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.aac-table tbody tr:last-child td { border-bottom: 0; }
+.aac-table tbody tr:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+.aac-mono { font-family: var(--font-mono); font-size: var(--font-size-xs); }
+
+/* Decision / status pills — semantic tokens, not invented colours. */
+.aac-pill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid;
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+.aac-pill--permit {
+  background: var(--th-status-success-bg);
+  border-color: var(--th-status-success-border);
+  color: var(--th-status-success-text);
+}
+.aac-pill--deny {
+  background: var(--th-status-error-bg);
+  border-color: var(--th-status-error-border);
+  color: var(--th-status-error-text);
+}
+.aac-pill--indeterminate {
+  background: var(--th-status-warning-bg);
+  border-color: var(--th-status-warning-border);
+  color: var(--th-status-warning-text);
+}
+
+/* Small tags — LIVE / BROKEN / PENDING and the three auth-level badges. */
+.aac-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid;
+  font-size: var(--font-size-3xs);
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.aac-badge--live {
+  background: var(--th-status-success-bg);
+  border-color: var(--th-status-success-border);
+  color: var(--th-status-success-text);
+}
+.aac-badge--broken {
+  background: var(--th-status-error-bg);
+  border-color: var(--th-status-error-border);
+  color: var(--th-status-error-text);
+}
+.aac-badge--pending {
+  background: var(--th-status-warning-bg);
+  border-color: var(--th-status-warning-border);
+  color: var(--th-status-warning-text);
+}
+.aac-badge--neutral {
+  background: var(--th-bg-inset);
+  border-color: var(--th-border-strong);
+  color: var(--th-text-muted);
+}
+.aac-badge--user {
+  background: var(--th-status-info-bg);
+  border-color: var(--th-status-info-border);
+  color: var(--th-status-info-text);
+}
+.aac-badge--public {
+  background: var(--th-status-success-bg);
+  border-color: var(--th-status-success-border);
+  color: var(--th-status-success-text);
+}
+.aac-badge--admin {
+  background: var(--th-status-error-bg);
+  border-color: var(--th-status-error-border);
+  color: var(--th-status-error-text);
+}
+
+/* Tool-name chips. */
+.aac-chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.aac-chip {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: var(--radius-sm);
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
+  color: var(--th-text-body);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-3xs);
+}
+
+/* Callout notes. */
+.aac-note {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border: 1px solid var(--th-status-info-border);
+  border-radius: var(--radius-md);
+  background: var(--th-status-info-bg);
+  color: var(--th-status-info-text);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+}
+.aac-note--warn { border-color: var(--th-status-warning-border); background: var(--th-status-warning-bg); color: var(--th-status-warning-text); }
+
+/* Filter bar (Policies section decision log). */
+.aac-filter-bar { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+.aac-filter-btn {
+  appearance: none;
+  padding: 5px 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg-card);
+  color: var(--th-text-body);
+  font: inherit;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+.aac-filter-btn--active {
+  background: var(--th-bg-emphasis);
+  border-color: var(--th-bg-emphasis);
+  color: var(--th-text-on-emphasis);
+}
+
+/* Reveal-prompt disclosure (AI Broker attack log). */
+.aac-attempt { border: 1px solid var(--th-border); border-radius: var(--radius-md); padding: 10px 14px; margin-bottom: 10px; background: var(--th-bg-card); }
+.aac-attempt-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.aac-attempt-agent { font-weight: 700; font-size: var(--font-size-sm); }
+.aac-attempt-attribution { margin-top: 6px; color: var(--th-text-muted); font-size: var(--font-size-xs); }
+.aac-attempt-reveal { margin-top: 6px; }
+.aac-attempt-reveal summary { cursor: pointer; color: var(--th-status-info); font-size: var(--font-size-xs); font-weight: 600; }
+.aac-prompt-block {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--th-code-bg);
+  color: var(--th-code-text);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+/* Token-exchange decoded-token blocks. */
+.aac-tabs-inline { display: flex; gap: 8px; margin-bottom: 14px; }
+.aac-step-list { list-style: none; margin: 0 0 14px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.aac-step {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+.aac-step-num {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--th-bg-emphasis);
+  color: var(--th-text-on-emphasis);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-2xs);
+  font-weight: 800;
+}
+.aac-step-body { font-size: var(--font-size-sm); line-height: 1.5; }
+.aac-step-body code { font-family: var(--font-mono); font-size: var(--font-size-xs); }
+
+/* Vertical tiles (§9). */
+.aac-vertical-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.aac-vertical-tile {
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var(--font-size-sm);
+}
+.aac-legend { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 14px; font-size: var(--font-size-xs); color: var(--th-text-muted); }
+.aac-legend-item { display: flex; align-items: center; gap: 6px; }
+
+@media (max-width: 700px) {
+  .aac-page { padding-inline: 14px; }
+  .aac-theme-toggle { position: static; display: inline-block; margin-bottom: 12px; }
+  .aac-table th, .aac-table td { padding: 8px; }
+}

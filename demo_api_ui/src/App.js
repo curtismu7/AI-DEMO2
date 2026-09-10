@@ -159,6 +159,7 @@ import TransactionTraceEmbedPage from "./pages/TransactionTraceEmbedPage";
 import PingCliPage from "./components/PingCliPage";
 import LlamaVscodeGuidePage from "./components/LlamaVscodeGuidePage";
 import NotebookLmPage from "./pages/NotebookLmPage";
+import AgenticAccessConsolePage from "./pages/AgenticAccessConsolePage";
 import AdminRoute from "./routes/AdminRoute";
 import { DashboardContent } from "./routes/CustomerRoutes";
 import EducationRoutes from "./routes/EducationRoutes";
@@ -1324,6 +1325,12 @@ function AppWithAuth() {
                                   <Dashboard user={user} onLogout={logout} />
                                 </RequireAdminLogin>
                               }
+                            />
+                            {/* Public on purpose — read-only/illustrative, meant to be
+                                shared without requiring an admin session. */}
+                            <Route
+                              path="/admin/agentic-access-console"
+                              element={<AgenticAccessConsolePage user={user} />}
                             />
                             <Route
                               path="/admin/banking"
