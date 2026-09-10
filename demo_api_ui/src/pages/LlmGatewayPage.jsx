@@ -366,7 +366,11 @@ export default function LlmGatewayPage() {
     // hand-typed prompt would wrongly borrow another attack's explanation.
     const attackId = selectedAttack && payloadFor(selectedAttack) === text ? selectedAttack : null;
     setBusy(true);
-    setTurns((t) => [...t, { id: nextTurnId.current++, role: 'you', text }]);
+    // Every run starts from a clean slate: the transcript shows only this call,
+    // and the band drops back to resting until its result lands.
+    setTurns([{ id: nextTurnId.current++, role: 'you', text }]);
+    setDecision(null);
+    setSelectedTurnId(null);
     setPrompt('');
     setSelectedAttack('');
     try {
@@ -445,8 +449,8 @@ export default function LlmGatewayPage() {
 
       {/* Placement B — the at-a-glance band. Full width so the boxes never wrap
           and a denial is readable from across a room, which the Last Decision
-          column could not manage at its width. Shows the MOST RECENT call only;
-          per-turn history lives under each reply in the transcript (placement C).
+          column could not manage at its width. The only reel on the page — each
+          Send clears the previous run, so there is no history to repeat it for.
           Same guard the Path row used: a transport failure has no chain to draw. */}
       {/* Present from page load, not conditional on a call having happened: the
           band shows the shape of the call it is ABOUT to make, then the same
@@ -546,11 +550,8 @@ export default function LlmGatewayPage() {
             ) : null}
             {turns.map((t) => (
               t.role === 'model' ? (
-                // The reel is a SIBLING of the turn button, never inside it: it
-                // has its own buttons, and a button inside a button is invalid
-                // markup that swallows the inner clicks.
-                <div key={t.id} className="lgw-turn-group">
                 <button
+                  key={t.id}
                   type="button"
                   className={`lgw-turn lgw-turn--model${t.id === selectedTurnId ? ' is-selected' : ''}`}
                   aria-pressed={t.id === selectedTurnId}
@@ -571,17 +572,6 @@ export default function LlmGatewayPage() {
                     ) : null}
                   </div>
                 </button>
-                {/* Placement C — every turn keeps its own evidence, so scrolling
-                    back through a session shows what each call actually did
-                    rather than only what the last one did. */}
-                {t.decision && (t.decision.tone === 'ok' || t.decision.layer === 'Privilege') ? (
-                  <LlmGatewayReel
-                    decision={t.decision}
-                    providerTitle={TITLES[t.decision.provider] || t.decision.provider}
-                    isLocalLane={Boolean((lanes.find((l) => l.provider === t.decision.provider) || {}).isLocal)}
-                  />
-                ) : null}
-                </div>
               ) : (
                 <div key={t.id} className="lgw-turn lgw-turn--you">
                   <span className="lgw-turn__who">You</span>

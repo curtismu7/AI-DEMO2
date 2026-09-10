@@ -1,11 +1,9 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import LlmGatewayPage from "../LlmGatewayPage";
 
-// The reel sits in TWO places on purpose (placements B and C): a full-width band
-// under the header for the call that just happened, and one under each reply so
-// scrolling back through a session shows what every call did rather than only
-// the last. It deliberately does NOT sit in the Last Decision panel any more —
-// three copies of the same component on one page was the thing to avoid.
+// The reel sits in ONE place: the full-width band under the header. Each Send
+// clears the previous run, so a per-reply copy only repeated the band, and the
+// Last Decision panel does not carry one either.
 
 const CONFIG = {
   lanes: [{ provider: "anthropic", route: "/llm/anthropic/v1/messages", keyConfigured: true }],
@@ -56,11 +54,13 @@ describe("reel placement", () => {
     expect(document.querySelector(".lgw-reelband")).toHaveTextContent(/Privilege/);
   });
 
-  it("draws a reel under the reply too, so the turn keeps its own evidence", async () => {
+  it("draws exactly one reel after a call — the band, not a second copy under the reply", async () => {
     mockFetch(answered);
     render(<LlmGatewayPage />);
     await ask("capital of France?");
-    await waitFor(() => expect(document.querySelector(".lgw-turn-group .lgw-reel")).toBeTruthy());
+    await screen.findByText("Paris.");
+    expect(document.querySelectorAll(".lgw-reel")).toHaveLength(1);
+    expect(document.querySelector(".lgw-reelband .lgw-reel")).toBeTruthy();
   });
 
   it("the band is present at rest, so the reel does not appear from nothing", async () => {
@@ -72,24 +72,6 @@ describe("reel placement", () => {
     expect(band).toHaveTextContent(/Waiting for a prompt/);
     // Idle, not pretending a call happened.
     expect(band.querySelectorAll(".lgw-reel__box--idle").length).toBeGreaterThan(0);
-  });
-
-  it("no per-turn reel before anything has been sent — there is no turn to explain", async () => {
-    mockFetch(answered);
-    render(<LlmGatewayPage />);
-    await screen.findByPlaceholderText(/ask/i);
-    expect(document.querySelector(".lgw-turn-group")).toBeNull();
-  });
-
-  it("the reel is a SIBLING of the turn button, never nested inside it", async () => {
-    mockFetch(answered);
-    render(<LlmGatewayPage />);
-    await ask("capital of France?");
-    await waitFor(() => expect(document.querySelector(".lgw-turn-group .lgw-reel")).toBeTruthy());
-    // A button inside a button is invalid markup and swallows the inner clicks,
-    // which would make every box in the transcript reel dead.
-    const turnButton = document.querySelector(".lgw-turn--model");
-    expect(turnButton.querySelector(".lgw-reel")).toBeNull();
   });
 
   it("the Last Decision panel no longer carries a third copy", async () => {
