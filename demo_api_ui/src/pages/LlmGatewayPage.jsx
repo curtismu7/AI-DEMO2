@@ -539,6 +539,16 @@ export default function LlmGatewayPage() {
                 {ATTACK_EFFECT[(GUARDRAIL_ATTACKS.find((a) => a.id === selectedAttack) || {}).effect]}
               </span>
             ) : null}
+            {/* The composer below is a single-line input, so a long or multi-line
+                payload (the injection attacks embed a literal newline) is exactly
+                the thing it can't show — this reveals the whole prompt in one
+                readable block for pointing at during a live demo. */}
+            {selectedAttack ? (
+              <details className="lgw-raw">
+                <summary>💬 Show the full prompt</summary>
+                <pre data-testid="lgw-attack-prompt">{payloadFor(selectedAttack)}</pre>
+              </details>
+            ) : null}
           </div>
 
           {/* Local lanes have no virtual key and so no allowlist to demonstrate;

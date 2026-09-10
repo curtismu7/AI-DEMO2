@@ -41,6 +41,14 @@ async function ask(text = "hello") {
 }
 
 describe("LLM Gateway console", () => {
+  // The attack-choice key is the one piece of state this page persists across
+  // reloads (see 'lgw-attack-choice' in LlmGatewayPage.jsx). Left set by one
+  // test, it silently seeds the prompt/selection in every test that runs
+  // after it — previously invisible because the payload only ever sat in an
+  // <input> value, which text queries can't see; the new prompt-reveal <pre>
+  // renders that same text as real DOM content, exposing the leak.
+  afterEach(() => { window.localStorage.clear(); });
+
   it("lists each lane with its route and model, and names a missing key", async () => {
     mockFetch(() => new Promise(() => {}));
     render(<LlmGatewayPage />);
@@ -553,6 +561,20 @@ describe("LLM Gateway console", () => {
       await screen.findByText("/llm/anthropic/v1/messages");
 
       expect(screen.getByLabelText(/attack library/i)).toHaveValue("prompt_injection");
+    });
+
+    it("reveals the full prompt text behind a 💬 toggle, for demo audiences the single-line composer can't show", async () => {
+      const attack = GUARDRAIL_ATTACKS.find((a) => a.id === "hidden_instructions");
+      mockFetch(() => new Promise(() => {}));
+      render(<LlmGatewayPage />);
+      await screen.findByText("/llm/anthropic/v1/messages");
+
+      expect(screen.queryByTestId("lgw-attack-prompt")).not.toBeInTheDocument();
+
+      fireEvent.change(screen.getByLabelText(/attack library/i), { target: { value: attack.id } });
+      const summary = screen.getByText("💬 Show the full prompt");
+      expect(summary).toBeInTheDocument();
+      expect(screen.getByTestId("lgw-attack-prompt")).toHaveTextContent(attack.payload.split("\n")[0]);
     });
   });
 
