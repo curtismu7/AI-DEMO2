@@ -160,9 +160,9 @@ html,body{margin:0;padding:0;height:100%}
       <button
         type="button"
         className="ftcp-btn ftcp-btn--close"
-        onClick={onClose}
-        title="Close"
-        aria-label="Close token chain panel"
+        onClick={isPoppedOut ? () => popoutWin.close() : onClose}
+        title={isPoppedOut ? 'Close window' : 'Close'}
+        aria-label={isPoppedOut ? 'Close popped-out window' : 'Close token chain panel'}
       >
         ✕
       </button>
