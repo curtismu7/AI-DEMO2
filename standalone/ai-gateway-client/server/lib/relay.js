@@ -898,14 +898,19 @@ async function beginOAuthFlow(sess, req) {
 // ---------------------------------------------------------------------------
 // Door discovery via the Privilege console API
 // ---------------------------------------------------------------------------
-const CONSOLE_BASE = process.env.PRIVILEGE_CONSOLE_URL || 'https://console.privilege.pingone.com';
+// A function, not a module-load constant, so a test can point it at a mock
+// console by setting the env var before the call rather than before require()
+// — the same reason consoleEnvId() below is already a function.
+function consoleBase() {
+  return process.env.PRIVILEGE_CONSOLE_URL || 'https://console.privilege.pingone.com';
+}
 
 function consoleEnvId() {
   return process.env.PRIVILEGE_CONSOLE_ENV_ID || process.env.PINGONE_ENVIRONMENT_ID || '';
 }
 
 async function consoleGet(sess, apiPath) {
-  const res = await fetch(`${CONSOLE_BASE}${apiPath}`, {
+  const res = await fetch(`${consoleBase()}${apiPath}`, {
     headers: {
       Cookie: `auth_token=${sess.console.authToken}`,
       'x-procyon-session-id': sess.console.sessionId,
@@ -933,6 +938,8 @@ async function consoleInventory(sess) {
   ]);
   const applications = (appsBody.Applications || []).map((app) => {
     const cfg = app.Spec?.McpAppConfig || {};
+    const st = app.Status?.McpServerStatus || {};
+    const guard = cfg.AIGuardConfig;
     const name = app.ObjectMeta?.Name || '';
     return {
       name,
@@ -941,7 +948,15 @@ async function consoleInventory(sess) {
       frontEndName: cfg.FrontEndName?.Elems?.[0] || null,
       backends: cfg.Backends?.Elems || [],
       entryPath: cfg.EntryPath || null,
-      status: app.Status?.McpServerStatus?.Status || '',
+      status: st.Status || '',
+      // Fields the 2026-09 console spec documents (console.privilege.pingone.com
+      // /swagger/imodel.swagger.json). An older console build omits them, so
+      // each degrades to empty rather than failing the read.
+      tools: (st.Capabilities?.Tools || []).map((t) => t.name).filter(Boolean),
+      lastDiscoveredAt: consoleTime(st.LastDiscoveredAt),
+      transport: st.Transport || null,
+      authMode: cfg.AuthMode || null,
+      aiGuard: guard ? { enabled: Boolean(guard.Enabled) && !guard.Disabled, failClosed: Boolean(guard.FailClosed) } : null,
     };
   });
   // The pacpolicy Spec schema is undocumented, so each policy carries its raw
@@ -950,8 +965,20 @@ async function consoleInventory(sess) {
   const policies = (polBody.PacPolicys || polBody.Items || polBody.items || []).map((p) => ({
     name: p.ObjectMeta?.Name || '(unnamed)',
     spec: p.Spec || {},
+    // Top-level on the PacPolicy, outside the undocumented Spec — a fact, not
+    // a heuristic. Console policies are often time-boxed, and an expired one
+    // denies exactly like a missing one.
+    notBefore: consoleTime(p.NotBefore),
+    notAfter: consoleTime(p.NotAfter),
   }));
   return { applications, policies, envId };
+}
+
+// A console timestamp as ISO, or null. The console is Go: an unset time
+// arrives as 0001-01-01T00:00:00Z, which must not read as "expired in year 1".
+function consoleTime(value) {
+  const t = Date.parse(value || '');
+  return Number.isFinite(t) && t > 0 ? new Date(t).toISOString() : null;
 }
 
 function rememberInventory(inventory) {
@@ -1291,7 +1318,7 @@ router.post('/console/connect', express.json(), async (req, res) => {
   const authToken = String(req.body?.authToken || '').trim();
   if (!authToken) return res.status(400).json({ error: 'authToken is required.' });
   try {
-    const idRes = await fetch(`${CONSOLE_BASE}/session-token`, { headers: { Cookie: `auth_token=${authToken}` } });
+    const idRes = await fetch(`${consoleBase()}/session-token`, { headers: { Cookie: `auth_token=${authToken}` } });
     const idBody = await idRes.json().catch(() => ({}));
     const sessionId = idBody.session_id;
     if (!sessionId) return res.status(502).json({ error: 'Console did not return a session_id.' });
