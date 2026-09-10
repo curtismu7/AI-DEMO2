@@ -629,7 +629,7 @@ export default function LlmGatewayPage() {
                 the thing it can't show — this reveals the whole prompt in one
                 readable block for pointing at during a live demo. */}
             {selectedAttack ? (
-              <details className="lgw-raw">
+              <details className="lgw-raw lgw-prompt-reveal">
                 <summary>💬 Show the full prompt</summary>
                 <pre data-testid="lgw-attack-prompt">{payloadFor(selectedAttack)}</pre>
               </details>
