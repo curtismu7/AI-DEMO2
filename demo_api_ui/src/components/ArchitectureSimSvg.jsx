@@ -1,343 +1,200 @@
 // demo_api_ui/src/components/ArchitectureSimSvg.jsx
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
+import { ReactFlow, Controls, Handle, Position } from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
+import './ArchitectureSimSvg.css';
 
 /**
- * Hand-coded SVG architecture diagram for the simulation page.
+ * React Flow architecture diagram for the simulation page.
  *
- * viewBox: 0 0 1100 520
- * Node size: 130 × 52 px
- * Label font: 13px bold (name) + 10px (subtitle)
+ * Node size: 130 × 52 flow units (unchanged from the original SVG geometry —
+ * COL/ROW below are the same grid the hand-coded version used).
  *
  * Node IDs match architecture-sim-scenarios.js:
  *   n-browser, n-bff, n-mcp-gw, n-mcp-server, n-mcp-resource-server,
  *   n-agent, n-pingone, n-pingauthorize, n-hitl, n-mortgage, n-resource-server
  *
  * Edge IDs: e-{source}-{dest} e.g. e-browser-bff, e-bff-mcpgw, …
+ * Colors are intentionally fixed regardless of theme — ArchitectureOverviewPage's
+ * legend hardcodes this same palette and documents it as theme-independent.
  */
 
-// ── Layout constants ─────────────────────────────────────────────────────────
+// ── Layout constants (same grid as the original hand-coded SVG) ────────────
 const NW = 130;  // node width
 const NH = 52;   // node height
-const NR = 7;    // border-radius
 
-// Column x-origins
-const COL = {
-  browser:  20,
-  bff:      200,
-  mcpGw:    400,
-  services: 620,
-  external: 830,
-};
-
-// Row y-origins
-const ROW = {
-  top:    30,
-  mid:   180,
-  lower: 330,
-  bot:   420,
-};
-
-// Node centre helpers
-function cx(x) { return x + NW / 2; }
-function cy(y) { return y + NH / 2; }
-
-// Y level for edges that must cross above the resource-server row (ROW.lower = 330).
-// n-mortgage bottom = ROW.mid + NH + 10 + NH = 294; resource server top = 330.
-// ABOVE_RS sits in the clear gap between them.
+const COL = { browser: 20, bff: 200, mcpGw: 400, services: 620, external: 830 };
+const ROW = { top: 30, mid: 180, lower: 330, bot: 420 };
+const cx = (x) => x + NW / 2;
+const cy = (y) => y + NH / 2;
+// Clear gap between the mortgage row (bottom = ROW.mid + NH + 10 + NH = 294)
+// and the resource-server row (ROW.lower = 330) — edges that must not look
+// like they route through the resource server cross here instead.
 const ABOVE_RS = 308;
 
-// ── Colour palette ───────────────────────────────────────────────────────────
-const STATE_STYLES = {
-  idle: {
-    fill: '#f1f5f9', stroke: '#cbd5e1', textFill: '#475569',
-    shadow: 'none',
-  },
-  active: {
-    fill: '#fffbeb', stroke: '#f59e0b', textFill: '#92400e',
-    shadow: 'drop-shadow(0 0 8px rgba(245,158,11,0.6))',
-  },
-  done: {
-    fill: '#f0fdf4', stroke: '#22c55e', textFill: '#166534',
-    shadow: 'none',
-  },
-  blocked: {
-    fill: '#fef2f2', stroke: '#ef4444', textFill: '#991b1b',
-    shadow: 'drop-shadow(0 0 8px rgba(239,68,68,0.5))',
-  },
-};
+// ── Nodes — id, position and label copied from the original SimNode calls ──
+const NODES = [
+  { id: 'n-browser', x: COL.browser, y: ROW.top, label: 'Browser', sub: 'port 4000',
+    tooltip: "User's browser — holds only an httpOnly session cookie; no tokens are ever stored client-side" },
+  { id: 'n-bff', x: COL.bff, y: ROW.top, label: 'BFF', sub: 'demo_api_server :3001',
+    tooltip: 'Backend For Frontend — sole OAuth token custodian; resolves session cookie to access token; never exposes tokens to the browser' },
+  { id: 'n-mcp-gw', x: COL.mcpGw, y: ROW.top, label: 'Agent Gateway', sub: 'Agent Gateway :3036',
+    tooltip: 'Agent Gateway — central enforcement point; default is the real product (:3036, ff_mcp_gateway_pinggateway=true); demo Node Gateway (:3005) is the opt-in demo-auth path; introspects token then consults PingOne Authorize before every tool call; validates aud (D-05 anti-bypass)' },
+  { id: 'n-mcp-server', x: COL.services, y: ROW.top, label: 'MCP Server', sub: ':8080',
+    tooltip: 'MCP Server (:8080) — executes banking tools; validates token aud and scopes per tool; checks act claim for delegated agent authority' },
+  { id: 'n-agent', x: COL.mcpGw, y: ROW.mid, label: 'Agent Service', sub: ':3006 / :8888',
+    tooltip: 'Agent Service — LangChain (:8888) / OpenAI Agents (:8891) / Mastra (:8892) / Pydantic AI (:8893) / LM Studio (:3006); translates natural language to MCP tool calls' },
+  { id: 'n-mcp-resource-server', x: COL.services, y: ROW.mid, label: 'MCP Resource Server', sub: ':8081',
+    tooltip: 'MCP Resource Server (:8081) — dedicated MCP resource server for investment and portfolio tools; separate instance for financial data' },
+  { id: 'n-mortgage', x: COL.services, y: ROW.mid + NH + 10, label: 'API Resource Server', sub: ':8082',
+    tooltip: 'API Resource Server (:8082) — REST API resource server using API key auth; reached via Ping Agent Gateway Path A (api_key disposition)' },
+  { id: 'n-pingone', x: COL.external, y: ROW.mid, label: 'PingOne', sub: 'OAuth AS',
+    tooltip: 'PingOne — OAuth 2.0 Authorization Server and Identity Provider; issues tokens, validates may_act for RFC 8693 token exchange, enforces PKCE' },
+  { id: 'n-resource-server', x: COL.services, y: ROW.lower, label: 'Resource Server', sub: '/api/resource-server',
+    tooltip: 'Resource Server (/api/resource-server) — validates access tokens independently; serves banking data; used in Path B (dual-token) and Path C (oauth_bearer) dispositions' },
+  { id: 'n-pingauthorize', x: COL.external, y: ROW.lower, label: 'PingOne Authorization Server', sub: 'cloud PDP',
+    tooltip: 'PingOne Authorization Server — policy decision point (PDP); returns PERMIT, DENY, or INDETERMINATE for every MCP tool call; real cloud Authorize by default (outage → fail-closed deny 503); mock at :9001 is opt-in via ff_authorize_real / AUTHORIZE_FAILOVER_MODE=fallback_simulated' },
+  { id: 'n-hitl', x: COL.services, y: ROW.bot, label: 'HITL Service', sub: ':3009',
+    tooltip: 'HITL Service (:3009) — Human-In-The-Loop consent; creates time-limited challenges after PingOne Authorization Server INDETERMINATE signals; binds each challenge to userId + agentId + tool' },
+];
 
-const EDGE_COLORS = {
-  idle:    '#cbd5e1',
-  active:  '#f59e0b',
-  done:    '#22c55e',
-  blocked: '#ef4444',
-};
+// Column headers. Plain flow nodes (not React Flow chrome) so they pan and
+// zoom with the diagram instead of floating fixed over the viewport.
+const COL_LABEL_Y = ROW.top - 22;
+const COL_LABELS = [
+  { id: 'label-browser', x: COL.browser, label: 'Client' },
+  { id: 'label-bff', x: COL.bff, label: 'BFF' },
+  { id: 'label-mcpgw', x: COL.mcpGw, label: 'MCP Layer' },
+  { id: 'label-services', x: COL.services, label: 'Services' },
+  { id: 'label-external', x: COL.external, label: 'PingOne / Authz' },
+];
 
-// ── Sub-components ────────────────────────────────────────────────────────────
+// ── Edges — id, endpoints and waypoints copied from the original <SimEdge>
+// JSX. Multi-segment edges (routed around the resource-server row, or fanned
+// out from the same node side) become one polyline each instead of two or
+// three separate <line> elements sharing a state.
+const EDGES = [
+  { id: 'e-browser-bff', source: 'n-browser', target: 'n-bff',
+    points: [[COL.browser + NW, cy(ROW.top)], [COL.bff, cy(ROW.top)]] },
+  { id: 'e-bff-mcpgw', source: 'n-bff', target: 'n-mcp-gw',
+    points: [[COL.bff + NW, cy(ROW.top)], [COL.mcpGw, cy(ROW.top)]] },
+  { id: 'e-mcpgw-mcpserver', source: 'n-mcp-gw', target: 'n-mcp-server',
+    points: [[COL.mcpGw + NW, cy(ROW.top)], [COL.services, cy(ROW.top)]] },
+  { id: 'e-mcpgw-mortgage', source: 'n-mcp-gw', target: 'n-mortgage',
+    points: [[cx(COL.mcpGw), ROW.top + NH], [cx(COL.mcpGw), cy(ROW.mid + NH + 10)], [COL.services, cy(ROW.mid + NH + 10)]] },
+  { id: 'e-mcpgw-resourceserver', source: 'n-mcp-gw', target: 'n-resource-server',
+    points: [[COL.mcpGw + NW, cy(ROW.lower)], [COL.services, cy(ROW.lower)]] },
+  { id: 'e-bff-pingone', source: 'n-bff', target: 'n-pingone',
+    points: [[cx(COL.bff), ROW.top + NH], [cx(COL.bff), cy(ROW.mid)], [COL.external, cy(ROW.mid)]] },
+  { id: 'e-mcpgw-pingone', source: 'n-mcp-gw', target: 'n-pingone',
+    points: [[cx(COL.mcpGw), ROW.top + NH], [cx(COL.mcpGw), cy(ROW.mid) + 15], [COL.external, cy(ROW.mid) + 15]] },
+  { id: 'e-bff-pingauth', source: 'n-bff', target: 'n-pingauthorize',
+    points: [[cx(COL.bff), ROW.top + NH], [cx(COL.bff), ABOVE_RS], [cx(COL.external), ABOVE_RS], [cx(COL.external), ROW.lower]] },
+  { id: 'e-bff-hitl', source: 'n-bff', target: 'n-hitl',
+    points: [[cx(COL.bff), ROW.top + NH], [cx(COL.bff), cy(ROW.bot)], [COL.services, cy(ROW.bot)]] },
+  // Offset +12/+24 from the gateway's own center so this fans out visually
+  // distinct from e-mcpgw-pingone / e-mcpgw-mortgage, which share its top edge.
+  { id: 'e-mcpgw-pingauth', source: 'n-mcp-gw', target: 'n-pingauthorize',
+    points: [[cx(COL.mcpGw) + 12, ROW.top + NH], [cx(COL.mcpGw) + 12, ABOVE_RS], [cx(COL.external), ABOVE_RS], [cx(COL.external), ROW.lower]] },
+  { id: 'e-mcpgw-hitl', source: 'n-mcp-gw', target: 'n-hitl',
+    points: [[cx(COL.mcpGw) + 24, ROW.top + NH], [cx(COL.mcpGw) + 24, cy(ROW.bot)], [COL.services, cy(ROW.bot)]] },
+];
 
-function SimNode({ id, x, y, label, sub, state = 'idle', tooltip }) {
-  const s = STATE_STYLES[state] ?? STATE_STYLES.idle;
-  const isActive  = state === 'active';
-  const isDone    = state === 'done';
-  const isBlocked = state === 'blocked';
+// React Flow needs a parent-before-children node order and a position per
+// node; these are absolute (non-draggable) so the id list order doesn't
+// matter here the way it does for sub-flows.
+const FLOW_NODES = [
+  ...COL_LABELS.map((c) => ({
+    id: c.id, type: 'colLabel', position: { x: c.x, y: COL_LABEL_Y }, width: NW, height: 16,
+    data: { label: c.label },
+  })),
+  ...NODES.map((n) => ({
+    id: n.id, type: 'sim', position: { x: n.x, y: n.y }, width: NW, height: NH,
+    data: { label: n.label, sub: n.sub, tooltip: n.tooltip },
+  })),
+];
 
+// Edges below draw their own explicit polyline (see SimEdge) rather than
+// connecting to a handle's position, so a single hidden source/target pair
+// is enough — React Flow just needs one to exist to accept the edge at all.
+function SimNode({ data }) {
   return (
-    <g id={id} style={{ filter: isActive || isBlocked ? s.shadow : 'none' }}>
-      {tooltip && <title>{tooltip}</title>}
-      <rect
-        x={x} y={y} width={NW} height={NH} rx={NR} ry={NR}
-        fill={s.fill} stroke={s.stroke} strokeWidth={isActive || isDone || isBlocked ? 2 : 1.5}
-      >
-        {isActive && (
-          <animate
-            attributeName="stroke-opacity"
-            values="1;0.4;1" dur="1s"
-            repeatCount="indefinite"
-          />
-        )}
-      </rect>
-      <text x={cx(x)} y={y + (sub ? 20 : 28)} textAnchor="middle"
-            fontSize={13} fontWeight={700} fill={s.textFill} fontFamily="system-ui,sans-serif">
-        {label}
-      </text>
-      {sub && (
-        <text x={cx(x)} y={y + 37} textAnchor="middle"
-              fontSize={10} fill={s.textFill} fontFamily="system-ui,sans-serif" opacity={0.8}>
-          {sub}
-        </text>
-      )}
-      {isDone    && <text x={x + NW - 4} y={y - 2} fontSize={13} textAnchor="end">&#x2705;</text>}
-      {isBlocked && <text x={x + NW - 4} y={y - 2} fontSize={13} textAnchor="end">&#x274C;</text>}
-    </g>
+    <div className="asim-node" data-state={data.state} title={data.tooltip}>
+      <Handle type="target" position={Position.Top} isConnectable={false} />
+      <span className="asim-node-label">{data.label}</span>
+      {data.sub && <span className="asim-node-sub">{data.sub}</span>}
+      {data.state === 'done' && <span className="asim-node-badge">✅</span>}
+      {data.state === 'blocked' && <span className="asim-node-badge">❌</span>}
+      <Handle type="source" position={Position.Bottom} isConnectable={false} />
+    </div>
   );
 }
 
-function SimEdge({ id, x1, y1, x2, y2, state = 'idle', markerId }) {
-  const color = EDGE_COLORS[state] ?? EDGE_COLORS.idle;
-  const isActive = state === 'active';
-
-  const dx = x2 - x1, dy = y2 - y1;
-  const len = Math.sqrt(dx * dx + dy * dy);
-
+// One polyline per logical edge, replacing 1-3 <SimEdge> lines that used to
+// share a state. React Flow's own source/target only drive its internal
+// bookkeeping here — the drawn path is the exact waypoint list above, so the
+// routing around the resource-server row survives unchanged.
+function SimEdge({ data }) {
+  const d = `M${data.points.map(([x, y]) => `${x},${y}`).join(' L')}`;
   return (
-    <line
-      id={id}
-      x1={x1} y1={y1} x2={x2} y2={y2}
-      stroke={color} strokeWidth={isActive ? 2.5 : 1.5}
-      markerEnd={`url(#${markerId})`}
-      strokeDasharray={isActive ? len : undefined}
-      strokeDashoffset={isActive ? len : undefined}
-    >
-      {isActive && (
-        <animate
-          attributeName="stroke-dashoffset"
-          from={len} to={0}
-          dur="0.7s"
-          fill="freeze"
-          key={`${id}-sweep`}
-        />
-      )}
-    </line>
+    <path d={d} className="asim-edge" data-state={data.state} markerEnd={`url(#asim-arrow-${data.state})`}>
+      <title>{data.id}</title>
+    </path>
   );
 }
 
-// ── Main component ────────────────────────────────────────────────────────────
+function ColLabel({ data }) {
+  return <div className="asim-col-label">{data.label}</div>;
+}
+
+const NODE_TYPES = { sim: SimNode, colLabel: ColLabel };
+const EDGE_TYPES = { sim: SimEdge };
+
+function ArrowDefs() {
+  // React Flow renders edges inside its own <svg>; a <defs> sibling among the
+  // edge paths is enough for markerEnd url(#…) references to resolve.
+  return (
+    <svg width="0" height="0" style={{ position: 'absolute' }}>
+      <defs>
+        {['idle', 'active', 'done', 'blocked'].map((state) => (
+          <marker key={state} id={`asim-arrow-${state}`} markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" className="asim-arrowhead" data-state={state} />
+          </marker>
+        ))}
+      </defs>
+    </svg>
+  );
+}
 
 function ArchitectureSimSvg({ nodeStates = {}, edgeStates = {} }) {
-  function ns(id) { return nodeStates[id] ?? 'idle'; }
-  function es(id) { return edgeStates[id] ?? 'idle'; }
-
-  function arrowId(state) {
-    if (state === 'active')  return 'arr-active';
-    if (state === 'done')    return 'arr-done';
-    if (state === 'blocked') return 'arr-blocked';
-    return 'arr-idle';
-  }
+  const flowNodes = useMemo(
+    () => FLOW_NODES.map((n) => ({ ...n, data: { ...n.data, state: nodeStates[n.id] ?? 'idle' } })),
+    [nodeStates],
+  );
+  const flowEdges = useMemo(
+    () => EDGES.map((e) => ({ ...e, type: 'sim', data: { ...e, state: edgeStates[e.id] ?? 'idle' } })),
+    [edgeStates],
+  );
 
   return (
-    <svg
-      viewBox="0 0 1100 520"
-      width="100%"
-      style={{ display: 'block', minWidth: 700 }}
-      aria-label="Banking demo architecture diagram"
-    >
-      <defs>
-        <marker id="arr-idle"    markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-          <path d="M0,0 L0,6 L8,3 z" fill={EDGE_COLORS.idle}/>
-        </marker>
-        <marker id="arr-active"  markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-          <path d="M0,0 L0,6 L8,3 z" fill={EDGE_COLORS.active}/>
-        </marker>
-        <marker id="arr-done"    markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-          <path d="M0,0 L0,6 L8,3 z" fill={EDGE_COLORS.done}/>
-        </marker>
-        <marker id="arr-blocked" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-          <path d="M0,0 L0,6 L8,3 z" fill={EDGE_COLORS.blocked}/>
-        </marker>
-      </defs>
-
-      {/* ── Background labels ───────────────────────────────────────── */}
-      <text x={cx(COL.browser)} y={ROW.top - 10} textAnchor="middle"
-            fontSize={10} fill="#94a3b8" fontFamily="system-ui,sans-serif">Client</text>
-      <text x={cx(COL.bff)} y={ROW.top - 10} textAnchor="middle"
-            fontSize={10} fill="#94a3b8" fontFamily="system-ui,sans-serif">BFF</text>
-      <text x={cx(COL.mcpGw)} y={ROW.top - 10} textAnchor="middle"
-            fontSize={10} fill="#94a3b8" fontFamily="system-ui,sans-serif">MCP Layer</text>
-      <text x={cx(COL.services)} y={ROW.top - 10} textAnchor="middle"
-            fontSize={10} fill="#94a3b8" fontFamily="system-ui,sans-serif">Services</text>
-      <text x={cx(COL.external)} y={ROW.top - 10} textAnchor="middle"
-            fontSize={10} fill="#94a3b8" fontFamily="system-ui,sans-serif">PingOne / Authz</text>
-
-      {/* ── Edges (drawn behind nodes) ─────────────────────────────── */}
-
-      {/* browser ↔ bff */}
-      <SimEdge id="e-browser-bff"
-        x1={COL.browser + NW} y1={cy(ROW.top)}
-        x2={COL.bff}          y2={cy(ROW.top)}
-        state={es('e-browser-bff')} markerId={arrowId(es('e-browser-bff'))} />
-
-      {/* bff → mcp-gw */}
-      <SimEdge id="e-bff-mcpgw"
-        x1={COL.bff + NW}  y1={cy(ROW.top)}
-        x2={COL.mcpGw}     y2={cy(ROW.top)}
-        state={es('e-bff-mcpgw')} markerId={arrowId(es('e-bff-mcpgw'))} />
-
-      {/* mcp-gw → mcp-server */}
-      <SimEdge id="e-mcpgw-mcpserver"
-        x1={COL.mcpGw + NW}   y1={cy(ROW.top)}
-        x2={COL.services}      y2={cy(ROW.top)}
-        state={es('e-mcpgw-mcpserver')} markerId={arrowId(es('e-mcpgw-mcpserver'))} />
-
-      {/* mcp-gw → mortgage */}
-      <SimEdge id="e-mcpgw-mortgage"
-        x1={cx(COL.mcpGw)}  y1={ROW.top + NH}
-        x2={cx(COL.mcpGw)}  y2={ROW.mid + NH + 10}
-        state={es('e-mcpgw-mortgage')} markerId="arr-idle" />
-      <SimEdge id="e-mcpgw-mortgage-h"
-        x1={cx(COL.mcpGw)}  y1={cy(ROW.mid + NH + 10)}
-        x2={COL.services}   y2={cy(ROW.mid + NH + 10)}
-        state={es('e-mcpgw-mortgage')} markerId={arrowId(es('e-mcpgw-mortgage'))} />
-
-      {/* mcp-gw → resource-server */}
-      <SimEdge id="e-mcpgw-resourceserver"
-        x1={COL.mcpGw + NW}   y1={cy(ROW.lower)}
-        x2={COL.services}      y2={cy(ROW.lower)}
-        state={es('e-mcpgw-resourceserver')} markerId={arrowId(es('e-mcpgw-resourceserver'))} />
-
-      {/* bff → pingone */}
-      <SimEdge id="e-bff-pingone"
-        x1={cx(COL.bff)}   y1={ROW.top + NH}
-        x2={cx(COL.bff)}   y2={ROW.mid}
-        state={es('e-bff-pingone')} markerId="arr-idle" />
-      <SimEdge id="e-bff-pingone-h"
-        x1={cx(COL.bff)}     y1={cy(ROW.mid)}
-        x2={COL.external}    y2={cy(ROW.mid)}
-        state={es('e-bff-pingone')} markerId={arrowId(es('e-bff-pingone'))} />
-
-      {/* mcp-gw → pingone */}
-      <SimEdge id="e-mcpgw-pingone"
-        x1={cx(COL.mcpGw)}  y1={ROW.top + NH}
-        x2={cx(COL.mcpGw)}  y2={ROW.mid + 15}
-        state={es('e-mcpgw-pingone')} markerId="arr-idle" />
-      <SimEdge id="e-mcpgw-pingone-h"
-        x1={cx(COL.mcpGw)}   y1={cy(ROW.mid) + 15}
-        x2={COL.external}    y2={cy(ROW.mid) + 15}
-        state={es('e-mcpgw-pingone')} markerId={arrowId(es('e-mcpgw-pingone'))} />
-
-      {/* bff → pingauthorize (3 segments — routes above resource-server row at ABOVE_RS) */}
-      <SimEdge id="e-bff-pingauth"
-        x1={cx(COL.bff)}  y1={ROW.top + NH}
-        x2={cx(COL.bff)}  y2={ABOVE_RS}
-        state={es('e-bff-pingauth')} markerId="arr-idle" />
-      <SimEdge id="e-bff-pingauth-h"
-        x1={cx(COL.bff)}      y1={ABOVE_RS}
-        x2={cx(COL.external)} y2={ABOVE_RS}
-        state={es('e-bff-pingauth')} markerId="arr-idle" />
-      <SimEdge id="e-bff-pingauth-v2"
-        x1={cx(COL.external)}  y1={ABOVE_RS}
-        x2={cx(COL.external)}  y2={ROW.lower}
-        state={es('e-bff-pingauth')} markerId={arrowId(es('e-bff-pingauth'))} />
-
-      {/* bff → hitl */}
-      <SimEdge id="e-bff-hitl"
-        x1={cx(COL.bff)}  y1={ROW.top + NH}
-        x2={cx(COL.bff)}  y2={ROW.bot}
-        state={es('e-bff-hitl')} markerId="arr-idle" />
-      <SimEdge id="e-bff-hitl-h"
-        x1={cx(COL.bff)}    y1={cy(ROW.bot)}
-        x2={COL.services}   y2={cy(ROW.bot)}
-        state={es('e-bff-hitl')} markerId={arrowId(es('e-bff-hitl'))} />
-
-      {/* mcp-gw → pingauthorize (3 segments — routes above resource-server row at ABOVE_RS)
-          The Ping Agent Gateway calls the PingOne Authorization Server for every tool/call:
-          first RFC 7662 introspect, then policy decision (PERMIT/DENY/INDETERMINATE).
-          The edge is deliberately routed above the resource-server row so it is
-          visually clear the connection is Gateway → PingOne Authorization Server, not via the Resource Server. */}
-      <SimEdge id="e-mcpgw-pingauth"
-        x1={cx(COL.mcpGw)+12}  y1={ROW.top + NH}
-        x2={cx(COL.mcpGw)+12}  y2={ABOVE_RS}
-        state={es('e-mcpgw-pingauth')} markerId="arr-idle" />
-      <SimEdge id="e-mcpgw-pingauth-h"
-        x1={cx(COL.mcpGw)+12}  y1={ABOVE_RS}
-        x2={cx(COL.external)}   y2={ABOVE_RS}
-        state={es('e-mcpgw-pingauth')} markerId="arr-idle" />
-      <SimEdge id="e-mcpgw-pingauth-v2"
-        x1={cx(COL.external)}  y1={ABOVE_RS}
-        x2={cx(COL.external)}  y2={ROW.lower}
-        state={es('e-mcpgw-pingauth')} markerId={arrowId(es('e-mcpgw-pingauth'))} />
-
-      {/* mcp-gw → hitl (gateway creates HITL challenge after INDETERMINATE) */}
-      <SimEdge id="e-mcpgw-hitl"
-        x1={cx(COL.mcpGw)+24}  y1={ROW.top + NH}
-        x2={cx(COL.mcpGw)+24}  y2={cy(ROW.bot)}
-        state={es('e-mcpgw-hitl')} markerId="arr-idle" />
-      <SimEdge id="e-mcpgw-hitl-h"
-        x1={cx(COL.mcpGw)+24}  y1={cy(ROW.bot)}
-        x2={COL.services}       y2={cy(ROW.bot)}
-        state={es('e-mcpgw-hitl')} markerId={arrowId(es('e-mcpgw-hitl'))} />
-
-      {/* ── Nodes ──────────────────────────────────────────────────── */}
-      {/* Row 1: main request path */}
-      <SimNode id="n-browser"  x={COL.browser}  y={ROW.top} label="Browser"       sub="port 4000"
-        tooltip="User's browser — holds only an httpOnly session cookie; no tokens are ever stored client-side"
-        state={ns('n-browser')} />
-      <SimNode id="n-bff"      x={COL.bff}      y={ROW.top} label="BFF"           sub="demo_api_server :3001"
-        tooltip="Backend For Frontend — sole OAuth token custodian; resolves session cookie to access token; never exposes tokens to the browser"
-        state={ns('n-bff')} />
-      <SimNode id="n-mcp-gw"   x={COL.mcpGw}   y={ROW.top} label="Agent Gateway"   sub="Agent Gateway :3036"
-        tooltip="Agent Gateway — central enforcement point; default is the real product (:3036, ff_mcp_gateway_pinggateway=true); demo Node Gateway (:3005) is the opt-in demo-auth path; introspects token then consults PingOne Authorize before every tool call; validates aud (D-05 anti-bypass)"
-        state={ns('n-mcp-gw')} />
-      <SimNode id="n-mcp-server" x={COL.services} y={ROW.top} label="MCP Server"  sub=":8080"
-        tooltip="MCP Server (:8080) — executes banking tools; validates token aud and scopes per tool; checks act claim for delegated agent authority"
-        state={ns('n-mcp-server')} />
-
-      {/* Row 2: parallel services */}
-      <SimNode id="n-agent"      x={COL.mcpGw}    y={ROW.mid} label="Agent Service" sub=":3006 / :8888"
-        tooltip="Agent Service — LangChain (:8888) / OpenAI Agents (:8891) / Mastra (:8892) / Pydantic AI (:8893) / LM Studio (:3006); translates natural language to MCP tool calls"
-        state={ns('n-agent')} />
-      <SimNode id="n-mcp-resource-server" x={COL.services} y={ROW.mid} label="MCP Resource Server" sub=":8081"
-        tooltip="MCP Resource Server (:8081) — dedicated MCP resource server for investment and portfolio tools; separate instance for financial data"
-        state={ns('n-mcp-resource-server')} />
-      <SimNode id="n-mortgage"   x={COL.services} y={ROW.mid + NH + 10} label="API Resource Server" sub=":8082"
-        tooltip="API Resource Server (:8082) — REST API resource server using API key auth; reached via Ping Agent Gateway Path A (api_key disposition)"
-        state={ns('n-mortgage')} />
-      <SimNode id="n-pingone"    x={COL.external} y={ROW.mid} label="PingOne"        sub="OAuth AS"
-        tooltip="PingOne — OAuth 2.0 Authorization Server and Identity Provider; issues tokens, validates may_act for RFC 8693 token exchange, enforces PKCE"
-        state={ns('n-pingone')} />
-
-      {/* Row 3: lower services */}
-      <SimNode id="n-resource-server" x={COL.services} y={ROW.lower} label="Resource Server" sub="/api/resource-server"
-        tooltip="Resource Server (/api/resource-server) — validates access tokens independently; serves banking data; used in Path B (dual-token) and Path C (oauth_bearer) dispositions"
-        state={ns('n-resource-server')} />
-      <SimNode id="n-pingauthorize"   x={COL.external} y={ROW.lower} label="PingOne Authorization Server"    sub="cloud PDP"
-        tooltip="PingOne Authorization Server — policy decision point (PDP); returns PERMIT, DENY, or INDETERMINATE for every MCP tool call; real cloud Authorize by default (outage → fail-closed deny 503); mock at :9001 is opt-in via ff_authorize_real / AUTHORIZE_FAILOVER_MODE=fallback_simulated"
-        state={ns('n-pingauthorize')} />
-
-      {/* Row 4: HITL */}
-      <SimNode id="n-hitl" x={COL.services} y={ROW.bot} label="HITL Service" sub=":3009"
-        tooltip="HITL Service (:3009) — Human-In-The-Loop consent; creates time-limited challenges after PingOne Authorization Server INDETERMINATE signals; binds each challenge to userId + agentId + tool"
-        state={ns('n-hitl')} />
-    </svg>
+    <div className="asim-canvas" aria-label="Banking demo architecture diagram">
+      <ArrowDefs />
+      <ReactFlow
+        nodes={flowNodes}
+        edges={flowEdges}
+        nodeTypes={NODE_TYPES}
+        edgeTypes={EDGE_TYPES}
+        nodesDraggable={false}
+        nodesConnectable={false}
+        elementsSelectable={false}
+        fitView
+        fitViewOptions={{ padding: 0.08 }}
+        minZoom={0.5}
+        maxZoom={2}
+      >
+        <Controls showInteractive={false} />
+      </ReactFlow>
+    </div>
   );
 }
 
