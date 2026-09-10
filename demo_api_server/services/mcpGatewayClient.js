@@ -1144,6 +1144,21 @@ async function callToolViaResolvedGateway(gatewayUrl, bearerToken, tool, params 
     );
 }
 
+/**
+ * The Privilege AI Gateway's MCP URL, or '' when none is configured.
+ *
+ * Lifted out of getMcpGatewayHttpUrl() so the posture check (gateway.privilege_first)
+ * probes EXACTLY the URL tool calls use. A second copy of this ladder in the check
+ * would drift the moment either half changed, and a check that passes against a URL
+ * nothing routes to is worse than no check at all.
+ */
+function getPrivilegeGatewayUrl() {
+    const base = (process.env.MCP_FACADE_PRIVILEGE_GATEWAY_BASE || '').replace(/\/$/, '');
+    const privUrl = process.env.MCP_PRIVILEGE_GATEWAY_URL
+        || (base ? `${base}/agent-gateway/mcp` : '');
+    return privUrl ? privUrl.replace(/\/$/, '') : '';
+}
+
 function getMcpGatewayHttpUrl() {
     // ff_mcp_gateway_privilege_first: put the PingOne Privilege AI Gateway in
     // FRONT of whichever Agent Gateway the flags below already select. Checked
@@ -1152,10 +1167,8 @@ function getMcpGatewayHttpUrl() {
     // here. SE only: the Agentic App's backend has to reach the Agent Gateway's
     // in-cluster address (plan D3).
     if (configStore.getEffective('ff_mcp_gateway_privilege_first') === 'true') {
-        const base = (process.env.MCP_FACADE_PRIVILEGE_GATEWAY_BASE || '').replace(/\/$/, '');
-        const privUrl = process.env.MCP_PRIVILEGE_GATEWAY_URL
-            || (base ? `${base}/agent-gateway/mcp` : '');
-        if (privUrl) return privUrl.replace(/\/$/, '');
+        const privUrl = getPrivilegeGatewayUrl();
+        if (privUrl) return privUrl;
         // Falling through beats throwing: an unset URL would otherwise break
         // every tool call the moment someone flips the flag on a box that has
         // no Privilege gateway (i.e. anywhere but SE).
@@ -1229,6 +1242,9 @@ module.exports = {
     callToolViaGateway,
     callToolViaResolvedGateway,
     getMcpGatewayHttpUrl,
+    // Shared with services/checks/privilegeMcpFirstCheck.js so the posture probe
+    // and the tool-call path can never disagree about where Privilege lives.
+    getPrivilegeGatewayUrl,
     tryGetMcpGatewayHttpUrl,
     _normalizeGatewayNetworkError,
     resolveMcpGatewayTransport,
