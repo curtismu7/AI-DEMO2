@@ -2291,8 +2291,9 @@ export default function BankingAgent({
   }, []);
 
   // P1 — When the BFF returns cookieOnlyBffSession:true, poll /api/auth/session
-  // every 2s for up to 10s. Once the Upstash write has propagated (cookieOnlyBffSession
-  // becomes false) clear the banner and let normal interaction resume.
+  // every 2s for up to 10s, then every 30s until it heals. Once the Upstash write has
+  // propagated (cookieOnlyBffSession becomes false) clear the banner and let normal
+  // interaction resume.
   useEffect(() => {
     if (!cookieOnlyBffSession) {
       setSessionReconnecting(false);
@@ -2301,8 +2302,8 @@ export default function BankingAgent({
     setSessionReconnecting(true);
     let attempts = 0;
     const MAX_ATTEMPTS = 5; // 5 × 2s = 10s
-    const interval = setInterval(async () => {
-      attempts += 1;
+    let slowInterval = null;
+    const sessionHealed = async () => {
       try {
         const r = await fetch("/api/auth/session", {
           credentials: "include",
@@ -2312,20 +2313,35 @@ export default function BankingAgent({
           const data = await r.json();
           if (!data.cookieOnlyBffSession) {
             setCookieOnlyBffSession(false);
-            setSessionReconnecting(false);
-            clearInterval(interval);
-            return;
+            return true;
           }
         }
       } catch (_) {
         /* non-fatal */
       }
+      return false;
+    };
+    const interval = setInterval(async () => {
+      attempts += 1;
+      if (await sessionHealed()) {
+        setSessionReconnecting(false);
+        clearInterval(interval);
+        return;
+      }
       if (attempts >= MAX_ATTEMPTS) {
         setSessionReconnecting(false);
         clearInterval(interval);
+        // The server-side session can finish hydrating long after 10s; without a
+        // slower re-check the flag stays stale until a reload.
+        slowInterval = setInterval(async () => {
+          if (await sessionHealed()) clearInterval(slowInterval);
+        }, 30000);
       }
     }, 2000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      clearInterval(slowInterval);
+    };
   }, [cookieOnlyBffSession]);
 
   /** RFC 6749 refresh — does not log out; retries server-side session tokens. */
