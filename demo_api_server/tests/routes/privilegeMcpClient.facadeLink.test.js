@@ -79,16 +79,31 @@ function startLink(app, query) {
 
 const origFetch = global.fetch;
 const origGatewayUrl = process.env.PRIVILEGE_MCPGW_URL;
+const origGatewayBase = process.env.MCP_FACADE_PRIVILEGE_GATEWAY_BASE;
 
 beforeEach(() => {
   process.env.PRIVILEGE_MCPGW_URL = `${GATEWAY}/opensearch22/mcp`;
+  process.env.MCP_FACADE_PRIVILEGE_GATEWAY_BASE = GATEWAY;
   global.fetch = gatewayFetch();
 });
 afterEach(() => {
   global.fetch = origFetch;
   if (origGatewayUrl === undefined) delete process.env.PRIVILEGE_MCPGW_URL;
   else process.env.PRIVILEGE_MCPGW_URL = origGatewayUrl;
+  if (origGatewayBase === undefined) delete process.env.MCP_FACADE_PRIVILEGE_GATEWAY_BASE;
+  else process.env.MCP_FACADE_PRIVILEGE_GATEWAY_BASE = origGatewayBase;
   jest.restoreAllMocks();
+});
+
+describe('gatewayAppFromUrl', () => {
+  test('reads the app segment, not the first path segment', () => {
+    jest.resetModules();
+    const { gatewayAppFromUrl } = require('../../routes/privilegeMcpClient').__test;
+    expect(gatewayAppFromUrl('https://gw/opensearch22/mcp')).toBe('opensearch22');
+    expect(gatewayAppFromUrl('https://gw/mcp')).toBeNull();
+    expect(gatewayAppFromUrl('https://gw/mcpgw/opensearch22/mcp')).toBe('opensearch22');
+    expect(gatewayAppFromUrl('not a url')).toBeNull();
+  });
 });
 
 describe('GET /api/privilege-mcp/facade-link', () => {
@@ -112,8 +127,31 @@ describe('GET /api/privilege-mcp/facade-link', () => {
     expect(res.headers.location).toBeUndefined();
   });
 
+  test('a repeated app parameter is a 400, not the default app', async () => {
+    const res = await request(buildApp({}))
+      .get(`/api/privilege-mcp/facade-link?app=a&app=b&resume=${encodeURIComponent(RESUME)}`);
+    expect(res.status).toBe(400);
+    expect(res.headers.location).toBeUndefined();
+  });
+
+  test('a gateway that cannot be discovered goes back to the broker as link=error', async () => {
+    process.env.MCP_FACADE_PRIVILEGE_GATEWAY_BASE = 'not a url';
+    const res = await startLink(buildApp({}), { app: 'opensearch', resume: RESUME });
+
+    expect(res.status).toBe(302);
+    const location = new URL(res.headers.location);
+    expect(location.origin + location.pathname).toBe('http://localhost:3005/oauth/resume');
+    expect(location.searchParams.get('link')).toBe('error');
+    expect(location.searchParams.get('reason')).toBeTruthy();
+    expect(mockRemember).not.toHaveBeenCalled();
+  });
+
   test('sends the browser to the gateway sign-in for that app, in its own session slot', async () => {
-    const session = {};
+    // Main-app OAuth tokens on the session are what make beginOAuthFlow set
+    // prompt=none in the first place — an empty session never would, so the
+    // prompt assertion below would pass either way. Seed one so removing it
+    // actually proves something.
+    const session = { oauthTokens: { accessToken: 'main-app-token' } };
     const res = await startLink(buildApp(session), { app: 'opensearch', resume: RESUME });
 
     expect(res.status).toBe(302);
@@ -124,6 +162,22 @@ describe('GET /api/privilege-mcp/facade-link', () => {
     expect(location.searchParams.get('prompt')).toBeNull();
     expect(session.privilegeFacadeLink).toMatchObject({ app: 'opensearch', resume: RESUME, tokenUri: TOKEN_URI });
     expect(session.privilegeFacadeLink.oauthState).toBe(location.searchParams.get('state'));
+  });
+
+  test('signs in to the gateway the façade calls, not PRIVILEGE_MCPGW_URL', async () => {
+    process.env.PRIVILEGE_MCPGW_URL = 'https://other-gateway.example.com/opensearch22/mcp';
+    const res = await startLink(buildApp({}), { app: 'opensearch', resume: RESUME });
+
+    expect(res.status).toBe(302);
+    const location = new URL(res.headers.location);
+    expect(location.origin + location.pathname).toBe(AUTH_URI);
+    // The discovery mock answers from the app/leaf path alone, regardless of
+    // host, so the location assertion above can't tell a wrong-gateway
+    // discovery fetch from a right one — assert directly on which origin was
+    // actually dialed for discovery.
+    const discoveryUrl = String(global.fetch.mock.calls[0][0]);
+    expect(discoveryUrl.startsWith(GATEWAY)).toBe(true);
+    expect(discoveryUrl.startsWith('https://other-gateway.example.com')).toBe(false);
   });
 
   test('no app means the default app, as the façade reads its bare door', async () => {
@@ -203,6 +257,14 @@ describe('GET /api/privilege-mcp/facade-link/callback', () => {
     const back = new URL((await callback(app, { error: 'access_denied', error_description: 'policy', state })).headers.location);
     expect(back.searchParams.get('link')).toBe('error');
     expect(back.searchParams.get('reason')).toBe('access_denied: policy');
+  });
+
+  test('an issuer mismatch goes back to the broker as link=error and stores nothing', async () => {
+    const { app, state } = await linked();
+    const back = new URL((await callback(app, { code: 'gw-code', state, iss: 'https://evil.example.com' })).headers.location);
+    expect(back.searchParams.get('link')).toBe('error');
+    expect(back.searchParams.get('reason')).toMatch(/issuer/i);
+    expect(mockRemember).not.toHaveBeenCalled();
   });
 
   test('a failed token exchange goes back to the broker as link=error', async () => {

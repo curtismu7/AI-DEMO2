@@ -145,6 +145,7 @@ describe('mcp-facade privilege-gateway door', () => {
     // re-authentication is exactly what restores this leg.
     expect(res.status).toBe(401);
     expect(res.body.error.data.reason).toBe('gateway_session_unavailable');
+    expect(res.body.error.data.remedy).toMatch(/privilege-mcp-client/);
     expect(res.headers['www-authenticate']).toContain('/mcp-facade/privilege-gateway/opensearch/.well-known/oauth-protected-resource');
     expect(seenAuth).toBeUndefined();
   });

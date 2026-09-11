@@ -5,6 +5,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const privilegeGatewaySession = require('../services/privilegeGatewaySession');
+const { privilegeGatewayBase } = require('../services/privilegeGatewayBase');
 const privilegeDoorStore = require('../services/lmdb/privilegeDoorStore.lmdb');
 const guardrailAttemptLog = require('../services/guardrailAttemptLog');
 const { requireSession } = require('../middleware/auth');
@@ -1670,9 +1671,15 @@ async function exchangeAuthorizationCode(pending, code, fallbackClientId) {
   return tokenData;
 }
 
-// The Agentic App a gateway door URL names: https://<gateway>/<app>/mcp -> <app>.
+// The Agentic App a gateway door URL names: https://<gateway>[/<prefix>]/<app>/mcp -> <app>.
 function gatewayAppFromUrl(url) {
-  try { return new URL(url).pathname.split('/').filter(Boolean)[0] || null; } catch { return null; }
+  try {
+    const parts = new URL(url).pathname.split('/').filter(Boolean);
+    // .../<app>/mcp -> <app>; a bare /mcp names no app, so the default app applies.
+    return parts.length >= 2 ? parts[parts.length - 2] : null;
+  } catch {
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -2164,25 +2171,30 @@ function redirectToResume(res, resume, params) {
 }
 
 router.get('/facade-link', async (req, res) => {
-  // No app segment on the door means the default app, exactly as the façade reads it.
+  // Absent or empty means the default app, exactly as the façade reads its
+  // bare door. Present but not a string (?app=a&app=b becomes an array) is
+  // never the default — it is a malformed request.
+  if (req.query.app !== undefined && typeof req.query.app !== 'string') {
+    return res.status(400).json({ error: 'facade-link needs a plain app name and the broker\'s /oauth/resume URL.' });
+  }
   const app = (typeof req.query.app === 'string' && req.query.app) || privilegeGatewaySession.defaultApp();
   const resume = linkResumeUrl(req.query.resume);
   if (!LINK_APP_NAME.test(app) || !resume) {
     return res.status(400).json({ error: 'facade-link needs a plain app name and the broker\'s /oauth/resume URL.' });
   }
-  // A throwaway session: beginOAuthFlow reads config and writes pendingAuth,
-  // and this flow must touch neither on the operator's real one. `_sid: null`
-  // keeps emitEvent from broadcasting to a page that did not start it.
-  const linkSession = {
-    _sid: null,
-    config: {
-      mcpUrl: `${new URL(DEFAULT_PRIVILEGE_MCP_URL()).origin}/${app}/mcp`,
-      clientId: '',
-      scopes: 'openid profile email',
-    },
-    gatewayMode: 'privilege',
-  };
   try {
+    // A throwaway session: beginOAuthFlow reads config and writes pendingAuth,
+    // and this flow must touch neither on the operator's real one. `_sid: null`
+    // keeps emitEvent from broadcasting to a page that did not start it.
+    const linkSession = {
+      _sid: null,
+      config: {
+        mcpUrl: `${privilegeGatewayBase()}/${app}/mcp`,
+        clientId: '',
+        scopes: 'openid profile email',
+      },
+      gatewayMode: 'privilege',
+    };
     const authUrl = await beginOAuthFlow(linkSession, req, { callbackPath: FACADE_LINK_CALLBACK_PATH });
     // No prompt=none: the person at the browser is signing in right now, and a
     // login_required dead end would only surface as an error in their MCP client.
@@ -3539,6 +3551,7 @@ module.exports.__test = {
   getClientSession,
   envFallbackVars,
   listAllMcpPages,
+  gatewayAppFromUrl,
   /** @param {string} sid @param {{ write: Function }} res */
   subscribeSse(sid, res) {
     let clients = sseClients.get(sid);

@@ -38,6 +38,7 @@ const { renderReelSvg } = require('../services/reelSvg');
 const jwksService = require('../services/jwksService');
 const privilegeGatewaySession = require('../services/privilegeGatewaySession');
 const pingoneAdminSession = require('../services/pingoneAdminSession');
+const { privilegeGatewayBase } = require('../services/privilegeGatewayBase');
 const upstreamExchange = require('../services/facadeUpstreamExchange');
 
 const router = express.Router();
@@ -466,13 +467,6 @@ function facadeBase(req) {
   return `${req.protocol}://${req.get('host')}/mcp-facade/${req.params.door}${app}`;
 }
 
-// Origin of the Privilege AI Gateway, without a trailing slash so the app
-// segment can be appended cleanly.
-function privilegeGatewayBase() {
-  return String(process.env.MCP_FACADE_PRIVILEGE_GATEWAY_BASE || 'https://mcpgw.ai-demo.ping-devops.com')
-    .replace(/\/+$/, '');
-}
-
 // The gateway pins each Agentic App to ONE client-facing entry path, derived
 // from the backend URL it was registered with, and answers a bare 404 on any
 // other. The only explanation is in the gateway's own log:
@@ -829,7 +823,14 @@ router.post(['/:door/mcp', '/:door/:app/mcp'], express.json({ limit: '1mb', type
         return res.status(401).json({
           jsonrpc: '2.0',
           id: rpc.id ?? null,
-          error: { code: -32001, message: 'Unauthorized', data: { reason: 'gateway_session_unavailable' } },
+          error: {
+            code: -32001,
+            message: 'Unauthorized',
+            data: {
+              reason: 'gateway_session_unavailable',
+              remedy: 'Authenticate again in your MCP client, or sign in once at /privilege-mcp-client.',
+            },
+          },
         });
       }
       return res.status(503).json({

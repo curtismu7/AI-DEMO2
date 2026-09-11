@@ -34,11 +34,9 @@ need SE values and an SE test.
 `/api/privilege-mcp/facade-link` URL, set `MCP_FACADE_AGENT_GATEWAY_AS` to the SE
 broker's public origin, and drive one SE sign-in end to end.
 
-**Also before wiring SE.** `/facade-link` builds the gateway door from the ORIGIN of
-`PRIVILEGE_MCPGW_URL` plus `/<app>/mcp`, so a path-prefixed gateway URL such as
-`https://ai-demo.ping-devops.com/mcpgw/<app>/mcp` (documented in
-`privilege/runbooks/ping-mcpgw.md`) would lose its `/mcpgw` prefix. Derive the door
-from the configured URL's path, not just its origin, before SE uses the link.
+**Also before wiring SE.** `/facade-link` builds the gateway door from
+`MCP_FACADE_PRIVILEGE_GATEWAY_BASE` (the same base the façade door calls), so SE must set that to its
+gateway base, including any path prefix such as `https://ai-demo.ping-devops.com/mcpgw`.
 
 ### [ ] 2026-09-11 — /facade-link can trigger unbounded gateway client registrations
 
@@ -48,6 +46,11 @@ gets its own client. The redirect URI's host comes from `x-forwarded-host` on an
 unauthenticated GET (`/api/privilege-mcp/facade-link`, and `/auth/start` before it),
 so every distinct forged host times app name costs one `/register` call on the
 gateway and one `dcrClientCache` entry that is never evicted.
+
+The same header also sets the gateway `redirect_uri`, i.e. where the authorization code is delivered:
+someone who can set it on their own request can register their host, send a victim the authorize
+URL, and redeem the code through their own `/facade-link/callback`, landing the victim's gateway
+identity in the shared per-app session. `/auth/start` had the same property before this change.
 
 **Why it wasn't fixed now.** Found in review of the link change. The same surface
 already existed through `POST /config` + `/auth/start`, and the demo runs on a
