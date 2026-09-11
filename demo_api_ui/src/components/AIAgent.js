@@ -6424,6 +6424,10 @@ export default function BankingAgent({
         return;
       }
 
+      // The answer is a new turn: give it its own prompt + pending reply in the
+      // flow panel (dispatchNlResult settles it), or the panel stays on the
+      // prompt that asked the question.
+      prepNlCompliance(text);
       // Build a synthetic NL result that mirrors what the server would
       // have produced, and dispatch through the same path. source='clarify'
       // so the token-chain panel can label it correctly.
@@ -6779,7 +6783,21 @@ export default function BankingAgent({
     }
   }
 
-  async function dispatchNlResult(
+  // Every heuristics / clarify / synthetic NL answer lands here. Settle the flow
+  // panel's "Agent → You" step when it is shown (or throws) — only the AG-UI
+  // path (useAgentRun) settled it before, so these left it pending forever.
+  async function dispatchNlResult(...args) {
+    try {
+      const out = await dispatchNlResultInner(...args);
+      try { agentFlowDiagram.completeReply(true); } catch (_) { /* display-only */ }
+      return out;
+    } catch (err) {
+      try { agentFlowDiagram.completeReply(false); } catch (_) { /* display-only */ }
+      throw err;
+    }
+  }
+
+  async function dispatchNlResultInner(
     result,
     _source = "heuristic",
     nlUserText = "",
@@ -7643,6 +7661,9 @@ export default function BankingAgent({
 
   /** NL API errors: 401 is session missing on server — not a parse failure. */
   function reportNlFailure(err, retry, originalText) {
+    // The run ended without an answer — settle the flow panel's pending
+    // "Agent → You" step (a no-op if the reply was already settled).
+    try { agentFlowDiagram.completeReply(false); } catch (_) { /* display-only */ }
     // AbortSignal.timeout() rejects with a TimeoutError (message "signal timed
     // out") — distinct from a user/cancel AbortError, so isAbortError() does NOT
     // swallow it and we land here. A slow local model (e.g. an Ollama reasoning
@@ -8154,6 +8175,10 @@ export default function BankingAgent({
         return;
       }
 
+      // The answer is a new turn: give it its own prompt + pending reply in the
+      // flow panel (dispatchNlResult settles it), or the panel stays on the
+      // prompt that asked the question.
+      prepNlCompliance(text);
       const syntheticResult = buildClarificationResult(pc, merged);
       try {
         await dispatchNlResult(syntheticResult, "clarify", text);
