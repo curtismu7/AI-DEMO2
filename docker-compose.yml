@@ -274,6 +274,11 @@ services:
       # fetches use the service name. The authorize URL handed to the browser
       # deliberately keeps the advertised localhost form.
       MCP_FACADE_AGENT_GATEWAY_AS_INTERNAL: "http://mcp-gateway:3005"
+      # With mcp-gateway's BFF_PRIVILEGE_LINK_URL set, a missing Privilege AI
+      # Gateway session on the façade's privilege-gateway door answers 401, so
+      # MCP clients re-authenticate and the broker-chained sign-in restores it.
+      # Unset = the old 503 + "sign in at /privilege-mcp-client" remedy.
+      MCP_FACADE_PRIVILEGE_LINK: "true"
       # The opensearch door's code default is the SE cluster's in-cluster DNS
       # name, which is EAI_AGAIN from a local BFF container — the Direct door
       # answered a bare 502 "upstream_unavailable" on every request. Locally the
@@ -1101,6 +1106,13 @@ services:
       # radio on /privilege-mcp-client applies without recreating this container.
       # Unreachable → the broker falls back to `login` (never to silent reuse).
       BFF_BROKER_PROMPT_URL: "https://demo-api-server:3001/mcp-facade/broker-prompt"
+      # Privilege-door gateway link: after its own PingOne hop, the broker sends
+      # the browser here so the BFF signs it in to the Privilege AI Gateway for
+      # the requested app, then back to /oauth/resume. Browser-facing on purpose
+      # (it is a redirect, and the BFF session cookie lives on this host).
+      # Unset = no chaining. See
+      # docs/superpowers/specs/2026-09-11-lmstudio-privilege-gateway-link-design.md.
+      BFF_PRIVILEGE_LINK_URL: "https://local.ping-devops.com:4000/api/privilege-mcp/facade-link"
       # mkcert CA so the emitter's HTTPS POST to the BFF can verify its leaf cert.
       # Without it every hop fails UNABLE_TO_VERIFY_LEAF_SIGNATURE and is silently
       # swallowed by the fire-and-forget .catch() -- an invisible, empty chain.

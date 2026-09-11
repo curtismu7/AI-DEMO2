@@ -11,8 +11,8 @@ cp lmstudio/mcp.json ~/.lmstudio/mcp.json   # then restart LM Studio
 |---|---|---|
 | `MCP Direct-Banking` | our banking MCP server (`oauth-mcp`) on the SE cluster | LM Studio's native OAuth (RFC 9728 → DCR → PKCE) |
 | `MCP Agentless-Banking` | **DARK since 2026-09-01 — expect it to fail, nothing is wrong.** Was the Privilege **agentless** gateway, `external` app (banking tools; see `privilege/AGENTLESS-CONFIGURATION.md`), through the **SE-hosted** recording façade. Its gateway was torn down when the estate moved to the one AI Gateway at `mcpgw.ai-demo.ping-devops.com`, and `cmuir-agentless-mcpgw.ping-devops.com` is now NXDOMAIN, so the door answers `502 {"error":"upstream_unavailable"}`. Relighting it needs a **banking** MCP server registered on the new gateway as its own Agentic App — only `opensearch22` exists today, and pointing a banking door at an OpenSearch app would silently serve the wrong tools. Once that app exists, set `MCP_FACADE_AGENTLESS_URL` (and `MCP_FACADE_AGENTLESS_AS`); see `demo_api_server/routes/mcpFacade.js` | n/a while dark |
-| `MCP Privilege-OpenSearch` | OpenSearch MCP **through the Privilege AI Gateway** (`agentless-mcpgw`, app `opensearch22`), through the **local** recording façade. Replaced `MCP Agent-OpenSearch` on 2026-09-05: agent mode's mesh frontend still resolves but nothing serves it, so that door hung and was deleted | the façade holds the gateway leg — sign in once at `/privilege-mcp-client` after a gateway restart |
-| `MCP Direct-OpenSearch` | the same OpenSearch MCP server (`cm-mcpgw` in K8s), **bypassing Privilege** | none — needs a port-forward first (below) |
+| `MCP Privilege-OpenSearch` | OpenSearch MCP **through the Privilege AI Gateway** (`agentless-mcpgw`, app `opensearch22`), through the **local** recording façade. Replaced `MCP Agent-OpenSearch` on 2026-09-05: agent mode's mesh frontend still resolves but nothing serves it, so that door hung and was deleted | the façade holds the gateway leg, and LM Studio's own **Authenticate** signs it in (a browser tab passes through). Expect it about hourly: the gateway issues no refresh token |
+| `MCP Direct-OpenSearch` | the same OpenSearch MCP server (`opensearch-mcp-server` in K8s), **bypassing Privilege** | none — needs a port-forward first (below) |
 | `MCP AgentGateway-Banking` | this repo's Agent Gateway (`demo_mcp_gateway`, deployed to the SE cluster), through the **SE-hosted** recording façade | native OAuth via the gateway's broker (PR #2353, real Let's Encrypt cert) → PingOne login |
 | `MCP Privilege-Grafana` | Grafana's read API **through the Privilege AI Gateway** (`agentless-mcpgw`, catalog app `mcp-grafana`), served by the `demo_mcp_grafana` sidecar in the gateway pod on port 8081. Direct to the gateway, not through the façade, so there is no movie reel for it | native OAuth (RFC 9728 → DCR → PKCE) against Privilege's AS, then PingOne login |
 | `MCP PingOne-Admin` | the hosted PingOne MCP server (Management API surface, not banking), through the **local** recording façade's `pingone-admin` door | broker OAuth (RFC 9728 → DCR → PKCE) against the demo's own AS. What reaches PingOne is a **delegated** PKCE token, never a worker one: the caller's own `x-pingone-admin-token` when it sends one, otherwise the shared operator session, which is off unless `MCP_FACADE_PINGONE_ADMIN_SHARED_SESSION=true` (see `demo_api_server/services/pingoneAdminSession.js`) |
@@ -90,7 +90,7 @@ workaround — `ai-demo.ping-devops.com` carries a real Let's Encrypt cert.
 `MCP Direct-OpenSearch` is ClusterIP-only in K8s, so open the tunnel before toggling it on:
 
 ```bash
-kubectl --context us -n ping-devops-curtismuir port-forward svc/cm-mcpgw-opensearch-mcp-server 9900:80
+kubectl --context us -n ping-devops-curtismuir port-forward svc/opensearch-mcp-server 9900:80
 ```
 
 (The local `mcpgw` compose profile publishes the same server on `:9900`, so the entry works there too.)

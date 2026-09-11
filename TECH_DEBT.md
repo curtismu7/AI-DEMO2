@@ -16,6 +16,46 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-09-11 — The Privilege gateway link is wired for the local Docker stack only
+
+**What's wrong.** The MCP-client-driven Privilege gateway sign-in
+(`/api/privilege-mcp/facade-link`, broker `/oauth/resume`) is switched on by two
+env vars set only in `docker-compose.yml`: `BFF_PRIVILEGE_LINK_URL` (mcp-gateway)
+and `MCP_FACADE_PRIVILEGE_LINK` (demo-api-server). The SE k8s deployment sets
+neither, so its privilege-gateway door keeps the old 503 + "sign in at
+/privilege-mcp-client" behaviour.
+
+**Why it wasn't fixed now.** Scoped to the local stack LM Studio uses; the SE
+façade is reached on a different host and its broker/BFF public URLs differ,
+so the link URL and the resume-origin check (`MCP_FACADE_AGENT_GATEWAY_AS`)
+need SE values and an SE test.
+
+**Real fix.** Set both vars in the SE Helm values with the SE BFF's public
+`/api/privilege-mcp/facade-link` URL, set `MCP_FACADE_AGENT_GATEWAY_AS` to the SE
+broker's public origin, and drive one SE sign-in end to end.
+
+**Also before wiring SE.** `/facade-link` builds the gateway door from the ORIGIN of
+`PRIVILEGE_MCPGW_URL` plus `/<app>/mcp`, so a path-prefixed gateway URL such as
+`https://ai-demo.ping-devops.com/mcpgw/<app>/mcp` (documented in
+`privilege/runbooks/ping-mcpgw.md`) would lose its `/mcpgw` prefix. Derive the door
+from the configured URL's path, not just its origin, before SE uses the link.
+
+### [ ] 2026-09-11 — /facade-link can trigger unbounded gateway client registrations
+
+**What's wrong.** `getOrRegisterDcrClient` (`demo_api_server/routes/privilegeMcpClient.js`)
+caches a gateway DCR client per register URL AND redirect URI, so the link callback
+gets its own client. The redirect URI's host comes from `x-forwarded-host` on an
+unauthenticated GET (`/api/privilege-mcp/facade-link`, and `/auth/start` before it),
+so every distinct forged host times app name costs one `/register` call on the
+gateway and one `dcrClientCache` entry that is never evicted.
+
+**Why it wasn't fixed now.** Found in review of the link change. The same surface
+already existed through `POST /config` + `/auth/start`, and the demo runs on a
+trusted local stack.
+
+**Real fix.** Build the callback host from configuration (`PRIVILEGE_MCP_CALLBACK_HOST`
+or the public app origin) instead of the request header, or bound the cache.
+
 ### [x] 2026-09-11 — HistoryModal.js is unthemed (23 inline style blocks)
 
 **What's wrong.** `demo_api_ui/src/components/HistoryModal.js` (shared by
