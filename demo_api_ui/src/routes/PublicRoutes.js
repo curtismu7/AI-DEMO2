@@ -202,8 +202,8 @@ export function PrivilegeMcpLearningPageRoute({ user, logout }) {
 }
 
 export function AgentGatewayCapabilitiesPageRoute({ user, logout }) {
-  // AgentGatewayCapabilitiesPage renders AgentGatewayInspectorClean, which calls
-  // useInspectorFields() and throws without this provider (same as McpGatewayConfigRoute).
+  // AgentGatewayCapabilitiesPage renders AgentGatewayInspectorClean; the provider
+  // lets its fields be suggested across inspectors (same as McpGatewayConfigRoute).
   return (
     <InspectorFieldProvider>
       <AppShell user={user} logout={logout}>
