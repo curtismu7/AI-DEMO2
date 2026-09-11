@@ -503,9 +503,11 @@ async function runMcpToolPipeline(ctx) {
     // there is no other PEP on that path, and skipping would be fail-open.
     // `_hitl_challenge_id` is likewise left in `params` here on purpose: the gateway
     // verifies and strips it, so the BFF must not consume it first.
+    // That includes A2A supplied-token calls: ctx.skipBffAuthorize only means
+    // "the gateway will decide", so without a gateway the BFF gate still runs.
     const gatewayAuthoritative = !!useGateway;
-    if (ctx.skipBffAuthorize || gatewayAuthoritative || guestPublicTool) {
-        const skipReason = ctx.skipBffAuthorize ? 'a2a_supplied_token'
+    if (gatewayAuthoritative || guestPublicTool) {
+        const skipReason = (ctx.skipBffAuthorize && gatewayAuthoritative) ? 'a2a_supplied_token'
             : (gatewayAuthoritative ? 'gateway_authoritative' : 'public_tool_no_session');
         deps.emit({ phase: 'authorize_gate_skipped', reason: skipReason });
         // Contract C4 — omission is not permission. The SSE phase alone left the
@@ -1833,11 +1835,14 @@ async function runMcpToolPipeline(ctx) {
             return { kind: 'error', httpStatus: 502, body: {
                 error: 'mcp_error',
                 message: err.message,
+                // The gateway's P1AZ decision, when it made one before failing.
+                // A2A local serve requires a PERMIT here (demoAgentLangGraphService).
+                gatewayDecision: err.gwAuditTrail?.authorize?.decision ?? null,
                 tokenEvents
             } };
         }
 
-        deps.emit({
+deps.emit({
             phase: 'mcp_remote_unreachable'
         });
         // #67 — When the call is gateway-authoritative the BFF deliberately skips

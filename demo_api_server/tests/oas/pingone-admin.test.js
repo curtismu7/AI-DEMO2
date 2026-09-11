@@ -170,11 +170,18 @@ test('call_pingone_tool falls back to labeled mock for known tool when the Manag
   expect(result.source).toBe('mock — PingOne MCP and Management API both unavailable: connect ECONNREFUSED');
 });
 
-test('call_pingone_tool returns labeled unavailable for unknown tool on transport failure', async () => {
+test('call_pingone_tool returns labeled unavailable for a tool with no mock or REST fallback on transport failure', async () => {
   adapter.callTool.mockRejectedValue(httpErr('PingOne MCP HTTP 503'));
-  const { result } = await plugin.executeTool('call_pingone_tool', { name: 'resetPassword' }, {});
+  const { result } = await plugin.executeTool('call_pingone_tool', { name: 'listDavinciFlows' }, {});
   expect(result.responseSummary).toMatch(/unavailable/i);
   expect(result.source).toBe('mock — PingOne MCP unavailable: PingOne MCP HTTP 503');
+});
+
+test('call_pingone_tool refuses a hosted tool outside the allowlist before calling PingOne', async () => {
+  adapter.callTool.mockClear();
+  const { result } = await plugin.executeTool('call_pingone_tool', { name: 'resetPassword' }, {});
+  expect(adapter.callTool).not.toHaveBeenCalled();
+  expect(result.error).toMatch(/not allowed/i);
 });
 
 test('call_pingone_tool renders a JSON-RPC (validation) error as a live response', async () => {

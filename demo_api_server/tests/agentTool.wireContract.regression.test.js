@@ -22,7 +22,7 @@ function buildApp() {
   app.use(express.json());
   app.use((req, _res, next) => {
     req.sessionStore = {
-      get: (_id, cb) => cb(null, { user: { id: 'u1' }, oauthTokens: { accessToken: 'tok' } }),
+      get: (_id, cb) => cb(null, { user: { id: 'u1' }, oauthTokens: { accessToken: 'tok' }, agentRunToolNames: ['get_my_accounts'] }),
     };
     next();
   });

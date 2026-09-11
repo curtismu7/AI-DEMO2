@@ -10,6 +10,7 @@ import json
 import os
 import time
 from typing import Optional, Union
+from urllib.parse import urlparse
 
 import httpx
 import jwt
@@ -25,6 +26,14 @@ load_dotenv()
 
 HTTP_TIMEOUT = float(os.environ.get("HTTP_TIMEOUT_SECONDS", "10"))
 MAX_JWKS_BYTES = int(os.environ.get("MAX_JWKS_RESPONSE_BYTES", "1048576"))
+
+# jwksUri / uri are chosen by the LLM, so only PingOne's own JWKS host is fetched.
+_ALLOWED_JWKS_HOST = urlparse(os.environ["PINGONE_JWKS_URI"]).hostname
+
+
+def _jwks_uri_allowed(uri: str) -> bool:
+    parsed = urlparse(uri)
+    return parsed.scheme == "https" and parsed.hostname == _ALLOWED_JWKS_HOST
 
 auth = JWTVerifier(
     jwks_uri=os.environ["PINGONE_JWKS_URI"],
@@ -97,6 +106,8 @@ def jwt_verify_signature(
     audience: Optional[str] = None,
 ) -> dict:
     """Verify a JWT signature using a JWKS endpoint. Validates signature, algorithm, issuer, and audience."""
+    if not _jwks_uri_allowed(jwksUri):
+        return {"valid": False, "error": "jwks_uri_not_allowed"}
     header, _ = _decode_unverified(token)
     try:
         signing_key = PyJWKClient(jwksUri, cache_keys=True, lifespan=30).get_signing_key_from_jwt(token)
@@ -195,6 +206,8 @@ def jwt_validate_claims(
 @mcp.tool
 def jwt_fetch_jwks(uri: str) -> dict:
     """Fetch and analyze a JWKS endpoint. Returns all keys with metadata (kty, alg, use, kid) and summary of algorithms and key usages."""
+    if not _jwks_uri_allowed(uri):
+        raise ValueError("jwks_uri_not_allowed: only the PingOne JWKS host is fetched")
     with httpx.Client(timeout=HTTP_TIMEOUT) as client:
         response = client.get(uri)
         response.raise_for_status()

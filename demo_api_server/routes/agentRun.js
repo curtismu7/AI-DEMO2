@@ -515,6 +515,16 @@ router.post('/run', nrTransactionMiddleware, async (req, res) => {
 
     tools = resolveAgentRunTools(tools, verticalManifest.resolver.activeIdFor(req));
 
+    // /internal/agent-tool only runs tools offered here. Added to, never
+    // replaced: callbacks carry only the session id, so overlapping runs in one
+    // session share this list. Saved now because the agent calls back mid-run.
+    req.session.agentRunToolNames = [...new Set([...(req.session.agentRunToolNames || []), ...tools.map((t) => t.name)])];
+    try {
+      await new Promise((resolve, reject) => req.session.save((e) => (e ? reject(e) : resolve())));
+    } catch (saveErr) {
+      console.warn('[agentRun] session save failed (non-fatal):', saveErr.message);
+    }
+
     // Merge any token events from tools/list
     initialTokenEvents = [...initialTokenEvents, ...(toolsResult.tokenEvents || [])];
 

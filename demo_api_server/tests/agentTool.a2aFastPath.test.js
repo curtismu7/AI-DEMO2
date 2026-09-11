@@ -38,6 +38,7 @@ const SESSION = {
   oauthTokens: { accessToken: 'tok' },
   agentRunFlowTraceId: null,
   agentRunUseCaseId: null,
+  agentRunToolNames: ['sensitive_patient_records', 'delegate_to_specialist', 'get_my_accounts'],
 };
 
 function buildApp() {

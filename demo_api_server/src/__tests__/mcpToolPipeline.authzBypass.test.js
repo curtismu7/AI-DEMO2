@@ -174,8 +174,14 @@ describe('a skipped gate is visible in the response (C4)', () => {
   // the last C4 gap: it emitted an SSE phase and fell through WITHOUT setting
   // mcpAuthorizeEvaluationThisRequest, so the response body was identical to a
   // run where the gate PERMITted. The other two skips already set it.
+  // The skip is only legitimate when the gateway is authoritative: it runs P1AZ
+  // on the nested-act token itself. Without a gateway there is no other PEP.
+  const gatewayDeps = () => makeDeps({
+    config: { ...makeDeps().config, useGateway: true, gatewayHttpUrl: 'http://gw.test' },
+  });
+
   it('the A2A supplied-token skip is visible in the response, not just on SSE', async () => {
-    const deps = makeDeps();
+    const deps = gatewayDeps();
     const outcome = await runMcpToolPipeline(makeCtx({ deps, skipBffAuthorize: true }));
 
     expect(deps.evaluateMcpFirstToolGate).not.toHaveBeenCalled();
@@ -192,10 +198,19 @@ describe('a skipped gate is visible in the response (C4)', () => {
 
   it('the A2A skip is distinguishable from a real PERMIT on the same tool', async () => {
     const permitted = await runMcpToolPipeline(makeCtx({ deps: makeDeps() }));
-    const skipped = await runMcpToolPipeline(makeCtx({ deps: makeDeps(), skipBffAuthorize: true }));
+    const skipped = await runMcpToolPipeline(makeCtx({ deps: gatewayDeps(), skipBffAuthorize: true }));
 
     expect(permitted.body.mcpAuthorizeEvaluation).not.toEqual(
       skipped.body.mcpAuthorizeEvaluation,
     );
+  });
+
+  it('without a gateway, an A2A call still goes through the BFF P1AZ gate', async () => {
+    const deps = makeDeps();
+    const outcome = await runMcpToolPipeline(makeCtx({ deps, skipBffAuthorize: true }));
+
+    expect(deps.evaluateMcpFirstToolGate).toHaveBeenCalledTimes(1);
+    expect(outcome.body.mcpAuthorizeEvaluation).toMatchObject({ decision: 'PERMIT' });
+    expect(outcome.body.mcpAuthorizeEvaluation.skipped).toBeUndefined();
   });
 });

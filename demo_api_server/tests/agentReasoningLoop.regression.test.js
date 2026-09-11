@@ -17,7 +17,7 @@ describe('runReasonLoop', () => {
       .mockResolvedValueOnce({ data: { type: 'tool_calls', calls: [{ id: '1', name: 'get_x', args: {} }], messages: [] } })
       .mockResolvedValueOnce({ data: { type: 'final', answer: 'done', messages: [] } });
     const calls = [];
-    const out = await runReasonLoop({ messages: [{ role: 'user', content: 'x' }], tools: [], provider: 'helix', executeTool: async (n) => { calls.push(n); return 'r'; }, maxIterations: 10 });
+    const out = await runReasonLoop({ messages: [{ role: 'user', content: 'x' }], tools: [{ name: 'get_x' }], provider: 'helix', executeTool: async (n) => { calls.push(n); return 'r'; }, maxIterations: 10 });
     expect(calls).toEqual(['get_x']);
     // toolsCalled reports the tools the loop actually executed. It used to be
     // dropped, so the caller returned a hardcoded toolsCalled: [] and no
@@ -48,7 +48,7 @@ describe('runReasonLoop', () => {
 
   test('recursion cap enforced BFF-side', async () => {
     axios.post.mockResolvedValue({ data: { type: 'tool_calls', calls: [{ id: '1', name: 'loop', args: {} }], messages: [] } });
-    const out = await runReasonLoop({ messages: [{ role: 'user', content: 'x' }], tools: [], provider: 'helix', executeTool: async () => 'r', maxIterations: 3 });
+    const out = await runReasonLoop({ messages: [{ role: 'user', content: 'x' }], tools: [{ name: 'loop' }], provider: 'helix', executeTool: async () => 'r', maxIterations: 3 });
     // The repeated-tool-call guard short-circuits after the 2nd identical call+result pair
     // (same sig "loop|{}", same result "r") — returns repeated_tool_call before max_iterations.
     expect(out).toEqual({ ok: false, reason: 'repeated_tool_call', toolResult: null });

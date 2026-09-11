@@ -14,8 +14,8 @@
  * runMcpToolPipeline for full RFC 8693 token exchange, PingOne Authorize,
  * HITL gate, and SSE publishing. Token custody stays BFF-side.
  *
- * NOT mounted under /api/* — not browser-facing.
- * Bound to loopback (127.0.0.1) per REGRESSION_PLAN §3.
+ * NOT mounted under /api/* — not browser-facing. Gated only by the shared
+ * secret: the BFF port is published, so this is not loopback-only (TECH_DEBT).
  */
 
 const express = require('express');
@@ -43,6 +43,7 @@ if (process.env.VAULT_INTERNAL_STRICT === 'true' && isDefaultInternalSecret()) {
 
 const { executeBffTool } = require('../services/bffMcpToolExecutor');
 const { A2A_SPECIALISTS } = require('../config/a2aSpecialists');
+const { redactValue } = require('../utils/logRedact');
 
 /** The single vertical whose A2A specialist owns this tool (each sensitive_*
  * tool belongs to exactly one specialist), or null for ordinary tools. */
@@ -91,6 +92,12 @@ router.post('/agent-tool', async (req, res) => {
 
   if (!session || !session.oauthTokens) {
     return res.status(404).json({ error: 'session_not_found_or_no_tokens' });
+  }
+
+  // The tool name comes from the agent's LLM: only tools agentRun.js offered in
+  // this session may run.
+  if (!Array.isArray(session.agentRunToolNames) || !session.agentRunToolNames.includes(tool)) {
+    return res.status(403).json({ error: 'tool_not_offered', tool });
   }
 
   const userId = session.user?.id;
@@ -162,6 +169,8 @@ router.post('/agent-tool', async (req, res) => {
     } catch (_) {
       parsed = { error: 'invalid_mcp_result' };
     }
+    // Everything below goes back to the agent's LLM: no token rides along.
+    parsed = redactValue(parsed);
 
     // Elicitation: same single hitlRequired envelope (extractHitlInterrupt in
     // demo_agent_service reads it generically — no agent-service change

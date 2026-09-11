@@ -386,10 +386,11 @@ async function executeBffToolWithToken({ name, args, req = null, tokenEvents = [
     suppliedUserSub,
     useCaseId,
     vertical,
-    // A2A specialist calls carry a pre-minted nested-act token. The gateway
-    // runs its own PingOne Authorize evaluation on that token — the BFF-side
-    // evaluateMcpFirstToolGate is redundant and may DENY because the policy
-    // doesn't have rules for specialist tools at the BFF decision endpoint.
+    // A2A specialist calls carry a pre-minted nested-act token. With a gateway,
+    // the gateway runs its own PingOne Authorize evaluation on that token, so
+    // the BFF-side evaluateMcpFirstToolGate is skipped (the policy has no rules
+    // for specialist tools at the BFF decision endpoint). Without a gateway the
+    // pipeline ignores this flag and runs the BFF gate: fail closed.
     skipBffAuthorize: true,
   };
   const _agentKey = deriveAgentKey(effectiveReq, null, effectiveReq.session?.user?.oauthId || effectiveReq.session?.user?.id || null);
@@ -417,7 +418,11 @@ async function executeBffToolWithToken({ name, args, req = null, tokenEvents = [
   if (outcome.kind === 'block') {
     return JSON.stringify({ error: outcome.body?.error || 'mcp_blocked', ...outcome.body });
   }
-  return JSON.stringify({ error: outcome.body?.error || 'mcp_error', message: outcome.body?.message });
+  return JSON.stringify({
+    error: outcome.body?.error || 'mcp_error',
+    message: outcome.body?.message,
+    gatewayDecision: outcome.body?.gatewayDecision ?? null,
+  });
 }
 
 module.exports = { executeBffTool, executeBffToolWithToken, callMcpToolAsAgent, setPipelineDeps, unwrapMcpResultEnvelope, runPipelineForSim };
