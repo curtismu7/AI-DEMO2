@@ -16,6 +16,23 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-09-11 — agentRun's end-of-run session save can undo a concurrent mode change
+
+**What's wrong.** `/api/agent/run` still modifies the session (it stores `intentToken`), so
+express-session saves the copy it loaded at the START of the run when the run ENDS. Anything another
+request wrote to the session in between is overwritten — e.g. the mode picker's `langchain_config`.
+Seen live: switching Heuristics → llama.cpp right before sending left the picker on Heuristics after
+the run finished. Same last-write-wins mechanism that lost the run's `flowTraceId`
+(REGRESSION_PLAN §4, 2026-09-11 "AG-UI tool calls lost their flow trace").
+
+**Why it wasn't fixed now.** That fix moved only the per-run trace / useCase off the session.
+`intentToken` is read from the stored session by `/internal/agent-tool` and other routes; moving it
+changes the intent-token contract, and the missing flow steps did not depend on it.
+
+**Real fix.** Don't let a long-running request save its whole stale session at the end: write the one
+field with a targeted read-modify-write (re-load the stored session, set it, save) as soon as it is
+minted, or move `intentToken` to the run context like the trace.
+
 ### [x] 2026-09-11 — HistoryModal.js is unthemed (23 inline style blocks)
 
 **What's wrong.** `demo_api_ui/src/components/HistoryModal.js` (shared by
