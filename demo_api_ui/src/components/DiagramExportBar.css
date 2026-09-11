@@ -1,0 +1,31 @@
+/* DiagramExportBar.css — shared by every Mermaid/diagram page's export row.
+   One themed file fixes the bar's chrome everywhere it's used. */
+
+.deb-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.4rem 0.6rem;
+  margin: 0.5rem 0;
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
+  border-radius: 6px;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.deb-label {
+  font-weight: 700;
+  color: var(--th-text);
+}
+
+.deb-link {
+  color: var(--th-status-info);
+}
+
+.deb-hint {
+  margin-left: auto;
+  font-size: var(--font-size-2xs);
+  color: var(--th-text-muted);
+}

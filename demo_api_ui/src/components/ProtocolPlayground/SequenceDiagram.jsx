@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
-import mermaid from 'mermaid';
+import React from 'react';
 import { buildSequenceSource } from '../../services/protocolMermaid';
+import { useMermaidRender } from '../../hooks/useMermaidRender';
 
 /**
  * Mermaid sequence diagram for the selected protocol. Re-renders as steps run,
@@ -9,45 +9,23 @@ import { buildSequenceSource } from '../../services/protocolMermaid';
  * diagram cannot express.
  */
 
-let renderSeq = 0;
+// wrap: false — mermaid's auto-wrap hard-hyphenates long unbroken tokens
+// (e.g. "authReqId" split as "aut-/hReqId") since endpoint labels have no
+// internal spaces to wrap on. useMaxWidth scales the whole SVG down to fit
+// instead, so long labels shrink, not mangle.
+const SEQUENCE_OPTS = { useMaxWidth: true, wrap: false };
+const FLOWCHART_OPTS = { useMaxWidth: true, htmlLabels: false };
 
 function MermaidBlock({ source, dark, caption }) {
-  const containerRef = useRef(null);
-  const latestRef = useRef(0);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    if (!source) return undefined;
-    let cancelled = false;
-    const renderId = ++renderSeq;
-    setError(null);
-
-    mermaid.initialize({
-      startOnLoad: false,
-      theme: dark ? 'dark' : 'default',
-      securityLevel: 'strict',
-      // wrap: false — mermaid's auto-wrap hard-hyphenates long unbroken
-      // tokens (e.g. "authReqId" split as "aut-/hReqId") since endpoint
-      // labels have no internal spaces to wrap on. useMaxWidth scales the
-      // whole SVG down to fit instead, so long labels shrink, not mangle.
-      sequence: { useMaxWidth: true, wrap: false },
-      flowchart: { useMaxWidth: true, htmlLabels: false },
-    });
-
-    (async () => {
-      try {
-        const { svg } = await mermaid.render(`pp-mermaid-${renderId}`, source);
-        if (!cancelled && latestRef.current <= renderId && containerRef.current) {
-          latestRef.current = renderId;
-          containerRef.current.innerHTML = svg;
-        }
-      } catch (err) {
-        if (!cancelled) setError(err?.message || 'Diagram failed to render');
-      }
-    })();
-
-    return () => { cancelled = true; };
-  }, [source, dark]);
+  // dark is this page's OWN independent toggle (Protocol Playground has one,
+  // unrelated to the app-wide theme) — passed through explicitly rather than
+  // letting the hook read the app theme.
+  const { containerRef, error } = useMermaidRender(source, {
+    darkMode: dark,
+    securityLevel: 'strict',
+    sequence: SEQUENCE_OPTS,
+    flowchart: FLOWCHART_OPTS,
+  });
 
   if (!source) return null;
 

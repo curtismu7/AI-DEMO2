@@ -4,8 +4,8 @@
  * Interactive token chain diagram showing all servers, authentication,
  * authorization, token exchange, and MCP gateway flow.
  */
-import React, { useEffect, useRef, useState } from 'react';
-import mermaid from 'mermaid';
+import React from 'react';
+import { useMermaidRender } from '../hooks/useMermaidRender';
 import './TokenChainArchitecturePage.css';
 
 export const MERMAID_DIAGRAM = `
@@ -147,24 +147,10 @@ const CARDS = [
 ];
 
 export default function TokenChainArchitecturePage({ user }) {
-  const diagramRef = useRef(null);
-  const [renderError, setRenderError] = useState(null);
-
-  // The diagram carries its own %%{init}%% theme block, so it renders the same
-  // in both modes -- render once on mount, not per theme change.
-  useEffect(() => {
-    let cancelled = false;
-    mermaid.initialize({ startOnLoad: false, securityLevel: 'loose' });
-    mermaid
-      .render('token-chain-architecture', MERMAID_DIAGRAM)
-      .then(({ svg }) => {
-        if (!cancelled && diagramRef.current) diagramRef.current.innerHTML = svg;
-      })
-      .catch((err) => {
-        if (!cancelled) setRenderError(err?.message || 'Mermaid render failed');
-      });
-    return () => { cancelled = true; };
-  }, []);
+  // The diagram carries its own %%{init}%% theme block, which overrides
+  // useMermaidRender's theme for this render — it renders the same in both
+  // app modes by design (see MERMAID_DIAGRAM's %%{init}%% line).
+  const { containerRef: diagramRef, error: renderError } = useMermaidRender(MERMAID_DIAGRAM);
 
   return (
     <div className="tca-page">

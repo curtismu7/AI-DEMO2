@@ -3,9 +3,9 @@
 // redrawn against demo_mcp_gateway + demo_mcp_server's actual code path.
 // Follows the mermaid.initialize/render pattern used by
 // AgentOnboardingMermaidPage.jsx.
-import React, { useEffect, useRef, useState } from "react";
-import mermaid from "mermaid";
+import React, { useState } from "react";
 import DiagramExportBar from "./DiagramExportBar";
+import { useMermaidRender } from "../hooks/useMermaidRender";
 import "./McpGatewayOauthFlowPage.css";
 import "./PrivilegeMcpDiagramPage.css";
 
@@ -148,72 +148,18 @@ const NOTES = [
   },
 ];
 
+const SEQUENCE_OPTS = { useMaxWidth: true, wrap: true };
+const FLOWCHART_OPTS = { useMaxWidth: true };
+
 export default function McpGatewayOauthFlowPage() {
-  const containerRef = useRef(null);
-  const archRef = useRef(null);
   const [source, setSource] = useState(MERMAID_SOURCE);
   const [archSource, setArchSource] = useState(ARCHITECTURE_SOURCE);
-  const [renderError, setRenderError] = useState(null);
-  const [archRenderError, setArchRenderError] = useState(null);
-  const renderIdRef = useRef(0);
-
-  useEffect(() => {
-    let cancelled = false;
-    setRenderError(null);
-    mermaid.initialize({
-      startOnLoad: false,
-      theme: "dark",
-      securityLevel: "loose",
-      sequence: { useMaxWidth: true, wrap: true },
-    });
-
-    async function render() {
-      try {
-        const id = `mcp-gateway-oauth-flow-svg-${++renderIdRef.current}`;
-        const { svg } = await mermaid.render(id, source);
-        if (!cancelled && containerRef.current) {
-          containerRef.current.innerHTML = svg;
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setRenderError(err?.message || "Mermaid render failed");
-        }
-      }
-    }
-    render();
-    return () => {
-      cancelled = true;
-    };
-  }, [source]);
-
-  useEffect(() => {
-    let cancelled = false;
-    setArchRenderError(null);
-    mermaid.initialize({
-      startOnLoad: false,
-      theme: "dark",
-      securityLevel: "loose",
-      flowchart: { useMaxWidth: true },
-    });
-
-    async function renderArch() {
-      try {
-        const id = `mcp-gateway-oauth-flow-arch-${++renderIdRef.current}`;
-        const { svg } = await mermaid.render(id, archSource);
-        if (!cancelled && archRef.current) {
-          archRef.current.innerHTML = svg;
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setArchRenderError(err?.message || "Mermaid render failed");
-        }
-      }
-    }
-    renderArch();
-    return () => {
-      cancelled = true;
-    };
-  }, [archSource]);
+  const { containerRef, error: renderError } = useMermaidRender(source, {
+    sequence: SEQUENCE_OPTS,
+  });
+  const { containerRef: archRef, error: archRenderError } = useMermaidRender(archSource, {
+    flowchart: FLOWCHART_OPTS,
+  });
 
   return (
     <>
