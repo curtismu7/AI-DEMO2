@@ -199,6 +199,15 @@ async function resolveAgentTarget({ message, vertical } = {}) {
 
 // When the active vertical ships a plugin, external runtimes must see the
 // vertical's own tool schemas (e.g. book_appointment), not the banking catalog.
+// /internal/agent-tool only runs tools offered to this session's agent runs.
+// Added to, never replaced: callbacks carry only the session id, so overlapping
+// runs in one session share the list. Saved before the run starts because the
+// agent calls back mid-run; a failed save rejects, so the run is not started.
+function recordOfferedTools(req, tools) {
+  req.session.agentRunToolNames = [...new Set([...(req.session.agentRunToolNames || []), ...tools.map((t) => t.name)])];
+  return new Promise((resolve, reject) => req.session.save((e) => (e ? reject(e) : resolve())));
+}
+
 function resolveAgentRunTools(currentTools, activeId) {
   return verticalDispatch.hasPlugin(activeId)
     ? verticalDispatch.toolSchemasFor(activeId, () => currentTools)
@@ -515,14 +524,16 @@ router.post('/run', nrTransactionMiddleware, async (req, res) => {
 
     tools = resolveAgentRunTools(tools, verticalManifest.resolver.activeIdFor(req));
 
-    // /internal/agent-tool only runs tools offered here. Added to, never
-    // replaced: callbacks carry only the session id, so overlapping runs in one
-    // session share this list. Saved now because the agent calls back mid-run.
-    req.session.agentRunToolNames = [...new Set([...(req.session.agentRunToolNames || []), ...tools.map((t) => t.name)])];
     try {
-      await new Promise((resolve, reject) => req.session.save((e) => (e ? reject(e) : resolve())));
+      await recordOfferedTools(req, tools);
     } catch (saveErr) {
-      console.warn('[agentRun] session save failed (non-fatal):', saveErr.message);
+      // Without the list every tool callback would be refused as
+      // tool_not_offered; stop here with the real reason instead.
+      console.error('[agentRun] could not save the offered-tool list:', saveErr.message);
+      return res.status(503).json({
+        error: 'session_save_failed',
+        message: 'Could not record the tools offered to this run, so it was not started.',
+      });
     }
 
     // Merge any token events from tools/list
@@ -913,6 +924,7 @@ module.exports.FRAMEWORK_HOSTS = FRAMEWORK_HOSTS;
 module.exports.__test = {
   resolveAgentTarget,
   resolveAgentRunTools,
+  recordOfferedTools,
   markRecovered,
   _recordTraceEvents,
   _ensureHitlConsentSubscription,

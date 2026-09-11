@@ -106,6 +106,26 @@ describe('/internal/agent-tool — only tools offered to the external agent', ()
   });
 });
 
+describe('agentRun — recording the tools offered to an external agent run', () => {
+  let recordOfferedTools;
+  beforeEach(() => {
+    jest.resetModules();
+    jest.doMock('../services/configStore', () => ({ getEffective: jest.fn() }));
+    ({ recordOfferedTools } = require('../routes/agentRun').__test);
+  });
+
+  test('adds this run\'s tools to the session list and never drops an earlier run\'s', async () => {
+    const req = { session: { agentRunToolNames: ['get_balance'], save: (cb) => cb() } };
+    await recordOfferedTools(req, [{ name: 'get_my_accounts' }, { name: 'get_balance' }]);
+    expect(req.session.agentRunToolNames.sort()).toEqual(['get_balance', 'get_my_accounts']);
+  });
+
+  test('rejects when the session store cannot save, so the run is not started', async () => {
+    const req = { session: { save: (cb) => cb(new Error('store down')) } };
+    await expect(recordOfferedTools(req, [{ name: 'get_my_accounts' }])).rejects.toThrow('store down');
+  });
+});
+
 describe('executeBffToolWithToken — the gateway decision survives an error', () => {
   test('passes gatewayDecision through its error result', async () => {
     jest.resetModules();

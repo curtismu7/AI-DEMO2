@@ -39,16 +39,17 @@ test('getTools returns list_pingone_tools and call_pingone_tool with read scope'
   });
 });
 
-test('list_pingone_tools returns live tool list with source: live', async () => {
+test('list_pingone_tools returns the live tools call_pingone_tool will run, with source: live', async () => {
   adapter.listTools.mockResolvedValue([
     { name: 'listUsers', description: 'List users in the environment' },
     { name: 'createPopulation', description: 'Create a population' },
   ]);
   const { result, render } = await plugin.executeTool('list_pingone_tools', {}, {});
   expect(render).toBe('list_pingone_tools');
+  // createPopulation is live but outside the allowlist: advertising it would
+  // only invite a "not allowed" refusal.
   expect(result.tools).toEqual([
     { name: 'listUsers', description: 'List users in the environment' },
-    { name: 'createPopulation', description: 'Create a population' },
   ]);
   expect(result.source).toBe('live — hosted PingOne MCP');
 });

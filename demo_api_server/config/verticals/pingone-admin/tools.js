@@ -294,7 +294,11 @@ async function listPingOneTools(params, session) {
   const filter = params?.filter ? String(params.filter).toLowerCase() : null;
   try {
     const live = await adapter.listTools(session);
-    let rows = live.map((t) => ({ name: t.name, description: (t.description || '').slice(0, 200) }));
+    // Advertise only what call_pingone_tool will run; anything else just
+    // invites a "not allowed" refusal.
+    let rows = live
+      .filter((t) => CALLABLE_TOOLS.has(t.name))
+      .map((t) => ({ name: t.name, description: (t.description || '').slice(0, 200) }));
     if (filter) {
       rows = rows.filter((r) =>
         r.name.toLowerCase().includes(filter) || r.description.toLowerCase().includes(filter));
