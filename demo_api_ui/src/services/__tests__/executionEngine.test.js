@@ -147,6 +147,30 @@ describe('ExecutionEngine', () => {
       expect(result.decodedToken.payload.sub).toBe('1234567890');
     });
 
+    it('decodes an access_token returned in the body (RFC 8693 token endpoint)', async () => {
+      const mockResponse = {
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        data: { access_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c' } // gitleaks:allow
+      };
+
+      vi.spyOn(axios, 'create').mockReturnValue({
+        get: vi.fn(),
+        post: vi.fn().mockResolvedValue(mockResponse),
+        put: vi.fn(),
+        patch: vi.fn(),
+        delete: vi.fn()
+      });
+
+      engine = new ExecutionEngine(mockFlowSpec);
+
+      const result = await engine.executeStep('step-2');
+
+      expect(result.decodedToken.isValid).toBe(true);
+      expect(result.decodedToken.payload.sub).toBe('1234567890');
+    });
+
     it('updates current step in state', async () => {
       const mockResponse = {
         status: 200,
