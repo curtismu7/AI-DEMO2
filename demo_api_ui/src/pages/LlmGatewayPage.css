@@ -703,7 +703,7 @@
   flex: none;
   width: 2rem;
   height: 1.1rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   /* The knob is currentColor, so each track's ground carries its own ink (H1). */
   color: var(--th-bg-card);
   background: radial-gradient(circle at 0.55rem 50%, currentColor 0.4rem, transparent 0.45rem) var(--th-text-muted);
