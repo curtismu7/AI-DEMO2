@@ -142,6 +142,9 @@ export function useAgentRun({
       // and completeTrace(false) unconditionally painted a fresh trace as
       // "RUN ERROR" before the user had done anything.
       try { tokenChainTraceStore.completeTrace(false); } catch (_) { /* display-only */ }
+      // Same for the flow rail's pending reply step (the run's own finally sees
+      // abortRef already cleared, so it will not settle it).
+      try { agentFlowDiagram.completeReply(false); } catch (_) { /* display-only */ }
     }
     setIsRunning(false);
   }, []);
@@ -211,6 +214,14 @@ export function useAgentRun({
     // Omitted when absent so typed messages still derive organically.
     if (useCaseId) body.useCaseId = useCaseId;
 
+    // Settle the flow rail's reply step on any exit without RUN_FINISHED /
+    // RUN_ERROR — only while this run still owns the controller, so a superseded
+    // run cannot fail the reply of the run that replaced it.
+    const settleReplyIfOwner = () => {
+      if (abortRef.current !== controller) return;
+      try { agentFlowDiagram.completeReply(false); } catch (_) { /* display-only */ }
+    };
+
     let response;
     try {
       response = await fetch(ENDPOINT, {
@@ -226,6 +237,7 @@ export function useAgentRun({
         setIsRunning(false);
         return;
       }
+      settleReplyIfOwner();
       const msg = 'Cannot reach agent service: ' + err.message;
       setError(msg);
       setIsRunning(false);
@@ -235,6 +247,7 @@ export function useAgentRun({
 
     if (!response.ok) {
       closeSse();
+      settleReplyIfOwner();
       let msg = 'Agent run failed: HTTP ' + response.status;
       try {
         const data = await response.json();
@@ -250,6 +263,7 @@ export function useAgentRun({
     const reader = response.body.getReader();
     const decoder = new TextDecoder('utf-8');
     let buffer = '';
+    let settled = false; // a RUN_FINISHED / RUN_ERROR reached the flow rail
 
     try {
       while (true) {
@@ -267,12 +281,14 @@ export function useAgentRun({
           } else if (event.type === 'STATE_DELTA') {
             callbacksRef.current.onStateDelta && callbacksRef.current.onStateDelta(event.delta);
           } else if (event.type === 'RUN_FINISHED') {
+            settled = true;
             // An interrupt is a HITL pause — the reply has not arrived yet.
             if (event.outcome?.type !== 'interrupt') {
               try { agentFlowDiagram.completeReply(true); } catch (_) { /* display-only */ }
             }
             callbacksRef.current.onFinished && callbacksRef.current.onFinished(event.outcome);
           } else if (event.type === 'RUN_ERROR') {
+            settled = true;
             try { agentFlowDiagram.completeReply(false); } catch (_) { /* display-only */ }
             setError(event.message || 'Agent error');
             callbacksRef.current.onError && callbacksRef.current.onError(event.message || 'Agent error');
@@ -290,6 +306,7 @@ export function useAgentRun({
     } finally {
       closeSse();
       reader.releaseLock();
+      if (!settled) settleReplyIfOwner();
       // Only clear the shared ref / flip running state if it still belongs to
       // THIS invocation. If a newer run() call has since superseded this one
       // (aborting it and installing its own controller), that newer run's
