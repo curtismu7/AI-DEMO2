@@ -17,6 +17,7 @@ import {
 import ThresholdControls from "./ThresholdControls";
 import QuickFlagsPill from "./QuickFlagsPill";
 import UserMenu from "./UserMenu";
+import FavoritesMenu from "./FavoritesMenu";
 import VerticalSwitcher from "./VerticalSwitcher";
 import "./TopNav.css";
 
@@ -290,6 +291,9 @@ export default function TopNav({ user, onLogout }) {
                 )}
               </div>
             )}
+
+            {/* Favorites → quick jump to pages you run a lot (per-browser). */}
+            <FavoritesMenu />
 
             {/* Search → Code Search (RAG) page */}
             <div className="topnav-search">
