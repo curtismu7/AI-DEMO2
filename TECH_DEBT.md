@@ -16,6 +16,70 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-09-11 — The Privilege gateway link is wired for the local Docker stack only
+
+**What's wrong.** The MCP-client-driven Privilege gateway sign-in
+(`/api/privilege-mcp/facade-link`, broker `/oauth/resume`) is switched on by two
+env vars set only in `docker-compose.yml`: `BFF_PRIVILEGE_LINK_URL` (mcp-gateway)
+and `MCP_FACADE_PRIVILEGE_LINK` (demo-api-server). The SE k8s deployment sets
+neither, so its privilege-gateway door keeps the old 503 + "sign in at
+/privilege-mcp-client" behaviour. The two switches must be set together: with
+the BFF flag on and the broker link URL unset, every connect ends in a 401
+after one re-authentication (bounded by the MCP SDK, but it always fails).
+
+**Why it wasn't fixed now.** Scoped to the local stack LM Studio uses; the SE
+façade is reached on a different host and its broker/BFF public URLs differ,
+so the link URL and the resume-origin check (`MCP_FACADE_AGENT_GATEWAY_AS`)
+need SE values and an SE test.
+
+**Real fix.** Set both vars in the SE Helm values with the SE BFF's public
+`/api/privilege-mcp/facade-link` URL, set `MCP_FACADE_AGENT_GATEWAY_AS` to the SE
+broker's public origin, and drive one SE sign-in end to end.
+
+**Also before wiring SE.** `/facade-link` builds the gateway door from
+`MCP_FACADE_PRIVILEGE_GATEWAY_BASE` (the same base the façade door calls), so SE must set that to its
+gateway base, including any path prefix such as `https://ai-demo.ping-devops.com/mcpgw`.
+
+### [ ] 2026-09-11 — /facade-link can trigger unbounded gateway client registrations
+
+**What's wrong.** `getOrRegisterDcrClient` (`demo_api_server/routes/privilegeMcpClient.js`)
+caches a gateway DCR client per register URL AND redirect URI, so the link callback
+gets its own client. The redirect URI's host comes from `x-forwarded-host` on an
+unauthenticated GET (`/api/privilege-mcp/facade-link`, and `/auth/start` before it),
+so every distinct forged host times app name costs one `/register` call on the
+gateway and one `dcrClientCache` entry that is never evicted.
+
+The same header also sets the gateway `redirect_uri`, i.e. where the authorization code is delivered:
+someone who can set it on their own request can register their host, send a victim the authorize
+URL, and redeem the code through their own `/facade-link/callback`, landing the victim's gateway
+identity in the shared per-app session. `/auth/start` had the same property before this change.
+Since the hardening on PR #3140, `/facade-link` pins its callback to `PRIVILEGE_MCP_CALLBACK_HOST`,
+so the remaining surface is `/auth/start`.
+
+**Why it wasn't fixed now.** Found in review of the link change. The same surface
+already existed through `POST /config` + `/auth/start`, and the demo runs on a
+trusted local stack.
+
+**Real fix.** Build the callback host from configuration (`PRIVILEGE_MCP_CALLBACK_HOST`
+or the public app origin) instead of the request header, or bound the cache.
+
+### [ ] 2026-09-11 — An unauthenticated /facade-link can replace an app's shared gateway identity
+
+**What's wrong.** `/api/privilege-mcp/facade-link` is unauthenticated and stores the resulting gateway token in
+the single per-app session every façade caller of that app uses. Someone who starts a broker authorization can send
+its `/facade-link` URL to a signed-in victim; the victim's browser completes the gateway sign-in (silently, through
+SSO) and the victim's gateway identity becomes the app-wide credential, which any holder of a valid façade bearer
+then calls tools through. Raised by Greptile on PR #3140.
+
+**Why it wasn't fixed now.** The design is deliberately one operator identity per app on a trusted local stack
+(the spec's Security section), and `/privilege-mcp-client`'s own sign-in already set the same shared session. A real
+fix changes how the link commits its token.
+
+**Real fix.** Bind the link to the browser that started the MCP client's sign-in: have the broker set a
+browser-bound nonce at `/oauth/authorize`, and let the BFF hold the gateway token as pending until `/oauth/resume`
+confirms that nonce, committing it to the shared session only then — or key gateway sessions per caller instead
+of per app.
+
 ### [ ] 2026-09-11 — LLM token custody: what the fix deliberately left open
 
 **What's wrong.** The LLM-custody fix (branch `fix/llm-token-custody`, plan

@@ -1,6 +1,20 @@
 import React from 'react';
 import './TokenChainEventCard.css';
 
+const STATUS_ICONS = {
+  success: '✓',
+  permit: '✓',
+  deny: '✕',
+  error: '❌',
+  pending: '⚠️'
+};
+
+/** Status chip shared by the event card and ActivityPanel's chain rows. */
+export function StatusBadge({ status }) {
+  if (!status) return null;
+  return <span className={`event-status event-status--${status}`}>{STATUS_ICONS[status] || status}</span>;
+}
+
 /**
  * Card-based display of a token-chain event (real or synthesized from step result).
  * Reuses Token Chain visual language via shared CSS classes.
@@ -8,26 +22,13 @@ import './TokenChainEventCard.css';
 export default function TokenChainEventCard({ event }) {
   if (!event) return null;
 
-  const statusBadge = () => {
-    if (!event.status) return null;
-    const icons = {
-      success: '✓',
-      permit: '✓',
-      deny: '✕',
-      error: '❌',
-      pending: '⚠️'
-    };
-    const icon = icons[event.status] || event.status;
-    return <span className={`event-status event-status--${event.status}`}>{icon}</span>;
-  };
-
   return (
     <div className="token-chain-event-card">
       <div className="event-card-header">
         <div className="event-card-label">
           {event.label || 'Step'}
         </div>
-        {statusBadge()}
+        <StatusBadge status={event.status} />
       </div>
 
       {event.explanation && (

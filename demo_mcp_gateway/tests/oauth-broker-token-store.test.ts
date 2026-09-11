@@ -61,4 +61,23 @@ describe('BrokerTokenStore', () => {
     }, -1);
     expect(store.consumeCode(code)).toBeNull();
   });
+
+  const RESUME_PARAMS = {
+    clientId: 'client-1', redirectUri: 'http://127.0.0.1:1234/callback',
+    scope: 'mcp:invoke', codeChallenge: 'abc', codeChallengeMethod: 'S256',
+    clientState: 's', pingOneAccessToken: 't', pingOneExpiresIn: 3600,
+  };
+
+  it('round-trips a resumable authorization, once', () => {
+    const store = new BrokerTokenStore();
+    const id = store.createResume(RESUME_PARAMS);
+    expect(store.consumeResume(id)?.pingOneAccessToken).toBe('t');
+    expect(store.consumeResume(id)).toBeNull();
+  });
+
+  it('an expired resumable authorization is not returned', () => {
+    const store = new BrokerTokenStore();
+    const id = store.createResume(RESUME_PARAMS, -1);
+    expect(store.consumeResume(id)).toBeNull();
+  });
 });
