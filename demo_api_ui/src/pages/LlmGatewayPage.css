@@ -343,6 +343,12 @@
   gap: 0.75rem;
 }
 
+/* Same breakpoint the three panes stack at (top of file). It lives here, not
+   in that block, because this rule comes later in the file and would win. */
+@media (max-width: 1100px) {
+  .lgw-compare { grid-template-columns: minmax(0, 1fr); }
+}
+
 .lgw-compare__caption {
   grid-column: 1 / -1;
   margin: 0;
