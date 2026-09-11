@@ -1,6 +1,6 @@
 # Plan: the LLM can never use the user token to get around the gateway or P1AZ
 
-**Status:** plan only, not implemented (2026-09-11). This replaces the earlier browser-custody version of this file (PR #3128).
+**Status:** implemented on branch `fix/llm-token-custody` (2026-09-11). This replaces the earlier browser-custody version of this file (PR #3128). Where the build differs from this plan, gap 3 says so.
 
 ## Context
 
@@ -60,9 +60,11 @@ Decisions made:
 ### 3. `call_pingone_tool` lets the LLM run any hosted PingOne tool
 
 - `config/verticals/pingone-admin/tools.js` `callPingOneTool` (:317) sends any name and arguments the model picks to `mcp.pingone.com`, using the admin's delegated token. There is no gateway, no P1AZ and no allowlist. The host and environment are pinned.
-- Fix: refuse names outside an allowlist before `adapter.callTool`. The allowlist is `CORE_TOOLS` (:10: `listUsers`, `getUser`, `listPopulations`, `listApplications`, `getEnvironment`) plus `createUser`, which the admin agent's "create a user" intent routes to (`pingone-admin/index.js:43`).
+- Fix: refuse names outside an allowlist before `adapter.callTool`. The allowlist is every read tool the admin chips and intents use: `CORE_TOOLS` (:10: `listUsers`, `getUser`, `listPopulations`, `listApplications`, `getEnvironment`) plus `listResources`, `getEnvironmentServices`, `listDavinciFlows`, `listDavinciApplications` and `listDavinciConnectors`. On top of those comes `createUser`, which the admin agent's "create a user" intent routes to (`pingone-admin/index.js:43`).
+  - Changed in the build: the first version of this plan listed only `CORE_TOOLS` plus `createUser`. That broke five admin features, and `tests/oas/pingone-admin.test.js` caught it.
 - **`createUser` is a documented exception to the no-bypass rule** (decided 2026-09-11). It writes to PingOne with no gateway or P1AZ check, gated only by the signed-in admin's PingOne roles. It runs on the admin's own delegated token, never the user token. Recorded in TECH_DEBT.
-- Make the tool description (which advertises `createUser`) and the `scopes: ['read']` label match the allowlist.
+- The tool description now says tools outside the allowlist are refused.
+  - Changed in the build: the `scopes: ['read']` label stays. `scripts/gen-vertical-tools.js:75` reads it into a generated artifact, and it gates nothing on this path, which goes straight to PingOne. Recorded in TECH_DEBT.
 - This path still has no gateway or P1AZ hop. The allowlist caps it; routing it through the gateway is out of scope (TECH_DEBT).
 
 ### 4. The JWT verifier fetches URLs the LLM chooses (SSRF)
