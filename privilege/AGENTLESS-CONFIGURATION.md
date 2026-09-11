@@ -3,6 +3,53 @@
 Verified 2026-08-20 against the live `ping-devops-cmuir` deployment. This is the
 operational source of truth for Agentless mode.
 
+## 2026-09-10 — External Guardrail ML Sidecar contract (reverse-engineered)
+
+The console's **External Guardrail → Advanced → ML Sidecar** panel points the
+gateway at an HTTP endpoint that scores each governed prompt/response. Ping
+publishes no spec for it. This contract was recovered from the gateway binary's
+`aiguard.Webhook*` structs plus a live capture from the `guardrail-probe` sidecar
+(a stub that logs the request and always allows). The real implementation is
+`demo_mcp_promptguard/` (Meta Prompt-Guard), running as the `mcp-promptguard`
+sidecar on port 8086.
+
+**Config in the console panel:** enable the **External Guardrail** detector first
+(the ML Sidecar fields stay disabled until it is on). Then ML Sidecar URL
+`http://localhost:8086/inspect`, Timeout `1000`, Auth Header blank (the sidecar
+checks none), Block Agreement default. **Leave Sidecar Fail Closed OFF** until a
+block from the sidecar is proven — with it ON, any sidecar 5xx blocks every call.
+
+**Request** — `POST <url>`, `application/json`:
+
+```json
+{ "tenant": "<envId>", "user": "<userId>", "app_name": "anthropic",
+  "units": [ { "role": "user_prompt", "direction": "request", "text": "<prompt>" } ] }
+```
+
+`units` is a list (one call may carry several). `direction` is `request` (prompt
+scan) or `response` (model-output scan). The panel sits on the **LLM Gateway**
+path (`/llm/<provider>/v1/messages`), so `app_name` is the provider lane and a
+call is triggered by an LLM prompt, not an MCP tool call.
+
+**Response** — the gateway decodes `aiguard.WebhookResponse`. An **empty
+`findings` list means allow**; a finding whose category crosses that category's
+block threshold makes the gateway block (HTTP 400 to the caller):
+
+```json
+{ "findings": [ { "category": "prompt_injection", "severity": "high",
+                  "location": { "index": 0 }, "messages": ["..."], "contents": ["..."] } ] }
+```
+
+`category` should be a known guardrail category (`prompt_injection`, `jailbreak`,
+`malicious_content`, `pii`, …); `location.index` points at the offending unit.
+Returning `{"allow":true}` (as the probe stub did) has no `findings` key and reads
+as allow — that is why the stub never blocked anything.
+
+**Still unconfirmed:** whether the gateway blocks purely on a finding's presence
+or re-applies its own per-category block threshold to the sidecar's finding, and
+the exact severity→action mapping. Prove by making `mcp-promptguard` return a
+finding on a benign trigger phrase and checking the caller gets 400.
+
 ## 2026-09-06 — Banking REST added as an OpenAPI MCP app (`banking-rest`), as a pod sidecar
 
 | Item | Value |
