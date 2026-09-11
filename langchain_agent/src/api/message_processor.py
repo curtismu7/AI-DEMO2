@@ -860,6 +860,7 @@ class MessageProcessor:
         run_provider: str = None,
         run_model: str = None,
         user_identity: dict = None,
+        run_id: str = "",
     ) -> None:
         """Process one agent turn and emit AG-UI events via the provided emitter.
 
@@ -1036,7 +1037,7 @@ class MessageProcessor:
             from langgraph.prebuilt import create_react_agent
 
             bff_tools = build_bff_tools(
-                tool_schemas, bff_tool_url, session_id, emitter._sink
+                tool_schemas, bff_tool_url, session_id, emitter._sink, run_id=run_id
             )
             # F2: bound the BFF-path prompt the same way the startup MCP graph
             # does. Without this hook the full AG-UI history is replayed every

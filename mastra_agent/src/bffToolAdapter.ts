@@ -11,6 +11,8 @@ export interface RunCtx {
   bffToolUrl: string;
   bffInternalSecret: string;
   sessionId: string;
+  // Named on every callback: the BFF keys each run's context by it.
+  runId?: string;
   // Optional: aborts an in-flight tool fetch when the client disconnects.
   abortSignal?: AbortSignal;
 }
@@ -147,7 +149,7 @@ function _makeTool(schema: ToolSchema, runCtx: RunCtx, emitFn?: EmitFn) {
           'x-internal-gateway-secret': runCtx.bffInternalSecret,
           'x-session-id': runCtx.sessionId,
         },
-        body: JSON.stringify({ tool: schema.name, args, sessionId: runCtx.sessionId }),
+        body: JSON.stringify({ tool: schema.name, args, sessionId: runCtx.sessionId, runId: runCtx.runId }),
         signal,
       });
     } catch (err) {

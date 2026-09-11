@@ -186,6 +186,51 @@ A real remote no-gateway path to mcp-server is still open (TECH_DEBT 2026-09-11,
 - Full server suite: 1010 of 1011 pass. The one failure, `adminVerticals.route`,
   passes alone (59/59).
 
+### 2026-09-11 — /api/agent/run undid a mode change made during the run
+
+**Files changed:** `demo_api_server/routes/agentRun.js`, `demo_api_server/routes/agentTool.js`,
+`demo_api_server/services/agentRunContext.js`; each agent's tool-callback adapter and run handler —
+`langchain_agent/src/agui/bff_tool_adapter.py`, `langchain_agent/src/api/agui_run_handler.py`,
+`langchain_agent/src/api/message_processor.py`, `openai_agent/src/{bff_tool_adapter,run_handler}.py`,
+`pydantic_agent/src/{bff_tool_adapter,run_handler,models}.py`,
+`mastra_agent/src/{bffToolAdapter,runHandler}.ts`, `demo_agent_service/src/agentRunHandler.ts` — and
+their tests.
+
+**What was broken:** `/api/agent/run` minted the run's Intent Token onto `req.session`. express-session
+persists that only when the long-running response ENDS, by saving the whole copy of the session it
+loaded when the run STARTED, so anything another request saved in between was overwritten: switching
+Heuristics → llama.cpp just before sending left the mode picker on Heuristics after the run. The same
+delay meant the mid-run tool callback (`/internal/agent-tool`) read the store before that save and
+forwarded the PREVIOUS run's Intent Token (or none) to the gateway. Removing that write was not enough:
+setup services still write the session (`getAgentCCToken` caches the agent token in
+`session.agentTokens` on a miss), and that too was saved as the stale copy at the end. And the run
+context was keyed by session alone, so two runs overlapping in one session cross-wired: the older
+run's tool callback got the newer run's Intent Token and offered-tool list.
+
+**Fixed by** (1) keeping the Intent Token on the run context (`runEntry.intentToken`), read by
+`/internal/agent-tool` with no session fallback; (2) `agentRun` snapshotting the session when the run
+starts and, just before the agent stream, saving it if setup changed it — nothing writes it after that
+point, so express-session skips its end-of-run save; (3) keying run-context entries by session + run id,
+with every agent sending `runId` on each `/internal/agent-tool` callback (langchain now uses the BFF's
+run id instead of minting its own).
+
+**Do not break:** per-run state goes on the run entry, never `req.session`. A session write during
+setup must stay before the early save (the source canary pins that save after the offered-tool list
+and before Step E); a write after it is persisted as a stale whole-session copy when the run ends. Tool
+callbacks must send `runId`. Still open: when setup wrote the session, a mode change made during setup
+is overwritten (TECH_DEBT).
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/agentRunContext.sessionRace.test.js tests/agentRun.intentTokenMint.regression.test.js --forceExit`
+— 13/13; red first: the route test forwarded `intent-token-previous-run`, the overlapping run's callback
+got 403 `tool_not_offered`, an ended run's callback got 200, and the canaries found
+`req.session.intentToken =` and no early save. Scoped `agentRun|agentTool|intentToken|agentRunContext|llmTokenCustody`:
+35 suites / 462 passed. Agents, each new callback test red before its change: langchain adapter +
+message processor 29 passed; openai adapter + run handler 10 passed, 1 pre-existing failure
+(`test_run_returns_sse_with_run_started_and_finished`, fails on the unchanged source too); pydantic
+adapter + run handler + models 19 passed; mastra 37/37; demo_agent_service 134/134. Test note:
+`src/__tests__/setup.js` calls `jest.resetModules()` after every test, so a route test must take
+`agentRunContext` from the same registry as the route.
+
 ### 2026-09-11 — LM Studio's Privilege entries needed a visit to /privilege-mcp-client, and said "SSE error: Non-200 status code (405)"
 
 **Files changed:** `demo_api_server/services/privilegeGatewaySession.js`,

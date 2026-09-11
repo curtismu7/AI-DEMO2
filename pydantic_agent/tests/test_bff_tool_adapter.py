@@ -30,6 +30,32 @@ def test_tool_has_correct_name():
 
 @pytest.mark.asyncio
 @respx.mock
+async def test_tool_callback_names_its_run():
+    """The BFF keys each run's context (tool list, Intent Token) by run id: a
+    callback without it could read an overlapping newer run's context."""
+    import json
+
+    route = respx.post("http://127.0.0.1:3001/internal/agent-tool").mock(
+        return_value=httpx.Response(200, json={"result": {}})
+    )
+    tools = build_tool_functions([SCHEMA])
+
+    class FakeCtx:
+        deps = BffDeps(
+            bff_tool_url="http://127.0.0.1:3001/internal/agent-tool",
+            bff_internal_secret="secret",
+            session_id="sess_abc",
+            run_id="run-A",
+        )
+        tool_call_id = "tc-run"
+
+    await tools[0].function(FakeCtx(), userId="u1")
+
+    assert json.loads(route.calls[0].request.content)["runId"] == "run-A"
+
+
+@pytest.mark.asyncio
+@respx.mock
 async def test_emits_state_delta_per_token_event():
     """Each tokenEvent in the BFF response produces one STATE_DELTA add patch."""
     from src.bff_tool_adapter import build_tool_functions
@@ -52,6 +78,7 @@ async def test_emits_state_delta_per_token_event():
         bff_tool_url = "http://127.0.0.1:3001/internal/agent-tool"
         bff_internal_secret = "secret"
         session_id = "sess_abc"
+        run_id = "run-1"
 
     class FakeCtx:
         deps = FakeDeps()
@@ -95,6 +122,7 @@ async def test_emits_tool_call_start_and_end_around_execution():
         bff_tool_url = "http://127.0.0.1:3001/internal/agent-tool"
         bff_internal_secret = "secret"
         session_id = "sess_abc"
+        run_id = "run-1"
 
     class FakeCtx:
         deps = FakeDeps()
@@ -130,6 +158,7 @@ async def test_emits_tool_call_end_even_when_tool_call_fails():
         bff_tool_url = "http://127.0.0.1:3001/internal/agent-tool"
         bff_internal_secret = "secret"
         session_id = "sess_abc"
+        run_id = "run-1"
 
     class FakeCtx:
         deps = FakeDeps()
@@ -165,6 +194,7 @@ async def test_403_policy_denial_raises_model_retry_with_real_reason():
         bff_tool_url = "http://127.0.0.1:3001/internal/agent-tool"
         bff_internal_secret = "secret"
         session_id = "sess_abc"
+        run_id = "run-1"
 
     class FakeCtx:
         deps = FakeDeps()
@@ -193,6 +223,7 @@ async def test_5xx_still_raises_model_retry():
         bff_tool_url = "http://127.0.0.1:3001/internal/agent-tool"
         bff_internal_secret = "secret"
         session_id = "sess_abc"
+        run_id = "run-1"
 
     class FakeCtx:
         deps = FakeDeps()

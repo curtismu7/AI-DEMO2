@@ -126,6 +126,8 @@ class BffTool(BaseTool):
 
     bff_tool_url: str
     session_id: str
+    # Named on every callback: the BFF keys each run's context by it.
+    run_id: str = ""
 
     _sink: Optional[Callable[[Dict[str, Any]], Coroutine]] = PrivateAttr(default=None)
     _bff_internal_secret: str = PrivateAttr(default="")
@@ -140,6 +142,7 @@ class BffTool(BaseTool):
         session_id: str,
         sink: Optional[Callable] = None,
         bff_internal_secret: str = "",
+        run_id: str = "",
         **kwargs: Any,
     ) -> None:
         super().__init__(
@@ -148,6 +151,7 @@ class BffTool(BaseTool):
             args_schema=args_schema,
             bff_tool_url=bff_tool_url,
             session_id=session_id,
+            run_id=run_id,
             **kwargs,
         )
         self._sink = sink
@@ -190,7 +194,7 @@ class BffTool(BaseTool):
             async with httpx.AsyncClient(timeout=_timeout) as client:
                 resp = await client.post(
                     self.bff_tool_url,
-                    json={"tool": self.name, "args": args, "sessionId": self.session_id},
+                    json={"tool": self.name, "args": args, "sessionId": self.session_id, "runId": self.run_id},
                     headers={
                         "x-internal-gateway-secret": self._bff_internal_secret,
                         "x-session-id": self.session_id,
@@ -238,6 +242,7 @@ def build_bff_tools(
     bff_tool_url: str,
     session_id: str,
     sink: Optional[Callable] = None,
+    run_id: str = "",
 ) -> List[BffTool]:
     """Build a BffTool for each schema from the BFF /run payload."""
     secret = os.environ.get("BFF_INTERNAL_SECRET", "dev-shared-secret-change-me")
@@ -255,6 +260,7 @@ def build_bff_tools(
             session_id=session_id,
             sink=sink,
             bff_internal_secret=secret,
+            run_id=run_id,
         ))
     logger.info("[BffTool] Built %d BFF tools for session %s", len(tools), session_id)
     return tools

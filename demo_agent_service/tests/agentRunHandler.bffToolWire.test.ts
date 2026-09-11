@@ -83,10 +83,13 @@ describe('agent → /internal/agent-tool wire contract', () => {
     expect(url).toBe(BFF_URL);
     expect(init.headers['x-internal-gateway-secret']).toBe(SECRET);
     const body = JSON.parse(init.body as string);
+    // runId: the BFF keys each run's context (tool list, Intent Token) by it, so
+    // an overlapping newer run in the same session is never read instead.
     expect(body).toEqual({
       tool: 'get_my_accounts',
       args: { limit: 2 },
       sessionId: 'sess-abc',
+      runId: 'r1',
     });
     expect(body.jsonrpc).toBeUndefined();
     expect(body.method).toBeUndefined();
