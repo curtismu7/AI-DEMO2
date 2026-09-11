@@ -58,7 +58,6 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 "oauth_manager": self.app_status.get("oauth_manager", "unknown"),
                 "mcp_manager": self.app_status.get("mcp_manager", "unknown"),
                 "agent": self.app_status.get("agent", "unknown"),
-                "websocket_server": self.app_status.get("websocket_server", "unknown"),
                 "message_processor": self.app_status.get("message_processor", "unknown")
             },
             "uptime_seconds": self.app_status.get("uptime_seconds", 0),

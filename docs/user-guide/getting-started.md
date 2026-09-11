@@ -107,7 +107,7 @@ The full stack is ~13 services. You want to see them marked as **healthy** or **
 - `demo_mcp_resource_server` (8081) — Investment tools
 - `demo_api_resource_server` (8082) — Mortgage backend
 - `demo_authz_server` (9001) — Authorize mock
-- `langchain_agent` (8888/8889/8890) — Python LangChain/LangGraph agent
+- `langchain_agent` (8888/8890) — Python LangChain/LangGraph agent
 - `openai_agent` (8891) — OpenAI agent
 - `mastra_agent` (8892) — Mastra agent
 - `pydantic_agent` (8893) — Pydantic agent

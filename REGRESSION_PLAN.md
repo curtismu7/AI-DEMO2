@@ -113,7 +113,6 @@ minimal diff.
 | `8081` | MCP Invest Server | `ws://localhost:8081` |
 | `8082` | Mortgage Service | `http://localhost:8082` |
 | `8888` | LangChain Agent (uvicorn main) | `http://localhost:8888` |
-| `8889` | LangChain Agent (chat WS) | `ws://localhost:8889` |
 | `8890` | LangChain Agent (health) | `http://localhost:8890` |
 
 **`local.ping-devops.com` is the canonical local BROWSER origin** (HTTPS via

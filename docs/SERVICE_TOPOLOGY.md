@@ -19,7 +19,7 @@ Companion to [ARCHITECTURE.md](ARCHITECTURE.md). This document is the concrete m
 | Mortgage Service | `demo_api_resource_server` | Node | 8082 → 8082 | BFF | (called via API key) |
 | Mock Authz | `demo_authz_server` | Node | 9001 → 9001 | — | optionally PingOne |
 | Agent Service | `demo_agent_service` | TypeScript | 3016 → 3006¹ | BFF, MCP gateway | BFF |
-| LangChain Agent | `langchain_agent` | Python / uvicorn | 8888 / 8889 / 8890 | BFF, mcp-server | MCP servers (WS), BFF |
+| LangChain Agent | `langchain_agent` | Python / uvicorn | 8888 / 8890 | BFF, mcp-server | MCP servers (WS), BFF |
 | Mastra Agent | `mastra_agent` | TypeScript | 8892 → 8892 | BFF, mcp-server | BFF (tool adapter) |
 | OpenAI Agent | `openai_agent` | Python / uvicorn | 8891 → 8891 | BFF, mcp-server | BFF (tool adapter) |
 | Pydantic Agent | `pydantic_agent` | Python / uvicorn | 8893 → 8893 | BFF, mcp-server | BFF (tool adapter) |
@@ -208,7 +208,7 @@ The gateway picks the target by tool name, performs any required token exchange 
 | 8080 | MCP Server (primary) |
 | 8081 | MCP Invest |
 | 8082 | Mortgage Service |
-| 8888 / 8889 / 8890 | LangChain Agent (SSE / WS / health) |
+| 8888 / 8890 | LangChain Agent (SSE / health) |
 | 8891 | OpenAI Agent |
 | 8892 | Mastra Agent |
 | 8893 | Pydantic Agent |

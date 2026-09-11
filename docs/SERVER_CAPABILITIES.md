@@ -138,7 +138,7 @@ Standalone Python agent built on LangChain + LangGraph. Has its own OAuth client
 
 **Takes in:** `POST /run` AG-UI protocol requests from the BFF, OAuth callbacks from PingOne  
 **Gives back:** AG-UI SSE event stream (chat responses, tool-call lifecycle), token-authenticated tool calls to MCP servers  
-**Runs on:** AG-UI HTTP (`/run`) on port 8888, WebSocket chat on 8889, health on 8890 — all three bind simultaneously; the BFF's `llm_framework` dispatcher and the main banking chat UI both talk to 8888
+**Runs on:** AG-UI HTTP (`/run`) on port 8888, health on 8890 — both bind simultaneously; the BFF's `llm_framework` dispatcher and the main banking chat UI both talk to 8888
 
 ---
 

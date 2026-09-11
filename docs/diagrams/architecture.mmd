@@ -91,8 +91,8 @@ runtime switchable"]
     end
 
     %% ── LangChain Agent ───────────────────────────────────────────────────────
-    subgraph Agent["langchain_agent  (Python · uvicorn :8888 · chat WS :8889 · health :8890)"]
-        FastAPI["uvicorn HTTP :8888<br/>chat WebSocket :8889"]
+    subgraph Agent["langchain_agent  (Python · uvicorn :8888 · health :8890)"]
+        FastAPI["uvicorn HTTP :8888"]
         HealthInsp["Health :8890<br/>/health · /inspector/mcp-host"]
         LangChain["LangChain agent<br/>streaming · tool calls"]
         MCPClientPy["MCP Client<br/>WebSocket JSON-RPC + Bearer"]

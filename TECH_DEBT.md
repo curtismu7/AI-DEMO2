@@ -16,6 +16,27 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-09-11 — LangChain's direct-MCP message pipeline has no production caller
+
+**What's wrong.** Removing the legacy chat WebSocket on :8889 (branch
+`worktree-remove-langchain-ws-8889`) left `LangChainMCPAgent.process_message_with_tracing`,
+its `process_message` delegate, the `stream_context["websocket_handler"]` streaming
+branch inside it, and `clear_session_memory` reachable only from tests. The AG-UI
+`/run` path (`MessageProcessor.process_agui_message`) builds its own graph and never
+calls them. Nothing evicts AG-UI thread checkpoints any more either —
+`clear_session_memory` only ever ran on a WS disconnect. The dev default
+`PINGONE_REDIRECT_URI=http://localhost:8889/auth/callback` in
+`langchain_agent/src/config/settings.py` still names the removed port.
+
+**Why it wasn't fixed now.** Scoped to the transport. These belong to the separate
+"LangChain tools go through the BFF only" cleanup, which also decides whether the
+startup PingOne client registration (`main.py`) and `/run`'s direct-MCP fallback
+(no `bffToolUrl`) stay — and the redirect URI is part of that registration.
+
+**Real fix.** Remove the direct-MCP pipeline together with the `/run` fallback and
+the startup registration (or give them a real caller if kept), and evict
+MemorySaver threads for finished AG-UI sessions.
+
 ### [ ] 2026-09-11 — The Privilege gateway link is wired for the local Docker stack only
 
 **What's wrong.** The MCP-client-driven Privilege gateway sign-in

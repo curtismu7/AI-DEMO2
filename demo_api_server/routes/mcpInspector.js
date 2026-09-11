@@ -94,7 +94,6 @@ router.get('/context', async (req, res) => {
     const mcpResourceUri = configStore.getEffective('mcp_resource_uri');
     const langchainInspectorUrl =
       process.env.REACT_APP_LANGCHAIN_INSPECTOR_URL || '/api/mcp/inspector/langchain-host';
-    const langchainWsPort = process.env.LANGCHAIN_WEBSOCKET_PORT || '8080';
 
     res.json({
       role: 'mcp_host_proxy',
@@ -105,7 +104,6 @@ router.get('/context', async (req, res) => {
       mcpServerConfigured: !!getMcpServerUrl(),
       tokenExchangeEnabled: !!mcpResourceUri,
       bankingAgentInspectorUrl: langchainInspectorUrl,
-      langchain_chat_websocket_port: langchainWsPort,
       /** Side-by-side demo narrative: two MCP Hosts, one MCP server + one protected Banking API */
       mcpHosts: {
         bff: {
@@ -132,7 +130,7 @@ router.get('/context', async (req, res) => {
           tokenExchange:
             'Target pattern: exchange user/agent context for MCP-scoped tokens (see ARCHITECTURE.md); complements Backend-for-Frontend (BFF) for non-browser actors.',
           mcpClientTransport:
-            `WebSocket to MCP with Bearer on connect; chat UI uses separate WebSocket (port ${langchainWsPort}).`,
+            'WebSocket to MCP with Bearer on connect.',
           bestForShowing:
             'How an AI agent acts as MCP client, uses tools, and still reaches the same MCP server that enforces introspection and scopes.',
           inspectorJsonUrl: langchainInspectorUrl,

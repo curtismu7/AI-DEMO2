@@ -147,7 +147,7 @@ function LangChainTab() {
           <Pill color="#2563eb">Stateful</Pill>
         </div>
         <Row label="Framework">LangChain — demo pins 0.0.353 + LangGraph · current stable 1.x (GA Oct 2025) — <code>create_react_agent</code></Row>
-        <Row label="Ports">WebSocket 8889 · HTTP 8888 · Health 8890</Row>
+        <Row label="Ports">HTTP 8888 · Health 8890</Row>
       </Card>
 
       <SectionHead>Agent Loop</SectionHead>

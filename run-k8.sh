@@ -128,7 +128,7 @@ export RUNK8=1
 
 # Ports the K8s port-forwards bind (and the legacy local-node stack used).
 # kill_all sweeps any process still listening on these before we (re)bind.
-DEMO_PORTS="3001 4000 8080 8081 8082 3005 3006 3009 3016 8888 8889 8890 8891 8892 8893"
+DEMO_PORTS="3001 4000 8080 8081 8082 3005 3006 3009 3016 8888 8890 8891 8892 8893"
 
 info()    { demo_info "$@"; }
 success() { demo_success "$@"; }
