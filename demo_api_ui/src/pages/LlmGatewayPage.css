@@ -766,13 +766,3 @@
   background: var(--th-bg-inset);
   color: var(--th-text);
 }
-
-/* ── Placement C: a reel under each reply ────────────────────────────────
-   The group wraps the turn button and its reel as siblings. The reel CANNOT be
-   inside the button: it has buttons of its own, and nesting them is invalid
-   markup that swallows the inner clicks. */
-.lgw-turn-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}

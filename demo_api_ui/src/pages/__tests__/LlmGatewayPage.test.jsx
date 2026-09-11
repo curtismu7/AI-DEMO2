@@ -324,13 +324,13 @@ describe("LLM Gateway console", () => {
       await ask("capital of France?");
 
       await screen.findByTestId("lgw-decision");
-      // The path is drawn by the reel now — a band under the header plus one
-      // under the reply — rather than a row inside the decision panel.
+      // The path is drawn by the reel in the band under the header only —
+      // not under the reply, and not as a row inside the decision panel.
       const band = document.querySelector(".lgw-reelband");
       expect(band).toBeTruthy();
       expect(band).toHaveTextContent(/Privilege/);
       expect(band).toHaveTextContent(/Anthropic/);
-      expect(document.querySelector(".lgw-turn-group .lgw-reel")).toBeTruthy();
+      expect(document.querySelectorAll(".lgw-reel")).toHaveLength(1);
     });
 
     it("omits the Privilege hop for a local lane's successful reply", async () => {
@@ -730,8 +730,8 @@ describe("LLM Gateway console", () => {
     });
   });
 
-  describe("turn selection", () => {
-    it("re-points Last decision at an older turn's own result when it's clicked", async () => {
+  describe("each run starts clean", () => {
+    it("clears the previous prompt, reply and decision when the next one is sent", async () => {
       const responses = [
         {
           ok: true, status: 200,
@@ -766,9 +766,9 @@ describe("LLM Gateway console", () => {
       await ask("customer SSN 123-45-6789");
       expect(await screen.findByTestId("lgw-decision")).toHaveTextContent(/Denied by policy/);
 
-      // Click back on the earlier, successful turn.
-      fireEvent.click(screen.getByText("Paris.").closest("button"));
-      expect(await screen.findByTestId("lgw-decision")).toHaveTextContent(/Answered/);
+      expect(screen.queryByText("Paris.")).not.toBeInTheDocument();
+      expect(screen.queryByText("capital of France?")).not.toBeInTheDocument();
+      expect(document.querySelectorAll(".lgw-turn--model")).toHaveLength(1);
     });
   });
 
