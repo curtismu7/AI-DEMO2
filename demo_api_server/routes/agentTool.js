@@ -100,12 +100,12 @@ router.post('/agent-tool', async (req, res) => {
     session: { ...session, id: sessionId },
     sessionID: sessionId,
     intentToken: session.intentToken || null,
-    // flowTraceId was persisted on the session by agentRun.js for this run.
-    // executeBffTool reads it from req.body to publish pipeline phase milestones
-    // to the browser's live MCP flow SSE (the compliance checklist).
-    // useCaseId was persisted on the session by agentRun.js to tag the flow for
-    // cross-process observability; executeBffTool stamps token events with it.
-    body: { flowTraceId: session.agentRunFlowTraceId || null, useCaseId: session.agentRunUseCaseId || null },
+    // flowTraceId / useCaseId of the run in flight, registered by agentRun.js.
+    // executeBffTool reads them from req.body to publish pipeline phase
+    // milestones to the browser's live MCP flow SSE and to tag token events.
+    // Not read from the stored session: a concurrent request's stale save can
+    // erase them there (see services/agentRunContext.js).
+    body: { ...require('../services/agentRunContext').getRunContext(sessionId) },
   };
   const tokenEvents = [];
 

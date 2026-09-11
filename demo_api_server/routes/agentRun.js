@@ -365,30 +365,21 @@ router.post('/run', nrTransactionMiddleware, async (req, res) => {
 
   // flowTraceId binds this run to the browser's live MCP flow SSE subscription.
   // The agent service executes tools by calling back into the BFF at
-  // /internal/agent-tool, which rebuilds a request from the STORED session — so
-  // we persist the trace id on the session here. agentTool.js reads it back into
-  // req.body.flowTraceId, and executeBffTool then publishes pipeline phases to
-  // the hub keyed by it, lighting up the compliance checklist for the AG-UI path.
-  // Assumes one AG-UI run per session at a time: this is a single scalar, so two
-  // concurrent runs in the same session would cross-wire the flow SSE. Acceptable
-  // for the demo (one agent panel per session); key by runId if that changes.
-  //
-  // useCaseId tags the flow for cross-process observability, mirroring flowTraceId.
-  // The AG-UI browser passes it; agentRun stashes on session; agentTool forwards
-  // it back into req.body so executeBffTool stamps all token events with the tag.
-  // CRITICAL: useCaseId assignment is UNCONDITIONAL (set to value or null) so each
-  // run overwrites (and clears) the stale value from previous runs. If run N has no
-  // useCaseId, it must clear run N-1's stale value before session.save().
+  // /internal/agent-tool, which cannot see this request — so the trace id and
+  // the clicked useCaseId are registered per session in agentRunContext, where
+  // agentTool.js reads them back into req.body. executeBffTool then publishes
+  // pipeline phases to the hub keyed by the trace and stamps token events with
+  // the useCaseId. NOT kept on the session: it is last-write-wins across
+  // concurrent requests, and the mode picker's POST /api/langchain/config saved
+  // its stale copy over the trace, so the whole run's phases went to no trace.
+  // Assumes one AG-UI run per session at a time: two concurrent runs in the same
+  // session would cross-wire the flow SSE. Acceptable for the demo (one agent
+  // panel per session); key by runId if that changes.
+  // useCaseId is overwritten every run (value or null) so a stale one never leaks.
   const flowTraceId = typeof req.body?.flowTraceId === 'string' ? req.body.flowTraceId.trim() : '';
   const useCaseId = typeof req.body?.useCaseId === 'string' ? req.body.useCaseId.trim() : '';
   if (flowTraceId || useCaseId) {
-    if (flowTraceId) req.session.agentRunFlowTraceId = flowTraceId;
-    req.session.agentRunUseCaseId = useCaseId || null;
-    try {
-      await new Promise((resolve, reject) => req.session.save((e) => (e ? reject(e) : resolve())));
-    } catch (saveErr) {
-      console.warn('[agentRun] session save failed (non-fatal):', saveErr.message);
-    }
+    require('../services/agentRunContext').setRunContext(req.session.id, { flowTraceId, useCaseId });
   }
 
   // Sliding-window: forward only the most recent N messages to each agent.

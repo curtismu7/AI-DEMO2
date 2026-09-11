@@ -140,6 +140,38 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-11 — AG-UI tool calls lost their flow trace when a session write landed mid-run
+
+**Files changed:** `demo_api_server/routes/agentRun.js`, `demo_api_server/routes/agentTool.js`,
+`demo_api_server/services/agentRunContext.js` (new), `demo_api_server/services/useCaseDemoBehaviors.js`,
+`demo_api_server/tests/agentRunContext.sessionRace.test.js` (new), `demo_api_server/tests/needs-build-chips.test.js`,
+`demo_api_server/tests/agentToolUseCaseId.test.js` (removed — it asserted a hand-copied snippet of the
+old session code, never the route).
+
+**What was broken:** `/api/agent/run` passed the run's `flowTraceId` (and `useCaseId`) to the
+agent's tool callback (`/internal/agent-tool`) through the express session. The session is
+last-write-wins across concurrent requests. The mode picker's `POST /api/langchain/config` loads the
+session, awaits `configStore.setConfig`, then saves — so when it overlapped the start of a run it
+wrote its stale copy over `agentRunFlowTraceId`. The tool call then ran with no trace,
+`bindTraceEmit` fell back to the no-op emit, and the Agent request flow panel showed prompt + reply
+but no hops. Seen live once, on a cold llama.cpp run right after switching mode (tool call ~69s in).
+**Not reproduced on a warm stack:** an idle flow SSE survives 75s, and bursts/loops of config
+requests around the send did not hit the window. The regression test replays the losing end state.
+
+**Fixed by** registering the run context in an in-process map keyed by session id
+(`services/agentRunContext.js`) instead of the session: `agentRun` sets it, `agentTool` reads it into
+the callback's `req.body`. Same rules the session fields had — keep the previous trace when a run
+sends none, always overwrite `useCaseId`. `resolveActiveUseCaseId`'s session fallback read a field
+nothing writes any more, so it is removed.
+
+**Do not break:** the tool callback's `req.body` must carry the run's `flowTraceId` / `useCaseId`
+whatever the stored session holds. Single-BFF-process assumption — the same one `mcpFlowSseHub` makes.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/agentRunContext.sessionRace.test.js`
+— fails before the fix (the callback body held nulls instead of `trace-race-1` / `account-summary`),
+passes after; scoped `agentRun|agentTool|needs-build-chips|useCase` 43 suites / 873 passed; callers of
+`resolveActiveUseCaseId` (`mcpToolAuthorization`, `agentMcpTokenService`) 8 suites / 184 passed.
+
 ### 2026-09-11 — /monitoring/agent-flow never opened the Agent request flow panel on a fresh load
 
 **Files changed:** `demo_api_ui/src/App.js`, `demo_api_ui/src/__tests__/App.session.test.js`.
