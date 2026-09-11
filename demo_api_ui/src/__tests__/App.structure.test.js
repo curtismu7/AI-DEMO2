@@ -184,6 +184,13 @@ describe("/agent-gateway-inspector — gateway decisions panel", () => {
   test("AgentGatewayLogPanel imports the mgc-* stylesheet it renders with", () => {
     expect(panelSrc).toMatch(/import ["']\.\/McpGatewayConfig\.css["']/);
   });
+
+  test("the panel keeps its .mgc-root wrapper (width, 24px inset, font)", () => {
+    // Its old host (McpGatewayConfig) rendered it inside .mgc-root; without that
+    // wrapper it sits flush against the page with the wrong typography.
+    const body = routesSrc.match(/export function McpGatewayConfigRoute[\s\S]*?\n}\n/);
+    expect(body && body[0]).toMatch(/className="mgc-root"[\s\S]*<AgentGatewayLogPanel/);
+  });
 });
 
 // ─── DashboardContent (highest priority — guards the 3d2cf092 regression) ────
