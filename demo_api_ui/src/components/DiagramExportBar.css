@@ -10,7 +10,7 @@
   margin: 0.5rem 0;
   background: var(--th-bg-inset);
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--th-text-muted);
   font-size: var(--font-size-sm);
 }

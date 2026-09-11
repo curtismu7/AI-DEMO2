@@ -27,7 +27,7 @@
 }
 
 .lgw-reel__link {
-  color: var(--th-text-muted);
+  color: var(--th-text-body);
   letter-spacing: -1px;
 }
 
@@ -70,17 +70,17 @@
 }
 
 .lgw-reel__icon {
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-base);
 }
 
 .lgw-reel__label {
   font-weight: 600;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-lg);
 }
 
 .lgw-reel__summary {
-  font-size: var(--font-size-2xs);
-  color: var(--th-text-muted);
+  font-size: var(--font-size-base);
+  color: var(--th-text-body);
   white-space: normal;
 }
 
@@ -91,11 +91,11 @@
   border-style: dashed;
   border-color: var(--th-border);
   background: transparent;
-  color: var(--th-text-muted);
+  color: var(--th-text-body);
 }
 
 .lgw-reel__box--idle .lgw-reel__label {
-  color: var(--th-text-muted);
+  color: var(--th-text-body);
 }
 
 .lgw-reel__box--ok {
@@ -143,16 +143,16 @@
 
 .lgw-reel__detail-title {
   margin: 0 0 0.4rem;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-lg);
   color: var(--th-text);
 }
 
 .lgw-reel__detail-list {
   display: grid;
   grid-template-columns: minmax(9rem, auto) 1fr;
-  gap: 0.2rem 0.8rem;
+  gap: 0.3rem 0.8rem;
   margin: 0;
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-base);
 }
 
 .lgw-reel__detail-list > div {
@@ -160,7 +160,7 @@
 }
 
 .lgw-reel__detail-list dt {
-  color: var(--th-text-muted);
+  color: var(--th-text-body);
 }
 
 .lgw-reel__detail-list dd {

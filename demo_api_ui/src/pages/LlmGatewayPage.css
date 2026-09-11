@@ -33,7 +33,7 @@
   margin: 0;
   max-width: 68ch;
   font-size: var(--font-size-base);
-  color: var(--th-text-muted);
+  color: var(--th-text-body);
 }
 
 .lgw-bar__side {
@@ -50,7 +50,7 @@
   border: 1px solid var(--th-border);
   border-radius: 4px;
   background: var(--th-bg-card);
-  color: var(--th-text-muted);
+  color: var(--th-text-body);
 }
 
 .lgw-theme {
@@ -131,7 +131,7 @@
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: var(--th-text-muted);
+  color: var(--th-text-body);
 }
 
 .lgw-rail__head {
@@ -151,7 +151,7 @@
   border: 1px solid var(--th-border);
   border-radius: 4px;
   background: var(--th-bg-card);
-  color: var(--th-text-muted);
+  color: var(--th-text-body);
   font-size: var(--font-size-sm);
   cursor: pointer;
 }
@@ -186,7 +186,7 @@
   margin: 0;
   font-size: var(--font-size-sm);
   line-height: 1.5;
-  color: var(--th-text-muted);
+  color: var(--th-text-body);
 }
 
 /* ── lanes ───────────────────────────────────────────────────────────────── */
@@ -236,11 +236,11 @@
 .lgw-lane__r {
   font-family: var(--font-mono);
   font-size: var(--font-size-sm);
-  color: var(--th-text-muted);
+  color: var(--th-text-body);
   word-break: break-all;
 }
 
-/* --th-text-muted reads fine on the card's normal --th-bg-inset ground, but
+/* --th-text-body reads fine on the card's normal --th-bg-inset ground, but
    the selected lane switches its ground to --th-bg-emphasis (see
    .lgw-lane.is-selected below) without this sub-line following — measured
    live: rgb(148,163,184) muted text on rgb(147,197,253) emphasis background,
@@ -267,7 +267,7 @@
   font-size: var(--font-size-sm);
   letter-spacing: 0.07em;
   text-transform: uppercase;
-  color: var(--th-text-muted);
+  color: var(--th-text-body);
 }
 
 .lgw-meter { display: flex; flex-direction: column; gap: 0.15rem; }
@@ -279,7 +279,7 @@
   font-family: var(--font-mono);
   font-size: var(--font-size-sm);
   font-variant-numeric: tabular-nums;
-  color: var(--th-text-muted);
+  color: var(--th-text-body);
 }
 
 .lgw-meter__track {
@@ -307,7 +307,7 @@
 .lgw-meter__reset {
   font-family: var(--font-mono);
   font-size: var(--font-size-sm);
-  color: var(--th-text-muted);
+  color: var(--th-text-body);
 }
 
 /* ── conversation ────────────────────────────────────────────────────────── */
@@ -353,7 +353,7 @@
   grid-column: 1 / -1;
   margin: 0;
   font-size: var(--font-size-sm);
-  color: var(--th-text-muted);
+  color: var(--th-text-body);
 }
 
 .lgw-compare__side {
@@ -406,7 +406,7 @@
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--th-text-muted);
+  color: var(--th-text-body);
 }
 
 .lgw-score__table tr.is-mismatch td {
@@ -437,13 +437,13 @@
 }
 
 .lgw-score__ms {
-  color: var(--th-text-muted);
+  color: var(--th-text-body);
 }
 
 .lgw-empty {
   margin: 0;
   font-size: var(--font-size-base);
-  color: var(--th-text-muted);
+  color: var(--th-text-body);
 }
 
 .lgw-busy {
@@ -500,7 +500,7 @@
   font-size: var(--font-size-sm);
   letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: var(--th-text-muted);
+  color: var(--th-text-body);
 }
 
 .lgw-turn__body {
@@ -513,7 +513,7 @@
   padding: 0.3rem 0.4rem;
 }
 
-.lgw-turn--you .lgw-turn__body { color: var(--th-text-muted); }
+.lgw-turn--you .lgw-turn__body { color: var(--th-text-body); }
 
 /* The whole point of the demo: the gateway's edit, visible inside the model's own
    answer. <mark>'s UA background is a fixed yellow that ignores the dark theme, so
@@ -536,7 +536,7 @@
 
 .lgw-raw > summary {
   cursor: pointer;
-  color: var(--th-text-muted);
+  color: var(--th-text-body);
 }
 
 .lgw-raw > pre {
@@ -547,7 +547,7 @@
   border: 1px solid var(--th-border);
   border-radius: 4px;
   background: var(--th-bg-inset);
-  color: var(--th-text-muted);
+  color: var(--th-text-body);
   font-family: var(--font-mono);
   white-space: pre-wrap;
   word-break: break-word;
@@ -635,7 +635,7 @@
 
 .lgw-attacks__note {
   font-size: var(--font-size-sm);
-  color: var(--th-text-muted);
+  color: var(--th-text-body);
 }
 
 .lgw-composer {
@@ -703,7 +703,7 @@
   flex: none;
   width: 2rem;
   height: 1.1rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   /* The knob is currentColor, so each track's ground carries its own ink (H1). */
   color: var(--th-bg-card);
   background: radial-gradient(circle at 0.55rem 50%, currentColor 0.4rem, transparent 0.45rem) var(--th-text-muted);
@@ -746,7 +746,7 @@
   font-size: var(--font-size-sm);
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--th-text-muted);
+  color: var(--th-text-body);
 }
 
 .lgw-dec dd {
@@ -766,7 +766,7 @@
   font-weight: 700;
   letter-spacing: 0.05em;
   background: var(--th-bg-inset);
-  color: var(--th-text-muted);
+  color: var(--th-text-body);
 }
 
 .lgw-pill.is-ok { color: var(--th-status-success); }
@@ -844,7 +844,7 @@
 }
 
 .lgw-path__arrow {
-  color: var(--th-text-muted);
+  color: var(--th-text-body);
 }
 
 /* ── who stopped it ──────────────────────────────────────────────────────── */
@@ -876,7 +876,7 @@
   margin: 0.2rem 0 0;
   font-size: var(--font-size-sm);
   line-height: 1.35;
-  color: var(--th-text-muted);
+  color: var(--th-text-body);
 }
 
 .lgw-who.is-warn {
@@ -903,7 +903,7 @@
   margin-top: 0.15rem;
   font-size: var(--font-size-sm);
   line-height: 1.35;
-  color: var(--th-text-muted);
+  color: var(--th-text-body);
 }
 
 /* Presenter cues (Presenter notes on). The driver reads these mid-demo, so
