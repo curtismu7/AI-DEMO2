@@ -88,6 +88,7 @@ describe('privilegeGatewaySession.remember() gating', () => {
     expect(res.headers.location).toMatch(/auth=success/);
     expect(mockRemember).toHaveBeenCalledTimes(1);
     expect(mockRemember.mock.calls[0][0].accessToken).toBe('access-1');
+    expect(mockRemember.mock.calls[0][0].app).toBe('opensearch22');
   });
 
   test('does NOT remember a broker-issued token, even though its resource is also named mcpgateway.ping.demo', async () => {

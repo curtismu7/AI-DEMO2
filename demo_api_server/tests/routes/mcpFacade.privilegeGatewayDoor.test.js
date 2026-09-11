@@ -35,15 +35,27 @@ function callerToken() {
 
 let upstream;
 let seenAuth;
+let seenPath;
+
+const DOOR_APP = '/api/mcp-facade/privilege-gateway/opensearch/mcp';
+const TOKEN_URI = 'https://mcpgw.example.com/opensearch/token';
 
 beforeAll((done) => {
   upstream = http.createServer((req, res) => {
     seenAuth = req.headers.authorization || null;
+    seenPath = req.url;
+    if (seenAuth === 'Bearer stale-token') {
+      res.writeHead(401, { 'Content-Type': 'application/json', 'WWW-Authenticate': 'Bearer' });
+      res.end(JSON.stringify({ error: 'unauthorized' }));
+      return;
+    }
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ jsonrpc: '2.0', id: 1, result: { tools: [] } }));
   });
   upstream.listen(0, '127.0.0.1', () => {
-    process.env.MCP_FACADE_PRIVILEGE_GATEWAY_URL = `http://127.0.0.1:${upstream.address().port}/opensearch22/mcp`;
+    const base = `http://127.0.0.1:${upstream.address().port}`;
+    process.env.MCP_FACADE_PRIVILEGE_GATEWAY_URL = `${base}/opensearch22/mcp`;
+    process.env.MCP_FACADE_PRIVILEGE_GATEWAY_BASE = base;
     process.env.MCP_FACADE_OPENSEARCH_AUD = AUD;
     done();
   });
@@ -51,6 +63,7 @@ beforeAll((done) => {
 
 afterAll((done) => {
   delete process.env.MCP_FACADE_PRIVILEGE_GATEWAY_URL;
+  delete process.env.MCP_FACADE_PRIVILEGE_GATEWAY_BASE;
   delete process.env.MCP_FACADE_OPENSEARCH_AUD;
   upstream.close(done);
 });
@@ -66,12 +79,16 @@ const RPC = { jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} };
 describe('mcp-facade privilege-gateway door', () => {
   beforeEach(() => {
     seenAuth = undefined;
+    seenPath = undefined;
     jwksService.getPublicKey.mockResolvedValue({ keyObject: publicKey, alg: 'RS256' });
-    gatewaySession.clear();
+    gatewaySession.clearAll();
   });
-  afterEach(() => gatewaySession.clear());
+  afterEach(() => {
+    gatewaySession.clearAll();
+    delete process.env.MCP_FACADE_PRIVILEGE_LINK;
+  });
 
-  test('answers 503 with a remedy when no operator session exists', async () => {
+  test('answers 503 with a remedy when no operator session exists and the gateway link is off', async () => {
     const res = await request(buildApp()).post(DOOR)
       .set('Authorization', `Bearer ${callerToken()}`)
       .send(RPC);
@@ -115,5 +132,46 @@ describe('mcp-facade privilege-gateway door', () => {
     // gateway session — the whole point of requireBearer here.
     expect(res.status).toBe(401);
     expect(seenAuth).toBeUndefined();
+  });
+
+  test('with the gateway link on, a missing session answers a 401 challenge so the client re-authenticates', async () => {
+    process.env.MCP_FACADE_PRIVILEGE_LINK = 'true';
+
+    const res = await request(buildApp()).post(DOOR_APP)
+      .set('Authorization', `Bearer ${callerToken()}`)
+      .send(RPC);
+
+    // The broker chains the gateway sign-in into the client's own OAuth, so a
+    // re-authentication is exactly what restores this leg.
+    expect(res.status).toBe(401);
+    expect(res.body.error.data.reason).toBe('gateway_session_unavailable');
+    expect(res.body.error.data.remedy).toMatch(/privilege-mcp-client/);
+    expect(res.headers['www-authenticate']).toContain('/mcp-facade/privilege-gateway/opensearch/.well-known/oauth-protected-resource');
+    expect(seenAuth).toBeUndefined();
+  });
+
+  test('uses the session for the app in the URL, not another app', async () => {
+    gatewaySession.remember({ app: 'opensearch22', accessToken: 'os22-token', expiresIn: 3600, tokenUri: TOKEN_URI });
+    gatewaySession.remember({ app: 'opensearch', accessToken: 'os-token', expiresIn: 3600, tokenUri: TOKEN_URI });
+
+    const res = await request(buildApp()).post(DOOR_APP)
+      .set('Authorization', `Bearer ${callerToken()}`)
+      .send(RPC);
+
+    expect(res.status).toBe(200);
+    expect(seenPath).toBe('/opensearch/mcp');
+    expect(seenAuth).toBe('Bearer os-token');
+  });
+
+  test('drops the app session when the gateway refuses its token', async () => {
+    gatewaySession.remember({ app: 'opensearch', accessToken: 'stale-token', expiresIn: 3600, tokenUri: TOKEN_URI });
+
+    const res = await request(buildApp()).post(DOOR_APP)
+      .set('Authorization', `Bearer ${callerToken()}`)
+      .send(RPC);
+
+    // The client is re-challenged; its next sign-in must start from a clean slate.
+    expect(res.status).toBe(401);
+    expect(gatewaySession.status('opensearch')).toEqual({ ready: false, reason: 'no_session' });
   });
 });
