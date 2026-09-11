@@ -15,7 +15,7 @@ function scriptResponses(responses) {
 
 const baseParams = (executeTool, extra = {}) => ({
   messages: [{ role: 'user', content: 'show my accounts' }],
-  tools: [],
+  tools: [{ name: 'get_my_accounts' }, { name: 'get_balance' }],
   provider: 'anthropic',
   model: 'm',
   maxIterations: 10,

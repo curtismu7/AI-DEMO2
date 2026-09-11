@@ -50,8 +50,11 @@ async function _syncGrantorDelegatedTo(delegatorUserId) {
 
 function toRecord(row) {
   if (!row) return null;
+  // The stored access token stays server-side (revocation reads the raw row):
+  // it must never reach a list response, least of all another user's.
+  const { access_token: _accessToken, ...rest } = row;
   return {
-    ...row,
+    ...rest,
     scopes: Array.isArray(row.scopes) ? row.scopes : (typeof row.scopes === 'string' ? JSON.parse(row.scopes) : []),
   };
 }

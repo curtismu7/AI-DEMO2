@@ -96,6 +96,7 @@ minimal diff.
 | tools/list backend outage scope (locked 2026-08-18, PR #1980) | `demo_mcp_gateway/src/toolsListHealth.ts` — `'total'` (zero live backends read) vs `'partial'` (some answered). Only `'total'` may clear the outage; "any success clears everything" reported a healthy gateway serving a truncated tool list |
 | MCP gateway suite is a blocking, serial gate (locked 2026-08-18, PR #1980) | `.github/workflows/ci.yml` (`SUITE_BLOCKING=1 npm run test:mcp-gateway`), `scripts/test-service-suite.sh` (`mcp-gateway` → `DEFAULT_WORKERS=1`). Eight suites bind a real listening socket and race at 2 workers (`socket hang up`); serial is also faster (6.5s vs ~19s). Do not raise the worker count and do not make the job non-blocking |
 | Airlines is THREE tiers, not two (locked 2026-08-27) | `scope-topology.json`, `demo_api_server/config/verticals/airlines/manifest.json`, `demo_mcp_resource_server/src/tools/airlinesTools.ts`. `get_airline_bookings` (plain, `airlines:read`) → `sensitive_airline_bookings` (**consent**, `airlines:read`+`sensitive:read`, chip "🔐 Sensitive reservations", `useCaseId: hitl-consent`) → `sensitive_passenger_record` (**A2A-only**, `read`+`a2aDelegatedScope: pnr:read`+`requiresAgentMediation`, chip `useCaseId: a2a-delegation`). Two different demos in one vertical. **Do not "align" `sensitive_airline_bookings` with the other ten `sensitive_*` tools** — those ten are one A2A specialist tool *per vertical* (`config/a2aSpecialists.js`), and airlines' slot is already `sensitive_passenger_record`. Adding `requiresAgentMediation` to it would DENY the consent chip with `missing_act` (`demo_authz_server/routes/decision.js` Rule ~721, `REQUIRE_ACT_FOR_AGENT_TOOLS` defaults on) and delete airlines' HITL-consent demo. See TECH_DEBT 2026-08-26 |
+| LLM token custody (locked 2026-09-11) | Nothing the LLM produces picks a credential, a destination, or a route around the MCP gateway and PingOne Authorize. `demo_api_server/services/agentReasoningClient.js` `runReasonLoop` runs only tools it offered and redacts JWTs from every result the model sees. `routes/agentTool.js` runs only the tools `routes/agentRun.js` offered to the session's run in flight, read from `services/agentRunContext.js` (never from the stored session, which a concurrent stale save can overwrite), and redacts the result. `services/mcpToolPipeline.js` honours the A2A `skipBffAuthorize` only when the gateway is authoritative, and puts the gateway's `gatewayDecision` on `mcp_error`. `services/demoAgentLangGraphService.js` A2A local serve needs that decision to be PERMIT. `config/verticals/pingone-admin/tools.js` `CALLABLE_TOOLS` caps `call_pingone_tool` (the read tools the chips use, plus `createUser` as a documented exception). `demo_mcp_jwt_verifier/server.py` fetches JWKS only from the `PINGONE_JWKS_URI` host. Do not drop an offered-tool check, and never run a tool the gateway did not PERMIT. Guarded by `demo_api_server/tests/llmTokenCustody.regression.test.js`, `src/__tests__/mcpToolPipeline.authzBypass.test.js`, `src/__tests__/a2aExecution.test.js`, `tests/oas/pingone-admin.test.js`, `demo_mcp_jwt_verifier/test_jwks_allowlist.py`. Plan: `docs/superpowers/plans/2026-09-11-user-token-custody.md` |
 
 ---
 
@@ -168,6 +169,62 @@ the tool path (`completeMcpToolCall`) and the heuristics path can all reach it f
 — 5 fail before the fix (settled reply overwritten, empty panel marked done, heuristics answer and
 `/nl` failure left pending, clarification answer left on the previous prompt), 10/10 pass after;
 `npm run test:unit` 532 files / 4108 passed; `npm run build` exit 0.
+
+### 2026-09-11 — The LLM could reach backends around the gateway and PingOne Authorize
+
+**Files changed:** `demo_api_server/services/agentReasoningClient.js`,
+`routes/agentTool.js`, `routes/agentRun.js`, `services/mcpToolPipeline.js`,
+`services/bffMcpToolExecutor.js`, `services/demoAgentLangGraphService.js`,
+`services/delegationService.js`, `config/verticals/pingone-admin/tools.js`,
+`demo_mcp_jwt_verifier/server.py`. Tests: `tests/llmTokenCustody.regression.test.js`
+and `demo_mcp_jwt_verifier/test_jwks_allowlist.py` (new);
+`src/__tests__/mcpToolPipeline.authzBypass.test.js`, `src/__tests__/a2aExecution.test.js`,
+`tests/oas/pingone-admin.test.js`; offered-tool fixtures in
+`tests/agentReasoningLoop.regression.test.js`,
+`src/__tests__/agentReasoningClientLoopGuard.test.js` and three `tests/agentTool.*` suites.
+
+**What was broken:** An audit found the user token already stays in
+deterministic code: the LLM sees decoded claims only, and no tool argument
+becomes a credential. But five paths let model output reach a backend without
+both checkpoints, or put a token within its reach:
+- A2A specialist calls skipped the BFF P1AZ gate even with no gateway, so in
+  no-gateway mode they got no decision at all. The specialist tool was also
+  served in-process after any `mcp_error`, including failures before the
+  gateway decided.
+- The reason loop and `/internal/agent-tool` ran any tool name the model
+  emitted, and passed tool results back unscrubbed.
+- `call_pingone_tool` ran any hosted PingOne tool the model named, with no
+  gateway or P1AZ hop.
+- The JWT verifier fetched any `jwksUri`/`uri` the model supplied (SSRF).
+- `/api/delegation/admin/all` and `/granted-to-me` returned another user's
+  stored access token.
+
+**What was fixed:**
+- A2A skips the BFF gate only when the gateway is authoritative. With no
+  gateway the gate runs, and fails closed.
+- Local serve requires the gateway's recorded PERMIT, carried as
+  `gatewayDecision` through the pipeline and `executeBffToolWithToken`.
+- Both LLM entry points refuse tools they did not offer (`tool_not_offered`)
+  and redact JWTs from results. The external agents' list is the run's, kept
+  in `agentRunContext`, not the session: a concurrent stale save can overwrite
+  the session.
+- `call_pingone_tool` is capped to the read tools the admin chips use, plus
+  `createUser` as a documented exception.
+- The verifier only fetches `https` URLs on the `PINGONE_JWKS_URI` host.
+- `toRecord` drops `access_token`.
+
+**Do not break:**
+- Gateway-mode A2A: it still skips the BFF gate, and the gateway decides.
+- The reason loop's no-tool return shape.
+- The admin chips' hosted tools, and "create a user".
+- Delegation revocation, which reads the raw row.
+- JWKS verification against PingOne.
+
+What is deliberately left open is in TECH_DEBT 2026-09-11, "LLM token custody".
+
+**Verify:**
+- Server: `cd demo_api_server && CI=true ./node_modules/.bin/jest llmTokenCustody mcpToolPipeline a2a agentTool agentRun agentReasoning pingone-admin delegation --forceExit`. Every new case failed before its fix (10 red), and all pass after.
+- Verifier: `docker run --rm -v "$PWD/demo_mcp_jwt_verifier:/app" -w /app --entrypoint python ai-demo-mcp-jwt-verifier:latest test_jwks_allowlist.py` prints 4 `ok` lines.
 
 ### 2026-09-11 — AG-UI tool calls lost their flow trace when a session write landed mid-run
 

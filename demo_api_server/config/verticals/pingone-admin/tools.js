@@ -9,6 +9,17 @@ const { getMockResponse } = require('../../../services/oasDiscovery');
 // ghost the chip can never resolve (see tests/oas/pingone-admin.ghostTools.test.js).
 const CORE_TOOLS = ['listUsers', 'getUser', 'listPopulations', 'listApplications', 'getEnvironment'];
 
+// Hosted tools the LLM may run through call_pingone_tool: the read tools the
+// admin chips and intents use. This path has no gateway or PingOne Authorize
+// hop, so the model-chosen name is capped here. createUser is the one write,
+// a documented exception (TECH_DEBT): the "create a user" intent needs it.
+const CALLABLE_TOOLS = new Set([
+  ...CORE_TOOLS,
+  'listResources', 'getEnvironmentServices',
+  'listDavinciFlows', 'listDavinciApplications', 'listDavinciConnectors',
+  'createUser',
+]);
+
 // Same tools, reachable via the direct Management API with the same worker
 // credentials the hosted MCP server itself authenticates with. Tried before
 // the mock fallback on a transport/auth failure so "MCP unavailable" degrades
@@ -126,7 +137,7 @@ const tools = [
   },
   {
     name: 'call_pingone_tool',
-    description: 'Call a hosted PingOne MCP tool by name (e.g. listUsers, createUser, listApplications, getEnvironment) with camelCase arguments. List tools accept arguments.filter in PingOne SCIM syntax for prefix requests: username sw "curt" (listUsers), name sw "Demo" (listApplications, listPopulations).',
+    description: 'Call an allowed hosted PingOne MCP tool by name (e.g. listUsers, createUser, listApplications, getEnvironment) with camelCase arguments; others are refused. List tools accept arguments.filter in PingOne SCIM syntax for prefix requests: username sw "curt" (listUsers), name sw "Demo" (listApplications, listPopulations).',
     inputSchema: {
       type: 'object',
       properties: {
@@ -283,7 +294,11 @@ async function listPingOneTools(params, session) {
   const filter = params?.filter ? String(params.filter).toLowerCase() : null;
   try {
     const live = await adapter.listTools(session);
-    let rows = live.map((t) => ({ name: t.name, description: (t.description || '').slice(0, 200) }));
+    // Advertise only what call_pingone_tool will run; anything else just
+    // invites a "not allowed" refusal.
+    let rows = live
+      .filter((t) => CALLABLE_TOOLS.has(t.name))
+      .map((t) => ({ name: t.name, description: (t.description || '').slice(0, 200) }));
     if (filter) {
       rows = rows.filter((r) =>
         r.name.toLowerCase().includes(filter) || r.description.toLowerCase().includes(filter));
@@ -318,6 +333,9 @@ async function callPingOneTool(params, session) {
   const name = params?.name;
   if (!name) {
     return { result: { error: 'name is required. Call list_pingone_tools to see valid tool names.' }, render: 'text' };
+  }
+  if (!CALLABLE_TOOLS.has(name)) {
+    return { result: { error: `${name} is not allowed through the agent. Allowed: ${[...CALLABLE_TOOLS].join(', ')}.` }, render: 'text' };
   }
   const rawArgs = params?.arguments || {};
   const normalizedArgs = name === 'listUsers' ? normalizeListUsersArgs(rawArgs) : rawArgs;

@@ -117,7 +117,7 @@ describe('A2A execution wiring (Slice 3b)', () => {
       actChainDepth: 2,
     }));
     executor.executeBffToolWithToken.mockResolvedValueOnce(
-      JSON.stringify({ error: 'gateway_error', message: 'Gateway upstream error (HTTP 502)' }),
+      JSON.stringify({ error: 'mcp_error', message: 'Gateway upstream error (HTTP 502)', gatewayDecision: 'PERMIT' }),
     );
     const schemasSpy = jest.spyOn(verticalDispatch, 'toolSchemasFor').mockReturnValue([
       { name: 'sensitive_patient_records' },
@@ -140,6 +140,45 @@ describe('A2A execution wiring (Slice 3b)', () => {
     expect(parsed.delegated).toBe(true);
     expect(parsed.toolError).toBeNull();
     expect(parsed.result).toEqual({ records: [{ id: 'r1' }] });
+
+    schemasSpy.mockRestore();
+    execSpy.mockRestore();
+  });
+
+  it('does NOT serve locally when the gateway never recorded a PERMIT', async () => {
+    // mcp_error comes from any failure, including one before the gateway
+    // decided, and mcp_unreachable means it never answered. Running the
+    // specialist tool in-process then would skip P1AZ entirely.
+    const verticalDispatch = require('../../services/verticalDispatch');
+    a2a.delegateToSpecialist.mockImplementation((_req, opts) => Promise.resolve({
+      token: 'NESTED.ACT.TOKEN',
+      userSub: 'user',
+      vertical: opts.vertical,
+      specialist: 'Records Specialist',
+      tool: 'sensitive_patient_records',
+      scopes: ['records:read'],
+      actChainDepth: 2,
+    }));
+    executor.executeBffToolWithToken.mockResolvedValueOnce(
+      JSON.stringify({ error: 'mcp_error', message: 'socket hang up' }),
+    );
+    const schemasSpy = jest.spyOn(verticalDispatch, 'toolSchemasFor').mockReturnValue([
+      { name: 'sensitive_patient_records' },
+    ]);
+    const execSpy = jest.spyOn(verticalDispatch, 'executeToolFor').mockResolvedValue({
+      result: { records: [{ id: 'r1' }] },
+      render: 'list',
+    });
+
+    const out = await svc.__test.executeA2aDelegation(
+      'healthcare',
+      { tool: 'sensitive_patient_records' },
+      { req: { sessionID: 's1', session: { user: { id: 'u1' } } }, tokenEvents: [], sessionId: 's1' },
+    );
+    const parsed = JSON.parse(out);
+
+    expect(execSpy).not.toHaveBeenCalled();
+    expect(parsed.result).not.toEqual({ records: [{ id: 'r1' }] });
 
     schemasSpy.mockRestore();
     execSpy.mockRestore();
