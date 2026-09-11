@@ -72,9 +72,18 @@ function ArchNode({ data }) {
   const isAspirational = !!data.aspirational;
   return (
     <div
+      className="afp-node"
       style={{
-        background: c.bg,
-        border: `2px ${isAspirational ? "dashed" : "solid"} ${c.border}`,
+        // background/border-color/color are declared in ArchitectureFlowPage.css
+        // (.afp-node) and only READ these as custom properties — keeps the
+        // actual themeable CSS properties out of inline style (THEMING.md
+        // §8.3) while c.bg/c.border/c.text stay whatever this state needs
+        // (a fixed hex/rgba for the five status accents, --th-* for default).
+        "--afp-bg": c.bg,
+        "--afp-border": c.border,
+        "--afp-text": c.text,
+        borderStyle: isAspirational ? "dashed" : "solid",
+        borderWidth: 2,
         borderRadius: 8,
         padding: "6px 10px",
         minWidth: 85,
@@ -112,7 +121,6 @@ function ArchNode({ data }) {
         style={{
           fontWeight: 700,
           fontSize: "0.68rem",
-          color: c.text,
           lineHeight: 1.2,
           marginBottom: data.label2 ? 0.5 : 0,
         }}
@@ -120,25 +128,17 @@ function ArchNode({ data }) {
         {data.label}
       </div>
       {data.label2 && (
-        <div
-          style={{
-            fontSize: "0.58rem",
-            color: c.text,
-            opacity: 0.7,
-            lineHeight: 1.1,
-          }}
-        >
+        <div style={{ fontSize: "0.58rem", opacity: 0.7, lineHeight: 1.1 }}>
           {data.label2}
         </div>
       )}
       {data.stepLabel && (
         <div
+          className="afp-node-steplabel"
           style={{
             marginTop: 5,
             fontSize: "0.62rem",
             fontWeight: 600,
-            color: c.text,
-            background: `${c.border}20`,
             borderRadius: 3,
             padding: "2px 4px",
             lineHeight: 1.3,
@@ -150,13 +150,15 @@ function ArchNode({ data }) {
       {/* Token badge — shows aud/act with changed claims highlighted */}
       {b && (
         <div
+          className="afp-node-badge"
           style={{
             marginTop: 5,
             padding: "4px 5px",
             background: "rgba(0,0,0,0.06)",
             borderRadius: 4,
             textAlign: "left",
-            borderLeft: `2px solid ${c.border}`,
+            borderLeftStyle: "solid",
+            borderLeftWidth: 2,
           }}
         >
           {b.aud && (
@@ -2623,10 +2625,7 @@ export default function ArchitectureFlowPage({ user }) {
         className="arch-diagram-toolbar"
         style={{ marginBottom: "0.5rem", flexWrap: "wrap", gap: "0.5rem" }}
       >
-        <h2
-          className="afp-title"
-          style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700 }}
-        >
+        <h2 className="afp-title" style={{ margin: 0, fontWeight: 700 }}>
           Interactive Architecture Flow
         </h2>
         <DiagramControls
@@ -2648,7 +2647,7 @@ export default function ArchitectureFlowPage({ user }) {
             <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
               <span
                 className="afp-scenario-label"
-                style={{ fontSize: "0.75rem", fontWeight: 600, whiteSpace: "nowrap" }}
+                style={{ fontWeight: 600, whiteSpace: "nowrap" }}
               >
                 Scenario:
               </span>
@@ -2658,7 +2657,6 @@ export default function ArchitectureFlowPage({ user }) {
                 disabled={isSimulating}
                 className="afp-scenario-select"
                 style={{
-                  fontSize: "0.78rem",
                   padding: "4px 8px",
                   borderRadius: 6,
                   cursor: isSimulating ? "not-allowed" : "pointer",
@@ -2685,7 +2683,7 @@ export default function ArchitectureFlowPage({ user }) {
         {activeStep && (
           <span
             className={`afp-step-badge${isPaused ? " afp-step-badge--paused" : ""}`}
-            style={{ fontSize: "0.8rem", fontWeight: 600, borderRadius: 6, padding: "4px 10px" }}
+            style={{ fontWeight: 600, borderRadius: 6, padding: "4px 10px" }}
           >
             {isPaused ? "⏸ PAUSED — " : ""}
             {activeStep.stepLabel}
@@ -2704,7 +2702,6 @@ export default function ArchitectureFlowPage({ user }) {
             borderRadius: 8,
             padding: "12px 14px",
             marginBottom: "12px",
-            fontSize: "0.85rem",
             lineHeight: "1.5",
             fontWeight: 500,
           }}
@@ -2731,11 +2728,10 @@ export default function ArchitectureFlowPage({ user }) {
             borderRadius: 6,
             padding: "6px 12px",
             marginBottom: 6,
-            fontSize: "0.8rem",
             flexWrap: "wrap",
           }}
         >
-          <span style={{ fontSize: "1rem" }}>
+          <span className="afp-agent-banner-icon">
             {agentSnap.phase?.includes("error") ||
             agentSnap.phase?.includes("denied")
               ? "❌"
@@ -2750,13 +2746,7 @@ export default function ArchitectureFlowPage({ user }) {
           {agentSnap.toolName && (
             <span
               className="afp-agent-banner-tool"
-              style={{
-                fontFamily: "inherit",
-                borderRadius: 4,
-                padding: "1px 6px",
-                fontSize: "0.77rem",
-                fontWeight: 700,
-              }}
+              style={{ fontFamily: "inherit", borderRadius: 4, padding: "1px 6px", fontWeight: 700 }}
             >
               {agentSnap.toolName}
             </span>
@@ -2768,7 +2758,7 @@ export default function ArchitectureFlowPage({ user }) {
           )}
           <span
             className="afp-agent-banner-phase"
-            style={{ marginLeft: "auto", fontSize: "0.72rem", fontFamily: "inherit" }}
+            style={{ marginLeft: "auto", fontFamily: "inherit" }}
           >
             {agentSnap.phase}
           </span>
@@ -2812,7 +2802,6 @@ export default function ArchitectureFlowPage({ user }) {
                 style={{
                   borderRadius: 8,
                   padding: "10px 14px",
-                  fontSize: "0.75rem",
                   maxWidth: 200,
                   textAlign: "center",
                   lineHeight: 1.5,
@@ -2827,7 +2816,7 @@ export default function ArchitectureFlowPage({ user }) {
         </ReactFlow>
       </div>
 
-      <p className="afp-help-text" style={{ marginTop: "0.4rem", fontSize: "0.7rem" }}>
+      <p className="afp-help-text" style={{ marginTop: "0.4rem" }}>
         Hit <strong>▶ Simulate Flow</strong> then <strong>⏸ Pause</strong> at
         any step to read the token card. Node badges show{" "}
         <span style={{ color: "#1d4ed8", fontWeight: 600 }}>aud</span>,{" "}

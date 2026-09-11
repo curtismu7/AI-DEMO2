@@ -14,24 +14,44 @@
    "active" status accent), not a plain elevation shadow, so the shadow-scale
    ratchet's var(--shadow-sm|md|lg) suggestion doesn't fit it. */
 
+/* ArchNode reads its per-state colors (fixed hex for the five status
+   accents, --th-* for the idle default) through these three custom
+   properties, set inline per-node in ArchitectureFlowPage.js. The actual
+   background/border-color/color properties live here, not inline. */
+.afp-node {
+  background: var(--afp-bg);
+  border-color: var(--afp-border);
+  color: var(--afp-text);
+}
+.afp-node-steplabel {
+  background: color-mix(in srgb, var(--afp-border) 12%, transparent);
+}
+.afp-node-badge {
+  border-left-color: var(--afp-border);
+}
+
 .afp-title {
   color: var(--th-text);
+  font-size: 1.05rem;
 }
 
 .afp-scenario-label {
   color: var(--th-text-muted);
+  font-size: 0.75rem;
 }
 
 .afp-scenario-select {
   border: 1px solid var(--th-border);
   background: var(--th-bg-card);
   color: var(--th-text);
+  font-size: 0.78rem;
 }
 
 .afp-step-badge {
   color: var(--th-text-muted);
   background: var(--th-bg-inset);
   border: 1px solid transparent;
+  font-size: 0.8rem;
 }
 .afp-step-badge--paused {
   background: var(--th-status-warning-bg);
@@ -43,6 +63,7 @@
   background: var(--th-status-info-bg);
   border: 1px solid var(--th-status-info-border);
   color: var(--th-status-info-text);
+  font-size: 0.85rem;
 }
 .afp-step-desc strong {
   color: var(--th-status-info);
@@ -50,6 +71,10 @@
 
 .afp-agent-banner {
   border: 1px solid transparent;
+  font-size: 0.8rem;
+}
+.afp-agent-banner-icon {
+  font-size: 1rem;
 }
 .afp-agent-banner--ok {
   background: var(--th-status-success-bg);
@@ -72,10 +97,14 @@
 .afp-agent-banner-tool {
   background: var(--th-bg-inset);
   color: var(--th-status-info);
+  font-size: 0.77rem;
 }
 .afp-agent-banner-detail,
 .afp-agent-banner-phase {
   color: var(--th-text-muted);
+}
+.afp-agent-banner-phase {
+  font-size: 0.72rem;
 }
 
 .afp-canvas-wrap {
@@ -101,6 +130,7 @@
 
 .afp-help-text {
   color: var(--th-text-muted);
+  font-size: 0.7rem;
 }
 
 /* The idle-state placeholder shown where TokenCard renders once a step is
@@ -111,4 +141,5 @@
   background: color-mix(in srgb, var(--th-bg-card) 90%, transparent);
   border: 1px dashed var(--th-border);
   color: var(--th-text-muted);
+  font-size: 0.75rem;
 }
