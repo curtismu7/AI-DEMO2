@@ -16,6 +16,9 @@ import { isPause } from '../services/tokenChainTrace/pauseObligation';
 import apiClient from '../services/apiClient';
 import CapabilityCallout from './CapabilityCallout';
 import { AGENT_GATEWAY_CAPABILITIES } from '../config/capabilityLedgers/agentGatewayCapabilities';
+// Its only former host (McpGatewayConfig) is no longer routed, so the panel
+// brings its own mgc-* styles to wherever it is mounted.
+import './McpGatewayConfig.css';
 
 const TAIL_OPTIONS = [100, 200, 500, 1000];
 const REFRESH_MS = 4000;

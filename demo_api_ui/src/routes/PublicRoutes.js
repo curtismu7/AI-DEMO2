@@ -37,6 +37,7 @@ import TokenExchangeTesterPage from "../pages/TokenExchangeTesterPage";
 import McpInspectorPageClean from "../components/McpInspectorPageClean";
 import PingOneMcpInspector from "../components/PingOneMcpInspector";
 import AgentGatewayInspectorClean from "../components/AgentGatewayInspectorClean";
+import AgentGatewayLogPanel from "../components/AgentGatewayLogPanel";
 import SdkLoginPage from "../pages/SdkLoginPage";
 import SdkLoginCallback from "../pages/SdkLoginCallback";
 import DavinciLoginPage from "../pages/DavinciLoginPage";
@@ -389,6 +390,9 @@ export function McpGatewayConfigRoute({ user, logout }) {
     <InspectorFieldProvider>
       <AppShell user={user} logout={logout}>
         <AgentGatewayInspectorClean />
+        {/* Every PingGateway P1AZ decision (who, which app, why), fed by the
+            gateway's post to /internal/gateway-decision. */}
+        <AgentGatewayLogPanel />
       </AppShell>
     </InspectorFieldProvider>
   );
