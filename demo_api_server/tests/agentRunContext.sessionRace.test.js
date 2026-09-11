@@ -22,7 +22,7 @@ jest.mock('../services/bffMcpToolExecutor', () => ({
   executeBffTool: (...a) => mockExecuteBffTool(...a),
 }));
 
-const { setRunContext, getRunContext } = require('../services/agentRunContext');
+const { setRunContext, getRunContext, clearRunContext } = require('../services/agentRunContext');
 
 // What the session store holds after a concurrent request saved its stale copy.
 const STORED_SESSION = {
@@ -64,11 +64,25 @@ describe('/internal/agent-tool — run context survives a lost session write', (
   });
 });
 
-describe('agentRunContext — same rules the session fields had', () => {
-  it('keeps the previous trace when a run sends none, and clears a stale useCaseId', () => {
+describe('agentRunContext — one entry per run in flight', () => {
+  it('a later run replaces the previous context — no stale useCaseId carries over', () => {
     setRunContext('s-rules', { flowTraceId: 'trace-1', useCaseId: 'step-up-required' });
-    setRunContext('s-rules', { flowTraceId: '', useCaseId: '' });
-    expect(getRunContext('s-rules')).toEqual({ flowTraceId: 'trace-1', useCaseId: null });
+    setRunContext('s-rules', { flowTraceId: 'trace-2', useCaseId: '' });
+    expect(getRunContext('s-rules')).toEqual({ flowTraceId: 'trace-2', useCaseId: null });
+  });
+
+  // Entries must not outlive their run (Greptile P2 on #3135): /api/agent/run is
+  // reachable by guests and outside the rate limiter, so a never-cleared map
+  // would grow with every session that ever ran the agent.
+  it('clearing an older run is a no-op once a newer run in the session replaced it', () => {
+    const older = setRunContext('s-clear', { flowTraceId: 'trace-old' });
+    const newer = setRunContext('s-clear', { flowTraceId: 'trace-new' });
+
+    clearRunContext('s-clear', older);
+    expect(getRunContext('s-clear').flowTraceId).toBe('trace-new');
+
+    clearRunContext('s-clear', newer);
+    expect(getRunContext('s-clear')).toEqual({ flowTraceId: null, useCaseId: null });
   });
 
   it('returns an empty context for a session that never ran the agent', () => {

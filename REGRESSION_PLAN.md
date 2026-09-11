@@ -160,8 +160,9 @@ requests around the send did not hit the window. The regression test replays the
 
 **Fixed by** registering the run context in an in-process map keyed by session id
 (`services/agentRunContext.js`) instead of the session: `agentRun` sets it, `agentTool` reads it into
-the callback's `req.body`. Same rules the session fields had — keep the previous trace when a run
-sends none, always overwrite `useCaseId`. `resolveActiveUseCaseId`'s session fallback read a field
+the callback's `req.body`. An entry lives only while its run is open: `agentRun` clears it when its
+response closes, unless a newer run in the same session already replaced it (otherwise guest session
+churn would grow the map without bound). `resolveActiveUseCaseId`'s session fallback read a field
 nothing writes any more, so it is removed.
 
 **Do not break:** the tool callback's `req.body` must carry the run's `flowTraceId` / `useCaseId`

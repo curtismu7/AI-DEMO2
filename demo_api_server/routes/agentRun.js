@@ -379,7 +379,11 @@ router.post('/run', nrTransactionMiddleware, async (req, res) => {
   const flowTraceId = typeof req.body?.flowTraceId === 'string' ? req.body.flowTraceId.trim() : '';
   const useCaseId = typeof req.body?.useCaseId === 'string' ? req.body.useCaseId.trim() : '';
   if (flowTraceId || useCaseId) {
-    require('../services/agentRunContext').setRunContext(req.session.id, { flowTraceId, useCaseId });
+    const runContext = require('../services/agentRunContext');
+    const runEntry = runContext.setRunContext(req.session.id, { flowTraceId, useCaseId });
+    // Live only for this run: cleared when its response closes, unless a newer
+    // run in the same session has already replaced it.
+    res.on('close', () => runContext.clearRunContext(req.session.id, runEntry));
   }
 
   // Sliding-window: forward only the most recent N messages to each agent.
