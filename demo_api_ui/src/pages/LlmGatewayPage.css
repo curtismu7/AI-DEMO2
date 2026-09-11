@@ -744,6 +744,16 @@
   color: var(--th-text-muted);
 }
 
+/* Presenter cues (Presenter notes on). The driver reads these mid-demo, so
+   full-contrast ink with an accent rule sets them apart from the page's own
+   muted captions. */
+.lgw-talk {
+  padding-left: 0.5rem;
+  border-left: 3px solid var(--th-accent, var(--th-text));
+  color: var(--th-text);
+  font-style: italic;
+}
+
 /* ── Placement B: the at-a-glance reel band ──────────────────────────────
    Full page width, directly under the header, so the boxes never wrap and a
    denial reads from across a room. Sized to its content — it must not push the

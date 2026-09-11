@@ -639,6 +639,147 @@ describe("LLM Gateway console", () => {
     });
   });
 
+  // Cue text for whoever is driving the demo. Off by default so the audience
+  // never reads the script over the presenter's shoulder.
+  describe("presenter notes", () => {
+    beforeEach(() => { window.localStorage.clear(); });
+
+    const notesToggle = () => screen.getByRole("button", { name: /presenter notes/i });
+
+    it("every attack carries a what-to-say and a what-to-point-at cue", () => {
+      for (const a of GUARDRAIL_ATTACKS) {
+        expect(a.whatToSay, a.id).toEqual(expect.any(String));
+        expect(a.whatToSay.length, a.id).toBeGreaterThan(0);
+        expect(a.pointAt, a.id).toEqual(expect.any(String));
+        expect(a.pointAt.length, a.id).toBeGreaterThan(0);
+      }
+    });
+
+    it("shows no cue until the presenter turns notes on", async () => {
+      mockFetch(() => new Promise(() => {}));
+      render(<LlmGatewayPage />);
+      await screen.findByText("/llm/anthropic/v1/messages");
+
+      fireEvent.change(screen.getByLabelText(/attack library/i), { target: { value: "jailbreak" } });
+
+      expect(notesToggle()).toHaveAttribute("aria-pressed", "false");
+      expect(screen.queryByTestId("lgw-talk-track")).not.toBeInTheDocument();
+    });
+
+    it("shows the picked attack's what-to-say cue once notes are on", async () => {
+      const attack = GUARDRAIL_ATTACKS.find((a) => a.id === "jailbreak");
+      mockFetch(() => new Promise(() => {}));
+      render(<LlmGatewayPage />);
+      await screen.findByText("/llm/anthropic/v1/messages");
+
+      fireEvent.click(notesToggle());
+      fireEvent.change(screen.getByLabelText(/attack library/i), { target: { value: attack.id } });
+
+      expect(screen.getByTestId("lgw-talk-track")).toHaveTextContent(attack.whatToSay);
+    });
+
+    it("remembers notes are on across a reload", async () => {
+      mockFetch(() => new Promise(() => {}));
+      const { unmount } = render(<LlmGatewayPage />);
+      await screen.findByText("/llm/anthropic/v1/messages");
+      fireEvent.click(notesToggle());
+      unmount();
+
+      mockFetch(() => new Promise(() => {}));
+      render(<LlmGatewayPage />);
+      await screen.findByText("/llm/anthropic/v1/messages");
+
+      expect(notesToggle()).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("puts the what-to-point-at cue beside the verdict after the attack is sent", async () => {
+      const attack = GUARDRAIL_ATTACKS.find((a) => a.id === "jailbreak");
+      mockFetch(() => ({
+        ok: false, status: 403,
+        text: async () => JSON.stringify({
+          error: "Forbidden", code: "llm_policy_denied", reason: "Forbidden",
+          provider: "anthropic", route: "/llm/anthropic/v1/messages",
+          latencyMs: 50, reachedProvider: false,
+        }),
+      }));
+      render(<LlmGatewayPage />);
+      await screen.findByText("/llm/anthropic/v1/messages");
+
+      fireEvent.click(notesToggle());
+      fireEvent.change(screen.getByLabelText(/attack library/i), { target: { value: attack.id } });
+      fireEvent.click(screen.getByRole("button", { name: /^send$/i }));
+
+      expect(await screen.findByTestId("lgw-point-at")).toHaveTextContent(attack.pointAt);
+    });
+
+    // A redacting attack comes back as a SUCCESS, not a denial — the cue has to
+    // follow that path too, or the PII demo is the one with no cue.
+    it("puts the what-to-point-at cue beside an answered, redacted attack too", async () => {
+      const attack = GUARDRAIL_ATTACKS.find((a) => a.id === "pii");
+      mockFetch(() => ({
+        ok: true, status: 200,
+        text: async () => JSON.stringify({
+          reply: "Jane Doe | [REDACTED:pii] | [REDACTED:pii] | jane@example.com",
+          provider: "anthropic", route: "/llm/anthropic/v1/messages",
+          latencyMs: 300, reachedProvider: true,
+        }),
+      }));
+      render(<LlmGatewayPage />);
+      await screen.findByText("/llm/anthropic/v1/messages");
+
+      fireEvent.click(notesToggle());
+      fireEvent.change(screen.getByLabelText(/attack library/i), { target: { value: attack.id } });
+      fireEvent.click(screen.getByRole("button", { name: /^send$/i }));
+
+      expect(await screen.findByTestId("lgw-point-at")).toHaveTextContent(attack.pointAt);
+    });
+
+    // Every cue describes what PRIVILEGE did. A local lane has no Privilege in
+    // its path, so a cue there would have the presenter narrate protection that
+    // never happened, beside a decision reading "Reached the model: yes".
+    it("shows no Say cue while a local lane is selected", async () => {
+      mockFetch(() => new Promise(() => {}), CONFIG_WITH_LOCALS);
+      render(<LlmGatewayPage />);
+      fireEvent.click((await screen.findByText("llama.cpp (local)")).closest("button"));
+
+      fireEvent.click(notesToggle());
+      fireEvent.change(screen.getByLabelText(/attack library/i), { target: { value: "jailbreak" } });
+
+      expect(screen.queryByTestId("lgw-talk-track")).not.toBeInTheDocument();
+    });
+
+    it("shows no Point-at cue beside a local lane's result", async () => {
+      mockFetch(() => ({
+        ok: true, status: 200,
+        text: async () => JSON.stringify({
+          reply: "DAN MODE ON", provider: "llamacpp", route: "/v1/chat/completions",
+          latencyMs: 900, reachedProvider: true, providerLimits: null,
+        }),
+      }), CONFIG_WITH_LOCALS);
+      render(<LlmGatewayPage />);
+      fireEvent.click((await screen.findByText("llama.cpp (local)")).closest("button"));
+
+      fireEvent.click(notesToggle());
+      fireEvent.change(screen.getByLabelText(/attack library/i), { target: { value: "jailbreak" } });
+      fireEvent.click(screen.getByRole("button", { name: /^send$/i }));
+      await screen.findByTestId("lgw-decision");
+
+      expect(screen.queryByTestId("lgw-point-at")).not.toBeInTheDocument();
+    });
+
+    // The attack choice persists across reloads; an id since removed from the
+    // catalog must not render as an empty "Say:".
+    it("shows no cue for a remembered attack that is no longer in the catalog", async () => {
+      window.localStorage.setItem("lgw-attack-choice", "retired_attack");
+      window.localStorage.setItem("lgw-presenter-notes", "1");
+      mockFetch(() => new Promise(() => {}));
+      render(<LlmGatewayPage />);
+      await screen.findByText("/llm/anthropic/v1/messages");
+
+      expect(screen.queryByTestId("lgw-talk-track")).not.toBeInTheDocument();
+    });
+  });
+
   describe("empty prompt", () => {
     beforeEach(() => { window.localStorage.clear(); });
 
