@@ -96,7 +96,7 @@ minimal diff.
 | tools/list backend outage scope (locked 2026-08-18, PR #1980) | `demo_mcp_gateway/src/toolsListHealth.ts` — `'total'` (zero live backends read) vs `'partial'` (some answered). Only `'total'` may clear the outage; "any success clears everything" reported a healthy gateway serving a truncated tool list |
 | MCP gateway suite is a blocking, serial gate (locked 2026-08-18, PR #1980) | `.github/workflows/ci.yml` (`SUITE_BLOCKING=1 npm run test:mcp-gateway`), `scripts/test-service-suite.sh` (`mcp-gateway` → `DEFAULT_WORKERS=1`). Eight suites bind a real listening socket and race at 2 workers (`socket hang up`); serial is also faster (6.5s vs ~19s). Do not raise the worker count and do not make the job non-blocking |
 | Airlines is THREE tiers, not two (locked 2026-08-27) | `scope-topology.json`, `demo_api_server/config/verticals/airlines/manifest.json`, `demo_mcp_resource_server/src/tools/airlinesTools.ts`. `get_airline_bookings` (plain, `airlines:read`) → `sensitive_airline_bookings` (**consent**, `airlines:read`+`sensitive:read`, chip "🔐 Sensitive reservations", `useCaseId: hitl-consent`) → `sensitive_passenger_record` (**A2A-only**, `read`+`a2aDelegatedScope: pnr:read`+`requiresAgentMediation`, chip `useCaseId: a2a-delegation`). Two different demos in one vertical. **Do not "align" `sensitive_airline_bookings` with the other ten `sensitive_*` tools** — those ten are one A2A specialist tool *per vertical* (`config/a2aSpecialists.js`), and airlines' slot is already `sensitive_passenger_record`. Adding `requiresAgentMediation` to it would DENY the consent chip with `missing_act` (`demo_authz_server/routes/decision.js` Rule ~721, `REQUIRE_ACT_FOR_AGENT_TOOLS` defaults on) and delete airlines' HITL-consent demo. See TECH_DEBT 2026-08-26 |
-| LLM token custody (locked 2026-09-11) | Nothing the LLM produces picks a credential, a destination, or a route around the MCP gateway and PingOne Authorize. `demo_api_server/services/agentReasoningClient.js` `runReasonLoop` runs only tools it offered and redacts JWTs from every result the model sees. `routes/agentTool.js` runs only the tools `routes/agentRun.js` offered to the session's run in flight, read from `services/agentRunContext.js` (never from the stored session, which a concurrent stale save can overwrite), and redacts the result. `services/mcpToolPipeline.js` honours the A2A `skipBffAuthorize` only when the gateway is authoritative, and puts the gateway's `gatewayDecision` on `mcp_error`. `services/demoAgentLangGraphService.js` A2A local serve needs that decision to be PERMIT. `config/verticals/pingone-admin/tools.js` `CALLABLE_TOOLS` caps `call_pingone_tool` (the read tools the chips use, plus `createUser` as a documented exception). `demo_mcp_jwt_verifier/server.py` fetches JWKS only from the `PINGONE_JWKS_URI` host. Do not drop an offered-tool check, and never run a tool the gateway did not PERMIT. Guarded by `demo_api_server/tests/llmTokenCustody.regression.test.js`, `src/__tests__/mcpToolPipeline.authzBypass.test.js`, `src/__tests__/a2aExecution.test.js`, `tests/oas/pingone-admin.test.js`, `demo_mcp_jwt_verifier/test_jwks_allowlist.py`. Plan: `docs/superpowers/plans/2026-09-11-user-token-custody.md` |
+| LLM token custody (locked 2026-09-11) | Nothing the LLM produces picks a credential, a destination, or a route around the MCP gateway and PingOne Authorize. `demo_api_server/services/agentReasoningClient.js` `runReasonLoop` runs only tools it offered and redacts JWTs from every result the model sees. `routes/agentTool.js` runs only the tools `routes/agentRun.js` offered to the session's run in flight, read from `services/agentRunContext.js` (never from the stored session, which a concurrent stale save can overwrite), and redacts the result. `services/mcpToolPipeline.js` honours the A2A `skipBffAuthorize` only when the gateway is authoritative, and puts the P1AZ decision that authorized the call on `mcp_error`: `gatewayDecision` from the gateway, or `bffDecision` from the BFF gate when there is no gateway. `services/demoAgentLangGraphService.js` A2A local serve needs one of them to be PERMIT. `services/simulatedAuthorizeService.js` accepts every gateway identity (`scopeTopology.mcpGatewayAudiences()`), as the cloud `HasValidMcpAudience` does. `config/verticals/pingone-admin/tools.js` `CALLABLE_TOOLS` caps `call_pingone_tool` (the read tools the chips use, plus `createUser` as a documented exception). `demo_mcp_jwt_verifier/server.py` fetches JWKS only from the `PINGONE_JWKS_URI` host. Do not drop an offered-tool check, and never run a tool that no P1AZ decision PERMITted. Guarded by `demo_api_server/tests/llmTokenCustody.regression.test.js`, `src/__tests__/mcpToolPipeline.authzBypass.test.js`, `src/__tests__/a2aExecution.test.js`, `src/__tests__/a2aSimulatedAuthorize.test.js`, `tests/oas/pingone-admin.test.js`, `demo_mcp_jwt_verifier/test_jwks_allowlist.py`. Plan: `docs/superpowers/plans/2026-09-11-user-token-custody.md` |
 
 ---
 
@@ -140,6 +140,51 @@ read the configured host. A new browser origin must be added to ALL of:
 ---
 
 ## §4 — Bug Fix Log
+
+### 2026-09-11 — No-gateway A2A specialist calls could not complete
+
+**Files changed:** `demo_api_server/services/mcpToolPipeline.js`,
+`services/bffMcpToolExecutor.js`, `services/demoAgentLangGraphService.js`,
+`services/simulatedAuthorizeService.js`, `services/scopeTopology.js`. Tests:
+`src/__tests__/mcpToolPipeline.authzBypass.test.js`, `src/__tests__/a2aExecution.test.js`,
+`src/__tests__/a2aSimulatedAuthorize.test.js`, `tests/llmTokenCustody.regression.test.js`.
+
+**What was broken:** In no-gateway mode (`docker-compose.no-gateway.yml`) an A2A
+specialist call could not finish. TECH_DEBT blamed missing P1AZ rules for
+specialist tools, and that was wrong. The cloud policy already PERMITs a two-hop
+chain (with HITL for `sensitive_*`), and the BFF gate asks the same decision
+endpoint the gateway does. The real blockers were two:
+- mcp-server rejects the specialist token, which is audienced to the A2A gateway
+  (`mcpgateway-a2a.ping.demo`), not to mcp-server. The in-BFF fallback used to
+  cover for this, but it ran with no P1AZ decision at all. The custody fix
+  (#3136) made it require a gateway PERMIT, and no-gateway mode never has one.
+- The simulated engine compared the token audience against a single expected
+  URI, so it denied every A2A call. The cloud policy accepts every gateway
+  identity.
+
+**What was fixed:**
+- With no gateway, the BFF gate is the enforcement point. Its decision
+  (`bffDecision`) now rides on `mcp_error` and through `executeBffToolWithToken`.
+- The A2A in-BFF fallback runs when the gateway PERMITted, or, with no gateway,
+  when the BFF gate did.
+- The simulated engine accepts the expected URI or any gateway identity
+  (`scopeTopology.mcpGatewayAudiences()`).
+
+**Do not break:**
+- Gateway mode is unchanged: `bffDecision` is null there, so only the gateway's
+  PERMIT counts.
+- A skipped or fail-open gate records no decision, so it never authorizes the
+  fallback.
+- The simulated engine still denies a non-gateway audience.
+
+A real remote no-gateway path to mcp-server is still open (TECH_DEBT 2026-09-11,
+"LLM token custody").
+
+**Verify:**
+- `cd demo_api_server && CI=true ./node_modules/.bin/jest src/__tests__/mcpToolPipeline.authzBypass.test.js src/__tests__/a2aSimulatedAuthorize.test.js src/__tests__/a2aExecution.test.js tests/llmTokenCustody.regression.test.js --forceExit`.
+  The 5 new or changed cases failed before the fix and pass after.
+- Full server suite: 1010 of 1011 pass. The one failure, `adminVerticals.route`,
+  passes alone (59/59).
 
 ### 2026-09-11 — Heuristics-path answers left the flow panel's "Agent → You" step pending forever
 

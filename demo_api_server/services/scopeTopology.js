@@ -157,6 +157,16 @@ function resourceUri(resourceName) {
   return (r && r.uri) || null;
 }
 
+/** Every gateway identity: the uri of each resource with role "mcp-gateway".
+ * The same set the cloud policy's HasValidMcpAudience accepts
+ * (snapshots/gen-authorize-snapshot.js derives it the same way). */
+function mcpGatewayAudiences() {
+  const resources = load().resources || {};
+  return Object.values(resources)
+    .filter((r) => r && r.role === 'mcp-gateway' && r.uri)
+    .map((r) => r.uri);
+}
+
 /**
  * PingOne display name provisioned for a topology resource
  * (provisioning.resourceNames, e.g. "Super Banking API" -> "Demo API").
@@ -296,6 +306,7 @@ module.exports = {
   resourceNativeScopes,
   resourceMirroredScopes,
   resourceUri,
+  mcpGatewayAudiences,
   provisionedResourceName,
   topologyAppName,
   audiences,

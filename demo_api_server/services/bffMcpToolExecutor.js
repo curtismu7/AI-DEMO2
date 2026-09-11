@@ -422,6 +422,7 @@ async function executeBffToolWithToken({ name, args, req = null, tokenEvents = [
     error: outcome.body?.error || 'mcp_error',
     message: outcome.body?.message,
     gatewayDecision: outcome.body?.gatewayDecision ?? null,
+    bffDecision: outcome.body?.bffDecision ?? null,
   });
 }
 

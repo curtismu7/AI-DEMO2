@@ -183,4 +183,43 @@ describe('A2A execution wiring (Slice 3b)', () => {
     schemasSpy.mockRestore();
     execSpy.mockRestore();
   });
+
+  it('serves locally with no gateway when the BFF gate itself PERMITted', async () => {
+    // No-gateway mode: the BFF gate is the enforcement point, and mcp-server
+    // rejects the specialist token's A2A-gateway audience. The BFF's own PERMIT
+    // authorizes the in-BFF delivery, as the gateway's does in gateway mode.
+    const verticalDispatch = require('../../services/verticalDispatch');
+    a2a.delegateToSpecialist.mockImplementation((_req, opts) => Promise.resolve({
+      token: 'NESTED.ACT.TOKEN',
+      userSub: 'user',
+      vertical: opts.vertical,
+      specialist: 'Records Specialist',
+      tool: 'sensitive_patient_records',
+      scopes: ['records:read'],
+      actChainDepth: 2,
+    }));
+    executor.executeBffToolWithToken.mockResolvedValueOnce(
+      JSON.stringify({ error: 'mcp_error', message: 'Upstream aud mismatch', gatewayDecision: null, bffDecision: 'PERMIT' }),
+    );
+    const schemasSpy = jest.spyOn(verticalDispatch, 'toolSchemasFor').mockReturnValue([
+      { name: 'sensitive_patient_records' },
+    ]);
+    const execSpy = jest.spyOn(verticalDispatch, 'executeToolFor').mockResolvedValue({
+      result: { records: [{ id: 'r1' }] },
+      render: 'list',
+    });
+
+    const out = await svc.__test.executeA2aDelegation(
+      'healthcare',
+      { tool: 'sensitive_patient_records' },
+      { req: { sessionID: 's1', session: { user: { id: 'u1' } } }, tokenEvents: [], sessionId: 's1' },
+    );
+    const parsed = JSON.parse(out);
+
+    expect(execSpy).toHaveBeenCalledTimes(1);
+    expect(parsed.result).toEqual({ records: [{ id: 'r1' }] });
+
+    schemasSpy.mockRestore();
+    execSpy.mockRestore();
+  });
 });
