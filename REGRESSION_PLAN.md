@@ -141,6 +141,33 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-11 — /api/agent/run undid a mode change made during the run
+
+**Files changed:** `demo_api_server/routes/agentRun.js`, `demo_api_server/routes/agentTool.js`,
+`demo_api_server/tests/agentRunContext.sessionRace.test.js`,
+`demo_api_server/tests/agentRun.intentTokenMint.regression.test.js`.
+
+**What was broken:** `/api/agent/run` minted the run's Intent Token onto `req.session` — the route's
+only session write. express-session persists that only when the long-running response ENDS, by saving
+the whole copy of the session it loaded when the run STARTED, so anything another request saved in
+between was overwritten: switching Heuristics → llama.cpp just before sending left the mode picker on
+Heuristics after the run. The same delay meant the mid-run tool callback (`/internal/agent-tool`)
+read the store before that save and forwarded the PREVIOUS run's Intent Token (or none) to the gateway.
+
+**Fixed by** keeping the Intent Token on the run context (`runEntry.intentToken`), next to the trace,
+use case and offered-tool list; `/internal/agent-tool` reads it from `getRunContext` with no session
+fallback. The run's own request no longer modifies the session (`buildSessionPreviewTokenEvents`
+writes none either), so it saves nothing when the run ends.
+
+**Do not break:** `/api/agent/run` must not write `req.session` — any write there is persisted as a
+stale whole-session copy when the run ends. Per-run state goes on the run entry.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/agentRunContext.sessionRace.test.js tests/agentRun.intentTokenMint.regression.test.js --forceExit`
+— before the fix the route test forwarded `intent-token-previous-run` and the source canary found
+`req.session.intentToken =`; 10/10 after. Scoped `agentRun|agentTool|intentToken|agentRunContext|llmTokenCustody`:
+35 suites / 459 passed. Test note: `src/__tests__/setup.js` calls `jest.resetModules()` after every
+test, so a route test must take `agentRunContext` from the same registry as the route.
+
 ### 2026-09-11 — Heuristics-path answers left the flow panel's "Agent → You" step pending forever
 
 **Files changed:** `demo_api_ui/src/components/AIAgent.js`, `demo_api_ui/src/services/agentFlowDiagramService.js`,

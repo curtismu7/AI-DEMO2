@@ -96,8 +96,9 @@ router.post('/agent-tool', async (req, res) => {
 
   // The tool name comes from the agent's LLM: only tools agentRun.js offered to
   // this session's run in flight may run. Read from the run context, not the
-  // stored session, which a concurrent stale save can overwrite.
-  const { toolNames = [], ...runBody } = require('../services/agentRunContext').getRunContext(sessionId);
+  // stored session, which a concurrent stale save can overwrite — and so is the
+  // run's Intent Token (agentRun no longer writes it to the session).
+  const { toolNames = [], intentToken = null, ...runBody } = require('../services/agentRunContext').getRunContext(sessionId);
   if (!toolNames.includes(tool)) {
     return res.status(403).json({ error: 'tool_not_offered', tool });
   }
@@ -108,7 +109,7 @@ router.post('/agent-tool', async (req, res) => {
   const fakeReq = {
     session: { ...session, id: sessionId },
     sessionID: sessionId,
-    intentToken: session.intentToken || null,
+    intentToken,
     // flowTraceId / useCaseId of the run in flight, registered by agentRun.js.
     // executeBffTool reads them from req.body to publish pipeline phase
     // milestones to the browser's live MCP flow SSE and to tag token events.

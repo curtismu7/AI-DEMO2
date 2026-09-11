@@ -431,7 +431,11 @@ router.post('/run', nrTransactionMiddleware, async (req, res) => {
         confidence: _itConf,
         vertical: verticalManifest.resolver.activeIdFor(req) || 'banking',
       });
-      req.session.intentToken = _intentToken;
+      // On the run context, not req.session: a session write from this
+      // long-running route is only saved when the run ENDS, as a whole stale
+      // copy — it undid a mode change made mid-run, and the mid-run tool
+      // callback (/internal/agent-tool) read the previous run's token.
+      if (runEntry) runEntry.intentToken = _intentToken;
       const _itDecoded = decodeJwtClaims(_intentToken);
       initialTokenEvents = [buildTokenEvent(
         'intent-token',

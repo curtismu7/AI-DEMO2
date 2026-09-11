@@ -74,4 +74,16 @@ describe('agentRun Intent Token mint — uses the exported extractor', () => {
     expect(src).toMatch(/extractIntentAndConfidence\s*\(\s*prompt\s*\)/);
     expect(src).not.toMatch(/extractIntentFromPrompt\s*\(\s*prompt\s*\)/);
   });
+
+  test('agentRun keeps the minted Intent Token on the run context, never on the session', () => {
+    // A session write from this long-running route is only persisted when the
+    // run ENDS, as a whole stale copy: it undid a mode change the user made
+    // mid-run, and the mid-run tool callback read the previous run's token.
+    // Same source-canary shape as above: the contract is one assignment.
+    const fs = require('fs');
+    const path = require('path');
+    const src = fs.readFileSync(path.join(__dirname, '../routes/agentRun.js'), 'utf8');
+    expect(src).toMatch(/runEntry\.intentToken\s*=\s*_intentToken/);
+    expect(src).not.toMatch(/req\.session\.intentToken\s*=/);
+  });
 });

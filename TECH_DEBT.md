@@ -56,7 +56,7 @@ agents' callback bodies. Route `call_pingone_tool` through the gateway with a
 P1AZ decision. Add specialist-tool rules to the P1AZ policy so no-gateway A2A
 works again. Delete the dead langchain path.
 
-### [ ] 2026-09-11 — agentRun's end-of-run session save can undo a concurrent mode change
+### [x] 2026-09-11 — agentRun's end-of-run session save can undo a concurrent mode change
 
 **What's wrong.** `/api/agent/run` still modifies the session (it stores `intentToken`), so
 express-session saves the copy it loaded at the START of the run when the run ENDS. Anything another
@@ -72,6 +72,16 @@ changes the intent-token contract, and the missing flow steps did not depend on 
 **Real fix.** Don't let a long-running request save its whole stale session at the end: write the one
 field with a targeted read-modify-write (re-load the stored session, set it, save) as soon as it is
 minted, or move `intentToken` to the run context like the trace.
+
+**RESOLVED** (branch `worktree-agent-run-no-session-write`). `intentToken` was the only session field
+`/api/agent/run` wrote (`buildSessionPreviewTokenEvents` writes none), and the only reader of the
+stored value was `/internal/agent-tool` — the "other routes" above were wrong: the chip route,
+`agentInvokeRoute` and `devTools` mint their own onto `req.intentToken`. So it moved to the run context
+like the trace: `agentRun` sets `runEntry.intentToken`, `agentTool` reads it from `getRunContext` with
+no session fallback. With no session write the run's request leaves the session unmodified, so
+express-session saves nothing at the end and can no longer overwrite a mode change. It also fixed a
+second bug this entry missed: because the write was only saved when the run ended, the mid-run tool
+callback had been forwarding the PREVIOUS run's Intent Token to the gateway.
 
 ### [x] 2026-09-11 — HistoryModal.js is unthemed (23 inline style blocks)
 
