@@ -448,6 +448,21 @@
   word-break: break-word;
 }
 
+/* The attack-prompt reveal is for pointing at on a projector, not a footnote:
+   the 💬 toggle reads at body size, and opening it shows the prompt large and
+   in full-contrast ink. */
+.lgw-prompt-reveal > summary {
+  font-size: var(--font-size-base);
+  color: var(--th-text);
+}
+
+.lgw-prompt-reveal > pre {
+  max-height: 28rem;
+  font-size: var(--font-size-2xl);
+  line-height: 1.4;
+  color: var(--th-text);
+}
+
 /* A refusal is the answer on this screen, not an aside, and it was reading as
    ordinary body text behind a stripe: the same neutral inset ground the raw
    panel and the model's own replies use, with only 3px of colour to separate
