@@ -639,6 +639,31 @@ describe("LLM Gateway console", () => {
     });
   });
 
+  // The 3-row box hides most of an attack payload, and A+ alone only makes the
+  // visible part bigger — this toggle shows the whole prompt, large, for a room.
+  describe("🔍 whole prompt, large", () => {
+    const bigToggle = () => screen.getByRole("button", { name: /whole prompt large/i });
+
+    it("grows the prompt box to show the whole payload, and shrinks it back", async () => {
+      mockFetch(() => new Promise(() => {}));
+      render(<LlmGatewayPage />);
+      const box = await screen.findByLabelText(/^prompt$/i);
+      await screen.findByText("/llm/anthropic/v1/messages");
+
+      expect(bigToggle()).toHaveAttribute("aria-pressed", "false");
+      expect(box).toHaveAttribute("rows", "3");
+
+      fireEvent.click(bigToggle());
+      expect(bigToggle()).toHaveAttribute("aria-pressed", "true");
+      expect(box).toHaveClass("is-presenting");
+      expect(box).toHaveAttribute("rows", "12");
+
+      fireEvent.click(bigToggle());
+      expect(box).not.toHaveClass("is-presenting");
+      expect(box).toHaveAttribute("rows", "3");
+    });
+  });
+
   // Cue text for whoever is driving the demo. Off by default so the audience
   // never reads the script over the presenter's shoulder.
   describe("presenter notes", () => {
