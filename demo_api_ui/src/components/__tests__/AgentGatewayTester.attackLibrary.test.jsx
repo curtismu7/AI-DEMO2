@@ -39,15 +39,16 @@ describe('Agent Gateway Tester attack library', () => {
     );
   });
 
-  // `effect: 'unmeasured'` must SAY so. Rendering nothing would read as "the
-  // gateway allowed it", which is the exact misreading guardrailAttackCatalog's
-  // effect field was introduced to prevent.
-  it('says so when an attack effect has not been measured', async () => {
+  // An attack's measured effect must be SHOWN, not left blank — a blank would
+  // read as "the gateway allowed it", the exact misreading the effect field was
+  // introduced to prevent. tool_poisoning was measured as 'none' (the injection
+  // rides through), which renders as "No verdict fires …".
+  it('shows the measured effect text for the selected attack', async () => {
     render(<AgentGatewayTester />);
     fireEvent.change(await screen.findByLabelText(/attack library/i), {
       target: { value: POISONING.id },
     });
 
-    expect(screen.getByTestId('agw-attack-effect')).toHaveTextContent(/not yet measured/i);
+    expect(screen.getByTestId('agw-attack-effect')).toHaveTextContent(/no verdict fires/i);
   });
 });

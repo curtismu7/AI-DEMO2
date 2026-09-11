@@ -1,0 +1,84 @@
+/* InterAgentAbuseTester — themeable bits via --th-* tokens (THEMING.md H3:
+   no inline colour/background/font-size). Layout stays inline/here. */
+
+.iaa {
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.iaa-head { display: flex; flex-direction: column; gap: 6px; }
+
+.iaa-title {
+  margin: 0;
+  font-size: var(--font-size-base);
+  color: var(--th-text);
+}
+
+.iaa-sub {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--th-text-muted);
+  max-width: 70ch;
+}
+
+.iaa-sub code,
+.iaa-msg {
+  background: var(--th-code-bg);
+  color: var(--th-code-text);
+  padding: 1px 4px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+}
+
+.iaa-fire {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 6px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg-emphasis);
+  color: var(--th-text-on-emphasis);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+.iaa-fire:disabled { cursor: default; opacity: 0.6; }
+
+.iaa-list {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.iaa-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+.iaa-row--good { border-color: var(--th-status-success-border); background: var(--th-status-success-bg); color: var(--th-text); }
+.iaa-row--bad { border-color: var(--th-status-error-border); background: var(--th-status-error-bg); color: var(--th-text); }
+
+.iaa-row-main { display: flex; flex-direction: column; gap: 2px; min-width: 260px; flex: 1; }
+.iaa-row-label { font-size: var(--font-size-sm); color: var(--th-text); font-weight: 600; }
+.iaa-row-detail { font-size: var(--font-size-xs); color: var(--th-text-muted); }
+
+.iaa-row-verdict { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.iaa-expect { font-size: var(--font-size-2xs); color: var(--th-text-muted); }
+
+.iaa-badge { font-size: var(--font-size-xs); font-weight: 700; }
+.iaa-badge--good { color: var(--th-status-success-text); }
+.iaa-badge--bad { color: var(--th-status-error-text); }
+
+.iaa-msg { max-width: 42ch; text-align: right; }
