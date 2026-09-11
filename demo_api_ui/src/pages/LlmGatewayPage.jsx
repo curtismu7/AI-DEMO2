@@ -215,6 +215,10 @@ function denialExplanation(decision) {
 // state where the dropdown names an attack the prompt box does not hold is a dead
 // end: the fix has to keep the two in step, not re-fill on re-pick. Everywhere the
 // box is emptied, the selection is cleared with it.
+// The unguarded side of a compare run: a local lane, so no virtual key and no
+// Privilege policy between the prompt and the model.
+const UNGUARDED_LANE = 'llamacpp';
+
 function payloadFor(id) {
   return (GUARDRAIL_ATTACKS.find((a) => a.id === id) || {}).payload || '';
 }
@@ -283,6 +287,12 @@ export default function LlmGatewayPage() {
   // Cue text for whoever is driving the demo. Off by default and remembered per
   // browser, so the audience never reads the script over the presenter's shoulder.
   const [presenterNotes, setPresenterNotes] = useState(() => window.localStorage.getItem('lgw-presenter-notes') === '1');
+  // Guarded vs unguarded. Only meaningful with a llama.cpp lane to compare
+  // against and a Privilege lane selected — a local lane has no guarded side.
+  const [compareWithLocal, setCompareWithLocal] = useState(false);
+  const canCompare = lanes.some((l) => l.provider === UNGUARDED_LANE)
+    && !(lanes.find((l) => l.provider === selected) || {}).isLocal;
+  const compareOn = compareWithLocal && canCompare;
   // Clicking Send with nothing typed used to be a silent no-op — the button
   // just did nothing, which reads as broken rather than "you forgot a step".
   const [sendError, setSendError] = useState('');
@@ -362,7 +372,6 @@ export default function LlmGatewayPage() {
     // The server never echoes the model back, so the decision has to carry what
     // this page asked for — otherwise a denial names no model and reads as a
     // refusal of the lane default, which is the one model that was not sent.
-    const lane = lanes.find((l) => l.provider === selected) || {};
     const model = (modelByLane[selected] || '').trim();
     // Only trust the dropdown's choice as the origin of THIS prompt if the box
     // still holds that attack's payload untouched — otherwise an edited or
@@ -376,49 +385,98 @@ export default function LlmGatewayPage() {
     setSelectedTurnId(null);
     setPrompt('');
     setSelectedAttack('');
+    // One call, success or failure, as the model turn it produced. Never throws,
+    // so a compare run always has both sides to show.
+    const run = async (provider, laneModel) => {
+      const lane = lanes.find((l) => l.provider === provider) || {};
+      const id = nextTurnId.current++;
+      try {
+        const data = await api('/llm/call', { method: 'POST', body: { provider, prompt: text, ...(laneModel ? { model: laneModel } : {}) } });
+        const redactions = countRedactions(data.reply);
+        const d = {
+          verdict: redactions > 0 ? 'Answered, redacted' : 'Answered', tone: 'ok', layer: null,
+          redactions,
+          model: laneModel || lane.model || null,
+          provider, route: data.route, latencyMs: data.latencyMs,
+          reachedProvider: data.reachedProvider !== false,
+          reason: null, providerLimits: data.providerLimits || null,
+          attackId,
+        };
+        return { id, role: 'model', text: data.reply, tone: 'ok', provider, decision: d };
+      } catch (err) {
+        const { verdict, tone, layer } = classify(err);
+        const d = {
+          verdict, tone, layer,
+          model: laneModel || lane.model || null,
+          provider: err.provider || provider,
+          route: err.route || lane.route || '',
+          latencyMs: err.latencyMs,
+          reachedProvider: err.reachedProvider === true,
+          reason: err.reason || err.message,
+          providerLimits: err.providerLimits || null,
+          attackId,
+        };
+        return {
+          id, role: 'model', tone, provider, decision: d,
+          text: tone === 'warn' ? `Privilege denied this call. ${err.reason || err.message}` : err.message,
+          rawBody: err.rawBody,
+        };
+      }
+    };
     try {
-      const data = await api('/llm/call', { method: 'POST', body: { provider: selected, prompt: text, ...(model ? { model } : {}) } });
-      const redactions = countRedactions(data.reply);
-      const d = {
-        verdict: redactions > 0 ? 'Answered, redacted' : 'Answered', tone: 'ok', layer: null,
-        redactions,
-        model: model || lane.model || null,
-        provider: selected, route: data.route, latencyMs: data.latencyMs,
-        reachedProvider: data.reachedProvider !== false,
-        reason: null, providerLimits: data.providerLimits || null,
-        attackId,
-      };
-      const id = nextTurnId.current++;
-      setTurns((t) => [...t, { id, role: 'model', text: data.reply, tone: 'ok', provider: selected, decision: d }]);
-      setSelectedTurnId(id);
-      record(selected, d);
-    } catch (err) {
-      const { verdict, tone, layer } = classify(err);
-      const d = {
-        verdict, tone, layer,
-        model: model || lane.model || null,
-        provider: err.provider || selected,
-        route: err.route || lane.route || '',
-        latencyMs: err.latencyMs,
-        reachedProvider: err.reachedProvider === true,
-        reason: err.reason || err.message,
-        providerLimits: err.providerLimits || null,
-        attackId,
-      };
-      const id = nextTurnId.current++;
-      setTurns((t) => [...t, {
-        id, role: 'model', tone, provider: selected, decision: d,
-        text: tone === 'warn' ? `Privilege denied this call. ${err.reason || err.message}` : err.message,
-        rawBody: err.rawBody,
-      }]);
-      setSelectedTurnId(id);
-      record(selected, d);
+      if (compareOn) {
+        // Both at once: the unguarded side has no gateway in front of it, so
+        // running them in turn would only make the guarded one look slower.
+        const [guarded, unguarded] = await Promise.all([run(selected, model), run(UNGUARDED_LANE, '')]);
+        setTurns((t) => [...t, { id: nextTurnId.current++, role: 'pair', guarded, unguarded }]);
+        setSelectedTurnId(guarded.id);
+        record(selected, guarded.decision);
+      } else {
+        const turn = await run(selected, model);
+        setTurns((t) => [...t, turn]);
+        setSelectedTurnId(turn.id);
+        record(selected, turn.decision);
+      }
     } finally {
       setBusy(false);
     }
-  }, [prompt, busy, selected, lanes, modelByLane, selectedAttack, record]);
+  }, [prompt, busy, selected, lanes, modelByLane, selectedAttack, record, compareOn]);
 
   const active = lanes.find((l) => l.provider === selected);
+  // In a compare run the band stays on the guarded call — it is the story the
+  // page tells — while Last decision follows whichever result was clicked.
+  const pairTurn = turns.find((t) => t.role === 'pair');
+  const bandDecision = pairTurn ? pairTurn.guarded.decision : decision;
+  // Attribution follows the lane of the call ON DISPLAY, not the selected lane:
+  // a llama.cpp result shown while Anthropic is selected must not claim
+  // Privilege passed it through.
+  const decisionIsLocal = Boolean((lanes.find((l) => l.provider === decision?.provider) || {}).isLocal);
+
+  // One model turn. Clicking it re-points Last decision at that run's result.
+  const renderModelTurn = (t) => (
+    <button
+      key={t.id}
+      type="button"
+      className={`lgw-turn lgw-turn--model${t.id === selectedTurnId ? ' is-selected' : ''}`}
+      aria-pressed={t.id === selectedTurnId}
+      title="Show this run's result in Last decision"
+      onClick={() => { setDecision(t.decision); setSelectedTurnId(t.id); }}
+    >
+      <span className="lgw-turn__who">{TITLES[t.provider] || 'Gateway'}</span>
+      <div className={`lgw-turn__body${t.tone && t.tone !== 'ok' ? ` is-${t.tone}` : ''}`}>
+        {renderReply(t.text)}
+        {/* The page swallowed nothing — the body is still one click away,
+            which is the difference between summarising and hiding. The
+            click must not also re-select the turn behind it. */}
+        {t.rawBody ? (
+          <details className="lgw-raw" onClick={(e) => e.stopPropagation()}>
+            <summary>Show the raw error page</summary>
+            <pre>{t.rawBody}</pre>
+          </details>
+        ) : null}
+      </div>
+    </button>
+  );
 
   return (
     <div className="lgw">
@@ -477,9 +535,9 @@ export default function LlmGatewayPage() {
           state rather than blanking the band out again. */}
       <section className="lgw-reelband" aria-label="Path of the current call">
         <LlmGatewayReel
-          decision={decision && (decision.tone === 'ok' || decision.layer === 'Privilege') ? decision : null}
-          providerTitle={TITLES[decision?.provider || selected] || decision?.provider || selected}
-          isLocalLane={Boolean((lanes.find((l) => l.provider === (decision?.provider || selected)) || {}).isLocal)}
+          decision={bandDecision && (bandDecision.tone === 'ok' || bandDecision.layer === 'Privilege') ? bandDecision : null}
+          providerTitle={TITLES[bandDecision?.provider || selected] || bandDecision?.provider || selected}
+          isLocalLane={Boolean((lanes.find((l) => l.provider === (bandDecision?.provider || selected)) || {}).isLocal)}
           pending={{ provider: selected, model: modelByLane[selected] }}
         />
       </section>
@@ -565,37 +623,33 @@ export default function LlmGatewayPage() {
                 )}
               </p>
             ) : null}
-            {turns.map((t) => (
-              t.role === 'model' ? (
-                <button
-                  key={t.id}
-                  type="button"
-                  className={`lgw-turn lgw-turn--model${t.id === selectedTurnId ? ' is-selected' : ''}`}
-                  aria-pressed={t.id === selectedTurnId}
-                  title="Show this run's result in Last decision"
-                  onClick={() => { setDecision(t.decision); setSelectedTurnId(t.id); }}
-                >
-                  <span className="lgw-turn__who">{TITLES[t.provider] || 'Gateway'}</span>
-                  <div className={`lgw-turn__body${t.tone && t.tone !== 'ok' ? ` is-${t.tone}` : ''}`}>
-                    {renderReply(t.text)}
-                    {/* The page swallowed nothing — the body is still one click away,
-                        which is the difference between summarising and hiding. The
-                        click must not also re-select the turn behind it. */}
-                    {t.rawBody ? (
-                      <details className="lgw-raw" onClick={(e) => e.stopPropagation()}>
-                        <summary>Show the raw error page</summary>
-                        <pre>{t.rawBody}</pre>
-                      </details>
-                    ) : null}
+            {turns.map((t) => {
+              if (t.role === 'model') return renderModelTurn(t);
+              if (t.role === 'pair') {
+                return (
+                  <div key={t.id} className="lgw-compare" data-testid="lgw-compare">
+                    <p className="lgw-compare__caption" data-testid="lgw-compare-caption">
+                      Same prompt, two paths. Different models, so this shows a policy layer against none &mdash;
+                      not one model with and without it.
+                    </p>
+                    <div className="lgw-compare__side" data-testid="lgw-compare-guarded">
+                      <span className="lgw-compare__k">Through Privilege</span>
+                      {renderModelTurn(t.guarded)}
+                    </div>
+                    <div className="lgw-compare__side" data-testid="lgw-compare-unguarded">
+                      <span className="lgw-compare__k">No policy layer</span>
+                      {renderModelTurn(t.unguarded)}
+                    </div>
                   </div>
-                </button>
-              ) : (
+                );
+              }
+              return (
                 <div key={t.id} className="lgw-turn lgw-turn--you">
                   <span className="lgw-turn__who">You</span>
                   <div className="lgw-turn__body">{t.text}</div>
                 </div>
-              )
-            ))}
+              );
+            })}
             {busy ? (
               <p className="lgw-empty lgw-busy">
                 <span className="lgw-spinner" aria-hidden="true" />
@@ -683,6 +737,18 @@ export default function LlmGatewayPage() {
               onChange={(e) => { setPrompt(e.target.value); setSendError(''); }}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
             />
+            <button
+              type="button"
+              className="lgw-theme"
+              onClick={() => setCompareWithLocal((v) => !v)}
+              disabled={busy || !canCompare}
+              aria-pressed={compareOn}
+              title={canCompare
+                ? 'Also send the prompt through llama.cpp, which has no policy layer, and show both results side by side'
+                : 'Needs a llama.cpp lane, and a Privilege lane selected'}
+            >
+              Compare with llama.cpp
+            </button>
             <button type="button" className="lgw-send" onClick={send} disabled={busy || !(active?.isLocal || active?.keyConfigured)}>
               {busy ? 'Sending…' : 'Send'}
             </button>
@@ -717,8 +783,8 @@ export default function LlmGatewayPage() {
           </div>
           {decision ? (
             <div className={`lgw-who is-${decision.tone}`} data-testid="lgw-who">
-              <p className="lgw-who__who">{attribution(decision, active?.isLocal).who}</p>
-              <p className="lgw-who__note">{attribution(decision, active?.isLocal).note}</p>
+              <p className="lgw-who__who">{attribution(decision, decisionIsLocal).who}</p>
+              <p className="lgw-who__note">{attribution(decision, decisionIsLocal).note}</p>
             </div>
           ) : null}
           {!decision ? (
@@ -793,7 +859,7 @@ export default function LlmGatewayPage() {
               as {reply} with tone "ok". A local lane has no policy in front of it,
               so if the text above declined to answer, that was the model's own
               guardrails, not this demo's gateway. */}
-          {decision && decision.tone === 'ok' && active?.isLocal ? (
+          {decision && decision.tone === 'ok' && decisionIsLocal ? (
             <p className="lgw-rail__note">
               This lane has no policy layer. If the reply above declined to answer, that was the model deciding — not the gateway.
             </p>
