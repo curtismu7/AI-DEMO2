@@ -614,16 +614,6 @@ export default function LlmGatewayPage() {
                 {ATTACK_EFFECT[(GUARDRAIL_ATTACKS.find((a) => a.id === selectedAttack) || {}).effect]}
               </span>
             ) : null}
-            {/* The composer below is a single-line input, so a long or multi-line
-                payload (the injection attacks embed a literal newline) is exactly
-                the thing it can't show — this reveals the whole prompt in one
-                readable block for pointing at during a live demo. */}
-            {selectedAttack ? (
-              <details className="lgw-raw lgw-prompt-reveal">
-                <summary>💬 Show the full prompt</summary>
-                <pre data-testid="lgw-attack-prompt">{payloadFor(selectedAttack)}</pre>
-              </details>
-            ) : null}
           </div>
 
           {/* Local lanes have no virtual key and so no allowlist to demonstrate;
@@ -658,13 +648,15 @@ export default function LlmGatewayPage() {
 
           {sendError ? <p className="lgw-error" role="alert">{sendError}</p> : null}
           <div className="lgw-composer">
-            <input
-              type="text"
+            {/* Multi-line so an attack payload with embedded newlines shows
+                exactly as it will be sent. Enter sends; Shift+Enter adds a line. */}
+            <textarea
+              rows={3}
               aria-label="Prompt"
               value={prompt}
               placeholder={`Ask through ${TITLES[selected] || selected}…`}
               onChange={(e) => { setPrompt(e.target.value); setSendError(''); }}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); send(); } }}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
             />
             <button type="button" className="lgw-send" onClick={send} disabled={busy || !(active?.isLocal || active?.keyConfigured)}>
               {busy ? 'Sending…' : 'Send'}

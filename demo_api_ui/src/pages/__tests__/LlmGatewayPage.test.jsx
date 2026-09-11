@@ -597,18 +597,45 @@ describe("LLM Gateway console", () => {
       expect(screen.getByLabelText(/attack library/i)).toHaveValue("prompt_injection");
     });
 
-    it("reveals the full prompt text behind a 💬 toggle, for demo audiences the single-line composer can't show", async () => {
+    // The injection payloads embed literal newlines. A single-line box strips
+    // them, so what the audience sees is not what gets sent.
+    it("keeps a multi-line attack payload intact in the prompt box", async () => {
       const attack = GUARDRAIL_ATTACKS.find((a) => a.id === "hidden_instructions");
       mockFetch(() => new Promise(() => {}));
       render(<LlmGatewayPage />);
       await screen.findByText("/llm/anthropic/v1/messages");
 
-      expect(screen.queryByTestId("lgw-attack-prompt")).not.toBeInTheDocument();
-
       fireEvent.change(screen.getByLabelText(/attack library/i), { target: { value: attack.id } });
-      const summary = screen.getByText("💬 Show the full prompt");
-      expect(summary).toBeInTheDocument();
-      expect(screen.getByTestId("lgw-attack-prompt")).toHaveTextContent(attack.payload.split("\n")[0]);
+
+      expect(screen.getByLabelText(/^prompt$/i).value).toBe(attack.payload);
+    });
+  });
+
+  describe("prompt box keys", () => {
+    const calls = () => global.fetch.mock.calls.filter(([u]) => String(u).endsWith("/llm/call"));
+
+    it("sends on Enter", async () => {
+      mockFetch(() => new Promise(() => {}));
+      render(<LlmGatewayPage />);
+      const box = await screen.findByLabelText(/^prompt$/i);
+      await screen.findByText("/llm/anthropic/v1/messages");
+
+      fireEvent.change(box, { target: { value: "hello" } });
+      fireEvent.keyDown(box, { key: "Enter" });
+
+      expect(calls()).toHaveLength(1);
+    });
+
+    it("does not send on Shift+Enter, so a presenter can add a line", async () => {
+      mockFetch(() => new Promise(() => {}));
+      render(<LlmGatewayPage />);
+      const box = await screen.findByLabelText(/^prompt$/i);
+      await screen.findByText("/llm/anthropic/v1/messages");
+
+      fireEvent.change(box, { target: { value: "hello" } });
+      fireEvent.keyDown(box, { key: "Enter", shiftKey: true });
+
+      expect(calls()).toHaveLength(0);
     });
   });
 
