@@ -18,6 +18,8 @@ jest.mock('../../config/resourceAudience', () => ({
 jest.mock('../../services/agentTokenCache', () => ({
   get: jest.fn(() => null),
   set: jest.fn(),
+  newest: jest.fn(() => null),
+  clear: jest.fn(),
 }));
 
 jest.mock('../../services/agentMcpTokenService', () => {
@@ -235,20 +237,9 @@ describe('resolveToken', () => {
     expect(tester.resolveToken({ tokenRef: 'bogus' }, { oauthTokens: {} }).error).toBe('invalid_token_ref');
   });
 
-  test('resolves mcp from the newest non-expired agentTokens cache entry', () => {
-    const session = {
-      agentTokens: {
-        'banking::mcp:invoke': {
-          access_token: 'tok-old',
-          expires_at: Date.now() + 60_000,
-        },
-        'banking::mcp:invoke openid': {
-          access_token: 'tok-new',
-          expires_at: Date.now() + 120_000,
-        },
-      },
-    };
-    const r = tester.resolveToken({ tokenRef: 'mcp' }, session);
+  test('resolves mcp from the newest non-expired cached token', () => {
+    agentTokenCache.newest.mockReturnValueOnce('tok-new');
+    const r = tester.resolveToken({ tokenRef: 'mcp' }, { id: 's-newest' });
     expect(r).toEqual({ token: 'tok-new', source: 'session:mcp' });
   });
 
@@ -269,13 +260,9 @@ describe('resolveTokenAsync', () => {
     expect(agentMcpTokenService.resolveMcpAccessTokenWithEvents).not.toHaveBeenCalled();
   });
 
-  test('uses newest agentTokens cache without minting', async () => {
-    const session = {
-      oauthTokens: { accessToken: 'sess' },
-      agentTokens: {
-        a: { access_token: 'cached-mcp', expires_at: Date.now() + 60_000 },
-      },
-    };
+  test('uses the newest cached token without minting', async () => {
+    agentTokenCache.newest.mockReturnValueOnce('cached-mcp');
+    const session = { id: 's-cached', oauthTokens: { accessToken: 'sess' } };
     const r = await tester.resolveTokenAsync({ tokenRef: 'mcp' }, sessionReq(session));
     expect(r).toEqual({ token: 'cached-mcp', source: 'session:mcp' });
     expect(agentMcpTokenService.resolveMcpAccessTokenWithEvents).not.toHaveBeenCalled();
@@ -332,7 +319,7 @@ describe('resolveTokenAsync', () => {
     expect(r.error).toBe('mcp_token_mint_failed');
   });
 
-  test('prefers agentTokenCache.get after agentTokens miss', async () => {
+  test('prefers agentTokenCache.get after a newest() miss', async () => {
     agentTokenCache.get.mockReturnValue({ access_token: 'from-cache-svc' });
     const r = await tester.resolveTokenAsync(
       { tokenRef: 'mcp' },

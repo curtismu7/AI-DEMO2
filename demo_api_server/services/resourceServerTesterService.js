@@ -302,17 +302,11 @@ async function probe(token, targetPath) {
   }
 }
 
-/** Newest non-expired agentTokens cache entry (gateway TX), or null. */
+/** Newest non-expired cached agent token (gateway TX), or null. */
 function latestCachedMcpToken(session) {
-  const map = session && session.agentTokens;
-  if (!map || typeof map !== 'object') return null;
-  let best = null;
-  for (const entry of Object.values(map)) {
-    if (!entry || !entry.access_token) continue;
-    if (Date.now() >= (entry.expires_at || 0)) continue;
-    if (!best || (entry.expires_at || 0) > (best.expires_at || 0)) best = entry;
-  }
-  return best ? best.access_token : null;
+  // The cache is keyed by session id in agentTokenCache, not stored on the
+  // session — scanning session.agentTokens here would always find nothing.
+  return agentTokenCache.newest(session);
 }
 
 /**

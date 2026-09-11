@@ -141,6 +141,40 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-11 — a long request's agent-token cache write undid a mode change
+
+**Files changed:** `demo_api_server/services/agentTokenCache.js`,
+`demo_api_server/services/resourceServerTesterService.js`, `demo_api_server/routes/delegatedCommerce.js`,
+`demo_api_server/routes/oauth.js`, `demo_api_server/routes/oauthUser.js`,
+`docs/SPEC-authorize-driven-dynamic-chips.md`, and tests.
+
+**What was broken:** `agentTokenCache` stored the agent (client-credentials / exchanged) token under
+`req.session.agentTokens`, so a cache MISS inside a long request marked the session modified and
+express-session wrote that request's whole session copy — the one loaded when the request STARTED —
+back to the store when it ended. An 11s `POST /api/demo-agent/tools` on a cold cache (the dashboard's
+tool lookup, right after the #3141 deploy restarted the BFF) therefore reverted an agent-mode change
+made while it ran: seen live 2026-09-11, the session's `langchain_config.provider` went back to its
+pre-change value. Same last-write-wins class as the `/api/agent/run` entry below, reached through a
+different route, so that entry's early save could not cover it.
+
+**Fixed by** holding the tokens in an in-process map inside `agentTokenCache`, keyed by session id +
+(vertical, scopeSet), so no caller marks the session modified. Expired entries are swept on write (the
+map outlives the sessions now), `newest(session)` replaces the resource-server tester's own scan of
+`session.agentTokens`, and `clear(session)` replaces `req.session.agentTokens = {}` in delegated-commerce
+consent/revoke and is called on both logout paths — `session.destroy()` no longer clears the cache for
+free.
+
+**Do not break:** nothing reads or writes `session.agentTokens` — the field is gone; go through
+`agentTokenCache` (`get` / `set` / `newest` / `clear`). A cached entry needs `session.id`: a session
+without one is permanently uncached, so test fixtures that assert cache reuse must carry an id. Logout
+must keep calling `clear()`. In-process, single-BFF-process, like `mcpFlowSseHub` and `agentRunContext`.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest agentTokenCache agentToolsResolver resourceServerTester summaryInflow delegatedCommerce tokenChain --forceExit`
+— 13 suites / 117 passed; the rewritten cache spec was red first (5 of 10: the session write, `newest`,
+`clear`, the no-id case, null-safety). Full BFF suite: 1012 of 1013 suites, 11,665 passed — the single
+failure (`tests/routes/privilegeMcpClient.status.test.js`) passes alone 4/4 and never touches the cache.
+Scoped `oauth|logout|auth` after the logout change: 119 suites / 1190 passed.
+
 ### 2026-09-11 — /api/agent/run undid a mode change made during the run
 
 **Files changed:** `demo_api_server/routes/agentRun.js`, `demo_api_server/routes/agentTool.js`,
@@ -157,8 +191,9 @@ loaded when the run STARTED, so anything another request saved in between was ov
 Heuristics → llama.cpp just before sending left the mode picker on Heuristics after the run. The same
 delay meant the mid-run tool callback (`/internal/agent-tool`) read the store before that save and
 forwarded the PREVIOUS run's Intent Token (or none) to the gateway. Removing that write was not enough:
-setup services still write the session (`getAgentCCToken` caches the agent token in
-`session.agentTokens` on a miss), and that too was saved as the stale copy at the end. And the run
+setup services still write the session (`resolveAvailableTools` cached the agent token under
+`session.agentTokens` on a miss — `getAgentCCToken` itself writes nothing, corrected here), and that
+too was saved as the stale copy at the end. And the run
 context was keyed by session alone, so two runs overlapping in one session cross-wired: the older
 run's tool callback got the newer run's Intent Token and offered-tool list.
 
