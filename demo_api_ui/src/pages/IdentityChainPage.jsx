@@ -16,6 +16,9 @@ import "../components/McpGatewayConfig.css";
 import "./IdentityChainPage.css";
 
 const REFRESH_MS = 3000;
+// Onyx runs locally on the presenter's machine (the third-party AI app in the
+// demo). Opened in its own window so the two can sit side by side.
+export const ONYX_URL = "http://localhost:3003";
 
 /**
  * The chain for one gateway decision, as display steps.
@@ -128,6 +131,12 @@ export default function IdentityChainPage() {
   return (
     <div className="icp-page">
       <h1 className="icp-title">Identity Chain</h1>
+      <p className="icp-intro">
+        <a href={ONYX_URL} target="_blank" rel="noopener noreferrer">
+          Open Onyx
+        </a>{" "}
+        in its own window to put the two side by side: every call Onyx makes appears here.
+      </p>
       <p className="icp-intro">
         Every MCP call through PingGateway: who the user is, which app is calling, what their token
         carries, and what PingOne Authorize decided. You see your own calls; admins see every

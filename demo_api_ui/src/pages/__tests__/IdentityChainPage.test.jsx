@@ -49,6 +49,15 @@ describe("IdentityChainPage", () => {
     expect(await screen.findByText(/No gateway decisions yet/)).toBeInTheDocument();
   });
 
+  it("links to Onyx in a new window so the two can sit side by side", async () => {
+    apiClient.get.mockResolvedValue({ data: { decisions: [] } });
+    render(<IdentityChainPage />);
+    const link = await screen.findByRole("link", { name: /Open Onyx/ });
+    expect(link).toHaveAttribute("href", "http://localhost:3003");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  });
+
   it("marks a permitted delegated call as reaching the MCP server", () => {
     const steps = chainSteps({ ...ONYX_DENY, decision: "PERMIT", actor: "agent-7", statements: [] });
     const byKey = Object.fromEntries(steps.map((s) => [s.key, s]));
