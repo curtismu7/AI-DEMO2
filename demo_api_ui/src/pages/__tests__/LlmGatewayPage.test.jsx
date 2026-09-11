@@ -1058,6 +1058,48 @@ describe("LLM Gateway console", () => {
 
       expect(screen.getByRole("button", { name: /run all attacks/i })).toBeDisabled();
     });
+
+    // The results belong to the lane that ran them. Switching lanes afterwards
+    // must not relabel a health check as a lane that was never tested.
+    it("keeps the scorecard labelled with the lane the run went through after a lane switch", async () => {
+      mockRunAll();
+      render(<LlmGatewayPage />);
+      await screen.findByText("/llm/anthropic/v1/messages");
+
+      runAll();
+      await whenDone();
+      fireEvent.click(screen.getByRole("button", { name: /google/i }));
+
+      const card = screen.getByTestId("lgw-scorecard");
+      expect(within(card).getByRole("columnheader", { name: /through anthropic/i })).toBeInTheDocument();
+      expect(within(card).queryByRole("columnheader", { name: /through google/i })).not.toBeInTheDocument();
+    });
+
+    // Reset mid-run cleared the screen, then the still-running loop refilled it.
+    it("can't Reset while a run is still in flight", async () => {
+      const calls = [];
+      global.fetch = vi.fn((url, init) => {
+        const u = String(url);
+        if (u.endsWith("/llm/config")) {
+          return Promise.resolve({ ok: true, status: 200, text: async () => JSON.stringify(CONFIG_WITH_LOCALS) });
+        }
+        if (u.endsWith("/llm/call")) {
+          calls.push(JSON.parse(init.body));
+          // The first guarded call lands, so a decision is on screen; the next
+          // never does, so the run is still in flight.
+          return calls.length === 1 ? Promise.resolve(DENIED()) : new Promise(() => {});
+        }
+        return new Promise(() => {});
+      });
+      render(<LlmGatewayPage />);
+      await screen.findByText("/llm/anthropic/v1/messages");
+
+      runAll();
+      await waitFor(() => expect(calls).toHaveLength(2));
+      await screen.findByTestId("lgw-decision");
+
+      expect(screen.getByRole("button", { name: /^reset$/i })).toBeDisabled();
+    });
   });
 
   describe("empty prompt", () => {

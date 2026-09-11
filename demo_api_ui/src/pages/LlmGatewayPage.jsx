@@ -496,10 +496,12 @@ export default function LlmGatewayPage() {
     setScorePick(null);
     setSendError('');
     const rows = GUARDRAIL_ATTACKS.map((attack) => ({ attack, guarded: null, unguarded: null }));
-    setScorecard({ rows: [...rows], done: false });
+    // The scorecard carries the lane it ran through, so switching lanes
+    // afterwards can't relabel these results as a lane that was never tested.
+    setScorecard({ provider: selected, rows: [...rows], done: false });
     const put = (i, side, turn) => {
       rows[i] = { ...rows[i], [side]: turn };
-      setScorecard({ rows: [...rows], done: false });
+      setScorecard({ provider: selected, rows: [...rows], done: false });
     };
     try {
       for (let i = 0; i < rows.length; i += 1) {
@@ -512,7 +514,7 @@ export default function LlmGatewayPage() {
         put(i, 'unguarded', await callLane(UNGUARDED_LANE, '', attack.payload, attack.id));
       }
     } finally {
-      setScorecard({ rows: [...rows], done: true });
+      setScorecard({ provider: selected, rows: [...rows], done: true });
       setBusy(false);
     }
   }, [busy, canRunAll, modelByLane, selected, callLane, record]);
@@ -602,7 +604,9 @@ export default function LlmGatewayPage() {
             type="button"
             className="lgw-theme"
             onClick={reset}
-            disabled={turns.length === 0 && !decision}
+            // Not while a call is in flight: its result would land after the
+            // reset and silently put back what Reset just cleared.
+            disabled={busy || (turns.length === 0 && !decision)}
             title="Clear the conversation and start over"
           >
             Reset
@@ -754,7 +758,7 @@ export default function LlmGatewayPage() {
                     <tr>
                       <th>Attack</th>
                       <th>Expected</th>
-                      <th>Through {TITLES[selected] || selected}</th>
+                      <th>Through {TITLES[scorecard.provider] || scorecard.provider}</th>
                       <th>llama.cpp &mdash; no policy layer</th>
                     </tr>
                   </thead>
