@@ -21,14 +21,14 @@ Decisions already made:
 
 1. **`/api/delegation`, `/history`, `/granted-to-me`, `/admin/all`** return the stored raw user `access_token`. `/admin/all` returns every user's token, and `/granted-to-me` returns the delegator's token to the delegate.
    - Fix: in `services/delegationService.js:51` `toRecord`, destructure out `access_token` (`const { access_token, ...rest } = row`).
-   - Revocation is unaffected: `routes/delegation.js:174-179` and `agentAuthorization.js` read the raw LMDB row through `delegationStore.getDelegationById`, not through `toRecord`.
+   - Revocation is unaffected. Only the admin hard revoke (`routes/delegation.js:172-185`) reads the stored token, and it reads the raw LMDB row through `delegationStore.getDelegationById`, not through `toRecord`. `routes/agentAuthorization.js:138-143` revokes the current session's access token, not a stored one (it finds the delegation with `findActiveByActorAndGrantor`).
 2. **`GET /api/api-calls/tokens`** returns the admin login access token stored by `trackToken`. No UI calls it.
    - Fix: delete the `trackToken(...)` call at `routes/oauth.js:374-379`, and its now-unused import at `oauth.js:22`.
    - Leave the endpoint in place. It keeps returning `[]`, and its session-isolation test still passes.
 3. **`_auth` cookie carries the raw id_token** (`services/authStateCookie.js:109`, field `it`).
    - Fix in `authStateCookie.js`: remove `it` from the payload (`:109`), the `idToken: obj.it` read (`:147`), and the `idToken` restore (`:212`).
    - Fix the callers: drop `idToken` from the `setAuthCookie` arguments at `routes/oauth.js:427` and `routes/oauthUser.js:806`.
-   - Fix `server.js:826-829`: remove the `readAuthCookie(req)?.idToken` fallback. A logout after the session is already lost then reaches PingOne signoff without `id_token_hint`.
+   - Fix `server.js:826-829`: remove the `readAuthCookie(req)?.idToken` fallback. A logout after the session is already lost then reaches PingOne signoff without `id_token_hint`. `server.js:916` already warns that the PingOne SSO session may then stay active, so the next sign-in could go through without asking for credentials. That is the known cost of this decision. Verification step 5 measures it, and if SSO does survive, record it in TECH_DEBT as accepted degraded logout.
    - Cookies already issued still carry `it` until they expire, but nothing reads it any more.
 4. **Resource Server Tester "Show Token"** returns the raw JWT.
    - Fix: in `services/resourceServerTesterService.js:404` `reveal()`, remove the `token` field and keep `source`, `label`, `header` and `claims`. Update its doc comment and the "Deliberately NOT scrubbed" comment in `routes/resourceServerTester.js:31-40`.
@@ -60,12 +60,16 @@ Decisions already made:
 
 A new file, `demo_api_server/tests/userTokenCustody.regression.test.js`, with one small case per fix. Each case fails if its fix is reverted:
 
-- `toRecord` output has no `access_token`.
-- `setAuthCookie` → `readAuthCookie` round-trip: the cookie contains no JWT-shaped string (`/eyJ[\w-]+\.[\w-]+\.[\w-]*/`) and no `it`.
-- `reveal()` result has no `token`.
-- The `jwt_decode_full` pipeline sends the exchanged token as `params.token`, never the session token (mock `resolveMcpAccessTokenWithEvents` and `callToolViaGateway`).
-- The replayed-token sim never passes the raw `subjectToken` to `callToolViaGateway`.
-- `test-introspect` makes no call to `:9001`.
+1. `toRecord` output has no `access_token`.
+2. The OAuth callback no longer calls `trackToken` (mock `apiCallTrackerService` and assert it is not called).
+3. `setAuthCookie` → `readAuthCookie` round-trip: the cookie contains no JWT-shaped string (`/eyJ[\w-]+\.[\w-]+\.[\w-]*/`) and no `it`.
+4. `reveal()` result has no `token`.
+5. In the `POST /api/a2a/message` response, `delegationResult` has no `token` (mock the orchestrator to return one).
+6. When a `token_exchange` app event carries a JWT in `metadata`, the token-chain SSE output contains no JWT-shaped string.
+7. The `jwt_decode_full` pipeline sends the exchanged token as `params.token`, never the session token (mock `resolveMcpAccessTokenWithEvents` and `callToolViaGateway`).
+8. The replayed-token sim never passes the raw `subjectToken` to `callToolViaGateway`.
+9. In the exchange-1token-401 flow, step 1's `probeMcp` never receives the session access token; its bearer is the wrong-audience token from a mocked `performTokenExchange`.
+10. `test-introspect` calls `introspectToken` with the session token, makes no request to `:9001`, and returns `{ ok: true, engine: 'pingone', ... }` in the shape `AuthorizeRulesPanel.jsx:239` reads.
 
 Existing tests to update where they assert the old behavior:
 
@@ -113,4 +117,5 @@ In a worktree (`EnterWorktree`), on branch `fix/user-token-custody`, with files 
    - Check that the `_auth` cookie value decodes with no `it` field.
    - Run the "Decode my token" chip: it shows `aud` = the MCP audience and an `act` claim.
    - Run the replayed-token sim: it reports 401 `invalid_aud`.
-   - Log out: the PingOne signoff redirect still works.
+   - Normal logout: the PingOne signoff redirect still works, and the next sign-in asks for credentials.
+   - Cookie-only logout: delete the server session from the session store but keep the `_auth` cookie, then log out. Check whether the next sign-in asks for credentials. If it signs in silently, the upstream SSO session survived. Record that in TECH_DEBT as the accepted cost of dropping the cookie id_token, and tell the user.
