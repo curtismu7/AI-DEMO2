@@ -74,6 +74,21 @@ async def test_error_response_still_emits_token_events():
 
 @pytest.mark.asyncio
 @respx.mock
+async def test_tool_callback_names_its_run():
+    """The BFF keys each run's context (tool list, Intent Token) by run id: a
+    callback without it could read an overlapping newer run's context."""
+    import json
+
+    route = respx.post(BFF_URL).mock(return_value=httpx.Response(200, json={"result": {}}))
+
+    tools = build_bff_tools([SCHEMA], BFF_URL, "sess_abc", run_id="run-A")
+    await tools[0]._arun(userId="u1")
+
+    assert json.loads(route.calls[0].request.content)["runId"] == "run-A"
+
+
+@pytest.mark.asyncio
+@respx.mock
 async def test_multi_tool_calls_accumulate_events():
     """Two sequential tool calls each emit their own add patches (not replace)."""
     respx.post(BFF_URL).mock(

@@ -86,7 +86,8 @@ def _make_tool(schema: dict, emit_fn: Optional[Callable[[dict], Coroutine]]) -> 
                 async with httpx.AsyncClient(timeout=_timeout) as client:
                     resp = await client.post(
                         ctx.deps.bff_tool_url,
-                        json={"tool": name, "args": args, "sessionId": ctx.deps.session_id},
+                        json={"tool": name, "args": args, "sessionId": ctx.deps.session_id,
+                              "runId": ctx.deps.run_id},
                         headers={
                             "x-internal-gateway-secret": ctx.deps.bff_internal_secret,
                             "x-session-id": ctx.deps.session_id,

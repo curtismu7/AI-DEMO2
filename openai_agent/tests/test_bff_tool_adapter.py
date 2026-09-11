@@ -44,6 +44,24 @@ async def test_tool_posts_to_bff_and_returns_result():
 
 @pytest.mark.asyncio
 @respx.mock
+async def test_tool_callback_names_its_run():
+    """The BFF keys each run's context (tool list, Intent Token) by run id: a
+    callback without it could read an overlapping newer run's context."""
+    import json
+    from src.bff_tool_adapter import build_bff_tools
+
+    route = respx.post("http://127.0.0.1:3001/internal/agent-tool").mock(
+        return_value=httpx.Response(200, json={"result": {}})
+    )
+
+    tools = build_bff_tools([TOOL_SCHEMA], {**RUN_CONTEXT, "run_id": "run-A"})
+    await tools[0].on_invoke_tool(None, '{"userId": "u1"}')
+
+    assert json.loads(route.calls[0].request.content)["runId"] == "run-A"
+
+
+@pytest.mark.asyncio
+@respx.mock
 async def test_tool_raises_on_bff_error():
     from src.bff_tool_adapter import build_bff_tools, BffToolError
 

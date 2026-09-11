@@ -103,6 +103,7 @@ async def handle_run(request: Request) -> StreamingResponse:
         bff_tool_url=bff_tool_url,
         bff_internal_secret=bff_internal_secret,
         session_id=session_id,
+        run_id=run_id,
     )
 
     # Validate that messages array has at least one user message with content
