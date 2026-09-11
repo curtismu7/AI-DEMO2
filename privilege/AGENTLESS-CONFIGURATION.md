@@ -50,6 +50,19 @@ or re-applies its own per-category block threshold to the sidecar's finding, and
 the exact severity→action mapping. Prove by making `mcp-promptguard` return a
 finding on a benign trigger phrase and checking the caller gets 400.
 
+**No Ping-published guardrail image exists to drop in instead** (checked
+2026-09-10). The console field's `http://promptguard:8770/inspect` is aspirational
+placeholder text only: the data-plane gateway binary (`/procyon/bin/mcpgw`) has
+zero occurrences of `promptguard`, `8770` or `/inspect` — the `/inspect` path in
+the live capture came from the URL we typed, not a gateway constant. Ping's public
+ECR `n2z2g8w6` (same registry the openapi sidecar pulls from) has no image under
+any guardrail name (16 probed: promptguard, prompt-guard, guardrail, guard,
+llama-guard, aiguard, mcp/promptguard, … — all absent; `mcp/openapi` and
+`mcp/grafana` reachable, so the probe is sound), and no Ping docset documents the
+feature. The ML sidecar is bring-your-own — hence `demo_mcp_promptguard/`. If a
+Ping/Procyon SE can name an internal image + its contract, that's the only way to
+supersede this.
+
 ## 2026-09-06 — Banking REST added as an OpenAPI MCP app (`banking-rest`), as a pod sidecar
 
 | Item | Value |
