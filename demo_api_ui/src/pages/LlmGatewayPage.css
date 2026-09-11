@@ -368,10 +368,14 @@
   color: var(--th-text);
 }
 
+/* Read from across the room in a demo: large and heavy, ruled off from the
+   reply under it. */
 .lgw-compare__k {
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  padding-bottom: 0.3rem;
+  border-bottom: 2px solid var(--th-border);
+  font-size: var(--font-size-lg);
+  font-weight: 800;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--th-text);
 }
@@ -675,6 +679,34 @@
   border-color: var(--th-accent, var(--th-text));
   background: var(--th-bg-emphasis);
   color: var(--th-text-on-emphasis);
+}
+
+/* Compare with llama.cpp is a switch, not a one-shot button: the knob sits
+   left on a muted track when off, right on the emphasis track when on. */
+.lgw-compare-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  white-space: nowrap;
+  font-size: var(--font-size-base);
+}
+
+.lgw-compare-toggle::before {
+  content: '';
+  flex: none;
+  width: 2rem;
+  height: 1.1rem;
+  border-radius: 999px;
+  background: radial-gradient(circle at 0.55rem 50%, var(--th-bg-card) 0.4rem, transparent 0.45rem) var(--th-text-muted);
+}
+
+.lgw-compare-toggle[aria-pressed="true"] {
+  border-color: var(--th-accent, var(--th-text));
+  font-weight: 700;
+}
+
+.lgw-compare-toggle[aria-pressed="true"]::before {
+  background: radial-gradient(circle at 1.45rem 50%, var(--th-text-on-emphasis) 0.4rem, transparent 0.45rem) var(--th-bg-emphasis);
 }
 
 .lgw-send {
