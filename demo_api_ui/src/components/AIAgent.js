@@ -6424,6 +6424,10 @@ export default function BankingAgent({
         return;
       }
 
+      // The answer is a new turn: give it its own prompt + pending reply in the
+      // flow panel (dispatchNlResult settles it), or the panel stays on the
+      // prompt that asked the question.
+      prepNlCompliance(text);
       // Build a synthetic NL result that mirrors what the server would
       // have produced, and dispatch through the same path. source='clarify'
       // so the token-chain panel can label it correctly.
@@ -8171,6 +8175,10 @@ export default function BankingAgent({
         return;
       }
 
+      // The answer is a new turn: give it its own prompt + pending reply in the
+      // flow panel (dispatchNlResult settles it), or the panel stays on the
+      // prompt that asked the question.
+      prepNlCompliance(text);
       const syntheticResult = buildClarificationResult(pc, merged);
       try {
         await dispatchNlResult(syntheticResult, "clarify", text);

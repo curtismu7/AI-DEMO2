@@ -156,15 +156,18 @@ forever, and a failed `/nl` request did the same. Seen live right after #3135's 
 a thin wrapper around `dispatchNlResultInner` that settles done on return and error on throw, and
 `reportNlFailure` settles error. `completeReply` now settles only a reply that is still pending, so a
 later "answered" never turns a reply a failed tool call already marked error green, and a panel with
-no reply step is left alone.
+no reply step is left alone. Answering a clarification (e.g. "checking" after "Which account…?") is a
+new turn too: both clarification branches (`handleNaturalLanguageInner`, `sendAsNlInner`) now call
+`prepNlCompliance(text)` before dispatching, so the panel shows that turn instead of staying on the
+prompt that asked the question (Greptile P1 on #3137).
 
 **Do not break:** `completeReply` must stay a no-op unless the reply step is pending — the AG-UI path,
 the tool path (`completeMcpToolCall`) and the heuristics path can all reach it for one prompt.
 
 **Verify:** `cd demo_api_ui && ./node_modules/.bin/vitest run src/services/__tests__/agentFlowDiagramService.test.js src/components/__tests__/AIAgent.heuristicReplySettles.test.js`
-— 4 fail before the fix (settled reply overwritten, empty panel marked done, heuristics answer and
-`/nl` failure left pending), 9/9 pass after; `npm run test:unit` 532 files / 4107 passed;
-`npm run build` exit 0.
+— 5 fail before the fix (settled reply overwritten, empty panel marked done, heuristics answer and
+`/nl` failure left pending, clarification answer left on the previous prompt), 10/10 pass after;
+`npm run test:unit` 532 files / 4108 passed; `npm run build` exit 0.
 
 ### 2026-09-11 — AG-UI tool calls lost their flow trace when a session write landed mid-run
 

@@ -147,6 +147,8 @@ function jsonResponse(body) {
 
 const replyStatus = () =>
   agentFlowDiagram.getState().steps.find((s) => s.id === "reply")?.status;
+const promptText = () =>
+  agentFlowDiagram.getState().steps.find((s) => s.id === "prompt")?.detail;
 
 beforeEach(() => {
   localStorage.clear();
@@ -155,7 +157,7 @@ beforeEach(() => {
   bffGet.mockResolvedValue({ data: { chips: [], suggestions: [], noMatch: true } });
 });
 
-async function sendTypedPrompt() {
+function renderAgent() {
   render(
     <MemoryRouter>
       <ActivityNarrativeProvider>
@@ -165,8 +167,11 @@ async function sendTypedPrompt() {
       </ActivityNarrativeProvider>
     </MemoryRouter>,
   );
+}
+
+async function typeAndSend(text) {
   const input = await screen.findByPlaceholderText(/Message .* AI/i);
-  fireEvent.change(input, { target: { value: "book me a flight to Paris" } });
+  fireEvent.change(input, { target: { value: text } });
   await act(async () => {
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
   });
@@ -179,7 +184,8 @@ describe("flow panel reply step on the heuristics path", () => {
         ? jsonResponse({ result: { kind: "none", message: "Heuristics could not route that." }, source: "heuristic" })
         : jsonResponse({}),
     );
-    await sendTypedPrompt();
+    renderAgent();
+    await typeAndSend("book me a flight to Paris");
     await waitFor(() => {
       expect(screen.getByText(/Heuristics could not route that\.|No matching action in/)).toBeInTheDocument();
     });
@@ -193,7 +199,28 @@ describe("flow panel reply step on the heuristics path", () => {
         ? Promise.reject(new Error("network down"))
         : jsonResponse({}),
     );
-    await sendTypedPrompt();
+    renderAgent();
+    await typeAndSend("book me a flight to Paris");
     await waitFor(() => expect(replyStatus()).toBe("error"));
+  });
+
+  // Greptile P1 on #3137: answering a clarification ("checking" after "Which
+  // account…?") dispatched without starting a new flow turn, so the panel stayed
+  // on the previous prompt and this turn's reply never showed.
+  it("starts and settles a new turn when the user answers a clarification", async () => {
+    global.fetch = vi.fn((url) =>
+      String(url).includes("/api/demo-agent/nl")
+        ? jsonResponse({ result: { kind: "banking", banking: { action: "balance", params: {} } }, source: "heuristic" })
+        : jsonResponse({}),
+    );
+    renderAgent();
+    await typeAndSend("show my balance");
+    await screen.findByText(/Which account would you like to check the balance for\?/i);
+    await waitFor(() => expect(replyStatus()).toBe("done"));
+
+    await typeAndSend("checking");
+
+    await waitFor(() => expect(promptText()).toBe("checking"));
+    await waitFor(() => expect(replyStatus()).toBe("done"));
   });
 });
