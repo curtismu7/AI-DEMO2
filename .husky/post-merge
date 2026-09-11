@@ -5,17 +5,21 @@
 # Manual escape hatch: npm run export:learning.
 
 #
-# Never fire inside an agent worktree (.claude/worktrees/<name>/...), for the
-# same reason as post-checkout: the exporter's `reset --hard origin/main` can
-# land on this checkout's own branch. Here it wiped a `git merge origin/main`
-# mid-merge (2026-09-11). Only the export is skipped — the BFF restart below
-# still runs.
-in_agent_worktree=0
-case "$(pwd)" in
-  */.claude/worktrees/*) in_agent_worktree=1 ;;
-esac
+# Never fire inside a linked worktree (.claude/worktrees, .kilo/worktrees, or
+# anywhere else), for the same reason as post-checkout: the exporter's
+# `reset --hard origin/main` can land on this checkout's own branch. Here it
+# wiped a `git merge origin/main` mid-merge (2026-09-11). Detection is the
+# same as pre-commit's: in a linked worktree --absolute-git-dir is
+# <repo>/.git/worktrees/<name>, while in the main checkout it equals
+# --git-common-dir. Only the export is skipped; the BFF restart below still runs.
+git_dir=$(git rev-parse --absolute-git-dir 2>/dev/null || true)
+common_dir=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)
+in_linked_worktree=0
+if [ -n "$git_dir" ] && [ "$git_dir" != "$common_dir" ]; then
+  in_linked_worktree=1
+fi
 
-if [ "$in_agent_worktree" = "0" ] && git diff --name-only ORIG_HEAD HEAD 2>/dev/null | grep -q '^demo_api_ui/src/components/education/'; then
+if [ "$in_linked_worktree" = "0" ] && git diff --name-only ORIG_HEAD HEAD 2>/dev/null | grep -q '^demo_api_ui/src/components/education/'; then
   echo "[post-merge] education panels changed — exporting Learning Hub in background (logs/learning-hub-export.log)..."
   mkdir -p logs
   nohup npm run export:learning >> logs/learning-hub-export.log 2>&1 &

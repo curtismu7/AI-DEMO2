@@ -11,16 +11,21 @@ prev_head=$1
 new_head=$2
 is_branch_checkout=$3
 
-# Never fire inside an agent worktree (.claude/worktrees/<name>/...). The
-# exporter's ensureMirror() does `git -C <mirror-dir> reset --hard origin/main`
-# — safe against its intended standalone clone, but if MIRROR_DIR ever
-# resolves to the checkout the hook is running in (seen 2026-09-07 in a
-# Claude Code worktree), that reset lands on this checkout's own branch,
-# discarding local commits. A worktree's dev stack isn't what publishes the
-# Learning Hub anyway, so skipping here costs nothing.
-case "$(pwd)" in
-  */.claude/worktrees/*) exit 0 ;;
-esac
+# Never fire inside a linked worktree (.claude/worktrees, .kilo/worktrees, or
+# anywhere else). The exporter's ensureMirror() does
+# `git -C <mirror-dir> reset --hard origin/main` — safe against its intended
+# standalone clone, but if MIRROR_DIR ever resolves to the checkout the hook
+# is running in (seen 2026-09-07 in a Claude Code worktree), that reset lands
+# on this checkout's own branch, discarding local commits. A worktree's dev
+# stack isn't what publishes the Learning Hub anyway, so skipping here costs
+# nothing. Detection is the same as pre-commit's: in a linked worktree
+# --absolute-git-dir is <repo>/.git/worktrees/<name>, while in the main
+# checkout it equals --git-common-dir.
+git_dir=$(git rev-parse --absolute-git-dir 2>/dev/null || true)
+common_dir=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)
+if [ -n "$git_dir" ] && [ "$git_dir" != "$common_dir" ]; then
+  exit 0
+fi
 
 if [ "$is_branch_checkout" = "1" ] && git diff --name-only "$prev_head" "$new_head" 2>/dev/null | grep -q '^demo_api_ui/src/components/education/'; then
   echo "[post-checkout] education panels changed — exporting Learning Hub in background (logs/learning-hub-export.log)..."
