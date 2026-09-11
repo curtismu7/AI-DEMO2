@@ -1,14 +1,37 @@
 # Grafana — the only monitoring UI reachable from outside the cluster.
 #
 # Datasource and dashboards are provisioned from files (monitoring/grafana/**,
-# turned into ConfigMaps by k8s/create-secrets.sh) rather than clicked in: this
-# pod's storage is an emptyDir, so anything configured through the UI is gone on
-# the next restart.
+# turned into ConfigMaps by k8s/create-secrets.sh) rather than clicked in, so
+# they are re-applied on every start.
+#
+# The Grafana DB lives on the grafana-data PVC below, because some state exists
+# ONLY in the DB: above all the `mcp-grafana` service-account token the
+# Privilege gateway calls Grafana with (privilege/AGENTLESS-CONFIGURATION.md).
+# On an emptyDir every Grafana restart silently revoked that token, and the
+# gateway's Grafana tool 401'd until someone re-minted it and restarted the
+# gateway. Side effect: GF_SECURITY_ADMIN_PASSWORD now applies only when the DB
+# is first created — changing it later needs `grafana cli admin
+# reset-admin-password` in the pod.
 #
 # Sign-in is required. Anonymous access is off and sign-up is off, so the admin
 # account provisioned from grafana-secrets is the only way in. That matters more
 # here than it does for /jaeger: these panels expose the gateway's route names,
 # JVM state and error counts, and this path is on the public internet.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: grafana-data
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: grafana
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -35,7 +58,7 @@ spec:
         component: grafana
     spec:
       securityContext:
-        # grafana image runs as uid 472; the emptyDir must be writable by it.
+        # grafana image runs as uid 472; the data volume must be writable by it.
         fsGroup: 472
       containers:
         - name: grafana
@@ -199,7 +222,8 @@ spec:
             name: grafana-dashboards
             optional: true
         - name: data
-          emptyDir: {}
+          persistentVolumeClaim:
+            claimName: grafana-data
       restartPolicy: Always
 ---
 apiVersion: v1
