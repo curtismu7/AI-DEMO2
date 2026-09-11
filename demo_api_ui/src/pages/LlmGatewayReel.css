@@ -27,7 +27,7 @@
 }
 
 .lgw-reel__link {
-  color: var(--th-text-muted);
+  color: var(--th-text-body);
   letter-spacing: -1px;
 }
 
@@ -80,7 +80,7 @@
 
 .lgw-reel__summary {
   font-size: var(--font-size-base);
-  color: var(--th-text-muted);
+  color: var(--th-text-body);
   white-space: normal;
 }
 
@@ -91,11 +91,11 @@
   border-style: dashed;
   border-color: var(--th-border);
   background: transparent;
-  color: var(--th-text-muted);
+  color: var(--th-text-body);
 }
 
 .lgw-reel__box--idle .lgw-reel__label {
-  color: var(--th-text-muted);
+  color: var(--th-text-body);
 }
 
 .lgw-reel__box--ok {
@@ -160,7 +160,7 @@
 }
 
 .lgw-reel__detail-list dt {
-  color: var(--th-text-muted);
+  color: var(--th-text-body);
 }
 
 .lgw-reel__detail-list dd {

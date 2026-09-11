@@ -9,7 +9,7 @@
 
 .ba-intro {
   margin: 0;
-  color: var(--th-text-muted);
+  color: var(--th-text-body);
 }
 
 .ba-modes {
@@ -58,7 +58,7 @@
 
 .ba-mode__desc {
   grid-column: 2;
-  color: var(--th-text-muted);
+  color: var(--th-text-body);
 }
 
 .ba-controls {
@@ -143,7 +143,7 @@
 
 .ba-note {
   margin: 0;
-  color: var(--th-text-muted);
+  color: var(--th-text-body);
 }
 
 .ba-note code {

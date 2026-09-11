@@ -1041,13 +1041,13 @@ export default function LlmGatewayPage() {
             </p>
           ) : null}
         </section>
-
-        {/* The verdicts above are already visible in the response; this panel is
-            for the compliance mappings, which are not. It needs its own sign-in
-            (the door offers no client-credentials grant), so it loads on demand
-            rather than firing a request nobody asked for on every page view. */}
-        <GatewayVerdicts />
       </div>
+      {/* Full-width across the bottom, below the three panes. The verdicts above
+          are already visible in the response; this panel is for the compliance
+          mappings, which are not. It needs its own sign-in (the door offers no
+          client-credentials grant), so it loads on demand rather than firing a
+          request nobody asked for on every page view. */}
+      <GatewayVerdicts />
       <BlockAgreementModal isOpen={showBlockAgreement} onClose={() => setShowBlockAgreement(false)} />
     </div>
   );
