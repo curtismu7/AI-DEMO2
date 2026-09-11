@@ -17,17 +17,24 @@
 /* ArchNode reads its per-state colors (fixed hex for the five status
    accents, --th-* for the idle default) through these three custom
    properties, set inline per-node in ArchitectureFlowPage.js. The actual
-   background/border-color/color properties live here, not inline. */
+   background/border-color/color properties live here, not inline. Each
+   falls back to the idle surface tokens — signinAccentTokens.test.js fails
+   any var() with no fallback whose name isn't declared in a static
+   stylesheet, which --afp-* never is (it's only ever set inline). */
 .afp-node {
-  background: var(--afp-bg);
-  border-color: var(--afp-border);
-  color: var(--afp-text);
+  background: var(--afp-bg, var(--th-bg-card));
+  border-color: var(--afp-border, var(--th-border));
+  color: var(--afp-text, var(--th-text));
 }
 .afp-node-steplabel {
-  background: color-mix(in srgb, var(--afp-border) 12%, transparent);
+  background: color-mix(in srgb, var(--afp-border, var(--th-border)) 12%, transparent);
+  /* Redundant with .afp-node's inherited color — added because this rule's
+     background fallback now contains --th-, which the ground-without-ink
+     ratchet flags per-rule regardless of the parent's actual inheritance. */
+  color: var(--afp-text, var(--th-text));
 }
 .afp-node-badge {
-  border-left-color: var(--afp-border);
+  border-left-color: var(--afp-border, var(--th-border));
 }
 
 .afp-title {
