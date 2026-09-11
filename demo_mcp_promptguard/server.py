@@ -16,9 +16,11 @@ import os
 import http.server
 
 # Tunable at deploy time — the model, its benign label(s) and the block point all
-# vary by Prompt-Guard version, so none of them is hardcoded. Prompt-Guard-1 emits
-# BENIGN/INJECTION/JAILBREAK; Prompt-Guard-2 emits BENIGN/MALICIOUS (or LABEL_0/1).
-MODEL = os.environ.get("PROMPTGUARD_MODEL", "meta-llama/Llama-Prompt-Guard-2-86M")
+# vary by classifier, so none of them is hardcoded. Default is ProtectAI's public
+# deberta prompt-injection model (labels SAFE / INJECTION). Meta Prompt-Guard
+# (BENIGN/INJECTION/JAILBREAK, or Prompt-Guard-2's BENIGN/MALICIOUS) also works —
+# but it is a GATED model, so point PROMPTGUARD_MODEL at it and build with HF_TOKEN.
+MODEL = os.environ.get("PROMPTGUARD_MODEL", "protectai/deberta-v3-base-prompt-injection-v2")
 THRESHOLD = float(os.environ.get("PROMPTGUARD_THRESHOLD", "0.9"))
 BENIGN_LABELS = {
     s.strip().lower()

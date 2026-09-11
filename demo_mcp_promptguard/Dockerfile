@@ -7,11 +7,12 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Bake the weights into the image so the pod starts offline and fast. Prompt-Guard
-# is a GATED Meta model: accept its licence on huggingface.co, then build with
-# --build-arg HF_TOKEN=hf_xxx. HF_HOME must match at runtime so the cache is found.
+# Bake the weights into the image so the pod starts offline and fast. The default
+# model (ProtectAI deberta prompt-injection) is public — no token needed. To bake a
+# GATED model instead (e.g. Meta Prompt-Guard), accept its licence on huggingface.co
+# and pass --build-arg HF_TOKEN=hf_xxx. HF_HOME must match at runtime so the cache is found.
 ARG HF_TOKEN=""
-ARG PROMPTGUARD_MODEL=meta-llama/Llama-Prompt-Guard-2-86M
+ARG PROMPTGUARD_MODEL=protectai/deberta-v3-base-prompt-injection-v2
 ENV HF_HOME=/app/.hf PROMPTGUARD_MODEL=$PROMPTGUARD_MODEL
 COPY server.py ./
 RUN HF_TOKEN=$HF_TOKEN python -c "from transformers import pipeline; pipeline('text-classification', model='$PROMPTGUARD_MODEL')"

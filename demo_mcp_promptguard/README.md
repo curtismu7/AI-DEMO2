@@ -1,7 +1,9 @@
 # demo_mcp_promptguard — External ML guardrail sidecar
 
-An HTTP server that runs Meta Prompt-Guard as the **External Guardrail → ML
-Sidecar** for the PingOne Privilege AI Gateway. It runs as an `extraContainers`
+An HTTP server that runs a prompt-injection classifier as the **External Guardrail
+→ ML Sidecar** for the PingOne Privilege AI Gateway. Default model is ProtectAI's
+public `deberta-v3-base-prompt-injection-v2` (no HF token needed); Meta Prompt-Guard
+works too but is gated (see build note). It runs as an `extraContainers`
 sidecar in the `agentless-mcpgw` pod (port **8086**); the gateway reaches it over
 pod loopback at `http://localhost:8086/inspect`, exactly like the other sidecars.
 
@@ -29,22 +31,24 @@ category's block threshold makes the gateway block:
 
 | Var | Default | Note |
 |---|---|---|
-| `PROMPTGUARD_MODEL` | `meta-llama/Llama-Prompt-Guard-2-86M` | any Prompt-Guard text classifier |
+| `PROMPTGUARD_MODEL` | `protectai/deberta-v3-base-prompt-injection-v2` | any text-classification model |
 | `PROMPTGUARD_THRESHOLD` | `0.9` | non-benign score at/above this = finding |
 | `PROMPTGUARD_BENIGN_LABELS` | `benign,label_0,safe` | labels that never fire |
 | `PORT` | `8086` | 8080–8085 are taken by other sidecars |
 
-Model labels differ by version — Prompt-Guard-1 emits BENIGN/INJECTION/JAILBREAK,
-Prompt-Guard-2 emits BENIGN/MALICIOUS — so the benign set and threshold are the
-calibration knobs; tune them to the model you bake in.
+Labels differ by model — ProtectAI deberta emits SAFE/INJECTION, Meta Prompt-Guard-1
+BENIGN/INJECTION/JAILBREAK, Prompt-Guard-2 BENIGN/MALICIOUS — so the benign set and
+threshold are the calibration knobs; tune them to the model you bake in.
 
 ## Test / build
 
 ```bash
 python3 test_server.py            # mapping check, no model/torch needed
 
-# Prompt-Guard is GATED: accept its licence on huggingface.co first.
-docker buildx build --platform linux/arm64 --build-arg HF_TOKEN=hf_xxx \
+# Default model (ProtectAI) is public — no token. For a GATED model
+# (e.g. Meta Prompt-Guard) accept its licence on huggingface.co and add
+# --build-arg HF_TOKEN=hf_xxx --build-arg PROMPTGUARD_MODEL=meta-llama/Llama-Prompt-Guard-2-86M
+docker buildx build --platform linux/arm64 \
   --build-arg GIT_SHA=$(git rev-parse --short HEAD) \
   -t ghcr.io/curtismu7/ai-demo-mcp-promptguard:latest --push .
 ```
